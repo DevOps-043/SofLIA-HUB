@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(CSC_IDENTITY_AUTO_DISCOVERY=false npm run build:*)",
+      "Bash(npx electron-builder:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(curl:*)",
+      "Bash(ls -la \"C:\\\\Users\\\\fysg5\\\\AppData\\\\Local\\\\electron-builder\\\\Cache\\\\winCodeSign\"\" 2>&1 || echo \"Directory does not exist yet \")",
+      "Bash(npx vite:*)"
+    ]
+  }
+}
