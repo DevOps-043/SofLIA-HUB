@@ -9,7 +9,8 @@
       "Bash(npm uninstall:*)",
       "Bash(curl:*)",
       "Bash(ls -la \"C:\\\\Users\\\\fysg5\\\\AppData\\\\Local\\\\electron-builder\\\\Cache\\\\winCodeSign\"\" 2>&1 || echo \"Directory does not exist yet \")",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(ls:*)"
     ]
   }
 }
