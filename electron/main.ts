@@ -2,6 +2,9 @@
 import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, desktopCapturer, globalShortcut, screen } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import { registerComputerUseHandlers } from './computer-use-handlers'
+import { WhatsAppService } from './whatsapp-service'
+import { WhatsAppAgent } from './whatsapp-agent'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -21,6 +24,10 @@ let win: BrowserWindow | null
 let flowWin: BrowserWindow | null = null
 let tray: Tray | null
 let isQuitting = false
+
+// ─── WhatsApp ───────────────────────────────────────────────────────
+const waService = new WhatsAppService()
+let waAgent: WhatsAppAgent | null = null
 
 function createFlowWindow() {
   if (flowWin) {
@@ -71,7 +78,7 @@ function createFlowWindow() {
 
   // Handle permissions for microphone in the flow window
   flowWin.webContents.session.setPermissionRequestHandler((_webContents, permission, callback) => {
-    if (permission === 'audio-capture') {
+    if ((permission as string) === 'audio-capture') {
       return callback(true);
     }
     callback(false);
@@ -158,7 +165,7 @@ function createWindow() {
 
   // Handle permissions for microphone
   win.webContents.session.setPermissionRequestHandler((_webContents, permission, callback) => {
-    if (permission === 'audio-capture') {
+    if ((permission as string) === 'audio-capture') {
       return callback(true);
     }
     callback(false);
@@ -214,9 +221,80 @@ app.on('activate', () => {
   else if (win) { win.show(); win.focus() }
 })
 
-app.whenReady().then(() => {
+// ─── WhatsApp IPC Handlers ──────────────────────────────────────────
+ipcMain.handle('whatsapp:connect', async () => {
+  try {
+    await waService.connect()
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+})
+
+ipcMain.handle('whatsapp:disconnect', async () => {
+  try {
+    await waService.disconnect()
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+})
+
+ipcMain.handle('whatsapp:get-status', async () => {
+  return waService.getStatus()
+})
+
+ipcMain.handle('whatsapp:set-allowed-numbers', async (_, numbers: string[]) => {
+  try {
+    await waService.setAllowedNumbers(numbers)
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+})
+
+ipcMain.handle('whatsapp:set-api-key', async (_, apiKey: string) => {
+  if (waAgent) {
+    waAgent.updateApiKey(apiKey)
+  } else {
+    waAgent = new WhatsAppAgent(waService, apiKey)
+    waService.on('message', ({ jid, senderNumber, text }: any) => {
+      waAgent!.handleMessage(jid, senderNumber, text)
+    })
+  }
+  return { success: true }
+})
+
+app.whenReady().then(async () => {
+  registerComputerUseHandlers()
   createTray()
   createWindow()
+
+  // ─── WhatsApp init ────────────────────────────────────────────
+  await waService.init()
+
+  // Forward WhatsApp events to renderer
+  waService.on('qr', (qr: string) => {
+    win?.webContents.send('whatsapp:qr', qr)
+  })
+  waService.on('status', (status: any) => {
+    win?.webContents.send('whatsapp:status', status)
+  })
+  waService.on('connected', () => {
+    win?.webContents.send('whatsapp:status', waService.getStatus())
+  })
+  waService.on('disconnected', () => {
+    win?.webContents.send('whatsapp:status', waService.getStatus())
+  })
+
+  // Auto-connect if session exists
+  const shouldAuto = await waService.shouldAutoConnect()
+  if (shouldAuto) {
+    console.log('[WhatsApp] Auto-connecting...')
+    waService.connect().catch((err: any) => {
+      console.error('[WhatsApp] Auto-connect failed:', err.message)
+    })
+  }
 
   // Register Global Shortcut
   globalShortcut.register('CommandOrControl+M', () => {

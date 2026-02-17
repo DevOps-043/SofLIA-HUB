@@ -1,11 +1,36 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { sendMessageStream, optimizePrompt } from '../../services/gemini-chat';
+import { sendMessageStream, optimizePrompt, type ToolCallInfo } from '../../services/gemini-chat';
 import { generateImage } from '../../services/image-generation';
 import { ToolEditorModal } from '../../components/ToolEditorModal';
 import { ToolLibrary } from '../../components/ToolLibrary';
+import { ConfirmActionModal } from '../../components/ConfirmActionModal';
 import { LiveClient, AudioCapture } from '../../services/live-api';
+import { setConfirmationHandler } from '../../services/computer-use-service';
 import type { UserTool } from '../../services/tools-service';
 import type { ChatMessage } from '../../services/chat-service';
+import { buildIrisContext, needsIrisData } from '../../services/iris-data';
+
+const TOOL_DISPLAY_NAMES: Record<string, string> = {
+  list_directory: 'Listando archivos...',
+  read_file: 'Leyendo archivo...',
+  write_file: 'Escribiendo archivo...',
+  create_directory: 'Creando carpeta...',
+  move_item: 'Moviendo...',
+  copy_item: 'Copiando...',
+  delete_item: 'Eliminando...',
+  get_file_info: 'Obteniendo info...',
+  search_files: 'Buscando archivos...',
+  execute_command: 'Ejecutando comando...',
+  open_application: 'Abriendo aplicación...',
+  open_url: 'Abriendo URL...',
+  get_system_info: 'Info del sistema...',
+  clipboard_read: 'Leyendo portapapeles...',
+  clipboard_write: 'Copiando al portapapeles...',
+  take_screenshot: 'Capturando pantalla...',
+  get_email_config: 'Verificando email...',
+  configure_email: 'Configurando email...',
+  send_email: 'Enviando email...',
+};
 
 interface ChatUIProps {
   messages: ChatMessage[];
@@ -38,11 +63,27 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
   const [savePromptText, setSavePromptText] = useState<string>('');
   const [isLiveActive, setIsLiveActive] = useState(false);
   const [isLiveConnecting, setIsLiveConnecting] = useState(false);
+  const [activeToolCall, setActiveToolCall] = useState<ToolCallInfo | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{
+    toolName: string;
+    description: string;
+    resolve: (confirmed: boolean) => void;
+  } | null>(null);
   const liveClientRef = useRef<LiveClient | null>(null);
   const audioCaptureRef = useRef<AudioCapture | null>(null);
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Register custom confirmation handler for computer-use actions
+  useEffect(() => {
+    setConfirmationHandler((toolName: string, description: string) => {
+      return new Promise<boolean>((resolve) => {
+        setConfirmModal({ toolName, description, resolve });
+      });
+    });
+    return () => setConfirmationHandler(null);
+  }, []);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -415,12 +456,18 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
       const activeModel = MODEL_OPTIONS.find(m => m.id === preferredPrimaryModel);
       const thinkingOption = activeModel?.thinkingOptions.find((o: any) => o.id === thinkingMode);
 
+      const irisContext = needsIrisData(currentInput) ? await buildIrisContext() : undefined;
+
       const result = await sendMessageStream(currentInput, history, {
         model: preferredPrimaryModel,
         thinking: thinkingOption,
         personalization,
         images: currentImages.length > 0 ? currentImages : undefined,
         toolSystemPrompt: activeTool?.system_prompt,
+        irisContext,
+        onToolCall: (toolCall) => {
+          setActiveToolCall(toolCall);
+        },
       });
 
       let fullText = '';
@@ -453,6 +500,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
       );
     } finally {
       setIsLoading(false);
+      setActiveToolCall(null);
     }
   }, [input, isLoading, messages, onMessagesChange, preferredPrimaryModel, thinkingMode, personalization, selectedImages, isImageGenMode, isPromptOptimizerMode, optimizerTarget, activeTool, isLiveActive]);
 
@@ -643,7 +691,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                       </div>
                     )}
 
-                    {/* Sources */}
+                    {/* Sources / Grounding */}
                     {msg.sources && msg.sources.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-2">
                         {msg.sources.map((source, i) => (
@@ -652,13 +700,18 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                             href={source.uri}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2 py-1 text-[11px] bg-accent/10 text-accent rounded-md hover:bg-accent/20 transition-colors"
+                            className="group inline-flex items-center gap-2 px-3 py-1.5 text-[11px] font-bold bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400 rounded-full border border-gray-200 dark:border-white/5 hover:bg-accent/10 hover:border-accent/20 hover:text-accent transition-all no-underline"
+                            title={source.snippet || source.title}
                           >
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101" />
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M10.172 13.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.102 1.101" />
-                            </svg>
-                            {source.title || 'Source'}
+                            <div className="w-3.5 h-3.5 flex items-center justify-center opacity-70 group-hover:opacity-100 transition-opacity">
+                              <img 
+                                src={`https://www.google.com/s2/favicons?domain=${new URL(source.uri).hostname}&sz=32`} 
+                                className="w-full h-full object-contain"
+                                alt=""
+                                onError={(e) => (e.currentTarget.style.display = 'none')}
+                              />
+                            </div>
+                            <span className="truncate max-w-[140px]">{source.title || 'Source'}</span>
                           </a>
                         ))}
                       </div>
@@ -682,10 +735,28 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                 <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 rounded-full overflow-hidden">
                   <img src="/assets/lia-avatar.png" alt="SOFLIA" className="w-full h-full object-cover" />
                 </div>
-                <div className="flex items-center gap-1.5 pt-2">
-                  <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-                  <div className="w-2 h-2 bg-accent rounded-full animate-pulse [animation-delay:0.2s]" />
-                  <div className="w-2 h-2 bg-accent rounded-full animate-pulse [animation-delay:0.4s]" />
+                <div className="flex flex-col gap-2 pt-2">
+                  {activeToolCall && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-accent/10 border border-accent/20 rounded-xl animate-in fade-in duration-300">
+                      <div className="w-3.5 h-3.5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                      <span className="text-xs font-semibold text-accent">
+                        {TOOL_DISPLAY_NAMES[activeToolCall.name] || activeToolCall.name}
+                      </span>
+                      {activeToolCall.args?.path && (
+                        <span className="text-[10px] text-gray-400 truncate max-w-[200px]">{activeToolCall.args.path}</span>
+                      )}
+                      {activeToolCall.args?.command && (
+                        <span className="text-[10px] text-gray-400 truncate max-w-[200px] font-mono">{activeToolCall.args.command}</span>
+                      )}
+                    </div>
+                  )}
+                  {!activeToolCall && (
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
+                      <div className="w-2 h-2 bg-accent rounded-full animate-pulse [animation-delay:0.2s]" />
+                      <div className="w-2 h-2 bg-accent rounded-full animate-pulse [animation-delay:0.4s]" />
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -771,10 +842,10 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
           </div>
         )}
 
-        <div className="w-full max-w-3xl mx-auto bg-gray-50 dark:bg-card-dark rounded-2xl shadow-sm focus-within:ring-1 focus-within:ring-accent/20 transition-all flex items-end gap-2 p-1">
+        <div className="w-full max-w-3xl mx-auto bg-gray-50 dark:bg-card-dark rounded-2xl shadow-sm focus-within:ring-1 focus-within:ring-accent/20 transition-all flex items-center gap-2 p-1">
           
           {/* Tools Menu (Left) */}
-          <div className="relative pb-0.5">
+          <div className="relative">
             <button
               onClick={() => setIsToolsOpen(!isToolsOpen)}
               className={`p-1.5 rounded-full transition-all ${isToolsOpen ? 'bg-accent/20 text-accent' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/5'}`}
@@ -851,7 +922,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
           />
 
           {/* Right Actions (Mic / Send Unified) */}
-          <div className="flex items-center pb-0.5 pr-1">
+          <div className="flex items-center pr-1">
             {input.trim() ? (
               <button
                 onClick={handleSend}
@@ -933,6 +1004,21 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
           />
         </div>
       )}
+
+      {/* Computer Use Confirmation Modal */}
+      <ConfirmActionModal
+        isOpen={!!confirmModal}
+        toolName={confirmModal?.toolName || ''}
+        description={confirmModal?.description || ''}
+        onConfirm={() => {
+          confirmModal?.resolve(true);
+          setConfirmModal(null);
+        }}
+        onCancel={() => {
+          confirmModal?.resolve(false);
+          setConfirmModal(null);
+        }}
+      />
     </div>
   );
 };
@@ -1097,8 +1183,6 @@ const TableBlock: React.FC<{ rows: string[] }> = ({ rows }) => {
 
   // Header row
   const headerCells = rows[0].split('|').filter(c => c.trim() !== '').map(c => c.trim());
-  const alignRow = rows[1]; // Separator usually like |---|:---|
-  
   // Body rows
   const bodyRows = rows.slice(2).map(r => r.split('|').filter(c => c.trim() !== '').map(c => c.trim()));
 

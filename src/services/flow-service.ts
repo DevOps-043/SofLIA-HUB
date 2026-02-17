@@ -4,45 +4,54 @@ import { GOOGLE_API_KEY } from '../config';
 import { getApiKeyWithCache } from './api-keys';
 import { FLOW_REFINER_PROMPT } from '../prompts/flow';
 
-let genAI: GoogleGenerativeAI | null = null;
-let currentApiKey: string | null = null;
+export interface GroundingSource {
+  uri: string;
+  title: string;
+}
+
+export interface FlowResult {
+  text: string;
+  sources?: GroundingSource[];
+}
 
 async function getGenAI(): Promise<GoogleGenerativeAI> {
   const dbApiKey = await getApiKeyWithCache('google');
   const key = dbApiKey || GOOGLE_API_KEY || '';
-  
-  if (!genAI || currentApiKey !== key) {
-    genAI = new GoogleGenerativeAI(key);
-    currentApiKey = key;
-  }
-  return genAI;
+  return new GoogleGenerativeAI(key);
 }
 
-export async function refineFlowText(text: string): Promise<string> {
+export async function refineFlowText(text: string, base64Image?: string): Promise<FlowResult> {
   try {
     const ai = await getGenAI();
-    const model = ai.getGenerativeModel({ 
-      model: 'gemini-2.5-flash',
-      systemInstruction: FLOW_REFINER_PROMPT
-    });
+    // Usamos el modelo más estable del mercado para evitar errores de conexión
+    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    const result = await model.generateContent(text);
-    return result.response.text();
+    const parts: any[] = [`${FLOW_REFINER_PROMPT}\n\nPregunta del usuario: ${text}`];
+    
+    if (base64Image) {
+      parts.push({
+        inlineData: {
+          data: base64Image,
+          mimeType: "image/png"
+        }
+      });
+    }
+
+    const result = await model.generateContent(parts);
+    const responseText = result.response.text().trim();
+
+    return { text: responseText };
   } catch (error) {
-    console.error('Flow refinement error:', error);
-    return text;
+    console.error('Flow Service Error:', error);
+    return { text: "No pude procesar la inteligencia. Revisa tu conexión o intenta dictar de nuevo." };
   }
 }
 
-export async function refineFlowAudio(audioBlob: Blob): Promise<string> {
+export async function transcribeAudio(audioBlob: Blob): Promise<string> {
   try {
     const ai = await getGenAI();
-    const model = ai.getGenerativeModel({ 
-      model: 'gemini-2.5-flash',
-      systemInstruction: "Eres SofLIA. Tu tarea es transcribir el audio y luego refinar el texto para que sea claro, profesional y bien puntuado. Responde SOLO con el texto refinado."
-    });
-
-    // Convert blob to base64
+    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+    
     const reader = new FileReader();
     const base64Promise = new Promise<string>((resolve) => {
       reader.onloadend = () => {
@@ -53,20 +62,19 @@ export async function refineFlowAudio(audioBlob: Blob): Promise<string> {
     });
 
     const base64Data = await base64Promise;
-
     const result = await model.generateContent([
       {
         inlineData: {
           data: base64Data,
-          mimeType: 'audio/webm'
+          mimeType: audioBlob.type || 'audio/webm'
         }
       },
-      "Transcribe y refina este dictado."
+      "Transcribe el audio a texto. Idioma: ESPAÑOL. Solo el texto, sin comentarios extra."
     ]);
 
-    return result.response.text();
+    return result.response.text().trim();
   } catch (error) {
-    console.error('Flow audio processing error:', error);
+    console.error('Transcription error:', error);
     throw error;
   }
 }

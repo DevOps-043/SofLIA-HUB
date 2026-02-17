@@ -10,7 +10,13 @@
       "Bash(curl:*)",
       "Bash(ls -la \"C:\\\\Users\\\\fysg5\\\\AppData\\\\Local\\\\electron-builder\\\\Cache\\\\winCodeSign\"\" 2>&1 || echo \"Directory does not exist yet \")",
       "Bash(npx vite:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:www.digitalapplied.com)",
+      "WebFetch(domain:www.digitalocean.com)",
+      "WebFetch(domain:docs.openclaw.ai)",
+      "WebFetch(domain:ppaolo.substack.com)",
+      "WebFetch(domain:ai.google.dev)"
     ]
   }
 }

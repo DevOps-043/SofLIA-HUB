@@ -1,6 +1,7 @@
 /**
  * Live API Service - WebSocket bidirectional audio with Gemini
  * Desktop version: uses direct getUserMedia (no offscreen document needed)
+ * Synchronized with Extension version for feature parity
  */
 
 import { GOOGLE_API_KEY, LIVE_API_URL, MODELS } from '../config';
@@ -8,123 +9,178 @@ import { getApiKeyWithCache } from './api-keys';
 
 export interface LiveCallbacks {
   onTextResponse: (text: string) => void;
-  onAudioResponse: (audioData: string) => void;
+  onAudioResponse: (audioData: string) => void;  // base64 PCM audio
   onError: (error: Error) => void;
   onClose: () => void;
   onReady: () => void;
+  onGroundingMetadata?: (metadata: any) => void;
+  onFunctionCall?: (functionCall: { name: string; args: any }) => Promise<string>; // Execute function and return result
 }
 
 export class LiveClient {
   private ws: WebSocket | null = null;
   private callbacks: LiveCallbacks;
   private isConnected: boolean = false;
+  private isConnecting: boolean = false; // Prevent concurrent connection attempts
   private setupComplete: boolean = false;
   private audioContext: AudioContext | null = null;
   private audioQueue: AudioBuffer[] = [];
-  private nextPlayTime: number = 0;
-  private lastAudioTime: number = 0;
-  private audioResetInterval: number = 30000;
-  private sessionStartTime: number = 0;
-  private maxSessionDuration: number = 14 * 60 * 1000;
+  private nextPlayTime: number = 0;  // For seamless audio scheduling
+  private lastAudioTime: number = 0;  // Track last audio playback
+  private audioResetInterval: number = 30000;  // Reset audio context every 30 seconds of silence
+  private sessionStartTime: number = 0;  // Track session start for 15-min limit
+  private maxSessionDuration: number = 14 * 60 * 1000;  // 14 minutes (before 15-min limit)
   private sessionCheckInterval: ReturnType<typeof setInterval> | null = null;
-  private playedBuffersCount: number = 0;
+  private playedBuffersCount: number = 0;  // Track buffers to reset periodically
+  private retriedWithoutTools: boolean = false;  // Track if we already retried without tools
+  private isDisposed: boolean = false; // Track if the client was explicitly disconnected
 
   constructor(callbacks: LiveCallbacks) {
     this.callbacks = callbacks;
   }
 
+  // Reset audio context to prevent degradation
   private resetAudioContext() {
+    console.log("Live API: Resetting AudioContext to prevent degradation");
     if (this.audioContext) {
       this.audioContext.close().catch(() => {});
     }
     this.audioContext = new AudioContext({ sampleRate: 24000 });
     this.nextPlayTime = 0;
     this.playedBuffersCount = 0;
+    this.audioQueue = []; // Clear queue on reset
   }
 
+  // Check if audio context needs reset (only during silence, never during active speech)
   private checkAudioContextHealth() {
+    if (this.isDisposed) return;
     const now = Date.now();
+    // Only reset if there's been significant silence
     if (this.lastAudioTime > 0 && (now - this.lastAudioTime) > this.audioResetInterval) {
       this.playedBuffersCount = 0;
       this.resetAudioContext();
     }
   }
 
+  // Start session timeout checking
   private startSessionCheck() {
     if (this.sessionCheckInterval) clearInterval(this.sessionCheckInterval);
     this.sessionCheckInterval = setInterval(() => {
+      if (this.isDisposed) return;
       const elapsed = Date.now() - this.sessionStartTime;
       if (elapsed >= this.maxSessionDuration) {
+        console.log("Live API: Approaching 15-min session limit, auto-reconnecting...");
         this.autoReconnect();
       }
     }, 30000);
   }
 
+  // Auto-reconnect to avoid session timeout
   private async autoReconnect() {
-    if (this.sessionCheckInterval) {
-      clearInterval(this.sessionCheckInterval);
-      this.sessionCheckInterval = null;
-    }
-    if (this.ws) { this.ws.close(); this.ws = null; }
+    if (this.isDisposed) return;
+    this.disconnect(true); // Soft disconnect for reconnect
     await new Promise(resolve => setTimeout(resolve, 500));
     try {
+      this.isDisposed = false; // Allow reconnection
       await this.connect();
+      console.log("Live API: Auto-reconnect successful");
     } catch (error) {
-      this.callbacks.onError(new Error('Reconexión automática fallida'));
+      console.error("Live API: Auto-reconnect failed", error);
+      this.callbacks.onError(new Error("Reconexión automática fallida. Reintenta manualmente."));
     }
   }
 
   async connect(): Promise<void> {
+    if (this.isConnected || this.isConnecting) return;
+    this.isConnecting = true;
+    this.isDisposed = false;
+    
     let apiKey = await getApiKeyWithCache('google');
     if (!apiKey) apiKey = GOOGLE_API_KEY;
 
     return new Promise((resolve, reject) => {
       try {
-        if (!apiKey) { reject(new Error('API key de Google no configurada')); return; }
-        if (!LIVE_API_URL) { reject(new Error('URL de Live API no configurada')); return; }
+        if (!apiKey) {
+          this.isConnecting = false;
+          reject(new Error('API key de Google no configurada.'));
+          return;
+        }
+        if (!LIVE_API_URL) {
+          this.isConnecting = false;
+          reject(new Error('URL de Live API no configurada.'));
+          return;
+        }
 
         const url = `${LIVE_API_URL}?key=${apiKey}`;
+        console.log("Live API: Connecting to:", MODELS.LIVE);
+        
+        if (this.ws) this.ws.close();
         this.ws = new WebSocket(url);
 
         const timeout = setTimeout(() => {
-          if (!this.isConnected) { this.ws?.close(); reject(new Error('Tiempo de conexión agotado')); }
+          if (!this.isConnected) {
+            this.ws?.close();
+            reject(new Error('Tiempo de conexión agotado'));
+          }
         }, 15000);
 
         this.ws.onopen = () => {
           clearTimeout(timeout);
           this.isConnected = true;
+          this.isConnecting = false;
           this.sessionStartTime = Date.now();
           this.startSessionCheck();
+
+          // Build tools array
+          const tools: any[] = [];
+          if (!this.retriedWithoutTools) {
+            tools.push({ googleSearch: {} });
+          }
 
           const setupMessage: any = {
             setup: {
               model: `models/${MODELS.LIVE}`,
               generationConfig: {
-                responseModalities: ['AUDIO'],
+                responseModalities: ["AUDIO"],
                 speechConfig: {
                   voiceConfig: {
-                    prebuiltVoiceConfig: { voiceName: 'Aoede' }
+                    prebuiltVoiceConfig: { voiceName: "Aoede" }
                   }
                 }
               },
               systemInstruction: {
                 parts: [{
-                  text: 'Eres Lia, una asistente de productividad amigable y eficiente. Responde siempre en español de forma concisa y útil. Cuando el usuario pregunte sobre información actual, noticias, clima, eventos recientes o cualquier dato que requiera información actualizada, usa la herramienta de búsqueda de Google para obtener información precisa y actual.'
+                  text: `Eres Lia, la asistente de productividad e investigación de SofLIA Hub. 
+
+REGLAS OBLIGATORIAS:
+1. Responde SIEMPRE en ESPAÑOL. No uses inglés incluso si el usuario lo hace.
+2. Formato de respuesta PLANO:
+   USER_QUERY: [Resumen]
+   SOFLIA_RESPONSE: [Respuesta extensa en párrafos continuos]
+3. PROHIBIDO: No uses negritas (**), no uses encabezados (#), no uses listas.
+4. PROHIBIDO: No devuelvas tu plan de respuesta o pensamientos internos. Solo el resultado final.
+5. Usa Google Search si es necesario información actualizada.`
                 }]
-              },
-              tools: [{ googleSearch: {} }]
+              }
             }
           };
+
+          if (tools.length > 0) {
+            setupMessage.setup.tools = tools;
+          }
 
           this.send(setupMessage);
         };
 
         this.ws.onmessage = async (event) => {
+          if (this.isDisposed) return;
           try {
             let data: any;
             if (event.data instanceof Blob) {
               const text = await event.data.text();
-              try { data = JSON.parse(text); } catch {
+              try {
+                data = JSON.parse(text);
+              } catch {
                 const arrayBuffer = await event.data.arrayBuffer();
                 this.handleBinaryAudio(new Uint8Array(arrayBuffer));
                 return;
@@ -141,8 +197,8 @@ export class LiveClient {
             }
 
             if (data.error) {
-              const errorMessage = data.error.message || 'Error del servidor';
-              this.callbacks.onError(new Error(errorMessage));
+              console.error("Live API Error:", data.error);
+              this.callbacks.onError(new Error(data.error.message || 'Error de servidor'));
               return;
             }
 
@@ -150,25 +206,44 @@ export class LiveClient {
               this.processServerContent(data.serverContent);
             }
           } catch (e) {
-            console.error('Live API: Message processing error', e);
+            console.error("Live API Message processing error", e);
           }
         };
 
-        this.ws.onerror = () => {
+        this.ws.onerror = (ev) => {
           clearTimeout(timeout);
           this.isConnected = false;
+          this.isConnecting = false;
           const msg = !navigator.onLine ? 'Sin conexión a internet' : 'Error de conexión WebSocket';
-          this.callbacks.onError(new Error(msg));
+          console.error("Live API: WebSocket error", ev);
+          if (!this.isDisposed) {
+            this.callbacks.onError(new Error(msg));
+          }
           reject(new Error(msg));
         };
 
         this.ws.onclose = (event) => {
+          const wasSetupComplete = this.setupComplete;
           this.isConnected = false;
+          this.isConnecting = false;
           this.setupComplete = false;
+
+          if (this.isDisposed) return; // Ignore expected close
+
+          const reason = (event.reason || '').toLowerCase();
+          if (!wasSetupComplete && !this.retriedWithoutTools && (reason.includes('invalid') || reason.includes('argument'))) {
+            this.retriedWithoutTools = true;
+            this.connect().then(resolve).catch(reject);
+            return;
+          }
+
           let closeReason = event.reason || '';
           if (event.code === 1006) closeReason = 'Conexión cerrada inesperadamente.';
           else if (event.code === 1008) closeReason = 'API key sin acceso a Live API.';
-          if (closeReason) this.callbacks.onError(new Error(closeReason));
+          
+          if (closeReason && !wasSetupComplete) {
+            this.callbacks.onError(new Error(closeReason));
+          }
           this.callbacks.onClose();
         };
 
@@ -176,29 +251,70 @@ export class LiveClient {
           if (this.isConnected && !this.setupComplete) {
             this.setupComplete = true;
             this.callbacks.onReady();
+            this.isConnecting = false;
             resolve();
           }
         }, 3000);
 
       } catch (error) {
+        this.isConnecting = false;
         reject(error);
       }
     });
   }
 
-  private processServerContent(content: any) {
-    if (!content.modelTurn?.parts) return;
+  private async processServerContent(content: any) {
+    if (this.isDisposed || !content.modelTurn?.parts) return;
+    console.log("Live API: Received server content parts:", content.modelTurn.parts.length);
+    
     for (const part of content.modelTurn.parts) {
-      if (part.text) this.callbacks.onTextResponse(part.text);
+      if (part.text) {
+        console.log("Live API: Text response received:", part.text.substring(0, 50) + "...");
+        this.callbacks.onTextResponse(part.text);
+      }
       if (part.inlineData?.data) {
         this.callbacks.onAudioResponse(part.inlineData.data);
         this.playAudio(part.inlineData.data);
       }
+      if (part.functionCall) {
+        console.log("Live API: Tool call received:", part.functionCall.name);
+        await this.handleFunctionCall(part.functionCall);
+      }
+    }
+
+    // Extract grounding metadata if available in serverContent
+    if (content.modelTurn?.groundingMetadata) {
+      console.log("Live API: Grounding metadata received");
+      this.callbacks.onGroundingMetadata?.(content.modelTurn.groundingMetadata);
+    }
+  }
+
+  private async handleFunctionCall(functionCall: { name: string; args: any }) {
+    if (this.isDisposed || !this.callbacks.onFunctionCall) return;
+    try {
+      const result = await this.callbacks.onFunctionCall(functionCall);
+      this.send({
+        toolResponse: {
+          functionResponses: [{
+            name: functionCall.name,
+            response: { result }
+          }]
+        }
+      });
+    } catch (error: any) {
+      this.send({
+        toolResponse: {
+          functionResponses: [{
+            name: functionCall.name,
+            response: { error: error.message || "Failed" }
+          }]
+        }
+      });
     }
   }
 
   private handleBinaryAudio(bytes: Uint8Array) {
-    if (bytes.length < 100) return;
+    if (this.isDisposed || bytes.length < 100) return;
     let audioBytes = bytes;
     if (bytes.length % 2 !== 0) {
       audioBytes = new Uint8Array(bytes.length + 1);
@@ -208,6 +324,7 @@ export class LiveClient {
   }
 
   private async playRawAudio(bytes: Uint8Array) {
+    if (this.isDisposed) return;
     try {
       if (!this.audioContext) this.audioContext = new AudioContext({ sampleRate: 24000 });
       const pcmData = new Int16Array(bytes.buffer, bytes.byteOffset, bytes.length / 2);
@@ -217,12 +334,11 @@ export class LiveClient {
       audioBuffer.copyToChannel(floatData, 0);
       this.audioQueue.push(audioBuffer);
       this.playNextInQueue();
-    } catch (e) {
-      console.error('Live API: Raw audio playback error', e);
-    }
+    } catch (e) { console.error("Live API: Raw playback error", e); }
   }
 
   private async playAudio(base64Audio: string) {
+    if (this.isDisposed) return;
     try {
       if (!this.audioContext) this.audioContext = new AudioContext({ sampleRate: 24000 });
       const binaryString = atob(base64Audio);
@@ -241,13 +357,11 @@ export class LiveClient {
       audioBuffer.copyToChannel(floatData, 0);
       this.audioQueue.push(audioBuffer);
       this.playNextInQueue();
-    } catch (e) {
-      console.error('Live API: Audio playback error', e);
-    }
+    } catch (e) { console.error("Live API: Audio playback error", e); }
   }
 
   private playNextInQueue() {
-    if (this.audioQueue.length === 0) { this.checkAudioContextHealth(); return; }
+    if (this.isDisposed || this.audioQueue.length === 0) { this.checkAudioContextHealth(); return; }
     if (!this.audioContext) { this.audioContext = new AudioContext({ sampleRate: 24000 }); this.nextPlayTime = 0; }
     this.lastAudioTime = Date.now();
     while (this.audioQueue.length > 0) {
@@ -264,42 +378,74 @@ export class LiveClient {
   }
 
   send(data: any) {
-    if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(data));
+    if (!this.isDisposed && this.ws?.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(data));
+    }
   }
 
   sendAudioChunk(base64Audio: string) {
-    if (!this.isReady()) return;
+    if (this.isDisposed || !this.isReady()) return;
     this.send({
       realtimeInput: {
-        audio: { data: base64Audio, mimeType: 'audio/pcm;rate=16000' }
+        audio: {
+          data: base64Audio,
+          mimeType: "audio/pcm;rate=16000"
+        }
       }
     });
   }
 
   sendText(text: string) {
-    if (!this.isReady()) return;
+    if (this.isDisposed || !this.isReady()) return;
     this.send({
       clientContent: {
-        turns: [{ role: 'user', parts: [{ text }] }],
+        turns: [{ role: "user", parts: [{ text }] }],
         turnComplete: true
       }
     });
   }
 
-  isReady(): boolean {
-    return this.isConnected && this.ws?.readyState === WebSocket.OPEN && this.setupComplete;
+  endAudioTurn() {
+    if (this.isDisposed || !this.isReady()) return;
+    this.send({ clientContent: { turnComplete: true } });
   }
 
-  disconnect() {
+  isReady(): boolean {
+    return !this.isDisposed && this.isConnected && this.ws?.readyState === WebSocket.OPEN && this.setupComplete;
+  }
+
+  disconnect(soft: boolean = false) {
+    console.log(`Live API: Disconnecting (soft: ${soft})...`);
+    if (!soft) this.isDisposed = true;
+    
     this.isConnected = false;
+    this.isConnecting = false;
     this.setupComplete = false;
-    if (this.sessionCheckInterval) { clearInterval(this.sessionCheckInterval); this.sessionCheckInterval = null; }
-    if (this.audioContext) { this.audioContext.close(); this.audioContext = null; }
+    this.retriedWithoutTools = false;
+
+    if (this.sessionCheckInterval) {
+      clearInterval(this.sessionCheckInterval);
+      this.sessionCheckInterval = null;
+    }
+
+    if (this.audioContext) {
+      try {
+        this.audioContext.close();
+      } catch (e) {}
+      this.audioContext = null;
+    }
+
     this.audioQueue = [];
     this.nextPlayTime = 0;
     this.playedBuffersCount = 0;
     this.lastAudioTime = 0;
-    if (this.ws) { this.ws.close(); this.ws = null; }
+
+    if (this.ws) {
+      try {
+        this.ws.close();
+      } catch (e) {}
+      this.ws = null;
+    }
   }
 }
 
@@ -310,6 +456,7 @@ export class AudioCapture {
   private stream: MediaStream | null = null;
   private audioContext: AudioContext | null = null;
   private scriptProcessor: ScriptProcessorNode | null = null;
+  private analyser: AnalyserNode | null = null;
   private onAudioData: ((base64: string) => void) | null = null;
 
   async start(onAudioData: (base64: string) => void): Promise<void> {
@@ -323,20 +470,17 @@ export class AudioCapture {
       this.audioContext = new AudioContext({ sampleRate: 16000 });
       const source = this.audioContext.createMediaStreamSource(this.stream);
 
-      // Use ScriptProcessorNode for audio chunk processing (4096 samples per chunk)
       this.scriptProcessor = this.audioContext.createScriptProcessor(4096, 1, 1);
       this.scriptProcessor.onaudioprocess = (event) => {
         if (!this.onAudioData) return;
         const inputData = event.inputBuffer.getChannelData(0);
 
-        // Convert Float32 to Int16 PCM
         const pcmData = new Int16Array(inputData.length);
         for (let i = 0; i < inputData.length; i++) {
           const s = Math.max(-1, Math.min(1, inputData[i]));
           pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
         }
 
-        // Convert to base64
         const bytes = new Uint8Array(pcmData.buffer);
         let binary = '';
         for (let i = 0; i < bytes.length; i++) {
@@ -347,7 +491,11 @@ export class AudioCapture {
         this.onAudioData(base64);
       };
 
-      source.connect(this.scriptProcessor);
+      this.analyser = this.audioContext.createAnalyser();
+      this.analyser.fftSize = 256;
+
+      source.connect(this.analyser);
+      this.analyser.connect(this.scriptProcessor);
       this.scriptProcessor.connect(this.audioContext.destination);
 
     } catch (e: any) {
@@ -363,6 +511,10 @@ export class AudioCapture {
       this.scriptProcessor.disconnect();
       this.scriptProcessor = null;
     }
+    if (this.analyser) {
+      this.analyser.disconnect();
+      this.analyser = null;
+    }
     if (this.audioContext) {
       this.audioContext.close();
       this.audioContext = null;
@@ -372,5 +524,14 @@ export class AudioCapture {
       this.stream = null;
     }
     this.onAudioData = null;
+  }
+
+  getVolumeLevel(): number {
+    if (!this.analyser) return 0;
+    const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+    this.analyser.getByteFrequencyData(dataArray);
+    let sum = 0;
+    for (const value of dataArray) sum += value;
+    return sum / dataArray.length;
   }
 }

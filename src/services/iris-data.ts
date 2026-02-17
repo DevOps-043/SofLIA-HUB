@@ -18,14 +18,41 @@ import {
 // ==========================================
 
 export async function getTeams(): Promise<IrisTeam[]> {
-  if (!irisSupa || !isIrisConfigured()) return [];
-  const { data, error } = await irisSupa
-    .from('teams')
-    .select('*')
-    .eq('status', 'active')
-    .order('name');
-  if (error) { console.error('IRIS: getTeams error', error); return []; }
-  return data || [];
+  try {
+    if (!irisSupa || !isIrisConfigured()) {
+      console.warn('IRIS: getTeams skipped - Not configured');
+      return [];
+    }
+    
+    console.log('IRIS: Fetching teams...');
+    // First try active teams
+    const { data, error } = await irisSupa
+      .from('teams')
+      .select('*')
+      .eq('status', 'active')
+      .order('name');
+      
+    if (error) {
+      console.warn('IRIS: getTeams (active) error, trying all teams', error);
+      // Fallback: try all teams if active fails
+      const { data: allData, error: allErr } = await irisSupa
+        .from('teams')
+        .select('*')
+        .order('name');
+      if (allErr) {
+        console.error('IRIS: getTeams fatal error', allErr);
+        return [];
+      }
+      console.log(`IRIS: Loaded ${allData?.length || 0} teams (fallback)`);
+      return allData || [];
+    }
+    
+    console.log(`IRIS: Loaded ${data?.length || 0} active teams`);
+    return data || [];
+  } catch (err) {
+    console.error('IRIS: getTeams exception', err);
+    return [];
+  }
 }
 
 // ==========================================
@@ -33,16 +60,39 @@ export async function getTeams(): Promise<IrisTeam[]> {
 // ==========================================
 
 export async function getProjects(teamId?: string): Promise<IrisProject[]> {
-  if (!irisSupa || !isIrisConfigured()) return [];
-  let query = irisSupa
-    .from('pm_projects')
-    .select('*')
-    .is('archived_at', null)
-    .order('updated_at', { ascending: false });
-  if (teamId) query = query.eq('team_id', teamId);
-  const { data, error } = await query;
-  if (error) { console.error('IRIS: getProjects error', error); return []; }
-  return data || [];
+  try {
+    if (!irisSupa || !isIrisConfigured()) {
+      console.warn('IRIS: getProjects skipped - Not configured');
+      return [];
+    }
+    
+    console.log('IRIS: Fetching projects...', teamId ? `for team ${teamId}` : 'all');
+    let query = irisSupa
+      .from('pm_projects')
+      .select('*')
+      .order('updated_at', { ascending: false });
+      
+    if (teamId) query = query.eq('team_id', teamId);
+    
+    const { data, error } = await query;
+    if (error) { 
+      console.error('IRIS: getProjects error', error); 
+      return []; 
+    }
+    
+    console.log(`IRIS: Loaded ${data?.length || 0} projects`);
+    if (data && data.length > 0) {
+      console.log('IRIS: Project sample:', { 
+        id: data[0].project_id, 
+        name: data[0].project_name, 
+        team: data[0].team_id 
+      });
+    }
+    return (data || []) as IrisProject[];
+  } catch (err) {
+    console.error('IRIS: getProjects exception', err);
+    return [];
+  }
 }
 
 // ==========================================
@@ -54,20 +104,32 @@ export async function getIssues(filters?: {
   projectId?: string;
   limit?: number;
 }): Promise<IrisIssue[]> {
-  if (!irisSupa || !isIrisConfigured()) return [];
-  let query = irisSupa
-    .from('task_issues')
-    .select('*, status:task_statuses(*), priority:task_priorities(*)')
-    .is('archived_at', null)
-    .order('updated_at', { ascending: false });
+  try {
+    if (!irisSupa || !isIrisConfigured()) return [];
+    
+    console.log('IRIS: Fetching issues...', filters);
+    let query = irisSupa
+      .from('task_issues')
+      .select('*, status:task_statuses(*), priority:task_priorities(*)')
+      .is('archived_at', null)
+      .order('updated_at', { ascending: false });
 
-  if (filters?.teamId) query = query.eq('team_id', filters.teamId);
-  if (filters?.projectId) query = query.eq('project_id', filters.projectId);
-  query = query.limit(filters?.limit || 20);
+    if (filters?.teamId) query = query.eq('team_id', filters.teamId);
+    if (filters?.projectId) query = query.eq('project_id', filters.projectId);
+    query = query.limit(filters?.limit || 20);
 
-  const { data, error } = await query;
-  if (error) { console.error('IRIS: getIssues error', error); return []; }
-  return data || [];
+    const { data, error } = await query;
+    if (error) { 
+      console.error('IRIS: getIssues error', error); 
+      return []; 
+    }
+    
+    console.log(`IRIS: Loaded ${data?.length || 0} issues`);
+    return (data || []) as IrisIssue[];
+  } catch (err) {
+    console.error('IRIS: getIssues exception', err);
+    return [];
+  }
 }
 
 // ==========================================

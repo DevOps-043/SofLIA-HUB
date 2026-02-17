@@ -20,7 +20,11 @@ export default defineConfig({
                 'aws-sdk',
                 'nock',
                 'node-pre-gyp',
-                '@mapbox/node-pre-gyp'
+                '@mapbox/node-pre-gyp',
+                '@whiskeysockets/baileys',
+                'pino',
+                'qrcode',
+                'libsignal',
               ],
             },
           },
