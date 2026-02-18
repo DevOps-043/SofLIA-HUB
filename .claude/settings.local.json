@@ -17,7 +17,14 @@
       "WebFetch(domain:docs.openclaw.ai)",
       "WebFetch(domain:ppaolo.substack.com)",
       "WebFetch(domain:ai.google.dev)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:gist.github.com)",
+      "WebFetch(domain:milvus.io)",
+      "WebFetch(domain:composio.dev)",
+      "WebFetch(domain:www.philschmid.de)",
+      "Bash(powershell -Command:*)",
+      "Bash(powershell -File:*)"
     ]
   }
 }

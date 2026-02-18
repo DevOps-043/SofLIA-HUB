@@ -7,6 +7,9 @@ import { executeToolDirect } from './computer-use-handlers';
 import { app } from 'electron';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
+import { exec as execCb } from 'node:child_process';
+import { promisify } from 'node:util';
 import type { WhatsAppService } from './whatsapp-service';
 
 // ─── Tool definitions for WhatsApp (safe subset) ──────────────────
@@ -328,140 +331,83 @@ const pendingConfirmations = new Map<string, PendingConfirmation>();
 // ─── Model selection: prefer stable models for main process ─────────
 const WA_MODEL = 'gemini-2.5-flash';
 
-// ─── Smart file search — searches all common user locations ─────────
-import os from 'node:os';
-import fsSync from 'node:fs';
+// ─── Smart file search — uses PowerShell for reliable native search ──
+const execAsync = promisify(execCb);
 
-const SKIP_DIRS = new Set([
-  'node_modules', '.git', 'AppData', '$Recycle.Bin', 'dist', 'dist-electron',
-  '.cache', '.vscode', '.npm', '.nuget', 'Windows', 'Program Files',
-  'Program Files (x86)', 'ProgramData', '__pycache__', '.local',
-]);
-
-async function smartFindFile(filename: string): Promise<{ success: boolean; results: Array<{ name: string; path: string; size: string }>; searchedLocations: string[]; query: string }> {
-  const home = os.homedir();
+async function smartFindFile(filename: string): Promise<{ success: boolean; results: Array<{ name: string; path: string; size: string }>; query: string }> {
+  const home = os.homedir().replace(/\//g, '\\');
   const results: Array<{ name: string; path: string; size: string }> = [];
-  const searchedLocations: string[] = [];
 
-  // Normalize search: remove accents, split into words for fuzzy matching
-  const normalizeStr = (s: string) => s.toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove accents
-    .replace(/[_\-\.]/g, ' '); // treat separators as spaces
+  // Sanitize filename for PowerShell (remove special chars that could be injection)
+  const sanitized = filename.replace(/["`$;|&<>]/g, '').trim();
+  if (!sanitized) {
+    return { success: false, results: [], query: filename };
+  }
 
-  const normalizedQuery = normalizeStr(filename);
-  const queryWords = normalizedQuery.split(/\s+/).filter(w => w.length >= 2);
-
-  console.log(`[smart_find_file] Searching for: "${filename}" → words: [${queryWords.join(', ')}]`);
-
-  // ─── Dynamically discover ALL OneDrive directories ─────────
-  const locations: string[] = [];
+  console.log(`[smart_find_file] Searching for: "${sanitized}" in ${home}`);
 
   try {
-    const homeEntries = fsSync.readdirSync(home, { withFileTypes: true });
-    for (const entry of homeEntries) {
-      if (entry.isDirectory() && entry.name.toLowerCase().startsWith('onedrive')) {
-        const oneDriveRoot = path.join(home, entry.name);
-        // Add OneDrive subdirectories (Escritorio, Desktop, Documents, etc.)
-        try {
-          const odEntries = fsSync.readdirSync(oneDriveRoot, { withFileTypes: true });
-          for (const odEntry of odEntries) {
-            if (odEntry.isDirectory()) {
-              locations.push(path.join(oneDriveRoot, odEntry.name));
-            }
-          }
-        } catch { /* skip */ }
-        // Also add OneDrive root itself
-        locations.push(oneDriveRoot);
-      }
+    // Use PowerShell Get-ChildItem — it handles OneDrive, symlinks, junctions natively
+    // Search the entire user home with depth 7, filter by name, return first 20
+    const psCommand = `Get-ChildItem -Path "${home}" -Recurse -Depth 7 -ErrorAction SilentlyContinue -Force | Where-Object { -not $_.PSIsContainer -and $_.Name -like "*${sanitized}*" } | Select-Object -First 20 FullName, Length | ConvertTo-Json -Compress`;
+
+    const { stdout } = await execAsync(`powershell -NoProfile -Command "${psCommand}"`, {
+      timeout: 30000, // 30 second timeout
+      maxBuffer: 1024 * 1024,
+      windowsHide: true,
+    });
+
+    if (!stdout.trim()) {
+      console.log('[smart_find_file] No results from PowerShell');
+      return { success: true, results: [], query: filename };
     }
-  } catch { /* skip */ }
 
-  // Standard Windows paths
-  const standardPaths = [
-    path.join(home, 'Desktop'),
-    path.join(home, 'Escritorio'),
-    path.join(home, 'Documents'),
-    path.join(home, 'Documentos'),
-    path.join(home, 'Downloads'),
-    path.join(home, 'Descargas'),
-  ];
+    // Parse PowerShell JSON output
+    let parsed = JSON.parse(stdout.trim());
+    // PowerShell returns a single object if only 1 result, array if multiple
+    if (!Array.isArray(parsed)) parsed = [parsed];
 
-  for (const p of standardPaths) {
+    for (const item of parsed) {
+      const fullPath = item.FullName;
+      const bytes = item.Length || 0;
+      let size = '';
+      if (bytes < 1024) size = `${bytes} B`;
+      else if (bytes < 1024 * 1024) size = `${(bytes / 1024).toFixed(1)} KB`;
+      else size = `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+
+      results.push({
+        name: path.basename(fullPath),
+        path: fullPath,
+        size,
+      });
+      console.log(`[smart_find_file] Found: ${path.basename(fullPath)} → ${fullPath} (${size})`);
+    }
+  } catch (err: any) {
+    console.error('[smart_find_file] PowerShell error:', err.message);
+    // Fallback: try a simpler dir /s /b command
     try {
-      fsSync.accessSync(p);
-      if (!locations.includes(p)) locations.push(p);
-    } catch { /* skip */ }
-  }
-
-  // Home root last (shallow search)
-  if (!locations.includes(home)) locations.push(home);
-
-  console.log(`[smart_find_file] Searching in ${locations.length} locations: ${locations.map(l => path.basename(l)).join(', ')}`);
-
-  // ─── Matching function: fuzzy word-based matching ─────────
-  function matchesFile(entryName: string): boolean {
-    const normalized = normalizeStr(entryName);
-    // Exact substring match
-    if (normalized.includes(normalizedQuery)) return true;
-    // All query words must appear somewhere in the filename
-    if (queryWords.length > 1) {
-      return queryWords.every(word => normalized.includes(word));
-    }
-    // Single word: must be at least 3 chars and be in filename
-    if (queryWords.length === 1 && queryWords[0].length >= 3) {
-      return normalized.includes(queryWords[0]);
-    }
-    return false;
-  }
-
-  // ─── Recursive search ─────────────────────────────────────
-  const MAX_RESULTS = 20;
-  const MAX_DEPTH = 7;
-  const visited = new Set<string>();
-
-  async function walk(dir: string, depth: number) {
-    if (depth > MAX_DEPTH || results.length >= MAX_RESULTS) return;
-    // Avoid visiting same directory twice (OneDrive symlinks)
-    const realDir = fsSync.existsSync(dir) ? fsSync.realpathSync(dir) : dir;
-    if (visited.has(realDir)) return;
-    visited.add(realDir);
-
-    try {
-      const entries = await fs.readdir(dir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (results.length >= MAX_RESULTS) break;
-        if (entry.name.startsWith('.') || SKIP_DIRS.has(entry.name)) continue;
-
-        const fullPath = path.join(dir, entry.name);
-
-        if (matchesFile(entry.name)) {
-          let size = '';
-          try {
-            const stat = await fs.stat(fullPath);
-            const bytes = stat.size;
-            if (bytes < 1024) size = `${bytes} B`;
-            else if (bytes < 1024 * 1024) size = `${(bytes / 1024).toFixed(1)} KB`;
-            else size = `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-          } catch { /* skip */ }
-          results.push({ name: entry.name, path: fullPath, size });
-          console.log(`[smart_find_file] Found: ${entry.name} → ${fullPath}`);
-        }
-
-        if (entry.isDirectory()) {
-          await walk(fullPath, depth + 1);
-        }
+      const { stdout } = await execAsync(`dir /s /b "${home}\\*${sanitized}*"`, {
+        timeout: 20000,
+        maxBuffer: 1024 * 1024,
+        windowsHide: true,
+      });
+      const lines = stdout.trim().split('\n').filter(l => l.trim()).slice(0, 20);
+      for (const line of lines) {
+        const fullPath = line.trim();
+        results.push({
+          name: path.basename(fullPath),
+          path: fullPath,
+          size: '',
+        });
+        console.log(`[smart_find_file] Found (fallback): ${path.basename(fullPath)} → ${fullPath}`);
       }
-    } catch { /* skip inaccessible dirs */ }
-  }
-
-  for (const loc of locations) {
-    if (results.length >= MAX_RESULTS) break;
-    searchedLocations.push(loc);
-    await walk(loc, 0);
+    } catch {
+      console.error('[smart_find_file] Fallback dir also failed');
+    }
   }
 
   console.log(`[smart_find_file] Total results: ${results.length}`);
-  return { success: true, results, searchedLocations, query: filename };
+  return { success: true, results, query: filename };
 }
 
 // ─── Web tools implementation ───────────────────────────────────────
