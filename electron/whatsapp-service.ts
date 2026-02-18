@@ -11,6 +11,7 @@ import makeWASocket, {
   DisconnectReason,
   fetchLatestBaileysVersion,
   makeCacheableSignalKeyStore,
+  downloadMediaMessage,
   type WASocket,
 } from '@whiskeysockets/baileys';
 import pino from 'pino';
@@ -24,6 +25,7 @@ const CONFIG_PATH = path.join(app.getPath('userData'), 'whatsapp-config.json');
 interface WhatsAppConfig {
   allowedNumbers: string[];  // e.g. ['5215512345678']
   autoConnect: boolean;
+  apiKey?: string;
 }
 
 async function loadConfig(): Promise<WhatsAppConfig> {
@@ -150,6 +152,21 @@ export class WhatsAppService extends EventEmitter {
           continue;
         }
 
+        // Check for audio/voice note
+        const audioMsg = msg.message.audioMessage;
+        if (audioMsg) {
+          try {
+            const buffer = await downloadMediaMessage(msg, 'buffer', {}, {
+              logger,
+              reuploadRequest: this.sock!.updateMediaMessage,
+            });
+            this.emit('audio', { jid, senderNumber, buffer: buffer as Buffer, message: msg });
+          } catch (err) {
+            console.error('[WhatsApp] Error downloading audio:', err);
+          }
+          continue;
+        }
+
         // Extract text content
         const text =
           msg.message.conversation ||
@@ -260,6 +277,16 @@ export class WhatsAppService extends EventEmitter {
   async setAllowedNumbers(numbers: string[]): Promise<void> {
     this.config.allowedNumbers = numbers;
     await saveConfig(this.config);
+  }
+
+  async saveApiKey(apiKey: string): Promise<void> {
+    this.config.apiKey = apiKey;
+    await saveConfig(this.config);
+  }
+
+  async getSavedApiKey(): Promise<string | undefined> {
+    const config = await loadConfig();
+    return config.apiKey;
   }
 
   async shouldAutoConnect(): Promise<boolean> {

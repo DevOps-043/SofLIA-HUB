@@ -16,7 +16,8 @@
       "WebFetch(domain:www.digitalocean.com)",
       "WebFetch(domain:docs.openclaw.ai)",
       "WebFetch(domain:ppaolo.substack.com)",
-      "WebFetch(domain:ai.google.dev)"
+      "WebFetch(domain:ai.google.dev)",
+      "Bash(node:*)"
     ]
   }
 }

@@ -4,6 +4,7 @@
  */
 import { ipcMain, shell, clipboard, desktopCapturer, dialog, BrowserWindow, app } from 'electron';
 import fs from 'node:fs/promises';
+import fsSync from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { exec } from 'node:child_process';
@@ -13,7 +14,7 @@ import nodemailer from 'nodemailer';
 const MAX_FILE_READ_SIZE = 1 * 1024 * 1024; // 1 MB
 const COMMAND_TIMEOUT = 30_000; // 30 seconds
 const MAX_SEARCH_RESULTS = 200;
-const MAX_SEARCH_DEPTH = 5;
+const MAX_SEARCH_DEPTH = 8;
 
 const BLOCKED_COMMANDS = [
   'format', 'diskpart', 'cipher /w', 'sfc', 'bcdedit',
@@ -224,7 +225,7 @@ export async function executeToolDirect(
             const entries = await fs.readdir(dir, { withFileTypes: true });
             for (const entry of entries) {
               if (results.length >= MAX_SEARCH_RESULTS) break;
-              if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === '.git') continue;
+              if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === '.git' || entry.name === 'AppData' || entry.name === '$Recycle.Bin' || entry.name === 'dist' || entry.name === 'dist-electron') continue;
               const fullPath = path.join(dir, entry.name);
               if (entry.name.toLowerCase().includes(lowerPattern)) {
                 results.push({ name: entry.name, path: fullPath, isDirectory: entry.isDirectory() });
@@ -283,9 +284,28 @@ export async function executeToolDirect(
         const cpus = os.cpus();
         const totalMem = os.totalmem();
         const freeMem = os.freemem();
+        const home = os.homedir();
+        // Detect actual desktop path (OneDrive or standard)
+        const possibleDesktops = [
+          path.join(home, 'OneDrive', 'Escritorio'),
+          path.join(home, 'OneDrive', 'Desktop'),
+          path.join(home, 'Desktop'),
+          path.join(home, 'Escritorio'),
+        ];
+        let desktopPath = path.join(home, 'Desktop');
+        for (const dp of possibleDesktops) {
+          try {
+            fsSync.accessSync(dp);
+            desktopPath = dp;
+            break;
+          } catch { /* try next */ }
+        }
         return {
           success: true, platform: os.platform(), release: os.release(), arch: os.arch(),
-          hostname: os.hostname(), username: os.userInfo().username, homeDir: os.homedir(), tempDir: os.tmpdir(),
+          hostname: os.hostname(), username: os.userInfo().username, homeDir: home, tempDir: os.tmpdir(),
+          desktopPath,
+          documentsPath: path.join(home, 'Documents'),
+          downloadsPath: path.join(home, 'Downloads'),
           cpu: { model: cpus[0]?.model || 'Unknown', cores: cpus.length },
           memory: { total: formatBytes(totalMem), free: formatBytes(freeMem), used: formatBytes(totalMem - freeMem), usagePercent: Math.round(((totalMem - freeMem) / totalMem) * 100) },
           uptime: `${Math.floor(os.uptime() / 3600)}h ${Math.floor((os.uptime() % 3600) / 60)}m`,

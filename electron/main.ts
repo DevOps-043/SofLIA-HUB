@@ -253,15 +253,27 @@ ipcMain.handle('whatsapp:set-allowed-numbers', async (_, numbers: string[]) => {
   }
 })
 
-ipcMain.handle('whatsapp:set-api-key', async (_, apiKey: string) => {
+function initWhatsAppAgent(apiKey: string) {
   if (waAgent) {
     waAgent.updateApiKey(apiKey)
   } else {
     waAgent = new WhatsAppAgent(waService, apiKey)
     waService.on('message', ({ jid, senderNumber, text }: any) => {
+      console.log(`[WhatsApp] Message from ${senderNumber}: ${text.slice(0, 50)}`)
       waAgent!.handleMessage(jid, senderNumber, text)
     })
+    waService.on('audio', ({ jid, senderNumber, buffer }: any) => {
+      console.log(`[WhatsApp] Audio from ${senderNumber} (${buffer.length} bytes)`)
+      waAgent!.handleAudio(jid, senderNumber, buffer)
+    })
+    console.log('[WhatsApp] Agent initialized with API key')
   }
+}
+
+ipcMain.handle('whatsapp:set-api-key', async (_, apiKey: string) => {
+  initWhatsAppAgent(apiKey)
+  // Persist the key so it works on auto-connect next time
+  await waService.saveApiKey(apiKey)
   return { success: true }
 })
 
@@ -290,6 +302,14 @@ app.whenReady().then(async () => {
   // Auto-connect if session exists
   const shouldAuto = await waService.shouldAutoConnect()
   if (shouldAuto) {
+    // Initialize agent with saved API key before connecting
+    const savedKey = await waService.getSavedApiKey()
+    if (savedKey) {
+      initWhatsAppAgent(savedKey)
+    } else {
+      console.log('[WhatsApp] No saved API key — agent will not process messages until key is set from UI')
+    }
+
     console.log('[WhatsApp] Auto-connecting...')
     waService.connect().catch((err: any) => {
       console.error('[WhatsApp] Auto-connect failed:', err.message)
