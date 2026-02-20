@@ -55,15 +55,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               });
 
               const profile = await sofiaAuth.fetchSofiaUserProfile(sofiaSession.user.id);
-              if (profile) {
+              
+              const activeMemberships = profile?.memberships?.filter((m: any) => m.status === 'active') || [];
+              const activeOrgs = profile?.organizations?.filter((o: any) => 
+                activeMemberships.some((m: any) => m.organization_id === o.id)
+              ) || [];
+
+              if (activeMemberships.length > 0) {
                 setSofiaContext({
                   user: profile,
-                  currentOrganization: profile.organizations?.[0] || null,
-                  currentTeam: profile.teams?.[0] || null,
-                  organizations: profile.organizations || [],
-                  teams: profile.teams || [],
-                  memberships: profile.memberships || []
+                  currentOrganization: activeOrgs[0] || null,
+                  currentTeam: profile?.teams?.[0] || null,
+                  organizations: activeOrgs,
+                  teams: profile?.teams || [],
+                  memberships: activeMemberships
                 });
+              } else {
+                console.warn('Usuario sin membresias activas, cerrando sesion...');
+                await signOut();
               }
             } else {
               // SOFIA session exists but no Lia session - use SOFIA user directly
@@ -74,15 +83,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               });
 
               const profile = await sofiaAuth.fetchSofiaUserProfile(sofiaSession.user.id);
-              if (profile) {
+
+              const activeMemberships = profile?.memberships?.filter((m: any) => m.status === 'active') || [];
+              const activeOrgs = profile?.organizations?.filter((o: any) => 
+                activeMemberships.some((m: any) => m.organization_id === o.id)
+              ) || [];
+
+              if (activeMemberships.length > 0) {
                 setSofiaContext({
                   user: profile,
-                  currentOrganization: profile.organizations?.[0] || null,
-                  currentTeam: profile.teams?.[0] || null,
-                  organizations: profile.organizations || [],
-                  teams: profile.teams || [],
-                  memberships: profile.memberships || []
+                  currentOrganization: activeOrgs[0] || null,
+                  currentTeam: profile?.teams?.[0] || null,
+                  organizations: activeOrgs,
+                  teams: profile?.teams || [],
+                  memberships: activeMemberships
                 });
+              } else {
+                console.warn('Usuario sin membresias activas (sin Lia session), cerrando sesion...');
+                await signOut();
               }
             }
           }
@@ -125,15 +143,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setUser(principalUser);
 
             const profile = await sofiaAuth.fetchSofiaUserProfile(sofiaSession.user.id);
-            if (profile) {
+            
+            const activeMemberships = profile?.memberships?.filter((m: any) => m.status === 'active') || [];
+            const activeOrgs = profile?.organizations?.filter((o: any) => 
+               activeMemberships.some((m: any) => m.organization_id === o.id)
+            ) || [];
+
+            if (activeMemberships.length > 0) {
               setSofiaContext({
                 user: profile,
-                currentOrganization: profile.organizations?.[0] || null,
-                currentTeam: profile.teams?.[0] || null,
-                organizations: profile.organizations || [],
-                teams: profile.teams || [],
-                memberships: profile.memberships || []
+                currentOrganization: activeOrgs[0] || null,
+                currentTeam: profile?.teams?.[0] || null,
+                organizations: activeOrgs,
+                teams: profile?.teams || [],
+                memberships: activeMemberships
               });
+            } else {
+              console.warn('Auth state changed: Usuario suspendido o sin membresias.');
+              await signOut();
             }
           } else {
             setSession(null);

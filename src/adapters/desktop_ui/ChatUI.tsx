@@ -382,51 +382,57 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
     setIsToolEditorOpen(true);
   };
 
-  const handleSend = useCallback(async () => {
-    if (!input.trim() || isLoading) return;
-
-    // If Live API is active, send text through WebSocket instead
-    if (isLiveActive && liveClientRef.current) {
-      const userMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'user',
-        text: input.trim(),
-        timestamp: Date.now(),
-      };
-      onMessagesChange([...messages, userMsg]);
-      liveClientRef.current.sendText(input.trim());
-      setInput('');
-      return;
-    }
-
-    const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      text: input.trim(),
-      timestamp: Date.now(),
-      images: selectedImages.length > 0 ? [...selectedImages] : undefined,
-    };
-
-    const aiMessageId = crypto.randomUUID();
-    const aiPlaceholder: ChatMessage = {
-      id: aiMessageId,
-      role: 'model',
-      text: '',
-      timestamp: Date.now(),
-    };
-
-    const updatedMessages = [...messages, userMessage, aiPlaceholder];
-    onMessagesChange(updatedMessages);
-    const currentInput = input.trim();
-    const currentImages = [...selectedImages];
-    setInput('');
-    setSelectedImages([]);
+  const processMessage = async (
+    text: string,
+    images: string[],
+    currentHistory: ChatMessage[],
+    isRegeneration: boolean = false
+  ) => {
     setIsLoading(true);
 
+    // If regeneration, we assume the user message is already in history (last item)
+    // If normal send, we need to append user message and placeholder
+    
+    let updatedMessages = [...currentHistory];
+    
+    // Normal Send: Add user message and placeholder
+    let aiMessageId = crypto.randomUUID();
+    
+    if (!isRegeneration) {
+      const userMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        text: text,
+        timestamp: Date.now(),
+        images: images.length > 0 ? [...images] : undefined,
+      };
+      
+      const aiPlaceholder: ChatMessage = {
+        id: aiMessageId,
+        role: 'model',
+        text: '',
+        timestamp: Date.now(),
+      };
+      
+      updatedMessages = [...currentHistory, userMessage, aiPlaceholder];
+      onMessagesChange(updatedMessages);
+    } else {
+       // Regeneration: Add placeholder only
+       // (User message should already be at the end of currentHistory)
+       const aiPlaceholder: ChatMessage = {
+        id: aiMessageId,
+        role: 'model',
+        text: '',
+        timestamp: Date.now(),
+      };
+      updatedMessages = [...currentHistory, aiPlaceholder];
+      onMessagesChange(updatedMessages);
+    }
+    
     try {
       // === PROMPT OPTIMIZER MODE ===
       if (isPromptOptimizerMode) {
-        const optimized = await optimizePrompt(currentInput, optimizerTarget);
+        const optimized = await optimizePrompt(text, optimizerTarget);
         onMessagesChange(
           updatedMessages.map(msg =>
             msg.id === aiMessageId ? { ...msg, text: optimized } : msg
@@ -437,32 +443,39 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
 
       // === IMAGE GENERATION MODE ===
       if (isImageGenMode) {
-        const result = await generateImage(currentInput);
-        const images = result.imageData ? [result.imageData] : undefined;
+        const result = await generateImage(text);
+        const resultImages = result.imageData ? [result.imageData] : undefined;
         onMessagesChange(
           updatedMessages.map(msg =>
-            msg.id === aiMessageId ? { ...msg, text: result.text, images } : msg
+            msg.id === aiMessageId ? { ...msg, text: result.text, images: resultImages } : msg
           )
         );
         return;
       }
 
       // === NORMAL CHAT (with optional attached images) ===
-      const history = [...messages, userMessage].map(m => ({
-        role: m.role,
-        text: m.text,
-      }));
+      // Prepare history for API (exclude the placeholder we just added)
+      // Gemini expects { role, text }
+      // We need to make sure we don't send the empty placeholder or duplicate user messages
+      
+      // Filter out the placeholder we just added for the API call
+      const cleanHistory = updatedMessages
+        .filter(m => m.id !== aiMessageId)
+        .map(m => ({
+          role: m.role,
+          text: m.text,
+        }));
 
       const activeModel = MODEL_OPTIONS.find(m => m.id === preferredPrimaryModel);
       const thinkingOption = activeModel?.thinkingOptions.find((o: any) => o.id === thinkingMode);
 
-      const irisContext = needsIrisData(currentInput) ? await buildIrisContext() : undefined;
+      const irisContext = needsIrisData(text) ? await buildIrisContext() : undefined;
 
-      const result = await sendMessageStream(currentInput, history, {
+      const result = await sendMessageStream(text, cleanHistory, {
         model: preferredPrimaryModel,
         thinking: thinkingOption,
         personalization,
-        images: currentImages.length > 0 ? currentImages : undefined,
+        images: images.length > 0 ? images : undefined,
         toolSystemPrompt: activeTool?.system_prompt,
         irisContext,
         onToolCall: (toolCall) => {
@@ -502,7 +515,83 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
       setIsLoading(false);
       setActiveToolCall(null);
     }
+  };
+
+  const handleSend = useCallback(async () => {
+    if (!input.trim() || isLoading) return;
+
+    // If Live API is active, send text through WebSocket instead
+    if (isLiveActive && liveClientRef.current) {
+      const userMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        text: input.trim(),
+        timestamp: Date.now(),
+      };
+      onMessagesChange([...messages, userMsg]);
+      liveClientRef.current.sendText(input.trim());
+      setInput('');
+      return;
+    }
+
+    const text = input.trim();
+    const images = [...selectedImages];
+    const history = [...messages];
+    
+    setInput('');
+    setSelectedImages([]);
+    
+    await processMessage(text, images, history, false);
+
   }, [input, isLoading, messages, onMessagesChange, preferredPrimaryModel, thinkingMode, personalization, selectedImages, isImageGenMode, isPromptOptimizerMode, optimizerTarget, activeTool, isLiveActive]);
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  const handleFeedback = (index: number, type: 'like' | 'dislike') => {
+    const updated = messages.map((msg, i) => {
+      if (i === index) {
+        return { 
+          ...msg, 
+          feedback: msg.feedback === type ? undefined : type 
+        };
+      }
+      return msg;
+    });
+    onMessagesChange(updated);
+  };
+
+  const handleRegenerate = async (index: number) => {
+    if (isLoading) return;
+
+    // Find the user message preceding this assistant message
+    const historyUpToNow = messages.slice(0, index);
+    const lastUserMsgIndex = historyUpToNow.map(m => m.role).lastIndexOf('user');
+    
+    if (lastUserMsgIndex !== -1) {
+       const userMsg = historyUpToNow[lastUserMsgIndex];
+       
+       // Keep history UP TO the user message (inclusive)
+       const newHistory = messages.slice(0, lastUserMsgIndex + 1);
+       
+       // Update UI to remove old response
+       onMessagesChange(newHistory);
+       
+       // Trigger processMessage with isRegeneration=true
+       // Note: userMsg.images are already in the history item, 
+       // but processMessage expects separate images arg for the 'current turn'.
+       // However, since we set isRegeneration=true, processMessage relies on history for context.
+       // EXCEPT: The underlying `sendMessageStream` might expect the prompt text and images separately if it's the 'active' prompt.
+       // In `processMessage` above:
+       //   const cleanHistory = updatedMessages... (includes the user message)
+       //   sendMessageStream(text, cleanHistory...)
+       // So it should work fine, as the last message in `cleanHistory` is the user prompt.
+       
+       // We pass userMsg.images just in case logic needs it, though strictly for chat history it's embedded.
+       await processMessage(userMsg.text, userMsg.images || [], newHistory, true);
+    }
+  };
 
   const currentModel = MODEL_OPTIONS.find(m => m.id === preferredPrimaryModel);
   const currentThinkingOption = currentModel?.thinkingOptions.find((o: any) => o.id === thinkingMode);
@@ -714,6 +803,51 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                             <span className="truncate max-w-[140px]">{source.title || 'Source'}</span>
                           </a>
                         ))}
+                      </div>
+                    )}
+
+                    {/* Message Actions (ChatGPT Style) */}
+                    {msg.role === 'model' && (
+                      <div className="flex gap-0.5 mt-1.5 select-none">
+                        <button 
+                          className="w-6 h-6 flex items-center justify-center rounded text-[#c5c5d2] hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-200 transition-all"
+                          title="Copiar texto" 
+                          onClick={() => handleCopy(msg.text)}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                        </button>
+                        
+                        <button 
+                          className="w-6 h-6 flex items-center justify-center rounded text-[#c5c5d2] hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-200 transition-all"
+                          title="Regenerar respuesta" 
+                          onClick={() => handleRegenerate(index)}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 1 8.51 15"></path></svg>
+                        </button>
+                        
+                        <button 
+                          className={`w-6 h-6 flex items-center justify-center rounded transition-all ${
+                            msg.feedback === 'like' 
+                              ? 'text-[#8ab4f8]' 
+                              : 'text-[#c5c5d2] hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-200'
+                          }`}
+                          title="Me gusta" 
+                          onClick={() => handleFeedback(index, 'like')}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
+                        </button>
+                        
+                        <button 
+                          className={`w-6 h-6 flex items-center justify-center rounded transition-all ${
+                            msg.feedback === 'dislike' 
+                              ? 'text-[#e57373]' 
+                              : 'text-[#c5c5d2] hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-200'
+                          }`}
+                          title="No me gusta" 
+                          onClick={() => handleFeedback(index, 'dislike')}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.31 2.31H17"></path></svg>
+                        </button>
                       </div>
                     )}
                   </div>

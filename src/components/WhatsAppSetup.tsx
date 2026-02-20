@@ -5,8 +5,19 @@ declare global {
     whatsApp?: {
       connect: () => Promise<any>;
       disconnect: () => Promise<any>;
-      getStatus: () => Promise<{ connected: boolean; phoneNumber: string | null; qr: string | null; allowedNumbers: string[] }>;
+      getStatus: () => Promise<{
+        connected: boolean;
+        phoneNumber: string | null;
+        qr: string | null;
+        allowedNumbers: string[];
+        groupPolicy: 'open' | 'allowlist' | 'disabled';
+        groupActivation: 'mention' | 'always';
+        groupPrefix: string;
+        allowedGroups: string[];
+        groupAllowFrom: string[];
+      }>;
       setAllowedNumbers: (numbers: string[]) => Promise<any>;
+      setGroupConfig: (config: any) => Promise<any>;
       setApiKey: (apiKey: string) => Promise<any>;
       onQR: (cb: (qr: string) => void) => void;
       onStatusChange: (cb: (status: any) => void) => void;
@@ -27,7 +38,22 @@ export function WhatsAppSetup({ isOpen, onClose, apiKey }: WhatsAppSetupProps) {
     phoneNumber: string | null;
     qr: string | null;
     allowedNumbers: string[];
-  }>({ connected: false, phoneNumber: null, qr: null, allowedNumbers: [] });
+    groupPolicy: 'open' | 'allowlist' | 'disabled';
+    groupActivation: 'mention' | 'always';
+    groupPrefix: string;
+    allowedGroups: string[];
+    groupAllowFrom: string[];
+  }>({
+    connected: false,
+    phoneNumber: null,
+    qr: null,
+    allowedNumbers: [],
+    groupPolicy: 'open',
+    groupActivation: 'mention',
+    groupPrefix: '/soflia',
+    allowedGroups: [],
+    groupAllowFrom: [],
+  });
 
   const [connecting, setConnecting] = useState(false);
   const [numberInput, setNumberInput] = useState('');
@@ -91,8 +117,13 @@ export function WhatsAppSetup({ isOpen, onClose, apiKey }: WhatsAppSetupProps) {
   const handleDisconnect = useCallback(async () => {
     if (!window.whatsApp) return;
     await window.whatsApp.disconnect();
-    setStatus({ connected: false, phoneNumber: null, qr: null, allowedNumbers: status.allowedNumbers });
-  }, [status.allowedNumbers]);
+    setStatus(prev => ({
+      ...prev,
+      connected: false,
+      phoneNumber: null,
+      qr: null,
+    }));
+  }, []);
 
   const handleAddNumber = useCallback(async () => {
     if (!window.whatsApp || !numberInput.trim()) return;
@@ -115,6 +146,29 @@ export function WhatsAppSetup({ isOpen, onClose, apiKey }: WhatsAppSetupProps) {
     setStatus(prev => ({ ...prev, allowedNumbers: updated }));
   }, [status.allowedNumbers]);
 
+  const handleUpdateGroupConfig = useCallback(async (updates: any) => {
+    if (!window.whatsApp) return;
+    const result = await window.whatsApp.setGroupConfig(updates);
+    if (result.success) {
+      setStatus(prev => ({ ...prev, ...updates }));
+    } else {
+      setError(result.error || 'Error al actualizar configuración');
+    }
+  }, []);
+
+  const [groupInput, setGroupInput] = useState('');
+  const handleAddGroup = useCallback(async () => {
+    if (!window.whatsApp || !groupInput.trim()) return;
+    const updated = [...status.allowedGroups, groupInput.trim()];
+    await handleUpdateGroupConfig({ allowedGroups: updated });
+    setGroupInput('');
+  }, [groupInput, status.allowedGroups, handleUpdateGroupConfig]);
+
+  const handleRemoveGroup = useCallback(async (jid: string) => {
+    const updated = status.allowedGroups.filter(g => g !== jid);
+    await handleUpdateGroupConfig({ allowedGroups: updated });
+  }, [status.allowedGroups, handleUpdateGroupConfig]);
+
   if (!isOpen) return null;
 
   const isAvailable = !!window.whatsApp;
@@ -124,7 +178,7 @@ export function WhatsAppSetup({ isOpen, onClose, apiKey }: WhatsAppSetupProps) {
       <div className="bg-white dark:bg-[#1E1F23] rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden border border-gray-200 dark:border-white/10">
 
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-100 dark:border-white/10 flex items-center justify-between bg-gradient-to-r from-green-500/10 to-transparent">
+        <div className="px-6 py-4 border-b border-gray-100 dark:border-white/10 flex items-center justify-between bg-linear-to-r from-green-500/10 to-transparent">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-green-500/15 flex items-center justify-center">
               <svg className="w-6 h-6 text-green-500" viewBox="0 0 24 24" fill="currentColor">
@@ -267,6 +321,122 @@ export function WhatsAppSetup({ isOpen, onClose, apiKey }: WhatsAppSetupProps) {
                   <p className="text-xs text-amber-500 dark:text-amber-400 bg-amber-500/10 px-3 py-2 rounded-lg border border-amber-500/20">
                     Sin restricciones — cualquier número puede interactuar con SofLIA
                   </p>
+                )}
+              </div>
+
+              {/* Group Configuration — NEW */}
+              <div className="pt-4 border-t border-gray-100 dark:border-white/10 space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold text-gray-900 dark:text-white">
+                    Soporte para Grupos
+                  </label>
+                  <select
+                    value={status.groupPolicy}
+                    onChange={(e) => handleUpdateGroupConfig({ groupPolicy: e.target.value })}
+                    className="text-xs bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-green-500"
+                  >
+                    <option value="open">Habilitado</option>
+                    <option value="allowlist">Solo Whitelist</option>
+                    <option value="disabled">Deshabilitado</option>
+                  </select>
+                </div>
+
+                {status.groupPolicy !== 'disabled' && (
+                  <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                    {/* Activation Mode */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Modo de Activación
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => handleUpdateGroupConfig({ groupActivation: 'mention' })}
+                          className={`px-3 py-2 rounded-xl text-xs font-medium transition-all border ${
+                            status.groupActivation === 'mention'
+                              ? 'bg-green-500/10 border-green-500 text-green-600 dark:text-green-400'
+                              : 'bg-transparent border-gray-200 dark:border-white/10 text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5'
+                          }`}
+                        >
+                          Mención (@SofLIA)
+                        </button>
+                        <button
+                          onClick={() => handleUpdateGroupConfig({ groupActivation: 'always' })}
+                          className={`px-3 py-2 rounded-xl text-xs font-medium transition-all border ${
+                            status.groupActivation === 'always'
+                              ? 'bg-green-500/10 border-green-500 text-green-600 dark:text-green-400'
+                              : 'bg-transparent border-gray-200 dark:border-white/10 text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5'
+                          }`}
+                        >
+                          Siempre Activo
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-gray-400 mt-1 italic">
+                        {status.groupActivation === 'mention'
+                          ? 'Responde cuando lo mencionan, usan el prefijo o hacen reply.'
+                          : 'Responde a cada mensaje enviado en el grupo.'}
+                      </p>
+                    </div>
+
+                    {/* Prefix */}
+                    <div className="space-y-2">
+                      <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Prefijo de Comando
+                      </label>
+                      <input
+                        type="text"
+                        value={status.groupPrefix}
+                        onChange={(e) => setStatus(prev => ({ ...prev, groupPrefix: e.target.value }))}
+                        onBlur={(e) => handleUpdateGroupConfig({ groupPrefix: e.target.value })}
+                        placeholder="/soflia"
+                        className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-sm font-mono placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/40"
+                      />
+                    </div>
+
+                    {/* Group Allowlist */}
+                    {status.groupPolicy === 'allowlist' && (
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                          Grupos permitidos (JIDs)
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={groupInput}
+                            onChange={(e) => setGroupInput(e.target.value)}
+                            placeholder="Ej: 1203630248... @g.us"
+                            className="flex-1 px-3 py-2 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-xs font-mono placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/40"
+                            onKeyDown={(e) => e.key === 'Enter' && handleAddGroup()}
+                          />
+                          <button
+                            onClick={handleAddGroup}
+                            className="px-3 py-2 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 text-gray-700 dark:text-gray-300 rounded-lg text-xs font-medium transition-colors"
+                          >
+                            Add
+                          </button>
+                        </div>
+                        <div className="space-y-1 max-h-32 overflow-y-auto pr-1">
+                          {status.allowedGroups.map((jid) => (
+                            <div key={jid} className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/5 text-[10px]">
+                              <span className="truncate flex-1 font-mono text-gray-400">{jid}</span>
+                              <button
+                                onClick={() => handleRemoveGroup(jid)}
+                                className="ml-2 text-gray-400 hover:text-red-500 transition-colors"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          ))}
+                          {status.allowedGroups.length === 0 && (
+                            <p className="text-[10px] text-gray-400 text-center py-2 italic border border-dashed border-gray-200 dark:border-white/10 rounded-lg">
+                              No hay grupos en la whitelist
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

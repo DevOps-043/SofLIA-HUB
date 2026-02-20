@@ -79,14 +79,45 @@ class SofiaAuthService {
       const sofiaUser = authResult.user;
 
       const sofiaProfile = await this.fetchSofiaUserProfile(sofiaUser.id);
+      
+      const activeMemberships = sofiaProfile?.memberships?.filter(m => m.status === 'active') || [];
+      const suspendedMemberships = sofiaProfile?.memberships?.filter(m => m.status === 'suspended') || [];
+
+      // Bloquear acceso si no hay membresías activas
+      if (activeMemberships.length === 0) {
+        if (suspendedMemberships.length > 0) {
+          return {
+            success: false,
+            user: null,
+            session: null,
+            error: 'Acceso denegado: Tu cuenta ha sido suspendida por el administrador.'
+          };
+        }
+        
+        return {
+          success: false,
+          user: null,
+          session: null,
+          error: 'Acceso denegado: No tienes una membresía activa en ninguna organización.'
+        };
+      }
+
+      // Filtrar organizaciones activas para el contexto
+      const activeOrgs = sofiaProfile?.organizations?.filter(o => 
+        activeMemberships.some(m => m.organization_id === o.id)
+      ) || [];
+
+      const activeTeams = sofiaProfile?.teams?.filter(t => 
+        activeMemberships.some(m => m.team_id === t.id)
+      ) || [];
 
       this.sofiaContext = {
         user: sofiaProfile,
-        currentOrganization: sofiaProfile?.organizations?.[0] || null,
-        currentTeam: sofiaProfile?.teams?.[0] || null,
-        organizations: sofiaProfile?.organizations || [],
-        teams: sofiaProfile?.teams || [],
-        memberships: sofiaProfile?.memberships || []
+        currentOrganization: activeOrgs[0] || null,
+        currentTeam: activeTeams[0] || null,
+        organizations: activeOrgs,
+        teams: activeTeams,
+        memberships: activeMemberships
       };
 
       await this.saveSofiaSession(sofiaUser);
@@ -162,8 +193,7 @@ class SofiaAuthService {
             created_at
           )
         `)
-        .eq('user_id', userId)
-        .eq('status', 'active');
+        .eq('user_id', userId);
 
       if (membershipsError) {
         console.warn('Error obteniendo membresias:', membershipsError);

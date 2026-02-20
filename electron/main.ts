@@ -5,6 +5,16 @@ import path from 'node:path'
 import { registerComputerUseHandlers } from './computer-use-handlers'
 import { WhatsAppService } from './whatsapp-service'
 import { WhatsAppAgent } from './whatsapp-agent'
+import { MonitoringService } from './monitoring-service'
+import { registerMonitoringHandlers } from './monitoring-handlers'
+import { CalendarService } from './calendar-service'
+import { registerCalendarHandlers } from './calendar-handlers'
+import { GmailService } from './gmail-service'
+import { registerGmailHandlers } from './gmail-handlers'
+import { DriveService } from './drive-service'
+import { registerDriveHandlers } from './drive-handlers'
+import { ProactiveService } from './proactive-service'
+import { generateDailySummary } from './summary-generator'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -28,6 +38,107 @@ let isQuitting = false
 // ─── WhatsApp ───────────────────────────────────────────────────────
 const waService = new WhatsAppService()
 let waAgent: WhatsAppAgent | null = null
+
+// ─── Shared state ───────────────────────────────────────────────────
+let currentGeminiApiKey: string | null = null
+
+// ─── Monitoring ─────────────────────────────────────────────────────
+const monitoringService = new MonitoringService()
+
+// ─── Calendar ───────────────────────────────────────────────────────
+const calendarService = new CalendarService()
+
+// ─── Gmail & Drive (share Google OAuth from CalendarService) ────────
+const gmailService = new GmailService(calendarService)
+const driveService = new DriveService(calendarService)
+
+// ─── Proactive Notifications ────────────────────────────────────────
+const proactiveService = new ProactiveService()
+proactiveService.setCalendarService(calendarService)
+proactiveService.setWhatsAppService(waService)
+// Configure OAuth credentials from env
+calendarService.setConfig({
+  google: {
+    clientId: process.env.VITE_GOOGLE_OAUTH_CLIENT_ID || '',
+    clientSecret: process.env.VITE_GOOGLE_OAUTH_CLIENT_SECRET || '',
+  },
+  microsoft: {
+    clientId: process.env.VITE_MICROSOFT_CLIENT_ID || '',
+  },
+})
+
+// Wire calendar work-start/end to monitoring auto-start/stop
+calendarService.on('work-start', async (data: any) => {
+  console.log('[Main] Calendar work-start → auto-starting monitoring')
+  // The renderer will handle creating the session in Supabase and calling monitoring:start
+  win?.webContents.send('calendar:work-start', data)
+})
+
+calendarService.on('work-end', async (data: any) => {
+  console.log('[Main] Calendar work-end → auto-stopping monitoring')
+  win?.webContents.send('calendar:work-end', data)
+})
+
+// ─── Summary generation on session end ───────────────────────────────
+monitoringService.on('session-ended', async (data: any) => {
+  if (!currentGeminiApiKey || !data.pendingSnapshots?.length) return
+  console.log(`[Main] Session ended — generating summary (${data.snapshotCount} snapshots)`)
+
+  try {
+    const summary = await generateDailySummary(
+      currentGeminiApiKey,
+      data.pendingSnapshots.map((s: any) => ({
+        timestamp: typeof s.timestamp === 'string' ? s.timestamp : new Date(s.timestamp).toISOString(),
+        windowTitle: s.windowTitle || '',
+        processName: s.processName || '',
+        url: s.url,
+        idle: s.idle || false,
+        idleSeconds: s.idleSeconds || 0,
+        ocrText: s.ocrText,
+        durationSeconds: 30,
+      })),
+      { startedAt: new Date().toISOString(), triggerType: 'manual' },
+    )
+
+    // Send summary to renderer for Supabase storage
+    win?.webContents.send('monitoring:summary-generated', {
+      userId: data.userId,
+      sessionId: data.sessionId,
+      summary,
+    })
+
+    console.log('[Main] Summary generated successfully')
+  } catch (err: any) {
+    console.error('[Main] Summary generation error:', err.message)
+  }
+})
+
+// ─── Summary IPC handlers ─────────────────────────────────────────────
+ipcMain.handle('monitoring:generate-summary', async (_event, activities: any[], sessionInfo: any) => {
+  if (!currentGeminiApiKey) {
+    return { success: false, error: 'API key not configured' }
+  }
+  try {
+    const summary = await generateDailySummary(currentGeminiApiKey, activities, sessionInfo)
+    return { success: true, summary }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+})
+
+ipcMain.handle('monitoring:send-summary-whatsapp', async (_event, phoneNumber: string, summaryText: string) => {
+  try {
+    if (!waService || !waService.getStatus().connected) {
+      return { success: false, error: 'WhatsApp no conectado' }
+    }
+    const cleanNumber = phoneNumber.replace(/[^0-9]/g, '')
+    const jid = `${cleanNumber}@s.whatsapp.net`
+    await waService.sendText(jid, summaryText)
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+})
 
 function createFlowWindow() {
   if (flowWin) {
@@ -253,22 +364,69 @@ ipcMain.handle('whatsapp:set-allowed-numbers', async (_, numbers: string[]) => {
   }
 })
 
+ipcMain.handle('whatsapp:set-group-config', async (_, config: any) => {
+  try {
+    await waService.setGroupConfig(config)
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+})
+
 function initWhatsAppAgent(apiKey: string) {
   if (waAgent) {
     waAgent.updateApiKey(apiKey)
   } else {
     waAgent = new WhatsAppAgent(waService, apiKey)
-    waService.on('message', ({ jid, senderNumber, text }: any) => {
-      console.log(`[WhatsApp] Message from ${senderNumber}: ${text.slice(0, 50)}`)
-      waAgent!.handleMessage(jid, senderNumber, text)
+    waService.on('message', ({ jid, senderNumber, text, isGroup, history }: any) => {
+      waAgent!.handleMessage(jid, senderNumber, text, isGroup, history)
     })
-    waService.on('audio', ({ jid, senderNumber, buffer }: any) => {
-      console.log(`[WhatsApp] Audio from ${senderNumber} (${buffer.length} bytes)`)
-      waAgent!.handleAudio(jid, senderNumber, buffer)
+    waService.on('audio', ({ jid, senderNumber, buffer, isGroup, history }: any) => {
+      waAgent!.handleAudio(jid, senderNumber, buffer, isGroup, history)
+    })
+    waService.on('media', ({ jid, senderNumber, buffer, fileName, mimetype, text, isGroup, history }: any) => {
+      waAgent!.handleMedia(jid, senderNumber, buffer, fileName, mimetype, text, isGroup, history)
     })
     console.log('[WhatsApp] Agent initialized with API key')
   }
+
+  // Connect Google services to WhatsApp agent
+  waAgent.setGoogleServices(calendarService, gmailService, driveService)
+
+  // Store API key for summary generation
+  currentGeminiApiKey = apiKey
+
+  // Start proactive notifications engine
+  proactiveService.setApiKey(apiKey)
+  if (!proactiveService.isRunning()) {
+    proactiveService.start()
+  }
 }
+
+// ─── Proactive Service IPC Handlers ────────────────────────────────
+ipcMain.handle('proactive:get-config', async () => {
+  return proactiveService.getConfig()
+})
+
+ipcMain.handle('proactive:update-config', async (_, updates: any) => {
+  try {
+    proactiveService.updateConfig(updates)
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+})
+
+ipcMain.handle('proactive:trigger-now', async (_, phoneNumber?: string) => {
+  return proactiveService.triggerNow(phoneNumber)
+})
+
+ipcMain.handle('proactive:get-status', async () => {
+  return {
+    running: proactiveService.isRunning(),
+    config: proactiveService.getConfig(),
+  }
+})
 
 ipcMain.handle('whatsapp:set-api-key', async (_, apiKey: string) => {
   initWhatsAppAgent(apiKey)
@@ -279,6 +437,10 @@ ipcMain.handle('whatsapp:set-api-key', async (_, apiKey: string) => {
 
 app.whenReady().then(async () => {
   registerComputerUseHandlers()
+  registerMonitoringHandlers(monitoringService, () => win)
+  registerCalendarHandlers(calendarService, () => win)
+  registerGmailHandlers(gmailService, () => win)
+  registerDriveHandlers(driveService, () => win)
   createTray()
   createWindow()
 

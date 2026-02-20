@@ -1,35 +1,96 @@
-import React, { useState } from 'react';
-import { StartTracking } from '../../core/use_cases/productivity_tracking/StartTracking';
-import { StopTracking } from '../../core/use_cases/productivity_tracking/StopTracking';
-import { NodeOSAutomation } from '../os_automation/NodeOSAutomation';
-import { TrackingRepository } from '../../core/ports/TrackingRepository';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  startMonitoringSession,
+  stopMonitoringSession,
+  getMonitoringStatus,
+  persistSnapshots,
+} from '../../services/monitoring-service';
+import type { MonitoringSession, ActivitySnapshot } from '../../core/entities/ActivityLog';
 
-// Mock Repository for UI testing
-class MockTrackingRepository implements TrackingRepository {
-  async saveActivityLog(log: any): Promise<void> {
-    console.log('Saved log:', log);
-  }
-  async getLastActivityLog(_userId: string): Promise<any> {
-    return null;
-  }
+interface TrackingToggleProps {
+  userId: string;
 }
 
-const trackingRepo = new MockTrackingRepository();
-const osAutomation = new NodeOSAutomation();
-const startTrackingUseCase = new StartTracking(trackingRepo, osAutomation);
-const stopTrackingUseCase = new StopTracking(trackingRepo);
-
-export const TrackingToggle: React.FC = () => {
+export const TrackingToggle: React.FC<TrackingToggleProps> = ({ userId }) => {
   const [isTracking, setIsTracking] = useState(false);
-  const [userId] = useState('user-123'); // Hardcoded for MVP
+  const [session, setSession] = useState<MonitoringSession | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const [currentWindow, setCurrentWindow] = useState<string>('');
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Check if already tracking on mount
+  useEffect(() => {
+    getMonitoringStatus().then((status) => {
+      if (status.isRunning) {
+        setIsTracking(true);
+        setCurrentWindow(status.currentWindow || '');
+      }
+    }).catch(() => {});
+  }, []);
+
+  // Timer for elapsed display
+  useEffect(() => {
+    if (isTracking) {
+      timerRef.current = setInterval(() => {
+        setElapsed((prev) => prev + 1);
+      }, 1000);
+    } else {
+      if (timerRef.current) clearInterval(timerRef.current);
+      setElapsed(0);
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isTracking]);
+
+  // Listen for snapshots to update current window and persist data
+  useEffect(() => {
+    if (!window.monitoring) return;
+
+    const handleSnapshot = (snapshot: ActivitySnapshot) => {
+      setCurrentWindow(snapshot.processName + ': ' + snapshot.windowTitle.slice(0, 40));
+    };
+
+    const handleFlush = (data: { userId: string; sessionId: string; snapshots: ActivitySnapshot[] }) => {
+      persistSnapshots(data.userId, data.sessionId, data.snapshots);
+    };
+
+    const handleSessionEnded = (data: { userId: string; sessionId: string; pendingSnapshots: ActivitySnapshot[] }) => {
+      if (data.pendingSnapshots?.length > 0) {
+        persistSnapshots(data.userId, data.sessionId, data.pendingSnapshots);
+      }
+    };
+
+    window.monitoring.onSnapshot(handleSnapshot);
+    window.monitoring.onFlush(handleFlush);
+    window.monitoring.onSessionEnded(handleSessionEnded);
+
+    return () => {
+      window.monitoring.removeListeners();
+    };
+  }, []);
+
+  const formatTime = (seconds: number): string => {
+    const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
+    const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${h}:${m}:${s}`;
+  };
 
   const handleToggle = async () => {
-    if (isTracking) {
-      await stopTrackingUseCase.execute(userId);
+    if (isTracking && session) {
+      await stopMonitoringSession(session.id, userId);
       setIsTracking(false);
+      setSession(null);
+      setCurrentWindow('');
     } else {
-      await startTrackingUseCase.execute(userId);
-      setIsTracking(true);
+      try {
+        const newSession = await startMonitoringSession(userId, 'manual');
+        setSession(newSession);
+        setIsTracking(true);
+      } catch (err: any) {
+        console.error('Failed to start monitoring:', err.message);
+      }
     }
   };
 
@@ -47,16 +108,22 @@ export const TrackingToggle: React.FC = () => {
 
       <div className="text-center">
         <div className="text-4xl font-mono font-bold text-primary dark:text-white tracking-wider">
-          {isTracking ? '00:12:45' : '00:00:00'}
+          {formatTime(elapsed)}
         </div>
         <div className="text-xs text-secondary mt-1">SESSION DURATION</div>
       </div>
 
-      <button 
+      {isTracking && currentWindow && (
+        <div className="text-xs text-secondary text-center truncate max-w-full px-4">
+          {currentWindow}
+        </div>
+      )}
+
+      <button
         onClick={handleToggle}
         className={`w-full py-3 px-6 rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl active:scale-95 ${
-          isTracking 
-            ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400' 
+          isTracking
+            ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400'
             : 'bg-primary text-white hover:bg-primary/90'
         }`}
       >

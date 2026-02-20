@@ -9,6 +9,7 @@ interface ProjectHubProps {
   onNewChat: () => void;
   onDeleteChat: (chatId: string, e: React.MouseEvent) => void;
   onRenameFolder: (newName: string) => void;
+  onRenameChat?: (chatId: string, newTitle: string) => void;
 }
 
 export const ProjectHub: React.FC<ProjectHubProps> = ({
@@ -18,10 +19,13 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
   onNewChat,
   onDeleteChat,
   onRenameFolder,
+  onRenameChat,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(folder.name);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [renamingChatId, setRenamingChatId] = useState<string | null>(null);
+  const [editingChatTitle, setEditingChatTitle] = useState("");
 
   useEffect(() => {
     setEditName(folder.name);
@@ -42,6 +46,16 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
       setEditName(folder.name);
     }
     setIsEditing(false);
+  };
+
+  const handleSaveChatTitle = (chatId: string) => {
+    if (onRenameChat) {
+      const trimmed = editingChatTitle.trim();
+      if (trimmed) {
+        onRenameChat(chatId, trimmed);
+      }
+    }
+    setRenamingChatId(null);
   };
 
   const formatDate = (dateStr: string) => {
@@ -131,22 +145,57 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-medium text-primary dark:text-white truncate">
-                    {chat.title}
-                  </h3>
+                  {renamingChatId === chat.id ? (
+                    <input
+                      autoFocus
+                      type="text"
+                      className="w-full bg-white dark:bg-[#1E1E1E] border border-accent rounded px-2 py-0.5 text-sm font-medium text-gray-900 dark:text-white outline-none mb-1"
+                      value={editingChatTitle}
+                      onChange={(e) => setEditingChatTitle(e.target.value)}
+                      onBlur={() => handleSaveChatTitle(chat.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        e.stopPropagation();
+                        if (e.key === "Enter") {
+                          handleSaveChatTitle(chat.id);
+                        } else if (e.key === "Escape") {
+                          setRenamingChatId(null);
+                        }
+                      }}
+                    />
+                  ) : (
+                    <h3 className="text-sm font-medium text-primary dark:text-white truncate">
+                      {chat.title}
+                    </h3>
+                  )}
                   <p className="text-xs text-secondary mt-1">
                     {formatDate(chat.updated_at)}
                   </p>
                 </div>
-                <button
-                  onClick={(e) => onDeleteChat(chat.id, e)}
-                  className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-all flex-shrink-0"
-                  title="Eliminar"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-gray-400 hover:text-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
+                <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRenamingChatId(chat.id);
+                      setEditingChatTitle(chat.title);
+                    }}
+                    className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
+                    title="Renombrar"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-gray-400 hover:text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={(e) => onDeleteChat(chat.id, e)}
+                    className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
+                    title="Eliminar"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-gray-400 hover:text-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
               </div>
 
               {/* Chat icon */}

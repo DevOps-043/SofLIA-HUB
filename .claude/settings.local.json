@@ -24,7 +24,10 @@
       "WebFetch(domain:composio.dev)",
       "WebFetch(domain:www.philschmid.de)",
       "Bash(powershell -Command:*)",
-      "Bash(powershell -File:*)"
+      "Bash(powershell -File:*)",
+      "Bash(powershell -NoProfile:*)",
+      "Bash(cmd /c \"chcp 65001 >nul & dir /s /b C:\\\\Users\\\\fysg5\\\\*oliz* 2>nul\")",
+      "Bash(cmd /c \"dir /s /b C:\\\\Users\\\\fysg5\\\\Downloads\\\\*oliz* 2>nul\")"
     ]
   }
 }

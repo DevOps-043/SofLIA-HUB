@@ -26,14 +26,31 @@ interface WhatsAppConfig {
   allowedNumbers: string[];  // e.g. ['5215512345678']
   autoConnect: boolean;
   apiKey?: string;
+  // ─── Group support (inspired by OpenClaw) ───
+  allowedGroups: string[];       // JIDs of allowed groups (e.g. ['120363xxx@g.us']), empty = all groups allowed
+  groupPolicy: 'open' | 'allowlist' | 'disabled';  // Who can invoke bot in groups
+  groupAllowFrom: string[];      // Numbers allowed to invoke bot in groups (if policy=allowlist)
+  groupActivation: 'mention' | 'always';  // How bot activates in groups
+  groupPrefix: string;           // Command prefix for groups (default: '/soflia')
 }
+
+const DEFAULT_CONFIG: WhatsAppConfig = {
+  allowedNumbers: [],
+  autoConnect: false,
+  allowedGroups: [],
+  groupPolicy: 'open',
+  groupAllowFrom: [],
+  groupActivation: 'mention',
+  groupPrefix: '/soflia',
+};
 
 async function loadConfig(): Promise<WhatsAppConfig> {
   try {
     const data = await fs.readFile(CONFIG_PATH, 'utf-8');
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+    return { ...DEFAULT_CONFIG, ...parsed };
   } catch {
-    return { allowedNumbers: [], autoConnect: false };
+    return DEFAULT_CONFIG;
   }
 }
 
@@ -43,12 +60,40 @@ async function saveConfig(config: WhatsAppConfig): Promise<void> {
 
 export class WhatsAppService extends EventEmitter {
   private sock: WASocket | null = null;
-  private config: WhatsAppConfig = { allowedNumbers: [], autoConnect: false };
+  private config: WhatsAppConfig = {
+    allowedNumbers: [],
+    autoConnect: false,
+    allowedGroups: [],
+    groupPolicy: 'open',
+    groupAllowFrom: [],
+    groupActivation: 'mention',
+    groupPrefix: '/soflia',
+  };
   private connected = false;
   private qrDataUrl: string | null = null;
   private phoneNumber: string | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
+
+  // ─── Group context buffer (last 20 messages per group) ────────
+  private groupContext = new Map<string, Array<{ sender: string; text: string; timestamp: number }>>();
+
+  private addToGroupContext(jid: string, sender: string, text: string) {
+    if (!this.groupContext.has(jid)) {
+      this.groupContext.set(jid, []);
+    }
+    const history = this.groupContext.get(jid)!;
+    history.push({ sender, text, timestamp: Date.now() });
+    if (history.length > 20) history.shift();
+  }
+
+  private getGroupHistory(jid: string): string {
+    const history = this.groupContext.get(jid) || [];
+    if (history.length === 0) return '';
+    return history
+      .map(m => `[${new Date(m.timestamp).toLocaleTimeString()}] ${m.sender}: ${m.text}`)
+      .join('\n');
+  }
 
   async init(): Promise<void> {
     this.config = await loadConfig();
@@ -135,7 +180,7 @@ export class WhatsAppService extends EventEmitter {
     // Save credentials on update
     this.sock.ev.on('creds.update', saveCreds);
 
-    // ─── Message handler ───────────────────────────────────────
+    // ─── Message handler (with group support) ─────────────────
     this.sock.ev.on('messages.upsert', async (m) => {
       for (const msg of m.messages) {
         // Ignore status broadcasts, own messages, and protocol messages
@@ -144,12 +189,159 @@ export class WhatsAppService extends EventEmitter {
         if (!msg.message) continue;
 
         const jid = msg.key.remoteJid!;
-        const senderNumber = jid.replace('@s.whatsapp.net', '').replace('@g.us', '');
+        const isGroup = jid.endsWith('@g.us');
+        let senderNumber = '';
 
-        // Security: Check if number is in allowed list
-        if (this.config.allowedNumbers.length > 0 && !this.config.allowedNumbers.includes(senderNumber)) {
-          console.log(`[WhatsApp] Ignoring message from unauthorized number: ${senderNumber}`);
-          continue;
+        // ─── Extract sender: handle DM, Group, and LID ────────
+        if (isGroup) {
+          // In groups: real sender is in msg.key.participant, NOT remoteJid
+          const participant = (msg.key.participant || msg.key.remoteJid || '').toString();
+          senderNumber = participant
+            .replace('@s.whatsapp.net', '')
+            .replace(/@lid$/, '')
+            .split(':')[0]; // Remove device suffix (e.g., "521551234:0")
+        } else if (jid.endsWith('@lid')) {
+          // LID (Linked Device ID) — try to resolve to real phone number
+          try {
+            const pn = await this.sock!.signalRepository?.lidMapping?.getPNForLID(jid);
+            if (pn) {
+              senderNumber = pn.split(':')[0].replace('@s.whatsapp.net', '').replace('@lid', '');
+              console.log(`[WhatsApp] Resolved LID ${jid} → PN ${senderNumber}`);
+            } else {
+              const lidUser = jid.replace('@lid', '');
+              console.warn(`[WhatsApp] Could not resolve LID ${jid}, using fallback: ${lidUser}`);
+              senderNumber = lidUser;
+            }
+          } catch (err) {
+            console.warn(`[WhatsApp] Error resolving LID ${jid}:`, err);
+            senderNumber = jid.replace('@lid', '');
+          }
+        } else {
+          // Standard DM: number@s.whatsapp.net
+          senderNumber = jid.replace('@s.whatsapp.net', '');
+        }
+
+        // ─── Security: Group-level checks ─────────────────────
+        if (isGroup) {
+          // Check if groups are disabled entirely
+          if (this.config.groupPolicy === 'disabled') {
+            continue;
+          }
+
+          // Check if this specific group is allowed
+          const allowedGroups = this.config.allowedGroups || [];
+          if (allowedGroups.length > 0 && !allowedGroups.includes(jid)) {
+            console.log(`[WhatsApp] Ignoring message from non-allowed group: ${jid}`);
+            continue;
+          }
+
+          // Check if sender is allowed in groups (when policy=allowlist)
+          const groupAllowFrom = this.config.groupAllowFrom || [];
+          if (this.config.groupPolicy === 'allowlist' && groupAllowFrom.length > 0) {
+            const senderAllowed = groupAllowFrom.some(allowed => {
+              if (allowed === '*') return true;
+              if (allowed === senderNumber) return true;
+              const allowedDigits = allowed.replace(/\D/g, '').slice(-10);
+              const senderDigits = senderNumber.replace(/\D/g, '').slice(-10);
+              return allowedDigits === senderDigits && allowedDigits.length >= 10;
+            });
+            if (!senderAllowed) {
+              console.log(`[WhatsApp] Ignoring group message from unauthorized sender: ${senderNumber}`);
+              continue;
+            }
+          }
+
+          // Check activation: should the bot respond to this message?
+          if (!this.shouldRespondInGroup(msg)) {
+            continue;
+          }
+        } else {
+          // ─── Security: DM-level checks ─────────────────────
+          const allowedNumbers = this.config.allowedNumbers || [];
+          if (allowedNumbers.length > 0) {
+            const senderDigits = senderNumber.replace(/\D/g, '');
+            const isAllowed = allowedNumbers.some(allowed => {
+              const allowedClean = allowed.replace(/\D/g, '').trim();
+              // Exact match
+              if (allowedClean === senderDigits) return true;
+              // One contains the other (handles country code variations like 521 vs 52)
+              if (senderDigits.endsWith(allowedClean) || allowedClean.endsWith(senderDigits)) return true;
+              // Last 10 digits match (national number without country code)
+              if (allowedClean.length >= 10 && senderDigits.length >= 10) {
+                if (allowedClean.slice(-10) === senderDigits.slice(-10)) return true;
+              }
+              return false;
+            });
+            if (!isAllowed) {
+              console.log(`[WhatsApp] Ignoring message from unauthorized number: ${senderNumber} (digits: ${senderDigits}) | Whitelist: [${allowedNumbers.join(', ')}] (JID: ${jid})`);
+              continue;
+            }
+          }
+        }
+
+        // ─── Extract text content ─────────────────────────────
+        const rawText =
+          msg.message.conversation ||
+          msg.message.extendedTextMessage?.text ||
+          msg.message.imageMessage?.caption ||
+          msg.message.documentMessage?.caption ||
+          '';
+
+        // ─── Security & Activation ───────────────────────────
+        const wasInvoked = isGroup ? this.shouldRespondInGroup(msg) : true;
+        let cleanText = rawText.trim();
+
+        if (isGroup) {
+          const prefix = this.config.groupPrefix || '/soflia';
+          if (cleanText.toLowerCase().startsWith(prefix.toLowerCase())) {
+            cleanText = cleanText.slice(prefix.length).trim();
+          }
+          // Remove @botNumber mention from text
+          const botNumber = this.sock?.user?.id?.split(':')[0] || '';
+          if (botNumber) {
+            cleanText = cleanText.replace(new RegExp(`@${botNumber}\\s*`, 'g'), '').trim();
+          }
+        }
+
+        // Record in context buffer regardless of activation (for future queries)
+        if (isGroup && cleanText) {
+          this.addToGroupContext(jid, senderNumber, cleanText);
+        }
+
+        if (isGroup && !wasInvoked) continue;
+
+        // If it was explicitly invoked but text is empty, let it pass
+        if (!cleanText && !wasInvoked) continue;
+
+        const history = isGroup ? this.getGroupHistory(jid) : '';
+
+        // ─── Media Handling (Images, Docs, Video) ─────────────
+        const mediaMsg = msg.message.imageMessage || msg.message.documentMessage || msg.message.videoMessage;
+        if (mediaMsg) {
+          try {
+            const buffer = await downloadMediaMessage(msg, 'buffer', {}, {
+              logger,
+              reuploadRequest: this.sock!.updateMediaMessage,
+            });
+            const fileName = (mediaMsg as any).fileName || (msg.message.imageMessage ? 'image.jpg' : 'file');
+            const mimetype = mediaMsg.mimetype || 'application/octet-stream';
+
+            this.emit('media', {
+              jid,
+              senderNumber,
+              buffer: buffer as Buffer,
+              fileName,
+              mimetype,
+              text: cleanText,
+              isGroup,
+              groupJid: isGroup ? jid : null,
+              history,
+              message: msg
+            });
+            continue;
+          } catch (err) {
+            console.error('[WhatsApp] Error downloading media:', err);
+          }
         }
 
         // Check for audio/voice note
@@ -160,26 +352,90 @@ export class WhatsAppService extends EventEmitter {
               logger,
               reuploadRequest: this.sock!.updateMediaMessage,
             });
-            this.emit('audio', { jid, senderNumber, buffer: buffer as Buffer, message: msg });
+            this.emit('audio', {
+              jid,
+              senderNumber,
+              buffer: buffer as Buffer,
+              message: msg,
+              isGroup,
+              groupJid: isGroup ? jid : null,
+              history
+            });
           } catch (err) {
             console.error('[WhatsApp] Error downloading audio:', err);
           }
           continue;
         }
 
-        // Extract text content
-        const text =
-          msg.message.conversation ||
-          msg.message.extendedTextMessage?.text ||
-          msg.message.imageMessage?.caption ||
-          msg.message.documentMessage?.caption ||
-          '';
+        if (!cleanText && !wasInvoked) continue;
 
-        if (!text.trim()) continue;
+        console.log(`[WhatsApp] ${isGroup ? 'GROUP' : 'DM'} from ${senderNumber}${isGroup ? ` in ${jid}` : ''}: ${cleanText.slice(0, 60)}`);
 
-        this.emit('message', { jid, senderNumber, text: text.trim(), message: msg });
+        this.emit('message', {
+          jid,
+          senderNumber,
+          text: cleanText,
+          message: msg,
+          isGroup,
+          groupJid: isGroup ? jid : null,
+          history
+        });
       }
     });
+  }
+
+  // ─── Group activation check (inspired by OpenClaw) ──────────
+  private shouldRespondInGroup(msg: any): boolean {
+    // Force strict mode for groups - ignores 'always' setting if it was stuck
+    // if (activation === 'always') return true; 
+
+    // Mention mode: check mention, prefix, or name
+    const text =
+      msg.message?.conversation ||
+      msg.message?.extendedTextMessage?.text ||
+      '';
+    const lowerText = text.toLowerCase();
+
+    // 1. Check native WhatsApp @mention (STRICT MATCH)
+    const contextInfo = msg.message?.extendedTextMessage?.contextInfo;
+    const mentionedJids: string[] = contextInfo?.mentionedJid || [];
+    const botJid = this.sock?.user?.id || '';
+    const botNumber = botJid.split(':')[0];
+    const botJidPlain = botNumber + '@s.whatsapp.net';
+    
+    const isMentioned = !!(botNumber && mentionedJids.some(
+      (mjid: string) => mjid === botJidPlain || mjid.startsWith(botNumber + '@')
+    ));
+
+    // 2. Check command prefix
+    const prefix = this.config.groupPrefix || '/soflia';
+    const hasPrefix = lowerText.startsWith(prefix.toLowerCase());
+
+    // 3. Check nickname with word boundaries (STRICT)
+    const matchesPattern = /\bsoflia\b/i.test(lowerText);
+
+    const result = !!(isMentioned || hasPrefix || matchesPattern);
+    
+    // Debug log for every group message to trace activation
+    if (text) {
+      console.log(`[WA-Group-Check] msg: "${text.slice(0, 30)}..." | trigger: ${result} (mention:${isMentioned}, prefix:${hasPrefix}, name:${matchesPattern})`);
+    }
+
+    return result;
+  }
+
+  // ─── Send reaction emoji to a message ───────────────────────
+  async sendReaction(jid: string, msgKey: any, emoji: string): Promise<void> {
+    try {
+      if (this.sock && this.connected) {
+        await this.sock.sendMessage(jid, {
+          react: { text: emoji, key: msgKey },
+        });
+      }
+    } catch (err) {
+      // Reactions are non-critical, just log
+      console.warn('[WhatsApp] Failed to send reaction:', err);
+    }
   }
 
   async disconnect(): Promise<void> {
@@ -265,17 +521,58 @@ export class WhatsAppService extends EventEmitter {
     return this.connected;
   }
 
-  getStatus(): { connected: boolean; phoneNumber: string | null; qr: string | null; allowedNumbers: string[] } {
+  getStatus() {
     return {
       connected: this.connected,
       phoneNumber: this.phoneNumber,
       qr: this.qrDataUrl,
       allowedNumbers: this.config.allowedNumbers,
+      // Group config
+      groupPolicy: this.config.groupPolicy,
+      groupActivation: this.config.groupActivation,
+      groupPrefix: this.config.groupPrefix,
+      allowedGroups: this.config.allowedGroups,
+      groupAllowFrom: this.config.groupAllowFrom,
     };
+  }
+
+  isAllowedNumber(number: string): boolean {
+    if (!this.config.allowedNumbers || this.config.allowedNumbers.length === 0) return true;
+    const numberDigits = number.replace(/\D/g, '');
+    return this.config.allowedNumbers.some(allowed => {
+      const allowedDigits = allowed.replace(/\D/g, '').trim();
+      if (allowedDigits === numberDigits) return true;
+      if (numberDigits.endsWith(allowedDigits) || allowedDigits.endsWith(numberDigits)) return true;
+      if (allowedDigits.length >= 10 && numberDigits.length >= 10) {
+        if (allowedDigits.slice(-10) === numberDigits.slice(-10)) return true;
+      }
+      return false;
+    });
+  }
+
+  // ─── Bot identity (for agent mention detection) ─────────────
+  getBotNumber(): string {
+    return this.sock?.user?.id?.split(':')[0] || '';
   }
 
   async setAllowedNumbers(numbers: string[]): Promise<void> {
     this.config.allowedNumbers = numbers;
+    await saveConfig(this.config);
+  }
+
+  // ─── Group config setters ──────────────────────────────────
+  async setGroupConfig(config: {
+    groupPolicy?: 'open' | 'allowlist' | 'disabled';
+    groupActivation?: 'mention' | 'always';
+    groupPrefix?: string;
+    allowedGroups?: string[];
+    groupAllowFrom?: string[];
+  }): Promise<void> {
+    if (config.groupPolicy !== undefined) this.config.groupPolicy = config.groupPolicy;
+    if (config.groupActivation !== undefined) this.config.groupActivation = config.groupActivation;
+    if (config.groupPrefix !== undefined) this.config.groupPrefix = config.groupPrefix;
+    if (config.allowedGroups !== undefined) this.config.allowedGroups = config.allowedGroups;
+    if (config.groupAllowFrom !== undefined) this.config.groupAllowFrom = config.groupAllowFrom;
     await saveConfig(this.config);
   }
 

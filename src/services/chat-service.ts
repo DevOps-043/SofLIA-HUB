@@ -21,6 +21,7 @@ export interface ChatMessage {
   timestamp: number;
   sources?: Array<{ uri: string; title: string; snippet?: string }>;
   images?: string[];
+  feedback?: 'like' | 'dislike';
 }
 
 // ============================================
@@ -67,6 +68,7 @@ export async function loadMessages(conversationId: string): Promise<ChatMessage[
     timestamp: new Date(m.created_at).getTime(),
     sources: m.metadata?.sources,
     images: m.metadata?.images,
+    feedback: m.metadata?.feedback,
   }));
 }
 
@@ -122,8 +124,7 @@ export async function saveMessages(
   // Separar nuevos y actualizados
   const newMessages = validMessages.filter(m => !existingMap.has(m.id));
   const updatedMessages = validMessages.filter(m => {
-    const existing = existingMap.get(m.id);
-    return existing !== undefined && existing !== m.text;
+    return existingMap.has(m.id);
   });
 
   // Insert nuevos
@@ -138,6 +139,7 @@ export async function saveMessages(
         metadata: {
           sources: m.sources || null,
           images: m.images || null,
+          feedback: m.feedback || null,
         },
       }))
     );
@@ -155,6 +157,7 @@ export async function saveMessages(
         metadata: {
           sources: m.sources || null,
           images: m.images || null,
+          feedback: m.feedback || null,
         },
       })
       .eq('id', m.id);

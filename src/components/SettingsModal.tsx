@@ -1,6 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { loadSettings, saveSettings, type UserAISettings } from '../services/settings-service';
 
+// Declare the proactive API from preload
+declare global {
+  interface Window {
+    proactive?: {
+      getConfig: () => Promise<any>;
+      updateConfig: (updates: any) => Promise<{ success: boolean; error?: string }>;
+      triggerNow: (phoneNumber?: string) => Promise<{ success: boolean; message?: string; error?: string }>;
+      getStatus: () => Promise<{ running: boolean; config: any }>;
+    };
+  }
+}
+
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -88,6 +100,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
   const [charEmojis, setCharEmojis] = useState('Auto');
   const [customInstructions, setCustomInstructions] = useState('');
 
+  // Proactive notification state
+  const [proactiveEnabled, setProactiveEnabled] = useState(true);
+  const [notifHours, setNotifHours] = useState<number[]>([8, 20]);
+  const [calendarReminders, setCalendarReminders] = useState(true);
+  const [taskReminders, setTaskReminders] = useState(true);
+  const [systemAlerts, setSystemAlerts] = useState(true);
+  const [proactiveTesting, setProactiveTesting] = useState(false);
+  const [proactiveTestResult, setProactiveTestResult] = useState('');
+
   useEffect(() => {
     if (isOpen && userId) {
       setLoading(true);
@@ -100,6 +121,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
         setCustomInstructions(settings.custom_instructions);
         setLoading(false);
       });
+
+      // Load proactive config
+      if (window.proactive) {
+        window.proactive.getConfig().then((config: any) => {
+          setProactiveEnabled(config.enabled ?? true);
+          setNotifHours(config.notificationHours ?? [8, 20]);
+          setCalendarReminders(config.calendarReminders ?? true);
+          setTaskReminders(config.taskReminders ?? true);
+          setSystemAlerts(config.systemAlerts ?? true);
+        }).catch(() => {});
+      }
     }
   }, [isOpen, userId]);
 
@@ -116,12 +148,45 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
     };
 
     const success = await saveSettings(settings);
+
+    // Save proactive config
+    if (window.proactive) {
+      await window.proactive.updateConfig({
+        enabled: proactiveEnabled,
+        notificationHours: notifHours,
+        calendarReminders,
+        taskReminders,
+        systemAlerts,
+      });
+    }
+
     setSaving(false);
 
     if (success) {
       onSave?.(settings);
       onClose();
     }
+  };
+
+  const handleTestNotification = async () => {
+    if (!window.proactive) return;
+    setProactiveTesting(true);
+    setProactiveTestResult('');
+    try {
+      const result = await window.proactive.triggerNow();
+      setProactiveTestResult(result.success ? (result.message || 'Enviado!') : (result.error || 'Error'));
+    } catch {
+      setProactiveTestResult('Error al enviar');
+    } finally {
+      setProactiveTesting(false);
+      setTimeout(() => setProactiveTestResult(''), 5000);
+    }
+  };
+
+  const toggleHour = (hour: number) => {
+    setNotifHours(prev => 
+      prev.includes(hour) ? prev.filter(h => h !== hour) : [...prev, hour].sort((a, b) => a - b)
+    );
   };
 
   if (!isOpen) return null;
@@ -224,6 +289,105 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
                   placeholder="Ej: Siempre responde en listas con bullets. Nunca uses jerga tecnica compleja..."
                 />
               </div>
+
+              {/* Proactive Notifications */}
+              {window.proactive && (
+                <div className="mb-6 pt-6 border-t border-white/5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-5 h-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                      </svg>
+                      <h4 className="text-white text-[15px] font-semibold">Notificaciones Proactivas</h4>
+                    </div>
+                    <button
+                      onClick={() => setProactiveEnabled(!proactiveEnabled)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        proactiveEnabled ? 'bg-accent' : 'bg-white/10'
+                      }`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        proactiveEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`} />
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-4">SofLIA te enviará recordatorios por WhatsApp sobre tus eventos, tareas y alertas del sistema.</p>
+
+                  {proactiveEnabled && (
+                    <>
+                      {/* Feature toggles */}
+                      <div className="grid grid-cols-3 gap-3 mb-5">
+                        <button
+                          onClick={() => setCalendarReminders(!calendarReminders)}
+                          className={`px-3 py-2.5 rounded-lg border text-xs font-medium transition-colors flex items-center gap-2 ${
+                            calendarReminders ? 'bg-blue-500/10 border-blue-500/30 text-blue-400' : 'bg-white/[0.02] border-white/10 text-gray-500'
+                          }`}
+                        >
+                          <span>📅</span> Calendario
+                        </button>
+                        <button
+                          onClick={() => setTaskReminders(!taskReminders)}
+                          className={`px-3 py-2.5 rounded-lg border text-xs font-medium transition-colors flex items-center gap-2 ${
+                            taskReminders ? 'bg-green-500/10 border-green-500/30 text-green-400' : 'bg-white/[0.02] border-white/10 text-gray-500'
+                          }`}
+                        >
+                          <span>✅</span> Project Hub
+                        </button>
+                        <button
+                          onClick={() => setSystemAlerts(!systemAlerts)}
+                          className={`px-3 py-2.5 rounded-lg border text-xs font-medium transition-colors flex items-center gap-2 ${
+                            systemAlerts ? 'bg-orange-500/10 border-orange-500/30 text-orange-400' : 'bg-white/[0.02] border-white/10 text-gray-500'
+                          }`}
+                        >
+                          <span>🖥️</span> Sistema
+                        </button>
+                      </div>
+
+                      {/* Hour picker */}
+                      <div className="mb-4">
+                        <label className="block text-xs font-medium text-gray-400 mb-3">Horas de notificación (clic para activar/desactivar)</label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {Array.from({ length: 24 }, (_, i) => (
+                            <button
+                              key={i}
+                              onClick={() => toggleHour(i)}
+                              className={`w-10 h-8 rounded-lg text-[11px] font-mono font-medium transition-all ${
+                                notifHours.includes(i)
+                                  ? 'bg-accent/20 border border-accent/40 text-accent'
+                                  : 'bg-white/[0.02] border border-white/5 text-gray-600 hover:text-gray-400 hover:bg-white/5'
+                              }`}
+                            >
+                              {String(i).padStart(2, '0')}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-gray-500 mt-2">
+                          Activas: {notifHours.length > 0 ? notifHours.map(h => `${String(h).padStart(2, '0')}:00`).join(', ') : 'Ninguna'}
+                        </p>
+                      </div>
+
+                      {/* Test button */}
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={handleTestNotification}
+                          disabled={proactiveTesting}
+                          className="px-4 py-2 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-medium hover:bg-purple-500/20 transition-colors disabled:opacity-50"
+                        >
+                          {proactiveTesting ? (
+                            <span className="flex items-center gap-2">
+                              <span className="w-3 h-3 border border-purple-400/40 border-t-purple-400 rounded-full animate-spin" />
+                              Enviando...
+                            </span>
+                          ) : '🔔 Enviar Notificación de Prueba'}
+                        </button>
+                        {proactiveTestResult && (
+                          <span className="text-xs text-gray-400 animate-pulse">{proactiveTestResult}</span>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>
