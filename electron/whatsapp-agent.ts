@@ -33,6 +33,8 @@ import {
   isIrisAvailable,
 } from './iris-data-main';
 
+import { WorkflowManager } from './whatsapp-workflow-presentacion';
+
 // ─── Tool definitions for WhatsApp (OMNIPOTENT — no blocked tools) ─
 const BLOCKED_TOOLS_WA = new Set<string>([
   // Empty — SofLIA can do everything
@@ -662,8 +664,14 @@ const WA_TOOL_DECLARATIONS = {
     },
     {
       name: 'google_calendar_get_events',
-      description: 'Obtiene los eventos del día de hoy del Google Calendar del usuario. Útil para: "¿qué tengo hoy?", "¿cuál es mi agenda?", "¿tengo reuniones?"',
-      parameters: { type: 'OBJECT' as const, properties: {} },
+      description: 'Obtiene los eventos del Google Calendar del usuario. Útil para: "¿qué tengo hoy?", "¿qué tengo mañana?", "¿cuál es mi agenda?". Soporta buscar en un rango de fechas.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          start_date: { type: 'STRING' as const, description: 'Fecha de inicio a buscar en formato ISO 8601 (ej: "2026-02-21T00:00:00"). Si no se especifica, asume el inicio del día de hoy.' },
+          end_date: { type: 'STRING' as const, description: 'Fecha de fin a buscar en formato ISO 8601. Si no se especifica, asume el final del día de la fecha de inicio.' },
+        },
+      },
     },
     {
       name: 'google_calendar_delete',
@@ -1489,7 +1497,7 @@ export class WhatsAppAgent {
     this.genAI = null;
   }
 
-  private getGenAI(): GoogleGenerativeAI {
+  public getGenAI(): GoogleGenerativeAI {
     if (!this.genAI) {
       this.genAI = new GoogleGenerativeAI(this.apiKey);
     }
@@ -1504,6 +1512,14 @@ export class WhatsAppAgent {
     isGroup: boolean = false,
     groupPassiveHistory: string = '',
   ): Promise<void> {
+    const sessionKey = isGroup ? `group:${jid}:${senderNumber}` : senderNumber;
+    
+    // Check for active workflow
+    if (WorkflowManager.isActive(sessionKey)) {
+      await WorkflowManager.handleMessage(sessionKey, text);
+      return;
+    }
+
     // Check for pending confirmation response
     const pending = pendingConfirmations.get(senderNumber);
     if (pending) {
@@ -1520,6 +1536,10 @@ export class WhatsAppAgent {
       const cmdResult = await this.handleChatCommand(jid, senderNumber, text, isGroup);
       if (cmdResult) {
         await this.waService.sendText(jid, cmdResult);
+        return;
+      }
+      // Si se activó un workflow durante el comando, detener el procesamiento normal
+      if (WorkflowManager.isActive(sessionKey)) {
         return;
       }
     }
@@ -1573,6 +1593,11 @@ export class WhatsAppAgent {
           return `✅ Activación cambiada a: *${mode}*\n${mode === 'mention' ? '• Solo responderé cuando me mencionen, usen /soflia, o hagan reply a mi mensaje' : '• Responderé a TODOS los mensajes del grupo'}`;
         }
         return '📋 Uso: /activation mention | always';
+
+      case '/presentación':
+      case '/presentacion':
+        await WorkflowManager.startWorkflow(sessionKey, jid, senderNumber, this.waService, this);
+        return null;
 
       case '/help':
         return `📋 *Comandos disponibles:*\n\n/status — Estado de SofLIA\n/reset — Reiniciar conversación\n/new — Igual que /reset\n${isGroup ? '/activation mention|always — Modo de activación en grupo (Solo Admin)\n' : ''}/help — Esta ayuda\n\n${isGroup ? '💡 En grupos, solo respondo si me etiquetas (@SofLIA), usas el prefijo /soflia, o incluyes mi nombre "soflia" en tu mensaje.' : ''}`;
@@ -2692,17 +2717,31 @@ $vol.SetMasterVolumeLevelScalar(${level / 100.0}, [Guid]::Empty)`;
             if (!this.calendarService) {
               functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'Google Calendar no conectado.' } } });
             } else {
-              const events = await this.calendarService.getCurrentEvents();
+              let start = new Date();
+              start.setHours(0, 0, 0, 0);
+              let end = new Date(start);
+              end.setHours(23, 59, 59, 999);
+
+              if (toolArgs.start_date) {
+                start = new Date(toolArgs.start_date);
+                end = new Date(start);
+                end.setHours(23, 59, 59, 999); // Default end of that day
+              }
+              if (toolArgs.end_date) {
+                end = new Date(toolArgs.end_date);
+              }
+
+              const events = await this.calendarService.getEventsRange(start, end);
               const formatted = events.map(e => ({
                 id: e.id,
                 title: e.title,
-                start: e.start.toISOString(),
-                end: e.end.toISOString(),
+                start: e.isAllDay ? e.start.toISOString().split('T')[0] : e.start.toLocaleString('es-MX'),
+                end: e.isAllDay ? e.end.toISOString().split('T')[0] : e.end.toLocaleString('es-MX'),
                 location: e.location || null,
                 description: e.description || null,
                 isAllDay: e.isAllDay,
               }));
-              functionResponses.push({ functionResponse: { name: toolName, response: { success: true, events: formatted, count: formatted.length } } });
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: true, request_range: { start: start.toLocaleString('es-MX'), end: end.toLocaleString('es-MX') }, events: formatted, count: formatted.length } } });
             }
           } catch (err: any) {
             functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });

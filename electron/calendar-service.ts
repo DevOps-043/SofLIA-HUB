@@ -4,9 +4,11 @@
  * Runs in the Electron main process.
  */
 import { EventEmitter } from 'node:events';
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, app } from 'electron';
 import http from 'node:http';
 import { URL } from 'node:url';
+import fs from 'node:fs/promises';
+import path from 'node:path';
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -44,6 +46,7 @@ export interface CalendarConfig {
 }
 
 // ─── OAuth redirect port ────────────────────────────────────────────
+// ─── Constants ──────────────────────────────────────────────────────
 const OAUTH_REDIRECT_PORT = 8234;
 const OAUTH_REDIRECT_URI = `http://localhost:${OAUTH_REDIRECT_PORT}/callback`;
 
@@ -59,6 +62,92 @@ export class CalendarService extends EventEmitter {
 
   constructor() {
     super();
+  }
+
+  // ─── Persistence ──────────────────────────────────────────────────
+  private getStoragePath(): string {
+    return path.join(app.getPath('userData'), 'calendar-connections.json');
+  }
+
+  async init(): Promise<void> {
+    await this.loadConnections();
+    // Proactively restore & refresh Google session so user doesn't need to re-auth
+    await this.restoreGoogleSession();
+  }
+
+  /**
+   * After loading saved connections, validate and refresh the Google token
+   * so it's ready to use immediately without user interaction.
+   */
+  private async restoreGoogleSession(): Promise<void> {
+    const conn = this.connections.get('google');
+    if (!conn?.isActive || !conn.refreshToken) return;
+
+    if (!this.config.google?.clientId || !this.config.google?.clientSecret) {
+      console.warn('[CalendarService] Cannot restore Google session — OAuth config not set yet');
+      return;
+    }
+
+    try {
+      const { google } = await import('googleapis');
+      const oauth2Client = new google.auth.OAuth2(
+        this.config.google.clientId,
+        this.config.google.clientSecret,
+        OAUTH_REDIRECT_URI,
+      );
+
+      oauth2Client.setCredentials({
+        refresh_token: conn.refreshToken,
+      });
+
+      // Force a token refresh to get a valid access_token
+      const { credentials } = await oauth2Client.refreshAccessToken();
+
+      if (credentials.access_token) {
+        conn.accessToken = credentials.access_token;
+        if (credentials.expiry_date) {
+          conn.tokenExpiry = new Date(credentials.expiry_date);
+        }
+        // Persist the fresh token so next restart also works
+        await this.saveConnections();
+        console.log(`[CalendarService] Google session restored successfully (${conn.email})`);
+        this.emit('session-restored', { provider: 'google', email: conn.email });
+      } else {
+        throw new Error('No access_token received from refresh');
+      }
+    } catch (err: any) {
+      console.error(`[CalendarService] Failed to restore Google session: ${err.message}`);
+      // Token might be revoked or expired beyond repair — mark inactive
+      conn.isActive = false;
+      await this.saveConnections();
+      this.emit('session-restore-failed', { provider: 'google', email: conn.email, error: err.message });
+    }
+  }
+
+  private async loadConnections(): Promise<void> {
+    try {
+      const data = await fs.readFile(this.getStoragePath(), 'utf-8');
+      const loaded: CalendarConnection[] = JSON.parse(data);
+      for (const conn of loaded) {
+        if (conn.tokenExpiry) {
+          conn.tokenExpiry = new Date(conn.tokenExpiry);
+        }
+        this.connections.set(conn.provider, conn);
+        this.emit('connected', { provider: conn.provider, email: conn.email });
+        console.log(`[CalendarService] Automatically loaded connection: ${conn.provider} (${conn.email})`);
+      }
+    } catch {
+      // File does not exist or invalid, ignore
+    }
+  }
+
+  private async saveConnections(): Promise<void> {
+    try {
+      const arr = Array.from(this.connections.values());
+      await fs.writeFile(this.getStoragePath(), JSON.stringify(arr, null, 2), 'utf-8');
+    } catch (err: any) {
+      console.error('[CalendarService] Error saving connections:', err.message);
+    }
   }
 
   // ─── Configuration ────────────────────────────────────────────────
@@ -128,6 +217,7 @@ export class CalendarService extends EventEmitter {
       };
 
       this.connections.set('google', connection);
+      await this.saveConnections();
       this.emit('connected', { provider: 'google', email });
       console.log(`[CalendarService] Google connected: ${email}`);
       return { success: true, email };
@@ -181,6 +271,7 @@ export class CalendarService extends EventEmitter {
       };
 
       this.connections.set('microsoft', connection);
+      await this.saveConnections();
       this.emit('connected', { provider: 'microsoft', email: connection.email });
       console.log(`[CalendarService] Microsoft connected: ${connection.email}`);
       return { success: true, email: connection.email };
@@ -192,8 +283,9 @@ export class CalendarService extends EventEmitter {
 
   // ─── Disconnect ───────────────────────────────────────────────────
 
-  disconnect(provider: 'google' | 'microsoft'): void {
+  async disconnect(provider: 'google' | 'microsoft'): Promise<void> {
     this.connections.delete(provider);
+    await this.saveConnections();
     this.emit('disconnected', { provider });
     console.log(`[CalendarService] Disconnected: ${provider}`);
   }
@@ -213,17 +305,14 @@ export class CalendarService extends EventEmitter {
 
   // ─── Fetch current events ─────────────────────────────────────────
 
-  async getCurrentEvents(): Promise<CalendarEvent[]> {
+  async getEventsRange(start: Date, end: Date): Promise<CalendarEvent[]> {
     const events: CalendarEvent[] = [];
-    const now = new Date();
-    const endOfDay = new Date(now);
-    endOfDay.setHours(23, 59, 59, 999);
 
     // Google events
     const googleConn = this.connections.get('google');
     if (googleConn?.isActive) {
       try {
-        const googleEvents = await this.fetchGoogleEvents(googleConn, now, endOfDay);
+        const googleEvents = await this.fetchGoogleEvents(googleConn, start, end);
         events.push(...googleEvents);
       } catch (err: any) {
         console.error('[CalendarService] Google fetch error:', err.message);
@@ -234,7 +323,7 @@ export class CalendarService extends EventEmitter {
     const microsoftConn = this.connections.get('microsoft');
     if (microsoftConn?.isActive) {
       try {
-        const msEvents = await this.fetchMicrosoftEvents(microsoftConn, now, endOfDay);
+        const msEvents = await this.fetchMicrosoftEvents(microsoftConn, start, end);
         events.push(...msEvents);
       } catch (err: any) {
         console.error('[CalendarService] Microsoft fetch error:', err.message);
@@ -242,6 +331,13 @@ export class CalendarService extends EventEmitter {
     }
 
     return events.sort((a, b) => a.start.getTime() - b.start.getTime());
+  }
+
+  async getCurrentEvents(): Promise<CalendarEvent[]> {
+    const now = new Date();
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
+    return this.getEventsRange(now, endOfDay);
   }
 
   // ─── Work hours detection ─────────────────────────────────────────
@@ -342,10 +438,11 @@ export class CalendarService extends EventEmitter {
     });
 
     // Keep tokens in sync
-    oauth2Client.on('tokens', (tokens: any) => {
+    oauth2Client.on('tokens', async (tokens: any) => {
       if (tokens.access_token) {
         conn.accessToken = tokens.access_token;
         if (tokens.expiry_date) conn.tokenExpiry = new Date(tokens.expiry_date);
+        await this.saveConnections();
         this.emit('token-refreshed', { provider: 'google', connection: conn });
       }
     });
@@ -460,10 +557,11 @@ export class CalendarService extends EventEmitter {
     });
 
     // Handle token refresh
-    oauth2Client.on('tokens', (tokens) => {
+    oauth2Client.on('tokens', async (tokens) => {
       if (tokens.access_token) {
         conn.accessToken = tokens.access_token;
         if (tokens.expiry_date) conn.tokenExpiry = new Date(tokens.expiry_date);
+        await this.saveConnections();
         this.emit('token-refreshed', { provider: 'google', connection: conn });
       }
     });

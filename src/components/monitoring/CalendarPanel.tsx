@@ -29,6 +29,7 @@ declare global {
       onWorkStart: (cb: (data: any) => void) => void;
       onWorkEnd: (cb: (data: any) => void) => void;
       onConnected: (cb: (data: any) => void) => void;
+      onDisconnected: (cb: (data: any) => void) => void;
       onPoll: (cb: (data: any) => void) => void;
       removeListeners: () => void;
     };
@@ -54,6 +55,23 @@ export function CalendarPanel() {
     window.calendar.getEvents().then(evts => {
       setEvents(evts.map(e => ({ ...e, start: new Date(e.start), end: new Date(e.end) })));
     }).catch(() => {});
+
+    // Listen for auto-restored or new connections (e.g. after app restart)
+    window.calendar.onConnected((data) => {
+      setConnections(prev => {
+        const filtered = prev.filter(c => c.provider !== data.provider);
+        return [...filtered, { provider: data.provider, email: data.email, isActive: true }];
+      });
+      // Refresh events when a connection is restored
+      window.calendar.getEvents().then(evts => {
+        setEvents(evts.map((e: any) => ({ ...e, start: new Date(e.start), end: new Date(e.end) })));
+      }).catch(() => {});
+    });
+
+    // Listen for failed session restores or disconnections
+    window.calendar.onDisconnected((data) => {
+      setConnections(prev => prev.filter(c => c.provider !== data.provider));
+    });
 
     window.calendar.onPoll((data) => {
       setInWorkHours(data.inWorkHours);

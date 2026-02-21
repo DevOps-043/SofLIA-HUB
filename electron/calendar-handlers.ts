@@ -112,5 +112,15 @@ export function registerCalendarHandlers(
     getMainWindow()?.webContents.send('calendar:token-refreshed', data);
   });
 
+  calendarService.on('session-restored', (data) => {
+    getMainWindow()?.webContents.send('calendar:connected', data);
+    console.log(`[CalendarHandlers] Session restored for ${data.provider} (${data.email})`);
+  });
+
+  calendarService.on('session-restore-failed', (data) => {
+    getMainWindow()?.webContents.send('calendar:disconnected', data);
+    console.log(`[CalendarHandlers] Session restore failed for ${data.provider}: ${data.error}`);
+  });
+
   console.log('[CalendarHandlers] Registered successfully');
 }

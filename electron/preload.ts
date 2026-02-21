@@ -161,6 +161,9 @@ contextBridge.exposeInMainWorld('calendar', {
   onConnected: (cb: (data: any) => void) => {
     ipcRenderer.on('calendar:connected', (_event, data) => cb(data))
   },
+  onDisconnected: (cb: (data: any) => void) => {
+    ipcRenderer.on('calendar:disconnected', (_event, data) => cb(data))
+  },
   onPoll: (cb: (data: any) => void) => {
     ipcRenderer.on('calendar:poll', (_event, data) => cb(data))
   },

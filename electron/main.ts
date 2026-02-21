@@ -444,8 +444,16 @@ app.whenReady().then(async () => {
   createTray()
   createWindow()
 
-  // ─── WhatsApp init ────────────────────────────────────────────
+  // ─── Service Init ─────────────────────────────────────────────
   await waService.init()
+  await calendarService.init()
+
+  // Auto-start calendar polling if there are restored connections
+  const restoredConns = calendarService.getConnections()
+  if (restoredConns.some(c => c.isActive)) {
+    console.log('[Main] Restored Google connections found — starting calendar polling')
+    calendarService.startPolling()
+  }
 
   // Forward WhatsApp events to renderer
   waService.on('qr', (qr: string) => {
