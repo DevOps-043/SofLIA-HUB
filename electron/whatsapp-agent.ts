@@ -14,6 +14,8 @@ import type { WhatsAppService } from './whatsapp-service';
 import type { CalendarService } from './calendar-service';
 import type { GmailService } from './gmail-service';
 import type { DriveService } from './drive-service';
+import type { MemoryService } from './memory-service';
+import type { KnowledgeService } from './knowledge-service';
 import {
   authenticateWhatsAppUser,
   tryAutoAuthByPhone,
@@ -78,28 +80,6 @@ const GROUP_BLOCKED_TOOLS = new Set([
   'clipboard_write',
   'clipboard_read',
 ]);
-
-// ─── Memory / Lessons system ──────────────────────────────────────
-const MEMORY_PATH = path.join(app.getPath('userData'), 'whatsapp-memories.json');
-
-interface Memory {
-  lesson: string;
-  context: string;
-  createdAt: string;
-}
-
-async function loadMemories(): Promise<Memory[]> {
-  try {
-    const data = await fs.readFile(MEMORY_PATH, 'utf-8');
-    return JSON.parse(data);
-  } catch {
-    return [];
-  }
-}
-
-async function saveMemories(memories: Memory[]): Promise<void> {
-  await fs.writeFile(MEMORY_PATH, JSON.stringify(memories, null, 2), 'utf-8');
-}
 
 // ─── Tool declarations for Gemini (filtered for WhatsApp security) ─
 const WA_TOOL_DECLARATIONS = {
@@ -347,6 +327,64 @@ const WA_TOOL_DECLARATIONS = {
       description: 'Consulta todas las lecciones aprendidas previamente. Úsalo al inicio de tareas para recordar preferencias y errores pasados.',
       parameters: { type: 'OBJECT' as const, properties: {} },
     },
+    // ─── Knowledge Base (OpenClaw-style .md files) ────────────────
+    {
+      name: 'knowledge_save',
+      description: 'Guarda información importante en la base de conocimiento persistente (MEMORY.md). Usa esto para guardar datos duraderos: preferencias del usuario, decisiones, configuraciones, datos del sistema, etc. Esta información se inyecta SIEMPRE en cada conversación.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          content: { type: 'STRING' as const, description: 'El dato o conocimiento a guardar. Sé conciso y claro.' },
+          section: { type: 'STRING' as const, description: 'Sección donde guardar. Opciones: "Preferencias Generales", "Lecciones Aprendidas", "Decisiones Arquitectónicas", "Datos del Sistema". También puedes crear secciones nuevas.' },
+        },
+        required: ['content'],
+      },
+    },
+    {
+      name: 'knowledge_update_user',
+      description: 'Actualiza el perfil del usuario actual con información personal, preferencias o contexto laboral. Estos datos se inyectan automáticamente en cada conversación con este usuario.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          section: { type: 'STRING' as const, description: 'Sección del perfil: "Datos Personales", "Preferencias de Comunicación", "Contexto Laboral", "Notas Importantes".' },
+          content: { type: 'STRING' as const, description: 'La información a guardar en esa sección del perfil.' },
+        },
+        required: ['section', 'content'],
+      },
+    },
+    {
+      name: 'knowledge_search',
+      description: 'Busca información en toda la base de conocimiento (MEMORY.md, perfiles de usuario, logs diarios). Usa esto para recordar conversaciones pasadas, buscar datos guardados previamente.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          query: { type: 'STRING' as const, description: 'Texto a buscar en los archivos de conocimiento.' },
+        },
+        required: ['query'],
+      },
+    },
+    {
+      name: 'knowledge_log',
+      description: 'Registra un evento o contexto en el log diario (memory/YYYY-MM-DD.md). Usa esto para eventos temporales, resúmenes de sesión, acciones realizadas. Los logs diarios NO se inyectan automáticamente — se consultan con knowledge_search.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          content: { type: 'STRING' as const, description: 'El evento o contexto a registrar.' },
+        },
+        required: ['content'],
+      },
+    },
+    {
+      name: 'knowledge_read',
+      description: 'Lee el contenido de un archivo de conocimiento específico. Archivos disponibles: "MEMORY.md", "users/{phone}.md", "memory/YYYY-MM-DD.md".',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          file: { type: 'STRING' as const, description: 'Nombre del archivo a leer (ej: "MEMORY.md", "memory/2026-02-21.md").' },
+        },
+        required: ['file'],
+      },
+    },
     // ─── Computer Use ───────────────────────────────────────────
     {
       name: 'use_computer',
@@ -503,13 +541,13 @@ const WA_TOOL_DECLARATIONS = {
     },
     {
       name: 'create_document',
-      description: 'Crea un documento Word (.docx) o Excel (.xlsx) con contenido generado. Puede crear informes, contratos, resúmenes, tablas, etc. Después de crearlo puedes enviarlo por WhatsApp con whatsapp_send_file.',
+      description: 'Crea un documento (Word, Excel, PDF o Markdown) con contenido generado. Puede crear informes, contratos, resúmenes, tablas, etc. Después de crearlo puedes enviarlo por WhatsApp con whatsapp_send_file.',
       parameters: {
         type: 'OBJECT' as const,
         properties: {
-          type: { type: 'STRING' as const, description: '"word" para documento Word (.docx), "excel" para hoja de cálculo Excel (.xlsx).' },
+          type: { type: 'STRING' as const, description: '"word" para Word (.docx), "excel" para Excel (.xlsx), "pdf" para PDF (.pdf), o "md" para Markdown (.md).' },
           filename: { type: 'STRING' as const, description: 'Nombre del archivo sin extensión. Ej: "Informe de ventas", "Contrato de servicios".' },
-          content: { type: 'STRING' as const, description: 'Para Word: texto completo del documento. Usa \\n para saltos de línea y ## para títulos de sección. Para Excel: JSON con formato [{"Columna1": "valor", "Columna2": "valor"}, ...] representando filas.' },
+          content: { type: 'STRING' as const, description: 'Texto del documento. Usa saltos de línea y marcadores Markdown como ## para PDF y Word. Para Excel: JSON con formato [{"Columna1": "valor", "Columna2": "valor"}, ...] representando filas.' },
           save_directory: { type: 'STRING' as const, description: 'Carpeta donde guardar. Si no se especifica, se guarda en el escritorio del usuario.' },
           title: { type: 'STRING' as const, description: 'Título principal del documento (aparece como encabezado en Word o nombre de hoja en Excel).' },
         },
@@ -798,12 +836,7 @@ const WA_TOOL_DECLARATIONS = {
 };
 
 // ─── Build system prompt with memories ────────────────────────────
-async function buildSystemPrompt(): Promise<string> {
-  const memories = await loadMemories();
-  const memoriesSection = memories.length > 0
-    ? `\n\nLECCIONES APRENDIDAS (NO repitas estos errores):\n${memories.map((m, i) => `${i + 1}. ${m.lesson}`).join('\n')}`
-    : '';
-
+async function buildSystemPrompt(memoryContext: string = ''): Promise<string> {
   // Inject current date/time so Gemini can calculate "mañana", "el lunes", etc.
   const now = new Date();
   const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
@@ -931,6 +964,20 @@ NAVEGADOR (solo si Google API no aplica):
 5. USA use_computer AGRESIVAMENTE: Si necesitas interactuar con cualquier programa, usa use_computer. No le digas al usuario "haz click en X" — hazlo tú.
 6. APRENDE: Usa save_lesson cuando descubras algo útil o el usuario te corrija.
 
+═══ MEMORIA PERSISTENTE (Knowledge Base) ═══
+
+Tienes una base de conocimiento en archivos .md que SIEMPRE se inyecta en tu contexto:
+- MEMORY.md: Conocimiento global permanente (preferencias, lecciones, configuraciones)
+- Perfil de usuario: Datos personales y preferencias de cada usuario
+
+REGLAS DE MEMORIA:
+1. Cuando el usuario te diga su nombre, rol, empresa, o preferencias → usa knowledge_update_user para actualizar su perfil
+2. Cuando descubras algo importante del sistema (rutas, configuraciones, patrones) → usa knowledge_save
+3. Cuando completes una tarea relevante o sesión larga → usa knowledge_log para registrar en el log diario
+4. Cuando necesites recordar algo de conversaciones pasadas → usa knowledge_search
+5. Si el usuario dice "recuerda esto" o "no olvides que..." → SIEMPRE guárdalo con knowledge_save o knowledge_update_user
+6. PROACTIVAMENTE actualiza el perfil del usuario cuando descubras datos nuevos (no esperes a que te lo pidan)
+
 ═══ FORMATO WHATSAPP ═══
 
 - NUNCA uses markdown (#, ##, **, \`\`\`, -)
@@ -939,7 +986,7 @@ NAVEGADOR (solo si Google API no aplica):
 - Listas con emojis o números simples
 - NO expliques antes de actuar — actúa y responde con el resultado
 
-Responde en español a menos que pidan otro idioma.${memoriesSection}`;
+Responde en español a menos que pidan otro idioma.${memoryContext}`;
 }
 
 // ─── Conversation history per session (DM: by number, Group: by group+number) ──
@@ -1479,10 +1526,14 @@ export class WhatsAppAgent {
   private calendarService: CalendarService | null = null;
   private gmailService: GmailService | null = null;
   private driveService: DriveService | null = null;
+  private memory: MemoryService;
+  private knowledge: KnowledgeService;
 
-  constructor(waService: WhatsAppService, apiKey: string) {
+  constructor(waService: WhatsAppService, apiKey: string, memoryService: MemoryService, knowledgeService: KnowledgeService) {
     this.waService = waService;
     this.apiKey = apiKey;
+    this.memory = memoryService;
+    this.knowledge = knowledgeService;
   }
 
   setGoogleServices(calendar: CalendarService, gmail: GmailService, drive: DriveService): void {
@@ -1579,6 +1630,7 @@ export class WhatsAppAgent {
       case '/reset':
       case '/new':
         conversations.delete(sessionKey);
+        this.memory.clearSessionContext(sessionKey);
         return '🔄 Conversación reiniciada.';
 
       case '/activation':
@@ -1709,7 +1761,48 @@ export class WhatsAppAgent {
     inlineMediaParts: Array<{ inlineData: { mimeType: string; data: string } }> = [],
   ): Promise<string> {
     const ai = this.getGenAI();
-    let systemPrompt = await buildSystemPrompt();
+
+    // ─── Assemble 3-layer memory context ──────────────────────────
+    const sessionKey = isGroup ? `group:${jid}:${senderNumber}` : senderNumber;
+    let memoryContextStr = '';
+    try {
+      const memCtx = await this.memory.assembleContext(sessionKey, senderNumber, userMessage);
+      memoryContextStr = this.memory.formatContextForPrompt(memCtx);
+    } catch (err: any) {
+      console.warn('[WhatsApp Agent] Memory context assembly failed:', err.message);
+    }
+
+    // Persist the incoming user message
+    this.memory.saveMessage({
+      sessionKey,
+      phoneNumber: senderNumber,
+      groupJid: isGroup ? jid : undefined,
+      role: 'user',
+      content: userMessage,
+    });
+
+    // ─── Inject OpenClaw-style knowledge files ─────────────────────
+    const knowledgeContext = this.knowledge.getBootstrapContext(senderNumber);
+
+    let systemPrompt = await buildSystemPrompt(memoryContextStr + knowledgeContext);
+
+    // ─── Log Google services state for debugging ─────────────────
+    if (this.calendarService) {
+      const conns = this.calendarService.getConnections();
+      const googleConn = conns.find((c: any) => c.provider === 'google');
+      console.log(`[WhatsApp Agent] Google connection state: ${googleConn ? `active=${googleConn.isActive}, email=${googleConn.email}` : 'NOT CONNECTED'}`);
+    } else {
+      console.warn('[WhatsApp Agent] calendarService is null — Google APIs unavailable');
+    }
+
+    // ─── Inject Google connection status into system prompt ──────
+    if (this.calendarService) {
+      const conns = this.calendarService.getConnections();
+      const hasGoogle = conns.some((c: any) => c.provider === 'google' && c.isActive);
+      if (!hasGoogle) {
+        systemPrompt += `\n\n═══ ESTADO DE CONEXIÓN GOOGLE ═══\n⚠️ Google NO está conectado. Si el usuario pide acciones de Calendar, Gmail, eventos o Drive, infórmale EXPRESAMENTE que debe conectar Google desde la interfaz de SofLIA Hub primero. \n❌ PROHIBICIONES ESTRICTAS: NO INTENTES USAR las herramientas de computadora (use_computer, execute_command, open_application) NI el navegador (open_url) para entrar a leer sus correos o ver su calendario. Si no tienes la API de Google conectada, debes NEGARTE a revisar el calendario o correos y guiarlos a conectarse desde cero.`;
+      }
+    }
 
     // ─── Group context injection ────────────────────────────────
     if (isGroup) {
@@ -1773,9 +1866,6 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
       systemInstruction: systemPrompt,
       tools: [toolDeclarations as any],
     });
-
-    // ─── Session key: isolated per group+participant ─────────────
-    const sessionKey = isGroup ? `group:${jid}:${senderNumber}` : senderNumber;
 
     // Get or create conversation history (only clean user/model text pairs)
     if (!conversations.has(sessionKey)) {
@@ -1885,6 +1975,17 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
         history.push({ role: 'user', parts: [{ text: userMessage }] });
         history.push({ role: 'model', parts: [{ text: finalText }] });
 
+        // Persist model response to 3-layer memory
+        if (finalText.trim()) {
+          this.memory.saveMessage({
+            sessionKey,
+            phoneNumber: senderNumber,
+            groupJid: isGroup ? jid : undefined,
+            role: 'model',
+            content: finalText,
+          });
+        }
+
         // Trim history
         while (history.length > MAX_HISTORY * 2) {
           history.shift();
@@ -1898,6 +1999,21 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
         if (!finalText.trim() && finishReason && finishReason !== 'STOP') {
           console.error(`[WhatsApp Agent] Model returned empty text with finishReason: ${finishReason}`);
           return formatForWhatsApp('Hubo un problema procesando tu solicitud. Intenta reformular tu mensaje.', isGroup);
+        }
+
+        // If empty text with STOP, check Google connection and provide contextual help
+        if (!finalText.trim()) {
+          console.warn(`[WhatsApp Agent] Empty text response for message: "${userMessage.slice(0, 80)}". finishReason: ${finishReason}, iterations: ${iterations}`);
+
+          // Check if user message was about Google services and connection is missing
+          const googleKeywords = /drive|calendar|calendario|agenda|evento|gmail|email|correo/i;
+          if (googleKeywords.test(userMessage) && this.calendarService) {
+            const conns = this.calendarService.getConnections();
+            const hasGoogle = conns.some((c: any) => c.provider === 'google' && c.isActive);
+            if (!hasGoogle) {
+              return formatForWhatsApp('No tengo acceso a tu cuenta de Google. Necesitas conectar Google desde SofLIA Hub (sección Calendario) para que pueda usar Drive, Calendar y Gmail.', isGroup);
+            }
+          }
         }
 
         const finalResponse = finalText.trim() || '¿En qué puedo ayudarte?';
@@ -2158,25 +2274,20 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
           continue;
         }
 
-        // Handle save_lesson
+        // Handle save_lesson → persisted via MemoryService facts
         if (toolName === 'save_lesson') {
           try {
-            const memories = await loadMemories();
-            // Avoid duplicates
-            const exists = memories.some(m => m.lesson === toolArgs.lesson);
-            if (!exists) {
-              memories.push({
-                lesson: toolArgs.lesson,
-                context: toolArgs.context || '',
-                createdAt: new Date().toISOString(),
-              });
-              // Keep max 50 memories
-              while (memories.length > 50) memories.shift();
-              await saveMemories(memories);
-              console.log(`[WhatsApp Agent] Memory saved: "${toolArgs.lesson}"`);
-            }
+            const key = (toolArgs.lesson as string).slice(0, 60).replace(/[^a-zA-Z0-9áéíóúñ\s]/g, '').trim().replace(/\s+/g, '_').toLowerCase();
+            const result = this.memory.saveFact({
+              phoneNumber: senderNumber,
+              category: 'correction',
+              key: key || `lesson_${Date.now()}`,
+              value: toolArgs.lesson,
+              context: toolArgs.context || 'Aprendido en conversación WhatsApp',
+            });
+            console.log(`[WhatsApp Agent] Lesson saved via MemoryService: "${toolArgs.lesson}"`);
             functionResponses.push({
-              functionResponse: { name: toolName, response: { success: true, message: 'Lección guardada.' } },
+              functionResponse: { name: toolName, response: result },
             });
           } catch (err: any) {
             functionResponses.push({
@@ -2186,31 +2297,76 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
           continue;
         }
 
-        // Handle recall_memories
+        // Handle recall_memories → reads from MemoryService facts
         if (toolName === 'recall_memories') {
           try {
-            const memories = await loadMemories();
-            if (memories.length === 0) {
-              functionResponses.push({
-                functionResponse: { name: toolName, response: { success: true, memories: [], message: 'No hay lecciones guardadas aún.' } },
-              });
-            } else {
-              functionResponses.push({
-                functionResponse: {
-                  name: toolName,
-                  response: {
-                    success: true,
-                    memories: memories.map(m => m.lesson),
-                    count: memories.length,
-                  },
+            const facts = this.memory.getFacts(senderNumber);
+            const lessons = facts.filter(f => f.category === 'correction');
+            functionResponses.push({
+              functionResponse: {
+                name: toolName,
+                response: {
+                  success: true,
+                  memories: lessons.map(f => f.value),
+                  count: lessons.length,
+                  message: lessons.length === 0 ? 'No hay lecciones guardadas aún.' : undefined,
                 },
-              });
-            }
+              },
+            });
           } catch (err: any) {
             functionResponses.push({
               functionResponse: { name: toolName, response: { success: false, error: err.message } },
             });
           }
+          continue;
+        }
+
+        // ─── Knowledge Base Tools (OpenClaw-style .md files) ────────
+        if (toolName === 'knowledge_save') {
+          const result = this.knowledge.saveToMemory(toolArgs.content, toolArgs.section);
+          functionResponses.push({
+            functionResponse: { name: toolName, response: result },
+          });
+          continue;
+        }
+
+        if (toolName === 'knowledge_update_user') {
+          const result = this.knowledge.updateUserProfile(senderNumber, toolArgs.section, toolArgs.content);
+          functionResponses.push({
+            functionResponse: { name: toolName, response: result },
+          });
+          continue;
+        }
+
+        if (toolName === 'knowledge_search') {
+          const results = this.knowledge.searchKnowledge(toolArgs.query, 8);
+          functionResponses.push({
+            functionResponse: {
+              name: toolName,
+              response: {
+                success: true,
+                results,
+                count: results.length,
+                message: results.length === 0 ? 'No se encontraron resultados.' : undefined,
+              },
+            },
+          });
+          continue;
+        }
+
+        if (toolName === 'knowledge_log') {
+          const result = this.knowledge.saveToDailyLog(toolArgs.content, senderNumber);
+          functionResponses.push({
+            functionResponse: { name: toolName, response: result },
+          });
+          continue;
+        }
+
+        if (toolName === 'knowledge_read') {
+          const result = this.knowledge.readKnowledgeFile(toolArgs.file);
+          functionResponses.push({
+            functionResponse: { name: toolName, response: result },
+          });
           continue;
         }
 
@@ -2669,9 +2825,66 @@ $vol.SetMasterVolumeLevelScalar(${level / 100.0}, [Guid]::Empty)`;
                   response: { success: true, file_path: filePath, message: `Documento Excel creado: ${filePath}` },
                 },
               });
+            } else if (docType === 'md' || docType === 'markdown') {
+              // ─── Create Markdown document ───────────────────────────
+              const filePath = path.join(saveDir, `${filename}.md`);
+              const mdContent = `# ${title}\n\n${toolArgs.content}`;
+              await fs.writeFile(filePath, mdContent, 'utf-8');
+
+              functionResponses.push({
+                functionResponse: {
+                  name: toolName,
+                  response: { success: true, file_path: filePath, message: `Documento Markdown creado: ${filePath}` },
+                },
+              });
+            } else if (docType === 'pdf') {
+              // ─── Create PDF document using Electron BrowserWindow ───
+              const { BrowserWindow } = await import('electron');
+              const win = new BrowserWindow({ show: false, webPreferences: { offscreen: true } });
+              
+              const htmlContent = toolArgs.content
+                .replace(/## (.*?)\n/g, '<h2>$1</h2>\n')
+                .replace(/# (.*?)\n/g, '<h1>$1</h1>\n')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n/g, '<br/>\n');
+
+              const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 40px; color: #333; line-height: 1.6; }
+                h1 { color: #111; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+                h2 { color: #222; margin-top: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+                p { margin-bottom: 15px; }
+                strong { font-weight: 600; color: #000; }
+              </style></head><body><h1>${title}</h1>${htmlContent}</body></html>`;
+
+              const filePath = path.join(saveDir, `${filename}.pdf`);
+              
+              await new Promise<void>((resolve, reject) => {
+                win.webContents.on('did-finish-load', async () => {
+                  try {
+                    const data = await win.webContents.printToPDF({
+                      printBackground: true
+                    });
+                    await fs.writeFile(filePath, data);
+                    win.destroy();
+                    resolve();
+                  } catch (e) {
+                    win.destroy();
+                    reject(e);
+                  }
+                });
+                win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+              });
+
+              functionResponses.push({
+                functionResponse: {
+                  name: toolName,
+                  response: { success: true, file_path: filePath, message: `Documento PDF creado: ${filePath}` },
+                },
+              });
             } else {
               functionResponses.push({
-                functionResponse: { name: toolName, response: { success: false, error: 'Tipo no válido. Usa "word" o "excel".' } },
+                functionResponse: { name: toolName, response: { success: false, error: 'Tipo no válido. Usa "word", "excel", "pdf" o "md".' } },
               });
             }
           } catch (err: any) {

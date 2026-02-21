@@ -34,6 +34,7 @@ export default defineConfig({
                 "@microsoft/microsoft-graph-client",
                 "@google/generative-ai",
                 "dotenv"
+                'better-sqlite3',
               ],
             },
           },
