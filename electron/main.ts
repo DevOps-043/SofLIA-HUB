@@ -18,6 +18,7 @@ import { generateDailySummary } from './summary-generator'
 import { MemoryService } from './memory-service'
 import { registerMemoryHandlers } from './memory-handlers'
 import { registerGoogleAuthHandlers } from './google-auth-handlers'
+import { KnowledgeService } from './knowledge-service'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -41,6 +42,12 @@ let isQuitting = false
 // ─── WhatsApp ───────────────────────────────────────────────────────
 const waService = new WhatsAppService()
 let waAgent: WhatsAppAgent | null = null
+
+// ─── Memory (3-layer persistent memory) ─────────────────────────────
+const memoryService = new MemoryService()
+
+// ─── Knowledge Base (OpenClaw-style .md files) ──────────────────────
+const knowledgeService = new KnowledgeService()
 
 // ─── Shared state ───────────────────────────────────────────────────
 let currentGeminiApiKey: string | null = null
@@ -379,10 +386,13 @@ ipcMain.handle('whatsapp:set-group-config', async (_, config: any) => {
 })
 
 function initWhatsAppAgent(apiKey: string) {
+  // Set API key on memory service for embeddings & summarization
+  memoryService.setApiKey(apiKey)
+
   if (waAgent) {
     waAgent.updateApiKey(apiKey)
   } else {
-    waAgent = new WhatsAppAgent(waService, apiKey)
+    waAgent = new WhatsAppAgent(waService, apiKey, memoryService, knowledgeService)
     waService.on('message', ({ jid, senderNumber, text, isGroup, history }: any) => {
       waAgent!.handleMessage(jid, senderNumber, text, isGroup, history)
     })
@@ -441,6 +451,11 @@ ipcMain.handle('whatsapp:set-api-key', async (_, apiKey: string) => {
 })
 
 app.whenReady().then(async () => {
+  // ─── Memory & Knowledge init ────────────────────────────────
+  memoryService.init()
+  registerMemoryHandlers(memoryService)
+  knowledgeService.init()
+
   // Restore saved Google/Microsoft OAuth connections from disk
   calendarService.loadConnectionsFromDisk()
   registerComputerUseHandlers()
