@@ -1,4 +1,3 @@
-
 import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, desktopCapturer, globalShortcut, screen } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -13,8 +12,12 @@ import { GmailService } from './gmail-service'
 import { registerGmailHandlers } from './gmail-handlers'
 import { DriveService } from './drive-service'
 import { registerDriveHandlers } from './drive-handlers'
+import { registerWhatsAppHandlers } from './whatsapp-handlers';
 import { ProactiveService } from './proactive-service'
 import { generateDailySummary } from './summary-generator'
+import { MemoryService } from './memory-service'
+import { registerMemoryHandlers } from './memory-handlers'
+import { registerGoogleAuthHandlers } from './google-auth-handlers'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -66,6 +69,8 @@ calendarService.setConfig({
     clientId: process.env.VITE_MICROSOFT_CLIENT_ID || '',
   },
 })
+
+
 
 // Wire calendar work-start/end to monitoring auto-start/stop
 calendarService.on('work-start', async (data: any) => {
@@ -436,6 +441,8 @@ ipcMain.handle('whatsapp:set-api-key', async (_, apiKey: string) => {
 })
 
 app.whenReady().then(async () => {
+  // Restore saved Google/Microsoft OAuth connections from disk
+  calendarService.loadConnectionsFromDisk()
   registerComputerUseHandlers()
   registerMonitoringHandlers(monitoringService, () => win)
   registerCalendarHandlers(calendarService, () => win)

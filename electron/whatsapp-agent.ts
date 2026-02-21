@@ -501,13 +501,13 @@ const WA_TOOL_DECLARATIONS = {
     },
     {
       name: 'create_document',
-      description: 'Crea un documento Word (.docx) o Excel (.xlsx) con contenido generado. Puede crear informes, contratos, resúmenes, tablas, etc. Después de crearlo puedes enviarlo por WhatsApp con whatsapp_send_file.',
+      description: 'Crea un documento (Word, Excel, PDF o Markdown) con contenido generado. Puede crear informes, contratos, resúmenes, tablas, etc. Después de crearlo puedes enviarlo por WhatsApp con whatsapp_send_file.',
       parameters: {
         type: 'OBJECT' as const,
         properties: {
-          type: { type: 'STRING' as const, description: '"word" para documento Word (.docx), "excel" para hoja de cálculo Excel (.xlsx).' },
+          type: { type: 'STRING' as const, description: '"word" para Word (.docx), "excel" para Excel (.xlsx), "pdf" para PDF (.pdf), o "md" para Markdown (.md).' },
           filename: { type: 'STRING' as const, description: 'Nombre del archivo sin extensión. Ej: "Informe de ventas", "Contrato de servicios".' },
-          content: { type: 'STRING' as const, description: 'Para Word: texto completo del documento. Usa \\n para saltos de línea y ## para títulos de sección. Para Excel: JSON con formato [{"Columna1": "valor", "Columna2": "valor"}, ...] representando filas.' },
+          content: { type: 'STRING' as const, description: 'Texto del documento. Usa saltos de línea y marcadores Markdown como ## para PDF y Word. Para Excel: JSON con formato [{"Columna1": "valor", "Columna2": "valor"}, ...] representando filas.' },
           save_directory: { type: 'STRING' as const, description: 'Carpeta donde guardar. Si no se especifica, se guarda en el escritorio del usuario.' },
           title: { type: 'STRING' as const, description: 'Título principal del documento (aparece como encabezado en Word o nombre de hoja en Excel).' },
         },
@@ -662,8 +662,13 @@ const WA_TOOL_DECLARATIONS = {
     },
     {
       name: 'google_calendar_get_events',
-      description: 'Obtiene los eventos del día de hoy del Google Calendar del usuario. Útil para: "¿qué tengo hoy?", "¿cuál es mi agenda?", "¿tengo reuniones?"',
-      parameters: { type: 'OBJECT' as const, properties: {} },
+      description: 'Obtiene los eventos de una fecha específica del Google Calendar. Si no pasas fecha, obtiene los de hoy. Siempre usa esto (nunca navegadores ni computadora) para revisar el calendario.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          date: { type: 'STRING' as const, description: 'Fecha opcional en formato YYYY-MM-DD. Ej: "2026-02-21". Si se omite, obtiene los eventos de hoy.' },
+        },
+      },
     },
     {
       name: 'google_calendar_delete',
@@ -1686,6 +1691,24 @@ export class WhatsAppAgent {
     const ai = this.getGenAI();
     let systemPrompt = await buildSystemPrompt();
 
+    // ─── Log Google services state for debugging ─────────────────
+    if (this.calendarService) {
+      const conns = this.calendarService.getConnections();
+      const googleConn = conns.find((c: any) => c.provider === 'google');
+      console.log(`[WhatsApp Agent] Google connection state: ${googleConn ? `active=${googleConn.isActive}, email=${googleConn.email}` : 'NOT CONNECTED'}`);
+    } else {
+      console.warn('[WhatsApp Agent] calendarService is null — Google APIs unavailable');
+    }
+
+    // ─── Inject Google connection status into system prompt ──────
+    if (this.calendarService) {
+      const conns = this.calendarService.getConnections();
+      const hasGoogle = conns.some((c: any) => c.provider === 'google' && c.isActive);
+      if (!hasGoogle) {
+        systemPrompt += `\n\n═══ ESTADO DE CONEXIÓN GOOGLE ═══\n⚠️ Google NO está conectado. Si el usuario pide acciones de Calendar, Gmail, eventos o Drive, infórmale EXPRESAMENTE que debe conectar Google desde la interfaz de SofLIA Hub primero. \n❌ PROHIBICIONES ESTRICTAS: NO INTENTES USAR las herramientas de computadora (use_computer, execute_command, open_application) NI el navegador (open_url) para entrar a leer sus correos o ver su calendario. Si no tienes la API de Google conectada, debes NEGARTE a revisar el calendario o correos y guiarlos a conectarse desde cero.`;
+      }
+    }
+
     // ─── Group context injection ────────────────────────────────
     if (isGroup) {
       systemPrompt += `\n\n═══ CONTEXTO DE GRUPO ═══
@@ -1873,6 +1896,21 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
         if (!finalText.trim() && finishReason && finishReason !== 'STOP') {
           console.error(`[WhatsApp Agent] Model returned empty text with finishReason: ${finishReason}`);
           return formatForWhatsApp('Hubo un problema procesando tu solicitud. Intenta reformular tu mensaje.', isGroup);
+        }
+
+        // If empty text with STOP, check Google connection and provide contextual help
+        if (!finalText.trim()) {
+          console.warn(`[WhatsApp Agent] Empty text response for message: "${userMessage.slice(0, 80)}". finishReason: ${finishReason}, iterations: ${iterations}`);
+
+          // Check if user message was about Google services and connection is missing
+          const googleKeywords = /drive|calendar|calendario|agenda|evento|gmail|email|correo/i;
+          if (googleKeywords.test(userMessage) && this.calendarService) {
+            const conns = this.calendarService.getConnections();
+            const hasGoogle = conns.some((c: any) => c.provider === 'google' && c.isActive);
+            if (!hasGoogle) {
+              return formatForWhatsApp('No tengo acceso a tu cuenta de Google. Necesitas conectar Google desde SofLIA Hub (sección Calendario) para que pueda usar Drive, Calendar y Gmail.', isGroup);
+            }
+          }
         }
 
         const finalResponse = finalText.trim() || '¿En qué puedo ayudarte?';
@@ -2644,9 +2682,66 @@ $vol.SetMasterVolumeLevelScalar(${level / 100.0}, [Guid]::Empty)`;
                   response: { success: true, file_path: filePath, message: `Documento Excel creado: ${filePath}` },
                 },
               });
+            } else if (docType === 'md' || docType === 'markdown') {
+              // ─── Create Markdown document ───────────────────────────
+              const filePath = path.join(saveDir, `${filename}.md`);
+              const mdContent = `# ${title}\n\n${toolArgs.content}`;
+              await fs.writeFile(filePath, mdContent, 'utf-8');
+
+              functionResponses.push({
+                functionResponse: {
+                  name: toolName,
+                  response: { success: true, file_path: filePath, message: `Documento Markdown creado: ${filePath}` },
+                },
+              });
+            } else if (docType === 'pdf') {
+              // ─── Create PDF document using Electron BrowserWindow ───
+              const { BrowserWindow } = await import('electron');
+              const win = new BrowserWindow({ show: false, webPreferences: { offscreen: true } });
+              
+              const htmlContent = toolArgs.content
+                .replace(/## (.*?)\n/g, '<h2>$1</h2>\n')
+                .replace(/# (.*?)\n/g, '<h1>$1</h1>\n')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n/g, '<br/>\n');
+
+              const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 40px; color: #333; line-height: 1.6; }
+                h1 { color: #111; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+                h2 { color: #222; margin-top: 20px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+                p { margin-bottom: 15px; }
+                strong { font-weight: 600; color: #000; }
+              </style></head><body><h1>${title}</h1>${htmlContent}</body></html>`;
+
+              const filePath = path.join(saveDir, `${filename}.pdf`);
+              
+              await new Promise<void>((resolve, reject) => {
+                win.webContents.on('did-finish-load', async () => {
+                  try {
+                    const data = await win.webContents.printToPDF({
+                      printBackground: true
+                    });
+                    await fs.writeFile(filePath, data);
+                    win.destroy();
+                    resolve();
+                  } catch (e) {
+                    win.destroy();
+                    reject(e);
+                  }
+                });
+                win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+              });
+
+              functionResponses.push({
+                functionResponse: {
+                  name: toolName,
+                  response: { success: true, file_path: filePath, message: `Documento PDF creado: ${filePath}` },
+                },
+              });
             } else {
               functionResponses.push({
-                functionResponse: { name: toolName, response: { success: false, error: 'Tipo no válido. Usa "word" o "excel".' } },
+                functionResponse: { name: toolName, response: { success: false, error: 'Tipo no válido. Usa "word", "excel", "pdf" o "md".' } },
               });
             }
           } catch (err: any) {
@@ -2692,7 +2787,8 @@ $vol.SetMasterVolumeLevelScalar(${level / 100.0}, [Guid]::Empty)`;
             if (!this.calendarService) {
               functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'Google Calendar no conectado.' } } });
             } else {
-              const events = await this.calendarService.getCurrentEvents();
+              const targetDate = toolArgs.date ? new Date(toolArgs.date) : undefined;
+              const events = await this.calendarService.getCurrentEvents(targetDate);
               const formatted = events.map(e => ({
                 id: e.id,
                 title: e.title,

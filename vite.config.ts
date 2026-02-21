@@ -25,6 +25,7 @@ export default defineConfig({
                 'pino',
                 'qrcode',
                 'libsignal',
+                'better-sqlite3',
               ],
             },
           },

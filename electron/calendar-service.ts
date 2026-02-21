@@ -4,9 +4,16 @@
  * Runs in the Electron main process.
  */
 import { EventEmitter } from 'node:events';
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, app } from 'electron';
 import http from 'node:http';
 import { URL } from 'node:url';
+import fs from 'node:fs';
+import path from 'node:path';
+
+// ─── Persistence path for OAuth connections ───────────────────────────
+function getConnectionsPath() {
+  return path.join(app.getPath('userData'), 'google-connections.json');
+}
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -128,6 +135,7 @@ export class CalendarService extends EventEmitter {
       };
 
       this.connections.set('google', connection);
+      this.saveConnectionsToDisk();
       this.emit('connected', { provider: 'google', email });
       console.log(`[CalendarService] Google connected: ${email}`);
       return { success: true, email };
@@ -181,6 +189,7 @@ export class CalendarService extends EventEmitter {
       };
 
       this.connections.set('microsoft', connection);
+      this.saveConnectionsToDisk();
       this.emit('connected', { provider: 'microsoft', email: connection.email });
       console.log(`[CalendarService] Microsoft connected: ${connection.email}`);
       return { success: true, email: connection.email };
@@ -194,6 +203,7 @@ export class CalendarService extends EventEmitter {
 
   disconnect(provider: 'google' | 'microsoft'): void {
     this.connections.delete(provider);
+    this.saveConnectionsToDisk();
     this.emit('disconnected', { provider });
     console.log(`[CalendarService] Disconnected: ${provider}`);
   }
@@ -205,6 +215,46 @@ export class CalendarService extends EventEmitter {
     console.log(`[CalendarService] Loaded connection: ${conn.provider} (${conn.email})`);
   }
 
+  // ─── Persist connections to disk ────────────────────────────────────
+
+  private saveConnectionsToDisk(): void {
+    try {
+      const conns = Array.from(this.connections.values()).map(c => ({
+        ...c,
+        tokenExpiry: c.tokenExpiry ? c.tokenExpiry.toISOString() : undefined,
+      }));
+      fs.writeFileSync(getConnectionsPath(), JSON.stringify(conns, null, 2), 'utf-8');
+      console.log(`[CalendarService] Connections saved to disk (${conns.length} connection(s))`);
+    } catch (err: any) {
+      console.error('[CalendarService] Failed to save connections:', err.message);
+    }
+  }
+
+  loadConnectionsFromDisk(): void {
+    try {
+      if (!fs.existsSync(getConnectionsPath())) {
+        console.log('[CalendarService] No saved connections found on disk.');
+        return;
+      }
+      const data = JSON.parse(fs.readFileSync(getConnectionsPath(), 'utf-8'));
+      const conns: CalendarConnection[] = Array.isArray(data) ? data : [];
+      for (const raw of conns) {
+        const conn: CalendarConnection = {
+          ...raw,
+          tokenExpiry: raw.tokenExpiry ? new Date(raw.tokenExpiry) : undefined,
+          isActive: true, // Mark as active — token refresh will handle expired tokens
+        };
+        this.connections.set(conn.provider, conn);
+        console.log(`[CalendarService] Restored connection from disk: ${conn.provider} (${conn.email})`);
+      }
+      if (conns.length > 0) {
+        this.emit('connections-restored', { count: conns.length });
+      }
+    } catch (err: any) {
+      console.error('[CalendarService] Failed to load connections from disk:', err.message);
+    }
+  }
+
   // ─── Get connections ──────────────────────────────────────────────
 
   getConnections(): CalendarConnection[] {
@@ -213,9 +263,14 @@ export class CalendarService extends EventEmitter {
 
   // ─── Fetch current events ─────────────────────────────────────────
 
-  async getCurrentEvents(): Promise<CalendarEvent[]> {
+  async getCurrentEvents(targetDate?: Date): Promise<CalendarEvent[]> {
     const events: CalendarEvent[] = [];
-    const now = new Date();
+    const now = targetDate ? new Date(targetDate) : new Date();
+    
+    // If a specific date is given (like tomorrow), we probably want the whole day's events
+    // If no date is given (now), we get from 'now' to end of day.
+    const startOfQuery = targetDate ? (() => { const d = new Date(targetDate); d.setHours(0, 0, 0, 0); return d; })() : now;
+    
     const endOfDay = new Date(now);
     endOfDay.setHours(23, 59, 59, 999);
 
@@ -223,7 +278,7 @@ export class CalendarService extends EventEmitter {
     const googleConn = this.connections.get('google');
     if (googleConn?.isActive) {
       try {
-        const googleEvents = await this.fetchGoogleEvents(googleConn, now, endOfDay);
+        const googleEvents = await this.fetchGoogleEvents(googleConn, startOfQuery, endOfDay);
         events.push(...googleEvents);
       } catch (err: any) {
         console.error('[CalendarService] Google fetch error:', err.message);
@@ -234,7 +289,7 @@ export class CalendarService extends EventEmitter {
     const microsoftConn = this.connections.get('microsoft');
     if (microsoftConn?.isActive) {
       try {
-        const msEvents = await this.fetchMicrosoftEvents(microsoftConn, now, endOfDay);
+        const msEvents = await this.fetchMicrosoftEvents(microsoftConn, startOfQuery, endOfDay);
         events.push(...msEvents);
       } catch (err: any) {
         console.error('[CalendarService] Microsoft fetch error:', err.message);
@@ -341,12 +396,14 @@ export class CalendarService extends EventEmitter {
       refresh_token: conn.refreshToken,
     });
 
-    // Keep tokens in sync
+    // Keep tokens in sync and persist to disk
     oauth2Client.on('tokens', (tokens: any) => {
       if (tokens.access_token) {
         conn.accessToken = tokens.access_token;
         if (tokens.expiry_date) conn.tokenExpiry = new Date(tokens.expiry_date);
+        this.saveConnectionsToDisk();
         this.emit('token-refreshed', { provider: 'google', connection: conn });
+        console.log('[CalendarService] Google token refreshed and saved to disk');
       }
     });
 
@@ -459,12 +516,14 @@ export class CalendarService extends EventEmitter {
       refresh_token: conn.refreshToken,
     });
 
-    // Handle token refresh
+    // Handle token refresh and persist
     oauth2Client.on('tokens', (tokens) => {
       if (tokens.access_token) {
         conn.accessToken = tokens.access_token;
         if (tokens.expiry_date) conn.tokenExpiry = new Date(tokens.expiry_date);
+        this.saveConnectionsToDisk();
         this.emit('token-refreshed', { provider: 'google', connection: conn });
+        console.log('[CalendarService] Google token refreshed (fetchGoogleEvents) and saved');
       }
     });
 
