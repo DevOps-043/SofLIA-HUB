@@ -54,6 +54,48 @@ import {
   SUMMARY_PROMPT,
 } from './autodev-prompts';
 
+// ─── Build error parsing ────────────────────────────────────────────
+
+interface ParsedBuildError {
+  file: string;
+  line?: number;
+  column?: number;
+  code?: string;       // e.g. TS2345
+  message: string;
+}
+
+function parseBuildErrors(buildOutput: string): ParsedBuildError[] {
+  const errors: ParsedBuildError[] = [];
+  const seen = new Set<string>();
+
+  // Match TypeScript errors: src/file.ts(12,5): error TS2345: ...
+  // Also matches: src/file.ts:12:5 - error TS2345: ...
+  const patterns = [
+    /([^\s(]+\.tsx?)\((\d+),(\d+)\):\s*error\s+(TS\d+):\s*(.+)/g,
+    /([^\s(]+\.tsx?)[:.](\d+)[:.](\d+)\s*[-–]\s*error\s+(TS\d+):\s*(.+)/g,
+    // Vite/esbuild style: ERROR in ./src/file.ts:12:5
+    /ERROR.*?([^\s]+\.tsx?):(\d+):(\d+)/g,
+  ];
+
+  for (const pattern of patterns) {
+    let match;
+    while ((match = pattern.exec(buildOutput)) !== null) {
+      const key = `${match[1]}:${match[2]}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      errors.push({
+        file: match[1].replace(/\\/g, '/'),
+        line: parseInt(match[2], 10),
+        column: parseInt(match[3], 10) || undefined,
+        code: match[4] || undefined,
+        message: match[5]?.trim() || 'Unknown error',
+      });
+    }
+  }
+
+  return errors;
+}
+
 // ─── Constants ─────────────────────────────────────────────────────
 
 const isElectron = typeof process !== 'undefined' && process.versions && !!process.versions.electron;
@@ -78,9 +120,40 @@ if (!fs.existsSync(userDataPath)) {
 
 const CONFIG_PATH = path.join(userDataPath, 'autodev-config.json');
 const HISTORY_PATH = path.join(userDataPath, 'autodev-history.json');
+const ERROR_MEMORY_PATH = path.join(userDataPath, 'autodev-error-memory.json');
 const MAX_HISTORY_RUNS = 50;
 const IGNORE_DIRS = ['node_modules', 'dist', 'dist-electron', '.git', 'build', 'coverage', 'SofLIA - Extension'];
 const ISSUES_FILENAME = 'AUTODEV_ISSUES.md';
+
+// ─── Error Memory (learns from past build failures) ─────────────────
+
+interface ErrorMemoryEntry {
+  pattern: string;       // e.g. "TS2345" or "Cannot find module"
+  file: string;
+  fix: string;           // What fixed it
+  occurrences: number;
+  lastSeen: string;
+}
+
+function loadErrorMemory(): ErrorMemoryEntry[] {
+  try {
+    if (fs.existsSync(ERROR_MEMORY_PATH)) {
+      return JSON.parse(fs.readFileSync(ERROR_MEMORY_PATH, 'utf-8'));
+    }
+  } catch { /* empty */ }
+  return [];
+}
+
+function saveErrorMemory(entries: ErrorMemoryEntry[]): void {
+  try {
+    if (!fs.existsSync(userDataPath)) { fs.mkdirSync(userDataPath, { recursive: true }); }
+    // Keep max 200 entries, sorted by occurrences desc
+    const trimmed = entries.sort((a, b) => b.occurrences - a.occurrences).slice(0, 200);
+    fs.writeFileSync(ERROR_MEMORY_PATH, JSON.stringify(trimmed, null, 2), 'utf-8');
+  } catch (err: any) {
+    console.error('[AutoDev ErrorMemory] Save failed:', err.message);
+  }
+}
 
 // ─── Tool declarations for function calling agents ─────────────────
 
@@ -486,11 +559,14 @@ export class AutoDevService extends EventEmitter {
         await this.git.commitChanges(`[AutoDev] Fallo de Ejecución: ${run.error || 'Review needed'}`);
       }
       try { await this.git.pushBranch(run.branchName); } catch {}
-      console.log(`[AutoDev] ✅ Branch guardada remota: ${run.branchName}`);
+      console.log(`\n[AutoDev] ✅ El código erróneo ha sido guardado en la rama remota y local: ${run.branchName}`);
+      console.log(`[AutoDev] 🔎 Puedes revisar los archivos localmente, intentar correr "npm run build" y ver qué falló!`);
+      // Switch back to main so next run starts clean
+      try { await this.git.switchBranch(this.config.targetBranch); } catch {}
     } catch (err: any) {
       console.warn(`[AutoDev] No se pudo persistir el branch: ${err.message}`);
-    } finally {
-      try { await this.git.cleanupBranch(run.branchName); } catch {}
+      // Still try to go back to main
+      try { await this.git.switchBranch(this.config.targetBranch); } catch {}
     }
   }
 
@@ -678,7 +754,7 @@ export class AutoDevService extends EventEmitter {
     //  PHASE 4: PARALLEL REVIEW + BUILD (reviewer + tester agents) WITH AUTO-CORRECTION
     // ═══════════════════════════════════════════════════════════════
     let retries = 0;
-    const maxRetries = 2;
+    const maxRetries = 3;
     let buildResult: boolean | string = true;
     let reviewResult: { decision: string; summary: string } = { decision: 'approve', summary: '' };
 
@@ -712,48 +788,73 @@ export class AutoDevService extends EventEmitter {
 
       if (retries >= maxRetries) {
         if (buildResult !== true) {
+          const buildErrorStr = typeof buildResult === 'string' ? buildResult : 'Unknown build error';
+          const parsedErrors = parseBuildErrors(buildErrorStr);
+          const errorSummary = parsedErrors.length
+            ? parsedErrors.map(e => `[${e.code || 'ERR'}] ${e.file}:${e.line} — ${e.message}`).join('\n')
+            : buildErrorStr.slice(0, 3000);
           run.status = 'failed';
-          run.error = 'Build failed after applying changes and max retries exhausted';
-          this.logIssue('build_failure', 'El build falló persistentemente. AutoDev intentó corregirlo pero falló.', `Error:\n${buildResult}`);
+          run.error = `Build failed after ${maxRetries + 1} attempts. ${parsedErrors.length} errors remain.`;
+          this.logIssue('build_failure',
+            `El build falló persistentemente después de ${maxRetries + 1} intentos de auto-corrección.\n\nErrores finales (${parsedErrors.length}):\n${errorSummary}`,
+            `Archivos afectados: ${[...new Set(parsedErrors.map(e => e.file))].join(', ')}\nCódigos de error: ${[...new Set(parsedErrors.map(e => e.code).filter(Boolean))].join(', ')}`,
+          );
         } else {
           run.status = 'failed';
-          run.error = `Self-review rejected and max retries exhausted: ${reviewResult.summary}`;
+          run.error = `Self-review rejected after ${maxRetries + 1} attempts: ${reviewResult.summary}`;
           this.logIssue('review_rejection', `El reviewer agent rechazó los cambios persistentemente: ${reviewResult.summary}`, `Diff size: ${diff.length}\nImprovements: ${run.improvements.length}`);
         }
         await this.persistFailedBranch(run);
         return;
       }
 
-      console.log(`[AutoDev] ⚠️ Failed, attempting auto-correction (Retry ${retries + 1}/${maxRetries}) ⚠️`);
-      this.updateRunStatus(run, 'coding');
       retries++;
+      // Log detailed failure info for this attempt
+      if (buildResult !== true) {
+        const buildErrorStr = typeof buildResult === 'string' ? buildResult : 'Unknown build error';
+        const errorsThisAttempt = parseBuildErrors(buildErrorStr);
+        console.log(`[AutoDev] ⚠️ BUILD FAILED — Attempt ${retries}/${maxRetries + 1}`);
+        console.log(`[AutoDev]   Errors: ${errorsThisAttempt.length} | Files: ${[...new Set(errorsThisAttempt.map(e => e.file))].join(', ') || 'unknown'}`);
+        for (const e of errorsThisAttempt.slice(0, 5)) {
+          console.log(`[AutoDev]   → [${e.code || 'ERR'}] ${e.file}:${e.line} — ${e.message}`);
+        }
+      } else {
+        console.log(`[AutoDev] ⚠️ REVIEW REJECTED — Attempt ${retries}/${maxRetries + 1}: ${reviewResult.summary.slice(0, 200)}`);
+      }
+
+      console.log(`[AutoDev] Attempting auto-correction...`);
+      this.updateRunStatus(run, 'coding');
 
       // Mini Phase 3: Auto-Fix
-      const errorStr = buildResult !== true ? `Build Error:\n${buildResult}` : `Review Error:\n${reviewResult.summary}`;
+      const errorStr = buildResult !== true ? `Build Error:\n${typeof buildResult === 'string' ? buildResult : 'Unknown'}` : `Review Error:\n${reviewResult.summary}`;
       const fixPlan = await this.createFixPlan(diff, errorStr);
 
       if (!fixPlan || !fixPlan.length) {
-        console.warn('[AutoDev] Auto-correction agent failed to generate a fix plan.');
-        continue; // Will loop and likely fail naturally if max retries
+        console.warn(`[AutoDev FixAgent] No fix plan generated for attempt ${retries}. Will retry build anyway.`);
+        continue;
       }
 
+      console.log(`[AutoDev FixAgent] Generated fix plan with ${fixPlan.length} steps for attempt ${retries}`);
       this.trackAgent(run, `FixPlanner_${retries}`, 'planning', 'completed');
 
+      let fixesApplied = 0;
       for (const step of fixPlan) {
         checkAbort();
         try {
-          console.log(`[AutoDev FixAgent] Implementing fix for ${step.file}...`);
+          console.log(`[AutoDev FixAgent] Step: ${step.description?.slice(0, 80) || step.file} ...`);
           const result = await this.implementStep(step);
           if (result) {
             result.agentRole = `FixAgent_${retries}`;
             run.improvements.push(result);
+            fixesApplied++;
             this.trackAgent(run, `FixAgent_${retries}`, 'coding', 'completed');
           }
         } catch (err: any) {
-           console.warn(`[AutoDev FixAgent] Fix implementation failed: ${err.message}`);
+           console.warn(`[AutoDev FixAgent] Fix failed for ${step.file}: ${err.message}`);
            this.trackAgent(run, `FixAgent_${retries}`, 'coding', 'failed', err.message);
         }
       }
+      console.log(`[AutoDev FixAgent] Applied ${fixesApplied}/${fixPlan.length} fixes. Re-running build...`);
     }
     checkAbort();
 
@@ -789,10 +890,18 @@ export class AutoDevService extends EventEmitter {
   // ═══════════════════════════════════════════════════════════════════
 
   private trackAgent(run: AutoDevRun, name: string, role: string, status: 'completed' | 'failed', error?: string): void {
+    const modelForRole = (r: string): string => {
+      if (r === 'coding' || r === 'planning') return this.config.agents.coder.model;
+      if (r === 'review') return this.config.agents.reviewer.model;
+      if (r === 'testing') return this.config.agents.tester.model;
+      if (r === 'security') return this.config.agents.security.model;
+      if (r === 'dependencies') return this.config.agents.dependencies.model;
+      return this.config.agents.researcher.model;
+    };
     run.agentTasks.push({
       id: `${name}_${Date.now()}`,
       agentRole: role,
-      model: role === 'coding' ? this.config.agents.coder.model : this.config.agents.researcher.model,
+      model: modelForRole(role),
       status,
       completedAt: new Date().toISOString(),
       description: name,
@@ -1097,37 +1206,123 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
   // ─── Code implementation (coding model + tools) ───────────────
 
   private async createFixPlan(diff: string, errorMsg: string): Promise<any[]> {
-    const ai = this.getGenAI();
-    const model = ai.getGenerativeModel({ model: this.config.agents.coder.model });
-    const prompt = `Eres un agente de correcciones (FixAgent). Una implementación tuya anterior generó un error de compilación o revisión:
-${errorMsg}
+    // ─── Parse build errors to extract specific file:line info ────
+    const parsedErrors = parseBuildErrors(errorMsg);
+    const affectedFiles = [...new Set(parsedErrors.map(e => e.file))];
 
-Revisa el diff de cambios generados en tu branch actual para darte contexto:
+    // ─── Read the actual source of broken files ──────────────────
+    const fileContents: string[] = [];
+    for (const file of affectedFiles.slice(0, 8)) {
+      try {
+        const fullPath = path.resolve(this.repoPath, file);
+        if (fullPath.startsWith(this.repoPath) && fs.existsSync(fullPath)) {
+          const content = fs.readFileSync(fullPath, 'utf-8');
+          fileContents.push(`--- ${file} ---\n${content.slice(0, 15000)}`);
+        }
+      } catch { /* skip */ }
+    }
+
+    // ─── Load past error patterns (learning from history) ────────
+    const errorMemory = loadErrorMemory();
+    const relevantMemory = errorMemory
+      .filter(m => parsedErrors.some(e => e.code === m.pattern || e.message.includes(m.pattern)))
+      .slice(0, 10);
+    const memoryContext = relevantMemory.length
+      ? `\n## ERRORES PASADOS (memoria de correcciones anteriores)\nEstos errores han ocurrido antes. Usa lo que funcionó:\n${relevantMemory.map(m => `- ${m.pattern} en ${m.file}: FIX → ${m.fix} (ocurrencias: ${m.occurrences})`).join('\n')}`
+      : '';
+
+    // ─── Structured error summary ────────────────────────────────
+    const structuredErrors = parsedErrors.length
+      ? `## ERRORES DETECTADOS (${parsedErrors.length} errores parseados)\n${parsedErrors.map((e, i) => `${i + 1}. [${e.code || 'ERROR'}] ${e.file}:${e.line || '?'} — ${e.message}`).join('\n')}`
+      : `## ERROR RAW (no se pudieron parsear errores específicos)\n${errorMsg.slice(0, 5000)}`;
+
+    const prompt = `Eres un agente de auto-corrección (FixAgent). Tu implementación anterior generó errores de compilación que DEBES corregir.
+
+${structuredErrors}
+${memoryContext}
+
+## CÓDIGO FUENTE DE LOS ARCHIVOS AFECTADOS
+${fileContents.join('\n\n') || '(No se pudieron leer los archivos afectados)'}
+
+## DIFF DE CAMBIOS QUE CAUSARON EL ERROR
 \`\`\`diff
-${diff}
+${diff.slice(0, 50000)}
 \`\`\`
 
-Dada la información, devuelve tu solución como un plan EXACTO usando el formato JSON. Si necesitas retroceder (borrar variables, fijar tipos), dilo aquí.
-FORMATO JSON ESPERADO (Solo devuelve JSON):
+## INSTRUCCIONES CRÍTICAS
+1. Analiza CADA error específicamente. No adivines — lee el código fuente y el error.
+2. Si un tipo no existe (TS2304), elimina la referencia o importa el tipo correcto.
+3. Si hay argumento incorrecto (TS2345), verifica la firma de la función en el código fuente.
+4. Si hay propiedad inexistente (TS2339), busca el nombre correcto en la interfaz.
+5. Si creaste imports que no existen, ELIMÍNALOS.
+6. Si necesitas REVERTIR un cambio que rompió algo, hazlo — es mejor revertir que dejar el build roto.
+7. NUNCA dejes código a medias. Cada archivo debe compilar correctamente.
+
+## FORMATO JSON REQUERIDO (Solo devuelve JSON):
 {
   "plan": [
     {
       "step": 1,
       "file": "ruta/archivo.ts",
       "action": "modify",
-      "description": "Explicación del fix",
-      "details": "Detalles técnicos precisos para el compilador",
+      "description": "Explicación precisa del fix",
+      "details": "Qué línea(s) cambiar y por qué — referencia el error específico",
       "source": "Auto-Correction System",
+      "category": "quality",
       "estimatedLines": 5
     }
-  ]
-}
-`;
-    try {
+  ],
+  "errorAnalysis": "Resumen de por qué fallaron los cambios originales"
+}`;
+
+    const execute = async (baseModel: string): Promise<any[]> => {
+      const finalModel = await this.getOptimalModel(baseModel, prompt);
+      const ai = this.getGenAI();
+      const model = ai.getGenerativeModel({ model: finalModel });
       const res = await model.generateContent(prompt);
       const parsed = this.parseJSON(res.response.text());
+
+      // Log the error analysis for learning
+      if (parsed?.errorAnalysis) {
+        console.log(`[AutoDev FixAgent] Error Analysis: ${parsed.errorAnalysis}`);
+      }
+
       return parsed?.plan || [];
-    } catch { return []; }
+    };
+
+    try {
+      const plan = await execute(this.config.agents.coder.model);
+
+      // ─── Record errors to memory for future learning ───────────
+      for (const err of parsedErrors) {
+        const pattern = err.code || err.message.slice(0, 60);
+        const existing = errorMemory.find(m => m.pattern === pattern && m.file === err.file);
+        if (existing) {
+          existing.occurrences++;
+          existing.lastSeen = new Date().toISOString();
+        } else {
+          errorMemory.push({
+            pattern,
+            file: err.file,
+            fix: plan.find(p => p.file === err.file)?.description || 'pending',
+            occurrences: 1,
+            lastSeen: new Date().toISOString(),
+          });
+        }
+      }
+      saveErrorMemory(errorMemory);
+
+      return plan;
+    } catch (err: any) {
+      if (err.message && err.message.includes('429')) {
+        console.warn(`\n[AutoDev FixAgent] ⚠️ Cuota excedida en modelo pesado. Enfriando 45s e intercambiando a Flash...`);
+        await new Promise(r => setTimeout(r, 45000));
+        try {
+          return await execute('gemini-3-flash-preview');
+        } catch { return []; }
+      }
+      return [];
+    }
   }
 
   private async implementStep(step: any): Promise<AutoDevImprovement | null> {
@@ -1139,33 +1334,57 @@ FORMATO JSON ESPERADO (Solo devuelve JSON):
       if (step.action !== 'create') return null;
     }
 
-    const ai = this.getGenAI();
-    const model = ai.getGenerativeModel({
-      model: this.config.agents.coder.model,
-      tools: [{ functionDeclarations: RESEARCH_TOOLS }],
-    });
-
     const prompt = CODE_PROMPT
       .replace('{PLAN_STEP}', JSON.stringify(step, null, 2))
       .replace('{FILE_PATH}', step.file)
       .replace('{CURRENT_CODE}', currentCode)
       .replace('{RESEARCH_CONTEXT}', step.source || 'None');
 
-    const chat = model.startChat();
-    let response = await chat.sendMessage(prompt);
-    let turns = 5;
-    while (turns-- > 0) {
-      const calls = (response.response.candidates?.[0]?.content?.parts || []).filter((p: any) => p.functionCall);
-      if (!calls.length) break;
-      const results: any[] = [];
-      for (const part of calls) {
-        const fc = (part as any).functionCall;
-        results.push({ functionResponse: { name: fc.name, response: await this.executeResearchTool(fc.name, fc.args) } });
-      }
-      response = await chat.sendMessage(results);
-    }
+    const execute = async (baseModel: string): Promise<any> => {
+      const finalModel = await this.getOptimalModel(baseModel, prompt);
+      const ai = this.getGenAI();
+      const model = ai.getGenerativeModel({
+        model: finalModel,
+        tools: [{ functionDeclarations: RESEARCH_TOOLS }],
+      });
 
-    const parsed = this.parseJSON(response.response.text());
+      const chat = model.startChat();
+      let response = await chat.sendMessage(prompt);
+      let turns = 5;
+      while (turns-- > 0) {
+        const calls = (response.response.candidates?.[0]?.content?.parts || []).filter((p: any) => p.functionCall);
+        if (!calls.length) break;
+        const results: any[] = [];
+        for (const part of calls) {
+          const fc = (part as any).functionCall;
+          results.push({ functionResponse: { name: fc.name, response: await this.executeResearchTool(fc.name, fc.args) } });
+        }
+        console.log(`[AutoDev Tokenizer] ⏳ Refrescando quota de Tokens (esperando 15s) en codificación de paso...`);
+        await new Promise(r => setTimeout(r, 15000));
+        response = await chat.sendMessage(results);
+      }
+
+      return this.parseJSON(response.response.text());
+    };
+
+    let parsed: any = null;
+    try {
+      parsed = await execute(this.config.agents.coder.model);
+    } catch (err: any) {
+      if (err.message && (err.message.includes('429') || err.message.includes('fetch failed'))) {
+        console.warn(`\n[AutoDev CoderAgent] ⚠️ Falla de Red/Cuota en ${step.file}. Enfriando 45s y tratando con Flash...`);
+        await new Promise(r => setTimeout(r, 45000));
+        try {
+          parsed = await execute('gemini-3-flash-preview');
+        } catch (e: any) {
+          console.warn(`[AutoDev CoderAgent] Step completely failed (fallback):`, e.message);
+          return null;
+        }
+      } else {
+        console.warn(`[AutoDev CoderAgent] Step completely failed:`, err.message);
+        return null;
+      }
+    }
     if (!parsed?.modifiedCode) return null;
 
     const dir = path.dirname(filePath);
@@ -1190,12 +1409,33 @@ FORMATO JSON ESPERADO (Solo devuelve JSON):
         cwd: this.repoPath, timeout: 180_000, maxBuffer: 10 * 1024 * 1024, shell: true,
       });
       console.log('[AutoDev TesterAgent] Build passed.');
+
+      // ─── On success: update error memory with successful fixes ──
+      const errorMemory = loadErrorMemory();
+      const pendingFixes = errorMemory.filter(m => m.fix === 'pending');
+      if (pendingFixes.length) {
+        for (const entry of pendingFixes) {
+          entry.fix = 'Resolved — build passed after auto-correction';
+        }
+        saveErrorMemory(errorMemory);
+        console.log(`[AutoDev TesterAgent] Updated ${pendingFixes.length} error memory entries as resolved.`);
+      }
+
       return true;
     } catch (err: any) {
-      console.error('[AutoDev TesterAgent] Build failed.');
-      // Return the stdout or stderr which contains the actual TS/Vite errors
-      const errorMsg = [err.message, err.stdout, err.stderr].filter(Boolean).join('\n---\n');
-      return errorMsg || 'Unknown build error';
+      const rawOutput = [err.stdout, err.stderr, err.message].filter(Boolean).join('\n---\n');
+      const parsedErrors = parseBuildErrors(rawOutput);
+
+      if (parsedErrors.length) {
+        console.error(`[AutoDev TesterAgent] Build failed with ${parsedErrors.length} errors:`);
+        for (const e of parsedErrors.slice(0, 10)) {
+          console.error(`  [${e.code || 'ERR'}] ${e.file}:${e.line} — ${e.message}`);
+        }
+      } else {
+        console.error('[AutoDev TesterAgent] Build failed (no parseable TS errors).');
+      }
+
+      return rawOutput || 'Unknown build error';
     }
   }
 
@@ -1210,7 +1450,7 @@ FORMATO JSON ESPERADO (Solo devuelve JSON):
       .map(i => `- [${i.category}] ${i.file}: ${i.description} (sources: ${i.researchSources.join(', ')})`).join('\n');
 
     const prompt = REVIEW_PROMPT
-      .replace('{DIFF}', diff)
+      .replace('{DIFF}', diff.slice(0, 100000))
       .replace('{IMPROVEMENTS_APPLIED}', impText)
       .replace('{RESEARCH_SOURCES}', sourcesText || 'None');
 
@@ -1250,7 +1490,10 @@ FORMATO JSON ESPERADO (Solo devuelve JSON):
   // ─── Helpers ──────────────────────────────────────────────────
 
   private readProjectFiles(): Array<{ path: string; content: string }> {
-    const files: Array<{ path: string; content: string }> = [];
+    // Budget: ~100K chars ≈ ~25K tokens. Prevents 335K+ token prompts that crash agents.
+    const MAX_TOTAL_CHARS = 100_000;
+    const MAX_FILE_CHARS = 12_000; // Truncate individual files beyond this
+    const allFiles: Array<{ path: string; size: number; priority: number }> = [];
     const walk = (dir: string) => {
       for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
         const fullPath = path.join(dir, entry.name);
@@ -1262,12 +1505,42 @@ FORMATO JSON ESPERADO (Solo devuelve JSON):
         if (!entry.name.endsWith('.ts') && !entry.name.endsWith('.tsx')) continue;
         if (entry.name.endsWith('.d.ts')) continue;
         try {
-          const content = fs.readFileSync(fullPath, 'utf-8');
-          if (content.length < 500000) files.push({ path: relPath.replace(/\\/g, '/'), content });
+          const stat = fs.statSync(fullPath);
+          if (stat.size > 500_000) continue;
+          const normalizedPath = relPath.replace(/\\/g, '/');
+          // Priority: 0 = highest (electron core), 1 = src, 2 = other
+          const priority = normalizedPath.startsWith('electron/') ? 0
+            : normalizedPath.startsWith('src/') ? 1 : 2;
+          allFiles.push({ path: normalizedPath, size: stat.size, priority });
         } catch { /* skip */ }
       }
     };
     walk(this.repoPath);
+
+    // Sort: priority ASC, then size ASC (smaller files first within same priority)
+    allFiles.sort((a, b) => a.priority - b.priority || a.size - b.size);
+
+    const files: Array<{ path: string; content: string }> = [];
+    let totalChars = 0;
+
+    for (const f of allFiles) {
+      if (totalChars >= MAX_TOTAL_CHARS) break;
+      try {
+        const fullPath = path.join(this.repoPath, f.path);
+        let content = fs.readFileSync(fullPath, 'utf-8');
+        if (content.length > MAX_FILE_CHARS) {
+          content = content.slice(0, MAX_FILE_CHARS) + '\n// ... [truncated by AutoDev — file too large]';
+        }
+        const remaining = MAX_TOTAL_CHARS - totalChars;
+        if (content.length > remaining) {
+          content = content.slice(0, remaining) + '\n// ... [truncated by AutoDev — budget limit]';
+        }
+        files.push({ path: f.path, content });
+        totalChars += content.length;
+      } catch { /* skip */ }
+    }
+
+    console.log(`[AutoDev] readProjectFiles: ${files.length}/${allFiles.length} files, ${Math.round(totalChars / 1000)}K chars (budget: ${MAX_TOTAL_CHARS / 1000}K)`);
     return files;
   }
 
