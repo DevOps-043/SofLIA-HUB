@@ -315,7 +315,59 @@ export const WHATSAPP_SEND_FILE_TOOL = {
   },
 };
 
+/** 
+ * Project Hub (IRIS) specific tools 
+ */
+export const PROJECT_HUB_TOOLS = {
+  functionDeclarations: [
+    {
+      name: 'delete_iris_project',
+      description: 'Elimina un proyecto de manera permanente de Project Hub (IRIS) usando su ID. Eliminará el registro de la base de datos.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          project_id: {
+            type: 'STRING',
+            description: 'El ID único (ej. UUID) del proyecto que se desea eliminar.',
+          },
+        },
+        required: ['project_id'],
+      },
+    },
+    {
+      name: 'create_iris_project',
+      description: 'Crea un nuevo proyecto en Project Hub (IRIS) dentro de un equipo.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          project_name: {
+            type: 'STRING',
+            description: 'Nombre del nuevo proyecto (Obligatorio).',
+          },
+          team_id: {
+            type: 'STRING',
+            description: 'ID del equipo (workspace) al que pertenecerá el proyecto. Es opcional, si no se envía quedará como Proyecto Global.',
+          },
+          project_description: {
+            type: 'STRING',
+            description: 'Descripción del proyecto.',
+          },
+          project_key: {
+            type: 'STRING',
+            description: 'Clave corta del proyecto, en formato mayúsculas, usualmente de 3 a 5 letras (ej. PRJ, SOF, PULSE). Obligatorio.',
+          }
+        },
+        required: ['project_name', 'project_key'],
+      },
+    },
+  ],
+};
+
 /** Names of all computer-use tools, for quick lookup */
 export const COMPUTER_TOOL_NAMES = new Set(
   COMPUTER_USE_TOOLS.functionDeclarations.map(t => t.name)
+);
+
+export const PROJECT_HUB_TOOL_NAMES = new Set(
+  PROJECT_HUB_TOOLS.functionDeclarations.map(t => t.name)
 );

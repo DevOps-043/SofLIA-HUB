@@ -5,16 +5,10 @@
  */
 import { EventEmitter } from 'node:events';
 import { BrowserWindow, app } from 'electron';
-import { BrowserWindow, app } from 'electron';
 import http from 'node:http';
 import { URL } from 'node:url';
 import fs from 'node:fs';
 import path from 'node:path';
-
-// ─── Persistence path for OAuth connections ───────────────────────────
-function getConnectionsPath() {
-  return path.join(app.getPath('userData'), 'google-connections.json');
-}
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -76,7 +70,7 @@ export class CalendarService extends EventEmitter {
   }
 
   async init(): Promise<void> {
-    await this.loadConnections();
+    this.loadConnections();
     // Proactively restore & refresh Google session so user doesn't need to re-auth
     await this.restoreGoogleSession();
   }
@@ -115,7 +109,7 @@ export class CalendarService extends EventEmitter {
           conn.tokenExpiry = new Date(credentials.expiry_date);
         }
         // Persist the fresh token so next restart also works
-        await this.saveConnections();
+        this.saveConnections();
         console.log(`[CalendarService] Google session restored successfully (${conn.email})`);
         this.emit('session-restored', { provider: 'google', email: conn.email });
       } else {
@@ -125,32 +119,45 @@ export class CalendarService extends EventEmitter {
       console.error(`[CalendarService] Failed to restore Google session: ${err.message}`);
       // Token might be revoked or expired beyond repair — mark inactive
       conn.isActive = false;
-      await this.saveConnections();
+      this.saveConnections();
       this.emit('session-restore-failed', { provider: 'google', email: conn.email, error: err.message });
     }
   }
 
-  private async loadConnections(): Promise<void> {
+  loadConnections(): void {
     try {
-      const data = await fs.readFile(this.getStoragePath(), 'utf-8');
-      const loaded: CalendarConnection[] = JSON.parse(data);
+      const filePath = this.getStoragePath();
+      if (!fs.existsSync(filePath)) {
+        console.log('[CalendarService] No saved connections found on disk.');
+        return;
+      }
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      const loaded: CalendarConnection[] = Array.isArray(data) ? data : [];
       for (const conn of loaded) {
         if (conn.tokenExpiry) {
           conn.tokenExpiry = new Date(conn.tokenExpiry);
         }
+        conn.isActive = true;
         this.connections.set(conn.provider, conn);
         this.emit('connected', { provider: conn.provider, email: conn.email });
-        console.log(`[CalendarService] Automatically loaded connection: ${conn.provider} (${conn.email})`);
+        console.log(`[CalendarService] Loaded connection: ${conn.provider} (${conn.email})`);
+      }
+      if (loaded.length > 0) {
+        this.emit('connections-restored', { count: loaded.length });
       }
     } catch {
       // File does not exist or invalid, ignore
     }
   }
 
-  private async saveConnections(): Promise<void> {
+  private saveConnections(): void {
     try {
-      const arr = Array.from(this.connections.values());
-      await fs.writeFile(this.getStoragePath(), JSON.stringify(arr, null, 2), 'utf-8');
+      const conns = Array.from(this.connections.values()).map(c => ({
+        ...c,
+        tokenExpiry: c.tokenExpiry ? c.tokenExpiry.toISOString() : undefined,
+      }));
+      fs.writeFileSync(this.getStoragePath(), JSON.stringify(conns, null, 2), 'utf-8');
+      console.log(`[CalendarService] Connections saved to disk (${conns.length} connection(s))`);
     } catch (err: any) {
       console.error('[CalendarService] Error saving connections:', err.message);
     }
@@ -188,12 +195,33 @@ export class CalendarService extends EventEmitter {
       const authUrl = oauth2Client.generateAuthUrl({
         access_type: 'offline',
         scope: [
+          // Calendar
           'https://www.googleapis.com/auth/calendar.events',
           'https://www.googleapis.com/auth/calendar.events.readonly',
+          // Gmail
           'https://www.googleapis.com/auth/gmail.send',
           'https://www.googleapis.com/auth/gmail.modify',
+          'https://www.googleapis.com/auth/gmail.compose',
+          'https://www.googleapis.com/auth/gmail.labels',
+          'https://www.googleapis.com/auth/gmail.settings.basic',
+          'https://www.googleapis.com/auth/gmail.addons.current.message.action',
+          'https://www.googleapis.com/auth/gmail.addons.current.action.compose',
+          'https://mail.google.com/',
+          // Drive & Docs
           'https://www.googleapis.com/auth/drive',
           'https://www.googleapis.com/auth/drive.file',
+          'https://www.googleapis.com/auth/drive.readonly',
+          'https://www.googleapis.com/auth/drive.install',
+          'https://www.googleapis.com/auth/docs',
+          // Google Chat
+          'https://www.googleapis.com/auth/chat.spaces.readonly',
+          'https://www.googleapis.com/auth/chat.messages',
+          'https://www.googleapis.com/auth/chat.messages.readonly',
+          'https://www.googleapis.com/auth/chat.messages.create',
+          'https://www.googleapis.com/auth/chat.messages.reactions.create',
+          'https://www.googleapis.com/auth/chat.users.readstate',
+          'https://www.googleapis.com/auth/chat.users.availability.readonly',
+          // User info
           'https://www.googleapis.com/auth/userinfo.email',
         ],
         prompt: 'consent',
@@ -223,7 +251,7 @@ export class CalendarService extends EventEmitter {
       };
 
       this.connections.set('google', connection);
-      this.saveConnectionsToDisk();
+      this.saveConnections();
       this.emit('connected', { provider: 'google', email });
       console.log(`[CalendarService] Google connected: ${email}`);
       return { success: true, email };
@@ -277,7 +305,7 @@ export class CalendarService extends EventEmitter {
       };
 
       this.connections.set('microsoft', connection);
-      this.saveConnectionsToDisk();
+      this.saveConnections();
       this.emit('connected', { provider: 'microsoft', email: connection.email });
       console.log(`[CalendarService] Microsoft connected: ${connection.email}`);
       return { success: true, email: connection.email };
@@ -291,57 +319,11 @@ export class CalendarService extends EventEmitter {
 
   async disconnect(provider: 'google' | 'microsoft'): Promise<void> {
     this.connections.delete(provider);
-    this.saveConnectionsToDisk();
+    this.saveConnections();
     this.emit('disconnected', { provider });
     console.log(`[CalendarService] Disconnected: ${provider}`);
   }
 
-  // ─── Load saved connections ───────────────────────────────────────
-
-  loadConnection(conn: CalendarConnection): void {
-    this.connections.set(conn.provider, conn);
-    console.log(`[CalendarService] Loaded connection: ${conn.provider} (${conn.email})`);
-  }
-
-  // ─── Persist connections to disk ────────────────────────────────────
-
-  private saveConnectionsToDisk(): void {
-    try {
-      const conns = Array.from(this.connections.values()).map(c => ({
-        ...c,
-        tokenExpiry: c.tokenExpiry ? c.tokenExpiry.toISOString() : undefined,
-      }));
-      fs.writeFileSync(getConnectionsPath(), JSON.stringify(conns, null, 2), 'utf-8');
-      console.log(`[CalendarService] Connections saved to disk (${conns.length} connection(s))`);
-    } catch (err: any) {
-      console.error('[CalendarService] Failed to save connections:', err.message);
-    }
-  }
-
-  loadConnectionsFromDisk(): void {
-    try {
-      if (!fs.existsSync(getConnectionsPath())) {
-        console.log('[CalendarService] No saved connections found on disk.');
-        return;
-      }
-      const data = JSON.parse(fs.readFileSync(getConnectionsPath(), 'utf-8'));
-      const conns: CalendarConnection[] = Array.isArray(data) ? data : [];
-      for (const raw of conns) {
-        const conn: CalendarConnection = {
-          ...raw,
-          tokenExpiry: raw.tokenExpiry ? new Date(raw.tokenExpiry) : undefined,
-          isActive: true, // Mark as active — token refresh will handle expired tokens
-        };
-        this.connections.set(conn.provider, conn);
-        console.log(`[CalendarService] Restored connection from disk: ${conn.provider} (${conn.email})`);
-      }
-      if (conns.length > 0) {
-        this.emit('connections-restored', { count: conns.length });
-      }
-    } catch (err: any) {
-      console.error('[CalendarService] Failed to load connections from disk:', err.message);
-    }
-  }
 
   // ─── Get connections ──────────────────────────────────────────────
 
@@ -385,13 +367,6 @@ export class CalendarService extends EventEmitter {
     }
 
     return events.sort((a, b) => a.start.getTime() - b.start.getTime());
-  }
-
-  async getCurrentEvents(): Promise<CalendarEvent[]> {
-    const now = new Date();
-    const endOfDay = new Date(now);
-    endOfDay.setHours(23, 59, 59, 999);
-    return this.getEventsRange(now, endOfDay);
   }
 
   // ─── Work hours detection ─────────────────────────────────────────
@@ -496,7 +471,7 @@ export class CalendarService extends EventEmitter {
       if (tokens.access_token) {
         conn.accessToken = tokens.access_token;
         if (tokens.expiry_date) conn.tokenExpiry = new Date(tokens.expiry_date);
-        this.saveConnectionsToDisk();
+        this.saveConnections();
         this.emit('token-refreshed', { provider: 'google', connection: conn });
         console.log('[CalendarService] Google token refreshed and saved to disk');
       }
@@ -616,7 +591,7 @@ export class CalendarService extends EventEmitter {
       if (tokens.access_token) {
         conn.accessToken = tokens.access_token;
         if (tokens.expiry_date) conn.tokenExpiry = new Date(tokens.expiry_date);
-        this.saveConnectionsToDisk();
+        this.saveConnections();
         this.emit('token-refreshed', { provider: 'google', connection: conn });
         console.log('[CalendarService] Google token refreshed (fetchGoogleEvents) and saved');
       }

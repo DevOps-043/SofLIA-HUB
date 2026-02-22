@@ -199,6 +199,39 @@ contextBridge.exposeInMainWorld('drive', {
   getMetadata: (fileId: string) => ipcRenderer.invoke('drive:get-metadata', fileId),
 })
 
+// --------- Google Chat API ---------
+contextBridge.exposeInMainWorld('gchat', {
+  listSpaces: () => ipcRenderer.invoke('gchat:list-spaces'),
+  getMessages: (spaceName: string, maxResults?: number) => ipcRenderer.invoke('gchat:get-messages', spaceName, maxResults),
+  sendMessage: (spaceName: string, text: string, threadName?: string) => ipcRenderer.invoke('gchat:send-message', spaceName, text, threadName),
+  addReaction: (messageName: string, emoji: string) => ipcRenderer.invoke('gchat:add-reaction', messageName, emoji),
+  getMembers: (spaceName: string) => ipcRenderer.invoke('gchat:get-members', spaceName),
+})
+
+// --------- AutoDev API ---------
+contextBridge.exposeInMainWorld('autodev', {
+  getConfig: () => ipcRenderer.invoke('autodev:get-config'),
+  updateConfig: (updates: any) => ipcRenderer.invoke('autodev:update-config', updates),
+  runNow: () => ipcRenderer.invoke('autodev:run-now'),
+  abort: () => ipcRenderer.invoke('autodev:abort'),
+  getStatus: () => ipcRenderer.invoke('autodev:get-status'),
+  getHistory: () => ipcRenderer.invoke('autodev:get-history'),
+  onRunStarted: (cb: (run: any) => void) => {
+    ipcRenderer.on('autodev:run-started', (_event, run) => cb(run))
+  },
+  onRunCompleted: (cb: (run: any) => void) => {
+    ipcRenderer.on('autodev:run-completed', (_event, run) => cb(run))
+  },
+  onStatusChanged: (cb: (data: any) => void) => {
+    ipcRenderer.on('autodev:status-changed', (_event, data) => cb(data))
+  },
+  removeListeners: () => {
+    ipcRenderer.removeAllListeners('autodev:run-started')
+    ipcRenderer.removeAllListeners('autodev:run-completed')
+    ipcRenderer.removeAllListeners('autodev:status-changed')
+  },
+})
+
 // --------- Proactive Notifications API ---------
 contextBridge.exposeInMainWorld('proactive', {
   getConfig: () => ipcRenderer.invoke('proactive:get-config'),

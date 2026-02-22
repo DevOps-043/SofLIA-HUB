@@ -33,8 +33,8 @@ export default defineConfig({
                 "@azure/msal-node",
                 "@microsoft/microsoft-graph-client",
                 "@google/generative-ai",
-                "dotenv"
-                'better-sqlite3',
+                "dotenv",
+                "better-sqlite3",
               ],
             },
           },

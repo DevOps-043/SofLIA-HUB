@@ -12,12 +12,14 @@ import { GmailService } from './gmail-service'
 import { registerGmailHandlers } from './gmail-handlers'
 import { DriveService } from './drive-service'
 import { registerDriveHandlers } from './drive-handlers'
-import { registerWhatsAppHandlers } from './whatsapp-handlers';
+import { GChatService } from './gchat-service'
+import { registerGChatHandlers } from './gchat-handlers'
 import { ProactiveService } from './proactive-service'
+import { AutoDevService } from './autodev-service'
+import { registerAutoDevHandlers } from './autodev-handlers'
 import { generateDailySummary } from './summary-generator'
 import { MemoryService } from './memory-service'
 import { registerMemoryHandlers } from './memory-handlers'
-import { registerGoogleAuthHandlers } from './google-auth-handlers'
 import { KnowledgeService } from './knowledge-service'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -61,6 +63,10 @@ const calendarService = new CalendarService()
 // ─── Gmail & Drive (share Google OAuth from CalendarService) ────────
 const gmailService = new GmailService(calendarService)
 const driveService = new DriveService(calendarService)
+const gchatService = new GChatService(calendarService)
+
+// ─── AutoDev (autonomous self-programming) ─────────────────────────
+const autoDevService = new AutoDevService(path.join(__dirname, '..'))
 
 // ─── Proactive Notifications ────────────────────────────────────────
 const proactiveService = new ProactiveService()
@@ -405,8 +411,9 @@ function initWhatsAppAgent(apiKey: string) {
     console.log('[WhatsApp] Agent initialized with API key')
   }
 
-  // Connect Google services to WhatsApp agent
-  waAgent.setGoogleServices(calendarService, gmailService, driveService)
+  // Connect Google services and AutoDev to WhatsApp agent
+  waAgent.setGoogleServices(calendarService, gmailService, driveService, gchatService)
+  waAgent.setAutoDevService(autoDevService)
 
   // Store API key for summary generation
   currentGeminiApiKey = apiKey
@@ -415,6 +422,17 @@ function initWhatsAppAgent(apiKey: string) {
   proactiveService.setApiKey(apiKey)
   if (!proactiveService.isRunning()) {
     proactiveService.start()
+  }
+
+  // Start AutoDev autonomous programming engine
+  autoDevService.setApiKey(apiKey)
+  autoDevService.on('notify-whatsapp', ({ phone, message }: any) => {
+    if (waAgent) {
+      waService.sendText(`${phone}@s.whatsapp.net`, message).catch(() => {})
+    }
+  })
+  if (!autoDevService.isRunning()) {
+    autoDevService.start()
   }
 }
 
@@ -457,12 +475,28 @@ app.whenReady().then(async () => {
   knowledgeService.init()
 
   // Restore saved Google/Microsoft OAuth connections from disk
-  calendarService.loadConnectionsFromDisk()
+  calendarService.loadConnections()
   registerComputerUseHandlers()
   registerMonitoringHandlers(monitoringService, () => win)
   registerCalendarHandlers(calendarService, () => win)
   registerGmailHandlers(gmailService, () => win)
   registerDriveHandlers(driveService, () => win)
+  registerGChatHandlers(gchatService, () => win)
+  registerAutoDevHandlers(autoDevService, () => win)
+
+  // ─── AutoDev auto-init from env API key ─────────────────────
+  const envApiKey = process.env.VITE_GEMINI_API_KEY
+  if (envApiKey && !autoDevService.isRunning()) {
+    autoDevService.setApiKey(envApiKey)
+    autoDevService.on('notify-whatsapp', ({ phone, message }: any) => {
+      if (waService.getStatus().connected) {
+        waService.sendText(`${phone}@s.whatsapp.net`, message).catch(() => {})
+      }
+    })
+    autoDevService.start()
+    console.log('[AutoDev] Auto-initialized with env API key')
+  }
+
   createTray()
   createWindow()
 

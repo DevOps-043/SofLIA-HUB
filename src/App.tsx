@@ -15,6 +15,7 @@ import { FlowMode } from "./components/FlowMode";
 import { WhatsAppSetup } from "./components/WhatsAppSetup";
 import { UserManagementModal } from "./components/UserManagementModal";
 import { ProductivityDashboard } from "./components/ProductivityDashboard";
+import AutoDevPanel from "./components/AutoDevPanel";
 import { GOOGLE_API_KEY } from "./config";
 import {
   getTeams,
@@ -55,6 +56,7 @@ function AppContent() {
   const { user, loading, signOut, sofiaContext } = useAuth();
   const [activeView, setActiveView] = useState<ActiveView>("chat");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [externalPrompt, setExternalPrompt] = useState<string | null>(null);
 
   // Conversation state
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -78,6 +80,7 @@ function AppContent() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isWhatsAppOpen, setIsWhatsAppOpen] = useState(false);
   const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
+  const [isAutoDevOpen, setIsAutoDevOpen] = useState(false);
   const [userSettings, setUserSettings] = useState<UserAISettings | null>(null);
   const [theme, setTheme] = useState<"system" | "light" | "dark">("system");
   const [_isFlowActive, _setIsFlowActive] = useState(false);
@@ -515,14 +518,7 @@ function AppContent() {
     (project: IrisProject) => {
       handleNewChat();
       const prompt = `Dame un resumen del estado del proyecto "${project.project_name}" [${project.project_key}]. Estado: ${project.project_status}, Progreso: ${project.completion_percentage}%.`;
-      setCurrentMessages([
-        {
-          id: crypto.randomUUID(),
-          role: "user",
-          text: prompt,
-          timestamp: Date.now(),
-        },
-      ]);
+      setExternalPrompt(prompt);
     },
     [handleNewChat],
   );
@@ -532,14 +528,7 @@ function AppContent() {
       handleNewChat();
       const statusName = issue.status?.name || "Sin estado";
       const prompt = `Dame detalles sobre la tarea #${issue.issue_number}: "${issue.title}". Estado: ${statusName}.${issue.description ? ` Descripción: ${issue.description}` : ""}`;
-      setCurrentMessages([
-        {
-          id: crypto.randomUUID(),
-          role: "user",
-          text: prompt,
-          timestamp: Date.now(),
-        },
-      ]);
+      setExternalPrompt(prompt);
     },
     [handleNewChat],
   );
@@ -601,21 +590,7 @@ function AppContent() {
     : null;
 
   const handleFlowSendToChat = async (text: string) => {
-    const transcriptMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: "user",
-      text: text,
-      timestamp: Date.now(),
-    };
-
-    setCurrentMessages((prev) => [...prev, transcriptMessage]);
-
-    if (currentConvIdRef.current && userId) {
-      saveMessages(currentConvIdRef.current, userId, [
-        ...currentMessages,
-        transcriptMessage,
-      ]);
-    }
+    setExternalPrompt(text);
   };
 
   if (isFlowWindow) {
@@ -728,17 +703,17 @@ function AppContent() {
           {(irisTeams.length > 0 || irisProjects.length > 0) && (
             <>
               {isSidebarOpen && (
-                <div className="pt-4 pb-1 px-3 flex items-center justify-between">
-                  <span className="text-[11px] text-gray-400 dark:text-gray-500 uppercase tracking-widest font-bold">
-                    Proyectos
+                <div className="pt-4 pb-2 px-3 flex items-center justify-between">
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] font-semibold">
+                    WorkSpaces
                   </span>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       refreshIrisData();
                     }}
-                    className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 hover:text-accent transition-all"
-                    title="Actualizar proyectos"
+                    className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 hover:text-accent transition-all"
+                    title="Actualizar workspaces"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -768,40 +743,38 @@ function AppContent() {
                   <div key={team.team_id} className="mb-0.5">
                     {/* Team row */}
                     <div
-                      className={`w-full flex items-center ${isSidebarOpen ? "gap-2 px-3" : "justify-center px-0"} py-2 rounded-lg text-sm transition-all cursor-pointer group hover:bg-gray-100 dark:hover:bg-[#2A2B32] text-gray-500 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white`}
+                      className={`w-full flex items-center ${isSidebarOpen ? "gap-2.5 px-3" : "justify-center px-0"} py-1.5 rounded-md text-[13px] transition-all duration-200 cursor-pointer group ${isTeamExpanded ? "bg-gray-100/50 dark:bg-white/[0.04] text-gray-900 dark:text-gray-100 font-medium" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100/30 dark:hover:bg-white/[0.02] hover:text-gray-900 dark:hover:text-gray-200"}`}
                       onClick={() => toggleTeam(team.team_id)}
                       title={team.name}
                     >
                       {isSidebarOpen && (
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
-                          className={`h-3 w-3 shrink-0 transition-transform ${isTeamExpanded ? "rotate-180" : ""}`}
+                          className={`h-3 w-3 shrink-0 text-gray-400 opacity-0 group-hover:opacity-100 transition-all duration-200 ${isTeamExpanded ? "rotate-90 opacity-100" : ""}`}
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
                           strokeWidth={2.5}
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M19 9l-7 7-7-7"
-                          />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                         </svg>
                       )}
 
-                      {/* Team dot / indicator */}
+                      {/* Letter Avatar (Minimalist modern) */}
                       <div
-                        className="w-2.5 h-2.5 shrink-0 rounded-full shadow-sm"
+                        className="flex items-center justify-center w-[18px] h-[18px] shrink-0 rounded-[4px] text-[10px] font-bold text-white shadow-sm ring-1 ring-black/5 dark:ring-white/10"
                         style={{ backgroundColor: team.color || "#3b82f6" }}
-                      />
+                      >
+                        {team.name ? team.name.charAt(0).toUpperCase() : "W"}
+                      </div>
 
                       {isSidebarOpen && (
                         <>
-                          <span className="flex-1 text-left truncate text-[13.5px] font-medium">
+                          <span className="flex-1 text-left truncate tracking-wide">
                             {team.name}
                           </span>
                           {teamProjects.length > 0 && !isTeamExpanded && (
-                            <span className="text-[10px] bg-gray-200 dark:bg-white/10 px-1.5 py-0.5 rounded-full text-gray-500 dark:text-gray-400">
+                            <span className="text-[10px] px-1.5 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400">
                               {teamProjects.length}
                             </span>
                           )}
@@ -811,101 +784,68 @@ function AppContent() {
 
                     {/* Expanded projects */}
                     {isTeamExpanded && isSidebarOpen && (
-                      <div className="ml-5 mt-0.5 border-l border-gray-200 dark:border-white/5 space-y-0.5">
+                      <div className="ml-5 mt-0.5 space-y-0.5 border-l border-gray-100 dark:border-white/5">
                         {teamProjects.length === 0 ? (
-                          <p className="px-4 py-1.5 text-[11px] text-gray-400 dark:text-gray-500 italic font-light">
+                          <p className="pl-3 py-1.5 text-[11px] text-gray-400 dark:text-gray-500 italic font-light">
                             Sin proyectos
                           </p>
                         ) : (
                           teamProjects.map((project) => {
-                            const isProjectExpanded = expandedProjects.has(
-                              project.project_id,
-                            );
-                            const projectIssues =
-                              irisIssues[project.project_id] || [];
-                            const statusColor =
-                              PROJECT_STATUS_COLORS[project.project_status] ||
-                              "#6b7280";
+                            const isProjectExpanded = expandedProjects.has(project.project_id);
+                            const projectIssues = irisIssues[project.project_id] || [];
+                            const statusColor = PROJECT_STATUS_COLORS[project.project_status] || "#6b7280";
 
                             return (
-                              <div key={project.project_id} className="pl-2">
+                              <div key={project.project_id} className="relative mt-0.5">
                                 {/* Project row */}
                                 <div
-                                  className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-md text-[12px] transition-colors cursor-pointer group/proj ${isProjectExpanded ? "bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-gray-300"}`}
-                                  onClick={() =>
-                                    toggleProject(project.project_id)
-                                  }
-                                  onDoubleClick={() =>
-                                    handleIrisProjectClick(project)
-                                  }
+                                  className={`w-full flex items-center gap-2.5 pl-3 pr-2 py-1.5 rounded-r-md text-[12.5px] transition-all duration-200 cursor-pointer group/proj ${isProjectExpanded ? "text-gray-900 dark:text-white font-medium bg-gray-50 dark:bg-white/[0.02]" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/[0.01]"}`}
+                                  onClick={() => toggleProject(project.project_id)}
+                                  onDoubleClick={() => handleIrisProjectClick(project)}
                                   title={`${project.project_name} — ${project.project_status} (${project.completion_percentage}%)`}
                                 >
-                                  {/* Small chevron */}
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className={`h-2.5 w-2.5 shrink-0 transition-transform ${isProjectExpanded ? "rotate-90" : ""}`}
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    strokeWidth={2}
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      d="M9 5l7 7-7 7"
-                                    />
-                                  </svg>
+                                  {/* Horizontal connector line */}
+                                  <div className="absolute left-0 top-[14px] w-2.5 h-px bg-gray-100 dark:bg-white/5 group-hover/proj:bg-gray-300 dark:group-hover/proj:bg-white/20 transition-colors" />
 
-                                  {/* Status dot */}
-                                  <span
-                                    className="w-1.5 h-1.5 rounded-sm shrink-0"
-                                    style={{ backgroundColor: statusColor }}
-                                  />
+                                  {/* Status indicator simple dot */}
+                                  <div className="w-1.5 h-1.5 rounded-full z-10 shrink-0" style={{ backgroundColor: statusColor }} />
 
-                                  <span className="flex-1 text-left truncate">
+                                  <span className="flex-1 text-left truncate tracking-wide">
                                     {project.project_name}
                                   </span>
 
-                                  {/* Completion percentage */}
-                                  <span className="text-[10px] text-gray-400 dark:text-gray-500">
+                                  {/* Minimal completion badge */}
+                                  <span className="text-[9px] px-1 py-0.5 rounded border border-gray-200 dark:border-white/10 text-gray-400 dark:text-gray-500 opacity-0 group-hover/proj:opacity-100 transition-all font-medium">
                                     {project.completion_percentage}%
                                   </span>
                                 </div>
 
                                 {/* Expanded issues */}
                                 {isProjectExpanded && (
-                                  <div className="ml-3 mt-1 space-y-0.5 border-l border-gray-200 dark:border-white/5">
+                                  <div className="ml-4 mt-0.5 pb-1 space-y-0.5 border-l border-gray-100 dark:border-white/5">
                                     {projectIssues.length === 0 ? (
-                                      <p className="px-4 py-1 text-[10px] text-gray-400 dark:text-gray-500 italic">
+                                      <p className="pl-3 py-1 text-[10.5px] text-gray-400 dark:text-gray-500 italic">
                                         Sin tareas
                                       </p>
                                     ) : (
                                       projectIssues.map((issue) => {
-                                        const issueStatusColor =
-                                          ISSUE_STATUS_TYPE_COLORS[
-                                            issue.status?.status_type ||
-                                              "backlog"
-                                          ] || "#6b7280";
+                                        const issueStatusColor = ISSUE_STATUS_TYPE_COLORS[issue.status?.status_type || "backlog"] || "#6b7280";
                                         return (
                                           <button
                                             key={issue.issue_id}
-                                            onClick={() =>
-                                              handleIrisIssueClick(issue)
-                                            }
-                                            className="w-full flex items-center gap-2 px-3 py-1 rounded-sm text-[11px] transition-colors text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-gray-300 group/issue"
+                                            onClick={() => handleIrisIssueClick(issue)}
+                                            className="relative w-full flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-r-md text-[11px] transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/[0.02] group/issue"
                                             title={issue.title}
                                           >
+                                            <div className="absolute left-0 top-[11px] w-2 h-px bg-gray-100 dark:bg-white/5 group-hover/issue:bg-gray-300 dark:group-hover/issue:bg-white/20 transition-colors" />
                                             <span
                                               className="w-1.5 h-1.5 rounded-full shrink-0 group-hover/issue:scale-125 transition-transform"
-                                              style={{
-                                                backgroundColor:
-                                                  issueStatusColor,
-                                              }}
+                                              style={{ backgroundColor: issueStatusColor }}
                                             />
-                                            <span className="text-gray-500 dark:text-gray-600 shrink-0 tabular-nums">
+                                            <span className="text-gray-400 dark:text-gray-500 shrink-0 tabular-nums">
                                               #{issue.issue_number}
                                             </span>
-                                            <span className="flex-1 text-left truncate">
+                                            <span className="flex-1 text-left truncate font-medium tracking-wide">
                                               {issue.title}
                                             </span>
                                           </button>
@@ -936,9 +876,9 @@ function AppContent() {
                 return (
                   <div className="mt-2 pl-1">
                     {isSidebarOpen && (
-                      <div className="px-3 py-1 mb-1 opacity-50">
-                        <span className="text-[9px] text-gray-400 dark:text-gray-500 uppercase tracking-widest font-bold">
-                          Proyectos Globales
+                      <div className="px-3 py-1 mb-1">
+                        <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] font-semibold">
+                          WorkSpaces Globales
                         </span>
                       </div>
                     )}
@@ -955,42 +895,37 @@ function AppContent() {
 
                       return (
                         <div key={project.project_id} className="mb-0.5">
+                          {/* Global Project Row */}
                           <div
-                            className={`w-full flex items-center ${isSidebarOpen ? "gap-2 px-3" : "justify-center px-0"} py-1.5 rounded-lg text-[12px] transition-all cursor-pointer group/proj text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#2A2B32] hover:text-gray-900 dark:hover:text-white`}
+                            className={`w-full flex items-center ${isSidebarOpen ? "gap-2.5 px-3" : "justify-center px-0"} py-1.5 rounded-md text-[13px] transition-all duration-200 cursor-pointer group/proj ${isProjectExpanded ? "bg-gray-100/50 dark:bg-white/[0.04] text-gray-900 dark:text-gray-100 font-medium" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100/30 dark:hover:bg-white/[0.02] hover:text-gray-900 dark:hover:text-gray-200"}`}
                             onClick={() => toggleProject(project.project_id)}
-                            onDoubleClick={() =>
-                              handleIrisProjectClick(project)
-                            }
+                            onDoubleClick={() => handleIrisProjectClick(project)}
                             title={`${project.project_name} — ${project.project_status}`}
                           >
                             {isSidebarOpen && (
                               <svg
                                 xmlns="http://www.w3.org/2000/svg"
-                                className={`h-2.5 w-2.5 shrink-0 transition-transform ${isProjectExpanded ? "rotate-90" : ""}`}
+                                className={`h-3 w-3 shrink-0 text-gray-400 opacity-0 group-hover/proj:opacity-100 transition-all duration-200 ${isProjectExpanded ? "rotate-90 opacity-100" : ""}`}
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
-                                strokeWidth={2}
+                                strokeWidth={2.5}
                               >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M9 5l7 7-7 7"
-                                />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                               </svg>
                             )}
 
-                            <span
-                              className="w-2 h-2 rounded-full shrink-0"
-                              style={{ backgroundColor: statusColor }}
-                            />
+                            {/* Square Icon for Global Projects */}
+                            <div className="flex items-center justify-center w-[18px] h-[18px] shrink-0 rounded-[4px] border border-gray-200/50 dark:border-white/10 bg-white dark:bg-white/5 shadow-none">
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: statusColor }} />
+                            </div>
 
                             {isSidebarOpen && (
                               <>
-                                <span className="flex-1 text-left truncate font-medium">
+                                <span className="flex-1 text-left truncate tracking-wide">
                                   {project.project_name}
                                 </span>
-                                <span className="text-[10px] text-gray-400 tabular-nums">
+                                <span className="text-[10px] text-gray-400 px-1 py-0.5 opacity-0 group-hover/proj:opacity-100 transition-opacity">
                                   {project.completion_percentage}%
                                 </span>
                               </>
@@ -998,34 +933,36 @@ function AppContent() {
                           </div>
 
                           {isProjectExpanded && isSidebarOpen && (
-                            <div className="ml-5 mt-1 border-l border-gray-200 dark:border-white/5 space-y-0.5">
-                              {projectIssues.map((issue) => {
-                                const issueStatusColor =
-                                  ISSUE_STATUS_TYPE_COLORS[
-                                    issue.status?.status_type || "backlog"
-                                  ] || "#6b7280";
-                                return (
-                                  <button
-                                    key={issue.issue_id}
-                                    onClick={() => handleIrisIssueClick(issue)}
-                                    className="w-full flex items-center gap-2 px-3 py-1 rounded-sm text-[11px] transition-colors text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-gray-300 group/issue"
-                                    title={issue.title}
-                                  >
-                                    <span
-                                      className="w-1.5 h-1.5 rounded-full shrink-0"
-                                      style={{
-                                        backgroundColor: issueStatusColor,
-                                      }}
-                                    />
-                                    <span className="text-gray-500 dark:text-gray-600 shrink-0">
-                                      #{issue.issue_number}
-                                    </span>
-                                    <span className="flex-1 text-left truncate">
-                                      {issue.title}
-                                    </span>
-                                  </button>
-                                );
-                              })}
+                            <div className="ml-5 mt-0.5 border-l border-gray-100 dark:border-white/5 space-y-0.5">
+                              {projectIssues.length === 0 ? (
+                                <p className="pl-3 py-1.5 text-[10.5px] text-gray-400 dark:text-gray-500 italic font-light">
+                                  Sin tareas
+                                </p>
+                              ) : (
+                                projectIssues.map((issue) => {
+                                  const issueStatusColor = ISSUE_STATUS_TYPE_COLORS[issue.status?.status_type || "backlog"] || "#6b7280";
+                                  return (
+                                    <button
+                                      key={issue.issue_id}
+                                      onClick={() => handleIrisIssueClick(issue)}
+                                      className="relative w-full flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-r-md text-[11px] transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/[0.02] group/issue"
+                                      title={issue.title}
+                                    >
+                                      <div className="absolute left-0 top-[11px] w-2 h-px bg-gray-100 dark:bg-white/5 group-hover/issue:bg-gray-300 dark:group-hover/issue:bg-white/20 transition-colors" />
+                                      <span
+                                        className="w-1.5 h-1.5 rounded-full shrink-0 group-hover/issue:scale-125 transition-transform"
+                                        style={{ backgroundColor: issueStatusColor }}
+                                      />
+                                      <span className="text-gray-400 dark:text-gray-500 shrink-0 tabular-nums">
+                                        #{issue.issue_number}
+                                      </span>
+                                      <span className="flex-1 text-left truncate font-medium tracking-wide">
+                                        {issue.title}
+                                      </span>
+                                    </button>
+                                  );
+                                })
+                               )}
                             </div>
                           )}
                         </div>
@@ -1041,8 +978,8 @@ function AppContent() {
           {folders.length > 0 && (
             <>
               {isSidebarOpen && (
-                <div className="pt-3 pb-1 px-3">
-                  <span className="text-[11px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                <div className="pt-5 pb-2 px-3">
+                  <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] font-semibold">
                     Carpetas
                   </span>
                 </div>
@@ -1058,10 +995,12 @@ function AppContent() {
                   <div key={folder.id}>
                     {/* Folder row */}
                     <div
-                      className={`w-full flex items-center ${isSidebarOpen ? "gap-2 px-3" : "justify-center px-0"} py-1.5 rounded-lg text-sm transition-colors cursor-pointer group ${
+                      className={`w-full flex items-center ${isSidebarOpen ? "gap-2.5 px-3" : "justify-center px-0"} py-2 rounded-lg text-[13px] transition-all duration-200 cursor-pointer group ${
                         isActive
-                          ? "bg-gray-200 dark:bg-[#343541] text-gray-900 dark:text-white font-medium"
-                          : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#2A2B32] hover:text-gray-900 dark:hover:text-white"
+                          ? "bg-accent/10 dark:bg-accent/20 text-accent font-semibold shadow-sm"
+                          : isExpanded 
+                          ? "bg-gray-100/50 dark:bg-white/[0.04] text-gray-800 dark:text-gray-200 font-medium"
+                          : "text-gray-600 dark:text-gray-400 hover:bg-gray-100/80 dark:hover:bg-white/[0.04] hover:text-gray-900 dark:hover:text-gray-200"
                       }`}
                       onClick={() => toggleFolder(folder.id)}
                       onDoubleClick={() => handleOpenProject(folder.id)}
@@ -1071,7 +1010,7 @@ function AppContent() {
                       {isSidebarOpen && (
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
-                          className={`h-3 w-3 flex-shrink-0 transition-transform ${isExpanded ? "rotate-90" : ""}`}
+                          className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 opacity-60 group-hover:opacity-100 ${isActive ? "text-accent opacity-100" : ""} ${isExpanded ? "rotate-90" : ""}`}
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
@@ -1085,31 +1024,33 @@ function AppContent() {
                         </svg>
                       )}
 
-                      {/* Folder icon */}
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4 flex-shrink-0 opacity-60"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={1.5}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                        />
-                      </svg>
+                      {/* Folder icon Box */}
+                      <div className={`flex items-center justify-center w-6 h-6 shrink-0 rounded-[8px] border transition-all duration-200 ${isActive ? 'bg-accent/20 border-accent/30 text-accent' : 'bg-white dark:bg-white/[0.02] border-gray-200/50 dark:border-white/[0.08] text-gray-400 group-hover:text-accent group-hover:border-accent/20'}`}>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-3.5 w-3.5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={isActive ? 2.5 : 2}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                          />
+                        </svg>
+                      </div>
 
                       {isSidebarOpen && (
                         <>
-                          <span className="flex-1 text-left truncate text-[13px]">
+                          <span className="flex-1 text-left truncate">
                             {folder.name}
                           </span>
 
                           {/* Chat count */}
                           {chatsInFolder.length > 0 && (
-                            <span className="text-[10px] text-gray-400 group-hover:text-gray-500 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span className="text-[10px] bg-gray-200/50 dark:bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 rounded-full text-gray-500 dark:text-gray-400">
                               {chatsInFolder.length}
                             </span>
                           )}
@@ -1151,13 +1092,16 @@ function AppContent() {
                             <button
                               key={conv.id}
                               onClick={() => handleSelectConversation(conv.id)}
-                              className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] transition-colors group/chat ${
+                              className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[12.5px] transition-all duration-200 group/chat ${
                                 currentConversationId === conv.id &&
                                 activeView === "chat"
-                                  ? "bg-gray-200 dark:bg-[#343541] text-gray-900 dark:text-white font-medium"
-                                  : "text-gray-500 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-[#2A2B32] hover:text-gray-900 dark:hover:text-gray-300"
+                                  ? "bg-accent/10 dark:bg-accent/15 text-accent font-medium shadow-sm"
+                                  : "text-gray-500 dark:text-gray-400 hover:bg-gray-100/50 dark:hover:bg-white/[0.04] hover:text-gray-900 dark:hover:text-gray-200"
                               }`}
                             >
+                              {/* Small chat indicator dot */}
+                              <div className={`flex items-center justify-center w-2 h-2 shrink-0 rounded-full transition-all duration-200 ${currentConversationId === conv.id && activeView === "chat" ? 'bg-accent shadow-[0_0_6px_var(--tw-colors-accent)]' : 'bg-gray-300 dark:bg-white/[0.15] group-hover/chat:bg-gray-400 dark:group-hover/chat:bg-white/30'}`} />
+
                               {renamingChatId === conv.id ? (
                                 <input
                                   autoFocus
@@ -1267,8 +1211,8 @@ function AppContent() {
 
           {/* Ungrouped Conversations */}
           {isSidebarOpen && (
-            <div className="pt-3 pb-1 px-3">
-              <span className="text-[11px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+            <div className="pt-5 pb-2 px-3">
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] font-semibold">
                 {folders.length > 0 ? "Sin carpeta" : "Conversaciones"}
               </span>
             </div>
@@ -1297,27 +1241,30 @@ function AppContent() {
               <button
                 key={conv.id}
                 onClick={() => handleSelectConversation(conv.id)}
-                className={`w-full flex items-center ${isSidebarOpen ? "gap-2 px-3" : "justify-center px-0"} py-2 rounded-lg text-sm transition-colors group ${
+                className={`w-full flex items-center ${isSidebarOpen ? "gap-2.5 px-3" : "justify-center px-0"} py-2 rounded-lg text-[13px] transition-all duration-200 group ${
                   currentConversationId === conv.id && activeView === "chat"
-                    ? "bg-gray-200 dark:bg-[#343541] text-gray-900 dark:text-white font-medium"
-                    : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#2A2B32] hover:text-gray-900 dark:hover:text-white"
+                    ? "bg-accent/10 dark:bg-accent/15 text-accent font-medium shadow-sm"
+                    : "text-gray-500 dark:text-gray-400 hover:bg-gray-100/80 dark:hover:bg-white/[0.04] hover:text-gray-900 dark:hover:text-gray-200"
                 }`}
                 title={conv.title}
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 flex-shrink-0 opacity-50"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-                  />
-                </svg>
+                {/* Chat Icon Box */}
+                <div className={`flex items-center justify-center w-6 h-6 shrink-0 rounded-[8px] border transition-all duration-200 ${currentConversationId === conv.id && activeView === "chat" ? 'bg-accent/20 border-accent/30 text-accent' : 'bg-white dark:bg-white/[0.02] border-gray-200/50 dark:border-white/[0.08] text-gray-400 group-hover:text-accent group-hover:border-accent/20'}`}>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-3.5 w-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={currentConversationId === conv.id && activeView === "chat" ? 2 : 1.5}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                    />
+                  </svg>
+                </div>
                 {isSidebarOpen && (
                   <>
                     {renamingChatId === conv.id ? (
@@ -1636,6 +1583,30 @@ function AppContent() {
                       Productividad
                     </button>
 
+                    <button
+                      onClick={() => {
+                        setIsAutoDevOpen(true);
+                        setIsUserMenuOpen(false);
+                      }}
+                      className="w-full text-left flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4.5 w-4.5 text-gray-400 dark:text-gray-500"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={1.5}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5"
+                        />
+                      </svg>
+                      AutoDev
+                    </button>
+
                     <div className="h-px bg-gray-200 dark:bg-white/10 my-1 mx-1.5"></div>
 
                     {/* Theme Switcher */}
@@ -1743,6 +1714,8 @@ function AppContent() {
           <ChatUI
             messages={currentMessages}
             onMessagesChange={handleMessagesChange}
+            externalPrompt={externalPrompt}
+            onExternalPromptProcessed={() => setExternalPrompt(null)}
             personalization={
               userSettings
                 ? {
@@ -1816,6 +1789,10 @@ function AppContent() {
             (m) => m.organization_id === sofiaContext?.currentOrganization?.id,
           )?.role as any) || "member"
         }
+      />
+      <AutoDevPanel
+        isOpen={isAutoDevOpen}
+        onClose={() => setIsAutoDevOpen(false)}
       />
     </div>
   );

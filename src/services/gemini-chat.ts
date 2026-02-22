@@ -2,8 +2,9 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GOOGLE_API_KEY, MODELS } from '../config';
 import { PRIMARY_CHAT_PROMPT, buildPrimaryChatPrompt } from '../prompts/chat';
 import { getApiKeyWithCache } from './api-keys';
-import { COMPUTER_USE_TOOLS, COMPUTER_TOOL_NAMES } from './gemini-tools';
+import { COMPUTER_USE_TOOLS, COMPUTER_TOOL_NAMES, PROJECT_HUB_TOOLS, PROJECT_HUB_TOOL_NAMES } from './gemini-tools';
 import { executeComputerTool, isComputerUseAvailable } from './computer-use-service';
+import { deleteProject, createProject } from './iris-data';
 
 export interface ConversationMessage {
   role: 'user' | 'model';
@@ -173,10 +174,10 @@ ${options.irisContext}
   // For the agentic path: only function declarations (no googleSearch)
   // For Gemini 2.5+: can safely combine both
   const computerTools: any[] = isGemini3
-    ? [COMPUTER_USE_TOOLS]
-    : [{ googleSearch: {} } as any, COMPUTER_USE_TOOLS];
+    ? [COMPUTER_USE_TOOLS, PROJECT_HUB_TOOLS]
+    : [{ googleSearch: {} } as any, COMPUTER_USE_TOOLS, PROJECT_HUB_TOOLS];
 
-  const searchTools: any[] = [{ googleSearch: {} } as any];
+  const searchTools: any[] = [{ googleSearch: {} } as any, PROJECT_HUB_TOOLS];
 
   const model = ai.getGenerativeModel({
     model: activeModelId,
@@ -262,15 +263,35 @@ ${options.irisContext}
         const toolName = fc.name;
         const toolArgs = fc.args || {};
 
-        // Check if this is a computer-use tool
-        if (COMPUTER_TOOL_NAMES.has(toolName)) {
+        // Check if this is a computer-use tool or project hub tool
+        if (COMPUTER_TOOL_NAMES.has(toolName) || PROJECT_HUB_TOOL_NAMES.has(toolName)) {
           const toolInfo: ToolCallInfo = { name: toolName, args: toolArgs };
 
           // Notify UI about tool execution
           options?.onToolCall?.(toolInfo);
 
           try {
-            const resultStr = await executeComputerTool(toolName, toolArgs);
+            let resultStr = '';
+            
+            if (PROJECT_HUB_TOOL_NAMES.has(toolName)) {
+              if (toolName === 'delete_iris_project') {
+                const deleteResult = await deleteProject(toolArgs.project_id);
+                resultStr = JSON.stringify(deleteResult);
+              } else if (toolName === 'create_iris_project') {
+                const createResult = await createProject({
+                  name: toolArgs.project_name,
+                  key: toolArgs.project_key,
+                  description: toolArgs.project_description,
+                  team_id: toolArgs.team_id,
+                });
+                resultStr = JSON.stringify(createResult);
+              } else {
+                resultStr = JSON.stringify({ success: false, error: 'Hub tool not implemented' });
+              }
+            } else {
+              resultStr = await executeComputerTool(toolName, toolArgs);
+            }
+            
             toolInfo.result = resultStr;
             allToolCalls.push(toolInfo);
 

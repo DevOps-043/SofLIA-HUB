@@ -51,14 +51,12 @@ export function SummaryCard({ summary, userId, logs, selectedDate, onSummaryGene
     setError(null);
     try {
       // Use the user's own WhatsApp number (the connected one)
-      const status = await window.monitoring.getStatus();
-      const phoneNumber = (status as any)?.phoneNumber || '';
+      const waStatus = await window.whatsApp.getStatus();
+      const phoneNumber = waStatus?.phoneNumber || '';
       if (!phoneNumber) {
-        // Send to renderer to let user pick — for now just use a generic approach
-        await sendSummaryViaWhatsApp('', `*Resumen de Productividad — ${selectedDate}*\n\n${summary.aiSummary}`);
-      } else {
-        await sendSummaryViaWhatsApp(phoneNumber, `*Resumen de Productividad — ${selectedDate}*\n\n${summary.aiSummary}`);
+        throw new Error('No se detectó un número de WhatsApp activo. ¿Está conectado?');
       }
+      await sendSummaryViaWhatsApp(phoneNumber, `*Resumen de Productividad — ${selectedDate}*\n\n${summary.aiSummary}`);
       setSent(true);
       setTimeout(() => setSent(false), 3000);
     } catch (err: any) {
@@ -124,8 +122,8 @@ export function SummaryCard({ summary, userId, logs, selectedDate, onSummaryGene
 
           {/* AI Summary */}
           {summary.aiSummary && (
-            <div className="bg-gray-50 dark:bg-white/5 rounded-lg p-3">
-              <p className="text-xs text-gray-600 dark:text-gray-300 whitespace-pre-line leading-relaxed">
+            <div className="bg-gray-50 dark:bg-white/5 rounded-lg p-3 max-h-[350px] overflow-y-auto no-scrollbar">
+              <p className="text-[13px] text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
                 {summary.aiSummary}
               </p>
             </div>

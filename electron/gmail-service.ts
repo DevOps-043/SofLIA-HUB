@@ -323,6 +323,39 @@ export class GmailService extends EventEmitter {
     }
   }
 
+  // ─── Create Label ──────────────────────────────────────────────
+
+  async createLabel(name: string): Promise<{ success: boolean; label?: { id: string; name: string }; error?: string }> {
+    const auth = await this.calendarService.getGoogleAuth();
+    if (!auth) return { success: false, error: 'Google no conectado' };
+
+    try {
+      const { google } = await import('googleapis');
+      const gmail = google.gmail({ version: 'v1', auth });
+
+      const response = await gmail.users.labels.create({
+        userId: 'me',
+        requestBody: {
+          name,
+          labelListVisibility: 'labelShow',
+          messageListVisibility: 'show',
+        },
+      });
+
+      console.log(`[GmailService] Label created: ${response.data.id} (${name})`);
+      return { success: true, label: { id: response.data.id || '', name: response.data.name || '' } };
+    } catch (err: any) {
+      // If label already exists, try to find and return it
+      if (err.message?.includes('already exists') || err.code === 409) {
+        const existing = await this.getLabels();
+        const found = existing.labels?.find(l => l.name.toLowerCase() === name.toLowerCase());
+        if (found) return { success: true, label: found };
+      }
+      console.error('[GmailService] CreateLabel error:', err.message);
+      return { success: false, error: err.message };
+    }
+  }
+
   // ─── Get Labels ─────────────────────────────────────────────────
 
   async getLabels(): Promise<{ success: boolean; labels?: Array<{ id: string; name: string }>; error?: string }> {

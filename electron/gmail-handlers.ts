@@ -62,5 +62,14 @@ export function registerGmailHandlers(
     }
   });
 
+  // ─── Create label ─────────────────────────────────────────────
+  ipcMain.handle('gmail:create-label', async (_event, name: string) => {
+    try {
+      return await gmailService.createLabel(name);
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  });
+
   console.log('[GmailHandlers] Registered successfully');
 }

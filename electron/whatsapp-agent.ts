@@ -14,8 +14,10 @@ import type { WhatsAppService } from './whatsapp-service';
 import type { CalendarService } from './calendar-service';
 import type { GmailService } from './gmail-service';
 import type { DriveService } from './drive-service';
+import type { GChatService } from './gchat-service';
 import type { MemoryService } from './memory-service';
 import type { KnowledgeService } from './knowledge-service';
+import type { AutoDevService } from './autodev-service';
 import {
   authenticateWhatsAppUser,
   tryAutoAuthByPhone,
@@ -59,6 +61,7 @@ const CONFIRM_TOOLS_WA = new Set([
   'gmail_send',
   'gmail_trash',
   'google_calendar_delete',
+  'gchat_send_message',
 ]);
 
 // Tools blocked in GROUP context (security: don't allow group members to control host)
@@ -772,6 +775,38 @@ const WA_TOOL_DECLARATIONS = {
         required: ['message_id'],
       },
     },
+    {
+      name: 'gmail_get_labels',
+      description: 'Lista todas las etiquetas/labels de Gmail del usuario (incluyendo las del sistema como INBOX, SPAM, etc. y las creadas por el usuario).',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {},
+      },
+    },
+    {
+      name: 'gmail_create_label',
+      description: 'Crea una nueva etiqueta/label en Gmail. Si la etiqueta ya existe, devuelve la existente.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          name: { type: 'STRING' as const, description: 'Nombre de la etiqueta a crear (ej: "GitHub", "Open AI", "Trabajo").' },
+        },
+        required: ['name'],
+      },
+    },
+    {
+      name: 'gmail_modify_labels',
+      description: 'Agrega o quita etiquetas de un email. Usa esto para organizar correos en etiquetas/carpetas. Para mover a una etiqueta: add_labels con el ID de la etiqueta. Para quitar de INBOX: remove_labels con "INBOX".',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          message_id: { type: 'STRING' as const, description: 'ID del mensaje a modificar.' },
+          add_labels: { type: 'ARRAY' as const, items: { type: 'STRING' as const }, description: 'IDs de etiquetas a agregar al mensaje.' },
+          remove_labels: { type: 'ARRAY' as const, items: { type: 'STRING' as const }, description: 'IDs de etiquetas a quitar del mensaje (ej: "INBOX" para sacarlo de la bandeja de entrada).' },
+        },
+        required: ['message_id'],
+      },
+    },
     // ─── Google Drive API ──────────────────────────────────────────
     {
       name: 'drive_list_files',
@@ -832,6 +867,101 @@ const WA_TOOL_DECLARATIONS = {
         required: ['name'],
       },
     },
+    // ─── Google Chat API ──────────────────────────────────────────
+    {
+      name: 'gchat_list_spaces',
+      description: 'Lista los espacios (chats, grupos, salas) de Google Chat del usuario.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {},
+      },
+    },
+    {
+      name: 'gchat_get_messages',
+      description: 'Lee los mensajes recientes de un espacio de Google Chat. Usa gchat_list_spaces primero para obtener el nombre del espacio.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          space_name: { type: 'STRING' as const, description: 'Nombre del espacio (ej: "spaces/AAAAA"). Obtener con gchat_list_spaces.' },
+          max_results: { type: 'NUMBER' as const, description: 'Cantidad máxima de mensajes. Por defecto 25.' },
+        },
+        required: ['space_name'],
+      },
+    },
+    {
+      name: 'gchat_send_message',
+      description: 'Envía un mensaje de texto a un espacio de Google Chat. Puede responder en un hilo si se proporciona thread_name.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          space_name: { type: 'STRING' as const, description: 'Nombre del espacio destino (ej: "spaces/AAAAA").' },
+          text: { type: 'STRING' as const, description: 'Texto del mensaje a enviar.' },
+          thread_name: { type: 'STRING' as const, description: 'Nombre del hilo para responder (opcional). Si no se especifica, crea un nuevo mensaje.' },
+        },
+        required: ['space_name', 'text'],
+      },
+    },
+    {
+      name: 'gchat_add_reaction',
+      description: 'Agrega una reacción emoji a un mensaje de Google Chat.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          message_name: { type: 'STRING' as const, description: 'Nombre completo del mensaje (ej: "spaces/AAAAA/messages/BBBBB").' },
+          emoji: { type: 'STRING' as const, description: 'Emoji unicode para la reacción (ej: "👍", "❤️", "😂").' },
+        },
+        required: ['message_name', 'emoji'],
+      },
+    },
+    {
+      name: 'gchat_get_members',
+      description: 'Lista los miembros de un espacio de Google Chat.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          space_name: { type: 'STRING' as const, description: 'Nombre del espacio (ej: "spaces/AAAAA").' },
+        },
+        required: ['space_name'],
+      },
+    },
+    // ─── AutoDev tools ────────────────────────────────────────────
+    {
+      name: 'autodev_get_status',
+      description: 'Obtiene el estado del sistema AutoDev (programación autónoma). Muestra si está habilitado, si hay un run en progreso, configuración actual, y conteo de runs del día.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {},
+      },
+    },
+    {
+      name: 'autodev_run_now',
+      description: 'Ejecuta el sistema AutoDev inmediatamente. Analiza el código, investiga mejoras en la web, implementa cambios en una rama aislada, crea un PR en GitHub, y notifica el resultado.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {},
+      },
+    },
+    {
+      name: 'autodev_get_history',
+      description: 'Obtiene el historial de ejecuciones de AutoDev. Muestra las últimas mejoras realizadas, PRs creados, investigación realizada, y resultados.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {},
+      },
+    },
+    {
+      name: 'autodev_update_config',
+      description: 'Actualiza la configuración del sistema AutoDev.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          enabled: { type: 'BOOLEAN' as const, description: 'Habilitar/deshabilitar AutoDev.' },
+          cron_schedule: { type: 'STRING' as const, description: 'Horario cron (ej: "0 3 * * *" para 3 AM diario).' },
+          categories: { type: 'STRING' as const, description: 'Categorías separadas por coma: security,quality,performance,dependencies,tests' },
+          notify_phone: { type: 'STRING' as const, description: 'Número de teléfono para notificaciones WhatsApp.' },
+        },
+      },
+    },
   ],
 };
 
@@ -889,7 +1019,11 @@ GMAIL (API directa):
 - gmail_get_messages: lee emails recientes, busca por query
 - gmail_read_message: lee el contenido completo de un email
 - gmail_trash: elimina un email
+- gmail_get_labels: lista todas las etiquetas del usuario
+- gmail_create_label: crea una nueva etiqueta (si ya existe, devuelve la existente)
+- gmail_modify_labels: agrega o quita etiquetas de un email. Para organizar: 1) crear label con gmail_create_label, 2) agregar label al mensaje con gmail_modify_labels (add_labels con el ID), 3) opcionalmente quitar de INBOX con remove_labels: ["INBOX"]
 - IMPORTANTE: Usa gmail_send en lugar de send_email o open_url con mail.google.com
+- IMPORTANTE: Para organizar correos en etiquetas, SIEMPRE usa este flujo: gmail_get_messages → gmail_create_label → gmail_modify_labels
 
 GOOGLE DRIVE:
 - drive_list_files: lista archivos del Drive
@@ -897,6 +1031,20 @@ GOOGLE DRIVE:
 - drive_download: descarga un archivo de Drive a la computadora. Soporta Google Docs/Sheets/Slides (se exportan automáticamente a PDF/XLSX). Después puedes enviarlo por WhatsApp (whatsapp_send_file) o por email (gmail_send con attachment_paths)
 - drive_upload: sube un archivo local a Drive
 - drive_create_folder: crea carpetas en Drive
+
+GOOGLE CHAT:
+- gchat_list_spaces: lista espacios/chats/grupos de Google Chat
+- gchat_get_messages: lee mensajes recientes de un espacio (usa gchat_list_spaces primero para obtener space_name)
+- gchat_send_message: envía mensaje a un espacio de Google Chat. Puede responder en hilo con thread_name
+- gchat_add_reaction: agrega reacción emoji a un mensaje de Google Chat
+- gchat_get_members: lista miembros de un espacio de Google Chat
+
+AUTODEV (PROGRAMACIÓN AUTÓNOMA):
+- autodev_get_status: ver estado del sistema AutoDev (habilitado, run en progreso, config)
+- autodev_run_now: ejecutar AutoDev inmediatamente — analiza código, investiga mejoras en la web, implementa en rama aislada, crea PR
+- autodev_get_history: ver historial de mejoras autónomas realizadas (PRs, cambios, investigación)
+- autodev_update_config: configurar AutoDev (habilitar/deshabilitar, horario, categorías, notificaciones)
+- AutoDev investiga ANTES de implementar: busca CVEs, lee changelogs, consulta documentación oficial
 
 INTERNET:
 - open_url: abre URLs en el navegador
@@ -946,11 +1094,15 @@ GOOGLE INTEGRADO (prioridad sobre navegador):
 - "Envía un email a juan@..." → gmail_send (directo via API, sin SMTP)
 - "Envía un email con el archivo X adjunto" → smart_find_file + gmail_send con attachment_paths
 - "¿Qué emails no he leído?" → gmail_get_messages con query "is:unread"
+- "Organiza mis correos por etiquetas" → gmail_get_messages + gmail_create_label (para cada categoría) + gmail_modify_labels (agregar label a cada mensaje)
 - "Busca el archivo X en mi Drive" → drive_search
 - "Envíame el archivo X de mi Drive" → drive_search + drive_download + whatsapp_send_file
 - "Envía por email el archivo X de mi Drive" → drive_search + drive_download + gmail_send con attachment_paths
 - "Sube este archivo a Drive" → smart_find_file + drive_upload
-- IMPORTANTE: SIEMPRE usa las APIs directas (google_calendar_*, gmail_*, drive_*) en lugar de abrir URLs en el navegador
+- "Envía un mensaje en Google Chat a mi equipo" → gchat_list_spaces + gchat_send_message
+- "¿Qué mensajes hay en mi Google Chat?" → gchat_list_spaces + gchat_get_messages
+- "Reacciona al último mensaje en el chat de proyecto" → gchat_get_messages + gchat_add_reaction
+- IMPORTANTE: SIEMPRE usa las APIs directas (google_calendar_*, gmail_*, drive_*, gchat_*) en lugar de abrir URLs en el navegador
 
 NAVEGADOR (solo si Google API no aplica):
 - Maps/YouTube/Docs/Sheets: open_url + use_computer para interactuar
@@ -1526,6 +1678,8 @@ export class WhatsAppAgent {
   private calendarService: CalendarService | null = null;
   private gmailService: GmailService | null = null;
   private driveService: DriveService | null = null;
+  private gchatService: GChatService | null = null;
+  private autoDevService: AutoDevService | null = null;
   private memory: MemoryService;
   private knowledge: KnowledgeService;
 
@@ -1536,11 +1690,17 @@ export class WhatsAppAgent {
     this.knowledge = knowledgeService;
   }
 
-  setGoogleServices(calendar: CalendarService, gmail: GmailService, drive: DriveService): void {
+  setGoogleServices(calendar: CalendarService, gmail: GmailService, drive: DriveService, gchat?: GChatService): void {
     this.calendarService = calendar;
     this.gmailService = gmail;
     this.driveService = drive;
-    console.log('[WhatsApp Agent] Google services connected (Calendar, Gmail, Drive)');
+    this.gchatService = gchat || null;
+    console.log('[WhatsApp Agent] Google services connected (Calendar, Gmail, Drive, Chat)');
+  }
+
+  setAutoDevService(service: AutoDevService): void {
+    this.autoDevService = service;
+    console.log('[WhatsApp Agent] AutoDev service connected');
   }
 
   updateApiKey(key: string) {
@@ -2070,6 +2230,8 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
             case 'gmail_send': desc = `📧 Enviar email (Gmail) a: ${toolArgs.to}\nAsunto: ${toolArgs.subject}`; break;
             case 'gmail_trash': desc = `🗑️ Eliminar email: ${toolArgs.message_id}`; break;
             case 'google_calendar_delete': desc = `🗑️ Eliminar evento de Google Calendar: ${toolArgs.event_id}`; break;
+            case 'gchat_send_message': desc = `💬 Enviar mensaje en Google Chat: ${toolArgs.text?.slice(0, 60)}`; break;
+            case 'gchat_add_reaction': desc = `${toolArgs.emoji} Reacción en Google Chat`; break;
             default: desc = `${toolName}: ${JSON.stringify(toolArgs)}`;
           }
 
@@ -2944,8 +3106,8 @@ $vol.SetMasterVolumeLevelScalar(${level / 100.0}, [Guid]::Empty)`;
                 end = new Date(toolArgs.end_date);
               }
 
-              const events = await this.calendarService.getEventsRange(start, end);
-              const formatted = events.map(e => ({
+              const events = await this.calendarService.getCurrentEvents(start);
+              const formatted = events.map((e: any) => ({
                 id: e.id,
                 title: e.title,
                 start: e.isAllDay ? e.start.toISOString().split('T')[0] : e.start.toLocaleString('es-MX'),
@@ -3057,6 +3219,52 @@ $vol.SetMasterVolumeLevelScalar(${level / 100.0}, [Guid]::Empty)`;
           continue;
         }
 
+        if (toolName === 'gmail_get_labels') {
+          try {
+            if (!this.gmailService) {
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'Gmail no conectado.' } } });
+            } else {
+              const result = await this.gmailService.getLabels();
+              functionResponses.push({ functionResponse: { name: toolName, response: result } });
+            }
+          } catch (err: any) {
+            functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
+          }
+          continue;
+        }
+
+        if (toolName === 'gmail_create_label') {
+          try {
+            if (!this.gmailService) {
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'Gmail no conectado.' } } });
+            } else {
+              const result = await this.gmailService.createLabel(toolArgs.name);
+              functionResponses.push({ functionResponse: { name: toolName, response: result } });
+            }
+          } catch (err: any) {
+            functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
+          }
+          continue;
+        }
+
+        if (toolName === 'gmail_modify_labels') {
+          try {
+            if (!this.gmailService) {
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'Gmail no conectado.' } } });
+            } else {
+              const result = await this.gmailService.modifyLabels(
+                toolArgs.message_id,
+                toolArgs.add_labels,
+                toolArgs.remove_labels,
+              );
+              functionResponses.push({ functionResponse: { name: toolName, response: result } });
+            }
+          } catch (err: any) {
+            functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
+          }
+          continue;
+        }
+
         // ─── Google Drive API Handlers ───────────────────────────────
         if (toolName === 'drive_list_files') {
           try {
@@ -3129,6 +3337,143 @@ $vol.SetMasterVolumeLevelScalar(${level / 100.0}, [Guid]::Empty)`;
             } else {
               const result = await this.driveService.createFolder(toolArgs.name, toolArgs.parent_id);
               functionResponses.push({ functionResponse: { name: toolName, response: result } });
+            }
+          } catch (err: any) {
+            functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
+          }
+          continue;
+        }
+
+        // ─── Google Chat API Handlers ─────────────────────────────────
+        if (toolName === 'gchat_list_spaces') {
+          try {
+            if (!this.gchatService) {
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'Google Chat no conectado. El usuario debe conectar Google en SofLIA Hub.' } } });
+            } else {
+              const result = await this.gchatService.listSpaces();
+              functionResponses.push({ functionResponse: { name: toolName, response: result } });
+            }
+          } catch (err: any) {
+            functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
+          }
+          continue;
+        }
+
+        if (toolName === 'gchat_get_messages') {
+          try {
+            if (!this.gchatService) {
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'Google Chat no conectado.' } } });
+            } else {
+              const result = await this.gchatService.getMessages(toolArgs.space_name, toolArgs.max_results);
+              functionResponses.push({ functionResponse: { name: toolName, response: result } });
+            }
+          } catch (err: any) {
+            functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
+          }
+          continue;
+        }
+
+        if (toolName === 'gchat_send_message') {
+          try {
+            if (!this.gchatService) {
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'Google Chat no conectado.' } } });
+            } else {
+              const result = await this.gchatService.sendMessage(toolArgs.space_name, toolArgs.text, toolArgs.thread_name);
+              functionResponses.push({ functionResponse: { name: toolName, response: result } });
+            }
+          } catch (err: any) {
+            functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
+          }
+          continue;
+        }
+
+        if (toolName === 'gchat_add_reaction') {
+          try {
+            if (!this.gchatService) {
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'Google Chat no conectado.' } } });
+            } else {
+              const result = await this.gchatService.addReaction(toolArgs.message_name, toolArgs.emoji);
+              functionResponses.push({ functionResponse: { name: toolName, response: result } });
+            }
+          } catch (err: any) {
+            functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
+          }
+          continue;
+        }
+
+        if (toolName === 'gchat_get_members') {
+          try {
+            if (!this.gchatService) {
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'Google Chat no conectado.' } } });
+            } else {
+              const result = await this.gchatService.getMembers(toolArgs.space_name);
+              functionResponses.push({ functionResponse: { name: toolName, response: result } });
+            }
+          } catch (err: any) {
+            functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
+          }
+          continue;
+        }
+
+        // ─── AutoDev Tool Handlers ────────────────────────────────────
+        if (toolName === 'autodev_get_status') {
+          try {
+            if (!this.autoDevService) {
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'AutoDev no configurado.' } } });
+            } else {
+              const status = this.autoDevService.getStatus();
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: true, ...status } } });
+            }
+          } catch (err: any) {
+            functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
+          }
+          continue;
+        }
+
+        if (toolName === 'autodev_run_now') {
+          try {
+            if (!this.autoDevService) {
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'AutoDev no configurado.' } } });
+            } else {
+              this.autoDevService.runNow().catch(err => {
+                console.error('[WA AutoDev] Run error:', err.message);
+              });
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: true, message: 'AutoDev run iniciado. Te notificaré cuando termine.' } } });
+            }
+          } catch (err: any) {
+            functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
+          }
+          continue;
+        }
+
+        if (toolName === 'autodev_get_history') {
+          try {
+            if (!this.autoDevService) {
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'AutoDev no configurado.' } } });
+            } else {
+              const history = this.autoDevService.getHistory().slice(-10); // Last 10 runs
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: true, runs: history } } });
+            }
+          } catch (err: any) {
+            functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
+          }
+          continue;
+        }
+
+        if (toolName === 'autodev_update_config') {
+          try {
+            if (!this.autoDevService) {
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'AutoDev no configurado.' } } });
+            } else {
+              const updates: any = {};
+              if (toolArgs.enabled !== undefined) updates.enabled = toolArgs.enabled;
+              if (toolArgs.cron_schedule) updates.cronSchedule = toolArgs.cron_schedule;
+              if (toolArgs.notify_phone) updates.notifyPhone = toolArgs.notify_phone;
+              if (toolArgs.categories) {
+                updates.categories = toolArgs.categories.split(',').map((c: string) => c.trim());
+              }
+              const config = this.autoDevService.updateConfig(updates);
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: true, config } } });
             }
           } catch (err: any) {
             functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });

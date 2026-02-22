@@ -12,6 +12,7 @@ import {
   type IrisStatus,
   type IrisPriority,
 } from '../lib/iris-client';
+import { sofiaAuth } from './sofia-auth';
 
 // ==========================================
 // TEAMS
@@ -92,6 +93,89 @@ export async function getProjects(teamId?: string): Promise<IrisProject[]> {
   } catch (err) {
     console.error('IRIS: getProjects exception', err);
     return [];
+  }
+}
+
+export async function deleteProject(projectId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!irisSupa || !isIrisConfigured()) return { success: false, error: 'Database not configured' };
+    
+    console.log(`IRIS: Deleting project with ID ${projectId}...`);
+    
+    // First, try to clean up the dependent records to clear Foreign Key constraints.
+    // Issues associated to the project (if any)
+    await irisSupa.from('task_issues').delete().eq('project_id', projectId);
+    
+    // Project memberships
+    await irisSupa.from('pm_project_members').delete().eq('project_id', projectId);
+    await irisSupa.from('project_members').delete().eq('project_id', projectId);
+
+    // Finally, delete the actual project
+    const { error } = await irisSupa
+      .from('pm_projects')
+      .delete()
+      .eq('project_id', projectId);
+      
+    if (error) {
+      console.error('IRIS: deleteProject error', error);
+      return { success: false, error: error.message };
+    }
+    
+    return { success: true };
+  } catch (err: unknown) {
+    console.error('IRIS: deleteProject exception', err);
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+export async function createProject(data: { name: string; key: string; description?: string; team_id?: string }): Promise<{ success: boolean; data?: unknown; error?: string }> {
+  try {
+    if (!irisSupa || !isIrisConfigured()) return { success: false, error: 'Database not configured' };
+
+    console.log('IRIS: Creating new project...', data);
+    
+    // Getting current user id (using Sofia Auth which holds the session)
+    // The user has clarified that IRIS shares the exact same SSO, so their IDs match natively
+    const session = await sofiaAuth.getSession();
+    let userId = session?.user?.id;
+    
+    if (!userId) {
+      // Intento final de recuperar sesión por si fallback
+      const { data: authData } = await irisSupa.auth.getUser();
+      userId = authData.user?.id;
+    }
+
+    if (!userId) {
+       return { success: false, error: 'Usuario no autenticado en el sistema (Sesión vacía)' };
+    }
+
+    console.log(`IRIS: Attempting insert for project with user ID: ${userId}, team: ${data.team_id || null}`);
+
+
+    const { data: projectRecord, error } = await irisSupa
+      .from('pm_projects')
+      .insert({
+        project_name: data.name,
+        project_key: data.key,
+        project_description: data.description || '',
+        team_id: data.team_id || null, // null means global
+        created_by_user_id: userId,
+        project_status: 'planning', // Default status
+        is_public: true, // Default
+        is_template: false, // Default
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('IRIS: createProject error', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data: projectRecord };
+  } catch (err: unknown) {
+    console.error('IRIS: createProject exception', err);
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
 

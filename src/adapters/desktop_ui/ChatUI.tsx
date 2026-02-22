@@ -42,8 +42,10 @@ interface ChatUIProps {
     instructions?: string;
   };
   userAvatar?: string | null;
+  externalPrompt?: string | null;
+  onExternalPromptProcessed?: () => void;
 }
-export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, personalization, userAvatar }) => {
+export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, personalization, userAvatar, externalPrompt, onExternalPromptProcessed }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -89,6 +91,19 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Handle external prompts (e.g. clicking on an IRIS project or flow mode)
+  useEffect(() => {
+    if (externalPrompt) {
+      const processExternal = async () => {
+        if (onExternalPromptProcessed) {
+          onExternalPromptProcessed();
+        }
+        await processMessage(externalPrompt, [], messagesRef.current, false);
+      };
+      processExternal();
+    }
+  }, [externalPrompt]);
 
   // Thinking Options - Different for Gemini 3 (thinkingLevel) vs Gemini 2.5 (thinkingBudget)
   // Gemini 3 Flash - supports all levels
@@ -755,7 +770,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
 
                     <div className={`${
                       msg.role === 'user'
-                        ? 'px-4 py-2.5 rounded-2xl bg-indigo-600 dark:bg-primary text-white rounded-tr-sm shadow-sm'
+                        ? 'px-4 py-2.5 rounded-2xl bg-[#0A2540] text-white rounded-tr-sm shadow-sm'
                         : 'p-0 bg-transparent border-none shadow-none text-gray-800 dark:text-gray-100'
                     } text-[15px] leading-relaxed`}>
                       {msg.role === 'user' ? (
@@ -902,191 +917,192 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
     </div>
 
       {/* Input Area */}
-      <div className="bg-white dark:bg-background-dark relative z-10 transition-colors px-4 py-2 box-border">
-        {/* Active Mode Badges */}
-        {(isImageGenMode || isPromptOptimizerMode || activeTool || isLiveActive || isLiveConnecting) && (
-          <div className="max-w-3xl mx-auto mb-2 flex items-center gap-2">
-            {isImageGenMode && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-purple-500/10 text-purple-400 rounded-full border border-purple-500/20">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                Modo Imagen
-                <button onClick={() => setIsImageGenMode(false)} className="ml-1 hover:text-purple-200">x</button>
-              </span>
-            )}
-            {isPromptOptimizerMode && (
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-emerald-500/10 text-emerald-400 rounded-full border border-emerald-500/20">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9 M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                  Mejorar Prompt
-                  <button onClick={() => setIsPromptOptimizerMode(false)} className="ml-1 hover:text-emerald-200">x</button>
+      <div className="relative z-10 pb-6 pt-2 px-4 bg-white dark:bg-background-dark shrink-0">
+        <div className="max-w-3xl mx-auto w-full">
+          {/* Active Mode Badges */}
+          {(isImageGenMode || isPromptOptimizerMode || activeTool || isLiveActive || isLiveConnecting) && (
+            <div className="mb-2 flex items-center gap-2">
+              {isImageGenMode && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-full border border-purple-500/20">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  Modo Imagen
+                  <button onClick={() => setIsImageGenMode(false)} className="ml-1 hover:text-purple-700 dark:hover:text-purple-200">x</button>
                 </span>
-                {/* Target AI Selector */}
-                <div className="flex gap-1">
-                  {(['chatgpt', 'claude', 'gemini'] as const).map(target => (
-                    <button
-                      key={target}
-                      onClick={() => setOptimizerTarget(target)}
-                      className={`px-2.5 py-1 text-[11px] font-medium rounded-full transition-all ${
-                        optimizerTarget === target
-                          ? 'bg-emerald-500 text-white shadow-sm'
-                          : 'bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-gray-200 dark:hover:bg-white/10'
-                      }`}
-                    >
-                      {target === 'chatgpt' ? 'ChatGPT' : target === 'claude' ? 'Claude' : 'Gemini'}
-                    </button>
-                  ))}
+              )}
+              {isPromptOptimizerMode && (
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full border border-emerald-500/20">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9 M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                    Mejorar Prompt
+                    <button onClick={() => setIsPromptOptimizerMode(false)} className="ml-1 hover:text-emerald-700 dark:hover:text-emerald-200">x</button>
+                  </span>
+                  {/* Target AI Selector */}
+                  <div className="flex gap-1">
+                    {(['chatgpt', 'claude', 'gemini'] as const).map(target => (
+                      <button
+                        key={target}
+                        onClick={() => setOptimizerTarget(target)}
+                        className={`px-2.5 py-1 text-[11px] font-medium rounded-full transition-all ${
+                          optimizerTarget === target
+                            ? 'bg-emerald-500 text-white shadow-sm'
+                            : 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10'
+                        }`}
+                      >
+                        {target === 'chatgpt' ? 'ChatGPT' : target === 'claude' ? 'Claude' : 'Gemini'}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
-            {activeTool && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-blue-500/10 text-blue-400 rounded-full border border-blue-500/20">
-                <span>{activeTool.icon}</span>
-                {activeTool.name}
-                <button onClick={() => setActiveTool(null)} className="ml-1 hover:text-blue-200">x</button>
-              </span>
-            )}
-            {(isLiveActive || isLiveConnecting) && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-green-500/10 text-green-400 rounded-full border border-green-500/20">
-                <div className={`w-2 h-2 rounded-full ${isLiveActive ? 'bg-green-400 animate-pulse' : 'bg-yellow-400 animate-spin'}`} />
-                {isLiveConnecting ? 'Conectando...' : 'En Vivo'}
-                <button onClick={stopLiveConversation} className="ml-1 hover:text-green-200">x</button>
-              </span>
-            )}
-          </div>
-        )}
+              )}
+              {activeTool && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full border border-blue-500/20">
+                  <span>{activeTool.icon}</span>
+                  {activeTool.name}
+                  <button onClick={() => setActiveTool(null)} className="ml-1 hover:text-blue-700 dark:hover:text-blue-200">x</button>
+                </span>
+              )}
+              {(isLiveActive || isLiveConnecting) && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-green-500/10 text-green-600 dark:text-green-400 rounded-full border border-green-500/20">
+                  <div className={`w-2 h-2 rounded-full ${isLiveActive ? 'bg-green-500 animate-pulse' : 'bg-yellow-500 animate-spin'}`} />
+                  {isLiveConnecting ? 'Conectando...' : 'En Vivo'}
+                  <button onClick={stopLiveConversation} className="ml-1 hover:text-green-700 dark:hover:text-green-200">x</button>
+                </span>
+              )}
+            </div>
+          )}
 
-        {/* Image Preview Strip */}
-        {selectedImages.length > 0 && (
-          <div className="max-w-3xl mx-auto mb-2 flex gap-2 overflow-x-auto no-scrollbar">
-            {selectedImages.map((img, idx) => (
-              <div key={idx} className="relative flex-shrink-0 group">
-                <img
-                  src={img}
-                  alt={`Preview ${idx + 1}`}
-                  className="w-[60px] h-[60px] rounded-lg object-cover border border-white/10"
-                />
-                <button
-                  onClick={() => removeImage(idx)}
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                >
-                  x
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div className="w-full max-w-3xl mx-auto bg-gray-50 dark:bg-card-dark rounded-2xl shadow-sm focus-within:ring-1 focus-within:ring-accent/20 transition-all flex items-center gap-2 p-1">
-          
-          {/* Tools Menu (Left) */}
-          <div className="relative">
-            <button
-              onClick={() => setIsToolsOpen(!isToolsOpen)}
-              className={`p-1.5 rounded-full transition-all ${isToolsOpen ? 'bg-accent/20 text-accent' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/5'}`}
-              title="Más opciones"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-              </svg>
-            </button>
-
-            {isToolsOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setIsToolsOpen(false)}></div>
-                <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-white/10 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100 p-1">
-                  
-                  {[
-                    { id: 'live_api', label: isLiveActive ? 'Detener Conversación' : 'Conversación en Vivo', sub: isLiveActive ? 'Conectada' : 'Audio en tiempo real', icon: <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z M19 10v2a7 7 0 0 1-14 0v-2 M12 19v4 M8 23h8" strokeLinecap="round" strokeLinejoin="round"/>, active: isLiveActive },
-                    { id: 'image_gen', label: 'Generar Imagen', sub: 'Crea imágenes con IA', icon: <><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>, active: isImageGenMode },
-                    { id: 'prompt_opt', label: 'Mejorar Prompt', sub: 'Optimiza para otra IA', icon: <path d="M12 20h9 M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>, active: isPromptOptimizerMode },
-                    { id: 'create_prompt', label: 'Crear Prompt', sub: 'Guarda para reusar', icon: <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z M17 21v-8H7v8 M7 3v5h8" /> },
-                    { id: 'my_tools', label: 'Mis Herramientas', sub: 'Prompts guardados', icon: <><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></> },
-                    { id: 'attach_file', label: 'Adjuntar Archivo', sub: 'Sube imágenes', icon: <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /> }
-                  ].map((tool) => (
-                    <button
-                      key={tool.id}
-                      onClick={() => handleToolSelect(tool.id)}
-                      className={`w-full text-left flex items-start gap-3 px-3 py-2.5 rounded-lg transition-colors group ${
-                        (tool as any).active ? 'bg-accent/10 dark:bg-accent/10' : 'hover:bg-gray-100 dark:hover:bg-white/5'
-                      }`}
-                    >
-                      <div className={`mt-0.5 transition-colors ${(tool as any).active ? 'text-accent' : 'text-gray-400 group-hover:text-accent'}`}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          {tool.icon}
-                        </svg>
-                      </div>
-                      <div>
-                        <div className={`text-sm font-medium ${(tool as any).active ? 'text-accent' : 'text-gray-700 dark:text-gray-200 group-hover:text-gray-900 dark:group-hover:text-white'}`}>{tool.label}</div>
-                        <div className="text-[10px] text-gray-400 dark:text-gray-500">{tool.sub}</div>
-                      </div>
-                      {(tool as any).active && (
-                        <div className="ml-auto mt-1">
-                          <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-                        </div>
-                      )}
-                    </button>
-                  ))}
+          {/* Image Preview Strip */}
+          {selectedImages.length > 0 && (
+            <div className="mb-2 flex gap-2 overflow-x-auto no-scrollbar">
+              {selectedImages.map((img, idx) => (
+                <div key={idx} className="relative flex-shrink-0 group">
+                  <img
+                    src={img}
+                    alt={`Preview ${idx + 1}`}
+                    className="w-[60px] h-[60px] rounded-xl object-cover border border-gray-200 dark:border-white/10 shadow-sm"
+                  />
+                  <button
+                    onClick={() => removeImage(idx)}
+                    className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-md transform hover:scale-110"
+                  >
+                    x
+                  </button>
                 </div>
-              </>
-            )}
-          </div>
+              ))}
+            </div>
+          )}
 
-          {/* Textarea (Middle) - Single line by default, grows */}
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-            onPaste={handlePaste}
-            placeholder={isImageGenMode ? "Describe la imagen que quieres generar..." : isPromptOptimizerMode ? "Escribe el prompt a optimizar..." : "Pregunta lo que quieras a SOFLIA..."}
-            className="flex-1 bg-transparent text-sm focus:outline-none placeholder-gray-400 text-gray-900 dark:text-white resize-none max-h-[120px] overflow-y-auto no-scrollbar font-sans py-2"
-            rows={1}
-            disabled={isLoading}
-            style={{ height: '36px' }} 
-            onInput={(e) => {
-              const target = e.target as HTMLTextAreaElement;
-              target.style.height = '36px';
-              target.style.height = `${Math.min(target.scrollHeight, 120)}px`;
-            }}
-          />
-
-          {/* Right Actions (Mic / Send Unified) */}
-          <div className="flex items-center pr-1">
-            {input.trim() ? (
+          <div className="w-full bg-[#f0f2f5] dark:bg-[#2A2B32] rounded-[30px] border border-transparent focus-within:border-gray-300 dark:focus-within:border-gray-500 focus-within:shadow-[0_2px_15px_-3px_rgba(0,0,0,0.05)] transition-all flex items-end gap-2 px-2 py-1.5 mt-1 relative">
+            {/* Tools Menu (Left) */}
+            <div className="relative mb-0.5 ml-0.5">
               <button
-                onClick={handleSend}
-                disabled={isLoading}
-                className="p-1.5 rounded-lg transition-all bg-primary text-white shadow-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Enviar mensaje"
+                onClick={() => setIsToolsOpen(!isToolsOpen)}
+                className={`w-9 h-9 flex items-center justify-center rounded-full transition-all ${isToolsOpen ? 'bg-accent text-white shadow-md' : 'bg-white dark:bg-black/20 text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:shadow-sm border border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10'}`}
+                title="Más opciones"
               >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+
+              {isToolsOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsToolsOpen(false)}></div>
+                  <div className="absolute bottom-full left-0 mb-3 w-64 bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100 p-1.5">
+                    
+                    {[
+                      { id: 'live_api', label: isLiveActive ? 'Detener Conversación' : 'Conversación en Vivo', sub: isLiveActive ? 'Conectada' : 'Audio en tiempo real', icon: <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z M19 10v2a7 7 0 0 1-14 0v-2 M12 19v4 M8 23h8" strokeLinecap="round" strokeLinejoin="round"/>, active: isLiveActive },
+                      { id: 'image_gen', label: 'Generar Imagen', sub: 'Crea imágenes con IA', icon: <><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>, active: isImageGenMode },
+                      { id: 'prompt_opt', label: 'Mejorar Prompt', sub: 'Optimiza para otra IA', icon: <path d="M12 20h9 M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>, active: isPromptOptimizerMode },
+                      { id: 'create_prompt', label: 'Crear Prompt', sub: 'Guarda para reusar', icon: <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z M17 21v-8H7v8 M7 3v5h8" /> },
+                      { id: 'my_tools', label: 'Mis Herramientas', sub: 'Prompts guardados', icon: <><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></> },
+                      { id: 'attach_file', label: 'Adjuntar Archivo', sub: 'Sube imágenes', icon: <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /> }
+                    ].map((tool) => (
+                      <button
+                        key={tool.id}
+                        onClick={() => handleToolSelect(tool.id)}
+                        className={`w-full text-left flex items-start gap-3 px-3 py-2.5 rounded-xl transition-colors group ${
+                          (tool as any).active ? 'bg-accent/10 dark:bg-accent/15' : 'hover:bg-gray-100 dark:hover:bg-white/5'
+                        }`}
+                      >
+                        <div className={`mt-0.5 transition-colors ${(tool as any).active ? 'text-accent' : 'text-gray-400 group-hover:text-accent'}`}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            {tool.icon}
+                          </svg>
+                        </div>
+                        <div>
+                          <div className={`text-[13px] font-semibold ${(tool as any).active ? 'text-accent' : 'text-gray-700 dark:text-gray-200 group-hover:text-gray-900 dark:group-hover:text-white'}`}>{tool.label}</div>
+                          <div className="text-[11px] font-medium text-gray-400 dark:text-gray-500">{tool.sub}</div>
+                        </div>
+                        {(tool as any).active && (
+                          <div className="ml-auto mt-1">
+                            <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Textarea (Middle) */}
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              onPaste={handlePaste}
+              placeholder={isImageGenMode ? "Describe la imagen que quieres generar..." : isPromptOptimizerMode ? "Escribe el prompt a optimizar..." : "Mensaje a SOFLIA..."}
+              className="flex-1 bg-transparent text-[15px] focus:outline-none placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 resize-none max-h-[160px] overflow-y-auto no-scrollbar font-sans py-2.5 px-2 leading-relaxed mb-0.5"
+              rows={1}
+              disabled={isLoading}
+              style={{ height: '42px' }} 
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = '42px';
+                target.style.height = `${Math.min(target.scrollHeight, 160)}px`;
+              }}
+            />
+
+            {/* Right Actions */}
+            <div className="flex items-center gap-1.5 pr-0.5 mb-0.5">
+              {input.trim() ? (
+                <button
+                  onClick={handleSend}
+                  disabled={isLoading}
+                  className="w-9 h-9 flex items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
+                  title="Enviar mensaje"
+                >
                   {isLoading ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="ml-0.5">
                       <line x1="22" y1="2" x2="11" y2="13"></line>
                       <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                     </svg>
                   )}
-              </button>
-            ) : (
-              <button
-                onClick={() => setIsRecording(!isRecording)}
-                className={`p-1.5 rounded-lg transition-all ${isRecording ? 'bg-danger text-white animate-pulse' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5'}`}
-                title="Dictado por voz"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                  <line x1="12" y1="19" x2="12" y2="23"></line>
-                  <line x1="8" y1="23" x2="16" y2="23"></line>
-                </svg>
-              </button>
-            )}
+                </button>
+              ) : (
+                <button
+                  onClick={() => setIsRecording(!isRecording)}
+                  className={`w-9 h-9 flex items-center justify-center rounded-full transition-all ${isRecording ? 'bg-red-500 text-white shadow-md animate-pulse' : 'bg-white dark:bg-black/20 text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:shadow-sm border border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10'}`}
+                  title="Dictado por voz"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                    <line x1="8" y1="23" x2="16" y2="23"></line>
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -1241,7 +1257,7 @@ const MarkdownRenderer: React.FC<{ text: string }> = ({ text }) => {
         i++;
       }
       elements.push(
-        <blockquote key={`quote-${i}`} className="border-l-4 border-accent bg-accent/5 py-2 px-4 my-4 rounded-r text-gray-400 italic">
+        <blockquote key={`quote-${i}`} className="border-l-4 border-accent bg-accent/5 py-2 px-4 my-4 rounded-r text-gray-600 dark:text-gray-400 italic">
           {quoteContent.map((q, idx) => <p key={idx} className="my-1">{formatInline(q)}</p>)}
         </blockquote>
       );
@@ -1254,8 +1270,8 @@ const MarkdownRenderer: React.FC<{ text: string }> = ({ text }) => {
       const content = line.slice(level).trim();
       
       const sizes = {
-        1: "text-2xl font-bold mt-6 mb-4 pb-2 border-b border-white/10",
-        2: "text-xl font-bold mt-5 mb-3",
+        1: "text-2xl font-bold mt-6 mb-4 pb-2 border-b border-gray-200 dark:border-white/10 text-gray-900 dark:text-white",
+        2: "text-xl font-bold mt-5 mb-3 text-gray-900 dark:text-white",
         3: "text-lg font-semibold mt-4 mb-2 text-primary/90 dark:text-gray-100",
         4: "text-base font-semibold mt-3 mb-2 text-primary/80 dark:text-gray-200",
         5: "text-sm font-semibold mt-2 mb-1 uppercase tracking-wide text-gray-500",
@@ -1270,7 +1286,7 @@ const MarkdownRenderer: React.FC<{ text: string }> = ({ text }) => {
 
     // 5. Horizontal Rule
     if (line.trim() === '---' || line.trim() === '***') {
-      elements.push(<hr key={`hr-${i}`} className="my-6 border-white/10" />);
+      elements.push(<hr key={`hr-${i}`} className="my-6 border-gray-200 dark:border-white/10" />);
       i++;
       continue;
     }
@@ -1305,7 +1321,7 @@ const MarkdownRenderer: React.FC<{ text: string }> = ({ text }) => {
     }
 
     // 8. Paragraphs
-    elements.push(<p key={`p-${i}`} className="my-1 leading-relaxed text-gray-300">{formatInline(line)}</p>);
+    elements.push(<p key={`p-${i}`} className="my-1 leading-relaxed text-gray-800 dark:text-gray-300">{formatInline(line)}</p>);
     i++;
   }
 
@@ -1321,22 +1337,22 @@ const TableBlock: React.FC<{ rows: string[] }> = ({ rows }) => {
   const bodyRows = rows.slice(2).map(r => r.split('|').filter(c => c.trim() !== '').map(c => c.trim()));
 
   return (
-    <div className="my-4 overflow-x-auto rounded-lg border border-white/10">
+    <div className="my-4 overflow-x-auto rounded-lg border border-gray-200 dark:border-white/10">
       <table className="min-w-full text-sm text-left">
-        <thead className="bg-white/5 text-gray-200">
+        <thead className="bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-200">
           <tr>
             {headerCells.map((h, idx) => (
-              <th key={idx} className="px-4 py-3 font-semibold border-b border-white/10 whitespace-nowrap">
+              <th key={idx} className="px-4 py-3 font-semibold border-b border-gray-200 dark:border-white/10 whitespace-nowrap">
                 {formatInline(h)}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="bg-[#1E1E1E] divide-y divide-white/5">
+        <tbody className="bg-white dark:bg-[#1E1E1E] divide-y divide-gray-200 dark:divide-white/5">
           {bodyRows.map((r, rIdx) => (
-            <tr key={rIdx} className="hover:bg-white/5 transition-colors">
+            <tr key={rIdx} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
               {r.map((c, cIdx) => (
-                <td key={cIdx} className="px-4 py-2.5 text-gray-400 border-r border-white/5 last:border-r-0">
+                <td key={cIdx} className="px-4 py-2.5 text-gray-700 dark:text-gray-400 border-r border-gray-200 dark:border-white/5 last:border-r-0">
                   {formatInline(c)}
                 </td>
               ))}
@@ -1361,7 +1377,7 @@ function formatInline(text: string): React.ReactNode {
     let match = remaining.match(/^(.*?)\*\*(.+?)\*\*(.*)/s);
     if (match) {
       if (match[1]) parts.push(formatLink(match[1], key++));
-      parts.push(<strong key={`b-${key++}`} className="font-semibold text-gray-100">{formatLink(match[2], key++)}</strong>);
+      parts.push(<strong key={`b-${key++}`} className="font-semibold text-gray-900 dark:text-gray-100">{formatLink(match[2], key++)}</strong>);
       remaining = match[3];
       continue;
     }
@@ -1370,7 +1386,7 @@ function formatInline(text: string): React.ReactNode {
     match = remaining.match(/^(.*?)\*(.+?)\*(.*)/s);
     if (match) {
       if (match[1]) parts.push(formatLink(match[1], key++));
-      parts.push(<em key={`i-${key++}`} className="italic text-gray-300">{formatLink(match[2], key++)}</em>);
+      parts.push(<em key={`i-${key++}`} className="italic text-gray-700 dark:text-gray-300">{formatLink(match[2], key++)}</em>);
       remaining = match[3];
       continue;
     }
@@ -1380,7 +1396,7 @@ function formatInline(text: string): React.ReactNode {
     if (match) {
       if (match[1]) parts.push(formatLink(match[1], key++));
       parts.push(
-        <code key={`c-${key++}`} className="bg-white/10 px-1.5 py-0.5 rounded text-accent text-[13px] font-mono mx-0.5">
+        <code key={`c-${key++}`} className="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded text-accent text-[13px] font-mono mx-0.5">
           {match[2]}
         </code>
       );

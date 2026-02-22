@@ -81,7 +81,7 @@ export function ProductivityDashboard({ userId }: ProductivityDashboardProps) {
   };
 
   return (
-    <div className="flex-1 h-full overflow-y-auto bg-gray-50 dark:bg-[#0a0a0f]">
+    <div className="flex-1 h-full overflow-y-auto no-scrollbar bg-gray-50 dark:bg-[#0a0a0f]">
       <div className="max-w-6xl mx-auto px-6 py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -176,29 +176,26 @@ export function ProductivityDashboard({ userId }: ProductivityDashboardProps) {
           </div>
         )}
 
-        {/* Main grid */}
         <div className="grid grid-cols-3 gap-5">
-          {/* Left column — Controls + Calendar */}
+          {/* Left column — Controls + Calendar + App Usage */}
           <div className="space-y-5">
             <MonitoringControls userId={userId} />
             <CalendarPanel />
+            <AppUsageChart stats={appStats} />
           </div>
 
-          {/* Center — Timeline + Apps */}
+          {/* Center/Right — Timeline + Summary */}
           <div className="col-span-2 space-y-5">
             <DailyTimeline timeline={timeline} />
-            <div className="grid grid-cols-2 gap-5">
-              <AppUsageChart stats={appStats} />
-              <SummaryCard
-                summary={summary}
-                userId={userId}
-                logs={logs}
-                selectedDate={selectedDate}
-                onSummaryGenerated={(newSummary) => {
-                  setSummary(newSummary);
-                }}
-              />
-            </div>
+            <SummaryCard
+              summary={summary}
+              userId={userId}
+              logs={logs}
+              selectedDate={selectedDate}
+              onSummaryGenerated={(newSummary) => {
+                setSummary(newSummary);
+              }}
+            />
           </div>
         </div>
       </div>
