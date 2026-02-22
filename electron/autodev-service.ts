@@ -57,7 +57,20 @@ import {
 // ─── Constants ─────────────────────────────────────────────────────
 
 const isElectron = typeof process !== 'undefined' && process.versions && !!process.versions.electron;
-const userDataPath = path.join(process.cwd(), '.autodev-data');
+let userDataPath = '';
+if (isElectron) {
+  try {
+    const electron = requireModule('electron');
+    userDataPath = path.join(electron.app.getPath('userData'), '.autodev-data');
+  } catch {
+    userDataPath = path.join(process.cwd(), '.autodev-data');
+  }
+} else {
+  const appData = process.platform === 'win32'
+    ? process.env.APPDATA
+    : process.env.HOME + (process.platform === 'darwin' ? '/Library/Application Support' : '/.config');
+  userDataPath = path.join(appData || '', 'soflia-hub-desktop', '.autodev-data');
+}
 
 if (!fs.existsSync(userDataPath)) {
   try { fs.mkdirSync(userDataPath, { recursive: true }); } catch {}
@@ -853,6 +866,31 @@ export class AutoDevService extends EventEmitter {
     return [];
   }
 
+  // ─── Token Routing & Fallback ──────────────────────────────────
+  private async getOptimalModel(intendedModel: string, promptText: string): Promise<string> {
+    try {
+      const ai = this.getGenAI();
+      const model = ai.getGenerativeModel({ model: intendedModel });
+      const { totalTokens } = await model.countTokens(promptText);
+      
+      if (totalTokens > 200000) {
+        console.log(`\n[AutoDev Tokenizer] ⚠️ Prompt masivo detectado: ${totalTokens} tokens.`);
+        console.log(`[AutoDev Tokenizer] 📉 Cambiando modelo '${intendedModel}' -> 'gemini-3-flash-preview' por límite de tarifa (200k) y economía.`);
+        return 'gemini-3-flash-preview';
+      }
+      return intendedModel;
+    } catch (err: any) {
+      // Heurística de emergencia si falla la API de countTokens
+      const estimatedTokens = Math.ceil(promptText.length / 4);
+      if (estimatedTokens > 200000) {
+        console.log(`\n[AutoDev Tokenizer] ⚠️ Prompt masivo detectado por heurística: ~${estimatedTokens} tokens.`);
+        console.log(`[AutoDev Tokenizer] 📉 Cambiando modelo '${intendedModel}' -> 'gemini-3-flash-preview' preventivamente.`);
+        return 'gemini-3-flash-preview';
+      }
+      return intendedModel;
+    }
+  }
+
   // ─── Agentic Deep Research (coding model + function calling) ───
 
   private async runAgenticResearch(
@@ -862,18 +900,9 @@ export class AutoDevService extends EventEmitter {
     priorFindings: ResearchFinding[],
   ): Promise<ResearchFinding[]> {
     const findings: ResearchFinding[] = [];
-    try {
-      const ai = this.getGenAI();
-      const model = ai.getGenerativeModel({
-        model: this.config.agents.coder.model,
-        tools: [{ functionDeclarations: RESEARCH_TOOLS }],
-      });
-
-      const priorContext = priorFindings
-        .map(f => `- [${f.category}] ${f.findings} (sources: ${f.sources.join(', ')})`)
-        .join('\n');
-
-      const prompt = `Eres un investigador de software. Usa web_search y read_webpage para profundizar en las mejoras detectadas.
+    const priorContext = priorFindings.filter(f => f.actionable)
+      .map(f => `- [${f.category}] ${f.findings}\n  Sources: ${f.sources.join(', ')}`).join('\n');
+    const prompt = `Eres un investigador de software. Usa web_search y read_webpage para profundizar en las mejoras detectadas.
 
 ## Investigación previa (de agentes paralelos)
 ${priorContext || 'Ninguna'}
@@ -896,6 +925,15 @@ ${codeContext}
 
 Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings": "...", "sources": ["..."], "actionable": true/false }] }`;
 
+    const execute = async (baseModel: string): Promise<ResearchFinding[]> => {
+      const finalModel = await this.getOptimalModel(baseModel, prompt);
+      const resultsAccum: ResearchFinding[] = [];
+      const ai = this.getGenAI();
+      const model = ai.getGenerativeModel({
+        model: finalModel,
+        tools: [{ functionDeclarations: RESEARCH_TOOLS }],
+      });
+
       const chat = model.startChat();
       let response = await chat.sendMessage(prompt);
       let turns = 10;
@@ -916,15 +954,29 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
       const parsed = this.parseJSON(response.response.text());
       if (parsed?.findings) {
         for (const f of parsed.findings) {
-          findings.push({
+          resultsAccum.push({
             query: f.query || '', category: f.category || 'quality',
             findings: f.findings || '', sources: f.sources || [],
             actionable: f.actionable ?? false, agentRole: 'DeepResearcher',
           });
         }
       }
+      return resultsAccum;
+    };
+
+    try {
+      return await execute(this.config.agents.coder.model);
     } catch (err: any) {
-      console.warn('[AutoDev DeepResearcher] Error:', err.message);
+      if (err.message && err.message.includes('429')) {
+        console.warn(`\n[AutoDev DeepResearcher] ⚠️ Límite de cuota o RPM superado en el modelo pesado (${this.config.agents.coder.model}). Salvaguardando con modelo de respaldo (gemini-3-flash-preview)...`);
+        try {
+          return await execute('gemini-3-flash-preview');
+        } catch (fallbackErr: any) {
+          console.warn('[AutoDev DeepResearcher] Fallback Error:', fallbackErr.message);
+        }
+      } else {
+        console.warn(`[AutoDev DeepResearcher] Error:`, err.message);
+      }
     }
     return findings;
   }
@@ -961,12 +1013,6 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
   // ─── Analysis (coding model) ──────────────────────────────────
 
   private async analyzeCode(sourceContext: string, findings: ResearchFinding[], npmAuditText: string, npmOutdatedText: string): Promise<any[]> {
-    const ai = this.getGenAI();
-    const model = ai.getGenerativeModel({
-      model: this.config.agents.coder.model,
-      tools: [{ functionDeclarations: RESEARCH_TOOLS }],
-    });
-
     const findingsText = findings.filter(f => f.actionable)
       .map(f => `- [${f.category}] ${f.findings}\n  Sources: ${f.sources.join(', ')}`).join('\n');
 
@@ -980,21 +1026,44 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
       .replace('{MAX_FILES}', String(this.config.maxFilesPerRun))
       .replace('{MAX_LINES}', String(this.config.maxLinesChanged));
 
-    const chat = model.startChat();
-    let response = await chat.sendMessage(prompt);
-    let turns = 8;
-    while (turns-- > 0) {
-      const calls = (response.response.candidates?.[0]?.content?.parts || []).filter((p: any) => p.functionCall);
-      if (!calls.length) break;
-      const results: any[] = [];
-      for (const part of calls) {
-        const fc = (part as any).functionCall;
-        results.push({ functionResponse: { name: fc.name, response: await this.executeResearchTool(fc.name, fc.args) } });
-      }
-      response = await chat.sendMessage(results);
-    }
+    const execute = async (baseModel: string): Promise<any[]> => {
+      const finalModel = await this.getOptimalModel(baseModel, prompt);
+      const ai = this.getGenAI();
+      const model = ai.getGenerativeModel({
+        model: finalModel,
+        tools: [{ functionDeclarations: RESEARCH_TOOLS }],
+      });
 
-    return this.parseJSON(response.response.text())?.improvements || [];
+      const chat = model.startChat();
+      let response = await chat.sendMessage(prompt);
+      let turns = 8;
+      while (turns-- > 0) {
+        const calls = (response.response.candidates?.[0]?.content?.parts || []).filter((p: any) => p.functionCall);
+        if (!calls.length) break;
+        const results: any[] = [];
+        for (const part of calls) {
+          const fc = (part as any).functionCall;
+          results.push({ functionResponse: { name: fc.name, response: await this.executeResearchTool(fc.name, fc.args) } });
+        }
+        response = await chat.sendMessage(results);
+      }
+
+      return this.parseJSON(response.response.text())?.improvements || [];
+    };
+
+    try {
+      return await execute(this.config.agents.coder.model);
+    } catch (err: any) {
+      if (err.message && err.message.includes('429')) {
+        console.warn(`\n[AutoDev Analyzer] ⚠️ Cuota excedida en ${this.config.agents.coder.model}. Intercambiando en caliente al modelo Flash para salvar la operación...`);
+        try {
+          return await execute('gemini-3-flash-preview');
+        } catch (e: any) {
+          throw e; // Si ya falla el flash, lanzar error original
+        }
+      }
+      throw err;
+    }
   }
 
   // ─── Planning (coding model) ──────────────────────────────────
