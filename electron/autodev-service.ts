@@ -383,6 +383,16 @@ export class AutoDevService extends EventEmitter {
     if (this.currentRun) throw new Error('A run is already in progress');
     if (!this.apiKey) throw new Error('Gemini API key not configured');
 
+    const isElectron = typeof process !== 'undefined' && process.versions && !!process.versions.electron;
+    // Prevent the standalone sub-process from infinitely launching itself
+    const isMainApp = isElectron && process.env.ELECTRON_RUN_AS_NODE !== '1';
+    
+    if (isMainApp) {
+      this.emit('status-changed', { runId: 'spawned', status: 'spawned', agents: 0 });
+      await this.runStandaloneTerminal();
+      return { status: 'spawned_standalone' } as any;
+    }
+
     const today = new Date().toISOString().split('T')[0];
     if (this.todayDate !== today) { this.todayDate = today; this.todayRunCount = 0; }
     if (this.todayRunCount >= this.config.maxDailyRuns) throw new Error(`Daily limit reached (${this.config.maxDailyRuns})`);
@@ -784,10 +794,6 @@ export class AutoDevService extends EventEmitter {
   }
 
   private async runStandaloneTerminal(): Promise<{ status: string }> {
-    const isElectron = typeof process !== 'undefined' && process.versions && !!process.versions.electron;
-    if (isElectron && !process.env.VITE_DEV_SERVER_URL) {
-      this.emit('status-changed', { runId: 'spawned', status: 'spawned', agents: 0 });
-    }
     if (process.platform === 'win32') {
       import('node:child_process').then(({ spawn }) => {
         spawn('cmd.exe', ['/c', 'start', 'cmd.exe', '/c', 'npm', 'run', 'autodev'], {
@@ -930,10 +936,12 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
     }
     switch (name) {
       case 'web_search': {
+        console.log(`[AutoDev DeepResearcher] 🔍 Realizando búsqueda en internet: "${args.query}"`);
         const r = await webSearch(args.query);
         return { success: r.success, result: r.results, error: r.error };
       }
       case 'read_webpage': {
+        console.log(`[AutoDev DeepResearcher] 📖 Leyendo página web: ${args.url}`);
         const r = await readWebpage(args.url);
         return { success: r.success, result: r.content, error: r.error };
       }

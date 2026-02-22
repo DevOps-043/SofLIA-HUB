@@ -9,7 +9,8 @@
     "dev": "vite",
     "build": "tsc && vite build && electron-builder",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "autodev": "npx tsx scripts/autodev.ts"
   },
   "dependencies": {
     "@azure/msal-node": "^5.0.4",

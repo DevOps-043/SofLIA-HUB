@@ -1,0 +1,46 @@
+[
+  {
+    "id": "run_1771786405160",
+    "startedAt": "2026-02-22T18:53:25.160Z",
+    "status": "aborted",
+    "improvements": [],
+    "researchFindings": [],
+    "agentTasks": [
+      {
+        "id": "NpmAudit_1771786413457",
+        "agentRole": "research",
+        "model": "gemini-3-flash-preview",
+        "status": "completed",
+        "completedAt": "2026-02-22T18:53:33.457Z",
+        "description": "NpmAudit"
+      },
+      {
+        "id": "SecurityAgent_1771786424914",
+        "agentRole": "research",
+        "model": "gemini-3-flash-preview",
+        "status": "completed",
+        "completedAt": "2026-02-22T18:53:44.914Z",
+        "description": "SecurityAgent"
+      },
+      {
+        "id": "QualityAgent_1771786427034",
+        "agentRole": "research",
+        "model": "gemini-3-flash-preview",
+        "status": "completed",
+        "completedAt": "2026-02-22T18:53:47.034Z",
+        "description": "QualityAgent"
+      },
+      {
+        "id": "DependenciesAgent_1771786433668",
+        "agentRole": "research",
+        "model": "gemini-3-flash-preview",
+        "status": "completed",
+        "completedAt": "2026-02-22T18:53:53.668Z",
+        "description": "DependenciesAgent"
+      }
+    ],
+    "summary": "",
+    "error": "Aborted",
+    "completedAt": "2026-02-22T18:53:53.669Z"
+  }
+]
