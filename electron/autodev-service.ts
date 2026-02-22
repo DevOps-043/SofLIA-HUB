@@ -614,6 +614,11 @@ export class AutoDevService extends EventEmitter {
           'Busca versiones nuevas de dependencias, changelogs importantes, breaking changes. Identifica paquetes significativamente desactualizados.'),
       },
       {
+        name: 'FeaturesAgent',
+        fn: () => this.runResearchAgent('features', depsList,
+          'PRIORIDAD MÁXIMA: Investiga funcionalidades de OpenClaw, OpenHands y Cursor. Identifica herramientas y patrones innovadores para implementar en SofLIA.'),
+      },
+      {
         name: 'QualityAgent',
         fn: () => this.runResearchAgent('quality', depsList,
           'Busca best practices actuales para Electron, React 19, TypeScript 5.7, Vite. Identifica patrones modernos recomendados.'),

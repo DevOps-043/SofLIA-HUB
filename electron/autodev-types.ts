@@ -52,7 +52,8 @@ export type AutoDevCategory =
   | 'quality'
   | 'performance'
   | 'dependencies'
-  | 'tests';
+  | 'tests'
+  | 'features';
 
 export type AutoDevRunStatus =
   | 'researching'
@@ -187,7 +188,7 @@ export const DEFAULT_CONFIG: AutoDevConfig = {
   workBranchPrefix: 'autodev/',
   autoMerge: false,
   requireBuildPass: true,
-  categories: ['security', 'quality', 'performance', 'dependencies', 'tests'],
+  categories: ['features', 'security', 'quality', 'performance', 'dependencies', 'tests'],
   notifyWhatsApp: true,
   notifyPhone: '',
 };

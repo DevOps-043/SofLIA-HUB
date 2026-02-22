@@ -12,7 +12,7 @@
 - **Run ID**: `run_1771787455834`
 - **Timestamp**: 2026-02-22T19:12:17.398Z
 - **Categoría**: runtime_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1771799463756` — 2026-02-22)
 
 ### Descripción
 
@@ -40,7 +40,7 @@ Please retry in 45.811974541s. [{"@type":"type.googleapis.com/google.rpc.Help","
 - **Run ID**: `run_1771788321967`
 - **Timestamp**: 2026-02-22T19:26:43.160Z
 - **Categoría**: runtime_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1771799463756` — 2026-02-22)
 
 ### Descripción
 
