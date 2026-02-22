@@ -948,6 +948,10 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
           const fc = (part as any).functionCall;
           results.push({ functionResponse: { name: fc.name, response: await this.executeResearchTool(fc.name, fc.args) } });
         }
+        
+        console.log(`[AutoDev Tokenizer] ⏳ Refrescando quota de Tokens (esperando 15s) antes del siguiente ciclo de análisis profundo...`);
+        await new Promise(r => setTimeout(r, 15000));
+
         response = await chat.sendMessage(results);
       }
 
@@ -968,7 +972,9 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
       return await execute(this.config.agents.coder.model);
     } catch (err: any) {
       if (err.message && err.message.includes('429')) {
-        console.warn(`\n[AutoDev DeepResearcher] ⚠️ Límite de cuota o RPM superado en el modelo pesado (${this.config.agents.coder.model}). Salvaguardando con modelo de respaldo (gemini-3-flash-preview)...`);
+        console.warn(`\n[AutoDev DeepResearcher] ⚠️ Límite de cuota superado en el modelo pesado (${this.config.agents.coder.model}).`);
+        console.warn(`[AutoDev Tokenizer] ⏳ Enfriando API por 45 segundos para limpiar quota penalizada, y luego usaremos el modelo Flash...`);
+        await new Promise(r => setTimeout(r, 45000));
         try {
           return await execute('gemini-3-flash-preview');
         } catch (fallbackErr: any) {
@@ -1045,6 +1051,10 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
           const fc = (part as any).functionCall;
           results.push({ functionResponse: { name: fc.name, response: await this.executeResearchTool(fc.name, fc.args) } });
         }
+        
+        console.log(`[AutoDev Tokenizer] ⏳ Refrescando quota de Tokens (esperando 15s) en análisis de código...`);
+        await new Promise(r => setTimeout(r, 15000));
+
         response = await chat.sendMessage(results);
       }
 
@@ -1055,7 +1065,9 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
       return await execute(this.config.agents.coder.model);
     } catch (err: any) {
       if (err.message && err.message.includes('429')) {
-        console.warn(`\n[AutoDev Analyzer] ⚠️ Cuota excedida en ${this.config.agents.coder.model}. Intercambiando en caliente al modelo Flash para salvar la operación...`);
+        console.warn(`\n[AutoDev Analyzer] ⚠️ Cuota excedida en ${this.config.agents.coder.model}.`);
+        console.warn(`[AutoDev Tokenizer] ⏳ Enfriando API por 45 segundos para limpiar quota, intercambiando al modelo Flash...`);
+        await new Promise(r => setTimeout(r, 45000));
         try {
           return await execute('gemini-3-flash-preview');
         } catch (e: any) {
