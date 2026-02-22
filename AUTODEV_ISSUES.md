@@ -63,3 +63,59 @@ Please retry in 20.089651007s. [{"@type":"type.googleapis.com/google.rpc.Help","
 ```
 
 ---
+## ❌ [CODING_ERROR] — 2026-02-22
+
+- **Run ID**: `run_1771788753419`
+- **Timestamp**: 2026-02-22T19:51:52.198Z
+- **Categoría**: coding_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El agente CoderAgent_2 falló al implementar cambios en `electron/whatsapp-agent.ts`: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview-customtools:generateContent: fetch failed
+
+### Contexto técnico
+
+```
+File: electron/whatsapp-agent.ts
+Step: {
+  "step": 7,
+  "file": "electron/whatsapp-agent.ts",
+  "action": "modify",
+  "description": "Evolución a Multi-Agent Orchestrator",
+  "details": "Refactorizar el ciclo monolítico en tres fases: 1) Planner: Interpreta el mensaje y traza un plan de acción. 2) Worker: Ejecuta las acciones utilizando herramientas MCP y MemoryService. 3) Judge: Evalúa el resultado contra el requerimiento original y políticas de seguridad antes de emitir la respuesta a Baileys.",
+  "source": "https://emergentmind.com/self-evolving-agents-2026",
+  "estimatedLines": 250
+}
+```
+
+---
+## ❌ [BUILD_FAILURE] — 2026-02-22
+
+- **Run ID**: `run_1771788753419`
+- **Timestamp**: 2026-02-22T20:02:59.309Z
+- **Categoría**: build_failure
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El build falló persistentemente. AutoDev intentó corregirlo pero falló.
+
+### Contexto técnico
+
+```
+Error:
+Command failed: npm run build
+
+---
+
+> soflia-hub-desktop@0.0.1 build
+> tsc && vite build && electron-builder
+
+electron/autodev-service.ts(897,5): error TS6133: 'codeContext' is declared but its value is never read.
+electron/autodev-service.ts(933,13): error TS2353: Object literal may only specify known properties, and 'googleSearch' does not exist in type 'Tool'.
+electron/autodev-service.ts(1040,19): error TS2353: Object literal may only specify known properties, and 'googleSearch' does not exist in type 'Tool'.
+
+```
+
+---

@@ -902,7 +902,7 @@ export class AutoDevService extends EventEmitter {
     const findings: ResearchFinding[] = [];
     const priorContext = priorFindings.filter(f => f.actionable)
       .map(f => `- [${f.category}] ${f.findings}\n  Sources: ${f.sources.join(', ')}`).join('\n');
-    const prompt = `Eres un investigador de software. Usa web_search y read_webpage para profundizar en las mejoras detectadas.
+    const prompt = `Eres un investigador de software de élite operando en el tiempo presente. Usa tu conexión nativa a la Búsqueda de Google y herramientas adicionales para verificar versiones, cambios drásticos (breaking changes) y bugs.
 
 ## Investigación previa (de agentes paralelos)
 ${priorContext || 'Ninguna'}
@@ -913,15 +913,12 @@ ${npmAuditText}
 ## npm outdated
 ${npmOutdatedText}
 
-## Código
-${codeContext}
+## Categorías de Análisis: ${this.config.categories.join(', ')}
 
-## Categorías: ${this.config.categories.join(', ')}
-
-## Instrucciones
-1. Para cada hallazgo previo, busca más detalles: changelogs, fixes, migration guides
-2. Verifica que las soluciones propuestas son correctas leyendo documentación oficial
-3. Máximo ${this.config.maxResearchQueries} búsquedas web en total
+## Instrucciones Críticas
+1. NO TE BASES SOLO EN TU CONOCIMIENTO. Usa internet nativo para garantizar que obtienes las últimas versiones (Ej: si React fue actualizado este mes, debes saberlo).
+2. Para cada hallazgo que consideres valioso, genera una acción de mejora en formato JSON.
+3. Máximo ${this.config.maxResearchQueries} búsquedas web manuales si necesitas leer documentación en bruto.
 
 Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings": "...", "sources": ["..."], "actionable": true/false }] }`;
 
@@ -931,7 +928,10 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
       const ai = this.getGenAI();
       const model = ai.getGenerativeModel({
         model: finalModel,
-        tools: [{ functionDeclarations: RESEARCH_TOOLS }],
+        tools: [
+          { functionDeclarations: RESEARCH_TOOLS },
+          { googleSearch: {} } // 🌟 Habilita la fundamentación nativa de Google
+        ],
       });
 
       const chat = model.startChat();
@@ -1037,26 +1037,11 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
       const ai = this.getGenAI();
       const model = ai.getGenerativeModel({
         model: finalModel,
-        tools: [{ functionDeclarations: RESEARCH_TOOLS }],
+        tools: [{ googleSearch: {} }] // 🌟 Solo necesita Google genérico, sin loop manual para ahorrar Tokens
       });
 
-      const chat = model.startChat();
-      let response = await chat.sendMessage(prompt);
-      let turns = 8;
-      while (turns-- > 0) {
-        const calls = (response.response.candidates?.[0]?.content?.parts || []).filter((p: any) => p.functionCall);
-        if (!calls.length) break;
-        const results: any[] = [];
-        for (const part of calls) {
-          const fc = (part as any).functionCall;
-          results.push({ functionResponse: { name: fc.name, response: await this.executeResearchTool(fc.name, fc.args) } });
-        }
-        
-        console.log(`[AutoDev Tokenizer] ⏳ Refrescando quota de Tokens (esperando 15s) en análisis de código...`);
-        await new Promise(r => setTimeout(r, 15000));
-
-        response = await chat.sendMessage(results);
-      }
+      console.log(`[AutoDev Tokenizer] 🧠 Analizando con TODO el contexto en una sola pasada usando ${finalModel}...`);
+      const response = await model.generateContent(prompt);
 
       return this.parseJSON(response.response.text())?.improvements || [];
     };

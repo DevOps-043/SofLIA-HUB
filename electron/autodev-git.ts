@@ -5,6 +5,10 @@
  */
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { writeFile, rm } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 
 const execFileAsync = promisify(execFile);
 
@@ -180,5 +184,74 @@ export class AutoDevGit {
     } catch {
       return false;
     }
+  }
+
+  // ─── Sandboxed Execution ─────────────────────────────────────────
+
+  /**
+   * Ejecuta un script en un subproceso estricto sin red y con escritura
+   * limitada al directorio temporal.
+   * Lanza error si el script falla (código de salida != 0).
+   */
+  async validateScript(scriptContent: string): Promise<void> {
+    const tempDir = tmpdir();
+    const scriptId = randomUUID();
+    const scriptPath = join(tempDir, `autodev-script-${scriptId}.js`);
+
+    await writeFile(scriptPath, scriptContent, 'utf-8');
+
+    try {
+      // Ejecutar en subproceso aislado usando Electron como Node
+      // Usando el modelo de permisos experimentales de Node 20+
+      // Sin la flag --allow-net, el acceso a red está bloqueado.
+      await execFileAsync(
+        process.execPath,
+        [
+          '--experimental-permission',
+          '--allow-fs-read=*',
+          `--allow-fs-write=${tempDir}`,
+          scriptPath,
+        ],
+        {
+          cwd: tempDir,
+          timeout: 15_000, // Tiempo máximo de ejecución: 15s
+          env: {
+            ...process.env,
+            ELECTRON_RUN_AS_NODE: '1',
+          },
+        }
+      );
+      console.log(`[AutoDevGit] Script validation passed.`);
+    } catch (err: any) {
+      console.error(`[AutoDevGit] Script validation failed:`, err.message);
+      throw new Error(`[AutoDevGit] SAFETY: Script validation failed with exit code ${err.code || 'unknown'}`);
+    } finally {
+      await rm(scriptPath, { force: true }).catch(() => {});
+    }
+  }
+
+  /**
+   * Valida un script generado por la IA y, si es exitoso (código 0),
+   * realiza stage de los archivos y ejecuta el commit.
+   */
+  async validateAndCommit(
+    scriptContent: string,
+    message: string,
+    filesToStage?: string[]
+  ): Promise<string> {
+    await this.assertNotProtected();
+
+    // 1. Validar el script en el entorno seguro
+    await this.validateScript(scriptContent);
+
+    // 2. Realizar git add
+    if (filesToStage && filesToStage.length > 0) {
+      await this.stageFiles(filesToStage);
+    } else {
+      await this.stageAll();
+    }
+
+    // 3. Realizar git commit
+    return this.commitChanges(message);
   }
 }
