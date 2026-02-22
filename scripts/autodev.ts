@@ -1,4 +1,3 @@
-import * as tsNode from 'node:path';
 import 'dotenv/config';
 import { AutoDevService } from '../electron/autodev-service';
 import { fileURLToPath } from 'node:url';

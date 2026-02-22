@@ -1326,6 +1326,52 @@ ${diff.slice(0, 50000)}
   }
 
   private async implementStep(step: any): Promise<AutoDevImprovement | null> {
+    if (step.action === 'command' && step.command) {
+      let currentCommand = step.command;
+      const maxRetries = 2;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        console.log(`[AutoDev CoderAgent] 🚀 Ejecutando comando de terminal (Intento ${attempt + 1}/${maxRetries + 1}): ${currentCommand}`);
+        try {
+          const { promisify } = await import('node:util');
+          const { exec } = await import('node:child_process');
+          const { stdout } = await promisify(exec)(currentCommand, { cwd: this.repoPath });
+          console.log(`[AutoDev CoderAgent] Comando finalizado exitosamente. ${stdout.slice(0, 100).replace(/\n/g, ' ')}...`);
+          return {
+            file: 'Terminal',
+            category: step.category || 'dependencies',
+            description: `Ejecutó comando: ${currentCommand}`,
+            applied: true,
+            researchSources: [step.source].filter(Boolean),
+            agentRole: 'coder',
+          };
+        } catch (err: any) {
+          console.warn(`[AutoDev CoderAgent] Error al ejecutar comando: ${err.message}`);
+          if (attempt >= maxRetries) {
+            console.error(`[AutoDev CoderAgent] Comando falló después de ${maxRetries + 1} intentos.`);
+            throw new Error(`Command failed after retries: ${err.message}`);
+          }
+          console.log(`[AutoDev CoderAgent] 🤖 Consultando a la IA para auto-corregir el comando al instante...`);
+          const fixPrompt = `El siguiente comando de terminal falló:\nComando actual: ${currentCommand}\n\nError:\n${err.message.slice(0, 2000)}\n\nEres un sistema de auto-corrección. Analiza el error y devuelve el COMANDO CORREGIDO.\nReglas de corrección rigurosas:\n1. Si hubo un error EBUSY en un paquete (ej. electron o sqlite3), QUITA ese paquete del string y deja los demás.\n2. Si hubo ERESOLVE o conflictos de dependencias peer, ASEGÚRATE de añadir " --legacy-peer-deps".\n3. Si hubo 404 (Not Found), SIGNIFICA QUE EL PAQUETE ES INVENTADO O NO ENCONTRADO, ELIMINA ESE PAQUETE EXACTO.\n4. Si el comando está viciado y ya no tiene sentido instalar paquetes, devuelve un string vacío "".\n\nDevuelve ÚNICAMENTE un JSON con: { "command": "nuevo comando corregido" }`;
+          try {
+            const ai = this.getGenAI();
+            const model = ai.getGenerativeModel({ model: 'gemini-3-flash-preview', generationConfig: { responseMimeType: 'application/json' } });
+            const res = await model.generateContent(fixPrompt);
+            const parsed = this.parseJSON(res.response.text());
+            if (parsed && typeof parsed.command === 'string') {
+              if (parsed.command.trim() === '') throw new Error('AI aborted command fix');
+              currentCommand = parsed.command;
+              console.log(`[AutoDev CoderAgent] ✅ Comando auto-corregido: ${currentCommand}`);
+            } else {
+              throw new Error('Invalid fix format');
+            }
+          } catch (fixErr: any) {
+            console.warn(`[AutoDev CoderAgent] Falla en auto-corrección: ${fixErr.message}`);
+            throw new Error(`Command failed and auto-fix failed: ${err.message}`);
+          }
+        }
+      }
+    }
+
     const filePath = path.resolve(this.repoPath, step.file);
     if (!filePath.startsWith(this.repoPath)) return null;
 

@@ -1,5 +1,30 @@
 import { ipcRenderer, contextBridge } from 'electron'
 
+// --------- Security Enhancements ---------
+// 1. Verificación de Aislamiento de Contexto
+if (!process.contextIsolated) {
+  console.error('ALERTA DE SEGURIDAD: contextIsolation debe estar habilitado en webPreferences.')
+  throw new Error('contextIsolation no está habilitado.')
+}
+
+// 2. Inyección de Content Security Policy (CSP)
+const injectCSP = () => {
+  const meta = document.createElement('meta')
+  meta.httpEquiv = 'Content-Security-Policy'
+  // Política CSP estricta: bloquea unsafe-eval para mitigar XSS en componentes de IA o mensajes externos.
+  meta.content = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: http:; font-src 'self' data: https: http:; connect-src 'self' https: http: ws: wss:; object-src 'none'; base-uri 'self'; form-action 'self';"
+  
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      document.head.appendChild(meta)
+    })
+  } else {
+    document.head.appendChild(meta)
+  }
+}
+
+injectCSP()
+
 // --------- Expose some API to the Renderer process ---------
 contextBridge.exposeInMainWorld('ipcRenderer', {
   on(...args: Parameters<typeof ipcRenderer.on>) {

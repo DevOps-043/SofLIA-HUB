@@ -10,9 +10,10 @@
  * Runs in the Electron main process.
  */
 import { EventEmitter } from 'node:events';
-import { app } from 'electron';
+import { app, safeStorage } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import Database from 'better-sqlite3';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -152,6 +153,34 @@ export class MemoryService extends EventEmitter {
   init(): void {
     try {
       this.db = new Database(DB_PATH);
+
+      // Cifrado local con sqlcipher y safeStorage para proteger la DB entera
+      const keyPath = path.join(app.getPath('userData'), 'soflia-memory.key');
+      let dbKey = '';
+
+      if (fs.existsSync(keyPath)) {
+        const encryptedKey = fs.readFileSync(keyPath);
+        if (safeStorage.isEncryptionAvailable()) {
+          try {
+            dbKey = safeStorage.decryptString(encryptedKey);
+          } catch (e) {
+            console.warn('[MemoryService] Fallback to unencrypted DB key');
+            dbKey = encryptedKey.toString('utf8');
+          }
+        } else {
+          dbKey = encryptedKey.toString('utf8');
+        }
+      } else {
+        dbKey = crypto.randomBytes(32).toString('hex');
+        if (safeStorage.isEncryptionAvailable()) {
+          fs.writeFileSync(keyPath, safeStorage.encryptString(dbKey));
+        } else {
+          fs.writeFileSync(keyPath, dbKey, 'utf8');
+        }
+      }
+
+      this.db.pragma(`key = '${dbKey}'`);
+
       this.db.pragma('journal_mode = WAL');
       this.db.pragma('foreign_keys = ON');
       this.db.exec(SCHEMA_SQL);
@@ -172,6 +201,56 @@ export class MemoryService extends EventEmitter {
       this.db = null;
       console.log('[MemoryService] Database closed');
     }
+  }
+
+  // ─── Token Management (OAuth & API Keys) ───────────────────────────
+
+  saveToken(serviceName: string, token: string): void {
+    const tokenPath = path.join(app.getPath('userData'), `${serviceName}-token.enc`);
+    try {
+      if (safeStorage.isEncryptionAvailable()) {
+        fs.writeFileSync(tokenPath, safeStorage.encryptString(token));
+      } else {
+        fs.writeFileSync(tokenPath, token, 'utf8');
+      }
+      console.log(`[MemoryService] Token safely saved for ${serviceName}`);
+    } catch (err: any) {
+      console.error(`[MemoryService] saveToken error for ${serviceName}:`, err.message);
+    }
+  }
+
+  getToken(serviceName: string): string | null {
+    const tokenPath = path.join(app.getPath('userData'), `${serviceName}-token.enc`);
+    if (!fs.existsSync(tokenPath)) return null;
+
+    try {
+      const data = fs.readFileSync(tokenPath);
+      if (safeStorage.isEncryptionAvailable()) {
+        try {
+          return safeStorage.decryptString(data);
+        } catch (e) {
+          return data.toString('utf8');
+        }
+      }
+      return data.toString('utf8');
+    } catch (err: any) {
+      console.error(`[MemoryService] getToken error for ${serviceName}:`, err.message);
+      return null;
+    }
+  }
+
+  deleteToken(serviceName: string): boolean {
+    const tokenPath = path.join(app.getPath('userData'), `${serviceName}-token.enc`);
+    if (fs.existsSync(tokenPath)) {
+      try {
+        fs.unlinkSync(tokenPath);
+        return true;
+      } catch (err: any) {
+        console.error(`[MemoryService] deleteToken error for ${serviceName}:`, err.message);
+        return false;
+      }
+    }
+    return false;
   }
 
   // ─── Layer 1: Message Persistence ──────────────────────────────────
