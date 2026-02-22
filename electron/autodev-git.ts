@@ -57,10 +57,12 @@ export class AutoDevGit {
 
   async getDiffLineCount(): Promise<number> {
     try {
-      const stat = await this.git('diff', '--cached', '--shortstat');
-      // Output like: "5 files changed, 120 insertions(+), 30 deletions(-)"
-      const insertions = parseInt(stat.match(/(\d+) insertion/)?.[1] || '0', 10);
-      const deletions = parseInt(stat.match(/(\d+) deletion/)?.[1] || '0', 10);
+      const stat = await this.git('diff', '--cached', '--shortstat', '--', '.', ':!package-lock.json', ':!yarn.lock');
+      // Output like: " 5 files changed, 120 insertions(+), 30 deletions(-)"
+      const insertionsMatch = stat.match(/(\d+) insertion/);
+      const deletionsMatch = stat.match(/(\d+) deletion/);
+      const insertions = insertionsMatch ? parseInt(insertionsMatch[1], 10) : 0;
+      const deletions = deletionsMatch ? parseInt(deletionsMatch[1], 10) : 0;
       return insertions + deletions;
     } catch {
       return 0;

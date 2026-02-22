@@ -95,6 +95,56 @@ export class WhatsAppService extends EventEmitter {
       .join('\n');
   }
 
+  /**
+   * Middleware de seguridad heurística para detectar intentos de Jailbreak,
+   * Indirect Prompt Injection o ataques de codificación.
+   */
+  private detectJailbreak(message: string): boolean {
+    if (!message) return false;
+    
+    // 1. Patrones comunes de Jailbreak / Prompt Injection (Inglés y Español)
+    const jailbreakPatterns = [
+      /ignora (todas )?las instrucciones/i,
+      /ignore (all )?previous instructions/i,
+      /olvida (todas )?las instrucciones/i,
+      /forget (all )?previous instructions/i,
+      /act as (dan|developer mode|unrestricted)/i,
+      /act[uú]a como (dan|modo desarrollador|alguien sin reglas)/i,
+      /eres (un bot )?sin reglas/i,
+      /you are (a bot )?without rules/i,
+      /system prompt/i,
+      /prompt del sistema/i,
+      /desactiva(r)? (tus )?filtros/i,
+      /disable (your )?filters/i,
+      /no tienes restricciones/i,
+      /you have no restrictions/i,
+      /\bmodo diablo\b/i,
+      /\bdev mode\b/i,
+      /nueva regla:/i,
+      /new rule:/i,
+      /from now on you are/i,
+      /de ahora en adelante eres/i
+    ];
+
+    for (const pattern of jailbreakPatterns) {
+      if (pattern.test(message)) {
+        return true;
+      }
+    }
+
+    // 2. Detección de ataques de falsificación de roles (Mockups de conversación)
+    // Detecta múltiples inyecciones de roles en un solo mensaje si intentan confundir al modelo
+    const roleplayInjection = /\b(system|user|assistant|bot):\s*.*\b(system|user|assistant|bot):/is;
+    if (roleplayInjection.test(message)) {
+      // Verificar si realmente es un intento de inyección de reglas/roles destructivo
+      if (/ignora|olvida|ignore|forget|rules|reglas|instrucciones|instructions/i.test(message)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   async init(): Promise<void> {
     this.config = await loadConfig();
   }
@@ -290,6 +340,12 @@ export class WhatsAppService extends EventEmitter {
         // ─── Security & Activation ───────────────────────────
         const wasInvoked = isGroup ? this.shouldRespondInGroup(msg) : true;
         let cleanText = rawText.trim();
+
+        // ─── Middleware: Detect Jailbreak & Prompt Injection ───
+        if (cleanText && this.detectJailbreak(cleanText)) {
+          console.warn(`[Security] Posible Jailbreak o Prompt Injection detectado de ${senderNumber}. Mensaje ignorado.`);
+          continue;
+        }
 
         if (isGroup) {
           const prefix = this.config.groupPrefix || '/soflia';
