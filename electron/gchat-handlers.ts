@@ -6,7 +6,7 @@ import type { GChatService } from './gchat-service';
 
 export function registerGChatHandlers(
   gchatService: GChatService,
-  getMainWindow: () => BrowserWindow | null,
+  _getMainWindow: () => BrowserWindow | null,
 ): void {
   // ─── List spaces ──────────────────────────────────────────────────
   ipcMain.handle('gchat:list-spaces', async () => {

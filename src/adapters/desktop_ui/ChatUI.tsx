@@ -556,6 +556,11 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
     setInput('');
     setSelectedImages([]);
     
+    // Self-learn: Send message to AutoDev to check for complaints/suggestions
+    if ((window as any).autodev?.logFeedback) {
+      (window as any).autodev.logFeedback(text).catch(console.error);
+    }
+    
     await processMessage(text, images, history, false);
 
   }, [input, isLoading, messages, onMessagesChange, preferredPrimaryModel, thinkingMode, personalization, selectedImages, isImageGenMode, isPromptOptimizerMode, optimizerTarget, activeTool, isLiveActive]);

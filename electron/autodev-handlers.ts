@@ -4,10 +4,23 @@
 import { ipcMain, type BrowserWindow } from 'electron';
 import type { AutoDevService } from './autodev-service';
 
+import type { SelfLearnService } from './autodev-selflearn';
+
 export function registerAutoDevHandlers(
   autoDevService: AutoDevService,
+  selfLearnService: SelfLearnService,
   getMainWindow: () => BrowserWindow | null,
 ): void {
+  ipcMain.handle('autodev:log-feedback', async (_event, message: string) => {
+    try {
+      // Analyze message for both complaints and suggestions
+      selfLearnService.analyzeUserMessage(message, 'chat');
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  });
+
   ipcMain.handle('autodev:get-config', async () => {
     try {
       return { success: true, config: autoDevService.getConfig() };

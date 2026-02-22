@@ -1,0 +1,30 @@
+electron/autodev-selflearn.ts(20,1): error TS6133: 'app' is declared but its value is never read.
+electron/autodev-service.ts(35,8): error TS6133: 'AgentTask' is declared but its value is never read.
+electron/autodev-service.ts(47,3): error TS6133: 'NPM_ANALYSIS_PROMPT' is declared but its value is never read.
+electron/autodev-service.ts(477,45): error TS2345: Argument of type '({ name: string; fn: () => Promise<ResearchFinding[]>; } | { name: string; fn: () => Promise<{ audit: { success: boolean; vulnerabilities: NpmAuditVulnerability[]; error?: string | undefined; }; outdated: { ...; }; }>; })[]' is not assignable to parameter of type '{ name: string; fn: () => Promise<ResearchFinding[]>; }[]'.
+  Type '{ name: string; fn: () => Promise<ResearchFinding[]>; } | { name: string; fn: () => Promise<{ audit: { success: boolean; vulnerabilities: NpmAuditVulnerability[]; error?: string | undefined; }; outdated: { ...; }; }>; }' is not assignable to type '{ name: string; fn: () => Promise<ResearchFinding[]>; }'.
+    Type '{ name: string; fn: () => Promise<{ audit: { success: boolean; vulnerabilities: NpmAuditVulnerability[]; error?: string; }; outdated: { success: boolean; packages: NpmOutdatedPackage[]; error?: string; }; }>; }' is not assignable to type '{ name: string; fn: () => Promise<ResearchFinding[]>; }'.
+      The types returned by 'fn()' are incompatible between these types.
+        Type 'Promise<{ audit: { success: boolean; vulnerabilities: NpmAuditVulnerability[]; error?: string | undefined; }; outdated: { success: boolean; packages: NpmOutdatedPackage[]; error?: string | undefined; }; }>' is not assignable to type 'Promise<ResearchFinding[]>'.
+          Type '{ audit: { success: boolean; vulnerabilities: NpmAuditVulnerability[]; error?: string | undefined; }; outdated: { success: boolean; packages: NpmOutdatedPackage[]; error?: string | undefined; }; }' is missing the following properties from type 'ResearchFinding[]': length, pop, push, concat, and 29 more.
+electron/autodev-service.ts(734,19): error TS2322: Type '({ name: string; description: string; parameters: { type: "object"; properties: { query: { type: string; description: string; }; url?: undefined; path?: undefined; }; required: string[]; }; } | { name: string; description: string; parameters: { ...; }; } | { ...; })[]' is not assignable to type 'FunctionDeclaration[]'.
+  Type '{ name: string; description: string; parameters: { type: "object"; properties: { query: { type: string; description: string; }; url?: undefined; path?: undefined; }; required: string[]; }; } | { name: string; description: string; parameters: { ...; }; } | { ...; }' is not assignable to type 'FunctionDeclaration'.
+    Type '{ name: string; description: string; parameters: { type: "object"; properties: { query: { type: string; description: string; }; url?: undefined; path?: undefined; }; required: string[]; }; }' is not assignable to type 'FunctionDeclaration'.
+      The types of 'parameters.type' are incompatible between these types.
+        Type '"object"' is not assignable to type 'SchemaType'.
+electron/autodev-service.ts(830,17): error TS2322: Type '({ name: string; description: string; parameters: { type: "object"; properties: { query: { type: string; description: string; }; url?: undefined; path?: undefined; }; required: string[]; }; } | { name: string; description: string; parameters: { ...; }; } | { ...; })[]' is not assignable to type 'FunctionDeclaration[]'.
+  Type '{ name: string; description: string; parameters: { type: "object"; properties: { query: { type: string; description: string; }; url?: undefined; path?: undefined; }; required: string[]; }; } | { name: string; description: string; parameters: { ...; }; } | { ...; }' is not assignable to type 'FunctionDeclaration'.
+    Type '{ name: string; description: string; parameters: { type: "object"; properties: { query: { type: string; description: string; }; url?: undefined; path?: undefined; }; required: string[]; }; }' is not assignable to type 'FunctionDeclaration'.
+      The types of 'parameters.type' are incompatible between these types.
+        Type '"object"' is not assignable to type 'SchemaType'.
+electron/autodev-service.ts(893,17): error TS2322: Type '({ name: string; description: string; parameters: { type: "object"; properties: { query: { type: string; description: string; }; url?: undefined; path?: undefined; }; required: string[]; }; } | { name: string; description: string; parameters: { ...; }; } | { ...; })[]' is not assignable to type 'FunctionDeclaration[]'.
+  Type '{ name: string; description: string; parameters: { type: "object"; properties: { query: { type: string; description: string; }; url?: undefined; path?: undefined; }; required: string[]; }; } | { name: string; description: string; parameters: { ...; }; } | { ...; }' is not assignable to type 'FunctionDeclaration'.
+    Type '{ name: string; description: string; parameters: { type: "object"; properties: { query: { type: string; description: string; }; url?: undefined; path?: undefined; }; required: string[]; }; }' is not assignable to type 'FunctionDeclaration'.
+      The types of 'parameters.type' are incompatible between these types.
+        Type '"object"' is not assignable to type 'SchemaType'.
+electron/drive-handlers.ts(9,3): error TS6133: 'getMainWindow' is declared but its value is never read.
+electron/gchat-handlers.ts(9,3): error TS6133: 'getMainWindow' is declared but its value is never read.
+electron/gmail-handlers.ts(9,3): error TS6133: 'getMainWindow' is declared but its value is never read.
+electron/memory-service.ts(33,7): error TS6133: 'RECENT_TOKEN_BUDGET' is declared but its value is never read.
+electron/memory-service.ts(56,11): error TS6196: 'StoredChunk' is declared but never used.
+electron/whatsapp-workflow-presentacion.ts(3,1): error TS6133: 'GoogleGenerativeAI' is declared but its value is never read.

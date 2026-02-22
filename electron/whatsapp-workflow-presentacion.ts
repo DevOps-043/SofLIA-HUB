@@ -1,6 +1,5 @@
 import { WhatsAppService } from './whatsapp-service';
 import { WhatsAppAgent } from './whatsapp-agent';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
 type WorkflowState = 'AWAITING_DATA' | 'PROCESSING_PROPOSAL' | 'AWAITING_APPROVAL' | 'GENERATING_PRESENTATION' | 'COMPLETED';
 

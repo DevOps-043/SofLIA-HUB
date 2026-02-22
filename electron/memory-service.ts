@@ -30,7 +30,6 @@ const SEMANTIC_MIN_SCORE = 0.30;
 const SUMMARY_TOKEN_BUDGET = 2000;
 const SEMANTIC_TOKEN_BUDGET = 2000;
 const FACTS_TOKEN_BUDGET = 1000;
-const RECENT_TOKEN_BUDGET = 3000;
 const SUMMARIZE_THRESHOLD = 50; // messages before triggering summarization
 
 // ─── Types ───────────────────────────────────────────────────────────
@@ -51,14 +50,6 @@ interface StoredMessage {
   media_type: string | null;
   media_filename: string | null;
   timestamp: number;
-}
-
-interface StoredChunk {
-  id: number;
-  chunk_text: string;
-  embedding: string; // JSON array
-  source_start_time: number | null;
-  source_end_time: number | null;
 }
 
 // ─── SQL Schema ──────────────────────────────────────────────────────

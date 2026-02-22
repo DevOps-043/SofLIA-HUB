@@ -23,7 +23,7 @@ import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import path from 'node:path';
 import { app, powerMonitor } from 'electron';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, SchemaType, FunctionDeclaration } from '@google/generative-ai';
 import type { CronJob } from 'cron';
 
 import {
@@ -32,7 +32,6 @@ import {
   type AutoDevImprovement,
   type ResearchFinding,
   type AutoDevRunStatus,
-  type AgentTask,
   DEFAULT_CONFIG,
 } from './autodev-types';
 import { AutoDevGit } from './autodev-git';
@@ -44,7 +43,6 @@ import {
   CODE_PROMPT,
   REVIEW_PROMPT,
   SUMMARY_PROMPT,
-  NPM_ANALYSIS_PROMPT,
 } from './autodev-prompts';
 
 // ─── Constants ─────────────────────────────────────────────────────
@@ -53,16 +51,17 @@ const CONFIG_PATH = path.join(app.getPath('userData'), 'autodev-config.json');
 const HISTORY_PATH = path.join(app.getPath('userData'), 'autodev-history.json');
 const MAX_HISTORY_RUNS = 50;
 const IGNORE_DIRS = ['node_modules', 'dist', 'dist-electron', '.git', 'build', 'coverage', 'SofLIA - Extension'];
+const ISSUES_FILENAME = 'AUTODEV_ISSUES.md';
 
 // ─── Tool declarations for function calling agents ─────────────────
 
-const RESEARCH_TOOLS = [
+const RESEARCH_TOOLS: FunctionDeclaration[] = [
   {
     name: 'web_search',
     description: 'Search the web for information about packages, vulnerabilities, best practices, documentation.',
     parameters: {
-      type: 'object' as const,
-      properties: { query: { type: 'string', description: 'Search query' } },
+      type: SchemaType.OBJECT,
+      properties: { query: { type: SchemaType.STRING, description: 'Search query' } },
       required: ['query'],
     },
   },
@@ -70,8 +69,8 @@ const RESEARCH_TOOLS = [
     name: 'read_webpage',
     description: 'Read and extract text content from a URL (documentation, changelogs, advisories).',
     parameters: {
-      type: 'object' as const,
-      properties: { url: { type: 'string', description: 'URL to read' } },
+      type: SchemaType.OBJECT,
+      properties: { url: { type: SchemaType.STRING, description: 'URL to read' } },
       required: ['url'],
     },
   },
@@ -79,8 +78,8 @@ const RESEARCH_TOOLS = [
     name: 'read_file',
     description: 'Read a file from the project for additional context.',
     parameters: {
-      type: 'object' as const,
-      properties: { path: { type: 'string', description: 'Relative path to the file' } },
+      type: SchemaType.OBJECT,
+      properties: { path: { type: SchemaType.STRING, description: 'Relative path to the file' } },
       required: ['path'],
     },
   },
@@ -220,6 +219,114 @@ export class AutoDevService extends EventEmitter {
     };
   }
 
+  // ─── Self-Diagnosis: AUTODEV_ISSUES.md ─────────────────────────
+
+  private get issuesPath(): string {
+    return path.join(this.repoPath, ISSUES_FILENAME);
+  }
+
+  /** Read the current issues file, or return empty string if it doesn't exist */
+  private readIssuesFile(): string {
+    try {
+      if (fs.existsSync(this.issuesPath)) {
+        return fs.readFileSync(this.issuesPath, 'utf-8');
+      }
+    } catch { /* ignore */ }
+    return '';
+  }
+
+  /** Append a new issue entry to the issues file */
+  private logIssue(category: 'build_failure' | 'review_rejection' | 'runtime_error' | 'limitation' | 'coding_error' | 'dependency_issue', description: string, context?: string): void {
+    const timestamp = new Date().toISOString();
+    const runId = this.currentRun?.id || 'unknown';
+    const existingContent = this.readIssuesFile();
+
+    const header = existingContent
+      ? ''
+      : `# 🤖 AutoDev — Issues & Self-Diagnosis Log\n\n> Este archivo es generado y mantenido automáticamente por AutoDev.\n> Contiene errores, fallas y limitaciones detectadas durante las ejecuciones autónomas.\n> AutoDev usa este archivo como contexto para priorizar y resolver estos problemas en futuras ejecuciones.\n> **No borres este archivo** — AutoDev marcará como resueltos los issues que logre corregir.\n\n---\n\n`;
+
+    const entry = [
+      `## ❌ [${category.toUpperCase()}] — ${timestamp.split('T')[0]}`,
+      '',
+      `- **Run ID**: \`${runId}\``,
+      `- **Timestamp**: ${timestamp}`,
+      `- **Categoría**: ${category}`,
+      `- **Estado**: 🔴 PENDIENTE`,
+      '',
+      '### Descripción',
+      '',
+      description,
+      '',
+      ...(context ? ['### Contexto técnico', '', '```', context.slice(0, 3000), '```', ''] : []),
+      '---',
+      '',
+    ].join('\n');
+
+    try {
+      fs.writeFileSync(this.issuesPath, header + existingContent + entry, 'utf-8');
+      console.log(`[AutoDev Self-Diagnosis] Logged issue: [${category}] ${description.slice(0, 80)}...`);
+    } catch (err: any) {
+      console.error('[AutoDev Self-Diagnosis] Failed to write issues file:', err.message);
+    }
+  }
+
+  /** Mark all PENDIENTE issues as resolved after a successful run */
+  private markIssuesResolved(runId: string): void {
+    const resolvedNote = `- **Estado**: ✅ RESUELTO (por run \`${runId}\` — ${new Date().toISOString().split('T')[0]})`;
+    const resolveFile = (filePath: string) => {
+      try {
+        if (!fs.existsSync(filePath)) return;
+        let content = fs.readFileSync(filePath, 'utf-8');
+        if (!content.includes('🔴 PENDIENTE')) return;
+        content = content.replace(/- \*\*Estado\*\*: 🔴 PENDIENTE/g, resolvedNote);
+        fs.writeFileSync(filePath, content, 'utf-8');
+      } catch { /* best effort */ }
+    };
+
+    resolveFile(this.issuesPath);
+    resolveFile(path.join(this.repoPath, 'AUTODEV_FEEDBACK.md'));
+    console.log('[AutoDev Self-Diagnosis] Marked pending issues as resolved');
+  }
+
+  /** Generate a summary of open issues + user feedback for agent context */
+  private getOpenIssuesSummary(): string {
+    const parts: string[] = [];
+
+    // Read self-diagnosed issues
+    const issueContent = this.readIssuesFile();
+    if (issueContent) {
+      const sections = issueContent.split('## ❌');
+      const pending = sections.filter(s => s.includes('🔴 PENDIENTE'));
+      if (pending.length) {
+        parts.push('\n═══ KNOWN ISSUES (from previous AutoDev runs) ═══');
+        parts.push('The following issues were detected in previous runs and should be prioritized:');
+        parts.push('');
+        parts.push(...pending.slice(-30).map(s => '## ❌' + s.split('---')[0]));
+      }
+    }
+
+    // Read user feedback/suggestions (from AUTODEV_FEEDBACK.md)
+    const feedbackPath = path.join(this.repoPath, 'AUTODEV_FEEDBACK.md');
+    try {
+      if (fs.existsSync(feedbackPath)) {
+        const feedbackContent = fs.readFileSync(feedbackPath, 'utf-8');
+        const sections = feedbackContent.split('## ❌');
+        const pending = sections.filter(s => s.includes('🔴 PENDIENTE'));
+        if (pending.length) {
+          parts.push('\n═══ USER FEEDBACK & SUGGESTIONS (from WhatsApp/Chat) ═══');
+          parts.push('Users have reported these issues and suggestions. PRIORITIZE fixing these:');
+          parts.push('');
+          parts.push(...pending.slice(-20).map(s => '## ❌' + s.split('---')[0]));
+        }
+      }
+    } catch { /* ignore */ }
+
+    if (!parts.length) return '';
+
+    parts.push('═══ END SELF-DIAGNOSIS CONTEXT ═══\n');
+    return parts.join('\n');
+  }
+
   // ─── Lifecycle ─────────────────────────────────────────────────
 
   async start(): Promise<void> {
@@ -280,6 +387,9 @@ export class AutoDevService extends EventEmitter {
     } catch (err: any) {
       run.status = this.abortController?.signal.aborted ? 'aborted' : 'failed';
       run.error = err.message;
+      if (run.status === 'failed') {
+        this.logIssue('runtime_error', `Run falló con error: ${err.message}`, err.stack?.slice(0, 2000));
+      }
       if (run.branchName) {
         try { await this.git.cleanupBranch(run.branchName); } catch { /* best effort */ }
       }
@@ -303,9 +413,21 @@ export class AutoDevService extends EventEmitter {
 
     // ─── Validate ────────────────────────────────────────────────
     this.updateRunStatus(run, 'researching');
-    if (!await this.git.hasRemote()) throw new Error('No git remote configured');
-    if (!await this.git.isGhAuthenticated()) throw new Error('GitHub CLI not authenticated (run: gh auth login)');
+    if (!await this.git.hasRemote()) {
+      this.logIssue('limitation', 'No hay un remote de Git configurado. AutoDev necesita un repositorio remoto para crear PRs.', 'git remote -v returned empty');
+      throw new Error('No git remote configured');
+    }
+    if (!await this.git.isGhAuthenticated()) {
+      this.logIssue('limitation', 'GitHub CLI no está autenticado. AutoDev necesita `gh auth login` para crear Pull Requests.', 'gh auth status failed');
+      throw new Error('GitHub CLI not authenticated (run: gh auth login)');
+    }
     checkAbort();
+
+    // ─── Read known issues for context ────────────────────────────
+    const knownIssues = this.getOpenIssuesSummary();
+    if (knownIssues) {
+      console.log('[AutoDev] Found open issues from previous runs — will include as context');
+    }
 
     // ═══════════════════════════════════════════════════════════════
     //  PHASE 1: PARALLEL RESEARCH (up to 5 agents + npm simultaneously)
@@ -315,7 +437,7 @@ export class AutoDevService extends EventEmitter {
     const depsList = this.getDependenciesList();
     const sourceCode = await this.readProjectFiles();
     if (!sourceCode.length) throw new Error('No source files found');
-    const sourceContext = sourceCode.map(f => `--- ${f.path} ---\n${f.content}`).join('\n\n');
+    const sourceContext = sourceCode.map(f => `--- ${f.path} ---\n${f.content}`).join('\n\n') + knownIssues;
 
     // Launch ALL research agents + npm audit in parallel
     const researchTasks = [
@@ -350,7 +472,7 @@ export class AutoDevService extends EventEmitter {
       return this.config.categories.some(c => cat.includes(c));
     });
 
-    const phase1Results = await runParallel(filteredTasks, this.config.maxParallelAgents,
+    const phase1Results = await runParallel(filteredTasks as Array<{ name: string; fn: () => Promise<any> }>, this.config.maxParallelAgents,
       (name, _result) => { this.trackAgent(run, name, 'research', 'completed'); });
 
     checkAbort();
@@ -437,6 +559,7 @@ export class AutoDevService extends EventEmitter {
               }
             } catch (err: any) {
               console.warn(`[AutoDev ${agentName}] Step failed (${step.file}): ${err.message}`);
+              this.logIssue('coding_error', `El agente ${agentName} falló al implementar cambios en \`${step.file}\`: ${err.message}`, `File: ${step.file}\nStep: ${JSON.stringify(step, null, 2).slice(0, 1000)}`);
             }
           }
           return results;
@@ -460,6 +583,7 @@ export class AutoDevService extends EventEmitter {
     if (!run.improvements.filter(i => i.applied).length) {
       run.status = 'failed';
       run.error = 'No improvements were successfully applied';
+      this.logIssue('coding_error', 'Ninguna mejora se pudo aplicar exitosamente en este run. Todos los pasos de codificación fallaron.', `Improvements attempted: ${run.improvements.length}\nAgent tasks: ${run.agentTasks.map(t => `${t.description}: ${t.status}`).join(', ')}`);
       await this.git.cleanupBranch(run.branchName);
       return;
     }
@@ -493,6 +617,7 @@ export class AutoDevService extends EventEmitter {
     if (!buildResult) {
       run.status = 'failed';
       run.error = 'Build failed after applying changes';
+      this.logIssue('build_failure', 'El build falló después de aplicar los cambios. Los cambios introducidos tienen errores de compilación/tipado.', `Applied improvements:\n${run.improvements.filter(i => i.applied).map(i => `- [${i.category}] ${i.file}: ${i.description}`).join('\n')}`);
       await this.git.cleanupBranch(run.branchName);
       return;
     }
@@ -500,6 +625,7 @@ export class AutoDevService extends EventEmitter {
     if (reviewResult.decision === 'reject') {
       run.status = 'failed';
       run.error = `Self-review rejected: ${reviewResult.summary}`;
+      this.logIssue('review_rejection', `El reviewer agent rechazó los cambios: ${reviewResult.summary}`, `Diff size: ${diff.length} chars\nImprovements: ${run.improvements.filter(i => i.applied).length}`);
       await this.git.cleanupBranch(run.branchName);
       return;
     }
@@ -525,6 +651,7 @@ export class AutoDevService extends EventEmitter {
     }
 
     run.status = 'completed';
+    this.markIssuesResolved(run.id);
     console.log(`[AutoDev] ═══ Run completed: ${run.improvements.filter(i => i.applied).length} improvements, PR: ${run.prUrl} ═══`);
   }
 

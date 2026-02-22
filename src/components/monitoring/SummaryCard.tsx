@@ -50,6 +50,9 @@ export function SummaryCard({ summary, userId, logs, selectedDate, onSummaryGene
     setSending(true);
     setError(null);
     try {
+      if (!window.whatsApp) {
+        throw new Error('Servicio de WhatsApp no disponible en este entorno.');
+      }
       // Use the user's own WhatsApp number (the connected one)
       const waStatus = await window.whatsApp.getStatus();
       const phoneNumber = waStatus?.phoneNumber || '';

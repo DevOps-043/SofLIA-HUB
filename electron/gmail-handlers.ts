@@ -6,7 +6,7 @@ import type { GmailService } from './gmail-service';
 
 export function registerGmailHandlers(
   gmailService: GmailService,
-  getMainWindow: () => BrowserWindow | null,
+  _getMainWindow: () => BrowserWindow | null,
 ): void {
   // ─── Send email ─────────────────────────────────────────────────
   ipcMain.handle('gmail:send', async (_event, params) => {

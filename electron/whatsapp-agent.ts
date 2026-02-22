@@ -1680,6 +1680,7 @@ export class WhatsAppAgent {
   private driveService: DriveService | null = null;
   private gchatService: GChatService | null = null;
   private autoDevService: AutoDevService | null = null;
+  private selfLearn: import('./autodev-selflearn').SelfLearnService | null = null;
   private memory: MemoryService;
   private knowledge: KnowledgeService;
 
@@ -1701,6 +1702,11 @@ export class WhatsAppAgent {
   setAutoDevService(service: AutoDevService): void {
     this.autoDevService = service;
     console.log('[WhatsApp Agent] AutoDev service connected');
+  }
+
+  setSelfLearnService(service: import('./autodev-selflearn').SelfLearnService): void {
+    this.selfLearn = service;
+    console.log('[WhatsApp Agent] SelfLearn service connected');
   }
 
   updateApiKey(key: string) {
@@ -1758,10 +1764,14 @@ export class WhatsAppAgent {
     try {
       const response = await this.runAgentLoop(jid, senderNumber, text, isGroup, groupPassiveHistory);
       if (response) {
+        // Self-learn: track SofLIA's response for complaint correlation
+        this.selfLearn?.trackSofLIAResponse(jid, response);
         await this.waService.sendText(jid, response);
       }
     } catch (err: any) {
       console.error('[WhatsApp Agent] Error:', err);
+      // Self-learn: log runtime errors
+      this.selfLearn?.logToolFailure('runAgentLoop', { text: text.slice(0, 200) }, err.message, 'whatsapp');
       // Auto-reset conversation on error to prevent stuck loops
       const sessionKey = isGroup ? `group:${jid}:${senderNumber}` : senderNumber;
       conversations.delete(sessionKey);
@@ -3756,6 +3766,27 @@ $vol.SetMasterVolumeLevelScalar(${level / 100.0}, [Guid]::Empty)`;
               response: { success: false, error: err.message },
             },
           });
+        }
+      }
+
+      // ─── Self-Learn: log all tool failures ──────────────────────────
+      if (this.selfLearn) {
+        for (const fr of functionResponses) {
+          const resp = fr.functionResponse.response;
+          if (resp && (resp.success === false || resp.error)) {
+            const errorMsg = resp.error || resp.message || 'Unknown error';
+            const toolName = fr.functionResponse.name;
+
+            // Special handling for Computer Use failures
+            if (toolName === 'use_computer') {
+              this.selfLearn.logComputerUseFailure(
+                (functionCalls.find((p: any) => p.functionCall?.name === 'use_computer') as any)?.functionCall?.args?.task || 'unknown',
+                errorMsg,
+              );
+            } else {
+              this.selfLearn.logToolFailure(toolName, {}, errorMsg, 'whatsapp');
+            }
+          }
         }
       }
 

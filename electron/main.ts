@@ -17,6 +17,7 @@ import { registerGChatHandlers } from './gchat-handlers'
 import { ProactiveService } from './proactive-service'
 import { AutoDevService } from './autodev-service'
 import { registerAutoDevHandlers } from './autodev-handlers'
+import { SelfLearnService } from './autodev-selflearn'
 import { generateDailySummary } from './summary-generator'
 import { MemoryService } from './memory-service'
 import { registerMemoryHandlers } from './memory-handlers'
@@ -67,6 +68,9 @@ const gchatService = new GChatService(calendarService)
 
 // ─── AutoDev (autonomous self-programming) ─────────────────────────
 const autoDevService = new AutoDevService(path.join(__dirname, '..'))
+
+// ─── Self-Learning (SofLIA learns from its own failures) ────────────
+const selfLearnService = new SelfLearnService(path.join(__dirname, '..'))
 
 // ─── Proactive Notifications ────────────────────────────────────────
 const proactiveService = new ProactiveService()
@@ -399,16 +403,20 @@ function initWhatsAppAgent(apiKey: string) {
     waAgent.updateApiKey(apiKey)
   } else {
     waAgent = new WhatsAppAgent(waService, apiKey, memoryService, knowledgeService)
+    waAgent.setSelfLearnService(selfLearnService)
     waService.on('message', ({ jid, senderNumber, text, isGroup, history }: any) => {
+      // Self-learn: analyze every user message for complaints & suggestions
+      selfLearnService.analyzeUserMessage(text, 'whatsapp', { jid, senderNumber })
       waAgent!.handleMessage(jid, senderNumber, text, isGroup, history)
     })
     waService.on('audio', ({ jid, senderNumber, buffer, isGroup, history }: any) => {
       waAgent!.handleAudio(jid, senderNumber, buffer, isGroup, history)
     })
     waService.on('media', ({ jid, senderNumber, buffer, fileName, mimetype, text, isGroup, history }: any) => {
+      if (text) selfLearnService.analyzeUserMessage(text, 'whatsapp', { jid, senderNumber })
       waAgent!.handleMedia(jid, senderNumber, buffer, fileName, mimetype, text, isGroup, history)
     })
-    console.log('[WhatsApp] Agent initialized with API key')
+    console.log('[WhatsApp] Agent initialized with API key + SelfLearn')
   }
 
   // Connect Google services and AutoDev to WhatsApp agent
@@ -482,7 +490,7 @@ app.whenReady().then(async () => {
   registerGmailHandlers(gmailService, () => win)
   registerDriveHandlers(driveService, () => win)
   registerGChatHandlers(gchatService, () => win)
-  registerAutoDevHandlers(autoDevService, () => win)
+  registerAutoDevHandlers(autoDevService, selfLearnService, () => win)
 
   // ─── AutoDev auto-init from env API key ─────────────────────
   const envApiKey = process.env.VITE_GEMINI_API_KEY

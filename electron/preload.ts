@@ -212,6 +212,7 @@ contextBridge.exposeInMainWorld('gchat', {
 contextBridge.exposeInMainWorld('autodev', {
   getConfig: () => ipcRenderer.invoke('autodev:get-config'),
   updateConfig: (updates: any) => ipcRenderer.invoke('autodev:update-config', updates),
+  logFeedback: (suggestion: string) => ipcRenderer.invoke('autodev:log-feedback', suggestion),
   runNow: () => ipcRenderer.invoke('autodev:run-now'),
   abort: () => ipcRenderer.invoke('autodev:abort'),
   getStatus: () => ipcRenderer.invoke('autodev:get-status'),

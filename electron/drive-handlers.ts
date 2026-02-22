@@ -6,7 +6,7 @@ import type { DriveService } from './drive-service';
 
 export function registerDriveHandlers(
   driveService: DriveService,
-  getMainWindow: () => BrowserWindow | null,
+  _getMainWindow: () => BrowserWindow | null,
 ): void {
   // ─── List files ─────────────────────────────────────────────────
   ipcMain.handle('drive:list-files', async (_event, options) => {
