@@ -12,6 +12,15 @@ export interface AgentConfig {
   concurrency: number; // How many parallel instances
 }
 
+// ─── MCP Configuration ──────────────────────────────────────────────
+
+export interface McpServerConfig {
+  name: string;
+  command: string;
+  args?: string[];
+  env?: Record<string, string>;
+}
+
 export interface AutoDevConfig {
   enabled: boolean;
   cronSchedule: string;
@@ -31,7 +40,11 @@ export interface AutoDevConfig {
   maxDailyRuns: number;
   maxLinesChanged: number;
   maxResearchQueries: number;
-  maxParallelAgents: number;    // Total concurrent agents across all types
+  maxParallelAgents: 1 | 2;    // Total concurrent agents across all types
+
+  // ─── API & Integrations ───────────────────────────────────────
+  rateLimitRetryBackoff?: boolean;
+  mcpServers?: McpServerConfig[];
 
   // ─── Git/PR ───────────────────────────────────────────────────
   targetBranch: string;
@@ -182,7 +195,8 @@ export const DEFAULT_CONFIG: AutoDevConfig = {
   maxDailyRuns: 3,
   maxLinesChanged: 500,
   maxResearchQueries: 30,
-  maxParallelAgents: 6,
+  maxParallelAgents: 2,
+  rateLimitRetryBackoff: true,
   targetBranch: 'main',
   workBranchPrefix: 'autodev/',
   autoMerge: false,
