@@ -413,7 +413,7 @@ export class AutoDevService extends EventEmitter {
         this.logIssue('runtime_error', `Run falló con error: ${err.message}`, err.stack?.slice(0, 2000));
       }
       if (run.branchName) {
-        try { await this.git.cleanupBranch(run.branchName); } catch { /* best effort */ }
+        await this.persistFailedBranch(run);
       }
     } finally {
       run.completedAt = new Date().toISOString();
@@ -452,6 +452,24 @@ export class AutoDevService extends EventEmitter {
   // ═══════════════════════════════════════════════════════════════════
   //  CORE MULTI-AGENT LOOP
   // ═══════════════════════════════════════════════════════════════════
+
+  private async persistFailedBranch(run: AutoDevRun): Promise<void> {
+    if (!run.branchName) return;
+    try {
+      console.log(`[AutoDev] Guardando cambios de intento fallido en repositorio remoto...`);
+      await this.git.stageAll();
+      const lineCount = await this.git.getDiffLineCount();
+      if (lineCount > 0) {
+        await this.git.commitChanges(`[AutoDev] Fallo de Ejecución: ${run.error || 'Review needed'}`);
+      }
+      try { await this.git.pushBranch(run.branchName); } catch {}
+      console.log(`[AutoDev] ✅ Branch guardada remota: ${run.branchName}`);
+    } catch (err: any) {
+      console.warn(`[AutoDev] No se pudo persistir el branch: ${err.message}`);
+    } finally {
+      try { await this.git.cleanupBranch(run.branchName); } catch {}
+    }
+  }
 
   private async executeRun(run: AutoDevRun): Promise<void> {
     const checkAbort = () => { if (this.abortController!.signal.aborted) throw new Error('Aborted'); };
@@ -540,7 +558,7 @@ export class AutoDevService extends EventEmitter {
     console.log('[AutoDev] ═══ Phase 1.5: Deep Agentic Research ═══');
 
     const deepFindings = await this.runAgenticResearch(
-      sourceContext.slice(0, 50000),
+      sourceContext,
       npmAuditText, npmOutdatedText,
       run.researchFindings,
     );
@@ -629,7 +647,7 @@ export class AutoDevService extends EventEmitter {
       run.status = 'failed';
       run.error = 'No improvements were successfully applied';
       this.logIssue('coding_error', 'Ninguna mejora se pudo aplicar exitosamente en este run. Todos los pasos de codificación fallaron.', `Improvements attempted: ${run.improvements.length}\nAgent tasks: ${run.agentTasks.map(t => `${t.description}: ${t.status}`).join(', ')}`);
-      await this.git.cleanupBranch(run.branchName);
+      await this.persistFailedBranch(run);
       return;
     }
 
@@ -651,7 +669,7 @@ export class AutoDevService extends EventEmitter {
       if (lineCount > this.config.maxLinesChanged) {
         run.status = 'failed';
         run.error = `Changes exceed line limit: ${lineCount} > ${this.config.maxLinesChanged}`;
-        await this.git.cleanupBranch(run.branchName);
+        await this.persistFailedBranch(run);
         return;
       }
 
@@ -679,7 +697,7 @@ export class AutoDevService extends EventEmitter {
           run.error = `Self-review rejected and max retries exhausted: ${reviewResult.summary}`;
           this.logIssue('review_rejection', `El reviewer agent rechazó los cambios persistentemente: ${reviewResult.summary}`, `Diff size: ${diff.length}\nImprovements: ${run.improvements.length}`);
         }
-        await this.git.cleanupBranch(run.branchName);
+        await this.persistFailedBranch(run);
         return;
       }
 
@@ -737,6 +755,9 @@ export class AutoDevService extends EventEmitter {
 
     run.status = 'completed';
     this.markIssuesResolved(run.id);
+
+    try { await this.git.cleanupBranch(run.branchName!); } catch {}
+    
     console.log(`[AutoDev] ═══ Run completed: ${run.improvements.filter(i => i.applied).length} improvements, PR: ${run.prUrl} ═══`);
   }
 
@@ -766,6 +787,7 @@ export class AutoDevService extends EventEmitter {
     const isElectron = typeof process !== 'undefined' && process.versions && !!process.versions.electron;
     if (isElectron && !process.env.VITE_DEV_SERVER_URL) {
       this.emit('status-changed', { runId: 'spawned', status: 'spawned', agents: 0 });
+    }
     if (process.platform === 'win32') {
       import('node:child_process').then(({ spawn }) => {
         spawn('cmd.exe', ['/c', 'start', 'cmd.exe', '/c', 'npm', 'run', 'autodev'], {
@@ -856,8 +878,8 @@ ${npmAuditText}
 ## npm outdated
 ${npmOutdatedText}
 
-## Código (fragmentos)
-${codeContext.slice(0, 30000)}
+## Código
+${codeContext}
 
 ## Categorías: ${this.config.categories.join(', ')}
 
@@ -919,7 +941,7 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
         try {
           const fp = path.resolve(this.repoPath, args.path);
           if (!fp.startsWith(this.repoPath)) return { success: false, error: 'Path outside repository' };
-          return { success: true, result: fs.readFileSync(fp, 'utf-8').slice(0, 10000) };
+          return { success: true, result: fs.readFileSync(fp, 'utf-8') };
         } catch (err: any) {
           return { success: false, error: err.message };
         }
@@ -945,7 +967,7 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
       .replace('{RESEARCH_FINDINGS}', findingsText || 'No prior findings')
       .replace('{NPM_AUDIT}', npmAuditText)
       .replace('{NPM_OUTDATED}', npmOutdatedText)
-      .replace('{SOURCE_CODE}', sourceContext.slice(0, 200000))
+      .replace('{SOURCE_CODE}', sourceContext)
       .replace('{CATEGORIES}', this.config.categories.join(', '))
       .replace('{MAX_FILES}', String(this.config.maxFilesPerRun))
       .replace('{MAX_LINES}', String(this.config.maxLinesChanged));
@@ -987,13 +1009,13 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
 
   private async createFixPlan(diff: string, errorMsg: string): Promise<any[]> {
     const ai = this.getGenAI();
-    const model = ai.getGenerativeModel({ model: this.config.agents.analyzer.model });
+    const model = ai.getGenerativeModel({ model: this.config.agents.coder.model });
     const prompt = `Eres un agente de correcciones (FixAgent). Una implementación tuya anterior generó un error de compilación o revisión:
 ${errorMsg}
 
 Revisa el diff de cambios generados en tu branch actual para darte contexto:
 \`\`\`diff
-${diff.slice(0, 50000)}
+${diff}
 \`\`\`
 
 Dada la información, devuelve tu solución como un plan EXACTO usando el formato JSON. Si necesitas retroceder (borrar variables, fijar tipos), dilo aquí.
@@ -1099,7 +1121,7 @@ FORMATO JSON ESPERADO (Solo devuelve JSON):
       .map(i => `- [${i.category}] ${i.file}: ${i.description} (sources: ${i.researchSources.join(', ')})`).join('\n');
 
     const prompt = REVIEW_PROMPT
-      .replace('{DIFF}', diff.slice(0, 100000))
+      .replace('{DIFF}', diff)
       .replace('{IMPROVEMENTS_APPLIED}', impText)
       .replace('{RESEARCH_SOURCES}', sourcesText || 'None');
 

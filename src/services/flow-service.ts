@@ -24,7 +24,7 @@ export async function refineFlowText(text: string, base64Image?: string): Promis
   try {
     const ai = await getGenAI();
     // Usamos el modelo más estable del mercado para evitar errores de conexión
-    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = ai.getGenerativeModel({ model: "gemini-3-flash-preview" });
 
     const parts: any[] = [`${FLOW_REFINER_PROMPT}\n\nPregunta del usuario: ${text}`];
     
@@ -50,7 +50,7 @@ export async function refineFlowText(text: string, base64Image?: string): Promis
 export async function transcribeAudio(audioBlob: Blob): Promise<string> {
   try {
     const ai = await getGenAI();
-    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = ai.getGenerativeModel({ model: "gemini-3-flash-preview" });
     
     const reader = new FileReader();
     const base64Promise = new Promise<string>((resolve) => {

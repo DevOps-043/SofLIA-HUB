@@ -20,7 +20,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const DB_PATH = path.join(app.getPath('userData'), 'soflia-memory.db');
 const OLD_MEMORIES_PATH = path.join(app.getPath('userData'), 'whatsapp-memories.json');
 const EMBEDDING_MODEL = 'text-embedding-004';
-const SUMMARIZE_MODEL = 'gemini-2.0-flash';
+const SUMMARIZE_MODEL = 'gemini-3-flash-preview';
 const CHUNK_TOKENS = 400;
 const CHUNK_OVERLAP = 80;
 const CHARS_PER_TOKEN = 4; // rough estimate for Spanish text

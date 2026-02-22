@@ -394,7 +394,7 @@ export class ProactiveService extends EventEmitter {
 
     try {
       const genAI = new GoogleGenerativeAI(this.apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
 
       const now = new Date();
       const hour = now.getHours();
