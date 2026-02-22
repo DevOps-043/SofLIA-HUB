@@ -151,7 +151,7 @@ export class AutoDevGit {
       const current = await this.getCurrentBranch();
       if (current === branchName) {
         // Discard changes and switch to main
-        await this.git('checkout', '--', '.');
+        await this.git('reset', '--hard', 'HEAD');
         await this.git('clean', '-fd');
         await this.git('checkout', 'main');
       }

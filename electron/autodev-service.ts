@@ -22,7 +22,16 @@
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import path from 'node:path';
-import { app, powerMonitor } from 'electron';
+import { createRequire } from 'node:module';
+const requireModule = typeof require !== 'undefined' ? require : createRequire(import.meta.url);
+
+let powerMonitor: any;
+try {
+  const electron = requireModule('electron');
+  powerMonitor = electron.powerMonitor;
+} catch {
+  // We're running outside electron (e.g. from the CLI script)
+}
 import { GoogleGenerativeAI, SchemaType, FunctionDeclaration } from '@google/generative-ai';
 import type { CronJob } from 'cron';
 
@@ -47,8 +56,15 @@ import {
 
 // ─── Constants ─────────────────────────────────────────────────────
 
-const CONFIG_PATH = path.join(app.getPath('userData'), 'autodev-config.json');
-const HISTORY_PATH = path.join(app.getPath('userData'), 'autodev-history.json');
+const isElectron = typeof process !== 'undefined' && process.versions && !!process.versions.electron;
+const userDataPath = path.join(process.cwd(), '.autodev-data');
+
+if (!fs.existsSync(userDataPath)) {
+  try { fs.mkdirSync(userDataPath, { recursive: true }); } catch {}
+}
+
+const CONFIG_PATH = path.join(userDataPath, 'autodev-config.json');
+const HISTORY_PATH = path.join(userDataPath, 'autodev-history.json');
 const MAX_HISTORY_RUNS = 50;
 const IGNORE_DIRS = ['node_modules', 'dist', 'dist-electron', '.git', 'build', 'coverage', 'SofLIA - Extension'];
 const ISSUES_FILENAME = 'AUTODEV_ISSUES.md';
@@ -170,6 +186,9 @@ export class AutoDevService extends EventEmitter {
 
   private saveConfig(): void {
     try {
+      if (!fs.existsSync(userDataPath)) {
+        try { fs.mkdirSync(userDataPath, { recursive: true }); } catch {}
+      }
       fs.writeFileSync(CONFIG_PATH, JSON.stringify(this.config, null, 2), 'utf-8');
     } catch (err: any) {
       console.error('[AutoDev] Error saving config:', err.message);
@@ -201,6 +220,9 @@ export class AutoDevService extends EventEmitter {
   private saveHistory(): void {
     try {
       if (this.history.length > MAX_HISTORY_RUNS) this.history = this.history.slice(-MAX_HISTORY_RUNS);
+      if (!fs.existsSync(userDataPath)) {
+        try { fs.mkdirSync(userDataPath, { recursive: true }); } catch {}
+      }
       fs.writeFileSync(HISTORY_PATH, JSON.stringify(this.history, null, 2), 'utf-8');
     } catch (err: any) {
       console.error('[AutoDev] Error saving history:', err.message);
@@ -400,8 +422,31 @@ export class AutoDevService extends EventEmitter {
       this.currentRun = null;
       this.abortController = null;
       this.emit('run-completed', run);
+
+      if (this.config.notifyWhatsApp && this.config.notifyPhone) {
+        let msg = run.status === 'completed' 
+          ? `✅ AutoDev finalizó con éxito:\n\n${run.summary || 'Mejoras listas.'}\nPR: ${run.prUrl || 'N/A'}`
+          : `❌ AutoDev abortado/falló:\n\n${run.error || 'Error desconocido'}`;
+        this.queueWhatsApp(this.config.notifyPhone, msg);
+      }
     }
     return run;
+  }
+
+  private queueWhatsApp(phone: string, message: string) {
+    try {
+      if (!fs.existsSync(userDataPath)) { fs.mkdirSync(userDataPath, { recursive: true }); }
+      const qPath = path.join(userDataPath, 'whatsapp-queue.json');
+      let queue: any[] = [];
+      if (fs.existsSync(qPath)) {
+        queue = JSON.parse(fs.readFileSync(qPath, 'utf8'));
+      }
+      queue.push({ phone, message });
+      fs.writeFileSync(qPath, JSON.stringify(queue), 'utf8');
+      this.emit('notify-whatsapp', { phone, message }); // Fallback for local
+    } catch (err: any) {
+       console.error('[AutoDev] WhatsApp queue error:', err.message);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -589,45 +634,85 @@ export class AutoDevService extends EventEmitter {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    //  PHASE 4: PARALLEL REVIEW + BUILD (reviewer + tester agents)
+    //  PHASE 4: PARALLEL REVIEW + BUILD (reviewer + tester agents) WITH AUTO-CORRECTION
     // ═══════════════════════════════════════════════════════════════
-    console.log('[AutoDev] ═══ Phase 4: Parallel Review + Build ═══');
-    this.updateRunStatus(run, 'verifying');
+    let retries = 0;
+    const maxRetries = 2;
+    let buildResult: boolean | string = true;
+    let reviewResult: { decision: string; summary: string } = { decision: 'approve', summary: '' };
 
-    await this.git.stageAll();
+    while (retries <= maxRetries) {
+      console.log(`[AutoDev] ═══ Phase 4: Parallel Review + Build (Attempt ${retries + 1}/${maxRetries + 1}) ═══`);
+      this.updateRunStatus(run, 'verifying');
 
-    const lineCount = await this.git.getDiffLineCount();
-    if (lineCount > this.config.maxLinesChanged) {
-      run.status = 'failed';
-      run.error = `Changes exceed line limit: ${lineCount} > ${this.config.maxLinesChanged}`;
-      await this.git.cleanupBranch(run.branchName);
-      return;
-    }
+      await this.git.stageAll();
 
-    const diff = await this.git.getFullDiff();
+      const lineCount = await this.git.getDiffLineCount();
+      if (lineCount > this.config.maxLinesChanged) {
+        run.status = 'failed';
+        run.error = `Changes exceed line limit: ${lineCount} > ${this.config.maxLinesChanged}`;
+        await this.git.cleanupBranch(run.branchName);
+        return;
+      }
 
-    // Run reviewer and tester in PARALLEL
-    const [reviewResult, buildResult] = await Promise.all([
-      this.selfReview(diff, run.improvements, run.researchFindings),
-      this.config.requireBuildPass ? this.verifyBuild() : Promise.resolve(true),
-    ]);
-    this.trackAgent(run, 'ReviewerAgent', 'review', 'completed');
-    this.trackAgent(run, 'TesterAgent', 'testing', 'completed');
+      const diff = await this.git.getFullDiff();
 
-    if (!buildResult) {
-      run.status = 'failed';
-      run.error = 'Build failed after applying changes';
-      this.logIssue('build_failure', 'El build falló después de aplicar los cambios. Los cambios introducidos tienen errores de compilación/tipado.', `Applied improvements:\n${run.improvements.filter(i => i.applied).map(i => `- [${i.category}] ${i.file}: ${i.description}`).join('\n')}`);
-      await this.git.cleanupBranch(run.branchName);
-      return;
-    }
+      // Run reviewer and tester in PARALLEL
+      [reviewResult, buildResult] = await Promise.all([
+        this.selfReview(diff, run.improvements, run.researchFindings),
+        this.config.requireBuildPass ? this.verifyBuild() : Promise.resolve(true),
+      ]);
+      this.trackAgent(run, `ReviewerAgent_Attempt${retries+1}`, 'review', 'completed');
+      this.trackAgent(run, `TesterAgent_Attempt${retries+1}`, 'testing', 'completed');
 
-    if (reviewResult.decision === 'reject') {
-      run.status = 'failed';
-      run.error = `Self-review rejected: ${reviewResult.summary}`;
-      this.logIssue('review_rejection', `El reviewer agent rechazó los cambios: ${reviewResult.summary}`, `Diff size: ${diff.length} chars\nImprovements: ${run.improvements.filter(i => i.applied).length}`);
-      await this.git.cleanupBranch(run.branchName);
-      return;
+      if (buildResult === true && reviewResult.decision === 'approve') {
+        break; // Success! Validated.
+      }
+
+      if (retries >= maxRetries) {
+        if (buildResult !== true) {
+          run.status = 'failed';
+          run.error = 'Build failed after applying changes and max retries exhausted';
+          this.logIssue('build_failure', 'El build falló persistentemente. AutoDev intentó corregirlo pero falló.', `Error:\n${buildResult}`);
+        } else {
+          run.status = 'failed';
+          run.error = `Self-review rejected and max retries exhausted: ${reviewResult.summary}`;
+          this.logIssue('review_rejection', `El reviewer agent rechazó los cambios persistentemente: ${reviewResult.summary}`, `Diff size: ${diff.length}\nImprovements: ${run.improvements.length}`);
+        }
+        await this.git.cleanupBranch(run.branchName);
+        return;
+      }
+
+      console.log(`[AutoDev] ⚠️ Failed, attempting auto-correction (Retry ${retries + 1}/${maxRetries}) ⚠️`);
+      this.updateRunStatus(run, 'coding');
+      retries++;
+
+      // Mini Phase 3: Auto-Fix
+      const errorStr = buildResult !== true ? `Build Error:\n${buildResult}` : `Review Error:\n${reviewResult.summary}`;
+      const fixPlan = await this.createFixPlan(diff, errorStr);
+
+      if (!fixPlan || !fixPlan.length) {
+        console.warn('[AutoDev] Auto-correction agent failed to generate a fix plan.');
+        continue; // Will loop and likely fail naturally if max retries
+      }
+
+      this.trackAgent(run, `FixPlanner_${retries}`, 'planning', 'completed');
+
+      for (const step of fixPlan) {
+        checkAbort();
+        try {
+          console.log(`[AutoDev FixAgent] Implementing fix for ${step.file}...`);
+          const result = await this.implementStep(step);
+          if (result) {
+            result.agentRole = `FixAgent_${retries}`;
+            run.improvements.push(result);
+            this.trackAgent(run, `FixAgent_${retries}`, 'coding', 'completed');
+          }
+        } catch (err: any) {
+           console.warn(`[AutoDev FixAgent] Fix implementation failed: ${err.message}`);
+           this.trackAgent(run, `FixAgent_${retries}`, 'coding', 'failed', err.message);
+        }
+      }
     }
     checkAbort();
 
@@ -675,6 +760,30 @@ export class AutoDevService extends EventEmitter {
   private updateRunStatus(run: AutoDevRun, status: AutoDevRunStatus): void {
     run.status = status;
     this.emit('status-changed', { runId: run.id, status, agents: run.agentTasks.length });
+  }
+
+  private async runStandaloneTerminal(): Promise<{ status: string }> {
+    const isElectron = typeof process !== 'undefined' && process.versions && !!process.versions.electron;
+    if (isElectron && !process.env.VITE_DEV_SERVER_URL) {
+      this.emit('status-changed', { runId: 'spawned', status: 'spawned', agents: 0 });
+    if (process.platform === 'win32') {
+      import('node:child_process').then(({ spawn }) => {
+        spawn('cmd.exe', ['/c', 'start', 'cmd.exe', '/c', 'npm', 'run', 'autodev'], {
+          detached: true,
+          stdio: 'ignore',
+          cwd: this.repoPath
+        }).unref();
+      });
+    } else {
+      import('node:child_process').then(({ spawn }) => {
+        spawn('npm', ['run', 'autodev'], {
+          detached: true,
+          stdio: 'ignore',
+          cwd: this.repoPath
+        }).unref();
+      });
+    }
+    return { status: 'spawned' };
   }
 
   // ─── Research Agent (flash + googleSearch grounding) ───────────
@@ -876,6 +985,40 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
 
   // ─── Code implementation (coding model + tools) ───────────────
 
+  private async createFixPlan(diff: string, errorMsg: string): Promise<any[]> {
+    const ai = this.getGenAI();
+    const model = ai.getGenerativeModel({ model: this.config.agents.analyzer.model });
+    const prompt = `Eres un agente de correcciones (FixAgent). Una implementación tuya anterior generó un error de compilación o revisión:
+${errorMsg}
+
+Revisa el diff de cambios generados en tu branch actual para darte contexto:
+\`\`\`diff
+${diff.slice(0, 50000)}
+\`\`\`
+
+Dada la información, devuelve tu solución como un plan EXACTO usando el formato JSON. Si necesitas retroceder (borrar variables, fijar tipos), dilo aquí.
+FORMATO JSON ESPERADO (Solo devuelve JSON):
+{
+  "plan": [
+    {
+      "step": 1,
+      "file": "ruta/archivo.ts",
+      "action": "modify",
+      "description": "Explicación del fix",
+      "details": "Detalles técnicos precisos para el compilador",
+      "source": "Auto-Correction System",
+      "estimatedLines": 5
+    }
+  ]
+}
+`;
+    try {
+      const res = await model.generateContent(prompt);
+      const parsed = this.parseJSON(res.response.text());
+      return parsed?.plan || [];
+    } catch { return []; }
+  }
+
   private async implementStep(step: any): Promise<AutoDevImprovement | null> {
     const filePath = path.resolve(this.repoPath, step.file);
     if (!filePath.startsWith(this.repoPath)) return null;
@@ -928,7 +1071,7 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
 
   // ─── Build verification (tester agent) ────────────────────────
 
-  private async verifyBuild(): Promise<boolean> {
+  private async verifyBuild(): Promise<boolean | string> {
     const { execFile } = await import('node:child_process');
     const { promisify } = await import('node:util');
     try {
@@ -938,8 +1081,10 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
       console.log('[AutoDev TesterAgent] Build passed.');
       return true;
     } catch (err: any) {
-      console.error('[AutoDev TesterAgent] Build failed:', err.message);
-      return false;
+      console.error('[AutoDev TesterAgent] Build failed.');
+      // Return the stdout or stderr which contains the actual TS/Vite errors
+      const errorMsg = [err.message, err.stdout, err.stderr].filter(Boolean).join('\n---\n');
+      return errorMsg || 'Unknown build error';
     }
   }
 
