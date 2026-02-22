@@ -1,25 +1,5 @@
 import { ipcRenderer, contextBridge } from 'electron'
 
-// --------- Expose some API to the Renderer process ---------
-contextBridge.exposeInMainWorld('ipcRenderer', {
-  on(...args: Parameters<typeof ipcRenderer.on>) {
-    const [channel, listener] = args
-    return ipcRenderer.on(channel, (event, ...args) => listener(event, ...args))
-  },
-  off(...args: Parameters<typeof ipcRenderer.off>) {
-    const [channel, ...omit] = args
-    return ipcRenderer.off(channel, ...omit)
-  },
-  send(...args: Parameters<typeof ipcRenderer.send>) {
-    const [channel, ...omit] = args
-    return ipcRenderer.send(channel, ...omit)
-  },
-  invoke(...args: Parameters<typeof ipcRenderer.invoke>) {
-    const [channel, ...omit] = args
-    return ipcRenderer.invoke(channel, ...omit)
-  },
-})
-
 // --------- Screen Capture API ---------
 contextBridge.exposeInMainWorld('screenCapture', {
   captureScreen: (sourceId?: string): Promise<string | null> => {
@@ -239,4 +219,29 @@ contextBridge.exposeInMainWorld('proactive', {
   updateConfig: (updates: any) => ipcRenderer.invoke('proactive:update-config', updates),
   triggerNow: (phoneNumber?: string) => ipcRenderer.invoke('proactive:trigger-now', phoneNumber),
   getStatus: () => ipcRenderer.invoke('proactive:get-status'),
+})
+
+// --------- Memory API ---------
+contextBridge.exposeInMainWorld('memory', {
+  getStats: (sessionKey?: string) => ipcRenderer.invoke('memory:get-stats', sessionKey),
+  compact: (daysToKeep?: number) => ipcRenderer.invoke('memory:compact', daysToKeep),
+  getFacts: (phoneNumber: string) => ipcRenderer.invoke('memory:get-facts', phoneNumber),
+  deleteFact: (factId: number) => ipcRenderer.invoke('memory:delete-fact', factId),
+  search: (sessionKey: string, phoneNumber: string, query: string) => ipcRenderer.invoke('memory:search', sessionKey, phoneNumber, query),
+})
+
+// --------- Flow API ---------
+contextBridge.exposeInMainWorld('flow', {
+  sendToChat: (text: string) => ipcRenderer.send('flow-send-to-chat', text),
+  close: () => ipcRenderer.send('close-flow'),
+  onMessageReceived: (cb: (text: string) => void) => {
+    ipcRenderer.on('flow-message-received', (_event, text) => cb(text))
+  },
+  onWindowShown: (cb: () => void) => {
+    ipcRenderer.on('flow-window-shown', () => cb())
+  },
+  removeListeners: () => {
+    ipcRenderer.removeAllListeners('flow-message-received')
+    ipcRenderer.removeAllListeners('flow-window-shown')
+  }
 })
