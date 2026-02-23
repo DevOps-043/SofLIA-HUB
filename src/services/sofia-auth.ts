@@ -1,7 +1,6 @@
-import { Session } from '@supabase/supabase-js';
-import {
-  sofiaSupa,
-  isSofiaConfigured,
+import type { Session } from '@supabase/supabase-js';
+import { sofiaSupa, isSofiaConfigured } from '../lib/sofia-client';
+import type {
   SofiaOrganization,
   SofiaTeam,
   SofiaUserProfile,

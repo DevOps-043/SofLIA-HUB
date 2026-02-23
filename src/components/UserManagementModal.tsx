@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { orgService, type OrgMember } from '../services/org-service';
-import { SofiaOrganization } from '../lib/sofia-client';
+import type { SofiaOrganization } from '../lib/sofia-client';
 
 interface UserManagementModalProps {
   isOpen: boolean;

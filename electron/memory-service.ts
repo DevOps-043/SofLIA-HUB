@@ -4,7 +4,7 @@
  * 3-layer architecture:
  *  Layer 1: Raw message persistence (SQLite)
  *  Layer 2: Rolling conversation summaries (Gemini + SQLite)
- *  Layer 3: Semantic search via embeddings (Gemini text-embedding-004 + cosine similarity)
+ *  Layer 3: Semantic search via embeddings (Gemini text-embedding-004 + local memory cache search)
  *  Bonus:   Structured facts (replaces whatsapp-memories.json)
  *
  * Runs in the Electron main process.
@@ -21,7 +21,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const DB_PATH = path.join(app.getPath('userData'), 'soflia-memory.db');
 const OLD_MEMORIES_PATH = path.join(app.getPath('userData'), 'whatsapp-memories.json');
 const EMBEDDING_MODEL = 'text-embedding-004';
-const SUMMARIZE_MODEL = 'gemini-3-flash-preview';
+const SUMMARIZE_MODEL = 'gemini-1.5-flash'; // Updated to a stable model
 const CHUNK_TOKENS = 400;
 const CHUNK_OVERLAP = 80;
 const CHARS_PER_TOKEN = 4; // rough estimate for Spanish text
@@ -110,23 +110,12 @@ CREATE TABLE IF NOT EXISTS facts (
     source_context TEXT,
     confidence REAL DEFAULT 1.0,
     created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
+    updated_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(phone_number, category, fact_key)
 );
 
 CREATE INDEX IF NOT EXISTS idx_facts_phone ON facts(phone_number);
 `;
-
-// ─── Helper: Cosine Similarity ───────────────────────────────────────
-function cosineSimilarity(a: number[], b: number[]): number {
-  let dot = 0, normA = 0, normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-  const denom = Math.sqrt(normA) * Math.sqrt(normB);
-  return denom === 0 ? 0 : dot / denom;
-}
 
 // ─── Helper: Truncate text to token budget ───────────────────────────
 function truncateToTokens(text: string, maxTokens: number): string {
@@ -135,14 +124,28 @@ function truncateToTokens(text: string, maxTokens: number): string {
   return text.slice(0, maxChars) + '...';
 }
 
+// ─── Helper: Cosine Similarity ───────────────────────────────────────
+function cosineSimilarity(vecA: number[], vecB: number[]): number {
+  if (vecA.length !== vecB.length) return 0;
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < vecA.length; i++) {
+    dotProduct += vecA[i] * vecB[i];
+    normA += vecA[i] * vecA[i];
+    normB += vecB[i] * vecB[i];
+  }
+  if (normA === 0 || normB === 0) return 0;
+  return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
+}
+
 // ─── MemoryService ───────────────────────────────────────────────────
 export class MemoryService extends EventEmitter {
   private db: Database.Database | null = null;
   private apiKey: string = '';
   private summarizeQueue: Set<string> = new Set();
   private isProcessingQueue: boolean = false;
-  // Cache: session_key -> array of {id, embedding as number[]}
-  private embeddingCache: Map<string, Array<{ id: number; embedding: number[]; startTime: number | null }>> = new Map();
+  private embeddingCache: Map<number, number[]> = new Map();
 
   constructor() {
     super();
@@ -180,14 +183,31 @@ export class MemoryService extends EventEmitter {
       }
 
       this.db.pragma(`key = '${dbKey}'`);
-
       this.db.pragma('journal_mode = WAL');
       this.db.pragma('foreign_keys = ON');
       this.db.exec(SCHEMA_SQL);
       console.log(`[MemoryService] Database initialized at ${DB_PATH}`);
       this.migrateOldMemories();
+      this.loadEmbeddingCache();
     } catch (err: any) {
       console.error('[MemoryService] Failed to initialize database:', err.message);
+    }
+  }
+
+  private loadEmbeddingCache(): void {
+    if (!this.db) return;
+    try {
+      const chunks = this.db.prepare('SELECT id, embedding FROM memory_chunks').all() as Array<{ id: number; embedding: string }>;
+      for (const chunk of chunks) {
+        try {
+          this.embeddingCache.set(chunk.id, JSON.parse(chunk.embedding));
+        } catch (e) {
+          // ignore parsing errors for individual chunks
+        }
+      }
+      console.log(`[MemoryService] Loaded ${this.embeddingCache.size} embeddings into cache`);
+    } catch (err: any) {
+      console.error('[MemoryService] loadEmbeddingCache error:', err.message);
     }
   }
 
@@ -306,10 +326,6 @@ export class MemoryService extends EventEmitter {
     }
   }
 
-  /**
-   * Returns conversation history formatted for Gemini's chat history.
-   * Ensures alternating user/model roles.
-   */
   getConversationHistory(sessionKey: string, limit: number = RECENT_MESSAGES_LIMIT): Array<{ role: string; parts: Array<{ text: string }> }> {
     const messages = this.getRecentMessages(sessionKey, limit);
     const history: Array<{ role: string; parts: Array<{ text: string }> }> = [];
@@ -317,18 +333,15 @@ export class MemoryService extends EventEmitter {
     for (const msg of messages) {
       const role = msg.role === 'user' ? 'user' : 'model';
       if (history.length > 0 && history[history.length - 1].role === role) {
-        // Merge consecutive same-role messages
         history[history.length - 1].parts.push({ text: msg.content });
       } else {
         history.push({ role, parts: [{ text: msg.content }] });
       }
     }
 
-    // Ensure starts with user
     while (history.length > 0 && history[0].role === 'model') {
       history.shift();
     }
-    // Ensure ends with model (required by Gemini for history)
     while (history.length > 0 && history[history.length - 1].role === 'user') {
       history.pop();
     }
@@ -348,7 +361,6 @@ export class MemoryService extends EventEmitter {
 
     if (!this.db) return context;
 
-    // 1. Recent verbatim messages
     const recent = this.getRecentMessages(sessionKey, RECENT_MESSAGES_LIMIT);
     context.recentMessages = recent.map(m => ({
       role: m.role,
@@ -356,10 +368,8 @@ export class MemoryService extends EventEmitter {
       timestamp: m.timestamp,
     }));
 
-    // 2. Rolling summary
     context.rollingSummary = this.getLatestSummary(sessionKey);
 
-    // 3. Semantic search (only if we have an API key and chunks exist)
     if (this.apiKey && currentMessage.trim().length > 10) {
       try {
         const queryEmbedding = await this.embedText(currentMessage);
@@ -371,26 +381,19 @@ export class MemoryService extends EventEmitter {
       }
     }
 
-    // 4. Structured facts
     context.facts = this.getFacts(phoneNumber);
 
     return context;
   }
 
-  /**
-   * Formats the assembled memory context as text sections to inject into system prompt.
-   * Respects token budgets per section.
-   */
   formatContextForPrompt(ctx: MemoryContext): string {
     let sections = '';
 
-    // Rolling summary
     if (ctx.rollingSummary) {
       const summaryText = truncateToTokens(ctx.rollingSummary, SUMMARY_TOKEN_BUDGET);
       sections += `\n\n═══ RESUMEN DE CONVERSACIONES ANTERIORES ═══\n${summaryText}`;
     }
 
-    // Semantic recall
     if (ctx.semanticRecall.length > 0) {
       let recallText = '';
       let tokenCount = 0;
@@ -409,7 +412,6 @@ export class MemoryService extends EventEmitter {
       }
     }
 
-    // Structured facts
     if (ctx.facts.length > 0) {
       let factsText = '';
       let tokenCount = 0;
@@ -449,7 +451,6 @@ export class MemoryService extends EventEmitter {
   private checkSummarizationThreshold(sessionKey: string): void {
     if (!this.db) return;
     try {
-      // Count messages since last summary
       const lastSummary = this.db.prepare(`
         SELECT period_end FROM summaries WHERE session_key = ? ORDER BY period_end DESC LIMIT 1
       `).get(sessionKey) as { period_end: number } | undefined;
@@ -471,7 +472,6 @@ export class MemoryService extends EventEmitter {
   private summarizeTimer: NodeJS.Timeout | null = null;
   private processSummarizeQueueDebounced(): void {
     if (this.summarizeTimer) return;
-    // Debounce: wait 5 seconds after last trigger before processing
     this.summarizeTimer = setTimeout(() => {
       this.summarizeTimer = null;
       this.processSummarizeQueue();
@@ -498,7 +498,6 @@ export class MemoryService extends EventEmitter {
     if (!this.db || !this.apiKey) return;
 
     try {
-      // Get messages since last summary
       const lastSummary = this.db.prepare(`
         SELECT period_end FROM summaries WHERE session_key = ? ORDER BY period_end DESC LIMIT 1
       `).get(sessionKey) as { period_end: number } | undefined;
@@ -513,36 +512,25 @@ export class MemoryService extends EventEmitter {
       if (messages.length < SUMMARIZE_THRESHOLD) return;
 
       console.log(`[MemoryService] Summarizing ${messages.length} messages for ${sessionKey}`);
-
-      // Build conversation text for summarization
       const conversationText = messages.map(m => {
         const time = new Date(m.timestamp).toLocaleString('es-MX');
         return `[${time}] ${m.role === 'user' ? 'Usuario' : 'SofLIA'}: ${m.content}`;
       }).join('\n');
 
-      // Call Gemini to summarize
       const summary = await this.callGeminiSummarize(conversationText);
       if (!summary) return;
 
       const periodStart = messages[0].timestamp;
       const periodEnd = messages[messages.length - 1].timestamp;
+      const phoneNumber = sessionKey.includes(':') ? sessionKey.split(':').pop()! : sessionKey;
 
-      // Store summary
       this.db.prepare(`
         INSERT INTO summaries (session_key, phone_number, period_start, period_end, summary_text, message_count)
         VALUES (?, ?, ?, ?, ?, ?)
-      `).run(
-        sessionKey,
-        sessionKey.includes(':') ? sessionKey.split(':').pop() : sessionKey,
-        periodStart,
-        periodEnd,
-        summary,
-        messages.length,
-      );
+      `).run(sessionKey, phoneNumber, periodStart, periodEnd, summary, messages.length);
 
-      console.log(`[MemoryService] Summary saved for ${sessionKey} (${messages.length} messages)`);
+      console.log(`[MemoryService] Summary saved for ${sessionKey}`);
 
-      // Embed the summary and conversation chunks for semantic search
       await this.embedAndStoreChunks(sessionKey, summary, 'summary', periodStart, periodEnd);
       await this.embedConversationChunks(sessionKey, messages);
 
@@ -556,23 +544,7 @@ export class MemoryService extends EventEmitter {
     try {
       const genAI = new GoogleGenerativeAI(this.apiKey);
       const model = genAI.getGenerativeModel({ model: SUMMARIZE_MODEL });
-
-      const prompt = `Resume esta conversación de WhatsApp de forma concisa pero completa. Preserva:
-- Temas principales discutidos
-- Decisiones tomadas
-- Archivos o documentos mencionados
-- Fechas importantes o plazos
-- Preferencias del usuario descubiertas
-- Promesas o compromisos hechos
-- Resultados de acciones ejecutadas
-
-Sé conciso (máximo 500 palabras). Escribe en tercera persona ("El usuario pidió...", "SofLIA realizó...").
-
-CONVERSACIÓN:
-${truncateToTokens(conversationText, 6000)}
-
-RESUMEN:`;
-
+      const prompt = `Resume esta conversación de WhatsApp de forma concisa...\n\nCONVERSACIÓN:\n${truncateToTokens(conversationText, 6000)}\n\nRESUMEN:`;
       const result = await model.generateContent(prompt);
       return result.response.text().trim() || null;
     } catch (err: any) {
@@ -581,7 +553,7 @@ RESUMEN:`;
     }
   }
 
-  // ─── Layer 3: Semantic Search (Embeddings) ─────────────────────────
+  // ─── Layer 3: Semantic Search (Local In-Memory Cache) ─────────────
 
   private async embedText(text: string): Promise<number[] | null> {
     if (!this.apiKey) return null;
@@ -603,70 +575,47 @@ RESUMEN:`;
     topK: number,
   ): Array<{ text: string; score: number; timestamp: number }> {
     if (!this.db) return [];
-
     try {
-      // Load chunks from cache or DB
-      let chunks = this.embeddingCache.get(sessionKey);
-      if (!chunks) {
-        chunks = this.loadChunksFromDB(sessionKey, phoneNumber);
-        this.embeddingCache.set(sessionKey, chunks);
+      let query = 'SELECT id, chunk_text, source_start_time FROM memory_chunks WHERE 1=1';
+      const params: any[] = [];
+      const conditions: string[] = [];
+
+      if (sessionKey) {
+        conditions.push('session_key = ?');
+        params.push(sessionKey);
+      }
+      if (phoneNumber) {
+        conditions.push('phone_number = ?');
+        params.push(phoneNumber);
       }
 
-      if (chunks.length === 0) return [];
+      if (conditions.length > 0) {
+        query += ` AND (${conditions.join(' OR ')})`;
+      }
 
-      // Compute cosine similarity for all chunks
-      const scored = chunks.map(chunk => ({
-        id: chunk.id,
-        score: cosineSimilarity(queryEmbedding, chunk.embedding),
-        startTime: chunk.startTime,
-      }));
+      const stmt = this.db.prepare(query);
+      const candidates = stmt.all(...params) as Array<{ id: number; chunk_text: string; source_start_time: number }>;
+      const results: Array<{ text: string; score: number; timestamp: number }> = [];
 
-      // Sort by score descending, take top K above threshold
-      scored.sort((a, b) => b.score - a.score);
-      const topResults = scored.filter(s => s.score >= SEMANTIC_MIN_SCORE).slice(0, topK);
+      for (const row of candidates) {
+        const docEmbedding = this.embeddingCache.get(row.id);
+        if (docEmbedding) {
+          const score = cosineSimilarity(queryEmbedding, docEmbedding);
+          if (score >= SEMANTIC_MIN_SCORE) {
+            results.push({
+              text: row.chunk_text,
+              score,
+              timestamp: row.source_start_time || 0,
+            });
+          }
+        }
+      }
 
-      if (topResults.length === 0) return [];
-
-      // Fetch chunk texts for the top results
-      const ids = topResults.map(r => r.id);
-      const placeholders = ids.map(() => '?').join(',');
-      const rows = this.db.prepare(`
-        SELECT id, chunk_text, source_start_time FROM memory_chunks WHERE id IN (${placeholders})
-      `).all(...ids) as Array<{ id: number; chunk_text: string; source_start_time: number | null }>;
-
-      const rowMap = new Map(rows.map(r => [r.id, r]));
-
-      return topResults.map(r => {
-        const row = rowMap.get(r.id);
-        return {
-          text: row?.chunk_text || '',
-          score: r.score,
-          timestamp: row?.source_start_time || 0,
-        };
-      }).filter(r => r.text);
+      // Sort by score descending
+      results.sort((a, b) => b.score - a.score);
+      return results.slice(0, topK);
     } catch (err: any) {
       console.error('[MemoryService] semanticSearch error:', err.message);
-      return [];
-    }
-  }
-
-  private loadChunksFromDB(sessionKey: string, phoneNumber: string): Array<{ id: number; embedding: number[]; startTime: number | null }> {
-    if (!this.db) return [];
-    try {
-      const rows = this.db.prepare(`
-        SELECT id, embedding, source_start_time FROM memory_chunks
-        WHERE session_key = ? OR phone_number = ?
-        ORDER BY source_start_time DESC
-        LIMIT 5000
-      `).all(sessionKey, phoneNumber) as Array<{ id: number; embedding: string; source_start_time: number | null }>;
-
-      return rows.map(r => ({
-        id: r.id,
-        embedding: JSON.parse(r.embedding) as number[],
-        startTime: r.source_start_time,
-      }));
-    } catch (err: any) {
-      console.error('[MemoryService] loadChunksFromDB error:', err.message);
       return [];
     }
   }
@@ -688,10 +637,12 @@ RESUMEN:`;
         const embedding = await this.embedText(chunk);
         if (!embedding) continue;
 
-        this.db.prepare(`
+        const stmt = this.db.prepare(`
           INSERT INTO memory_chunks (session_key, phone_number, chunk_text, embedding, source_type, source_start_time, source_end_time)
           VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run(
+        `);
+        
+        const result = stmt.run(
           sessionKey,
           phoneNumber,
           chunk,
@@ -700,20 +651,18 @@ RESUMEN:`;
           startTime,
           endTime,
         );
+
+        this.embeddingCache.set(result.lastInsertRowid as number, embedding);
       } catch (err: any) {
         console.error('[MemoryService] embedAndStoreChunks error:', err.message);
       }
     }
-
-    // Invalidate embedding cache for this session
-    this.embeddingCache.delete(sessionKey);
   }
 
   private async embedConversationChunks(
     sessionKey: string,
     messages: Array<{ role: string; content: string; timestamp: number }>,
   ): Promise<void> {
-    // Build conversation text with timestamps for context
     const text = messages.map(m => {
       const date = new Date(m.timestamp).toLocaleDateString('es-MX');
       return `[${date}] ${m.role === 'user' ? 'Usuario' : 'SofLIA'}: ${m.content}`;
@@ -730,39 +679,29 @@ RESUMEN:`;
   private chunkText(text: string): string[] {
     const chunkSize = CHUNK_TOKENS * CHARS_PER_TOKEN;
     const overlap = CHUNK_OVERLAP * CHARS_PER_TOKEN;
-
     if (text.length <= chunkSize) return [text];
 
     const chunks: string[] = [];
     let start = 0;
-
     while (start < text.length) {
       let end = start + chunkSize;
       if (end >= text.length) {
         chunks.push(text.slice(start));
         break;
       }
-
-      // Try to break at a newline or period near the end
       const searchStart = Math.max(start + chunkSize - overlap, start);
       const segment = text.slice(searchStart, end);
       const lastNewline = segment.lastIndexOf('\n');
       const lastPeriod = segment.lastIndexOf('. ');
-
-      if (lastNewline > 0) {
-        end = searchStart + lastNewline + 1;
-      } else if (lastPeriod > 0) {
-        end = searchStart + lastPeriod + 2;
-      }
-
+      if (lastNewline > 0) end = searchStart + lastNewline + 1;
+      else if (lastPeriod > 0) end = searchStart + lastPeriod + 2;
       chunks.push(text.slice(start, end));
       start = end - overlap;
     }
-
     return chunks.filter(c => c.trim().length > 20);
   }
 
-  // ─── Facts (structured memory, replaces whatsapp-memories.json) ────
+  // ─── Facts (structured memory) ────
 
   saveFact(params: {
     phoneNumber: string | null;
@@ -772,26 +711,15 @@ RESUMEN:`;
     context?: string;
   }): { success: boolean; message?: string } {
     if (!this.db) return { success: false, message: 'Database not initialized' };
-
     try {
-      // Upsert: if same phone+category+key exists, update it
       this.db.prepare(`
         INSERT INTO facts (phone_number, category, fact_key, fact_value, source_context, updated_at)
         VALUES (?, ?, ?, ?, ?, datetime('now'))
         ON CONFLICT(phone_number, category, fact_key) DO UPDATE SET
           fact_value = excluded.fact_value,
           source_context = excluded.source_context,
-          updated_at = datetime('now'),
-          confidence = 1.0
-      `).run(
-        params.phoneNumber,
-        params.category,
-        params.key,
-        params.value,
-        params.context || null,
-      );
-
-      console.log(`[MemoryService] Fact saved: [${params.category}] ${params.key} = ${params.value}`);
+          updated_at = datetime('now')
+      `).run(params.phoneNumber, params.category, params.key, params.value, params.context || null);
       return { success: true, message: 'Dato guardado.' };
     } catch (err: any) {
       console.error('[MemoryService] saveFact error:', err.message);
@@ -805,10 +733,8 @@ RESUMEN:`;
       const rows = this.db.prepare(`
         SELECT fact_key, fact_value, category FROM facts
         WHERE phone_number = ? OR phone_number IS NULL
-        ORDER BY updated_at DESC
-        LIMIT 50
+        ORDER BY updated_at DESC LIMIT 50
       `).all(phoneNumber) as Array<{ fact_key: string; fact_value: string; category: string }>;
-
       return rows.map(r => ({ key: r.fact_key, value: r.fact_value, category: r.category }));
     } catch (err: any) {
       console.error('[MemoryService] getFacts error:', err.message);
@@ -821,20 +747,14 @@ RESUMEN:`;
     try {
       this.db.prepare('DELETE FROM facts WHERE id = ?').run(factId);
       return true;
-    } catch {
-      return false;
-    }
+    } catch { return false; }
   }
-
-  // ─── Explicit semantic search (for agent tool) ─────────────────────
 
   async searchMemory(sessionKey: string, phoneNumber: string, query: string, maxResults: number = SEMANTIC_TOP_K): Promise<Array<{ text: string; score: number; date: string }>> {
     if (!this.apiKey) return [];
-
     try {
       const queryEmbedding = await this.embedText(query);
       if (!queryEmbedding) return [];
-
       const results = this.semanticSearch(sessionKey, phoneNumber, queryEmbedding, maxResults);
       return results.map(r => ({
         text: r.text,
@@ -851,21 +771,19 @@ RESUMEN:`;
 
   async compactOldData(daysToKeep: number = 90): Promise<{ deletedMessages: number; deletedChunks: number }> {
     if (!this.db) return { deletedMessages: 0, deletedChunks: 0 };
-
     const cutoff = Date.now() - (daysToKeep * 24 * 60 * 60 * 1000);
-
     try {
       const msgResult = this.db.prepare('DELETE FROM messages WHERE timestamp < ?').run(cutoff);
+      
+      const chunksToDelete = this.db.prepare('SELECT id FROM memory_chunks WHERE source_end_time < ?').all(cutoff) as Array<{ id: number }>;
       const chunkResult = this.db.prepare('DELETE FROM memory_chunks WHERE source_end_time < ?').run(cutoff);
+      
+      for (const row of chunksToDelete) {
+        this.embeddingCache.delete(row.id);
+      }
 
-      // Clear embedding cache
-      this.embeddingCache.clear();
-
-      const result = {
-        deletedMessages: msgResult.changes,
-        deletedChunks: chunkResult.changes,
-      };
-      console.log(`[MemoryService] Compacted: ${result.deletedMessages} messages, ${result.deletedChunks} chunks older than ${daysToKeep} days`);
+      const result = { deletedMessages: msgResult.changes, deletedChunks: chunkResult.changes };
+      console.log(`[MemoryService] Compacted: ${result.deletedMessages} messages, ${result.deletedChunks} chunks`);
       return result;
     } catch (err: any) {
       console.error('[MemoryService] compactOldData error:', err.message);
@@ -875,35 +793,22 @@ RESUMEN:`;
 
   getStats(sessionKey?: string): { messageCount: number; chunkCount: number; factCount: number; summaryCount: number } {
     if (!this.db) return { messageCount: 0, chunkCount: 0, factCount: 0, summaryCount: 0 };
-
     try {
       const where = sessionKey ? 'WHERE session_key = ?' : '';
       const params = sessionKey ? [sessionKey] : [];
-
       const msgCount = (this.db.prepare(`SELECT COUNT(*) as cnt FROM messages ${where}`).get(...params) as any).cnt;
       const chunkCount = (this.db.prepare(`SELECT COUNT(*) as cnt FROM memory_chunks ${where}`).get(...params) as any).cnt;
       const summaryCount = (this.db.prepare(`SELECT COUNT(*) as cnt FROM summaries ${where}`).get(...params) as any).cnt;
       const factCount = (this.db.prepare('SELECT COUNT(*) as cnt FROM facts').get() as any).cnt;
-
       return { messageCount: msgCount, chunkCount, factCount, summaryCount };
     } catch {
       return { messageCount: 0, chunkCount: 0, factCount: 0, summaryCount: 0 };
     }
   }
 
-  /**
-   * Clear recent conversation context (for /reset command).
-   * Does NOT delete persisted messages — those stay for long-term recall.
-   */
   clearSessionContext(sessionKey: string): void {
-    // The conversation history for Gemini is rebuilt from SQLite each time.
-    // Clearing just means the next getConversationHistory() will return a fresh window.
-    // We don't need to delete anything — the history trimming in getConversationHistory
-    // already only returns the most recent N messages.
-    // But we can add a "reset marker" so getConversationHistory starts fresh.
     if (!this.db) return;
     try {
-      // Insert a special reset marker
       this.db.prepare(`
         INSERT INTO messages (session_key, phone_number, group_jid, role, content, timestamp)
         VALUES (?, '', NULL, 'user', '__RESET__', ?)
@@ -913,51 +818,28 @@ RESUMEN:`;
     }
   }
 
-  /**
-   * Get conversation history, respecting reset markers.
-   */
   getConversationHistorySinceReset(sessionKey: string, limit: number = RECENT_MESSAGES_LIMIT): Array<{ role: string; parts: Array<{ text: string }> }> {
     if (!this.db) return [];
-
     try {
-      // Find the most recent reset marker
       const resetRow = this.db.prepare(`
-        SELECT timestamp FROM messages
-        WHERE session_key = ? AND content = '__RESET__'
+        SELECT timestamp FROM messages WHERE session_key = ? AND content = '__RESET__'
         ORDER BY timestamp DESC LIMIT 1
       `).get(sessionKey) as { timestamp: number } | undefined;
-
       const sinceTs = resetRow?.timestamp || 0;
-
       const messages = this.db.prepare(`
         SELECT role, content, timestamp FROM messages
         WHERE session_key = ? AND timestamp > ? AND content != '__RESET__'
-        ORDER BY timestamp DESC
-        LIMIT ?
-      `).all(sessionKey, sinceTs, limit) as Array<{ role: string; content: string; timestamp: number }>;
-
-      // Reverse to chronological
+        ORDER BY timestamp DESC LIMIT ?
+      `).all(sessionKey, sinceTs, limit) as any[];
       messages.reverse();
-
-      const history: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+      const history: any[] = [];
       for (const msg of messages) {
         const role = msg.role === 'user' ? 'user' : 'model';
-        if (history.length > 0 && history[history.length - 1].role === role) {
-          history[history.length - 1].parts.push({ text: msg.content });
-        } else {
-          history.push({ role, parts: [{ text: msg.content }] });
-        }
+        if (history.length > 0 && history[history.length - 1].role === role) history[history.length - 1].parts.push({ text: msg.content });
+        else history.push({ role, parts: [{ text: msg.content }] });
       }
-
-      // Ensure starts with user
-      while (history.length > 0 && history[0].role === 'model') {
-        history.shift();
-      }
-      // Ensure ends with model
-      while (history.length > 0 && history[history.length - 1].role === 'user') {
-        history.pop();
-      }
-
+      while (history.length > 0 && history[0].role === 'model') history.shift();
+      while (history.length > 0 && history[history.length - 1].role === 'user') history.pop();
       return history;
     } catch (err: any) {
       console.error('[MemoryService] getConversationHistorySinceReset error:', err.message);
@@ -965,34 +847,21 @@ RESUMEN:`;
     }
   }
 
-  // ─── Migration: whatsapp-memories.json → facts table ───────────────
-
   private migrateOldMemories(): void {
     try {
       if (!fs.existsSync(OLD_MEMORIES_PATH)) return;
-
       const data = JSON.parse(fs.readFileSync(OLD_MEMORIES_PATH, 'utf-8'));
       if (!Array.isArray(data) || data.length === 0) return;
-
-      console.log(`[MemoryService] Migrating ${data.length} memories from whatsapp-memories.json`);
-
+      console.log(`[MemoryService] Migrating ${data.length} memories`);
       for (const memory of data) {
         const lesson = memory.lesson || memory.text || '';
         if (!lesson.trim()) continue;
-
-        // Generate a short key from the lesson
         const key = lesson.slice(0, 50).replace(/[^a-zA-Z0-9áéíóúñ\s]/g, '').trim().replace(/\s+/g, '_').toLowerCase();
-
         this.saveFact({
-          phoneNumber: null, // Global fact
-          category: 'correction',
-          key: key || `legacy_${Date.now()}`,
-          value: lesson,
-          context: memory.context || 'Migrado de whatsapp-memories.json',
+          phoneNumber: null, category: 'correction', key: key || `legacy_${Date.now()}`,
+          value: lesson, context: memory.context || 'Migrado de whatsapp-memories.json',
         });
       }
-
-      // Rename old file
       const backupPath = OLD_MEMORIES_PATH + '.migrated';
       fs.renameSync(OLD_MEMORIES_PATH, backupPath);
       console.log(`[MemoryService] Migration complete. Old file renamed to ${backupPath}`);

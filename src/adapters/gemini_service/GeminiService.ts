@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
-import { AIAssistant } from '../../core/ports/AIAssistant';
+import type { AIAssistant } from '../../core/ports/AIAssistant';
 
 export class GeminiService implements AIAssistant {
   private genAI: GoogleGenerativeAI;

@@ -1,4 +1,5 @@
-import { sofiaSupa, SofiaOrganizationUser, SofiaUser } from '../lib/sofia-client';
+import { sofiaSupa } from '../lib/sofia-client';
+import type { SofiaOrganizationUser, SofiaUser } from '../lib/sofia-client';
 
 export interface OrgMember extends SofiaOrganizationUser {
   user_profile?: SofiaUser;

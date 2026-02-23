@@ -4,7 +4,7 @@
  * Follows the same EventEmitter pattern as WhatsAppService.
  */
 import { EventEmitter } from 'node:events';
-import { app, desktopCapturer, powerMonitor } from 'electron';
+import { app, desktopCapturer, powerMonitor, type WebContents } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 
@@ -282,6 +282,86 @@ export class MonitoringService extends EventEmitter {
       await fs.mkdir(this.screenshotDir, { recursive: true });
     } catch {
       // Already exists
+    }
+  }
+
+  // ─── Semantic Snapshots via Accessibility Tree (Chromium) ─────────
+
+  async getSemanticSnapshot(webContents: WebContents): Promise<string> {
+    try {
+      const isAttached = webContents.debugger.isAttached();
+      if (!isAttached) {
+        webContents.debugger.attach('1.3');
+      }
+
+      await webContents.debugger.sendCommand('DOM.enable');
+      
+      const { nodes } = await webContents.debugger.sendCommand('Accessibility.getFullAXTree') as any;
+
+      const semanticNodes: string[] = [];
+
+      if (nodes && Array.isArray(nodes)) {
+        // Filter inactive nodes
+        const activeNodes = nodes.filter((n: any) => {
+          return !n.ignored && n.role && n.role.value && n.role.value !== 'generic';
+        });
+
+        // Batch box model requests to avoid overwhelming IPC
+        const BATCH_SIZE = 10;
+        for (let i = 0; i < activeNodes.length; i += BATCH_SIZE) {
+          const batch = activeNodes.slice(i, i + BATCH_SIZE);
+          const batchPromises = batch.map(async (node: any) => {
+            const role = node.role?.value || 'unknown';
+            const name = node.name?.value || '';
+            let bbox = '';
+
+            if (node.backendDOMNodeId) {
+              try {
+                const { model } = await webContents.debugger.sendCommand('DOM.getBoxModel', { 
+                  backendNodeId: node.backendDOMNodeId 
+                });
+                if (model && model.border) {
+                  const x = model.border[0];
+                  const y = model.border[1];
+                  const width = model.border[2] - model.border[0];
+                  const height = model.border[5] - model.border[1];
+                  bbox = `${Math.round(x)},${Math.round(y)},${Math.round(width)},${Math.round(height)}`;
+                }
+              } catch {
+                // Ignore nodes without a box model
+              }
+            }
+
+            let nodeStr = `<node role="${role}"`;
+            if (name) {
+              const safeName = name.replace(/&/g, '&amp;')
+                                   .replace(/</g, '&lt;')
+                                   .replace(/>/g, '&gt;')
+                                   .replace(/"/g, '&quot;')
+                                   .replace(/'/g, '&apos;');
+              nodeStr += ` name="${safeName}"`;
+            }
+            if (bbox) nodeStr += ` bbox="${bbox}"`;
+            nodeStr += ` />`;
+            return nodeStr;
+          });
+
+          const xmlNodes = await Promise.all(batchPromises);
+          semanticNodes.push(...xmlNodes);
+        }
+      }
+
+      await webContents.debugger.sendCommand('DOM.disable');
+
+      if (!isAttached) {
+        webContents.debugger.detach();
+      }
+
+      return `<semantic-snapshot>\n  ${semanticNodes.join('\n  ')}\n</semantic-snapshot>`;
+
+    } catch (err: any) {
+      console.error('[MonitoringService] Error generating semantic snapshot:', err.message);
+      return `<semantic-snapshot error="${err.message}" />`;
     }
   }
 

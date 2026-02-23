@@ -72,7 +72,7 @@ Please retry in 20.089651007s. [{"@type":"type.googleapis.com/google.rpc.Help","
 - **Run ID**: `run_1771799463756`
 - **Timestamp**: 2026-02-22T22:38:49.915Z
 - **Categoría**: coding_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1771826278630` — 2026-02-23)
 
 ### Descripción
 
@@ -150,7 +150,7 @@ Step: {
 - **Run ID**: `run_1771799463756`
 - **Timestamp**: 2026-02-22T22:38:52.991Z
 - **Categoría**: coding_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1771826278630` — 2026-02-23)
 
 ### Descripción
 
@@ -180,6 +180,98 @@ Step: {
   "source": "https://nutjs.dev/",
   "estimatedLines": 5
 }
+```
+
+---
+## ❌ [CODING_ERROR] — 2026-02-23
+
+- **Run ID**: `run_1771837202979`
+- **Timestamp**: 2026-02-23T09:04:48.810Z
+- **Categoría**: coding_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El agente CoderAgent_1 falló al implementar cambios en `Terminal`: Command failed after retries: Command failed: npm install zod sqlite-vec@latest --legacy-peer-deps && npm update electron @google/generative-ai @supabase/supabase-js better-sqlite3 --legacy-peer-deps
+npm error code ETARGET
+npm error notarget No matching version found for @whiskeysockets/baileys@^7.0.0.
+npm error notarget In most cases you or one of your dependencies are requesting
+npm error notarget a package version that doesn't exist.
+npm error A complete log of this run can be found in: C:\Users\fysg5\AppData\Local\npm-cache\_logs\2026-02-23T09_04_46_640Z-debug-0.log
+
+
+### Contexto técnico
+
+```
+File: Terminal
+Step: {
+  "step": 1,
+  "file": "Terminal",
+  "action": "command",
+  "category": "dependencies",
+  "description": "Actualizar dependencias seguras (patch/minor) e instalar nuevas librerías sin saltos major.",
+  "command": "npm install zod sqlite-vec@latest && npm update electron @google/generative-ai @supabase/supabase-js @whiskeysockets/baileys better-sqlite3",
+  "details": "Se instalan `zod` y `sqlite-vec` como dependencias nuevas. Se actualiza Electron a la rama 30.x más segura, `@google/generative-ai` a la versión 0.24.x para mejor estabilidad asíncrona, y Supabase a la 2.96.0. No se modifican las versiones Major de ningún paquete para respetar la directiva estricta.",
+  "source": "https://www.electronjs.org/releases/stable?version=30",
+  "estimatedLines": 5
+}
+```
+
+---
+## ❌ [CODING_ERROR] — 2026-02-23
+
+- **Run ID**: `run_1771837202974`
+- **Timestamp**: 2026-02-23T09:05:43.591Z
+- **Categoría**: coding_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El agente CoderAgent_1 falló al implementar cambios en `Terminal`: Command failed after retries: Command failed: npm install @modelcontextprotocol/sdk @supabase/supabase-js --legacy-peer-deps
+npm error code ETARGET
+npm error notarget No matching version found for @whiskeysockets/baileys@^7.0.0.
+npm error notarget In most cases you or one of your dependencies are requesting
+npm error notarget a package version that doesn't exist.
+npm error A complete log of this run can be found in: C:\Users\fysg5\AppData\Local\npm-cache\_logs\2026-02-23T09_05_40_754Z-debug-0.log
+
+
+### Contexto técnico
+
+```
+File: Terminal
+Step: {
+  "step": 1,
+  "file": "Terminal",
+  "action": "command",
+  "category": "dependencies",
+  "description": "Instalar el SDK de MCP y actualizar dependencias a sus versiones minor/patch más recientes permitidas.",
+  "command": "npm install @modelcontextprotocol/sdk @supabase/supabase-js@^2.97.0 @whiskeysockets/baileys@~7.0.2",
+  "details": "Añade el SDK oficial de MCP. Actualiza Supabase a la versión 2.97.0 (mejoras de Auth y Postgrest) y Baileys a la rama 7.0.2 para solucionar el bug 'device_removed 401' en sesiones largas sin introducir cambios breaking (Major version).",
+  "source": "https://github.com/supabase/supabase-js/releases, https://github.com/WhiskeySockets/Baileys/releases",
+  "estimatedLines": 5
+}
+```
+
+---
+## ❌ [BUILD_FAILURE] — 2026-02-23
+
+- **Run ID**: `run_1771837202974`
+- **Timestamp**: 2026-02-23T09:51:31.745Z
+- **Categoría**: build_failure
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El build falló persistentemente después de 4 intentos de auto-corrección.
+
+Errores finales (1):
+[TS1484] electron/autodev-service.ts:35 — 'FunctionDeclaration' is a type and must be imported using a type-only import when 'verbatimModuleSyntax' is enabled.
+
+### Contexto técnico
+
+```
+Archivos afectados: electron/autodev-service.ts
+Códigos de error: TS1484
 ```
 
 ---

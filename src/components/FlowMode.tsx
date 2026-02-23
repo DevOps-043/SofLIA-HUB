@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { refineFlowText, GroundingSource, transcribeAudio } from '../services/flow-service';
-import { LiveClient, AudioCapture } from '../services/live-api';
+import { refineFlowText, type GroundingSource, transcribeAudio } from '../services/flow-service';
+import type { LiveClient, AudioCapture } from '../services/live-api';
 
 interface FlowModeProps {
   isActive: boolean;

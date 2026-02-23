@@ -1,5 +1,5 @@
-import { TrackingRepository } from '../../ports/TrackingRepository';
-import { OSAutomation } from '../../ports/OSAutomation';
+import type { TrackingRepository } from '../../ports/TrackingRepository';
+import type { OSAutomation } from '../../ports/OSAutomation';
 // import { ActivityLog } from '../../entities/ActivityLog'; // Unused in this file for now, but imported for completeness if needed later
 
 export class StartTracking {

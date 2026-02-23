@@ -181,7 +181,9 @@ function createFlowWindow() {
     movable: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
-      additionalArguments: ['--view-mode=flow']
+      additionalArguments: ['--view-mode=flow'],
+      nodeIntegration: false,
+      contextIsolation: true,
     },
   })
 
@@ -278,6 +280,8 @@ function createWindow() {
     icon: path.join(process.env.VITE_PUBLIC!, 'assets/icono.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
+      nodeIntegration: false,
+      contextIsolation: true,
     },
   })
 

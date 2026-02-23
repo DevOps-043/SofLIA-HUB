@@ -1,4 +1,4 @@
-import { OSAutomation } from '../../core/ports/OSAutomation';
+import type { OSAutomation } from '../../core/ports/OSAutomation';
 
 export class NodeOSAutomation implements OSAutomation {
   async getActiveWindow(): Promise<{ title: string; process: string; url?: string }> {

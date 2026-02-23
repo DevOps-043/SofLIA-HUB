@@ -1,4 +1,4 @@
-import { ActivityLog, MonitoringSession, DailySummary } from '../entities/ActivityLog';
+import type { ActivityLog, MonitoringSession, DailySummary } from '../entities/ActivityLog';
 
 export interface TrackingRepository {
   // Activity logs

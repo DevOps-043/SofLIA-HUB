@@ -3,11 +3,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import type { UserTool, ToolCategory, CreateUserToolInput } from '../services/tools-service';
 import {
-  UserTool,
-  ToolCategory,
   TOOL_CATEGORIES,
-  CreateUserToolInput,
   createUserTool,
   updateUserTool,
 } from '../services/tools-service';

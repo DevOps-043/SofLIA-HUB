@@ -2,7 +2,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import type { Session, AuthChangeEvent } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { isSofiaConfigured } from '../lib/sofia-client';
-import { sofiaAuth, SofiaContext, SofiaAuthResult, SofiaAuthUser } from '../services/sofia-auth';
+import { sofiaAuth, type SofiaContext, type SofiaAuthResult, type SofiaAuthUser } from '../services/sofia-auth';
 
 type AuthUser = SofiaAuthUser | null;
 

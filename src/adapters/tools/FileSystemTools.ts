@@ -1,4 +1,4 @@
-import { ToolImplementation } from '../../core/ports/tools/Tool';
+import { type ToolImplementation } from '../../core/ports/tools/Tool';
 // import fs from 'fs/promises'; // This will be used in Electron main process or via IPC, but for now in Node adapter
 // Note: In Electron renderer, we can't use 'fs' directly unless nodeIntegration is true.
 // For now, we'll mock or use a preload bridge pattern.

@@ -3,7 +3,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import { UserTool, getUserTools, deleteUserTool } from '../services/tools-service';
+import type { UserTool } from '../services/tools-service';
+import { getUserTools, deleteUserTool } from '../services/tools-service';
 
 interface ToolLibraryProps {
   isOpen: boolean;

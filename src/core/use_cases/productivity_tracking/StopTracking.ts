@@ -1,4 +1,4 @@
-import { TrackingRepository } from '../../ports/TrackingRepository';
+import type { TrackingRepository } from '../../ports/TrackingRepository';
 // import { OSAutomation } from '../../ports/OSAutomation'; // Unused for now
 
 export class StopTracking {
