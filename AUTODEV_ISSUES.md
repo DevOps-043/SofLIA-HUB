@@ -240,3 +240,56 @@ Args: {}
 ```
 
 ---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-02-23
+
+- **Timestamp**: 2026-02-23T05:56:52.591Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `knowledge_read` falló con error: Archivo no encontrado: memory/2026-02-22.md
+
+- **Herramienta**: `knowledge_read`
+- **Error**: Archivo no encontrado: memory/2026-02-22.md
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [RUNTIME_ERROR] — 2026-02-23
+
+- **Run ID**: `run_1771825141027`
+- **Timestamp**: 2026-02-23T05:58:35.883Z
+- **Categoría**: runtime_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Run falló con error: Command failed: git checkout main
+error: Your local changes to the following files would be overwritten by checkout:
+	AUTODEV_ISSUES.md
+Please commit your changes or stash them before you switch branches.
+Aborting
+
+
+### Contexto técnico
+
+```
+Error: Command failed: git checkout main
+error: Your local changes to the following files would be overwritten by checkout:
+	AUTODEV_ISSUES.md
+Please commit your changes or stash them before you switch branches.
+Aborting
+
+    at genericNodeError (node:internal/errors:983:15)
+    at wrappedFn (node:internal/errors:537:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:518:28)
+    at maybeClose (node:internal/child_process:1101:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:304:5)
+```
+
+---
