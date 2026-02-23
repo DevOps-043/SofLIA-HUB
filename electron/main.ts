@@ -135,32 +135,7 @@ monitoringService.on('session-ended', async (data: any) => {
   }
 })
 
-// ─── Summary IPC handlers ─────────────────────────────────────────────
-ipcMain.handle('monitoring:generate-summary', async (_event, activities: any[], sessionInfo: any) => {
-  if (!currentGeminiApiKey) {
-    return { success: false, error: 'API key not configured' }
-  }
-  try {
-    const summary = await generateDailySummary(currentGeminiApiKey, activities, sessionInfo)
-    return { success: true, summary }
-  } catch (err: any) {
-    return { success: false, error: err.message }
-  }
-})
 
-ipcMain.handle('monitoring:send-summary-whatsapp', async (_event, phoneNumber: string, summaryText: string) => {
-  try {
-    if (!waService || !waService.getStatus().connected) {
-      return { success: false, error: 'WhatsApp no conectado' }
-    }
-    const cleanNumber = phoneNumber.replace(/[^0-9]/g, '')
-    const jid = `${cleanNumber}@s.whatsapp.net`
-    await waService.sendText(jid, summaryText)
-    return { success: true }
-  } catch (err: any) {
-    return { success: false, error: err.message }
-  }
-})
 
 function createFlowWindow() {
   if (flowWin) {
@@ -501,8 +476,9 @@ app.whenReady().then(async () => {
   // Restore saved Google/Microsoft OAuth connections from disk
   calendarService.loadConnections()
   registerComputerUseHandlers()
-  registerMonitoringHandlers(monitoringService, () => win)
+  registerMonitoringHandlers(monitoringService, () => win, waService, () => currentGeminiApiKey)
   registerCalendarHandlers(calendarService, () => win)
+
   registerGmailHandlers(gmailService, () => win)
   registerDriveHandlers(driveService, () => win)
   registerGChatHandlers(gchatService, () => win)

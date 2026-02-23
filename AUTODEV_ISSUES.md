@@ -183,3 +183,22 @@ Step: {
 ```
 
 ---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-02-23
+
+- **Timestamp**: 2026-02-23T05:38:13.197Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `run_claude_code` falló con error: Acción cancelada por el usuario.
+
+- **Herramienta**: `run_claude_code`
+- **Error**: Acción cancelada por el usuario.
+### Contexto
+
+```
+Args: {}
+```
+
+---

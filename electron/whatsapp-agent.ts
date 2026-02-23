@@ -1155,7 +1155,7 @@ interface PendingConfirmation {
 const pendingConfirmations = new Map<string, PendingConfirmation>();
 
 // ─── Model selection: prefer stable models for main process ─────────
-const WA_MODEL = 'gemini-2.5-flash';
+const WA_MODEL = 'gemini-3-flash-preview';
 
 // ─── Smart file search — uses PowerShell for reliable native search ──
 const execAsync = promisify(execCb);

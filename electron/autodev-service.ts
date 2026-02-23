@@ -606,22 +606,22 @@ export class AutoDevService extends EventEmitter {
       {
         name: 'SecurityAgent',
         fn: () => this.runResearchAgent('security', depsList,
-          'Busca CVEs, security advisories, vulnerabilidades OWASP para las dependencias. Prioriza vulnerabilidades críticas y altas.'),
+          'Busca CVEs, security advisories, vulnerabilidades OWASP para las dependencias. Prioriza vulnerabilidades críticas y altas.', knownIssues),
       },
       {
         name: 'DependenciesAgent',
         fn: () => this.runResearchAgent('dependencies', depsList,
-          'Busca versiones nuevas de dependencias, changelogs importantes, breaking changes. Identifica paquetes significativamente desactualizados.'),
+          'Busca versiones nuevas de dependencias, changelogs importantes, breaking changes. Identifica paquetes significativamente desactualizados.', knownIssues),
       },
       {
         name: 'FeaturesAgent',
         fn: () => this.runResearchAgent('features', depsList,
-          'PRIORIDAD MÁXIMA: Investiga funcionalidades de OpenClaw, OpenHands y Cursor. Identifica herramientas y patrones innovadores para implementar en SofLIA.'),
+          'PRIORIDAD MÁXIMA: Investiga funcionalidades de OpenClaw, OpenHands y Cursor. Identifica herramientas y patrones innovadores para implementar en SofLIA. USA EL FEEDBACK DEL USUARIO EXPLICADO EN EL CONTEXTO.', knownIssues),
       },
       {
         name: 'QualityAgent',
         fn: () => this.runResearchAgent('quality', depsList,
-          'Busca best practices actuales para Electron, React 19, TypeScript 5.7, Vite. Identifica patrones modernos recomendados.'),
+          'Busca best practices actuales para Electron, React 19, TypeScript 5.7, Vite. Identifica patrones modernos recomendados.', knownIssues),
       },
       {
         name: 'NpmAudit',
@@ -961,6 +961,7 @@ export class AutoDevService extends EventEmitter {
     category: string,
     depsList: string,
     focusPrompt: string,
+    extraContext: string = '',
   ): Promise<ResearchFinding[]> {
     try {
       const ai = this.getGenAI();
@@ -972,6 +973,7 @@ export class AutoDevService extends EventEmitter {
       const prompt = RESEARCH_GROUNDING_PROMPT
         .replace('{DEPENDENCIES_LIST}', depsList)
         .replace('{CATEGORIES}', category)
+        + `\n\n## CONTEXTO ADICIONAL (ISSUES/FEEDBACK)\n${extraContext}`
         + `\n\n## FOCO ESPECÍFICO DE ESTE AGENTE\n${focusPrompt}`;
 
       const result = await model.generateContent(prompt);
@@ -1047,9 +1049,10 @@ ${codeContext}
 ## Categorías: ${this.config.categories.join(', ')}
 
 ## Instrucciones
-1. Para cada hallazgo previo, busca más detalles: changelogs, fixes, migration guides
-2. Verifica que las soluciones propuestas son correctas leyendo documentación oficial
-3. Máximo ${this.config.maxResearchQueries} búsquedas web en total
+1. PRIORIDAD MÁXIMA: Revisa la sección "USER FEEDBACK & SUGGESTIONS" dentro del Código. Si el usuario pide investigar o implementar algo específico (ej. OpenClaw), ÚSALO como tu objetivo principal de investigación.
+2. Para cada hallazgo previo, busca más detalles: changelogs, fixes, migration guides.
+3. Verifica que las soluciones propuestas son correctas leyendo documentación oficial.
+4. Máximo ${this.config.maxResearchQueries} búsquedas web en total.
 
 Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings": "...", "sources": ["..."], "actionable": true/false }] }`;
 
