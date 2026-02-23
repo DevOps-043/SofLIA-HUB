@@ -4,7 +4,7 @@
  * Follows the same EventEmitter pattern as WhatsAppService.
  */
 import { EventEmitter } from 'node:events';
-import { app, desktopCapturer, powerMonitor } from 'electron';
+import { app, desktopCapturer, powerMonitor, BrowserWindow } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 
@@ -25,6 +25,7 @@ export interface ActivitySnapshot {
   idleSeconds: number;
   screenshotPath?: string;
   ocrText?: string;
+  semanticSnapshot?: string;
   timestamp: Date;
 }
 
@@ -208,6 +209,9 @@ export class MonitoringService extends EventEmitter {
       }
     }
 
+    // 4.5 Capture Semantic Snapshot
+    const semanticSnapshot = await this.captureSemanticSnapshot();
+
     // 5. Delete screenshot after OCR (keep disk clean)
     if (screenshotPath) {
       fs.unlink(screenshotPath).catch(() => {});
@@ -222,6 +226,7 @@ export class MonitoringService extends EventEmitter {
       idleSeconds,
       screenshotPath: undefined, // Path deleted, only ocrText persists
       ocrText,
+      semanticSnapshot,
       timestamp,
     };
 
@@ -242,6 +247,88 @@ export class MonitoringService extends EventEmitter {
     }
 
     console.log(`[MonitoringService] #${this.snapshotCount} | ${processName}: ${windowTitle.slice(0, 60)}${isIdle ? ' [IDLE]' : ''}`);
+  }
+
+  private async captureSemanticSnapshot(): Promise<string | undefined> {
+    try {
+      const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
+      if (!win || !win.webContents) return undefined;
+
+      const wc = win.webContents;
+      let wasAttached = false;
+      try {
+        wasAttached = wc.debugger.isAttached();
+      } catch (e) {
+        // ignore
+      }
+
+      if (!wasAttached) {
+        try {
+          wc.debugger.attach('1.3');
+        } catch (err) {
+          console.warn('[MonitoringService] Could not attach debugger for semantic snapshot', err);
+          return undefined;
+        }
+      }
+
+      const axTree: any = await wc.debugger.sendCommand('Accessibility.getFullAXTree');
+      
+      if (!wasAttached) {
+        wc.debugger.detach();
+      }
+
+      if (!axTree || !axTree.nodes || !Array.isArray(axTree.nodes)) return undefined;
+
+      return this.formatAXTree(axTree.nodes);
+    } catch (err: any) {
+      console.error('[MonitoringService] Semantic Snapshot error:', err.message);
+      return undefined;
+    }
+  }
+
+  private formatAXTree(nodes: any[]): string {
+    if (!nodes || nodes.length === 0) return '';
+    
+    const nodeMap = new Map();
+    for (const node of nodes) {
+      nodeMap.set(node.nodeId, node);
+    }
+
+    let root = nodes.find(n => n.role?.value === 'RootWebArea' || n.role?.value === 'WebArea');
+    if (!root) root = nodes[0];
+
+    const visited = new Set();
+
+    const buildTreeString = (node: any, depth: number): string => {
+      if (!node || visited.has(node.nodeId)) return '';
+      visited.add(node.nodeId);
+
+      let str = '';
+      let nextDepth = depth;
+      
+      if (!node.ignored) {
+        const indent = '  '.repeat(depth);
+        const role = node.role?.value || 'unknown';
+        const name = node.name?.value ? ` name="${node.name.value}"` : '';
+        const description = node.description?.value ? ` desc="${node.description.value}"` : '';
+        const value = node.value?.value ? ` value="${node.value.value}"` : '';
+        
+        str = `${indent}- [${role}]${name}${description}${value}\n`;
+        nextDepth = depth + 1;
+      }
+      
+      if (node.childIds && Array.isArray(node.childIds)) {
+        for (const childId of node.childIds) {
+          const childNode = nodeMap.get(childId);
+          if (childNode) {
+            str += buildTreeString(childNode, nextDepth);
+          }
+        }
+      }
+      return str;
+    };
+
+    return buildTreeString(root, 0).trim();
   }
 
   private async takeScreenshot(timestamp: Date): Promise<string | undefined> {

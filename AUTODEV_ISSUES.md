@@ -202,3 +202,41 @@ Args: {}
 ```
 
 ---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-02-23
+
+- **Timestamp**: 2026-02-23T05:54:28.134Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `read_webpage` falló con error: Error leyendo la página: HTTP 404: Not Found
+
+- **Herramienta**: `read_webpage`
+- **Error**: Error leyendo la página: HTTP 404: Not Found
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-02-23
+
+- **Timestamp**: 2026-02-23T05:54:30.052Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `read_webpage` falló con error: Error leyendo la página: HTTP 404: Not Found
+
+- **Herramienta**: `read_webpage`
+- **Error**: Error leyendo la página: HTTP 404: Not Found
+### Contexto
+
+```
+Args: {}
+```
+
+---

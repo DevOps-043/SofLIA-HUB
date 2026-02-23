@@ -16,6 +16,7 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import Database from 'better-sqlite3';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // ─── Constants ───────────────────────────────────────────────────────
 const DB_PATH = path.join(app.getPath('userData'), 'soflia-memory.db');
@@ -51,6 +52,7 @@ interface StoredMessage {
   media_type: string | null;
   media_filename: string | null;
   timestamp: number;
+  consolidated?: number;
 }
 
 // ─── SQL Schema ──────────────────────────────────────────────────────
@@ -65,6 +67,7 @@ CREATE TABLE IF NOT EXISTS messages (
     media_type TEXT,
     media_filename TEXT,
     timestamp INTEGER NOT NULL,
+    consolidated INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -144,6 +147,9 @@ export class MemoryService extends EventEmitter {
   // Cache: session_key -> array of {id, embedding as number[]}
   private embeddingCache: Map<string, Array<{ id: number; embedding: number[]; startTime: number | null }>> = new Map();
 
+  private supabase: SupabaseClient | null = null;
+  private consolidationInterval: NodeJS.Timeout | null = null;
+
   constructor() {
     super();
   }
@@ -184,8 +190,21 @@ export class MemoryService extends EventEmitter {
       this.db.pragma('journal_mode = WAL');
       this.db.pragma('foreign_keys = ON');
       this.db.exec(SCHEMA_SQL);
+      
+      // Auto-migrate to add consolidated column if it doesn't exist
+      try {
+        const columns = this.db.prepare("PRAGMA table_info(messages)").all() as any[];
+        if (!columns.some(col => col.name === 'consolidated')) {
+          this.db.exec(`ALTER TABLE messages ADD COLUMN consolidated INTEGER DEFAULT 0`);
+        }
+      } catch (err: any) {
+        console.warn('[MemoryService] Migration for consolidated column failed:', err.message);
+      }
+
       console.log(`[MemoryService] Database initialized at ${DB_PATH}`);
       this.migrateOldMemories();
+
+      this.startConsolidationCron();
     } catch (err: any) {
       console.error('[MemoryService] Failed to initialize database:', err.message);
     }
@@ -196,10 +215,152 @@ export class MemoryService extends EventEmitter {
   }
 
   close(): void {
+    if (this.consolidationInterval) {
+      clearInterval(this.consolidationInterval);
+      this.consolidationInterval = null;
+    }
     if (this.db) {
       this.db.close();
       this.db = null;
       console.log('[MemoryService] Database closed');
+    }
+  }
+
+  // ─── Consolidation Cron Job (Short-term -> Long-term Memory) ────────
+
+  startConsolidationCron(): void {
+    if (this.consolidationInterval) {
+      clearInterval(this.consolidationInterval);
+    }
+    
+    // Run every 24 hours
+    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+    
+    this.consolidationInterval = setInterval(() => {
+      this.runConsolidationJob().catch(err => {
+        console.error('[MemoryService] Error in consolidation interval:', err);
+      });
+    }, TWENTY_FOUR_HOURS);
+    
+    // Initial run after 5 mins to catch up missed consolidations
+    setTimeout(() => {
+      this.runConsolidationJob().catch(err => {
+        console.error('[MemoryService] Error in initial consolidation:', err);
+      });
+    }, 5 * 60 * 1000);
+
+    console.log('[MemoryService] Memory Consolidation Cron Job started (runs every 24h)');
+  }
+
+  async runConsolidationJob(): Promise<void> {
+    if (!this.db || !this.apiKey) {
+      console.warn('[MemoryService] Cannot run consolidation job: DB or API key not ready.');
+      return;
+    }
+    
+    if (!this.supabase) {
+      const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+      if (supabaseUrl && supabaseKey) {
+        this.supabase = createClient(supabaseUrl, supabaseKey);
+      } else {
+        console.warn('[MemoryService] Cannot run consolidation job: Supabase client not configured.');
+        return;
+      }
+    }
+
+    try {
+      console.log('[MemoryService] Starting Memory Consolidation Cron Job...');
+
+      const sessions = this.db.prepare(`SELECT DISTINCT session_key FROM messages WHERE consolidated = 0`).all() as { session_key: string }[];
+
+      if (sessions.length === 0) {
+        console.log('[MemoryService] No new messages to consolidate.');
+        return;
+      }
+
+      for (const { session_key } of sessions) {
+        const messages = this.db.prepare(`
+          SELECT id, role, content, timestamp 
+          FROM messages 
+          WHERE session_key = ? AND consolidated = 0
+          ORDER BY timestamp ASC
+        `).all(session_key) as Array<{ id: number; role: string; content: string; timestamp: number }>;
+
+        if (messages.length === 0) continue;
+
+        const conversationText = messages.map(m => {
+          const time = new Date(m.timestamp).toLocaleString('es-MX');
+          return `[${time}] ${m.role === 'user' ? 'Usuario' : 'SofLIA'}: ${m.content}`;
+        }).join('\n');
+
+        // Generate structured summary with LLM
+        const summary = await this.callGeminiStructuredSummary(conversationText);
+        if (!summary) continue;
+
+        // Embed the structured summary
+        const embedding = await this.embedText(summary);
+        if (!embedding) continue;
+
+        // Extract phone number
+        const phoneNumber = session_key.includes(':') ? session_key.split(':').pop()! : session_key;
+
+        // Insert into Supabase
+        const { error } = await this.supabase.from('semantic_memories').insert({
+          session_key: session_key,
+          phone_number: phoneNumber,
+          memory_text: summary,
+          embedding: embedding,
+          created_at: new Date().toISOString()
+        });
+
+        if (error) {
+          console.error(`[MemoryService] Error inserting semantic memory into Supabase for ${session_key}:`, error);
+          continue;
+        }
+
+        // Mark local as consolidated using chunking to avoid SQL limits if too many messages
+        const ids = messages.map(m => m.id);
+        const batchSize = 100;
+        for (let i = 0; i < ids.length; i += batchSize) {
+            const batch = ids.slice(i, i + batchSize);
+            const placeholders = batch.map(() => '?').join(',');
+            this.db.prepare(`UPDATE messages SET consolidated = 1 WHERE id IN (${placeholders})`).run(...batch);
+        }
+        
+        console.log(`[MemoryService] Consolidated ${messages.length} messages for session ${session_key}`);
+      }
+      console.log('[MemoryService] Memory Consolidation Cron Job finished.');
+    } catch (err: any) {
+      console.error('[MemoryService] Error in runConsolidationJob:', err.message);
+    }
+  }
+
+  private async callGeminiStructuredSummary(conversationText: string): Promise<string | null> {
+    try {
+      const genAI = new GoogleGenerativeAI(this.apiKey);
+      const model = genAI.getGenerativeModel({ model: SUMMARIZE_MODEL });
+
+      const prompt = `Actúa como un consolidador de memoria para un asistente de IA.
+Analiza la siguiente conversación (memoria a corto plazo) y extrae los datos clave para la memoria a largo plazo.
+Genera un resumen estructurado en viñetas destacando:
+- Perfil del usuario y hechos personales.
+- Preferencias y gustos.
+- Temas recurrentes, decisiones o tareas acordadas.
+- Cualquier otro detalle relevante a futuro.
+
+Sé directo y objetivo. Excluye la plática trivial.
+
+CONVERSACIÓN:
+${truncateToTokens(conversationText, 6000)}
+
+MEMORIA ESTRUCTURADA:`;
+
+      const result = await model.generateContent(prompt);
+      return result.response.text().trim() || null;
+    } catch (err: any) {
+      console.error('[MemoryService] Gemini structured summary error:', err.message);
+      return null;
     }
   }
 
