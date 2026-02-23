@@ -37,7 +37,7 @@ export interface GeneratedSummary {
 
 // ─── Summary Generator ──────────────────────────────────────────────
 
-const SUMMARY_MODEL = 'gemini-2.5-flash';
+const SUMMARY_MODEL = 'gemini-3-flash-preview';
 
 export async function generateDailySummary(
   apiKey: string,

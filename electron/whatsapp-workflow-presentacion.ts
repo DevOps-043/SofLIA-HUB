@@ -88,7 +88,7 @@ export class PresentacionWorkflow {
   private async extractData(text: string) {
     try {
       const genAI = this.agent.getGenAI();
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash', generationConfig: { responseMimeType: 'application/json' } });
+      const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview', generationConfig: { responseMimeType: 'application/json' } });
       const prompt = `Extrae el correo electrónico y el nombre de la empresa del siguiente texto. 
 Responde ÚNICAMENTE con un JSON en este formato:
 { "company": "Nombre", "email": "correo@ejemplo.com" }
@@ -110,7 +110,7 @@ Texto: "${text}"`;
   private async generateProposal() {
     try {
       const genAI = this.agent.getGenAI();
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
       
       const internalKnowledge = `Pulse Hub es una agencia boutique de IA que desarrolla "SofLIA", un ecosistema de IA empresarial. Ofrecemos automatización de workflows, agentes IA (Whatsapp, Web, Desktop) integrados con sistemas internos y consultoría en transformación digital mediada por IA.`;
 
@@ -144,7 +144,7 @@ Este resumen es SOLO para que nuestro usuario local lo revise, no es la presenta
     try {
       // Formatear contenido detallado para Gamma
       const genAI = this.agent.getGenAI();
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
       const gammaPrompt = `Convierte este resumen ejecutivo en una presentación formal de 3 diapositivas:
 Resumen: ${this.data.proposalContent}
 

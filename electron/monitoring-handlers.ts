@@ -4,10 +4,14 @@
  */
 import { ipcMain, type BrowserWindow } from 'electron';
 import type { MonitoringService, MonitoringConfig } from './monitoring-service';
+import type { WhatsAppService } from './whatsapp-service';
+import { generateDailySummary } from './summary-generator';
 
 export function registerMonitoringHandlers(
   monitoringService: MonitoringService,
-  getMainWindow: () => BrowserWindow | null
+  getMainWindow: () => BrowserWindow | null,
+  waService?: WhatsAppService,
+  getApiKey?: () => string | null
 ): void {
   // ─── Start monitoring session ─────────────────────────────────────
   ipcMain.handle('monitoring:start', async (_event, userId: string, sessionId: string) => {
@@ -46,6 +50,40 @@ export function registerMonitoringHandlers(
     return { success: true, deleted };
   });
 
+  // ─── Generate summary ─────────────────────────────────────────────
+  ipcMain.handle('monitoring:generate-summary', async (_event, activities: any[], sessionInfo: any) => {
+    try {
+      if (!getApiKey) throw new Error('API Key provider not configured');
+      const apiKey = getApiKey();
+      if (!apiKey) throw new Error('Gemini API Key missing. Please set it in Settings.');
+
+      const summary = await generateDailySummary(apiKey, activities, sessionInfo);
+      return { success: true, ...summary };
+    } catch (err: any) {
+      console.error('[MonitoringHandlers] Summary generation failed:', err.message);
+      return { success: false, error: err.message };
+    }
+  });
+
+  // ─── Send summary via WhatsApp ───────────────────────────────────
+  ipcMain.handle('monitoring:send-summary-whatsapp', async (_event, phoneNumber: string, summaryText: string) => {
+    try {
+      if (!waService) throw new Error('WhatsApp service not available');
+      if (!waService.getStatus().connected) throw new Error('WhatsApp not connected');
+
+      // Normalize number
+      const cleanNumber = phoneNumber.replace(/[\s\-\+\(\)]/g, '');
+      const jid = cleanNumber.includes('@') ? cleanNumber : `${cleanNumber}@s.whatsapp.net`;
+      
+      console.log(`[MonitoringHandlers] Sending summary to ${jid}`);
+      await waService.sendText(jid, summaryText);
+      return { success: true };
+    } catch (err: any) {
+      console.error('[MonitoringHandlers] WhatsApp send failed:', err.message);
+      return { success: false, error: err.message };
+    }
+  });
+
   // ─── Forward events to renderer ───────────────────────────────────
   monitoringService.on('snapshot', (snapshot) => {
     const win = getMainWindow();
@@ -72,5 +110,5 @@ export function registerMonitoringHandlers(
     win?.webContents.send('monitoring:error', { message: err.message });
   });
 
-  console.log('[MonitoringHandlers] Registered successfully');
+  console.log('[MonitoringHandlers] Registered successfully with WhatsApp & AI support');
 }
