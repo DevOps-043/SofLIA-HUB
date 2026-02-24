@@ -598,3 +598,37 @@ Error: [AutoDevGit] SAFETY: Refusing write operation on protected branch "main"
 ```
 
 ---
+## ❌ [🗣️ QUEJA DE USUARIO] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T20:59:34.712Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El usuario se quejó de que SofLIA no completó una acción correctamente.
+
+### Mensaje del usuario
+
+> Cómo vez este mensaje? Hola , talvez sea el último mensaje que te mandé o veas denuevo de mi , la verdad es que creo que no hable apropiadamente contigo esa última vez , si te soy sincero creía que lo pudimos haber solucionado todo esto de la mejor manera y te pido perdón por ello ,te pido perdón por mis actitudes por no darte el tiempo que mereces , mereces algo mejor alguien que te dé ese valor y amor que no te pude dar , solo espero que puedas escogerlo de una forma más adecuada.
+> Tienes un fu
+
+### Respuesta de SofLIA
+
+> Entendido. Para ayudarte a redactar el mensaje perfecto para tu ex, necesito un poco más de contexto.
+> 
+> Dime:
+> 
+> 1.  *¿Cuál es el objetivo principal del mensaje?* ¿Quieres disculparte, recordar algo, recuperar algo, felicitarlo/a, o simplemente saludar?
+> 2.  *¿Qué tan formal o informal quieres que sea?*
+> 3.  *¿Hay algo específico que quieras evitar mencionar?*
+> 
+> Con esa información, puedo ayudarte a redactar algo adecuado.
+
+### Contexto
+
+```
+Patrón detectado: no (se )?cre[oó]
+```
+
+---

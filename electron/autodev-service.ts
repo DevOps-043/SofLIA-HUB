@@ -41,6 +41,8 @@ import {
   type AutoDevImprovement,
   type ResearchFinding,
   type AutoDevRunStatus,
+  type AgentRole,
+  type AgentTask,
   DEFAULT_CONFIG,
 } from './autodev-types';
 import { AutoDevGit } from './autodev-git';
