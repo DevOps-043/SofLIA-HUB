@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, desktopCapturer, globalShortcut, screen } from 'electron'
+import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, desktopCapturer, globalShortcut, screen, session } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { registerComputerUseHandlers } from './computer-use-handlers'
@@ -493,6 +493,25 @@ ipcMain.handle('whatsapp:set-api-key', async (_, apiKey: string) => {
 })
 
 app.whenReady().then(async () => {
+  // ─── Content Security Policy (CSP) ──────────────────────────────────
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    // Restringir script-src a 'self' y deshabilitar unsafe-eval en producción
+    // para mitigar riesgos de XSS y CVE-2024-10487 (V8 Heap Sandbox Escape).
+    let csp = "default-src 'self' https: wss: data: blob:; style-src 'self' 'unsafe-inline' https:; script-src 'self'; object-src 'none';"
+    
+    // Vite requiere unsafe-eval y conexiones al dev server en desarrollo
+    if (VITE_DEV_SERVER_URL) {
+      csp = "default-src 'self' http: https: ws: wss: data: blob:; style-src 'self' 'unsafe-inline' http: https:; script-src 'self' 'unsafe-eval' 'unsafe-inline' http: https:; object-src 'none';"
+    }
+
+    callback({
+      responseHeaders: {
+        ...(details.responseHeaders || {}),
+        'Content-Security-Policy': [csp]
+      }
+    })
+  })
+
   // ─── Memory & Knowledge init ────────────────────────────────
   memoryService.init()
   registerMemoryHandlers(memoryService)

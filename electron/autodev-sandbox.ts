@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export interface ToolErrorResponse {
   error: string;
@@ -20,6 +22,13 @@ export const ToolSchemas = {
   fileOperation: z.object({
     path: z.string(),
     content: z.string().optional()
+  }),
+  createDirectory: z.object({
+    dirPath: z.string()
+  }),
+  moveItem: z.object({
+    source: z.string(),
+    destination: z.string()
   })
 };
 
@@ -74,6 +83,24 @@ export async function verifyNpmPackage(pkgName: string): Promise<boolean> {
   }
   
   return true;
+}
+
+/**
+ * Crea un directorio de forma segura utilizando { recursive: true }
+ */
+export function create_directory(dirPath: string): void {
+  fs.mkdirSync(dirPath, { recursive: true });
+}
+
+/**
+ * Mueve un elemento, validando primero que el directorio destino exista.
+ */
+export async function move_item(source: string, destination: string): Promise<void> {
+  const destDir = path.dirname(destination);
+  if (!fs.existsSync(destDir)) {
+    throw new Error(`El directorio destino '${destDir}' no existe.`);
+  }
+  await fs.promises.rename(source, destination);
 }
 
 export class ToolSandbox {

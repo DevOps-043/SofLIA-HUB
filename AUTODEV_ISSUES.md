@@ -632,3 +632,60 @@ Patrón detectado: no (se )?cre[oó]
 ```
 
 ---
+## ❌ [CODING_ERROR] — 2026-02-24
+
+- **Run ID**: `run_1771972478552`
+- **Timestamp**: 2026-02-24T22:39:44.033Z
+- **Categoría**: coding_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El agente CoderAgent_1 falló al implementar cambios en `Terminal`: Command failed and auto-fix failed: Command failed: npm install zod screenshot-desktop --legacy-peer-deps
+npm error code ETARGET
+npm error notarget No matching version found for @whiskeysockets/baileys@^7.0.0.
+npm error notarget In most cases you or one of your dependencies are requesting
+npm error notarget a package version that doesn't exist.
+npm error A complete log of this run can be found in: C:\Users\fysg5\AppData\Local\npm-cache\_logs\2026-02-24T22_39_10_503Z-debug-0.log
+
+
+### Contexto técnico
+
+```
+File: Terminal
+Step: {
+  "step": 1,
+  "file": "Terminal",
+  "action": "command",
+  "category": "dependencies",
+  "description": "Instalar nuevas dependencias requeridas (Zod y librería de captura) sin alterar las versiones Major existentes.",
+  "command": "npm install zod screenshot-desktop",
+  "details": "Se instalan `zod` para validación estricta de esquemas en AutoDev y `screenshot-desktop` para soporte multi-monitor en Computer Use. No se realizan actualizaciones major de paquetes existentes.",
+  "source": "https://zod.dev/, https://github.com/bencevans/screenshot-desktop",
+  "estimatedLines": 5
+}
+```
+
+---
+## ❌ [BUILD_FAILURE] — 2026-02-24
+
+- **Run ID**: `run_1771972478552`
+- **Timestamp**: 2026-02-24T23:09:44.263Z
+- **Categoría**: build_failure
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El build falló persistentemente después de 4 intentos de auto-corrección.
+
+Errores finales (1):
+[TS6133] electron/autodev-service.ts:45 — 'AgentTask' is declared but its value is never read.
+
+### Contexto técnico
+
+```
+Archivos afectados: electron/autodev-service.ts
+Códigos de error: TS6133
+```
+
+---

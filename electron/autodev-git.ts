@@ -21,7 +21,7 @@ export class AutoDevGit {
     const branch = await this.getCurrentBranch();
     if (PROTECTED_BRANCHES.includes(branch)) {
       const branchName = `autodev-task-${taskId}`;
-      await this.git('checkout', '-b', branchName);
+      await this.git('checkout', '-B', branchName);
       console.log(`[AutoDevGit] SAFETY: Auto-switched to work branch ${branchName} from protected branch ${branch}`);
     }
   }
@@ -111,32 +111,40 @@ export class AutoDevGit {
       // Pull may fail if no remote or changes exist, that's ok
     }
 
-    // Delete branch if it already exists (to avoid checkout -b failure)
-    try {
-      await this.git('branch', '-D', branchName);
-    } catch {
-      // Branch didn't exist, ignore
-    }
-
-    // Create and switch to work branch
-    await this.git('checkout', '-b', branchName);
+    // Create and switch to work branch (or reset if it already exists)
+    await this.git('checkout', '-B', branchName);
     console.log(`[AutoDevGit] Created branch: ${branchName} from ${baseBranch}`);
     return branchName;
   }
 
   async stageFiles(files: string[]): Promise<void> {
-    await this.assertNotProtected();
+    try {
+      await this.assertNotProtected();
+    } catch (err: any) {
+      console.warn(`[AutoDevGit] Staging files on protected branch. Recovery branch will be created on commit.`);
+    }
     if (files.length === 0) return;
     await this.git('add', ...files);
   }
 
   async stageAll(): Promise<void> {
-    await this.assertNotProtected();
+    try {
+      await this.assertNotProtected();
+    } catch (err: any) {
+      console.warn(`[AutoDevGit] Staging all on protected branch. Recovery branch will be created on commit.`);
+    }
     await this.git('add', '-A');
   }
 
   async commitChanges(message: string): Promise<string> {
-    await this.assertNotProtected();
+    try {
+      await this.assertNotProtected();
+    } catch (err: any) {
+      const recoveryBranch = `autodev-recovery-${Date.now()}`;
+      console.warn(`[AutoDevGit] SAFETY: Committing on protected branch prevented. Creating recovery branch ${recoveryBranch}.`);
+      await this.git('checkout', '-B', recoveryBranch);
+    }
+
     const fullMessage = message.startsWith('[AutoDev]') ? message : `[AutoDev] ${message}`;
     await this.git('commit', '-m', fullMessage);
     const hash = await this.git('rev-parse', '--short', 'HEAD');

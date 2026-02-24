@@ -110,6 +110,11 @@ export class ThoughtLogger {
     }
     
     this.db = new Database(dbPath);
+
+    // Enable WAL mode for better concurrency and prevent 'database is locked' errors
+    this.db.pragma('journal_mode = WAL');
+    this.db.pragma('synchronous = NORMAL');
+    
     this.initDatabase();
     
     this.orchestrator = new Orchestrator(this.db);
