@@ -137,3 +137,48 @@ El usuario hizo una sugerencia de mejora.
 > Añade que cuando le pido algo a Soflia y me dice en un momento te digo mata el proceso y ya no hace nada tengo que volver a decirle para que lo haga y ni lo hace , añade esa impmentacion al autodev , y también que las sugerencias que te haga el usuario no solo sean del usuario si no de lo que tu escribes para que tenga mayor contexto el autodev y no se quede con lo que yo le dije solamente sino que tú le puedas dar más contexto describir una imagen un resumen de un chat y demás
 
 ---
+## ❌ [💡 SUGERENCIA] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T18:41:54.243Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El usuario hizo una sugerencia de mejora.
+
+### Mensaje del usuario
+
+> Que te faltó implementar del autodev?
+
+---
+## ❌ [💡 SUGERENCIA] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T18:42:53.810Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El usuario hizo una sugerencia de mejora.
+
+### Mensaje del usuario
+
+> Ok añade eso como implementación para el autodev
+
+---
+## ❌ [💡 SUGERENCIA] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T18:43:08.627Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El usuario hizo una sugerencia de mejora.
+
+### Mensaje del usuario
+
+> Listo, he añadido a mi base de conocimiento que la gestión de ramas es una implementación pendiente para AutoDev. Esto incluye la capacidad de ver, crear, fusionar y eliminar ramas.
+
+---

@@ -52,6 +52,20 @@ export class AutoDevGit {
     return this.git('rev-parse', '--abbrev-ref', 'HEAD');
   }
 
+  async getBranchHistory(): Promise<string[]> {
+    try {
+      const output = await this.git('branch', '--sort=-committerdate');
+      return output
+        .split('\n')
+        .map(line => line.trim().replace(/^\*\s+/, ''))
+        .filter(line => line.length > 0)
+        .slice(0, 5);
+    } catch (err: any) {
+      console.warn(`[AutoDevGit] getBranchHistory warning: ${err.message}`);
+      return [];
+    }
+  }
+
   async getRepoRoot(): Promise<string> {
     return this.git('rev-parse', '--show-toplevel');
   }
@@ -96,7 +110,7 @@ export class AutoDevGit {
   // ─── Write operations (all guarded) ──────────────────────────────
 
   async createWorkBranch(name: string, baseBranch: string = 'main'): Promise<string> {
-    const branchName = name.startsWith('autodev/') ? name : `autodev/${name}`;
+    let branchName = name.startsWith('autodev/') ? name : `autodev/${name}`;
 
     // First ensure we're on the base branch
     const current = await this.getCurrentBranch();
@@ -119,7 +133,17 @@ export class AutoDevGit {
     }
 
     // Create and switch to work branch
-    await this.git('checkout', '-b', branchName);
+    try {
+      await this.git('checkout', '-b', branchName);
+    } catch (error: any) {
+      if (error?.message?.includes('already exists')) {
+        branchName = `${branchName}-${Date.now()}`;
+        await this.git('checkout', '-b', branchName);
+      } else {
+        throw error;
+      }
+    }
+    
     console.log(`[AutoDevGit] Created branch: ${branchName} from ${baseBranch}`);
     return branchName;
   }

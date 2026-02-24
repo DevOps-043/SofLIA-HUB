@@ -4,7 +4,7 @@
  * Follows the same EventEmitter pattern as WhatsAppService.
  */
 import { EventEmitter } from 'node:events';
-import { app, desktopCapturer, powerMonitor, BrowserWindow } from 'electron';
+import { app, desktopCapturer, powerMonitor, BrowserWindow, screen } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 
@@ -269,9 +269,23 @@ export class MonitoringService extends EventEmitter {
 
   private async takeScreenshot(timestamp: Date, displayId?: string): Promise<string | undefined> {
     try {
+      let width = 1920;
+      let height = 1080;
+
+      if (app.isReady()) {
+        const displays = screen.getAllDisplays();
+        let targetDisplay = displays[0];
+        if (displayId) {
+          targetDisplay = displays.find(d => d.id.toString() === displayId) || displays[0];
+        }
+        // We calculate full size to capture native resolution properly rather than downscaling heavily
+        width = targetDisplay.size.width * targetDisplay.scaleFactor;
+        height = targetDisplay.size.height * targetDisplay.scaleFactor;
+      }
+
       const sources = await desktopCapturer.getSources({
         types: ['screen'],
-        thumbnailSize: { width: 1280, height: 720 }, // Reduced for efficiency
+        thumbnailSize: { width, height },
       });
 
       if (sources.length === 0) return undefined;
@@ -307,8 +321,12 @@ export class MonitoringService extends EventEmitter {
   private async fetchAXTree(): Promise<string | null> {
     try {
       const windows = BrowserWindow.getAllWindows();
-      const activeWindow = windows.find(w => w.isFocused()) || windows[0];
-      if (!activeWindow) return null;
+      const activeWindow = windows.find(w => w.isFocused());
+      
+      // Only extract dump from our web view if it's the actively focused native window
+      if (!activeWindow) {
+        return null;
+      }
 
       const wc = activeWindow.webContents;
       let attachedHere = false;

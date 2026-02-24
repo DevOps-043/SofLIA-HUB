@@ -598,3 +598,60 @@ Error: [AutoDevGit] SAFETY: Refusing write operation on protected branch "main"
 ```
 
 ---
+## ❌ [CODING_ERROR] — 2026-02-24
+
+- **Run ID**: `run_1771958659465`
+- **Timestamp**: 2026-02-24T18:52:28.683Z
+- **Categoría**: coding_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El agente CoderAgent_1 falló al implementar cambios en `Terminal`: Command failed after retries: Command failed: npm install @supabase/supabase-js@~2.97.0 --legacy-peer-deps
+npm error code ETARGET
+npm error notarget No matching version found for @whiskeysockets/baileys@^7.0.0.
+npm error notarget In most cases you or one of your dependencies are requesting
+npm error notarget a package version that doesn't exist.
+npm error A complete log of this run can be found in: C:\Users\fysg5\AppData\Local\npm-cache\_logs\2026-02-24T18_52_26_545Z-debug-0.log
+
+
+### Contexto técnico
+
+```
+File: Terminal
+Step: {
+  "step": 1,
+  "file": "Terminal",
+  "action": "command",
+  "category": "dependencies",
+  "description": "Actualizar dependencias a sus últimas versiones patch/minor para mejorar estabilidad de Function Calling y Supabase.",
+  "command": "npm install @google/generative-ai@~0.24.3 @supabase/supabase-js@~2.97.0",
+  "details": "Actualiza @google/generative-ai para corregir problemas de streaming en Function Calling y @supabase/supabase-js para mejoras de seguridad en locks de sesión. Ninguna actualización es un salto de versión mayor (major bump).",
+  "source": "https://www.npmjs.com/package/@google/generative-ai?activeTab=versions",
+  "estimatedLines": 5
+}
+```
+
+---
+## ❌ [BUILD_FAILURE] — 2026-02-24
+
+- **Run ID**: `run_1771958659465`
+- **Timestamp**: 2026-02-24T19:32:19.200Z
+- **Categoría**: build_failure
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El build falló persistentemente después de 4 intentos de auto-corrección.
+
+Errores finales (1):
+[TS2304] electron/autodev-service.ts:926 — Cannot find name 'AgentRole'.
+
+### Contexto técnico
+
+```
+Archivos afectados: electron/autodev-service.ts
+Códigos de error: TS2304
+```
+
+---

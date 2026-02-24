@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import fs from 'node:fs';
+import path from 'node:path';
 
 export interface ToolErrorResponse {
   error: string;
@@ -142,4 +144,25 @@ export class ToolSandbox {
  */
 export function isToolErrorResponse(response: any): response is ToolErrorResponse {
   return response !== null && typeof response === 'object' && 'error' in response && 'fixSuggestion' in response;
+}
+
+// ─── Herramientas de FileSystem e inyección de dependencias ─────────────────
+
+export function create_directory(targetPath: string): void {
+  fs.mkdirSync(targetPath, { recursive: true });
+}
+
+export function move_item(sourcePath: string, destPath: string): void {
+  const destDir = path.dirname(destPath);
+  fs.mkdirSync(destDir, { recursive: true });
+  fs.renameSync(sourcePath, destPath);
+}
+
+export async function npmInstall(packages: string[]): Promise<void> {
+  if (packages.includes('electron')) {
+    throw new Error('Prohibido actualizar electron en runtime (EBUSY)');
+  }
+  for (const pkg of packages) {
+    await verifyNpmPackage(pkg);
+  }
 }

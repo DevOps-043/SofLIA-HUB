@@ -19,13 +19,90 @@ export class Orchestrator {
   private db: any;
   private intervalId: NodeJS.Timeout | null = null;
   private workerRestartCallback: WorkerRestartCallback | null = null;
+  private logger?: ThoughtLogger;
+  private antiHangSetup: boolean = false;
 
   constructor(db: any) {
     this.db = db;
   }
 
+  public setLogger(logger: ThoughtLogger) {
+    this.logger = logger;
+    this.setupAntiHang();
+  }
+
   public registerWorkerCallback(callback: WorkerRestartCallback) {
     this.workerRestartCallback = callback;
+  }
+
+  private setupAntiHang() {
+    if (this.antiHangSetup) return;
+    this.antiHangSetup = true;
+
+    process.on('unhandledRejection', (reason, promise) => {
+      console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+
+      try {
+        // Identificar si el fallo proviene de un worker del Orchestrator.
+        // Si hay tareas en estado 'running', asumimos que el worker fue interrumpido.
+        const stmt = this.db.prepare(`
+          SELECT e1.*
+          FROM event_stream e1
+          INNER JOIN (
+            SELECT task_id, MAX(id) as max_id
+            FROM event_stream
+            GROUP BY task_id
+          ) e2 ON e1.id = e2.max_id
+          WHERE e1.status = 'running'
+        `);
+        
+        const runningTasks = stmt.all();
+
+        for (const task of runningTasks) {
+          const apologyData = {
+            type: 'system_recovery',
+            message: 'Hubo un error interno, recuperando contexto...',
+            error: reason instanceof Error ? reason.stack || reason.message : String(reason)
+          };
+
+          let contextDump = task.context_dump ? JSON.parse(task.context_dump) : {};
+          
+          if (this.logger) {
+            // Hacer un dump del estado actual (Replayable Transcript JSONL)
+            const history = this.logger.resumeTask(task.task_id);
+            const replayableTranscriptJSONL = history
+              .map((event: ThoughtEvent) => JSON.stringify(event))
+              .join('\n');
+            
+            contextDump.replayable_transcript = replayableTranscriptJSONL;
+
+            // Inyectar un evento en el stream del ThoughtLogger pidiendo disculpas
+            // y cambiando el estado a 'pending' para su recuperación
+            this.logger.logThought(
+              task.agent_id,
+              task.task_id,
+              apologyData,
+              'pending',
+              contextDump
+            );
+          } else {
+            // Fallback en caso de no tener el logger referenciado
+            const updateStmt = this.db.prepare(`
+              UPDATE event_stream
+              SET status = 'pending', update_time = CURRENT_TIMESTAMP
+              WHERE id = ?
+            `);
+            updateStmt.run(task.id);
+          }
+
+          if (this.workerRestartCallback) {
+            this.workerRestartCallback(task.task_id, contextDump);
+          }
+        }
+      } catch (err) {
+        console.error('Error during Orchestrator Anti-Hang recovery:', err);
+      }
+    });
   }
 
   public start(timeoutMs: number = 60000, checkIntervalMs: number = 10000) {
@@ -113,6 +190,8 @@ export class ThoughtLogger {
     this.initDatabase();
     
     this.orchestrator = new Orchestrator(this.db);
+    // Enlazamos el logger para que el Orchestrator pueda inyectar eventos de Anti-Hang
+    this.orchestrator.setLogger(this);
   }
 
   private initDatabase(): void {
