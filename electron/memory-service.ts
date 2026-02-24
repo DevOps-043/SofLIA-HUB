@@ -153,6 +153,8 @@ export class MemoryService extends EventEmitter {
   init(): void {
     try {
       this.db = new Database(DB_PATH);
+      this.db.pragma('journal_mode = WAL');
+      this.db.pragma('synchronous = NORMAL');
 
       // Cifrado local con sqlcipher y safeStorage para proteger la DB entera
       const keyPath = path.join(app.getPath('userData'), 'soflia-memory.key');
@@ -181,7 +183,6 @@ export class MemoryService extends EventEmitter {
 
       this.db.pragma(`key = '${dbKey}'`);
 
-      this.db.pragma('journal_mode = WAL');
       this.db.pragma('foreign_keys = ON');
       this.db.exec(SCHEMA_SQL);
       console.log(`[MemoryService] Database initialized at ${DB_PATH}`);
