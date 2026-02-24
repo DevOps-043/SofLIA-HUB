@@ -5,6 +5,7 @@
  *  Layer 1: Raw message persistence (SQLite)
  *  Layer 2: Rolling conversation summaries (Gemini + SQLite)
  *  Layer 3: Semantic search via embeddings (Gemini text-embedding-004 + cosine similarity)
+ *  Layer 4: Hierarchical Markdown Persistence (Structured Memory Cards)
  *  Bonus:   Structured facts (replaces whatsapp-memories.json)
  *
  * Runs in the Electron main process.
@@ -39,6 +40,9 @@ export interface MemoryContext {
   rollingSummary: string | null;
   semanticRecall: Array<{ text: string; score: number; timestamp: number }>;
   facts: Array<{ key: string; value: string; category: string }>;
+  soul?: string;
+  identity?: string;
+  memoryCards?: string;
 }
 
 interface StoredMessage {
@@ -153,8 +157,10 @@ export class MemoryService extends EventEmitter {
   init(): void {
     try {
       this.db = new Database(DB_PATH);
+      // Asegurar que las lecturas en la base de datos usen modo WAL para no bloquear
       this.db.pragma('journal_mode = WAL');
       this.db.pragma('synchronous = NORMAL');
+      this.db.pragma('busy_timeout = 5000'); // Evitar bloqueos por concurrencia
 
       // Cifrado local con sqlcipher y safeStorage para proteger la DB entera
       const keyPath = path.join(app.getPath('userData'), 'soflia-memory.key');
@@ -375,6 +381,24 @@ export class MemoryService extends EventEmitter {
     // 4. Structured facts
     context.facts = this.getFacts(phoneNumber);
 
+    // 5. Hierarchical Markdown Memory (Soul, Identity, Memory Cards)
+    try {
+      const userData = app.getPath('userData');
+      const soulPath = path.join(userData, 'SOUL.md');
+      const identityPath = path.join(userData, 'IDENTITY.md');
+      const memoryPath = path.join(userData, 'MEMORY.md');
+
+      if (fs.existsSync(soulPath)) context.soul = fs.readFileSync(soulPath, 'utf8');
+      if (fs.existsSync(identityPath)) context.identity = fs.readFileSync(identityPath, 'utf8');
+      if (fs.existsSync(memoryPath)) {
+        const mem = fs.readFileSync(memoryPath, 'utf8');
+        // Extract recent memory cards (last 3000 chars roughly to avoid token bloat)
+        context.memoryCards = mem.length > 3000 ? mem.slice(-3000) : mem;
+      }
+    } catch (err: any) {
+      console.warn('[MemoryService] Could not read markdown memory files:', err.message);
+    }
+
     return context;
   }
 
@@ -384,6 +408,17 @@ export class MemoryService extends EventEmitter {
    */
   formatContextForPrompt(ctx: MemoryContext): string {
     let sections = '';
+
+    // Hierarchical Markdown Context
+    if (ctx.soul) {
+      sections += `\n\n═══ SOUL (Core Persona) ═══\n${truncateToTokens(ctx.soul, 500)}`;
+    }
+    if (ctx.identity) {
+      sections += `\n\n═══ IDENTITY (Current State) ═══\n${truncateToTokens(ctx.identity, 500)}`;
+    }
+    if (ctx.memoryCards) {
+      sections += `\n\n═══ RECENT MEMORY CARDS ═══\n${ctx.memoryCards}`;
+    }
 
     // Rolling summary
     if (ctx.rollingSummary) {
@@ -521,7 +556,7 @@ export class MemoryService extends EventEmitter {
         return `[${time}] ${m.role === 'user' ? 'Usuario' : 'SofLIA'}: ${m.content}`;
       }).join('\n');
 
-      // Call Gemini to summarize
+      // Call Gemini to summarize (generates Structured Memory Card)
       const summary = await this.callGeminiSummarize(conversationText);
       if (!summary) return;
 
@@ -543,6 +578,9 @@ export class MemoryService extends EventEmitter {
 
       console.log(`[MemoryService] Summary saved for ${sessionKey} (${messages.length} messages)`);
 
+      // Append Memory Card to MEMORY.md file
+      this.appendMemoryCard(sessionKey, summary);
+
       // Embed the summary and conversation chunks for semantic search
       await this.embedAndStoreChunks(sessionKey, summary, 'summary', periodStart, periodEnd);
       await this.embedConversationChunks(sessionKey, messages);
@@ -556,9 +594,14 @@ export class MemoryService extends EventEmitter {
   private async callGeminiSummarize(conversationText: string): Promise<string | null> {
     try {
       const genAI = new GoogleGenerativeAI(this.apiKey);
-      const model = genAI.getGenerativeModel({ model: SUMMARIZE_MODEL });
+      const model = genAI.getGenerativeModel({
+        model: SUMMARIZE_MODEL,
+        generationConfig: { maxOutputTokens: 350 }
+      });
 
-      const prompt = `Resume esta conversación de WhatsApp de forma concisa pero completa. Preserva:
+      const prompt = `Actúa como un agente que extrae los hechos clave de la sesión actual para guardarlos en la memoria a largo plazo.
+Crea un resumen en formato 'Memory Card' (estrictamente menor a 350 tokens).
+El resumen debe capturar:
 - Temas principales discutidos
 - Decisiones tomadas
 - Archivos o documentos mencionados
@@ -567,12 +610,13 @@ export class MemoryService extends EventEmitter {
 - Promesas o compromisos hechos
 - Resultados de acciones ejecutadas
 
-Sé conciso (máximo 500 palabras). Escribe en tercera persona ("El usuario pidió...", "SofLIA realizó...").
+Usa un formato estructurado en Markdown (viñetas, negritas, etc.).
+Sé conciso y directo. Escribe en tercera persona.
 
 CONVERSACIÓN:
 ${truncateToTokens(conversationText, 6000)}
 
-RESUMEN:`;
+MEMORY CARD:`;
 
       const result = await model.generateContent(prompt);
       return result.response.text().trim() || null;
@@ -824,6 +868,40 @@ RESUMEN:`;
       return true;
     } catch {
       return false;
+    }
+  }
+
+  // ─── Layer 4: Markdown Structured Memory (Hierarchical) ────────────
+
+  updateSoul(content: string): void {
+    const soulPath = path.join(app.getPath('userData'), 'SOUL.md');
+    try {
+      fs.writeFileSync(soulPath, content, 'utf8');
+      console.log(`[MemoryService] SOUL.md updated`);
+    } catch (err: any) {
+      console.error('[MemoryService] updateSoul error:', err.message);
+    }
+  }
+
+  updateIdentity(content: string): void {
+    const identityPath = path.join(app.getPath('userData'), 'IDENTITY.md');
+    try {
+      fs.writeFileSync(identityPath, content, 'utf8');
+      console.log(`[MemoryService] IDENTITY.md updated`);
+    } catch (err: any) {
+      console.error('[MemoryService] updateIdentity error:', err.message);
+    }
+  }
+
+  appendMemoryCard(sessionKey: string, summary: string): void {
+    const memoryPath = path.join(app.getPath('userData'), 'MEMORY.md');
+    try {
+      const timestamp = new Date().toLocaleString('es-MX');
+      const card = `\n\n### Memory Card: Sesión ${sessionKey}\n**Fecha:** ${timestamp}\n\n${summary}\n\n---`;
+      fs.appendFileSync(memoryPath, card, 'utf8');
+      console.log(`[MemoryService] Memory Card appended to MEMORY.md`);
+    } catch (err: any) {
+      console.error('[MemoryService] appendMemoryCard error:', err.message);
     }
   }
 

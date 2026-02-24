@@ -17,6 +17,15 @@ export class AutoDevGit {
     this.repoPath = repoPath;
   }
 
+  async init(taskId: string): Promise<void> {
+    const branch = await this.getCurrentBranch();
+    if (PROTECTED_BRANCHES.includes(branch)) {
+      const branchName = `autodev-task-${taskId}`;
+      await this.git('checkout', '-b', branchName);
+      console.log(`[AutoDevGit] SAFETY: Auto-switched to work branch ${branchName} from protected branch ${branch}`);
+    }
+  }
+
   private async run(cmd: string, args: string[]): Promise<string> {
     const { stdout } = await execFileAsync(cmd, args, {
       cwd: this.repoPath,
@@ -74,28 +83,44 @@ export class AutoDevGit {
     return status.length > 0;
   }
 
+  async fetchPRHistory(): Promise<Array<{ number: number; title: string; state: string; url: string }>> {
+    try {
+      const output = await this.run('gh', ['pr', 'list', '--state', 'all', '--json', 'number,title,state,url']);
+      return JSON.parse(output);
+    } catch (err: any) {
+      console.warn(`[AutoDevGit] fetchPRHistory warning: ${err.message}`);
+      return [];
+    }
+  }
+
   // ─── Write operations (all guarded) ──────────────────────────────
 
-  async createWorkBranch(name: string): Promise<string> {
+  async createWorkBranch(name: string, baseBranch: string = 'main'): Promise<string> {
     const branchName = name.startsWith('autodev/') ? name : `autodev/${name}`;
 
-    // First ensure we're on the target branch
+    // First ensure we're on the base branch
     const current = await this.getCurrentBranch();
-    if (!PROTECTED_BRANCHES.includes(current)) {
-      // If we're on some other branch, go to main first
-      await this.git('checkout', 'main');
+    if (current !== baseBranch) {
+      await this.git('checkout', baseBranch);
     }
 
-    // Pull latest
+    // Pull latest from base branch
     try {
-      await this.git('pull', '--ff-only');
+      await this.git('pull', 'origin', baseBranch, '--ff-only');
     } catch {
-      // Pull may fail if no remote, that's ok
+      // Pull may fail if no remote or changes exist, that's ok
+    }
+
+    // Delete branch if it already exists (to avoid checkout -b failure)
+    try {
+      await this.git('branch', '-D', branchName);
+    } catch {
+      // Branch didn't exist, ignore
     }
 
     // Create and switch to work branch
     await this.git('checkout', '-b', branchName);
-    console.log(`[AutoDevGit] Created branch: ${branchName}`);
+    console.log(`[AutoDevGit] Created branch: ${branchName} from ${baseBranch}`);
     return branchName;
   }
 

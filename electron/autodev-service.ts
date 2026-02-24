@@ -553,6 +553,10 @@ export class AutoDevService extends EventEmitter {
     if (!run.branchName) return;
     try {
       console.log(`[AutoDev] Guardando cambios de intento fallido en repositorio remoto...`);
+      const current = await this.git.getCurrentBranch();
+      if (current === this.config.targetBranch || current === 'master') {
+        throw new Error(`[AutoDevGit] SAFETY: Refusing to persist changes on protected branch "${current}"`);
+      }
       await this.git.stageAll();
       const lineCount = await this.git.getDiffLineCount();
       if (lineCount > 0) {
@@ -715,8 +719,8 @@ export class AutoDevService extends EventEmitter {
     console.log('[AutoDev] ═══ Phase 3: Parallel Coding ═══');
     this.updateRunStatus(run, 'coding');
 
-    const branchName = `autodev/${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}`;
-    run.branchName = await this.git.createWorkBranch(branchName);
+    const branchName = `autodev/${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}--${Math.random().toString(36).slice(2, 7)}`;
+    run.branchName = await this.git.createWorkBranch(branchName, this.config.targetBranch);
 
     // Split plan into batches for parallel coding agents
     const coderConcurrency = this.config.agents.coder.concurrency;
@@ -735,7 +739,7 @@ export class AutoDevService extends EventEmitter {
             try {
               const result = await this.implementStep(step);
               if (result) {
-                result.agentRole = agentName;
+                result.agentRole = 'coding';
                 results.push(result);
               }
             } catch (err: any) {
@@ -854,7 +858,7 @@ export class AutoDevService extends EventEmitter {
       }
 
       console.log(`[AutoDev FixAgent] Generated fix plan with ${fixPlan.length} steps for attempt ${retries}`);
-      this.trackAgent(run, `FixPlanner_${retries}`, 'planning', 'completed');
+      this.trackAgent(run, `FixPlanner_${retries}`, 'coding', 'completed');
 
       let fixesApplied = 0;
       for (const step of fixPlan) {
@@ -863,7 +867,7 @@ export class AutoDevService extends EventEmitter {
           console.log(`[AutoDev FixAgent] Step: ${step.description?.slice(0, 80) || step.file} ...`);
           const result = await this.implementStep(step);
           if (result) {
-            result.agentRole = `FixAgent_${retries}`;
+            result.agentRole = 'coding';
             run.improvements.push(result);
             fixesApplied++;
             this.trackAgent(run, `FixAgent_${retries}`, 'coding', 'completed');
@@ -919,7 +923,7 @@ export class AutoDevService extends EventEmitter {
     };
     run.agentTasks.push({
       id: `${name}_${Date.now()}`,
-      agentRole: role,
+      agentRole: role as AgentRole,
       model: modelForRole(role),
       status,
       completedAt: new Date().toISOString(),
@@ -985,7 +989,7 @@ export class AutoDevService extends EventEmitter {
           findings: f.findings || '',
           sources: f.sources || [],
           actionable: f.actionable ?? false,
-          agentRole: `${category}Agent`,
+          agentRole: 'research',
         }));
       }
     } catch (err: any) {
@@ -1089,7 +1093,7 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
           resultsAccum.push({
             query: f.query || '', category: f.category || 'quality',
             findings: f.findings || '', sources: f.sources || [],
-            actionable: f.actionable ?? false, agentRole: 'DeepResearcher',
+            actionable: f.actionable ?? false, agentRole: 'research',
           });
         }
       }
@@ -1099,7 +1103,7 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
     try {
       return await execute(this.config.agents.coder.model);
     } catch (err: any) {
-      if (err.message && err.message.includes('429')) {
+      if (err.message && (err.message.includes('429') || err.message.includes('503'))) {
         console.warn(`\n[AutoDev DeepResearcher] ⚠️ Límite de cuota superado en el modelo pesado (${this.config.agents.coder.model}).`);
         console.warn(`[AutoDev Tokenizer] ⏳ Enfriando API por 45 segundos para limpiar quota penalizada, y luego usaremos el modelo Flash...`);
         await new Promise(r => setTimeout(r, 45000));
@@ -1361,7 +1365,7 @@ ${diff.slice(0, 50000)}
             description: `Ejecutó comando: ${currentCommand}`,
             applied: true,
             researchSources: [step.source].filter(Boolean),
-            agentRole: 'coder',
+            agentRole: 'coding',
           };
         } catch (err: any) {
           console.warn(`[AutoDev CoderAgent] Error al ejecutar comando: ${err.message}`);
@@ -1468,7 +1472,7 @@ ${diff.slice(0, 50000)}
       file: step.file, category: step.category || 'quality',
       description: parsed.changesDescription || step.description || '',
       applied: true, researchSources: parsed.sourcesConsulted || [step.source].filter(Boolean),
-      agentRole: 'coder',
+      agentRole: 'coding',
     };
   }
 

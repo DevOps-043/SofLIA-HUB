@@ -46,3 +46,94 @@ El usuario hizo una sugerencia de mejora.
 > Necesito que para estás tareas tengas múltiples agentes trabajando de manera síncrona y que realmente lo hagas sugiere lo cómo algo para implementarlo en el autodev
 
 ---
+## ❌ [💡 SUGERENCIA] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T03:00:01.942Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El usuario hizo una sugerencia de mejora.
+
+### Mensaje del usuario
+
+> Ok añade eso para las implementaciones para al rato
+
+---
+## ❌ [💡 SUGERENCIA] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T03:01:44.011Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El usuario hizo una sugerencia de mejora.
+
+### Mensaje del usuario
+
+> Pues si pero solo pusiste : " ok añade eso para las implementaciones para al rato" cómo va a saber autodev que fue lo que te pedí?
+
+---
+## ❌ [💡 SUGERENCIA] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T03:05:19.368Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El usuario hizo una sugerencia de mejora.
+
+### Mensaje del usuario
+
+> Alade está sugerencia para implementarlo con autodev
+> - Desarrollar la capacidad de tomar capturas de pantalla de monitores específicos (ej. segunda pantalla) en lugar de solo la pantalla principal.*
+
+---
+## ❌ [💡 SUGERENCIA] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T03:09:02.130Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El usuario hizo una sugerencia de mejora.
+
+### Mensaje del usuario
+
+> Añade mejoras para el uso del computer use ya  que no parsea bien las cosas del escritorio y aveces hace cosas que no siquiera le pido , y después de un rato empieza a entrar en un bucle debe ser capaz de tomar captura de pantalla para mejorar la visión de lo que tiene que hacer y parsee la información de las aplicaciones sin importar la resolución de la pantalla , que investigue como lo hace playwrhite o Antigravity o directamente Claude con su función de cowork
+
+---
+## ❌ [💡 SUGERENCIA] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T03:12:36.184Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El usuario hizo una sugerencia de mejora.
+
+### Mensaje del usuario
+
+> Añade mejoras en su propio sistema del autodev que tenga cuidado de no arruinarlo y mejore la eficiencia y como implementa y construye, mejore sus prompt para ser más efectivo y cometer menos errores en la implementación ya que en las últimas ramas  que hizo fallo , que añada la capacidad de ver las ramas que creo y ver que errores cometió y si puede corregirlos y si no hay errores que no las corrija pero que tenga contexto de las demás ramas y si alguna ya hizo mergen con Main
+
+---
+## ❌ [💡 SUGERENCIA] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T03:24:53.183Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El usuario hizo una sugerencia de mejora.
+
+### Mensaje del usuario
+
+> Añade que cuando le pido algo a Soflia y me dice en un momento te digo mata el proceso y ya no hace nada tengo que volver a decirle para que lo haga y ni lo hace , añade esa impmentacion al autodev , y también que las sugerencias que te haga el usuario no solo sean del usuario si no de lo que tu escribes para que tenga mayor contexto el autodev y no se quede con lo que yo le dije solamente sino que tú le puedas dar más contexto describir una imagen un resumen de un chat y demás
+
+---

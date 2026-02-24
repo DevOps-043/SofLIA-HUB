@@ -3,11 +3,21 @@
  * Multi-agent architecture with parallel execution.
  */
 
+// ─── Roles ──────────────────────────────────────────────────────────
+
+export type AgentRole = 
+  | 'research' 
+  | 'coding' 
+  | 'review' 
+  | 'security' 
+  | 'dependencies' 
+  | 'testing';
+
 // ─── Agent Configuration ────────────────────────────────────────────
 
 export interface AgentConfig {
   model: string;
-  role: 'research' | 'coding' | 'review' | 'security' | 'dependencies' | 'testing';
+  role: AgentRole;
   description: string;
   concurrency: number; // How many parallel instances
 }
@@ -24,6 +34,7 @@ export interface McpServerConfig {
 export interface AutoDevConfig {
   enabled: boolean;
   cronSchedule: string;
+  adaptiveThinking: boolean;
 
   // ─── Multi-agent models ───────────────────────────────────────
   agents: {
@@ -83,7 +94,7 @@ export type AutoDevRunStatus =
 
 export interface AgentTask {
   id: string;
-  agentRole: string;
+  agentRole: AgentRole;
   model: string;
   status: 'pending' | 'running' | 'completed' | 'failed';
   startedAt?: string;
@@ -91,6 +102,16 @@ export interface AgentTask {
   description: string;
   result?: any;
   error?: string;
+}
+
+// ─── Orchestrator Task ──────────────────────────────────────────────
+
+export interface OrchestratorTask {
+  id: string;
+  agentRole: AgentRole;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  payload: any;
+  contextDump: string;
 }
 
 // ─── Run ────────────────────────────────────────────────────────────
@@ -116,7 +137,7 @@ export interface AutoDevImprovement {
   diff?: string;
   applied: boolean;
   researchSources: string[];
-  agentRole: string;          // Which agent produced this
+  agentRole: AgentRole;          // Which agent produced this
 }
 
 export interface ResearchFinding {
@@ -125,7 +146,7 @@ export interface ResearchFinding {
   findings: string;
   sources: string[];
   actionable: boolean;
-  agentRole: string;          // Which agent found this
+  agentRole: AgentRole;          // Which agent found this
 }
 
 // ─── NPM Types ──────────────────────────────────────────────────────
@@ -191,6 +212,7 @@ export const DEFAULT_AGENTS: AutoDevConfig['agents'] = {
 export const DEFAULT_CONFIG: AutoDevConfig = {
   enabled: false,
   cronSchedule: '0 3 * * *',
+  adaptiveThinking: false,
   agents: { ...DEFAULT_AGENTS },
   maxFilesPerRun: 15,
   maxDailyRuns: 3,

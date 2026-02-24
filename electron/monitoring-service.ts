@@ -4,7 +4,7 @@
  * Follows the same EventEmitter pattern as WhatsAppService.
  */
 import { EventEmitter } from 'node:events';
-import { app, desktopCapturer, powerMonitor } from 'electron';
+import { app, desktopCapturer, powerMonitor, BrowserWindow } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 
@@ -15,6 +15,8 @@ export interface MonitoringConfig {
   idleThresholdSeconds: number;  // seconds before marking idle, default 120
   screenshotEnabled: boolean;
   ocrEnabled: boolean;
+  semanticSnapshotEnabled?: boolean;
+  targetDisplayId?: string;
 }
 
 export interface ActivitySnapshot {
@@ -25,6 +27,7 @@ export interface ActivitySnapshot {
   idleSeconds: number;
   screenshotPath?: string;
   ocrText?: string;
+  semanticSnapshot?: string;
   timestamp: Date;
 }
 
@@ -79,6 +82,7 @@ export class MonitoringService extends EventEmitter {
       idleThresholdSeconds: 120,
       screenshotEnabled: true,
       ocrEnabled: false,
+      semanticSnapshotEnabled: false,
     };
     this.screenshotDir = path.join(app.getPath('temp'), 'soflia-monitoring');
   }
@@ -171,6 +175,17 @@ export class MonitoringService extends EventEmitter {
     }
   }
 
+  /**
+   * Generates a semantic snapshot (AXTree) and a screenshot for Computer Use.
+   * Useful for multimodal AI agents to analyze current UI context while saving tokens.
+   */
+  public async getSemanticSnapshot(displayId?: string): Promise<{ axTree: string | null; imagePath: string | undefined }> {
+    const timestamp = new Date();
+    const imagePath = await this.takeScreenshot(timestamp, displayId);
+    const axTree = await this.fetchAXTree();
+    return { axTree, imagePath };
+  }
+
   // ─── Private: Capture loop ────────────────────────────────────────
 
   private async captureSnapshot(): Promise<void> {
@@ -193,7 +208,7 @@ export class MonitoringService extends EventEmitter {
     // 3. Take screenshot (if enabled and not idle)
     let screenshotPath: string | undefined;
     if (this.config.screenshotEnabled && !isIdle) {
-      screenshotPath = await this.takeScreenshot(timestamp);
+      screenshotPath = await this.takeScreenshot(timestamp, this.config.targetDisplayId);
     }
 
     // 4. OCR on screenshot (if enabled, async — don't block)
@@ -208,12 +223,19 @@ export class MonitoringService extends EventEmitter {
       }
     }
 
-    // 5. Delete screenshot after OCR (keep disk clean)
+    // 5. Semantic Snapshot (if enabled)
+    let semanticSnapshot: string | undefined;
+    if (this.config.semanticSnapshotEnabled && !isIdle) {
+      const axTree = await this.fetchAXTree();
+      if (axTree) semanticSnapshot = axTree;
+    }
+
+    // 6. Delete screenshot after OCR (keep disk clean)
     if (screenshotPath) {
       fs.unlink(screenshotPath).catch(() => {});
     }
 
-    // 6. Build snapshot
+    // 7. Build snapshot
     const snapshot: ActivitySnapshot = {
       windowTitle,
       processName,
@@ -222,6 +244,7 @@ export class MonitoringService extends EventEmitter {
       idleSeconds,
       screenshotPath: undefined, // Path deleted, only ocrText persists
       ocrText,
+      semanticSnapshot,
       timestamp,
     };
 
@@ -231,7 +254,7 @@ export class MonitoringService extends EventEmitter {
     // Emit for real-time UI updates
     this.emit('snapshot', snapshot);
 
-    // 5. Flush buffer every 5 snapshots (~2.5 min at 30s interval)
+    // 8. Flush buffer every 5 snapshots (~2.5 min at 30s interval)
     if (this.snapshotBuffer.length >= 5) {
       const batch = this.flushBuffer();
       this.emit('flush', {
@@ -244,7 +267,7 @@ export class MonitoringService extends EventEmitter {
     console.log(`[MonitoringService] #${this.snapshotCount} | ${processName}: ${windowTitle.slice(0, 60)}${isIdle ? ' [IDLE]' : ''}`);
   }
 
-  private async takeScreenshot(timestamp: Date): Promise<string | undefined> {
+  private async takeScreenshot(timestamp: Date, displayId?: string): Promise<string | undefined> {
     try {
       const sources = await desktopCapturer.getSources({
         types: ['screen'],
@@ -253,13 +276,23 @@ export class MonitoringService extends EventEmitter {
 
       if (sources.length === 0) return undefined;
 
-      const primarySource = sources[0];
-      const thumbnail = primarySource.thumbnail;
+      let targetSource = sources[0];
+      if (displayId) {
+        for (const source of sources) {
+          if (source.display_id === displayId || source.id === displayId) {
+            targetSource = source;
+            break;
+          }
+        }
+      }
+
+      const thumbnail = targetSource.thumbnail;
 
       if (thumbnail.isEmpty()) return undefined;
 
       const pngBuffer = thumbnail.toPNG();
-      const filename = `snap_${timestamp.getTime()}.png`;
+      const safeId = targetSource.id.replace(/[^a-zA-Z0-9]/g, '');
+      const filename = `snap_${timestamp.getTime()}_${safeId}.png`;
       const filePath = path.join(this.screenshotDir, filename);
 
       await fs.writeFile(filePath, pngBuffer);
@@ -268,6 +301,86 @@ export class MonitoringService extends EventEmitter {
     } catch (err: any) {
       console.error('[MonitoringService] Screenshot error:', err.message);
       return undefined;
+    }
+  }
+
+  private async fetchAXTree(): Promise<string | null> {
+    try {
+      const windows = BrowserWindow.getAllWindows();
+      const activeWindow = windows.find(w => w.isFocused()) || windows[0];
+      if (!activeWindow) return null;
+
+      const wc = activeWindow.webContents;
+      let attachedHere = false;
+      if (!wc.debugger.isAttached()) {
+        wc.debugger.attach('1.3');
+        attachedHere = true;
+      }
+      
+      const response = await wc.debugger.sendCommand('Accessibility.getFullAXTree');
+      
+      if (attachedHere) {
+        wc.debugger.detach();
+      }
+      
+      const nodes = response?.nodes || [];
+      if (nodes.length === 0) return null;
+
+      const nodeMap = new Map<string, any>();
+      for (const n of nodes) {
+        nodeMap.set(n.nodeId, n);
+      }
+      
+      const buildSimplifiedTree = (nodeId: string): any => {
+        const node = nodeMap.get(nodeId);
+        if (!node) return null;
+        if (node.ignored) return null;
+        
+        const role = node.role?.value;
+        const name = node.name?.value;
+        const value = node.value?.value;
+        
+        const props: any = {};
+        if (node.properties) {
+          for (const prop of node.properties) {
+            if (prop.value?.value !== undefined && prop.value?.value !== '') {
+              props[prop.name] = prop.value.value;
+            }
+          }
+        }
+        
+        const simplified: any = {};
+        if (role && role !== 'generic') simplified.role = role;
+        if (name) simplified.name = name;
+        if (value) simplified.value = value;
+        if (Object.keys(props).length > 0) simplified.props = props;
+
+        if (node.childIds && node.childIds.length > 0) {
+          const children = node.childIds.map(buildSimplifiedTree).filter((c: any) => c !== null);
+          if (children.length > 0) {
+            simplified.children = children;
+          }
+        }
+        
+        if (Object.keys(simplified).length === 0 && !simplified.children) return null;
+        return simplified;
+      };
+
+      const rootNode = nodes.find((n: any) => n.role?.value === 'RootWebArea') || nodes[0];
+      let simplifiedTree = null;
+      
+      if (rootNode) {
+        simplifiedTree = buildSimplifiedTree(rootNode.nodeId);
+      } else {
+        simplifiedTree = nodes
+          .filter((n: any) => !n.ignored && (n.role?.value || n.name?.value))
+          .map((n: any) => ({ role: n.role?.value, name: n.name?.value }));
+      }
+
+      return simplifiedTree ? JSON.stringify(simplifiedTree) : null;
+    } catch (err: any) {
+      console.error('[MonitoringService] fetchAXTree error:', err.message);
+      return null;
     }
   }
 

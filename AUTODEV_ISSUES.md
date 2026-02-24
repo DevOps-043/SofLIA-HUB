@@ -487,3 +487,114 @@ Args: {}
 ```
 
 ---
+## ❌ [CODING_ERROR] — 2026-02-24
+
+- **Run ID**: `run_1771923604129`
+- **Timestamp**: 2026-02-24T09:05:35.970Z
+- **Categoría**: coding_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El agente CoderAgent_1 falló al implementar cambios en `Terminal`: Command failed and auto-fix failed: Command failed: npm install zod@latest --legacy-peer-deps
+npm error code ETARGET
+npm error notarget No matching version found for @whiskeysockets/baileys@^7.0.0.
+npm error notarget In most cases you or one of your dependencies are requesting
+npm error notarget a package version that doesn't exist.
+npm error A complete log of this run can be found in: C:\Users\fysg5\AppData\Local\npm-cache\_logs\2026-02-24T09_05_05_368Z-debug-0.log
+
+
+### Contexto técnico
+
+```
+File: Terminal
+Step: {
+  "step": 1,
+  "file": "Terminal",
+  "action": "command",
+  "category": "dependencies",
+  "description": "Instalar Zod para la validación de Tool Memory sin alterar major versions.",
+  "command": "npm install zod@latest --legacy-peer-deps",
+  "details": "Instala la librería Zod necesaria para implementar el 'Zod-validated Tool Memory' en autodev-sandbox.ts. Se usa '--legacy-peer-deps' para evitar conflictos ERESOLVE (ej. react@rc vs framer-motion).",
+  "source": "https://zod.dev/",
+  "estimatedLines": 1
+}
+```
+
+---
+## ❌ [RUNTIME_ERROR] — 2026-02-24
+
+- **Run ID**: `run_1771923604167`
+- **Timestamp**: 2026-02-24T09:06:13.598Z
+- **Categoría**: runtime_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Run falló con error: Command failed: git checkout -b autodev/2026-02-24T09-06
+fatal: a branch named 'autodev/2026-02-24T09-06' already exists
+
+
+### Contexto técnico
+
+```
+Error: Command failed: git checkout -b autodev/2026-02-24T09-06
+fatal: a branch named 'autodev/2026-02-24T09-06' already exists
+
+    at genericNodeError (node:internal/errors:983:15)
+    at wrappedFn (node:internal/errors:537:14)
+    at ChildProcess.exithandler (node:child_process:417:12)
+    at ChildProcess.emit (node:events:518:28)
+    at maybeClose (node:internal/child_process:1101:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:304:5)
+```
+
+---
+## ❌ [RUNTIME_ERROR] — 2026-02-24
+
+- **Run ID**: `run_1771923604129`
+- **Timestamp**: 2026-02-24T09:18:30.027Z
+- **Categoría**: runtime_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Run falló con error: [AutoDevGit] SAFETY: Refusing write operation on protected branch "main"
+
+### Contexto técnico
+
+```
+Error: [AutoDevGit] SAFETY: Refusing write operation on protected branch "main"
+    at AutoDevGit.assertNotProtected (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-git.ts:36:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async AutoDevGit.stageAll (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-git.ts:109:5)
+    at async AutoDevService.executeRun (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:784:7)
+    at async AutoDevService.runNow (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:504:7)
+    at async runStandalone (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\scripts\autodev.ts:31:17)
+```
+
+---
+## ❌ [RUNTIME_ERROR] — 2026-02-24
+
+- **Run ID**: `run_1771923604188`
+- **Timestamp**: 2026-02-24T09:41:55.197Z
+- **Categoría**: runtime_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Run falló con error: [AutoDevGit] SAFETY: Refusing write operation on protected branch "main"
+
+### Contexto técnico
+
+```
+Error: [AutoDevGit] SAFETY: Refusing write operation on protected branch "main"
+    at AutoDevGit.assertNotProtected (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-git.ts:36:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async AutoDevGit.stageAll (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-git.ts:109:5)
+    at async AutoDevService.executeRun (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:784:7)
+    at async AutoDevService.runNow (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:504:7)
+    at async runStandalone (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\scripts\autodev.ts:31:17)
+```
+
+---
