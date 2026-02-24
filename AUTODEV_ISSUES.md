@@ -183,3 +183,307 @@ Step: {
 ```
 
 ---
+## ❌ [RUNTIME_ERROR] — 2026-02-23
+
+- **Run ID**: `run_1771837202979`
+- **Timestamp**: 2026-02-23T09:53:24.923Z
+- **Categoría**: runtime_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Run falló con error: [AutoDevGit] SAFETY: Refusing write operation on protected branch "main"
+
+### Contexto técnico
+
+```
+Error: [AutoDevGit] SAFETY: Refusing write operation on protected branch "main"
+    at AutoDevGit.assertNotProtected (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-git.ts:36:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async AutoDevGit.stageAll (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-git.ts:109:5)
+    at async AutoDevService.executeRun (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:784:7)
+    at async AutoDevService.runNow (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:504:7)
+    at async runStandalone (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\scripts\autodev.ts:31:17)
+```
+
+---
+## ❌ [🗣️ QUEJA DE USUARIO] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T01:08:25.632Z
+- **Fuente**: chat
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El usuario se quejó de que SofLIA no completó una acción correctamente.
+
+### Mensaje del usuario
+
+> en base a la siguiente informacion ayudame a terminar de configurar permisos para mi aplciacion 
+> Guía: Configuración de Google Cloud para Google Drive Integration
+> Paso 1: Crear Proyecto en Google Cloud Console
+> Ve a console.cloud.google.com
+> Click en el selector de proyecto (arriba a la izquierda) → "Nuevo Proyecto"
+> Nombre: Project Hub (o el que quieras)
+> Click "Crear" y selecciónalo como proyecto activo
+> Paso 2: Habilitar las APIs necesarias
+> Ve a APIs & Services → Library y habilita estas 3 APIs:
+> 
+> 
+
+### Contexto
+
+```
+Patrón detectado: no funciona
+```
+
+---
+## ❌ [🗣️ QUEJA DE USUARIO] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T01:38:01.709Z
+- **Fuente**: chat
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El usuario se quejó de que SofLIA no completó una acción correctamente.
+
+### Mensaje del usuario
+
+> los copiaste pero no los moviste aun faltan muchos
+
+### Contexto
+
+```
+Patrón detectado: pero no
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T02:45:45.161Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `create_directory` falló con error: EEXIST: file already exists, mkdir 'C:\Users\fysg5\Downloads\db_cluster-16-01-2026@09-10-47.backup'
+
+- **Herramienta**: `create_directory`
+- **Error**: EEXIST: file already exists, mkdir 'C:\Users\fysg5\Downloads\db_cluster-16-01-2026@09-10-47.backup'
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T02:45:45.163Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `create_directory` falló con error: EEXIST: file already exists, mkdir 'C:\Users\fysg5\Downloads\env'
+
+- **Herramienta**: `create_directory`
+- **Error**: EEXIST: file already exists, mkdir 'C:\Users\fysg5\Downloads\env'
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T02:45:45.164Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `create_directory` falló con error: EEXIST: file already exists, mkdir 'C:\Users\fysg5\Downloads\env.download'
+
+- **Herramienta**: `create_directory`
+- **Error**: EEXIST: file already exists, mkdir 'C:\Users\fysg5\Downloads\env.download'
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T02:46:00.251Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `create_directory` falló con error: EEXIST: file already exists, mkdir 'C:\Users\fysg5\Downloads\Image_20260107_085529.(null)'
+
+- **Herramienta**: `create_directory`
+- **Error**: EEXIST: file already exists, mkdir 'C:\Users\fysg5\Downloads\Image_20260107_085529.(null)'
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T02:46:29.748Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `move_item` falló con error: ENOENT: no such file or directory, rename 'C:\Users\fysg5\Downloads\db_cluster-16-01-2026@09-10-47.backup' -> 'C:\Users\fysg5\Downloads\db_cluster-16-01-2026@09-10-47.backup\db_cluster-16-01-2026@09-10-47.backup'
+
+- **Herramienta**: `move_item`
+- **Error**: ENOENT: no such file or directory, rename 'C:\Users\fysg5\Downloads\db_cluster-16-01-2026@09-10-47.backup' -> 'C:\Users\fysg5\Downloads\db_cluster-16-01-2026@09-10-47.backup\db_cluster-16-01-2026@09-10-47.backup'
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T02:46:29.750Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `move_item` falló con error: ENOENT: no such file or directory, rename 'C:\Users\fysg5\Downloads\db_cluster-16-01-2026@09-10-47.backup.gz' -> 'C:\Users\fysg5\Downloads\db_cluster-16-01-2026@09-10-47.backup\db_cluster-16-01-2026@09-10-47.backup.gz'
+
+- **Herramienta**: `move_item`
+- **Error**: ENOENT: no such file or directory, rename 'C:\Users\fysg5\Downloads\db_cluster-16-01-2026@09-10-47.backup.gz' -> 'C:\Users\fysg5\Downloads\db_cluster-16-01-2026@09-10-47.backup\db_cluster-16-01-2026@09-10-47.backup.gz'
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T02:46:45.661Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `move_item` falló con error: ENOENT: no such file or directory, rename 'C:\Users\fysg5\Downloads\env' -> 'C:\Users\fysg5\Downloads\env\env'
+
+- **Herramienta**: `move_item`
+- **Error**: ENOENT: no such file or directory, rename 'C:\Users\fysg5\Downloads\env' -> 'C:\Users\fysg5\Downloads\env\env'
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T02:46:45.663Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `move_item` falló con error: ENOENT: no such file or directory, rename 'C:\Users\fysg5\Downloads\env.download' -> 'C:\Users\fysg5\Downloads\env.download\env.download'
+
+- **Herramienta**: `move_item`
+- **Error**: ENOENT: no such file or directory, rename 'C:\Users\fysg5\Downloads\env.download' -> 'C:\Users\fysg5\Downloads\env.download\env.download'
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T02:47:01.448Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `move_item` falló con error: ENOENT: no such file or directory, rename 'C:\Users\fysg5\Downloads\Image_20260107_085529.(null)' -> 'C:\Users\fysg5\Downloads\Image_20260107_085529.(null)\Image_20260107_085529.(null)'
+
+- **Herramienta**: `move_item`
+- **Error**: ENOENT: no such file or directory, rename 'C:\Users\fysg5\Downloads\Image_20260107_085529.(null)' -> 'C:\Users\fysg5\Downloads\Image_20260107_085529.(null)\Image_20260107_085529.(null)'
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T02:47:17.966Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `move_item` falló con error: ENOENT: no such file or directory, rename 'C:\Users\fysg5\Downloads\INFO EXPO.txt' -> 'C:\Users\fysg5\Downloads\INFO EX\INFO EXPO.txt'
+
+- **Herramienta**: `move_item`
+- **Error**: ENOENT: no such file or directory, rename 'C:\Users\fysg5\Downloads\INFO EXPO.txt' -> 'C:\Users\fysg5\Downloads\INFO EX\INFO EXPO.txt'
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T02:51:07.489Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `set` falló con error: Herramienta desconocida: set
+
+- **Herramienta**: `set`
+- **Error**: Herramienta desconocida: set
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-02-24
+
+- **Timestamp**: 2026-02-24T02:51:07.491Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `lower` falló con error: Herramienta desconocida: lower
+
+- **Herramienta**: `lower`
+- **Error**: Herramienta desconocida: lower
+### Contexto
+
+```
+Args: {}
+```
+
+---
