@@ -98,10 +98,20 @@ export class AutoDevGit {
   async createWorkBranch(name: string, baseBranch: string = 'main'): Promise<string> {
     const branchName = name.startsWith('autodev/') ? name : `autodev/${name}`;
 
-    // First ensure we're on the base branch
+    // First ensure we're on the base branch — discard any uncommitted changes first
     const current = await this.getCurrentBranch();
     if (current !== baseBranch) {
-      await this.git('checkout', baseBranch);
+      try {
+        await this.git('checkout', baseBranch);
+      } catch {
+        // If checkout fails due to uncommitted changes, stash them
+        try {
+          await this.git('stash');
+          await this.git('checkout', baseBranch);
+        } catch (err: any) {
+          console.warn(`[AutoDevGit] Could not switch to ${baseBranch}: ${err.message}`);
+        }
+      }
     }
 
     // Pull latest from base branch

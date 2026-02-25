@@ -632,3 +632,27 @@ Patrón detectado: no (se )?cre[oó]
 ```
 
 ---
+## ❌ [RUNTIME_ERROR] — 2026-02-25
+
+- **Run ID**: `run_1772010004526`
+- **Timestamp**: 2026-02-25T10:00:13.195Z
+- **Categoría**: runtime_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Run falló con error: [AutoDevGit] SAFETY: Refusing write operation on protected branch "main"
+
+### Contexto técnico
+
+```
+Error: [AutoDevGit] SAFETY: Refusing write operation on protected branch "main"
+    at AutoDevGit.assertNotProtected (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-git.ts:45:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async AutoDevGit.stageAll (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-git.ts:134:5)
+    at async AutoDevService.executeRun (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:790:7)
+    at async AutoDevService.runNow (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:506:7)
+    at async runStandalone (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\scripts\autodev.ts:31:17)
+```
+
+---

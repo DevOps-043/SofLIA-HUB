@@ -18,7 +18,7 @@
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "@supabase/supabase-js": "^2.95.3",
     "@types/qrcode": "^1.5.6",
-    "@whiskeysockets/baileys": "^7.0.0",
+    "@whiskeysockets/baileys": "7.0.0-rc.9",
     "active-win": "^8.2.1",
     "better-sqlite3": "^12.6.2",
     "cron": "^4.4.0",
@@ -32,7 +32,8 @@
     "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "tesseract.js": "^7.0.0"
+    "tesseract.js": "^7.0.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",

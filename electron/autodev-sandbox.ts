@@ -58,21 +58,48 @@ export function validateToolInput<T>(schema: z.ZodSchema<T>, input: unknown): T 
  * Si retorna 404, aborta la instalación y notifica a la IA.
  */
 export async function verifyNpmPackage(pkgName: string): Promise<boolean> {
-  // Limpiar el nombre del paquete de versiones (ej. my-pkg@1.2.3 -> my-pkg)
+  // Separar nombre del paquete y versión (ej. my-pkg@^1.2.3 -> my-pkg, ^1.2.3)
   const cleanPkgName = pkgName.startsWith('@')
     ? '@' + pkgName.slice(1).split('@')[0]
     : pkgName.split('@')[0];
 
+  const versionSpec = pkgName.startsWith('@')
+    ? pkgName.slice(1).split('@')[1] || ''
+    : pkgName.split('@')[1] || '';
+
   const response = await fetch(`https://registry.npmjs.org/${cleanPkgName}`);
-  
+
   if (response.status === 404) {
     throw new Error(`El paquete '${pkgName}' no existe en NPM (404). Posible alucinación. Instalación abortada.`);
   }
-  
+
   if (!response.ok) {
     throw new Error(`Error al verificar paquete '${pkgName}' en NPM: ${response.statusText}`);
   }
-  
+
+  // If a specific version was requested, verify it exists
+  if (versionSpec) {
+    const data = await response.json();
+    const versions = Object.keys(data.versions || {});
+    const distTags = data['dist-tags'] || {};
+
+    // Strip semver range operators to get the base version
+    const cleanVersion = versionSpec.replace(/^[\^~>=<]+/, '');
+
+    // Check if the exact version exists or if any version matches the range prefix
+    const versionExists = versions.some((v: string) => v === cleanVersion || v.startsWith(cleanVersion));
+    const isDistTag = Object.keys(distTags).includes(versionSpec);
+
+    if (!versionExists && !isDistTag) {
+      // Suggest the latest available version
+      const latest = distTags.latest || versions[versions.length - 1] || 'unknown';
+      throw new Error(
+        `La versión '${versionSpec}' del paquete '${cleanPkgName}' no existe en NPM. ` +
+        `La última versión disponible es '${latest}'. Usa esa versión en su lugar.`
+      );
+    }
+  }
+
   return true;
 }
 

@@ -30,7 +30,9 @@
       "Bash(cmd /c \"dir /s /b C:\\\\Users\\\\fysg5\\\\Downloads\\\\*oliz* 2>nul\")",
       "WebFetch(domain:openclaw-setup.me)",
       "WebFetch(domain:dataconomy.com)",
-      "WebFetch(domain:www.nxcode.io)"
+      "WebFetch(domain:www.nxcode.io)",
+      "Bash(npm view:*)",
+      "Bash(npm ls:*)"
     ]
   }
 }

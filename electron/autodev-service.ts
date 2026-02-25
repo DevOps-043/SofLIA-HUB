@@ -42,7 +42,6 @@ import {
   type ResearchFinding,
   type AutoDevRunStatus,
   type AgentRole,
-  type AgentTask,
   DEFAULT_CONFIG,
 } from './autodev-types';
 import { AutoDevGit } from './autodev-git';
@@ -556,17 +555,28 @@ export class AutoDevService extends EventEmitter {
     try {
       console.log(`[AutoDev] Guardando cambios de intento fallido en repositorio remoto...`);
       const current = await this.git.getCurrentBranch();
+
+      // If we're on a protected branch, try to switch to the work branch first
       if (current === this.config.targetBranch || current === 'master') {
-        throw new Error(`[AutoDevGit] SAFETY: Refusing to persist changes on protected branch "${current}"`);
+        try {
+          await this.git.switchBranch(run.branchName);
+          console.log(`[AutoDev] Switched to work branch ${run.branchName} to persist failed changes`);
+        } catch {
+          // Work branch may not exist (e.g., createWorkBranch itself failed)
+          console.warn(`[AutoDev] No se pudo cambiar al branch de trabajo ${run.branchName}. Descartando cambios.`);
+          try { await this.git.switchBranch(this.config.targetBranch); } catch {}
+          return;
+        }
       }
+
       await this.git.stageAll();
       const lineCount = await this.git.getDiffLineCount();
       if (lineCount > 0) {
         await this.git.commitChanges(`[AutoDev] Fallo de Ejecución: ${run.error || 'Review needed'}`);
       }
       try { await this.git.pushBranch(run.branchName); } catch {}
-      console.log(`\n[AutoDev] ✅ El código erróneo ha sido guardado en la rama remota y local: ${run.branchName}`);
-      console.log(`[AutoDev] 🔎 Puedes revisar los archivos localmente, intentar correr "npm run build" y ver qué falló!`);
+      console.log(`\n[AutoDev] El código erróneo ha sido guardado en la rama remota y local: ${run.branchName}`);
+      console.log(`[AutoDev] Puedes revisar los archivos localmente, intentar correr "npm run build" y ver qué falló!`);
       // Switch back to main so next run starts clean
       try { await this.git.switchBranch(this.config.targetBranch); } catch {}
     } catch (err: any) {
@@ -786,6 +796,23 @@ export class AutoDevService extends EventEmitter {
     while (retries <= maxRetries) {
       console.log(`[AutoDev] ═══ Phase 4: Parallel Review + Build (Attempt ${retries + 1}/${maxRetries + 1}) ═══`);
       this.updateRunStatus(run, 'verifying');
+
+      // Safety: ensure we're on the work branch before staging
+      const currentBranch = await this.git.getCurrentBranch();
+      if (currentBranch === this.config.targetBranch || currentBranch === 'master') {
+        if (run.branchName) {
+          console.warn(`[AutoDev] Safety: detected we are on ${currentBranch}, switching to work branch ${run.branchName}`);
+          try { await this.git.switchBranch(run.branchName); } catch (switchErr: any) {
+            run.status = 'failed';
+            run.error = `Cannot switch to work branch ${run.branchName}: ${switchErr.message}`;
+            return;
+          }
+        } else {
+          run.status = 'failed';
+          run.error = 'No work branch available and currently on protected branch';
+          return;
+        }
+      }
 
       await this.git.stageAll();
 
@@ -1152,6 +1179,22 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
 
   // ─── Analysis (coding model) ──────────────────────────────────
 
+  private getErrorMemoryContext(): string {
+    const errorMemory = loadErrorMemory();
+    if (!errorMemory.length) return 'No hay errores registrados de runs anteriores.';
+    const top = errorMemory.slice(0, 15);
+    return top.map(m => `- [${m.pattern}] en ${m.file}: ${m.fix} (ocurrencias: ${m.occurrences}, último: ${m.lastSeen})`).join('\n');
+  }
+
+  private getRunHistorySummary(): string {
+    if (!this.history.length) return 'No hay historial de runs anteriores.';
+    const recent = this.history.slice(-5);
+    return recent.map(r => {
+      const applied = r.improvements.filter(i => i.applied).length;
+      return `- Run ${r.id} (${r.startedAt.slice(0, 10)}): ${r.status} — ${applied} mejoras aplicadas${r.error ? ` — Error: ${r.error.slice(0, 100)}` : ''}`;
+    }).join('\n');
+  }
+
   private async analyzeCode(sourceContext: string, findings: ResearchFinding[], npmAuditText: string, npmOutdatedText: string): Promise<any[]> {
     const findingsText = findings.filter(f => f.actionable)
       .map(f => `- [${f.category}] ${f.findings}\n  Sources: ${f.sources.join(', ')}`).join('\n');
@@ -1164,7 +1207,9 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
       .replace('{SOURCE_CODE}', sourceContext)
       .replace('{CATEGORIES}', this.config.categories.join(', '))
       .replace('{MAX_FILES}', String(this.config.maxFilesPerRun))
-      .replace('{MAX_LINES}', String(this.config.maxLinesChanged));
+      .replace('{MAX_LINES}', String(this.config.maxLinesChanged))
+      .replace('{ERROR_MEMORY}', this.getErrorMemoryContext())
+      .replace('{RUN_HISTORY}', this.getRunHistorySummary());
 
     const execute = async (baseModel: string): Promise<any[]> => {
       const finalModel = await this.getOptimalModel(baseModel, prompt);
@@ -1222,10 +1267,24 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
     const prompt = PLAN_PROMPT
       .replace('{IMPROVEMENTS}', JSON.stringify(improvements, null, 2))
       .replace('{RESEARCH_CONTEXT}', ctx || 'None')
-      .replace('{MAX_LINES}', String(this.config.maxLinesChanged));
+      .replace('{MAX_LINES}', String(this.config.maxLinesChanged))
+      .replace('{ERROR_MEMORY}', this.getErrorMemoryContext());
 
     const result = await model.generateContent(prompt);
-    return this.parseJSON(result.response.text())?.plan || [];
+    const plan = this.parseJSON(result.response.text())?.plan || [];
+
+    // ─── Pre-flight validation: filter out dangerous plan steps ───
+    return plan.filter((step: any) => {
+      // Block npm install commands with @latest
+      if (step.action === 'command' && step.command) {
+        const cmd = step.command;
+        if (cmd.includes('@latest') && (cmd.includes('electron') || cmd.includes('react') || cmd.includes('typescript') || cmd.includes('sharp') || cmd.includes('vite'))) {
+          console.log(`[AutoDev SafetyFilter] Blocked command: "${cmd}" — core packages cannot be updated via @latest`);
+          return false;
+        }
+      }
+      return true;
+    });
   }
 
   // ─── Code implementation (coding model + tools) ───────────────
@@ -1282,6 +1341,10 @@ ${diff.slice(0, 50000)}
 5. Si creaste imports que no existen, ELIMÍNALOS.
 6. Si necesitas REVERTIR un cambio que rompió algo, hazlo — es mejor revertir que dejar el build roto.
 7. NUNCA dejes código a medias. Cada archivo debe compilar correctamente.
+8. Si un tipo genérico no se infiere (TS2345 con ZodObject), usa \`as any\` o especifica el tipo explícitamente.
+9. Para Supabase: NUNCA uses .catch() — usa destructuring \`const { data, error } = await ...\`
+10. Si importaste un tipo/variable sin usarlo (TS6133), QUITA el import.
+11. PREFIERE revertir el cambio problemático a intentar un fix complejo que puede generar más errores.
 
 ## FORMATO JSON REQUERIDO (Solo devuelve JSON):
 {
@@ -1353,9 +1416,46 @@ ${diff.slice(0, 50000)}
   private async implementStep(step: any): Promise<AutoDevImprovement | null> {
     if (step.action === 'command' && step.command) {
       let currentCommand = step.command;
+
+      // Pre-validate npm install commands: verify packages and versions exist before running
+      if (currentCommand.includes('npm install') || currentCommand.includes('npm i ')) {
+        const { verifyNpmPackage } = await import('./autodev-sandbox');
+        const parts = currentCommand.split(/\s+/);
+        const npmIdx = parts.findIndex((p: string) => p === 'install' || p === 'i');
+        const packages = parts.slice(npmIdx + 1).filter((p: string) => !p.startsWith('-'));
+        const validPackages: string[] = [];
+
+        // Block packages that should never be updated automatically
+        const BLOCKED_PACKAGES = ['electron', 'react', 'react-dom', 'vite', 'typescript', 'sharp', '@electron/rebuild'];
+
+        for (const pkg of packages) {
+          const pkgName = pkg.startsWith('@') ? '@' + pkg.slice(1).split('@')[0] : pkg.split('@')[0];
+          if (BLOCKED_PACKAGES.includes(pkgName)) {
+            console.warn(`[AutoDev CoderAgent] Paquete bloqueado (core/nativo): ${pkg}`);
+            continue;
+          }
+          try {
+            await verifyNpmPackage(pkg);
+            validPackages.push(pkg);
+          } catch (err: any) {
+            console.warn(`[AutoDev CoderAgent] Paquete inválido eliminado: ${pkg} — ${err.message}`);
+          }
+        }
+
+        if (validPackages.length === 0) {
+          console.warn(`[AutoDev CoderAgent] Todos los paquetes fueron inválidos. Saltando comando.`);
+          return null;
+        }
+
+        // Rebuild command with only valid packages
+        const flags = parts.slice(npmIdx + 1).filter((p: string) => p.startsWith('-'));
+        currentCommand = `npm install ${validPackages.join(' ')} ${flags.join(' ')}`.trim();
+        console.log(`[AutoDev CoderAgent] Comando validado: ${currentCommand}`);
+      }
+
       const maxRetries = 2;
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        console.log(`[AutoDev CoderAgent] 🚀 Ejecutando comando de terminal (Intento ${attempt + 1}/${maxRetries + 1}): ${currentCommand}`);
+        console.log(`[AutoDev CoderAgent] Ejecutando comando de terminal (Intento ${attempt + 1}/${maxRetries + 1}): ${currentCommand}`);
         try {
           const { promisify } = await import('node:util');
           const { exec } = await import('node:child_process');
@@ -1409,7 +1509,8 @@ ${diff.slice(0, 50000)}
       .replace('{PLAN_STEP}', JSON.stringify(step, null, 2))
       .replace('{FILE_PATH}', step.file)
       .replace('{CURRENT_CODE}', currentCode)
-      .replace('{RESEARCH_CONTEXT}', step.source || 'None');
+      .replace('{RESEARCH_CONTEXT}', step.source || 'None')
+      .replace('{LESSONS_LEARNED}', this.getErrorMemoryContext());
 
     const execute = async (baseModel: string): Promise<any> => {
       const finalModel = await this.getOptimalModel(baseModel, prompt);
@@ -1569,9 +1670,9 @@ ${diff.slice(0, 50000)}
   // ─── Helpers ──────────────────────────────────────────────────
 
   private readProjectFiles(): Array<{ path: string; content: string }> {
-    // Budget: ~100K chars ≈ ~25K tokens. Prevents 335K+ token prompts that crash agents.
-    const MAX_TOTAL_CHARS = 100_000;
-    const MAX_FILE_CHARS = 12_000; // Truncate individual files beyond this
+    // Budget: ~300K chars ≈ ~75K tokens. Allows reading most project files while staying within Gemini context limits.
+    const MAX_TOTAL_CHARS = 300_000;
+    const MAX_FILE_CHARS = 25_000; // Truncate individual files beyond this
     const allFiles: Array<{ path: string; size: number; priority: number }> = [];
     const walk = (dir: string) => {
       for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

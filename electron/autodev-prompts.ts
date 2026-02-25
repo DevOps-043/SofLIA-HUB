@@ -98,6 +98,12 @@ Path: {REPO_PATH}
 
 ## Categorías habilitadas: {CATEGORIES}
 
+## Historial de errores de runs anteriores (APRENDE de estos)
+{ERROR_MEMORY}
+
+## Resumen de runs recientes
+{RUN_HISTORY}
+
 ## Herramientas disponibles
 - web_search(query): buscar información en internet
 - read_webpage(url): leer contenido de una página web
@@ -110,6 +116,20 @@ Path: {REPO_PATH}
 - Solo son permitidas actualizaciones PATCH/MINOR dentro del mismo major (ej. "5.4.1" → "5.4.8").
 - NUNCA modifiques ni crees archivos fuera del repositorio (node_modules, etc).
 - NUNCA elimines ni renombres directorios existentes del proyecto.
+- NUNCA propongas instalar paquetes que no hayas VERIFICADO que existen en NPM con web_search.
+- NUNCA uses @latest para instalar paquetes — siempre especifica una versión EXACTA verificada.
+- NUNCA propongas actualizar electron o sharp en un comando automático — son paquetes con binarios nativos.
+- NUNCA propongas instalar paquetes nuevos a menos que sea ESTRICTAMENTE necesario para la funcionalidad.
+
+## ⛔ ERRORES RECURRENTES QUE DEBES EVITAR
+Los siguientes errores han ocurrido múltiples veces en runs anteriores. NO los repitas:
+1. Instalar paquetes inexistentes (e.g. @microsoft/markitdown — NO existe en NPM)
+2. Usar \`electron@latest\` mientras la app está corriendo (causa EBUSY)
+3. Usar \`react@rc\` o \`react-dom@rc\` (causa conflictos con framer-motion)
+4. Usar semver \`^7.0.0\` para paquetes que solo tienen pre-releases (e.g. baileys)
+5. Agregar imports de paquetes no instalados (causa TS2307)
+6. Usar .catch() en queries de Supabase (no existe, usar destructuring {data, error})
+7. Modificar archivos críticos del sistema (autodev-service.ts, main.ts) de forma que rompa el build
 
 ## Instrucciones CRÍTICAS
 1. PRIORIDAD MÁXIMA: Implementar funcionalidades COMPLETAMENTE NUEVAS, con especial foco en patrones de OpenClaw. No te limites a correcciones menores. Queremos saltos evolutivos en capacidades.
@@ -117,9 +137,10 @@ Path: {REPO_PATH}
 3. ANTES de proponer cualquier mejora, INVESTIGA la solución correcta usando web_search y read_webpage
 4. Busca documentación oficial, nuevos repositorios de Github, ejemplos e inspiración.
 5. Cada mejora DEBE tener al menos una fuente que la respalde (nuevas librerías, papers, repos open source).
-6. Prioriza: Nuevas Funcionalidades (foco OpenClaw) > Auto-Evolución de AutoDev > critical security > quality > performance > tests
-7. Máximo {MAX_FILES} archivos, máximo {MAX_LINES} líneas cambiadas en total
-8. EJEMPLOS TIPO OPENCLAW/OPENHANDS:
+6. Si propones instalar un paquete nuevo, PRIMERO verifica que existe con web_search("site:npmjs.com paquete-nombre") y usa la versión EXACTA del dist-tag "latest".
+7. Prioriza: Nuevas Funcionalidades (foco OpenClaw) > Auto-Evolución de AutoDev > critical security > quality > performance > tests
+8. Máximo {MAX_FILES} archivos, máximo {MAX_LINES} líneas cambiadas en total
+9. EJEMPLOS TIPO OPENCLAW/OPENHANDS:
    - Implementar orquestación multi-paso con retroalimentación del entorno.
    - Agregar herramientas de "Browser Use" o "Terminal Use" avanzadas.
    - Crear un sistema de "Long-term Memory" usando una base de datos vectorial local.
@@ -151,10 +172,29 @@ export const PLAN_PROMPT = `Eres un arquitecto de software creando un plan de im
 ## Investigación de respaldo
 {RESEARCH_CONTEXT}
 
+## Errores comunes de runs anteriores (NO los repitas)
+{ERROR_MEMORY}
+
 ## ⛔ PROHIBICIÓN: NO MAJOR VERSION BUMPS
 NUNCA incluyas pasos que cambien versiones de dependencias a un major diferente en package.json.
 Si una mejora propuesta requiere un major upgrade, ELIMÍNALA del plan.
 Solo cambios de código fuente (.ts, .tsx) y actualizaciones patch/minor son permitidos.
+
+## ⛔ REGLAS PARA COMANDOS npm install
+Si tu plan incluye un paso con action="command" para instalar paquetes:
+1. NUNCA uses @latest — siempre especifica una versión exacta que hayas verificado
+2. NUNCA instales: electron, react, react-dom, vite, typescript, sharp (son paquetes con binarios/config especial)
+3. NUNCA instales múltiples paquetes no relacionados en un solo comando
+4. Si el paquete tiene solo pre-releases (RC), usa la versión exacta del RC
+5. Incluye --legacy-peer-deps si hay riesgo de conflictos
+6. VERIFICA que cada paquete exista antes de incluirlo en el plan
+
+## ⛔ REGLAS PARA MODIFICAR CÓDIGO
+1. NO agregues imports de paquetes que no estén instalados (causa TS2307)
+2. NO uses .catch() en queries de Supabase — usa destructuring \`const { data, error } = await ...\`
+3. NO dejes variables/tipos declarados sin usar (causa TS6133)
+4. Si modificas tipos genéricos, especifica el tipo de retorno explícitamente para evitar TS2345
+5. Si un archivo tiene más de 1000 líneas, haz cambios quirúrgicos — NO reescribas todo el archivo
 
 ## Instrucciones
 1. Para cada mejora, crea un plan paso a paso de IMPLEMENTACIÓN DE CÓDIGO
@@ -164,17 +204,19 @@ Solo cambios de código fuente (.ts, .tsx) y actualizaciones patch/minor son per
 5. Verifica que ningún cambio rompa funcionalidad existente
 6. El total de líneas cambiadas NO debe exceder {MAX_LINES}
 7. FILTRA: Si alguna mejora propone cambiar package.json con major bumps, DESCÁRTALA
+8. PREFIERE modificar archivos existentes en vez de crear nuevos
+9. Evita modificar archivos core del sistema (main.ts, preload.ts) a menos que sea estrictamente necesario
 
 ## Output JSON
 {
   "plan": [
     {
       "step": 1,
-      "file": "ruta/archivo.ts", // (Usa "Terminal" si la acción es un comando)
+      "file": "ruta/archivo.ts",
       "action": "modify|create|command",
       "category": "features|quality|performance|security|dependencies",
       "description": "qué función/clase modificar o qué comando correr",
-      "command": "npm install pino@latest --legacy-peer-deps", // Incluye solo si action es "command"
+      "command": "npm install paquete@1.2.3 --legacy-peer-deps",
       "details": "código pseudocódigo de los cambios, o explicación del comando",
       "source": "url de referencia que respalda la implementación",
       "estimatedLines": 10
@@ -201,6 +243,9 @@ Archivo: {FILE_PATH}
 ## Contexto de investigación
 {RESEARCH_CONTEXT}
 
+## Lecciones aprendidas de errores anteriores
+{LESSONS_LEARNED}
+
 ## Herramientas disponibles
 - web_search(query): buscar información en internet
 - read_webpage(url): leer contenido de una página web
@@ -215,6 +260,16 @@ Archivo: {FILE_PATH}
 6. Retorna el archivo COMPLETO con los cambios aplicados
 7. ⛔ Si el archivo es package.json: NUNCA cambies la versión major de ninguna dependencia (ej. "^18.2.0" → "^19.0.0" está PROHIBIDO). Solo puedes hacer cambios patch/minor (ej. "^18.2.0" → "^18.3.1")
 8. Las versiones de react, react-dom, vite, electron, typescript NO se tocan a menos que sea un patch/minor
+
+## ⛔ ERRORES COMUNES QUE DEBES EVITAR (aprende de fallos pasados)
+- **Supabase**: NUNCA uses .catch() en queries de Supabase. Usa destructuring: \`const { data, error } = await supabase.from(...)\`
+- **Zod + zod-to-json-schema**: Los tipos de Zod v4 usan \`$strip\` en genéricos. Si usas \`z.infer<typeof schema>\`, asigna a variables con tipo explícito o usa \`as any\` para schemas en función genérica.
+- **Imports no usados**: Si importas un tipo o variable, ÚSALO. TypeScript falla con TS6133 si declaras algo sin usarlo.
+- **Sharp**: Usa la API nativa de sharp (.png(), .toBuffer()), NO métodos de Electron (.toPNG()). Sharp no es NativeImage de Electron.
+- **Tipos genéricos**: Si una función genérica retorna \`T\` y T no fue inferido, TypeScript lo evalúa como \`unknown\`. Especifica el tipo explícitamente.
+- **Package versions**: NUNCA asumas que una versión existe. @latest puede resolver a un RC. Verifica con npm view antes de usar una versión específica.
+- **Electron@latest**: NUNCA intentes actualizar electron mientras la app está corriendo (EBUSY). Las actualizaciones de electron son manuales.
+- **Pre-release versions**: \`^7.0.0\` NO matchea \`7.0.0-rc.X\`. Usa la versión exacta del RC si no hay estable.
 
 ## Output JSON
 {

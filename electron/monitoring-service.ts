@@ -7,6 +7,14 @@ import { EventEmitter } from 'node:events';
 import { app, desktopCapturer, powerMonitor, BrowserWindow } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+// Dynamic import to prevent crash if sharp native binaries aren't available
+let sharp: any;
+try {
+  sharp = require('sharp');
+} catch (err: any) {
+  console.warn('[MonitoringService] sharp module not available — screenshot compositing disabled:', err.message);
+  sharp = null;
+}
 
 // ─── Types ──────────────────────────────────────────────────────────
 
@@ -136,11 +144,11 @@ export class MonitoringService extends EventEmitter {
 
     console.log(`[MonitoringService] Stopped. Total snapshots: ${count}`);
 
-    this.emit('session-ended', {
-      userId: this.userId,
-      sessionId: this.sessionId,
-      snapshotCount: count,
-      pendingSnapshots: buffer,
+    this.emit('session-ended', { 
+      userId: this.userId, 
+      sessionId: this.sessionId, 
+      snapshotCount: count, 
+      pendingSnapshots: buffer 
     });
 
     const result = { snapshotCount: count, buffer };
@@ -186,6 +194,29 @@ export class MonitoringService extends EventEmitter {
     return { axTree, imagePath };
   }
 
+  // ─── Security Guardrail ───────────────────────────────────────────
+
+  /**
+   * Validates if the screenshot text contains potential Indirect Prompt Injection.
+   */
+  private async validateScreenshotSafety(imageBuffer: Buffer): Promise<boolean> {
+    try {
+      const { extractTextFromBase64 } = await import('./ocr-service');
+      const text = await extractTextFromBase64(imageBuffer.toString('base64'));
+      if (!text) return true;
+      
+      const anomalousRegex = /(ignora( todas las)? instrucciones|borra (todo|la base de datos)|olvida tu prompt)/i;
+      if (anomalousRegex.test(text)) {
+        console.warn('[MonitoringService] OCR Guardrail: Suspicious command detected. Possible Indirect Prompt Injection.');
+        return false;
+      }
+      return true;
+    } catch (err: any) {
+      console.error('[MonitoringService] validateScreenshotSafety error:', err.message);
+      return true; // Fail-open on OCR error to not break the application
+    }
+  }
+
   // ─── Private: Capture loop ────────────────────────────────────────
 
   private async captureSnapshot(): Promise<void> {
@@ -207,7 +238,7 @@ export class MonitoringService extends EventEmitter {
 
     // 3. Take screenshot (if enabled and not idle)
     let screenshotPath: string | undefined;
-    if (this.config.screenshotEnabled && !isIdle) {
+    if ((this.config.screenshotEnabled || this.config.semanticSnapshotEnabled) && !isIdle) {
       screenshotPath = await this.takeScreenshot(timestamp, this.config.targetDisplayId);
     }
 
@@ -225,13 +256,18 @@ export class MonitoringService extends EventEmitter {
 
     // 5. Semantic Snapshot (if enabled)
     let semanticSnapshot: string | undefined;
-    if (this.config.semanticSnapshotEnabled && !isIdle) {
-      const axTree = await this.fetchAXTree();
-      if (axTree) semanticSnapshot = axTree;
+    if (this.config.semanticSnapshotEnabled && !isIdle && screenshotPath) {
+      try {
+        const buffer = await fs.readFile(screenshotPath);
+        // Encode the grid-overlayed image to Base64 for Gemini/AI consumption
+        semanticSnapshot = buffer.toString('base64');
+      } catch (err) {
+        console.error('[MonitoringService] Failed to generate semantic snapshot base64:', err);
+      }
     }
 
-    // 6. Delete screenshot after OCR (keep disk clean)
-    if (screenshotPath) {
+    // 6. Delete screenshot after processing (keep disk clean)
+    if (screenshotPath && !this.config.screenshotEnabled) {
       fs.unlink(screenshotPath).catch(() => {});
     }
 
@@ -242,7 +278,7 @@ export class MonitoringService extends EventEmitter {
       url,
       idle: isIdle,
       idleSeconds,
-      screenshotPath: undefined, // Path deleted, only ocrText persists
+      screenshotPath: this.config.screenshotEnabled ? screenshotPath : undefined,
       ocrText,
       semanticSnapshot,
       timestamp,
@@ -268,35 +304,97 @@ export class MonitoringService extends EventEmitter {
   }
 
   private async takeScreenshot(timestamp: Date, displayId?: string): Promise<string | undefined> {
+    if (!sharp) {
+      console.warn('[MonitoringService] sharp not loaded — skipping screenshot compositing');
+      return undefined;
+    }
     try {
       const sources = await desktopCapturer.getSources({
         types: ['screen'],
-        thumbnailSize: { width: 1280, height: 720 }, // Reduced for efficiency
+        thumbnailSize: { width: 1280, height: 720 }, // Consistent sizing for ACI context
       });
 
       if (sources.length === 0) return undefined;
 
-      let targetSource = sources[0];
+      // Filter sources: if displayId provided, use it. Otherwise, iterate all for multi-monitor support.
+      let targetSources = sources;
       if (displayId) {
-        for (const source of sources) {
-          if (source.display_id === displayId || source.id === displayId) {
-            targetSource = source;
-            break;
-          }
-        }
+        const found = sources.find(s => s.display_id === displayId || s.id === displayId);
+        targetSources = found ? [found] : [sources[0]];
       }
 
-      const thumbnail = targetSource.thumbnail;
+      const processedBuffers: Buffer[] = [];
 
-      if (thumbnail.isEmpty()) return undefined;
+      for (const source of targetSources) {
+        const thumbnail = source.thumbnail;
+        if (thumbnail.isEmpty()) continue;
 
-      const pngBuffer = thumbnail.toPNG();
-      const safeId = targetSource.id.replace(/[^a-zA-Z0-9]/g, '');
+        const { width, height } = thumbnail.getSize();
+        const pngBuffer = thumbnail.toPNG();
+
+        // ─── Set-of-Mark (Grid Overlay) ─────────────────────────────
+        // Draws a semi-transparent grid with coordinate labels for LLM pixel reference.
+        const step = 100;
+        let svgElements = '';
+        
+        for (let x = 0; x < width; x += step) {
+          svgElements += `<line x1="${x}" y1="0" x2="${x}" y2="${height}" stroke="rgba(255, 0, 0, 0.2)" stroke-width="1" />`;
+          svgElements += `<text x="${x + 2}" y="12" fill="rgba(255, 0, 0, 0.6)" font-size="10" font-family="monospace">${x}</text>`;
+        }
+        for (let y = 0; y < height; y += step) {
+          svgElements += `<line x1="0" y1="${y}" x2="${width}" y2="${y}" stroke="rgba(255, 0, 0, 0.2)" stroke-width="1" />`;
+          svgElements += `<text x="2" y="${y + 12}" fill="rgba(255, 0, 0, 0.6)" font-size="10" font-family="monospace">${y}</text>`;
+        }
+
+        const svgOverlay = Buffer.from(`
+          <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+            ${svgElements}
+          </svg>
+        `);
+
+        const gridBuffer = await sharp(pngBuffer)
+          .composite([{ input: svgOverlay, top: 0, left: 0 }])
+          .toBuffer();
+          
+        processedBuffers.push(gridBuffer);
+      }
+
+      if (processedBuffers.length === 0) return undefined;
+
+      let finalBuffer: Buffer;
+      if (processedBuffers.length === 1) {
+        finalBuffer = processedBuffers[0];
+      } else {
+        // Concatenate multiple monitors horizontally
+        const totalWidth = processedBuffers.length * 1280;
+        finalBuffer = await sharp({
+          create: {
+            width: totalWidth,
+            height: 720,
+            channels: 4,
+            background: { r: 0, g: 0, b: 0, alpha: 1 }
+          }
+        })
+        .composite(processedBuffers.map((input, i) => ({
+          input,
+          left: i * 1280,
+          top: 0
+        })))
+        .png()
+        .toBuffer();
+      }
+
+      // --- Security Guardrail Check ---
+      const isSafe = await this.validateScreenshotSafety(finalBuffer);
+      if (!isSafe) {
+        throw new Error('Screenshot discarded due to security guardrail (Indirect Prompt Injection).');
+      }
+
+      const safeId = displayId ? displayId.replace(/[^a-zA-Z0-9]/g, '') : 'combined';
       const filename = `snap_${timestamp.getTime()}_${safeId}.png`;
       const filePath = path.join(this.screenshotDir, filename);
 
-      await fs.writeFile(filePath, pngBuffer);
-
+      await fs.writeFile(filePath, finalBuffer);
       return filePath;
     } catch (err: any) {
       console.error('[MonitoringService] Screenshot error:', err.message);
