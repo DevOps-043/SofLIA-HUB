@@ -49,6 +49,7 @@
   "autoMerge": false,
   "requireBuildPass": true,
   "categories": [
+    "features",
     "security",
     "quality",
     "performance",

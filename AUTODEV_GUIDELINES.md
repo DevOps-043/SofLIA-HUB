@@ -14,6 +14,13 @@ Este documento detalla el marco operativo, técnico y de seguridad del motor de 
     El `AnalyzerAgent` utiliza `web_search` para investigar cómo se resuelve el problema en proyectos de referencia (OpenClaw/Cursor). La decisión se documenta automáticamente en el `README.md` de arquitectura o en el resumen del PR.
 4.  **¿Qué define “éxito” para ti?**
     El éxito técnico es un **PR creado con Build Pass** (`npm run build`). El éxito operativo es la notificación de WhatsApp confirmando que la nueva funcionalidad está desplegada en el branch de trabajo.
+5.  **¿Cuál es el alcance del sistema?**
+    SofLIA no es solo un sistema de auto-programación. Es un **Sistema Operativo de IA** completo que incluye:
+    - **Computer Use**: automatización visual, mover archivos, controlar apps, gestionar ventanas
+    - **WhatsApp como Centro de Control**: el usuario controla todo SofLIA desde WhatsApp (no solo recibe notificaciones)
+    - **Gestión de Sistema**: monitoreo de CPU/RAM/disco, backup automático, limpieza, alertas
+    - **Automatización de Consola**: ejecución de scripts, pipelines, tareas programadas
+    - **AutoDev**: auto-programación con implementaciones ambiciosas (mínimo 500 líneas por run)
 
 ---
 
@@ -24,7 +31,7 @@ Este documento detalla el marco operativo, técnico y de seguridad del motor de 
 2.  **¿Cómo representas el mapa del sistema?**
     A través de una lista jerárquica de archivos detectados por `readProjectFiles` y la lectura del `package.json` para mapear el grafo de dependencias.
 3.  **¿Qué convenciones internas deben ir siempre en el contexto?**
-    Indentación de 2 espacios, tipado estricto en TypeScript y la **regla absoluta de no realizar Major Version Bumps** en dependencias.
+    Indentación de 2 espacios, tipado estricto en TypeScript, la **regla absoluta de no realizar Major Version Bumps** en dependencias, y la **priorización de funcionalidades de sistema completo** (Computer Use, WhatsApp Control, Gestión de Sistema) sobre mejoras incrementales de código.
 4.  **¿Qué señales te dicen “me falta contexto” antes de correr el modelo?**
     Cuando el `DeepResearcher` no encuentra definiciones de interfaces o tipos en los archivos cargados (triggers de error TS2304/TS2339), lo que dispara una llamada a `read_file` para traer archivos adicionales.
 
@@ -65,7 +72,7 @@ Este documento detalla el marco operativo, técnico y de seguridad del motor de 
 3.  **¿Cómo reduces el problema?**
     Aislando el módulo mediante el parseo de errores de build, enfocando al `FixAgent` solo en las líneas específicas que fallaron.
 4.  **¿Qué haces cuando el modelo propone cambios “demasiado grandes”?**
-    El `ReviewerAgent` rechaza cambios que superen el `maxLinesChanged` (500 líneas) o que borren archivos enteros sin justificación clara.
+    El `ReviewerAgent` rechaza cambios que superen el `maxLinesChanged` (50,000 líneas) o que borren archivos enteros sin justificación clara. Se INCENTIVAN implementaciones de 500-2000 líneas por run — esto no es “demasiado grande”, es el objetivo.
 
 ---
 
@@ -98,7 +105,7 @@ Este documento detalla el marco operativo, técnico y de seguridad del motor de 
 ## 8. Colaboración y Definición de "Terminado"
 
 1.  **¿Cómo defines el tamaño máximo de PR?**
-    Máximo **15 archivos** o **500 líneas** cambiadas por run de AutoDev.
+    Máximo **150 archivos** o **50,000 líneas** cambiadas por run de AutoDev. Mínimo recomendado: **500 líneas** por run para asegurar implementaciones significativas.
 2.  **¿Cómo haces handoff?**
     Mediante un mensaje de WhatsApp que incluye: 1. Resumen técnico, 2. Lista de mejoras, 3. Link al PR.
 3.  **¿Quién puede mergear?**
