@@ -72,7 +72,7 @@ Please retry in 20.089651007s. [{"@type":"type.googleapis.com/google.rpc.Help","
 - **Run ID**: `run_1771799463756`
 - **Timestamp**: 2026-02-22T22:38:49.915Z
 - **Categoría**: coding_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772079425221` — 2026-02-26)
 
 ### Descripción
 
@@ -150,7 +150,7 @@ Step: {
 - **Run ID**: `run_1771799463756`
 - **Timestamp**: 2026-02-22T22:38:52.991Z
 - **Categoría**: coding_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772079425221` — 2026-02-26)
 
 ### Descripción
 
@@ -188,7 +188,7 @@ Step: {
 - **Run ID**: `run_1771837202979`
 - **Timestamp**: 2026-02-23T09:53:24.923Z
 - **Categoría**: runtime_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772079425221` — 2026-02-26)
 
 ### Descripción
 
@@ -211,7 +211,7 @@ Error: [AutoDevGit] SAFETY: Refusing write operation on protected branch "main"
 
 - **Timestamp**: 2026-02-24T01:08:25.632Z
 - **Fuente**: chat
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772079425221` — 2026-02-26)
 
 ### Descripción
 
@@ -242,7 +242,7 @@ Patrón detectado: no funciona
 
 - **Timestamp**: 2026-02-24T01:38:01.709Z
 - **Fuente**: chat
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772079425221` — 2026-02-26)
 
 ### Descripción
 
@@ -263,7 +263,7 @@ Patrón detectado: pero no
 
 - **Timestamp**: 2026-02-24T02:45:45.161Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772079425221` — 2026-02-26)
 
 ### Descripción
 
@@ -282,7 +282,7 @@ Args: {}
 
 - **Timestamp**: 2026-02-24T02:45:45.163Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772079425221` — 2026-02-26)
 
 ### Descripción
 
@@ -301,7 +301,7 @@ Args: {}
 
 - **Timestamp**: 2026-02-24T02:45:45.164Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772079425221` — 2026-02-26)
 
 ### Descripción
 
@@ -320,7 +320,7 @@ Args: {}
 
 - **Timestamp**: 2026-02-24T02:46:00.251Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772079425221` — 2026-02-26)
 
 ### Descripción
 
@@ -339,7 +339,7 @@ Args: {}
 
 - **Timestamp**: 2026-02-24T02:46:29.748Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772079425221` — 2026-02-26)
 
 ### Descripción
 
@@ -358,7 +358,7 @@ Args: {}
 
 - **Timestamp**: 2026-02-24T02:46:29.750Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772079425221` — 2026-02-26)
 
 ### Descripción
 
@@ -377,7 +377,7 @@ Args: {}
 
 - **Timestamp**: 2026-02-24T02:46:45.661Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772079425221` — 2026-02-26)
 
 ### Descripción
 
@@ -396,7 +396,7 @@ Args: {}
 
 - **Timestamp**: 2026-02-24T02:46:45.663Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772079425221` — 2026-02-26)
 
 ### Descripción
 
@@ -415,7 +415,7 @@ Args: {}
 
 - **Timestamp**: 2026-02-24T02:47:01.448Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772079425221` — 2026-02-26)
 
 ### Descripción
 
@@ -434,7 +434,7 @@ Args: {}
 
 - **Timestamp**: 2026-02-24T02:47:17.966Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772079425221` — 2026-02-26)
 
 ### Descripción
 
@@ -453,7 +453,7 @@ Args: {}
 
 - **Timestamp**: 2026-02-24T02:51:07.489Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772079425221` — 2026-02-26)
 
 ### Descripción
 
@@ -472,7 +472,7 @@ Args: {}
 
 - **Timestamp**: 2026-02-24T02:51:07.491Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772079425221` — 2026-02-26)
 
 ### Descripción
 
@@ -492,7 +492,7 @@ Args: {}
 - **Run ID**: `run_1771923604129`
 - **Timestamp**: 2026-02-24T09:05:35.970Z
 - **Categoría**: coding_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772079425221` — 2026-02-26)
 
 ### Descripción
 
@@ -527,7 +527,7 @@ Step: {
 - **Run ID**: `run_1771923604167`
 - **Timestamp**: 2026-02-24T09:06:13.598Z
 - **Categoría**: runtime_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772079425221` — 2026-02-26)
 
 ### Descripción
 
@@ -555,7 +555,7 @@ fatal: a branch named 'autodev/2026-02-24T09-06' already exists
 - **Run ID**: `run_1771923604129`
 - **Timestamp**: 2026-02-24T09:18:30.027Z
 - **Categoría**: runtime_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772079425221` — 2026-02-26)
 
 ### Descripción
 
@@ -579,7 +579,7 @@ Error: [AutoDevGit] SAFETY: Refusing write operation on protected branch "main"
 - **Run ID**: `run_1771923604188`
 - **Timestamp**: 2026-02-24T09:41:55.197Z
 - **Categoría**: runtime_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772079425221` — 2026-02-26)
 
 ### Descripción
 
@@ -602,7 +602,7 @@ Error: [AutoDevGit] SAFETY: Refusing write operation on protected branch "main"
 
 - **Timestamp**: 2026-02-24T20:59:34.712Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772079425221` — 2026-02-26)
 
 ### Descripción
 
@@ -637,7 +637,7 @@ Patrón detectado: no (se )?cre[oó]
 - **Run ID**: `run_1772010004526`
 - **Timestamp**: 2026-02-25T10:00:13.195Z
 - **Categoría**: runtime_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772079425221` — 2026-02-26)
 
 ### Descripción
 
@@ -652,6 +652,60 @@ Error: [AutoDevGit] SAFETY: Refusing write operation on protected branch "main"
     at async AutoDevGit.stageAll (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-git.ts:134:5)
     at async AutoDevService.executeRun (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:790:7)
     at async AutoDevService.runNow (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:506:7)
+    at async runStandalone (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\scripts\autodev.ts:31:17)
+```
+
+---
+## ❌ [RUNTIME_ERROR] — 2026-02-26
+
+- **Run ID**: `run_1772096403031`
+- **Timestamp**: 2026-02-26T09:09:08.837Z
+- **Categoría**: runtime_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Run falló con error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview-customtools:generateContent: fetch failed
+
+### Contexto técnico
+
+```
+TypeError: fetch failed
+    at node:internal/deps/undici/undici:13510:13
+    at async makeRequest (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:395:20)
+    at async generateContent (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:865:22)
+    at async ChatSession.sendMessage (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:1208:9)
+    at async execute (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:1223:22)
+    at async AutoDevService.analyzeCode (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:1244:14)
+    at async AutoDevService.executeRun (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:695:24)
+    at async AutoDevService.runNow (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:505:7)
+    at async runStandalone (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\scripts\autodev.ts:31:17)
+```
+
+---
+## ❌ [RUNTIME_ERROR] — 2026-02-26
+
+- **Run ID**: `run_1772096403034`
+- **Timestamp**: 2026-02-26T09:15:41.961Z
+- **Categoría**: runtime_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Run falló con error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview-customtools:generateContent: fetch failed
+
+### Contexto técnico
+
+```
+TypeError: fetch failed
+    at node:internal/deps/undici/undici:13510:13
+    at async makeRequest (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:395:20)
+    at async generateContent (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:865:22)
+    at async ChatSession.sendMessage (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:1208:9)
+    at async execute (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:1237:20)
+    at async AutoDevService.analyzeCode (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:1244:14)
+    at async AutoDevService.executeRun (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:695:24)
+    at async AutoDevService.runNow (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:505:7)
     at async runStandalone (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\scripts\autodev.ts:31:17)
 ```
 
