@@ -202,7 +202,7 @@ export class NeuralOrganizerService {
 
   private async categorizeFile(filename: string, extractedText: string): Promise<{ category: string; summary: string }> {
     const model = this.ai.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-3-flash-preview',
       generationConfig: {
         responseMimeType: 'application/json',
       }
