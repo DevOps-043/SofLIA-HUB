@@ -25,268 +25,382 @@ const injectCSP = () => {
 
 injectCSP()
 
-// --------- Expose some API to the Renderer process ---------
+// 3. Strict IPC Channel Filtering (Capability-Based Security)
+const ALLOWED_IPC_CHANNELS = [
+  'capture-screen',
+  'get-screen-sources',
+  'computer:list-directory',
+  'computer:read-file',
+  'computer:write-file',
+  'computer:create-directory',
+  'computer:move-item',
+  'computer:copy-item',
+  'computer:delete-item',
+  'computer:get-file-info',
+  'computer:search-files',
+  'computer:execute-command',
+  'computer:open-application',
+  'computer:open-url',
+  'computer:get-system-info',
+  'computer:clipboard-read',
+  'computer:clipboard-write',
+  'computer:take-screenshot',
+  'computer:confirm-action',
+  'computer:get-email-config',
+  'computer:configure-email',
+  'computer:send-email',
+  'whatsapp:connect',
+  'whatsapp:disconnect',
+  'whatsapp:get-status',
+  'whatsapp:set-allowed-numbers',
+  'whatsapp:set-group-config',
+  'whatsapp:set-api-key',
+  'whatsapp:qr',
+  'whatsapp:status',
+  'monitoring:start',
+  'monitoring:stop',
+  'monitoring:get-status',
+  'monitoring:set-config',
+  'monitoring:cleanup-screenshots',
+  'monitoring:generate-summary',
+  'monitoring:send-summary-whatsapp',
+  'monitoring:snapshot',
+  'monitoring:session-started',
+  'monitoring:session-ended',
+  'monitoring:flush',
+  'monitoring:error',
+  'monitoring:summary-generated',
+  'calendar:connect-google',
+  'calendar:connect-microsoft',
+  'calendar:disconnect',
+  'calendar:get-events',
+  'calendar:get-connections',
+  'calendar:start-auto',
+  'calendar:stop-auto',
+  'calendar:get-status',
+  'calendar:create-event',
+  'calendar:update-event',
+  'calendar:delete-event',
+  'calendar:work-start',
+  'calendar:work-end',
+  'calendar:connected',
+  'calendar:disconnected',
+  'calendar:poll',
+  'calendar:token-refreshed',
+  'gmail:send',
+  'gmail:get-messages',
+  'gmail:get-message',
+  'gmail:modify-labels',
+  'gmail:trash',
+  'gmail:get-labels',
+  'drive:list-files',
+  'drive:search',
+  'drive:upload',
+  'drive:download',
+  'drive:create-folder',
+  'drive:delete',
+  'drive:get-metadata',
+  'gchat:list-spaces',
+  'gchat:get-messages',
+  'gchat:send-message',
+  'gchat:add-reaction',
+  'gchat:get-members',
+  'autodev:get-config',
+  'autodev:update-config',
+  'autodev:log-feedback',
+  'autodev:run-now',
+  'autodev:abort',
+  'autodev:get-status',
+  'autodev:get-history',
+  'autodev:run-started',
+  'autodev:run-completed',
+  'autodev:status-changed',
+  'proactive:get-config',
+  'proactive:update-config',
+  'proactive:trigger-now',
+  'proactive:get-status',
+  'memory:get-stats',
+  'memory:compact',
+  'memory:get-facts',
+  'memory:delete-fact',
+  'memory:search',
+  'flow-send-to-chat',
+  'close-flow',
+  'flow-message-received',
+  'flow-window-shown'
+]
+
+// 4. Payload Sanitization
+const sanitizePayload = (payload: any): any => {
+  if (payload === null || payload === undefined) return payload
+  if (typeof payload === 'function') {
+    throw new Error('Security Violation: Callbacks and functions are not allowed in IPC.')
+  }
+  if (Array.isArray(payload)) {
+    return payload.map(sanitizePayload)
+  }
+  if (typeof payload === 'object') {
+    // Basic sanitization via strict destructuring to strip prototypes and malicious getters
+    const safeObj: Record<string, any> = { ...payload }
+    for (const key in safeObj) {
+      if (Object.prototype.hasOwnProperty.call(safeObj, key)) {
+        safeObj[key] = sanitizePayload(safeObj[key])
+      }
+    }
+    return safeObj
+  }
+  // Primitive types are naturally safe
+  return payload
+}
+
+const validateChannel = (channel: string) => {
+  if (!ALLOWED_IPC_CHANNELS.includes(channel)) {
+    console.error(`ALERTA DE SEGURIDAD: Intento de uso de canal IPC no autorizado: ${channel}`)
+    throw new Error(`Unauthorized IPC channel: ${channel}`)
+  }
+}
+
+const safeInvoke = (channel: string, ...args: any[]) => {
+  validateChannel(channel)
+  return ipcRenderer.invoke(channel, ...args.map(sanitizePayload))
+}
+
+const safeSend = (channel: string, ...args: any[]) => {
+  validateChannel(channel)
+  return ipcRenderer.send(channel, ...args.map(sanitizePayload))
+}
+
+const safeOn = (channel: string, cb: (...args: any[]) => void) => {
+  validateChannel(channel)
+  ipcRenderer.on(channel, (_event, ...args) => cb(...args.map(sanitizePayload)))
+}
+
+const safeRemoveAllListeners = (channel: string) => {
+  validateChannel(channel)
+  ipcRenderer.removeAllListeners(channel)
+}
+
+// --------- Expose generic API to the Renderer process (Strictly Validated) ---------
 contextBridge.exposeInMainWorld('ipcRenderer', {
-  on(...args: Parameters<typeof ipcRenderer.on>) {
-    const [channel, listener] = args
-    return ipcRenderer.on(channel, (event, ...args) => listener(event, ...args))
+  on(channel: string, listener: (...args: any[]) => void) {
+    validateChannel(channel)
+    return ipcRenderer.on(channel, (event, ...args) => listener(event, ...args.map(sanitizePayload)))
   },
-  off(...args: Parameters<typeof ipcRenderer.off>) {
-    const [channel, ...omit] = args
-    return ipcRenderer.off(channel, ...omit)
+  off(channel: string, listener: (...args: any[]) => void) {
+    validateChannel(channel)
+    return ipcRenderer.off(channel, listener)
   },
-  send(...args: Parameters<typeof ipcRenderer.send>) {
-    const [channel, ...omit] = args
-    return ipcRenderer.send(channel, ...omit)
-  },
-  invoke(...args: Parameters<typeof ipcRenderer.invoke>) {
-    const [channel, ...omit] = args
-    return ipcRenderer.invoke(channel, ...omit)
-  },
+  send: safeSend,
+  invoke: safeInvoke,
+  removeAllListeners: safeRemoveAllListeners
 })
 
 // --------- Screen Capture API ---------
 contextBridge.exposeInMainWorld('screenCapture', {
   captureScreen: (sourceId?: string): Promise<string | null> => {
-    return ipcRenderer.invoke('capture-screen', sourceId)
+    return safeInvoke('capture-screen', sourceId)
   },
   getScreenSources: (): Promise<Array<{ id: string; name: string; thumbnail: string; isScreen: boolean }>> => {
-    return ipcRenderer.invoke('get-screen-sources')
+    return safeInvoke('get-screen-sources')
   },
 })
 
 // --------- Computer Use API ---------
 contextBridge.exposeInMainWorld('computerUse', {
   listDirectory: (dirPath: string, showHidden?: boolean) =>
-    ipcRenderer.invoke('computer:list-directory', dirPath, showHidden),
+    safeInvoke('computer:list-directory', dirPath, showHidden),
   readFile: (filePath: string) =>
-    ipcRenderer.invoke('computer:read-file', filePath),
+    safeInvoke('computer:read-file', filePath),
   writeFile: (filePath: string, content: string) =>
-    ipcRenderer.invoke('computer:write-file', filePath, content),
+    safeInvoke('computer:write-file', filePath, content),
   createDirectory: (dirPath: string) =>
-    ipcRenderer.invoke('computer:create-directory', dirPath),
+    safeInvoke('computer:create-directory', dirPath),
   moveItem: (source: string, dest: string) =>
-    ipcRenderer.invoke('computer:move-item', source, dest),
+    safeInvoke('computer:move-item', source, dest),
   copyItem: (source: string, dest: string) =>
-    ipcRenderer.invoke('computer:copy-item', source, dest),
+    safeInvoke('computer:copy-item', source, dest),
   deleteItem: (itemPath: string) =>
-    ipcRenderer.invoke('computer:delete-item', itemPath),
+    safeInvoke('computer:delete-item', itemPath),
   getFileInfo: (filePath: string) =>
-    ipcRenderer.invoke('computer:get-file-info', filePath),
+    safeInvoke('computer:get-file-info', filePath),
   searchFiles: (dirPath: string, pattern: string) =>
-    ipcRenderer.invoke('computer:search-files', dirPath, pattern),
+    safeInvoke('computer:search-files', dirPath, pattern),
   executeCommand: (command: string) =>
-    ipcRenderer.invoke('computer:execute-command', command),
+    safeInvoke('computer:execute-command', command),
   openApplication: (target: string) =>
-    ipcRenderer.invoke('computer:open-application', target),
+    safeInvoke('computer:open-application', target),
   openUrl: (url: string) =>
-    ipcRenderer.invoke('computer:open-url', url),
+    safeInvoke('computer:open-url', url),
   getSystemInfo: () =>
-    ipcRenderer.invoke('computer:get-system-info'),
+    safeInvoke('computer:get-system-info'),
   clipboardRead: () =>
-    ipcRenderer.invoke('computer:clipboard-read'),
+    safeInvoke('computer:clipboard-read'),
   clipboardWrite: (text: string) =>
-    ipcRenderer.invoke('computer:clipboard-write', text),
+    safeInvoke('computer:clipboard-write', text),
   takeScreenshot: () =>
-    ipcRenderer.invoke('computer:take-screenshot'),
+    safeInvoke('computer:take-screenshot'),
   confirmAction: (message: string) =>
-    ipcRenderer.invoke('computer:confirm-action', message),
+    safeInvoke('computer:confirm-action', message),
   // Email tools
   getEmailConfig: () =>
-    ipcRenderer.invoke('computer:get-email-config'),
+    safeInvoke('computer:get-email-config'),
   configureEmail: (email: string, password: string) =>
-    ipcRenderer.invoke('computer:configure-email', email, password),
+    safeInvoke('computer:configure-email', email, password),
   sendEmail: (to: string, subject: string, body: string, attachmentPaths?: string[], isHtml?: boolean) =>
-    ipcRenderer.invoke('computer:send-email', to, subject, body, attachmentPaths, isHtml),
+    safeInvoke('computer:send-email', to, subject, body, attachmentPaths, isHtml),
 })
 
 // --------- WhatsApp API ---------
 contextBridge.exposeInMainWorld('whatsApp', {
-  connect: () => ipcRenderer.invoke('whatsapp:connect'),
-  disconnect: () => ipcRenderer.invoke('whatsapp:disconnect'),
-  getStatus: () => ipcRenderer.invoke('whatsapp:get-status'),
-  setAllowedNumbers: (numbers: string[]) => ipcRenderer.invoke('whatsapp:set-allowed-numbers', numbers),
-  setGroupConfig: (config: any) => ipcRenderer.invoke('whatsapp:set-group-config', config),
-  setApiKey: (apiKey: string) => ipcRenderer.invoke('whatsapp:set-api-key', apiKey),
-  onQR: (cb: (qr: string) => void) => {
-    ipcRenderer.on('whatsapp:qr', (_event, qr) => cb(qr))
-  },
-  onStatusChange: (cb: (status: any) => void) => {
-    ipcRenderer.on('whatsapp:status', (_event, status) => cb(status))
-  },
+  connect: () => safeInvoke('whatsapp:connect'),
+  disconnect: () => safeInvoke('whatsapp:disconnect'),
+  getStatus: () => safeInvoke('whatsapp:get-status'),
+  setAllowedNumbers: (numbers: string[]) => safeInvoke('whatsapp:set-allowed-numbers', numbers),
+  setGroupConfig: (config: any) => safeInvoke('whatsapp:set-group-config', config),
+  setApiKey: (apiKey: string) => safeInvoke('whatsapp:set-api-key', apiKey),
+  onQR: (cb: (qr: string) => void) => safeOn('whatsapp:qr', cb),
+  onStatusChange: (cb: (status: any) => void) => safeOn('whatsapp:status', cb),
   removeListeners: () => {
-    ipcRenderer.removeAllListeners('whatsapp:qr')
-    ipcRenderer.removeAllListeners('whatsapp:status')
+    safeRemoveAllListeners('whatsapp:qr')
+    safeRemoveAllListeners('whatsapp:status')
   },
 })
 
 // --------- Monitoring API ---------
 contextBridge.exposeInMainWorld('monitoring', {
   start: (userId: string, sessionId: string) =>
-    ipcRenderer.invoke('monitoring:start', userId, sessionId),
+    safeInvoke('monitoring:start', userId, sessionId),
   stop: () =>
-    ipcRenderer.invoke('monitoring:stop'),
+    safeInvoke('monitoring:stop'),
   getStatus: () =>
-    ipcRenderer.invoke('monitoring:get-status'),
+    safeInvoke('monitoring:get-status'),
   setConfig: (config: any) =>
-    ipcRenderer.invoke('monitoring:set-config', config),
+    safeInvoke('monitoring:set-config', config),
   cleanupScreenshots: () =>
-    ipcRenderer.invoke('monitoring:cleanup-screenshots'),
+    safeInvoke('monitoring:cleanup-screenshots'),
   generateSummary: (activities: any[], sessionInfo: any) =>
-    ipcRenderer.invoke('monitoring:generate-summary', activities, sessionInfo),
+    safeInvoke('monitoring:generate-summary', activities, sessionInfo),
   sendSummaryWhatsApp: (phoneNumber: string, summaryText: string) =>
-    ipcRenderer.invoke('monitoring:send-summary-whatsapp', phoneNumber, summaryText),
-  onSnapshot: (cb: (snapshot: any) => void) => {
-    ipcRenderer.on('monitoring:snapshot', (_event, snapshot) => cb(snapshot))
-  },
-  onSessionStarted: (cb: (data: any) => void) => {
-    ipcRenderer.on('monitoring:session-started', (_event, data) => cb(data))
-  },
-  onSessionEnded: (cb: (data: any) => void) => {
-    ipcRenderer.on('monitoring:session-ended', (_event, data) => cb(data))
-  },
-  onFlush: (cb: (data: any) => void) => {
-    ipcRenderer.on('monitoring:flush', (_event, data) => cb(data))
-  },
-  onError: (cb: (err: any) => void) => {
-    ipcRenderer.on('monitoring:error', (_event, err) => cb(err))
-  },
-  onSummaryGenerated: (cb: (data: any) => void) => {
-    ipcRenderer.on('monitoring:summary-generated', (_event, data) => cb(data))
-  },
+    safeInvoke('monitoring:send-summary-whatsapp', phoneNumber, summaryText),
+  onSnapshot: (cb: (snapshot: any) => void) => safeOn('monitoring:snapshot', cb),
+  onSessionStarted: (cb: (data: any) => void) => safeOn('monitoring:session-started', cb),
+  onSessionEnded: (cb: (data: any) => void) => safeOn('monitoring:session-ended', cb),
+  onFlush: (cb: (data: any) => void) => safeOn('monitoring:flush', cb),
+  onError: (cb: (err: any) => void) => safeOn('monitoring:error', cb),
+  onSummaryGenerated: (cb: (data: any) => void) => safeOn('monitoring:summary-generated', cb),
   removeListeners: () => {
-    ipcRenderer.removeAllListeners('monitoring:snapshot')
-    ipcRenderer.removeAllListeners('monitoring:session-started')
-    ipcRenderer.removeAllListeners('monitoring:session-ended')
-    ipcRenderer.removeAllListeners('monitoring:flush')
-    ipcRenderer.removeAllListeners('monitoring:error')
-    ipcRenderer.removeAllListeners('monitoring:summary-generated')
+    safeRemoveAllListeners('monitoring:snapshot')
+    safeRemoveAllListeners('monitoring:session-started')
+    safeRemoveAllListeners('monitoring:session-ended')
+    safeRemoveAllListeners('monitoring:flush')
+    safeRemoveAllListeners('monitoring:error')
+    safeRemoveAllListeners('monitoring:summary-generated')
   },
 })
 
 // --------- Calendar API ---------
 contextBridge.exposeInMainWorld('calendar', {
-  connectGoogle: () => ipcRenderer.invoke('calendar:connect-google'),
-  connectMicrosoft: () => ipcRenderer.invoke('calendar:connect-microsoft'),
-  disconnect: (provider: string) => ipcRenderer.invoke('calendar:disconnect', provider),
-  getEvents: () => ipcRenderer.invoke('calendar:get-events'),
-  getConnections: () => ipcRenderer.invoke('calendar:get-connections'),
-  startAuto: () => ipcRenderer.invoke('calendar:start-auto'),
-  stopAuto: () => ipcRenderer.invoke('calendar:stop-auto'),
-  getStatus: () => ipcRenderer.invoke('calendar:get-status'),
-  createEvent: (event: any) => ipcRenderer.invoke('calendar:create-event', event),
-  updateEvent: (eventId: string, updates: any) => ipcRenderer.invoke('calendar:update-event', eventId, updates),
-  deleteEvent: (eventId: string, calendarId?: string) => ipcRenderer.invoke('calendar:delete-event', eventId, calendarId),
-  onWorkStart: (cb: (data: any) => void) => {
-    ipcRenderer.on('calendar:work-start', (_event, data) => cb(data))
-  },
-  onWorkEnd: (cb: (data: any) => void) => {
-    ipcRenderer.on('calendar:work-end', (_event, data) => cb(data))
-  },
-  onConnected: (cb: (data: any) => void) => {
-    ipcRenderer.on('calendar:connected', (_event, data) => cb(data))
-  },
-  onDisconnected: (cb: (data: any) => void) => {
-    ipcRenderer.on('calendar:disconnected', (_event, data) => cb(data))
-  },
-  onPoll: (cb: (data: any) => void) => {
-    ipcRenderer.on('calendar:poll', (_event, data) => cb(data))
-  },
+  connectGoogle: () => safeInvoke('calendar:connect-google'),
+  connectMicrosoft: () => safeInvoke('calendar:connect-microsoft'),
+  disconnect: (provider: string) => safeInvoke('calendar:disconnect', provider),
+  getEvents: () => safeInvoke('calendar:get-events'),
+  getConnections: () => safeInvoke('calendar:get-connections'),
+  startAuto: () => safeInvoke('calendar:start-auto'),
+  stopAuto: () => safeInvoke('calendar:stop-auto'),
+  getStatus: () => safeInvoke('calendar:get-status'),
+  createEvent: (event: any) => safeInvoke('calendar:create-event', event),
+  updateEvent: (eventId: string, updates: any) => safeInvoke('calendar:update-event', eventId, updates),
+  deleteEvent: (eventId: string, calendarId?: string) => safeInvoke('calendar:delete-event', eventId, calendarId),
+  onWorkStart: (cb: (data: any) => void) => safeOn('calendar:work-start', cb),
+  onWorkEnd: (cb: (data: any) => void) => safeOn('calendar:work-end', cb),
+  onConnected: (cb: (data: any) => void) => safeOn('calendar:connected', cb),
+  onDisconnected: (cb: (data: any) => void) => safeOn('calendar:disconnected', cb),
+  onPoll: (cb: (data: any) => void) => safeOn('calendar:poll', cb),
   removeListeners: () => {
-    ipcRenderer.removeAllListeners('calendar:work-start')
-    ipcRenderer.removeAllListeners('calendar:work-end')
-    ipcRenderer.removeAllListeners('calendar:connected')
-    ipcRenderer.removeAllListeners('calendar:disconnected')
-    ipcRenderer.removeAllListeners('calendar:poll')
-    ipcRenderer.removeAllListeners('calendar:token-refreshed')
+    safeRemoveAllListeners('calendar:work-start')
+    safeRemoveAllListeners('calendar:work-end')
+    safeRemoveAllListeners('calendar:connected')
+    safeRemoveAllListeners('calendar:disconnected')
+    safeRemoveAllListeners('calendar:poll')
+    safeRemoveAllListeners('calendar:token-refreshed')
   },
 })
 
 // --------- Gmail API ---------
 contextBridge.exposeInMainWorld('gmail', {
-  send: (params: any) => ipcRenderer.invoke('gmail:send', params),
-  getMessages: (options?: any) => ipcRenderer.invoke('gmail:get-messages', options),
-  getMessage: (messageId: string) => ipcRenderer.invoke('gmail:get-message', messageId),
+  send: (params: any) => safeInvoke('gmail:send', params),
+  getMessages: (options?: any) => safeInvoke('gmail:get-messages', options),
+  getMessage: (messageId: string) => safeInvoke('gmail:get-message', messageId),
   modifyLabels: (messageId: string, addLabels?: string[], removeLabels?: string[]) =>
-    ipcRenderer.invoke('gmail:modify-labels', messageId, addLabels, removeLabels),
-  trash: (messageId: string) => ipcRenderer.invoke('gmail:trash', messageId),
-  getLabels: () => ipcRenderer.invoke('gmail:get-labels'),
+    safeInvoke('gmail:modify-labels', messageId, addLabels, removeLabels),
+  trash: (messageId: string) => safeInvoke('gmail:trash', messageId),
+  getLabels: () => safeInvoke('gmail:get-labels'),
 })
 
 // --------- Google Drive API ---------
 contextBridge.exposeInMainWorld('drive', {
-  listFiles: (options?: any) => ipcRenderer.invoke('drive:list-files', options),
-  search: (query: string) => ipcRenderer.invoke('drive:search', query),
-  upload: (localPath: string, options?: any) => ipcRenderer.invoke('drive:upload', localPath, options),
-  download: (fileId: string, destPath: string) => ipcRenderer.invoke('drive:download', fileId, destPath),
-  createFolder: (name: string, parentId?: string) => ipcRenderer.invoke('drive:create-folder', name, parentId),
-  deleteFile: (fileId: string) => ipcRenderer.invoke('drive:delete', fileId),
-  getMetadata: (fileId: string) => ipcRenderer.invoke('drive:get-metadata', fileId),
+  listFiles: (options?: any) => safeInvoke('drive:list-files', options),
+  search: (query: string) => safeInvoke('drive:search', query),
+  upload: (localPath: string, options?: any) => safeInvoke('drive:upload', localPath, options),
+  download: (fileId: string, destPath: string) => safeInvoke('drive:download', fileId, destPath),
+  createFolder: (name: string, parentId?: string) => safeInvoke('drive:create-folder', name, parentId),
+  deleteFile: (fileId: string) => safeInvoke('drive:delete', fileId),
+  getMetadata: (fileId: string) => safeInvoke('drive:get-metadata', fileId),
 })
 
 // --------- Google Chat API ---------
 contextBridge.exposeInMainWorld('gchat', {
-  listSpaces: () => ipcRenderer.invoke('gchat:list-spaces'),
-  getMessages: (spaceName: string, maxResults?: number) => ipcRenderer.invoke('gchat:get-messages', spaceName, maxResults),
-  sendMessage: (spaceName: string, text: string, threadName?: string) => ipcRenderer.invoke('gchat:send-message', spaceName, text, threadName),
-  addReaction: (messageName: string, emoji: string) => ipcRenderer.invoke('gchat:add-reaction', messageName, emoji),
-  getMembers: (spaceName: string) => ipcRenderer.invoke('gchat:get-members', spaceName),
+  listSpaces: () => safeInvoke('gchat:list-spaces'),
+  getMessages: (spaceName: string, maxResults?: number) => safeInvoke('gchat:get-messages', spaceName, maxResults),
+  sendMessage: (spaceName: string, text: string, threadName?: string) => safeInvoke('gchat:send-message', spaceName, text, threadName),
+  addReaction: (messageName: string, emoji: string) => safeInvoke('gchat:add-reaction', messageName, emoji),
+  getMembers: (spaceName: string) => safeInvoke('gchat:get-members', spaceName),
 })
 
 // --------- AutoDev API ---------
 contextBridge.exposeInMainWorld('autodev', {
-  getConfig: () => ipcRenderer.invoke('autodev:get-config'),
-  updateConfig: (updates: any) => ipcRenderer.invoke('autodev:update-config', updates),
-  logFeedback: (suggestion: string) => ipcRenderer.invoke('autodev:log-feedback', suggestion),
-  runNow: () => ipcRenderer.invoke('autodev:run-now'),
-  abort: () => ipcRenderer.invoke('autodev:abort'),
-  getStatus: () => ipcRenderer.invoke('autodev:get-status'),
-  getHistory: () => ipcRenderer.invoke('autodev:get-history'),
-  onRunStarted: (cb: (run: any) => void) => {
-    ipcRenderer.on('autodev:run-started', (_event, run) => cb(run))
-  },
-  onRunCompleted: (cb: (run: any) => void) => {
-    ipcRenderer.on('autodev:run-completed', (_event, run) => cb(run))
-  },
-  onStatusChanged: (cb: (data: any) => void) => {
-    ipcRenderer.on('autodev:status-changed', (_event, data) => cb(data))
-  },
+  getConfig: () => safeInvoke('autodev:get-config'),
+  updateConfig: (updates: any) => safeInvoke('autodev:update-config', updates),
+  logFeedback: (suggestion: string) => safeInvoke('autodev:log-feedback', suggestion),
+  runNow: () => safeInvoke('autodev:run-now'),
+  abort: () => safeInvoke('autodev:abort'),
+  getStatus: () => safeInvoke('autodev:get-status'),
+  getHistory: () => safeInvoke('autodev:get-history'),
+  onRunStarted: (cb: (run: any) => void) => safeOn('autodev:run-started', cb),
+  onRunCompleted: (cb: (run: any) => void) => safeOn('autodev:run-completed', cb),
+  onStatusChanged: (cb: (data: any) => void) => safeOn('autodev:status-changed', cb),
   removeListeners: () => {
-    ipcRenderer.removeAllListeners('autodev:run-started')
-    ipcRenderer.removeAllListeners('autodev:run-completed')
-    ipcRenderer.removeAllListeners('autodev:status-changed')
+    safeRemoveAllListeners('autodev:run-started')
+    safeRemoveAllListeners('autodev:run-completed')
+    safeRemoveAllListeners('autodev:status-changed')
   },
 })
 
 // --------- Proactive Notifications API ---------
 contextBridge.exposeInMainWorld('proactive', {
-  getConfig: () => ipcRenderer.invoke('proactive:get-config'),
-  updateConfig: (updates: any) => ipcRenderer.invoke('proactive:update-config', updates),
-  triggerNow: (phoneNumber?: string) => ipcRenderer.invoke('proactive:trigger-now', phoneNumber),
-  getStatus: () => ipcRenderer.invoke('proactive:get-status'),
+  getConfig: () => safeInvoke('proactive:get-config'),
+  updateConfig: (updates: any) => safeInvoke('proactive:update-config', updates),
+  triggerNow: (phoneNumber?: string) => safeInvoke('proactive:trigger-now', phoneNumber),
+  getStatus: () => safeInvoke('proactive:get-status'),
 })
 
 // --------- Memory API ---------
 contextBridge.exposeInMainWorld('memory', {
-  getStats: (sessionKey?: string) => ipcRenderer.invoke('memory:get-stats', sessionKey),
-  compact: (daysToKeep?: number) => ipcRenderer.invoke('memory:compact', daysToKeep),
-  getFacts: (phoneNumber: string) => ipcRenderer.invoke('memory:get-facts', phoneNumber),
-  deleteFact: (factId: number) => ipcRenderer.invoke('memory:delete-fact', factId),
-  search: (sessionKey: string, phoneNumber: string, query: string) => ipcRenderer.invoke('memory:search', sessionKey, phoneNumber, query),
+  getStats: (sessionKey?: string) => safeInvoke('memory:get-stats', sessionKey),
+  compact: (daysToKeep?: number) => safeInvoke('memory:compact', daysToKeep),
+  getFacts: (phoneNumber: string) => safeInvoke('memory:get-facts', phoneNumber),
+  deleteFact: (factId: number) => safeInvoke('memory:delete-fact', factId),
+  search: (sessionKey: string, phoneNumber: string, query: string) => safeInvoke('memory:search', sessionKey, phoneNumber, query),
 })
 
 // --------- Flow API ---------
 contextBridge.exposeInMainWorld('flow', {
-  sendToChat: (text: string) => ipcRenderer.send('flow-send-to-chat', text),
-  close: () => ipcRenderer.send('close-flow'),
-  onMessageReceived: (cb: (text: string) => void) => {
-    ipcRenderer.on('flow-message-received', (_event, text) => cb(text))
-  },
-  onWindowShown: (cb: () => void) => {
-    ipcRenderer.on('flow-window-shown', () => cb())
-  },
+  sendToChat: (text: string) => safeSend('flow-send-to-chat', text),
+  close: () => safeSend('close-flow'),
+  onMessageReceived: (cb: (text: string) => void) => safeOn('flow-message-received', cb),
+  onWindowShown: (cb: () => void) => safeOn('flow-window-shown', cb),
   removeListeners: () => {
-    ipcRenderer.removeAllListeners('flow-message-received')
-    ipcRenderer.removeAllListeners('flow-window-shown')
+    safeRemoveAllListeners('flow-message-received')
+    safeRemoveAllListeners('flow-window-shown')
   }
 })

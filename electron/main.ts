@@ -76,6 +76,7 @@ const selfLearnService = new SelfLearnService(path.join(__dirname, '..'))
 const proactiveService = new ProactiveService()
 proactiveService.setCalendarService(calendarService)
 proactiveService.setWhatsAppService(waService)
+
 // Configure OAuth credentials from env
 calendarService.setConfig({
   google: {
@@ -348,7 +349,13 @@ ipcMain.on('close-flow', () => {
 
 // App Lifecycle
 app.on('before-quit', () => { isQuitting = true })
-app.on('window-all-closed', () => { if (process.platform !== 'darwin') { app.quit() } }) // Quit on windows if closed unless user wants tray
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit()
+  }
+})
+
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow()
   else if (win) { win.show(); win.focus() }
