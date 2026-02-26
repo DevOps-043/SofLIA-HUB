@@ -153,7 +153,14 @@ export async function executeToolDirect(
     case 'create_directory': {
       try {
         const resolved = normalizePath(args.path);
-        await fs.mkdir(resolved, { recursive: true });
+        try {
+          await fs.mkdir(resolved, { recursive: true });
+        } catch (err: any) {
+          if (err.code === 'EEXIST') {
+            return { success: true, path: resolved, message: `La carpeta ya existe: ${path.basename(resolved)}` };
+          }
+          throw err;
+        }
         return { success: true, path: resolved, message: `Carpeta creada: ${path.basename(resolved)}` };
       } catch (err: any) {
         return { success: false, error: err.message };
@@ -164,7 +171,17 @@ export async function executeToolDirect(
       try {
         const src = normalizePath(args.source_path);
         const dst = normalizePath(args.destination_path);
-        await fs.rename(src, dst);
+        try {
+          await fs.rename(src, dst);
+        } catch (err: any) {
+          if (err.code === 'ENOENT') {
+            await fs.mkdir(path.dirname(dst), { recursive: true });
+            await fs.rename(src, dst);
+          }
+          else {
+            throw err;
+          }
+        }
         return { success: true, from: src, to: dst, message: `Movido: ${path.basename(src)} → ${path.basename(dst)}` };
       } catch (err: any) {
         return { success: false, error: err.message };
@@ -336,7 +353,33 @@ export async function executeToolDirect(
       try {
         const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1920, height: 1080 } });
         if (sources.length === 0) return { success: false, error: 'No se encontraron pantallas.' };
-        return { success: true, image: sources[0].thumbnail.toDataURL() };
+        
+        let targetSource = sources[0];
+        if (args.display_id) {
+          targetSource = sources.find(s => s.display_id === args.display_id) || sources[0];
+        }
+
+        let axTree = undefined;
+        try {
+          const windows = BrowserWindow.getAllWindows();
+          if (windows.length > 0) {
+            const webContents = windows[0].webContents;
+            if (webContents) {
+              if (!webContents.debugger.isAttached()) {
+                webContents.debugger.attach('1.3');
+              }
+              axTree = await webContents.debugger.sendCommand('Accessibility.getFullAXTree');
+            }
+          }
+        } catch (axErr: any) {
+          console.error('Error fetching AXTree:', axErr);
+        }
+
+        return { 
+          success: true, 
+          image: targetSource.thumbnail.toDataURL(),
+          axTree
+        };
       } catch (err: any) {
         return { success: false, error: err.message };
       }
@@ -443,8 +486,8 @@ export function registerComputerUseHandlers() {
   ipcMain.handle('computer:clipboard-write', async (_, text: string) =>
     executeToolDirect('clipboard_write', { text }));
 
-  ipcMain.handle('computer:take-screenshot', async () =>
-    executeToolDirect('take_screenshot', {}));
+  ipcMain.handle('computer:take-screenshot', async (_, displayId?: string) =>
+    executeToolDirect('take_screenshot', { display_id: displayId }));
 
   // ── confirm_action (shows native dialog) ───────────────────────
   ipcMain.handle('computer:confirm-action', async (_event, message: string) => {

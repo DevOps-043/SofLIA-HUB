@@ -129,9 +129,17 @@ export class AutoDevGit {
     }
 
     // Create and switch to work branch
-    await this.git('checkout', '-b', branchName);
-    console.log(`[AutoDevGit] Created branch: ${branchName} from ${baseBranch}`);
-    return branchName;
+    let finalBranchName = branchName;
+    try {
+      await this.git('checkout', '-b', finalBranchName);
+    } catch {
+      const timestamp = Date.now();
+      finalBranchName = `${branchName}-${timestamp}`;
+      await this.git('checkout', '-b', finalBranchName);
+    }
+
+    console.log(`[AutoDevGit] Created branch: ${finalBranchName} from ${baseBranch}`);
+    return finalBranchName;
   }
 
   async stageFiles(files: string[]): Promise<void> {
@@ -141,11 +149,17 @@ export class AutoDevGit {
   }
 
   async stageAll(): Promise<void> {
+    const current = await this.getCurrentBranch();
+    if (current === 'main' || current === 'master') throw new Error('[AutoDevGit] SAFETY: Refusing write operation on protected branch main');
+
     await this.assertNotProtected();
     await this.git('add', '-A');
   }
 
   async commitChanges(message: string): Promise<string> {
+    const current = await this.getCurrentBranch();
+    if (current === 'main' || current === 'master') throw new Error('[AutoDevGit] SAFETY: Refusing write operation on protected branch main');
+
     await this.assertNotProtected();
     const fullMessage = message.startsWith('[AutoDev]') ? message : `[AutoDev] ${message}`;
     await this.git('commit', '-m', fullMessage);
@@ -155,6 +169,9 @@ export class AutoDevGit {
   }
 
   async pushBranch(branchName: string): Promise<void> {
+    const current = await this.getCurrentBranch();
+    if (current === 'main' || current === 'master') throw new Error('[AutoDevGit] SAFETY: Refusing write operation on protected branch main');
+
     if (PROTECTED_BRANCHES.includes(branchName)) {
       throw new Error(`[AutoDevGit] SAFETY: Refusing to push to protected branch "${branchName}"`);
     }
@@ -214,7 +231,8 @@ export class AutoDevGit {
     try {
       const remotes = await this.git('remote', '-v');
       return remotes.includes('origin');
-    } catch {
+    }
+    catch {
       return false;
     }
   }
