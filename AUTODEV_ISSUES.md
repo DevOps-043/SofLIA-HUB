@@ -661,7 +661,7 @@ Error: [AutoDevGit] SAFETY: Refusing write operation on protected branch "main"
 - **Run ID**: `run_1772096403031`
 - **Timestamp**: 2026-02-26T09:09:08.837Z
 - **Categoría**: runtime_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772131847762` — 2026-02-26)
 
 ### Descripción
 
@@ -688,7 +688,7 @@ TypeError: fetch failed
 - **Run ID**: `run_1772096403034`
 - **Timestamp**: 2026-02-26T09:15:41.961Z
 - **Categoría**: runtime_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772131847762` — 2026-02-26)
 
 ### Descripción
 
