@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
 export interface ToolErrorResponse {
-  error: string;
+  error: boolean | string;
+  message?: string;
   fixSuggestion: string;
 }
 
@@ -27,7 +28,7 @@ export const ToolSchemas = {
  * Middleware para validar y sanitizar el input de la herramienta,
  * previniendo inyección de comandos (CVE-2026-21256).
  */
-export function validateToolInput<T>(schema: z.ZodSchema<T>, input: unknown): T {
+export function validateToolInput<T>(schema: any, input: unknown): T {
   // Parseo inicial para asegurar tipos
   const parsed = schema.parse(input);
 
@@ -104,27 +105,63 @@ export async function verifyNpmPackage(pkgName: string): Promise<boolean> {
 }
 
 export class ToolSandbox {
-  /**
-   * Ejecuta una herramienta de forma segura, capturando excepciones para que el LLM
-   * pueda corregir sus argumentos o invocación en lugar de propagar el error al Main Process.
-   *
-   * @param tool Función de la herramienta a ejecutar
-   * @param args Argumentos que se pasarán a la herramienta
-   * @returns El resultado exitoso o un objeto de error estructurado con una sugerencia de solución
-   */
+  // Sobrecarga para nueva firma que incluye mapa de herramientas, nombre, e input para validación
+  static async execute<T = any>(
+    toolName: string,
+    toolsMap: Record<string, ToolFunction>,
+    input: unknown,
+    customSchema?: any
+  ): Promise<T | ToolErrorResponse>;
+
+  // Sobrecarga para firma antigua (sin validación)
   static async execute<T = any>(
     tool: ToolFunction,
     ...args: any[]
+  ): Promise<T | ToolErrorResponse>;
+
+  /**
+   * Ejecuta una herramienta de forma segura, capturando excepciones para que el LLM
+   * pueda corregir sus argumentos o invocación en lugar de propagar el error al Main Process.
+   */
+  static async execute<T = any>(
+    toolOrName: string | ToolFunction,
+    ...args: any[]
   ): Promise<T | ToolErrorResponse> {
+    let toolName = 'anonymous_tool';
+
     try {
-      return await tool(...args);
+      if (typeof toolOrName === 'string') {
+        toolName = toolOrName;
+        const toolsMap = args[0] as Record<string, ToolFunction>;
+        const input = args[1];
+        const customSchema = args[2];
+
+        const tool = toolsMap?.[toolName];
+        if (!tool || typeof tool !== 'function') {
+          throw new Error(`Herramienta desconocida: ${toolName}`);
+        }
+
+        const schema = customSchema || (ToolSchemas as Record<string, any>)[toolName];
+        let validatedInput = input;
+
+        if (schema) {
+          validatedInput = validateToolInput(schema, input);
+        }
+
+        return await tool(validatedInput);
+      } 
+      else {
+        const tool = toolOrName;
+        toolName = tool.name || 'anonymous_tool';
+        return await tool(...args);
+      }
     }
     catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      const toolName = tool.name || 'anonymous_tool';
 
       return {
-        error: errorMessage,
+        error: true,
+        message: errorMessage,
         fixSuggestion: ToolSandbox.generateFixSuggestion(errorMessage, toolName)
       };
     }
@@ -168,5 +205,10 @@ export class ToolSandbox {
  * Función de utilidad para comprobar si el resultado es un error estructurado.
  */
 export function isToolErrorResponse(response: any): response is ToolErrorResponse {
-  return response !== null && typeof response === 'object' && 'error' in response && 'fixSuggestion' in response;
+  return (
+    response !== null &&
+    typeof response === 'object' &&
+    ('error' in response) &&
+    ('fixSuggestion' in response)
+  );
 }

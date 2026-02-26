@@ -1660,7 +1660,7 @@ ${diff.slice(0, 50000)}
         .replace('{IMPROVEMENTS}', impText || 'None')
         .replace('{RESEARCH_FINDINGS}', findText || 'None');
 
-      return (await model.generateContent(prompt)).response.text().slice(0, 1500);
+      return (await model.generateContent(prompt)).response.text().slice(0, 3000);
     } catch {
       const applied = run.improvements.filter(i => i.applied);
       return `🤖 AutoDev completado\n${run.agentTasks.length} agentes usados\n${applied.length} mejoras\n${run.prUrl || 'Sin PR'}`;

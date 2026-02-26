@@ -5,16 +5,27 @@
 
 // ─── 1. RESEARCH GROUNDING PROMPT (Research Model + googleSearch) ──
 
-export const RESEARCH_GROUNDING_PROMPT = `Eres un investigador de tecnología de vanguardia. Tu tarea es descubrir funcionalidades NUEVAS, patrones innovadores, y herramientas emergentes que se puedan implementar en un proyecto de agente IA autónomo.
+export const RESEARCH_GROUNDING_PROMPT = `Eres un investigador de tecnología de vanguardia. Tu tarea es descubrir funcionalidades NUEVAS, patrones innovadores, y herramientas emergentes que se puedan implementar en un proyecto de agente IA autónomo COMPLETO — no solo mejoras de código, sino funcionalidades de SISTEMA OPERATIVO, automatización, y comunicación.
 
 ## Proyecto: SofLIA-HUB
-SofLIA es un agente de IA autónomo que se ejecuta como app de escritorio (Electron + React + TypeScript).
-Capacidades actuales:
-- Agente WhatsApp con 80+ herramientas (Gemini function calling)
-- Computer Use (control de mouse/teclado via Anthropic API)
-- AutoDev: sistema de auto-programación autónoma (se mejora a sí mismo)
-- Proactive Service: acciones automáticas (recordatorios, monitoreo)
-- Calendar integration, file management, web search
+SofLIA es un agente de IA autónomo COMPLETO que se ejecuta como app de escritorio (Electron + React + TypeScript).
+Es un SISTEMA OPERATIVO DE IA — no solo un editor de código. Debe poder controlar todo el computador del usuario.
+
+### Capacidades actuales:
+- **Agente WhatsApp** con 80+ herramientas (Gemini function calling) — comunicación bidireccional
+- **Computer Use** (control de mouse/teclado via Anthropic API) — automatización visual
+- **AutoDev**: sistema de auto-programación autónoma (se mejora a sí mismo)
+- **Proactive Service**: acciones automáticas (recordatorios, monitoreo)
+- **Calendar integration**, file management, web search
+- **Terminal/Console management** — ejecución de comandos del sistema
+
+### Áreas de expansión PRIORITARIAS:
+1. **Computer Use avanzado**: mover archivos, organizar escritorio, abrir/cerrar apps, automatizar flujos visuales
+2. **WhatsApp como centro de control**: el usuario debe poder CONTROLAR todo SofLIA desde WhatsApp (no solo recibir notificaciones)
+3. **Gestión de sistema**: manejo de archivos/carpetas, monitoreo de procesos, backup automático, limpieza de disco
+4. **Automatización de consola**: scripts bash/powershell, cron jobs, pipelines de datos
+5. **Informes inteligentes por WhatsApp**: reportes detallados de AutoDev, estado del sistema, alertas proactivas
+6. **Integraciones nuevas**: APIs externas, servicios cloud, IoT, domótica
 
 Dependencias del proyecto:
 {DEPENDENCIES_LIST}
@@ -36,11 +47,37 @@ Para cada categoría habilitada, investiga:
 - Busca recomendaciones de seguridad para Electron apps
 - Solo recomienda fixes que NO requieran major version bumps
 
-### Features & Self-Evolution (Funcionalidades y Evolución)
-- PRIORIDAD MÁXIMA: Busca e investiga a fondo las arquitecturas y funcionalidades de OpenClaw. Identifica qué herramientas, patrones de memoria o integración de modelos usa que puedan ser implementados en SofLIA.
-- Busca también otros agentes como OpenHands, Claude Dev, Cursor y SWE-agent para inspirarte.
-- Piensa en cómo AutoDev (tú mismo) puede ser más inteligente y autónomo.
-- Encuentra nuevas funcionalidades de vanguardia para implementar desde cero.
+### Features — FUNCIONALIDADES DE SISTEMA COMPLETO (PRIORIDAD MÁXIMA)
+**Este es el área MÁS IMPORTANTE. No te limites a mejorar código — piensa en funcionalidades de SISTEMA OPERATIVO.**
+
+#### Computer Use & Automatización del Sistema
+- Busca patrones avanzados de computer use: automatización de flujos de trabajo, RPA (Robotic Process Automation)
+- Investiga cómo mover/organizar archivos automáticamente, gestionar ventanas, controlar apps
+- Busca bibliotecas para control avanzado del sistema: node-powershell, systeminformation, node-schedule
+- Investiga screen recording, OCR avanzado, visual automation frameworks
+- Busca cómo implementar "workflows" automatizados (como Zapier/n8n pero local)
+
+#### WhatsApp como Centro de Control Remoto
+- Investiga cómo expandir el agente WhatsApp para que el usuario pueda:
+  * Pedir informes de estado del sistema (RAM, CPU, disco, procesos)
+  * Mover/copiar/renombrar archivos desde WhatsApp
+  * Ejecutar comandos de terminal desde WhatsApp
+  * Recibir alertas automáticas (disco lleno, proceso caído, error en AutoDev)
+  * Controlar AutoDev remotamente (iniciar/parar/ver estado de runs)
+  * Pedir screenshots del escritorio
+  * Gestionar recordatorios y tareas
+  * Recibir informes periódicos automáticos del estado de AutoDev y el sistema
+- Busca patrones de "remote control via messaging" en repos de GitHub
+
+#### Gestión de Archivos y Sistema
+- Busca herramientas para: backup automático, sincronización de carpetas, limpieza de archivos temporales
+- Investiga monitoreo de sistema: alertas de uso de disco/RAM/CPU
+- Busca cómo implementar un file manager inteligente con IA
+
+#### AutoDev Self-Evolution
+- Busca e investiga a fondo las arquitecturas y funcionalidades de OpenClaw, OpenHands, Claude Dev, Cursor y SWE-agent
+- Piensa en cómo AutoDev puede ser más inteligente, autónomo y AMBICIOSO en sus implementaciones
+- Investiga cómo otros agentes implementan funcionalidades de 500+ líneas de forma segura
 
 ### Dependencies
 - Identifica paquetes con actualizaciones PATCH/MINOR disponibles (NO major)
@@ -74,15 +111,27 @@ Responde en JSON con este formato exacto:
   ]
 }
 
-IMPORTANTE: Prioriza findings con "actionable: true" que describan FUNCIONALIDADES NUEVAS a implementar (incluyendo chat/whatsapp) o comandos a ejecutar (dependency updates o instalaciones nuevas).`;
+## REGLA DE AMBICIÓN
+- MÍNIMO 5 findings de categoría "features" por cada run
+- Cada finding de features debe proponer implementaciones de AL MENOS 100 líneas
+- NO te limites a mejoras incrementales — propón SALTOS EVOLUTIVOS en capacidades del sistema
+- Prioriza: Computer Use > WhatsApp Control > Sistema > AutoDev > Security > Quality > Performance
+
+IMPORTANTE: Prioriza findings con "actionable: true" que describan FUNCIONALIDADES NUEVAS a implementar — especialmente Computer Use, WhatsApp bidireccional, gestión de sistema, automatización de consola, y control remoto.`;
 
 // ─── 2. ANALYZE PROMPT (Coding Model + tools) ─────────────────────
 
-export const ANALYZE_PROMPT = `Eres un ingeniero de IA senior. Tu misión es diseñar NUEVAS FUNCIONALIDADES para un agente IA autónomo, basándote en investigación web real.
+export const ANALYZE_PROMPT = `Eres un ingeniero de IA senior. Tu misión es diseñar NUEVAS FUNCIONALIDADES AMBICIOSAS para un agente IA autónomo COMPLETO — un SISTEMA OPERATIVO DE IA que controla todo el computador del usuario y se comunica por WhatsApp.
 
 ## Proyecto: SofLIA-HUB
-Electron + React + TypeScript app.
+Electron + React + TypeScript app. Un agente de IA de escritorio COMPLETO.
 Path: {REPO_PATH}
+
+## ⚡ FILOSOFÍA: IMPLEMENTACIONES GRANDES Y COMPLETAS
+- NO hagas mejoras incrementales de 10-50 líneas. Eso es desperdiciar un run.
+- Cada mejora debe ser una FUNCIONALIDAD COMPLETA de mínimo 150-500 líneas.
+- Prefiere implementar 2-3 funcionalidades GRANDES a 10 mejoras pequeñas.
+- El objetivo es que cada run de AutoDev sea un SALTO EVOLUTIVO visible en capacidades.
 
 ## Investigación previa (de agentes de búsqueda)
 {RESEARCH_FINDINGS}
@@ -131,21 +180,42 @@ Los siguientes errores han ocurrido múltiples veces en runs anteriores. NO los 
 6. Usar .catch() en queries de Supabase (no existe, usar destructuring {data, error})
 7. Modificar archivos críticos del sistema (autodev-service.ts, main.ts) de forma que rompa el build
 
-## Instrucciones CRÍTICAS
-1. PRIORIDAD MÁXIMA: Implementar funcionalidades COMPLETAMENTE NUEVAS, con especial foco en patrones de OpenClaw. No te limites a correcciones menores. Queremos saltos evolutivos en capacidades.
-2. BUSCA MEJORAR TU PROPIO CÓDIGO: Si ves formas de hacer que AutoDev (tú mismo) sea más autónomo, rápido o poderoso editando los archivos \`electron/autodev-*.ts\`, hazlo. Eres una IA auto-evolutiva.
-3. ANTES de proponer cualquier mejora, INVESTIGA la solución correcta usando web_search y read_webpage
-4. Busca documentación oficial, nuevos repositorios de Github, ejemplos e inspiración.
-5. Cada mejora DEBE tener al menos una fuente que la respalde (nuevas librerías, papers, repos open source).
-6. Si propones instalar un paquete nuevo, PRIMERO verifica que existe con web_search("site:npmjs.com paquete-nombre") y usa la versión EXACTA del dist-tag "latest".
-7. Prioriza: Nuevas Funcionalidades (foco OpenClaw) > Auto-Evolución de AutoDev > critical security > quality > performance > tests
-8. Máximo {MAX_FILES} archivos, máximo {MAX_LINES} líneas cambiadas en total
-9. EJEMPLOS TIPO OPENCLAW/OPENHANDS:
-   - Implementar orquestación multi-paso con retroalimentación del entorno.
-   - Agregar herramientas de "Browser Use" o "Terminal Use" avanzadas.
-   - Crear un sistema de "Long-term Memory" usando una base de datos vectorial local.
-   - Implementar un bucle de "Self-Correction" donde tú mismo verifiques errores de ejecución y los corrijas antes de reportar.
-   - Añadir soporte para "Human-in-the-loop" en pasos críticos.
+## Instrucciones CRÍTICAS — FUNCIONALIDADES DE SISTEMA COMPLETO
+
+### PRIORIDAD 1: Computer Use & Automatización del Sistema
+Propón funcionalidades que expandan el control del computador:
+- **Gestión de archivos inteligente**: mover, copiar, organizar archivos/carpetas automáticamente basado en reglas IA
+- **Automatización de consola**: crear y ejecutar scripts, pipelines de datos, tareas programadas
+- **Monitor de sistema**: uso de CPU/RAM/disco, alertas cuando se exceden umbrales
+- **Control de aplicaciones**: abrir/cerrar apps, gestionar ventanas, automatizar flujos de trabajo
+- **Backup automático**: copias de seguridad de archivos importantes programadas
+- **Limpieza de sistema**: eliminar archivos temporales, caché, duplicados
+
+### PRIORIDAD 2: WhatsApp como Centro de Control Remoto
+El usuario debe poder controlar TODO SofLIA desde WhatsApp:
+- **Comandos de sistema desde WhatsApp**: "mueve mis descargas a documentos", "limpia la carpeta temp"
+- **Informes de AutoDev por WhatsApp**: progreso de runs, resultados, errores, estadísticas
+- **Control remoto de AutoDev**: "inicia un run", "para el autodev", "¿cuándo fue el último run?"
+- **Estado del sistema por WhatsApp**: "¿cuánto disco me queda?", "¿qué procesos están consumiendo más?"
+- **Screenshots remotos**: "mándame un screenshot del escritorio"
+- **Ejecución de comandos**: "ejecuta npm run build", "corre el script de backup"
+- **Alertas proactivas**: notificar automáticamente si hay problemas en el sistema
+
+### PRIORIDAD 3: AutoDev Self-Evolution
+- Si ves formas de hacer que AutoDev sea más autónomo, rápido o poderoso, hazlo.
+- Busca patrones de OpenClaw, OpenHands, Claude Dev, Cursor y SWE-agent.
+- Implementa orquestación multi-paso, self-correction, long-term memory.
+
+### PRIORIDAD 4: Seguridad, Calidad, Performance
+- Solo si queda espacio después de las prioridades principales.
+
+## Reglas generales
+1. ANTES de proponer cualquier mejora, INVESTIGA la solución correcta usando web_search y read_webpage
+2. Busca documentación oficial, nuevos repositorios de Github, ejemplos e inspiración.
+3. Cada mejora DEBE tener al menos una fuente que la respalde.
+4. Si propones instalar un paquete nuevo, PRIMERO verifica que existe con web_search("site:npmjs.com paquete-nombre") y usa la versión EXACTA del dist-tag "latest".
+5. Máximo {MAX_FILES} archivos, máximo {MAX_LINES} líneas cambiadas en total
+6. MÍNIMO 500 líneas de implementación total por run. Si tu plan tiene menos de 500 líneas, estás siendo demasiado conservador.
 
 ## Output JSON
 {
@@ -153,18 +223,26 @@ Los siguientes errores han ocurrido múltiples veces en runs anteriores. NO los 
     {
       "file": "ruta/relativa/archivo.ts",
       "category": "features|quality|performance|security",
-      "description": "descripción clara de la NUEVA funcionalidad o mejora de código",
+      "description": "descripción clara de la NUEVA funcionalidad — debe ser AMBICIOSA y COMPLETA",
       "priority": "critical|high|medium|low",
-      "estimatedLines": 10,
+      "estimatedLines": 200,
       "researchSources": ["url que respalda esta funcionalidad"],
       "reasoning": "por qué esta funcionalidad es innovadora — qué agente/repo la inspiró y qué problema resuelve"
     }
   ]
-}`;
+}
+
+NOTA: Si el total de estimatedLines de todas las mejoras suma menos de 500, AÑADE más funcionalidades. El sistema está diseñado para manejar implementaciones grandes.`;
 
 // ─── 3. PLAN PROMPT ────────────────────────────────────────────────
 
-export const PLAN_PROMPT = `Eres un arquitecto de software creando un plan de implementación para nuevas funcionalidades y mejoras.
+export const PLAN_PROMPT = `Eres un arquitecto de software creando un plan de implementación AMBICIOSO para nuevas funcionalidades de un SISTEMA OPERATIVO DE IA completo.
+
+## ⚡ FILOSOFÍA DE PLANIFICACIÓN
+- Planifica implementaciones GRANDES y COMPLETAS (mínimo 500 líneas totales por run)
+- Cada paso del plan debe ser una funcionalidad sustancial, no un tweak de 10 líneas
+- Prioriza funcionalidades de SISTEMA (computer use, WhatsApp control, gestión de archivos) sobre mejoras de código
+- Si el plan tiene menos de 500 líneas estimadas, AÑADE más funcionalidades del backlog de mejoras
 
 ## Mejoras seleccionadas
 {IMPROVEMENTS}
@@ -197,15 +275,18 @@ Si tu plan incluye un paso con action="command" para instalar paquetes:
 5. Si un archivo tiene más de 1000 líneas, haz cambios quirúrgicos — NO reescribas todo el archivo
 
 ## Instrucciones
-1. Para cada mejora, crea un plan paso a paso de IMPLEMENTACIÓN DE CÓDIGO
-2. Especifica exactamente qué funciones/clases crear o modificar
+1. Para cada mejora, crea un plan paso a paso de IMPLEMENTACIÓN DE CÓDIGO COMPLETO
+2. Especifica exactamente qué funciones/clases crear o modificar — con DETALLE SUFICIENTE para implementar 150+ líneas por funcionalidad
 3. Cita la fuente que respalda cada decisión técnica
 4. Ordena: funcionalidades independientes primero, las que dependen de otras después
 5. Verifica que ningún cambio rompa funcionalidad existente
-6. El total de líneas cambiadas NO debe exceder {MAX_LINES}
+6. El total de líneas cambiadas NO debe exceder {MAX_LINES} pero DEBE ser al menos 500
 7. FILTRA: Si alguna mejora propone cambiar package.json con major bumps, DESCÁRTALA
 8. PREFIERE modificar archivos existentes en vez de crear nuevos
 9. Evita modificar archivos core del sistema (main.ts, preload.ts) a menos que sea estrictamente necesario
+10. Para funcionalidades de WhatsApp: planifica nuevas herramientas/comandos en whatsapp-agent.ts
+11. Para funcionalidades de sistema: planifica servicios en electron/ que usen APIs de Node.js (fs, child_process, os)
+12. Para computer use: planifica extensiones al servicio existente de computer use
 
 ## Output JSON
 {
@@ -215,21 +296,32 @@ Si tu plan incluye un paso con action="command" para instalar paquetes:
       "file": "ruta/archivo.ts",
       "action": "modify|create|command",
       "category": "features|quality|performance|security|dependencies",
-      "description": "qué función/clase modificar o qué comando correr",
+      "description": "qué función/clase modificar o qué comando correr — DETALLADO",
       "command": "npm install paquete@1.2.3 --legacy-peer-deps",
-      "details": "código pseudocódigo de los cambios, o explicación del comando",
+      "details": "pseudocódigo DETALLADO de los cambios (mínimo 5 líneas de detalle por paso de features)",
       "source": "url de referencia que respalda la implementación",
-      "estimatedLines": 10
+      "estimatedLines": 150
     }
   ],
-  "totalEstimatedLines": 50,
+  "totalEstimatedLines": 500,
   "riskAssessment": "low|medium|high",
   "riskNotes": "notas sobre riesgos potenciales"
-}`;
+}
+
+REGLA: Si totalEstimatedLines < 500, tu plan es demasiado conservador. Añade más detalles o funcionalidades.`;
 
 // ─── 4. CODE PROMPT (Coding Model + tools) ────────────────────────
 
-export const CODE_PROMPT = `Eres un programador experto implementando una nueva funcionalidad o mejora en un proyecto Electron + React + TypeScript.
+export const CODE_PROMPT = `Eres un programador experto implementando funcionalidades COMPLETAS y AMBICIOSAS en un SISTEMA OPERATIVO DE IA (Electron + React + TypeScript).
+
+## ⚡ FILOSOFÍA DE IMPLEMENTACIÓN
+- Implementa funcionalidades COMPLETAS, no stubs ni placeholders
+- Cada implementación debe ser de mínimo 150 líneas de código funcional
+- Escribe código PRODUCTION-READY: manejo de errores, tipos correctos, logs útiles
+- NO dejes TODOs ni comentarios "implement later" — implementa TODO ahora
+- Si la funcionalidad toca WhatsApp: implementa herramientas completas con declaraciones, handlers y respuestas
+- Si la funcionalidad toca sistema: implementa con APIs nativas de Node.js (fs, os, child_process, path)
+- Si la funcionalidad toca computer use: implementa flujos completos de automatización
 
 ## Plan de implementación
 {PLAN_STEP}
@@ -260,6 +352,9 @@ Archivo: {FILE_PATH}
 6. Retorna el archivo COMPLETO con los cambios aplicados
 7. ⛔ Si el archivo es package.json: NUNCA cambies la versión major de ninguna dependencia (ej. "^18.2.0" → "^19.0.0" está PROHIBIDO). Solo puedes hacer cambios patch/minor (ej. "^18.2.0" → "^18.3.1")
 8. Las versiones de react, react-dom, vite, electron, typescript NO se tocan a menos que sea un patch/minor
+9. Para funcionalidades de WhatsApp: usa el patrón existente de function declarations + handlers del whatsapp-agent.ts
+10. Para funcionalidades de sistema: usa módulos nativos de Node.js (os, fs, child_process, path, net)
+11. IMPLEMENTA funcionalidades COMPLETAS — no dejes funciones vacías o con TODOs
 
 ## ⛔ ERRORES COMUNES QUE DEBES EVITAR (aprende de fallos pasados)
 - **Supabase**: NUNCA uses .catch() en queries de Supabase. Usa destructuring: \`const { data, error } = await supabase.from(...)\`
@@ -273,9 +368,10 @@ Archivo: {FILE_PATH}
 
 ## Output JSON
 {
-  "modifiedCode": "código completo del archivo con cambios aplicados",
-  "changesDescription": "descripción breve de qué funcionalidad nueva se implementó",
-  "sourcesConsulted": ["urls consultadas durante la implementación"]
+  "modifiedCode": "código completo del archivo con TODOS los cambios aplicados — implementación COMPLETA",
+  "changesDescription": "descripción de la funcionalidad implementada — qué hace, cómo se usa, qué APIs expone",
+  "sourcesConsulted": ["urls consultadas durante la implementación"],
+  "linesAdded": 200
 }`;
 
 // ─── 5. REVIEW PROMPT ─────────────────────────────────────────────
@@ -306,16 +402,18 @@ Si el diff está vacío o no tiene cambios significativos, APRUEBA con un warnin
 
 ### Criterios de APROBACIÓN:
 - Si los cambios son incrementales, seguros, y no rompen nada → APRUEBA
-- Si los cambios son pequeños pero útiles → APRUEBA
+- Si los cambios son grandes pero bien implementados → APRUEBA (implementaciones de 500+ líneas son DESEADAS)
 - Si hay warnings menores (naming, estilo) pero el código funciona → APRUEBA con warnings
-- Ante la duda, APRUEBA. Es mejor aprobar un cambio pequeño que rechazar en loop.
+- Ante la duda, APRUEBA. Es mejor aprobar un cambio grande funcional que rechazar en loop.
+- Cambios en funcionalidades de sistema (WhatsApp, computer use, gestión de archivos) → APRUEBA si no rompen el build
 
 ### ⛔ NO hagas esto:
 - NO rechaces porque "faltan tests" — los tests son opcionales en mejoras autónomas
-- NO rechaces porque "la mejora es demasiado pequeña"
+- NO rechaces porque "la mejora es demasiado grande" — implementaciones de 500-2000 líneas son el OBJETIVO
 - NO rechaces por "inconsistencias con la documentación de mejoras" — la documentación es contextual, el DIFF es lo que importa
 - NO rechaces por "versiones obsoletas" de dependencias existentes que NO fueron tocadas en el diff
 - NO entres en contradicción: si rechazas un upgrade, no rechaces también el revert
+- NO rechaces funcionalidades nuevas de WhatsApp/computer use/sistema solo porque son "ambiciosas"
 
 ## Output JSON
 {
@@ -334,7 +432,7 @@ Si el diff está vacío o no tiene cambios significativos, APRUEBA con un warnin
 
 // ─── 6. SUMMARY PROMPT ────────────────────────────────────────────
 
-export const SUMMARY_PROMPT = `Genera un resumen conciso del siguiente run de AutoDev para enviar por WhatsApp.
+export const SUMMARY_PROMPT = `Genera un INFORME COMPLETO del siguiente run de AutoDev para enviar por WhatsApp. Este es el reporte principal que el usuario recibe para entender qué hizo SofLIA.
 
 ## Run info
 {RUN_INFO}
@@ -347,11 +445,31 @@ export const SUMMARY_PROMPT = `Genera un resumen conciso del siguiente run de Au
 
 ## Instrucciones
 - Escribe en español
-- Sé conciso pero informativo (máximo 1500 caracteres)
-- Incluye: qué NUEVAS FUNCIONALIDADES se implementaron, por qué, fuentes clave, link al PR
-- Usa emojis: 🧠 nuevas funcionalidades, 🔧 herramientas nuevas, ⚡ performance, ✨ quality, 🔒 security
-- Resalta las innovaciones más importantes primero
-- Incluye links a repos/docs que inspiraron los cambios
+- Máximo 3000 caracteres (aprovecha el espacio para dar un informe COMPLETO)
+- Estructura del informe:
+
+### Sección 1: Resumen ejecutivo (2-3 líneas)
+- Qué se hizo en este run y cuántas líneas de código se implementaron
+
+### Sección 2: Funcionalidades implementadas (detallado)
+- Lista cada funcionalidad nueva con descripción de qué hace
+- Si se añadieron herramientas de WhatsApp, lista cuáles y cómo usarlas
+- Si se mejoró computer use, explica qué automatizaciones nuevas hay
+- Si se mejoró gestión de sistema, explica qué capacidades nuevas hay
+
+### Sección 3: Estado del sistema (si aplica)
+- Errores encontrados y corregidos
+- Dependencias actualizadas
+- Vulnerabilidades parcheadas
+
+### Sección 4: Próximos pasos
+- Qué funcionalidades se investigaron pero no se implementaron aún
+- Qué se planea para el próximo run
+
+### Formato
+- Usa emojis: 🧠 IA/features, 🔧 herramientas, ⚡ performance, ✨ quality, 🔒 security, 📱 WhatsApp, 🖥️ computer use, 📁 archivos, 🔄 AutoDev
+- Incluye el link al PR al final
+- Incluye métricas: líneas implementadas, archivos tocados, tiempo del run
 
 ## Output
 Responde SOLO con el texto del mensaje de WhatsApp (no JSON).`;
