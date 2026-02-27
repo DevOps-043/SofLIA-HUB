@@ -710,3 +710,106 @@ TypeError: fetch failed
 ```
 
 ---
+## ❌ [RUNTIME_ERROR] — 2026-02-27
+
+- **Run ID**: `run_1772182802791`
+- **Timestamp**: 2026-02-27T09:05:46.993Z
+- **Categoría**: runtime_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Run falló con error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview-customtools:generateContent: [503 Service Unavailable] This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.
+
+### Contexto técnico
+
+```
+Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview-customtools:generateContent: [503 Service Unavailable] This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.
+    at handleResponseNotOk (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:432:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async makeRequest (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:401:9)
+    at async generateContent (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:865:22)
+    at async ChatSession.sendMessage (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:1208:9)
+    at async execute (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:1223:22)
+    at async AutoDevService.analyzeCode (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:1244:14)
+    at async AutoDevService.executeRun (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:695:24)
+    at async AutoDevService.runNow (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:505:7)
+    at async runStandalone (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\scripts\autodev.ts:31:17)
+```
+
+---
+## ❌ [RUNTIME_ERROR] — 2026-02-27
+
+- **Run ID**: `run_1772182802790`
+- **Timestamp**: 2026-02-27T09:05:47.984Z
+- **Categoría**: runtime_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Run falló con error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview-customtools:generateContent: [503 Service Unavailable] This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.
+
+### Contexto técnico
+
+```
+Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview-customtools:generateContent: [503 Service Unavailable] This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.
+    at handleResponseNotOk (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:432:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async makeRequest (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:401:9)
+    at async generateContent (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:865:22)
+    at async ChatSession.sendMessage (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:1208:9)
+    at async execute (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:1223:22)
+    at async AutoDevService.analyzeCode (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:1244:14)
+    at async AutoDevService.executeRun (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:695:24)
+    at async AutoDevService.runNow (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:505:7)
+    at async runStandalone (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\scripts\autodev.ts:31:17)
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-02-27
+
+- **Timestamp**: 2026-02-27T15:23:21.851Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `knowledge_read` falló con error: Archivo no encontrado: memory/2026-02-27.md
+
+- **Herramienta**: `knowledge_read`
+- **Error**: Archivo no encontrado: memory/2026-02-27.md
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [RUNTIME_ERROR] — 2026-02-27
+
+- **Run ID**: `run_1772205828276`
+- **Timestamp**: 2026-02-27T15:30:32.727Z
+- **Categoría**: runtime_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Run falló con error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview-customtools:generateContent: [499 Client Closed Request] The operation was cancelled.
+
+### Contexto técnico
+
+```
+Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview-customtools:generateContent: [499 Client Closed Request] The operation was cancelled.
+    at handleResponseNotOk (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:432:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async makeRequest (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:401:9)
+    at async generateContent (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:865:22)
+    at async ChatSession.sendMessage (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:1208:9)
+    at async execute (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:1237:20)
+    at async AutoDevService.analyzeCode (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:1244:14)
+    at async AutoDevService.executeRun (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:695:24)
+    at async AutoDevService.runNow (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:505:7)
+    at async runStandalone (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\scripts\autodev.ts:31:17)
+```
+
+---
