@@ -20,7 +20,7 @@
     "@types/qrcode": "^1.5.6",
     "@whiskeysockets/baileys": "7.0.0-rc.9",
     "active-win": "^8.2.1",
-    "better-sqlite3": "^12.6.2",
+    "better-sqlite3": "^11.8.1",
     "cron": "^4.4.0",
     "docx": "^9.5.3",
     "dotenv": "^17.3.1",
@@ -33,9 +33,9 @@
     "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "systeminformation": "^5.23.14",
+    "systeminformation": "^5.25.1",
     "tesseract.js": "^5.1.0",
-    "zod": "^3.23.8"
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",

@@ -9,6 +9,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { exec } from 'node:child_process';
 import nodemailer from 'nodemailer';
+import * as si from 'systeminformation';
 
 // ─── Security ────────────────────────────────────────────────────────
 const MAX_FILE_READ_SIZE = 1 * 1024 * 1024; // 1 MB
@@ -70,12 +71,76 @@ function detectSmtp(email: string): { host: string; port: number } | null {
   return SMTP_PROVIDERS[domain] || null;
 }
 
+// ─── Process & Screen Handlers ───────────────────────────────────────
+
+async function handleListScreens(): Promise<{ success: boolean; screens?: Array<{ id: string; name: string; display_id: string }>; count?: number; error?: string }> {
+  try {
+    console.log('[ComputerUse] Fetching screen sources...');
+    const sources = await desktopCapturer.getSources({ types: ['screen'] });
+    const screens = sources.map(s => ({
+      id: s.id,
+      name: s.name,
+      display_id: s.display_id
+    }));
+    console.log(`[ComputerUse] Found ${screens.length} screen(s).`);
+    return { success: true, screens, count: screens.length };
+  } catch (err: any) {
+    console.error('[ComputerUse] Error listing screens:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+async function handleListProcesses(): Promise<{ success: boolean; processes?: Array<{ pid: number; name: string; cpu: number; mem: number; command: string }>; count?: number; error?: string }> {
+  try {
+    console.log('[ComputerUse] Listing system processes...');
+    const data = await si.processes();
+    const list = data.list.sort((a, b) => b.cpu - a.cpu).slice(0, 20);
+    const processes = list.map(p => ({
+      pid: p.pid,
+      name: p.name || 'Unknown',
+      cpu: Number((p.cpu || 0).toFixed(2)),
+      mem: Number((p.mem || 0).toFixed(2)),
+      command: p.command || ''
+    }));
+    console.log(`[ComputerUse] Retrieved top ${processes.length} processes by CPU.`);
+    return { success: true, processes, count: processes.length };
+  } catch (err: any) {
+    console.error('[ComputerUse] Error listing processes:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+async function handleKillProcess(pid: number): Promise<{ success: boolean; message?: string; error?: string }> {
+  try {
+    console.log(`[ComputerUse] Attempting to kill process PID: ${pid}`);
+    if (isNaN(pid) || typeof pid !== 'number' || pid <= 0) {
+      console.warn(`[ComputerUse] Invalid PID provided: ${pid}`);
+      return { success: false, error: 'PID inválido o no proporcionado (debe ser un número positivo).' };
+    }
+    process.kill(pid, 'SIGKILL');
+    console.log(`[ComputerUse] Successfully sent SIGKILL to PID: ${pid}`);
+    return { success: true, message: `Proceso ${pid} terminado exitosamente` };
+  } catch (err: any) {
+    console.error(`[ComputerUse] Error killing process ${pid}:`, err);
+    return { success: false, error: err.message };
+  }
+}
+
 // ─── Tool Implementation (callable directly from main process) ──────
 export async function executeToolDirect(
   toolName: string,
   args: Record<string, any>
 ): Promise<any> {
   switch (toolName) {
+    case 'list_screens':
+      return await handleListScreens();
+
+    case 'list_processes':
+      return await handleListProcesses();
+
+    case 'kill_process':
+      return await handleKillProcess(Number(args.pid));
+
     case 'list_directory': {
       try {
         const resolved = normalizePath(args.path || os.homedir());
@@ -441,6 +506,15 @@ export async function executeToolDirect(
 
 // ─── Register IPC handlers (bridge to renderer) ─────────────────────
 export function registerComputerUseHandlers() {
+  ipcMain.handle('computer:list-screens', async () =>
+    executeToolDirect('list_screens', {}));
+
+  ipcMain.handle('computer:list-processes', async () =>
+    executeToolDirect('list_processes', {}));
+
+  ipcMain.handle('computer:kill-process', async (_, pid: number) =>
+    executeToolDirect('kill_process', { pid }));
+
   ipcMain.handle('computer:list-directory', async (_, dirPath: string, showHidden = false) =>
     executeToolDirect('list_directory', { path: dirPath, show_hidden: showHidden }));
 
@@ -510,3 +584,28 @@ export function registerComputerUseHandlers() {
   ipcMain.handle('computer:send-email', async (_, to: string, subject: string, body: string, attachmentPaths?: string[], isHtml?: boolean) =>
     executeToolDirect('send_email', { to, subject, body, attachment_paths: attachmentPaths, is_html: isHtml }));
 }
+
+// ─── Exported Tool Schemas for LLM (prevents TS2345 mismatch) ───────
+export const SYSTEM_PROCESS_TOOLS: any[] = [
+  {
+    name: 'list_screens',
+    description: 'Lista todas las pantallas (monitores) disponibles, devolviendo su id, name y display_id. Esto permite saber qué display_id pasar a take_screenshot.',
+    inputSchema: { type: 'object', properties: {} }
+  },
+  {
+    name: 'list_processes',
+    description: 'Obtiene una lista de los 20 procesos que más CPU consumen en el sistema. Retorna pid, name, cpu, mem, command.',
+    inputSchema: { type: 'object', properties: {} }
+  },
+  {
+    name: 'kill_process',
+    description: 'Termina (mata) un proceso del sistema usando su PID.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        pid: { type: 'number', description: 'El ID del proceso (PID) a terminar.' }
+      },
+      required: ['pid']
+    }
+  }
+];
