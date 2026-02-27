@@ -260,18 +260,33 @@ export class KnowledgeService {
 
   /**
    * Read a specific knowledge file by name.
+   * If the file is a daily log and doesn't exist, we intercept the error and return a success response
+   * indicating there are no logs yet to prevent LLM tool failure.
    */
   readKnowledgeFile(fileName: string): { success: boolean; content?: string; message?: string } {
     if (!this.initialized) return { success: false, message: 'KnowledgeService not initialized' };
 
     // Security: only allow reading within knowledge directory
     const resolvedPath = this.resolveKnowledgePath(fileName);
+    
+    // Detect if the requested file is a daily memory log (e.g., memory/2023-10-25.md)
+    const normalizedFileName = fileName.replace(/\\/g, '/');
+    const isDailyLog = /^memory\/\d{4}-\d{2}-\d{2}(\.md)?$/.test(normalizedFileName);
+
     if (!resolvedPath) {
+      if (isDailyLog) {
+        console.log(`[KnowledgeService] Intercepted missing daily log request: ${fileName}`);
+        return { success: true, content: 'Aún no hay registros para hoy. El sistema está inicializado.' };
+      }
       return { success: false, message: `Archivo no encontrado: ${fileName}` };
     }
 
     const content = this.readFileContent(resolvedPath);
     if (content === null) {
+      if (isDailyLog) {
+        console.log(`[KnowledgeService] Intercepted unreadable daily log request: ${fileName}`);
+        return { success: true, content: 'Aún no hay registros para hoy. El sistema está inicializado.' };
+      }
       return { success: false, message: `No se pudo leer: ${fileName}` };
     }
 
