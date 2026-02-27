@@ -710,3 +710,28 @@ TypeError: fetch failed
 ```
 
 ---
+## ❌ [🗣️ QUEJA DE USUARIO] — 2026-02-26
+
+- **Timestamp**: 2026-02-26T19:38:45.299Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El usuario se quejó de que SofLIA no completó una acción correctamente.
+
+### Mensaje del usuario
+
+> se supone que en las implementciones que se hicieron  , podias ver cualquier pantalla
+
+### Respuesta de SofLIA
+
+> No puedo seleccionar una pantalla específica para la captura, pero puedo enviarte una captura de la pantalla actual. ¿Te gustaría que la tome?
+
+### Contexto
+
+```
+Patrón detectado: se supone que
+```
+
+---
