@@ -16,6 +16,7 @@ import { WhatsAppSetup } from "./components/WhatsAppSetup";
 import { UserManagementModal } from "./components/UserManagementModal";
 import { ProductivityDashboard } from "./components/ProductivityDashboard";
 import AutoDevPanel from "./components/AutoDevPanel";
+import { ApprovalInbox } from "./components/ApprovalInbox";
 import { GOOGLE_API_KEY } from "./config";
 import {
   getTeams,
@@ -50,7 +51,7 @@ import {
   type Folder,
 } from "./services/folder-service";
 
-type ActiveView = "chat" | "screen" | "project" | "productivity";
+type ActiveView = "chat" | "screen" | "project" | "productivity" | "approvals";
 
 function AppContent() {
   const { user, loading, signOut, sofiaContext } = useAuth();
@@ -1585,6 +1586,30 @@ function AppContent() {
 
                     <button
                       onClick={() => {
+                        setActiveView("approvals");
+                        setIsUserMenuOpen(false);
+                      }}
+                      className="w-full text-left flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4.5 w-4.5 text-gray-400 dark:text-gray-500"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={1.5}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      Aprobaciones
+                    </button>
+
+                    <button
+                      onClick={() => {
                         setIsAutoDevOpen(true);
                         setIsUserMenuOpen(false);
                       }}
@@ -1738,6 +1763,9 @@ function AppContent() {
         {activeView === "screen" && <ScreenViewer />}
         {activeView === "productivity" && userId && (
           <ProductivityDashboard userId={userId} />
+        )}
+        {activeView === "approvals" && userId && (
+          <ApprovalInbox userId={userId} organizationId={sofiaContext?.currentOrganization?.id} />
         )}
         {activeView === "project" && currentFolder && (
           <ProjectHub

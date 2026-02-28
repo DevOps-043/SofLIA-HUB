@@ -32,7 +32,8 @@
       "WebFetch(domain:dataconomy.com)",
       "WebFetch(domain:www.nxcode.io)",
       "Bash(npm view:*)",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "Bash(grep -n \"mime\\\\|MIME\\\\|contentType\\\\|application/\" electron/*.ts)"
     ]
   }
 }

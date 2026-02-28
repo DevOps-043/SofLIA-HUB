@@ -127,7 +127,40 @@ const ALLOWED_IPC_CHANNELS = [
   'flow-send-to-chat',
   'close-flow',
   'flow-message-received',
-  'flow-window-shown'
+  'flow-window-shown',
+  // Workflow Engine
+  'workflow:start-run',
+  'workflow:get-run',
+  'workflow:get-pending-approvals',
+  'workflow:submit-approval',
+  'workflow:get-artifact',
+  'workflow:list-runs',
+  'workflow:cancel-run',
+  'workflow:run-extraction',
+  'workflow:generate-artifact',
+  'workflow:approval-needed',
+  'workflow:sla-breach',
+  'workflow:run-completed',
+  'workflow:step-started',
+  'workflow:step-completed',
+  // CRM
+  'crm:get-opportunities',
+  'crm:get-company',
+  'crm:search-contacts',
+  'crm:update-opportunity-stage',
+  'crm:log-interaction',
+  'crm:get-pipeline',
+  'crm:find-or-create-company',
+  'crm:find-or-create-contact',
+  'crm:create-opportunity',
+  // Transcript Watcher
+  'transcript:get-config',
+  'transcript:update-config',
+  'transcript:force-scan',
+  'transcript:get-processed',
+  'transcript:get-status',
+  'transcript:detected',
+  'transcript:workflow-triggered',
 ]
 
 // 4. Payload Sanitization
@@ -403,4 +436,58 @@ contextBridge.exposeInMainWorld('flow', {
     safeRemoveAllListeners('flow-message-received')
     safeRemoveAllListeners('flow-window-shown')
   }
+})
+
+// --------- Workflow Engine API ---------
+contextBridge.exposeInMainWorld('workflow', {
+  startRun: (params: any) => safeInvoke('workflow:start-run', params),
+  getRun: (runId: string) => safeInvoke('workflow:get-run', runId),
+  getPendingApprovals: (filters?: any) => safeInvoke('workflow:get-pending-approvals', filters),
+  submitApproval: (params: any) => safeInvoke('workflow:submit-approval', params),
+  getArtifact: (artifactId: string) => safeInvoke('workflow:get-artifact', artifactId),
+  listRuns: (filters?: any) => safeInvoke('workflow:list-runs', filters),
+  cancelRun: (runId: string, reason?: string) => safeInvoke('workflow:cancel-run', runId, reason),
+  runExtraction: (params: any) => safeInvoke('workflow:run-extraction', params),
+  generateArtifact: (params: any) => safeInvoke('workflow:generate-artifact', params),
+  onApprovalNeeded: (cb: (data: any) => void) => safeOn('workflow:approval-needed', cb),
+  onSLABreach: (cb: (data: any) => void) => safeOn('workflow:sla-breach', cb),
+  onRunCompleted: (cb: (data: any) => void) => safeOn('workflow:run-completed', cb),
+  onStepStarted: (cb: (data: any) => void) => safeOn('workflow:step-started', cb),
+  onStepCompleted: (cb: (data: any) => void) => safeOn('workflow:step-completed', cb),
+  removeListeners: () => {
+    safeRemoveAllListeners('workflow:approval-needed')
+    safeRemoveAllListeners('workflow:sla-breach')
+    safeRemoveAllListeners('workflow:run-completed')
+    safeRemoveAllListeners('workflow:step-started')
+    safeRemoveAllListeners('workflow:step-completed')
+  },
+})
+
+// --------- Transcript Watcher API ---------
+contextBridge.exposeInMainWorld('transcript', {
+  getConfig: () => safeInvoke('transcript:get-config'),
+  updateConfig: (updates: any) => safeInvoke('transcript:update-config', updates),
+  forceScan: () => safeInvoke('transcript:force-scan'),
+  getProcessed: () => safeInvoke('transcript:get-processed'),
+  getStatus: () => safeInvoke('transcript:get-status'),
+  onDetected: (cb: (data: any) => void) => safeOn('transcript:detected', cb),
+  onWorkflowTriggered: (cb: (data: any) => void) => safeOn('transcript:workflow-triggered', cb),
+  removeListeners: () => {
+    safeRemoveAllListeners('transcript:detected')
+    safeRemoveAllListeners('transcript:workflow-triggered')
+  },
+})
+
+// --------- CRM API ---------
+contextBridge.exposeInMainWorld('crm', {
+  getOpportunities: (filters?: any) => safeInvoke('crm:get-opportunities', filters),
+  getCompany: (companyId: string) => safeInvoke('crm:get-company', companyId),
+  searchContacts: (query: string, orgId?: string) => safeInvoke('crm:search-contacts', query, orgId),
+  updateOpportunityStage: (oppId: string, stage: string, reason?: string) =>
+    safeInvoke('crm:update-opportunity-stage', oppId, stage, reason),
+  logInteraction: (params: any) => safeInvoke('crm:log-interaction', params),
+  getPipeline: (organizationId?: string) => safeInvoke('crm:get-pipeline', organizationId),
+  findOrCreateCompany: (params: any) => safeInvoke('crm:find-or-create-company', params),
+  findOrCreateContact: (params: any) => safeInvoke('crm:find-or-create-contact', params),
+  createOpportunity: (params: any) => safeInvoke('crm:create-opportunity', params),
 })

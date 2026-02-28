@@ -747,7 +747,7 @@ TypeError: fetch failed
 - **Run ID**: `run_1772182802791`
 - **Timestamp**: 2026-02-27T09:05:46.993Z
 - **Categoría**: runtime_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772228840513` — 2026-02-27)
 
 ### Descripción
 
@@ -776,7 +776,7 @@ Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguag
 - **Run ID**: `run_1772182802790`
 - **Timestamp**: 2026-02-27T09:05:47.984Z
 - **Categoría**: runtime_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772228840513` — 2026-02-27)
 
 ### Descripción
 
@@ -804,7 +804,7 @@ Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguag
 
 - **Timestamp**: 2026-02-27T15:23:21.851Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772228840513` — 2026-02-27)
 
 ### Descripción
 
@@ -826,7 +826,7 @@ Args: {}
 - **Run ID**: `run_1772205828276`
 - **Timestamp**: 2026-02-27T15:30:32.727Z
 - **Categoría**: runtime_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772228840513` — 2026-02-27)
 
 ### Descripción
 
@@ -854,7 +854,7 @@ Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguag
 
 - **Timestamp**: 2026-02-26T19:38:45.299Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772228840513` — 2026-02-27)
 
 ### Descripción
 
@@ -872,6 +872,73 @@ El usuario se quejó de que SofLIA no completó una acción correctamente.
 
 ```
 Patrón detectado: se supone que
+```
+
+---
+## ❌ [BUILD_FAILURE] — 2026-02-28
+
+- **Run ID**: `run_1772245814831`
+- **Timestamp**: 2026-02-28T03:05:09.851Z
+- **Categoría**: build_failure
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El build falló persistentemente después de 4 intentos de auto-corrección.
+
+Errores finales (0):
+
+> soflia-hub-desktop@0.0.1 build
+> tsc && vite build && electron-builder
+
+[36mvite v5.4.21 [32mbuilding for production...[36m[39m
+transforming...
+[32m✓[39m 478 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mindex.html                           [39m[1m[2m    0.46 kB[22m[1m[22m[2m │ gzip:   0.29 kB[22m
+[2mdist/[22m[35massets/index-CHUVsJ4g.css            [39m[1m[2m  112.60 kB[22m[1m[22m[2m │ gzip:  15.46 kB[22m
+[2mdist/[22m[36massets/prompt-optimizer-CSkFFJxc.js  [39m[1m[2m    7.88 kB[22m[1m[22m[2m │ gzip:   3.46 kB[22m
+[2mdist/[22m[36massets/index-BidLuhoo.js             [39m[1m[33m1,162.34 kB[39m[22m[2m │ gzip: 282.70 kB[22m
+[32m✓ built in 5.00s[39m
+[36mvite v5.4.21 [32mbuilding for production...[36m[39m
+transforming...
+[32m✓[39m 2 modules transformed.
+
+---
+[33m
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+[31mx[39m Build failed in 52ms
+[31merror during build:
+[31mCould not resolve "./shadow-loop" from "electron/main.ts"[31m
+file: [36mC:/Users/fysg5/OneDrive/Escritorio/Pulse Hub/SofLIA - Hub/SofLIA-HUB/electron/main.ts[31m
+    at getRollupError (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/rollup/dist/es/shared/parseAst.js:402:41)
+    at error (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/rollup/dist/es/shared/parseAst.js:398:42)
+    at ModuleLoader.handleInvalidResolvedId (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/rollup/dist/es/shared/node-entry.js:21687:24)
+    at ModuleLoader.resolveDynamicImport (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/rollup/dist/es/shared/node-entry.js:21747:58)
+    at async file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/rollup/dist/es/shared/node-entry.js:21631:32[39m
+
+---
+Command failed: npm run build
+[33m
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+[31mx[39m Build failed in 52ms
+[31merror during build:
+[31mCould not resolve "./shadow-loop" from "electron/main.ts"[31m
+file: [36mC:/Users/fysg5/OneDrive/Escritorio/Pulse Hub/SofLIA - Hub/SofLIA-HUB/electron/main.ts[31m
+    at getRollupError (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/roll
+
+### Contexto técnico
+
+```
+Archivos afectados: 
+Códigos de error: 
 ```
 
 ---

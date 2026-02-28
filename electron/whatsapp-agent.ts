@@ -38,6 +38,7 @@ import {
 } from './iris-data-main';
 
 import { WorkflowManager } from './whatsapp-workflow-presentacion';
+import { ReunionWorkflowAdapter, isReunionTrigger } from './whatsapp-workflow-reunion';
 
 // ─── Tool definitions for WhatsApp (OMNIPOTENT — no blocked tools) ─
 const BLOCKED_TOOLS_WA = new Set<string>([
@@ -1681,6 +1682,7 @@ export class WhatsAppAgent {
   private gchatService: GChatService | null = null;
   private autoDevService: AutoDevService | null = null;
   private selfLearn: import('./autodev-selflearn').SelfLearnService | null = null;
+  private reunionAdapter: ReunionWorkflowAdapter | null = null;
   private memory: MemoryService;
   private knowledge: KnowledgeService;
 
@@ -1709,6 +1711,11 @@ export class WhatsAppAgent {
     console.log('[WhatsApp Agent] SelfLearn service connected');
   }
 
+  setReunionAdapter(adapter: ReunionWorkflowAdapter): void {
+    this.reunionAdapter = adapter;
+    console.log('[WhatsApp Agent] Reunion workflow adapter connected');
+  }
+
   updateApiKey(key: string) {
     this.apiKey = key;
     this.genAI = null;
@@ -1730,8 +1737,25 @@ export class WhatsAppAgent {
     groupPassiveHistory: string = '',
   ): Promise<void> {
     const sessionKey = isGroup ? `group:${jid}:${senderNumber}` : senderNumber;
-    
-    // Check for active workflow
+
+    // Check for active reunion workflow
+    if (this.reunionAdapter?.hasActiveFlow(sessionKey)) {
+      const session = getWhatsAppSession(senderNumber);
+      await this.reunionAdapter.handleInput(sessionKey, text, session?.userId || senderNumber);
+      return;
+    }
+
+    // Check for reunion workflow trigger
+    if (this.reunionAdapter && isReunionTrigger(text)) {
+      const session = getWhatsAppSession(senderNumber);
+      const userId = session?.userId || senderNumber;
+      // Extract the raw notes (everything after the trigger command)
+      const rawNotes = text.replace(/^\/(soflia\s+)?(registrar\s+)?reuni[oó]n\s*/i, '').trim() || text;
+      await this.reunionAdapter.startFromWhatsApp(sessionKey, jid, senderNumber, rawNotes, userId);
+      return;
+    }
+
+    // Check for active presentation workflow
     if (WorkflowManager.isActive(sessionKey)) {
       await WorkflowManager.handleMessage(sessionKey, text);
       return;
