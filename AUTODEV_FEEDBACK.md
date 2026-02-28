@@ -157,7 +157,7 @@ El usuario hizo una sugerencia de mejora.
 
 - **Timestamp**: 2026-02-27T15:23:18.390Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772289326687` — 2026-02-28)
 
 ### Descripción
 

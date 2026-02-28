@@ -747,7 +747,7 @@ TypeError: fetch failed
 - **Run ID**: `run_1772182802791`
 - **Timestamp**: 2026-02-27T09:05:46.993Z
 - **Categoría**: runtime_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772289326687` — 2026-02-28)
 
 ### Descripción
 
@@ -776,7 +776,7 @@ Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguag
 - **Run ID**: `run_1772182802790`
 - **Timestamp**: 2026-02-27T09:05:47.984Z
 - **Categoría**: runtime_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772289326687` — 2026-02-28)
 
 ### Descripción
 
@@ -804,7 +804,7 @@ Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguag
 
 - **Timestamp**: 2026-02-27T15:23:21.851Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772289326687` — 2026-02-28)
 
 ### Descripción
 
@@ -826,7 +826,7 @@ Args: {}
 - **Run ID**: `run_1772205828276`
 - **Timestamp**: 2026-02-27T15:30:32.727Z
 - **Categoría**: runtime_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772289326687` — 2026-02-28)
 
 ### Descripción
 
@@ -854,7 +854,7 @@ Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguag
 
 - **Timestamp**: 2026-02-26T19:38:45.299Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772289326687` — 2026-02-28)
 
 ### Descripción
 
