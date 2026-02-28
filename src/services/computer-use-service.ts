@@ -29,7 +29,40 @@ declare global {
       configureEmail: (email: string, password: string) => Promise<any>;
       sendEmail: (to: string, subject: string, body: string, attachmentPaths?: string[], isHtml?: boolean) => Promise<any>;
     };
+    desktopAgent?: {
+      executeTask: (task: string, options?: any) => Promise<any>;
+      executeParallel: (tasks: Array<{ task: string; maxSteps?: number }>) => Promise<any>;
+      getActiveTasks: () => Promise<any>;
+      abortTask: (taskId: string) => Promise<any>;
+      abort: () => Promise<any>;
+      getStatus: () => Promise<any>;
+      getConfig: () => Promise<any>;
+      setConfig: (updates: any) => Promise<any>;
+      startObservation: (objective: string, rules?: string) => Promise<any>;
+      stopObservation: () => Promise<any>;
+      click: (x: number, y: number) => Promise<any>;
+      doubleClick: (x: number, y: number) => Promise<any>;
+      rightClick: (x: number, y: number) => Promise<any>;
+      drag: (x1: number, y1: number, x2: number, y2: number) => Promise<any>;
+      type: (text: string) => Promise<any>;
+      key: (key: string) => Promise<any>;
+      scroll: (direction: string, amount?: number) => Promise<any>;
+      focusWindow: (title: string) => Promise<any>;
+      listWindows: () => Promise<any>;
+      takeScreenshot: (fullRes?: boolean) => Promise<any>;
+    };
   }
+}
+
+export function isDesktopAgentAvailable(): boolean {
+  return !!window.desktopAgent;
+}
+
+export function getDesktopAgentAPI() {
+  if (!window.desktopAgent) {
+    throw new Error('Desktop Agent API no disponible.');
+  }
+  return window.desktopAgent;
 }
 
 function getAPI() {

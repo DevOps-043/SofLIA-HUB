@@ -4,7 +4,7 @@
  */
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { executeToolDirect } from './computer-use-handlers';
-import { app, shell, clipboard, desktopCapturer } from 'electron';
+import { app, shell, desktopCapturer } from 'electron';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -18,6 +18,7 @@ import type { GChatService } from './gchat-service';
 import type { MemoryService } from './memory-service';
 import type { KnowledgeService } from './knowledge-service';
 import type { AutoDevService } from './autodev-service';
+import type { DesktopAgentService } from './desktop-agent-service';
 import {
   authenticateWhatsAppUser,
   tryAutoAuthByPhone,
@@ -62,6 +63,8 @@ const CONFIRM_TOOLS_WA = new Set([
   'gmail_trash',
   'google_calendar_delete',
   'gchat_send_message',
+  'organize_files',
+  'batch_move_files',
 ]);
 
 // Tools blocked in GROUP context (security: don't allow group members to control host)
@@ -82,6 +85,8 @@ const GROUP_BLOCKED_TOOLS = new Set([
   'move_item',
   'clipboard_write',
   'clipboard_read',
+  'organize_files',
+  'batch_move_files',
 ]);
 
 // ─── Tool declarations for Gemini (filtered for WhatsApp security) ─
@@ -181,6 +186,46 @@ const WA_TOOL_DECLARATIONS = {
           pattern: { type: 'STRING' as const, description: 'Patrón de texto a buscar.' },
         },
         required: ['pattern'],
+      },
+    },
+    // ─── Batch File Operations ────────────────────────────────────
+    {
+      name: 'organize_files',
+      description: 'Organiza TODOS los archivos de un directorio en subcarpetas automáticamente según su extensión o tipo. Modos: "extension" (cada extensión en su carpeta: PDF, XLSX, etc.), "type" (categorías: Documentos, Imagenes, Videos, Audio, etc.), "date" (por mes: 2026-01, 2026-02), "custom" (con reglas personalizadas). Usa dry_run=true para previsualizar sin mover. IDEAL para organizar Descargas, Escritorio, etc. con cientos de archivos de una sola vez.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          path: { type: 'STRING' as const, description: 'Ruta del directorio a organizar (ej: C:\\Users\\fysg5\\Downloads).' },
+          mode: { type: 'STRING' as const, description: 'Modo: "extension" (por extensión), "type" (por categoría inteligente), "date" (por mes), "custom" (reglas personalizadas). Default: "extension".' },
+          rules: { type: 'OBJECT' as const, description: 'Solo para modo "custom". Mapa extensión→carpeta. Ej: {"pdf": "Reportes", "xlsx": "Excel", "*": "Otros"}.' },
+          dry_run: { type: 'BOOLEAN' as const, description: 'Si es true, solo muestra qué haría sin mover nada. Útil para previsualizar.' },
+        },
+        required: ['path'],
+      },
+    },
+    {
+      name: 'batch_move_files',
+      description: 'Mueve TODOS los archivos que coincidan con cierta extensión o patrón de un directorio a otro. Ideal para: "mueve todos los PDF de Descargas a Documentos", "pasa las fotos a la carpeta Imagenes".',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          source_directory: { type: 'STRING' as const, description: 'Directorio origen.' },
+          destination_directory: { type: 'STRING' as const, description: 'Directorio destino (se crea si no existe).' },
+          extensions: { type: 'ARRAY' as const, items: { type: 'STRING' as const }, description: 'Lista de extensiones a filtrar (ej: ["pdf", "docx"]). Sin punto.' },
+          pattern: { type: 'STRING' as const, description: 'Patrón de nombre a filtrar (ej: "reporte", "factura"). Busca coincidencia parcial.' },
+        },
+        required: ['source_directory', 'destination_directory'],
+      },
+    },
+    {
+      name: 'list_directory_summary',
+      description: 'Resume el contenido de un directorio: cuántos archivos hay por extensión, tamaño total, ejemplos de cada tipo. Ideal para directorios con muchos archivos (100+) donde list_directory sería demasiado largo. Usa esto PRIMERO para entender qué hay antes de organizar.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          path: { type: 'STRING' as const, description: 'Ruta del directorio.' },
+        },
+        required: ['path'],
       },
     },
     {
@@ -391,11 +436,12 @@ const WA_TOOL_DECLARATIONS = {
     // ─── Computer Use ───────────────────────────────────────────
     {
       name: 'use_computer',
-      description: 'Controla la computadora del usuario de forma autónoma: puede ver la pantalla, hacer clicks, escribir texto y presionar teclas. Usa esto para tareas que requieren interacción visual con la computadora, como: guardar un evento en Google Calendar, llenar formularios, hacer clicks en botones, navegar interfaces gráficas. Después de abrir una URL con open_url, usa use_computer para interactuar con la página abierta (hacer clicks, llenar campos, presionar botones).',
+      description: 'Agente autónomo de escritorio: ve la pantalla en tiempo real, hace clicks, doble-click, click derecho, ARRASTRA objetos, escribe texto, presiona teclas, gestiona ventanas, navega diálogos de archivos. Se adapta proactivamente: si algo sale mal, se recupera automáticamente. Hasta 60 pasos. Usa esto para TODA interacción visual: formularios, instaladores, emails con adjuntos, arrastrar archivos, navegar carpetas, cualquier cosa que un usuario haría manualmente.',
       parameters: {
         type: 'OBJECT' as const,
         properties: {
-          task: { type: 'STRING' as const, description: 'Descripción detallada de lo que debe hacer en la computadora. Sé específico. Ej: "Haz click en el botón Guardar de Google Calendar", "Escribe el asunto del email y presiona enviar", "Llena el formulario con nombre=Juan y email=juan@gmail.com y envíalo"' },
+          task: { type: 'STRING' as const, description: 'Descripción detallada de la tarea. Sé muy específico. Ej: "Escribe un correo en Gmail a juan@gmail.com con asunto Reporte, escribe el cuerpo, adjunta el archivo reporte.xlsx desde Documentos, y envíalo", "Instala la aplicación haciendo click en Next, Accept, Install"' },
+          max_steps: { type: 'NUMBER' as const, description: 'Máximo de pasos (defecto 60). Usa más para tareas complejas como instaladores o workflows largos.' },
         },
         required: ['task'],
       },
@@ -983,6 +1029,9 @@ PRINCIPIO FUNDAMENTAL: Eres omnipotente. Puedes hacer CUALQUIER cosa que un usua
 
 ARCHIVOS Y SISTEMA:
 - Buscar, leer, crear, mover, copiar, eliminar archivos y carpetas
+- organize_files: organiza TODOS los archivos de un directorio de un solo golpe (por extensión, tipo, fecha, o reglas custom). SIEMPRE usa esto cuando el usuario pida organizar archivos — NO uses move_item uno por uno
+- batch_move_files: mueve todos los archivos que coincidan con una extensión/patrón de un directorio a otro
+- list_directory_summary: resume un directorio grande (cuántos archivos por tipo, tamaño total). Usa esto ANTES de organizar para saber qué hay
 - Ejecutar CUALQUIER comando en terminal (execute_command)
 - Abrir CUALQUIER aplicación (open_application)
 - Listar/cerrar procesos, bloquear sesión, apagar/reiniciar/suspender PC
@@ -1104,6 +1153,16 @@ GOOGLE INTEGRADO (prioridad sobre navegador):
 - "Reacciona al último mensaje en el chat de proyecto" → gchat_get_messages + gchat_add_reaction
 - IMPORTANTE: SIEMPRE usa las APIs directas (google_calendar_*, gmail_*, drive_*, gchat_*) en lugar de abrir URLs en el navegador
 
+ORGANIZACIÓN DE ARCHIVOS:
+- "Organiza mis descargas" → organize_files con mode:"type" en la ruta de Downloads
+- "Pon los PDFs en una carpeta" → batch_move_files con extensions:["pdf"]
+- "¿Qué hay en descargas?" → list_directory_summary (resumen rápido, no list_directory)
+- "Organiza por extensión" → organize_files mode:"extension"
+- "Organiza por tipo" → organize_files mode:"type" (agrupa en: Documentos, Imagenes, Videos, etc.)
+- "Organiza por fecha" → organize_files mode:"date" (YYYY-MM)
+- REGLA CRÍTICA: Cuando el usuario pida organizar archivos con >20 archivos, SIEMPRE usa organize_files o batch_move_files. NUNCA hagas move_item uno por uno.
+- REGLA: Antes de organizar, usa list_directory_summary para informar al usuario cuántos archivos hay y qué tipos.
+
 NAVEGADOR (solo si Google API no aplica):
 - Maps/YouTube/Docs/Sheets: open_url + use_computer para interactuar
 
@@ -1115,6 +1174,7 @@ NAVEGADOR (solo si Google API no aplica):
 4. CONFIRMA SOLO LO DESTRUCTIVO: Solo pide confirmación para: eliminar archivos, ejecutar comandos, abrir apps, cerrar procesos, apagar/reiniciar, enviar a otros contactos. Para crear archivos, buscar, leer, etc. — hazlo directamente.
 5. USA use_computer AGRESIVAMENTE: Si necesitas interactuar con cualquier programa, usa use_computer. No le digas al usuario "haz click en X" — hazlo tú.
 6. APRENDE: Usa save_lesson cuando descubras algo útil o el usuario te corrija.
+7. ORGANIZA EN LOTE: Para organizar archivos usa organize_files/batch_move_files. NUNCA muevas archivos uno por uno con move_item cuando hay más de 5 — siempre usa batch.
 
 ═══ MEMORIA PERSISTENTE (Knowledge Base) ═══
 
@@ -1418,228 +1478,10 @@ async function readWebpage(url: string): Promise<{ success: boolean; content?: s
   }
 }
 
-// ─── Computer Use: mouse, keyboard, screenshot ──────────────────────
-const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
-
-async function takeScreenshotBase64(fullRes = false): Promise<string> {
-  // Use lower resolution for vision API calls to avoid fetch failures with large payloads
-  const size = fullRes
-    ? { width: 1920, height: 1080 }
-    : { width: 1280, height: 720 };
-  const sources = await desktopCapturer.getSources({
-    types: ['screen'],
-    thumbnailSize: size,
-  });
-  if (sources.length === 0) throw new Error('No screen found');
-  const dataUrl = sources[0].thumbnail.toDataURL();
-  return dataUrl.replace(/^data:image\/png;base64,/, '');
-}
-
-async function takeScreenshotToFile(): Promise<string> {
-  const sources = await desktopCapturer.getSources({
-    types: ['screen'],
-    thumbnailSize: { width: 1920, height: 1080 },
-  });
-  if (sources.length === 0) throw new Error('No screen found');
-  const pngBuffer = sources[0].thumbnail.toPNG();
-  const tmpPath = path.join(app.getPath('temp'), `soflia_screenshot_${Date.now()}.png`);
-  await fs.writeFile(tmpPath, pngBuffer);
-  return tmpPath;
-}
-
-async function mouseClick(x: number, y: number): Promise<void> {
-  const script = `
-Add-Type -MemberDefinition '[DllImport("user32.dll")] public static extern bool SetCursorPos(int X, int Y); [DllImport("user32.dll")] public static extern void mouse_event(int f,int x,int y,int d,int e);' -Name U -Namespace W
-[W.U]::SetCursorPos(${Math.round(x)}, ${Math.round(y)})
-Start-Sleep -Milliseconds 80
-[W.U]::mouse_event(2,0,0,0,0)
-Start-Sleep -Milliseconds 30
-[W.U]::mouse_event(4,0,0,0,0)
-`;
-  await execAsync(`powershell -NoProfile -Command "${script.replace(/\n/g, '; ').replace(/"/g, '\\"')}"`, {
-    timeout: 5000, windowsHide: true,
-  });
-}
-
-async function mouseDoubleClick(x: number, y: number): Promise<void> {
-  await mouseClick(x, y);
-  await delay(80);
-  await mouseClick(x, y);
-}
-
-async function keyboardType(text: string): Promise<void> {
-  // Use clipboard for reliable text input (handles Unicode, special chars)
-  const savedClip = clipboard.readText();
-  clipboard.writeText(text);
-  await delay(50);
-  // Ctrl+V to paste
-  await execAsync(`powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('^v')"`, {
-    timeout: 5000, windowsHide: true,
-  });
-  await delay(100);
-  // Restore clipboard
-  clipboard.writeText(savedClip);
-}
-
-async function keyboardKey(key: string): Promise<void> {
-  const keyMap: Record<string, string> = {
-    'enter': '{ENTER}', 'tab': '{TAB}', 'escape': '{ESC}', 'esc': '{ESC}',
-    'backspace': '{BACKSPACE}', 'delete': '{DELETE}', 'space': ' ',
-    'up': '{UP}', 'down': '{DOWN}', 'left': '{LEFT}', 'right': '{RIGHT}',
-    'home': '{HOME}', 'end': '{END}', 'pageup': '{PGUP}', 'pagedown': '{PGDN}',
-    'ctrl+a': '^a', 'ctrl+c': '^c', 'ctrl+v': '^v', 'ctrl+s': '^s',
-    'ctrl+z': '^z', 'ctrl+enter': '^{ENTER}', 'ctrl+w': '^w',
-    'alt+f4': '%{F4}', 'alt+tab': '%{TAB}',
-    'f1': '{F1}', 'f2': '{F2}', 'f3': '{F3}', 'f4': '{F4}', 'f5': '{F5}',
-  };
-  const sendKey = keyMap[key.toLowerCase()] || key;
-  await execAsync(`powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('${sendKey}')"`, {
-    timeout: 5000, windowsHide: true,
-  });
-}
-
-async function mouseScroll(direction: 'up' | 'down', amount: number = 3): Promise<void> {
-  const delta = direction === 'up' ? 120 * amount : -120 * amount;
-  await execAsync(`powershell -NoProfile -Command "Add-Type -MemberDefinition '[DllImport(\\\"user32.dll\\\")] public static extern void mouse_event(int f,int x,int y,int d,int e);' -Name U -Namespace W; [W.U]::mouse_event(0x0800,0,0,${delta},0)"`, {
-    timeout: 5000, windowsHide: true,
-  });
-}
-
-// ─── Computer Use: autonomous vision loop ────────────────────────────
-async function executeComputerUse(task: string, apiKey: string): Promise<string> {
-  const ai = new GoogleGenerativeAI(apiKey);
-  const model = ai.getGenerativeModel({ model: WA_MODEL });
-
-  const MAX_STEPS = 15;
-  let lastMessage = '';
-
-  console.log(`[ComputerUse] Starting task: "${task}"`);
-
-  for (let step = 0; step < MAX_STEPS; step++) {
-    // 1. Take screenshot
-    let screenshotBase64: string;
-    try {
-      screenshotBase64 = await takeScreenshotBase64();
-    } catch (err: any) {
-      console.error(`[ComputerUse] Screenshot failed:`, err.message);
-      return `Error al capturar pantalla: ${err.message}`;
-    }
-
-    // 2. Send to Gemini with vision
-    const prompt = step === 0
-      ? `TAREA: ${task}
-
-Analiza la captura de pantalla y decide qué acción tomar para completar la tarea.
-
-Responde SOLO con un JSON válido (sin markdown, sin backticks):
-{
-  "action": "click" | "double_click" | "type" | "key" | "scroll" | "wait" | "done",
-  "x": number (coordenada X para click),
-  "y": number (coordenada Y para click),
-  "text": "texto a escribir" (para type),
-  "key": "enter|tab|escape|ctrl+s|ctrl+enter|etc" (para key),
-  "direction": "up|down" (para scroll),
-  "message": "descripción de lo que hiciste o resultado final"
-}
-
-Si la tarea ya está completada, usa "done" y explica el resultado en "message".`
-      : `TAREA: ${task}
-
-Paso anterior: ${lastMessage}
-Paso ${step + 1} de máximo ${MAX_STEPS}.
-
-Analiza la captura de pantalla actual y decide la siguiente acción.
-
-Responde SOLO con JSON válido (sin markdown, sin backticks):
-{
-  "action": "click" | "double_click" | "type" | "key" | "scroll" | "wait" | "done",
-  "x": number, "y": number,
-  "text": "...",
-  "key": "...",
-  "direction": "up|down",
-  "message": "..."
-}`;
-
-    let actionJson: any;
-    // Retry up to 2 times on fetch/network errors
-    let visionSuccess = false;
-    for (let retry = 0; retry < 2; retry++) {
-      try {
-        const result = await model.generateContent([
-          { inlineData: { mimeType: 'image/png', data: screenshotBase64 } },
-          { text: prompt },
-        ]);
-
-        const responseText = result.response.text().trim();
-        const jsonStr = responseText.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
-        actionJson = JSON.parse(jsonStr);
-        console.log(`[ComputerUse] Step ${step + 1}: ${actionJson.action} - ${actionJson.message || ''}`);
-        visionSuccess = true;
-        break;
-      } catch (err: any) {
-        console.error(`[ComputerUse] Vision/parse error (attempt ${retry + 1}):`, err.message);
-        if (retry === 0) {
-          await delay(2000); // Wait before retry
-          continue;
-        }
-      }
-    }
-    if (!visionSuccess) {
-      if (step > 0) return `Completé ${step} pasos pero hubo un error al analizar la pantalla.`;
-      return `Error al analizar la pantalla. Intenta de nuevo.`;
-    }
-
-    // 3. Execute action
-    try {
-      switch (actionJson.action) {
-        case 'click':
-          await mouseClick(actionJson.x, actionJson.y);
-          lastMessage = `Hice click en (${actionJson.x}, ${actionJson.y}). ${actionJson.message || ''}`;
-          break;
-
-        case 'double_click':
-          await mouseDoubleClick(actionJson.x, actionJson.y);
-          lastMessage = `Doble click en (${actionJson.x}, ${actionJson.y}). ${actionJson.message || ''}`;
-          break;
-
-        case 'type':
-          await keyboardType(actionJson.text);
-          lastMessage = `Escribí: "${actionJson.text}". ${actionJson.message || ''}`;
-          break;
-
-        case 'key':
-          await keyboardKey(actionJson.key);
-          lastMessage = `Presioné: ${actionJson.key}. ${actionJson.message || ''}`;
-          break;
-
-        case 'scroll':
-          await mouseScroll(actionJson.direction || 'down', 3);
-          lastMessage = `Scroll ${actionJson.direction || 'down'}. ${actionJson.message || ''}`;
-          break;
-
-        case 'wait':
-          await delay(2000);
-          lastMessage = `Esperando... ${actionJson.message || ''}`;
-          break;
-
-        case 'done':
-          console.log(`[ComputerUse] Task completed: ${actionJson.message}`);
-          return actionJson.message || 'Tarea completada en la computadora.';
-
-        default:
-          lastMessage = `Acción desconocida: ${actionJson.action}`;
-      }
-    } catch (err: any) {
-      console.error(`[ComputerUse] Action error:`, err.message);
-      lastMessage = `Error ejecutando ${actionJson.action}: ${err.message}`;
-    }
-
-    // 4. Wait for UI to update
-    await delay(1500);
-  }
-
-  return `Completé ${MAX_STEPS} pasos de uso de computadora. ${lastMessage}`;
-}
+// ─── Computer Use: delegated to DesktopAgentService ──────────────────
+// All mouse, keyboard, screenshot, and vision loop functions have been
+// moved to electron/desktop-agent-service.ts for better separation of
+// concerns. The WhatsAppAgent accesses them via this.desktopAgent.
 
 // ─── Post-process: strip markdown formatting for WhatsApp ───────────
 const formatForWhatsApp = (text: string, isGroup: boolean = false): string => {
@@ -1680,6 +1522,7 @@ export class WhatsAppAgent {
   private driveService: DriveService | null = null;
   private gchatService: GChatService | null = null;
   private autoDevService: AutoDevService | null = null;
+  private desktopAgent: DesktopAgentService | null = null;
   private selfLearn: import('./autodev-selflearn').SelfLearnService | null = null;
   private memory: MemoryService;
   private knowledge: KnowledgeService;
@@ -1707,6 +1550,11 @@ export class WhatsAppAgent {
   setSelfLearnService(service: import('./autodev-selflearn').SelfLearnService): void {
     this.selfLearn = service;
     console.log('[WhatsApp Agent] SelfLearn service connected');
+  }
+
+  setDesktopAgentService(service: DesktopAgentService): void {
+    this.desktopAgent = service;
+    console.log('[WhatsApp Agent] DesktopAgent service connected');
   }
 
   updateApiKey(key: string) {
@@ -2303,10 +2151,19 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
         // Handle take_screenshot_and_send — capture screen and send via WhatsApp
         if (toolName === 'take_screenshot_and_send') {
           try {
-            const screenshotPath = await takeScreenshotToFile();
-            await this.waService.sendFile(jid, screenshotPath, 'Captura de pantalla');
-            // Cleanup temp file after sending
-            setTimeout(() => fs.unlink(screenshotPath).catch(() => {}), 5000);
+            let screenshotBase64: string;
+            if (this.desktopAgent) {
+              screenshotBase64 = await this.desktopAgent.takeScreenshot(true);
+            } else {
+              // Fallback: use desktopCapturer directly
+              const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1920, height: 1080 } });
+              if (sources.length === 0) throw new Error('No screen found');
+              screenshotBase64 = sources[0].thumbnail.toDataURL().replace(/^data:image\/png;base64,/, '');
+            }
+            const tmpPath = path.join(app.getPath('temp'), `soflia_screenshot_${Date.now()}.png`);
+            await fs.writeFile(tmpPath, Buffer.from(screenshotBase64, 'base64'));
+            await this.waService.sendFile(jid, tmpPath, 'Captura de pantalla');
+            setTimeout(() => fs.unlink(tmpPath).catch(() => {}), 5000);
             functionResponses.push({
               functionResponse: { name: toolName, response: { success: true, message: 'Captura de pantalla enviada por WhatsApp.' } },
             });
@@ -2318,10 +2175,14 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
           continue;
         }
 
-        // Handle use_computer — autonomous screenshot → vision → action loop
+        // Handle use_computer — autonomous desktop agent with proactive recovery
         if (toolName === 'use_computer') {
           try {
-            const result = await executeComputerUse(toolArgs.task, this.apiKey);
+            if (!this.desktopAgent) throw new Error('Desktop Agent no inicializado.');
+            const result = await this.desktopAgent.executeTask(
+              toolArgs.task,
+              { maxSteps: toolArgs.max_steps },
+            );
             functionResponses.push({
               functionResponse: { name: toolName, response: { success: true, message: result } },
             });

@@ -770,17 +770,17 @@ export class AutoDevService extends EventEmitter {
       {
         name: 'DependenciesAgent',
         fn: () => this.runResearchAgent('dependencies', depsList,
-          'Busca versiones nuevas de dependencias, changelogs importantes, breaking changes. Identifica paquetes significativamente desactualizados.'),
+          'SOLO busca vulnerabilidades CRÍTICAS en dependencias actuales. NO propongas actualizaciones de versión como mejora. Marca todo como "actionable": false a menos que sea una vulnerabilidad con fix URGENTE. Las dependencias son INFORMATIVAS, no prioritarias.'),
       },
       {
         name: 'FeaturesAgent',
         fn: () => this.runResearchAgent('features', depsList,
-          'PRIORIDAD MÁXIMA: Investiga funcionalidades de OpenClaw, OpenHands y Cursor. Identifica herramientas y patrones innovadores para implementar en SofLIA.'),
+          'PRIORIDAD MÁXIMA: Investiga funcionalidades NUEVAS para implementar. Busca herramientas WhatsApp innovadoras, automatización de sistema, RPA, computer use avanzado. Inspírate en OpenHands, Cursor, Claude Code, Devin. Propón funcionalidades que el USUARIO pueda usar desde WhatsApp o que automaticen tareas del sistema.'),
       },
       {
         name: 'QualityAgent',
         fn: () => this.runResearchAgent('quality', depsList,
-          'Busca best practices actuales para Electron, React 19, TypeScript 5.7, Vite. Identifica patrones modernos recomendados.'),
+          'Busca patrones y funcionalidades NUEVAS que mejoren la experiencia del usuario. NO busques mejoras de código internas. Busca: UX patterns, accessibility, notification systems, data visualization, productivity features.'),
       },
       {
         name: 'NpmAudit',
@@ -850,9 +850,29 @@ export class AutoDevService extends EventEmitter {
       console.log(`[AutoDev SafetyFilter] Filtered ${beforeFilter - improvements.length} package.json major bump proposals`);
     }
 
+    // ─── Quality gate: reject dependency-dominated improvement lists ────
+    // If >50% of improvements are dependency updates, strip them and keep only features
+    const depKeywords = /^(actualiz|updat|upgrad|bump|migrat|patch|minor|version|dependen)/i;
+    const depCategories = ['dependencies'];
+    const featureImprovements = improvements.filter((imp: any) => {
+      const cat = (imp.category || '').toLowerCase();
+      const desc = imp.description || '';
+      const isDep = depCategories.includes(cat) || depKeywords.test(desc);
+      return !isDep;
+    });
+    const depCount = improvements.length - featureImprovements.length;
+    if (improvements.length > 0 && depCount / improvements.length > 0.5) {
+      console.log(`[AutoDev QualityGate] ⚠️ ${depCount}/${improvements.length} mejoras son actualizaciones de dependencias (>${Math.round(depCount / improvements.length * 100)}%).`);
+      console.log(`[AutoDev QualityGate] Eliminando mejoras de dependencias — manteniendo ${featureImprovements.length} mejoras de features/quality/security.`);
+      improvements = featureImprovements;
+      this.logIssue('limitation', `QualityGate: Se eliminaron ${depCount} mejoras de dependencias porque dominaban el plan (>50%). AutoDev debe enfocarse en features nuevas.`, `Dep count: ${depCount}, Feature count: ${featureImprovements.length}`);
+    } else if (depCount > 0) {
+      console.log(`[AutoDev QualityGate] ${depCount} mejoras de dependencias detectadas (${Math.round(depCount / improvements.length * 100)}%) — dentro del límite permitido.`);
+    }
+
     if (!improvements.length) {
       run.status = 'completed';
-      run.summary = 'No actionable improvements found after research (some were filtered for safety).';
+      run.summary = 'No actionable improvements found after research (dependency updates were filtered — next run should focus on features).';
       return;
     }
     this.trackAgent(run, 'Analyzer', 'coding', 'completed');
@@ -1762,8 +1782,8 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
     const plan = this.parseJSON(result.response.text())?.plan || [];
 
     // ─── Pre-flight validation: filter out dangerous plan steps ───
-    return plan.filter((step: any) => {
-      // Block npm install commands with @latest
+    const safePlan = plan.filter((step: any) => {
+      // Block npm install commands with @latest for core packages
       if (step.action === 'command' && step.command) {
         const cmd = step.command;
         if (cmd.includes('@latest') && (cmd.includes('electron') || cmd.includes('react') || cmd.includes('typescript') || cmd.includes('sharp') || cmd.includes('vite'))) {
@@ -1773,6 +1793,25 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
       }
       return true;
     });
+
+    // ─── Plan composition gate: enforce feature ratio ──────────────
+    const featureSteps = safePlan.filter((s: any) => s.category === 'features');
+    const depSteps = safePlan.filter((s: any) => s.category === 'dependencies');
+    const totalSteps = safePlan.length;
+
+    if (totalSteps > 0) {
+      const featureRatio = featureSteps.length / totalSteps;
+      console.log(`[AutoDev PlanGate] Composición del plan: ${featureSteps.length} features, ${depSteps.length} dependencies, ${totalSteps - featureSteps.length - depSteps.length} otros (ratio features: ${Math.round(featureRatio * 100)}%)`);
+
+      // If plan is dominated by dependency steps, strip them
+      if (depSteps.length > 0 && featureRatio < 0.5) {
+        const filtered = safePlan.filter((s: any) => s.category !== 'dependencies');
+        console.log(`[AutoDev PlanGate] ⚠️ Plan dominado por dependencias — eliminando ${depSteps.length} pasos de dependencies. Quedan ${filtered.length} pasos.`);
+        return filtered;
+      }
+    }
+
+    return safePlan;
   }
 
   // ─── Code implementation (coding model + tools) ───────────────

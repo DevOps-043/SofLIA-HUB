@@ -140,7 +140,11 @@ ${p.instructions ? `Instrucciones personalizadas: ${p.instructions}` : ''}
   if (options?.irisContext) {
     systemInstruction += `\n\n=== CONTEXTO DEL PROJECT HUB (IRIS) ===
 ${options.irisContext}
-=====================================`;
+=====================================
+
+⚠️ REGLAS CRÍTICAS DE Project Hub (IRIS):
+1. **CREACIÓN DE PROYECTOS**: Si el usuario pide CREAR un proyecto o tarea con un nombre específico, DEBES usar la herramienta de creación (ej. create_iris_project). NUNCA asumas que debes mapear la información a un proyecto existente solo porque comparten similitudes, a menos que el usuario indique explícitamente agregarlo al existente.
+2. **ASIGNACIONES**: Si intentas crear una issue asignada al usuario (assignee_id) y recibes un error de base de datos (ej. permisos, foreign key, RLS), vuelve a intentar crear la issue pero enviando el campo 'assignee_id' vacío o nulo. No detengas el proceso, avisa al usuario después pero completa la creación.`;
   }
 
   if (options?.toolSystemPrompt) {
@@ -165,24 +169,31 @@ ${options.irisContext}
   // Build tools array
   // Gemini 3 models do NOT support combining built-in tools (googleSearch) with
   // function calling (functionDeclarations) in the same request.
-  // Strategy: Use 2 model instances when computer use is available.
-  //   - computerModel: only functionDeclarations (for agentic loop)
-  //   - searchModel: only googleSearch (for normal streaming)
+  // Strategy:
+  //   - Gemini 3: ALWAYS use functionDeclarations (PROJECT_HUB_TOOLS + optional COMPUTER_USE_TOOLS)
+  //     so the AI can execute IRIS actions. Google Search is sacrificed for Gemini 3.
+  //   - Gemini 2.5: Can safely combine googleSearch with functionDeclarations.
   const computerUseEnabled = isComputerUseAvailable();
   const isGemini3 = activeModelId.includes('gemini-3');
 
-  // For the agentic path: only function declarations (no googleSearch)
-  // For Gemini 2.5+: can safely combine both
-  const computerTools: any[] = isGemini3
-    ? [COMPUTER_USE_TOOLS, PROJECT_HUB_TOOLS]
-    : [{ googleSearch: {} } as any, COMPUTER_USE_TOOLS, PROJECT_HUB_TOOLS];
+  let modelTools: any[];
 
-  const searchTools: any[] = [{ googleSearch: {} } as any, PROJECT_HUB_TOOLS];
+  if (isGemini3) {
+    // Gemini 3: ONLY functionDeclarations (no googleSearch to avoid conflict)
+    modelTools = computerUseEnabled
+      ? [COMPUTER_USE_TOOLS, PROJECT_HUB_TOOLS]
+      : [PROJECT_HUB_TOOLS];
+  } else {
+    // Gemini 2.5+: Can safely combine googleSearch with functionDeclarations
+    modelTools = computerUseEnabled
+      ? [{ googleSearch: {} } as any, COMPUTER_USE_TOOLS, PROJECT_HUB_TOOLS]
+      : [{ googleSearch: {} } as any, PROJECT_HUB_TOOLS];
+  }
 
   const model = ai.getGenerativeModel({
     model: activeModelId,
     systemInstruction,
-    tools: computerUseEnabled ? computerTools : searchTools,
+    tools: modelTools,
   });
 
   // Build final message
@@ -205,9 +216,14 @@ ${options.irisContext}
   if (options?.images && options.images.length > 0) {
     const imageParts = options.images
       .map(imgBase64 => {
-        const match = imgBase64.match(/^data:(image\/[a-z+]+);base64,(.+)$/);
+        const match = imgBase64.match(/^data:([^;]+);base64,(.+)$/);
         if (match) {
-          return { inlineData: { mimeType: match[1], data: match[2] } };
+          let mimeType = match[1];
+          // Ensure it's a type Gemini supports
+          if (mimeType === 'application/octet-stream' || mimeType.includes('markdown')) {
+            mimeType = 'text/plain';
+          }
+          return { inlineData: { mimeType, data: match[2] } };
         }
         return null;
       })
@@ -225,7 +241,11 @@ ${options.irisContext}
   // Phase 1: Non-streaming loop for tool calls
   // Phase 2: Streaming for final text response
 
-  if (computerUseEnabled) {
+  // Always enable the agentic loop if computer use is available OR if there are project hub tools
+  // (In practice, we always have Project Hub tools enabled in the renderer)
+  const shouldRunAgenticLoop = computerUseEnabled || true; 
+
+  if (shouldRunAgenticLoop) {
     // Use non-streaming first to detect function calls
     let response = await chatSession.sendMessage(messageContent);
     let maxIterations = 10; // Safety limit
@@ -278,18 +298,61 @@ ${options.irisContext}
                 const deleteResult = await deleteProject(toolArgs.project_id);
                 resultStr = JSON.stringify(deleteResult);
               } else if (toolName === 'create_iris_project') {
+                const session = await (await import('./sofia-auth')).sofiaAuth.getSession();
+                let userId = session?.user?.id;
+                if (!userId) {
+                  const { data: authData } = await (await import('./iris-data')).irisSupa.auth.getUser();
+                  userId = authData.user?.id;
+                }
+
                 const createResult = await createProject({
                   name: toolArgs.project_name,
                   key: toolArgs.project_key,
-                  description: toolArgs.project_description,
-                  team_id: toolArgs.team_id,
+                  description: toolArgs.project_description || '',
+                  team_id: toolArgs.team_id || undefined, // handle missing team_id
                 });
                 resultStr = JSON.stringify(createResult);
+              } else if (toolName === 'create_iris_issue') {
+                const { createIrisIssue } = await import('./iris-data');
+                const createResult = await createIrisIssue({
+                  title: toolArgs.title,
+                  description: toolArgs.description || '',
+                  team_id: toolArgs.team_id,
+                  project_id: toolArgs.project_id,
+                  status_id: toolArgs.status_id,
+                  priority_id: toolArgs.priority_id,
+                  assignee_id: toolArgs.assignee_id
+                });
+                resultStr = JSON.stringify(createResult);
+              } else if (toolName === 'get_iris_statuses') {
+                const { getStatuses } = await import('./iris-data');
+                const statuses = await getStatuses(toolArgs.team_id);
+                // Gemini function response MUST be an object, not a top-level array
+                resultStr = JSON.stringify({ statuses });
+              } else if (toolName === 'get_iris_priorities') {
+                const { getPriorities } = await import('./iris-data');
+                const priorities = await getPriorities();
+                // Gemini function response MUST be an object, not a top-level array
+                resultStr = JSON.stringify({ priorities });
+              } else if (toolName === 'get_current_user_id') {
+                const session = await (await import('./sofia-auth')).sofiaAuth.getSession();
+                resultStr = JSON.stringify({ user_id: session?.user?.id });
               } else {
                 resultStr = JSON.stringify({ success: false, error: 'Hub tool not implemented' });
               }
             } else {
-              resultStr = await executeComputerTool(toolName, toolArgs);
+              const rawResult = await executeComputerTool(toolName, toolArgs);
+              // Ensure we return an object even for string results
+              try {
+                const parsed = JSON.parse(rawResult);
+                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+                  resultStr = rawResult;
+                } else {
+                  resultStr = JSON.stringify({ result: parsed });
+                }
+              } catch {
+                resultStr = JSON.stringify({ result: rawResult });
+              }
             }
             
             toolInfo.result = resultStr;

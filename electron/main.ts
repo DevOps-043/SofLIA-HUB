@@ -18,6 +18,8 @@ import { ProactiveService } from './proactive-service'
 import { AutoDevService } from './autodev-service'
 import { registerAutoDevHandlers } from './autodev-handlers'
 import { SelfLearnService } from './autodev-selflearn'
+import { DesktopAgentService } from './desktop-agent-service'
+import { registerDesktopAgentHandlers } from './desktop-agent-handlers'
 import { generateDailySummary } from './summary-generator'
 import { MemoryService } from './memory-service'
 import { registerMemoryHandlers } from './memory-handlers'
@@ -77,10 +79,18 @@ const autoDevService = new AutoDevService(path.join(__dirname, '..'))
 // ─── Self-Learning (SofLIA learns from its own failures) ────────────
 const selfLearnService = new SelfLearnService(path.join(__dirname, '..'))
 
+// ─── Desktop Agent (autonomous computer use) ────────────────────────
+const desktopAgentService = new DesktopAgentService()
+
 // ─── Wire SelfLearn → AutoDev Micro-Fix ──────────────────────────────
 selfLearnService.on('micro-fix-candidate', (trigger: any) => {
   console.log(`[Main] SelfLearn micro-fix candidate: ${trigger.category} — ${trigger.description.slice(0, 60)}`)
   autoDevService.queueMicroFix(trigger)
+})
+
+// ─── Wire DesktopAgent failures → SelfLearn ──────────────────────────
+desktopAgentService.on('task-failed', (data: any) => {
+  selfLearnService.logComputerUseFailure(data.message || 'Desktop agent task failed', data.message || '')
 })
 
 // ─── Proactive Notifications ────────────────────────────────────────
@@ -437,9 +447,10 @@ function initWhatsAppAgent(apiKey: string) {
     console.log('[WhatsApp] Agent initialized with API key + SelfLearn')
   }
 
-  // Connect Google services and AutoDev to WhatsApp agent
+  // Connect Google services, AutoDev, and Desktop Agent to WhatsApp agent
   waAgent.setGoogleServices(calendarService, gmailService, driveService, gchatService)
   waAgent.setAutoDevService(autoDevService)
+  waAgent.setDesktopAgentService(desktopAgentService)
 
   // ─── Inject System Guardian & Organizer into WhatsApp Agent ────────
   if (systemGuardian && neuralOrganizer) {
@@ -462,6 +473,9 @@ function initWhatsAppAgent(apiKey: string) {
 
   // Start AutoDev autonomous programming engine
   autoDevService.setApiKey(apiKey)
+
+  // Desktop Agent API key
+  desktopAgentService.setApiKey(apiKey)
   autoDevService.on('notify-whatsapp', ({ phone, message }: any) => {
     if (waAgent) {
       waService.sendText(`${phone}@s.whatsapp.net`, message).catch(() => {})
@@ -535,6 +549,7 @@ app.whenReady().then(async () => {
   registerDriveHandlers(driveService, () => win)
   registerGChatHandlers(gchatService, () => win)
   registerAutoDevHandlers(autoDevService, selfLearnService, () => win)
+  registerDesktopAgentHandlers(desktopAgentService)
 
   // ─── Demonios de Monitoreo del Sistema (Guardian & Organizer) ─
   systemGuardian = new SystemGuardianService()

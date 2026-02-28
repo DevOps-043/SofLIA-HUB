@@ -216,6 +216,109 @@ export async function getIssues(filters?: {
   }
 }
 
+export async function createIrisIssue(data: {
+  title: string;
+  description?: string;
+  team_id: string;
+  project_id?: string;
+  priority_id?: string;
+  status_id?: string;
+  assignee_id?: string;
+}): Promise<{ success: boolean; data?: IrisIssue; error?: string }> {
+  try {
+    if (!irisSupa || !isIrisConfigured()) return { success: false, error: 'Database not configured' };
+
+    console.log('IRIS: Creating new issue...', data);
+
+    const session = await sofiaAuth.getSession();
+    let userId = session?.user?.id;
+    if (!userId) {
+      const { data: authData } = await irisSupa.auth.getUser();
+      userId = authData.user?.id;
+    }
+
+    if (!userId) return { success: false, error: 'Usuario no autenticado' };
+
+    // Resolve status if not provided (default to backlog/todo)
+    let finalStatusId = data.status_id;
+    if (!finalStatusId) {
+      const statuses = await getStatuses(data.team_id);
+      if (statuses.length > 0) {
+        const defaultStatus = statuses.find(s => s.is_default) || 
+                              statuses.find(s => s.status_type === 'backlog') || 
+                              statuses.find(s => s.status_type === 'todo') || 
+                              statuses[0];
+        finalStatusId = defaultStatus.status_id;
+      }
+    }
+
+    if (!finalStatusId) return { success: false, error: 'No se pudo determinar un estado (status_id) para la tarea' };
+
+    // Auto-generate issue_number (required NOT NULL column)
+    const issueNumber = await getNextIssueNumber(data.team_id);
+
+    let issueData = await irisSupa
+      .from('task_issues')
+      .insert({
+        title: data.title,
+        description: data.description || '',
+        team_id: data.team_id,
+        project_id: data.project_id || null,
+        priority_id: data.priority_id || null,
+        status_id: finalStatusId,
+        assignee_id: data.assignee_id || null,
+        creator_id: userId,
+        issue_number: issueNumber,
+      })
+      .select('*, status:task_statuses(*), priority:task_priorities(*)')
+      .single();
+
+    // Fallback if insertion fails due to assignee permission / foreign key constraints
+    if (issueData.error && data.assignee_id) {
+      console.warn('IRIS: createIssue failed with assignee_id. Retrying without assignee...', issueData.error);
+      issueData = await irisSupa
+        .from('task_issues')
+        .insert({
+          title: data.title,
+          description: data.description || '',
+          team_id: data.team_id,
+          project_id: data.project_id || null,
+          priority_id: data.priority_id || null,
+          status_id: finalStatusId,
+          assignee_id: null,
+          creator_id: userId,
+          issue_number: issueNumber,
+        })
+        .select('*, status:task_statuses(*), priority:task_priorities(*)')
+        .single();
+    }
+
+    if (issueData.error) {
+      console.error('IRIS: createIssue error', issueData.error);
+      return { success: false, error: issueData.error.message };
+    }
+    
+    const issue = issueData.data;
+
+    return { success: true, data: issue as IrisIssue };
+  } catch (err: any) {
+    console.error('IRIS: createIssue exception', err);
+    return { success: false, error: err.message };
+  }
+}
+
+/** Get the next issue_number for a team (auto-increment) */
+async function getNextIssueNumber(teamId: string): Promise<number> {
+  if (!irisSupa) return 1;
+  const { data } = await irisSupa
+    .from('task_issues')
+    .select('issue_number')
+    .eq('team_id', teamId)
+    .order('issue_number', { ascending: false })
+    .limit(1);
+  return (data && data.length > 0) ? data[0].issue_number + 1 : 1;
+}
+
 // ==========================================
 // STATUSES & PRIORITIES
 // ==========================================

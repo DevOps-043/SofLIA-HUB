@@ -240,16 +240,19 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
     setThinkingMode(mode);
   };
 
-  // Image upload handler
+  // Image/File upload handler
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
     Array.from(files).forEach(file => {
-      if (!file.type.startsWith('image/')) return;
+      // Allow any file type, but log if it's not image/pdf/text/etc. if needed
       const reader = new FileReader();
       reader.onload = () => {
-        setSelectedImages(prev => [...prev, reader.result as string]);
+        const result = reader.result as string;
+        // Prefix with filename/metadata if we want later, but for now just data URL
+        // However, we want to know if it's an image for the UI
+        setSelectedImages(prev => [...prev, result]);
       };
       reader.readAsDataURL(file);
     });
@@ -758,18 +761,36 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                   )}
                   
                   <div className={`flex flex-col max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                    {/* Attached images (user) */}
+                    {/* Attached images/files (user) */}
                     {msg.role === 'user' && msg.images && msg.images.length > 0 && (
                       <div className="flex flex-wrap gap-2 mb-2">
-                        {msg.images.map((img, imgIdx) => (
-                          <img
-                            key={imgIdx}
-                            src={img}
-                            alt={`Adjunto ${imgIdx + 1}`}
-                            className="max-w-[200px] max-h-[150px] rounded-xl object-cover cursor-pointer hover:opacity-80 transition-opacity border border-white/20"
-                            onClick={() => setZoomedImage(img)}
-                          />
-                        ))}
+                        {msg.images.map((img, imgIdx) => {
+                          const isImage = img.startsWith('data:image/');
+                          if (isImage) {
+                            return (
+                              <img
+                                key={imgIdx}
+                                src={img}
+                                alt={`Adjunto ${imgIdx + 1}`}
+                                className="max-w-[200px] max-h-[150px] rounded-xl object-cover cursor-pointer hover:opacity-80 transition-opacity border border-white/20"
+                                onClick={() => setZoomedImage(img)}
+                              />
+                            );
+                          }
+                          // Doc/File placeholder
+                          return (
+                            <div key={imgIdx} className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl max-w-[200px]">
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                                <polyline points="10 9 9 9 8 9"></polyline>
+                              </svg>
+                              <span className="text-xs text-secondary truncate">Documento</span>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
 
@@ -976,24 +997,36 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
             </div>
           )}
 
-          {/* Image Preview Strip */}
+          {/* Image/File Preview Strip */}
           {selectedImages.length > 0 && (
             <div className="mb-2 flex gap-2 overflow-x-auto no-scrollbar">
-              {selectedImages.map((img, idx) => (
-                <div key={idx} className="relative flex-shrink-0 group">
-                  <img
-                    src={img}
-                    alt={`Preview ${idx + 1}`}
-                    className="w-[60px] h-[60px] rounded-xl object-cover border border-gray-200 dark:border-white/10 shadow-sm"
-                  />
-                  <button
-                    onClick={() => removeImage(idx)}
-                    className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-md transform hover:scale-110"
-                  >
-                    x
-                  </button>
-                </div>
-              ))}
+              {selectedImages.map((img, idx) => {
+                const isImage = img.startsWith('data:image/');
+                return (
+                  <div key={idx} className="relative flex-shrink-0 group">
+                    {isImage ? (
+                      <img
+                        src={img}
+                        alt={`Preview ${idx + 1}`}
+                        className="w-[60px] h-[60px] rounded-xl object-cover border border-gray-200 dark:border-white/10 shadow-sm"
+                      />
+                    ) : (
+                      <div className="w-[60px] h-[60px] rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 shadow-sm flex items-center justify-center">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                          <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                      </div>
+                    )}
+                    <button
+                      onClick={() => removeImage(idx)}
+                      className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-md transform hover:scale-110"
+                    >
+                      x
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
 
@@ -1022,7 +1055,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                       { id: 'prompt_opt', label: 'Mejorar Prompt', sub: 'Optimiza para otra IA', icon: <path d="M12 20h9 M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>, active: isPromptOptimizerMode },
                       { id: 'create_prompt', label: 'Crear Prompt', sub: 'Guarda para reusar', icon: <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z M17 21v-8H7v8 M7 3v5h8" /> },
                       { id: 'my_tools', label: 'Mis Herramientas', sub: 'Prompts guardados', icon: <><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></> },
-                      { id: 'attach_file', label: 'Adjuntar Archivo', sub: 'Sube imágenes', icon: <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /> }
+                      { id: 'attach_file', label: 'Adjuntar Archivo', sub: 'Imágenes y documentos', icon: <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /> }
                     ].map((tool) => (
                       <button
                         key={tool.id}
@@ -1116,7 +1149,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,application/pdf,text/*,.doc,.docx,.xls,.xlsx,.csv,.json,.md"
         multiple
         className="hidden"
         onChange={handleImageUpload}

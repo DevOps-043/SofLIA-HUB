@@ -360,6 +360,74 @@ export const PROJECT_HUB_TOOLS = {
         required: ['project_name', 'project_key'],
       },
     },
+    {
+      name: 'create_iris_issue',
+      description: 'Crea una nueva tarea (issue) en Project Hub (IRIS) asociada a un proyecto y equipo.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          title: {
+            type: 'STRING',
+            description: 'Título de la tarea (ej. Crear documentación de API). Obligatorio.',
+          },
+          description: {
+            type: 'STRING',
+            description: 'Descripción detallada de la tarea.',
+          },
+          team_id: {
+            type: 'STRING',
+            description: 'ID de equipo (team_id). Obligatorio.',
+          },
+          project_id: {
+            type: 'STRING',
+            description: 'ID del proyecto (project_id) al que pertenece. Opcional.',
+          },
+          status_id: {
+            type: 'STRING',
+            description: 'ID de estado (status_id). Si no se proporciona, se usará el estado por defecto (Backlog/Todo).',
+          },
+          priority_id: {
+            type: 'STRING',
+            description: 'ID de prioridad (priority_id). Obtén los IDs con get_iris_priorities.',
+          },
+          assignee_id: {
+            type: 'STRING',
+            description: 'ID del usuario asignado (assignee_id). Pulsa "mi" para asignarlo al usuario actual (obtén el ID con get_current_user_id si el usuario dice "a mi").',
+          },
+        },
+        required: ['title', 'team_id'],
+      },
+    },
+    {
+      name: 'get_iris_statuses',
+      description: 'Obtiene todos los estados de tarea disponibles para un equipo específico (Backlog, To Do, In Progress, etc).',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          team_id: {
+            type: 'STRING',
+            description: 'ID del equipo.',
+          },
+        },
+        required: ['team_id'],
+      },
+    },
+    {
+      name: 'get_iris_priorities',
+      description: 'Obtiene niveles de prioridad (Urgent, High, Medium, Low, None) con sus IDs.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {},
+      },
+    },
+    {
+      name: 'get_current_user_id',
+      description: 'Obtiene el ID del usuario actual de la sesión. Úsalo cuando el usuario pida "asignarme a mi", "mis tareas", etc.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {},
+      },
+    },
   ],
 };
 

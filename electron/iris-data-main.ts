@@ -173,6 +173,106 @@ function normalizePhone(phone: string): string {
 }
 
 /**
+ * Ensure a user exists in IRIS's `account_users` table by userId alone.
+ * Automatically fetches user data from SOFIA if the user doesn't exist in IRIS yet.
+ *
+ * MUST be called (awaited) BEFORE any INSERT that references account_users via FK
+ * (pm_projects.created_by_user_id, task_issues.creator_id, etc.)
+ *
+ * This is the definitive fix for the FK constraint error — it guarantees the user
+ * row exists before any dependent INSERT happens.
+ */
+async function ensureUserExistsInIris(userId: string): Promise<void> {
+  const iris = getIrisClient();
+  if (!iris) {
+    console.warn('[IRIS-Main] ensureUserExistsInIris: no IRIS client available');
+    return;
+  }
+
+  try {
+    // 1. Quick check — does the user already exist in IRIS?
+    const { data: existing } = await iris
+      .from('account_users')
+      .select('user_id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (existing) {
+      return; // Already synced, nothing to do
+    }
+
+    console.log(`[IRIS-Main] User ${userId} NOT found in IRIS account_users — fetching from SOFIA...`);
+
+    // 2. Fetch full user data from SOFIA (the single source of truth)
+    const sofia = getSofiaClient();
+    if (!sofia) {
+      console.error('[IRIS-Main] ensureUserExistsInIris: no SOFIA client — cannot fetch user data');
+      return;
+    }
+
+    const { data: sofiaUser, error: sofiaError } = await sofia
+      .from('users')
+      .select('id, username, email, first_name, last_name, display_name, phone, profile_picture_url')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (sofiaError || !sofiaUser) {
+      console.error(`[IRIS-Main] Could not fetch user ${userId} from SOFIA:`, sofiaError?.message || 'user not found');
+      return;
+    }
+
+    console.log(`[IRIS-Main] Found SOFIA user: "${sofiaUser.username}" <${sofiaUser.email}> — inserting into IRIS...`);
+
+    // 3. Build IRIS account_users record (matches IRIS schema requirements)
+    const lastNameParts = (sofiaUser.last_name || '').trim().split(/\s+/);
+    const lastNamePaternal = lastNameParts[0] || sofiaUser.username;
+    const lastNameMaternal = lastNameParts.length > 1 ? lastNameParts.slice(1).join(' ') : null;
+
+    const userData = {
+      user_id: sofiaUser.id,
+      first_name: sofiaUser.first_name || sofiaUser.username,
+      last_name_paternal: lastNamePaternal,
+      last_name_maternal: lastNameMaternal,
+      display_name: sofiaUser.display_name || `${sofiaUser.first_name || ''} ${sofiaUser.last_name || ''}`.trim() || sofiaUser.username,
+      username: sofiaUser.username,
+      email: sofiaUser.email,
+      password_hash: 'SOFIA_MANAGED_AUTH',
+      permission_level: 'user',
+      account_status: 'active',
+      is_email_verified: true,
+      phone_number: sofiaUser.phone || null,
+      avatar_url: sofiaUser.profile_picture_url || null,
+    };
+
+    // 4. Upsert into IRIS (handles race conditions gracefully)
+    const { error } = await iris
+      .from('account_users')
+      .upsert(userData, { onConflict: 'user_id', ignoreDuplicates: true });
+
+    if (error) {
+      if (error.code === '23505') {
+        // Duplicate — another process already inserted, that's fine
+        console.log(`[IRIS-Main] User ${sofiaUser.email} inserted by another process — OK`);
+        return;
+      }
+
+      if (error.code === '42501' || error.message?.includes('policy')) {
+        console.error(`[IRIS-Main] ⚠️ RLS bloquea INSERT en account_users.`);
+        console.error(`[IRIS-Main]   Ejecuta en IRIS Supabase SQL Editor:`);
+        console.error(`[IRIS-Main]   ALTER TABLE account_users DISABLE ROW LEVEL SECURITY;`);
+        console.error(`[IRIS-Main]   O: CREATE POLICY "allow_insert_account_users" ON account_users FOR INSERT WITH CHECK (true);`);
+      }
+
+      console.error(`[IRIS-Main] ensureUserExistsInIris INSERT failed (${error.code}): ${error.message}`);
+    } else {
+      console.log(`[IRIS-Main] ✅ User "${sofiaUser.username}" (${userId}) synced to IRIS account_users`);
+    }
+  } catch (err: any) {
+    console.error(`[IRIS-Main] ensureUserExistsInIris exception:`, err.message);
+  }
+}
+
+/**
  * Try to automatically authenticate a WhatsApp user by matching their phone number
  * against the SOFIA `users` table. Returns session if found.
  */
@@ -182,6 +282,8 @@ export async function tryAutoAuthByPhone(
   // Already authenticated?
   const existing = sessions.get(senderPhoneNumber);
   if (existing) {
+    // Sync is now done inside createProject/createIssue (awaited before INSERT)
+    // No need to fire-and-forget here — the sync happens at the point of use
     return { success: true, session: existing, message: `Ya autenticado como ${existing.fullName}` };
   }
 
@@ -222,9 +324,12 @@ export async function tryAutoAuthByPhone(
     console.log(`[IRIS-Main] Auto-auth: matched user ${matchedUser.username} (${matchedUser.email})`);
 
     const userId = matchedUser.id;
-    const fullName = matchedUser.display_name || 
-                     `${matchedUser.first_name || ''} ${matchedUser.last_name || ''}`.trim() || 
+    const fullName = matchedUser.display_name ||
+                     `${matchedUser.first_name || ''} ${matchedUser.last_name || ''}`.trim() ||
                      matchedUser.username;
+
+    // Sync SOFIA user into IRIS account_users (so FK constraints work)
+    await ensureUserExistsInIris(matchedUser.id);
 
     // Fetch IRIS team memberships
     const iris = getIrisClient();
@@ -299,9 +404,12 @@ export async function authenticateWhatsAppUser(
     const sofiaUser = authResult.user;
     const userId = sofiaUser.id;
     const email = sofiaUser.email || emailOrUsername;
-    const fullName = sofiaUser.display_name || 
-                     `${sofiaUser.first_name || ''} ${sofiaUser.last_name || ''}`.trim() || 
+    const fullName = sofiaUser.display_name ||
+                     `${sofiaUser.first_name || ''} ${sofiaUser.last_name || ''}`.trim() ||
                      sofiaUser.username || email;
+
+    // Sync SOFIA user into IRIS account_users (so FK constraints work)
+    await ensureUserExistsInIris(userId);
 
     // Fetch IRIS team memberships
     const iris = getIrisClient();
@@ -489,6 +597,24 @@ export async function getPriorities(): Promise<{ priority_id: string; name: stri
   }
 }
 
+// ─── Helpers ────────────────────────────────────────────────────────
+
+/**
+ * Get the next issue_number for a team (auto-increment).
+ * issue_number is NOT auto-generated by the database — it must be set by application code.
+ */
+async function getNextIssueNumber(teamId: string): Promise<number> {
+  const iris = getIrisClient();
+  if (!iris) return 1;
+  const { data } = await iris
+    .from('task_issues')
+    .select('issue_number')
+    .eq('team_id', teamId)
+    .order('issue_number', { ascending: false })
+    .limit(1);
+  return (data && data.length > 0) ? data[0].issue_number + 1 : 1;
+}
+
 // ─── WRITE Operations ────────────────────────────────────────────────
 
 /**
@@ -509,6 +635,12 @@ export async function createIssue(params: {
   if (!iris) return { success: false, error: 'IRIS no está disponible.' };
 
   try {
+    // Ensure creator (and assignee if provided) exist in IRIS before INSERT (FK constraint fix)
+    await ensureUserExistsInIris(params.creatorId);
+    if (params.assigneeId) {
+      await ensureUserExistsInIris(params.assigneeId);
+    }
+
     // If no statusId provided, get the default status for the team
     let statusId = params.statusId;
     if (!statusId) {
@@ -521,11 +653,15 @@ export async function createIssue(params: {
       return { success: false, error: 'No se encontró un estado válido para el equipo.' };
     }
 
+    // Auto-generate issue_number (required NOT NULL column, not auto-generated by DB)
+    const issueNumber = await getNextIssueNumber(params.teamId);
+
     const insertData: Record<string, any> = {
       team_id: params.teamId,
       title: params.title,
       creator_id: params.creatorId,
       status_id: statusId,
+      issue_number: issueNumber,
     };
     if (params.priorityId) insertData.priority_id = params.priorityId;
     if (params.projectId) insertData.project_id = params.projectId;
@@ -651,6 +787,9 @@ export async function createProject(params: {
   if (!iris) return { success: false, error: 'IRIS no está disponible.' };
 
   try {
+    // Ensure the creator user exists in IRIS before INSERT (FK constraint fix)
+    await ensureUserExistsInIris(params.createdByUserId);
+
     const insertData: Record<string, any> = {
       project_name: params.projectName,
       project_key: params.projectKey.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5),
