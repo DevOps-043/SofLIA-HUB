@@ -72,6 +72,12 @@ const autoDevService = new AutoDevService(path.join(__dirname, '..'))
 // ─── Self-Learning (SofLIA learns from its own failures) ────────────
 const selfLearnService = new SelfLearnService(path.join(__dirname, '..'))
 
+// ─── Wire SelfLearn → AutoDev Micro-Fix ──────────────────────────────
+selfLearnService.on('micro-fix-candidate', (trigger: any) => {
+  console.log(`[Main] SelfLearn micro-fix candidate: ${trigger.category} — ${trigger.description.slice(0, 60)}`)
+  autoDevService.queueMicroFix(trigger)
+})
+
 // ─── Proactive Notifications ────────────────────────────────────────
 const proactiveService = new ProactiveService()
 proactiveService.setCalendarService(calendarService)

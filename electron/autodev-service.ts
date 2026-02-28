@@ -42,7 +42,10 @@ import {
   type ResearchFinding,
   type AutoDevRunStatus,
   type AgentRole,
+  type MicroFixTrigger,
+  type MicroFixConfig,
   DEFAULT_CONFIG,
+  DEFAULT_MICRO_CONFIG,
 } from './autodev-types';
 import { AutoDevGit } from './autodev-git';
 import { webSearch, readWebpage, npmAudit, npmOutdated } from './autodev-web';
@@ -53,6 +56,8 @@ import {
   CODE_PROMPT,
   REVIEW_PROMPT,
   SUMMARY_PROMPT,
+  MICRO_FIX_ANALYZE_PROMPT,
+  MICRO_FIX_SUMMARY_PROMPT,
 } from './autodev-prompts';
 
 // ─── Build error parsing ────────────────────────────────────────────
@@ -94,7 +99,123 @@ function parseBuildErrors(buildOutput: string): ParsedBuildError[] {
     }
   }
 
+  // ─── Vite/Rollup/esbuild error parsing (non-TS format) ─────────
+  // Matches: [vite]: Rollup failed to resolve import "X" in "file.ts"
+  // Matches: Could not resolve "X" from "file.ts"
+  // Matches: RollupError: Could not resolve ...
+  if (errors.length === 0) {
+    const vitePatterns = [
+      /(?:Rollup|vite).*?failed to resolve import\s+"([^"]+)"\s+in\s+"([^"]+)"/gi,
+      /Could not resolve\s+"([^"]+)"\s+(?:from|in)\s+"([^"]+)"/gi,
+      /(?:RollupError|Error):\s*(.+?)\s+in\s+([^\s]+\.tsx?)/gi,
+      /\[vite\].*?(?:error|Error)\s+(.+?)(?:\s+at\s+([^\s]+\.tsx?))?/gi,
+      // esbuild: ✘ [ERROR] Could not resolve "X"
+      /✘\s*\[ERROR\]\s*(.+)/gi,
+    ];
+
+    for (const pattern of vitePatterns) {
+      let match;
+      while ((match = pattern.exec(buildOutput)) !== null) {
+        const file = (match[2] || 'unknown').replace(/\\/g, '/');
+        const message = match[1]?.trim() || match[0]?.trim() || 'Vite/Rollup error';
+        const key = `vite:${file}:${message.slice(0, 50)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        errors.push({
+          file,
+          message: `[Vite/Rollup] ${message}`,
+          code: 'VITE_ERR',
+        });
+      }
+    }
+
+    // Fallback: if output contains "Build failed" but we couldn't parse anything,
+    // create a generic error so the fix agent has something to work with
+    if (errors.length === 0 && /build failed|error during build|rollup.*error/i.test(buildOutput)) {
+      errors.push({
+        file: 'unknown',
+        message: `Build failed with unparsed error. Raw output: ${buildOutput.slice(0, 2000)}`,
+        code: 'BUILD_FAIL',
+      });
+    }
+  }
+
   return errors;
+}
+
+// ─── Safety: Validate file before writing ───────────────────────────
+
+/**
+ * Validates that imports in a TypeScript file reference modules that actually exist.
+ * Returns list of phantom imports found.
+ */
+function findPhantomImports(code: string, filePath: string, _repoPath: string): string[] {
+  const phantoms: string[] = [];
+  // Match: import ... from './something' or import ... from '../something'
+  const importRegex = /from\s+['"](\.[^'"]+)['"]/g;
+  let match;
+  while ((match = importRegex.exec(code)) !== null) {
+    const importPath = match[1];
+    const dir = path.dirname(filePath);
+    const resolved = path.resolve(dir, importPath);
+    // Check if the file exists (with common extensions)
+    const extensions = ['', '.ts', '.tsx', '.js', '.jsx', '.json'];
+    const exists = extensions.some(ext => fs.existsSync(resolved + ext)) ||
+                   fs.existsSync(path.join(resolved, 'index.ts')) ||
+                   fs.existsSync(path.join(resolved, 'index.tsx')) ||
+                   fs.existsSync(path.join(resolved, 'index.js'));
+    if (!exists) {
+      phantoms.push(importPath);
+    }
+  }
+  return phantoms;
+}
+
+/**
+ * Validates that code is not truncated (common AI failure mode).
+ * Returns true if the code looks complete.
+ */
+function isCodeComplete(code: string): boolean {
+  // Check for common truncation indicators
+  if (code.endsWith('// ...') || code.endsWith('...') || code.endsWith('// TODO')) return false;
+
+  // Check balanced braces (rough heuristic)
+  let braceCount = 0;
+  let inString = false;
+  let stringChar = '';
+  let inComment = false;
+  let inLineComment = false;
+
+  for (let i = 0; i < code.length; i++) {
+    const ch = code[i];
+    const next = code[i + 1];
+
+    if (inLineComment) {
+      if (ch === '\n') inLineComment = false;
+      continue;
+    }
+    if (inComment) {
+      if (ch === '*' && next === '/') { inComment = false; i++; }
+      continue;
+    }
+    if (inString) {
+      if (ch === '\\') { i++; continue; }
+      if (ch === stringChar) inString = false;
+      continue;
+    }
+
+    if (ch === '/' && next === '/') { inLineComment = true; i++; continue; }
+    if (ch === '/' && next === '*') { inComment = true; i++; continue; }
+    if (ch === '"' || ch === "'" || ch === '`') { inString = true; stringChar = ch; continue; }
+
+    if (ch === '{') braceCount++;
+    if (ch === '}') braceCount--;
+  }
+
+  // If braces are significantly unbalanced, code is likely truncated
+  if (braceCount > 2) return false;
+
+  return true;
 }
 
 // ─── Constants ─────────────────────────────────────────────────────
@@ -235,8 +356,14 @@ export class AutoDevService extends EventEmitter {
   private abortController: AbortController | null = null;
   private history: AutoDevRun[] = [];
   private todayRunCount: number = 0;
+  private todayMicroRunCount: number = 0;
   private todayDate: string = '';
   private researchQueryCount: number = 0;
+
+  // ─── Micro-Fix debounce queue ──────────────────────────────────
+  private microFixQueue: MicroFixTrigger[] = [];
+  private microFixDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private microFixRunning: boolean = false;
 
   constructor(repoPath: string) {
     super();
@@ -265,7 +392,7 @@ export class AutoDevService extends EventEmitter {
     try {
       if (fs.existsSync(CONFIG_PATH)) {
         const data = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
-        return { ...DEFAULT_CONFIG, ...data, agents: { ...DEFAULT_CONFIG.agents, ...data.agents } };
+        return { ...DEFAULT_CONFIG, ...data, agents: { ...DEFAULT_CONFIG.agents, ...data.agents }, microFix: { ...DEFAULT_MICRO_CONFIG, ...data.microFix } };
       }
     } catch { /* defaults */ }
     return { ...DEFAULT_CONFIG };
@@ -325,6 +452,7 @@ export class AutoDevService extends EventEmitter {
       config: this.getConfig(),
       todayRunCount: this.todayRunCount,
       cronActive: !!this.cronJob,
+      microFix: this.getMicroFixStatus(),
     };
   }
 
@@ -481,7 +609,7 @@ export class AutoDevService extends EventEmitter {
     }
 
     const today = new Date().toISOString().split('T')[0];
-    if (this.todayDate !== today) { this.todayDate = today; this.todayRunCount = 0; }
+    if (this.todayDate !== today) { this.todayDate = today; this.todayRunCount = 0; this.todayMicroRunCount = 0; }
     if (this.todayRunCount >= this.config.maxDailyRuns) throw new Error(`Daily limit reached (${this.config.maxDailyRuns})`);
 
     this.todayRunCount++;
@@ -489,6 +617,7 @@ export class AutoDevService extends EventEmitter {
 
     const run: AutoDevRun = {
       id: `run_${Date.now()}`,
+      mode: 'full',
       startedAt: new Date().toISOString(),
       status: 'researching',
       improvements: [],
@@ -556,15 +685,26 @@ export class AutoDevService extends EventEmitter {
       console.log(`[AutoDev] Guardando cambios de intento fallido en repositorio remoto...`);
       const current = await this.git.getCurrentBranch();
 
-      // If we're on a protected branch, try to switch to the work branch first
+      // If we're on a protected branch, stash changes first then switch
       if (current === this.config.targetBranch || current === 'master') {
         try {
+          // Stash any uncommitted changes so branch switch doesn't fail
+          await this.git.exec('stash', ['push', '-m', `autodev-failsafe-${run.id}`]);
+          console.log(`[AutoDev] Stashed changes before switching to work branch`);
           await this.git.switchBranch(run.branchName);
+          // Pop stash on the work branch
+          try { await this.git.exec('stash', ['pop']); } catch {
+            console.warn('[AutoDev] Stash pop failed — changes may already be on work branch');
+          }
           console.log(`[AutoDev] Switched to work branch ${run.branchName} to persist failed changes`);
         } catch {
           // Work branch may not exist (e.g., createWorkBranch itself failed)
           console.warn(`[AutoDev] No se pudo cambiar al branch de trabajo ${run.branchName}. Descartando cambios.`);
+          // Try to restore stash on main so we don't lose changes silently
+          try { await this.git.exec('stash', ['pop']); } catch {}
           try { await this.git.switchBranch(this.config.targetBranch); } catch {}
+          // Hard reset main to discard AutoDev's failed changes
+          try { await this.git.exec('checkout', ['--', '.']); } catch {}
           return;
         }
       }
@@ -579,10 +719,13 @@ export class AutoDevService extends EventEmitter {
       console.log(`[AutoDev] Puedes revisar los archivos localmente, intentar correr "npm run build" y ver qué falló!`);
       // Switch back to main so next run starts clean
       try { await this.git.switchBranch(this.config.targetBranch); } catch {}
+      // Ensure main is clean after switching back
+      try { await this.git.exec('checkout', ['--', '.']); } catch {}
     } catch (err: any) {
       console.warn(`[AutoDev] No se pudo persistir el branch: ${err.message}`);
-      // Still try to go back to main
+      // Still try to go back to main and ensure it's clean
       try { await this.git.switchBranch(this.config.targetBranch); } catch {}
+      try { await this.git.exec('checkout', ['--', '.']); } catch {}
     }
   }
 
@@ -967,6 +1110,351 @@ export class AutoDevService extends EventEmitter {
     this.emit('status-changed', { runId: run.id, status, agents: run.agentTasks.length });
   }
 
+  // ═══════════════════════════════════════════════════════════════════
+  //  MICRO-FIX REACTIVE MODE
+  // ═══════════════════════════════════════════════════════════════════
+
+  /**
+   * Queue a micro-fix trigger. Debounces to batch related issues.
+   */
+  queueMicroFix(trigger: MicroFixTrigger): void {
+    const mc = this.config.microFix || DEFAULT_MICRO_CONFIG;
+    if (!mc.enabled) return;
+    if (!this.apiKey) return;
+
+    // Check category-specific auto-trigger settings
+    if (trigger.category === 'user_complaint' && !mc.autoTriggerOnComplaint) return;
+    if (trigger.category === 'user_suggestion' && !mc.autoTriggerOnSuggestion) return;
+    if (trigger.category === 'tool_failure' && !mc.autoTriggerOnToolFailure) return;
+
+    // Don't queue if a full run or micro run is in progress
+    if (this.currentRun || this.microFixRunning) {
+      console.log('[AutoDev Micro] Skipped — a run is already in progress');
+      return;
+    }
+
+    this.microFixQueue.push(trigger);
+    console.log(`[AutoDev Micro] Queued trigger: ${trigger.category} — "${trigger.description.slice(0, 80)}"`);
+
+    // Debounce: wait N minutes to batch related issues
+    if (this.microFixDebounceTimer) clearTimeout(this.microFixDebounceTimer);
+    this.microFixDebounceTimer = setTimeout(() => {
+      this.microFixDebounceTimer = null;
+      this.executeMicroFix().catch(err => {
+        console.error('[AutoDev Micro] Execution error:', err.message);
+      });
+    }, mc.debounceMinutes * 60 * 1000);
+  }
+
+  /**
+   * Execute a micro-fix run using the queued triggers.
+   * Lightweight pipeline: analyze → code → build verify → commit.
+   */
+  private async executeMicroFix(): Promise<AutoDevRun | null> {
+    const mc = this.config.microFix || DEFAULT_MICRO_CONFIG;
+
+    // Pre-flight checks
+    if (this.currentRun || this.microFixRunning) return null;
+    if (!this.apiKey) return null;
+    if (!this.microFixQueue.length) return null;
+
+    // Daily limit check (separate from full runs)
+    const today = new Date().toISOString().split('T')[0];
+    if (this.todayDate !== today) { this.todayDate = today; this.todayRunCount = 0; this.todayMicroRunCount = 0; }
+    if (this.todayMicroRunCount >= mc.maxDailyMicroRuns) {
+      console.log(`[AutoDev Micro] Daily limit reached (${mc.maxDailyMicroRuns})`);
+      this.microFixQueue = [];
+      return null;
+    }
+
+    // Idle check (optional)
+    if (mc.minIdleSeconds > 0 && powerMonitor) {
+      try {
+        if (powerMonitor.getSystemIdleTime() < mc.minIdleSeconds) {
+          console.log('[AutoDev Micro] System not idle — deferring');
+          // Re-queue after 2 minutes
+          this.microFixDebounceTimer = setTimeout(() => {
+            this.microFixDebounceTimer = null;
+            this.executeMicroFix().catch(() => {});
+          }, 120_000);
+          return null;
+        }
+      } catch { /* ignore if powerMonitor unavailable */ }
+    }
+
+    // Take triggers from queue
+    const triggers = [...this.microFixQueue];
+    this.microFixQueue = [];
+    this.microFixRunning = true;
+    this.todayMicroRunCount++;
+
+    const run: AutoDevRun = {
+      id: `micro_${Date.now()}`,
+      mode: 'micro',
+      startedAt: new Date().toISOString(),
+      status: 'analyzing',
+      improvements: [],
+      researchFindings: [],
+      agentTasks: [],
+      summary: '',
+      microTrigger: triggers[0],
+    };
+
+    this.currentRun = run;
+    this.abortController = new AbortController();
+    this.emit('run-started', run);
+
+    try {
+      await this.executeMicroFixPipeline(run, triggers);
+    } catch (err: any) {
+      run.status = this.abortController?.signal.aborted ? 'aborted' : 'failed';
+      run.error = err.message;
+      if (run.branchName) {
+        try { await this.git.switchBranch(this.config.targetBranch); } catch {}
+      }
+    } finally {
+      run.completedAt = new Date().toISOString();
+      this.history.push(run);
+      this.saveHistory();
+      this.currentRun = null;
+      this.abortController = null;
+      this.microFixRunning = false;
+      this.emit('run-completed', run);
+
+      // WhatsApp notification (short)
+      if (this.config.notifyWhatsApp && this.config.notifyPhone) {
+        const msg = run.status === 'completed'
+          ? `🔧 Micro-fix completado:\n${run.summary || 'Corrección aplicada.'}`
+          : `⚠️ Micro-fix falló: ${run.error || 'Error desconocido'}`;
+        this.queueWhatsApp(this.config.notifyPhone, msg);
+      }
+    }
+
+    return run;
+  }
+
+  /**
+   * Lightweight 4-phase pipeline for micro-fixes.
+   * Phase 1: Read relevant files + analyze trigger
+   * Phase 2: Code the fix
+   * Phase 3: Build verify
+   * Phase 4: Commit + push
+   */
+  private async executeMicroFixPipeline(run: AutoDevRun, triggers: MicroFixTrigger[]): Promise<void> {
+    const mc = this.config.microFix || DEFAULT_MICRO_CONFIG;
+    const checkAbort = () => { if (this.abortController!.signal.aborted) throw new Error('Aborted'); };
+
+    // Validate git
+    if (!await this.git.hasRemote()) throw new Error('No git remote configured');
+    if (!await this.git.isGhAuthenticated()) throw new Error('GitHub CLI not authenticated');
+    checkAbort();
+
+    // ─── PHASE 1: Analyze ────────────────────────────────────────
+    console.log('[AutoDev Micro] ═══ Phase 1: Analyze ═══');
+    this.updateRunStatus(run, 'analyzing');
+
+    const triggerContext = triggers.map((t, i) =>
+      `### Trigger ${i + 1}\n- **Tipo**: ${t.category}\n- **Descripción**: ${t.description}\n- **Mensaje**: ${t.userMessage || 'N/A'}\n- **Fuente**: ${t.source}`
+    ).join('\n\n');
+
+    // Read only relevant source files (budget: 100K chars for micro)
+    const sourceCode = this.readProjectFiles();
+    const limitedSource = sourceCode.slice(0, 30).map(f => `--- ${f.path} ---\n${f.content}`).join('\n\n');
+
+    const knownIssues = this.getOpenIssuesSummary();
+
+    const analyzePrompt = MICRO_FIX_ANALYZE_PROMPT
+      .replace('{TRIGGER_CONTEXT}', triggerContext)
+      .replace('{SOURCE_CODE}', limitedSource.slice(0, 100_000))
+      .replace('{RELATED_ISSUES}', knownIssues.slice(0, 10_000));
+
+    const genAI = this.getGenAI();
+    const analyzerModel = genAI.getGenerativeModel({
+      model: this.config.agents.coder.model,
+      generationConfig: { responseMimeType: 'application/json', temperature: 0.2 },
+    });
+
+    const analyzeResult = await analyzerModel.generateContent(analyzePrompt);
+    const analysis = this.parseJSON(analyzeResult.response.text());
+    checkAbort();
+
+    if (!analysis) {
+      run.status = 'failed';
+      run.error = 'Analysis returned no valid JSON';
+      return;
+    }
+
+    // If the issue needs a full run, skip micro-fix
+    if (analysis.needs_full_run) {
+      run.status = 'completed';
+      run.summary = `Problema requiere un run completo: ${analysis.analysis || 'complejidad alta'}`;
+      console.log('[AutoDev Micro] Issue needs full run — skipping');
+      return;
+    }
+
+    if (!analysis.plan || !analysis.plan.length) {
+      run.status = 'completed';
+      run.summary = 'No actionable fix plan generated.';
+      return;
+    }
+
+    // Enforce micro limits
+    const plan = analysis.plan.slice(0, mc.maxFiles);
+    this.trackAgent(run, 'MicroAnalyzer', 'coding', 'completed');
+
+    // ─── PHASE 2: Code the fix ───────────────────────────────────
+    console.log('[AutoDev Micro] ═══ Phase 2: Code Fix ═══');
+    this.updateRunStatus(run, 'coding');
+
+    const branchName = `autodev/micro-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}`;
+    run.branchName = await this.git.createWorkBranch(branchName, this.config.targetBranch);
+
+    for (const step of plan) {
+      checkAbort();
+      try {
+        const result = await this.implementStep(step);
+        if (result) {
+          result.agentRole = 'coding';
+          run.improvements.push(result);
+        }
+      } catch (err: any) {
+        console.warn(`[AutoDev Micro] Step failed (${step.file}): ${err.message}`);
+      }
+    }
+
+    if (!run.improvements.filter(i => i.applied).length) {
+      run.status = 'failed';
+      run.error = 'No improvements were successfully applied';
+      try { await this.git.switchBranch(this.config.targetBranch); } catch {}
+      return;
+    }
+    this.trackAgent(run, 'MicroCoder', 'coding', 'completed');
+
+    // ─── PHASE 3: Build verify ───────────────────────────────────
+    console.log('[AutoDev Micro] ═══ Phase 3: Build Verify ═══');
+    this.updateRunStatus(run, 'verifying');
+
+    // Ensure we're on the work branch
+    const currentBranch = await this.git.getCurrentBranch();
+    if (currentBranch === this.config.targetBranch || currentBranch === 'master') {
+      try { await this.git.switchBranch(run.branchName!); } catch (err: any) {
+        run.status = 'failed';
+        run.error = `Cannot switch to work branch: ${err.message}`;
+        return;
+      }
+    }
+
+    await this.git.stageAll();
+    const lineCount = await this.git.getDiffLineCount();
+    if (lineCount > mc.maxLines) {
+      run.status = 'failed';
+      run.error = `Changes exceed micro limit: ${lineCount} > ${mc.maxLines} lines`;
+      try { await this.git.switchBranch(this.config.targetBranch); } catch {}
+      return;
+    }
+
+    if (this.config.requireBuildPass) {
+      const buildResult = await this.verifyBuild();
+      if (buildResult !== true) {
+        // One retry with auto-fix
+        console.log('[AutoDev Micro] Build failed — attempting one auto-fix');
+        try {
+          const errors = parseBuildErrors(String(buildResult));
+          if (errors.length > 0 && errors.length <= 5) {
+            for (const err of errors) {
+              const fixStep = { file: err.file, action: 'modify', description: `Fix: ${err.message}`, details: `Error at line ${err.line}: ${err.message}. Fix the TypeScript error.` };
+              try { await this.implementStep(fixStep); } catch { /* skip */ }
+            }
+            await this.git.stageAll();
+            const retryBuild = await this.verifyBuild();
+            if (retryBuild !== true) {
+              run.status = 'failed';
+              run.error = `Build still fails after auto-fix: ${String(retryBuild).slice(0, 300)}`;
+              await this.persistFailedBranch(run);
+              return;
+            }
+          } else {
+            run.status = 'failed';
+            run.error = `Build failed with too many errors (${errors.length})`;
+            await this.persistFailedBranch(run);
+            return;
+          }
+        } catch {
+          run.status = 'failed';
+          run.error = `Build failed: ${String(buildResult).slice(0, 300)}`;
+          await this.persistFailedBranch(run);
+          return;
+        }
+      }
+    }
+    this.trackAgent(run, 'MicroTester', 'testing', 'completed');
+
+    // ─── PHASE 4: Commit + Push + PR ─────────────────────────────
+    console.log('[AutoDev Micro] ═══ Phase 4: Commit + Push ═══');
+    this.updateRunStatus(run, 'pushing');
+
+    const commitMsg = `[AutoDev Micro] ${triggers[0].description.slice(0, 60)}`;
+    await this.git.commitChanges(commitMsg);
+    await this.git.pushBranch(run.branchName!);
+
+    const prTitle = `🔧 [Micro-Fix] ${triggers[0].description.slice(0, 50)}`;
+    const prBody = [
+      '## Micro-corrección automática',
+      '',
+      '**Trigger(s):**',
+      ...triggers.map(t => `- [${t.category}] ${t.description}`),
+      '',
+      `**Archivos modificados:** ${run.improvements.filter(i => i.applied).length}`,
+      `**Líneas cambiadas:** ${lineCount}`,
+      '',
+      '> Generado automáticamente por AutoDev Micro-Fix',
+    ].join('\n');
+
+    try {
+      const prUrl = await this.git.createPR(prTitle, prBody, this.config.targetBranch);
+      run.prUrl = prUrl;
+    } catch (err: any) {
+      console.warn('[AutoDev Micro] PR creation failed:', err.message);
+    }
+
+    // Generate short summary
+    try {
+      const summaryModel = genAI.getGenerativeModel({
+        model: this.config.agents.reviewer.model,
+        generationConfig: { temperature: 0.3 },
+      });
+      const summaryPrompt = MICRO_FIX_SUMMARY_PROMPT
+        .replace('{CHANGES}', run.improvements.filter(i => i.applied).map(i => `- ${i.file}: ${i.description}`).join('\n'))
+        .replace('{TRIGGER}', triggers[0].description);
+      const summaryResult = await summaryModel.generateContent(summaryPrompt);
+      run.summary = summaryResult.response.text().slice(0, 500);
+    } catch {
+      run.summary = `Micro-fix: ${triggers[0].description.slice(0, 100)}`;
+    }
+
+    run.status = 'completed';
+    this.markIssuesResolved(run.id);
+
+    try { await this.git.cleanupBranch(run.branchName!); } catch {}
+    console.log(`[AutoDev Micro] ═══ Completed: ${run.improvements.filter(i => i.applied).length} fixes, PR: ${run.prUrl} ═══`);
+  }
+
+  /** Get micro-fix config */
+  getMicroFixConfig(): MicroFixConfig {
+    return { ...(this.config.microFix || DEFAULT_MICRO_CONFIG) };
+  }
+
+  /** Get micro-fix status */
+  getMicroFixStatus(): { queueLength: number; running: boolean; todayCount: number; maxDaily: number } {
+    const mc = this.config.microFix || DEFAULT_MICRO_CONFIG;
+    return {
+      queueLength: this.microFixQueue.length,
+      running: this.microFixRunning,
+      todayCount: this.todayMicroRunCount,
+      maxDaily: mc.maxDailyMicroRuns,
+    };
+  }
+
   private async runStandaloneTerminal(): Promise<{ status: string }> {
     if (process.platform === 'win32') {
       import('node:child_process').then(({ spawn }) => {
@@ -1338,7 +1826,8 @@ ${diff.slice(0, 50000)}
 2. Si un tipo no existe (TS2304), elimina la referencia o importa el tipo correcto.
 3. Si hay argumento incorrecto (TS2345), verifica la firma de la función en el código fuente.
 4. Si hay propiedad inexistente (TS2339), busca el nombre correcto en la interfaz.
-5. Si creaste imports que no existen, ELIMÍNALOS.
+5. Si creaste imports que no existen (phantom imports como ./orchestrator, ./command-center, ./service-registry), ELIMÍNALOS COMPLETAMENTE.
+6. NUNCA importes módulos con rutas relativas que no existen en el proyecto. Si el archivo no está en la lista de archivos fuente, NO lo importes.
 6. Si necesitas REVERTIR un cambio que rompió algo, hazlo — es mejor revertir que dejar el build roto.
 7. NUNCA dejes código a medias. Cada archivo debe compilar correctamente.
 8. Si un tipo genérico no se infiere (TS2345 con ZodObject), usa \`as any\` o especifica el tipo explícitamente.
@@ -1565,6 +2054,28 @@ ${diff.slice(0, 50000)}
         console.warn(`[AutoDev SafetyGuard] ⛔ BLOCKED: package.json write contains major version bump. Skipping.`);
         return null;
       }
+    }
+
+    // ─── Safety: detect phantom imports ────────────────────────────
+    const phantomImports = findPhantomImports(parsed.modifiedCode, filePath, this.repoPath);
+    if (phantomImports.length > 0) {
+      console.warn(`[AutoDev SafetyGuard] ⛔ BLOCKED: ${step.file} contains ${phantomImports.length} phantom import(s): ${phantomImports.join(', ')}. Skipping.`);
+      this.logIssue('coding_error', `AutoDev intentó importar módulos que no existen en ${step.file}: ${phantomImports.join(', ')}`, `Phantom imports: ${phantomImports.join('\n')}`);
+      return null;
+    }
+
+    // ─── Safety: detect truncated code ─────────────────────────────
+    if (!isCodeComplete(parsed.modifiedCode)) {
+      console.warn(`[AutoDev SafetyGuard] ⛔ BLOCKED: ${step.file} appears to be truncated (unbalanced braces or trailing ...). Skipping.`);
+      this.logIssue('coding_error', `AutoDev generó código truncado para ${step.file}. El archivo tiene llaves desbalanceadas o terminación incompleta.`);
+      return null;
+    }
+
+    // ─── Safety: detect destructive rewrites (>60% size reduction) ──
+    if (currentCode.length > 500 && parsed.modifiedCode.length < currentCode.length * 0.4) {
+      console.warn(`[AutoDev SafetyGuard] ⛔ BLOCKED: ${step.file} would shrink from ${currentCode.length} to ${parsed.modifiedCode.length} chars (>60% reduction). Skipping.`);
+      this.logIssue('coding_error', `AutoDev intentó reducir drásticamente ${step.file} de ${currentCode.length} a ${parsed.modifiedCode.length} caracteres. Posible reescritura destructiva.`);
+      return null;
     }
 
     const dir = path.dirname(filePath);

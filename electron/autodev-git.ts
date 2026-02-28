@@ -198,6 +198,11 @@ export class AutoDevGit {
     console.log(`[AutoDevGit] Switched to: ${name}`);
   }
 
+  /** Execute an arbitrary git subcommand (e.g. 'stash', ['push', '-m', 'msg']) */
+  async exec(subcommand: string, args: string[] = []): Promise<string> {
+    return this.git(subcommand, ...args);
+  }
+
   async cleanupBranch(branchName: string): Promise<void> {
     if (PROTECTED_BRANCHES.includes(branchName)) return;
 

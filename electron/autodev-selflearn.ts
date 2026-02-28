@@ -14,8 +14,10 @@
  *   6. API_LIMITATION    — API returned an error or is not configured
  *   7. HALLUCINATION     — SofLIA claimed to do something it cannot do
  */
+import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
 import path from 'node:path';
+import type { MicroFixTrigger } from './autodev-types';
 
 // ─── Patterns that indicate user complaints ─────────────────────────
 
@@ -105,12 +107,59 @@ const ISSUES_FILENAME = 'AUTODEV_ISSUES.md';
 const FEEDBACK_FILENAME = 'AUTODEV_FEEDBACK.md';
 const MAX_ENTRIES_PER_FILE = 200;
 
-export class SelfLearnService {
+export class SelfLearnService extends EventEmitter {
   private repoPath: string;
   private recentSofLIAResponses: Map<string, string> = new Map(); // jid → last response
 
   constructor(repoPath: string) {
+    super();
     this.repoPath = repoPath;
+  }
+
+  // ─── Severity Classification ───────────────────────────────────
+
+  /**
+   * Classify whether an issue can be handled by a micro-fix or needs a full run.
+   * Returns a MicroFixTrigger if micro-fixable, null if it needs a full run.
+   */
+  private classifyAndEmit(
+    category: SelfLearnCategory,
+    description: string,
+    userMessage?: string,
+    source: string = 'system',
+  ): void {
+    // Categories that are micro-fixable
+    const microFixable: SelfLearnCategory[] = [
+      'user_complaint',
+      'user_suggestion',
+      'tool_failure',
+      'computer_use_fail',
+    ];
+
+    if (!microFixable.includes(category)) return;
+
+    // Heuristic: if the message is too complex/long, it likely needs a full run
+    const msgLen = (userMessage || description).length;
+    if (msgLen > 500) return; // Long messages = complex issues
+
+    // Keywords that indicate the issue is too big for a micro-fix
+    const bigIssueKeywords = [
+      /refactor/i, /rediseñ/i, /arquitectura/i, /migra/i,
+      /todo el sistema/i, /todos los archivos/i, /desde cero/i,
+      /nueva funcionalidad completa/i, /integración con/i,
+    ];
+    const text = `${description} ${userMessage || ''}`;
+    if (bigIssueKeywords.some(rx => rx.test(text))) return;
+
+    const trigger: MicroFixTrigger = {
+      category,
+      description,
+      userMessage,
+      source,
+      timestamp: new Date().toISOString(),
+    };
+
+    this.emit('micro-fix-candidate', trigger);
   }
 
   // ─── Public API ──────────────────────────────────────────────────
@@ -137,6 +186,7 @@ export class SelfLearnService {
           sofLIAResponse: lastResponse?.slice(0, 500),
           context: `Patrón detectado: ${pattern.source}`,
         });
+        this.classifyAndEmit('user_complaint', `Queja: ${userMessage.slice(0, 200)}`, userMessage.slice(0, 500), source);
         break; // Only log once per message
       }
     }
@@ -151,6 +201,7 @@ export class SelfLearnService {
           description: `El usuario hizo una sugerencia de mejora.`,
           userMessage: userMessage.slice(0, 500),
         });
+        this.classifyAndEmit('user_suggestion', `Sugerencia: ${userMessage.slice(0, 200)}`, userMessage.slice(0, 500), source);
         break;
       }
     }
@@ -197,6 +248,7 @@ export class SelfLearnService {
       toolError: error,
       context: `Args: ${JSON.stringify(args).slice(0, 500)}`,
     });
+    this.classifyAndEmit('tool_failure', `Tool \`${toolName}\` error: ${error.slice(0, 200)}`, undefined, source);
   }
 
   /**
@@ -213,6 +265,7 @@ export class SelfLearnService {
       toolError: error,
       context: `Tarea solicitada: ${task}`,
     });
+    this.classifyAndEmit('computer_use_fail', `ComputerUse error: ${task.slice(0, 200)}`, undefined, 'computer_use');
   }
 
   /**

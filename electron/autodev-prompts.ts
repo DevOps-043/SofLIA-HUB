@@ -366,6 +366,13 @@ Archivo: {FILE_PATH}
 - **Electron@latest**: NUNCA intentes actualizar electron mientras la app está corriendo (EBUSY). Las actualizaciones de electron son manuales.
 - **Pre-release versions**: \`^7.0.0\` NO matchea \`7.0.0-rc.X\`. Usa la versión exacta del RC si no hay estable.
 
+## ⛔⛔ REGLAS ABSOLUTAS — VIOLACIÓN = RECHAZO AUTOMÁTICO
+- **PHANTOM IMPORTS PROHIBIDOS**: NUNCA importes módulos con rutas relativas (./algo, ../algo) que NO existen en el proyecto. Antes de agregar un import from './nuevo-modulo', VERIFICA que ese archivo existe en la lista de archivos del proyecto. Si el módulo no existe, NO lo importes.
+- **CÓDIGO COMPLETO**: Retorna SIEMPRE el archivo COMPLETO. NUNCA trunces el código con "...", "// rest of file", o comentarios similares. Si el archivo es largo, retorna TODO el contenido.
+- **NO CREAR MÓDULOS FANTASMA**: Si necesitas funcionalidad de otro archivo, usa los archivos que YA existen en el proyecto. NO inventes nuevos módulos sin crear los archivos correspondientes.
+- **NO REESCRIBIR main.ts AGRESIVAMENTE**: main.ts es el archivo central del sistema. NO cambies la estructura de inicialización de servicios. Solo agrega líneas nuevas al final de las secciones existentes.
+- **PRESERVAR TAMAÑO**: Si estás modificando un archivo existente, el resultado debe tener un tamaño similar (±40%) al original. Si tu resultado es mucho más pequeño, probablemente perdiste código.
+
 ## Output JSON
 {
   "modifiedCode": "código completo del archivo con TODOS los cambios aplicados — implementación COMPLETA",
@@ -515,3 +522,86 @@ export const NPM_ANALYSIS_PROMPT = `Analiza los resultados de npm audit y npm ou
     }
   ]
 }`;
+
+// ═══════════════════════════════════════════════════════════════════
+//  MICRO-FIX PROMPTS (lightweight reactive corrections)
+// ═══════════════════════════════════════════════════════════════════
+
+export const MICRO_FIX_ANALYZE_PROMPT = `Eres un agente de micro-correcciones de SofLIA Hub.
+Tu trabajo es analizar un problema específico reportado por el usuario o detectado por el sistema
+y generar un plan de corrección MÍNIMO y PRECISO.
+
+## REGLAS CRÍTICAS
+
+1. SOLO corrige el problema reportado — NO hagas mejoras adicionales ni refactoring
+2. Máximo 5 archivos modificados
+3. Máximo 200 líneas cambiadas en total
+4. NO toques package.json (no instales dependencias nuevas)
+5. NO hagas cambios de arquitectura
+6. Si el problema requiere cambios grandes → responde con "needs_full_run": true
+7. Prioriza: corrección funcional > calidad de código > estilo
+
+## CONTEXTO DEL PROBLEMA
+
+{TRIGGER_CONTEXT}
+
+## CÓDIGO FUENTE RELEVANTE
+
+{SOURCE_CODE}
+
+## ISSUES PENDIENTES RELACIONADOS
+
+{RELATED_ISSUES}
+
+## RESPUESTA
+
+Responde SOLO JSON:
+
+{
+  "needs_full_run": false,
+  "analysis": "qué causa el problema y cómo corregirlo",
+  "plan": [
+    {
+      "step": 1,
+      "file": "ruta/archivo.ts",
+      "action": "modify",
+      "description": "qué cambiar exactamente",
+      "estimated_lines": 10
+    }
+  ],
+  "total_estimated_lines": 10,
+  "risk_level": "low|medium|high"
+}`;
+
+export const MICRO_FIX_CODE_PROMPT = `Eres un agente programador de micro-correcciones de SofLIA Hub.
+Implementa EXACTAMENTE el plan dado. No hagas más cambios de los necesarios.
+
+## REGLAS
+
+1. Solo modifica lo que el plan indica — nada más
+2. Mantén el estilo del código existente
+3. No agregues imports innecesarios
+4. No agregues comentarios extras ni docstrings
+5. No cambies indentación ni formato de código que no estás modificando
+6. Si necesitas información de un archivo, usa la herramienta read_file
+7. Si necesitas buscar algo en el proyecto, usa web_search solo para documentación externa
+
+## PLAN DE CORRECCIÓN
+
+{FIX_PLAN}
+
+## CÓDIGO FUENTE DEL ARCHIVO
+
+{FILE_CONTENT}
+
+Implementa los cambios. Devuelve el archivo completo con los cambios aplicados.`;
+
+export const MICRO_FIX_SUMMARY_PROMPT = `Resume esta micro-corrección de SofLIA en máximo 500 caracteres para WhatsApp.
+Formato: emoji + qué se corrigió + archivo(s) modificado(s).
+Ejemplo: "🔧 Corregido: error de tipo en calendar-service.ts — el método getEvents ahora maneja correctamente conexiones nulas."
+
+Cambios realizados:
+{CHANGES}
+
+Problema original:
+{TRIGGER}`;

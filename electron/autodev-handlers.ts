@@ -75,6 +75,23 @@ export function registerAutoDevHandlers(
     }
   });
 
+  ipcMain.handle('autodev:micro-fix-status', async () => {
+    try {
+      return { success: true, ...autoDevService.getMicroFixStatus() };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('autodev:trigger-micro-fix', async (_event, trigger: any) => {
+    try {
+      autoDevService.queueMicroFix(trigger);
+      return { success: true, message: 'Micro-fix queued' };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  });
+
   // Forward events to renderer
   autoDevService.on('run-started', (run) => {
     getMainWindow()?.webContents.send('autodev:run-started', run);

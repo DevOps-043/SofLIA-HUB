@@ -69,6 +69,9 @@ export interface AutoDevConfig {
   // ─── Notifications ────────────────────────────────────────────
   notifyWhatsApp: boolean;
   notifyPhone: string;
+
+  // ─── Micro-Fix (reactive lightweight runs) ──────────────────
+  microFix: MicroFixConfig;
 }
 
 export type AutoDevCategory =
@@ -78,6 +81,8 @@ export type AutoDevCategory =
   | 'dependencies'
   | 'tests'
   | 'features';
+
+export type AutoDevRunMode = 'full' | 'micro';
 
 export type AutoDevRunStatus =
   | 'researching'
@@ -118,6 +123,7 @@ export interface OrchestratorTask {
 
 export interface AutoDevRun {
   id: string;
+  mode: AutoDevRunMode;
   startedAt: string;
   completedAt?: string;
   status: AutoDevRunStatus;
@@ -128,7 +134,44 @@ export interface AutoDevRun {
   prUrl?: string;
   summary: string;
   error?: string;
+  /** For micro runs: the trigger that caused it */
+  microTrigger?: MicroFixTrigger;
 }
+
+// ─── Micro-Fix Types ────────────────────────────────────────────────
+
+export interface MicroFixConfig {
+  enabled: boolean;
+  maxDailyMicroRuns: number;
+  debounceMinutes: number;
+  maxFiles: number;
+  maxLines: number;
+  autoTriggerOnComplaint: boolean;
+  autoTriggerOnSuggestion: boolean;
+  autoTriggerOnToolFailure: boolean;
+  /** Minimum idle seconds before auto-triggering (0 = no idle check) */
+  minIdleSeconds: number;
+}
+
+export interface MicroFixTrigger {
+  category: string;
+  description: string;
+  userMessage?: string;
+  source: string;
+  timestamp: string;
+}
+
+export const DEFAULT_MICRO_CONFIG: MicroFixConfig = {
+  enabled: true,
+  maxDailyMicroRuns: 5,
+  debounceMinutes: 3,
+  maxFiles: 5,
+  maxLines: 200,
+  autoTriggerOnComplaint: true,
+  autoTriggerOnSuggestion: true,
+  autoTriggerOnToolFailure: true,
+  minIdleSeconds: 0,
+};
 
 export interface AutoDevImprovement {
   file: string;
@@ -227,4 +270,5 @@ export const DEFAULT_CONFIG: AutoDevConfig = {
   categories: ['features', 'security', 'quality', 'performance', 'dependencies', 'tests'],
   notifyWhatsApp: true,
   notifyPhone: '',
+  microFix: { ...DEFAULT_MICRO_CONFIG },
 };

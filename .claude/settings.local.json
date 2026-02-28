@@ -32,7 +32,10 @@
       "WebFetch(domain:dataconomy.com)",
       "WebFetch(domain:www.nxcode.io)",
       "Bash(npm view:*)",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "Bash(git log --oneline autodev/2026-02-28T09-05-34--sxddd --not main)",
+      "Bash(git log --oneline autodev/2026-02-28T02-37-06--a3u89 --not main)",
+      "Bash(git checkout -- electron/computer-use-handlers.ts)"
     ]
   }
 }
