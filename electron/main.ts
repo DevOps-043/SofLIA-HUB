@@ -22,6 +22,7 @@ import { generateDailySummary } from './summary-generator'
 import { MemoryService } from './memory-service'
 import { registerMemoryHandlers } from './memory-handlers'
 import { KnowledgeService } from './knowledge-service'
+import { SystemGuardianService, NeuralOrganizerService } from './system-services'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -51,6 +52,10 @@ const memoryService = new MemoryService()
 
 // ─── Knowledge Base (OpenClaw-style .md files) ──────────────────────
 const knowledgeService = new KnowledgeService()
+
+// ─── System Services ────────────────────────────────────────────────
+let systemGuardian: SystemGuardianService | null = null;
+let neuralOrganizer: NeuralOrganizerService | null = null;
 
 // ─── Shared state ───────────────────────────────────────────────────
 let currentGeminiApiKey: string | null = null
@@ -436,6 +441,16 @@ function initWhatsAppAgent(apiKey: string) {
   waAgent.setGoogleServices(calendarService, gmailService, driveService, gchatService)
   waAgent.setAutoDevService(autoDevService)
 
+  // ─── Inject System Guardian & Organizer into WhatsApp Agent ────────
+  if (systemGuardian && neuralOrganizer) {
+    if (typeof (waAgent as any).setSystemServices === 'function') {
+      (waAgent as any).setSystemServices({ guardian: systemGuardian, organizer: neuralOrganizer });
+    } else {
+      (waAgent as any).systemGuardian = systemGuardian;
+      (waAgent as any).neuralOrganizer = neuralOrganizer;
+    }
+  }
+
   // Store API key for summary generation
   currentGeminiApiKey = apiKey
 
@@ -520,6 +535,45 @@ app.whenReady().then(async () => {
   registerDriveHandlers(driveService, () => win)
   registerGChatHandlers(gchatService, () => win)
   registerAutoDevHandlers(autoDevService, selfLearnService, () => win)
+
+  // ─── Demonios de Monitoreo del Sistema (Guardian & Organizer) ─
+  systemGuardian = new SystemGuardianService()
+  neuralOrganizer = new NeuralOrganizerService()
+
+  // Configurar inyección de dependencias para notificaciones proactivas de WhatsApp
+  systemGuardian.on('alert', async (alert) => {
+    try {
+      if (!waService.getStatus().connected) return;
+      const config = await proactiveService.getConfig();
+      
+      if (config && (config as any).notifyPhone) {
+        const cleanNumber = (config as any).notifyPhone.replace(/[^0-9]/g, '');
+        const jid = `${cleanNumber}@s.whatsapp.net`;
+        await waService.sendText(jid, `⚠️ *SofLIA System Guardian*\n${alert.message}`);
+      } else {
+        console.warn('[SystemGuardian] No notifyPhone configured in proactiveService. Cannot send WhatsApp alert.');
+      }
+    } catch (err: any) {
+      console.error('[SystemGuardian] Error notifying WhatsApp:', err.message);
+    }
+  });
+
+  // Iniciar el Watchdog del sistema operativo en background
+  systemGuardian.startMonitoring((status) => {
+    if (status.status === 'critical') {
+      console.warn(`[SystemGuardian] Watchdog reporta estado crítico: CPU ${status.cpuLoadPercent.toFixed(1)}%, RAM ${status.memoryUsagePercent.toFixed(1)}%`);
+    }
+  });
+
+  // Inyectar dependencias al WhatsAppAgent si ya fue creado (por concurrencia)
+  if (waAgent) {
+    if (typeof (waAgent as any).setSystemServices === 'function') {
+      (waAgent as any).setSystemServices({ guardian: systemGuardian, organizer: neuralOrganizer });
+    } else {
+      (waAgent as any).systemGuardian = systemGuardian;
+      (waAgent as any).neuralOrganizer = neuralOrganizer;
+    }
+  }
 
   // ─── AutoDev auto-init from env API key ─────────────────────
   const envApiKey = process.env.VITE_GEMINI_API_KEY

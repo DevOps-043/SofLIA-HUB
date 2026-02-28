@@ -27,10 +27,42 @@ export const ToolSchemas = {
 /**
  * Middleware para validar y sanitizar el input de la herramienta,
  * previniendo inyección de comandos (CVE-2026-21256).
+ * 
+ * Se utiliza 'any' en el parámetro schema para erradicar errores TS2345 y
+ * el parámetro genérico <T> para asegurar tipado hacia el exterior.
  */
 export function validateToolInput<T>(schema: any, input: unknown): T {
-  // Parseo inicial para asegurar tipos
-  const parsed = schema.parse(input);
+  let parsed: any;
+
+  try {
+    // 1. Zod schema con safeParse (previene excepciones crudas)
+    if (schema && typeof schema.safeParse === 'function') {
+      const result = schema.safeParse(input);
+      if (!result.success) {
+        // Validación estructural fallida - formateo amigable para LLM
+        const issues = result.error.issues
+          .map((issue: any) => `'${issue.path.join('.')}': ${issue.message}`)
+          .join('; ');
+        throw new Error(`ZodSchema Validation Failed: ${issues}`);
+      }
+      parsed = result.data;
+    } 
+    // 2. Esquema con método parse regular (versiones antiguas u otras librerías)
+    else if (schema && typeof schema.parse === 'function') {
+      parsed = schema.parse(input);
+    } 
+    // 3. Fallback: Sin esquema estructurado (passthrough)
+    else {
+      parsed = input;
+    }
+  } catch (err: any) {
+    if (err.name === 'ZodError') {
+      const issues = err.issues?.map((i: any) => `'${i.path.join('.')}': ${i.message}`).join('; ') || err.message;
+      throw new Error(`ZodSchema Validation Failed: ${issues}`);
+    }
+    // Propaga el error envuelto para mejor legibilidad por el LLM
+    throw new Error(`Argument Validation Error: ${err.message || String(err)}`);
+  }
 
   // Sanitizador recursivo para caracteres peligrosos
   const sanitize = (val: any): any => {
@@ -51,7 +83,7 @@ export function validateToolInput<T>(schema: any, input: unknown): T {
     return val;
   };
 
-  return sanitize(parsed);
+  return sanitize(parsed) as T;
 }
 
 /**
@@ -145,7 +177,8 @@ export class ToolSandbox {
         let validatedInput = input;
 
         if (schema) {
-          validatedInput = validateToolInput(schema, input);
+          // Explicitar el parámetro genérico para evitar TS2558 
+          validatedInput = validateToolInput<any>(schema, input);
         }
 
         return await tool(validatedInput);
@@ -177,7 +210,7 @@ export class ToolSandbox {
       return `Verifica que la herramienta '${toolName}' existe y que se están pasando los argumentos correctos.`;
     }
 
-    if (lowerError.includes('json') || lowerError.includes('zod')) {
+    if (lowerError.includes('json') || lowerError.includes('zod') || lowerError.includes('validation')) {
       return `Error de validación o parseo JSON en los argumentos proporcionados a '${toolName}'. Asegúrate de enviar un formato válido que cumpla con el esquema.`;
     }
 
