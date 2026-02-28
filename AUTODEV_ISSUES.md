@@ -875,3 +875,27 @@ Patrón detectado: se supone que
 ```
 
 ---
+## ❌ [CODING_ERROR] — 2026-02-28
+
+- **Run ID**: `run_1772289326687`
+- **Timestamp**: 2026-02-28T14:50:56.558Z
+- **Categoría**: coding_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+AutoDev generó código truncado para electron/computer-use-handlers.ts. El archivo tiene llaves desbalanceadas o terminación incompleta.
+
+---
+## ❌ [CODING_ERROR] — 2026-02-28
+
+- **Run ID**: `run_1772289326687`
+- **Timestamp**: 2026-02-28T15:03:55.620Z
+- **Categoría**: coding_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+AutoDev generó código truncado para electron/autonomous-janitor.ts. El archivo tiene llaves desbalanceadas o terminación incompleta.
+
+---
