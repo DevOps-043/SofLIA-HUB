@@ -31,7 +31,7 @@ export const ToolSchemas = {
  * Se utiliza 'any' en el parámetro schema para erradicar errores TS2345 y
  * el parámetro genérico <T> para asegurar tipado hacia el exterior.
  */
-export function validateToolInput<T>(schema: any, input: unknown): T {
+export function validateToolInput<T>(input: any, schema: any): T {
   let parsed: any;
 
   try {
@@ -68,7 +68,7 @@ export function validateToolInput<T>(schema: any, input: unknown): T {
   const sanitize = (val: any): any => {
     if (typeof val === 'string') {
       // Elimina &, |, ;, $, `
-      return val.replace(/[&|;$`]/g, '');
+      return val.replace(/[&|;\$`]/g, '');
     }
     if (Array.isArray(val)) {
       return val.map(sanitize);
@@ -178,7 +178,7 @@ export class ToolSandbox {
 
         if (schema) {
           // Explicitar el parámetro genérico para evitar TS2558 
-          validatedInput = validateToolInput<any>(schema, input);
+          validatedInput = validateToolInput<any>(input, schema);
         }
 
         return await tool(validatedInput);

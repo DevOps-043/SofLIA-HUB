@@ -1,7 +1,9 @@
-import { Session } from '@supabase/supabase-js';
+import type { Session } from '@supabase/supabase-js';
 import {
   sofiaSupa,
-  isSofiaConfigured,
+  isSofiaConfigured
+} from '../lib/sofia-client';
+import type {
   SofiaOrganization,
   SofiaTeam,
   SofiaUserProfile,
@@ -58,22 +60,11 @@ class SofiaAuthService {
         });
 
       if (authError) {
-        console.error('Error llamando authenticate_user:', authError);
-        return {
-          success: false,
-          user: null,
-          session: null,
-          error: authError.message || 'Error de conexion con SOFIA'
-        };
+        throw new Error(authError.message || 'Error de conexion con SOFIA');
       }
 
       if (!authResult?.success) {
-        return {
-          success: false,
-          user: null,
-          session: null,
-          error: authResult?.error || 'Credenciales invalidas'
-        };
+        throw new Error(authResult?.error || 'Credenciales invalidas');
       }
 
       const sofiaUser = authResult.user;
@@ -86,20 +77,10 @@ class SofiaAuthService {
       // Bloquear acceso si no hay membresías activas
       if (activeMemberships.length === 0) {
         if (suspendedMemberships.length > 0) {
-          return {
-            success: false,
-            user: null,
-            session: null,
-            error: 'Acceso denegado: Tu cuenta ha sido suspendida por el administrador.'
-          };
+          throw new Error('Acceso denegado: Tu cuenta ha sido suspendida por el administrador.');
         }
         
-        return {
-          success: false,
-          user: null,
-          session: null,
-          error: 'Acceso denegado: No tienes una membresía activa en ninguna organización.'
-        };
+        throw new Error('Acceso denegado: No tienes una membresía activa en ninguna organización.');
       }
 
       // Filtrar organizaciones activas para el contexto
@@ -160,8 +141,7 @@ class SofiaAuthService {
         .single();
 
       if (userError) {
-        console.warn('No se encontro usuario en SOFIA:', userError);
-        return null;
+        throw new Error(userError.message);
       }
 
       const { data: memberships, error: membershipsError } = await sofiaSupa
@@ -196,7 +176,7 @@ class SofiaAuthService {
         .eq('user_id', userId);
 
       if (membershipsError) {
-        console.warn('Error obteniendo membresias:', membershipsError);
+        throw new Error(membershipsError.message);
       }
 
       const organizations: SofiaOrganization[] = [];
@@ -215,12 +195,15 @@ class SofiaAuthService {
 
       let teams: SofiaTeam[] = [];
       if (teamIds.length > 0) {
-        const { data: teamsData } = await sofiaSupa
+        const { data: teamsData, error: teamsError } = await sofiaSupa
           .from('organization_teams')
           .select('*')
           .in('id', teamIds)
           .eq('is_active', true);
 
+        if (teamsError) {
+          throw new Error(teamsError.message);
+        }
         teams = teamsData || [];
       }
 
@@ -251,8 +234,8 @@ class SofiaAuthService {
           organization: m.organizations
         })) || []
       };
-    } catch (err) {
-      console.error('Error fetching SOFIA profile:', err);
+    } catch (err: any) {
+      console.error('Error fetching SOFIA profile:', err.message || err);
       return null;
     }
   }
@@ -321,11 +304,16 @@ class SofiaAuthService {
   }
 
   onAuthStateChange(callback: (event: string, session: Session | null) => void) {
-    this.getSession().then(session => {
-      if (session) {
-        callback('INITIAL_SESSION', session);
+    (async () => {
+      try {
+        const session = await this.getSession();
+        if (session) {
+          callback('INITIAL_SESSION', session);
+        }
+      } catch (err) {
+        console.error('Error en onAuthStateChange:', err);
       }
-    });
+    })();
 
     return {
       data: {
