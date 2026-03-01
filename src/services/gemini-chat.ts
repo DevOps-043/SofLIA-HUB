@@ -298,13 +298,6 @@ ${options.irisContext}
                 const deleteResult = await deleteProject(toolArgs.project_id);
                 resultStr = JSON.stringify(deleteResult);
               } else if (toolName === 'create_iris_project') {
-                const session = await (await import('./sofia-auth')).sofiaAuth.getSession();
-                let userId = session?.user?.id;
-                if (!userId) {
-                  const { data: authData } = await (await import('./iris-data')).irisSupa.auth.getUser();
-                  userId = authData.user?.id;
-                }
-
                 const createResult = await createProject({
                   name: toolArgs.project_name,
                   key: toolArgs.project_key,

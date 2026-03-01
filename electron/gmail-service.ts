@@ -43,9 +43,48 @@ export class GmailService extends EventEmitter {
     this.calendarService = calendarService;
   }
 
+  // ─── Security Validation ────────────────────────────────────────
+
+  private isValidEmail(email: string): boolean {
+    const strictEmailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    
+    // Extraemos el correo si viene en formato "Nombre <correo@dominio.com>"
+    const match = email.match(/<([^>]+)>/);
+    const extractedEmail = match ? match[1].trim() : email.trim();
+    
+    // Verificamos el email con la regex estricta
+    if (!strictEmailRegex.test(extractedEmail)) return false;
+
+    // Prohibimos estrictamente comillas dobles y caracteres de escape inusuales (CR/LF)
+    // en todo el string para prevenir Header Injection / SSRF (CVE-2025-13033)
+    if (/[\r\n"]/.test(email)) return false;
+
+    return true;
+  }
+
   // ─── Send Email ─────────────────────────────────────────────────
 
   async sendEmail(params: SendEmailParams): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    // ─── Mitigación nativa SSRF/Injection (CVE-2025-13033) ────────
+    try {
+      const validateEmails = (emails: string[] | undefined, fieldName: string) => {
+        if (!emails || !emails.length) return;
+        for (const email of emails) {
+          if (!this.isValidEmail(email)) {
+            throw new Error(`Patrón de correo anómalo detectado en el campo '${fieldName}': Validación de seguridad fallida para "${email}". Formato inválido o caracteres peligrosos detectados.`);
+          }
+        }
+      };
+
+      validateEmails(params.to, 'to');
+      validateEmails(params.cc, 'cc');
+      validateEmails(params.bcc, 'bcc');
+    } catch (validationErr: any) {
+      console.error('[GmailService] Send error (Security):', validationErr.message);
+      return { success: false, error: validationErr.message };
+    }
+    // ──────────────────────────────────────────────────────────────
+
     const auth = await this.calendarService.getGoogleAuth();
     if (!auth) return { success: false, error: 'Google no conectado' };
 

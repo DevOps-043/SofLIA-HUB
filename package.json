@@ -34,7 +34,7 @@
     "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "systeminformation": "^5.31.1",
+    "systeminformation": "^5.21.22",
     "tesseract.js": "^5.0.5",
     "zod": "^3.24.2"
   },
