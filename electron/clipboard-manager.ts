@@ -1,65 +1,65 @@
 import { clipboard } from 'electron';
 import { EventEmitter } from 'events';
+import { z } from 'zod';
 
-export interface ClipboardItem {
-  text: string;
-  timestamp: Date;
+export interface ClipboardConfig {
+  maxHistorySize?: number;
+  pollingIntervalMs?: number;
 }
 
-export class ClipboardManager extends EventEmitter {
-  private history: ClipboardItem[] = [];
-  private maxItems: number;
-  private intervalId?: NodeJS.Timeout;
-  private isRunning = false;
+// 6. Esquema Zod para la herramienta de IA sin errores TS2558 en genéricos
+export const ClipboardToolSchema = z.object({
+  action: z.enum(['read', 'write', 'history']),
+  content: z.string().optional()
+});
 
-  constructor(maxItems = 10) {
+export type ClipboardToolInput = z.infer<typeof ClipboardToolSchema>;
+
+// Definición de la herramienta para ser consumida por el agente de IA
+export const clipboardManagerTool = {
+  name: 'clipboard_manager',
+  description: 'Permite leer, escribir y ver el historial del portapapeles de la PC. Útil para compartir texto, enlaces o comandos rápidamente entre la IA/WhatsApp y la PC local del usuario.',
+  parameters: ClipboardToolSchema
+};
+
+/**
+ * Servicio para gestionar el portapapeles del sistema.
+ * Soporta sincronización bidireccional, lectura, escritura y un historial de copias.
+ */
+export class ClipboardManager extends EventEmitter {
+  private history: string[] = [];
+  private maxHistorySize: number;
+  private pollingIntervalMs: number;
+  private intervalId?: NodeJS.Timeout;
+  private lastReadText: string = '';
+
+  constructor(config: ClipboardConfig = {}) {
     super();
-    this.maxItems = maxItems;
+    this.maxHistorySize = config.maxHistorySize || 20;
+    this.pollingIntervalMs = config.pollingIntervalMs || 1000;
   }
 
   public init(): void {
     try {
-      const currentText = clipboard.readText();
-      if (currentText && currentText.trim() !== '') {
-        this.history.push({
-          text: currentText,
-          timestamp: new Date()
-        });
+      this.lastReadText = clipboard.readText() || '';
+      if (this.lastReadText) {
+        this.addToHistory(this.lastReadText);
       }
-    } catch (err) {
-      console.error('[ClipboardManager] Init error:', err);
+      console.log('[ClipboardManager] Inicializado correctamente.');
+    } catch (error) {
+      console.error('[ClipboardManager] Error al inicializar:', error);
     }
   }
 
   public start(): void {
-    if (this.isRunning) return;
-    this.isRunning = true;
+    if (this.intervalId) return;
     
+    // Iniciar polling para monitorear copias del usuario fuera de SofLIA
     this.intervalId = setInterval(() => {
-      try {
-        const currentText = clipboard.readText();
-        if (!currentText || currentText.trim() === '') return;
-
-        const lastItem = this.history.length > 0 ? this.history[0] : null;
-        
-        if (!lastItem || lastItem.text !== currentText) {
-          const newItem = {
-            text: currentText,
-            timestamp: new Date()
-          };
-          
-          this.history.unshift(newItem);
-          
-          if (this.history.length > this.maxItems) {
-            this.history.pop();
-          }
-          
-          this.emit('clipboard-changed', newItem);
-        }
-      } catch (error) {
-        console.error('[ClipboardManager] Interval error:', error);
-      }
-    }, 2000);
+      this.checkClipboard();
+    }, this.pollingIntervalMs);
+    
+    console.log('[ClipboardManager] Servicio de monitoreo iniciado.');
   }
 
   public stop(): void {
@@ -67,97 +67,118 @@ export class ClipboardManager extends EventEmitter {
       clearInterval(this.intervalId);
       this.intervalId = undefined;
     }
-    this.isRunning = false;
-  }
-
-  public getClipboardHistory(): ClipboardItem[] {
-    return [...this.history];
-  }
-
-  public writeToClipboard(text: string): void {
-    if (!text) return;
-    
-    try {
-      clipboard.writeText(text);
-      const newItem = {
-        text,
-        timestamp: new Date()
-      };
-      
-      const lastItem = this.history.length > 0 ? this.history[0] : null;
-      if (!lastItem || lastItem.text !== text) {
-        this.history.unshift(newItem);
-        if (this.history.length > this.maxItems) {
-          this.history.pop();
-        }
-        this.emit('clipboard-changed', newItem);
-      }
-    } catch (error) {
-      console.error('[ClipboardManager] Write error:', error);
-      throw error;
-    }
+    console.log('[ClipboardManager] Servicio de monitoreo detenido.');
   }
 
   public getStatus() {
     return {
-      isRunning: this.isRunning,
-      itemCount: this.history.length,
-      maxItems: this.maxItems
+      active: !!this.intervalId,
+      historyCount: this.history.length,
+      maxHistory: this.maxHistorySize
     };
   }
 
-  public getConfig() {
+  public getConfig(): ClipboardConfig {
     return {
-      maxItems: this.maxItems,
-      intervalMs: 2000
+      maxHistorySize: this.maxHistorySize,
+      pollingIntervalMs: this.pollingIntervalMs
     };
   }
-}
 
-// Exportamos un singleton
-export const clipboardManager = new ClipboardManager();
-
-// Declaración de herramienta para WhatsApp Agent
-export const remote_clipboard_tool = {
-  name: 'remote_clipboard_tool',
-  description: 'Gestor de portapapeles remoto. Permite leer el historial reciente (últimos 10 textos copiados en la PC) o escribir texto en el portapapeles de la PC. Modos: "read" o "write".',
-  parameters: {
-    type: 'OBJECT' as const,
-    properties: {
-      action: { type: 'STRING' as const, description: 'Acción a realizar: "read" para obtener el historial, "write" para copiar texto al portapapeles de la PC.' },
-      text: { type: 'STRING' as const, description: 'Texto a copiar. Requerido solo si la acción es "write".' },
-    },
-    required: ['action'],
-  },
-};
-
-// Handler para la herramienta de WhatsApp
-export async function handleRemoteClipboardTool(args: Record<string, any>) {
-  try {
-    const { action, text } = args;
-    
-    if (action === 'read') {
-      const history = clipboardManager.getClipboardHistory();
-      if (history.length === 0) {
-        return { success: true, message: 'El portapapeles de la PC está vacío.' };
+  private checkClipboard(): void {
+    try {
+      const currentText = clipboard.readText();
+      if (currentText && currentText !== this.lastReadText) {
+        this.lastReadText = currentText;
+        this.addToHistory(currentText);
+        this.emit('changed', currentText);
       }
-      return { 
-        success: true, 
-        history: history.map(item => ({
-          text: item.text.length > 500 ? item.text.substring(0, 500) + '...' : item.text,
-          time: item.timestamp.toLocaleString('es-MX')
-        }))
-      };
-    } else if (action === 'write') {
-      if (!text) {
-        return { success: false, error: 'Debes proveer el texto a copiar.' };
-      }
-      clipboardManager.writeToClipboard(text);
-      return { success: true, message: 'Texto copiado al portapapeles de la PC exitosamente.' };
-    } else {
-      return { success: false, error: 'Acción no válida. Usa "read" o "write".' };
+    } catch (error) {
+      // Los errores de lectura se ignoran silenciosamente para no inundar la consola en cada tick
     }
-  } catch (error: any) {
-    return { success: false, error: error.message || 'Error al procesar la herramienta del portapapeles.' };
+  }
+
+  private addToHistory(text: string): void {
+    if (!text || !text.trim()) return;
+    
+    // Evitar duplicados consecutivos en el historial
+    if (this.history.length > 0 && this.history[0] === text) return;
+    
+    this.history.unshift(text);
+    
+    // Mantener el tamaño máximo del historial
+    if (this.history.length > this.maxHistorySize) {
+      this.history.pop();
+    }
+  }
+
+  public writeText(text: string): void {
+    try {
+      clipboard.writeText(text);
+      this.lastReadText = text;
+      this.addToHistory(text);
+      this.emit('changed', text);
+    } catch (error) {
+      console.error('[ClipboardManager] Error al escribir en portapapeles:', error);
+      throw new Error(`No se pudo escribir en el portapapeles: ${(error as Error).message}`);
+    }
+  }
+
+  public readText(): string {
+    try {
+      return clipboard.readText() || '';
+    } catch (error) {
+      console.error('[ClipboardManager] Error al leer portapapeles:', error);
+      throw new Error(`No se pudo leer el portapapeles: ${(error as Error).message}`);
+    }
+  }
+
+  public getHistory(): string[] {
+    return [...this.history];
+  }
+  
+  /**
+   * Método principal para que la IA interactúe con el portapapeles.
+   * Delega a los submétodos según la acción solicitada.
+   */
+  public async executeTool(args: ClipboardToolInput): Promise<any> {
+    try {
+      switch (args.action) {
+        case 'read': {
+          const text = this.readText();
+          return { 
+            success: true, 
+            data: { text: text || '(Portapapeles vacío)' } 
+          };
+        }
+        case 'write': {
+          if (!args.content) {
+            return { success: false, error: 'Se requiere el campo "content" para la acción "write".' };
+          }
+          this.writeText(args.content);
+          return { 
+            success: true, 
+            message: 'Texto copiado exitosamente al portapapeles del sistema.' 
+          };
+        }
+        case 'history': {
+          const hist = this.getHistory();
+          return { 
+            success: true, 
+            data: { 
+              total: hist.length, 
+              items: hist.length > 0 ? hist : ['(Historial vacío)'] 
+            } 
+          };
+        }
+        default:
+          return { success: false, error: `Acción no soportada: ${args.action}` };
+      }
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
   }
 }
+
+// Exportar una instancia singleton del servicio para toda la aplicación
+export const clipboardManagerService = new ClipboardManager();

@@ -2,7 +2,7 @@
  * Computer Use IPC Handlers — Main Process
  * Provides real filesystem, shell, and system operations for SofLIA.
  */
-import { ipcMain, shell, clipboard, desktopCapturer, dialog, BrowserWindow, app } from 'electron';
+import { ipcMain, shell, clipboard, desktopCapturer, dialog, BrowserWindow, app, IpcMainInvokeEvent } from 'electron';
 import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
 import path from 'node:path';
@@ -129,7 +129,8 @@ async function handleKillProcess(pid: number): Promise<{ success: boolean; messa
 // ─── Tool Implementation (callable directly from main process) ──────
 export async function executeToolDirect(
   toolName: string,
-  args: Record<string, any>
+  args: Record<string, any>,
+  onProgress?: (message: string) => void
 ): Promise<any> {
   switch (toolName) {
     case 'list_screens':
@@ -144,13 +145,23 @@ export async function executeToolDirect(
     case 'list_directory': {
       try {
         const resolved = normalizePath(args.path || os.homedir());
+        if (onProgress) onProgress(`Listando directorio: ${resolved}...`);
         const entries = await fs.readdir(resolved, { withFileTypes: true });
         const showHidden = args.show_hidden || false;
 
+        if (entries.length > 100 && onProgress) {
+          onProgress(`Analizando detalles de ${entries.length} elementos...`);
+        }
+
+        let processedCount = 0;
         const items = await Promise.all(
           entries
             .filter(e => showHidden || !e.name.startsWith('.'))
             .map(async (entry) => {
+              processedCount++;
+              if (processedCount % 100 === 0 && onProgress) {
+                onProgress(`Leyendo detalles... ${processedCount} de ${entries.length} archivos procesados.`);
+              }
               const fullPath = path.join(resolved, entry.name);
               try {
                 const stat = await fs.stat(fullPath);
@@ -207,6 +218,7 @@ export async function executeToolDirect(
     case 'write_file': {
       try {
         const resolved = normalizePath(args.path);
+        if (onProgress) onProgress(`Escribiendo archivo: ${resolved}...`);
         await fs.mkdir(path.dirname(resolved), { recursive: true });
         await fs.writeFile(resolved, args.content, 'utf-8');
         return { success: true, path: resolved, message: `Archivo creado/actualizado: ${path.basename(resolved)}` };
@@ -236,6 +248,7 @@ export async function executeToolDirect(
       try {
         const src = normalizePath(args.source_path);
         const dst = normalizePath(args.destination_path);
+        if (onProgress) onProgress(`Moviendo ${src} a ${dst}...`);
         try {
           await fs.rename(src, dst);
         } catch (err: any) {
@@ -257,6 +270,7 @@ export async function executeToolDirect(
       try {
         const src = normalizePath(args.source_path);
         const dst = normalizePath(args.destination_path);
+        if (onProgress) onProgress(`Copiando de ${src} a ${dst}...`);
         const stat = await fs.stat(src);
         if (stat.isDirectory()) {
           await fs.cp(src, dst, { recursive: true });
@@ -273,6 +287,7 @@ export async function executeToolDirect(
     case 'delete_item': {
       try {
         const resolved = normalizePath(args.path);
+        if (onProgress) onProgress(`Enviando a la papelera: ${resolved}...`);
         await shell.trashItem(resolved);
         return { success: true, path: resolved, message: `Enviado a papelera: ${path.basename(resolved)}` };
       } catch (err: any) {
@@ -298,8 +313,10 @@ export async function executeToolDirect(
     case 'search_files': {
       try {
         const resolved = normalizePath(args.directory || os.homedir());
+        if (onProgress) onProgress(`Iniciando búsqueda en ${resolved}...`);
         const results: Array<{ name: string; path: string; isDirectory: boolean }> = [];
         const lowerPattern = (args.pattern as string).toLowerCase();
+        let scanned = 0;
 
         async function walk(dir: string, depth: number) {
           if (depth > MAX_SEARCH_DEPTH || results.length >= MAX_SEARCH_RESULTS) return;
@@ -307,6 +324,10 @@ export async function executeToolDirect(
             const entries = await fs.readdir(dir, { withFileTypes: true });
             for (const entry of entries) {
               if (results.length >= MAX_SEARCH_RESULTS) break;
+              scanned++;
+              if (scanned % 500 === 0 && onProgress) {
+                onProgress(`Buscando... Escaneados ${scanned} elementos, encontrados ${results.length}.`);
+              }
               if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === '.git' || entry.name === 'AppData' || entry.name === '$Recycle.Bin' || entry.name === 'dist' || entry.name === 'dist-electron') continue;
               const fullPath = path.join(dir, entry.name);
               if (entry.name.toLowerCase().includes(lowerPattern)) {
@@ -329,9 +350,12 @@ export async function executeToolDirect(
     case 'organize_files': {
       try {
         const resolved = normalizePath(args.path || os.homedir());
+        if (onProgress) onProgress(`Analizando directorio ${resolved} para organizar...`);
         const entries = await fs.readdir(resolved, { withFileTypes: true });
         const mode: string = args.mode || 'extension'; // 'extension' | 'type' | 'date' | 'custom'
         const dryRun: boolean = args.dry_run || false;
+
+        if (onProgress) onProgress(`Se encontraron ${entries.length} elementos. Iniciando organización (Modo: ${mode})...`);
 
         // Extension → category mapping for 'type' mode
         const TYPE_CATEGORIES: Record<string, string[]> = {
@@ -369,7 +393,13 @@ export async function executeToolDirect(
         const errors: string[] = [];
         const createdFolders = new Set<string>();
 
+        let processedCount = 0;
+
         for (const entry of entries) {
+          processedCount++;
+          if (processedCount % 50 === 0 && onProgress) {
+             onProgress(`Organizando... procesados ${processedCount} de ${entries.length} elementos.`);
+          }
           if (entry.isDirectory()) continue; // Skip existing folders
           if (entry.name.startsWith('.')) continue; // Skip hidden files
 
@@ -449,16 +479,23 @@ export async function executeToolDirect(
       try {
         const sourceDir = normalizePath(args.source_directory);
         const destDir = normalizePath(args.destination_directory);
+        if (onProgress) onProgress(`Analizando elementos para mover de ${sourceDir} a ${destDir}...`);
         const pattern = (args.pattern as string || '*').toLowerCase();
         const extensions = args.extensions as string[] | undefined;
 
         await fs.mkdir(destDir, { recursive: true });
         const entries = await fs.readdir(sourceDir, { withFileTypes: true });
 
+        if (onProgress) onProgress(`Iniciando movimiento de ${entries.length} elementos...`);
         const movedFiles: Array<{ name: string; from: string; to: string }> = [];
         const errors: string[] = [];
 
+        let processedCount = 0;
         for (const entry of entries) {
+          processedCount++;
+          if (processedCount % 50 === 0 && onProgress) {
+            onProgress(`Moviendo... procesados ${processedCount} de ${entries.length} archivos.`);
+          }
           if (entry.isDirectory()) continue;
 
           const ext = getFileExtension(entry.name);
@@ -507,6 +544,7 @@ export async function executeToolDirect(
     case 'list_directory_summary': {
       try {
         const resolved = normalizePath(args.path || os.homedir());
+        if (onProgress) onProgress(`Generando resumen del directorio ${resolved}...`);
         const entries = await fs.readdir(resolved, { withFileTypes: true });
 
         const summary: Record<string, { count: number; totalSize: number; files: string[] }> = {};
@@ -514,7 +552,12 @@ export async function executeToolDirect(
         let totalDirs = 0;
         let totalSize = 0;
 
+        let processedCount = 0;
         for (const entry of entries) {
+          processedCount++;
+          if (processedCount % 200 === 0 && onProgress) {
+             onProgress(`Analizando para resumen... ${processedCount} de ${entries.length} elementos evaluados.`);
+          }
           if (entry.isDirectory()) {
             totalDirs++;
             if (!summary['[Carpetas]']) summary['[Carpetas]'] = { count: 0, totalSize: 0, files: [] };
@@ -570,6 +613,7 @@ export async function executeToolDirect(
       if (isCommandBlocked(args.command)) {
         return { success: false, error: `Comando bloqueado por seguridad: "${args.command}"` };
       }
+      if (onProgress) onProgress(`Ejecutando comando en segundo plano: ${args.command.substring(0, 50)}${args.command.length > 50 ? '...' : ''}`);
       return new Promise((resolve) => {
         exec(args.command, {
           timeout: COMMAND_TIMEOUT, maxBuffer: 1024 * 512, windowsHide: true,
@@ -658,6 +702,7 @@ export async function executeToolDirect(
 
     case 'take_screenshot': {
       try {
+        if (onProgress) onProgress('Iniciando captura de pantalla...');
         const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1920, height: 1080 } });
         if (sources.length === 0) return { success: false, error: 'No se encontraron pantallas.' };
         
@@ -668,6 +713,7 @@ export async function executeToolDirect(
 
         let axTree = undefined;
         try {
+          if (onProgress) onProgress('Iniciando OCR y extracción de árbol de accesibilidad visual...');
           const windows = BrowserWindow.getAllWindows();
           if (windows.length > 0) {
             const webContents = windows[0].webContents;
@@ -721,6 +767,7 @@ export async function executeToolDirect(
 
     case 'send_email': {
       try {
+        if (onProgress) onProgress(`Preparando envío de email a ${args.to}...`);
         let config: any;
         try {
           const data = await fs.readFile(EMAIL_CONFIG_PATH, 'utf-8');
@@ -729,12 +776,17 @@ export async function executeToolDirect(
           return { success: false, error: 'Email no configurado. Pide al usuario su email y contraseña de aplicación, luego usa configure_email.' };
         }
         const transporter = nodemailer.createTransport({ host: config.host, port: config.port, secure: config.port === 465, auth: { user: config.user, pass: config.password } });
+        if (onProgress && args.attachment_paths && args.attachment_paths.length > 0) {
+          onProgress(`Cargando ${args.attachment_paths.length} archivos adjuntos...`);
+        }
         const attachments = args.attachment_paths
           ? await Promise.all(args.attachment_paths.map(async (filePath: string) => { const resolved = normalizePath(filePath); await fs.stat(resolved); return { filename: path.basename(resolved), path: resolved }; }))
           : [];
         const mailOptions: any = { from: config.defaultFrom || config.user, to: args.to, subject: args.subject, attachments };
         if (args.is_html) { mailOptions.html = args.body; } else { mailOptions.text = args.body; }
+        if (onProgress) onProgress('Enviando mensaje al servidor SMTP...');
         const info = await transporter.sendMail(mailOptions);
+        if (onProgress) onProgress('Email enviado con éxito.');
         return { success: true, message: `Email enviado exitosamente a ${args.to}`, messageId: info.messageId, to: args.to, subject: args.subject, attachmentsCount: attachments.length };
       } catch (err: any) {
         return { success: false, error: `Error al enviar email: ${err.message}` };
@@ -748,71 +800,81 @@ export async function executeToolDirect(
 
 // ─── Register IPC handlers (bridge to renderer) ─────────────────────
 export function registerComputerUseHandlers() {
-  ipcMain.handle('computer:list-screens', async () =>
-    executeToolDirect('list_screens', {}));
+  const makeProgress = (event: IpcMainInvokeEvent, toolName: string) => {
+    return (message: string) => {
+      try {
+        if (!event.sender.isDestroyed()) {
+          event.sender.send('computer:progress', { tool: toolName, message });
+        }
+      } catch { /* ignore */ }
+    };
+  };
 
-  ipcMain.handle('computer:list-processes', async () =>
-    executeToolDirect('list_processes', {}));
+  ipcMain.handle('computer:list-screens', async (event) =>
+    executeToolDirect('list_screens', {}, makeProgress(event, 'list_screens')));
 
-  ipcMain.handle('computer:kill-process', async (_, pid: number) =>
-    executeToolDirect('kill_process', { pid }));
+  ipcMain.handle('computer:list-processes', async (event) =>
+    executeToolDirect('list_processes', {}, makeProgress(event, 'list_processes')));
 
-  ipcMain.handle('computer:list-directory', async (_, dirPath: string, showHidden = false) =>
-    executeToolDirect('list_directory', { path: dirPath, show_hidden: showHidden }));
+  ipcMain.handle('computer:kill-process', async (event, pid: number) =>
+    executeToolDirect('kill_process', { pid }, makeProgress(event, 'kill_process')));
 
-  ipcMain.handle('computer:read-file', async (_, filePath: string) =>
-    executeToolDirect('read_file', { path: filePath }));
+  ipcMain.handle('computer:list-directory', async (event, dirPath: string, showHidden = false) =>
+    executeToolDirect('list_directory', { path: dirPath, show_hidden: showHidden }, makeProgress(event, 'list_directory')));
 
-  ipcMain.handle('computer:write-file', async (_, filePath: string, content: string) =>
-    executeToolDirect('write_file', { path: filePath, content }));
+  ipcMain.handle('computer:read-file', async (event, filePath: string) =>
+    executeToolDirect('read_file', { path: filePath }, makeProgress(event, 'read_file')));
 
-  ipcMain.handle('computer:create-directory', async (_, dirPath: string) =>
-    executeToolDirect('create_directory', { path: dirPath }));
+  ipcMain.handle('computer:write-file', async (event, filePath: string, content: string) =>
+    executeToolDirect('write_file', { path: filePath, content }, makeProgress(event, 'write_file')));
 
-  ipcMain.handle('computer:move-item', async (_, sourcePath: string, destPath: string) =>
-    executeToolDirect('move_item', { source_path: sourcePath, destination_path: destPath }));
+  ipcMain.handle('computer:create-directory', async (event, dirPath: string) =>
+    executeToolDirect('create_directory', { path: dirPath }, makeProgress(event, 'create_directory')));
 
-  ipcMain.handle('computer:copy-item', async (_, sourcePath: string, destPath: string) =>
-    executeToolDirect('copy_item', { source_path: sourcePath, destination_path: destPath }));
+  ipcMain.handle('computer:move-item', async (event, sourcePath: string, destPath: string) =>
+    executeToolDirect('move_item', { source_path: sourcePath, destination_path: destPath }, makeProgress(event, 'move_item')));
 
-  ipcMain.handle('computer:delete-item', async (_, itemPath: string) =>
-    executeToolDirect('delete_item', { path: itemPath }));
+  ipcMain.handle('computer:copy-item', async (event, sourcePath: string, destPath: string) =>
+    executeToolDirect('copy_item', { source_path: sourcePath, destination_path: destPath }, makeProgress(event, 'copy_item')));
 
-  ipcMain.handle('computer:get-file-info', async (_, filePath: string) =>
-    executeToolDirect('get_file_info', { path: filePath }));
+  ipcMain.handle('computer:delete-item', async (event, itemPath: string) =>
+    executeToolDirect('delete_item', { path: itemPath }, makeProgress(event, 'delete_item')));
 
-  ipcMain.handle('computer:search-files', async (_, dirPath: string, pattern: string) =>
-    executeToolDirect('search_files', { directory: dirPath, pattern }));
+  ipcMain.handle('computer:get-file-info', async (event, filePath: string) =>
+    executeToolDirect('get_file_info', { path: filePath }, makeProgress(event, 'get_file_info')));
 
-  ipcMain.handle('computer:organize-files', async (_, dirPath: string, mode?: string, rules?: Record<string, string>, dryRun?: boolean) =>
-    executeToolDirect('organize_files', { path: dirPath, mode, rules, dry_run: dryRun }));
+  ipcMain.handle('computer:search-files', async (event, dirPath: string, pattern: string) =>
+    executeToolDirect('search_files', { directory: dirPath, pattern }, makeProgress(event, 'search_files')));
 
-  ipcMain.handle('computer:batch-move-files', async (_, sourceDir: string, destDir: string, extensions?: string[], pattern?: string) =>
-    executeToolDirect('batch_move_files', { source_directory: sourceDir, destination_directory: destDir, extensions, pattern }));
+  ipcMain.handle('computer:organize-files', async (event, dirPath: string, mode?: string, rules?: Record<string, string>, dryRun?: boolean) =>
+    executeToolDirect('organize_files', { path: dirPath, mode, rules, dry_run: dryRun }, makeProgress(event, 'organize_files')));
 
-  ipcMain.handle('computer:list-directory-summary', async (_, dirPath: string) =>
-    executeToolDirect('list_directory_summary', { path: dirPath }));
+  ipcMain.handle('computer:batch-move-files', async (event, sourceDir: string, destDir: string, extensions?: string[], pattern?: string) =>
+    executeToolDirect('batch_move_files', { source_directory: sourceDir, destination_directory: destDir, extensions, pattern }, makeProgress(event, 'batch_move_files')));
 
-  ipcMain.handle('computer:execute-command', async (_, command: string) =>
-    executeToolDirect('execute_command', { command }));
+  ipcMain.handle('computer:list-directory-summary', async (event, dirPath: string) =>
+    executeToolDirect('list_directory_summary', { path: dirPath }, makeProgress(event, 'list_directory_summary')));
 
-  ipcMain.handle('computer:open-application', async (_, target: string) =>
-    executeToolDirect('open_application', { path: target }));
+  ipcMain.handle('computer:execute-command', async (event, command: string) =>
+    executeToolDirect('execute_command', { command }, makeProgress(event, 'execute_command')));
 
-  ipcMain.handle('computer:open-url', async (_, url: string) =>
-    executeToolDirect('open_url', { url }));
+  ipcMain.handle('computer:open-application', async (event, target: string) =>
+    executeToolDirect('open_application', { path: target }, makeProgress(event, 'open_application')));
 
-  ipcMain.handle('computer:get-system-info', async () =>
-    executeToolDirect('get_system_info', {}));
+  ipcMain.handle('computer:open-url', async (event, url: string) =>
+    executeToolDirect('open_url', { url }, makeProgress(event, 'open_url')));
 
-  ipcMain.handle('computer:clipboard-read', async () =>
-    executeToolDirect('clipboard_read', {}));
+  ipcMain.handle('computer:get-system-info', async (event) =>
+    executeToolDirect('get_system_info', {}, makeProgress(event, 'get_system_info')));
 
-  ipcMain.handle('computer:clipboard-write', async (_, text: string) =>
-    executeToolDirect('clipboard_write', { text }));
+  ipcMain.handle('computer:clipboard-read', async (event) =>
+    executeToolDirect('clipboard_read', {}, makeProgress(event, 'clipboard_read')));
 
-  ipcMain.handle('computer:take-screenshot', async (_, displayId?: string) =>
-    executeToolDirect('take_screenshot', { display_id: displayId }));
+  ipcMain.handle('computer:clipboard-write', async (event, text: string) =>
+    executeToolDirect('clipboard_write', { text }, makeProgress(event, 'clipboard_write')));
+
+  ipcMain.handle('computer:take-screenshot', async (event, displayId?: string) =>
+    executeToolDirect('take_screenshot', { display_id: displayId }, makeProgress(event, 'take_screenshot')));
 
   // ── confirm_action (shows native dialog) ───────────────────────
   ipcMain.handle('computer:confirm-action', async (_event, message: string) => {
@@ -826,14 +888,14 @@ export function registerComputerUseHandlers() {
   });
 
   // ── Email IPC handlers ─────────────────────────────────────────
-  ipcMain.handle('computer:get-email-config', async () =>
-    executeToolDirect('get_email_config', {}));
+  ipcMain.handle('computer:get-email-config', async (event) =>
+    executeToolDirect('get_email_config', {}, makeProgress(event, 'get_email_config')));
 
-  ipcMain.handle('computer:configure-email', async (_, email: string, password: string) =>
-    executeToolDirect('configure_email', { email, password }));
+  ipcMain.handle('computer:configure-email', async (event, email: string, password: string) =>
+    executeToolDirect('configure_email', { email, password }, makeProgress(event, 'configure_email')));
 
-  ipcMain.handle('computer:send-email', async (_, to: string, subject: string, body: string, attachmentPaths?: string[], isHtml?: boolean) =>
-    executeToolDirect('send_email', { to, subject, body, attachment_paths: attachmentPaths, is_html: isHtml }));
+  ipcMain.handle('computer:send-email', async (event, to: string, subject: string, body: string, attachmentPaths?: string[], isHtml?: boolean) =>
+    executeToolDirect('send_email', { to, subject, body, attachment_paths: attachmentPaths, is_html: isHtml }, makeProgress(event, 'send_email')));
 }
 
 // ─── Exported Tool Schemas for LLM (prevents TS2345 mismatch) ───────

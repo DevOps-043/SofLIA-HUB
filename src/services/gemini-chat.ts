@@ -129,22 +129,15 @@ export async function sendMessageStream(
 
   if (options?.personalization) {
     const p = options.personalization;
-    systemInstruction += `\n\n=== PERSONALIZACION DEL USUARIO ===
-${p.nickname ? `Nombre: "${p.nickname}"` : ''}
-${p.occupation ? `Ocupacion: ${p.occupation}` : ''}
-${p.tone ? `Tono preferido: ${p.tone}` : ''}
-${p.instructions ? `Instrucciones personalizadas: ${p.instructions}` : ''}
-=====================================`;
+    systemInstruction += `\n\n=== PERSONALIZACION DEL USUARIO ===\n${
+      p.nickname ? `Nombre: "${p.nickname}"` : ''
+    }\n${p.occupation ? `Ocupacion: ${p.occupation}` : ''}\n${
+      p.tone ? `Tono preferido: ${p.tone}` : ''
+    }\n${p.instructions ? `Instrucciones personalizadas: ${p.instructions}` : ''}\n=====================================`;
   }
 
   if (options?.irisContext) {
-    systemInstruction += `\n\n=== CONTEXTO DEL PROJECT HUB (IRIS) ===
-${options.irisContext}
-=====================================
-
-⚠️ REGLAS CRÍTICAS DE Project Hub (IRIS):
-1. **CREACIÓN DE PROYECTOS**: Si el usuario pide CREAR un proyecto o tarea con un nombre específico, DEBES usar la herramienta de creación (ej. create_iris_project). NUNCA asumas que debes mapear la información a un proyecto existente solo porque comparten similitudes, a menos que el usuario indique explícitamente agregarlo al existente.
-2. **ASIGNACIONES**: Si intentas crear una issue asignada al usuario (assignee_id) y recibes un error de base de datos (ej. permisos, foreign key, RLS), vuelve a intentar crear la issue pero enviando el campo 'assignee_id' vacío o nulo. No detengas el proceso, avisa al usuario después pero completa la creación.`;
+    systemInstruction += `\n\n=== CONTEXTO DEL PROJECT HUB (IRIS) ===\n${options.irisContext}\n=====================================\n\n⚠️ REGLAS CRÍTICAS DE Project Hub (IRIS):\n1. **CREACIÓN DE PROYECTOS**: Si el usuario pide CREAR un proyecto o tarea con un nombre específico, DEBES usar la herramienta de creación (ej. create_iris_project). NUNCA asumas que debes mapear la información a un proyecto existente solo porque comparten similitudes, a menos que el usuario indique explícitamente agregarlo al existente.\n2. **ASIGNACIONES**: Si intentas crear una issue asignada al usuario (assignee_id) y recibes un error de base de datos (ej. permisos, foreign key, RLS), vuelve a intentar crear la issue pero enviando el campo 'assignee_id' vacío o nulo. No detengas el proceso, avisa al usuario después pero completa la creación.`;
   }
 
   if (options?.toolSystemPrompt) {
@@ -411,7 +404,8 @@ ${options.irisContext}
     try {
       const response = await result.response;
       return extractSources(response);
-    } catch {
+    }
+    catch {
       return null;
     }
   })();
