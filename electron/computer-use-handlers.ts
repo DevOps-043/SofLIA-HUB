@@ -2,7 +2,7 @@
  * Computer Use IPC Handlers — Main Process
  * Provides real filesystem, shell, and system operations for SofLIA.
  */
-import { ipcMain, shell, clipboard, desktopCapturer, dialog, BrowserWindow, app, IpcMainInvokeEvent } from 'electron';
+import { ipcMain, shell, clipboard, dialog, BrowserWindow, app, IpcMainInvokeEvent, desktopCapturer } from 'electron';
 import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
 import path from 'node:path';
@@ -77,7 +77,7 @@ async function handleListScreens(): Promise<{ success: boolean; screens?: Array<
   try {
     console.log('[ComputerUse] Fetching screen sources...');
     const sources = await desktopCapturer.getSources({ types: ['screen'] });
-    const screens = sources.map(s => ({
+    const screens = sources.map((s: any) => ({
       id: s.id,
       name: s.name,
       display_id: s.display_id
@@ -628,13 +628,28 @@ export async function executeToolDirect(
       });
     }
 
+    case 'open_file_on_computer':
     case 'open_application': {
       try {
-        const result = await shell.openPath(normalizePath(args.path));
-        if (result) return { success: false, error: result };
-        return { success: true, message: `Abierto: ${args.path}` };
+        const resolvedPath = normalizePath(args.path);
+        
+        if (!fsSync.existsSync(resolvedPath)) {
+          return { 
+            success: false, 
+            error: `El archivo no existe en la ruta proporcionada: ${resolvedPath}. Verifique la ruta con search_files o list_directory e intente nuevamente.` 
+          };
+        }
+        
+        const result = await shell.openPath(resolvedPath);
+        if (result) {
+          return { 
+            success: false, 
+            error: `Error al abrir el archivo o aplicación: "${result}". Asegúrese de que la ruta sea correcta, que tenga permisos de lectura/ejecución y que el sistema operativo tenga un programa predeterminado para abrir este tipo de archivo.` 
+          };
+        }
+        return { success: true, message: `Abierto exitosamente: ${resolvedPath}` };
       } catch (err: any) {
-        return { success: false, error: err.message };
+        return { success: false, error: `Excepción al abrir el archivo: ${err.message}` };
       }
     }
 
@@ -700,37 +715,47 @@ export async function executeToolDirect(
       }
     }
 
+    case 'use_computer':
     case 'take_screenshot': {
       try {
         if (onProgress) onProgress('Iniciando captura de pantalla...');
-        const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1920, height: 1080 } });
-        if (sources.length === 0) return { success: false, error: 'No se encontraron pantallas.' };
+        
+        const sources = await desktopCapturer.getSources({ 
+          types: ['screen'],
+          thumbnailSize: { width: 1920, height: 1080 }
+        });
+        
+        if (!sources || sources.length === 0) return { success: false, error: 'No se encontraron pantallas.' };
         
         let targetSource = sources[0];
         if (args.display_id) {
-          targetSource = sources.find(s => s.display_id === args.display_id) || sources[0];
+          targetSource = sources.find((s: any) => s.display_id === args.display_id) || sources[0];
         }
 
         let axTree = undefined;
         try {
           if (onProgress) onProgress('Iniciando OCR y extracción de árbol de accesibilidad visual...');
-          const windows = BrowserWindow.getAllWindows();
-          if (windows.length > 0) {
-            const webContents = windows[0].webContents;
-            if (webContents) {
-              if (!webContents.debugger.isAttached()) {
-                webContents.debugger.attach('1.3');
+          if (typeof BrowserWindow !== 'undefined' && BrowserWindow.getAllWindows) {
+            const windows = BrowserWindow.getAllWindows();
+            if (windows.length > 0) {
+              const webContents = windows[0].webContents;
+              if (webContents) {
+                if (!webContents.debugger.isAttached()) {
+                  webContents.debugger.attach('1.3');
+                }
+                axTree = await webContents.debugger.sendCommand('Accessibility.getFullAXTree');
               }
-              axTree = await webContents.debugger.sendCommand('Accessibility.getFullAXTree');
             }
           }
         } catch (axErr: any) {
           console.error('Error fetching AXTree:', axErr);
         }
 
+        const imageBase64 = targetSource.thumbnail.toDataURL();
+
         return { 
           success: true, 
-          image: targetSource.thumbnail.toDataURL(),
+          image: imageBase64,
           axTree
         };
       } catch (err: any) {
@@ -861,6 +886,9 @@ export function registerComputerUseHandlers() {
   ipcMain.handle('computer:open-application', async (event, target: string) =>
     executeToolDirect('open_application', { path: target }, makeProgress(event, 'open_application')));
 
+  ipcMain.handle('computer:open-file-on-computer', async (event, target: string) =>
+    executeToolDirect('open_file_on_computer', { path: target }, makeProgress(event, 'open_file_on_computer')));
+
   ipcMain.handle('computer:open-url', async (event, url: string) =>
     executeToolDirect('open_url', { url }, makeProgress(event, 'open_url')));
 
@@ -872,6 +900,9 @@ export function registerComputerUseHandlers() {
 
   ipcMain.handle('computer:clipboard-write', async (event, text: string) =>
     executeToolDirect('clipboard_write', { text }, makeProgress(event, 'clipboard_write')));
+
+  ipcMain.handle('computer:use-computer', async (event, args: any) =>
+    executeToolDirect('use_computer', args, makeProgress(event, 'use_computer')));
 
   ipcMain.handle('computer:take-screenshot', async (event, displayId?: string) =>
     executeToolDirect('take_screenshot', { display_id: displayId }, makeProgress(event, 'take_screenshot')));
