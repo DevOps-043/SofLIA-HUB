@@ -880,7 +880,7 @@ Patrón detectado: se supone que
 - **Run ID**: `run_1772289326687`
 - **Timestamp**: 2026-02-28T14:50:56.558Z
 - **Categoría**: coding_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772320415335` — 2026-02-28)
 
 ### Descripción
 
@@ -892,7 +892,7 @@ AutoDev generó código truncado para electron/computer-use-handlers.ts. El arch
 - **Run ID**: `run_1772289326687`
 - **Timestamp**: 2026-02-28T15:03:55.620Z
 - **Categoría**: coding_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772320415335` — 2026-02-28)
 
 ### Descripción
 
