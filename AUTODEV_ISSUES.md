@@ -880,7 +880,7 @@ Patrón detectado: se supone que
 - **Run ID**: `run_1772289326687`
 - **Timestamp**: 2026-02-28T14:50:56.558Z
 - **Categoría**: coding_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772325230504` — 2026-03-01)
 
 ### Descripción
 
@@ -892,10 +892,67 @@ AutoDev generó código truncado para electron/computer-use-handlers.ts. El arch
 - **Run ID**: `run_1772289326687`
 - **Timestamp**: 2026-02-28T15:03:55.620Z
 - **Categoría**: coding_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772325230504` — 2026-03-01)
 
 ### Descripción
 
 AutoDev generó código truncado para electron/autonomous-janitor.ts. El archivo tiene llaves desbalanceadas o terminación incompleta.
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-03-01
+
+- **Timestamp**: 2026-03-01T04:38:49.162Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `open_file_on_computer` falló con error: Failed to open path
+
+- **Herramienta**: `open_file_on_computer`
+- **Error**: Failed to open path
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [🖥️ FALLA COMPUTER USE] — 2026-03-01
+
+- **Timestamp**: 2026-03-01T04:39:37.688Z
+- **Fuente**: computer_use
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Computer Use no pudo completar la tarea: "Abrir el archivo 'Suarez_Gonzalez_Fernando_Yael.pdf' desde la ruta C:\Usuarios\fysg5\Downloads\Suarez_Gonzalez_Fernando_Yael.pdf, ir a la sección de estados de resultados y analizar la estructura de l"
+
+- **Herramienta**: `use_computer`
+- **Error**: Cannot read properties of undefined (reading 'getSources')
+### Contexto
+
+```
+Tarea solicitada: Abrir el archivo 'Suarez_Gonzalez_Fernando_Yael.pdf' desde la ruta C:\Usuarios\fysg5\Downloads\Suarez_Gonzalez_Fernando_Yael.pdf, ir a la sección de estados de resultados y analizar la estructura de los estados de resultados del primer y segundo periodo para identificar ingresos, costos, gastos, y el cálculo de la utilidad bruta y neta.
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-03-01
+
+- **Timestamp**: 2026-03-01T04:41:57.359Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `open_file_on_computer` falló con error: Failed to open path
+
+- **Herramienta**: `open_file_on_computer`
+- **Error**: Failed to open path
+### Contexto
+
+```
+Args: {}
+```
 
 ---
