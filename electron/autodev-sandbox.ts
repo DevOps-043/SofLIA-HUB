@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import { shell } from 'electron';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
+import { analyzeSuspiciousUrl } from './safe-browser-tool';
+
+const execAsync = promisify(exec);
 
 export interface ToolErrorResponse {
   error: boolean | string;
@@ -21,8 +27,113 @@ export const ToolSchemas = {
   fileOperation: z.object({
     path: z.string(),
     content: z.string().optional()
+  }),
+  open_file_on_computer: z.object({
+    path: z.string()
+  }),
+  open_application: z.object({
+    path: z.string()
+  }),
+  analyze_suspicious_link: z.object({
+    url: z.string().url("Debe ser una URL válida")
   })
 };
+
+// Constante de herramientas declaradas del LLM (formato OpenAI/Gemini)
+export const AUTODEV_SANDBOX_TOOLS = [
+  {
+    name: 'analyze_suspicious_link',
+    description: 'Abre un navegador seguro (aislado) para analizar una URL sospechosa, retornando metadatos de seguridad y adjuntando una captura visual.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        url: {
+          type: 'STRING',
+          description: 'URL completa a analizar de forma segura'
+        }
+      },
+      required: ['url']
+    }
+  }
+];
+
+/**
+ * Analiza un enlace sospechoso en un entorno aislado usando Safe Browser Tool.
+ */
+export async function analyze_suspicious_link(input: { url: string }) {
+  try {
+    const result = await analyzeSuspiciousUrl(input.url);
+    // Devuelve un string que integra "[Captura Visual Adjunta]" para que el LLM lo sepa
+    return `[Captura Visual Adjunta]\nMetadatos de seguridad analizados:\n${JSON.stringify(result, null, 2)}`;
+  } catch (err: any) {
+    throw new Error(`Error al analizar enlace sospechoso: ${err.message || String(err)}`);
+  }
+}
+
+/**
+ * Abre un archivo en el equipo del usuario usando la aplicación predeterminada.
+ */
+export async function open_file_on_computer(input: { path: string }) {
+  try {
+    const errorMsg = await shell.openPath(input.path);
+    if (errorMsg) {
+      throw new Error(`Error al abrir archivo: ${errorMsg}`);
+    }
+    return { success: true, message: `Archivo abierto exitosamente: ${input.path}` };
+  } catch (err: any) {
+    const errorString = err.message || String(err);
+    if (
+      errorString.toLowerCase().includes('uac') ||
+      errorString.toLowerCase().includes('canceled') ||
+      errorString.toLowerCase().includes('cancelled') ||
+      errorString.toLowerCase().includes('eacces') ||
+      errorString.toLowerCase().includes('permisos') ||
+      errorString.toLowerCase().includes('elevation')
+    ) {
+      return { 
+        success: false, 
+        error: "Acción cancelada por el usuario o permisos insuficientes", 
+        fixSuggestion: "Prueba con otra aplicación o notifica al usuario por WhatsApp" 
+      };
+    }
+    throw err;
+  }
+}
+
+/**
+ * Abre una aplicación en el equipo del usuario, manejando correctamente posibles rechazos de UAC.
+ */
+export async function open_application(input: { path: string }) {
+  try {
+    const errorMsg = await shell.openPath(input.path);
+    if (errorMsg) {
+      // Fallback a exec si shell.openPath falla (ej. ejecutables complejos)
+      try {
+        await execAsync(`"${input.path}"`);
+      } catch (execErr: any) {
+        throw new Error(`shell.openPath error: ${errorMsg} | exec error: ${execErr.message}`);
+      }
+    }
+    return { success: true, message: `Aplicación iniciada exitosamente: ${input.path}` };
+  } catch (err: any) {
+    const errorString = err.message || String(err);
+    if (
+      errorString.toLowerCase().includes('uac') ||
+      errorString.toLowerCase().includes('canceled by the user') ||
+      errorString.toLowerCase().includes('cancelled') ||
+      errorString.toLowerCase().includes('eacces') ||
+      errorString.toLowerCase().includes('permisos') ||
+      errorString.toLowerCase().includes('requires elevation')
+    ) {
+      return { 
+        success: false, 
+        error: "Acción cancelada por el usuario o permisos insuficientes", 
+        fixSuggestion: "Prueba con otra aplicación o notifica al usuario por WhatsApp" 
+      };
+    }
+    throw err;
+  }
+}
 
 /**
  * Middleware para validar y sanitizar el input de la herramienta,
@@ -68,7 +179,7 @@ export function validateToolInput<T>(input: any, schema: any): T {
   const sanitize = (val: any): any => {
     if (typeof val === 'string') {
       // Elimina &, |, ;, $, `
-      return val.replace(/[&|;\$`]/g, '');
+      return val.replace(/[&|;$`]/g, '');
     }
     if (Array.isArray(val)) {
       return val.map(sanitize);
@@ -168,7 +279,14 @@ export class ToolSandbox {
         const input = args[1];
         const customSchema = args[2];
 
-        const tool = toolsMap?.[toolName];
+        // Herramientas builtin del Sandbox para manejo seguro
+        const builtinTools: Record<string, ToolFunction> = {
+          open_file_on_computer,
+          open_application,
+          analyze_suspicious_link
+        };
+
+        const tool = toolsMap?.[toolName] || builtinTools[toolName];
         if (!tool || typeof tool !== 'function') {
           throw new Error(`Herramienta desconocida: ${toolName}`);
         }
@@ -178,7 +296,7 @@ export class ToolSandbox {
 
         if (schema) {
           // Explicitar el parámetro genérico para evitar TS2558 
-          validatedInput = validateToolInput<any>(input, schema);
+          validatedInput = validateToolInput<unknown>(input, schema);
         }
 
         return await tool(validatedInput);

@@ -355,6 +355,27 @@ ipcMain.handle('get-screen-sources', async () => {
   } catch (err) { return [] }
 })
 
+ipcMain.handle('get-desktop-sources', async (_event, options?: any) => {
+  try {
+    const types = options?.types || ['screen', 'window']
+    const thumbnailSize = options?.thumbnailSize || { width: 1280, height: 720 }
+    
+    const sources = await desktopCapturer.getSources({
+      types,
+      thumbnailSize
+    })
+    
+    return sources.map(source => ({
+      id: source.id,
+      name: source.name,
+      thumbnail: source.thumbnail.toDataURL()
+    }))
+  } catch (err: any) {
+    console.error('[Main] Error en get-desktop-sources:', err.message)
+    return []
+  }
+})
+
 ipcMain.on('flow-send-to-chat', (_event, text) => {
   if (win) {
     if (!win.isVisible()) win.show();
