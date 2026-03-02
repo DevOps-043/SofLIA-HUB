@@ -964,3 +964,98 @@ Args: {}
 ```
 
 ---
+## ❌ [🖥️ FALLA COMPUTER USE] — 2026-03-01
+
+- **Timestamp**: 2026-03-01T20:26:27.181Z
+- **Fuente**: computer_use
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Computer Use no pudo completar la tarea: "Abre la calculadora, suma 389 y 540, y dime el resultado."
+
+- **Herramienta**: `use_computer`
+- **Error**: Cannot read properties of undefined (reading 'getSources')
+### Contexto
+
+```
+Tarea solicitada: Abre la calculadora, suma 389 y 540, y dime el resultado.
+```
+
+---
+## ❌ [🖥️ FALLA COMPUTER USE] — 2026-03-01
+
+- **Timestamp**: 2026-03-01T20:47:04.662Z
+- **Fuente**: computer_use
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Computer Use no pudo completar la tarea: "Abre la aplicación Calculadora, luego ingresa 389, haz clic en el botón de sumar, ingresa 540 y finalmente haz clic en el botón de igual para ver el resultado."
+
+- **Herramienta**: `use_computer`
+- **Error**: Cannot read properties of undefined (reading 'getSources')
+### Contexto
+
+```
+Tarea solicitada: Abre la aplicación Calculadora, luego ingresa 389, haz clic en el botón de sumar, ingresa 540 y finalmente haz clic en el botón de igual para ver el resultado.
+```
+
+---
+## ❌ [🖥️ FALLA COMPUTER USE] — 2026-03-02
+
+- **Timestamp**: 2026-03-02T04:34:53.924Z
+- **Fuente**: computer_use
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Computer Use no pudo completar la tarea: "Error en paso 0: Cannot read properties of undefined (reading 'getSources')"
+
+- **Herramienta**: `use_computer`
+- **Error**: Error en paso 0: Cannot read properties of undefined (reading 'getSources')
+### Contexto
+
+```
+Tarea solicitada: Error en paso 0: Cannot read properties of undefined (reading 'getSources')
+```
+
+---
+## ❌ [🖥️ FALLA COMPUTER USE] — 2026-03-02
+
+- **Timestamp**: 2026-03-02T04:34:53.929Z
+- **Fuente**: computer_use
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Computer Use no pudo completar la tarea: "Abre la aplicación "Calculadora" y suma 389 más 540."
+
+- **Herramienta**: `use_computer`
+- **Error**: Cannot read properties of undefined (reading 'getSources')
+### Contexto
+
+```
+Tarea solicitada: Abre la aplicación "Calculadora" y suma 389 más 540.
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-03-02
+
+- **Timestamp**: 2026-03-02T04:35:55.015Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `open_application` falló con error: Acción cancelada por el usuario.
+
+- **Herramienta**: `open_application`
+- **Error**: Acción cancelada por el usuario.
+### Contexto
+
+```
+Args: {}
+```
+
+---

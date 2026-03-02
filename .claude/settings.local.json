@@ -35,7 +35,11 @@
       "Bash(npm ls:*)",
       "Bash(git log --oneline autodev/2026-02-28T09-05-34--sxddd --not main)",
       "Bash(git log --oneline autodev/2026-02-28T02-37-06--a3u89 --not main)",
-      "Bash(git checkout -- electron/computer-use-handlers.ts)"
+      "Bash(git checkout -- electron/computer-use-handlers.ts)",
+      "WebFetch(domain:developers.openai.com)",
+      "WebFetch(domain:workos.com)",
+      "WebFetch(domain:www.arunbaby.com)",
+      "Bash(awk 'NR >= 1010 && NR <= 1015' \"/c/Users/fysg5/OneDrive/Escritorio/Pulse Hub/SofLIA - Hub/SofLIA-HUB/electron/desktop-agent-service.ts\")"
     ]
   }
 }

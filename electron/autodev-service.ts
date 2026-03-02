@@ -965,7 +965,22 @@ export class AutoDevService extends EventEmitter {
       if (currentBranch === this.config.targetBranch || currentBranch === 'master') {
         if (run.branchName) {
           console.warn(`[AutoDev] Safety: detected we are on ${currentBranch}, switching to work branch ${run.branchName}`);
-          try { await this.git.switchBranch(run.branchName); } catch (switchErr: any) {
+          try {
+            // Stash any dirty files before switching so checkout doesn't fail
+            const hasChanges = await this.git.hasUncommittedChanges();
+            if (hasChanges) {
+              console.log(`[AutoDev] Stashing uncommitted changes before branch switch...`);
+              await this.git.exec('stash', ['push', '-m', `autodev-safety-${run.id}`]);
+            }
+            await this.git.switchBranch(run.branchName);
+            if (hasChanges) {
+              try { await this.git.exec('stash', ['pop']); } catch {
+                console.warn('[AutoDev] Stash pop failed — changes may already be on work branch');
+              }
+            }
+          } catch (switchErr: any) {
+            // Try to recover: pop stash back if we stashed
+            try { await this.git.exec('stash', ['pop']); } catch {}
             run.status = 'failed';
             run.error = `Cannot switch to work branch ${run.branchName}: ${switchErr.message}`;
             return;
@@ -1354,10 +1369,20 @@ export class AutoDevService extends EventEmitter {
     console.log('[AutoDev Micro] ═══ Phase 3: Build Verify ═══');
     this.updateRunStatus(run, 'verifying');
 
-    // Ensure we're on the work branch
+    // Ensure we're on the work branch (stash dirty files first to avoid checkout failure)
     const currentBranch = await this.git.getCurrentBranch();
     if (currentBranch === this.config.targetBranch || currentBranch === 'master') {
-      try { await this.git.switchBranch(run.branchName!); } catch (err: any) {
+      try {
+        const hasChanges = await this.git.hasUncommittedChanges();
+        if (hasChanges) {
+          await this.git.exec('stash', ['push', '-m', `autodev-micro-safety-${run.id}`]);
+        }
+        await this.git.switchBranch(run.branchName!);
+        if (hasChanges) {
+          try { await this.git.exec('stash', ['pop']); } catch {}
+        }
+      } catch (err: any) {
+        try { await this.git.exec('stash', ['pop']); } catch {}
         run.status = 'failed';
         run.error = `Cannot switch to work branch: ${err.message}`;
         return;
@@ -2135,8 +2160,11 @@ ${diff.slice(0, 50000)}
     const { execFile } = await import('node:child_process');
     const { promisify } = await import('node:util');
     try {
-      await promisify(execFile)('npm', ['run', 'build'], {
-        cwd: this.repoPath, timeout: 180_000, maxBuffer: 10 * 1024 * 1024, shell: true,
+      // Use tsc --noEmit for type checking only (fast, no side effects)
+      // Full `npm run build` includes electron-builder which packages the app,
+      // is very slow, and can interfere with git state
+      await promisify(execFile)('npx', ['tsc', '--noEmit'], {
+        cwd: this.repoPath, timeout: 120_000, maxBuffer: 10 * 1024 * 1024, shell: true,
       });
       console.log('[AutoDev TesterAgent] Build passed.');
 

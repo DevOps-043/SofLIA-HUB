@@ -436,12 +436,12 @@ const WA_TOOL_DECLARATIONS = {
     // ─── Computer Use ───────────────────────────────────────────
     {
       name: 'use_computer',
-      description: 'Agente autónomo de escritorio: ve la pantalla en tiempo real, hace clicks, doble-click, click derecho, ARRASTRA objetos, escribe texto, presiona teclas, gestiona ventanas, navega diálogos de archivos. Se adapta proactivamente: si algo sale mal, se recupera automáticamente. Hasta 60 pasos. Usa esto para TODA interacción visual: formularios, instaladores, emails con adjuntos, arrastrar archivos, navegar carpetas, cualquier cosa que un usuario haría manualmente.',
+      description: 'Agente autónomo de escritorio V2: ve la pantalla en tiempo real con precisión mejorada (grid de coordenadas + Set-of-Marks + zoom de regiones). Hace clicks, doble-click, click derecho, ARRASTRA objetos, escribe texto, presiona teclas, gestiona ventanas. Se adapta proactivamente con planificación jerárquica (fases + sub-objetivos), verificación automática de acciones, y recuperación inteligente. Soporta tareas largas (200+ pasos) con resumen automático del historial. Reporta progreso en tiempo real.',
       parameters: {
         type: 'OBJECT' as const,
         properties: {
-          task: { type: 'STRING' as const, description: 'Descripción detallada de la tarea. Sé muy específico. Ej: "Escribe un correo en Gmail a juan@gmail.com con asunto Reporte, escribe el cuerpo, adjunta el archivo reporte.xlsx desde Documentos, y envíalo", "Instala la aplicación haciendo click en Next, Accept, Install"' },
-          max_steps: { type: 'NUMBER' as const, description: 'Máximo de pasos (defecto 60). Usa más para tareas complejas como instaladores o workflows largos.' },
+          task: { type: 'STRING' as const, description: 'Descripción detallada de la tarea. Sé muy específico. Ej: "Escribe un correo en Gmail a juan@gmail.com con asunto Reporte, escribe el cuerpo, adjunta el archivo reporte.xlsx desde Documentos, y envíalo", "Instala la aplicación haciendo click en Next, Accept, Install", "Abre Minecraft, crea un mundo nuevo, y construye una casa de madera"' },
+          max_steps: { type: 'NUMBER' as const, description: 'Máximo de pasos (defecto 200). Usa 300-500 para tareas muy complejas como juegos o workflows largos.' },
         },
         required: ['task'],
       },
@@ -2175,14 +2175,38 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
           continue;
         }
 
-        // Handle use_computer — autonomous desktop agent with proactive recovery
+        // Handle use_computer — autonomous desktop agent with proactive recovery + V2 progress reporting
         if (toolName === 'use_computer') {
           try {
             if (!this.desktopAgent) throw new Error('Desktop Agent no inicializado.');
+
+            // V2: Set up progress reporting for long tasks
+            const progressInterval = this.desktopAgent.getConfig().progressReportEveryNSteps || 25;
+            const onStep = async (data: any) => {
+              if (data.step % progressInterval === 0 && data.step > 0) {
+                try {
+                  const progressMsg = `🖥️ Progreso: paso ${data.step}/${data.maxSteps}\n${data.action?.message || ''}`;
+                  await this.waService.sendText(jid, progressMsg);
+                } catch { /* progress report is best-effort */ }
+              }
+            };
+            const onPhase = async (data: any) => {
+              try {
+                const phaseMsg = `✅ Fase completada: ${data.phase?.name || 'Fase'}\nProgreso: ${data.phaseIndex + 1}/${data.totalPhases}${data.nextPhase ? `\nSiguiente: ${data.nextPhase.name}` : '\n🏁 Última fase completada'}`;
+                await this.waService.sendText(jid, phaseMsg);
+              } catch { /* phase report is best-effort */ }
+            };
+            this.desktopAgent.on('step', onStep);
+            this.desktopAgent.on('phase-completed', onPhase);
+
             const result = await this.desktopAgent.executeTask(
               toolArgs.task,
               { maxSteps: toolArgs.max_steps },
             );
+
+            this.desktopAgent.removeListener('step', onStep);
+            this.desktopAgent.removeListener('phase-completed', onPhase);
+
             functionResponses.push({
               functionResponse: { name: toolName, response: { success: true, message: result } },
             });

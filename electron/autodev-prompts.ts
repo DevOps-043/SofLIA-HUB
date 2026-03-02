@@ -521,8 +521,26 @@ Archivo: {FILE_PATH}
 3. Preload: agrega canales a ALLOWED_IPC_CHANNELS en preload.ts
 4. Renderer: wrapper tipado en src/services/nombre-service.ts
 
+### ⛔ SEPARACIÓN ESTRICTA Main Process vs Renderer (Electron)
+Los archivos en \`electron/\` se ejecutan en el **Main Process** (Node.js).
+Los archivos en \`src/\` se ejecutan en el **Renderer Process** (navegador).
+
+**En archivos \`electron/*.ts\` (Main Process) NUNCA uses:**
+- \`ipcRenderer\` — solo existe en el renderer. Usa \`ipcMain.handle()\` en su lugar.
+- \`window\`, \`document\`, \`navigator\` — son APIs del navegador.
+- Imports de \`src/\` — el main process no puede importar código del renderer.
+
+**En archivos \`src/*.ts\` (Renderer) NUNCA uses:**
+- \`ipcMain\` — solo existe en el main process.
+- \`fs\`, \`path\`, \`child_process\`, \`os\` — son módulos de Node.js no disponibles en el renderer.
+- \`desktopCapturer\` directamente — desde Electron 17+, solo funciona via main process.
+- Imports de \`electron/\` — el renderer no puede importar código del main process.
+
+**Toda comunicación entre procesos va por IPC a través de preload.ts y ALLOWED_IPC_CHANNELS.**
+
 ### Para módulos nativos del sistema:
 - Usa SOLO los módulos de Node.js: os, fs, path, child_process, net, crypto, util
+- Estos módulos SOLO funcionan en archivos \`electron/*.ts\` (Main Process)
 - Para Windows: usa wmic, tasklist, PowerShell via child_process
 - Para info del sistema: os.cpus(), os.totalmem(), os.freemem(), os.platform(), os.uptime()
 - Para procesos: execSync('tasklist /FO CSV') en Windows
@@ -589,6 +607,7 @@ Si el diff está vacío o no tiene cambios significativos, APRUEBA con un warnin
 4. Se cambió package.json con major version bump — SIEMPRE rechazar
 5. El código no compila (imports inexistentes, tipos incorrectos)
 6. Se importan módulos con rutas relativas que NO existen en el proyecto (phantom imports)
+7. **Violación de arquitectura Electron**: ipcRenderer usado en archivos electron/*.ts (main process), o ipcMain/fs/child_process usado en archivos src/*.ts (renderer). Cada proceso tiene sus APIs — mezclarlas causa crashes en runtime
 
 ### Criterios de APROBACIÓN:
 - Cambios incrementales, seguros, que no rompen nada → APRUEBA

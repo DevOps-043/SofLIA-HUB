@@ -40,6 +40,7 @@ export default defineConfig({
                 "@google/generative-ai",
                 "dotenv",
                 "better-sqlite3",
+                "sharp",
               ],
             },
           },

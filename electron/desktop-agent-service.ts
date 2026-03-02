@@ -17,25 +17,22 @@
 import { EventEmitter } from 'node:events';
 import { exec as execCb } from 'node:child_process';
 import { promisify } from 'node:util';
+import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { desktopCapturer, screen as electronScreen, clipboard as electronClipboard, app as electronApp } from 'electron';
 
 const execAsync = promisify(execCb);
 
-// Conditional Electron imports (service may be tested outside Electron)
-let desktopCapturer: any;
-let electronScreen: any;
-let electronClipboard: any;
-let electronApp: any;
+// Sharp: native module that must be loaded via require() (not ES import)
+// Uses createRequire to get a working require() in ESM context
+let sharpModule: any = null;
 try {
-  const electron = require('electron');
-  desktopCapturer = electron.desktopCapturer;
-  electronScreen = electron.screen;
-  electronClipboard = electron.clipboard;
-  electronApp = electron.app;
-} catch {
-  // Running outside Electron
+  const _require = createRequire(import.meta.url);
+  sharpModule = _require('sharp');
+} catch (err: any) {
+  console.warn('[DesktopAgent] sharp not available — overlays disabled:', err.message);
 }
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -53,20 +50,33 @@ export interface DesktopAgentConfig {
   model: string;
   fallbackModel: string;
   // ─── Proactive & Adaptive ───────────────────────────────────────
-  maxConsecutiveFailures: number;    // Max failed actions before re-planning (default 3)
-  stuckDetectionThreshold: number;   // Same screenshot hash N times → stuck (default 4)
-  autoRecoverFromDialogs: boolean;   // Auto-dismiss unexpected popups/dialogs (default true)
-  replanOnStuck: boolean;            // Re-analyze and re-plan when stuck (default true)
-  maxRetryPerAction: number;         // Retry a failed action N times with adjusted coords (default 2)
-  proactiveModel: string;            // Model for re-planning and recovery (uses PRO for harder reasoning)
+  maxConsecutiveFailures: number;
+  stuckDetectionThreshold: number;
+  autoRecoverFromDialogs: boolean;
+  replanOnStuck: boolean;
+  maxRetryPerAction: number;
+  proactiveModel: string;
   // ─── Multi-Agent ──────────────────────────────────────────────────
-  maxConcurrentAgents: number;       // Max parallel agent tasks (default 3)
+  maxConcurrentAgents: number;
+  // ─── V2: Precision & Long Tasks ─────────────────────────────────
+  gridEnabled: boolean;              // Coordinate grid overlay on screenshots (default true)
+  gridStep: number;                  // Grid line spacing in pixels (default 100)
+  zoomEnabled: boolean;              // Allow LLM to request zoom on regions (default true)
+  zoomResolution: number;            // Zoom crop output size in px (default 512)
+  verificationEnabled: boolean;      // Pre/post screenshot comparison (default true)
+  maxTotalSteps: number;             // Hard limit for long tasks (default 500)
+  summarizeEveryNSteps: number;      // Summarize history every N steps (default 15)
+  maxRawHistorySteps: number;        // Raw steps kept in context (default 8)
+  hierarchicalPlanningEnabled: boolean; // Two-level strategic planner (default true)
+  progressReportEveryNSteps: number; // WhatsApp progress interval (default 25)
+  somEnabled: boolean;               // Set-of-Marks UI element detection (default true)
+  somFallbackToGrid: boolean;        // Fall back to grid if <3 SoM elements (default true)
 }
 
 const DEFAULT_CONFIG: DesktopAgentConfig = {
-  maxSteps: 60,
-  screenshotWidth: 1280,
-  screenshotHeight: 720,
+  maxSteps: 200,
+  screenshotWidth: 1024,
+  screenshotHeight: 768,
   defaultActionDelay: 300,
   waitForChangeTimeout: 8000,
   waitForChangeInterval: 500,
@@ -82,6 +92,19 @@ const DEFAULT_CONFIG: DesktopAgentConfig = {
   maxRetryPerAction: 2,
   proactiveModel: 'gemini-3-pro-preview',
   maxConcurrentAgents: 3,
+  // V2 defaults
+  gridEnabled: true,
+  gridStep: 100,
+  zoomEnabled: true,
+  zoomResolution: 512,
+  verificationEnabled: true,
+  maxTotalSteps: 500,
+  summarizeEveryNSteps: 15,
+  maxRawHistorySteps: 8,
+  hierarchicalPlanningEnabled: true,
+  progressReportEveryNSteps: 25,
+  somEnabled: true,
+  somFallbackToGrid: true,
 };
 
 export type DesktopAction =
@@ -91,6 +114,7 @@ export type DesktopAction =
   | 'wait' | 'wait_for_change' | 'wait_for_window'
   | 'focus_window' | 'minimize_window' | 'maximize_window'
   | 'restore_window' | 'close_window'
+  | 'zoom' | 'click_element' | 'type_in_element'
   | 'done' | 'fail';
 
 export interface DesktopActionPayload {
@@ -107,6 +131,12 @@ export interface DesktopActionPayload {
   message: string;
   subGoal?: string;
   confidence?: number;
+  // V2: Zoom
+  zoomX?: number;
+  zoomY?: number;
+  zoomRadius?: number;
+  // V2: Set-of-Marks element targeting
+  elementId?: number;
 }
 
 interface ActionHistoryEntry {
@@ -116,7 +146,8 @@ interface ActionHistoryEntry {
   success: boolean;
   errorMessage?: string;
   screenshotHash?: string;
-  wasRecovery?: boolean;    // True if this action was a recovery/adaptation step
+  wasRecovery?: boolean;
+  verificationFailed?: boolean;  // V2: post-action verification
 }
 
 interface TaskPlan {
@@ -124,7 +155,43 @@ interface TaskPlan {
   subGoals: string[];
   currentSubGoalIndex: number;
   estimatedSteps: number;
-  replannedCount: number;   // How many times we've re-planned
+  replannedCount: number;
+}
+
+// V2: Hierarchical Strategic Plan
+interface StrategicPlan {
+  goal: string;
+  phases: TaskPhase[];
+  currentPhaseIndex: number;
+  totalEstimatedSteps: number;
+}
+
+interface TaskPhase {
+  name: string;
+  description: string;
+  successCriteria: string;
+  subGoals: string[];
+  currentSubGoalIndex: number;
+  estimatedSteps: number;
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  startStep?: number;
+  endStep?: number;
+}
+
+// V2: UI Automation element
+export interface UIElement {
+  id: number;
+  name: string;
+  controlType: string;
+  boundingRect: { x: number; y: number; width: number; height: number };
+  isEnabled: boolean;
+}
+
+// V2: History summary
+interface HistorySummary {
+  fromStep: number;
+  toStep: number;
+  summary: string;
 }
 
 export type AgentStatus = 'idle' | 'executing' | 'observing' | 'planning' | 'waiting' | 'recovering';
@@ -247,6 +314,15 @@ export class DesktopAgentService extends EventEmitter {
   private genAI: GoogleGenerativeAI | null = null;
   private recovery: RecoveryContext = { consecutiveFailures: 0, sameScreenCount: 0, lastScreenHash: '', totalRecoveries: 0, lastRecoveryStep: -10 };
 
+  // ─── V2: Advanced Features ──────────────────────────────────────────
+  private strategicPlan: StrategicPlan | null = null;
+  private historySummaries: HistorySummary[] = [];
+  private lastZoomImage: string | null = null;
+  private currentUIElements: UIElement[] = [];
+  private captureMode: 'som' | 'grid' = 'grid';
+  private lastActualScreenshotWidth = 0;
+  private lastActualScreenshotHeight = 0;
+
   // ─── Multi-Agent Registry ─────────────────────────────────────────
   private activeTasks: Map<string, AgentTask> = new Map();
   private taskIdCounter = 0;
@@ -356,8 +432,231 @@ export class DesktopAgentService extends EventEmitter {
       thumbnailSize: size,
     });
     if (sources.length === 0) throw new Error('No se encontraron pantallas.');
-    const dataUrl = sources[0].thumbnail.toDataURL();
-    return dataUrl.replace(/^data:image\/png;base64,/, '');
+    const thumbnail = sources[0].thumbnail;
+    const actualSize = thumbnail.getSize();
+    const dataUrl = thumbnail.toDataURL();
+    const rawBase64 = dataUrl.replace(/^data:image\/png;base64,/, '');
+
+    // Update screen scale based on ACTUAL thumbnail dimensions (may differ from requested)
+    if (!fullRes) {
+      this.updateScreenScale(actualSize.width, actualSize.height);
+    }
+
+    // V2: Apply grid overlay for coordinate reference
+    if (this.config.gridEnabled && !fullRes) {
+      try {
+        return await this.applyGridOverlay(rawBase64, actualSize.width, actualSize.height);
+      } catch (err: any) {
+        console.warn(`[DesktopAgent] Grid overlay falló, usando raw:`, err.message);
+        return rawBase64; // Fallback to raw if sharp fails
+      }
+    }
+    return rawBase64;
+  }
+
+  // V2: Apply Set-of-Marks overlay if elements are available, otherwise grid
+  async takeScreenshotWithMarks(): Promise<{ screenshot: string; elements: UIElement[]; mode: 'som' | 'grid' }> {
+    const rawScreenshot = await this.takeScreenshotRaw();
+    const width = this.config.screenshotWidth;
+    const height = this.config.screenshotHeight;
+
+    if (this.config.somEnabled) {
+      try {
+        const elements = await this.getUIElements();
+        if (elements.length >= 3) {
+          const marked = await this.applySoMOverlay(rawScreenshot, width, height, elements);
+          this.currentUIElements = elements;
+          this.captureMode = 'som';
+          return { screenshot: marked, elements, mode: 'som' };
+        }
+      } catch (err: any) { console.warn(`[DesktopAgent] SoM overlay falló, fallback a grid:`, err.message); }
+    }
+
+    // Fallback to grid
+    this.currentUIElements = [];
+    this.captureMode = 'grid';
+    const gridded = this.config.gridEnabled
+      ? await this.applyGridOverlay(rawScreenshot, width, height).catch((err: any) => { console.warn(`[DesktopAgent] Grid fallback falló:`, err.message); return rawScreenshot; })
+      : rawScreenshot;
+    return { screenshot: gridded, elements: [], mode: 'grid' };
+  }
+
+  // Raw screenshot without overlays
+  private async takeScreenshotRaw(): Promise<string> {
+    const size = { width: this.config.screenshotWidth, height: this.config.screenshotHeight };
+    const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: size });
+    if (sources.length === 0) throw new Error('No se encontraron pantallas.');
+    const thumbnail = sources[0].thumbnail;
+    const actualSize = thumbnail.getSize();
+    this.updateScreenScale(actualSize.width, actualSize.height);
+    return thumbnail.toDataURL().replace(/^data:image\/png;base64,/, '');
+  }
+
+  // V2: Grid overlay using sharp (ported from monitoring-service.ts)
+  private async applyGridOverlay(base64: string, _width: number, _height: number): Promise<string> {
+    if (!sharpModule) return base64; // Sharp not available — return raw
+    const pngBuffer = Buffer.from(base64, 'base64');
+    // Read ACTUAL image dimensions (desktopCapturer may not respect thumbnailSize)
+    const meta = await sharpModule(pngBuffer).metadata();
+    const width = meta.width || _width;
+    const height = meta.height || _height;
+
+    const step = this.config.gridStep;
+    let svgElements = '';
+    for (let x = 0; x < width; x += step) {
+      svgElements += `<line x1="${x}" y1="0" x2="${x}" y2="${height}" stroke="rgba(255, 0, 0, 0.2)" stroke-width="1" />`;
+      svgElements += `<text x="${x + 2}" y="12" fill="rgba(255, 0, 0, 0.6)" font-size="10" font-family="monospace">${x}</text>`;
+    }
+    for (let y = 0; y < height; y += step) {
+      svgElements += `<line x1="0" y1="${y}" x2="${width}" y2="${y}" stroke="rgba(255, 0, 0, 0.2)" stroke-width="1" />`;
+      svgElements += `<text x="2" y="${y + 12}" fill="rgba(255, 0, 0, 0.6)" font-size="10" font-family="monospace">${y}</text>`;
+    }
+    const svgOverlay = Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">${svgElements}</svg>`);
+    const result = await sharpModule(pngBuffer).composite([{ input: svgOverlay, top: 0, left: 0 }]).toBuffer();
+    return result.toString('base64');
+  }
+
+  // V2: Set-of-Marks overlay with numbered bounding boxes
+  private async applySoMOverlay(base64: string, _width: number, _height: number, elements: UIElement[]): Promise<string> {
+    if (!sharpModule) return base64; // Sharp not available — return raw
+    const pngBuffer = Buffer.from(base64, 'base64');
+    // Read ACTUAL image dimensions
+    const meta = await sharpModule(pngBuffer).metadata();
+    const width = meta.width || _width;
+    const height = meta.height || _height;
+
+    const colorMap: Record<string, string> = {
+      Button: '#22c55e', TextBox: '#3b82f6', Edit: '#3b82f6',
+      MenuItem: '#f97316', ComboBox: '#a855f7', ListItem: '#06b6d4',
+      Link: '#ec4899', CheckBox: '#eab308', RadioButton: '#eab308',
+    };
+    const scaleX = width / (electronScreen?.getPrimaryDisplay()?.size?.width || 1920);
+    const scaleY = height / (electronScreen?.getPrimaryDisplay()?.size?.height || 1080);
+
+    let svgElements = '';
+    for (const el of elements.slice(0, 30)) { // Max 30 markers to avoid clutter
+      const bx = Math.round(el.boundingRect.x * scaleX);
+      const by = Math.round(el.boundingRect.y * scaleY);
+      const bw = Math.max(Math.round(el.boundingRect.width * scaleX), 8);
+      const bh = Math.max(Math.round(el.boundingRect.height * scaleY), 8);
+      const color = colorMap[el.controlType] || '#ef4444';
+
+      svgElements += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" fill="none" stroke="${color}" stroke-width="2" rx="2"/>`;
+      svgElements += `<rect x="${bx}" y="${Math.max(0, by - 14)}" width="${String(el.id).length * 8 + 6}" height="14" fill="${color}" rx="2"/>`;
+      svgElements += `<text x="${bx + 3}" y="${Math.max(10, by - 3)}" fill="white" font-size="10" font-weight="bold" font-family="monospace">${el.id}</text>`;
+    }
+
+    const svgOverlay = Buffer.from(`<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">${svgElements}</svg>`);
+    const result = await sharpModule(pngBuffer).composite([{ input: svgOverlay, top: 0, left: 0 }]).toBuffer();
+    return result.toString('base64');
+  }
+
+  // V2: Zoom into a specific region at high resolution
+  async takeZoomScreenshot(centerX: number, centerY: number, radius = 150): Promise<string> {
+    if (!sharpModule) {
+      // Without sharp, just return the full screenshot as fallback
+      console.warn('[DesktopAgent] Zoom requiere sharp — retornando screenshot completo');
+      return this.takeScreenshotRaw();
+    }
+
+    // Capture at full native resolution
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: { width: 1920, height: 1080 },
+    });
+    if (sources.length === 0) throw new Error('No se encontraron pantallas.');
+    const fullBase64 = sources[0].thumbnail.toDataURL().replace(/^data:image\/png;base64,/, '');
+    const fullBuffer = Buffer.from(fullBase64, 'base64');
+
+    // Scale center coordinates from screenshot space to full resolution
+    const meta = await sharpModule(fullBuffer).metadata();
+    const fullW = meta.width || 1920;
+    const fullH = meta.height || 1080;
+    const fx = Math.round((centerX / this.config.screenshotWidth) * fullW);
+    const fy = Math.round((centerY / this.config.screenshotHeight) * fullH);
+    const fr = Math.round((radius / this.config.screenshotWidth) * fullW);
+
+    // Compute crop region (clamped to image bounds)
+    const left = Math.max(0, fx - fr);
+    const top = Math.max(0, fy - fr);
+    const cropW = Math.min(fr * 2, fullW - left);
+    const cropH = Math.min(fr * 2, fullH - top);
+
+    // Crop and resize to zoomResolution with fine grid
+    const zoomSize = this.config.zoomResolution;
+    let cropped = await sharpModule(fullBuffer).extract({ left, top, width: cropW, height: cropH }).resize(zoomSize, zoomSize, { fit: 'fill' }).toBuffer();
+
+    // Apply fine grid (25px step) on zoom
+    const fineStep = 25;
+    let fineGrid = '';
+    for (let gx = 0; gx < zoomSize; gx += fineStep) {
+      fineGrid += `<line x1="${gx}" y1="0" x2="${gx}" y2="${zoomSize}" stroke="rgba(0, 120, 255, 0.15)" stroke-width="1" />`;
+    }
+    for (let gy = 0; gy < zoomSize; gy += fineStep) {
+      fineGrid += `<line x1="0" y1="${gy}" x2="${zoomSize}" y2="${gy}" stroke="rgba(0, 120, 255, 0.15)" stroke-width="1" />`;
+    }
+    // Add center crosshair
+    fineGrid += `<line x1="${zoomSize / 2}" y1="0" x2="${zoomSize / 2}" y2="${zoomSize}" stroke="rgba(255, 0, 0, 0.4)" stroke-width="1" />`;
+    fineGrid += `<line x1="0" y1="${zoomSize / 2}" x2="${zoomSize}" y2="${zoomSize / 2}" stroke="rgba(255, 0, 0, 0.4)" stroke-width="1" />`;
+
+    const gridSvg = Buffer.from(`<svg width="${zoomSize}" height="${zoomSize}" xmlns="http://www.w3.org/2000/svg">${fineGrid}</svg>`);
+    cropped = await sharpModule(cropped).composite([{ input: gridSvg, top: 0, left: 0 }]).toBuffer();
+
+    return cropped.toString('base64');
+  }
+
+  // V2: Get interactive UI elements using Windows UI Automation
+  async getUIElements(): Promise<UIElement[]> {
+    try {
+      const { stdout } = await execAsync(`powershell -NoProfile -Command "
+Add-Type -AssemblyName UIAutomationClient
+Add-Type -AssemblyName UIAutomationTypes
+Add-Type -Name FgWin -Namespace W -MemberDefinition '[DllImport(\\\"user32.dll\\\")] public static extern IntPtr GetForegroundWindow();'
+$hwnd = [W.FgWin]::GetForegroundWindow()
+$root = [System.Windows.Automation.AutomationElement]::FromHandle($hwnd)
+$cond = New-Object System.Windows.Automation.OrCondition(
+  (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::IsInvokePatternAvailableProperty, $true)),
+  (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::IsValuePatternAvailableProperty, $true)),
+  (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::IsTogglePatternAvailableProperty, $true))
+)
+$elements = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)
+$result = @()
+$id = 1
+foreach ($el in $elements) {
+  $rect = $el.Current.BoundingRectangle
+  if ($rect.Width -gt 0 -and $rect.Height -gt 0 -and $rect.Width -lt 2000) {
+    $result += @{
+      id = $id
+      name = $el.Current.Name
+      controlType = $el.Current.ControlType.ProgrammaticName -replace 'ControlType\\.', ''
+      x = [int]$rect.X
+      y = [int]$rect.Y
+      width = [int]$rect.Width
+      height = [int]$rect.Height
+      isEnabled = $el.Current.IsEnabled
+    }
+    $id++
+    if ($id -gt 40) { break }
+  }
+}
+$result | ConvertTo-Json -Compress -Depth 3
+"`, { timeout: 4000, windowsHide: true });
+
+      const parsed = JSON.parse(stdout || '[]');
+      const arr: UIElement[] = (Array.isArray(parsed) ? parsed : [parsed])
+        .filter((e: any) => e && e.id)
+        .map((e: any) => ({
+          id: e.id,
+          name: e.name || '',
+          controlType: e.controlType || 'Unknown',
+          boundingRect: { x: e.x || 0, y: e.y || 0, width: e.width || 0, height: e.height || 0 },
+          isEnabled: e.isEnabled !== false,
+        }));
+      return arr;
+    } catch (err: any) {
+      console.warn(`[DesktopAgent] UI Automation falló:`, err.message);
+      return [];
+    }
   }
 
   // ─── Coordinate Scaling ───────────────────────────────────────────
@@ -367,15 +666,35 @@ export class DesktopAgentService extends EventEmitter {
       const primary = electronScreen.getPrimaryDisplay();
       const { width, height } = primary.size;
       const scaleFactor = primary.scaleFactor || 1;
-
+      // Initial estimate — will be corrected once we take the first screenshot
       this.screenScale = {
         scaleX: (width * scaleFactor) / this.config.screenshotWidth,
         scaleY: (height * scaleFactor) / this.config.screenshotHeight,
       };
-      console.log(`[DesktopAgent] Escala: ${width}x${height} (factor ${scaleFactor}) → screenshotScale ${this.screenScale.scaleX.toFixed(2)}x${this.screenScale.scaleY.toFixed(2)}`);
+      console.log(`[DesktopAgent] Escala inicial: pantalla ${width}x${height} (factor ${scaleFactor})`);
     } catch {
-      // Fallback: assume 1920x1080 with default screenshot size
       this.screenScale = { scaleX: 1920 / this.config.screenshotWidth, scaleY: 1080 / this.config.screenshotHeight };
+    }
+  }
+
+  // Update screen scale based on ACTUAL screenshot dimensions from desktopCapturer
+  private updateScreenScale(actualWidth: number, actualHeight: number): void {
+    this.lastActualScreenshotWidth = actualWidth;
+    this.lastActualScreenshotHeight = actualHeight;
+    try {
+      const primary = electronScreen.getPrimaryDisplay();
+      const { width: screenW, height: screenH } = primary.size;
+      const scaleFactor = primary.scaleFactor || 1;
+      const newScaleX = (screenW * scaleFactor) / actualWidth;
+      const newScaleY = (screenH * scaleFactor) / actualHeight;
+
+      // Only log on first call or if scale changed
+      if (Math.abs(newScaleX - this.screenScale.scaleX) > 0.01 || Math.abs(newScaleY - this.screenScale.scaleY) > 0.01) {
+        console.log(`[DesktopAgent] Escala corregida: screenshot real ${actualWidth}x${actualHeight} → scale ${newScaleX.toFixed(2)}x${newScaleY.toFixed(2)}`);
+      }
+      this.screenScale = { scaleX: newScaleX, scaleY: newScaleY };
+    } catch {
+      // Keep existing scale
     }
   }
 
@@ -728,6 +1047,11 @@ if ($proc) {
     this.currentStep = 0;
     this.currentPlan = null;
     this.recovery = agentTask.recovery;
+    this.strategicPlan = null;
+    this.historySummaries = [];
+    this.lastZoomImage = null;
+    this.currentUIElements = [];
+    this.captureMode = 'grid';
     this.calculateScreenScale();
 
     this.emit('task-started', { task, maxSteps, taskId });
@@ -752,8 +1076,18 @@ if ($proc) {
           return 'Tarea cancelada por el usuario.';
         }
 
-        // Take screenshot
-        const screenshot = await this.takeScreenshot();
+        // V2: Periodically summarize history for long tasks
+        if (this.currentStep > 0 && this.currentStep % this.config.summarizeEveryNSteps === 0) {
+          await this.summarizeHistory();
+        }
+
+        // V2: Check phase completion for hierarchical planning
+        if (this.strategicPlan && this.currentStep > 0 && this.currentStep % 10 === 0) {
+          await this.checkPhaseCompletion(task);
+        }
+
+        // Take screenshot with Set-of-Marks or grid
+        const { screenshot } = await this.takeScreenshotWithMarks();
         const currentHash = this.quickHash(screenshot);
 
         // ─── Stuck Detection ──────────────────────────────────────
@@ -860,10 +1194,27 @@ if ($proc) {
         }
 
         entry.success = actionSuccess;
+
+        // V2: Post-action verification — did the screen actually change?
+        if (actionSuccess && this.config.verificationEnabled) {
+          const expectChange = ['click', 'double_click', 'right_click', 'type', 'key', 'drag', 'click_element', 'type_in_element'].includes(actionPayload.action);
+          if (expectChange) {
+            try {
+              const postScreenshot = await this.takeScreenshotRaw();
+              const postHash = this.quickHash(postScreenshot);
+              if (postHash === currentHash) {
+                entry.verificationFailed = true;
+                console.warn(`[DesktopAgent] ⚠️ Verificación: pantalla no cambió después de ${actionPayload.action}`);
+                this.recovery.consecutiveFailures++;
+              }
+            } catch (err: any) { console.warn(`[DesktopAgent] Verificación post-acción falló:`, err.message); }
+          }
+        }
+
         this.actionHistory.push(entry);
 
         // ─── Track consecutive failures for proactive recovery ────
-        if (!actionSuccess) {
+        if (!actionSuccess || entry.verificationFailed) {
           this.recovery.consecutiveFailures++;
           if (this.recovery.consecutiveFailures >= this.config.maxConsecutiveFailures) {
             console.warn(`[DesktopAgent] ⚠️ ${this.recovery.consecutiveFailures} fallos consecutivos — activando recuperación proactiva`);
@@ -897,6 +1248,12 @@ if ($proc) {
       agentTask.result = resultMsg;
       return resultMsg;
 
+    } catch (err: any) {
+      const errorMsg = `Error en paso ${this.currentStep}: ${err.message}`;
+      console.error(`[DesktopAgent] ❌ FATAL [${taskId}]:`, err.message, err.stack?.split('\n').slice(0, 3).join('\n'));
+      agentTask.error = errorMsg;
+      this.emit('task-failed', { message: errorMsg, steps: this.currentStep, taskId, error: err.message });
+      throw err; // Re-throw so WhatsApp handler can catch it
     } finally {
       agentTask.status = 'idle';
       agentTask.completedAt = Date.now();
@@ -1123,75 +1480,133 @@ Formato JSON (sin markdown):
 
     const prompt = this.buildVisionPrompt(task, recoveryContext);
 
-    const result = await model.generateContent([
+    // V2: Include zoom image as second image if available
+    const parts: any[] = [
       { inlineData: { mimeType: 'image/png', data: screenshotBase64 } },
-      { text: prompt },
-    ]);
+    ];
+    if (this.lastZoomImage) {
+      parts.push({ inlineData: { mimeType: 'image/png', data: this.lastZoomImage } });
+      this.lastZoomImage = null; // Consumed — will be regenerated if zoom action is used again
+    }
+    parts.push({ text: prompt });
 
+    const result = await model.generateContent(parts);
     return this.parseVisionResponse(result.response.text());
   }
 
   private buildVisionPrompt(task: string, recoveryContext = false): string {
     const historyContext = this.getHistoryContext();
-    const planContext = this.currentPlan
-      ? `\nPLAN (sub-objetivos):\n${this.currentPlan.subGoals.map((g, i) =>
-          `${i === this.currentPlan!.currentSubGoalIndex ? '>>> ' : '    '}${i + 1}. ${g}`,
-        ).join('\n')}\n`
-      : '';
+
+    // V2: Strategic plan context (phases) or legacy flat plan
+    let planContext = '';
+    if (this.strategicPlan) {
+      const sp = this.strategicPlan;
+      planContext = `\nPLAN ESTRATÉGICO (${sp.phases.length} fases):\n`;
+      for (let i = 0; i < sp.phases.length; i++) {
+        const phase = sp.phases[i];
+        const marker = i === sp.currentPhaseIndex ? '>>>' : phase.status === 'completed' ? ' ✓ ' : '   ';
+        planContext += `${marker} Fase ${i + 1}: ${phase.name} [${phase.status}]\n`;
+        if (i === sp.currentPhaseIndex) {
+          planContext += `    Criterio de éxito: ${phase.successCriteria}\n`;
+          planContext += phase.subGoals.map((g, j) =>
+            `    ${j === phase.currentSubGoalIndex ? '→ ' : '  '}${j + 1}. ${g}`,
+          ).join('\n') + '\n';
+        }
+      }
+    } else if (this.currentPlan) {
+      planContext = `\nPLAN (sub-objetivos):\n${this.currentPlan.subGoals.map((g, i) =>
+        `${i === this.currentPlan!.currentSubGoalIndex ? '>>> ' : '    '}${i + 1}. ${g}`,
+      ).join('\n')}\n`;
+    }
 
     const recoveryNote = recoveryContext
       ? `\n⚠️ ATENCIÓN: Las últimas acciones fallaron (${this.recovery.consecutiveFailures} fallos). ANALIZA con cuidado y considera un enfoque diferente. Si ves un popup o diálogo inesperado, ciérralo primero.\n`
       : '';
 
+    // V2: History summaries for long tasks
+    const summariesContext = this.historySummaries.length > 0
+      ? `\nRESÚMENES DE PROGRESO:\n${this.historySummaries.map(s => `[Pasos ${s.fromStep + 1}-${s.toStep + 1}]: ${s.summary}`).join('\n')}\n`
+      : '';
+
+    // V2: Zoom context if available
+    const zoomNote = this.lastZoomImage
+      ? `\nTienes disponible una imagen ZOOM de la última región inspeccionada (se envía como segunda imagen).\n`
+      : '';
+
+    // V2: Set-of-Marks context
+    const somContext = this.captureMode === 'som' && this.currentUIElements.length > 0
+      ? `\nMODO SET-OF-MARKS: Los elementos interactivos están marcados con números [1], [2], [3]... en la imagen.
+Elementos detectados:
+${this.currentUIElements.slice(0, 20).map(e => `  [${e.id}] ${e.controlType}: "${e.name}"`).join('\n')}
+Puedes usar "click_element" con "elementId" para click PRECISO en un elemento marcado.
+Puedes usar "type_in_element" con "elementId" y "text" para escribir en un campo marcado.
+PREFIERE click_element/type_in_element sobre coordenadas cuando haya marcadores.\n`
+      : '';
+
+    // Determine actual screenshot dimensions for the prompt
+    const imgW = this.lastActualScreenshotWidth || this.config.screenshotWidth;
+    const imgH = this.lastActualScreenshotHeight || this.config.screenshotHeight;
+
     return `TAREA: ${task}
-${planContext}${recoveryNote}
+${planContext}${recoveryNote}${summariesContext}${zoomNote}${somContext}
 Paso ${this.currentStep + 1} de maximo ${this.config.maxSteps}.
 ${historyContext ? `\nHISTORIAL RECIENTE:\n${historyContext}\n` : ''}
-Analiza la captura de pantalla y decide la siguiente accion.
-Las coordenadas estan en el espacio de la imagen (${this.config.screenshotWidth}x${this.config.screenshotHeight}).
+ANALIZA LA CAPTURA DE PANTALLA con cuidado antes de actuar.
+Las coordenadas estan en el espacio de la imagen (${imgW}x${imgH}).
+${this.config.gridEnabled ? `La imagen tiene una grilla roja con coordenadas cada ${this.config.gridStep}px.` : ''}
+
+REGLAS CRÍTICAS:
+1. MIRA LA PANTALLA PRIMERO: Antes de actuar, describe en "message" QUÉ VES en la pantalla actual.
+2. NO RE-ABRAS apps que ya están abiertas. Si ves la Calculadora ya abierta, NO vuelvas a buscarla.
+3. ANTES DE ESCRIBIR (type): Asegúrate de que la ventana correcta tiene el foco. Si no estás seguro, haz CLICK en la ventana primero.
+4. UN NÚMERO A LA VEZ en calculadoras: Para escribir "389", usa type con "389". Para sumar, haz CLICK en el botón "+", no uses key.
+5. VERIFICACIÓN: Si el historial muestra ⚠️VERIFICACIÓN_FALLÓ, la acción anterior NO tuvo efecto. Intenta diferente: haz click en la ventana para dar foco, o usa coordenadas distintas.
+6. SI LA APP YA ESTÁ ABIERTA pero minimizada: usa focus_window con windowTitle, NO abras otra instancia.
+7. COORDENADAS PRECISAS: Haz click en el CENTRO del botón, no en el borde. Para botones de calculadora, apunta al centro exacto.
 
 Responde SOLO con JSON valido (sin markdown, sin backticks):
 {
-  "action": "click|double_click|right_click|drag|mouse_down|mouse_up|mouse_move|type|key|scroll|wait|wait_for_change|wait_for_window|focus_window|minimize_window|maximize_window|restore_window|close_window|done|fail",
-  "x": number (coordenada X para click/drag inicio),
-  "y": number (coordenada Y para click/drag inicio),
-  "x2": number (solo drag: X final),
-  "y2": number (solo drag: Y final),
-  "text": "texto a escribir (para type)",
-  "key": "enter|tab|escape|ctrl+s|ctrl+a|ctrl+c|ctrl+v|ctrl+z|alt+f4|alt+tab|shift+tab|win|win+e|win+r|f1-f12|up|down|left|right|home|end|pageup|pagedown|delete|backspace|space|ctrl+enter|ctrl+w|ctrl+n|ctrl+o|ctrl+shift+n",
-  "direction": "up|down (para scroll)",
-  "amount": number (clicks de scroll o segundos de espera),
-  "windowTitle": "titulo parcial de ventana (para wait_for_window, focus_window, etc.)",
-  "message": "descripcion breve de lo que estas haciendo",
-  "subGoal": "sub-objetivo actual del plan (si hay plan)",
+  "action": "click|double_click|right_click|drag|mouse_down|mouse_up|mouse_move|type|key|scroll|wait|wait_for_change|wait_for_window|focus_window|minimize_window|maximize_window|restore_window|close_window|zoom|click_element|type_in_element|done|fail",
+  "x": number, "y": number,
+  "x2": number, "y2": number,
+  "text": "texto a escribir",
+  "key": "enter|tab|escape|ctrl+s|ctrl+a|ctrl+c|ctrl+v|ctrl+z|alt+f4|alt+tab|win|...",
+  "direction": "up|down",
+  "amount": number,
+  "windowTitle": "titulo parcial",
+  "zoomX": number, "zoomY": number, "zoomRadius": number,
+  "elementId": number,
+  "message": "descripcion de QUÉ VEO y QUÉ HAGO",
+  "subGoal": "sub-objetivo actual",
   "confidence": 0.0-1.0
 }
 
 ACCIONES DISPONIBLES:
-- click/double_click/right_click: Acciones de mouse sobre coordenadas
-- drag: Arrastrar de (x,y) a (x2,y2) — para mover archivos, redimensionar, etc.
-- mouse_down/mouse_up/mouse_move: Control granular del mouse
-- type: Escribir texto (usa clipboard, soporta Unicode)
-- key: Presionar tecla o combinacion (ctrl+s, alt+f4, enter, tab, etc.)
-- scroll: Scroll arriba/abajo con "direction" y "amount"
-- wait: Esperar brevemente
-- wait_for_change: Esperar hasta que la pantalla cambie
-- wait_for_window: Esperar hasta que aparezca ventana con "windowTitle"
-- focus_window: Traer ventana al frente
-- minimize_window/maximize_window/restore_window/close_window: Gestionar ventanas
-- done: Tarea completada — explicar resultado en "message"
-- fail: Tarea imposible — explicar motivo en "message"
+- click/double_click/right_click: Mouse en coordenadas (x,y). Haz click en el CENTRO del elemento.
+- drag: Arrastrar de (x,y) a (x2,y2)
+- type: Escribir texto. ⚠️ REQUIERE que la ventana correcta tenga foco. Si no, haz click en ella primero.
+- key: Tecla o combo (enter, tab, escape, ctrl+s, alt+f4, alt+tab, win, etc.)
+- scroll: Scroll con "direction" y "amount"
+- focus_window: Traer ventana al frente. Usa "windowTitle" con parte del título. MEJOR que re-abrir una app.
+- minimize_window/maximize_window/restore_window/close_window: Gestión de ventanas
+- zoom: Inspeccionar región ampliada. Usa zoomX, zoomY, zoomRadius. Úsalo antes de clickear elementos pequeños.
+- click_element: Click PRECISO en marcador [N] (solo modo Set-of-Marks)
+- type_in_element: Click + escribir en campo marcado [N]
+- done: Tarea completada — resultado en "message"
+- fail: Tarea imposible después de intentar varias estrategias
 
-Si la tarea ya esta completada, usa "done".
-Si detectas que no puedes avanzar despues de varios intentos, usa "fail".`;
+Si la tarea ya esta completada, usa "done".`;
   }
 
   private getHistoryContext(): string {
-    const recent = this.actionHistory.slice(-this.config.memoryWindowSize);
+    // V2: Use sliding window — only last maxRawHistorySteps
+    const windowSize = this.config.maxRawHistorySteps || this.config.memoryWindowSize;
+    const recent = this.actionHistory.slice(-windowSize);
     if (recent.length === 0) return '';
-    return recent.map(h =>
-      `  Paso ${h.step + 1}: ${h.action.action}${h.action.x ? ` (${h.action.x},${h.action.y})` : ''}${h.action.text ? ` "${h.action.text}"` : ''}${h.action.key ? ` [${h.action.key}]` : ''} — ${h.success ? '✓' : '✗'} ${h.action.message}`,
-    ).join('\n');
+    return recent.map(h => {
+      const vFail = h.verificationFailed ? ' ⚠️VERIFICACIÓN_FALLÓ' : '';
+      return `  Paso ${h.step + 1}: ${h.action.action}${h.action.elementId ? ` [elem ${h.action.elementId}]` : ''}${h.action.x ? ` (${h.action.x},${h.action.y})` : ''}${h.action.text ? ` "${h.action.text}"` : ''}${h.action.key ? ` [${h.action.key}]` : ''} — ${h.success ? '✓' : '✗'}${vFail} ${h.action.message}`;
+    }).join('\n');
   }
 
   private parseVisionResponse(text: string): DesktopActionPayload {
@@ -1210,8 +1625,75 @@ Si detectas que no puedes avanzar despues de varios intentos, usa "fail".`;
 
   private async createPlan(task: string, screenshotBase64: string): Promise<TaskPlan> {
     const ai = this.getGenAI();
-    const model = ai.getGenerativeModel({ model: this.config.model });
 
+    // V2: Use hierarchical planning with PRO model for complex tasks
+    if (this.config.hierarchicalPlanningEnabled) {
+      try {
+        const proModel = ai.getGenerativeModel({ model: this.config.proactiveModel });
+        const stratPrompt = `Analiza la pantalla actual y la tarea solicitada.
+TAREA: ${task}
+
+Descompone la tarea en FASES de alto nivel. Cada fase es un objetivo independiente
+con criterios de éxito claros (lo que debe verse en pantalla cuando la fase esté completa).
+
+Responde SOLO con JSON valido (sin markdown, sin backticks):
+{
+  "goal": "objetivo principal",
+  "phases": [
+    {
+      "name": "nombre corto de la fase",
+      "description": "descripcion detallada",
+      "successCriteria": "qué debe verse en pantalla cuando esta fase esté completa",
+      "subGoals": ["paso 1", "paso 2", ...],
+      "estimatedSteps": number
+    }
+  ],
+  "totalEstimatedSteps": number
+}`;
+
+        const result = await proModel.generateContent([
+          { inlineData: { mimeType: 'image/png', data: screenshotBase64 } },
+          { text: stratPrompt },
+        ]);
+        const parsed: any = this.parseVisionResponse(result.response.text());
+
+        if (parsed.phases && parsed.phases.length > 0) {
+          this.strategicPlan = {
+            goal: parsed.goal || task,
+            phases: parsed.phases.map((p: any) => ({
+              name: p.name || 'Fase',
+              description: p.description || '',
+              successCriteria: p.successCriteria || '',
+              subGoals: p.subGoals || [],
+              currentSubGoalIndex: 0,
+              estimatedSteps: p.estimatedSteps || 15,
+              status: 'pending' as const,
+            })),
+            currentPhaseIndex: 0,
+            totalEstimatedSteps: parsed.totalEstimatedSteps || 50,
+          };
+          this.strategicPlan.phases[0].status = 'in_progress';
+          this.strategicPlan.phases[0].startStep = 0;
+          console.log(`[DesktopAgent] Plan estratégico: ${this.strategicPlan.phases.length} fases, ~${this.strategicPlan.totalEstimatedSteps} pasos`);
+          this.emit('strategic-plan-created', this.strategicPlan);
+
+          // Return legacy TaskPlan from first phase for backward compat
+          const firstPhase = this.strategicPlan.phases[0];
+          return {
+            goal: parsed.goal || task,
+            subGoals: firstPhase.subGoals,
+            currentSubGoalIndex: 0,
+            estimatedSteps: this.strategicPlan.totalEstimatedSteps,
+            replannedCount: 0,
+          };
+        }
+      } catch (err: any) {
+        console.warn(`[DesktopAgent] Hierarchical planning failed, falling back to flat: ${err.message}`);
+      }
+    }
+
+    // Flat planning fallback
+    const model = ai.getGenerativeModel({ model: this.config.model });
     const prompt = `Analiza la pantalla actual y la tarea solicitada.
 TAREA: ${task}
 
@@ -1239,9 +1721,81 @@ Responde SOLO con JSON valido (sin markdown, sin backticks):
         replannedCount: 0,
       };
     } catch {
-      // If planning fails, proceed without a plan
       return { goal: task, subGoals: [task], currentSubGoalIndex: 0, estimatedSteps: 30, replannedCount: 0 };
     }
+  }
+
+  // V2: Summarize history every N steps to keep context manageable
+  private async summarizeHistory(): Promise<void> {
+    const fromStep = this.historySummaries.length > 0
+      ? this.historySummaries[this.historySummaries.length - 1].toStep + 1
+      : 0;
+    const toStep = this.currentStep - 1;
+    if (toStep <= fromStep) return;
+
+    const stepsToSummarize = this.actionHistory.filter(h => h.step >= fromStep && h.step <= toStep);
+    if (stepsToSummarize.length === 0) return;
+
+    const stepsText = stepsToSummarize.map(h =>
+      `${h.action.action}${h.action.x ? ` (${h.action.x},${h.action.y})` : ''} — ${h.success ? '✓' : '✗'} ${h.action.message}`,
+    ).join('\n');
+
+    try {
+      const ai = this.getGenAI();
+      const model = ai.getGenerativeModel({ model: this.config.model });
+      const result = await model.generateContent(
+        `Resume estas acciones de control de escritorio en 2-3 oraciones cortas en español. ¿Qué se logró? ¿Qué falló?\n\nAcciones (pasos ${fromStep + 1} a ${toStep + 1}):\n${stepsText}\n\nResponde SOLO con el resumen, sin JSON.`,
+      );
+      const summary = result.response.text().trim();
+      this.historySummaries.push({ fromStep, toStep, summary });
+      console.log(`[DesktopAgent] Resumen pasos ${fromStep + 1}-${toStep + 1}: ${summary.slice(0, 100)}...`);
+    } catch (err: any) {
+      console.warn(`[DesktopAgent] Resumen de historial falló:`, err.message);
+      this.historySummaries.push({ fromStep, toStep, summary: `Pasos ${fromStep + 1}-${toStep + 1}: ${stepsToSummarize.length} acciones ejecutadas.` });
+    }
+  }
+
+  // V2: Check if the current phase's success criteria are met
+  private async checkPhaseCompletion(_task: string): Promise<void> {
+    if (!this.strategicPlan) return;
+    const phase = this.strategicPlan.phases[this.strategicPlan.currentPhaseIndex];
+    if (!phase || phase.status !== 'in_progress') return;
+
+    try {
+      const screenshot = await this.takeScreenshotRaw();
+      const ai = this.getGenAI();
+      const model = ai.getGenerativeModel({ model: this.config.proactiveModel });
+      const result = await model.generateContent([
+        { inlineData: { mimeType: 'image/png', data: screenshot } },
+        { text: `VERIFICACIÓN DE FASE.\n\nFase actual: "${phase.name}"\nCriterio de éxito: "${phase.successCriteria}"\n\n¿La pantalla actual muestra que el criterio de éxito se cumplió? Responde SOLO con JSON: {"completed": true/false, "reason": "..."}` },
+      ]);
+      const parsed: any = this.parseVisionResponse(result.response.text());
+
+      if (parsed.completed) {
+        phase.status = 'completed';
+        phase.endStep = this.currentStep;
+        console.log(`[DesktopAgent] ✅ Fase completada: "${phase.name}" — ${parsed.reason || ''}`);
+        this.emit('phase-completed', {
+          phase,
+          phaseIndex: this.strategicPlan.currentPhaseIndex,
+          totalPhases: this.strategicPlan.phases.length,
+          nextPhase: this.strategicPlan.phases[this.strategicPlan.currentPhaseIndex + 1] || null,
+        });
+
+        // Advance to next phase
+        if (this.strategicPlan.currentPhaseIndex < this.strategicPlan.phases.length - 1) {
+          this.strategicPlan.currentPhaseIndex++;
+          const next = this.strategicPlan.phases[this.strategicPlan.currentPhaseIndex];
+          next.status = 'in_progress';
+          next.startStep = this.currentStep;
+          // Update legacy plan with next phase's sub-goals
+          if (this.currentPlan) {
+            this.currentPlan.subGoals = next.subGoals;
+            this.currentPlan.currentSubGoalIndex = 0;
+          }
+        }
+      }
+    } catch { /* phase check is best-effort */ }
   }
 
   // ─── Internal: Action Execution ───────────────────────────────────
@@ -1270,6 +1824,12 @@ Responde SOLO con JSON valido (sin markdown, sin backticks):
         await this.mouseMove(action.x!, action.y!);
         break;
       case 'type':
+        // If coordinates provided, click there first to ensure focus
+        if (action.x !== undefined && action.y !== undefined) {
+          const { x: sx, y: sy } = this.scale(action.x, action.y);
+          await this.mouseClick(sx, sy);
+          await this.delay(150);
+        }
         await this.keyboardType(action.text!);
         break;
       case 'key':
@@ -1302,6 +1862,41 @@ Responde SOLO con JSON valido (sin markdown, sin backticks):
       case 'wait_for_window':
         await this.waitForWindow(action.windowTitle || '', (action.amount || 10) * 1000);
         break;
+      // V2 actions
+      case 'zoom': {
+        const zx = action.zoomX ?? action.x ?? this.config.screenshotWidth / 2;
+        const zy = action.zoomY ?? action.y ?? this.config.screenshotHeight / 2;
+        const zr = action.zoomRadius ?? 150;
+        this.lastZoomImage = await this.takeZoomScreenshot(zx, zy, zr);
+        break;
+      }
+      case 'click_element': {
+        const el = this.currentUIElements.find(e => e.id === action.elementId);
+        if (el) {
+          const cx = el.boundingRect.x + el.boundingRect.width / 2;
+          const cy = el.boundingRect.y + el.boundingRect.height / 2;
+          // UI Automation coords are in physical pixels, scale to screenshot space then back
+          const sx = cx / ((electronScreen?.getPrimaryDisplay()?.size?.width || 1920) / this.config.screenshotWidth);
+          const sy = cy / ((electronScreen?.getPrimaryDisplay()?.size?.height || 1080) / this.config.screenshotHeight);
+          await this.mouseClick(sx, sy);
+        } else if (action.x !== undefined && action.y !== undefined) {
+          await this.mouseClick(action.x, action.y); // Fallback to coordinates
+        }
+        break;
+      }
+      case 'type_in_element': {
+        const tel = this.currentUIElements.find(e => e.id === action.elementId);
+        if (tel) {
+          const tcx = tel.boundingRect.x + tel.boundingRect.width / 2;
+          const tcy = tel.boundingRect.y + tel.boundingRect.height / 2;
+          const tsx = tcx / ((electronScreen?.getPrimaryDisplay()?.size?.width || 1920) / this.config.screenshotWidth);
+          const tsy = tcy / ((electronScreen?.getPrimaryDisplay()?.size?.height || 1080) / this.config.screenshotHeight);
+          await this.mouseClick(tsx, tsy);
+          await this.delay(150);
+        }
+        if (action.text) await this.keyboardType(action.text);
+        break;
+      }
       // done/fail are handled in the main loop before executeAction
     }
   }
