@@ -631,23 +631,23 @@ export async function executeToolDirect(
     case 'open_file_on_computer':
     case 'open_application': {
       try {
-        const resolvedPath = normalizePath(args.path);
+        const absolutePath = path.resolve(process.cwd(), args.path);
         
-        if (!fsSync.existsSync(resolvedPath)) {
+        if (!fsSync.existsSync(absolutePath)) {
           return { 
             success: false, 
-            error: `El archivo no existe en la ruta proporcionada: ${resolvedPath}. Verifique la ruta con search_files o list_directory e intente nuevamente.` 
+            error: 'La ruta no existe: ' + absolutePath 
           };
         }
         
-        const result = await shell.openPath(resolvedPath);
+        const result = await shell.openPath(absolutePath);
         if (result) {
           return { 
             success: false, 
             error: `Error al abrir el archivo o aplicación: "${result}". Asegúrese de que la ruta sea correcta, que tenga permisos de lectura/ejecución y que el sistema operativo tenga un programa predeterminado para abrir este tipo de archivo.` 
           };
         }
-        return { success: true, message: `Abierto exitosamente: ${resolvedPath}` };
+        return { success: true, message: `Abierto exitosamente: ${absolutePath}` };
       } catch (err: any) {
         return { success: false, error: `Excepción al abrir el archivo: ${err.message}` };
       }
@@ -835,77 +835,101 @@ export function registerComputerUseHandlers() {
     };
   };
 
-  ipcMain.handle('computer:list-screens', async (event) =>
-    executeToolDirect('list_screens', {}, makeProgress(event, 'list_screens')));
+  ipcMain.handle('computer:list-screens', async (event) => {
+    return executeToolDirect('list_screens', {}, makeProgress(event, 'list_screens'));
+  });
 
-  ipcMain.handle('computer:list-processes', async (event) =>
-    executeToolDirect('list_processes', {}, makeProgress(event, 'list_processes')));
+  ipcMain.handle('computer:list-processes', async (event) => {
+    return executeToolDirect('list_processes', {}, makeProgress(event, 'list_processes'));
+  });
 
-  ipcMain.handle('computer:kill-process', async (event, pid: number) =>
-    executeToolDirect('kill_process', { pid }, makeProgress(event, 'kill_process')));
+  ipcMain.handle('computer:kill-process', async (event, pid: number) => {
+    return executeToolDirect('kill_process', { pid }, makeProgress(event, 'kill_process'));
+  });
 
-  ipcMain.handle('computer:list-directory', async (event, dirPath: string, showHidden = false) =>
-    executeToolDirect('list_directory', { path: dirPath, show_hidden: showHidden }, makeProgress(event, 'list_directory')));
+  ipcMain.handle('computer:list-directory', async (event, dirPath: string, showHidden = false) => {
+    return executeToolDirect('list_directory', { path: dirPath, show_hidden: showHidden }, makeProgress(event, 'list_directory'));
+  });
 
-  ipcMain.handle('computer:read-file', async (event, filePath: string) =>
-    executeToolDirect('read_file', { path: filePath }, makeProgress(event, 'read_file')));
+  ipcMain.handle('computer:read-file', async (event, filePath: string) => {
+    return executeToolDirect('read_file', { path: filePath }, makeProgress(event, 'read_file'));
+  });
 
-  ipcMain.handle('computer:write-file', async (event, filePath: string, content: string) =>
-    executeToolDirect('write_file', { path: filePath, content }, makeProgress(event, 'write_file')));
+  ipcMain.handle('computer:write-file', async (event, filePath: string, content: string) => {
+    return executeToolDirect('write_file', { path: filePath, content }, makeProgress(event, 'write_file'));
+  });
 
-  ipcMain.handle('computer:create-directory', async (event, dirPath: string) =>
-    executeToolDirect('create_directory', { path: dirPath }, makeProgress(event, 'create_directory')));
+  ipcMain.handle('computer:create-directory', async (event, dirPath: string) => {
+    return executeToolDirect('create_directory', { path: dirPath }, makeProgress(event, 'create_directory'));
+  });
 
-  ipcMain.handle('computer:move-item', async (event, sourcePath: string, destPath: string) =>
-    executeToolDirect('move_item', { source_path: sourcePath, destination_path: destPath }, makeProgress(event, 'move_item')));
+  ipcMain.handle('computer:move-item', async (event, sourcePath: string, destPath: string) => {
+    return executeToolDirect('move_item', { source_path: sourcePath, destination_path: destPath }, makeProgress(event, 'move_item'));
+  });
 
-  ipcMain.handle('computer:copy-item', async (event, sourcePath: string, destPath: string) =>
-    executeToolDirect('copy_item', { source_path: sourcePath, destination_path: destPath }, makeProgress(event, 'copy_item')));
+  ipcMain.handle('computer:copy-item', async (event, sourcePath: string, destPath: string) => {
+    return executeToolDirect('copy_item', { source_path: sourcePath, destination_path: destPath }, makeProgress(event, 'copy_item'));
+  });
 
-  ipcMain.handle('computer:delete-item', async (event, itemPath: string) =>
-    executeToolDirect('delete_item', { path: itemPath }, makeProgress(event, 'delete_item')));
+  ipcMain.handle('computer:delete-item', async (event, itemPath: string) => {
+    return executeToolDirect('delete_item', { path: itemPath }, makeProgress(event, 'delete_item'));
+  });
 
-  ipcMain.handle('computer:get-file-info', async (event, filePath: string) =>
-    executeToolDirect('get_file_info', { path: filePath }, makeProgress(event, 'get_file_info')));
+  ipcMain.handle('computer:get-file-info', async (event, filePath: string) => {
+    return executeToolDirect('get_file_info', { path: filePath }, makeProgress(event, 'get_file_info'));
+  });
 
-  ipcMain.handle('computer:search-files', async (event, dirPath: string, pattern: string) =>
-    executeToolDirect('search_files', { directory: dirPath, pattern }, makeProgress(event, 'search_files')));
+  ipcMain.handle('computer:search-files', async (event, dirPath: string, pattern: string) => {
+    return executeToolDirect('search_files', { directory: dirPath, pattern }, makeProgress(event, 'search_files'));
+  });
 
-  ipcMain.handle('computer:organize-files', async (event, dirPath: string, mode?: string, rules?: Record<string, string>, dryRun?: boolean) =>
-    executeToolDirect('organize_files', { path: dirPath, mode, rules, dry_run: dryRun }, makeProgress(event, 'organize_files')));
+  ipcMain.handle('computer:organize-files', async (event, dirPath: string, mode?: string, rules?: Record<string, string>, dryRun?: boolean) => {
+    return executeToolDirect('organize_files', { path: dirPath, mode, rules, dry_run: dryRun }, makeProgress(event, 'organize_files'));
+  });
 
-  ipcMain.handle('computer:batch-move-files', async (event, sourceDir: string, destDir: string, extensions?: string[], pattern?: string) =>
-    executeToolDirect('batch_move_files', { source_directory: sourceDir, destination_directory: destDir, extensions, pattern }, makeProgress(event, 'batch_move_files')));
+  ipcMain.handle('computer:batch-move-files', async (event, sourceDir: string, destDir: string, extensions?: string[], pattern?: string) => {
+    return executeToolDirect('batch_move_files', { source_directory: sourceDir, destination_directory: destDir, extensions, pattern }, makeProgress(event, 'batch_move_files'));
+  });
 
-  ipcMain.handle('computer:list-directory-summary', async (event, dirPath: string) =>
-    executeToolDirect('list_directory_summary', { path: dirPath }, makeProgress(event, 'list_directory_summary')));
+  ipcMain.handle('computer:list-directory-summary', async (event, dirPath: string) => {
+    return executeToolDirect('list_directory_summary', { path: dirPath }, makeProgress(event, 'list_directory_summary'));
+  });
 
-  ipcMain.handle('computer:execute-command', async (event, command: string) =>
-    executeToolDirect('execute_command', { command }, makeProgress(event, 'execute_command')));
+  ipcMain.handle('computer:execute-command', async (event, command: string) => {
+    return executeToolDirect('execute_command', { command }, makeProgress(event, 'execute_command'));
+  });
 
-  ipcMain.handle('computer:open-application', async (event, target: string) =>
-    executeToolDirect('open_application', { path: target }, makeProgress(event, 'open_application')));
+  ipcMain.handle('computer:open-application', async (event, target: string) => {
+    return executeToolDirect('open_application', { path: target }, makeProgress(event, 'open_application'));
+  });
 
-  ipcMain.handle('computer:open-file-on-computer', async (event, target: string) =>
-    executeToolDirect('open_file_on_computer', { path: target }, makeProgress(event, 'open_file_on_computer')));
+  ipcMain.handle('computer:open-file-on-computer', async (event, target: string) => {
+    return executeToolDirect('open_file_on_computer', { path: target }, makeProgress(event, 'open_file_on_computer'));
+  });
 
-  ipcMain.handle('computer:open-url', async (event, url: string) =>
-    executeToolDirect('open_url', { url }, makeProgress(event, 'open_url')));
+  ipcMain.handle('computer:open-url', async (event, url: string) => {
+    return executeToolDirect('open_url', { url }, makeProgress(event, 'open_url'));
+  });
 
-  ipcMain.handle('computer:get-system-info', async (event) =>
-    executeToolDirect('get_system_info', {}, makeProgress(event, 'get_system_info')));
+  ipcMain.handle('computer:get-system-info', async (event) => {
+    return executeToolDirect('get_system_info', {}, makeProgress(event, 'get_system_info'));
+  });
 
-  ipcMain.handle('computer:clipboard-read', async (event) =>
-    executeToolDirect('clipboard_read', {}, makeProgress(event, 'clipboard_read')));
+  ipcMain.handle('computer:clipboard-read', async (event) => {
+    return executeToolDirect('clipboard_read', {}, makeProgress(event, 'clipboard_read'));
+  });
 
-  ipcMain.handle('computer:clipboard-write', async (event, text: string) =>
-    executeToolDirect('clipboard_write', { text }, makeProgress(event, 'clipboard_write')));
+  ipcMain.handle('computer:clipboard-write', async (event, text: string) => {
+    return executeToolDirect('clipboard_write', { text }, makeProgress(event, 'clipboard_write'));
+  });
 
-  ipcMain.handle('computer:use-computer', async (event, args: any) =>
-    executeToolDirect('use_computer', args, makeProgress(event, 'use_computer')));
+  ipcMain.handle('computer:use-computer', async (event, args: any) => {
+    return executeToolDirect('use_computer', args, makeProgress(event, 'use_computer'));
+  });
 
-  ipcMain.handle('computer:take-screenshot', async (event, displayId?: string) =>
-    executeToolDirect('take_screenshot', { display_id: displayId }, makeProgress(event, 'take_screenshot')));
+  ipcMain.handle('computer:take-screenshot', async (event, displayId?: string) => {
+    return executeToolDirect('take_screenshot', { display_id: displayId }, makeProgress(event, 'take_screenshot'));
+  });
 
   // ── confirm_action (shows native dialog) ───────────────────────
   ipcMain.handle('computer:confirm-action', async (_event, message: string) => {
@@ -919,14 +943,17 @@ export function registerComputerUseHandlers() {
   });
 
   // ── Email IPC handlers ─────────────────────────────────────────
-  ipcMain.handle('computer:get-email-config', async (event) =>
-    executeToolDirect('get_email_config', {}, makeProgress(event, 'get_email_config')));
+  ipcMain.handle('computer:get-email-config', async (event) => {
+    return executeToolDirect('get_email_config', {}, makeProgress(event, 'get_email_config'));
+  });
 
-  ipcMain.handle('computer:configure-email', async (event, email: string, password: string) =>
-    executeToolDirect('configure_email', { email, password }, makeProgress(event, 'configure_email')));
+  ipcMain.handle('computer:configure-email', async (event, email: string, password: string) => {
+    return executeToolDirect('configure_email', { email, password }, makeProgress(event, 'configure_email'));
+  });
 
-  ipcMain.handle('computer:send-email', async (event, to: string, subject: string, body: string, attachmentPaths?: string[], isHtml?: boolean) =>
-    executeToolDirect('send_email', { to, subject, body, attachment_paths: attachmentPaths, is_html: isHtml }, makeProgress(event, 'send_email')));
+  ipcMain.handle('computer:send-email', async (event, to: string, subject: string, body: string, attachmentPaths?: string[], isHtml?: boolean) => {
+    return executeToolDirect('send_email', { to, subject, body, attachment_paths: attachmentPaths, is_html: isHtml }, makeProgress(event, 'send_email'));
+  });
 }
 
 // ─── Exported Tool Schemas for LLM (prevents TS2345 mismatch) ───────
