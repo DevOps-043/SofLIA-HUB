@@ -69,4 +69,10 @@ export interface MonitoringStatus {
   snapshotCount: number;
   currentWindow?: string;
   config: MonitoringConfig;
+  diagnostics?: {
+    sharpAvailable: boolean;
+    activeWinAvailable: boolean;
+    screenshotFailCount: number;
+    activeWinFailCount: number;
+  };
 }

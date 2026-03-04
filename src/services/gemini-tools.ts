@@ -431,6 +431,157 @@ export const PROJECT_HUB_TOOLS = {
   ],
 };
 
+/**
+ * Google Workspace tools — Calendar, Gmail, Drive
+ * Ejecutan acciones vía IPC (window.calendar, window.gmail, window.drive)
+ */
+export const GOOGLE_WORKSPACE_TOOLS = {
+  functionDeclarations: [
+    // ─── Google Calendar ────────────────────────────────────────
+    {
+      name: 'google_calendar_get_events',
+      description: 'Obtiene los eventos del calendario del usuario para una fecha. Requiere que el calendario esté conectado previamente.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          date: {
+            type: 'STRING',
+            description: 'Fecha para consultar los eventos en formato ISO (YYYY-MM-DD). Si no se especifica, se usa la fecha de hoy.',
+          },
+        },
+      },
+    },
+    {
+      name: 'google_calendar_create',
+      description: 'Crea un nuevo evento en Google Calendar del usuario.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          title: {
+            type: 'STRING',
+            description: 'Título del evento.',
+          },
+          start: {
+            type: 'STRING',
+            description: 'Fecha y hora de inicio en formato ISO 8601 (ej: 2026-03-04T10:00:00).',
+          },
+          end: {
+            type: 'STRING',
+            description: 'Fecha y hora de fin en formato ISO 8601 (ej: 2026-03-04T11:00:00).',
+          },
+          description: {
+            type: 'STRING',
+            description: 'Descripción o notas del evento. Opcional.',
+          },
+          location: {
+            type: 'STRING',
+            description: 'Ubicación del evento. Opcional.',
+          },
+        },
+        required: ['title', 'start', 'end'],
+      },
+    },
+    {
+      name: 'google_calendar_delete',
+      description: 'Elimina un evento del calendario por su ID.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          event_id: {
+            type: 'STRING',
+            description: 'ID del evento a eliminar (obtenido previamente con google_calendar_get_events).',
+          },
+        },
+        required: ['event_id'],
+      },
+    },
+    // ─── Gmail ──────────────────────────────────────────────────
+    {
+      name: 'gmail_get_messages',
+      description: 'Obtiene los últimos mensajes de la bandeja de entrada de Gmail del usuario. Requiere conexión con Google.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          query: {
+            type: 'STRING',
+            description: 'Filtro de búsqueda de Gmail (ej: "from:juan@gmail.com", "subject:factura", "is:unread"). Opcional.',
+          },
+          max_results: {
+            type: 'NUMBER',
+            description: 'Número máximo de mensajes a obtener (1-20). Por defecto 10.',
+          },
+        },
+      },
+    },
+    {
+      name: 'gmail_read_message',
+      description: 'Lee el contenido completo de un mensaje de Gmail por su ID.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          message_id: {
+            type: 'STRING',
+            description: 'ID del mensaje de Gmail a leer (obtenido con gmail_get_messages).',
+          },
+        },
+        required: ['message_id'],
+      },
+    },
+    {
+      name: 'gmail_send',
+      description: 'Envía un correo electrónico desde la cuenta de Gmail conectada del usuario.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          to: {
+            type: 'STRING',
+            description: 'Dirección de correo del destinatario.',
+          },
+          subject: {
+            type: 'STRING',
+            description: 'Asunto del correo.',
+          },
+          body: {
+            type: 'STRING',
+            description: 'Cuerpo del correo en texto plano o HTML.',
+          },
+          is_html: {
+            type: 'BOOLEAN',
+            description: 'Si es true, el body se interpreta como HTML. Por defecto false.',
+          },
+        },
+        required: ['to', 'subject', 'body'],
+      },
+    },
+    // ─── Google Drive ───────────────────────────────────────────
+    {
+      name: 'drive_list_files',
+      description: 'Lista los archivos recientes en Google Drive del usuario.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          query: {
+            type: 'STRING',
+            description: 'Búsqueda de Drive (ej: "name contains \'informe\'"). Opcional.',
+          },
+          max_results: {
+            type: 'NUMBER',
+            description: 'Número máximo de archivos (1-50). Por defecto 20.',
+          },
+        },
+      },
+    },
+    {
+      name: 'google_calendar_get_connections',
+      description: 'Verifica qué calendarios están conectados (Google, Microsoft). Úsalo antes de consultar eventos para confirmar que hay una conexión activa.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {},
+      },
+    },
+  ],
+};
+
 /** Names of all computer-use tools, for quick lookup */
 export const COMPUTER_TOOL_NAMES = new Set(
   COMPUTER_USE_TOOLS.functionDeclarations.map(t => t.name)
@@ -438,4 +589,8 @@ export const COMPUTER_TOOL_NAMES = new Set(
 
 export const PROJECT_HUB_TOOL_NAMES = new Set(
   PROJECT_HUB_TOOLS.functionDeclarations.map(t => t.name)
+);
+
+export const GOOGLE_WORKSPACE_TOOL_NAMES = new Set(
+  GOOGLE_WORKSPACE_TOOLS.functionDeclarations.map(t => t.name)
 );

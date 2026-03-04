@@ -24,7 +24,7 @@ import { generateDailySummary } from './summary-generator'
 import { MemoryService } from './memory-service'
 import { registerMemoryHandlers } from './memory-handlers'
 import { KnowledgeService } from './knowledge-service'
-import { SystemGuardianService, NeuralOrganizerService } from './system-services'
+import { ProactiveGuardianService } from './proactive-guardian'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -55,9 +55,8 @@ const memoryService = new MemoryService()
 // ─── Knowledge Base (OpenClaw-style .md files) ──────────────────────
 const knowledgeService = new KnowledgeService()
 
-// ─── System Services ────────────────────────────────────────────────
-let systemGuardian: SystemGuardianService | null = null;
-let neuralOrganizer: NeuralOrganizerService | null = null;
+// ─── Proactive Guardian (monitoreo de salud del sistema) ────────────
+let proactiveGuardian: ProactiveGuardianService | null = null;
 
 // ─── Shared state ───────────────────────────────────────────────────
 let currentGeminiApiKey: string | null = null
@@ -125,13 +124,15 @@ calendarService.on('work-end', async (data: any) => {
 
 // ─── Summary generation on session end ───────────────────────────────
 monitoringService.on('session-ended', async (data: any) => {
-  if (!currentGeminiApiKey || !data.pendingSnapshots?.length) return
-  console.log(`[Main] Session ended — generating summary (${data.snapshotCount} snapshots)`)
+  // Use allSnapshots (full session) if available, fall back to pendingSnapshots
+  const snapshots = data.allSnapshots?.length ? data.allSnapshots : data.pendingSnapshots;
+  if (!currentGeminiApiKey || !snapshots?.length) return
+  console.log(`[Main] Session ended — generating summary (${snapshots.length} snapshots of ${data.snapshotCount} total)`)
 
   try {
     const summary = await generateDailySummary(
       currentGeminiApiKey,
-      data.pendingSnapshots.map((s: any) => ({
+      snapshots.map((s: any) => ({
         timestamp: typeof s.timestamp === 'string' ? s.timestamp : new Date(s.timestamp).toISOString(),
         windowTitle: s.windowTitle || '',
         processName: s.processName || '',
@@ -355,6 +356,25 @@ ipcMain.handle('get-screen-sources', async () => {
   } catch (err) { return [] }
 })
 
+ipcMain.handle('get-desktop-sources', async (_event, opts?: any) => {
+  try {
+    const types = opts?.types || ['screen', 'window']
+    const thumbnailSize = opts?.thumbnailSize || { width: 1280, height: 720 }
+    const sources = await desktopCapturer.getSources({ types, thumbnailSize })
+    return sources.map(source => ({
+      id: source.id,
+      name: source.name,
+      display_id: source.display_id,
+      thumbnail: source.thumbnail?.toDataURL(),
+      appIcon: source.appIcon?.toDataURL(),
+      isScreen: source.id.startsWith('screen:')
+    }))
+  } catch (err: any) {
+    console.error('[Main] get-desktop-sources error:', err.message)
+    return []
+  }
+})
+
 ipcMain.on('flow-send-to-chat', (_event, text) => {
   if (win) {
     if (!win.isVisible()) win.show();
@@ -452,16 +472,6 @@ function initWhatsAppAgent(apiKey: string) {
   waAgent.setAutoDevService(autoDevService)
   waAgent.setDesktopAgentService(desktopAgentService)
 
-  // ─── Inject System Guardian & Organizer into WhatsApp Agent ────────
-  if (systemGuardian && neuralOrganizer) {
-    if (typeof (waAgent as any).setSystemServices === 'function') {
-      (waAgent as any).setSystemServices({ guardian: systemGuardian, organizer: neuralOrganizer });
-    } else {
-      (waAgent as any).systemGuardian = systemGuardian;
-      (waAgent as any).neuralOrganizer = neuralOrganizer;
-    }
-  }
-
   // Store API key for summary generation
   currentGeminiApiKey = apiKey
 
@@ -551,44 +561,26 @@ app.whenReady().then(async () => {
   registerAutoDevHandlers(autoDevService, selfLearnService, () => win)
   registerDesktopAgentHandlers(desktopAgentService)
 
-  // ─── Demonios de Monitoreo del Sistema (Guardian & Organizer) ─
-  systemGuardian = new SystemGuardianService()
-  neuralOrganizer = new NeuralOrganizerService()
+  // ─── Proactive Guardian (monitoreo de salud del sistema) ────
+  proactiveGuardian = new ProactiveGuardianService()
+  await proactiveGuardian.init()
 
-  // Configurar inyección de dependencias para notificaciones proactivas de WhatsApp
-  systemGuardian.on('alert', async (alert) => {
+  proactiveGuardian.on('alert', async (alert) => {
     try {
       if (!waService.getStatus().connected) return;
       const config = await proactiveService.getConfig();
-      
+
       if (config && (config as any).notifyPhone) {
         const cleanNumber = (config as any).notifyPhone.replace(/[^0-9]/g, '');
         const jid = `${cleanNumber}@s.whatsapp.net`;
-        await waService.sendText(jid, `⚠️ *SofLIA System Guardian*\n${alert.message}`);
-      } else {
-        console.warn('[SystemGuardian] No notifyPhone configured in proactiveService. Cannot send WhatsApp alert.');
+        await waService.sendText(jid, `⚠️ *SofLIA Guardian*\n${alert.message}`);
       }
     } catch (err: any) {
-      console.error('[SystemGuardian] Error notifying WhatsApp:', err.message);
+      console.error('[ProactiveGuardian] Error notifying WhatsApp:', err.message);
     }
   });
 
-  // Iniciar el Watchdog del sistema operativo en background
-  systemGuardian.startMonitoring((status) => {
-    if (status.status === 'critical') {
-      console.warn(`[SystemGuardian] Watchdog reporta estado crítico: CPU ${status.cpuLoadPercent.toFixed(1)}%, RAM ${status.memoryUsagePercent.toFixed(1)}%`);
-    }
-  });
-
-  // Inyectar dependencias al WhatsAppAgent si ya fue creado (por concurrencia)
-  if (waAgent) {
-    if (typeof (waAgent as any).setSystemServices === 'function') {
-      (waAgent as any).setSystemServices({ guardian: systemGuardian, organizer: neuralOrganizer });
-    } else {
-      (waAgent as any).systemGuardian = systemGuardian;
-      (waAgent as any).neuralOrganizer = neuralOrganizer;
-    }
-  }
+  proactiveGuardian.start()
 
   // ─── AutoDev auto-init from env API key ─────────────────────
   const envApiKey = process.env.VITE_GEMINI_API_KEY

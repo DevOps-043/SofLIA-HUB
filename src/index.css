@@ -24,16 +24,16 @@
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
-  
+
   /* Dynamic Colors linked to CSS Vars */
   --color-card: var(--color-card-val);
   --color-background: var(--color-background-val);
   --color-sidebar: var(--color-sidebar-val);
-  
+
   /* Retaining static dark colors for manual usage if needed */
   --color-card-dark: #1e2329;
   --color-background-dark: #212121;
-  
+
   --color-sidebar-hover: #2a2b32;
   --color-sidebar-active: #343541;
 
@@ -43,12 +43,22 @@
   --animate-slide-up: slideUp 0.3s ease-out;
 
   @keyframes fadeIn {
-    0% { opacity: 0; }
-    100% { opacity: 1; }
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
   }
   @keyframes slideUp {
-    0% { transform: translateY(10px); opacity: 0; }
-    100% { transform: translateY(0); opacity: 1; }
+    0% {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
   }
 }
 
@@ -60,8 +70,53 @@
   }
 }
 
+@utility custom-scrollbar {
+  &::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    border: 1px solid transparent;
+    background-clip: content-box;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(34, 211, 238, 0.4); /* Cyan/Accent */
+  }
+}
+
+/* Global scrollbar refinement for dark mode */
+.dark * {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.05) transparent;
+}
+
+/* Global Webkit Scrollbar */
+.dark ::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
 /* Global styles */
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   height: 100vh;

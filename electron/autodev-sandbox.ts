@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import { shell } from 'electron';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
+import { analyzeSuspiciousUrl } from './safe-browser-tool';
+
+const execAsync = promisify(exec);
 
 export interface ToolErrorResponse {
   error: boolean | string;
@@ -21,8 +27,78 @@ export const ToolSchemas = {
   fileOperation: z.object({
     path: z.string(),
     content: z.string().optional()
+  }),
+  open_file_on_computer: z.object({
+    path: z.string()
+  }),
+  open_application: z.object({
+    path: z.string()
+  }),
+  analyze_suspicious_link: z.object({
+    url: z.string().url("Debe ser una URL válida")
   })
 };
+
+// Declaración de herramientas del sandbox (formato OpenAI/Gemini)
+export const AUTODEV_SANDBOX_TOOLS = [
+  {
+    name: 'analyze_suspicious_link',
+    description: 'Abre un navegador seguro (aislado) para analizar una URL sospechosa, retornando metadatos de seguridad y adjuntando una captura visual.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        url: {
+          type: 'STRING',
+          description: 'URL completa a analizar de forma segura'
+        }
+      },
+      required: ['url']
+    }
+  }
+];
+
+/**
+ * Analiza un enlace sospechoso en un entorno aislado usando Safe Browser Tool.
+ */
+export async function analyze_suspicious_link(input: { url: string }) {
+  const result = await analyzeSuspiciousUrl(input.url);
+  return `[Captura Visual Adjunta]\nMetadatos de seguridad analizados:\n${JSON.stringify(result, null, 2)}`;
+}
+
+/**
+ * Abre un archivo en el equipo del usuario usando la aplicación predeterminada.
+ */
+export async function open_file_on_computer(input: { path: string }) {
+  const errorMsg = await shell.openPath(input.path);
+  if (errorMsg) {
+    const lower = errorMsg.toLowerCase();
+    if (lower.includes('canceled') || lower.includes('cancelled') || lower.includes('eacces')) {
+      return { success: false, error: "Acción cancelada por el usuario o permisos insuficientes" };
+    }
+    throw new Error(`Error al abrir archivo: ${errorMsg}`);
+  }
+  return { success: true, message: `Archivo abierto exitosamente: ${input.path}` };
+}
+
+/**
+ * Abre una aplicación en el equipo del usuario.
+ */
+export async function open_application(input: { path: string }) {
+  const errorMsg = await shell.openPath(input.path);
+  if (errorMsg) {
+    // Fallback a exec si shell.openPath falla
+    try {
+      await execAsync(`"${input.path}"`);
+    } catch (execErr: any) {
+      const lower = execErr.message?.toLowerCase() || '';
+      if (lower.includes('canceled') || lower.includes('cancelled') || lower.includes('eacces')) {
+        return { success: false, error: "Acción cancelada por el usuario o permisos insuficientes" };
+      }
+      throw new Error(`shell.openPath error: ${errorMsg} | exec error: ${execErr.message}`);
+    }
+  }
+  return { success: true, message: `Aplicación iniciada exitosamente: ${input.path}` };
+}
 
 /**
  * Middleware para validar y sanitizar el input de la herramienta,
@@ -168,7 +244,14 @@ export class ToolSandbox {
         const input = args[1];
         const customSchema = args[2];
 
-        const tool = toolsMap?.[toolName];
+        // Herramientas builtin del Sandbox
+        const builtinTools: Record<string, ToolFunction> = {
+          open_file_on_computer,
+          open_application,
+          analyze_suspicious_link
+        };
+
+        const tool = toolsMap?.[toolName] || builtinTools[toolName];
         if (!tool || typeof tool !== 'function') {
           throw new Error(`Herramienta desconocida: ${toolName}`);
         }

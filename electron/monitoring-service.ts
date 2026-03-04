@@ -46,6 +46,12 @@ export interface MonitoringStatus {
   snapshotCount: number;
   currentWindow?: string;
   config: MonitoringConfig;
+  diagnostics?: {
+    sharpAvailable: boolean;
+    activeWinAvailable: boolean;
+    screenshotFailCount: number;
+    activeWinFailCount: number;
+  };
 }
 
 // ─── Active window via dynamic import (ESM module) ──────────────────
@@ -79,9 +85,16 @@ export class MonitoringService extends EventEmitter {
   private sessionId: string | null = null;
   private userId: string | null = null;
   private snapshotBuffer: ActivitySnapshot[] = [];
+  private allSnapshots: ActivitySnapshot[] = [];
   private snapshotCount = 0;
   private screenshotDir: string;
   private lastWindowTitle = '';
+  private diagnostics = {
+    sharpAvailable: !!sharp,
+    activeWinAvailable: false,
+    screenshotFailCount: 0,
+    activeWinFailCount: 0,
+  };
 
   constructor() {
     super();
@@ -108,6 +121,7 @@ export class MonitoringService extends EventEmitter {
     this.isRunning = true;
     this.snapshotCount = 0;
     this.snapshotBuffer = [];
+    this.allSnapshots = [];
     this.lastWindowTitle = '';
 
     // Ensure screenshot directory exists
@@ -144,17 +158,20 @@ export class MonitoringService extends EventEmitter {
 
     console.log(`[MonitoringService] Stopped. Total snapshots: ${count}`);
 
-    this.emit('session-ended', { 
-      userId: this.userId, 
-      sessionId: this.sessionId, 
-      snapshotCount: count, 
-      pendingSnapshots: buffer 
+    const allSnaps = [...this.allSnapshots];
+    this.emit('session-ended', {
+      userId: this.userId,
+      sessionId: this.sessionId,
+      snapshotCount: count,
+      pendingSnapshots: buffer,
+      allSnapshots: allSnaps,
     });
 
     const result = { snapshotCount: count, buffer };
     this.sessionId = null;
     this.userId = null;
     this.snapshotCount = 0;
+    this.allSnapshots = [];
 
     return result;
   }
@@ -167,6 +184,7 @@ export class MonitoringService extends EventEmitter {
       snapshotCount: this.snapshotCount,
       currentWindow: this.lastWindowTitle || undefined,
       config: { ...this.config },
+      diagnostics: { ...this.diagnostics },
     };
   }
 
@@ -226,6 +244,14 @@ export class MonitoringService extends EventEmitter {
 
     // 1. Get active window info
     const windowInfo = await getActiveWindowInfo();
+    if (windowInfo) {
+      this.diagnostics.activeWinAvailable = true;
+    } else {
+      if (this.diagnostics.activeWinFailCount === 0) {
+        this.emit('error', { message: 'No se puede detectar la ventana activa. El modulo active-win puede no estar disponible.' });
+      }
+      this.diagnostics.activeWinFailCount++;
+    }
     const windowTitle = windowInfo?.title || 'Unknown';
     const processName = windowInfo?.process || 'Unknown';
     const url = windowInfo?.url;
@@ -286,12 +312,13 @@ export class MonitoringService extends EventEmitter {
 
     this.snapshotCount++;
     this.snapshotBuffer.push(snapshot);
+    this.allSnapshots.push(snapshot);
 
     // Emit for real-time UI updates
     this.emit('snapshot', snapshot);
 
-    // 8. Flush buffer every 5 snapshots (~2.5 min at 30s interval)
-    if (this.snapshotBuffer.length >= 5) {
+    // 8. Flush buffer every 2 snapshots (~60s at 30s interval) for faster data availability
+    if (this.snapshotBuffer.length >= 2) {
       const batch = this.flushBuffer();
       this.emit('flush', {
         userId: this.userId,
@@ -305,7 +332,11 @@ export class MonitoringService extends EventEmitter {
 
   private async takeScreenshot(timestamp: Date, displayId?: string): Promise<string | undefined> {
     if (!sharp) {
-      console.warn('[MonitoringService] sharp not loaded — skipping screenshot compositing');
+      if (this.diagnostics.screenshotFailCount === 0) {
+        console.warn('[MonitoringService] sharp not loaded — capturas de pantalla deshabilitadas. Ejecuta: npm rebuild sharp');
+        this.emit('error', { message: 'Modulo sharp no disponible — capturas de pantalla deshabilitadas. Ejecuta npm rebuild sharp para solucionar.' });
+      }
+      this.diagnostics.screenshotFailCount++;
       return undefined;
     }
     try {

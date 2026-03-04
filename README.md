@@ -1,65 +1,97 @@
-# SofLIA Hub - Desktop AI Agent
+# SofLIA Hub - Desktop AI Agent (Obsidian Edition) ✨🧬
 
-SofLIA Hub es un asistente de productividad omnipotente que integra el control total de tu computadora con **WhatsApp** y la gestión de proyectos en **IRIS (Project Hub)**. Utiliza modelos avanzados de Gemini (2.5 Flash) para ofrecer una experiencia fluida, multimodal y altamente autónoma.
+SofLIA Hub es un ecosistema de productividad de alto nivel diseñado para centralizar el control total de tu entorno digital con una estética de ingeniería premium. Fusiona el control avanzado de hardware/software con **WhatsApp**, la gestión de proyectos en **IRIS (Project Hub)** y la suite completa de **Google Workspace**.
 
-## 🚀 Características Principales
+Utiliza modelos de lenguaje de última generación (**Gemini 2.0 Flash / Pro**) para ofrecer una experiencia multimodal, autónoma y predictiva que se adapta dinámicamente a tu flujo de trabajo.
 
-### 📱 Agente de WhatsApp
+---
 
-Controla tu computadora desde cualquier lugar enviando mensajes de WhatsApp.
+## 💎 ADN de Diseño: Ingeniería de Cristalismo
 
-- **Principio Omnipotente**: El agente puede realizar cualquier acción que un usuario haría sentado frente a su PC.
-- **Detección Automática**: Identifica a los usuarios por su número de teléfono vinculado a su perfil de SofLIA Learning.
-- **Multimodal**: Procesa y analiza imágenes, documentos (PDF, Word, Excel) y mensajes de voz enviados por chat.
+Hemos rediseñado la interfaz completa bajo principios de **Glassmorphism Industrial**:
 
-### 🏗️ Integración con IRIS (Project Hub)
+- **Interfaz Fluida**: Transparencias profundas, desenfoques gausianos y micro-glows ambientales.
+- **Tipografía de Precisión**: Headings en negrita técnica y etiquetas monoespaciadas para una legibilidad superior.
+- **Acentos de Energía**: Paletas curadas en _Cyan Accent_ y _Ruby Alert_ para estados de sistema críticos.
 
-Gestión completa de tareas y proyectos directamente desde WhatsApp:
+---
 
-- **Lectura**: Consulta tus tareas asignadas, lista de proyectos y equipos.
-- **Escritura**: Crea nuevos proyectos y tareas (issues) mediante comandos de voz o texto.
-- **Actualización**: Cambia el estado (Backlog, To Do, Done) o la prioridad de cualquier tarea sobre la marcha.
-- **Contexto Inteligente**: El agente verifica estados y prioridades disponibles por equipo para asegurar cambios válidos.
+## 🚀 Módulos Operativos
 
-### 💻 Control de Escritorio
+### 📱 Terminal de WhatsApp (Omnipotente)
 
-- **Visión Computacional**: Navega visualmente por la pantalla, hace clicks, escribe y usa aplicaciones GUI.
-- **Gestión de Archivos**: Busca, lee, crea, mueve y envía archivos a través de WhatsApp.
-- **Terminal y Código**: Ejecuta comandos seguros y lanza sesiones de Claude Code para desarrollo autónomo.
-- **Automatización de Documentos**: Genera archivos Word (.docx) y Excel (.xlsx) profesionales basados en búsquedas web o datos de usuario.
+Control absoluto de tu estación de trabajo desde cualquier lugar con redundancia de seguridad.
 
-## 🛡️ Seguridad y Uso en Grupos
+- **Ejecución Remota**: Apertura de procesos, búsqueda de sistemas de archivos y telemetría de pantalla.
+- **Procesamiento Multimodal**: Análisis de flujos visuales, audios técnicos y documentos densos.
 
-SofLIA está diseñada para ser útil en grupos sin sacrificar la seguridad del host:
+### 🧠 Matriz de Identidad (Personalización)
 
-- **Activación Estricta**: En grupos, solo responde cuando se le menciona explícitamente como _"soflia"_, se le etiqueta, se responde a sus mensajes o se usa el prefijo `/soflia`.
-- **Herramientas Bloqueadas**: Acciones destructivas o de control físico (apagar PC, ejecutar comandos de terminal, visión computacional) están desactivadas para usuarios en grupos.
-- **Historial de Grupo**: Mantiene un búfer de contexto para entender conversaciones previas incluso en modo pasivo.
+Configura el núcleo de comportamiento de tu IA con una interfaz de consola avanzada.
 
-## ⚙️ Configuración
+- **Stylistic Engine**: Ajuste de tono, verbosidad y personalidad del agente.
+- **Matriz de Vigilancia**: Cronograma técnico para notificaciones proactivas con detección de ventanas de productividad.
 
-Para su funcionamiento, el proyecto requiere las siguientes variables en el archivo `.env`:
+### 👥 Cuerpo Directivo (Gestión de Miembros)
+
+Control de acceso organizacional con niveles de seguridad jerárquicos.
+
+- **Protocolos de Acceso**: Asignación de roles (Owner, Admin, Member) mediante interfaces de control técnico.
+- **Monitoreo de Eslabones**: Estado de conexión de miembros en tiempo real con tags de identidad.
+
+### 📁 Unidades de Almacenamiento (Proyectos)
+
+Sistema inteligente de organización de nodos de conversación.
+
+- **Inicialización de Directorios**: Creación de carpetas con estética minimalista y etiquetas de alta visibilidad.
+- **Relocalización de Nodos**: Facilidad para mover flujos de datos entre diferentes sectores del proyecto.
+
+### 🖱️ Computer Use V2 (Agente Autónomo)
+
+Operación directa de la interfaz gráfica de usuario (GUI) mediante visión artificial.
+
+- **Navegación Visual**: screenshots de alta frecuencia y análisis de árboles de accesibilidad.
+- **Planificación Recursiva**: Desglose de tareas complejas en micro-operaciones verificables.
+
+### 📧 Google Workspace Hub (Sincronización Total)
+
+Puente de datos bidireccional con servicios en la nube.
+
+- **Gmail & Calendar**: Gestión de hilos de comunicación y agendas de alta densidad sin fricción.
+
+---
+
+## ⚙️ Configuración del Núcleo
+
+El despliegue requiere un entorno de variables `.env` estructurado:
 
 ```env
-# Gemini API Key
-VITE_GEMINI_API_KEY=tu_api_key_aqui
+# Gemini Intelligence Matrix
+VITE_GEMINI_API_KEY=...
 
-# IRIS (Project Hub) Config
-VITE_IRIS_SUPABASE_URL=...
-VITE_IRIS_SUPABASE_ANON_KEY=...
-
-# SOFIA (Auth) Config
+# Seguridad & Autenticación (Supabase Dual-Auth)
 VITE_SOFIA_SUPABASE_URL=...
-VITE_SOFIA_SUPABASE_ANON_KEY=...
+VITE_SUPABASE_URL=...
 
-# WhatsApp Options
+# WhatsApp Uplink
 WA_AUTO_CONNECT=true
 WA_ALLOWED_NUMBERS=["..."]
+
+# Google Workspace Integration
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
 ```
 
-## 🛠️ Tecnologías
+---
 
-- **Core**: Electron + React + Vite + TypeScript.
-- **IA**: Google Generative AI (Gemini 2.5 Flash).
-- **Base de Datos**: Supabase (IRIS & SOFIA).
-- **Gestión WhatsApp**: Baileys (Library for WhatsApp Web API).
+## 🛠️ Stack Tecnológico de Vanguardia
+
+- **Core**: React 18 + Vite + **Tailwind CSS v4 (Engine v3 modded)**.
+- **Runtime**: Electron con arquitectura de Micro-servicios (50+ servicios aislados).
+- **Inteligencia**: Google Generative AI (Gemini 2.0 Series).
+- **Visión**: Tesseract.js (OCR Local) + Gemini Vision.
+- **Comunicaciones**: Baileys (Protocolo WA) + Nodemailer.
+
+---
+
+_Diseñado para ser el centro neurálgico de la productividad de alto rendimiento._ 🦾⚙️

@@ -1059,3 +1059,235 @@ Args: {}
 ```
 
 ---
+## ❌ [🗣️ QUEJA DE USUARIO] — 2026-03-04
+
+- **Timestamp**: 2026-03-04T17:04:17.402Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El usuario se quejó de que SofLIA no completó una acción correctamente.
+
+### Mensaje del usuario
+
+> Cómo vas cuántos archivos ya pasaste?
+
+### Contexto
+
+```
+Patrón detectado: c[oó]mo vas
+```
+
+---
+## ❌ [🗣️ QUEJA DE USUARIO] — 2026-03-04
+
+- **Timestamp**: 2026-03-04T17:04:17.445Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El usuario se quejó de que SofLIA no completó una acción correctamente.
+
+### Mensaje del usuario
+
+> Cómo vas?
+
+### Contexto
+
+```
+Patrón detectado: c[oó]mo vas
+```
+
+---
+## ❌ [🗣️ QUEJA DE USUARIO] — 2026-03-04
+
+- **Timestamp**: 2026-03-04T17:04:17.475Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El usuario se quejó de que SofLIA no completó una acción correctamente.
+
+### Mensaje del usuario
+
+> Se supone que ahí debería de estar lo que descargaste de drive
+
+### Contexto
+
+```
+Patrón detectado: se supone que
+```
+
+---
+## ❌ [🗣️ QUEJA DE USUARIO] — 2026-03-04
+
+- **Timestamp**: 2026-03-04T17:04:17.517Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El usuario se quejó de que SofLIA no completó una acción correctamente.
+
+### Mensaje del usuario
+
+> Cómo vas con la descargar de archivos?
+
+### Contexto
+
+```
+Patrón detectado: c[oó]mo vas
+```
+
+---
+## ❌ [🗣️ QUEJA DE USUARIO] — 2026-03-04
+
+- **Timestamp**: 2026-03-04T17:04:17.543Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El usuario se quejó de que SofLIA no completó una acción correctamente.
+
+### Mensaje del usuario
+
+> Sigue apagado
+
+### Contexto
+
+```
+Patrón detectado: sigue (sin|igual|apagado|cerrado)
+```
+
+---
+## ❌ [🗣️ QUEJA DE USUARIO] — 2026-03-04
+
+- **Timestamp**: 2026-03-04T17:04:17.563Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El usuario se quejó de que SofLIA no completó una acción correctamente.
+
+### Mensaje del usuario
+
+> Sigue sin estar abierto
+
+### Contexto
+
+```
+Patrón detectado: sigue (sin|igual|apagado|cerrado)
+```
+
+---
+## ❌ [🗣️ QUEJA DE USUARIO] — 2026-03-04
+
+- **Timestamp**: 2026-03-04T17:04:18.846Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El usuario se quejó de que SofLIA no completó una acción correctamente.
+
+### Mensaje del usuario
+
+> No me enviaste nada
+
+### Contexto
+
+```
+Patrón detectado: no me (pasaste|enviaste|mandaste)
+```
+
+---
+## ❌ [🗣️ QUEJA DE USUARIO] — 2026-03-04
+
+- **Timestamp**: 2026-03-04T17:04:20.865Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El usuario se quejó de que SofLIA no completó una acción correctamente.
+
+### Mensaje del usuario
+
+> Cómo vez este mensaje? Hola , talvez sea el último mensaje que te mandé o veas denuevo de mi , la verdad es que creo que no hable apropiadamente contigo esa última vez , si te soy sincero creía que lo pudimos haber solucionado todo esto de la mejor manera y te pido perdón por ello ,te pido perdón por mis actitudes por no darte el tiempo que mereces , mereces algo mejor alguien que te dé ese valor y amor que no te pude dar , solo espero que puedas escogerlo de una forma más adecuada.
+> Tienes un fu
+
+### Respuesta de SofLIA
+
+> No puedo revisar tu calendario en este momento porque Google Calendar no está conectado. Necesitas conectar tu cuenta de Google desde la interfaz de SofLIA Hub primero para que pueda acceder a tus eventos.
+
+### Contexto
+
+```
+Patrón detectado: no (se )?cre[oó]
+```
+
+---
+## ❌ [🗣️ QUEJA DE USUARIO] — 2026-03-04
+
+- **Timestamp**: 2026-03-04T17:04:20.937Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El usuario se quejó de que SofLIA no completó una acción correctamente.
+
+### Mensaje del usuario
+
+> se supone que en las implementciones que se hicieron  , podias ver cualquier pantalla
+
+### Contexto
+
+```
+Patrón detectado: se supone que
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-03-04
+
+- **Timestamp**: 2026-03-04T17:24:28.466Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `runAgentLoop` falló con error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent: fetch failed
+
+- **Herramienta**: `runAgentLoop`
+- **Error**: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent: fetch failed
+### Contexto
+
+```
+Args: {"text":""}
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-03-04
+
+- **Timestamp**: 2026-03-04T17:39:11.263Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `runAgentLoop` falló con error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent: fetch failed
+
+- **Herramienta**: `runAgentLoop`
+- **Error**: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent: fetch failed
+### Contexto
+
+```
+Args: {"text":"enviame el archivo Polizas"}
+```
+
+---

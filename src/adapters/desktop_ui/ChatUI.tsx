@@ -158,7 +158,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
       thinkingOptions: THINKING_OPTIONS_GEMINI25
     },
     {
-      id: 'gemini-2.5-flash-lite',
+      id: 'gemini-2.5-flash',
       name: 'Gemini 2.5 Flash Lite',
       desc: 'Versión estable anterior.',
       thinkingType: 'budget',
@@ -1097,10 +1097,10 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
               }}
               onPaste={handlePaste}
               placeholder={isImageGenMode ? "Describe la imagen que quieres generar..." : isPromptOptimizerMode ? "Escribe el prompt a optimizar..." : "Mensaje a SOFLIA..."}
-              className="flex-1 bg-transparent text-[15px] focus:outline-none placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 resize-none max-h-[160px] overflow-y-auto no-scrollbar font-sans py-2.5 px-2 leading-relaxed mb-0.5"
+              className="flex-1 bg-transparent text-[15px] focus:outline-none placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 resize-none max-h-[160px] overflow-y-auto !no-scrollbar font-sans py-2.5 px-2 leading-relaxed mb-0.5"
               rows={1}
               disabled={isLoading}
-              style={{ height: '42px' }} 
+              style={{ height: '42px', scrollbarWidth: 'none', msOverflowStyle: 'none' }} 
               onInput={(e) => {
                 const target = e.target as HTMLTextAreaElement;
                 target.style.height = '42px';

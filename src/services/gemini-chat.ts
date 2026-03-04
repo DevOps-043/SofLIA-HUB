@@ -2,9 +2,14 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GOOGLE_API_KEY, MODELS } from '../config';
 import { PRIMARY_CHAT_PROMPT, buildPrimaryChatPrompt } from '../prompts/chat';
 import { getApiKeyWithCache } from './api-keys';
-import { COMPUTER_USE_TOOLS, COMPUTER_TOOL_NAMES, PROJECT_HUB_TOOLS, PROJECT_HUB_TOOL_NAMES } from './gemini-tools';
+import { COMPUTER_USE_TOOLS, COMPUTER_TOOL_NAMES, PROJECT_HUB_TOOLS, PROJECT_HUB_TOOL_NAMES, GOOGLE_WORKSPACE_TOOLS, GOOGLE_WORKSPACE_TOOL_NAMES } from './gemini-tools';
 import { executeComputerTool, isComputerUseAvailable } from './computer-use-service';
 import { deleteProject, createProject } from './iris-data';
+
+// Acceso tipado a las APIs de Google Workspace expuestas por preload.ts
+// Las APIs de Google Workspace (window.calendar, window.gmail, window.drive)
+// están expuestas por preload.ts y tipadas en CalendarPanel.tsx.
+// Aquí accedemos via (window as any) para evitar conflictos de declaración.
 
 export interface ConversationMessage {
   role: 'user' | 'model';
@@ -171,16 +176,21 @@ export async function sendMessageStream(
 
   let modelTools: any[];
 
+  // Verificar si hay calendario/Gmail/Drive conectados para habilitar Google Workspace tools
+  const hasGoogleWorkspace = typeof window !== 'undefined' && !!(window as any).calendar;
+
   if (isGemini3) {
     // Gemini 3: ONLY functionDeclarations (no googleSearch to avoid conflict)
     modelTools = computerUseEnabled
       ? [COMPUTER_USE_TOOLS, PROJECT_HUB_TOOLS]
       : [PROJECT_HUB_TOOLS];
+    if (hasGoogleWorkspace) modelTools.push(GOOGLE_WORKSPACE_TOOLS);
   } else {
     // Gemini 2.5+: Can safely combine googleSearch with functionDeclarations
     modelTools = computerUseEnabled
       ? [{ googleSearch: {} } as any, COMPUTER_USE_TOOLS, PROJECT_HUB_TOOLS]
       : [{ googleSearch: {} } as any, PROJECT_HUB_TOOLS];
+    if (hasGoogleWorkspace) modelTools.push(GOOGLE_WORKSPACE_TOOLS);
   }
 
   const model = ai.getGenerativeModel({
@@ -276,8 +286,8 @@ export async function sendMessageStream(
         const toolName = fc.name;
         const toolArgs = fc.args || {};
 
-        // Check if this is a computer-use tool or project hub tool
-        if (COMPUTER_TOOL_NAMES.has(toolName) || PROJECT_HUB_TOOL_NAMES.has(toolName)) {
+        // Check if this is a computer-use, project hub, or Google Workspace tool
+        if (COMPUTER_TOOL_NAMES.has(toolName) || PROJECT_HUB_TOOL_NAMES.has(toolName) || GOOGLE_WORKSPACE_TOOL_NAMES.has(toolName)) {
           const toolInfo: ToolCallInfo = { name: toolName, args: toolArgs };
 
           // Notify UI about tool execution
@@ -286,7 +296,9 @@ export async function sendMessageStream(
           try {
             let resultStr = '';
             
-            if (PROJECT_HUB_TOOL_NAMES.has(toolName)) {
+            if (GOOGLE_WORKSPACE_TOOL_NAMES.has(toolName)) {
+              resultStr = await executeGoogleWorkspaceTool(toolName, toolArgs);
+            } else if (PROJECT_HUB_TOOL_NAMES.has(toolName)) {
               if (toolName === 'delete_iris_project') {
                 const deleteResult = await deleteProject(toolArgs.project_id);
                 resultStr = JSON.stringify(deleteResult);
@@ -411,6 +423,77 @@ export async function sendMessageStream(
   })();
 
   return { stream, sources };
+}
+
+/**
+ * Ejecuta una herramienta de Google Workspace vía IPC (window.calendar, window.gmail, window.drive).
+ */
+async function executeGoogleWorkspaceTool(toolName: string, args: Record<string, any>): Promise<string> {
+  const cal = (window as any).calendar;
+  const gmail = (window as any).gmail;
+  const drive = (window as any).drive;
+
+  switch (toolName) {
+    case 'google_calendar_get_connections': {
+      if (!cal) return JSON.stringify({ error: 'Calendario no disponible. El usuario debe conectar su calendario primero desde la sección de Productividad.' });
+      const connections = await cal.getConnections();
+      return JSON.stringify({ connections });
+    }
+    case 'google_calendar_get_events': {
+      if (!cal) return JSON.stringify({ error: 'Calendario no conectado.' });
+      const events = await cal.getEvents();
+      // Si se especificó una fecha, filtrar eventos del día
+      if (args.date && events && Array.isArray(events)) {
+        const targetDate = args.date;
+        const filtered = events.filter((e: any) => {
+          const eventDate = (e.start?.dateTime || e.start?.date || '').slice(0, 10);
+          return eventDate === targetDate;
+        });
+        return JSON.stringify({ events: filtered, date: targetDate });
+      }
+      return JSON.stringify({ events });
+    }
+    case 'google_calendar_create': {
+      if (!cal) return JSON.stringify({ error: 'Calendario no conectado.' });
+      const result = await cal.createEvent({
+        summary: args.title,
+        start: { dateTime: args.start },
+        end: { dateTime: args.end },
+        description: args.description || '',
+        location: args.location || '',
+      });
+      return JSON.stringify(result);
+    }
+    case 'google_calendar_delete': {
+      if (!cal) return JSON.stringify({ error: 'Calendario no conectado.' });
+      const result = await cal.deleteEvent(args.event_id);
+      return JSON.stringify(result);
+    }
+    case 'gmail_get_messages': {
+      if (!gmail) return JSON.stringify({ error: 'Gmail no conectado.' });
+      const messages = await gmail.getMessages({ query: args.query, maxResults: args.max_results || 10 });
+      return JSON.stringify({ messages });
+    }
+    case 'gmail_read_message': {
+      if (!gmail) return JSON.stringify({ error: 'Gmail no conectado.' });
+      const message = await gmail.getMessage(args.message_id);
+      return JSON.stringify({ message });
+    }
+    case 'gmail_send': {
+      if (!gmail) return JSON.stringify({ error: 'Gmail no conectado.' });
+      const result = await gmail.send({ to: args.to, subject: args.subject, body: args.body, isHtml: args.is_html || false });
+      return JSON.stringify(result);
+    }
+    case 'drive_list_files': {
+      if (!drive) return JSON.stringify({ error: 'Google Drive no conectado.' });
+      const files = args.query
+        ? await drive.search(args.query)
+        : await drive.listFiles({ maxResults: args.max_results || 20 });
+      return JSON.stringify({ files });
+    }
+    default:
+      return JSON.stringify({ error: `Herramienta Google Workspace no implementada: ${toolName}` });
+  }
 }
 
 /**

@@ -95,35 +95,57 @@ export async function updateMonitoringConfig(config: Partial<MonitoringConfig>):
 // ─── Data persistence from flush events ─────────────────────────────
 
 /**
+ * Safely parse a timestamp from IPC (may arrive as Date, string, number, or object).
+ */
+function safeParseTimestamp(ts: any): Date {
+  if (ts instanceof Date && !isNaN(ts.getTime())) return ts;
+  if (typeof ts === 'string' || typeof ts === 'number') {
+    const d = new Date(ts);
+    if (!isNaN(d.getTime())) return d;
+  }
+  // Fallback: current time (close enough for a 30s snapshot)
+  return new Date();
+}
+
+/**
  * Save a batch of snapshots to Supabase as activity logs.
- * Called when the main process emits a 'flush' event.
+ * Retries once on transient network errors.
  */
 export async function persistSnapshots(
   userId: string,
   sessionId: string,
   snapshots: ActivitySnapshot[]
 ): Promise<void> {
-  const logs: ActivityLog[] = snapshots.map((snap, i) => ({
-    id: `${sessionId}-${snap.timestamp.getTime ? snap.timestamp.getTime() : new Date(snap.timestamp as any).getTime()}-${i}`,
-    userId,
-    sessionId,
-    timestamp: snap.timestamp instanceof Date ? snap.timestamp : new Date(snap.timestamp as any),
-    windowTitle: snap.windowTitle,
-    processName: snap.processName,
-    url: snap.url,
-    category: 'uncategorized' as const,
-    durationSeconds: 30,
-    idle: snap.idle,
-    idleSeconds: snap.idleSeconds,
-    ocrText: snap.ocrText,
-  }));
+  const logs: ActivityLog[] = snapshots.map((snap, i) => {
+    const ts = safeParseTimestamp(snap.timestamp);
+    return {
+      id: `${sessionId}-${ts.getTime()}-${i}`,
+      userId,
+      sessionId,
+      timestamp: ts,
+      windowTitle: snap.windowTitle || 'Unknown',
+      processName: snap.processName || 'Unknown',
+      url: snap.url,
+      category: 'uncategorized' as const,
+      durationSeconds: 30,
+      idle: snap.idle ?? false,
+      idleSeconds: snap.idleSeconds ?? 0,
+      ocrText: snap.ocrText,
+    };
+  });
 
   try {
     await repo.saveActivityLogBatch(logs);
-    console.log(`[MonitoringService] Persisted ${logs.length} activity logs`);
   } catch (err: any) {
-    console.error('[MonitoringService] Failed to persist snapshots:', err.message);
+    // Retry once after 3s for transient network errors
+    if (err.message?.includes('fetch') || err.message?.includes('network') || err.message?.includes('ECONNREFUSED')) {
+      await new Promise(r => setTimeout(r, 3000));
+      await repo.saveActivityLogBatch(logs);
+    } else {
+      throw err;
+    }
   }
+  console.log(`[MonitoringService] Persisted ${logs.length} activity logs`);
 }
 
 // ─── Data retrieval ─────────────────────────────────────────────────
