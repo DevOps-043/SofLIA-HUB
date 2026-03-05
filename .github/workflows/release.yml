@@ -1,0 +1,74 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main]
+
+# Solo un release a la vez
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Get version from package.json
+        id: version
+        shell: bash
+        run: echo "version=$(node -p \"require('./package.json').version\")" >> $GITHUB_OUTPUT
+
+      - name: Check if release already exists in SofLIA-releases
+        id: check_release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          if gh release view "v${{ steps.version.outputs.version }}" --repo DevOps-043/PulseHub-SofLIA-releases > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build Electron app
+        if: steps.check_release.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: npm run build
+
+      - name: Create release in DevOps-043/PulseHub-SofLIA-releases
+        if: steps.check_release.outputs.exists == 'false'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Extraer novedades del CHANGELOG para esta versión
+          NOTES=$(sed -n "/## \[${VERSION}\]/,/## \[/p" CHANGELOG.md | head -n -1)
+          if [ -z "$NOTES" ]; then
+            NOTES="SofLIA Hub v${VERSION}"
+          fi
+
+          gh release create "v${VERSION}" \
+            --repo DevOps-043/PulseHub-SofLIA-releases \
+            --title "SofLIA Hub v${VERSION}" \
+            --notes "$NOTES" \
+            "release/${VERSION}/SofLIA Hub-Windows-${VERSION}-Setup.exe" \
+            "release/${VERSION}/SofLIA Hub-Windows-${VERSION}-Setup.exe.blockmap" \
+            "release/${VERSION}/latest.yml"

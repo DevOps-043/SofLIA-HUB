@@ -25,6 +25,8 @@ import { MemoryService } from './memory-service'
 import { registerMemoryHandlers } from './memory-handlers'
 import { KnowledgeService } from './knowledge-service'
 import { ProactiveGuardianService } from './proactive-guardian'
+import { UpdaterService } from './updater-service'
+import { registerUpdaterHandlers } from './updater-handlers'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -80,6 +82,9 @@ const selfLearnService = new SelfLearnService(path.join(__dirname, '..'))
 
 // ─── Desktop Agent (autonomous computer use) ────────────────────────
 const desktopAgentService = new DesktopAgentService()
+
+// ─── Auto-Updater ──────────────────────────────────────────────────
+const updaterService = new UpdaterService()
 
 // ─── Wire SelfLearn → AutoDev Micro-Fix ──────────────────────────────
 selfLearnService.on('micro-fix-candidate', (trigger: any) => {
@@ -560,6 +565,8 @@ app.whenReady().then(async () => {
   registerGChatHandlers(gchatService, () => win)
   registerAutoDevHandlers(autoDevService, selfLearnService, () => win)
   registerDesktopAgentHandlers(desktopAgentService)
+  registerUpdaterHandlers(updaterService, () => win)
+  updaterService.init()
 
   // ─── Proactive Guardian (monitoreo de salud del sistema) ────
   proactiveGuardian = new ProactiveGuardianService()

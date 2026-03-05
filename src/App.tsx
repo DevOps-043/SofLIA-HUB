@@ -13,6 +13,7 @@ import {
 } from "./services/settings-service";
 import { FlowMode } from "./components/FlowMode";
 import { ProductivityDashboard } from "./components/ProductivityDashboard";
+import { UpdateNotification } from "./components/UpdateNotification";
 import { GOOGLE_API_KEY } from "./config";
 import {
   getTeams,
@@ -1658,6 +1659,7 @@ function App() {
   return (
     <AuthProvider>
       <AppContent />
+      <UpdateNotification />
     </AuthProvider>
   );
 }

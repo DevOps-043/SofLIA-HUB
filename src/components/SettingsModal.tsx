@@ -60,24 +60,24 @@ const SelectDropdown: React.FC<{
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full px-3 py-2.5 bg-background-dark/80 border border-white/10 rounded-lg text-white text-sm text-left flex items-center justify-between hover:border-accent/40 transition-colors"
+        className="w-full px-5 py-3.5 bg-black/40 border border-white/10 rounded-2xl text-white text-sm text-left flex items-center justify-between hover:border-accent/40 focus:ring-4 focus:ring-accent/5 transition-all group"
       >
-        <span>{selected}</span>
-        <svg className={`w-4 h-4 opacity-60 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <polyline points="6 9 12 15 18 9" />
+        <span className="group-hover:text-accent transition-colors">{selected}</span>
+        <svg className={`w-4 h-4 text-gray-500 transition-all duration-300 ${open ? 'rotate-180 text-accent' : 'group-hover:text-accent'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-card-dark border border-white/10 rounded-lg shadow-xl z-50 overflow-hidden max-h-48 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-[#0f1115] border border-white/10 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] z-50 overflow-hidden max-h-60 overflow-y-auto backdrop-blur-3xl animate-in slide-in-from-top-2 duration-200">
           {options.map(opt => (
             <button
               key={opt.value}
               onClick={() => { onChange(opt.value); setOpen(false); }}
-              className={`w-full text-left px-3 py-2.5 text-sm transition-colors ${
+              className={`w-full text-left px-5 py-3.5 text-sm transition-all ${
                 value === opt.value
-                  ? 'bg-accent/10 text-accent border-l-2 border-accent'
-                  : 'text-white hover:bg-white/5 border-l-2 border-transparent'
+                  ? 'bg-accent/10 text-accent font-bold border-l-4 border-accent'
+                  : 'text-gray-400 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
               }`}
             >
               {opt.label}
@@ -240,83 +240,123 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
             <p className="text-[10px] font-black text-accent uppercase tracking-[0.3em] animate-pulse">Analizando Perfil...</p>
           </div>
         ) : (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300 pb-32">
             {/* Card: Bio Data */}
-            <div className="bg-white/3 border border-white/10 rounded-3xl p-6 relative overflow-hidden group">
-              <div className="absolute -top-10 -right-10 w-32 h-32 bg-accent/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-1.5 h-4 bg-accent rounded-full" />
-                <h4 className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Contexto de Identidad</h4>
+            <div className="bg-white/2 backdrop-blur-sm border border-white/10 rounded-3xl p-8 relative overflow-hidden group hover:border-accent/20 transition-all duration-500 shadow-xl shadow-black/20">
+              <div className="absolute -top-24 -right-24 w-64 h-64 bg-accent/5 rounded-full blur-[100px] opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
+              
+              <div className="flex items-center gap-4 mb-8 relative z-10">
+                <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center border border-accent/20 group-hover:scale-110 transition-transform duration-500">
+                  <svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 className="text-[11px] font-black text-white uppercase tracking-[0.2em]">Contexto de Identidad</h4>
+                  <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Define quién eres para SofLIA</p>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-                <div className="space-y-2">
-                  <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest px-1">Seudónimo / Apodo</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 relative z-10">
+                <div className="space-y-2.5">
+                  <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest px-1 ml-1 flex items-center gap-2">
+                    <div className="w-1 h-1 rounded-full bg-accent/50" />
+                    Seudónimo / Apodo
+                  </label>
                   <input
                     value={nickname}
                     onChange={e => setNickname(e.target.value)}
                     placeholder="Ej: Fer"
-                    className="w-full px-4 py-2.5 bg-background-dark/80 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-accent/30 transition-all placeholder-gray-700"
+                    className="w-full px-5 py-3.5 bg-black/40 border border-white/10 rounded-2xl text-white text-sm focus:outline-none focus:border-accent/40 focus:bg-black/60 focus:ring-4 focus:ring-accent/5 transition-all placeholder-gray-700"
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest px-1">Especialidad / Rol</label>
+                <div className="space-y-2.5">
+                  <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest px-1 ml-1 flex items-center gap-2">
+                    <div className="w-1 h-1 rounded-full bg-accent/50" />
+                    Especialidad / Rol
+                  </label>
                   <input
                     value={occupation}
                     onChange={e => setOccupation(e.target.value)}
                     placeholder="Ej: Software Engineer"
-                    className="w-full px-4 py-2.5 bg-background-dark/80 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-accent/30 transition-all placeholder-gray-700"
+                    className="w-full px-5 py-3.5 bg-black/40 border border-white/10 rounded-2xl text-white text-sm focus:outline-none focus:border-accent/40 focus:bg-black/60 focus:ring-4 focus:ring-accent/5 transition-all placeholder-gray-700"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest px-1">Memorias y Experiencias</label>
+              <div className="space-y-2.5 relative z-10">
+                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest px-1 ml-1 flex items-center gap-2">
+                  <div className="w-1 h-1 rounded-full bg-accent/50" />
+                  Memorias y Experiencias
+                </label>
                 <textarea
                   value={aboutUser}
                   onChange={e => setAboutUser(e.target.value)}
                   placeholder="Información relevante que SofLIA debe conocer para entenderte mejor..."
-                  className="w-full px-4 py-3 bg-background-dark/80 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-accent/30 transition-all placeholder-gray-700 resize-none h-24 custom-scrollbar"
+                  className="w-full px-5 py-4 bg-black/40 border border-white/10 rounded-2xl text-white text-sm focus:outline-none focus:border-accent/40 focus:bg-black/60 focus:ring-4 focus:ring-accent/5 transition-all placeholder-gray-700 resize-none h-32 custom-scrollbar shadow-inner"
                 />
+                <p className="text-[8px] text-gray-600 font-bold uppercase tracking-widest mt-2 px-1 text-right">SofLIA recordará estos detalles en futuras interacciones</p>
               </div>
             </div>
 
-            {/* Card: Stylistic Engine */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white/3 border border-white/10 rounded-3xl p-6 flex flex-col">
-                <div className="flex items-center gap-3 mb-6 text-gray-500 group-hover:text-accent transition-colors">
-                  <div className="w-1.5 h-4 bg-gray-700 rounded-full" />
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em]">Sintonía Basal</h4>
+              <div className="bg-white/2 backdrop-blur-sm border border-white/10 rounded-3xl p-8 flex flex-col group hover:border-accent/20 transition-all duration-500 shadow-xl shadow-black/20">
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-10 h-10 rounded-xl bg-gray-500/5 flex items-center justify-center border border-white/5 transition-all duration-500 group-hover:bg-accent/10 group-hover:border-accent/20 group-hover:scale-110">
+                    <svg className="w-5 h-5 text-gray-500 group-hover:text-accent transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="text-[11px] font-black text-white uppercase tracking-[0.2em]">Sintonía Basal</h4>
+                    <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Ajuste de tono y frecuencia</p>
+                  </div>
                 </div>
-                <div className="space-y-5 flex-1 flex flex-col justify-center">
-                  <div className="space-y-2">
-                    <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest px-1">Registros de Voz</label>
+                <div className="space-y-6 flex-1 flex flex-col justify-center">
+                  <div className="space-y-2.5">
+                    <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest px-1 ml-1 flex items-center gap-2">
+                      <div className="w-1 h-1 rounded-full bg-accent/50" />
+                      Registros de Voz
+                    </label>
                     <SelectDropdown value={toneStyle} onChange={setToneStyle} options={TONE_OPTIONS} />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest px-1">Densidad Expresiva (Emojis)</label>
+                  <div className="space-y-2.5">
+                    <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest px-1 ml-1 flex items-center gap-2">
+                      <div className="w-1 h-1 rounded-full bg-accent/50" />
+                      Densidad Expresiva
+                    </label>
                     <SelectDropdown value={charEmojis} onChange={setCharEmojis} options={EMOJI_OPTIONS} />
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white/3 border border-white/10 rounded-3xl p-6 relative group overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                  <svg className="w-16 h-16 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              <div className="bg-white/2 backdrop-blur-sm border border-white/10 rounded-3xl p-8 relative group overflow-hidden hover:border-accent/20 transition-all duration-500 shadow-xl shadow-black/20">
+                <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity duration-700">
+                  <svg className="w-24 h-24 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={0.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                 </div>
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-1.5 h-4 bg-accent rounded-full shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
-                  <h4 className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Instrucciones de Alto Nivel</h4>
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center border border-accent/20 group-hover:scale-110 transition-transform duration-500 shadow-[0_0_15px_rgba(34,211,238,0.1)]">
+                    <svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="text-[11px] font-black text-white uppercase tracking-[0.2em]">Instrucciones de Alto Nivel</h4>
+                    <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Lógica de control maestro</p>
+                  </div>
                 </div>
-                <p className="text-[9px] text-gray-500 font-bold uppercase tracking-tight mb-4 pr-10">Lógica de control maestro para todas las respuestas.</p>
-                <textarea
-                  value={customInstructions}
-                  onChange={e => setCustomInstructions(e.target.value)}
-                  placeholder="Ej: 'Siempre responde en inglés', 'Prioriza código limpio', 'Evita saludos'..."
-                  className="w-full px-4 py-3 bg-background-dark/80 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-accent/30 transition-all placeholder-gray-700 resize-none h-28 custom-scrollbar"
-                />
+                <div className="space-y-2.5 relative z-10">
+                  <textarea
+                    value={customInstructions}
+                    onChange={e => setCustomInstructions(e.target.value)}
+                    placeholder="Ej: 'Siempre responde en inglés', 'Prioriza código limpio', 'Evita saludos'..."
+                    className="w-full px-5 py-4 bg-black/40 border border-white/10 rounded-2xl text-white text-sm focus:outline-none focus:border-accent/40 focus:bg-black/60 focus:ring-4 focus:ring-accent/5 transition-all placeholder-gray-700 resize-none h-32 custom-scrollbar shadow-inner"
+                  />
+                  <p className="text-[8px] text-gray-600 font-bold uppercase tracking-widest mt-2 px-1">Instrucciones que prevalecen sobre cualquier comportamiento estándar</p>
+                </div>
               </div>
             </div>
 
@@ -424,10 +464,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
       </div>
 
       {/* Footer */}
-      <div className="px-8 py-5 border-t border-white/5 bg-white/2 flex items-center justify-between relative z-20">
-        <div className="flex items-center gap-2">
-           <div className={`w-2 h-2 rounded-full ${saving ? 'bg-amber-500 animate-pulse' : 'bg-accent/40'}`} />
-           <p className="text-[9px] text-gray-600 font-black uppercase tracking-widest">{saving ? 'Transfiriendo...' : 'Listo para sincronización'}</p>
+      <div className="px-10 py-6 border-t border-white/5 bg-black/40 backdrop-blur-xl flex items-center justify-between relative z-20 shadow-[0_-20px_40px_rgba(0,0,0,0.5)]">
+        <div className="flex items-center gap-3">
+           <div className={`w-2 h-2 rounded-full ${saving ? 'bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'bg-accent/40'}`} />
+           <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em]">{saving ? 'Sincronizando...' : 'Listo para sincronización'}</p>
         </div>
         <div className="flex gap-4">
           <button
@@ -439,9 +479,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
           <button
             onClick={handleSave}
             disabled={saving || loading}
-            className="group relative px-8 py-2.5 rounded-xl bg-accent text-primary text-[11px] font-black uppercase tracking-[0.2em] shadow-lg shadow-accent/10 hover:shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 overflow-hidden"
+            className="group relative px-10 py-3 rounded-2xl bg-accent text-primary text-[11px] font-black uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] hover:scale-[1.05] active:scale-[0.98] transition-all disabled:opacity-50 overflow-hidden"
           >
-            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
             <span className="relative z-10">{saving ? 'Guardando...' : 'Aplicar Cambios'}</span>
           </button>
         </div>

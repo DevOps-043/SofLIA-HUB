@@ -5,6 +5,7 @@ import { UserManagementModal as TeamContent } from './UserManagementModal';
 import AutoDevPanel from './AutoDevPanel';
 import { ScreenViewer as ScreenContent } from './ScreenViewer';
 import { ProductivityDashboard as ProductivityContent } from './ProductivityDashboard';
+import { UpdatePanel as UpdateContent } from './UpdatePanel';
 import { UserAISettings } from '../services/settings-service';
 
 interface UnifiedSettingsModalProps {
@@ -18,7 +19,7 @@ interface UnifiedSettingsModalProps {
   initialTab?: SettingsTab;
 }
 
-export type SettingsTab = 'ai' | 'whatsapp' | 'team' | 'autodev' | 'screen' | 'productivity';
+export type SettingsTab = 'ai' | 'whatsapp' | 'team' | 'autodev' | 'screen' | 'productivity' | 'updates';
 
 export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
   isOpen,
@@ -70,6 +71,11 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
     { id: 'productivity' as const, label: 'Productividad', icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+      </svg>
+    )},
+    { id: 'updates' as const, label: 'Actualización', icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
       </svg>
     )},
   ];
@@ -149,6 +155,12 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
             </div>
           </div>
         );
+      case 'updates':
+        return (
+          <div className="h-full overflow-y-auto no-scrollbar">
+            <UpdateContent />
+          </div>
+        );
       default:
         return null;
     }
@@ -156,32 +168,36 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 bg-black/70 backdrop-blur-md z-100 flex items-center justify-center p-4 animate-in fade-in duration-300"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-100 flex items-center justify-center p-4 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div 
-        className="w-full max-w-250 h-[85vh] bg-[#1a1b1e] rounded-3xl border border-white/10 shadow-2xl flex animate-in zoom-in-95 duration-300"
+        className="w-full max-w-260 h-[90vh] bg-[#0c0d10] rounded-[2.5rem] border border-white/10 shadow-2xl flex animate-in zoom-in-95 duration-300 overflow-hidden relative"
         onClick={e => e.stopPropagation()}
       >
+        {/* Decorative background effects (Optimized) */}
+        <div className="absolute top-[-10%] left-[-10%] w-[35%] h-[35%] bg-accent/5 blur-[80px] rounded-full pointer-events-none" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[35%] h-[35%] bg-purple-500/5 blur-[80px] rounded-full pointer-events-none" />
+
         {/* Sidebar */}
-        <div className="w-22 bg-black/40 border-r border-white/5 flex flex-col items-center py-8 z-20">
-          <div className="mb-14">
-            <img src="/assets/Icono.png" alt="SofLIA" className="w-10 h-10 drop-shadow-[0_0_15px_rgba(34,211,238,0.3)]" />
+        <div className="w-24 bg-black/40 backdrop-blur-2xl border-r border-white/5 flex flex-col items-center transition-all z-20 relative overflow-hidden">
+          <div className="py-8 flex-shrink-0">
+            <img src="/assets/Icono.png" alt="SofLIA" className="w-10 h-10 drop-shadow-[0_0_10px_rgba(34,211,238,0.2)]" />
           </div>
           
-          <nav className="flex-1 space-y-7 px-2">
+          <nav className="flex-1 w-full overflow-y-auto no-scrollbar py-4 space-y-6 flex flex-col items-center">
             {TABS.map(tab => !tab.hidden && (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as SettingsTab)}
-                className={`flex flex-col items-center justify-center w-12 h-12 rounded-xl transition-all duration-300 group relative ${
+                className={`flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 group relative flex-shrink-0 ${
                   activeTab === tab.id 
-                    ? 'bg-accent text-[#1a1b1e] shadow-[0_0_20px_rgba(34,211,238,0.4)] scale-110' 
+                    ? 'bg-accent text-[#0c0d10] shadow-[0_0_20px_rgba(34,211,238,0.4)] scale-105' 
                     : 'text-gray-500 hover:text-white hover:bg-white/5'
                 }`}
                 title={tab.label}
               >
-                <div className={`${activeTab === tab.id ? 'text-[#1a1b1e]' : 'text-gray-500 group-hover:text-gray-300'}`}>
+                <div className={`${activeTab === tab.id ? 'text-[#0c0d10] scale-105' : 'text-gray-500 group-hover:text-gray-300 group-hover:scale-105'} transition-transform duration-300`}>
                   {tab.icon}
                 </div>
                 <div className="absolute left-full ml-4 px-3 py-1.5 bg-sidebar/95 backdrop-blur-xl text-white text-[10px] font-bold uppercase tracking-wider rounded-xl opacity-0 translate-x-[-10px] group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 pointer-events-none whitespace-nowrap z-[100] border border-white/10 shadow-2xl shadow-black/50 flex items-center gap-2">
@@ -189,22 +205,22 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                   {tab.label}
                 </div>
                 {activeTab === tab.id && (
-                  <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-1 h-5 bg-accent rounded-full shadow-[0_0_15px_rgba(34,211,238,0.6)]"></div>
+                  <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-1.5 h-8 bg-accent rounded-full shadow-[0_0_15px_rgba(34,211,238,0.6)]"></div>
                 )}
               </button>
             ))}
           </nav>
           
-          <div className="mt-auto px-2 pb-2">
+          <div className="mt-auto w-full px-4 pb-8 flex-shrink-0 border-t border-white/5 pt-6 bg-black/20">
             <button 
               onClick={onClose}
-              className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 text-gray-500 hover:text-white hover:bg-red-500/10 hover:border-red-500/30 transition-all flex items-center justify-center group relative"
+              className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 text-gray-500 hover:text-white hover:bg-red-500/10 hover:border-red-500/30 transition-all flex items-center justify-center group relative mx-auto"
               title="Volver al Chat"
             >
-              <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <svg className="w-6 h-6 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
-              <div className="absolute left-full ml-4 px-3 py-1.5 bg-sidebar/95 backdrop-blur-xl text-white text-[10px] font-bold uppercase tracking-wider rounded-xl opacity-0 translate-x-[-10px] group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 pointer-events-none whitespace-nowrap z-[100] border border-white/10 shadow-2xl shadow-black/50 flex items-center gap-2">
+              <div className="absolute left-full ml-4 px-3 py-1.5 bg-sidebar/95 backdrop-blur-xl text-white text-[10px] font-bold uppercase tracking-wider rounded-xl opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 pointer-events-none whitespace-nowrap z-100 border border-white/10 shadow-2xl flex items-center gap-2">
                 <div className="w-1 h-1 rounded-full bg-red-400"></div>
                 Volver al Chat
               </div>

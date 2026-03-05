@@ -154,7 +154,16 @@ const ALLOWED_IPC_CHANNELS = [
   'flow-send-to-chat',
   'close-flow',
   'flow-message-received',
-  'flow-window-shown'
+  'flow-window-shown',
+  // Updater channels
+  'updater:check-for-updates',
+  'updater:download-update',
+  'updater:install-update',
+  'updater:get-status',
+  'updater:update-available',
+  'updater:download-progress',
+  'updater:update-downloaded',
+  'updater:error',
 ]
 
 // 4. Payload Sanitization
@@ -444,6 +453,24 @@ contextBridge.exposeInMainWorld('memory', {
   getFacts: (phoneNumber: string) => safeInvoke('memory:get-facts', phoneNumber),
   deleteFact: (factId: number) => safeInvoke('memory:delete-fact', factId),
   search: (sessionKey: string, phoneNumber: string, query: string) => safeInvoke('memory:search', sessionKey, phoneNumber, query),
+})
+
+// --------- Updater API ---------
+contextBridge.exposeInMainWorld('updater', {
+  checkForUpdates: () => safeInvoke('updater:check-for-updates'),
+  downloadUpdate: () => safeInvoke('updater:download-update'),
+  installUpdate: () => safeInvoke('updater:install-update'),
+  getStatus: () => safeInvoke('updater:get-status'),
+  onUpdateAvailable: (cb: (info: any) => void) => safeOn('updater:update-available', cb),
+  onDownloadProgress: (cb: (progress: any) => void) => safeOn('updater:download-progress', cb),
+  onUpdateDownloaded: (cb: (info: any) => void) => safeOn('updater:update-downloaded', cb),
+  onError: (cb: (err: any) => void) => safeOn('updater:error', cb),
+  removeListeners: () => {
+    safeRemoveAllListeners('updater:update-available')
+    safeRemoveAllListeners('updater:download-progress')
+    safeRemoveAllListeners('updater:update-downloaded')
+    safeRemoveAllListeners('updater:error')
+  },
 })
 
 // --------- Flow API ---------
