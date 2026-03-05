@@ -4,6 +4,14 @@ Todos los cambios notables de SofLIA Hub se documentan aquí.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.0.5] - 2026-03-05
+
+### Fixed
+
+- Corregido el logo de SofLIA que no se mostraba correctamente en la aplicación instalada.
+- Solucionado un problema que impedía iniciar sesión en la versión instalada al no detectar la configuración del servidor.
+- Corregidas todas las imágenes y avatares que aparecían rotos dentro de la aplicación empaquetada.
+
 ## [0.0.4] - 2026-03-05
 
 ### Added
