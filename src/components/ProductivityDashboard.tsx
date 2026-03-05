@@ -30,7 +30,7 @@ export function ProductivityDashboard({ userId }: ProductivityDashboardProps) {
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [appStats, setAppStats] = useState<AppUsageStat[]>([]);
   const [summary, setSummary] = useState<DailySummary | null>(null);
-  const [sessionsCount, setSessionsCount] = useState(0);
+  const [, setSessionsCount] = useState(0);
   const [loadingData, setLoadingData] = useState(false);
 
   // ─── Calendar auto-monitoring ──────────────────────────────────────

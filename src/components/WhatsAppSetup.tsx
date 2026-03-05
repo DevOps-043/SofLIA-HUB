@@ -59,6 +59,7 @@ export function WhatsAppSetup({ isOpen, onClose, apiKey, embedded = false }: Wha
   const [connecting, setConnecting] = useState(false);
   const [numberInput, setNumberInput] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isGroupPolicyDropdownOpen, setIsGroupPolicyDropdownOpen] = useState(false);
   const initialized = useRef(false);
 
   // Load initial status and setup listeners

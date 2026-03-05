@@ -40,7 +40,7 @@ export function CalendarPanel() {
   const [connections, setConnections] = useState<CalendarConnection[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [isAutoMode, setIsAutoMode] = useState(false);
-  const [inWorkHours, setInWorkHours] = useState(false);
+  const [, setInWorkHours] = useState(false);
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
