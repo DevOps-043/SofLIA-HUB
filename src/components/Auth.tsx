@@ -52,7 +52,7 @@ export const Auth: React.FC = () => {
           >
             <div className="absolute inset-0 bg-accent/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
             <img
-              src="/assets/Icono.png"
+              src="./assets/Icono.png"
               alt="SofLIA Logo"
               className="w-full h-full object-contain relative z-10 drop-shadow-2xl"
             />

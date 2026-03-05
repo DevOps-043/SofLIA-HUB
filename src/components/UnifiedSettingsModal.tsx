@@ -182,7 +182,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
         {/* Sidebar */}
         <div className="w-24 bg-black/40 backdrop-blur-2xl border-r border-white/5 flex flex-col items-center transition-all z-20 relative overflow-hidden">
           <div className="py-8 flex-shrink-0">
-            <img src="/assets/Icono.png" alt="SofLIA" className="w-10 h-10 drop-shadow-[0_0_10px_rgba(34,211,238,0.2)]" />
+            <img src="./assets/Icono.png" alt="SofLIA" className="w-10 h-10 drop-shadow-[0_0_10px_rgba(34,211,238,0.2)]" />
           </div>
           
           <nav className="flex-1 w-full overflow-y-auto no-scrollbar py-4 space-y-6 flex flex-col items-center">

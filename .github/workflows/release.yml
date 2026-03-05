@@ -62,6 +62,19 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Create .env file
+        run: |
+          echo "VITE_GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY }}" >> .env
+          echo "VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}" >> .env
+          echo "VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}" >> .env
+          echo "VITE_SOFIA_SUPABASE_URL=${{ secrets.VITE_SOFIA_SUPABASE_URL }}" >> .env
+          echo "VITE_SOFIA_SUPABASE_ANON_KEY=${{ secrets.VITE_SOFIA_SUPABASE_ANON_KEY }}" >> .env
+          echo "VITE_IRIS_SUPABASE_URL=${{ secrets.VITE_IRIS_SUPABASE_URL }}" >> .env
+          echo "VITE_IRIS_SUPABASE_ANON_KEY=${{ secrets.VITE_IRIS_SUPABASE_ANON_KEY }}" >> .env
+          echo "VITE_GOOGLE_OAUTH_CLIENT_ID=${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_ID }}" >> .env
+          echo "VITE_GOOGLE_OAUTH_CLIENT_SECRET=${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_SECRET }}" >> .env
+          echo "VITE_GAMMA_API_KEY=${{ secrets.VITE_GAMMA_API_KEY }}" >> .env
+
       - name: Build Electron app (Windows)
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
@@ -96,6 +109,19 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Create .env file
+        run: |
+          echo "VITE_GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY }}" >> .env
+          echo "VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}" >> .env
+          echo "VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}" >> .env
+          echo "VITE_SOFIA_SUPABASE_URL=${{ secrets.VITE_SOFIA_SUPABASE_URL }}" >> .env
+          echo "VITE_SOFIA_SUPABASE_ANON_KEY=${{ secrets.VITE_SOFIA_SUPABASE_ANON_KEY }}" >> .env
+          echo "VITE_IRIS_SUPABASE_URL=${{ secrets.VITE_IRIS_SUPABASE_URL }}" >> .env
+          echo "VITE_IRIS_SUPABASE_ANON_KEY=${{ secrets.VITE_IRIS_SUPABASE_ANON_KEY }}" >> .env
+          echo "VITE_GOOGLE_OAUTH_CLIENT_ID=${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_ID }}" >> .env
+          echo "VITE_GOOGLE_OAUTH_CLIENT_SECRET=${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_SECRET }}" >> .env
+          echo "VITE_GAMMA_API_KEY=${{ secrets.VITE_GAMMA_API_KEY }}" >> .env
 
       - name: Build Electron app (Mac)
         env:

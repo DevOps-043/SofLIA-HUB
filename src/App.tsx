@@ -540,7 +540,7 @@ function AppContent() {
         <div className="flex flex-col items-center gap-3">
           <div className="w-16 h-16 flex items-center justify-center">
             <img
-              src="/assets/Icono.png"
+              src="./assets/Icono.png"
               alt="Loading"
               className="w-full h-full object-contain"
             />
@@ -620,7 +620,7 @@ function AppContent() {
           {isSidebarOpen && (
             <div className="flex items-center gap-2 overflow-hidden whitespace-nowrap">
               <img
-                src="/assets/Icono.png"
+                src="./assets/Icono.png"
                 alt="SofLIA"
                 className="w-7 h-7 object-contain"
               />

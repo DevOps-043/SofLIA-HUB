@@ -732,7 +732,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
           <div className="flex-1 flex flex-col items-center justify-center px-4">
             <div className="mb-6">
               <div className="w-20 h-20 flex items-center justify-center mx-auto mb-4 rounded-full overflow-hidden">
-                <img src="/assets/lia-avatar.png" alt="SofLIA" className="w-full h-full object-cover drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]" />
+                <img src="./assets/lia-avatar.png" alt="SofLIA" className="w-full h-full object-cover drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]" />
               </div>
               <h2 className="text-2xl font-semibold text-primary dark:text-white text-center">
                 Como puedo ayudarte hoy?
@@ -756,7 +756,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                 <div key={index} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : ''}`}>
                   {msg.role === 'model' && (
                     <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 rounded-full overflow-hidden">
-                      <img src="/assets/lia-avatar.png" alt="SOFLIA" className="w-full h-full object-cover" />
+                      <img src="./assets/lia-avatar.png" alt="SOFLIA" className="w-full h-full object-cover" />
                     </div>
                   )}
                   
@@ -908,7 +908,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
             {isLoading && (
               <div className="flex gap-4">
                 <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 rounded-full overflow-hidden">
-                  <img src="/assets/lia-avatar.png" alt="SOFLIA" className="w-full h-full object-cover" />
+                  <img src="./assets/lia-avatar.png" alt="SOFLIA" className="w-full h-full object-cover" />
                 </div>
                 <div className="flex flex-col gap-2 pt-2">
                   {activeToolCall && (
