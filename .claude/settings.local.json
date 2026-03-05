@@ -39,7 +39,8 @@
       "WebFetch(domain:developers.openai.com)",
       "WebFetch(domain:workos.com)",
       "WebFetch(domain:www.arunbaby.com)",
-      "Bash(awk 'NR >= 1010 && NR <= 1015' \"/c/Users/fysg5/OneDrive/Escritorio/Pulse Hub/SofLIA - Hub/SofLIA-HUB/electron/desktop-agent-service.ts\")"
+      "Bash(awk 'NR >= 1010 && NR <= 1015' \"/c/Users/fysg5/OneDrive/Escritorio/Pulse Hub/SofLIA - Hub/SofLIA-HUB/electron/desktop-agent-service.ts\")",
+      "Bash(gh run list --limit 5)"
     ]
   }
 }
