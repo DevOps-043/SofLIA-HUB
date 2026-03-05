@@ -3,6 +3,7 @@ name: Build & Release
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 # Solo un release a la vez
 concurrency:
