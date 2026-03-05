@@ -15,6 +15,7 @@
   ],
   directories: {
     output: "release/${version}",
+    buildResources: "build",
   },
   files: ["dist", "dist-electron"],
   mac: {
@@ -36,6 +37,22 @@
     perMachine: false,
     allowToChangeInstallationDirectory: true,
     deleteAppDataOnUninstall: false,
+    // Custom installer images
+    installerIcon: "public/assets/icono.ico",
+    uninstallerIcon: "public/assets/icono.ico",
+    installerSidebar: "build/installer/installerSidebar.bmp",
+    uninstallerSidebar: "build/installer/uninstallerSidebar.bmp",
+    installerHeader: "build/installer/installerHeader.bmp",
+    // Custom NSIS script for branding
+    include: "build/installer.nsh",
+    // Installer display name
+    installerLanguages: ["es_ES", "en_US"],
+    // Fancy installer settings
+    unicode: true,
+    createDesktopShortcut: true,
+    createStartMenuShortcut: true,
+    shortcutName: "SofLIA Hub",
+    uninstallDisplayName: "SofLIA Hub",
   },
   linux: {
     target: ["AppImage"],

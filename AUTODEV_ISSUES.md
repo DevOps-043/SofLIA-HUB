@@ -1291,3 +1291,62 @@ Args: {"text":"enviame el archivo Polizas"}
 ```
 
 ---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-03-05
+
+- **Timestamp**: 2026-03-05T20:59:06.760Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `open_application` falló con error: El archivo no existe en la ruta proporcionada: C:\Users\Fernando Suarez\Desktop\Upiicsa. Verifique la ruta con search_files o list_directory e intente nuevamente.
+
+- **Herramienta**: `open_application`
+- **Error**: El archivo no existe en la ruta proporcionada: C:\Users\Fernando Suarez\Desktop\Upiicsa. Verifique la ruta con search_files o list_directory e intente nuevamente.
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [LIMITATION] — 2026-03-05
+
+- **Run ID**: `run_1772744655077`
+- **Timestamp**: 2026-03-05T21:04:15.141Z
+- **Categoría**: limitation
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+GitHub CLI no está autenticado. AutoDev necesita `gh auth login` para crear Pull Requests.
+
+### Contexto técnico
+
+```
+gh auth status failed
+```
+
+---
+## ❌ [RUNTIME_ERROR] — 2026-03-05
+
+- **Run ID**: `run_1772744655077`
+- **Timestamp**: 2026-03-05T21:04:15.152Z
+- **Categoría**: runtime_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Run falló con error: GitHub CLI not authenticated (run: gh auth login)
+
+### Contexto técnico
+
+```
+Error: GitHub CLI not authenticated (run: gh auth login)
+    at AutoDevService.executeRun (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA HUB\SofLIA-HUB\electron\autodev-service.ts:743:13)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async AutoDevService.runNow (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA HUB\SofLIA-HUB\electron\autodev-service.ts:634:7)
+    at async runStandalone (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA HUB\SofLIA-HUB\scripts\autodev.ts:31:17)
+```
+
+---
