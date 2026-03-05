@@ -11,11 +11,38 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    runs-on: windows-latest
-    permissions:
-      contents: read
+  # ─── Paso 1: Verificar si ya existe el release ───
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      exists: ${{ steps.check_release.outputs.exists }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
+      - name: Get version from package.json
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check if release already exists
+        id: check_release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          if gh release view "v${{ steps.version.outputs.version }}" --repo DevOps-043/PulseHub-SofLIA-releases > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+  # ─── Paso 2: Build Windows ───
+  build-windows:
+    needs: check
+    if: needs.check.outputs.exists == 'false'
+    runs-on: windows-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,38 +56,77 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Get version from package.json
-        id: version
-        shell: bash
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Check if release already exists in SofLIA-releases
-        id: check_release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
-        run: |
-          if gh release view "v${{ steps.version.outputs.version }}" --repo DevOps-043/PulseHub-SofLIA-releases > /dev/null 2>&1; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Build Electron app
-        if: steps.check_release.outputs.exists == 'false'
+      - name: Build Electron app (Windows)
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: npm run build
 
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-artifacts
+          path: |
+            release/${{ needs.check.outputs.version }}/SofLIA Hub-Windows-${{ needs.check.outputs.version }}-Setup.exe
+            release/${{ needs.check.outputs.version }}/SofLIA Hub-Windows-${{ needs.check.outputs.version }}-Setup.exe.blockmap
+            release/${{ needs.check.outputs.version }}/latest.yml
+
+  # ─── Paso 2b: Build Mac ───
+  build-mac:
+    needs: check
+    if: needs.check.outputs.exists == 'false'
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Electron app (Mac)
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: npx tsc && npx vite build && npx electron-builder --mac
+
+      - name: Upload Mac artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-artifacts
+          path: |
+            release/${{ needs.check.outputs.version }}/SofLIA Hub-Mac-${{ needs.check.outputs.version }}-Installer.dmg
+            release/${{ needs.check.outputs.version }}/latest-mac.yml
+
+  # ─── Paso 3: Crear Release con todos los artefactos ───
+  release:
+    needs: [check, build-windows, build-mac]
+    if: needs.check.outputs.exists == 'false'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (for CHANGELOG)
+        uses: actions/checkout@v4
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-artifacts
+          path: artifacts/
+
+      - name: Download Mac artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: mac-artifacts
+          path: artifacts/
+
       - name: Create release in DevOps-043/PulseHub-SofLIA-releases
-        if: steps.check_release.outputs.exists == 'false'
-        shell: bash
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
+          VERSION="${{ needs.check.outputs.version }}"
 
           # Extraer novedades del CHANGELOG para esta versión
           NOTES=$(sed -n "/## \[${VERSION}\]/,/## \[/p" CHANGELOG.md | head -n -1)
@@ -68,10 +134,14 @@ jobs:
             NOTES="SofLIA Hub v${VERSION}"
           fi
 
+          # Listar archivos disponibles
+          echo "=== Artifacts ==="
+          find artifacts/ -type f
+          echo "================="
+
+          # Crear release y subir todos los archivos
           gh release create "v${VERSION}" \
             --repo DevOps-043/PulseHub-SofLIA-releases \
             --title "SofLIA Hub v${VERSION}" \
             --notes "$NOTES" \
-            "release/${VERSION}/SofLIA Hub-Windows-${VERSION}-Setup.exe" \
-            "release/${VERSION}/SofLIA Hub-Windows-${VERSION}-Setup.exe.blockmap" \
-            "release/${VERSION}/latest.yml"
+            artifacts/*

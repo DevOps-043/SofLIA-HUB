@@ -4,6 +4,17 @@ Todos los cambios notables de SofLIA Hub se documentan aquí.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.0.3] - 2026-03-05
+
+### Added
+- Build para macOS (DMG) en el pipeline de CI/CD
+- Pipeline multi-plataforma: Windows y Mac compilan en paralelo
+
+### Fixed
+- Escape de comillas en workflow de GitHub Actions
+- Variables TypeScript no declaradas (`isGroupPolicyDropdownOpen` en WhatsAppSetup)
+- Variables no usadas en CalendarPanel y ProductivityDashboard
+
 ## [0.0.2] - 2026-03-05
 
 ### Added
