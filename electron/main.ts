@@ -25,6 +25,7 @@ import { MemoryService } from './memory-service'
 import { registerMemoryHandlers } from './memory-handlers'
 import { KnowledgeService } from './knowledge-service'
 import { SystemGuardianService, NeuralOrganizerService } from './system-services'
+import { DailyBriefingService } from './daily-briefing-service'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -35,6 +36,9 @@ export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
+
+// Activar sandbox global para mayor seguridad
+app.enableSandbox();
 
 // Force microphone access without prompts (necessary for borderless floating windows)
 app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
@@ -58,6 +62,9 @@ const knowledgeService = new KnowledgeService()
 // ─── System Services ────────────────────────────────────────────────
 let systemGuardian: SystemGuardianService | null = null;
 let neuralOrganizer: NeuralOrganizerService | null = null;
+
+// ─── Daily Briefing ─────────────────────────────────────────────────
+let dailyBriefingService: DailyBriefingService | null = null;
 
 // ─── Shared state ───────────────────────────────────────────────────
 let currentGeminiApiKey: string | null = null
@@ -203,7 +210,10 @@ function createFlowWindow() {
     movable: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
-      additionalArguments: ['--view-mode=flow']
+      additionalArguments: ['--view-mode=flow'],
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false
     },
   })
 
@@ -300,6 +310,9 @@ function createWindow() {
     icon: path.join(process.env.VITE_PUBLIC!, 'assets/icono.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false
     },
   })
 
@@ -408,6 +421,12 @@ ipcMain.handle('whatsapp:get-status', async () => {
 ipcMain.handle('whatsapp:set-allowed-numbers', async (_, numbers: string[]) => {
   try {
     await waService.setAllowedNumbers(numbers)
+    if (dailyBriefingService && numbers.length > 0) {
+      const currentConfig = dailyBriefingService.getConfig();
+      if (!currentConfig.ownerNumber) {
+        dailyBriefingService.updateConfig({ ownerNumber: numbers[0] });
+      }
+    }
     return { success: true }
   } catch (err: any) {
     return { success: false, error: err.message }
@@ -471,6 +490,11 @@ function initWhatsAppAgent(apiKey: string) {
     proactiveService.start()
   }
 
+  // Update Daily Briefing Service
+  if (dailyBriefingService) {
+    dailyBriefingService.updateConfig({ apiKey })
+  }
+
   // Start AutoDev autonomous programming engine
   autoDevService.setApiKey(apiKey)
 
@@ -510,6 +534,9 @@ ipcMain.handle('proactive:get-config', async () => {
 ipcMain.handle('proactive:update-config', async (_, updates: any) => {
   try {
     proactiveService.updateConfig(updates)
+    if (dailyBriefingService && updates.notifyPhone) {
+      dailyBriefingService.updateConfig({ ownerNumber: updates.notifyPhone })
+    }
     return { success: true }
   } catch (err: any) {
     return { success: false, error: err.message }
@@ -579,6 +606,25 @@ app.whenReady().then(async () => {
       console.warn(`[SystemGuardian] Watchdog reporta estado crítico: CPU ${status.cpuLoadPercent.toFixed(1)}%, RAM ${status.memoryUsagePercent.toFixed(1)}%`);
     }
   });
+
+  // ─── Daily Briefing Service ───────────────────────────────────
+  let ownerNumber = process.env.VITE_NOTIFY_PHONE || '';
+  try {
+    const proactiveConfig = proactiveService.getConfig() as any;
+    if (proactiveConfig && proactiveConfig.notifyPhone) {
+      ownerNumber = proactiveConfig.notifyPhone;
+    }
+  } catch (e) { /* ignore */ }
+  
+  dailyBriefingService = new DailyBriefingService({
+    enabled: true,
+    schedule: '0 8 * * 1-5', // Lunes a viernes a las 08:00
+    ownerNumber,
+    apiKey: process.env.VITE_GEMINI_API_KEY || ''
+  }, waService);
+  
+  await dailyBriefingService.init();
+  await dailyBriefingService.start();
 
   // Inyectar dependencias al WhatsAppAgent si ya fue creado (por concurrencia)
   if (waAgent) {

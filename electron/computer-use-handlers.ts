@@ -2,14 +2,17 @@
  * Computer Use IPC Handlers — Main Process
  * Provides real filesystem, shell, and system operations for SofLIA.
  */
-import { ipcMain, shell, clipboard, dialog, BrowserWindow, app, IpcMainInvokeEvent, desktopCapturer } from 'electron';
+import { ipcMain, shell, clipboard, dialog, BrowserWindow, app, IpcMainInvokeEvent, desktopCapturer, screen } from 'electron';
 import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { exec } from 'node:child_process';
+import util from 'node:util';
 import nodemailer from 'nodemailer';
 import * as si from 'systeminformation';
+import { createWorker } from 'tesseract.js';
+import { VisualDebuggerService } from './visual-debugger-service';
 
 // ─── Security ────────────────────────────────────────────────────────
 const MAX_FILE_READ_SIZE = 1 * 1024 * 1024; // 1 MB
@@ -48,6 +51,144 @@ function getFileExtension(filename: string): string {
   return ext ? ext.slice(1) : '';
 }
 
+// ─── Computer Use GUI Automation Helpers ─────────────────────────────
+const execAsync = util.promisify(exec);
+
+async function performGuiAction(action: string, coordinate?: number[], text?: string): Promise<void> {
+  const platform = os.platform();
+  const [x, y] = coordinate ? [Math.round(coordinate[0]), Math.round(coordinate[1])] : [0, 0];
+
+  const moveMouseWin = `Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(${x}, ${y})`;
+  const clickMouseWin = `
+$signature = @"
+[DllImport("user32.dll",CharSet=CharSet.Auto, CallingConvention=CallingConvention.StdCall)]
+public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint cButtons, uint dwExtraInfo);
+"@
+$mouse = Add-Type -memberDefinition $signature -name "Win32MouseEventNew" -namespace Win32Functions -passThru
+$mouse::mouse_event(0x0002, 0, 0, 0, 0)
+$mouse::mouse_event(0x0004, 0, 0, 0, 0)
+`;
+  const typeTextWin = text ? `Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('${text.replace(/'/g, "''")}')` : '';
+
+  const macMouseScript = `
+import Quartz
+def mouseEvent(type, posx, posy):
+    theEvent = Quartz.CGEventCreateMouseEvent(None, type, (posx,posy), Quartz.kCGMouseButtonLeft)
+    Quartz.CGEventPost(Quartz.kCGHIDEventTap, theEvent)
+mouseEvent(Quartz.kCGEventMouseMoved, ${x}, ${y})
+`;
+  const macClickScript = macMouseScript + `
+mouseEvent(Quartz.kCGEventLeftMouseDown, ${x}, ${y})
+import time
+time.sleep(0.05)
+mouseEvent(Quartz.kCGEventLeftMouseUp, ${x}, ${y})
+`;
+
+  switch (action) {
+    case 'mouse_move':
+      if (platform === 'win32') await execAsync(`powershell -Command "${moveMouseWin}"`);
+      else if (platform === 'darwin') await execAsync(`python3 -c "${macMouseScript}"`);
+      else await execAsync(`xdotool mousemove ${x} ${y}`);
+      break;
+
+    case 'left_click':
+    case 'left_click_drag':
+      if (platform === 'win32') await execAsync(`powershell -Command "${moveMouseWin}; ${clickMouseWin}"`);
+      else if (platform === 'darwin') await execAsync(`python3 -c "${macClickScript}"`);
+      else await execAsync(`xdotool mousemove ${x} ${y} click 1`);
+      break;
+
+    case 'right_click':
+      if (platform === 'win32') {
+        const rightClickWin = clickMouseWin.replace('0x0002', '0x0008').replace('0x0004', '0x0010');
+        await execAsync(`powershell -Command "${moveMouseWin}; ${rightClickWin}"`);
+      } else if (platform === 'darwin') {
+        const macRight = macClickScript.replace(/Left/g, 'Right');
+        await execAsync(`python3 -c "${macRight}"`);
+      } else {
+        await execAsync(`xdotool mousemove ${x} ${y} click 3`);
+      }
+      break;
+
+    case 'middle_click':
+      if (platform === 'win32') {
+        await execAsync(`powershell -Command "${moveMouseWin}"`);
+      } else if (platform === 'darwin') {
+        const macMiddle = macClickScript.replace(/Left/g, 'Center');
+        await execAsync(`python3 -c "${macMiddle}"`);
+      } else {
+        await execAsync(`xdotool mousemove ${x} ${y} click 2`);
+      }
+      break;
+
+    case 'double_click':
+      if (platform === 'win32') await execAsync(`powershell -Command "${moveMouseWin}; ${clickMouseWin}; Start-Sleep -Milliseconds 50; ${clickMouseWin}"`);
+      else if (platform === 'darwin') await execAsync(`python3 -c "${macClickScript}\ntime.sleep(0.05)\n${macClickScript}"`);
+      else await execAsync(`xdotool mousemove ${x} ${y} click --repeat 2 1`);
+      break;
+
+    case 'type':
+      if (!text) throw new Error("Texto requerido para acción 'type'");
+      if (platform === 'win32') await execAsync(`powershell -Command "${typeTextWin}"`);
+      else if (platform === 'darwin') {
+        const escapedText = text.replace(/"/g, '\\"');
+        await execAsync(`osascript -e 'tell application "System Events" to keystroke "${escapedText}"'`);
+      }
+      else await execAsync(`xdotool type "${text}"`);
+      break;
+
+    case 'key':
+      if (!text) throw new Error("Tecla requerida para acción 'key'");
+      if (platform === 'win32') await execAsync(`powershell -Command "${typeTextWin}"`);
+      else if (platform === 'darwin') {
+        const keyMap: Record<string, string> = { 'Return': 'return', 'Enter': 'return', 'Escape': 'escape', 'Tab': 'tab' };
+        const macKey = keyMap[text] || text;
+        await execAsync(`osascript -e 'tell application "System Events" to keystroke "${macKey}"'`);
+      }
+      else await execAsync(`xdotool key "${text}"`);
+      break;
+
+    default:
+      throw new Error(`Acción GUI no soportada: ${action}`);
+  }
+}
+
+async function findTextCoordinates(textToFind: string, imageBuffer: Buffer): Promise<{x: number, y: number, confidence: number}> {
+  let worker;
+  try {
+    worker = await createWorker('spa');
+  } catch (e) {
+    worker = await createWorker('eng');
+  }
+  
+  const ret = await worker.recognize(imageBuffer);
+  await worker.terminate();
+
+  const lowerText = textToFind.toLowerCase();
+  
+  for (const word of ret.data.words) {
+    if (word.text.toLowerCase().includes(lowerText) && word.confidence > 50) {
+      return {
+        x: Math.round(word.bbox.x0 + (word.bbox.x1 - word.bbox.x0) / 2),
+        y: Math.round(word.bbox.y0 + (word.bbox.y1 - word.bbox.y0) / 2),
+        confidence: word.confidence
+      };
+    }
+  }
+
+  for (const line of ret.data.lines) {
+    if (line.text.toLowerCase().includes(lowerText) && line.confidence > 40) {
+      return {
+        x: Math.round(line.bbox.x0 + (line.bbox.x1 - line.bbox.x0) / 2),
+        y: Math.round(line.bbox.y0 + (line.bbox.y1 - line.bbox.y0) / 2),
+        confidence: line.confidence
+      };
+    }
+  }
+
+  throw new Error(`Elemento con texto "${textToFind}" no encontrado en pantalla (OCR no lo detectó).`);
+}
+
 // ─── Email Config ─────────────────────────────────────────────────────
 const EMAIL_CONFIG_PATH = path.join(app.getPath('userData'), 'email-config.json');
 
@@ -76,7 +217,10 @@ function detectSmtp(email: string): { host: string; port: number } | null {
 async function handleListScreens(): Promise<{ success: boolean; screens?: Array<{ id: string; name: string; display_id: string }>; count?: number; error?: string }> {
   try {
     console.log('[ComputerUse] Fetching screen sources...');
-    const sources = await desktopCapturer.getSources({ types: ['screen'] });
+    const sources = await desktopCapturer.getSources({ 
+      types: ['screen'],
+      thumbnailSize: { width: 0, height: 0 } // Ahorro de memoria, no genera imágenes
+    });
     const screens = sources.map((s: any) => ({
       id: s.id,
       name: s.name,
@@ -631,6 +775,9 @@ export async function executeToolDirect(
     case 'open_file_on_computer':
     case 'open_application': {
       try {
+        if (!args.path) {
+          return { success: false, error: 'Debe proporcionar la ruta del archivo o aplicación (path).' };
+        }
         const resolvedPath = normalizePath(args.path);
         
         if (!fsSync.existsSync(resolvedPath)) {
@@ -640,8 +787,9 @@ export async function executeToolDirect(
           };
         }
         
+        // shell.openPath is the proper non-blocking native way in Electron
         const result = await shell.openPath(resolvedPath);
-        if (result) {
+        if (result !== '') {
           return { 
             success: false, 
             error: `Error al abrir el archivo o aplicación: "${result}". Asegúrese de que la ruta sea correcta, que tenga permisos de lectura/ejecución y que el sistema operativo tenga un programa predeterminado para abrir este tipo de archivo.` 
@@ -717,47 +865,111 @@ export async function executeToolDirect(
 
     case 'use_computer':
     case 'take_screenshot': {
+      let lastKnownCoords = { x: 0, y: 0 };
       try {
-        if (onProgress) onProgress('Iniciando captura de pantalla...');
-        
-        const sources = await desktopCapturer.getSources({ 
-          types: ['screen'],
-          thumbnailSize: { width: 1920, height: 1080 }
-        });
-        
-        if (!sources || sources.length === 0) return { success: false, error: 'No se encontraron pantallas.' };
-        
-        let targetSource = sources[0];
-        if (args.display_id) {
-          targetSource = sources.find((s: any) => s.display_id === args.display_id) || sources[0];
+        const action = args.action || 'screenshot';
+        if (args.coordinate && Array.isArray(args.coordinate) && args.coordinate.length >= 2) {
+          lastKnownCoords = { x: Math.round(args.coordinate[0]), y: Math.round(args.coordinate[1]) };
         }
 
-        let axTree = undefined;
-        try {
-          if (onProgress) onProgress('Iniciando OCR y extracción de árbol de accesibilidad visual...');
-          if (typeof BrowserWindow !== 'undefined' && BrowserWindow.getAllWindows) {
-            const windows = BrowserWindow.getAllWindows();
-            if (windows.length > 0) {
-              const webContents = windows[0].webContents;
-              if (webContents) {
-                if (!webContents.debugger.isAttached()) {
-                  webContents.debugger.attach('1.3');
+        if (action === 'screenshot' || toolName === 'take_screenshot') {
+          if (onProgress) onProgress('Iniciando captura de pantalla...');
+          
+          // Determine optimal screen dimensions for the screenshot to prevent undefined thumbnails
+          let targetWidth = 1920;
+          let targetHeight = 1080;
+          try {
+            const primaryDisplay = screen.getPrimaryDisplay();
+            targetWidth = Math.floor(primaryDisplay.size.width * primaryDisplay.scaleFactor);
+            targetHeight = Math.floor(primaryDisplay.size.height * primaryDisplay.scaleFactor);
+          } catch { /* fallback */ }
+
+          if (args.width) targetWidth = Number(args.width);
+          if (args.height) targetHeight = Number(args.height);
+
+          // desktopCapturer debe ejecutarse en el Main Process con dimensiones específicas
+          let sources;
+          try {
+            sources = await desktopCapturer.getSources({ 
+              types: ['screen'],
+              thumbnailSize: { width: targetWidth, height: targetHeight }
+            });
+          } catch (dcErr: any) {
+            return { success: false, error: `Error interno de desktopCapturer: ${dcErr.message}` };
+          }
+          
+          if (!sources || sources.length === 0) return { success: false, error: 'No se encontraron pantallas.' };
+          
+          let targetSource = sources[0];
+          if (args.display_id) {
+            targetSource = sources.find((s: any) => s.display_id === args.display_id) || sources[0];
+          }
+
+          if (!targetSource || !targetSource.thumbnail) {
+            return { success: false, error: 'No se pudo generar la captura de la pantalla (thumbnail indefinido). Asegure el uso de Electron Main Process.' };
+          }
+
+          let axTree = undefined;
+          try {
+            if (onProgress) onProgress('Iniciando OCR y extracción de árbol de accesibilidad visual...');
+            if (typeof BrowserWindow !== 'undefined' && BrowserWindow.getAllWindows) {
+              const windows = BrowserWindow.getAllWindows();
+              if (windows.length > 0) {
+                const focusedWindow = BrowserWindow.getFocusedWindow() || windows[0];
+                const webContents = focusedWindow.webContents;
+                if (webContents) {
+                  if (!webContents.debugger.isAttached()) {
+                    try { webContents.debugger.attach('1.3'); } catch (e) { /* might be attached already */ }
+                  }
+                  axTree = await webContents.debugger.sendCommand('Accessibility.getFullAXTree');
                 }
-                axTree = await webContents.debugger.sendCommand('Accessibility.getFullAXTree');
               }
             }
+          } catch (axErr: any) {
+            console.error('Error fetching AXTree:', axErr);
           }
-        } catch (axErr: any) {
-          console.error('Error fetching AXTree:', axErr);
+
+          const imageBase64 = targetSource.thumbnail.toDataURL();
+
+          return { 
+            success: true, 
+            image: imageBase64,
+            axTree
+          };
+        } else {
+          // ================= GUI ACTIONS =================
+          try {
+            if (onProgress) onProgress(`Ejecutando acción GUI: ${action}...`);
+
+            // Búsqueda de elementos mediante OCR por texto
+            if (!args.coordinate && args.text && ['left_click', 'right_click', 'double_click', 'mouse_move', 'left_click_drag'].includes(action)) {
+              if (onProgress) onProgress(`Buscando texto "${args.text}" en pantalla con OCR...`);
+              
+              const capture = await executeToolDirect('take_screenshot', { display_id: args.display_id });
+              if (!capture.success) throw new Error(capture.error);
+              
+              const base64Data = capture.image.replace(/^data:image\/png;base64,/, "");
+              const imageBuffer = Buffer.from(base64Data, 'base64');
+              
+              const coords = await findTextCoordinates(args.text, imageBuffer);
+              lastKnownCoords = { x: coords.x, y: coords.y };
+              args.coordinate = [coords.x, coords.y];
+              
+              if (onProgress) onProgress(`Texto encontrado en coordenadas: [${coords.x}, ${coords.y}] (Confianza: ${Math.round(coords.confidence)}%)`);
+            }
+
+            await performGuiAction(action, args.coordinate, args.text);
+
+            // Retornamos captura actualizada después de la acción GUI
+            return await executeToolDirect('take_screenshot', { display_id: args.display_id }, onProgress);
+
+          } catch (err: any) {
+            // Eliminamos la "caja negra" generando y lanzando un visual debugger error interactivo
+            const { x, y } = lastKnownCoords;
+            await VisualDebuggerService.handleVisualError(err.message, x, y);
+            throw err; 
+          }
         }
-
-        const imageBase64 = targetSource.thumbnail.toDataURL();
-
-        return { 
-          success: true, 
-          image: imageBase64,
-          axTree
-        };
       } catch (err: any) {
         return { success: false, error: err.message };
       }
