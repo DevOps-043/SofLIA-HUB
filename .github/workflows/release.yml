@@ -14,12 +14,15 @@ jobs:
   # ─── Paso 1: Verificar si ya existe el release ───
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       version: ${{ steps.version.outputs.version }}
       exists: ${{ steps.check_release.outputs.exists }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASES_TOKEN }}
 
       - name: Get version from package.json
         id: version
@@ -43,9 +46,12 @@ jobs:
     needs: check
     if: needs.check.outputs.exists == 'false'
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASES_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -75,9 +81,12 @@ jobs:
     needs: check
     if: needs.check.outputs.exists == 'false'
     runs-on: macos-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASES_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -106,9 +115,12 @@ jobs:
     needs: [check, build-windows, build-mac]
     if: needs.check.outputs.exists == 'false'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout (for CHANGELOG)
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASES_TOKEN }}
 
       - name: Download Windows artifacts
         uses: actions/download-artifact@v4
