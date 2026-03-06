@@ -906,7 +906,7 @@ AutoDev generó código truncado para electron/autonomous-janitor.ts. El archivo
 
 - **Timestamp**: 2026-03-01T04:38:49.162Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772744764947` — 2026-03-05)
 
 ### Descripción
 
@@ -927,7 +927,7 @@ Args: {}
 
 - **Timestamp**: 2026-03-01T04:39:37.688Z
 - **Fuente**: computer_use
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772744764947` — 2026-03-05)
 
 ### Descripción
 
@@ -948,7 +948,7 @@ Tarea solicitada: Abrir el archivo 'Suarez_Gonzalez_Fernando_Yael.pdf' desde la 
 
 - **Timestamp**: 2026-03-01T04:41:57.359Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772744764947` — 2026-03-05)
 
 ### Descripción
 
@@ -968,7 +968,7 @@ Args: {}
 
 - **Timestamp**: 2026-03-01T20:26:27.181Z
 - **Fuente**: computer_use
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772744764947` — 2026-03-05)
 
 ### Descripción
 
@@ -987,7 +987,7 @@ Tarea solicitada: Abre la calculadora, suma 389 y 540, y dime el resultado.
 
 - **Timestamp**: 2026-03-01T20:47:04.662Z
 - **Fuente**: computer_use
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772744764947` — 2026-03-05)
 
 ### Descripción
 
@@ -1006,7 +1006,7 @@ Tarea solicitada: Abre la aplicación Calculadora, luego ingresa 389, haz clic e
 
 - **Timestamp**: 2026-03-02T04:34:53.924Z
 - **Fuente**: computer_use
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772744764947` — 2026-03-05)
 
 ### Descripción
 
@@ -1025,7 +1025,7 @@ Tarea solicitada: Error en paso 0: Cannot read properties of undefined (reading 
 
 - **Timestamp**: 2026-03-02T04:34:53.929Z
 - **Fuente**: computer_use
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772744764947` — 2026-03-05)
 
 ### Descripción
 
@@ -1044,7 +1044,7 @@ Tarea solicitada: Abre la aplicación "Calculadora" y suma 389 más 540.
 
 - **Timestamp**: 2026-03-02T04:35:55.015Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772744764947` — 2026-03-05)
 
 ### Descripción
 
