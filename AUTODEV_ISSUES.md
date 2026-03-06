@@ -964,6 +964,7 @@ Args: {}
 ```
 
 ---
+
 ## ❌ [🖥️ FALLA COMPUTER USE] — 2026-03-01
 
 - **Timestamp**: 2026-03-01T20:26:27.181Z
@@ -976,6 +977,7 @@ Computer Use no pudo completar la tarea: "Abre la calculadora, suma 389 y 540, y
 
 - **Herramienta**: `use_computer`
 - **Error**: Cannot read properties of undefined (reading 'getSources')
+
 ### Contexto
 
 ```
@@ -983,6 +985,7 @@ Tarea solicitada: Abre la calculadora, suma 389 y 540, y dime el resultado.
 ```
 
 ---
+
 ## ❌ [🖥️ FALLA COMPUTER USE] — 2026-03-01
 
 - **Timestamp**: 2026-03-01T20:47:04.662Z
@@ -995,6 +998,7 @@ Computer Use no pudo completar la tarea: "Abre la aplicación Calculadora, luego
 
 - **Herramienta**: `use_computer`
 - **Error**: Cannot read properties of undefined (reading 'getSources')
+
 ### Contexto
 
 ```
@@ -1002,6 +1006,7 @@ Tarea solicitada: Abre la aplicación Calculadora, luego ingresa 389, haz clic e
 ```
 
 ---
+
 ## ❌ [🖥️ FALLA COMPUTER USE] — 2026-03-02
 
 - **Timestamp**: 2026-03-02T04:34:53.924Z
@@ -1014,6 +1019,7 @@ Computer Use no pudo completar la tarea: "Error en paso 0: Cannot read propertie
 
 - **Herramienta**: `use_computer`
 - **Error**: Error en paso 0: Cannot read properties of undefined (reading 'getSources')
+
 ### Contexto
 
 ```
@@ -1021,6 +1027,7 @@ Tarea solicitada: Error en paso 0: Cannot read properties of undefined (reading 
 ```
 
 ---
+
 ## ❌ [🖥️ FALLA COMPUTER USE] — 2026-03-02
 
 - **Timestamp**: 2026-03-02T04:34:53.929Z
@@ -1033,6 +1040,7 @@ Computer Use no pudo completar la tarea: "Abre la aplicación "Calculadora" y su
 
 - **Herramienta**: `use_computer`
 - **Error**: Cannot read properties of undefined (reading 'getSources')
+
 ### Contexto
 
 ```
@@ -1040,6 +1048,7 @@ Tarea solicitada: Abre la aplicación "Calculadora" y suma 389 más 540.
 ```
 
 ---
+
 ## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-03-02
 
 - **Timestamp**: 2026-03-02T04:35:55.015Z
@@ -1052,6 +1061,7 @@ La herramienta `open_application` falló con error: Acción cancelada por el usu
 
 - **Herramienta**: `open_application`
 - **Error**: Acción cancelada por el usuario.
+
 ### Contexto
 
 ```
@@ -1059,294 +1069,103 @@ Args: {}
 ```
 
 ---
-## ❌ [🗣️ QUEJA DE USUARIO] — 2026-03-04
 
-- **Timestamp**: 2026-03-04T17:04:17.402Z
-- **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+## ❌ [RUNTIME_ERROR] — 2026-03-04
 
-### Descripción
-
-El usuario se quejó de que SofLIA no completó una acción correctamente.
-
-### Mensaje del usuario
-
-> Cómo vas cuántos archivos ya pasaste?
-
-### Contexto
-
-```
-Patrón detectado: c[oó]mo vas
-```
-
----
-## ❌ [🗣️ QUEJA DE USUARIO] — 2026-03-04
-
-- **Timestamp**: 2026-03-04T17:04:17.445Z
-- **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
-
-### Descripción
-
-El usuario se quejó de que SofLIA no completó una acción correctamente.
-
-### Mensaje del usuario
-
-> Cómo vas?
-
-### Contexto
-
-```
-Patrón detectado: c[oó]mo vas
-```
-
----
-## ❌ [🗣️ QUEJA DE USUARIO] — 2026-03-04
-
-- **Timestamp**: 2026-03-04T17:04:17.475Z
-- **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
-
-### Descripción
-
-El usuario se quejó de que SofLIA no completó una acción correctamente.
-
-### Mensaje del usuario
-
-> Se supone que ahí debería de estar lo que descargaste de drive
-
-### Contexto
-
-```
-Patrón detectado: se supone que
-```
-
----
-## ❌ [🗣️ QUEJA DE USUARIO] — 2026-03-04
-
-- **Timestamp**: 2026-03-04T17:04:17.517Z
-- **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
-
-### Descripción
-
-El usuario se quejó de que SofLIA no completó una acción correctamente.
-
-### Mensaje del usuario
-
-> Cómo vas con la descargar de archivos?
-
-### Contexto
-
-```
-Patrón detectado: c[oó]mo vas
-```
-
----
-## ❌ [🗣️ QUEJA DE USUARIO] — 2026-03-04
-
-- **Timestamp**: 2026-03-04T17:04:17.543Z
-- **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
-
-### Descripción
-
-El usuario se quejó de que SofLIA no completó una acción correctamente.
-
-### Mensaje del usuario
-
-> Sigue apagado
-
-### Contexto
-
-```
-Patrón detectado: sigue (sin|igual|apagado|cerrado)
-```
-
----
-## ❌ [🗣️ QUEJA DE USUARIO] — 2026-03-04
-
-- **Timestamp**: 2026-03-04T17:04:17.563Z
-- **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
-
-### Descripción
-
-El usuario se quejó de que SofLIA no completó una acción correctamente.
-
-### Mensaje del usuario
-
-> Sigue sin estar abierto
-
-### Contexto
-
-```
-Patrón detectado: sigue (sin|igual|apagado|cerrado)
-```
-
----
-## ❌ [🗣️ QUEJA DE USUARIO] — 2026-03-04
-
-- **Timestamp**: 2026-03-04T17:04:18.846Z
-- **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
-
-### Descripción
-
-El usuario se quejó de que SofLIA no completó una acción correctamente.
-
-### Mensaje del usuario
-
-> No me enviaste nada
-
-### Contexto
-
-```
-Patrón detectado: no me (pasaste|enviaste|mandaste)
-```
-
----
-## ❌ [🗣️ QUEJA DE USUARIO] — 2026-03-04
-
-- **Timestamp**: 2026-03-04T17:04:20.865Z
-- **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
-
-### Descripción
-
-El usuario se quejó de que SofLIA no completó una acción correctamente.
-
-### Mensaje del usuario
-
-> Cómo vez este mensaje? Hola , talvez sea el último mensaje que te mandé o veas denuevo de mi , la verdad es que creo que no hable apropiadamente contigo esa última vez , si te soy sincero creía que lo pudimos haber solucionado todo esto de la mejor manera y te pido perdón por ello ,te pido perdón por mis actitudes por no darte el tiempo que mereces , mereces algo mejor alguien que te dé ese valor y amor que no te pude dar , solo espero que puedas escogerlo de una forma más adecuada.
-> Tienes un fu
-
-### Respuesta de SofLIA
-
-> No puedo revisar tu calendario en este momento porque Google Calendar no está conectado. Necesitas conectar tu cuenta de Google desde la interfaz de SofLIA Hub primero para que pueda acceder a tus eventos.
-
-### Contexto
-
-```
-Patrón detectado: no (se )?cre[oó]
-```
-
----
-## ❌ [🗣️ QUEJA DE USUARIO] — 2026-03-04
-
-- **Timestamp**: 2026-03-04T17:04:20.937Z
-- **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
-
-### Descripción
-
-El usuario se quejó de que SofLIA no completó una acción correctamente.
-
-### Mensaje del usuario
-
-> se supone que en las implementciones que se hicieron  , podias ver cualquier pantalla
-
-### Contexto
-
-```
-Patrón detectado: se supone que
-```
-
----
-## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-03-04
-
-- **Timestamp**: 2026-03-04T17:24:28.466Z
-- **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
-
-### Descripción
-
-La herramienta `runAgentLoop` falló con error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent: fetch failed
-
-- **Herramienta**: `runAgentLoop`
-- **Error**: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent: fetch failed
-### Contexto
-
-```
-Args: {"text":""}
-```
-
----
-## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-03-04
-
-- **Timestamp**: 2026-03-04T17:39:11.263Z
-- **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
-
-### Descripción
-
-La herramienta `runAgentLoop` falló con error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent: fetch failed
-
-- **Herramienta**: `runAgentLoop`
-- **Error**: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent: fetch failed
-### Contexto
-
-```
-Args: {"text":"enviame el archivo Polizas"}
-```
-
----
-## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-03-05
-
-- **Timestamp**: 2026-03-05T20:59:06.760Z
-- **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
-
-### Descripción
-
-La herramienta `open_application` falló con error: El archivo no existe en la ruta proporcionada: C:\Users\Fernando Suarez\Desktop\Upiicsa. Verifique la ruta con search_files o list_directory e intente nuevamente.
-
-- **Herramienta**: `open_application`
-- **Error**: El archivo no existe en la ruta proporcionada: C:\Users\Fernando Suarez\Desktop\Upiicsa. Verifique la ruta con search_files o list_directory e intente nuevamente.
-### Contexto
-
-```
-Args: {}
-```
-
----
-## ❌ [LIMITATION] — 2026-03-05
-
-- **Run ID**: `run_1772744655077`
-- **Timestamp**: 2026-03-05T21:04:15.141Z
-- **Categoría**: limitation
-- **Estado**: 🔴 PENDIENTE
-
-### Descripción
-
-GitHub CLI no está autenticado. AutoDev necesita `gh auth login` para crear Pull Requests.
-
-### Contexto técnico
-
-```
-gh auth status failed
-```
-
----
-## ❌ [RUNTIME_ERROR] — 2026-03-05
-
-- **Run ID**: `run_1772744655077`
-- **Timestamp**: 2026-03-05T21:04:15.152Z
+- **Run ID**: `run_1772614804214`
+- **Timestamp**: 2026-03-04T09:05:34.016Z
 - **Categoría**: runtime_error
 - **Estado**: 🔴 PENDIENTE
 
 ### Descripción
 
-Run falló con error: GitHub CLI not authenticated (run: gh auth login)
+Run falló con error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview-customtools:generateContent: [503 Service Unavailable] This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.
 
 ### Contexto técnico
 
 ```
-Error: GitHub CLI not authenticated (run: gh auth login)
-    at AutoDevService.executeRun (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA HUB\SofLIA-HUB\electron\autodev-service.ts:743:13)
+Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview-customtools:generateContent: [503 Service Unavailable] This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.
+    at handleResponseNotOk (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:432:11)
     at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
-    at async AutoDevService.runNow (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA HUB\SofLIA-HUB\electron\autodev-service.ts:634:7)
-    at async runStandalone (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA HUB\SofLIA-HUB\scripts\autodev.ts:31:17)
+    at async makeRequest (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:401:9)
+    at async generateContent (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:865:22)
+    at async ChatSession.sendMessage (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:1208:9)
+    at async execute (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:1756:22)
+    at async AutoDevService.analyzeCode (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:1777:14)
+    at async AutoDevService.executeRun (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:838:24)
+    at async AutoDevService.runNow (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:634:7)
+    at async runStandalone (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\scripts\autodev.ts:31:17)
 ```
+
+---
+
+## ❌ [RUNTIME_ERROR] — 2026-03-04
+
+- **Run ID**: `run_1772614804198`
+- **Timestamp**: 2026-03-04T09:07:09.041Z
+- **Categoría**: runtime_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Run falló con error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview-customtools:generateContent: [503 Service Unavailable] This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.
+
+### Contexto técnico
+
+```
+Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview-customtools:generateContent: [503 Service Unavailable] This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.
+    at handleResponseNotOk (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:432:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async makeRequest (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:401:9)
+    at async generateContent (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:865:22)
+    at async ChatSession.sendMessage (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:1208:9)
+    at async execute (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:1756:22)
+    at async AutoDevService.analyzeCode (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:1777:14)
+    at async AutoDevService.executeRun (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:838:24)
+    at async AutoDevService.runNow (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:634:7)
+    at async runStandalone (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\scripts\autodev.ts:31:17)
+```
+
+---
+
+## ❌ [RUNTIME_ERROR] — 2026-03-05
+
+- **Run ID**: `run_1772701202734`
+- **Timestamp**: 2026-03-05T09:04:41.859Z
+- **Categoría**: runtime_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Run falló con error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview-customtools:generateContent: [503 Service Unavailable] This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.
+
+### Contexto técnico
+
+```
+Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview-customtools:generateContent: [503 Service Unavailable] This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.
+    at handleResponseNotOk (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:432:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async makeRequest (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:401:9)
+    at async generateContent (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:865:22)
+    at async ChatSession.sendMessage (file:///C:/Users/fysg5/OneDrive/Escritorio/Pulse%20Hub/SofLIA%20-%20Hub/SofLIA-HUB/node_modules/@google/generative-ai/dist/index.mjs:1208:9)
+    at async execute (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:1770:20)
+    at async AutoDevService.analyzeCode (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:1777:14)
+    at async AutoDevService.executeRun (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:838:24)
+    at async AutoDevService.runNow (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\electron\autodev-service.ts:634:7)
+    at async runStandalone (C:\Users\fysg5\OneDrive\Escritorio\Pulse Hub\SofLIA - Hub\SofLIA-HUB\scripts\autodev.ts:31:17)
+```
+
+---
+
+## ❌ [CODING_ERROR] — 2026-03-05
+
+- **Run ID**: `run_1772701202729`
+- **Timestamp**: 2026-03-05T09:26:53.732Z
+- **Categoría**: coding_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+AutoDev generó código truncado para electron/whatsapp-file-converter.ts. El archivo tiene llaves desbalanceadas o terminación incompleta.
 
 ---

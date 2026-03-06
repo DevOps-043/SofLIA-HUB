@@ -5,9 +5,11 @@ import si from 'systeminformation';
 import archiver from 'archiver';
 import fs from 'fs';
 import path from 'path';
-import { exec } from 'child_process';
+import { exec, execSync } from 'child_process';
 import { promisify } from 'util';
-import type { WASocket } from '@whiskeysockets/baileys';
+import { downloadMediaMessage } from '@whiskeysockets/baileys';
+import type { WASocket, WAMessage } from '@whiskeysockets/baileys';
+import os from 'os';
 
 const execAsync = promisify(exec);
 
@@ -48,6 +50,59 @@ export class SandboxGatekeeper {
 }
 
 // ==========================================
+// 1.5 Quick-Conversion Utilities
+// ==========================================
+
+class WhatsAppFileConverter {
+    static async convertTextToPDF(inputPath: string): Promise<Buffer> {
+        let textContent = '';
+        try {
+            textContent = fs.readFileSync(inputPath, 'utf8');
+        } catch {
+            textContent = 'No se pudo leer el contenido del archivo de texto.';
+        }
+        
+        // Escape characters for basic PDF compatibility
+        const cleanText = textContent
+            .replace(/[()\\]/g, '\\$&') 
+            .replace(/[\x00-\x1F\x7F-\x9F]/g, ' ')
+            .substring(0, 2000); // Limit to 2000 chars for this simple PDF generator
+            
+        // Minimal PDF 1.4 template structure
+        const pdfContent = `%PDF-1.4\n1 0 obj <</Type /Catalog /Pages 2 0 R>> endobj\n2 0 obj <</Type /Pages /Kids [3 0 R] /Count 1>> endobj\n3 0 obj <</Type /Page /Parent 2 0 R /Resources <</Font <</F1 4 0 R>>>> /MediaBox [0 0 612 792] /Contents 5 0 R>> endobj\n4 0 obj <</Type /Font /Subtype /Type1 /BaseFont /Helvetica>> endobj\n5 0 obj\n<</Length ${44 + cleanText.length}>>\nstream\nBT\n/F1 12 Tf\n10 700 Td\n(${cleanText}) Tj\nET\nendstream\nendobj\nxref\n0 6\n0000000000 65535 f \n0000000009 00000 n \n0000000056 00000 n \n0000000111 00000 n \n0000000212 00000 n \n0000000274 00000 n \ntrailer\n<</Size 6 /Root 1 0 R>>\nstartxref\n${274 + 44 + cleanText.length}\n%%EOF`;
+        
+        return Buffer.from(pdfContent, 'utf8');
+    }
+
+    static async summarizeText(inputPath: string): Promise<string> {
+        try {
+            const textContent = fs.readFileSync(inputPath, 'utf8');
+            const lines = textContent.split('\n').filter((l: string) => l.trim().length > 0);
+            if (lines.length === 0) return "El documento está vacío o no contiene texto legible.";
+            
+            const charCount = textContent.length;
+            const wordCount = textContent.split(/\s+/).filter((w: string) => w.length > 0).length;
+            
+            return `*📝 Resumen Rápido:*\n\n` +
+                   `- *Líneas con contenido:* ${lines.length}\n` +
+                   `- *Total de Palabras:* ${wordCount}\n` +
+                   `- *Total de Caracteres:* ${charCount}\n\n` +
+                   `*Muestra del contenido:*\n_"${lines[0].substring(0, 150)}${lines[0].length > 150 ? '...' : ''}"_`;
+        } catch {
+            return "❌ No se pudo analizar el documento. Verifica que sea un archivo de texto válido.";
+        }
+    }
+}
+
+interface PendingConversion {
+    id: string;
+    jid: string;
+    filePath: string;
+    fileName: string;
+    timestamp: number;
+}
+
+// ==========================================
 // 2. WhatsApp Remote Hub
 // ==========================================
 
@@ -63,6 +118,7 @@ export class WhatsAppRemoteHub {
     private socket: WASocket | null = null;
     private mainWindow: BrowserWindow | null = null;
     private pendingApprovals: Map<string, PendingCommand> = new Map();
+    private pendingConversions: Map<string, PendingConversion> = new Map();
 
     constructor() {}
 
@@ -93,12 +149,21 @@ export class WhatsAppRemoteHub {
                     const jid = msg.key.remoteJid;
                     if (!jid) continue;
 
-                    const text = msg.message.conversation || 
-                                 msg.message.extendedTextMessage?.text || '';
+                    const isDocumentType = (msg: WAMessage) => !!(msg.message?.documentMessage || (msg.message as any)?.documentWithCaptionMessage?.message?.documentMessage);
+                    const hasMedia = isDocumentType(msg) || !!(msg.message?.imageMessage || msg.message?.videoMessage || msg.message?.audioMessage);
+
+                    // Rutear documentos entrantes hacia Quick-Conversion
+                    if (hasMedia && isDocumentType(msg)) {
+                        await this.handleIncomingDocument(msg, jid);
+                        continue;
+                    }
+
+                    const text = msg.message?.conversation || 
+                                 msg.message?.extendedTextMessage?.text || '';
                                  
                     if (!text) continue;
 
-                    await this.processIncomingText(text, jid, msg.key.id);
+                    await this.processIncomingText(text, jid, msg.key.id, msg);
                 }
             } catch (error) {
                 console.error('[WhatsAppRemoteHub] Error procesando mensaje:', error);
@@ -123,8 +188,110 @@ export class WhatsAppRemoteHub {
         });
     }
 
-    private async processIncomingText(text: string, jid: string, messageId?: string | null) {
+    private async handleIncomingDocument(msg: WAMessage, jid: string) {
+        try {
+            if (!this.socket) return;
+            const docMessage = msg.message?.documentMessage || (msg.message as any)?.documentWithCaptionMessage?.message?.documentMessage;
+            if (!docMessage) return;
+
+            const fileName = docMessage.fileName || 'documento.txt';
+            const mimetype = docMessage.mimetype || '';
+
+            // Validar si es un tipo de texto soportado
+            const validTextMimes = ['text/plain', 'application/json', 'text/csv', 'application/javascript'];
+            if (!validTextMimes.includes(mimetype) && !fileName.endsWith('.txt') && !fileName.endsWith('.md')) {
+                await this.sendMessage(jid, `📄 *Documento Recibido:*\n_${fileName}_\n\n_(Nota: Por ahora Quick-Conversion solo soporta archivos de texto puro para generar PDF o resumir)_`);
+                return;
+            }
+
+            await this.sendMessage(jid, `⏳ Descargando documento \`${fileName}\` para Quick-Conversion...`);
+
+            // Descargar el adjunto de WhatsApp
+            const buffer = await downloadMediaMessage(msg, 'buffer', {});
+            const tempPath = path.join(os.tmpdir(), `wa_doc_${Date.now()}_${fileName}`);
+            fs.writeFileSync(tempPath, buffer as Buffer);
+
+            // Guardar estado pendiente
+            const pendingId = `conv_${Date.now()}`;
+            this.pendingConversions.set(jid, {
+                id: pendingId,
+                jid,
+                filePath: tempPath,
+                fileName,
+                timestamp: Date.now()
+            });
+
+            // Enviar mensaje interactivo o texto de confirmación
+            const menuText = `📄 *Documento Procesado:*\n_${fileName}_\n\n¿Qué instrucciones deseas ejecutar (Quick-Conversion)?\n\nResponde con uno de estos comandos:\n👉 *Generar PDF*\n👉 *Resumir*`;
+            
+            await this.sendMessage(jid, menuText);
+
+        } catch (error: any) {
+            console.error('[WhatsAppRemoteHub] Error al manejar documento:', error);
+            await this.sendMessage(jid, `❌ Error al procesar el documento: ${error.message}`);
+        }
+    }
+
+    private async handleQuickConversion(command: string, pending: PendingConversion, jid: string, msg?: WAMessage) {
+        try {
+            await this.sendMessage(jid, `⚙️ Ejecutando \`${command}\` sobre ${pending.fileName}...`);
+
+            if (command === 'generar pdf') {
+                const pdfBuffer = await WhatsAppFileConverter.convertTextToPDF(pending.filePath);
+                if (this.socket) {
+                    await this.socket.sendMessage(jid, {
+                        document: pdfBuffer,
+                        mimetype: 'application/pdf',
+                        fileName: pending.fileName.replace(/\.[^/.]+$/, "") + ".pdf"
+                    }, { quoted: msg });
+                }
+            } else if (command === 'resumir') {
+                const summary = await WhatsAppFileConverter.summarizeText(pending.filePath);
+                await this.sendMessage(jid, summary);
+            }
+
+            // Limpieza
+            if (fs.existsSync(pending.filePath)) {
+                fs.unlinkSync(pending.filePath);
+            }
+        } catch (error: any) {
+            console.error('[WhatsAppRemoteHub] Error en Quick-Conversion:', error);
+            await this.sendMessage(jid, `❌ Error durante la conversión: ${error.message}`);
+        }
+    }
+
+    private async processIncomingText(text: string, jid: string, messageId?: string | null, msg?: WAMessage) {
         const textLower = text.toLowerCase().trim();
+        const textUpper = text.toUpperCase().trim();
+
+        // 0. Quick-Conversion Responses
+        if (textLower === 'generar pdf' || textLower === 'resumir') {
+            const pending = this.pendingConversions.get(jid);
+            if (pending) {
+                await this.handleQuickConversion(textLower, pending, jid, msg);
+                this.pendingConversions.delete(jid);
+                return;
+            }
+        }
+
+        // 0. Comando: Bloqueo de Emergencia Inmediato
+        if (textUpper === 'BLOQUEAR' || textUpper === '!BLOQUEAR') {
+            try {
+                const platform = os.platform();
+                if (platform === 'win32') {
+                    execSync('rundll32.exe user32.dll,LockWorkStation');
+                } else if (platform === 'darwin') {
+                    execSync('pmset displaysleepnow');
+                } else {
+                    execSync('loginctl lock-session || xdg-screensaver lock');
+                }
+                await this.sendMessage(jid, '🔒 *PC Bloqueado* de forma inmediata e incondicional.');
+            } catch (error: any) {
+                console.error('[WhatsAppRemoteHub] Error al bloquear PC:', error);
+                await this.sendMessage(jid, `❌ Error al bloquear el PC: ${error.message}`);
+            }
+            return;
+        }
 
         // 1. Comando: Estado del sistema
         if (textLower === 'estado del sistema' || textLower === '!estado') {

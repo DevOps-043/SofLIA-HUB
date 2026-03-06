@@ -38,6 +38,9 @@ export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
 
+// Activar sandbox global para mayor seguridad
+app.enableSandbox();
+
 // Force microphone access without prompts (necessary for borderless floating windows)
 app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
 app.commandLine.appendSwitch('enable-speech-input');
@@ -209,7 +212,10 @@ function createFlowWindow() {
     movable: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
-      additionalArguments: ['--view-mode=flow']
+      additionalArguments: ['--view-mode=flow'],
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false
     },
   })
 
@@ -306,6 +312,9 @@ function createWindow() {
     icon: path.join(process.env.VITE_PUBLIC!, 'assets/icono.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false
     },
   })
 
@@ -433,6 +442,12 @@ ipcMain.handle('whatsapp:get-status', async () => {
 ipcMain.handle('whatsapp:set-allowed-numbers', async (_, numbers: string[]) => {
   try {
     await waService.setAllowedNumbers(numbers)
+    if (dailyBriefingService && numbers.length > 0) {
+      const currentConfig = dailyBriefingService.getConfig();
+      if (!currentConfig.ownerNumber) {
+        dailyBriefingService.updateConfig({ ownerNumber: numbers[0] });
+      }
+    }
     return { success: true }
   } catch (err: any) {
     return { success: false, error: err.message }
@@ -486,6 +501,11 @@ function initWhatsAppAgent(apiKey: string) {
     proactiveService.start()
   }
 
+  // Update Daily Briefing Service
+  if (dailyBriefingService) {
+    dailyBriefingService.updateConfig({ apiKey })
+  }
+
   // Start AutoDev autonomous programming engine
   autoDevService.setApiKey(apiKey)
 
@@ -525,6 +545,9 @@ ipcMain.handle('proactive:get-config', async () => {
 ipcMain.handle('proactive:update-config', async (_, updates: any) => {
   try {
     proactiveService.updateConfig(updates)
+    if (dailyBriefingService && updates.notifyPhone) {
+      dailyBriefingService.updateConfig({ ownerNumber: updates.notifyPhone })
+    }
     return { success: true }
   } catch (err: any) {
     return { success: false, error: err.message }
