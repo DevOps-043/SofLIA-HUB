@@ -115,6 +115,10 @@ export class ThoughtLogger {
     this.orchestrator = new Orchestrator(this.db);
   }
 
+  public async init(): Promise<void> {
+    // Initialization left empty to prevent breaking any callers using await thoughtLogger.init()
+  }
+
   private initDatabase(): void {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS event_stream (
@@ -157,9 +161,9 @@ export class ThoughtLogger {
   }
 
   /**
-   * Resumes a task by fetching all its recorded thought events in chronological order.
-   * This allows retrieving the exact context if the process crashes, inspired by OpenHands.
-   * @param taskId The ID of the task to resume
+   * Gets all thought events for a specific task in chronological order.
+   * Useful for retrieving the exact context if the process crashes.
+   * @param taskId The ID of the task to retrieve
    * @returns An array of ThoughtEvent objects
    */
   public resumeTask(taskId: string): ThoughtEvent[] {

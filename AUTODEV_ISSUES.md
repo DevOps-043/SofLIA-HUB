@@ -1403,3 +1403,73 @@ Los archivos compilan pero nadie los importa — no tendrán efecto en runtime.
 ```
 
 ---
+## ❌ [CODING_ERROR] — 2026-03-07
+
+- **Run ID**: `run_1772920188574`
+- **Timestamp**: 2026-03-07T21:53:21.928Z
+- **Categoría**: coding_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El agente CoderAgent_1 falló al implementar cambios en `package.json`: The requested module 'electron' does not provide an export named 'BrowserWindow'
+
+### Contexto técnico
+
+```
+File: package.json
+Step: {
+  "step": 1,
+  "file": "package.json",
+  "action": "command",
+  "category": "features",
+  "description": "Instalación de librerías esenciales para las nuevas funcionalidades visuales y de sistema. Se evita usar @latest usando versiones exactas verificadas.",
+  "command": "npm install tesseract.js@5.1.0 systeminformation@5.31.3 --save",
+  "details": "1. Ejecutar el comando para instalar tesseract.js (para OCR de Eagle Eye).\n2. Ejecutar el comando para instalar systeminformation (para el Dashboard y parcheando vulnerabilidad < 5.30.7).\n3. No instalar sharp ni electron, ya están presentes.\n4. Asegurar que las dependencias se guarden en 'dependencies' de package.json.\n5. Ejecutar instalación limpia sin alterar versiones major existentes.",
+  "source": "https://github.com/naptha/tesseract.js",
+  "estimatedLines": 5
+}
+```
+
+---
+## ❌ [CODING_ERROR] — 2026-03-07
+
+- **Run ID**: `run_1772920188574`
+- **Timestamp**: 2026-03-07T21:58:08.600Z
+- **Categoría**: coding_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+AutoDev intentó importar módulos que no existen en electron/remote-software-manager.ts: ./remote-software-manager, ./remote-software-manager
+
+### Contexto técnico
+
+```
+Phantom imports: ./remote-software-manager
+./remote-software-manager
+```
+
+---
+## ❌ [INTEGRATION_WARNING] — 2026-03-07
+
+- **Run ID**: `run_1772920188574`
+- **Timestamp**: 2026-03-07T22:11:20.463Z
+- **Categoría**: integration_warning
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Archivos nuevos no están conectados al sistema:
+electron/eagle-eye-tool.ts: archivo huérfano ELIMINADO automáticamente — nadie lo importaba
+electron/media-focus-tool.ts: archivo huérfano ELIMINADO automáticamente — nadie lo importaba
+electron/panic-mode-tool.ts: archivo huérfano ELIMINADO automáticamente — nadie lo importaba
+electron/system-health-dashboard.ts: archivo huérfano ELIMINADO automáticamente — nadie lo importaba
+
+### Contexto técnico
+
+```
+Los archivos compilan pero nadie los importa — no tendrán efecto en runtime.
+```
+
+---
