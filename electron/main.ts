@@ -243,7 +243,7 @@ function createFlowWindow() {
     movable: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
-      additionalArguments: ['--view-mode=flow']
+      additionalArguments: ['--view-mode=flow'],
     },
   })
 
