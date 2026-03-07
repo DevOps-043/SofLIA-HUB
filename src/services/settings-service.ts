@@ -33,6 +33,9 @@ export async function loadSettings(userId: string): Promise<UserAISettings> {
       .single();
 
     if (error || !data) {
+      if (error) {
+        console.warn('[settings-service] loadSettings error:', error.message, '| code:', error.code, '| hint:', error.hint);
+      }
       // Try localStorage cache
       const cached = localStorage.getItem(SETTINGS_CACHE_KEY);
       if (cached) {
@@ -77,14 +80,14 @@ export async function saveSettings(settings: UserAISettings): Promise<boolean> {
       );
 
     if (error) {
-      console.error('Error saving settings:', error);
+      console.error('[settings-service] saveSettings FAILED:', error.message, '| code:', error.code, '| details:', error.details, '| hint:', error.hint);
       return false;
     }
 
     localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(settings));
     return true;
   } catch (err) {
-    console.error('Error saving settings:', err);
+    console.error('[settings-service] saveSettings exception:', err);
     return false;
   }
 }

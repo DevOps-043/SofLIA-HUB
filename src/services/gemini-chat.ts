@@ -108,6 +108,7 @@ export async function sendMessageStream(
     toolSystemPrompt?: string;
     context?: string;
     irisContext?: string;
+    sourcesContext?: string;
     onToolCall?: (toolCall: ToolCallInfo) => void;
   }
 ): Promise<StreamResult> {
@@ -145,6 +146,10 @@ export async function sendMessageStream(
     systemInstruction += `\n\n=== CONTEXTO DEL PROJECT HUB (IRIS) ===\n${options.irisContext}\n=====================================\n\n⚠️ REGLAS CRÍTICAS DE Project Hub (IRIS):\n1. **CREACIÓN DE PROYECTOS**: Si el usuario pide CREAR un proyecto o tarea con un nombre específico, DEBES usar la herramienta de creación (ej. create_iris_project). NUNCA asumas que debes mapear la información a un proyecto existente solo porque comparten similitudes, a menos que el usuario indique explícitamente agregarlo al existente.\n2. **ASIGNACIONES**: Si intentas crear una issue asignada al usuario (assignee_id) y recibes un error de base de datos (ej. permisos, foreign key, RLS), vuelve a intentar crear la issue pero enviando el campo 'assignee_id' vacío o nulo. No detengas el proceso, avisa al usuario después pero completa la creación.`;
   }
 
+  if (options?.sourcesContext) {
+    systemInstruction += options.sourcesContext;
+  }
+
   if (options?.toolSystemPrompt) {
     systemInstruction += `\n\n=== INSTRUCCIONES DE HERRAMIENTA ACTIVA ===\n${options.toolSystemPrompt}\n=====================================`;
   }
@@ -164,34 +169,19 @@ export async function sendMessageStream(
     }
   }
 
-  // Build tools array
-  // Gemini 3 models do NOT support combining built-in tools (googleSearch) with
-  // function calling (functionDeclarations) in the same request.
-  // Strategy:
-  //   - Gemini 3: ALWAYS use functionDeclarations (PROJECT_HUB_TOOLS + optional COMPUTER_USE_TOOLS)
-  //     so the AI can execute IRIS actions. Google Search is sacrificed for Gemini 3.
-  //   - Gemini 2.5: Can safely combine googleSearch with functionDeclarations.
+  // Build tools array — only functionDeclarations (no googleSearch)
+  // googleSearch (built-in) cannot be combined with custom tools in any Gemini model.
   const computerUseEnabled = isComputerUseAvailable();
-  const isGemini3 = activeModelId.includes('gemini-3');
 
   let modelTools: any[];
 
   // Verificar si hay calendario/Gmail/Drive conectados para habilitar Google Workspace tools
   const hasGoogleWorkspace = typeof window !== 'undefined' && !!(window as any).calendar;
 
-  if (isGemini3) {
-    // Gemini 3: ONLY functionDeclarations (no googleSearch to avoid conflict)
-    modelTools = computerUseEnabled
-      ? [COMPUTER_USE_TOOLS, PROJECT_HUB_TOOLS]
-      : [PROJECT_HUB_TOOLS];
-    if (hasGoogleWorkspace) modelTools.push(GOOGLE_WORKSPACE_TOOLS);
-  } else {
-    // Gemini 2.5+: Can safely combine googleSearch with functionDeclarations
-    modelTools = computerUseEnabled
-      ? [{ googleSearch: {} } as any, COMPUTER_USE_TOOLS, PROJECT_HUB_TOOLS]
-      : [{ googleSearch: {} } as any, PROJECT_HUB_TOOLS];
-    if (hasGoogleWorkspace) modelTools.push(GOOGLE_WORKSPACE_TOOLS);
-  }
+  modelTools = computerUseEnabled
+    ? [COMPUTER_USE_TOOLS, PROJECT_HUB_TOOLS]
+    : [PROJECT_HUB_TOOLS];
+  if (hasGoogleWorkspace) modelTools.push(GOOGLE_WORKSPACE_TOOLS);
 
   const model = ai.getGenerativeModel({
     model: activeModelId,

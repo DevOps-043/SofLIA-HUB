@@ -231,7 +231,7 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
               <button
                 type="submit"
                 disabled={inviting || !inviteEmail.trim()}
-                className="group relative px-8 py-3 rounded-xl bg-accent text-primary text-[11px] font-black uppercase tracking-[0.2em] shadow-lg shadow-accent/5 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 overflow-hidden"
+                className="group relative px-8 py-3 rounded-xl bg-accent text-white text-[11px] font-black uppercase tracking-[0.2em] shadow-lg shadow-accent/5 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 overflow-hidden"
               >
                 <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                 <span className="relative z-10">{inviting ? 'Procesando...' : 'Autorizar'}</span>

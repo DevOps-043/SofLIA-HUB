@@ -4,6 +4,33 @@ Todos los cambios notables de SofLIA Hub se documentan aquí.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.0.9] - 2026-03-07
+
+### Added
+
+- **Edición Avanzada de Mensajes:** Rediseño completo de la experiencia de edición de prompts (estilo ChatGPT). Ahora los usuarios pueden editar su mensaje in-place, ocupando todo el ancho de la pantalla en una caja de texto limpia, desapareciendo el antiguo modal flotante que obstruía la vista.
+- **Regeneración de Hilo Inteligente:** Al guardar la edición de un mensaje anterior del usuario, SofLIA borra el historial subsecuente y genera una nueva respuesta con el contexto actualizado automáticamente.
+- **Fallback de Portapapeles:** Implementación de un mecanismo seguro (`document.execCommand`) para la función de copiar texto, garantizando que el usuario pueda copiar fragmentos de código o respuestas en entornos donde la API moderna del portapapeles naval sea restrictiva o falle.
+
+### Changed
+
+- **Upgrade Visual del Selector de Modelos:** El menú de selección de modelos fue perfeccionado adoptando un enfoque premium:
+  - Diseño Glassmorphism (`backdrop-blur-md`) con sombras ultrasuaves y esquinas redondeadas modernas.
+  - Reordenamiento estratégico de los modelos priorizando por innovación y potencia: `Gemini 3.1 Pro -> Gemini 3.0 Flash -> Gemini 3.1 Flash Lite -> Gemini 2.5 Pro -> Gemini 2.5 Flash`.
+- **Rediseño Arquitectónico del Menú de Usuario:**
+  - Transformación total del botón de perfil/ajustes inferior. El diseño evolucionó de ser genérico a una estética de vanguardia.
+  - El selector de temas (Claro/Oscuro/Sistema) ahora es un sub-menú flotante asombrosamente compacto y puramente basado en íconos vectoriales dinámicos para acentuar el minimalismo.
+  - Ajuste inteligente de dimensiones: El menú ahora calcula anchos fijos o relativos dependiendo de si la barra lateral está colapsada o expandida (260px a 240px), luciendo siempre centrado.
+- **Identidad Corporativa en el Chat:** Aplicación rigurosa del _SOFIA Design System_ en las burbujas de los mensajes del usuario. En el modo noche se estableció el matiz "Aqua" (`#00D4B3`) y en el modo claro el azul profundo corporativo (`#0A2540`), ajustando los contrastes tipográficos para legibilidad experta.
+
+### Fixed
+
+- **Copiar y Pegar Resuelto:** Reparado definitivamente el botón de copiado de cada mensaje; tanto para los creados por el usuario como los del asistente. Se añadió feedback visual en tiempo real ("¡Copiado!").
+- **Eliminación del Borde Amarillo:** Subsanado un molesto anillo de enfoque amarillo (outline) nativo del navegador que se disparaba al teclear código y ensuciaba el minimalismo del chat.
+- **Solución Definitiva de Layout Lateral:** Arreglado un _clipping_ agresivo que recortaba los paneles flotantes (menú de usuario) cuando se minimizaba la "sidebar", provocado por restricciones de desbordamiento CSS.
+- **Resolución de App Rota (Blanco Total):** Salvado el colapso crítico de iniciación local que generaba el compilador de Vite a causa de referencias huérfanas al servicio aún no construido `workspace-sources-service` dentro del core del ChatUI.
+- **Consistencia de Versionado:** Reparada la desincronización de la pantalla estática de inicio de sesión ("Bienvenido"), la cual exhibía una falsa v1.0 engañando al usuario, unificando toda la app con la v0.0.9 real.
+
 ## [0.0.8] - 2026-03-07
 
 ### Added

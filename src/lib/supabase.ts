@@ -31,12 +31,21 @@ if (!isValidUrl(SUPABASE.URL)) {
   console.warn('Supabase URL is missing or invalid. Check your .env file.');
 }
 
+// Custom fetch without automatic AbortSignal timeout (prevents "signal is aborted" in Electron)
+const electronFetch: typeof globalThis.fetch = (input, init) => {
+  const { signal: _signal, ...rest } = init || {};
+  return globalThis.fetch(input, rest);
+};
+
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     storage: localStorageAdapter,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+  },
+  global: {
+    fetch: electronFetch,
   },
 });
 

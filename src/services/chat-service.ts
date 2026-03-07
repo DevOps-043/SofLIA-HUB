@@ -9,6 +9,7 @@ export interface Conversation {
   user_id: string;
   title: string;
   folder_id?: string;
+  org_id?: string;
   is_pinned?: boolean;
   created_at: string;
   updated_at: string;
@@ -40,7 +41,7 @@ export async function loadConversations(userId: string): Promise<Conversation[]>
     .limit(50);
 
   if (error) {
-    console.error('Error loading conversations:', error);
+    console.error('[chat-service] loadConversations FAILED:', error.message, '| code:', error.code, '| details:', error.details, '| hint:', error.hint);
     return [];
   }
   return data || [];
@@ -57,7 +58,7 @@ export async function loadMessages(conversationId: string): Promise<ChatMessage[
     .order('created_at', { ascending: true });
 
   if (error) {
-    console.error('Error loading messages:', error);
+    console.error('[chat-service] loadMessages FAILED:', error.message, '| code:', error.code, '| details:', error.details);
     return [];
   }
 
@@ -78,20 +79,24 @@ export async function loadMessages(conversationId: string): Promise<ChatMessage[
 export async function createConversation(
   userId: string,
   title: string,
-  folderId?: string
+  folderId?: string,
+  orgId?: string
 ): Promise<Conversation | null> {
+  const row: Record<string, any> = {
+    user_id: userId,
+    title,
+    folder_id: folderId || null,
+  };
+  if (orgId) row.org_id = orgId;
+
   const { data, error } = await supabase
     .from('conversations')
-    .insert({
-      user_id: userId,
-      title,
-      folder_id: folderId || null,
-    })
+    .insert(row)
     .select()
     .single();
 
   if (error) {
-    console.error('Error creating conversation:', error);
+    console.error('[chat-service] createConversation FAILED:', error.message, '| code:', error.code, '| details:', error.details, '| hint:', error.hint);
     return null;
   }
   return data;

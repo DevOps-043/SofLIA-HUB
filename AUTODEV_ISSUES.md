@@ -1379,3 +1379,27 @@ Step: {
 ```
 
 ---
+## ❌ [INTEGRATION_WARNING] — 2026-03-07
+
+- **Run ID**: `run_1772916034518`
+- **Timestamp**: 2026-03-07T20:59:09.692Z
+- **Categoría**: integration_warning
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Archivos nuevos no están conectados al sistema:
+electron/eagle-eye-tool.ts: archivo huérfano ELIMINADO automáticamente — nadie lo importaba
+electron/media-focus-tool.ts: archivo huérfano ELIMINADO automáticamente — nadie lo importaba
+electron/panic-mode-tool.ts: archivo huérfano ELIMINADO automáticamente — nadie lo importaba
+electron/remote-software-manager.ts: archivo huérfano ELIMINADO automáticamente — nadie lo importaba
+src/services/sharing-service.ts: archivo huérfano ELIMINADO automáticamente — nadie lo importaba
+src/services/workspace-sources-service.ts: archivo huérfano ELIMINADO automáticamente — nadie lo importaba
+
+### Contexto técnico
+
+```
+Los archivos compilan pero nadie los importa — no tendrán efecto en runtime.
+```
+
+---

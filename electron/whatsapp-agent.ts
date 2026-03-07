@@ -1289,7 +1289,7 @@ ORGANIZACIÓN DE ARCHIVOS:
 - "Organiza por tipo" → organize_files mode:"type" (agrupa en: Documentos, Imagenes, Videos, etc.)
 - "Organiza por fecha" → organize_files mode:"date" (YYYY-MM)
 - REGLA CRÍTICA: Cuando el usuario pida organizar archivos con >20 archivos, SIEMPRE usa organize_files o batch_move_files. NUNCA hagas move_item uno por uno.
-- REGLA: Antes de organizar, usa list_directory_summary para informar al usuario cuántos archivos hay y qué tipos.
+- REGLA: Cuando el usuario pida organizar, llama DIRECTAMENTE a organize_files (el sistema pedirá confirmación automáticamente). NO pidas confirmación textual tú — el sistema HITL se encarga. Si quieres mostrar un resumen antes, usa list_directory_summary pero INMEDIATAMENTE después llama organize_files en la MISMA iteración — NO esperes respuesta del usuario.
 
 NAVEGADOR (solo si Google API no aplica):
 - Maps/YouTube/Docs/Sheets: open_url + use_computer para interactuar
@@ -1299,7 +1299,7 @@ NAVEGADOR (solo si Google API no aplica):
 1. EJECUTA, NO PREGUNTES: Cuando la tarea sea clara, ejecútala directamente. No digas "voy a hacer X" — simplemente hazlo y reporta el resultado.
 2. COMPLETA TODO: Nunca dejes pasos para el usuario. Si necesitas buscar un archivo, buscarlo. Si necesitas abrir algo, ábrelo. Si necesitas crear algo, créalo.
 3. BUSCA SIEMPRE: Cuando mencionen un archivo, usa smart_find_file. NUNCA pidas la ruta.
-4. CONFIRMA SOLO LO DESTRUCTIVO: Solo pide confirmación para: eliminar archivos, ejecutar comandos, abrir apps, cerrar procesos, apagar/reiniciar, enviar a otros contactos. Para crear archivos, buscar, leer, etc. — hazlo directamente.
+4. CONFIRMA SOLO LO DESTRUCTIVO: Solo pide confirmación para: eliminar archivos, ejecutar comandos, abrir apps, cerrar procesos, apagar/reiniciar, enviar a otros contactos. Para crear archivos, buscar, leer, organizar archivos, etc. — hazlo directamente. El sistema tiene confirmación automática (HITL) para tools peligrosas — NO dupliques pidiendo confirmación textual.
 5. USA use_computer AGRESIVAMENTE: Si necesitas interactuar con cualquier programa, usa use_computer. No le digas al usuario "haz click en X" — hazlo tú.
 6. APRENDE: Usa save_lesson cuando descubras algo útil o el usuario te corrija.
 7. ORGANIZA EN LOTE: Para organizar archivos usa organize_files/batch_move_files. NUNCA muevas archivos uno por uno con move_item cuando hay más de 5 — siempre usa batch.
@@ -2243,6 +2243,8 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
             case 'google_calendar_delete': desc = `🗑️ Eliminar evento de Google Calendar: ${toolArgs.event_id}`; break;
             case 'gchat_send_message': desc = `💬 Enviar mensaje en Google Chat: ${toolArgs.text?.slice(0, 60)}`; break;
             case 'gchat_add_reaction': desc = `${toolArgs.emoji} Reacción en Google Chat`; break;
+            case 'organize_files': desc = `📂 Organizar archivos en: ${toolArgs.path || 'directorio del usuario'}\nModo: ${toolArgs.mode || 'extension'}${toolArgs.dry_run ? ' (simulación)' : ''}`; break;
+            case 'batch_move_files': desc = `📦 Mover archivos de: ${toolArgs.source_directory}\nA: ${toolArgs.destination_directory}${toolArgs.extensions ? `\nExtensiones: ${toolArgs.extensions.join(', ')}` : ''}`; break;
             default: desc = `${toolName}: ${JSON.stringify(toolArgs)}`;
           }
 

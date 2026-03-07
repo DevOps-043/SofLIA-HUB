@@ -184,7 +184,7 @@ export function UpdatePanel() {
           {state === 'available' && (
             <button
               onClick={handleDownload}
-              className="w-full py-3 rounded-xl bg-accent text-black text-sm font-bold transition-all hover:scale-[1.01] active:scale-[0.99]"
+              className="w-full py-3 rounded-xl bg-accent text-white text-sm font-bold transition-all hover:scale-[1.01] active:scale-[0.99]"
             >
               Descargar actualización
             </button>

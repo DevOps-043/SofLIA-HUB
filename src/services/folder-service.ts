@@ -5,6 +5,7 @@ export interface Folder {
   user_id: string;
   name: string;
   description?: string;
+  org_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -25,11 +26,15 @@ export async function loadFolders(userId: string): Promise<Folder[]> {
 
 export async function createFolder(
   userId: string,
-  name: string
+  name: string,
+  orgId?: string
 ): Promise<Folder | null> {
+  const row: Record<string, any> = { user_id: userId, name: name.trim() };
+  if (orgId) row.org_id = orgId;
+
   const { data, error } = await supabase
     .from('folders')
-    .insert({ user_id: userId, name: name.trim() })
+    .insert(row)
     .select()
     .single();
 

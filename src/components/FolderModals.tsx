@@ -35,7 +35,7 @@ export const CreateFolderModal: React.FC<CreateFolderModalProps> = ({ isOpen, on
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="relative bg-[#1a1b1e]/90 border border-white/10 rounded-3xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden animate-in zoom-in-95 duration-300"
+        className="relative bg-white dark:bg-[#1a1b1e]/90 border border-gray-200 dark:border-white/10 rounded-3xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden animate-in zoom-in-95 duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Ambient Glows */}
@@ -43,7 +43,7 @@ export const CreateFolderModal: React.FC<CreateFolderModalProps> = ({ isOpen, on
         <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/5 blur-[60px] pointer-events-none" />
 
         <div className="absolute top-4 right-4 z-20">
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-gray-500 hover:text-white transition-all group">
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-all group">
             <svg className="w-4 h-4 transition-transform group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -56,8 +56,8 @@ export const CreateFolderModal: React.FC<CreateFolderModalProps> = ({ isOpen, on
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 10.5v6m3-3H9m4.06-7.19l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 4.5v15a2.25 2.25 0 002.25 2.25h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-3.939a1.5 1.5 0 01-1.06-.44l-2.122-2.12z" />
             </svg>
           </div>
-          <h3 className="text-white text-lg font-black uppercase tracking-widest leading-none">Nueva Unidad</h3>
-          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-2 px-4 opacity-60">Organización de Capas de Datos</p>
+          <h3 className="text-gray-900 dark:text-white text-lg font-black uppercase tracking-widest leading-none">Nueva Unidad</h3>
+          <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest mt-2 px-4 opacity-60">Organización de Capas de Datos</p>
         </div>
 
         <div className="relative z-10 px-8 py-4">
@@ -74,7 +74,7 @@ export const CreateFolderModal: React.FC<CreateFolderModalProps> = ({ isOpen, on
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
               placeholder="ETIQUETA DE CARPETA..."
-              className="w-full pl-11 pr-4 py-3.5 bg-background-dark/80 border border-white/5 rounded-2xl text-[12px] font-bold text-white placeholder-gray-700 focus:outline-none focus:border-accent/30 focus:ring-4 focus:ring-accent/5 transition-all text-center uppercase tracking-widest"
+              className="w-full pl-11 pr-4 py-3.5 bg-gray-100/50 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-2xl text-[12px] font-bold text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-700 focus:outline-none focus:border-accent/30 focus:ring-4 focus:ring-accent/5 transition-all text-center uppercase tracking-widest"
             />
           </div>
         </div>
@@ -83,7 +83,7 @@ export const CreateFolderModal: React.FC<CreateFolderModalProps> = ({ isOpen, on
           <button
             onClick={handleCreate}
             disabled={!name.trim()}
-            className="w-full py-3 bg-accent text-primary text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-40 disabled:scale-100 shadow-xl shadow-accent/10"
+            className="w-full py-3 bg-accent text-white text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-40 disabled:scale-100 shadow-xl shadow-accent/10"
           >
             Inicializar Directorio
           </button>
@@ -116,7 +116,7 @@ export const MoveChatModal: React.FC<MoveChatModalProps> = ({ isOpen, onClose, f
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="relative bg-[#1a1b1e]/90 border border-white/10 rounded-3xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden animate-in zoom-in-95 duration-300"
+        className="relative bg-white dark:bg-[#1a1b1e]/90 border border-gray-200 dark:border-white/10 rounded-3xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden animate-in zoom-in-95 duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Ambient Glows */}
@@ -124,7 +124,7 @@ export const MoveChatModal: React.FC<MoveChatModalProps> = ({ isOpen, onClose, f
         <div className="absolute bottom-0 left-0 w-32 h-32 bg-blue-500/5 blur-[60px] pointer-events-none" />
 
         <div className="absolute top-4 right-4 z-20">
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/5 border border-white/5 flex items-center justify-center text-gray-500 hover:text-white transition-all group">
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-all group">
             <svg className="w-4 h-4 transition-transform group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -135,8 +135,8 @@ export const MoveChatModal: React.FC<MoveChatModalProps> = ({ isOpen, onClose, f
            <div className="flex items-center gap-3 mb-4">
               <div className="w-1.5 h-6 bg-accent rounded-full shadow-[0_0_10px_rgba(34,211,238,0.5)]" />
               <div>
-                <h3 className="text-white text-lg font-black uppercase tracking-widest leading-none">Relocalizar Nodo</h3>
-                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1 opacity-60">Selección de Destino de Archivo</p>
+                <h3 className="text-gray-900 dark:text-white text-lg font-black uppercase tracking-widest leading-none">Relocalizar Nodo</h3>
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest mt-1 opacity-60">Selección de Destino de Archivo</p>
               </div>
            </div>
         </div>
@@ -149,7 +149,7 @@ export const MoveChatModal: React.FC<MoveChatModalProps> = ({ isOpen, onClose, f
               className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-[11px] font-bold uppercase tracking-widest transition-all group ${
                 !currentFolderId
                   ? 'bg-accent/10 border border-accent/20 text-accent'
-                  : 'text-gray-400 border border-transparent hover:bg-white/5 hover:text-white'
+                  : 'text-gray-500 dark:text-gray-400 border border-transparent hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white'
               }`}
             >
               <div className={`p-2 rounded-lg transition-colors ${!currentFolderId ? 'bg-accent/20' : 'bg-white/5 group-hover:bg-white/10'}`}>
@@ -170,7 +170,7 @@ export const MoveChatModal: React.FC<MoveChatModalProps> = ({ isOpen, onClose, f
                 className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-[11px] font-bold uppercase tracking-widest transition-all group ${
                   currentFolderId === folder.id
                     ? 'bg-accent/10 border border-accent/20 text-accent'
-                    : 'text-gray-400 border border-transparent hover:bg-white/5 hover:text-white'
+                    : 'text-gray-500 dark:text-gray-400 border border-transparent hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white'
                 }`}
               >
                 <div className={`p-2 rounded-lg transition-colors ${currentFolderId === folder.id ? 'bg-accent/20' : 'bg-white/5 group-hover:bg-white/10'}`}>

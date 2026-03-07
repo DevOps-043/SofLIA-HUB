@@ -45,7 +45,8 @@
       "Bash(sed \"s/name: ''//\")",
       "Bash(sed \"s/''$//\")",
       "Bash(done)",
-      "Bash(grep -E \"ts$\")"
+      "Bash(grep -E \"ts$\")",
+      "Bash(node -e \"console.log\\(require\\(''./node_modules/@supabase/supabase-js/package.json''\\).version\\)\")"
     ]
   }
 }

@@ -7,6 +7,10 @@
   --color-sidebar-val: #f0f2f5; /* Light sidebar */
   --color-card-val: #ffffff;
   --color-text-main: #0a2540;
+  
+  /* Theme Accents */
+  --color-primary-val: #0a2540;
+  --color-accent-val: #0a2540; /* Blue in light mode per user request */
 }
 
 .dark {
@@ -15,11 +19,15 @@
   --color-sidebar-val: #202123;
   --color-card-val: #1e2329;
   --color-text-main: #ffffff;
+  
+  /* Theme Accents */
+  --color-primary-val: #ffffff;
+  --color-accent-val: #00d4b3; /* Green (Aqua) in dark mode */
 }
 
 @theme {
-  --color-primary: #0a2540;
-  --color-accent: #00d4b3;
+  --color-primary: var(--color-primary-val);
+  --color-accent: var(--color-accent-val);
   --color-secondary: #6c757d;
   --color-success: #10b981;
   --color-warning: #f59e0b;
@@ -60,6 +68,20 @@
       opacity: 1;
     }
   }
+  @keyframes viewSlideIn {
+    0% {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+}
+
+@utility animate-view-in {
+  animation: viewSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @utility no-scrollbar {
@@ -167,4 +189,8 @@ body {
   height: 100vh;
   overflow: hidden;
   background: transparent !important;
+}
+
+@utility filter-accent-themed {
+  filter: hue-rotate(40deg) brightness(0.4) saturate(2); /* Turns Aqua green into Deep Blue */
 }

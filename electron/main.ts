@@ -612,6 +612,21 @@ ipcMain.handle('whatsapp:set-api-key', async (_, apiKey: string) => {
   return { success: true }
 })
 
+const gotTheLock = app.requestSingleInstanceLock()
+
+if (!gotTheLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    // Si alguien intenta abrir otra instancia, enfocamos la principal
+    if (win) {
+      if (win.isMinimized()) win.restore()
+      if (!win.isVisible()) win.show()
+      win.focus()
+    }
+  })
+}
+
 app.whenReady().then(async () => {
   // ─── Memory & Knowledge init ────────────────────────────────
   memoryService.init()

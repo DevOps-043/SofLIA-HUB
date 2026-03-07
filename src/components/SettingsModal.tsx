@@ -316,7 +316,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-gray-50/50 dark:bg-white/[0.03] backdrop-blur-md border border-gray-100 dark:border-white/[0.05] rounded-[2rem] p-6 flex flex-col group hover:border-accent/10 transition-all duration-500 shadow-xl shadow-black/5 dark:shadow-black/10 relative overflow-hidden">
+              <div className="bg-gray-50/50 dark:bg-white/[0.03] backdrop-blur-md border border-gray-100 dark:border-white/[0.05] rounded-[2rem] p-6 flex flex-col group hover:border-accent/10 transition-all duration-500 shadow-xl shadow-black/5 dark:shadow-black/10 relative overflow-visible">
 
                 <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity duration-700">
                   <svg className="w-32 h-32 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -351,7 +351,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
                 </div>
               </div>
 
-              <div className="bg-gray-50/50 dark:bg-white/[0.03] backdrop-blur-md border border-gray-100 dark:border-white/[0.05] rounded-[2rem] p-6 relative group overflow-hidden hover:border-accent/10 transition-all duration-500 shadow-xl shadow-black/5 dark:shadow-black/10">
+              <div className="bg-gray-50/50 dark:bg-white/[0.03] backdrop-blur-md border border-gray-100 dark:border-white/[0.05] rounded-[2rem] p-6 relative group overflow-visible hover:border-accent/10 transition-all duration-500 shadow-xl shadow-black/5 dark:shadow-black/10">
 
                 <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity duration-700">
                   <svg className="w-32 h-32 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -512,7 +512,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
           <button
             onClick={handleSave}
             disabled={saving || loading}
-            className="group relative px-8 py-2.5 rounded-xl bg-accent text-primary text-[10px] font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(34,211,238,0.1)] hover:shadow-[0_0_30px_rgba(34,211,238,0.2)] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 overflow-hidden"
+            className="group relative px-8 py-2.5 rounded-xl bg-accent text-white text-[10px] font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(34,211,238,0.1)] hover:shadow-[0_0_30px_rgba(34,211,238,0.2)] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 overflow-hidden"
           >
             <span className="relative z-10">{saving ? 'Procesando...' : 'Aplicar Cambios'}</span>
           </button>

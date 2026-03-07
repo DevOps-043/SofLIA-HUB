@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { ChatUI } from "./adapters/desktop_ui/ChatUI";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { Auth } from "./components/Auth";
@@ -77,6 +77,7 @@ function AppContent() {
   const [isUnifiedSettingsOpen, setIsUnifiedSettingsOpen] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>("ai");
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isThemeSubMenuOpen, setIsThemeSubMenuOpen] = useState(false);
   const [userSettings, setUserSettings] = useState<UserAISettings | null>(null);
   const [theme, setTheme] = useState<"system" | "light" | "dark">("system");
   const [_isFlowActive, _setIsFlowActive] = useState(false);
@@ -96,7 +97,16 @@ function AppContent() {
     new Set(),
   );
 
-  // Theme effect
+  const [activeMenuChatId, setActiveMenuChatId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = () => setActiveMenuChatId(null);
+    if (activeMenuChatId) {
+      window.addEventListener('click', handleClickOutside);
+      return () => window.removeEventListener('click', handleClickOutside);
+    }
+  }, [activeMenuChatId]);
+
   // Theme effect
   useEffect(() => {
     const root = window.document.documentElement;
@@ -115,9 +125,6 @@ function AppContent() {
       } else {
         root.classList.add(themeValue);
       }
-
-      // Force repaint/restyle if needed (usually not required but safe)
-      // console.log(`Theme set to: ${themeValue}`);
     };
 
     // Apply initially
@@ -218,77 +225,100 @@ function AppContent() {
   }, [userId]);
 
   // ============================================
-  // Auto-save con debounce
+  // Scoped messages handler factory
+  // Each ChatUI instance gets its own handler that captures the conversation
+  // context at mount time. This allows old generations to continue saving
+  // to the correct conversation even after the user switches away.
   // ============================================
-  const autoSave = useCallback(
-    async (messages: ChatMessage[]) => {
-      if (!userId || messages.length === 0) return;
+  const createScopedMessagesHandler = useCallback(
+    (capturedConvId: string | null, capturedFolderId: string | null) => {
+      let resolvedConvId = capturedConvId;
+      let timer: ReturnType<typeof setTimeout> | null = null;
 
-      const validMessages = messages.filter(
-        (m) => m.text && m.text.trim().length > 0,
-      );
-      if (validMessages.length === 0) return;
+      return (messages: ChatMessage[]) => {
+        // Only update UI state if this is still the active conversation
+        const isActive =
+          currentConvIdRef.current === resolvedConvId ||
+          (!resolvedConvId && !currentConvIdRef.current);
+        if (isActive) {
+          setCurrentMessages(messages);
+        }
 
-      let convId = currentConvIdRef.current;
+        // Debounced save — always saves to the correct conversation
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(async () => {
+          if (!userId) return;
+          const validMessages = messages.filter(
+            (m) => m.text && m.text.trim().length > 0,
+          );
+          if (validMessages.length === 0) return;
 
-      if (!convId) {
-        const title = generateTitle(validMessages);
-        const folderId = currentFolderIdRef.current;
-        const newConv = await createConversation(
-          userId,
-          title,
-          folderId || undefined,
-        );
-        if (!newConv) return;
+          if (!resolvedConvId) {
+            const title = generateTitle(validMessages);
+            const newConv = await createConversation(
+              userId,
+              title,
+              capturedFolderId || undefined,
+            );
+            if (!newConv) return;
 
-        convId = newConv.id;
-        setCurrentConversationId(convId);
-        currentConvIdRef.current = convId;
-        localStorage.setItem("lia_current_chat_id", convId);
+            resolvedConvId = newConv.id;
+            setConversations((prev) => [newConv, ...prev]);
 
-        setConversations((prev) => [newConv, ...prev]);
-      }
+            // Update navigation state only if user is still on this "new chat"
+            const stillActive =
+              !currentConvIdRef.current &&
+              currentFolderIdRef.current === capturedFolderId;
+            if (stillActive) {
+              setCurrentConversationId(resolvedConvId);
+              currentConvIdRef.current = resolvedConvId;
+              localStorage.setItem("lia_current_chat_id", resolvedConvId);
+            }
+          }
 
-      await saveMessages(convId, userId, validMessages);
+          await saveMessages(resolvedConvId, userId, validMessages);
 
-      setConversations((prev) =>
-        prev
-          .map((c) =>
-            c.id === convId
-              ? { ...c, updated_at: new Date().toISOString() }
-              : c,
-          )
-          .sort(
-            (a, b) =>
-              new Date(b.updated_at).getTime() -
-              new Date(a.updated_at).getTime(),
-          ),
-      );
+          setConversations((prev) =>
+            prev
+              .map((c) =>
+                c.id === resolvedConvId
+                  ? { ...c, updated_at: new Date().toISOString() }
+                  : c,
+              )
+              .sort(
+                (a, b) =>
+                  new Date(b.updated_at).getTime() -
+                  new Date(a.updated_at).getTime(),
+              ),
+          );
+        }, 1000);
+      };
     },
     [userId],
   );
 
-  // ============================================
-  // Handler de cambio de mensajes (desde ChatUI)
-  // ============================================
-  const handleMessagesChange = useCallback(
-    (messages: ChatMessage[]) => {
-      setCurrentMessages(messages);
-
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-      }
-      saveTimerRef.current = setTimeout(() => {
-        autoSave(messages);
-      }, 1000);
-    },
-    [autoSave],
+  // Scoped handler — recreated when conversation/folder changes.
+  // Old ChatUI instances keep their old handler via closure.
+  const scopedMessagesHandler = useMemo(
+    () => createScopedMessagesHandler(currentConversationId, currentFolderId),
+    [currentConversationId, currentFolderId, createScopedMessagesHandler],
   );
+
+  // ============================================
+  // Flush pending save before switching conversations
+  // ============================================
+  const flushPendingSave = useCallback(() => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+  }, []);
 
   // ============================================
   // Nuevo chat
   // ============================================
   const handleNewChat = useCallback(() => {
+    flushPendingSave();
     setCurrentConversationId(null);
     currentConvIdRef.current = null;
     setCurrentMessages([]);
@@ -296,12 +326,13 @@ function AppContent() {
     setCurrentFolderId(null);
     currentFolderIdRef.current = null;
     localStorage.removeItem("lia_current_chat_id");
-  }, []);
+  }, [flushPendingSave]);
 
   // ============================================
   // Nuevo chat en proyecto
   // ============================================
   const handleNewChatInProject = useCallback((folderId: string) => {
+    flushPendingSave();
     setCurrentConversationId(null);
     currentConvIdRef.current = null;
     setCurrentMessages([]);
@@ -309,7 +340,22 @@ function AppContent() {
     currentFolderIdRef.current = folderId;
     setActiveView("chat");
     localStorage.removeItem("lia_current_chat_id");
-  }, []);
+  }, [flushPendingSave]);
+
+  // ============================================
+  // Nuevo chat en proyecto con mensaje inicial
+  // ============================================
+  const handleNewChatWithMessage = useCallback((folderId: string, message: string) => {
+    flushPendingSave();
+    setCurrentConversationId(null);
+    currentConvIdRef.current = null;
+    setCurrentMessages([]);
+    setCurrentFolderId(folderId);
+    currentFolderIdRef.current = folderId;
+    setExternalPrompt(message);
+    setActiveView("chat");
+    localStorage.removeItem("lia_current_chat_id");
+  }, [flushPendingSave]);
 
   // ============================================
   // Seleccionar conversacion
@@ -320,6 +366,7 @@ function AppContent() {
         return;
       }
 
+      flushPendingSave();
       const msgs = await loadMessages(convId);
       setCurrentConversationId(convId);
       currentConvIdRef.current = convId;
@@ -327,7 +374,7 @@ function AppContent() {
       setActiveView("chat");
       localStorage.setItem("lia_current_chat_id", convId);
     },
-    [activeView],
+    [activeView, flushPendingSave],
   );
 
   // ============================================
@@ -542,7 +589,7 @@ function AppContent() {
             <img
               src="./assets/Icono.png"
               alt="Loading"
-              className="w-full h-full object-contain"
+              className="w-full h-full object-contain dark:filter-none filter-accent-themed"
             />
           </div>
           <div className="flex gap-1">
@@ -575,6 +622,8 @@ function AppContent() {
     "Usuario";
 
   const initials = displayName.charAt(0).toUpperCase();
+
+  const orgId = sofiaContext?.currentOrganization?.id || '';
 
   // Derived data
   const folderChats = (folderId: string) =>
@@ -611,7 +660,7 @@ function AppContent() {
       <aside
         className={`${
           isSidebarOpen ? "w-60" : "w-14"
-        } flex-shrink-0 flex flex-col bg-gray-50 dark:bg-[#202123] text-gray-700 dark:text-white border-r border-gray-200 dark:border-none transition-all duration-300 ease-in-out`}
+        } flex-shrink-0 flex flex-col h-full bg-gray-50 dark:bg-[#202123] text-gray-700 dark:text-white border-r border-gray-200 dark:border-none transition-all duration-300 ease-in-out z-30`}
       >
         {/* Brand */}
         <div
@@ -622,7 +671,7 @@ function AppContent() {
               <img
                 src="./assets/Icono.png"
                 alt="SofLIA"
-                className="w-7 h-7 object-contain"
+                className="w-7 h-7 object-contain dark:filter-none filter-accent-themed"
               />
             </div>
           )}
@@ -1130,16 +1179,16 @@ function AppContent() {
                                     setRenamingChatId(conv.id);
                                     setEditingChatTitle(conv.title);
                                   }}
-                                  className="p-0.5 rounded hover:bg-gray-300 dark:hover:bg-white/10"
+                                  className="p-1 rounded hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
                                   title="Renombrar"
                                 >
                                   <svg
                                     xmlns="http://www.w3.org/2000/svg"
-                                    className="h-3 w-3 text-gray-400 dark:text-gray-500 hover:text-accent"
+                                    className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 hover:text-accent"
                                     fill="none"
                                     viewBox="0 0 24 24"
                                     stroke="currentColor"
-                                    strokeWidth={1.5}
+                                    strokeWidth={2}
                                   >
                                     <path
                                       strokeLinecap="round"
@@ -1148,51 +1197,51 @@ function AppContent() {
                                     />
                                   </svg>
                                 </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setMovingChatId(conv.id);
-                                  }}
-                                  className="p-0.5 rounded hover:bg-gray-300 dark:hover:bg-white/10"
-                                  title="Mover"
-                                >
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-3 w-3 text-gray-400 dark:text-gray-500"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    strokeWidth={1.5}
+                                
+                                <div className="relative">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveMenuChatId(activeMenuChatId === conv.id ? null : conv.id);
+                                    }}
+                                    className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-white/10 transition-colors ${activeMenuChatId === conv.id ? 'text-accent' : 'text-gray-400 dark:text-gray-500'}`}
+                                    title="Más opciones"
                                   >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
-                                    />
-                                  </svg>
-                                </button>
-                                <button
-                                  onClick={(e) =>
-                                    handleDeleteConversation(conv.id, e)
-                                  }
-                                  className="p-0.5 rounded hover:bg-gray-300 dark:hover:bg-white/10"
-                                  title="Eliminar"
-                                >
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-3 w-3 text-gray-400 dark:text-gray-500 hover:text-danger"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    strokeWidth={1.5}
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      d="M6 18L18 6M6 6l12 12"
-                                    />
-                                  </svg>
-                                </button>
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+                                    </svg>
+                                  </button>
+
+                                  {activeMenuChatId === conv.id && (
+                                    <div className="absolute right-0 mt-2 w-40 bg-white/95 dark:bg-[#1E1E1E]/95 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-xl shadow-2xl z-50 py-2 animate-in fade-in zoom-in-95 duration-150 ring-1 ring-black/5">
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); setMovingChatId(conv.id); setActiveMenuChatId(null); }}
+                                        className="w-full text-left px-3 py-2 text-[12.5px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 flex items-center gap-3 transition-colors group/item"
+                                      >
+                                        <div className="w-6 h-6 rounded-md bg-gray-100 dark:bg-white/5 flex items-center justify-center group-hover/item:text-accent group-hover/item:bg-accent/10 transition-colors">
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                                          </svg>
+                                        </div>
+                                        <span>Mover</span>
+                                      </button>
+                                      
+                                      <div className="h-px bg-gray-100 dark:bg-white/5 my-1.5 mx-2" />
+                                      
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); handleDeleteConversation(conv.id, e); setActiveMenuChatId(null); }}
+                                        className="w-full text-left px-3 py-2 text-[12.5px] text-danger hover:bg-danger/10 flex items-center gap-3 transition-colors group/item"
+                                      >
+                                        <div className="w-6 h-6 rounded-md bg-danger/5 flex items-center justify-center text-danger/70 group-hover/item:text-danger group-hover/item:bg-danger/20 transition-colors">
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                          </svg>
+                                        </div>
+                                        <span className="font-medium">Eliminar</span>
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </button>
                           ))
@@ -1293,7 +1342,7 @@ function AppContent() {
                           setRenamingChatId(conv.id);
                           setEditingChatTitle(conv.title);
                         }}
-                        className="p-1 rounded hover:bg-gray-300 dark:hover:bg-white/10"
+                        className="p-1 rounded hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
                         title="Renombrar"
                       >
                         <svg
@@ -1302,7 +1351,7 @@ function AppContent() {
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
-                          strokeWidth={1.5}
+                          strokeWidth={2}
                         >
                           <path
                             strokeLinecap="round"
@@ -1311,49 +1360,51 @@ function AppContent() {
                           />
                         </svg>
                       </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setMovingChatId(conv.id);
-                        }}
-                        className="p-1 rounded hover:bg-gray-300 dark:hover:bg-white/10"
-                        title="Mover a carpeta"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-3 w-3 text-gray-400 dark:text-gray-500"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={1.5}
+
+                      <div className="relative">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveMenuChatId(activeMenuChatId === conv.id ? null : conv.id);
+                          }}
+                          className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-white/10 transition-colors ${activeMenuChatId === conv.id ? 'text-accent' : 'text-gray-400 dark:text-gray-500'}`}
+                          title="Más opciones"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                          />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={(e) => handleDeleteConversation(conv.id, e)}
-                        className="p-1 rounded hover:bg-gray-300 dark:hover:bg-white/10"
-                        title="Eliminar"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 hover:text-danger"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={1.5}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </button>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+                          </svg>
+                        </button>
+
+                        {activeMenuChatId === conv.id && (
+                          <div className="absolute right-0 mt-2 w-40 bg-white/95 dark:bg-[#1E1E1E]/95 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-xl shadow-2xl z-50 py-2 animate-in fade-in zoom-in-95 duration-150 ring-1 ring-black/5">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setMovingChatId(conv.id); setActiveMenuChatId(null); }}
+                              className="w-full text-left px-3 py-2 text-[12.5px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 flex items-center gap-3 transition-colors group/item"
+                            >
+                              <div className="w-6 h-6 rounded-md bg-gray-100 dark:bg-white/5 flex items-center justify-center group-hover/item:text-accent group-hover/item:bg-accent/10 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                                </svg>
+                              </div>
+                              <span>Mover</span>
+                            </button>
+                            
+                            <div className="h-px bg-gray-100 dark:bg-white/5 my-1.5 mx-2" />
+                            
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDeleteConversation(conv.id, e); setActiveMenuChatId(null); }}
+                              className="w-full text-left px-3 py-2 text-[12.5px] text-danger hover:bg-danger/10 flex items-center gap-3 transition-colors group/item"
+                            >
+                              <div className="w-6 h-6 rounded-md bg-danger/5 flex items-center justify-center text-danger/70 group-hover/item:text-danger group-hover/item:bg-danger/20 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </div>
+                              <span className="font-medium">Eliminar</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </>
                 )}
@@ -1435,141 +1486,110 @@ function AppContent() {
                 ></div>
 
                 {/* Menu */}
-                <div className="absolute bottom-full left-2 w-[calc(100%-16px)] mb-2 bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-white/10 rounded-xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100 min-w-[200px]">
-                  {!isSidebarOpen && (
-                    <div className="px-4 py-3 border-b border-gray-100 dark:border-white/10 bg-gray-50 dark:bg-white/5">
-                      <div className="font-medium text-gray-900 dark:text-white truncate text-sm">
-                        {displayName}
-                      </div>
-                      <div className="text-xs text-gray-500 truncate">
-                        {user?.email}
-                      </div>
+                <div 
+                  className={`absolute bottom-full translate-y-[-8px] bg-white dark:bg-[#1E1E1E] backdrop-blur-xl border border-gray-200/50 dark:border-white/10 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] dark:shadow-[0_10px_40px_rgba(0,0,0,0.5)] z-[100] py-1.5 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200 ring-1 ring-black/5 ${
+                    isSidebarOpen 
+                      ? "left-1.5 w-[calc(100%-12px)]" 
+                      : "left-2 w-[240px]"
+                  } ${isThemeSubMenuOpen ? '' : 'overflow-hidden'}`}
+                >
+                  
+                  {/* User info on collapsed sidebar */}
+                  <div className={`px-4 py-3 mb-1.5 border-b border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-white/[0.02] ${isSidebarOpen ? 'hidden' : 'block'}`}>
+                    <div className="font-bold text-gray-900 dark:text-gray-100 truncate text-[13px]">
+                      {displayName}
                     </div>
-                  )}
-
-                  <div className="p-1.5">
+                    <div className="text-[10.5px] text-gray-500 truncate dark:text-gray-400 font-medium">
+                      {user?.email}
+                    </div>
+                  </div>
+                  <div className="px-1.5 space-y-0.5">
+                    {/* Settings Action */}
                     <button
                       onClick={() => {
                         setActiveSettingsTab("ai");
                         setIsUnifiedSettingsOpen(true);
                         setIsUserMenuOpen(false);
                       }}
-                      className="w-full text-left flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+                      className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium text-gray-700 dark:text-gray-300 hover:text-accent dark:hover:text-accent hover:bg-accent/5 transition-all group/item"
                     >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4.5 w-4.5 text-gray-400 dark:text-gray-500"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={1.5}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                        />
-                      </svg>
+                      <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center group-hover/item:bg-accent/10 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5 text-gray-400 dark:text-gray-500 group-hover/item:text-accent transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      </div>
                       Configuración
                     </button>
 
-
-                    <div className="h-px bg-gray-200 dark:bg-white/10 my-1 mx-1.5"></div>
-
-                    {/* Theme Switcher */}
-                    <div className="px-3 py-2">
-                      <div className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold mb-2 ml-1">
-                        Tema
+                    {/* Theme Selector Section */}
+                    <div className="px-3 py-1 mt-0.5 border-t border-gray-100 dark:border-white/5 flex items-center justify-between">
+                      <div className="text-[13px] font-medium text-gray-700 dark:text-gray-300 ml-0.5">
+                        Apariencia
                       </div>
-                      <div className="flex bg-gray-100 dark:bg-black/20 p-1 rounded-lg border border-gray-200 dark:border-white/5">
+                      
+                      <div className="relative">
                         <button
-                          onClick={() => setTheme("light")}
-                          className={`flex-1 flex items-center justify-center py-1.5 rounded-md transition-all ${theme === "light" ? "bg-white text-gray-900 shadow-sm dark:bg-white/10 dark:text-white" : "text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"}`}
-                          title="Claro"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsThemeSubMenuOpen(!isThemeSubMenuOpen);
+                          }}
+                          className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
+                            isThemeSubMenuOpen 
+                              ? 'bg-accent/10 text-accent' 
+                              : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-accent/5 hover:text-accent border border-gray-200 dark:border-white/5'
+                          }`}
                         >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                            />
-                          </svg>
+                          {theme === 'light' ? (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                          ) : theme === 'dark' ? (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                          ) : (
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                          )}
+                          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" className={`ml-1 opacity-60 transition-transform ${isThemeSubMenuOpen ? 'rotate-180' : ''}`}><polyline points="6 9 12 15 18 9"></polyline></svg>
                         </button>
-                        <button
-                          onClick={() => setTheme("system")}
-                          className={`flex-1 flex items-center justify-center py-1.5 rounded-md transition-all ${theme === "system" ? "bg-white text-gray-900 shadow-sm dark:bg-white/10 dark:text-white" : "text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"}`}
-                          title="Sistema"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => setTheme("dark")}
-                          className={`flex-1 flex items-center justify-center py-1.5 rounded-md transition-all ${theme === "dark" ? "bg-white text-gray-900 shadow-sm dark:bg-white/10 dark:text-white" : "text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"}`}
-                          title="Oscuro"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-                            />
-                          </svg>
-                        </button>
+
+                        {isThemeSubMenuOpen && (
+                          <div className="absolute right-0 bottom-full mb-3 p-1 bg-white dark:bg-[#252525] border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl flex gap-1 z-[60] animate-in fade-in slide-in-from-bottom-2 duration-150 ring-1 ring-black/5">
+                            {[
+                              { id: 'light', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> },
+                              { id: 'system', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> },
+                              { id: 'dark', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg> }
+                            ].map((opt) => (
+                              <button
+                                key={opt.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setTheme(opt.id as any);
+                                  setIsThemeSubMenuOpen(false);
+                                }}
+                                className={`w-8.5 h-8.5 flex items-center justify-center rounded-xl transition-all ${
+                                  theme === opt.id 
+                                    ? 'bg-accent text-white shadow-lg shadow-accent/20' 
+                                    : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-300'
+                                }`}
+                              >
+                                {opt.icon}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    <div className="h-px bg-gray-200 dark:bg-white/10 my-1 mx-1.5"></div>
+                    <div className="h-px bg-gray-100 dark:bg-white/5 my-1 mx-2"></div>
 
+                    {/* Log Out Action */}
                     <button
                       onClick={signOut}
-                      className="w-full text-left flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-danger hover:bg-danger/10 transition-colors"
+                      className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium text-danger hover:bg-danger/5 transition-all group/logout"
                     >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4.5 w-4.5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={1.5}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                        />
-                      </svg>
+                      <div className="w-8 h-8 rounded-lg bg-danger/5 flex items-center justify-center group-hover/logout:bg-danger/10 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5 text-danger opacity-70 group-hover/logout:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                      </div>
                       Cerrar Sesión
                     </button>
                   </div>
@@ -1581,11 +1601,12 @@ function AppContent() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 h-screen">
+      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {activeView === "chat" && (
+          <div key={`chat-${currentConversationId || 'new'}`} className="flex-1 flex flex-col min-w-0 min-h-0 h-full overflow-hidden animate-view-in">
           <ChatUI
             messages={currentMessages}
-            onMessagesChange={handleMessagesChange}
+            onMessagesChange={scopedMessagesHandler}
             externalPrompt={externalPrompt}
             onExternalPromptProcessed={() => setExternalPrompt(null)}
             personalization={
@@ -1605,7 +1626,9 @@ function AppContent() {
               (user?.user_metadata as any)?.profile_picture_url ||
               (userSettings as any)?.profile_picture_url
             }
+            folderId={currentFolderId || conversations.find(c => c.id === currentConversationId)?.folder_id || null}
           />
+          </div>
         )}
         {activeView === "screen" && <ScreenViewer />}
         {activeView === "productivity" && userId && (
@@ -1617,11 +1640,14 @@ function AppContent() {
             chats={folderChats(currentFolder.id)}
             onOpenChat={handleSelectConversation}
             onNewChat={() => handleNewChatInProject(currentFolder.id)}
+            onNewChatWithMessage={(message) => handleNewChatWithMessage(currentFolder.id, message)}
             onDeleteChat={handleDeleteConversation}
             onRenameFolder={(newName) =>
               handleRenameFolder(currentFolder.id, newName)
             }
             onRenameChat={handleRenameChatFromHub}
+            userId={userId}
+            orgId={orgId}
           />
         )}
       </main>
@@ -1639,6 +1665,7 @@ function AppContent() {
         currentFolderId={movingChat?.folder_id}
         onMove={handleMoveChat}
       />
+
       {userId && (
         <UnifiedSettingsModal
           isOpen={isUnifiedSettingsOpen}
