@@ -906,7 +906,7 @@ AutoDev generó código truncado para electron/autonomous-janitor.ts. El archivo
 
 - **Timestamp**: 2026-03-01T04:38:49.162Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772859892737` — 2026-03-07)
 
 ### Descripción
 
@@ -927,7 +927,7 @@ Args: {}
 
 - **Timestamp**: 2026-03-01T04:39:37.688Z
 - **Fuente**: computer_use
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772859892737` — 2026-03-07)
 
 ### Descripción
 
@@ -948,7 +948,7 @@ Tarea solicitada: Abrir el archivo 'Suarez_Gonzalez_Fernando_Yael.pdf' desde la 
 
 - **Timestamp**: 2026-03-01T04:41:57.359Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772859892737` — 2026-03-07)
 
 ### Descripción
 
@@ -968,7 +968,7 @@ Args: {}
 
 - **Timestamp**: 2026-03-01T20:26:27.181Z
 - **Fuente**: computer_use
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772859892737` — 2026-03-07)
 
 ### Descripción
 
@@ -987,7 +987,7 @@ Tarea solicitada: Abre la calculadora, suma 389 y 540, y dime el resultado.
 
 - **Timestamp**: 2026-03-01T20:47:04.662Z
 - **Fuente**: computer_use
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772859892737` — 2026-03-07)
 
 ### Descripción
 
@@ -1006,7 +1006,7 @@ Tarea solicitada: Abre la aplicación Calculadora, luego ingresa 389, haz clic e
 
 - **Timestamp**: 2026-03-02T04:34:53.924Z
 - **Fuente**: computer_use
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772859892737` — 2026-03-07)
 
 ### Descripción
 
@@ -1025,7 +1025,7 @@ Tarea solicitada: Error en paso 0: Cannot read properties of undefined (reading 
 
 - **Timestamp**: 2026-03-02T04:34:53.929Z
 - **Fuente**: computer_use
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772859892737` — 2026-03-07)
 
 ### Descripción
 
@@ -1044,7 +1044,7 @@ Tarea solicitada: Abre la aplicación "Calculadora" y suma 389 más 540.
 
 - **Timestamp**: 2026-03-02T04:35:55.015Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772859892737` — 2026-03-07)
 
 ### Descripción
 
@@ -1063,7 +1063,7 @@ Args: {}
 
 - **Timestamp**: 2026-03-04T17:04:17.402Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772859892737` — 2026-03-07)
 
 ### Descripción
 
@@ -1084,7 +1084,7 @@ Patrón detectado: c[oó]mo vas
 
 - **Timestamp**: 2026-03-04T17:04:17.445Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772859892737` — 2026-03-07)
 
 ### Descripción
 
@@ -1105,7 +1105,7 @@ Patrón detectado: c[oó]mo vas
 
 - **Timestamp**: 2026-03-04T17:04:17.475Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772859892737` — 2026-03-07)
 
 ### Descripción
 
@@ -1126,7 +1126,7 @@ Patrón detectado: se supone que
 
 - **Timestamp**: 2026-03-04T17:04:17.517Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772859892737` — 2026-03-07)
 
 ### Descripción
 
@@ -1147,7 +1147,7 @@ Patrón detectado: c[oó]mo vas
 
 - **Timestamp**: 2026-03-04T17:04:17.543Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772859892737` — 2026-03-07)
 
 ### Descripción
 
@@ -1168,7 +1168,7 @@ Patrón detectado: sigue (sin|igual|apagado|cerrado)
 
 - **Timestamp**: 2026-03-04T17:04:17.563Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772859892737` — 2026-03-07)
 
 ### Descripción
 
@@ -1189,7 +1189,7 @@ Patrón detectado: sigue (sin|igual|apagado|cerrado)
 
 - **Timestamp**: 2026-03-04T17:04:18.846Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772859892737` — 2026-03-07)
 
 ### Descripción
 
@@ -1210,7 +1210,7 @@ Patrón detectado: no me (pasaste|enviaste|mandaste)
 
 - **Timestamp**: 2026-03-04T17:04:20.865Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772859892737` — 2026-03-07)
 
 ### Descripción
 
@@ -1236,7 +1236,7 @@ Patrón detectado: no (se )?cre[oó]
 
 - **Timestamp**: 2026-03-04T17:04:20.937Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772859892737` — 2026-03-07)
 
 ### Descripción
 
@@ -1257,7 +1257,7 @@ Patrón detectado: se supone que
 
 - **Timestamp**: 2026-03-04T17:24:28.466Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772859892737` — 2026-03-07)
 
 ### Descripción
 
@@ -1276,7 +1276,7 @@ Args: {"text":""}
 
 - **Timestamp**: 2026-03-04T17:39:11.263Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772859892737` — 2026-03-07)
 
 ### Descripción
 
@@ -1295,7 +1295,7 @@ Args: {"text":"enviame el archivo Polizas"}
 
 - **Timestamp**: 2026-03-05T20:59:06.760Z
 - **Fuente**: whatsapp
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772859892737` — 2026-03-07)
 
 ### Descripción
 
@@ -1315,7 +1315,7 @@ Args: {}
 - **Run ID**: `run_1772744655077`
 - **Timestamp**: 2026-03-05T21:04:15.141Z
 - **Categoría**: limitation
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772859892737` — 2026-03-07)
 
 ### Descripción
 
@@ -1333,7 +1333,7 @@ gh auth status failed
 - **Run ID**: `run_1772744655077`
 - **Timestamp**: 2026-03-05T21:04:15.152Z
 - **Categoría**: runtime_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1772859892737` — 2026-03-07)
 
 ### Descripción
 
