@@ -6,10 +6,22 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
 ## [0.0.7] - 2026-03-07
 
+### Added
+
+- **Soporte para Gemini 3.1 Pro:** Actualizados todos los servicios (Desktop Agent, Chat UI, Extensión) para utilizar el nuevo modelo `gemini-3.1-pro-preview` con mayor capacidad de razonamiento.
+- **Upgrade Gemini Lite:** La extensión ahora utiliza `gemini-3.1-flash-lite-preview` para respuestas rápidas y eficientes.
+- **Asistente de Portapapeles:** Mejora en el motor de IA del portapapeles utilizando ahora `gemini-3-flash-preview`.
+
+### Changed
+
+- **Nuevo Diseño Premium del Instalador:** Rediseño completo del asistente de instalación con un tema oscuro elegante (`#12151A`), corrección de bordes en el logo y enlaces directos al portal oficial.
+- **Estética de Notas de Versión:** Nuevo sistema de diseño para las notas de actualización que ahora soportan formato HTML (negritas, listas, encabezados) con tipografía optimizada.
+
 ### Fixed
 
 - Corregido error 404 al descargar actualizaciones: el nombre del instalador tenía un espacio (`SofLIA Hub-...`) que causaba un desajuste con la URL de descarga en GitHub Releases. Ahora se genera como `SofLIA-Hub-...` (con guión).
 - Actualizado el pipeline de CI/CD para que los nombres de los artifacts coincidan con los nuevos nombres sin espacios.
+- Corregido el renderizado de etiquetas HTML (`<h3>`, `<ul>`, `<strong>`) en el panel de actualizaciones que antes se mostraban como texto plano.
 
 ## [0.0.6] - 2026-03-07
 

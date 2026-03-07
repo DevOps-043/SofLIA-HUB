@@ -1,24 +1,23 @@
 ; =============================================================================
-; SofLIA Hub - Custom NSIS Installer Script
-; =============================================================================
-; This script customizes the look and feel of the NSIS installer
-; for SofLIA Hub, providing a modern, branded installation experience.
+; SofLIA Hub - Custom NSIS Installer Script (High Premium Theme)
 ; =============================================================================
 
-; ─── Modern UI Colors ───
-!define MUI_BGCOLOR "0A2540"
+; ─── Brand Colors ───
+!define MUI_BGCOLOR "12151A"
 !define MUI_TEXTCOLOR "FFFFFF"
 
-; ─── Custom UI Elements ───
-!define MUI_ABORTWARNING
-!define MUI_ABORTWARNING_TEXT "¿Estás seguro de que deseas cancelar la instalación de SofLIA Hub?"
-!define MUI_ABORTWARNING_CANCEL_DEFAULT
+; ─── Header & Sidebar Image Config ───
+!define MUI_HEADERIMAGE
+!define MUI_HEADERIMAGE_BITMAP "build\installer\installerHeader.bmp"
+!define MUI_HEADERIMAGE_RIGHT
+!define MUI_WELCOMEFINISHPAGE_BITMAP "build\installer\installerSidebar.bmp"
 
-; ─── Finish Page Configuration ───
-!define MUI_FINISHPAGE_NOAUTOCLOSE
-!define MUI_FINISHPAGE_RUN_TEXT "Iniciar SofLIA Hub"
-!define MUI_FINISHPAGE_LINK "Visita el portal SofLIA"
-!define MUI_FINISHPAGE_LINK_LOCATION "https://soflia.ai"
+; ─── Finish Page Customization ───
+!define MUI_FINISHPAGE_TITLE_3LINES
+!define MUI_FINISHPAGE_LINK "Visita el portal oficial de SofLIA Hub"
+!define MUI_FINISHPAGE_LINK_LOCATION "https://soflia.com"
+!define MUI_FINISHPAGE_LINK_COLOR "00D4B3"
 
-; ─── Uninstaller Finish Page ───
-!define MUI_UNFINISHPAGE_NOAUTOCLOSE
+; ─── Installation Progress styling ───
+!define MUI_INSTFILESPAGE_COLORS "00D4B3 12151A" ; Accent text on dark bg
+!define MUI_PROGRESSBAR_COLOR "00D4B3" ; Wait, MUI might not support this directly without plugins, but good to have

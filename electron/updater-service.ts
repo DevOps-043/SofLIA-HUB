@@ -40,8 +40,8 @@ export class UpdaterService extends EventEmitter {
   private pollInterval: NodeJS.Timeout | null = null
 
   init(): void {
-    // Configuración
-    autoUpdater.autoDownload = false
+    // Configuración: descarga automática + instala silenciosamente al cerrar
+    autoUpdater.autoDownload = true
     autoUpdater.autoInstallOnAppQuit = true
     autoUpdater.allowDowngrade = false
 
@@ -139,7 +139,9 @@ export class UpdaterService extends EventEmitter {
   }
 
   installUpdate(): void {
-    autoUpdater.quitAndInstall(false, true)
+    // isSilent=true: no muestra wizard/UI del instalador
+    // isForceRunAfter=true: reabre la app automáticamente después de instalar
+    autoUpdater.quitAndInstall(true, true)
   }
 
   getStatus(): UpdaterStatus {
