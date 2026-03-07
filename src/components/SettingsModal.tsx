@@ -60,16 +60,18 @@ const SelectDropdown: React.FC<{
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full px-5 py-3.5 bg-black/40 border border-white/10 rounded-2xl text-white text-sm text-left flex items-center justify-between hover:border-accent/40 focus:ring-4 focus:ring-accent/5 transition-all group"
+        className="w-full px-5 py-3.5 bg-gray-100/50 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-2xl text-gray-900 dark:text-white text-sm text-left flex items-center justify-between hover:border-accent/40 focus:ring-4 focus:ring-accent/5 transition-all group"
       >
         <span className="group-hover:text-accent transition-colors">{selected}</span>
+
         <svg className={`w-4 h-4 text-gray-500 transition-all duration-300 ${open ? 'rotate-180 text-accent' : 'group-hover:text-accent'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-[#0f1115] border border-white/10 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] z-50 overflow-hidden max-h-60 overflow-y-auto backdrop-blur-3xl animate-in slide-in-from-top-2 duration-200">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-[#0f1115] border border-gray-100 dark:border-white/10 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_40px_rgba(0,0,0,0.5)] z-50 overflow-hidden max-h-60 overflow-y-auto backdrop-blur-3xl animate-in slide-in-from-top-2 duration-200">
+
           {options.map(opt => (
             <button
               key={opt.value}
@@ -77,8 +79,9 @@ const SelectDropdown: React.FC<{
               className={`w-full text-left px-5 py-3.5 text-sm transition-all ${
                 value === opt.value
                   ? 'bg-accent/10 text-accent font-bold border-l-4 border-accent'
-                  : 'text-gray-400 hover:bg-white/5 hover:text-white border-l-4 border-transparent'
+                  : 'text-gray-500 dark:text-gray-400 hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white border-l-4 border-transparent'
               }`}
+
             >
               {opt.label}
             </button>
@@ -195,8 +198,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
       className={`flex flex-col overflow-hidden transition-all duration-500 ${
         embedded
           ? 'w-full h-full'
-          : 'w-175 max-h-[85vh] bg-sidebar rounded-3xl border border-white/10 shadow-2xl animate-fade-in relative'
+          : 'w-175 max-h-[85vh] bg-white dark:bg-sidebar rounded-3xl border border-gray-200 dark:border-white/10 shadow-2xl animate-fade-in relative'
       }`}
+
       onClick={e => e.stopPropagation()}
     >
       {/* Background Glows */}
@@ -214,23 +218,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
               </svg>
             </div>
             <div>
-              <h2 className="text-white text-xl font-black uppercase tracking-widest leading-none">Mi Identidad</h2>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tighter mt-1">Configuración del motor de personalización</p>
+              <h2 className="text-gray-900 dark:text-white text-xl font-black uppercase tracking-widest leading-none">Mi Identidad</h2>
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-tighter mt-1">Configuración del motor de personalización</p>
             </div>
+
           </div>
           <button
             onClick={onClose}
-            className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/10 transition-all group"
+            className="w-10 h-10 rounded-xl bg-black/[0.02] dark:bg-white/5 border border-black/5 dark:border-white/5 flex items-center justify-center text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-all group"
           >
             <svg className="w-5 h-5 transition-transform group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
+
         </div>
       )}
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar px-8 py-8 relative z-10 space-y-8">
+      <div className="flex-1 overflow-y-auto no-scrollbar px-6 py-6 pb-32 relative z-10 space-y-6">
+
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
             <div className="relative">
@@ -242,88 +249,101 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
         ) : (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300 pb-32">
             {/* Card: Bio Data */}
-            <div className="bg-white/2 backdrop-blur-sm border border-white/10 rounded-3xl p-8 relative overflow-hidden group hover:border-accent/20 transition-all duration-500 shadow-xl shadow-black/20">
-              <div className="absolute -top-24 -right-24 w-64 h-64 bg-accent/5 rounded-full blur-[100px] opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
+            <div className="bg-white/[0.03] backdrop-blur-md border border-white/[0.05] rounded-[2rem] p-6 relative overflow-hidden group hover:border-accent/10 transition-all duration-500 shadow-xl shadow-black/10">
+              <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity duration-700">
+                <svg className="w-32 h-32 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={0.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.01] to-transparent pointer-events-none" />
               
-              <div className="flex items-center gap-4 mb-8 relative z-10">
-                <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center border border-accent/20 group-hover:scale-110 transition-transform duration-500">
-                  <svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <div className="flex items-center gap-3 mb-6 relative z-10">
+                <div className="w-8 h-8 rounded-lg bg-accent/5 flex items-center justify-center border border-accent/10 group-hover:scale-105 transition-transform duration-500">
+                  <svg className="w-4 h-4 text-accent/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </div>
                 <div>
-                  <h4 className="text-[11px] font-black text-white uppercase tracking-[0.2em]">Contexto de Identidad</h4>
-                  <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Define quién eres para SofLIA</p>
+                  <h4 className="text-[10px] font-bold text-gray-900 dark:text-white/90 uppercase tracking-[0.2em]">Contexto de Identidad</h4>
+                  <p className="text-[8px] text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wider mt-0.5 whitespace-nowrap">Quién eres para tu IA</p>
                 </div>
+
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 relative z-10">
-                <div className="space-y-2.5">
-                  <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest px-1 ml-1 flex items-center gap-2">
-                    <div className="w-1 h-1 rounded-full bg-accent/50" />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 relative z-10">
+                <div className="space-y-1.5">
+                  <label className="text-[8px] font-bold text-gray-500 uppercase tracking-widest px-1 ml-1 flex items-center gap-2">
                     Seudónimo / Apodo
                   </label>
                   <input
                     value={nickname}
                     onChange={e => setNickname(e.target.value)}
-                    placeholder="Ej: Fer"
-                    className="w-full px-5 py-3.5 bg-black/40 border border-white/10 rounded-2xl text-white text-sm focus:outline-none focus:border-accent/40 focus:bg-black/60 focus:ring-4 focus:ring-accent/5 transition-all placeholder-gray-700"
+                    placeholder="Fer"
+                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-black/20 border border-gray-100 dark:border-white/[0.03] rounded-xl text-gray-900 dark:text-white text-sm focus:outline-none focus:border-accent/20 dark:focus:border-accent/20 focus:bg-white dark:focus:bg-black/40 transition-all placeholder-gray-400 dark:placeholder-gray-700"
                   />
+
                 </div>
-                <div className="space-y-2.5">
-                  <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest px-1 ml-1 flex items-center gap-2">
-                    <div className="w-1 h-1 rounded-full bg-accent/50" />
+                <div className="space-y-1.5">
+                  <label className="text-[8px] font-bold text-gray-500 uppercase tracking-widest px-1 ml-1 flex items-center gap-2">
                     Especialidad / Rol
                   </label>
                   <input
                     value={occupation}
                     onChange={e => setOccupation(e.target.value)}
-                    placeholder="Ej: Software Engineer"
-                    className="w-full px-5 py-3.5 bg-black/40 border border-white/10 rounded-2xl text-white text-sm focus:outline-none focus:border-accent/40 focus:bg-black/60 focus:ring-4 focus:ring-accent/5 transition-all placeholder-gray-700"
+                    placeholder="CEO / CTO"
+                    className="w-full px-4 py-2.5 bg-gray-50 dark:bg-black/20 border border-gray-100 dark:border-white/[0.03] rounded-xl text-gray-900 dark:text-white text-sm focus:outline-none focus:border-accent/20 dark:focus:border-accent/20 focus:bg-white dark:focus:bg-black/40 transition-all placeholder-gray-400 dark:placeholder-gray-700"
                   />
+
                 </div>
               </div>
 
-              <div className="space-y-2.5 relative z-10">
-                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest px-1 ml-1 flex items-center gap-2">
-                  <div className="w-1 h-1 rounded-full bg-accent/50" />
+
+              <div className="space-y-1.5 relative z-10">
+                <label className="text-[8px] font-bold text-gray-500 uppercase tracking-widest px-1 ml-1 flex items-center gap-2">
                   Memorias y Experiencias
                 </label>
                 <textarea
                   value={aboutUser}
                   onChange={e => setAboutUser(e.target.value)}
-                  placeholder="Información relevante que SofLIA debe conocer para entenderte mejor..."
-                  className="w-full px-5 py-4 bg-black/40 border border-white/10 rounded-2xl text-white text-sm focus:outline-none focus:border-accent/40 focus:bg-black/60 focus:ring-4 focus:ring-accent/5 transition-all placeholder-gray-700 resize-none h-32 custom-scrollbar shadow-inner"
+                  placeholder="Información relevante para tu contexto..."
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-black/20 border border-gray-100 dark:border-white/[0.03] rounded-xl text-gray-900 dark:text-white text-sm focus:outline-none focus:border-accent/20 dark:focus:border-accent/20 focus:bg-white dark:focus:bg-black/40 transition-all placeholder-gray-400 dark:placeholder-gray-700 resize-none h-24 no-scrollbar"
                 />
-                <p className="text-[8px] text-gray-600 font-bold uppercase tracking-widest mt-2 px-1 text-right">SofLIA recordará estos detalles en futuras interacciones</p>
+
+                <p className="text-[7px] text-gray-600 font-medium uppercase tracking-widest mt-1 px-1 text-right">Persistencia de contexto activa</p>
               </div>
+
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white/2 backdrop-blur-sm border border-white/10 rounded-3xl p-8 flex flex-col group hover:border-accent/20 transition-all duration-500 shadow-xl shadow-black/20">
-                <div className="flex items-center gap-4 mb-8">
-                  <div className="w-10 h-10 rounded-xl bg-gray-500/5 flex items-center justify-center border border-white/5 transition-all duration-500 group-hover:bg-accent/10 group-hover:border-accent/20 group-hover:scale-110">
-                    <svg className="w-5 h-5 text-gray-500 group-hover:text-accent transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-gray-50/50 dark:bg-white/[0.03] backdrop-blur-md border border-gray-100 dark:border-white/[0.05] rounded-[2rem] p-6 flex flex-col group hover:border-accent/10 transition-all duration-500 shadow-xl shadow-black/5 dark:shadow-black/10 relative overflow-hidden">
+
+                <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity duration-700">
+                  <svg className="w-32 h-32 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={0.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                  </svg>
+                </div>
+                <div className="flex items-center gap-3 mb-6 relative z-10">
+                  <div className="w-8 h-8 rounded-lg bg-gray-500/5 flex items-center justify-center border border-white/5 transition-all duration-500 group-hover:bg-accent/5 group-hover:border-accent/10 group-hover:scale-105">
+                    <svg className="w-4 h-4 text-gray-500 group-hover:text-accent/60 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                     </svg>
                   </div>
                   <div>
-                    <h4 className="text-[11px] font-black text-white uppercase tracking-[0.2em]">Sintonía Basal</h4>
-                    <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Ajuste de tono y frecuencia</p>
+                    <h4 className="text-[10px] font-bold text-gray-900 dark:text-white/90 uppercase tracking-[0.2em]">Sintonía Basal</h4>
+                    <p className="text-[8px] text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wider mt-0.5">Tono y personalidad</p>
                   </div>
+
                 </div>
-                <div className="space-y-6 flex-1 flex flex-col justify-center">
-                  <div className="space-y-2.5">
-                    <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest px-1 ml-1 flex items-center gap-2">
-                      <div className="w-1 h-1 rounded-full bg-accent/50" />
+                <div className="space-y-4 flex-1 flex flex-col justify-center relative z-10">
+                  <div className="space-y-1.5">
+                    <label className="text-[8px] font-bold text-gray-500 uppercase tracking-widest px-1 ml-1 flex items-center gap-2">
                       Registros de Voz
                     </label>
                     <SelectDropdown value={toneStyle} onChange={setToneStyle} options={TONE_OPTIONS} />
                   </div>
-                  <div className="space-y-2.5">
-                    <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest px-1 ml-1 flex items-center gap-2">
-                      <div className="w-1 h-1 rounded-full bg-accent/50" />
+                  <div className="space-y-1.5">
+                    <label className="text-[8px] font-bold text-gray-500 uppercase tracking-widest px-1 ml-1 flex items-center gap-2">
                       Densidad Expresiva
                     </label>
                     <SelectDropdown value={charEmojis} onChange={setCharEmojis} options={EMOJI_OPTIONS} />
@@ -331,161 +351,174 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
                 </div>
               </div>
 
-              <div className="bg-white/2 backdrop-blur-sm border border-white/10 rounded-3xl p-8 relative group overflow-hidden hover:border-accent/20 transition-all duration-500 shadow-xl shadow-black/20">
-                <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity duration-700">
-                  <svg className="w-24 h-24 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="bg-gray-50/50 dark:bg-white/[0.03] backdrop-blur-md border border-gray-100 dark:border-white/[0.05] rounded-[2rem] p-6 relative group overflow-hidden hover:border-accent/10 transition-all duration-500 shadow-xl shadow-black/5 dark:shadow-black/10">
+
+                <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity duration-700">
+                  <svg className="w-32 h-32 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={0.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                 </div>
-                <div className="flex items-center gap-4 mb-8">
-                  <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center border border-accent/20 group-hover:scale-110 transition-transform duration-500 shadow-[0_0_15px_rgba(34,211,238,0.1)]">
-                    <svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <div className="flex items-center gap-3 mb-6 relative z-10">
+                  <div className="w-8 h-8 rounded-lg bg-accent/5 flex items-center justify-center border border-accent/10 group-hover:scale-105 transition-transform duration-500">
+                    <svg className="w-4 h-4 text-accent/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                   </div>
                   <div>
-                    <h4 className="text-[11px] font-black text-white uppercase tracking-[0.2em]">Instrucciones de Alto Nivel</h4>
-                    <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Lógica de control maestro</p>
+                    <h4 className="text-[10px] font-bold text-gray-900 dark:text-white/90 uppercase tracking-[0.2em]">Instrucciones</h4>
+                    <p className="text-[8px] text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wider mt-0.5">Lógica de control maestro</p>
                   </div>
+
                 </div>
-                <div className="space-y-2.5 relative z-10">
+                <div className="space-y-1.5 relative z-10">
                   <textarea
                     value={customInstructions}
                     onChange={e => setCustomInstructions(e.target.value)}
-                    placeholder="Ej: 'Siempre responde en inglés', 'Prioriza código limpio', 'Evita saludos'..."
-                    className="w-full px-5 py-4 bg-black/40 border border-white/10 rounded-2xl text-white text-sm focus:outline-none focus:border-accent/40 focus:bg-black/60 focus:ring-4 focus:ring-accent/5 transition-all placeholder-gray-700 resize-none h-32 custom-scrollbar shadow-inner"
+                    placeholder="Ej: 'Prioriza código limpio'..."
+                    className="w-full px-4 py-3 bg-gray-50 dark:bg-black/20 border border-gray-100 dark:border-white/[0.03] rounded-xl text-gray-900 dark:text-white text-sm focus:outline-none focus:border-accent/20 dark:focus:border-accent/20 focus:bg-white dark:focus:bg-black/40 transition-all placeholder-gray-400 dark:placeholder-gray-700 resize-none h-24 no-scrollbar"
                   />
-                  <p className="text-[8px] text-gray-600 font-bold uppercase tracking-widest mt-2 px-1">Instrucciones que prevalecen sobre cualquier comportamiento estándar</p>
+
+                  <p className="text-[7px] text-gray-600 font-medium uppercase tracking-widest mt-1 px-1">Sobrescribe comportamientos estándar</p>
                 </div>
               </div>
             </div>
 
+
             {/* Notification System Block */}
             {window.proactive && (
-              <div className="bg-white/3 border border-white/10 rounded-3xl p-8 relative overflow-hidden group">
-                <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-[100px]" />
+              <div className="bg-gray-50/50 dark:bg-white/[0.03] backdrop-blur-md border border-gray-100 dark:border-white/[0.05] rounded-[2rem] p-6 relative overflow-hidden group">
+
+                <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity duration-700">
+                  <svg className="w-32 h-32 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                </div>
                 
-                <div className="flex items-center justify-between mb-8 relative z-10">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-all duration-500 ${proactiveEnabled ? 'bg-purple-500/10 border-purple-500/20 shadow-lg shadow-purple-500/10 scale-110' : 'bg-white/5 border-white/10 grayscale'}`}>
-                       <svg className={`w-6 h-6 transition-colors duration-500 ${proactiveEnabled ? 'text-purple-400' : 'text-gray-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <div className="flex items-center justify-between mb-6 relative z-10">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center border transition-all duration-500 ${proactiveEnabled ? 'bg-purple-500/10 border-purple-500/20 shadow-lg shadow-purple-500/5 scale-105' : 'bg-white/5 border-white/5 grayscale'}`}>
+                       <svg className={`w-5 h-5 transition-colors duration-500 ${proactiveEnabled ? 'text-purple-400' : 'text-gray-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                           <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                        </svg>
                     </div>
                     <div>
-                       <h4 className="text-sm font-black text-white uppercase tracking-widest">SofLIA Proactiva</h4>
-                       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter mt-1">Interacción autónoma por WhatsApp</p>
+                       <h4 className="text-[10px] font-bold text-gray-900 dark:text-white/90 uppercase tracking-[0.2em]">SofLIA Proactiva</h4>
+                       <p className="text-[8px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-0.5">WhatsApp Autónomo</p>
                     </div>
+
                   </div>
                   <button
                     onClick={() => setProactiveEnabled(!proactiveEnabled)}
-                    className={`relative inline-flex h-7 w-13 items-center rounded-full transition-all duration-500 ${
-                      proactiveEnabled ? 'bg-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'bg-white/10'
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all duration-500 ${
+                      proactiveEnabled ? 'bg-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.3)]' : 'bg-white/10'
                     }`}
                   >
-                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform duration-300 ${
-                      proactiveEnabled ? 'translate-x-7' : 'translate-x-1'
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 ${
+                      proactiveEnabled ? 'translate-x-6' : 'translate-x-1'
                     }`} />
                   </button>
                 </div>
 
                 {proactiveEnabled && (
-                  <div className="space-y-8 animate-in fade-in duration-500 relative z-10">
+                  <div className="space-y-6 animate-in fade-in duration-500 relative z-10">
                     {/* Feature Filters */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                       {[
-                        { id: 'cal', active: calendarReminders, set: setCalendarReminders, icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>, label: 'Calendario' },
-                        { id: 'prj', active: taskReminders, set: setTaskReminders, icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>, label: 'Proyectos' },
-                        { id: 'sys', active: systemAlerts, set: setSystemAlerts, icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>, label: 'Alertas' }
+                        { id: 'cal', active: calendarReminders, set: setCalendarReminders, icon: <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>, label: 'Eventos' },
+                        { id: 'prj', active: taskReminders, set: setTaskReminders, icon: <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>, label: 'Tareas' },
+                        { id: 'sys', active: systemAlerts, set: setSystemAlerts, icon: <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>, label: 'Status' }
                       ].map(f => (
                         <button
                           key={f.id}
                           onClick={() => f.set(!f.active)}
-                          className={`flex items-center gap-3 px-4 py-3 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${
-                            f.active ? 'bg-purple-500/10 border-purple-500/30 text-purple-400' : 'bg-background-dark/40 border-white/5 text-gray-600 grayscale opacity-60'
+                          className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[9px] font-bold uppercase tracking-wider transition-all ${
+                            f.active ? 'bg-purple-500/5 border-purple-500/20 text-purple-600 dark:text-purple-400' : 'bg-gray-50 dark:bg-black/20 border-gray-100 dark:border-white/[0.03] text-gray-400 dark:text-gray-700'
                           }`}
+
                         >
                           {f.icon}
                           <span className="flex-1 text-left">{f.label}</span>
-                          {f.active && <div className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />}
                         </button>
                       ))}
                     </div>
 
                     {/* Timeline Matrix */}
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       <div className="flex items-center justify-between px-1">
-                        <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Matriz de Vigilancia Temprana</label>
-                        <span className="text-[10px] font-mono text-purple-500/60 font-bold uppercase tracking-tighter">Total: {notifHours.length} Ventanas</span>
+                        <label className="text-[8px] font-bold text-gray-500 uppercase tracking-widest px-1">Ventanas de Interacción</label>
                       </div>
-                      <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-12 gap-2">
+                      <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-12 gap-1.5">
                         {Array.from({ length: 24 }, (_, i) => (
                           <button
                             key={i}
                             onClick={() => toggleHour(i)}
-                            className={`flex flex-col items-center justify-center p-2 rounded-xl border transition-all ${
+                            className={`flex flex-col items-center justify-center py-1.5 rounded-lg border transition-all ${
                               notifHours.includes(i)
-                                ? 'bg-purple-500/20 border-purple-500/40 text-purple-200'
-                                : 'bg-background-dark/60 border-white/5 text-gray-700 hover:text-gray-400 hover:bg-white/5'
+                                ? 'bg-purple-500/10 border-purple-500/20 text-purple-600 dark:text-purple-200'
+                                : 'bg-gray-50 dark:bg-black/20 border-gray-100 dark:border-white/[0.02] text-gray-400 dark:text-gray-800'
                             }`}
+
                           >
-                            <span className="text-[10px] font-mono font-bold leading-none mb-1">{String(i).padStart(2, '0')}</span>
-                            <div className={`w-1.5 h-1.5 rounded-full transition-all ${notifHours.includes(i) ? 'bg-purple-400 scale-100 shadow-[0_0_8px_rgba(168,85,247,0.5)]' : 'bg-white/5 scale-50'}`} />
+                            <span className="text-[9px] font-mono font-bold leading-none">{String(i).padStart(2, '0')}</span>
+                            <div className={`mt-1.5 w-1 h-1 rounded-full transition-all ${notifHours.includes(i) ? 'bg-purple-400 scale-100 shadow-[0_0_8px_rgba(168,85,247,0.3)]' : 'bg-white/5 scale-50'}`} />
                           </button>
                         ))}
                       </div>
                     </div>
 
                     {/* Technical Command / Test */}
-                    <div className="flex flex-col sm:flex-row items-center gap-4 bg-background-dark/40 border border-white/5 rounded-2xl p-4">
+                    <div className="flex flex-col sm:flex-row items-center gap-4 bg-gray-50 dark:bg-black/20 border border-gray-100 dark:border-white/[0.02] rounded-xl p-3">
+
                       <button
                         onClick={handleTestNotification}
                         disabled={proactiveTesting}
-                        className="w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-2.5 rounded-xl bg-purple-600 text-white text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-purple-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-purple-600/90 text-white text-[9px] font-bold uppercase tracking-widest shadow-lg shadow-purple-600/10 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
                       >
                         {proactiveTesting ? (
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <div className="w-3 h-3 border-1.5 border-white/30 border-t-white rounded-full animate-spin" />
                         ) : (
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
                         )}
-                        <span>Sincronizar Prueba</span>
+                        <span>Sincronizar</span>
                       </button>
-                      <div className="flex-1 flex items-center gap-2 overflow-hidden h-4">
-                        {proactiveTestResult && <p className="text-[10px] font-black text-purple-400 uppercase tracking-widest animate-pulse truncate">{proactiveTestResult}</p>}
-                        {!proactiveTestResult && <p className="text-[9px] text-gray-700 font-bold uppercase tracking-tight">Vincule su número primero para recibir la trama técnica.</p>}
+                      <div className="flex-1 flex items-center overflow-hidden h-4">
+                        {proactiveTestResult && <p className="text-[9px] font-bold text-purple-400 uppercase tracking-widest truncate">{proactiveTestResult}</p>}
+                        {!proactiveTestResult && <p className="text-[8px] text-gray-700 font-medium uppercase tracking-tight">Requiere WhatsApp vinculado.</p>}
                       </div>
                     </div>
                   </div>
                 )}
               </div>
             )}
+
           </div>
         )}
       </div>
 
       {/* Footer */}
-      <div className="px-10 py-6 border-t border-white/5 bg-black/40 backdrop-blur-xl flex items-center justify-between relative z-20 shadow-[0_-20px_40px_rgba(0,0,0,0.5)]">
-        <div className="flex items-center gap-3">
-           <div className={`w-2 h-2 rounded-full ${saving ? 'bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'bg-accent/40'}`} />
-           <p className="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em]">{saving ? 'Sincronizando...' : 'Listo para sincronización'}</p>
+      <div className="px-8 py-5 border-t border-gray-100 dark:border-white/[0.05] bg-white/80 dark:bg-[#0c0d10]/80 backdrop-blur-xl flex items-center justify-between relative z-20">
+
+        <div className="flex items-center gap-2">
+           <div className={`w-1.5 h-1.5 rounded-full ${saving ? 'bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.3)]' : 'bg-accent/30'}`} />
+           <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">{saving ? 'Guardando...' : 'Sincronización Lista'}</p>
         </div>
         <div className="flex gap-4">
           <button
             onClick={onClose}
-            className="px-6 py-2.5 text-[10px] font-black text-gray-500 hover:text-white uppercase tracking-widest transition-colors"
+            className="px-4 py-2 text-[9px] font-bold text-gray-600 hover:text-white uppercase tracking-widest transition-colors"
           >
             Abortar
           </button>
           <button
             onClick={handleSave}
             disabled={saving || loading}
-            className="group relative px-10 py-3 rounded-2xl bg-accent text-primary text-[11px] font-black uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(34,211,238,0.2)] hover:shadow-[0_0_30px_rgba(34,211,238,0.4)] hover:scale-[1.05] active:scale-[0.98] transition-all disabled:opacity-50 overflow-hidden"
+            className="group relative px-8 py-2.5 rounded-xl bg-accent text-primary text-[10px] font-bold uppercase tracking-widest shadow-[0_0_20px_rgba(34,211,238,0.1)] hover:shadow-[0_0_30px_rgba(34,211,238,0.2)] hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 overflow-hidden"
           >
-            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
-            <span className="relative z-10">{saving ? 'Guardando...' : 'Aplicar Cambios'}</span>
+            <span className="relative z-10">{saving ? 'Procesando...' : 'Aplicar Cambios'}</span>
           </button>
         </div>
       </div>
+
     </div>
   );
 

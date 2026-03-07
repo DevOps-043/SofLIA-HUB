@@ -40,18 +40,19 @@ const RoleDropdown: React.FC<{
         type="button"
         disabled={disabled || value === 'owner'}
         onClick={() => setOpen(!open)}
-        className="w-full px-3 py-1.5 bg-background-dark/60 border border-white/5 rounded-xl text-white text-[12px] font-bold text-left flex items-center justify-between hover:border-accent/30 transition-all disabled:opacity-50 disabled:cursor-default"
+        className="w-full px-3 py-1.5 bg-gray-100 dark:bg-background-dark/60 border border-gray-200 dark:border-white/5 rounded-xl text-gray-900 dark:text-white text-[12px] font-bold text-left flex items-center justify-between hover:border-accent/30 transition-all disabled:opacity-50 disabled:cursor-default"
       >
         <span className="truncate">{selectedLabel}</span>
         {!(disabled || value === 'owner') && (
-          <svg className={`w-3.5 h-3.5 opacity-40 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <svg className={`w-3.5 h-3.5 ${open ? 'rotate-180 text-accent' : 'opacity-40'} transition-all`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <polyline points="6 9 12 15 18 9" />
           </svg>
         )}
       </button>
 
+
       {open && (
-        <div className="absolute bottom-full mb-1 left-0 right-0 bg-[#25262b] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="absolute bottom-full mb-1 left-0 right-0 bg-white dark:bg-[#25262b] border border-gray-100 dark:border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
           {options.map(opt => (
             <button
               key={opt.value}
@@ -59,13 +60,14 @@ const RoleDropdown: React.FC<{
               className={`w-full text-left px-3 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors ${
                 value === opt.value
                   ? 'bg-accent/10 text-accent'
-                  : 'text-gray-400 hover:bg-white/5 hover:text-white'
+                  : 'text-gray-500 dark:text-gray-400 hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white'
               }`}
             >
               {opt.label}
             </button>
           ))}
         </div>
+
       )}
     </div>
   );
@@ -157,9 +159,10 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
 
   const content = (
     <div
-      className={`flex flex-col overflow-hidden relative ${embedded ? 'w-full h-full' : 'w-full max-w-180 max-h-[85vh] bg-sidebar rounded-3xl border border-white/10 shadow-2xl animate-fade-in'}`}
+      className={`flex flex-col overflow-hidden relative ${embedded ? 'w-full h-full' : 'w-full max-w-180 max-h-[85vh] bg-white dark:bg-sidebar rounded-3xl border border-gray-100 dark:border-white/10 shadow-2xl animate-fade-in'}`}
       onClick={e => e.stopPropagation()}
     >
+
       {/* Glows */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-accent/5 blur-[100px] pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/5 blur-[100px] pointer-events-none" />
@@ -177,9 +180,10 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
               </svg>
             </div>
             <div>
-              <h2 className="text-white text-xl font-black uppercase tracking-widest leading-none">Cuerpo Directivo</h2>
+              <h2 className="text-gray-900 dark:text-white text-xl font-black uppercase tracking-widest leading-none">Cuerpo Directivo</h2>
               <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tighter mt-1">{organization?.name} • Gestión de Niveles de Acceso</p>
             </div>
+
           </div>
           <button onClick={onClose} className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/10 transition-all group">
             <svg className="w-5 h-5 transition-transform group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -197,29 +201,32 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
             <div className="absolute -top-10 -right-10 w-32 h-32 bg-accent/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
             <div className="flex items-center gap-3 mb-6">
               <div className="w-1.5 h-4 bg-accent rounded-full" />
-              <h4 className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Desplegar Invitación</h4>
+              <h4 className="text-[10px] font-black text-gray-900 dark:text-white uppercase tracking-[0.2em]">Desplegar Invitación</h4>
             </div>
+
             
             <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1 relative">
-                <input
+                 <input
                   type="text"
                   value={inviteEmail}
                   onChange={e => setInviteEmail(e.target.value)}
                   placeholder="Email corporativo o nombre de usuario"
-                  className="w-full px-4 py-3 bg-background-dark/80 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-accent/30 transition-all placeholder-gray-700"
+                  className="w-full px-4 py-3 bg-gray-100 dark:bg-background-dark/80 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-sm focus:outline-none focus:border-accent/30 transition-all placeholder-gray-400 dark:placeholder-gray-700"
                   required
                 />
+
               </div>
               <div className="sm:w-40">
-                <select
+                 <select
                   value={inviteRole}
                   onChange={e => setInviteRole(e.target.value as any)}
-                  className="w-full px-4 py-3 bg-background-dark/80 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-accent/30 appearance-none cursor-pointer"
+                  className="w-full px-4 py-3 bg-gray-100 dark:bg-background-dark/80 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-sm focus:outline-none focus:border-accent/30 appearance-none cursor-pointer"
                 >
-                  <option value="member">Miembro</option>
-                  <option value="admin">Admin</option>
+                  <option value="member" className="bg-white dark:bg-background-dark">Miembro</option>
+                  <option value="admin" className="bg-white dark:bg-background-dark">Admin</option>
                 </select>
+
               </div>
               <button
                 type="submit"
@@ -266,8 +273,9 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
               {members.map(member => (
                 <div 
                   key={member.id} 
-                  className="group bg-white/2 hover:bg-white/5 border border-white/5 hover:border-white/10 rounded-2xl p-4 flex items-center justify-between transition-all duration-300"
+                  className="group bg-gray-50/50 dark:bg-white/2 hover:bg-gray-100 dark:hover:bg-white/5 border border-gray-200 dark:border-white/5 hover:border-accent/10 dark:hover:border-white/10 rounded-2xl p-4 flex items-center justify-between transition-all duration-300"
                 >
+
                   <div className="flex items-center gap-4">
                     <div className="relative">
                       <div className={`w-12 h-12 rounded-full border-2 p-0.5 transition-colors duration-500 ${member.status === 'suspended' ? 'border-red-500/20 grayscale' : 'border-accent/30 group-hover:border-accent'}`}>
@@ -286,9 +294,10 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
                     
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-[13px] font-bold text-white truncate max-w-[150px]">
+                        <span className="text-[13px] font-bold text-gray-900 dark:text-white truncate max-w-[150px]">
                           {member.user_profile?.display_name || member.user_profile?.username || 'Eslabón Invitado'}
                         </span>
+
                         {member.role === 'owner' && (
                           <div className="px-1.5 py-0.5 rounded-md bg-accent/10 border border-accent/20 text-accent text-[8px] font-black uppercase tracking-tighter">Owner</div>
                         )}
@@ -364,11 +373,12 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
 
       {/* Footer */}
       {!embedded && (
-        <div className="px-8 py-5 border-t border-white/5 bg-white/2 flex items-center justify-between relative z-20">
+        <div className="px-8 py-5 border-t border-gray-100 dark:border-white/5 bg-gray-50/50 dark:bg-white/2 flex items-center justify-between relative z-20">
           <div className="flex items-center gap-2">
              <div className="w-1.5 h-1.5 rounded-full bg-accent/40" />
-             <p className="text-[9px] text-gray-600 font-black uppercase tracking-widest">Protocolo de Gestión Activo</p>
+             <p className="text-[9px] text-gray-500 dark:text-gray-600 font-black uppercase tracking-widest">Protocolo de Gestión Activo</p>
           </div>
+
           <button
             onClick={onClose}
             className="px-6 py-2 rounded-xl bg-white/5 text-[10px] font-black text-gray-500 hover:text-white uppercase tracking-widest transition-colors border border-white/5"
