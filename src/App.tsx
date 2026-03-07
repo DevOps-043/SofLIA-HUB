@@ -1626,7 +1626,6 @@ function AppContent() {
               (user?.user_metadata as any)?.profile_picture_url ||
               (userSettings as any)?.profile_picture_url
             }
-            folderId={currentFolderId || conversations.find(c => c.id === currentConversationId)?.folder_id || null}
           />
           </div>
         )}
