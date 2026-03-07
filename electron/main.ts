@@ -27,6 +27,12 @@ import { KnowledgeService } from './knowledge-service'
 import { ProactiveGuardianService } from './proactive-guardian'
 import { UpdaterService } from './updater-service'
 import { registerUpdaterHandlers } from './updater-handlers'
+import { ClipboardAIAssistant } from './clipboard-ai-assistant'
+import { TaskScheduler } from './task-scheduler'
+import './agent-task-queue' // Side-effect: registers singleton
+import { SystemGuardianService } from './system-services'
+import { NeuralOrganizerService as NeuralOrganizerAI } from './neural-organizer'
+import { PathMemoryService } from './path-memory-service'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -86,6 +92,21 @@ const desktopAgentService = new DesktopAgentService()
 // ─── Auto-Updater ──────────────────────────────────────────────────
 const updaterService = new UpdaterService()
 
+// ─── Clipboard AI Assistant (historial inteligente del portapapeles) ─
+const clipboardAssistant = new ClipboardAIAssistant({ maxHistorySize: 100, pollingIntervalMs: 5000 })
+
+// ─── Task Scheduler (recordatorios y tareas programadas via cron) ────
+const taskScheduler = new TaskScheduler()
+
+// ─── System Guardian (monitoreo nativo de CPU/RAM) ──────────────────
+const systemGuardian = new SystemGuardianService()
+
+// ─── Neural Organizer AI (organización inteligente de descargas) ─────
+let neuralOrganizer: NeuralOrganizerAI | null = null
+
+// ─── Path Memory (indexación proactiva de rutas del sistema) ─────────
+const pathMemoryService = new PathMemoryService()
+
 // ─── Wire SelfLearn → AutoDev Micro-Fix ──────────────────────────────
 selfLearnService.on('micro-fix-candidate', (trigger: any) => {
   console.log(`[Main] SelfLearn micro-fix candidate: ${trigger.category} — ${trigger.description.slice(0, 60)}`)
@@ -95,6 +116,19 @@ selfLearnService.on('micro-fix-candidate', (trigger: any) => {
 // ─── Wire DesktopAgent failures → SelfLearn ──────────────────────────
 desktopAgentService.on('task-failed', (data: any) => {
   selfLearnService.logComputerUseFailure(data.message || 'Desktop agent task failed', data.message || '')
+})
+
+// ─── Wire TaskScheduler → WhatsApp Agent (inject scheduled prompts) ──
+taskScheduler.on('task-triggered', (data: any) => {
+  if (waAgent && waService.getStatus().connected) {
+    const jid = `${data.phoneNumber.replace(/\D/g, '')}@s.whatsapp.net`
+    waAgent.handleMessage(jid, data.phoneNumber, data.prompt, false, '')
+  }
+})
+
+// ─── Wire SystemGuardian alerts → WhatsApp notifications ─────────────
+systemGuardian.on('alert', (alert: any) => {
+  console.log(`[SystemGuardian] Alert: ${alert.type} — ${alert.message}`)
 })
 
 // ─── Proactive Notifications ────────────────────────────────────────
@@ -393,7 +427,10 @@ ipcMain.on('close-flow', () => {
 });
 
 // App Lifecycle
-app.on('before-quit', () => { isQuitting = true })
+app.on('before-quit', () => {
+  isQuitting = true
+  pathMemoryService.stop()
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -475,6 +512,9 @@ function initWhatsAppAgent(apiKey: string) {
   waAgent.setGoogleServices(calendarService, gmailService, driveService, gchatService)
   waAgent.setAutoDevService(autoDevService)
   waAgent.setDesktopAgentService(desktopAgentService)
+  waAgent.setClipboardAssistant(clipboardAssistant)
+  waAgent.setTaskScheduler(taskScheduler)
+  waAgent.setSystemGuardian(systemGuardian)
 
   // Store API key for summary generation
   currentGeminiApiKey = apiKey
@@ -490,6 +530,30 @@ function initWhatsAppAgent(apiKey: string) {
 
   // Desktop Agent API key
   desktopAgentService.setApiKey(apiKey)
+
+  // Clipboard AI Assistant — update API key and start
+  clipboardAssistant.updateApiKey(apiKey)
+  clipboardAssistant.start()
+
+  // Neural Organizer AI — initialize with API key
+  if (!neuralOrganizer) {
+    neuralOrganizer = new NeuralOrganizerAI({
+      apiKey,
+      notifyCallback: async (msg: string) => {
+        if (waService.getStatus().connected) {
+          const status = waService.getStatus() as any
+          const numbers = status.allowedNumbers || []
+          for (const num of numbers) {
+            const jid = `${num.replace(/\D/g, '')}@s.whatsapp.net`
+            await waService.sendText(jid, msg).catch(() => {})
+          }
+        }
+      }
+    })
+    waAgent.setNeuralOrganizer(neuralOrganizer)
+  } else {
+    neuralOrganizer.updateApiKey(apiKey)
+  }
   autoDevService.on('notify-whatsapp', ({ phone, message }: any) => {
     if (waAgent) {
       waService.sendText(`${phone}@s.whatsapp.net`, message).catch(() => {})
@@ -554,6 +618,10 @@ app.whenReady().then(async () => {
   registerMemoryHandlers(memoryService)
   knowledgeService.init()
 
+  // ─── Path Memory (indexación proactiva de rutas) ───────────
+  await pathMemoryService.init()
+  pathMemoryService.start()
+
   // Restore saved Google/Microsoft OAuth connections from disk
   calendarService.loadConnections()
   registerComputerUseHandlers()
@@ -566,6 +634,15 @@ app.whenReady().then(async () => {
   registerDesktopAgentHandlers(desktopAgentService)
   registerUpdaterHandlers(updaterService, () => win)
   updaterService.init()
+
+  // ─── Task Scheduler init (load saved tasks from disk) ────────
+  await taskScheduler.init()
+
+  // ─── System Guardian (native CPU/RAM monitoring every 5 min) ────
+  systemGuardian.startMonitoring(undefined, 300000)
+
+  // ─── Clipboard AI Assistant init ────────────────────────────────
+  await clipboardAssistant.init()
 
   // ─── Proactive Guardian (monitoreo de salud del sistema) ────
   proactiveGuardian = new ProactiveGuardianService()

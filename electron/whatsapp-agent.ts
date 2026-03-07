@@ -19,6 +19,13 @@ import type { MemoryService } from './memory-service';
 import type { KnowledgeService } from './knowledge-service';
 import type { AutoDevService } from './autodev-service';
 import type { DesktopAgentService } from './desktop-agent-service';
+import type { ClipboardAIAssistant } from './clipboard-ai-assistant';
+import type { TaskScheduler } from './task-scheduler';
+import type { SystemGuardianService } from './system-services';
+import type { NeuralOrganizerService } from './neural-organizer';
+import { handleTaskQueueTool } from './agent-task-queue';
+import { handleTaskSchedulerTool } from './task-scheduler';
+import { SmartSearchTool } from './smart-search-tool';
 import {
   authenticateWhatsAppUser,
   tryAutoAuthByPhone,
@@ -321,8 +328,13 @@ const WA_TOOL_DECLARATIONS = {
     // ─── Screenshot tool ──────────────────────────────────────────
     {
       name: 'take_screenshot_and_send',
-      description: 'Toma una captura de pantalla de la computadora y la envía al usuario por WhatsApp. Usa esto cuando el usuario pida ver su pantalla, una captura, o screenshot.',
-      parameters: { type: 'OBJECT' as const, properties: {} },
+      description: 'Toma capturas de pantalla de TODOS los monitores de la computadora y las envía al usuario por WhatsApp. Si el usuario tiene múltiples monitores, se envía una imagen por cada uno.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          monitor_index: { type: 'NUMBER' as const, description: 'Índice del monitor específico (0, 1, 2...). Si se omite, captura TODOS los monitores.' },
+        },
+      },
     },
     // ─── Email tools ───────────────────────────────────────────────
     {
@@ -1008,6 +1020,100 @@ const WA_TOOL_DECLARATIONS = {
         },
       },
     },
+    // ─── Clipboard AI Assistant ──────────────────────────────────────
+    {
+      name: 'search_clipboard_history',
+      description: 'Busca inteligentemente en el historial reciente de textos copiados al portapapeles. Útil si el usuario pide "el link que copié", "la contraseña que copié hace rato", "el correo que estaba viendo".',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          query: { type: 'STRING' as const, description: 'Descripción en lenguaje natural de lo que se busca (ej: "el link de zoom", "la contraseña del wifi").' },
+        },
+        required: ['query'],
+      },
+    },
+    // ─── Task Scheduler (recordatorios y tareas cron) ────────────────
+    {
+      name: 'task_scheduler',
+      description: 'Programa una tarea, recordatorio o automatización para que tú (el agente) la ejecutes autónomamente en el futuro según una expresión Cron. Úsalo cuando el usuario pida "recuérdame hacer X a las 8am", "revisa el sistema cada hora", "envíame un resumen el viernes".',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          cron_expression: { type: 'STRING' as const, description: 'Expresión cron de 5 campos (ej: "0 8 * * *" = todos los días a las 8am, "0 9 * * 5" = viernes 9am).' },
+          prompt: { type: 'STRING' as const, description: 'El requerimiento exacto que ejecutarás cuando se dispare (ej: "Genera el reporte de uso de CPU y envíalo").' },
+        },
+        required: ['cron_expression', 'prompt'],
+      },
+    },
+    {
+      name: 'list_scheduled_tasks',
+      description: 'Lista todas las tareas y recordatorios programados actualmente para este usuario.',
+      parameters: { type: 'OBJECT' as const, properties: {} },
+    },
+    {
+      name: 'delete_scheduled_task',
+      description: 'Elimina y cancela una tarea programada mediante su ID.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          task_id: { type: 'STRING' as const, description: 'El ID de la tarea a eliminar.' },
+        },
+        required: ['task_id'],
+      },
+    },
+    // ─── Agent Task Queue (monitoreo de tareas en segundo plano) ─────
+    {
+      name: 'list_active_tasks',
+      description: 'Lista todas las tareas en segundo plano activas del sistema, sus IDs, nombres y estado actual.',
+      parameters: { type: 'OBJECT' as const, properties: {} },
+    },
+    {
+      name: 'cancel_background_task',
+      description: 'Cancela una tarea en segundo plano en ejecución usando su ID.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          taskId: { type: 'STRING' as const, description: 'El ID único de la tarea a cancelar.' },
+        },
+        required: ['taskId'],
+      },
+    },
+    // ─── Smart Search (búsqueda semántica de archivos por contenido) ─
+    {
+      name: 'semantic_file_search',
+      description: 'Busca archivos olvidados en la computadora por su CONTENIDO o descripción natural usando búsqueda semántica FTS5. Ideal para recuperar documentos cuando el usuario no recuerda el nombre (ej: "el reporte de ventas de marzo", "el contrato de arrendamiento").',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          query: { type: 'STRING' as const, description: 'Frase, palabras clave o tema a buscar dentro del contenido de los documentos.' },
+          max_results: { type: 'NUMBER' as const, description: 'Máximo de resultados (por defecto 3).' },
+        },
+        required: ['query'],
+      },
+    },
+    // ─── Neural Organizer (organización inteligente de descargas) ─────
+    {
+      name: 'neural_organizer_status',
+      description: 'Obtiene el estado del Organizador Neuronal de archivos (si está vigilando la carpeta de descargas y cuántos ha procesado).',
+      parameters: { type: 'OBJECT' as const, properties: {} },
+    },
+    {
+      name: 'neural_organizer_toggle',
+      description: 'Activa o desactiva el Organizador Neuronal que categoriza automáticamente los archivos descargados usando IA + OCR.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          enable: { type: 'BOOLEAN' as const, description: 'true para activar, false para desactivar.' },
+        },
+        required: ['enable'],
+      },
+    },
+    // ─── System Health ───────────────────────────────────────────────
+    {
+      name: 'get_system_health',
+      description: 'Obtiene un reporte detallado de la salud del sistema: uso de CPU, RAM, alertas recientes. Más detallado que get_system_info.',
+      parameters: { type: 'OBJECT' as const, properties: {} },
+    },
   ],
 };
 
@@ -1094,6 +1200,28 @@ AUTODEV (PROGRAMACIÓN AUTÓNOMA):
 - autodev_get_history: ver historial de mejoras autónomas realizadas (PRs, cambios, investigación)
 - autodev_update_config: configurar AutoDev (habilitar/deshabilitar, horario, categorías, notificaciones)
 - AutoDev investiga ANTES de implementar: busca CVEs, lee changelogs, consulta documentación oficial
+
+PORTAPAPELES INTELIGENTE:
+- search_clipboard_history: busca en el historial de textos copiados al portapapeles. El usuario puede pedir "el link que copié", "la contraseña de ayer"
+
+TAREAS PROGRAMADAS (RECORDATORIOS):
+- task_scheduler: programa recordatorios y automatizaciones con cron. Ej: "recuérdame a las 8am", "cada lunes revisa mi email"
+- list_scheduled_tasks: lista recordatorios activos del usuario
+- delete_scheduled_task: elimina un recordatorio programado
+
+TAREAS EN SEGUNDO PLANO:
+- list_active_tasks: lista tareas del sistema ejecutándose ahora (descargas, procesos largos)
+- cancel_background_task: cancela una tarea en segundo plano por su ID
+
+BÚSQUEDA SEMÁNTICA DE ARCHIVOS:
+- semantic_file_search: busca archivos por CONTENIDO, no por nombre. Ideal para "el reporte de ventas de marzo"
+
+ORGANIZADOR NEURONAL:
+- neural_organizer_status: estado del organizador automático de descargas
+- neural_organizer_toggle: activa/desactiva la organización automática de archivos descargados con IA + OCR
+
+SALUD DEL SISTEMA:
+- get_system_health: reporte detallado de CPU, RAM, alertas — más completo que get_system_info
 
 INTERNET:
 - open_url: abre URLs en el navegador
@@ -1524,6 +1652,11 @@ export class WhatsAppAgent {
   private autoDevService: AutoDevService | null = null;
   private desktopAgent: DesktopAgentService | null = null;
   private selfLearn: import('./autodev-selflearn').SelfLearnService | null = null;
+  private clipboardAssistant: ClipboardAIAssistant | null = null;
+  private taskScheduler: TaskScheduler | null = null;
+  private systemGuardian: SystemGuardianService | null = null;
+  private neuralOrganizer: NeuralOrganizerService | null = null;
+  private smartSearch: SmartSearchTool | null = null;
   private memory: MemoryService;
   private knowledge: KnowledgeService;
 
@@ -1555,6 +1688,26 @@ export class WhatsAppAgent {
   setDesktopAgentService(service: DesktopAgentService): void {
     this.desktopAgent = service;
     console.log('[WhatsApp Agent] DesktopAgent service connected');
+  }
+
+  setClipboardAssistant(service: ClipboardAIAssistant): void {
+    this.clipboardAssistant = service;
+    console.log('[WhatsApp Agent] Clipboard AI Assistant connected');
+  }
+
+  setTaskScheduler(service: TaskScheduler): void {
+    this.taskScheduler = service;
+    console.log('[WhatsApp Agent] Task Scheduler connected');
+  }
+
+  setSystemGuardian(service: SystemGuardianService): void {
+    this.systemGuardian = service;
+    console.log('[WhatsApp Agent] System Guardian connected');
+  }
+
+  setNeuralOrganizer(service: NeuralOrganizerService): void {
+    this.neuralOrganizer = service;
+    console.log('[WhatsApp Agent] Neural Organizer connected');
   }
 
   updateApiKey(key: string) {
@@ -2148,24 +2301,30 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
           continue;
         }
 
-        // Handle take_screenshot_and_send — capture screen and send via WhatsApp
+        // Handle take_screenshot_and_send — capture ALL screens and send via WhatsApp
         if (toolName === 'take_screenshot_and_send') {
           try {
-            let screenshotBase64: string;
-            if (this.desktopAgent) {
-              screenshotBase64 = await this.desktopAgent.takeScreenshot(true);
-            } else {
-              // Fallback: use desktopCapturer directly
-              const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1920, height: 1080 } });
-              if (sources.length === 0) throw new Error('No screen found');
-              screenshotBase64 = sources[0].thumbnail.toDataURL().replace(/^data:image\/png;base64,/, '');
+            const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 1920, height: 1080 } });
+            if (sources.length === 0) throw new Error('No se encontraron monitores');
+
+            const monitorIndex = toolArgs.monitor_index;
+            const screensToCapture = (monitorIndex !== undefined && monitorIndex !== null)
+              ? [sources[monitorIndex] || sources[0]]
+              : sources;
+
+            const sentCount = screensToCapture.length;
+            for (let i = 0; i < screensToCapture.length; i++) {
+              const source = screensToCapture[i];
+              const screenshotBase64 = source.thumbnail.toDataURL().replace(/^data:image\/png;base64,/, '');
+              const tmpPath = path.join(app.getPath('temp'), `soflia_screenshot_${Date.now()}_monitor${i}.png`);
+              await fs.writeFile(tmpPath, Buffer.from(screenshotBase64, 'base64'));
+              const label = sources.length > 1 ? `Monitor ${i + 1} de ${sources.length}: ${source.name}` : 'Captura de pantalla';
+              await this.waService.sendFile(jid, tmpPath, label);
+              setTimeout(() => fs.unlink(tmpPath).catch(() => {}), 5000);
             }
-            const tmpPath = path.join(app.getPath('temp'), `soflia_screenshot_${Date.now()}.png`);
-            await fs.writeFile(tmpPath, Buffer.from(screenshotBase64, 'base64'));
-            await this.waService.sendFile(jid, tmpPath, 'Captura de pantalla');
-            setTimeout(() => fs.unlink(tmpPath).catch(() => {}), 5000);
+
             functionResponses.push({
-              functionResponse: { name: toolName, response: { success: true, message: 'Captura de pantalla enviada por WhatsApp.' } },
+              functionResponse: { name: toolName, response: { success: true, message: `${sentCount} captura(s) de pantalla enviada(s) por WhatsApp.`, monitors_total: sources.length, sent: sentCount } },
             });
           } catch (err: any) {
             functionResponses.push({
@@ -3634,6 +3793,92 @@ $vol.SetMasterVolumeLevelScalar(${level / 100.0}, [Guid]::Empty)`;
             functionResponses.push({
               functionResponse: { name: toolName, response: { success: false, message: err.message } },
             });
+          }
+          continue;
+        }
+
+        // ─── Clipboard AI Assistant Handler ──────────────────────────────
+        if (toolName === 'search_clipboard_history') {
+          try {
+            if (!this.clipboardAssistant) {
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'Clipboard Assistant no inicializado.' } } });
+            } else {
+              const result = await this.clipboardAssistant.searchClipboardHistory(toolArgs.query);
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: true, data: result } } });
+            }
+          } catch (err: any) {
+            functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
+          }
+          continue;
+        }
+
+        // ─── Task Scheduler Handlers ────────────────────────────────────
+        if (toolName === 'task_scheduler' || toolName === 'list_scheduled_tasks' || toolName === 'delete_scheduled_task') {
+          try {
+            if (!this.taskScheduler) {
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'Task Scheduler no inicializado.' } } });
+            } else {
+              const result = await handleTaskSchedulerTool(this.taskScheduler, toolName, toolArgs, senderNumber);
+              functionResponses.push({ functionResponse: { name: toolName, response: result } });
+            }
+          } catch (err: any) {
+            functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
+          }
+          continue;
+        }
+
+        // ─── Agent Task Queue Handlers ──────────────────────────────────
+        if (toolName === 'list_active_tasks' || toolName === 'cancel_background_task') {
+          try {
+            const result = await handleTaskQueueTool(toolName, toolArgs);
+            functionResponses.push({ functionResponse: { name: toolName, response: result } });
+          } catch (err: any) {
+            functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
+          }
+          continue;
+        }
+
+        // ─── Smart Search Handler ───────────────────────────────────────
+        if (toolName === 'semantic_file_search') {
+          try {
+            if (!this.smartSearch) {
+              this.smartSearch = new SmartSearchTool();
+            }
+            const result = this.smartSearch.searchFiles(toolArgs.query, toolArgs.max_results || 3);
+            functionResponses.push({ functionResponse: { name: toolName, response: result } });
+          } catch (err: any) {
+            functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
+          }
+          continue;
+        }
+
+        // ─── Neural Organizer Handlers ──────────────────────────────────
+        if (toolName === 'neural_organizer_status' || toolName === 'neural_organizer_toggle') {
+          try {
+            if (!this.neuralOrganizer) {
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'Neural Organizer no inicializado. Configura primero la API key.' } } });
+            } else {
+              const result = this.neuralOrganizer.handleToolCall(toolName, toolArgs);
+              functionResponses.push({ functionResponse: { name: toolName, response: result } });
+            }
+          } catch (err: any) {
+            functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
+          }
+          continue;
+        }
+
+        // ─── System Health Handler ──────────────────────────────────────
+        if (toolName === 'get_system_health') {
+          try {
+            if (!this.systemGuardian) {
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'System Guardian no inicializado.' } } });
+            } else {
+              const summary = this.systemGuardian.getSystemSummary();
+              const status = this.systemGuardian.getSystemStatus();
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: true, summary, ...status } } });
+            }
+          } catch (err: any) {
+            functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
           }
           continue;
         }

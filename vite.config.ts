@@ -41,6 +41,8 @@ export default defineConfig({
                 "dotenv",
                 "better-sqlite3",
                 "sharp",
+                "node-cron",
+                "systeminformation",
               ],
             },
           },

@@ -473,7 +473,7 @@ export class AutoDevService extends EventEmitter {
   }
 
   /** Append a new issue entry to the issues file */
-  private logIssue(category: 'build_failure' | 'review_rejection' | 'runtime_error' | 'limitation' | 'coding_error' | 'dependency_issue', description: string, context?: string): void {
+  private logIssue(category: 'build_failure' | 'review_rejection' | 'runtime_error' | 'limitation' | 'coding_error' | 'dependency_issue' | 'integration_warning', description: string, context?: string): void {
     const timestamp = new Date().toISOString();
     const runId = this.currentRun?.id || 'unknown';
     const existingContent = this.readIssuesFile();
@@ -2168,6 +2168,19 @@ ${diff.slice(0, 50000)}
       });
       console.log('[AutoDev TesterAgent] Build passed.');
 
+      // ─── Integration check: verify new files are imported somewhere ──
+      const integrationWarnings = await this.verifyIntegration();
+      if (integrationWarnings.length > 0) {
+        console.warn(`[AutoDev TesterAgent] ⚠️ Integration warnings (${integrationWarnings.length}):`);
+        for (const w of integrationWarnings) {
+          console.warn(`  → ${w}`);
+        }
+        this.logIssue('integration_warning',
+          `Archivos nuevos no están conectados al sistema:\n${integrationWarnings.join('\n')}`,
+          'Los archivos compilan pero nadie los importa — no tendrán efecto en runtime.'
+        );
+      }
+
       // ─── On success: update error memory with successful fixes ──
       const errorMemory = loadErrorMemory();
       const pendingFixes = errorMemory.filter(m => m.fix === 'pending');
@@ -2195,6 +2208,53 @@ ${diff.slice(0, 50000)}
 
       return rawOutput || 'Unknown build error';
     }
+  }
+
+  // ─── Integration verification (detect orphaned files) ──────────
+
+  private async verifyIntegration(): Promise<string[]> {
+    const warnings: string[] = [];
+    try {
+      const { execFile } = await import('node:child_process');
+      const { promisify } = await import('node:util');
+      const fsSync = await import('node:fs');
+      const pathMod = await import('node:path');
+
+      // Get new files added in this branch (compared to base)
+      let newFiles: string[] = [];
+      try {
+        const { stdout } = await promisify(execFile)('git', ['diff', '--name-only', '--diff-filter=A', 'HEAD~1'], {
+          cwd: this.repoPath, timeout: 10_000, shell: true,
+        });
+        newFiles = stdout.trim().split('\n').filter(f => f.endsWith('.ts') && !f.endsWith('.d.ts'));
+      } catch {
+        return []; // Can't get diff, skip
+      }
+
+      for (const relFile of newFiles) {
+        const absFile = pathMod.join(this.repoPath, relFile);
+        if (!fsSync.existsSync(absFile)) continue;
+
+        const baseName = pathMod.basename(relFile, '.ts');
+        // Check if any other .ts file imports this one
+        try {
+          const { stdout: importCheck } = await promisify(execFile)(
+            'grep', ['-rl', `from './${baseName}'`, '--include=*.ts', 'electron/', 'src/'],
+            { cwd: this.repoPath, timeout: 10_000, shell: true }
+          );
+          const importers = importCheck.trim().split('\n').filter(f => f && !f.includes(baseName + '.ts'));
+          if (importers.length === 0) {
+            warnings.push(`${relFile}: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto`);
+          }
+        } catch {
+          // grep returns exit code 1 when no matches — that means no imports
+          warnings.push(`${relFile}: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto`);
+        }
+      }
+    } catch (err: any) {
+      console.error('[AutoDev] Integration check error:', err.message);
+    }
+    return warnings;
   }
 
   // ─── Self-review (reviewer agent) ─────────────────────────────

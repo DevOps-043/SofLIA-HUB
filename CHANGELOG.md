@@ -4,6 +4,24 @@ Todos los cambios notables de SofLIA Hub se documentan aquí.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.0.6] - 2026-03-07
+
+### Added
+
+- **Sistema de Memoria de Rutas:** SofLIA ahora conoce la ubicación real de tus archivos y carpetas. Un servicio en segundo plano escanea tu sistema de archivos (incluyendo OneDrive con nombres en español como Escritorio, Documentos y Descargas) y mantiene un mapa actualizado que el agente de WhatsApp usa para encontrar tus archivos sin equivocarse.
+- Integración de 6 servicios que estaban desconectados: portapapeles inteligente, programador de tareas cron, monitor nativo de CPU/RAM, organizador de archivos, búsqueda semántica y cola de tareas con reintentos.
+- Captura de pantalla multi-monitor: al pedir una captura por WhatsApp, ahora se envían todos los monitores conectados (antes solo capturaba uno).
+
+### Changed
+
+- El mapa de rutas se actualiza automáticamente cada 15 minutos y detecta cambios en tiempo real en Descargas, Escritorio y Documentos.
+- AutoDev ahora verifica que los archivos nuevos estén importados por al menos otro archivo antes de aprobar un cambio (evita código huérfano).
+
+### Fixed
+
+- Corregido crash al iniciar la app causado por `__dirname is not defined` cuando Vite intentaba empaquetar módulos nativos (`node-cron`, `systeminformation`).
+- El agente de WhatsApp ya no falla al buscar archivos en rutas de OneDrive con nombres en español.
+
 ## [0.0.5] - 2026-03-05
 
 ### Fixed
