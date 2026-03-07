@@ -15,23 +15,23 @@ export interface WorkspaceSource {
 }
 
 // Implementaciones mock para resolver TS2307 (Cannot find module)
-const getSourcesForFolder = async (folderId: string): Promise<WorkspaceSource[]> => {
+const getSourcesForFolder = async (_folderId: string): Promise<WorkspaceSource[]> => {
   return [];
 };
 
-const addSourceFromDrive = async (folderId: string, type: string, fileId: string, userId: string, orgId: string): Promise<WorkspaceSource | null> => {
+const addSourceFromDrive = async (_folderId: string, _type: string, _fileId: string, _userId: string, _orgId: string): Promise<WorkspaceSource | null> => {
   return null;
 };
 
-const addSourceFromUpload = async (folderId: string, type: string, file: File, userId: string, orgId: string): Promise<WorkspaceSource | null> => {
+const addSourceFromUpload = async (_folderId: string, _type: string, _file: File, _userId: string, _orgId: string): Promise<WorkspaceSource | null> => {
   return null;
 };
 
-const removeSource = async (sourceId: string): Promise<boolean> => {
+const removeSource = async (_sourceId: string): Promise<boolean> => {
   return true;
 };
 
-const getDownloadUrl = async (source: WorkspaceSource): Promise<string | null> => {
+const getDownloadUrl = async (_source: WorkspaceSource): Promise<string | null> => {
   return null;
 };
 

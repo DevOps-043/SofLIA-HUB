@@ -44,10 +44,9 @@ interface ChatUIProps {
   userAvatar?: string | null;
   externalPrompt?: string | null;
   onExternalPromptProcessed?: () => void;
-  folderId?: string | null;
   onShare?: () => void;
 }
-export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, personalization, userAvatar, externalPrompt, onExternalPromptProcessed, folderId, onShare }) => {
+export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, personalization, userAvatar, externalPrompt, onExternalPromptProcessed, onShare }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
