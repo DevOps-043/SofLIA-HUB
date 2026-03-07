@@ -20,7 +20,7 @@
   files: ["dist", "dist-electron"],
   mac: {
     target: ["dmg"],
-    artifactName: "${productName}-Mac-${version}-Installer.${ext}",
+    artifactName: "SofLIA-Hub-Mac-${version}-Installer.${ext}",
   },
   win: {
     icon: "public/assets/icono.ico",
@@ -30,7 +30,7 @@
         arch: ["x64"],
       },
     ],
-    artifactName: "${productName}-Windows-${version}-Setup.${ext}",
+    artifactName: "SofLIA-Hub-Windows-${version}-Setup.${ext}",
   },
   nsis: {
     oneClick: false,
@@ -56,6 +56,6 @@
   },
   linux: {
     target: ["AppImage"],
-    artifactName: "${productName}-Linux-${version}.${ext}",
+    artifactName: "SofLIA-Hub-Linux-${version}.${ext}",
   },
 }

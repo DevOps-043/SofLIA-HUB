@@ -85,8 +85,8 @@ jobs:
         with:
           name: windows-artifacts
           path: |
-            release/${{ needs.check.outputs.version }}/SofLIA Hub-Windows-${{ needs.check.outputs.version }}-Setup.exe
-            release/${{ needs.check.outputs.version }}/SofLIA Hub-Windows-${{ needs.check.outputs.version }}-Setup.exe.blockmap
+            release/${{ needs.check.outputs.version }}/SofLIA-Hub-Windows-${{ needs.check.outputs.version }}-Setup.exe
+            release/${{ needs.check.outputs.version }}/SofLIA-Hub-Windows-${{ needs.check.outputs.version }}-Setup.exe.blockmap
             release/${{ needs.check.outputs.version }}/latest.yml
 
   # ─── Paso 2b: Build Mac ───
@@ -133,7 +133,7 @@ jobs:
         with:
           name: mac-artifacts
           path: |
-            release/${{ needs.check.outputs.version }}/SofLIA Hub-Mac-${{ needs.check.outputs.version }}-Installer.dmg
+            release/${{ needs.check.outputs.version }}/SofLIA-Hub-Mac-${{ needs.check.outputs.version }}-Installer.dmg
             release/${{ needs.check.outputs.version }}/latest-mac.yml
 
   # ─── Paso 3: Crear Release con todos los artefactos ───

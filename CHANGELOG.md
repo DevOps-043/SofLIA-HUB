@@ -4,6 +4,13 @@ Todos los cambios notables de SofLIA Hub se documentan aquí.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.0.7] - 2026-03-07
+
+### Fixed
+
+- Corregido error 404 al descargar actualizaciones: el nombre del instalador tenía un espacio (`SofLIA Hub-...`) que causaba un desajuste con la URL de descarga en GitHub Releases. Ahora se genera como `SofLIA-Hub-...` (con guión).
+- Actualizado el pipeline de CI/CD para que los nombres de los artifacts coincidan con los nuevos nombres sin espacios.
+
 ## [0.0.6] - 2026-03-07
 
 ### Added

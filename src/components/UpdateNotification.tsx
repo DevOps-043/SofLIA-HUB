@@ -151,8 +151,11 @@ export function UpdateNotification() {
                 </svg>
               </p>
               {showNotes && (
-                <div className="mt-2 p-2.5 bg-white/5 rounded-lg border border-white/5 max-h-32 overflow-y-auto">
-                  <p className="text-[11px] text-gray-400 leading-relaxed whitespace-pre-wrap">{releaseNotes}</p>
+                <div className="mt-2 p-2.5 bg-white/5 rounded-lg border border-white/5 max-h-32 overflow-y-auto custom-scrollbar">
+                  <div 
+                    className="text-[11px] release-notes"
+                    dangerouslySetInnerHTML={{ __html: releaseNotes }}
+                  />
                 </div>
               )}
             </button>

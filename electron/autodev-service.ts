@@ -1892,12 +1892,13 @@ ${diff.slice(0, 50000)}
 4. Si hay propiedad inexistente (TS2339), busca el nombre correcto en la interfaz.
 5. Si creaste imports que no existen (phantom imports como ./orchestrator, ./command-center, ./service-registry), ELIMÍNALOS COMPLETAMENTE.
 6. NUNCA importes módulos con rutas relativas que no existen en el proyecto. Si el archivo no está en la lista de archivos fuente, NO lo importes.
-6. Si necesitas REVERTIR un cambio que rompió algo, hazlo — es mejor revertir que dejar el build roto.
-7. NUNCA dejes código a medias. Cada archivo debe compilar correctamente.
-8. Si un tipo genérico no se infiere (TS2345 con ZodObject), usa \`as any\` o especifica el tipo explícitamente.
-9. Para Supabase: NUNCA uses .catch() — usa destructuring \`const { data, error } = await ...\`
-10. Si importaste un tipo/variable sin usarlo (TS6133), QUITA el import.
-11. PREFIERE revertir el cambio problemático a intentar un fix complejo que puede generar más errores.
+7. Si necesitas REVERTIR un cambio que rompió algo, hazlo — es mejor revertir que dejar el build roto.
+8. NUNCA dejes código a medias. Cada archivo debe compilar correctamente.
+9. Si un tipo genérico no se infiere (TS2345 con ZodObject), usa \`as any\` o especifica el tipo explícitamente.
+10. Para Supabase: NUNCA uses .catch() — usa destructuring \`const { data, error } = await ...\`
+11. Si importaste un tipo/variable sin usarlo (TS6133), QUITA el import.
+12. PREFIERE revertir el cambio problemático a intentar un fix complejo que puede generar más errores.
+13. **ARCHIVOS HUÉRFANOS**: Si el error menciona "código muerto" o "archivo nuevo que nadie importa", usa action: "delete" para ELIMINAR ese archivo. NO intentes modificarlo para hacerlo más pequeño — ELIMÍNALO con action: "delete".
 
 ## FORMATO JSON REQUERIDO (Solo devuelve JSON):
 {
@@ -1905,8 +1906,8 @@ ${diff.slice(0, 50000)}
     {
       "step": 1,
       "file": "ruta/archivo.ts",
-      "action": "modify",
-      "description": "Explicación precisa del fix",
+      "action": "modify|delete",
+      "description": "Explicación precisa del fix. Para archivos huérfanos usa action: delete",
       "details": "Qué línea(s) cambiar y por qué — referencia el error específico",
       "source": "Auto-Correction System",
       "category": "quality",
@@ -2052,6 +2053,24 @@ ${diff.slice(0, 50000)}
 
     const filePath = path.resolve(this.repoPath, step.file);
     if (!filePath.startsWith(this.repoPath)) return null;
+
+    // ─── Handle file deletion (for orphaned files) ────────────────
+    if (step.action === 'delete') {
+      try {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log(`[AutoDev] Deleted orphaned file: ${step.file}`);
+          return {
+            file: step.file, category: step.category || 'quality',
+            description: step.description || `Eliminado archivo huérfano: ${step.file}`,
+            applied: true, researchSources: [], agentRole: 'coding',
+          };
+        }
+      } catch (err: any) {
+        console.warn(`[AutoDev] Failed to delete ${step.file}: ${err.message}`);
+      }
+      return null;
+    }
 
     let currentCode = '';
     try { currentCode = fs.readFileSync(filePath, 'utf-8'); } catch {
@@ -2210,7 +2229,7 @@ ${diff.slice(0, 50000)}
     }
   }
 
-  // ─── Integration verification (detect orphaned files) ──────────
+  // ─── Integration verification (detect AND remove orphaned files) ──
 
   private async verifyIntegration(): Promise<string[]> {
     const warnings: string[] = [];
@@ -2231,24 +2250,48 @@ ${diff.slice(0, 50000)}
         return []; // Can't get diff, skip
       }
 
+      const orphanedFiles: string[] = [];
+
       for (const relFile of newFiles) {
         const absFile = pathMod.join(this.repoPath, relFile);
         if (!fsSync.existsSync(absFile)) continue;
 
         const baseName = pathMod.basename(relFile, '.ts');
         // Check if any other .ts file imports this one
+        let isImported = false;
         try {
           const { stdout: importCheck } = await promisify(execFile)(
             'grep', ['-rl', `from './${baseName}'`, '--include=*.ts', 'electron/', 'src/'],
             { cwd: this.repoPath, timeout: 10_000, shell: true }
           );
           const importers = importCheck.trim().split('\n').filter(f => f && !f.includes(baseName + '.ts'));
-          if (importers.length === 0) {
-            warnings.push(`${relFile}: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto`);
-          }
+          isImported = importers.length > 0;
         } catch {
           // grep returns exit code 1 when no matches — that means no imports
-          warnings.push(`${relFile}: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto`);
+        }
+
+        if (!isImported) {
+          orphanedFiles.push(relFile);
+        }
+      }
+
+      // ─── Auto-delete orphaned files ──────────────────────────────
+      if (orphanedFiles.length > 0) {
+        console.log(`[AutoDev TesterAgent] 🗑️ Auto-eliminando ${orphanedFiles.length} archivo(s) huérfano(s)...`);
+        for (const relFile of orphanedFiles) {
+          const absFile = pathMod.join(this.repoPath, relFile);
+          try {
+            fsSync.unlinkSync(absFile);
+            // Also unstage from git
+            await promisify(execFile)('git', ['rm', '--cached', relFile], {
+              cwd: this.repoPath, timeout: 5_000, shell: true,
+            }).catch(() => { /* file may not be staged */ });
+            warnings.push(`${relFile}: archivo huérfano ELIMINADO automáticamente — nadie lo importaba`);
+            console.log(`[AutoDev TesterAgent]   ✓ Eliminado: ${relFile}`);
+          } catch (err: any) {
+            warnings.push(`${relFile}: archivo huérfano no se pudo eliminar — ${err.message}`);
+            console.warn(`[AutoDev TesterAgent]   ✗ Error eliminando ${relFile}: ${err.message}`);
+          }
         }
       }
     } catch (err: any) {

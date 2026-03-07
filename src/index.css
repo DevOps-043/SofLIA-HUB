@@ -131,6 +131,38 @@ body {
   min-width: 320px;
 }
 
+/* Release notes styling for dangerouslySetInnerHTML */
+.release-notes {
+  @apply leading-relaxed;
+}
+
+.release-notes h1,
+.release-notes h2,
+.release-notes h3 {
+  @apply font-bold text-white mb-2 mt-4 first:mt-0;
+}
+
+.release-notes h1 { @apply text-lg; }
+.release-notes h2 { @apply text-base; }
+.release-notes h3 { @apply text-sm; }
+
+.release-notes ul,
+.release-notes ol {
+  @apply list-disc list-inside space-y-1 mb-3 text-gray-400;
+}
+
+.release-notes li {
+  @apply ml-1;
+}
+
+.release-notes strong {
+  @apply font-bold text-accent;
+}
+
+.release-notes p {
+  @apply mb-3 text-gray-400;
+}
+
 #root {
   height: 100vh;
   overflow: hidden;
