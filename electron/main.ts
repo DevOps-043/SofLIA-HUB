@@ -361,18 +361,17 @@ ipcMain.handle('get-screen-sources', async () => {
   } catch (err) { return [] }
 })
 
-ipcMain.handle('get-desktop-sources', async (_event, opts?: any) => {
+ipcMain.handle('get-desktop-sources', async () => {
   try {
-    const types = opts?.types || ['screen', 'window']
-    const thumbnailSize = opts?.thumbnailSize || { width: 1280, height: 720 }
-    const sources = await desktopCapturer.getSources({ types, thumbnailSize })
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: { width: 1920, height: 1080 }
+    })
     return sources.map(source => ({
+      display_id: source.id,
       id: source.id,
       name: source.name,
-      display_id: source.display_id,
-      thumbnail: source.thumbnail?.toDataURL(),
-      appIcon: source.appIcon?.toDataURL(),
-      isScreen: source.id.startsWith('screen:')
+      thumbnail: source.thumbnail.toDataURL()
     }))
   } catch (err: any) {
     console.error('[Main] get-desktop-sources error:', err.message)
@@ -651,7 +650,8 @@ app.whenReady().then(async () => {
   globalShortcut.register('CommandOrControl+M', () => {
     if (!flowWin) {
       createFlowWindow()
-    } else {
+    }
+    else {
       if (flowWin.isVisible()) {
         flowWin.hide()
       } else {

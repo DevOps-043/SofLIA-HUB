@@ -1350,3 +1350,32 @@ Error: GitHub CLI not authenticated (run: gh auth login)
 ```
 
 ---
+## ❌ [CODING_ERROR] — 2026-03-07
+
+- **Run ID**: `run_1772859892737`
+- **Timestamp**: 2026-03-07T05:08:39.363Z
+- **Categoría**: coding_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El agente CoderAgent_1 falló al implementar cambios en `package.json`: The requested module 'electron' does not provide an export named 'BrowserWindow'
+
+### Contexto técnico
+
+```
+File: package.json
+Step: {
+  "step": 1,
+  "file": "package.json",
+  "action": "command",
+  "category": "features",
+  "description": "Instalación de dependencias nativas para las nuevas funcionalidades (GitHub nativo y Portapapeles).",
+  "command": "npm install @octokit/rest@20.0.2 clipboardy@4.0.0 --save --legacy-peer-deps",
+  "details": "Ejecutar comando de instalación para agregar @octokit/rest (para reemplazar gh cli) y clipboardy (para el asistente de portapapeles). NO instalar dependencias adicionales ni actualizar las existentes para evitar conflictos de peer dependencies.",
+  "source": "https://github.com/octokit/rest.js",
+  "estimatedLines": 5
+}
+```
+
+---
