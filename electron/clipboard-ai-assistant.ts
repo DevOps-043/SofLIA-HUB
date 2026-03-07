@@ -137,7 +137,7 @@ export class ClipboardAIAssistant extends EventEmitter {
 
     if (this.genAI) {
       try {
-        const model = this.genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = this.genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
         const historyContext = this.history.map((item, index) => `[ITEM ${index}]:\n${item.text}\n`).join('\n');
         
         const prompt = `Actúa como un asistente que busca información en el historial del portapapeles.

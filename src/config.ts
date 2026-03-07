@@ -22,7 +22,7 @@ export const IRIS_SUPABASE = {
 export const MODELS = {
   PRIMARY: 'gemini-3-flash-preview',
   FALLBACK: 'gemini-2.5-flash',
-  PRO: 'gemini-3-pro-preview',
+  PRO: 'gemini-3.1-pro-preview',
   WEB_AGENT: 'gemini-3-flash-preview',
   LIVE: 'gemini-2.5-flash-native-audio-preview-12-2025',
   IMAGE_GENERATION: 'gemini-2.5-flash-image',

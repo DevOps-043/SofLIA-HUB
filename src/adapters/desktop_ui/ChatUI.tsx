@@ -137,8 +137,8 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
       thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH
     },
     {
-      id: 'gemini-3-pro-preview',
-      name: 'Gemini 3 Pro',
+      id: 'gemini-3.1-pro-preview',
+      name: 'Gemini 3.1 Pro',
       desc: 'Mayor capacidad de razonamiento lógico.',
       thinkingType: 'level',
       thinkingOptions: THINKING_OPTIONS_GEMINI3_PRO
@@ -221,7 +221,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
 
       // If current mode is not available in new model, adapt it
       if (!availableOptions.includes(thinkingMode)) {
-        if (modelId === 'gemini-3-pro-preview') {
+        if (modelId === 'gemini-3.1-pro-preview') {
           // G3 Pro only has low/high
           setThinkingMode('low');
         } else if (!isGemini3 && thinkingMode === 'minimal') {
