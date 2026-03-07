@@ -4,7 +4,7 @@ Todos los cambios notables de SofLIA Hub se documentan aquí.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
-## [0.0.7] - 2026-03-07
+## [0.0.8] - 2026-03-07
 
 ### Added
 
