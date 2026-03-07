@@ -144,7 +144,7 @@ export function validateToolInput<T>(input: any, schema: any): T {
   const sanitize = (val: any): any => {
     if (typeof val === 'string') {
       // Elimina &, |, ;, $, `
-      return val.replace(/[&|;\$`]/g, '');
+      return val.replace(/[&|;\\$`]/g, '');
     }
     if (Array.isArray(val)) {
       return val.map(sanitize);

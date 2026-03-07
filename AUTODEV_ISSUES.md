@@ -1379,3 +1379,174 @@ Step: {
 ```
 
 ---
+## ❌ [INTEGRATION_WARNING] — 2026-03-07
+
+- **Run ID**: `run_1772874002966`
+- **Timestamp**: 2026-03-07T09:11:17.637Z
+- **Categoría**: integration_warning
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Archivos nuevos no están conectados al sistema:
+electron/media-control-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/network-diagnostics-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/path-memory-service.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/quick-note-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/quick-notes-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/system-health-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/weather-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/web-summarizer-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+
+### Contexto técnico
+
+```
+Los archivos compilan pero nadie los importa — no tendrán efecto en runtime.
+```
+
+---
+## ❌ [INTEGRATION_WARNING] — 2026-03-07
+
+- **Run ID**: `run_1772874002966`
+- **Timestamp**: 2026-03-07T09:14:13.728Z
+- **Categoría**: integration_warning
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Archivos nuevos no están conectados al sistema:
+electron/media-control-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/network-diagnostics-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/path-memory-service.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/quick-note-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/quick-notes-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/system-health-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/weather-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/web-summarizer-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+
+### Contexto técnico
+
+```
+Los archivos compilan pero nadie los importa — no tendrán efecto en runtime.
+```
+
+---
+## ❌ [CODING_ERROR] — 2026-03-07
+
+- **Run ID**: `run_1772874002966`
+- **Timestamp**: 2026-03-07T09:15:40.798Z
+- **Categoría**: coding_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+AutoDev intentó reducir drásticamente electron/media-control-tool.ts de 6606 a 67 caracteres. Posible reescritura destructiva.
+
+---
+## ❌ [CODING_ERROR] — 2026-03-07
+
+- **Run ID**: `run_1772874002966`
+- **Timestamp**: 2026-03-07T09:16:12.988Z
+- **Categoría**: coding_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+AutoDev intentó reducir drásticamente electron/quick-notes-tool.ts de 4496 a 21 caracteres. Posible reescritura destructiva.
+
+---
+## ❌ [CODING_ERROR] — 2026-03-07
+
+- **Run ID**: `run_1772874002966`
+- **Timestamp**: 2026-03-07T09:16:39.815Z
+- **Categoría**: coding_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+AutoDev intentó reducir drásticamente electron/web-summarizer-tool.ts de 2565 a 68 caracteres. Posible reescritura destructiva.
+
+---
+## ❌ [INTEGRATION_WARNING] — 2026-03-07
+
+- **Run ID**: `run_1772874002966`
+- **Timestamp**: 2026-03-07T09:17:55.563Z
+- **Categoría**: integration_warning
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Archivos nuevos no están conectados al sistema:
+electron/media-control-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/network-diagnostics-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/path-memory-service.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/quick-note-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/quick-notes-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/system-health-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/weather-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/web-summarizer-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+
+### Contexto técnico
+
+```
+Los archivos compilan pero nadie los importa — no tendrán efecto en runtime.
+```
+
+---
+## ❌ [CODING_ERROR] — 2026-03-07
+
+- **Run ID**: `run_1772874002966`
+- **Timestamp**: 2026-03-07T09:19:15.731Z
+- **Categoría**: coding_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+AutoDev intentó reducir drásticamente electron/path-memory-service.ts de 15508 a 37 caracteres. Posible reescritura destructiva.
+
+---
+## ❌ [INTEGRATION_WARNING] — 2026-03-07
+
+- **Run ID**: `run_1772874002966`
+- **Timestamp**: 2026-03-07T09:21:42.843Z
+- **Categoría**: integration_warning
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Archivos nuevos no están conectados al sistema:
+electron/media-control-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/network-diagnostics-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/path-memory-service.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/quick-note-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/quick-notes-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/system-health-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/weather-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+electron/web-summarizer-tool.ts: archivo nuevo pero NINGÚN otro archivo lo importa — código muerto
+
+### Contexto técnico
+
+```
+Los archivos compilan pero nadie los importa — no tendrán efecto en runtime.
+```
+
+---
+## ❌ [REVIEW_REJECTION] — 2026-03-07
+
+- **Run ID**: `run_1772874002966`
+- **Timestamp**: 2026-03-07T09:21:42.846Z
+- **Categoría**: review_rejection
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El reviewer agent rechazó los cambios persistentemente: Rechazado debido a un error crítico de 'prompt leaking' en la lógica de sanitización de `autodev-sandbox.ts`, donde el texto de la instrucción del sistema se mezcló con el código fuente. Además, se introducen múltiples herramientas nuevas (media control, weather, network diagnostics, etc.) que permanecen como código muerto al no estar integradas/importadas en ninguna parte del proyecto, incumpliendo la regla de arquitectura contra archivos huérfanos.
+
+### Contexto técnico
+
+```
+Diff size: 32665
+Improvements: 7
+```
+
+---
