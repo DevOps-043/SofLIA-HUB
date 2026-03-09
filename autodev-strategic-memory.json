@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "lastUpdated": "2026-03-09T09:03:55.440Z",
+  "roadmap": [
+    {
+      "title": "Orquestación Unificada de Tareas",
+      "description": "Integrar 'agent-task-queue.ts' con 'task-scheduler.ts' para crear un Dispatcher central que priorice tareas de sistema vs tareas de usuario.",
+      "priority": "high",
+      "status": "pending",
+      "area": "infrastructure",
+      "id": "goal_1773047035438",
+      "createdAt": "2026-03-09T09:03:55.438Z",
+      "relatedRuns": []
+    },
+    {
+      "title": "Gestión de Estado Global de Agentes",
+      "description": "Crear un StateManager que conecte 'thought-logger.ts' con la UI para visualizar qué está pensando el agente en tiempo real.",
+      "priority": "medium",
+      "status": "pending",
+      "area": "infrastructure",
+      "id": "goal_1773047035440",
+      "createdAt": "2026-03-09T09:03:55.440Z",
+      "relatedRuns": []
+    }
+  ],
+  "capabilities": [
+    {
+      "name": "AutoDev Autonomous System",
+      "description": "Ecosistema completo para desarrollo autónomo que incluye gestión de repositorios, ejecución en sandbox seguro y un motor de auto-aprendizaje.",
+      "status": "functional",
+      "files": [
+        "electron/autodev-handlers.ts",
+        "electron/autodev-git.ts",
+        "electron/autodev-github.ts",
+        "electron/autodev-sandbox.ts",
+        "electron/autodev-selflearn.ts"
+      ],
+      "lastVerified": "2026-03-09T09:03:55.438Z",
+      "gaps": [
+        "Falta un orquestador centralizado que maneje conflictos entre el sandbox y el sistema de archivos real"
+      ]
+    },
+    {
+      "name": "WhatsApp Business/Remote Hub",
+      "description": "Integración avanzada con WhatsApp que procesa audio, permite control via terminal y maneja flujos de presentación.",
+      "status": "partial",
+      "files": [
+        "electron/whatsapp-audio-processor.ts",
+        "electron/whatsapp-terminal.ts",
+        "electron/whatsapp-remote-hub.ts",
+        "electron/whatsapp-workflow-presentacion.ts"
+      ],
+      "lastVerified": "2026-03-09T09:03:55.438Z",
+      "gaps": [
+        "La lógica parece fragmentada entre un 'terminal' y un 'remote-hub'",
+        "No hay evidencia de manejo de rate-limiting para evitar bloqueos"
+      ]
+    },
+    {
+      "name": "Proactive Security & Monitoring",
+      "description": "Capa de seguridad robusta que monitorea procesos en tiempo real y protege la estación de trabajo ante comportamientos anómalos de los agentes.",
+      "status": "functional",
+      "files": [
+        "electron/system-guardian.ts",
+        "electron/proactive-guardian.ts",
+        "electron/workstation-security.ts",
+        "electron/services/proactive-process-monitor.ts"
+      ],
+      "lastVerified": "2026-03-09T09:03:55.438Z",
+      "gaps": [
+        "Posible sobrecarga de CPU por el monitoreo constante de procesos"
+      ]
+    },
+    {
+      "name": "Semantic Memory & Search",
+      "description": "Sistema de indexación semántica para recuperación de información y persistencia de memoria de rutas.",
+      "status": "partial",
+      "files": [
+        "electron/semantic-indexer.ts",
+        "electron/path-memory-service.ts",
+        "electron/memory-handlers.ts",
+        "electron/smart-search-tool.ts"
+      ],
+      "lastVerified": "2026-03-09T09:03:55.438Z",
+      "gaps": [
+        "No se visualiza un proveedor de embeddings claro (¿local o API externa?)",
+        "Falta un recolector de basura para memoria obsoleta"
+      ]
+    },
+    {
+      "name": "Cloud Productivity Suite",
+      "description": "Integración con Google Workspace para automatización de correos, chats y gestión de archivos.",
+      "status": "functional",
+      "files": [
+        "electron/gmail-handlers.ts",
+        "electron/gchat-handlers.ts",
+        "electron/calendar-handlers.ts",
+        "electron/drive-service.ts"
+      ],
+      "lastVerified": "2026-03-09T09:03:55.438Z",
+      "gaps": [
+        "Dependencia crítica de tokens de OAuth que no parecen estar centralizados"
+      ]
+    }
+  ],
+  "retrospectives": [],
+  "userPatterns": [],
+  "rejectedIdeas": [],
+  "hotspots": {}
+}

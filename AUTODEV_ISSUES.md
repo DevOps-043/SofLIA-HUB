@@ -1403,3 +1403,87 @@ Los archivos compilan pero nadie los importa — no tendrán efecto en runtime.
 ```
 
 ---
+## ❌ [CODING_ERROR] — 2026-03-09
+
+- **Run ID**: `run_1773046802570`
+- **Timestamp**: 2026-03-09T09:04:25.769Z
+- **Categoría**: coding_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El agente CoderAgent_1 falló al implementar cambios en `package.json`: The requested module 'electron' does not provide an export named 'BrowserWindow'
+
+### Contexto técnico
+
+```
+File: package.json
+Step: {
+  "step": 1,
+  "file": "package.json",
+  "action": "command",
+  "category": "security",
+  "description": "Actualizar systeminformation para parchear inyección de comandos e instalar better-sqlite3 para el Second Brain",
+  "command": "npm install systeminformation@5.31.3 better-sqlite3@9.4.3 --save --exact",
+  "details": "Actualiza systeminformation a una versión segura (minor update, no rompe compatibilidad) para evitar vulnerabilidades de OS Command Injection en la red Wi-Fi. Instala better-sqlite3 para soportar la búsqueda FTS5 local requerida por el módulo SmartMemoryTool.",
+  "source": "https://github.com/advisories/GHSA-cvv5-9h9w-qp2m",
+  "estimatedLines": 5
+}
+```
+
+---
+## ❌ [CODING_ERROR] — 2026-03-09
+
+- **Run ID**: `run_1773046802570`
+- **Timestamp**: 2026-03-09T09:06:55.899Z
+- **Categoría**: coding_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+AutoDev intentó importar módulos que no existen en electron/agent-orchestrator.ts: ./types
+
+### Contexto técnico
+
+```
+Phantom imports: ./types
+```
+
+---
+## ❌ [CODING_ERROR] — 2026-03-09
+
+- **Run ID**: `run_1773046802554`
+- **Timestamp**: 2026-03-09T09:13:36.059Z
+- **Categoría**: coding_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+AutoDev intentó importar módulos que no existen en src/components/AgentStateViewer.tsx: ../types/agent
+
+### Contexto técnico
+
+```
+Phantom imports: ../types/agent
+```
+
+---
+## ❌ [CODING_ERROR] — 2026-03-09
+
+- **Run ID**: `run_1773046802570`
+- **Timestamp**: 2026-03-09T09:13:41.305Z
+- **Categoría**: coding_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Ninguna mejora se pudo aplicar exitosamente en este run. Todos los pasos de codificación fallaron.
+
+### Contexto técnico
+
+```
+Improvements attempted: 0
+Agent tasks: NpmAudit: completed, SecurityAgent: completed, QualityAgent: completed, DependenciesAgent: completed, DeepResearcher: completed, CapabilityAnalyzer: completed, Analyzer: completed, Planner: completed, CoderAgent_1: completed, CoderAgent_2: completed
+```
+
+---
