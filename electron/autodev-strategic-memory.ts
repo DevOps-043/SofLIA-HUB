@@ -11,7 +11,15 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { app } from 'electron';
+
+// Safe electron import — may not exist in standalone CLI mode
+let app: { getPath: (name: string) => string } | undefined;
+try {
+  const electron = require('electron');
+  app = electron.app;
+} catch {
+  // Running outside Electron (e.g. npx tsx scripts/autodev.ts)
+}
 
 // ─── Types ────────────────────────────────────────────────────────────
 
@@ -118,7 +126,7 @@ export class StrategicMemoryService {
   private filePath: string;
 
   constructor(dataDir?: string) {
-    const dir = dataDir || (typeof app !== 'undefined' ? app.getPath('userData') : process.cwd());
+    const dir = dataDir || (app ? app.getPath('userData') : process.cwd());
     this.filePath = path.join(dir, 'autodev-strategic-memory.json');
     this.memory = this.load();
   }
