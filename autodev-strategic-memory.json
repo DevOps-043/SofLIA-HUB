@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "lastUpdated": "2026-03-09T07:05:39.758Z",
+  "roadmap": [
+    {
+      "title": "Orquestador de LLM Centralizado",
+      "description": "Crear un 'llm-gateway.ts' que unifique las llamadas a modelos para evitar que cada servicio (OCR, Clipboard AI, AutoDev) gestione sus propios prompts y llaves de API.",
+      "priority": "high",
+      "status": "pending",
+      "area": "infrastructure",
+      "id": "goal_1773039939755",
+      "createdAt": "2026-03-09T07:05:39.755Z",
+      "relatedRuns": []
+    },
+    {
+      "title": "Unified Event Bus",
+      "description": "Implementar un patrón Pub/Sub centralizado en Electron para que el 'proactive-guardian' pueda disparar acciones en el 'whatsapp-remote-hub' sin acoplamiento directo.",
+      "priority": "medium",
+      "status": "pending",
+      "area": "infrastructure",
+      "id": "goal_1773039939758",
+      "createdAt": "2026-03-09T07:05:39.758Z",
+      "relatedRuns": []
+    }
+  ],
+  "capabilities": [
+    {
+      "name": "AutoDev Ecosystem",
+      "description": "Conjunto robusto para la automatización del ciclo de vida de desarrollo, incluyendo manipulación de Git/GitHub, ejecución en sandbox y capacidades de auto-aprendizaje (self-learn).",
+      "status": "functional",
+      "files": [
+        "electron/autodev-handlers.ts",
+        "electron/autodev-web.ts",
+        "electron/autodev-github.ts",
+        "electron/autodev-git.ts",
+        "electron/autodev-sandbox.ts",
+        "electron/autodev-selflearn.ts"
+      ],
+      "lastVerified": "2026-03-09T07:05:39.755Z",
+      "gaps": [
+        "Falta de orquestación centralizada para despliegues multi-repositorio."
+      ]
+    },
+    {
+      "name": "WhatsApp Intelligence Hub",
+      "description": "Integración avanzada con WhatsApp que permite procesamiento de audio, control remoto y una interfaz de terminal.",
+      "status": "partial",
+      "files": [
+        "electron/whatsapp-audio-processor.ts",
+        "electron/whatsapp-terminal.ts",
+        "electron/whatsapp-remote-hub.ts"
+      ],
+      "lastVerified": "2026-03-09T07:05:39.755Z",
+      "gaps": [
+        "La persistencia de estados de sesión parece distribuida",
+        "No hay un manejador de multi-dispositivo unificado."
+      ]
+    },
+    {
+      "name": "Proactive Security & Monitoring",
+      "description": "Sistema de defensa y monitoreo en tiempo real que observa procesos y asegura la estación de trabajo.",
+      "status": "functional",
+      "files": [
+        "electron/proactive-guardian.ts",
+        "electron/system-guardian.ts",
+        "electron/workstation-security.ts",
+        "electron/services/proactive-process-monitor.ts"
+      ],
+      "lastVerified": "2026-03-09T07:05:39.755Z",
+      "gaps": [
+        "No se observa integración con sistemas de alerta externos (PagerDuty/Slack)."
+      ]
+    },
+    {
+      "name": "Cognitive Memory & Semantic Search",
+      "description": "Capa de memoria persistente que utiliza indexación semántica para organizar información y recordar rutas del sistema.",
+      "status": "functional",
+      "files": [
+        "electron/semantic-indexer.ts",
+        "electron/path-memory-service.ts",
+        "electron/memory-handlers.ts",
+        "electron/neural-organizer.ts"
+      ],
+      "lastVerified": "2026-03-09T07:05:39.755Z",
+      "gaps": [
+        "Potencial cuello de botella en la re-indexación de grandes volúmenes de datos."
+      ]
+    },
+    {
+      "name": "Google Workspace Integration",
+      "description": "Suite completa de integración con servicios de Google para automatización de oficina.",
+      "status": "functional",
+      "files": [
+        "electron/gmail-handlers.ts",
+        "electron/gchat-handlers.ts",
+        "electron/drive-handlers.ts",
+        "electron/calendar-handlers.ts"
+      ],
+      "lastVerified": "2026-03-09T07:05:39.755Z",
+      "gaps": [
+        "Sincronización offline limitada."
+      ]
+    }
+  ],
+  "retrospectives": [],
+  "userPatterns": [],
+  "rejectedIdeas": [],
+  "hotspots": {}
+}

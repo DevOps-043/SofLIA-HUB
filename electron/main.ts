@@ -33,6 +33,8 @@ import './agent-task-queue' // Side-effect: registers singleton
 import { SystemGuardianService } from './system-services'
 import { NeuralOrganizerService as NeuralOrganizerAI } from './neural-organizer'
 import { PathMemoryService } from './path-memory-service'
+import { llmGateway } from './llm-gateway'
+import { systemEventBus } from './unified-event-bus'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -628,6 +630,15 @@ if (!gotTheLock) {
 }
 
 app.whenReady().then(async () => {
+  // ─── LLM Gateway & System Event Bus ─────────────────────────
+  try {
+    await Promise.resolve(llmGateway.init())
+    systemEventBus.start()
+    console.log('[Main] LLM Gateway and System Event Bus initialized')
+  } catch (err: any) {
+    console.error('[Main] Error initializing LLM Gateway or System Event Bus:', err.message)
+  }
+
   // ─── Memory & Knowledge init ────────────────────────────────
   memoryService.init()
   registerMemoryHandlers(memoryService)

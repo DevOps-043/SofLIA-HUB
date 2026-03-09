@@ -1403,3 +1403,114 @@ Los archivos compilan pero nadie los importa — no tendrán efecto en runtime.
 ```
 
 ---
+## ❌ [CODING_ERROR] — 2026-03-09
+
+- **Run ID**: `run_1773039740197`
+- **Timestamp**: 2026-03-09T07:06:58.343Z
+- **Categoría**: coding_error
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El agente CoderAgent_1 falló al implementar cambios en `package.json`: The requested module 'electron' does not provide an export named 'BrowserWindow'
+
+### Contexto técnico
+
+```
+File: package.json
+Step: {
+  "step": 1,
+  "file": "package.json",
+  "action": "command",
+  "category": "features",
+  "description": "Instala las dependencias nativas necesarias para el monitoreo de hardware y la resolución de tipos MIME de archivos para WhatsApp. Se utilizan versiones fijas y estables para evitar romper dependencias existentes.",
+  "command": "npm install systeminformation@5.21.22 mime-types@2.1.35 --legacy-peer-deps",
+  "details": "Ejecuta la instalación de systeminformation para habilitar la lectura de CPU, RAM y Disco en tiempo real, y mime-types para la correcta asignación de tipos de documentos al enviarlos por la API de Baileys.",
+  "source": "https://systeminformation.io/",
+  "estimatedLines": 5
+}
+```
+
+---
+## ❌ [INTEGRATION_WARNING] — 2026-03-09
+
+- **Run ID**: `run_1773039740197`
+- **Timestamp**: 2026-03-09T07:20:27.798Z
+- **Categoría**: integration_warning
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Archivos nuevos no están conectados al sistema:
+electron/llm-gateway.ts: archivo nuevo sin integrar — nadie lo importa. DEBE conectarse al sistema (agregar import en main.ts, registrar handlers, o conectar al agente WhatsApp).
+electron/unified-event-bus.ts: archivo nuevo sin integrar — nadie lo importa. DEBE conectarse al sistema (agregar import en main.ts, registrar handlers, o conectar al agente WhatsApp).
+electron/whatsapp-file-retriever.ts: archivo nuevo sin integrar — nadie lo importa. DEBE conectarse al sistema (agregar import en main.ts, registrar handlers, o conectar al agente WhatsApp).
+
+### Contexto técnico
+
+```
+Los archivos compilan pero nadie los importa — no tendrán efecto en runtime.
+```
+
+---
+## ❌ [INTEGRATION_WARNING] — 2026-03-09
+
+- **Run ID**: `run_1773039740197`
+- **Timestamp**: 2026-03-09T07:27:42.978Z
+- **Categoría**: integration_warning
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Archivos nuevos no están conectados al sistema:
+electron/llm-gateway.ts: archivo nuevo sin integrar — nadie lo importa. DEBE conectarse al sistema (agregar import en main.ts, registrar handlers, o conectar al agente WhatsApp).
+electron/unified-event-bus.ts: archivo nuevo sin integrar — nadie lo importa. DEBE conectarse al sistema (agregar import en main.ts, registrar handlers, o conectar al agente WhatsApp).
+electron/whatsapp-file-retriever.ts: archivo nuevo sin integrar — nadie lo importa. DEBE conectarse al sistema (agregar import en main.ts, registrar handlers, o conectar al agente WhatsApp).
+
+### Contexto técnico
+
+```
+Los archivos compilan pero nadie los importa — no tendrán efecto en runtime.
+```
+
+---
+## ❌ [INTEGRATION_WARNING] — 2026-03-09
+
+- **Run ID**: `run_1773039740197`
+- **Timestamp**: 2026-03-09T07:33:53.413Z
+- **Categoría**: integration_warning
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Archivos nuevos no están conectados al sistema:
+electron/llm-gateway.ts: archivo nuevo sin integrar — nadie lo importa. DEBE conectarse al sistema (agregar import en main.ts, registrar handlers, o conectar al agente WhatsApp).
+electron/unified-event-bus.ts: archivo nuevo sin integrar — nadie lo importa. DEBE conectarse al sistema (agregar import en main.ts, registrar handlers, o conectar al agente WhatsApp).
+electron/whatsapp-file-retriever.ts: archivo nuevo sin integrar — nadie lo importa. DEBE conectarse al sistema (agregar import en main.ts, registrar handlers, o conectar al agente WhatsApp).
+
+### Contexto técnico
+
+```
+Los archivos compilan pero nadie los importa — no tendrán efecto en runtime.
+```
+
+---
+## ❌ [REVIEW_REJECTION] — 2026-03-09
+
+- **Run ID**: `run_1773039740197`
+- **Timestamp**: 2026-03-09T07:33:59.019Z
+- **Categoría**: review_rejection
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El reviewer agent rechazó los cambios persistentemente: Se rechaza el PR principalmente por la violación de la regla de 'Código Huérfano'. Se creó 'electron/whatsapp-file-retriever.ts' pero no se conectó al sistema, lo que lo convierte en código muerto. Además, aunque se integraron 'llm-gateway.ts' y 'unified-event-bus.ts' en main.ts, el log de issues añadido al PR todavía los marca como pendientes/advertencias, lo cual es inconsistente con los cambios realizados.
+
+### Contexto técnico
+
+```
+Diff size: 27754
+Improvements: 8
+```
+
+---
