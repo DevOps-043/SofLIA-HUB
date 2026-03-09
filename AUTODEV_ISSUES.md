@@ -1355,7 +1355,7 @@ Error: GitHub CLI not authenticated (run: gh auth login)
 - **Run ID**: `run_1772859892737`
 - **Timestamp**: 2026-03-07T05:08:39.363Z
 - **Categoría**: coding_error
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1773036585870` — 2026-03-09)
 
 ### Descripción
 
@@ -1384,7 +1384,7 @@ Step: {
 - **Run ID**: `run_1772916034518`
 - **Timestamp**: 2026-03-07T20:59:09.692Z
 - **Categoría**: integration_warning
-- **Estado**: 🔴 PENDIENTE
+- **Estado**: ✅ RESUELTO (por run `run_1773036585870` — 2026-03-09)
 
 ### Descripción
 

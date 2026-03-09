@@ -1112,7 +1112,9 @@ export class AutoDevService extends EventEmitter {
 
     try { await this.git.cleanupBranch(run.branchName!); } catch {}
     
-    console.log(`[AutoDev] ═══ Run completed: ${run.improvements.filter(i => i.applied).length} improvements, PR: ${run.prUrl} ═══`);
+    const realCount = this.getRealImprovements(run.improvements).length;
+    const deletedCount = run.improvements.filter(i => (i as any).wasDeleted).length;
+    console.log(`[AutoDev] ═══ Run completed: ${realCount} improvements${deletedCount ? ` (${deletedCount} archivos eliminados no contados)` : ''}, PR: ${run.prUrl} ═══`);
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -1898,7 +1900,12 @@ ${diff.slice(0, 50000)}
 10. Para Supabase: NUNCA uses .catch() — usa destructuring \`const { data, error } = await ...\`
 11. Si importaste un tipo/variable sin usarlo (TS6133), QUITA el import.
 12. PREFIERE revertir el cambio problemático a intentar un fix complejo que puede generar más errores.
-13. **ARCHIVOS HUÉRFANOS**: Si el error menciona "código muerto" o "archivo nuevo que nadie importa", usa action: "delete" para ELIMINAR ese archivo. NO intentes modificarlo para hacerlo más pequeño — ELIMÍNALO con action: "delete".
+13. **ARCHIVOS SIN INTEGRAR**: Si el error menciona "archivo nuevo sin integrar" o "nadie lo importa", tu trabajo es CONECTARLO al sistema, NO eliminarlo. Para hacerlo:
+   - Si es un servicio en electron/: agrégalo en main.ts (import, instanciar, init/start), crea handlers IPC si es necesario, y agrega canales a ALLOWED_IPC_CHANNELS en preload.ts.
+   - Si es una herramienta WhatsApp: agrega la FunctionDeclaration a WA_TOOL_DECLARATIONS en whatsapp-agent.ts y el case handler en el dispatch.
+   - Si es un archivo en tools/dynamic/: asegúrate de que exporte correctamente { name, description, inputSchema, handler } según el contrato ToolSchema de MCPManager.
+   - NUNCA elimines un archivo funcional solo porque nadie lo importa — INTÉGRALO al sistema.
+   - Solo usa action: "delete" si el archivo tiene errores de compilación IRRECUPERABLES y no se puede corregir.
 
 ## FORMATO JSON REQUERIDO (Solo devuelve JSON):
 {
@@ -2054,17 +2061,20 @@ ${diff.slice(0, 50000)}
     const filePath = path.resolve(this.repoPath, step.file);
     if (!filePath.startsWith(this.repoPath)) return null;
 
-    // ─── Handle file deletion (for orphaned files) ────────────────
+    // ─── Handle file deletion (only for truly broken files) ────────────────
     if (step.action === 'delete') {
       try {
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
-          console.log(`[AutoDev] Deleted orphaned file: ${step.file}`);
+          console.log(`[AutoDev] Deleted file: ${step.file}`);
+          // Deletions are NOT counted as applied improvements — they represent
+          // failed work, not value added. They are tracked but excluded from metrics.
           return {
-            file: step.file, category: step.category || 'quality',
-            description: step.description || `Eliminado archivo huérfano: ${step.file}`,
-            applied: true, researchSources: [], agentRole: 'coding',
-          };
+            file: step.file, category: step.category || 'cleanup',
+            description: step.description || `Eliminado archivo: ${step.file}`,
+            applied: false, researchSources: [], agentRole: 'coding',
+            wasDeleted: true,
+          } as any;
         }
       } catch (err: any) {
         console.warn(`[AutoDev] Failed to delete ${step.file}: ${err.message}`);
@@ -2229,7 +2239,58 @@ ${diff.slice(0, 50000)}
     }
   }
 
-  // ─── Integration verification (detect AND remove orphaned files) ──
+  // ─── Integration verification (detect orphaned files — NO auto-delete) ──
+
+  /**
+   * Directories whose files are loaded DYNAMICALLY (not via static imports).
+   * Files here are discovered at runtime by MCPManager, so they won't appear
+   * in any `import ... from '...'` statement — that does NOT make them orphans.
+   */
+  private static readonly DYNAMIC_DIRS = ['tools/dynamic'];
+
+  /**
+   * Check if a file lives inside a dynamic-loading directory.
+   * These files are loaded at runtime (MCPManager hot-reload) and don't need static imports.
+   */
+  private isDynamicFile(relFile: string): boolean {
+    const normalized = relFile.replace(/\\/g, '/');
+    return AutoDevService.DYNAMIC_DIRS.some(dir => normalized.startsWith(dir + '/'));
+  }
+
+  /**
+   * For files in tools/dynamic/, validate they export a valid ToolSchema
+   * (name, description, inputSchema) so MCPManager can actually load them.
+   */
+  private validateDynamicToolSchema(absFile: string): { valid: boolean; error?: string } {
+    try {
+      const fsSync = require('node:fs') as typeof import('node:fs');
+      const content = fsSync.readFileSync(absFile, 'utf-8');
+
+      // Check for required ToolSchema exports: name, description, inputSchema
+      const hasName = /export\s+(const|let|var)\s+name\s*=|['"]name['"]\s*:/m.test(content)
+        || /\.name\s*=\s*['"]/.test(content)
+        || /name:\s*['"]/.test(content);
+      const hasDescription = /export\s+(const|let|var)\s+description\s*=|['"]description['"]\s*:/m.test(content)
+        || /\.description\s*=\s*['"]/.test(content)
+        || /description:\s*['"]/.test(content);
+      const hasInputSchema = /inputSchema|input_schema/i.test(content);
+      const hasHandler = /handler|execute|run/i.test(content);
+
+      if (!hasName || !hasDescription) {
+        return { valid: false, error: 'Falta export de "name" y/o "description" requeridos por ToolSchema' };
+      }
+      if (!hasInputSchema) {
+        return { valid: false, error: 'Falta "inputSchema" con type/properties requerido por ToolSchema' };
+      }
+      if (!hasHandler) {
+        return { valid: false, error: 'Falta función "handler" — la herramienta no será ejecutable' };
+      }
+
+      return { valid: true };
+    } catch (err: any) {
+      return { valid: false, error: `No se pudo leer el archivo: ${err.message}` };
+    }
+  }
 
   private async verifyIntegration(): Promise<string[]> {
     const warnings: string[] = [];
@@ -2250,14 +2311,24 @@ ${diff.slice(0, 50000)}
         return []; // Can't get diff, skip
       }
 
-      const orphanedFiles: string[] = [];
-
       for (const relFile of newFiles) {
         const absFile = pathMod.join(this.repoPath, relFile);
         if (!fsSync.existsSync(absFile)) continue;
 
+        // ─── Dynamic tools: validate ToolSchema instead of checking imports ──
+        if (this.isDynamicFile(relFile)) {
+          const validation = this.validateDynamicToolSchema(absFile);
+          if (!validation.valid) {
+            warnings.push(`${relFile}: herramienta dinámica con ToolSchema INVÁLIDO — ${validation.error}. DEBE corregirse para que MCPManager la cargue correctamente.`);
+            console.warn(`[AutoDev TesterAgent] ⚠️ ToolSchema inválido: ${relFile} — ${validation.error}`);
+          } else {
+            console.log(`[AutoDev TesterAgent] ✅ Herramienta dinámica válida: ${relFile}`);
+          }
+          continue; // No verificar imports estáticos para tools/dynamic/
+        }
+
+        // ─── Regular files: check if imported somewhere ──
         const baseName = pathMod.basename(relFile, '.ts');
-        // Check if any other .ts file imports this one
         let isImported = false;
         try {
           const { stdout: importCheck } = await promisify(execFile)(
@@ -2271,27 +2342,16 @@ ${diff.slice(0, 50000)}
         }
 
         if (!isImported) {
-          orphanedFiles.push(relFile);
+          // ─── NO auto-eliminar — reportar para que FixAgent INTEGRE el archivo ──
+          warnings.push(`${relFile}: archivo nuevo sin integrar — nadie lo importa. DEBE conectarse al sistema (agregar import en main.ts, registrar handlers, o conectar al agente WhatsApp).`);
+          console.warn(`[AutoDev TesterAgent] ⚠️ Archivo sin integrar: ${relFile} — necesita imports y registro`);
         }
       }
 
-      // ─── Auto-delete orphaned files ──────────────────────────────
-      if (orphanedFiles.length > 0) {
-        console.log(`[AutoDev TesterAgent] 🗑️ Auto-eliminando ${orphanedFiles.length} archivo(s) huérfano(s)...`);
-        for (const relFile of orphanedFiles) {
-          const absFile = pathMod.join(this.repoPath, relFile);
-          try {
-            fsSync.unlinkSync(absFile);
-            // Also unstage from git
-            await promisify(execFile)('git', ['rm', '--cached', relFile], {
-              cwd: this.repoPath, timeout: 5_000, shell: true,
-            }).catch(() => { /* file may not be staged */ });
-            warnings.push(`${relFile}: archivo huérfano ELIMINADO automáticamente — nadie lo importaba`);
-            console.log(`[AutoDev TesterAgent]   ✓ Eliminado: ${relFile}`);
-          } catch (err: any) {
-            warnings.push(`${relFile}: archivo huérfano no se pudo eliminar — ${err.message}`);
-            console.warn(`[AutoDev TesterAgent]   ✗ Error eliminando ${relFile}: ${err.message}`);
-          }
+      if (warnings.length > 0) {
+        console.warn(`[AutoDev TesterAgent] ⚠️ Problemas de integración (${warnings.length}):`);
+        for (const w of warnings) {
+          console.warn(`  → ${w}`);
         }
       }
     } catch (err: any) {
@@ -2413,26 +2473,38 @@ ${diff.slice(0, 50000)}
     } catch { return 'Could not read package.json'; }
   }
 
+  /** Filter improvements to only include real applied changes (exclude deletions) */
+  private getRealImprovements(improvements: AutoDevImprovement[]): AutoDevImprovement[] {
+    return improvements.filter(i => i.applied && !(i as any).wasDeleted);
+  }
+
   private generateCommitMessage(improvements: AutoDevImprovement[]): string {
-    const applied = improvements.filter(i => i.applied);
+    const applied = this.getRealImprovements(improvements);
+    const deleted = improvements.filter(i => (i as any).wasDeleted);
     const cats = [...new Set(applied.map(i => i.category))];
-    return [
+    const lines = [
       `Automated improvements: ${cats.join(', ')}`,
       '', ...applied.map(i => `- [${i.category}] ${i.file}: ${i.description}`),
-      '', `Files: ${[...new Set(applied.map(i => i.file))].length} | Sources: ${[...new Set(applied.flatMap(i => i.researchSources))].slice(0, 5).join(', ')}`,
-    ].join('\n');
+    ];
+    if (deleted.length > 0) {
+      lines.push('', '## Archivos eliminados (no contados como mejoras):');
+      lines.push(...deleted.map(i => `- ${i.file}: ${i.description}`));
+    }
+    lines.push('', `Files: ${[...new Set(applied.map(i => i.file))].length} | Sources: ${[...new Set(applied.flatMap(i => i.researchSources))].slice(0, 5).join(', ')}`);
+    return lines.join('\n');
   }
 
   private generatePRTitle(improvements: AutoDevImprovement[]): string {
-    const applied = improvements.filter(i => i.applied);
+    const applied = this.getRealImprovements(improvements);
     const cats = [...new Set(applied.map(i => i.category))];
     return `${cats.join(', ')}: ${applied.length} automated improvements`;
   }
 
   private generatePRBody(run: AutoDevRun): string {
-    const applied = run.improvements.filter(i => i.applied);
+    const applied = this.getRealImprovements(run.improvements);
+    const deleted = run.improvements.filter(i => (i as any).wasDeleted);
     const findings = run.researchFindings.filter(f => f.actionable);
-    return [
+    const lines = [
       '## Summary',
       `AutoDev multi-agent run — ${run.agentTasks.length} agents deployed, ${applied.length} improvements applied.`,
       '',
@@ -2441,11 +2513,18 @@ ${diff.slice(0, 50000)}
       '',
       '## Improvements',
       ...applied.map(i => `- **[${i.category}]** \`${i.file}\`: ${i.description}\n  Sources: ${i.researchSources.map(s => `[link](${s})`).join(', ') || 'N/A'}`),
+    ];
+    if (deleted.length > 0) {
+      lines.push('', '## Archivos eliminados (trabajo fallido — no contados como mejoras)');
+      lines.push(...deleted.map(i => `- \`${i.file}\`: ${i.description}`));
+    }
+    lines.push(
       '',
       '## Research Conducted',
       ...findings.slice(0, 10).map(f => `- **[${f.category}]** ${f.findings}\n  Sources: ${f.sources.map(s => `[link](${s})`).join(', ')}`),
       '', '---', '🤖 Generated by AutoDev multi-agent system (SofLIA-HUB)',
-    ].join('\n');
+    );
+    return lines.join('\n');
   }
 
   /**

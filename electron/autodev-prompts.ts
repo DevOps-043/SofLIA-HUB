@@ -571,7 +571,12 @@ Los archivos en \`src/\` se ejecutan en el **Renderer Process** (navegador).
 - **NO MÓDULOS FANTASMA**: Usa archivos que YA existen — NO inventes nuevos sin crearlos
 - **NO REESCRIBIR main.ts**: Solo agrega líneas nuevas, no cambies la estructura
 - **PRESERVAR TAMAÑO**: El resultado debe tener ±40% del tamaño original
-- **INTEGRACIÓN OBLIGATORIA**: Si creas un archivo nuevo, DEBES también modificar los archivos que lo importan y lo usan. Un archivo que nadie importa es CÓDIGO MUERTO y será rechazado. Para servicios: importar en main.ts, instanciar, y conectar al agente. Para herramientas WhatsApp: agregar declaración en WA_TOOL_DECLARATIONS, setter en WhatsAppAgent, y handler en el dispatch loop.
+- **INTEGRACIÓN OBLIGATORIA**: Si creas un archivo nuevo, DEBES asegurar que esté conectado al sistema:
+  - **Para servicios (electron/*.ts):** importar en main.ts, instanciar, llamar init()/start(), y crear handlers IPC.
+  - **Para herramientas WhatsApp:** agregar FunctionDeclaration a WA_TOOL_DECLARATIONS en whatsapp-agent.ts, setter, y case handler en el dispatch.
+  - **Para herramientas dinámicas (tools/dynamic/*.ts):** exportar un objeto que cumpla con ToolSchema de MCPManager: { name: string, description: string, inputSchema: { type: 'object', properties: {...} }, handler: async (args) => {...} }. MCPManager las carga automáticamente — NO necesitan imports estáticos.
+  - Un archivo que nadie importa Y que no está en tools/dynamic/ es CÓDIGO MUERTO y será rechazado.
+  - Un archivo en tools/dynamic/ que no exporta ToolSchema válido será rechazado.
 
 ## Output JSON
 {
