@@ -1403,3 +1403,25 @@ Los archivos compilan pero nadie los importa — no tendrán efecto en runtime.
 ```
 
 ---
+## ❌ [INTEGRATION_WARNING] — 2026-03-09
+
+- **Run ID**: `run_1773036585870`
+- **Timestamp**: 2026-03-09T06:26:49.576Z
+- **Categoría**: integration_warning
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Archivos nuevos no están conectados al sistema:
+tools/dynamic/encrypted_vault.ts: archivo huérfano ELIMINADO automáticamente — nadie lo importaba
+tools/dynamic/network_scanner.ts: archivo huérfano ELIMINADO automáticamente — nadie lo importaba
+tools/dynamic/panic_button.ts: archivo huérfano ELIMINADO automáticamente — nadie lo importaba
+tools/dynamic/smart_notes_manager.ts: archivo huérfano ELIMINADO automáticamente — nadie lo importaba
+
+### Contexto técnico
+
+```
+Los archivos compilan pero nadie los importa — no tendrán efecto en runtime.
+```
+
+---
