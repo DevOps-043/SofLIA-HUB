@@ -265,6 +265,8 @@ ${QUALITY_EXEMPLARS}
 ## Proyecto: SofLIA-HUB
 Electron + React + TypeScript app. Path: {REPO_PATH}
 
+{STRATEGIC_CONTEXT}
+
 ## ⚡ FILOSOFÍA: FUNCIONALIDADES QUE EL USUARIO NOTA
 - Cada mejora debe ser algo que el usuario pueda USAR — no mejoras internas invisibles.
 - Pregúntate: "¿Puede el usuario hacer algo NUEVO después de este cambio?" Si no → descártalo.
@@ -396,6 +398,8 @@ export const PLAN_PROMPT = `Eres un arquitecto de software creando un plan de im
 
 ${PRODUCT_VISION}
 
+{STRATEGIC_CONTEXT}
+
 ## ⚡ FILOSOFÍA DE PLANIFICACIÓN
 - Planifica funcionalidades que el USUARIO pueda USAR — no mejoras internas
 - Cada paso debe producir código funcional y completo (150-400 líneas por funcionalidad)
@@ -472,6 +476,8 @@ export const CODE_PROMPT = `Eres un programador experto implementando funcionali
 ${PRODUCT_VISION}
 
 ${QUALITY_EXEMPLARS}
+
+{STRATEGY_DIRECTIVE}
 
 ## ⚡ FILOSOFÍA DE IMPLEMENTACIÓN
 - Implementa funcionalidades COMPLETAS y FUNCIONALES — no stubs ni placeholders

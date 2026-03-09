@@ -48,6 +48,7 @@ import {
   DEFAULT_MICRO_CONFIG,
 } from './autodev-types';
 import { AutoDevGit } from './autodev-git';
+import { StrategicMemoryService, type RunStrategy } from './autodev-strategic-memory';
 import { webSearch, readWebpage, npmAudit, npmOutdated } from './autodev-web';
 import {
   RESEARCH_GROUNDING_PROMPT,
@@ -365,12 +366,16 @@ export class AutoDevService extends EventEmitter {
   private microFixDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private microFixRunning: boolean = false;
 
+  // ─── Strategic Memory (conciencia persistente) ────────────────
+  private strategicMemory: StrategicMemoryService;
+
   constructor(repoPath: string) {
     super();
     this.repoPath = repoPath;
     this.config = this.loadConfig();
     this.git = new AutoDevGit(repoPath);
     this.history = this.loadHistory();
+    this.strategicMemory = new StrategicMemoryService();
   }
 
   // ─── API Key ───────────────────────────────────────────────────
@@ -751,6 +756,30 @@ export class AutoDevService extends EventEmitter {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    //  PHASE 0: STRATEGIC AWARENESS (selección de estrategia)
+    // ═══════════════════════════════════════════════════════════════
+    console.log('[AutoDev] ═══ Phase 0: Strategic Awareness ═══');
+    const strategySelection = this.strategicMemory.selectStrategy();
+    run.strategy = strategySelection.strategy;
+    run.warnings = [];
+    console.log(`[AutoDev Strategy] 🧠 Estrategia seleccionada: ${strategySelection.strategy.toUpperCase()}`);
+    console.log(`[AutoDev Strategy]   Enfoque: ${strategySelection.focus}`);
+    console.log(`[AutoDev Strategy]   Razón: ${strategySelection.reason}`);
+
+    const avgImpact = this.strategicMemory.getAverageImpact();
+    if (avgImpact > 0) {
+      console.log(`[AutoDev Strategy]   Impacto promedio reciente: ${avgImpact.toFixed(1)}/5`);
+    }
+
+    const activeGoals = this.strategicMemory.getActiveGoals();
+    if (activeGoals.length) {
+      console.log(`[AutoDev Strategy]   Objetivos activos: ${activeGoals.length}`);
+      for (const g of activeGoals.slice(0, 3)) {
+        console.log(`[AutoDev Strategy]     → [${g.priority}] ${g.title}`);
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     //  PHASE 1: PARALLEL RESEARCH (up to 5 agents + npm simultaneously)
     // ═══════════════════════════════════════════════════════════════
     console.log('[AutoDev] ═══ Phase 1: Parallel Research ═══');
@@ -827,6 +856,15 @@ export class AutoDevService extends EventEmitter {
     );
     run.researchFindings.push(...deepFindings);
     this.trackAgent(run, 'DeepResearcher', 'research', 'completed');
+    checkAbort();
+
+    // ─── Capability Gap Analysis (background, non-blocking) ──────
+    try {
+      await this.runCapabilityAnalysis(sourceCode);
+      this.trackAgent(run, 'CapabilityAnalyzer', 'research', 'completed');
+    } catch (err: any) {
+      console.warn(`[AutoDev] Capability analysis failed (non-critical): ${err.message}`);
+    }
     checkAbort();
 
     // ═══════════════════════════════════════════════════════════════
@@ -1111,10 +1149,158 @@ export class AutoDevService extends EventEmitter {
     this.markIssuesResolved(run.id);
 
     try { await this.git.cleanupBranch(run.branchName!); } catch {}
-    
+
     const realCount = this.getRealImprovements(run.improvements).length;
     const deletedCount = run.improvements.filter(i => (i as any).wasDeleted).length;
     console.log(`[AutoDev] ═══ Run completed: ${realCount} improvements${deletedCount ? ` (${deletedCount} archivos eliminados no contados)` : ''}, PR: ${run.prUrl} ═══`);
+
+    // ═══════════════════════════════════════════════════════════════
+    //  PHASE 6: RETROSPECTIVE (auto-evaluación + aprendizaje)
+    // ═══════════════════════════════════════════════════════════════
+    console.log('[AutoDev] ═══ Phase 6: Retrospective ═══');
+    await this.runRetrospective(run);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  CAPABILITY GAP ANALYSIS — Descubre qué falta en el sistema
+  // ═══════════════════════════════════════════════════════════════════
+
+  private async runCapabilityAnalysis(sourceFiles: Array<{ path: string; content: string }>): Promise<void> {
+    console.log('[AutoDev] ═══ Capability Gap Analysis ═══');
+
+    const prompt = this.strategicMemory.getCapabilityAnalysisPrompt(sourceFiles);
+    const ai = this.getGenAI();
+    const model = ai.getGenerativeModel({ model: this.config.agents.researcher.model });
+    const result = await model.generateContent(prompt);
+    const parsed = this.parseJSON(result.response.text());
+
+    if (!parsed) {
+      console.warn('[AutoDev] Capability analysis returned no parseable response');
+      return;
+    }
+
+    // Actualizar inventario de capacidades
+    if (Array.isArray(parsed.capabilities)) {
+      const memory = this.strategicMemory.getMemory();
+      for (const cap of parsed.capabilities) {
+        if (!cap.name) continue;
+        const existing = memory.capabilities.find(c => c.name === cap.name);
+        if (existing) {
+          existing.status = cap.status || existing.status;
+          existing.lastVerified = new Date().toISOString();
+          if (cap.gaps) existing.gaps = cap.gaps;
+          if (cap.files) existing.files = cap.files;
+        } else {
+          memory.capabilities.push({
+            name: cap.name,
+            description: cap.description || '',
+            status: cap.status || 'functional',
+            files: cap.files || [],
+            lastVerified: new Date().toISOString(),
+            gaps: cap.gaps,
+          });
+        }
+      }
+    }
+
+    // Registrar gaps críticos como objetivos del roadmap
+    if (Array.isArray(parsed.criticalGaps)) {
+      for (const gap of parsed.criticalGaps) {
+        if (!gap.gap || gap.impact === 'low') continue;
+        const existing = this.strategicMemory.getActiveGoals().some(g =>
+          g.title.toLowerCase().includes(gap.gap.toLowerCase().slice(0, 20))
+        );
+        if (!existing) {
+          this.strategicMemory.addGoal({
+            title: gap.gap,
+            description: gap.suggestedSolution || '',
+            priority: gap.impact === 'high' ? 'high' : 'medium',
+            status: 'pending',
+            area: 'infrastructure',
+          });
+          console.log(`[AutoDev CapAnalysis] 🕳️ Gap registrado: ${gap.gap}`);
+        }
+      }
+    }
+
+    // Log oportunidades de alto impacto
+    if (Array.isArray(parsed.opportunities)) {
+      const highImpact = parsed.opportunities.filter((o: any) => o.impact === 'high');
+      if (highImpact.length) {
+        console.log(`[AutoDev CapAnalysis] 💡 Oportunidades de alto impacto: ${highImpact.length}`);
+        for (const opp of highImpact.slice(0, 3)) {
+          console.log(`  → ${opp.feature}: ${opp.description || ''}`);
+        }
+      }
+    }
+
+    console.log(`[AutoDev CapAnalysis] Análisis completado — ${parsed.capabilities?.length || 0} capacidades, ${parsed.criticalGaps?.length || 0} gaps`);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  PHASE 6: RETROSPECTIVE — Auto-evaluación post-run
+  // ═══════════════════════════════════════════════════════════════════
+
+  private async runRetrospective(run: AutoDevRun): Promise<void> {
+    try {
+      // Track hotspots (archivos tocados frecuentemente)
+      for (const imp of run.improvements.filter(i => i.applied)) {
+        this.strategicMemory.trackHotspot(imp.file);
+      }
+
+      const durationMinutes = run.completedAt
+        ? Math.round((new Date(run.completedAt).getTime() - new Date(run.startedAt).getTime()) / 60000)
+        : 0;
+
+      const retroPrompt = this.strategicMemory.getRetrospectivePrompt({
+        id: run.id,
+        strategy: (run.strategy as RunStrategy) || 'innovation',
+        improvements: run.improvements.map(i => ({
+          file: i.file,
+          category: i.category,
+          description: i.description,
+          applied: i.applied,
+        })),
+        errors: run.agentTasks.filter(t => t.status === 'failed').map(t => `${t.description}: ${t.error || 'unknown'}`),
+        warnings: run.warnings || [],
+        durationMinutes,
+      });
+
+      const ai = this.getGenAI();
+      const model = ai.getGenerativeModel({ model: this.config.agents.reviewer.model });
+      const result = await model.generateContent(retroPrompt);
+      const parsed = this.parseJSON(result.response.text());
+
+      if (parsed) {
+        this.strategicMemory.processRetrospectiveResponse(
+          run.id,
+          (run.strategy as RunStrategy) || 'innovation',
+          durationMinutes,
+          { ...parsed, realImprovementsCount: this.getRealImprovements(run.improvements).length },
+        );
+
+        console.log(`[AutoDev Retrospective] 📊 Impacto: ${parsed.impactScore || '?'}/5`);
+        console.log(`[AutoDev Retrospective] 📝 ${parsed.outcome || 'Sin evaluación'}`);
+        if (parsed.lessons?.length) {
+          console.log('[AutoDev Retrospective] 📖 Lecciones:');
+          for (const l of parsed.lessons.slice(0, 3)) {
+            console.log(`  → ${l}`);
+          }
+        }
+        if (parsed.nextStrategy) {
+          console.log(`[AutoDev Retrospective] 🎯 Próxima estrategia sugerida: ${parsed.nextStrategy.strategy} — ${parsed.nextStrategy.reason}`);
+        }
+        if (parsed.suggestedGoals?.length) {
+          console.log(`[AutoDev Retrospective] 🗺️ Nuevos objetivos agregados al roadmap: ${parsed.suggestedGoals.length}`);
+        }
+      }
+
+      // Limpiar estrategia usada
+      this.strategicMemory.clearNextStrategy();
+
+    } catch (err: any) {
+      console.warn(`[AutoDev Retrospective] Error en retrospectiva (no crítico): ${err.message}`);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -1736,6 +1922,7 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
 
     const prompt = ANALYZE_PROMPT
       .replace('{REPO_PATH}', this.repoPath)
+      .replace('{STRATEGIC_CONTEXT}', this.strategicMemory.getStrategicContext())
       .replace('{RESEARCH_FINDINGS}', findingsText || 'No prior findings')
       .replace('{NPM_AUDIT}', npmAuditText)
       .replace('{NPM_OUTDATED}', npmOutdatedText)
@@ -1800,6 +1987,7 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
     const ctx = findings.filter(f => f.actionable).map(f => `- [${f.category}] ${f.findings} (${f.sources.join(', ')})`).join('\n');
 
     const prompt = PLAN_PROMPT
+      .replace('{STRATEGIC_CONTEXT}', this.strategicMemory.getStrategyDirective())
       .replace('{IMPROVEMENTS}', JSON.stringify(improvements, null, 2))
       .replace('{RESEARCH_CONTEXT}', ctx || 'None')
       .replace('{MAX_LINES}', String(this.config.maxLinesChanged))
@@ -2088,6 +2276,7 @@ ${diff.slice(0, 50000)}
     }
 
     const prompt = CODE_PROMPT
+      .replace('{STRATEGY_DIRECTIVE}', this.strategicMemory.getStrategyDirective())
       .replace('{PLAN_STEP}', JSON.stringify(step, null, 2))
       .replace('{FILE_PATH}', step.file)
       .replace('{CURRENT_CODE}', currentCode)
