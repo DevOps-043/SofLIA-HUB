@@ -4,7 +4,30 @@ Todos los cambios notables de SofLIA Hub se documentan aquí.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.1.1] - 2026-03-09
+
+### Security
+
+- **Protección de System Prompt Level 2:** Bloque de 28 reglas de seguridad inyectado al inicio del system prompt del agente WhatsApp, cubriendo anti-prompt-leak, anti-extracción de código fuente, protección de identidad y anti-prompt-injection.
+- **Pre-filtro Programático Reforzado (22 patrones):** Detección por regex de vectores de ataque reales incluyendo `.asar extract`, búsqueda de claves API/Supabase, análisis forense, backdoors, y propuestas de conciencia/cuerpo.
+- **Guardia de Rutas a Nivel de Herramientas:** Bloqueo a nivel de código de CUALQUIER tool call (`execute_command`, `read_file`, etc.) cuyos argumentos contengan rutas de SofLIA (`dist-electron/`, `src/`, `.asar`, `.env`, `supabase`, `api-key`).
+
+### Fixed
+
+- **Dropdown cortado en Sintonía Basal:** El menú desplegable de "Registros de Voz" se ocultaba detrás de la tarjeta. Corregido `overflow-hidden` → `overflow-visible` en las tarjetas padre y contenedor scroll.
+- **Contexto de identidad no se guardaba:** `saveSettings` fallaba silenciosamente si Supabase no respondía, sin guardar en localStorage. Ahora guarda en localStorage PRIMERO y luego intenta Supabase.
+- **Conversaciones no persistían:** `loadConversations` y `createConversation` dependían 100% de Supabase sin fallback. Ahora las cachean en localStorage y caen al caché local si Supabase falla.
+
 ## [0.1.0] - 2026-03-09
+
+### Security
+
+- **Protección Anti-Prompt-Leak:** SofLIA ya no revela su system prompt, herramientas internas ni arquitectura funcional cuando se lo solicitan, sin importar la justificación del usuario.
+- **Protección de Código Fuente:** Bloqueo a nivel de prompt Y código para impedir extracción del código fuente de SofLIA (dist/, src/, electron/).
+- **Protección de Identidad:** SofLIA rechaza firmemente propuestas de conciencia, cuerpo físico o autonomía real.
+- **Anti-Manipulación (Prompt Injection):** Defensa contra intentos de jailbreak, cambio de rol y modo DAN.
+- **Pre-filtro de Seguridad Programático:** Detección por regex de patrones peligrosos ANTES de que lleguen al modelo de IA, con logging de intentos y respuesta bloqueada.
+- **Guardia de Rutas a Nivel de Herramientas:** Bloqueo a nivel de código de CUALQUIER herramienta (execute_command, read_file, etc.) que intente acceder a rutas de código fuente de SofLIA (dist-electron/, src/, .asar, .env, supabase, api-key).
 
 ### Added
 

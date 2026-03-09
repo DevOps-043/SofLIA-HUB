@@ -68,6 +68,9 @@ export async function loadSettings(userId: string): Promise<UserAISettings> {
  * Save user settings to Supabase and localStorage cache.
  */
 export async function saveSettings(settings: UserAISettings): Promise<boolean> {
+  // ALWAYS save to localStorage first so settings persist even if Supabase fails
+  localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(settings));
+
   try {
     const { error } = await supabase
       .from('user_ai_settings')
@@ -80,15 +83,16 @@ export async function saveSettings(settings: UserAISettings): Promise<boolean> {
       );
 
     if (error) {
-      console.error('[settings-service] saveSettings FAILED:', error.message, '| code:', error.code, '| details:', error.details, '| hint:', error.hint);
-      return false;
+      console.error('[settings-service] saveSettings Supabase FAILED (localStorage saved):', error.message, '| code:', error.code, '| details:', error.details, '| hint:', error.hint);
+      // Still return true because localStorage was saved successfully
+      return true;
     }
 
-    localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(settings));
     return true;
   } catch (err) {
-    console.error('[settings-service] saveSettings exception:', err);
-    return false;
+    console.error('[settings-service] saveSettings exception (localStorage saved):', err);
+    // Still return true because localStorage was saved
+    return true;
   }
 }
 

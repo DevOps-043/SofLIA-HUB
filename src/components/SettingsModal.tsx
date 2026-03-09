@@ -236,7 +236,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
       )}
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto no-scrollbar px-6 py-6 pb-32 relative z-10 space-y-6">
+      <div className="flex-1 overflow-y-auto overflow-x-visible no-scrollbar px-6 py-6 pb-32 relative z-10 space-y-6">
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
@@ -249,7 +249,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
         ) : (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300 pb-32">
             {/* Card: Bio Data */}
-            <div className="bg-white/[0.03] backdrop-blur-md border border-white/[0.05] rounded-[2rem] p-6 relative overflow-hidden group hover:border-accent/10 transition-all duration-500 shadow-xl shadow-black/10">
+            <div className="bg-white/[0.03] backdrop-blur-md border border-white/[0.05] rounded-[2rem] p-6 relative overflow-visible group hover:border-accent/10 transition-all duration-500 shadow-xl shadow-black/10">
               <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity duration-700">
                 <svg className="w-32 h-32 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={0.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />

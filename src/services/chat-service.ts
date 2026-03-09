@@ -29,22 +29,47 @@ export interface ChatMessage {
 // Conversation CRUD
 // ============================================
 
+const CONVERSATIONS_CACHE_KEY = 'lia_conversations';
+const MESSAGES_CACHE_KEY = 'lia_messages_';
+
 /**
  * Carga todas las conversaciones del usuario (max 50, mas recientes primero).
+ * Falls back to localStorage if Supabase fails.
  */
 export async function loadConversations(userId: string): Promise<Conversation[]> {
-  const { data, error } = await supabase
-    .from('conversations')
-    .select('*')
-    .eq('user_id', userId)
-    .order('updated_at', { ascending: false })
-    .limit(50);
+  try {
+    const { data, error } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(50);
 
-  if (error) {
-    console.error('[chat-service] loadConversations FAILED:', error.message, '| code:', error.code, '| details:', error.details, '| hint:', error.hint);
+    if (error) {
+      console.error('[chat-service] loadConversations Supabase FAILED:', error.message, '| code:', error.code);
+      // Fallback to localStorage
+      return loadConversationsFromCache(userId);
+    }
+
+    const convs = data || [];
+    // Cache to localStorage
+    try {
+      localStorage.setItem(CONVERSATIONS_CACHE_KEY + '_' + userId, JSON.stringify(convs));
+    } catch {}
+    return convs;
+  } catch (err) {
+    console.error('[chat-service] loadConversations exception:', err);
+    return loadConversationsFromCache(userId);
+  }
+}
+
+function loadConversationsFromCache(userId: string): Conversation[] {
+  try {
+    const cached = localStorage.getItem(CONVERSATIONS_CACHE_KEY + '_' + userId);
+    return cached ? JSON.parse(cached) : [];
+  } catch {
     return [];
   }
-  return data || [];
 }
 
 /**
@@ -89,17 +114,58 @@ export async function createConversation(
   };
   if (orgId) row.org_id = orgId;
 
-  const { data, error } = await supabase
-    .from('conversations')
-    .insert(row)
-    .select()
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('conversations')
+      .insert(row)
+      .select()
+      .single();
 
-  if (error) {
-    console.error('[chat-service] createConversation FAILED:', error.message, '| code:', error.code, '| details:', error.details, '| hint:', error.hint);
-    return null;
+    if (error) {
+      console.error('[chat-service] createConversation Supabase FAILED:', error.message, '| code:', error.code);
+      // Create locally with a UUID
+      const localConv: Conversation = {
+        id: crypto.randomUUID(),
+        user_id: userId,
+        title,
+        folder_id: folderId,
+        org_id: orgId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      saveConversationToCache(userId, localConv);
+      return localConv;
+    }
+
+    // Cache the new conversation
+    if (data) saveConversationToCache(userId, data);
+    return data;
+  } catch (err) {
+    console.error('[chat-service] createConversation exception:', err);
+    // Create locally
+    const localConv: Conversation = {
+      id: crypto.randomUUID(),
+      user_id: userId,
+      title,
+      folder_id: folderId,
+      org_id: orgId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    saveConversationToCache(userId, localConv);
+    return localConv;
   }
-  return data;
+}
+
+function saveConversationToCache(userId: string, conv: Conversation) {
+  try {
+    const cached = localStorage.getItem(CONVERSATIONS_CACHE_KEY + '_' + userId);
+    const convs: Conversation[] = cached ? JSON.parse(cached) : [];
+    const existing = convs.findIndex(c => c.id === conv.id);
+    if (existing >= 0) convs[existing] = conv;
+    else convs.unshift(conv);
+    localStorage.setItem(CONVERSATIONS_CACHE_KEY + '_' + userId, JSON.stringify(convs.slice(0, 50)));
+  } catch {}
 }
 
 /**
