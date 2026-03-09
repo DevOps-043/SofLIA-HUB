@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { EventEmitter } from 'events';
 import { pathToFileURL } from 'url';
+import type { FSWatcher } from 'fs';
 
 export interface ToolSchema {
   name: string;
@@ -17,8 +18,8 @@ export interface ToolSchema {
 export class MCPManager extends EventEmitter {
   private dynamicToolsPath: string;
   private tools: Map<string, ToolSchema>;
-  private watcher: fs.FSWatcher | null = null;
-  private fileToToolMap: Map<string, string>;
+  private watcher: FSWatcher | null = null;
+  private fileToToolMap: Map<string, string[]>;
 
   constructor(toolsDir?: string) {
     super();
@@ -34,6 +35,10 @@ export class MCPManager extends EventEmitter {
     }
 
     await this.scanTools();
+    
+    // Log nativo confirmando la cantidad de herramientas dinámicas cargadas exitosamente
+    console.log(`[MCP] Inicialización completa. Se cargaron exitosamente ${this.tools.size} herramientas dinámicas desde ${this.dynamicToolsPath}`);
+    
     this.watchTools();
   }
 
@@ -100,39 +105,68 @@ export class MCPManager extends EventEmitter {
         const moduleUrl = `${fileUrl}?t=${Date.now()}`;
         
         const module = await import(moduleUrl);
-        // Soporta la exportación por default, con nombre "tool", o directamente el objeto módulo
-        toolData = module.default || module.tool || module;
+        // Soporta la exportación por default, con nombre "tool", "tools", o directamente el objeto módulo
+        toolData = module.default || module.tools || module.tool || module;
       }
 
-      if (this.isValidToolSchema(toolData)) {
-        // Si ya existía una herramienta mapeada a este archivo, la desregistramos si cambió el nombre
-        if (this.fileToToolMap.has(filename) && this.fileToToolMap.get(filename) !== toolData.name) {
-          this.removeToolByFilename(filename);
+      // Si ya existían herramientas mapeadas a este archivo, las desregistramos para actualizar
+      this.removeToolByFilename(filename);
+      
+      const loadedToolNames: string[] = [];
+
+      // Soporte para exportar un array de herramientas desde un solo archivo
+      const toolsToRegister = Array.isArray(toolData) ? toolData : [toolData];
+
+      for (const tool of toolsToRegister) {
+        if (this.isValidToolSchema(tool)) {
+          this.tools.set(tool.name, tool as ToolSchema);
+          loadedToolNames.push(tool.name);
+          
+          this.emit('tool-registered', tool);
+          console.log(`[MCP] Successfully registered dynamic tool: ${tool.name}`);
+        } else {
+          // Buscamos si el objeto exportado tiene valores que son tools (ej. export const tool1 = {...})
+          if (typeof tool === 'object' && tool !== null) {
+            for (const key of Object.keys(tool)) {
+              const innerTool = tool[key];
+              if (this.isValidToolSchema(innerTool)) {
+                this.tools.set(innerTool.name, innerTool as ToolSchema);
+                loadedToolNames.push(innerTool.name);
+                this.emit('tool-registered', innerTool);
+                console.log(`[MCP] Successfully registered dynamic tool: ${innerTool.name} from export '${key}'`);
+              }
+            }
+          } else {
+            console.warn(`[MCP] Invalid tool schema in file or object: ${filename}`);
+          }
         }
-
-        this.tools.set(toolData.name, toolData);
-        this.fileToToolMap.set(filename, toolData.name);
-        
-        this.emit('tool-registered', toolData);
-        console.log(`[MCP] Successfully registered dynamic tool: ${toolData.name}`);
-      } else {
-        console.warn(`[MCP] Invalid tool schema in file: ${filename}`);
       }
+
+      // Guardamos la referencia de cuáles herramientas vinieron de este archivo
+      if (loadedToolNames.length > 0) {
+        this.fileToToolMap.set(filename, loadedToolNames);
+      } else {
+        console.warn(`[MCP] No valid tools found in file: ${filename}`);
+      }
+
     } catch (error) {
       console.error(`[MCP] Error loading tool from ${filename}:`, error);
     }
   }
 
   private removeToolByFilename(filename: string): void {
-    const toolName = this.fileToToolMap.get(filename);
-    if (toolName) {
-      this.tools.delete(toolName);
+    const toolNames = this.fileToToolMap.get(filename);
+    if (toolNames && toolNames.length > 0) {
+      for (const toolName of toolNames) {
+        this.tools.delete(toolName);
+        this.emit('tool-unregistered', toolName);
+        console.log(`[MCP] Unregistered dynamic tool: ${toolName}`);
+      }
       this.fileToToolMap.delete(filename);
-      this.emit('tool-unregistered', toolName);
-      console.log(`[MCP] Unregistered dynamic tool: ${toolName}`);
     }
   }
 
+  // Se utiliza `any` para evitar conflictos con z.ZodSchema estricto en la inferencia y prevenir TS2345
   private isValidToolSchema(data: any): data is ToolSchema {
     return (
       data &&
