@@ -30,7 +30,6 @@ export interface ChatMessage {
 // ============================================
 
 const CONVERSATIONS_CACHE_KEY = 'lia_conversations';
-const MESSAGES_CACHE_KEY = 'lia_messages_';
 
 /**
  * Carga todas las conversaciones del usuario (max 50, mas recientes primero).
