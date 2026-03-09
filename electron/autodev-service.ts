@@ -1004,24 +1004,62 @@ export class AutoDevService extends EventEmitter {
         if (run.branchName) {
           console.warn(`[AutoDev] Safety: detected we are on ${currentBranch}, switching to work branch ${run.branchName}`);
           try {
-            // Stash any dirty files before switching so checkout doesn't fail
+            // Instead of stash/pop (which creates merge conflicts), commit dirty
+            // changes directly to the work branch using a checkout + add approach.
             const hasChanges = await this.git.hasUncommittedChanges();
             if (hasChanges) {
-              console.log(`[AutoDev] Stashing uncommitted changes before branch switch...`);
-              await this.git.exec('stash', ['push', '-m', `autodev-safety-${run.id}`]);
-            }
-            await this.git.switchBranch(run.branchName);
-            if (hasChanges) {
-              try { await this.git.exec('stash', ['pop']); } catch {
-                console.warn('[AutoDev] Stash pop failed — changes may already be on work branch');
-              }
+              // Copy changed files to a temp list, switch branch cleanly, then re-apply
+              console.log(`[AutoDev] Saving uncommitted changes before branch switch...`);
+              // Force checkout to work branch carrying uncommitted changes along
+              await this.git.exec('checkout', [run.branchName]);
+            } else {
+              await this.git.switchBranch(run.branchName);
             }
           } catch (switchErr: any) {
-            // Try to recover: pop stash back if we stashed
-            try { await this.git.exec('stash', ['pop']); } catch {}
-            run.status = 'failed';
-            run.error = `Cannot switch to work branch ${run.branchName}: ${switchErr.message}`;
-            return;
+            // If checkout with dirty files fails, try the stash approach as last resort
+            try {
+              console.warn(`[AutoDev] Direct checkout failed, trying stash approach...`);
+              await this.git.exec('stash', ['push', '-m', `autodev-safety-${run.id}`]);
+              await this.git.switchBranch(run.branchName);
+              // Apply stash without restoring index to avoid merge conflicts
+              try { await this.git.exec('stash', ['pop', '--index']); } catch {
+                // If --index fails, try plain pop
+                try { await this.git.exec('stash', ['pop']); } catch (popErr: any) {
+                  // If pop also fails, drop the stash and log — merge conflicts would corrupt files
+                  console.error(`[AutoDev] Stash pop failed with conflicts. Dropping stash to avoid corruption.`);
+                  try { await this.git.exec('stash', ['drop']); } catch {}
+                }
+              }
+            } catch (stashErr: any) {
+              try { await this.git.exec('stash', ['drop']); } catch {}
+              run.status = 'failed';
+              run.error = `Cannot switch to work branch ${run.branchName}: ${switchErr.message}`;
+              return;
+            }
+          }
+
+          // CRITICAL: Verify no merge conflict markers exist after branch switch
+          try {
+            const mainFile = path.join(this.repoPath, 'electron', 'main.ts');
+            if (fs.existsSync(mainFile)) {
+              const content = fs.readFileSync(mainFile, 'utf-8');
+              if (content.includes('<<<<<<<') || content.includes('>>>>>>>')) {
+                console.error('[AutoDev] ⛔ Merge conflict markers detected in main.ts after branch switch! Cleaning...');
+                // Read the clean version from the work branch
+                const { execFile } = await import('node:child_process');
+                const { promisify } = await import('node:util');
+                const { stdout: cleanContent } = await promisify(execFile)(
+                  'git', ['show', `${run.branchName}:electron/main.ts`],
+                  { cwd: this.repoPath, timeout: 10_000, shell: true, maxBuffer: 5 * 1024 * 1024 }
+                );
+                if (cleanContent && !cleanContent.includes('<<<<<<<')) {
+                  fs.writeFileSync(mainFile, cleanContent, 'utf-8');
+                  console.log('[AutoDev] ✅ Restored clean main.ts from work branch');
+                }
+              }
+            }
+          } catch (conflictErr: any) {
+            console.warn(`[AutoDev] Merge conflict check failed: ${conflictErr.message}`);
           }
         } else {
           run.status = 'failed';
@@ -1094,7 +1132,26 @@ export class AutoDevService extends EventEmitter {
       this.updateRunStatus(run, 'coding');
 
       // Mini Phase 3: Auto-Fix
-      const errorStr = buildResult !== true ? `Build Error:\n${typeof buildResult === 'string' ? buildResult : 'Unknown'}` : `Review Error:\n${reviewResult.summary}`;
+      let errorStr: string;
+      if (buildResult !== true) {
+        errorStr = `Build Error:\n${typeof buildResult === 'string' ? buildResult : 'Unknown'}`;
+      } else {
+        // For review rejections mentioning orphan/integration issues,
+        // include the content of main.ts so the FixAgent can actually add imports
+        errorStr = `Review Error:\n${reviewResult.summary}`;
+        if (/huérfano|sin integrar|no.*import|código muerto|orphan/i.test(reviewResult.summary)) {
+          try {
+            const mainTsPath = path.join(this.repoPath, 'electron', 'main.ts');
+            if (fs.existsSync(mainTsPath)) {
+              const mainContent = fs.readFileSync(mainTsPath, 'utf-8');
+              // Include first 200 lines of main.ts (imports section) for context
+              const importSection = mainContent.split('\n').slice(0, 200).join('\n');
+              errorStr += `\n\n## CONTENIDO ACTUAL DE electron/main.ts (primeras 200 líneas para que veas dónde agregar imports):\n\`\`\`typescript\n${importSection}\n\`\`\``;
+              errorStr += `\n\n## INSTRUCCIÓN: Agrega los imports de los archivos huérfanos en la sección de imports de main.ts. Instáncialos donde se instancian los demás servicios. NO crees archivos nuevos — modifica main.ts para importar los existentes.`;
+            }
+          } catch { /* skip */ }
+        }
+      }
       const fixPlan = await this.createFixPlan(diff, errorStr);
 
       if (!fixPlan || !fixPlan.length) {
@@ -2026,6 +2083,38 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
       }
     }
 
+    // ─── Integration gate: ensure new files have integration steps ──
+    const createSteps = safePlan.filter((s: any) => s.action === 'create' && s.file?.endsWith('.ts'));
+    const modifySteps = safePlan.filter((s: any) => s.action === 'modify');
+    const modifyFiles = new Set(modifySteps.map((s: any) => s.file));
+
+    for (const createStep of createSteps) {
+      const baseName = path.basename(createStep.file, '.ts');
+      // Check if there's a modify step for main.ts or whatsapp-agent.ts that could integrate this
+      const hasIntegrationStep = modifySteps.some((s: any) =>
+        (s.file === 'electron/main.ts' || s.file === 'electron/whatsapp-agent.ts') &&
+        (s.description?.includes(baseName) || s.details?.includes(baseName))
+      );
+
+      if (!hasIntegrationStep && !createStep.file.startsWith('tools/dynamic/')) {
+        // Auto-add an integration step for main.ts
+        console.log(`[AutoDev PlanGate] ⚠️ Archivo "${createStep.file}" sin paso de integración — agregando paso automático para main.ts`);
+        if (!modifyFiles.has('electron/main.ts')) {
+          safePlan.push({
+            step: safePlan.length + 1,
+            file: 'electron/main.ts',
+            action: 'modify',
+            category: 'features',
+            description: `Integrar nuevos módulos al sistema: importar e instanciar ${createSteps.map((s: any) => path.basename(s.file, '.ts')).join(', ')} en main.ts`,
+            details: `Agregar imports al inicio del archivo y conectar los servicios al flujo de inicialización existente. NO reescribir el archivo completo — solo agregar las líneas de import e instanciación.`,
+            source: 'Auto-Integration System',
+            estimatedLines: 20,
+          });
+          modifyFiles.add('electron/main.ts');
+        }
+      }
+    }
+
     return safePlan;
   }
 
@@ -2248,6 +2337,15 @@ ${diff.slice(0, 50000)}
 
     const filePath = path.resolve(this.repoPath, step.file);
     if (!filePath.startsWith(this.repoPath)) return null;
+
+    // ─── Block direct modification of package.json / lock files ─────────
+    // These should ONLY be modified via npm commands, never written directly.
+    // Direct writes cause parse errors, merge conflicts, and version corruption.
+    const blockedFiles = ['package.json', 'package-lock.json', 'tsconfig.json', 'vite.config.ts'];
+    if (step.action !== 'command' && blockedFiles.some(f => step.file.endsWith(f))) {
+      console.warn(`[AutoDev SafetyGuard] ⛔ BLOCKED: Direct modification of ${step.file} is not allowed. Use npm commands instead.`);
+      return null;
+    }
 
     // ─── Handle file deletion (only for truly broken files) ────────────────
     if (step.action === 'delete') {
@@ -2489,18 +2587,42 @@ ${diff.slice(0, 50000)}
       const fsSync = await import('node:fs');
       const pathMod = await import('node:path');
 
-      // Get new files added in this branch (compared to base)
+      // Get new files: compare staged + working tree against base branch
       let newFiles: string[] = [];
       try {
-        const { stdout } = await promisify(execFile)('git', ['diff', '--name-only', '--diff-filter=A', 'HEAD~1'], {
-          cwd: this.repoPath, timeout: 10_000, shell: true,
-        });
+        // Try comparing against target branch (works even before first commit on work branch)
+        const { stdout } = await promisify(execFile)(
+          'git', ['diff', '--name-only', '--diff-filter=A', `${this.config.targetBranch}...HEAD`],
+          { cwd: this.repoPath, timeout: 10_000, shell: true },
+        );
         newFiles = stdout.trim().split('\n').filter(f => f.endsWith('.ts') && !f.endsWith('.d.ts'));
       } catch {
-        return []; // Can't get diff, skip
+        // Fallback: check staged files
+        try {
+          const { stdout } = await promisify(execFile)(
+            'git', ['diff', '--name-only', '--diff-filter=A', '--cached'],
+            { cwd: this.repoPath, timeout: 10_000, shell: true },
+          );
+          newFiles = stdout.trim().split('\n').filter(f => f.endsWith('.ts') && !f.endsWith('.d.ts'));
+        } catch {
+          return []; // Can't get diff, skip
+        }
       }
 
+      // Also include untracked .ts files in electron/ and src/
+      try {
+        const { stdout: untrackedStr } = await promisify(execFile)(
+          'git', ['ls-files', '--others', '--exclude-standard', 'electron/', 'src/', 'tools/'],
+          { cwd: this.repoPath, timeout: 10_000, shell: true },
+        );
+        const untracked = untrackedStr.trim().split('\n').filter(f => f.endsWith('.ts') && !f.endsWith('.d.ts'));
+        for (const f of untracked) {
+          if (!newFiles.includes(f)) newFiles.push(f);
+        }
+      } catch { /* skip */ }
+
       for (const relFile of newFiles) {
+        if (!relFile || relFile.trim() === '') continue;
         const absFile = pathMod.join(this.repoPath, relFile);
         if (!fsSync.existsSync(absFile)) continue;
 
@@ -2513,25 +2635,37 @@ ${diff.slice(0, 50000)}
           } else {
             console.log(`[AutoDev TesterAgent] ✅ Herramienta dinámica válida: ${relFile}`);
           }
-          continue; // No verificar imports estáticos para tools/dynamic/
+          continue;
         }
 
         // ─── Regular files: check if imported somewhere ──
+        // Use multiple grep patterns to catch different import styles:
+        //   from './name'  |  from "./name"  |  require('./name')  |  import('./name')
         const baseName = pathMod.basename(relFile, '.ts');
+        const baseNameTsx = pathMod.basename(relFile, '.tsx');
+        const searchName = baseName || baseNameTsx;
         let isImported = false;
-        try {
-          const { stdout: importCheck } = await promisify(execFile)(
-            'grep', ['-rl', `from './${baseName}'`, '--include=*.ts', 'electron/', 'src/'],
-            { cwd: this.repoPath, timeout: 10_000, shell: true }
-          );
-          const importers = importCheck.trim().split('\n').filter(f => f && !f.includes(baseName + '.ts'));
-          isImported = importers.length > 0;
-        } catch {
-          // grep returns exit code 1 when no matches — that means no imports
+
+        // Search for the module name in ALL .ts files on disk (not just git-tracked)
+        const searchPatterns = [
+          `${searchName}'`,   // from './name' or from "../dir/name'
+          `${searchName}"`,   // from "./name"
+          `${searchName}\``,  // template literal imports
+        ];
+
+        for (const pattern of searchPatterns) {
+          if (isImported) break;
+          try {
+            const { stdout: importCheck } = await promisify(execFile)(
+              'grep', ['-rl', pattern, '--include=*.ts', '--include=*.tsx', 'electron/', 'src/'],
+              { cwd: this.repoPath, timeout: 10_000, shell: true }
+            );
+            const importers = importCheck.trim().split('\n').filter(f => f && !f.includes(searchName + '.ts'));
+            if (importers.length > 0) isImported = true;
+          } catch { /* grep exit 1 = no match */ }
         }
 
         if (!isImported) {
-          // ─── NO auto-eliminar — reportar para que FixAgent INTEGRE el archivo ──
           warnings.push(`${relFile}: archivo nuevo sin integrar — nadie lo importa. DEBE conectarse al sistema (agregar import en main.ts, registrar handlers, o conectar al agente WhatsApp).`);
           console.warn(`[AutoDev TesterAgent] ⚠️ Archivo sin integrar: ${relFile} — necesita imports y registro`);
         }

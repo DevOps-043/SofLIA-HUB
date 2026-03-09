@@ -4,6 +4,28 @@ Todos los cambios notables de SofLIA Hub se documentan aquí.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.1.0] - 2026-03-09
+
+### Added
+
+- **Generación de Documentos Inteligentes vía WhatsApp:** SofLIA ahora puede investigar temas a profundidad, analizar archivos, y generar documentos profesionales que envía automáticamente al usuario por WhatsApp.
+- **Soporte PowerPoint (.pptx):** Nuevo tipo `"pptx"` en `create_document` usando `pptxgenjs`. Genera presentaciones con tema premium corporativo (fondo oscuro, acentos cyan, tipografía Segoe UI), slides de título y contenido con bullets estilizados.
+- **Flujos de Investigación Profunda:** El agente de WhatsApp ahora ejecuta flujos completos multi-paso: `web_search` (múltiples queries) → `read_webpage` (fuentes clave) → `create_document` → `whatsapp_send_file`, sin intervención del usuario.
+- **Comparación de Archivos:** Nuevos flujos para comparar archivos locales o de Google Drive, generando informes comparativos en Word.
+- **Restricción AutoDev:** El módulo AutoDev ahora solo es visible para el usuario administrador (Fernando Suarez), oculto para todos los demás usuarios.
+
+### Changed
+
+- **Google Drive: Exportación como Texto Plano:** Google Docs y Slides ahora se exportan como texto plano por defecto (en vez de PDF) para que el agente pueda leer el contenido directamente. Nuevo parámetro `format` en `drive_download`: `"text"` (default, para análisis) o `"pdf"` (para enviar archivos).
+- **Google Drive: Búsqueda Inteligente Multi-Estrategia:** `searchFiles` ahora divide la query en palabras individuales con AND, incluye búsqueda fullText como fallback, y combina resultados de búsquedas individuales como último recurso.
+- **Envío Automático de Documentos:** Regla reforzada en el system prompt: después de crear un documento, el agente SIEMPRE lo envía al WhatsApp del usuario automáticamente.
+- **Protección contra uso incorrecto de use_computer:** El system prompt ahora prohíbe explícitamente usar `use_computer` para leer archivos de Drive, instruyendo a usar `drive_download(format:"text")`.
+
+### Fixed
+
+- **Corrección de flujo Drive → use_computer:** Solucionado el bug donde analizar un documento de Drive activaba el Desktop Agent (use_computer) para abrir el PDF, en vez de leer el texto directamente.
+- **Búsqueda de archivos en Drive:** Resuelto el problema donde búsquedas con múltiples palabras no encontraban archivos porque la API de Drive requiere coincidencia exacta de substring.
+
 ## [0.0.9] - 2026-03-07
 
 ### Added

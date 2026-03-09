@@ -395,6 +395,204 @@ export class GmailService extends EventEmitter {
     }
   }
 
+  // ─── Batch Modify by Label ──────────────────────────────────────
+  // Moves ALL messages from a label to INBOX (or applies add/remove labels), then optionally deletes the label
+
+  async batchModifyByLabel(
+    labelId: string,
+    options?: { addLabels?: string[]; removeLabels?: string[]; deleteLabel?: boolean },
+  ): Promise<{ success: boolean; processed: number; remaining: number; labelDeleted: boolean; error?: string }> {
+    const auth = await this.calendarService.getGoogleAuth();
+    if (!auth) return { success: false, processed: 0, remaining: 0, labelDeleted: false, error: 'Google no conectado' };
+
+    try {
+      const { google } = await import('googleapis');
+      const gmail = google.gmail({ version: 'v1', auth });
+
+      let totalProcessed = 0;
+      let pageToken: string | undefined;
+
+      // Process ALL messages in the label, paginating through them
+      do {
+        const listResponse = await gmail.users.messages.list({
+          userId: 'me',
+          labelIds: [labelId],
+          maxResults: 100,
+          pageToken,
+        });
+
+        const messageIds = (listResponse.data.messages || []).map(m => m.id).filter(Boolean) as string[];
+        if (messageIds.length === 0) break;
+
+        // Gmail API batchModify — modifies up to 1000 messages at once
+        await gmail.users.messages.batchModify({
+          userId: 'me',
+          requestBody: {
+            ids: messageIds,
+            addLabelIds: options?.addLabels || ['INBOX'],
+            removeLabelIds: options?.removeLabels || [labelId],
+          },
+        });
+
+        totalProcessed += messageIds.length;
+        pageToken = listResponse.data.nextPageToken || undefined;
+        console.log(`[GmailService] Batch modified ${messageIds.length} messages (label: ${labelId}), total: ${totalProcessed}`);
+      } while (pageToken);
+
+      // Check if any messages remain
+      const checkRemaining = await gmail.users.messages.list({
+        userId: 'me',
+        labelIds: [labelId],
+        maxResults: 1,
+      });
+      const remaining = (checkRemaining.data.messages || []).length;
+
+      // Optionally delete the label after emptying it
+      let labelDeleted = false;
+      if (options?.deleteLabel && remaining === 0) {
+        try {
+          await gmail.users.labels.delete({ userId: 'me', id: labelId });
+          labelDeleted = true;
+          console.log(`[GmailService] Label ${labelId} deleted after batch move`);
+        } catch (delErr: any) {
+          console.warn(`[GmailService] Could not delete label ${labelId}:`, delErr.message);
+        }
+      }
+
+      return { success: true, processed: totalProcessed, remaining, labelDeleted };
+    } catch (err: any) {
+      console.error('[GmailService] BatchModifyByLabel error:', err.message);
+      return { success: false, processed: 0, remaining: 0, labelDeleted: false, error: err.message };
+    }
+  }
+
+  // ─── Empty and Delete ALL User Labels ────────────────────────────
+
+  async emptyAndDeleteAllLabels(): Promise<{
+    success: boolean;
+    labelsProcessed: number;
+    labelsDeleted: number;
+    totalMessagesMovedToInbox: number;
+    remainingLabels: string[];
+    errors: string[];
+  }> {
+    const auth = await this.calendarService.getGoogleAuth();
+    if (!auth) return { success: false, labelsProcessed: 0, labelsDeleted: 0, totalMessagesMovedToInbox: 0, remainingLabels: [], errors: ['Google no conectado'] };
+
+    try {
+      const { google } = await import('googleapis');
+      const gmail = google.gmail({ version: 'v1', auth });
+
+      // Get ALL labels
+      const labelsResponse = await gmail.users.labels.list({ userId: 'me' });
+      const allLabels = labelsResponse.data.labels || [];
+
+      // Filter to user-created labels only (system labels start with uppercase keywords)
+      const systemLabelIds = new Set([
+        'INBOX', 'SPAM', 'TRASH', 'UNREAD', 'STARRED', 'IMPORTANT', 'SENT', 'DRAFT',
+        'CATEGORY_PERSONAL', 'CATEGORY_SOCIAL', 'CATEGORY_PROMOTIONS', 'CATEGORY_UPDATES', 'CATEGORY_FORUMS',
+        'CHAT',
+      ]);
+      const userLabels = allLabels.filter(l => l.id && !systemLabelIds.has(l.id) && l.type === 'user');
+
+      console.log(`[GmailService] Found ${userLabels.length} user labels to process`);
+
+      let labelsProcessed = 0;
+      let labelsDeleted = 0;
+      let totalMessages = 0;
+      const errors: string[] = [];
+
+      for (const label of userLabels) {
+        if (!label.id) continue;
+        try {
+          // Move all messages from this label to INBOX
+          let pageToken: string | undefined;
+          let labelMsgCount = 0;
+          do {
+            const listResponse = await gmail.users.messages.list({
+              userId: 'me',
+              labelIds: [label.id],
+              maxResults: 100,
+              pageToken,
+            });
+            const messageIds = (listResponse.data.messages || []).map(m => m.id).filter(Boolean) as string[];
+            if (messageIds.length === 0) break;
+
+            await gmail.users.messages.batchModify({
+              userId: 'me',
+              requestBody: {
+                ids: messageIds,
+                addLabelIds: ['INBOX'],
+                removeLabelIds: [label.id],
+              },
+            });
+            labelMsgCount += messageIds.length;
+            pageToken = listResponse.data.nextPageToken || undefined;
+          } while (pageToken);
+
+          totalMessages += labelMsgCount;
+          labelsProcessed++;
+
+          // Delete the label
+          try {
+            await gmail.users.labels.delete({ userId: 'me', id: label.id });
+            labelsDeleted++;
+            console.log(`[GmailService] Emptied (${labelMsgCount} msgs) and deleted label: ${label.name} (${label.id})`);
+          } catch (delErr: any) {
+            errors.push(`No se pudo eliminar "${label.name}": ${delErr.message}`);
+            console.warn(`[GmailService] Could not delete label ${label.name}:`, delErr.message);
+          }
+        } catch (labelErr: any) {
+          errors.push(`Error procesando "${label.name}": ${labelErr.message}`);
+          console.error(`[GmailService] Error processing label ${label.name}:`, labelErr.message);
+        }
+      }
+
+      // Verify: check remaining user labels
+      const verifyResponse = await gmail.users.labels.list({ userId: 'me' });
+      const remainingUserLabels = (verifyResponse.data.labels || [])
+        .filter(l => l.id && !systemLabelIds.has(l.id) && l.type === 'user')
+        .map(l => l.name || l.id || 'unknown');
+
+      console.log(`[GmailService] Batch complete: ${labelsProcessed} processed, ${labelsDeleted} deleted, ${totalMessages} msgs moved, ${remainingUserLabels.length} remaining`);
+
+      return {
+        success: true,
+        labelsProcessed,
+        labelsDeleted,
+        totalMessagesMovedToInbox: totalMessages,
+        remainingLabels: remainingUserLabels,
+        errors,
+      };
+    } catch (err: any) {
+      console.error('[GmailService] EmptyAndDeleteAllLabels error:', err.message);
+      return { success: false, labelsProcessed: 0, labelsDeleted: 0, totalMessagesMovedToInbox: 0, remainingLabels: [], errors: [err.message] };
+    }
+  }
+
+  // ─── Delete Label ──────────────────────────────────────────────
+
+  async deleteLabel(labelId: string): Promise<{ success: boolean; error?: string }> {
+    const auth = await this.calendarService.getGoogleAuth();
+    if (!auth) return { success: false, error: 'Google no conectado' };
+
+    try {
+      const { google } = await import('googleapis');
+      const gmail = google.gmail({ version: 'v1', auth });
+
+      await gmail.users.labels.delete({
+        userId: 'me',
+        id: labelId,
+      });
+
+      console.log(`[GmailService] Label deleted: ${labelId}`);
+      return { success: true };
+    } catch (err: any) {
+      console.error('[GmailService] DeleteLabel error:', err.message);
+      return { success: false, error: err.message };
+    }
+  }
+
   // ─── Get Labels ─────────────────────────────────────────────────
 
   async getLabels(): Promise<{ success: boolean; labels?: Array<{ id: string; name: string }>; error?: string }> {

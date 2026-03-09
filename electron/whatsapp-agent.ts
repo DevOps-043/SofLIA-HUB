@@ -602,13 +602,13 @@ const WA_TOOL_DECLARATIONS = {
     },
     {
       name: 'create_document',
-      description: 'Crea un documento (Word, Excel, PDF o Markdown) con contenido generado. Puede crear informes, contratos, resúmenes, tablas, etc. Después de crearlo puedes enviarlo por WhatsApp con whatsapp_send_file.',
+      description: 'Crea un documento profesional (Word, Excel, PDF, PowerPoint o Markdown) con contenido generado. Ideal para informes de investigación, presentaciones ejecutivas, comparativos, contratos, resúmenes, tablas, etc. SIEMPRE después de crear el documento, envíalo inmediatamente al usuario con whatsapp_send_file.',
       parameters: {
         type: 'OBJECT' as const,
         properties: {
-          type: { type: 'STRING' as const, description: '"word" para Word (.docx), "excel" para Excel (.xlsx), "pdf" para PDF (.pdf), o "md" para Markdown (.md).' },
-          filename: { type: 'STRING' as const, description: 'Nombre del archivo sin extensión. Ej: "Informe de ventas", "Contrato de servicios".' },
-          content: { type: 'STRING' as const, description: 'Texto del documento. Usa saltos de línea y marcadores Markdown como ## para PDF y Word. Para Excel: JSON con formato [{"Columna1": "valor", "Columna2": "valor"}, ...] representando filas.' },
+          type: { type: 'STRING' as const, description: '"word" para Word (.docx), "excel" para Excel (.xlsx), "pdf" para PDF (.pdf), "pptx" para PowerPoint (.pptx), o "md" para Markdown (.md).' },
+          filename: { type: 'STRING' as const, description: 'Nombre del archivo sin extensión. Ej: "Informe de ventas", "Contrato de servicios", "Presentación Ejecutiva".' },
+          content: { type: 'STRING' as const, description: 'Texto del documento. Usa saltos de línea y marcadores Markdown como ## para PDF, Word y PowerPoint. Para Excel: JSON con formato [{"Columna1": "valor", "Columna2": "valor"}, ...] representando filas. Para PowerPoint: cada ## es una diapositiva nueva con su contenido.' },
           save_directory: { type: 'STRING' as const, description: 'Carpeta donde guardar. Si no se especifica, se guarda en el escritorio del usuario.' },
           title: { type: 'STRING' as const, description: 'Título principal del documento (aparece como encabezado en Word o nombre de hoja en Excel).' },
         },
@@ -807,7 +807,7 @@ const WA_TOOL_DECLARATIONS = {
         type: 'OBJECT' as const,
         properties: {
           query: { type: 'STRING' as const, description: 'Query de búsqueda Gmail (ej: "is:unread", "from:boss@company.com", "subject:reporte").' },
-          max_results: { type: 'NUMBER' as const, description: 'Cantidad máxima de emails. Por defecto 10.' },
+          max_results: { type: 'NUMBER' as const, description: 'Cantidad máxima de emails (1-50). Por defecto 20. Usa 50 para organización masiva.' },
         },
       },
     },
@@ -865,6 +865,37 @@ const WA_TOOL_DECLARATIONS = {
         required: ['message_id'],
       },
     },
+    {
+      name: 'gmail_delete_label',
+      description: 'Elimina una etiqueta/label de Gmail por su ID. Los correos que tenían esa etiqueta NO se eliminan, solo se les quita la etiqueta. Usa gmail_get_labels para obtener el ID primero.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          label_id: { type: 'STRING' as const, description: 'ID de la etiqueta a eliminar (ej: "Label_123456").' },
+        },
+        required: ['label_id'],
+      },
+    },
+    {
+      name: 'gmail_batch_empty_label',
+      description: 'OPERACIÓN MASIVA: Mueve TODOS los correos de una etiqueta a la bandeja de entrada (INBOX) y opcionalmente elimina la etiqueta. Procesa TODOS los correos automáticamente (sin límite de 50). USA ESTA HERRAMIENTA en vez de gmail_modify_labels cuando necesites vaciar una etiqueta completa.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          label_id: { type: 'STRING' as const, description: 'ID de la etiqueta a vaciar (ej: "Label_10"). Usa gmail_get_labels para obtener IDs.' },
+          delete_label: { type: 'BOOLEAN' as const, description: 'Si true, elimina la etiqueta después de vaciarla. Por defecto false.' },
+        },
+        required: ['label_id'],
+      },
+    },
+    {
+      name: 'gmail_empty_all_labels',
+      description: 'OPERACIÓN NUCLEAR: Vacía TODAS las etiquetas del usuario (mueve todos los correos a INBOX) y ELIMINA todas las etiquetas. Una sola llamada procesa TODAS las etiquetas sin importar cuántas sean. Usa cuando el usuario pida "elimina todas las etiquetas", "saca todos los correos de las etiquetas", "borra todas las carpetas".',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {},
+      },
+    },
     // ─── Google Drive API ──────────────────────────────────────────
     {
       name: 'drive_list_files',
@@ -879,7 +910,7 @@ const WA_TOOL_DECLARATIONS = {
     },
     {
       name: 'drive_search',
-      description: 'Busca archivos en Google Drive del usuario por nombre.',
+      description: 'Busca archivos en Google Drive del usuario por nombre. Usa palabras clave CORTAS y relevantes (1-3 palabras clave). Ej: buscar "reunión marzo" en vez de "la transcripción de las notas de la reunión del 7 de marzo". Busca también en el contenido del documento.',
       parameters: {
         type: 'OBJECT' as const,
         properties: {
@@ -890,12 +921,13 @@ const WA_TOOL_DECLARATIONS = {
     },
     {
       name: 'drive_download',
-      description: 'Descarga un archivo de Google Drive a la computadora del usuario. Soporta archivos normales Y Google Docs/Sheets/Slides (se exportan automáticamente a PDF/XLSX). Después puedes enviarlo por WhatsApp con whatsapp_send_file o por email con gmail_send.',
+      description: 'Descarga un archivo de Google Drive a la computadora del usuario. Google Docs/Sheets/Slides se exportan como TEXTO PLANO por defecto (para análisis directo). Usa format:"pdf" si necesitas enviar el archivo. La respuesta incluye textContent con el contenido del documento — NO necesitas read_file ni use_computer después. Para analizar: usa format:"text" (default). Para enviar: usa format:"pdf" + whatsapp_send_file.',
       parameters: {
         type: 'OBJECT' as const,
         properties: {
           file_id: { type: 'STRING' as const, description: 'ID del archivo en Drive.' },
           file_name: { type: 'STRING' as const, description: 'Nombre para guardar el archivo localmente.' },
+          format: { type: 'STRING' as const, description: '"text" (default) para exportar como texto plano (ideal para leer/analizar). "pdf" para exportar como PDF/XLSX (ideal para enviar por WhatsApp o email).' },
         },
         required: ['file_id', 'file_name'],
       },
@@ -1155,8 +1187,9 @@ TERMINAL Y DESARROLLO:
 - execute_command: ejecuta comandos rápidos (< 30s)
 
 DOCUMENTOS:
-- create_document: crea documentos Word (.docx) y Excel (.xlsx) con contenido profesional
-- Puede investigar en internet (web_search) y generar documentos completos
+- create_document: crea documentos Word (.docx), Excel (.xlsx), PDF (.pdf), PowerPoint (.pptx) y Markdown (.md) con contenido profesional
+- Puede investigar a fondo en internet (web_search + read_webpage múltiples veces), analizar archivos locales o de Drive, y generar documentos completos
+- REGLA CRÍTICA: Después de crear cualquier documento, SIEMPRE envíalo inmediatamente al usuario con whatsapp_send_file. NUNCA digas "ya lo creé" sin enviarlo.
 
 WHATSAPP:
 - whatsapp_send_file: envía archivos al usuario actual
@@ -1171,21 +1204,61 @@ GOOGLE CALENDAR (API directa):
 
 GMAIL (API directa):
 - gmail_send: envía emails via Gmail (sin configurar SMTP). SOPORTA ADJUNTOS: usa attachment_paths con rutas locales de archivos
-- gmail_get_messages: lee emails recientes, busca por query
+- gmail_get_messages: lee emails recientes, busca por query. Soporta max_results hasta 50 por llamada.
 - gmail_read_message: lee el contenido completo de un email
 - gmail_trash: elimina un email
 - gmail_get_labels: lista todas las etiquetas del usuario
 - gmail_create_label: crea una nueva etiqueta (si ya existe, devuelve la existente)
-- gmail_modify_labels: agrega o quita etiquetas de un email. Para organizar: 1) crear label con gmail_create_label, 2) agregar label al mensaje con gmail_modify_labels (add_labels con el ID), 3) opcionalmente quitar de INBOX con remove_labels: ["INBOX"]
+- gmail_delete_label: elimina una etiqueta por su ID (los correos NO se borran, solo se les quita la etiqueta)
+- gmail_batch_empty_label: mueve TODOS los correos de UNA etiqueta a INBOX y opcionalmente la elimina. Procesa sin límite.
+- gmail_empty_all_labels: OPERACIÓN NUCLEAR — vacía y elimina TODAS las etiquetas del usuario en UNA SOLA llamada. Usa cuando pidan "elimina todas las etiquetas" o "saca todo de las etiquetas". UNA llamada = TODAS las etiquetas procesadas.
+- gmail_modify_labels: agrega o quita etiquetas de UN email individual. Para organizar: 1) crear label con gmail_create_label, 2) agregar label al mensaje con gmail_modify_labels (add_labels con el ID), 3) opcionalmente quitar de INBOX con remove_labels: ["INBOX"]
+- REGLA: Para VACIAR etiquetas completas usa gmail_batch_empty_label (1 llamada por etiqueta). Para modificar correos individuales usa gmail_modify_labels.
 - IMPORTANTE: Usa gmail_send en lugar de send_email o open_url con mail.google.com
 - IMPORTANTE: Para organizar correos en etiquetas, SIEMPRE usa este flujo: gmail_get_messages → gmail_create_label → gmail_modify_labels
+
+═══ REGLAS DE ORGANIZACIÓN INTELIGENTE DE CORREOS ═══
+
+PASO 1 — ANÁLISIS COMPLETO ANTES DE CREAR ETIQUETAS:
+  1. gmail_get_messages con max_results:50 → analizar TODOS los remitentes
+  2. Si hay más correos (likely_has_more), llamar gmail_get_messages OTRA VEZ hasta tener una lista COMPLETA de remitentes
+  3. ANTES de crear cualquier etiqueta, agrupar remitentes por ORGANIZACIÓN/EMPRESA, NO por dirección individual:
+     - "Ernesto Hernández (via Google Chat)" + "Ernesto Hernández (mediante Docs)" + "Ernesto Hernandez Martinez" → UNA SOLA etiqueta: "Ernesto Hernández"
+     - "Claude Team" + "Anthropic, PBC" + "Anthropic" → UNA SOLA etiqueta: "Anthropic"
+     - "OpenAI" + "noreply@tm.openai.com" + "OpenAI <otp@tm1.openai.com>" + "OpenAI <noreply@email.openai.com>" → UNA SOLA etiqueta: "OpenAI"
+     - "Google" + "Google Cloud" + "Google Workspace" + "Google Workspace Alerts" + "Google Payments" + "The Google Workspace Team" → UNA SOLA etiqueta: "Google"
+     - "Supabase" + "Ant at Supabase" + "Supabase Billing Team" → UNA SOLA etiqueta: "Supabase"
+     - "The Batch @ DeepLearning.AI" + "DeepLearning.AI" → UNA SOLA etiqueta: "DeepLearning.AI"
+
+REGLA CRÍTICA DE AGRUPACIÓN:
+  - Agrupa por la EMPRESA u ORGANIZACIÓN principal, no por variantes del nombre del remitente
+  - Si el nombre contiene "(via Google Chat)", "(mediante Documentos de Google)", "(Google Drive)" etc., ELIMINA el sufijo y agrupa con otros correos de esa misma persona/empresa
+  - Si dos remitentes tienen el mismo dominio de email (@openai.com, @anthropic.com), van en la MISMA etiqueta
+  - Máximo 15-20 etiquetas para una bandeja típica. Si vas a crear más de 20 etiquetas, estás fragmentando demasiado — consolida más
+
+PASO 2 — CREAR TODAS LAS ETIQUETAS PRIMERO:
+  - Crear TODAS las etiquetas de una vez con gmail_create_label ANTES de empezar a mover correos
+  - Guardar los IDs devueltos por gmail_create_label para usarlos en gmail_modify_labels
+  - NUNCA uses un label_id que no hayas obtenido de gmail_create_label o gmail_get_labels en ESTA sesión
+
+PASO 3 — MOVER CORREOS EN LOTES CON VERIFICACIÓN:
+  1. Para CADA etiqueta: gmail_get_messages con query "from:dominio" y max_results:50
+  2. gmail_modify_labels para cada mensaje (agregar label, quitar de INBOX si aplica)
+  3. VERIFICAR: volver a llamar gmail_get_messages con la misma query
+  4. Si quedan más → REPETIR hasta que devuelva 0 resultados
+  5. Pasar a la siguiente etiqueta
+  6. Al final: gmail_get_labels para VERIFICAR que todo quedó bien
+  NUNCA asumas que un solo lote de 50 cubre todos los correos. SIEMPRE verifica.
 
 GOOGLE DRIVE:
 - drive_list_files: lista archivos del Drive
 - drive_search: busca archivos en Drive por nombre
-- drive_download: descarga un archivo de Drive a la computadora. Soporta Google Docs/Sheets/Slides (se exportan automáticamente a PDF/XLSX). Después puedes enviarlo por WhatsApp (whatsapp_send_file) o por email (gmail_send con attachment_paths)
+- drive_download: descarga un archivo de Drive. Google Docs se exportan como TEXTO PLANO por defecto — la respuesta incluye textContent directamente. Para ANALIZAR: usa format:"text" (default), lee textContent de la respuesta. Para ENVIAR: usa format:"pdf", luego whatsapp_send_file con el localPath
 - drive_upload: sube un archivo local a Drive
 - drive_create_folder: crea carpetas en Drive
+- REGLA CRÍTICA: NUNCA uses use_computer para abrir o leer archivos de Drive. Usa drive_download con format:"text" y lee el textContent de la respuesta directamente.
+- FLUJO PARA ANALIZAR: drive_search → drive_download(format:"text") → lees textContent → creas documento con create_document → whatsapp_send_file
+- FLUJO PARA ENVIAR: drive_search → drive_download(format:"pdf") → whatsapp_send_file con localPath
 
 GOOGLE CHAT:
 - gchat_list_spaces: lista espacios/chats/grupos de Google Chat
@@ -1257,10 +1330,24 @@ DESARROLLO REMOTO:
 - "Ejecuta npm run build" → run_in_terminal (queda corriendo visible)
 - "Instala la extensión X en VS Code" → open_application + use_computer
 
-DOCUMENTOS:
-- "Escribe un contrato de servicios" → create_document type:"word" con contenido completo
-- "Haz una tabla de gastos" → create_document type:"excel" con datos en JSON
-- Después de crear: envíalo con whatsapp_send_file
+DOCUMENTOS Y GENERACIÓN DE ARCHIVOS:
+- "Escribe un contrato de servicios" → create_document type:"word" con contenido completo → whatsapp_send_file
+- "Haz una tabla de gastos" → create_document type:"excel" con datos en JSON → whatsapp_send_file
+- "Hazme una presentación ejecutiva sobre X" → web_search (múltiples queries sobre X) + read_webpage (fuentes clave) + create_document type:"pptx" con diapositivas completas → whatsapp_send_file
+- REGLA ABSOLUTA: SIEMPRE después de create_document, envía el archivo creado con whatsapp_send_file. El usuario espera recibir el archivo en su WhatsApp.
+
+INVESTIGACIÓN PROFUNDA Y DOCUMENTOS:
+- "Investiga sobre X y hazme un informe" / "Haz una investigación profunda sobre X" → FLUJO COMPLETO:
+  1. web_search con múltiples queries relacionadas (al menos 3 búsquedas diferentes para cubrir el tema)
+  2. read_webpage en las fuentes más relevantes (al menos 2-3 URLs) para extraer datos concretos
+  3. create_document type:"word" o type:"pdf" con el contenido completo, estructurado con secciones, datos, conclusiones
+  4. whatsapp_send_file para enviar el documento al usuario
+- "Compara estos archivos" (locales) → smart_find_file (ambos archivos) + read_file (ambos) + create_document type:"word" con tabla comparativa detallada → whatsapp_send_file
+- "Compara estos archivos de Drive" → drive_search (ambos) + drive_download (ambos) + read_file (ambos) + create_document type:"word" con análisis comparativo → whatsapp_send_file
+- "Compara X con Y" (temas/conceptos) → web_search (sobre X) + web_search (sobre Y) + read_webpage + create_document con tabla comparativa → whatsapp_send_file
+- "Analiza este archivo y hazme un resumen" → smart_find_file + read_file + create_document type:"word" con resumen ejecutivo → whatsapp_send_file
+- "Crea una presentación sobre el proyecto X" → Investiga con las herramientas disponibles + create_document type:"pptx" → whatsapp_send_file
+- REGLA: Las investigaciones deben ser EXHAUSTIVAS. No hagas una sola búsqueda — haz múltiples queries, lee múltiples páginas, y sintetiza todo en un documento profesional y completo.
 
 ENVÍO A CONTACTOS:
 - "Envíale el archivo X a Juan (+52...)" → smart_find_file + whatsapp_send_to_contact
@@ -1271,7 +1358,8 @@ GOOGLE INTEGRADO (prioridad sobre navegador):
 - "Envía un email a juan@..." → gmail_send (directo via API, sin SMTP)
 - "Envía un email con el archivo X adjunto" → smart_find_file + gmail_send con attachment_paths
 - "¿Qué emails no he leído?" → gmail_get_messages con query "is:unread"
-- "Organiza mis correos por etiquetas" → gmail_get_messages + gmail_create_label (para cada categoría) + gmail_modify_labels (agregar label a cada mensaje)
+- "Organiza mis correos por etiquetas" → Paso 1: gmail_get_messages(max_results:50) varias veces para analizar TODOS los remitentes → Paso 2: Agrupar por empresa (NO crear labels duplicadas por variantes del mismo remitente) → Paso 3: gmail_create_label para TODAS las categorías → Paso 4: gmail_modify_labels en lotes con verificación. REPITE hasta no quedar correos sin procesar.
+- "Saca todos los correos de las etiquetas a inbox" o "elimina todas las etiquetas" → gmail_empty_all_labels(). UNA SOLA llamada vacía y elimina TODAS las etiquetas. No necesitas llamar nada más.
 - "Busca el archivo X en mi Drive" → drive_search
 - "Envíame el archivo X de mi Drive" → drive_search + drive_download + whatsapp_send_file
 - "Envía por email el archivo X de mi Drive" → drive_search + drive_download + gmail_send con attachment_paths
@@ -1303,12 +1391,20 @@ NAVEGADOR (solo si Google API no aplica):
 5. USA use_computer AGRESIVAMENTE: Si necesitas interactuar con cualquier programa, usa use_computer. No le digas al usuario "haz click en X" — hazlo tú.
 6. APRENDE: Usa save_lesson cuando descubras algo útil o el usuario te corrija.
 7. ORGANIZA EN LOTE: Para organizar archivos usa organize_files/batch_move_files. NUNCA muevas archivos uno por uno con move_item cuando hay más de 5 — siempre usa batch.
+8. TAREAS MULTI-PASO: Para tareas que requieren múltiples llamadas de herramientas (como organizar correos, mover archivos, crear eventos), EJECUTA TODAS LAS LLAMADAS necesarias en secuencia. NUNCA respondas solo con un plan textual diciendo lo que vas a hacer — HAZLO DIRECTAMENTE. Ejemplo: "organiza mis correos" → DEBES llamar gmail_get_messages, luego gmail_create_label para cada categoría, luego gmail_modify_labels para cada mensaje. NO respondas diciendo "voy a crear etiquetas..." sin ejecutarlo.
+9. NUNCA RESPONDAS SOLO CON TEXTO CUANDO HAY HERRAMIENTAS DISPONIBLES: Si el usuario pide algo que puedes hacer con herramientas, USA LAS HERRAMIENTAS. No describas lo que harías — hazlo. El usuario espera resultados, no planes.
+10. VERIFICA OPERACIONES MASIVAS: Cuando el usuario pida hacer algo con TODOS los items (correos, archivos, etc.), NUNCA asumas que terminaste después de un solo lote. SIEMPRE verifica con una segunda consulta que no queden items pendientes. Si quedan más, CONTINÚA procesando en un CICLO hasta completar TODO. Reporta progreso: "Procesé 50 de ~120 correos, continuando..." El usuario dice "todos" y espera TODOS, no solo los primeros 50.
 
 ═══ MEMORIA PERSISTENTE (Knowledge Base) ═══
 
-Tienes una base de conocimiento en archivos .md que SIEMPRE se inyecta en tu contexto:
+Tienes MEMORIA PERSISTENTE que sobrevive entre reinicios. Tu contexto incluye automáticamente:
 - MEMORY.md: Conocimiento global permanente (preferencias, lecciones, configuraciones)
 - Perfil de usuario: Datos personales y preferencias de cada usuario
+- RESUMEN DE CONVERSACIONES ANTERIORES: Lo que hablaste antes con este usuario
+- RECUERDOS RELEVANTES: Fragmentos de conversaciones pasadas relacionados con el mensaje actual
+- DATOS ESTRUCTURADOS: Hechos clave del usuario (nombre, preferencias, etc.)
+
+REGLA CRÍTICA DE CONTEXTO: Si el usuario dice "vuelve a intentarlo", "hazlo otra vez", "sigue con lo anterior", o cualquier referencia a algo que ya se habló — REVISA tu sección de RESUMEN y RECUERDOS que están al final de este prompt. Ahí encontrarás lo que se discutió antes. NUNCA respondas "no sé de qué hablas" si tienes contexto previo disponible.
 
 REGLAS DE MEMORIA:
 1. Cuando el usuario te diga su nombre, rol, empresa, o preferencias → usa knowledge_update_user para actualizar su perfil
@@ -1317,6 +1413,7 @@ REGLAS DE MEMORIA:
 4. Cuando necesites recordar algo de conversaciones pasadas → usa knowledge_search
 5. Si el usuario dice "recuerda esto" o "no olvides que..." → SIEMPRE guárdalo con knowledge_save o knowledge_update_user
 6. PROACTIVAMENTE actualiza el perfil del usuario cuando descubras datos nuevos (no esperes a que te lo pidan)
+7. Cuando completes una tarea grande (como organizar correos), guarda un resumen con knowledge_log para poder retomar si el usuario pregunta después
 
 ═══ FORMATO WHATSAPP ═══
 
@@ -1344,6 +1441,12 @@ const pendingConfirmations = new Map<string, PendingConfirmation>();
 
 // ─── Model selection: prefer stable models for main process ─────────
 const WA_MODEL = 'gemini-2.5-flash';
+
+// ─── Action detection: force tool calling when user requests an action ──
+function detectActionRequest(message: string): boolean {
+  const actionPatterns = /\b(organiza|crea|envía|envia|busca|descarga|sube|elimina|borra|abre|programa|mueve|copia|lee|revisa|hazme|necesito que|puedes|ayúdame a|ayudame a|manda|pon|mete|clasifica|ordena|etiqueta|agenda|escribe|genera|analiza|enviar|crear|abrir|subir|descargar|mover|copiar|borrar|eliminar|organizar|etiquetar|clasificar|ordenar|vuelve a|hazlo otra vez|otra vez|repite|termina|continua|continúa|sigue con|saca|sacar|quita|quitar|intenta de nuevo|volver a intentar|rehaz|rehacer)\b/i;
+  return actionPatterns.test(message);
+}
 
 // ─── Smart file search — uses PowerShell for reliable native search ──
 const execAsync = promisify(execCb);
@@ -1939,6 +2042,12 @@ export class WhatsAppAgent {
     try {
       const memCtx = await this.memory.assembleContext(sessionKey, senderNumber, userMessage);
       memoryContextStr = this.memory.formatContextForPrompt(memCtx);
+      // Log memory context summary for debugging
+      const hasRecent = memCtx.recentMessages?.length || 0;
+      const hasSummary = memCtx.rollingSummary ? 1 : 0;
+      const hasSemantic = memCtx.semanticRecall?.length || 0;
+      const hasFacts = memCtx.facts?.length || 0;
+      console.log(`[WhatsApp Agent] Memory context: ${hasRecent} recent msgs, ${hasSummary} summary, ${hasSemantic} semantic, ${hasFacts} facts, ${memoryContextStr.length} chars total`);
     } catch (err: any) {
       console.warn('[WhatsApp Agent] Memory context assembly failed:', err.message);
     }
@@ -2032,16 +2141,32 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
         }
       : WA_TOOL_DECLARATIONS;
 
+    // Detectar si el usuario pide una acción para reforzar tool calling vía prompt
+    const isActionRequest = detectActionRequest(userMessage);
+
     const model = ai.getGenerativeModel({
       model: WA_MODEL,
       systemInstruction: systemPrompt,
       tools: [toolDeclarations as any],
     });
 
-    // Get or create conversation history (only clean user/model text pairs)
+    // Get or create conversation history — rebuild from SQLite if empty (survives restarts)
     if (!conversations.has(sessionKey)) {
+      const persisted = this.memory.getConversationHistory(sessionKey, 20);
+      conversations.set(sessionKey, persisted.length > 0 ? persisted : []);
+      if (persisted.length > 0) {
+        console.log(`[WhatsApp Agent] Restored ${persisted.length} history entries from SQLite for ${sessionKey}`);
+      }
+    }
+
+    // Detect retry/redo requests — reset Gemini chat history to avoid "already done" confusion
+    // Memory context (system prompt) still provides background, but chat history won't mislead
+    const retryPattern = /\b(vuelve a|otra vez|hazlo de nuevo|no (hiciste|completaste|hizo)|intenta de nuevo|intentar|no funciono|no funcionó|repite|reintenta|rehacer|rehaz|no computaste|nada de lo que|no (hice|hizo) nada)\b/i;
+    if (retryPattern.test(userMessage)) {
+      console.log(`[WhatsApp Agent] Retry request detected — resetting chat history for ${sessionKey} to avoid stale context`);
       conversations.set(sessionKey, []);
     }
+
     const history = conversations.get(sessionKey)!;
 
     // Validate history: ensure it alternates user/model and contains only text parts
@@ -2089,15 +2214,22 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
 
     // Build message parts: if we have inline media (images, docs), include them
     const messageParts: Array<string | { inlineData: { mimeType: string; data: string } }> = [];
+
+    // Si es una solicitud de acción, inyectar instrucción de forzar tool calling
+    const actionPrefix = isActionRequest
+      ? '[INSTRUCCIÓN DEL SISTEMA: El usuario solicita una ACCIÓN NUEVA. DEBES usar herramientas (function calls) para ejecutarla AHORA. NO respondas solo con texto. NO asumas que ya completaste esta tarea basándote en el historial — el usuario está pidiendo que lo hagas AHORA porque la tarea anterior NO se completó o necesita rehacerse. EJECUTA las herramientas directamente.]\n\n'
+      : '';
+    const effectiveMessage = actionPrefix + userMessage;
+
     if (inlineMediaParts.length > 0) {
       messageParts.push(...inlineMediaParts);
-      messageParts.push(userMessage);
+      messageParts.push(effectiveMessage);
     }
 
     let response;
     try {
       response = await chatSession.sendMessage(
-        inlineMediaParts.length > 0 ? messageParts : userMessage
+        inlineMediaParts.length > 0 ? messageParts : effectiveMessage
       );
     } catch (sendErr: any) {
       console.error(`[WhatsApp Agent] sendMessage error: ${sendErr.message}`);
@@ -2118,7 +2250,7 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
       }
     }
     let iterations = 0;
-    const MAX_ITERATIONS = 10;
+    const MAX_ITERATIONS = 25;
 
     while (iterations < MAX_ITERATIONS) {
       iterations++;
@@ -2137,10 +2269,55 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
         }
       }
 
+      // Handle MALFORMED_FUNCTION_CALL: retry with a simplified prompt
+      if (finishReason === 'MALFORMED_FUNCTION_CALL') {
+        console.warn(`[WhatsApp Agent] MALFORMED_FUNCTION_CALL detected (iteration ${iterations}). Retrying with correction prompt.`);
+        if (iterations >= 3) {
+          // After 3 retries, give up on tool calling and ask the model to respond with text
+          console.error(`[WhatsApp Agent] MALFORMED_FUNCTION_CALL persists after ${iterations} retries. Falling back to text-only.`);
+          try {
+            response = await chatSession.sendMessage(
+              'Tu última llamada a función fue malformada. NO uses herramientas en esta respuesta. Responde al usuario directamente con texto explicando qué vas a hacer y pídele que repita su solicitud.'
+            );
+          } catch (retryErr: any) {
+            console.error(`[WhatsApp Agent] Text-only fallback also failed:`, retryErr.message);
+            return formatForWhatsApp('Hubo un problema técnico. Por favor, intenta de nuevo con un mensaje más corto o específico.', isGroup);
+          }
+          continue;
+        }
+        // Retry: tell the model its function call was malformed and to try again correctly
+        try {
+          response = await chatSession.sendMessage(
+            'ERROR: Tu llamada a función fue malformada (parámetros inválidos o nombre incorrecto). Intenta de nuevo la misma acción asegurándote de usar el nombre exacto de la herramienta y todos los parámetros requeridos con tipos correctos.'
+          );
+        } catch (retryErr: any) {
+          console.error(`[WhatsApp Agent] Retry after MALFORMED_FUNCTION_CALL failed:`, retryErr.message);
+          return formatForWhatsApp('Hubo un problema técnico procesando tu solicitud. Intenta de nuevo.', isGroup);
+        }
+        continue;
+      }
+
       if (functionCalls.length === 0) {
-        // Final text response
+        // If this is the FIRST iteration and user requested an action, the model skipped tool calling.
+        // Force a retry telling it to use tools.
         const textParts = parts.filter((p: any) => p.text).map((p: any) => p.text);
         const finalText = textParts.join('');
+
+        // If first iteration + action request + model just said "done" without calling tools → force retry
+        if (iterations === 1 && isActionRequest && finalText.trim()) {
+          const lazyPatterns = /completado|listo|he (hecho|realizado|terminado|eliminado|organizado|movido)|ya (lo hice|están|hice|realicé)|las acciones solicitadas|voy a (hacer|crear|organizar|mover|eliminar|sacar)/i;
+          if (lazyPatterns.test(finalText)) {
+            console.warn(`[WhatsApp Agent] Model responded text-only on action request (no tools called). Forcing retry. Text: "${finalText.slice(0, 100)}"`);
+            try {
+              response = await chatSession.sendMessage(
+                'ERROR: NO ejecutaste ninguna herramienta. El usuario pidió una ACCIÓN y tú solo respondiste con texto. DEBES usar function calls (gmail_get_labels, gmail_get_messages, gmail_modify_labels, gmail_delete_label, etc.) para ejecutar la tarea. NO respondas con texto — llama las herramientas AHORA.'
+              );
+              continue;
+            } catch (retryErr: any) {
+              console.error(`[WhatsApp Agent] Force-tool retry failed:`, retryErr.message);
+            }
+          }
+        }
 
         // Update our clean history (only user/model text — no function roles)
         history.push({ role: 'user', parts: [{ text: userMessage }] });
@@ -2193,6 +2370,7 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
 
       // Execute function calls
       const functionResponses: Array<{ functionResponse: { name: string; response: any } }> = [];
+      let bulkLabelsToVerify: Set<string> | null = null;
 
       for (const part of functionCalls) {
         const fc = (part as any).functionCall;
@@ -3100,9 +3278,124 @@ $vol.SetMasterVolumeLevelScalar(${level / 100.0}, [Guid]::Empty)`;
                   response: { success: true, file_path: filePath, message: `Documento PDF creado: ${filePath}` },
                 },
               });
+            } else if (docType === 'pptx' || docType === 'powerpoint') {
+              // ─── Create PowerPoint presentation using pptxgenjs ─────
+              const PptxGenJS = (await import('pptxgenjs')).default;
+              const pptx = new PptxGenJS();
+
+              // Premium dark corporate theme
+              pptx.layout = 'LAYOUT_WIDE';
+              pptx.author = 'SofLIA Hub';
+              pptx.title = title;
+
+              const BG_COLOR = '0C0D10';
+              const ACCENT_COLOR = '22D3EE';
+              const TEXT_COLOR = 'FFFFFF';
+              const SUBTITLE_COLOR = 'A0A0A0';
+
+              // Parse markdown-like content into slides
+              const contentLines = toolArgs.content.split('\n');
+              let currentSlideTitle = '';
+              let currentBullets: string[] = [];
+              let slideCount = 0;
+
+              const flushSlide = () => {
+                if (!currentSlideTitle && currentBullets.length === 0) return;
+                const slide = pptx.addSlide();
+                slide.background = { color: BG_COLOR };
+
+                // Accent line at top
+                slide.addShape(pptx.ShapeType.rect, {
+                  x: 0, y: 0, w: '100%', h: 0.06,
+                  fill: { color: ACCENT_COLOR },
+                });
+
+                if (slideCount === 0 && currentSlideTitle) {
+                  // Title slide (centered, larger)
+                  slide.addText(currentSlideTitle, {
+                    x: 0.8, y: 1.5, w: 11.5, h: 1.5,
+                    fontSize: 36, fontFace: 'Segoe UI',
+                    color: TEXT_COLOR, bold: true, align: 'center',
+                  });
+                  if (currentBullets.length > 0) {
+                    slide.addText(currentBullets.join('\n'), {
+                      x: 1.5, y: 3.5, w: 10, h: 2,
+                      fontSize: 16, fontFace: 'Segoe UI',
+                      color: SUBTITLE_COLOR, align: 'center',
+                    });
+                  }
+                } else {
+                  // Content slide
+                  slide.addText(currentSlideTitle || `Sección ${slideCount + 1}`, {
+                    x: 0.8, y: 0.3, w: 11.5, h: 0.8,
+                    fontSize: 26, fontFace: 'Segoe UI',
+                    color: ACCENT_COLOR, bold: true,
+                  });
+
+                  if (currentBullets.length > 0) {
+                    const bulletRows = currentBullets.map(b => ({
+                      text: b.replace(/^[-•*]\s*/, ''),
+                      options: {
+                        fontSize: 15,
+                        fontFace: 'Segoe UI',
+                        color: TEXT_COLOR,
+                        bullet: { code: '2022', color: ACCENT_COLOR },
+                        paraSpaceAfter: 8,
+                      },
+                    }));
+                    slide.addText(bulletRows as any, {
+                      x: 0.8, y: 1.4, w: 11.5, h: 5,
+                      valign: 'top',
+                    });
+                  }
+                }
+
+                // Slide number
+                slide.addText(`${slideCount + 1}`, {
+                  x: 12.0, y: 7.0, w: 0.8, h: 0.4,
+                  fontSize: 10, color: SUBTITLE_COLOR, align: 'right',
+                });
+
+                slideCount++;
+              };
+
+              for (const line of contentLines) {
+                const trimmed = line.trim();
+                if (trimmed.startsWith('## ') || trimmed.startsWith('# ')) {
+                  // New slide — flush previous
+                  flushSlide();
+                  currentSlideTitle = trimmed.replace(/^#{1,2}\s*/, '');
+                  currentBullets = [];
+                } else if (trimmed === '') {
+                  // Skip empty lines
+                } else {
+                  currentBullets.push(trimmed);
+                }
+              }
+              // Flush last slide
+              flushSlide();
+
+              // If no slides were created from markdown, create a single content slide
+              if (slideCount === 0) {
+                const slide = pptx.addSlide();
+                slide.background = { color: BG_COLOR };
+                slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: '100%', h: 0.06, fill: { color: ACCENT_COLOR } });
+                slide.addText(title, { x: 0.8, y: 0.3, w: 11.5, h: 0.8, fontSize: 28, fontFace: 'Segoe UI', color: ACCENT_COLOR, bold: true });
+                slide.addText(toolArgs.content, { x: 0.8, y: 1.4, w: 11.5, h: 5.5, fontSize: 14, fontFace: 'Segoe UI', color: TEXT_COLOR, valign: 'top' });
+              }
+
+              const filePath = path.join(saveDir, `${filename}.pptx`);
+              await pptx.writeFile({ fileName: filePath });
+
+              functionResponses.push({
+                functionResponse: {
+                  name: toolName,
+                  response: { success: true, file_path: filePath, message: `Presentación PowerPoint creada: ${filePath} (${slideCount} diapositivas)` },
+                },
+              });
             } else {
               functionResponses.push({
-                functionResponse: { name: toolName, response: { success: false, error: 'Tipo no válido. Usa "word", "excel", "pdf" o "md".' } },
+                functionResponse: { name: toolName, response: { success: false, error: 'Tipo no válido. Usa "word", "excel", "pdf", "pptx" o "md".' } },
               });
             }
           } catch (err: any) {
@@ -3224,10 +3517,11 @@ $vol.SetMasterVolumeLevelScalar(${level / 100.0}, [Guid]::Empty)`;
               functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'Gmail no conectado.' } } });
             } else {
               const result = await this.gmailService.getMessages({
-                maxResults: toolArgs.max_results || 10,
+                maxResults: Math.min(toolArgs.max_results || 20, 50),
                 query: toolArgs.query,
               });
               if (result.success && result.messages) {
+                const maxReq = Math.min(toolArgs.max_results || 20, 50);
                 const formatted = result.messages.map(m => ({
                   id: m.id,
                   from: m.from,
@@ -3236,7 +3530,13 @@ $vol.SetMasterVolumeLevelScalar(${level / 100.0}, [Guid]::Empty)`;
                   date: m.date,
                   isUnread: m.isUnread,
                 }));
-                functionResponses.push({ functionResponse: { name: toolName, response: { success: true, messages: formatted, count: formatted.length } } });
+                const responseObj: any = { success: true, messages: formatted, count: formatted.length };
+                // Hint: if we got exactly max_results, there are likely MORE emails
+                if (formatted.length >= maxReq) {
+                  responseObj.warning = `Se devolvieron ${formatted.length} correos (el máximo solicitado). Es MUY PROBABLE que haya MÁS correos que no se incluyeron. DEBES llamar gmail_get_messages OTRA VEZ con la misma query para obtener el siguiente lote después de procesar estos.`;
+                  responseObj.likely_has_more = true;
+                }
+                functionResponses.push({ functionResponse: { name: toolName, response: responseObj } });
               } else {
                 functionResponses.push({ functionResponse: { name: toolName, response: result } });
               }
@@ -3303,16 +3603,71 @@ $vol.SetMasterVolumeLevelScalar(${level / 100.0}, [Guid]::Empty)`;
           continue;
         }
 
+        if (toolName === 'gmail_delete_label') {
+          try {
+            if (!this.gmailService) {
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'Gmail no conectado.' } } });
+            } else {
+              const result = await this.gmailService.deleteLabel(toolArgs.label_id);
+              functionResponses.push({ functionResponse: { name: toolName, response: result } });
+            }
+          } catch (err: any) {
+            functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
+          }
+          continue;
+        }
+
+        if (toolName === 'gmail_batch_empty_label') {
+          try {
+            if (!this.gmailService) {
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'Gmail no conectado.' } } });
+            } else {
+              const result = await this.gmailService.batchModifyByLabel(
+                toolArgs.label_id,
+                { deleteLabel: toolArgs.delete_label || false },
+              );
+              functionResponses.push({ functionResponse: { name: toolName, response: result } });
+            }
+          } catch (err: any) {
+            functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
+          }
+          continue;
+        }
+
+        if (toolName === 'gmail_empty_all_labels') {
+          try {
+            if (!this.gmailService) {
+              functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'Gmail no conectado.' } } });
+            } else {
+              const result = await this.gmailService.emptyAndDeleteAllLabels();
+              functionResponses.push({ functionResponse: { name: toolName, response: result } });
+            }
+          } catch (err: any) {
+            functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
+          }
+          continue;
+        }
+
         if (toolName === 'gmail_modify_labels') {
           try {
             if (!this.gmailService) {
               functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'Gmail no conectado.' } } });
             } else {
+              // Label name → ID resolution is handled by gmail-handlers.ts
               const result = await this.gmailService.modifyLabels(
                 toolArgs.message_id,
                 toolArgs.add_labels,
                 toolArgs.remove_labels,
               );
+              // Track labels being removed for bulk verification (checked after all calls in this batch)
+              if (result.success && toolArgs.remove_labels) {
+                for (const lbl of toolArgs.remove_labels) {
+                  if (!['INBOX', 'UNREAD', 'SPAM', 'TRASH', 'SENT', 'DRAFT'].includes(lbl)) {
+                    if (!bulkLabelsToVerify) bulkLabelsToVerify = new Set<string>();
+                    bulkLabelsToVerify.add(lbl);
+                  }
+                }
+              }
               functionResponses.push({ functionResponse: { name: toolName, response: result } });
             }
           } catch (err: any) {
@@ -3360,8 +3715,15 @@ $vol.SetMasterVolumeLevelScalar(${level / 100.0}, [Guid]::Empty)`;
             } else {
               const tmpDir = app.getPath('temp');
               const destPath = path.join(tmpDir, toolArgs.file_name);
-              const result = await this.driveService.downloadFile(toolArgs.file_id, destPath);
-              functionResponses.push({ functionResponse: { name: toolName, response: { ...result, localPath: destPath } } });
+              const format = toolArgs.format === 'pdf' ? 'pdf' as const : 'text' as const;
+              const result = await this.driveService.downloadFile(toolArgs.file_id, destPath, format);
+              const response: any = { ...result, localPath: result.path || destPath };
+              // Include text content directly so the agent doesn't need read_file or use_computer
+              if (result.textContent) {
+                response.textContent = result.textContent;
+                response.message = `Archivo descargado y contenido extraído (${result.textContent.length} caracteres). El contenido está en textContent — NO necesitas abrir el archivo ni usar use_computer.`;
+              }
+              functionResponses.push({ functionResponse: { name: toolName, response } });
             }
           } catch (err: any) {
             functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
@@ -3919,6 +4281,32 @@ $vol.SetMasterVolumeLevelScalar(${level / 100.0}, [Guid]::Empty)`;
               this.selfLearn.logToolFailure(toolName, {}, errorMsg, 'whatsapp');
             }
           }
+        }
+      }
+
+      // After all tool calls: verify bulk label operations have remaining emails
+      if (bulkLabelsToVerify && bulkLabelsToVerify.size > 0 && this.gmailService) {
+        try {
+          const remainingWarnings: string[] = [];
+          for (const labelId of bulkLabelsToVerify) {
+            const check = await this.gmailService.getMessages({ query: `label:${labelId}`, maxResults: 5 });
+            if (check.success && check.messages && check.messages.length > 0) {
+              remainingWarnings.push(`"${labelId}" aún tiene ${check.messages.length}+ correos`);
+            }
+          }
+          if (remainingWarnings.length > 0) {
+            const verificationMsg = `⚠️ VERIFICACIÓN AUTOMÁTICA: Las siguientes etiquetas AÚN tienen correos sin procesar: ${remainingWarnings.join(', ')}. DEBES continuar procesando estos correos — llama gmail_get_messages para cada etiqueta pendiente y repite el proceso hasta que todas estén vacías. NO respondas al usuario hasta completar TODO.`;
+            console.log(`[WhatsApp Agent] Bulk verification: ${remainingWarnings.join(', ')}`);
+            // Inject verification as an additional function response so the model sees it
+            functionResponses.push({
+              functionResponse: {
+                name: 'gmail_modify_labels',
+                response: { verification_result: verificationMsg, labels_with_remaining: remainingWarnings },
+              },
+            });
+          }
+        } catch (verifyErr: any) {
+          console.warn(`[WhatsApp Agent] Bulk verification failed:`, verifyErr.message);
         }
       }
 

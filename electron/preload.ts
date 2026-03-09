@@ -93,6 +93,10 @@ const ALLOWED_IPC_CHANNELS = [
   'gmail:modify-labels',
   'gmail:trash',
   'gmail:get-labels',
+  'gmail:create-label',
+  'gmail:delete-label',
+  'gmail:batch-modify-by-label',
+  'gmail:empty-and-delete-all-labels',
   'drive:list-files',
   'drive:search',
   'drive:upload',
@@ -371,6 +375,10 @@ contextBridge.exposeInMainWorld('gmail', {
     safeInvoke('gmail:modify-labels', messageId, addLabels, removeLabels),
   trash: (messageId: string) => safeInvoke('gmail:trash', messageId),
   getLabels: () => safeInvoke('gmail:get-labels'),
+  createLabel: (name: string) => safeInvoke('gmail:create-label', name),
+  deleteLabel: (labelId: string) => safeInvoke('gmail:delete-label', labelId),
+  batchModifyByLabel: (labelId: string, options?: any) => safeInvoke('gmail:batch-modify-by-label', labelId, options),
+  emptyAndDeleteAllLabels: () => safeInvoke('gmail:empty-and-delete-all-labels'),
 })
 
 // --------- Google Drive API ---------

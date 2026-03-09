@@ -1403,3 +1403,155 @@ Los archivos compilan pero nadie los importa — no tendrán efecto en runtime.
 ```
 
 ---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-03-09
+
+- **Timestamp**: 2026-03-09T15:50:54.798Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `runAgentLoop` falló con error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent: [400 Bad Request] The specified schema produces a constraint that has too much branching for serving. Typical causes of this error are objects with lots of optional properties, enums with too many values, or any_of a large number of alternative types. In the case of optional properties, interspersing required properties into long runs of optional properties can alleviate the issue.
+
+- **Herramienta**: `runAgentLoop`
+- **Error**: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent: [400 Bad Request] The specified schema produces a constraint that has too much branching for serving. Typical causes of this error are objects with lots of optional properties, enums with too many values, or any_of a large number of alternative types. In the case of optional properties, interspersing required properties into long runs of optional properties can alleviate the issue.
+### Contexto
+
+```
+Args: {"text":"Sí, organízalos por remitente. Si son de Coursera, mételos en una etiqueta llamada Coursera. Si son de Righ, mételos en una etiqueta llamada Righ. Si son de cursor, en una etiqueta llamada cursor, etc"}
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-03-09
+
+- **Timestamp**: 2026-03-09T17:07:50.042Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `execute_command` falló con error: Acción cancelada por el usuario.
+
+- **Herramienta**: `execute_command`
+- **Error**: Acción cancelada por el usuario.
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-03-09
+
+- **Timestamp**: 2026-03-09T17:29:26.488Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `gmail_modify_labels` falló con error: labelId not found
+
+- **Herramienta**: `gmail_modify_labels`
+- **Error**: labelId not found
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-03-09
+
+- **Timestamp**: 2026-03-09T17:29:26.492Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `gmail_modify_labels` falló con error: labelId not found
+
+- **Herramienta**: `gmail_modify_labels`
+- **Error**: labelId not found
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-03-09
+
+- **Timestamp**: 2026-03-09T17:29:26.495Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `gmail_modify_labels` falló con error: labelId not found
+
+- **Herramienta**: `gmail_modify_labels`
+- **Error**: labelId not found
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-03-09
+
+- **Timestamp**: 2026-03-09T17:29:26.500Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `gmail_modify_labels` falló con error: labelId not found
+
+- **Herramienta**: `gmail_modify_labels`
+- **Error**: labelId not found
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-03-09
+
+- **Timestamp**: 2026-03-09T17:30:05.871Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `gmail_modify_labels` falló con error: labelId not found
+
+- **Herramienta**: `gmail_modify_labels`
+- **Error**: labelId not found
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-03-09
+
+- **Timestamp**: 2026-03-09T17:30:05.875Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `gmail_modify_labels` falló con error: labelId not found
+
+- **Herramienta**: `gmail_modify_labels`
+- **Error**: labelId not found
+### Contexto
+
+```
+Args: {}
+```
+
+---

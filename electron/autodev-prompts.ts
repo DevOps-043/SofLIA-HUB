@@ -440,6 +440,16 @@ Si después de filtrar, el plan queda con pocas líneas, AÑADE más funcionalid
 6. Para sistema: usa APIs nativas de Node.js (fs, os, child_process, path)
 7. Máximo {MAX_LINES} líneas totales, mínimo 500 líneas
 
+## ⛔⛔ REGLA CRÍTICA DE INTEGRACIÓN (OBLIGATORIA)
+Si tu plan incluye crear un archivo NUEVO (action: "create"), DEBES incluir un paso ADICIONAL con action: "modify" para electron/main.ts que:
+- Importe el nuevo módulo/servicio
+- Lo instancie junto a los demás servicios
+- Lo conecte al sistema (init/start si es servicio, o registro de handlers)
+Si es una herramienta WhatsApp, incluye un paso para modificar electron/whatsapp-agent.ts.
+UN ARCHIVO NUEVO SIN UN PASO DE INTEGRACIÓN = PLAN RECHAZADO.
+NUNCA crees archivos nuevos sin el paso de integración correspondiente.
+NUNCA modifiques package.json, package-lock.json, tsconfig.json ni vite.config.ts directamente.
+
 ## 📊 COMPOSICIÓN DEL PLAN
 Verifica antes de responder:
 - **Mínimo 70% de los pasos** deben ser category: "features"

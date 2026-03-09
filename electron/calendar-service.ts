@@ -204,6 +204,7 @@ export class CalendarService extends EventEmitter {
           'https://www.googleapis.com/auth/gmail.compose',
           'https://www.googleapis.com/auth/gmail.labels',
           'https://www.googleapis.com/auth/gmail.settings.basic',
+          'https://www.googleapis.com/auth/gmail.insert',
           'https://www.googleapis.com/auth/gmail.addons.current.message.action',
           'https://www.googleapis.com/auth/gmail.addons.current.action.compose',
           'https://mail.google.com/',
@@ -212,17 +213,35 @@ export class CalendarService extends EventEmitter {
           'https://www.googleapis.com/auth/drive.file',
           'https://www.googleapis.com/auth/drive.readonly',
           'https://www.googleapis.com/auth/drive.install',
+          'https://www.googleapis.com/auth/drive.metadata.readonly',
+          'https://www.googleapis.com/auth/drive.activity',
+          'https://www.googleapis.com/auth/drive.activity.readonly',
+          'https://www.googleapis.com/auth/drive.photos.readonly',
+          'https://www.googleapis.com/auth/drive.meet.readonly',
+          'https://www.googleapis.com/auth/drive.appdata',
           'https://www.googleapis.com/auth/docs',
           // Google Chat
           'https://www.googleapis.com/auth/chat.spaces.readonly',
           'https://www.googleapis.com/auth/chat.messages',
           'https://www.googleapis.com/auth/chat.messages.readonly',
           'https://www.googleapis.com/auth/chat.messages.create',
+          'https://www.googleapis.com/auth/chat.messages.reactions',
           'https://www.googleapis.com/auth/chat.messages.reactions.create',
           'https://www.googleapis.com/auth/chat.users.readstate',
+          'https://www.googleapis.com/auth/chat.users.availability',
           'https://www.googleapis.com/auth/chat.users.availability.readonly',
+          'https://www.googleapis.com/auth/chat.admin.memberships.readonly',
+          // Calendar
+          'https://www.googleapis.com/auth/calendar.freebusy',
+          // Google Meet
+          'https://www.googleapis.com/auth/meetings.space.created',
+          'https://www.googleapis.com/auth/meetings.space.readonly',
+          'https://www.googleapis.com/auth/meetings.space.settings',
           // User info
           'https://www.googleapis.com/auth/userinfo.email',
+          'https://www.googleapis.com/auth/userinfo.profile',
+          // Activity
+          'https://www.googleapis.com/auth/activity',
         ],
         prompt: 'consent',
       });
