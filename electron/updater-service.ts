@@ -110,7 +110,9 @@ export class UpdaterService extends EventEmitter {
 
     // Verificar al arrancar (con delay para no bloquear startup)
     setTimeout(() => {
-      this.checkForUpdates().catch(() => {})
+      this.checkForUpdates().catch((err) => {
+        console.error('[Updater] Error en verificación inicial:', err.message)
+      })
     }, STARTUP_DELAY_MS)
 
     // Polling periódico
@@ -123,10 +125,14 @@ export class UpdaterService extends EventEmitter {
 
   async checkForUpdates(): Promise<UpdaterStatus> {
     try {
+      console.log('[Updater] Iniciando verificación de actualizaciones...')
       await autoUpdater.checkForUpdates()
     } catch (err: any) {
       this.state = 'error'
       this.errorMessage = err.message
+      console.error('[Updater] Error al verificar:', err.message)
+      this.emit('error', { message: err.message })
+      this.emit('status-changed', this.getStatus())
     }
     return this.getStatus()
   }

@@ -42,11 +42,33 @@
       "Bash(awk 'NR >= 1010 && NR <= 1015' \"/c/Users/fysg5/OneDrive/Escritorio/Pulse Hub/SofLIA - Hub/SofLIA-HUB/electron/desktop-agent-service.ts\")",
       "Bash(gh run list --limit 5)",
       "Bash(xxd)",
+<<<<<<< Updated upstream
       "Bash(sed \"s/name: ''//\")",
       "Bash(sed \"s/''$//\")",
       "Bash(done)",
       "Bash(grep -E \"ts$\")",
       "Bash(node -e \"console.log\\(require\\(''./node_modules/@supabase/supabase-js/package.json''\\).version\\)\")"
+=======
+      "Bash(npx electron-rebuild -f -w better-sqlite3)",
+      "Bash(where cl.exe)",
+      "Bash(npm config get msvs_version)",
+      "Bash(npx --yes prebuild-install --runtime electron --target 30.5.1 --arch x64 --path node_modules/better-sqlite3)",
+      "Bash(winget --version)",
+      "Bash(npx prebuild-install -r electron -t 30.5.1 --verbose)",
+      "Bash(npx electron -e \"try { const db = require\\(''better-sqlite3''\\)\\('':memory:''\\); db.exec\\(''CREATE TABLE test \\(id INTEGER\\)''\\); db.close\\(\\); console.log\\(''better-sqlite3 OK for Electron''\\) } catch\\(e\\) { console.log\\(''FAIL:'', e.message\\) }\")",
+      "Bash(gh release list --repo DevOps-043/PulseHub-SofLIA-releases --limit 5)",
+      "Bash(gh repo view DevOps-043/PulseHub-SofLIA-releases --json isPrivate,visibility)",
+      "Bash(gh release view v0.0.5 --repo DevOps-043/PulseHub-SofLIA-releases --json assets --jq '.assets[].name')",
+      "Bash(timeout 45 npm run dev)",
+      "Bash(npx electron -e \"import\\(''electron''\\).then\\(m => console.log\\(''ESM electron keys:'', Object.keys\\(m\\).slice\\(0,5\\).join\\('', ''\\)\\)\\).catch\\(e => console.log\\(''ESM import failed:'', e.message\\)\\)\")",
+      "Bash(npx electron -e \"import\\(''electron''\\).then\\(m => { console.log\\(''keys:'', Object.keys\\(m\\).join\\('', ''\\)\\); console.log\\(''default type:'', typeof m.default\\); console.log\\(''default keys:'', Object.keys\\(m.default || {}\\).slice\\(0,5\\).join\\('', ''\\)\\); console.log\\(''app in default:'', ''app'' in \\(m.default || {}\\)\\); }\\)\")",
+      "Bash(npx electron --eval \"import { createRequire } from ''node:module''; const req = createRequire\\(import.meta.url\\); const e = req\\(''electron''\\); console.log\\(''type:'', typeof e\\); console.log\\(''app:'', typeof e.app\\); console.log\\(''BW:'', typeof e.BrowserWindow\\);\" --input-type=module)",
+      "Bash(npx electron _test_electron.js --no-sandbox)",
+      "Bash(npx electron --version)",
+      "Bash(tasklist)",
+      "Bash(wmic process where \"name like ''%electron%''\" get processid,name)",
+      "Bash(wmic process where \"name like ''%node%''\" get processid,name,commandline)"
+>>>>>>> Stashed changes
     ]
   }
 }

@@ -44,6 +44,12 @@ export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
 
+// Desactivar GPU hardware acceleration para evitar ACCESS_VIOLATION (0xC0000005)
+app.disableHardwareAcceleration()
+
+// Activar sandbox global para mayor seguridad
+app.enableSandbox();
+
 // Force microphone access without prompts (necessary for borderless floating windows)
 app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
 app.commandLine.appendSwitch('enable-speech-input');
@@ -280,7 +286,7 @@ function createFlowWindow() {
   });
 }
 
-function createTray() {
+export function createTray() {
   if (tray) return; // Prevent duplicates
 
   const iconPath = path.join(process.env.VITE_PUBLIC!, 'assets/icono.ico')
@@ -332,6 +338,7 @@ function createTray() {
 }
 
 function createWindow() {
+  // TEMP: ventana mínima para aislar crash
   win = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -433,6 +440,7 @@ app.on('before-quit', () => {
 })
 
 app.on('window-all-closed', () => {
+  console.log('[App] window-all-closed fired')
   if (process.platform !== 'darwin') {
     app.quit()
   }
@@ -589,7 +597,8 @@ ipcMain.handle('proactive:update-config', async (_, updates: any) => {
   try {
     proactiveService.updateConfig(updates)
     return { success: true }
-  } catch (err: any) {
+  }
+  catch (err: any) {
     return { success: false, error: err.message }
   }
 })
@@ -693,7 +702,8 @@ app.whenReady().then(async () => {
     console.log('[AutoDev] Auto-initialized with env API key')
   }
 
-  createTray()
+  // TEMP: solo window, sin tray — aislando crash
+  console.log('[Main] TEST: solo createWindow (sin tray)')
   createWindow()
 
   // ─── Service Init ─────────────────────────────────────────────

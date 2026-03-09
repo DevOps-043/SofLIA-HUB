@@ -50,9 +50,16 @@ export function UpdatePanel() {
       if (result.success) {
         const s = await window.updater.getStatus()
         setStatus(s)
-        if (s.state === 'not-available') {
+        // Detener spinner para todos los estados terminales
+        if (s.state === 'not-available' || s.state === 'error' || s.state === 'available' || s.state === 'idle') {
           setChecking(false)
+          if (s.state === 'error' && s.error) {
+            setError(s.error)
+          }
         }
+      } else {
+        setError(result.error || 'Error desconocido al verificar actualizaciones')
+        setChecking(false)
       }
     } catch (err: any) {
       setError(err.message)

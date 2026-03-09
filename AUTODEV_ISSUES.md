@@ -1487,3 +1487,43 @@ Agent tasks: NpmAudit: completed, SecurityAgent: completed, QualityAgent: comple
 ```
 
 ---
+## ❌ [INTEGRATION_WARNING] — 2026-03-09
+
+- **Run ID**: `run_1773046802554`
+- **Timestamp**: 2026-03-09T09:28:31.563Z
+- **Categoría**: integration_warning
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+Archivos nuevos no están conectados al sistema:
+electron/os-orchestrator.ts: archivo nuevo sin integrar — nadie lo importa. DEBE conectarse al sistema (agregar import en main.ts, registrar handlers, o conectar al agente WhatsApp).
+electron/semantic-memory-gc.ts: archivo nuevo sin integrar — nadie lo importa. DEBE conectarse al sistema (agregar import en main.ts, registrar handlers, o conectar al agente WhatsApp).
+electron/whatsapp-dispatcher.ts: archivo nuevo sin integrar — nadie lo importa. DEBE conectarse al sistema (agregar import en main.ts, registrar handlers, o conectar al agente WhatsApp).
+
+### Contexto técnico
+
+```
+Los archivos compilan pero nadie los importa — no tendrán efecto en runtime.
+```
+
+---
+## ❌ [REVIEW_REJECTION] — 2026-03-09
+
+- **Run ID**: `run_1773046802554`
+- **Timestamp**: 2026-03-09T09:28:31.566Z
+- **Categoría**: review_rejection
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+El reviewer agent rechazó los cambios persistentemente: Rechazado principalmente por la presencia de marcadores de conflicto de Git en archivos críticos (package.json, package-lock.json, settings) y por la creación de un archivo de servicio (SemanticMemoryGC) que no está conectado a la aplicación (código huérfano). El sistema no compilará ni ejecutará las nuevas funcionalidades en este estado.
+
+### Contexto técnico
+
+```
+Diff size: 22771
+Improvements: 7
+```
+
+---
