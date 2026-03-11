@@ -36,6 +36,20 @@ import { PathMemoryService } from './path-memory-service'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+// ─── Load .env BEFORE anything reads process.env.VITE_* ─────────────
+import * as dotenv from 'dotenv';
+const envPaths = [
+  path.join(__dirname, '..', '.env'),        // project root (dev)
+  path.join(__dirname, '.env'),              // dist-electron/ (prod fallback)
+];
+for (const envPath of envPaths) {
+  const result = dotenv.config({ path: envPath });
+  if (!result.error) {
+    console.log(`[Main] Loaded .env from: ${envPath}`);
+    break;
+  }
+}
+
 process.env.APP_ROOT = path.join(__dirname, '..')
 
 export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']

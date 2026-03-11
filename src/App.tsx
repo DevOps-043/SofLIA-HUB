@@ -33,6 +33,7 @@ import {
   loadMessages,
   createConversation,
   saveMessages,
+  saveMessagesToCache,
   deleteConversation,
   generateTitle,
   updateConversationTitle,
@@ -167,7 +168,7 @@ function AppContent() {
     };
   }, [isFlowWindow]);
 
-  // Debounce save ref
+  // Refs para el sistema de persistencia de mensajes
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentConvIdRef = useRef<string | null>(null);
   currentConvIdRef.current = currentConversationId;
@@ -225,30 +226,31 @@ function AppContent() {
   }, [userId]);
 
   // ============================================
-  // Scoped messages handler factory
-  // Each ChatUI instance gets its own handler that captures the conversation
-  // context at mount time. This allows old generations to continue saving
-  // to the correct conversation even after the user switches away.
+  // Scoped messages handler
+  //
+  // Usa latestMessages (siempre el array más reciente) + mutex (serializa saves).
+  // Sin key dinámico en ChatUI, solo existe UN handler activo a la vez.
+  // flushSaveRef permite ejecutar el save pendiente antes de cambiar de chat.
   // ============================================
+  const flushSaveRef = useRef<(() => Promise<void>) | null>(null);
+
   const createScopedMessagesHandler = useCallback(
     (capturedConvId: string | null, capturedFolderId: string | null) => {
       let resolvedConvId = capturedConvId;
       let timer: ReturnType<typeof setTimeout> | null = null;
+      let latestMessages: ChatMessage[] = [];
+      let saving = false;
+      let dirty = false;
 
-      return (messages: ChatMessage[]) => {
-        // Only update UI state if this is still the active conversation
-        const isActive =
-          currentConvIdRef.current === resolvedConvId ||
-          (!resolvedConvId && !currentConvIdRef.current);
-        if (isActive) {
-          setCurrentMessages(messages);
-        }
+      const executeSave = async () => {
+        if (saving) { dirty = true; return; }
+        saving = true;
+        dirty = false;
 
-        // Debounced save — always saves to the correct conversation
-        if (timer) clearTimeout(timer);
-        timer = setTimeout(async () => {
+        try {
           if (!userId) return;
-          const validMessages = messages.filter(
+
+          const validMessages = latestMessages.filter(
             (m) => m.text && m.text.trim().length > 0,
           );
           if (validMessages.length === 0) return;
@@ -265,11 +267,10 @@ function AppContent() {
             resolvedConvId = newConv.id;
             setConversations((prev) => [newConv, ...prev]);
 
-            // Update navigation state only if user is still on this "new chat"
-            const stillActive =
+            if (
               !currentConvIdRef.current &&
-              currentFolderIdRef.current === capturedFolderId;
-            if (stillActive) {
+              currentFolderIdRef.current === capturedFolderId
+            ) {
               setCurrentConversationId(resolvedConvId);
               currentConvIdRef.current = resolvedConvId;
               localStorage.setItem("lia_current_chat_id", resolvedConvId);
@@ -291,27 +292,69 @@ function AppContent() {
                   new Date(a.updated_at).getTime(),
               ),
           );
-        }, 1000);
+        } finally {
+          saving = false;
+          if (dirty) {
+            dirty = false;
+            executeSave();
+          }
+        }
+      };
+
+      // Exponer flush para que se pueda ejecutar antes de cambiar de chat
+      flushSaveRef.current = async () => {
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
+          saveTimerRef.current = null;
+        }
+        await executeSave();
+      };
+
+      return (messages: ChatMessage[]) => {
+        latestMessages = messages;
+
+        // Actualizar UI solo si es la conversación activa
+        const isActive =
+          currentConvIdRef.current === resolvedConvId ||
+          (!resolvedConvId && !currentConvIdRef.current);
+        if (isActive) {
+          setCurrentMessages(messages);
+        }
+
+        // Cache local inmediato
+        if (resolvedConvId) {
+          const valid = messages.filter(
+            (m) => m.text && m.text.trim().length > 0,
+          );
+          saveMessagesToCache(resolvedConvId, valid);
+        }
+
+        // Debounced save a Supabase
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => executeSave(), 1000);
+        saveTimerRef.current = timer;
       };
     },
     [userId],
   );
 
-  // Scoped handler — recreated when conversation/folder changes.
-  // Old ChatUI instances keep their old handler via closure.
+  // Scoped handler — se recrea cuando cambia la conversación.
   const scopedMessagesHandler = useMemo(
     () => createScopedMessagesHandler(currentConversationId, currentFolderId),
     [currentConversationId, currentFolderId, createScopedMessagesHandler],
   );
 
   // ============================================
-  // Flush pending save before switching conversations
+  // Flush: ejecuta el save pendiente ANTES de cambiar de conversación
   // ============================================
   const flushPendingSave = useCallback(() => {
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = null;
     }
+    // Ejecutar save inmediato (fire-and-forget — no bloqueamos la UI)
+    flushSaveRef.current?.();
   }, []);
 
   // ============================================
@@ -1215,6 +1258,18 @@ function AppContent() {
                                   {activeMenuChatId === conv.id && (
                                     <div className="absolute right-0 mt-2 w-40 bg-white/95 dark:bg-[#1E1E1E]/95 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-xl shadow-2xl z-50 py-2 animate-in fade-in zoom-in-95 duration-150 ring-1 ring-black/5">
                                       <button
+                                        onClick={(e) => { e.stopPropagation(); setRenamingChatId(conv.id); setEditingChatTitle(conv.title); setActiveMenuChatId(null); }}
+                                        className="w-full text-left px-3 py-2 text-[12.5px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 flex items-center gap-3 transition-colors group/item"
+                                      >
+                                        <div className="w-6 h-6 rounded-md bg-gray-100 dark:bg-white/5 flex items-center justify-center group-hover/item:text-accent group-hover/item:bg-accent/10 transition-colors">
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                          </svg>
+                                        </div>
+                                        <span>Renombrar</span>
+                                      </button>
+
+                                      <button
                                         onClick={(e) => { e.stopPropagation(); setMovingChatId(conv.id); setActiveMenuChatId(null); }}
                                         className="w-full text-left px-3 py-2 text-[12.5px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 flex items-center gap-3 transition-colors group/item"
                                       >
@@ -1225,9 +1280,9 @@ function AppContent() {
                                         </div>
                                         <span>Mover</span>
                                       </button>
-                                      
+
                                       <div className="h-px bg-gray-100 dark:bg-white/5 my-1.5 mx-2" />
-                                      
+
                                       <button
                                         onClick={(e) => { e.stopPropagation(); handleDeleteConversation(conv.id, e); setActiveMenuChatId(null); }}
                                         className="w-full text-left px-3 py-2 text-[12.5px] text-danger hover:bg-danger/10 flex items-center gap-3 transition-colors group/item"
@@ -1378,6 +1433,18 @@ function AppContent() {
                         {activeMenuChatId === conv.id && (
                           <div className="absolute right-0 mt-2 w-40 bg-white/95 dark:bg-[#1E1E1E]/95 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-xl shadow-2xl z-50 py-2 animate-in fade-in zoom-in-95 duration-150 ring-1 ring-black/5">
                             <button
+                              onClick={(e) => { e.stopPropagation(); setRenamingChatId(conv.id); setEditingChatTitle(conv.title); setActiveMenuChatId(null); }}
+                              className="w-full text-left px-3 py-2 text-[12.5px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 flex items-center gap-3 transition-colors group/item"
+                            >
+                              <div className="w-6 h-6 rounded-md bg-gray-100 dark:bg-white/5 flex items-center justify-center group-hover/item:text-accent group-hover/item:bg-accent/10 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </div>
+                              <span>Renombrar</span>
+                            </button>
+
+                            <button
                               onClick={(e) => { e.stopPropagation(); setMovingChatId(conv.id); setActiveMenuChatId(null); }}
                               className="w-full text-left px-3 py-2 text-[12.5px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 flex items-center gap-3 transition-colors group/item"
                             >
@@ -1388,9 +1455,9 @@ function AppContent() {
                               </div>
                               <span>Mover</span>
                             </button>
-                            
+
                             <div className="h-px bg-gray-100 dark:bg-white/5 my-1.5 mx-2" />
-                            
+
                             <button
                               onClick={(e) => { e.stopPropagation(); handleDeleteConversation(conv.id, e); setActiveMenuChatId(null); }}
                               className="w-full text-left px-3 py-2 text-[12.5px] text-danger hover:bg-danger/10 flex items-center gap-3 transition-colors group/item"
@@ -1603,7 +1670,7 @@ function AppContent() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {activeView === "chat" && (
-          <div key={`chat-${currentConversationId || 'new'}`} className="flex-1 flex flex-col min-w-0 min-h-0 h-full overflow-hidden animate-view-in">
+          <div className="flex-1 flex flex-col min-w-0 min-h-0 h-full overflow-hidden animate-view-in">
           <ChatUI
             messages={currentMessages}
             onMessagesChange={scopedMessagesHandler}

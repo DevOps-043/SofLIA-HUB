@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GOOGLE_API_KEY, MODELS } from '../config';
 import { PRIMARY_CHAT_PROMPT, buildPrimaryChatPrompt } from '../prompts/chat';
 import { getApiKeyWithCache } from './api-keys';
-import { COMPUTER_USE_TOOLS, COMPUTER_TOOL_NAMES, PROJECT_HUB_TOOLS, PROJECT_HUB_TOOL_NAMES, GOOGLE_WORKSPACE_TOOLS, GOOGLE_WORKSPACE_TOOL_NAMES } from './gemini-tools';
+import { COMPUTER_USE_TOOLS, COMPUTER_TOOL_NAMES, PROJECT_HUB_TOOLS, PROJECT_HUB_TOOL_NAMES, GOOGLE_WORKSPACE_TOOLS, GOOGLE_WORKSPACE_TOOL_NAMES, NATIVE_AI_TOOLS, NATIVE_AI_TOOL_NAMES } from './gemini-tools';
 import { executeComputerTool, isComputerUseAvailable } from './computer-use-service';
 import { deleteProject, createProject } from './iris-data';
 
@@ -26,6 +26,7 @@ export interface StreamResult {
   stream: AsyncIterable<string>;
   sources: Promise<Array<{ uri: string; title: string }> | null>;
   toolCalls?: ToolCallInfo[];
+  generatedImages?: string[];
 }
 
 let genAI: GoogleGenerativeAI | null = null;
@@ -179,8 +180,8 @@ export async function sendMessageStream(
   const hasGoogleWorkspace = typeof window !== 'undefined' && !!(window as any).calendar;
 
   modelTools = computerUseEnabled
-    ? [COMPUTER_USE_TOOLS, PROJECT_HUB_TOOLS]
-    : [PROJECT_HUB_TOOLS];
+    ? [COMPUTER_USE_TOOLS, PROJECT_HUB_TOOLS, NATIVE_AI_TOOLS]
+    : [PROJECT_HUB_TOOLS, NATIVE_AI_TOOLS];
   if (hasGoogleWorkspace) modelTools.push(GOOGLE_WORKSPACE_TOOLS);
 
   const model = ai.getGenerativeModel({
@@ -229,6 +230,7 @@ export async function sendMessageStream(
 
   // Track tool calls for this message
   const allToolCalls: ToolCallInfo[] = [];
+  const allGeneratedImages: string[] = [];
 
   // ─── Agentic Function Calling Loop ───────────────────────────────
   // Phase 1: Non-streaming loop for tool calls
@@ -265,7 +267,7 @@ export async function sendMessageStream(
           yield fullText;
         })();
 
-        return { stream, sources: Promise.resolve(sources), toolCalls: allToolCalls.length > 0 ? allToolCalls : undefined };
+        return { stream, sources: Promise.resolve(sources), toolCalls: allToolCalls.length > 0 ? allToolCalls : undefined, generatedImages: allGeneratedImages.length > 0 ? allGeneratedImages : undefined };
       }
 
       // Execute each function call
@@ -277,7 +279,7 @@ export async function sendMessageStream(
         const toolArgs = fc.args || {};
 
         // Check if this is a computer-use, project hub, or Google Workspace tool
-        if (COMPUTER_TOOL_NAMES.has(toolName) || PROJECT_HUB_TOOL_NAMES.has(toolName) || GOOGLE_WORKSPACE_TOOL_NAMES.has(toolName)) {
+        if (COMPUTER_TOOL_NAMES.has(toolName) || PROJECT_HUB_TOOL_NAMES.has(toolName) || GOOGLE_WORKSPACE_TOOL_NAMES.has(toolName) || NATIVE_AI_TOOL_NAMES.has(toolName)) {
           const toolInfo: ToolCallInfo = { name: toolName, args: toolArgs };
 
           // Notify UI about tool execution
@@ -328,6 +330,23 @@ export async function sendMessageStream(
               } else {
                 resultStr = JSON.stringify({ success: false, error: 'Hub tool not implemented' });
               }
+            } else if (NATIVE_AI_TOOL_NAMES.has(toolName)) {
+              if (toolName === 'generate_image') {
+                const { generateImage } = await import('./image-generation');
+                try {
+                  const imgResult = await generateImage(toolArgs.prompt);
+                  if (imgResult.imageData) {
+                    allGeneratedImages.push(imgResult.imageData);
+                    resultStr = JSON.stringify({ success: true, message: `Imagen generada correctamente: "${toolArgs.prompt}". Será mostrada en la pantalla del usuario automáticamente.` });
+                  } else {
+                    resultStr = JSON.stringify({ success: false, error: imgResult.text });
+                  }
+                } catch (e: any) {
+                  resultStr = JSON.stringify({ success: false, error: e.message });
+                }
+              } else {
+                resultStr = JSON.stringify({ success: false, error: 'Native tool not implemented' });
+              }
             } else {
               const rawResult = await executeComputerTool(toolName, toolArgs);
               // Ensure we return an object even for string results
@@ -377,7 +396,7 @@ export async function sendMessageStream(
           yield fullText;
         })();
 
-        return { stream, sources: Promise.resolve(sources), toolCalls: allToolCalls.length > 0 ? allToolCalls : undefined };
+        return { stream, sources: Promise.resolve(sources), toolCalls: allToolCalls.length > 0 ? allToolCalls : undefined, generatedImages: allGeneratedImages.length > 0 ? allGeneratedImages : undefined };
       }
 
       // Send function responses back to the model
@@ -387,7 +406,7 @@ export async function sendMessageStream(
     // If we hit max iterations, return what we have
     const fallbackText = 'He ejecutado las acciones solicitadas. Si necesitas algo más, no dudes en pedirlo.';
     const stream = (async function* () { yield fallbackText; })();
-    return { stream, sources: Promise.resolve(null), toolCalls: allToolCalls };
+    return { stream, sources: Promise.resolve(null), toolCalls: allToolCalls, generatedImages: allGeneratedImages.length > 0 ? allGeneratedImages : undefined };
   }
 
   // ─── Standard Streaming (no function calling) ────────────────────
@@ -412,7 +431,7 @@ export async function sendMessageStream(
     }
   })();
 
-  return { stream, sources };
+  return { stream, sources, generatedImages: allGeneratedImages.length > 0 ? allGeneratedImages : undefined };
 }
 
 /**

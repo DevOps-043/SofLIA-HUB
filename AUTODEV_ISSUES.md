@@ -1555,3 +1555,60 @@ Args: {}
 ```
 
 ---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-03-11
+
+- **Timestamp**: 2026-03-11T03:21:37.152Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `read_file` falló con error: Acceso denegado: no puedo acceder a archivos del sistema de SofLIA por seguridad.
+
+- **Herramienta**: `read_file`
+- **Error**: Acceso denegado: no puedo acceder a archivos del sistema de SofLIA por seguridad.
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-03-11
+
+- **Timestamp**: 2026-03-11T03:21:57.523Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `save_whatsapp_file` falló con error: Acceso denegado: no puedo acceder a archivos del sistema de SofLIA por seguridad.
+
+- **Herramienta**: `save_whatsapp_file`
+- **Error**: Acceso denegado: no puedo acceder a archivos del sistema de SofLIA por seguridad.
+### Contexto
+
+```
+Args: {}
+```
+
+---
+## ❌ [🔧 FALLA DE HERRAMIENTA] — 2026-03-11
+
+- **Timestamp**: 2026-03-11T03:53:55.852Z
+- **Fuente**: whatsapp
+- **Estado**: 🔴 PENDIENTE
+
+### Descripción
+
+La herramienta `read_file` falló con error: ENOENT: no such file or directory, stat 'C:\Users\fysg5\Documents\Informe Conflicto Irán-Israel y Guerra Nuclear.docx'
+
+- **Herramienta**: `read_file`
+- **Error**: ENOENT: no such file or directory, stat 'C:\Users\fysg5\Documents\Informe Conflicto Irán-Israel y Guerra Nuclear.docx'
+### Contexto
+
+```
+Args: {}
+```
+
+---

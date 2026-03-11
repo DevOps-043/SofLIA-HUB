@@ -47,7 +47,8 @@
       "Bash(done)",
       "Bash(grep -E \"ts$\")",
       "Bash(node -e \"console.log\\(require\\(''./node_modules/@supabase/supabase-js/package.json''\\).version\\)\")",
-      "WebSearch"
+      "WebSearch",
+      "Bash(grep -n \"toolName === ''whatsapp_send_file''\\\\|case ''whatsapp_send_file''\" electron/whatsapp-agent.ts)"
     ]
   }
 }

@@ -112,10 +112,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
   const [systemAlerts, setSystemAlerts] = useState(true);
   const [proactiveTesting, setProactiveTesting] = useState(false);
   const [proactiveTestResult, setProactiveTestResult] = useState('');
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     if (isOpen && userId) {
       setLoading(true);
+      setIsInitialized(false);
       loadSettings(userId).then(settings => {
         setNickname(settings.nickname);
         setOccupation(settings.occupation);
@@ -124,6 +126,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
         setCharEmojis(settings.char_emojis);
         setCustomInstructions(settings.custom_instructions);
         setLoading(false);
+        setTimeout(() => setIsInitialized(true), 500); // Wait for renders to settle
       });
 
       // Load proactive config
@@ -138,6 +141,47 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
       }
     }
   }, [isOpen, userId]);
+
+  // Auto-save effect
+  useEffect(() => {
+    if (!isInitialized || !isOpen) return;
+
+    const timeoutId = setTimeout(() => {
+      setSaving(true);
+      const settings: UserAISettings = {
+        user_id: userId,
+        nickname,
+        occupation,
+        about_user: aboutUser,
+        tone_style: toneStyle,
+        char_emojis: charEmojis,
+        custom_instructions: customInstructions,
+      };
+
+      saveSettings(settings).then(success => {
+        if (success) {
+          onSave?.(settings);
+          // Auto-save proactive config as well
+          if (window.proactive) {
+            window.proactive.updateConfig({
+              enabled: proactiveEnabled,
+              notificationHours: notifHours,
+              calendarReminders,
+              taskReminders,
+              systemAlerts,
+            });
+          }
+        }
+        setSaving(false);
+      });
+    }, 1500); // 1.5s debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [
+    nickname, occupation, aboutUser, toneStyle, charEmojis, customInstructions,
+    proactiveEnabled, notifHours, calendarReminders, taskReminders, systemAlerts,
+    isInitialized, isOpen, userId
+  ]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -316,7 +360,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-gray-50/50 dark:bg-white/[0.03] backdrop-blur-md border border-gray-100 dark:border-white/[0.05] rounded-[2rem] p-6 flex flex-col group hover:border-accent/10 transition-all duration-500 shadow-xl shadow-black/5 dark:shadow-black/10 relative overflow-visible">
+              <div className="bg-gray-50/50 dark:bg-white/[0.03] backdrop-blur-md border border-gray-100 dark:border-white/[0.05] rounded-[2rem] p-6 flex flex-col group hover:border-accent/10 transition-all duration-500 shadow-xl shadow-black/5 dark:shadow-black/10 relative overflow-visible z-20">
 
                 <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity duration-700">
                   <svg className="w-32 h-32 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">

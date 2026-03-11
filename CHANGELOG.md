@@ -4,6 +4,108 @@ Todos los cambios notables de SofLIA Hub se documentan aquí.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.1.11] - 2026-03-10
+
+### Added
+
+- **Presentaciones Premium con IA (`slide-designer.ts`):** Nuevo motor de generación de PowerPoint que produce presentaciones de calidad comparable a NotebookLM/Gamma. Incluye 8 tipos de layouts (título, contenido, dos columnas, imagen destacada, cita, divisor de sección, comparación VS, cierre), 5 temas visuales (corporate-dark, modern-light, gradient-vibrant, minimal-elegant, tech-neon), e imágenes AI generadas por diapositiva usando Gemini. Las presentaciones incluyen barras de acento, scrim de legibilidad, numeración y branding.
+- **Documentos Word Profesionales (`document-designer.ts`):** Nuevo módulo de generación de documentos Word con portada profesional, jerarquía de encabezados con colores, parseo completo de Markdown (bold, italic, código, tablas, listas), encabezados/pie de página con numeración, y estilo tipográfico Calibri.
+- **Parámetro `slides_json` para presentaciones:** El agente ahora genera datos estructurados JSON con tipos de slides variados e imagePrompts descriptivos, en vez de parsear markdown crudo.
+- **Selección de temas:** Nuevo parámetro `theme` permite elegir entre 5 temas visuales según el contexto de la presentación.
+- **Instrucciones de sistema mejoradas:** Prompt del agente WhatsApp actualizado con flujo obligatorio para presentaciones (investigación → slides variados → imágenes AI), ejemplo completo de slides_json, y guía de selección de tema.
+
+## [0.1.10] - 2026-03-10
+
+### Fixed
+
+- **Visualización de Carga del Chat (Frontend):** Se solucionó un error en la interfaz (`ChatUI.tsx`) donde la animación de "pensando" (los tres puntos saltarines inferior del avatar) no se mostraban en lo absoluto al escribir en una conversación nueva. Esto se debía a que cuando React actualizaba el ID en la base de datos de la primera iteración del chat, se desmontaba el panel y borraba su estado de `isLoading`. Se ha corregido implementando un estado derivativo de si el último mensaje está pendiente (`showLoadingUI`).
+
+## [0.1.9] - 2026-03-10
+
+### Added
+
+- **Recepción y Análisis de Archivos por WhatsApp (Bidireccional):** SofLIA ahora puede recibir, guardar y analizar archivos enviados por los usuarios a través de WhatsApp (PDFs, imágenes, documentos, videos, etc.). Los archivos se guardan automáticamente en disco y se envían a Gemini para análisis multimodal. Archivos mayores a 15MB se guardan localmente y el agente puede leerlos con `read_file`.
+- **Herramienta `save_whatsapp_file`:** Nueva herramienta que permite al agente copiar archivos recibidos por WhatsApp a ubicaciones específicas en la computadora del usuario (ej: "guarda este archivo en mis Documentos").
+- **Soporte para `documentWithCaptionMessage`:** Implementado desempaquetado de tipos de mensajes anidados de Baileys 7.x (`documentWithCaptionMessage`, `viewOnceMessage`, `ephemeralMessage`) que antes causaban que documentos con subtítulos no fueran detectados.
+- **Activación por Respuesta en Grupos:** SofLIA ahora responde en grupos cuando un usuario hace reply directo a uno de sus mensajes, incluso sin mencionar `/soflia` o usar @mention. Esto permite enviar archivos como respuesta para análisis.
+
+### Fixed
+
+- **SofLIA no podía analizar archivos enviados por WhatsApp:** Corregido un bug crítico donde SofLIA respondía "envíame el documento" o "dame el nombre del archivo" cuando un usuario ya le había enviado un archivo directamente por WhatsApp. Múltiples causas raíz:
+  - Mensajes de tipo `documentWithCaptionMessage` no eran reconocidos (estructura anidada de Baileys 7.x)
+  - En grupos, la verificación de activación (`shouldRespondInGroup`) solo revisaba texto, no captions de documentos/imágenes/videos
+  - Los archivos recibidos nunca se guardaban en disco (solo existían como Buffer temporal en memoria)
+  - El agente no tenía instrucciones en el system prompt para manejar archivos adjuntos recibidos
+
+## [0.1.8] - 2026-03-10
+
+### Added
+
+- **Sistema de Memoria Persistente Mejorado:** El agente de WhatsApp ahora reconstruye el historial de conversación desde SQLite al reiniciar, eliminando la pérdida total de contexto en cada hot-reload de Vite o reinicio de Electron.
+- **Herramienta `gmail_empty_all_labels`:** Operación nuclear que vacía y elimina TODAS las etiquetas de usuario de Gmail en una sola llamada, con verificación automática de etiquetas restantes.
+- **Herramienta `gmail_delete_label`:** Permite eliminar etiquetas individuales de Gmail.
+- **Herramienta `gmail_batch_empty_label`:** Vacía todos los correos de una etiqueta y opcionalmente la elimina, con paginación automática para procesar TODOS los mensajes.
+- **Detección de MALFORMED_FUNCTION_CALL:** Manejo robusto de llamadas a función malformadas de Gemini con hasta 3 reintentos y fallback a respuesta de solo texto.
+- **Detección de Respuestas Perezosas:** Detección programática cuando el agente responde con texto en la primera iteración sin ejecutar herramientas, forzando reintento con instrucciones de ejecución.
+- **Detección de Solicitudes de Reintento:** Patrones regex para detectar "vuelve a hacerlo", "otra vez", "no funcionó", etc. que resetean el historial de chat para evitar confusión con tareas anteriores "completadas".
+- **Resolución Inteligente de Labels:** El handler `gmail:modify-labels` ahora resuelve nombres de etiquetas a IDs automáticamente, con auto-creación de etiquetas inexistentes.
+
+### Changed
+
+- **Umbral de Resumarización Reducido (50→15):** Los resúmenes de conversación y embeddings semánticos ahora se crean mucho antes, activando la búsqueda semántica desde conversaciones cortas.
+- **Límite de Mensajes Recientes Aumentado (10→20):** El agente ahora tiene más contexto de mensajes recientes en el system prompt.
+- **Iteraciones Máximas Aumentadas (10→25):** El agente puede ejecutar más herramientas en secuencia para tareas complejas como organización masiva de correos.
+- **Reglas de Organización de Gmail:** Sistema de prompt mejorado con proceso de 3 pasos: analizar TODOS los remitentes → agrupar por organización (máximo 15-20 etiquetas) → aplicar con verificación.
+- **Scopes OAuth Ampliados:** Añadidos permisos para Gmail (insert), Drive (metadata, activity, appdata, meet), Google Chat (reactions, availability, memberships), Calendar (freebusy), Meet (spaces), y perfil de usuario.
+
+### Fixed
+
+- **Agente no ejecutaba herramientas:** Gemini respondía con texto descriptivo en lugar de usar function calls para Gmail, Drive, etc. Corregido con inyección de prefijo de acción forzado y detección de respuestas perezosas.
+- **Operaciones masivas incompletas:** El agente procesaba solo el primer lote de correos sin verificar que hubiera completado todo. Corregido con verificación automática y herramientas batch.
+- **Etiquetas duplicadas y fragmentadas:** El agente creaba 50+ etiquetas (una por variante de email) en lugar de agrupar por organización. Corregido con reglas estrictas de agrupación en el system prompt.
+- **Contaminación del historial:** Mensajes restaurados de SQLite con "He completado las acciones" causaban que el agente creyera que la tarea ya estaba hecha. Corregido con detección de reintentos y reset del historial.
+- **Error `labelId not found`:** Gemini pasaba nombres de etiquetas en lugar de IDs. Corregido con resolución automática nombre→ID en el handler.
+- **Modelo de embeddings 404:** Cambiado de `text-embedding-004` (descontinuado) a `gemini-embedding-001`.
+- **Auto-creación de SOUL.md:** Se crea automáticamente el archivo de identidad de SofLIA en el primer inicio.
+
+## [0.1.7] - 2026-03-10
+
+### Fixed
+
+- **Visualización de Imágenes Nativas (Frontend):** Se solucionó un error en el retorno de streaming de chat de Gemini interactuando con herramientas. Anteriormente, si el modelo decidía responder con texto después de haber ejecutado la herramienta `generate_image`, la variable temporal que almacenaba las imágenes generadas se purgaba al retornar el stream final del ciclo interno hacia la interfaz gráfica de `ChatUI`. Las imágenes ahora se inyectan correctamente al mensaje para ser renderizadas junto al texto final.
+
+## [0.1.6] - 2026-03-10
+
+### Fixed
+
+- **Enrutamiento de Herramientas de IA Nativa:** Se corrigió un error crítico introducido en la versión 0.1.5 donde el flujo de ejecución fallaba y devolvía silencio o intentaba realizar búsquedas externas. Esto ocurría porque la herramienta `generate_image`, aunque expuesta al motor, erróneamente se mantenía dentro del nodo de validación de herramientas internas (`PROJECT_HUB_TOOL_NAMES`) en vez de evaluarse en la condición correcta. Se movió condicionalmente al bloque de `NATIVE_AI_TOOL_NAMES`.
+
+## [0.1.5] - 2026-03-10
+
+### Added
+
+- **Soporte Nativo de Generación de Imágenes (Function Calling):** Se añadió la herramienta `generate_image` a nivel de agente. Ahora los usuarios pueden solicitar la creación de imágenes utilizando el chat normal sin necesidad de activar manualmente el modo "Generar Imagen". El modelo interpretará la orden y mostrará el resultado dentro de su misma respuesta mediante visualización rica y descargas habilitadas.
+
+## [0.1.4] - 2026-03-10
+
+### Added
+
+- **Descarga de imágenes:** Se añadió un nuevo botón de descarga en el visor de imágenes a pantalla completa (`Image Zoom Modal`) que le permite a los usuarios guardar archivos generados o visualizados directamente en su computadora local.
+
+## [0.1.3] - 2026-03-10
+
+### Fixed
+
+- **Alucinación al leer URLs:** Se añadió una regla estricta al System Prompt Principal (`PRIMARY_CHAT_PROMPT`) para evitar que SofLIA intente deducir o inventar el contenido de enlaces web (como _chatgpt.com_ o artículos) para los cuales no tiene acceso directo. Ahora pedirá cortésmente que se le proporcione el texto a analizar.
+
+## [0.1.2] - 2026-03-09
+
+### Fixed
+
+- **Dropdown oculto en Sintonía Basal:** Se corrigió un problema de `z-index` que provocaba que el menú se desplegara detrás de la tarjeta inferior.
+- **Contexto de identidad no se guardaba (Auto-save):** Se implementó un sistema de auto-guardado que funciona a medida que el usuario escribe, evitando cierres accidentales. Adicionalmente, se corrigió un problema de Sincronización donde `loadSettings` sobrescribía los datos locales con datos de la nube no actualizados.
+- **Mensajes de chat no persistían:** `saveMessages` y `loadMessages` ahora guardan correctamente todos los mensajes del chat en el caché del `localStorage` como respaldo, asegurando que las conversaciones se puedan volver a cargar incluso si Supabase falla o está fuera de línea.
+
 ## [0.1.1] - 2026-03-09
 
 ### Security

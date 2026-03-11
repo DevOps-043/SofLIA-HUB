@@ -208,8 +208,23 @@ export async function executeToolDirect(
         const stat = await fs.stat(resolved);
         if (stat.isDirectory()) return { success: false, error: 'La ruta es un directorio, no un archivo.' };
         if (stat.size > MAX_FILE_READ_SIZE) return { success: false, error: `Archivo demasiado grande (${formatBytes(stat.size)}). Máximo: ${formatBytes(MAX_FILE_READ_SIZE)}.` };
+
+        const ext = getFileExtension(resolved);
+
+        // Handle .docx files — extract text using mammoth
+        if (ext === 'docx') {
+          try {
+            const mammoth = await import('mammoth');
+            const buffer = await fs.readFile(resolved);
+            const result = await mammoth.extractRawText({ buffer });
+            return { success: true, path: resolved, content: result.value, size: formatBytes(stat.size), extension: ext, format: 'docx (texto extraído)' };
+          } catch (docxErr: any) {
+            return { success: false, error: `Error al leer archivo .docx: ${docxErr.message}` };
+          }
+        }
+
         const content = await fs.readFile(resolved, 'utf-8');
-        return { success: true, path: resolved, content, size: formatBytes(stat.size), extension: getFileExtension(resolved) };
+        return { success: true, path: resolved, content, size: formatBytes(stat.size), extension: ext };
       } catch (err: any) {
         return { success: false, error: err.message };
       }

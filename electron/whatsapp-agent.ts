@@ -266,6 +266,19 @@ const WA_TOOL_DECLARATIONS = {
         required: ['file_path'],
       },
     },
+    // ─── Save received WhatsApp file to user-chosen location ──────
+    {
+      name: 'save_whatsapp_file',
+      description: 'Copia un archivo recibido por WhatsApp (que fue guardado temporalmente) a una ubicación elegida por el usuario en su computadora. Usa esto cuando el usuario envía un archivo y quiere guardarlo en una carpeta específica.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          source_path: { type: 'STRING' as const, description: 'Ruta del archivo temporal (proporcionada en el contexto del mensaje recibido).' },
+          destination_path: { type: 'STRING' as const, description: 'Ruta completa donde guardar el archivo (ej: C:/Users/user/Documents/archivo.pdf).' },
+        },
+        required: ['source_path', 'destination_path'],
+      },
+    },
     // ─── Open file on computer ─────────────────────────────────────
     {
       name: 'open_file_on_computer',
@@ -602,15 +615,18 @@ const WA_TOOL_DECLARATIONS = {
     },
     {
       name: 'create_document',
-      description: 'Crea un documento profesional (Word, Excel, PDF, PowerPoint o Markdown) con contenido generado. Ideal para informes de investigación, presentaciones ejecutivas, comparativos, contratos, resúmenes, tablas, etc. SIEMPRE después de crear el documento, envíalo inmediatamente al usuario con whatsapp_send_file.',
+      description: 'Crea un documento profesional. Para PRESENTACIONES usa type:"pptx" (se genera como PDF con diseño de slides premium). Proporciona slides_json con slides tipados y custom_theme con colores/fuentes generados según el contexto. SIEMPRE después de crear el documento, envíalo con whatsapp_send_file.',
       parameters: {
         type: 'OBJECT' as const,
         properties: {
-          type: { type: 'STRING' as const, description: '"word" para Word (.docx), "excel" para Excel (.xlsx), "pdf" para PDF (.pdf), "pptx" para PowerPoint (.pptx), o "md" para Markdown (.md).' },
-          filename: { type: 'STRING' as const, description: 'Nombre del archivo sin extensión. Ej: "Informe de ventas", "Contrato de servicios", "Presentación Ejecutiva".' },
-          content: { type: 'STRING' as const, description: 'Texto del documento. Usa saltos de línea y marcadores Markdown como ## para PDF, Word y PowerPoint. Para Excel: JSON con formato [{"Columna1": "valor", "Columna2": "valor"}, ...] representando filas. Para PowerPoint: cada ## es una diapositiva nueva con su contenido.' },
+          type: { type: 'STRING' as const, description: '"word" para Word (.docx), "excel" para Excel (.xlsx), "pdf" para PDF (.pdf), "pptx" o "presentacion" para Presentación con slides (se genera como PDF con diseño premium), o "md" para Markdown (.md).' },
+          filename: { type: 'STRING' as const, description: 'Nombre del archivo sin extensión.' },
+          content: { type: 'STRING' as const, description: 'Para word/pdf/md: contenido en Markdown con ## para encabezados, **bold**, *italic*, listas, tablas. Para excel: JSON [{"Col1":"val"},...]. Para pptx: si no se proporciona slides_json, se parseará este contenido como Markdown (fallback).' },
+          slides_json: { type: 'STRING' as const, description: 'SOLO para pptx. JSON array de SlideData con tipos variados. Tipos disponibles: title, content, two-column, image-focus, quote, section-break, comparison, closing. Cada slide DEBE incluir imagePrompt descriptivo. Ejemplo: [{"type":"title","title":"...","subtitle":"...","imagePrompt":"..."},{"type":"content","title":"...","bullets":["..."],"imagePrompt":"..."}]' },
+          custom_theme: { type: 'STRING' as const, description: 'SOLO para pptx. JSON con tema visual GENERADO DINÁMICAMENTE según el contexto. Estructura: {"colors":{"bg":"hex sin #","bgAlt":"hex","accent":"hex","accentAlt":"hex","text":"hex","textMuted":"hex","heading":"hex","scrim":"hex","scrimOpacity":55},"fontHeading":"nombre fuente","fontBody":"nombre fuente"}. Genera colores que reflejen el tema: naturaleza→verdes, tecnología→azules/neón, salud→turquesa, negocios→azul marino, etc. SIEMPRE genera este campo para pptx.' },
+          include_images: { type: 'BOOLEAN' as const, description: 'Para pptx: si true, genera imágenes AI para cada diapositiva. Default: true.' },
           save_directory: { type: 'STRING' as const, description: 'Carpeta donde guardar. Si no se especifica, se guarda en el escritorio del usuario.' },
-          title: { type: 'STRING' as const, description: 'Título principal del documento (aparece como encabezado en Word o nombre de hoja en Excel).' },
+          title: { type: 'STRING' as const, description: 'Título principal del documento.' },
         },
         required: ['type', 'filename', 'content'],
       },
@@ -1215,7 +1231,8 @@ TERMINAL Y DESARROLLO:
 - execute_command: ejecuta comandos rápidos (< 30s)
 
 DOCUMENTOS:
-- create_document: crea documentos Word (.docx), Excel (.xlsx), PDF (.pdf), PowerPoint (.pptx) y Markdown (.md) con contenido profesional
+- create_document: crea documentos Word (.docx) profesionales con portada y formato; Excel (.xlsx); PDF (.pdf); Presentaciones con slides premium (type:"pptx" → genera PDF con diseño HTML/CSS, imágenes AI, layouts variados, y temas visuales dinámicos); y Markdown (.md)
+- Para presentaciones: usa slides_json + custom_theme (colores/fuentes generados según el contexto). Se generan como PDF con diseño de slides profesional.
 - Puede investigar a fondo en internet (web_search + read_webpage múltiples veces), analizar archivos locales o de Drive, y generar documentos completos
 - REGLA CRÍTICA: Después de crear cualquier documento, SIEMPRE envíalo inmediatamente al usuario con whatsapp_send_file. NUNCA digas "ya lo creé" sin enviarlo.
 
@@ -1359,10 +1376,49 @@ DESARROLLO REMOTO:
 - "Instala la extensión X en VS Code" → open_application + use_computer
 
 DOCUMENTOS Y GENERACIÓN DE ARCHIVOS:
-- "Escribe un contrato de servicios" → create_document type:"word" con contenido completo → whatsapp_send_file
+- "Escribe un contrato de servicios" → create_document type:"word" con contenido completo en Markdown → whatsapp_send_file
 - "Haz una tabla de gastos" → create_document type:"excel" con datos en JSON → whatsapp_send_file
-- "Hazme una presentación ejecutiva sobre X" → web_search (múltiples queries sobre X) + read_webpage (fuentes clave) + create_document type:"pptx" con diapositivas completas → whatsapp_send_file
 - REGLA ABSOLUTA: SIEMPRE después de create_document, envía el archivo creado con whatsapp_send_file. El usuario espera recibir el archivo en su WhatsApp.
+
+PRESENTACIONES PREMIUM (PPTX):
+- Para CUALQUIER presentación, SIEMPRE usa slides_json con datos estructurados. NUNCA uses solo content con markdown para pptx.
+- FLUJO OBLIGATORIO para presentaciones:
+  1. web_search con 3-5 queries diferentes sobre el tema
+  2. read_webpage en 2-3 fuentes clave para datos concretos
+  3. Diseña 10-15 diapositivas con tipos VARIADOS usando slides_json
+  4. GENERA un custom_theme con colores y fuentes ESPECÍFICOS al contexto del tema
+  5. create_document type:"pptx" con slides_json + custom_theme → whatsapp_send_file (se genera como PDF con diseño de slides premium)
+- TIPOS DE SLIDES DISPONIBLES (usa AL MENOS 4 tipos diferentes):
+  • "title" — Slide de título principal con fondo de imagen AI. Campos: title, subtitle, imagePrompt
+  • "content" — Contenido con bullets + imagen lateral. Campos: title, bullets[], imagePrompt
+  • "two-column" — Dos columnas lado a lado. Campos: title, leftColumn:{heading, items[]}, rightColumn:{heading, items[]}, imagePrompt
+  • "image-focus" — Imagen grande con título superpuesto. Campos: title, subtitle, imagePrompt
+  • "quote" — Cita destacada. Campos: title, quote:{text, author}
+  • "section-break" — Divisor de sección con imagen de fondo. Campos: title, subtitle, imagePrompt
+  • "comparison" — Comparación VS con paneles. Campos: title, leftColumn:{heading, items[]}, rightColumn:{heading, items[]}
+  • "closing" — Slide de cierre/agradecimiento. Campos: title, subtitle, imagePrompt
+- CADA slide DEBE tener un imagePrompt descriptivo para generar una imagen AI contextual profesional
+- imagePrompt debe describir una imagen RELEVANTE al contenido (no genérica): "Modern office meeting with diverse team discussing AI strategy" en vez de "AI image"
+- Bullets: máximo 5 por slide, concisos, sin párrafos largos
+
+GENERACIÓN DINÁMICA DE TEMAS (custom_theme — OBLIGATORIO para pptx):
+- SIEMPRE genera un custom_theme con colores y fuentes que reflejen el CONTEXTO del tema solicitado
+- Los colores DEBEN ser coherentes con el tema: 
+  • Naturaleza/ecología → verdes, café tierra, tonos orgánicos
+  • Tecnología/IA → azules eléctricos, neón, fondos oscuros
+  • Salud/medicina → turquesa, blanco limpio, azul suave
+  • Negocios/finanzas → azul marino, dorado, gris elegante
+  • Educación → violeta, naranja cálido, fondos claros
+  • Creatividad/arte → gradientes vibrantes, rosa, púrpura
+  • Comida/gastronomía → rojos cálidos, naranja, dorado
+  • Deportes → rojo energético, negro, blanco contraste
+- Estructura de custom_theme: {"colors":{"bg":"hex","bgAlt":"hex","accent":"hex","accentAlt":"hex","text":"hex","textMuted":"hex","heading":"hex","scrim":"000000","scrimOpacity":55},"fontHeading":"Segoe UI","fontBody":"Segoe UI"}
+- Todos los colores son hex SIN el # (ej: "22D3EE" no "#22D3EE")
+- scrimOpacity: 0-100 (cuanto cubre el overlay oscuro sobre imágenes para legibilidad)
+
+EJEMPLO COMPLETO (presentación sobre IA):
+custom_theme: {"colors":{"bg":"0A0E27","bgAlt":"141B3D","accent":"00BFFF","accentAlt":"7B68EE","text":"E8E8E8","textMuted":"8899AA","heading":"FFFFFF","scrim":"000000","scrimOpacity":60},"fontHeading":"Segoe UI","fontBody":"Segoe UI"}
+slides_json: [{"type":"title","title":"Inteligencia Artificial en 2026","subtitle":"Tendencias, impacto y oportunidades","imagePrompt":"Futuristic cityscape with holographic AI interfaces and data streams, deep blue and cyan tones"},{"type":"section-break","title":"¿Qué es la IA?","subtitle":"Conceptos fundamentales","imagePrompt":"Abstract neural network visualization with glowing cyan connections on dark background"},{"type":"content","title":"Definición y Tipos","bullets":["Machine Learning: aprendizaje automático a partir de datos","Deep Learning: redes neuronales profundas","IA Generativa: creación de contenido nuevo","IA Conversacional: chatbots y asistentes virtuales"],"imagePrompt":"Robot hand and human hand reaching towards each other with blue circuit patterns"},{"type":"two-column","title":"Ventajas vs Desafíos","leftColumn":{"heading":"Ventajas","items":["Automatización de procesos","Análisis predictivo","Personalización masiva"]},"rightColumn":{"heading":"Desafíos","items":["Privacidad de datos","Sesgo algorítmico","Desplazamiento laboral"]},"imagePrompt":"Balance scale with technology on one side and ethics on the other, blue tones"},{"type":"quote","title":"Reflexión","quote":{"text":"La IA no reemplazará a los humanos, pero los humanos que usen IA reemplazarán a los que no.","author":"Kai-Fu Lee"}},{"type":"closing","title":"¡Gracias!","subtitle":"¿Preguntas?","imagePrompt":"Professional abstract gradient background with cyan light particles on dark blue"}]
 
 INVESTIGACIÓN PROFUNDA Y DOCUMENTOS:
 - "Investiga sobre X y hazme un informe" / "Haz una investigación profunda sobre X" → FLUJO COMPLETO:
@@ -1374,8 +1430,17 @@ INVESTIGACIÓN PROFUNDA Y DOCUMENTOS:
 - "Compara estos archivos de Drive" → drive_search (ambos) + drive_download (ambos) + read_file (ambos) + create_document type:"word" con análisis comparativo → whatsapp_send_file
 - "Compara X con Y" (temas/conceptos) → web_search (sobre X) + web_search (sobre Y) + read_webpage + create_document con tabla comparativa → whatsapp_send_file
 - "Analiza este archivo y hazme un resumen" → smart_find_file + read_file + create_document type:"word" con resumen ejecutivo → whatsapp_send_file
-- "Crea una presentación sobre el proyecto X" → Investiga con las herramientas disponibles + create_document type:"pptx" → whatsapp_send_file
+- "Crea una presentación sobre el proyecto X" → Investiga con web_search + read_webpage → create_document type:"pptx" con slides_json de 10-15 slides variadas → whatsapp_send_file
 - REGLA: Las investigaciones deben ser EXHAUSTIVAS. No hagas una sola búsqueda — haz múltiples queries, lee múltiples páginas, y sintetiza todo en un documento profesional y completo.
+
+ARCHIVOS RECIBIDOS POR WHATSAPP:
+- Cuando el usuario te envía un archivo (PDF, imagen, documento, etc.), el sistema lo descarga y guarda automáticamente en una carpeta temporal. La ruta se incluye en el mensaje.
+- Para archivos pequeños (<15MB) de formatos analizables (imágenes, PDFs, texto), el contenido se incluye directamente para tu análisis.
+- Para archivos grandes o formatos no analizables, usa read_file con la ruta proporcionada para leer su contenido.
+- "Analiza este archivo" (enviado por WhatsApp) → El archivo ya está adjunto. Analízalo directamente y responde con un resumen detallado.
+- "Guarda este archivo en mis Documentos" → save_whatsapp_file con la ruta temporal como source y la ruta destino elegida.
+- "Analiza este PDF y hazme un resumen en Word" → Analiza el contenido adjunto → create_document type:"word" con resumen → whatsapp_send_file
+- REGLA: Cuando el usuario envía un archivo, SIEMPRE analiza su contenido y responde con información útil. NUNCA digas "no recibí el archivo" o "envíame el archivo" — el archivo ya está incluido en el mensaje.
 
 ENVÍO A CONTACTOS:
 - "Envíale el archivo X a Juan (+52...)" → smart_find_file + whatsapp_send_to_contact
@@ -1974,30 +2039,64 @@ export class WhatsAppAgent {
     groupPassiveHistory: string = '',
   ): Promise<void> {
     try {
-      // Build the user message that describes the media context
-      const userText = text && text.trim()
-        ? text.trim()
-        : `[El usuario envió un archivo: ${fileName} (${mimetype}). Analízalo y responde.]`;
+      // ─── Step 1: Save file to disk (persistent + referenceable) ──────
+      const receivedDir = path.join(app.getPath('userData'), 'whatsapp-received');
+      await fs.mkdir(receivedDir, { recursive: true });
 
-      // Prepare the image/media inline data for the agentic loop
-      const base64Data = buffer.toString('base64');
-      const imagePart = {
-        inlineData: {
-          mimeType: mimetype,
-          data: base64Data,
-        },
-      };
+      // Sanitize filename and make unique with timestamp
+      const safeName = fileName.replace(/[<>:"/\\|?*]/g, '_');
+      const timestamp = Date.now();
+      const ext = path.extname(safeName) || this.getExtensionFromMime(mimetype);
+      const baseName = path.basename(safeName, ext);
+      const savedFileName = `${baseName}_${timestamp}${ext}`;
+      const savedPath = path.join(receivedDir, savedFileName);
 
-      console.log(`[WhatsApp Agent] Processing media: ${fileName} (${mimetype}), caption: "${text?.slice(0, 60) || 'none'}"`);
+      await fs.writeFile(savedPath, buffer);
+      console.log(`[WhatsApp Agent] Saved received file: ${savedPath} (${(buffer.length / 1024 / 1024).toFixed(2)} MB)`);
 
-      // Run the FULL agentic loop with the image as multimodal content
+      // ─── Step 2: Determine if file can be sent inline to Gemini ──────
+      const MAX_INLINE_SIZE = 15 * 1024 * 1024; // 15MB binary (~20MB base64)
+      const isInlineable = buffer.length <= MAX_INLINE_SIZE;
+      const isAnalyzable = /^(image\/(jpeg|png|gif|webp|bmp)|application\/pdf|text\/|audio\/)/.test(mimetype);
+
+      let inlineMediaParts: Array<{ inlineData: { mimeType: string; data: string } }> = [];
+      let userText = '';
+
+      if (isInlineable && isAnalyzable) {
+        // File is small enough and in a format Gemini can analyze → send inline
+        const base64Data = buffer.toString('base64');
+        inlineMediaParts = [{
+          inlineData: {
+            mimeType: mimetype,
+            data: base64Data,
+          },
+        }];
+
+        userText = text && text.trim()
+          ? `${text.trim()}\n\n[Archivo adjunto: "${fileName}" (${mimetype}, ${(buffer.length / 1024 / 1024).toFixed(1)} MB). Lo he guardado en: ${savedPath}. Analiza el contenido del archivo.]`
+          : `[El usuario envió un archivo: "${fileName}" (${mimetype}, ${(buffer.length / 1024 / 1024).toFixed(1)} MB). Lo he guardado en: ${savedPath}. Analiza el contenido del archivo y responde.]`;
+      } else {
+        // File is too large or not directly analyzable — tell agent where it's saved
+        const sizeInfo = `${(buffer.length / 1024 / 1024).toFixed(1)} MB`;
+        const reason = !isInlineable ? `demasiado grande (${sizeInfo})` : `formato no analizable directamente (${mimetype})`;
+
+        userText = text && text.trim()
+          ? `${text.trim()}\n\n[El usuario envió un archivo: "${fileName}" (${mimetype}, ${sizeInfo}). Archivo ${reason} para análisis inline, pero lo he guardado en: ${savedPath}. Puedes usar read_file para leer su contenido si es un documento de texto, o informar al usuario dónde está guardado.]`
+          : `[El usuario envió un archivo: "${fileName}" (${mimetype}, ${sizeInfo}). Archivo ${reason} para análisis inline, pero lo he guardado en: ${savedPath}. Puedes usar read_file para leer su contenido si es un documento de texto, o informar al usuario dónde está guardado.]`;
+
+        console.log(`[WhatsApp Agent] File too large or not analyzable inline (${reason}), saved to disk only: ${savedPath}`);
+      }
+
+      console.log(`[WhatsApp Agent] Processing media: ${fileName} (${mimetype}), inline: ${isInlineable && isAnalyzable}, caption: "${text?.slice(0, 60) || 'none'}"`);
+
+      // ─── Step 3: Run the FULL agentic loop ───────────────────────────
       const response = await this.runAgentLoop(
         jid,
         senderNumber,
         userText,
         isGroup,
         groupPassiveHistory,
-        [imagePart],  // Pass image as inline data part
+        inlineMediaParts,
       );
 
       if (response) {
@@ -2007,6 +2106,24 @@ export class WhatsAppAgent {
       console.error('[WhatsApp Agent] Media error:', err);
       await this.waService.sendText(jid, 'No pude procesar el archivo. Intenta de nuevo o envía un mensaje de texto.');
     }
+  }
+
+  /** Get file extension from MIME type */
+  private getExtensionFromMime(mime: string): string {
+    const map: Record<string, string> = {
+      'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif',
+      'image/webp': '.webp', 'application/pdf': '.pdf',
+      'application/msword': '.doc',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+      'application/vnd.ms-excel': '.xls',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+      'application/vnd.ms-powerpoint': '.ppt',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+      'text/plain': '.txt', 'text/csv': '.csv',
+      'application/zip': '.zip', 'application/x-rar-compressed': '.rar',
+      'video/mp4': '.mp4', 'audio/ogg': '.ogg', 'audio/mpeg': '.mp3',
+    };
+    return map[mime] || '';
   }
 
   // ─── Handle audio messages ──────────────────────────────────────
@@ -2544,6 +2661,31 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
               functionResponse: {
                 name: toolName,
                 response: { success: true, message: `Archivo enviado por WhatsApp: ${toolArgs.file_path}` },
+              },
+            });
+          } catch (err: any) {
+            functionResponses.push({
+              functionResponse: {
+                name: toolName,
+                response: { success: false, error: err.message },
+              },
+            });
+          }
+          continue;
+        }
+
+        // Handle save_whatsapp_file — copy received file to user-chosen location
+        if (toolName === 'save_whatsapp_file') {
+          try {
+            const src = toolArgs.source_path;
+            const dest = toolArgs.destination_path;
+            // Ensure destination directory exists
+            await fs.mkdir(path.dirname(dest), { recursive: true });
+            await fs.copyFile(src, dest);
+            functionResponses.push({
+              functionResponse: {
+                name: toolName,
+                response: { success: true, message: `Archivo guardado en: ${dest}` },
               },
             });
           } catch (err: any) {
@@ -3202,71 +3344,22 @@ $vol.SetMasterVolumeLevelScalar(${level / 100.0}, [Guid]::Empty)`;
             }
 
             if (docType === 'word' || docType === 'docx') {
-              // ─── Create Word document using docx library ─────────
-              const docxLib = await import('docx');
-              const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = docxLib;
-
-              const lines = toolArgs.content.split('\n');
-              const paragraphs: any[] = [];
-
-              for (const line of lines) {
-                if (line.startsWith('## ')) {
-                  paragraphs.push(new Paragraph({
-                    text: line.replace('## ', ''),
-                    heading: HeadingLevel.HEADING_2,
-                    spacing: { before: 240, after: 120 },
-                  }));
-                } else if (line.startsWith('# ')) {
-                  paragraphs.push(new Paragraph({
-                    text: line.replace('# ', ''),
-                    heading: HeadingLevel.HEADING_1,
-                    spacing: { before: 360, after: 200 },
-                  }));
-                } else if (line.trim() === '') {
-                  paragraphs.push(new Paragraph({ text: '' }));
-                } else {
-                  // Handle *bold* markers
-                  const parts: any[] = [];
-                  const regex = /\*([^*]+)\*/g;
-                  let lastIdx = 0;
-                  let match;
-                  while ((match = regex.exec(line)) !== null) {
-                    if (match.index > lastIdx) {
-                      parts.push(new TextRun({ text: line.slice(lastIdx, match.index) }));
-                    }
-                    parts.push(new TextRun({ text: match[1], bold: true }));
-                    lastIdx = match.index + match[0].length;
-                  }
-                  if (lastIdx < line.length) {
-                    parts.push(new TextRun({ text: line.slice(lastIdx) }));
-                  }
-                  if (parts.length === 0) {
-                    parts.push(new TextRun({ text: line }));
-                  }
-                  paragraphs.push(new Paragraph({ children: parts, spacing: { after: 120 } }));
-                }
-              }
-
-              // Add title as first element
-              paragraphs.unshift(new Paragraph({
-                text: title,
-                heading: HeadingLevel.TITLE,
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 400 },
-              }));
-
-              const doc = new Document({
-                sections: [{ properties: {}, children: paragraphs }],
-              });
-
-              const buffer = await Packer.toBuffer(doc);
+              // ─── Create Word document using document-designer ─────────
+              const { createProfessionalDocument } = await import('./document-designer');
               const filePath = path.join(saveDir, `${filename}.docx`);
-              await fs.writeFile(filePath, buffer);
+              await createProfessionalDocument({
+                content: toolArgs.content,
+                title,
+                author: 'SofLIA',
+                outputPath: filePath,
+                type: 'word',
+                includeCover: true,
+              });
 
               functionResponses.push({
                 functionResponse: {
                   name: toolName,
-                  response: { success: true, file_path: filePath, message: `Documento Word creado: ${filePath}` },
+                  response: { success: true, file_path: filePath, message: `Documento Word profesional creado: ${filePath}` },
                 },
               });
             } else if (docType === 'excel' || docType === 'xlsx') {
@@ -3375,119 +3468,47 @@ $vol.SetMasterVolumeLevelScalar(${level / 100.0}, [Guid]::Empty)`;
                   response: { success: true, file_path: filePath, message: `Documento PDF creado: ${filePath}` },
                 },
               });
-            } else if (docType === 'pptx' || docType === 'powerpoint') {
-              // ─── Create PowerPoint presentation using pptxgenjs ─────
-              const PptxGenJS = (await import('pptxgenjs')).default;
-              const pptx = new PptxGenJS();
+            } else if (docType === 'pptx' || docType === 'powerpoint' || docType === 'presentacion') {
+              // ─── Create Presentation as PDF using HTML/CSS rendering ─────
+              const { createPresentationPDF, parseMarkdownToSlides } = await import('./presentation-pdf');
 
-              // Premium dark corporate theme
-              pptx.layout = 'LAYOUT_WIDE';
-              pptx.author = 'SofLIA Hub';
-              pptx.title = title;
-
-              const BG_COLOR = '0C0D10';
-              const ACCENT_COLOR = '22D3EE';
-              const TEXT_COLOR = 'FFFFFF';
-              const SUBTITLE_COLOR = 'A0A0A0';
-
-              // Parse markdown-like content into slides
-              const contentLines = toolArgs.content.split('\n');
-              let currentSlideTitle = '';
-              let currentBullets: string[] = [];
-              let slideCount = 0;
-
-              const flushSlide = () => {
-                if (!currentSlideTitle && currentBullets.length === 0) return;
-                const slide = pptx.addSlide();
-                slide.background = { color: BG_COLOR };
-
-                // Accent line at top
-                slide.addShape(pptx.ShapeType.rect, {
-                  x: 0, y: 0, w: '100%', h: 0.06,
-                  fill: { color: ACCENT_COLOR },
-                });
-
-                if (slideCount === 0 && currentSlideTitle) {
-                  // Title slide (centered, larger)
-                  slide.addText(currentSlideTitle, {
-                    x: 0.8, y: 1.5, w: 11.5, h: 1.5,
-                    fontSize: 36, fontFace: 'Segoe UI',
-                    color: TEXT_COLOR, bold: true, align: 'center',
-                  });
-                  if (currentBullets.length > 0) {
-                    slide.addText(currentBullets.join('\n'), {
-                      x: 1.5, y: 3.5, w: 10, h: 2,
-                      fontSize: 16, fontFace: 'Segoe UI',
-                      color: SUBTITLE_COLOR, align: 'center',
-                    });
-                  }
-                } else {
-                  // Content slide
-                  slide.addText(currentSlideTitle || `Sección ${slideCount + 1}`, {
-                    x: 0.8, y: 0.3, w: 11.5, h: 0.8,
-                    fontSize: 26, fontFace: 'Segoe UI',
-                    color: ACCENT_COLOR, bold: true,
-                  });
-
-                  if (currentBullets.length > 0) {
-                    const bulletRows = currentBullets.map(b => ({
-                      text: b.replace(/^[-•*]\s*/, ''),
-                      options: {
-                        fontSize: 15,
-                        fontFace: 'Segoe UI',
-                        color: TEXT_COLOR,
-                        bullet: { code: '2022', color: ACCENT_COLOR },
-                        paraSpaceAfter: 8,
-                      },
-                    }));
-                    slide.addText(bulletRows as any, {
-                      x: 0.8, y: 1.4, w: 11.5, h: 5,
-                      valign: 'top',
-                    });
-                  }
+              let slides: any[];
+              if (toolArgs.slides_json) {
+                try {
+                  slides = JSON.parse(toolArgs.slides_json);
+                } catch {
+                  slides = parseMarkdownToSlides(toolArgs.content || '', title);
                 }
-
-                // Slide number
-                slide.addText(`${slideCount + 1}`, {
-                  x: 12.0, y: 7.0, w: 0.8, h: 0.4,
-                  fontSize: 10, color: SUBTITLE_COLOR, align: 'right',
-                });
-
-                slideCount++;
-              };
-
-              for (const line of contentLines) {
-                const trimmed = line.trim();
-                if (trimmed.startsWith('## ') || trimmed.startsWith('# ')) {
-                  // New slide — flush previous
-                  flushSlide();
-                  currentSlideTitle = trimmed.replace(/^#{1,2}\s*/, '');
-                  currentBullets = [];
-                } else if (trimmed === '') {
-                  // Skip empty lines
-                } else {
-                  currentBullets.push(trimmed);
-                }
-              }
-              // Flush last slide
-              flushSlide();
-
-              // If no slides were created from markdown, create a single content slide
-              if (slideCount === 0) {
-                const slide = pptx.addSlide();
-                slide.background = { color: BG_COLOR };
-                slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: '100%', h: 0.06, fill: { color: ACCENT_COLOR } });
-                slide.addText(title, { x: 0.8, y: 0.3, w: 11.5, h: 0.8, fontSize: 28, fontFace: 'Segoe UI', color: ACCENT_COLOR, bold: true });
-                slide.addText(toolArgs.content, { x: 0.8, y: 1.4, w: 11.5, h: 5.5, fontSize: 14, fontFace: 'Segoe UI', color: TEXT_COLOR, valign: 'top' });
+              } else {
+                slides = parseMarkdownToSlides(toolArgs.content || '', title);
               }
 
-              const filePath = path.join(saveDir, `${filename}.pptx`);
-              await pptx.writeFile({ fileName: filePath });
+              const genAI = this.getGenAI();
+              const includeImages = toolArgs.include_images !== false;
+
+              let customTheme: any = undefined;
+              if (toolArgs.custom_theme) {
+                try {
+                  customTheme = JSON.parse(toolArgs.custom_theme);
+                } catch {
+                  console.warn('[create_document] Failed to parse custom_theme, using default');
+                }
+              }
+
+              const filePath = path.join(saveDir, `${filename}.pdf`);
+              await createPresentationPDF({
+                slides,
+                title,
+                outputPath: filePath,
+                customTheme,
+                includeImages,
+                genAI,
+              });
 
               functionResponses.push({
                 functionResponse: {
                   name: toolName,
-                  response: { success: true, file_path: filePath, message: `Presentación PowerPoint creada: ${filePath} (${slideCount} diapositivas)` },
+                  response: { success: true, file_path: filePath, message: `Presentación PDF premium creada: ${filePath} (${slides.length} diapositivas con diseño profesional e imágenes AI)` },
                 },
               });
             } else {

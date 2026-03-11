@@ -1,7 +1,7 @@
 {
   "name": "soflia-hub-desktop",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.1.10",
   "description": "SofLIA Hub Desktop Client",
   "author": "Pulse Hub",
   "type": "module",
@@ -29,6 +29,7 @@
     "exceljs": "^4.4.0",
     "framer-motion": "^11.18.2",
     "googleapis": "^171.4.0",
+    "mammoth": "^1.11.0",
     "node-cron": "3.0.3",
     "nodemailer": "^6.9.13",
     "pino": "^10.3.1",

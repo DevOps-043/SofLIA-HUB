@@ -49,6 +49,7 @@ interface ChatUIProps {
 export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, personalization, userAvatar, externalPrompt, onExternalPromptProcessed, onShare }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const showLoadingUI = isLoading || (messages.length > 0 && messages[messages.length - 1].role === 'model' && !messages[messages.length - 1].text && !(messages[messages.length - 1].images && messages[messages.length - 1].images!.length > 0));
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -516,10 +517,17 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
       }
 
       const sources = await result.sources;
-      if (sources && sources.length > 0) {
+      const genImages = result.generatedImages;
+
+      if ((sources && sources.length > 0) || (genImages && genImages.length > 0)) {
         onMessagesChange(
           updatedMessages.map(msg =>
-            msg.id === aiMessageId ? { ...msg, text: fullText, sources } : msg
+            msg.id === aiMessageId ? { 
+              ...msg, 
+              text: fullText, 
+              sources: sources || undefined, 
+              images: genImages?.length ? genImages : undefined 
+            } : msg
           )
         );
       }
@@ -540,7 +548,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
   };
 
   const handleSend = useCallback(async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || showLoadingUI) return;
 
     // If Live API is active, send text through WebSocket instead
     if (isLiveActive && liveClientRef.current) {
@@ -627,32 +635,19 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
   };
 
   const handleRegenerate = async (index: number) => {
-    if (isLoading) return;
+    if (showLoadingUI) return;
 
-    // Find the user message preceding this assistant message
     const historyUpToNow = messages.slice(0, index);
     const lastUserMsgIndex = historyUpToNow.map(m => m.role).lastIndexOf('user');
-    
+
     if (lastUserMsgIndex !== -1) {
        const userMsg = historyUpToNow[lastUserMsgIndex];
-       
-       // Keep history UP TO the user message (inclusive)
        const newHistory = messages.slice(0, lastUserMsgIndex + 1);
-       
-       // Update UI to remove old response
+
+       // Actualizar estado inmediatamente — el debounced save con latestMessages
+       // se encargará de sincronizar con Supabase (eliminando mensajes huérfanos)
        onMessagesChange(newHistory);
-       
-       // Trigger processMessage with isRegeneration=true
-       // Note: userMsg.images are already in the history item, 
-       // but processMessage expects separate images arg for the 'current turn'.
-       // However, since we set isRegeneration=true, processMessage relies on history for context.
-       // EXCEPT: The underlying `sendMessageStream` might expect the prompt text and images separately if it's the 'active' prompt.
-       // In `processMessage` above:
-       //   const cleanHistory = updatedMessages... (includes the user message)
-       //   sendMessageStream(text, cleanHistory...)
-       // So it should work fine, as the last message in `cleanHistory` is the user prompt.
-       
-       // We pass userMsg.images just in case logic needs it, though strictly for chat history it's embedded.
+
        await processMessage(userMsg.text, userMsg.images || [], newHistory, true);
     }
   };
@@ -809,7 +804,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
       </div>
 
         {/* Empty State / Messages Area */}
-        {messages.length === 0 && !isLoading ? (
+        {messages.length === 0 && !showLoadingUI ? (
           <div className="flex-1 flex flex-col items-center justify-center px-4">
             <div className="mb-6">
               <div className="w-20 h-20 flex items-center justify-center mx-auto mb-4 rounded-full overflow-hidden">
@@ -829,7 +824,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
             {messages.map((msg, index) => {
               // Si es el último mensaje, es del modelo, está vacio y está cargando, lo ocultamos
               // porque se mostrará el indicador de carga dedicado abajo
-              if (isLoading && index === messages.length - 1 && msg.role === 'model' && !msg.text) {
+              if (showLoadingUI && index === messages.length - 1 && msg.role === 'model' && !msg.text) {
                 return null;
               }
               
@@ -1072,7 +1067,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
               );
             })}
             
-            {isLoading && (
+            {showLoadingUI && (
               <div className="flex gap-4">
                 <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 rounded-full overflow-hidden">
                   <img src="./assets/lia-avatar.png" alt="SOFLIA" className="w-full h-full object-cover" />
@@ -1266,7 +1261,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
               placeholder={isImageGenMode ? "Describe la imagen que quieres generar..." : isPromptOptimizerMode ? "Escribe el prompt a optimizar..." : "Mensaje a SOFLIA..."}
               className="flex-1 bg-transparent text-[15px] focus:outline-none placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 resize-none max-h-[160px] overflow-y-auto !no-scrollbar font-sans py-2.5 px-2 leading-relaxed mb-0.5"
               rows={1}
-              disabled={isLoading}
+              disabled={showLoadingUI}
               style={{ height: '42px', scrollbarWidth: 'none', msOverflowStyle: 'none' }} 
               onInput={(e) => {
                 const target = e.target as HTMLTextAreaElement;
@@ -1280,11 +1275,11 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
               {input.trim() ? (
                 <button
                   onClick={handleSend}
-                  disabled={isLoading}
+                  disabled={showLoadingUI}
                   className="w-9 h-9 flex items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
                   title="Enviar mensaje"
                 >
-                  {isLoading ? (
+                  {showLoadingUI ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="ml-0.5">
@@ -1346,10 +1341,33 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
           onClick={() => setZoomedImage(null)}
         >
           <button
+            className="absolute top-4 right-16 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
+            title="Descargar imagen"
+            onClick={(e) => {
+              e.stopPropagation();
+              const link = document.createElement('a');
+              link.href = zoomedImage;
+              link.download = `soflia-imagen-${new Date().getTime()}.png`;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </button>
+          <button
             className="absolute top-4 right-4 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white text-xl transition-colors"
+            title="Cerrar vista"
             onClick={() => setZoomedImage(null)}
           >
-            x
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
           </button>
           <img
             src={zoomedImage}
