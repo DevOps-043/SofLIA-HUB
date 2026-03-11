@@ -300,7 +300,7 @@ export interface CreatePresentationPDFOptions {
 }
 
 export async function createPresentationPDF(options: CreatePresentationPDFOptions): Promise<string> {
-  const { slides, title, outputPath, customTheme, includeImages = true, genAI } = options;
+  const { slides, title: _title, outputPath, customTheme, includeImages = true, genAI } = options;
   const theme = mergeTheme(customTheme);
 
   console.log(`[presentation-pdf] Building ${slides.length} slides, images=${includeImages}`);

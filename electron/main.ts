@@ -33,6 +33,7 @@ import './agent-task-queue' // Side-effect: registers singleton
 import { SystemGuardianService } from './system-services'
 import { NeuralOrganizerService as NeuralOrganizerAI } from './neural-organizer'
 import { PathMemoryService } from './path-memory-service'
+import { DailyBriefingService } from './daily-briefing-service'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -123,6 +124,12 @@ let neuralOrganizer: NeuralOrganizerAI | null = null
 
 // ─── Path Memory (indexación proactiva de rutas del sistema) ─────────
 const pathMemoryService = new PathMemoryService()
+
+// ─── Daily Briefing (resumen ejecutivo matutino) ─────────────────────
+const dailyBriefingService = new DailyBriefingService(
+  { enabled: false, schedule: '0 8 * * 1-5', ownerNumber: '', apiKey: '' },
+  waService,
+)
 
 // ─── Wire SelfLearn → AutoDev Micro-Fix ──────────────────────────────
 selfLearnService.on('micro-fix-candidate', (trigger: any) => {

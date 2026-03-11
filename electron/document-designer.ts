@@ -23,11 +23,9 @@ import {
   Header,
   NumberFormat,
   ShadingType,
-  TabStopType,
-  TabStopPosition,
 } from 'docx';
 import fs from 'node:fs/promises';
-import path from 'node:path';
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -434,7 +432,7 @@ export async function createProfessionalDocument(
     author,
     outputPath,
     includeCover = true,
-    includeTOC = false,
+    includeTOC: _includeTOC = false,
   } = options;
 
   const children: (Paragraph | Table)[] = [];
