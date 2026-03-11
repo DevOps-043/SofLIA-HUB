@@ -265,9 +265,10 @@ export default function AutoDevPanel({ isOpen, onClose, embedded = false }: Auto
 
   const content = (
     <div
-      className={`flex flex-col overflow-hidden ${embedded ? 'w-full h-full' : 'w-175 max-h-[85vh] bg-sidebar rounded-2xl border border-white/10 shadow-2xl animate-fade-in'}`}
+      className={`flex flex-col overflow-hidden ${embedded ? 'w-full h-full' : 'w-175 max-h-[85vh] bg-white dark:bg-sidebar rounded-2xl border border-black/5 dark:border-white/10 shadow-2xl animate-fade-in'}`}
       onClick={e => e.stopPropagation()}
     >
+
       {/* Header */}
       {!embedded && (
         <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
@@ -278,9 +279,10 @@ export default function AutoDevPanel({ isOpen, onClose, embedded = false }: Auto
               </svg>
             </div>
             <div>
-              <h2 className="text-white text-lg font-semibold">AutoDev</h2>
-              <p className="text-xs text-gray-400">Programación autónoma con IA multi-agente</p>
+              <h2 className="text-gray-900 dark:text-white text-lg font-semibold">AutoDev</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Programación autónoma con IA multi-agente</p>
             </div>
+
           </div>
           <div className="flex items-center gap-3">
             {saving && (
@@ -302,11 +304,12 @@ export default function AutoDevPanel({ isOpen, onClose, embedded = false }: Auto
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-              <span className={`text-sm font-medium flex items-center gap-2 ${STATUS_LABELS[status.currentRun.status]?.color || 'text-white'}`}>
+              <span className={`text-sm font-medium flex items-center gap-2 ${STATUS_LABELS[status.currentRun.status]?.color || 'text-gray-900 dark:text-white'}`}>
                 {renderStatusIcon(status.currentRun.status)}
                 {STATUS_LABELS[status.currentRun.status]?.label || status.currentRun.status}
               </span>
             </div>
+
             <button
               onClick={handleAbort}
               className="px-3 py-1.5 text-xs font-medium text-red-400 border border-red-500/30 rounded-lg hover:bg-red-500/10 transition-colors"
@@ -345,9 +348,10 @@ export default function AutoDevPanel({ isOpen, onClose, embedded = false }: Auto
             className={`flex items-center gap-2 px-1 py-4 text-[10px] font-black uppercase tracking-widest transition-all relative ${
               activeTab === tab.key
                 ? 'text-accent'
-                : 'text-gray-500 hover:text-gray-300'
+                : 'text-gray-400 dark:text-gray-500 hover:text-gray-900 dark:hover:text-gray-300'
             }`}
           >
+
             {tab.icon}
             {tab.label}
             {activeTab === tab.key && (
@@ -373,27 +377,30 @@ export default function AutoDevPanel({ isOpen, onClose, embedded = false }: Auto
             {activeTab === 'schedule' && (
               <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {/* Master Control Card */}
-                <div className="bg-white/3 border border-white/10 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
+                <div className="bg-gray-50/50 dark:bg-white/3 border border-gray-100 dark:border-white/10 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
+
                   <div className="absolute -top-10 -right-10 w-32 h-32 bg-accent/5 rounded-full blur-3xl group-hover:bg-accent/10 transition-all duration-700"></div>
                   <div className="flex items-center justify-between relative z-10">
                     <div className="flex items-center gap-4">
                       <button
                         onClick={() => updateConfig({ enabled: !config.enabled })}
                         className={`relative inline-flex h-7 w-14 items-center rounded-full transition-all duration-300 shadow-inner ${
-                          config.enabled ? 'bg-accent shadow-accent/20' : 'bg-white/10'
+                          config.enabled ? 'bg-accent shadow-accent/20' : 'bg-black/10 dark:bg-white/10'
                         }`}
+
                       >
                         <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-all duration-300 shadow-lg ${
                           config.enabled ? 'translate-x-8' : 'translate-x-1'
                         }`} />
                       </button>
                       <div>
-                        <span className="text-sm text-white font-black uppercase tracking-widest">
+                        <span className="text-sm text-gray-900 dark:text-white font-black uppercase tracking-widest">
                           {config.enabled ? 'Agente Activo' : 'Agente en Pausa'}
                         </span>
                         <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tighter mt-0.5">
                           {config.enabled ? `Próxima ejecución: ${nextRunText()}` : 'El sistema no realizará mejoras automáticas'}
                         </p>
+
                       </div>
                     </div>
                     <button
@@ -412,9 +419,11 @@ export default function AutoDevPanel({ isOpen, onClose, embedded = false }: Auto
                 {/* Time & Days Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Time Picker Card */}
-                  <div className="bg-white/3 border border-white/10 rounded-3xl p-6">
+                  <div className="bg-gray-50/50 dark:bg-white/3 border border-gray-100 dark:border-white/10 rounded-3xl p-6 shadow-lg shadow-black/5">
+
                     <div className="flex items-center justify-between mb-6">
-                      <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">Horario</h4>
+                      <h4 className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.3em]">Horario</h4>
+
                       <div className="px-3 py-1 bg-accent/10 border border-accent/20 rounded-xl">
                         <span className="text-xs font-black text-accent font-mono">{formatTime(customHour, customMinute)}</span>
                       </div>
@@ -425,40 +434,47 @@ export default function AutoDevPanel({ isOpen, onClose, embedded = false }: Auto
                        <div className="flex flex-col items-center gap-2">
                         <button
                           onClick={() => { const h = (customHour + 1) % 24; setCustomHour(h); handleTimeChange(h, customMinute); }}
-                          className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center"
+                          className="w-10 h-10 rounded-xl bg-black/[0.02] dark:bg-white/5 border border-black/[0.05] dark:border-white/10 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/10 transition-all flex items-center justify-center"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
                         </button>
-                        <div className="w-16 h-16 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center shadow-inner">
-                          <span className="text-2xl font-black text-white font-mono">{customHour.toString().padStart(2, '0')}</span>
+
+                        <div className="w-16 h-16 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl flex items-center justify-center shadow-inner">
+                          <span className="text-2xl font-black text-gray-900 dark:text-white font-mono">{customHour.toString().padStart(2, '0')}</span>
                         </div>
+
                         <button
                           onClick={() => { const h = (customHour - 1 + 24) % 24; setCustomHour(h); handleTimeChange(h, customMinute); }}
-                          className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center"
+                          className="w-10 h-10 rounded-xl bg-black/[0.02] dark:bg-white/5 border border-black/[0.05] dark:border-white/10 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/10 transition-all flex items-center justify-center"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
                         </button>
+
                        </div>
 
-                       <div className="text-3xl font-black text-white/20 mt-2">:</div>
+                       <div className="text-3xl font-black text-gray-900/10 dark:text-white/20 mt-2">:</div>
+
 
                        {/* Minute */}
                        <div className="flex flex-col items-center gap-2">
                         <button
                           onClick={() => { const m = (customMinute + 15) % 60; setCustomMinute(m); handleTimeChange(customHour, m); }}
-                          className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center"
+                          className="w-10 h-10 rounded-xl bg-black/[0.02] dark:bg-white/5 border border-black/[0.05] dark:border-white/10 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/10 transition-all flex items-center justify-center"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
                         </button>
-                        <div className="w-16 h-16 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center shadow-inner">
-                          <span className="text-2xl font-black text-white font-mono">{customMinute.toString().padStart(2, '0')}</span>
+
+                        <div className="w-16 h-16 bg-white dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl flex items-center justify-center shadow-inner">
+                          <span className="text-2xl font-black text-gray-900 dark:text-white font-mono">{customMinute.toString().padStart(2, '0')}</span>
                         </div>
+
                         <button
                           onClick={() => { const m = (customMinute - 15 + 60) % 60; setCustomMinute(m); handleTimeChange(customHour, m); }}
-                          className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center"
+                          className="w-10 h-10 rounded-xl bg-black/[0.02] dark:bg-white/5 border border-black/[0.05] dark:border-white/10 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/10 transition-all flex items-center justify-center"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
                         </button>
+
                        </div>
                     </div>
 
@@ -470,8 +486,9 @@ export default function AutoDevPanel({ isOpen, onClose, embedded = false }: Auto
                           className={`px-2 py-2.5 text-[9px] font-black uppercase tracking-tighter rounded-xl border transition-all ${
                             customHour === qt.hour && customMinute === 0
                               ? 'bg-accent/10 border-accent/40 text-accent shadow-lg shadow-accent/10 scale-105'
-                              : 'bg-white/2 border-white/5 text-gray-500 hover:border-white/20 hover:text-gray-300'
+                              : 'bg-black/[0.02] dark:bg-white/2 border-black/[0.05] dark:border-white/5 text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:hover:border-white/20 hover:text-gray-900 dark:hover:text-gray-300'
                           }`}
+
                         >
                           {qt.label}
                         </button>
@@ -480,16 +497,19 @@ export default function AutoDevPanel({ isOpen, onClose, embedded = false }: Auto
                   </div>
 
                   {/* Days Selector Card */}
-                  <div className="bg-white/3 border border-white/10 rounded-3xl p-6">
-                    <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-6">Frecuencia Semanal</h4>
+                  <div className="bg-gray-50/50 dark:bg-white/3 border border-gray-100 dark:border-white/10 rounded-3xl p-6 shadow-lg shadow-black/5">
+
+                    <h4 className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.3em] mb-6">Frecuencia Semanal</h4>
+
                     <div className="flex flex-col gap-4">
                       <button
                         onClick={() => handleDayToggle('*')}
                         className={`w-full py-3 text-[10px] font-black uppercase tracking-widest rounded-2xl border transition-all ${
                           selectedDays.includes('*')
                             ? 'bg-accent/10 border-accent/40 text-accent shadow-lg shadow-accent/10'
-                            : 'bg-white/2 border-white/5 text-gray-500 hover:border-white/20'
+                            : 'bg-black/[0.02] dark:bg-white/2 border-black/[0.05] dark:border-white/5 text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:hover:border-white/20'
                         }`}
+
                       >
                         Diario (Todos los Días)
                       </button>
@@ -502,8 +522,9 @@ export default function AutoDevPanel({ isOpen, onClose, embedded = false }: Auto
                             className={`aspect-square text-[10px] font-black rounded-xl border transition-all flex items-center justify-center ${
                               !selectedDays.includes('*') && selectedDays.includes(day.cron)
                                 ? 'bg-accent/10 border-accent/40 text-accent shadow-lg shadow-accent/10'
-                                : 'bg-white/2 border-white/5 text-gray-500 hover:border-white/20'
+                                : 'bg-black/[0.02] dark:bg-white/2 border-black/[0.05] dark:border-white/5 text-gray-400 dark:text-gray-500 hover:border-gray-300 dark:hover:border-white/20'
                             }`}
+
                           >
                             {day.label}
                           </button>
@@ -511,18 +532,21 @@ export default function AutoDevPanel({ isOpen, onClose, embedded = false }: Auto
                       </div>
                     </div>
 
-                    <div className="mt-8 pt-6 border-t border-white/5">
+                    <div className="mt-8 pt-6 border-t border-black/[0.03] dark:border-white/5">
+
                       <div className="flex justify-between items-end">
                         <div className="space-y-1">
-                          <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest leading-none">Configuración actual</p>
-                          <code className="text-[10px] text-gray-400 bg-white/5 px-2 py-1 rounded-lg font-mono tracking-widest">{config.cronSchedule}</code>
+                          <p className="text-[9px] font-black text-gray-400 dark:text-gray-600 uppercase tracking-widest leading-none">Configuración actual</p>
+                          <code className="text-[10px] text-gray-500 dark:text-gray-400 bg-black/[0.02] dark:bg-white/5 px-2 py-1 rounded-lg font-mono tracking-widest">{config.cronSchedule}</code>
                         </div>
+
                         <div className="text-right">
-                          <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest leading-none mb-1">Ejecuciones Hoy</p>
-                          <p className="text-xl font-black text-white font-mono leading-none">
-                            {status?.todayRunCount || 0}<span className="text-xs text-gray-600 ml-1">/ {config.maxDailyRuns}</span>
+                          <p className="text-[9px] font-black text-gray-400 dark:text-gray-600 uppercase tracking-widest leading-none mb-1">Ejecuciones Hoy</p>
+                          <p className="text-xl font-black text-gray-900 dark:text-white font-mono leading-none">
+                            {status?.todayRunCount || 0}<span className="text-xs text-gray-400 dark:text-gray-600 ml-1">/ {config.maxDailyRuns}</span>
                           </p>
                         </div>
+
                       </div>
                     </div>
                   </div>

@@ -9,6 +9,7 @@ export interface Conversation {
   user_id: string;
   title: string;
   folder_id?: string;
+  org_id?: string;
   is_pinned?: boolean;
   created_at: string;
   updated_at: string;
@@ -28,48 +29,96 @@ export interface ChatMessage {
 // Conversation CRUD
 // ============================================
 
+const CONVERSATIONS_CACHE_KEY = 'lia_conversations';
+
 /**
  * Carga todas las conversaciones del usuario (max 50, mas recientes primero).
+ * Falls back to localStorage if Supabase fails.
  */
 export async function loadConversations(userId: string): Promise<Conversation[]> {
-  const { data, error } = await supabase
-    .from('conversations')
-    .select('*')
-    .eq('user_id', userId)
-    .order('updated_at', { ascending: false })
-    .limit(50);
+  try {
+    const { data, error } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(50);
 
-  if (error) {
-    console.error('Error loading conversations:', error);
+    if (error) {
+      console.error('[chat-service] loadConversations Supabase FAILED:', error.message, '| code:', error.code);
+      // Fallback to localStorage
+      return loadConversationsFromCache(userId);
+    }
+
+    const convs = data || [];
+    // Cache to localStorage
+    try {
+      localStorage.setItem(CONVERSATIONS_CACHE_KEY + '_' + userId, JSON.stringify(convs));
+    } catch {}
+    return convs;
+  } catch (err) {
+    console.error('[chat-service] loadConversations exception:', err);
+    return loadConversationsFromCache(userId);
+  }
+}
+
+function loadConversationsFromCache(userId: string): Conversation[] {
+  try {
+    const cached = localStorage.getItem(CONVERSATIONS_CACHE_KEY + '_' + userId);
+    return cached ? JSON.parse(cached) : [];
+  } catch {
     return [];
   }
-  return data || [];
 }
 
 /**
  * Carga los mensajes de una conversacion.
  */
 export async function loadMessages(conversationId: string): Promise<ChatMessage[]> {
-  const { data, error } = await supabase
-    .from('messages')
-    .select('*')
-    .eq('conversation_id', conversationId)
-    .order('created_at', { ascending: true });
+  try {
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true });
 
-  if (error) {
-    console.error('Error loading messages:', error);
+    if (error) {
+      console.error('[chat-service] loadMessages FAILED:', error.message);
+      return loadMessagesFromCache(conversationId);
+    }
+
+    const msgs = (data || []).map((m: any) => ({
+      id: m.id,
+      role: m.role as 'user' | 'model',
+      text: m.content,
+      timestamp: new Date(m.created_at).getTime(),
+      sources: m.metadata?.sources,
+      images: m.metadata?.images,
+      feedback: m.metadata?.feedback,
+    }));
+
+    // Save to cache
+    saveMessagesToCache(conversationId, msgs);
+    return msgs;
+  } catch (err) {
+    console.error('[chat-service] loadMessages exception:', err);
+    return loadMessagesFromCache(conversationId);
+  }
+}
+
+function loadMessagesFromCache(conversationId: string): ChatMessage[] {
+  try {
+    const cached = localStorage.getItem(`lia_messages_${conversationId}`);
+    return cached ? JSON.parse(cached) : [];
+  } catch {
     return [];
   }
+}
 
-  return (data || []).map((m: any) => ({
-    id: m.id,
-    role: m.role as 'user' | 'model',
-    text: m.content,
-    timestamp: new Date(m.created_at).getTime(),
-    sources: m.metadata?.sources,
-    images: m.metadata?.images,
-    feedback: m.metadata?.feedback,
-  }));
+export function saveMessagesToCache(conversationId: string, messages: ChatMessage[]) {
+  try {
+    localStorage.setItem(`lia_messages_${conversationId}`, JSON.stringify(messages));
+  } catch {}
 }
 
 /**
@@ -78,59 +127,91 @@ export async function loadMessages(conversationId: string): Promise<ChatMessage[
 export async function createConversation(
   userId: string,
   title: string,
-  folderId?: string
+  folderId?: string,
+  orgId?: string
 ): Promise<Conversation | null> {
-  const { data, error } = await supabase
-    .from('conversations')
-    .insert({
+  const row: Record<string, any> = {
+    user_id: userId,
+    title,
+    folder_id: folderId || null,
+  };
+  if (orgId) row.org_id = orgId;
+
+  try {
+    const { data, error } = await supabase
+      .from('conversations')
+      .insert(row)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[chat-service] createConversation Supabase FAILED:', error.message, '| code:', error.code);
+      // Create locally with a UUID
+      const localConv: Conversation = {
+        id: crypto.randomUUID(),
+        user_id: userId,
+        title,
+        folder_id: folderId,
+        org_id: orgId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      saveConversationToCache(userId, localConv);
+      return localConv;
+    }
+
+    // Cache the new conversation
+    if (data) saveConversationToCache(userId, data);
+    return data;
+  } catch (err) {
+    console.error('[chat-service] createConversation exception:', err);
+    // Create locally
+    const localConv: Conversation = {
+      id: crypto.randomUUID(),
       user_id: userId,
       title,
-      folder_id: folderId || null,
-    })
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error creating conversation:', error);
-    return null;
+      folder_id: folderId,
+      org_id: orgId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    saveConversationToCache(userId, localConv);
+    return localConv;
   }
-  return data;
+}
+
+function saveConversationToCache(userId: string, conv: Conversation) {
+  try {
+    const cached = localStorage.getItem(CONVERSATIONS_CACHE_KEY + '_' + userId);
+    const convs: Conversation[] = cached ? JSON.parse(cached) : [];
+    const existing = convs.findIndex(c => c.id === conv.id);
+    if (existing >= 0) convs[existing] = conv;
+    else convs.unshift(conv);
+    localStorage.setItem(CONVERSATIONS_CACHE_KEY + '_' + userId, JSON.stringify(convs.slice(0, 50)));
+  } catch {}
 }
 
 /**
- * Guarda mensajes (insert nuevos, update existentes con contenido cambiado).
+ * Sincroniza mensajes con Supabase: upsert los actuales + eliminar huérfanos.
+ * Diseñado para ser la ÚNICA función de persistencia. Idempotente y segura
+ * contra race conditions — el último llamador siempre gana.
  */
 export async function saveMessages(
   conversationId: string,
   userId: string,
   messages: ChatMessage[]
 ): Promise<void> {
-  if (messages.length === 0) return;
+  // Siempre actualizar cache local primero
+  saveMessagesToCache(conversationId, messages);
 
-  // Obtener mensajes existentes
-  const { data: existingMsgs } = await supabase
-    .from('messages')
-    .select('id, content')
-    .eq('conversation_id', conversationId);
-
-  const existingMap = new Map<string, string>();
-  existingMsgs?.forEach((m: any) => existingMap.set(m.id, m.content));
-
-  // Filtrar mensajes validos
   const validMessages = messages.filter(
     m => m.text && m.text.trim().length > 0 && !m.id.startsWith('error-')
   );
 
-  // Separar nuevos y actualizados
-  const newMessages = validMessages.filter(m => !existingMap.has(m.id));
-  const updatedMessages = validMessages.filter(m => {
-    return existingMap.has(m.id);
-  });
-
-  // Insert nuevos
-  if (newMessages.length > 0) {
-    const { error } = await supabase.from('messages').insert(
-      newMessages.map(m => ({
+  try {
+    // 1. Upsert todos los mensajes actuales (insert o update en una sola operación)
+    if (validMessages.length > 0) {
+      const rows = validMessages.map(m => ({
         id: m.id,
         conversation_id: conversationId,
         user_id: userId,
@@ -141,30 +222,48 @@ export async function saveMessages(
           images: m.images || null,
           feedback: m.feedback || null,
         },
-      }))
-    );
-    if (error) {
-      console.error('Error inserting messages:', error);
-    }
-  }
+      }));
 
-  // Update existentes
-  for (const m of updatedMessages) {
-    const { error } = await supabase
+      const { error: upsertError } = await supabase
+        .from('messages')
+        .upsert(rows, { onConflict: 'id' });
+
+      if (upsertError) {
+        console.error('[chat-service] upsert error:', upsertError);
+        return;
+      }
+    }
+
+    // 2. Eliminar mensajes huérfanos (los que están en Supabase pero no en el estado local)
+    const { data: existing, error: fetchError } = await supabase
       .from('messages')
-      .update({
-        content: m.text,
-        metadata: {
-          sources: m.sources || null,
-          images: m.images || null,
-          feedback: m.feedback || null,
-        },
-      })
-      .eq('id', m.id);
+      .select('id')
+      .eq('conversation_id', conversationId);
 
-    if (error) {
-      console.error('Error updating message:', error);
+    if (fetchError) {
+      console.warn('[chat-service] fetch existing error:', fetchError.message);
+      return;
     }
+
+    const currentIds = new Set(validMessages.map(m => m.id));
+    const orphanIds = (existing || [])
+      .map((m: any) => m.id as string)
+      .filter(id => !currentIds.has(id));
+
+    if (orphanIds.length > 0) {
+      const { error: delError } = await supabase
+        .from('messages')
+        .delete()
+        .in('id', orphanIds);
+
+      if (delError) {
+        console.error('[chat-service] delete orphans error:', delError);
+      } else {
+        console.log(`[chat-service] Deleted ${orphanIds.length} orphan messages`);
+      }
+    }
+  } catch (err) {
+    console.error('[chat-service] saveMessages exception:', err);
   }
 }
 

@@ -1,24 +1,11 @@
 ; =============================================================================
-; SofLIA Hub - Custom NSIS Installer Script
+; SofLIA Hub - Custom NSIS Installer Script (oneClick mode)
 ; =============================================================================
-; This script customizes the look and feel of the NSIS installer
-; for SofLIA Hub, providing a modern, branded installation experience.
+; Con oneClick: true no hay wizard ni páginas. Solo se muestra una ventana
+; de progreso breve y luego se abre la app. Las actualizaciones se instalan
+; en segundo plano sin intervención del usuario.
 ; =============================================================================
 
-; ─── Modern UI Colors ───
-!define MUI_BGCOLOR "0A2540"
+; ─── Brand Colors ───
+!define MUI_BGCOLOR "12151A"
 !define MUI_TEXTCOLOR "FFFFFF"
-
-; ─── Custom UI Elements ───
-!define MUI_ABORTWARNING
-!define MUI_ABORTWARNING_TEXT "¿Estás seguro de que deseas cancelar la instalación de SofLIA Hub?"
-!define MUI_ABORTWARNING_CANCEL_DEFAULT
-
-; ─── Finish Page Configuration ───
-!define MUI_FINISHPAGE_NOAUTOCLOSE
-!define MUI_FINISHPAGE_RUN_TEXT "Iniciar SofLIA Hub"
-!define MUI_FINISHPAGE_LINK "Visita el portal SofLIA"
-!define MUI_FINISHPAGE_LINK_LOCATION "https://soflia.ai"
-
-; ─── Uninstaller Finish Page ───
-!define MUI_UNFINISHPAGE_NOAUTOCLOSE

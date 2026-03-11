@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GOOGLE_API_KEY, MODELS } from '../config';
 import { PRIMARY_CHAT_PROMPT, buildPrimaryChatPrompt } from '../prompts/chat';
 import { getApiKeyWithCache } from './api-keys';
-import { COMPUTER_USE_TOOLS, COMPUTER_TOOL_NAMES, PROJECT_HUB_TOOLS, PROJECT_HUB_TOOL_NAMES, GOOGLE_WORKSPACE_TOOLS, GOOGLE_WORKSPACE_TOOL_NAMES } from './gemini-tools';
+import { COMPUTER_USE_TOOLS, COMPUTER_TOOL_NAMES, PROJECT_HUB_TOOLS, PROJECT_HUB_TOOL_NAMES, GOOGLE_WORKSPACE_TOOLS, GOOGLE_WORKSPACE_TOOL_NAMES, NATIVE_AI_TOOLS, NATIVE_AI_TOOL_NAMES } from './gemini-tools';
 import { executeComputerTool, isComputerUseAvailable } from './computer-use-service';
 import { deleteProject, createProject } from './iris-data';
 
@@ -26,6 +26,7 @@ export interface StreamResult {
   stream: AsyncIterable<string>;
   sources: Promise<Array<{ uri: string; title: string }> | null>;
   toolCalls?: ToolCallInfo[];
+  generatedImages?: string[];
 }
 
 let genAI: GoogleGenerativeAI | null = null;
@@ -108,6 +109,7 @@ export async function sendMessageStream(
     toolSystemPrompt?: string;
     context?: string;
     irisContext?: string;
+    sourcesContext?: string;
     onToolCall?: (toolCall: ToolCallInfo) => void;
   }
 ): Promise<StreamResult> {
@@ -145,6 +147,10 @@ export async function sendMessageStream(
     systemInstruction += `\n\n=== CONTEXTO DEL PROJECT HUB (IRIS) ===\n${options.irisContext}\n=====================================\n\n⚠️ REGLAS CRÍTICAS DE Project Hub (IRIS):\n1. **CREACIÓN DE PROYECTOS**: Si el usuario pide CREAR un proyecto o tarea con un nombre específico, DEBES usar la herramienta de creación (ej. create_iris_project). NUNCA asumas que debes mapear la información a un proyecto existente solo porque comparten similitudes, a menos que el usuario indique explícitamente agregarlo al existente.\n2. **ASIGNACIONES**: Si intentas crear una issue asignada al usuario (assignee_id) y recibes un error de base de datos (ej. permisos, foreign key, RLS), vuelve a intentar crear la issue pero enviando el campo 'assignee_id' vacío o nulo. No detengas el proceso, avisa al usuario después pero completa la creación.`;
   }
 
+  if (options?.sourcesContext) {
+    systemInstruction += options.sourcesContext;
+  }
+
   if (options?.toolSystemPrompt) {
     systemInstruction += `\n\n=== INSTRUCCIONES DE HERRAMIENTA ACTIVA ===\n${options.toolSystemPrompt}\n=====================================`;
   }
@@ -164,34 +170,19 @@ export async function sendMessageStream(
     }
   }
 
-  // Build tools array
-  // Gemini 3 models do NOT support combining built-in tools (googleSearch) with
-  // function calling (functionDeclarations) in the same request.
-  // Strategy:
-  //   - Gemini 3: ALWAYS use functionDeclarations (PROJECT_HUB_TOOLS + optional COMPUTER_USE_TOOLS)
-  //     so the AI can execute IRIS actions. Google Search is sacrificed for Gemini 3.
-  //   - Gemini 2.5: Can safely combine googleSearch with functionDeclarations.
+  // Build tools array — only functionDeclarations (no googleSearch)
+  // googleSearch (built-in) cannot be combined with custom tools in any Gemini model.
   const computerUseEnabled = isComputerUseAvailable();
-  const isGemini3 = activeModelId.includes('gemini-3');
 
   let modelTools: any[];
 
   // Verificar si hay calendario/Gmail/Drive conectados para habilitar Google Workspace tools
   const hasGoogleWorkspace = typeof window !== 'undefined' && !!(window as any).calendar;
 
-  if (isGemini3) {
-    // Gemini 3: ONLY functionDeclarations (no googleSearch to avoid conflict)
-    modelTools = computerUseEnabled
-      ? [COMPUTER_USE_TOOLS, PROJECT_HUB_TOOLS]
-      : [PROJECT_HUB_TOOLS];
-    if (hasGoogleWorkspace) modelTools.push(GOOGLE_WORKSPACE_TOOLS);
-  } else {
-    // Gemini 2.5+: Can safely combine googleSearch with functionDeclarations
-    modelTools = computerUseEnabled
-      ? [{ googleSearch: {} } as any, COMPUTER_USE_TOOLS, PROJECT_HUB_TOOLS]
-      : [{ googleSearch: {} } as any, PROJECT_HUB_TOOLS];
-    if (hasGoogleWorkspace) modelTools.push(GOOGLE_WORKSPACE_TOOLS);
-  }
+  modelTools = computerUseEnabled
+    ? [COMPUTER_USE_TOOLS, PROJECT_HUB_TOOLS, NATIVE_AI_TOOLS]
+    : [PROJECT_HUB_TOOLS, NATIVE_AI_TOOLS];
+  if (hasGoogleWorkspace) modelTools.push(GOOGLE_WORKSPACE_TOOLS);
 
   const model = ai.getGenerativeModel({
     model: activeModelId,
@@ -239,6 +230,7 @@ export async function sendMessageStream(
 
   // Track tool calls for this message
   const allToolCalls: ToolCallInfo[] = [];
+  const allGeneratedImages: string[] = [];
 
   // ─── Agentic Function Calling Loop ───────────────────────────────
   // Phase 1: Non-streaming loop for tool calls
@@ -275,7 +267,7 @@ export async function sendMessageStream(
           yield fullText;
         })();
 
-        return { stream, sources: Promise.resolve(sources), toolCalls: allToolCalls.length > 0 ? allToolCalls : undefined };
+        return { stream, sources: Promise.resolve(sources), toolCalls: allToolCalls.length > 0 ? allToolCalls : undefined, generatedImages: allGeneratedImages.length > 0 ? allGeneratedImages : undefined };
       }
 
       // Execute each function call
@@ -287,7 +279,7 @@ export async function sendMessageStream(
         const toolArgs = fc.args || {};
 
         // Check if this is a computer-use, project hub, or Google Workspace tool
-        if (COMPUTER_TOOL_NAMES.has(toolName) || PROJECT_HUB_TOOL_NAMES.has(toolName) || GOOGLE_WORKSPACE_TOOL_NAMES.has(toolName)) {
+        if (COMPUTER_TOOL_NAMES.has(toolName) || PROJECT_HUB_TOOL_NAMES.has(toolName) || GOOGLE_WORKSPACE_TOOL_NAMES.has(toolName) || NATIVE_AI_TOOL_NAMES.has(toolName)) {
           const toolInfo: ToolCallInfo = { name: toolName, args: toolArgs };
 
           // Notify UI about tool execution
@@ -338,6 +330,23 @@ export async function sendMessageStream(
               } else {
                 resultStr = JSON.stringify({ success: false, error: 'Hub tool not implemented' });
               }
+            } else if (NATIVE_AI_TOOL_NAMES.has(toolName)) {
+              if (toolName === 'generate_image') {
+                const { generateImage } = await import('./image-generation');
+                try {
+                  const imgResult = await generateImage(toolArgs.prompt);
+                  if (imgResult.imageData) {
+                    allGeneratedImages.push(imgResult.imageData);
+                    resultStr = JSON.stringify({ success: true, message: `Imagen generada correctamente: "${toolArgs.prompt}". Será mostrada en la pantalla del usuario automáticamente.` });
+                  } else {
+                    resultStr = JSON.stringify({ success: false, error: imgResult.text });
+                  }
+                } catch (e: any) {
+                  resultStr = JSON.stringify({ success: false, error: e.message });
+                }
+              } else {
+                resultStr = JSON.stringify({ success: false, error: 'Native tool not implemented' });
+              }
             } else {
               const rawResult = await executeComputerTool(toolName, toolArgs);
               // Ensure we return an object even for string results
@@ -387,7 +396,7 @@ export async function sendMessageStream(
           yield fullText;
         })();
 
-        return { stream, sources: Promise.resolve(sources), toolCalls: allToolCalls.length > 0 ? allToolCalls : undefined };
+        return { stream, sources: Promise.resolve(sources), toolCalls: allToolCalls.length > 0 ? allToolCalls : undefined, generatedImages: allGeneratedImages.length > 0 ? allGeneratedImages : undefined };
       }
 
       // Send function responses back to the model
@@ -397,7 +406,7 @@ export async function sendMessageStream(
     // If we hit max iterations, return what we have
     const fallbackText = 'He ejecutado las acciones solicitadas. Si necesitas algo más, no dudes en pedirlo.';
     const stream = (async function* () { yield fallbackText; })();
-    return { stream, sources: Promise.resolve(null), toolCalls: allToolCalls };
+    return { stream, sources: Promise.resolve(null), toolCalls: allToolCalls, generatedImages: allGeneratedImages.length > 0 ? allGeneratedImages : undefined };
   }
 
   // ─── Standard Streaming (no function calling) ────────────────────
@@ -422,7 +431,7 @@ export async function sendMessageStream(
     }
   })();
 
-  return { stream, sources };
+  return { stream, sources, generatedImages: allGeneratedImages.length > 0 ? allGeneratedImages : undefined };
 }
 
 /**

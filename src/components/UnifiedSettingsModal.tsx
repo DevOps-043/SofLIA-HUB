@@ -21,6 +21,10 @@ interface UnifiedSettingsModalProps {
 
 export type SettingsTab = 'ai' | 'whatsapp' | 'team' | 'autodev' | 'screen' | 'productivity' | 'updates';
 
+// AutoDev is a developer-only tool — restricted to the repo owner
+const AUTODEV_AUTHORIZED_EMAIL = 'fernando.suarez@pulsehub.mx';
+const AUTODEV_AUTHORIZED_NICKNAME = 'fersg';
+
 export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
   isOpen,
   onClose,
@@ -30,6 +34,12 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
   apiKey,
   initialTab = 'ai'
 }) => {
+  // Determine if the current user is authorized to access AutoDev
+  const currentEmail = (sofiaContext?.user?.email || '').toLowerCase();
+  const currentNickname = (sofiaContext?.user?.username || '').toLowerCase();
+  const isAutoDevAuthorized =
+    currentEmail === AUTODEV_AUTHORIZED_EMAIL ||
+    currentNickname === AUTODEV_AUTHORIZED_NICKNAME;
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
 
   useEffect(() => {
@@ -62,7 +72,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
       </svg>
-    )},
+    ), hidden: !isAutoDevAuthorized },
     { id: 'screen' as const, label: 'Ver Pantalla', icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -122,6 +132,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
           </div>
         );
       case 'autodev':
+        if (!isAutoDevAuthorized) return null;
         return (
           <div className="h-full overflow-hidden">
             <AutoDevPanel 
@@ -135,9 +146,10 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
         return (
           <div className="h-full overflow-hidden flex flex-col pt-2">
             <div className="px-6 pb-2">
-              <h3 className="text-white text-lg font-semibold">Visualización de Pantalla</h3>
-              <p className="text-xs text-gray-400">Monitorea y captura la actividad de tu escritorio</p>
+              <h3 className="text-gray-900 dark:text-white text-lg font-semibold">Visualización de Pantalla</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Monitorea y captura la actividad de tu escritorio</p>
             </div>
+
             <div className="flex-1 overflow-hidden border-t border-white/5">
               <ScreenContent />
             </div>
@@ -147,9 +159,10 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
         return (
           <div className="h-full overflow-hidden flex flex-col pt-2">
             <div className="px-6 pb-2">
-              <h3 className="text-white text-lg font-semibold">Dashboard de Productividad</h3>
-              <p className="text-xs text-gray-400">Analiza tus métricas de trabajo y tiempo</p>
+              <h3 className="text-gray-900 dark:text-white text-lg font-semibold">Dashboard de Productividad</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Analiza tus métricas de trabajo y tiempo</p>
             </div>
+
             <div className="flex-1 overflow-y-auto no-scrollbar border-t border-white/5">
               <ProductivityContent userId={userId} />
             </div>
@@ -172,60 +185,69 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
       onClick={onClose}
     >
       <div 
-        className="w-full max-w-260 h-[90vh] bg-[#0c0d10] rounded-[2.5rem] border border-white/10 shadow-2xl flex animate-in zoom-in-95 duration-300 overflow-hidden relative"
+        className="w-full max-w-260 h-[90vh] bg-white dark:bg-[#0c0d10] rounded-[2.5rem] border border-black/[0.03] dark:border-white/[0.05] shadow-2xl flex animate-in zoom-in-95 duration-300 overflow-hidden relative"
         onClick={e => e.stopPropagation()}
       >
+
+
         {/* Decorative background effects (Optimized) */}
         <div className="absolute top-[-10%] left-[-10%] w-[35%] h-[35%] bg-accent/5 blur-[80px] rounded-full pointer-events-none" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[35%] h-[35%] bg-purple-500/5 blur-[80px] rounded-full pointer-events-none" />
 
         {/* Sidebar */}
-        <div className="w-24 bg-black/40 backdrop-blur-2xl border-r border-white/5 flex flex-col items-center transition-all z-20 relative overflow-hidden">
+        <div className="w-20 bg-gray-50 dark:bg-black/20 backdrop-blur-3xl border-r border-black/[0.03] dark:border-white/[0.05] flex flex-col items-center transition-all z-20 relative overflow-x-hidden">
+
+
           <div className="py-8 flex-shrink-0">
-            <img src="./assets/Icono.png" alt="SofLIA" className="w-10 h-10 drop-shadow-[0_0_10px_rgba(34,211,238,0.2)]" />
+            <img src="./assets/Icono.png" alt="SofLIA" className="w-10 h-10 drop-shadow-[0_0_10px_rgba(34,211,238,0.2)] dark:filter-none filter-accent-themed" />
           </div>
           
-          <nav className="flex-1 w-full overflow-y-auto no-scrollbar py-4 space-y-6 flex flex-col items-center">
+          <nav className="flex-1 w-full overflow-y-auto overflow-x-hidden no-scrollbar py-6 space-y-5 flex flex-col items-center">
             {TABS.map(tab => !tab.hidden && (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as SettingsTab)}
-                className={`flex flex-col items-center justify-center w-14 h-14 rounded-2xl transition-all duration-300 group relative flex-shrink-0 ${
+                className={`flex flex-col items-center justify-center w-11 h-11 rounded-xl transition-all duration-300 group relative flex-shrink-0 ${
                   activeTab === tab.id 
-                    ? 'bg-accent text-[#0c0d10] shadow-[0_0_20px_rgba(34,211,238,0.4)] scale-105' 
-                    : 'text-gray-500 hover:text-white hover:bg-white/5'
+                    ? 'bg-accent/10 text-accent shadow-[0_0_20px_rgba(34,211,238,0.1)] scale-105' 
+                    : 'text-gray-400 dark:text-gray-600 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-black/[0.02] dark:hover:bg-white/[0.03]'
                 }`}
+
                 title={tab.label}
               >
-                <div className={`${activeTab === tab.id ? 'text-[#0c0d10] scale-105' : 'text-gray-500 group-hover:text-gray-300 group-hover:scale-105'} transition-transform duration-300`}>
+                <div className={`${activeTab === tab.id ? 'text-accent scale-105' : 'text-gray-600 group-hover:text-gray-400 group-hover:scale-105'} transition-transform duration-300`}>
                   {tab.icon}
                 </div>
-                <div className="absolute left-full ml-4 px-3 py-1.5 bg-sidebar/95 backdrop-blur-xl text-white text-[10px] font-bold uppercase tracking-wider rounded-xl opacity-0 translate-x-[-10px] group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 pointer-events-none whitespace-nowrap z-[100] border border-white/10 shadow-2xl shadow-black/50 flex items-center gap-2">
+                <div className="absolute left-full ml-4 px-3 py-1.5 bg-white/95 dark:bg-[#0f1115]/95 backdrop-blur-xl text-gray-900 dark:text-white text-[9px] font-bold uppercase tracking-wider rounded-lg opacity-0 translate-x-[-10px] group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 pointer-events-none whitespace-nowrap z-[100] border border-black/5 dark:border-white/5 shadow-2xl flex items-center gap-2">
+
                   <div className="w-1 h-1 rounded-full bg-accent"></div>
                   {tab.label}
                 </div>
                 {activeTab === tab.id && (
-                  <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-1.5 h-8 bg-accent rounded-full shadow-[0_0_15px_rgba(34,211,238,0.6)]"></div>
+                  <div className="absolute -right-5 top-1/2 -translate-y-1/2 w-1 h-6 bg-accent rounded-full shadow-[0_0_15px_rgba(34,211,238,0.4)]"></div>
                 )}
               </button>
             ))}
           </nav>
+
           
-          <div className="mt-auto w-full px-4 pb-8 flex-shrink-0 border-t border-white/5 pt-6 bg-black/20">
+          <div className="mt-auto w-full px-3 pb-8 flex-shrink-0 border-t border-black/[0.03] dark:border-white/[0.03] pt-6 overflow-x-hidden">
             <button 
               onClick={onClose}
-              className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 text-gray-500 hover:text-white hover:bg-red-500/10 hover:border-red-500/30 transition-all flex items-center justify-center group relative mx-auto"
+              className="w-11 h-11 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] text-gray-400 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/5 hover:border-red-500/20 transition-all flex items-center justify-center group relative mx-auto"
               title="Volver al Chat"
             >
-              <svg className="w-6 h-6 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
-              <div className="absolute left-full ml-4 px-3 py-1.5 bg-sidebar/95 backdrop-blur-xl text-white text-[10px] font-bold uppercase tracking-wider rounded-xl opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 pointer-events-none whitespace-nowrap z-100 border border-white/10 shadow-2xl flex items-center gap-2">
+              <div className="absolute left-full ml-4 px-3 py-1.5 bg-white/95 dark:bg-[#0f1115]/95 backdrop-blur-xl text-gray-900 dark:text-white text-[9px] font-bold uppercase tracking-wider rounded-lg opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 pointer-events-none whitespace-nowrap z-100 border border-black/5 dark:border-white/5 shadow-2xl flex items-center gap-2">
+
                 <div className="w-1 h-1 rounded-full bg-red-400"></div>
-                Volver al Chat
+                Cerrar
               </div>
             </button>
           </div>
+
         </div>
 
         {/* Content Area */}

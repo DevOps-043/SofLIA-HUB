@@ -90,7 +90,7 @@ const DEFAULT_CONFIG: DesktopAgentConfig = {
   autoRecoverFromDialogs: true,
   replanOnStuck: true,
   maxRetryPerAction: 2,
-  proactiveModel: 'gemini-3-pro-preview',
+  proactiveModel: 'gemini-3.1-pro-preview',
   maxConcurrentAgents: 3,
   // V2 defaults
   gridEnabled: true,

@@ -48,6 +48,7 @@ import {
   DEFAULT_MICRO_CONFIG,
 } from './autodev-types';
 import { AutoDevGit } from './autodev-git';
+import { StrategicMemoryService, type RunStrategy } from './autodev-strategic-memory';
 import { webSearch, readWebpage, npmAudit, npmOutdated } from './autodev-web';
 import {
   RESEARCH_GROUNDING_PROMPT,
@@ -365,12 +366,16 @@ export class AutoDevService extends EventEmitter {
   private microFixDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private microFixRunning: boolean = false;
 
+  // ─── Strategic Memory (conciencia persistente) ────────────────
+  private strategicMemory: StrategicMemoryService;
+
   constructor(repoPath: string) {
     super();
     this.repoPath = repoPath;
     this.config = this.loadConfig();
     this.git = new AutoDevGit(repoPath);
     this.history = this.loadHistory();
+    this.strategicMemory = new StrategicMemoryService();
   }
 
   // ─── API Key ───────────────────────────────────────────────────
@@ -473,7 +478,7 @@ export class AutoDevService extends EventEmitter {
   }
 
   /** Append a new issue entry to the issues file */
-  private logIssue(category: 'build_failure' | 'review_rejection' | 'runtime_error' | 'limitation' | 'coding_error' | 'dependency_issue', description: string, context?: string): void {
+  private logIssue(category: 'build_failure' | 'review_rejection' | 'runtime_error' | 'limitation' | 'coding_error' | 'dependency_issue' | 'integration_warning', description: string, context?: string): void {
     const timestamp = new Date().toISOString();
     const runId = this.currentRun?.id || 'unknown';
     const existingContent = this.readIssuesFile();
@@ -751,6 +756,30 @@ export class AutoDevService extends EventEmitter {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    //  PHASE 0: STRATEGIC AWARENESS (selección de estrategia)
+    // ═══════════════════════════════════════════════════════════════
+    console.log('[AutoDev] ═══ Phase 0: Strategic Awareness ═══');
+    const strategySelection = this.strategicMemory.selectStrategy();
+    run.strategy = strategySelection.strategy;
+    run.warnings = [];
+    console.log(`[AutoDev Strategy] 🧠 Estrategia seleccionada: ${strategySelection.strategy.toUpperCase()}`);
+    console.log(`[AutoDev Strategy]   Enfoque: ${strategySelection.focus}`);
+    console.log(`[AutoDev Strategy]   Razón: ${strategySelection.reason}`);
+
+    const avgImpact = this.strategicMemory.getAverageImpact();
+    if (avgImpact > 0) {
+      console.log(`[AutoDev Strategy]   Impacto promedio reciente: ${avgImpact.toFixed(1)}/5`);
+    }
+
+    const activeGoals = this.strategicMemory.getActiveGoals();
+    if (activeGoals.length) {
+      console.log(`[AutoDev Strategy]   Objetivos activos: ${activeGoals.length}`);
+      for (const g of activeGoals.slice(0, 3)) {
+        console.log(`[AutoDev Strategy]     → [${g.priority}] ${g.title}`);
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     //  PHASE 1: PARALLEL RESEARCH (up to 5 agents + npm simultaneously)
     // ═══════════════════════════════════════════════════════════════
     console.log('[AutoDev] ═══ Phase 1: Parallel Research ═══');
@@ -827,6 +856,15 @@ export class AutoDevService extends EventEmitter {
     );
     run.researchFindings.push(...deepFindings);
     this.trackAgent(run, 'DeepResearcher', 'research', 'completed');
+    checkAbort();
+
+    // ─── Capability Gap Analysis (background, non-blocking) ──────
+    try {
+      await this.runCapabilityAnalysis(sourceCode);
+      this.trackAgent(run, 'CapabilityAnalyzer', 'research', 'completed');
+    } catch (err: any) {
+      console.warn(`[AutoDev] Capability analysis failed (non-critical): ${err.message}`);
+    }
     checkAbort();
 
     // ═══════════════════════════════════════════════════════════════
@@ -966,24 +1004,62 @@ export class AutoDevService extends EventEmitter {
         if (run.branchName) {
           console.warn(`[AutoDev] Safety: detected we are on ${currentBranch}, switching to work branch ${run.branchName}`);
           try {
-            // Stash any dirty files before switching so checkout doesn't fail
+            // Instead of stash/pop (which creates merge conflicts), commit dirty
+            // changes directly to the work branch using a checkout + add approach.
             const hasChanges = await this.git.hasUncommittedChanges();
             if (hasChanges) {
-              console.log(`[AutoDev] Stashing uncommitted changes before branch switch...`);
-              await this.git.exec('stash', ['push', '-m', `autodev-safety-${run.id}`]);
-            }
-            await this.git.switchBranch(run.branchName);
-            if (hasChanges) {
-              try { await this.git.exec('stash', ['pop']); } catch {
-                console.warn('[AutoDev] Stash pop failed — changes may already be on work branch');
-              }
+              // Copy changed files to a temp list, switch branch cleanly, then re-apply
+              console.log(`[AutoDev] Saving uncommitted changes before branch switch...`);
+              // Force checkout to work branch carrying uncommitted changes along
+              await this.git.exec('checkout', [run.branchName]);
+            } else {
+              await this.git.switchBranch(run.branchName);
             }
           } catch (switchErr: any) {
-            // Try to recover: pop stash back if we stashed
-            try { await this.git.exec('stash', ['pop']); } catch {}
-            run.status = 'failed';
-            run.error = `Cannot switch to work branch ${run.branchName}: ${switchErr.message}`;
-            return;
+            // If checkout with dirty files fails, try the stash approach as last resort
+            try {
+              console.warn(`[AutoDev] Direct checkout failed, trying stash approach...`);
+              await this.git.exec('stash', ['push', '-m', `autodev-safety-${run.id}`]);
+              await this.git.switchBranch(run.branchName);
+              // Apply stash without restoring index to avoid merge conflicts
+              try { await this.git.exec('stash', ['pop', '--index']); } catch {
+                // If --index fails, try plain pop
+                try { await this.git.exec('stash', ['pop']); } catch (popErr: any) {
+                  // If pop also fails, drop the stash and log — merge conflicts would corrupt files
+                  console.error(`[AutoDev] Stash pop failed with conflicts. Dropping stash to avoid corruption.`);
+                  try { await this.git.exec('stash', ['drop']); } catch {}
+                }
+              }
+            } catch (stashErr: any) {
+              try { await this.git.exec('stash', ['drop']); } catch {}
+              run.status = 'failed';
+              run.error = `Cannot switch to work branch ${run.branchName}: ${switchErr.message}`;
+              return;
+            }
+          }
+
+          // CRITICAL: Verify no merge conflict markers exist after branch switch
+          try {
+            const mainFile = path.join(this.repoPath, 'electron', 'main.ts');
+            if (fs.existsSync(mainFile)) {
+              const content = fs.readFileSync(mainFile, 'utf-8');
+              if (content.includes('<<<<<<<') || content.includes('>>>>>>>')) {
+                console.error('[AutoDev] ⛔ Merge conflict markers detected in main.ts after branch switch! Cleaning...');
+                // Read the clean version from the work branch
+                const { execFile } = await import('node:child_process');
+                const { promisify } = await import('node:util');
+                const { stdout: cleanContent } = await promisify(execFile)(
+                  'git', ['show', `${run.branchName}:electron/main.ts`],
+                  { cwd: this.repoPath, timeout: 10_000, shell: true, maxBuffer: 5 * 1024 * 1024 }
+                );
+                if (cleanContent && !cleanContent.includes('<<<<<<<')) {
+                  fs.writeFileSync(mainFile, cleanContent, 'utf-8');
+                  console.log('[AutoDev] ✅ Restored clean main.ts from work branch');
+                }
+              }
+            }
+          } catch (conflictErr: any) {
+            console.warn(`[AutoDev] Merge conflict check failed: ${conflictErr.message}`);
           }
         } else {
           run.status = 'failed';
@@ -1056,7 +1132,26 @@ export class AutoDevService extends EventEmitter {
       this.updateRunStatus(run, 'coding');
 
       // Mini Phase 3: Auto-Fix
-      const errorStr = buildResult !== true ? `Build Error:\n${typeof buildResult === 'string' ? buildResult : 'Unknown'}` : `Review Error:\n${reviewResult.summary}`;
+      let errorStr: string;
+      if (buildResult !== true) {
+        errorStr = `Build Error:\n${typeof buildResult === 'string' ? buildResult : 'Unknown'}`;
+      } else {
+        // For review rejections mentioning orphan/integration issues,
+        // include the content of main.ts so the FixAgent can actually add imports
+        errorStr = `Review Error:\n${reviewResult.summary}`;
+        if (/huérfano|sin integrar|no.*import|código muerto|orphan/i.test(reviewResult.summary)) {
+          try {
+            const mainTsPath = path.join(this.repoPath, 'electron', 'main.ts');
+            if (fs.existsSync(mainTsPath)) {
+              const mainContent = fs.readFileSync(mainTsPath, 'utf-8');
+              // Include first 200 lines of main.ts (imports section) for context
+              const importSection = mainContent.split('\n').slice(0, 200).join('\n');
+              errorStr += `\n\n## CONTENIDO ACTUAL DE electron/main.ts (primeras 200 líneas para que veas dónde agregar imports):\n\`\`\`typescript\n${importSection}\n\`\`\``;
+              errorStr += `\n\n## INSTRUCCIÓN: Agrega los imports de los archivos huérfanos en la sección de imports de main.ts. Instáncialos donde se instancian los demás servicios. NO crees archivos nuevos — modifica main.ts para importar los existentes.`;
+            }
+          } catch { /* skip */ }
+        }
+      }
       const fixPlan = await this.createFixPlan(diff, errorStr);
 
       if (!fixPlan || !fixPlan.length) {
@@ -1111,8 +1206,158 @@ export class AutoDevService extends EventEmitter {
     this.markIssuesResolved(run.id);
 
     try { await this.git.cleanupBranch(run.branchName!); } catch {}
-    
-    console.log(`[AutoDev] ═══ Run completed: ${run.improvements.filter(i => i.applied).length} improvements, PR: ${run.prUrl} ═══`);
+
+    const realCount = this.getRealImprovements(run.improvements).length;
+    const deletedCount = run.improvements.filter(i => (i as any).wasDeleted).length;
+    console.log(`[AutoDev] ═══ Run completed: ${realCount} improvements${deletedCount ? ` (${deletedCount} archivos eliminados no contados)` : ''}, PR: ${run.prUrl} ═══`);
+
+    // ═══════════════════════════════════════════════════════════════
+    //  PHASE 6: RETROSPECTIVE (auto-evaluación + aprendizaje)
+    // ═══════════════════════════════════════════════════════════════
+    console.log('[AutoDev] ═══ Phase 6: Retrospective ═══');
+    await this.runRetrospective(run);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  CAPABILITY GAP ANALYSIS — Descubre qué falta en el sistema
+  // ═══════════════════════════════════════════════════════════════════
+
+  private async runCapabilityAnalysis(sourceFiles: Array<{ path: string; content: string }>): Promise<void> {
+    console.log('[AutoDev] ═══ Capability Gap Analysis ═══');
+
+    const prompt = this.strategicMemory.getCapabilityAnalysisPrompt(sourceFiles);
+    const ai = this.getGenAI();
+    const model = ai.getGenerativeModel({ model: this.config.agents.researcher.model });
+    const result = await model.generateContent(prompt);
+    const parsed = this.parseJSON(result.response.text());
+
+    if (!parsed) {
+      console.warn('[AutoDev] Capability analysis returned no parseable response');
+      return;
+    }
+
+    // Actualizar inventario de capacidades
+    if (Array.isArray(parsed.capabilities)) {
+      const memory = this.strategicMemory.getMemory();
+      for (const cap of parsed.capabilities) {
+        if (!cap.name) continue;
+        const existing = memory.capabilities.find(c => c.name === cap.name);
+        if (existing) {
+          existing.status = cap.status || existing.status;
+          existing.lastVerified = new Date().toISOString();
+          if (cap.gaps) existing.gaps = cap.gaps;
+          if (cap.files) existing.files = cap.files;
+        } else {
+          memory.capabilities.push({
+            name: cap.name,
+            description: cap.description || '',
+            status: cap.status || 'functional',
+            files: cap.files || [],
+            lastVerified: new Date().toISOString(),
+            gaps: cap.gaps,
+          });
+        }
+      }
+    }
+
+    // Registrar gaps críticos como objetivos del roadmap
+    if (Array.isArray(parsed.criticalGaps)) {
+      for (const gap of parsed.criticalGaps) {
+        if (!gap.gap || gap.impact === 'low') continue;
+        const existing = this.strategicMemory.getActiveGoals().some(g =>
+          g.title.toLowerCase().includes(gap.gap.toLowerCase().slice(0, 20))
+        );
+        if (!existing) {
+          this.strategicMemory.addGoal({
+            title: gap.gap,
+            description: gap.suggestedSolution || '',
+            priority: gap.impact === 'high' ? 'high' : 'medium',
+            status: 'pending',
+            area: 'infrastructure',
+          });
+          console.log(`[AutoDev CapAnalysis] 🕳️ Gap registrado: ${gap.gap}`);
+        }
+      }
+    }
+
+    // Log oportunidades de alto impacto
+    if (Array.isArray(parsed.opportunities)) {
+      const highImpact = parsed.opportunities.filter((o: any) => o.impact === 'high');
+      if (highImpact.length) {
+        console.log(`[AutoDev CapAnalysis] 💡 Oportunidades de alto impacto: ${highImpact.length}`);
+        for (const opp of highImpact.slice(0, 3)) {
+          console.log(`  → ${opp.feature}: ${opp.description || ''}`);
+        }
+      }
+    }
+
+    console.log(`[AutoDev CapAnalysis] Análisis completado — ${parsed.capabilities?.length || 0} capacidades, ${parsed.criticalGaps?.length || 0} gaps`);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  PHASE 6: RETROSPECTIVE — Auto-evaluación post-run
+  // ═══════════════════════════════════════════════════════════════════
+
+  private async runRetrospective(run: AutoDevRun): Promise<void> {
+    try {
+      // Track hotspots (archivos tocados frecuentemente)
+      for (const imp of run.improvements.filter(i => i.applied)) {
+        this.strategicMemory.trackHotspot(imp.file);
+      }
+
+      const durationMinutes = run.completedAt
+        ? Math.round((new Date(run.completedAt).getTime() - new Date(run.startedAt).getTime()) / 60000)
+        : 0;
+
+      const retroPrompt = this.strategicMemory.getRetrospectivePrompt({
+        id: run.id,
+        strategy: (run.strategy as RunStrategy) || 'innovation',
+        improvements: run.improvements.map(i => ({
+          file: i.file,
+          category: i.category,
+          description: i.description,
+          applied: i.applied,
+        })),
+        errors: run.agentTasks.filter(t => t.status === 'failed').map(t => `${t.description}: ${t.error || 'unknown'}`),
+        warnings: run.warnings || [],
+        durationMinutes,
+      });
+
+      const ai = this.getGenAI();
+      const model = ai.getGenerativeModel({ model: this.config.agents.reviewer.model });
+      const result = await model.generateContent(retroPrompt);
+      const parsed = this.parseJSON(result.response.text());
+
+      if (parsed) {
+        this.strategicMemory.processRetrospectiveResponse(
+          run.id,
+          (run.strategy as RunStrategy) || 'innovation',
+          durationMinutes,
+          { ...parsed, realImprovementsCount: this.getRealImprovements(run.improvements).length },
+        );
+
+        console.log(`[AutoDev Retrospective] 📊 Impacto: ${parsed.impactScore || '?'}/5`);
+        console.log(`[AutoDev Retrospective] 📝 ${parsed.outcome || 'Sin evaluación'}`);
+        if (parsed.lessons?.length) {
+          console.log('[AutoDev Retrospective] 📖 Lecciones:');
+          for (const l of parsed.lessons.slice(0, 3)) {
+            console.log(`  → ${l}`);
+          }
+        }
+        if (parsed.nextStrategy) {
+          console.log(`[AutoDev Retrospective] 🎯 Próxima estrategia sugerida: ${parsed.nextStrategy.strategy} — ${parsed.nextStrategy.reason}`);
+        }
+        if (parsed.suggestedGoals?.length) {
+          console.log(`[AutoDev Retrospective] 🗺️ Nuevos objetivos agregados al roadmap: ${parsed.suggestedGoals.length}`);
+        }
+      }
+
+      // Limpiar estrategia usada
+      this.strategicMemory.clearNextStrategy();
+
+    } catch (err: any) {
+      console.warn(`[AutoDev Retrospective] Error en retrospectiva (no crítico): ${err.message}`);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -1734,6 +1979,7 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
 
     const prompt = ANALYZE_PROMPT
       .replace('{REPO_PATH}', this.repoPath)
+      .replace('{STRATEGIC_CONTEXT}', this.strategicMemory.getStrategicContext())
       .replace('{RESEARCH_FINDINGS}', findingsText || 'No prior findings')
       .replace('{NPM_AUDIT}', npmAuditText)
       .replace('{NPM_OUTDATED}', npmOutdatedText)
@@ -1798,6 +2044,7 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
     const ctx = findings.filter(f => f.actionable).map(f => `- [${f.category}] ${f.findings} (${f.sources.join(', ')})`).join('\n');
 
     const prompt = PLAN_PROMPT
+      .replace('{STRATEGIC_CONTEXT}', this.strategicMemory.getStrategyDirective())
       .replace('{IMPROVEMENTS}', JSON.stringify(improvements, null, 2))
       .replace('{RESEARCH_CONTEXT}', ctx || 'None')
       .replace('{MAX_LINES}', String(this.config.maxLinesChanged))
@@ -1833,6 +2080,38 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
         const filtered = safePlan.filter((s: any) => s.category !== 'dependencies');
         console.log(`[AutoDev PlanGate] ⚠️ Plan dominado por dependencias — eliminando ${depSteps.length} pasos de dependencies. Quedan ${filtered.length} pasos.`);
         return filtered;
+      }
+    }
+
+    // ─── Integration gate: ensure new files have integration steps ──
+    const createSteps = safePlan.filter((s: any) => s.action === 'create' && s.file?.endsWith('.ts'));
+    const modifySteps = safePlan.filter((s: any) => s.action === 'modify');
+    const modifyFiles = new Set(modifySteps.map((s: any) => s.file));
+
+    for (const createStep of createSteps) {
+      const baseName = path.basename(createStep.file, '.ts');
+      // Check if there's a modify step for main.ts or whatsapp-agent.ts that could integrate this
+      const hasIntegrationStep = modifySteps.some((s: any) =>
+        (s.file === 'electron/main.ts' || s.file === 'electron/whatsapp-agent.ts') &&
+        (s.description?.includes(baseName) || s.details?.includes(baseName))
+      );
+
+      if (!hasIntegrationStep && !createStep.file.startsWith('tools/dynamic/')) {
+        // Auto-add an integration step for main.ts
+        console.log(`[AutoDev PlanGate] ⚠️ Archivo "${createStep.file}" sin paso de integración — agregando paso automático para main.ts`);
+        if (!modifyFiles.has('electron/main.ts')) {
+          safePlan.push({
+            step: safePlan.length + 1,
+            file: 'electron/main.ts',
+            action: 'modify',
+            category: 'features',
+            description: `Integrar nuevos módulos al sistema: importar e instanciar ${createSteps.map((s: any) => path.basename(s.file, '.ts')).join(', ')} en main.ts`,
+            details: `Agregar imports al inicio del archivo y conectar los servicios al flujo de inicialización existente. NO reescribir el archivo completo — solo agregar las líneas de import e instanciación.`,
+            source: 'Auto-Integration System',
+            estimatedLines: 20,
+          });
+          modifyFiles.add('electron/main.ts');
+        }
       }
     }
 
@@ -1892,12 +2171,18 @@ ${diff.slice(0, 50000)}
 4. Si hay propiedad inexistente (TS2339), busca el nombre correcto en la interfaz.
 5. Si creaste imports que no existen (phantom imports como ./orchestrator, ./command-center, ./service-registry), ELIMÍNALOS COMPLETAMENTE.
 6. NUNCA importes módulos con rutas relativas que no existen en el proyecto. Si el archivo no está en la lista de archivos fuente, NO lo importes.
-6. Si necesitas REVERTIR un cambio que rompió algo, hazlo — es mejor revertir que dejar el build roto.
-7. NUNCA dejes código a medias. Cada archivo debe compilar correctamente.
-8. Si un tipo genérico no se infiere (TS2345 con ZodObject), usa \`as any\` o especifica el tipo explícitamente.
-9. Para Supabase: NUNCA uses .catch() — usa destructuring \`const { data, error } = await ...\`
-10. Si importaste un tipo/variable sin usarlo (TS6133), QUITA el import.
-11. PREFIERE revertir el cambio problemático a intentar un fix complejo que puede generar más errores.
+7. Si necesitas REVERTIR un cambio que rompió algo, hazlo — es mejor revertir que dejar el build roto.
+8. NUNCA dejes código a medias. Cada archivo debe compilar correctamente.
+9. Si un tipo genérico no se infiere (TS2345 con ZodObject), usa \`as any\` o especifica el tipo explícitamente.
+10. Para Supabase: NUNCA uses .catch() — usa destructuring \`const { data, error } = await ...\`
+11. Si importaste un tipo/variable sin usarlo (TS6133), QUITA el import.
+12. PREFIERE revertir el cambio problemático a intentar un fix complejo que puede generar más errores.
+13. **ARCHIVOS SIN INTEGRAR**: Si el error menciona "archivo nuevo sin integrar" o "nadie lo importa", tu trabajo es CONECTARLO al sistema, NO eliminarlo. Para hacerlo:
+   - Si es un servicio en electron/: agrégalo en main.ts (import, instanciar, init/start), crea handlers IPC si es necesario, y agrega canales a ALLOWED_IPC_CHANNELS en preload.ts.
+   - Si es una herramienta WhatsApp: agrega la FunctionDeclaration a WA_TOOL_DECLARATIONS en whatsapp-agent.ts y el case handler en el dispatch.
+   - Si es un archivo en tools/dynamic/: asegúrate de que exporte correctamente { name, description, inputSchema, handler } según el contrato ToolSchema de MCPManager.
+   - NUNCA elimines un archivo funcional solo porque nadie lo importa — INTÉGRALO al sistema.
+   - Solo usa action: "delete" si el archivo tiene errores de compilación IRRECUPERABLES y no se puede corregir.
 
 ## FORMATO JSON REQUERIDO (Solo devuelve JSON):
 {
@@ -1905,8 +2190,8 @@ ${diff.slice(0, 50000)}
     {
       "step": 1,
       "file": "ruta/archivo.ts",
-      "action": "modify",
-      "description": "Explicación precisa del fix",
+      "action": "modify|delete",
+      "description": "Explicación precisa del fix. Para archivos huérfanos usa action: delete",
       "details": "Qué línea(s) cambiar y por qué — referencia el error específico",
       "source": "Auto-Correction System",
       "category": "quality",
@@ -2053,12 +2338,43 @@ ${diff.slice(0, 50000)}
     const filePath = path.resolve(this.repoPath, step.file);
     if (!filePath.startsWith(this.repoPath)) return null;
 
+    // ─── Block direct modification of package.json / lock files ─────────
+    // These should ONLY be modified via npm commands, never written directly.
+    // Direct writes cause parse errors, merge conflicts, and version corruption.
+    const blockedFiles = ['package.json', 'package-lock.json', 'tsconfig.json', 'vite.config.ts'];
+    if (step.action !== 'command' && blockedFiles.some(f => step.file.endsWith(f))) {
+      console.warn(`[AutoDev SafetyGuard] ⛔ BLOCKED: Direct modification of ${step.file} is not allowed. Use npm commands instead.`);
+      return null;
+    }
+
+    // ─── Handle file deletion (only for truly broken files) ────────────────
+    if (step.action === 'delete') {
+      try {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log(`[AutoDev] Deleted file: ${step.file}`);
+          // Deletions are NOT counted as applied improvements — they represent
+          // failed work, not value added. They are tracked but excluded from metrics.
+          return {
+            file: step.file, category: step.category || 'cleanup',
+            description: step.description || `Eliminado archivo: ${step.file}`,
+            applied: false, researchSources: [], agentRole: 'coding',
+            wasDeleted: true,
+          } as any;
+        }
+      } catch (err: any) {
+        console.warn(`[AutoDev] Failed to delete ${step.file}: ${err.message}`);
+      }
+      return null;
+    }
+
     let currentCode = '';
     try { currentCode = fs.readFileSync(filePath, 'utf-8'); } catch {
       if (step.action !== 'create') return null;
     }
 
     const prompt = CODE_PROMPT
+      .replace('{STRATEGY_DIRECTIVE}', this.strategicMemory.getStrategyDirective())
       .replace('{PLAN_STEP}', JSON.stringify(step, null, 2))
       .replace('{FILE_PATH}', step.file)
       .replace('{CURRENT_CODE}', currentCode)
@@ -2168,6 +2484,19 @@ ${diff.slice(0, 50000)}
       });
       console.log('[AutoDev TesterAgent] Build passed.');
 
+      // ─── Integration check: verify new files are imported somewhere ──
+      const integrationWarnings = await this.verifyIntegration();
+      if (integrationWarnings.length > 0) {
+        console.warn(`[AutoDev TesterAgent] ⚠️ Integration warnings (${integrationWarnings.length}):`);
+        for (const w of integrationWarnings) {
+          console.warn(`  → ${w}`);
+        }
+        this.logIssue('integration_warning',
+          `Archivos nuevos no están conectados al sistema:\n${integrationWarnings.join('\n')}`,
+          'Los archivos compilan pero nadie los importa — no tendrán efecto en runtime.'
+        );
+      }
+
       // ─── On success: update error memory with successful fixes ──
       const errorMemory = loadErrorMemory();
       const pendingFixes = errorMemory.filter(m => m.fix === 'pending');
@@ -2195,6 +2524,163 @@ ${diff.slice(0, 50000)}
 
       return rawOutput || 'Unknown build error';
     }
+  }
+
+  // ─── Integration verification (detect orphaned files — NO auto-delete) ──
+
+  /**
+   * Directories whose files are loaded DYNAMICALLY (not via static imports).
+   * Files here are discovered at runtime by MCPManager, so they won't appear
+   * in any `import ... from '...'` statement — that does NOT make them orphans.
+   */
+  private static readonly DYNAMIC_DIRS = ['tools/dynamic'];
+
+  /**
+   * Check if a file lives inside a dynamic-loading directory.
+   * These files are loaded at runtime (MCPManager hot-reload) and don't need static imports.
+   */
+  private isDynamicFile(relFile: string): boolean {
+    const normalized = relFile.replace(/\\/g, '/');
+    return AutoDevService.DYNAMIC_DIRS.some(dir => normalized.startsWith(dir + '/'));
+  }
+
+  /**
+   * For files in tools/dynamic/, validate they export a valid ToolSchema
+   * (name, description, inputSchema) so MCPManager can actually load them.
+   */
+  private validateDynamicToolSchema(absFile: string): { valid: boolean; error?: string } {
+    try {
+      const fsSync = require('node:fs') as typeof import('node:fs');
+      const content = fsSync.readFileSync(absFile, 'utf-8');
+
+      // Check for required ToolSchema exports: name, description, inputSchema
+      const hasName = /export\s+(const|let|var)\s+name\s*=|['"]name['"]\s*:/m.test(content)
+        || /\.name\s*=\s*['"]/.test(content)
+        || /name:\s*['"]/.test(content);
+      const hasDescription = /export\s+(const|let|var)\s+description\s*=|['"]description['"]\s*:/m.test(content)
+        || /\.description\s*=\s*['"]/.test(content)
+        || /description:\s*['"]/.test(content);
+      const hasInputSchema = /inputSchema|input_schema/i.test(content);
+      const hasHandler = /handler|execute|run/i.test(content);
+
+      if (!hasName || !hasDescription) {
+        return { valid: false, error: 'Falta export de "name" y/o "description" requeridos por ToolSchema' };
+      }
+      if (!hasInputSchema) {
+        return { valid: false, error: 'Falta "inputSchema" con type/properties requerido por ToolSchema' };
+      }
+      if (!hasHandler) {
+        return { valid: false, error: 'Falta función "handler" — la herramienta no será ejecutable' };
+      }
+
+      return { valid: true };
+    } catch (err: any) {
+      return { valid: false, error: `No se pudo leer el archivo: ${err.message}` };
+    }
+  }
+
+  private async verifyIntegration(): Promise<string[]> {
+    const warnings: string[] = [];
+    try {
+      const { execFile } = await import('node:child_process');
+      const { promisify } = await import('node:util');
+      const fsSync = await import('node:fs');
+      const pathMod = await import('node:path');
+
+      // Get new files: compare staged + working tree against base branch
+      let newFiles: string[] = [];
+      try {
+        // Try comparing against target branch (works even before first commit on work branch)
+        const { stdout } = await promisify(execFile)(
+          'git', ['diff', '--name-only', '--diff-filter=A', `${this.config.targetBranch}...HEAD`],
+          { cwd: this.repoPath, timeout: 10_000, shell: true },
+        );
+        newFiles = stdout.trim().split('\n').filter(f => f.endsWith('.ts') && !f.endsWith('.d.ts'));
+      } catch {
+        // Fallback: check staged files
+        try {
+          const { stdout } = await promisify(execFile)(
+            'git', ['diff', '--name-only', '--diff-filter=A', '--cached'],
+            { cwd: this.repoPath, timeout: 10_000, shell: true },
+          );
+          newFiles = stdout.trim().split('\n').filter(f => f.endsWith('.ts') && !f.endsWith('.d.ts'));
+        } catch {
+          return []; // Can't get diff, skip
+        }
+      }
+
+      // Also include untracked .ts files in electron/ and src/
+      try {
+        const { stdout: untrackedStr } = await promisify(execFile)(
+          'git', ['ls-files', '--others', '--exclude-standard', 'electron/', 'src/', 'tools/'],
+          { cwd: this.repoPath, timeout: 10_000, shell: true },
+        );
+        const untracked = untrackedStr.trim().split('\n').filter(f => f.endsWith('.ts') && !f.endsWith('.d.ts'));
+        for (const f of untracked) {
+          if (!newFiles.includes(f)) newFiles.push(f);
+        }
+      } catch { /* skip */ }
+
+      for (const relFile of newFiles) {
+        if (!relFile || relFile.trim() === '') continue;
+        const absFile = pathMod.join(this.repoPath, relFile);
+        if (!fsSync.existsSync(absFile)) continue;
+
+        // ─── Dynamic tools: validate ToolSchema instead of checking imports ──
+        if (this.isDynamicFile(relFile)) {
+          const validation = this.validateDynamicToolSchema(absFile);
+          if (!validation.valid) {
+            warnings.push(`${relFile}: herramienta dinámica con ToolSchema INVÁLIDO — ${validation.error}. DEBE corregirse para que MCPManager la cargue correctamente.`);
+            console.warn(`[AutoDev TesterAgent] ⚠️ ToolSchema inválido: ${relFile} — ${validation.error}`);
+          } else {
+            console.log(`[AutoDev TesterAgent] ✅ Herramienta dinámica válida: ${relFile}`);
+          }
+          continue;
+        }
+
+        // ─── Regular files: check if imported somewhere ──
+        // Use multiple grep patterns to catch different import styles:
+        //   from './name'  |  from "./name"  |  require('./name')  |  import('./name')
+        const baseName = pathMod.basename(relFile, '.ts');
+        const baseNameTsx = pathMod.basename(relFile, '.tsx');
+        const searchName = baseName || baseNameTsx;
+        let isImported = false;
+
+        // Search for the module name in ALL .ts files on disk (not just git-tracked)
+        const searchPatterns = [
+          `${searchName}'`,   // from './name' or from "../dir/name'
+          `${searchName}"`,   // from "./name"
+          `${searchName}\``,  // template literal imports
+        ];
+
+        for (const pattern of searchPatterns) {
+          if (isImported) break;
+          try {
+            const { stdout: importCheck } = await promisify(execFile)(
+              'grep', ['-rl', pattern, '--include=*.ts', '--include=*.tsx', 'electron/', 'src/'],
+              { cwd: this.repoPath, timeout: 10_000, shell: true }
+            );
+            const importers = importCheck.trim().split('\n').filter(f => f && !f.includes(searchName + '.ts'));
+            if (importers.length > 0) isImported = true;
+          } catch { /* grep exit 1 = no match */ }
+        }
+
+        if (!isImported) {
+          warnings.push(`${relFile}: archivo nuevo sin integrar — nadie lo importa. DEBE conectarse al sistema (agregar import en main.ts, registrar handlers, o conectar al agente WhatsApp).`);
+          console.warn(`[AutoDev TesterAgent] ⚠️ Archivo sin integrar: ${relFile} — necesita imports y registro`);
+        }
+      }
+
+      if (warnings.length > 0) {
+        console.warn(`[AutoDev TesterAgent] ⚠️ Problemas de integración (${warnings.length}):`);
+        for (const w of warnings) {
+          console.warn(`  → ${w}`);
+        }
+      }
+    } catch (err: any) {
+      console.error('[AutoDev] Integration check error:', err.message);
+    }
+    return warnings;
   }
 
   // ─── Self-review (reviewer agent) ─────────────────────────────
@@ -2310,26 +2796,38 @@ ${diff.slice(0, 50000)}
     } catch { return 'Could not read package.json'; }
   }
 
+  /** Filter improvements to only include real applied changes (exclude deletions) */
+  private getRealImprovements(improvements: AutoDevImprovement[]): AutoDevImprovement[] {
+    return improvements.filter(i => i.applied && !(i as any).wasDeleted);
+  }
+
   private generateCommitMessage(improvements: AutoDevImprovement[]): string {
-    const applied = improvements.filter(i => i.applied);
+    const applied = this.getRealImprovements(improvements);
+    const deleted = improvements.filter(i => (i as any).wasDeleted);
     const cats = [...new Set(applied.map(i => i.category))];
-    return [
+    const lines = [
       `Automated improvements: ${cats.join(', ')}`,
       '', ...applied.map(i => `- [${i.category}] ${i.file}: ${i.description}`),
-      '', `Files: ${[...new Set(applied.map(i => i.file))].length} | Sources: ${[...new Set(applied.flatMap(i => i.researchSources))].slice(0, 5).join(', ')}`,
-    ].join('\n');
+    ];
+    if (deleted.length > 0) {
+      lines.push('', '## Archivos eliminados (no contados como mejoras):');
+      lines.push(...deleted.map(i => `- ${i.file}: ${i.description}`));
+    }
+    lines.push('', `Files: ${[...new Set(applied.map(i => i.file))].length} | Sources: ${[...new Set(applied.flatMap(i => i.researchSources))].slice(0, 5).join(', ')}`);
+    return lines.join('\n');
   }
 
   private generatePRTitle(improvements: AutoDevImprovement[]): string {
-    const applied = improvements.filter(i => i.applied);
+    const applied = this.getRealImprovements(improvements);
     const cats = [...new Set(applied.map(i => i.category))];
     return `${cats.join(', ')}: ${applied.length} automated improvements`;
   }
 
   private generatePRBody(run: AutoDevRun): string {
-    const applied = run.improvements.filter(i => i.applied);
+    const applied = this.getRealImprovements(run.improvements);
+    const deleted = run.improvements.filter(i => (i as any).wasDeleted);
     const findings = run.researchFindings.filter(f => f.actionable);
-    return [
+    const lines = [
       '## Summary',
       `AutoDev multi-agent run — ${run.agentTasks.length} agents deployed, ${applied.length} improvements applied.`,
       '',
@@ -2338,11 +2836,18 @@ ${diff.slice(0, 50000)}
       '',
       '## Improvements',
       ...applied.map(i => `- **[${i.category}]** \`${i.file}\`: ${i.description}\n  Sources: ${i.researchSources.map(s => `[link](${s})`).join(', ') || 'N/A'}`),
+    ];
+    if (deleted.length > 0) {
+      lines.push('', '## Archivos eliminados (trabajo fallido — no contados como mejoras)');
+      lines.push(...deleted.map(i => `- \`${i.file}\`: ${i.description}`));
+    }
+    lines.push(
       '',
       '## Research Conducted',
       ...findings.slice(0, 10).map(f => `- **[${f.category}]** ${f.findings}\n  Sources: ${f.sources.map(s => `[link](${s})`).join(', ')}`),
       '', '---', '🤖 Generated by AutoDev multi-agent system (SofLIA-HUB)',
-    ].join('\n');
+    );
+    return lines.join('\n');
   }
 
   /**

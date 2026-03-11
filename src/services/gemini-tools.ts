@@ -316,6 +316,29 @@ export const WHATSAPP_SEND_FILE_TOOL = {
 };
 
 /** 
+ * Native AI Functionalities (Image generation, etc.)
+ * Always available.
+ */
+export const NATIVE_AI_TOOLS = {
+  functionDeclarations: [
+    {
+      name: 'generate_image',
+      description: 'Genera una imagen utilizando un modelo de IA generativo a partir de una descripción de texto. Retornará la información en base64 para que sea visualizada en el chat y una descripción textual.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          prompt: {
+            type: 'STRING',
+            description: 'Descripción detallada en inglés de la imagen que quieres generar (por ejemplo: "A cinematic shot of a cyberpunk city").',
+          },
+        },
+        required: ['prompt'],
+      },
+    },
+  ],
+};
+
+/** 
  * Project Hub (IRIS) specific tools 
  */
 export const PROJECT_HUB_TOOLS = {
@@ -593,4 +616,8 @@ export const PROJECT_HUB_TOOL_NAMES = new Set(
 
 export const GOOGLE_WORKSPACE_TOOL_NAMES = new Set(
   GOOGLE_WORKSPACE_TOOLS.functionDeclarations.map(t => t.name)
+);
+
+export const NATIVE_AI_TOOL_NAMES = new Set(
+  NATIVE_AI_TOOLS.functionDeclarations.map(t => t.name)
 );

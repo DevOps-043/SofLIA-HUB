@@ -4,7 +4,7 @@
  * 3-layer architecture:
  *  Layer 1: Raw message persistence (SQLite)
  *  Layer 2: Rolling conversation summaries (Gemini + SQLite)
- *  Layer 3: Semantic search via embeddings (Gemini text-embedding-004 + cosine similarity)
+ *  Layer 3: Semantic search via embeddings (Gemini gemini-embedding-001 + cosine similarity)
  *  Layer 4: Hierarchical Markdown Persistence (Structured Memory Cards)
  *  Bonus:   Structured facts (replaces whatsapp-memories.json)
  *
@@ -21,18 +21,19 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // ─── Constants ───────────────────────────────────────────────────────
 const DB_PATH = path.join(app.getPath('userData'), 'soflia-memory.db');
 const OLD_MEMORIES_PATH = path.join(app.getPath('userData'), 'whatsapp-memories.json');
-const EMBEDDING_MODEL = 'text-embedding-004';
+const EMBEDDING_MODEL = 'gemini-embedding-001';
+const EMBEDDING_MODEL_FALLBACK = 'text-embedding-004';
 const SUMMARIZE_MODEL = 'gemini-3-flash-preview';
 const CHUNK_TOKENS = 400;
 const CHUNK_OVERLAP = 80;
 const CHARS_PER_TOKEN = 4; // rough estimate for Spanish text
-const RECENT_MESSAGES_LIMIT = 10;
+const RECENT_MESSAGES_LIMIT = 20;
 const SEMANTIC_TOP_K = 5;
 const SEMANTIC_MIN_SCORE = 0.30;
 const SUMMARY_TOKEN_BUDGET = 2000;
 const SEMANTIC_TOKEN_BUDGET = 2000;
 const FACTS_TOKEN_BUDGET = 1000;
-const SUMMARIZE_THRESHOLD = 50; // messages before triggering summarization
+const SUMMARIZE_THRESHOLD = 15; // messages before triggering summarization (lower = faster memory creation)
 
 // ─── Types ───────────────────────────────────────────────────────────
 export interface MemoryContext {
@@ -193,6 +194,29 @@ export class MemoryService extends EventEmitter {
       this.db.exec(SCHEMA_SQL);
       console.log(`[MemoryService] Database initialized at ${DB_PATH}`);
       this.migrateOldMemories();
+
+      // Auto-create SOUL.md if it doesn't exist (core identity for context persistence)
+      const soulPath = path.join(app.getPath('userData'), 'SOUL.md');
+      if (!fs.existsSync(soulPath)) {
+        fs.writeFileSync(soulPath, `# SofLIA — Identidad Central
+
+## Quién Soy
+Soy SofLIA, asistente de IA para negocios hispanohablantes. Mi misión es ejecutar tareas, no solo responder preguntas.
+
+## Principios
+- EJECUTO acciones directamente usando herramientas — no describo lo que haría
+- RECUERDO conversaciones anteriores usando mi sistema de memoria persistente
+- Cuando el usuario dice "vuelve a hacerlo" o "sigue", reviso mis mensajes recientes y continúo la tarea
+- NUNCA digo "no sé de qué hablas" si tengo contexto previo disponible
+- Para tareas grandes (organizar correos, mover archivos), proceso TODOS los items, no solo los primeros
+
+## Personalidad
+- Proactiva, eficiente, directa
+- Respondo en español
+- Formato WhatsApp (texto plano, *negritas*, emojis)
+`, 'utf-8');
+        console.log('[MemoryService] Created default SOUL.md');
+      }
     } catch (err: any) {
       console.error('[MemoryService] Failed to initialize database:', err.message);
     }
@@ -381,20 +405,15 @@ export class MemoryService extends EventEmitter {
     // 4. Structured facts
     context.facts = this.getFacts(phoneNumber);
 
-    // 5. Hierarchical Markdown Memory (Soul, Identity, Memory Cards)
+    // 5. Hierarchical Markdown Memory (Soul, Identity only — MEMORY.md is handled by KnowledgeService)
     try {
       const userData = app.getPath('userData');
       const soulPath = path.join(userData, 'SOUL.md');
       const identityPath = path.join(userData, 'IDENTITY.md');
-      const memoryPath = path.join(userData, 'MEMORY.md');
 
       if (fs.existsSync(soulPath)) context.soul = fs.readFileSync(soulPath, 'utf8');
       if (fs.existsSync(identityPath)) context.identity = fs.readFileSync(identityPath, 'utf8');
-      if (fs.existsSync(memoryPath)) {
-        const mem = fs.readFileSync(memoryPath, 'utf8');
-        // Extract recent memory cards (last 3000 chars roughly to avoid token bloat)
-        context.memoryCards = mem.length > 3000 ? mem.slice(-3000) : mem;
-      }
+      // MEMORY.md is injected by KnowledgeService.getBootstrapContext() — no duplicate read
     } catch (err: any) {
       console.warn('[MemoryService] Could not read markdown memory files:', err.message);
     }
@@ -418,6 +437,19 @@ export class MemoryService extends EventEmitter {
     }
     if (ctx.memoryCards) {
       sections += `\n\n═══ RECENT MEMORY CARDS ═══\n${ctx.memoryCards}`;
+    }
+
+    // Recent verbatim messages (critical for context continuity after restarts)
+    if (ctx.recentMessages && ctx.recentMessages.length > 0) {
+      let recentText = '';
+      for (const m of ctx.recentMessages) {
+        const time = new Date(m.timestamp).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+        const role = m.role === 'user' ? 'Usuario' : 'Asistente';
+        recentText += `[${time}] ${role}: ${m.content}\n`;
+      }
+      if (recentText) {
+        sections += `\n\n═══ MENSAJES RECIENTES DE ESTA CONVERSACIÓN ═══\nEstos son los últimos mensajes intercambiados con este usuario (persisten entre reinicios):\n${recentText}`;
+      }
     }
 
     // Rolling summary
@@ -630,15 +662,20 @@ MEMORY CARD:`;
 
   private async embedText(text: string): Promise<number[] | null> {
     if (!this.apiKey) return null;
-    try {
-      const genAI = new GoogleGenerativeAI(this.apiKey);
-      const model = genAI.getGenerativeModel({ model: EMBEDDING_MODEL });
-      const result = await model.embedContent(text);
-      return result.embedding.values;
-    } catch (err: any) {
-      console.error('[MemoryService] embedText error:', err.message);
-      return null;
+    const genAI = new GoogleGenerativeAI(this.apiKey);
+
+    // Intentar modelo principal, luego fallback si falla
+    for (const modelName of [EMBEDDING_MODEL, EMBEDDING_MODEL_FALLBACK]) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.embedContent(text);
+        return result.embedding.values;
+      } catch (err: any) {
+        console.warn(`[MemoryService] embedText error with ${modelName}:`, err.message);
+      }
     }
+    console.error('[MemoryService] All embedding models failed');
+    return null;
   }
 
   private semanticSearch(

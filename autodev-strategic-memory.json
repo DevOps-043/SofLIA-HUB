@@ -1,0 +1,115 @@
+{
+  "version": 1,
+  "lastUpdated": "2026-03-09T18:47:46.256Z",
+  "roadmap": [
+    {
+      "title": "Orquestación Central de Tareas",
+      "description": "Integrar 'agent-task-queue.ts' con 'task-scheduler.ts' y 'scheduled-tasks.ts' en un solo motor de ejecución de prioridades para evitar conflictos entre AutoDev y WhatsApp.",
+      "priority": "high",
+      "status": "pending",
+      "area": "infrastructure",
+      "id": "goal_1773082066248",
+      "createdAt": "2026-03-09T18:47:46.248Z",
+      "relatedRuns": []
+    },
+    {
+      "title": "Consistencia en la Capa de Servicios",
+      "description": "Estandarizar por qué algunos módulos tienen carpeta 'services/' (auto-backup, proactive-process-monitor) y otros están en la raíz de 'electron/'.",
+      "priority": "medium",
+      "status": "pending",
+      "area": "infrastructure",
+      "id": "goal_1773082066256",
+      "createdAt": "2026-03-09T18:47:46.256Z",
+      "relatedRuns": []
+    }
+  ],
+  "capabilities": [
+    {
+      "name": "AutoDev Ecosystem",
+      "description": "Entorno completo de desarrollo autónomo con capacidades de manejo de Git/GitHub, ejecución de código en sandbox y auto-aprendizaje.",
+      "status": "partial",
+      "files": [
+        "electron/autodev-handlers.ts",
+        "electron/autodev-web.ts",
+        "electron/autodev-github.ts",
+        "electron/autodev-git.ts",
+        "electron/autodev-sandbox.ts",
+        "electron/autodev-selflearn.ts"
+      ],
+      "lastVerified": "2026-03-09T18:47:46.248Z",
+      "gaps": [
+        "La ejecución en sandbox requiere validación de contenedores externos",
+        "La integración entre autodev-web y los handlers de Git no parece estar orquestada por un gestor de estado global"
+      ]
+    },
+    {
+      "name": "WhatsApp Automation Hub",
+      "description": "Integración avanzada con WhatsApp para procesamiento de audio, control remoto y flujos de trabajo automatizados.",
+      "status": "partial",
+      "files": [
+        "electron/whatsapp-audio-processor.ts",
+        "electron/whatsapp-terminal.ts",
+        "electron/whatsapp-remote-hub.ts",
+        "electron/whatsapp-workflow-presentacion.ts"
+      ],
+      "lastVerified": "2026-03-09T18:47:46.248Z",
+      "gaps": [
+        "whatsapp-workflow-presentacion parece ser un script de demostración hardcoded",
+        "Falta un manejador de sesiones/autenticación persistente centralizado"
+      ]
+    },
+    {
+      "name": "Semantic Memory & Neural Organization",
+      "description": "Sistema de persistencia de largo plazo que utiliza indexación semántica para organizar pensamientos y rutas de archivos/tareas del agente.",
+      "status": "functional",
+      "files": [
+        "electron/memory-handlers.ts",
+        "electron/semantic-indexer.ts",
+        "electron/neural-organizer.ts",
+        "electron/path-memory-service.ts",
+        "electron/thought-logger.ts"
+      ],
+      "lastVerified": "2026-03-09T18:47:46.248Z",
+      "gaps": [
+        "Dependencia crítica de un motor de búsqueda vectorial que no se explicita en los archivos"
+      ]
+    },
+    {
+      "name": "Proactive System Guardian",
+      "description": "Monitoreo en tiempo real de la seguridad de la estación de trabajo y procesos del sistema para intervención proactiva.",
+      "status": "functional",
+      "files": [
+        "electron/system-guardian.ts",
+        "electron/proactive-guardian.ts",
+        "electron/monitoring-handlers.ts",
+        "electron/services/proactive-process-monitor.ts",
+        "electron/workstation-security.ts"
+      ],
+      "lastVerified": "2026-03-09T18:47:46.248Z",
+      "gaps": [
+        "Superposición de funciones entre system-guardian y proactive-guardian"
+      ]
+    },
+    {
+      "name": "Google Workspace Integration",
+      "description": "Suite de servicios para interactuar con el ecosistema de Google (Mail, Drive, Chat, Calendar).",
+      "status": "functional",
+      "files": [
+        "electron/gmail-handlers.ts",
+        "electron/drive-handlers.ts",
+        "electron/drive-service.ts",
+        "electron/gchat-handlers.ts",
+        "electron/gchat-service.ts",
+        "electron/calendar-handlers.ts"
+      ],
+      "lastVerified": "2026-03-09T18:47:46.248Z",
+      "gaps": [
+        "Posible duplicación de lógica entre handlers y services"
+      ]
+    }
+  ],
+  "retrospectives": [],
+  "userPatterns": [],
+  "rejectedIdeas": [],
+  "hotspots": {}
+}

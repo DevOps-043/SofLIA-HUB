@@ -265,6 +265,8 @@ ${QUALITY_EXEMPLARS}
 ## Proyecto: SofLIA-HUB
 Electron + React + TypeScript app. Path: {REPO_PATH}
 
+{STRATEGIC_CONTEXT}
+
 ## ⚡ FILOSOFÍA: FUNCIONALIDADES QUE EL USUARIO NOTA
 - Cada mejora debe ser algo que el usuario pueda USAR — no mejoras internas invisibles.
 - Pregúntate: "¿Puede el usuario hacer algo NUEVO después de este cambio?" Si no → descártalo.
@@ -396,6 +398,8 @@ export const PLAN_PROMPT = `Eres un arquitecto de software creando un plan de im
 
 ${PRODUCT_VISION}
 
+{STRATEGIC_CONTEXT}
+
 ## ⚡ FILOSOFÍA DE PLANIFICACIÓN
 - Planifica funcionalidades que el USUARIO pueda USAR — no mejoras internas
 - Cada paso debe producir código funcional y completo (150-400 líneas por funcionalidad)
@@ -436,6 +440,16 @@ Si después de filtrar, el plan queda con pocas líneas, AÑADE más funcionalid
 6. Para sistema: usa APIs nativas de Node.js (fs, os, child_process, path)
 7. Máximo {MAX_LINES} líneas totales, mínimo 500 líneas
 
+## ⛔⛔ REGLA CRÍTICA DE INTEGRACIÓN (OBLIGATORIA)
+Si tu plan incluye crear un archivo NUEVO (action: "create"), DEBES incluir un paso ADICIONAL con action: "modify" para electron/main.ts que:
+- Importe el nuevo módulo/servicio
+- Lo instancie junto a los demás servicios
+- Lo conecte al sistema (init/start si es servicio, o registro de handlers)
+Si es una herramienta WhatsApp, incluye un paso para modificar electron/whatsapp-agent.ts.
+UN ARCHIVO NUEVO SIN UN PASO DE INTEGRACIÓN = PLAN RECHAZADO.
+NUNCA crees archivos nuevos sin el paso de integración correspondiente.
+NUNCA modifiques package.json, package-lock.json, tsconfig.json ni vite.config.ts directamente.
+
 ## 📊 COMPOSICIÓN DEL PLAN
 Verifica antes de responder:
 - **Mínimo 70% de los pasos** deben ser category: "features"
@@ -472,6 +486,8 @@ export const CODE_PROMPT = `Eres un programador experto implementando funcionali
 ${PRODUCT_VISION}
 
 ${QUALITY_EXEMPLARS}
+
+{STRATEGY_DIRECTIVE}
 
 ## ⚡ FILOSOFÍA DE IMPLEMENTACIÓN
 - Implementa funcionalidades COMPLETAS y FUNCIONALES — no stubs ni placeholders
@@ -571,6 +587,12 @@ Los archivos en \`src/\` se ejecutan en el **Renderer Process** (navegador).
 - **NO MÓDULOS FANTASMA**: Usa archivos que YA existen — NO inventes nuevos sin crearlos
 - **NO REESCRIBIR main.ts**: Solo agrega líneas nuevas, no cambies la estructura
 - **PRESERVAR TAMAÑO**: El resultado debe tener ±40% del tamaño original
+- **INTEGRACIÓN OBLIGATORIA**: Si creas un archivo nuevo, DEBES asegurar que esté conectado al sistema:
+  - **Para servicios (electron/*.ts):** importar en main.ts, instanciar, llamar init()/start(), y crear handlers IPC.
+  - **Para herramientas WhatsApp:** agregar FunctionDeclaration a WA_TOOL_DECLARATIONS en whatsapp-agent.ts, setter, y case handler en el dispatch.
+  - **Para herramientas dinámicas (tools/dynamic/*.ts):** exportar un objeto que cumpla con ToolSchema de MCPManager: { name: string, description: string, inputSchema: { type: 'object', properties: {...} }, handler: async (args) => {...} }. MCPManager las carga automáticamente — NO necesitan imports estáticos.
+  - Un archivo que nadie importa Y que no está en tools/dynamic/ es CÓDIGO MUERTO y será rechazado.
+  - Un archivo en tools/dynamic/ que no exporta ToolSchema válido será rechazado.
 
 ## Output JSON
 {
@@ -608,6 +630,7 @@ Si el diff está vacío o no tiene cambios significativos, APRUEBA con un warnin
 5. El código no compila (imports inexistentes, tipos incorrectos)
 6. Se importan módulos con rutas relativas que NO existen en el proyecto (phantom imports)
 7. **Violación de arquitectura Electron**: ipcRenderer usado en archivos electron/*.ts (main process), o ipcMain/fs/child_process usado en archivos src/*.ts (renderer). Cada proceso tiene sus APIs — mezclarlas causa crashes en runtime
+8. **Código huérfano/isla**: Se creó un archivo .ts nuevo pero NINGÚN otro archivo lo importa. Un archivo que compila pero nadie usa es código muerto — debe conectarse a main.ts (instanciar servicio) y whatsapp-agent.ts (agregar tool declaration + handler) para tener efecto real
 
 ### Criterios de APROBACIÓN:
 - Cambios incrementales, seguros, que no rompen nada → APRUEBA

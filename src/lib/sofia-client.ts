@@ -28,6 +28,12 @@ const isValidUrl = (url: string) => {
 const sofiaUrl = isValidUrl(SOFIA_SUPABASE.URL) ? SOFIA_SUPABASE.URL : '';
 const sofiaKey = SOFIA_SUPABASE.ANON_KEY || '';
 
+// Custom fetch without automatic AbortSignal timeout (prevents "signal is aborted" in Electron)
+const electronFetch: typeof globalThis.fetch = (input, init) => {
+  const { signal: _signal, ...rest } = init || {};
+  return globalThis.fetch(input, rest);
+};
+
 export const sofiaSupa = sofiaUrl && sofiaKey
   ? createClient(sofiaUrl, sofiaKey, {
       auth: {
@@ -36,6 +42,9 @@ export const sofiaSupa = sofiaUrl && sofiaKey
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,
+      },
+      global: {
+        fetch: electronFetch,
       },
     })
   : null;

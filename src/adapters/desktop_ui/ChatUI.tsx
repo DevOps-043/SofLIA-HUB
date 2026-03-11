@@ -44,10 +44,12 @@ interface ChatUIProps {
   userAvatar?: string | null;
   externalPrompt?: string | null;
   onExternalPromptProcessed?: () => void;
+  onShare?: () => void;
 }
-export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, personalization, userAvatar, externalPrompt, onExternalPromptProcessed }) => {
+export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, personalization, userAvatar, externalPrompt, onExternalPromptProcessed, onShare }) => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const showLoadingUI = isLoading || (messages.length > 0 && messages[messages.length - 1].role === 'model' && !messages[messages.length - 1].text && !(messages[messages.length - 1].images && messages[messages.length - 1].images!.length > 0));
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -130,6 +132,13 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
 
   const MODEL_OPTIONS = [
     {
+      id: 'gemini-3.1-pro-preview',
+      name: 'Gemini 3.1 Pro',
+      desc: 'Mayor capacidad de razonamiento lógico.',
+      thinkingType: 'level',
+      thinkingOptions: THINKING_OPTIONS_GEMINI3_PRO
+    },
+    {
       id: 'gemini-3-flash-preview',
       name: 'Gemini 3.0 Flash',
       desc: 'Equilibrio perfecto entre velocidad y calidad.',
@@ -137,18 +146,11 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
       thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH
     },
     {
-      id: 'gemini-3-pro-preview',
-      name: 'Gemini 3 Pro',
-      desc: 'Mayor capacidad de razonamiento lógico.',
-      thinkingType: 'level',
-      thinkingOptions: THINKING_OPTIONS_GEMINI3_PRO
-    },
-    {
-      id: 'gemini-2.5-flash',
-      name: 'Gemini 2.5 Flash',
+      id: 'gemini-3.1-flash-lite-preview',
+      name: 'Gemini 3.1 Flash Lite',
       desc: 'Ultra rápido y ligero para tareas simples.',
-      thinkingType: 'budget',
-      thinkingOptions: THINKING_OPTIONS_GEMINI25
+      thinkingType: 'level',
+      thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH
     },
     {
       id: 'gemini-2.5-pro',
@@ -159,8 +161,8 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
     },
     {
       id: 'gemini-2.5-flash',
-      name: 'Gemini 2.5 Flash Lite',
-      desc: 'Versión estable anterior.',
+      name: 'Gemini 2.5 Flash',
+      desc: 'Ultra rápido y ligero para tareas simples.',
       thinkingType: 'budget',
       thinkingOptions: THINKING_OPTIONS_GEMINI25
     }
@@ -171,29 +173,32 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
   const [isThinkingDropdownOpen, setIsThinkingDropdownOpen] = useState(false);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
   const [showHeader, setShowHeader] = useState(true);
-  const [lastScrollTop, setLastScrollTop] = useState(0);
+  const lastScrollTopRef = useRef(0);
   const [isSticky, setIsSticky] = useState(false);
+  const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(null);
+  const [editInput, setEditInput] = useState('');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Handle Dynamic Header (Hide on scroll up, show on scroll down)
+  // Uses a deadzone threshold to prevent oscillation/flickering
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const currentScrollTop = e.currentTarget.scrollTop;
-    
-    // Determine if we should show header based on direction
-    // In chat, "up" (decreasing scrollTop) means going to history -> HIDE
-    // In chat, "down" (increasing scrollTop) means going to newest -> SHOW
+    const delta = currentScrollTop - lastScrollTopRef.current;
+
     if (currentScrollTop < 50) {
       setShowHeader(true);
       setIsSticky(false);
     } else {
       setIsSticky(true);
-      if (currentScrollTop > lastScrollTop) {
+      // Only toggle if scroll delta exceeds threshold (prevents flickering)
+      if (delta > 8) {
         setShowHeader(true);
-      } else {
+      } else if (delta < -8) {
         setShowHeader(false);
       }
     }
-    
-    setLastScrollTop(currentScrollTop);
+
+    lastScrollTopRef.current = currentScrollTop;
   };
 
   // Close dropdowns when clicking outside
@@ -221,7 +226,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
 
       // If current mode is not available in new model, adapt it
       if (!availableOptions.includes(thinkingMode)) {
-        if (modelId === 'gemini-3-pro-preview') {
+        if (modelId === 'gemini-3.1-pro-preview') {
           // G3 Pro only has low/high
           setThinkingMode('low');
         } else if (!isGemini3 && thinkingMode === 'minimal') {
@@ -512,10 +517,17 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
       }
 
       const sources = await result.sources;
-      if (sources && sources.length > 0) {
+      const genImages = result.generatedImages;
+
+      if ((sources && sources.length > 0) || (genImages && genImages.length > 0)) {
         onMessagesChange(
           updatedMessages.map(msg =>
-            msg.id === aiMessageId ? { ...msg, text: fullText, sources } : msg
+            msg.id === aiMessageId ? { 
+              ...msg, 
+              text: fullText, 
+              sources: sources || undefined, 
+              images: genImages?.length ? genImages : undefined 
+            } : msg
           )
         );
       }
@@ -536,7 +548,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
   };
 
   const handleSend = useCallback(async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || showLoadingUI) return;
 
     // If Live API is active, send text through WebSocket instead
     if (isLiveActive && liveClientRef.current) {
@@ -568,8 +580,45 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
 
   }, [input, isLoading, messages, onMessagesChange, preferredPrimaryModel, thinkingMode, personalization, selectedImages, isImageGenMode, isPromptOptimizerMode, optimizerTarget, activeTool, isLiveActive]);
 
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const handleCopy = (id: string, text: string) => {
+    if (!text) return;
+
+    const performCopy = async () => {
+      // Try modern API first
+      if (navigator.clipboard && window.isSecureContext) {
+        try {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch (err) {
+          console.warn('Navigator clipboard failed, trying fallback', err);
+        }
+      }
+
+      // Fallback: Invisible textarea
+      try {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-9999px";
+        textArea.style.top = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        return successful;
+      } catch (err) {
+        console.error('Fallback copy failed', err);
+        return false;
+      }
+    };
+
+    performCopy().then((success) => {
+      if (success) {
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(null), 2000);
+      }
+    });
   };
 
   const handleFeedback = (index: number, type: 'like' | 'dislike') => {
@@ -586,32 +635,19 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
   };
 
   const handleRegenerate = async (index: number) => {
-    if (isLoading) return;
+    if (showLoadingUI) return;
 
-    // Find the user message preceding this assistant message
     const historyUpToNow = messages.slice(0, index);
     const lastUserMsgIndex = historyUpToNow.map(m => m.role).lastIndexOf('user');
-    
+
     if (lastUserMsgIndex !== -1) {
        const userMsg = historyUpToNow[lastUserMsgIndex];
-       
-       // Keep history UP TO the user message (inclusive)
        const newHistory = messages.slice(0, lastUserMsgIndex + 1);
-       
-       // Update UI to remove old response
+
+       // Actualizar estado inmediatamente — el debounced save con latestMessages
+       // se encargará de sincronizar con Supabase (eliminando mensajes huérfanos)
        onMessagesChange(newHistory);
-       
-       // Trigger processMessage with isRegeneration=true
-       // Note: userMsg.images are already in the history item, 
-       // but processMessage expects separate images arg for the 'current turn'.
-       // However, since we set isRegeneration=true, processMessage relies on history for context.
-       // EXCEPT: The underlying `sendMessageStream` might expect the prompt text and images separately if it's the 'active' prompt.
-       // In `processMessage` above:
-       //   const cleanHistory = updatedMessages... (includes the user message)
-       //   sendMessageStream(text, cleanHistory...)
-       // So it should work fine, as the last message in `cleanHistory` is the user prompt.
-       
-       // We pass userMsg.images just in case logic needs it, though strictly for chat history it's embedded.
+
        await processMessage(userMsg.text, userMsg.images || [], newHistory, true);
     }
   };
@@ -628,107 +664,147 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
       >
         {/* HEADER TOP - Minimalist Model Selector (Dynamic Sticky) */}
         <div className={`sticky top-0 z-30 w-full transition-all duration-300 ${isSticky ? 'bg-background/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-gray-200 dark:border-white/5 shadow-sm py-3' : 'pt-6 pb-2'} ${showHeader ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
-          <div className="w-full px-6 shrink-0">
+          <div className="w-full px-6 flex items-center justify-between shrink-0">
             <div className="relative inline-block">
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsModelSelectorOpen(!isModelSelectorOpen);
-              }}
-              className="flex items-center gap-2 text-lg font-medium text-primary dark:text-white/90 hover:text-accent transition-colors group"
-            >
-              <span>{currentModel?.name}</span>
-              <span className="text-secondary text-sm font-normal opacity-60 group-hover:opacity-100 transition-opacity">
-                {currentThinkingOption?.name || 'Rápido'}
-              </span>
-              <svg 
-                width="16" 
-                height="16" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="2"
-                className={`text-gray-400 transition-transform duration-200 ${isModelSelectorOpen ? 'rotate-180' : ''}`}
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsModelSelectorOpen(!isModelSelectorOpen);
+                }}
+                className="flex items-center gap-2 text-lg font-medium text-primary dark:text-white/90 hover:text-accent transition-colors group"
               >
-                <polyline points="6 9 12 15 18 9"></polyline>
-              </svg>
-            </button>
+                <span>{currentModel?.name}</span>
+                <span className="text-secondary text-sm font-normal opacity-60 group-hover:opacity-100 transition-opacity">
+                  {currentThinkingOption?.name || 'Rápido'}
+                </span>
+                <svg 
+                  width="16" 
+                  height="16" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2"
+                  className={`text-gray-400 transition-transform duration-200 ${isModelSelectorOpen ? 'rotate-180' : ''}`}
+                >
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
 
-            {/* Model Selector Dropdown */}
-            {isModelSelectorOpen && (
-              <div className="absolute top-full left-0 mt-2 w-72 bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-white/10 rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 z-30">
-                <div className="p-2 space-y-1">
-                  <div className="px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    Modelos Disponibles
-                  </div>
-                  {MODEL_OPTIONS.map((model) => (
-                    <button
-                      key={model.id}
-                      onClick={() => handleModelChange(model.id)}
-                      className={`w-full text-left px-3 py-3 rounded-lg flex items-start gap-3 transition-colors ${
-                        preferredPrimaryModel === model.id 
-                          ? 'bg-accent/10 dark:bg-white/5' 
-                          : 'hover:bg-gray-50 dark:hover:bg-white/5'
-                      }`}
-                    >
-                      <div className={`mt-0.5 ${preferredPrimaryModel === model.id ? 'text-accent' : 'text-gray-400'}`}>
-                        {/* Checkmark or Circle */}
-                        {preferredPrimaryModel === model.id ? (
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <polyline points="20 6 9 17 4 12"></polyline>
-                          </svg>
-                        ) : (
-                          <div className="w-[18px] h-[18px]"></div>
-                        )}
-                      </div>
-                      <div>
-                        <div className={`font-medium text-sm ${preferredPrimaryModel === model.id ? 'text-accent' : 'text-primary dark:text-white'}`}>
-                          {model.name}
-                        </div>
-                        <div className="text-xs text-gray-500 mt-0.5">
-                          {model.desc}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-                
-                {/* Thinking Mode Sub-selector */}
-                <div className="border-t border-gray-200 dark:border-white/10 p-2">
-                  <div className="px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider flex justify-between items-center">
-                    <span>Nivel de Razonamiento</span>
-                    <span className="text-[10px] bg-accent/20 text-accent px-1.5 py-0.5 rounded">
-                      {currentThinkingOption?.name}
-                    </span>
-                  </div>
-                  <div className="flex gap-1 p-1">
-                    {currentModel?.thinkingOptions.map((opt: any) => {
-                      const isActive = thinkingMode === opt.id;
+              {/* Model Selector Dropdown */}
+              {isModelSelectorOpen && (
+                <div className="absolute top-full left-0 mt-3 w-80 bg-white/95 dark:bg-[#1E1E1E]/95 backdrop-blur-xl border border-gray-200/50 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-50 ring-1 ring-black/5">
+                  <div className="p-2.5 space-y-1">
+                    <div className="px-3.5 py-2 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">
+                      Modelos Disponibles
+                    </div>
+                    
+                    {MODEL_OPTIONS.map((model) => {
+                      const isSelected = preferredPrimaryModel === model.id;
+                      const isPro = model.name.includes('Pro');
+                      const isLite = model.name.includes('Lite');
+                      
                       return (
                         <button
-                          key={opt.id}
-                          onClick={() => handleThinkingChange(opt.id)}
-                          className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
-                            isActive 
-                              ? 'bg-accent text-white shadow-sm' 
-                              : 'bg-gray-100 dark:bg-white/5 text-gray-500 hover:bg-gray-200 dark:hover:bg-white/10'
+                          key={model.id}
+                          onClick={() => handleModelChange(model.id)}
+                          className={`w-full text-left px-3.5 py-3 rounded-xl flex items-start gap-3.5 transition-all group/model ${
+                            isSelected 
+                              ? 'bg-accent/10 dark:bg-accent/15 ring-1 ring-accent/20' 
+                              : 'hover:bg-gray-50 dark:hover:bg-white/[0.03]'
                           }`}
-                          title={opt.desc}
                         >
-                          {opt.name}
+                          <div className={`mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                            isSelected 
+                              ? 'bg-accent text-white shadow-[0_0_10px_rgba(var(--color-accent-rgb),0.3)]' 
+                              : 'bg-gray-100 dark:bg-white/5 text-gray-400 group-hover/model:text-gray-600 dark:group-hover/model:text-gray-300'
+                          }`}>
+                            {isPro ? (
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                            ) : isLite ? (
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                            ) : (
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707"/></svg>
+                            )}
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className={`font-bold text-[13.5px] truncate ${isSelected ? 'text-accent' : 'text-primary dark:text-gray-200'}`}>
+                                {model.name}
+                              </div>
+                              {isSelected && (
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-accent">
+                                  <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                              )}
+                            </div>
+                            <div className="text-[11.5px] text-gray-500 dark:text-gray-400 mt-0.5 leading-tight line-clamp-2">
+                              {model.desc}
+                            </div>
+                          </div>
                         </button>
                       );
                     })}
                   </div>
+                  
+                  {/* Reasoning Container */}
+                  <div className="px-3.5 pb-4 pt-2 bg-gray-50/50 dark:bg-black/20 border-t border-gray-200 dark:border-white/5">
+                    <div className="mb-3 px-1 flex justify-between items-center">
+                      <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                        Nivel de Razonamiento
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                         <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                         <span className="text-[10px] font-bold text-accent uppercase tracking-wider">
+                           {currentThinkingOption?.name}
+                         </span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex bg-gray-200/50 dark:bg-white/5 p-1 rounded-[10px] gap-1 relative ring-1 ring-black/5">
+                      {currentModel?.thinkingOptions.map((opt: any) => {
+                        const isActive = thinkingMode === opt.id;
+                        return (
+                          <button
+                            key={opt.id}
+                            onClick={() => handleThinkingChange(opt.id)}
+                            className={`flex-1 py-1.5 px-1 text-[11px] font-black uppercase tracking-wider rounded-lg transition-all duration-200 ${
+                              isActive 
+                                ? 'bg-white dark:bg-white/10 text-accent shadow-sm' 
+                                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                            }`}
+                            title={opt.desc}
+                          >
+                            {opt.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+
+            {/* Header Right Actions */}
+            <div className="flex items-center gap-3">
+              {onShare && (
+                <button
+                  onClick={onShare}
+                  className="px-3 py-1.5 bg-gray-100/50 dark:bg-white/5 hover:bg-accent/10 dark:hover:bg-accent/10 text-gray-700 dark:text-gray-300 hover:text-accent border border-gray-200 dark:border-white/10 rounded-xl transition-all flex items-center gap-2 group"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+                  </svg>
+                  <span className="text-[11px] font-black uppercase tracking-widest">Compartir</span>
+                </button>
+              )}
+              {/* Optional: Add more header buttons here like Sources if needed */}
+            </div>
         </div>
       </div>
 
         {/* Empty State / Messages Area */}
-        {messages.length === 0 && !isLoading ? (
+        {messages.length === 0 && !showLoadingUI ? (
           <div className="flex-1 flex flex-col items-center justify-center px-4">
             <div className="mb-6">
               <div className="w-20 h-20 flex items-center justify-center mx-auto mb-4 rounded-full overflow-hidden">
@@ -748,19 +824,19 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
             {messages.map((msg, index) => {
               // Si es el último mensaje, es del modelo, está vacio y está cargando, lo ocultamos
               // porque se mostrará el indicador de carga dedicado abajo
-              if (isLoading && index === messages.length - 1 && msg.role === 'model' && !msg.text) {
+              if (showLoadingUI && index === messages.length - 1 && msg.role === 'model' && !msg.text) {
                 return null;
               }
               
               return (
-                <div key={index} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : ''}`}>
+                <div key={index} className={`flex gap-4 ${msg.role === 'user' && editingMessageIndex !== index ? 'justify-end' : ''}`}>
                   {msg.role === 'model' && (
                     <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 rounded-full overflow-hidden">
                       <img src="./assets/lia-avatar.png" alt="SOFLIA" className="w-full h-full object-cover" />
                     </div>
                   )}
                   
-                  <div className={`flex flex-col max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                  <div className={`flex flex-col ${editingMessageIndex === index ? 'w-full' : 'max-w-[85%]'} ${msg.role === 'user' && editingMessageIndex !== index ? 'items-end' : 'items-start'}`}>
                     {/* Attached images/files (user) */}
                     {msg.role === 'user' && msg.images && msg.images.length > 0 && (
                       <div className="flex flex-wrap gap-2 mb-2">
@@ -796,11 +872,89 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
 
                     <div className={`${
                       msg.role === 'user'
-                        ? 'px-4 py-2.5 rounded-2xl bg-[#0A2540] text-white rounded-tr-sm shadow-sm'
+                        ? editingMessageIndex === index 
+                          ? 'w-full bg-[#f4f4f4] dark:bg-[#2f2f2f] rounded-2xl p-4 shadow-2xl border border-gray-200 dark:border-white/10'
+                          : 'px-4 py-2.5 rounded-2xl bg-[#0A2540] dark:bg-[#00D4B3] text-white dark:text-[#0A0D12] rounded-tr-sm shadow-sm font-medium'
                         : 'p-0 bg-transparent border-none shadow-none text-gray-800 dark:text-gray-100'
-                    } text-[15px] leading-relaxed`}>
+                    } text-[15px] leading-relaxed group/msg-content relative transition-all duration-300`}>
                       {msg.role === 'user' ? (
-                        msg.text
+                        editingMessageIndex === index ? (
+                          <div className="flex flex-col gap-4">
+                            <textarea
+                              value={editInput}
+                              onChange={(e) => {
+                                setEditInput(e.target.value);
+                                e.target.style.height = 'auto';
+                                e.target.style.height = e.target.scrollHeight + 'px';
+                              }}
+                              className="w-full bg-transparent border-none focus:ring-0 outline-none p-0 text-[15.5px] min-h-[60px] text-gray-800 dark:text-gray-100 resize-none font-medium leading-relaxed"
+                              autoFocus
+                              placeholder="Edita tu mensaje..."
+                            />
+                            <div className="flex justify-end items-center gap-4 pt-4 border-t border-gray-300/30 dark:border-white/10">
+                              <button
+                                onClick={() => setEditingMessageIndex(null)}
+                                className="px-5 py-2 text-[13px] font-bold text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-all bg-gray-200/50 dark:bg-white/5 rounded-full"
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const history = messages.slice(0, index);
+                                  processMessage(editInput, msg.images || [], history, false);
+                                  setEditingMessageIndex(null);
+                                }}
+                                className="px-7 py-2 bg-accent text-white rounded-full text-[13px] font-black uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-xl shadow-accent/20"
+                              >
+                                Enviar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex flex-col">
+                              {msg.text}
+                            </div>
+                            
+                            {/* Message actions (hover) */}
+                            <div className="absolute -left-12 top-0 flex flex-col gap-1 opacity-0 group-hover/msg-content:opacity-100 transition-all duration-200">
+                              <button
+                                onClick={() => {
+                                  setEditingMessageIndex(index);
+                                  setEditInput(msg.text);
+                                }}
+                                className="p-2 rounded-xl bg-white dark:bg-[#2A2B32] text-gray-400 hover:text-accent hover:shadow-md border border-gray-100 dark:border-white/10 transition-all"
+                                title="Editar mensaje"
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                              </button>
+                              
+                              <button
+                                onClick={() => handleCopy(msg.id, msg.text)}
+                                className={`p-2 rounded-xl transition-all border ${
+                                  copiedId === msg.id 
+                                    ? 'bg-green-500/10 text-green-500 border-green-500/20' 
+                                    : 'bg-white dark:bg-[#2A2B32] text-gray-400 hover:text-accent hover:shadow-md border-gray-100 dark:border-white/10'
+                                }`}
+                                title={copiedId === msg.id ? "¡Copiado!" : "Copiar mensaje"}
+                              >
+                                {copiedId === msg.id ? (
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="20 6 9 17 4 12"></polyline>
+                                  </svg>
+                                ) : (
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                  </svg>
+                                )}
+                              </button>
+                            </div>
+                          </>
+                        )
                       ) : (
                         <MarkdownRenderer text={msg.text} />
                       )}
@@ -851,11 +1005,19 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                     {msg.role === 'model' && (
                       <div className="flex gap-0.5 mt-1.5 select-none">
                         <button 
-                          className="w-6 h-6 flex items-center justify-center rounded text-[#c5c5d2] hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-200 transition-all"
-                          title="Copiar texto" 
-                          onClick={() => handleCopy(msg.text)}
+                          className={`w-6 h-6 flex items-center justify-center rounded transition-all ${
+                            copiedId === msg.id 
+                              ? 'text-green-500 bg-green-500/10' 
+                              : 'text-[#c5c5d2] hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-200'
+                          }`}
+                          title={copiedId === msg.id ? "¡Copiado!" : "Copiar texto"} 
+                          onClick={() => handleCopy(msg.id, msg.text)}
                         >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                          {copiedId === msg.id ? (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                          ) : (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                          )}
                         </button>
                         
                         <button 
@@ -905,7 +1067,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
               );
             })}
             
-            {isLoading && (
+            {showLoadingUI && (
               <div className="flex gap-4">
                 <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 rounded-full overflow-hidden">
                   <img src="./assets/lia-avatar.png" alt="SOFLIA" className="w-full h-full object-cover" />
@@ -957,10 +1119,10 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
               )}
               {isPromptOptimizerMode && (
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full border border-emerald-500/20">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-accent/10 text-accent rounded-full border border-accent/20">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9 M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                     Mejorar Prompt
-                    <button onClick={() => setIsPromptOptimizerMode(false)} className="ml-1 hover:text-emerald-700 dark:hover:text-emerald-200">x</button>
+                    <button onClick={() => setIsPromptOptimizerMode(false)} className="ml-1 hover:opacity-70">x</button>
                   </span>
                   {/* Target AI Selector */}
                   <div className="flex gap-1">
@@ -970,7 +1132,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                         onClick={() => setOptimizerTarget(target)}
                         className={`px-2.5 py-1 text-[11px] font-medium rounded-full transition-all ${
                           optimizerTarget === target
-                            ? 'bg-emerald-500 text-white shadow-sm'
+                            ? 'bg-accent text-white shadow-sm'
                             : 'bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10'
                         }`}
                       >
@@ -981,17 +1143,17 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                 </div>
               )}
               {activeTool && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full border border-blue-500/20">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-accent/10 text-accent rounded-full border border-accent/20">
                   <span>{activeTool.icon}</span>
                   {activeTool.name}
-                  <button onClick={() => setActiveTool(null)} className="ml-1 hover:text-blue-700 dark:hover:text-blue-200">x</button>
+                  <button onClick={() => setActiveTool(null)} className="ml-1 hover:opacity-70">x</button>
                 </span>
               )}
               {(isLiveActive || isLiveConnecting) && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-green-500/10 text-green-600 dark:text-green-400 rounded-full border border-green-500/20">
-                  <div className={`w-2 h-2 rounded-full ${isLiveActive ? 'bg-green-500 animate-pulse' : 'bg-yellow-500 animate-spin'}`} />
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-accent/10 text-accent rounded-full border border-accent/20">
+                  <div className={`w-2 h-2 rounded-full ${isLiveActive ? 'bg-accent animate-pulse' : 'bg-yellow-500 animate-spin'}`} />
                   {isLiveConnecting ? 'Conectando...' : 'En Vivo'}
-                  <button onClick={stopLiveConversation} className="ml-1 hover:text-green-700 dark:hover:text-green-200">x</button>
+                  <button onClick={stopLiveConversation} className="ml-1 hover:opacity-70">x</button>
                 </span>
               )}
             </div>
@@ -1099,7 +1261,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
               placeholder={isImageGenMode ? "Describe la imagen que quieres generar..." : isPromptOptimizerMode ? "Escribe el prompt a optimizar..." : "Mensaje a SOFLIA..."}
               className="flex-1 bg-transparent text-[15px] focus:outline-none placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 resize-none max-h-[160px] overflow-y-auto !no-scrollbar font-sans py-2.5 px-2 leading-relaxed mb-0.5"
               rows={1}
-              disabled={isLoading}
+              disabled={showLoadingUI}
               style={{ height: '42px', scrollbarWidth: 'none', msOverflowStyle: 'none' }} 
               onInput={(e) => {
                 const target = e.target as HTMLTextAreaElement;
@@ -1113,11 +1275,11 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
               {input.trim() ? (
                 <button
                   onClick={handleSend}
-                  disabled={isLoading}
+                  disabled={showLoadingUI}
                   className="w-9 h-9 flex items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
                   title="Enviar mensaje"
                 >
-                  {isLoading ? (
+                  {showLoadingUI ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="ml-0.5">
@@ -1179,10 +1341,33 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
           onClick={() => setZoomedImage(null)}
         >
           <button
+            className="absolute top-4 right-16 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
+            title="Descargar imagen"
+            onClick={(e) => {
+              e.stopPropagation();
+              const link = document.createElement('a');
+              link.href = zoomedImage;
+              link.download = `soflia-imagen-${new Date().getTime()}.png`;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </button>
+          <button
             className="absolute top-4 right-4 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white text-xl transition-colors"
+            title="Cerrar vista"
             onClick={() => setZoomedImage(null)}
           >
-            x
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
           </button>
           <img
             src={zoomedImage}
@@ -1234,8 +1419,8 @@ const CodeBlock: React.FC<{ language: string; code: string }> = ({ language, cod
         >
           {copied ? (
             <>
-              <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-              <span className="text-green-500 font-medium">Copiado</span>
+              <svg className="w-3.5 h-3.5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+              <span className="text-accent font-medium">Copiado</span>
             </>
           ) : (
             <>
@@ -1446,7 +1631,8 @@ function formatInline(text: string): React.ReactNode {
     break;
   }
 
-  return parts.length === 1 ? parts[0] : <>{parts}</>;
+  if (parts.length === 1) return parts[0];
+  return <>{parts.map((p, idx) => typeof p === 'string' ? <span key={`fi-${idx}`}>{p}</span> : p)}</>;
 }
 
 // Helper to handle links [text](url)
@@ -1458,13 +1644,13 @@ function formatLink(text: string, baseKey: number): React.ReactNode {
   while (remaining.length > 0) {
     const match = remaining.match(/^(.*?)\[([^\]]+)\]\(([^)]+)\)(.*)/s);
     if (match) {
-      if (match[1]) parts.push(match[1]);
+      if (match[1]) parts.push(<span key={`lt-${baseKey}-${key++}`}>{match[1]}</span>);
       parts.push(
-        <a 
-          key={`l-${baseKey}-${key++}`} 
-          href={match[3]} 
-          target="_blank" 
-          rel="noopener noreferrer" 
+        <a
+          key={`l-${baseKey}-${key++}`}
+          href={match[3]}
+          target="_blank"
+          rel="noopener noreferrer"
           className="text-accent hover:underline decoration-accent/50 underline-offset-2"
         >
           {match[2]}
@@ -1473,7 +1659,7 @@ function formatLink(text: string, baseKey: number): React.ReactNode {
       remaining = match[4];
       continue;
     }
-    parts.push(remaining);
+    parts.push(<span key={`lr-${baseKey}-${key++}`}>{remaining}</span>);
     break;
   }
 

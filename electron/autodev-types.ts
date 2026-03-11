@@ -136,6 +136,10 @@ export interface AutoDevRun {
   error?: string;
   /** For micro runs: the trigger that caused it */
   microTrigger?: MicroFixTrigger;
+  /** Estrategia seleccionada por el sistema de memoria estratégica */
+  strategy?: string;
+  /** Warnings de integración y otros issues detectados durante el run */
+  warnings?: string[];
 }
 
 // ─── Micro-Fix Types ────────────────────────────────────────────────

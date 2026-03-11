@@ -158,7 +158,7 @@ export const Auth: React.FC = () => {
           className="mt-8 text-center"
         >
           <p className="text-white/20 text-xs font-medium tracking-wider">
-            SOFLIA HUB v1.0
+            SOFLIA HUB v0.0.8
           </p>
         </motion.div>
       </motion.div>

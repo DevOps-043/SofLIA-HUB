@@ -27,8 +27,28 @@ import { KnowledgeService } from './knowledge-service'
 import { ProactiveGuardianService } from './proactive-guardian'
 import { UpdaterService } from './updater-service'
 import { registerUpdaterHandlers } from './updater-handlers'
+import { ClipboardAIAssistant } from './clipboard-ai-assistant'
+import { TaskScheduler } from './task-scheduler'
+import './agent-task-queue' // Side-effect: registers singleton
+import { SystemGuardianService } from './system-services'
+import { NeuralOrganizerService as NeuralOrganizerAI } from './neural-organizer'
+import { PathMemoryService } from './path-memory-service'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+// ─── Load .env BEFORE anything reads process.env.VITE_* ─────────────
+import * as dotenv from 'dotenv';
+const envPaths = [
+  path.join(__dirname, '..', '.env'),        // project root (dev)
+  path.join(__dirname, '.env'),              // dist-electron/ (prod fallback)
+];
+for (const envPath of envPaths) {
+  const result = dotenv.config({ path: envPath });
+  if (!result.error) {
+    console.log(`[Main] Loaded .env from: ${envPath}`);
+    break;
+  }
+}
 
 process.env.APP_ROOT = path.join(__dirname, '..')
 
@@ -89,6 +109,21 @@ const desktopAgentService = new DesktopAgentService()
 // ─── Auto-Updater ──────────────────────────────────────────────────
 const updaterService = new UpdaterService()
 
+// ─── Clipboard AI Assistant (historial inteligente del portapapeles) ─
+const clipboardAssistant = new ClipboardAIAssistant({ maxHistorySize: 100, pollingIntervalMs: 5000 })
+
+// ─── Task Scheduler (recordatorios y tareas programadas via cron) ────
+const taskScheduler = new TaskScheduler()
+
+// ─── System Guardian (monitoreo nativo de CPU/RAM) ──────────────────
+const systemGuardian = new SystemGuardianService()
+
+// ─── Neural Organizer AI (organización inteligente de descargas) ─────
+let neuralOrganizer: NeuralOrganizerAI | null = null
+
+// ─── Path Memory (indexación proactiva de rutas del sistema) ─────────
+const pathMemoryService = new PathMemoryService()
+
 // ─── Wire SelfLearn → AutoDev Micro-Fix ──────────────────────────────
 selfLearnService.on('micro-fix-candidate', (trigger: any) => {
   console.log(`[Main] SelfLearn micro-fix candidate: ${trigger.category} — ${trigger.description.slice(0, 60)}`)
@@ -98,6 +133,19 @@ selfLearnService.on('micro-fix-candidate', (trigger: any) => {
 // ─── Wire DesktopAgent failures → SelfLearn ──────────────────────────
 desktopAgentService.on('task-failed', (data: any) => {
   selfLearnService.logComputerUseFailure(data.message || 'Desktop agent task failed', data.message || '')
+})
+
+// ─── Wire TaskScheduler → WhatsApp Agent (inject scheduled prompts) ──
+taskScheduler.on('task-triggered', (data: any) => {
+  if (waAgent && waService.getStatus().connected) {
+    const jid = `${data.phoneNumber.replace(/\D/g, '')}@s.whatsapp.net`
+    waAgent.handleMessage(jid, data.phoneNumber, data.prompt, false, '')
+  }
+})
+
+// ─── Wire SystemGuardian alerts → WhatsApp notifications ─────────────
+systemGuardian.on('alert', (alert: any) => {
+  console.log(`[SystemGuardian] Alert: ${alert.type} — ${alert.message}`)
 })
 
 // ─── Proactive Notifications ────────────────────────────────────────
@@ -370,18 +418,17 @@ ipcMain.handle('get-screen-sources', async () => {
   } catch (err) { return [] }
 })
 
-ipcMain.handle('get-desktop-sources', async (_event, opts?: any) => {
+ipcMain.handle('get-desktop-sources', async () => {
   try {
-    const types = opts?.types || ['screen', 'window']
-    const thumbnailSize = opts?.thumbnailSize || { width: 1280, height: 720 }
-    const sources = await desktopCapturer.getSources({ types, thumbnailSize })
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: { width: 1920, height: 1080 }
+    })
     return sources.map(source => ({
+      display_id: source.id,
       id: source.id,
       name: source.name,
-      display_id: source.display_id,
-      thumbnail: source.thumbnail?.toDataURL(),
-      appIcon: source.appIcon?.toDataURL(),
-      isScreen: source.id.startsWith('screen:')
+      thumbnail: source.thumbnail.toDataURL()
     }))
   } catch (err: any) {
     console.error('[Main] get-desktop-sources error:', err.message)
@@ -403,7 +450,10 @@ ipcMain.on('close-flow', () => {
 });
 
 // App Lifecycle
-app.on('before-quit', () => { isQuitting = true })
+app.on('before-quit', () => {
+  isQuitting = true
+  pathMemoryService.stop()
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -491,6 +541,9 @@ function initWhatsAppAgent(apiKey: string) {
   waAgent.setGoogleServices(calendarService, gmailService, driveService, gchatService)
   waAgent.setAutoDevService(autoDevService)
   waAgent.setDesktopAgentService(desktopAgentService)
+  waAgent.setClipboardAssistant(clipboardAssistant)
+  waAgent.setTaskScheduler(taskScheduler)
+  waAgent.setSystemGuardian(systemGuardian)
 
   // Store API key for summary generation
   currentGeminiApiKey = apiKey
@@ -511,6 +564,30 @@ function initWhatsAppAgent(apiKey: string) {
 
   // Desktop Agent API key
   desktopAgentService.setApiKey(apiKey)
+
+  // Clipboard AI Assistant — update API key and start
+  clipboardAssistant.updateApiKey(apiKey)
+  clipboardAssistant.start()
+
+  // Neural Organizer AI — initialize with API key
+  if (!neuralOrganizer) {
+    neuralOrganizer = new NeuralOrganizerAI({
+      apiKey,
+      notifyCallback: async (msg: string) => {
+        if (waService.getStatus().connected) {
+          const status = waService.getStatus() as any
+          const numbers = status.allowedNumbers || []
+          for (const num of numbers) {
+            const jid = `${num.replace(/\D/g, '')}@s.whatsapp.net`
+            await waService.sendText(jid, msg).catch(() => {})
+          }
+        }
+      }
+    })
+    waAgent.setNeuralOrganizer(neuralOrganizer)
+  } else {
+    neuralOrganizer.updateApiKey(apiKey)
+  }
   autoDevService.on('notify-whatsapp', ({ phone, message }: any) => {
     if (waAgent) {
       waService.sendText(`${phone}@s.whatsapp.net`, message).catch(() => {})
@@ -572,11 +649,30 @@ ipcMain.handle('whatsapp:set-api-key', async (_, apiKey: string) => {
   return { success: true }
 })
 
+const gotTheLock = app.requestSingleInstanceLock()
+
+if (!gotTheLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    // Si alguien intenta abrir otra instancia, enfocamos la principal
+    if (win) {
+      if (win.isMinimized()) win.restore()
+      if (!win.isVisible()) win.show()
+      win.focus()
+    }
+  })
+}
+
 app.whenReady().then(async () => {
   // ─── Memory & Knowledge init ────────────────────────────────
   memoryService.init()
   registerMemoryHandlers(memoryService)
   knowledgeService.init()
+
+  // ─── Path Memory (indexación proactiva de rutas) ───────────
+  await pathMemoryService.init()
+  pathMemoryService.start()
 
   // Restore saved Google/Microsoft OAuth connections from disk
   calendarService.loadConnections()
@@ -590,6 +686,15 @@ app.whenReady().then(async () => {
   registerDesktopAgentHandlers(desktopAgentService)
   registerUpdaterHandlers(updaterService, () => win)
   updaterService.init()
+
+  // ─── Task Scheduler init (load saved tasks from disk) ────────
+  await taskScheduler.init()
+
+  // ─── System Guardian (native CPU/RAM monitoring every 5 min) ────
+  systemGuardian.startMonitoring(undefined, 300000)
+
+  // ─── Clipboard AI Assistant init ────────────────────────────────
+  await clipboardAssistant.init()
 
   // ─── Proactive Guardian (monitoreo de salud del sistema) ────
   proactiveGuardian = new ProactiveGuardianService()
@@ -674,7 +779,8 @@ app.whenReady().then(async () => {
   globalShortcut.register('CommandOrControl+M', () => {
     if (!flowWin) {
       createFlowWindow()
-    } else {
+    }
+    else {
       if (flowWin.isVisible()) {
         flowWin.hide()
       } else {

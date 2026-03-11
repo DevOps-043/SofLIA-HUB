@@ -155,9 +155,12 @@ export function UpdatePanel() {
 
           {/* Release Notes */}
           {notes && (
-            <div className="p-3 rounded-xl bg-black/30 border border-white/5 max-h-48 overflow-y-auto">
-              <p className="text-[10px] text-accent font-bold uppercase tracking-widest mb-2">Novedades</p>
-              <div className="text-xs text-gray-300 leading-relaxed whitespace-pre-wrap">{notes}</div>
+            <div className="p-3 rounded-xl bg-black/30 border border-white/5 max-h-48 overflow-y-auto custom-scrollbar">
+              <p className="text-[10px] text-accent font-bold uppercase tracking-widest mb-3">Novedades</p>
+              <div 
+                className="text-xs release-notes"
+                dangerouslySetInnerHTML={{ __html: notes }} 
+              />
             </div>
           )}
 
@@ -181,7 +184,7 @@ export function UpdatePanel() {
           {state === 'available' && (
             <button
               onClick={handleDownload}
-              className="w-full py-3 rounded-xl bg-accent text-black text-sm font-bold transition-all hover:scale-[1.01] active:scale-[0.99]"
+              className="w-full py-3 rounded-xl bg-accent text-white text-sm font-bold transition-all hover:scale-[1.01] active:scale-[0.99]"
             >
               Descargar actualización
             </button>

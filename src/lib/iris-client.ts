@@ -26,6 +26,12 @@ const isValidUrl = (url: string) => {
 const irisUrl = isValidUrl(IRIS_SUPABASE.URL) ? IRIS_SUPABASE.URL : '';
 const irisKey = IRIS_SUPABASE.ANON_KEY || '';
 
+// Custom fetch without automatic AbortSignal timeout (prevents "signal is aborted" in Electron)
+const electronFetch: typeof globalThis.fetch = (input, init) => {
+  const { signal: _signal, ...rest } = init || {};
+  return globalThis.fetch(input, rest);
+};
+
 export const irisSupa = irisUrl && irisKey
   ? createClient(irisUrl, irisKey, {
       auth: {
@@ -34,6 +40,9 @@ export const irisSupa = irisUrl && irisKey
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false,
+      },
+      global: {
+        fetch: electronFetch,
       },
     })
   : null;

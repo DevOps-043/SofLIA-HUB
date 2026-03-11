@@ -242,6 +242,19 @@ export class WhatsAppService extends EventEmitter {
         const isGroup = jid.endsWith('@g.us');
         let senderNumber = '';
 
+        // ─── Unwrap nested message containers (Baileys 7.x) ──────
+        // Some messages are wrapped: viewOnceMessage, ephemeralMessage,
+        // documentWithCaptionMessage. Unwrap to find the actual content.
+        if (msg.message.viewOnceMessage?.message) {
+          msg.message = { ...msg.message, ...msg.message.viewOnceMessage.message };
+        }
+        if (msg.message.ephemeralMessage?.message) {
+          msg.message = { ...msg.message, ...msg.message.ephemeralMessage.message };
+        }
+        if (msg.message.documentWithCaptionMessage?.message) {
+          msg.message = { ...msg.message, ...msg.message.documentWithCaptionMessage.message };
+        }
+
         // ─── Extract sender: handle DM, Group, and LID ────────
         if (isGroup) {
           // In groups: real sender is in msg.key.participant, NOT remoteJid
@@ -335,6 +348,7 @@ export class WhatsAppService extends EventEmitter {
           msg.message.extendedTextMessage?.text ||
           msg.message.imageMessage?.caption ||
           msg.message.documentMessage?.caption ||
+          msg.message.videoMessage?.caption ||
           '';
 
         // ─── Security & Activation ───────────────────────────
@@ -364,10 +378,18 @@ export class WhatsAppService extends EventEmitter {
           this.addToGroupContext(jid, senderNumber, cleanText);
         }
 
-        if (isGroup && !wasInvoked) continue;
+        // Check if this message has media content (needed for activation logic)
+        const hasMediaContent = !!(msg.message.imageMessage || msg.message.documentMessage || msg.message.videoMessage || msg.message.audioMessage);
 
-        // If it was explicitly invoked but text is empty, let it pass
-        if (!cleanText && !wasInvoked) continue;
+        if (isGroup && !wasInvoked) {
+          // In groups, still process media if sent as reply to SofLIA (handled by wasInvoked now)
+          if (!hasMediaContent) continue;
+          // Media without invocation in groups — skip
+          continue;
+        }
+
+        // If it was explicitly invoked but text is empty, let it pass (media will be caught below)
+        if (!cleanText && !wasInvoked && !hasMediaContent) continue;
 
         const history = isGroup ? this.getGroupHistory(jid) : '';
 
@@ -443,24 +465,39 @@ export class WhatsAppService extends EventEmitter {
   // ─── Group activation check (inspired by OpenClaw) ──────────
   private shouldRespondInGroup(msg: any): boolean {
     // Force strict mode for groups - ignores 'always' setting if it was stuck
-    // if (activation === 'always') return true; 
+    // if (activation === 'always') return true;
 
     // Mention mode: check mention, prefix, or name
+    // Also check media captions (image, document, video)
     const text =
       msg.message?.conversation ||
       msg.message?.extendedTextMessage?.text ||
+      msg.message?.imageMessage?.caption ||
+      msg.message?.documentMessage?.caption ||
+      msg.message?.videoMessage?.caption ||
       '';
     const lowerText = text.toLowerCase();
 
     // 1. Check native WhatsApp @mention (STRICT MATCH)
-    const contextInfo = msg.message?.extendedTextMessage?.contextInfo;
+    // contextInfo can be on extendedTextMessage OR on media messages
+    const contextInfo =
+      msg.message?.extendedTextMessage?.contextInfo ||
+      msg.message?.imageMessage?.contextInfo ||
+      msg.message?.documentMessage?.contextInfo ||
+      msg.message?.videoMessage?.contextInfo;
     const mentionedJids: string[] = contextInfo?.mentionedJid || [];
     const botJid = this.sock?.user?.id || '';
     const botNumber = botJid.split(':')[0];
     const botJidPlain = botNumber + '@s.whatsapp.net';
-    
+
     const isMentioned = !!(botNumber && mentionedJids.some(
       (mjid: string) => mjid === botJidPlain || mjid.startsWith(botNumber + '@')
+    ));
+
+    // 1b. Check if this is a REPLY to one of our messages (quoted message from us)
+    const isReplyToBot = !!(botNumber && (
+      contextInfo?.participant === botJidPlain ||
+      contextInfo?.participant?.startsWith(botNumber + ':')
     ));
 
     // 2. Check command prefix
@@ -470,11 +507,15 @@ export class WhatsAppService extends EventEmitter {
     // 3. Check nickname with word boundaries (STRICT)
     const matchesPattern = /\bsoflia\b/i.test(lowerText);
 
-    const result = !!(isMentioned || hasPrefix || matchesPattern);
-    
+    // 4. Media sent as reply to bot counts as invocation (user replying to SofLIA with a file)
+    const hasMedia = !!(msg.message?.imageMessage || msg.message?.documentMessage || msg.message?.videoMessage || msg.message?.audioMessage);
+    const mediaReply = hasMedia && isReplyToBot;
+
+    const result = !!(isMentioned || hasPrefix || matchesPattern || isReplyToBot || mediaReply);
+
     // Debug log for every group message to trace activation
-    if (text) {
-      console.log(`[WA-Group-Check] msg: "${text.slice(0, 30)}..." | trigger: ${result} (mention:${isMentioned}, prefix:${hasPrefix}, name:${matchesPattern})`);
+    if (text || hasMedia) {
+      console.log(`[WA-Group-Check] msg: "${text.slice(0, 30)}${hasMedia ? ' [+MEDIA]' : ''}..." | trigger: ${result} (mention:${isMentioned}, prefix:${hasPrefix}, name:${matchesPattern}, reply:${isReplyToBot}, mediaReply:${mediaReply})`);
     }
 
     return result;

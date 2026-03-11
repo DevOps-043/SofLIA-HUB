@@ -20,6 +20,7 @@ const KNOWLEDGE_DIR = path.join(app.getPath('userData'), 'knowledge');
 const USERS_DIR = path.join(KNOWLEDGE_DIR, 'users');
 const DAILY_DIR = path.join(KNOWLEDGE_DIR, 'memory');
 const MEMORY_FILE = path.join(KNOWLEDGE_DIR, 'MEMORY.md');
+const PATHS_FILE = path.join(KNOWLEDGE_DIR, 'PATHS.md');
 const BOOTSTRAP_MAX_CHARS = 15000; // Max chars per bootstrap file injected into prompt
 const BOOTSTRAP_TOTAL_MAX_CHARS = 25000; // Total max across all bootstrap files
 
@@ -116,6 +117,18 @@ export class KnowledgeService {
         const maxForUser = Math.min(BOOTSTRAP_MAX_CHARS, remaining);
         const truncated = this.truncate(userProfile, maxForUser);
         sections += `\n\n═══ PERFIL DEL USUARIO ═══\n${truncated}`;
+        totalChars += truncated.length;
+      }
+    }
+
+    // 3. PATHS.md (conocimiento del sistema de archivos)
+    if (totalChars < BOOTSTRAP_TOTAL_MAX_CHARS) {
+      const pathsContent = this.readFileContent(PATHS_FILE);
+      if (pathsContent && pathsContent.trim().length > 50) {
+        const remaining = BOOTSTRAP_TOTAL_MAX_CHARS - totalChars;
+        const maxForPaths = Math.min(5000, remaining);
+        const truncated = this.truncate(pathsContent, maxForPaths);
+        sections += `\n\n═══ MAPA DE RUTAS DEL SISTEMA ═══\n${truncated}`;
         totalChars += truncated.length;
       }
     }

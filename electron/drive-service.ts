@@ -84,8 +84,53 @@ export class DriveService extends EventEmitter {
   // ─── Search Files ───────────────────────────────────────────────
 
   async searchFiles(query: string): Promise<{ success: boolean; files?: DriveFile[]; error?: string }> {
-    const driveQuery = `name contains '${query.replace(/'/g, "\\'")}'`;
-    return this.listFiles({ query: driveQuery, maxResults: 20 });
+    // Split query into individual words and search for each in the file name
+    // This way "notas reunión marzo" matches "La reunión se inició ... - Notas de Gemini"
+    const words = query
+      .split(/\s+/)
+      .map(w => w.trim())
+      .filter(w => w.length >= 2); // ignore single-char words
+
+    if (words.length === 0) {
+      return this.listFiles({ maxResults: 20 });
+    }
+
+    // Strategy 1: ALL words must appear in filename (strict match)
+    const nameConditions = words.map(w => `name contains '${w.replace(/'/g, "\\'")}'`);
+    const strictQuery = nameConditions.join(' and ');
+    const strictResult = await this.listFiles({ query: strictQuery, maxResults: 20 });
+
+    if (strictResult.success && strictResult.files && strictResult.files.length > 0) {
+      return strictResult;
+    }
+
+    // Strategy 2: fullText search (searches inside document content too)
+    const fullTextQuery = `fullText contains '${query.replace(/'/g, "\\'")}'`;
+    const fullTextResult = await this.listFiles({ query: fullTextQuery, maxResults: 20 });
+
+    if (fullTextResult.success && fullTextResult.files && fullTextResult.files.length > 0) {
+      return fullTextResult;
+    }
+
+    // Strategy 3: Relax — try each word individually and merge results
+    const allFiles = new Map<string, DriveFile>();
+    for (const word of words.slice(0, 3)) { // max 3 individual searches
+      const singleResult = await this.listFiles({
+        query: `name contains '${word.replace(/'/g, "\\'")}'`,
+        maxResults: 10,
+      });
+      if (singleResult.success && singleResult.files) {
+        for (const f of singleResult.files) {
+          allFiles.set(f.id, f);
+        }
+      }
+    }
+
+    if (allFiles.size > 0) {
+      return { success: true, files: Array.from(allFiles.values()).slice(0, 20) };
+    }
+
+    return { success: true, files: [] };
   }
 
   // ─── Upload File ────────────────────────────────────────────────
@@ -141,7 +186,16 @@ export class DriveService extends EventEmitter {
   // ─── Download File ──────────────────────────────────────────────
 
   // Google Docs native MIME types → export format mapping
-  private static GOOGLE_EXPORT_MAP: Record<string, { mimeType: string; ext: string }> = {
+  // Default: text/plain for Docs so the agent can read content directly
+  // PDF map used when the caller needs a file to send (e.g., whatsapp_send_file)
+  private static GOOGLE_EXPORT_MAP_TEXT: Record<string, { mimeType: string; ext: string }> = {
+    'application/vnd.google-apps.document': { mimeType: 'text/plain', ext: '.txt' },
+    'application/vnd.google-apps.spreadsheet': { mimeType: 'text/csv', ext: '.csv' },
+    'application/vnd.google-apps.presentation': { mimeType: 'text/plain', ext: '.txt' },
+    'application/vnd.google-apps.drawing': { mimeType: 'image/png', ext: '.png' },
+  };
+
+  static GOOGLE_EXPORT_MAP_PDF: Record<string, { mimeType: string; ext: string }> = {
     'application/vnd.google-apps.document': { mimeType: 'application/pdf', ext: '.pdf' },
     'application/vnd.google-apps.spreadsheet': { mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ext: '.xlsx' },
     'application/vnd.google-apps.presentation': { mimeType: 'application/pdf', ext: '.pdf' },
@@ -151,7 +205,8 @@ export class DriveService extends EventEmitter {
   async downloadFile(
     fileId: string,
     destPath: string,
-  ): Promise<{ success: boolean; path?: string; error?: string }> {
+    format: 'text' | 'pdf' = 'text',
+  ): Promise<{ success: boolean; path?: string; textContent?: string; error?: string }> {
     const auth = await this.calendarService.getGoogleAuth();
     if (!auth) return { success: false, error: 'Google no conectado' };
 
@@ -165,7 +220,8 @@ export class DriveService extends EventEmitter {
       // First get file metadata to check if it's a Google Docs native type
       const meta = await drive.files.get({ fileId, fields: 'mimeType, name' });
       const fileMimeType = meta.data.mimeType || '';
-      const exportInfo = DriveService.GOOGLE_EXPORT_MAP[fileMimeType];
+      const exportMap = format === 'pdf' ? DriveService.GOOGLE_EXPORT_MAP_PDF : DriveService.GOOGLE_EXPORT_MAP_TEXT;
+      const exportInfo = exportMap[fileMimeType];
 
       let finalPath = destPath;
 
@@ -208,7 +264,20 @@ export class DriveService extends EventEmitter {
         console.log(`[DriveService] File downloaded: ${fileId} → ${finalPath}`);
       }
 
-      return { success: true, path: finalPath };
+      // If the file is a text-based format, read and return the content
+      let textContent: string | undefined;
+      const textExts = ['.txt', '.csv', '.md', '.json', '.xml', '.html', '.css', '.js', '.ts'];
+      if (textExts.some(ext => finalPath.endsWith(ext))) {
+        try {
+          textContent = await fsp.readFile(finalPath, 'utf-8');
+          // Trim to avoid huge payloads (max ~50KB for WhatsApp agent context)
+          if (textContent.length > 50000) {
+            textContent = textContent.slice(0, 50000) + '\n\n[... contenido truncado a 50,000 caracteres ...]';
+          }
+        } catch { /* ignore read errors for binary files */ }
+      }
+
+      return { success: true, path: finalPath, textContent };
     } catch (err: any) {
       console.error('[DriveService] Download error:', err.message);
       return { success: false, error: err.message };

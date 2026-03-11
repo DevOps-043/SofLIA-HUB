@@ -19,29 +19,39 @@ export default defineConfig({
         vite: {
           build: {
             rollupOptions: {
-              external: [
-                "active-win",
-                "mock-aws-s3",
-                "aws-sdk",
-                "nock",
-                "node-pre-gyp",
-                "@mapbox/node-pre-gyp",
-                "@whiskeysockets/baileys",
-                "pino",
-                "qrcode",
-                "libsignal",
-                "nodemailer",
-                "googleapis",
-                "exceljs",
-                "docx",
-                "tesseract.js",
-                "@azure/msal-node",
-                "@microsoft/microsoft-graph-client",
-                "@google/generative-ai",
-                "dotenv",
-                "better-sqlite3",
-                "sharp",
-              ],
+              external: (id) => {
+                // Externalizar todos los módulos de node_modules que usan __dirname
+                // o que son nativos/pesados para evitar problemas con ESM bundling
+                const externals = [
+                  "active-win",
+                  "mock-aws-s3",
+                  "aws-sdk",
+                  "nock",
+                  "node-pre-gyp",
+                  "@mapbox/node-pre-gyp",
+                  "@whiskeysockets/baileys",
+                  "pino",
+                  "qrcode",
+                  "libsignal",
+                  "nodemailer",
+                  "googleapis",
+                  "exceljs",
+                  "docx",
+                  "tesseract.js",
+                  "@azure/msal-node",
+                  "@microsoft/microsoft-graph-client",
+                  "@google/generative-ai",
+                  "dotenv",
+                  "better-sqlite3",
+                  "sharp",
+                  "node-cron",
+                  "systeminformation",
+                ];
+                // Match exact module name or subpath imports (e.g. "node-cron/something")
+                return externals.some(
+                  (ext) => id === ext || id.startsWith(ext + "/")
+                );
+              },
             },
           },
         },

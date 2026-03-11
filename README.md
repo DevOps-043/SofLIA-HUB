@@ -2,32 +2,37 @@
 
 **SofLIA Hub** es un ecosistema de productividad empresarial de alto rendimiento construido como aplicación de escritorio con **Electron**. Centraliza el control total de tu entorno digital con una estética de ingeniería premium, fusionando inteligencia artificial (**Gemini 3 Flash / Pro**), comunicación por **WhatsApp**, gestión de proyectos en **IRIS**, Google Workspace y automatización autónoma de la computadora — todo en una sola interfaz.
 
-> **v0.0.5** · Multiplataforma (Windows + macOS) · Auto-actualizaciones · CI/CD con GitHub Actions
+Utiliza modelos de lenguaje de última generación (**Gemini 3.1 Pro / Flash / Flash Lite**) para ofrecer una experiencia multimodal, autónoma y predictiva que se adapta dinámicamente a tu flujo de trabajo.
 
 ---
 
 ## 💎 ADN de Diseño: Ingeniería de Cristalismo
 
-La interfaz está construida bajo principios de **Glassmorphism Industrial** con Tailwind CSS v4:
+Hemos rediseñado la interfaz completa bajo principios de **Glassmorphism Industrial** y alineado al **SOFIA Design System**:
 
-- **Interfaz Fluida**: Transparencias profundas, desenfoques gausianos y micro-glows ambientales.
-- **Tipografía de Precisión**: Headings en negrita técnica y etiquetas monoespaciadas para legibilidad superior.
-- **Acentos de Energía**: Paletas curadas en _Cyan Accent_ y _Ruby Alert_ para estados de sistema críticos.
-- **Micro-animaciones**: Transiciones suaves con Framer Motion para una experiencia viva y reactiva.
+- **Interfaz Fluida**: Transparencias profundas (`backdrop-blur-md`), desenfoques gausianos y micro-glows ambientales. Menús flotantes altamente compactos y basados en íconos vectoriales dinámicos.
+- **Tipografía de Precisión**: Headings en negrita técnica y etiquetas monoespaciadas para una legibilidad superior.
+- **Acentos de Energía**: Paletas curadas en _Cyan Accent_ y _Ruby Alert_, junto con tonos _Aqua_ (`#00D4B3`) y azul profundo corporativo (`#0A2540`) para un contraste visual perfecto en modos claro y oscuro.
 
 ---
 
 ## 🚀 Módulos Operativos
 
+### 💬 Chat IA Premium (Experiencia Multimodal)
+
+Interfaz in-place altamente optimizada y responsiva al estilo de los mejores clientes de IA del mercado.
+
+- **Edición Avanzada y Regeneración**: Edición limpia de prompts (in-place) que ocupa todo el ancho de texto. Borrado automático de historial subsecuente y regeneración del contexto completo al modificar peticiones anteriores.
+- **Selector Evolutivo de Modelos**: Cambio fluido entre la familia Gemini 3.1 (Pro, Flash, Lite) y Gemini 2.5 priorizando potencia e innovación, envuelto en un diseño sumamente premium.
+- **Asistente de Portapapeles Robusto**: Fallback nativo y visual con notificaciones en tiempo real para no perder fragmentos de código.
+
 ### 📱 Terminal de WhatsApp (Omnipotente)
 
 Control absoluto de tu estación de trabajo desde cualquier lugar con redundancia de seguridad.
 
-- **Agente IA Autónomo**: Loop agentico con Gemini + 50+ herramientas (tool calling) para ejecutar cualquier tarea.
-- **Ejecución Remota**: Terminal sandboxed, gestión de archivos, sistema de archivos remoto y telemetría de pantalla.
-- **Procesamiento Multimodal**: Análisis de imágenes, audios, documentos (PDF, DOCX, XLSX) y transcripciones vía IA.
-- **Remote Hub**: Hub de control remoto con validación Zod, sandbox de seguridad y conversión de archivos.
-- **Recordatorios & Tareas Programadas**: Sistema Cron nativo para programar acciones y recordatorios vía WhatsApp.
+- **Ejecución Remota**: Apertura de procesos, búsqueda de sistemas de archivos y telemetría de pantalla.
+- **Procesamiento Multimodal**: Análisis de flujos visuales, audios técnicos y documentos densos.
+- **Sistema de Memoria de Rutas**: Escaneo proactivo (incluyendo rutas localizadas como OneDrive o "Escritorio") para armar un mapa en tiempo real usado por el agente para ubicar recursos instantáneamente.
 
 ### 🧠 Inteligencia Artificial (Multi-modelo)
 
@@ -43,12 +48,8 @@ Motor cognitivo centralizado con soporte multi-modelo y fallback automático.
 
 Operación directa de la interfaz gráfica de usuario (GUI) mediante visión artificial avanzada.
 
-- **Planificación Jerárquica**: Descomposición en fases → sub-metas con criterios de éxito verificables.
-- **Set-of-Mark (SoM)**: Numeración visual de elementos UI para precisión de clics.
-- **Zoom Inteligente**: Inspección de zonas específicas para elementos pequeños o ambiguos.
-- **Recovery Proactiva**: Auto-detección de loops, pantallas pegadas y fallbacks automáticos.
-- **Visual Debugger**: Capturas con marcado de zonas de fallo, enviadas por WhatsApp para intervención humana.
-- **Multi-agente**: Soporte para tareas concurrentes con historial y resúmenes intermedios.
+- **Stylistic Engine**: Ajuste de tono, verbosidad y personalidad del agente.
+- **Matriz de Vigilancia**: Cronograma técnico para notificaciones proactivas con detección de ventanas de productividad y monitoreo de hardware nativo (CPU/RAM).
 
 ### 📁 IRIS — Project Hub
 
@@ -68,68 +69,33 @@ Puente bidireccional completo con servicios en la nube.
 - **Google Drive**: Navegación, subida, descarga y detección automática de transcripciones (Meet, Plaud Note).
 - **Google Chat**: Lectura y envío de mensajes en espacios de trabajo.
 
-### 📊 Monitoreo de Productividad
+### 📁 Unidades de Almacenamiento (Proyectos)
 
-Dashboard de productividad con métricas en tiempo real.
+Sistema inteligente de organización de nodos de conversación y tareas.
 
-- **Activity Tracking**: Screenshots, detección de ventana activa, idle time y OCR local.
-- **Timeline Visual**: Visualización cronológica de actividad diaria.
-- **Resúmenes IA**: Generación automática de resúmenes de productividad por sesión.
-- **Calendar Panel**: Vista integrada de calendario con próximos eventos.
+- **Inicialización de Directorios**: Creación de carpetas con estética minimalista y etiquetas de alta visibilidad.
+- **Relocalización de Nodos**: Facilidad para mover flujos de datos entre diferentes sectores del proyecto.
 
-### 🛡️ System Guardian (Auto-Healing)
+### 🖱️ Computer Use V2 y AutoDev (Agente Autónomo)
 
-Watchdog autónomo que monitoriza la salud del sistema y ejecuta acciones correctivas.
+Operación directa de la interfaz gráfica (GUI) y auto-programación mediante visión artificial y flujos multi-agente.
 
-- **Monitoreo de Disco**: Alerta y limpieza automática cuando el uso supera el 90%.
-- **Monitoreo de RAM**: Detección y terminación de procesos pesados no vitales al superar 95%.
-- **Notificaciones Proactivas**: Alertas vía WhatsApp cuando se detectan anomalías del sistema.
+- **Navegación Visual Multi-Monitor**: Screenshots de alta frecuencia, capturando todas las pantallas conectadas y analizando árboles de accesibilidad.
+- **Planificación Recursiva**: Desglose de tareas complejas en micro-operaciones verificables.
+- **Sistema AutoDev**: Multi-agente de programación que verifica código huérfano e interdependencias al momento de crear y modificar archivos.
 
-### 📂 Organizador Neuronal
+### 📧 Google Workspace Hub (Sincronización Total)
 
-Clasificación automática de archivos descargados mediante IA + OCR.
+Puente de datos bidireccional con servicios en la nube.
 
-- **Auto-categorización**: Los archivos nuevos en Descargas se categorizan automáticamente (Facturas, Trabajo, Personal, Software, Otros).
-- **OCR Integrado**: Extracción de texto de imágenes con Tesseract.js para categorización inteligente.
-- **Notificación de Organización**: Resumen enviado por WhatsApp de cada archivo procesado.
+- **Google Suite Integrada**: Gestión de correos en Gmail, control de eventos en Calendar, acceso a Drive y sincronización de mensajes de Google Chat.
 
-### 🔄 AutoDev — Self-Programming System
+### 🔄 Sistema de Auto-Actualización Continuo
 
-Sistema multi-agente autónomo que mejora su propio código.
+Arquitectura _Zero-Downtime_ para distribución de versiones:
 
-- **Modo Completo**: Pipeline de 8 agentes (research → analyzer → planner → coder → reviewer → tester → commit/PR).
-- **Micro-Fix Reactivo**: Pipeline ligero de 4 fases para correcciones rápidas (<5 archivos, <200 líneas).
-- **Triggers**: Programado (cron), manual (WhatsApp/UI) o automático (detección de quejas/errores).
-
-### 🔒 Control del Workstation
-
-Control remoto del hardware vía herramientas IA.
-
-- **Lock Screen**: Bloqueo de pantalla multiplataforma.
-- **Sleep Mode**: Suspensión del equipo.
-- **Mute Volume**: Silenciar/activar volumen.
-- **System Health**: Métricas en tiempo real de CPU, RAM, disco y uptime.
-
-### 📋 Clipboard Manager
-
-Gestión inteligente del portapapeles con historial.
-
-- **Historial de Copias**: Últimas 20 entradas del portapapeles.
-- **Sincronización IA**: Lectura y escritura del portapapeles desde el agente WhatsApp.
-
-### 🔧 MCP Manager (Dynamic Tools)
-
-Sistema de herramientas dinámicas hot-reload.
-
-- **Hot-reload**: Las herramientas `.json`, `.js` o `.ts` en `tools/dynamic/` se cargan y recargan automáticamente.
-- **File System Watch**: Detección de cambios en tiempo real para registrar o desregistrar herramientas.
-
-### 🔍 Semantic Indexer
-
-Indexación full-text de archivos locales con SQLite FTS5.
-
-- **Indexado Automático**: Daemon periódico que indexa directorios configurados.
-- **Búsqueda Semántica**: Búsqueda de texto completo con ranking de relevancia.
+- **Electron Updater**: Actualizaciones silenciosas in-app desde GitHub Releases multiplataforma (soporte de builds nativos para Windows y macOS).
+- **Notificaciones Reactivas**: Alertas in-app minimalistas sobre disponibilidad de nuevas versiones (como VS Code) y display de notas de actualización enriquecidas.
 
 ---
 
@@ -194,26 +160,13 @@ npm run autodev    # Ejecutar AutoDev standalone
 
 ---
 
-## 📐 Arquitectura
+## 🛠️ Stack Tecnológico de Vanguardia
 
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                    SofLIA Hub (Electron 30.5)                        │
-├─────────────────────────────┬────────────────────────────────────────┤
-│  Renderer (React 18)        │  Main Process (Node.js)                │
-│                             │                                        │
-│  src/components/ (21)       │  electron/ (56 .ts files)              │
-│  src/services/ (18)         │  IPC via contextBridge + preload.ts    │
-│  src/adapters/ (6)          │  Security: CSP + channel allowlist     │
-│  src/core/ (Clean Arch)     │  electron/services/ (2)               │
-│  src/prompts/ (4)           │                                        │
-│  src/lib/ (3 Supabase)      │                                        │
-├─────────────────────────────┴────────────────────────────────────────┤
-│  3 Supabase Instances       │  Local SQLite (memory, knowledge,      │
-│  SOFIA · Lia · IRIS         │  thoughts, semantic index)             │
-│                             │  JSON config files (userData/)         │
-└──────────────────────────────────────────────────────────────────────┘
-```
+- **Core**: React 18 + Vite + **Tailwind CSS v4 (Engine v3 modded)**.
+- **Runtime**: Electron con arquitectura de Micro-servicios (50+ servicios aislados) y pipeline CI/CD continuo.
+- **Inteligencia**: Google Generative AI (**Gemini 3.1 Series**).
+- **Visión**: Tesseract.js (OCR Local) + Gemini Vision.
+- **Comunicaciones**: Baileys (Protocolo WA) + Nodemailer.
 
 ---
 
