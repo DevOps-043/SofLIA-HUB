@@ -622,7 +622,7 @@ const WA_TOOL_DECLARATIONS = {
           type: { type: 'STRING' as const, description: '"word" para Word (.docx), "excel" para Excel (.xlsx), "pdf" para PDF (.pdf), "pptx" o "presentacion" para Presentación con slides (se genera como PDF con diseño premium), o "md" para Markdown (.md).' },
           filename: { type: 'STRING' as const, description: 'Nombre del archivo sin extensión.' },
           content: { type: 'STRING' as const, description: 'Para word/pdf/md: contenido en Markdown con ## para encabezados, **bold**, *italic*, listas, tablas. Para excel: JSON [{"Col1":"val"},...]. Para pptx: si no se proporciona slides_json, se parseará este contenido como Markdown (fallback).' },
-          slides_json: { type: 'STRING' as const, description: 'SOLO para pptx. JSON array de SlideData con tipos variados. Tipos disponibles: title, content, two-column, image-focus, quote, section-break, comparison, closing. Cada slide DEBE incluir imagePrompt descriptivo. Ejemplo: [{"type":"title","title":"...","subtitle":"...","imagePrompt":"..."},{"type":"content","title":"...","bullets":["..."],"imagePrompt":"..."}]' },
+          slides_json: { type: 'STRING' as const, description: 'SOLO para pptx. JSON array de SlideData con tipos variados. 15 TIPOS DISPONIBLES: title, content, two-column, image-focus, quote, section-break, comparison, closing, infographic, flowchart, data-table, stats, timeline, process, icon-grid. NUEVOS CAMPOS: items (para infographic/icon-grid): [{icon:"emoji",label:"...",description:"...",color:"hex"}], steps (para flowchart/timeline/process): [{label:"...",description:"..."}], tableData (para data-table): {headers:["..."],rows:[["..."]...]}, stats (para stats): [{value:"$1.2M",label:"Ventas",trend:"+15%"}]. Cada slide PUEDE incluir imagePrompt y/o diagramPrompt.' },
           custom_theme: { type: 'STRING' as const, description: 'SOLO para pptx. JSON con tema visual GENERADO DINÁMICAMENTE según el contexto. Estructura: {"colors":{"bg":"hex sin #","bgAlt":"hex","accent":"hex","accentAlt":"hex","text":"hex","textMuted":"hex","heading":"hex","scrim":"hex","scrimOpacity":55},"fontHeading":"nombre fuente","fontBody":"nombre fuente"}. Genera colores que reflejen el tema: naturaleza→verdes, tecnología→azules/neón, salud→turquesa, negocios→azul marino, etc. SIEMPRE genera este campo para pptx.' },
           include_images: { type: 'BOOLEAN' as const, description: 'Para pptx: si true, genera imágenes AI para cada diapositiva. Default: true.' },
           save_directory: { type: 'STRING' as const, description: 'Carpeta donde guardar. Si no se especifica, se guarda en el escritorio del usuario.' },
@@ -1380,25 +1380,42 @@ DOCUMENTOS Y GENERACIÓN DE ARCHIVOS:
 - "Haz una tabla de gastos" → create_document type:"excel" con datos en JSON → whatsapp_send_file
 - REGLA ABSOLUTA: SIEMPRE después de create_document, envía el archivo creado con whatsapp_send_file. El usuario espera recibir el archivo en su WhatsApp.
 
-PRESENTACIONES PREMIUM (PPTX):
+PRESENTACIONES PREMIUM (PPTX) — 15 TIPOS DE SLIDES:
 - Para CUALQUIER presentación, SIEMPRE usa slides_json con datos estructurados. NUNCA uses solo content con markdown para pptx.
 - FLUJO OBLIGATORIO para presentaciones:
   1. web_search con 3-5 queries diferentes sobre el tema
   2. read_webpage en 2-3 fuentes clave para datos concretos
-  3. Diseña 10-15 diapositivas con tipos VARIADOS usando slides_json
+  3. Diseña 10-15 diapositivas con tipos MUY VARIADOS usando slides_json (usa AL MENOS 6 tipos diferentes)
   4. GENERA un custom_theme con colores y fuentes ESPECÍFICOS al contexto del tema
-  5. create_document type:"pptx" con slides_json + custom_theme → whatsapp_send_file (se genera como PDF con diseño de slides premium)
-- TIPOS DE SLIDES DISPONIBLES (usa AL MENOS 4 tipos diferentes):
+  5. create_document type:"pptx" con slides_json + custom_theme → whatsapp_send_file
+
+- 8 TIPOS CLÁSICOS:
   • "title" — Slide de título principal con fondo de imagen AI. Campos: title, subtitle, imagePrompt
   • "content" — Contenido con bullets + imagen lateral. Campos: title, bullets[], imagePrompt
-  • "two-column" — Dos columnas lado a lado. Campos: title, leftColumn:{heading, items[]}, rightColumn:{heading, items[]}, imagePrompt
+  • "two-column" — Dos columnas lado a lado. Campos: title, leftColumn:{heading, items[]}, rightColumn:{heading, items[]}
   • "image-focus" — Imagen grande con título superpuesto. Campos: title, subtitle, imagePrompt
   • "quote" — Cita destacada. Campos: title, quote:{text, author}
   • "section-break" — Divisor de sección con imagen de fondo. Campos: title, subtitle, imagePrompt
   • "comparison" — Comparación VS con paneles. Campos: title, leftColumn:{heading, items[]}, rightColumn:{heading, items[]}
   • "closing" — Slide de cierre/agradecimiento. Campos: title, subtitle, imagePrompt
-- CADA slide DEBE tener un imagePrompt descriptivo para generar una imagen AI contextual profesional
-- imagePrompt debe describir una imagen RELEVANTE al contenido (no genérica): "Modern office meeting with diverse team discussing AI strategy" en vez de "AI image"
+
+- 7 TIPOS AVANZADOS (ESTILO NOTEBOOKLM — USAR SIEMPRE QUE APLIQUE):
+  • "infographic" — Grid de cards con icono+label+descripción. Campos: title, subtitle, items:[{icon:"🔍",label:"Nombre",description:"Texto",color:"hex opcional"}], imagePrompt. Usa cuando tengas 3-6 conceptos/categorías para mostrar visualmente.
+  • "flowchart" — Diagrama de flujo horizontal con flechas. Campos: title, subtitle, steps:[{label:"Paso",description:"Detalle"}], imagePrompt. Usa para procesos, flujos de datos, pipelines, transformaciones (ej: Datos → Procesamiento → Resultados).
+  • "data-table" — Tabla de datos estilizada con header de color. Campos: title, subtitle, tableData:{headers:["Col1","Col2"],rows:[["val1","val2"],...]}. Usa para comparativas numéricas, inventarios, listas estructuradas.
+  • "stats" — Cards de KPIs/métricas grandes. Campos: title, subtitle, stats:[{value:"$1.2M",label:"Ventas Totales",trend:"+15%"}], imagePrompt. Usa para mostrar métricas clave, resultados, números impactantes.
+  • "timeline" — Línea de tiempo horizontal con hitos. Campos: title, subtitle, steps:[{label:"2020",description:"Evento"}]. Usa para historia, evolución, roadmaps, cronologías.
+  • "process" — Pasos numerados conectados. Campos: title, subtitle, steps:[{label:"Análisis",description:"..."}], imagePrompt. Usa para metodologías, procedimientos paso a paso.
+  • "icon-grid" — Grid 2x3 o 3x3 de iconos con título+descripción. Campos: title, subtitle, items:[{icon:"📊",label:"Título",description:"Detalle"}]. Usa para características, beneficios, herramientas, conceptos.
+
+- REGLAS PARA SLIDES AVANZADOS:
+  • Para datos/números → "stats" o "data-table"
+  • Para procesos/flujos → "flowchart" o "process"
+  • Para conceptos/categorías → "infographic" o "icon-grid"
+  • Para evolución/historia → "timeline"
+  • Usa emojis relevantes como iconos en items[].icon (🔍📊💡🎯⚡🔗📈🛡️⚙️🌐📋🔧💰🏆✅)
+  • imagePrompt es OPCIONAL en slides avanzados — el contenido estructurado ya es visual
+  • diagramPrompt genera imágenes estilo diagrama plano (no foto). Úsalo cuando quieras un visual de diagrama AI además del layout CSS
 - Bullets: máximo 5 por slide, concisos, sin párrafos largos
 
 GENERACIÓN DINÁMICA DE TEMAS (custom_theme — OBLIGATORIO para pptx):
@@ -1416,9 +1433,9 @@ GENERACIÓN DINÁMICA DE TEMAS (custom_theme — OBLIGATORIO para pptx):
 - Todos los colores son hex SIN el # (ej: "22D3EE" no "#22D3EE")
 - scrimOpacity: 0-100 (cuanto cubre el overlay oscuro sobre imágenes para legibilidad)
 
-EJEMPLO COMPLETO (presentación sobre IA):
+EJEMPLO COMPLETO (presentación sobre IA — usa tipos clásicos Y avanzados):
 custom_theme: {"colors":{"bg":"0A0E27","bgAlt":"141B3D","accent":"00BFFF","accentAlt":"7B68EE","text":"E8E8E8","textMuted":"8899AA","heading":"FFFFFF","scrim":"000000","scrimOpacity":60},"fontHeading":"Segoe UI","fontBody":"Segoe UI"}
-slides_json: [{"type":"title","title":"Inteligencia Artificial en 2026","subtitle":"Tendencias, impacto y oportunidades","imagePrompt":"Futuristic cityscape with holographic AI interfaces and data streams, deep blue and cyan tones"},{"type":"section-break","title":"¿Qué es la IA?","subtitle":"Conceptos fundamentales","imagePrompt":"Abstract neural network visualization with glowing cyan connections on dark background"},{"type":"content","title":"Definición y Tipos","bullets":["Machine Learning: aprendizaje automático a partir de datos","Deep Learning: redes neuronales profundas","IA Generativa: creación de contenido nuevo","IA Conversacional: chatbots y asistentes virtuales"],"imagePrompt":"Robot hand and human hand reaching towards each other with blue circuit patterns"},{"type":"two-column","title":"Ventajas vs Desafíos","leftColumn":{"heading":"Ventajas","items":["Automatización de procesos","Análisis predictivo","Personalización masiva"]},"rightColumn":{"heading":"Desafíos","items":["Privacidad de datos","Sesgo algorítmico","Desplazamiento laboral"]},"imagePrompt":"Balance scale with technology on one side and ethics on the other, blue tones"},{"type":"quote","title":"Reflexión","quote":{"text":"La IA no reemplazará a los humanos, pero los humanos que usen IA reemplazarán a los que no.","author":"Kai-Fu Lee"}},{"type":"closing","title":"¡Gracias!","subtitle":"¿Preguntas?","imagePrompt":"Professional abstract gradient background with cyan light particles on dark blue"}]
+slides_json: [{"type":"title","title":"Inteligencia Artificial en 2026","subtitle":"Tendencias, impacto y oportunidades","imagePrompt":"Futuristic cityscape with holographic AI interfaces and data streams"},{"type":"infographic","title":"Tipos de Inteligencia Artificial","items":[{"icon":"🧠","label":"Machine Learning","description":"Aprendizaje automático a partir de datos"},{"icon":"🔗","label":"Deep Learning","description":"Redes neuronales profundas multicapa"},{"icon":"✨","label":"IA Generativa","description":"Creación de contenido nuevo e innovador"},{"icon":"💬","label":"IA Conversacional","description":"Chatbots y asistentes virtuales inteligentes"}]},{"type":"stats","title":"El Impacto en Números","stats":[{"value":"$1.8T","label":"Mercado Global IA","trend":"↑ 37% anual"},{"value":"85M","label":"Empleos Transformados","trend":"Para 2030"},{"value":"72%","label":"Empresas con IA","trend":"↑ desde 50% en 2024"}]},{"type":"flowchart","title":"Pipeline de Machine Learning","steps":[{"label":"Datos","description":"Recolección y limpieza"},{"label":"Entrenamiento","description":"Modelo aprende patrones"},{"label":"Evaluación","description":"Validar precisión"},{"label":"Despliegue","description":"Producción y monitoreo"}]},{"type":"two-column","title":"Ventajas vs Desafíos","leftColumn":{"heading":"Ventajas","items":["Automatización de procesos","Análisis predictivo","Personalización masiva"]},"rightColumn":{"heading":"Desafíos","items":["Privacidad de datos","Sesgo algorítmico","Desplazamiento laboral"]}},{"type":"timeline","title":"Evolución de la IA","steps":[{"label":"1956","description":"Nace el término IA"},{"label":"1997","description":"Deep Blue vence a Kasparov"},{"label":"2012","description":"Revolución Deep Learning"},{"label":"2022","description":"ChatGPT democratiza IA"},{"label":"2026","description":"Agentes autónomos"}]},{"type":"data-table","title":"Comparativa de Modelos","tableData":{"headers":["Modelo","Empresa","Parámetros","Modalidades"],"rows":[["GPT-4o","OpenAI","~1.8T","Texto, Imagen, Audio"],["Gemini Ultra","Google","~1.6T","Texto, Imagen, Video, Audio"],["Claude 3.5","Anthropic","~175B","Texto, Imagen, Código"],["Llama 3","Meta","70B-405B","Texto, Código"]]}},{"type":"quote","title":"Reflexión","quote":{"text":"La IA no reemplazará a los humanos, pero los humanos que usen IA reemplazarán a los que no.","author":"Kai-Fu Lee"}},{"type":"closing","title":"¡Gracias!","subtitle":"¿Preguntas?","imagePrompt":"Professional abstract gradient with cyan light particles on dark blue"}]
 
 INVESTIGACIÓN PROFUNDA Y DOCUMENTOS:
 - "Investiga sobre X y hazme un informe" / "Haz una investigación profunda sobre X" → FLUJO COMPLETO:
@@ -3469,8 +3486,15 @@ $vol.SetMasterVolumeLevelScalar(${level / 100.0}, [Guid]::Empty)`;
                 },
               });
             } else if (docType === 'pptx' || docType === 'powerpoint' || docType === 'presentacion') {
-              // ─── Create Presentation as PDF using HTML/CSS rendering ─────
-              const { createPresentationPDF, parseMarkdownToSlides } = await import('./presentation-pdf');
+              // ─── Create Premium Presentation PDF (15 slide types) ─────
+              let premiumModule: any;
+              try {
+                premiumModule = await import('./presentation-premium');
+              } catch (importErr) {
+                console.warn('[create_document] presentation-premium no disponible, usando fallback:', importErr);
+                premiumModule = await import('./presentation-pdf');
+              }
+              const { createPresentationPDF, parseMarkdownToSlides } = premiumModule;
 
               let slides: any[];
               if (toolArgs.slides_json) {
