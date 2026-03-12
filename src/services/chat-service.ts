@@ -204,8 +204,12 @@ export async function saveMessages(
   // Siempre actualizar cache local primero
   saveMessagesToCache(conversationId, messages);
 
+  // Un mensaje es válido si tiene texto O imágenes (no filtrar respuestas con imágenes pero sin texto)
   const validMessages = messages.filter(
-    m => m.text && m.text.trim().length > 0 && !m.id.startsWith('error-')
+    m => !m.id.startsWith('error-') && (
+      (m.text && m.text.trim().length > 0) ||
+      (m.images && m.images.length > 0)
+    )
   );
 
   try {

@@ -48,7 +48,9 @@
       "Bash(grep -E \"ts$\")",
       "Bash(node -e \"console.log\\(require\\(''./node_modules/@supabase/supabase-js/package.json''\\).version\\)\")",
       "WebSearch",
-      "Bash(grep -n \"toolName === ''whatsapp_send_file''\\\\|case ''whatsapp_send_file''\" electron/whatsapp-agent.ts)"
+      "Bash(grep -n \"toolName === ''whatsapp_send_file''\\\\|case ''whatsapp_send_file''\" electron/whatsapp-agent.ts)",
+      "Bash(grep -rn \"7412\\\\|kill.*process\\\\|ERROR.*encontró el proceso\" '/c/Users/fysg5/OneDrive/Escritorio/Pulse Hub/SofLIA - Hub/SofLIA-HUB' --include=*.json --include=*.ts)",
+      "Bash(grep -rn \"encontró\\\\|taskkill\\\\|process.kill\" '/c/Users/fysg5/OneDrive/Escritorio/Pulse Hub/SofLIA - Hub/SofLIA-HUB' --include=*.ts --include=*.js)"
     ]
   }
 }

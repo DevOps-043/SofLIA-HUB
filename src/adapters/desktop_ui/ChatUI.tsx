@@ -421,6 +421,10 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
     // Normal Send: Add user message and placeholder
     let aiMessageId = crypto.randomUUID();
     
+    // Placeholder con texto mínimo para que no sea filtrado por validMessages
+    // durante saves intermedios. Se reemplaza con la respuesta real cuando llega.
+    const PLACEHOLDER_TEXT = '...';
+
     if (!isRegeneration) {
       const userMessage: ChatMessage = {
         id: crypto.randomUUID(),
@@ -429,14 +433,14 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
         timestamp: Date.now(),
         images: images.length > 0 ? [...images] : undefined,
       };
-      
+
       const aiPlaceholder: ChatMessage = {
         id: aiMessageId,
         role: 'model',
-        text: '',
+        text: PLACEHOLDER_TEXT,
         timestamp: Date.now(),
       };
-      
+
       updatedMessages = [...currentHistory, userMessage, aiPlaceholder];
       onMessagesChange(updatedMessages);
     } else {
@@ -445,7 +449,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
        const aiPlaceholder: ChatMessage = {
         id: aiMessageId,
         role: 'model',
-        text: '',
+        text: PLACEHOLDER_TEXT,
         timestamp: Date.now(),
       };
       updatedMessages = [...currentHistory, aiPlaceholder];
@@ -511,7 +515,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
         fullText += chunk;
         onMessagesChange(
           updatedMessages.map(msg =>
-            msg.id === aiMessageId ? { ...msg, text: fullText } : msg
+            msg.id === aiMessageId ? { ...msg, text: fullText || PLACEHOLDER_TEXT } : msg
           )
         );
       }
@@ -519,14 +523,20 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
       const sources = await result.sources;
       const genImages = result.generatedImages;
 
-      if ((sources && sources.length > 0) || (genImages && genImages.length > 0)) {
+      // Si hay imágenes generadas pero no texto, usar texto descriptivo
+      if (genImages && genImages.length > 0 && !fullText.trim()) {
+        fullText = 'Imagen generada:';
+      }
+
+      // Actualizar con sources e imágenes si existen
+      if ((sources && sources.length > 0) || (genImages && genImages.length > 0) || fullText) {
         onMessagesChange(
           updatedMessages.map(msg =>
-            msg.id === aiMessageId ? { 
-              ...msg, 
-              text: fullText, 
-              sources: sources || undefined, 
-              images: genImages?.length ? genImages : undefined 
+            msg.id === aiMessageId ? {
+              ...msg,
+              text: fullText || PLACEHOLDER_TEXT,
+              sources: sources || undefined,
+              images: genImages?.length ? genImages : undefined
             } : msg
           )
         );
@@ -644,11 +654,19 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
        const userMsg = historyUpToNow[lastUserMsgIndex];
        const newHistory = messages.slice(0, lastUserMsgIndex + 1);
 
+       // Deduplicar por ID como protección extra
+       const seen = new Set<string>();
+       const dedupedHistory = newHistory.filter(m => {
+         if (seen.has(m.id)) return false;
+         seen.add(m.id);
+         return true;
+       });
+
        // Actualizar estado inmediatamente — el debounced save con latestMessages
        // se encargará de sincronizar con Supabase (eliminando mensajes huérfanos)
-       onMessagesChange(newHistory);
+       onMessagesChange(dedupedHistory);
 
-       await processMessage(userMsg.text, userMsg.images || [], newHistory, true);
+       await processMessage(userMsg.text, userMsg.images || [], dedupedHistory, true);
     }
   };
 
@@ -822,9 +840,9 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
           <div className="flex-1">
           <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
             {messages.map((msg, index) => {
-              // Si es el último mensaje, es del modelo, está vacio y está cargando, lo ocultamos
-              // porque se mostrará el indicador de carga dedicado abajo
-              if (showLoadingUI && index === messages.length - 1 && msg.role === 'model' && !msg.text) {
+              // Si es el último mensaje, es del modelo, está vacío (o es placeholder '...') y está cargando,
+              // lo ocultamos porque se mostrará el indicador de carga dedicado abajo
+              if (showLoadingUI && index === messages.length - 1 && msg.role === 'model' && (!msg.text || msg.text === '...')) {
                 return null;
               }
               

@@ -244,14 +244,26 @@ function AppContent() {
 
       const executeSave = async () => {
         if (saving) { dirty = true; return; }
+
+        // Si hay un placeholder de modelo sin contenido (text vacío Y sin imágenes),
+        // el AI aún está generando. Postponer el save para no borrar huérfanos prematuramente.
+        const hasActivePlaceholder = latestMessages.some(
+          (m) => m.role === 'model' && (!m.text || m.text.trim().length === 0) && (!m.images || m.images.length === 0),
+        );
+        if (hasActivePlaceholder) {
+          dirty = true;
+          return;
+        }
+
         saving = true;
         dirty = false;
 
         try {
           if (!userId) return;
 
+          // Un mensaje es válido si tiene texto O imágenes
           const validMessages = latestMessages.filter(
-            (m) => m.text && m.text.trim().length > 0,
+            (m) => (m.text && m.text.trim().length > 0) || (m.images && m.images.length > 0),
           );
           if (validMessages.length === 0) return;
 
@@ -322,10 +334,10 @@ function AppContent() {
           setCurrentMessages(messages);
         }
 
-        // Cache local inmediato
+        // Cache local inmediato (incluir mensajes con imágenes aunque no tengan texto)
         if (resolvedConvId) {
           const valid = messages.filter(
-            (m) => m.text && m.text.trim().length > 0,
+            (m) => (m.text && m.text.trim().length > 0) || (m.images && m.images.length > 0),
           );
           saveMessagesToCache(resolvedConvId, valid);
         }
