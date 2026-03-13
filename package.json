@@ -4,7 +4,6 @@
   "version": "0.1.10",
   "description": "SofLIA Hub Desktop Client",
   "author": "Pulse Hub",
-  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && node scripts/generate-bitmaps.js && electron-builder",

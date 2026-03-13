@@ -48,7 +48,12 @@
       "Bash(grep -E \"ts$\")",
       "Bash(node -e \"console.log\\(require\\(''./node_modules/@supabase/supabase-js/package.json''\\).version\\)\")",
       "WebSearch",
-      "Bash(grep -n \"toolName === ''whatsapp_send_file''\\\\|case ''whatsapp_send_file''\" electron/whatsapp-agent.ts)"
+      "Bash(grep -n \"toolName === ''whatsapp_send_file''\\\\|case ''whatsapp_send_file''\" electron/whatsapp-agent.ts)",
+      "Bash(npx prebuild-install:*)",
+      "Bash(grep '\"\"main\"\"' package.json)",
+      "Bash(npx electron:*)",
+      "Bash(rm -rf dist-electron)",
+      "Bash(rm -f test-electron-esm.mjs test-electron-cjs.cjs)"
     ]
   }
 }
