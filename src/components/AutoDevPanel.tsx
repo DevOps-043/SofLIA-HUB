@@ -1,4 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import {
+  useAutoDevPanel,
+  CATEGORY_INFO, QUICK_TIMES, DAYS_OF_WEEK,
+  STATUS_LABELS, STATUS_PROGRESS,
+  formatDuration, formatTime,
+} from '../hooks/useAutoDevPanel';
 
 declare global {
   interface Window {
@@ -23,89 +28,15 @@ interface AutoDevPanelProps {
   embedded?: boolean;
 }
 
-const CATEGORY_INFO: Record<string, { label: string; color: string; bg: string }> = {
-  security: { label: 'Seguridad', color: 'text-red-400', bg: 'border-red-500/30 bg-red-500/10' },
-  quality: { label: 'Calidad', color: 'text-blue-400', bg: 'border-blue-500/30 bg-blue-500/10' },
-  performance: { label: 'Rendimiento', color: 'text-amber-400', bg: 'border-amber-500/30 bg-amber-500/10' },
-  dependencies: { label: 'Dependencias', color: 'text-emerald-400', bg: 'border-emerald-500/30 bg-emerald-500/10' },
-  tests: { label: 'Tests', color: 'text-purple-400', bg: 'border-purple-500/30 bg-purple-500/10' },
-};
-
-const QUICK_TIMES = [
-  { label: '12:00 AM', hour: 0 },
-  { label: '3:00 AM', hour: 3 },
-  { label: '6:00 AM', hour: 6 },
-  { label: '9:00 AM', hour: 9 },
-  { label: '12:00 PM', hour: 12 },
-  { label: '3:00 PM', hour: 15 },
-  { label: '6:00 PM', hour: 18 },
-  { label: '9:00 PM', hour: 21 },
-];
-
-const DAYS_OF_WEEK = [
-  { label: 'L', cron: '1', name: 'Lunes' },
-  { label: 'M', cron: '2', name: 'Martes' },
-  { label: 'X', cron: '3', name: 'Miércoles' },
-  { label: 'J', cron: '4', name: 'Jueves' },
-  { label: 'V', cron: '5', name: 'Viernes' },
-  { label: 'S', cron: '6', name: 'Sábado' },
-  { label: 'D', cron: '0', name: 'Domingo' },
-];
-
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  researching: { label: 'Investigando...', color: 'text-blue-400' },
-  analyzing: { label: 'Analizando código...', color: 'text-cyan-400' },
-  planning: { label: 'Planificando mejoras...', color: 'text-indigo-400' },
-  coding: { label: 'Programando...', color: 'text-emerald-400' },
-  verifying: { label: 'Verificando build...', color: 'text-amber-400' },
-  pushing: { label: 'Creando PR...', color: 'text-purple-400' },
-  completed: { label: 'Completado', color: 'text-emerald-400' },
-  failed: { label: 'Falló', color: 'text-red-400' },
-  aborted: { label: 'Abortado', color: 'text-gray-400' },
-};
-
-const STATUS_PROGRESS: Record<string, number> = {
-  researching: 15,
-  analyzing: 35,
-  planning: 50,
-  coding: 70,
-  verifying: 85,
-  pushing: 95,
-  completed: 100,
-  failed: 100,
-  aborted: 100,
-};
-
-function parseCron(cron: string): { hour: number; minute: number; days: string[] } {
-  const parts = cron.split(' ');
-  const minute = parseInt(parts[0]) || 0;
-  const hour = parseInt(parts[1]) || 0;
-  const dowPart = parts[4] || '*';
-  const days = dowPart === '*' ? ['*'] : dowPart.split(',');
-  return { hour, minute, days };
-}
-
-function buildCron(hour: number, minute: number, days: string[]): string {
-  const dow = days.includes('*') || days.length === 0 || days.length === 7 ? '*' : days.join(',');
-  return `${minute} ${hour} * * ${dow}`;
-}
-
-function formatDuration(startedAt: string, completedAt?: string): string {
-  const start = new Date(startedAt).getTime();
-  const end = completedAt ? new Date(completedAt).getTime() : Date.now();
-  const mins = Math.round((end - start) / 60000);
-  if (mins < 1) return '<1 min';
-  if (mins < 60) return `${mins} min`;
-  return `${Math.floor(mins / 60)}h ${mins % 60}m`;
-}
-
 export default function AutoDevPanel({ isOpen, onClose, embedded = false }: AutoDevPanelProps) {
-  const [config, setConfig] = useState<any>(null);
-  const [status, setStatus] = useState<any>(null);
-  const [history, setHistory] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [expandedRun, setExpandedRun] = useState<string | null>(null);
+  const {
+    config, status, history, loading, saving,
+    expandedRun, setExpandedRun,
+    activeTab, setActiveTab,
+    customHour, customMinute, selectedDays,
+    updateConfig, handleTimeChange, handleDayToggle,
+    handleRunNow, handleAbort, toggleCategory, nextRunText,
+  } = useAutoDevPanel(isOpen);
 
   const renderStatusIcon = (status: string) => {
     const iconClass = "w-4 h-4";
@@ -151,117 +82,7 @@ export default function AutoDevPanel({ isOpen, onClose, embedded = false }: Auto
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'schedule' | 'config' | 'history'>('schedule');
-
-  const [customHour, setCustomHour] = useState(3);
-  const [customMinute, setCustomMinute] = useState(0);
-  const [selectedDays, setSelectedDays] = useState<string[]>(['*']);
-
-  const loadData = useCallback(async () => {
-    if (!window.autodev) return;
-    try {
-      const [configRes, statusRes, historyRes] = await Promise.all([
-        window.autodev.getConfig(),
-        window.autodev.getStatus(),
-        window.autodev.getHistory(),
-      ]);
-      if (configRes.success) {
-        setConfig(configRes.config);
-        const parsed = parseCron(configRes.config.cronSchedule);
-        setCustomHour(parsed.hour);
-        setCustomMinute(parsed.minute);
-        setSelectedDays(parsed.days);
-      }
-      if (statusRes.success) setStatus(statusRes);
-      if (historyRes.success) setHistory(historyRes.history || []);
-    } catch { /* ignore */ }
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    loadData();
-
-    window.autodev?.onRunStarted(() => loadData());
-    window.autodev?.onRunCompleted(() => loadData());
-    window.autodev?.onStatusChanged(() => loadData());
-
-    return () => {
-      window.autodev?.removeListeners();
-    };
-  }, [isOpen, loadData]);
-
-  const updateConfig = async (updates: any) => {
-    if (!window.autodev) return;
-    setSaving(true);
-    try {
-      const res = await window.autodev.updateConfig(updates);
-      if (res.success) setConfig(res.config);
-    } catch { /* ignore */ }
-    setTimeout(() => setSaving(false), 500);
-  };
-
-  const handleTimeChange = (hour: number, minute: number, days?: string[]) => {
-    const d = days || selectedDays;
-    setCustomHour(hour);
-    setCustomMinute(minute);
-    const cron = buildCron(hour, minute, d);
-    updateConfig({ cronSchedule: cron });
-  };
-
-  const handleDayToggle = (day: string) => {
-    let newDays: string[];
-    if (day === '*') {
-      newDays = ['*'];
-    } else {
-      const current = selectedDays.filter(d => d !== '*');
-      if (current.includes(day)) {
-        newDays = current.filter(d => d !== day);
-        if (newDays.length === 0) newDays = ['*'];
-      } else {
-        newDays = [...current, day];
-        if (newDays.length === 7) newDays = ['*'];
-      }
-    }
-    setSelectedDays(newDays);
-    handleTimeChange(customHour, customMinute, newDays);
-  };
-
-  const handleRunNow = async () => {
-    if (!window.autodev) return;
-    await window.autodev.runNow();
-    setTimeout(loadData, 1000);
-  };
-
-  const handleAbort = async () => {
-    if (!window.autodev) return;
-    await window.autodev.abort();
-    setTimeout(loadData, 1000);
-  };
-
-  const toggleCategory = (cat: string) => {
-    if (!config) return;
-    const cats = config.categories || [];
-    const updated = cats.includes(cat) ? cats.filter((c: string) => c !== cat) : [...cats, cat];
-    updateConfig({ categories: updated });
-  };
-
   if (!isOpen && !embedded) return null;
-
-  const formatTime = (h: number, m: number) => {
-    const period = h >= 12 ? 'PM' : 'AM';
-    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-    return `${h12}:${m.toString().padStart(2, '0')} ${period}`;
-  };
-
-  const nextRunText = () => {
-    if (!config?.enabled) return 'Deshabilitado';
-    const parsed = parseCron(config.cronSchedule);
-    const daysText = parsed.days.includes('*')
-      ? 'Todos los días'
-      : parsed.days.map((d: string) => DAYS_OF_WEEK.find(dw => dw.cron === d)?.name || d).join(', ');
-    return `${formatTime(parsed.hour, parsed.minute)} — ${daysText}`;
-  };
 
   const content = (
     <div
@@ -433,7 +254,7 @@ export default function AutoDevPanel({ isOpen, onClose, embedded = false }: Auto
                        {/* Hour */}
                        <div className="flex flex-col items-center gap-2">
                         <button
-                          onClick={() => { const h = (customHour + 1) % 24; setCustomHour(h); handleTimeChange(h, customMinute); }}
+                          onClick={() => handleTimeChange((customHour + 1) % 24, customMinute)}
                           className="w-10 h-10 rounded-xl bg-black/[0.02] dark:bg-white/5 border border-black/[0.05] dark:border-white/10 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/10 transition-all flex items-center justify-center"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
@@ -444,7 +265,7 @@ export default function AutoDevPanel({ isOpen, onClose, embedded = false }: Auto
                         </div>
 
                         <button
-                          onClick={() => { const h = (customHour - 1 + 24) % 24; setCustomHour(h); handleTimeChange(h, customMinute); }}
+                          onClick={() => handleTimeChange((customHour - 1 + 24) % 24, customMinute)}
                           className="w-10 h-10 rounded-xl bg-black/[0.02] dark:bg-white/5 border border-black/[0.05] dark:border-white/10 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/10 transition-all flex items-center justify-center"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
@@ -458,7 +279,7 @@ export default function AutoDevPanel({ isOpen, onClose, embedded = false }: Auto
                        {/* Minute */}
                        <div className="flex flex-col items-center gap-2">
                         <button
-                          onClick={() => { const m = (customMinute + 15) % 60; setCustomMinute(m); handleTimeChange(customHour, m); }}
+                          onClick={() => handleTimeChange(customHour, (customMinute + 15) % 60)}
                           className="w-10 h-10 rounded-xl bg-black/[0.02] dark:bg-white/5 border border-black/[0.05] dark:border-white/10 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/10 transition-all flex items-center justify-center"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
@@ -469,7 +290,7 @@ export default function AutoDevPanel({ isOpen, onClose, embedded = false }: Auto
                         </div>
 
                         <button
-                          onClick={() => { const m = (customMinute - 15 + 60) % 60; setCustomMinute(m); handleTimeChange(customHour, m); }}
+                          onClick={() => handleTimeChange(customHour, (customMinute - 15 + 60) % 60)}
                           className="w-10 h-10 rounded-xl bg-black/[0.02] dark:bg-white/5 border border-black/[0.05] dark:border-white/10 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-black/[0.05] dark:hover:bg-white/10 transition-all flex items-center justify-center"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
@@ -482,7 +303,7 @@ export default function AutoDevPanel({ isOpen, onClose, embedded = false }: Auto
                       {QUICK_TIMES.map(qt => (
                         <button
                           key={qt.hour}
-                          onClick={() => { setCustomHour(qt.hour); setCustomMinute(0); handleTimeChange(qt.hour, 0); }}
+                          onClick={() => handleTimeChange(qt.hour, 0)}
                           className={`px-2 py-2.5 text-[9px] font-black uppercase tracking-tighter rounded-xl border transition-all ${
                             customHour === qt.hour && customMinute === 0
                               ? 'bg-accent/10 border-accent/40 text-accent shadow-lg shadow-accent/10 scale-105'

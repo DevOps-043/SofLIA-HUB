@@ -1,6 +1,10 @@
 import { exec } from 'node:child_process';
 import os from 'node:os';
-import * as si from 'systeminformation';
+import { createRequire } from 'node:module';
+
+// systeminformation: CJS module loaded via require() to avoid ESM↔CJS interop crash
+const _require = createRequire(import.meta.url);
+const si = _require('systeminformation');
 import type { ToolImplementation } from '../src/core/ports/tools/Tool';
 
 /**

@@ -1,10 +1,11 @@
 import { spawn } from 'node:child_process';
 import os from 'node:os';
-import si from 'systeminformation';
+import { createRequire } from 'node:module';
 import { z } from 'zod';
 
-// TS1484: Usamos type-only import para las interfaces del sistema
-import type { Systeminformation } from 'systeminformation';
+// systeminformation: CJS module loaded via require() to avoid ESM↔CJS interop crash
+const _require = createRequire(import.meta.url);
+const si = _require('systeminformation') as typeof import('systeminformation');
 
 export class WorkstationController {
   
@@ -104,7 +105,7 @@ export class WorkstationController {
         si.fsSize()
       ]);
 
-      const mainDisk = fsSize.find((disk: Systeminformation.FsSizeData) => disk.mount === '/' || disk.mount === 'C:') || fsSize[0];
+      const mainDisk = fsSize.find((disk: any) => disk.mount === '/' || disk.mount === 'C:') || fsSize[0];
       
       const totalMemGB = (mem.total / (1024 ** 3)).toFixed(2);
       const usedMemGB = (mem.active / (1024 ** 3)).toFixed(2);

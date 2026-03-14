@@ -3,7 +3,11 @@ import { spawn } from 'child_process';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import si from 'systeminformation';
+import { createRequire } from 'node:module';
+
+// systeminformation: CJS module loaded via require() to avoid ESM↔CJS interop crash
+const _require = createRequire(import.meta.url);
+const si = _require('systeminformation');
 
 const SysCmdSchema = z.tuple([
   z.literal('/sys'),

@@ -7,10 +7,12 @@ import { EventEmitter } from 'node:events';
 import { app, desktopCapturer, powerMonitor, BrowserWindow } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import { createRequire } from 'node:module';
 // Dynamic import to prevent crash if sharp native binaries aren't available
+const _require = createRequire(import.meta.url);
 let sharp: any;
 try {
-  sharp = require('sharp');
+  sharp = _require('sharp');
 } catch (err: any) {
   console.warn('[MonitoringService] sharp module not available — screenshot compositing disabled:', err.message);
   sharp = null;

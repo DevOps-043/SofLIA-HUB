@@ -15,8 +15,21 @@ import { app, safeStorage } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
-import Database from 'better-sqlite3';
+import { createRequire } from 'node:module';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+
+// better-sqlite3: native module loaded via require() to avoid ESM↔CJS interop crash
+type BetterSqlite3Constructor = new (filename: string, options?: Record<string, unknown>) => any;
+
+const _require = createRequire(import.meta.url);
+let Database: BetterSqlite3Constructor | null = null;
+
+function getDatabaseConstructor(): BetterSqlite3Constructor {
+  if (!Database) {
+    Database = _require('better-sqlite3') as BetterSqlite3Constructor;
+  }
+  return Database;
+}
 
 // ─── Constants ───────────────────────────────────────────────────────
 const DB_PATH = path.join(app.getPath('userData'), 'soflia-memory.db');
@@ -142,10 +155,11 @@ function truncateToTokens(text: string, maxTokens: number): string {
 
 // ─── MemoryService ───────────────────────────────────────────────────
 export class MemoryService extends EventEmitter {
-  private db: Database.Database | null = null;
+  private db: any | null = null;
   private apiKey: string = '';
   private summarizeQueue: Set<string> = new Set();
   private isProcessingQueue: boolean = false;
+  private initError: string | null = null;
   // Cache: session_key -> array of {id, embedding as number[]}
   private embeddingCache: Map<string, Array<{ id: number; embedding: number[]; startTime: number | null }>> = new Map();
 
@@ -157,7 +171,9 @@ export class MemoryService extends EventEmitter {
 
   init(): void {
     try {
-      this.db = new Database(DB_PATH);
+      const DatabaseCtor = getDatabaseConstructor();
+      this.initError = null;
+      this.db = new DatabaseCtor(DB_PATH);
       // Asegurar que las lecturas en la base de datos usen modo WAL para no bloquear
       this.db.pragma('journal_mode = WAL');
       this.db.pragma('synchronous = NORMAL');
@@ -218,6 +234,8 @@ Soy SofLIA, asistente de IA para negocios hispanohablantes. Mi misión es ejecut
         console.log('[MemoryService] Created default SOUL.md');
       }
     } catch (err: any) {
+      this.db = null;
+      this.initError = err.message;
       console.error('[MemoryService] Failed to initialize database:', err.message);
     }
   }
@@ -232,6 +250,10 @@ Soy SofLIA, asistente de IA para negocios hispanohablantes. Mi misión es ejecut
       this.db = null;
       console.log('[MemoryService] Database closed');
     }
+  }
+
+  getInitError(): string | null {
+    return this.initError;
   }
 
   // ─── Token Management (OAuth & API Keys) ───────────────────────────

@@ -1,14 +1,14 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { sendMessageStream, optimizePrompt, type ToolCallInfo } from '../../services/gemini-chat';
-import { generateImage } from '../../services/image-generation';
+import { useState, useRef, useEffect } from 'react';
 import { ToolEditorModal } from '../../components/ToolEditorModal';
 import { ToolLibrary } from '../../components/ToolLibrary';
 import { ConfirmActionModal } from '../../components/ConfirmActionModal';
-import { LiveClient, AudioCapture } from '../../services/live-api';
 import { setConfirmationHandler } from '../../services/computer-use-service';
+import { MarkdownRenderer, UserAvatar } from '../../components/chat/MarkdownRenderer';
+import { useLiveApi } from '../../hooks/useLiveApi';
+import { useModelSelector, MODEL_OPTIONS } from '../../hooks/useModelSelector';
+import { useChatProcessor } from '../../hooks/useChatProcessor';
 import type { UserTool } from '../../services/tools-service';
 import type { ChatMessage } from '../../services/chat-service';
-import { buildIrisContext, needsIrisData } from '../../services/iris-data';
 
 const TOOL_DISPLAY_NAMES: Record<string, string> = {
   list_directory: 'Listando archivos...',
@@ -46,15 +46,11 @@ interface ChatUIProps {
   onExternalPromptProcessed?: () => void;
   onShare?: () => void;
 }
+
 export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, personalization, userAvatar, externalPrompt, onExternalPromptProcessed, onShare }) => {
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const showLoadingUI = isLoading || (messages.length > 0 && messages[messages.length - 1].role === 'model' && !messages[messages.length - 1].text && !(messages[messages.length - 1].images && messages[messages.length - 1].images!.length > 0));
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-
-  // Tools state
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [isImageGenMode, setIsImageGenMode] = useState(false);
   const [isPromptOptimizerMode, setIsPromptOptimizerMode] = useState(false);
@@ -64,20 +60,41 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
   const [isToolLibraryOpen, setIsToolLibraryOpen] = useState(false);
   const [editingTool, setEditingTool] = useState<UserTool | null>(null);
   const [activeTool, setActiveTool] = useState<UserTool | null>(null);
-  const [savePromptText, setSavePromptText] = useState<string>('');
-  const [isLiveActive, setIsLiveActive] = useState(false);
-  const [isLiveConnecting, setIsLiveConnecting] = useState(false);
-  const [activeToolCall, setActiveToolCall] = useState<ToolCallInfo | null>(null);
+  const [savePromptText, setSavePromptText] = useState('');
   const [confirmModal, setConfirmModal] = useState<{
     toolName: string;
     description: string;
     resolve: (confirmed: boolean) => void;
   } | null>(null);
-  const liveClientRef = useRef<LiveClient | null>(null);
-  const audioCaptureRef = useRef<AudioCapture | null>(null);
-  const messagesRef = useRef(messages);
-  messagesRef.current = messages;
+  const [showHeader, setShowHeader] = useState(true);
+  const [isSticky, setIsSticky] = useState(false);
+  const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(null);
+  const [editInput, setEditInput] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastScrollTopRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Hooks
+  const model = useModelSelector();
+
+  const liveApi = useLiveApi({
+    messagesRef: { current: messages } as React.MutableRefObject<ChatMessage[]>,
+    onMessagesChange,
+  });
+
+  const chat = useChatProcessor({
+    messages,
+    onMessagesChange,
+    personalization,
+    preferredPrimaryModel: model.preferredPrimaryModel,
+    thinkingMode: model.thinkingMode,
+    isImageGenMode,
+    isPromptOptimizerMode,
+    optimizerTarget,
+    activeTool,
+    isLiveActive: liveApi.isLiveActive,
+    liveClientRef: liveApi.liveClientRef,
+  });
 
   // Register custom confirmation handler for computer-use actions
   useEffect(() => {
@@ -94,93 +111,15 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Handle external prompts (e.g. clicking on an IRIS project or flow mode)
+  // Handle external prompts
   useEffect(() => {
     if (externalPrompt) {
-      const processExternal = async () => {
-        if (onExternalPromptProcessed) {
-          onExternalPromptProcessed();
-        }
-        await processMessage(externalPrompt, [], messagesRef.current, false);
-      };
-      processExternal();
+      onExternalPromptProcessed?.();
+      chat.processMessage(externalPrompt, [], chat.messagesRef.current, false);
     }
   }, [externalPrompt]);
 
-  // Thinking Options - Different for Gemini 3 (thinkingLevel) vs Gemini 2.5 (thinkingBudget)
-  // Gemini 3 Flash - supports all levels
-  const THINKING_OPTIONS_GEMINI3_FLASH = [
-    { id: 'minimal', name: 'Rápido', desc: 'Responde rápidamente', level: 'minimal' },
-    { id: 'low', name: 'Pensar', desc: 'Razonamiento básico', level: 'low' },
-    { id: 'medium', name: 'Medio', desc: 'Razonamiento balanceado', level: 'medium' },
-    { id: 'high', name: 'Alto', desc: 'Máximo razonamiento', level: 'high' },
-  ];
-
-  // Gemini 3 Pro - only supports low and high
-  const THINKING_OPTIONS_GEMINI3_PRO = [
-    { id: 'low', name: 'Pensar', desc: 'Razonamiento básico', level: 'low' },
-    { id: 'high', name: 'Pro', desc: 'Máximo razonamiento', level: 'high' },
-  ];
-
-  // Gemini 2.5 - uses token budget
-  const THINKING_OPTIONS_GEMINI25 = [
-    { id: 'off', name: 'Rápido', desc: 'Sin pensamiento', budget: 0 },
-    { id: 'low', name: 'Pensar', desc: 'Pensamiento ligero', budget: 1024 },
-    { id: 'medium', name: 'Medio', desc: 'Pensamiento moderado', budget: 8192 },
-    { id: 'high', name: 'Alto', desc: 'Pensamiento profundo', budget: 24576 },
-  ];
-
-  const MODEL_OPTIONS = [
-    {
-      id: 'gemini-3.1-pro-preview',
-      name: 'Gemini 3.1 Pro',
-      desc: 'Mayor capacidad de razonamiento lógico.',
-      thinkingType: 'level',
-      thinkingOptions: THINKING_OPTIONS_GEMINI3_PRO
-    },
-    {
-      id: 'gemini-3-flash-preview',
-      name: 'Gemini 3.0 Flash',
-      desc: 'Equilibrio perfecto entre velocidad y calidad.',
-      thinkingType: 'level',
-      thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH
-    },
-    {
-      id: 'gemini-3.1-flash-lite-preview',
-      name: 'Gemini 3.1 Flash Lite',
-      desc: 'Ultra rápido y ligero para tareas simples.',
-      thinkingType: 'level',
-      thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH
-    },
-    {
-      id: 'gemini-2.5-pro',
-      name: 'Gemini 2.5 Pro',
-      desc: 'Modelo de máxima inteligencia.',
-      thinkingType: 'budget',
-      thinkingOptions: THINKING_OPTIONS_GEMINI25
-    },
-    {
-      id: 'gemini-2.5-flash',
-      name: 'Gemini 2.5 Flash',
-      desc: 'Ultra rápido y ligero para tareas simples.',
-      thinkingType: 'budget',
-      thinkingOptions: THINKING_OPTIONS_GEMINI25
-    }
-  ];
-
-  const [preferredPrimaryModel, setPreferredPrimaryModel] = useState<string>('gemini-3-flash-preview');
-  const [thinkingMode, setThinkingMode] = useState<string>('minimal');
-  const [isThinkingDropdownOpen, setIsThinkingDropdownOpen] = useState(false);
-  const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
-  const [showHeader, setShowHeader] = useState(true);
-  const lastScrollTopRef = useRef(0);
-  const [isSticky, setIsSticky] = useState(false);
-  const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(null);
-  const [editInput, setEditInput] = useState('');
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-
-  // Handle Dynamic Header (Hide on scroll up, show on scroll down)
-  // Uses a deadzone threshold to prevent oscillation/flickering
+  // Handle Dynamic Header
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const currentScrollTop = e.currentTarget.scrollTop;
     const delta = currentScrollTop - lastScrollTopRef.current;
@@ -190,7 +129,6 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
       setIsSticky(false);
     } else {
       setIsSticky(true);
-      // Only toggle if scroll delta exceeds threshold (prevents flickering)
       if (delta > 8) {
         setShowHeader(true);
       } else if (delta < -8) {
@@ -201,68 +139,19 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
     lastScrollTopRef.current = currentScrollTop;
   };
 
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = () => {
-      setIsThinkingDropdownOpen(false);
-      setIsModelSelectorOpen(false);
-    };
-    
-    if (isThinkingDropdownOpen || isModelSelectorOpen) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
-  }, [isThinkingDropdownOpen, isModelSelectorOpen]);
-
-  // Handle Model Change and Adapt Thinking Mode
-  const handleModelChange = (modelId: string) => {
-    setPreferredPrimaryModel(modelId);
-    
-    // Adapt thinking mode
-    const newModel = MODEL_OPTIONS.find(m => m.id === modelId);
-    if (newModel) {
-      const isGemini3 = newModel.thinkingType === 'level';
-      const availableOptions = newModel.thinkingOptions.map((o: any) => o.id);
-
-      // If current mode is not available in new model, adapt it
-      if (!availableOptions.includes(thinkingMode)) {
-        if (modelId === 'gemini-3.1-pro-preview') {
-          // G3 Pro only has low/high
-          setThinkingMode('low');
-        } else if (!isGemini3 && thinkingMode === 'minimal') {
-          // G2.5 minimal -> off
-          setThinkingMode('off');
-        } else if (isGemini3 && thinkingMode === 'off') {
-          // G3 off -> minimal
-          setThinkingMode('minimal');
-        }
-      }
-    }
-    setIsModelSelectorOpen(false);
-  };
-
-  const handleThinkingChange = (mode: string) => {
-    setThinkingMode(mode);
-  };
-
   // Image/File upload handler
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
     Array.from(files).forEach(file => {
-      // Allow any file type, but log if it's not image/pdf/text/etc. if needed
       const reader = new FileReader();
       reader.onload = () => {
-        const result = reader.result as string;
-        // Prefix with filename/metadata if we want later, but for now just data URL
-        // However, we want to know if it's an image for the UI
-        setSelectedImages(prev => [...prev, result]);
+        setSelectedImages(prev => [...prev, reader.result as string]);
       };
       reader.readAsDataURL(file);
     });
 
-    // Reset input so same file can be selected again
     e.target.value = '';
   };
 
@@ -287,80 +176,6 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
     setSelectedImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Live API handlers
-  const startLiveConversation = async () => {
-    if (isLiveActive) {
-      stopLiveConversation();
-      return;
-    }
-
-    setIsLiveConnecting(true);
-    try {
-      const client = new LiveClient({
-        onTextResponse: (text) => {
-          const liveMsg: ChatMessage = {
-            id: crypto.randomUUID(),
-            role: 'model',
-            text,
-            timestamp: Date.now(),
-          };
-          onMessagesChange([...messagesRef.current, liveMsg]);
-        },
-        onAudioResponse: () => { /* audio plays automatically in LiveClient */ },
-        onError: (err) => {
-          console.error('Live API error:', err);
-        },
-        onClose: () => {
-          setIsLiveActive(false);
-          audioCaptureRef.current?.stop();
-          audioCaptureRef.current = null;
-        },
-        onReady: () => {
-          setIsLiveActive(true);
-          setIsLiveConnecting(false);
-        },
-      });
-
-      await client.connect();
-      liveClientRef.current = client;
-
-      // Start audio capture
-      const capture = new AudioCapture();
-      await capture.start((base64) => {
-        client.sendAudioChunk(base64);
-      });
-      audioCaptureRef.current = capture;
-
-    } catch (err: any) {
-      console.error('Live API connect error:', err);
-      setIsLiveConnecting(false);
-      const errorMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'model',
-        text: `**Error**: ${err.message}`,
-        timestamp: Date.now(),
-      };
-      onMessagesChange([...messagesRef.current, errorMsg]);
-    }
-  };
-
-  const stopLiveConversation = () => {
-    audioCaptureRef.current?.stop();
-    audioCaptureRef.current = null;
-    liveClientRef.current?.disconnect();
-    liveClientRef.current = null;
-    setIsLiveActive(false);
-    setIsLiveConnecting(false);
-  };
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      audioCaptureRef.current?.stop();
-      liveClientRef.current?.disconnect();
-    };
-  }, []);
-
   // Tool selection handler
   const handleToolSelect = (toolId: string) => {
     switch (toolId) {
@@ -384,10 +199,9 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
         setIsToolLibraryOpen(true);
         break;
       case 'live_api':
-        startLiveConversation();
+        liveApi.startLiveConversation();
         break;
       default:
-        console.log('Tool selected:', toolId);
         break;
     }
     setIsToolsOpen(false);
@@ -405,335 +219,79 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
     setIsToolEditorOpen(true);
   };
 
-  const processMessage = async (
-    text: string,
-    images: string[],
-    currentHistory: ChatMessage[],
-    isRegeneration: boolean = false
-  ) => {
-    setIsLoading(true);
-
-    // If regeneration, we assume the user message is already in history (last item)
-    // If normal send, we need to append user message and placeholder
-    
-    let updatedMessages = [...currentHistory];
-    
-    // Normal Send: Add user message and placeholder
-    let aiMessageId = crypto.randomUUID();
-    
-    // Placeholder con texto mínimo para que no sea filtrado por validMessages
-    // durante saves intermedios. Se reemplaza con la respuesta real cuando llega.
-    const PLACEHOLDER_TEXT = '...';
-
-    if (!isRegeneration) {
-      const userMessage: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'user',
-        text: text,
-        timestamp: Date.now(),
-        images: images.length > 0 ? [...images] : undefined,
-      };
-
-      const aiPlaceholder: ChatMessage = {
-        id: aiMessageId,
-        role: 'model',
-        text: PLACEHOLDER_TEXT,
-        timestamp: Date.now(),
-      };
-
-      updatedMessages = [...currentHistory, userMessage, aiPlaceholder];
-      onMessagesChange(updatedMessages);
-    } else {
-       // Regeneration: Add placeholder only
-       // (User message should already be at the end of currentHistory)
-       const aiPlaceholder: ChatMessage = {
-        id: aiMessageId,
-        role: 'model',
-        text: PLACEHOLDER_TEXT,
-        timestamp: Date.now(),
-      };
-      updatedMessages = [...currentHistory, aiPlaceholder];
-      onMessagesChange(updatedMessages);
-    }
-    
-    try {
-      // === PROMPT OPTIMIZER MODE ===
-      if (isPromptOptimizerMode) {
-        const optimized = await optimizePrompt(text, optimizerTarget);
-        onMessagesChange(
-          updatedMessages.map(msg =>
-            msg.id === aiMessageId ? { ...msg, text: optimized } : msg
-          )
-        );
-        return;
-      }
-
-      // === IMAGE GENERATION MODE ===
-      if (isImageGenMode) {
-        const result = await generateImage(text);
-        const resultImages = result.imageData ? [result.imageData] : undefined;
-        onMessagesChange(
-          updatedMessages.map(msg =>
-            msg.id === aiMessageId ? { ...msg, text: result.text, images: resultImages } : msg
-          )
-        );
-        return;
-      }
-
-      // === NORMAL CHAT (with optional attached images) ===
-      // Prepare history for API (exclude the placeholder we just added)
-      // Gemini expects { role, text }
-      // We need to make sure we don't send the empty placeholder or duplicate user messages
-      
-      // Filter out the placeholder we just added for the API call
-      const cleanHistory = updatedMessages
-        .filter(m => m.id !== aiMessageId)
-        .map(m => ({
-          role: m.role,
-          text: m.text,
-        }));
-
-      const activeModel = MODEL_OPTIONS.find(m => m.id === preferredPrimaryModel);
-      const thinkingOption = activeModel?.thinkingOptions.find((o: any) => o.id === thinkingMode);
-
-      const irisContext = needsIrisData(text) ? await buildIrisContext() : undefined;
-
-      const result = await sendMessageStream(text, cleanHistory, {
-        model: preferredPrimaryModel,
-        thinking: thinkingOption,
-        personalization,
-        images: images.length > 0 ? images : undefined,
-        toolSystemPrompt: activeTool?.system_prompt,
-        irisContext,
-        onToolCall: (toolCall) => {
-          setActiveToolCall(toolCall);
-        },
-      });
-
-      let fullText = '';
-      for await (const chunk of result.stream) {
-        fullText += chunk;
-        onMessagesChange(
-          updatedMessages.map(msg =>
-            msg.id === aiMessageId ? { ...msg, text: fullText || PLACEHOLDER_TEXT } : msg
-          )
-        );
-      }
-
-      const sources = await result.sources;
-      const genImages = result.generatedImages;
-
-      // Si hay imágenes generadas pero no texto, usar texto descriptivo
-      if (genImages && genImages.length > 0 && !fullText.trim()) {
-        fullText = 'Imagen generada:';
-      }
-
-      // Actualizar con sources e imágenes si existen
-      if ((sources && sources.length > 0) || (genImages && genImages.length > 0) || fullText) {
-        onMessagesChange(
-          updatedMessages.map(msg =>
-            msg.id === aiMessageId ? {
-              ...msg,
-              text: fullText || PLACEHOLDER_TEXT,
-              sources: sources || undefined,
-              images: genImages?.length ? genImages : undefined
-            } : msg
-          )
-        );
-      }
-    } catch (error) {
-      console.error('Chat error:', error);
-      const errorText = error instanceof Error ? error.message : 'Error desconocido';
-      onMessagesChange(
-        updatedMessages.map(msg =>
-          msg.id === aiMessageId
-            ? { ...msg, text: `**Error**: ${errorText}` }
-            : msg
-        )
-      );
-    } finally {
-      setIsLoading(false);
-      setActiveToolCall(null);
-    }
-  };
-
-  const handleSend = useCallback(async () => {
-    if (!input.trim() || showLoadingUI) return;
-
-    // If Live API is active, send text through WebSocket instead
-    if (isLiveActive && liveClientRef.current) {
-      const userMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: 'user',
-        text: input.trim(),
-        timestamp: Date.now(),
-      };
-      onMessagesChange([...messages, userMsg]);
-      liveClientRef.current.sendText(input.trim());
-      setInput('');
-      return;
-    }
+  const onSendClick = async () => {
+    if (!input.trim() || chat.showLoadingUI) return;
 
     const text = input.trim();
     const images = [...selectedImages];
-    const history = [...messages];
-    
+
     setInput('');
     setSelectedImages([]);
-    
-    // Self-learn: Send message to AutoDev to check for complaints/suggestions
-    if ((window as any).autodev?.logFeedback) {
-      (window as any).autodev.logFeedback(text).catch(console.error);
-    }
-    
-    await processMessage(text, images, history, false);
 
-  }, [input, isLoading, messages, onMessagesChange, preferredPrimaryModel, thinkingMode, personalization, selectedImages, isImageGenMode, isPromptOptimizerMode, optimizerTarget, activeTool, isLiveActive]);
-
-  const handleCopy = (id: string, text: string) => {
-    if (!text) return;
-
-    const performCopy = async () => {
-      // Try modern API first
-      if (navigator.clipboard && window.isSecureContext) {
-        try {
-          await navigator.clipboard.writeText(text);
-          return true;
-        } catch (err) {
-          console.warn('Navigator clipboard failed, trying fallback', err);
-        }
-      }
-
-      // Fallback: Invisible textarea
-      try {
-        const textArea = document.createElement("textarea");
-        textArea.value = text;
-        textArea.style.position = "fixed";
-        textArea.style.left = "-9999px";
-        textArea.style.top = "0";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        const successful = document.execCommand('copy');
-        document.body.removeChild(textArea);
-        return successful;
-      } catch (err) {
-        console.error('Fallback copy failed', err);
-        return false;
-      }
-    };
-
-    performCopy().then((success) => {
-      if (success) {
-        setCopiedId(id);
-        setTimeout(() => setCopiedId(null), 2000);
-      }
-    });
+    await chat.handleSend(text, images);
   };
-
-  const handleFeedback = (index: number, type: 'like' | 'dislike') => {
-    const updated = messages.map((msg, i) => {
-      if (i === index) {
-        return { 
-          ...msg, 
-          feedback: msg.feedback === type ? undefined : type 
-        };
-      }
-      return msg;
-    });
-    onMessagesChange(updated);
-  };
-
-  const handleRegenerate = async (index: number) => {
-    if (showLoadingUI) return;
-
-    const historyUpToNow = messages.slice(0, index);
-    const lastUserMsgIndex = historyUpToNow.map(m => m.role).lastIndexOf('user');
-
-    if (lastUserMsgIndex !== -1) {
-       const userMsg = historyUpToNow[lastUserMsgIndex];
-       const newHistory = messages.slice(0, lastUserMsgIndex + 1);
-
-       // Deduplicar por ID como protección extra
-       const seen = new Set<string>();
-       const dedupedHistory = newHistory.filter(m => {
-         if (seen.has(m.id)) return false;
-         seen.add(m.id);
-         return true;
-       });
-
-       // Actualizar estado inmediatamente — el debounced save con latestMessages
-       // se encargará de sincronizar con Supabase (eliminando mensajes huérfanos)
-       onMessagesChange(dedupedHistory);
-
-       await processMessage(userMsg.text, userMsg.images || [], dedupedHistory, true);
-    }
-  };
-
-  const currentModel = MODEL_OPTIONS.find(m => m.id === preferredPrimaryModel);
-  const currentThinkingOption = currentModel?.thinkingOptions.find((o: any) => o.id === thinkingMode);
 
   return (
     <div className="flex-1 flex flex-col h-full bg-background dark:bg-background-dark relative">
-      
-      <div 
+
+      <div
         className="flex-1 overflow-y-auto no-scrollbar flex flex-col"
         onScroll={handleScroll}
       >
-        {/* HEADER TOP - Minimalist Model Selector (Dynamic Sticky) */}
+        {/* HEADER - Model Selector */}
         <div className={`sticky top-0 z-30 w-full transition-all duration-300 ${isSticky ? 'bg-background/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-gray-200 dark:border-white/5 shadow-sm py-3' : 'pt-6 pb-2'} ${showHeader ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
           <div className="w-full px-6 flex items-center justify-between shrink-0">
             <div className="relative inline-block">
-              <button 
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  setIsModelSelectorOpen(!isModelSelectorOpen);
+                  model.setIsModelSelectorOpen(!model.isModelSelectorOpen);
                 }}
                 className="flex items-center gap-2 text-lg font-medium text-primary dark:text-white/90 hover:text-accent transition-colors group"
               >
-                <span>{currentModel?.name}</span>
+                <span>{model.currentModel?.name}</span>
                 <span className="text-secondary text-sm font-normal opacity-60 group-hover:opacity-100 transition-opacity">
-                  {currentThinkingOption?.name || 'Rápido'}
+                  {model.currentThinkingOption?.name || 'Rápido'}
                 </span>
-                <svg 
-                  width="16" 
-                  height="16" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="currentColor" 
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
                   strokeWidth="2"
-                  className={`text-gray-400 transition-transform duration-200 ${isModelSelectorOpen ? 'rotate-180' : ''}`}
+                  className={`text-gray-400 transition-transform duration-200 ${model.isModelSelectorOpen ? 'rotate-180' : ''}`}
                 >
                   <polyline points="6 9 12 15 18 9"></polyline>
                 </svg>
               </button>
 
               {/* Model Selector Dropdown */}
-              {isModelSelectorOpen && (
+              {model.isModelSelectorOpen && (
                 <div className="absolute top-full left-0 mt-3 w-80 bg-white/95 dark:bg-[#1E1E1E]/95 backdrop-blur-xl border border-gray-200/50 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-50 ring-1 ring-black/5">
                   <div className="p-2.5 space-y-1">
                     <div className="px-3.5 py-2 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">
                       Modelos Disponibles
                     </div>
-                    
-                    {MODEL_OPTIONS.map((model) => {
-                      const isSelected = preferredPrimaryModel === model.id;
-                      const isPro = model.name.includes('Pro');
-                      const isLite = model.name.includes('Lite');
-                      
+
+                    {MODEL_OPTIONS.map((m) => {
+                      const isSelected = model.preferredPrimaryModel === m.id;
+                      const isPro = m.name.includes('Pro');
+                      const isLite = m.name.includes('Lite');
+
                       return (
                         <button
-                          key={model.id}
-                          onClick={() => handleModelChange(model.id)}
+                          key={m.id}
+                          onClick={() => model.handleModelChange(m.id)}
                           className={`w-full text-left px-3.5 py-3 rounded-xl flex items-start gap-3.5 transition-all group/model ${
-                            isSelected 
-                              ? 'bg-accent/10 dark:bg-accent/15 ring-1 ring-accent/20' 
+                            isSelected
+                              ? 'bg-accent/10 dark:bg-accent/15 ring-1 ring-accent/20'
                               : 'hover:bg-gray-50 dark:hover:bg-white/[0.03]'
                           }`}
                         >
                           <div className={`mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                            isSelected 
-                              ? 'bg-accent text-white shadow-[0_0_10px_rgba(var(--color-accent-rgb),0.3)]' 
+                            isSelected
+                              ? 'bg-accent text-white shadow-[0_0_10px_rgba(var(--color-accent-rgb),0.3)]'
                               : 'bg-gray-100 dark:bg-white/5 text-gray-400 group-hover/model:text-gray-600 dark:group-hover/model:text-gray-300'
                           }`}>
                             {isPro ? (
@@ -744,11 +302,11 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707"/></svg>
                             )}
                           </div>
-                          
+
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-2">
                               <div className={`font-bold text-[13.5px] truncate ${isSelected ? 'text-accent' : 'text-primary dark:text-gray-200'}`}>
-                                {model.name}
+                                {m.name}
                               </div>
                               {isSelected && (
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-accent">
@@ -757,14 +315,14 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                               )}
                             </div>
                             <div className="text-[11.5px] text-gray-500 dark:text-gray-400 mt-0.5 leading-tight line-clamp-2">
-                              {model.desc}
+                              {m.desc}
                             </div>
                           </div>
                         </button>
                       );
                     })}
                   </div>
-                  
+
                   {/* Reasoning Container */}
                   <div className="px-3.5 pb-4 pt-2 bg-gray-50/50 dark:bg-black/20 border-t border-gray-200 dark:border-white/5">
                     <div className="mb-3 px-1 flex justify-between items-center">
@@ -774,21 +332,21 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                       <div className="flex items-center gap-1.5">
                          <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
                          <span className="text-[10px] font-bold text-accent uppercase tracking-wider">
-                           {currentThinkingOption?.name}
+                           {model.currentThinkingOption?.name}
                          </span>
                       </div>
                     </div>
-                    
+
                     <div className="flex bg-gray-200/50 dark:bg-white/5 p-1 rounded-[10px] gap-1 relative ring-1 ring-black/5">
-                      {currentModel?.thinkingOptions.map((opt: any) => {
-                        const isActive = thinkingMode === opt.id;
+                      {model.currentModel?.thinkingOptions.map((opt) => {
+                        const isActive = model.thinkingMode === opt.id;
                         return (
                           <button
                             key={opt.id}
-                            onClick={() => handleThinkingChange(opt.id)}
+                            onClick={() => model.setThinkingMode(opt.id)}
                             className={`flex-1 py-1.5 px-1 text-[11px] font-black uppercase tracking-wider rounded-lg transition-all duration-200 ${
-                              isActive 
-                                ? 'bg-white dark:bg-white/10 text-accent shadow-sm' 
+                              isActive
+                                ? 'bg-white dark:bg-white/10 text-accent shadow-sm'
                                 : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                             }`}
                             title={opt.desc}
@@ -816,13 +374,12 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                   <span className="text-[11px] font-black uppercase tracking-widest">Compartir</span>
                 </button>
               )}
-              {/* Optional: Add more header buttons here like Sources if needed */}
             </div>
         </div>
       </div>
 
         {/* Empty State / Messages Area */}
-        {messages.length === 0 && !showLoadingUI ? (
+        {messages.length === 0 && !chat.showLoadingUI ? (
           <div className="flex-1 flex flex-col items-center justify-center px-4">
             <div className="mb-6">
               <div className="w-20 h-20 flex items-center justify-center mx-auto mb-4 rounded-full overflow-hidden">
@@ -840,12 +397,10 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
           <div className="flex-1">
           <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
             {messages.map((msg, index) => {
-              // Si es el último mensaje, es del modelo, está vacío (o es placeholder '...') y está cargando,
-              // lo ocultamos porque se mostrará el indicador de carga dedicado abajo
-              if (showLoadingUI && index === messages.length - 1 && msg.role === 'model' && (!msg.text || msg.text === '...')) {
+              if (chat.showLoadingUI && index === messages.length - 1 && msg.role === 'model' && (!msg.text || msg.text === '...')) {
                 return null;
               }
-              
+
               return (
                 <div key={index} className={`flex gap-4 ${msg.role === 'user' && editingMessageIndex !== index ? 'justify-end' : ''}`}>
                   {msg.role === 'model' && (
@@ -853,7 +408,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                       <img src="./assets/lia-avatar.png" alt="SOFLIA" className="w-full h-full object-cover" />
                     </div>
                   )}
-                  
+
                   <div className={`flex flex-col ${editingMessageIndex === index ? 'w-full' : 'max-w-[85%]'} ${msg.role === 'user' && editingMessageIndex !== index ? 'items-end' : 'items-start'}`}>
                     {/* Attached images/files (user) */}
                     {msg.role === 'user' && msg.images && msg.images.length > 0 && (
@@ -871,7 +426,6 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                               />
                             );
                           }
-                          // Doc/File placeholder
                           return (
                             <div key={imgIdx} className="flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl max-w-[200px]">
                               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
@@ -890,7 +444,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
 
                     <div className={`${
                       msg.role === 'user'
-                        ? editingMessageIndex === index 
+                        ? editingMessageIndex === index
                           ? 'w-full bg-[#f4f4f4] dark:bg-[#2f2f2f] rounded-2xl p-4 shadow-2xl border border-gray-200 dark:border-white/10'
                           : 'px-4 py-2.5 rounded-2xl bg-[#0A2540] dark:bg-[#00D4B3] text-white dark:text-[#0A0D12] rounded-tr-sm shadow-sm font-medium'
                         : 'p-0 bg-transparent border-none shadow-none text-gray-800 dark:text-gray-100'
@@ -919,7 +473,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                               <button
                                 onClick={() => {
                                   const history = messages.slice(0, index);
-                                  processMessage(editInput, msg.images || [], history, false);
+                                  chat.processMessage(editInput, msg.images || [], history, false);
                                   setEditingMessageIndex(null);
                                 }}
                                 className="px-7 py-2 bg-accent text-white rounded-full text-[13px] font-black uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-xl shadow-accent/20"
@@ -933,7 +487,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                             <div className="flex flex-col">
                               {msg.text}
                             </div>
-                            
+
                             {/* Message actions (hover) */}
                             <div className="absolute -left-12 top-0 flex flex-col gap-1 opacity-0 group-hover/msg-content:opacity-100 transition-all duration-200">
                               <button
@@ -949,17 +503,17 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                 </svg>
                               </button>
-                              
+
                               <button
-                                onClick={() => handleCopy(msg.id, msg.text)}
+                                onClick={() => chat.handleCopy(msg.id, msg.text)}
                                 className={`p-2 rounded-xl transition-all border ${
-                                  copiedId === msg.id 
-                                    ? 'bg-green-500/10 text-green-500 border-green-500/20' 
+                                  chat.copiedId === msg.id
+                                    ? 'bg-green-500/10 text-green-500 border-green-500/20'
                                     : 'bg-white dark:bg-[#2A2B32] text-gray-400 hover:text-accent hover:shadow-md border-gray-100 dark:border-white/10'
                                 }`}
-                                title={copiedId === msg.id ? "¡Copiado!" : "Copiar mensaje"}
+                                title={chat.copiedId === msg.id ? "¡Copiado!" : "Copiar mensaje"}
                               >
-                                {copiedId === msg.id ? (
+                                {chat.copiedId === msg.id ? (
                                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                                     <polyline points="20 6 9 17 4 12"></polyline>
                                   </svg>
@@ -1006,8 +560,8 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                             title={source.snippet || source.title}
                           >
                             <div className="w-3.5 h-3.5 flex items-center justify-center opacity-70 group-hover:opacity-100 transition-opacity">
-                              <img 
-                                src={`https://www.google.com/s2/favicons?domain=${new URL(source.uri).hostname}&sz=32`} 
+                              <img
+                                src={`https://www.google.com/s2/favicons?domain=${new URL(source.uri).hostname}&sz=32`}
                                 className="w-full h-full object-contain"
                                 alt=""
                                 onError={(e) => (e.currentTarget.style.display = 'none')}
@@ -1022,50 +576,50 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                     {/* Message Actions (ChatGPT Style) */}
                     {msg.role === 'model' && (
                       <div className="flex gap-0.5 mt-1.5 select-none">
-                        <button 
+                        <button
                           className={`w-6 h-6 flex items-center justify-center rounded transition-all ${
-                            copiedId === msg.id 
-                              ? 'text-green-500 bg-green-500/10' 
+                            chat.copiedId === msg.id
+                              ? 'text-green-500 bg-green-500/10'
                               : 'text-[#c5c5d2] hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-200'
                           }`}
-                          title={copiedId === msg.id ? "¡Copiado!" : "Copiar texto"} 
-                          onClick={() => handleCopy(msg.id, msg.text)}
+                          title={chat.copiedId === msg.id ? "¡Copiado!" : "Copiar texto"}
+                          onClick={() => chat.handleCopy(msg.id, msg.text)}
                         >
-                          {copiedId === msg.id ? (
+                          {chat.copiedId === msg.id ? (
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                           ) : (
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
                           )}
                         </button>
-                        
-                        <button 
+
+                        <button
                           className="w-6 h-6 flex items-center justify-center rounded text-[#c5c5d2] hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-200 transition-all"
-                          title="Regenerar respuesta" 
-                          onClick={() => handleRegenerate(index)}
+                          title="Regenerar respuesta"
+                          onClick={() => chat.handleRegenerate(index)}
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 1 8.51 15"></path></svg>
                         </button>
-                        
-                        <button 
+
+                        <button
                           className={`w-6 h-6 flex items-center justify-center rounded transition-all ${
-                            msg.feedback === 'like' 
-                              ? 'text-[#8ab4f8]' 
+                            msg.feedback === 'like'
+                              ? 'text-[#8ab4f8]'
                               : 'text-[#c5c5d2] hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-200'
                           }`}
-                          title="Me gusta" 
-                          onClick={() => handleFeedback(index, 'like')}
+                          title="Me gusta"
+                          onClick={() => chat.handleFeedback(index, 'like')}
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
                         </button>
-                        
-                        <button 
+
+                        <button
                           className={`w-6 h-6 flex items-center justify-center rounded transition-all ${
-                            msg.feedback === 'dislike' 
-                              ? 'text-[#e57373]' 
+                            msg.feedback === 'dislike'
+                              ? 'text-[#e57373]'
                               : 'text-[#c5c5d2] hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-200'
                           }`}
-                          title="No me gusta" 
-                          onClick={() => handleFeedback(index, 'dislike')}
+                          title="No me gusta"
+                          onClick={() => chat.handleFeedback(index, 'dislike')}
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.31 2.31H17"></path></svg>
                         </button>
@@ -1075,37 +629,37 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
 
                   {msg.role === 'user' && (
                      <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-bold flex-shrink-0 overflow-hidden" title="Usuario">
-                        <UserAvatar 
-                          src={userAvatar} 
-                          fallback={<div className="w-full h-full flex items-center justify-center bg-indigo-100 text-indigo-700">Tú</div>} 
+                        <UserAvatar
+                          src={userAvatar}
+                          fallback={<div className="w-full h-full flex items-center justify-center bg-indigo-100 text-indigo-700">Tú</div>}
                         />
                      </div>
                   )}
                 </div>
               );
             })}
-            
-            {showLoadingUI && (
+
+            {chat.showLoadingUI && (
               <div className="flex gap-4">
                 <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 rounded-full overflow-hidden">
                   <img src="./assets/lia-avatar.png" alt="SOFLIA" className="w-full h-full object-cover" />
                 </div>
                 <div className="flex flex-col gap-2 pt-2">
-                  {activeToolCall && (
+                  {chat.activeToolCall && (
                     <div className="flex items-center gap-2 px-3 py-1.5 bg-accent/10 border border-accent/20 rounded-xl animate-in fade-in duration-300">
                       <div className="w-3.5 h-3.5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
                       <span className="text-xs font-semibold text-accent">
-                        {TOOL_DISPLAY_NAMES[activeToolCall.name] || activeToolCall.name}
+                        {TOOL_DISPLAY_NAMES[chat.activeToolCall.name] || chat.activeToolCall.name}
                       </span>
-                      {activeToolCall.args?.path && (
-                        <span className="text-[10px] text-gray-400 truncate max-w-[200px]">{activeToolCall.args.path}</span>
+                      {chat.activeToolCall.args?.path && (
+                        <span className="text-[10px] text-gray-400 truncate max-w-[200px]">{chat.activeToolCall.args.path}</span>
                       )}
-                      {activeToolCall.args?.command && (
-                        <span className="text-[10px] text-gray-400 truncate max-w-[200px] font-mono">{activeToolCall.args.command}</span>
+                      {chat.activeToolCall.args?.command && (
+                        <span className="text-[10px] text-gray-400 truncate max-w-[200px] font-mono">{chat.activeToolCall.args.command}</span>
                       )}
                     </div>
                   )}
-                  {!activeToolCall && (
+                  {!chat.activeToolCall && (
                     <div className="flex items-center gap-1.5">
                       <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
                       <div className="w-2 h-2 bg-accent rounded-full animate-pulse [animation-delay:0.2s]" />
@@ -1126,7 +680,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
       <div className="relative z-10 pb-6 pt-2 px-4 bg-white dark:bg-background-dark shrink-0">
         <div className="max-w-3xl mx-auto w-full">
           {/* Active Mode Badges */}
-          {(isImageGenMode || isPromptOptimizerMode || activeTool || isLiveActive || isLiveConnecting) && (
+          {(isImageGenMode || isPromptOptimizerMode || activeTool || liveApi.isLiveActive || liveApi.isLiveConnecting) && (
             <div className="mb-2 flex items-center gap-2">
               {isImageGenMode && (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-full border border-purple-500/20">
@@ -1142,7 +696,6 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                     Mejorar Prompt
                     <button onClick={() => setIsPromptOptimizerMode(false)} className="ml-1 hover:opacity-70">x</button>
                   </span>
-                  {/* Target AI Selector */}
                   <div className="flex gap-1">
                     {(['chatgpt', 'claude', 'gemini'] as const).map(target => (
                       <button
@@ -1167,11 +720,11 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                   <button onClick={() => setActiveTool(null)} className="ml-1 hover:opacity-70">x</button>
                 </span>
               )}
-              {(isLiveActive || isLiveConnecting) && (
+              {(liveApi.isLiveActive || liveApi.isLiveConnecting) && (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-accent/10 text-accent rounded-full border border-accent/20">
-                  <div className={`w-2 h-2 rounded-full ${isLiveActive ? 'bg-accent animate-pulse' : 'bg-yellow-500 animate-spin'}`} />
-                  {isLiveConnecting ? 'Conectando...' : 'En Vivo'}
-                  <button onClick={stopLiveConversation} className="ml-1 hover:opacity-70">x</button>
+                  <div className={`w-2 h-2 rounded-full ${liveApi.isLiveActive ? 'bg-accent animate-pulse' : 'bg-yellow-500 animate-spin'}`} />
+                  {liveApi.isLiveConnecting ? 'Conectando...' : 'En Vivo'}
+                  <button onClick={liveApi.stopLiveConversation} className="ml-1 hover:opacity-70">x</button>
                 </span>
               )}
             </div>
@@ -1228,9 +781,9 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setIsToolsOpen(false)}></div>
                   <div className="absolute bottom-full left-0 mb-3 w-64 bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100 p-1.5">
-                    
+
                     {[
-                      { id: 'live_api', label: isLiveActive ? 'Detener Conversación' : 'Conversación en Vivo', sub: isLiveActive ? 'Conectada' : 'Audio en tiempo real', icon: <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z M19 10v2a7 7 0 0 1-14 0v-2 M12 19v4 M8 23h8" strokeLinecap="round" strokeLinejoin="round"/>, active: isLiveActive },
+                      { id: 'live_api', label: liveApi.isLiveActive ? 'Detener Conversación' : 'Conversación en Vivo', sub: liveApi.isLiveActive ? 'Conectada' : 'Audio en tiempo real', icon: <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z M19 10v2a7 7 0 0 1-14 0v-2 M12 19v4 M8 23h8" strokeLinecap="round" strokeLinejoin="round"/>, active: liveApi.isLiveActive },
                       { id: 'image_gen', label: 'Generar Imagen', sub: 'Crea imágenes con IA', icon: <><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>, active: isImageGenMode },
                       { id: 'prompt_opt', label: 'Mejorar Prompt', sub: 'Optimiza para otra IA', icon: <path d="M12 20h9 M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>, active: isPromptOptimizerMode },
                       { id: 'create_prompt', label: 'Crear Prompt', sub: 'Guarda para reusar', icon: <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z M17 21v-8H7v8 M7 3v5h8" /> },
@@ -1241,19 +794,19 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                         key={tool.id}
                         onClick={() => handleToolSelect(tool.id)}
                         className={`w-full text-left flex items-start gap-3 px-3 py-2.5 rounded-xl transition-colors group ${
-                          (tool as any).active ? 'bg-accent/10 dark:bg-accent/15' : 'hover:bg-gray-100 dark:hover:bg-white/5'
+                          tool.active ? 'bg-accent/10 dark:bg-accent/15' : 'hover:bg-gray-100 dark:hover:bg-white/5'
                         }`}
                       >
-                        <div className={`mt-0.5 transition-colors ${(tool as any).active ? 'text-accent' : 'text-gray-400 group-hover:text-accent'}`}>
+                        <div className={`mt-0.5 transition-colors ${tool.active ? 'text-accent' : 'text-gray-400 group-hover:text-accent'}`}>
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                             {tool.icon}
                           </svg>
                         </div>
                         <div>
-                          <div className={`text-[13px] font-semibold ${(tool as any).active ? 'text-accent' : 'text-gray-700 dark:text-gray-200 group-hover:text-gray-900 dark:group-hover:text-white'}`}>{tool.label}</div>
+                          <div className={`text-[13px] font-semibold ${tool.active ? 'text-accent' : 'text-gray-700 dark:text-gray-200 group-hover:text-gray-900 dark:group-hover:text-white'}`}>{tool.label}</div>
                           <div className="text-[11px] font-medium text-gray-400 dark:text-gray-500">{tool.sub}</div>
                         </div>
-                        {(tool as any).active && (
+                        {tool.active && (
                           <div className="ml-auto mt-1">
                             <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
                           </div>
@@ -1272,15 +825,15 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
-                  handleSend();
+                  onSendClick();
                 }
               }}
               onPaste={handlePaste}
               placeholder={isImageGenMode ? "Describe la imagen que quieres generar..." : isPromptOptimizerMode ? "Escribe el prompt a optimizar..." : "Mensaje a SOFLIA..."}
               className="flex-1 bg-transparent text-[15px] focus:outline-none placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 resize-none max-h-[160px] overflow-y-auto !no-scrollbar font-sans py-2.5 px-2 leading-relaxed mb-0.5"
               rows={1}
-              disabled={showLoadingUI}
-              style={{ height: '42px', scrollbarWidth: 'none', msOverflowStyle: 'none' }} 
+              disabled={chat.showLoadingUI}
+              style={{ height: '42px', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               onInput={(e) => {
                 const target = e.target as HTMLTextAreaElement;
                 target.style.height = '42px';
@@ -1292,12 +845,12 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
             <div className="flex items-center gap-1.5 pr-0.5 mb-0.5">
               {input.trim() ? (
                 <button
-                  onClick={handleSend}
-                  disabled={showLoadingUI}
+                  onClick={onSendClick}
+                  disabled={chat.showLoadingUI}
                   className="w-9 h-9 flex items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
                   title="Enviar mensaje"
                 >
-                  {showLoadingUI ? (
+                  {chat.showLoadingUI ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="ml-0.5">
@@ -1411,292 +964,5 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
         }}
       />
     </div>
-  );
-};
-
-// ============================================
-// Advanced Markdown Renderer
-// ============================================
-
-const CodeBlock: React.FC<{ language: string; code: string }> = ({ language, code }) => {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <div className="my-4 rounded-lg overflow-hidden bg-[#1E1E1E] border border-white/10 shadow-sm relative group">
-      <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/5">
-        <span className="text-xs text-gray-400 uppercase font-mono">{language || 'text'}</span>
-        <button
-          onClick={handleCopy}
-          className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-2 py-1 rounded"
-        >
-          {copied ? (
-            <>
-              <svg className="w-3.5 h-3.5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-              <span className="text-accent font-medium">Copiado</span>
-            </>
-          ) : (
-            <>
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-              <span>Copiar</span>
-            </>
-          )}
-        </button>
-      </div>
-      <div className="p-4 overflow-x-auto custom-scrollbar">
-        <code className="text-[13px] leading-relaxed font-mono text-gray-200 block min-w-full whitespace-pre font-ligatures-none">{code}</code>
-      </div>
-    </div>
-  );
-};
-
-const MarkdownRenderer: React.FC<{ text: string }> = ({ text }) => {
-  if (!text) return null;
-
-  const lines = text.split('\n');
-  const elements: React.ReactNode[] = [];
-  
-  let i = 0;
-  while (i < lines.length) {
-    const line = lines[i];
-
-    // 1. Code Blocks
-    if (line.startsWith('```')) {
-      const language = line.slice(3).trim();
-      let codeContent = '';
-      i++;
-      while (i < lines.length && !lines[i].startsWith('```')) {
-        codeContent += (codeContent ? '\n' : '') + lines[i];
-        i++;
-      }
-      elements.push(<CodeBlock key={`code-${i}`} language={language} code={codeContent} />);
-      i++; // skip closing ```
-      continue;
-    }
-
-    // 2. Tables
-    if (line.trim().startsWith('|')) {
-      const tableRows: string[] = [];
-      while (i < lines.length && lines[i].trim().startsWith('|')) {
-        tableRows.push(lines[i]);
-        i++;
-      }
-      elements.push(<TableBlock key={`table-${i}`} rows={tableRows} />);
-      continue;
-    }
-
-    // 3. Blockquotes
-    if (line.startsWith('> ')) {
-      const quoteContent: string[] = [];
-      while (i < lines.length && lines[i].startsWith('> ')) {
-        quoteContent.push(lines[i].slice(2));
-        i++;
-      }
-      elements.push(
-        <blockquote key={`quote-${i}`} className="border-l-4 border-accent bg-accent/5 py-2 px-4 my-4 rounded-r text-gray-600 dark:text-gray-400 italic">
-          {quoteContent.map((q, idx) => <p key={idx} className="my-1">{formatInline(q)}</p>)}
-        </blockquote>
-      );
-      continue;
-    }
-
-    // 4. Headers
-    if (line.startsWith('#')) {
-      const level = line.match(/^#+/)?.[0].length || 0;
-      const content = line.slice(level).trim();
-      
-      const sizes = {
-        1: "text-2xl font-bold mt-6 mb-4 pb-2 border-b border-gray-200 dark:border-white/10 text-gray-900 dark:text-white",
-        2: "text-xl font-bold mt-5 mb-3 text-gray-900 dark:text-white",
-        3: "text-lg font-semibold mt-4 mb-2 text-primary/90 dark:text-gray-100",
-        4: "text-base font-semibold mt-3 mb-2 text-primary/80 dark:text-gray-200",
-        5: "text-sm font-semibold mt-2 mb-1 uppercase tracking-wide text-gray-500",
-        6: "text-xs font-semibold mt-2 mb-1 uppercase text-gray-500"
-      };
-      
-      const className = sizes[level as keyof typeof sizes] || sizes[6];
-      elements.push(<div key={`h-${i}`} className={className}>{formatInline(content)}</div>);
-      i++;
-      continue;
-    }
-
-    // 5. Horizontal Rule
-    if (line.trim() === '---' || line.trim() === '***') {
-      elements.push(<hr key={`hr-${i}`} className="my-6 border-gray-200 dark:border-white/10" />);
-      i++;
-      continue;
-    }
-
-    // 6. Lists
-    const listMatch = line.match(/^(\s*)([-*]|\d+\.)\s/);
-    if (listMatch) {
-      // Simple handling for now - just rendering item
-      // A full list parser would collect items, but for visual purposes this works reasonably well
-      // provided we indent correctly.
-      const indent = listMatch[1].length;
-      const isOrdered = /^\d+\./.test(listMatch[2]);
-      const content = line.replace(/^(\s*)([-*]|\d+\.)\s/, '');
-      
-      elements.push(
-        <div key={`list-${i}`} className="flex gap-2 my-1" style={{ marginLeft: `${indent * 0.5}rem` }}>
-           <span className={`flex-shrink-0 ${isOrdered ? 'text-accent font-medium text-xs mt-[3px]' : 'text-accent mt-1.5'}`}>
-             {isOrdered ? listMatch[2] : '•'}
-           </span>
-           <span className="leading-relaxed">{formatInline(content)}</span>
-        </div>
-      );
-      i++;
-      continue;
-    }
-
-    // 7. Empty lines
-    if (line.trim() === '') {
-      elements.push(<div key={`br-${i}`} className="h-2" />);
-      i++;
-      continue;
-    }
-
-    // 8. Paragraphs
-    elements.push(<p key={`p-${i}`} className="my-1 leading-relaxed text-gray-800 dark:text-gray-300">{formatInline(line)}</p>);
-    i++;
-  }
-
-  return <div className="space-y-1">{elements}</div>;
-};
-
-const TableBlock: React.FC<{ rows: string[] }> = ({ rows }) => {
-  if (rows.length < 2) return null;
-
-  // Header row
-  const headerCells = rows[0].split('|').filter(c => c.trim() !== '').map(c => c.trim());
-  // Body rows
-  const bodyRows = rows.slice(2).map(r => r.split('|').filter(c => c.trim() !== '').map(c => c.trim()));
-
-  return (
-    <div className="my-4 overflow-x-auto rounded-lg border border-gray-200 dark:border-white/10">
-      <table className="min-w-full text-sm text-left">
-        <thead className="bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-200">
-          <tr>
-            {headerCells.map((h, idx) => (
-              <th key={idx} className="px-4 py-3 font-semibold border-b border-gray-200 dark:border-white/10 whitespace-nowrap">
-                {formatInline(h)}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="bg-white dark:bg-[#1E1E1E] divide-y divide-gray-200 dark:divide-white/5">
-          {bodyRows.map((r, rIdx) => (
-            <tr key={rIdx} className="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-              {r.map((c, cIdx) => (
-                <td key={cIdx} className="px-4 py-2.5 text-gray-700 dark:text-gray-400 border-r border-gray-200 dark:border-white/5 last:border-r-0">
-                  {formatInline(c)}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-};
-
-// Simple formatter for inline markdown
-function formatInline(text: string): React.ReactNode {
-  if (!text) return null;
-  
-  const parts: React.ReactNode[] = [];
-  let remaining = text;
-  let key = 0;
-
-  while (remaining.length > 0) {
-    // Bold: **text**
-    let match = remaining.match(/^(.*?)\*\*(.+?)\*\*(.*)/s);
-    if (match) {
-      if (match[1]) parts.push(formatLink(match[1], key++));
-      parts.push(<strong key={`b-${key++}`} className="font-semibold text-gray-900 dark:text-gray-100">{formatLink(match[2], key++)}</strong>);
-      remaining = match[3];
-      continue;
-    }
-    
-    // Italic: *text*
-    match = remaining.match(/^(.*?)\*(.+?)\*(.*)/s);
-    if (match) {
-      if (match[1]) parts.push(formatLink(match[1], key++));
-      parts.push(<em key={`i-${key++}`} className="italic text-gray-700 dark:text-gray-300">{formatLink(match[2], key++)}</em>);
-      remaining = match[3];
-      continue;
-    }
-
-    // Code: `text`
-    match = remaining.match(/^(.*?)`([^`]+)`(.*)/s);
-    if (match) {
-      if (match[1]) parts.push(formatLink(match[1], key++));
-      parts.push(
-        <code key={`c-${key++}`} className="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded text-accent text-[13px] font-mono mx-0.5">
-          {match[2]}
-        </code>
-      );
-      remaining = match[3];
-      continue;
-    }
-
-    parts.push(formatLink(remaining, key++));
-    break;
-  }
-
-  if (parts.length === 1) return parts[0];
-  return <>{parts.map((p, idx) => typeof p === 'string' ? <span key={`fi-${idx}`}>{p}</span> : p)}</>;
-}
-
-// Helper to handle links [text](url)
-function formatLink(text: string, baseKey: number): React.ReactNode {
-  const parts: React.ReactNode[] = [];
-  let remaining = text;
-  let key = 0;
-
-  while (remaining.length > 0) {
-    const match = remaining.match(/^(.*?)\[([^\]]+)\]\(([^)]+)\)(.*)/s);
-    if (match) {
-      if (match[1]) parts.push(<span key={`lt-${baseKey}-${key++}`}>{match[1]}</span>);
-      parts.push(
-        <a
-          key={`l-${baseKey}-${key++}`}
-          href={match[3]}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-accent hover:underline decoration-accent/50 underline-offset-2"
-        >
-          {match[2]}
-        </a>
-      );
-      remaining = match[4];
-      continue;
-    }
-    parts.push(<span key={`lr-${baseKey}-${key++}`}>{remaining}</span>);
-    break;
-  }
-
-  return <>{parts}</>;
-}
-
-const UserAvatar = ({ src, fallback }: { src?: string | null, fallback: React.ReactNode }) => {
-  const [error, setError] = useState(false);
-
-  if (!src || error) {
-    return <>{fallback}</>;
-  }
-
-  return (
-    <img
-      src={src}
-      alt="User"
-      className="w-full h-full object-cover"
-      onError={() => setError(true)}
-    />
   );
 };

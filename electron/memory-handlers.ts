@@ -4,20 +4,15 @@
  */
 import { ipcMain } from 'electron';
 import type { MemoryService } from './memory-service';
+import { handleIPC } from './utils/ipc-helpers';
 
 export function registerMemoryHandlers(memoryService: MemoryService): void {
   ipcMain.handle('memory:get-stats', async (_event, sessionKey?: string) => {
     return memoryService.getStats(sessionKey);
   });
 
-  ipcMain.handle('memory:compact', async (_event, daysToKeep?: number) => {
-    try {
-      const result = await memoryService.compactOldData(daysToKeep || 90);
-      return { success: true, ...result };
-    } catch (err: any) {
-      return { success: false, error: err.message };
-    }
-  });
+  ipcMain.handle('memory:compact', (_event, daysToKeep?: number) =>
+    handleIPC(() => memoryService.compactOldData(daysToKeep || 90)));
 
   ipcMain.handle('memory:get-facts', async (_event, phoneNumber: string) => {
     return memoryService.getFacts(phoneNumber);
@@ -28,14 +23,8 @@ export function registerMemoryHandlers(memoryService: MemoryService): void {
     return { success: ok };
   });
 
-  ipcMain.handle('memory:search', async (_event, sessionKey: string, phoneNumber: string, query: string) => {
-    try {
-      const results = await memoryService.searchMemory(sessionKey, phoneNumber, query);
-      return { success: true, results };
-    } catch (err: any) {
-      return { success: false, error: err.message };
-    }
-  });
+  ipcMain.handle('memory:search', (_event, sessionKey: string, phoneNumber: string, query: string) =>
+    handleIPC(async () => ({ results: await memoryService.searchMemory(sessionKey, phoneNumber, query) })));
 
   console.log('[MemoryHandlers] Registered successfully');
 }

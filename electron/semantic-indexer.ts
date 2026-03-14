@@ -1,6 +1,10 @@
-import Database from 'better-sqlite3';
-import type { Database as BetterSqlite3Database } from 'better-sqlite3';
+import { createRequire } from 'node:module';
 import * as fs from 'fs';
+
+// better-sqlite3: native module loaded via require() to avoid ESM↔CJS interop crash
+const _require = createRequire(import.meta.url);
+const Database = _require('better-sqlite3');
+type BetterSqlite3Database = ReturnType<typeof Database>;
 import * as path from 'path';
 import * as os from 'os';
 
@@ -36,7 +40,7 @@ export class SemanticIndexer {
 
   private constructor(dbPath?: string) {
     this.dbPath = dbPath || path.join(os.homedir(), '.sofia-semantic-indexer.db');
-    
+
     // Initialize DB with proper settings
     this.db = new Database(this.dbPath);
     

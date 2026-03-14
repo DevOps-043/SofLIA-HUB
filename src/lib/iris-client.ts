@@ -1,51 +1,12 @@
-import { createClient } from '@supabase/supabase-js';
 import { IRIS_SUPABASE } from '../config';
+import { createElectronSupabaseClient, isValidUrl } from './supabase-factory';
 
-// localStorage adapter for Electron desktop
-const localStorageAdapter = {
-  getItem: async (key: string): Promise<string | null> => {
-    return localStorage.getItem(key);
-  },
-  setItem: async (key: string, value: string): Promise<void> => {
-    localStorage.setItem(key, value);
-  },
-  removeItem: async (key: string): Promise<void> => {
-    localStorage.removeItem(key);
-  },
-};
-
-const isValidUrl = (url: string) => {
-  try {
-    new URL(url);
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-const irisUrl = isValidUrl(IRIS_SUPABASE.URL) ? IRIS_SUPABASE.URL : '';
-const irisKey = IRIS_SUPABASE.ANON_KEY || '';
-
-// Custom fetch without automatic AbortSignal timeout (prevents "signal is aborted" in Electron)
-const electronFetch: typeof globalThis.fetch = (input, init) => {
-  const { signal: _signal, ...rest } = init || {};
-  return globalThis.fetch(input, rest);
-};
-
-export const irisSupa = irisUrl && irisKey
-  ? createClient(irisUrl, irisKey, {
-      auth: {
-        storage: localStorageAdapter,
-        storageKey: 'iris-auth-token',
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: false,
-      },
-      global: {
-        fetch: electronFetch,
-      },
-    })
-  : null;
+// IRIS Supabase Client (Project Hub — proyectos, issues, equipos)
+export const irisSupa = createElectronSupabaseClient(
+  IRIS_SUPABASE.URL,
+  IRIS_SUPABASE.ANON_KEY,
+  'iris-auth-token',
+);
 
 export const isIrisConfigured = () => {
   return IRIS_SUPABASE.URL !== '' && IRIS_SUPABASE.ANON_KEY !== '' && isValidUrl(IRIS_SUPABASE.URL);

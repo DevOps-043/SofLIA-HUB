@@ -1,8 +1,17 @@
 import { app, desktopCapturer, screen } from 'electron';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import sharp from 'sharp';
+import { createRequire } from 'node:module';
 import type { WhatsAppService } from './whatsapp-service';
+
+// sharp: native module loaded via require() to avoid ESM↔CJS interop crash
+let sharp: any = null;
+try {
+  const _require = createRequire(import.meta.url);
+  sharp = _require('sharp');
+} catch (err: any) {
+  console.warn('[VisualDebugger] sharp not available:', err.message);
+}
 
 /**
  * Servicio interactivo de Depuración Visual.

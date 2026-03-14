@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { orgService } from '../services/org-service';
 import type { OrgMember } from '../services/org-service';
-import { useRef } from 'react';
+import SelectDropdown from './ui/SelectDropdown';
 
 // ============================================
 // Mock Sharing Service
@@ -65,61 +65,7 @@ const revokeShare = async (shareId: string, targetType: ShareTargetType): Promis
   return true;
 };
 
-// ============================================
-// Custom UI Components
-// ============================================
-
-const SelectDropdown: React.FC<{
-  value: string;
-  onChange: (val: string) => void;
-  options: { value: string; label: string }[];
-}> = ({ value, onChange, options }) => {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
-
-  const selected = options.find((o: any) => o.value === value)?.label || '';
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-2.5 px-3 py-1.5 bg-gray-100/50 dark:bg-black/40 border border-gray-200/50 dark:border-white/10 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] text-gray-900 dark:text-white hover:border-accent/40 focus:ring-4 focus:ring-accent/5 transition-all min-w-[110px] justify-between group"
-      >
-        <span className="truncate group-hover:text-accent transition-colors">{selected}</span>
-        <svg className={`w-3.5 h-3.5 text-gray-400 transition-all duration-300 ${open ? 'rotate-180 text-accent' : 'group-hover:text-accent'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {open && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-[#1f2127] border border-gray-100 dark:border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 backdrop-blur-3xl">
-          {options.map((opt: any) => (
-            <button
-              key={opt.value}
-              onClick={() => { onChange(opt.value); setOpen(false); }}
-              className={`w-full text-left px-4 py-3 text-[9px] font-black uppercase tracking-widest transition-colors ${
-                value === opt.value
-                  ? 'bg-accent/10 text-accent border-l-2 border-accent'
-                  : 'text-gray-500 dark:text-gray-400 hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white border-l-2 border-transparent'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
+// SelectDropdown importado de ./ui/SelectDropdown
 
 // ============================================
 // Props
@@ -286,11 +232,12 @@ export const ShareModal: React.FC<ShareModalProps> = ({ isOpen, onClose, targetI
                 <span className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">Permiso</span>
                 <SelectDropdown
                   value={permission}
-                  onChange={(val: any) => setPermission(val as SharePermission)}
+                  onChange={(val: string) => setPermission(val as SharePermission)}
                   options={[
                     { value: 'view', label: 'Solo ver' },
                     { value: 'edit', label: 'Editar' }
                   ]}
+                  size="compact"
                 />
               </div>
 

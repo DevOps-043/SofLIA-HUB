@@ -50,7 +50,20 @@
       "WebSearch",
       "Bash(grep -n \"toolName === ''whatsapp_send_file''\\\\|case ''whatsapp_send_file''\" electron/whatsapp-agent.ts)",
       "Bash(grep -rn \"7412\\\\|kill.*process\\\\|ERROR.*encontró el proceso\" '/c/Users/fysg5/OneDrive/Escritorio/Pulse Hub/SofLIA - Hub/SofLIA-HUB' --include=*.json --include=*.ts)",
-      "Bash(grep -rn \"encontró\\\\|taskkill\\\\|process.kill\" '/c/Users/fysg5/OneDrive/Escritorio/Pulse Hub/SofLIA - Hub/SofLIA-HUB' --include=*.ts --include=*.js)"
+      "Bash(grep -rn \"encontró\\\\|taskkill\\\\|process.kill\" '/c/Users/fysg5/OneDrive/Escritorio/Pulse Hub/SofLIA - Hub/SofLIA-HUB' --include=*.ts --include=*.js)",
+      "Bash(python3 -c \":*)",
+      "Bash(awk 'NR==64,NR==220' electron/autodev-service.ts)",
+      "Bash(wc -l \"C:\\\\Users\\\\fysg5\\\\OneDrive\\\\Escritorio\\\\Pulse Hub\\\\SofLIA - Hub\\\\SofLIA-HUB\\\\electron\"*.ts)",
+      "Bash(npx electron-rebuild:*)",
+      "Bash(npx electron:*)",
+      "Bash(timeout 30 npm run dev)",
+      "Bash(timeout 45 npm run dev)",
+      "Bash(npm run:*)",
+      "Bash(grep -rl \"from [''''\"\"]\" dist-electron/*.js)",
+      "Bash(while read:*)",
+      "Bash(do basename:*)",
+      "Read(//c/Users/fysg5/OneDrive/Escritorio/Pulse Hub/SofLIA - Hub/SofLIA-HUB/**)",
+      "Bash(grep -v \"^electron$\")"
     ]
   }
 }

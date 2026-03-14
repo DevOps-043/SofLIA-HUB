@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { loadSettings, saveSettings, type UserAISettings } from '../services/settings-service';
+import SelectDropdown from './ui/SelectDropdown';
 
 // Declare the proactive API from preload
 declare global {
@@ -36,61 +37,7 @@ const EMOJI_OPTIONS = [
   { value: 'Muchos', label: 'Muchos / Divertido' },
 ];
 
-// Custom dropdown component
-const SelectDropdown: React.FC<{
-  value: string;
-  onChange: (val: string) => void;
-  options: { value: string; label: string }[];
-}> = ({ value, onChange, options }) => {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
-
-  const selected = options.find(o => o.value === value)?.label || value;
-
-  return (
-    <div ref={ref} className="relative w-full">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="w-full px-5 py-3.5 bg-gray-100/50 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-2xl text-gray-900 dark:text-white text-sm text-left flex items-center justify-between hover:border-accent/40 focus:ring-4 focus:ring-accent/5 transition-all group"
-      >
-        <span className="group-hover:text-accent transition-colors">{selected}</span>
-
-        <svg className={`w-4 h-4 text-gray-500 transition-all duration-300 ${open ? 'rotate-180 text-accent' : 'group-hover:text-accent'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {open && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-[#0f1115] border border-gray-100 dark:border-white/10 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_40px_rgba(0,0,0,0.5)] z-50 overflow-hidden max-h-60 overflow-y-auto backdrop-blur-3xl animate-in slide-in-from-top-2 duration-200">
-
-          {options.map(opt => (
-            <button
-              key={opt.value}
-              onClick={() => { onChange(opt.value); setOpen(false); }}
-              className={`w-full text-left px-5 py-3.5 text-sm transition-all ${
-                value === opt.value
-                  ? 'bg-accent/10 text-accent font-bold border-l-4 border-accent'
-                  : 'text-gray-500 dark:text-gray-400 hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white border-l-4 border-transparent'
-              }`}
-
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
+// SelectDropdown importado de ./ui/SelectDropdown
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, userId, onSave, embedded = false }) => {
   const [loading, setLoading] = useState(false);

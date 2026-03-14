@@ -1,4 +1,8 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useTheme } from "./hooks/useTheme";
+import { useChatManager } from "./hooks/useChatManager";
+import { useFolderManager } from "./hooks/useFolderManager";
+import { useIrisData } from "./hooks/useIrisData";
 import { ChatUI } from "./adapters/desktop_ui/ChatUI";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { Auth } from "./components/Auth";
@@ -6,6 +10,7 @@ import { ScreenViewer } from "./components/ScreenViewer";
 import { ProjectHub } from "./components/ProjectHub";
 import { CreateFolderModal, MoveChatModal } from "./components/FolderModals";
 import { UnifiedSettingsModal, SettingsTab } from "./components/UnifiedSettingsModal";
+import { Sidebar } from "./components/Sidebar";
 import {
   loadSettings,
   getCachedSettings,
@@ -15,40 +20,6 @@ import { FlowMode } from "./components/FlowMode";
 import { ProductivityDashboard } from "./components/ProductivityDashboard";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { GOOGLE_API_KEY } from "./config";
-import {
-  getTeams,
-  getProjects,
-  getIssues,
-  PROJECT_STATUS_COLORS,
-  ISSUE_STATUS_TYPE_COLORS,
-} from "./services/iris-data";
-import {
-  isIrisConfigured,
-  type IrisTeam,
-  type IrisProject,
-  type IrisIssue,
-} from "./lib/iris-client";
-import {
-  loadConversations,
-  loadMessages,
-  createConversation,
-  saveMessages,
-  saveMessagesToCache,
-  deleteConversation,
-  generateTitle,
-  updateConversationTitle,
-  type Conversation,
-  type ChatMessage,
-} from "./services/chat-service";
-import {
-  loadFolders,
-  createFolder,
-  renameFolder as renameFolderService,
-  deleteFolder as deleteFolderService,
-  moveChatToFolder as moveChatToFolderService,
-  type Folder,
-} from "./services/folder-service";
-
 type ActiveView = "chat" | "screen" | "project" | "productivity";
 
 function AppContent() {
@@ -57,109 +28,47 @@ function AppContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [externalPrompt, setExternalPrompt] = useState<string | null>(null);
 
-  // Conversation state
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [currentConversationId, setCurrentConversationId] = useState<
-    string | null
-  >(null);
-  const [currentMessages, setCurrentMessages] = useState<ChatMessage[]>([]);
-  const [loadingConversations, setLoadingConversations] = useState(false);
+  const userId = user?.id;
 
-  // Folder state
-  const [folders, setFolders] = useState<Folder[]>([]);
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
-    new Set(),
-  );
-  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
-  const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
-  const [movingChatId, setMovingChatId] = useState<string | null>(null);
-  const [renamingChatId, setRenamingChatId] = useState<string | null>(null);
-  const [editingChatTitle, setEditingChatTitle] = useState("");
+  // ── Hooks ──────────────────────────────────────────────────────────
+  const chat = useChatManager({ userId });
+  const folder = useFolderManager({ userId, setConversations: chat.setConversations });
+  const iris = useIrisData();
+  const { theme, setTheme } = useTheme();
+
+  // ── Settings ───────────────────────────────────────────────────────
+  const [userSettings, setUserSettings] = useState<UserAISettings | null>(null);
   const [isUnifiedSettingsOpen, setIsUnifiedSettingsOpen] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>("ai");
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isThemeSubMenuOpen, setIsThemeSubMenuOpen] = useState(false);
-  const [userSettings, setUserSettings] = useState<UserAISettings | null>(null);
-  const [theme, setTheme] = useState<"system" | "light" | "dark">("system");
-  const [_isFlowActive, _setIsFlowActive] = useState(false);
-  const [flowKey, setFlowKey] = useState(0);
 
-  // Detect if this is a specialized Flow window
+  // ── Flow Window Detection ──────────────────────────────────────────
   const isFlowWindow =
     window.location.href.includes("view=flow") ||
     (window.process as any)?.argv?.includes("--view-mode=flow");
+  const [flowKey, setFlowKey] = useState(0);
 
-  // IRIS Project Hub state
-  const [irisTeams, setIrisTeams] = useState<IrisTeam[]>([]);
-  const [irisProjects, setIrisProjects] = useState<IrisProject[]>([]);
-  const [irisIssues, setIrisIssues] = useState<Record<string, IrisIssue[]>>({});
-  const [expandedTeams, setExpandedTeams] = useState<Set<string>>(new Set());
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
-    new Set(),
-  );
-
-  const [activeMenuChatId, setActiveMenuChatId] = useState<string | null>(null);
-
+  // ── Click outside to close menu ────────────────────────────────────
   useEffect(() => {
-    const handleClickOutside = () => setActiveMenuChatId(null);
-    if (activeMenuChatId) {
-      window.addEventListener('click', handleClickOutside);
-      return () => window.removeEventListener('click', handleClickOutside);
+    const handleClickOutside = () => chat.setActiveMenuChatId(null);
+    if (chat.activeMenuChatId) {
+      window.addEventListener("click", handleClickOutside);
+      return () => window.removeEventListener("click", handleClickOutside);
     }
-  }, [activeMenuChatId]);
+  }, [chat.activeMenuChatId]);
 
-  // Theme effect
-  useEffect(() => {
-    const root = window.document.documentElement;
-
-    // Function to apply theme
-    const applyTheme = (themeValue: "system" | "light" | "dark") => {
-      // Remove both classes first to ensure clean state
-      root.classList.remove("light", "dark");
-
-      if (themeValue === "system") {
-        const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-          .matches
-          ? "dark"
-          : "light";
-        root.classList.add(systemTheme);
-      } else {
-        root.classList.add(themeValue);
-      }
-    };
-
-    // Apply initially
-    applyTheme(theme);
-
-    // Listen for system changes if theme is system
-    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleSystemChange = () => {
-      if (theme === "system") {
-        applyTheme("system");
-      }
-    };
-
-    mediaQuery.addEventListener("change", handleSystemChange);
-    return () => mediaQuery.removeEventListener("change", handleSystemChange);
-  }, [theme]);
-
-  // Electron IPC Integration
+  // ── Electron IPC ───────────────────────────────────────────────────
   useEffect(() => {
     const ipc = (window as any).ipcRenderer;
     if (ipc) {
-      // Receive results from standalone Flow window
       ipc.on("flow-message-received", (_event: any, text: string) => {
-        handleFlowSendToChat(text);
+        setExternalPrompt(text);
       });
-
-      // Special handling for the Flow overlay window itself
       if (isFlowWindow) {
         ipc.on("flow-window-shown", () => {
-          setFlowKey((prev) => prev + 1); // Force re-mount to trigger auto-start
+          setFlowKey((prev) => prev + 1);
         });
       }
     }
-
     return () => {
       if (ipc && ipc.off) {
         ipc.off("flow-message-received", () => {});
@@ -168,530 +77,154 @@ function AppContent() {
     };
   }, [isFlowWindow]);
 
-  // Refs para el sistema de persistencia de mensajes
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const currentConvIdRef = useRef<string | null>(null);
-  currentConvIdRef.current = currentConversationId;
-  const currentFolderIdRef = useRef<string | null>(null);
-  currentFolderIdRef.current = currentFolderId;
-
-  const userId = user?.id;
-
-  // ============================================
-  // Cargar conversaciones y folders al inicio
-  // ============================================
+  // ── Init data ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!userId) return;
 
     const init = async () => {
-      setLoadingConversations(true);
-      // Load cached settings immediately
       const cached = getCachedSettings();
       if (cached && cached.user_id === userId) setUserSettings(cached);
 
-      const [convs, flds, settings] = await Promise.all([
-        loadConversations(userId),
-        loadFolders(userId),
+      const [, , settings] = await Promise.all([
+        chat.loadInitialConversations(),
+        folder.loadInitialFolders(),
         loadSettings(userId),
       ]);
       setUserSettings(settings);
-      setConversations(convs);
-      setFolders(flds);
 
-      const lastChatId = localStorage.getItem("lia_current_chat_id");
-      if (lastChatId) {
-        const found = convs.find((c) => c.id === lastChatId);
-        if (found) {
-          const msgs = await loadMessages(found.id);
-          setCurrentConversationId(found.id);
-          setCurrentMessages(msgs);
-        }
-      }
-      setLoadingConversations(false);
-
-      // Load IRIS data if configured
-      if (isIrisConfigured()) {
-        try {
-          const teams = await getTeams();
-          setIrisTeams(teams);
-          const projects = await getProjects();
-          setIrisProjects(projects);
-        } catch (err) {
-          console.error("IRIS: Error loading data", err);
-        }
-      }
+      iris.loadInitialData();
     };
 
     init();
   }, [userId]);
 
-  // ============================================
-  // Scoped messages handler
-  //
-  // Usa latestMessages (siempre el array más reciente) + mutex (serializa saves).
-  // Sin key dinámico en ChatUI, solo existe UN handler activo a la vez.
-  // flushSaveRef permite ejecutar el save pendiente antes de cambiar de chat.
-  // ============================================
-  const flushSaveRef = useRef<(() => Promise<void>) | null>(null);
-
-  const createScopedMessagesHandler = useCallback(
-    (capturedConvId: string | null, capturedFolderId: string | null) => {
-      let resolvedConvId = capturedConvId;
-      let timer: ReturnType<typeof setTimeout> | null = null;
-      let latestMessages: ChatMessage[] = [];
-      let saving = false;
-      let dirty = false;
-
-      const executeSave = async () => {
-        if (saving) { dirty = true; return; }
-
-        // Si hay un placeholder de modelo sin contenido (text vacío Y sin imágenes),
-        // el AI aún está generando. Postponer el save para no borrar huérfanos prematuramente.
-        const hasActivePlaceholder = latestMessages.some(
-          (m) => m.role === 'model' && (!m.text || m.text.trim().length === 0) && (!m.images || m.images.length === 0),
-        );
-        if (hasActivePlaceholder) {
-          dirty = true;
-          return;
-        }
-
-        saving = true;
-        dirty = false;
-
-        try {
-          if (!userId) return;
-
-          // Un mensaje es válido si tiene texto O imágenes
-          const validMessages = latestMessages.filter(
-            (m) => (m.text && m.text.trim().length > 0) || (m.images && m.images.length > 0),
-          );
-          if (validMessages.length === 0) return;
-
-          if (!resolvedConvId) {
-            const title = generateTitle(validMessages);
-            const newConv = await createConversation(
-              userId,
-              title,
-              capturedFolderId || undefined,
-            );
-            if (!newConv) return;
-
-            resolvedConvId = newConv.id;
-            setConversations((prev) => [newConv, ...prev]);
-
-            if (
-              !currentConvIdRef.current &&
-              currentFolderIdRef.current === capturedFolderId
-            ) {
-              setCurrentConversationId(resolvedConvId);
-              currentConvIdRef.current = resolvedConvId;
-              localStorage.setItem("lia_current_chat_id", resolvedConvId);
-            }
-          }
-
-          await saveMessages(resolvedConvId, userId, validMessages);
-
-          setConversations((prev) =>
-            prev
-              .map((c) =>
-                c.id === resolvedConvId
-                  ? { ...c, updated_at: new Date().toISOString() }
-                  : c,
-              )
-              .sort(
-                (a, b) =>
-                  new Date(b.updated_at).getTime() -
-                  new Date(a.updated_at).getTime(),
-              ),
-          );
-        } finally {
-          saving = false;
-          if (dirty) {
-            dirty = false;
-            executeSave();
-          }
-        }
-      };
-
-      // Exponer flush para que se pueda ejecutar antes de cambiar de chat
-      flushSaveRef.current = async () => {
-        if (timer) {
-          clearTimeout(timer);
-          timer = null;
-          saveTimerRef.current = null;
-        }
-        await executeSave();
-      };
-
-      return (messages: ChatMessage[]) => {
-        latestMessages = messages;
-
-        // Actualizar UI solo si es la conversación activa
-        const isActive =
-          currentConvIdRef.current === resolvedConvId ||
-          (!resolvedConvId && !currentConvIdRef.current);
-        if (isActive) {
-          setCurrentMessages(messages);
-        }
-
-        // Cache local inmediato (incluir mensajes con imágenes aunque no tengan texto)
-        if (resolvedConvId) {
-          const valid = messages.filter(
-            (m) => (m.text && m.text.trim().length > 0) || (m.images && m.images.length > 0),
-          );
-          saveMessagesToCache(resolvedConvId, valid);
-        }
-
-        // Debounced save a Supabase
-        if (timer) clearTimeout(timer);
-        timer = setTimeout(() => executeSave(), 1000);
-        saveTimerRef.current = timer;
-      };
-    },
-    [userId],
-  );
-
-  // Scoped handler — se recrea cuando cambia la conversación.
+  // ── Scoped messages handler ────────────────────────────────────────
   const scopedMessagesHandler = useMemo(
-    () => createScopedMessagesHandler(currentConversationId, currentFolderId),
-    [currentConversationId, currentFolderId, createScopedMessagesHandler],
+    () => chat.getScopedMessagesHandler(folder.currentFolderId),
+    [chat.currentConversationId, folder.currentFolderId, chat.getScopedMessagesHandler],
   );
 
-  // ============================================
-  // Flush: ejecuta el save pendiente ANTES de cambiar de conversación
-  // ============================================
-  const flushPendingSave = useCallback(() => {
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = null;
-    }
-    // Ejecutar save inmediato (fire-and-forget — no bloqueamos la UI)
-    flushSaveRef.current?.();
-  }, []);
-
-  // ============================================
-  // Nuevo chat
-  // ============================================
+  // ── View-aware handlers ────────────────────────────────────────────
   const handleNewChat = useCallback(() => {
-    flushPendingSave();
-    setCurrentConversationId(null);
-    currentConvIdRef.current = null;
-    setCurrentMessages([]);
+    chat.handleNewChat();
+    folder.setCurrentFolderId(null);
     setActiveView("chat");
-    setCurrentFolderId(null);
-    currentFolderIdRef.current = null;
-    localStorage.removeItem("lia_current_chat_id");
-  }, [flushPendingSave]);
+  }, [chat, folder]);
 
-  // ============================================
-  // Nuevo chat en proyecto
-  // ============================================
-  const handleNewChatInProject = useCallback((folderId: string) => {
-    flushPendingSave();
-    setCurrentConversationId(null);
-    currentConvIdRef.current = null;
-    setCurrentMessages([]);
-    setCurrentFolderId(folderId);
-    currentFolderIdRef.current = folderId;
-    setActiveView("chat");
-    localStorage.removeItem("lia_current_chat_id");
-  }, [flushPendingSave]);
+  const handleNewChatInProject = useCallback(
+    (folderId: string) => {
+      chat.handleNewChat(folderId);
+      folder.setCurrentFolderId(folderId);
+      setActiveView("chat");
+    },
+    [chat, folder],
+  );
 
-  // ============================================
-  // Nuevo chat en proyecto con mensaje inicial
-  // ============================================
-  const handleNewChatWithMessage = useCallback((folderId: string, message: string) => {
-    flushPendingSave();
-    setCurrentConversationId(null);
-    currentConvIdRef.current = null;
-    setCurrentMessages([]);
-    setCurrentFolderId(folderId);
-    currentFolderIdRef.current = folderId;
-    setExternalPrompt(message);
-    setActiveView("chat");
-    localStorage.removeItem("lia_current_chat_id");
-  }, [flushPendingSave]);
+  const handleNewChatWithMessage = useCallback(
+    (folderId: string, message: string) => {
+      chat.handleNewChat(folderId);
+      folder.setCurrentFolderId(folderId);
+      setExternalPrompt(message);
+      setActiveView("chat");
+    },
+    [chat, folder],
+  );
 
-  // ============================================
-  // Seleccionar conversacion
-  // ============================================
   const handleSelectConversation = useCallback(
     async (convId: string) => {
-      if (convId === currentConvIdRef.current && activeView === "chat") {
-        return;
-      }
-
-      flushPendingSave();
-      const msgs = await loadMessages(convId);
-      setCurrentConversationId(convId);
-      currentConvIdRef.current = convId;
-      setCurrentMessages(msgs);
+      if (convId === chat.currentConversationId && activeView === "chat") return;
+      await chat.handleSelectConversation(convId);
       setActiveView("chat");
-      localStorage.setItem("lia_current_chat_id", convId);
     },
-    [activeView, flushPendingSave],
+    [chat, activeView],
   );
 
-  // ============================================
-  // Eliminar conversacion
-  // ============================================
   const handleDeleteConversation = useCallback(
     async (convId: string, e: React.MouseEvent) => {
       e.stopPropagation();
-      const success = await deleteConversation(convId);
-      if (success) {
-        setConversations((prev) => prev.filter((c) => c.id !== convId));
-        if (convId === currentConvIdRef.current) {
-          setCurrentConversationId(null);
-          currentConvIdRef.current = null;
-          setCurrentMessages([]);
-          localStorage.removeItem("lia_current_chat_id");
-        }
-      }
+      await chat.handleDeleteConversation(convId);
     },
-    [],
-  );
-
-  // ============================================
-  // Folder handlers
-  // ============================================
-  const handleCreateFolder = useCallback(
-    async (name: string) => {
-      if (!userId) return;
-      const folder = await createFolder(userId, name);
-      if (folder) {
-        setFolders((prev) => [folder, ...prev]);
-      }
-    },
-    [userId],
-  );
-
-  const handleRenameFolder = useCallback(
-    async (folderId: string, newName: string) => {
-      const success = await renameFolderService(folderId, newName);
-      if (success) {
-        setFolders((prev) =>
-          prev.map((f) => (f.id === folderId ? { ...f, name: newName } : f)),
-        );
-      }
-    },
-    [],
+    [chat],
   );
 
   const handleDeleteFolder = useCallback(
     async (folderId: string, e: React.MouseEvent) => {
       e.stopPropagation();
-      const success = await deleteFolderService(folderId);
-      if (success) {
-        setFolders((prev) => prev.filter((f) => f.id !== folderId));
-        setConversations((prev) =>
-          prev.map((c) =>
-            c.folder_id === folderId ? { ...c, folder_id: undefined } : c,
-          ),
-        );
-        if (currentFolderId === folderId) {
-          setCurrentFolderId(null);
-          setActiveView("chat");
-        }
+      await folder.handleDeleteFolder(folderId);
+      if (folder.currentFolderId === folderId) {
+        folder.setCurrentFolderId(null);
+        setActiveView("chat");
       }
     },
-    [currentFolderId],
+    [folder],
   );
 
-  const handleMoveChat = useCallback(
-    async (folderId: string | null) => {
-      if (!movingChatId) return;
-      const success = await moveChatToFolderService(movingChatId, folderId);
-      if (success) {
-        setConversations((prev) =>
-          prev.map((c) =>
-            c.id === movingChatId
-              ? { ...c, folder_id: folderId || undefined }
-              : c,
-          ),
-        );
-      }
-      setMovingChatId(null);
+  const handleOpenProject = useCallback(
+    (folderId: string) => {
+      folder.setCurrentFolderId(folderId);
+      setActiveView("project");
     },
-    [movingChatId],
+    [folder],
   );
 
-  const handleRenameChatFromHub = useCallback(async (chatId: string, newTitle: string) => {
-    const trimmed = newTitle.trim();
-    if (trimmed) {
-      await updateConversationTitle(chatId, trimmed);
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === chatId ? { ...c, title: trimmed } : c
-        )
-      );
-    }
-  }, []);
-
-  const handleRenameChat = useCallback(async () => {
-    if (!renamingChatId) return;
-    const newTitle = editingChatTitle.trim();
-    if (newTitle) {
-      await updateConversationTitle(renamingChatId, newTitle);
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === renamingChatId ? { ...c, title: newTitle } : c,
-        ),
-      );
-    }
-    setRenamingChatId(null);
-  }, [renamingChatId, editingChatTitle]);
-
-  const handleOpenProject = useCallback((folderId: string) => {
-    setCurrentFolderId(folderId);
-    setActiveView("project");
-  }, []);
-
-  const toggleFolder = useCallback((folderId: string) => {
-    setExpandedFolders((prev) => {
-      const next = new Set(prev);
-      if (next.has(folderId)) {
-        next.delete(folderId);
-      } else {
-        next.add(folderId);
-      }
-      return next;
-    });
-  }, []);
-
-  // ============================================
-  // IRIS toggle handlers
-  // ============================================
-  const toggleTeam = useCallback((teamId: string) => {
-    setExpandedTeams((prev) => {
-      const next = new Set(prev);
-      if (next.has(teamId)) {
-        next.delete(teamId);
-      } else {
-        next.add(teamId);
-      }
-      return next;
-    });
-  }, []);
-
-  const toggleProject = useCallback(
-    async (projectId: string) => {
-      setExpandedProjects((prev) => {
-        const next = new Set(prev);
-        if (next.has(projectId)) {
-          next.delete(projectId);
-        } else {
-          next.add(projectId);
-        }
-        return next;
-      });
-
-      // Load issues for this project if not cached
-      if (!irisIssues[projectId]) {
-        const issues = await getIssues({ projectId, limit: 20 });
-        setIrisIssues((prev) => ({ ...prev, [projectId]: issues }));
-      }
-    },
-    [irisIssues],
-  );
-
-  const refreshIrisData = useCallback(async () => {
-    if (!isIrisConfigured()) return;
-    try {
-      setIrisTeams([]);
-      setIrisProjects([]);
-      setIrisIssues({});
-      setExpandedTeams(new Set());
-      setExpandedProjects(new Set());
-
-      const [teams, projects] = await Promise.all([getTeams(), getProjects()]);
-      setIrisTeams(teams);
-      setIrisProjects(projects);
-    } catch (err) {
-      console.error("IRIS: Error refreshing data", err);
-    }
-  }, []);
-
+  // ── IRIS handlers ──────────────────────────────────────────────────
   const handleIrisProjectClick = useCallback(
-    (project: IrisProject) => {
+    (project: { project_name: string; project_key: string; project_status: string; completion_percentage: number }) => {
       handleNewChat();
-      const prompt = `Dame un resumen del estado del proyecto "${project.project_name}" [${project.project_key}]. Estado: ${project.project_status}, Progreso: ${project.completion_percentage}%.`;
-      setExternalPrompt(prompt);
+      setExternalPrompt(
+        `Dame un resumen del estado del proyecto "${project.project_name}" [${project.project_key}]. Estado: ${project.project_status}, Progreso: ${project.completion_percentage}%.`,
+      );
     },
     [handleNewChat],
   );
 
   const handleIrisIssueClick = useCallback(
-    (issue: IrisIssue) => {
+    (issue: { issue_number: number; title: string; description?: string | null; status?: { name: string } | null }) => {
       handleNewChat();
       const statusName = issue.status?.name || "Sin estado";
-      const prompt = `Dame detalles sobre la tarea #${issue.issue_number}: "${issue.title}". Estado: ${statusName}.${issue.description ? ` Descripción: ${issue.description}` : ""}`;
-      setExternalPrompt(prompt);
+      setExternalPrompt(
+        `Dame detalles sobre la tarea #${issue.issue_number}: "${issue.title}". Estado: ${statusName}.${issue.description ? ` Descripción: ${issue.description}` : ""}`,
+      );
     },
     [handleNewChat],
   );
 
-  // ============================================
-  // Loading / Auth gates
-  // ============================================
+  // ── Loading / Auth gates ───────────────────────────────────────────
   if (loading) {
     return (
-      <div
-        className={`flex h-screen w-screen items-center justify-center ${isFlowWindow ? "bg-transparent" : "bg-background dark:bg-background-dark"}`}
-      >
+      <div className={`flex h-screen w-screen items-center justify-center ${isFlowWindow ? "bg-transparent" : "bg-background dark:bg-background-dark"}`}>
         <div className="flex flex-col items-center gap-3">
           <div className="w-16 h-16 flex items-center justify-center">
-            <img
-              src="./assets/Icono.png"
-              alt="Loading"
-              className="w-full h-full object-contain dark:filter-none filter-accent-themed"
-            />
+            <img src="./assets/Icono.png" alt="Loading" className="w-full h-full object-contain dark:filter-none filter-accent-themed" />
           </div>
           <div className="flex gap-1">
-            <div
-              className="w-2 h-2 rounded-full bg-accent animate-bounce"
-              style={{ animationDelay: "0ms" }}
-            />
-            <div
-              className="w-2 h-2 rounded-full bg-accent animate-bounce"
-              style={{ animationDelay: "150ms" }}
-            />
-            <div
-              className="w-2 h-2 rounded-full bg-accent animate-bounce"
-              style={{ animationDelay: "300ms" }}
-            />
+            <div className="w-2 h-2 rounded-full bg-accent animate-bounce" style={{ animationDelay: "0ms" }} />
+            <div className="w-2 h-2 rounded-full bg-accent animate-bounce" style={{ animationDelay: "150ms" }} />
+            <div className="w-2 h-2 rounded-full bg-accent animate-bounce" style={{ animationDelay: "300ms" }} />
           </div>
         </div>
       </div>
     );
   }
 
-  if (!user && !isFlowWindow) {
-    return <Auth />;
-  }
+  if (!user && !isFlowWindow) return <Auth />;
 
+  // ── Derived data ───────────────────────────────────────────────────
   const displayName =
-    sofiaContext?.user?.full_name ||
-    user?.user_metadata?.first_name ||
-    user?.email ||
-    "Usuario";
-
+    sofiaContext?.user?.full_name || user?.user_metadata?.first_name || user?.email || "Usuario";
   const initials = displayName.charAt(0).toUpperCase();
-
-  const orgId = sofiaContext?.currentOrganization?.id || '';
-
-  // Derived data
-  const folderChats = (folderId: string) =>
-    conversations.filter((c) => c.folder_id === folderId);
-  const ungroupedChats = conversations.filter((c) => !c.folder_id);
-  const currentFolder = folders.find((f) => f.id === currentFolderId);
-  const movingChat = movingChatId
-    ? conversations.find((c) => c.id === movingChatId)
+  const orgId = sofiaContext?.currentOrganization?.id || "";
+  const currentFolder = folder.folders.find((f) => f.id === folder.currentFolderId);
+  const movingChat = folder.movingChatId
+    ? chat.conversations.find((c) => c.id === folder.movingChatId)
     : null;
 
-  const handleFlowSendToChat = async (text: string) => {
-    setExternalPrompt(text);
-  };
+  const avatarUrl =
+    sofiaContext?.user?.avatar_url ||
+    (sofiaContext?.user as any)?.profile_picture_url ||
+    user?.user_metadata?.avatar_url ||
+    (user?.user_metadata as any)?.profile_picture_url ||
+    (userSettings as any)?.profile_picture_url;
 
   if (isFlowWindow) {
     return (
@@ -709,1003 +242,79 @@ function AppContent() {
     );
   }
 
+  // ── Render ─────────────────────────────────────────────────────────
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background dark:bg-background-dark">
-      {/* Sidebar */}
-      <aside
-        className={`${
-          isSidebarOpen ? "w-60" : "w-14"
-        } flex-shrink-0 flex flex-col h-full bg-gray-50 dark:bg-[#202123] text-gray-700 dark:text-white border-r border-gray-200 dark:border-none transition-all duration-300 ease-in-out z-30`}
-      >
-        {/* Brand */}
-        <div
-          className={`px-4 pt-4 pb-2 flex items-center ${isSidebarOpen ? "justify-between" : "justify-center"} min-h-[50px]`}
-        >
-          {isSidebarOpen && (
-            <div className="flex items-center gap-2 overflow-hidden whitespace-nowrap">
-              <img
-                src="./assets/Icono.png"
-                alt="SofLIA"
-                className="w-7 h-7 object-contain dark:filter-none filter-accent-themed"
-              />
-            </div>
-          )}
-
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors p-1"
-            title={isSidebarOpen ? "Colapsar menú" : "Expandir menú"}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={1.5}
-            >
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 3v18" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="px-2 py-2 space-y-1">
-          <button
-            onClick={handleNewChat}
-            className={`w-full flex items-center ${isSidebarOpen ? "gap-3 px-3" : "justify-center px-0"} py-2 rounded-lg border border-gray-200 dark:border-white/20 bg-white dark:bg-transparent hover:bg-gray-100 dark:hover:bg-[#2A2B32] transition-colors text-sm shadow-sm dark:shadow-none`}
-            title="Nuevo Chat"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            {isSidebarOpen && <span>Nuevo Chat</span>}
-          </button>
-
-          <button
-            onClick={() => setIsFolderModalOpen(true)}
-            className={`w-full flex items-center ${isSidebarOpen ? "gap-3 px-3" : "justify-center px-0"} py-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-[#2A2B32] hover:text-gray-900 dark:hover:text-white transition-colors text-sm`}
-            title="Nueva Carpeta"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={1.5}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 10.5v6m3-3H9m4.06-7.19l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
-              />
-            </svg>
-            {isSidebarOpen && <span>Nueva Carpeta</span>}
-          </button>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 px-2 py-2 space-y-1 overflow-y-auto no-scrollbar">
-          {/* IRIS Projects Section */}
-          {(irisTeams.length > 0 || irisProjects.length > 0) && (
-            <>
-              {isSidebarOpen && (
-                <div className="pt-4 pb-2 px-3 flex items-center justify-between">
-                  <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] font-semibold">
-                    WorkSpaces
-                  </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      refreshIrisData();
-                    }}
-                    className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-white/10 text-gray-400 hover:text-accent transition-all"
-                    title="Actualizar workspaces"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-3.5 w-3.5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2.5}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              )}
-
-              {irisTeams.map((team) => {
-                const isTeamExpanded = expandedTeams.has(team.team_id);
-                const teamProjects = irisProjects.filter(
-                  (p) => p.team_id === team.team_id,
-                );
-
-                return (
-                  <div key={team.team_id} className="mb-0.5">
-                    {/* Team row */}
-                    <div
-                      className={`w-full flex items-center ${isSidebarOpen ? "gap-2.5 px-3" : "justify-center px-0"} py-1.5 rounded-md text-[13px] transition-all duration-200 cursor-pointer group ${isTeamExpanded ? "bg-gray-100/50 dark:bg-white/[0.04] text-gray-900 dark:text-gray-100 font-medium" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100/30 dark:hover:bg-white/[0.02] hover:text-gray-900 dark:hover:text-gray-200"}`}
-                      onClick={() => toggleTeam(team.team_id)}
-                      title={team.name}
-                    >
-                      {isSidebarOpen && (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className={`h-3 w-3 shrink-0 text-gray-400 opacity-0 group-hover:opacity-100 transition-all duration-200 ${isTeamExpanded ? "rotate-90 opacity-100" : ""}`}
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2.5}
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                        </svg>
-                      )}
-
-                      {/* Letter Avatar (Minimalist modern) */}
-                      <div
-                        className="flex items-center justify-center w-[18px] h-[18px] shrink-0 rounded-[4px] text-[10px] font-bold text-white shadow-sm ring-1 ring-black/5 dark:ring-white/10"
-                        style={{ backgroundColor: team.color || "#3b82f6" }}
-                      >
-                        {team.name ? team.name.charAt(0).toUpperCase() : "W"}
-                      </div>
-
-                      {isSidebarOpen && (
-                        <>
-                          <span className="flex-1 text-left truncate tracking-wide">
-                            {team.name}
-                          </span>
-                          {teamProjects.length > 0 && !isTeamExpanded && (
-                            <span className="text-[10px] px-1.5 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400">
-                              {teamProjects.length}
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    {/* Expanded projects */}
-                    {isTeamExpanded && isSidebarOpen && (
-                      <div className="ml-5 mt-0.5 space-y-0.5 border-l border-gray-100 dark:border-white/5">
-                        {teamProjects.length === 0 ? (
-                          <p className="pl-3 py-1.5 text-[11px] text-gray-400 dark:text-gray-500 italic font-light">
-                            Sin proyectos
-                          </p>
-                        ) : (
-                          teamProjects.map((project) => {
-                            const isProjectExpanded = expandedProjects.has(project.project_id);
-                            const projectIssues = irisIssues[project.project_id] || [];
-                            const statusColor = PROJECT_STATUS_COLORS[project.project_status] || "#6b7280";
-
-                            return (
-                              <div key={project.project_id} className="relative mt-0.5">
-                                {/* Project row */}
-                                <div
-                                  className={`w-full flex items-center gap-2.5 pl-3 pr-2 py-1.5 rounded-r-md text-[12.5px] transition-all duration-200 cursor-pointer group/proj ${isProjectExpanded ? "text-gray-900 dark:text-white font-medium bg-gray-50 dark:bg-white/[0.02]" : "text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/[0.01]"}`}
-                                  onClick={() => toggleProject(project.project_id)}
-                                  onDoubleClick={() => handleIrisProjectClick(project)}
-                                  title={`${project.project_name} — ${project.project_status} (${project.completion_percentage}%)`}
-                                >
-                                  {/* Horizontal connector line */}
-                                  <div className="absolute left-0 top-[14px] w-2.5 h-px bg-gray-100 dark:bg-white/5 group-hover/proj:bg-gray-300 dark:group-hover/proj:bg-white/20 transition-colors" />
-
-                                  {/* Status indicator simple dot */}
-                                  <div className="w-1.5 h-1.5 rounded-full z-10 shrink-0" style={{ backgroundColor: statusColor }} />
-
-                                  <span className="flex-1 text-left truncate tracking-wide">
-                                    {project.project_name}
-                                  </span>
-
-                                  {/* Minimal completion badge */}
-                                  <span className="text-[9px] px-1 py-0.5 rounded border border-gray-200 dark:border-white/10 text-gray-400 dark:text-gray-500 opacity-0 group-hover/proj:opacity-100 transition-all font-medium">
-                                    {project.completion_percentage}%
-                                  </span>
-                                </div>
-
-                                {/* Expanded issues */}
-                                {isProjectExpanded && (
-                                  <div className="ml-4 mt-0.5 pb-1 space-y-0.5 border-l border-gray-100 dark:border-white/5">
-                                    {projectIssues.length === 0 ? (
-                                      <p className="pl-3 py-1 text-[10.5px] text-gray-400 dark:text-gray-500 italic">
-                                        Sin tareas
-                                      </p>
-                                    ) : (
-                                      projectIssues.map((issue) => {
-                                        const issueStatusColor = ISSUE_STATUS_TYPE_COLORS[issue.status?.status_type || "backlog"] || "#6b7280";
-                                        return (
-                                          <button
-                                            key={issue.issue_id}
-                                            onClick={() => handleIrisIssueClick(issue)}
-                                            className="relative w-full flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-r-md text-[11px] transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/[0.02] group/issue"
-                                            title={issue.title}
-                                          >
-                                            <div className="absolute left-0 top-[11px] w-2 h-px bg-gray-100 dark:bg-white/5 group-hover/issue:bg-gray-300 dark:group-hover/issue:bg-white/20 transition-colors" />
-                                            <span
-                                              className="w-1.5 h-1.5 rounded-full shrink-0 group-hover/issue:scale-125 transition-transform"
-                                              style={{ backgroundColor: issueStatusColor }}
-                                            />
-                                            <span className="text-gray-400 dark:text-gray-500 shrink-0 tabular-nums">
-                                              #{issue.issue_number}
-                                            </span>
-                                            <span className="flex-1 text-left truncate font-medium tracking-wide">
-                                              {issue.title}
-                                            </span>
-                                          </button>
-                                        );
-                                      })
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-
-              {/* Projects without team (Global Projects) */}
-              {(() => {
-                const projectsWithoutTeam = irisProjects.filter(
-                  (p) =>
-                    !p.team_id ||
-                    !irisTeams.some((t) => t.team_id === p.team_id),
-                );
-                if (projectsWithoutTeam.length === 0) return null;
-
-                return (
-                  <div className="mt-2 pl-1">
-                    {isSidebarOpen && (
-                      <div className="px-3 py-1 mb-1">
-                        <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] font-semibold">
-                          WorkSpaces Globales
-                        </span>
-                      </div>
-                    )}
-
-                    {projectsWithoutTeam.map((project) => {
-                      const isProjectExpanded = expandedProjects.has(
-                        project.project_id,
-                      );
-                      const projectIssues =
-                        irisIssues[project.project_id] || [];
-                      const statusColor =
-                        PROJECT_STATUS_COLORS[project.project_status] ||
-                        "#6b7280";
-
-                      return (
-                        <div key={project.project_id} className="mb-0.5">
-                          {/* Global Project Row */}
-                          <div
-                            className={`w-full flex items-center ${isSidebarOpen ? "gap-2.5 px-3" : "justify-center px-0"} py-1.5 rounded-md text-[13px] transition-all duration-200 cursor-pointer group/proj ${isProjectExpanded ? "bg-gray-100/50 dark:bg-white/[0.04] text-gray-900 dark:text-gray-100 font-medium" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100/30 dark:hover:bg-white/[0.02] hover:text-gray-900 dark:hover:text-gray-200"}`}
-                            onClick={() => toggleProject(project.project_id)}
-                            onDoubleClick={() => handleIrisProjectClick(project)}
-                            title={`${project.project_name} — ${project.project_status}`}
-                          >
-                            {isSidebarOpen && (
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className={`h-3 w-3 shrink-0 text-gray-400 opacity-0 group-hover/proj:opacity-100 transition-all duration-200 ${isProjectExpanded ? "rotate-90 opacity-100" : ""}`}
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                strokeWidth={2.5}
-                              >
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                              </svg>
-                            )}
-
-                            {/* Square Icon for Global Projects */}
-                            <div className="flex items-center justify-center w-[18px] h-[18px] shrink-0 rounded-[4px] border border-gray-200/50 dark:border-white/10 bg-white dark:bg-white/5 shadow-none">
-                              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: statusColor }} />
-                            </div>
-
-                            {isSidebarOpen && (
-                              <>
-                                <span className="flex-1 text-left truncate tracking-wide">
-                                  {project.project_name}
-                                </span>
-                                <span className="text-[10px] text-gray-400 px-1 py-0.5 opacity-0 group-hover/proj:opacity-100 transition-opacity">
-                                  {project.completion_percentage}%
-                                </span>
-                              </>
-                            )}
-                          </div>
-
-                          {isProjectExpanded && isSidebarOpen && (
-                            <div className="ml-5 mt-0.5 border-l border-gray-100 dark:border-white/5 space-y-0.5">
-                              {projectIssues.length === 0 ? (
-                                <p className="pl-3 py-1.5 text-[10.5px] text-gray-400 dark:text-gray-500 italic font-light">
-                                  Sin tareas
-                                </p>
-                              ) : (
-                                projectIssues.map((issue) => {
-                                  const issueStatusColor = ISSUE_STATUS_TYPE_COLORS[issue.status?.status_type || "backlog"] || "#6b7280";
-                                  return (
-                                    <button
-                                      key={issue.issue_id}
-                                      onClick={() => handleIrisIssueClick(issue)}
-                                      className="relative w-full flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-r-md text-[11px] transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-white/[0.02] group/issue"
-                                      title={issue.title}
-                                    >
-                                      <div className="absolute left-0 top-[11px] w-2 h-px bg-gray-100 dark:bg-white/5 group-hover/issue:bg-gray-300 dark:group-hover/issue:bg-white/20 transition-colors" />
-                                      <span
-                                        className="w-1.5 h-1.5 rounded-full shrink-0 group-hover/issue:scale-125 transition-transform"
-                                        style={{ backgroundColor: issueStatusColor }}
-                                      />
-                                      <span className="text-gray-400 dark:text-gray-500 shrink-0 tabular-nums">
-                                        #{issue.issue_number}
-                                      </span>
-                                      <span className="flex-1 text-left truncate font-medium tracking-wide">
-                                        {issue.title}
-                                      </span>
-                                    </button>
-                                  );
-                                })
-                               )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-            </>
-          )}
-
-          {/* Folders Section */}
-          {folders.length > 0 && (
-            <>
-              {isSidebarOpen && (
-                <div className="pt-5 pb-2 px-3">
-                  <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] font-semibold">
-                    Carpetas
-                  </span>
-                </div>
-              )}
-
-              {folders.map((folder) => {
-                const chatsInFolder = folderChats(folder.id);
-                const isExpanded = expandedFolders.has(folder.id);
-                const isActive =
-                  activeView === "project" && currentFolderId === folder.id;
-
-                return (
-                  <div key={folder.id}>
-                    {/* Folder row */}
-                    <div
-                      className={`w-full flex items-center ${isSidebarOpen ? "gap-2.5 px-3" : "justify-center px-0"} py-2 rounded-lg text-[13px] transition-all duration-200 cursor-pointer group ${
-                        isActive
-                          ? "bg-accent/10 dark:bg-accent/20 text-accent font-semibold shadow-sm"
-                          : isExpanded 
-                          ? "bg-gray-100/50 dark:bg-white/[0.04] text-gray-800 dark:text-gray-200 font-medium"
-                          : "text-gray-600 dark:text-gray-400 hover:bg-gray-100/80 dark:hover:bg-white/[0.04] hover:text-gray-900 dark:hover:text-gray-200"
-                      }`}
-                      onClick={() => toggleFolder(folder.id)}
-                      onDoubleClick={() => handleOpenProject(folder.id)}
-                      title={folder.name}
-                    >
-                      {/* Chevron */}
-                      {isSidebarOpen && (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 opacity-60 group-hover:opacity-100 ${isActive ? "text-accent opacity-100" : ""} ${isExpanded ? "rotate-90" : ""}`}
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M9 5l7 7-7 7"
-                          />
-                        </svg>
-                      )}
-
-                      {/* Folder icon Box */}
-                      <div className={`flex items-center justify-center w-6 h-6 shrink-0 rounded-[8px] border transition-all duration-200 ${isActive ? 'bg-accent/20 border-accent/30 text-accent' : 'bg-white dark:bg-white/[0.02] border-gray-200/50 dark:border-white/[0.08] text-gray-400 group-hover:text-accent group-hover:border-accent/20'}`}>
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-3.5 w-3.5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={isActive ? 2.5 : 2}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-                          />
-                        </svg>
-                      </div>
-
-                      {isSidebarOpen && (
-                        <>
-                          <span className="flex-1 text-left truncate">
-                            {folder.name}
-                          </span>
-
-                          {/* Chat count */}
-                          {chatsInFolder.length > 0 && (
-                            <span className="text-[10px] bg-gray-200/50 dark:bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 rounded-full text-gray-500 dark:text-gray-400">
-                              {chatsInFolder.length}
-                            </span>
-                          )}
-
-                          {/* Delete button */}
-                          <button
-                            onClick={(e) => handleDeleteFolder(folder.id, e)}
-                            className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-gray-300 dark:hover:bg-white/10 transition-all"
-                            title="Eliminar carpeta"
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-3 w-3 text-gray-500 hover:text-danger"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth={1.5}
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </svg>
-                          </button>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Expanded chats */}
-                    {isExpanded && isSidebarOpen && (
-                      <div className="ml-4 space-y-0.5">
-                        {chatsInFolder.length === 0 ? (
-                          <p className="px-3 py-1.5 text-[11px] text-gray-400 dark:text-gray-600 italic">
-                            Vacia
-                          </p>
-                        ) : (
-                          chatsInFolder.map((conv) => (
-                            <button
-                              key={conv.id}
-                              onClick={() => handleSelectConversation(conv.id)}
-                              className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[12.5px] transition-all duration-200 group/chat ${
-                                currentConversationId === conv.id &&
-                                activeView === "chat"
-                                  ? "bg-accent/10 dark:bg-accent/15 text-accent font-medium shadow-sm"
-                                  : "text-gray-500 dark:text-gray-400 hover:bg-gray-100/50 dark:hover:bg-white/[0.04] hover:text-gray-900 dark:hover:text-gray-200"
-                              }`}
-                            >
-                              {/* Small chat indicator dot */}
-                              <div className={`flex items-center justify-center w-2 h-2 shrink-0 rounded-full transition-all duration-200 ${currentConversationId === conv.id && activeView === "chat" ? 'bg-accent shadow-[0_0_6px_var(--tw-colors-accent)]' : 'bg-gray-300 dark:bg-white/[0.15] group-hover/chat:bg-gray-400 dark:group-hover/chat:bg-white/30'}`} />
-
-                              {renamingChatId === conv.id ? (
-                                <input
-                                  autoFocus
-                                  type="text"
-                                  className="flex-1 min-w-0 bg-white dark:bg-[#1E1E1E] border border-accent rounded px-2 py-0.5 text-[12px] text-gray-900 dark:text-white outline-none"
-                                  value={editingChatTitle}
-                                  onChange={(e) =>
-                                    setEditingChatTitle(e.target.value)
-                                  }
-                                  onBlur={handleRenameChat}
-                                  onClick={(e) => e.stopPropagation()}
-                                  onKeyDown={(e) => {
-                                    e.stopPropagation();
-                                    if (e.key === "Enter") {
-                                      handleRenameChat();
-                                    } else if (e.key === "Escape") {
-                                      setRenamingChatId(null);
-                                    }
-                                  }}
-                                />
-                              ) : (
-                                <span className="flex-1 text-left truncate">
-                                  {conv.title}
-                                </span>
-                              )}
-                              <div className="flex items-center gap-0.5 opacity-0 group-hover/chat:opacity-100 transition-opacity">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setRenamingChatId(conv.id);
-                                    setEditingChatTitle(conv.title);
-                                  }}
-                                  className="p-1 rounded hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
-                                  title="Renombrar"
-                                >
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 hover:text-accent"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    strokeWidth={2}
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                                    />
-                                  </svg>
-                                </button>
-                                
-                                <div className="relative">
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setActiveMenuChatId(activeMenuChatId === conv.id ? null : conv.id);
-                                    }}
-                                    className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-white/10 transition-colors ${activeMenuChatId === conv.id ? 'text-accent' : 'text-gray-400 dark:text-gray-500'}`}
-                                    title="Más opciones"
-                                  >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
-                                    </svg>
-                                  </button>
-
-                                  {activeMenuChatId === conv.id && (
-                                    <div className="absolute right-0 mt-2 w-40 bg-white/95 dark:bg-[#1E1E1E]/95 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-xl shadow-2xl z-50 py-2 animate-in fade-in zoom-in-95 duration-150 ring-1 ring-black/5">
-                                      <button
-                                        onClick={(e) => { e.stopPropagation(); setRenamingChatId(conv.id); setEditingChatTitle(conv.title); setActiveMenuChatId(null); }}
-                                        className="w-full text-left px-3 py-2 text-[12.5px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 flex items-center gap-3 transition-colors group/item"
-                                      >
-                                        <div className="w-6 h-6 rounded-md bg-gray-100 dark:bg-white/5 flex items-center justify-center group-hover/item:text-accent group-hover/item:bg-accent/10 transition-colors">
-                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                          </svg>
-                                        </div>
-                                        <span>Renombrar</span>
-                                      </button>
-
-                                      <button
-                                        onClick={(e) => { e.stopPropagation(); setMovingChatId(conv.id); setActiveMenuChatId(null); }}
-                                        className="w-full text-left px-3 py-2 text-[12.5px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 flex items-center gap-3 transition-colors group/item"
-                                      >
-                                        <div className="w-6 h-6 rounded-md bg-gray-100 dark:bg-white/5 flex items-center justify-center group-hover/item:text-accent group-hover/item:bg-accent/10 transition-colors">
-                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                                          </svg>
-                                        </div>
-                                        <span>Mover</span>
-                                      </button>
-
-                                      <div className="h-px bg-gray-100 dark:bg-white/5 my-1.5 mx-2" />
-
-                                      <button
-                                        onClick={(e) => { e.stopPropagation(); handleDeleteConversation(conv.id, e); setActiveMenuChatId(null); }}
-                                        className="w-full text-left px-3 py-2 text-[12.5px] text-danger hover:bg-danger/10 flex items-center gap-3 transition-colors group/item"
-                                      >
-                                        <div className="w-6 h-6 rounded-md bg-danger/5 flex items-center justify-center text-danger/70 group-hover/item:text-danger group-hover/item:bg-danger/20 transition-colors">
-                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                          </svg>
-                                        </div>
-                                        <span className="font-medium">Eliminar</span>
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </>
-          )}
-
-          {/* Ungrouped Conversations */}
-          {isSidebarOpen && (
-            <div className="pt-5 pb-2 px-3">
-              <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] font-semibold">
-                {folders.length > 0 ? "Sin carpeta" : "Conversaciones"}
-              </span>
-            </div>
-          )}
-
-          {loadingConversations ? (
-            isSidebarOpen ? (
-              <div className="px-3 py-4 text-center">
-                <div className="flex gap-1 justify-center">
-                  <div className="w-1.5 h-1.5 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse" />
-                  <div className="w-1.5 h-1.5 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse [animation-delay:0.2s]" />
-                  <div className="w-1.5 h-1.5 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse [animation-delay:0.4s]" />
-                </div>
-              </div>
-            ) : null
-          ) : ungroupedChats.length === 0 ? (
-            isSidebarOpen ? (
-              <div className="px-3 py-4 text-center">
-                <p className="text-xs text-gray-400 dark:text-gray-500">
-                  Sin conversaciones aun
-                </p>
-              </div>
-            ) : null
-          ) : (
-            ungroupedChats.map((conv) => (
-              <button
-                key={conv.id}
-                onClick={() => handleSelectConversation(conv.id)}
-                className={`w-full flex items-center ${isSidebarOpen ? "gap-2.5 px-3" : "justify-center px-0"} py-2 rounded-lg text-[13px] transition-all duration-200 group ${
-                  currentConversationId === conv.id && activeView === "chat"
-                    ? "bg-accent/10 dark:bg-accent/15 text-accent font-medium shadow-sm"
-                    : "text-gray-500 dark:text-gray-400 hover:bg-gray-100/80 dark:hover:bg-white/[0.04] hover:text-gray-900 dark:hover:text-gray-200"
-                }`}
-                title={conv.title}
-              >
-                {/* Chat Icon Box */}
-                <div className={`flex items-center justify-center w-6 h-6 shrink-0 rounded-[8px] border transition-all duration-200 ${currentConversationId === conv.id && activeView === "chat" ? 'bg-accent/20 border-accent/30 text-accent' : 'bg-white dark:bg-white/[0.02] border-gray-200/50 dark:border-white/[0.08] text-gray-400 group-hover:text-accent group-hover:border-accent/20'}`}>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-3.5 w-3.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={currentConversationId === conv.id && activeView === "chat" ? 2 : 1.5}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-                    />
-                  </svg>
-                </div>
-                {isSidebarOpen && (
-                  <>
-                    {renamingChatId === conv.id ? (
-                      <input
-                        autoFocus
-                        type="text"
-                        className="flex-1 min-w-0 bg-white dark:bg-[#1E1E1E] border border-accent rounded px-2 py-0.5 text-[13px] text-gray-900 dark:text-white outline-none"
-                        value={editingChatTitle}
-                        onChange={(e) => setEditingChatTitle(e.target.value)}
-                        onBlur={handleRenameChat}
-                        onClick={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => {
-                          e.stopPropagation();
-                          if (e.key === "Enter") {
-                            handleRenameChat();
-                          } else if (e.key === "Escape") {
-                            setRenamingChatId(null);
-                          }
-                        }}
-                      />
-                    ) : (
-                      <span className="flex-1 text-left truncate text-[13px]">
-                        {conv.title}
-                      </span>
-                    )}
-                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setRenamingChatId(conv.id);
-                          setEditingChatTitle(conv.title);
-                        }}
-                        className="p-1 rounded hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
-                        title="Renombrar"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500 hover:text-accent"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                          />
-                        </svg>
-                      </button>
-
-                      <div className="relative">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveMenuChatId(activeMenuChatId === conv.id ? null : conv.id);
-                          }}
-                          className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-white/10 transition-colors ${activeMenuChatId === conv.id ? 'text-accent' : 'text-gray-400 dark:text-gray-500'}`}
-                          title="Más opciones"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
-                          </svg>
-                        </button>
-
-                        {activeMenuChatId === conv.id && (
-                          <div className="absolute right-0 mt-2 w-40 bg-white/95 dark:bg-[#1E1E1E]/95 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-xl shadow-2xl z-50 py-2 animate-in fade-in zoom-in-95 duration-150 ring-1 ring-black/5">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setRenamingChatId(conv.id); setEditingChatTitle(conv.title); setActiveMenuChatId(null); }}
-                              className="w-full text-left px-3 py-2 text-[12.5px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 flex items-center gap-3 transition-colors group/item"
-                            >
-                              <div className="w-6 h-6 rounded-md bg-gray-100 dark:bg-white/5 flex items-center justify-center group-hover/item:text-accent group-hover/item:bg-accent/10 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                              </div>
-                              <span>Renombrar</span>
-                            </button>
-
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setMovingChatId(conv.id); setActiveMenuChatId(null); }}
-                              className="w-full text-left px-3 py-2 text-[12.5px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 flex items-center gap-3 transition-colors group/item"
-                            >
-                              <div className="w-6 h-6 rounded-md bg-gray-100 dark:bg-white/5 flex items-center justify-center group-hover/item:text-accent group-hover/item:bg-accent/10 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-                                </svg>
-                              </div>
-                              <span>Mover</span>
-                            </button>
-
-                            <div className="h-px bg-gray-100 dark:bg-white/5 my-1.5 mx-2" />
-
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleDeleteConversation(conv.id, e); setActiveMenuChatId(null); }}
-                              className="w-full text-left px-3 py-2 text-[12.5px] text-danger hover:bg-danger/10 flex items-center gap-3 transition-colors group/item"
-                            >
-                              <div className="w-6 h-6 rounded-md bg-danger/5 flex items-center justify-center text-danger/70 group-hover/item:text-danger group-hover/item:bg-danger/20 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                              </div>
-                              <span className="font-medium">Eliminar</span>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </button>
-            ))
-          )}
-        </nav>
-
-        {/* Sidebar Footer */}
-        <div className="h-[73px] px-2 border-t border-gray-200 dark:border-white/10 relative flex-shrink-0 flex items-center box-border bg-gray-50 dark:bg-transparent">
-          <div
-            className={`w-full flex items-center ${isSidebarOpen ? "gap-3 px-2" : "justify-center px-0"} text-sm text-gray-700 dark:text-gray-300`}
-          >
-            {/* User Dropdown Trigger */}
-            <button
-              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className={`flex items-center gap-3 w-full text-left hover:bg-gray-200 dark:hover:bg-white/5 rounded-lg p-1.5 transition-colors ${!isSidebarOpen && "justify-center"}`}
-            >
-              {sofiaContext?.currentOrganization?.brand_favicon_url ? (
-                <img
-                  src={sofiaContext.currentOrganization.brand_favicon_url}
-                  alt="Org Logo"
-                  className="w-8 h-8 object-contain shrink-0"
-                />
-              ) : (
-                <div
-                  className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-accent text-xs font-bold flex-shrink-0 overflow-hidden"
-                  title={displayName}
-                >
-                  {sofiaContext?.user?.avatar_url ||
-                  (sofiaContext?.user as any)?.profile_picture_url ||
-                  user?.user_metadata?.avatar_url ||
-                  (user?.user_metadata as any)?.profile_picture_url ||
-                  (userSettings as any)?.profile_picture_url ? (
-                    <img
-                      src={
-                        sofiaContext?.user?.avatar_url ||
-                        (sofiaContext?.user as any)?.profile_picture_url ||
-                        user?.user_metadata?.avatar_url ||
-                        (user?.user_metadata as any)?.profile_picture_url ||
-                        (userSettings as any)?.profile_picture_url
-                      }
-                      alt="User"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    initials
-                  )}
-                </div>
-              )}
-
-              {isSidebarOpen && (
-                <div className="flex-1 min-w-0 flex items-center justify-between">
-                  <div className="font-medium text-gray-900 dark:text-white truncate">
-                    {displayName}
-                  </div>
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    className={`text-gray-400 dark:text-gray-500 transition-transform ${isUserMenuOpen ? "rotate-180" : ""}`}
-                  >
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                  </svg>
-                </div>
-              )}
-            </button>
-
-            {/* Dropdown Menu */}
-            {isUserMenuOpen && (
-              <>
-                {/* Backdrop to close */}
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setIsUserMenuOpen(false)}
-                ></div>
-
-                {/* Menu */}
-                <div 
-                  className={`absolute bottom-full translate-y-[-8px] bg-white dark:bg-[#1E1E1E] backdrop-blur-xl border border-gray-200/50 dark:border-white/10 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] dark:shadow-[0_10px_40px_rgba(0,0,0,0.5)] z-[100] py-1.5 animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-200 ring-1 ring-black/5 ${
-                    isSidebarOpen 
-                      ? "left-1.5 w-[calc(100%-12px)]" 
-                      : "left-2 w-[240px]"
-                  } ${isThemeSubMenuOpen ? '' : 'overflow-hidden'}`}
-                >
-                  
-                  {/* User info on collapsed sidebar */}
-                  <div className={`px-4 py-3 mb-1.5 border-b border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-white/[0.02] ${isSidebarOpen ? 'hidden' : 'block'}`}>
-                    <div className="font-bold text-gray-900 dark:text-gray-100 truncate text-[13px]">
-                      {displayName}
-                    </div>
-                    <div className="text-[10.5px] text-gray-500 truncate dark:text-gray-400 font-medium">
-                      {user?.email}
-                    </div>
-                  </div>
-                  <div className="px-1.5 space-y-0.5">
-                    {/* Settings Action */}
-                    <button
-                      onClick={() => {
-                        setActiveSettingsTab("ai");
-                        setIsUnifiedSettingsOpen(true);
-                        setIsUserMenuOpen(false);
-                      }}
-                      className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium text-gray-700 dark:text-gray-300 hover:text-accent dark:hover:text-accent hover:bg-accent/5 transition-all group/item"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center group-hover/item:bg-accent/10 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5 text-gray-400 dark:text-gray-500 group-hover/item:text-accent transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                          <circle cx="12" cy="12" r="3" />
-                        </svg>
-                      </div>
-                      Configuración
-                    </button>
-
-                    {/* Theme Selector Section */}
-                    <div className="px-3 py-1 mt-0.5 border-t border-gray-100 dark:border-white/5 flex items-center justify-between">
-                      <div className="text-[13px] font-medium text-gray-700 dark:text-gray-300 ml-0.5">
-                        Apariencia
-                      </div>
-                      
-                      <div className="relative">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsThemeSubMenuOpen(!isThemeSubMenuOpen);
-                          }}
-                          className={`w-9 h-9 flex items-center justify-center rounded-xl transition-all ${
-                            isThemeSubMenuOpen 
-                              ? 'bg-accent/10 text-accent' 
-                              : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-accent/5 hover:text-accent border border-gray-200 dark:border-white/5'
-                          }`}
-                        >
-                          {theme === 'light' ? (
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-                          ) : theme === 'dark' ? (
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-                          ) : (
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-                          )}
-                          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" className={`ml-1 opacity-60 transition-transform ${isThemeSubMenuOpen ? 'rotate-180' : ''}`}><polyline points="6 9 12 15 18 9"></polyline></svg>
-                        </button>
-
-                        {isThemeSubMenuOpen && (
-                          <div className="absolute right-0 bottom-full mb-3 p-1 bg-white dark:bg-[#252525] border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl flex gap-1 z-[60] animate-in fade-in slide-in-from-bottom-2 duration-150 ring-1 ring-black/5">
-                            {[
-                              { id: 'light', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg> },
-                              { id: 'system', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> },
-                              { id: 'dark', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg> }
-                            ].map((opt) => (
-                              <button
-                                key={opt.id}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setTheme(opt.id as any);
-                                  setIsThemeSubMenuOpen(false);
-                                }}
-                                className={`w-8.5 h-8.5 flex items-center justify-center rounded-xl transition-all ${
-                                  theme === opt.id 
-                                    ? 'bg-accent text-white shadow-lg shadow-accent/20' 
-                                    : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-300'
-                                }`}
-                              >
-                                {opt.icon}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="h-px bg-gray-100 dark:bg-white/5 my-1 mx-2"></div>
-
-                    {/* Log Out Action */}
-                    <button
-                      onClick={signOut}
-                      className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium text-danger hover:bg-danger/5 transition-all group/logout"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-danger/5 flex items-center justify-center group-hover/logout:bg-danger/10 transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5 text-danger opacity-70 group-hover/logout:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                        </svg>
-                      </div>
-                      Cerrar Sesión
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      </aside>
+      <Sidebar
+        isOpen={isSidebarOpen}
+        onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+        activeView={activeView}
+        conversations={chat.conversations}
+        currentConversationId={chat.currentConversationId}
+        loadingConversations={chat.loadingConversations}
+        onNewChat={handleNewChat}
+        onSelectConversation={handleSelectConversation}
+        onDeleteConversation={handleDeleteConversation}
+        renamingChatId={chat.renamingChatId}
+        onSetRenamingChatId={chat.setRenamingChatId}
+        editingChatTitle={chat.editingChatTitle}
+        onSetEditingChatTitle={chat.setEditingChatTitle}
+        onRenameChat={chat.handleRenameChat}
+        activeMenuChatId={chat.activeMenuChatId}
+        onSetActiveMenuChatId={chat.setActiveMenuChatId}
+        onSetMovingChatId={folder.setMovingChatId}
+        folders={folder.folders}
+        expandedFolders={folder.expandedFolders}
+        currentFolderId={folder.currentFolderId}
+        onCreateFolderClick={() => folder.setIsFolderModalOpen(true)}
+        onToggleFolder={folder.toggleFolder}
+        onOpenProject={handleOpenProject}
+        onDeleteFolder={handleDeleteFolder}
+        irisTeams={iris.irisTeams}
+        irisProjects={iris.irisProjects}
+        irisIssues={iris.irisIssues}
+        expandedTeams={iris.expandedTeams}
+        expandedProjects={iris.expandedProjects}
+        onToggleTeam={iris.toggleTeam}
+        onToggleProject={iris.toggleProject}
+        onIrisProjectClick={handleIrisProjectClick}
+        onIrisIssueClick={handleIrisIssueClick}
+        onRefreshIris={iris.refreshData}
+        displayName={displayName}
+        initials={initials}
+        userEmail={user?.email}
+        avatarUrl={avatarUrl}
+        orgLogoUrl={sofiaContext?.currentOrganization?.brand_favicon_url}
+        theme={theme}
+        onSetTheme={setTheme}
+        onOpenSettings={() => {
+          setActiveSettingsTab("ai");
+          setIsUnifiedSettingsOpen(true);
+        }}
+        onSignOut={signOut}
+      />
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {activeView === "chat" && (
           <div className="flex-1 flex flex-col min-w-0 min-h-0 h-full overflow-hidden animate-view-in">
-          <ChatUI
-            messages={currentMessages}
-            onMessagesChange={scopedMessagesHandler}
-            externalPrompt={externalPrompt}
-            onExternalPromptProcessed={() => setExternalPrompt(null)}
-            personalization={
-              userSettings
-                ? {
-                    nickname: userSettings.nickname,
-                    occupation: userSettings.occupation,
-                    tone: userSettings.tone_style,
-                    instructions: userSettings.custom_instructions,
-                  }
-                : undefined
-            }
-            userAvatar={
-              sofiaContext?.user?.avatar_url ||
-              (sofiaContext?.user as any)?.profile_picture_url ||
-              user?.user_metadata?.avatar_url ||
-              (user?.user_metadata as any)?.profile_picture_url ||
-              (userSettings as any)?.profile_picture_url
-            }
-          />
+            <ChatUI
+              messages={chat.currentMessages}
+              onMessagesChange={scopedMessagesHandler}
+              externalPrompt={externalPrompt}
+              onExternalPromptProcessed={() => setExternalPrompt(null)}
+              personalization={
+                userSettings
+                  ? {
+                      nickname: userSettings.nickname,
+                      occupation: userSettings.occupation,
+                      tone: userSettings.tone_style,
+                      instructions: userSettings.custom_instructions,
+                    }
+                  : undefined
+              }
+              userAvatar={avatarUrl}
+            />
           </div>
         )}
         {activeView === "screen" && <ScreenViewer />}
@@ -1715,15 +324,17 @@ function AppContent() {
         {activeView === "project" && currentFolder && (
           <ProjectHub
             folder={currentFolder}
-            chats={folderChats(currentFolder.id)}
+            chats={chat.conversations.filter((c) => c.folder_id === currentFolder.id)}
             onOpenChat={handleSelectConversation}
             onNewChat={() => handleNewChatInProject(currentFolder.id)}
-            onNewChatWithMessage={(message) => handleNewChatWithMessage(currentFolder.id, message)}
+            onNewChatWithMessage={(message) =>
+              handleNewChatWithMessage(currentFolder.id, message)
+            }
             onDeleteChat={handleDeleteConversation}
             onRenameFolder={(newName) =>
-              handleRenameFolder(currentFolder.id, newName)
+              folder.handleRenameFolder(currentFolder.id, newName)
             }
-            onRenameChat={handleRenameChatFromHub}
+            onRenameChat={chat.handleRenameChatFromHub}
             userId={userId}
             orgId={orgId}
           />
@@ -1732,16 +343,16 @@ function AppContent() {
 
       {/* Modals */}
       <CreateFolderModal
-        isOpen={isFolderModalOpen}
-        onClose={() => setIsFolderModalOpen(false)}
-        onCreate={handleCreateFolder}
+        isOpen={folder.isFolderModalOpen}
+        onClose={() => folder.setIsFolderModalOpen(false)}
+        onCreate={folder.handleCreateFolder}
       />
       <MoveChatModal
-        isOpen={movingChatId !== null}
-        onClose={() => setMovingChatId(null)}
-        folders={folders}
+        isOpen={folder.movingChatId !== null}
+        onClose={() => folder.setMovingChatId(null)}
+        folders={folder.folders}
         currentFolderId={movingChat?.folder_id}
-        onMove={handleMoveChat}
+        onMove={(folderId) => folder.handleMoveChat(folder.movingChatId!, folderId)}
       />
 
       {userId && (

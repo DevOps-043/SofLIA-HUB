@@ -1,6 +1,10 @@
 import { BrowserWindow, ipcMain } from 'electron';
 import { z } from 'zod';
-import si from 'systeminformation';
+import { createRequire } from 'node:module';
+
+// systeminformation: CJS module loaded via require() to avoid ESM↔CJS interop crash
+const _require = createRequire(import.meta.url);
+const si = _require('systeminformation');
 // @ts-ignore
 import archiver from 'archiver';
 import fs from 'fs';

@@ -1,7 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import Tesseract from 'tesseract.js';
+import { createRequire } from 'node:module';
+
+// tesseract.js: CJS module loaded via require() to avoid ESM↔CJS interop crash
+const _require = createRequire(import.meta.url);
+const Tesseract = _require('tesseract.js');
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export const NEURAL_ORGANIZER_TOOLS = {

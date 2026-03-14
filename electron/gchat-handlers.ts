@@ -3,55 +3,26 @@
  */
 import { ipcMain, type BrowserWindow } from 'electron';
 import type { GChatService } from './gchat-service';
+import { handleIPC } from './utils/ipc-helpers';
 
 export function registerGChatHandlers(
   gchatService: GChatService,
   _getMainWindow: () => BrowserWindow | null,
 ): void {
   // ─── List spaces ──────────────────────────────────────────────────
-  ipcMain.handle('gchat:list-spaces', async () => {
-    try {
-      return await gchatService.listSpaces();
-    } catch (err: any) {
-      return { success: false, error: err.message };
-    }
-  });
+  ipcMain.handle('gchat:list-spaces', () => handleIPC(() => gchatService.listSpaces()));
 
   // ─── Get messages ─────────────────────────────────────────────────
-  ipcMain.handle('gchat:get-messages', async (_event, spaceName: string, maxResults?: number) => {
-    try {
-      return await gchatService.getMessages(spaceName, maxResults);
-    } catch (err: any) {
-      return { success: false, error: err.message };
-    }
-  });
+  ipcMain.handle('gchat:get-messages', (_event, spaceName: string, maxResults?: number) => handleIPC(() => gchatService.getMessages(spaceName, maxResults)));
 
   // ─── Send message ─────────────────────────────────────────────────
-  ipcMain.handle('gchat:send-message', async (_event, spaceName: string, text: string, threadName?: string) => {
-    try {
-      return await gchatService.sendMessage(spaceName, text, threadName);
-    } catch (err: any) {
-      return { success: false, error: err.message };
-    }
-  });
+  ipcMain.handle('gchat:send-message', (_event, spaceName: string, text: string, threadName?: string) => handleIPC(() => gchatService.sendMessage(spaceName, text, threadName)));
 
   // ─── Add reaction ─────────────────────────────────────────────────
-  ipcMain.handle('gchat:add-reaction', async (_event, messageName: string, emoji: string) => {
-    try {
-      return await gchatService.addReaction(messageName, emoji);
-    } catch (err: any) {
-      return { success: false, error: err.message };
-    }
-  });
+  ipcMain.handle('gchat:add-reaction', (_event, messageName: string, emoji: string) => handleIPC(() => gchatService.addReaction(messageName, emoji)));
 
   // ─── Get members ──────────────────────────────────────────────────
-  ipcMain.handle('gchat:get-members', async (_event, spaceName: string) => {
-    try {
-      return await gchatService.getMembers(spaceName);
-    } catch (err: any) {
-      return { success: false, error: err.message };
-    }
-  });
+  ipcMain.handle('gchat:get-members', (_event, spaceName: string) => handleIPC(() => gchatService.getMembers(spaceName)));
 
   console.log('[GChatHandlers] Registered successfully');
 }

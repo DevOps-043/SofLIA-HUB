@@ -1,20 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-export interface WorkspaceSource {
-  id: string;
-  file_name: string;
-  source_type: string;
-  file_size?: number;
-}
-
-// Implementaciones mock para resolver TS2307 (Cannot find module)
-const getSourcesForFolder = async (_folderId: string): Promise<WorkspaceSource[]> => [];
-const getSourcesForConversation = async (_conversationId: string): Promise<WorkspaceSource[]> => [];
-const addSourceFromDrive = async (_parentId: string, _parentType: string, _fileId: string, _userId: string, _orgId: string): Promise<WorkspaceSource | null> => null;
-const addSourceFromUpload = async (_parentId: string, _parentType: string, _file: File, _userId: string, _orgId: string): Promise<WorkspaceSource | null> => null;
-const removeSource = async (_sourceId: string): Promise<boolean> => true;
-const getDownloadUrl = async (_source: WorkspaceSource): Promise<string | null> => null;
 import { listDriveFiles } from '../services/drive-service';
 import type { DriveFile } from '../services/drive-service';
+import {
+  type WorkspaceSource,
+  getSourcesForFolder, getSourcesForConversation,
+  addSourceFromDrive, addSourceFromUpload,
+  removeSource, getDownloadUrl,
+} from '../services/workspace-sources';
 
 // ============================================
 // Props

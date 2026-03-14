@@ -1,802 +1,279 @@
-import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, desktopCapturer, globalShortcut, screen } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { registerComputerUseHandlers } from './computer-use-handlers'
-import { WhatsAppService } from './whatsapp-service'
-import { WhatsAppAgent } from './whatsapp-agent'
-import { MonitoringService } from './monitoring-service'
-import { registerMonitoringHandlers } from './monitoring-handlers'
-import { CalendarService } from './calendar-service'
-import { registerCalendarHandlers } from './calendar-handlers'
-import { GmailService } from './gmail-service'
-import { registerGmailHandlers } from './gmail-handlers'
-import { DriveService } from './drive-service'
-import { registerDriveHandlers } from './drive-handlers'
-import { GChatService } from './gchat-service'
-import { registerGChatHandlers } from './gchat-handlers'
-import { ProactiveService } from './proactive-service'
-import { AutoDevService } from './autodev-service'
-import { registerAutoDevHandlers } from './autodev-handlers'
-import { SelfLearnService } from './autodev-selflearn'
-import { DesktopAgentService } from './desktop-agent-service'
-import { registerDesktopAgentHandlers } from './desktop-agent-handlers'
-import { generateDailySummary } from './summary-generator'
-import { MemoryService } from './memory-service'
-import { registerMemoryHandlers } from './memory-handlers'
-import { KnowledgeService } from './knowledge-service'
-import { ProactiveGuardianService } from './proactive-guardian'
-import { UpdaterService } from './updater-service'
-import { registerUpdaterHandlers } from './updater-handlers'
-import { ClipboardAIAssistant } from './clipboard-ai-assistant'
-import { TaskScheduler } from './task-scheduler'
-import './agent-task-queue' // Side-effect: registers singleton
-import { SystemGuardianService } from './system-services'
-import { NeuralOrganizerService as NeuralOrganizerAI } from './neural-organizer'
-import { PathMemoryService } from './path-memory-service'
-import { DailyBriefingService } from './daily-briefing-service'
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-// ─── Load .env BEFORE anything reads process.env.VITE_* ─────────────
 import * as dotenv from 'dotenv';
-const envPaths = [
-  path.join(__dirname, '..', '.env'),        // project root (dev)
-  path.join(__dirname, '.env'),              // dist-electron/ (prod fallback)
-];
-for (const envPath of envPaths) {
-  const result = dotenv.config({ path: envPath });
-  if (!result.error) {
-    console.log(`[Main] Loaded .env from: ${envPath}`);
-    break;
-  }
-}
 
-process.env.APP_ROOT = path.join(__dirname, '..')
-
-export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
-export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
-export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
-
-process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
-
-// Activar sandbox global para mayor seguridad
-app.enableSandbox();
-
-// Force microphone access without prompts (necessary for borderless floating windows)
-app.commandLine.appendSwitch('use-fake-ui-for-media-stream');
-app.commandLine.appendSwitch('enable-speech-input');
-
-let win: BrowserWindow | null
-let flowWin: BrowserWindow | null = null
-let tray: Tray | null
-let isQuitting = false
-
-// ─── WhatsApp ───────────────────────────────────────────────────────
-const waService = new WhatsAppService()
-let waAgent: WhatsAppAgent | null = null
-
-// ─── Memory (3-layer persistent memory) ─────────────────────────────
-const memoryService = new MemoryService()
-
-// ─── Knowledge Base (OpenClaw-style .md files) ──────────────────────
-const knowledgeService = new KnowledgeService()
-
-// ─── Proactive Guardian (monitoreo de salud del sistema) ────────────
-let proactiveGuardian: ProactiveGuardianService | null = null;
-
-// ─── Shared state ───────────────────────────────────────────────────
-let currentGeminiApiKey: string | null = null
-
-// ─── Monitoring ─────────────────────────────────────────────────────
-const monitoringService = new MonitoringService()
-
-// ─── Calendar ───────────────────────────────────────────────────────
-const calendarService = new CalendarService()
-
-// ─── Gmail & Drive (share Google OAuth from CalendarService) ────────
-const gmailService = new GmailService(calendarService)
-const driveService = new DriveService(calendarService)
-const gchatService = new GChatService(calendarService)
-
-// ─── AutoDev (autonomous self-programming) ─────────────────────────
-const autoDevService = new AutoDevService(path.join(__dirname, '..'))
-
-// ─── Self-Learning (SofLIA learns from its own failures) ────────────
-const selfLearnService = new SelfLearnService(path.join(__dirname, '..'))
-
-// ─── Desktop Agent (autonomous computer use) ────────────────────────
-const desktopAgentService = new DesktopAgentService()
-
-// ─── Auto-Updater ──────────────────────────────────────────────────
-const updaterService = new UpdaterService()
-
-// ─── Clipboard AI Assistant (historial inteligente del portapapeles) ─
-const clipboardAssistant = new ClipboardAIAssistant({ maxHistorySize: 100, pollingIntervalMs: 5000 })
-
-// ─── Task Scheduler (recordatorios y tareas programadas via cron) ────
-const taskScheduler = new TaskScheduler()
-
-// ─── System Guardian (monitoreo nativo de CPU/RAM) ──────────────────
-const systemGuardian = new SystemGuardianService()
-
-// ─── Neural Organizer AI (organización inteligente de descargas) ─────
-let neuralOrganizer: NeuralOrganizerAI | null = null
-
-// ─── Path Memory (indexación proactiva de rutas del sistema) ─────────
-const pathMemoryService = new PathMemoryService()
-
-// ─── Daily Briefing (resumen ejecutivo matutino) ─────────────────────
-const dailyBriefingService = new DailyBriefingService(
-  { enabled: false, schedule: '0 8 * * 1-5', ownerNumber: '', apiKey: '' },
-  waService,
-)
-
-// ─── Wire SelfLearn → AutoDev Micro-Fix ──────────────────────────────
-selfLearnService.on('micro-fix-candidate', (trigger: any) => {
-  console.log(`[Main] SelfLearn micro-fix candidate: ${trigger.category} — ${trigger.description.slice(0, 60)}`)
-  autoDevService.queueMicroFix(trigger)
-})
-
-// ─── Wire DesktopAgent failures → SelfLearn ──────────────────────────
-desktopAgentService.on('task-failed', (data: any) => {
-  selfLearnService.logComputerUseFailure(data.message || 'Desktop agent task failed', data.message || '')
-})
-
-// ─── Wire TaskScheduler → WhatsApp Agent (inject scheduled prompts) ──
-taskScheduler.on('task-triggered', (data: any) => {
-  if (waAgent && waService.getStatus().connected) {
-    const jid = `${data.phoneNumber.replace(/\D/g, '')}@s.whatsapp.net`
-    waAgent.handleMessage(jid, data.phoneNumber, data.prompt, false, '')
-  }
-})
-
-// ─── Wire SystemGuardian alerts → WhatsApp notifications ─────────────
-systemGuardian.on('alert', (alert: any) => {
-  console.log(`[SystemGuardian] Alert: ${alert.type} — ${alert.message}`)
-})
-
-// ─── Proactive Notifications ────────────────────────────────────────
-const proactiveService = new ProactiveService()
-proactiveService.setCalendarService(calendarService)
-proactiveService.setWhatsAppService(waService)
-
-// Configure OAuth credentials from env
-calendarService.setConfig({
-  google: {
-    clientId: process.env.VITE_GOOGLE_OAUTH_CLIENT_ID || '',
-    clientSecret: process.env.VITE_GOOGLE_OAUTH_CLIENT_SECRET || '',
-  },
-  microsoft: {
-    clientId: process.env.VITE_MICROSOFT_CLIENT_ID || '',
-  },
-})
-
-
-
-// Wire calendar work-start/end to monitoring auto-start/stop
-calendarService.on('work-start', async (data: any) => {
-  console.log('[Main] Calendar work-start → auto-starting monitoring')
-  // The renderer will handle creating the session in Supabase and calling monitoring:start
-  win?.webContents.send('calendar:work-start', data)
-})
-
-calendarService.on('work-end', async (data: any) => {
-  console.log('[Main] Calendar work-end → auto-stopping monitoring')
-  win?.webContents.send('calendar:work-end', data)
-})
-
-// ─── Summary generation on session end ───────────────────────────────
-monitoringService.on('session-ended', async (data: any) => {
-  // Use allSnapshots (full session) if available, fall back to pendingSnapshots
-  const snapshots = data.allSnapshots?.length ? data.allSnapshots : data.pendingSnapshots;
-  if (!currentGeminiApiKey || !snapshots?.length) return
-  console.log(`[Main] Session ended — generating summary (${snapshots.length} snapshots of ${data.snapshotCount} total)`)
-
-  try {
-    const summary = await generateDailySummary(
-      currentGeminiApiKey,
-      snapshots.map((s: any) => ({
-        timestamp: typeof s.timestamp === 'string' ? s.timestamp : new Date(s.timestamp).toISOString(),
-        windowTitle: s.windowTitle || '',
-        processName: s.processName || '',
-        url: s.url,
-        idle: s.idle || false,
-        idleSeconds: s.idleSeconds || 0,
-        ocrText: s.ocrText,
-        durationSeconds: 30,
-      })),
-      { startedAt: new Date().toISOString(), triggerType: 'manual' },
-    )
-
-    // Send summary to renderer for Supabase storage
-    win?.webContents.send('monitoring:summary-generated', {
-      userId: data.userId,
-      sessionId: data.sessionId,
-      summary,
-    })
-
-    console.log('[Main] Summary generated successfully')
-  } catch (err: any) {
-    console.error('[Main] Summary generation error:', err.message)
-  }
-})
-
-// ─── Summary IPC handlers ─────────────────────────────────────────────
-ipcMain.handle('monitoring:generate-summary', async (_event, activities: any[], sessionInfo: any) => {
-  if (!currentGeminiApiKey) {
-    return { success: false, error: 'API key not configured' }
-  }
-  try {
-    const summary = await generateDailySummary(currentGeminiApiKey, activities, sessionInfo)
-    return { success: true, summary }
-  } catch (err: any) {
-    return { success: false, error: err.message }
-  }
-})
-
-ipcMain.handle('monitoring:send-summary-whatsapp', async (_event, phoneNumber: string, summaryText: string) => {
-  try {
-    if (!waService || !waService.getStatus().connected) {
-      return { success: false, error: 'WhatsApp no conectado' }
-    }
-    const cleanNumber = phoneNumber.replace(/[^0-9]/g, '')
-    const jid = `${cleanNumber}@s.whatsapp.net`
-    await waService.sendText(jid, summaryText)
-    return { success: true }
-  } catch (err: any) {
-    return { success: false, error: err.message }
-  }
-})
-
-function createFlowWindow() {
-  if (flowWin) {
-    flowWin.show();
-    flowWin.focus();
-    return;
-  }
-
-  flowWin = new BrowserWindow({
-    width: 600,
-    height: 450,
-    transparent: true,
-    frame: false,
-    alwaysOnTop: true,
-    hasShadow: false,
-    resizable: false,
-    skipTaskbar: true,
-    movable: true,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.mjs'),
-      additionalArguments: ['--view-mode=flow'],
-      sandbox: true,
-      contextIsolation: true,
-      nodeIntegration: false
-    },
-  })
-
-  flowWin.setAlwaysOnTop(true, 'screen-saver');
-
-  // Position at bottom center
-  const primaryDisplay = screen.getPrimaryDisplay()
-  const { width, height } = primaryDisplay.workAreaSize
-  flowWin.setPosition(
-    Math.floor(width / 2 - 300),
-    Math.floor(height - 480)
-  )
-
-  if (VITE_DEV_SERVER_URL) {
-    flowWin.loadURL(`${VITE_DEV_SERVER_URL}?view=flow`)
-  } else {
-    flowWin.loadFile(path.join(RENDERER_DIST, 'index.html'), { query: { view: 'flow' } })
-  }
-
-  flowWin.on('hide', () => {
-    // Optional: could blur or stop things here via IPC
-  });
-
-  flowWin.on('closed', () => {
-    flowWin = null
-  })
-
-  // Handle permissions for microphone in the flow window
-  flowWin.webContents.session.setPermissionRequestHandler((_webContents, permission, callback) => {
-    if ((permission as string) === 'audio-capture') {
-      return callback(true);
-    }
-    callback(false);
-  });
-}
-
-function createTray() {
-  if (tray) return; // Prevent duplicates
-
-  const iconPath = path.join(process.env.VITE_PUBLIC!, 'assets/icono.ico')
-  let trayIcon: Electron.NativeImage
-
-  try {
-    trayIcon = nativeImage.createFromPath(iconPath)
-    if (trayIcon.isEmpty()) {
-      trayIcon = nativeImage.createEmpty()
-    }
-  } catch {
-    trayIcon = nativeImage.createEmpty()
-  }
-
-  tray = new Tray(trayIcon)
-  tray.setToolTip('SofLIA Hub Desktop')
-
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: 'Abrir SofLIA Hub',
-      click: () => {
-        if (win) {
-          win.show()
-          win.focus()
-        }
-      }
-    },
-    { type: 'separator' },
-    {
-      label: 'Salir',
-      click: () => {
-        isQuitting = true
-        app.quit()
-      }
-    }
-  ])
-
-  tray.setContextMenu(contextMenu)
-  tray.on('click', () => {
-    if (win) {
-      if (win.isVisible()) {
-        win.focus()
-      } else {
-        win.show()
-        win.focus()
-      }
-    }
-  })
-}
-
-function createWindow() {
-  win = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    minWidth: 700,
-    minHeight: 500,
-    icon: path.join(process.env.VITE_PUBLIC!, 'assets/icono.ico'),
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.mjs'),
-      sandbox: true,
-      contextIsolation: true,
-      nodeIntegration: false
-    },
-  })
-
-  win.setMenu(null)
-
-  win.on('close', (event) => {
-    if (!isQuitting) {
-      event.preventDefault()
-      win?.hide()
-    }
-  })
-
-  if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL)
-  } else {
-    win.loadFile(path.join(RENDERER_DIST, 'index.html'))
-  }
-
-  // Handle permissions for microphone
-  win.webContents.session.setPermissionRequestHandler((_webContents, permission, callback) => {
-    if ((permission as string) === 'audio-capture') {
-      return callback(true);
-    }
-    callback(false);
-  });
-}
-
-// IPC Handlers
-ipcMain.handle('capture-screen', async (_event, sourceId?: string) => {
-  try {
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: { width: 1920, height: 1080 }
-    })
-    if (sources.length === 0) return null
-    const source = sourceId ? sources.find(s => s.id === sourceId) || sources[0] : sources[0]
-    return source.thumbnail.toDataURL()
-  } catch (err) { return null }
-})
-
-ipcMain.handle('get-screen-sources', async () => {
-  try {
-    const sources = await desktopCapturer.getSources({
-      types: ['screen', 'window'],
-      thumbnailSize: { width: 320, height: 180 }
-    })
-    return sources.map(source => ({
-      id: source.id,
-      name: source.name,
-      thumbnail: source.thumbnail.toDataURL(),
-      isScreen: source.id.startsWith('screen:')
-    }))
-  } catch (err) { return [] }
-})
-
-ipcMain.handle('get-desktop-sources', async () => {
-  try {
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: { width: 1920, height: 1080 }
-    })
-    return sources.map(source => ({
-      display_id: source.id,
-      id: source.id,
-      name: source.name,
-      thumbnail: source.thumbnail.toDataURL()
-    }))
-  } catch (err: any) {
-    console.error('[Main] get-desktop-sources error:', err.message)
-    return []
-  }
-})
-
-ipcMain.on('flow-send-to-chat', (_event, text) => {
-  if (win) {
-    if (!win.isVisible()) win.show();
-    if (win.isMinimized()) win.restore();
-    win.focus();
-    win.webContents.send('flow-message-received', text);
-  }
-});
-
-ipcMain.on('close-flow', () => {
-  if (flowWin) flowWin.hide();
-});
-
-// App Lifecycle
-app.on('before-quit', () => {
-  isQuitting = true
-  pathMemoryService.stop()
-})
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
-})
-
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  else if (win) { win.show(); win.focus() }
-})
-
-// ─── WhatsApp IPC Handlers ──────────────────────────────────────────
-ipcMain.handle('whatsapp:connect', async () => {
-  try {
-    await waService.connect()
-    return { success: true }
-  } catch (err: any) {
-    return { success: false, error: err.message }
-  }
-})
-
-ipcMain.handle('whatsapp:disconnect', async () => {
-  try {
-    await waService.disconnect()
-    return { success: true }
-  } catch (err: any) {
-    return { success: false, error: err.message }
-  }
-})
-
-ipcMain.handle('whatsapp:get-status', async () => {
-  return waService.getStatus()
-})
-
-ipcMain.handle('whatsapp:set-allowed-numbers', async (_, numbers: string[]) => {
-  try {
-    await waService.setAllowedNumbers(numbers)
-    if (dailyBriefingService && numbers.length > 0) {
-      const currentConfig = dailyBriefingService.getConfig();
-      if (!currentConfig.ownerNumber) {
-        dailyBriefingService.updateConfig({ ownerNumber: numbers[0] });
-      }
-    }
-    return { success: true }
-  } catch (err: any) {
-    return { success: false, error: err.message }
-  }
-})
-
-ipcMain.handle('whatsapp:set-group-config', async (_, config: any) => {
-  try {
-    await waService.setGroupConfig(config)
-    return { success: true }
-  } catch (err: any) {
-    return { success: false, error: err.message }
-  }
-})
-
-function initWhatsAppAgent(apiKey: string) {
-  // Set API key on memory service for embeddings & summarization
-  memoryService.setApiKey(apiKey)
-
-  if (waAgent) {
-    waAgent.updateApiKey(apiKey)
-  } else {
-    waAgent = new WhatsAppAgent(waService, apiKey, memoryService, knowledgeService)
-    waAgent.setSelfLearnService(selfLearnService)
-    waService.on('message', ({ jid, senderNumber, text, isGroup, history }: any) => {
-      // Self-learn: analyze every user message for complaints & suggestions
-      selfLearnService.analyzeUserMessage(text, 'whatsapp', { jid, senderNumber })
-      waAgent!.handleMessage(jid, senderNumber, text, isGroup, history)
-    })
-    waService.on('audio', ({ jid, senderNumber, buffer, isGroup, history }: any) => {
-      waAgent!.handleAudio(jid, senderNumber, buffer, isGroup, history)
-    })
-    waService.on('media', ({ jid, senderNumber, buffer, fileName, mimetype, text, isGroup, history }: any) => {
-      if (text) selfLearnService.analyzeUserMessage(text, 'whatsapp', { jid, senderNumber })
-      waAgent!.handleMedia(jid, senderNumber, buffer, fileName, mimetype, text, isGroup, history)
-    })
-    console.log('[WhatsApp] Agent initialized with API key + SelfLearn')
-  }
-
-  // Connect Google services, AutoDev, and Desktop Agent to WhatsApp agent
-  waAgent.setGoogleServices(calendarService, gmailService, driveService, gchatService)
-  waAgent.setAutoDevService(autoDevService)
-  waAgent.setDesktopAgentService(desktopAgentService)
-  waAgent.setClipboardAssistant(clipboardAssistant)
-  waAgent.setTaskScheduler(taskScheduler)
-  waAgent.setSystemGuardian(systemGuardian)
-
-  // Store API key for summary generation
-  currentGeminiApiKey = apiKey
-
-  // Start proactive notifications engine
-  proactiveService.setApiKey(apiKey)
-  if (!proactiveService.isRunning()) {
-    proactiveService.start()
-  }
-
-  // Update Daily Briefing Service
-  if (dailyBriefingService) {
-    dailyBriefingService.updateConfig({ apiKey })
-  }
-
-  // Start AutoDev autonomous programming engine
-  autoDevService.setApiKey(apiKey)
-
-  // Desktop Agent API key
-  desktopAgentService.setApiKey(apiKey)
-
-  // Clipboard AI Assistant — update API key and start
-  clipboardAssistant.updateApiKey(apiKey)
-  clipboardAssistant.start()
-
-  // Neural Organizer AI — initialize with API key
-  if (!neuralOrganizer) {
-    neuralOrganizer = new NeuralOrganizerAI({
-      apiKey,
-      notifyCallback: async (msg: string) => {
-        if (waService.getStatus().connected) {
-          const status = waService.getStatus() as any
-          const numbers = status.allowedNumbers || []
-          for (const num of numbers) {
-            const jid = `${num.replace(/\D/g, '')}@s.whatsapp.net`
-            await waService.sendText(jid, msg).catch(() => {})
-          }
-        }
-      }
-    })
-    waAgent.setNeuralOrganizer(neuralOrganizer)
-  } else {
-    neuralOrganizer.updateApiKey(apiKey)
-  }
-  autoDevService.on('notify-whatsapp', ({ phone, message }: any) => {
-    if (waAgent) {
-      waService.sendText(`${phone}@s.whatsapp.net`, message).catch(() => {})
-    }
-  })
-  if (!autoDevService.isRunning()) {
-    autoDevService.start()
-  }
-
-  // Poll for offline WhatsApp queue generated by standalone autodev
-  setInterval(() => {
-    try {
-      const qtPath = require('path').join(require('electron').app.getPath('userData'), '.autodev-data');
-      const qPath = require('path').join(qtPath, 'whatsapp-queue.json');
-      const fs = require('fs');
-      if (fs.existsSync(qPath) && waService.getStatus().connected) {
-        const msgs = JSON.parse(fs.readFileSync(qPath, 'utf8'));
-        fs.unlinkSync(qPath);
-        for (const msg of msgs) {
-            waService.sendText(`${msg.phone}@s.whatsapp.net`, msg.message).catch(() => {});
-        }
-      }
-    } catch {}
-  }, 5000);
-}
-
-// ─── Proactive Service IPC Handlers ────────────────────────────────
-ipcMain.handle('proactive:get-config', async () => {
-  return proactiveService.getConfig()
-})
-
-ipcMain.handle('proactive:update-config', async (_, updates: any) => {
-  try {
-    proactiveService.updateConfig(updates)
-    if (dailyBriefingService && updates.notifyPhone) {
-      dailyBriefingService.updateConfig({ ownerNumber: updates.notifyPhone })
-    }
-    return { success: true }
-  } catch (err: any) {
-    return { success: false, error: err.message }
-  }
-})
-
-ipcMain.handle('proactive:trigger-now', async (_, phoneNumber?: string) => {
-  return proactiveService.triggerNow(phoneNumber)
-})
-
-ipcMain.handle('proactive:get-status', async () => {
-  return {
-    running: proactiveService.isRunning(),
-    config: proactiveService.getConfig(),
-  }
-})
-
-ipcMain.handle('whatsapp:set-api-key', async (_, apiKey: string) => {
-  initWhatsAppAgent(apiKey)
-  // Persist the key so it works on auto-connect next time
-  await waService.saveApiKey(apiKey)
-  return { success: true }
-})
-
-const gotTheLock = app.requestSingleInstanceLock()
-
-if (!gotTheLock) {
-  app.quit()
+// ─── 0. GLOBAL BOOTSTRAP GUARD ───
+const g = globalThis as any;
+if (g.__SOFLIA_BOOTSTRAP_COMPLETE__) {
+  console.log(`[BOOT] ⏭️ Bootstrap duplicado evitado en PID: ${process.pid}`);
+  // No salimos con process.exit(0) para no matar al proceso que si es válido si este fuera un worker thread o similar
+  // Pero detenemos la ejecución de este script aquí:
 } else {
-  app.on('second-instance', () => {
-    // Si alguien intenta abrir otra instancia, enfocamos la principal
-    if (win) {
-      if (win.isMinimized()) win.restore()
-      if (!win.isVisible()) win.show()
-      win.focus()
+  g.__SOFLIA_BOOTSTRAP_COMPLETE__ = true;
+
+  // ─── 1. SANDBOX (MUST be before app.whenReady) ───
+  // Disabled because BrowserWindow creation is crashing with EXCEPTION_ACCESS_VIOLATION
+  // inside Electron's sandbox path on this Windows/Electron 34 setup.
+  // app.enableSandbox();
+
+  // ─── 2. CONTROL DE INSTANCIA ÚNICA ───
+  const gotTheLock = app.requestSingleInstanceLock()
+  if (!gotTheLock) {
+    console.log(`[BOOT] ⚠️ SEGUNDA INSTANCIA (PID: ${process.pid}) bloqueada. Saliendo...`)
+    app.exit(0)
+  } else {
+    console.log(`[BOOT] 🚀 INICIANDO SOFLIA HUB — PID: ${process.pid}, PPID: ${process.ppid}`);
+    
+    // ─── 2. IMPORTS DE SERVICIOS ───
+    // Importamos todo aquí para que sean parte de la misma unidad de compilación
+    const runBootstrap = async () => {
+      const { registerComputerUseHandlers } = await import('./computer-use-handlers')
+      const { WhatsAppService } = await import('./whatsapp-service')
+      const { WhatsAppAgent } = await import('./whatsapp-agent')
+      const { MonitoringService } = await import('./monitoring-service')
+      const { registerMonitoringHandlers } = await import('./monitoring-handlers')
+      const { CalendarService } = await import('./calendar-service')
+      const { registerCalendarHandlers } = await import('./calendar-handlers')
+      const { GmailService } = await import('./gmail-service')
+      const { registerGmailHandlers } = await import('./gmail-handlers')
+      const { DriveService } = await import('./drive-service')
+      const { registerDriveHandlers } = await import('./drive-handlers')
+      const { GChatService } = await import('./gchat-service')
+      const { registerGChatHandlers } = await import('./gchat-handlers')
+      const { ProactiveService } = await import('./proactive-service')
+      const { AutoDevService } = await import('./autodev-service')
+      const { registerAutoDevHandlers } = await import('./autodev-handlers')
+      const { SelfLearnService } = await import('./autodev-selflearn')
+      const { DesktopAgentService } = await import('./desktop-agent-service')
+      const { registerDesktopAgentHandlers } = await import('./desktop-agent-handlers')
+      const { MemoryService } = await import('./memory-service')
+      const { registerMemoryHandlers } = await import('./memory-handlers')
+      const { KnowledgeService } = await import('./knowledge-service')
+      const { UpdaterService } = await import('./updater-service')
+      const { registerUpdaterHandlers } = await import('./updater-handlers')
+      const { ClipboardAIAssistant } = await import('./clipboard-ai-assistant')
+      const { TaskScheduler } = await import('./task-scheduler')
+      const { NeuralOrganizerService: NeuralOrganizerAI } = await import('./neural-organizer')
+      const { PathMemoryService } = await import('./path-memory-service')
+      const { MenuManager } = await import('./menu-manager')
+      const { registerWhatsAppHandlers } = await import('./whatsapp-handlers')
+      await import('./agent-task-queue')
+
+      const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+      // Entorno
+      const envPaths = [path.join(__dirname, '..', '.env'), path.join(__dirname, '.env')];
+      for (const envPath of envPaths) {
+        if (!dotenv.config({ path: envPath }).error) {
+          console.log(`[Main] Entorno cargado desde: ${envPath}`);
+          break;
+        }
+      }
+
+      process.env.APP_ROOT = path.join(__dirname, '..')
+      const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
+      const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
+      process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
+
+      // Instanciación
+      const waService = new WhatsAppService()
+      const memoryService = new MemoryService()
+      const knowledgeService = new KnowledgeService()
+      const monitoringService = new MonitoringService()
+      const calendarService = new CalendarService()
+      const gmailService = new GmailService(calendarService)
+      const driveService = new DriveService(calendarService)
+      const gchatService = new GChatService(calendarService)
+      const autoDevService = new AutoDevService(process.env.APP_ROOT)
+      const selfLearnService = new SelfLearnService(process.env.APP_ROOT)
+      const desktopAgentService = new DesktopAgentService()
+      const updaterService = new UpdaterService()
+      const clipboardAssistant = new ClipboardAIAssistant({ maxHistorySize: 100, pollingIntervalMs: 5000 })
+      const taskScheduler = new TaskScheduler()
+      const pathMemoryService = new PathMemoryService()
+      const proactiveService = new ProactiveService()
+      
+      let win: BrowserWindow | null = null
+      let isQuitting = false
+      let waAgent: any = null
+      let neuralOrganizer: any = null
+
+      proactiveService.setCalendarService(calendarService)
+      proactiveService.setWhatsAppService(waService)
+
+      // Eventos
+      selfLearnService.on('micro-fix-candidate', (trigger: any) => autoDevService.queueMicroFix(trigger))
+      taskScheduler.on('task-triggered', (data: any) => {
+        if (waAgent && waService.getStatus().connected) {
+          const jid = `${data.phoneNumber.replace(/\D/g, '')}@s.whatsapp.net`
+          waAgent.handleMessage(jid, data.phoneNumber, data.prompt, false, '')
+        }
+      })
+
+      const logBootstrapError = (step: string, err: unknown) => {
+        if (err instanceof Error) {
+          console.error(`[BOOT] ${step} failed:`, err.stack || err.message)
+          return
+        }
+        console.error(`[BOOT] ${step} failed:`, err)
+      }
+
+      const runOptionalStep = async <T>(step: string, fn: () => Promise<T> | T): Promise<T | undefined> => {
+        try {
+          return await fn()
+        } catch (err) {
+          logBootstrapError(step, err)
+          return undefined
+        }
+      }
+
+      const initWhatsAppAgent = (apiKey: string) => {
+        memoryService.setApiKey(apiKey)
+        if (!waAgent) {
+          waAgent = new WhatsAppAgent(waService, apiKey, memoryService, knowledgeService)
+          waAgent.setSelfLearnService(selfLearnService)
+          waService.on('message', (d: any) => {
+            selfLearnService.analyzeUserMessage(d.text, 'whatsapp', { jid: d.jid, senderNumber: d.senderNumber })
+            waAgent.handleMessage(d.jid, d.senderNumber, d.text, d.isGroup, d.history)
+          })
+          waService.on('audio', (d: any) => waAgent.handleAudio(d.jid, d.senderNumber, d.buffer, d.isGroup, d.history))
+          waService.on('media', (d: any) => waAgent.handleMedia(d.jid, d.senderNumber, d.buffer, d.fileName, d.mimetype, d.text, d.isGroup, d.history))
+        } else {
+          waAgent.updateApiKey(apiKey)
+        }
+        waAgent.setGoogleServices(calendarService, gmailService, driveService, gchatService)
+        waAgent.setAutoDevService(autoDevService)
+        waAgent.setDesktopAgentService(desktopAgentService)
+        waAgent.setClipboardAssistant(clipboardAssistant)
+        waAgent.setTaskScheduler(taskScheduler)
+        proactiveService.setApiKey(apiKey)
+        if (!proactiveService.isRunning()) proactiveService.start()
+        autoDevService.setApiKey(apiKey)
+        desktopAgentService.setApiKey(apiKey)
+        clipboardAssistant.updateApiKey(apiKey)
+        clipboardAssistant.start()
+        if (!neuralOrganizer) {
+          neuralOrganizer = new NeuralOrganizerAI({
+            apiKey,
+            notifyCallback: async (msg: string) => {
+              const numbers = (waService.getStatus() as any).allowedNumbers || []
+              for (const num of numbers) waService.sendText(`${num.replace(/\D/g, '')}@s.whatsapp.net`, msg).catch(() => {})
+            }
+          })
+          waAgent.setNeuralOrganizer(neuralOrganizer)
+        } else neuralOrganizer.updateApiKey(apiKey)
+        if (!autoDevService.isRunning()) autoDevService.start()
+      }
+
+      const createWindow = async () => {
+        console.log('[BOOT] Creating main window...')
+        const iconPath = path.join(process.env.VITE_PUBLIC, 'assets', 'icono.ico');
+        
+        if (process.platform === 'win32') {
+          app.setAppUserModelId('com.pulsehub.sofliahub');
+        }
+
+        win = new BrowserWindow({
+          width: 1200, height: 800,
+          title: 'SofLIA Hub',
+          icon: iconPath,
+          webPreferences: { 
+            preload: path.join(__dirname, 'preload.mjs'), 
+            sandbox: false, 
+            contextIsolation: true, 
+            nodeIntegration: false 
+          }
+        })
+        win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+          if (!isMainFrame) return
+          console.error(`[BOOT] Renderer failed to load (${errorCode}): ${errorDescription} | ${validatedURL}`)
+        })
+        win.webContents.on('render-process-gone', (_event, details) => {
+          console.error(`[BOOT] Renderer process gone: ${details.reason} (exitCode=${details.exitCode})`)
+        })
+        win.on('closed', () => {
+          win = null
+          console.log('[BOOT] Main window closed')
+        })
+        win.on('close', (e) => { if (!isQuitting) { e.preventDefault(); win?.hide(); } })
+        if (VITE_DEV_SERVER_URL) {
+          await win.loadURL(VITE_DEV_SERVER_URL)
+        } else {
+          await win.loadFile(path.join(process.env.APP_ROOT, 'dist', 'index.html'))
+        }
+        console.log('[BOOT] Main window loaded')
+      }
+
+      app.whenReady().then(async () => {
+        console.log('[BOOT] App ready. Initializing subsystems...');
+        MenuManager.setup()
+        registerComputerUseHandlers()
+        registerMonitoringHandlers(monitoringService, () => win)
+        registerCalendarHandlers(calendarService, () => win)
+        registerGmailHandlers(gmailService, () => win)
+        registerDriveHandlers(driveService, () => win)
+        registerGChatHandlers(gchatService, () => win)
+        registerAutoDevHandlers(autoDevService, selfLearnService, () => win)
+        registerDesktopAgentHandlers(desktopAgentService)
+        registerMemoryHandlers(memoryService)
+        registerUpdaterHandlers(updaterService, () => win)
+        registerWhatsAppHandlers(waService, () => win, (key) => initWhatsAppAgent(key))
+
+        await runOptionalStep('memoryService.init', () => memoryService.init())
+        await runOptionalStep('knowledgeService.init', () => knowledgeService.init())
+        const pathMemoryReady = await runOptionalStep('pathMemoryService.init', () => pathMemoryService.init())
+        if (pathMemoryReady !== undefined) {
+          await runOptionalStep('pathMemoryService.start', () => pathMemoryService.start())
+        }
+        await runOptionalStep('updaterService.init', () => updaterService.init())
+        await runOptionalStep('taskScheduler.init', () => taskScheduler.init())
+        await runOptionalStep('clipboardAssistant.init', () => clipboardAssistant.init())
+
+        await runOptionalStep('createWindow', () => createWindow())
+
+        const envApiKey = process.env.VITE_GEMINI_API_KEY
+        if (envApiKey) {
+          await runOptionalStep('initWhatsAppAgent(.env)', () => initWhatsAppAgent(envApiKey))
+        }
+
+        await runOptionalStep('waService.init', () => waService.init())
+        await runOptionalStep('calendarService.init', () => calendarService.init())
+
+        const shouldAuto = await runOptionalStep('waService.shouldAutoConnect', () => waService.shouldAutoConnect())
+        if (shouldAuto) {
+          const savedKey = await runOptionalStep('waService.getSavedApiKey', () => waService.getSavedApiKey())
+          if (savedKey) {
+            await runOptionalStep('initWhatsAppAgent(saved)', () => initWhatsAppAgent(savedKey))
+          }
+          await runOptionalStep('waService.connect', () => waService.connect())
+        }
+      }).catch(err => logBootstrapError('app.whenReady bootstrap', err))
+
+      app.on('browser-window-created', () => {
+        console.log('[BOOT] Browser window created')
+      })
+      app.on('render-process-gone', (_event, _webContents, details) => {
+        console.error(`[BOOT] App render-process-gone: ${details.reason} (exitCode=${details.exitCode})`)
+      })
+      app.on('child-process-gone', (_event, details) => {
+        console.error(`[BOOT] App child-process-gone: ${details.type} (${details.reason})`)
+      })
+      app.on('before-quit', () => {
+        console.log('[BOOT] before-quit')
+        isQuitting = true
+        pathMemoryService.stop()
+        autoDevService.stop()
+      })
+      app.on('will-quit', () => {
+        console.log('[BOOT] will-quit')
+      })
+      app.on('window-all-closed', () => {
+        console.log('[BOOT] window-all-closed')
+        if (process.platform !== 'darwin') app.quit()
+      })
     }
-  })
+
+    runBootstrap().catch(err => console.error('[BOOT FATAL]', err))
+  }
 }
-
-app.whenReady().then(async () => {
-  // ─── Memory & Knowledge init ────────────────────────────────
-  memoryService.init()
-  registerMemoryHandlers(memoryService)
-  knowledgeService.init()
-
-  // ─── Path Memory (indexación proactiva de rutas) ───────────
-  await pathMemoryService.init()
-  pathMemoryService.start()
-
-  // Restore saved Google/Microsoft OAuth connections from disk
-  calendarService.loadConnections()
-  registerComputerUseHandlers()
-  registerMonitoringHandlers(monitoringService, () => win)
-  registerCalendarHandlers(calendarService, () => win)
-  registerGmailHandlers(gmailService, () => win)
-  registerDriveHandlers(driveService, () => win)
-  registerGChatHandlers(gchatService, () => win)
-  registerAutoDevHandlers(autoDevService, selfLearnService, () => win)
-  registerDesktopAgentHandlers(desktopAgentService)
-  registerUpdaterHandlers(updaterService, () => win)
-  updaterService.init()
-
-  // ─── Task Scheduler init (load saved tasks from disk) ────────
-  await taskScheduler.init()
-
-  // ─── System Guardian (native CPU/RAM monitoring every 5 min) ────
-  systemGuardian.startMonitoring(undefined, 300000)
-
-  // ─── Clipboard AI Assistant init ────────────────────────────────
-  await clipboardAssistant.init()
-
-  // ─── Proactive Guardian (monitoreo de salud del sistema) ────
-  proactiveGuardian = new ProactiveGuardianService()
-  await proactiveGuardian.init()
-
-  proactiveGuardian.on('alert', async (alert) => {
-    try {
-      if (!waService.getStatus().connected) return;
-      const config = await proactiveService.getConfig();
-
-      if (config && (config as any).notifyPhone) {
-        const cleanNumber = (config as any).notifyPhone.replace(/[^0-9]/g, '');
-        const jid = `${cleanNumber}@s.whatsapp.net`;
-        await waService.sendText(jid, `⚠️ *SofLIA Guardian*\n${alert.message}`);
-      }
-    } catch (err: any) {
-      console.error('[ProactiveGuardian] Error notifying WhatsApp:', err.message);
-    }
-  });
-
-  proactiveGuardian.start()
-
-  // ─── AutoDev auto-init from env API key ─────────────────────
-  const envApiKey = process.env.VITE_GEMINI_API_KEY
-  if (envApiKey && !autoDevService.isRunning()) {
-    autoDevService.setApiKey(envApiKey)
-    autoDevService.on('notify-whatsapp', ({ phone, message }: any) => {
-      if (waService.getStatus().connected) {
-        waService.sendText(`${phone}@s.whatsapp.net`, message).catch(() => {})
-      }
-    })
-    autoDevService.start()
-    console.log('[AutoDev] Auto-initialized with env API key')
-  }
-
-  createTray()
-  createWindow()
-
-  // ─── Service Init ─────────────────────────────────────────────
-  await waService.init()
-  await calendarService.init()
-
-  // Auto-start calendar polling if there are restored connections
-  const restoredConns = calendarService.getConnections()
-  if (restoredConns.some(c => c.isActive)) {
-    console.log('[Main] Restored Google connections found — starting calendar polling')
-    calendarService.startPolling()
-  }
-
-  // Forward WhatsApp events to renderer
-  waService.on('qr', (qr: string) => {
-    win?.webContents.send('whatsapp:qr', qr)
-  })
-  waService.on('status', (status: any) => {
-    win?.webContents.send('whatsapp:status', status)
-  })
-  waService.on('connected', () => {
-    win?.webContents.send('whatsapp:status', waService.getStatus())
-  })
-  waService.on('disconnected', () => {
-    win?.webContents.send('whatsapp:status', waService.getStatus())
-  })
-
-  // Auto-connect if session exists
-  const shouldAuto = await waService.shouldAutoConnect()
-  if (shouldAuto) {
-    // Initialize agent with saved API key before connecting
-    const savedKey = await waService.getSavedApiKey()
-    if (savedKey) {
-      initWhatsAppAgent(savedKey)
-    } else {
-      console.log('[WhatsApp] No saved API key — agent will not process messages until key is set from UI')
-    }
-
-    console.log('[WhatsApp] Auto-connecting...')
-    waService.connect().catch((err: any) => {
-      console.error('[WhatsApp] Auto-connect failed:', err.message)
-    })
-  }
-
-  // Register Global Shortcut
-  globalShortcut.register('CommandOrControl+M', () => {
-    if (!flowWin) {
-      createFlowWindow()
-    }
-    else {
-      if (flowWin.isVisible()) {
-        flowWin.hide()
-      } else {
-        flowWin.show()
-        flowWin.focus()
-        flowWin.webContents.send('flow-window-shown')
-      }
-    }
-  })
-})
-
-app.on('will-quit', () => { globalShortcut.unregisterAll() })

@@ -7,6 +7,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:clean": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-clean.ps1",
+    "dev:fresh": "npm run dev:clean && npm run dev",
     "build": "tsc && vite build && node scripts/generate-bitmaps.js && electron-builder",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
@@ -22,7 +24,7 @@
     "@whiskeysockets/baileys": "7.0.0-rc.9",
     "active-win": "^8.2.1",
     "archiver": "^7.0.1",
-    "better-sqlite3": "^11.8.1",
+    "better-sqlite3": "^12.8.0",
     "cron": "^4.4.0",
     "docx": "^8.5.0",
     "dotenv": "^17.3.1",
@@ -44,8 +46,8 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.3",
     "@tailwindcss/postcss": "^4.1.18",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/cron": "^2.0.1",
     "@types/node": "^25.3.0",
     "@types/node-cron": "^3.0.11",
@@ -54,9 +56,9 @@
     "@types/react-dom": "^18.2.21",
     "@typescript-eslint/eslint-plugin": "^7.1.1",
     "@typescript-eslint/parser": "^7.1.1",
-    "@vitejs/plugin-react": "^4.2.1",
+    "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.24",
-    "electron": "^30.5.1",
+    "electron": "^34.0.0",
     "electron-builder": "^26.8.1",
     "eslint": "^8.57.0",
     "eslint-plugin-react-hooks": "^4.6.0",
@@ -66,9 +68,9 @@
     "png-to-ico": "^3.0.1",
     "tailwindcss": "^4.1.18",
     "typescript": "^5.7.3",
-    "vite": "^5.4.21",
-    "vite-plugin-electron": "^0.28.6",
-    "vite-plugin-electron-renderer": "^0.14.5"
+    "vite": "^7.0.0",
+    "vite-plugin-electron": "^0.29.0",
+    "vite-plugin-electron-renderer": "^0.14.6"
   },
   "main": "dist-electron/main.js"
 }

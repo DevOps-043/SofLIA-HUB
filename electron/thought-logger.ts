@@ -1,6 +1,10 @@
-import Database from 'better-sqlite3';
+import { createRequire } from 'node:module';
 import { app } from 'electron';
 import path from 'path';
+
+// better-sqlite3: native module loaded via require() to avoid ESM↔CJS interop crash
+const _require = createRequire(import.meta.url);
+const Database = _require('better-sqlite3');
 
 export interface ThoughtEvent {
   id: number;
@@ -111,7 +115,7 @@ export class ThoughtLogger {
     
     this.db = new Database(dbPath);
     this.initDatabase();
-    
+
     this.orchestrator = new Orchestrator(this.db);
   }
 

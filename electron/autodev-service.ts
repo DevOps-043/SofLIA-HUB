@@ -32,7 +32,7 @@ try {
 } catch {
   // We're running outside electron (e.g. from the CLI script)
 }
-import { GoogleGenerativeAI, SchemaType, FunctionDeclaration } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { CronJob } from 'cron';
 
 import {
@@ -60,289 +60,34 @@ import {
   MICRO_FIX_ANALYZE_PROMPT,
   MICRO_FIX_SUMMARY_PROMPT,
 } from './autodev-prompts';
-
-// ─── Build error parsing ────────────────────────────────────────────
-
-interface ParsedBuildError {
-  file: string;
-  line?: number;
-  column?: number;
-  code?: string;       // e.g. TS2345
-  message: string;
-}
-
-function parseBuildErrors(buildOutput: string): ParsedBuildError[] {
-  const errors: ParsedBuildError[] = [];
-  const seen = new Set<string>();
-
-  // Match TypeScript errors: src/file.ts(12,5): error TS2345: ...
-  // Also matches: src/file.ts:12:5 - error TS2345: ...
-  const patterns = [
-    /([^\s(]+\.tsx?)\((\d+),(\d+)\):\s*error\s+(TS\d+):\s*(.+)/g,
-    /([^\s(]+\.tsx?)[:.](\d+)[:.](\d+)\s*[-–]\s*error\s+(TS\d+):\s*(.+)/g,
-    // Vite/esbuild style: ERROR in ./src/file.ts:12:5
-    /ERROR.*?([^\s]+\.tsx?):(\d+):(\d+)/g,
-  ];
-
-  for (const pattern of patterns) {
-    let match;
-    while ((match = pattern.exec(buildOutput)) !== null) {
-      const key = `${match[1]}:${match[2]}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      errors.push({
-        file: match[1].replace(/\\/g, '/'),
-        line: parseInt(match[2], 10),
-        column: parseInt(match[3], 10) || undefined,
-        code: match[4] || undefined,
-        message: match[5]?.trim() || 'Unknown error',
-      });
-    }
-  }
-
-  // ─── Vite/Rollup/esbuild error parsing (non-TS format) ─────────
-  // Matches: [vite]: Rollup failed to resolve import "X" in "file.ts"
-  // Matches: Could not resolve "X" from "file.ts"
-  // Matches: RollupError: Could not resolve ...
-  if (errors.length === 0) {
-    const vitePatterns = [
-      /(?:Rollup|vite).*?failed to resolve import\s+"([^"]+)"\s+in\s+"([^"]+)"/gi,
-      /Could not resolve\s+"([^"]+)"\s+(?:from|in)\s+"([^"]+)"/gi,
-      /(?:RollupError|Error):\s*(.+?)\s+in\s+([^\s]+\.tsx?)/gi,
-      /\[vite\].*?(?:error|Error)\s+(.+?)(?:\s+at\s+([^\s]+\.tsx?))?/gi,
-      // esbuild: ✘ [ERROR] Could not resolve "X"
-      /✘\s*\[ERROR\]\s*(.+)/gi,
-    ];
-
-    for (const pattern of vitePatterns) {
-      let match;
-      while ((match = pattern.exec(buildOutput)) !== null) {
-        const file = (match[2] || 'unknown').replace(/\\/g, '/');
-        const message = match[1]?.trim() || match[0]?.trim() || 'Vite/Rollup error';
-        const key = `vite:${file}:${message.slice(0, 50)}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        errors.push({
-          file,
-          message: `[Vite/Rollup] ${message}`,
-          code: 'VITE_ERR',
-        });
-      }
-    }
-
-    // Fallback: if output contains "Build failed" but we couldn't parse anything,
-    // create a generic error so the fix agent has something to work with
-    if (errors.length === 0 && /build failed|error during build|rollup.*error/i.test(buildOutput)) {
-      errors.push({
-        file: 'unknown',
-        message: `Build failed with unparsed error. Raw output: ${buildOutput.slice(0, 2000)}`,
-        code: 'BUILD_FAIL',
-      });
-    }
-  }
-
-  return errors;
-}
-
-// ─── Safety: Validate file before writing ───────────────────────────
-
-/**
- * Validates that imports in a TypeScript file reference modules that actually exist.
- * Returns list of phantom imports found.
- */
-function findPhantomImports(code: string, filePath: string, _repoPath: string): string[] {
-  const phantoms: string[] = [];
-  // Match: import ... from './something' or import ... from '../something'
-  const importRegex = /from\s+['"](\.[^'"]+)['"]/g;
-  let match;
-  while ((match = importRegex.exec(code)) !== null) {
-    const importPath = match[1];
-    const dir = path.dirname(filePath);
-    const resolved = path.resolve(dir, importPath);
-    // Check if the file exists (with common extensions)
-    const extensions = ['', '.ts', '.tsx', '.js', '.jsx', '.json'];
-    const exists = extensions.some(ext => fs.existsSync(resolved + ext)) ||
-                   fs.existsSync(path.join(resolved, 'index.ts')) ||
-                   fs.existsSync(path.join(resolved, 'index.tsx')) ||
-                   fs.existsSync(path.join(resolved, 'index.js'));
-    if (!exists) {
-      phantoms.push(importPath);
-    }
-  }
-  return phantoms;
-}
-
-/**
- * Validates that code is not truncated (common AI failure mode).
- * Returns true if the code looks complete.
- */
-function isCodeComplete(code: string): boolean {
-  // Check for common truncation indicators
-  if (code.endsWith('// ...') || code.endsWith('...') || code.endsWith('// TODO')) return false;
-
-  // Check balanced braces (rough heuristic)
-  let braceCount = 0;
-  let inString = false;
-  let stringChar = '';
-  let inComment = false;
-  let inLineComment = false;
-
-  for (let i = 0; i < code.length; i++) {
-    const ch = code[i];
-    const next = code[i + 1];
-
-    if (inLineComment) {
-      if (ch === '\n') inLineComment = false;
-      continue;
-    }
-    if (inComment) {
-      if (ch === '*' && next === '/') { inComment = false; i++; }
-      continue;
-    }
-    if (inString) {
-      if (ch === '\\') { i++; continue; }
-      if (ch === stringChar) inString = false;
-      continue;
-    }
-
-    if (ch === '/' && next === '/') { inLineComment = true; i++; continue; }
-    if (ch === '/' && next === '*') { inComment = true; i++; continue; }
-    if (ch === '"' || ch === "'" || ch === '`') { inString = true; stringChar = ch; continue; }
-
-    if (ch === '{') braceCount++;
-    if (ch === '}') braceCount--;
-  }
-
-  // If braces are significantly unbalanced, code is likely truncated
-  if (braceCount > 2) return false;
-
-  return true;
-}
-
-// ─── Constants ─────────────────────────────────────────────────────
-
-const isElectron = typeof process !== 'undefined' && process.versions && !!process.versions.electron;
-let userDataPath = '';
-if (isElectron) {
-  try {
-    const electron = requireModule('electron');
-    userDataPath = path.join(electron.app.getPath('userData'), '.autodev-data');
-  } catch {
-    userDataPath = path.join(process.cwd(), '.autodev-data');
-  }
-} else {
-  const appData = process.platform === 'win32'
-    ? process.env.APPDATA
-    : process.env.HOME + (process.platform === 'darwin' ? '/Library/Application Support' : '/.config');
-  userDataPath = path.join(appData || '', 'soflia-hub-desktop', '.autodev-data');
-}
-
-if (!fs.existsSync(userDataPath)) {
-  try { fs.mkdirSync(userDataPath, { recursive: true }); } catch {}
-}
-
-const CONFIG_PATH = path.join(userDataPath, 'autodev-config.json');
-const HISTORY_PATH = path.join(userDataPath, 'autodev-history.json');
-const ERROR_MEMORY_PATH = path.join(userDataPath, 'autodev-error-memory.json');
-const MAX_HISTORY_RUNS = 50;
-const IGNORE_DIRS = ['node_modules', 'dist', 'dist-electron', '.git', 'build', 'coverage', 'SofLIA - Extension'];
-const ISSUES_FILENAME = 'AUTODEV_ISSUES.md';
-
-// ─── Error Memory (learns from past build failures) ─────────────────
-
-interface ErrorMemoryEntry {
-  pattern: string;       // e.g. "TS2345" or "Cannot find module"
-  file: string;
-  fix: string;           // What fixed it
-  occurrences: number;
-  lastSeen: string;
-}
-
-function loadErrorMemory(): ErrorMemoryEntry[] {
-  try {
-    if (fs.existsSync(ERROR_MEMORY_PATH)) {
-      return JSON.parse(fs.readFileSync(ERROR_MEMORY_PATH, 'utf-8'));
-    }
-  } catch { /* empty */ }
-  return [];
-}
-
-function saveErrorMemory(entries: ErrorMemoryEntry[]): void {
-  try {
-    if (!fs.existsSync(userDataPath)) { fs.mkdirSync(userDataPath, { recursive: true }); }
-    // Keep max 200 entries, sorted by occurrences desc
-    const trimmed = entries.sort((a, b) => b.occurrences - a.occurrences).slice(0, 200);
-    fs.writeFileSync(ERROR_MEMORY_PATH, JSON.stringify(trimmed, null, 2), 'utf-8');
-  } catch (err: any) {
-    console.error('[AutoDev ErrorMemory] Save failed:', err.message);
-  }
-}
-
-// ─── Tool declarations for function calling agents ─────────────────
-
-const RESEARCH_TOOLS: FunctionDeclaration[] = [
-  {
-    name: 'web_search',
-    description: 'Search the web for information about packages, vulnerabilities, best practices, documentation.',
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: { query: { type: SchemaType.STRING, description: 'Search query' } },
-      required: ['query'],
-    },
-  },
-  {
-    name: 'read_webpage',
-    description: 'Read and extract text content from a URL (documentation, changelogs, advisories).',
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: { url: { type: SchemaType.STRING, description: 'URL to read' } },
-      required: ['url'],
-    },
-  },
-  {
-    name: 'read_file',
-    description: 'Read a file from the project for additional context.',
-    parameters: {
-      type: SchemaType.OBJECT,
-      properties: { path: { type: SchemaType.STRING, description: 'Relative path to the file' } },
-      required: ['path'],
-    },
-  },
-];
-
-// ─── Parallel execution helper ─────────────────────────────────────
-
-async function runParallel<T>(
-  tasks: Array<{ name: string; fn: () => Promise<T> }>,
-  maxConcurrency: number,
-  onTaskDone?: (name: string, result: T) => void,
-): Promise<Map<string, T>> {
-  const results = new Map<string, T>();
-  const queue = [...tasks];
-
-  const runNext = async (): Promise<void> => {
-    const task = queue.shift();
-    if (!task) return;
-    try {
-      console.log(`[AutoDev Agent] Starting: ${task.name}`);
-      const result = await task.fn();
-      results.set(task.name, result);
-      onTaskDone?.(task.name, result);
-      console.log(`[AutoDev Agent] Completed: ${task.name}`);
-    } catch (err: any) {
-      console.error(`[AutoDev Agent] Failed: ${task.name} — ${err.message}`);
-      results.set(task.name, [] as any);
-    }
-    await runNext();
-  };
-
-  const workers = Array.from(
-    { length: Math.min(maxConcurrency, tasks.length) },
-    () => runNext(),
-  );
-  await Promise.all(workers);
-  return results;
-}
+import {
+  parseBuildErrors,
+  findPhantomImports,
+  isCodeComplete,
+  CONFIG_PATH,
+  HISTORY_PATH,
+  MAX_HISTORY_RUNS,
+  ISSUES_FILENAME,
+  userDataPath,
+  loadErrorMemory,
+  saveErrorMemory,
+  RESEARCH_TOOLS,
+} from './autodev-validation';
+import { runParallel } from './utils/concurrency';
+import {
+  readProjectFiles,
+  getDependenciesList,
+  getRealImprovements,
+  generateCommitMessage,
+  generatePRTitle,
+  generatePRBody,
+  hasMajorVersionBump,
+  parseJSON,
+  getErrorMemoryContext,
+  getRunHistorySummary,
+  queueWhatsApp,
+  getOptimalModel,
+} from './autodev-helpers';
 
 // ─── AutoDevService ────────────────────────────────────────────────
 
@@ -575,10 +320,12 @@ export class AutoDevService extends EventEmitter {
     if (!this.config.enabled) return;
     try {
       const { CronJob } = await import('cron');
-      this.cronJob = new CronJob(this.config.cronSchedule, () => this.scheduledRun(), null, true);
-      console.log(`[AutoDev] Cron started: ${this.config.cronSchedule}`);
+      // No mandamos 'true' como 4to argumento para evitar que se ejecute inmediatamente al arrancar si el cron coincide
+      this.cronJob = new CronJob(this.config.cronSchedule, () => this.scheduledRun(), null, false);
+      this.cronJob.start();
+      console.log(`[AutoDev] Cron iniciado con horario: ${this.config.cronSchedule}`);
     } catch (err: any) {
-      console.error('[AutoDev] Failed to start cron:', err.message);
+      console.error('[AutoDev] Error al iniciar Cron:', err.message);
     }
   }
 
@@ -587,13 +334,21 @@ export class AutoDevService extends EventEmitter {
   }
 
   abort(): void {
-    if (this.abortController) { this.abortController.abort(); console.log('[AutoDev] Aborted.'); }
+    if (this.abortController) { this.abortController.abort(); console.log('[AutoDev] Abortado por el usuario.'); }
   }
 
   isRunning(): boolean { return !!this.currentRun; }
 
   private async scheduledRun(): Promise<void> {
-    if (powerMonitor.getSystemIdleTime() < 300) return;
+    // Evitar ejecuciones si el sistema acaba de arrancar (menos de 5 minutos de uptime)
+    if (process.uptime() < 300) {
+      console.log('[AutoDev] Scheduled run omitido: sistema arrancado recientemente.');
+      return;
+    }
+    
+    // Solo si el sistema está idle
+    if (powerMonitor && powerMonitor.getSystemIdleTime() < 300) return;
+    
     await this.runNow();
   }
 
@@ -658,26 +413,11 @@ export class AutoDevService extends EventEmitter {
         let msg = run.status === 'completed' 
           ? `✅ AutoDev finalizó con éxito:\n\n${run.summary || 'Mejoras listas.'}\nPR: ${run.prUrl || 'N/A'}`
           : `❌ AutoDev abortado/falló:\n\n${run.error || 'Error desconocido'}`;
-        this.queueWhatsApp(this.config.notifyPhone, msg);
+        queueWhatsApp(this.config.notifyPhone, msg);
+        this.emit('notify-whatsapp', { phone: this.config.notifyPhone, message: msg });
       }
     }
     return run;
-  }
-
-  private queueWhatsApp(phone: string, message: string) {
-    try {
-      if (!fs.existsSync(userDataPath)) { fs.mkdirSync(userDataPath, { recursive: true }); }
-      const qPath = path.join(userDataPath, 'whatsapp-queue.json');
-      let queue: any[] = [];
-      if (fs.existsSync(qPath)) {
-        queue = JSON.parse(fs.readFileSync(qPath, 'utf8'));
-      }
-      queue.push({ phone, message });
-      fs.writeFileSync(qPath, JSON.stringify(queue), 'utf8');
-      this.emit('notify-whatsapp', { phone, message }); // Fallback for local
-    } catch (err: any) {
-       console.error('[AutoDev] WhatsApp queue error:', err.message);
-    }
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -784,8 +524,8 @@ export class AutoDevService extends EventEmitter {
     // ═══════════════════════════════════════════════════════════════
     console.log('[AutoDev] ═══ Phase 1: Parallel Research ═══');
 
-    const depsList = this.getDependenciesList();
-    const sourceCode = await this.readProjectFiles();
+    const depsList = getDependenciesList(this.repoPath);
+    const sourceCode = readProjectFiles(this.repoPath);
     if (!sourceCode.length) throw new Error('No source files found');
     const sourceContext = sourceCode.map(f => `--- ${f.path} ---\n${f.content}`).join('\n\n') + knownIssues;
 
@@ -1189,9 +929,9 @@ export class AutoDevService extends EventEmitter {
     console.log('[AutoDev] ═══ Phase 5: Commit + Push + PR ═══');
     this.updateRunStatus(run, 'pushing');
 
-    await this.git.commitChanges(this.generateCommitMessage(run.improvements));
+    await this.git.commitChanges(generateCommitMessage(run.improvements));
     await this.git.pushBranch(run.branchName);
-    run.prUrl = await this.git.createPR(this.generatePRTitle(run.improvements), this.generatePRBody(run), this.config.targetBranch);
+    run.prUrl = await this.git.createPR(generatePRTitle(run.improvements), generatePRBody(run), this.config.targetBranch);
     await this.git.switchBranch(this.config.targetBranch);
 
     // Summary agent (flash — fast)
@@ -1207,7 +947,7 @@ export class AutoDevService extends EventEmitter {
 
     try { await this.git.cleanupBranch(run.branchName!); } catch {}
 
-    const realCount = this.getRealImprovements(run.improvements).length;
+    const realCount = getRealImprovements(run.improvements).length;
     const deletedCount = run.improvements.filter(i => (i as any).wasDeleted).length;
     console.log(`[AutoDev] ═══ Run completed: ${realCount} improvements${deletedCount ? ` (${deletedCount} archivos eliminados no contados)` : ''}, PR: ${run.prUrl} ═══`);
 
@@ -1229,7 +969,7 @@ export class AutoDevService extends EventEmitter {
     const ai = this.getGenAI();
     const model = ai.getGenerativeModel({ model: this.config.agents.researcher.model });
     const result = await model.generateContent(prompt);
-    const parsed = this.parseJSON(result.response.text());
+    const parsed = parseJSON(result.response.text());
 
     if (!parsed) {
       console.warn('[AutoDev] Capability analysis returned no parseable response');
@@ -1326,14 +1066,14 @@ export class AutoDevService extends EventEmitter {
       const ai = this.getGenAI();
       const model = ai.getGenerativeModel({ model: this.config.agents.reviewer.model });
       const result = await model.generateContent(retroPrompt);
-      const parsed = this.parseJSON(result.response.text());
+      const parsed = parseJSON(result.response.text());
 
       if (parsed) {
         this.strategicMemory.processRetrospectiveResponse(
           run.id,
           (run.strategy as RunStrategy) || 'innovation',
           durationMinutes,
-          { ...parsed, realImprovementsCount: this.getRealImprovements(run.improvements).length },
+          { ...parsed, realImprovementsCount: getRealImprovements(run.improvements).length },
         );
 
         console.log(`[AutoDev Retrospective] 📊 Impacto: ${parsed.impactScore || '?'}/5`);
@@ -1506,7 +1246,8 @@ export class AutoDevService extends EventEmitter {
         const msg = run.status === 'completed'
           ? `🔧 Micro-fix completado:\n${run.summary || 'Corrección aplicada.'}`
           : `⚠️ Micro-fix falló: ${run.error || 'Error desconocido'}`;
-        this.queueWhatsApp(this.config.notifyPhone, msg);
+        queueWhatsApp(this.config.notifyPhone, msg);
+        this.emit('notify-whatsapp', { phone: this.config.notifyPhone, message: msg });
       }
     }
 
@@ -1538,7 +1279,7 @@ export class AutoDevService extends EventEmitter {
     ).join('\n\n');
 
     // Read only relevant source files (budget: 100K chars for micro)
-    const sourceCode = this.readProjectFiles();
+    const sourceCode = readProjectFiles(this.repoPath);
     const limitedSource = sourceCode.slice(0, 30).map(f => `--- ${f.path} ---\n${f.content}`).join('\n\n');
 
     const knownIssues = this.getOpenIssuesSummary();
@@ -1555,7 +1296,7 @@ export class AutoDevService extends EventEmitter {
     });
 
     const analyzeResult = await analyzerModel.generateContent(analyzePrompt);
-    const analysis = this.parseJSON(analyzeResult.response.text());
+    const analysis = parseJSON(analyzeResult.response.text());
     checkAbort();
 
     if (!analysis) {
@@ -1787,7 +1528,7 @@ export class AutoDevService extends EventEmitter {
 
       const result = await model.generateContent(prompt);
       const text = result.response.text();
-      const parsed = this.parseJSON(text);
+      const parsed = parseJSON(text);
 
       if (parsed?.findings) {
         return parsed.findings.map((f: any) => ({
@@ -1803,31 +1544,6 @@ export class AutoDevService extends EventEmitter {
       console.warn(`[AutoDev ${category}Agent] Error:`, err.message);
     }
     return [];
-  }
-
-  // ─── Token Routing & Fallback ──────────────────────────────────
-  private async getOptimalModel(intendedModel: string, promptText: string): Promise<string> {
-    try {
-      const ai = this.getGenAI();
-      const model = ai.getGenerativeModel({ model: intendedModel });
-      const { totalTokens } = await model.countTokens(promptText);
-      
-      if (totalTokens > 200000) {
-        console.log(`\n[AutoDev Tokenizer] ⚠️ Prompt masivo detectado: ${totalTokens} tokens.`);
-        console.log(`[AutoDev Tokenizer] 📉 Cambiando modelo '${intendedModel}' -> 'gemini-3-flash-preview' por límite de tarifa (200k) y economía.`);
-        return 'gemini-3-flash-preview';
-      }
-      return intendedModel;
-    } catch (err: any) {
-      // Heurística de emergencia si falla la API de countTokens
-      const estimatedTokens = Math.ceil(promptText.length / 4);
-      if (estimatedTokens > 200000) {
-        console.log(`\n[AutoDev Tokenizer] ⚠️ Prompt masivo detectado por heurística: ~${estimatedTokens} tokens.`);
-        console.log(`[AutoDev Tokenizer] 📉 Cambiando modelo '${intendedModel}' -> 'gemini-3-flash-preview' preventivamente.`);
-        return 'gemini-3-flash-preview';
-      }
-      return intendedModel;
-    }
   }
 
   // ─── Agentic Deep Research (coding model + function calling) ───
@@ -1865,7 +1581,7 @@ ${codeContext}
 Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings": "...", "sources": ["..."], "actionable": true/false }] }`;
 
     const execute = async (baseModel: string): Promise<ResearchFinding[]> => {
-      const finalModel = await this.getOptimalModel(baseModel, prompt);
+      const finalModel = await getOptimalModel(this.getGenAI(),baseModel, prompt);
       const resultsAccum: ResearchFinding[] = [];
       const ai = this.getGenAI();
       const model = ai.getGenerativeModel({
@@ -1894,7 +1610,7 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
         response = await chat.sendMessage(results);
       }
 
-      const parsed = this.parseJSON(response.response.text());
+      const parsed = parseJSON(response.response.text());
       if (parsed?.findings) {
         for (const f of parsed.findings) {
           resultsAccum.push({
@@ -1957,22 +1673,6 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
 
   // ─── Analysis (coding model) ──────────────────────────────────
 
-  private getErrorMemoryContext(): string {
-    const errorMemory = loadErrorMemory();
-    if (!errorMemory.length) return 'No hay errores registrados de runs anteriores.';
-    const top = errorMemory.slice(0, 15);
-    return top.map(m => `- [${m.pattern}] en ${m.file}: ${m.fix} (ocurrencias: ${m.occurrences}, último: ${m.lastSeen})`).join('\n');
-  }
-
-  private getRunHistorySummary(): string {
-    if (!this.history.length) return 'No hay historial de runs anteriores.';
-    const recent = this.history.slice(-5);
-    return recent.map(r => {
-      const applied = r.improvements.filter(i => i.applied).length;
-      return `- Run ${r.id} (${r.startedAt.slice(0, 10)}): ${r.status} — ${applied} mejoras aplicadas${r.error ? ` — Error: ${r.error.slice(0, 100)}` : ''}`;
-    }).join('\n');
-  }
-
   private async analyzeCode(sourceContext: string, findings: ResearchFinding[], npmAuditText: string, npmOutdatedText: string): Promise<any[]> {
     const findingsText = findings.filter(f => f.actionable)
       .map(f => `- [${f.category}] ${f.findings}\n  Sources: ${f.sources.join(', ')}`).join('\n');
@@ -1987,11 +1687,11 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
       .replace('{CATEGORIES}', this.config.categories.join(', '))
       .replace('{MAX_FILES}', String(this.config.maxFilesPerRun))
       .replace('{MAX_LINES}', String(this.config.maxLinesChanged))
-      .replace('{ERROR_MEMORY}', this.getErrorMemoryContext())
-      .replace('{RUN_HISTORY}', this.getRunHistorySummary());
+      .replace('{ERROR_MEMORY}', getErrorMemoryContext())
+      .replace('{RUN_HISTORY}', getRunHistorySummary(this.history));
 
     const execute = async (baseModel: string): Promise<any[]> => {
-      const finalModel = await this.getOptimalModel(baseModel, prompt);
+      const finalModel = await getOptimalModel(this.getGenAI(),baseModel, prompt);
       const ai = this.getGenAI();
       const model = ai.getGenerativeModel({
         model: finalModel,
@@ -2016,7 +1716,7 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
         response = await chat.sendMessage(results);
       }
 
-      return this.parseJSON(response.response.text())?.improvements || [];
+      return parseJSON(response.response.text())?.improvements || [];
     };
 
     try {
@@ -2048,10 +1748,10 @@ Responde con JSON: { "findings": [{ "query": "...", "category": "...", "findings
       .replace('{IMPROVEMENTS}', JSON.stringify(improvements, null, 2))
       .replace('{RESEARCH_CONTEXT}', ctx || 'None')
       .replace('{MAX_LINES}', String(this.config.maxLinesChanged))
-      .replace('{ERROR_MEMORY}', this.getErrorMemoryContext());
+      .replace('{ERROR_MEMORY}', getErrorMemoryContext());
 
     const result = await model.generateContent(prompt);
-    const plan = this.parseJSON(result.response.text())?.plan || [];
+    const plan = parseJSON(result.response.text())?.plan || [];
 
     // ─── Pre-flight validation: filter out dangerous plan steps ───
     const safePlan = plan.filter((step: any) => {
@@ -2202,11 +1902,11 @@ ${diff.slice(0, 50000)}
 }`;
 
     const execute = async (baseModel: string): Promise<any[]> => {
-      const finalModel = await this.getOptimalModel(baseModel, prompt);
+      const finalModel = await getOptimalModel(this.getGenAI(),baseModel, prompt);
       const ai = this.getGenAI();
       const model = ai.getGenerativeModel({ model: finalModel });
       const res = await model.generateContent(prompt);
-      const parsed = this.parseJSON(res.response.text());
+      const parsed = parseJSON(res.response.text());
 
       // Log the error analysis for learning
       if (parsed?.errorAnalysis) {
@@ -2319,7 +2019,7 @@ ${diff.slice(0, 50000)}
             const ai = this.getGenAI();
             const model = ai.getGenerativeModel({ model: 'gemini-3-flash-preview', generationConfig: { responseMimeType: 'application/json' } });
             const res = await model.generateContent(fixPrompt);
-            const parsed = this.parseJSON(res.response.text());
+            const parsed = parseJSON(res.response.text());
             if (parsed && typeof parsed.command === 'string') {
               if (parsed.command.trim() === '') throw new Error('AI aborted command fix');
               currentCommand = parsed.command;
@@ -2379,10 +2079,10 @@ ${diff.slice(0, 50000)}
       .replace('{FILE_PATH}', step.file)
       .replace('{CURRENT_CODE}', currentCode)
       .replace('{RESEARCH_CONTEXT}', step.source || 'None')
-      .replace('{LESSONS_LEARNED}', this.getErrorMemoryContext());
+      .replace('{LESSONS_LEARNED}', getErrorMemoryContext());
 
     const execute = async (baseModel: string): Promise<any> => {
-      const finalModel = await this.getOptimalModel(baseModel, prompt);
+      const finalModel = await getOptimalModel(this.getGenAI(),baseModel, prompt);
       const ai = this.getGenAI();
       const model = ai.getGenerativeModel({
         model: finalModel,
@@ -2405,7 +2105,7 @@ ${diff.slice(0, 50000)}
         response = await chat.sendMessage(results);
       }
 
-      return this.parseJSON(response.response.text());
+      return parseJSON(response.response.text());
     };
 
     let parsed: any = null;
@@ -2430,7 +2130,7 @@ ${diff.slice(0, 50000)}
 
     // ─── Safety: block major version bumps in package.json ────────
     if (step.file === 'package.json' || filePath.endsWith('package.json')) {
-      if (this.hasMajorVersionBump(currentCode, parsed.modifiedCode)) {
+      if (hasMajorVersionBump(currentCode, parsed.modifiedCode)) {
         console.warn(`[AutoDev SafetyGuard] ⛔ BLOCKED: package.json write contains major version bump. Skipping.`);
         return null;
       }
@@ -2699,7 +2399,7 @@ ${diff.slice(0, 50000)}
       .replace('{RESEARCH_SOURCES}', sourcesText || 'None');
 
     const result = await model.generateContent(prompt);
-    const parsed = this.parseJSON(result.response.text());
+    const parsed = parseJSON(result.response.text());
     return { decision: parsed?.decision || 'reject', summary: parsed?.summary || 'Could not parse review' };
   }
 
@@ -2731,165 +2431,4 @@ ${diff.slice(0, 50000)}
     }
   }
 
-  // ─── Helpers ──────────────────────────────────────────────────
-
-  private readProjectFiles(): Array<{ path: string; content: string }> {
-    // Budget: ~300K chars ≈ ~75K tokens. Allows reading most project files while staying within Gemini context limits.
-    const MAX_TOTAL_CHARS = 300_000;
-    const MAX_FILE_CHARS = 25_000; // Truncate individual files beyond this
-    const allFiles: Array<{ path: string; size: number; priority: number }> = [];
-    const walk = (dir: string) => {
-      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        const fullPath = path.join(dir, entry.name);
-        const relPath = path.relative(this.repoPath, fullPath);
-        if (entry.isDirectory()) {
-          if (!IGNORE_DIRS.some(d => relPath.startsWith(d) || entry.name === d)) walk(fullPath);
-          continue;
-        }
-        if (!entry.name.endsWith('.ts') && !entry.name.endsWith('.tsx')) continue;
-        if (entry.name.endsWith('.d.ts')) continue;
-        try {
-          const stat = fs.statSync(fullPath);
-          if (stat.size > 500_000) continue;
-          const normalizedPath = relPath.replace(/\\/g, '/');
-          // Priority: 0 = highest (electron core), 1 = src, 2 = other
-          const priority = normalizedPath.startsWith('electron/') ? 0
-            : normalizedPath.startsWith('src/') ? 1 : 2;
-          allFiles.push({ path: normalizedPath, size: stat.size, priority });
-        } catch { /* skip */ }
-      }
-    };
-    walk(this.repoPath);
-
-    // Sort: priority ASC, then size ASC (smaller files first within same priority)
-    allFiles.sort((a, b) => a.priority - b.priority || a.size - b.size);
-
-    const files: Array<{ path: string; content: string }> = [];
-    let totalChars = 0;
-
-    for (const f of allFiles) {
-      if (totalChars >= MAX_TOTAL_CHARS) break;
-      try {
-        const fullPath = path.join(this.repoPath, f.path);
-        let content = fs.readFileSync(fullPath, 'utf-8');
-        if (content.length > MAX_FILE_CHARS) {
-          content = content.slice(0, MAX_FILE_CHARS) + '\n// ... [truncated by AutoDev — file too large]';
-        }
-        const remaining = MAX_TOTAL_CHARS - totalChars;
-        if (content.length > remaining) {
-          content = content.slice(0, remaining) + '\n// ... [truncated by AutoDev — budget limit]';
-        }
-        files.push({ path: f.path, content });
-        totalChars += content.length;
-      } catch { /* skip */ }
-    }
-
-    console.log(`[AutoDev] readProjectFiles: ${files.length}/${allFiles.length} files, ${Math.round(totalChars / 1000)}K chars (budget: ${MAX_TOTAL_CHARS / 1000}K)`);
-    return files;
-  }
-
-  private getDependenciesList(): string {
-    try {
-      const pkg = JSON.parse(fs.readFileSync(path.join(this.repoPath, 'package.json'), 'utf-8'));
-      return Object.entries({ ...pkg.dependencies, ...pkg.devDependencies })
-        .map(([n, v]) => `${n}@${v}`).join('\n');
-    } catch { return 'Could not read package.json'; }
-  }
-
-  /** Filter improvements to only include real applied changes (exclude deletions) */
-  private getRealImprovements(improvements: AutoDevImprovement[]): AutoDevImprovement[] {
-    return improvements.filter(i => i.applied && !(i as any).wasDeleted);
-  }
-
-  private generateCommitMessage(improvements: AutoDevImprovement[]): string {
-    const applied = this.getRealImprovements(improvements);
-    const deleted = improvements.filter(i => (i as any).wasDeleted);
-    const cats = [...new Set(applied.map(i => i.category))];
-    const lines = [
-      `Automated improvements: ${cats.join(', ')}`,
-      '', ...applied.map(i => `- [${i.category}] ${i.file}: ${i.description}`),
-    ];
-    if (deleted.length > 0) {
-      lines.push('', '## Archivos eliminados (no contados como mejoras):');
-      lines.push(...deleted.map(i => `- ${i.file}: ${i.description}`));
-    }
-    lines.push('', `Files: ${[...new Set(applied.map(i => i.file))].length} | Sources: ${[...new Set(applied.flatMap(i => i.researchSources))].slice(0, 5).join(', ')}`);
-    return lines.join('\n');
-  }
-
-  private generatePRTitle(improvements: AutoDevImprovement[]): string {
-    const applied = this.getRealImprovements(improvements);
-    const cats = [...new Set(applied.map(i => i.category))];
-    return `${cats.join(', ')}: ${applied.length} automated improvements`;
-  }
-
-  private generatePRBody(run: AutoDevRun): string {
-    const applied = this.getRealImprovements(run.improvements);
-    const deleted = run.improvements.filter(i => (i as any).wasDeleted);
-    const findings = run.researchFindings.filter(f => f.actionable);
-    const lines = [
-      '## Summary',
-      `AutoDev multi-agent run — ${run.agentTasks.length} agents deployed, ${applied.length} improvements applied.`,
-      '',
-      '## Agents Used',
-      ...run.agentTasks.map(t => `- **${t.description}** (${t.model}) — ${t.status}`),
-      '',
-      '## Improvements',
-      ...applied.map(i => `- **[${i.category}]** \`${i.file}\`: ${i.description}\n  Sources: ${i.researchSources.map(s => `[link](${s})`).join(', ') || 'N/A'}`),
-    ];
-    if (deleted.length > 0) {
-      lines.push('', '## Archivos eliminados (trabajo fallido — no contados como mejoras)');
-      lines.push(...deleted.map(i => `- \`${i.file}\`: ${i.description}`));
-    }
-    lines.push(
-      '',
-      '## Research Conducted',
-      ...findings.slice(0, 10).map(f => `- **[${f.category}]** ${f.findings}\n  Sources: ${f.sources.map(s => `[link](${s})`).join(', ')}`),
-      '', '---', '🤖 Generated by AutoDev multi-agent system (SofLIA-HUB)',
-    );
-    return lines.join('\n');
-  }
-
-  /**
-   * Detect if a package.json modification contains major version bumps.
-   * Compares old vs new dependency versions — blocks if any major changed.
-   */
-  private hasMajorVersionBump(oldContent: string, newContent: string): boolean {
-    try {
-      const oldPkg = JSON.parse(oldContent);
-      const newPkg = JSON.parse(newContent);
-      const PROTECTED_PACKAGES = [
-        'react', 'react-dom', 'vite', 'electron', 'typescript',
-        '@electron/rebuild', '@electron-toolkit/preload', '@electron-toolkit/utils',
-        'electron-builder', 'electron-vite',
-      ];
-
-      for (const section of ['dependencies', 'devDependencies'] as const) {
-        const oldDeps = oldPkg[section] || {};
-        const newDeps = newPkg[section] || {};
-        for (const pkg of Object.keys(newDeps)) {
-          if (!oldDeps[pkg]) continue; // new package addition is fine
-          const oldMajor = (oldDeps[pkg] as string).replace(/[\^~>=<\s]/g, '').split('.')[0];
-          const newMajor = (newDeps[pkg] as string).replace(/[\^~>=<\s]/g, '').split('.')[0];
-          if (oldMajor !== newMajor) {
-            console.warn(`[AutoDev SafetyGuard] Major bump detected: ${pkg} ${oldDeps[pkg]} → ${newDeps[pkg]} (major: ${oldMajor} → ${newMajor})`);
-            if (PROTECTED_PACKAGES.includes(pkg) || parseInt(newMajor) > parseInt(oldMajor)) {
-              return true;
-            }
-          }
-        }
-      }
-    } catch {
-      // If we can't parse either JSON, block the write as a safety measure
-      console.warn('[AutoDev SafetyGuard] Could not parse package.json for version comparison — blocking write');
-      return true;
-    }
-    return false;
-  }
-
-  private parseJSON(text: string): any {
-    const m = text.match(/```(?:json)?\s*([\s\S]*?)```/) || text.match(/(\{[\s\S]*\})/);
-    if (m) { try { return JSON.parse(m[1]); } catch { /* fall through */ } }
-    try { return JSON.parse(text); } catch { return null; }
-  }
 }

@@ -3,94 +3,45 @@
  */
 import { ipcMain, type BrowserWindow } from 'electron';
 import type { AutoDevService } from './autodev-service';
-
 import type { SelfLearnService } from './autodev-selflearn';
+import { handleIPC, handleIPCVoid } from './utils/ipc-helpers';
 
 export function registerAutoDevHandlers(
   autoDevService: AutoDevService,
   selfLearnService: SelfLearnService,
   getMainWindow: () => BrowserWindow | null,
 ): void {
-  ipcMain.handle('autodev:log-feedback', async (_event, message: string) => {
-    try {
-      // Analyze message for both complaints and suggestions
-      selfLearnService.analyzeUserMessage(message, 'chat');
-      return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message };
-    }
-  });
+  ipcMain.handle('autodev:log-feedback', (_event, message: string) =>
+    handleIPCVoid(() => { selfLearnService.analyzeUserMessage(message, 'chat'); return Promise.resolve(); }));
 
-  ipcMain.handle('autodev:get-config', async () => {
-    try {
-      return { success: true, config: autoDevService.getConfig() };
-    } catch (err: any) {
-      return { success: false, error: err.message };
-    }
-  });
+  ipcMain.handle('autodev:get-config', () =>
+    handleIPC(async () => ({ config: autoDevService.getConfig() })));
 
-  ipcMain.handle('autodev:update-config', async (_event, updates: any) => {
-    try {
-      const config = autoDevService.updateConfig(updates);
-      return { success: true, config };
-    } catch (err: any) {
-      return { success: false, error: err.message };
-    }
-  });
+  ipcMain.handle('autodev:update-config', (_event, updates: any) =>
+    handleIPC(async () => ({ config: autoDevService.updateConfig(updates) })));
 
-  ipcMain.handle('autodev:run-now', async () => {
-    try {
-      // Don't await — run in background and return immediately
+  ipcMain.handle('autodev:run-now', () =>
+    handleIPC(async () => {
       autoDevService.runNow().catch(err => {
         console.error('[AutoDevHandlers] Run error:', err.message);
       });
-      return { success: true, message: 'Run started' };
-    } catch (err: any) {
-      return { success: false, error: err.message };
-    }
-  });
+      return { message: 'Run started' };
+    }));
 
-  ipcMain.handle('autodev:abort', async () => {
-    try {
-      autoDevService.abort();
-      return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message };
-    }
-  });
+  ipcMain.handle('autodev:abort', () =>
+    handleIPCVoid(async () => { autoDevService.abort(); }));
 
-  ipcMain.handle('autodev:get-status', async () => {
-    try {
-      return { success: true, ...autoDevService.getStatus() };
-    } catch (err: any) {
-      return { success: false, error: err.message };
-    }
-  });
+  ipcMain.handle('autodev:get-status', () =>
+    handleIPC(async () => autoDevService.getStatus()));
 
-  ipcMain.handle('autodev:get-history', async () => {
-    try {
-      return { success: true, history: autoDevService.getHistory() };
-    } catch (err: any) {
-      return { success: false, error: err.message };
-    }
-  });
+  ipcMain.handle('autodev:get-history', () =>
+    handleIPC(async () => ({ history: autoDevService.getHistory() })));
 
-  ipcMain.handle('autodev:micro-fix-status', async () => {
-    try {
-      return { success: true, ...autoDevService.getMicroFixStatus() };
-    } catch (err: any) {
-      return { success: false, error: err.message };
-    }
-  });
+  ipcMain.handle('autodev:micro-fix-status', () =>
+    handleIPC(async () => autoDevService.getMicroFixStatus()));
 
-  ipcMain.handle('autodev:trigger-micro-fix', async (_event, trigger: any) => {
-    try {
-      autoDevService.queueMicroFix(trigger);
-      return { success: true, message: 'Micro-fix queued' };
-    } catch (err: any) {
-      return { success: false, error: err.message };
-    }
-  });
+  ipcMain.handle('autodev:trigger-micro-fix', (_event, trigger: any) =>
+    handleIPC(async () => { autoDevService.queueMicroFix(trigger); return { message: 'Micro-fix queued' }; }));
 
   // Forward events to renderer
   autoDevService.on('run-started', (run) => {

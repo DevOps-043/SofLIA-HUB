@@ -1,53 +1,12 @@
-import { createClient } from '@supabase/supabase-js';
 import { SOFIA_SUPABASE } from '../config';
-
-// Storage adapter using localStorage (Electron desktop)
-const localStorageAdapter = {
-  getItem: async (key: string): Promise<string | null> => {
-    return localStorage.getItem(key);
-  },
-  setItem: async (key: string, value: string): Promise<void> => {
-    localStorage.setItem(key, value);
-  },
-  removeItem: async (key: string): Promise<void> => {
-    localStorage.removeItem(key);
-  },
-};
-
-// Validate URL helper
-const isValidUrl = (url: string) => {
-  try {
-    new URL(url);
-    return true;
-  } catch {
-    return false;
-  }
-};
+import { createElectronSupabaseClient, isValidUrl } from './supabase-factory';
 
 // SOFIA Supabase Client (Auth Principal + Organizaciones/Equipos)
-const sofiaUrl = isValidUrl(SOFIA_SUPABASE.URL) ? SOFIA_SUPABASE.URL : '';
-const sofiaKey = SOFIA_SUPABASE.ANON_KEY || '';
-
-// Custom fetch without automatic AbortSignal timeout (prevents "signal is aborted" in Electron)
-const electronFetch: typeof globalThis.fetch = (input, init) => {
-  const { signal: _signal, ...rest } = init || {};
-  return globalThis.fetch(input, rest);
-};
-
-export const sofiaSupa = sofiaUrl && sofiaKey
-  ? createClient(sofiaUrl, sofiaKey, {
-      auth: {
-        storage: localStorageAdapter,
-        storageKey: 'sofia-auth-token',
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: false,
-      },
-      global: {
-        fetch: electronFetch,
-      },
-    })
-  : null;
+export const sofiaSupa = createElectronSupabaseClient(
+  SOFIA_SUPABASE.URL,
+  SOFIA_SUPABASE.ANON_KEY,
+  'sofia-auth-token',
+);
 
 export const isSofiaConfigured = () => {
   return (

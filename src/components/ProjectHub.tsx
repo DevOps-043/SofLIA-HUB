@@ -3,37 +3,11 @@ import type { Folder } from '../services/folder-service';
 import type { Conversation } from '../services/chat-service';
 import { listDriveFiles } from '../services/drive-service';
 import type { DriveFile } from '../services/drive-service';
-
-export interface WorkspaceSource {
-  id: string;
-  folder_id: string;
-  source_type: string;
-  file_name: string;
-  file_size?: number;
-  url?: string;
-  created_at: string;
-}
-
-// Implementaciones mock para resolver TS2307 (Cannot find module)
-const getSourcesForFolder = async (_folderId: string): Promise<WorkspaceSource[]> => {
-  return [];
-};
-
-const addSourceFromDrive = async (_folderId: string, _type: string, _fileId: string, _userId: string, _orgId: string): Promise<WorkspaceSource | null> => {
-  return null;
-};
-
-const addSourceFromUpload = async (_folderId: string, _type: string, _file: File, _userId: string, _orgId: string): Promise<WorkspaceSource | null> => {
-  return null;
-};
-
-const removeSource = async (_sourceId: string): Promise<boolean> => {
-  return true;
-};
-
-const getDownloadUrl = async (_source: WorkspaceSource): Promise<string | null> => {
-  return null;
-};
+import {
+  type WorkspaceSource,
+  getSourcesForFolder, addSourceFromDrive, addSourceFromUpload,
+  removeSource, getDownloadUrl,
+} from '../services/workspace-sources';
 
 interface ProjectHubProps {
   folder: Folder;
