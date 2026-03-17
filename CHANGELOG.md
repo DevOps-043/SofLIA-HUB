@@ -4,6 +4,12 @@ Todos los cambios notables de SofLIA Hub se documentan aquí.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.1.13] - 2026-03-17
+
+### Fixed
+
+- **Variables de entorno ausentes en produccion:** las variables `VITE_*` del main process de Electron (Google OAuth, IRIS Supabase, Gemini, Gamma) no estaban disponibles en la app empaquetada porque el archivo `.env` no se incluye en el build y `dotenv` no podia cargarlo en runtime. Se corrigio inyectando todas las variables `VITE_*` en build time via `define` en la config de Vite del main process, usando `loadEnv()` para leerlas del `.env` durante la compilacion. Esto resuelve los errores "Google OAuth credentials not configured" y "Faltan las credenciales de IRIS Supabase para Meeting Ops" en la version desplegada.
+
 ## [0.1.12] - 2026-03-16
 
 ### Added
