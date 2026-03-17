@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import path from "node:path";
 import { spawn, execSync, type ChildProcess } from "node:child_process";
 import electron from "vite-plugin-electron/simple";
@@ -87,59 +87,74 @@ function isIgnorableRollupWarning(warning: { code?: string; message: string; id?
   return false;
 }
 
-export default defineConfig({
-  server: {
-    warmup: {
-      clientFiles: ["./src/main.tsx", "./src/index.css"],
+export default defineConfig(({ mode }) => {
+  // Cargar variables VITE_* desde .env para inyectarlas en el main process en build time.
+  // En dev, dotenv las carga en runtime; en producción el .env no se empaqueta,
+  // así que deben quedar incrustadas en el bundle del main process.
+  const env = loadEnv(mode, process.cwd(), 'VITE_');
+
+  const mainProcessEnvDefines: Record<string, string> = {};
+  for (const key of Object.keys(env)) {
+    // No reemplazar VITE_DEV_SERVER_URL ni VITE_PUBLIC — son asignadas en runtime por el propio app
+    if (key === 'VITE_DEV_SERVER_URL' || key === 'VITE_PUBLIC') continue;
+    mainProcessEnvDefines[`process.env.${key}`] = JSON.stringify(env[key]);
+  }
+
+  return {
+    server: {
+      warmup: {
+        clientFiles: ["./src/main.tsx", "./src/index.css"],
+      },
+      watch: {
+        ignored: ["**/dist/**", "**/dist-electron/**"],
+      },
     },
-    watch: {
-      ignored: ["**/dist/**", "**/dist-electron/**"],
+    optimizeDeps: {
+      exclude: ["mammoth", "pptxgenjs", "archiver", "better-sqlite3", "sharp", "exceljs", "docx"],
     },
-  },
-  optimizeDeps: {
-    exclude: ["mammoth", "pptxgenjs", "archiver", "better-sqlite3", "sharp", "exceljs", "docx"],
-  },
-  plugins: [
-    react(),
-    electron({
-      main: {
-        entry: "electron/main.ts",
-        onstart: async () => {
-          await startElectronDevProcess();
-        },
-        vite: {
-          build: {
-            // Override vite-plugin-electron's auto-detection of "type":"module"
-            // to output CJS instead of ESM — avoids Node 20 cjsPreparseModuleExports crash
-            // with externalized CJS native modules (better-sqlite3, baileys, etc.)
-            lib: {
-              entry: "electron/main.ts",
-              formats: ["es"],
-              fileName: () => "[name].js",
-            },
-            rollupOptions: {
-              external: [
-                ...builtinModules,
-                ...builtinModules.map((m) => `node:${m}`),
-                // Externalizamos todo EXCEPTO Baileys para evitar el error ERR_REQUIRE_ESM
-                ...Object.keys(pkg.dependencies || {}).filter(dep => dep !== "@whiskeysockets/baileys"),
-                "bufferutil",
-                "utf-8-validate",
-              ],
-              onwarn(warning, warn) {
-                if (isIgnorableRollupWarning(warning)) {
-                  return;
-                }
-                warn(warning);
+    plugins: [
+      react(),
+      electron({
+        main: {
+          entry: "electron/main.ts",
+          onstart: async () => {
+            await startElectronDevProcess();
+          },
+          vite: {
+            define: mainProcessEnvDefines,
+            build: {
+              // Override vite-plugin-electron's auto-detection of "type":"module"
+              // to output CJS instead of ESM — avoids Node 20 cjsPreparseModuleExports crash
+              // with externalized CJS native modules (better-sqlite3, baileys, etc.)
+              lib: {
+                entry: "electron/main.ts",
+                formats: ["cjs"],
+                fileName: () => "[name].js",
+              },
+              rollupOptions: {
+                external: [
+                  ...builtinModules,
+                  ...builtinModules.map((m) => `node:${m}`),
+                  // Externalizamos todo EXCEPTO Baileys para evitar el error ERR_REQUIRE_ESM
+                  ...Object.keys(pkg.dependencies || {}).filter(dep => dep !== "@whiskeysockets/baileys"),
+                  "bufferutil",
+                  "utf-8-validate",
+                ],
+                onwarn(warning, warn) {
+                  if (isIgnorableRollupWarning(warning)) {
+                    return;
+                  }
+                  warn(warning);
+                },
               },
             },
           },
         },
-      },
-      preload: {
-        input: path.join(__dirname, "electron/preload.ts"),
-      },
-      renderer: {},
-    }),
-  ],
+        preload: {
+          input: path.join(__dirname, "electron/preload.ts"),
+        },
+        renderer: {},
+      }),
+    ],
+  };
 });
