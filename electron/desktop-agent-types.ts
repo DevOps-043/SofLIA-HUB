@@ -155,6 +155,8 @@ export interface UIElement {
   controlType: string;
   boundingRect: { x: number; y: number; width: number; height: number };
   isEnabled: boolean;
+  automationId?: string;
+  value?: string;
 }
 
 // V2: History summary
@@ -199,10 +201,24 @@ export interface DesktopAgentStatus {
   currentTask: string | null;
   currentStep: number;
   maxSteps: number;
+  currentBackend?: 'desktop_visual' | 'browser_web' | 'windows_uia' | null;
+  currentUrl?: string | null;
+  lastVerification?: string | null;
+  lastTracePath?: string | null;
+  lastReportPath?: string | null;
+  lastScreenshotPath?: string | null;
   plan: TaskPlan | null;
   lastAction: string | null;
   config: DesktopAgentConfig;
-  activeTasks: Array<{ id: string; task: string; status: AgentStatus; step: number; maxSteps: number }>;
+  activeTasks: Array<{
+    id: string;
+    task: string;
+    status: AgentStatus;
+    step: number;
+    maxSteps: number;
+    backend?: 'desktop_visual' | 'browser_web' | 'windows_uia';
+    currentUrl?: string | null;
+  }>;
   totalActiveAgents: number;
 }
 

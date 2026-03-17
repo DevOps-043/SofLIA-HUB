@@ -24,6 +24,10 @@ declare global {
       clipboardWrite: (text: string) => Promise<any>;
       takeScreenshot: () => Promise<any>;
       confirmAction: (message: string) => Promise<{ confirmed: boolean }>;
+      organizeFiles: (options: any) => Promise<any>;
+      batchMoveFiles: (options: any) => Promise<any>;
+      listDirectorySummary: (options: any) => Promise<any>;
+      undoLastFileOperation: (options?: any) => Promise<any>;
       // Email tools
       getEmailConfig: () => Promise<any>;
       configureEmail: (email: string, password: string) => Promise<any>;
@@ -31,7 +35,7 @@ declare global {
     };
     desktopAgent?: {
       executeTask: (task: string, options?: any) => Promise<any>;
-      executeParallel: (tasks: Array<{ task: string; maxSteps?: number }>) => Promise<any>;
+      executeParallel: (tasks: Array<{ task: string; maxSteps?: number; backend?: 'auto' | 'browser' | 'desktop' | 'uia'; startUrl?: string }>) => Promise<any>;
       getActiveTasks: () => Promise<any>;
       abortTask: (taskId: string) => Promise<any>;
       abort: () => Promise<any>;
@@ -100,13 +104,23 @@ export async function executeComputerTool(
   args: Record<string, any>
 ): Promise<string> {
   const api = getAPI();
+  const desktopApi = toolName === 'use_computer' ? getDesktopAgentAPI() : null;
 
   // Confirmation for dangerous actions
-  if (DANGEROUS_TOOLS.has(toolName)) {
+  const needsConfirmation =
+    DANGEROUS_TOOLS.has(toolName)
+    || (toolName === 'organize_files' && !args.dry_run)
+    || toolName === 'batch_move_files';
+
+  if (needsConfirmation) {
     const desc = toolName === 'delete_item'
       ? `Eliminar: ${args.path}`
       : toolName === 'send_email'
       ? `Enviar email a: ${args.to}\nAsunto: ${args.subject}${args.attachment_paths?.length ? `\nAdjuntos: ${args.attachment_paths.length} archivo(s)` : ''}`
+      : toolName === 'organize_files'
+      ? `Organizar archivos en: ${args.path}\nModo: ${args.mode || 'extension'}${args.dry_run ? '\nModo simulacion' : ''}`
+      : toolName === 'batch_move_files'
+      ? `Mover archivos de: ${args.source_directory}\nA: ${args.destination_directory}`
       : `Ejecutar comando: ${args.command}`;
 
     let confirmed = false;
@@ -163,6 +177,22 @@ export async function executeComputerTool(
       result = await api.searchFiles(args.directory || '', args.pattern);
       break;
 
+    case 'organize_files':
+      result = await api.organizeFiles(args);
+      break;
+
+    case 'batch_move_files':
+      result = await api.batchMoveFiles(args);
+      break;
+
+    case 'list_directory_summary':
+      result = await api.listDirectorySummary(args);
+      break;
+
+    case 'undo_last_file_operation':
+      result = await api.undoLastFileOperation(args);
+      break;
+
     case 'execute_command':
       result = await api.executeCommand(args.command);
       break;
@@ -189,6 +219,17 @@ export async function executeComputerTool(
 
     case 'take_screenshot':
       result = await api.takeScreenshot();
+      break;
+
+    case 'use_computer':
+      result = await desktopApi!.executeTask(args.task, {
+        maxSteps: args.max_steps,
+        backend: args.backend,
+        startUrl: args.start_url,
+      });
+      if (typeof result === 'string') {
+        result = { success: true, message: result };
+      }
       break;
 
     case 'get_email_config':

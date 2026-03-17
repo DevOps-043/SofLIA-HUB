@@ -6,10 +6,94 @@ import react from "@vitejs/plugin-react";
 import { builtinModules } from "node:module";
 import pkg from "./package.json";
 
+type ProcessWithElectronApp = NodeJS.Process & { electronApp?: ChildProcess | null };
+
+const electronRuntime = process as ProcessWithElectronApp;
+
+async function stopElectronDevProcess(): Promise<void> {
+  const child = electronRuntime.electronApp;
+  if (!child) return;
+
+  electronRuntime.electronApp = null;
+  child.removeAllListeners();
+
+  if (child.exitCode !== null || child.killed) {
+    return;
+  }
+
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+
+    child.once("exit", finish);
+
+    try {
+      if (!child.pid) {
+        finish();
+        return;
+      }
+
+      if (process.platform === "win32") {
+        execSync(`taskkill /pid ${child.pid} /T /F`, { stdio: "ignore" });
+      } else {
+        child.kill("SIGTERM");
+      }
+    } catch {
+      finish();
+    }
+
+    setTimeout(finish, 2000);
+  });
+}
+
+async function startElectronDevProcess(argv = [".", "--no-sandbox"]): Promise<void> {
+  const electronModule = await import("electron");
+  const electronPath = electronModule.default ?? electronModule;
+
+  await stopElectronDevProcess();
+
+  const child = spawn(electronPath as string, argv, {
+    stdio: ["inherit", "inherit", "inherit", "ipc"],
+  });
+
+  electronRuntime.electronApp = child;
+  child.once("exit", () => {
+    if (electronRuntime.electronApp === child) {
+      electronRuntime.electronApp = null;
+      process.exit();
+    }
+  });
+}
+
+function isIgnorableRollupWarning(warning: { code?: string; message: string; id?: string }): boolean {
+  if (
+    warning.code === "UNUSED_EXTERNAL_IMPORT" &&
+    warning.message.includes('"WriteStream" is imported from external module "fs" but never used')
+  ) {
+    return true;
+  }
+
+  if (
+    warning.code === "EVAL" &&
+    warning.message.includes('Use of eval in "node_modules/@protobufjs/inquire/index.js"')
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 export default defineConfig({
   server: {
     warmup: {
       clientFiles: ["./src/main.tsx", "./src/index.css"],
+    },
+    watch: {
+      ignored: ["**/dist/**", "**/dist-electron/**"],
     },
   },
   optimizeDeps: {
@@ -42,6 +126,12 @@ export default defineConfig({
                 "bufferutil",
                 "utf-8-validate",
               ],
+              onwarn(warning, warn) {
+                if (isIgnorableRollupWarning(warning)) {
+                  return;
+                }
+                warn(warning);
+              },
             },
           },
         },

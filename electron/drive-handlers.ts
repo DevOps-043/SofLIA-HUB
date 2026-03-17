@@ -19,7 +19,8 @@ export function registerDriveHandlers(
   ipcMain.handle('drive:upload', (_event, localPath: string, options) => handleIPC(() => driveService.uploadFile(localPath, options)));
 
   // ─── Download file ──────────────────────────────────────────────
-  ipcMain.handle('drive:download', (_event, fileId: string, destPath: string) => handleIPC(() => driveService.downloadFile(fileId, destPath)));
+  ipcMain.handle('drive:download', (_event, fileId: string, destPath: string, format?: 'text' | 'pdf') =>
+    handleIPC(() => driveService.downloadFile(fileId, destPath, format)));
 
   // ─── Create folder ──────────────────────────────────────────────
   ipcMain.handle('drive:create-folder', (_event, name: string, parentId?: string) => handleIPC(() => driveService.createFolder(name, parentId)));

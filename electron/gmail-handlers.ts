@@ -91,6 +91,15 @@ export function registerGmailHandlers(
   // ─── Create label ─────────────────────────────────────────────
   ipcMain.handle('gmail:create-label', (_event, name: string) => handleIPC(() => gmailService.createLabel(name)));
 
+  ipcMain.handle('gmail:preview-organization', (_event, options) =>
+    handleIPC(() => gmailService.previewOrganizationPlan(options)));
+
+  ipcMain.handle('gmail:apply-organization-plan', (_event, planId: string, options?: { removeFromInbox?: boolean }) =>
+    handleIPC(() => gmailService.applyOrganizationPlan(planId, options)));
+
+  ipcMain.handle('gmail:undo-organization-plan', (_event, planId?: string) =>
+    handleIPC(() => gmailService.undoOrganizationPlan(planId)));
+
   // ─── Empty and delete ALL user labels ───────────────────────────
   ipcMain.handle('gmail:empty-and-delete-all-labels', () => handleIPC(() => gmailService.emptyAndDeleteAllLabels()));
 

@@ -3,8 +3,11 @@
  * Polling cada 4 horas + verificación al arrancar (con delay).
  */
 import { EventEmitter } from 'events'
-import { autoUpdater, type UpdateInfo, type ProgressInfo } from 'electron-updater'
+import electronUpdater from 'electron-updater'
+import type { UpdateInfo, ProgressInfo } from 'electron-updater'
 import { app } from 'electron'
+
+const { autoUpdater } = electronUpdater as typeof import('electron-updater')
 
 // ─── Types ──────────────────────────────────────────────────────────
 

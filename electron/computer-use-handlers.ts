@@ -18,7 +18,7 @@ const si = _require('systeminformation');
 const { createWorker } = _require('tesseract.js');
 import { VisualDebuggerService } from './visual-debugger-service';
 import { normalizePath, formatBytes, getFileExtension } from './utils/file-utils';
-import { organizeFiles, batchMoveFiles, listDirectorySummary } from './computer-use/batch-file-ops';
+import { organizeFiles, batchMoveFiles, listDirectorySummary, undoLastFileOperation } from './computer-use/batch-file-ops';
 
 // ─── Security ────────────────────────────────────────────────────────
 const MAX_FILE_READ_SIZE = 1 * 1024 * 1024; // 1 MB
@@ -226,8 +226,10 @@ async function handleListProcesses(): Promise<{ success: boolean; processes?: Ar
   try {
     console.log('[ComputerUse] Listing system processes...');
     const data = await si.processes();
-    const list = data.list.sort((a, b) => b.cpu - a.cpu).slice(0, 20);
-    const processes = list.map(p => ({
+    const list = data.list
+      .sort((a: any, b: any) => (b.cpu || 0) - (a.cpu || 0))
+      .slice(0, 20);
+    const processes = list.map((p: any) => ({
       pid: p.pid,
       name: p.name || 'Unknown',
       cpu: Number((p.cpu || 0).toFixed(2)),
@@ -502,6 +504,9 @@ export async function executeToolDirect(
 
     case 'list_directory_summary':
       return await listDirectorySummary(args, onProgress);
+
+    case 'undo_last_file_operation':
+      return await undoLastFileOperation(args, onProgress);
 
     case 'execute_command': {
       if (isCommandBlocked(args.command)) {
@@ -833,14 +838,17 @@ export function registerComputerUseHandlers() {
   ipcMain.handle('computer:search-files', async (event, dirPath: string, pattern: string) =>
     executeToolDirect('search_files', { directory: dirPath, pattern }, makeProgress(event, 'search_files')));
 
-  ipcMain.handle('computer:organize-files', async (event, dirPath: string, mode?: string, rules?: Record<string, string>, dryRun?: boolean) =>
-    executeToolDirect('organize_files', { path: dirPath, mode, rules, dry_run: dryRun }, makeProgress(event, 'organize_files')));
+  ipcMain.handle('computer:organize-files', async (event, options: Record<string, any>) =>
+    executeToolDirect('organize_files', options || {}, makeProgress(event, 'organize_files')));
 
-  ipcMain.handle('computer:batch-move-files', async (event, sourceDir: string, destDir: string, extensions?: string[], pattern?: string) =>
-    executeToolDirect('batch_move_files', { source_directory: sourceDir, destination_directory: destDir, extensions, pattern }, makeProgress(event, 'batch_move_files')));
+  ipcMain.handle('computer:batch-move-files', async (event, options: Record<string, any>) =>
+    executeToolDirect('batch_move_files', options || {}, makeProgress(event, 'batch_move_files')));
 
-  ipcMain.handle('computer:list-directory-summary', async (event, dirPath: string) =>
-    executeToolDirect('list_directory_summary', { path: dirPath }, makeProgress(event, 'list_directory_summary')));
+  ipcMain.handle('computer:list-directory-summary', async (event, options: Record<string, any>) =>
+    executeToolDirect('list_directory_summary', options || {}, makeProgress(event, 'list_directory_summary')));
+
+  ipcMain.handle('computer:undo-last-file-operation', async (event, options?: Record<string, any>) =>
+    executeToolDirect('undo_last_file_operation', options || {}, makeProgress(event, 'undo_last_file_operation')));
 
   ipcMain.handle('computer:execute-command', async (event, command: string) =>
     executeToolDirect('execute_command', { command }, makeProgress(event, 'execute_command')));

@@ -22,7 +22,6 @@ import type { DriveService } from './drive-service';
 import type { GChatService } from './gchat-service';
 import type { MemoryService } from './memory-service';
 import type { KnowledgeService } from './knowledge-service';
-import type { AutoDevService } from './autodev-service';
 import type { DesktopAgentService } from './desktop-agent-service';
 import type { ClipboardAIAssistant } from './clipboard-ai-assistant';
 import type { TaskScheduler } from './task-scheduler';
@@ -35,7 +34,6 @@ export interface ToolExecutorContext {
   gmailService: GmailService | null;
   driveService: DriveService | null;
   gchatService: GChatService | null;
-  autoDevService: AutoDevService | null;
   desktopAgent: DesktopAgentService | null;
   clipboardAssistant: ClipboardAIAssistant | null;
   taskScheduler: TaskScheduler | null;
@@ -144,11 +142,14 @@ for (const part of functionCalls) {
       case 'whatsapp_send_to_contact': desc = `📱 Enviar a ${toolArgs.phone_number}: ${toolArgs.file_path ? path.basename(toolArgs.file_path) : toolArgs.message?.slice(0, 50) || 'mensaje'}`; break;
       case 'gmail_send': desc = `📧 Enviar email (Gmail) a: ${toolArgs.to}\nAsunto: ${toolArgs.subject}`; break;
       case 'gmail_trash': desc = `🗑️ Eliminar email: ${toolArgs.message_id}`; break;
+      case 'gmail_apply_organization_plan': desc = `🏷️ Aplicar plan de organización de Gmail\nPlan: ${toolArgs.plan_id}${toolArgs.remove_from_inbox === false ? '\nMantener en INBOX' : '\nQuitando del INBOX'}`; break;
+      case 'gmail_undo_organization_plan': desc = `↩️ Revertir plan de organización de Gmail${toolArgs.plan_id ? `\nPlan: ${toolArgs.plan_id}` : '\nUsando el último plan aplicado'}`; break;
       case 'google_calendar_delete': desc = `🗑️ Eliminar evento de Google Calendar: ${toolArgs.event_id}`; break;
       case 'gchat_send_message': desc = `💬 Enviar mensaje en Google Chat: ${toolArgs.text?.slice(0, 60)}`; break;
       case 'gchat_add_reaction': desc = `${toolArgs.emoji} Reacción en Google Chat`; break;
       case 'organize_files': desc = `📂 Organizar archivos en: ${toolArgs.path || 'directorio del usuario'}\nModo: ${toolArgs.mode || 'extension'}${toolArgs.dry_run ? ' (simulación)' : ''}`; break;
       case 'batch_move_files': desc = `📦 Mover archivos de: ${toolArgs.source_directory}\nA: ${toolArgs.destination_directory}${toolArgs.extensions ? `\nExtensiones: ${toolArgs.extensions.join(', ')}` : ''}`; break;
+      case 'undo_last_file_operation': desc = `↩️ Deshacer operación masiva de archivos${toolArgs.operation_id ? `\nID: ${toolArgs.operation_id}` : '\nUsando la última operación registrada'}`; break;
       default: desc = `${toolName}: ${JSON.stringify(toolArgs)}`;
     }
 
@@ -315,20 +316,54 @@ for (const part of functionCalls) {
       ctx.desktopAgent.on('step', onStep);
       ctx.desktopAgent.on('phase-completed', onPhase);
 
-      const result = await ctx.desktopAgent.executeTask(
-        toolArgs.task,
-        { maxSteps: toolArgs.max_steps },
-      );
+      let result = '';
+      try {
+        result = await ctx.desktopAgent.executeTask(
+          toolArgs.task,
+          {
+            maxSteps: toolArgs.max_steps,
+            backend: toolArgs.backend,
+            startUrl: toolArgs.start_url,
+          },
+        );
+      } finally {
+        ctx.desktopAgent.removeListener('step', onStep);
+        ctx.desktopAgent.removeListener('phase-completed', onPhase);
+      }
 
-      ctx.desktopAgent.removeListener('step', onStep);
-      ctx.desktopAgent.removeListener('phase-completed', onPhase);
+      const agentStatus = ctx.desktopAgent.getStatus();
 
       functionResponses.push({
-        functionResponse: { name: toolName, response: { success: true, message: result } },
+        functionResponse: {
+          name: toolName,
+          response: {
+            success: true,
+            message: result,
+            current_backend: agentStatus.currentBackend || null,
+            current_url: agentStatus.currentUrl || null,
+            last_verification: agentStatus.lastVerification || null,
+            trace_path: agentStatus.lastTracePath || null,
+            report_path: agentStatus.lastReportPath || null,
+            screenshot_path: agentStatus.lastScreenshotPath || null,
+          },
+        },
       });
     } catch (err: any) {
+      const agentStatus = ctx.desktopAgent?.getStatus?.();
       functionResponses.push({
-        functionResponse: { name: toolName, response: { success: false, error: err.message } },
+        functionResponse: {
+          name: toolName,
+          response: {
+            success: false,
+            error: err.message,
+            current_backend: agentStatus?.currentBackend || null,
+            current_url: agentStatus?.currentUrl || null,
+            last_verification: agentStatus?.lastVerification || null,
+            trace_path: agentStatus?.lastTracePath || null,
+            report_path: agentStatus?.lastReportPath || null,
+            screenshot_path: agentStatus?.lastScreenshotPath || null,
+          },
+        },
       });
     }
     continue;
@@ -781,72 +816,6 @@ for (const part of functionCalls) {
       functionResponses.push({
         functionResponse: { name: toolName, response: { success: false, error: err.message } },
       });
-    }
-    continue;
-  }
-
-  // ─── AutoDev Tool Handlers ────────────────────────────────────
-  if (toolName === 'autodev_get_status') {
-    try {
-      if (!ctx.autoDevService) {
-        functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'AutoDev no configurado.' } } });
-      } else {
-        const status = ctx.autoDevService.getStatus();
-        functionResponses.push({ functionResponse: { name: toolName, response: { success: true, ...status } } });
-      }
-    } catch (err: any) {
-      functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
-    }
-    continue;
-  }
-
-  if (toolName === 'autodev_run_now') {
-    try {
-      if (!ctx.autoDevService) {
-        functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'AutoDev no configurado.' } } });
-      } else {
-        ctx.autoDevService.runNow().catch(err => {
-          console.error('[WA AutoDev] Run error:', err.message);
-        });
-        functionResponses.push({ functionResponse: { name: toolName, response: { success: true, message: 'AutoDev run iniciado. Te notificaré cuando termine.' } } });
-      }
-    } catch (err: any) {
-      functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
-    }
-    continue;
-  }
-
-  if (toolName === 'autodev_get_history') {
-    try {
-      if (!ctx.autoDevService) {
-        functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'AutoDev no configurado.' } } });
-      } else {
-        const history = ctx.autoDevService.getHistory().slice(-10); // Last 10 runs
-        functionResponses.push({ functionResponse: { name: toolName, response: { success: true, runs: history } } });
-      }
-    } catch (err: any) {
-      functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
-    }
-    continue;
-  }
-
-  if (toolName === 'autodev_update_config') {
-    try {
-      if (!ctx.autoDevService) {
-        functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: 'AutoDev no configurado.' } } });
-      } else {
-        const updates: any = {};
-        if (toolArgs.enabled !== undefined) updates.enabled = toolArgs.enabled;
-        if (toolArgs.cron_schedule) updates.cronSchedule = toolArgs.cron_schedule;
-        if (toolArgs.notify_phone) updates.notifyPhone = toolArgs.notify_phone;
-        if (toolArgs.categories) {
-          updates.categories = toolArgs.categories.split(',').map((c: string) => c.trim());
-        }
-        const config = ctx.autoDevService.updateConfig(updates);
-        functionResponses.push({ functionResponse: { name: toolName, response: { success: true, config } } });
-      }
-    } catch (err: any) {
-      functionResponses.push({ functionResponse: { name: toolName, response: { success: false, error: err.message } } });
     }
     continue;
   }

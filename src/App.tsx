@@ -6,7 +6,6 @@ import { useIrisData } from "./hooks/useIrisData";
 import { ChatUI } from "./adapters/desktop_ui/ChatUI";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { Auth } from "./components/Auth";
-import { ScreenViewer } from "./components/ScreenViewer";
 import { ProjectHub } from "./components/ProjectHub";
 import { CreateFolderModal, MoveChatModal } from "./components/FolderModals";
 import { UnifiedSettingsModal, SettingsTab } from "./components/UnifiedSettingsModal";
@@ -20,7 +19,7 @@ import { FlowMode } from "./components/FlowMode";
 import { ProductivityDashboard } from "./components/ProductivityDashboard";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { GOOGLE_API_KEY } from "./config";
-type ActiveView = "chat" | "screen" | "project" | "productivity";
+type ActiveView = "chat" | "project" | "productivity";
 
 function AppContent() {
   const { user, loading, signOut, sofiaContext } = useAuth();
@@ -317,7 +316,7 @@ function AppContent() {
             />
           </div>
         )}
-        {activeView === "screen" && <ScreenViewer />}
+
         {activeView === "productivity" && userId && (
           <ProductivityDashboard userId={userId} />
         )}

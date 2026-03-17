@@ -480,25 +480,96 @@ async function executeGoogleWorkspaceTool(toolName: string, args: Record<string,
     }
     case 'gmail_get_messages': {
       if (!gmail) return JSON.stringify({ error: 'Gmail no conectado.' });
-      const messages = await gmail.getMessages({ query: args.query, maxResults: args.max_results || 10 });
-      return JSON.stringify({ messages });
+      const messages = await gmail.getMessages({
+        query: args.query,
+        maxResults: args.max_results || 10,
+        labelIds: args.label_ids,
+        pageToken: args.page_token,
+      });
+      return JSON.stringify(messages);
     }
     case 'gmail_read_message': {
       if (!gmail) return JSON.stringify({ error: 'Gmail no conectado.' });
       const message = await gmail.getMessage(args.message_id);
-      return JSON.stringify({ message });
+      return JSON.stringify(message);
     }
     case 'gmail_send': {
       if (!gmail) return JSON.stringify({ error: 'Gmail no conectado.' });
-      const result = await gmail.send({ to: args.to, subject: args.subject, body: args.body, isHtml: args.is_html || false });
+      const result = await gmail.send({
+        to: Array.isArray(args.to) ? args.to : String(args.to).split(',').map((item: string) => item.trim()).filter(Boolean),
+        subject: args.subject,
+        body: args.body,
+        isHtml: args.is_html || false,
+        attachmentPaths: args.attachment_paths,
+      });
       return JSON.stringify(result);
+    }
+    case 'gmail_get_labels': {
+      if (!gmail) return JSON.stringify({ error: 'Gmail no conectado.' });
+      return JSON.stringify(await gmail.getLabels());
+    }
+    case 'gmail_preview_organization': {
+      if (!gmail) return JSON.stringify({ error: 'Gmail no conectado.' });
+      return JSON.stringify(await gmail.previewOrganization({
+        query: args.query,
+        maxMessages: args.max_messages,
+        minGroupSize: args.min_group_size,
+        removeFromInbox: args.remove_from_inbox,
+        pageLimit: args.page_limit,
+      }));
+    }
+    case 'gmail_apply_organization_plan': {
+      if (!gmail) return JSON.stringify({ error: 'Gmail no conectado.' });
+      return JSON.stringify(await gmail.applyOrganizationPlan(args.plan_id, {
+        removeFromInbox: args.remove_from_inbox,
+      }));
+    }
+    case 'gmail_undo_organization_plan': {
+      if (!gmail) return JSON.stringify({ error: 'Gmail no conectado.' });
+      return JSON.stringify(await gmail.undoOrganizationPlan(args.plan_id));
+    }
+    case 'gmail_create_label': {
+      if (!gmail) return JSON.stringify({ error: 'Gmail no conectado.' });
+      return JSON.stringify(await gmail.createLabel(args.name));
+    }
+    case 'gmail_delete_label': {
+      if (!gmail) return JSON.stringify({ error: 'Gmail no conectado.' });
+      return JSON.stringify(await gmail.deleteLabel(args.label_id));
+    }
+    case 'gmail_modify_labels': {
+      if (!gmail) return JSON.stringify({ error: 'Gmail no conectado.' });
+      return JSON.stringify(await gmail.modifyLabels(args.message_id, args.add_labels, args.remove_labels));
+    }
+    case 'gmail_batch_empty_label': {
+      if (!gmail) return JSON.stringify({ error: 'Gmail no conectado.' });
+      return JSON.stringify(await gmail.batchModifyByLabel(args.label_id, { deleteLabel: args.delete_label || false }));
+    }
+    case 'gmail_empty_all_labels': {
+      if (!gmail) return JSON.stringify({ error: 'Gmail no conectado.' });
+      return JSON.stringify(await gmail.emptyAndDeleteAllLabels());
     }
     case 'drive_list_files': {
       if (!drive) return JSON.stringify({ error: 'Google Drive no conectado.' });
       const files = args.query
         ? await drive.search(args.query)
         : await drive.listFiles({ maxResults: args.max_results || 20 });
-      return JSON.stringify({ files });
+      return JSON.stringify(files);
+    }
+    case 'drive_search': {
+      if (!drive) return JSON.stringify({ error: 'Google Drive no conectado.' });
+      return JSON.stringify(await drive.search(args.query));
+    }
+    case 'drive_download': {
+      if (!drive) return JSON.stringify({ error: 'Google Drive no conectado.' });
+      return JSON.stringify(await drive.download(args.file_id, args.destination_path, args.format));
+    }
+    case 'drive_upload': {
+      if (!drive) return JSON.stringify({ error: 'Google Drive no conectado.' });
+      return JSON.stringify(await drive.upload(args.file_path, { name: args.name, folderId: args.folder_id }));
+    }
+    case 'drive_create_folder': {
+      if (!drive) return JSON.stringify({ error: 'Google Drive no conectado.' });
+      return JSON.stringify(await drive.createFolder(args.name, args.parent_id));
     }
     default:
       return JSON.stringify({ error: `Herramienta Google Workspace no implementada: ${toolName}` });

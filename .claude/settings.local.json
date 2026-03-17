@@ -53,7 +53,30 @@
       "Bash(grep '\"\"main\"\"' package.json)",
       "Bash(npx electron:*)",
       "Bash(rm -rf dist-electron)",
-      "Bash(rm -f test-electron-esm.mjs test-electron-cjs.cjs)"
+      "Bash(rm -f test-electron-esm.mjs test-electron-cjs.cjs)",
+      "Bash(cp electron/autodev-service.ts autodev-package/electron/)",
+      "Bash(cp electron/autodev-types.ts autodev-package/electron/)",
+      "Bash(cp electron/autodev-prompts.ts autodev-package/electron/)",
+      "Bash(cp electron/autodev-strategic-memory.ts autodev-package/electron/)",
+      "Bash(cp electron/autodev-selflearn.ts autodev-package/electron/)",
+      "Bash(cp electron/autodev-git.ts autodev-package/electron/)",
+      "Bash(cp electron/autodev-github.ts autodev-package/electron/)",
+      "Bash(cp electron/autodev-web.ts autodev-package/electron/)",
+      "Bash(cp electron/autodev-sandbox.ts autodev-package/electron/)",
+      "Bash(cp electron/autodev-validation.ts autodev-package/electron/)",
+      "Bash(cp electron/autodev-handlers.ts autodev-package/electron/)",
+      "Bash(cp electron/autodev-helpers.ts autodev-package/electron/)",
+      "Bash(cp electron/utils/concurrency.ts autodev-package/electron/utils/)",
+      "Bash(cp scripts/autodev.ts autodev-package/scripts/)",
+      "Bash(cp src/components/AutoDevPanel.tsx autodev-package/src/components/)",
+      "Bash(cp src/hooks/useAutoDevPanel.ts autodev-package/src/hooks/)",
+      "Bash(cp AUTODEV-DOCUMENTATION.md autodev-package/)",
+      "Bash(grep -l \"AutoDevService\\\\|SelfLearnService\" electron/*.ts)",
+      "Bash(rm -f scripts/autodev.ts src/components/AutoDevPanel.tsx src/hooks/useAutoDevPanel.ts)",
+      "Bash(rm -f AUTODEV-DOCUMENTATION.md AUTODEV_ISSUES.md AUTODEV_FEEDBACK.md AUTODEV_GUIDELINES.md)",
+      "Bash(rm -f autodev-strategic-memory.json)",
+      "Bash(rm -rf autodev-package/)",
+      "Bash(rm -rf .autodev-data/)"
     ]
   }
 }

@@ -24,10 +24,13 @@ export const CONFIRM_TOOLS_WA = new Set([
   'whatsapp_send_to_contact',
   'gmail_send',
   'gmail_trash',
+  'gmail_apply_organization_plan',
+  'gmail_undo_organization_plan',
   'google_calendar_delete',
   'gchat_send_message',
   'organize_files',
   'batch_move_files',
+  'undo_last_file_operation',
 ]);
 
 // Tools blocked in GROUP context (security: don't allow group members to control host)
@@ -50,6 +53,9 @@ export const GROUP_BLOCKED_TOOLS = new Set([
   'clipboard_read',
   'organize_files',
   'batch_move_files',
+  'undo_last_file_operation',
+  'gmail_apply_organization_plan',
+  'gmail_undo_organization_plan',
 ]);
 
 // ─── Tool declarations for Gemini (filtered for WhatsApp security) ─
@@ -154,7 +160,7 @@ export const WA_TOOL_DECLARATIONS = {
     // ─── Batch File Operations ────────────────────────────────────
     {
       name: 'organize_files',
-      description: 'Organiza TODOS los archivos de un directorio en subcarpetas automáticamente según su extensión o tipo. Modos: "extension" (cada extensión en su carpeta: PDF, XLSX, etc.), "type" (categorías: Documentos, Imagenes, Videos, Audio, etc.), "date" (por mes: 2026-01, 2026-02), "custom" (con reglas personalizadas). Usa dry_run=true para previsualizar sin mover. IDEAL para organizar Descargas, Escritorio, etc. con cientos de archivos de una sola vez.',
+      description: 'Organiza TODOS los archivos de un directorio en subcarpetas automáticamente según su extensión o tipo. Modos: "extension" (cada extensión en su carpeta: PDF, XLSX, etc.), "type" (categorías: Documentos, Imagenes, Videos, Audio, etc.), "date" (por mes: 2026-01, 2026-02), "custom" (con reglas personalizadas). Usa dry_run=true para previsualizar sin mover. Puede trabajar de forma recursiva y devuelve operationId para deshacer después si hace falta.',
       parameters: {
         type: 'OBJECT' as const,
         properties: {
@@ -162,13 +168,14 @@ export const WA_TOOL_DECLARATIONS = {
           mode: { type: 'STRING' as const, description: 'Modo: "extension" (por extensión), "type" (por categoría inteligente), "date" (por mes), "custom" (reglas personalizadas). Default: "extension".' },
           rules: { type: 'OBJECT' as const, description: 'Solo para modo "custom". Mapa extensión→carpeta. Ej: {"pdf": "Reportes", "xlsx": "Excel", "*": "Otros"}.' },
           dry_run: { type: 'BOOLEAN' as const, description: 'Si es true, solo muestra qué haría sin mover nada. Útil para previsualizar.' },
+          recursive: { type: 'BOOLEAN' as const, description: 'Si es true, incluye subcarpetas. Úsalo cuando el usuario diga "todo", "todas las subcarpetas" o quiera ordenar un árbol completo.' },
         },
         required: ['path'],
       },
     },
     {
       name: 'batch_move_files',
-      description: 'Mueve TODOS los archivos que coincidan con cierta extensión o patrón de un directorio a otro. Ideal para: "mueve todos los PDF de Descargas a Documentos", "pasa las fotos a la carpeta Imagenes".',
+      description: 'Mueve TODOS los archivos que coincidan con cierta extensión o patrón de un directorio a otro. Ideal para: "mueve todos los PDF de Descargas a Documentos", "pasa las fotos a la carpeta Imagenes". Puede trabajar de forma recursiva y devuelve operationId para deshacer después si hace falta.',
       parameters: {
         type: 'OBJECT' as const,
         properties: {
@@ -176,6 +183,7 @@ export const WA_TOOL_DECLARATIONS = {
           destination_directory: { type: 'STRING' as const, description: 'Directorio destino (se crea si no existe).' },
           extensions: { type: 'ARRAY' as const, items: { type: 'STRING' as const }, description: 'Lista de extensiones a filtrar (ej: ["pdf", "docx"]). Sin punto.' },
           pattern: { type: 'STRING' as const, description: 'Patrón de nombre a filtrar (ej: "reporte", "factura"). Busca coincidencia parcial.' },
+          recursive: { type: 'BOOLEAN' as const, description: 'Si es true, incluye subcarpetas del directorio origen.' },
         },
         required: ['source_directory', 'destination_directory'],
       },
@@ -187,8 +195,19 @@ export const WA_TOOL_DECLARATIONS = {
         type: 'OBJECT' as const,
         properties: {
           path: { type: 'STRING' as const, description: 'Ruta del directorio.' },
+          recursive: { type: 'BOOLEAN' as const, description: 'Si es true, incluye subcarpetas en el resumen.' },
         },
         required: ['path'],
+      },
+    },
+    {
+      name: 'undo_last_file_operation',
+      description: 'Revierte una organización o movimiento masivo de archivos previamente ejecutado. Úsalo si el usuario pide deshacer la última organización o revertir una operación concreta.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          operation_id: { type: 'STRING' as const, description: 'Opcional. ID específico de operación a revertir. Si se omite, revierte la última operación registrada.' },
+        },
       },
     },
     {
@@ -417,12 +436,14 @@ export const WA_TOOL_DECLARATIONS = {
     // ─── Computer Use ───────────────────────────────────────────
     {
       name: 'use_computer',
-      description: 'Agente autónomo de escritorio V2: ve la pantalla en tiempo real con precisión mejorada (grid de coordenadas + Set-of-Marks + zoom de regiones). Hace clicks, doble-click, click derecho, ARRASTRA objetos, escribe texto, presiona teclas, gestiona ventanas. Se adapta proactivamente con planificación jerárquica (fases + sub-objetivos), verificación automática de acciones, y recuperación inteligente. Soporta tareas largas (200+ pasos) con resumen automático del historial. Reporta progreso en tiempo real.',
+      description: 'Agente unificado de computer use. Usa browser-native con Playwright para sitios y portales web, windows_uia para apps nativas instrumentables y backend visual de escritorio como fallback para superficies visuales, instaladores y dialogs complejos. Si windows_uia falla por verificacion o poca cobertura, hace handoff automatico a desktop_visual. Devuelve rutas de reporte/trace cuando estan disponibles.',
       parameters: {
         type: 'OBJECT' as const,
         properties: {
-          task: { type: 'STRING' as const, description: 'Descripción detallada de la tarea. Sé muy específico. Ej: "Escribe un correo en Gmail a juan@gmail.com con asunto Reporte, escribe el cuerpo, adjunta el archivo reporte.xlsx desde Documentos, y envíalo", "Instala la aplicación haciendo click en Next, Accept, Install", "Abre Minecraft, crea un mundo nuevo, y construye una casa de madera"' },
+          task: { type: 'STRING' as const, description: 'Descripcion detallada de la tarea. Para tareas web describe el resultado esperado y el sitio o flujo. Para apps nativas describe la ventana, app o dialogo a controlar.' },
           max_steps: { type: 'NUMBER' as const, description: 'Máximo de pasos (defecto 200). Usa 300-500 para tareas muy complejas como juegos o workflows largos.' },
+          backend: { type: 'STRING' as const, description: 'Opcional: "auto", "browser", "uia" o "desktop". Por defecto "auto".' },
+          start_url: { type: 'STRING' as const, description: 'Opcional: URL inicial para tareas web.' },
         },
         required: ['task'],
       },
@@ -774,12 +795,14 @@ export const WA_TOOL_DECLARATIONS = {
     },
     {
       name: 'gmail_get_messages',
-      description: 'Lee los emails recientes del usuario via Gmail API. Puede filtrar por query (ej: "from:juan@gmail.com", "is:unread", "subject:factura").',
+      description: 'Lee los emails recientes del usuario via Gmail API. Puede filtrar por query (ej: "from:juan@gmail.com", "is:unread", "subject:factura"), por label_ids y continuar leyendo más lotes con page_token. La respuesta puede incluir next_page_token y likely_has_more.',
       parameters: {
         type: 'OBJECT' as const,
         properties: {
           query: { type: 'STRING' as const, description: 'Query de búsqueda Gmail (ej: "is:unread", "from:boss@company.com", "subject:reporte").' },
           max_results: { type: 'NUMBER' as const, description: 'Cantidad máxima de emails (1-50). Por defecto 20. Usa 50 para organización masiva.' },
+          label_ids: { type: 'ARRAY' as const, items: { type: 'STRING' as const }, description: 'Opcional. IDs de etiquetas para filtrar correos dentro de labels específicas.' },
+          page_token: { type: 'STRING' as const, description: 'Opcional. Token devuelto por una llamada anterior en next_page_token para continuar con el siguiente lote.' },
         },
       },
     },
@@ -822,6 +845,42 @@ export const WA_TOOL_DECLARATIONS = {
           name: { type: 'STRING' as const, description: 'Nombre de la etiqueta a crear (ej: "GitHub", "Open AI", "Trabajo").' },
         },
         required: ['name'],
+      },
+    },
+    {
+      name: 'gmail_preview_organization',
+      description: 'Analiza el inbox de Gmail y genera un plan de organización por empresa o remitente sin modificar correos todavía. Devuelve un plan_id para aplicarlo después.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          query: { type: 'STRING' as const, description: 'Filtro opcional de Gmail. Si no se especifica, usa in:inbox.' },
+          max_messages: { type: 'NUMBER' as const, description: 'Máximo de correos a analizar en el preview.' },
+          min_group_size: { type: 'NUMBER' as const, description: 'Tamaño mínimo de grupo para proponer una etiqueta.' },
+          remove_from_inbox: { type: 'BOOLEAN' as const, description: 'Si es true, el plan propondrá quitar los correos del inbox al aplicarse.' },
+          page_limit: { type: 'NUMBER' as const, description: 'Número máximo de páginas a recorrer para el análisis.' },
+        },
+      },
+    },
+    {
+      name: 'gmail_apply_organization_plan',
+      description: 'Aplica un plan de organización generado previamente por gmail_preview_organization.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          plan_id: { type: 'STRING' as const, description: 'ID del plan generado en el preview.' },
+          remove_from_inbox: { type: 'BOOLEAN' as const, description: 'Opcional. Sobrescribe si al aplicar se quitan los correos del inbox.' },
+        },
+        required: ['plan_id'],
+      },
+    },
+    {
+      name: 'gmail_undo_organization_plan',
+      description: 'Revierte un plan de organización de Gmail previamente aplicado. Si no se pasa plan_id, intenta revertir el último plan aplicado.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          plan_id: { type: 'STRING' as const, description: 'Opcional. ID del plan aplicado que se desea revertir. Si se omite, usa el último plan aplicado.' },
+        },
       },
     },
     {
@@ -984,44 +1043,6 @@ export const WA_TOOL_DECLARATIONS = {
           space_name: { type: 'STRING' as const, description: 'Nombre del espacio (ej: "spaces/AAAAA").' },
         },
         required: ['space_name'],
-      },
-    },
-    // ─── AutoDev tools ────────────────────────────────────────────
-    {
-      name: 'autodev_get_status',
-      description: 'Obtiene el estado del sistema AutoDev (programación autónoma). Muestra si está habilitado, si hay un run en progreso, configuración actual, y conteo de runs del día.',
-      parameters: {
-        type: 'OBJECT' as const,
-        properties: {},
-      },
-    },
-    {
-      name: 'autodev_run_now',
-      description: 'Ejecuta el sistema AutoDev inmediatamente. Analiza el código, investiga mejoras en la web, implementa cambios en una rama aislada, crea un PR en GitHub, y notifica el resultado.',
-      parameters: {
-        type: 'OBJECT' as const,
-        properties: {},
-      },
-    },
-    {
-      name: 'autodev_get_history',
-      description: 'Obtiene el historial de ejecuciones de AutoDev. Muestra las últimas mejoras realizadas, PRs creados, investigación realizada, y resultados.',
-      parameters: {
-        type: 'OBJECT' as const,
-        properties: {},
-      },
-    },
-    {
-      name: 'autodev_update_config',
-      description: 'Actualiza la configuración del sistema AutoDev.',
-      parameters: {
-        type: 'OBJECT' as const,
-        properties: {
-          enabled: { type: 'BOOLEAN' as const, description: 'Habilitar/deshabilitar AutoDev.' },
-          cron_schedule: { type: 'STRING' as const, description: 'Horario cron (ej: "0 3 * * *" para 3 AM diario).' },
-          categories: { type: 'STRING' as const, description: 'Categorías separadas por coma: security,quality,performance,dependencies,tests' },
-          notify_phone: { type: 'STRING' as const, description: 'Número de teléfono para notificaciones WhatsApp.' },
-        },
       },
     },
     // ─── Clipboard AI Assistant ──────────────────────────────────────

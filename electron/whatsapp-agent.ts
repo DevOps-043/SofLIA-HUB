@@ -13,7 +13,6 @@ import type { DriveService } from './drive-service';
 import type { GChatService } from './gchat-service';
 import type { MemoryService } from './memory-service';
 import type { KnowledgeService } from './knowledge-service';
-import type { AutoDevService } from './autodev-service';
 import type { DesktopAgentService } from './desktop-agent-service';
 import type { ClipboardAIAssistant } from './clipboard-ai-assistant';
 import type { TaskScheduler } from './task-scheduler';
@@ -27,7 +26,9 @@ import {
   isIrisAvailable,
 } from './iris-data-main';
 
+import type { MeetingWorkflowService } from './meetings/meeting-workflow-service';
 import { WorkflowManager } from './whatsapp-workflow-presentacion';
+import { MeetingWorkflowManager } from './whatsapp-workflow-meetings';
 import { WA_TOOL_DECLARATIONS, GROUP_BLOCKED_TOOLS } from './whatsapp-tools';
 import { buildSystemPrompt, detectActionRequest, formatForWhatsApp } from './whatsapp-prompts';
 import { executeWhatsAppTools, type ToolExecutorContext } from './whatsapp-tool-executor';
@@ -62,13 +63,12 @@ export class WhatsAppAgent {
   private gmailService: GmailService | null = null;
   private driveService: DriveService | null = null;
   private gchatService: GChatService | null = null;
-  private autoDevService: AutoDevService | null = null;
   private desktopAgent: DesktopAgentService | null = null;
-  private selfLearn: import('./autodev-selflearn').SelfLearnService | null = null;
   private clipboardAssistant: ClipboardAIAssistant | null = null;
   private taskScheduler: TaskScheduler | null = null;
   private neuralOrganizer: NeuralOrganizerService | null = null;
   private smartSearch: SmartSearchTool | null = null;
+  private meetingWorkflowService: MeetingWorkflowService | null = null;
   private memory: MemoryService;
   private knowledge: KnowledgeService;
 
@@ -87,15 +87,6 @@ export class WhatsAppAgent {
     console.log('[WhatsApp Agent] Google services connected (Calendar, Gmail, Drive, Chat)');
   }
 
-  setAutoDevService(service: AutoDevService): void {
-    this.autoDevService = service;
-    console.log('[WhatsApp Agent] AutoDev service connected');
-  }
-
-  setSelfLearnService(service: import('./autodev-selflearn').SelfLearnService): void {
-    this.selfLearn = service;
-    console.log('[WhatsApp Agent] SelfLearn service connected');
-  }
 
   setDesktopAgentService(service: DesktopAgentService): void {
     this.desktopAgent = service;
@@ -110,6 +101,11 @@ export class WhatsAppAgent {
   setTaskScheduler(service: TaskScheduler): void {
     this.taskScheduler = service;
     console.log('[WhatsApp Agent] Task Scheduler connected');
+  }
+
+  setMeetingWorkflowService(service: MeetingWorkflowService): void {
+    this.meetingWorkflowService = service;
+    console.log('[WhatsApp Agent] Meeting workflow service connected');
   }
 
 
@@ -141,6 +137,11 @@ export class WhatsAppAgent {
     const sessionKey = isGroup ? `group:${jid}:${senderNumber}` : senderNumber;
     
     // Check for active workflow
+    if (MeetingWorkflowManager.isActive(sessionKey)) {
+      await MeetingWorkflowManager.handleMessage(sessionKey, text);
+      return;
+    }
+
     if (WorkflowManager.isActive(sessionKey)) {
       await WorkflowManager.handleMessage(sessionKey, text);
       return;
@@ -165,7 +166,7 @@ export class WhatsAppAgent {
         return;
       }
       // Si se activó un workflow durante el comando, detener el procesamiento normal
-      if (WorkflowManager.isActive(sessionKey)) {
+      if (WorkflowManager.isActive(sessionKey) || MeetingWorkflowManager.isActive(sessionKey)) {
         return;
       }
     }
@@ -173,14 +174,10 @@ export class WhatsAppAgent {
     try {
       const response = await this.runAgentLoop(jid, senderNumber, text, isGroup, groupPassiveHistory);
       if (response) {
-        // Self-learn: track SofLIA's response for complaint correlation
-        this.selfLearn?.trackSofLIAResponse(jid, response);
         await this.waService.sendText(jid, response);
       }
     } catch (err: any) {
       console.error('[WhatsApp Agent] Error:', err);
-      // Self-learn: log runtime errors
-      this.selfLearn?.logToolFailure('runAgentLoop', { text: text.slice(0, 200) }, err.message, 'whatsapp');
       // Auto-reset conversation on error to prevent stuck loops
       const sessionKey = isGroup ? `group:${jid}:${senderNumber}` : senderNumber;
       conversations.delete(sessionKey);
@@ -230,8 +227,25 @@ export class WhatsAppAgent {
         await WorkflowManager.startWorkflow(sessionKey, jid, senderNumber, this.waService, this);
         return null;
 
+      case '/reunion':
+      case '/reunión':
+        if (!this.meetingWorkflowService) {
+          return 'Meeting Ops no está disponible todavía.';
+        }
+        await MeetingWorkflowManager.startWorkflow(
+          sessionKey,
+          jid,
+          senderNumber,
+          this.waService,
+          this.meetingWorkflowService,
+        );
+        if (args.length > 0) {
+          await MeetingWorkflowManager.handleMessage(sessionKey, args.join(' '));
+        }
+        return null;
+
       case '/help':
-        return `📋 *Comandos disponibles:*\n\n/status — Estado de SofLIA\n/reset — Reiniciar conversación\n/new — Igual que /reset\n${isGroup ? '/activation mention|always — Modo de activación en grupo (Solo Admin)\n' : ''}/help — Esta ayuda\n\n${isGroup ? '💡 En grupos, solo respondo si me etiquetas (@SofLIA), usas el prefijo /soflia, o incluyes mi nombre "soflia" en tu mensaje.' : ''}`;
+        return `📋 *Comandos disponibles:*\n\n/status — Estado de SofLIA\n/reset — Reiniciar conversación\n/new — Igual que /reset\n/presentacion — Workflow de presentaciones\n/reunion — Workflow de reuniones\n${isGroup ? '/activation mention|always — Modo de activación en grupo (Solo Admin)\n' : ''}/help — Esta ayuda\n\n${isGroup ? '💡 En grupos, solo respondo si me etiquetas (@SofLIA), usas el prefijo /soflia, o incluyes mi nombre "soflia" en tu mensaje.' : ''}`;
 
       default:
         // Not a recognized command, return null to let agent process it
@@ -767,7 +781,6 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
         gmailService: this.gmailService,
         driveService: this.driveService,
         gchatService: this.gchatService,
-        autoDevService: this.autoDevService,
         desktopAgent: this.desktopAgent,
         clipboardAssistant: this.clipboardAssistant,
         taskScheduler: this.taskScheduler,
@@ -783,33 +796,12 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
       );
 
 
-      // ─── Self-Learn: log all tool failures ──────────────────────────
-      if (this.selfLearn) {
-        for (const fr of functionResponses) {
-          const resp = fr.functionResponse.response;
-          if (resp && (resp.success === false || resp.error)) {
-            const errorMsg = resp.error || resp.message || 'Unknown error';
-            const toolName = fr.functionResponse.name;
-
-            // Special handling for Computer Use failures
-            if (toolName === 'use_computer') {
-              this.selfLearn.logComputerUseFailure(
-                (functionCalls.find((p: any) => p.functionCall?.name === 'use_computer') as any)?.functionCall?.args?.task || 'unknown',
-                errorMsg,
-              );
-            } else {
-              this.selfLearn.logToolFailure(toolName, {}, errorMsg, 'whatsapp');
-            }
-          }
-        }
-      }
-
       // After all tool calls: verify bulk label operations have remaining emails
       if (bulkLabelsToVerify && bulkLabelsToVerify.size > 0 && this.gmailService) {
         try {
           const remainingWarnings: string[] = [];
           for (const labelId of bulkLabelsToVerify) {
-            const check = await this.gmailService.getMessages({ query: `label:${labelId}`, maxResults: 5 });
+            const check = await this.gmailService.getMessages({ labelIds: [labelId], maxResults: 5 });
             if (check.success && check.messages && check.messages.length > 0) {
               remainingWarnings.push(`"${labelId}" aún tiene ${check.messages.length}+ correos`);
             }

@@ -20,6 +20,8 @@ import { promisify } from 'node:util';
 import { createRequire } from 'node:module';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { desktopCapturer, screen as electronScreen, clipboard as electronClipboard } from 'electron';
+import { BrowserWebService } from './browser-web-service';
+import { WindowsUIAService } from './windows-uia-service';
 import {
   type DesktopAgentConfig, type DesktopActionPayload, type ActionHistoryEntry,
   type TaskPlan, type StrategicPlan, type UIElement,
@@ -33,6 +35,12 @@ import {
 export type { DesktopAgentConfig, DesktopActionPayload, UIElement, AgentStatus, AgentTask, DesktopAgentStatus };
 
 const execAsync = promisify(execCb);
+
+type DesktopTaskExecutionOptions = {
+  maxSteps?: number;
+  startUrl?: string;
+  backend?: 'auto' | 'browser' | 'desktop' | 'uia';
+};
 
 // Sharp: native module that must be loaded via require() (not ES import)
 // Uses createRequire to get a working require() in ESM context
@@ -73,11 +81,15 @@ export class DesktopAgentService extends EventEmitter {
   // ─── Multi-Agent Registry ─────────────────────────────────────────
   private activeTasks: Map<string, AgentTask> = new Map();
   private taskIdCounter = 0;
-  private taskQueue: Array<{ task: string; options?: { maxSteps?: number }; resolve: (v: string) => void; reject: (e: Error) => void }> = [];
+  private taskQueue: Array<{ task: string; options?: DesktopTaskExecutionOptions; resolve: (v: string) => void; reject: (e: Error) => void }> = [];
+  private browserWeb = new BrowserWebService();
+  private windowsUIA = new WindowsUIAService(this);
 
   constructor() {
     super();
     this.config = loadConfig();
+    this.registerBrowserEventForwarding();
+    this.registerWindowsUIAEventForwarding();
   }
 
   private generateTaskId(): string {
@@ -89,6 +101,8 @@ export class DesktopAgentService extends EventEmitter {
   setApiKey(key: string): void {
     this.apiKey = key;
     this.genAI = null;
+    this.browserWeb.setApiKey(key);
+    this.windowsUIA.setApiKey(key);
   }
 
   private getGenAI(): GoogleGenerativeAI {
@@ -106,31 +120,121 @@ export class DesktopAgentService extends EventEmitter {
   }
 
   getStatus(): DesktopAgentStatus {
-    const activeTasksList = Array.from(this.activeTasks.values()).map(t => ({
+    const activeTasksList: DesktopAgentStatus['activeTasks'] = Array.from(this.activeTasks.values()).map(t => ({
       id: t.id,
       task: t.task,
       status: t.status,
       step: t.currentStep,
       maxSteps: t.maxSteps,
+      backend: 'desktop_visual' as const,
+      currentUrl: null,
     }));
 
+    const browserStatus = this.browserWeb.getStatus();
+    const windowsUIAStatus = this.windowsUIA.getStatus();
+    if (browserStatus.status !== 'idle') {
+      activeTasksList.push({
+        id: 'browser-web',
+        task: browserStatus.currentTask || 'Tarea web',
+        status: 'executing',
+        step: browserStatus.currentStep,
+        maxSteps: browserStatus.maxSteps || this.config.maxSteps,
+        backend: 'browser_web',
+        currentUrl: browserStatus.currentUrl,
+      });
+    }
+    if (windowsUIAStatus.status !== 'idle') {
+      activeTasksList.push({
+        id: 'windows-uia',
+        task: windowsUIAStatus.currentTask || 'Tarea nativa',
+        status: 'executing',
+        step: windowsUIAStatus.currentStep,
+        maxSteps: windowsUIAStatus.maxSteps || this.config.maxSteps,
+        backend: 'windows_uia',
+        currentUrl: null,
+      });
+    }
+
+    const lastDesktopAction = this.actionHistory.length > 0
+      ? this.actionHistory[this.actionHistory.length - 1].action.message
+      : null;
+    const currentBackend = browserStatus.status !== 'idle'
+      ? 'browser_web'
+      : windowsUIAStatus.status !== 'idle'
+        ? 'windows_uia'
+        : (this.currentTask ? 'desktop_visual' : null);
+    const currentTask = browserStatus.status !== 'idle'
+      ? browserStatus.currentTask
+      : windowsUIAStatus.status !== 'idle'
+        ? windowsUIAStatus.currentTask
+        : this.currentTask;
+    const currentStep = browserStatus.status !== 'idle'
+      ? browserStatus.currentStep
+      : windowsUIAStatus.status !== 'idle'
+        ? windowsUIAStatus.currentStep
+        : this.currentStep;
+    const maxSteps = browserStatus.status !== 'idle'
+      ? (browserStatus.maxSteps || this.config.maxSteps)
+      : windowsUIAStatus.status !== 'idle'
+        ? (windowsUIAStatus.maxSteps || this.config.maxSteps)
+        : this.config.maxSteps;
+    const lastVerification = browserStatus.status !== 'idle'
+      ? browserStatus.lastVerification
+      : windowsUIAStatus.status !== 'idle'
+        ? windowsUIAStatus.lastVerification
+        : (browserStatus.lastVerification || windowsUIAStatus.lastVerification || null);
+    const lastTracePath = browserStatus.status !== 'idle'
+      ? browserStatus.lastTracePath
+      : windowsUIAStatus.status !== 'idle'
+        ? windowsUIAStatus.lastTracePath
+        : (browserStatus.lastTracePath || windowsUIAStatus.lastTracePath || null);
+    const lastReportPath = browserStatus.status !== 'idle'
+      ? browserStatus.lastReportPath
+      : windowsUIAStatus.status !== 'idle'
+        ? windowsUIAStatus.lastReportPath
+        : (browserStatus.lastReportPath || windowsUIAStatus.lastReportPath || null);
+    const lastScreenshotPath = browserStatus.status !== 'idle'
+      ? browserStatus.lastScreenshotPath
+      : windowsUIAStatus.status !== 'idle'
+        ? windowsUIAStatus.lastScreenshotPath
+        : (browserStatus.lastScreenshotPath || windowsUIAStatus.lastScreenshotPath || null);
+    const lastAction = browserStatus.status !== 'idle'
+      ? browserStatus.lastAction
+      : windowsUIAStatus.status !== 'idle'
+        ? windowsUIAStatus.lastAction
+        : (browserStatus.lastAction || windowsUIAStatus.lastAction || lastDesktopAction);
+
     return {
-      status: this.status,
-      currentTask: this.currentTask,
-      currentStep: this.currentStep,
-      maxSteps: this.config.maxSteps,
+      status: browserStatus.status !== 'idle' || windowsUIAStatus.status !== 'idle' ? 'executing' : this.status,
+      currentTask: currentTask || null,
+      currentStep,
+      maxSteps,
+      currentBackend,
+      currentUrl: browserStatus.status !== 'idle' ? browserStatus.currentUrl : null,
+      lastVerification,
+      lastTracePath,
+      lastReportPath,
+      lastScreenshotPath,
       plan: this.currentPlan ? { ...this.currentPlan } : null,
-      lastAction: this.actionHistory.length > 0
-        ? this.actionHistory[this.actionHistory.length - 1].action.message
-        : null,
+      lastAction,
       config: this.getConfig(),
       activeTasks: activeTasksList,
-      totalActiveAgents: this.activeTasks.size,
+      totalActiveAgents: activeTasksList.length,
     };
   }
 
   abort(taskId?: string): void {
     if (taskId) {
+      if (taskId === 'browser-web') {
+        this.browserWeb.abortAll();
+        this.emit('task-aborted', { taskId });
+        return;
+      }
+      if (taskId === 'windows-uia') {
+        this.windowsUIA.abortAll();
+        this.emit('task-aborted', { taskId });
+        return;
+      }
       // Abort a specific task
       const task = this.activeTasks.get(taskId);
       if (task) {
@@ -153,6 +257,8 @@ export class DesktopAgentService extends EventEmitter {
       if (this.abortController) {
         this.abortController.abort();
       }
+      this.browserWeb.abortAll();
+      this.windowsUIA.abortAll();
       this.stopObservation();
       console.log('[DesktopAgent] Todas las tareas canceladas.');
     }
@@ -161,11 +267,11 @@ export class DesktopAgentService extends EventEmitter {
   abortAll(): void { this.abort(); }
 
   isRunning(): boolean {
-    return this.status !== 'idle' || this.activeTasks.size > 0;
+    return this.status !== 'idle' || this.activeTasks.size > 0 || this.browserWeb.isRunning() || this.windowsUIA.isRunning();
   }
 
   getActiveTaskCount(): number {
-    return this.activeTasks.size;
+    return this.activeTasks.size + (this.browserWeb.isRunning() ? 1 : 0) + (this.windowsUIA.isRunning() ? 1 : 0);
   }
 
   // ─── Screenshot ───────────────────────────────────────────────────
@@ -372,6 +478,13 @@ $id = 1
 foreach ($el in $elements) {
   $rect = $el.Current.BoundingRectangle
   if ($rect.Width -gt 0 -and $rect.Height -gt 0 -and $rect.Width -lt 2000) {
+    $value = ''
+    try {
+      $vp = $null
+      if ($el.TryGetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern, [ref]$vp) -and $vp) {
+        $value = $vp.Current.Value
+      }
+    } catch {}
     $result += @{
       id = $id
       name = $el.Current.Name
@@ -381,6 +494,8 @@ foreach ($el in $elements) {
       width = [int]$rect.Width
       height = [int]$rect.Height
       isEnabled = $el.Current.IsEnabled
+      automationId = $el.Current.AutomationId
+      value = $value
     }
     $id++
     if ($id -gt 40) { break }
@@ -398,6 +513,8 @@ $result | ConvertTo-Json -Compress -Depth 3
           controlType: e.controlType || 'Unknown',
           boundingRect: { x: e.x || 0, y: e.y || 0, width: e.width || 0, height: e.height || 0 },
           isEnabled: e.isEnabled !== false,
+          automationId: e.automationId || '',
+          value: e.value || '',
         }));
       return arr;
     } catch (err: any) {
@@ -718,11 +835,20 @@ if ($proc) {
    *
    * Ejemplo: ejecutarParallelTasks(["Abre la calculadora", "Organiza los archivos en Descargas"])
    */
-  async executeParallelTasks(tasks: Array<{ task: string; maxSteps?: number }>): Promise<Array<{ task: string; result: string; success: boolean }>> {
+  async executeParallelTasks(tasks: Array<{
+    task: string;
+    maxSteps?: number;
+    backend?: 'auto' | 'browser' | 'desktop' | 'uia';
+    startUrl?: string;
+  }>): Promise<Array<{ task: string; result: string; success: boolean }>> {
     if (!this.apiKey) throw new Error('API key de Gemini no configurada.');
 
     const results = await Promise.allSettled(
-      tasks.map(t => this.executeTask(t.task, { maxSteps: t.maxSteps })),
+      tasks.map(t => this.executeTask(t.task, {
+        maxSteps: t.maxSteps,
+        backend: t.backend,
+        startUrl: t.startUrl,
+      })),
     );
 
     return results.map((r, i) => ({
@@ -748,11 +874,149 @@ if ($proc) {
     return { status: task.status, result: task.result, error: task.error };
   }
 
+  private restoreLegacyStatusAfterExternalBackendEvent(): void {
+    const browserStatus = this.browserWeb.getStatus();
+    if (browserStatus.status !== 'idle') {
+      this.status = 'executing';
+      this.currentTask = browserStatus.currentTask;
+      this.currentStep = browserStatus.currentStep;
+      return;
+    }
+
+    const windowsUIAStatus = this.windowsUIA.getStatus();
+    if (windowsUIAStatus.status !== 'idle') {
+      this.status = 'executing';
+      this.currentTask = windowsUIAStatus.currentTask;
+      this.currentStep = windowsUIAStatus.currentStep;
+      return;
+    }
+
+    if (this.activeTasks.size > 0) {
+      const currentDesktopTask = Array.from(this.activeTasks.values())[0];
+      this.status = currentDesktopTask.status;
+      this.currentTask = currentDesktopTask.task;
+      this.currentStep = currentDesktopTask.currentStep;
+      return;
+    }
+
+    if (this.observationRunning) {
+      this.status = 'observing';
+      this.currentTask = null;
+      this.currentStep = 0;
+      return;
+    }
+
+    this.status = 'idle';
+    this.currentTask = null;
+    this.currentStep = 0;
+  }
+
+  private registerBrowserEventForwarding(): void {
+    this.browserWeb.on('task-queued', (payload: any) => {
+      this.emit('task-queued', payload);
+    });
+    this.browserWeb.on('task-started', (payload: any) => {
+      this.status = 'executing';
+      this.currentTask = payload.task || this.currentTask;
+      this.currentStep = 0;
+      this.emit('task-started', payload);
+    });
+    this.browserWeb.on('step', (payload: any) => {
+      this.currentStep = payload.step || this.currentStep;
+      this.emit('step', payload);
+    });
+    this.browserWeb.on('step-result', (payload: any) => {
+      this.emit('step-result', payload);
+    });
+    this.browserWeb.on('task-completed', (payload: any) => {
+      this.restoreLegacyStatusAfterExternalBackendEvent();
+      this.emit('task-completed', payload);
+    });
+    this.browserWeb.on('task-failed', (payload: any) => {
+      this.restoreLegacyStatusAfterExternalBackendEvent();
+      this.emit('task-failed', payload);
+    });
+  }
+
+  private registerWindowsUIAEventForwarding(): void {
+    this.windowsUIA.on('task-queued', (payload: any) => {
+      this.emit('task-queued', payload);
+    });
+    this.windowsUIA.on('task-started', (payload: any) => {
+      this.status = 'executing';
+      this.currentTask = payload.task || this.currentTask;
+      this.currentStep = 0;
+      this.emit('task-started', payload);
+    });
+    this.windowsUIA.on('step', (payload: any) => {
+      this.currentStep = payload.step || this.currentStep;
+      this.emit('step', payload);
+    });
+    this.windowsUIA.on('step-result', (payload: any) => {
+      this.emit('step-result', payload);
+    });
+    this.windowsUIA.on('task-completed', (payload: any) => {
+      this.restoreLegacyStatusAfterExternalBackendEvent();
+      this.emit('task-completed', payload);
+    });
+    this.windowsUIA.on('task-failed', (payload: any) => {
+      this.restoreLegacyStatusAfterExternalBackendEvent();
+      this.emit('task-failed', payload);
+    });
+  }
+
+  private shouldUseBrowserBackend(task: string, options?: DesktopTaskExecutionOptions): boolean {
+    if (options?.backend === 'browser') return true;
+    if (options?.backend === 'uia') return false;
+    if (options?.backend === 'desktop') return false;
+
+    const lower = task.toLowerCase();
+    return /https?:\/\/|www\.|gmail|google calendar|calendar\.google|mail\.google|drive\.google|docs\.google|sheets\.google|slides\.google|linkedin|notion|salesforce|hubspot|sitio web|pagina web|pagina de|navegador|browser|chrome|edge|formulario web|portal web/.test(lower);
+  }
+
+  private shouldUseWindowsUIABackend(task: string, options?: DesktopTaskExecutionOptions): boolean {
+    if (options?.backend === 'uia') return true;
+    if (options?.backend === 'browser' || options?.backend === 'desktop') return false;
+    if (this.shouldUseBrowserBackend(task, options)) return false;
+
+    const lower = task.toLowerCase();
+    return /explorador de archivos|file explorer|explorer|bloc de notas|notepad|calculadora|calculator|paint|word|excel|powerpoint|outlook|configuracion de windows|windows settings|panel de control|control panel|administrador de tareas|task manager|guardar como|save as|abrir archivo|open file|selector de archivos|file picker|dialogo de archivo|file dialog|office|winrar|7-zip|propiedades de carpeta|menu inicio|start menu/.test(lower);
+  }
+
+  private async executeBrowserTask(task: string, options?: DesktopTaskExecutionOptions): Promise<string> {
+    console.log(`[DesktopAgent] Enrutando tarea a backend browser_web: "${task}"`);
+    return this.browserWeb.executeTask(task, options);
+  }
+
+  private async executeWindowsUIATask(task: string, options?: DesktopTaskExecutionOptions): Promise<string> {
+    console.log(`[DesktopAgent] Enrutando tarea a backend windows_uia: "${task}"`);
+    try {
+      const result = await this.windowsUIA.executeTask(task, options);
+      const runResult = this.windowsUIA.getLastRunResult();
+      if (runResult && runResult.status !== 'completed' && runResult.fallbackRecommended) {
+        return this.runDesktopFallbackFromUIA(task, options, runResult);
+      }
+      return result;
+    } catch (err: any) {
+      const runResult = this.windowsUIA.getLastRunResult();
+      if (runResult?.fallbackRecommended) {
+        return this.runDesktopFallbackFromUIA(task, options, runResult);
+      }
+      throw err;
+    }
+  }
+
   // ─── Main Task Execution ──────────────────────────────────────────
 
-  async executeTask(task: string, options?: { maxSteps?: number }): Promise<string> {
+  async executeTask(task: string, options?: DesktopTaskExecutionOptions): Promise<string> {
     if (!this.apiKey) {
       throw new Error('API key de Gemini no configurada.');
+    }
+    if (this.shouldUseBrowserBackend(task, options)) {
+      return this.executeBrowserTask(task, options);
+    }
+    if (this.shouldUseWindowsUIABackend(task, options)) {
+      return this.executeWindowsUIATask(task, options);
     }
 
     // Multi-agent: si ya hay agentes activos, encolar si estamos al límite
@@ -767,7 +1031,7 @@ if ($proc) {
     return this.executeTaskInternal(task, options);
   }
 
-  private async executeTaskInternal(task: string, options?: { maxSteps?: number }): Promise<string> {
+  private async executeTaskInternal(task: string, options?: DesktopTaskExecutionOptions): Promise<string> {
     const taskId = this.generateTaskId();
     const maxSteps = options?.maxSteps ?? this.config.maxSteps;
     const taskAbort = new AbortController();
@@ -1024,6 +1288,56 @@ if ($proc) {
       // Process any queued tasks
       this.processQueue();
     }
+  }
+
+  private async runDesktopFallbackFromUIA(
+    task: string,
+    options: DesktopTaskExecutionOptions | undefined,
+    runResult: {
+      message: string;
+      failureCategory: string;
+      verification: string | null;
+      reportPath: string | null;
+      tracePath: string | null;
+    },
+  ): Promise<string> {
+    const fallbackTask = this.buildDesktopFallbackTask(task, runResult);
+    console.warn(`[DesktopAgent] windows_uia fallo (${runResult.failureCategory}); fallback automatico a desktop_visual.`);
+    this.emit('task-fallback', {
+      fromBackend: 'windows_uia',
+      toBackend: 'desktop_visual',
+      reason: runResult.message,
+      failureCategory: runResult.failureCategory,
+      reportPath: runResult.reportPath || null,
+      tracePath: runResult.tracePath || null,
+    });
+    const fallbackResult = await this.executeTask(fallbackTask, {
+      ...options,
+      backend: 'desktop',
+    });
+    return `windows_uia fallo y se activo fallback desktop_visual.\nMotivo UIA: ${runResult.message}\nResultado fallback: ${fallbackResult}`;
+  }
+
+  private buildDesktopFallbackTask(
+    originalTask: string,
+    runResult: {
+      message: string;
+      failureCategory: string;
+      verification: string | null;
+      reportPath: string | null;
+      tracePath: string | null;
+    },
+  ): string {
+    return `${originalTask}
+
+Contexto adicional del intento previo con windows_uia:
+- Falla detectada: ${runResult.message}
+- Categoria: ${runResult.failureCategory}
+- Ultima verificacion: ${runResult.verification || 'sin detalle'}
+- Reporte UIA: ${runResult.reportPath || 'sin reporte'}
+- Traza UIA: ${runResult.tracePath || 'sin traza'}
+
+Continua desde el estado ACTUAL de la pantalla usando vision desktop. No reinicies la tarea desde cero salvo que sea imprescindible.`;
   }
 
   // ─── Proactive Recovery System ────────────────────────────────────

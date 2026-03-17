@@ -1,70 +1,51 @@
 /**
- * Gemini Function Calling tool definitions for Computer Use.
- * These declarations tell Gemini what tools are available.
+ * Gemini function-calling tool definitions for SofLIA renderer chat.
  */
 
 export const COMPUTER_USE_TOOLS = {
   functionDeclarations: [
     {
       name: 'list_directory',
-      description: 'Lista todos los archivos y carpetas en un directorio del sistema del usuario. Devuelve nombre, tamaño, tipo y fechas de cada elemento.',
+      description: 'Lista archivos y carpetas en un directorio del sistema.',
       parameters: {
         type: 'OBJECT',
         properties: {
-          path: {
-            type: 'STRING',
-            description: 'Ruta del directorio a listar. Usa la ruta del escritorio del usuario si no se especifica (ej: C:\\Users\\usuario\\Desktop).',
-          },
-          show_hidden: {
-            type: 'BOOLEAN',
-            description: 'Si es true, muestra archivos ocultos. Por defecto false.',
-          },
+          path: { type: 'STRING', description: 'Ruta del directorio.' },
+          show_hidden: { type: 'BOOLEAN', description: 'Si es true, incluye elementos ocultos.' },
         },
         required: ['path'],
       },
     },
     {
       name: 'read_file',
-      description: 'Lee y devuelve el contenido de un archivo de texto del sistema. Máximo 1MB.',
+      description: 'Lee el contenido de un archivo de texto.',
       parameters: {
         type: 'OBJECT',
         properties: {
-          path: {
-            type: 'STRING',
-            description: 'Ruta completa del archivo a leer.',
-          },
+          path: { type: 'STRING', description: 'Ruta completa del archivo.' },
         },
         required: ['path'],
       },
     },
     {
       name: 'write_file',
-      description: 'Crea o sobrescribe un archivo con el contenido especificado. Crea las carpetas padre automáticamente si no existen.',
+      description: 'Crea o sobrescribe un archivo de texto.',
       parameters: {
         type: 'OBJECT',
         properties: {
-          path: {
-            type: 'STRING',
-            description: 'Ruta completa donde crear/escribir el archivo.',
-          },
-          content: {
-            type: 'STRING',
-            description: 'Contenido de texto a escribir en el archivo.',
-          },
+          path: { type: 'STRING', description: 'Ruta completa del archivo.' },
+          content: { type: 'STRING', description: 'Contenido a escribir.' },
         },
         required: ['path', 'content'],
       },
     },
     {
       name: 'create_directory',
-      description: 'Crea una carpeta nueva (y todas las carpetas padre necesarias).',
+      description: 'Crea una carpeta nueva.',
       parameters: {
         type: 'OBJECT',
         properties: {
-          path: {
-            type: 'STRING',
-            description: 'Ruta completa de la carpeta a crear.',
-          },
+          path: { type: 'STRING', description: 'Ruta completa de la carpeta.' },
         },
         required: ['path'],
       },
@@ -75,127 +56,151 @@ export const COMPUTER_USE_TOOLS = {
       parameters: {
         type: 'OBJECT',
         properties: {
-          source_path: {
-            type: 'STRING',
-            description: 'Ruta actual del archivo o carpeta.',
-          },
-          destination_path: {
-            type: 'STRING',
-            description: 'Nueva ruta de destino.',
-          },
+          source_path: { type: 'STRING', description: 'Ruta origen.' },
+          destination_path: { type: 'STRING', description: 'Ruta destino.' },
         },
         required: ['source_path', 'destination_path'],
       },
     },
     {
       name: 'copy_item',
-      description: 'Copia un archivo o carpeta (incluyendo contenido recursivo) a otra ubicación.',
+      description: 'Copia un archivo o carpeta a otra ubicacion.',
       parameters: {
         type: 'OBJECT',
         properties: {
-          source_path: {
-            type: 'STRING',
-            description: 'Ruta del archivo o carpeta a copiar.',
-          },
-          destination_path: {
-            type: 'STRING',
-            description: 'Ruta de destino para la copia.',
-          },
+          source_path: { type: 'STRING', description: 'Ruta origen.' },
+          destination_path: { type: 'STRING', description: 'Ruta destino.' },
         },
         required: ['source_path', 'destination_path'],
       },
     },
     {
       name: 'delete_item',
-      description: 'Envía un archivo o carpeta a la papelera de reciclaje (no elimina permanentemente). Requiere confirmación del usuario.',
+      description: 'Envia un archivo o carpeta a la papelera. Requiere confirmacion.',
       parameters: {
         type: 'OBJECT',
         properties: {
-          path: {
-            type: 'STRING',
-            description: 'Ruta del archivo o carpeta a enviar a la papelera.',
-          },
+          path: { type: 'STRING', description: 'Ruta del archivo o carpeta.' },
         },
         required: ['path'],
       },
     },
     {
       name: 'get_file_info',
-      description: 'Obtiene información detallada sobre un archivo o carpeta: tamaño, fechas de creación/modificación, extensión.',
+      description: 'Obtiene informacion detallada sobre un archivo o carpeta.',
       parameters: {
         type: 'OBJECT',
         properties: {
-          path: {
-            type: 'STRING',
-            description: 'Ruta del archivo o carpeta.',
-          },
+          path: { type: 'STRING', description: 'Ruta del archivo o carpeta.' },
         },
         required: ['path'],
       },
     },
     {
       name: 'search_files',
-      description: 'Busca archivos y carpetas por nombre dentro de un directorio (recursivo hasta 5 niveles).',
+      description: 'Busca archivos y carpetas por nombre dentro de un directorio.',
       parameters: {
         type: 'OBJECT',
         properties: {
-          directory: {
-            type: 'STRING',
-            description: 'Directorio donde buscar.',
-          },
-          pattern: {
-            type: 'STRING',
-            description: 'Patrón de texto a buscar en los nombres de archivo (case-insensitive).',
-          },
+          directory: { type: 'STRING', description: 'Directorio donde buscar.' },
+          pattern: { type: 'STRING', description: 'Texto a buscar en los nombres.' },
         },
         required: ['pattern'],
       },
     },
     {
-      name: 'execute_command',
-      description: 'Ejecuta un comando en la terminal del sistema (PowerShell en Windows). Requiere confirmación del usuario. Timeout de 30 segundos. Usa esto para instalar programas, ejecutar scripts, ver procesos, etc.',
+      name: 'list_directory_summary',
+      description: 'Resume un directorio grande antes de organizarlo.',
       parameters: {
         type: 'OBJECT',
         properties: {
-          command: {
-            type: 'STRING',
-            description: 'Comando a ejecutar en la terminal.',
+          path: { type: 'STRING', description: 'Ruta del directorio.' },
+          recursive: { type: 'BOOLEAN', description: 'Si es true, analiza subcarpetas.' },
+          max_depth: { type: 'NUMBER', description: 'Profundidad maxima para analisis recursivo. Opcional.' },
+        },
+        required: ['path'],
+      },
+    },
+    {
+      name: 'organize_files',
+      description: 'Organiza los archivos de un directorio por extension, tipo, fecha o reglas personalizadas.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          path: { type: 'STRING', description: 'Ruta del directorio a organizar.' },
+          mode: { type: 'STRING', description: 'extension, type, date o custom.' },
+          rules: { type: 'OBJECT', description: 'Mapa extension a carpeta para el modo custom.' },
+          dry_run: { type: 'BOOLEAN', description: 'Si es true, solo devuelve la simulacion.' },
+          recursive: { type: 'BOOLEAN', description: 'Si es true, incluye archivos en subcarpetas.' },
+        },
+        required: ['path'],
+      },
+    },
+    {
+      name: 'batch_move_files',
+      description: 'Mueve en lote archivos entre dos directorios.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          source_directory: { type: 'STRING', description: 'Directorio origen.' },
+          destination_directory: { type: 'STRING', description: 'Directorio destino.' },
+          extensions: {
+            type: 'ARRAY',
+            items: { type: 'STRING' },
+            description: 'Lista opcional de extensiones sin punto.',
           },
+          pattern: { type: 'STRING', description: 'Texto opcional para filtrar nombres.' },
+          recursive: { type: 'BOOLEAN', description: 'Si es true, incluye subcarpetas del origen.' },
+        },
+        required: ['source_directory', 'destination_directory'],
+      },
+    },
+    {
+      name: 'undo_last_file_operation',
+      description: 'Revierte la ultima operacion masiva de archivos o una operacion especifica por su operation_id.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          operation_id: { type: 'STRING', description: 'ID opcional de la operacion a revertir.' },
+        },
+      },
+    },
+    {
+      name: 'execute_command',
+      description: 'Ejecuta un comando del sistema. Requiere confirmacion.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          command: { type: 'STRING', description: 'Comando a ejecutar.' },
         },
         required: ['command'],
       },
     },
     {
       name: 'open_application',
-      description: 'Abre un archivo o aplicación con el programa predeterminado del sistema.',
+      description: 'Abre un archivo o aplicacion con el programa predeterminado.',
       parameters: {
         type: 'OBJECT',
         properties: {
-          path: {
-            type: 'STRING',
-            description: 'Ruta del archivo o aplicación a abrir.',
-          },
+          path: { type: 'STRING', description: 'Ruta del archivo o aplicacion.' },
         },
         required: ['path'],
       },
     },
     {
       name: 'open_url',
-      description: 'Abre una URL en el navegador web predeterminado del usuario.',
+      description: 'Abre una URL en el navegador predeterminado.',
       parameters: {
         type: 'OBJECT',
         properties: {
-          url: {
-            type: 'STRING',
-            description: 'URL completa a abrir (incluyendo https://).',
-          },
+          url: { type: 'STRING', description: 'URL completa, incluyendo https://.' },
         },
         required: ['url'],
       },
     },
     {
       name: 'get_system_info',
-      description: 'Obtiene información del sistema: SO, CPU, RAM, disco, nombre de usuario, directorio home.',
+      description: 'Obtiene informacion del sistema y rutas base del usuario.',
       parameters: {
         type: 'OBJECT',
         properties: {},
@@ -203,7 +208,7 @@ export const COMPUTER_USE_TOOLS = {
     },
     {
       name: 'clipboard_read',
-      description: 'Lee el contenido actual del portapapeles del usuario.',
+      description: 'Lee el contenido del portapapeles.',
       parameters: {
         type: 'OBJECT',
         properties: {},
@@ -211,30 +216,40 @@ export const COMPUTER_USE_TOOLS = {
     },
     {
       name: 'clipboard_write',
-      description: 'Escribe texto en el portapapeles del usuario.',
+      description: 'Escribe texto en el portapapeles.',
       parameters: {
         type: 'OBJECT',
         properties: {
-          text: {
-            type: 'STRING',
-            description: 'Texto a copiar al portapapeles.',
-          },
+          text: { type: 'STRING', description: 'Texto a copiar.' },
         },
         required: ['text'],
       },
     },
     {
       name: 'take_screenshot',
-      description: 'Captura una imagen de la pantalla actual del usuario.',
+      description: 'Captura una imagen de la pantalla actual.',
       parameters: {
         type: 'OBJECT',
         properties: {},
       },
     },
-    // ─── Email Tools ────────────────────────────────────────────
+    {
+      name: 'use_computer',
+      description: 'Ejecuta una tarea autonoma de computer use en backend browser, uia o desktop. El backend uia puede escalar automaticamente a desktop si no logra verificar cambios.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          task: { type: 'STRING', description: 'Descripcion detallada de la tarea.' },
+          max_steps: { type: 'NUMBER', description: 'Maximo de pasos.' },
+          backend: { type: 'STRING', description: 'Opcional: auto, browser, uia o desktop.' },
+          start_url: { type: 'STRING', description: 'URL inicial para una tarea web. Opcional.' },
+        },
+        required: ['task'],
+      },
+    },
     {
       name: 'get_email_config',
-      description: 'Verifica si el email está configurado. Úsalo antes de enviar un email para comprobar que hay credenciales SMTP configuradas.',
+      description: 'Verifica si el email SMTP local esta configurado.',
       parameters: {
         type: 'OBJECT',
         properties: {},
@@ -242,49 +257,31 @@ export const COMPUTER_USE_TOOLS = {
     },
     {
       name: 'configure_email',
-      description: 'Configura el email para enviar correos. Solo necesita el email y la contraseña de aplicación del usuario. El servidor SMTP se detecta automáticamente (Gmail, Outlook, Yahoo, iCloud, etc). Solo necesita hacerse UNA VEZ, después el email queda configurado permanentemente.',
+      description: 'Configura el email SMTP local del usuario.',
       parameters: {
         type: 'OBJECT',
         properties: {
-          email: {
-            type: 'STRING',
-            description: 'Dirección de email del usuario (ej: nombre@gmail.com).',
-          },
-          password: {
-            type: 'STRING',
-            description: 'Contraseña de aplicación (para Gmail: se genera en myaccount.google.com > Seguridad > Contraseñas de aplicaciones).',
-          },
+          email: { type: 'STRING', description: 'Direccion de email del usuario.' },
+          password: { type: 'STRING', description: 'Contrasena de aplicacion.' },
         },
         required: ['email', 'password'],
       },
     },
     {
       name: 'send_email',
-      description: 'Envía un email con texto y/o archivos adjuntos. Requiere que el email esté configurado (usa get_email_config para verificar). Puede adjuntar archivos del sistema de archivos local. Requiere confirmación del usuario.',
+      description: 'Envia un email usando la configuracion SMTP local. Requiere confirmacion.',
       parameters: {
         type: 'OBJECT',
         properties: {
-          to: {
-            type: 'STRING',
-            description: 'Dirección de email del destinatario.',
-          },
-          subject: {
-            type: 'STRING',
-            description: 'Asunto del email.',
-          },
-          body: {
-            type: 'STRING',
-            description: 'Cuerpo del email (texto plano o HTML según is_html).',
-          },
+          to: { type: 'STRING', description: 'Direccion de email del destinatario.' },
+          subject: { type: 'STRING', description: 'Asunto del email.' },
+          body: { type: 'STRING', description: 'Cuerpo del email.' },
           attachment_paths: {
             type: 'ARRAY',
             items: { type: 'STRING' },
-            description: 'Lista de rutas completas de archivos a adjuntar. Opcional.',
+            description: 'Rutas completas de archivos a adjuntar.',
           },
-          is_html: {
-            type: 'BOOLEAN',
-            description: 'Si es true, el body se trata como HTML. Por defecto false (texto plano).',
-          },
+          is_html: { type: 'BOOLEAN', description: 'Si es true, el body se trata como HTML.' },
         },
         required: ['to', 'subject', 'body'],
       },
@@ -292,44 +289,30 @@ export const COMPUTER_USE_TOOLS = {
   ],
 };
 
-/**
- * WhatsApp-specific tool: send a file from the computer to the user via WhatsApp.
- * This is only used by the main-process WhatsApp agent, not by the renderer.
- */
 export const WHATSAPP_SEND_FILE_TOOL = {
   name: 'whatsapp_send_file',
-  description: 'Envía un archivo de la computadora al usuario directamente por WhatsApp.',
+  description: 'Envia un archivo de la computadora al usuario por WhatsApp.',
   parameters: {
     type: 'OBJECT',
     properties: {
-      file_path: {
-        type: 'STRING',
-        description: 'Ruta completa del archivo a enviar por WhatsApp.',
-      },
-      caption: {
-        type: 'STRING',
-        description: 'Texto opcional que acompaña al archivo.',
-      },
+      file_path: { type: 'STRING', description: 'Ruta completa del archivo a enviar.' },
+      caption: { type: 'STRING', description: 'Texto opcional del archivo.' },
     },
     required: ['file_path'],
   },
 };
 
-/** 
- * Native AI Functionalities (Image generation, etc.)
- * Always available.
- */
 export const NATIVE_AI_TOOLS = {
   functionDeclarations: [
     {
       name: 'generate_image',
-      description: 'Genera una imagen utilizando un modelo de IA generativo a partir de una descripción de texto. Retornará la información en base64 para que sea visualizada en el chat y una descripción textual.',
+      description: 'Genera una imagen con IA a partir de una descripcion en texto.',
       parameters: {
         type: 'OBJECT',
         properties: {
           prompt: {
             type: 'STRING',
-            description: 'Descripción detallada en inglés de la imagen que quieres generar (por ejemplo: "A cinematic shot of a cyberpunk city").',
+            description: 'Descripcion detallada en ingles de la imagen deseada.',
           },
         },
         required: ['prompt'],
@@ -338,106 +321,64 @@ export const NATIVE_AI_TOOLS = {
   ],
 };
 
-/** 
- * Project Hub (IRIS) specific tools 
- */
 export const PROJECT_HUB_TOOLS = {
   functionDeclarations: [
     {
       name: 'delete_iris_project',
-      description: 'Elimina un proyecto de manera permanente de Project Hub (IRIS) usando su ID. Eliminará el registro de la base de datos.',
+      description: 'Elimina un proyecto de Project Hub (IRIS) de manera permanente.',
       parameters: {
         type: 'OBJECT',
         properties: {
-          project_id: {
-            type: 'STRING',
-            description: 'El ID único (ej. UUID) del proyecto que se desea eliminar.',
-          },
+          project_id: { type: 'STRING', description: 'ID del proyecto.' },
         },
         required: ['project_id'],
       },
     },
     {
       name: 'create_iris_project',
-      description: 'Crea un nuevo proyecto en Project Hub (IRIS) dentro de un equipo.',
+      description: 'Crea un nuevo proyecto en Project Hub (IRIS).',
       parameters: {
         type: 'OBJECT',
         properties: {
-          project_name: {
-            type: 'STRING',
-            description: 'Nombre del nuevo proyecto (Obligatorio).',
-          },
-          team_id: {
-            type: 'STRING',
-            description: 'ID del equipo (workspace) al que pertenecerá el proyecto. Es opcional, si no se envía quedará como Proyecto Global.',
-          },
-          project_description: {
-            type: 'STRING',
-            description: 'Descripción del proyecto.',
-          },
-          project_key: {
-            type: 'STRING',
-            description: 'Clave corta del proyecto, en formato mayúsculas, usualmente de 3 a 5 letras (ej. PRJ, SOF, PULSE). Obligatorio.',
-          }
+          project_name: { type: 'STRING', description: 'Nombre del proyecto.' },
+          team_id: { type: 'STRING', description: 'ID del equipo. Opcional.' },
+          project_description: { type: 'STRING', description: 'Descripcion del proyecto.' },
+          project_key: { type: 'STRING', description: 'Clave corta del proyecto.' },
         },
         required: ['project_name', 'project_key'],
       },
     },
     {
       name: 'create_iris_issue',
-      description: 'Crea una nueva tarea (issue) en Project Hub (IRIS) asociada a un proyecto y equipo.',
+      description: 'Crea una nueva tarea en Project Hub (IRIS).',
       parameters: {
         type: 'OBJECT',
         properties: {
-          title: {
-            type: 'STRING',
-            description: 'Título de la tarea (ej. Crear documentación de API). Obligatorio.',
-          },
-          description: {
-            type: 'STRING',
-            description: 'Descripción detallada de la tarea.',
-          },
-          team_id: {
-            type: 'STRING',
-            description: 'ID de equipo (team_id). Obligatorio.',
-          },
-          project_id: {
-            type: 'STRING',
-            description: 'ID del proyecto (project_id) al que pertenece. Opcional.',
-          },
-          status_id: {
-            type: 'STRING',
-            description: 'ID de estado (status_id). Si no se proporciona, se usará el estado por defecto (Backlog/Todo).',
-          },
-          priority_id: {
-            type: 'STRING',
-            description: 'ID de prioridad (priority_id). Obtén los IDs con get_iris_priorities.',
-          },
-          assignee_id: {
-            type: 'STRING',
-            description: 'ID del usuario asignado (assignee_id). Pulsa "mi" para asignarlo al usuario actual (obtén el ID con get_current_user_id si el usuario dice "a mi").',
-          },
+          title: { type: 'STRING', description: 'Titulo de la tarea.' },
+          description: { type: 'STRING', description: 'Descripcion detallada de la tarea.' },
+          team_id: { type: 'STRING', description: 'ID del equipo.' },
+          project_id: { type: 'STRING', description: 'ID del proyecto. Opcional.' },
+          status_id: { type: 'STRING', description: 'ID de estado. Opcional.' },
+          priority_id: { type: 'STRING', description: 'ID de prioridad. Opcional.' },
+          assignee_id: { type: 'STRING', description: 'ID del usuario asignado. Opcional.' },
         },
         required: ['title', 'team_id'],
       },
     },
     {
       name: 'get_iris_statuses',
-      description: 'Obtiene todos los estados de tarea disponibles para un equipo específico (Backlog, To Do, In Progress, etc).',
+      description: 'Obtiene los estados disponibles para un equipo de IRIS.',
       parameters: {
         type: 'OBJECT',
         properties: {
-          team_id: {
-            type: 'STRING',
-            description: 'ID del equipo.',
-          },
+          team_id: { type: 'STRING', description: 'ID del equipo.' },
         },
         required: ['team_id'],
       },
     },
     {
       name: 'get_iris_priorities',
-      description: 'Obtiene niveles de prioridad (Urgent, High, Medium, Low, None) con sus IDs.',
+      description: 'Obtiene las prioridades disponibles en IRIS.',
       parameters: {
         type: 'OBJECT',
         properties: {},
@@ -445,7 +386,7 @@ export const PROJECT_HUB_TOOLS = {
     },
     {
       name: 'get_current_user_id',
-      description: 'Obtiene el ID del usuario actual de la sesión. Úsalo cuando el usuario pida "asignarme a mi", "mis tareas", etc.',
+      description: 'Obtiene el ID del usuario actual de la sesion.',
       parameters: {
         type: 'OBJECT',
         properties: {},
@@ -454,52 +395,32 @@ export const PROJECT_HUB_TOOLS = {
   ],
 };
 
-/**
- * Google Workspace tools — Calendar, Gmail, Drive
- * Ejecutan acciones vía IPC (window.calendar, window.gmail, window.drive)
- */
 export const GOOGLE_WORKSPACE_TOOLS = {
   functionDeclarations: [
-    // ─── Google Calendar ────────────────────────────────────────
     {
       name: 'google_calendar_get_events',
-      description: 'Obtiene los eventos del calendario del usuario para una fecha. Requiere que el calendario esté conectado previamente.',
+      description: 'Obtiene los eventos del calendario del usuario para una fecha.',
       parameters: {
         type: 'OBJECT',
         properties: {
           date: {
             type: 'STRING',
-            description: 'Fecha para consultar los eventos en formato ISO (YYYY-MM-DD). Si no se especifica, se usa la fecha de hoy.',
+            description: 'Fecha en formato ISO YYYY-MM-DD. Opcional.',
           },
         },
       },
     },
     {
       name: 'google_calendar_create',
-      description: 'Crea un nuevo evento en Google Calendar del usuario.',
+      description: 'Crea un nuevo evento en Google Calendar.',
       parameters: {
         type: 'OBJECT',
         properties: {
-          title: {
-            type: 'STRING',
-            description: 'Título del evento.',
-          },
-          start: {
-            type: 'STRING',
-            description: 'Fecha y hora de inicio en formato ISO 8601 (ej: 2026-03-04T10:00:00).',
-          },
-          end: {
-            type: 'STRING',
-            description: 'Fecha y hora de fin en formato ISO 8601 (ej: 2026-03-04T11:00:00).',
-          },
-          description: {
-            type: 'STRING',
-            description: 'Descripción o notas del evento. Opcional.',
-          },
-          location: {
-            type: 'STRING',
-            description: 'Ubicación del evento. Opcional.',
-          },
+          title: { type: 'STRING', description: 'Titulo del evento.' },
+          start: { type: 'STRING', description: 'Fecha y hora de inicio ISO 8601.' },
+          end: { type: 'STRING', description: 'Fecha y hora de fin ISO 8601.' },
+          description: { type: 'STRING', description: 'Descripcion del evento. Opcional.' },
+          location: { type: 'STRING', description: 'Ubicacion del evento. Opcional.' },
         },
         required: ['title', 'start', 'end'],
       },
@@ -510,28 +431,27 @@ export const GOOGLE_WORKSPACE_TOOLS = {
       parameters: {
         type: 'OBJECT',
         properties: {
-          event_id: {
-            type: 'STRING',
-            description: 'ID del evento a eliminar (obtenido previamente con google_calendar_get_events).',
-          },
+          event_id: { type: 'STRING', description: 'ID del evento.' },
         },
         required: ['event_id'],
       },
     },
-    // ─── Gmail ──────────────────────────────────────────────────
     {
       name: 'gmail_get_messages',
-      description: 'Obtiene los últimos mensajes de la bandeja de entrada de Gmail del usuario. Requiere conexión con Google.',
+      description: 'Obtiene mensajes de Gmail con filtros, etiquetas y paginacion.',
       parameters: {
         type: 'OBJECT',
         properties: {
-          query: {
-            type: 'STRING',
-            description: 'Filtro de búsqueda de Gmail (ej: "from:juan@gmail.com", "subject:factura", "is:unread"). Opcional.',
+          query: { type: 'STRING', description: 'Filtro de busqueda de Gmail. Opcional.' },
+          max_results: { type: 'NUMBER', description: 'Numero maximo de mensajes a obtener.' },
+          label_ids: {
+            type: 'ARRAY',
+            items: { type: 'STRING' },
+            description: 'IDs de etiquetas para filtrar mensajes. Opcional.',
           },
-          max_results: {
-            type: 'NUMBER',
-            description: 'Número máximo de mensajes a obtener (1-20). Por defecto 10.',
+          page_token: {
+            type: 'STRING',
+            description: 'Cursor devuelto por una llamada anterior para continuar la paginacion. Opcional.',
           },
         },
       },
@@ -542,61 +462,200 @@ export const GOOGLE_WORKSPACE_TOOLS = {
       parameters: {
         type: 'OBJECT',
         properties: {
-          message_id: {
-            type: 'STRING',
-            description: 'ID del mensaje de Gmail a leer (obtenido con gmail_get_messages).',
-          },
+          message_id: { type: 'STRING', description: 'ID del mensaje de Gmail.' },
         },
         required: ['message_id'],
       },
     },
     {
       name: 'gmail_send',
-      description: 'Envía un correo electrónico desde la cuenta de Gmail conectada del usuario.',
+      description: 'Envia un correo desde la cuenta de Gmail conectada del usuario.',
       parameters: {
         type: 'OBJECT',
         properties: {
-          to: {
-            type: 'STRING',
-            description: 'Dirección de correo del destinatario.',
-          },
-          subject: {
-            type: 'STRING',
-            description: 'Asunto del correo.',
-          },
-          body: {
-            type: 'STRING',
-            description: 'Cuerpo del correo en texto plano o HTML.',
-          },
-          is_html: {
-            type: 'BOOLEAN',
-            description: 'Si es true, el body se interpreta como HTML. Por defecto false.',
+          to: { type: 'STRING', description: 'Correo del destinatario.' },
+          subject: { type: 'STRING', description: 'Asunto del correo.' },
+          body: { type: 'STRING', description: 'Cuerpo del correo.' },
+          is_html: { type: 'BOOLEAN', description: 'Si es true, interpreta el body como HTML.' },
+          attachment_paths: {
+            type: 'ARRAY',
+            items: { type: 'STRING' },
+            description: 'Rutas locales de archivos a adjuntar. Opcional.',
           },
         },
         required: ['to', 'subject', 'body'],
       },
     },
-    // ─── Google Drive ───────────────────────────────────────────
     {
-      name: 'drive_list_files',
-      description: 'Lista los archivos recientes en Google Drive del usuario.',
+      name: 'gmail_get_labels',
+      description: 'Lista las etiquetas de Gmail disponibles.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {},
+      },
+    },
+    {
+      name: 'gmail_create_label',
+      description: 'Crea una nueva etiqueta de Gmail.',
       parameters: {
         type: 'OBJECT',
         properties: {
-          query: {
-            type: 'STRING',
-            description: 'Búsqueda de Drive (ej: "name contains \'informe\'"). Opcional.',
-          },
-          max_results: {
-            type: 'NUMBER',
-            description: 'Número máximo de archivos (1-50). Por defecto 20.',
-          },
+          name: { type: 'STRING', description: 'Nombre de la etiqueta.' },
+        },
+        required: ['name'],
+      },
+    },
+    {
+      name: 'gmail_delete_label',
+      description: 'Elimina una etiqueta de Gmail por su ID.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          label_id: { type: 'STRING', description: 'ID de la etiqueta.' },
+        },
+        required: ['label_id'],
+      },
+    },
+    {
+      name: 'gmail_preview_organization',
+      description: 'Analiza el inbox de Gmail y genera un plan determinista de organizacion por remitente o empresa sin modificar correos todavia.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          query: { type: 'STRING', description: 'Filtro opcional de Gmail. Por defecto usa in:inbox.' },
+          max_messages: { type: 'NUMBER', description: 'Maximo de correos a analizar para el preview.' },
+          min_group_size: { type: 'NUMBER', description: 'Tamano minimo de grupo para proponer una etiqueta.' },
+          remove_from_inbox: { type: 'BOOLEAN', description: 'Si es true, el plan propondra sacar los correos del inbox al aplicar.' },
+          page_limit: { type: 'NUMBER', description: 'Numero maximo de paginas de Gmail a recorrer en el preview.' },
         },
       },
     },
     {
+      name: 'gmail_apply_organization_plan',
+      description: 'Aplica un plan de organizacion de Gmail generado previamente por gmail_preview_organization.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          plan_id: { type: 'STRING', description: 'ID del plan generado en el preview.' },
+          remove_from_inbox: { type: 'BOOLEAN', description: 'Opcional. Sobrescribe si al aplicar se quitan los correos del inbox.' },
+        },
+        required: ['plan_id'],
+      },
+    },
+    {
+      name: 'gmail_undo_organization_plan',
+      description: 'Revierte un plan de organizacion de Gmail previamente aplicado. Si no se envia plan_id, intenta revertir el ultimo plan aplicado.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          plan_id: { type: 'STRING', description: 'Opcional. ID del plan aplicado que se quiere revertir. Si se omite, usa el ultimo plan aplicado.' },
+        },
+      },
+    },
+    {
+      name: 'gmail_modify_labels',
+      description: 'Agrega o quita etiquetas de un correo individual.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          message_id: { type: 'STRING', description: 'ID del correo.' },
+          add_labels: {
+            type: 'ARRAY',
+            items: { type: 'STRING' },
+            description: 'Etiquetas o IDs a agregar.',
+          },
+          remove_labels: {
+            type: 'ARRAY',
+            items: { type: 'STRING' },
+            description: 'Etiquetas o IDs a quitar.',
+          },
+        },
+        required: ['message_id'],
+      },
+    },
+    {
+      name: 'gmail_batch_empty_label',
+      description: 'Vacia una etiqueta completa de Gmail y opcionalmente la elimina.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          label_id: { type: 'STRING', description: 'ID de la etiqueta.' },
+          delete_label: { type: 'BOOLEAN', description: 'Si es true, elimina la etiqueta despues.' },
+        },
+        required: ['label_id'],
+      },
+    },
+    {
+      name: 'gmail_empty_all_labels',
+      description: 'Vacia y elimina todas las etiquetas creadas por el usuario en Gmail.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {},
+      },
+    },
+    {
+      name: 'drive_list_files',
+      description: 'Lista los archivos recientes en Google Drive.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          query: { type: 'STRING', description: 'Busqueda de Drive. Opcional.' },
+          max_results: { type: 'NUMBER', description: 'Numero maximo de archivos. Opcional.' },
+        },
+      },
+    },
+    {
+      name: 'drive_search',
+      description: 'Busca archivos en Google Drive por nombre o texto relevante.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          query: { type: 'STRING', description: 'Texto de busqueda.' },
+        },
+        required: ['query'],
+      },
+    },
+    {
+      name: 'drive_download',
+      description: 'Descarga un archivo de Google Drive a una ruta local.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          file_id: { type: 'STRING', description: 'ID del archivo en Drive.' },
+          destination_path: { type: 'STRING', description: 'Ruta local destino.' },
+          format: { type: 'STRING', description: 'Opcional: text o pdf.' },
+        },
+        required: ['file_id', 'destination_path'],
+      },
+    },
+    {
+      name: 'drive_upload',
+      description: 'Sube un archivo local a Google Drive.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          file_path: { type: 'STRING', description: 'Ruta local del archivo.' },
+          folder_id: { type: 'STRING', description: 'ID opcional de carpeta destino.' },
+          name: { type: 'STRING', description: 'Nombre opcional del archivo en Drive.' },
+        },
+        required: ['file_path'],
+      },
+    },
+    {
+      name: 'drive_create_folder',
+      description: 'Crea una carpeta en Google Drive.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          name: { type: 'STRING', description: 'Nombre de la carpeta.' },
+          parent_id: { type: 'STRING', description: 'ID opcional de carpeta padre.' },
+        },
+        required: ['name'],
+      },
+    },
+    {
       name: 'google_calendar_get_connections',
-      description: 'Verifica qué calendarios están conectados (Google, Microsoft). Úsalo antes de consultar eventos para confirmar que hay una conexión activa.',
+      description: 'Verifica que calendarios estan conectados antes de operar sobre ellos.',
       parameters: {
         type: 'OBJECT',
         properties: {},
@@ -605,7 +664,6 @@ export const GOOGLE_WORKSPACE_TOOLS = {
   ],
 };
 
-/** Names of all computer-use tools, for quick lookup */
 export const COMPUTER_TOOL_NAMES = new Set(
   COMPUTER_USE_TOOLS.functionDeclarations.map(t => t.name)
 );

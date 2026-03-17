@@ -10,14 +10,27 @@ export function registerDesktopAgentHandlers(agentService: DesktopAgentService) 
   ipcMain.handle('desktop-agent:execute-task', async (_, task: string, options?: any) => {
     try {
       const result = await agentService.executeTask(task, options);
-      return { success: true, message: result };
+      return {
+        success: true,
+        message: result,
+        status: agentService.getStatus(),
+      };
     } catch (err: any) {
-      return { success: false, error: err.message };
+      return {
+        success: false,
+        error: err.message,
+        status: agentService.getStatus(),
+      };
     }
   });
 
   // ─── Multi-Agent: Execute multiple tasks in parallel ───────────
-  ipcMain.handle('desktop-agent:execute-parallel', async (_, tasks: Array<{ task: string; maxSteps?: number }>) => {
+  ipcMain.handle('desktop-agent:execute-parallel', async (_, tasks: Array<{
+    task: string;
+    maxSteps?: number;
+    backend?: 'auto' | 'browser' | 'desktop' | 'uia';
+    startUrl?: string;
+  }>) => {
     try {
       const results = await agentService.executeParallelTasks(tasks);
       return { success: true, results };
@@ -39,8 +52,29 @@ export function registerDesktopAgentHandlers(agentService: DesktopAgentService) 
         completedAt: t.completedAt,
         result: t.result,
         error: t.error,
+        backend: 'desktop_visual',
+        currentUrl: null,
       }));
-      return { success: true, tasks, count: tasks.length };
+
+      const taskIds = new Set(tasks.map(t => t.id));
+      const browserTasks = agentService.getStatus().activeTasks
+        .filter(t => !taskIds.has(t.id))
+        .map(t => ({
+          id: t.id,
+          task: t.task,
+          status: t.status,
+          currentStep: t.step,
+          maxSteps: t.maxSteps,
+          startedAt: undefined,
+          completedAt: undefined,
+          result: undefined,
+          error: undefined,
+          backend: t.backend || 'browser_web',
+          currentUrl: t.currentUrl || null,
+        }));
+
+      const mergedTasks = [...tasks, ...browserTasks];
+      return { success: true, tasks: mergedTasks, count: mergedTasks.length };
     } catch (err: any) {
       return { success: false, error: err.message };
     }

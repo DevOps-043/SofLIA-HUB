@@ -9,7 +9,6 @@ import type { DriveService } from '../drive-service';
 import type { GChatService } from '../gchat-service';
 import type { MemoryService } from '../memory-service';
 import type { KnowledgeService } from '../knowledge-service';
-import type { AutoDevService } from '../autodev-service';
 import type { DesktopAgentService } from '../desktop-agent-service';
 import type { ClipboardAIAssistant } from '../clipboard-ai-assistant';
 import type { TaskScheduler } from '../task-scheduler';
@@ -22,7 +21,6 @@ export interface ToolExecutorContext {
   gmailService: GmailService | null;
   driveService: DriveService | null;
   gchatService: GChatService | null;
-  autoDevService: AutoDevService | null;
   desktopAgent: DesktopAgentService | null;
   clipboardAssistant: ClipboardAIAssistant | null;
   taskScheduler: TaskScheduler | null;

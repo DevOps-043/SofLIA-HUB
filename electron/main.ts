@@ -1,706 +1,801 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, Tray, Menu, Notification, nativeImage, ipcMain, desktopCapturer, screen } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import * as dotenv from 'dotenv';
+import * as dotenv from 'dotenv'
 
-// ─── 0. GLOBAL BOOTSTRAP GUARD ───
-const g = globalThis as any;
-if (g.__SOFLIA_BOOTSTRAP_COMPLETE__) {
-  console.log(`[BOOT] ⏭️ Bootstrap duplicado evitado en PID: ${process.pid}`);
-  // No salimos con process.exit(0) para no matar al proceso que si es válido si este fuera un worker thread o similar
-  // Pero detenemos la ejecución de este script aquí:
+type BootstrapGuard = typeof globalThis & {
+  __SOFLIA_BOOTSTRAP_COMPLETE__?: boolean
+}
+
+type Step<T> = () => Promise<T> | T
+
+function logBootstrapError(context: string, error: unknown): void {
+  if (error instanceof Error) {
+    console.error(`[BOOT] ${context} failed: ${error.message}`)
+    if (error.stack) {
+      console.error(error.stack)
+    }
+    return
+  }
+
+  console.error(`[BOOT] ${context} failed:`, error)
+}
+
+async function runOptionalStep<T>(name: string, step: Step<T>): Promise<T | undefined> {
+  try {
+    return await step()
+  } catch (error) {
+    logBootstrapError(name, error)
+    return undefined
+  }
+}
+
+const bootstrapGuard = globalThis as BootstrapGuard
+if (bootstrapGuard.__SOFLIA_BOOTSTRAP_COMPLETE__) {
+  console.log(`[BOOT] Duplicate bootstrap avoided in PID ${process.pid}`)
 } else {
-  g.__SOFLIA_BOOTSTRAP_COMPLETE__ = true;
+  bootstrapGuard.__SOFLIA_BOOTSTRAP_COMPLETE__ = true
 
-  // ─── 1. SANDBOX (MUST be before app.whenReady) ───
-  // Disabled because BrowserWindow creation is crashing with EXCEPTION_ACCESS_VIOLATION
-  // inside Electron's sandbox path on this Windows/Electron 34 setup.
-  // app.enableSandbox();
-
-  // ─── 2. CONTROL DE INSTANCIA ÚNICA ───
   const gotTheLock = app.requestSingleInstanceLock()
   if (!gotTheLock) {
-    console.log(`[BOOT] ⚠️ SEGUNDA INSTANCIA (PID: ${process.pid}) bloqueada. Saliendo...`)
+    console.log(`[BOOT] Second instance blocked for PID ${process.pid}`)
     app.exit(0)
   } else {
-    console.log(`[BOOT] 🚀 INICIANDO SOFLIA HUB — PID: ${process.pid}, PPID: ${process.ppid}`);
-    
-    // ─── 2. IMPORTS DE SERVICIOS ───
-    // Importamos todo aquí para que sean parte de la misma unidad de compilación
-    const runBootstrap = async () => {
-      const { registerComputerUseHandlers } = await import('./computer-use-handlers')
-      const { WhatsAppService } = await import('./whatsapp-service')
-      const { WhatsAppAgent } = await import('./whatsapp-agent')
-      const { MonitoringService } = await import('./monitoring-service')
-      const { registerMonitoringHandlers } = await import('./monitoring-handlers')
-      const { CalendarService } = await import('./calendar-service')
-      const { registerCalendarHandlers } = await import('./calendar-handlers')
-      const { GmailService } = await import('./gmail-service')
-      const { registerGmailHandlers } = await import('./gmail-handlers')
-      const { DriveService } = await import('./drive-service')
-      const { registerDriveHandlers } = await import('./drive-handlers')
-      const { GChatService } = await import('./gchat-service')
-      const { registerGChatHandlers } = await import('./gchat-handlers')
-      const { ProactiveService } = await import('./proactive-service')
-      const { AutoDevService } = await import('./autodev-service')
-      const { registerAutoDevHandlers } = await import('./autodev-handlers')
-      const { SelfLearnService } = await import('./autodev-selflearn')
-      const { DesktopAgentService } = await import('./desktop-agent-service')
-      const { registerDesktopAgentHandlers } = await import('./desktop-agent-handlers')
-      const { MemoryService } = await import('./memory-service')
-      const { registerMemoryHandlers } = await import('./memory-handlers')
-      const { KnowledgeService } = await import('./knowledge-service')
-      const { UpdaterService } = await import('./updater-service')
-      const { registerUpdaterHandlers } = await import('./updater-handlers')
-      const { ClipboardAIAssistant } = await import('./clipboard-ai-assistant')
-      const { TaskScheduler } = await import('./task-scheduler')
-      const { NeuralOrganizerService: NeuralOrganizerAI } = await import('./neural-organizer')
-      const { PathMemoryService } = await import('./path-memory-service')
-      const { MenuManager } = await import('./menu-manager')
-      const { registerWhatsAppHandlers } = await import('./whatsapp-handlers')
-      await import('./agent-task-queue')
-
-      const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-      // Entorno
-      const envPaths = [path.join(__dirname, '..', '.env'), path.join(__dirname, '.env')];
-      for (const envPath of envPaths) {
-        if (!dotenv.config({ path: envPath }).error) {
-          console.log(`[Main] Entorno cargado desde: ${envPath}`);
-          break;
-        }
-      }
-
-      process.env.APP_ROOT = path.join(__dirname, '..')
-      const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
-      const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
-      process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
-
-      // Instanciación
-      const waService = new WhatsAppService()
-      const memoryService = new MemoryService()
-      const knowledgeService = new KnowledgeService()
-      const monitoringService = new MonitoringService()
-      const calendarService = new CalendarService()
-      const gmailService = new GmailService(calendarService)
-      const driveService = new DriveService(calendarService)
-      const gchatService = new GChatService(calendarService)
-      const autoDevService = new AutoDevService(process.env.APP_ROOT)
-      const selfLearnService = new SelfLearnService(process.env.APP_ROOT)
-      const desktopAgentService = new DesktopAgentService()
-      const updaterService = new UpdaterService()
-      const clipboardAssistant = new ClipboardAIAssistant({ maxHistorySize: 100, pollingIntervalMs: 5000 })
-      const taskScheduler = new TaskScheduler()
-      const pathMemoryService = new PathMemoryService()
-      const proactiveService = new ProactiveService()
-      
-      let win: BrowserWindow | null = null
-      let isQuitting = false
-      let waAgent: any = null
-      let neuralOrganizer: any = null
-
-      proactiveService.setCalendarService(calendarService)
-      proactiveService.setWhatsAppService(waService)
-
-      // Eventos
-      selfLearnService.on('micro-fix-candidate', (trigger: any) => autoDevService.queueMicroFix(trigger))
-      taskScheduler.on('task-triggered', (data: any) => {
-        if (waAgent && waService.getStatus().connected) {
-          const jid = `${data.phoneNumber.replace(/\D/g, '')}@s.whatsapp.net`
-          waAgent.handleMessage(jid, data.phoneNumber, data.prompt, false, '')
-        }
-      })
-
-// ─── Wire SystemGuardian alerts → WhatsApp notifications ─────────────
-systemGuardian.on('alert', (alert: any) => {
-  console.log(`[SystemGuardian] Alert: ${alert.type} — ${alert.message}`)
-})
-
-// ─── Proactive Notifications ────────────────────────────────────────
-const proactiveService = new ProactiveService()
-proactiveService.setCalendarService(calendarService)
-proactiveService.setWhatsAppService(waService)
-
-// Configure OAuth credentials from env
-calendarService.setConfig({
-  google: {
-    clientId: process.env.VITE_GOOGLE_OAUTH_CLIENT_ID || '',
-    clientSecret: process.env.VITE_GOOGLE_OAUTH_CLIENT_SECRET || '',
-  },
-  microsoft: {
-    clientId: process.env.VITE_MICROSOFT_CLIENT_ID || '',
-  },
-})
-
-
-
-// Wire calendar work-start/end to monitoring auto-start/stop
-calendarService.on('work-start', async (data: any) => {
-  console.log('[Main] Calendar work-start → auto-starting monitoring')
-  // The renderer will handle creating the session in Supabase and calling monitoring:start
-  win?.webContents.send('calendar:work-start', data)
-})
-
-calendarService.on('work-end', async (data: any) => {
-  console.log('[Main] Calendar work-end → auto-stopping monitoring')
-  win?.webContents.send('calendar:work-end', data)
-})
-
-// ─── Summary generation on session end ───────────────────────────────
-monitoringService.on('session-ended', async (data: any) => {
-  // Use allSnapshots (full session) if available, fall back to pendingSnapshots
-  const snapshots = data.allSnapshots?.length ? data.allSnapshots : data.pendingSnapshots;
-  if (!currentGeminiApiKey || !snapshots?.length) return
-  console.log(`[Main] Session ended — generating summary (${snapshots.length} snapshots of ${data.snapshotCount} total)`)
-
-  try {
-    const summary = await generateDailySummary(
-      currentGeminiApiKey,
-      snapshots.map((s: any) => ({
-        timestamp: typeof s.timestamp === 'string' ? s.timestamp : new Date(s.timestamp).toISOString(),
-        windowTitle: s.windowTitle || '',
-        processName: s.processName || '',
-        url: s.url,
-        idle: s.idle || false,
-        idleSeconds: s.idleSeconds || 0,
-        ocrText: s.ocrText,
-        durationSeconds: 30,
-      })),
-      { startedAt: new Date().toISOString(), triggerType: 'manual' },
-    )
-
-    // Send summary to renderer for Supabase storage
-    win?.webContents.send('monitoring:summary-generated', {
-      userId: data.userId,
-      sessionId: data.sessionId,
-      summary,
-    })
-
-    console.log('[Main] Summary generated successfully')
-  } catch (err: any) {
-    console.error('[Main] Summary generation error:', err.message)
+    runBootstrap().catch((error) => logBootstrapError('runBootstrap', error))
   }
-})
+}
 
-// ─── Summary IPC handlers ─────────────────────────────────────────────
-ipcMain.handle('monitoring:generate-summary', async (_event, activities: any[], sessionInfo: any) => {
-  if (!currentGeminiApiKey) {
-    return { success: false, error: 'API key not configured' }
-  }
-  try {
-    const summary = await generateDailySummary(currentGeminiApiKey, activities, sessionInfo)
-    return { success: true, summary }
-  } catch (err: any) {
-    return { success: false, error: err.message }
-  }
-})
+async function runBootstrap(): Promise<void> {
+  const {
+    registerComputerUseHandlers,
+  } = await import('./computer-use-handlers')
+  const { WhatsAppService } = await import('./whatsapp-service')
+  const { WhatsAppAgent } = await import('./whatsapp-agent')
+  const { MonitoringService } = await import('./monitoring-service')
+  const { registerMonitoringHandlers } = await import('./monitoring-handlers')
+  const { CalendarService } = await import('./calendar-service')
+  const { registerCalendarHandlers } = await import('./calendar-handlers')
+  const { GmailService } = await import('./gmail-service')
+  const { registerGmailHandlers } = await import('./gmail-handlers')
+  const { DriveService } = await import('./drive-service')
+  const { registerDriveHandlers } = await import('./drive-handlers')
+  const { GChatService } = await import('./gchat-service')
+  const { registerGChatHandlers } = await import('./gchat-handlers')
+  const { ProactiveService } = await import('./proactive-service')
+  const { DesktopAgentService } = await import('./desktop-agent-service')
+  const { registerDesktopAgentHandlers } = await import('./desktop-agent-handlers')
+  const { MemoryService } = await import('./memory-service')
+  const { registerMemoryHandlers } = await import('./memory-handlers')
+  const { KnowledgeService } = await import('./knowledge-service')
+  const { UpdaterService } = await import('./updater-service')
+  const { registerUpdaterHandlers } = await import('./updater-handlers')
+  const { ClipboardAIAssistant } = await import('./clipboard-ai-assistant')
+  const { TaskScheduler } = await import('./task-scheduler')
+  const { NeuralOrganizerService: NeuralOrganizerAI } = await import('./neural-organizer')
+  const { PathMemoryService } = await import('./path-memory-service')
+  const { MenuManager } = await import('./menu-manager')
+  const { registerMeetingHandlers } = await import('./meeting-handlers')
+  const { MeetingStore } = await import('./meetings/meeting-store')
+  const { MeetingSourceService } = await import('./meetings/meeting-source-service')
+  const { MeetingAIService } = await import('./meetings/meeting-ai-service')
+  const { MeetingReviewService } = await import('./meetings/meeting-review-service')
+  const { MeetingSyncService } = await import('./meetings/meeting-sync-service')
+  const { MeetingWorkflowService } = await import('./meetings/meeting-workflow-service')
+  const { MeetingDetectionStore } = await import('./meetings/meeting-detection-store')
+  const { MeetingPassiveDetectionService } = await import('./meetings/meeting-passive-detection-service')
+  const { DailyBriefingService } = await import('./daily-briefing-service')
+  const { generateDailySummary } = await import('./summary-generator')
+  await import('./agent-task-queue')
 
-ipcMain.handle('monitoring:send-summary-whatsapp', async (_event, phoneNumber: string, summaryText: string) => {
-  try {
-    if (!waService || !waService.getStatus().connected) {
-      return { success: false, error: 'WhatsApp no conectado' }
+  const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+  const envPaths = [
+    path.join(__dirname, '..', '.env'),
+    path.join(__dirname, '.env'),
+  ]
+
+  for (const envPath of envPaths) {
+    if (!dotenv.config({ path: envPath }).error) {
+      console.log(`[BOOT] Environment loaded from ${envPath}`)
+      break
     }
-    const cleanNumber = phoneNumber.replace(/[^0-9]/g, '')
-    const jid = `${cleanNumber}@s.whatsapp.net`
-    await waService.sendText(jid, summaryText)
-    return { success: true }
-  } catch (err: any) {
-    return { success: false, error: err.message }
-  }
-})
-
-function createFlowWindow() {
-  if (flowWin) {
-    flowWin.show();
-    flowWin.focus();
-    return;
   }
 
-  flowWin = new BrowserWindow({
-    width: 600,
-    height: 450,
-    transparent: true,
-    frame: false,
-    alwaysOnTop: true,
-    hasShadow: false,
-    resizable: false,
-    skipTaskbar: true,
-    movable: true,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      additionalArguments: ['--view-mode=flow'],
-      sandbox: true,
-      contextIsolation: true,
-      nodeIntegration: false
+  process.env.APP_ROOT = path.join(__dirname, '..')
+  const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
+  const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
+  process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
+    ? path.join(process.env.APP_ROOT, 'public')
+    : RENDERER_DIST
+
+  // Disabled because BrowserWindow creation has been unstable in this project on Windows.
+  // app.enableSandbox()
+
+  const waService = new WhatsAppService()
+  const memoryService = new MemoryService()
+  const knowledgeService = new KnowledgeService()
+  const monitoringService = new MonitoringService()
+  const calendarService = new CalendarService()
+  const gmailService = new GmailService(calendarService)
+  const driveService = new DriveService(calendarService)
+  const gchatService = new GChatService(calendarService)
+  const desktopAgentService = new DesktopAgentService()
+  const updaterService = new UpdaterService()
+  const clipboardAssistant = new ClipboardAIAssistant({
+    maxHistorySize: 100,
+    pollingIntervalMs: 5000,
+  })
+  const taskScheduler = new TaskScheduler()
+  const pathMemoryService = new PathMemoryService()
+  const proactiveService = new ProactiveService()
+  const meetingStore = new MeetingStore()
+  const meetingSourceService = new MeetingSourceService(driveService)
+  const meetingAIService = new MeetingAIService()
+  const meetingReviewService = new MeetingReviewService()
+  const meetingSyncService = new MeetingSyncService(meetingStore)
+  const meetingDetectionStore = new MeetingDetectionStore()
+  const meetingWorkflowService = new MeetingWorkflowService(
+    meetingStore,
+    meetingSourceService,
+    meetingAIService,
+    meetingReviewService,
+    meetingSyncService,
+  )
+  const meetingPassiveDetectionService = new MeetingPassiveDetectionService(
+    calendarService,
+    gmailService,
+    driveService,
+    meetingWorkflowService,
+    meetingDetectionStore,
+  )
+  const dailyBriefingService = new DailyBriefingService({
+    enabled: false,
+    schedule: '0 8 * * 1-5',
+    ownerNumber: '',
+    apiKey: '',
+  }, waService)
+
+  let win: BrowserWindow | null = null
+  let flowWin: BrowserWindow | null = null
+  let tray: Tray | null = null
+  let isQuitting = false
+  let currentGeminiApiKey: string | null = process.env.VITE_GEMINI_API_KEY || null
+  let waAgent: InstanceType<typeof WhatsAppAgent> | null = null
+  let neuralOrganizer: InstanceType<typeof NeuralOrganizerAI> | null = null
+
+  proactiveService.setCalendarService(calendarService)
+  proactiveService.setWhatsAppService(waService)
+  meetingPassiveDetectionService.setWhatsAppService(waService)
+
+  meetingPassiveDetectionService.on('meeting-detected', (payload: any) => {
+    win?.webContents.send('meeting:detected', payload)
+
+    if (Notification.isSupported()) {
+      new Notification({
+        title: 'Nueva reunion detectada',
+        body: `${payload.meetingTitle || payload.sourceFileName || 'Reunion sin titulo'} lista para revision HITL en Meeting Ops.`,
+      }).show()
+    }
+  })
+
+  taskScheduler.on('task-triggered', (data: any) => {
+    if (!waAgent || !waService.getStatus().connected) {
+      return
+    }
+
+    const jid = `${String(data.phoneNumber || '').replace(/\D/g, '')}@s.whatsapp.net`
+    void waAgent.handleMessage(jid, data.phoneNumber, data.prompt, false, '')
+  })
+
+  calendarService.setConfig({
+    google: {
+      clientId: process.env.VITE_GOOGLE_OAUTH_CLIENT_ID || '',
+      clientSecret: process.env.VITE_GOOGLE_OAUTH_CLIENT_SECRET || '',
+    },
+    microsoft: {
+      clientId: process.env.VITE_MICROSOFT_CLIENT_ID || '',
     },
   })
 
-  flowWin.setAlwaysOnTop(true, 'screen-saver');
-
-  // Position at bottom center
-  const primaryDisplay = screen.getPrimaryDisplay()
-  const { width, height } = primaryDisplay.workAreaSize
-  flowWin.setPosition(
-    Math.floor(width / 2 - 300),
-    Math.floor(height - 480)
-  )
-
-  if (VITE_DEV_SERVER_URL) {
-    flowWin.loadURL(`${VITE_DEV_SERVER_URL}?view=flow`)
-  } else {
-    flowWin.loadFile(path.join(RENDERER_DIST, 'index.html'), { query: { view: 'flow' } })
-  }
-
-  flowWin.on('hide', () => {
-    // Optional: could blur or stop things here via IPC
-  });
-
-  flowWin.on('closed', () => {
-    flowWin = null
+  calendarService.on('work-start', (data: any) => {
+    console.log('[Main] Calendar work-start -> auto-start monitoring')
+    win?.webContents.send('calendar:work-start', data)
   })
 
-  // Handle permissions for microphone in the flow window
-  flowWin.webContents.session.setPermissionRequestHandler((_webContents, permission, callback) => {
-    if ((permission as string) === 'audio-capture') {
-      return callback(true);
+  calendarService.on('work-end', (data: any) => {
+    console.log('[Main] Calendar work-end -> auto-stop monitoring')
+    win?.webContents.send('calendar:work-end', data)
+  })
+
+  calendarService.on('connected', (data: any) => {
+    if (data?.provider === 'google') {
+      void meetingPassiveDetectionService.runScanNow().catch((error) => {
+        console.error('[Main] meetingPassiveDetectionService.runScanNow after Google connect failed:', error)
+      })
     }
-    callback(false);
-  });
-}
+  })
 
-function createTray() {
-  if (tray) return; // Prevent duplicates
+  monitoringService.on('session-ended', async (data: any) => {
+    const snapshots = data.allSnapshots?.length ? data.allSnapshots : data.pendingSnapshots
+    if (!currentGeminiApiKey || !snapshots?.length) {
+      return
+    }
 
-  const iconPath = path.join(process.env.VITE_PUBLIC!, 'assets/icono.ico')
-  let trayIcon: Electron.NativeImage
+    try {
+      const summary = await generateDailySummary(
+        currentGeminiApiKey,
+        snapshots.map((snapshot: any) => ({
+          timestamp:
+            typeof snapshot.timestamp === 'string'
+              ? snapshot.timestamp
+              : new Date(snapshot.timestamp).toISOString(),
+          windowTitle: snapshot.windowTitle || '',
+          processName: snapshot.processName || '',
+          url: snapshot.url,
+          idle: snapshot.idle || false,
+          idleSeconds: snapshot.idleSeconds || 0,
+          ocrText: snapshot.ocrText,
+          durationSeconds: 30,
+        })),
+        {
+          startedAt: new Date().toISOString(),
+          triggerType: 'manual',
+        },
+      )
 
-  try {
-    trayIcon = nativeImage.createFromPath(iconPath)
-    if (trayIcon.isEmpty()) {
+      win?.webContents.send('monitoring:summary-generated', {
+        userId: data.userId,
+        sessionId: data.sessionId,
+        summary,
+      })
+    } catch (error) {
+      logBootstrapError('monitoring session summary', error)
+    }
+  })
+
+  waService.on('qr', (qr: string) => {
+    win?.webContents.send('whatsapp:qr', qr)
+  })
+
+  waService.on('status', (status: any) => {
+    win?.webContents.send('whatsapp:status', status)
+  })
+
+  function createFlowWindow(): void {
+    if (flowWin) {
+      flowWin.show()
+      flowWin.focus()
+      return
+    }
+
+    flowWin = new BrowserWindow({
+      width: 600,
+      height: 450,
+      transparent: true,
+      frame: false,
+      alwaysOnTop: true,
+      hasShadow: false,
+      resizable: false,
+      skipTaskbar: true,
+      movable: true,
+      show: false,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        additionalArguments: ['--view-mode=flow'],
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    })
+
+    flowWin.setAlwaysOnTop(true, 'screen-saver')
+
+    const primaryDisplay = screen.getPrimaryDisplay()
+    const { width, height } = primaryDisplay.workAreaSize
+    flowWin.setPosition(Math.floor(width / 2 - 300), Math.floor(height - 480))
+
+    if (VITE_DEV_SERVER_URL) {
+      void flowWin.loadURL(`${VITE_DEV_SERVER_URL}?view=flow`)
+    } else {
+      void flowWin.loadFile(path.join(RENDERER_DIST, 'index.html'), {
+        query: { view: 'flow' },
+      })
+    }
+
+    flowWin.once('ready-to-show', () => {
+      flowWin?.show()
+      flowWin?.webContents.send('flow-window-shown')
+    })
+
+    flowWin.on('closed', () => {
+      flowWin = null
+    })
+
+    flowWin.webContents.session.setPermissionRequestHandler((_webContents, permission, callback) => {
+      if (permission === 'media') {
+        callback(true)
+        return
+      }
+
+      callback(false)
+    })
+  }
+
+  function createTray(): void {
+    if (tray) {
+      return
+    }
+
+    const iconPath = path.join(process.env.VITE_PUBLIC!, 'assets/icono.ico')
+    let trayIcon = nativeImage.createEmpty()
+
+    try {
+      const loadedIcon = nativeImage.createFromPath(iconPath)
+      trayIcon = loadedIcon.isEmpty() ? nativeImage.createEmpty() : loadedIcon
+    } catch {
       trayIcon = nativeImage.createEmpty()
     }
-  } catch {
-    trayIcon = nativeImage.createEmpty()
-  }
 
-  tray = new Tray(trayIcon)
-  tray.setToolTip('SofLIA Hub Desktop')
+    tray = new Tray(trayIcon)
+    tray.setToolTip('SofLIA Hub Desktop')
 
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: 'Abrir SofLIA Hub',
-      click: () => {
-        if (win) {
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: 'Abrir SofLIA Hub',
+        click: () => {
+          if (!win) {
+            createWindow()
+            return
+          }
+
           win.show()
           win.focus()
-        }
-      }
-    },
-    { type: 'separator' },
-    {
-      label: 'Salir',
-      click: () => {
-        isQuitting = true
-        app.quit()
-      }
-    }
-  ])
+        },
+      },
+      {
+        label: 'Modo Flow',
+        click: () => {
+          createFlowWindow()
+        },
+      },
+      { type: 'separator' },
+      {
+        label: 'Salir',
+        click: () => {
+          isQuitting = true
+          app.quit()
+        },
+      },
+    ])
 
-  tray.setContextMenu(contextMenu)
-  tray.on('click', () => {
-    if (win) {
-      if (win.isVisible()) {
-        win.focus()
-      } else {
+    tray.setContextMenu(contextMenu)
+    tray.on('click', () => {
+      if (!win) {
+        createWindow()
+        return
+      }
+
+      if (!win.isVisible()) {
         win.show()
-        win.focus()
       }
+      win.focus()
+    })
+  }
+
+  function createWindow(): void {
+    if (win) {
+      win.show()
+      win.focus()
+      return
     }
-  })
-}
 
-function createWindow() {
-  win = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    minWidth: 700,
-    minHeight: 500,
-    icon: path.join(process.env.VITE_PUBLIC!, 'assets/icono.ico'),
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      sandbox: true,
-      contextIsolation: true,
-      nodeIntegration: false
-    },
-  })
-
-  win.setMenu(null)
-
-  win.on('close', (event) => {
-    if (!isQuitting) {
-      event.preventDefault()
-      win?.hide()
-    }
-  })
-
-  if (VITE_DEV_SERVER_URL) {
-    win.loadURL(VITE_DEV_SERVER_URL)
-  } else {
-    win.loadFile(path.join(RENDERER_DIST, 'index.html'))
-  }
-
-  // Handle permissions for microphone
-  win.webContents.session.setPermissionRequestHandler((_webContents, permission, callback) => {
-    if ((permission as string) === 'audio-capture') {
-      return callback(true);
-    }
-    callback(false);
-  });
-}
-
-// IPC Handlers
-ipcMain.handle('capture-screen', async (_event, sourceId?: string) => {
-  try {
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: { width: 1920, height: 1080 }
+    win = new BrowserWindow({
+      width: 1200,
+      height: 800,
+      minWidth: 700,
+      minHeight: 500,
+      icon: path.join(process.env.VITE_PUBLIC!, 'assets/icono.ico'),
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
     })
-    if (sources.length === 0) return null
-    const source = sourceId ? sources.find(s => s.id === sourceId) || sources[0] : sources[0]
-    return source.thumbnail.toDataURL()
-  } catch (err) { return null }
-})
 
-ipcMain.handle('get-screen-sources', async () => {
-  try {
-    const sources = await desktopCapturer.getSources({
-      types: ['screen', 'window'],
-      thumbnailSize: { width: 320, height: 180 }
-    })
-    return sources.map(source => ({
-      id: source.id,
-      name: source.name,
-      thumbnail: source.thumbnail.toDataURL(),
-      isScreen: source.id.startsWith('screen:')
-    }))
-  } catch (err) { return [] }
-})
+    win.setMenu(null)
 
-ipcMain.handle('get-desktop-sources', async () => {
-  try {
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize: { width: 1920, height: 1080 }
-    })
-    return sources.map(source => ({
-      display_id: source.id,
-      id: source.id,
-      name: source.name,
-      thumbnail: source.thumbnail.toDataURL()
-    }))
-  } catch (err: any) {
-    console.error('[Main] get-desktop-sources error:', err.message)
-    return []
-  }
-})
-
-ipcMain.on('flow-send-to-chat', (_event, text) => {
-  if (win) {
-    if (!win.isVisible()) win.show();
-    if (win.isMinimized()) win.restore();
-    win.focus();
-    win.webContents.send('flow-message-received', text);
-  }
-});
-
-ipcMain.on('close-flow', () => {
-  if (flowWin) flowWin.hide();
-});
-
-// App Lifecycle
-app.on('before-quit', () => {
-  isQuitting = true
-  pathMemoryService.stop()
-})
-
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
-})
-
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow()
-  else if (win) { win.show(); win.focus() }
-})
-
-// ─── WhatsApp IPC Handlers ──────────────────────────────────────────
-ipcMain.handle('whatsapp:connect', async () => {
-  try {
-    await waService.connect()
-    return { success: true }
-  } catch (err: any) {
-    return { success: false, error: err.message }
-  }
-})
-
-ipcMain.handle('whatsapp:disconnect', async () => {
-  try {
-    await waService.disconnect()
-    return { success: true }
-  } catch (err: any) {
-    return { success: false, error: err.message }
-  }
-})
-
-ipcMain.handle('whatsapp:get-status', async () => {
-  return waService.getStatus()
-})
-
-ipcMain.handle('whatsapp:set-allowed-numbers', async (_, numbers: string[]) => {
-  try {
-    await waService.setAllowedNumbers(numbers)
-    if (dailyBriefingService && numbers.length > 0) {
-      const currentConfig = dailyBriefingService.getConfig();
-      if (!currentConfig.ownerNumber) {
-        dailyBriefingService.updateConfig({ ownerNumber: numbers[0] });
-      }
-    }
-    return { success: true }
-  } catch (err: any) {
-    return { success: false, error: err.message }
-  }
-})
-
-ipcMain.handle('whatsapp:set-group-config', async (_, config: any) => {
-  try {
-    await waService.setGroupConfig(config)
-    return { success: true }
-  } catch (err: any) {
-    return { success: false, error: err.message }
-  }
-})
-
-function initWhatsAppAgent(apiKey: string) {
-  // Set API key on memory service for embeddings & summarization
-  memoryService.setApiKey(apiKey)
-
-  if (waAgent) {
-    waAgent.updateApiKey(apiKey)
-  } else {
-    waAgent = new WhatsAppAgent(waService, apiKey, memoryService, knowledgeService)
-    waAgent.setSelfLearnService(selfLearnService)
-    waService.on('message', ({ jid, senderNumber, text, isGroup, history }: any) => {
-      // Self-learn: analyze every user message for complaints & suggestions
-      selfLearnService.analyzeUserMessage(text, 'whatsapp', { jid, senderNumber })
-      waAgent!.handleMessage(jid, senderNumber, text, isGroup, history)
-    })
-    waService.on('audio', ({ jid, senderNumber, buffer, isGroup, history }: any) => {
-      waAgent!.handleAudio(jid, senderNumber, buffer, isGroup, history)
-    })
-    waService.on('media', ({ jid, senderNumber, buffer, fileName, mimetype, text, isGroup, history }: any) => {
-      if (text) selfLearnService.analyzeUserMessage(text, 'whatsapp', { jid, senderNumber })
-      waAgent!.handleMedia(jid, senderNumber, buffer, fileName, mimetype, text, isGroup, history)
-    })
-    console.log('[WhatsApp] Agent initialized with API key + SelfLearn')
-  }
-
-  // Connect Google services, AutoDev, and Desktop Agent to WhatsApp agent
-  waAgent.setGoogleServices(calendarService, gmailService, driveService, gchatService)
-  waAgent.setAutoDevService(autoDevService)
-  waAgent.setDesktopAgentService(desktopAgentService)
-  waAgent.setClipboardAssistant(clipboardAssistant)
-  waAgent.setTaskScheduler(taskScheduler)
-  waAgent.setSystemGuardian(systemGuardian)
-
-  // Store API key for summary generation
-  currentGeminiApiKey = apiKey
-
-  // Start proactive notifications engine
-  proactiveService.setApiKey(apiKey)
-  if (!proactiveService.isRunning()) {
-    proactiveService.start()
-  }
-
-  // Update Daily Briefing Service
-  if (dailyBriefingService) {
-    dailyBriefingService.updateConfig({ apiKey })
-  }
-
-  // Start AutoDev autonomous programming engine
-  autoDevService.setApiKey(apiKey)
-
-  // Desktop Agent API key
-  desktopAgentService.setApiKey(apiKey)
-
-  // Clipboard AI Assistant — update API key and start
-  clipboardAssistant.updateApiKey(apiKey)
-  clipboardAssistant.start()
-
-  // Neural Organizer AI — initialize with API key
-  if (!neuralOrganizer) {
-    neuralOrganizer = new NeuralOrganizerAI({
-      apiKey,
-      notifyCallback: async (msg: string) => {
-        if (waService.getStatus().connected) {
-          const status = waService.getStatus() as any
-          const numbers = status.allowedNumbers || []
-          for (const num of numbers) {
-            const jid = `${num.replace(/\D/g, '')}@s.whatsapp.net`
-            await waService.sendText(jid, msg).catch(() => {})
-          }
-        }
+    win.on('close', (event) => {
+      if (!isQuitting) {
+        event.preventDefault()
+        win?.hide()
       }
     })
-    waAgent.setNeuralOrganizer(neuralOrganizer)
-  } else {
-    neuralOrganizer.updateApiKey(apiKey)
-  }
-  autoDevService.on('notify-whatsapp', ({ phone, message }: any) => {
-    if (waAgent) {
-      waService.sendText(`${phone}@s.whatsapp.net`, message).catch(() => {})
+
+    win.on('closed', () => {
+      win = null
+    })
+
+    if (VITE_DEV_SERVER_URL) {
+      void win.loadURL(VITE_DEV_SERVER_URL)
+    } else {
+      void win.loadFile(path.join(RENDERER_DIST, 'index.html'))
     }
-  })
-  if (!autoDevService.isRunning()) {
-    autoDevService.start()
+
+    win.webContents.session.setPermissionRequestHandler((_webContents, permission, callback) => {
+      if (permission === 'media') {
+        callback(true)
+        return
+      }
+
+      callback(false)
+    })
   }
 
-  // Poll for offline WhatsApp queue generated by standalone autodev
-  setInterval(() => {
+  async function sendSummaryWhatsApp(phoneNumber: string, summaryText: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const qtPath = require('path').join(require('electron').app.getPath('userData'), '.autodev-data');
-      const qPath = require('path').join(qtPath, 'whatsapp-queue.json');
-      const fs = require('fs');
-      if (fs.existsSync(qPath) && waService.getStatus().connected) {
-        const msgs = JSON.parse(fs.readFileSync(qPath, 'utf8'));
-        fs.unlinkSync(qPath);
-        for (const msg of msgs) {
-            waService.sendText(`${msg.phone}@s.whatsapp.net`, msg.message).catch(() => {});
-        }
+      if (!waService.getStatus().connected) {
+        return { success: false, error: 'WhatsApp no conectado' }
       }
-    } catch {}
-  }, 5000);
-}
 
-// ─── Proactive Service IPC Handlers ────────────────────────────────
-ipcMain.handle('proactive:get-config', async () => {
-  return proactiveService.getConfig()
-})
-
-ipcMain.handle('proactive:update-config', async (_, updates: any) => {
-  try {
-    proactiveService.updateConfig(updates)
-    if (dailyBriefingService && updates.notifyPhone) {
-      dailyBriefingService.updateConfig({ ownerNumber: updates.notifyPhone })
+      const cleanNumber = phoneNumber.replace(/[^0-9]/g, '')
+      const jid = `${cleanNumber}@s.whatsapp.net`
+      await waService.sendText(jid, summaryText)
+      return { success: true }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      return { success: false, error: message }
     }
-    return { success: true }
-  } catch (err: any) {
-    return { success: false, error: err.message }
   }
-})
 
-ipcMain.handle('proactive:trigger-now', async (_, phoneNumber?: string) => {
-  return proactiveService.triggerNow(phoneNumber)
-})
+  function initWhatsAppAgent(apiKey: string): void {
+    memoryService.setApiKey(apiKey)
 
-ipcMain.handle('proactive:get-status', async () => {
-  return {
+    if (waAgent) {
+      waAgent.updateApiKey(apiKey)
+    } else {
+      waAgent = new WhatsAppAgent(waService, apiKey, memoryService, knowledgeService)
+      waService.on('message', ({ jid, senderNumber, text, isGroup, history }: any) => {
+        void waAgent?.handleMessage(jid, senderNumber, text, isGroup, history)
+      })
+      waService.on('audio', ({ jid, senderNumber, buffer, isGroup, history }: any) => {
+        void waAgent?.handleAudio(jid, senderNumber, buffer, isGroup, history)
+      })
+      waService.on('media', ({ jid, senderNumber, buffer, fileName, mimetype, text, isGroup, history }: any) => {
+        void waAgent?.handleMedia(jid, senderNumber, buffer, fileName, mimetype, text, isGroup, history)
+      })
+    }
+
+    waAgent.setGoogleServices(calendarService, gmailService, driveService, gchatService)
+    waAgent.setDesktopAgentService(desktopAgentService)
+    waAgent.setClipboardAssistant(clipboardAssistant)
+    waAgent.setTaskScheduler(taskScheduler)
+    waAgent.setMeetingWorkflowService(meetingWorkflowService)
+    meetingWorkflowService.setApiKey(apiKey)
+
+    currentGeminiApiKey = apiKey
+
+    proactiveService.setApiKey(apiKey)
+    if (!proactiveService.isRunning()) {
+      proactiveService.start()
+    }
+
+    const status = waService.getStatus() as { allowedNumbers?: string[] }
+    dailyBriefingService.updateConfig({
+      apiKey,
+      ownerNumber: dailyBriefingService.getConfig().ownerNumber || status.allowedNumbers?.[0] || '',
+    })
+
+    desktopAgentService.setApiKey(apiKey)
+    clipboardAssistant.updateApiKey(apiKey)
+    void clipboardAssistant.start()
+
+    if (!neuralOrganizer) {
+      neuralOrganizer = new NeuralOrganizerAI({
+        apiKey,
+        notifyCallback: async (message: string) => {
+          if (!waService.getStatus().connected) {
+            return
+          }
+
+          const allowedNumbers = (waService.getStatus() as { allowedNumbers?: string[] }).allowedNumbers || []
+          for (const number of allowedNumbers) {
+            const jid = `${number.replace(/\D/g, '')}@s.whatsapp.net`
+            await waService.sendText(jid, message).catch(() => {})
+          }
+        },
+      })
+      waAgent.setNeuralOrganizer(neuralOrganizer)
+    } else {
+      neuralOrganizer.updateApiKey(apiKey)
+    }
+  }
+
+  ipcMain.handle('monitoring:generate-summary', async (_event, activities: any[], sessionInfo: any) => {
+    if (!currentGeminiApiKey) {
+      return { success: false, error: 'API key not configured' }
+    }
+
+    try {
+      const summary = await generateDailySummary(currentGeminiApiKey, activities, sessionInfo)
+      return { success: true, summary }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      }
+    }
+  })
+
+  ipcMain.handle('monitoring:send-summary-whatsapp', async (_event, phoneNumber: string, summaryText: string) => {
+    return sendSummaryWhatsApp(phoneNumber, summaryText)
+  })
+
+  ipcMain.handle('capture-screen', async (_event, sourceId?: string) => {
+    try {
+      const sources = await desktopCapturer.getSources({
+        types: ['screen'],
+        thumbnailSize: { width: 1920, height: 1080 },
+      })
+
+      if (!sources.length) {
+        return null
+      }
+
+      const source = sourceId ? sources.find((item) => item.id === sourceId) || sources[0] : sources[0]
+      return source.thumbnail.toDataURL()
+    } catch {
+      return null
+    }
+  })
+
+  ipcMain.handle('get-screen-sources', async () => {
+    try {
+      const sources = await desktopCapturer.getSources({
+        types: ['screen', 'window'],
+        thumbnailSize: { width: 320, height: 180 },
+      })
+
+      return sources.map((source) => ({
+        id: source.id,
+        name: source.name,
+        thumbnail: source.thumbnail.toDataURL(),
+        isScreen: source.id.startsWith('screen:'),
+      }))
+    } catch {
+      return []
+    }
+  })
+
+  ipcMain.handle('get-desktop-sources', async () => {
+    try {
+      const sources = await desktopCapturer.getSources({
+        types: ['screen'],
+        thumbnailSize: { width: 1920, height: 1080 },
+      })
+
+      return sources.map((source) => ({
+        display_id: source.id,
+        id: source.id,
+        name: source.name,
+        thumbnail: source.thumbnail.toDataURL(),
+      }))
+    } catch (error) {
+      logBootstrapError('get-desktop-sources', error)
+      return []
+    }
+  })
+
+  ipcMain.on('flow-send-to-chat', (_event, text: string) => {
+    if (!win) {
+      createWindow()
+    }
+
+    if (!win) {
+      return
+    }
+
+    if (!win.isVisible()) {
+      win.show()
+    }
+    if (win.isMinimized()) {
+      win.restore()
+    }
+
+    win.focus()
+    win.webContents.send('flow-message-received', text)
+  })
+
+  ipcMain.on('close-flow', () => {
+    flowWin?.hide()
+  })
+
+  ipcMain.handle('whatsapp:connect', async () => {
+    try {
+      await waService.connect()
+      return { success: true }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      }
+    }
+  })
+
+  ipcMain.handle('whatsapp:disconnect', async () => {
+    try {
+      await waService.disconnect()
+      return { success: true }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      }
+    }
+  })
+
+  ipcMain.handle('whatsapp:get-status', async () => waService.getStatus())
+
+  ipcMain.handle('whatsapp:set-allowed-numbers', async (_event, numbers: string[]) => {
+    try {
+      await waService.setAllowedNumbers(numbers)
+      if (numbers.length > 0) {
+        dailyBriefingService.updateConfig({ ownerNumber: numbers[0] })
+      }
+      return { success: true }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      }
+    }
+  })
+
+  ipcMain.handle('whatsapp:set-group-config', async (_event, config: any) => {
+    try {
+      await waService.setGroupConfig(config)
+      return { success: true }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      }
+    }
+  })
+
+  ipcMain.handle('whatsapp:set-api-key', async (_event, apiKey: string) => {
+    initWhatsAppAgent(apiKey)
+    await waService.saveApiKey(apiKey)
+    return { success: true }
+  })
+
+  ipcMain.handle('proactive:get-config', async () => proactiveService.getConfig())
+
+  ipcMain.handle('proactive:update-config', async (_event, updates: any) => {
+    try {
+      proactiveService.updateConfig(updates)
+      if (updates.notifyPhone) {
+        dailyBriefingService.updateConfig({ ownerNumber: updates.notifyPhone })
+      }
+      return { success: true }
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      }
+    }
+  })
+
+  ipcMain.handle('proactive:trigger-now', async (_event, phoneNumber?: string) => {
+    return proactiveService.triggerNow(phoneNumber)
+  })
+
+  ipcMain.handle('proactive:get-status', async () => ({
     running: proactiveService.isRunning(),
     config: proactiveService.getConfig(),
-  }
-})
+  }))
 
-ipcMain.handle('whatsapp:set-api-key', async (_, apiKey: string) => {
-  initWhatsAppAgent(apiKey)
-  // Persist the key so it works on auto-connect next time
-  await waService.saveApiKey(apiKey)
-  return { success: true }
-})
-
-const gotTheLock = app.requestSingleInstanceLock()
-
-if (!gotTheLock) {
-  app.quit()
-} else {
   app.on('second-instance', () => {
-    // Si alguien intenta abrir otra instancia, enfocamos la principal
+    if (!win) {
+      createWindow()
+      return
+    }
+
+    if (win.isMinimized()) {
+      win.restore()
+    }
+    if (!win.isVisible()) {
+      win.show()
+    }
+    win.focus()
+  })
+
+  app.on('before-quit', () => {
+    console.log('[BOOT] before-quit')
+    isQuitting = true
+    pathMemoryService.stop()
+    void clipboardAssistant.stop()
+    proactiveService.stop()
+    meetingPassiveDetectionService.stopPolling()
+    if (tray) {
+      tray.destroy()
+      tray = null
+    }
+  })
+
+  app.on('window-all-closed', () => {
+    console.log('[BOOT] window-all-closed')
+    if (process.platform !== 'darwin') {
+      app.quit()
+    }
+  })
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow()
+      return
+    }
+
     if (win) {
-      if (win.isMinimized()) win.restore()
-      if (!win.isVisible()) win.show()
+      win.show()
       win.focus()
     }
   })
-}
 
-      app.whenReady().then(async () => {
-        console.log('[BOOT] App ready. Initializing subsystems...');
-        MenuManager.setup()
-        registerComputerUseHandlers()
-        registerMonitoringHandlers(monitoringService, () => win)
-        registerCalendarHandlers(calendarService, () => win)
-        registerGmailHandlers(gmailService, () => win)
-        registerDriveHandlers(driveService, () => win)
-        registerGChatHandlers(gchatService, () => win)
-        registerAutoDevHandlers(autoDevService, selfLearnService, () => win)
-        registerDesktopAgentHandlers(desktopAgentService)
-        registerMemoryHandlers(memoryService)
-        registerUpdaterHandlers(updaterService, () => win)
-        registerWhatsAppHandlers(waService, () => win, (key) => initWhatsAppAgent(key))
+  app.on('browser-window-created', () => {
+    console.log('[BOOT] Browser window created')
+  })
 
-        await runOptionalStep('memoryService.init', () => memoryService.init())
-        await runOptionalStep('knowledgeService.init', () => knowledgeService.init())
-        const pathMemoryReady = await runOptionalStep('pathMemoryService.init', () => pathMemoryService.init())
-        if (pathMemoryReady !== undefined) {
-          await runOptionalStep('pathMemoryService.start', () => pathMemoryService.start())
-        }
-        await runOptionalStep('updaterService.init', () => updaterService.init())
-        await runOptionalStep('taskScheduler.init', () => taskScheduler.init())
-        await runOptionalStep('clipboardAssistant.init', () => clipboardAssistant.init())
+  app.on('render-process-gone', (_event, _webContents, details) => {
+    console.error(`[BOOT] render-process-gone: ${details.reason} (exitCode=${details.exitCode})`)
+  })
 
-        await runOptionalStep('createWindow', () => createWindow())
+  app.on('child-process-gone', (_event, details) => {
+    console.error(`[BOOT] child-process-gone: ${details.type} (${details.reason})`)
+  })
 
-        const envApiKey = process.env.VITE_GEMINI_API_KEY
-        if (envApiKey) {
-          await runOptionalStep('initWhatsAppAgent(.env)', () => initWhatsAppAgent(envApiKey))
-        }
+  await app.whenReady()
+  console.log('[BOOT] App ready. Initializing subsystems...')
 
-        await runOptionalStep('waService.init', () => waService.init())
-        await runOptionalStep('calendarService.init', () => calendarService.init())
+  MenuManager.setup()
+  registerComputerUseHandlers()
+  registerMonitoringHandlers(monitoringService, () => win)
+  registerCalendarHandlers(calendarService, () => win)
+  registerGmailHandlers(gmailService, () => win)
+  registerDriveHandlers(driveService, () => win)
+  registerGChatHandlers(gchatService, () => win)
+  registerDesktopAgentHandlers(desktopAgentService)
+  registerMemoryHandlers(memoryService)
+  registerUpdaterHandlers(updaterService, () => win)
+  registerMeetingHandlers(meetingWorkflowService)
 
-        const shouldAuto = await runOptionalStep('waService.shouldAutoConnect', () => waService.shouldAutoConnect())
-        if (shouldAuto) {
-          const savedKey = await runOptionalStep('waService.getSavedApiKey', () => waService.getSavedApiKey())
-          if (savedKey) {
-            await runOptionalStep('initWhatsAppAgent(saved)', () => initWhatsAppAgent(savedKey))
-          }
-          await runOptionalStep('waService.connect', () => waService.connect())
-        }
-      }).catch(err => logBootstrapError('app.whenReady bootstrap', err))
+  await runOptionalStep('memoryService.init', () => memoryService.init())
+  await runOptionalStep('knowledgeService.init', () => knowledgeService.init())
+  await runOptionalStep('meetingWorkflowService.init', () => Promise.resolve(meetingWorkflowService.init()))
+  await runOptionalStep('meetingPassiveDetectionService.init', () => meetingPassiveDetectionService.init())
+  await runOptionalStep('pathMemoryService.init', () => pathMemoryService.init())
+  await runOptionalStep('pathMemoryService.start', () => pathMemoryService.start())
+  await runOptionalStep('updaterService.init', () => updaterService.init())
+  await runOptionalStep('taskScheduler.init', () => taskScheduler.init())
+  await runOptionalStep('clipboardAssistant.init', () => clipboardAssistant.init())
+  await runOptionalStep('dailyBriefingService.init', () => dailyBriefingService.init())
+  await runOptionalStep('createWindow', () => createWindow())
+  await runOptionalStep('createTray', () => createTray())
 
-      app.on('browser-window-created', () => {
-        console.log('[BOOT] Browser window created')
-      })
-      app.on('render-process-gone', (_event, _webContents, details) => {
-        console.error(`[BOOT] App render-process-gone: ${details.reason} (exitCode=${details.exitCode})`)
-      })
-      app.on('child-process-gone', (_event, details) => {
-        console.error(`[BOOT] App child-process-gone: ${details.type} (${details.reason})`)
-      })
-      app.on('before-quit', () => {
-        console.log('[BOOT] before-quit')
-        isQuitting = true
-        pathMemoryService.stop()
-        autoDevService.stop()
-      })
-      app.on('will-quit', () => {
-        console.log('[BOOT] will-quit')
-      })
-      app.on('window-all-closed', () => {
-        console.log('[BOOT] window-all-closed')
-        if (process.platform !== 'darwin') app.quit()
-      })
+  if (currentGeminiApiKey) {
+    await runOptionalStep('initWhatsAppAgent(.env)', () => initWhatsAppAgent(currentGeminiApiKey!))
+  }
+
+  await runOptionalStep('waService.init', () => waService.init())
+  await runOptionalStep('calendarService.init', () => calendarService.init())
+  await runOptionalStep('meetingPassiveDetectionService.startPolling', () => Promise.resolve(meetingPassiveDetectionService.startPolling()))
+
+  const shouldAutoConnect = await runOptionalStep('waService.shouldAutoConnect', () => waService.shouldAutoConnect())
+  if (shouldAutoConnect) {
+    const savedKey = await runOptionalStep('waService.getSavedApiKey', () => waService.getSavedApiKey())
+    if (savedKey) {
+      await runOptionalStep('initWhatsAppAgent(saved)', () => initWhatsAppAgent(savedKey))
     }
-
-    runBootstrap().catch(err => console.error('[BOOT FATAL]', err))
+    await runOptionalStep('waService.connect', () => waService.connect())
   }
 }

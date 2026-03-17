@@ -4,6 +4,34 @@ Todos los cambios notables de SofLIA Hub se documentan aquí.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.1.12] - 2026-03-16
+
+### Added
+
+- **Orquestacion masiva de archivos con deshacer:** `organize_files` y `batch_move_files` ahora soportan ejecucion recursiva, generan `operationId`, guardan manifests de movimientos y permiten revertir la ultima operacion con `undo_last_file_operation`. Tambien se expuso el flujo completo por IPC, renderer y WhatsApp.
+- **Normalizacion robusta de rutas locales:** `file-utils.ts` ahora resuelve mejor rutas relativas, `~`, alias de carpetas conocidas y variantes de OneDrive en espanol e ingles, reduciendo errores al operar sobre Escritorio, Descargas y Documentos.
+- **Computer Use multi-backend unificado:** el Desktop Agent ahora enruta tareas entre `browser_web` (Playwright para sitios y portales), `windows_uia` (automatizacion nativa de Windows) y `desktop_visual` como fallback visual. Se agregaron `backend` y `startUrl` a `use_computer` y a la ejecucion paralela.
+- **Fallback automatico de UIA a vision desktop:** cuando `windows_uia` no logra verificar o completar una tarea, el sistema hace handoff automatico a `desktop_visual` con contexto del intento previo para continuar sin reiniciar desde cero.
+- **Telemetria mas rica para Computer Use:** el estado del agente ahora expone backend actual, URL activa, verificacion mas reciente, screenshot final, trace path y report path. Tambien se enriquecio el snapshot de elementos UIA con `automationId` y `value`.
+- **Planes de organizacion de Gmail:** nuevos flujos `gmail_preview_organization`, `gmail_apply_organization_plan` y `gmail_undo_organization_plan` para analizar, aplicar y revertir organizaciones masivas del inbox con persistencia local del plan.
+- **Meeting Ops v1 modular con IRIS Supabase:** se agrego el workflow de reuniones con almacenamiento en Supabase IRIS, ingestion manual o desde Drive, extraccion AI/fallback, revision HITL, aprobacion de resumen/acciones, edicion de acciones y sincronizacion hacia Project Hub.
+- **Meeting Ops compartido entre app y WhatsApp:** se expuso una superficie IPC completa, panel en la app para revisar runs y workflow conversacional en WhatsApp para `estado`, `acciones`, aprobaciones, edicion y sincronizacion.
+- **Deteccion pasiva de reuniones cada 20 minutos:** nuevo detector que revisa Calendar, Gmail y Drive, correlaciona transcripciones por codigo Meet o titulo, crea runs automaticamente y notifica al usuario por WhatsApp o por la app para HITL.
+
+### Changed
+
+- **Meeting Ops usa IRIS Supabase como fuente de verdad:** la persistencia del workflow de reuniones ya no depende de SQLite local. Se agregaron tablas dedicadas para runs, artifacts, assets, approvals, sync actions y candidatos de deteccion pasiva.
+- **Sync de reuniones enriquecido hacia IRIS:** las tareas creadas desde Meeting Ops ahora pueden resolver `assignee_id` real por miembro del equipo, actualizar estados de tareas y proyectos, y adjuntar en la descripcion la referencia del transcript fuente.
+- **Herramientas de WhatsApp y prompts actualizados:** las instrucciones del agente ahora priorizan los nuevos flujos de organizacion de Gmail, deshacer operaciones masivas de archivos y el uso correcto de `use_computer` con backend web o nativo segun el caso.
+- **Drive y Gmail con contratos mas amplios:** `drive:download` ahora acepta formato (`text` o `pdf`) y Gmail soporta paginacion, filtros por label y planes de organizacion/rollback desde handlers del main process.
+
+### Fixed
+
+- **Consistencia de versionado del release:** se corrige el desfase donde el changelog ya tenia `0.1.11` pero `package.json` y `package-lock.json` seguian en `0.1.10`.
+- **Duplicados en deteccion de reuniones:** se agrego deduplicacion por `source_hash`, `detection_key` y control de notificaciones para evitar reprocesar o avisar varias veces la misma reunion detectada por Calendar, Gmail y Drive a la vez.
+- **Reanudacion de runs ya creados en WhatsApp:** el manager de reuniones ahora puede abrir un workflow existente generado por el detector pasivo sin pedir reimportar la fuente.
+- **Confirmaciones HITL mas seguras para operaciones destructivas o masivas:** organizar archivos, mover archivos en lote, revertir planes de Gmail y otras acciones sensibles pasan por rutas de confirmacion/control mas claras.
+
 ## [0.1.11] - 2026-03-10
 
 ### Added

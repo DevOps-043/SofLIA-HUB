@@ -95,6 +95,9 @@ const ALLOWED_IPC_CHANNELS = [
   'gmail:get-labels',
   'gmail:create-label',
   'gmail:delete-label',
+  'gmail:preview-organization',
+  'gmail:apply-organization-plan',
+  'gmail:undo-organization-plan',
   'gmail:batch-modify-by-label',
   'gmail:empty-and-delete-all-labels',
   'drive:list-files',
@@ -109,18 +112,6 @@ const ALLOWED_IPC_CHANNELS = [
   'gchat:send-message',
   'gchat:add-reaction',
   'gchat:get-members',
-  'autodev:get-config',
-  'autodev:update-config',
-  'autodev:log-feedback',
-  'autodev:run-now',
-  'autodev:abort',
-  'autodev:get-status',
-  'autodev:get-history',
-  'autodev:run-started',
-  'autodev:run-completed',
-  'autodev:status-changed',
-  'autodev:micro-fix-status',
-  'autodev:trigger-micro-fix',
   // Desktop Agent channels
   'desktop-agent:execute-task',
   'desktop-agent:execute-parallel',
@@ -146,6 +137,7 @@ const ALLOWED_IPC_CHANNELS = [
   'computer:organize-files',
   'computer:batch-move-files',
   'computer:list-directory-summary',
+  'computer:undo-last-file-operation',
   'proactive:get-config',
   'proactive:update-config',
   'proactive:trigger-now',
@@ -155,6 +147,18 @@ const ALLOWED_IPC_CHANNELS = [
   'memory:get-facts',
   'memory:delete-fact',
   'memory:search',
+  'meeting:list-runs',
+  'meeting:get-run-detail',
+  'meeting:create-manual-run',
+  'meeting:create-drive-run',
+  'meeting:approve-asset',
+  'meeting:approve-actions',
+  'meeting:update-action',
+  'meeting:reject-action',
+  'meeting:sync-approved-actions',
+  'meeting:get-followups',
+  'meeting:get-context',
+  'meeting:detected',
   'flow-send-to-chat',
   'close-flow',
   'flow-message-received',
@@ -281,6 +285,14 @@ contextBridge.exposeInMainWorld('computerUse', {
     safeInvoke('computer:take-screenshot'),
   confirmAction: (message: string) =>
     safeInvoke('computer:confirm-action', message),
+  organizeFiles: (options: any) =>
+    safeInvoke('computer:organize-files', options),
+  batchMoveFiles: (options: any) =>
+    safeInvoke('computer:batch-move-files', options),
+  listDirectorySummary: (options: any) =>
+    safeInvoke('computer:list-directory-summary', options),
+  undoLastFileOperation: (options?: any) =>
+    safeInvoke('computer:undo-last-file-operation', options),
   // Email tools
   getEmailConfig: () =>
     safeInvoke('computer:get-email-config'),
@@ -377,6 +389,9 @@ contextBridge.exposeInMainWorld('gmail', {
   getLabels: () => safeInvoke('gmail:get-labels'),
   createLabel: (name: string) => safeInvoke('gmail:create-label', name),
   deleteLabel: (labelId: string) => safeInvoke('gmail:delete-label', labelId),
+  previewOrganization: (options?: any) => safeInvoke('gmail:preview-organization', options),
+  applyOrganizationPlan: (planId: string, options?: any) => safeInvoke('gmail:apply-organization-plan', planId, options),
+  undoOrganizationPlan: (planId?: string) => safeInvoke('gmail:undo-organization-plan', planId),
   batchModifyByLabel: (labelId: string, options?: any) => safeInvoke('gmail:batch-modify-by-label', labelId, options),
   emptyAndDeleteAllLabels: () => safeInvoke('gmail:empty-and-delete-all-labels'),
 })
@@ -386,7 +401,7 @@ contextBridge.exposeInMainWorld('drive', {
   listFiles: (options?: any) => safeInvoke('drive:list-files', options),
   search: (query: string) => safeInvoke('drive:search', query),
   upload: (localPath: string, options?: any) => safeInvoke('drive:upload', localPath, options),
-  download: (fileId: string, destPath: string) => safeInvoke('drive:download', fileId, destPath),
+  download: (fileId: string, destPath: string, format?: 'text' | 'pdf') => safeInvoke('drive:download', fileId, destPath, format),
   createFolder: (name: string, parentId?: string) => safeInvoke('drive:create-folder', name, parentId),
   deleteFile: (fileId: string) => safeInvoke('drive:delete', fileId),
   getMetadata: (fileId: string) => safeInvoke('drive:get-metadata', fileId),
@@ -401,31 +416,10 @@ contextBridge.exposeInMainWorld('gchat', {
   getMembers: (spaceName: string) => safeInvoke('gchat:get-members', spaceName),
 })
 
-// --------- AutoDev API ---------
-contextBridge.exposeInMainWorld('autodev', {
-  getConfig: () => safeInvoke('autodev:get-config'),
-  updateConfig: (updates: any) => safeInvoke('autodev:update-config', updates),
-  logFeedback: (suggestion: string) => safeInvoke('autodev:log-feedback', suggestion),
-  runNow: () => safeInvoke('autodev:run-now'),
-  abort: () => safeInvoke('autodev:abort'),
-  getStatus: () => safeInvoke('autodev:get-status'),
-  getHistory: () => safeInvoke('autodev:get-history'),
-  getMicroFixStatus: () => safeInvoke('autodev:micro-fix-status'),
-  triggerMicroFix: (trigger: any) => safeInvoke('autodev:trigger-micro-fix', trigger),
-  onRunStarted: (cb: (run: any) => void) => safeOn('autodev:run-started', cb),
-  onRunCompleted: (cb: (run: any) => void) => safeOn('autodev:run-completed', cb),
-  onStatusChanged: (cb: (data: any) => void) => safeOn('autodev:status-changed', cb),
-  removeListeners: () => {
-    safeRemoveAllListeners('autodev:run-started')
-    safeRemoveAllListeners('autodev:run-completed')
-    safeRemoveAllListeners('autodev:status-changed')
-  },
-})
-
 // --------- Desktop Agent API ---------
 contextBridge.exposeInMainWorld('desktopAgent', {
   executeTask: (task: string, options?: any) => safeInvoke('desktop-agent:execute-task', task, options),
-  executeParallel: (tasks: Array<{ task: string; maxSteps?: number }>) => safeInvoke('desktop-agent:execute-parallel', tasks),
+  executeParallel: (tasks: Array<{ task: string; maxSteps?: number; backend?: 'auto' | 'browser' | 'desktop' | 'uia'; startUrl?: string }>) => safeInvoke('desktop-agent:execute-parallel', tasks),
   getActiveTasks: () => safeInvoke('desktop-agent:get-active-tasks'),
   abortTask: (taskId: string) => safeInvoke('desktop-agent:abort-task', taskId),
   abort: () => safeInvoke('desktop-agent:abort'),
@@ -461,6 +455,25 @@ contextBridge.exposeInMainWorld('memory', {
   getFacts: (phoneNumber: string) => safeInvoke('memory:get-facts', phoneNumber),
   deleteFact: (factId: number) => safeInvoke('memory:delete-fact', factId),
   search: (sessionKey: string, phoneNumber: string, query: string) => safeInvoke('memory:search', sessionKey, phoneNumber, query),
+})
+
+// --------- Meeting Ops API ---------
+contextBridge.exposeInMainWorld('meeting', {
+  listRuns: (filters?: any) => safeInvoke('meeting:list-runs', filters),
+  getRunDetail: (runId: string) => safeInvoke('meeting:get-run-detail', runId),
+  createManualRun: (input: any) => safeInvoke('meeting:create-manual-run', input),
+  createDriveRun: (input: any) => safeInvoke('meeting:create-drive-run', input),
+  approveAsset: (input: any) => safeInvoke('meeting:approve-asset', input),
+  approveActions: (input: any) => safeInvoke('meeting:approve-actions', input),
+  updateAction: (input: any) => safeInvoke('meeting:update-action', input),
+  rejectAction: (input: any) => safeInvoke('meeting:reject-action', input),
+  syncApprovedActions: (input: any) => safeInvoke('meeting:sync-approved-actions', input),
+  getFollowups: (ownerUserId?: string) => safeInvoke('meeting:get-followups', ownerUserId),
+  getContext: () => safeInvoke('meeting:get-context'),
+  onDetected: (cb: (payload: any) => void) => safeOn('meeting:detected', cb),
+  removeListeners: () => {
+    safeRemoveAllListeners('meeting:detected')
+  },
 })
 
 // --------- Updater API ---------

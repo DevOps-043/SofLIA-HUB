@@ -24,7 +24,7 @@ declare global {
       listFiles: (options?: { query?: string; folderId?: string; maxResults?: number; pageToken?: string }) => Promise<{ success: boolean; files?: DriveFile[]; nextPageToken?: string; error?: string }>
       search: (query: string) => Promise<{ success: boolean; files?: DriveFile[]; error?: string }>
       upload: (localPath: string, options?: { name?: string; folderId?: string; mimeType?: string }) => Promise<{ success: boolean; file?: DriveFile; error?: string }>
-      download: (fileId: string, destPath: string) => Promise<{ success: boolean; path?: string; error?: string }>
+      download: (fileId: string, destPath: string, format?: 'text' | 'pdf') => Promise<{ success: boolean; path?: string; textContent?: string; error?: string }>
       createFolder: (name: string, parentId?: string) => Promise<{ success: boolean; folderId?: string; error?: string }>
       deleteFile: (fileId: string) => Promise<{ success: boolean; error?: string }>
       getMetadata: (fileId: string) => Promise<{ success: boolean; file?: DriveFile; error?: string }>
@@ -46,8 +46,8 @@ export async function uploadToDrive(localPath: string, options?: { name?: string
   return window.drive.upload(localPath, options)
 }
 
-export async function downloadFromDrive(fileId: string, destPath: string) {
-  return window.drive.download(fileId, destPath)
+export async function downloadFromDrive(fileId: string, destPath: string, format?: 'text' | 'pdf') {
+  return window.drive.download(fileId, destPath, format)
 }
 
 export async function createDriveFolder(name: string, parentId?: string) {
