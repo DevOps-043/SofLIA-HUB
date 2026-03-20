@@ -88,6 +88,120 @@ export interface MeetingReviewFlag {
   entity_index?: number;
 }
 
+export interface MeetingAnalysisAlternativeType {
+  type: string;
+  confidence: number;
+  reason: string;
+}
+
+export interface MeetingAnalysisMeetingType {
+  suggestedType: string;
+  alternativeTypes: MeetingAnalysisAlternativeType[];
+  confidence: number;
+  reason: string;
+}
+
+export interface MeetingAnalysisDetectedContext {
+  project?: string | null;
+  team?: string | null;
+  meetingObjective: string[];
+  relevantSignals: string[];
+}
+
+export interface MeetingAnalysisStrategy {
+  strategyId: string;
+  strategyName: string;
+  whyThisStrategy: string;
+  extractionFocus: string[];
+}
+
+export interface MeetingAnalysisDecisionItem {
+  description: string;
+  confidence: number;
+  evidence?: string[];
+}
+
+export interface MeetingAnalysisAgreementItem {
+  description: string;
+  confidence: number;
+  evidence?: string[];
+}
+
+export interface MeetingAnalysisTaskItem {
+  description: string;
+  ownerSuggested?: string | null;
+  ownerConfidence?: number | null;
+  dueDateSuggested?: string | null;
+  prioritySuggested?: 'low' | 'medium' | 'high' | 'critical';
+  reason: string;
+  confidence: number;
+  requiresHumanReview: boolean;
+  evidence?: string[];
+}
+
+export interface MeetingAnalysisRiskItem {
+  description: string;
+  severity?: 'low' | 'medium' | 'high' | 'critical';
+  confidence: number;
+  reason?: string;
+}
+
+export interface MeetingAnalysisOpenQuestionItem {
+  question: string;
+  confidence: number;
+}
+
+export interface MeetingAnalysisUnresolvedItem {
+  item: string;
+  reasonOpen: string;
+  confidence: number;
+}
+
+export interface MeetingAnalysisFollowUpRecommendation {
+  suggested: boolean;
+  type?: 'meeting' | 'message' | 'validation' | 'reminder' | 'escalation';
+  description?: string;
+  confidence: number;
+  reason: string;
+}
+
+export interface MeetingAnalysisDestinationRecommendation {
+  suggestedDestination: 'IRIS' | 'Project Hub' | 'Team' | 'Project' | 'None';
+  confidence: number;
+  reason: string;
+}
+
+export interface MeetingAnalysisMessageDraft {
+  kind: 'team_summary' | 'follow_up' | 'owner_confirmation' | 'other';
+  content: string;
+  requiresApproval: boolean;
+}
+
+export interface MeetingAnalysisGovernance {
+  autonomyLevelApplied: number;
+  sensitiveActionsBlocked: string[];
+  requiresHumanApproval: boolean;
+  explanationVisible: boolean;
+}
+
+export interface MeetingAnalysisResult {
+  meetingType: MeetingAnalysisMeetingType;
+  detectedContext: MeetingAnalysisDetectedContext;
+  analysisStrategy: MeetingAnalysisStrategy;
+  executiveSummary: string;
+  keyPoints: string[];
+  decisions: MeetingAnalysisDecisionItem[];
+  agreements: MeetingAnalysisAgreementItem[];
+  tasks: MeetingAnalysisTaskItem[];
+  risks: MeetingAnalysisRiskItem[];
+  openQuestions: MeetingAnalysisOpenQuestionItem[];
+  unresolvedItems: MeetingAnalysisUnresolvedItem[];
+  followUpRecommendation: MeetingAnalysisFollowUpRecommendation;
+  destinationRecommendation: MeetingAnalysisDestinationRecommendation;
+  messageDrafts?: MeetingAnalysisMessageDraft[];
+  governance: MeetingAnalysisGovernance;
+}
+
 export interface MeetingSyncActionPayload {
   title?: string;
   description?: string;
@@ -142,6 +256,7 @@ export interface MeetingAssetPayload {
   review_flags: MeetingReviewFlag[];
   proposed_actions: ProposedMeetingAction[];
   continuity_context: string[];
+  analysis_result?: MeetingAnalysisResult | null;
 }
 
 export interface PreparedMeetingSource {

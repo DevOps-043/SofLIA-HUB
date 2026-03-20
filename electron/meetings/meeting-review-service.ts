@@ -37,6 +37,18 @@ export class MeetingReviewService {
     defaultTeamId: string | null,
     defaultProjectId: string | null,
   ): ProposedMeetingAction[] {
+    const analysis = asset.analysis_result;
+    const suggestedDestination = analysis?.destinationRecommendation.suggestedDestination || 'Project Hub';
+    const shouldCreateSyncDrafts = suggestedDestination === 'IRIS'
+      || suggestedDestination === 'Project Hub'
+      || suggestedDestination === 'Project';
+
+    if (!shouldCreateSyncDrafts) {
+      return [];
+    }
+
+    const minimumTaskConfidence = analysis && analysis.meetingType.confidence <= 0.75 ? 0.75 : 0.6;
+
     return asset.commitments
       .map((commitment, index) => ({
         action_type: 'create_task' as const,
@@ -49,6 +61,7 @@ export class MeetingReviewService {
             commitment.statement,
             commitment.owner_candidate,
             asset.source_refs.find((sourceRef) => sourceRef.source_uri)?.source_uri || null,
+            analysis?.tasks[index]?.reason,
           ),
           team_id: defaultTeamId || undefined,
           project_id: commitment.project_target || defaultProjectId || undefined,
@@ -65,11 +78,17 @@ export class MeetingReviewService {
           assignee_id: null,
         }),
       }))
-      .filter((action) => action.summary.trim().length > 0);
+      .filter((action, index) =>
+        action.summary.trim().length > 0
+        && (asset.commitments[index]?.confidence ?? 0) >= minimumTaskConfidence);
   }
 
   private buildReviewFlags(asset: MeetingAssetPayload, proposedActions: ProposedMeetingAction[]): MeetingReviewFlag[] {
     const flags: MeetingReviewFlag[] = [];
+    const suggestedDestination = asset.analysis_result?.destinationRecommendation.suggestedDestination || 'Project Hub';
+    const shouldEnforceProjectTarget = suggestedDestination === 'IRIS'
+      || suggestedDestination === 'Project Hub'
+      || suggestedDestination === 'Project';
 
     asset.decisions.forEach((decision, index) => {
       if (!decision.evidence_refs?.length) {
@@ -87,7 +106,7 @@ export class MeetingReviewService {
       if (!commitment.due_date_candidate) {
         flags.push(this.makeFlag('missing_due_date', 'Hay un compromiso sin fecha compromiso.', 'action', index));
       }
-      if (!commitment.project_target) {
+      if (shouldEnforceProjectTarget && !commitment.project_target) {
         flags.push(this.makeFlag('missing_project_target', 'Hay un compromiso sin proyecto objetivo.', 'action', index));
       }
       if (!commitment.evidence_refs?.length) {
@@ -119,9 +138,9 @@ export class MeetingReviewService {
     payload: Pick<MeetingSyncActionPayload, 'team_id' | 'project_id' | 'due_date' | 'owner_candidate' | 'assignee_id'>,
   ): MeetingReviewFlagCode[] {
     const flags: MeetingReviewFlagCode[] = [];
-    if (!payload.team_id) flags.push('missing_project_target');
+    if (!payload.team_id && !payload.project_id) flags.push('missing_project_target');
     if (!payload.due_date) flags.push('missing_due_date');
-    if (!payload.assignee_id) flags.push('missing_owner');
+    if (!payload.assignee_id && !payload.owner_candidate) flags.push('missing_owner');
     return Array.from(new Set(flags));
   }
 
@@ -134,12 +153,14 @@ export class MeetingReviewService {
     statement: string,
     ownerCandidate?: string | null,
     transcriptSourceUri?: string | null,
+    taskReason?: string | null,
   ): string {
     return [
       'Creado desde Meeting Ops.',
       `Reunion: ${meetingTitle || 'Sin titulo'}.`,
       `Compromiso: ${statement.trim()}.`,
       ownerCandidate ? `Responsable detectado: ${ownerCandidate}.` : null,
+      taskReason ? `Razon operativa: ${taskReason}.` : null,
       transcriptSourceUri ? `Transcript de respaldo: ${transcriptSourceUri}` : null,
     ].filter(Boolean).join('\n');
   }

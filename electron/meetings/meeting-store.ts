@@ -388,6 +388,27 @@ export class MeetingStore {
     throwOnError(error, 'updateRunStatus');
   }
 
+  async updateRunClassification(runId: string, updates: { meetingTitle?: string | null; meetingType?: string }): Promise<void> {
+    const nextPayload: Record<string, unknown> = {
+      updated_at: nowIso(),
+    };
+
+    if (updates.meetingTitle !== undefined) {
+      nextPayload.meeting_title = updates.meetingTitle;
+    }
+    if (updates.meetingType) {
+      nextPayload.meeting_type = updates.meetingType;
+    }
+
+    const supabase = getMeetingIrisClient();
+    const { error } = await supabase
+      .from('meeting_runs')
+      .update(nextPayload)
+      .eq('id', runId);
+
+    throwOnError(error, 'updateRunClassification');
+  }
+
   async approveAsset(runId: string, decidedByUserId: string, comment?: string): Promise<void> {
     await this.recordApproval({
       meeting_run_id: runId,

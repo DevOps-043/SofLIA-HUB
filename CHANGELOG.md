@@ -4,6 +4,28 @@ Todos los cambios notables de SofLIA Hub se documentan aquí.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.1.14] - 2026-03-19
+
+### Added
+
+- **Pipeline de Meeting Intelligence de 2 fases:** El sistema ahora clasifica el tipo de reunion en una primera llamada AI dedicada (Fase 1), y luego genera un prompt unico y especifico para ese tipo de reunion para extraer la minuta operativa (Fase 2). Antes usaba un solo prompt generico para todas las reuniones.
+- **Prompt de clasificacion dedicado:** Fase 1 usa solo la taxonomia compacta (8 tipos + fallback) con senales, confusiones comunes y hints de confianza para determinar el tipo con precision.
+- **Prompt de extraccion tipo-especifico:** Fase 2 inyecta `purpose`, `expectedStructure`, `extractionFocus`, `highValueOutputs`, `routingNotes`, `commonConfusions` y `confidenceHints` del tipo clasificado. Modo prudente automatico si la confianza es media-baja.
+- **Context Pack expandido:** `MeetingTypeDefinition` ahora incluye `bestFor`, `cadence`, `durationExpected`, `highValueOutputs`, `routingNotes`, `commonConfusions`, `confidenceHints`. Parser YAML actualizado para capturar todos los campos del registry.
+
+### Changed
+
+- **MeetingOpsPanel rediseñado completamente:** Nuevo diseno con barras de confianza, badges de estado con colores, strip de inteligencia (clasificacion/routing/gobernanza), secciones colapsables para acciones, decisiones, acuerdos, riesgos y temas pendientes.
+- **Soporte completo de modo claro/oscuro en Meeting Ops:** Todos los colores usan variantes `dark:` de Tailwind. Cards, textos, bordes, inputs y selects respetan el tema activo. Fondo principal usa `bg-background` (CSS variable) en vez de color hardcodeado.
+- **Dropdowns tematizados:** Estilos de `<select>` y `<option>` con fondo y texto adaptados al tema. CSS global para `select option` en light y dark mode.
+
+### Fixed
+
+- Null safety en `classifyMeeting()` — optional chaining en 3 accesos a `fallbackDefinition`.
+- `stripLabel()` — eliminado `.replace()` duplicado, agregadas mayusculas acentuadas.
+- `JSON.parse` protegido con try/catch en `meeting-context-pack.ts`.
+- Merge conflicts resueltos en `AGENTS.md` y `CLAUDE.md` (16 bloques cada uno).
+
 ## [0.1.13] - 2026-03-17
 
 ### Fixed

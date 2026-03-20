@@ -2,9 +2,6 @@
 
 ## What is SofLIA Hub?
 
-<<<<<<< HEAD
-SofLIA Hub is an **Electron desktop application** that serves as an AI-powered business operations platform. It combines a WhatsApp agent, Google Workspace integration, activity monitoring, project management (IRIS), CRM-lite, BPM workflow engine, desktop automation (Computer Use V2), autonomous self-programming (AutoDev), and system health management — all orchestrated by Google Gemini AI. The app is built for a Spanish-speaking audience (all UI and prompts are in Spanish).
-=======
 SofLIA Hub is an **Electron 30.5 desktop application** — an AI-powered business operations platform for Spanish-speaking teams. It orchestrates:
 
 - **WhatsApp AI Agent** — Gemini-powered conversational assistant with 40+ tools (file ops, Google Workspace, IRIS, web search, desktop automation)
@@ -18,31 +15,11 @@ SofLIA Hub is an **Electron 30.5 desktop application** — an AI-powered busines
 - **4-Layer Memory** — Raw persistence, rolling summaries, semantic embeddings, structured facts
 
 All UI, prompts, comments, and logs are in **Spanish**.
->>>>>>> 5852aaf5bb852734abc2627ee9b0908b164a31c5
 
 ---
 
 ## Tech Stack
 
-<<<<<<< HEAD
-| Layer       | Technology                                | Version    |
-| ----------- | ----------------------------------------- | ---------- |
-| Desktop     | Electron                                  | 30.5.1     |
-| Frontend    | React                                     | 18.2.0     |
-| Language    | TypeScript                                | 5.7.3      |
-| Build       | Vite + vite-plugin-electron               | 5.4.21     |
-| CSS         | Tailwind CSS v4                           | 4.1.18     |
-| Animations  | Framer Motion                             | 11.18.2    |
-| AI          | Google Gemini (`@google/generative-ai`)   | 0.24.1     |
-| Database    | 3x Supabase + better-sqlite3 (local)      | —          |
-| WhatsApp    | @whiskeysockets/baileys                   | 7.0.0-rc.9 |
-| Google APIs | googleapis (Calendar, Gmail, Drive, Chat) | 171.4.0    |
-| OCR         | tesseract.js                              | 5.0.5      |
-| Validation  | Zod                                       | 3.24.2     |
-| Documents   | docx + exceljs                            | —          |
-| Updater     | electron-updater                          | 6.8.3      |
-| CI/CD       | GitHub Actions (Windows + macOS)          | —          |
-=======
 | Layer | Technology | Version | Notes |
 |-------|-----------|---------|-------|
 | Desktop | Electron | 30.5.1 | Main + Renderer process |
@@ -60,31 +37,12 @@ All UI, prompts, comments, and logs are in **Spanish**.
 | Presentations | Gamma API | — | PDF generation via external API |
 | Email | Nodemailer | — | SMTP for computer-use agent |
 | Updates | electron-updater | — | 4-hour polling |
->>>>>>> 5852aaf5bb852734abc2627ee9b0908b164a31c5
 
 ---
 
 ## Architecture Overview
 
 ```
-<<<<<<< HEAD
-┌──────────────────────────────────────────────────────────────────────┐
-│                    SofLIA Hub (Electron 30.5)                        │
-├─────────────────────────────┬────────────────────────────────────────┤
-│  Renderer (React 18)        │  Main Process (Node.js)                │
-│                             │                                        │
-│  src/components/ (21)       │  electron/ (56 .ts files)              │
-│  src/services/ (18)         │  IPC via contextBridge + preload.ts    │
-│  src/adapters/ (6)          │  Security: CSP + channel allowlist     │
-│  src/core/ (Clean Arch)     │  electron/services/ (2)               │
-│  src/prompts/ (4)           │                                        │
-│  src/lib/ (3 Supabase)      │                                        │
-├─────────────────────────────┴────────────────────────────────────────┤
-│  3 Supabase Instances       │  Local SQLite (memory, knowledge,      │
-│  SOFIA · Lia · IRIS         │  thoughts, semantic index)             │
-│                             │  JSON config files (userData/)         │
-└──────────────────────────────────────────────────────────────────────┘
-=======
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                       SofLIA Hub (Electron 30.5)                        │
 ├──────────────────────────────┬──────────────────────────────────────────┤
@@ -107,7 +65,6 @@ All UI, prompts, comments, and logs are in **Spanish**.
 │  JSON Config (userData/):  autodev-config.json, autodev-strategic-      │
 │  memory.json, monitoring-config.json, proactive-config.json, etc.       │
 └─────────────────────────────────────────────────────────────────────────┘
->>>>>>> 5852aaf5bb852734abc2627ee9b0908b164a31c5
 ```
 
 ### IPC Pattern (strict)
@@ -147,19 +104,11 @@ Every feature follows this 4-layer pattern:
 
 ## Supabase Instances (Triple-Instance Strategy)
 
-<<<<<<< HEAD
-| Instance  | Purpose                                                                                            | Env Vars                                                  |
-| --------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| **SOFIA** | Authentication, organizations, teams, user profiles                                                | `VITE_SOFIA_SUPABASE_URL`, `VITE_SOFIA_SUPABASE_ANON_KEY` |
-| **Lia**   | Conversations, messages, folders, monitoring sessions, daily summaries                             | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`             |
-| **IRIS**  | Projects, issues, sprints, CRM (companies/contacts/opportunities), workflows, artifacts, approvals | `VITE_IRIS_SUPABASE_URL`, `VITE_IRIS_SUPABASE_ANON_KEY`   |
-=======
 | Instance | Purpose | Tables | Env Vars |
 |----------|---------|--------|----------|
 | **SOFIA** | Auth, organizations, teams, user profiles, roles | `users`, `organizations`, `teams`, `org_members` | `VITE_SOFIA_SUPABASE_URL`, `VITE_SOFIA_SUPABASE_ANON_KEY` |
 | **Lia** | Conversations, messages, folders, monitoring sessions, daily summaries, calendar connections | `conversations`, `messages`, `folders`, `monitoring_sessions`, `activity_logs`, `daily_summaries`, `calendar_connections` | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` |
 | **IRIS** | Projects, issues, sprints, statuses, priorities, CRM (companies/contacts/opportunities), workflows, artifacts, approvals | `teams`, `projects`, `issues`, `statuses`, `priorities`, `crm_companies`, `crm_contacts`, `crm_opportunities`, `workflow_runs`, `workflow_steps`, `approvals`, `artifacts` | `VITE_IRIS_SUPABASE_URL`, `VITE_IRIS_SUPABASE_ANON_KEY` |
->>>>>>> 5852aaf5bb852734abc2627ee9b0908b164a31c5
 
 **Access patterns:**
 - SOFIA: renderer only (`src/lib/sofia-client.ts`, `src/contexts/AuthContext.tsx`)
@@ -183,37 +132,6 @@ Every feature follows this 4-layer pattern:
 
 Configured in `src/config.ts`:
 
-<<<<<<< HEAD
-| Alias         | Model ID                                        | Usage                                                       |
-| ------------- | ----------------------------------------------- | ----------------------------------------------------------- |
-| Alias | Model ID | Usage |
-|-------|----------|-------|
-| `PRIMARY` | `gemini-3-flash-preview` | Chat, WhatsApp agent, workflow extraction, research |
-| `PRO` | `gemini-3.1-pro-preview` | Complex generation, deep analysis, AutoDev coder |
-| `FALLBACK` | `gemini-2.5-flash` | Fallback when primary/pro fails, transcription, maps |
-| `WEB_AGENT` | `gemini-3-flash-preview` | Web search grounding |
-| `LIVE` | `gemini-2.5-flash-native-audio-preview-12-2025` | Bidirectional audio (Flow Mode) |
-| `IMAGE_GENERATION` | `gemini-2.5-flash-image` | Text-to-image |
-| `DEEP_RESEARCH` | `deep-research-pro-preview-12-2025` | AutoDev deep research |
-| `TRANSCRIPTION` | `gemini-2.5-flash` | Audio-to-text (WhatsApp voice) |
-| `MAPS` | `gemini-2.5-flash` | Location/mapping |
->>>>>>> 5852aaf5bb852734abc2627ee9b0908b164a31c5
-
-**AI patterns used across the codebase:**
-- `responseMimeType: 'application/json'` — All structured AI calls return parsed JSON
-- **Fallback chain:** primary → fallback model on any error
-- **Tool calling (function calling):** WhatsApp agent, AutoDev research, desktop agent
-- **Grounding:** Google Search grounding for AutoDev research agents
-- **Multimodal:** Screenshot analysis (desktop agent), audio transcription (WhatsApp), image generation
-- **Live API:** WebSocket bidirectional streaming for Flow Mode audio
-
----
-
-## Key Policies
-
-<<<<<<< HEAD
-- **No webhooks** — All external monitoring uses `setInterval` polling. Calendar: 60s, Proactive: 5min, SLA: 60s, Transcript watcher: 2min, WhatsApp queue: 5s, SemanticIndexer daemon: 10min.
-=======
 - **No webhooks** — All external monitoring uses `setInterval` polling:
   - Calendar: 60s
   - Proactive alerts: 5min
@@ -221,7 +139,6 @@ Configured in `src/config.ts`:
   - Transcript watcher: 2min
   - WhatsApp queue: 5s
   - Auto-updater: 4 hours
->>>>>>> 5852aaf5bb852734abc2627ee9b0908b164a31c5
 - **HITL (Human-in-the-Loop)** — Critical workflow steps require human approval before execution. "Sin aprobacion no se ejecuta."
 - **No invented data** — AI must not hallucinate. Missing data → block and request context.
 - **Idempotency** — Workflow actions use `idempotency_key` UNIQUE constraints.
@@ -358,32 +275,6 @@ AWAITING_DATA → PROCESSING_PROPOSAL → AWAITING_APPROVAL → GENERATING_PRESE
 
 AutoDev is a multi-agent system with **strategic memory** that autonomously improves SofLIA's codebase. It has **3 trigger modes** and a **7-phase pipeline** with self-evaluation.
 
-<<<<<<< HEAD
-### Mode 1: Scheduled (Full Run)
-
-- **Trigger**: Cron schedule (default: `0 3 * * *` = 3 AM daily)
-- **Condition**: System idle >5 minutes
-- **Pipeline**: 8-agent full pipeline (5 research agents -> deep research -> analyzer -> planner -> coder -> reviewer -> tester -> commit/PR)
-- **Scope**: 500+ lines, up to 30 files, full research with Google Search grounding
-- **Limit**: `maxDailyRuns: 3`
-
-### Mode 2: Manual (Full Run)
-
-- **Trigger**: WhatsApp command (`autodev_run_now` tool) or UI button
-- **Pipeline**: Same full 8-agent pipeline as scheduled
-- **Spawns**: Standalone terminal process to avoid blocking Electron UI
-
-### Mode 3: Micro-Fix (Reactive)
-
-- **Trigger**: Automatic — when SelfLearnService detects a small error or user suggestion
-- **Pipeline**: Lightweight 4-phase pipeline (analyze -> code -> build verify -> commit/PR)
-- **Scope**: Max 5 files, max 200 lines changed, NO research phase
-- **Limit**: `maxDailyMicroRuns: 5` (separate from full runs)
-- **Debounce**: Waits 3 minutes to batch related issues before running
-
-**Micro-Fix Flow:**
-
-=======
 ### Trigger Modes
 
 | Mode | Trigger | Pipeline | Scope | Daily Limit |
@@ -470,7 +361,6 @@ Persistent JSON file (`autodev-strategic-memory.json` in userData/) that survive
 5. Default → rotate between strategies for diversity
 
 ### Micro-Fix Flow
->>>>>>> 5852aaf5bb852734abc2627ee9b0908b164a31c5
 ```
 User says "no funciona X" on WhatsApp
   → SelfLearnService.analyzeUserMessage() detects complaint pattern
@@ -487,24 +377,11 @@ User says "no funciona X" on WhatsApp
   → Notify owner via WhatsApp (short summary)
 ```
 
-<<<<<<< HEAD
-**Auto-trigger categories (configurable):**
-
-=======
 **Auto-trigger categories (configurable in `autodev-types.ts`):**
->>>>>>> 5852aaf5bb852734abc2627ee9b0908b164a31c5
 - `autoTriggerOnComplaint` — User complaints ("no funciona", "no sirve", etc.)
 - `autoTriggerOnSuggestion` — User suggestions ("deberias poder...", "agrega...")
 - `autoTriggerOnToolFailure` — Tool execution errors
 
-<<<<<<< HEAD
-**Issues too big for micro-fix (routed to full run):**
-
-- Messages >500 chars, keywords like "refactor", "arquitectura", "desde cero"
-
-### Config (`autodev-types.ts`)
-
-=======
 ### Safety Guards
 
 | Guard | What it prevents | Location |
@@ -538,7 +415,6 @@ User says "no funciona X" on WhatsApp
 | `MICRO_FIX_SUMMARY_PROMPT` | Brief WhatsApp update for micro-fixes | `{FIX_RESULTS}` |
 
 ### AutoDev Config (`autodev-types.ts`)
->>>>>>> 5852aaf5bb852734abc2627ee9b0908b164a31c5
 ```typescript
 {
   enabled: false,
@@ -576,16 +452,6 @@ User says "no funciona X" on WhatsApp
 }
 ```
 
-<<<<<<< HEAD
-### Key Files
-
-- `electron/autodev-service.ts` — Core orchestration (full + micro pipelines)
-- `electron/autodev-selflearn.ts` — EventEmitter that detects failures/suggestions, classifies severity, emits `micro-fix-candidate`
-- `electron/autodev-types.ts` — Config types including `MicroFixConfig`, `MicroFixTrigger`, `AutoDevRunMode`
-- `electron/autodev-prompts.ts` — Agent prompts including `MICRO_FIX_ANALYZE_PROMPT`, `MICRO_FIX_SUMMARY_PROMPT`
-- `electron/autodev-handlers.ts` — IPC handlers including `autodev:micro-fix-status`, `autodev:trigger-micro-fix`
-- `electron/main.ts` — Wires `selfLearnService.on('micro-fix-candidate')` -> `autoDevService.queueMicroFix()`
-=======
 ### Dynamic Tools (`tools/dynamic/`)
 - Files in `tools/dynamic/` are loaded dynamically by `MCPManager` (`electron/mcp-manager.ts`) via `fs.watch` + `import()`
 - They do NOT need static imports — MCPManager discovers them at runtime
@@ -650,7 +516,6 @@ Services are initialized in dependency order:
    ├─ Calendar work-start/end → Monitoring auto-start/stop
    └─ TaskScheduler → WhatsApp prompt injection
 ```
->>>>>>> 5852aaf5bb852734abc2627ee9b0908b164a31c5
 
 ---
 
@@ -692,23 +557,6 @@ The Desktop Agent is an advanced autonomous system for controlling the computer'
 
 ## Directory Structure
 
-<<<<<<< HEAD
-### `electron/` — Main Process Services (56+ files)
-
-**Core:**
-
-- `main.ts` — Entry point, initializes all services, tray, lifecycle
-- `preload.ts` — Security bridge, CSP, contextBridge APIs
-
-**WhatsApp:**
-
-- `whatsapp-service.ts` — Baileys connection, QR auth, send/receive
-- `whatsapp-agent.ts` — Gemini agentic loop with 50+ tool declarations
-- `whatsapp-remote-hub.ts` — Remote control hub (command execution, file send, system status)
-- `whatsapp-terminal.ts` — Terminal bridge for system/filesystem/shell commands via WhatsApp
-- `whatsapp-audio-processor.ts` — Audio message processing and transcription
-- `whatsapp-workflow-presentacion.ts` — Presentation workflow (state machine)
-=======
 ### `electron/` — Main Process (58 .ts files)
 
 **Core:**
@@ -722,7 +570,6 @@ The Desktop Agent is an advanced autonomous system for controlling the computer'
 - `whatsapp-workflow-presentacion.ts` — Presentation state machine (→ Gamma API PDF)
 - `whatsapp-workflow-reunion.ts` — Meeting workflow adapter (WhatsApp ↔ WorkflowEngine)
 - `whatsapp-remote-hub.ts` — Zod-validated command sandbox with blocked regex patterns
->>>>>>> 5852aaf5bb852734abc2627ee9b0908b164a31c5
 
 **Google Workspace:**
 
@@ -743,66 +590,6 @@ The Desktop Agent is an advanced autonomous system for controlling the computer'
 - `workflow-handlers.ts` — IPC: workflow + CRM + transcript watcher
 - `crm-service.ts` — CRM-lite (companies, contacts, opportunities, Jaccard deduplication)
 
-<<<<<<< HEAD
-**Desktop Agent:**
-
-- `desktop-agent-service.ts` — Multi-agent autonomous desktop control (1900+ lines)
-- `desktop-agent-handlers.ts` — IPC handlers for desktop agent tasks
-- `computer-use-handlers.ts` — Low-level computer control (mouse, keyboard, screenshots, windows)
-- `visual-debugger-service.ts` — Error zone screenshot annotation + WhatsApp HITL reporting
-
-**AutoDev:**
-
-- `autodev-service.ts` — Multi-agent system (full + micro pipelines)
-- `autodev-selflearn.ts` — Failure detection, user feedback, micro-fix classification
-- `autodev-git.ts` — Git operations (branch, commit, push, PR)
-- `autodev-sandbox.ts` — Sandboxed code execution environment
-- `autodev-prompts.ts` — Agent prompts for all pipeline phases
-- `autodev-web.ts` — Web research with Google Search grounding
-- `autodev-types.ts` — Config types and interfaces
-
-**Memory + Knowledge:**
-
-- `memory-service.ts` — 4-layer memory (raw SQLite, rolling summaries, embeddings, facts)
-- `knowledge-service.ts` — OpenClaw-style `.md` file knowledge base
-- `thought-logger.ts` — Event stream logger + Orchestrator for crash recovery (inspired by OpenHands)
-- `semantic-indexer.ts` — FTS5 full-text search index with background daemon
-
-**Monitoring + Proactive:**
-
-- `monitoring-service.ts` — Activity tracking (screenshots, window, idle, OCR)
-- `proactive-service.ts` — Calendar reminders + deadline alerts
-- `proactive-guardian.ts` — Extended proactive notifications
-- `daily-briefing-service.ts` — Daily morning briefing via WhatsApp (system status + motivation)
-- `daily-digest-generator.ts` — Weekly PDF report generator with system metrics
-- `summary-generator.ts` — AI-powered session summaries
-
-**System + Security:**
-
-- `system-guardian.ts` — Watchdog auto-healing (disk cleanup, memory management, 15min cron)
-- `system-services.ts` — Core system utilities and services
-- `workstation-security.ts` — Remote workstation control (lock, sleep, mute, health metrics)
-- `clipboard-manager.ts` — Clipboard read/write/history with polling sync
-
-**Scheduling + Tasks:**
-
-- `scheduled-tasks.ts` — Cron-based task scheduler with persistent storage
-- `task-scheduler.ts` — Advanced task scheduling with WhatsApp agent tool integration
-
-**AI Tools + Extensibility:**
-
-- `mcp-manager.ts` — Dynamic tool loader with hot-reload (file watcher for `tools/dynamic/`)
-- `neural-organizer.ts` — AI + OCR auto-categorization of downloaded files
-- `smart-search-tool.ts` — Intelligent search tool
-- `safe-browser-tool.ts` — Sandboxed browser automation tool
-- `app-launcher-tool.ts` — Application launcher tool
-
-**Infrastructure:**
-
-- `updater-service.ts` — Auto-update via electron-updater (4h polling + startup check)
-- `updater-handlers.ts` — IPC handlers for update UI
-- `ocr-service.ts` — Tesseract.js OCR wrapper
-=======
 **AutoDev (10 files):**
 - `autodev-service.ts` — Core orchestration: 7-phase full pipeline + 4-phase micro-fix
 - `autodev-strategic-memory.ts` — Persistent strategic memory (roadmap, capabilities, retrospectives)
@@ -829,40 +616,12 @@ The Desktop Agent is an advanced autonomous system for controlling the computer'
 - `ocr-service.ts` — Tesseract.js lazy-initialized worker (Spanish + English)
 - `summary-generator.ts` — Gemini end-of-day summaries from activity logs
 - `daily-digest-generator.ts` — PDF report generation + WhatsApp delivery
->>>>>>> 5852aaf5bb852734abc2627ee9b0908b164a31c5
 
 **Desktop Agent:**
 - `desktop-agent-service.ts` — Perception-Planning-Action loop (Gemini Vision → PowerShell P/Invoke)
 - `desktop-agent-handlers.ts` — IPC: task execution, screenshot, mouse/keyboard/window
 - `computer-use-handlers.ts` — Low-level IPC: filesystem, shell, system info, email, security filters
 
-<<<<<<< HEAD
-**Components (21):** App, Auth, AutoDevPanel, ConfirmActionModal, FlowMode, FolderModals, ProductivityDashboard, ProjectHub, ScreenViewer, SettingsModal, ToolEditorModal, ToolLibrary, UnifiedSettingsModal, UpdateNotification, UpdatePanel, UserManagementModal, WhatsAppSetup + monitoring/ (AppUsageChart, CalendarPanel, DailyTimeline, MonitoringControls, SummaryCard)
-
-**Services (18):** api-keys, chat-service, computer-use-service, drive-service, flow-service, folder-service, gemini-chat, gemini-tools, gmail-service, image-generation, iris-data, live-api, monitoring-service, org-service, settings-service, sofia-auth, tools-service, updater-service
-
-**Core (Clean Architecture):**
-
-- `src/core/entities/` — ActivityLog, User
-- `src/core/ports/` — AIAssistant, OSAutomation, TrackingRepository, tools/
-- `src/core/use_cases/` — productivity_tracking/
-
-**Adapters (6):**
-
-- `src/adapters/desktop_ui/` — Desktop UI adapters (2)
-- `src/adapters/gemini_service/` — Gemini service adapter
-- `src/adapters/os_automation/` — OS automation adapter
-- `src/adapters/tools/` — Tools adapter
-- `src/adapters/tracking/` — Tracking adapter
-
-**Prompts (4):** chat, flow, prompt-optimizer, utils
-
-**Lib (3 Supabase clients):** supabase (Lia), sofia-client (SOFIA), iris-client (IRIS)
-
-### `sql/` — Database Schemas
-
-- `monitoring-tables.sql` — Monitoring tables (Lia Supabase)
-=======
 **Proactive + Notifications:**
 - `proactive-service.ts` — Calendar + task deadline alerts with Gemini composition
 - `proactive-guardian.ts` — CPU/RAM threshold monitoring with auto-healing
@@ -969,7 +728,6 @@ The Desktop Agent is an advanced autonomous system for controlling the computer'
 ### `tools/dynamic/` — Runtime Tools
 - Watched by MCPManager for hot-reloadable tool plugins
 - Currently empty — tools are created by AutoDev or manually
->>>>>>> 5852aaf5bb852734abc2627ee9b0908b164a31c5
 
 ### `scripts/` — Utility Scripts
 
@@ -981,18 +739,6 @@ The Desktop Agent is an advanced autonomous system for controlling the computer'
 ## Environment Variables
 
 ```bash
-<<<<<<< HEAD
-VITE_GEMINI_API_KEY=           # Google Gemini API key
-VITE_SUPABASE_URL=             # Lia Supabase URL
-VITE_SUPABASE_ANON_KEY=        # Lia anon key
-VITE_SOFIA_SUPABASE_URL=       # SOFIA Supabase URL
-VITE_SOFIA_SUPABASE_ANON_KEY=  # SOFIA anon key
-VITE_IRIS_SUPABASE_URL=        # IRIS Supabase URL
-VITE_IRIS_SUPABASE_ANON_KEY=   # IRIS anon key
-VITE_GOOGLE_OAUTH_CLIENT_ID=   # Google OAuth client ID
-VITE_GOOGLE_OAUTH_CLIENT_SECRET= # Google OAuth client secret
-VITE_GAMMA_API_KEY=            # Gamma API key (presentations)
-=======
 # Google AI
 VITE_GEMINI_API_KEY=              # Google Gemini API key (all AI features)
 
@@ -1014,7 +760,6 @@ VITE_GOOGLE_OAUTH_CLIENT_SECRET=  # Google OAuth client secret
 
 # Optional
 VITE_GAMMA_API_KEY=               # Gamma API key (presentation generation)
->>>>>>> 5852aaf5bb852734abc2627ee9b0908b164a31c5
 ```
 
 ---
@@ -1022,19 +767,11 @@ VITE_GAMMA_API_KEY=               # Gamma API key (presentation generation)
 ## Development Commands
 
 ```bash
-<<<<<<< HEAD
-npm run dev        # Start dev server (Vite + Electron)
-npm run build      # Production build (tsc + vite build + electron-builder)
-npm run lint       # ESLint (strict, no warnings)
-npx tsc --noEmit   # TypeScript check
-npm run autodev    # Run AutoDev standalone (outside Electron)
-=======
 npm run dev        # Start Vite dev server + Electron (hot-reload)
 npm run build      # Production: tsc → vite build → generate-bitmaps → electron-builder
 npm run lint       # ESLint strict mode (zero warnings allowed)
 npx tsc --noEmit   # TypeScript type check only
 npm run autodev    # Run AutoDev standalone (npx tsx scripts/autodev.ts)
->>>>>>> 5852aaf5bb852734abc2627ee9b0908b164a31c5
 ```
 
 ---
@@ -1045,18 +782,6 @@ npm run autodev    # Run AutoDev standalone (npx tsx scripts/autodev.ts)
 - **Language:** All UI text, prompts, comments, and logs in **Spanish**
 - **File naming:** `kebab-case` for all files (e.g., `whatsapp-agent.ts`, `memory-service.ts`)
 - **IPC naming:** `namespace:action` (e.g., `workflow:start-run`, `crm:get-company`, `autodev:micro-fix-status`)
-<<<<<<< HEAD
-- **Service pattern:** `EventEmitter` subclass with `init()`, `start()`, `stop()`, `getConfig()`, `getStatus()`
-- **Error handling:** All IPC handlers return `{ success: boolean, error?: string, ...data }`
-- **Config persistence:** JSON files in `app.getPath('userData')`
-- **No webhooks:** Use `setInterval` polling for all external data
-- **Imports:** Use `type` imports for type-only usage (`import type { ... }`)
-- **React 18:** No need to `import React` — JSX transform is automatic
-- **Validation:** Use Zod schemas for tool input validation
-- **Tool declarations:** Compatible with both Gemini function calling format and Zod schemas
-- **Singleton pattern:** Key services export singleton instances (e.g., `export const mcpManager = new MCPManager()`)
-- **Clean Architecture:** `src/core/` follows ports & adapters pattern (entities → ports → use_cases → adapters)
-=======
 - **Imports:** Use `import type { ... }` for type-only imports
 - **React 18:** No `import React` needed — JSX transform is automatic
 
@@ -1110,4 +835,3 @@ import { app } from 'electron';
 - Never commit directly to `main`/`master`
 - PRs created via GitHub REST API (`autodev-github.ts`)
 - Merge conflict markers auto-detected and cleaned after branch operations
->>>>>>> 5852aaf5bb852734abc2627ee9b0908b164a31c5

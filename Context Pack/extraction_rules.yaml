@@ -1,0 +1,94 @@
+version: '1.0'
+principles:
+- La transcripción es soporte, no centro de experiencia.
+- La salida debe ser más útil que un resumen genérico.
+- Las sugerencias deben ser operativas, explicables y revisables.
+- Toda acción sensible requiere aprobación humana.
+context_detection:
+  inputs_ranked_by_value:
+  - meeting title
+  - description / calendar invite
+  - participants and roles
+  - cadence / recurrence
+  - project context
+  - added sources
+  - transcript language patterns
+  - conversation structure
+  classification_rules:
+  - Evalúa señales positivas y negativas por tipo.
+  - Genera al menos un tipo sugerido y hasta tres alternativos.
+  - Si confidence < 0.60 usa fallback_general_operational.
+  - Si confidence está entre 0.60 y 0.75 reduce la agresividad de recomendaciones.
+confidence_model:
+  bands:
+    high: 0.85-1.00
+    medium: 0.60-0.84
+    low: 0.00-0.59
+  guidelines:
+  - No afirmar responsables, fechas o decisiones si la evidencia es tenue.
+  - Cuando infieras, explica por qué.
+  - 'Sube confianza cuando varias señales convergen: título + estructura + lenguaje
+    + roles.'
+operational_extraction:
+  must_extract:
+  - executiveSummary
+  - keyPoints
+  - decisions
+  - agreements
+  - tasks
+  - risks
+  - openQuestions
+  - unresolvedItems
+  - followUpRecommendation
+  - destinationRecommendation
+  - governance
+  task_rules:
+  - Cada tarea debe describirse con verbo accionable.
+  - Si no hay owner explícito pero hay señal contextual, sugerir owner con ownerConfidence.
+  - Si el horizonte es mayor a 1-2 semanas en reuniones semanales, sugerir primer
+    paso manejable.
+  - No inventar dueDateSuggested si no hay base suficiente.
+  risk_rules:
+  - Detectar bloqueos, dependencias críticas, falta de definición, desviaciones importantes,
+    vacíos de owner o timing.
+  - Marcar severity con prudencia.
+  - Escalar cuando una limitación impida avanzar o requiera otro foro.
+  follow_up_rules:
+  - Sugerir follow-up cuando falte validación, coordinación, escalamiento o cierre.
+  - Evitar sugerir follow-up redundante si ya existe un siguiente paso claro y owner
+    confirmado.
+  destination_rules:
+  - 'IRIS: decisiones ejecutivas, gobernanza, síntesis estratégica, board/leadership.'
+  - 'Project Hub: tareas, dependencias, owners, seguimiento operativo de proyecto/sprint.'
+  - 'Team: coordinación informativa, check-ins, report-outs, resúmenes compartidos.'
+  - 'Project: cuando el contenido se concentra en un proyecto específico pero no requiere
+    todo Project Hub.'
+  - 'None: cuando la confianza sea baja o no exista valor claro de envío.'
+governance:
+  autonomy_levels:
+    '0': Solo analizar y mostrar resultado.
+    '1': Sugerir, sin preparar acciones externas.
+    '2': Preparar drafts internos de bajo riesgo.
+    '3': Permitir drafts ampliados bajo política.
+    '4': Semiautonomía limitada solo en acciones autorizadas y reversibles.
+  hard_rules:
+  - No ejecutar acciones sensibles automáticamente en el MVP.
+  - Toda sugerencia importante debe incluir reason, relevant signals y confidence.
+  - El usuario debe poder aceptar, editar, posponer o descartar sugerencias.
+  - Conservar trazabilidad de sugerencias, aceptación, rechazo y correcciones.
+  sensitive_actions_examples:
+  - mensajes externos automáticos
+  - creación final de compromisos no aprobados
+  - asignación definitiva de responsables sin revisión
+  - cambios de estado formales en sistemas de registro
+anti_noise:
+  rules:
+  - No duplicar la misma recomendación en múltiples formatos.
+  - No listar como tarea cada comentario casual.
+  - Priorizar calidad sobre cantidad.
+  - Si hay pocas decisiones reales, devolver pocas decisiones reales.
+evidence_style:
+  guidelines:
+  - Usar evidencia textual corta o parafraseada en arrays evidence cuando sea útil.
+  - No saturar con citas largas.
+  - Separar hechos explícitos de inferencias.

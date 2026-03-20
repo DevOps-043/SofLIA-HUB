@@ -239,6 +239,11 @@ export class MeetingWorkflowService {
       reviewedAsset.proposed_actions = await this.resolveAssigneesForActions(reviewedAsset.proposed_actions);
       const finalAsset = this.reviewService.refreshReviewFlags(reviewedAsset);
 
+      await this.store.updateRunClassification(run.id, {
+        meetingTitle: finalAsset.meeting_title || run.meeting_title,
+        meetingType: finalAsset.analysis_result?.meetingType.suggestedType || finalAsset.meeting_type,
+      });
+
       const asset = await this.store.addAsset(run.id, finalAsset, extraction.confidence);
       await this.store.replaceSyncActions(run.id, asset.id, finalAsset.proposed_actions);
       await this.store.updateRunStatus(run.id, 'REVIEW_REQUIRED', null);

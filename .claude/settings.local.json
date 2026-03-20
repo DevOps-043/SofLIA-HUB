@@ -76,7 +76,9 @@
       "Bash(rm -f AUTODEV-DOCUMENTATION.md AUTODEV_ISSUES.md AUTODEV_FEEDBACK.md AUTODEV_GUIDELINES.md)",
       "Bash(rm -f autodev-strategic-memory.json)",
       "Bash(rm -rf autodev-package/)",
-      "Bash(rm -rf .autodev-data/)"
+      "Bash(rm -rf .autodev-data/)",
+      "Bash(node_modules/.bin/tsc.cmd --noEmit)",
+      "Bash(echo \"exit: $?\")"
     ]
   }
 }

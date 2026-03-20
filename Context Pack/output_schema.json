@@ -1,0 +1,406 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MeetingAnalysisResult",
+  "type": "object",
+  "required": [
+    "meetingType",
+    "detectedContext",
+    "analysisStrategy",
+    "executiveSummary",
+    "keyPoints",
+    "decisions",
+    "agreements",
+    "tasks",
+    "risks",
+    "openQuestions",
+    "unresolvedItems",
+    "followUpRecommendation",
+    "destinationRecommendation",
+    "governance"
+  ],
+  "properties": {
+    "meetingType": {
+      "type": "object",
+      "required": [
+        "suggestedType",
+        "alternativeTypes",
+        "confidence",
+        "reason"
+      ],
+      "properties": {
+        "suggestedType": {
+          "type": "string"
+        },
+        "alternativeTypes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "type",
+              "confidence",
+              "reason"
+            ],
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "confidence": {
+                "type": "number"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "confidence": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "detectedContext": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string"
+        },
+        "team": {
+          "type": "string"
+        },
+        "meetingObjective": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "relevantSignals": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "analysisStrategy": {
+      "type": "object",
+      "required": [
+        "strategyId",
+        "strategyName",
+        "whyThisStrategy",
+        "extractionFocus"
+      ],
+      "properties": {
+        "strategyId": {
+          "type": "string"
+        },
+        "strategyName": {
+          "type": "string"
+        },
+        "whyThisStrategy": {
+          "type": "string"
+        },
+        "extractionFocus": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "executiveSummary": {
+      "type": "string"
+    },
+    "keyPoints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "description",
+          "confidence"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "agreements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "description",
+          "confidence"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "description",
+          "reason",
+          "confidence",
+          "requiresHumanReview"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "ownerSuggested": {
+            "type": "string"
+          },
+          "ownerConfidence": {
+            "type": "number"
+          },
+          "dueDateSuggested": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "prioritySuggested": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number"
+          },
+          "requiresHumanReview": {
+            "type": "boolean"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "description",
+          "confidence"
+        ],
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "openQuestions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "question",
+          "confidence"
+        ],
+        "properties": {
+          "question": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "unresolvedItems": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "item",
+          "reasonOpen",
+          "confidence"
+        ],
+        "properties": {
+          "item": {
+            "type": "string"
+          },
+          "reasonOpen": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "followUpRecommendation": {
+      "type": "object",
+      "required": [
+        "suggested",
+        "confidence",
+        "reason"
+      ],
+      "properties": {
+        "suggested": {
+          "type": "boolean"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "meeting",
+            "message",
+            "validation",
+            "reminder",
+            "escalation"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "confidence": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "destinationRecommendation": {
+      "type": "object",
+      "required": [
+        "suggestedDestination",
+        "confidence",
+        "reason"
+      ],
+      "properties": {
+        "suggestedDestination": {
+          "type": "string",
+          "enum": [
+            "IRIS",
+            "Project Hub",
+            "Team",
+            "Project",
+            "None"
+          ]
+        },
+        "confidence": {
+          "type": "number"
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "messageDrafts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "content",
+          "requiresApproval"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "team_summary",
+              "follow_up",
+              "owner_confirmation",
+              "other"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "requiresApproval": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "governance": {
+      "type": "object",
+      "required": [
+        "autonomyLevelApplied",
+        "sensitiveActionsBlocked",
+        "requiresHumanApproval",
+        "explanationVisible"
+      ],
+      "properties": {
+        "autonomyLevelApplied": {
+          "type": "number"
+        },
+        "sensitiveActionsBlocked": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "requiresHumanApproval": {
+          "type": "boolean"
+        },
+        "explanationVisible": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

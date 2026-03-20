@@ -1,0 +1,510 @@
+version: '1.0'
+language: es
+meeting_types:
+- id: daily_huddle
+  display_name: Daily Huddle / Daily Leadership Huddle
+  purpose: Coordinar actividad diaria, compartir disponibilidad, hacer visibles bloqueos
+    y oportunidades sin entrar a resolución profunda.
+  best_for:
+  - equipos operativos
+  - liderazgo diario
+  - sincronización rápida
+  cadence: daily
+  duration_expected: 10-15 min
+  identifying_signals:
+    title_keywords:
+    - daily huddle
+    - huddle
+    - daily leadership huddle
+    - daily check-in
+    language_patterns:
+    - plans for the day
+    - top priority
+    - blocked
+    - issues
+    - opportunities
+    - key learnings
+    - availability
+    structural_signals:
+    - go-around corto
+    - actualizaciones de 1 minuto
+    - sin problem solving
+    - ritual de misma hora
+    negative_signals:
+    - análisis profundo prolongado
+    - métricas trimestrales
+    - mociones formales
+  expected_structure:
+  - planes del día
+  - actividad prioritaria
+  - disponibilidad / ausencias
+  - bloqueos
+  - oportunidades / aprendizajes
+  extraction_focus:
+  - prioridades del día
+  - blockers
+  - solicitudes de ayuda
+  - cambios de disponibilidad
+  - micro-follow-ups
+  high_value_outputs:
+  - resumen ultra breve
+  - lista de blockers
+  - owners probables para desbloqueo
+  - recordatorios del día
+  - recomendación de post-huddle follow-up
+  routing_bias:
+    default_destination: Team
+    secondary_destinations:
+    - Project
+    - Project Hub
+    notes: Solo elevar a Project Hub cuando aparezcan tareas concretas o dependencias
+      claras.
+  common_confusions:
+  - agile_standup
+  - remote_team_status
+  confidence_hints:
+  - Sube confianza si aparecen 'today', 'blocked', 'priority', 'unavailable'.
+  - Baja confianza si aparecen decisiones complejas, revisión de KPIs o agenda formal
+    extensa.
+- id: agile_standup
+  display_name: Agile Stand-Up / Daily Scrum
+  purpose: Mantener alineado al equipo ágil sobre progreso, siguiente trabajo e impedimentos.
+  best_for:
+  - equipos ágiles
+  - scrum
+  - trabajo iterativo
+  cadence: daily_or_every_other_day
+  duration_expected: 10-20 min
+  identifying_signals:
+    title_keywords:
+    - standup
+    - stand-up
+    - daily scrum
+    - scrum
+    - agile
+    language_patterns:
+    - what did you do yesterday
+    - what will you do today
+    - impediments
+    - sprint
+    - backlog
+    structural_signals:
+    - ronda secuencial
+    - actualizaciones breves
+    - note taker registra blocks
+    negative_signals:
+    - quorum
+    - motion
+    - quarterly priorities
+  expected_structure:
+  - qué se hizo
+  - qué sigue
+  - qué impide avanzar
+  extraction_focus:
+  - progreso vs compromiso previo
+  - trabajo siguiente
+  - impedimentos
+  - riesgos de sprint
+  - necesidad de follow-up técnico fuera de la reunión
+  high_value_outputs:
+  - cambios de estado operativos
+  - lista de impedimentos con owner sugerido
+  - riesgo de sprint / dependencia
+  - acciones posteriores al stand-up
+  routing_bias:
+    default_destination: Project Hub
+    secondary_destinations:
+    - Project
+    - Team
+    notes: Ideal para crear tareas draft, dependencias y follow-ups del sprint.
+  common_confusions:
+  - daily_huddle
+  - remote_team_status
+  - cross_functional_weekly
+  confidence_hints:
+  - Sube confianza si hay lenguaje explícito de sprint, scrum o impediments.
+  - Baja confianza si el contenido es muy transversal entre áreas no ágiles.
+- id: remote_team_status
+  display_name: Remote Team Status / Remote Stand-Up
+  purpose: Mantener compromisos entre personas remotas, revisar actualizaciones escritas
+    y capturar preguntas o tareas derivadas.
+  best_for:
+  - equipos remotos
+  - equipos pequeños con alto contexto compartido
+  cadence: weekly_or_light_daily
+  duration_expected: 20-45 min
+  identifying_signals:
+    title_keywords:
+    - remote team status
+    - remote stand-up
+    - zapier style
+    - status meeting
+    language_patterns:
+    - written update
+    - read silently
+    - questions
+    - commitments
+    - blocked
+    - minimal disruptions
+    structural_signals:
+    - lectura silenciosa de updates
+    - turnos de preguntas
+    - reportes escritos previos
+    negative_signals:
+    - motions
+    - formal approvals
+    - quarterly priorities
+  expected_structure:
+  - lectura de updates
+  - preguntas por persona
+  - captura de tareas derivadas
+  - cierre rápido
+  extraction_focus:
+  - compromisos actuales
+  - bloqueos
+  - preguntas abiertas
+  - tareas derivadas de los reportes
+  - necesidad de coordinación remota
+  high_value_outputs:
+  - resumen por persona o bloque temático
+  - lista de dudas / aclaraciones
+  - tareas para destrabar
+  - dependencias entre miembros remotos
+  routing_bias:
+    default_destination: Team
+    secondary_destinations:
+    - Project Hub
+    - Project
+    notes: Mantener énfasis en coordinación ligera; no sobre-procesar como reunión
+      estratégica.
+  common_confusions:
+  - daily_huddle
+  - agile_standup
+  - cross_functional_weekly
+  confidence_hints:
+  - Sube confianza si la reunión parte de reportes escritos leídos en silencio.
+  - Baja confianza si la conversación se vuelve de métricas, issues list o gobernanza.
+- id: weekly_leadership_meeting
+  display_name: Weekly Leadership Meeting
+  purpose: Revisar métricas, prioridades, acciones abiertas, identificar top issues
+    y resolver los más importantes.
+  best_for:
+  - equipos de liderazgo
+  - dirección funcional
+  - accountability semanal
+  cadence: weekly
+  duration_expected: 60-90 min
+  identifying_signals:
+    title_keywords:
+    - weekly leadership
+    - leadership weekly
+    - weekly meeting
+    - staff weekly
+    language_patterns:
+    - numbers
+    - kpis
+    - quarterly priorities
+    - issues list
+    - actions list
+    - victories
+    - top issues
+    - dot voting
+    structural_signals:
+    - review actions
+    - schedule announcements
+    - victories
+    - review numbers
+    - quarterly progress
+    - identify top issues
+    - tackle top issues
+    negative_signals:
+    - formal board minutes
+    - show of hands motion
+    - daily updates only
+  expected_structure:
+  - review de acciones abiertas
+  - anuncios de agenda
+  - victorias
+  - números/KPIs
+  - prioridades trimestrales
+  - top issues
+  - resolución de issues
+  - confirmación de acciones
+  extraction_focus:
+  - desviaciones en KPIs
+  - issues priorizados
+  - decisiones y next steps
+  - owners, what, when
+  - escalamientos a sesión de decisión
+  high_value_outputs:
+  - executive summary semanal
+  - issues prioritarios
+  - decisiones tomadas
+  - action list clara
+  - temas a escalar
+  - seguimiento de prioridades
+  routing_bias:
+    default_destination: IRIS
+    secondary_destinations:
+    - Project Hub
+    - Project
+    - Team
+    notes: IRIS encaja cuando predominan métricas, prioridades y decisiones ejecutivas;
+      tareas aprobadas pueden bajar a Project Hub.
+  common_confusions:
+  - cross_functional_weekly
+  - team_checkin_report_out
+  confidence_hints:
+  - Sube confianza si hay KPIs, prioridades trimestrales, issues list y actions list.
+  - Baja confianza si no hay resolución de issues y la reunión es solo de updates.
+- id: cross_functional_weekly
+  display_name: Cross-Functional Team Weekly Update
+  purpose: Mantener a varias áreas informadas, compartir compromisos, necesidades
+    de ayuda y reforzar conexión entre equipos.
+  best_for:
+  - equipos transversales
+  - departamentos distintos
+  - sincronización semanal informal
+  cadence: weekly
+  duration_expected: 30-60 min
+  identifying_signals:
+    title_keywords:
+    - cross-functional
+    - weekly update
+    - team weekly update
+    language_patterns:
+    - progress on commitments
+    - unexpected events
+    - plans
+    - problems
+    - personal
+    - help needed
+    structural_signals:
+    - cada persona tiene agenda item
+    - updates en avance
+    - victories
+    - questions
+    - capture tasks based on reports
+    negative_signals:
+    - formal motions
+    - quorum
+    - deep KPI review
+  expected_structure:
+  - welcome
+  - victories
+  - updates por persona/equipo
+  - preguntas
+  - tareas derivadas
+  - cierre con feedback
+  extraction_focus:
+  - progreso de compromisos
+  - eventos inesperados
+  - planes próximos
+  - bloqueos y ayudas requeridas
+  - coordinación entre áreas
+  high_value_outputs:
+  - resumen transversal
+  - dependencias entre equipos
+  - tareas interfuncionales
+  - riesgos por evento inesperado
+  - puntos de alineación
+  routing_bias:
+    default_destination: Team
+    secondary_destinations:
+    - Project Hub
+    - Project
+    - IRIS
+    notes: Subir a IRIS solo si emergen temas ejecutivos; si predominan tareas de
+      coordinación, Project Hub.
+  common_confusions:
+  - weekly_leadership_meeting
+  - remote_team_status
+  - team_checkin_report_out
+  confidence_hints:
+  - Sube confianza si aparecen preguntas fijas de commitments / unexpected / plans
+    / problems / personal.
+  - Baja confianza si la reunión tiene estructura formal de issues y KPIs.
+- id: team_checkin_report_out
+  display_name: Team Check-In and Report-Out
+  purpose: Operar en contextos de cambio rápido, alinear información, resolver barreras
+    y preparar comunicación hacia el resto de la organización.
+  best_for:
+  - crisis
+  - cambio rápido
+  - operación sensible
+  - gestión de incertidumbre
+  cadence: daily_to_weekly
+  duration_expected: 30-90 min
+  identifying_signals:
+    title_keywords:
+    - check-in
+    - report-out
+    - rapid change
+    - war room
+    - situation update
+    language_patterns:
+    - accurate information
+    - open questions
+    - priority topics
+    - communication plan
+    - team reports
+    - under stress
+    structural_signals:
+    - check-in
+    - read team reports
+    - celebrate wins
+    - answer questions
+    - discuss priority topics
+    - draft communication plan
+    - appreciations
+    negative_signals:
+    - board package
+    - formal vote
+    - sprint
+  expected_structure:
+  - check-in emocional/operativo
+  - lectura de reportes
+  - wins
+  - preguntas
+  - temas prioritarios
+  - plan de comunicación
+  - cierre y appreciations
+  extraction_focus:
+  - hechos actualizados
+  - preguntas abiertas
+  - barreras a ejecución
+  - tareas de respuesta
+  - qué debe comunicarse y a quién
+  high_value_outputs:
+  - status snapshot claro
+  - lista de open questions
+  - acciones de contención / soporte
+  - comunicación draft para report-out
+  - riesgos por información incompleta
+  routing_bias:
+    default_destination: Team
+    secondary_destinations:
+    - IRIS
+    - Project Hub
+    notes: Escalar a IRIS si el cambio rápido impacta decisiones ejecutivas o comunicación
+      organizacional amplia.
+  common_confusions:
+  - cross_functional_weekly
+  - weekly_leadership_meeting
+  - daily_huddle
+  confidence_hints:
+  - Sube confianza si hay reportes escritos, preguntas abiertas y plan de comunicación.
+  - Baja confianza si no existe report-out ni contexto de cambio acelerado.
+- id: board_meeting
+  display_name: Board Meeting
+  purpose: Soportar gobernanza, supervisión, aprobaciones formales, seguimiento de
+    riesgos y producción de insumos para minutos oficiales.
+  best_for:
+  - consejo
+  - junta directiva
+  - comité formal
+  cadence: periodic
+  duration_expected: 90+ min
+  identifying_signals:
+    title_keywords:
+    - board
+    - board meeting
+    - board package
+    - directorio
+    - consejo
+    language_patterns:
+    - quorum
+    - motion
+    - second
+    - vote
+    - formal approval
+    - minutes
+    - new business
+    - parking lot
+    structural_signals:
+    - attendance tracking
+    - board materials in advance
+    - formal approvals
+    - minutes after meeting
+    negative_signals:
+    - daily blockers
+    - sprint
+    - personal update
+  expected_structure:
+  - attendance / quorum
+  - agenda y board package
+  - reports
+  - motions / approvals
+  - actions
+  - new business
+  - next meeting
+  - minutes drafting
+  extraction_focus:
+  - attendance y quorum
+  - decisiones formales
+  - mociones y resultados
+  - acciones asignadas
+  - parking lot / new business
+  - insumos para minutes oficiales
+  high_value_outputs:
+  - board summary
+  - formal approvals register
+  - motion outcomes
+  - assigned actions
+  - minutes draft inputs
+  - gobernanza / compliance flags
+  routing_bias:
+    default_destination: IRIS
+    secondary_destinations:
+    - Team
+    - Project Hub
+    notes: Alta sensibilidad; asumir revisión humana fuerte. Project Hub solo para
+      tareas ya aprobadas.
+  common_confusions:
+  - weekly_leadership_meeting
+  confidence_hints:
+  - Sube confianza si hay quorum, motion, vote, minutes, board package.
+  - Baja confianza si solo es una reunión ejecutiva informal sin formalidades.
+- id: fallback_general_operational
+  display_name: Fallback General Operational Meeting
+  purpose: Manejar reuniones no clasificables con confianza suficiente sin perder
+    utilidad operativa.
+  best_for:
+  - casos ambiguos
+  - tipos nuevos
+  - mezclas de formatos
+  cadence: unknown
+  duration_expected: unknown
+  identifying_signals:
+    title_keywords: []
+    language_patterns: []
+    structural_signals: []
+    negative_signals: []
+  expected_structure:
+  - resumen ejecutivo
+  - temas
+  - decisiones
+  - acuerdos
+  - tareas
+  - riesgos
+  - preguntas abiertas
+  - follow-up
+  extraction_focus:
+  - resultado operativo mínimo seguro
+  - ambigüedades
+  - necesidad de revisión humana
+  high_value_outputs:
+  - salida prudente y útil
+  - sugerencias de baja agresividad
+  - tipos alternativos con razón
+  routing_bias:
+    default_destination: None
+    secondary_destinations:
+    - Team
+    - Project
+    - Project Hub
+    - IRIS
+    notes: No empujar un destino con alta confianza si la clasificación es frágil.
+  common_confusions: []
+  confidence_hints:
+  - Usar cuando no haya señal suficiente para un tipo específico.
