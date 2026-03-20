@@ -68,17 +68,19 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
   } | null>(null);
   const [showHeader, setShowHeader] = useState(true);
   const [isSticky, setIsSticky] = useState(false);
-  const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editInput, setEditInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastScrollTopRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
 
   // Hooks
   const model = useModelSelector();
 
   const liveApi = useLiveApi({
-    messagesRef: { current: messages } as React.MutableRefObject<ChatMessage[]>,
+    messagesRef,
     onMessagesChange,
   });
 
@@ -402,14 +404,14 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
               }
 
               return (
-                <div key={index} className={`flex gap-4 ${msg.role === 'user' && editingMessageIndex !== index ? 'justify-end' : ''}`}>
+                <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' && editingMessageId !== msg.id ? 'justify-end' : ''}`}>
                   {msg.role === 'model' && (
                     <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 rounded-full overflow-hidden">
                       <img src="./assets/lia-avatar.png" alt="SOFLIA" className="w-full h-full object-cover" />
                     </div>
                   )}
 
-                  <div className={`flex flex-col ${editingMessageIndex === index ? 'w-full' : 'max-w-[85%]'} ${msg.role === 'user' && editingMessageIndex !== index ? 'items-end' : 'items-start'}`}>
+                  <div className={`flex flex-col ${editingMessageId === msg.id ? 'w-full' : 'max-w-[85%]'} ${msg.role === 'user' && editingMessageId !== msg.id ? 'items-end' : 'items-start'}`}>
                     {/* Attached images/files (user) */}
                     {msg.role === 'user' && msg.images && msg.images.length > 0 && (
                       <div className="flex flex-wrap gap-2 mb-2">
@@ -444,13 +446,13 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
 
                     <div className={`${
                       msg.role === 'user'
-                        ? editingMessageIndex === index
+                        ? editingMessageId === msg.id
                           ? 'w-full bg-[#f4f4f4] dark:bg-[#2f2f2f] rounded-2xl p-4 shadow-2xl border border-gray-200 dark:border-white/10'
                           : 'px-4 py-2.5 rounded-2xl bg-[#0A2540] dark:bg-[#00D4B3] text-white dark:text-[#0A0D12] rounded-tr-sm shadow-sm font-medium'
                         : 'p-0 bg-transparent border-none shadow-none text-gray-800 dark:text-gray-100'
                     } text-[15px] leading-relaxed group/msg-content relative transition-all duration-300`}>
                       {msg.role === 'user' ? (
-                        editingMessageIndex === index ? (
+                        editingMessageId === msg.id ? (
                           <div className="flex flex-col gap-4">
                             <textarea
                               value={editInput}
@@ -465,16 +467,15 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                             />
                             <div className="flex justify-end items-center gap-4 pt-4 border-t border-gray-300/30 dark:border-white/10">
                               <button
-                                onClick={() => setEditingMessageIndex(null)}
+                                onClick={() => setEditingMessageId(null)}
                                 className="px-5 py-2 text-[13px] font-bold text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-all bg-gray-200/50 dark:bg-white/5 rounded-full"
                               >
                                 Cancelar
                               </button>
                               <button
                                 onClick={() => {
-                                  const history = messages.slice(0, index);
-                                  chat.processMessage(editInput, msg.images || [], history, false);
-                                  setEditingMessageIndex(null);
+                                  chat.handleEditMessage(msg.id, editInput, msg.images || []);
+                                  setEditingMessageId(null);
                                 }}
                                 className="px-7 py-2 bg-accent text-white rounded-full text-[13px] font-black uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-xl shadow-accent/20"
                               >
@@ -492,7 +493,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                             <div className="absolute -left-12 top-0 flex flex-col gap-1 opacity-0 group-hover/msg-content:opacity-100 transition-all duration-200">
                               <button
                                 onClick={() => {
-                                  setEditingMessageIndex(index);
+                                  setEditingMessageId(msg.id);
                                   setEditInput(msg.text);
                                 }}
                                 className="p-2 rounded-xl bg-white dark:bg-[#2A2B32] text-gray-400 hover:text-accent hover:shadow-md border border-gray-100 dark:border-white/10 transition-all"
@@ -595,7 +596,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                         <button
                           className="w-6 h-6 flex items-center justify-center rounded text-[#c5c5d2] hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-200 transition-all"
                           title="Regenerar respuesta"
-                          onClick={() => chat.handleRegenerate(index)}
+                          onClick={() => chat.handleRegenerate(msg.id)}
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 1 8.51 15"></path></svg>
                         </button>
@@ -607,7 +608,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                               : 'text-[#c5c5d2] hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-200'
                           }`}
                           title="Me gusta"
-                          onClick={() => chat.handleFeedback(index, 'like')}
+                          onClick={() => chat.handleFeedback(msg.id, 'like')}
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
                         </button>
@@ -619,7 +620,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                               : 'text-[#c5c5d2] hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-200'
                           }`}
                           title="No me gusta"
-                          onClick={() => chat.handleFeedback(index, 'dislike')}
+                          onClick={() => chat.handleFeedback(msg.id, 'dislike')}
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.31 2.31H17"></path></svg>
                         </button>

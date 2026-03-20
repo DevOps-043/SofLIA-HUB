@@ -1,0 +1,52 @@
+// @see - https://www.electron.build/configuration/configuration
+{
+  $schema: "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  appId: "com.pulsehub.sofliahub",
+  npmRebuild: false,
+  asar: true,
+  productName: "SofLIA Hub",
+  publish: [
+    {
+      provider: "github",
+      owner: "DevOps-043",
+      repo: "PulseHub-SofLIA-releases",
+      releaseType: "release",
+    },
+  ],
+  directories: {
+    output: "release/${version}",
+    buildResources: "build",
+  },
+  files: ["dist", "dist-electron"],
+  mac: {
+    target: ["dmg"],
+    artifactName: "SofLIA-Hub-Mac-${version}-Installer.${ext}",
+  },
+  win: {
+    icon: "public/assets/icono.ico",
+    target: [
+      {
+        target: "nsis",
+        arch: ["x64"],
+      },
+    ],
+    artifactName: "SofLIA-Hub-Windows-${version}-Setup.${ext}",
+  },
+  nsis: {
+    oneClick: true,
+    perMachine: false,
+    deleteAppDataOnUninstall: false,
+    installerIcon: "public/assets/icono.ico",
+    uninstallerIcon: "public/assets/icono.ico",
+    include: "build/installer.nsh",
+    unicode: true,
+    createDesktopShortcut: true,
+    createStartMenuShortcut: true,
+    shortcutName: "SofLIA Hub",
+    uninstallDisplayName: "SofLIA Hub",
+  },
+  linux: {
+    target: ["AppImage"],
+    artifactName: "SofLIA-Hub-Linux-${version}.${ext}",
+  },
+}

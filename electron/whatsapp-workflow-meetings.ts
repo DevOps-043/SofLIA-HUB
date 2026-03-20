@@ -70,8 +70,12 @@ class MeetingWhatsAppWorkflow {
 
       if (lower === 'aprobar resumen') {
         const detail = await this.workflowService.approveAsset(this.runId, this.senderNumber, 'Aprobado desde WhatsApp');
-        await this.waService.sendText(this.jid, `Resumen aprobado.\n\n${this.formatStatus(detail)}`);
-        return true;
+        const shouldClose = this.shouldCloseWorkflow(detail);
+        await this.waService.sendText(
+          this.jid,
+          `Resumen aprobado.\n\n${this.formatStatus(detail)}${shouldClose ? '\n\nWorkflow de reuniones finalizado. Ya puedes volver a preguntarme lo que necesites.' : ''}`,
+        );
+        return !shouldClose;
       }
 
       if (lower === 'aprobar acciones') {
@@ -81,8 +85,12 @@ class MeetingWhatsAppWorkflow {
           undefined,
           'Acciones aprobadas desde WhatsApp',
         );
-        await this.waService.sendText(this.jid, `Acciones aprobadas.\n\n${this.formatStatus(detail)}`);
-        return true;
+        const shouldClose = this.shouldCloseWorkflow(detail);
+        await this.waService.sendText(
+          this.jid,
+          `Acciones aprobadas.\n\n${this.formatStatus(detail)}${shouldClose ? '\n\nWorkflow de reuniones finalizado. Ya puedes volver a preguntarme lo que necesites.' : ''}`,
+        );
+        return !shouldClose;
       }
 
       const approveSingleMatch = lower.match(/^aprobar accion\s+(\d+)$/);
@@ -133,9 +141,9 @@ class MeetingWhatsAppWorkflow {
 
       await this.waService.sendText(
         this.jid,
-        'No reconoci la instruccion. Usa: "estado", "acciones", "aprobar resumen", "aprobar acciones", "aprobar accion N", "editar accion N ...", "sincronizar" o "cancelar".',
+        await this.buildUnknownInstructionMessage(),
       );
-      return true;
+      return !this.shouldCloseWorkflow(await this.workflowService.getRunDetail(this.runId));
     } catch (error: any) {
       await this.waService.sendText(this.jid, `No pude completar la accion: ${error?.message || String(error)}`);
       return true;
@@ -189,7 +197,7 @@ class MeetingWhatsAppWorkflow {
       `Run: ${detail.run.id}`,
       `Estado: ${detail.run.status}`,
       '',
-      `Resumen ejecutivo: ${asset?.executive_summary || 'Sin resumen.'}`,
+      `Resumen ejecutivo: ${this.getExecutiveSummary(asset)}`,
       '',
       `Compromisos: ${asset?.payload.commitments.length || 0}`,
       `Decisiones: ${asset?.payload.decisions.length || 0}`,
@@ -212,8 +220,33 @@ class MeetingWhatsAppWorkflow {
       `Resumen aprobado: ${detail.approvals.some((approval) => approval.scope === 'asset' && approval.decision === 'approved') ? 'si' : 'no'}`,
       `Acciones aprobadas: ${approvedActions}/${detail.sync_actions.length}`,
       `Acciones sincronizadas: ${syncedActions}/${detail.sync_actions.length}`,
-      `Resumen ejecutivo: ${asset?.executive_summary || 'Sin resumen.'}`,
+      `Resumen ejecutivo: ${this.getExecutiveSummary(asset)}`,
     ].join('\n');
+  }
+
+  private getExecutiveSummary(asset: MeetingRunDetail['latest_asset']): string {
+    return asset?.executive_summary?.trim() || asset?.payload?.executive_summary?.trim() || 'Sin resumen.';
+  }
+
+  private shouldCloseWorkflow(detail: MeetingRunDetail): boolean {
+    const hasPendingReview = detail.sync_actions.some((action) => action.approval_state === 'draft');
+    const hasApprovedPendingSync = detail.sync_actions.some(
+      (action) => action.approval_state === 'approved' && action.sync_state !== 'synced',
+    );
+    return !hasPendingReview && !hasApprovedPendingSync;
+  }
+
+  private async buildUnknownInstructionMessage(): Promise<string> {
+    if (!this.runId) {
+      return 'No reconoci la instruccion. Usa: "estado", "acciones", "aprobar resumen", "aprobar acciones", "aprobar accion N", "editar accion N ...", "sincronizar" o "cancelar".';
+    }
+
+    const detail = await this.workflowService.getRunDetail(this.runId);
+    if (this.shouldCloseWorkflow(detail)) {
+      return 'Este workflow de reuniones ya termino. Lo cierro para devolverte el chat normal. Si quieres revisar otra reunion, usa /reunion.';
+    }
+
+    return 'No reconoci la instruccion. Usa: "estado", "acciones", "aprobar resumen", "aprobar acciones", "aprobar accion N", "editar accion N ...", "sincronizar" o "cancelar".';
   }
 
   private formatActionList(detail: MeetingRunDetail): string {

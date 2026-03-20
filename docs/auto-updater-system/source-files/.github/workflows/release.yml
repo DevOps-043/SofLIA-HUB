@@ -1,0 +1,185 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Solo un release a la vez
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  # ─── Paso 1: Verificar si ya existe el release ───
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      exists: ${{ steps.check_release.outputs.exists }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASES_TOKEN }}
+
+      - name: Get version from package.json
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check if release already exists
+        id: check_release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          if gh release view "v${{ steps.version.outputs.version }}" --repo DevOps-043/PulseHub-SofLIA-releases > /dev/null 2>&1; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+  # ─── Paso 2: Build Windows ───
+  build-windows:
+    needs: check
+    if: needs.check.outputs.exists == 'false'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASES_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create .env file
+        run: |
+          echo "VITE_GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY }}" >> .env
+          echo "VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}" >> .env
+          echo "VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}" >> .env
+          echo "VITE_SOFIA_SUPABASE_URL=${{ secrets.VITE_SOFIA_SUPABASE_URL }}" >> .env
+          echo "VITE_SOFIA_SUPABASE_ANON_KEY=${{ secrets.VITE_SOFIA_SUPABASE_ANON_KEY }}" >> .env
+          echo "VITE_IRIS_SUPABASE_URL=${{ secrets.VITE_IRIS_SUPABASE_URL }}" >> .env
+          echo "VITE_IRIS_SUPABASE_ANON_KEY=${{ secrets.VITE_IRIS_SUPABASE_ANON_KEY }}" >> .env
+          echo "VITE_GOOGLE_OAUTH_CLIENT_ID=${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_ID }}" >> .env
+          echo "VITE_GOOGLE_OAUTH_CLIENT_SECRET=${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_SECRET }}" >> .env
+          echo "VITE_GAMMA_API_KEY=${{ secrets.VITE_GAMMA_API_KEY }}" >> .env
+
+      - name: Build Electron app (Windows)
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: npm run build
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-artifacts
+          path: |
+            release/${{ needs.check.outputs.version }}/SofLIA-Hub-Windows-${{ needs.check.outputs.version }}-Setup.exe
+            release/${{ needs.check.outputs.version }}/SofLIA-Hub-Windows-${{ needs.check.outputs.version }}-Setup.exe.blockmap
+            release/${{ needs.check.outputs.version }}/latest.yml
+
+  # ─── Paso 2b: Build Mac ───
+  build-mac:
+    needs: check
+    if: needs.check.outputs.exists == 'false'
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASES_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create .env file
+        run: |
+          echo "VITE_GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY }}" >> .env
+          echo "VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }}" >> .env
+          echo "VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}" >> .env
+          echo "VITE_SOFIA_SUPABASE_URL=${{ secrets.VITE_SOFIA_SUPABASE_URL }}" >> .env
+          echo "VITE_SOFIA_SUPABASE_ANON_KEY=${{ secrets.VITE_SOFIA_SUPABASE_ANON_KEY }}" >> .env
+          echo "VITE_IRIS_SUPABASE_URL=${{ secrets.VITE_IRIS_SUPABASE_URL }}" >> .env
+          echo "VITE_IRIS_SUPABASE_ANON_KEY=${{ secrets.VITE_IRIS_SUPABASE_ANON_KEY }}" >> .env
+          echo "VITE_GOOGLE_OAUTH_CLIENT_ID=${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_ID }}" >> .env
+          echo "VITE_GOOGLE_OAUTH_CLIENT_SECRET=${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_SECRET }}" >> .env
+          echo "VITE_GAMMA_API_KEY=${{ secrets.VITE_GAMMA_API_KEY }}" >> .env
+
+      - name: Build Electron app (Mac)
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: npx tsc && npx vite build && node scripts/generate-bitmaps.js && npx electron-builder --mac
+
+      - name: Upload Mac artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-artifacts
+          path: |
+            release/${{ needs.check.outputs.version }}/SofLIA-Hub-Mac-${{ needs.check.outputs.version }}-Installer.dmg
+            release/${{ needs.check.outputs.version }}/latest-mac.yml
+
+  # ─── Paso 3: Crear Release con todos los artefactos ───
+  release:
+    needs: [check, build-windows, build-mac]
+    if: needs.check.outputs.exists == 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout (for CHANGELOG)
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASES_TOKEN }}
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-artifacts
+          path: artifacts/
+
+      - name: Download Mac artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: mac-artifacts
+          path: artifacts/
+
+      - name: Create release in DevOps-043/PulseHub-SofLIA-releases
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          VERSION="${{ needs.check.outputs.version }}"
+
+          # Extraer novedades del CHANGELOG para esta versión
+          NOTES=$(sed -n "/## \[${VERSION}\]/,/## \[/p" CHANGELOG.md | head -n -1)
+          if [ -z "$NOTES" ]; then
+            NOTES="SofLIA Hub v${VERSION}"
+          fi
+
+          # Listar archivos disponibles
+          echo "=== Artifacts ==="
+          find artifacts/ -type f
+          echo "================="
+
+          # Crear release y subir todos los archivos
+          gh release create "v${VERSION}" \
+            --repo DevOps-043/PulseHub-SofLIA-releases \
+            --title "SofLIA Hub v${VERSION}" \
+            --notes "$NOTES" \
+            artifacts/*
