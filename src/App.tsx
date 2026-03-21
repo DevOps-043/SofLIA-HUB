@@ -104,15 +104,15 @@ function AppContent() {
   );
 
   // ── View-aware handlers ────────────────────────────────────────────
-  const handleNewChat = useCallback(() => {
-    chat.handleNewChat();
+  const handleNewChat = useCallback(async () => {
+    await chat.handleNewChat();
     folder.setCurrentFolderId(null);
     setActiveView("chat");
   }, [chat, folder]);
 
   const handleNewChatInProject = useCallback(
-    (folderId: string) => {
-      chat.handleNewChat(folderId);
+    async (folderId: string) => {
+      await chat.handleNewChat(folderId);
       folder.setCurrentFolderId(folderId);
       setActiveView("chat");
     },
@@ -120,8 +120,8 @@ function AppContent() {
   );
 
   const handleNewChatWithMessage = useCallback(
-    (folderId: string, message: string) => {
-      chat.handleNewChat(folderId);
+    async (folderId: string, message: string) => {
+      await chat.handleNewChat(folderId);
       folder.setCurrentFolderId(folderId);
       setExternalPrompt(message);
       setActiveView("chat");
@@ -168,8 +168,8 @@ function AppContent() {
 
   // ── IRIS handlers ──────────────────────────────────────────────────
   const handleIrisProjectClick = useCallback(
-    (project: { project_name: string; project_key: string; project_status: string; completion_percentage: number }) => {
-      handleNewChat();
+    async (project: { project_name: string; project_key: string; project_status: string; completion_percentage: number }) => {
+      await handleNewChat();
       setExternalPrompt(
         `Dame un resumen del estado del proyecto "${project.project_name}" [${project.project_key}]. Estado: ${project.project_status}, Progreso: ${project.completion_percentage}%.`,
       );
@@ -178,8 +178,8 @@ function AppContent() {
   );
 
   const handleIrisIssueClick = useCallback(
-    (issue: { issue_number: number; title: string; description?: string | null; status?: { name: string } | null }) => {
-      handleNewChat();
+    async (issue: { issue_number: number; title: string; description?: string | null; status?: { name: string } | null }) => {
+      await handleNewChat();
       const statusName = issue.status?.name || "Sin estado";
       setExternalPrompt(
         `Dame detalles sobre la tarea #${issue.issue_number}: "${issue.title}". Estado: ${statusName}.${issue.description ? ` Descripción: ${issue.description}` : ""}`,

@@ -30,6 +30,7 @@ export function useChatManager({ userId }: UseChatManagerOptions) {
   currentConvIdRef.current = currentConversationId;
   const currentFolderIdRef = useRef<string | null>(null);
   const flushSaveRef = useRef<(() => Promise<void>) | null>(null);
+  const scopeVersionRef = useRef(0);
 
   const loadInitialConversations = useCallback(async () => {
     if (!userId) return [];
@@ -52,6 +53,7 @@ export function useChatManager({ userId }: UseChatManagerOptions) {
 
   const createScopedMessagesHandler = useCallback(
     (capturedConvId: string | null, capturedFolderId: string | null) => {
+      const capturedScopeVersion = scopeVersionRef.current;
       let resolvedConvId = capturedConvId;
       let timer: ReturnType<typeof setTimeout> | null = null;
       let latestMessages: ChatMessage[] = [];
@@ -93,6 +95,7 @@ export function useChatManager({ userId }: UseChatManagerOptions) {
             setConversations((prev) => [newConv, ...prev]);
 
             if (
+              scopeVersionRef.current === capturedScopeVersion &&
               !currentConvIdRef.current &&
               currentFolderIdRef.current === capturedFolderId
             ) {
@@ -139,7 +142,7 @@ export function useChatManager({ userId }: UseChatManagerOptions) {
         latestMessages = messages;
 
         const isActive =
-          currentConvIdRef.current === resolvedConvId ||
+          (scopeVersionRef.current === capturedScopeVersion && currentConvIdRef.current === resolvedConvId) ||
           (!resolvedConvId && !currentConvIdRef.current);
         if (isActive) {
           setCurrentMessages(messages);
@@ -160,16 +163,17 @@ export function useChatManager({ userId }: UseChatManagerOptions) {
     [userId],
   );
 
-  const flushPendingSave = useCallback(() => {
+  const flushPendingSave = useCallback(async () => {
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = null;
     }
-    flushSaveRef.current?.();
+    await flushSaveRef.current?.();
   }, []);
 
-  const handleNewChat = useCallback((folderId?: string | null) => {
-    flushPendingSave();
+  const handleNewChat = useCallback(async (folderId?: string | null) => {
+    await flushPendingSave();
+    scopeVersionRef.current += 1;
     setCurrentConversationId(null);
     currentConvIdRef.current = null;
     setCurrentMessages([]);
@@ -183,7 +187,8 @@ export function useChatManager({ userId }: UseChatManagerOptions) {
     async (convId: string) => {
       if (convId === currentConvIdRef.current) return false;
 
-      flushPendingSave();
+      await flushPendingSave();
+      scopeVersionRef.current += 1;
       const msgs = await loadMessages(convId);
       setCurrentConversationId(convId);
       currentConvIdRef.current = convId;
@@ -196,6 +201,8 @@ export function useChatManager({ userId }: UseChatManagerOptions) {
 
   const handleDeleteConversation = useCallback(
     async (convId: string) => {
+      await flushPendingSave();
+      scopeVersionRef.current += 1;
       const success = await deleteConversation(convId);
       if (success) {
         setConversations((prev) => prev.filter((c) => c.id !== convId));
@@ -208,7 +215,7 @@ export function useChatManager({ userId }: UseChatManagerOptions) {
       }
       return success;
     },
-    [],
+    [flushPendingSave],
   );
 
   const handleRenameChat = useCallback(async () => {

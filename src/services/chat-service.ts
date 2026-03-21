@@ -1,9 +1,5 @@
 import { supabase } from '../lib/supabase';
 
-// ============================================
-// Types
-// ============================================
-
 export interface Conversation {
   id: string;
   user_id: string;
@@ -25,16 +21,116 @@ export interface ChatMessage {
   feedback?: 'like' | 'dislike';
 }
 
-// ============================================
-// Conversation CRUD
-// ============================================
-
 const CONVERSATIONS_CACHE_KEY = 'lia_conversations';
+const MESSAGE_CACHE_PREFIX = 'lia_messages_';
+const saveSequenceByConversation = new Map<string, number>();
+const saveChainByConversation = new Map<string, Promise<void>>();
 
-/**
- * Carga todas las conversaciones del usuario (max 50, mas recientes primero).
- * Falls back to localStorage if Supabase fails.
- */
+function normalizeConversation(raw: any): Conversation {
+  return {
+    id: raw.id,
+    user_id: raw.user_id,
+    title: raw.title || 'Nueva conversacion',
+    folder_id: raw.folder_id ?? undefined,
+    org_id: raw.org_id ?? undefined,
+    is_pinned: raw.is_pinned ?? undefined,
+    created_at: raw.created_at,
+    updated_at: raw.updated_at,
+  };
+}
+
+function dedupeConversations(conversations: Conversation[]): Conversation[] {
+  const byId = new Map<string, Conversation>();
+
+  for (const conversation of conversations) {
+    const existing = byId.get(conversation.id);
+    if (!existing) {
+      byId.set(conversation.id, conversation);
+      continue;
+    }
+
+    const existingUpdated = new Date(existing.updated_at || existing.created_at || 0).getTime();
+    const nextUpdated = new Date(conversation.updated_at || conversation.created_at || 0).getTime();
+    if (nextUpdated >= existingUpdated) {
+      byId.set(conversation.id, conversation);
+    }
+  }
+
+  return Array.from(byId.values()).sort(
+    (a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime(),
+  );
+}
+
+function normalizeMessage(raw: Partial<ChatMessage> & { id?: string | null }): ChatMessage | null {
+  const id = raw.id?.trim();
+  if (!id) return null;
+
+  const text = typeof raw.text === 'string' ? raw.text : '';
+  const images = Array.isArray(raw.images) ? raw.images.filter(Boolean) : undefined;
+  const sources = Array.isArray(raw.sources) ? raw.sources.filter((source) => source?.uri) : undefined;
+
+  if (!text.trim() && (!images || images.length === 0)) {
+    return null;
+  }
+
+  return {
+    id,
+    role: raw.role === 'user' ? 'user' : 'model',
+    text,
+    timestamp: typeof raw.timestamp === 'number' ? raw.timestamp : Date.now(),
+    sources: sources && sources.length > 0 ? sources : undefined,
+    images: images && images.length > 0 ? images : undefined,
+    feedback: raw.feedback === 'like' || raw.feedback === 'dislike' ? raw.feedback : undefined,
+  };
+}
+
+function dedupeMessages(messages: ChatMessage[]): ChatMessage[] {
+  const byId = new Map<string, ChatMessage>();
+
+  for (const rawMessage of messages) {
+    const message = normalizeMessage(rawMessage);
+    if (!message) continue;
+
+    const existing = byId.get(message.id);
+    if (!existing) {
+      byId.set(message.id, message);
+      continue;
+    }
+
+    const existingScore = `${existing.text || ''}|${existing.images?.length || 0}|${existing.sources?.length || 0}`.length;
+    const nextScore = `${message.text || ''}|${message.images?.length || 0}|${message.sources?.length || 0}`.length;
+    byId.set(message.id, nextScore >= existingScore ? message : existing);
+  }
+
+  return Array.from(byId.values()).sort((a, b) => a.timestamp - b.timestamp);
+}
+
+function updateConversationCache(userId: string, updater: (conversations: Conversation[]) => Conversation[]): void {
+  try {
+    const cacheKey = `${CONVERSATIONS_CACHE_KEY}_${userId}`;
+    const cached = localStorage.getItem(cacheKey);
+    const conversations = cached ? dedupeConversations(JSON.parse(cached)) : [];
+    localStorage.setItem(cacheKey, JSON.stringify(dedupeConversations(updater(conversations)).slice(0, 50)));
+  } catch {}
+}
+
+function removeConversationFromAllCaches(conversationId: string): void {
+  try {
+    localStorage.removeItem(`${MESSAGE_CACHE_PREFIX}${conversationId}`);
+
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (!key || !key.startsWith(`${CONVERSATIONS_CACHE_KEY}_`)) continue;
+
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+
+      const conversations = dedupeConversations(JSON.parse(raw)).filter((conversation) => conversation.id !== conversationId);
+      localStorage.setItem(key, JSON.stringify(conversations));
+    }
+  } catch {}
+}
+
 export async function loadConversations(userId: string): Promise<Conversation[]> {
   try {
     const { data, error } = await supabase
@@ -46,16 +142,14 @@ export async function loadConversations(userId: string): Promise<Conversation[]>
 
     if (error) {
       console.error('[chat-service] loadConversations Supabase FAILED:', error.message, '| code:', error.code);
-      // Fallback to localStorage
       return loadConversationsFromCache(userId);
     }
 
-    const convs = data || [];
-    // Cache to localStorage
+    const conversations = dedupeConversations((data || []).map((conversation: any) => normalizeConversation(conversation)));
     try {
-      localStorage.setItem(CONVERSATIONS_CACHE_KEY + '_' + userId, JSON.stringify(convs));
+      localStorage.setItem(`${CONVERSATIONS_CACHE_KEY}_${userId}`, JSON.stringify(conversations));
     } catch {}
-    return convs;
+    return conversations;
   } catch (err) {
     console.error('[chat-service] loadConversations exception:', err);
     return loadConversationsFromCache(userId);
@@ -64,16 +158,13 @@ export async function loadConversations(userId: string): Promise<Conversation[]>
 
 function loadConversationsFromCache(userId: string): Conversation[] {
   try {
-    const cached = localStorage.getItem(CONVERSATIONS_CACHE_KEY + '_' + userId);
-    return cached ? JSON.parse(cached) : [];
+    const cached = localStorage.getItem(`${CONVERSATIONS_CACHE_KEY}_${userId}`);
+    return cached ? dedupeConversations(JSON.parse(cached)) : [];
   } catch {
     return [];
   }
 }
 
-/**
- * Carga los mensajes de una conversacion.
- */
 export async function loadMessages(conversationId: string): Promise<ChatMessage[]> {
   try {
     const { data, error } = await supabase
@@ -87,19 +178,18 @@ export async function loadMessages(conversationId: string): Promise<ChatMessage[
       return loadMessagesFromCache(conversationId);
     }
 
-    const msgs = (data || []).map((m: any) => ({
-      id: m.id,
-      role: m.role as 'user' | 'model',
-      text: m.content,
-      timestamp: new Date(m.created_at).getTime(),
-      sources: m.metadata?.sources,
-      images: m.metadata?.images,
-      feedback: m.metadata?.feedback,
-    }));
+    const messages = dedupeMessages((data || []).map((message: any) => ({
+      id: message.id,
+      role: message.role as 'user' | 'model',
+      text: message.content,
+      timestamp: new Date(message.created_at).getTime(),
+      sources: message.metadata?.sources,
+      images: message.metadata?.images,
+      feedback: message.metadata?.feedback,
+    })));
 
-    // Save to cache
-    saveMessagesToCache(conversationId, msgs);
-    return msgs;
+    saveMessagesToCache(conversationId, messages);
+    return messages;
   } catch (err) {
     console.error('[chat-service] loadMessages exception:', err);
     return loadMessagesFromCache(conversationId);
@@ -108,8 +198,8 @@ export async function loadMessages(conversationId: string): Promise<ChatMessage[
 
 function loadMessagesFromCache(conversationId: string): ChatMessage[] {
   try {
-    const cached = localStorage.getItem(`lia_messages_${conversationId}`);
-    return cached ? JSON.parse(cached) : [];
+    const cached = localStorage.getItem(`${MESSAGE_CACHE_PREFIX}${conversationId}`);
+    return cached ? dedupeMessages(JSON.parse(cached)) : [];
   } catch {
     return [];
   }
@@ -117,18 +207,15 @@ function loadMessagesFromCache(conversationId: string): ChatMessage[] {
 
 export function saveMessagesToCache(conversationId: string, messages: ChatMessage[]) {
   try {
-    localStorage.setItem(`lia_messages_${conversationId}`, JSON.stringify(messages));
+    localStorage.setItem(`${MESSAGE_CACHE_PREFIX}${conversationId}`, JSON.stringify(dedupeMessages(messages)));
   } catch {}
 }
 
-/**
- * Crea una nueva conversacion.
- */
 export async function createConversation(
   userId: string,
   title: string,
   folderId?: string,
-  orgId?: string
+  orgId?: string,
 ): Promise<Conversation | null> {
   const row: Record<string, any> = {
     user_id: userId,
@@ -146,8 +233,7 @@ export async function createConversation(
 
     if (error) {
       console.error('[chat-service] createConversation Supabase FAILED:', error.message, '| code:', error.code);
-      // Create locally with a UUID
-      const localConv: Conversation = {
+      const localConversation: Conversation = {
         id: crypto.randomUUID(),
         user_id: userId,
         title,
@@ -156,17 +242,15 @@ export async function createConversation(
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
-      saveConversationToCache(userId, localConv);
-      return localConv;
+      saveConversationToCache(userId, localConversation);
+      return localConversation;
     }
 
-    // Cache the new conversation
     if (data) saveConversationToCache(userId, data);
     return data;
   } catch (err) {
     console.error('[chat-service] createConversation exception:', err);
-    // Create locally
-    const localConv: Conversation = {
+    const localConversation: Conversation = {
       id: crypto.randomUUID(),
       user_id: userId,
       title,
@@ -175,137 +259,144 @@ export async function createConversation(
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-    saveConversationToCache(userId, localConv);
-    return localConv;
+    saveConversationToCache(userId, localConversation);
+    return localConversation;
   }
 }
 
-function saveConversationToCache(userId: string, conv: Conversation) {
-  try {
-    const cached = localStorage.getItem(CONVERSATIONS_CACHE_KEY + '_' + userId);
-    const convs: Conversation[] = cached ? JSON.parse(cached) : [];
-    const existing = convs.findIndex(c => c.id === conv.id);
-    if (existing >= 0) convs[existing] = conv;
-    else convs.unshift(conv);
-    localStorage.setItem(CONVERSATIONS_CACHE_KEY + '_' + userId, JSON.stringify(convs.slice(0, 50)));
-  } catch {}
+function saveConversationToCache(userId: string, conversation: Conversation) {
+  updateConversationCache(userId, (conversations) => {
+    const next = conversations.filter((item) => item.id !== conversation.id);
+    next.unshift(normalizeConversation(conversation));
+    return next;
+  });
 }
 
-/**
- * Sincroniza mensajes con Supabase: upsert los actuales + eliminar huérfanos.
- * Diseñado para ser la ÚNICA función de persistencia. Idempotente y segura
- * contra race conditions — el último llamador siempre gana.
- */
 export async function saveMessages(
   conversationId: string,
   userId: string,
-  messages: ChatMessage[]
+  messages: ChatMessage[],
 ): Promise<void> {
-  // Siempre actualizar cache local primero
   saveMessagesToCache(conversationId, messages);
 
-  // Un mensaje es válido si tiene texto O imágenes (no filtrar respuestas con imágenes pero sin texto)
-  const validMessages = messages.filter(
-    m => !m.id.startsWith('error-') && (
-      (m.text && m.text.trim().length > 0) ||
-      (m.images && m.images.length > 0)
-    )
+  const validMessages = dedupeMessages(
+    messages.filter(
+      (message) => !message.id.startsWith('error-') && (
+        (message.text && message.text.trim().length > 0) ||
+        (message.images && message.images.length > 0)
+      ),
+    ),
   );
 
-  try {
-    // 1. Upsert todos los mensajes actuales (insert o update en una sola operación)
-    if (validMessages.length > 0) {
-      const rows = validMessages.map(m => ({
-        id: m.id,
-        conversation_id: conversationId,
-        user_id: userId,
-        role: m.role,
-        content: m.text,
-        metadata: {
-          sources: m.sources || null,
-          images: m.images || null,
-          feedback: m.feedback || null,
-        },
-      }));
+  const nextSequence = (saveSequenceByConversation.get(conversationId) || 0) + 1;
+  saveSequenceByConversation.set(conversationId, nextSequence);
 
-      const { error: upsertError } = await supabase
-        .from('messages')
-        .upsert(rows, { onConflict: 'id' });
+  const previousChain = saveChainByConversation.get(conversationId) || Promise.resolve();
+  const currentChain = previousChain
+    .catch(() => undefined)
+    .then(async () => {
+      try {
+        if (validMessages.length > 0) {
+          const rows = validMessages.map((message) => ({
+            id: message.id,
+            conversation_id: conversationId,
+            user_id: userId,
+            role: message.role,
+            content: message.text,
+            metadata: {
+              sources: message.sources || null,
+              images: message.images || null,
+              feedback: message.feedback || null,
+            },
+          }));
 
-      if (upsertError) {
-        console.error('[chat-service] upsert error:', upsertError);
-        return;
+          const { error: upsertError } = await supabase
+            .from('messages')
+            .upsert(rows, { onConflict: 'id' });
+
+          if (upsertError) {
+            console.error('[chat-service] upsert error:', upsertError);
+            return;
+          }
+        }
+
+        if (saveSequenceByConversation.get(conversationId) !== nextSequence) {
+          return;
+        }
+
+        const { data: existing, error: fetchError } = await supabase
+          .from('messages')
+          .select('id')
+          .eq('conversation_id', conversationId);
+
+        if (fetchError) {
+          console.warn('[chat-service] fetch existing error:', fetchError.message);
+          return;
+        }
+
+        if (saveSequenceByConversation.get(conversationId) !== nextSequence) {
+          return;
+        }
+
+        const currentIds = new Set(validMessages.map((message) => message.id));
+        const orphanIds = (existing || [])
+          .map((message: any) => message.id as string)
+          .filter((id) => !currentIds.has(id));
+
+        if (orphanIds.length === 0) {
+          return;
+        }
+
+        const { error: deleteError } = await supabase
+          .from('messages')
+          .delete()
+          .in('id', orphanIds);
+
+        if (deleteError) {
+          console.error('[chat-service] delete orphans error:', deleteError);
+        }
+      } catch (err) {
+        console.error('[chat-service] saveMessages exception:', err);
       }
-    }
-
-    // 2. Eliminar mensajes huérfanos (los que están en Supabase pero no en el estado local)
-    const { data: existing, error: fetchError } = await supabase
-      .from('messages')
-      .select('id')
-      .eq('conversation_id', conversationId);
-
-    if (fetchError) {
-      console.warn('[chat-service] fetch existing error:', fetchError.message);
-      return;
-    }
-
-    const currentIds = new Set(validMessages.map(m => m.id));
-    const orphanIds = (existing || [])
-      .map((m: any) => m.id as string)
-      .filter(id => !currentIds.has(id));
-
-    if (orphanIds.length > 0) {
-      const { error: delError } = await supabase
-        .from('messages')
-        .delete()
-        .in('id', orphanIds);
-
-      if (delError) {
-        console.error('[chat-service] delete orphans error:', delError);
-      } else {
-        console.log(`[chat-service] Deleted ${orphanIds.length} orphan messages`);
+    })
+    .finally(() => {
+      if (saveChainByConversation.get(conversationId) === currentChain) {
+        saveChainByConversation.delete(conversationId);
       }
-    }
-  } catch (err) {
-    console.error('[chat-service] saveMessages exception:', err);
-  }
+    });
+
+  saveChainByConversation.set(conversationId, currentChain);
+  await currentChain;
 }
 
-/**
- * Elimina una conversacion y sus mensajes.
- */
 export async function deleteConversation(conversationId: string): Promise<boolean> {
-  // Primero borrar mensajes
-  const { error: msgError } = await supabase
+  const { error: messageError } = await supabase
     .from('messages')
     .delete()
     .eq('conversation_id', conversationId);
 
-  if (msgError) {
-    console.error('Error deleting messages:', msgError);
+  if (messageError) {
+    console.error('Error deleting messages:', messageError);
     return false;
   }
 
-  // Luego borrar conversacion
-  const { error: convError } = await supabase
+  const { error: conversationError } = await supabase
     .from('conversations')
     .delete()
     .eq('id', conversationId);
 
-  if (convError) {
-    console.error('Error deleting conversation:', convError);
+  if (conversationError) {
+    console.error('Error deleting conversation:', conversationError);
     return false;
   }
 
+  removeConversationFromAllCaches(conversationId);
   return true;
 }
 
-/**
- * Actualiza el titulo de una conversacion.
- */
 export async function updateConversationTitle(
   conversationId: string,
-  title: string
+  title: string,
 ): Promise<void> {
   const { error } = await supabase
     .from('conversations')
@@ -315,16 +406,28 @@ export async function updateConversationTitle(
   if (error) {
     console.error('Error updating conversation title:', error);
   }
+
+  try {
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (!key || !key.startsWith(`${CONVERSATIONS_CACHE_KEY}_`)) continue;
+
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+
+      const conversations = dedupeConversations(JSON.parse(raw)).map((conversation) =>
+        conversation.id === conversationId ? { ...conversation, title } : conversation,
+      );
+      localStorage.setItem(key, JSON.stringify(conversations));
+    }
+  } catch {}
 }
 
-/**
- * Genera un titulo a partir del primer mensaje del usuario.
- */
 export function generateTitle(messages: ChatMessage[]): string {
-  const firstUserMsg = messages.find(m => m.role === 'user');
-  if (firstUserMsg) {
-    const text = firstUserMsg.text.trim();
-    return text.length > 40 ? text.slice(0, 40) + '...' : text;
+  const firstUserMessage = messages.find((message) => message.role === 'user');
+  if (firstUserMessage) {
+    const text = firstUserMessage.text.trim();
+    return text.length > 40 ? `${text.slice(0, 40)}...` : text;
   }
   return 'Nueva conversacion';
 }

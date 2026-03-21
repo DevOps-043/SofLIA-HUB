@@ -51,6 +51,15 @@ export function useChatProcessor({
 
   const showLoadingUI = isLoading || (messages.length > 0 && messages[messages.length - 1].role === 'model' && !messages[messages.length - 1].text && !(messages[messages.length - 1].images && messages[messages.length - 1].images!.length > 0));
 
+  const dedupeMessageList = (items: ChatMessage[]) => {
+    const seen = new Set<string>();
+    return items.filter((message) => {
+      if (!message?.id || seen.has(message.id)) return false;
+      seen.add(message.id);
+      return true;
+    });
+  };
+
   const processMessage = async (
     text: string,
     images: string[],
@@ -208,26 +217,33 @@ export function useChatProcessor({
     await processMessage(text, images, history, false);
   }, [showLoadingUI, messages, onMessagesChange, preferredPrimaryModel, thinkingMode, personalization, isImageGenMode, isPromptOptimizerMode, optimizerTarget, activeTool, isLiveActive]);
 
-  const handleRegenerate = async (index: number) => {
+  const handleRegenerate = async (messageId: string) => {
     if (showLoadingUI) return;
 
-    const historyUpToNow = messages.slice(0, index);
+    const targetIndex = messages.findIndex((message) => message.id === messageId);
+    if (targetIndex === -1) return;
+
+    const historyUpToNow = messages.slice(0, targetIndex);
     const lastUserMsgIndex = historyUpToNow.map(m => m.role).lastIndexOf('user');
 
     if (lastUserMsgIndex !== -1) {
       const userMsg = historyUpToNow[lastUserMsgIndex];
-      const newHistory = messages.slice(0, lastUserMsgIndex + 1);
-
-      const seen = new Set<string>();
-      const dedupedHistory = newHistory.filter(m => {
-        if (seen.has(m.id)) return false;
-        seen.add(m.id);
-        return true;
-      });
+      const dedupedHistory = dedupeMessageList(messages.slice(0, lastUserMsgIndex + 1));
 
       onMessagesChange(dedupedHistory);
       await processMessage(userMsg.text, userMsg.images || [], dedupedHistory, true);
     }
+  };
+
+  const handleEditMessage = async (messageId: string, nextText: string, nextImages: string[] = []) => {
+    if (showLoadingUI) return;
+
+    const userMessageIndex = messages.findIndex((message) => message.id === messageId && message.role === 'user');
+    if (userMessageIndex === -1) return;
+
+    const history = dedupeMessageList(messages.slice(0, userMessageIndex));
+    onMessagesChange(history);
+    await processMessage(nextText.trim(), nextImages, history, false);
   };
 
   const handleCopy = (id: string, text: string) => {
@@ -269,9 +285,9 @@ export function useChatProcessor({
     });
   };
 
-  const handleFeedback = (index: number, type: 'like' | 'dislike') => {
-    const updated = messages.map((msg, i) => {
-      if (i === index) {
+  const handleFeedback = (messageId: string, type: 'like' | 'dislike') => {
+    const updated = messages.map((msg) => {
+      if (msg.id === messageId) {
         return {
           ...msg,
           feedback: msg.feedback === type ? undefined : type
@@ -291,6 +307,7 @@ export function useChatProcessor({
     processMessage,
     handleSend,
     handleRegenerate,
+    handleEditMessage,
     handleCopy,
     handleFeedback,
   };
