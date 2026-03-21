@@ -408,10 +408,10 @@ export const COMPUTER_USE_TOOLS = {
         required: ['node_id', 'path'],
       },
     },
-    {
-      name: 'run_background_command_on_node',
-      description: 'Ejecuta un comando en segundo plano en un nodo remoto.',
-      parameters: {
+      {
+        name: 'run_background_command_on_node',
+        description: 'Ejecuta un comando en segundo plano en un nodo remoto.',
+        parameters: {
         type: 'OBJECT',
         properties: {
           node_id: { type: 'STRING', description: 'ID del nodo remoto.' },
@@ -419,12 +419,24 @@ export const COMPUTER_USE_TOOLS = {
           working_directory: { type: 'STRING', description: 'Directorio de trabajo opcional.' },
           title: { type: 'STRING', description: 'Etiqueta de la sesion.' },
         },
-        required: ['node_id', 'command'],
+          required: ['node_id', 'command'],
+        },
       },
-    },
-    {
-      name: 'use_computer_on_node',
-      description: 'Ejecuta una tarea de automation en un nodo remoto.',
+      {
+        name: 'take_screenshot_on_node',
+        description: 'Captura la pantalla actual de un nodo remoto.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            node_id: { type: 'STRING', description: 'ID del nodo remoto.' },
+            display_id: { type: 'STRING', description: 'Display especifico opcional.' },
+          },
+          required: ['node_id'],
+        },
+      },
+      {
+        name: 'use_computer_on_node',
+        description: 'Ejecuta una tarea de automation en un nodo remoto.',
       parameters: {
         type: 'OBJECT',
         properties: {

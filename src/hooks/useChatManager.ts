@@ -28,6 +28,8 @@ export function useChatManager({ userId }: UseChatManagerOptions) {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentConvIdRef = useRef<string | null>(null);
   currentConvIdRef.current = currentConversationId;
+  const currentMessagesRef = useRef<ChatMessage[]>([]);
+  currentMessagesRef.current = currentMessages;
   const currentFolderIdRef = useRef<string | null>(null);
   const flushSaveRef = useRef<(() => Promise<void>) | null>(null);
   const scopeVersionRef = useRef(0);
@@ -54,30 +56,51 @@ export function useChatManager({ userId }: UseChatManagerOptions) {
 
   const loadInitialConversations = useCallback(async () => {
     if (!userId) return [];
+    const capturedScopeVersion = scopeVersionRef.current;
     setLoadingConversations(true);
-    const convs = await loadConversations(userId);
-    setConversations(convs);
+    try {
+      const convs = await loadConversations(userId);
+      setConversations(convs);
 
-    const lastChatId = localStorage.getItem(getCurrentChatStorageKey(userId));
-    if (lastChatId) {
-      const found = convs.find((c) => c.id === lastChatId);
-      if (found) {
-        const msgs = await loadMessages(found.id, userId);
-        setCurrentConversationId(found.id);
-        currentConvIdRef.current = found.id;
-        setCurrentMessages(msgs);
-        setLoadingConversations(false);
+      const canHydrateActiveChat = () =>
+        scopeVersionRef.current === capturedScopeVersion &&
+        !currentConvIdRef.current &&
+        currentMessagesRef.current.length === 0;
+
+      if (!canHydrateActiveChat()) {
         return convs;
       }
 
-      localStorage.removeItem(getCurrentChatStorageKey(userId));
-    }
+      const lastChatId = localStorage.getItem(getCurrentChatStorageKey(userId));
+      if (lastChatId) {
+        const found = convs.find((c) => c.id === lastChatId);
+        if (found) {
+          const msgs = await loadMessages(found.id, userId);
 
-    setCurrentConversationId(null);
-    currentConvIdRef.current = null;
-    setCurrentMessages([]);
-    setLoadingConversations(false);
-    return convs;
+          if (!canHydrateActiveChat()) {
+            return convs;
+          }
+
+          setCurrentConversationId(found.id);
+          currentConvIdRef.current = found.id;
+          setCurrentMessages(msgs);
+          return convs;
+        }
+
+        localStorage.removeItem(getCurrentChatStorageKey(userId));
+      }
+
+      if (!canHydrateActiveChat()) {
+        return convs;
+      }
+
+      setCurrentConversationId(null);
+      currentConvIdRef.current = null;
+      setCurrentMessages([]);
+      return convs;
+    } finally {
+      setLoadingConversations(false);
+    }
   }, [getCurrentChatStorageKey, userId]);
 
   const createScopedMessagesHandler = useCallback(

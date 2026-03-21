@@ -71,6 +71,7 @@ declare global {
       openApplication: (nodeId: string, args: any) => Promise<any>;
       runBackgroundCommand: (nodeId: string, args: any) => Promise<any>;
       executeTask: (nodeId: string, args: any) => Promise<any>;
+      takeScreenshot: (nodeId: string, args?: any) => Promise<any>;
       listProcessSessions: (nodeId: string) => Promise<any>;
       pollProcessSession: (nodeId: string, sessionId: string) => Promise<any>;
       killProcessSession: (nodeId: string, sessionId: string) => Promise<any>;
@@ -109,6 +110,7 @@ const DANGEROUS_TOOLS = new Set([
   'remove_remote_node',
   'open_application_on_node',
   'run_background_command_on_node',
+  'take_screenshot_on_node',
   'use_computer_on_node',
   'kill_remote_node_process_session',
   'reset_browser_profile',
@@ -168,6 +170,8 @@ export async function executeComputerTool(
       ? `Abrir en nodo ${args.node_id}: ${args.path}`
       : toolName === 'run_background_command_on_node'
       ? `Ejecutar en nodo ${args.node_id}: ${args.command}`
+      : toolName === 'take_screenshot_on_node'
+      ? `Capturar pantalla en nodo ${args.node_id}`
       : toolName === 'use_computer_on_node'
       ? `Controlar nodo ${args.node_id}: ${args.task}`
       : toolName === 'kill_remote_node_process_session'
@@ -366,6 +370,11 @@ export async function executeComputerTool(
     case 'run_background_command_on_node':
       if (!window.remoteNode) throw new Error('Remote Node API no disponible.');
       result = await window.remoteNode.runBackgroundCommand(args.node_id, args);
+      break;
+
+    case 'take_screenshot_on_node':
+      if (!window.remoteNode) throw new Error('Remote Node API no disponible.');
+      result = await window.remoteNode.takeScreenshot(args.node_id, args);
       break;
 
     case 'use_computer_on_node':

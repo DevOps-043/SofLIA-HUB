@@ -65,9 +65,22 @@ const ALLOWED_IPC_CHANNELS = [
   'remote-node:open-application',
   'remote-node:run-background-command',
   'remote-node:execute-task',
+  'remote-node:take-screenshot',
   'remote-node:list-process-sessions',
   'remote-node:poll-process-session',
   'remote-node:kill-process-session',
+  'telegram:get-status',
+  'telegram:update-config',
+  'telegram:test-connection',
+  'telegram:send-message',
+  'telegram:list-recent-chats',
+  'automation:list-templates',
+  'automation:list-runs',
+  'automation:create-custom-template',
+  'automation:get-run',
+  'automation:execute-template',
+  'automation:approve-run',
+  'automation:reject-run',
   'whatsapp:connect',
   'whatsapp:disconnect',
   'whatsapp:get-status',
@@ -359,12 +372,44 @@ contextBridge.exposeInMainWorld('remoteNode', {
     safeInvoke('remote-node:run-background-command', nodeId, args),
   executeTask: (nodeId: string, args: any) =>
     safeInvoke('remote-node:execute-task', nodeId, args),
+  takeScreenshot: (nodeId: string, args?: any) =>
+    safeInvoke('remote-node:take-screenshot', nodeId, args),
   listProcessSessions: (nodeId: string) =>
     safeInvoke('remote-node:list-process-sessions', nodeId),
   pollProcessSession: (nodeId: string, sessionId: string) =>
     safeInvoke('remote-node:poll-process-session', nodeId, sessionId),
   killProcessSession: (nodeId: string, sessionId: string) =>
     safeInvoke('remote-node:kill-process-session', nodeId, sessionId),
+})
+
+contextBridge.exposeInMainWorld('telegram', {
+  getStatus: () =>
+    safeInvoke('telegram:get-status'),
+  updateConfig: (updates: any) =>
+    safeInvoke('telegram:update-config', updates),
+  testConnection: () =>
+    safeInvoke('telegram:test-connection'),
+  sendMessage: (chatId: string, text: string) =>
+    safeInvoke('telegram:send-message', chatId, text),
+  listRecentChats: () =>
+    safeInvoke('telegram:list-recent-chats'),
+})
+
+contextBridge.exposeInMainWorld('automation', {
+  listTemplates: () =>
+    safeInvoke('automation:list-templates'),
+  listRuns: (limit?: number) =>
+    safeInvoke('automation:list-runs', limit),
+  createCustomTemplate: (input: any) =>
+    safeInvoke('automation:create-custom-template', input),
+  getRun: (runId: string) =>
+    safeInvoke('automation:get-run', runId),
+  executeTemplate: (input: any) =>
+    safeInvoke('automation:execute-template', input),
+  approveRun: (input: any) =>
+    safeInvoke('automation:approve-run', input),
+  rejectRun: (input: any) =>
+    safeInvoke('automation:reject-run', input),
 })
 
 // --------- WhatsApp API ---------

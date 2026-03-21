@@ -76,6 +76,10 @@ async function runBootstrap(): Promise<void> {
   const { PathMemoryService } = await import('./path-memory-service')
   const { MenuManager } = await import('./menu-manager')
   const { registerMeetingHandlers } = await import('./meeting-handlers')
+  const { WorkspaceAutomationService } = await import('./workspace-automation-service')
+  const { registerWorkspaceAutomationHandlers } = await import('./workspace-automation-handlers')
+  const { TelegramService } = await import('./telegram-service')
+  const { registerTelegramHandlers } = await import('./telegram-handlers')
   const { MeetingStore } = await import('./meetings/meeting-store')
   const { MeetingSourceService } = await import('./meetings/meeting-source-service')
   const { MeetingAIService } = await import('./meetings/meeting-ai-service')
@@ -134,6 +138,13 @@ async function runBootstrap(): Promise<void> {
   const taskScheduler = new TaskScheduler()
   const pathMemoryService = new PathMemoryService()
   const proactiveService = new ProactiveService()
+  const workspaceAutomationService = new WorkspaceAutomationService({
+    gmailService,
+    calendarService,
+    gchatService,
+    driveService,
+    desktopAgentService,
+  })
   const meetingStore = new MeetingStore()
   const meetingSourceService = new MeetingSourceService(driveService)
   const meetingAIService = new MeetingAIService()
@@ -160,6 +171,7 @@ async function runBootstrap(): Promise<void> {
     ownerNumber: '',
     apiKey: '',
   }, waService)
+  const telegramService = new TelegramService()
 
   let win: BrowserWindow | null = null
   let flowWin: BrowserWindow | null = null
@@ -169,6 +181,7 @@ async function runBootstrap(): Promise<void> {
   let currentGeminiApiKey: string | null = process.env.VITE_GEMINI_API_KEY || null
   let waAgent: InstanceType<typeof WhatsAppAgent> | null = null
   let neuralOrganizer: InstanceType<typeof NeuralOrganizerAI> | null = null
+  workspaceAutomationService.setApiKey(currentGeminiApiKey)
 
   proactiveService.setCalendarService(calendarService)
   proactiveService.setWhatsAppService(waService)
@@ -460,6 +473,7 @@ async function runBootstrap(): Promise<void> {
 
   function initWhatsAppAgent(apiKey: string): void {
     memoryService.setApiKey(apiKey)
+    workspaceAutomationService.setApiKey(apiKey)
 
     if (waAgent) {
       waAgent.updateApiKey(apiKey)
@@ -477,6 +491,7 @@ async function runBootstrap(): Promise<void> {
     }
 
     waAgent.setGoogleServices(calendarService, gmailService, driveService, gchatService)
+    waAgent.setWorkspaceAutomationService(workspaceAutomationService)
     waAgent.setDesktopAgentService(desktopAgentService)
     waAgent.setClipboardAssistant(clipboardAssistant)
     waAgent.setTaskScheduler(taskScheduler)
@@ -780,10 +795,13 @@ async function runBootstrap(): Promise<void> {
   registerMemoryHandlers(memoryService)
   registerUpdaterHandlers(updaterService, () => win)
   registerMeetingHandlers(meetingWorkflowService)
+  registerWorkspaceAutomationHandlers(workspaceAutomationService)
+  registerTelegramHandlers(telegramService)
 
   await runOptionalStep('memoryService.init', () => memoryService.init())
   await runOptionalStep('knowledgeService.init', () => knowledgeService.init())
   await runOptionalStep('meetingWorkflowService.init', () => Promise.resolve(meetingWorkflowService.init()))
+  await runOptionalStep('workspaceAutomationService.init', () => Promise.resolve(workspaceAutomationService.init()))
   await runOptionalStep('meetingPassiveDetectionService.init', () => meetingPassiveDetectionService.init())
   await runOptionalStep('pathMemoryService.init', () => pathMemoryService.init())
   await runOptionalStep('pathMemoryService.start', () => pathMemoryService.start())
@@ -793,6 +811,10 @@ async function runBootstrap(): Promise<void> {
   await runOptionalStep('dailyBriefingService.init', () => dailyBriefingService.init())
   await runOptionalStep('backgroundHostService.init', () => backgroundHostService.init())
   await runOptionalStep('remoteNodeService.init', () => remoteNodeService.initialize({ desktopAgent: desktopAgentService }))
+  await runOptionalStep('telegramService.init', () => telegramService.init({
+    workspaceAutomationService,
+    remoteNodeService,
+  }))
   await runOptionalStep('dynamicToolService.init', () => dynamicToolService.initialize())
   await runOptionalStep('createWindow', () => createWindow(!startInBackground))
   await runOptionalStep('createTray', () => createTray())

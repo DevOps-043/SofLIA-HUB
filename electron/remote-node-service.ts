@@ -12,7 +12,8 @@ type RemoteNodeCapability =
   | 'open_application'
   | 'run_background_command'
   | 'desktop_execute_task'
-  | 'process_sessions';
+  | 'process_sessions'
+  | 'take_screenshot';
 
 interface RemoteNodeRecord {
   id: string;
@@ -51,6 +52,7 @@ const REMOTE_NODE_CAPABILITIES: RemoteNodeCapability[] = [
   'run_background_command',
   'desktop_execute_task',
   'process_sessions',
+  'take_screenshot',
 ];
 
 function generateToken(): string {
@@ -321,6 +323,12 @@ export class RemoteNodeService extends EventEmitter {
     return this.requestNode(nodeId, 'GET', '/v1/process-sessions');
   }
 
+  async takeScreenshotOnNode(nodeId: string, args: Record<string, any>): Promise<any> {
+    return this.requestNode(nodeId, 'POST', '/v1/take-screenshot', {
+      display_id: args.display_id,
+    });
+  }
+
   async pollProcessSessionOnNode(nodeId: string, sessionId: string): Promise<any> {
     return this.requestNode(nodeId, 'GET', `/v1/process-sessions/${encodeURIComponent(sessionId)}`);
   }
@@ -495,6 +503,15 @@ export class RemoteNodeService extends EventEmitter {
 
       if (method === 'GET' && requestUrl.pathname === '/v1/process-sessions') {
         const result = await executeToolDirect('list_process_sessions', {});
+        this.sendJson(res, 200, result);
+        return;
+      }
+
+      if (method === 'POST' && requestUrl.pathname === '/v1/take-screenshot') {
+        const body = await this.readJsonBody(req);
+        const result = await executeToolDirect('take_screenshot', {
+          display_id: body.display_id,
+        });
         this.sendJson(res, 200, result);
         return;
       }

@@ -74,6 +74,9 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
   const lastScrollTopRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesRef = useRef(messages);
+  const lastProcessedExternalPromptRef = useRef<string | null>(null);
+  const processMessageRef = useRef<((text: string, images: string[], currentHistory: ChatMessage[], isRegeneration?: boolean) => Promise<void>) | null>(null);
+  const externalPromptProcessedRef = useRef<(() => void) | undefined>(onExternalPromptProcessed);
   messagesRef.current = messages;
 
   // Hooks
@@ -97,6 +100,8 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
     isLiveActive: liveApi.isLiveActive,
     liveClientRef: liveApi.liveClientRef,
   });
+  processMessageRef.current = chat.processMessage;
+  externalPromptProcessedRef.current = onExternalPromptProcessed;
 
   // Register custom confirmation handler for computer-use actions
   useEffect(() => {
@@ -115,10 +120,18 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
 
   // Handle external prompts
   useEffect(() => {
-    if (externalPrompt) {
-      onExternalPromptProcessed?.();
-      chat.processMessage(externalPrompt, [], chat.messagesRef.current, false);
+    if (!externalPrompt) {
+      lastProcessedExternalPromptRef.current = null;
+      return;
     }
+
+    if (lastProcessedExternalPromptRef.current === externalPrompt) {
+      return;
+    }
+
+    lastProcessedExternalPromptRef.current = externalPrompt;
+    externalPromptProcessedRef.current?.();
+    processMessageRef.current?.(externalPrompt, [], messagesRef.current, false);
   }, [externalPrompt]);
 
   // Handle Dynamic Header

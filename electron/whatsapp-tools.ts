@@ -29,6 +29,7 @@ export const CONFIRM_TOOLS_WA = new Set([
   'remove_remote_node',
   'open_application_on_node',
   'run_background_command_on_node',
+  'take_screenshot_on_node',
   'use_computer_on_node',
   'kill_remote_node_process_session',
   'reset_browser_profile',
@@ -67,6 +68,7 @@ export const GROUP_BLOCKED_TOOLS = new Set([
   'remove_remote_node',
   'open_application_on_node',
   'run_background_command_on_node',
+  'take_screenshot_on_node',
   'use_computer_on_node',
   'kill_remote_node_process_session',
   'reset_browser_profile',
@@ -591,6 +593,18 @@ export const WA_TOOL_DECLARATIONS = {
           title: { type: 'STRING' as const, description: 'Etiqueta opcional para la sesiÃ³n.' },
         },
         required: ['node_id', 'command'],
+      },
+    },
+    {
+      name: 'take_screenshot_on_node',
+      description: 'Captura la pantalla actual de un nodo remoto. REQUIERE confirmacion.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          node_id: { type: 'STRING' as const, description: 'ID del nodo remoto.' },
+          display_id: { type: 'STRING' as const, description: 'Display especifico opcional.' },
+        },
+        required: ['node_id'],
       },
     },
     {

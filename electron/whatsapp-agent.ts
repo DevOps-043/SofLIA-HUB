@@ -18,6 +18,7 @@ import type { ClipboardAIAssistant } from './clipboard-ai-assistant';
 import type { TaskScheduler } from './task-scheduler';
 import type { NeuralOrganizerService } from './neural-organizer';
 import { SmartSearchTool } from './smart-search-tool';
+import type { WorkspaceAutomationService, WorkflowRunRecord } from './workspace-automation-service';
 import {
   tryAutoAuthByPhone,
   getWhatsAppSession,
@@ -149,6 +150,7 @@ export class WhatsAppAgent {
   private neuralOrganizer: NeuralOrganizerService | null = null;
   private smartSearch: SmartSearchTool | null = null;
   private meetingWorkflowService: MeetingWorkflowService | null = null;
+  private workspaceAutomationService: WorkspaceAutomationService | null = null;
   private memory: MemoryService;
   private knowledge: KnowledgeService;
 
@@ -186,6 +188,11 @@ export class WhatsAppAgent {
   setMeetingWorkflowService(service: MeetingWorkflowService): void {
     this.meetingWorkflowService = service;
     console.log('[WhatsApp Agent] Meeting workflow service connected');
+  }
+
+  setWorkspaceAutomationService(service: WorkspaceAutomationService): void {
+    this.workspaceAutomationService = service;
+    console.log('[WhatsApp Agent] Workspace automation service connected');
   }
 
 
@@ -240,9 +247,15 @@ export class WhatsAppAgent {
 
     // ─── Chat commands (inspired by OpenClaw) ────────────────────
     if (text.startsWith('/')) {
-      const cmdResult = await this.handleChatCommand(jid, senderNumber, text, isGroup);
-      if (cmdResult) {
-        await this.waService.sendText(jid, cmdResult);
+      try {
+        const cmdResult = await this.handleChatCommand(jid, senderNumber, text, isGroup);
+        if (cmdResult) {
+          await this.waService.sendText(jid, cmdResult);
+          return;
+        }
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'No pude ejecutar ese comando.';
+        await this.waService.sendText(jid, `No pude completar ese comando.\n${message}`);
         return;
       }
       // Si se activó un workflow durante el comando, detener el procesamiento normal
@@ -289,7 +302,7 @@ export class WhatsAppAgent {
         this.memory.clearSessionContext(sessionKey);
         return '🔄 Conversación reiniciada.';
 
-      case '/activation':
+      case '/activation': {
         if (!isGroup) return '⚠️ Este comando solo funciona en grupos.';
         // Security: Only administrator can change activation mode
         if (!this.waService.isAllowedNumber(senderNumber)) {
@@ -301,6 +314,7 @@ export class WhatsAppAgent {
           return `✅ Activación cambiada a: *${mode}*\n${mode === 'mention' ? '• Solo responderé cuando me mencionen, usen /soflia, o hagan reply a mi mensaje' : '• Responderé a TODOS los mensajes del grupo'}`;
         }
         return '📋 Uso: /activation mention | always';
+      }
 
       case '/presentación':
       case '/presentacion':
@@ -324,13 +338,454 @@ export class WhatsAppAgent {
         }
         return null;
 
+      case '/correo':
+      case '/correos': {
+        if (!this.workspaceAutomationService) {
+          return 'La revisión de correo todavía no está disponible en este momento.';
+        }
+        if (!this.workspaceAutomationService.isConfigured()) {
+          return 'Primero necesito una API key activa de Gemini para revisar correos.';
+        }
+
+        const query = this.resolveAutomationMailQuery(args);
+        const run = await this.workspaceAutomationService.executeTemplate({
+          templateId: 'gmail_triage',
+          requestedBy: `whatsapp:${senderNumber}`,
+          input: {
+            query,
+            maxResults: 5,
+            removeFromInbox: true,
+          },
+        });
+
+        return this.formatAutomationRunResponse(
+          run,
+          'Listo. Preparé una revisión ejecutiva de correo.',
+        );
+      }
+
+      case '/agenda': {
+        if (!this.workspaceAutomationService) {
+          return 'La agenda ejecutiva todavía no está disponible en este momento.';
+        }
+        if (!this.workspaceAutomationService.isConfigured()) {
+          return 'Primero necesito una API key activa de Gemini para preparar la agenda.';
+        }
+
+        const targetDate = this.resolveAutomationBriefDate(args);
+        const run = await this.workspaceAutomationService.executeTemplate({
+          templateId: 'calendar_daily_brief',
+          requestedBy: `whatsapp:${senderNumber}`,
+          input: {
+            targetDate,
+          },
+        });
+
+        return this.formatAutomationRunResponse(
+          run,
+          `Listo. Preparé tu resumen de agenda${targetDate ? ` para ${targetDate}` : ' de hoy'}.`,
+        );
+      }
+
+      case '/seguimiento':
+      case '/correoseguimiento': {
+        if (!this.workspaceAutomationService) {
+          return 'El seguimiento de correo todavia no esta disponible.';
+        }
+        if (!this.workspaceAutomationService.isConfigured()) {
+          return 'Primero necesito una API key activa de Gemini para redactar el seguimiento.';
+        }
+
+        const raw = args.join(' ').trim();
+        const parts = raw.split('|').map((item) => item.trim());
+        const to = parts[0] || '';
+        const topic = parts[1] || '';
+        const context = parts.slice(2).join(' | ').trim();
+        if (!to || !topic) {
+          return 'Uso: /seguimiento correo@empresa.com | tema | contexto opcional';
+        }
+
+        const run = await this.workspaceAutomationService.executeTemplate({
+          templateId: 'gmail_followup_draft',
+          requestedBy: `whatsapp:${senderNumber}`,
+          input: {
+            to,
+            topic,
+            context: context || undefined,
+          },
+        });
+
+        return this.formatAutomationRunResponse(
+          run,
+          'Listo. Deje preparado el correo de seguimiento.',
+        );
+      }
+
+      case '/prepreunion':
+      case '/reunionprep': {
+        if (!this.workspaceAutomationService) {
+          return 'La preparacion de reunion todavia no esta disponible.';
+        }
+        if (!this.workspaceAutomationService.isConfigured()) {
+          return 'Primero necesito una API key activa de Gemini para preparar la reunion.';
+        }
+
+        const targetDate = this.resolveAutomationBriefDate(args);
+        const run = await this.workspaceAutomationService.executeTemplate({
+          templateId: 'calendar_meeting_prep',
+          requestedBy: `whatsapp:${senderNumber}`,
+          input: {
+            targetDate,
+          },
+        });
+
+        return this.formatAutomationRunResponse(
+          run,
+          `Listo. Prepare tu siguiente reunion${targetDate ? ` para ${targetDate}` : ''}.`,
+        );
+      }
+
+      case '/driveproyecto': {
+        if (!this.workspaceAutomationService) {
+          return 'La preparacion de espacios en Drive todavia no esta disponible.';
+        }
+
+        const raw = args.join(' ').trim();
+        const parts = raw.split('|').map((item) => item.trim());
+        const projectName = parts[0] || '';
+        const parentFolderId = parts[1] || '';
+        const gchatSpace = parts[2] || '';
+        if (!projectName) {
+          return 'Uso: /driveproyecto Nombre del proyecto | carpetaPadre opcional | espacioChat opcional';
+        }
+
+        const run = await this.workspaceAutomationService.executeTemplate({
+          templateId: 'drive_project_workspace',
+          requestedBy: `whatsapp:${senderNumber}`,
+          input: {
+            projectName,
+            parentFolderId: parentFolderId || undefined,
+            gchatSpace: gchatSpace || undefined,
+          },
+        });
+
+        return this.formatAutomationRunResponse(
+          run,
+          'Listo. Deje preparado el espacio base de Drive.',
+        );
+      }
+
+      case '/chatdirectivo':
+      case '/actualizacionchat': {
+        if (!this.workspaceAutomationService) {
+          return 'La actualizacion ejecutiva todavia no esta disponible.';
+        }
+        if (!this.workspaceAutomationService.isConfigured()) {
+          return 'Primero necesito una API key activa de Gemini para redactar la actualizacion.';
+        }
+
+        const raw = args.join(' ').trim();
+        const parts = raw.split('|').map((item) => item.trim());
+        const spaceName = parts[0] || '';
+        const context = parts[1] || '';
+        const tone = parts[2] || '';
+        if (!spaceName || !context) {
+          return 'Uso: /chatdirectivo SPACE | contexto | tono opcional';
+        }
+
+        const run = await this.workspaceAutomationService.executeTemplate({
+          templateId: 'gchat_executive_update',
+          requestedBy: `whatsapp:${senderNumber}`,
+          input: {
+            spaceName,
+            context,
+            tone: tone || undefined,
+          },
+        });
+
+        return this.formatAutomationRunResponse(
+          run,
+          'Listo. Deje lista la actualizacion ejecutiva para Google Chat.',
+        );
+      }
+
+      case '/computadora':
+      case '/pc':
+      case '/escritorio': {
+        if (!this.workspaceAutomationService) {
+          return 'La automatizacion de computadora todavia no esta disponible.';
+        }
+        if (!this.workspaceAutomationService.isConfigured()) {
+          return 'Primero necesito una API key activa de Gemini para preparar la accion.';
+        }
+
+        const objective = args.join(' ').trim();
+        if (!objective) {
+          return 'Uso: /computadora describe la accion que quieres preparar';
+        }
+
+        const run = await this.workspaceAutomationService.executeTemplate({
+          templateId: 'desktop_action',
+          requestedBy: `whatsapp:${senderNumber}`,
+          input: {
+            objective,
+          },
+        });
+
+        return this.formatAutomationRunResponse(
+          run,
+          'Listo. Prepare una accion para tu computadora.',
+        );
+      }
+
+      case '/crearflujo': {
+        if (!this.workspaceAutomationService) {
+          return 'La creación de flujos todavía no está disponible.';
+        }
+        if (!this.workspaceAutomationService.isConfigured()) {
+          return 'Primero necesito una API key activa de Gemini para diseñar flujos.';
+        }
+
+        const raw = args.join(' ').trim();
+        const [namePart, objectivePart] = raw.split('|').map((item) => item.trim());
+        const objective = objectivePart ? objectivePart : namePart;
+        const name = objectivePart ? namePart : '';
+        if (!objective) {
+          return 'Uso: /crearflujo Nombre | Objetivo del flujo';
+        }
+
+        const template = await this.workspaceAutomationService.createCustomTemplate({
+          name: name || undefined,
+          objective,
+          requestedBy: `whatsapp:${senderNumber}`,
+        });
+
+        return [
+          'Listo. Diseñé un nuevo flujo personalizado.',
+          `ID: ${template.id}`,
+          `Nombre: ${template.name}`,
+          `Resumen: ${template.description}`,
+          `Para usarlo: /usarflujo ${template.id} | detalle actual`,
+        ].join('\n');
+      }
+
+      case '/flujos':
+      case '/misflujos': {
+        if (!this.workspaceAutomationService) {
+          return 'La lista de flujos todavía no está disponible.';
+        }
+        return this.formatCustomTemplateList();
+      }
+
+      case '/usarflujo':
+      case '/ejecutarflujo': {
+        if (!this.workspaceAutomationService) {
+          return 'La ejecución de flujos todavía no está disponible.';
+        }
+        const raw = args.join(' ').trim();
+        const [templateIdPart, detailsPart] = raw.split('|').map((item) => item.trim());
+        const templateId = templateIdPart?.split(/\s+/)[0]?.trim();
+        if (!templateId) {
+          return 'Uso: /usarflujo ID | detalle actual';
+        }
+        const run = await this.workspaceAutomationService.executeTemplate({
+          templateId,
+          requestedBy: `whatsapp:${senderNumber}`,
+          input: {
+            details: detailsPart || null,
+          },
+        });
+        return this.formatAutomationRunResponse(
+          run,
+          'Listo. Preparé el flujo personalizado.',
+        );
+      }
+
+      case '/pendientes': {
+        if (!this.workspaceAutomationService) {
+          return 'La bandeja de decisiones todavía no está disponible.';
+        }
+        return this.formatPendingAutomationRuns();
+      }
+
+      case '/aprobar':
+      case '/autorizar': {
+        if (!this.workspaceAutomationService) {
+          return 'La autorización de casos todavía no está disponible.';
+        }
+        const runId = args[0]?.trim();
+        if (!runId) {
+          return 'Uso: /aprobar FOLIO comentario opcional';
+        }
+        const comment = args.slice(1).join(' ').trim() || null;
+        const run = await this.workspaceAutomationService.approveRun(
+          runId,
+          `whatsapp:${senderNumber}`,
+          comment,
+        );
+        return this.formatAutomationDecisionResponse(run, 'autorizado');
+      }
+
+      case '/rechazar':
+      case '/noautorizar': {
+        if (!this.workspaceAutomationService) {
+          return 'La autorización de casos todavía no está disponible.';
+        }
+        const runId = args[0]?.trim();
+        if (!runId) {
+          return 'Uso: /rechazar FOLIO comentario opcional';
+        }
+        const comment = args.slice(1).join(' ').trim() || null;
+        const run = this.workspaceAutomationService.rejectRun(
+          runId,
+          `whatsapp:${senderNumber}`,
+          comment,
+        );
+        return this.formatAutomationDecisionResponse(run, 'rechazado');
+      }
+
       case '/help':
-        return `📋 *Comandos disponibles:*\n\n/status — Estado de SofLIA\n/reset — Reiniciar conversación\n/new — Igual que /reset\n/presentacion — Workflow de presentaciones\n/reunion — Workflow de reuniones\n${isGroup ? '/activation mention|always — Modo de activación en grupo (Solo Admin)\n' : ''}/help — Esta ayuda\n\n${isGroup ? '💡 En grupos, solo respondo si me etiquetas (@SofLIA), usas el prefijo /soflia, o incluyes mi nombre "soflia" en tu mensaje.' : ''}`;
+        return `📋 *Comandos disponibles:*\n\n/status — Estado de SofLIA\n/reset — Reiniciar conversación\n/new — Igual que /reset\n/correo — Revisar un correo importante\n/correo hoy — Correos nuevos de hoy\n/correo noleidos — Correos pendientes de responder\n/agenda — Preparar agenda de hoy\n/agenda 2026-03-22 — Preparar agenda de una fecha\n/crearflujo Nombre | Objetivo — Crear un flujo propio\n/flujos — Ver flujos personalizados\n/usarflujo ID | detalle — Ejecutar un flujo personalizado\n/pendientes — Ver decisiones por autorizar\n/aprobar FOLIO — Autorizar un caso\n/rechazar FOLIO — No autorizar un caso\n/presentacion — Proceso de presentaciones\n/reunion — Proceso de reuniones\n${isGroup ? '/activation mention|always — Modo de activación en grupo (Solo Admin)\n' : ''}/help — Esta ayuda\n\n${isGroup ? '💡 En grupos, solo respondo si me etiquetas (@SofLIA), usas el prefijo /soflia, o incluyes mi nombre "soflia" en tu mensaje.' : 'Tip: usa /pendientes para revisar lo que espera tu autorización.'}`;
 
       default:
         // Not a recognized command, return null to let agent process it
         return null;
     }
+  }
+
+  private resolveAutomationMailQuery(args: string[]): string {
+    const raw = args.join(' ').trim();
+    const normalized = raw
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+    if (!normalized || normalized === 'hoy') {
+      return 'in:inbox newer_than:1d';
+    }
+    if (
+      normalized === 'noleidos'
+      || normalized === 'no leidos'
+      || normalized === 'pendientes'
+      || normalized === 'sin responder'
+    ) {
+      return 'in:inbox is:unread newer_than:7d';
+    }
+    if (
+      normalized === 'importantes'
+      || normalized === 'clientes'
+      || normalized === 'prioritarios'
+    ) {
+      return 'in:inbox category:primary newer_than:7d';
+    }
+
+    return raw;
+  }
+
+  private resolveAutomationBriefDate(args: string[]): string | undefined {
+    const raw = args.join(' ').trim();
+    if (!raw) {
+      return undefined;
+    }
+
+    const normalized = raw
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+    if (normalized === 'hoy') {
+      return this.formatDateOnly(new Date());
+    }
+
+    if (normalized === 'manana') {
+      const nextDay = new Date();
+      nextDay.setDate(nextDay.getDate() + 1);
+      return this.formatDateOnly(nextDay);
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      return raw;
+    }
+
+    return undefined;
+  }
+
+  private formatPendingAutomationRuns(): string {
+    const pendingRuns = this.workspaceAutomationService
+      ?.listRuns(10)
+      .filter((run) => run.status === 'needs_approval') || [];
+
+    if (pendingRuns.length === 0) {
+      return 'No hay decisiones pendientes por autorizar en este momento.';
+    }
+
+    return [
+      '*Pendientes por autorizar*',
+      ...pendingRuns.slice(0, 5).map((run, index) => {
+        const pendingActions = run.actions.filter((action) => action.status === 'pending').length;
+        return `${index + 1}. ${run.title}\nFolio: ${run.id}\nResumen: ${run.summary}\nAcciones pendientes: ${pendingActions}`;
+      }),
+      '',
+      'Para autorizar: /aprobar FOLIO',
+      'Para no autorizar: /rechazar FOLIO',
+    ].join('\n\n');
+  }
+
+  private formatCustomTemplateList(): string {
+    const templates = this.workspaceAutomationService
+      ?.listTemplates()
+      .filter((template) => template.kind === 'custom') || [];
+
+    if (templates.length === 0) {
+      return 'Todavía no tienes flujos personalizados. Usa /crearflujo para diseñar el primero.';
+    }
+
+    return [
+      '*Tus flujos personalizados*',
+      ...templates.slice(0, 8).map((template, index) => (
+        `${index + 1}. ${template.name}\nID: ${template.id}\nResumen: ${template.description}`
+      )),
+      '',
+      'Para ejecutarlo: /usarflujo ID | detalle actual',
+    ].join('\n\n');
+  }
+
+  private formatAutomationRunResponse(run: WorkflowRunRecord, intro: string): string {
+    const pendingActions = run.actions.filter((action) => action.status === 'pending').length;
+    const nextStep = run.status === 'needs_approval'
+      ? `Quedó listo para revisión con ${pendingActions} accion(es) por autorizar.`
+      : 'No requiere autorización adicional.';
+
+    return [
+      intro,
+      `Folio: ${run.id}`,
+      `Caso: ${run.title}`,
+      `Resumen: ${run.summary}`,
+      nextStep,
+      run.status === 'needs_approval'
+        ? `Si estás de acuerdo: /aprobar ${run.id}`
+        : 'Puedes usar /pendientes para revisar otros casos.',
+    ].join('\n');
+  }
+
+  private formatAutomationDecisionResponse(run: WorkflowRunRecord, decision: 'autorizado' | 'rechazado'): string {
+    const executedActions = run.actions.filter((action) => action.status === 'executed').length;
+    const failedActions = run.actions.filter((action) => action.status === 'failed').length;
+    const skippedActions = run.actions.filter((action) => action.status === 'skipped').length;
+
+    return [
+      `Caso ${decision}.`,
+      `Folio: ${run.id}`,
+      `Resumen: ${run.summary}`,
+      executedActions > 0 ? `Acciones ejecutadas: ${executedActions}` : null,
+      failedActions > 0 ? `Acciones con error: ${failedActions}` : null,
+      skippedActions > 0 ? `Acciones omitidas: ${skippedActions}` : null,
+      'Puedes usar /pendientes para revisar lo siguiente.',
+    ].filter(Boolean).join('\n');
+  }
+
+  private formatDateOnly(value: Date): string {
+    return value.toISOString().slice(0, 10);
   }
 
   // ─── Handle media (Photos, Docs) — FULL AGENTIC PIPELINE ─────

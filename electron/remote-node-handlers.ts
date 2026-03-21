@@ -11,6 +11,7 @@ export function registerRemoteNodeHandlers() {
   ipcMain.handle('remote-node:open-application', async (_event, nodeId: string, args: any) => remoteNodeService.openApplicationOnNode(String(nodeId || '').trim(), args || {}));
   ipcMain.handle('remote-node:run-background-command', async (_event, nodeId: string, args: any) => remoteNodeService.runBackgroundCommandOnNode(String(nodeId || '').trim(), args || {}));
   ipcMain.handle('remote-node:execute-task', async (_event, nodeId: string, args: any) => remoteNodeService.executeDesktopTaskOnNode(String(nodeId || '').trim(), args || {}));
+  ipcMain.handle('remote-node:take-screenshot', async (_event, nodeId: string, args: any) => remoteNodeService.takeScreenshotOnNode(String(nodeId || '').trim(), args || {}));
   ipcMain.handle('remote-node:list-process-sessions', async (_event, nodeId: string) => remoteNodeService.listProcessSessionsOnNode(String(nodeId || '').trim()));
   ipcMain.handle('remote-node:poll-process-session', async (_event, nodeId: string, sessionId: string) => remoteNodeService.pollProcessSessionOnNode(String(nodeId || '').trim(), String(sessionId || '').trim()));
   ipcMain.handle('remote-node:kill-process-session', async (_event, nodeId: string, sessionId: string) => remoteNodeService.killProcessSessionOnNode(String(nodeId || '').trim(), String(sessionId || '').trim()));

@@ -4,6 +4,35 @@ Todos los cambios notables de SofLIA Hub se documentan aquí.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.1.15] - 2026-03-21
+
+### Added
+
+- **Reporte operativo del 21 de marzo de 2026:** Se agrega `REPORTE_21_MARZO_2026.md` con el detalle de lo corregido, lo implementado, las pruebas ejecutadas y el estado final del release.
+- **Consola ejecutiva de automatizaciones:** Nueva superficie en configuracion para operar workflows con lenguaje no tecnico, enfocada en correo, agenda, autorizaciones, WhatsApp, Telegram opcional y equipos conectados.
+- **Runtime de automatizacion con `llm-task`:** Nueva capa `workspace-automation-service` para ejecutar casos aprobables, guardar runs, guardar templates personalizados y disparar acciones estructuradas.
+- **Flujos personalizados creados por SofLIA:** El usuario ya puede describir su proceso y convertirlo en un workflow reusable, incluso si opera fuera de Google Workspace.
+- **Plantillas listas para usuario final:** Se agregan plantillas `gmail_triage`, `calendar_daily_brief`, `gmail_followup_draft`, `calendar_meeting_prep`, `drive_project_workspace`, `gchat_executive_update` y `desktop_action`.
+- **Comandos operativos por WhatsApp:** Nuevos atajos `/correo`, `/agenda`, `/seguimiento`, `/prepreunion`, `/driveproyecto`, `/chatdirectivo`, `/computadora`, `/crearflujo`, `/flujos`, `/usarflujo`, `/pendientes`, `/aprobar` y `/rechazar`.
+
+### Changed
+
+- **Matriz de errores revalidada:** `ERRORES_ENCONTRADOS.md` ya no refleja una corrida intermedia con diagnosticos incorrectos; ahora documenta el estado real verificado despues de la estabilizacion de pruebas.
+- **Suite de pruebas alineada al comportamiento real:** Se ajustaron mocks, imports, builders y expectativas para que los tests representen correctamente los contratos actuales del main process y del renderer.
+- **Experiencia de automatizacion simplificada para perfil directivo:** La UI ya no expone la automatizacion como una consola tecnica; ahora presenta acciones concretas, lenguaje ejecutivo y configuraciones avanzadas colapsadas.
+- **Workflows con alcance mixto:** Los flujos ahora pueden terminar en acciones dentro de Google Workspace o en tareas dentro de la computadora via Desktop Agent, segun el caso.
+- **Persistencia de workflows ampliada:** El estado local de automatizaciones ahora guarda tanto runs como templates personalizados para reutilizarlos desde app y WhatsApp.
+
+### Fixed
+
+- **Estabilizacion de suites Vitest:** Se corrigieron fallos en `computer-use-handlers`, `desktop-agent-service`, `proactive-autodev`, `whatsapp-service`, `whatsapp-agent`, `whatsapp-audio-processor`, `chat-service`, `gemini-chat`, `iris-data`, `Sidebar`, `preload`, `integration-edge` y `agent-task-queue`.
+- **Dependencia nativa `better-sqlite3` recompilada:** Se recompilo para la version actual de Node, desbloqueando la ejecucion limpia de `memory-service.test.ts`.
+- **Corrida global limpia:** Se elimino una `Unhandled Rejection` en `agent-task-queue.test.ts`, dejando la bateria completa en `544/544` tests aprobados.
+- **Persistencia y recuperacion de conversaciones reforzada:** Se agrego cola local de sincronizacion, recuperacion desde cache, mayor limite de carga y endurecimiento del manejo de usuario/sesion para evitar perdida de chats entre equipos.
+- **Sesion cruzada entre computadoras endurecida:** La app ya no puede quedar operando con una sesion hibrida invalida entre SOFIA y Lia al momento de guardar o leer conversaciones.
+- **Chat en desarrollo estabilizado:** Se corrigio una carrera de hidratacion inicial que podia sobreescribir `currentMessages` y ocultar la respuesta de SofLIA en `npm run dev`.
+- **Disparo duplicado de prompts externos corregido:** Se ajusto la ejecucion de `externalPrompt` para evitar prompts dobles e inconsistencias de chat en desarrollo.
+
 ## [0.1.14] - 2026-03-19
 
 ### Added

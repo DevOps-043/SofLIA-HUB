@@ -82,7 +82,10 @@
       "Bash(find 'c:\\\\Users\\\\fysg5\\\\OneDrive\\\\Escritorio\\\\Pulse Hub\\\\SofLIA - Hub\\\\SofLIA-HUB' -maxdepth 2 -name jest.config.* -o -name vitest.config.* -o -name .jestrc*)",
       "Read(//c/Users/fysg5/OneDrive/Escritorio/Pulse/ Hub/SofLIA/ -/ Hub/SofLIA-HUB/src/**)",
       "Read(//c/Users/fysg5/OneDrive/Escritorio/Pulse/ Hub/SofLIA/ -/ Hub/SofLIA-HUB/src/services/**)",
-      "Bash(grep -E \"\\\\.ts$\")"
+      "Bash(grep -E \"\\\\.ts$\")",
+      "Bash(npx vitest:*)",
+      "Bash(find electron/__tests__ src/__tests__ -name *.test.* -exec wc -l {} +)",
+      "Bash(tee /tmp/vitest-results.json)"
     ]
   }
 }

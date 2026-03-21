@@ -686,6 +686,26 @@ for (const part of functionCalls) {
     continue;
   }
 
+  if (toolName === 'take_screenshot_on_node') {
+    try {
+      const result = await remoteNodeService.takeScreenshotOnNode(String(toolArgs.node_id || '').trim(), toolArgs || {});
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: result,
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
   if (toolName === 'use_computer_on_node') {
     try {
       const result = await remoteNodeService.executeDesktopTaskOnNode(String(toolArgs.node_id || '').trim(), toolArgs || {});

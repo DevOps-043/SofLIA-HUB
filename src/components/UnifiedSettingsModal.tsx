@@ -5,6 +5,7 @@ import { UserManagementModal as TeamContent } from './UserManagementModal';
 import { ProductivityDashboard as ProductivityContent } from './ProductivityDashboard';
 import { UpdatePanel as UpdateContent } from './UpdatePanel';
 import { MeetingOpsPanel } from './meetings/MeetingOpsPanel';
+import { AutomationOpsPanel } from './ops/AutomationOpsPanel';
 import { UserAISettings } from '../services/settings-service';
 
 interface UnifiedSettingsModalProps {
@@ -18,7 +19,7 @@ interface UnifiedSettingsModalProps {
   initialTab?: SettingsTab;
 }
 
-export type SettingsTab = 'ai' | 'whatsapp' | 'team' | 'productivity' | 'meetings' | 'updates';
+export type SettingsTab = 'ai' | 'whatsapp' | 'team' | 'productivity' | 'meetings' | 'agents' | 'updates';
 
 export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
   isOpen,
@@ -86,6 +87,15 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h8M8 14h5m-7 6h12a3 3 0 003-3V7a3 3 0 00-3-3H6a3 3 0 00-3 3v10a3 3 0 003 3z" />
+        </svg>
+      ),
+    },
+    {
+      id: 'agents' as const,
+      label: 'Agentes',
+      icon: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4.75 8.75h5.5v5.5h-5.5zm9 0h5.5v5.5h-5.5zm-4.5 9h5.5v1.5h-5.5zm1-10V5.25h3.5v2.5m0 6.5v2.5h-3.5v-2.5" />
         </svg>
       ),
     },
@@ -162,6 +172,12 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
               userId={userId}
               organizationId={sofiaContext?.currentOrganization?.id || null}
             />
+          </div>
+        );
+      case 'agents':
+        return (
+          <div className="h-full overflow-hidden">
+            <AutomationOpsPanel userId={userId} />
           </div>
         );
       case 'updates':
