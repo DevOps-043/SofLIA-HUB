@@ -19,6 +19,10 @@ declare global {
       executeCommand: (command: string) => Promise<any>;
       openApplication: (target: string) => Promise<any>;
       openUrl: (url: string) => Promise<any>;
+      runBackgroundCommand: (options: any) => Promise<any>;
+      listProcessSessions: () => Promise<any>;
+      pollProcessSession: (sessionId: string) => Promise<any>;
+      killProcessSession: (sessionId: string) => Promise<any>;
       getSystemInfo: () => Promise<any>;
       clipboardRead: () => Promise<any>;
       clipboardWrite: (text: string) => Promise<any>;
@@ -41,6 +45,8 @@ declare global {
       abort: () => Promise<any>;
       getStatus: () => Promise<any>;
       getConfig: () => Promise<any>;
+      listBrowserProfiles: () => Promise<any>;
+      resetBrowserProfile: (profileId: string) => Promise<any>;
       setConfig: (updates: any) => Promise<any>;
       startObservation: (objective: string, rules?: string) => Promise<any>;
       stopObservation: () => Promise<any>;
@@ -54,6 +60,20 @@ declare global {
       focusWindow: (title: string) => Promise<any>;
       listWindows: () => Promise<any>;
       takeScreenshot: (fullRes?: boolean) => Promise<any>;
+    };
+    remoteNode?: {
+      getHostStatus: () => Promise<any>;
+      updateHostConfig: (updates: any) => Promise<any>;
+      listNodes: () => Promise<any>;
+      registerNode: (node: any) => Promise<any>;
+      removeNode: (nodeId: string) => Promise<any>;
+      testNode: (nodeId: string) => Promise<any>;
+      openApplication: (nodeId: string, args: any) => Promise<any>;
+      runBackgroundCommand: (nodeId: string, args: any) => Promise<any>;
+      executeTask: (nodeId: string, args: any) => Promise<any>;
+      listProcessSessions: (nodeId: string) => Promise<any>;
+      pollProcessSession: (nodeId: string, sessionId: string) => Promise<any>;
+      killProcessSession: (nodeId: string, sessionId: string) => Promise<any>;
     };
   }
 }
@@ -81,6 +101,17 @@ const DANGEROUS_TOOLS = new Set([
   'delete_item',
   'execute_command',
   'send_email',
+  'run_background_command',
+  'kill_process_session',
+  'repair_background_host',
+  'configure_remote_node_host',
+  'register_remote_node',
+  'remove_remote_node',
+  'open_application_on_node',
+  'run_background_command_on_node',
+  'use_computer_on_node',
+  'kill_remote_node_process_session',
+  'reset_browser_profile',
 ]);
 
 // Callback-based confirmation system — allows React UI to handle confirmations
@@ -121,6 +152,28 @@ export async function executeComputerTool(
       ? `Organizar archivos en: ${args.path}\nModo: ${args.mode || 'extension'}${args.dry_run ? '\nModo simulacion' : ''}`
       : toolName === 'batch_move_files'
       ? `Mover archivos de: ${args.source_directory}\nA: ${args.destination_directory}`
+      : toolName === 'run_background_command'
+      ? `Ejecutar en segundo plano: ${args.command}${args.working_directory ? `\nEn: ${args.working_directory}` : ''}`
+      : toolName === 'kill_process_session'
+      ? `Terminar sesion administrada: ${args.session_id}`
+      : toolName === 'repair_background_host'
+      ? 'Reparar el host en segundo plano de SofLIA'
+      : toolName === 'configure_remote_node_host'
+      ? `Configurar host remoto: ${args.bind_address || '127.0.0.1'}:${args.port || ''}`
+      : toolName === 'register_remote_node'
+      ? `Registrar nodo remoto: ${args.name} (${args.base_url})`
+      : toolName === 'remove_remote_node'
+      ? `Eliminar nodo remoto: ${args.node_id}`
+      : toolName === 'open_application_on_node'
+      ? `Abrir en nodo ${args.node_id}: ${args.path}`
+      : toolName === 'run_background_command_on_node'
+      ? `Ejecutar en nodo ${args.node_id}: ${args.command}`
+      : toolName === 'use_computer_on_node'
+      ? `Controlar nodo ${args.node_id}: ${args.task}`
+      : toolName === 'kill_remote_node_process_session'
+      ? `Terminar sesion remota ${args.session_id} en ${args.node_id}`
+      : toolName === 'reset_browser_profile'
+      ? `Resetear perfil de navegador: ${args.profile_id}`
       : `Ejecutar comando: ${args.command}`;
 
     let confirmed = false;
@@ -205,6 +258,32 @@ export async function executeComputerTool(
       result = await api.openUrl(args.url);
       break;
 
+    case 'run_background_command':
+      result = await api.runBackgroundCommand(args);
+      break;
+
+    case 'list_process_sessions':
+      result = await api.listProcessSessions();
+      break;
+
+    case 'poll_process_session':
+      result = await api.pollProcessSession(args.session_id);
+      break;
+
+    case 'kill_process_session':
+      result = await api.killProcessSession(args.session_id);
+      break;
+
+    case 'get_background_host_status':
+      if (!window.backgroundHost) throw new Error('Background Host API no disponible.');
+      result = await window.backgroundHost.getStatus();
+      break;
+
+    case 'repair_background_host':
+      if (!window.backgroundHost) throw new Error('Background Host API no disponible.');
+      result = await window.backgroundHost.repair();
+      break;
+
     case 'get_system_info':
       result = await api.getSystemInfo();
       break;
@@ -226,10 +305,87 @@ export async function executeComputerTool(
         maxSteps: args.max_steps,
         backend: args.backend,
         startUrl: args.start_url,
+        browserProfile: args.browser_profile,
+        browserIsolated: args.browser_isolated,
+        resetBrowserProfile: args.reset_browser_profile,
       });
       if (typeof result === 'string') {
         result = { success: true, message: result };
       }
+      break;
+
+    case 'list_browser_profiles':
+      result = await desktopApi!.listBrowserProfiles();
+      break;
+
+    case 'reset_browser_profile':
+      result = await desktopApi!.resetBrowserProfile(args.profile_id);
+      break;
+
+    case 'get_remote_node_host_status':
+      if (!window.remoteNode) throw new Error('Remote Node API no disponible.');
+      result = await window.remoteNode.getHostStatus();
+      break;
+
+    case 'configure_remote_node_host':
+      if (!window.remoteNode) throw new Error('Remote Node API no disponible.');
+      result = await window.remoteNode.updateHostConfig(args);
+      break;
+
+    case 'list_remote_nodes':
+      if (!window.remoteNode) throw new Error('Remote Node API no disponible.');
+      result = await window.remoteNode.listNodes();
+      break;
+
+    case 'register_remote_node':
+      if (!window.remoteNode) throw new Error('Remote Node API no disponible.');
+      result = await window.remoteNode.registerNode({
+        id: args.node_id,
+        name: args.name,
+        base_url: args.base_url,
+        token: args.token,
+        enabled: args.enabled,
+      });
+      break;
+
+    case 'remove_remote_node':
+      if (!window.remoteNode) throw new Error('Remote Node API no disponible.');
+      result = await window.remoteNode.removeNode(args.node_id);
+      break;
+
+    case 'test_remote_node':
+      if (!window.remoteNode) throw new Error('Remote Node API no disponible.');
+      result = await window.remoteNode.testNode(args.node_id);
+      break;
+
+    case 'open_application_on_node':
+      if (!window.remoteNode) throw new Error('Remote Node API no disponible.');
+      result = await window.remoteNode.openApplication(args.node_id, { path: args.path });
+      break;
+
+    case 'run_background_command_on_node':
+      if (!window.remoteNode) throw new Error('Remote Node API no disponible.');
+      result = await window.remoteNode.runBackgroundCommand(args.node_id, args);
+      break;
+
+    case 'use_computer_on_node':
+      if (!window.remoteNode) throw new Error('Remote Node API no disponible.');
+      result = await window.remoteNode.executeTask(args.node_id, args);
+      break;
+
+    case 'list_remote_node_process_sessions':
+      if (!window.remoteNode) throw new Error('Remote Node API no disponible.');
+      result = await window.remoteNode.listProcessSessions(args.node_id);
+      break;
+
+    case 'poll_remote_node_process_session':
+      if (!window.remoteNode) throw new Error('Remote Node API no disponible.');
+      result = await window.remoteNode.pollProcessSession(args.node_id, args.session_id);
+      break;
+
+    case 'kill_remote_node_process_session':
+      if (!window.remoteNode) throw new Error('Remote Node API no disponible.');
+      result = await window.remoteNode.killProcessSession(args.node_id, args.session_id);
       break;
 
     case 'get_email_config':

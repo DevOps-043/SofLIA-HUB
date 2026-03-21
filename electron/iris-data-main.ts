@@ -1,4 +1,4 @@
-/**
+﻿/**
  * IRIS Data Service for Electron Main Process
  * 
  * This module provides direct access to IRIS (Project Hub) data from the main process,
@@ -9,14 +9,19 @@ import * as dotenv from 'dotenv';
 import path from 'node:path';
 import { app } from 'electron';
 import fs from 'node:fs';
-
+import {
+  describeResolutionCandidates,
+  generateUniqueProjectKey,
+  normalizeProjectKey,
+  resolveSearchCandidate,
+} from '../src/shared/iris-resolution';
 // Load .env from project root
 const envPath = path.join(app.getAppPath(), '.env');
 if (fs.existsSync(envPath)) {
   dotenv.config({ path: envPath });
 }
 
-// ─── IRIS Supabase Client (Main Process) ─────────────────────────────
+// â”€â”€â”€ IRIS Supabase Client (Main Process) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const IRIS_URL = process.env.VITE_IRIS_SUPABASE_URL || '';
 const IRIS_KEY = process.env.VITE_IRIS_SUPABASE_ANON_KEY || '';
 
@@ -42,7 +47,7 @@ function getIrisClient(): SupabaseClient | null {
   }
 }
 
-// ─── SOFIA Supabase Client (for auth) ────────────────────────────────
+// â”€â”€â”€ SOFIA Supabase Client (for auth) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const SOFIA_URL = process.env.VITE_SOFIA_SUPABASE_URL || '';
 const SOFIA_KEY = process.env.VITE_SOFIA_SUPABASE_ANON_KEY || '';
 
@@ -68,7 +73,7 @@ function getSofiaClient(): SupabaseClient | null {
   }
 }
 
-// ─── Types ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface IrisTeam {
   team_id: string;
@@ -115,7 +120,8 @@ export interface IrisIssue {
 }
 
 export interface IrisTeamMember {
-  membership_id: string;
+  member_id: string;
+  membership_id?: string;
   team_id: string;
   user_id: string;
   role: string;
@@ -128,7 +134,7 @@ export interface IrisTeamMemberDetail extends IrisTeamMember {
   username?: string | null;
 }
 
-// ─── WhatsApp Session Auth ───────────────────────────────────────────
+// â”€â”€â”€ WhatsApp Session Auth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const WA_AUTH_PATH = path.join(app.getPath('userData'), 'whatsapp-iris-sessions.json');
 
 interface WhatsAppSession {
@@ -185,7 +191,7 @@ function normalizePhone(phone: string): string {
  * MUST be called (awaited) BEFORE any INSERT that references account_users via FK
  * (pm_projects.created_by_user_id, task_issues.creator_id, etc.)
  *
- * This is the definitive fix for the FK constraint error — it guarantees the user
+ * This is the definitive fix for the FK constraint error â€” it guarantees the user
  * row exists before any dependent INSERT happens.
  */
 async function ensureUserExistsInIris(userId: string): Promise<void> {
@@ -196,7 +202,7 @@ async function ensureUserExistsInIris(userId: string): Promise<void> {
   }
 
   try {
-    // 1. Quick check — does the user already exist in IRIS?
+    // 1. Quick check â€” does the user already exist in IRIS?
     const { data: existing } = await iris
       .from('account_users')
       .select('user_id')
@@ -207,12 +213,12 @@ async function ensureUserExistsInIris(userId: string): Promise<void> {
       return; // Already synced, nothing to do
     }
 
-    console.log(`[IRIS-Main] User ${userId} NOT found in IRIS account_users — fetching from SOFIA...`);
+    console.log(`[IRIS-Main] User ${userId} NOT found in IRIS account_users â€” fetching from SOFIA...`);
 
     // 2. Fetch full user data from SOFIA (the single source of truth)
     const sofia = getSofiaClient();
     if (!sofia) {
-      console.error('[IRIS-Main] ensureUserExistsInIris: no SOFIA client — cannot fetch user data');
+      console.error('[IRIS-Main] ensureUserExistsInIris: no SOFIA client â€” cannot fetch user data');
       return;
     }
 
@@ -227,7 +233,7 @@ async function ensureUserExistsInIris(userId: string): Promise<void> {
       return;
     }
 
-    console.log(`[IRIS-Main] Found SOFIA user: "${sofiaUser.username}" <${sofiaUser.email}> — inserting into IRIS...`);
+    console.log(`[IRIS-Main] Found SOFIA user: "${sofiaUser.username}" <${sofiaUser.email}> â€” inserting into IRIS...`);
 
     // 3. Build IRIS account_users record (matches IRIS schema requirements)
     const lastNameParts = (sofiaUser.last_name || '').trim().split(/\s+/);
@@ -257,13 +263,13 @@ async function ensureUserExistsInIris(userId: string): Promise<void> {
 
     if (error) {
       if (error.code === '23505') {
-        // Duplicate — another process already inserted, that's fine
-        console.log(`[IRIS-Main] User ${sofiaUser.email} inserted by another process — OK`);
+        // Duplicate â€” another process already inserted, that's fine
+        console.log(`[IRIS-Main] User ${sofiaUser.email} inserted by another process â€” OK`);
         return;
       }
 
       if (error.code === '42501' || error.message?.includes('policy')) {
-        console.error(`[IRIS-Main] ⚠️ RLS bloquea INSERT en account_users.`);
+        console.error(`[IRIS-Main] âš ï¸ RLS bloquea INSERT en account_users.`);
         console.error(`[IRIS-Main]   Ejecuta en IRIS Supabase SQL Editor:`);
         console.error(`[IRIS-Main]   ALTER TABLE account_users DISABLE ROW LEVEL SECURITY;`);
         console.error(`[IRIS-Main]   O: CREATE POLICY "allow_insert_account_users" ON account_users FOR INSERT WITH CHECK (true);`);
@@ -271,7 +277,7 @@ async function ensureUserExistsInIris(userId: string): Promise<void> {
 
       console.error(`[IRIS-Main] ensureUserExistsInIris INSERT failed (${error.code}): ${error.message}`);
     } else {
-      console.log(`[IRIS-Main] ✅ User "${sofiaUser.username}" (${userId}) synced to IRIS account_users`);
+      console.log(`[IRIS-Main] âœ… User "${sofiaUser.username}" (${userId}) synced to IRIS account_users`);
     }
   } catch (err: any) {
     console.error(`[IRIS-Main] ensureUserExistsInIris exception:`, err.message);
@@ -289,13 +295,13 @@ export async function tryAutoAuthByPhone(
   const existing = sessions.get(senderPhoneNumber);
   if (existing) {
     // Sync is now done inside createProject/createIssue (awaited before INSERT)
-    // No need to fire-and-forget here — the sync happens at the point of use
+    // No need to fire-and-forget here â€” the sync happens at the point of use
     return { success: true, session: existing, message: `Ya autenticado como ${existing.fullName}` };
   }
 
   const sofia = getSofiaClient();
   if (!sofia) {
-    return { success: false, message: 'Sistema de autenticación no disponible.' };
+    return { success: false, message: 'Sistema de autenticaciÃ³n no disponible.' };
   }
 
   try {
@@ -310,7 +316,7 @@ export async function tryAutoAuthByPhone(
 
     if (error || !users || users.length === 0) {
       console.log('[IRIS-Main] Auto-auth: no users with phone numbers found');
-      return { success: false, message: 'No se encontró un usuario con este número de teléfono.' };
+      return { success: false, message: 'No se encontrÃ³ un usuario con este nÃºmero de telÃ©fono.' };
     }
 
     // Find matching user by normalizing all phones
@@ -324,7 +330,7 @@ export async function tryAutoAuthByPhone(
 
     if (!matchedUser) {
       console.log(`[IRIS-Main] Auto-auth: no phone match found for ${normalizedSender}`);
-      return { success: false, message: 'Tu número de WhatsApp no está registrado en el sistema.' };
+      return { success: false, message: 'Tu nÃºmero de WhatsApp no estÃ¡ registrado en el sistema.' };
     }
 
     console.log(`[IRIS-Main] Auto-auth: matched user ${matchedUser.username} (${matchedUser.email})`);
@@ -367,7 +373,7 @@ export async function tryAutoAuthByPhone(
     return {
       success: true,
       session,
-      message: `¡Detectado automáticamente! Bienvenido/a, ${fullName}.`,
+      message: `Â¡Detectado automÃ¡ticamente! Bienvenido/a, ${fullName}.`,
     };
   } catch (err: any) {
     console.error('[IRIS-Main] Auto-auth error:', err);
@@ -387,7 +393,7 @@ export async function authenticateWhatsAppUser(
 ): Promise<{ success: boolean; message: string; fullName?: string }> {
   const sofia = getSofiaClient();
   if (!sofia) {
-    return { success: false, message: 'El sistema de autenticación no está disponible.' };
+    return { success: false, message: 'El sistema de autenticaciÃ³n no estÃ¡ disponible.' };
   }
 
   try {
@@ -400,11 +406,11 @@ export async function authenticateWhatsAppUser(
 
     if (authError) {
       console.error('[IRIS-Main] authenticate_user RPC error:', authError);
-      return { success: false, message: 'Error de conexión con el sistema.' };
+      return { success: false, message: 'Error de conexiÃ³n con el sistema.' };
     }
 
     if (!authResult?.success) {
-      return { success: false, message: authResult?.error || 'Credenciales inválidas.' };
+      return { success: false, message: authResult?.error || 'Credenciales invÃ¡lidas.' };
     }
 
     const sofiaUser = authResult.user;
@@ -446,12 +452,12 @@ export async function authenticateWhatsAppUser(
 
     return { 
       success: true, 
-      message: `¡Autenticado exitosamente! Bienvenido/a, ${fullName}.`,
+      message: `Â¡Autenticado exitosamente! Bienvenido/a, ${fullName}.`,
       fullName,
     };
   } catch (err: any) {
     console.error('[IRIS-Main] Auth error:', err);
-    return { success: false, message: `Error de autenticación: ${err.message}` };
+    return { success: false, message: `Error de autenticaciÃ³n: ${err.message}` };
   }
 }
 
@@ -513,7 +519,7 @@ export function getAllWhatsAppSessions(): WhatsAppSession[] {
   return Array.from(sessions.values());
 }
 
-// ─── IRIS Data Access Functions ──────────────────────────────────────
+// â”€â”€â”€ IRIS Data Access Functions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function isIrisAvailable(): boolean {
   return !!getIrisClient();
@@ -540,15 +546,28 @@ export async function getTeams(): Promise<IrisTeam[]> {
   }
 }
 
-export async function getProjects(teamId?: string): Promise<IrisProject[]> {
+export async function getProjects(teamRef?: string): Promise<IrisProject[]> {
   const iris = getIrisClient();
   if (!iris) return [];
   try {
+    let resolvedTeamId: string | null = null;
+    if (teamRef?.trim()) {
+      const teamResult = await resolveTeamReference(
+        { teamId: teamRef, teamName: teamRef },
+        { allowSingleTeamDefault: false, missingMessage: 'No encontre el equipo solicitado para filtrar proyectos.' },
+      );
+      if (!teamResult.success) {
+        console.warn('[IRIS-Main] getProjects team resolution failed:', teamResult.error);
+        return [];
+      }
+      resolvedTeamId = teamResult.value.team_id;
+    }
+
     let query = iris
       .from('pm_projects')
       .select('*')
       .order('updated_at', { ascending: false });
-    if (teamId) query = query.eq('team_id', teamId);
+    if (resolvedTeamId) query = query.eq('team_id', resolvedTeamId);
     const { data, error } = await query;
     if (error) { console.error('[IRIS-Main] getProjects error:', error); return []; }
     return data || [];
@@ -587,28 +606,46 @@ export async function getIssues(filters?: {
   }
 }
 
-export async function getTeamMembers(teamId: string): Promise<IrisTeamMember[]> {
+function normalizeTeamMemberRecord(member: any): IrisTeamMember {
+  return {
+    ...member,
+    member_id: member.member_id ?? member.membership_id,
+    membership_id: member.membership_id ?? member.member_id,
+  };
+}
+
+export async function getTeamMembers(teamRef: string): Promise<IrisTeamMember[]> {
   const iris = getIrisClient();
   if (!iris) return [];
   try {
+    const teamResult = await resolveTeamReference(
+      { teamId: teamRef, teamName: teamRef },
+      { allowSingleTeamDefault: false, missingMessage: 'No encontre el equipo solicitado para listar miembros.' },
+    );
+    if (!teamResult.success) {
+      console.warn('[IRIS-Main] getTeamMembers team resolution failed:', teamResult.error);
+      return [];
+    }
+
     const { data, error } = await iris
       .from('team_members')
       .select('*')
-      .eq('team_id', teamId);
+      .eq('team_id', teamResult.value.team_id)
+      .eq('is_active', true);
     if (error) { console.error('[IRIS-Main] getTeamMembers error:', error); return []; }
-    return data || [];
+    return (data || []).map(normalizeTeamMemberRecord);
   } catch (err) {
     console.error('[IRIS-Main] getTeamMembers exception:', err);
     return [];
   }
 }
 
-export async function getTeamMembersDetailed(teamId: string): Promise<IrisTeamMemberDetail[]> {
+export async function getTeamMembersDetailed(teamRef: string): Promise<IrisTeamMemberDetail[]> {
   const iris = getIrisClient();
   if (!iris) return [];
 
   try {
-    const members = await getTeamMembers(teamId);
+    const members = await getTeamMembers(teamRef);
     if (members.length === 0) {
       return [];
     }
@@ -647,16 +684,42 @@ export async function getTeamMembersDetailed(teamId: string): Promise<IrisTeamMe
   }
 }
 
-// ─── Statuses & Priorities ───────────────────────────────────────────
+// â”€â”€â”€ Statuses & Priorities â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-export async function getStatuses(teamId: string): Promise<{ status_id: string; name: string; status_type: string; color?: string; position: number; is_default: boolean }[]> {
+type IrisStatusRecord = {
+  status_id: string;
+  name: string;
+  status_type: string;
+  color?: string;
+  position: number;
+  is_default: boolean;
+  is_closed?: boolean;
+};
+
+type IrisPriorityRecord = {
+  priority_id: string;
+  name: string;
+  level: number;
+  color: string;
+};
+
+export async function getStatuses(teamRef: string): Promise<IrisStatusRecord[]> {
   const iris = getIrisClient();
   if (!iris) return [];
   try {
+    const teamResult = await resolveTeamReference(
+      { teamId: teamRef, teamName: teamRef },
+      { allowSingleTeamDefault: false, missingMessage: 'No encontre el equipo solicitado para listar estados.' },
+    );
+    if (!teamResult.success) {
+      console.warn('[IRIS-Main] getStatuses team resolution failed:', teamResult.error);
+      return [];
+    }
+
     const { data, error } = await iris
       .from('task_statuses')
       .select('*')
-      .eq('team_id', teamId)
+      .eq('team_id', teamResult.value.team_id)
       .order('position');
     if (error) { console.error('[IRIS-Main] getStatuses error:', error); return []; }
     return data || [];
@@ -666,7 +729,7 @@ export async function getStatuses(teamId: string): Promise<{ status_id: string; 
   }
 }
 
-export async function getPriorities(): Promise<{ priority_id: string; name: string; level: number; color: string }[]> {
+export async function getPriorities(): Promise<IrisPriorityRecord[]> {
   const iris = getIrisClient();
   if (!iris) return [];
   try {
@@ -682,11 +745,323 @@ export async function getPriorities(): Promise<{ priority_id: string; name: stri
   }
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────
+type ResolveResult<T> =
+  | { success: true; value: T; warnings: string[] }
+  | { success: false; error: string };
+
+function isUuidLike(value: string | null | undefined): boolean {
+  return !!value && /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value.trim());
+}
+
+function buildPriorityAliases(priority: IrisPriorityRecord): string[] {
+  const normalized = priority.name.toLowerCase();
+  const aliases = [priority.name];
+
+  if (normalized.includes('urgente')) aliases.push('urgent', 'critical');
+  if (normalized.includes('alta')) aliases.push('high');
+  if (normalized.includes('media')) aliases.push('medium');
+  if (normalized.includes('baja')) aliases.push('low');
+  if (normalized.includes('sin prioridad')) aliases.push('none', 'no priority');
+
+  return aliases;
+}
+
+function buildStatusAliases(status: IrisStatusRecord): string[] {
+  const aliases = [status.name, status.status_type];
+
+  switch (status.status_type) {
+    case 'backlog':
+      aliases.push('por definir');
+      break;
+    case 'todo':
+      aliases.push('to do', 'pendiente', 'por hacer');
+      break;
+    case 'in_progress':
+      aliases.push('en progreso', 'doing');
+      break;
+    case 'in_review':
+      aliases.push('revision', 'review', 'en revision');
+      break;
+    case 'done':
+      aliases.push('hecho', 'completado', 'completed');
+      break;
+    case 'cancelled':
+      aliases.push('cancelado');
+      break;
+    default:
+      break;
+  }
+
+  return aliases;
+}
+
+async function resolveTeamReference(
+  refs: { teamId?: string; teamName?: string },
+  options?: { allowSingleTeamDefault?: boolean; missingMessage?: string },
+): Promise<ResolveResult<IrisTeam>> {
+  const teams = await getTeams();
+  if (teams.length === 0) {
+    return { success: false, error: 'IRIS no tiene equipos disponibles.' };
+  }
+
+  const explicitId = refs.teamId?.trim();
+  if (explicitId) {
+    const byId = teams.find((team) => team.team_id === explicitId);
+    if (byId) {
+      return { success: true, value: byId, warnings: [] };
+    }
+    if (isUuidLike(explicitId) && !refs.teamName?.trim()) {
+      return { success: false, error: `No existe el equipo con ID ${explicitId}.` };
+    }
+  }
+
+  const query = refs.teamName?.trim() || refs.teamId?.trim() || '';
+  if (query) {
+    const resolution = resolveSearchCandidate(
+      query,
+      teams.map((team) => ({
+        item: team,
+        label: team.name,
+        aliases: [team.slug],
+      })),
+    );
+
+    if (resolution.match) {
+      return { success: true, value: resolution.match, warnings: [] };
+    }
+
+    if (resolution.reason === 'ambiguous') {
+      return {
+        success: false,
+        error: `El equipo "${query}" es ambiguo. Opciones: ${describeResolutionCandidates(resolution.candidates)}.`,
+      };
+    }
+
+    return {
+      success: false,
+      error: options?.missingMessage || `No encontre el equipo "${query}" en IRIS.`,
+    };
+  }
+
+  if (options?.allowSingleTeamDefault && teams.length === 1) {
+    return {
+      success: true,
+      value: teams[0],
+      warnings: [`Se uso el unico equipo activo disponible: ${teams[0].name}.`],
+    };
+  }
+
+  return {
+    success: false,
+    error: options?.missingMessage || 'Debes indicar el equipo objetivo antes de escribir en IRIS.',
+  };
+}
+
+export async function resolveProjectReference(refs: {
+  projectId?: string;
+  projectName?: string;
+  scopedTeamId?: string;
+}): Promise<ResolveResult<IrisProject | null>> {
+  const query = refs.projectName?.trim() || refs.projectId?.trim() || '';
+  if (!query) {
+    return { success: true, value: null, warnings: [] };
+  }
+
+  const projects = await getProjects(refs.scopedTeamId);
+  if (projects.length === 0) {
+    return { success: false, error: 'No hay proyectos disponibles en el alcance seleccionado.' };
+  }
+
+  const explicitId = refs.projectId?.trim();
+  if (explicitId) {
+    const byId = projects.find((project) => project.project_id === explicitId);
+    if (byId) {
+      return { success: true, value: byId, warnings: [] };
+    }
+    if (isUuidLike(explicitId) && !refs.projectName?.trim()) {
+      return { success: false, error: `No existe el proyecto con ID ${explicitId}.` };
+    }
+  }
+
+  const resolution = resolveSearchCandidate(
+    query,
+    projects.map((project) => ({
+      item: project,
+      label: project.project_name,
+      aliases: [project.project_key, project.project_description],
+    })),
+  );
+
+  if (resolution.match) {
+    return { success: true, value: resolution.match, warnings: [] };
+  }
+
+  if (resolution.reason === 'ambiguous') {
+    return {
+      success: false,
+      error: `El proyecto "${query}" es ambiguo. Opciones: ${describeResolutionCandidates(resolution.candidates)}.`,
+    };
+  }
+
+  return { success: false, error: `No encontre el proyecto "${query}" en IRIS.` };
+}
+
+export async function resolveStatusReference(refs: {
+  statusId?: string;
+  statusName?: string;
+  teamId: string;
+}): Promise<ResolveResult<IrisStatusRecord>> {
+  const statuses = await getStatuses(refs.teamId);
+  if (statuses.length === 0) {
+    return { success: false, error: 'El equipo no tiene estados configurados en IRIS.' };
+  }
+
+  const explicitId = refs.statusId?.trim();
+  if (explicitId) {
+    const byId = statuses.find((status) => status.status_id === explicitId);
+    if (byId) {
+      return { success: true, value: byId, warnings: [] };
+    }
+    if (isUuidLike(explicitId) && !refs.statusName?.trim()) {
+      return { success: false, error: `No existe el estado con ID ${explicitId}.` };
+    }
+  }
+
+  const query = refs.statusName?.trim() || refs.statusId?.trim() || '';
+  if (!query) {
+    const fallback =
+      statuses.find((status) => status.is_default) ||
+      statuses.find((status) => status.status_type === 'backlog') ||
+      statuses.find((status) => status.status_type === 'todo') ||
+      statuses[0];
+    return { success: true, value: fallback, warnings: [] };
+  }
+
+  const resolution = resolveSearchCandidate(
+    query,
+    statuses.map((status) => ({
+      item: status,
+      label: status.name,
+      aliases: buildStatusAliases(status),
+    })),
+  );
+
+  if (resolution.match) {
+    return { success: true, value: resolution.match, warnings: [] };
+  }
+
+  if (resolution.reason === 'ambiguous') {
+    return {
+      success: false,
+      error: `El estado "${query}" es ambiguo. Opciones: ${describeResolutionCandidates(resolution.candidates)}.`,
+    };
+  }
+
+  return { success: false, error: `No encontre el estado "${query}" para el equipo seleccionado.` };
+}
+
+export async function resolvePriorityReference(refs: {
+  priorityId?: string;
+  priorityName?: string;
+}): Promise<ResolveResult<IrisPriorityRecord | null>> {
+  const query = refs.priorityName?.trim() || refs.priorityId?.trim() || '';
+  if (!query) {
+    return { success: true, value: null, warnings: [] };
+  }
+
+  const priorities = await getPriorities();
+  if (priorities.length === 0) {
+    return { success: false, error: 'IRIS no tiene prioridades configuradas.' };
+  }
+
+  const explicitId = refs.priorityId?.trim();
+  if (explicitId) {
+    const byId = priorities.find((priority) => priority.priority_id === explicitId);
+    if (byId) {
+      return { success: true, value: byId, warnings: [] };
+    }
+    if (isUuidLike(explicitId) && !refs.priorityName?.trim()) {
+      return { success: false, error: `No existe la prioridad con ID ${explicitId}.` };
+    }
+  }
+
+  const resolution = resolveSearchCandidate(
+    query,
+    priorities.map((priority) => ({
+      item: priority,
+      label: priority.name,
+      aliases: buildPriorityAliases(priority),
+    })),
+  );
+
+  if (resolution.match) {
+    return { success: true, value: resolution.match, warnings: [] };
+  }
+
+  if (resolution.reason === 'ambiguous') {
+    return {
+      success: false,
+      error: `La prioridad "${query}" es ambigua. Opciones: ${describeResolutionCandidates(resolution.candidates)}.`,
+    };
+  }
+
+  return { success: false, error: `No encontre la prioridad "${query}" en IRIS.` };
+}
+
+export async function resolveAssigneeReference(refs: {
+  assigneeId?: string;
+  assigneeQuery?: string;
+  teamId: string;
+}): Promise<ResolveResult<IrisTeamMemberDetail | null>> {
+  const query = refs.assigneeQuery?.trim() || refs.assigneeId?.trim() || '';
+  if (!query) {
+    return { success: true, value: null, warnings: [] };
+  }
+
+  const members = await getTeamMembersDetailed(refs.teamId);
+  if (members.length === 0) {
+    return { success: false, error: 'El equipo seleccionado no tiene miembros disponibles para asignacion.' };
+  }
+
+  const explicitId = refs.assigneeId?.trim();
+  if (explicitId) {
+    const byId = members.find((member) => member.user_id === explicitId);
+    if (byId) {
+      return { success: true, value: byId, warnings: [] };
+    }
+    if (isUuidLike(explicitId) && !refs.assigneeQuery?.trim()) {
+      return { success: false, error: 'El usuario asignado no pertenece al equipo seleccionado.' };
+    }
+  }
+
+  const resolution = resolveSearchCandidate(
+    query,
+    members.map((member) => ({
+      item: member,
+      label: member.display_name || member.username || member.email || member.user_id,
+      aliases: [member.username, member.email, member.email?.split('@')[0], member.user_id],
+    })),
+  );
+
+  if (resolution.match) {
+    return { success: true, value: resolution.match, warnings: [] };
+  }
+
+  if (resolution.reason === 'ambiguous') {
+    return {
+      success: false,
+      error: `El responsable "${query}" es ambiguo dentro del equipo. Opciones: ${describeResolutionCandidates(resolution.candidates)}.`,
+    };
+  }
+
+  return { success: false, error: `No encontre a "${query}" dentro del equipo seleccionado.` };
+}
+
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * Get the next issue_number for a team (auto-increment).
- * issue_number is NOT auto-generated by the database — it must be set by application code.
+ * issue_number is NOT auto-generated by the database â€” it must be set by application code.
  */
 async function getNextIssueNumber(teamId: string): Promise<number> {
   const iris = getIrisClient();
@@ -700,79 +1075,197 @@ async function getNextIssueNumber(teamId: string): Promise<number> {
   return (data && data.length > 0) ? data[0].issue_number + 1 : 1;
 }
 
-// ─── WRITE Operations ────────────────────────────────────────────────
+// â”€â”€â”€ WRITE Operations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * Create a new issue/task in IRIS
  */
 export async function createIssue(params: {
-  teamId: string;
+  teamId?: string;
+  teamName?: string;
   title: string;
   creatorId: string;
   statusId?: string;
+  statusName?: string;
   priorityId?: string;
+  priorityName?: string;
   projectId?: string;
+  projectName?: string;
   assigneeId?: string;
+  assigneeQuery?: string;
   description?: string;
   dueDate?: string;
-}): Promise<{ success: boolean; issue?: any; error?: string }> {
+}): Promise<{ success: boolean; issue?: any; error?: string; warnings?: string[] }> {
   const iris = getIrisClient();
-  if (!iris) return { success: false, error: 'IRIS no está disponible.' };
+  if (!iris) return { success: false, error: 'IRIS no esta disponible.' };
 
   try {
-    // Ensure creator (and assignee if provided) exist in IRIS before INSERT (FK constraint fix)
+    const title = params.title?.trim();
+    if (!title) {
+      return { success: false, error: 'La tarea necesita un titulo valido.' };
+    }
+
+    const warnings: string[] = [];
+    let explicitTeam: IrisTeam | null = null;
+    if (params.teamId?.trim() || params.teamName?.trim()) {
+      const teamResolution = await resolveTeamReference(
+        { teamId: params.teamId, teamName: params.teamName },
+        {
+          allowSingleTeamDefault: false,
+          missingMessage: 'No encontre el equipo indicado para crear la tarea.',
+        },
+      );
+      if (!teamResolution.success) {
+        return { success: false, error: teamResolution.error };
+      }
+      explicitTeam = teamResolution.value;
+      warnings.push(...teamResolution.warnings);
+    }
+
+    const projectResult = await resolveProjectReference({
+      projectId: params.projectId,
+      projectName: params.projectName,
+      scopedTeamId: explicitTeam?.team_id,
+    });
+    if (!projectResult.success) {
+      return { success: false, error: projectResult.error, warnings };
+    }
+    warnings.push(...projectResult.warnings);
+
+    const resolvedProject = projectResult.value;
+    const teams = await getTeams();
+    let effectiveTeam = explicitTeam;
+
+    if (resolvedProject?.team_id) {
+      const projectTeam = teams.find((team) => team.team_id === resolvedProject.team_id) || null;
+      if (!projectTeam) {
+        return { success: false, error: 'El proyecto seleccionado no tiene un equipo valido en IRIS.', warnings };
+      }
+      if (explicitTeam && explicitTeam.team_id !== projectTeam.team_id) {
+        return {
+          success: false,
+          error: `El proyecto "${resolvedProject.project_name}" pertenece al equipo "${projectTeam.name}" y no al equipo "${explicitTeam.name}".`,
+          warnings,
+        };
+      }
+      effectiveTeam = projectTeam;
+    }
+
+    if (!effectiveTeam) {
+      const teamResult = await resolveTeamReference(
+        { teamId: params.teamId, teamName: params.teamName },
+        {
+          allowSingleTeamDefault: true,
+          missingMessage: 'Debes indicar el equipo donde se va a crear la tarea.',
+        },
+      );
+      if (!teamResult.success) {
+        return { success: false, error: teamResult.error, warnings };
+      }
+      warnings.push(...teamResult.warnings);
+      effectiveTeam = teamResult.value;
+    }
+
+    const statusResult = await resolveStatusReference({
+      statusId: params.statusId,
+      statusName: params.statusName,
+      teamId: effectiveTeam.team_id,
+    });
+    if (!statusResult.success) {
+      return { success: false, error: statusResult.error, warnings };
+    }
+    warnings.push(...statusResult.warnings);
+
+    const priorityResult = await resolvePriorityReference({
+      priorityId: params.priorityId,
+      priorityName: params.priorityName,
+    });
+    if (!priorityResult.success) {
+      return { success: false, error: priorityResult.error, warnings };
+    }
+    warnings.push(...priorityResult.warnings);
+
+    const assigneeResult = await resolveAssigneeReference({
+      assigneeId: params.assigneeId,
+      assigneeQuery: params.assigneeQuery,
+      teamId: effectiveTeam.team_id,
+    });
+    if (!assigneeResult.success) {
+      return { success: false, error: assigneeResult.error, warnings };
+    }
+    warnings.push(...assigneeResult.warnings);
+
     await ensureUserExistsInIris(params.creatorId);
-    if (params.assigneeId) {
-      await ensureUserExistsInIris(params.assigneeId);
+    if (assigneeResult.value?.user_id && assigneeResult.value.user_id !== params.creatorId) {
+      await ensureUserExistsInIris(assigneeResult.value.user_id);
     }
 
-    // If no statusId provided, get the default status for the team
-    let statusId = params.statusId;
-    if (!statusId) {
-      const statuses = await getStatuses(params.teamId);
-      const defaultStatus = statuses.find(s => s.is_default) || statuses.find(s => s.status_type === 'backlog') || statuses[0];
-      if (defaultStatus) statusId = defaultStatus.status_id;
-    }
-
-    if (!statusId) {
-      return { success: false, error: 'No se encontró un estado válido para el equipo.' };
-    }
-
-    // Auto-generate issue_number (required NOT NULL column, not auto-generated by DB)
-    const issueNumber = await getNextIssueNumber(params.teamId);
-
-    const insertData: Record<string, any> = {
-      team_id: params.teamId,
-      title: params.title,
+    const insertBase: Record<string, any> = {
+      team_id: effectiveTeam.team_id,
+      title,
       creator_id: params.creatorId,
-      status_id: statusId,
-      issue_number: issueNumber,
+      status_id: statusResult.value.status_id,
     };
-    if (params.priorityId) insertData.priority_id = params.priorityId;
-    if (params.projectId) insertData.project_id = params.projectId;
-    if (params.assigneeId) insertData.assignee_id = params.assigneeId;
-    if (params.description) insertData.description = params.description;
-    if (params.dueDate) insertData.due_date = params.dueDate;
+    if (priorityResult.value?.priority_id) insertBase.priority_id = priorityResult.value.priority_id;
+    if (resolvedProject?.project_id) insertBase.project_id = resolvedProject.project_id;
+    if (assigneeResult.value?.user_id) insertBase.assignee_id = assigneeResult.value.user_id;
+    if (params.description?.trim()) insertBase.description = params.description.trim();
+    if (params.dueDate?.trim()) insertBase.due_date = params.dueDate.trim();
 
-    const { data, error } = await iris
-      .from('task_issues')
-      .insert(insertData)
-      .select('*, status:task_statuses(*), priority:task_priorities(*)')
-      .single();
+    let lastError: any = null;
+    let collisionWarningAdded = false;
 
-    if (error) {
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      const issueNumber = await getNextIssueNumber(effectiveTeam.team_id);
+      const { data, error } = await iris
+        .from('task_issues')
+        .insert({
+          ...insertBase,
+          issue_number: issueNumber,
+        })
+        .select('*, status:task_statuses(*), priority:task_priorities(*)')
+        .single();
+
+      if (!error) {
+        console.log(`[IRIS-Main] Issue created: #${data.issue_number} "${data.title}"`);
+        return {
+          success: true,
+          issue: data,
+          warnings: warnings.length > 0 ? warnings : undefined,
+        };
+      }
+
+      lastError = error;
+      const duplicateIssueNumber =
+        error.code === '23505' &&
+        `${error.message || ''} ${error.details || ''}`.toLowerCase().includes('issue_number');
+
+      if (duplicateIssueNumber && attempt < 3) {
+        if (!collisionWarningAdded) {
+          warnings.push('Hubo una colision temporal al asignar el numero de issue y se reintento la creacion.');
+          collisionWarningAdded = true;
+        }
+        continue;
+      }
+
       console.error('[IRIS-Main] createIssue error:', error);
-      return { success: false, error: error.message };
+      return {
+        success: false,
+        error: error.message,
+        warnings: warnings.length > 0 ? warnings : undefined,
+      };
     }
 
-    console.log(`[IRIS-Main] Issue created: #${data.issue_number} "${data.title}"`);
-    return { success: true, issue: data };
+    return {
+      success: false,
+      error: lastError?.message || 'No se pudo crear la tarea en IRIS.',
+      warnings: warnings.length > 0 ? warnings : undefined,
+    };
   } catch (err: any) {
     console.error('[IRIS-Main] createIssue exception:', err);
     return { success: false, error: err.message };
   }
 }
-
 /**
  * Update the status of an existing issue
  */
@@ -784,7 +1277,7 @@ export async function updateIssueStatus(params: {
   newStatusName?: string;
 }): Promise<{ success: boolean; issue?: any; error?: string }> {
   const iris = getIrisClient();
-  if (!iris) return { success: false, error: 'IRIS no está disponible.' };
+  if (!iris) return { success: false, error: 'IRIS no estÃ¡ disponible.' };
 
   try {
     // Find the issue
@@ -801,7 +1294,7 @@ export async function updateIssueStatus(params: {
       }
     }
 
-    if (!issueId) return { success: false, error: 'No se encontró la tarea especificada.' };
+    if (!issueId) return { success: false, error: 'No se encontrÃ³ la tarea especificada.' };
 
     // Resolve status
     let statusId = params.newStatusId;
@@ -814,7 +1307,7 @@ export async function updateIssueStatus(params: {
       if (match) statusId = match.status_id;
     }
 
-    if (!statusId) return { success: false, error: 'No se encontró el estado especificado.' };
+    if (!statusId) return { success: false, error: 'No se encontrÃ³ el estado especificado.' };
 
     // Build update data
     const updateData: Record<string, any> = {
@@ -860,24 +1353,57 @@ export async function updateIssueStatus(params: {
  */
 export async function createProject(params: {
   projectName: string;
-  projectKey: string;
+  projectKey?: string;
   createdByUserId: string;
   teamId?: string;
+  teamName?: string;
   description?: string;
   priorityLevel?: string;
   startDate?: string;
   targetDate?: string;
-}): Promise<{ success: boolean; project?: any; error?: string }> {
+}): Promise<{ success: boolean; project?: any; error?: string; warnings?: string[] }> {
   const iris = getIrisClient();
-  if (!iris) return { success: false, error: 'IRIS no está disponible.' };
+  if (!iris) return { success: false, error: 'IRIS no estÃ¡ disponible.' };
 
   try {
+    const projectName = params.projectName?.trim();
+    if (!projectName) {
+      return { success: false, error: 'El proyecto necesita un nombre valido.' };
+    }
+
+    const warnings: string[] = [];
+    const teamResult = await resolveTeamReference(
+      { teamId: params.teamId, teamName: params.teamName },
+      {
+        allowSingleTeamDefault: true,
+        missingMessage: 'Debes indicar el equipo donde se va a crear el proyecto.',
+      },
+    );
+    if (!teamResult.success) {
+      return { success: false, error: teamResult.error };
+    }
+    warnings.push(...teamResult.warnings);
+
     // Ensure the creator user exists in IRIS before INSERT (FK constraint fix)
     await ensureUserExistsInIris(params.createdByUserId);
 
+    const existingProjects = await getProjects(teamResult.value.team_id);
+    const normalizedRequestedKey = normalizeProjectKey(params.projectKey);
+    const projectKey = generateUniqueProjectKey(
+      projectName,
+      existingProjects.map((project) => project.project_key),
+      params.projectKey,
+    );
+
+    if (!normalizedRequestedKey) {
+      warnings.push(`Se genero automaticamente la clave del proyecto: ${projectKey}.`);
+    } else if (projectKey !== normalizedRequestedKey) {
+      warnings.push(`La clave ${normalizedRequestedKey} ya estaba en uso y se genero ${projectKey}.`);
+    }
+
     const insertData: Record<string, any> = {
-      project_name: params.projectName,
-      project_key: params.projectKey.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5),
+      project_name: projectName,
+      project_key: projectKey,
       created_by_user_id: params.createdByUserId,
       project_status: 'planning',
       health_status: 'none',
@@ -885,11 +1411,11 @@ export async function createProject(params: {
       completion_percentage: 0,
       is_public: true,
       is_template: false,
+      team_id: teamResult.value.team_id,
     };
-    if (params.teamId) insertData.team_id = params.teamId;
-    if (params.description) insertData.project_description = params.description;
-    if (params.startDate) insertData.start_date = params.startDate;
-    if (params.targetDate) insertData.target_date = params.targetDate;
+    if (params.description?.trim()) insertData.project_description = params.description.trim();
+    if (params.startDate?.trim()) insertData.start_date = params.startDate.trim();
+    if (params.targetDate?.trim()) insertData.target_date = params.targetDate.trim();
 
     const { data, error } = await iris
       .from('pm_projects')
@@ -899,11 +1425,19 @@ export async function createProject(params: {
 
     if (error) {
       console.error('[IRIS-Main] createProject error:', error);
-      return { success: false, error: error.message };
+      return {
+        success: false,
+        error: error.message,
+        warnings: warnings.length > 0 ? warnings : undefined,
+      };
     }
 
     console.log(`[IRIS-Main] Project created: "${data.project_name}" [${data.project_key}]`);
-    return { success: true, project: data };
+    return {
+      success: true,
+      project: data,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    };
   } catch (err: any) {
     console.error('[IRIS-Main] createProject exception:', err);
     return { success: false, error: err.message };
@@ -918,7 +1452,7 @@ export async function updateProjectStatus(params: {
   newStatus: 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled' | 'archived';
 }): Promise<{ success: boolean; project?: any; error?: string }> {
   const iris = getIrisClient();
-  if (!iris) return { success: false, error: 'IRIS no está disponible.' };
+  if (!iris) return { success: false, error: 'IRIS no estÃ¡ disponible.' };
 
   try {
     const updateData: Record<string, any> = {
@@ -965,18 +1499,30 @@ export async function buildIrisContextForWhatsApp(userId?: string): Promise<stri
     const parts: string[] = ['=== DATOS DE IRIS (Project Hub) ==='];
 
     const teams = await getTeams();
+    const teamById = new Map(teams.map((team) => [team.team_id, team]));
     if (teams.length > 0) {
       parts.push('\n## Equipos:');
       for (const team of teams.slice(0, 5)) {
         parts.push(`- ${team.name} (${team.slug}) | Estado: ${team.status} | ID: ${team.team_id}`);
+        const members = await getTeamMembersDetailed(team.team_id);
+        if (members.length > 0) {
+          const preview = members
+            .slice(0, 5)
+            .map((member) => member.display_name || member.username || member.email || member.user_id)
+            .join(', ');
+          parts.push(`  Miembros: ${preview}`);
+        }
       }
     }
 
     const projects = await getProjects();
+    const projectById = new Map(projects.map((project) => [project.project_id, project]));
     if (projects.length > 0) {
       parts.push('\n## Proyectos:');
       for (const proj of projects.slice(0, 10)) {
-        parts.push(`- ${proj.project_name} [${proj.project_key}] | Estado: ${proj.project_status} | Progreso: ${proj.completion_percentage}% | Prioridad: ${proj.priority_level} | ID: ${proj.project_id}`);
+        const teamName = proj.team_id ? teamById.get(proj.team_id)?.name || proj.team_id : 'Sin equipo';
+        const description = proj.project_description ? ` | Descripcion: ${proj.project_description}` : '';
+        parts.push(`- ${proj.project_name} [${proj.project_key}] | Equipo: ${teamName} | Estado: ${proj.project_status} | Progreso: ${proj.completion_percentage}% | Prioridad: ${proj.priority_level} | ID: ${proj.project_id}${description}`);
       }
     }
 
@@ -988,8 +1534,9 @@ export async function buildIrisContextForWhatsApp(userId?: string): Promise<stri
         for (const issue of myIssues) {
           const statusName = issue.status?.name || 'Sin estado';
           const priorityName = issue.priority?.name || 'Sin prioridad';
+          const projectName = issue.project_id ? projectById.get(issue.project_id)?.project_name || issue.project_id : 'Sin proyecto';
           const dueStr = issue.due_date ? ` | Vence: ${issue.due_date}` : '';
-          parts.push(`- #${issue.issue_number} ${issue.title} | Estado: ${statusName} | Prioridad: ${priorityName}${dueStr}`);
+          parts.push(`- #${issue.issue_number} ${issue.title} | Proyecto: ${projectName} | Estado: ${statusName} | Prioridad: ${priorityName}${dueStr}`);
         }
       }
     }
@@ -1005,8 +1552,9 @@ export async function buildIrisContextForWhatsApp(userId?: string): Promise<stri
           for (const issue of issues) {
             const statusName = issue.status?.name || 'Sin estado';
             const priorityName = issue.priority?.name || 'Sin prioridad';
+            const projectName = issue.project_id ? projectById.get(issue.project_id)?.project_name || issue.project_id : 'Sin proyecto';
             const assigneeStr = issue.assignee_id ? ` | Asignado: ${issue.assignee_id}` : ' | Sin asignar';
-            parts.push(`- #${issue.issue_number} ${issue.title} | Estado: ${statusName} | Prioridad: ${priorityName}${assigneeStr}`);
+            parts.push(`- #${issue.issue_number} ${issue.title} | Proyecto: ${projectName} | Estado: ${statusName} | Prioridad: ${priorityName}${assigneeStr}`);
             totalIssues++;
           }
         }
@@ -1022,7 +1570,7 @@ export async function buildIrisContextForWhatsApp(userId?: string): Promise<stri
   }
 }
 
-// ─── Keywords for IRIS query detection ───────────────────────────────
+// â”€â”€â”€ Keywords for IRIS query detection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const IRIS_KEYWORDS = [
   'proyecto', 'proyectos', 'project', 'projects',
   'issue', 'issues', 'tarea', 'tareas', 'task', 'tasks',
@@ -1038,8 +1586,8 @@ const IRIS_KEYWORDS = [
   'actualizar', 'update',
   'mis tareas', 'my tasks',
   'avance', 'progreso', 'progress',
-  'login', 'inicio de sesion', 'iniciar sesion', 'iniciar sesión',
-  'cerrar sesion', 'cerrar sesión', 'logout',
+  'login', 'inicio de sesion', 'iniciar sesion', 'iniciar sesiÃ³n',
+  'cerrar sesion', 'cerrar sesiÃ³n', 'logout',
   'autenticar', 'authenticate',
 ];
 
@@ -1047,3 +1595,4 @@ export function needsIrisData(message: string): boolean {
   const lower = message.toLowerCase();
   return IRIS_KEYWORDS.some(kw => lower.includes(kw));
 }
+

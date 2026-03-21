@@ -21,6 +21,20 @@ export const CONFIRM_TOOLS_WA = new Set([
   'toggle_wifi',
   'run_in_terminal',
   'run_claude_code',
+  'run_background_command',
+  'kill_process_session',
+  'repair_background_host',
+  'configure_remote_node_host',
+  'register_remote_node',
+  'remove_remote_node',
+  'open_application_on_node',
+  'run_background_command_on_node',
+  'use_computer_on_node',
+  'kill_remote_node_process_session',
+  'reset_browser_profile',
+  'install_dynamic_toolset',
+  'uninstall_dynamic_toolset',
+  'install_home_assistant_toolset',
   'whatsapp_send_to_contact',
   'gmail_send',
   'gmail_trash',
@@ -45,6 +59,20 @@ export const GROUP_BLOCKED_TOOLS = new Set([
   'toggle_wifi',
   'run_in_terminal',
   'run_claude_code',
+  'run_background_command',
+  'kill_process_session',
+  'repair_background_host',
+  'configure_remote_node_host',
+  'register_remote_node',
+  'remove_remote_node',
+  'open_application_on_node',
+  'run_background_command_on_node',
+  'use_computer_on_node',
+  'kill_remote_node_process_session',
+  'reset_browser_profile',
+  'install_dynamic_toolset',
+  'uninstall_dynamic_toolset',
+  'install_home_assistant_toolset',
   'use_computer',
   'delete_item',
   'write_file',
@@ -444,11 +472,180 @@ export const WA_TOOL_DECLARATIONS = {
           max_steps: { type: 'NUMBER' as const, description: 'Máximo de pasos (defecto 200). Usa 300-500 para tareas muy complejas como juegos o workflows largos.' },
           backend: { type: 'STRING' as const, description: 'Opcional: "auto", "browser", "uia" o "desktop". Por defecto "auto".' },
           start_url: { type: 'STRING' as const, description: 'Opcional: URL inicial para tareas web.' },
+          browser_profile: { type: 'STRING' as const, description: 'Perfil persistente opcional para browser_web. Ejemplos: "default", "ventas", "erp".' },
+          browser_isolated: { type: 'BOOLEAN' as const, description: 'Si es true, fuerza una sesion web aislada sin reutilizar perfil persistente.' },
+          reset_browser_profile: { type: 'BOOLEAN' as const, description: 'Si es true, limpia el perfil web indicado antes de ejecutar la tarea.' },
         },
         required: ['task'],
       },
     },
     // ─── System Control Tools ──────────────────────────────────────
+    {
+      name: 'list_browser_profiles',
+      description: 'Lista los perfiles persistentes disponibles para browser_web.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {},
+      },
+    },
+    {
+      name: 'reset_browser_profile',
+      description: 'Borra un perfil persistente de browser_web. REQUIERE confirmaciÃ³n.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          profile_id: { type: 'STRING' as const, description: 'ID del perfil a limpiar.' },
+        },
+        required: ['profile_id'],
+      },
+    },
+    {
+      name: 'get_remote_node_host_status',
+      description: 'Obtiene el estado del host de nodo remoto de esta instancia de SofLIA.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {},
+      },
+    },
+    {
+      name: 'configure_remote_node_host',
+      description: 'Configura el host de nodo remoto de esta instancia. REQUIERE confirmaciÃ³n.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          enabled: { type: 'BOOLEAN' as const, description: 'Activa o desactiva el host remoto.' },
+          bind_address: { type: 'STRING' as const, description: 'Direccion de escucha. Usa 127.0.0.1 para loopback o 0.0.0.0 para LAN.' },
+          port: { type: 'NUMBER' as const, description: 'Puerto TCP del host remoto.' },
+          node_name: { type: 'STRING' as const, description: 'Nombre legible del nodo.' },
+          advertise_url: { type: 'STRING' as const, description: 'URL publica opcional para que otros nodos se conecten.' },
+          rotate_token: { type: 'BOOLEAN' as const, description: 'Si es true, regenera el token del host remoto.' },
+        },
+      },
+    },
+    {
+      name: 'list_remote_nodes',
+      description: 'Lista los nodos remotos registrados.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {},
+      },
+    },
+    {
+      name: 'register_remote_node',
+      description: 'Registra o actualiza un nodo remoto de SofLIA. REQUIERE confirmaciÃ³n.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          node_id: { type: 'STRING' as const, description: 'ID opcional del nodo.' },
+          name: { type: 'STRING' as const, description: 'Nombre del nodo remoto.' },
+          base_url: { type: 'STRING' as const, description: 'URL base del nodo remoto. Ejemplo: http://192.168.1.50:47825' },
+          token: { type: 'STRING' as const, description: 'Token del nodo remoto.' },
+          enabled: { type: 'BOOLEAN' as const, description: 'Si es false, queda registrado pero deshabilitado.' },
+        },
+        required: ['name', 'base_url', 'token'],
+      },
+    },
+    {
+      name: 'remove_remote_node',
+      description: 'Elimina un nodo remoto registrado. REQUIERE confirmaciÃ³n.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          node_id: { type: 'STRING' as const, description: 'ID del nodo remoto a eliminar.' },
+        },
+        required: ['node_id'],
+      },
+    },
+    {
+      name: 'test_remote_node',
+      description: 'Prueba conectividad y capacidades de un nodo remoto.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          node_id: { type: 'STRING' as const, description: 'ID del nodo remoto.' },
+        },
+        required: ['node_id'],
+      },
+    },
+    {
+      name: 'open_application_on_node',
+      description: 'Abre una aplicaciÃ³n en un nodo remoto. REQUIERE confirmaciÃ³n.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          node_id: { type: 'STRING' as const, description: 'ID del nodo remoto.' },
+          path: { type: 'STRING' as const, description: 'Ruta o nombre de la aplicaciÃ³n a abrir.' },
+        },
+        required: ['node_id', 'path'],
+      },
+    },
+    {
+      name: 'run_background_command_on_node',
+      description: 'Ejecuta un comando en segundo plano en un nodo remoto y devuelve session_id remoto. REQUIERE confirmaciÃ³n.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          node_id: { type: 'STRING' as const, description: 'ID del nodo remoto.' },
+          command: { type: 'STRING' as const, description: 'Comando a ejecutar.' },
+          working_directory: { type: 'STRING' as const, description: 'Directorio de trabajo opcional.' },
+          title: { type: 'STRING' as const, description: 'Etiqueta opcional para la sesiÃ³n.' },
+        },
+        required: ['node_id', 'command'],
+      },
+    },
+    {
+      name: 'use_computer_on_node',
+      description: 'Ejecuta una tarea de desktop/browser automation en un nodo remoto. REQUIERE confirmaciÃ³n.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          node_id: { type: 'STRING' as const, description: 'ID del nodo remoto.' },
+          task: { type: 'STRING' as const, description: 'Descripcion detallada de la tarea.' },
+          max_steps: { type: 'NUMBER' as const, description: 'Maximo de pasos opcional.' },
+          backend: { type: 'STRING' as const, description: 'Opcional: auto, browser, uia o desktop.' },
+          start_url: { type: 'STRING' as const, description: 'URL inicial opcional para backend browser.' },
+          browser_profile: { type: 'STRING' as const, description: 'Perfil persistente opcional del browser remoto.' },
+          browser_isolated: { type: 'BOOLEAN' as const, description: 'Si es true, fuerza sesion web aislada remota.' },
+          reset_browser_profile: { type: 'BOOLEAN' as const, description: 'Si es true, limpia el perfil remoto antes de ejecutar.' },
+        },
+        required: ['node_id', 'task'],
+      },
+    },
+    {
+      name: 'list_remote_node_process_sessions',
+      description: 'Lista sesiones administradas activas en un nodo remoto.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          node_id: { type: 'STRING' as const, description: 'ID del nodo remoto.' },
+        },
+        required: ['node_id'],
+      },
+    },
+    {
+      name: 'poll_remote_node_process_session',
+      description: 'Consulta el estado de una sesiÃ³n remota por session_id.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          node_id: { type: 'STRING' as const, description: 'ID del nodo remoto.' },
+          session_id: { type: 'STRING' as const, description: 'ID de la sesiÃ³n remota.' },
+        },
+        required: ['node_id', 'session_id'],
+      },
+    },
+    {
+      name: 'kill_remote_node_process_session',
+      description: 'Termina una sesiÃ³n administrada en un nodo remoto. REQUIERE confirmaciÃ³n.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          node_id: { type: 'STRING' as const, description: 'ID del nodo remoto.' },
+          session_id: { type: 'STRING' as const, description: 'ID de la sesiÃ³n remota.' },
+        },
+        required: ['node_id', 'session_id'],
+      },
+    },
     {
       name: 'list_processes',
       description: 'Lista los procesos activos de la computadora con su nombre, PID, uso de CPU y memoria. Usa esto cuando el usuario pregunte qué programas están abiertos o qué está consumiendo recursos.',
@@ -542,31 +739,32 @@ export const WA_TOOL_DECLARATIONS = {
     },
     {
       name: 'open_application',
-      description: 'Abre una aplicación o archivo con su programa predeterminado. REQUIERE confirmación.',
+      description: 'Abre una aplicación o archivo. Acepta ruta completa o nombre común de la app (por ejemplo "AnyDesk", "Excel", "Chrome"). En Windows intenta resolver ejecutables instalados, accesos directos y alias del sistema. REQUIERE confirmación.',
       parameters: {
         type: 'OBJECT' as const,
         properties: {
-          path: { type: 'STRING' as const, description: 'Ruta de la aplicación o archivo a abrir.' },
+          path: { type: 'STRING' as const, description: 'Ruta completa o nombre común de la aplicación o archivo a abrir.' },
         },
         required: ['path'],
       },
     },
     {
       name: 'run_in_terminal',
-      description: 'Abre una nueva ventana de terminal (PowerShell) VISIBLE y ejecuta un comando. La ventana queda abierta y el proceso sigue corriendo indefinidamente (sin timeout). Ideal para: npm run dev, servidores, builds largos, Claude Code, cualquier proceso de larga duración. REQUIERE confirmación.',
+      description: 'Ejecuta un comando en una sesión administrada. Puede abrir una terminal visible o correr oculto en segundo plano, y devuelve session_id para seguimiento. Usa poll_process_session para revisar progreso. REQUIERE confirmación.',
       parameters: {
         type: 'OBJECT' as const,
         properties: {
           command: { type: 'STRING' as const, description: 'Comando a ejecutar en la terminal. Ej: "npm run dev", "git pull && npm install", "claude \\"corrige los errores\\"" ' },
           working_directory: { type: 'STRING' as const, description: 'Directorio de trabajo. Si no se especifica, usa el home del usuario.' },
           keep_open: { type: 'BOOLEAN' as const, description: 'Si es true (defecto), la terminal queda abierta después de que el comando termine. Si es false, se cierra al terminar.' },
+          visible_terminal: { type: 'BOOLEAN' as const, description: 'Si es true (defecto), abre una terminal visible. Si es false, ejecuta el comando oculto en segundo plano con logs administrados.' },
         },
         required: ['command'],
       },
     },
     {
       name: 'run_claude_code',
-      description: 'Lanza Claude Code (claude CLI) en una terminal visible con una tarea específica. Claude Code trabajará autónomamente en la tarea mientras el usuario no está. La terminal queda abierta para ver el progreso. REQUIERE confirmación.',
+      description: 'Lanza Claude Code (claude CLI) en una sesión administrada y oculta en segundo plano. Devuelve session_id para seguir progreso con poll_process_session. REQUIERE confirmación.',
       parameters: {
         type: 'OBJECT' as const,
         properties: {
@@ -574,6 +772,127 @@ export const WA_TOOL_DECLARATIONS = {
           project_directory: { type: 'STRING' as const, description: 'Directorio del proyecto. Si no se especifica, se intentará detectar automáticamente.' },
         },
         required: ['task'],
+      },
+    },
+    {
+      name: 'run_background_command',
+      description: 'Ejecuta un comando oculto en segundo plano y guarda stdout/stderr para seguimiento. Devuelve session_id para usar con poll_process_session. REQUIERE confirmación.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          command: { type: 'STRING' as const, description: 'Comando que debe correr en segundo plano.' },
+          working_directory: { type: 'STRING' as const, description: 'Directorio de trabajo opcional.' },
+          title: { type: 'STRING' as const, description: 'Etiqueta corta opcional para identificar la sesión.' },
+        },
+        required: ['command'],
+      },
+    },
+    {
+      name: 'list_process_sessions',
+      description: 'Lista las sesiones administradas por SofLIA (terminales, comandos en segundo plano, Claude Code y aplicaciones lanzadas) con su estado actual.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {},
+      },
+    },
+    {
+      name: 'poll_process_session',
+      description: 'Consulta una sesión administrada por session_id. Devuelve estado, pid, salida reciente stdout/stderr y metadatos.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          session_id: { type: 'STRING' as const, description: 'ID de la sesión a consultar.' },
+        },
+        required: ['session_id'],
+      },
+    },
+    {
+      name: 'kill_process_session',
+      description: 'Termina una sesión administrada por SofLIA usando su session_id. REQUIERE confirmación.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          session_id: { type: 'STRING' as const, description: 'ID de la sesión a terminar.' },
+        },
+        required: ['session_id'],
+      },
+    },
+    {
+      name: 'get_background_host_status',
+      description: 'Obtiene el estado del host en segundo plano de SofLIA: soporte, openAtLogin, schtasks, Startup fallback y modo de instalación.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {},
+      },
+    },
+    {
+      name: 'repair_background_host',
+      description: 'Repara o reaplica la configuración del host en segundo plano de SofLIA (login item, schtasks o Startup fallback). REQUIERE confirmación.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {},
+      },
+    },
+    {
+      name: 'list_dynamic_tools',
+      description: 'Lista las herramientas dinámicas actualmente cargadas por SofLIA desde sus rutas de descubrimiento (workspace y toolsets instalados en userData). Útil para inspeccionar capacidades nuevas estilo plugin.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {},
+      },
+    },
+    {
+      name: 'list_installable_toolsets',
+      description: 'Lista los toolsets dinámicos instalables estilo plugin que SofLIA puede agregar para nuevas integraciones.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {},
+      },
+    },
+    {
+      name: 'list_installed_toolsets',
+      description: 'Lista los toolsets dinámicos ya instalados por SofLIA junto con sus variables de entorno requeridas.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {},
+      },
+    },
+    {
+      name: 'doctor_dynamic_toolsets',
+      description: 'Diagnostica los toolsets dinámicos instalados: archivos presentes, tools realmente cargadas y variables de entorno faltantes.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {},
+      },
+    },
+    {
+      name: 'install_dynamic_toolset',
+      description: 'Instala o actualiza un toolset dinámico por id. Usa esto cuando falte una integración que SofLIA puede agregar en caliente. REQUIERE confirmación.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          toolset_id: { type: 'STRING' as const, description: 'ID del toolset a instalar. Ejemplo: "home-assistant".' },
+        },
+        required: ['toolset_id'],
+      },
+    },
+    {
+      name: 'uninstall_dynamic_toolset',
+      description: 'Desinstala un toolset dinámico administrado por su id y elimina sus archivos generados. REQUIERE confirmación.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          toolset_id: { type: 'STRING' as const, description: 'ID del toolset a desinstalar. Ejemplo: "home-assistant".' },
+        },
+        required: ['toolset_id'],
+      },
+    },
+    {
+      name: 'install_home_assistant_toolset',
+      description: 'Atajo para instalar el toolset dinámico de Home Assistant con tools para listar estados, obtener una entidad y ejecutar servicios como encender/apagar luces. REQUIERE confirmación.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {},
       },
     },
     {
@@ -651,6 +970,17 @@ export const WA_TOOL_DECLARATIONS = {
       name: 'iris_get_teams',
       description: 'Lista los equipos disponibles en Project Hub.',
       parameters: { type: 'OBJECT' as const, properties: {} },
+    },
+    {
+      name: 'iris_get_team_members',
+      description: 'Lista los miembros de un equipo de Project Hub para poder asignar tareas correctamente.',
+      parameters: {
+        type: 'OBJECT' as const,
+        properties: {
+          team_id: { type: 'STRING' as const, description: 'ID del equipo.' },
+          team_name: { type: 'STRING' as const, description: 'Nombre o slug del equipo si no conoces el ID.' },
+        },
+      },
     },
     {
       name: 'iris_get_issues',

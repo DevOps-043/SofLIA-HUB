@@ -4,7 +4,7 @@ import { PRIMARY_CHAT_PROMPT, buildPrimaryChatPrompt } from '../prompts/chat';
 import { getApiKeyWithCache } from './api-keys';
 import { COMPUTER_USE_TOOLS, COMPUTER_TOOL_NAMES, PROJECT_HUB_TOOLS, PROJECT_HUB_TOOL_NAMES, GOOGLE_WORKSPACE_TOOLS, GOOGLE_WORKSPACE_TOOL_NAMES, NATIVE_AI_TOOLS, NATIVE_AI_TOOL_NAMES } from './gemini-tools';
 import { executeComputerTool, isComputerUseAvailable } from './computer-use-service';
-import { deleteProject, createProject } from './iris-data';
+import { createProject, deleteProject, getProjects, getTeamMembersDetailed, getTeams } from './iris-data';
 
 // Acceso tipado a las APIs de Google Workspace expuestas por preload.ts
 // Las APIs de Google Workspace (window.calendar, window.gmail, window.drive)
@@ -144,7 +144,7 @@ export async function sendMessageStream(
   }
 
   if (options?.irisContext) {
-    systemInstruction += `\n\n=== CONTEXTO DEL PROJECT HUB (IRIS) ===\n${options.irisContext}\n=====================================\n\n⚠️ REGLAS CRÍTICAS DE Project Hub (IRIS):\n1. **CREACIÓN DE PROYECTOS**: Si el usuario pide CREAR un proyecto o tarea con un nombre específico, DEBES usar la herramienta de creación (ej. create_iris_project). NUNCA asumas que debes mapear la información a un proyecto existente solo porque comparten similitudes, a menos que el usuario indique explícitamente agregarlo al existente.\n2. **ASIGNACIONES**: Si intentas crear una issue asignada al usuario (assignee_id) y recibes un error de base de datos (ej. permisos, foreign key, RLS), vuelve a intentar crear la issue pero enviando el campo 'assignee_id' vacío o nulo. No detengas el proceso, avisa al usuario después pero completa la creación.`;
+    systemInstruction += `\n\n=== CONTEXTO DEL PROJECT HUB (IRIS) ===\n${options.irisContext}\n=====================================\n\n⚠️ REGLAS CRÍTICAS DE Project Hub (IRIS):\n1. **NO ADIVINES**: Antes de crear o actualizar en IRIS, resuelve el equipo, proyecto y responsable con las herramientas de listado. Si hay ambigüedad, dilo explícitamente en vez de inventar IDs.\n2. **CREACIÓN DE PROYECTOS**: Si el usuario pide CREAR un proyecto o tarea con un nombre específico, usa la herramienta de creación. Nunca desvíes la acción a un proyecto existente solo por similitud de nombre.\n3. **COHERENCIA DE DOMINIO**: No mezcles un proyecto con un equipo distinto ni asignes responsables que no pertenezcan al equipo resuelto.\n4. **ASIGNACIONES**: Si el responsable no queda claro, consulta miembros del equipo antes de crear la tarea.`;
   }
 
   if (options?.sourcesContext) {
@@ -294,12 +294,27 @@ export async function sendMessageStream(
               if (toolName === 'delete_iris_project') {
                 const deleteResult = await deleteProject(toolArgs.project_id);
                 resultStr = JSON.stringify(deleteResult);
+              } else if (toolName === 'get_iris_teams') {
+                const teams = await getTeams();
+                resultStr = JSON.stringify({ teams });
+              } else if (toolName === 'get_iris_projects') {
+                const projects = await getProjects(toolArgs.team_id || toolArgs.team_name);
+                resultStr = JSON.stringify({ projects });
+              } else if (toolName === 'get_iris_team_members') {
+                const teamRef = toolArgs.team_id || toolArgs.team_name;
+                if (!teamRef) {
+                  resultStr = JSON.stringify({ success: false, error: 'Debes indicar team_id o team_name.' });
+                } else {
+                  const members = await getTeamMembersDetailed(teamRef);
+                  resultStr = JSON.stringify({ members });
+                }
               } else if (toolName === 'create_iris_project') {
                 const createResult = await createProject({
                   name: toolArgs.project_name,
                   key: toolArgs.project_key,
                   description: toolArgs.project_description || '',
-                  team_id: toolArgs.team_id || undefined, // handle missing team_id
+                  team_id: toolArgs.team_id || undefined,
+                  team_name: toolArgs.team_name || undefined,
                 });
                 resultStr = JSON.stringify(createResult);
               } else if (toolName === 'create_iris_issue') {
@@ -308,15 +323,21 @@ export async function sendMessageStream(
                   title: toolArgs.title,
                   description: toolArgs.description || '',
                   team_id: toolArgs.team_id,
+                  team_name: toolArgs.team_name,
                   project_id: toolArgs.project_id,
+                  project_name: toolArgs.project_name,
                   status_id: toolArgs.status_id,
+                  status_name: toolArgs.status_name,
                   priority_id: toolArgs.priority_id,
-                  assignee_id: toolArgs.assignee_id
+                  priority_name: toolArgs.priority_name,
+                  assignee_id: toolArgs.assignee_id,
+                  assignee_name: toolArgs.assignee_name,
                 });
                 resultStr = JSON.stringify(createResult);
               } else if (toolName === 'get_iris_statuses') {
                 const { getStatuses } = await import('./iris-data');
-                const statuses = await getStatuses(toolArgs.team_id);
+                const teamRef = toolArgs.team_id || toolArgs.team_name;
+                const statuses = teamRef ? await getStatuses(teamRef) : [];
                 // Gemini function response MUST be an object, not a top-level array
                 resultStr = JSON.stringify({ statuses });
               } else if (toolName === 'get_iris_priorities') {

@@ -49,7 +49,15 @@ export function useChatProcessor({
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
 
-  const showLoadingUI = isLoading || (messages.length > 0 && messages[messages.length - 1].role === 'model' && !messages[messages.length - 1].text && !(messages[messages.length - 1].images && messages[messages.length - 1].images!.length > 0));
+  const showLoadingUI = isLoading || (
+    messages.length > 0 &&
+    messages[messages.length - 1].role === 'model' &&
+    (
+      !messages[messages.length - 1].text ||
+      messages[messages.length - 1].text.trim() === PLACEHOLDER_TEXT
+    ) &&
+    !(messages[messages.length - 1].images && messages[messages.length - 1].images!.length > 0)
+  );
 
   const dedupeMessageList = (items: ChatMessage[]) => {
     const seen = new Set<string>();

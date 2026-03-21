@@ -178,11 +178,11 @@ export const COMPUTER_USE_TOOLS = {
     },
     {
       name: 'open_application',
-      description: 'Abre un archivo o aplicacion con el programa predeterminado.',
+      description: 'Abre un archivo o aplicación. Acepta ruta completa o nombre común de la app y en Windows intenta resolver ejecutables instalados, accesos directos y alias del sistema.',
       parameters: {
         type: 'OBJECT',
         properties: {
-          path: { type: 'STRING', description: 'Ruta del archivo o aplicacion.' },
+          path: { type: 'STRING', description: 'Ruta completa o nombre común de la aplicación o archivo.' },
         },
         required: ['path'],
       },
@@ -196,6 +196,65 @@ export const COMPUTER_USE_TOOLS = {
           url: { type: 'STRING', description: 'URL completa, incluyendo https://.' },
         },
         required: ['url'],
+      },
+    },
+    {
+      name: 'run_background_command',
+      description: 'Ejecuta un comando oculto en segundo plano y devuelve session_id para seguimiento.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          command: { type: 'STRING', description: 'Comando a ejecutar.' },
+          working_directory: { type: 'STRING', description: 'Directorio de trabajo opcional.' },
+          title: { type: 'STRING', description: 'Etiqueta corta opcional para la sesion.' },
+        },
+        required: ['command'],
+      },
+    },
+    {
+      name: 'list_process_sessions',
+      description: 'Lista las sesiones administradas por SofLIA y su estado.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {},
+      },
+    },
+    {
+      name: 'poll_process_session',
+      description: 'Consulta una sesion administrada por session_id y devuelve su salida reciente.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          session_id: { type: 'STRING', description: 'ID de la sesion a consultar.' },
+        },
+        required: ['session_id'],
+      },
+    },
+    {
+      name: 'kill_process_session',
+      description: 'Termina una sesion administrada por SofLIA usando su session_id.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          session_id: { type: 'STRING', description: 'ID de la sesion a terminar.' },
+        },
+        required: ['session_id'],
+      },
+    },
+    {
+      name: 'get_background_host_status',
+      description: 'Obtiene el estado del host en segundo plano de SofLIA.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {},
+      },
+    },
+    {
+      name: 'repair_background_host',
+      description: 'Reaplica la configuracion del host en segundo plano de SofLIA.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {},
       },
     },
     {
@@ -243,8 +302,177 @@ export const COMPUTER_USE_TOOLS = {
           max_steps: { type: 'NUMBER', description: 'Maximo de pasos.' },
           backend: { type: 'STRING', description: 'Opcional: auto, browser, uia o desktop.' },
           start_url: { type: 'STRING', description: 'URL inicial para una tarea web. Opcional.' },
+          browser_profile: { type: 'STRING', description: 'Perfil persistente opcional para browser_web.' },
+          browser_isolated: { type: 'BOOLEAN', description: 'Si es true, fuerza una sesion web aislada.' },
+          reset_browser_profile: { type: 'BOOLEAN', description: 'Si es true, limpia el perfil web indicado antes de ejecutar.' },
         },
         required: ['task'],
+      },
+    },
+    {
+      name: 'list_browser_profiles',
+      description: 'Lista los perfiles persistentes disponibles para browser_web.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {},
+      },
+    },
+    {
+      name: 'reset_browser_profile',
+      description: 'Borra un perfil persistente de browser_web.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          profile_id: { type: 'STRING', description: 'ID del perfil a limpiar.' },
+        },
+        required: ['profile_id'],
+      },
+    },
+    {
+      name: 'get_remote_node_host_status',
+      description: 'Obtiene el estado del host de nodo remoto local.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {},
+      },
+    },
+    {
+      name: 'configure_remote_node_host',
+      description: 'Configura el host remoto local de SofLIA.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          enabled: { type: 'BOOLEAN', description: 'Activa o desactiva el host remoto.' },
+          bind_address: { type: 'STRING', description: 'Direccion de escucha.' },
+          port: { type: 'NUMBER', description: 'Puerto TCP.' },
+          node_name: { type: 'STRING', description: 'Nombre legible del nodo.' },
+          advertise_url: { type: 'STRING', description: 'URL publica opcional.' },
+          rotate_token: { type: 'BOOLEAN', description: 'Si es true, regenera el token.' },
+        },
+      },
+    },
+    {
+      name: 'list_remote_nodes',
+      description: 'Lista los nodos remotos registrados.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {},
+      },
+    },
+    {
+      name: 'register_remote_node',
+      description: 'Registra o actualiza un nodo remoto.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          node_id: { type: 'STRING', description: 'ID opcional del nodo.' },
+          name: { type: 'STRING', description: 'Nombre del nodo remoto.' },
+          base_url: { type: 'STRING', description: 'URL base del nodo remoto.' },
+          token: { type: 'STRING', description: 'Token del nodo remoto.' },
+          enabled: { type: 'BOOLEAN', description: 'Si es false, queda deshabilitado.' },
+        },
+        required: ['name', 'base_url', 'token'],
+      },
+    },
+    {
+      name: 'remove_remote_node',
+      description: 'Elimina un nodo remoto registrado.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          node_id: { type: 'STRING', description: 'ID del nodo remoto.' },
+        },
+        required: ['node_id'],
+      },
+    },
+    {
+      name: 'test_remote_node',
+      description: 'Prueba conectividad y capacidades de un nodo remoto.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          node_id: { type: 'STRING', description: 'ID del nodo remoto.' },
+        },
+        required: ['node_id'],
+      },
+    },
+    {
+      name: 'open_application_on_node',
+      description: 'Abre una aplicacion en un nodo remoto.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          node_id: { type: 'STRING', description: 'ID del nodo remoto.' },
+          path: { type: 'STRING', description: 'Ruta o nombre de la aplicacion.' },
+        },
+        required: ['node_id', 'path'],
+      },
+    },
+    {
+      name: 'run_background_command_on_node',
+      description: 'Ejecuta un comando en segundo plano en un nodo remoto.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          node_id: { type: 'STRING', description: 'ID del nodo remoto.' },
+          command: { type: 'STRING', description: 'Comando a ejecutar.' },
+          working_directory: { type: 'STRING', description: 'Directorio de trabajo opcional.' },
+          title: { type: 'STRING', description: 'Etiqueta de la sesion.' },
+        },
+        required: ['node_id', 'command'],
+      },
+    },
+    {
+      name: 'use_computer_on_node',
+      description: 'Ejecuta una tarea de automation en un nodo remoto.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          node_id: { type: 'STRING', description: 'ID del nodo remoto.' },
+          task: { type: 'STRING', description: 'Descripcion detallada de la tarea.' },
+          max_steps: { type: 'NUMBER', description: 'Maximo de pasos.' },
+          backend: { type: 'STRING', description: 'Opcional: auto, browser, uia o desktop.' },
+          start_url: { type: 'STRING', description: 'URL inicial opcional.' },
+          browser_profile: { type: 'STRING', description: 'Perfil persistente opcional del browser remoto.' },
+          browser_isolated: { type: 'BOOLEAN', description: 'Si es true, fuerza sesion web aislada remota.' },
+          reset_browser_profile: { type: 'BOOLEAN', description: 'Si es true, limpia el perfil remoto antes de ejecutar.' },
+        },
+        required: ['node_id', 'task'],
+      },
+    },
+    {
+      name: 'list_remote_node_process_sessions',
+      description: 'Lista sesiones administradas de un nodo remoto.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          node_id: { type: 'STRING', description: 'ID del nodo remoto.' },
+        },
+        required: ['node_id'],
+      },
+    },
+    {
+      name: 'poll_remote_node_process_session',
+      description: 'Consulta una sesion remota por session_id.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          node_id: { type: 'STRING', description: 'ID del nodo remoto.' },
+          session_id: { type: 'STRING', description: 'ID de la sesion remota.' },
+        },
+        required: ['node_id', 'session_id'],
+      },
+    },
+    {
+      name: 'kill_remote_node_process_session',
+      description: 'Termina una sesion remota.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          node_id: { type: 'STRING', description: 'ID del nodo remoto.' },
+          session_id: { type: 'STRING', description: 'ID de la sesion remota.' },
+        },
+        required: ['node_id', 'session_id'],
       },
     },
     {
@@ -335,34 +563,70 @@ export const PROJECT_HUB_TOOLS = {
       },
     },
     {
+      name: 'get_iris_teams',
+      description: 'Lista los equipos disponibles en IRIS.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {},
+      },
+    },
+    {
+      name: 'get_iris_projects',
+      description: 'Lista los proyectos disponibles en IRIS. Puede filtrar por equipo.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          team_id: { type: 'STRING', description: 'ID del equipo. Opcional.' },
+          team_name: { type: 'STRING', description: 'Nombre o slug del equipo. Opcional.' },
+        },
+      },
+    },
+    {
+      name: 'get_iris_team_members',
+      description: 'Lista los miembros de un equipo de IRIS para asignar tareas sin adivinar el responsable.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          team_id: { type: 'STRING', description: 'ID del equipo.' },
+          team_name: { type: 'STRING', description: 'Nombre o slug del equipo.' },
+        },
+      },
+    },
+    {
       name: 'create_iris_project',
-      description: 'Crea un nuevo proyecto en Project Hub (IRIS).',
+      description: 'Crea un nuevo proyecto en Project Hub (IRIS). Si no conoces el ID del equipo, usa team_name.',
       parameters: {
         type: 'OBJECT',
         properties: {
           project_name: { type: 'STRING', description: 'Nombre del proyecto.' },
           team_id: { type: 'STRING', description: 'ID del equipo. Opcional.' },
+          team_name: { type: 'STRING', description: 'Nombre o slug del equipo. Opcional.' },
           project_description: { type: 'STRING', description: 'Descripcion del proyecto.' },
-          project_key: { type: 'STRING', description: 'Clave corta del proyecto.' },
+          project_key: { type: 'STRING', description: 'Clave corta del proyecto. Opcional; se genera automaticamente si falta.' },
         },
-        required: ['project_name', 'project_key'],
+        required: ['project_name'],
       },
     },
     {
       name: 'create_iris_issue',
-      description: 'Crea una nueva tarea en Project Hub (IRIS).',
+      description: 'Crea una nueva tarea en Project Hub (IRIS). No inventes IDs: resuelve antes equipo, proyecto y responsable.',
       parameters: {
         type: 'OBJECT',
         properties: {
           title: { type: 'STRING', description: 'Titulo de la tarea.' },
           description: { type: 'STRING', description: 'Descripcion detallada de la tarea.' },
-          team_id: { type: 'STRING', description: 'ID del equipo.' },
+          team_id: { type: 'STRING', description: 'ID del equipo. Opcional si envias team_name o si el proyecto ya define el equipo.' },
+          team_name: { type: 'STRING', description: 'Nombre o slug del equipo. Opcional.' },
           project_id: { type: 'STRING', description: 'ID del proyecto. Opcional.' },
+          project_name: { type: 'STRING', description: 'Nombre o key del proyecto. Opcional.' },
           status_id: { type: 'STRING', description: 'ID de estado. Opcional.' },
+          status_name: { type: 'STRING', description: 'Nombre del estado. Opcional.' },
           priority_id: { type: 'STRING', description: 'ID de prioridad. Opcional.' },
+          priority_name: { type: 'STRING', description: 'Nombre de prioridad. Opcional.' },
           assignee_id: { type: 'STRING', description: 'ID del usuario asignado. Opcional.' },
+          assignee_name: { type: 'STRING', description: 'Nombre, username o email del responsable. Opcional.' },
         },
-        required: ['title', 'team_id'],
+        required: ['title'],
       },
     },
     {
@@ -372,8 +636,8 @@ export const PROJECT_HUB_TOOLS = {
         type: 'OBJECT',
         properties: {
           team_id: { type: 'STRING', description: 'ID del equipo.' },
+          team_name: { type: 'STRING', description: 'Nombre o slug del equipo.' },
         },
-        required: ['team_id'],
       },
     },
     {

@@ -186,7 +186,19 @@ function ChatItem({
   );
 
   return (
-    <button onClick={onSelect} className={`${baseClass} ${activeClass}`} title={conv.title}>
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      className={`${baseClass} ${activeClass}`}
+      title={conv.title}
+    >
       {indicator}
       {sidebarOpen && (
         <>
@@ -242,7 +254,7 @@ function ChatItem({
           </div>
         </>
       )}
-    </button>
+    </div>
   );
 }
 

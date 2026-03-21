@@ -8,6 +8,7 @@ import {
   getTeams as irisGetTeams,
   getProjects as irisGetProjects,
   getIssues as irisGetIssues,
+  getTeamMembersDetailed as irisGetTeamMembersDetailed,
   getStatuses as irisGetStatuses,
   getPriorities as irisGetPriorities,
   createIssue as irisCreateIssue,
@@ -20,7 +21,7 @@ import { toolResponse } from './types';
 
 const IRIS_TOOLS = new Set([
   'iris_login', 'iris_logout', 'iris_get_my_tasks', 'iris_get_projects',
-  'iris_get_teams', 'iris_get_issues', 'iris_get_statuses', 'iris_create_task',
+  'iris_get_teams', 'iris_get_team_members', 'iris_get_issues', 'iris_get_statuses', 'iris_create_task',
   'iris_update_task_status', 'iris_create_project', 'iris_update_project_status',
 ]);
 
@@ -69,10 +70,11 @@ export async function executeIrisTool(
 
   if (toolName === 'iris_get_projects') {
     try {
-      const projects = await irisGetProjects(toolArgs.team_id);
+      const projects = await irisGetProjects(toolArgs.team_id || toolArgs.team_name);
       const formatted = projects.map(p => ({
         name: p.project_name, key: p.project_key, status: p.project_status,
         progress: p.completion_percentage, priority: p.priority_level, id: p.project_id,
+        team_id: p.team_id || null,
       }));
       return toolResponse(toolName, { success: true, projects: formatted, count: formatted.length });
     } catch (err: any) {
@@ -85,6 +87,29 @@ export async function executeIrisTool(
       const teams = await irisGetTeams();
       const formatted = teams.map(t => ({ name: t.name, slug: t.slug, status: t.status, id: t.team_id }));
       return toolResponse(toolName, { success: true, teams: formatted, count: formatted.length });
+    } catch (err: any) {
+      return toolResponse(toolName, { success: false, message: err.message });
+    }
+  }
+
+  if (toolName === 'iris_get_team_members') {
+    const teamRef = toolArgs.team_id || toolArgs.team_name;
+    if (!teamRef) {
+      return toolResponse(toolName, {
+        success: false,
+        message: 'Debes indicar team_id o team_name para listar miembros del equipo.',
+      });
+    }
+    try {
+      const members = await irisGetTeamMembersDetailed(teamRef);
+      const formatted = members.map(member => ({
+        user_id: member.user_id,
+        display_name: member.display_name || member.username || member.email || member.user_id,
+        email: member.email || null,
+        username: member.username || null,
+        role: member.role,
+      }));
+      return toolResponse(toolName, { success: true, members: formatted, count: formatted.length });
     } catch (err: any) {
       return toolResponse(toolName, { success: false, message: err.message });
     }
@@ -108,8 +133,15 @@ export async function executeIrisTool(
   }
 
   if (toolName === 'iris_get_statuses') {
+    const teamRef = toolArgs.team_id || toolArgs.team_name;
+    if (!teamRef) {
+      return toolResponse(toolName, {
+        success: false,
+        message: 'Debes indicar team_id o team_name para consultar estados.',
+      });
+    }
     try {
-      const statuses = await irisGetStatuses(toolArgs.team_id);
+      const statuses = await irisGetStatuses(teamRef);
       const priorities = await irisGetPriorities();
       return toolResponse(toolName, { success: true, statuses, priorities });
     } catch (err: any) {
@@ -122,9 +154,20 @@ export async function executeIrisTool(
     if (!currentSession) return toolResponse(toolName, { success: false, message: 'No has iniciado sesión.' });
     try {
       const result = await irisCreateIssue({
-        teamId: toolArgs.team_id, title: toolArgs.title, creatorId: currentSession.userId,
-        description: toolArgs.description, projectId: toolArgs.project_id,
-        priorityId: toolArgs.priority_id, assigneeId: toolArgs.assignee_id, dueDate: toolArgs.due_date,
+        teamId: toolArgs.team_id,
+        teamName: toolArgs.team_name,
+        title: toolArgs.title,
+        creatorId: currentSession.userId,
+        description: toolArgs.description,
+        projectId: toolArgs.project_id,
+        projectName: toolArgs.project_name,
+        statusId: toolArgs.status_id,
+        statusName: toolArgs.status_name,
+        priorityId: toolArgs.priority_id,
+        priorityName: toolArgs.priority_name,
+        assigneeId: toolArgs.assignee_id,
+        assigneeQuery: toolArgs.assignee_name || toolArgs.assignee_query,
+        dueDate: toolArgs.due_date,
       });
       return toolResponse(toolName, result);
     } catch (err: any) {
@@ -149,10 +192,15 @@ export async function executeIrisTool(
     if (!currentSession) return toolResponse(toolName, { success: false, message: 'No has iniciado sesión.' });
     try {
       const result = await irisCreateProject({
-        projectName: toolArgs.project_name, projectKey: toolArgs.project_key || '',
-        createdByUserId: currentSession.userId, teamId: toolArgs.team_id,
-        description: toolArgs.description, priorityLevel: toolArgs.priority_level,
-        startDate: toolArgs.start_date, targetDate: toolArgs.target_date,
+        projectName: toolArgs.project_name,
+        projectKey: toolArgs.project_key || undefined,
+        createdByUserId: currentSession.userId,
+        teamId: toolArgs.team_id,
+        teamName: toolArgs.team_name,
+        description: toolArgs.description,
+        priorityLevel: toolArgs.priority_level,
+        startDate: toolArgs.start_date,
+        targetDate: toolArgs.target_date,
       });
       return toolResponse(toolName, result);
     } catch (err: any) {

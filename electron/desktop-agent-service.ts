@@ -40,6 +40,9 @@ type DesktopTaskExecutionOptions = {
   maxSteps?: number;
   startUrl?: string;
   backend?: 'auto' | 'browser' | 'desktop' | 'uia';
+  browserProfile?: string;
+  browserIsolated?: boolean;
+  resetBrowserProfile?: boolean;
 };
 
 // Sharp: native module that must be loaded via require() (not ES import)
@@ -141,6 +144,8 @@ export class DesktopAgentService extends EventEmitter {
         maxSteps: browserStatus.maxSteps || this.config.maxSteps,
         backend: 'browser_web',
         currentUrl: browserStatus.currentUrl,
+        browserProfileId: browserStatus.currentProfileId,
+        browserProfileMode: browserStatus.currentProfileMode,
       });
     }
     if (windowsUIAStatus.status !== 'idle') {
@@ -211,6 +216,8 @@ export class DesktopAgentService extends EventEmitter {
       maxSteps,
       currentBackend,
       currentUrl: browserStatus.status !== 'idle' ? browserStatus.currentUrl : null,
+      currentBrowserProfileId: browserStatus.currentProfileId,
+      currentBrowserProfileMode: browserStatus.currentProfileMode,
       lastVerification,
       lastTracePath,
       lastReportPath,
@@ -272,6 +279,14 @@ export class DesktopAgentService extends EventEmitter {
 
   getActiveTaskCount(): number {
     return this.activeTasks.size + (this.browserWeb.isRunning() ? 1 : 0) + (this.windowsUIA.isRunning() ? 1 : 0);
+  }
+
+  listBrowserProfiles() {
+    return this.browserWeb.listProfiles();
+  }
+
+  async resetBrowserProfile(profileId: string) {
+    return this.browserWeb.resetProfile(profileId);
   }
 
   // ─── Screenshot ───────────────────────────────────────────────────
@@ -840,6 +855,9 @@ if ($proc) {
     maxSteps?: number;
     backend?: 'auto' | 'browser' | 'desktop' | 'uia';
     startUrl?: string;
+    browserProfile?: string;
+    browserIsolated?: boolean;
+    resetBrowserProfile?: boolean;
   }>): Promise<Array<{ task: string; result: string; success: boolean }>> {
     if (!this.apiKey) throw new Error('API key de Gemini no configurada.');
 
@@ -848,6 +866,9 @@ if ($proc) {
         maxSteps: t.maxSteps,
         backend: t.backend,
         startUrl: t.startUrl,
+        browserProfile: (t as any).browserProfile,
+        browserIsolated: (t as any).browserIsolated,
+        resetBrowserProfile: (t as any).resetBrowserProfile,
       })),
     );
 
@@ -985,7 +1006,13 @@ if ($proc) {
 
   private async executeBrowserTask(task: string, options?: DesktopTaskExecutionOptions): Promise<string> {
     console.log(`[DesktopAgent] Enrutando tarea a backend browser_web: "${task}"`);
-    return this.browserWeb.executeTask(task, options);
+    return this.browserWeb.executeTask(task, {
+      maxSteps: options?.maxSteps,
+      startUrl: options?.startUrl,
+      profileId: options?.browserProfile,
+      isolated: options?.browserIsolated,
+      resetProfile: options?.resetBrowserProfile,
+    });
   }
 
   private async executeWindowsUIATask(task: string, options?: DesktopTaskExecutionOptions): Promise<string> {

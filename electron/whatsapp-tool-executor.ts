@@ -14,6 +14,8 @@ import { handleTaskSchedulerTool } from './task-scheduler';
 import { isGoogleTool, executeGoogleTool } from './whatsapp-executors/google-executors';
 import { isIrisTool, executeIrisTool } from './whatsapp-executors/iris-executors';
 import { isSystemTool, executeSystemTool } from './whatsapp-executors/system-executors';
+import { dynamicToolService } from './dynamic-tool-service';
+import { remoteNodeService } from './remote-node-service';
 import type { GoogleGenerativeAI } from '@google/generative-ai';
 import type { WhatsAppService } from './whatsapp-service';
 import type { CalendarService } from './calendar-service';
@@ -138,7 +140,12 @@ for (const part of functionCalls) {
       case 'execute_command': desc = `💻 Ejecutar comando: ${toolArgs.command}`; break;
       case 'open_application': desc = `🚀 Abrir aplicación: ${toolArgs.path}`; break;
       case 'run_in_terminal': desc = `🖥️ Abrir terminal y ejecutar: ${toolArgs.command}${toolArgs.working_directory ? `\nEn: ${toolArgs.working_directory}` : ''}`; break;
-      case 'run_claude_code': desc = `🤖 Lanzar Claude Code: "${toolArgs.task}"${toolArgs.project_directory ? `\nEn: ${toolArgs.project_directory}` : ''}`; break;
+      case 'run_claude_code': desc = `🤖 Lanzar Claude Code en segundo plano: "${toolArgs.task}"${toolArgs.project_directory ? `\nEn: ${toolArgs.project_directory}` : ''}`; break;
+      case 'run_background_command': desc = `⚙️ Ejecutar en segundo plano: ${toolArgs.command}${toolArgs.working_directory ? `\nEn: ${toolArgs.working_directory}` : ''}`; break;
+      case 'kill_process_session': desc = `🛑 Terminar sesión administrada: ${toolArgs.session_id}`; break;
+      case 'repair_background_host': desc = '🧰 Reparar el host de segundo plano de SofLIA (login item + schtasks/Startup fallback)'; break;
+      case 'install_dynamic_toolset': desc = `🧩 Instalar o actualizar toolset dinámico: ${toolArgs.toolset_id}`; break;
+      case 'install_home_assistant_toolset': desc = '🏠 Instalar toolset dinámico de Home Assistant para controlar luces, switches, escenas y consultar estados'; break;
       case 'whatsapp_send_to_contact': desc = `📱 Enviar a ${toolArgs.phone_number}: ${toolArgs.file_path ? path.basename(toolArgs.file_path) : toolArgs.message?.slice(0, 50) || 'mensaje'}`; break;
       case 'gmail_send': desc = `📧 Enviar email (Gmail) a: ${toolArgs.to}\nAsunto: ${toolArgs.subject}`; break;
       case 'gmail_trash': desc = `🗑️ Eliminar email: ${toolArgs.message_id}`; break;
@@ -190,6 +197,184 @@ for (const part of functionCalls) {
       functionResponses.push(result);
       continue;
     }
+  }
+
+  if (toolName === 'list_dynamic_tools') {
+    try {
+      const tools = await dynamicToolService.listTools();
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: {
+            success: true,
+            count: tools.length,
+            tools,
+          },
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (toolName === 'list_installable_toolsets') {
+    try {
+      const toolsets = await dynamicToolService.listInstallableToolsets();
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: {
+            success: true,
+            count: toolsets.length,
+            toolsets,
+          },
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (toolName === 'list_installed_toolsets') {
+    try {
+      const toolsets = await dynamicToolService.listInstalledToolsets();
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: {
+            success: true,
+            count: toolsets.length,
+            toolsets,
+          },
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (toolName === 'doctor_dynamic_toolsets') {
+    try {
+      const diagnostics = await dynamicToolService.doctorToolsets();
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: {
+            success: true,
+            count: diagnostics.length,
+            diagnostics,
+          },
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (toolName === 'install_dynamic_toolset') {
+    try {
+      const result = await dynamicToolService.installToolset(String(toolArgs.toolset_id || '').trim());
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: result,
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (toolName === 'uninstall_dynamic_toolset') {
+    try {
+      const result = await dynamicToolService.uninstallToolset(String(toolArgs.toolset_id || '').trim());
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: result,
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (toolName === 'install_home_assistant_toolset') {
+    try {
+      const result = await dynamicToolService.installHomeAssistantToolset();
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: result,
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (!isGroup && await dynamicToolService.hasTool(toolName)) {
+    try {
+      const result = await dynamicToolService.executeTool(toolName, toolArgs);
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: typeof result === 'object' && result !== null
+            ? result
+            : { success: true, result },
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
   }
 
   // Handle whatsapp_send_file specially
@@ -293,6 +478,300 @@ for (const part of functionCalls) {
   }
 
   // Handle use_computer — autonomous desktop agent with proactive recovery + V2 progress reporting
+  if (toolName === 'list_browser_profiles') {
+    try {
+      if (!ctx.desktopAgent) throw new Error('Desktop Agent no inicializado.');
+      const profiles = await ctx.desktopAgent.listBrowserProfiles();
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: true, count: profiles.length, profiles },
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (toolName === 'reset_browser_profile') {
+    try {
+      if (!ctx.desktopAgent) throw new Error('Desktop Agent no inicializado.');
+      const result = await ctx.desktopAgent.resetBrowserProfile(String(toolArgs.profile_id || '').trim());
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: result,
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (toolName === 'get_remote_node_host_status') {
+    try {
+      const result = await remoteNodeService.getHostStatus();
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: result,
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (toolName === 'configure_remote_node_host') {
+    try {
+      const result = await remoteNodeService.updateHostConfig(toolArgs || {});
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: result,
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (toolName === 'list_remote_nodes') {
+    try {
+      const nodes = await remoteNodeService.listNodes();
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: true, count: nodes.length, nodes },
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (toolName === 'register_remote_node') {
+    try {
+      const result = await remoteNodeService.registerNode({
+        id: toolArgs.node_id,
+        name: toolArgs.name,
+        base_url: toolArgs.base_url,
+        token: toolArgs.token,
+        enabled: toolArgs.enabled,
+      });
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: result,
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (toolName === 'remove_remote_node') {
+    try {
+      const result = await remoteNodeService.removeNode(String(toolArgs.node_id || '').trim());
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: result,
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (toolName === 'test_remote_node') {
+    try {
+      const result = await remoteNodeService.testNode(String(toolArgs.node_id || '').trim());
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: result,
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (toolName === 'open_application_on_node') {
+    try {
+      const result = await remoteNodeService.openApplicationOnNode(String(toolArgs.node_id || '').trim(), toolArgs || {});
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: result,
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (toolName === 'run_background_command_on_node') {
+    try {
+      const result = await remoteNodeService.runBackgroundCommandOnNode(String(toolArgs.node_id || '').trim(), toolArgs || {});
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: result,
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (toolName === 'use_computer_on_node') {
+    try {
+      const result = await remoteNodeService.executeDesktopTaskOnNode(String(toolArgs.node_id || '').trim(), toolArgs || {});
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: result,
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (toolName === 'list_remote_node_process_sessions') {
+    try {
+      const result = await remoteNodeService.listProcessSessionsOnNode(String(toolArgs.node_id || '').trim());
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: result,
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (toolName === 'poll_remote_node_process_session') {
+    try {
+      const result = await remoteNodeService.pollProcessSessionOnNode(
+        String(toolArgs.node_id || '').trim(),
+        String(toolArgs.session_id || '').trim(),
+      );
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: result,
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (toolName === 'kill_remote_node_process_session') {
+    try {
+      const result = await remoteNodeService.killProcessSessionOnNode(
+        String(toolArgs.node_id || '').trim(),
+        String(toolArgs.session_id || '').trim(),
+      );
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: result,
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
   if (toolName === 'use_computer') {
     try {
       if (!ctx.desktopAgent) throw new Error('Desktop Agent no inicializado.');
@@ -324,6 +803,9 @@ for (const part of functionCalls) {
             maxSteps: toolArgs.max_steps,
             backend: toolArgs.backend,
             startUrl: toolArgs.start_url,
+            browserProfile: toolArgs.browser_profile,
+            browserIsolated: toolArgs.browser_isolated,
+            resetBrowserProfile: toolArgs.reset_browser_profile,
           },
         );
       } finally {
@@ -341,6 +823,8 @@ for (const part of functionCalls) {
             message: result,
             current_backend: agentStatus.currentBackend || null,
             current_url: agentStatus.currentUrl || null,
+            current_browser_profile: agentStatus.currentBrowserProfileId || null,
+            current_browser_profile_mode: agentStatus.currentBrowserProfileMode || null,
             last_verification: agentStatus.lastVerification || null,
             trace_path: agentStatus.lastTracePath || null,
             report_path: agentStatus.lastReportPath || null,
@@ -358,6 +842,8 @@ for (const part of functionCalls) {
             error: err.message,
             current_backend: agentStatus?.currentBackend || null,
             current_url: agentStatus?.currentUrl || null,
+            current_browser_profile: agentStatus?.currentBrowserProfileId || null,
+            current_browser_profile_mode: agentStatus?.currentBrowserProfileMode || null,
             last_verification: agentStatus?.lastVerification || null,
             trace_path: agentStatus?.lastTracePath || null,
             report_path: agentStatus?.lastReportPath || null,

@@ -1,5 +1,5 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
-import type { Session, AuthChangeEvent } from '@supabase/supabase-js';
+import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
+import type { Session, AuthChangeEvent, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { isSofiaConfigured } from '../lib/sofia-client';
 import { sofiaAuth, SofiaContext, SofiaAuthResult, SofiaAuthUser } from '../services/sofia-auth';
@@ -30,6 +30,37 @@ const AuthContext = createContext<AuthContextType>({
   setCurrentTeam: () => {},
 });
 
+function toAuthUser(user: User, userMetadata?: SofiaAuthUser['user_metadata']): SofiaAuthUser {
+  return {
+    id: user.id,
+    email: user.email,
+    user_metadata: userMetadata ?? user.user_metadata,
+  };
+}
+
+function buildSofiaContext(profile: any): SofiaContext | null {
+  const activeMemberships = profile?.memberships?.filter((membership: any) => membership.status === 'active') || [];
+  if (activeMemberships.length === 0) {
+    return null;
+  }
+
+  const activeOrgs = profile?.organizations?.filter((organization: any) =>
+    activeMemberships.some((membership: any) => membership.organization_id === organization.id),
+  ) || [];
+  const activeTeams = profile?.teams?.filter((team: any) =>
+    activeMemberships.some((membership: any) => membership.team_id === team.id),
+  ) || [];
+
+  return {
+    user: profile,
+    currentOrganization: activeOrgs[0] || null,
+    currentTeam: activeTeams[0] || null,
+    organizations: activeOrgs,
+    teams: activeTeams,
+    memberships: activeMemberships,
+  };
+}
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<AuthUser>(null);
@@ -38,83 +69,139 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const usingSofia = isSofiaConfigured();
 
+  const clearSessionState = useCallback(() => {
+    setSession(null);
+    setUser(null);
+    setSofiaContext(null);
+  }, []);
+
+  const signOut = useCallback(async () => {
+    try {
+      if (usingSofia) {
+        await sofiaAuth.signOut();
+      }
+
+      await supabase.auth.signOut();
+    } finally {
+      clearSessionState();
+    }
+  }, [clearSessionState, usingSofia]);
+
+  const resolveSofiaContext = useCallback(async (sofiaUserId: string): Promise<SofiaContext | null> => {
+    const profile = await sofiaAuth.fetchSofiaUserProfile(sofiaUserId);
+    const nextSofiaContext = buildSofiaContext(profile);
+
+    if (!nextSofiaContext) {
+      console.warn('Usuario sin membresias activas en SOFIA.');
+      return null;
+    }
+
+    return nextSofiaContext;
+  }, []);
+
+  const establishLiaSession = useCallback(async (
+    sofiaResult: SofiaAuthResult,
+    password: string,
+  ): Promise<{ session: Session; user: SofiaAuthUser } | { error: string }> => {
+    const sofiaEmail = sofiaResult.user?.email || sofiaResult.sofiaProfile?.email;
+    if (!sofiaEmail) {
+      return { error: 'No se encontro el correo del usuario para sincronizar con Lia.' };
+    }
+
+    try {
+      const { data: liaAuth, error: liaError } = await supabase.auth.signInWithPassword({
+        email: sofiaEmail,
+        password,
+      });
+
+      if (!liaError && liaAuth.session && liaAuth.user) {
+        return {
+          session: liaAuth.session,
+          user: {
+            id: liaAuth.user.id,
+            email: sofiaEmail,
+            user_metadata: sofiaResult.user?.user_metadata,
+          },
+        };
+      }
+
+      console.log('Usuario no existe en Lia o la sesion fallo, creando...', liaError?.message);
+
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: sofiaEmail,
+        password,
+        options: {
+          data: {
+            full_name: sofiaResult.sofiaProfile?.full_name || sofiaResult.user?.user_metadata?.first_name,
+            sofia_user_id: sofiaResult.user?.id,
+          },
+        },
+      });
+
+      if (signUpError) {
+        console.error('Error creando usuario en Lia:', signUpError);
+        return {
+          error: `No se pudo crear la sesion de Lia: ${signUpError.message}`,
+        };
+      }
+
+      if (!signUpData.session || !signUpData.user) {
+        return {
+          error: 'Lia requiere una sesion valida para sincronizar conversaciones. Inicia sesion de nuevo.',
+        };
+      }
+
+      return {
+        session: signUpData.session,
+        user: {
+          id: signUpData.user.id,
+          email: sofiaEmail,
+          user_metadata: sofiaResult.user?.user_metadata,
+        },
+      };
+    } catch (err) {
+      console.error('Error sincronizando con Lia Supabase:', err);
+      return {
+        error: err instanceof Error ? err.message : 'Error desconocido sincronizando con Lia.',
+      };
+    }
+  }, []);
+
   useEffect(() => {
     const initSession = async () => {
       try {
         if (usingSofia) {
           const sofiaSession = await sofiaAuth.getSession();
-          if (sofiaSession) {
-            const { data: { session: liaSession } } = await supabase.auth.getSession();
-
-            if (liaSession) {
-              setSession(liaSession);
-              setUser({
-                id: liaSession.user.id,
-                email: liaSession.user.email,
-                user_metadata: sofiaSession.user.user_metadata
-              });
-
-              const profile = await sofiaAuth.fetchSofiaUserProfile(sofiaSession.user.id);
-              
-              const activeMemberships = profile?.memberships?.filter((m: any) => m.status === 'active') || [];
-              const activeOrgs = profile?.organizations?.filter((o: any) => 
-                activeMemberships.some((m: any) => m.organization_id === o.id)
-              ) || [];
-
-              if (activeMemberships.length > 0) {
-                setSofiaContext({
-                  user: profile,
-                  currentOrganization: activeOrgs[0] || null,
-                  currentTeam: profile?.teams?.[0] || null,
-                  organizations: activeOrgs,
-                  teams: profile?.teams || [],
-                  memberships: activeMemberships
-                });
-              } else {
-                console.warn('Usuario sin membresias activas, cerrando sesion...');
-                await signOut();
-              }
-            } else {
-              // SOFIA session exists but no Lia session - use SOFIA user directly
-              setUser({
-                id: sofiaSession.user.id,
-                email: sofiaSession.user.email,
-                user_metadata: sofiaSession.user.user_metadata
-              });
-
-              const profile = await sofiaAuth.fetchSofiaUserProfile(sofiaSession.user.id);
-
-              const activeMemberships = profile?.memberships?.filter((m: any) => m.status === 'active') || [];
-              const activeOrgs = profile?.organizations?.filter((o: any) => 
-                activeMemberships.some((m: any) => m.organization_id === o.id)
-              ) || [];
-
-              if (activeMemberships.length > 0) {
-                setSofiaContext({
-                  user: profile,
-                  currentOrganization: activeOrgs[0] || null,
-                  currentTeam: profile?.teams?.[0] || null,
-                  organizations: activeOrgs,
-                  teams: profile?.teams || [],
-                  memberships: activeMemberships
-                });
-              } else {
-                console.warn('Usuario sin membresias activas (sin Lia session), cerrando sesion...');
-                await signOut();
-              }
-            }
+          if (!sofiaSession?.user) {
+            clearSessionState();
+            return;
           }
-        } else {
-          const { data: { session } } = await supabase.auth.getSession();
-          setSession(session);
-          setUser(session?.user ? {
-            id: session.user.id,
-            email: session.user.email,
-            user_metadata: session.user.user_metadata
-          } : null);
+
+          const nextSofiaContext = await resolveSofiaContext(sofiaSession.user.id);
+          if (!nextSofiaContext) {
+            await signOut();
+            return;
+          }
+
+          const { data: { session: liaSession } } = await supabase.auth.getSession();
+          if (!liaSession?.user) {
+            console.warn('SOFIA session encontrada sin sesion de Lia. Se requiere reautenticacion.');
+            await signOut();
+            return;
+          }
+
+          setSession(liaSession);
+          setUser(toAuthUser(liaSession.user, sofiaSession.user.user_metadata));
+          setSofiaContext(nextSofiaContext);
+          return;
         }
+
+        const { data: { session: plainSession } } = await supabase.auth.getSession();
+        setSession(plainSession);
+        setUser(plainSession?.user ? toAuthUser(plainSession.user) : null);
       } catch (error) {
         console.error('Error checking session:', error);
+        clearSessionState();
       } finally {
         setLoading(false);
       }
@@ -128,158 +215,99 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const { data: { subscription } } = sofiaAuth.onAuthStateChange(
         async (event, sofiaSession) => {
           console.log('SOFIA Auth state changed:', event);
-          
-          if (sofiaSession?.user) {
-            // Check for Lia session to get the correct database ID
-            const { data: { session: liaSession } } = await supabase.auth.getSession();
-            
-            const principalUser = {
-              id: liaSession?.user?.id || sofiaSession.user.id,
-              email: sofiaSession.user.email,
-              user_metadata: sofiaSession.user.user_metadata
-            };
 
-            setSession(liaSession || sofiaSession);
-            setUser(principalUser);
-
-            const profile = await sofiaAuth.fetchSofiaUserProfile(sofiaSession.user.id);
-            
-            const activeMemberships = profile?.memberships?.filter((m: any) => m.status === 'active') || [];
-            const activeOrgs = profile?.organizations?.filter((o: any) => 
-               activeMemberships.some((m: any) => m.organization_id === o.id)
-            ) || [];
-
-            if (activeMemberships.length > 0) {
-              setSofiaContext({
-                user: profile,
-                currentOrganization: activeOrgs[0] || null,
-                currentTeam: profile?.teams?.[0] || null,
-                organizations: activeOrgs,
-                teams: profile?.teams || [],
-                memberships: activeMemberships
-              });
-            } else {
-              console.warn('Auth state changed: Usuario suspendido o sin membresias.');
-              await signOut();
-            }
-          } else {
-            setSession(null);
-            setUser(null);
-            setSofiaContext(null);
+          if (!sofiaSession?.user) {
+            clearSessionState();
+            setLoading(false);
+            return;
           }
 
+          const nextSofiaContext = await resolveSofiaContext(sofiaSession.user.id);
+          if (!nextSofiaContext) {
+            await signOut();
+            setLoading(false);
+            return;
+          }
+
+          const { data: { session: liaSession } } = await supabase.auth.getSession();
+          if (!liaSession?.user) {
+            console.warn('Cambio de sesion SOFIA sin sesion de Lia. Se fuerza reautenticacion.');
+            await signOut();
+            setLoading(false);
+            return;
+          }
+
+          setSession(liaSession);
+          setUser(toAuthUser(liaSession.user, sofiaSession.user.user_metadata));
+          setSofiaContext(nextSofiaContext);
           setLoading(false);
-        }
+        },
       );
+
       unsubscribe = subscription.unsubscribe;
     } else {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        (_event: AuthChangeEvent, session: Session | null) => {
-          setSession(session);
-          setUser(session?.user ? {
-            id: session.user.id,
-            email: session.user.email,
-            user_metadata: session.user.user_metadata
-          } : null);
+        (_event: AuthChangeEvent, nextSession: Session | null) => {
+          setSession(nextSession);
+          setUser(nextSession?.user ? toAuthUser(nextSession.user) : null);
           setLoading(false);
-        }
+        },
       );
+
       unsubscribe = subscription.unsubscribe;
     }
 
     return () => {
       unsubscribe?.();
     };
-  }, [usingSofia]);
+  }, [clearSessionState, resolveSofiaContext, signOut, usingSofia]);
 
-  const signOut = async () => {
-    if (usingSofia) {
-      await sofiaAuth.signOut();
-      setSofiaContext(null);
-      setUser(null);
-      setSession(null);
-    }
-    await supabase.auth.signOut();
-  };
-
-  const signInWithSofia = async (emailOrUsername: string, password: string): Promise<SofiaAuthResult> => {
+  const signInWithSofia = useCallback(async (emailOrUsername: string, password: string): Promise<SofiaAuthResult> => {
     const result = await sofiaAuth.signInWithSofia(emailOrUsername, password);
-
-    if (result.success && result.user) {
-      const sofiaEmail = result.user.email || result.sofiaProfile?.email;
-      if (sofiaEmail) {
-        try {
-          const { data: liaAuth, error: liaError } = await supabase.auth.signInWithPassword({
-            email: sofiaEmail,
-            password: password
-          });
-
-          if (liaError) {
-            console.log('Usuario no existe en Lia, creando...', liaError.message);
-            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-              email: sofiaEmail,
-              password: password,
-              options: {
-                data: {
-                  full_name: result.sofiaProfile?.full_name || result.user.user_metadata?.first_name,
-                  sofia_user_id: result.user.id
-                }
-              }
-            });
-
-            if (signUpError) {
-              console.error('Error creando usuario en Lia:', signUpError);
-              setUser(result.user);
-            } else if (signUpData.session) {
-              setSession(signUpData.session);
-              setUser({
-                id: signUpData.user!.id,
-                email: sofiaEmail,
-                user_metadata: result.user.user_metadata
-              });
-            } else {
-              setUser(result.user);
-            }
-          } else if (liaAuth.session) {
-            setSession(liaAuth.session);
-            setUser({
-              id: liaAuth.user!.id,
-              email: sofiaEmail,
-              user_metadata: result.user.user_metadata
-            });
-          }
-        } catch (err) {
-          console.error('Error sincronizando con Lia Supabase:', err);
-          setUser(result.user);
-        }
-      } else {
-        setUser(result.user);
-      }
-
-      if (result.sofiaProfile) {
-        setSofiaContext({
-          user: result.sofiaProfile,
-          currentOrganization: result.sofiaProfile.organizations?.[0] || null,
-          currentTeam: result.sofiaProfile.teams?.[0] || null,
-          organizations: result.sofiaProfile.organizations || [],
-          teams: result.sofiaProfile.teams || [],
-          memberships: result.sofiaProfile.memberships || []
-        });
-      }
+    if (!result.success || !result.user) {
+      return result;
     }
 
-    return result;
-  };
+    const nextSofiaContext = result.sofiaProfile ? buildSofiaContext(result.sofiaProfile) : null;
+    if (!nextSofiaContext) {
+      await signOut();
+      return {
+        ...result,
+        success: false,
+        error: 'Acceso denegado: No tienes una membresia activa en SOFIA.',
+      };
+    }
+
+    const liaSessionResult = await establishLiaSession(result, password);
+    if ('error' in liaSessionResult) {
+      await signOut();
+      return {
+        ...result,
+        success: false,
+        error: liaSessionResult.error,
+      };
+    }
+
+    setSession(liaSessionResult.session);
+    setUser(liaSessionResult.user);
+    setSofiaContext(nextSofiaContext);
+
+    return {
+      ...result,
+      session: liaSessionResult.session,
+      user: liaSessionResult.user,
+    };
+  }, [establishLiaSession, signOut]);
 
   const setCurrentOrganization = (orgId: string) => {
     if (sofiaContext) {
-      const org = sofiaContext.organizations.find(o => o.id === orgId);
-      if (org) {
-        sofiaAuth.setCurrentOrganization(org);
-        setSofiaContext(prev => prev ? {
+      const organization = sofiaContext.organizations.find((org) => org.id === orgId);
+      if (organization) {
+        sofiaAuth.setCurrentOrganization(organization);
+        setSofiaContext((prev) => prev ? {
           ...prev,
-          currentOrganization: org,
-          currentTeam: prev.teams.find(t => t.organization_id === org.id) || null
+          currentOrganization: organization,
+          currentTeam: prev.teams.find((team) => team.organization_id === organization.id) || null,
         } : null);
       }
     }
@@ -287,10 +315,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const setCurrentTeam = (teamId: string) => {
     if (sofiaContext) {
-      const team = sofiaContext.teams.find(t => t.id === teamId);
+      const team = sofiaContext.teams.find((item) => item.id === teamId);
       if (team) {
         sofiaAuth.setCurrentTeam(team);
-        setSofiaContext(prev => prev ? { ...prev, currentTeam: team } : null);
+        setSofiaContext((prev) => prev ? { ...prev, currentTeam: team } : null);
       }
     }
   };

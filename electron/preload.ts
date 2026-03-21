@@ -41,6 +41,10 @@ const ALLOWED_IPC_CHANNELS = [
   'computer:execute-command',
   'computer:open-application',
   'computer:open-url',
+  'computer:run-background-command',
+  'computer:list-process-sessions',
+  'computer:poll-process-session',
+  'computer:kill-process-session',
   'computer:get-system-info',
   'computer:clipboard-read',
   'computer:clipboard-write',
@@ -49,6 +53,21 @@ const ALLOWED_IPC_CHANNELS = [
   'computer:get-email-config',
   'computer:configure-email',
   'computer:send-email',
+  'background-host:get-status',
+  'background-host:update-config',
+  'background-host:repair',
+  'remote-node:get-host-status',
+  'remote-node:update-host-config',
+  'remote-node:list-nodes',
+  'remote-node:register-node',
+  'remote-node:remove-node',
+  'remote-node:test-node',
+  'remote-node:open-application',
+  'remote-node:run-background-command',
+  'remote-node:execute-task',
+  'remote-node:list-process-sessions',
+  'remote-node:poll-process-session',
+  'remote-node:kill-process-session',
   'whatsapp:connect',
   'whatsapp:disconnect',
   'whatsapp:get-status',
@@ -120,6 +139,8 @@ const ALLOWED_IPC_CHANNELS = [
   'desktop-agent:abort',
   'desktop-agent:get-status',
   'desktop-agent:get-config',
+  'desktop-agent:list-browser-profiles',
+  'desktop-agent:reset-browser-profile',
   'desktop-agent:set-config',
   'desktop-agent:start-observation',
   'desktop-agent:stop-observation',
@@ -275,6 +296,14 @@ contextBridge.exposeInMainWorld('computerUse', {
     safeInvoke('computer:open-application', target),
   openUrl: (url: string) =>
     safeInvoke('computer:open-url', url),
+  runBackgroundCommand: (options: any) =>
+    safeInvoke('computer:run-background-command', options),
+  listProcessSessions: () =>
+    safeInvoke('computer:list-process-sessions'),
+  pollProcessSession: (sessionId: string) =>
+    safeInvoke('computer:poll-process-session', sessionId),
+  killProcessSession: (sessionId: string) =>
+    safeInvoke('computer:kill-process-session', sessionId),
   getSystemInfo: () =>
     safeInvoke('computer:get-system-info'),
   clipboardRead: () =>
@@ -300,6 +329,42 @@ contextBridge.exposeInMainWorld('computerUse', {
     safeInvoke('computer:configure-email', email, password),
   sendEmail: (to: string, subject: string, body: string, attachmentPaths?: string[], isHtml?: boolean) =>
     safeInvoke('computer:send-email', to, subject, body, attachmentPaths, isHtml),
+})
+
+contextBridge.exposeInMainWorld('backgroundHost', {
+  getStatus: () =>
+    safeInvoke('background-host:get-status'),
+  updateConfig: (updates: { enabled?: boolean }) =>
+    safeInvoke('background-host:update-config', updates),
+  repair: () =>
+    safeInvoke('background-host:repair'),
+})
+
+contextBridge.exposeInMainWorld('remoteNode', {
+  getHostStatus: () =>
+    safeInvoke('remote-node:get-host-status'),
+  updateHostConfig: (updates: any) =>
+    safeInvoke('remote-node:update-host-config', updates),
+  listNodes: () =>
+    safeInvoke('remote-node:list-nodes'),
+  registerNode: (node: any) =>
+    safeInvoke('remote-node:register-node', node),
+  removeNode: (nodeId: string) =>
+    safeInvoke('remote-node:remove-node', nodeId),
+  testNode: (nodeId: string) =>
+    safeInvoke('remote-node:test-node', nodeId),
+  openApplication: (nodeId: string, args: any) =>
+    safeInvoke('remote-node:open-application', nodeId, args),
+  runBackgroundCommand: (nodeId: string, args: any) =>
+    safeInvoke('remote-node:run-background-command', nodeId, args),
+  executeTask: (nodeId: string, args: any) =>
+    safeInvoke('remote-node:execute-task', nodeId, args),
+  listProcessSessions: (nodeId: string) =>
+    safeInvoke('remote-node:list-process-sessions', nodeId),
+  pollProcessSession: (nodeId: string, sessionId: string) =>
+    safeInvoke('remote-node:poll-process-session', nodeId, sessionId),
+  killProcessSession: (nodeId: string, sessionId: string) =>
+    safeInvoke('remote-node:kill-process-session', nodeId, sessionId),
 })
 
 // --------- WhatsApp API ---------
@@ -425,6 +490,8 @@ contextBridge.exposeInMainWorld('desktopAgent', {
   abort: () => safeInvoke('desktop-agent:abort'),
   getStatus: () => safeInvoke('desktop-agent:get-status'),
   getConfig: () => safeInvoke('desktop-agent:get-config'),
+  listBrowserProfiles: () => safeInvoke('desktop-agent:list-browser-profiles'),
+  resetBrowserProfile: (profileId: string) => safeInvoke('desktop-agent:reset-browser-profile', profileId),
   setConfig: (updates: any) => safeInvoke('desktop-agent:set-config', updates),
   startObservation: (objective: string, rules?: string) => safeInvoke('desktop-agent:start-observation', objective, rules),
   stopObservation: () => safeInvoke('desktop-agent:stop-observation'),

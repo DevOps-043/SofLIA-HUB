@@ -7,10 +7,14 @@ import { app as electronApp } from 'electron';
 type PlaywrightModule = typeof import('playwright-core');
 
 type BrowserTaskStatus = 'idle' | 'executing';
+type BrowserProfileMode = 'persistent' | 'isolated';
 
 interface BrowserTaskOptions {
   maxSteps?: number;
   startUrl?: string;
+  profileId?: string;
+  isolated?: boolean;
+  resetProfile?: boolean;
 }
 
 interface BrowserQueueEntry {
@@ -78,6 +82,8 @@ interface BrowserStatusSnapshot {
   currentStep: number;
   maxSteps: number;
   currentUrl: string | null;
+  currentProfileId: string | null;
+  currentProfileMode: BrowserProfileMode | null;
   lastAction: string | null;
   lastVerification: string | null;
   lastTracePath: string | null;
@@ -92,6 +98,13 @@ interface BrowserTaskArtifacts {
   tracePath: string;
   reportPath: string;
   finalScreenshotPath: string;
+}
+
+interface BrowserProfileDescriptor {
+  id: string;
+  path: string;
+  exists: boolean;
+  lastModifiedAt: string | null;
 }
 
 const DEFAULT_MODEL = 'gemini-3-flash-preview';
@@ -122,6 +135,8 @@ export class BrowserWebService extends EventEmitter {
   private currentStep = 0;
   private currentMaxSteps = 0;
   private currentUrl: string | null = null;
+  private currentProfileId: string | null = null;
+  private currentProfileMode: BrowserProfileMode | null = null;
   private lastAction: string | null = null;
   private lastVerification: string | null = null;
   private lastTracePath: string | null = null;
@@ -142,6 +157,8 @@ export class BrowserWebService extends EventEmitter {
       currentStep: this.currentStep,
       maxSteps: this.currentMaxSteps,
       currentUrl: this.currentUrl,
+      currentProfileId: this.currentProfileId,
+      currentProfileMode: this.currentProfileMode,
       lastAction: this.lastAction,
       lastVerification: this.lastVerification,
       lastTracePath: this.lastTracePath,
@@ -164,6 +181,66 @@ export class BrowserWebService extends EventEmitter {
       const queued = this.queue.shift();
       queued?.reject(new Error('Tarea web cancelada antes de ejecutarse.'));
     }
+  }
+
+  listProfiles(): BrowserProfileDescriptor[] {
+    const profilesRoot = this.getProfilesBaseDir();
+    const descriptors: BrowserProfileDescriptor[] = [];
+
+    const pushDescriptor = (id: string, exists: boolean): void => {
+      const profilePath = this.getProfileDirectory(id);
+      let lastModifiedAt: string | null = null;
+      if (exists) {
+        try {
+          lastModifiedAt = fs.statSync(profilePath).mtime.toISOString();
+        } catch {
+          lastModifiedAt = null;
+        }
+      }
+      descriptors.push({
+        id,
+        path: profilePath,
+        exists,
+        lastModifiedAt,
+      });
+    };
+
+    pushDescriptor('default', fs.existsSync(this.getProfileDirectory('default')));
+
+    if (fs.existsSync(profilesRoot)) {
+      for (const entry of fs.readdirSync(profilesRoot, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        const id = this.sanitizeProfileId(entry.name);
+        if (!id || id === 'default' || descriptors.some((item) => item.id === id)) continue;
+        pushDescriptor(id, true);
+      }
+    }
+
+    descriptors.sort((left, right) => left.id.localeCompare(right.id));
+    return descriptors;
+  }
+
+  async resetProfile(profileId: string): Promise<{ success: boolean; profileId: string; path: string; removed: boolean }> {
+    const sanitizedId = this.resolveProfileId(profileId);
+    const profilePath = this.getProfileDirectory(sanitizedId);
+    const isCurrentPersistentProfile = this.currentProfileMode === 'persistent' && this.currentProfileId === sanitizedId;
+
+    if (isCurrentPersistentProfile) {
+      await this.disposeBrowserResources();
+    }
+
+    let removed = false;
+    if (fs.existsSync(profilePath)) {
+      fs.rmSync(profilePath, { recursive: true, force: true });
+      removed = true;
+    }
+
+    return {
+      success: true,
+      profileId: sanitizedId,
+      path: profilePath,
+      removed,
+    };
   }
 
   async executeTask(task: string, options?: BrowserTaskOptions): Promise<string> {
@@ -217,7 +294,11 @@ export class BrowserWebService extends EventEmitter {
     });
 
     try {
-      const page = await this.ensurePage();
+      if (options?.resetProfile) {
+        await this.resetProfile(options.profileId || 'default');
+      }
+
+      const page = await this.ensurePage(options);
       const traceStartResult = await this.startTaskTrace();
       traceStarted = traceStartResult.success;
       traceStartError = traceStartResult.error;
@@ -426,6 +507,34 @@ export class BrowserWebService extends EventEmitter {
     }
   }
 
+  private getProfilesBaseDir(): string {
+    try {
+      return path.join(electronApp.getPath('userData'), 'computer-use', 'browser-web-profiles');
+    } catch {
+      return path.join(process.cwd(), 'computer-use-artifacts', 'browser-web-profiles');
+    }
+  }
+
+  private sanitizeProfileId(profileId: string): string {
+    const cleaned = String(profileId || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 48);
+
+    return cleaned || 'default';
+  }
+
+  private resolveProfileId(profileId?: string): string {
+    return this.sanitizeProfileId(profileId || 'default');
+  }
+
+  private getProfileDirectory(profileId: string): string {
+    return path.join(this.getProfilesBaseDir(), this.resolveProfileId(profileId));
+  }
+
   private sanitizeTaskLabel(task: string): string {
     const cleaned = task
       .toLowerCase()
@@ -536,6 +645,10 @@ export class BrowserWebService extends EventEmitter {
       backend: 'browser_web',
       status: finalStatus,
       message: finalMessage,
+      profile: {
+        id: this.currentProfileId,
+        mode: this.currentProfileMode,
+      },
       startedAt,
       finishedAt,
       finalUrl: finalSnapshot?.url || this.currentUrl,
@@ -585,27 +698,77 @@ export class BrowserWebService extends EventEmitter {
     return this.playwright;
   }
 
-  private async ensurePage(): Promise<any> {
-    if (this.page && !this.page.isClosed()) {
-      await this.page.bringToFront().catch(() => {});
-      return this.page;
+  private async ensurePage(options?: BrowserTaskOptions): Promise<any> {
+    const requestedProfileMode: BrowserProfileMode = options?.isolated ? 'isolated' : 'persistent';
+    const requestedProfileId = this.resolveProfileId(options?.profileId);
+
+    const modeChanged = this.currentProfileMode !== requestedProfileMode;
+    const profileChanged = requestedProfileMode === 'persistent' && this.currentProfileId !== requestedProfileId;
+    if (modeChanged || profileChanged) {
+      await this.disposeBrowserResources();
+    }
+
+    const existingPage = this.page && !this.page.isClosed() ? this.page : null;
+    if (existingPage) {
+      this.currentProfileId = requestedProfileMode === 'persistent' ? requestedProfileId : null;
+      this.currentProfileMode = requestedProfileMode;
+      await existingPage.bringToFront().catch(() => {});
+      return existingPage;
     }
 
     const playwright = await this.getPlaywright();
-    if (!this.browser) {
-      this.browser = await this.launchBrowser(playwright);
-    }
-    if (!this.context) {
-      this.context = await this.browser.newContext({
-        viewport: { width: 1440, height: 960 },
-        ignoreHTTPSErrors: true,
-      });
+    if (requestedProfileMode === 'persistent') {
+      this.context = await this.launchPersistentContext(playwright, requestedProfileId);
+      this.browser = null;
+      this.currentProfileId = requestedProfileId;
+      this.currentProfileMode = 'persistent';
+    } else {
+      if (!this.browser) {
+        this.browser = await this.launchBrowser(playwright);
+      }
+      if (!this.context) {
+        this.context = await this.browser.newContext({
+          viewport: { width: 1440, height: 960 },
+          ignoreHTTPSErrors: true,
+        });
+      }
+      this.currentProfileId = null;
+      this.currentProfileMode = 'isolated';
     }
 
-    this.page = await this.context.newPage();
+    const existingContextPage = this.context?.pages?.().find((candidate: any) => !candidate.isClosed?.());
+    this.page = existingContextPage || await this.context.newPage();
     await this.page.goto('about:blank', { waitUntil: 'domcontentloaded' }).catch(() => {});
     await this.page.bringToFront().catch(() => {});
     return this.page;
+  }
+
+  private async disposeBrowserResources(): Promise<void> {
+    try {
+      if (this.page && !this.page.isClosed()) {
+        await this.page.close().catch(() => {});
+      }
+    } finally {
+      this.page = null;
+    }
+
+    try {
+      if (this.context) {
+        await this.context.close().catch(() => {});
+      }
+    } finally {
+      this.context = null;
+    }
+
+    try {
+      if (this.browser) {
+        await this.browser.close().catch(() => {});
+      }
+    } finally {
+      this.browser = null;
+      this.currentProfileId = null;
+      this.currentProfileMode = null;
+    }
   }
 
   private async launchBrowser(playwright: PlaywrightModule): Promise<any> {
@@ -629,6 +792,33 @@ export class BrowserWebService extends EventEmitter {
     }
 
     throw new Error(`No se pudo iniciar un browser compatible con Playwright. ${lastError?.message || ''}`.trim());
+  }
+
+  private async launchPersistentContext(playwright: PlaywrightModule, profileId: string): Promise<any> {
+    let lastError: Error | null = null;
+    const profilePath = this.getProfileDirectory(profileId);
+    fs.mkdirSync(profilePath, { recursive: true });
+
+    for (const candidate of WINDOWS_BROWSER_CANDIDATES) {
+      try {
+        if ('executablePath' in candidate && candidate.executablePath && !fs.existsSync(candidate.executablePath)) {
+          continue;
+        }
+
+        return await playwright.chromium.launchPersistentContext(profilePath, {
+          headless: false,
+          channel: 'channel' in candidate ? candidate.channel : undefined,
+          executablePath: 'executablePath' in candidate ? candidate.executablePath : undefined,
+          viewport: { width: 1440, height: 960 },
+          ignoreHTTPSErrors: true,
+          args: ['--start-maximized'],
+        });
+      } catch (err: any) {
+        lastError = err;
+      }
+    }
+
+    throw new Error(`No se pudo iniciar un browser persistente compatible con Playwright. ${lastError?.message || ''}`.trim());
   }
 
   private inferStartUrl(task: string, explicitUrl?: string): string | null {

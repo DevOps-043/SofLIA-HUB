@@ -19,6 +19,7 @@ const { createWorker } = _require('tesseract.js');
 import { VisualDebuggerService } from './visual-debugger-service';
 import { normalizePath, formatBytes, getFileExtension } from './utils/file-utils';
 import { organizeFiles, batchMoveFiles, listDirectorySummary, undoLastFileOperation } from './computer-use/batch-file-ops';
+import { backgroundProcessService, type ManagedSessionView } from './background-process-service';
 
 // ─── Security ────────────────────────────────────────────────────────
 const MAX_FILE_READ_SIZE = 1 * 1024 * 1024; // 1 MB
@@ -41,6 +42,378 @@ function isCommandBlocked(cmd: string): boolean {
 
 // ─── Computer Use GUI Automation Helpers ─────────────────────────────
 const execAsync = util.promisify(exec);
+
+const MAX_APP_SEARCH_RESULTS = 16;
+const MAX_APP_SEARCH_DIRS = 2500;
+
+const WINDOWS_APP_ALIASES: Record<string, string[]> = {
+  anydesk: ['AnyDesk.exe'],
+  calculadora: ['calc.exe'],
+  calculator: ['calc.exe'],
+  blocdenotas: ['notepad.exe'],
+  notepad: ['notepad.exe'],
+  explorer: ['explorer.exe'],
+  fileexplorer: ['explorer.exe'],
+  chrome: ['chrome.exe'],
+  edge: ['msedge.exe'],
+  brave: ['brave.exe'],
+  whatsapp: ['WhatsApp.exe'],
+  vscode: ['Code.exe'],
+  code: ['Code.exe'],
+  visualstudiocode: ['Code.exe'],
+  word: ['WINWORD.EXE'],
+  excel: ['EXCEL.EXE'],
+  powerpoint: ['POWERPNT.EXE'],
+  outlook: ['OUTLOOK.EXE'],
+  teams: ['Teams.exe', 'ms-teams.exe'],
+  zoom: ['Zoom.exe'],
+};
+
+type ResolvedApplicationTarget = {
+  path: string;
+  source: string;
+  score?: number;
+  searchedQuery?: string;
+  alternatives?: string[];
+};
+
+type ApplicationSearchRoot = {
+  root: string;
+  source: string;
+  maxDepth: number;
+};
+
+function normalizeLookupToken(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+function stripLaunchExtension(value: string): string {
+  return value.replace(/\.(exe|lnk|appref-ms|cmd|bat|com)$/i, '');
+}
+
+function looksLikeConcretePath(value: string): boolean {
+  const trimmed = (value || '').trim();
+  if (!trimmed) return false;
+  return path.isAbsolute(trimmed) || /[\\/]/.test(trimmed) || /\.[a-z0-9]{2,10}$/i.test(path.basename(trimmed));
+}
+
+function isLaunchableCandidatePath(filePath: string): boolean {
+  const ext = path.extname(filePath).toLowerCase();
+  return ['.exe', '.lnk', '.appref-ms', '.cmd', '.bat', '.com'].includes(ext);
+}
+
+function shouldSkipApplicationSearchDirectory(name: string): boolean {
+  const lower = name.toLowerCase();
+  return lower.startsWith('.') || [
+    'windows',
+    'winsxs',
+    'system32',
+    'syswow64',
+    'node_modules',
+    '.git',
+  ].includes(lower);
+}
+
+function scoreApplicationCandidate(filePath: string, normalizedQueries: string[]): number {
+  const lowerPath = filePath.toLowerCase();
+  const baseName = stripLaunchExtension(path.basename(filePath)).toLowerCase();
+  const compactBase = normalizeLookupToken(baseName);
+  const compactPath = normalizeLookupToken(lowerPath);
+
+  let score = 0;
+  for (const query of normalizedQueries) {
+    if (!query) continue;
+    if (compactBase === query) score = Math.max(score, 220);
+    else if (compactBase.startsWith(query)) score = Math.max(score, 180);
+    else if (compactBase.includes(query)) score = Math.max(score, 145);
+    else if (compactPath.includes(query)) score = Math.max(score, 70);
+  }
+
+  if (score === 0) return 0;
+
+  if (/[\\/]program files( \(x86\))?[\\/]/i.test(lowerPath) || /[\\/]appdata[\\/]local[\\/]programs[\\/]/i.test(lowerPath)) {
+    score += 90;
+  }
+  if (/[\\/]start menu[\\/]programs[\\/]/i.test(lowerPath)) score += 70;
+  if (lowerPath.includes('\\windowsapps\\')) score += 55;
+  if (lowerPath.includes('\\downloads\\')) score -= 80;
+  if (/(setup|installer|install|update|updater|uninstall|bootstrap|helper)/i.test(lowerPath)) score -= 180;
+
+  const ext = path.extname(lowerPath).toLowerCase();
+  if (ext === '.exe') score += 25;
+  if (ext === '.lnk' || ext === '.appref-ms') score += 10;
+
+  return score;
+}
+
+function buildApplicationQueryVariants(rawTarget: string): string[] {
+  const base = stripLaunchExtension(path.basename((rawTarget || '').trim()));
+  if (!base) return [];
+
+  const variants = new Set<string>();
+  variants.add(base);
+  variants.add(base.replace(/[-_]+/g, ' '));
+  variants.add(base.replace(/\s+/g, ''));
+  variants.add(`${base}.exe`);
+
+  const aliasKey = normalizeLookupToken(base);
+  for (const alias of WINDOWS_APP_ALIASES[aliasKey] || []) {
+    variants.add(alias);
+  }
+
+  return Array.from(variants)
+    .map(value => value.trim())
+    .filter(Boolean);
+}
+
+function getWindowsApplicationSearchRoots(): ApplicationSearchRoot[] {
+  const envCandidates: Array<ApplicationSearchRoot | null> = [
+    process.env.LOCALAPPDATA ? { root: path.join(process.env.LOCALAPPDATA, 'Programs'), source: 'local-programs', maxDepth: 4 } : null,
+    process.env.ProgramFiles ? { root: process.env.ProgramFiles, source: 'program-files', maxDepth: 4 } : null,
+    process.env['ProgramFiles(x86)'] ? { root: process.env['ProgramFiles(x86)'], source: 'program-files-x86', maxDepth: 4 } : null,
+    process.env.LOCALAPPDATA ? { root: path.join(process.env.LOCALAPPDATA, 'Microsoft', 'WindowsApps'), source: 'windows-apps', maxDepth: 2 } : null,
+    process.env.APPDATA ? { root: path.join(process.env.APPDATA, 'Microsoft', 'Windows', 'Start Menu', 'Programs'), source: 'start-menu-user', maxDepth: 3 } : null,
+    process.env.ProgramData ? { root: path.join(process.env.ProgramData, 'Microsoft', 'Windows', 'Start Menu', 'Programs'), source: 'start-menu-machine', maxDepth: 3 } : null,
+    { root: path.join(os.homedir(), 'Desktop'), source: 'desktop', maxDepth: 2 },
+    { root: path.join(os.homedir(), 'Downloads'), source: 'downloads', maxDepth: 2 },
+  ];
+
+  const seen = new Set<string>();
+  const roots: ApplicationSearchRoot[] = [];
+  for (const candidate of envCandidates) {
+    if (!candidate) continue;
+    const normalized = path.normalize(candidate.root);
+    if (seen.has(normalized.toLowerCase())) continue;
+    seen.add(normalized.toLowerCase());
+    try {
+      if (fsSync.existsSync(normalized)) {
+        roots.push({ ...candidate, root: normalized });
+      }
+    } catch {
+      // Ignore inaccessible roots.
+    }
+  }
+  return roots;
+}
+
+async function collectWhereMatches(queryVariants: string[]): Promise<ResolvedApplicationTarget[]> {
+  const results = new Map<string, ResolvedApplicationTarget>();
+  for (const rawVariant of queryVariants.slice(0, 8)) {
+    const baseVariant = stripLaunchExtension(path.basename(rawVariant));
+    const attempts = new Set<string>([rawVariant, baseVariant, `${baseVariant}.exe`]);
+
+    for (const attempt of attempts) {
+      const command = attempt.trim();
+      if (!command) continue;
+      try {
+        const { stdout } = await execAsync(`where.exe "${command.replace(/"/g, '\\"')}"`, {
+          timeout: 1500,
+          windowsHide: true,
+          maxBuffer: 1024 * 128,
+        });
+        for (const line of (stdout || '').split(/\r?\n/)) {
+          const candidate = line.trim();
+          if (!candidate || !fsSync.existsSync(candidate)) continue;
+          const key = candidate.toLowerCase();
+          if (!results.has(key)) {
+            results.set(key, { path: candidate, source: 'where', score: 260 });
+          }
+        }
+      } catch {
+        // Keep trying other variants.
+      }
+    }
+  }
+  return Array.from(results.values());
+}
+
+async function collectRegistryMatches(queryVariants: string[]): Promise<ResolvedApplicationTarget[]> {
+  const results = new Map<string, ResolvedApplicationTarget>();
+  const exeNames = Array.from(new Set(
+    queryVariants
+      .map(variant => {
+        const base = stripLaunchExtension(path.basename(variant.trim()));
+        return base ? `${base}.exe` : '';
+      })
+      .filter(Boolean),
+  ));
+
+  for (const exeName of exeNames.slice(0, 8)) {
+    for (const hive of ['HKLM', 'HKCU']) {
+      const registryKey = `${hive}\\Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\${exeName}`;
+      try {
+        const { stdout } = await execAsync(`reg query "${registryKey}" /ve`, {
+          timeout: 2000,
+          windowsHide: true,
+          maxBuffer: 1024 * 128,
+        });
+        const match = (stdout || '').match(/REG_\w+\s+([^\r\n]+)\s*$/m);
+        const candidate = match?.[1]?.trim();
+        if (!candidate || !fsSync.existsSync(candidate)) continue;
+        const key = candidate.toLowerCase();
+        if (!results.has(key)) {
+          results.set(key, { path: candidate, source: 'app-paths', score: 280 });
+        }
+      } catch {
+        // Ignore missing registry entries.
+      }
+    }
+  }
+
+  return Array.from(results.values());
+}
+
+async function searchWindowsApplicationRoots(queryVariants: string[]): Promise<ResolvedApplicationTarget[]> {
+  const normalizedQueries = queryVariants.map(variant => normalizeLookupToken(stripLaunchExtension(variant))).filter(Boolean);
+  const matches = new Map<string, ResolvedApplicationTarget>();
+  let scannedDirs = 0;
+
+  for (const searchRoot of getWindowsApplicationSearchRoots()) {
+    const queue: Array<{ dir: string; depth: number }> = [{ dir: searchRoot.root, depth: 0 }];
+
+    while (queue.length > 0 && matches.size < MAX_APP_SEARCH_RESULTS && scannedDirs < MAX_APP_SEARCH_DIRS) {
+      const current = queue.shift();
+      if (!current) break;
+      scannedDirs++;
+
+      let entries: fsSync.Dirent[] = [];
+      try {
+        entries = await fs.readdir(current.dir, { withFileTypes: true });
+      } catch {
+        continue;
+      }
+
+      for (const entry of entries) {
+        const fullPath = path.join(current.dir, entry.name);
+
+        if (entry.isDirectory()) {
+          if (current.depth < searchRoot.maxDepth && !shouldSkipApplicationSearchDirectory(entry.name)) {
+            queue.push({ dir: fullPath, depth: current.depth + 1 });
+          }
+          continue;
+        }
+
+        if (!isLaunchableCandidatePath(fullPath)) continue;
+
+        const score = scoreApplicationCandidate(fullPath, normalizedQueries);
+        if (score <= 0) continue;
+
+        const key = fullPath.toLowerCase();
+        const existing = matches.get(key);
+        if (!existing || score > (existing.score ?? 0)) {
+          matches.set(key, {
+            path: fullPath,
+            source: searchRoot.source,
+            score,
+          });
+        }
+      }
+    }
+  }
+
+  return Array.from(matches.values()).sort((a, b) => {
+    const byScore = (b.score ?? 0) - (a.score ?? 0);
+    if (byScore !== 0) return byScore;
+    return a.path.length - b.path.length;
+  });
+}
+
+async function resolveApplicationTarget(
+  target: string,
+  onProgress?: (message: string) => void,
+): Promise<ResolvedApplicationTarget | null> {
+  const rawTarget = (target || '').trim();
+  if (!rawTarget) return null;
+
+  const directPath = normalizePath(rawTarget);
+  if (looksLikeConcretePath(rawTarget) && fsSync.existsSync(directPath)) {
+    return { path: directPath, source: 'direct', searchedQuery: rawTarget };
+  }
+
+  if (process.platform !== 'win32') {
+    return null;
+  }
+
+  const query = stripLaunchExtension(path.basename(rawTarget));
+  const queryVariants = buildApplicationQueryVariants(query);
+  if (queryVariants.length === 0) return null;
+
+  const candidates = new Map<string, ResolvedApplicationTarget>();
+  const addCandidates = (items: ResolvedApplicationTarget[]) => {
+    for (const item of items) {
+      if (!item?.path || !fsSync.existsSync(item.path)) continue;
+      const key = item.path.toLowerCase();
+      const existing = candidates.get(key);
+      if (!existing || (item.score ?? 0) > (existing.score ?? 0)) {
+        candidates.set(key, { ...item, searchedQuery: query });
+      }
+    }
+  };
+
+  if (onProgress) onProgress(`Buscando "${query}" en alias de Windows y aplicaciones instaladas...`);
+  addCandidates(await collectWhereMatches(queryVariants));
+  addCandidates(await collectRegistryMatches(queryVariants));
+
+  if (candidates.size < 3) {
+    if (onProgress) onProgress(`Explorando ubicaciones comunes de programas para "${query}"...`);
+    addCandidates(await searchWindowsApplicationRoots(queryVariants));
+  }
+
+  const ranked = Array.from(candidates.values()).sort((a, b) => {
+    const byScore = (b.score ?? 0) - (a.score ?? 0);
+    if (byScore !== 0) return byScore;
+    return a.path.length - b.path.length;
+  });
+
+  if (ranked.length === 0) {
+    return null;
+  }
+
+  return {
+    ...ranked[0],
+    alternatives: ranked.slice(1, 5).map(candidate => candidate.path),
+  };
+}
+
+async function launchPathNonBlocking(
+  resolvedPath: string,
+  metadata?: Record<string, any>,
+): Promise<{ success: boolean; error?: string; session?: ManagedSessionView | null }> {
+  const normalized = normalizePath(resolvedPath);
+
+  if (process.platform === 'win32') {
+    try {
+      const session = await backgroundProcessService.launchApplication({
+        targetPath: normalized,
+        title: `Aplicacion: ${path.basename(normalized)}`,
+        metadata,
+      });
+      if (session.status === 'failed') {
+        return { success: false, error: session.lastError || 'No se pudo iniciar el proceso.', session };
+      }
+      return { success: true, session };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err?.stderr?.trim() || err?.stdout?.trim() || err?.message || 'No se pudo iniciar el proceso.',
+      };
+    }
+  }
+
+  try {
+    const result = await shell.openPath(normalized);
+    if (result) {
+      return { success: false, error: result };
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'No se pudo abrir el elemento.' };
+  }
+}
 
 async function performGuiAction(action: string, coordinate?: number[], text?: string): Promise<void> {
   const platform = os.platform();
@@ -533,26 +906,79 @@ export async function executeToolDirect(
         if (!args.path) {
           return { success: false, error: 'Debe proporcionar la ruta del archivo o aplicación (path).' };
         }
-        const resolvedPath = normalizePath(args.path);
-        
-        if (!fsSync.existsSync(resolvedPath)) {
-          return { 
-            success: false, 
-            error: `El archivo no existe en la ruta proporcionada: ${resolvedPath}. Verifique la ruta con search_files o list_directory e intente nuevamente.` 
+        const requestedPath = typeof args.path === 'string' ? args.path.trim() : '';
+        if (!requestedPath) {
+          return { success: false, error: 'Debe proporcionar una ruta o nombre de aplicacion valido.' };
+        }
+
+        let resolvedTarget: ResolvedApplicationTarget | null = null;
+        const progressMessages: string[] = [];
+
+        if (looksLikeConcretePath(requestedPath)) {
+          const directPath = normalizePath(requestedPath);
+          if (!fsSync.existsSync(directPath)) {
+            return {
+              success: false,
+              error: `No existe ningun archivo o aplicacion en la ruta proporcionada: ${directPath}.`,
+            };
+          }
+
+          resolvedTarget = {
+            path: directPath,
+            source: 'direct',
+            searchedQuery: requestedPath,
+            alternatives: [],
+          };
+        } else {
+          resolvedTarget = await resolveApplicationTarget(requestedPath, (message) => {
+            progressMessages.push(message);
+            onProgress?.(message);
+          });
+
+          if (!resolvedTarget) {
+            return {
+              success: false,
+              error: `No pude localizar una aplicacion instalada que coincida con "${requestedPath}". Intenta con el nombre exacto, una ruta completa o primero usa list_directory/search_files para ubicarla.`,
+            };
+          }
+        }
+
+        const launchResult = await launchPathNonBlocking(resolvedTarget.path, {
+          requestedPath,
+          resolvedPath: resolvedTarget.path,
+          resolutionSource: resolvedTarget.source,
+          searchedQuery: resolvedTarget.searchedQuery,
+        });
+        if (!launchResult.success) {
+          return {
+            success: false,
+            error: `No pude abrir "${resolvedTarget.path}". Detalle del sistema: ${launchResult.error || 'Error desconocido.'}`,
           };
         }
-        
-        // shell.openPath is the proper non-blocking native way in Electron
-        const result = await shell.openPath(resolvedPath);
-        if (result !== '') {
-          return { 
-            success: false, 
-            error: `Error al abrir el archivo o aplicación: "${result}". Asegúrese de que la ruta sea correcta, que tenga permisos de lectura/ejecución y que el sistema operativo tenga un programa predeterminado para abrir este tipo de archivo.` 
-          };
-        }
-        return { success: true, message: `Abierto exitosamente: ${resolvedPath}` };
+
+        const resolvedFrom =
+          resolvedTarget.source === 'direct'
+            ? 'ruta directa'
+            : resolvedTarget.source === 'app-paths'
+              ? 'registro App Paths'
+              : resolvedTarget.source === 'where'
+                ? 'PATH del sistema'
+                : 'busqueda en accesos directos y carpetas comunes';
+
+        return {
+          success: true,
+          message: `Aplicacion o archivo abierto: ${resolvedTarget.path}`,
+          resolvedPath: resolvedTarget.path,
+          resolvedFrom,
+          searchedQuery: resolvedTarget.searchedQuery,
+          alternatives: resolvedTarget.alternatives,
+          progress: progressMessages,
+          session_id: launchResult.session?.id,
+          pid: launchResult.session?.pid,
+          session_status: launchResult.session?.status,
+        };
       } catch (err: any) {
-        return { success: false, error: `Excepción al abrir el archivo: ${err.message}` };
+        return { success: false, error: `Excepcion al abrir el archivo o aplicacion: ${err.message}` };
       }
     }
 
@@ -562,6 +988,87 @@ export async function executeToolDirect(
         return { success: true, message: `URL abierta: ${args.url}` };
       } catch (err: any) {
         return { success: false, error: err.message };
+      }
+    }
+
+    case 'run_background_command': {
+      try {
+        if (!args.command || typeof args.command !== 'string') {
+          return { success: false, error: 'Debe proporcionar un comando para ejecutar en segundo plano.' };
+        }
+
+        const session = await backgroundProcessService.startBackgroundCommand({
+          command: args.command,
+          workingDirectory: typeof args.working_directory === 'string' ? args.working_directory : undefined,
+          title: args.title || 'Comando en segundo plano',
+          metadata: {
+            source: 'computer-use',
+          },
+        });
+
+        return {
+          success: true,
+          message: `Comando lanzado en segundo plano con sesion ${session.id}.`,
+          session,
+        };
+      } catch (err: any) {
+        return { success: false, error: `No se pudo iniciar la sesion en segundo plano: ${err.message}` };
+      }
+    }
+
+    case 'list_process_sessions': {
+      try {
+        const sessions = await backgroundProcessService.listSessions();
+        return {
+          success: true,
+          count: sessions.length,
+          sessions,
+        };
+      } catch (err: any) {
+        return { success: false, error: `No se pudieron listar las sesiones: ${err.message}` };
+      }
+    }
+
+    case 'poll_process_session': {
+      try {
+        if (!args.session_id || typeof args.session_id !== 'string') {
+          return { success: false, error: 'Debe proporcionar session_id.' };
+        }
+
+        const session = await backgroundProcessService.getSession(args.session_id);
+        if (!session) {
+          return { success: false, error: `No existe la sesion ${args.session_id}.` };
+        }
+
+        return {
+          success: true,
+          session,
+        };
+      } catch (err: any) {
+        return { success: false, error: `No se pudo consultar la sesion: ${err.message}` };
+      }
+    }
+
+    case 'kill_process_session': {
+      try {
+        if (!args.session_id || typeof args.session_id !== 'string') {
+          return { success: false, error: 'Debe proporcionar session_id.' };
+        }
+
+        const session = await backgroundProcessService.killSession(args.session_id);
+        if (!session) {
+          return { success: false, error: `No existe la sesion ${args.session_id}.` };
+        }
+
+        return {
+          success: true,
+          message: session.status === 'killed'
+            ? `Sesion ${session.id} terminada.`
+            : `Sesion ${session.id} no estaba corriendo o no pudo terminarse.`,
+          session,
+        };
+      } catch (err: any) {
+        return { success: false, error: `No se pudo terminar la sesion: ${err.message}` };
       }
     }
 
@@ -861,6 +1368,18 @@ export function registerComputerUseHandlers() {
 
   ipcMain.handle('computer:open-url', async (event, url: string) =>
     executeToolDirect('open_url', { url }, makeProgress(event, 'open_url')));
+
+  ipcMain.handle('computer:run-background-command', async (event, args: Record<string, any>) =>
+    executeToolDirect('run_background_command', args || {}, makeProgress(event, 'run_background_command')));
+
+  ipcMain.handle('computer:list-process-sessions', async (event) =>
+    executeToolDirect('list_process_sessions', {}, makeProgress(event, 'list_process_sessions')));
+
+  ipcMain.handle('computer:poll-process-session', async (event, sessionId: string) =>
+    executeToolDirect('poll_process_session', { session_id: sessionId }, makeProgress(event, 'poll_process_session')));
+
+  ipcMain.handle('computer:kill-process-session', async (event, sessionId: string) =>
+    executeToolDirect('kill_process_session', { session_id: sessionId }, makeProgress(event, 'kill_process_session')));
 
   ipcMain.handle('computer:get-system-info', async (event) =>
     executeToolDirect('get_system_info', {}, makeProgress(event, 'get_system_info')));

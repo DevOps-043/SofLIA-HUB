@@ -2,17 +2,39 @@
  * System control tool executors — processes, power, volume, wifi, terminal.
  */
 import os from 'node:os';
-import { exec as execCb, spawn } from 'node:child_process';
+import { exec as execCb } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { FunctionResponse } from './types';
 import { toolResponse, toolError } from './types';
+import { backgroundProcessService } from '../background-process-service';
+import { backgroundHostService } from '../background-host-service';
 
 const execAsync = promisify(execCb);
+
+async function resolveClaudePath(): Promise<string> {
+  const claudePaths = [
+    'C:\\Users\\' + os.userInfo().username + '\\AppData\\Roaming\\npm\\claude.cmd',
+    'C:\\Users\\' + os.userInfo().username + '\\AppData\\Local\\npm-cache\\_npx\\claude.cmd',
+  ];
+
+  for (const candidate of claudePaths) {
+    try {
+      await execAsync(`if exist "${candidate}" echo found`, { windowsHide: true, timeout: 3000 });
+      return candidate;
+    } catch {
+      // keep searching
+    }
+  }
+
+  return 'claude';
+}
 
 const SYSTEM_TOOLS = new Set([
   'list_processes', 'kill_process', 'lock_session',
   'shutdown_computer', 'restart_computer', 'sleep_computer', 'cancel_shutdown',
   'set_volume', 'toggle_wifi', 'run_in_terminal', 'run_claude_code',
+  'run_background_command', 'list_process_sessions', 'poll_process_session', 'kill_process_session',
+  'get_background_host_status', 'repair_background_host',
 ]);
 
 export function isSystemTool(name: string): boolean {
@@ -163,11 +185,34 @@ $vol.SetMasterVolumeLevelScalar(${level / 100.0}, [Guid]::Empty)`;
     try {
       const workDir = toolArgs.working_directory || os.homedir();
       const keepOpen = toolArgs.keep_open !== false;
-      const noExitFlag = keepOpen ? '-NoExit' : '';
-      const psArgs = [noExitFlag, '-Command', `Set-Location '${workDir.replace(/'/g, "''")}'; ${toolArgs.command}`].filter(Boolean);
-      const child = spawn('powershell.exe', psArgs, { detached: true, stdio: 'ignore', windowsHide: false });
-      child.unref();
-      return toolResponse(toolName, { success: true, message: `Terminal abierta ejecutando: ${toolArgs.command}\nDirectorio: ${workDir}` });
+      const visible = toolArgs.visible_terminal !== false;
+
+      const session = visible
+        ? await backgroundProcessService.startVisibleTerminal({
+            command: toolArgs.command,
+            workingDirectory: workDir,
+            keepOpen,
+            title: 'Terminal administrada',
+            metadata: { source: 'whatsapp', tool: toolName },
+          })
+        : await backgroundProcessService.startBackgroundCommand({
+            command: toolArgs.command,
+            workingDirectory: workDir,
+            title: 'Comando en segundo plano',
+            metadata: { source: 'whatsapp', tool: toolName },
+          });
+
+      return toolResponse(toolName, {
+        success: true,
+        message: visible
+          ? `Terminal lanzada con sesion ${session.id}.\nDirectorio: ${workDir}`
+          : `Comando iniciado en segundo plano con sesion ${session.id}.\nDirectorio: ${workDir}`,
+        session_id: session.id,
+        pid: session.pid,
+        session_status: session.status,
+        visible_terminal: visible,
+        output_available: session.outputAvailable,
+      });
     } catch (err: any) { return toolError(toolName, err.message); }
   }
 
@@ -175,18 +220,109 @@ $vol.SetMasterVolumeLevelScalar(${level / 100.0}, [Guid]::Empty)`;
     try {
       const projectDir = toolArgs.project_directory || os.homedir();
       const task = toolArgs.task || '';
-      const claudePaths = [
-        'C:\\Users\\' + os.userInfo().username + '\\AppData\\Roaming\\npm\\claude.cmd',
-        'C:\\Users\\' + os.userInfo().username + '\\AppData\\Local\\npm-cache\\_npx\\claude.cmd',
-      ];
-      let claudePath = 'claude';
-      for (const cp of claudePaths) {
-        try { await execAsync(`if exist "${cp}" echo found`, { windowsHide: true }); claudePath = cp; break; } catch { /* continue */ }
+      const claudePath = await resolveClaudePath();
+      const command = `& '${claudePath.replace(/'/g, "''")}' --print '${task.replace(/'/g, "''")}'`;
+      const session = await backgroundProcessService.startBackgroundCommand({
+        command,
+        workingDirectory: projectDir,
+        title: 'Claude Code en segundo plano',
+        kind: 'claude',
+        metadata: { source: 'whatsapp', tool: toolName, task },
+      });
+      return toolResponse(toolName, {
+        success: true,
+        message: `Claude Code iniciado en segundo plano con sesion ${session.id}.\nProyecto: ${projectDir}`,
+        session_id: session.id,
+        pid: session.pid,
+        session_status: session.status,
+        output_available: session.outputAvailable,
+      });
+    } catch (err: any) { return toolError(toolName, err.message); }
+  }
+
+  if (toolName === 'run_background_command') {
+    try {
+      const workDir = toolArgs.working_directory || os.homedir();
+      const session = await backgroundProcessService.startBackgroundCommand({
+        command: toolArgs.command,
+        workingDirectory: workDir,
+        title: toolArgs.title || 'Comando en segundo plano',
+        metadata: { source: 'whatsapp', tool: toolName },
+      });
+      return toolResponse(toolName, {
+        success: true,
+        message: `Comando lanzado en segundo plano con sesion ${session.id}.\nDirectorio: ${workDir}`,
+        session_id: session.id,
+        pid: session.pid,
+        session_status: session.status,
+        output_available: session.outputAvailable,
+      });
+    } catch (err: any) { return toolError(toolName, err.message); }
+  }
+
+  if (toolName === 'list_process_sessions') {
+    try {
+      const sessions = await backgroundProcessService.listSessions();
+      return toolResponse(toolName, {
+        success: true,
+        count: sessions.length,
+        sessions,
+      });
+    } catch (err: any) { return toolError(toolName, err.message); }
+  }
+
+  if (toolName === 'poll_process_session') {
+    try {
+      const sessionId = String(toolArgs.session_id || '');
+      if (!sessionId) {
+        return toolResponse(toolName, { success: false, error: 'Debes proporcionar session_id.' });
       }
-      const psCmd = `Set-Location '${projectDir.replace(/'/g, "''")}'; & '${claudePath}' --print '${task.replace(/'/g, "''")}'`;
-      const child = spawn('powershell.exe', ['-NoExit', '-Command', psCmd], { detached: true, stdio: 'ignore', windowsHide: false });
-      child.unref();
-      return toolResponse(toolName, { success: true, message: `Claude Code lanzado en: ${projectDir}\nTarea: ${task}` });
+      const session = await backgroundProcessService.getSession(sessionId);
+      if (!session) {
+        return toolResponse(toolName, { success: false, error: `No existe la sesion ${sessionId}.` });
+      }
+      return toolResponse(toolName, { success: true, session });
+    } catch (err: any) { return toolError(toolName, err.message); }
+  }
+
+  if (toolName === 'kill_process_session') {
+    try {
+      const sessionId = String(toolArgs.session_id || '');
+      if (!sessionId) {
+        return toolResponse(toolName, { success: false, error: 'Debes proporcionar session_id.' });
+      }
+      const session = await backgroundProcessService.killSession(sessionId);
+      if (!session) {
+        return toolResponse(toolName, { success: false, error: `No existe la sesion ${sessionId}.` });
+      }
+      return toolResponse(toolName, {
+        success: true,
+        message: session.status === 'killed'
+          ? `Sesion ${session.id} terminada.`
+          : `Sesion ${session.id} ya no estaba corriendo o no pudo terminarse.`,
+        session,
+      });
+    } catch (err: any) { return toolError(toolName, err.message); }
+  }
+
+  if (toolName === 'get_background_host_status') {
+    try {
+      const status = await backgroundHostService.getStatus();
+      return toolResponse(toolName, {
+        success: true,
+        status,
+      });
+    } catch (err: any) { return toolError(toolName, err.message); }
+  }
+
+  if (toolName === 'repair_background_host') {
+    try {
+      const status = await backgroundHostService.repair();
+      return toolResponse(toolName, {
+        success: true,
+        message: 'Background host reparado o reconfigurado.',
+        status,
+      });
     } catch (err: any) { return toolError(toolName, err.message); }
   }
 

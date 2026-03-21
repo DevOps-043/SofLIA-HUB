@@ -78,7 +78,11 @@
       "Bash(rm -rf autodev-package/)",
       "Bash(rm -rf .autodev-data/)",
       "Bash(node_modules/.bin/tsc.cmd --noEmit)",
-      "Bash(echo \"exit: $?\")"
+      "Bash(echo \"exit: $?\")",
+      "Bash(find 'c:\\\\Users\\\\fysg5\\\\OneDrive\\\\Escritorio\\\\Pulse Hub\\\\SofLIA - Hub\\\\SofLIA-HUB' -maxdepth 2 -name jest.config.* -o -name vitest.config.* -o -name .jestrc*)",
+      "Read(//c/Users/fysg5/OneDrive/Escritorio/Pulse/ Hub/SofLIA/ -/ Hub/SofLIA-HUB/src/**)",
+      "Read(//c/Users/fysg5/OneDrive/Escritorio/Pulse/ Hub/SofLIA/ -/ Hub/SofLIA-HUB/src/services/**)",
+      "Bash(grep -E \"\\\\.ts$\")"
     ]
   }
 }

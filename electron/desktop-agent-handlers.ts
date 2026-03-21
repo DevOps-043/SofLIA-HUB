@@ -30,6 +30,9 @@ export function registerDesktopAgentHandlers(agentService: DesktopAgentService) 
     maxSteps?: number;
     backend?: 'auto' | 'browser' | 'desktop' | 'uia';
     startUrl?: string;
+    browserProfile?: string;
+    browserIsolated?: boolean;
+    resetBrowserProfile?: boolean;
   }>) => {
     try {
       const results = await agentService.executeParallelTasks(tasks);
@@ -102,6 +105,22 @@ export function registerDesktopAgentHandlers(agentService: DesktopAgentService) 
 
   ipcMain.handle('desktop-agent:get-config', async () => {
     return agentService.getConfig();
+  });
+
+  ipcMain.handle('desktop-agent:list-browser-profiles', async () => {
+    try {
+      return { success: true, profiles: agentService.listBrowserProfiles() };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('desktop-agent:reset-browser-profile', async (_, profileId: string) => {
+    try {
+      return await agentService.resetBrowserProfile(profileId);
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
   });
 
   ipcMain.handle('desktop-agent:set-config', async (_, updates: any) => {

@@ -8,6 +8,7 @@ type BootstrapGuard = typeof globalThis & {
 }
 
 type Step<T> = () => Promise<T> | T
+const BACKGROUND_LAUNCH_ARG = '--background'
 
 function logBootstrapError(context: string, error: unknown): void {
   if (error instanceof Error) {
@@ -84,6 +85,11 @@ async function runBootstrap(): Promise<void> {
   const { MeetingDetectionStore } = await import('./meetings/meeting-detection-store')
   const { MeetingPassiveDetectionService } = await import('./meetings/meeting-passive-detection-service')
   const { DailyBriefingService } = await import('./daily-briefing-service')
+  const { backgroundHostService } = await import('./background-host-service')
+  const { registerBackgroundHostHandlers } = await import('./background-host-handlers')
+  const { remoteNodeService } = await import('./remote-node-service')
+  const { registerRemoteNodeHandlers } = await import('./remote-node-handlers')
+  const { dynamicToolService } = await import('./dynamic-tool-service')
   const { generateDailySummary } = await import('./summary-generator')
   await import('./agent-task-queue')
 
@@ -159,6 +165,7 @@ async function runBootstrap(): Promise<void> {
   let flowWin: BrowserWindow | null = null
   let tray: Tray | null = null
   let isQuitting = false
+  const startInBackground = process.argv.includes(BACKGROUND_LAUNCH_ARG)
   let currentGeminiApiKey: string | null = process.env.VITE_GEMINI_API_KEY || null
   let waAgent: InstanceType<typeof WhatsAppAgent> | null = null
   let neuralOrganizer: InstanceType<typeof NeuralOrganizerAI> | null = null
@@ -344,7 +351,7 @@ async function runBootstrap(): Promise<void> {
         label: 'Abrir SofLIA Hub',
         click: () => {
           if (!win) {
-            createWindow()
+            createWindow(true)
             return
           }
 
@@ -371,7 +378,7 @@ async function runBootstrap(): Promise<void> {
     tray.setContextMenu(contextMenu)
     tray.on('click', () => {
       if (!win) {
-        createWindow()
+        createWindow(true)
         return
       }
 
@@ -382,10 +389,12 @@ async function runBootstrap(): Promise<void> {
     })
   }
 
-  function createWindow(): void {
+  function createWindow(showWindow = !startInBackground): void {
     if (win) {
-      win.show()
-      win.focus()
+      if (showWindow) {
+        win.show()
+        win.focus()
+      }
       return
     }
 
@@ -395,6 +404,7 @@ async function runBootstrap(): Promise<void> {
       minWidth: 700,
       minHeight: 500,
       icon: path.join(process.env.VITE_PUBLIC!, 'assets/icono.ico'),
+      show: showWindow,
       webPreferences: {
         preload: path.join(__dirname, 'preload.js'),
         sandbox: true,
@@ -588,7 +598,7 @@ async function runBootstrap(): Promise<void> {
 
   ipcMain.on('flow-send-to-chat', (_event, text: string) => {
     if (!win) {
-      createWindow()
+      createWindow(true)
     }
 
     if (!win) {
@@ -697,7 +707,7 @@ async function runBootstrap(): Promise<void> {
 
   app.on('second-instance', () => {
     if (!win) {
-      createWindow()
+      createWindow(true)
       return
     }
 
@@ -732,7 +742,7 @@ async function runBootstrap(): Promise<void> {
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow()
+      createWindow(true)
       return
     }
 
@@ -759,6 +769,8 @@ async function runBootstrap(): Promise<void> {
 
   MenuManager.setup()
   registerComputerUseHandlers()
+  registerBackgroundHostHandlers(backgroundHostService)
+  registerRemoteNodeHandlers()
   registerMonitoringHandlers(monitoringService, () => win)
   registerCalendarHandlers(calendarService, () => win)
   registerGmailHandlers(gmailService, () => win)
@@ -779,7 +791,10 @@ async function runBootstrap(): Promise<void> {
   await runOptionalStep('taskScheduler.init', () => taskScheduler.init())
   await runOptionalStep('clipboardAssistant.init', () => clipboardAssistant.init())
   await runOptionalStep('dailyBriefingService.init', () => dailyBriefingService.init())
-  await runOptionalStep('createWindow', () => createWindow())
+  await runOptionalStep('backgroundHostService.init', () => backgroundHostService.init())
+  await runOptionalStep('remoteNodeService.init', () => remoteNodeService.initialize({ desktopAgent: desktopAgentService }))
+  await runOptionalStep('dynamicToolService.init', () => dynamicToolService.initialize())
+  await runOptionalStep('createWindow', () => createWindow(!startInBackground))
   await runOptionalStep('createTray', () => createTray())
 
   if (currentGeminiApiKey) {

@@ -203,6 +203,8 @@ export interface DesktopAgentStatus {
   maxSteps: number;
   currentBackend?: 'desktop_visual' | 'browser_web' | 'windows_uia' | null;
   currentUrl?: string | null;
+  currentBrowserProfileId?: string | null;
+  currentBrowserProfileMode?: 'persistent' | 'isolated' | null;
   lastVerification?: string | null;
   lastTracePath?: string | null;
   lastReportPath?: string | null;
@@ -218,6 +220,8 @@ export interface DesktopAgentStatus {
     maxSteps: number;
     backend?: 'desktop_visual' | 'browser_web' | 'windows_uia';
     currentUrl?: string | null;
+    browserProfileId?: string | null;
+    browserProfileMode?: 'persistent' | 'isolated' | null;
   }>;
   totalActiveAgents: number;
 }

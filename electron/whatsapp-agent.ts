@@ -32,6 +32,7 @@ import { MeetingWorkflowManager } from './whatsapp-workflow-meetings';
 import { WA_TOOL_DECLARATIONS, GROUP_BLOCKED_TOOLS } from './whatsapp-tools';
 import { buildSystemPrompt, detectActionRequest, formatForWhatsApp } from './whatsapp-prompts';
 import { executeWhatsAppTools, type ToolExecutorContext } from './whatsapp-tool-executor';
+import { dynamicToolService } from './dynamic-tool-service';
 
 // ─── [EXTRACTED] Tool definitions → ./whatsapp-tools.ts ─────
 // ─── [EXTRACTED] Prompts + helpers → ./whatsapp-prompts.ts ──
@@ -52,6 +53,85 @@ const pendingConfirmations = new Map<string, PendingConfirmation>();
 
 // ─── Model selection: prefer stable models for main process ─────────
 const WA_MODEL = 'gemini-2.5-flash';
+
+const LOOP_GUARD_REPEAT_THRESHOLD = 3;
+const LOOP_GUARD_CRITICAL_THRESHOLD = 5;
+const POLL_LIKE_TOOLS = new Set([
+  'poll_process_session',
+  'list_process_sessions',
+  'list_active_tasks',
+  'autodev_status',
+  'get_background_host_status',
+]);
+
+interface ToolLoopTraceEntry {
+  iteration: number;
+  toolSignature: string;
+  responseSignature: string;
+  toolNames: string[];
+  hadFailure: boolean;
+}
+
+function sortKeysDeep(value: any): any {
+  if (Array.isArray(value)) {
+    return value.map(sortKeysDeep);
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.keys(value)
+      .sort((a, b) => a.localeCompare(b))
+      .reduce<Record<string, any>>((acc, key) => {
+        acc[key] = sortKeysDeep(value[key]);
+        return acc;
+      }, {});
+  }
+
+  return value;
+}
+
+function stableJson(value: any): string {
+  try {
+    return JSON.stringify(sortKeysDeep(value));
+  } catch {
+    return String(value);
+  }
+}
+
+function summarizeFunctionResponses(functionResponses: Array<{ functionResponse: { name: string; response: any } }>): Array<Record<string, any>> {
+  return functionResponses.map(({ functionResponse }) => {
+    const response = functionResponse.response || {};
+    const summary: Record<string, any> = {
+      name: functionResponse.name,
+    };
+
+    if (typeof response.success === 'boolean') {
+      summary.success = response.success;
+    }
+    if (typeof response.error === 'string') {
+      summary.error = response.error;
+    }
+    if (typeof response.message === 'string') {
+      summary.message = response.message;
+    }
+    if (typeof response.status === 'string') {
+      summary.status = response.status;
+    }
+    if (typeof response.session_status === 'string') {
+      summary.session_status = response.session_status;
+    }
+    if (typeof response.count === 'number') {
+      summary.count = response.count;
+    }
+    if (typeof response.pid === 'number') {
+      summary.pid = response.pid;
+    }
+    if (typeof response.session_id === 'string') {
+      summary.session_id = response.session_id;
+    }
+
+    return summary;
+  });
+}
 
 
 
@@ -538,13 +618,17 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
     }
 
     // ─── Filter tools for group context ──────────────────────────
-    const toolDeclarations = isGroup
-      ? {
-          functionDeclarations: (WA_TOOL_DECLARATIONS as any).functionDeclarations.filter(
-            (t: any) => !GROUP_BLOCKED_TOOLS.has(t.name)
-          ),
-        }
-      : WA_TOOL_DECLARATIONS;
+    const staticDeclarations = (WA_TOOL_DECLARATIONS as any).functionDeclarations.filter(
+      (t: any) => !isGroup || !GROUP_BLOCKED_TOOLS.has(t.name)
+    );
+    const dynamicDeclarations = isGroup ? [] : await dynamicToolService.getGeminiFunctionDeclarations();
+    const mergedDeclarations = [...staticDeclarations, ...dynamicDeclarations];
+    const dedupedDeclarations = Array.from(
+      new Map(mergedDeclarations.map((tool: any) => [tool.name, tool])).values(),
+    );
+    const toolDeclarations = {
+      functionDeclarations: dedupedDeclarations,
+    };
 
     // Detectar si el usuario pide una acción para reforzar tool calling vía prompt
     const isActionRequest = detectActionRequest(userMessage);
@@ -656,6 +740,8 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
     }
     let iterations = 0;
     const MAX_ITERATIONS = 25;
+    const toolLoopTrace: ToolLoopTraceEntry[] = [];
+    let loopGuardInterventions = 0;
 
     while (iterations < MAX_ITERATIONS) {
       iterations++;
@@ -775,6 +861,37 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
 
 
       // Execute function calls (delegated to whatsapp-tool-executor.ts)
+      const toolNames = functionCalls.map((part: any) => part.functionCall?.name).filter(Boolean);
+      const toolSignature = stableJson(
+        functionCalls.map((part: any) => ({
+          name: part.functionCall?.name,
+          args: part.functionCall?.args || {},
+        })),
+      );
+      const repeatedCallCount = toolLoopTrace.filter((entry) => entry.toolSignature === toolSignature).length + 1;
+      if (repeatedCallCount >= LOOP_GUARD_REPEAT_THRESHOLD) {
+        loopGuardInterventions++;
+        console.warn(
+          `[WhatsApp Agent] Loop guard: repeated tool signature x${repeatedCallCount} in ${sessionKey}. Tools: ${toolNames.join(', ')}`,
+        );
+
+        if (repeatedCallCount >= LOOP_GUARD_CRITICAL_THRESHOLD || loopGuardInterventions >= 2) {
+          const lastFailure = [...toolLoopTrace].reverse().find((entry) => entry.toolSignature === toolSignature && entry.hadFailure);
+          const suffix = lastFailure
+            ? ` Detecté fallos repetidos con ${toolNames.join(', ')}.`
+            : ` Detecté que ${toolNames.join(', ')} se repite sin progreso.`;
+          return formatForWhatsApp(
+            `La tarea entró en un ciclo sin avance.${suffix} Necesito cambiar de estrategia o que me des un dato adicional para continuar.`,
+            isGroup,
+          );
+        }
+
+        response = await chatSession.sendMessage(
+          `ALERTA DEL SISTEMA: Estás repitiendo exactamente las mismas herramientas con los mismos parámetros (${toolNames.join(', ')}) sin señales de avance. NO vuelvas a ejecutar ese mismo ciclo. Analiza los resultados previos, cambia de estrategia, usa otras herramientas o responde al usuario con el bloqueo real.`,
+        );
+        continue;
+      }
+
       const toolCtx: ToolExecutorContext = {
         waService: this.waService,
         calendarService: this.calendarService,
@@ -794,6 +911,62 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
       const { responses: functionResponses, bulkLabelsToVerify } = await executeWhatsAppTools(
         functionCalls, toolCtx, jid, senderNumber, isGroup,
       );
+
+      const responseSummary = summarizeFunctionResponses(functionResponses);
+      const responseSignature = stableJson(responseSummary);
+      const hadFailure = responseSummary.some((item) => item.success === false || typeof item.error === 'string');
+      toolLoopTrace.push({
+        iteration: iterations,
+        toolSignature,
+        responseSignature,
+        toolNames,
+        hadFailure,
+      });
+
+      const repeatedFailureCount = toolLoopTrace.filter(
+        (entry) => entry.toolSignature === toolSignature && entry.responseSignature === responseSignature && entry.hadFailure,
+      ).length;
+      const repeatedNoProgressCount = toolLoopTrace.filter(
+        (entry) => entry.toolSignature === toolSignature && entry.responseSignature === responseSignature,
+      ).length;
+      const isPollLikeCycle = toolNames.length > 0 && toolNames.every((toolName) => POLL_LIKE_TOOLS.has(toolName));
+
+      if (repeatedFailureCount >= 2) {
+        loopGuardInterventions++;
+        console.warn(
+          `[WhatsApp Agent] Loop guard: repeated failure x${repeatedFailureCount} in ${sessionKey}. Tools: ${toolNames.join(', ')}`,
+        );
+        if (loopGuardInterventions >= 2 || repeatedFailureCount >= LOOP_GUARD_REPEAT_THRESHOLD) {
+          const lastError = responseSummary.find((item) => typeof item.error === 'string')?.error;
+          return formatForWhatsApp(
+            `La tarea quedó bloqueada por fallos repetidos.${lastError ? ` Último error: ${lastError}` : ''}`,
+            isGroup,
+          );
+        }
+
+        response = await chatSession.sendMessage(
+          `ALERTA DEL SISTEMA: Acabas de repetir el mismo fallo con ${toolNames.join(', ')}. NO reintentes exactamente igual. Usa los errores previos para cambiar de estrategia o explica con precisión qué configuración, credencial o dato falta.`,
+        );
+        continue;
+      }
+
+      if (isPollLikeCycle && repeatedNoProgressCount >= LOOP_GUARD_REPEAT_THRESHOLD) {
+        loopGuardInterventions++;
+        console.warn(
+          `[WhatsApp Agent] Loop guard: poll-like no-progress x${repeatedNoProgressCount} in ${sessionKey}. Tools: ${toolNames.join(', ')}`,
+        );
+        if (loopGuardInterventions >= 2 || repeatedNoProgressCount >= LOOP_GUARD_CRITICAL_THRESHOLD) {
+          return formatForWhatsApp(
+            'La tarea sigue en espera sin cambios reales. Necesito más tiempo, otra estrategia o intervención del usuario para continuar.',
+            isGroup,
+          );
+        }
+
+        response = await chatSession.sendMessage(
+          `ALERTA DEL SISTEMA: Estás haciendo polling sin cambios reales con ${toolNames.join(', ')}. No sigas consultando igual. Decide si debes esperar más, cambiar de herramienta o informar el estado actual al usuario.`,
+        );
+        continue;
+      }
 
 
       // After all tool calls: verify bulk label operations have remaining emails
