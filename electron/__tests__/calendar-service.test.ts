@@ -61,21 +61,21 @@ vi.mock('googleapis', () => ({
 }));
 
 // ─── Mock node:fs ───────────────────────────────────────────────────
-const mockExistsSync = vi.fn(() => false);
-const mockReadFileSync = vi.fn(() => '[]');
-const mockWriteFileSync = vi.fn();
+const mockExistsSync = vi.fn((_: string) => false);
+const mockReadFileSync = vi.fn((_: string) => '[]');
+const mockWriteFileSync = vi.fn((_: string, __: string) => undefined);
 
 vi.mock('node:fs', () => ({
   default: {
-    existsSync: (...args: any[]) => mockExistsSync(...args),
-    readFileSync: (...args: any[]) => mockReadFileSync(...args),
-    writeFileSync: (...args: any[]) => mockWriteFileSync(...args),
+    existsSync: (filePath: string) => mockExistsSync(filePath),
+    readFileSync: (filePath: string) => mockReadFileSync(filePath),
+    writeFileSync: (filePath: string, data: string) => mockWriteFileSync(filePath, data),
     createReadStream: vi.fn(),
     createWriteStream: vi.fn(),
   },
-  existsSync: (...args: any[]) => mockExistsSync(...args),
-  readFileSync: (...args: any[]) => mockReadFileSync(...args),
-  writeFileSync: (...args: any[]) => mockWriteFileSync(...args),
+  existsSync: (filePath: string) => mockExistsSync(filePath),
+  readFileSync: (filePath: string) => mockReadFileSync(filePath),
+  writeFileSync: (filePath: string, data: string) => mockWriteFileSync(filePath, data),
   createReadStream: vi.fn(),
   createWriteStream: vi.fn(),
 }));

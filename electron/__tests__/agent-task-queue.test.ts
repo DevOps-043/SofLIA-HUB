@@ -257,9 +257,6 @@ describe('AgentTaskQueue', () => {
   describe('ATQ-012: Concurrent tasks tracked independently', () => {
     it('should track multiple active tasks simultaneously', async () => {
       // Create tasks that won't resolve immediately
-      const resolve1Fn = vi.fn();
-      const resolve2Fn = vi.fn();
-
       let resolver1: () => void;
       let resolver2: () => void;
 

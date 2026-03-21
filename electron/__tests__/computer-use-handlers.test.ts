@@ -1,8 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ipcMain, shell, clipboard, desktopCapturer, screen, dialog, BrowserWindow, app } from 'electron';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { ipcMain, shell, clipboard, desktopCapturer } from 'electron';
 import fs from 'node:fs/promises';
-import fsSync from 'node:fs';
-import path from 'node:path';
 import os from 'node:os';
 import { exec } from 'node:child_process';
 
@@ -116,7 +114,7 @@ vi.mock('../background-process-service', () => ({
 // Nodemailer and systeminformation mocks
 const mockTransporter = {
   verify: vi.fn(async () => true),
-  sendMail: vi.fn(async () => ({ messageId: 'msg-123' })),
+  sendMail: vi.fn(async (_message: { html?: string; text?: string }) => ({ messageId: 'msg-123' })),
 };
 const mockNodemailer = {
   createTransport: vi.fn(() => mockTransporter),
@@ -150,14 +148,6 @@ beforeEach(async () => {
   executeToolDirect = mod.executeToolDirect;
   registerComputerUseHandlers = mod.registerComputerUseHandlers;
 });
-
-// Helper: fake IPC event
-const fakeEvent = {
-  sender: {
-    isDestroyed: vi.fn(() => false),
-    send: vi.fn(),
-  },
-} as any;
 
 // ============================================================================
 // FILESYSTEM (CU-001 to CU-033)
@@ -857,7 +847,10 @@ describe('Email operations', () => {
       to: 'x@y.com', subject: 'HTML', body: '<h1>Hello</h1>', is_html: true,
     });
     expect(result.success).toBe(true);
-    const mailCall = mockTransporter.sendMail.mock.calls[0][0];
+    expect(mockTransporter.sendMail).toHaveBeenCalled();
+    const firstCall = mockTransporter.sendMail.mock.calls[0];
+    const mailCall = firstCall?.[0];
+    expect(mailCall).toBeDefined();
     expect(mailCall.html).toBe('<h1>Hello</h1>');
     expect(mailCall.text).toBeUndefined();
   });
