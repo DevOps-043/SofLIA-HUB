@@ -226,7 +226,6 @@ describe('GROUP_BLOCKED_TOOLS', () => {
   // WA-079
   it('WA-079: GROUP_BLOCKED_TOOLS is a subset of CONFIRM_TOOLS_WA union BLOCKED_TOOLS_WA (consistency)', () => {
     const union = new Set([...CONFIRM_TOOLS_WA, ...BLOCKED_TOOLS_WA]);
-    const inconsistent: string[] = [];
     for (const tool of GROUP_BLOCKED_TOOLS) {
       if (!union.has(tool)) {
         // Some group-blocked tools (like use_computer, clipboard_read) may not need confirmation

@@ -2,7 +2,7 @@
  * Integration and edge case tests: INT-001 to INT-009, EDGE-001 to EDGE-020.
  * Main process tests (node environment) using electron mock.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 
 describe('IPC Handler Contract', () => {
   // INT-001: IPC handler returns { success: true } shape
@@ -454,7 +454,7 @@ describe('Edge Cases', () => {
 
   // EDGE-018: 0-byte file upload
   it('EDGE-018: zero-byte file upload returns appropriate error', async () => {
-    const uploadFile = async (content: Buffer, filename: string) => {
+    const uploadFile = async (content: Buffer, _filename: string) => {
       if (content.length === 0) {
         return { success: false, error: 'No se puede subir un archivo vacio' };
       }

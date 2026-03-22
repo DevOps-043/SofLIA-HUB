@@ -3,7 +3,7 @@
  * Tests the 4-layer memory system: raw messages, rolling summaries,
  * semantic embeddings, and structured facts.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Database from 'better-sqlite3';
 
 // ─── Constants replicated from source for assertion ───────────────────

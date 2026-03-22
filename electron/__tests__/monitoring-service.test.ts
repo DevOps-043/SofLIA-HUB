@@ -4,7 +4,6 @@
  * idle detection, OCR, screenshot handling, config, diagnostics.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { EventEmitter } from 'node:events';
 
 // ─── Mock active-win (ESM dynamic import) ────────────────────────────
 const mockActiveWin = vi.fn();
@@ -86,7 +85,7 @@ interface MonitoringStatus {
 }
 
 // ─── Access to electron mocks ────────────────────────────────────────
-import { powerMonitor, desktopCapturer, app } from 'electron';
+import { powerMonitor, desktopCapturer } from 'electron';
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 // Since the module has complex top-level imports, we test the logic

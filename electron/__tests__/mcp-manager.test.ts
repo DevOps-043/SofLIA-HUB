@@ -4,32 +4,32 @@
  * directorios, descubrimiento de herramientas, validación de esquemas,
  * registro, ejecución y ciclo de vida.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ─── Mock de fs (sincrónico + watch) ────────────────────────────────
 
-const mockExistsSync = vi.fn();
-const mockMkdirSync = vi.fn();
-const mockReaddirSync = vi.fn();
-const mockStatSync = vi.fn();
-const mockReadFileSync = vi.fn();
+const mockExistsSync = vi.fn((_: string) => true);
+const mockMkdirSync = vi.fn((_: string, __?: { recursive?: boolean }) => undefined);
+const mockReaddirSync = vi.fn((_: string) => [] as string[]);
+const mockStatSync = vi.fn((_: string) => ({ isFile: () => true }));
+const mockReadFileSync = vi.fn((_: string) => '');
 const mockWatcherClose = vi.fn();
-const mockWatch = vi.fn(() => ({ close: mockWatcherClose }));
+const mockWatch = vi.fn((_: string, __?: unknown, ___?: unknown) => ({ close: mockWatcherClose }));
 
 vi.mock('fs', () => ({
-  existsSync: (...a: any[]) => mockExistsSync(...a),
-  mkdirSync: (...a: any[]) => mockMkdirSync(...a),
-  readdirSync: (...a: any[]) => mockReaddirSync(...a),
-  statSync: (...a: any[]) => mockStatSync(...a),
-  readFileSync: (...a: any[]) => mockReadFileSync(...a),
-  watch: (...a: any[]) => mockWatch(...a),
+  existsSync: mockExistsSync,
+  mkdirSync: mockMkdirSync,
+  readdirSync: mockReaddirSync,
+  statSync: mockStatSync,
+  readFileSync: mockReadFileSync,
+  watch: mockWatch,
   default: {
-    existsSync: (...a: any[]) => mockExistsSync(...a),
-    mkdirSync: (...a: any[]) => mockMkdirSync(...a),
-    readdirSync: (...a: any[]) => mockReaddirSync(...a),
-    statSync: (...a: any[]) => mockStatSync(...a),
-    readFileSync: (...a: any[]) => mockReadFileSync(...a),
-    watch: (...a: any[]) => mockWatch(...a),
+    existsSync: mockExistsSync,
+    mkdirSync: mockMkdirSync,
+    readdirSync: mockReaddirSync,
+    statSync: mockStatSync,
+    readFileSync: mockReadFileSync,
+    watch: mockWatch,
   },
 }));
 

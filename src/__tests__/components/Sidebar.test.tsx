@@ -2,8 +2,8 @@
  * Tests UI-003 to UI-014: Sidebar.tsx — Sidebar navigation component tests.
  */
 import { describe, it, expect, vi } from 'vitest';
+import '@testing-library/jest-dom/vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import React from 'react';
 
 // Mock iris-data to prevent Supabase import chain
 vi.mock('../../services/iris-data', () => ({

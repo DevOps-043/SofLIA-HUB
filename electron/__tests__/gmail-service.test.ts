@@ -5,16 +5,38 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+type MockSendArgs = {
+  userId: string;
+  requestBody: {
+    raw: string;
+  };
+};
+
+type MockListArgs = {
+  userId?: string;
+  maxResults?: number;
+};
+
+type MockGetArgs = {
+  id?: string;
+};
+
+type MockLabelCreateArgs = {
+  requestBody?: {
+    name?: string;
+  };
+};
+
 // ─── Mock googleapis ────────────────────────────────────────────────
-const mockMessagesSend = vi.fn(async () => ({ data: { id: 'msg-sent-1' } }));
-const mockMessagesList = vi.fn(async () => ({
+const mockMessagesSend = vi.fn(async (_args: MockSendArgs) => ({ data: { id: 'msg-sent-1' } }));
+const mockMessagesList = vi.fn(async (_args?: MockListArgs) => ({
   data: {
     messages: [{ id: 'msg-1' }, { id: 'msg-2' }],
     nextPageToken: 'page-2',
     resultSizeEstimate: 2,
   },
 }));
-const mockMessagesGet = vi.fn(async (args: any) => ({
+const mockMessagesGet = vi.fn(async (args: MockGetArgs) => ({
   data: {
     id: args.id || 'msg-1',
     threadId: 'thread-1',
@@ -45,7 +67,7 @@ const mockLabelsList = vi.fn(async () => ({
     ],
   },
 }));
-const mockLabelsCreate = vi.fn(async (args: any) => ({
+const mockLabelsCreate = vi.fn(async (args: MockLabelCreateArgs) => ({
   data: { id: 'lbl-new', name: args.requestBody?.name || 'New Label' },
 }));
 const mockLabelsDelete = vi.fn(async () => ({}));
@@ -84,7 +106,9 @@ vi.mock('node:fs/promises', () => ({
 }));
 
 // ─── Mock CalendarService dependency ────────────────────────────────
-const mockGetGoogleAuth = vi.fn(async () => ({ type: 'authorized_user' }));
+const mockGetGoogleAuth = vi.fn(
+  async (): Promise<{ type: string } | null> => ({ type: 'authorized_user' }),
+);
 const mockCalendarService = {
   getGoogleAuth: mockGetGoogleAuth,
 } as any;
@@ -114,7 +138,11 @@ describe('GmailService', () => {
     expect(mockMessagesSend).toHaveBeenCalledTimes(1);
 
     // Verify the raw message contains base64url encoded MIME
-    const sendCall = mockMessagesSend.mock.calls[0][0];
+    const firstCall = mockMessagesSend.mock.calls[0];
+    if (!firstCall) {
+      throw new Error('Expected Gmail send call to exist');
+    }
+    const [sendCall] = firstCall;
     expect(sendCall.userId).toBe('me');
     expect(sendCall.requestBody.raw).toBeDefined();
 
@@ -175,7 +203,11 @@ describe('GmailService', () => {
     expect(mockMessagesSend).toHaveBeenCalledTimes(1);
 
     // Verify multipart boundary is in the raw message
-    const sendCall = mockMessagesSend.mock.calls[0][0];
+    const firstCall = mockMessagesSend.mock.calls[0];
+    if (!firstCall) {
+      throw new Error('Expected Gmail send call to exist');
+    }
+    const [sendCall] = firstCall;
     const decoded = Buffer.from(sendCall.requestBody.raw, 'base64url').toString('utf-8');
     expect(decoded).toContain('Content-Type: multipart/mixed');
     expect(decoded).toContain('boundary=');
@@ -191,7 +223,11 @@ describe('GmailService', () => {
     });
 
     expect(result.success).toBe(true);
-    const sendCall = mockMessagesSend.mock.calls[0][0];
+    const firstCall = mockMessagesSend.mock.calls[0];
+    if (!firstCall) {
+      throw new Error('Expected Gmail send call to exist');
+    }
+    const [sendCall] = firstCall;
     const decoded = Buffer.from(sendCall.requestBody.raw, 'base64url').toString('utf-8');
     expect(decoded).toContain('Content-Type: text/html');
     expect(decoded).toContain('<h1>Hola</h1>');
@@ -241,7 +277,11 @@ describe('GmailService', () => {
     });
 
     expect(result.success).toBe(true);
-    const sendCall = mockMessagesSend.mock.calls[0][0];
+    const firstCall = mockMessagesSend.mock.calls[0];
+    if (!firstCall) {
+      throw new Error('Expected Gmail send call to exist');
+    }
+    const [sendCall] = firstCall;
     const decoded = Buffer.from(sendCall.requestBody.raw, 'base64url').toString('utf-8');
     expect(decoded).toContain('Cc: cc@test.com');
     expect(decoded).toContain('Bcc: bcc@test.com');

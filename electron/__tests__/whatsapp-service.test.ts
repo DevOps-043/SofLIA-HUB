@@ -130,7 +130,7 @@ describe('WhatsApp Service', () => {
   describe('WA-003: connect creates socket', () => {
     it('should call makeWASocket during connect', async () => {
       const makeWASocket = (await import('@whiskeysockets/baileys')).default;
-      const service = await createConnectedService();
+      await createConnectedService();
       expect(makeWASocket).toHaveBeenCalled();
     });
   });
@@ -240,7 +240,7 @@ describe('WhatsApp Service', () => {
   describe('WA-011: logout clears credentials', () => {
     it('should call fs.rm on auth dir when disconnect reason is loggedOut', async () => {
       const fs = (await import('node:fs/promises')).default;
-      const service = await createConnectedService();
+      await createConnectedService();
       mockSockEvents.emit('connection.update', {
         connection: 'close',
         lastDisconnect: { error: { output: { statusCode: 401 } } },

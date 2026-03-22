@@ -16,13 +16,13 @@ const mockSetCurrentTeam = vi.fn();
 
 vi.mock('../../services/sofia-auth', () => ({
   sofiaAuth: {
-    signInWithSofia: (...args: any[]) => mockSignInWithSofia(...args),
-    signOut: () => mockSignOut(),
-    getSession: () => mockGetSession(),
-    fetchSofiaUserProfile: (...args: any[]) => mockFetchSofiaUserProfile(...args),
-    onAuthStateChange: (...args: any[]) => mockOnAuthStateChange(...args),
-    setCurrentOrganization: (...args: any[]) => mockSetCurrentOrganization(...args),
-    setCurrentTeam: (...args: any[]) => mockSetCurrentTeam(...args),
+    signInWithSofia: mockSignInWithSofia,
+    signOut: mockSignOut,
+    getSession: mockGetSession,
+    fetchSofiaUserProfile: mockFetchSofiaUserProfile,
+    onAuthStateChange: mockOnAuthStateChange,
+    setCurrentOrganization: mockSetCurrentOrganization,
+    setCurrentTeam: mockSetCurrentTeam,
   },
   SofiaContext: {},
 }));
@@ -39,11 +39,11 @@ const mockSupabaseSignUp = vi.fn();
 vi.mock('../../lib/supabase', () => ({
   supabase: {
     auth: {
-      signOut: () => mockSupabaseSignOut(),
-      getSession: () => mockSupabaseGetSession(),
-      onAuthStateChange: (...args: any[]) => mockSupabaseOnAuthStateChange(...args),
-      signInWithPassword: (...args: any[]) => mockSupabaseSignInWithPassword(...args),
-      signUp: (...args: any[]) => mockSupabaseSignUp(...args),
+      signOut: mockSupabaseSignOut,
+      getSession: mockSupabaseGetSession,
+      onAuthStateChange: mockSupabaseOnAuthStateChange,
+      signInWithPassword: mockSupabaseSignInWithPassword,
+      signUp: mockSupabaseSignUp,
     },
   },
   isSupabaseConfigured: vi.fn(() => true),
@@ -155,7 +155,7 @@ describe('AuthContext', () => {
   // AUTH-005: Session refresh on auth state change
   it('AUTH-005: auth state change triggers session refresh', async () => {
     // Verify that onAuthStateChange is subscribed
-    const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
+    renderHook(() => useAuth(), { wrapper: createWrapper() });
 
     await waitFor(() => {
       // Either sofia or supabase onAuthStateChange should be called

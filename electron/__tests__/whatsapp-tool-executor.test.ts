@@ -4,8 +4,8 @@
  * The executeWhatsAppTools function has heavy Electron + service dependencies.
  * We mock all external modules and test the security/dispatch logic.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { BLOCKED_TOOLS_WA, CONFIRM_TOOLS_WA, GROUP_BLOCKED_TOOLS } from '../whatsapp-tools';
+import { describe, it, expect, vi } from 'vitest';
+import { CONFIRM_TOOLS_WA, GROUP_BLOCKED_TOOLS } from '../whatsapp-tools';
 
 // ─── Mock all heavy dependencies before importing the executor ─────
 vi.mock('../computer-use-handlers', () => ({
@@ -270,8 +270,6 @@ describe('Group blocking — isGroup=true', () => {
 });
 
 describe('Group allowing — safe tools pass in groups', () => {
-  const ctx = makeCtx();
-
   // WA-097
   it('WA-097: allows read_file in group (not group-blocked)', async () => {
     expect(GROUP_BLOCKED_TOOLS.has('read_file')).toBe(false);

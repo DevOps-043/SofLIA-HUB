@@ -166,21 +166,6 @@ function mockTextResponse(text: string) {
   });
 }
 
-// Helper to set up a function call response from Gemini
-function mockFunctionCallResponse(calls: Array<{ name: string; args: any }>) {
-  mockSendMessage.mockResolvedValueOnce({
-    response: {
-      text: () => { throw new Error('has function calls'); },
-      candidates: [{
-        content: {
-          parts: calls.map(c => ({ functionCall: { name: c.name, args: c.args } })),
-        },
-      }],
-      functionCalls: () => calls.map(c => ({ name: c.name, args: c.args })),
-    },
-  });
-}
-
 // ============================================================================
 // Test Suite
 // ============================================================================
