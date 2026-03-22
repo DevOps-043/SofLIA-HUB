@@ -4,6 +4,13 @@ Todos los cambios notables de SofLIA Hub se documentan aquí.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.1.17] - 2026-03-21
+
+### Fixed
+
+- **Mensajes internos de Lia ya no se filtran al login:** La pantalla de autenticacion ahora muestra un mensaje limpio y orientado a usuario final cuando la configuracion interna de Lia falla, sin exponer `projectRef`, variables `VITE_*` ni diagnosticos tecnicos sensibles.
+- **Cobertura del error de autenticacion reforzada:** Se agrego prueba en `AuthContext.test.tsx` para asegurar que los errores de configuracion de Lia queden sanitizados antes de llegar a la UI.
+
 ## [0.1.16] - 2026-03-21
 
 ### Changed

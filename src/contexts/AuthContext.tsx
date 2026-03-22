@@ -66,9 +66,7 @@ function mapLiaAuthError(message: string): string {
   const normalized = message.toLowerCase();
 
   if (normalized.includes('invalid api key')) {
-    const projectRef = getSupabaseProjectRef(SUPABASE.URL);
-    const projectHint = projectRef ? ` Proyecto Lia configurado: ${projectRef}.` : '';
-    return `La configuracion de Lia es invalida.${projectHint} La clave ANON de Lia no coincide con la URL configurada o fue revocada. Actualiza VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY, luego recompila la app.`;
+    return 'No se pudo iniciar el modulo de conversaciones de SofLIA por una configuracion interna invalida en esta instalacion. Actualiza la app o contacta al administrador.';
   }
 
   return message;
@@ -118,8 +116,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   ): Promise<{ session: Session; user: SofiaAuthUser } | { error: string }> => {
     const configError = getSupabaseConfigError();
     if (configError) {
+      console.error('Lia configuration error:', {
+        projectRef: getSupabaseProjectRef(SUPABASE.URL),
+        reason: configError,
+      });
       return {
-        error: `Lia no esta configurado correctamente: ${configError}. Actualiza las variables VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY y recompila la app.`,
+        error: 'No se pudo iniciar el modulo de conversaciones de SofLIA porque esta instalacion tiene una configuracion interna pendiente. Actualiza la app o contacta al administrador.',
       };
     }
 

@@ -6,47 +6,54 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import React from 'react';
 
 // Mock sofia-auth
-const mockSignInWithSofia = vi.fn();
-const mockSignOut = vi.fn();
-const mockGetSession = vi.fn();
-const mockFetchSofiaUserProfile = vi.fn();
-const mockOnAuthStateChange = vi.fn();
-const mockSetCurrentOrganization = vi.fn();
-const mockSetCurrentTeam = vi.fn();
+const sofiaMocks = vi.hoisted(() => ({
+  signInWithSofia: vi.fn(),
+  signOut: vi.fn(),
+  getSession: vi.fn(),
+  fetchSofiaUserProfile: vi.fn(),
+  onAuthStateChange: vi.fn(),
+  setCurrentOrganization: vi.fn(),
+  setCurrentTeam: vi.fn(),
+}));
 
 vi.mock('../../services/sofia-auth', () => ({
   sofiaAuth: {
-    signInWithSofia: mockSignInWithSofia,
-    signOut: mockSignOut,
-    getSession: mockGetSession,
-    fetchSofiaUserProfile: mockFetchSofiaUserProfile,
-    onAuthStateChange: mockOnAuthStateChange,
-    setCurrentOrganization: mockSetCurrentOrganization,
-    setCurrentTeam: mockSetCurrentTeam,
+    signInWithSofia: sofiaMocks.signInWithSofia,
+    signOut: sofiaMocks.signOut,
+    getSession: sofiaMocks.getSession,
+    fetchSofiaUserProfile: sofiaMocks.fetchSofiaUserProfile,
+    onAuthStateChange: sofiaMocks.onAuthStateChange,
+    setCurrentOrganization: sofiaMocks.setCurrentOrganization,
+    setCurrentTeam: sofiaMocks.setCurrentTeam,
   },
   SofiaContext: {},
 }));
 
 // Mock Supabase
-const mockSupabaseSignOut = vi.fn(async () => ({ error: null }));
-const mockSupabaseGetSession = vi.fn(async () => ({ data: { session: null }, error: null }));
-const mockSupabaseOnAuthStateChange = vi.fn(() => ({
-  data: { subscription: { unsubscribe: vi.fn() } },
+const supabaseMocks = vi.hoisted(() => ({
+  signOut: vi.fn(async () => ({ error: null })),
+  getSession: vi.fn(async () => ({ data: { session: null }, error: null })),
+  onAuthStateChange: vi.fn(() => ({
+    data: { subscription: { unsubscribe: vi.fn() } },
+  })),
+  signInWithPassword: vi.fn(),
+  signUp: vi.fn(),
+  getSupabaseConfigError: vi.fn(() => null),
 }));
-const mockSupabaseSignInWithPassword = vi.fn();
-const mockSupabaseSignUp = vi.fn();
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
     auth: {
-      signOut: mockSupabaseSignOut,
-      getSession: mockSupabaseGetSession,
-      onAuthStateChange: mockSupabaseOnAuthStateChange,
-      signInWithPassword: mockSupabaseSignInWithPassword,
-      signUp: mockSupabaseSignUp,
+      signOut: supabaseMocks.signOut,
+      getSession: supabaseMocks.getSession,
+      onAuthStateChange: supabaseMocks.onAuthStateChange,
+      signInWithPassword: supabaseMocks.signInWithPassword,
+      signUp: supabaseMocks.signUp,
     },
   },
   isSupabaseConfigured: vi.fn(() => true),
+  getSupabaseConfigError: supabaseMocks.getSupabaseConfigError,
+  getSupabaseProjectRef: vi.fn(() => 'test-project-ref'),
 }));
 
 vi.mock('../../lib/sofia-client', () => ({
@@ -61,6 +68,7 @@ vi.mock('../../config', () => ({
 
 // Import after mocks
 import { AuthProvider, useAuth } from '../../contexts/AuthContext';
+import { getSupabaseConfigError } from '../../lib/supabase';
 
 function createWrapper() {
   return ({ children }: { children: React.ReactNode }) => (
@@ -71,8 +79,9 @@ function createWrapper() {
 describe('AuthContext', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetSession.mockResolvedValue(null);
-    mockOnAuthStateChange.mockReturnValue({
+    sofiaMocks.getSession.mockResolvedValue(null);
+    supabaseMocks.getSupabaseConfigError.mockReturnValue(null);
+    sofiaMocks.onAuthStateChange.mockReturnValue({
       data: { subscription: { unsubscribe: vi.fn() } },
     });
   });
@@ -98,14 +107,14 @@ describe('AuthContext', () => {
       teams: [{ id: 'team-1', name: 'TestTeam', organization_id: 'org-1' }],
     };
 
-    mockSignInWithSofia.mockResolvedValue({
+    sofiaMocks.signInWithSofia.mockResolvedValue({
       success: true,
       user: mockUser,
       session: { access_token: 'token' },
       sofiaProfile: mockProfile,
     });
 
-    mockSupabaseSignInWithPassword.mockResolvedValue({
+    supabaseMocks.signInWithPassword.mockResolvedValue({
       data: {
         session: { access_token: 'lia-token', user: { id: 'lia-1', email: 'test@soflia.com' } },
         user: { id: 'lia-1', email: 'test@soflia.com' },
@@ -125,7 +134,7 @@ describe('AuthContext', () => {
 
   // AUTH-003: Sign out clears state
   it('AUTH-003: signOut clears user and session', async () => {
-    mockSignOut.mockResolvedValue(undefined);
+    sofiaMocks.signOut.mockResolvedValue(undefined);
 
     const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
 
@@ -158,11 +167,43 @@ describe('AuthContext', () => {
     renderHook(() => useAuth(), { wrapper: createWrapper() });
 
     await waitFor(() => {
-      // Either sofia or supabase onAuthStateChange should be called
+        // Either sofia or supabase onAuthStateChange should be called
       const totalCalls =
-        mockOnAuthStateChange.mock.calls.length +
-        mockSupabaseOnAuthStateChange.mock.calls.length;
+        sofiaMocks.onAuthStateChange.mock.calls.length +
+        supabaseMocks.onAuthStateChange.mock.calls.length;
       expect(totalCalls).toBeGreaterThan(0);
     });
+  });
+
+  it('AUTH-006: Lia config errors are sanitized for UI', async () => {
+    vi.mocked(getSupabaseConfigError).mockReturnValue('VITE_SUPABASE_ANON_KEY invalida');
+
+    const mockUser = { id: 'sofia-user-1', email: 'test@soflia.com', user_metadata: { first_name: 'Test' } };
+    const mockProfile = {
+      id: 'sofia-user-1',
+      email: 'test@soflia.com',
+      memberships: [{ status: 'active', organization_id: 'org-1', team_id: 'team-1' }],
+      organizations: [{ id: 'org-1', name: 'TestOrg' }],
+      teams: [{ id: 'team-1', name: 'TestTeam', organization_id: 'org-1' }],
+    };
+
+    sofiaMocks.signInWithSofia.mockResolvedValue({
+      success: true,
+      user: mockUser,
+      session: { access_token: 'token' },
+      sofiaProfile: mockProfile,
+    });
+
+    const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
+
+    let signInResult: any;
+    await act(async () => {
+      signInResult = await result.current.signInWithSofia('test@soflia.com', 'password123');
+    });
+
+    expect(signInResult.success).toBe(false);
+    expect(signInResult.error).toContain('configuracion interna pendiente');
+    expect(signInResult.error).not.toContain('VITE_SUPABASE');
+    expect(signInResult.error).not.toContain('test-project-ref');
   });
 });
