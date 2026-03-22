@@ -1,8 +1,9 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import type { Session, AuthChangeEvent, User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { getSupabaseConfigError, getSupabaseProjectRef, supabase } from '../lib/supabase';
 import { isSofiaConfigured } from '../lib/sofia-client';
 import { sofiaAuth, SofiaContext, SofiaAuthResult, SofiaAuthUser } from '../services/sofia-auth';
+import { SUPABASE } from '../config';
 
 type AuthUser = SofiaAuthUser | null;
 
@@ -61,6 +62,18 @@ function buildSofiaContext(profile: any): SofiaContext | null {
   };
 }
 
+function mapLiaAuthError(message: string): string {
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes('invalid api key')) {
+    const projectRef = getSupabaseProjectRef(SUPABASE.URL);
+    const projectHint = projectRef ? ` Proyecto Lia configurado: ${projectRef}.` : '';
+    return `La configuracion de Lia es invalida.${projectHint} La clave ANON de Lia no coincide con la URL configurada o fue revocada. Actualiza VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY, luego recompila la app.`;
+  }
+
+  return message;
+}
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<AuthUser>(null);
@@ -103,6 +116,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     sofiaResult: SofiaAuthResult,
     password: string,
   ): Promise<{ session: Session; user: SofiaAuthUser } | { error: string }> => {
+    const configError = getSupabaseConfigError();
+    if (configError) {
+      return {
+        error: `Lia no esta configurado correctamente: ${configError}. Actualiza las variables VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY y recompila la app.`,
+      };
+    }
+
     const sofiaEmail = sofiaResult.user?.email || sofiaResult.sofiaProfile?.email;
     if (!sofiaEmail) {
       return { error: 'No se encontro el correo del usuario para sincronizar con Lia.' };
@@ -126,6 +146,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       console.log('Usuario no existe en Lia o la sesion fallo, creando...', liaError?.message);
+      if (liaError?.message) {
+        console.warn('Lia auth fallback to signUp:', {
+          projectRef: getSupabaseProjectRef(SUPABASE.URL),
+          reason: liaError.message,
+        });
+      }
 
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: sofiaEmail,
@@ -141,7 +167,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (signUpError) {
         console.error('Error creando usuario en Lia:', signUpError);
         return {
-          error: `No se pudo crear la sesion de Lia: ${signUpError.message}`,
+          error: `No se pudo crear la sesion de Lia: ${mapLiaAuthError(signUpError.message)}`,
         };
       }
 
@@ -162,7 +188,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (err) {
       console.error('Error sincronizando con Lia Supabase:', err);
       return {
-        error: err instanceof Error ? err.message : 'Error desconocido sincronizando con Lia.',
+        error:
+          err instanceof Error
+            ? mapLiaAuthError(err.message)
+            : 'Error desconocido sincronizando con Lia.',
       };
     }
   }, []);
