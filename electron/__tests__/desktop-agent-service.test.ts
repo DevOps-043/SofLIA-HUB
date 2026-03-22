@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ipcMain } from 'electron';
-import type { DesktopAgentConfig, AgentStatus, DesktopAgentStatus } from '../desktop-agent-types';
+import type { DesktopAgentStatus } from '../desktop-agent-types';
 
 // ============================================================================
 // Desktop Agent Service Tests (CU-101 to CU-150)

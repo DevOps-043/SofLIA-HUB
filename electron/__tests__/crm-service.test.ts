@@ -4,7 +4,7 @@
  * The CRM service file does not exist yet, so we test the Jaccard
  * algorithm as a pure function and CRM logic through mocked Supabase.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 
 // ─── Jaccard Similarity (replicated from CLAUDE.md specification) ────
 // The Jaccard index is used for company name deduplication in the CRM.

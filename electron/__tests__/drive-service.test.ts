@@ -5,8 +5,56 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { PassThrough } from 'node:stream';
 
+interface MockDriveFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  size?: string;
+}
+
+type MockDriveListResponse = {
+  data: {
+    files: MockDriveFile[];
+    nextPageToken?: string;
+  };
+};
+
+type MockDriveListArgs = {
+  q?: string;
+  fields?: string;
+  pageSize?: number;
+  pageToken?: string;
+};
+
+type MockDriveGetResponse = {
+  data: PassThrough | {
+    id?: string;
+    name: string;
+    mimeType: string;
+  };
+};
+
+type MockDriveCreateResponse = {
+  data: {
+    id: string;
+    name?: string;
+    mimeType?: string;
+    size?: string;
+  };
+};
+
+type MockDriveCreateArgs = {
+  requestBody?: {
+    name?: string;
+    parents?: string[];
+    mimeType?: string;
+  };
+  media?: unknown;
+  fields?: string;
+};
+
 // ─── Mock googleapis ────────────────────────────────────────────────
-const mockFilesList = vi.fn(async () => ({
+const mockFilesList = vi.fn(async (_args?: MockDriveListArgs): Promise<MockDriveListResponse> => ({
   data: {
     files: [
       { id: 'f1', name: 'Doc.txt', mimeType: 'text/plain', size: '1024' },
@@ -16,7 +64,7 @@ const mockFilesList = vi.fn(async () => ({
   },
 }));
 
-const mockFilesGet = vi.fn(async (args: any) => {
+const mockFilesGet = vi.fn(async (args: { alt?: string; fileId?: string; _testMimeType?: string }): Promise<MockDriveGetResponse> => {
   if (args.alt === 'media') {
     const stream = new PassThrough();
     setTimeout(() => { stream.end('binary-content'); }, 5);
@@ -32,7 +80,7 @@ const mockFilesGet = vi.fn(async (args: any) => {
   };
 });
 
-const mockFilesCreate = vi.fn(async () => ({
+const mockFilesCreate = vi.fn(async (_args?: MockDriveCreateArgs): Promise<MockDriveCreateResponse> => ({
   data: {
     id: 'f-uploaded',
     name: 'uploaded.pdf',
@@ -64,8 +112,8 @@ vi.mock('googleapis', () => ({
 }));
 
 // ─── Mock node:fs ───────────────────────────────────────────────────
-const mockCreateReadStream = vi.fn(() => new PassThrough());
-const mockCreateWriteStream = vi.fn(() => {
+const mockCreateReadStream = vi.fn((_: string) => new PassThrough());
+const mockCreateWriteStream = vi.fn((_: string) => {
   const ws = new PassThrough();
   // Simulate write completion
   (ws as any).path = '/tmp/test-output.txt';
@@ -74,12 +122,12 @@ const mockCreateWriteStream = vi.fn(() => {
 
 vi.mock('node:fs', () => ({
   default: {
-    createReadStream: (...args: any[]) => mockCreateReadStream(...args),
-    createWriteStream: (...args: any[]) => mockCreateWriteStream(...args),
+    createReadStream: (filePath: string) => mockCreateReadStream(filePath),
+    createWriteStream: (filePath: string) => mockCreateWriteStream(filePath),
     existsSync: vi.fn(() => true),
   },
-  createReadStream: (...args: any[]) => mockCreateReadStream(...args),
-  createWriteStream: (...args: any[]) => mockCreateWriteStream(...args),
+  createReadStream: (filePath: string) => mockCreateReadStream(filePath),
+  createWriteStream: (filePath: string) => mockCreateWriteStream(filePath),
   existsSync: vi.fn(() => true),
 }));
 
@@ -125,7 +173,11 @@ describe('DriveService', () => {
     expect(result.files![0].size).toBe(1024);
 
     // Verify query includes trashed filter
-    const listCall = mockFilesList.mock.calls[0][0];
+    expect(mockFilesList).toHaveBeenCalled();
+    const listCall = mockFilesList.mock.calls[0]?.[0];
+    if (!listCall) {
+      throw new Error('mockFilesList no recibio argumentos');
+    }
     expect(listCall.q).toContain('trashed = false');
     expect(listCall.q).toContain("name contains 'Doc'");
   });
@@ -134,7 +186,7 @@ describe('DriveService', () => {
   it('DRV-002: searchFiles falls through 3 strategies when strict match returns empty', async () => {
     // First call (strict): empty, second call (fullText): empty, third+ calls (individual words): results
     let callCount = 0;
-    mockFilesList.mockImplementation(async () => {
+    mockFilesList.mockImplementation(async (): Promise<MockDriveListResponse> => {
       callCount++;
       if (callCount <= 2) {
         return { data: { files: [], nextPageToken: undefined } };
@@ -167,14 +219,20 @@ describe('DriveService', () => {
     expect(result.file!.id).toBe('f-uploaded');
     expect(mockFilesCreate).toHaveBeenCalledTimes(1);
 
-    const createCall = mockFilesCreate.mock.calls[0][0];
+    const createCall = mockFilesCreate.mock.calls[0]?.[0];
+    if (!createCall) {
+      throw new Error('mockFilesCreate no recibio argumentos');
+    }
+    if (!createCall.requestBody) {
+      throw new Error('mockFilesCreate no recibio requestBody');
+    }
     expect(createCall.requestBody.name).toBe('report.pdf');
     expect(createCall.requestBody.parents).toEqual(['folder-123']);
   });
 
   // DRV-004: downloadFile exports Google Docs to text
   it('DRV-004: downloadFile exports Google Docs as text/plain', async () => {
-    mockFilesGet.mockImplementationOnce(async () => ({
+    mockFilesGet.mockImplementationOnce(async (): Promise<MockDriveGetResponse> => ({
       data: {
         mimeType: 'application/vnd.google-apps.document',
         name: 'My Document',
@@ -196,7 +254,7 @@ describe('DriveService', () => {
 
   // DRV-005: downloadFile exports Sheets to CSV
   it('DRV-005: downloadFile exports Google Sheets as CSV', async () => {
-    mockFilesGet.mockImplementationOnce(async () => ({
+    mockFilesGet.mockImplementationOnce(async (): Promise<MockDriveGetResponse> => ({
       data: {
         mimeType: 'application/vnd.google-apps.spreadsheet',
         name: 'My Sheet',
@@ -218,7 +276,7 @@ describe('DriveService', () => {
 
   // DRV-006: downloadFile truncates text content at 50KB
   it('DRV-006: downloadFile truncates text content exceeding 50KB', async () => {
-    mockFilesGet.mockImplementationOnce(async () => ({
+    mockFilesGet.mockImplementationOnce(async (): Promise<MockDriveGetResponse> => ({
       data: { mimeType: 'text/plain', name: 'huge.txt' },
     }));
 
