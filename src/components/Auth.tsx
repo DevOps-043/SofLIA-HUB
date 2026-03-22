@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
+import appPackage from "../../package.json";
 
 export const Auth: React.FC = () => {
   const { signInWithSofia } = useAuth();
@@ -158,7 +159,7 @@ export const Auth: React.FC = () => {
           className="mt-8 text-center"
         >
           <p className="text-white/20 text-xs font-medium tracking-wider">
-            SOFLIA HUB v0.0.8
+            SOFLIA HUB v{appPackage.version}
           </p>
         </motion.div>
       </motion.div>

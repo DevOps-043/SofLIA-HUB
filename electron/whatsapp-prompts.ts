@@ -75,6 +75,7 @@ CONTROL VISUAL DE LA COMPUTADORA (use_computer):
 - Si windows_uia no logra verificar cambios o no encuentra elementos suficientes, el sistema puede hacer fallback automatico a desktop_visual; usa el report_path y trace_path devueltos para entender el handoff si necesitas reintentar
 - Si use_computer falla y devuelve report_path, leelo para identificar el paso/verificacion que fallo antes de reintentar
 - use_computer es tu herramienta más poderosa — úsala para TODO lo que requiera interacción visual
+- Regla de evidencia: primero identifica SI el usuario quiere validar algo en local, en la web o comparar ambos entornos. Si pidio revisar dentro de una app, en su computadora o localmente, no sustituyas esa verificacion con solo revisar GitHub o paginas web.
 
 TERMINAL Y DESARROLLO:
 - run_in_terminal: abre terminal visible con comandos de larga duración (npm run dev, builds, servidores)
@@ -230,6 +231,8 @@ Cuando necesites interactuar con cualquier programa visualmente:
 2. Usa use_computer para interactuar (clicks, escribir, navegar)
 3. Si es una tarea web, prefiere use_computer con backend:"browser" y start_url cuando tengas la URL
 Ejemplos: instalar un programa, configurar ajustes, llenar formularios, usar cualquier app GUI
+- Antes de concluir una tarea, confirma que la evidencia viene del entorno correcto: app/local, web/remoto o ambos.
+- Si el usuario pide comparar local vs nube/repositorio, primero inspecciona lo local y luego contrasta lo remoto.
 
 DESARROLLO REMOTO:
 - "Abre Claude Code y corrige los errores" → run_claude_code con la tarea
@@ -369,6 +372,7 @@ NAVEGADOR (solo si Google API no aplica):
 9. NUNCA RESPONDAS SOLO CON TEXTO CUANDO HAY HERRAMIENTAS DISPONIBLES: Si el usuario pide algo que puedes hacer con herramientas, USA LAS HERRAMIENTAS. No describas lo que harías — hazlo. El usuario espera resultados, no planes.
 10. VERIFICA OPERACIONES MASIVAS: Cuando el usuario pida hacer algo con TODOS los items (correos, archivos, etc.), NUNCA asumas que terminaste después de un solo lote. SIEMPRE verifica con una segunda consulta que no queden items pendientes. Si quedan más, CONTINÚA procesando en un CICLO hasta completar TODO. Reporta progreso: "Procesé 50 de ~120 correos, continuando..." El usuario dice "todos" y espera TODOS, no solo los primeros 50.
 11. SI FALTA UNA INTEGRACION, INSTÁLALA: Si el usuario pide una capacidad externa y existe un toolset dinámico instalable para resolverla, instálalo en caliente en vez de responder "no puedo". Usa list_installable_toolsets si necesitas inspeccionar el catálogo, install_dynamic_toolset si ya conoces el id correcto, y list_installed_toolsets/list_dynamic_tools/doctor_dynamic_toolsets para verificar el resultado y detectar configuraciones faltantes.
+12. NO CONFUNDAS FUENTES DE EVIDENCIA: Si el usuario pide revisar algo en una aplicación, en su computadora o localmente, no afirmes que ya verificaste la tarea si solo consultaste GitHub, una página web o un repositorio remoto. Si pidió comparar local vs nube, necesitas evidencia de ambos lados antes de concluir.
 
 ═══ MEMORIA PERSISTENTE (Knowledge Base) ═══
 
@@ -408,6 +412,36 @@ export function detectActionRequest(message: string): boolean {
 }
 
 // ─── Smart file search — uses PowerShell for reliable native search ──
+
+export type EvidenceRequirement = 'none' | 'local' | 'remote' | 'local_then_remote';
+
+function normalizeIntentText(message: string): string {
+  return message.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+export function classifyEvidenceRequirement(message: string): EvidenceRequirement {
+  const normalized = normalizeIntentText(message);
+  const hasVerificationIntent = /\b(revisa(?:r)?|verifica(?:r)?|comprueba(?:r)?|confirma(?:r)?|checa(?:r)?|valida(?:r)?|asegura(?:r)?|corrobora(?:r)?)\b/.test(normalized);
+  const hasComparisonIntent = /\b(vs|contra|compara|comparar|sincronizad|alinead|igual que|mismo que)\b/.test(normalized);
+  const hasLocalContext =
+    /\b(local|localmente|en mi computadora|en la computadora|en mi compu|en la compu|en mi pc|en la pc|en el equipo|en mi equipo|en escritorio|dentro de la aplicacion|dentro del programa|en la aplicacion|en el programa|en el sistema|instalad[oa])\b/.test(normalized);
+  const hasRemoteContext =
+    /\b(github|gitlab|bitbucket|repo|repositorio|nube|cloud|remot[oa]|en linea|online|web|pagina|sitio|portal|servidor)\b/.test(normalized);
+
+  if ((hasVerificationIntent || hasComparisonIntent) && hasLocalContext && hasRemoteContext) {
+    return 'local_then_remote';
+  }
+
+  if ((hasVerificationIntent || hasComparisonIntent) && hasLocalContext) {
+    return 'local';
+  }
+
+  if ((hasVerificationIntent || hasComparisonIntent) && hasRemoteContext) {
+    return 'remote';
+  }
+
+  return 'none';
+}
 
 export async function smartFindFile(filename: string): Promise<{ success: boolean; results: Array<{ name: string; path: string; size: string }>; query: string }> {
   const home = os.homedir().replace(/\//g, '\\');

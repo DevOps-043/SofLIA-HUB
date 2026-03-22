@@ -31,7 +31,7 @@ import type { MeetingWorkflowService } from './meetings/meeting-workflow-service
 import { WorkflowManager } from './whatsapp-workflow-presentacion';
 import { MeetingWorkflowManager } from './whatsapp-workflow-meetings';
 import { WA_TOOL_DECLARATIONS, GROUP_BLOCKED_TOOLS } from './whatsapp-tools';
-import { buildSystemPrompt, detectActionRequest, formatForWhatsApp } from './whatsapp-prompts';
+import { buildSystemPrompt, classifyEvidenceRequirement, detectActionRequest, formatForWhatsApp } from './whatsapp-prompts';
 import { executeWhatsAppTools, type ToolExecutorContext } from './whatsapp-tool-executor';
 import { dynamicToolService } from './dynamic-tool-service';
 
@@ -65,12 +65,55 @@ const POLL_LIKE_TOOLS = new Set([
   'get_background_host_status',
 ]);
 
+const LOCAL_EVIDENCE_TOOLS = new Set([
+  'use_computer',
+  'execute_command',
+  'read_file',
+  'list_directory',
+  'list_directory_summary',
+  'search_files',
+  'semantic_file_search',
+  'get_file_info',
+]);
+
+const REMOTE_EVIDENCE_TOOLS = new Set([
+  'open_url',
+  'web_search',
+  'web_search_advanced',
+  'read_webpage',
+]);
+
 interface ToolLoopTraceEntry {
   iteration: number;
   toolSignature: string;
   responseSignature: string;
   toolNames: string[];
   hadFailure: boolean;
+}
+
+type EvidenceMode = 'local' | 'remote' | 'neutral';
+
+function getEvidenceModeFromToolCall(functionCall: { name?: string; args?: Record<string, any> }): EvidenceMode {
+  const toolName = functionCall.name || '';
+
+  if (REMOTE_EVIDENCE_TOOLS.has(toolName)) {
+    return 'remote';
+  }
+
+  if (toolName === 'use_computer') {
+    const backend = String(functionCall.args?.backend || '').toLowerCase();
+    const urlLikeArg = String(functionCall.args?.start_url || functionCall.args?.url || '').toLowerCase();
+    if (backend === 'browser' || urlLikeArg.length > 0) {
+      return 'remote';
+    }
+    return 'local';
+  }
+
+  if (LOCAL_EVIDENCE_TOOLS.has(toolName)) {
+    return 'local';
+  }
+
+  return 'neutral';
 }
 
 function sortKeysDeep(value: any): any {
@@ -1087,6 +1130,13 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
 
     // Detectar si el usuario pide una acción para reforzar tool calling vía prompt
     const isActionRequest = detectActionRequest(userMessage);
+    const evidenceRequirement = classifyEvidenceRequirement(userMessage);
+    const requiresLocalEvidence = evidenceRequirement === 'local' || evidenceRequirement === 'local_then_remote';
+    const requiresRemoteEvidence = evidenceRequirement === 'remote' || evidenceRequirement === 'local_then_remote';
+
+    if (evidenceRequirement !== 'none') {
+      systemPrompt += `\n\n═══ VALIDACION DE EVIDENCIA ═══\nEl usuario pide una verificacion con requirement="${evidenceRequirement}". Debes reunir evidencia del entorno correcto antes de concluir.\n- local: necesitas inspeccion real en la computadora o dentro de la aplicacion correcta.\n- remote: necesitas evidencia de web, nube, repositorio o sistema remoto.\n- local_then_remote: primero valida localmente y luego contrasta lo remoto.\nNunca afirmes que revisaste una app local si solo consultaste GitHub, una pagina web o un repositorio remoto.`;
+    }
 
     const model = ai.getGenerativeModel({
       model: WA_MODEL,
@@ -1197,6 +1247,8 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
     const MAX_ITERATIONS = 25;
     const toolLoopTrace: ToolLoopTraceEntry[] = [];
     let loopGuardInterventions = 0;
+    let hasLocalEvidence = false;
+    let hasRemoteEvidence = false;
 
     while (iterations < MAX_ITERATIONS) {
       iterations++;
@@ -1248,6 +1300,17 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
         // Force a retry telling it to use tools.
         const textParts = parts.filter((p: any) => p.text).map((p: any) => p.text);
         const finalText = textParts.join('');
+
+        if ((requiresLocalEvidence && !hasLocalEvidence) || (requiresRemoteEvidence && !hasRemoteEvidence)) {
+          const missingEvidence: string[] = [];
+          if (requiresLocalEvidence && !hasLocalEvidence) missingEvidence.push('evidencia local dentro de la app o computadora');
+          if (requiresRemoteEvidence && !hasRemoteEvidence) missingEvidence.push('evidencia remota de web, nube o repositorio');
+
+          response = await chatSession.sendMessage(
+            `ERROR: Aun no reuniste ${missingEvidence.join(' y ')}. NO cierres la tarea con texto. Usa herramientas para obtener la evidencia faltante antes de responder al usuario.`,
+          );
+          continue;
+        }
 
         // If first iteration + action request + model just said "done" without calling tools → force retry
         if (iterations === 1 && isActionRequest && finalText.trim()) {
@@ -1317,6 +1380,17 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
 
       // Execute function calls (delegated to whatsapp-tool-executor.ts)
       const toolNames = functionCalls.map((part: any) => part.functionCall?.name).filter(Boolean);
+      const evidenceModes = functionCalls.map((part: any) => getEvidenceModeFromToolCall({
+        name: part.functionCall?.name,
+        args: part.functionCall?.args || {},
+      }));
+      const remoteOnlyAttempt = evidenceModes.length > 0 && evidenceModes.every((mode) => mode === 'remote');
+      if (requiresLocalEvidence && !hasLocalEvidence && remoteOnlyAttempt) {
+        response = await chatSession.sendMessage(
+          'ERROR: El usuario pidio validacion local y estas intentando usar solo evidencia web/remota. Primero inspecciona la app o la computadora local y despues continua.',
+        );
+        continue;
+      }
       const toolSignature = stableJson(
         functionCalls.map((part: any) => ({
           name: part.functionCall?.name,
@@ -1366,6 +1440,18 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
       const { responses: functionResponses, bulkLabelsToVerify } = await executeWhatsAppTools(
         functionCalls, toolCtx, jid, senderNumber, isGroup,
       );
+
+      functionCalls.forEach((part: any, index: number) => {
+        const toolName = part.functionCall?.name;
+        const toolArgs = part.functionCall?.args || {};
+        const toolResult = functionResponses[index]?.functionResponse?.response;
+        const toolFailed = toolResult?.success === false || typeof toolResult?.error === 'string';
+        if (!toolName || toolFailed) return;
+
+        const evidenceMode = getEvidenceModeFromToolCall({ name: toolName, args: toolArgs });
+        if (evidenceMode === 'local') hasLocalEvidence = true;
+        if (evidenceMode === 'remote') hasRemoteEvidence = true;
+      });
 
       const responseSummary = summarizeFunctionResponses(functionResponses);
       const responseSignature = stableJson(responseSummary);

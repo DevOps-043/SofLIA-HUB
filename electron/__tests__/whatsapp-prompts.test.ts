@@ -39,6 +39,7 @@ vi.mock('node:child_process', () => ({
 
 import {
   buildSystemPrompt,
+  classifyEvidenceRequirement,
   detectActionRequest,
   formatForWhatsApp,
 } from '../whatsapp-prompts';
@@ -65,6 +66,7 @@ describe('WhatsApp Prompts', () => {
     expect(prompt).toContain('GMAIL');
     expect(prompt).toContain('GOOGLE DRIVE');
     expect(prompt).toContain('execute_command');
+    expect(prompt).toContain('FUENTES DE EVIDENCIA');
   });
 
   // WA-146: El system prompt incluye reglas de seguridad (reglas de grupo, confirmación)
@@ -110,6 +112,7 @@ describe('WhatsApp Prompts', () => {
   // WA-150: Todas las constantes/funciones exportadas son del tipo correcto
   it('WA-150: todas las exportaciones del módulo son funciones válidas', () => {
     expect(typeof buildSystemPrompt).toBe('function');
+    expect(typeof classifyEvidenceRequirement).toBe('function');
     expect(typeof detectActionRequest).toBe('function');
     expect(typeof formatForWhatsApp).toBe('function');
 
@@ -120,6 +123,16 @@ describe('WhatsApp Prompts', () => {
     // formatForWhatsApp devuelve string
     const formatted = formatForWhatsApp('texto de prueba');
     expect(typeof formatted).toBe('string');
+  });
+
+  it('WA-152: clasifica una verificación local de forma genérica', () => {
+    expect(classifyEvidenceRequirement('Revisa en la aplicación si el cambio está guardado localmente')).toBe('local');
+    expect(classifyEvidenceRequirement('Solo abre la aplicación')).toBe('none');
+  });
+
+  it('WA-153: clasifica comparaciones entre entorno local y remoto', () => {
+    expect(classifyEvidenceRequirement('Revisa en la computadora que no haya nada local y que todo esté en GitHub')).toBe('local_then_remote');
+    expect(classifyEvidenceRequirement('Confirma en GitHub si ya está subido')).toBe('remote');
   });
 
   // WA-151: La longitud del prompt es sustancial (>500 caracteres)

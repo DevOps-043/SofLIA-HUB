@@ -32,6 +32,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 - **Sesion cruzada entre computadoras endurecida:** La app ya no puede quedar operando con una sesion hibrida invalida entre SOFIA y Lia al momento de guardar o leer conversaciones.
 - **Chat en desarrollo estabilizado:** Se corrigio una carrera de hidratacion inicial que podia sobreescribir `currentMessages` y ocultar la respuesta de SofLIA en `npm run dev`.
 - **Disparo duplicado de prompts externos corregido:** Se ajusto la ejecucion de `externalPrompt` para evitar prompts dobles e inconsistencias de chat en desarrollo.
+- **Interpretacion de evidencia local vs remota en WhatsApp:** El agente ahora clasifica de forma generica si la instruccion exige evidencia local, remota o comparativa, y bloquea respuestas que intenten cerrar una verificacion local usando solo GitHub o la web.
+- **Version del login alineada al release real:** El footer de autenticacion ya no usa un numero hardcodeado; ahora muestra la version tomada directamente de `package.json`.
 
 ## [0.1.14] - 2026-03-19
 
