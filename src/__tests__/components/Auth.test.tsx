@@ -37,6 +37,8 @@ vi.mock('../../contexts/AuthContext', () => ({
     signOut: vi.fn(),
     usingSofia: true,
     sofiaContext: null,
+    liaDegraded: false,
+    liaStatusMessage: null,
     setCurrentOrganization: vi.fn(),
     setCurrentTeam: vi.fn(),
   }),

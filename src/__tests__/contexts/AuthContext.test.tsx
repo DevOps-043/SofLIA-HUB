@@ -94,6 +94,7 @@ describe('AuthContext', () => {
     expect(result.current.loading).toBe(true);
     expect(result.current.user).toBeNull();
     expect(result.current.session).toBeNull();
+    expect(result.current.liaDegraded).toBe(false);
   });
 
   // AUTH-002: Sign-in sets user
@@ -175,7 +176,7 @@ describe('AuthContext', () => {
     });
   });
 
-  it('AUTH-006: Lia config errors are sanitized for UI', async () => {
+  it('AUTH-006: Lia config errors enter degraded mode without blocking access', async () => {
     vi.mocked(getSupabaseConfigError).mockReturnValue('VITE_SUPABASE_ANON_KEY invalida');
 
     const mockUser = { id: 'sofia-user-1', email: 'test@soflia.com', user_metadata: { first_name: 'Test' } };
@@ -201,9 +202,12 @@ describe('AuthContext', () => {
       signInResult = await result.current.signInWithSofia('test@soflia.com', 'password123');
     });
 
-    expect(signInResult.success).toBe(false);
-    expect(signInResult.error).toContain('configuracion interna pendiente');
-    expect(signInResult.error).not.toContain('VITE_SUPABASE');
-    expect(signInResult.error).not.toContain('test-project-ref');
+    expect(signInResult.success).toBe(true);
+    expect(signInResult.error).toBeUndefined();
+    expect(result.current.user?.id).toBe('sofia-user-1');
+    expect(result.current.liaDegraded).toBe(true);
+    expect(result.current.liaStatusMessage).toContain('modo local');
+    expect(result.current.liaStatusMessage).not.toContain('VITE_SUPABASE');
+    expect(result.current.liaStatusMessage).not.toContain('test-project-ref');
   });
 });

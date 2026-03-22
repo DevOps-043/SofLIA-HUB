@@ -4,6 +4,18 @@ Todos los cambios notables de SofLIA Hub se documentan aquí.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.1.18] - 2026-03-21
+
+### Changed
+
+- **Acceso resiliente cuando Lia falla:** SOFIA ya no bloquea por completo la entrada a la app si el modulo de conversaciones sincronizadas no puede iniciarse; ahora entra en modo degradado con aviso visible dentro de la interfaz.
+
+### Fixed
+
+- **Login menos fragil ante fallas internas de Lia:** Se elimino el bloqueo total de autenticacion cuando la configuracion de Lia esta rota, permitiendo que la app abra con el contexto principal de SOFIA.
+- **Carpetas funcionales en modo local:** Las carpetas ahora tienen fallback local cuando Lia no esta disponible, evitando una experiencia parcialmente rota en modo degradado.
+- **Cobertura de autenticacion ajustada al nuevo flujo:** Se actualizaron las pruebas de `AuthContext` y `Auth` para validar el acceso en modo degradado y el saneamiento de errores hacia la UI.
+
 ## [0.1.17] - 2026-03-21
 
 ### Fixed

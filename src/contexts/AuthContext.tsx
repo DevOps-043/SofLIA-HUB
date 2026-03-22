@@ -14,6 +14,8 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   usingSofia: boolean;
   sofiaContext: SofiaContext | null;
+  liaDegraded: boolean;
+  liaStatusMessage: string | null;
   signInWithSofia: (email: string, password: string) => Promise<SofiaAuthResult>;
   setCurrentOrganization: (orgId: string) => void;
   setCurrentTeam: (teamId: string) => void;
@@ -26,6 +28,8 @@ const AuthContext = createContext<AuthContextType>({
   signOut: async () => {},
   usingSofia: false,
   sofiaContext: null,
+  liaDegraded: false,
+  liaStatusMessage: null,
   signInWithSofia: async () => ({ success: false, user: null, session: null, error: 'Not initialized' }),
   setCurrentOrganization: () => {},
   setCurrentTeam: () => {},
@@ -72,11 +76,17 @@ function mapLiaAuthError(message: string): string {
   return message;
 }
 
+function getLiaDegradedMessage(): string {
+  return 'SofLIA inicio en modo local porque el modulo de conversaciones sincronizadas no esta disponible en esta instalacion. Puedes seguir usando la app, pero chats y carpetas pueden no sincronizarse en la nube hasta corregir Lia.';
+}
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<AuthUser>(null);
   const [loading, setLoading] = useState(true);
   const [sofiaContext, setSofiaContext] = useState<SofiaContext | null>(null);
+  const [liaDegraded, setLiaDegraded] = useState(false);
+  const [liaStatusMessage, setLiaStatusMessage] = useState<string | null>(null);
 
   const usingSofia = isSofiaConfigured();
 
@@ -84,6 +94,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setSession(null);
     setUser(null);
     setSofiaContext(null);
+    setLiaDegraded(false);
+    setLiaStatusMessage(null);
+  }, []);
+
+  const enterLiaDegradedMode = useCallback((nextUser: SofiaAuthUser, nextSofiaContext: SofiaContext | null, logReason?: string) => {
+    if (logReason) {
+      console.warn('Entering Lia degraded mode:', logReason);
+    }
+
+    setSession(null);
+    setUser(nextUser);
+    setSofiaContext(nextSofiaContext);
+    setLiaDegraded(true);
+    setLiaStatusMessage(getLiaDegradedMessage());
   }, []);
 
   const signOut = useCallback(async () => {
@@ -214,16 +238,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             return;
           }
 
+          const configError = getSupabaseConfigError();
+          if (configError) {
+            console.error('Lia configuration error during session restore:', {
+              projectRef: getSupabaseProjectRef(SUPABASE.URL),
+              reason: configError,
+            });
+            enterLiaDegradedMode(toAuthUser(sofiaSession.user, sofiaSession.user.user_metadata), nextSofiaContext, configError);
+            return;
+          }
+
           const { data: { session: liaSession } } = await supabase.auth.getSession();
           if (!liaSession?.user) {
-            console.warn('SOFIA session encontrada sin sesion de Lia. Se requiere reautenticacion.');
-            await signOut();
+            enterLiaDegradedMode(
+              toAuthUser(sofiaSession.user, sofiaSession.user.user_metadata),
+              nextSofiaContext,
+              'SOFIA session encontrada sin sesion de Lia',
+            );
             return;
           }
 
           setSession(liaSession);
           setUser(toAuthUser(liaSession.user, sofiaSession.user.user_metadata));
           setSofiaContext(nextSofiaContext);
+          setLiaDegraded(false);
+          setLiaStatusMessage(null);
           return;
         }
 
@@ -291,7 +330,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       unsubscribe?.();
     };
-  }, [clearSessionState, resolveSofiaContext, signOut, usingSofia]);
+  }, [clearSessionState, enterLiaDegradedMode, resolveSofiaContext, signOut, usingSofia]);
 
   const signInWithSofia = useCallback(async (emailOrUsername: string, password: string): Promise<SofiaAuthResult> => {
     const result = await sofiaAuth.signInWithSofia(emailOrUsername, password);
@@ -311,24 +350,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const liaSessionResult = await establishLiaSession(result, password);
     if ('error' in liaSessionResult) {
-      await signOut();
+      enterLiaDegradedMode(result.user, nextSofiaContext, liaSessionResult.error);
       return {
         ...result,
-        success: false,
-        error: liaSessionResult.error,
+        success: true,
+        error: undefined,
+        session: null,
       };
     }
 
     setSession(liaSessionResult.session);
     setUser(liaSessionResult.user);
     setSofiaContext(nextSofiaContext);
+    setLiaDegraded(false);
+    setLiaStatusMessage(null);
 
     return {
       ...result,
       session: liaSessionResult.session,
       user: liaSessionResult.user,
     };
-  }, [establishLiaSession, signOut]);
+  }, [enterLiaDegradedMode, establishLiaSession]);
 
   const setCurrentOrganization = (orgId: string) => {
     if (sofiaContext) {
@@ -361,6 +403,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signOut,
     usingSofia,
     sofiaContext,
+    liaDegraded,
+    liaStatusMessage,
     signInWithSofia,
     setCurrentOrganization,
     setCurrentTeam,
