@@ -67,6 +67,8 @@ const POLL_LIKE_TOOLS = new Set([
 
 const LOCAL_EVIDENCE_TOOLS = new Set([
   'use_computer',
+  'take_screenshot',
+  'take_screenshot_and_send',
   'execute_command',
   'read_file',
   'list_directory',
@@ -74,6 +76,12 @@ const LOCAL_EVIDENCE_TOOLS = new Set([
   'search_files',
   'semantic_file_search',
   'get_file_info',
+]);
+
+const LOCAL_VISUAL_EVIDENCE_TOOLS = new Set([
+  'use_computer',
+  'take_screenshot',
+  'take_screenshot_and_send',
 ]);
 
 const REMOTE_EVIDENCE_TOOLS = new Set([
@@ -91,7 +99,7 @@ interface ToolLoopTraceEntry {
   hadFailure: boolean;
 }
 
-type EvidenceMode = 'local' | 'remote' | 'neutral';
+type EvidenceMode = 'local' | 'local_visual' | 'remote' | 'neutral';
 
 function getEvidenceModeFromToolCall(functionCall: { name?: string; args?: Record<string, any> }): EvidenceMode {
   const toolName = functionCall.name || '';
@@ -106,7 +114,11 @@ function getEvidenceModeFromToolCall(functionCall: { name?: string; args?: Recor
     if (backend === 'browser' || urlLikeArg.length > 0) {
       return 'remote';
     }
-    return 'local';
+    return 'local_visual';
+  }
+
+  if (LOCAL_VISUAL_EVIDENCE_TOOLS.has(toolName)) {
+    return 'local_visual';
   }
 
   if (LOCAL_EVIDENCE_TOOLS.has(toolName)) {
@@ -1131,11 +1143,17 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
     // Detectar si el usuario pide una acción para reforzar tool calling vía prompt
     const isActionRequest = detectActionRequest(userMessage);
     const evidenceRequirement = classifyEvidenceRequirement(userMessage);
-    const requiresLocalEvidence = evidenceRequirement === 'local' || evidenceRequirement === 'local_then_remote';
-    const requiresRemoteEvidence = evidenceRequirement === 'remote' || evidenceRequirement === 'local_then_remote';
+    const requiresLocalVisualEvidence =
+      evidenceRequirement === 'local_visual' || evidenceRequirement === 'local_visual_then_remote';
+    const requiresLocalEvidence =
+      requiresLocalVisualEvidence || evidenceRequirement === 'local' || evidenceRequirement === 'local_then_remote';
+    const requiresRemoteEvidence =
+      evidenceRequirement === 'remote'
+      || evidenceRequirement === 'local_then_remote'
+      || evidenceRequirement === 'local_visual_then_remote';
 
     if (evidenceRequirement !== 'none') {
-      systemPrompt += `\n\n═══ VALIDACION DE EVIDENCIA ═══\nEl usuario pide una verificacion con requirement="${evidenceRequirement}". Debes reunir evidencia del entorno correcto antes de concluir.\n- local: necesitas inspeccion real en la computadora o dentro de la aplicacion correcta.\n- remote: necesitas evidencia de web, nube, repositorio o sistema remoto.\n- local_then_remote: primero valida localmente y luego contrasta lo remoto.\nNunca afirmes que revisaste una app local si solo consultaste GitHub, una pagina web o un repositorio remoto.`;
+      systemPrompt += `\n\n═══ VALIDACION DE EVIDENCIA ═══\nEl usuario pide una verificacion con requirement="${evidenceRequirement}". Debes reunir evidencia del entorno correcto antes de concluir.\n- local: necesitas evidencia local real en la computadora.\n- local_visual: necesitas evidencia VISUAL real dentro de la app, ventana o pantalla correcta.\n- remote: necesitas evidencia de web, nube, repositorio o sistema remoto.\n- local_then_remote: primero valida localmente y luego contrasta lo remoto.\n- local_visual_then_remote: primero valida visualmente dentro de la app correcta y luego contrasta lo remoto.\nSi el usuario pide revisar en la aplicacion, en la ventana o en pantalla, los comandos, archivos o Git no sustituyen una inspeccion visual. Nunca afirmes que revisaste una app local si solo consultaste GitHub, una pagina web, shell o un repositorio remoto.`;
     }
 
     const model = ai.getGenerativeModel({
@@ -1248,6 +1266,7 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
     const toolLoopTrace: ToolLoopTraceEntry[] = [];
     let loopGuardInterventions = 0;
     let hasLocalEvidence = false;
+    let hasLocalVisualEvidence = false;
     let hasRemoteEvidence = false;
 
     while (iterations < MAX_ITERATIONS) {
@@ -1301,8 +1320,9 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
         const textParts = parts.filter((p: any) => p.text).map((p: any) => p.text);
         const finalText = textParts.join('');
 
-        if ((requiresLocalEvidence && !hasLocalEvidence) || (requiresRemoteEvidence && !hasRemoteEvidence)) {
+        if ((requiresLocalVisualEvidence && !hasLocalVisualEvidence) || (requiresLocalEvidence && !hasLocalEvidence) || (requiresRemoteEvidence && !hasRemoteEvidence)) {
           const missingEvidence: string[] = [];
+          if (requiresLocalVisualEvidence && !hasLocalVisualEvidence) missingEvidence.push('evidencia visual local dentro de la app o ventana correcta');
           if (requiresLocalEvidence && !hasLocalEvidence) missingEvidence.push('evidencia local dentro de la app o computadora');
           if (requiresRemoteEvidence && !hasRemoteEvidence) missingEvidence.push('evidencia remota de web, nube o repositorio');
 
@@ -1385,9 +1405,18 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
         args: part.functionCall?.args || {},
       }));
       const remoteOnlyAttempt = evidenceModes.length > 0 && evidenceModes.every((mode) => mode === 'remote');
+      const localOnlyAttempt = evidenceModes.length > 0 && evidenceModes.every((mode) => mode === 'local');
+      const visualLocalAttempt = evidenceModes.some((mode) => mode === 'local_visual');
+      const nonVisualEvidenceAttempt = evidenceModes.some((mode) => mode === 'local' || mode === 'remote');
       if (requiresLocalEvidence && !hasLocalEvidence && remoteOnlyAttempt) {
         response = await chatSession.sendMessage(
           'ERROR: El usuario pidio validacion local y estas intentando usar solo evidencia web/remota. Primero inspecciona la app o la computadora local y despues continua.',
+        );
+        continue;
+      }
+      if (requiresLocalVisualEvidence && !hasLocalVisualEvidence && !visualLocalAttempt && nonVisualEvidenceAttempt && (remoteOnlyAttempt || localOnlyAttempt || nonVisualEvidenceAttempt)) {
+        response = await chatSession.sendMessage(
+          'ERROR: El usuario pidio revisar visualmente la aplicacion o ventana correcta. No basta con shell, archivos o Git. Usa evidencia visual real con use_computer o captura de pantalla antes de concluir.',
         );
         continue;
       }
@@ -1450,6 +1479,10 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
 
         const evidenceMode = getEvidenceModeFromToolCall({ name: toolName, args: toolArgs });
         if (evidenceMode === 'local') hasLocalEvidence = true;
+        if (evidenceMode === 'local_visual') {
+          hasLocalVisualEvidence = true;
+          hasLocalEvidence = true;
+        }
         if (evidenceMode === 'remote') hasRemoteEvidence = true;
       });
 

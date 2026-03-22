@@ -584,13 +584,17 @@ RESPONDE SOLO JSON valido:
     const element = snapshot.elements.find((candidate) => candidate.id === elementId);
     if (!element) return null;
 
+    const centerX = element.boundingRect.x + (element.boundingRect.width / 2);
+    const centerY = element.boundingRect.y + (element.boundingRect.height / 2);
+    const mapped = this.desktopAgent.mapDesktopPointToScreenshotPoint(centerX, centerY);
+    if (mapped) {
+      return mapped;
+    }
+
     const primary = electronScreen.getPrimaryDisplay();
     const screenWidth = primary.size.width || 1920;
     const screenHeight = primary.size.height || 1080;
     const config = this.desktopAgent.getConfig();
-    const centerX = element.boundingRect.x + (element.boundingRect.width / 2);
-    const centerY = element.boundingRect.y + (element.boundingRect.height / 2);
-
     return {
       x: centerX / (screenWidth / config.screenshotWidth),
       y: centerY / (screenHeight / config.screenshotHeight),

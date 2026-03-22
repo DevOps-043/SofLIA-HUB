@@ -36,9 +36,6 @@ const supabaseMocks = vi.hoisted(() => ({
   onAuthStateChange: vi.fn(() => ({
     data: { subscription: { unsubscribe: vi.fn() } },
   })),
-  signInWithPassword: vi.fn(),
-  signUp: vi.fn(),
-  getSupabaseConfigError: vi.fn(() => null),
 }));
 
 vi.mock('../../lib/supabase', () => ({
@@ -47,13 +44,9 @@ vi.mock('../../lib/supabase', () => ({
       signOut: supabaseMocks.signOut,
       getSession: supabaseMocks.getSession,
       onAuthStateChange: supabaseMocks.onAuthStateChange,
-      signInWithPassword: supabaseMocks.signInWithPassword,
-      signUp: supabaseMocks.signUp,
     },
   },
   isSupabaseConfigured: vi.fn(() => true),
-  getSupabaseConfigError: supabaseMocks.getSupabaseConfigError,
-  getSupabaseProjectRef: vi.fn(() => 'test-project-ref'),
 }));
 
 vi.mock('../../lib/sofia-client', () => ({
@@ -68,7 +61,6 @@ vi.mock('../../config', () => ({
 
 // Import after mocks
 import { AuthProvider, useAuth } from '../../contexts/AuthContext';
-import { getSupabaseConfigError } from '../../lib/supabase';
 
 function createWrapper() {
   return ({ children }: { children: React.ReactNode }) => (
@@ -80,7 +72,6 @@ describe('AuthContext', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sofiaMocks.getSession.mockResolvedValue(null);
-    supabaseMocks.getSupabaseConfigError.mockReturnValue(null);
     sofiaMocks.onAuthStateChange.mockReturnValue({
       data: { subscription: { unsubscribe: vi.fn() } },
     });
@@ -113,14 +104,6 @@ describe('AuthContext', () => {
       user: mockUser,
       session: { access_token: 'token' },
       sofiaProfile: mockProfile,
-    });
-
-    supabaseMocks.signInWithPassword.mockResolvedValue({
-      data: {
-        session: { access_token: 'lia-token', user: { id: 'lia-1', email: 'test@soflia.com' } },
-        user: { id: 'lia-1', email: 'test@soflia.com' },
-      },
-      error: null,
     });
 
     const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
@@ -176,9 +159,7 @@ describe('AuthContext', () => {
     });
   });
 
-  it('AUTH-006: Lia config errors enter degraded mode without blocking access', async () => {
-    vi.mocked(getSupabaseConfigError).mockReturnValue('VITE_SUPABASE_ANON_KEY invalida');
-
+  it('AUTH-006: optional Lia session failures do not block SOFIA access', async () => {
     const mockUser = { id: 'sofia-user-1', email: 'test@soflia.com', user_metadata: { first_name: 'Test' } };
     const mockProfile = {
       id: 'sofia-user-1',
@@ -194,6 +175,7 @@ describe('AuthContext', () => {
       session: { access_token: 'token' },
       sofiaProfile: mockProfile,
     });
+    supabaseMocks.getSession.mockRejectedValueOnce(new Error('Invalid API key'));
 
     const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
 
@@ -205,9 +187,7 @@ describe('AuthContext', () => {
     expect(signInResult.success).toBe(true);
     expect(signInResult.error).toBeUndefined();
     expect(result.current.user?.id).toBe('sofia-user-1');
-    expect(result.current.liaDegraded).toBe(true);
-    expect(result.current.liaStatusMessage).toContain('modo local');
-    expect(result.current.liaStatusMessage).not.toContain('VITE_SUPABASE');
-    expect(result.current.liaStatusMessage).not.toContain('test-project-ref');
+    expect(result.current.liaDegraded).toBe(false);
+    expect(result.current.liaStatusMessage).toBeNull();
   });
 });

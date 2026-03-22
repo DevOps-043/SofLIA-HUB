@@ -22,7 +22,7 @@ import { GOOGLE_API_KEY } from "./config";
 type ActiveView = "chat" | "project" | "productivity";
 
 function AppContent() {
-  const { user, loading, signOut, sofiaContext, liaDegraded, liaStatusMessage } = useAuth();
+  const { user, loading, signOut, sofiaContext } = useAuth();
   const [activeView, setActiveView] = useState<ActiveView>("chat");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [externalPrompt, setExternalPrompt] = useState<string | null>(null);
@@ -243,12 +243,7 @@ function AppContent() {
 
   // ── Render ─────────────────────────────────────────────────────────
   return (
-    <div className="relative flex h-screen w-screen overflow-hidden bg-background dark:bg-background-dark">
-      {liaDegraded && liaStatusMessage && (
-        <div className="absolute top-3 left-1/2 z-50 w-[min(720px,calc(100%-24px))] -translate-x-1/2 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-xs text-amber-100 shadow-xl backdrop-blur-md">
-          {liaStatusMessage}
-        </div>
-      )}
+    <div className="flex h-screen w-screen overflow-hidden bg-background dark:bg-background-dark">
       <Sidebar
         isOpen={isSidebarOpen}
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}

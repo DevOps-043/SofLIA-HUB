@@ -126,13 +126,18 @@ describe('WhatsApp Prompts', () => {
   });
 
   it('WA-152: clasifica una verificación local de forma genérica', () => {
-    expect(classifyEvidenceRequirement('Revisa en la aplicación si el cambio está guardado localmente')).toBe('local');
+    expect(classifyEvidenceRequirement('Revisa en la aplicación si el cambio está guardado localmente')).toBe('local_visual');
     expect(classifyEvidenceRequirement('Solo abre la aplicación')).toBe('none');
   });
 
   it('WA-153: clasifica comparaciones entre entorno local y remoto', () => {
     expect(classifyEvidenceRequirement('Revisa en la computadora que no haya nada local y que todo esté en GitHub')).toBe('local_then_remote');
     expect(classifyEvidenceRequirement('Confirma en GitHub si ya está subido')).toBe('remote');
+  });
+
+  it('WA-154: distingue cuando la revisión local debe ser visual dentro de la app', () => {
+    expect(classifyEvidenceRequirement('En la aplicación de Antigravity revisa que no haya nada local y que todo esté en GitHub')).toBe('local_visual_then_remote');
+    expect(classifyEvidenceRequirement('Verifica visualmente en la ventana principal si ya quedó guardado')).toBe('local_visual');
   });
 
   // WA-151: La longitud del prompt es sustancial (>500 caracteres)

@@ -45,6 +45,32 @@ type DesktopTaskExecutionOptions = {
   resetBrowserProfile?: boolean;
 };
 
+type ScreenshotVirtualBounds = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+type ScreenshotDisplayRegion = {
+  displayId: string;
+  bounds: ScreenshotVirtualBounds;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+type ScreenshotLayout = {
+  screenshotWidth: number;
+  screenshotHeight: number;
+  offsetX: number;
+  offsetY: number;
+  renderScale: number;
+  virtualBounds: ScreenshotVirtualBounds;
+  displayRegions: ScreenshotDisplayRegion[];
+};
+
 // Sharp: native module that must be loaded via require() (not ES import)
 // Uses createRequire to get a working require() in ESM context
 let sharpModule: any = null;
@@ -80,6 +106,7 @@ export class DesktopAgentService extends EventEmitter {
   private captureMode: 'som' | 'grid' = 'grid';
   private lastActualScreenshotWidth = 0;
   private lastActualScreenshotHeight = 0;
+  private lastScreenshotLayout: ScreenshotLayout | null = null;
 
   // ─── Multi-Agent Registry ─────────────────────────────────────────
   private activeTasks: Map<string, AgentTask> = new Map();
@@ -292,6 +319,26 @@ export class DesktopAgentService extends EventEmitter {
   // ─── Screenshot ───────────────────────────────────────────────────
 
   async takeScreenshot(fullRes = false): Promise<string> {
+    const captureTarget = fullRes
+      ? { width: 1920, height: 1080 }
+      : { width: this.config.screenshotWidth, height: this.config.screenshotHeight };
+    const captured = await this.captureCompositeScreenshot(captureTarget.width, captureTarget.height);
+    const capturedBase64 = captured.base64;
+
+    if (!fullRes) {
+      this.updateScreenScale(captured.actualWidth, captured.actualHeight);
+    }
+
+    if (this.config.gridEnabled && !fullRes) {
+      try {
+        return await this.applyGridOverlay(capturedBase64, captured.actualWidth, captured.actualHeight);
+      } catch (err: any) {
+        console.warn(`[DesktopAgent] Grid overlay fallÃ³, usando raw:`, err.message);
+        return capturedBase64;
+      }
+    }
+    return capturedBase64;
+
     const size = fullRes
       ? { width: 1920, height: 1080 }
       : { width: this.config.screenshotWidth, height: this.config.screenshotHeight };
@@ -351,6 +398,13 @@ export class DesktopAgentService extends EventEmitter {
 
   // Raw screenshot without overlays
   private async takeScreenshotRaw(): Promise<string> {
+    const composite = await this.captureCompositeScreenshot(
+      this.config.screenshotWidth,
+      this.config.screenshotHeight,
+    );
+    this.updateScreenScale(composite.actualWidth, composite.actualHeight);
+    return composite.base64;
+
     const size = { width: this.config.screenshotWidth, height: this.config.screenshotHeight };
     const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: size });
     if (sources.length === 0) throw new Error('No se encontraron pantallas.');
@@ -398,15 +452,14 @@ export class DesktopAgentService extends EventEmitter {
       MenuItem: '#f97316', ComboBox: '#a855f7', ListItem: '#06b6d4',
       Link: '#ec4899', CheckBox: '#eab308', RadioButton: '#eab308',
     };
-    const scaleX = width / (electronScreen?.getPrimaryDisplay()?.size?.width || 1920);
-    const scaleY = height / (electronScreen?.getPrimaryDisplay()?.size?.height || 1080);
-
     let svgElements = '';
     for (const el of elements.slice(0, 30)) { // Max 30 markers to avoid clutter
-      const bx = Math.round(el.boundingRect.x * scaleX);
-      const by = Math.round(el.boundingRect.y * scaleY);
-      const bw = Math.max(Math.round(el.boundingRect.width * scaleX), 8);
-      const bh = Math.max(Math.round(el.boundingRect.height * scaleY), 8);
+      const mappedRect = this.mapDesktopRectToScreenshotRect(el.boundingRect);
+      if (!mappedRect) continue;
+      const bx = Math.round(mappedRect.x);
+      const by = Math.round(mappedRect.y);
+      const bw = Math.max(Math.round(mappedRect.width), 8);
+      const bh = Math.max(Math.round(mappedRect.height), 8);
       const color = colorMap[el.controlType] || '#ef4444';
 
       svgElements += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" fill="none" stroke="${color}" stroke-width="2" rx="2"/>`;
@@ -421,6 +474,50 @@ export class DesktopAgentService extends EventEmitter {
 
   // V2: Zoom into a specific region at high resolution
   async takeZoomScreenshot(centerX: number, centerY: number, radius = 150): Promise<string> {
+    if (!sharpModule) {
+      console.warn('[DesktopAgent] Zoom requiere sharp â€” retornando screenshot completo');
+      return this.takeScreenshotRaw();
+    }
+    const zoomDipPoint = this.mapScreenshotToDipPoint(centerX, centerY);
+    const zoomCapture = await this.captureCompositeScreenshot(1920, 1080);
+    const zoomBuffer = Buffer.from(zoomCapture.base64, 'base64');
+    const zoomMeta = await sharpModule(zoomBuffer).metadata();
+    const zoomFullW = zoomMeta.width || 1920;
+    const zoomFullH = zoomMeta.height || 1080;
+    const zoomMappedPoint = zoomDipPoint
+      ? this.mapDipPointToScreenshotPoint(zoomDipPoint.x, zoomDipPoint.y, zoomCapture.layout)
+      : null;
+    const zoomFx = Math.round(zoomMappedPoint?.x ?? (zoomFullW / 2));
+    const zoomFy = Math.round(zoomMappedPoint?.y ?? (zoomFullH / 2));
+    const zoomFr = Math.round((radius / this.config.screenshotWidth) * zoomFullW);
+
+    const zoomLeft = Math.max(0, zoomFx - zoomFr);
+    const zoomTop = Math.max(0, zoomFy - zoomFr);
+    const zoomCropW = Math.min(zoomFr * 2, zoomFullW - zoomLeft);
+    const zoomCropH = Math.min(zoomFr * 2, zoomFullH - zoomTop);
+
+    const zoomOutputSize = this.config.zoomResolution;
+    let zoomCropped = await sharpModule(zoomBuffer)
+      .extract({ left: zoomLeft, top: zoomTop, width: zoomCropW, height: zoomCropH })
+      .resize(zoomOutputSize, zoomOutputSize, { fit: 'fill' })
+      .toBuffer();
+
+    const zoomFineStep = 25;
+    let zoomFineGrid = '';
+    for (let gx = 0; gx < zoomOutputSize; gx += zoomFineStep) {
+      zoomFineGrid += `<line x1="${gx}" y1="0" x2="${gx}" y2="${zoomOutputSize}" stroke="rgba(0, 120, 255, 0.15)" stroke-width="1" />`;
+    }
+    for (let gy = 0; gy < zoomOutputSize; gy += zoomFineStep) {
+      zoomFineGrid += `<line x1="0" y1="${gy}" x2="${zoomOutputSize}" y2="${gy}" stroke="rgba(0, 120, 255, 0.15)" stroke-width="1" />`;
+    }
+    zoomFineGrid += `<line x1="${zoomOutputSize / 2}" y1="0" x2="${zoomOutputSize / 2}" y2="${zoomOutputSize}" stroke="rgba(255, 0, 0, 0.4)" stroke-width="1" />`;
+    zoomFineGrid += `<line x1="0" y1="${zoomOutputSize / 2}" x2="${zoomOutputSize}" y2="${zoomOutputSize / 2}" stroke="rgba(255, 0, 0, 0.4)" stroke-width="1" />`;
+
+    const zoomGridSvg = Buffer.from(`<svg width="${zoomOutputSize}" height="${zoomOutputSize}" xmlns="http://www.w3.org/2000/svg">${zoomFineGrid}</svg>`);
+    zoomCropped = await sharpModule(zoomCropped).composite([{ input: zoomGridSvg, top: 0, left: 0 }]).toBuffer();
+
+    return zoomCropped.toString('base64');
+
     if (!sharpModule) {
       // Without sharp, just return the full screenshot as fallback
       console.warn('[DesktopAgent] Zoom requiere sharp — retornando screenshot completo');
@@ -471,6 +568,220 @@ export class DesktopAgentService extends EventEmitter {
     cropped = await sharpModule(cropped).composite([{ input: gridSvg, top: 0, left: 0 }]).toBuffer();
 
     return cropped.toString('base64');
+  }
+
+  private getVirtualDesktopBounds(): ScreenshotVirtualBounds {
+    const displays = electronScreen.getAllDisplays();
+    if (!displays.length) {
+      return { x: 0, y: 0, width: 1920, height: 1080 };
+    }
+
+    const minX = Math.min(...displays.map((display) => display.bounds.x));
+    const minY = Math.min(...displays.map((display) => display.bounds.y));
+    const maxX = Math.max(...displays.map((display) => display.bounds.x + display.bounds.width));
+    const maxY = Math.max(...displays.map((display) => display.bounds.y + display.bounds.height));
+
+    return {
+      x: minX,
+      y: minY,
+      width: Math.max(1, maxX - minX),
+      height: Math.max(1, maxY - minY),
+    };
+  }
+
+  private buildScreenshotLayout(targetWidth: number, targetHeight: number): ScreenshotLayout {
+    const virtualBounds = this.getVirtualDesktopBounds();
+    const renderScale = Math.min(
+      targetWidth / virtualBounds.width,
+      targetHeight / virtualBounds.height,
+    );
+    const contentWidth = Math.max(1, Math.round(virtualBounds.width * renderScale));
+    const contentHeight = Math.max(1, Math.round(virtualBounds.height * renderScale));
+    const offsetX = Math.max(0, Math.floor((targetWidth - contentWidth) / 2));
+    const offsetY = Math.max(0, Math.floor((targetHeight - contentHeight) / 2));
+
+    return {
+      screenshotWidth: targetWidth,
+      screenshotHeight: targetHeight,
+      offsetX,
+      offsetY,
+      renderScale,
+      virtualBounds,
+      displayRegions: electronScreen.getAllDisplays().map((display) => ({
+        displayId: String(display.id),
+        bounds: {
+          x: display.bounds.x,
+          y: display.bounds.y,
+          width: display.bounds.width,
+          height: display.bounds.height,
+        },
+        left: Math.round((display.bounds.x - virtualBounds.x) * renderScale) + offsetX,
+        top: Math.round((display.bounds.y - virtualBounds.y) * renderScale) + offsetY,
+        width: Math.max(1, Math.round(display.bounds.width * renderScale)),
+        height: Math.max(1, Math.round(display.bounds.height * renderScale)),
+      })),
+    };
+  }
+
+  private async captureCompositeScreenshot(targetWidth: number, targetHeight: number): Promise<{
+    base64: string;
+    layout: ScreenshotLayout;
+    actualWidth: number;
+    actualHeight: number;
+  }> {
+    const thumbnailSize = {
+      width: Math.max(targetWidth, 1600),
+      height: Math.max(targetHeight, 900),
+    };
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize,
+    });
+    if (sources.length === 0) throw new Error('No se encontraron pantallas.');
+
+    const layout = this.buildScreenshotLayout(targetWidth, targetHeight);
+    this.lastScreenshotLayout = layout;
+    this.lastActualScreenshotWidth = targetWidth;
+    this.lastActualScreenshotHeight = targetHeight;
+
+    if (!sharpModule || sources.length === 1) {
+      const fallback = sources[0].thumbnail;
+      const fallbackSize = fallback.getSize();
+      return {
+        base64: fallback.toDataURL().replace(/^data:image\/png;base64,/, ''),
+        layout,
+        actualWidth: fallbackSize.width || targetWidth,
+        actualHeight: fallbackSize.height || targetHeight,
+      };
+    }
+
+    const sourceByDisplayId = new Map<string, any>();
+    for (const source of sources) {
+      if (source.display_id) {
+        sourceByDisplayId.set(String(source.display_id), source);
+      }
+    }
+
+    const orderedSources = [...sources];
+    const composites: Array<{ input: Buffer; left: number; top: number }> = [];
+    for (const [index, region] of layout.displayRegions.entries()) {
+      const source = sourceByDisplayId.get(region.displayId) || orderedSources[index] || orderedSources[0];
+      if (!source?.thumbnail) continue;
+      const resized = await sharpModule(source.thumbnail.toPNG())
+        .resize(region.width, region.height, { fit: 'fill' })
+        .toBuffer();
+      composites.push({
+        input: resized,
+        left: region.left,
+        top: region.top,
+      });
+    }
+
+    const result = await sharpModule({
+      create: {
+        width: targetWidth,
+        height: targetHeight,
+        channels: 4,
+        background: { r: 18, g: 18, b: 18, alpha: 1 },
+      },
+    })
+      .composite(composites)
+      .png()
+      .toBuffer();
+
+    return {
+      base64: result.toString('base64'),
+      layout,
+      actualWidth: targetWidth,
+      actualHeight: targetHeight,
+    };
+  }
+
+  private dipToScreenPoint(point: { x: number; y: number }): { x: number; y: number } {
+    try {
+      const converted = (electronScreen as any).dipToScreenPoint?.({
+        x: Math.round(point.x),
+        y: Math.round(point.y),
+      });
+      if (converted && Number.isFinite(converted.x) && Number.isFinite(converted.y)) {
+        return {
+          x: Math.round(converted.x),
+          y: Math.round(converted.y),
+        };
+      }
+    } catch {
+      // Fallback below.
+    }
+
+    return {
+      x: Math.round(point.x),
+      y: Math.round(point.y),
+    };
+  }
+
+  private screenToDipPoint(point: { x: number; y: number }): { x: number; y: number } {
+    try {
+      const converted = (electronScreen as any).screenToDipPoint?.({
+        x: Math.round(point.x),
+        y: Math.round(point.y),
+      });
+      if (converted && Number.isFinite(converted.x) && Number.isFinite(converted.y)) {
+        return {
+          x: converted.x,
+          y: converted.y,
+        };
+      }
+    } catch {
+      // Fallback below.
+    }
+
+    return { x: point.x, y: point.y };
+  }
+
+  private mapScreenshotToDipPoint(
+    x: number,
+    y: number,
+    layout: ScreenshotLayout | null = this.lastScreenshotLayout,
+  ): { x: number; y: number } | null {
+    if (!layout) return null;
+
+    const relativeX = Math.max(0, Math.min(layout.virtualBounds.width, (x - layout.offsetX) / layout.renderScale));
+    const relativeY = Math.max(0, Math.min(layout.virtualBounds.height, (y - layout.offsetY) / layout.renderScale));
+    return {
+      x: layout.virtualBounds.x + relativeX,
+      y: layout.virtualBounds.y + relativeY,
+    };
+  }
+
+  public mapDipPointToScreenshotPoint(
+    x: number,
+    y: number,
+    layout: ScreenshotLayout | null = this.lastScreenshotLayout,
+  ): { x: number; y: number } | null {
+    if (!layout) return null;
+
+    return {
+      x: ((x - layout.virtualBounds.x) * layout.renderScale) + layout.offsetX,
+      y: ((y - layout.virtualBounds.y) * layout.renderScale) + layout.offsetY,
+    };
+  }
+
+  public mapDesktopPointToScreenshotPoint(x: number, y: number): { x: number; y: number } | null {
+    const dipPoint = this.screenToDipPoint({ x, y });
+    return this.mapDipPointToScreenshotPoint(dipPoint.x, dipPoint.y);
+  }
+
+  public mapDesktopRectToScreenshotRect(rect: { x: number; y: number; width: number; height: number }): { x: number; y: number; width: number; height: number } | null {
+    const topLeft = this.mapDesktopPointToScreenshotPoint(rect.x, rect.y);
+    const bottomRight = this.mapDesktopPointToScreenshotPoint(rect.x + rect.width, rect.y + rect.height);
+    if (!topLeft || !bottomRight) return null;
+
+    return {
+      x: Math.min(topLeft.x, bottomRight.x),
+      y: Math.min(topLeft.y, bottomRight.y),
+      width: Math.max(1, Math.abs(bottomRight.x - topLeft.x)),
+      height: Math.max(1, Math.abs(bottomRight.y - topLeft.y)),
+    };
   }
 
   // V2: Get interactive UI elements using Windows UI Automation
@@ -542,15 +853,13 @@ $result | ConvertTo-Json -Compress -Depth 3
 
   private calculateScreenScale(): void {
     try {
-      const primary = electronScreen.getPrimaryDisplay();
-      const { width, height } = primary.size;
-      const scaleFactor = primary.scaleFactor || 1;
-      // Initial estimate — will be corrected once we take the first screenshot
+      const virtualBounds = this.getVirtualDesktopBounds();
+      this.lastScreenshotLayout = this.buildScreenshotLayout(this.config.screenshotWidth, this.config.screenshotHeight);
       this.screenScale = {
-        scaleX: (width * scaleFactor) / this.config.screenshotWidth,
-        scaleY: (height * scaleFactor) / this.config.screenshotHeight,
+        scaleX: virtualBounds.width / this.config.screenshotWidth,
+        scaleY: virtualBounds.height / this.config.screenshotHeight,
       };
-      console.log(`[DesktopAgent] Escala inicial: pantalla ${width}x${height} (factor ${scaleFactor})`);
+      console.log(`[DesktopAgent] Escala inicial: escritorio virtual ${virtualBounds.width}x${virtualBounds.height}`);
     } catch {
       this.screenScale = { scaleX: 1920 / this.config.screenshotWidth, scaleY: 1080 / this.config.screenshotHeight };
     }
@@ -561,11 +870,10 @@ $result | ConvertTo-Json -Compress -Depth 3
     this.lastActualScreenshotWidth = actualWidth;
     this.lastActualScreenshotHeight = actualHeight;
     try {
-      const primary = electronScreen.getPrimaryDisplay();
-      const { width: screenW, height: screenH } = primary.size;
-      const scaleFactor = primary.scaleFactor || 1;
-      const newScaleX = (screenW * scaleFactor) / actualWidth;
-      const newScaleY = (screenH * scaleFactor) / actualHeight;
+      this.lastScreenshotLayout = this.buildScreenshotLayout(actualWidth, actualHeight);
+      const virtualBounds = this.lastScreenshotLayout.virtualBounds;
+      const newScaleX = virtualBounds.width / actualWidth;
+      const newScaleY = virtualBounds.height / actualHeight;
 
       // Only log on first call or if scale changed
       if (Math.abs(newScaleX - this.screenScale.scaleX) > 0.01 || Math.abs(newScaleY - this.screenScale.scaleY) > 0.01) {
@@ -578,6 +886,10 @@ $result | ConvertTo-Json -Compress -Depth 3
   }
 
   private scale(x: number, y: number): { x: number; y: number } {
+    const dipPoint = this.mapScreenshotToDipPoint(x, y);
+    if (dipPoint) {
+      return this.dipToScreenPoint(dipPoint);
+    }
     return {
       x: Math.round(x * this.screenScale.scaleX),
       y: Math.round(y * this.screenScale.scaleY),
@@ -1646,6 +1958,7 @@ ${this.config.gridEnabled ? `La imagen tiene una grilla roja con coordenadas cad
 REGLAS CRÍTICAS:
 1. MIRA LA PANTALLA PRIMERO: Antes de actuar, describe en "message" QUÉ VES en la pantalla actual.
 2. NO RE-ABRAS apps que ya están abiertas. Si ves la Calculadora ya abierta, NO vuelvas a buscarla.
+2.1. LA CAPTURA PUEDE INCLUIR VARIOS MONITORES: revisa toda la imagen antes de abrir o buscar otra instancia. Si la app ya está visible en otra pantalla, usa focus_window o interactúa con ella.
 3. ANTES DE ESCRIBIR (type): Asegúrate de que la ventana correcta tiene el foco. Si no estás seguro, haz CLICK en la ventana primero.
 4. UN NÚMERO A LA VEZ en calculadoras: Para escribir "389", usa type con "389". Para sumar, haz CLICK en el botón "+", no uses key.
 5. VERIFICACIÓN: Si el historial muestra ⚠️VERIFICACIÓN_FALLÓ, la acción anterior NO tuvo efecto. Intenta diferente: haz click en la ventana para dar foco, o usa coordenadas distintas.
@@ -1963,10 +2276,10 @@ Responde SOLO con JSON valido (sin markdown, sin backticks):
         if (el) {
           const cx = el.boundingRect.x + el.boundingRect.width / 2;
           const cy = el.boundingRect.y + el.boundingRect.height / 2;
-          // UI Automation coords are in physical pixels, scale to screenshot space then back
-          const sx = cx / ((electronScreen?.getPrimaryDisplay()?.size?.width || 1920) / this.config.screenshotWidth);
-          const sy = cy / ((electronScreen?.getPrimaryDisplay()?.size?.height || 1080) / this.config.screenshotHeight);
-          await this.mouseClick(sx, sy);
+          const screenshotPoint = this.mapDesktopPointToScreenshotPoint(cx, cy);
+          if (screenshotPoint) {
+            await this.mouseClick(screenshotPoint.x, screenshotPoint.y);
+          }
         } else if (action.x !== undefined && action.y !== undefined) {
           await this.mouseClick(action.x, action.y); // Fallback to coordinates
         }
@@ -1977,10 +2290,11 @@ Responde SOLO con JSON valido (sin markdown, sin backticks):
         if (tel) {
           const tcx = tel.boundingRect.x + tel.boundingRect.width / 2;
           const tcy = tel.boundingRect.y + tel.boundingRect.height / 2;
-          const tsx = tcx / ((electronScreen?.getPrimaryDisplay()?.size?.width || 1920) / this.config.screenshotWidth);
-          const tsy = tcy / ((electronScreen?.getPrimaryDisplay()?.size?.height || 1080) / this.config.screenshotHeight);
-          await this.mouseClick(tsx, tsy);
-          await this.delay(150);
+          const screenshotPoint = this.mapDesktopPointToScreenshotPoint(tcx, tcy);
+          if (screenshotPoint) {
+            await this.mouseClick(screenshotPoint.x, screenshotPoint.y);
+            await this.delay(150);
+          }
         }
         if (action.text) await this.keyboardType(action.text);
         break;

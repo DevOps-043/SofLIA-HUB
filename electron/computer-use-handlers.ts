@@ -83,6 +83,12 @@ type ApplicationSearchRoot = {
   maxDepth: number;
 };
 
+type ExistingWindowMatch = {
+  pid: number;
+  process: string;
+  title: string;
+};
+
 function normalizeLookupToken(value: string): string {
   return value
     .normalize('NFD')
@@ -377,6 +383,79 @@ async function resolveApplicationTarget(
     ...ranked[0],
     alternatives: ranked.slice(1, 5).map(candidate => candidate.path),
   };
+}
+
+function escapePowerShellSingleQuoted(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
+function buildWindowSearchTokens(requestedPath: string, resolvedPath: string): string[] {
+  const candidates = new Set<string>();
+  const requestedBase = stripLaunchExtension(path.basename((requestedPath || '').trim()));
+  const resolvedBase = stripLaunchExtension(path.basename((resolvedPath || '').trim()));
+
+  for (const candidate of [requestedBase, resolvedBase, requestedPath, resolvedPath]) {
+    const trimmed = String(candidate || '').trim();
+    if (!trimmed) continue;
+    candidates.add(trimmed);
+    candidates.add(trimmed.replace(/[-_]+/g, ' '));
+  }
+
+  return Array.from(candidates)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 2)
+    .slice(0, 8);
+}
+
+async function focusExistingApplicationWindow(
+  requestedPath: string,
+  resolvedPath: string,
+): Promise<ExistingWindowMatch | null> {
+  if (process.platform !== 'win32') return null;
+
+  const tokens = buildWindowSearchTokens(requestedPath, resolvedPath);
+  if (!tokens.length) return null;
+
+  const tokenConditions = tokens
+    .map((token) => {
+      const safe = escapePowerShellSingleQuoted(token);
+      return `$_.ProcessName -like '*${safe}*' -or $_.MainWindowTitle -like '*${safe}*'`;
+    })
+    .join(' -or ');
+
+  if (!tokenConditions) return null;
+
+  const script = `
+Add-Type -Name Win32 -Namespace W -MemberDefinition '
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+'
+$proc = Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and (${tokenConditions}) } | Sort-Object StartTime -Descending | Select-Object -First 1
+if ($proc) {
+  [W.Win32]::ShowWindow($proc.MainWindowHandle, 9) | Out-Null
+  [W.Win32]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null
+  @{ pid = $proc.Id; process = $proc.ProcessName; title = $proc.MainWindowTitle } | ConvertTo-Json -Compress
+}
+`;
+
+  try {
+    const { stdout } = await execAsync(`powershell -NoProfile -Command "${script.replace(/\n/g, '; ').replace(/"/g, '\\"')}"`, {
+      timeout: 4000,
+      windowsHide: true,
+      maxBuffer: 1024 * 128,
+    });
+    const trimmed = (stdout || '').trim();
+    if (!trimmed) return null;
+    const parsed = JSON.parse(trimmed);
+    if (!parsed?.pid) return null;
+    return {
+      pid: Number(parsed.pid) || 0,
+      process: String(parsed.process || ''),
+      title: String(parsed.title || ''),
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function launchPathNonBlocking(
@@ -939,6 +1018,23 @@ export async function executeToolDirect(
             return {
               success: false,
               error: `No pude localizar una aplicacion instalada que coincida con "${requestedPath}". Intenta con el nombre exacto, una ruta completa o primero usa list_directory/search_files para ubicarla.`,
+            };
+          }
+        }
+
+        if (toolName === 'open_application') {
+          const existingWindow = await focusExistingApplicationWindow(requestedPath, resolvedTarget.path);
+          if (existingWindow) {
+            return {
+              success: true,
+              message: `La aplicacion ya estaba abierta y la traje al frente: ${existingWindow.title || existingWindow.process}`,
+              resolvedPath: resolvedTarget.path,
+              resolvedFrom: 'ventana existente',
+              searchedQuery: resolvedTarget.searchedQuery,
+              alternatives: resolvedTarget.alternatives,
+              progress: progressMessages,
+              pid: existingWindow.pid,
+              session_status: 'focused',
             };
           }
         }

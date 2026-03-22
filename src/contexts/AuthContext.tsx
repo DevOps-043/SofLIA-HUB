@@ -1,9 +1,8 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import type { Session, AuthChangeEvent, User } from '@supabase/supabase-js';
-import { getSupabaseConfigError, getSupabaseProjectRef, supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import { isSofiaConfigured } from '../lib/sofia-client';
 import { sofiaAuth, SofiaContext, SofiaAuthResult, SofiaAuthUser } from '../services/sofia-auth';
-import { SUPABASE } from '../config';
 
 type AuthUser = SofiaAuthUser | null;
 
@@ -66,20 +65,6 @@ function buildSofiaContext(profile: any): SofiaContext | null {
   };
 }
 
-function mapLiaAuthError(message: string): string {
-  const normalized = message.toLowerCase();
-
-  if (normalized.includes('invalid api key')) {
-    return 'No se pudo iniciar el modulo de conversaciones de SofLIA por una configuracion interna invalida en esta instalacion. Actualiza la app o contacta al administrador.';
-  }
-
-  return message;
-}
-
-function getLiaDegradedMessage(): string {
-  return 'SofLIA inicio en modo local porque el modulo de conversaciones sincronizadas no esta disponible en esta instalacion. Puedes seguir usando la app, pero chats y carpetas pueden no sincronizarse en la nube hasta corregir Lia.';
-}
-
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<AuthUser>(null);
@@ -96,18 +81,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setSofiaContext(null);
     setLiaDegraded(false);
     setLiaStatusMessage(null);
-  }, []);
-
-  const enterLiaDegradedMode = useCallback((nextUser: SofiaAuthUser, nextSofiaContext: SofiaContext | null, logReason?: string) => {
-    if (logReason) {
-      console.warn('Entering Lia degraded mode:', logReason);
-    }
-
-    setSession(null);
-    setUser(nextUser);
-    setSofiaContext(nextSofiaContext);
-    setLiaDegraded(true);
-    setLiaStatusMessage(getLiaDegradedMessage());
   }, []);
 
   const signOut = useCallback(async () => {
@@ -134,91 +107,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return nextSofiaContext;
   }, []);
 
-  const establishLiaSession = useCallback(async (
-    sofiaResult: SofiaAuthResult,
-    password: string,
-  ): Promise<{ session: Session; user: SofiaAuthUser } | { error: string }> => {
-    const configError = getSupabaseConfigError();
-    if (configError) {
-      console.error('Lia configuration error:', {
-        projectRef: getSupabaseProjectRef(SUPABASE.URL),
-        reason: configError,
-      });
-      return {
-        error: 'No se pudo iniciar el modulo de conversaciones de SofLIA porque esta instalacion tiene una configuracion interna pendiente. Actualiza la app o contacta al administrador.',
-      };
-    }
-
-    const sofiaEmail = sofiaResult.user?.email || sofiaResult.sofiaProfile?.email;
-    if (!sofiaEmail) {
-      return { error: 'No se encontro el correo del usuario para sincronizar con Lia.' };
-    }
-
+  const syncOptionalLiaSession = useCallback(async () => {
     try {
-      const { data: liaAuth, error: liaError } = await supabase.auth.signInWithPassword({
-        email: sofiaEmail,
-        password,
-      });
-
-      if (!liaError && liaAuth.session && liaAuth.user) {
-        return {
-          session: liaAuth.session,
-          user: {
-            id: liaAuth.user.id,
-            email: sofiaEmail,
-            user_metadata: sofiaResult.user?.user_metadata,
-          },
-        };
-      }
-
-      console.log('Usuario no existe en Lia o la sesion fallo, creando...', liaError?.message);
-      if (liaError?.message) {
-        console.warn('Lia auth fallback to signUp:', {
-          projectRef: getSupabaseProjectRef(SUPABASE.URL),
-          reason: liaError.message,
-        });
-      }
-
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: sofiaEmail,
-        password,
-        options: {
-          data: {
-            full_name: sofiaResult.sofiaProfile?.full_name || sofiaResult.user?.user_metadata?.first_name,
-            sofia_user_id: sofiaResult.user?.id,
-          },
-        },
-      });
-
-      if (signUpError) {
-        console.error('Error creando usuario en Lia:', signUpError);
-        return {
-          error: `No se pudo crear la sesion de Lia: ${mapLiaAuthError(signUpError.message)}`,
-        };
-      }
-
-      if (!signUpData.session || !signUpData.user) {
-        return {
-          error: 'Lia requiere una sesion valida para sincronizar conversaciones. Inicia sesion de nuevo.',
-        };
-      }
-
-      return {
-        session: signUpData.session,
-        user: {
-          id: signUpData.user.id,
-          email: sofiaEmail,
-          user_metadata: sofiaResult.user?.user_metadata,
-        },
-      };
-    } catch (err) {
-      console.error('Error sincronizando con Lia Supabase:', err);
-      return {
-        error:
-          err instanceof Error
-            ? mapLiaAuthError(err.message)
-            : 'Error desconocido sincronizando con Lia.',
-      };
+      const { data: { session: liaSession } } = await supabase.auth.getSession();
+      setSession(liaSession ?? null);
+      return liaSession ?? null;
+    } catch (error) {
+      console.warn('No se pudo restaurar la sesion opcional de Lia:', error);
+      setSession(null);
+      return null;
     }
   }, []);
 
@@ -238,31 +135,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             return;
           }
 
-          const configError = getSupabaseConfigError();
-          if (configError) {
-            console.error('Lia configuration error during session restore:', {
-              projectRef: getSupabaseProjectRef(SUPABASE.URL),
-              reason: configError,
-            });
-            enterLiaDegradedMode(toAuthUser(sofiaSession.user, sofiaSession.user.user_metadata), nextSofiaContext, configError);
-            return;
-          }
-
-          const { data: { session: liaSession } } = await supabase.auth.getSession();
-          if (!liaSession?.user) {
-            enterLiaDegradedMode(
-              toAuthUser(sofiaSession.user, sofiaSession.user.user_metadata),
-              nextSofiaContext,
-              'SOFIA session encontrada sin sesion de Lia',
-            );
-            return;
-          }
-
-          setSession(liaSession);
-          setUser(toAuthUser(liaSession.user, sofiaSession.user.user_metadata));
+          setUser(toAuthUser(sofiaSession.user, sofiaSession.user.user_metadata));
           setSofiaContext(nextSofiaContext);
           setLiaDegraded(false);
           setLiaStatusMessage(null);
+          await syncOptionalLiaSession();
           return;
         }
 
@@ -299,17 +176,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             return;
           }
 
-          const { data: { session: liaSession } } = await supabase.auth.getSession();
-          if (!liaSession?.user) {
-            console.warn('Cambio de sesion SOFIA sin sesion de Lia. Se fuerza reautenticacion.');
-            await signOut();
-            setLoading(false);
-            return;
-          }
-
-          setSession(liaSession);
-          setUser(toAuthUser(liaSession.user, sofiaSession.user.user_metadata));
+          setUser(toAuthUser(sofiaSession.user, sofiaSession.user.user_metadata));
           setSofiaContext(nextSofiaContext);
+          setLiaDegraded(false);
+          setLiaStatusMessage(null);
+          await syncOptionalLiaSession();
           setLoading(false);
         },
       );
@@ -330,7 +201,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       unsubscribe?.();
     };
-  }, [clearSessionState, enterLiaDegradedMode, resolveSofiaContext, signOut, usingSofia]);
+  }, [clearSessionState, resolveSofiaContext, signOut, syncOptionalLiaSession, usingSofia]);
 
   const signInWithSofia = useCallback(async (emailOrUsername: string, password: string): Promise<SofiaAuthResult> => {
     const result = await sofiaAuth.signInWithSofia(emailOrUsername, password);
@@ -348,29 +219,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       };
     }
 
-    const liaSessionResult = await establishLiaSession(result, password);
-    if ('error' in liaSessionResult) {
-      enterLiaDegradedMode(result.user, nextSofiaContext, liaSessionResult.error);
-      return {
-        ...result,
-        success: true,
-        error: undefined,
-        session: null,
-      };
-    }
-
-    setSession(liaSessionResult.session);
-    setUser(liaSessionResult.user);
+    setUser(result.user);
     setSofiaContext(nextSofiaContext);
     setLiaDegraded(false);
     setLiaStatusMessage(null);
+    const liaSession = await syncOptionalLiaSession();
 
     return {
       ...result,
-      session: liaSessionResult.session,
-      user: liaSessionResult.user,
+      session: liaSession,
+      user: result.user,
     };
-  }, [enterLiaDegradedMode, establishLiaSession]);
+  }, [signOut, syncOptionalLiaSession]);
 
   const setCurrentOrganization = (orgId: string) => {
     if (sofiaContext) {
