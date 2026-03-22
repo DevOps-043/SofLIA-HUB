@@ -4,6 +4,18 @@ Todos los cambios notables de SofLIA Hub se documentan aquí.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.1.16] - 2026-03-21
+
+### Changed
+
+- **Versionado del release sincronizado:** `package.json`, `package-lock.json` y el footer del login quedaron alineados para mostrar la misma version real del build.
+
+### Fixed
+
+- **Interpretacion semantica de verificaciones en WhatsApp:** SofLIA ya no confunde de forma trivial una revision pedida dentro de una app o en la computadora con una consulta web; ahora clasifica si la evidencia requerida es local, remota o comparativa.
+- **Cierre falso de tareas con evidencia incompleta:** El agente de WhatsApp ahora bloquea respuestas finales cuando falta evidencia local o remota segun la instruccion del usuario, evitando afirmar que una revision local ya fue hecha si solo se consulto GitHub o la web.
+- **Footer de autenticacion desfasado:** La pantalla de login dejo de mostrar `v0.0.8` hardcodeado y ahora refleja automaticamente la version actual del paquete.
+
 ## [0.1.15] - 2026-03-21
 
 ### Added
