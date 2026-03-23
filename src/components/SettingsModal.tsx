@@ -227,7 +227,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
       )}
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto overflow-x-visible no-scrollbar px-6 py-6 pb-32 relative z-10 space-y-6">
+      <div className="flex-1 overflow-y-auto overflow-x-visible no-scrollbar px-6 py-6 relative z-10 space-y-6">
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 text-center gap-4">
@@ -238,7 +238,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
             <p className="text-[10px] font-black text-accent uppercase tracking-[0.3em] animate-pulse">Analizando Perfil...</p>
           </div>
         ) : (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300 pb-32">
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300 pb-4">
             {/* Card: Bio Data */}
             <div className="bg-white/[0.03] backdrop-blur-md border border-white/[0.05] rounded-[2rem] p-6 relative overflow-visible group hover:border-accent/10 transition-all duration-500 shadow-xl shadow-black/10">
               <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity duration-700">
@@ -490,8 +490,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
       <div className="px-8 py-5 border-t border-gray-100 dark:border-white/[0.05] bg-white/80 dark:bg-[#0c0d10]/80 backdrop-blur-xl flex items-center justify-between relative z-20">
 
         <div className="flex items-center gap-2">
-           <div className={`w-1.5 h-1.5 rounded-full ${saving ? 'bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.3)]' : 'bg-accent/30'}`} />
-           <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">{saving ? 'Guardando...' : 'Sincronización Lista'}</p>
+           {saving && (
+             <>
+               <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.3)]" />
+               <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Guardando...</p>
+             </>
+           )}
         </div>
         <div className="flex gap-4">
           <button

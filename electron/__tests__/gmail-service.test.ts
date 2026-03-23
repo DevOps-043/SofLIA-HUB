@@ -286,4 +286,23 @@ describe('GmailService', () => {
     expect(decoded).toContain('Cc: cc@test.com');
     expect(decoded).toContain('Bcc: bcc@test.com');
   });
+
+  // GML-011: modifyLabels resolves label names and creates missing labels
+  it('GML-011: modifyLabels maps label names to IDs and auto-creates missing labels', async () => {
+    const result = await service.modifyLabels('msg-1', ['Newsletter', 'Work'], ['INBOX', 'Missing']);
+
+    expect(result.success).toBe(true);
+    expect(mockLabelsCreate).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'me',
+      requestBody: expect.objectContaining({ name: 'Newsletter' }),
+    }));
+    expect(mockMessagesModify).toHaveBeenCalledWith({
+      userId: 'me',
+      id: 'msg-1',
+      requestBody: {
+        addLabelIds: ['lbl-new', 'lbl-1'],
+        removeLabelIds: ['INBOX'],
+      },
+    });
+  });
 });

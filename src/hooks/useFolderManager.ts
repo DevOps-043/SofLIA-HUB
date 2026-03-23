@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   loadFolders,
   createFolder,
@@ -11,10 +11,30 @@ import type { Conversation } from '../services/chat-service';
 
 interface UseFolderManagerOptions {
   userId: string | undefined;
+  orgId?: string;
+  accessUserIds?: string[];
+  conversations: Conversation[];
   setConversations: React.Dispatch<React.SetStateAction<Conversation[]>>;
 }
 
-export function useFolderManager({ userId, setConversations }: UseFolderManagerOptions) {
+function areFolderListsEqual(left: Folder[], right: Folder[]): boolean {
+  if (left.length !== right.length) return false;
+
+  return left.every((folder, index) => {
+    const other = right[index];
+    return (
+      folder.id === other?.id &&
+      folder.name === other?.name &&
+      folder.updated_at === other?.updated_at &&
+      folder.is_shared === other?.is_shared &&
+      folder.share_permission === other?.share_permission &&
+      folder.can_edit === other?.can_edit &&
+      folder.can_share === other?.can_share
+    );
+  });
+}
+
+export function useFolderManager({ userId, orgId, accessUserIds, conversations, setConversations }: UseFolderManagerOptions) {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
@@ -23,25 +43,54 @@ export function useFolderManager({ userId, setConversations }: UseFolderManagerO
 
   const loadInitialFolders = useCallback(async () => {
     if (!userId) return [];
-    const flds = await loadFolders(userId);
+    const flds = await loadFolders(userId, orgId, accessUserIds);
     setFolders(flds);
     return flds;
-  }, [userId]);
+  }, [accessUserIds, orgId, userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const refreshFolders = () => {
+      void loadFolders(userId, orgId, accessUserIds)
+        .then((nextFolders) => {
+          setFolders((prev) => (areFolderListsEqual(prev, nextFolders) ? prev : nextFolders));
+          if (currentFolderId && !nextFolders.some((folder) => folder.id === currentFolderId)) {
+            setCurrentFolderId(null);
+          }
+        })
+        .catch((error) => {
+          console.warn('[useFolderManager] refreshFolders FAILED:', error);
+        });
+    };
+
+    const intervalId = window.setInterval(refreshFolders, 30000);
+    const handleFocus = () => refreshFolders();
+
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [accessUserIds, currentFolderId, orgId, userId]);
 
   const handleCreateFolder = useCallback(
-    async (name: string) => {
-      if (!userId) return;
-      const folder = await createFolder(userId, name);
+      async (name: string) => {
+        if (!userId) return;
+      const folder = await createFolder(userId, name, orgId);
       if (folder) {
         setFolders((prev) => [folder, ...prev]);
       }
     },
-    [userId],
+    [orgId, userId],
   );
 
   const handleRenameFolder = useCallback(
     async (folderId: string, newName: string) => {
-      const success = await renameFolderService(folderId, newName);
+      const folder = folders.find((item) => item.id === folderId);
+      if (!userId || !folder?.can_share) return;
+      const success = await renameFolderService(userId, folderId, newName);
       if (success) {
         setFolders((prev) =>
           prev.map((f) =>
@@ -50,13 +99,15 @@ export function useFolderManager({ userId, setConversations }: UseFolderManagerO
         );
       }
     },
-    [],
+    [folders, userId],
   );
 
   const handleDeleteFolder = useCallback(
     async (folderId: string) => {
       if (!userId) return;
-      const success = await deleteFolderService(folderId);
+      const folder = folders.find((item) => item.id === folderId);
+      if (!folder?.can_share) return;
+      const success = await deleteFolderService(userId, folderId);
       if (success) {
         setFolders((prev) => prev.filter((f) => f.id !== folderId));
         setConversations((prev) =>
@@ -66,12 +117,24 @@ export function useFolderManager({ userId, setConversations }: UseFolderManagerO
         );
       }
     },
-    [userId, setConversations],
+    [folders, setConversations, userId],
   );
 
   const handleMoveChat = useCallback(
     async (chatId: string, folderId: string | null) => {
-      const success = await moveChatToFolderService(chatId, folderId);
+      const conversation = conversations.find((item) => item.id === chatId);
+      if (!userId || !conversation?.can_share) {
+        setMovingChatId(null);
+        return;
+      }
+      if (folderId) {
+        const targetFolder = folders.find((item) => item.id === folderId);
+        if (!targetFolder?.can_edit) {
+          setMovingChatId(null);
+          return;
+        }
+      }
+      const success = await moveChatToFolderService(userId, chatId, folderId);
       if (success) {
         setConversations((prev) =>
           prev.map((c) =>
@@ -81,7 +144,7 @@ export function useFolderManager({ userId, setConversations }: UseFolderManagerO
       }
       setMovingChatId(null);
     },
-    [setConversations],
+    [conversations, folders, setConversations, userId],
   );
 
   const toggleFolder = useCallback((folderId: string) => {

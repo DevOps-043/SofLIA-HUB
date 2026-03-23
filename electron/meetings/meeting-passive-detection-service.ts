@@ -108,7 +108,7 @@ export class MeetingPassiveDetectionService extends EventEmitter {
       : await getSofiaUserByEmail(googleConnection.email);
 
     if (!sofiaUser?.id) {
-      console.warn(`[MeetingPassiveDetection] Could not resolve SOFIA user for Google email ${googleConnection.email}`);
+      console.warn(`[MeetingPassiveDetection] Could not resolve SOFIA user for Google email ${googleConnection.email}. Auto-detection remains blocked until Google -> SOFIA mapping is fixed.`);
       return null;
     }
 

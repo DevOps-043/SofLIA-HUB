@@ -245,5 +245,10 @@ describe('Preload IPC Security Layer', () => {
       const memoryChannels = ALLOWED_IPC_CHANNELS.filter(c => c.startsWith('memory:'));
       expect(memoryChannels.length).toBeGreaterThanOrEqual(3);
     });
+
+    it('SEC-032: workflow-hub namespace present', () => {
+      const workflowHubChannels = ALLOWED_IPC_CHANNELS.filter(c => c.startsWith('workflow-hub:'));
+      expect(workflowHubChannels.length).toBeGreaterThanOrEqual(6);
+    });
   });
 });

@@ -1,4 +1,9 @@
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import {
+  loadAccessibleConversationShares,
+  loadAccessibleFolderShares,
+  type ShareAccessLevel,
+} from './share-service';
 
 export interface Conversation {
   id: string;
@@ -9,6 +14,13 @@ export interface Conversation {
   is_pinned?: boolean;
   created_at: string;
   updated_at: string;
+  is_shared?: boolean;
+  share_permission?: ShareAccessLevel;
+  can_edit?: boolean;
+  can_share?: boolean;
+  shared_by_user_id?: string;
+  share_token?: string | null;
+  shared_at?: string;
 }
 
 export interface ChatMessage {
@@ -56,6 +68,12 @@ function emptyPendingChatState(): PendingChatState {
   };
 }
 
+function getAccessRank(access: ShareAccessLevel | undefined): number {
+  if (access === 'owner') return 3;
+  if (access === 'edit') return 2;
+  return 1;
+}
+
 function normalizeConversation(raw: any): Conversation {
   return {
     id: raw.id,
@@ -66,7 +84,56 @@ function normalizeConversation(raw: any): Conversation {
     is_pinned: raw.is_pinned ?? undefined,
     created_at: raw.created_at,
     updated_at: raw.updated_at,
+    is_shared: raw.is_shared ?? false,
+    share_permission: raw.share_permission ?? (raw.is_shared ? 'view' : 'owner'),
+    can_edit: raw.can_edit ?? (!raw.is_shared || raw.share_permission === 'edit'),
+    can_share: raw.can_share ?? !raw.is_shared,
+    shared_by_user_id: raw.shared_by_user_id ?? undefined,
+    share_token: raw.share_token ?? null,
+    shared_at: raw.shared_at ?? undefined,
   };
+}
+
+function decorateOwnedConversation(raw: any): Conversation {
+  return normalizeConversation({
+    ...raw,
+    is_shared: false,
+    share_permission: 'owner',
+    can_edit: true,
+    can_share: true,
+    shared_by_user_id: undefined,
+    share_token: null,
+    shared_at: undefined,
+  });
+}
+
+function decorateSharedConversation(
+  raw: any,
+  share: { permission: 'view' | 'edit'; shared_by_user_id: string; share_token?: string | null; created_at: string },
+): Conversation {
+  return normalizeConversation({
+    ...raw,
+    is_shared: true,
+    share_permission: share.permission,
+    can_edit: share.permission === 'edit',
+    can_share: false,
+    shared_by_user_id: share.shared_by_user_id,
+    share_token: share.share_token ?? null,
+    shared_at: share.created_at,
+  });
+}
+
+function pickPreferredConversation(left: Conversation, right: Conversation): Conversation {
+  const leftRank = getAccessRank(left.share_permission);
+  const rightRank = getAccessRank(right.share_permission);
+
+  if (rightRank !== leftRank) {
+    return rightRank > leftRank ? right : left;
+  }
+
+  const existingUpdated = new Date(left.updated_at || left.created_at || 0).getTime();
+  const nextUpdated = new Date(right.updated_at || right.created_at || 0).getTime();
+  return nextUpdated >= existingUpdated ? right : left;
 }
 
 function dedupeConversations(conversations: Conversation[]): Conversation[] {
@@ -82,11 +149,7 @@ function dedupeConversations(conversations: Conversation[]): Conversation[] {
       continue;
     }
 
-    const existingUpdated = new Date(existing.updated_at || existing.created_at || 0).getTime();
-    const nextUpdated = new Date(normalizedConversation.updated_at || normalizedConversation.created_at || 0).getTime();
-    if (nextUpdated >= existingUpdated) {
-      byId.set(normalizedConversation.id, normalizedConversation);
-    }
+    byId.set(normalizedConversation.id, pickPreferredConversation(existing, normalizedConversation));
   }
 
   return Array.from(byId.values())
@@ -426,6 +489,59 @@ function buildLocalMessageList(userId: string, conversationId: string): ChatMess
   ]);
 }
 
+export function migrateLegacyChatCache(sourceUserId: string, targetUserId: string): void {
+  if (!sourceUserId || !targetUserId || sourceUserId === targetUserId) {
+    return;
+  }
+
+  const sourceConversations = loadConversationsFromCache(sourceUserId).map((conversation) =>
+    normalizeConversation({ ...conversation, user_id: targetUserId }),
+  );
+  const targetConversations = loadConversationsFromCache(targetUserId);
+
+  if (sourceConversations.length > 0) {
+    saveConversationsToCache(targetUserId, [...targetConversations, ...sourceConversations]);
+    try {
+      localStorage.removeItem(getConversationCacheKey(sourceUserId));
+    } catch {}
+  }
+
+  const sourcePendingState = readPendingChatState(sourceUserId);
+  const targetPendingState = readPendingChatState(targetUserId);
+  const migratedConversationUpserts = Object.fromEntries(
+    Object.values(sourcePendingState.conversationUpserts).map((conversation) => [
+      conversation.id,
+      normalizeConversation({ ...conversation, user_id: targetUserId }),
+    ]),
+  );
+
+  const mergedPendingState: PendingChatState = {
+    conversationUpserts: {
+      ...targetPendingState.conversationUpserts,
+      ...migratedConversationUpserts,
+    },
+    messageSnapshots: {
+      ...targetPendingState.messageSnapshots,
+      ...sourcePendingState.messageSnapshots,
+    },
+    deletedConversationIds: Array.from(
+      new Set([...targetPendingState.deletedConversationIds, ...sourcePendingState.deletedConversationIds]),
+    ),
+  };
+
+  const hasMergedPendingEntries =
+    Object.keys(mergedPendingState.conversationUpserts).length > 0 ||
+    Object.keys(mergedPendingState.messageSnapshots).length > 0 ||
+    mergedPendingState.deletedConversationIds.length > 0;
+
+  if (hasMergedPendingEntries) {
+    writePendingChatState(targetUserId, mergedPendingState);
+    try {
+      localStorage.removeItem(getPendingChatStateKey(sourceUserId));
+    } catch {}
+  }
+}
+
 function recoverPendingConversationsFromCache(userId: string, remoteConversationIds: Set<string>): string[] {
   const recoveredIds: string[] = [];
 
@@ -437,6 +553,10 @@ function recoverPendingConversationsFromCache(userId: string, remoteConversation
     };
 
     for (const cachedConversation of loadConversationsFromCache(userId)) {
+      if (cachedConversation.user_id !== userId) {
+        continue;
+      }
+
       if (
         remoteConversationIds.has(cachedConversation.id) ||
         nextState.deletedConversationIds.includes(cachedConversation.id) ||
@@ -486,6 +606,102 @@ function recoverPendingMessagesFromCache(
 
   queueMessageSnapshot(userId, conversationId, cachedMessages);
   return true;
+}
+
+async function fetchAccessibleConversations(
+  userId: string,
+  accessUserIds: string[],
+  orgId?: string,
+): Promise<Conversation[]> {
+  const [ownConversationsResult, ownedFoldersResult, sharedConversationShares, sharedFolderShares] = await Promise.all([
+    supabase
+      .from('conversations')
+      .select('*')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false })
+      .limit(MAX_CONVERSATIONS),
+    supabase
+      .from('folders')
+      .select('id')
+      .eq('user_id', userId),
+    loadAccessibleConversationShares(accessUserIds, orgId),
+    loadAccessibleFolderShares(accessUserIds, orgId),
+  ]);
+
+  if (ownConversationsResult.error) {
+    console.error('[chat-service] fetch own conversations FAILED:', ownConversationsResult.error.message, '| code:', ownConversationsResult.error.code);
+    throw ownConversationsResult.error;
+  }
+
+  if (ownedFoldersResult.error) {
+    console.error('[chat-service] fetch owned folder ids FAILED:', ownedFoldersResult.error.message, '| code:', ownedFoldersResult.error.code);
+    throw ownedFoldersResult.error;
+  }
+
+  const ownedConversations = (ownConversationsResult.data || []).map((conversation: any) => decorateOwnedConversation(conversation));
+  const ownedFolderIds = new Set((ownedFoldersResult.data || []).map((folder: any) => folder.id as string));
+  const accessibleFolderIds = Array.from(
+    new Set([
+      ...ownedFolderIds,
+      ...sharedFolderShares.map((share) => share.folder_id),
+    ]),
+  );
+
+  let folderConversations: Conversation[] = [];
+  if (accessibleFolderIds.length > 0) {
+    const { data: folderConversationData, error: folderConversationError } = await supabase
+      .from('conversations')
+      .select('*')
+      .in('folder_id', accessibleFolderIds)
+      .order('updated_at', { ascending: false })
+      .limit(MAX_CONVERSATIONS);
+
+    if (folderConversationError) {
+      console.error('[chat-service] fetch folder conversations FAILED:', folderConversationError.message, '| code:', folderConversationError.code);
+      throw folderConversationError;
+    }
+
+    const sharedFolderShareMap = new Map(sharedFolderShares.map((share) => [share.folder_id, share]));
+    folderConversations = (folderConversationData || []).map((conversation: any) => {
+      if (conversation.user_id === userId) {
+        return decorateOwnedConversation(conversation);
+      }
+
+      const folderShare = sharedFolderShareMap.get(conversation.folder_id);
+      if (folderShare) {
+        return decorateSharedConversation(conversation, folderShare);
+      }
+
+      if (ownedFolderIds.has(conversation.folder_id)) {
+        return normalizeConversation({
+          ...conversation,
+          is_shared: true,
+          share_permission: 'edit',
+          can_edit: true,
+          can_share: false,
+          shared_by_user_id: conversation.user_id,
+          share_token: null,
+          shared_at: conversation.created_at,
+        });
+      }
+
+      return decorateOwnedConversation(conversation);
+    });
+  }
+
+  const directSharedConversations = sharedConversationShares
+    .filter((share) => share.conversation)
+    .map((share) => (
+      share.conversation?.user_id === userId
+        ? decorateOwnedConversation(share.conversation)
+        : decorateSharedConversation(share.conversation, share)
+    ));
+
+  return dedupeConversations([
+    ...ownedConversations,
+    ...folderConversations,
+    ...directSharedConversations,
+  ]);
 }
 
 async function upsertConversationRemote(conversation: Conversation): Promise<Conversation | null> {
@@ -640,7 +856,16 @@ export async function syncPendingChatState(userId: string, conversationIds?: str
       continue;
     }
 
-    saveConversationToCache(userId, syncedConversation);
+    saveConversationToCache(userId, {
+      ...syncedConversation,
+      is_shared: pendingConversation.is_shared,
+      share_permission: pendingConversation.share_permission,
+      can_edit: pendingConversation.can_edit,
+      can_share: pendingConversation.can_share,
+      shared_by_user_id: pendingConversation.shared_by_user_id,
+      share_token: pendingConversation.share_token,
+      shared_at: pendingConversation.shared_at,
+    });
     clearPendingConversationUpsert(userId, pendingConversation.id);
   }
 
@@ -659,7 +884,11 @@ export async function syncPendingChatState(userId: string, conversationIds?: str
   }
 }
 
-export async function loadConversations(userId: string): Promise<Conversation[]> {
+export async function loadConversations(
+  userId: string,
+  orgId?: string,
+  accessUserIds?: string[],
+): Promise<Conversation[]> {
   if (!userId) {
     return [];
   }
@@ -667,19 +896,11 @@ export async function loadConversations(userId: string): Promise<Conversation[]>
   await syncPendingChatState(userId);
 
   try {
-    const { data, error } = await supabase
-      .from('conversations')
-      .select('*')
-      .eq('user_id', userId)
-      .order('updated_at', { ascending: false })
-      .limit(MAX_CONVERSATIONS);
-
-    if (error) {
-      console.error('[chat-service] loadConversations Supabase FAILED:', error.message, '| code:', error.code);
-      return buildLocalConversationList(userId);
-    }
-
-    let remoteConversations = dedupeConversations((data || []).map((conversation: any) => normalizeConversation(conversation)));
+    let remoteConversations = await fetchAccessibleConversations(
+      userId,
+      accessUserIds && accessUserIds.length > 0 ? accessUserIds : [userId],
+      orgId,
+    );
     const recoveredConversationIds = recoverPendingConversationsFromCache(
       userId,
       new Set(remoteConversations.map((conversation) => conversation.id)),
@@ -688,16 +909,13 @@ export async function loadConversations(userId: string): Promise<Conversation[]>
     if (recoveredConversationIds.length > 0) {
       await syncPendingChatState(userId, recoveredConversationIds);
 
-      const { data: recoveredData, error: recoveredError } = await supabase
-        .from('conversations')
-        .select('*')
-        .eq('user_id', userId)
-        .order('updated_at', { ascending: false })
-        .limit(MAX_CONVERSATIONS);
-
-      if (!recoveredError) {
-        remoteConversations = dedupeConversations((recoveredData || []).map((conversation: any) => normalizeConversation(conversation)));
-      } else {
+      try {
+        remoteConversations = await fetchAccessibleConversations(
+          userId,
+          accessUserIds && accessUserIds.length > 0 ? accessUserIds : [userId],
+          orgId,
+        );
+      } catch {
         remoteConversations = dedupeConversations([
           ...remoteConversations,
           ...loadConversationsFromCache(userId),

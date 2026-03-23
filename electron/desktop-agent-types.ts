@@ -41,6 +41,8 @@ export interface DesktopAgentConfig {
   progressReportEveryNSteps: number;
   somEnabled: boolean;
   somFallbackToGrid: boolean;
+  focusedCaptureEnabled: boolean;
+  focusedCapturePadding: number;
 }
 
 export const DEFAULT_CONFIG: DesktopAgentConfig = {
@@ -53,14 +55,14 @@ export const DEFAULT_CONFIG: DesktopAgentConfig = {
   continuousObservationInterval: 2000,
   planningEnabled: true,
   memoryWindowSize: 10,
-  model: 'gemini-3-flash-preview',
-  fallbackModel: 'gemini-2.5-flash',
+  model: 'gemini-2.5-flash',
+  fallbackModel: 'gemini-2.5-pro',
   maxConsecutiveFailures: 3,
   stuckDetectionThreshold: 4,
   autoRecoverFromDialogs: true,
   replanOnStuck: true,
   maxRetryPerAction: 2,
-  proactiveModel: 'gemini-3.1-pro-preview',
+  proactiveModel: 'gemini-2.5-pro',
   maxConcurrentAgents: 3,
   // V2 defaults
   gridEnabled: true,
@@ -75,6 +77,8 @@ export const DEFAULT_CONFIG: DesktopAgentConfig = {
   progressReportEveryNSteps: 25,
   somEnabled: true,
   somFallbackToGrid: true,
+  focusedCaptureEnabled: true,
+  focusedCapturePadding: 24,
 };
 
 export type DesktopAction =

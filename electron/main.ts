@@ -1,6 +1,8 @@
-import { app, BrowserWindow, Tray, Menu, Notification, nativeImage, ipcMain, desktopCapturer, screen } from 'electron'
+import { app, BrowserWindow, Tray, Menu, Notification, nativeImage, ipcMain, desktopCapturer, screen, globalShortcut } from 'electron'
+import { execFile } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
+import { promisify } from 'node:util'
 import * as dotenv from 'dotenv'
 
 type BootstrapGuard = typeof globalThis & {
@@ -9,6 +11,7 @@ type BootstrapGuard = typeof globalThis & {
 
 type Step<T> = () => Promise<T> | T
 const BACKGROUND_LAUNCH_ARG = '--background'
+const execFileAsync = promisify(execFile)
 
 function logBootstrapError(context: string, error: unknown): void {
   if (error instanceof Error) {
@@ -78,6 +81,8 @@ async function runBootstrap(): Promise<void> {
   const { registerMeetingHandlers } = await import('./meeting-handlers')
   const { WorkspaceAutomationService } = await import('./workspace-automation-service')
   const { registerWorkspaceAutomationHandlers } = await import('./workspace-automation-handlers')
+  const { WorkflowHubService } = await import('./workflow-hub-service')
+  const { registerWorkflowHubHandlers } = await import('./workflow-hub-handlers')
   const { TelegramService } = await import('./telegram-service')
   const { registerTelegramHandlers } = await import('./telegram-handlers')
   const { MeetingStore } = await import('./meetings/meeting-store')
@@ -165,6 +170,13 @@ async function runBootstrap(): Promise<void> {
     meetingWorkflowService,
     meetingDetectionStore,
   )
+  const workflowHubService = new WorkflowHubService({
+    calendarService,
+    gchatService,
+    taskScheduler,
+    workspaceAutomationService,
+    meetingWorkflowService,
+  })
   const dailyBriefingService = new DailyBriefingService({
     enabled: false,
     schedule: '0 8 * * 1-5',
@@ -177,6 +189,7 @@ async function runBootstrap(): Promise<void> {
   let flowWin: BrowserWindow | null = null
   let tray: Tray | null = null
   let isQuitting = false
+  let flowInsertTarget: { handle: string; title: string } | null = null
   const startInBackground = process.argv.includes(BACKGROUND_LAUNCH_ARG)
   let currentGeminiApiKey: string | null = process.env.VITE_GEMINI_API_KEY || null
   let waAgent: InstanceType<typeof WhatsAppAgent> | null = null
@@ -199,12 +212,36 @@ async function runBootstrap(): Promise<void> {
   })
 
   taskScheduler.on('task-triggered', (data: any) => {
+    if (data?.executionMode === 'workflow' && data?.workflowId) {
+      void workflowHubService.executeWorkflow({
+        workflowId: data.workflowId,
+        requestedBy: data.requestedBy || 'scheduler',
+        input: data.workflowInput || {},
+      }).then((detail) => {
+        const phoneNumber = String(data.phoneNumber || '').replace(/\D/g, '')
+        if (!phoneNumber || !waService.getStatus().connected) {
+          return
+        }
+        const jid = `${phoneNumber}@s.whatsapp.net`
+        const message = [
+          `Workflow pasivo ejecutado: ${detail.workflowName}`,
+          `Caso: ${detail.title}`,
+          `Estado: ${detail.normalizedStatus}`,
+          detail.summary ? `Resumen: ${detail.summary}` : '',
+        ].filter(Boolean).join('\n')
+        return waService.sendText(jid, message)
+      }).catch((error) => {
+        console.error('[Main] Passive workflow execution failed:', error)
+      })
+      return
+    }
+
     if (!waAgent || !waService.getStatus().connected) {
       return
     }
 
     const jid = `${String(data.phoneNumber || '').replace(/\D/g, '')}@s.whatsapp.net`
-    void waAgent.handleMessage(jid, data.phoneNumber, data.prompt, false, '')
+    void waAgent.handleScheduledTaskTrigger(jid, data.phoneNumber, data)
   })
 
   calendarService.setConfig({
@@ -281,10 +318,94 @@ async function runBootstrap(): Promise<void> {
     win?.webContents.send('whatsapp:status', status)
   })
 
-  function createFlowWindow(): void {
+  async function captureForegroundWindow(): Promise<{ handle: string; title: string } | null> {
+    try {
+      const script = `
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+public static class ForegroundWindowReader {
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+}
+"@
+$handle = [ForegroundWindowReader]::GetForegroundWindow()
+$builder = New-Object System.Text.StringBuilder 512
+[ForegroundWindowReader]::GetWindowText($handle, $builder, $builder.Capacity) | Out-Null
+@{
+  handle = "$($handle.ToInt64())"
+  title = $builder.ToString()
+} | ConvertTo-Json -Compress
+`
+      const { stdout } = await execFileAsync('powershell.exe', ['-NoProfile', '-Command', script], {
+        timeout: 3000,
+        windowsHide: true,
+      })
+      const parsed = JSON.parse((stdout || '').trim()) as { handle?: string; title?: string }
+      const handle = String(parsed.handle || '').trim()
+      const title = String(parsed.title || '').trim()
+      if (!handle || handle === '0') {
+        return null
+      }
+      return { handle, title }
+    } catch (error) {
+      logBootstrapError('captureForegroundWindow', error)
+      return null
+    }
+  }
+
+  async function rememberFlowInsertTarget(): Promise<void> {
+    const target = await captureForegroundWindow()
+    if (!target) {
+      flowInsertTarget = null
+      return
+    }
+
+    const normalizedTitle = target.title.toLowerCase()
+    if (normalizedTitle.includes('soflia hub')) {
+      flowInsertTarget = null
+      return
+    }
+
+    flowInsertTarget = target
+  }
+
+  async function restoreFlowInsertTarget(): Promise<void> {
+    if (!flowInsertTarget?.handle) {
+      return
+    }
+
+    const script = `
+Add-Type @"
+using System;
+using System.Runtime.InteropServices;
+public static class FlowWindowFocus {
+  [DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+}
+"@
+$handle = [IntPtr]::new([int64]${flowInsertTarget.handle})
+[FlowWindowFocus]::ShowWindowAsync($handle, 9) | Out-Null
+[FlowWindowFocus]::SetForegroundWindow($handle) | Out-Null
+`
+
+    try {
+      await execFileAsync('powershell.exe', ['-NoProfile', '-Command', script], {
+        timeout: 2500,
+        windowsHide: true,
+      })
+    } catch (error) {
+      logBootstrapError('restoreFlowInsertTarget', error)
+    }
+  }
+
+  async function createFlowWindow(): Promise<void> {
+    await rememberFlowInsertTarget()
+
     if (flowWin) {
-      flowWin.show()
-      flowWin.focus()
+      flowWin.showInactive()
+      flowWin.webContents.send('flow-window-shown')
       return
     }
 
@@ -323,7 +444,7 @@ async function runBootstrap(): Promise<void> {
     }
 
     flowWin.once('ready-to-show', () => {
-      flowWin?.show()
+      flowWin?.showInactive()
       flowWin?.webContents.send('flow-window-shown')
     })
 
@@ -339,6 +460,22 @@ async function runBootstrap(): Promise<void> {
 
       callback(false)
     })
+  }
+
+  function registerFlowShortcut(): void {
+    const accelerator = 'CommandOrControl+M'
+    globalShortcut.unregister(accelerator)
+
+    const registered = globalShortcut.register(accelerator, () => {
+      void createFlowWindow()
+    })
+
+    if (!registered) {
+      console.warn(`[BOOT] No se pudo registrar el atajo global ${accelerator}`)
+      return
+    }
+
+    console.log(`[BOOT] Atajo global registrado: ${accelerator} -> modo voz`)
   }
 
   function createTray(): void {
@@ -373,9 +510,9 @@ async function runBootstrap(): Promise<void> {
         },
       },
       {
-        label: 'Modo Flow',
+        label: 'Modo voz',
         click: () => {
-          createFlowWindow()
+          void createFlowWindow()
         },
       },
       { type: 'separator' },
@@ -492,6 +629,7 @@ async function runBootstrap(): Promise<void> {
 
     waAgent.setGoogleServices(calendarService, gmailService, driveService, gchatService)
     waAgent.setWorkspaceAutomationService(workspaceAutomationService)
+    waAgent.setWorkflowHubService(workflowHubService)
     waAgent.setDesktopAgentService(desktopAgentService)
     waAgent.setClipboardAssistant(clipboardAssistant)
     waAgent.setTaskScheduler(taskScheduler)
@@ -631,6 +769,32 @@ async function runBootstrap(): Promise<void> {
     win.webContents.send('flow-message-received', text)
   })
 
+  ipcMain.handle('flow:insert-text', async (_event, text: string) => {
+    const normalizedText = String(text || '').trim()
+    if (!normalizedText) {
+      return { success: false, error: 'No hay texto para insertar.' }
+    }
+
+    if (!flowInsertTarget?.handle) {
+      return { success: false, code: 'NO_TARGET', error: 'No hay un campo activo listo para dictado.' }
+    }
+
+    try {
+      flowWin?.hide()
+      await new Promise((resolve) => setTimeout(resolve, 140))
+      await restoreFlowInsertTarget()
+      await new Promise((resolve) => setTimeout(resolve, 120))
+      await desktopAgentService.keyboardType(normalizedText)
+      return { success: true }
+    } catch (error) {
+      flowWin?.showInactive()
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      }
+    }
+  })
+
   ipcMain.on('close-flow', () => {
     flowWin?.hide()
   })
@@ -738,6 +902,7 @@ async function runBootstrap(): Promise<void> {
   app.on('before-quit', () => {
     console.log('[BOOT] before-quit')
     isQuitting = true
+    globalShortcut.unregisterAll()
     pathMemoryService.stop()
     void clipboardAssistant.stop()
     proactiveService.stop()
@@ -783,6 +948,7 @@ async function runBootstrap(): Promise<void> {
   console.log('[BOOT] App ready. Initializing subsystems...')
 
   MenuManager.setup()
+  registerFlowShortcut()
   registerComputerUseHandlers()
   registerBackgroundHostHandlers(backgroundHostService)
   registerRemoteNodeHandlers()
@@ -796,12 +962,14 @@ async function runBootstrap(): Promise<void> {
   registerUpdaterHandlers(updaterService, () => win)
   registerMeetingHandlers(meetingWorkflowService)
   registerWorkspaceAutomationHandlers(workspaceAutomationService)
+  registerWorkflowHubHandlers(workflowHubService)
   registerTelegramHandlers(telegramService)
 
   await runOptionalStep('memoryService.init', () => memoryService.init())
   await runOptionalStep('knowledgeService.init', () => knowledgeService.init())
   await runOptionalStep('meetingWorkflowService.init', () => Promise.resolve(meetingWorkflowService.init()))
   await runOptionalStep('workspaceAutomationService.init', () => Promise.resolve(workspaceAutomationService.init()))
+  await runOptionalStep('workflowHubService.init', () => Promise.resolve(workflowHubService.init()))
   await runOptionalStep('meetingPassiveDetectionService.init', () => meetingPassiveDetectionService.init())
   await runOptionalStep('pathMemoryService.init', () => pathMemoryService.init())
   await runOptionalStep('pathMemoryService.start', () => pathMemoryService.start())
@@ -813,6 +981,7 @@ async function runBootstrap(): Promise<void> {
   await runOptionalStep('remoteNodeService.init', () => remoteNodeService.initialize({ desktopAgent: desktopAgentService }))
   await runOptionalStep('telegramService.init', () => telegramService.init({
     workspaceAutomationService,
+    workflowHubService,
     remoteNodeService,
   }))
   await runOptionalStep('dynamicToolService.init', () => dynamicToolService.initialize())

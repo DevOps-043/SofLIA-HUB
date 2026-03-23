@@ -81,6 +81,16 @@ const ALLOWED_IPC_CHANNELS = [
   'automation:execute-template',
   'automation:approve-run',
   'automation:reject-run',
+  'workflow-hub:get-overview',
+  'workflow-hub:get-case-detail',
+  'workflow-hub:execute-workflow',
+  'workflow-hub:save-variant',
+  'workflow-hub:save-passive-rule',
+  'workflow-hub:delete-passive-rule',
+  'workflow-hub:approve-case',
+  'workflow-hub:reject-case',
+  'workflow-hub:update-case-action',
+  'workflow-hub:sync-case',
   'whatsapp:connect',
   'whatsapp:disconnect',
   'whatsapp:get-status',
@@ -194,6 +204,7 @@ const ALLOWED_IPC_CHANNELS = [
   'meeting:get-context',
   'meeting:detected',
   'flow-send-to-chat',
+  'flow:insert-text',
   'close-flow',
   'flow-message-received',
   'flow-window-shown',
@@ -412,6 +423,29 @@ contextBridge.exposeInMainWorld('automation', {
     safeInvoke('automation:reject-run', input),
 })
 
+contextBridge.exposeInMainWorld('workflowHub', {
+  getOverview: () =>
+    safeInvoke('workflow-hub:get-overview'),
+  getCaseDetail: (caseId: string) =>
+    safeInvoke('workflow-hub:get-case-detail', caseId),
+  executeWorkflow: (input: any) =>
+    safeInvoke('workflow-hub:execute-workflow', input),
+  saveVariant: (input: any) =>
+    safeInvoke('workflow-hub:save-variant', input),
+  savePassiveRule: (input: any) =>
+    safeInvoke('workflow-hub:save-passive-rule', input),
+  deletePassiveRule: (ruleId: string) =>
+    safeInvoke('workflow-hub:delete-passive-rule', ruleId),
+  approveCase: (input: any) =>
+    safeInvoke('workflow-hub:approve-case', input),
+  rejectCase: (input: any) =>
+    safeInvoke('workflow-hub:reject-case', input),
+  updateCaseAction: (input: any) =>
+    safeInvoke('workflow-hub:update-case-action', input),
+  syncCase: (input: any) =>
+    safeInvoke('workflow-hub:sync-case', input),
+})
+
 // --------- WhatsApp API ---------
 contextBridge.exposeInMainWorld('whatsApp', {
   connect: () => safeInvoke('whatsapp:connect'),
@@ -609,6 +643,7 @@ contextBridge.exposeInMainWorld('updater', {
 // --------- Flow API ---------
 contextBridge.exposeInMainWorld('flow', {
   sendToChat: (text: string) => safeSend('flow-send-to-chat', text),
+  insertText: (text: string) => safeInvoke('flow:insert-text', text),
   close: () => safeSend('close-flow'),
   onMessageReceived: (cb: (text: string) => void) => safeOn('flow-message-received', cb),
   onWindowShown: (cb: () => void) => safeOn('flow-window-shown', cb),

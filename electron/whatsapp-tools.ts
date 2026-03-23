@@ -1343,11 +1343,11 @@ export const WA_TOOL_DECLARATIONS = {
     },
     {
       name: 'gchat_get_messages',
-      description: 'Lee los mensajes recientes de un espacio de Google Chat. Usa gchat_list_spaces primero para obtener el nombre del espacio.',
+      description: 'Lee los mensajes recientes de un chat o espacio de Google Chat. Acepta un resource name tipo "spaces/AAAAA", el correo del contacto para resolver un chat directo, un alias "users/alguien@empresa.com", o una URL del chat directo.',
       parameters: {
         type: 'OBJECT' as const,
         properties: {
-          space_name: { type: 'STRING' as const, description: 'Nombre del espacio (ej: "spaces/AAAAA"). Obtener con gchat_list_spaces.' },
+          space_name: { type: 'STRING' as const, description: 'Referencia del chat: "spaces/AAAAA", correo del contacto, alias "users/alguien@empresa.com" o URL del chat.' },
           max_results: { type: 'NUMBER' as const, description: 'Cantidad máxima de mensajes. Por defecto 25.' },
         },
         required: ['space_name'],
@@ -1355,11 +1355,11 @@ export const WA_TOOL_DECLARATIONS = {
     },
     {
       name: 'gchat_send_message',
-      description: 'Envía un mensaje de texto a un espacio de Google Chat. Puede responder en un hilo si se proporciona thread_name.',
+      description: 'Envía un mensaje de texto a un chat o espacio de Google Chat. Acepta "spaces/AAAAA", correo del contacto, alias "users/alguien@empresa.com" o URL del chat. Puede responder en un hilo si se proporciona thread_name.',
       parameters: {
         type: 'OBJECT' as const,
         properties: {
-          space_name: { type: 'STRING' as const, description: 'Nombre del espacio destino (ej: "spaces/AAAAA").' },
+          space_name: { type: 'STRING' as const, description: 'Referencia del chat destino: "spaces/AAAAA", correo, alias users/... o URL del chat.' },
           text: { type: 'STRING' as const, description: 'Texto del mensaje a enviar.' },
           thread_name: { type: 'STRING' as const, description: 'Nombre del hilo para responder (opcional). Si no se especifica, crea un nuevo mensaje.' },
         },
@@ -1380,11 +1380,11 @@ export const WA_TOOL_DECLARATIONS = {
     },
     {
       name: 'gchat_get_members',
-      description: 'Lista los miembros de un espacio de Google Chat.',
+      description: 'Lista los miembros de un chat o espacio de Google Chat. Acepta "spaces/AAAAA", correo del contacto, alias users/... o URL del chat.',
       parameters: {
         type: 'OBJECT' as const,
         properties: {
-          space_name: { type: 'STRING' as const, description: 'Nombre del espacio (ej: "spaces/AAAAA").' },
+          space_name: { type: 'STRING' as const, description: 'Referencia del espacio: "spaces/AAAAA", correo, alias users/... o URL del chat.' },
         },
         required: ['space_name'],
       },

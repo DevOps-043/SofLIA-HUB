@@ -4,6 +4,29 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.1.2] - 2026-03-22
+
+### Added
+
+- **Workflow Hub operativo:** Se agrego un hub central para flujos de correo, agenda, seguimiento, reuniones, Drive, actualizacion de equipo y acciones de PC, con variantes, reglas pasivas, casos y aprobaciones.
+- **Compartido organizacional de conocimiento conversacional:** Chats y carpetas ahora pueden compartirse entre miembros de la organizacion con permisos de lectura o edicion y consumo unificado desde la app.
+- **Modo voz renovado para escritorio:** Se sumaron dictado contextual al campo activo, limpieza rapida de transcripcion/respuesta y nuevas pruebas de regresion para el Desktop Agent.
+
+### Changed
+
+- **Sincronizacion SOFIA + Lia unificada:** La identidad de sesiones y conversaciones ahora se resuelve de forma consistente entre dispositivos, con migracion de cache legado y refresco mas confiable de chats y carpetas.
+- **Experiencia de voz simplificada:** El antiguo lenguaje y overlay de Flow se sustituyen por una experiencia mas minimalista, con `Enter` para enviar, menos controles redundantes y dictado directo cuando el panel no esta abierto.
+- **Desktop Agent mas robusto en geometria:** Se reforzaron captura enfocada, resolucion multi-monitor, snapping semantico sobre elementos UIA y tolerancia al padding para reducir errores de coordenadas en tareas locales.
+- **Stack del agente visual estabilizado:** El Desktop Agent y Windows UIA quedaron alineados a una combinacion mas estable de Gemini 2.5 Flash y Gemini 2.5 Pro para ejecucion y replaneacion.
+
+### Fixed
+
+- **Conversaciones fuera de sincronizacion:** Se corrigieron desajustes entre laptop y escritorio para que las conversaciones queden guardadas en base de datos y reaparezcan con la misma identidad en cualquier equipo.
+- **Compartido bloqueado por dependencia falsa de Lia:** Se elimino el bloqueo incorrecto al compartir con miembros de la organizacion y se habilito el uso de IDs de SOFIA/Lia segun corresponda.
+- **Modo voz y paneles flotantes:** Se resolvieron respuestas vacias, cierres inesperados al dictar acciones, paneles cortados, recuadros oscuros sobrantes y se restauro el atajo global `Ctrl + M`.
+- **Automatizacion visual y coordenadas:** Se corrigieron errores al abrir apps, enfocar ventanas, buscar elementos de barra lateral o barra de tareas y ejecutar clicks fuera de los limites visibles por padding o escalado.
+- **Estabilizacion operativa del release local:** Se ajustaron integraciones y pruebas alrededor de Gmail, Google Chat, WhatsApp, paneles operativos y servicios auxiliares para reducir falsos negativos y fallos de flujo.
+
 ## [0.1.1] - 2026-03-21
 
 ### Security

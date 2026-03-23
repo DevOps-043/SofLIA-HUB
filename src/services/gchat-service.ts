@@ -3,6 +3,11 @@ export interface ChatSpace {
   displayName: string;
   type: string;
   spaceThreadingState?: string;
+  spaceType?: string;
+  spaceUri?: string;
+  lastActiveTime?: string;
+  singleUserBotDm?: boolean;
+  joinedDirectHumanUserCount?: number;
 }
 
 declare global {

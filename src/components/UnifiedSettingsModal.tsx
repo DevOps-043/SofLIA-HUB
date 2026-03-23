@@ -4,8 +4,7 @@ import { WhatsAppSetup as WhatsAppContent } from './WhatsAppSetup';
 import { UserManagementModal as TeamContent } from './UserManagementModal';
 import { ProductivityDashboard as ProductivityContent } from './ProductivityDashboard';
 import { UpdatePanel as UpdateContent } from './UpdatePanel';
-import { MeetingOpsPanel } from './meetings/MeetingOpsPanel';
-import { AutomationOpsPanel } from './ops/AutomationOpsPanel';
+import { WorkflowHubPanel } from './ops/WorkflowHubPanel';
 import { UserAISettings } from '../services/settings-service';
 
 interface UnifiedSettingsModalProps {
@@ -82,17 +81,8 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
       ),
     },
     {
-      id: 'meetings' as const,
-      label: 'Meetings',
-      icon: (
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h8M8 14h5m-7 6h12a3 3 0 003-3V7a3 3 0 00-3-3H6a3 3 0 00-3 3v10a3 3 0 003 3z" />
-        </svg>
-      ),
-    },
-    {
       id: 'agents' as const,
-      label: 'Agentes',
+      label: 'Flujos',
       icon: (
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M4.75 8.75h5.5v5.5h-5.5zm9 0h5.5v5.5h-5.5zm-4.5 9h5.5v1.5h-5.5zm1-10V5.25h3.5v2.5m0 6.5v2.5h-3.5v-2.5" />
@@ -168,7 +158,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
       case 'meetings':
         return (
           <div className="h-full overflow-hidden">
-            <MeetingOpsPanel
+            <WorkflowHubPanel
               userId={userId}
               organizationId={sofiaContext?.currentOrganization?.id || null}
             />
@@ -177,7 +167,10 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
       case 'agents':
         return (
           <div className="h-full overflow-hidden">
-            <AutomationOpsPanel userId={userId} />
+            <WorkflowHubPanel
+              userId={userId}
+              organizationId={sofiaContext?.currentOrganization?.id || null}
+            />
           </div>
         );
       case 'updates':
@@ -204,9 +197,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
         <div className="absolute bottom-[-10%] right-[-10%] w-[35%] h-[35%] bg-purple-500/5 blur-[80px] rounded-full pointer-events-none" />
 
         <div className="w-20 bg-gray-50 dark:bg-black/20 backdrop-blur-3xl border-r border-black/[0.03] dark:border-white/[0.05] flex flex-col items-center transition-all z-20 relative overflow-x-hidden">
-          <div className="py-8 flex-shrink-0">
-            <img src="./assets/Icono.png" alt="SofLIA" className="w-10 h-10 drop-shadow-[0_0_10px_rgba(34,211,238,0.2)] dark:filter-none filter-accent-themed" />
-          </div>
+          <div className="py-4 flex-shrink-0" />
 
           <nav className="flex-1 w-full overflow-y-auto overflow-x-hidden no-scrollbar py-6 space-y-5 flex flex-col items-center">
             {tabs.map((tab) => !tab.hidden && (

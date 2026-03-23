@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { app } from 'electron';
+import type { WorkflowHubService } from './workflow-hub-service';
 import type { WorkspaceAutomationService } from './workspace-automation-service';
 import type { RemoteNodeService } from './remote-node-service';
 
@@ -38,6 +39,7 @@ interface TelegramState {
 
 interface TelegramDeps {
   workspaceAutomationService: WorkspaceAutomationService;
+  workflowHubService: WorkflowHubService;
   remoteNodeService: RemoteNodeService;
 }
 
@@ -345,47 +347,61 @@ export class TelegramService extends EventEmitter {
     }
 
     if (lowered === '/runs' || lowered === '/ops runs') {
-      await this.sendMessage(chatId, this.buildRunsMessage());
+      await this.sendMessage(chatId, await this.buildRunsMessage());
+      return;
+    }
+
+    if (lowered === '/flujos') {
+      await this.sendMessage(chatId, await this.buildWorkflowCatalogMessage());
       return;
     }
 
     if (lowered.startsWith('/correo triage')) {
       const query = normalized.replace(/^\/correo\s+triage/i, '').trim();
-      const run = await this.deps!.workspaceAutomationService.executeTemplate({
-        templateId: 'gmail_triage',
+      const detail = await this.deps!.workflowHubService.executeWorkflow({
+        workflowId: 'correo',
         requestedBy: `telegram:${chatId}`,
         input: {
+          preset: 'custom',
           query: query || 'in:inbox newer_than:7d',
         },
       });
-      await this.sendMessage(chatId, this.formatRunMessage(run));
+      await this.sendMessage(chatId, this.formatCaseMessage(detail));
       return;
     }
 
     if (lowered.startsWith('/agenda brief')) {
       const targetDate = normalized.replace(/^\/agenda\s+brief/i, '').trim();
-      const run = await this.deps!.workspaceAutomationService.executeTemplate({
-        templateId: 'calendar_daily_brief',
+      const detail = await this.deps!.workflowHubService.executeWorkflow({
+        workflowId: 'agenda',
         requestedBy: `telegram:${chatId}`,
         input: {
           targetDate: targetDate || undefined,
         },
       });
-      await this.sendMessage(chatId, this.formatRunMessage(run));
+      await this.sendMessage(chatId, this.formatCaseMessage(detail));
       return;
     }
 
     if (lowered.startsWith('/approve ')) {
-      const runId = normalized.replace(/^\/approve\s+/i, '').trim();
-      const run = await this.deps!.workspaceAutomationService.approveRun(runId, `telegram:${chatId}`);
-      await this.sendMessage(chatId, this.formatRunMessage(run));
+      const caseId = normalized.replace(/^\/approve\s+/i, '').trim();
+      const detail = await this.deps!.workflowHubService.approveCase({
+        caseId,
+        decidedBy: `telegram:${chatId}`,
+        scope: 'case',
+      });
+      await this.sendMessage(chatId, this.formatCaseMessage(detail));
       return;
     }
 
     if (lowered.startsWith('/reject ')) {
-      const runId = normalized.replace(/^\/reject\s+/i, '').trim();
-      const run = this.deps!.workspaceAutomationService.rejectRun(runId, `telegram:${chatId}`);
-      await this.sendMessage(chatId, this.formatRunMessage(run));
+      const caseId = normalized.replace(/^\/reject\s+/i, '').trim();
+      const detail = await this.deps!.workflowHubService.rejectCase({
+        caseId,
+        decidedBy: `telegram:${chatId}`,
+        scope: 'case',
+      });
+      await this.sendMessage(chatId, this.formatCaseMessage(detail));
       return;
     }
 
@@ -410,32 +426,51 @@ export class TelegramService extends EventEmitter {
 
   private async buildOpsStatusMessage(): Promise<string> {
     const status = await this.getStatus();
-    const runs = this.deps?.workspaceAutomationService.listRuns(5) || [];
-    const pending = runs.filter((run) => run.status === 'needs_approval').length;
+    const overview = await this.deps!.workflowHubService.getOverview();
+    const pending = overview.cases.filter((run) => run.normalizedStatus === 'pending_approval').length;
     return [
       'Estado operativo SofLIA:',
       `Telegram: ${status.enabled ? 'habilitado' : 'deshabilitado'} / ${status.polling ? 'polling activo' : 'polling detenido'}`,
       `Bot: ${status.bot?.username || status.bot?.first_name || 'sin-bot'}`,
       `Ultimo poll: ${status.last_poll_at || 'n/a'}`,
-      `Workflows recientes: ${runs.length}`,
+      `Casos recientes: ${overview.cases.length}`,
       `Pendientes de aprobacion: ${pending}`,
       `Chats recientes: ${status.recent_chats?.length || 0}`,
     ].join('\n');
   }
 
-  private buildRunsMessage(): string {
-    const runs = this.deps?.workspaceAutomationService.listRuns(5) || [];
-    if (runs.length === 0) {
-      return 'No hay workflows registrados.';
+  private async buildRunsMessage(): Promise<string> {
+    const overview = await this.deps!.workflowHubService.getOverview();
+    const cases = overview.cases.slice(0, 5);
+    if (cases.length === 0) {
+      return 'No hay casos registrados.';
     }
 
     return [
-      'Workflows recientes:',
-      ...runs.map((run) => `- ${run.id} | ${run.status} | ${run.title}`),
+      'Casos recientes:',
+      ...cases.map((run) => `- ${run.id} | ${run.nativeStatus} | ${run.title}`),
       '',
       'Comandos:',
-      '/approve RUN_ID',
-      '/reject RUN_ID',
+      '/approve CASE_ID',
+      '/reject CASE_ID',
+    ].join('\n');
+  }
+
+  private async buildWorkflowCatalogMessage(): Promise<string> {
+    const overview = await this.deps!.workflowHubService.getOverview();
+    const variantCountByWorkflow = overview.variants.reduce<Record<string, number>>((acc, variant) => {
+      acc[variant.workflowId] = (acc[variant.workflowId] || 0) + 1;
+      return acc;
+    }, {});
+
+    return [
+      'Workflows disponibles:',
+      ...overview.workflows.map((workflow) => {
+        const variantCount = variantCountByWorkflow[workflow.id] || 0;
+        return `- ${workflow.name} | variantes=${variantCount} | ${workflow.summary}`;
+      }),
+      '',
+      'Las variantes nuevas se guardan desde la app. La creacion libre por chat ya no esta habilitada.',
     ].join('\n');
   }
 
@@ -457,25 +492,26 @@ export class TelegramService extends EventEmitter {
       '/agentes',
       '/ops status',
       '/ops runs',
+      '/flujos',
       '/correo triage [query]',
       '/agenda brief [YYYY-MM-DD]',
-      '/approve RUN_ID',
-      '/reject RUN_ID',
+      '/approve CASE_ID',
+      '/reject CASE_ID',
       '/nodes',
       '/node test NODE_ID',
     ].join('\n');
   }
 
-  private formatRunMessage(run: Record<string, any>): string {
-    const actions = Array.isArray(run.actions) ? run.actions : [];
+  private formatCaseMessage(detail: Record<string, any>): string {
+    const actions = Array.isArray(detail.actionsDetail) ? detail.actionsDetail : [];
     return [
-      `${run.title}`,
-      `Run: ${run.id}`,
-      `Estado: ${run.status}`,
-      `Resumen: ${run.summary || 'Sin resumen.'}`,
+      `${detail.title}`,
+      `Caso: ${detail.id}`,
+      `Estado: ${detail.nativeStatus}`,
+      `Resumen: ${detail.summary || 'Sin resumen.'}`,
       `Acciones: ${actions.length}`,
       ...actions.slice(0, 5).map((action: any) => `- ${action.title} | ${action.status}`),
-      run.status === 'needs_approval' ? 'Usa /approve RUN_ID o /reject RUN_ID' : '',
+      detail.normalizedStatus === 'pending_approval' ? 'Usa /approve CASE_ID o /reject CASE_ID' : '',
     ].filter(Boolean).join('\n');
   }
 

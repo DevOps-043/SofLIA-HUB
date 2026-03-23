@@ -342,6 +342,24 @@ describe('Confirmation flow', () => {
     await executeWhatsAppTools([fc('iris_get_teams', {})], ctx, 'jid', '5511111', false);
     expect(requestConfirmation).not.toHaveBeenCalled();
   });
+
+  it('WA-109: passive execution skips confirmation for confirmation-required tools', async () => {
+    const { executeGoogleTool } = await import('../whatsapp-executors/google-executors');
+    const requestConfirmation = vi.fn(async () => true);
+    const ctx = makeCtx({ requestConfirmation, skipConfirmations: true });
+
+    const result = await executeWhatsAppTools(
+      [fc('gmail_send', { to: 'a@b.com', subject: 'Hi', body: 'Hello' })],
+      ctx,
+      'jid',
+      '5511111',
+      false,
+    );
+
+    expect(requestConfirmation).not.toHaveBeenCalled();
+    expect(executeGoogleTool).toHaveBeenCalled();
+    expect(result.responses[0].functionResponse.name).toBe('gmail_send');
+  });
 });
 
 describe('Dispatch to delegated executors', () => {

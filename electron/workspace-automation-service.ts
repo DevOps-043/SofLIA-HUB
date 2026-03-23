@@ -27,7 +27,7 @@ type WorkflowActionKind =
   | 'drive_folder_tree'
   | 'desktop_task';
 
-interface WorkflowTemplateDefinition {
+export interface WorkflowTemplateDefinition {
   id: WorkflowTemplateId;
   name: string;
   description: string;
@@ -41,7 +41,7 @@ interface WorkflowTemplateDefinition {
   createdBy?: string | null;
 }
 
-interface WorkflowActionRecord {
+export interface WorkflowActionRecord {
   id: string;
   kind: WorkflowActionKind;
   title: string;
@@ -51,7 +51,7 @@ interface WorkflowActionRecord {
   error?: string | null;
 }
 
-interface WorkflowApprovalRecord {
+export interface WorkflowApprovalRecord {
   id: string;
   decision: 'approved' | 'rejected';
   decidedBy: string;
@@ -137,6 +137,8 @@ const TEMPLATE_DEFINITIONS: WorkflowTemplateDefinition[] = [
       to: 'correo requerido',
       topic: 'string requerido',
       context: 'string opcional',
+      tone: 'string opcional',
+      signature: 'string opcional',
     },
   },
   {
@@ -158,6 +160,7 @@ const TEMPLATE_DEFINITIONS: WorkflowTemplateDefinition[] = [
       projectName: 'string requerido',
       parentFolderId: 'string opcional',
       gchatSpace: 'string opcional',
+      folders: 'array opcional',
     },
   },
   {
@@ -728,6 +731,8 @@ export class WorkspaceAutomationService extends EventEmitter {
     const to = String(payload.input?.to || '').trim();
     const topic = String(payload.input?.topic || '').trim();
     const context = String(payload.input?.context || '').trim();
+    const tone = String(payload.input?.tone || 'profesional y claro').trim();
+    const signature = String(payload.input?.signature || '').trim();
 
     if (!to) {
       throw new Error('Necesito el correo destino para preparar el seguimiento.');
@@ -747,11 +752,15 @@ export class WorkspaceAutomationService extends EventEmitter {
         'Debe sonar profesional, humano y accionable.',
         'No inventes acuerdos, cifras ni fechas que no aparezcan en el contexto.',
         'Asume que se enviara desde Gmail y devuelve asunto y cuerpo listos para enviar.',
+        'Respeta el tono solicitado si existe.',
+        'Si se proporciona una firma, integrala al final del correo sin inventar cargo ni datos nuevos.',
       ].join('\n'),
       input: {
         to,
         topic,
         context: context || null,
+        tone: tone || null,
+        signature: signature || null,
       },
       schema: GMAIL_FOLLOWUP_SCHEMA,
     });
@@ -778,6 +787,8 @@ export class WorkspaceAutomationService extends EventEmitter {
         to,
         topic,
         context: context || null,
+        tone,
+        signature: signature || null,
       },
       source: null,
       preview: {
@@ -785,6 +796,8 @@ export class WorkspaceAutomationService extends EventEmitter {
         confidence: followup.output.confidence,
         subject: followup.output.subject,
         body: followup.output.body,
+        tone,
+        signature: signature || null,
       },
       actions,
       status: 'needs_approval',
@@ -879,12 +892,15 @@ export class WorkspaceAutomationService extends EventEmitter {
     const projectName = String(payload.input?.projectName || '').trim();
     const parentFolderId = String(payload.input?.parentFolderId || '').trim();
     const gchatSpace = String(payload.input?.gchatSpace || '').trim();
+    const requestedFolders = Array.isArray(payload.input?.folders)
+      ? payload.input?.folders.map((folder) => normalizeDriveFolderDefinition(folder)).filter(Boolean) as DriveFolderDefinition[]
+      : [];
 
     if (!projectName) {
       throw new Error('Necesito el nombre del proyecto o cliente para crear el espacio en Drive.');
     }
 
-    const folders = buildDriveWorkspaceFolders();
+    const folders = requestedFolders.length > 0 ? requestedFolders : buildDriveWorkspaceFolders();
     const actions: WorkflowActionRecord[] = [
       {
         id: crypto.randomUUID(),

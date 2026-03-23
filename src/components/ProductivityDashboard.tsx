@@ -163,14 +163,14 @@ export function ProductivityDashboard({ userId }: ProductivityDashboardProps) {
         {/* Date Selector & Stats Row */}
         <div className="flex flex-col gap-6 mb-8">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4 bg-white/5 backdrop-blur-md border border-white/10 p-1.5 rounded-xl shadow-inner">
+            <div className="flex items-center gap-4 bg-gray-100 dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 p-1.5 rounded-xl shadow-inner">
               <button
                 onClick={() => {
                   const d = new Date(selectedDate + 'T12:00:00');
                   d.setDate(d.getDate() - 1);
                   setSelectedDate(d.toISOString().split('T')[0]);
                 }}
-                className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all active:scale-95"
+                className="p-2 rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-white/10 transition-all active:scale-95"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -183,7 +183,7 @@ export function ProductivityDashboard({ userId }: ProductivityDashboardProps) {
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
                   max={new Date().toISOString().split('T')[0]}
-                  className="bg-transparent text-sm font-semibold text-white px-2 py-1 outline-none cursor-pointer"
+                  className="bg-transparent text-sm font-semibold text-gray-900 dark:text-white px-2 py-1 outline-none cursor-pointer"
                 />
               </div>
 
@@ -196,7 +196,7 @@ export function ProductivityDashboard({ userId }: ProductivityDashboardProps) {
                   if (next <= today) setSelectedDate(next);
                 }}
                 disabled={isToday}
-                className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all disabled:opacity-20 active:scale-95"
+                className="p-2 rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-white/10 transition-all disabled:opacity-20 active:scale-95"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -216,7 +216,7 @@ export function ProductivityDashboard({ userId }: ProductivityDashboardProps) {
               <button
                 onClick={loadData}
                 disabled={loadingData}
-                className="p-2.5 rounded-xl bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 transition-all active:rotate-180 duration-500"
+                className="p-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-white/10 transition-all active:rotate-180 duration-500"
                 title="Actualizar datos"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className={`h-4.5 w-4.5 ${loadingData ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -261,11 +261,11 @@ export function ProductivityDashboard({ userId }: ProductivityDashboardProps) {
         <div className="grid grid-cols-12 gap-8">
           {/* Main Content Column */}
           <div className="col-span-12 lg:col-span-8 space-y-8">
-            <div className="bg-[#1a1c20]/50 backdrop-blur-sm border border-white/10 rounded-3xl overflow-hidden shadow-xl">
+            <div className="bg-white dark:bg-[#1a1c20]/50 backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-3xl overflow-hidden shadow-xl">
               <DailyTimeline timeline={timeline} />
             </div>
             
-            <div className="bg-[#1a1c20]/50 backdrop-blur-sm border border-white/10 rounded-3xl overflow-hidden shadow-xl">
+            <div className="bg-white dark:bg-[#1a1c20]/50 backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-3xl overflow-hidden shadow-xl">
               <SummaryCard
                 summary={summary}
                 userId={userId}
@@ -280,7 +280,7 @@ export function ProductivityDashboard({ userId }: ProductivityDashboardProps) {
 
           {/* Sidebar Column */}
           <div className="col-span-12 lg:col-span-4 space-y-8">
-            <div className="bg-[#1a1c20]/50 backdrop-blur-sm border border-white/10 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
+            <div className="bg-white dark:bg-[#1a1c20]/50 backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
               <div className="absolute -top-10 -right-10 w-32 h-32 bg-accent/10 rounded-full blur-3xl group-hover:bg-accent/20 transition-all duration-700"></div>
               <MonitoringControls
                 userId={userId}
@@ -291,11 +291,11 @@ export function ProductivityDashboard({ userId }: ProductivityDashboardProps) {
               />
             </div>
 
-            <div className="bg-[#1a1c20]/50 backdrop-blur-sm border border-white/10 rounded-3xl p-6 shadow-xl">
+            <div className="bg-white dark:bg-[#1a1c20]/50 backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-3xl p-6 shadow-xl">
               <AppUsageChart stats={appStats} />
             </div>
 
-            <div className="bg-[#1a1c20]/50 backdrop-blur-sm border border-white/10 rounded-3xl p-6 shadow-xl">
+            <div className="bg-white dark:bg-[#1a1c20]/50 backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-3xl p-6 shadow-xl">
               <CalendarPanel />
             </div>
           </div>
@@ -351,7 +351,7 @@ function MetricCard({ label, value, icon, trend, color = 'blue' }: {
   };
 
   return (
-    <div className={`relative overflow-hidden bg-white/2 backdrop-blur-xl border rounded-4xl p-6 transition-all duration-500 hover:scale-[1.02] hover:bg-white/5 shadow-2xl ${colorMap[color]}`}>
+    <div className={`relative overflow-hidden bg-white dark:bg-white/2 backdrop-blur-xl border rounded-4xl p-6 transition-all duration-500 hover:scale-[1.02] dark:hover:bg-white/5 hover:bg-gray-50 shadow-lg dark:shadow-2xl ${colorMap[color]}`}>
       {/* Decorative Blur */}
       <div className={`absolute -right-8 -bottom-8 w-24 h-24 blur-3xl rounded-full opacity-20 transition-opacity group-hover/metric:opacity-40 ${iconColors[color].split(' ')[1]}`}></div>
       
@@ -372,7 +372,7 @@ function MetricCard({ label, value, icon, trend, color = 'blue' }: {
         
         <div className="space-y-1">
           <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">{label}</p>
-          <p className="text-3xl font-black text-white tracking-tighter truncate">{value}</p>
+          <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter truncate">{value}</p>
         </div>
       </div>
     </div>

@@ -87,8 +87,8 @@ interface WindowsUIARunResult {
   screenshotPath: string | null;
 }
 
-const DEFAULT_MODEL = 'gemini-3-flash-preview';
-const DEFAULT_FALLBACK_MODEL = 'gemini-2.5-flash';
+const DEFAULT_MODEL = 'gemini-2.5-flash';
+const DEFAULT_FALLBACK_MODEL = 'gemini-2.5-pro';
 
 export class WindowsUIAService extends EventEmitter {
   private apiKey = '';

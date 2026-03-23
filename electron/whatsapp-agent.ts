@@ -1,5 +1,5 @@
-/**
- * WhatsApp Agent — Main-process Gemini agentic loop for WhatsApp messages.
+﻿/**
+ * WhatsApp Agent â€” Main-process Gemini agentic loop for WhatsApp messages.
  * Uses executeToolDirect() to call computer-use tools without IPC.
  */
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -15,10 +15,11 @@ import type { MemoryService } from './memory-service';
 import type { KnowledgeService } from './knowledge-service';
 import type { DesktopAgentService } from './desktop-agent-service';
 import type { ClipboardAIAssistant } from './clipboard-ai-assistant';
-import type { TaskScheduler } from './task-scheduler';
+import type { ScheduledTaskInfo, TaskScheduler } from './task-scheduler';
 import type { NeuralOrganizerService } from './neural-organizer';
 import { SmartSearchTool } from './smart-search-tool';
-import type { WorkspaceAutomationService, WorkflowRunRecord } from './workspace-automation-service';
+import type { WorkspaceAutomationService } from './workspace-automation-service';
+import type { WorkflowHubService } from './workflow-hub-service';
 import {
   tryAutoAuthByPhone,
   getWhatsAppSession,
@@ -35,15 +36,15 @@ import { buildSystemPrompt, classifyEvidenceRequirement, detectActionRequest, fo
 import { executeWhatsAppTools, type ToolExecutorContext } from './whatsapp-tool-executor';
 import { dynamicToolService } from './dynamic-tool-service';
 
-// ─── [EXTRACTED] Tool definitions → ./whatsapp-tools.ts ─────
-// ─── [EXTRACTED] Prompts + helpers → ./whatsapp-prompts.ts ──
-// ─── [EXTRACTED] Tool executor → ./whatsapp-tool-executor.ts ─
+// â”€â”€â”€ [EXTRACTED] Tool definitions â†’ ./whatsapp-tools.ts â”€â”€â”€â”€â”€
+// â”€â”€â”€ [EXTRACTED] Prompts + helpers â†’ ./whatsapp-prompts.ts â”€â”€
+// â”€â”€â”€ [EXTRACTED] Tool executor â†’ ./whatsapp-tool-executor.ts â”€
 
-// ─── Conversation history per session (DM: by number, Group: by group+number) ──
+// â”€â”€â”€ Conversation history per session (DM: by number, Group: by group+number) â”€â”€
 const MAX_HISTORY = 20;
 const conversations = new Map<string, Array<{ role: string; parts: Array<{ text: string }> }>>();
 
-// ─── Pending confirmations ──────────────────────────────────────────
+// â”€â”€â”€ Pending confirmations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 interface PendingConfirmation {
   toolName: string;
   args: Record<string, any>;
@@ -52,7 +53,7 @@ interface PendingConfirmation {
 }
 const pendingConfirmations = new Map<string, PendingConfirmation>();
 
-// ─── Model selection: prefer stable models for main process ─────────
+// â”€â”€â”€ Model selection: prefer stable models for main process â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const WA_MODEL = 'gemini-2.5-flash';
 
 const LOOP_GUARD_REPEAT_THRESHOLD = 3;
@@ -97,6 +98,10 @@ interface ToolLoopTraceEntry {
   responseSignature: string;
   toolNames: string[];
   hadFailure: boolean;
+}
+
+interface AgentLoopOptions {
+  skipConfirmations?: boolean;
 }
 
 type EvidenceMode = 'local' | 'local_visual' | 'remote' | 'neutral';
@@ -204,8 +209,8 @@ export class WhatsAppAgent {
   private taskScheduler: TaskScheduler | null = null;
   private neuralOrganizer: NeuralOrganizerService | null = null;
   private smartSearch: SmartSearchTool | null = null;
-  private meetingWorkflowService: MeetingWorkflowService | null = null;
   private workspaceAutomationService: WorkspaceAutomationService | null = null;
+  private workflowHubService: WorkflowHubService | null = null;
   private memory: MemoryService;
   private knowledge: KnowledgeService;
 
@@ -241,13 +246,18 @@ export class WhatsAppAgent {
   }
 
   setMeetingWorkflowService(service: MeetingWorkflowService): void {
-    this.meetingWorkflowService = service;
+    void service;
     console.log('[WhatsApp Agent] Meeting workflow service connected');
   }
 
   setWorkspaceAutomationService(service: WorkspaceAutomationService): void {
     this.workspaceAutomationService = service;
     console.log('[WhatsApp Agent] Workspace automation service connected');
+  }
+
+  setWorkflowHubService(service: WorkflowHubService): void {
+    this.workflowHubService = service;
+    console.log('[WhatsApp Agent] Workflow hub service connected');
   }
 
 
@@ -268,7 +278,7 @@ export class WhatsAppAgent {
     return this.genAI;
   }
 
-  // ─── Handle text messages ───────────────────────────────────────
+  // â”€â”€â”€ Handle text messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async handleMessage(
     jid: string,
     senderNumber: string,
@@ -293,14 +303,14 @@ export class WhatsAppAgent {
     const pending = pendingConfirmations.get(senderNumber);
     if (pending) {
       const lower = text.toLowerCase().trim();
-      const confirmed = lower === 'si' || lower === 'sí' || lower === 'yes' || lower === 'confirmar' || lower === 'confirmo';
+      const confirmed = lower === 'si' || lower === 'sÃ­' || lower === 'yes' || lower === 'confirmar' || lower === 'confirmo';
       clearTimeout(pending.timeout);
       pendingConfirmations.delete(senderNumber);
       pending.resolve(confirmed);
       return;
     }
 
-    // ─── Chat commands (inspired by OpenClaw) ────────────────────
+    // â”€â”€â”€ Chat commands (inspired by OpenClaw) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (text.startsWith('/')) {
       try {
         const cmdResult = await this.handleChatCommand(jid, senderNumber, text, isGroup);
@@ -313,10 +323,16 @@ export class WhatsAppAgent {
         await this.waService.sendText(jid, `No pude completar ese comando.\n${message}`);
         return;
       }
-      // Si se activó un workflow durante el comando, detener el procesamiento normal
+      // Si se activÃ³ un workflow durante el comando, detener el procesamiento normal
       if (WorkflowManager.isActive(sessionKey) || MeetingWorkflowManager.isActive(sessionKey)) {
         return;
       }
+    }
+
+    const passiveWorkflowReply = this.tryHandlePassiveWorkflowRequest(senderNumber, text, isGroup);
+    if (passiveWorkflowReply) {
+      await this.waService.sendText(jid, passiveWorkflowReply);
+      return;
     }
 
     try {
@@ -330,11 +346,45 @@ export class WhatsAppAgent {
       const sessionKey = isGroup ? `group:${jid}:${senderNumber}` : senderNumber;
       conversations.delete(sessionKey);
       console.warn(`[WhatsApp Agent] Auto-reset conversation for ${sessionKey} after error`);
-      await this.waService.sendText(jid, `Ocurrió un error. He reiniciado la conversación. Intenta de nuevo.`);
+      await this.waService.sendText(jid, `OcurriÃ³ un error. He reiniciado la conversaciÃ³n. Intenta de nuevo.`);
     }
   }
 
-  // ─── Chat commands (/status, /reset, /activation, /help) ────────
+  async handleScheduledTaskTrigger(
+    jid: string,
+    senderNumber: string,
+    task: ScheduledTaskInfo,
+  ): Promise<void> {
+    const prompt = String(task.prompt || '').trim();
+    if (!prompt) {
+      return;
+    }
+
+    const wrappedPrompt = [
+      'Esta es una automatizacion pasiva ya programada.',
+      'No la vuelvas a programar ni uses task_scheduler.',
+      'Ejecuta ahora la instruccion y responde por WhatsApp con el resultado.',
+      '',
+      `Solicitud original: ${prompt}`,
+    ].join('\n');
+
+    try {
+      const response = await this.runAgentLoop(jid, senderNumber, wrappedPrompt, false, '', [], {
+        skipConfirmations: true,
+      });
+      if (response) {
+        await this.waService.sendText(jid, response);
+      }
+    } catch (err: any) {
+      console.error('[WhatsApp Agent] Scheduled task error:', err);
+      await this.waService.sendText(
+        jid,
+        `No pude completar la automatizacion pasiva "${task.name || task.id}". ${err?.message || ''}`.trim(),
+      );
+    }
+  }
+
+  // â”€â”€â”€ Chat commands (/status, /reset, /activation, /help) â”€â”€â”€â”€â”€â”€â”€â”€
   private async handleChatCommand(
     jid: string,
     senderNumber: string,
@@ -349,105 +399,131 @@ export class WhatsAppAgent {
 
     switch (cmd) {
       case '/status':
-        return `🤖 *SofLIA activa*\n• Modelo: Gemini 2.5 Flash\n• Modo: ${isGroup ? 'Grupo' : 'DM'}\n• Historial: ${conversations.get(sessionKey)?.length || 0} mensajes`;
+        return `ðŸ¤– *SofLIA activa*\nâ€¢ Modelo: Gemini 2.5 Flash\nâ€¢ Modo: ${isGroup ? 'Grupo' : 'DM'}\nâ€¢ Historial: ${conversations.get(sessionKey)?.length || 0} mensajes`;
 
       case '/reset':
       case '/new':
         conversations.delete(sessionKey);
         this.memory.clearSessionContext(sessionKey);
-        return '🔄 Conversación reiniciada.';
+        return 'ðŸ”„ ConversaciÃ³n reiniciada.';
 
       case '/activation': {
-        if (!isGroup) return '⚠️ Este comando solo funciona en grupos.';
+        if (!isGroup) return 'âš ï¸ Este comando solo funciona en grupos.';
         // Security: Only administrator can change activation mode
         if (!this.waService.isAllowedNumber(senderNumber)) {
-          return '❌ Solo el administrador puede cambiar el modo de activación.';
+          return 'âŒ Solo el administrador puede cambiar el modo de activaciÃ³n.';
         }
         const mode = args[0]?.toLowerCase();
         if (mode === 'mention' || mode === 'always') {
           await this.waService.setGroupConfig({ groupActivation: mode });
-          return `✅ Activación cambiada a: *${mode}*\n${mode === 'mention' ? '• Solo responderé cuando me mencionen, usen /soflia, o hagan reply a mi mensaje' : '• Responderé a TODOS los mensajes del grupo'}`;
+          return `âœ… ActivaciÃ³n cambiada a: *${mode}*\n${mode === 'mention' ? 'â€¢ Solo responderÃ© cuando me mencionen, usen /soflia, o hagan reply a mi mensaje' : 'â€¢ ResponderÃ© a TODOS los mensajes del grupo'}`;
         }
-        return '📋 Uso: /activation mention | always';
+        return 'ðŸ“‹ Uso: /activation mention | always';
       }
 
-      case '/presentación':
+      case '/presentaciÃ³n':
       case '/presentacion':
         await WorkflowManager.startWorkflow(sessionKey, jid, senderNumber, this.waService, this);
         return null;
 
       case '/reunion':
-      case '/reunión':
-        if (!this.meetingWorkflowService) {
-          return 'Meeting Ops no está disponible todavía.';
+      case '/reuniÃ³n': {
+        const workflowHub = this.requireWorkflowHubService();
+        const raw = args.join(' ').trim();
+        if (!raw) {
+          return 'Uso: /reunion pega notas directamente, o /reunion prep 2026-03-22, o /reunion drive | LINK | titulo opcional';
         }
-        await MeetingWorkflowManager.startWorkflow(
-          sessionKey,
-          jid,
-          senderNumber,
-          this.waService,
-          this.meetingWorkflowService,
-        );
-        if (args.length > 0) {
-          await MeetingWorkflowManager.handleMessage(sessionKey, args.join(' '));
+
+        if (/^prep(\s|$)/i.test(raw)) {
+          const targetDate = this.resolveAutomationBriefDate([raw.replace(/^prep\s*/i, '').trim()].filter(Boolean));
+          const detail = await workflowHub.executeWorkflow({
+            workflowId: 'reuniones',
+            requestedBy: `whatsapp:${senderNumber}`,
+            input: {
+              mode: 'prep',
+              targetDate,
+            },
+          });
+          return this.formatWorkflowCaseResponse(detail, 'Listo. Prepare la reunion.');
         }
-        return null;
+
+        if (/^drive(\s*\||\s+)/i.test(raw)) {
+          const rest = raw.replace(/^drive/i, '').trim().replace(/^\|/, '').trim();
+          const parts = rest.split('|').map((item) => item.trim()).filter(Boolean);
+          const driveRef = parts[0] || '';
+          const meetingTitle = parts[1] || '';
+          if (!driveRef) {
+            return 'Uso: /reunion drive | LINK_O_ID | titulo opcional';
+          }
+          const detail = await workflowHub.executeWorkflow({
+            workflowId: 'reuniones',
+            requestedBy: `whatsapp:${senderNumber}`,
+            input: {
+              mode: 'drive',
+              driveRef,
+              meetingTitle,
+            },
+          });
+          return this.formatWorkflowCaseResponse(detail, 'Listo. Cree el caso de reunion desde Drive.');
+        }
+
+        if (/^auto(\s|$)/i.test(raw)) {
+          return 'La deteccion automatica de reuniones corre en segundo plano. Usa /flujos para revisar capacidades y casos detectados.';
+        }
+
+        const detail = await workflowHub.executeWorkflow({
+          workflowId: 'reuniones',
+          requestedBy: `whatsapp:${senderNumber}`,
+          input: {
+            mode: 'manual',
+            manualText: raw,
+          },
+        });
+        return this.formatWorkflowCaseResponse(detail, 'Listo. Cree el caso de reunion.');
+      }
 
       case '/correo':
       case '/correos': {
-        if (!this.workspaceAutomationService) {
-          return 'La revisión de correo todavía no está disponible en este momento.';
-        }
-        if (!this.workspaceAutomationService.isConfigured()) {
+        const workflowHub = this.requireWorkflowHubService();
+        if (!this.workspaceAutomationService?.isConfigured()) {
           return 'Primero necesito una API key activa de Gemini para revisar correos.';
         }
 
         const query = this.resolveAutomationMailQuery(args);
-        const run = await this.workspaceAutomationService.executeTemplate({
-          templateId: 'gmail_triage',
+        const detail = await workflowHub.executeWorkflow({
+          workflowId: 'correo',
           requestedBy: `whatsapp:${senderNumber}`,
           input: {
+            preset: 'custom',
             query,
             maxResults: 5,
             removeFromInbox: true,
           },
         });
-
-        return this.formatAutomationRunResponse(
-          run,
-          'Listo. Preparé una revisión ejecutiva de correo.',
-        );
+        return this.formatWorkflowCaseResponse(detail, 'Listo. Prepare una revision ejecutiva de correo.');
       }
 
       case '/agenda': {
-        if (!this.workspaceAutomationService) {
-          return 'La agenda ejecutiva todavía no está disponible en este momento.';
-        }
-        if (!this.workspaceAutomationService.isConfigured()) {
+        const workflowHub = this.requireWorkflowHubService();
+        if (!this.workspaceAutomationService?.isConfigured()) {
           return 'Primero necesito una API key activa de Gemini para preparar la agenda.';
         }
 
         const targetDate = this.resolveAutomationBriefDate(args);
-        const run = await this.workspaceAutomationService.executeTemplate({
-          templateId: 'calendar_daily_brief',
+        const detail = await workflowHub.executeWorkflow({
+          workflowId: 'agenda',
           requestedBy: `whatsapp:${senderNumber}`,
           input: {
             targetDate,
           },
         });
-
-        return this.formatAutomationRunResponse(
-          run,
-          `Listo. Preparé tu resumen de agenda${targetDate ? ` para ${targetDate}` : ' de hoy'}.`,
-        );
+        return this.formatWorkflowCaseResponse(detail, `Listo. Prepare tu resumen de agenda${targetDate ? ` para ${targetDate}` : ' de hoy'}.`);
       }
 
       case '/seguimiento':
       case '/correoseguimiento': {
-        if (!this.workspaceAutomationService) {
-          return 'El seguimiento de correo todavia no esta disponible.';
-        }
-        if (!this.workspaceAutomationService.isConfigured()) {
+        const workflowHub = this.requireWorkflowHubService();
+        if (!this.workspaceAutomationService?.isConfigured()) {
           return 'Primero necesito una API key activa de Gemini para redactar el seguimiento.';
         }
 
@@ -455,87 +531,75 @@ export class WhatsAppAgent {
         const parts = raw.split('|').map((item) => item.trim());
         const to = parts[0] || '';
         const topic = parts[1] || '';
-        const context = parts.slice(2).join(' | ').trim();
+        const context = parts[2] || '';
+        const tone = parts[3] || '';
+        const signature = parts[4] || '';
         if (!to || !topic) {
-          return 'Uso: /seguimiento correo@empresa.com | tema | contexto opcional';
+          return 'Uso: /seguimiento correo@empresa.com | tema | contexto opcional | tono opcional | firma opcional';
         }
 
-        const run = await this.workspaceAutomationService.executeTemplate({
-          templateId: 'gmail_followup_draft',
+        const detail = await workflowHub.executeWorkflow({
+          workflowId: 'seguimiento',
           requestedBy: `whatsapp:${senderNumber}`,
           input: {
             to,
             topic,
             context: context || undefined,
+            tone: tone || undefined,
+            signature: signature || undefined,
           },
         });
-
-        return this.formatAutomationRunResponse(
-          run,
-          'Listo. Deje preparado el correo de seguimiento.',
-        );
+        return this.formatWorkflowCaseResponse(detail, 'Listo. Deje preparado el correo de seguimiento.');
       }
 
       case '/prepreunion':
       case '/reunionprep': {
-        if (!this.workspaceAutomationService) {
-          return 'La preparacion de reunion todavia no esta disponible.';
-        }
-        if (!this.workspaceAutomationService.isConfigured()) {
+        const workflowHub = this.requireWorkflowHubService();
+        if (!this.workspaceAutomationService?.isConfigured()) {
           return 'Primero necesito una API key activa de Gemini para preparar la reunion.';
         }
 
         const targetDate = this.resolveAutomationBriefDate(args);
-        const run = await this.workspaceAutomationService.executeTemplate({
-          templateId: 'calendar_meeting_prep',
+        const detail = await workflowHub.executeWorkflow({
+          workflowId: 'reuniones',
           requestedBy: `whatsapp:${senderNumber}`,
           input: {
+            mode: 'prep',
             targetDate,
           },
         });
-
-        return this.formatAutomationRunResponse(
-          run,
-          `Listo. Prepare tu siguiente reunion${targetDate ? ` para ${targetDate}` : ''}.`,
-        );
+        return this.formatWorkflowCaseResponse(detail, `Listo. Prepare tu siguiente reunion${targetDate ? ` para ${targetDate}` : ''}.`);
       }
 
       case '/driveproyecto': {
-        if (!this.workspaceAutomationService) {
-          return 'La preparacion de espacios en Drive todavia no esta disponible.';
-        }
-
+        const workflowHub = this.requireWorkflowHubService();
         const raw = args.join(' ').trim();
         const parts = raw.split('|').map((item) => item.trim());
         const projectName = parts[0] || '';
         const parentFolderId = parts[1] || '';
         const gchatSpace = parts[2] || '';
+        const folderPreset = parts[3] || '';
         if (!projectName) {
-          return 'Uso: /driveproyecto Nombre del proyecto | carpetaPadre opcional | espacioChat opcional';
+          return 'Uso: /driveproyecto Nombre del proyecto | carpetaPadre opcional | espacioChat opcional | plantilla opcional';
         }
 
-        const run = await this.workspaceAutomationService.executeTemplate({
-          templateId: 'drive_project_workspace',
+        const detail = await workflowHub.executeWorkflow({
+          workflowId: 'drive',
           requestedBy: `whatsapp:${senderNumber}`,
           input: {
             projectName,
             parentFolderId: parentFolderId || undefined,
             gchatSpace: gchatSpace || undefined,
+            folderPreset: folderPreset || undefined,
           },
         });
-
-        return this.formatAutomationRunResponse(
-          run,
-          'Listo. Deje preparado el espacio base de Drive.',
-        );
+        return this.formatWorkflowCaseResponse(detail, 'Listo. Deje preparado el espacio base de Drive.');
       }
 
       case '/chatdirectivo':
       case '/actualizacionchat': {
-        if (!this.workspaceAutomationService) {
-          return 'La actualizacion ejecutiva todavia no esta disponible.';
-        }
-        if (!this.workspaceAutomationService.isConfigured()) {
+        const workflowHub = this.requireWorkflowHubService();
+        if (!this.workspaceAutomationService?.isConfigured()) {
           return 'Primero necesito una API key activa de Gemini para redactar la actualizacion.';
         }
 
@@ -548,8 +612,8 @@ export class WhatsAppAgent {
           return 'Uso: /chatdirectivo SPACE | contexto | tono opcional';
         }
 
-        const run = await this.workspaceAutomationService.executeTemplate({
-          templateId: 'gchat_executive_update',
+        const detail = await workflowHub.executeWorkflow({
+          workflowId: 'actualizacion_equipo',
           requestedBy: `whatsapp:${senderNumber}`,
           input: {
             spaceName,
@@ -557,20 +621,14 @@ export class WhatsAppAgent {
             tone: tone || undefined,
           },
         });
-
-        return this.formatAutomationRunResponse(
-          run,
-          'Listo. Deje lista la actualizacion ejecutiva para Google Chat.',
-        );
+        return this.formatWorkflowCaseResponse(detail, 'Listo. Deje lista la actualizacion ejecutiva para Google Chat.');
       }
 
       case '/computadora':
       case '/pc':
       case '/escritorio': {
-        if (!this.workspaceAutomationService) {
-          return 'La automatizacion de computadora todavia no esta disponible.';
-        }
-        if (!this.workspaceAutomationService.isConfigured()) {
+        const workflowHub = this.requireWorkflowHubService();
+        if (!this.workspaceAutomationService?.isConfigured()) {
           return 'Primero necesito una API key activa de Gemini para preparar la accion.';
         }
 
@@ -579,128 +637,72 @@ export class WhatsAppAgent {
           return 'Uso: /computadora describe la accion que quieres preparar';
         }
 
-        const run = await this.workspaceAutomationService.executeTemplate({
-          templateId: 'desktop_action',
+        const detail = await workflowHub.executeWorkflow({
+          workflowId: 'pc',
           requestedBy: `whatsapp:${senderNumber}`,
           input: {
             objective,
           },
         });
-
-        return this.formatAutomationRunResponse(
-          run,
-          'Listo. Prepare una accion para tu computadora.',
-        );
+        return this.formatWorkflowCaseResponse(detail, 'Listo. Prepare una accion para tu computadora.');
       }
 
-      case '/crearflujo': {
-        if (!this.workspaceAutomationService) {
-          return 'La creación de flujos todavía no está disponible.';
-        }
-        if (!this.workspaceAutomationService.isConfigured()) {
-          return 'Primero necesito una API key activa de Gemini para diseñar flujos.';
-        }
-
-        const raw = args.join(' ').trim();
-        const [namePart, objectivePart] = raw.split('|').map((item) => item.trim());
-        const objective = objectivePart ? objectivePart : namePart;
-        const name = objectivePart ? namePart : '';
-        if (!objective) {
-          return 'Uso: /crearflujo Nombre | Objetivo del flujo';
-        }
-
-        const template = await this.workspaceAutomationService.createCustomTemplate({
-          name: name || undefined,
-          objective,
-          requestedBy: `whatsapp:${senderNumber}`,
-        });
-
-        return [
-          'Listo. Diseñé un nuevo flujo personalizado.',
-          `ID: ${template.id}`,
-          `Nombre: ${template.name}`,
-          `Resumen: ${template.description}`,
-          `Para usarlo: /usarflujo ${template.id} | detalle actual`,
-        ].join('\n');
-      }
+      case '/crearflujo':
+        return 'La creacion libre de flujos ya no esta habilitada por chat. Ahora guardas variantes sobre workflows predeterminados desde la app.';
 
       case '/flujos':
       case '/misflujos': {
-        if (!this.workspaceAutomationService) {
-          return 'La lista de flujos todavía no está disponible.';
-        }
-        return this.formatCustomTemplateList();
+        const workflowHub = this.requireWorkflowHubService();
+        const overview = await workflowHub.getOverview();
+        return this.formatWorkflowCatalogList(overview);
       }
 
       case '/usarflujo':
-      case '/ejecutarflujo': {
-        if (!this.workspaceAutomationService) {
-          return 'La ejecución de flujos todavía no está disponible.';
-        }
-        const raw = args.join(' ').trim();
-        const [templateIdPart, detailsPart] = raw.split('|').map((item) => item.trim());
-        const templateId = templateIdPart?.split(/\s+/)[0]?.trim();
-        if (!templateId) {
-          return 'Uso: /usarflujo ID | detalle actual';
-        }
-        const run = await this.workspaceAutomationService.executeTemplate({
-          templateId,
-          requestedBy: `whatsapp:${senderNumber}`,
-          input: {
-            details: detailsPart || null,
-          },
-        });
-        return this.formatAutomationRunResponse(
-          run,
-          'Listo. Preparé el flujo personalizado.',
-        );
-      }
+      case '/ejecutarflujo':
+        return 'Los workflows ahora se ejecutan con comandos de negocio (/correo, /agenda, /seguimiento, /reunion, /driveproyecto, /chatdirectivo, /computadora) o desde variantes guardadas en la app.';
 
       case '/pendientes': {
-        if (!this.workspaceAutomationService) {
-          return 'La bandeja de decisiones todavía no está disponible.';
-        }
-        return this.formatPendingAutomationRuns();
+        const workflowHub = this.requireWorkflowHubService();
+        const overview = await workflowHub.getOverview();
+        return this.formatPendingCases(overview);
       }
 
       case '/aprobar':
       case '/autorizar': {
-        if (!this.workspaceAutomationService) {
-          return 'La autorización de casos todavía no está disponible.';
-        }
-        const runId = args[0]?.trim();
-        if (!runId) {
-          return 'Uso: /aprobar FOLIO comentario opcional';
+        const workflowHub = this.requireWorkflowHubService();
+        const caseId = args[0]?.trim();
+        if (!caseId) {
+          return 'Uso: /aprobar CASE_ID comentario opcional';
         }
         const comment = args.slice(1).join(' ').trim() || null;
-        const run = await this.workspaceAutomationService.approveRun(
-          runId,
-          `whatsapp:${senderNumber}`,
+        const detail = await workflowHub.approveCase({
+          caseId: this.normalizeWorkflowCaseId(caseId),
+          decidedBy: `whatsapp:${senderNumber}`,
+          scope: 'case',
           comment,
-        );
-        return this.formatAutomationDecisionResponse(run, 'autorizado');
+        });
+        return this.formatWorkflowCaseResponse(detail, 'Caso autorizado.');
       }
 
       case '/rechazar':
       case '/noautorizar': {
-        if (!this.workspaceAutomationService) {
-          return 'La autorización de casos todavía no está disponible.';
-        }
-        const runId = args[0]?.trim();
-        if (!runId) {
-          return 'Uso: /rechazar FOLIO comentario opcional';
+        const workflowHub = this.requireWorkflowHubService();
+        const caseId = args[0]?.trim();
+        if (!caseId) {
+          return 'Uso: /rechazar CASE_ID comentario opcional';
         }
         const comment = args.slice(1).join(' ').trim() || null;
-        const run = this.workspaceAutomationService.rejectRun(
-          runId,
-          `whatsapp:${senderNumber}`,
+        const detail = await workflowHub.rejectCase({
+          caseId: this.normalizeWorkflowCaseId(caseId),
+          decidedBy: `whatsapp:${senderNumber}`,
+          scope: 'case',
           comment,
-        );
-        return this.formatAutomationDecisionResponse(run, 'rechazado');
+        });
+        return this.formatWorkflowCaseResponse(detail, 'Caso rechazado.');
       }
 
       case '/help':
-        return `📋 *Comandos disponibles:*\n\n/status — Estado de SofLIA\n/reset — Reiniciar conversación\n/new — Igual que /reset\n/correo — Revisar un correo importante\n/correo hoy — Correos nuevos de hoy\n/correo noleidos — Correos pendientes de responder\n/agenda — Preparar agenda de hoy\n/agenda 2026-03-22 — Preparar agenda de una fecha\n/crearflujo Nombre | Objetivo — Crear un flujo propio\n/flujos — Ver flujos personalizados\n/usarflujo ID | detalle — Ejecutar un flujo personalizado\n/pendientes — Ver decisiones por autorizar\n/aprobar FOLIO — Autorizar un caso\n/rechazar FOLIO — No autorizar un caso\n/presentacion — Proceso de presentaciones\n/reunion — Proceso de reuniones\n${isGroup ? '/activation mention|always — Modo de activación en grupo (Solo Admin)\n' : ''}/help — Esta ayuda\n\n${isGroup ? '💡 En grupos, solo respondo si me etiquetas (@SofLIA), usas el prefijo /soflia, o incluyes mi nombre "soflia" en tu mensaje.' : 'Tip: usa /pendientes para revisar lo que espera tu autorización.'}`;
+        return `*Comandos disponibles:*\n\n/status - Estado de SofLIA\n/reset - Reiniciar conversacion\n/new - Igual que /reset\n/correo - Revisar correo\n/correo hoy - Correos de hoy\n/correo noleidos - Correos pendientes\n/agenda - Preparar agenda de hoy\n/agenda 2026-03-22 - Preparar agenda de una fecha\n/seguimiento correo@empresa.com | tema | contexto - Borrador de seguimiento\n/reunion notas... - Crear caso de reunion desde notas\n/reunion prep 2026-03-22 - Preparar reunion\n/reunion drive | LINK | titulo - Crear caso desde Drive\n/driveproyecto Nombre | carpetaPadre | espacioChat - Crear espacio en Drive\n/chatdirectivo SPACE | contexto | tono - Actualizacion ejecutiva\n/computadora describe la accion - Preparar tarea en PC\n/flujos - Ver workflows, variantes y rutinas pasivas\n/pendientes - Ver casos pendientes\n/aprobar CASE_ID - Autorizar un caso\n/rechazar CASE_ID - Rechazar un caso\n/presentacion - Proceso de presentaciones\n${isGroup ? '/activation mention|always - Modo de activacion en grupo\n' : ''}/help - Esta ayuda\n\n${isGroup ? 'En grupos, solo respondo si me etiquetas (@SofLIA), usas el prefijo /soflia, o incluyes mi nombre "soflia" en tu mensaje.' : 'Tip: tambien puedes pedir cosas como "dame mis correos a las 8 am" o "prende las luces de mi cuarto a las 9 pm" y lo guardare como workflow pasivo.'}`;
 
       default:
         // Not a recognized command, return null to let agent process it
@@ -765,85 +767,275 @@ export class WhatsAppAgent {
     return undefined;
   }
 
-  private formatPendingAutomationRuns(): string {
-    const pendingRuns = this.workspaceAutomationService
-      ?.listRuns(10)
-      .filter((run) => run.status === 'needs_approval') || [];
+  private tryHandlePassiveWorkflowRequest(senderNumber: string, text: string, isGroup: boolean): string | null {
+    if (isGroup || !this.workflowHubService) {
+      return null;
+    }
 
-    if (pendingRuns.length === 0) {
+    const intent = this.parsePassiveWorkflowIntent(text);
+    if (!intent) {
+      return null;
+    }
+
+    const workflowHub = this.requireWorkflowHubService();
+    const rule = workflowHub.savePassiveRule({
+      workflowId: intent.workflowId,
+      name: intent.name,
+      description: intent.description,
+      prompt: intent.prompt,
+      cronExpression: intent.cronExpression,
+      scheduleLabel: intent.scheduleLabel,
+      requestedBy: `whatsapp:${senderNumber}`,
+      phoneNumber: senderNumber,
+      source: 'chat',
+      executionMode: 'agent_prompt',
+    });
+
+    return [
+      `Listo. Lo guarde como workflow pasivo: *${rule.name}*`,
+      `Cuando: ${rule.scheduleLabel}`,
+      rule.workflowId ? `Tipo: ${rule.workflowName}` : 'Tipo: Rutina libre recordada',
+      'No necesitas volver a pedirlo con comandos; lo voy a ejecutar solo.',
+    ].join('\n');
+  }
+
+  private parsePassiveWorkflowIntent(text: string): {
+    workflowId?: 'correo' | 'agenda' | 'reuniones';
+    name: string;
+    description: string;
+    prompt: string;
+    cronExpression: string;
+    scheduleLabel: string;
+  } | null {
+    const schedule = this.extractPassiveSchedule(text);
+    if (!schedule) {
+      return null;
+    }
+
+    const normalized = this.normalizeForIntent(text);
+    if (!/\b(recuerdame|recuerdame|avisa|avisame|dame|enviame|mandame|prende|apaga|resume|resumeme|revisa|haz|ejecuta|prepara|busca|traeme|trae)\b/.test(normalized)) {
+      return null;
+    }
+
+    const workflowId = this.detectPassiveWorkflowId(text);
+    const compact = text.trim().replace(/\s+/g, ' ');
+    const name = workflowId === 'correo'
+      ? 'Resumen de correos'
+      : workflowId === 'agenda'
+        ? 'Briefing de agenda'
+        : workflowId === 'reuniones'
+          ? 'Seguimiento de reuniones'
+          : compact.slice(0, 72) || 'Rutina pasiva';
+    const description = workflowId
+      ? `Workflow pasivo de ${workflowId} creado desde WhatsApp.`
+      : 'Rutina pasiva libre creada desde WhatsApp.';
+
+    return {
+      workflowId,
+      name,
+      description,
+      prompt: compact,
+      cronExpression: schedule.cronExpression,
+      scheduleLabel: schedule.scheduleLabel,
+    };
+  }
+
+  private detectPassiveWorkflowId(text: string): 'correo' | 'agenda' | 'reuniones' | undefined {
+    const normalized = this.normalizeForIntent(text);
+    if (/\b(correo|correos|gmail|bandeja|inbox)\b/.test(normalized)) {
+      return 'correo';
+    }
+    if (/\b(agenda|calendario|calendar|briefing)\b/.test(normalized)) {
+      return 'agenda';
+    }
+    if (/\b(reunion|reuniones|meet|meeting)\b/.test(normalized)) {
+      return 'reuniones';
+    }
+    return undefined;
+  }
+
+  private extractPassiveSchedule(text: string): { cronExpression: string; scheduleLabel: string } | null {
+    const normalized = this.normalizeForIntent(text);
+
+    if (/\bcada\s+(\d+)\s+hora(s)?\b/.test(normalized)) {
+      const match = normalized.match(/\bcada\s+(\d+)\s+hora(s)?\b/);
+      const interval = Math.max(1, Math.min(24, Number(match?.[1] || 1)));
+      return {
+        cronExpression: `0 */${interval} * * *`,
+        scheduleLabel: `Cada ${interval} hora${interval === 1 ? '' : 's'}`,
+      };
+    }
+
+    if (/\bcada\s+hora\b/.test(normalized)) {
+      return {
+        cronExpression: '0 * * * *',
+        scheduleLabel: 'Cada hora',
+      };
+    }
+
+    const time = this.extractClockTime(normalized);
+    if (!time) {
+      return null;
+    }
+
+    if (/\b(manana|mañana|hoy|esta tarde|esta noche)\b/.test(normalized)
+      && !/\b(cada|todos los dias|todos los días|diario|diariamente|lunes|martes|miercoles|miércoles|jueves|viernes|sabado|sábado|domingo|entre semana|dias laborales|cada hora)\b/.test(normalized)) {
+      return null;
+    }
+
+    const [hour, minute] = time;
+    const timeLabel = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+
+    if (/\b(lunes a viernes|lun a vie|entre semana|dias laborales)\b/.test(normalized)) {
+      return {
+        cronExpression: `${minute} ${hour} * * 1-5`,
+        scheduleLabel: `Lunes a viernes a las ${timeLabel}`,
+      };
+    }
+
+    const weekdayMap: Array<{ regex: RegExp; cron: string; label: string }> = [
+      { regex: /\b(lunes|cada lunes|los lunes)\b/, cron: '1', label: 'Lunes' },
+      { regex: /\b(martes|cada martes|los martes)\b/, cron: '2', label: 'Martes' },
+      { regex: /\b(miercoles|miércoles|cada miercoles|cada miércoles|los miercoles|los miércoles)\b/, cron: '3', label: 'Miercoles' },
+      { regex: /\b(jueves|cada jueves|los jueves)\b/, cron: '4', label: 'Jueves' },
+      { regex: /\b(viernes|cada viernes|los viernes)\b/, cron: '5', label: 'Viernes' },
+      { regex: /\b(sabado|sábado|cada sabado|cada sábado|los sabados|los sábados)\b/, cron: '6', label: 'Sabado' },
+      { regex: /\b(domingo|cada domingo|los domingos)\b/, cron: '0', label: 'Domingo' },
+    ];
+    const weekday = weekdayMap.find((candidate) => candidate.regex.test(normalized));
+    if (weekday) {
+      return {
+        cronExpression: `${minute} ${hour} * * ${weekday.cron}`,
+        scheduleLabel: `${weekday.label} a las ${timeLabel}`,
+      };
+    }
+
+    if (/\b(todos los dias|todos los días|cada dia|cada día|diario|diariamente|cada manana|cada mañana|todas las mananas|todas las mañanas)\b/.test(normalized)
+      || /\ba las\b/.test(normalized)) {
+      return {
+        cronExpression: `${minute} ${hour} * * *`,
+        scheduleLabel: `Todos los dias a las ${timeLabel}`,
+      };
+    }
+
+    return null;
+  }
+
+  private extractClockTime(normalized: string): [number, number] | null {
+    const timeMatch = normalized.match(/\b(?:a las|a la|alas)?\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/);
+    if (!timeMatch) {
+      return null;
+    }
+
+    let hour = Number(timeMatch[1]);
+    const minute = Number(timeMatch[2] || 0);
+    const meridiem = timeMatch[3];
+    if (!Number.isFinite(hour) || !Number.isFinite(minute) || minute < 0 || minute > 59) {
+      return null;
+    }
+
+    if (meridiem === 'pm' && hour < 12) {
+      hour += 12;
+    } else if (meridiem === 'am' && hour === 12) {
+      hour = 0;
+    }
+
+    if (hour < 0 || hour > 23) {
+      return null;
+    }
+    return [hour, minute];
+  }
+
+  private normalizeForIntent(text: string): string {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  private requireWorkflowHubService(): WorkflowHubService {
+    if (!this.workflowHubService) {
+      throw new Error('El workflow hub todavia no esta disponible.');
+    }
+    return this.workflowHubService;
+  }
+
+  private normalizeWorkflowCaseId(caseId: string): string {
+    const normalized = caseId.trim();
+    if (!normalized) {
+      throw new Error('Necesito el identificador del caso.');
+    }
+    if (normalized.includes(':')) {
+      return normalized;
+    }
+    return `automation:${normalized}`;
+  }
+
+  private formatPendingCases(overview: Awaited<ReturnType<WorkflowHubService['getOverview']>>): string {
+    const pendingCases = overview.cases.filter((item) => item.normalizedStatus === 'pending_approval');
+    if (pendingCases.length === 0) {
       return 'No hay decisiones pendientes por autorizar en este momento.';
     }
 
     return [
       '*Pendientes por autorizar*',
-      ...pendingRuns.slice(0, 5).map((run, index) => {
-        const pendingActions = run.actions.filter((action) => action.status === 'pending').length;
-        return `${index + 1}. ${run.title}\nFolio: ${run.id}\nResumen: ${run.summary}\nAcciones pendientes: ${pendingActions}`;
-      }),
+      ...pendingCases.slice(0, 5).map((item, index) => `${index + 1}. ${item.title}\nCASE_ID: ${item.id}\nResumen: ${item.summary}\nPendientes: ${item.actions.pending}`),
       '',
-      'Para autorizar: /aprobar FOLIO',
-      'Para no autorizar: /rechazar FOLIO',
+      'Para autorizar: /aprobar CASE_ID',
+      'Para rechazar: /rechazar CASE_ID',
     ].join('\n\n');
   }
 
-  private formatCustomTemplateList(): string {
-    const templates = this.workspaceAutomationService
-      ?.listTemplates()
-      .filter((template) => template.kind === 'custom') || [];
-
-    if (templates.length === 0) {
-      return 'Todavía no tienes flujos personalizados. Usa /crearflujo para diseñar el primero.';
-    }
+  private formatWorkflowCatalogList(overview: Awaited<ReturnType<WorkflowHubService['getOverview']>>): string {
+    const variantCountByWorkflow = overview.variants.reduce<Record<string, number>>((acc, variant) => {
+      acc[variant.workflowId] = (acc[variant.workflowId] || 0) + 1;
+      return acc;
+    }, {});
+    const passiveLines = overview.passiveRules.map((rule) => `- ${rule.name}: ${rule.scheduleLabel} (${rule.workflowName})`);
 
     return [
-      '*Tus flujos personalizados*',
-      ...templates.slice(0, 8).map((template, index) => (
-        `${index + 1}. ${template.name}\nID: ${template.id}\nResumen: ${template.description}`
-      )),
+      '*Workflows disponibles*',
       '',
-      'Para ejecutarlo: /usarflujo ID | detalle actual',
-    ].join('\n\n');
-  }
-
-  private formatAutomationRunResponse(run: WorkflowRunRecord, intro: string): string {
-    const pendingActions = run.actions.filter((action) => action.status === 'pending').length;
-    const nextStep = run.status === 'needs_approval'
-      ? `Quedó listo para revisión con ${pendingActions} accion(es) por autorizar.`
-      : 'No requiere autorización adicional.';
-
-    return [
-      intro,
-      `Folio: ${run.id}`,
-      `Caso: ${run.title}`,
-      `Resumen: ${run.summary}`,
-      nextStep,
-      run.status === 'needs_approval'
-        ? `Si estás de acuerdo: /aprobar ${run.id}`
-        : 'Puedes usar /pendientes para revisar otros casos.',
-    ].join('\n');
-  }
-
-  private formatAutomationDecisionResponse(run: WorkflowRunRecord, decision: 'autorizado' | 'rechazado'): string {
-    const executedActions = run.actions.filter((action) => action.status === 'executed').length;
-    const failedActions = run.actions.filter((action) => action.status === 'failed').length;
-    const skippedActions = run.actions.filter((action) => action.status === 'skipped').length;
-
-    return [
-      `Caso ${decision}.`,
-      `Folio: ${run.id}`,
-      `Resumen: ${run.summary}`,
-      executedActions > 0 ? `Acciones ejecutadas: ${executedActions}` : null,
-      failedActions > 0 ? `Acciones con error: ${failedActions}` : null,
-      skippedActions > 0 ? `Acciones omitidas: ${skippedActions}` : null,
-      'Puedes usar /pendientes para revisar lo siguiente.',
+      '*Pasivos*',
+      ...overview.workflows
+        .filter((workflow) => workflow.triggerModes.includes('passive'))
+        .map((workflow) => `- ${workflow.name}: ${workflow.summary} (${workflow.passiveBehavior === 'system' ? 'automatico' : 'programable'})`),
+      passiveLines.length > 0 ? '' : null,
+      passiveLines.length > 0 ? '*Rutinas guardadas*' : null,
+      ...passiveLines,
+      '',
+      '*De activacion*',
+      ...overview.workflows
+        .filter((workflow) => workflow.triggerModes.includes('activation'))
+        .map((workflow) => `- ${workflow.name}: ${workflow.summary} (variantes: ${variantCountByWorkflow[workflow.id] || 0})`),
+      overview.legacyCustomTemplates.length > 0 ? `Legacy ocultos: ${overview.legacyCustomTemplates.length}` : null,
+      '',
+      'Tip: tambien puedes pedirme cosas como "dame mis correos a las 8 am" y lo guardare como workflow pasivo sin comandos especiales.',
     ].filter(Boolean).join('\n');
+  }
+
+  private formatWorkflowCaseResponse(detail: Record<string, any>, intro?: string): string {
+    const actions = Array.isArray(detail.actionsDetail) ? detail.actionsDetail : [];
+    const lines = [
+      intro || null,
+      `Caso: ${detail.id}`,
+      `Workflow: ${detail.workflowName || detail.workflowId || 'n/d'}`,
+      `Estado: ${detail.nativeStatus || detail.normalizedStatus || 'n/d'}`,
+      `Titulo: ${detail.title || 'Sin titulo'}`,
+      `Resumen: ${detail.summary || 'Sin resumen.'}`,
+      actions.length > 0 ? `Acciones: ${actions.length}` : null,
+      ...actions.slice(0, 5).map((action: any) => `- ${action.title} | ${action.status}`),
+      detail.normalizedStatus === 'pending_approval' ? 'Siguiente paso: /aprobar CASE_ID o /rechazar CASE_ID' : 'Puedes usar /pendientes para revisar otros casos.',
+    ];
+
+    return lines.filter(Boolean).join('\n');
   }
 
   private formatDateOnly(value: Date): string {
     return value.toISOString().slice(0, 10);
   }
 
-  // ─── Handle media (Photos, Docs) — FULL AGENTIC PIPELINE ─────
+  // â”€â”€â”€ Handle media (Photos, Docs) â€” FULL AGENTIC PIPELINE â”€â”€â”€â”€â”€
   async handleMedia(
     jid: string,
     senderNumber: string,
@@ -855,7 +1047,7 @@ export class WhatsAppAgent {
     groupPassiveHistory: string = '',
   ): Promise<void> {
     try {
-      // ─── Step 1: Save file to disk (persistent + referenceable) ──────
+      // â”€â”€â”€ Step 1: Save file to disk (persistent + referenceable) â”€â”€â”€â”€â”€â”€
       const receivedDir = path.join(app.getPath('userData'), 'whatsapp-received');
       await fs.mkdir(receivedDir, { recursive: true });
 
@@ -870,7 +1062,7 @@ export class WhatsAppAgent {
       await fs.writeFile(savedPath, buffer);
       console.log(`[WhatsApp Agent] Saved received file: ${savedPath} (${(buffer.length / 1024 / 1024).toFixed(2)} MB)`);
 
-      // ─── Step 2: Determine if file can be sent inline to Gemini ──────
+      // â”€â”€â”€ Step 2: Determine if file can be sent inline to Gemini â”€â”€â”€â”€â”€â”€
       const MAX_INLINE_SIZE = 15 * 1024 * 1024; // 15MB binary (~20MB base64)
       const isInlineable = buffer.length <= MAX_INLINE_SIZE;
       const isAnalyzable = /^(image\/(jpeg|png|gif|webp|bmp)|application\/pdf|text\/|audio\/)/.test(mimetype);
@@ -879,7 +1071,7 @@ export class WhatsAppAgent {
       let userText = '';
 
       if (isInlineable && isAnalyzable) {
-        // File is small enough and in a format Gemini can analyze → send inline
+        // File is small enough and in a format Gemini can analyze â†’ send inline
         const base64Data = buffer.toString('base64');
         inlineMediaParts = [{
           inlineData: {
@@ -890,22 +1082,22 @@ export class WhatsAppAgent {
 
         userText = text && text.trim()
           ? `${text.trim()}\n\n[Archivo adjunto: "${fileName}" (${mimetype}, ${(buffer.length / 1024 / 1024).toFixed(1)} MB). Lo he guardado en: ${savedPath}. Analiza el contenido del archivo.]`
-          : `[El usuario envió un archivo: "${fileName}" (${mimetype}, ${(buffer.length / 1024 / 1024).toFixed(1)} MB). Lo he guardado en: ${savedPath}. Analiza el contenido del archivo y responde.]`;
+          : `[El usuario enviÃ³ un archivo: "${fileName}" (${mimetype}, ${(buffer.length / 1024 / 1024).toFixed(1)} MB). Lo he guardado en: ${savedPath}. Analiza el contenido del archivo y responde.]`;
       } else {
-        // File is too large or not directly analyzable — tell agent where it's saved
+        // File is too large or not directly analyzable â€” tell agent where it's saved
         const sizeInfo = `${(buffer.length / 1024 / 1024).toFixed(1)} MB`;
         const reason = !isInlineable ? `demasiado grande (${sizeInfo})` : `formato no analizable directamente (${mimetype})`;
 
         userText = text && text.trim()
-          ? `${text.trim()}\n\n[El usuario envió un archivo: "${fileName}" (${mimetype}, ${sizeInfo}). Archivo ${reason} para análisis inline, pero lo he guardado en: ${savedPath}. Puedes usar read_file para leer su contenido si es un documento de texto, o informar al usuario dónde está guardado.]`
-          : `[El usuario envió un archivo: "${fileName}" (${mimetype}, ${sizeInfo}). Archivo ${reason} para análisis inline, pero lo he guardado en: ${savedPath}. Puedes usar read_file para leer su contenido si es un documento de texto, o informar al usuario dónde está guardado.]`;
+          ? `${text.trim()}\n\n[El usuario enviÃ³ un archivo: "${fileName}" (${mimetype}, ${sizeInfo}). Archivo ${reason} para anÃ¡lisis inline, pero lo he guardado en: ${savedPath}. Puedes usar read_file para leer su contenido si es un documento de texto, o informar al usuario dÃ³nde estÃ¡ guardado.]`
+          : `[El usuario enviÃ³ un archivo: "${fileName}" (${mimetype}, ${sizeInfo}). Archivo ${reason} para anÃ¡lisis inline, pero lo he guardado en: ${savedPath}. Puedes usar read_file para leer su contenido si es un documento de texto, o informar al usuario dÃ³nde estÃ¡ guardado.]`;
 
         console.log(`[WhatsApp Agent] File too large or not analyzable inline (${reason}), saved to disk only: ${savedPath}`);
       }
 
       console.log(`[WhatsApp Agent] Processing media: ${fileName} (${mimetype}), inline: ${isInlineable && isAnalyzable}, caption: "${text?.slice(0, 60) || 'none'}"`);
 
-      // ─── Step 3: Run the FULL agentic loop ───────────────────────────
+      // â”€â”€â”€ Step 3: Run the FULL agentic loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       const response = await this.runAgentLoop(
         jid,
         senderNumber,
@@ -913,6 +1105,7 @@ export class WhatsAppAgent {
         isGroup,
         groupPassiveHistory,
         inlineMediaParts,
+        {},
       );
 
       if (response) {
@@ -920,7 +1113,7 @@ export class WhatsAppAgent {
       }
     } catch (err: any) {
       console.error('[WhatsApp Agent] Media error:', err);
-      await this.waService.sendText(jid, 'No pude procesar el archivo. Intenta de nuevo o envía un mensaje de texto.');
+      await this.waService.sendText(jid, 'No pude procesar el archivo. Intenta de nuevo o envÃ­a un mensaje de texto.');
     }
   }
 
@@ -942,7 +1135,7 @@ export class WhatsAppAgent {
     return map[mime] || '';
   }
 
-  // ─── Handle audio messages ──────────────────────────────────────
+  // â”€â”€â”€ Handle audio messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async handleAudio(
     jid: string,
     senderNumber: string,
@@ -954,7 +1147,7 @@ export class WhatsAppAgent {
       const transcription = await this.transcribeAudio(audioBuffer);
 
       if (!transcription || !transcription.trim()) {
-        await this.waService.sendText(jid, 'No pude entender el audio. ¿Podrías repetirlo o escribirlo?');
+        await this.waService.sendText(jid, 'No pude entender el audio. Â¿PodrÃ­as repetirlo o escribirlo?');
         return;
       }
 
@@ -966,7 +1159,7 @@ export class WhatsAppAgent {
     }
   }
 
-  // ─── Transcribe audio with Gemini ───────────────────────────────
+  // â”€â”€â”€ Transcribe audio with Gemini â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   private async transcribeAudio(audioBuffer: Buffer): Promise<string> {
     const ai = this.getGenAI();
     const model = ai.getGenerativeModel({ model: WA_MODEL });
@@ -980,13 +1173,13 @@ export class WhatsAppAgent {
           data: base64Audio,
         },
       },
-      'Transcribe este audio a texto. Solo devuelve la transcripción exacta de lo que dice la persona, sin agregar nada más. Si no puedes entenderlo, responde con una cadena vacía.',
+      'Transcribe este audio a texto. Solo devuelve la transcripciÃ³n exacta de lo que dice la persona, sin agregar nada mÃ¡s. Si no puedes entenderlo, responde con una cadena vacÃ­a.',
     ]);
 
     return result.response.text().trim();
   }
 
-  // ─── Agentic loop ──────────────────────────────────────────────
+  // â”€â”€â”€ Agentic loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   private async runAgentLoop(
     jid: string,
     senderNumber: string,
@@ -994,10 +1187,11 @@ export class WhatsAppAgent {
     isGroup: boolean = false,
     groupPassiveHistory: string = '',
     inlineMediaParts: Array<{ inlineData: { mimeType: string; data: string } }> = [],
+    options: AgentLoopOptions = {},
   ): Promise<string> {
     const ai = this.getGenAI();
 
-    // ─── SECURITY PRE-FILTER: Block prompt-leak and source-code extraction ──
+    // â”€â”€â”€ SECURITY PRE-FILTER: Block prompt-leak and source-code extraction â”€â”€
     const msgLower = userMessage.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const SECURITY_PATTERNS = [
       // Prompt leak attempts
@@ -1027,11 +1221,11 @@ export class WhatsAppAgent {
 
     for (const pattern of SECURITY_PATTERNS) {
       if (pattern.test(msgLower)) {
-        console.warn(`[WhatsApp Agent] ⛔ SECURITY: Blocked sensitive request from ${senderNumber}: "${userMessage.slice(0, 100)}..."`);
-        return formatForWhatsApp('Mis instrucciones internas y código fuente son confidenciales y no puedo compartirlos. 🔒\n\nSi necesitas ayuda con algo específico, cuéntame qué quieres lograr y con gusto te ayudo.', isGroup);
+        console.warn(`[WhatsApp Agent] â›” SECURITY: Blocked sensitive request from ${senderNumber}: "${userMessage.slice(0, 100)}..."`);
+        return formatForWhatsApp('Mis instrucciones internas y cÃ³digo fuente son confidenciales y no puedo compartirlos. ðŸ”’\n\nSi necesitas ayuda con algo especÃ­fico, cuÃ©ntame quÃ© quieres lograr y con gusto te ayudo.', isGroup);
       }
     }
-    // ─── Assemble 3-layer memory context ──────────────────────────
+    // â”€â”€â”€ Assemble 3-layer memory context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const sessionKey = isGroup ? `group:${jid}:${senderNumber}` : senderNumber;
     let memoryContextStr = '';
     try {
@@ -1056,45 +1250,45 @@ export class WhatsAppAgent {
       content: userMessage,
     });
 
-    // ─── Inject OpenClaw-style knowledge files ─────────────────────
+    // â”€â”€â”€ Inject OpenClaw-style knowledge files â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const knowledgeContext = this.knowledge.getBootstrapContext(senderNumber);
 
     let systemPrompt = await buildSystemPrompt(memoryContextStr + knowledgeContext);
 
-    // ─── Log Google services state for debugging ─────────────────
+    // â”€â”€â”€ Log Google services state for debugging â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (this.calendarService) {
       const conns = this.calendarService.getConnections();
       const googleConn = conns.find((c: any) => c.provider === 'google');
       console.log(`[WhatsApp Agent] Google connection state: ${googleConn ? `active=${googleConn.isActive}, email=${googleConn.email}` : 'NOT CONNECTED'}`);
     } else {
-      console.warn('[WhatsApp Agent] calendarService is null — Google APIs unavailable');
+      console.warn('[WhatsApp Agent] calendarService is null â€” Google APIs unavailable');
     }
 
-    // ─── Inject Google connection status into system prompt ──────
+    // â”€â”€â”€ Inject Google connection status into system prompt â”€â”€â”€â”€â”€â”€
     if (this.calendarService) {
       const conns = this.calendarService.getConnections();
       const hasGoogle = conns.some((c: any) => c.provider === 'google' && c.isActive);
       if (!hasGoogle) {
-        systemPrompt += `\n\n═══ ESTADO DE CONEXIÓN GOOGLE ═══\n⚠️ Google NO está conectado. Si el usuario pide acciones de Calendar, Gmail, eventos o Drive, infórmale EXPRESAMENTE que debe conectar Google desde la interfaz de SofLIA Hub primero. \n❌ PROHIBICIONES ESTRICTAS: NO INTENTES USAR las herramientas de computadora (use_computer, execute_command, open_application) NI el navegador (open_url) para entrar a leer sus correos o ver su calendario. Si no tienes la API de Google conectada, debes NEGARTE a revisar el calendario o correos y guiarlos a conectarse desde cero.`;
+        systemPrompt += `\n\nâ•â•â• ESTADO DE CONEXIÃ“N GOOGLE â•â•â•\nâš ï¸ Google NO estÃ¡ conectado. Si el usuario pide acciones de Calendar, Gmail, eventos o Drive, infÃ³rmale EXPRESAMENTE que debe conectar Google desde la interfaz de SofLIA Hub primero. \nâŒ PROHIBICIONES ESTRICTAS: NO INTENTES USAR las herramientas de computadora (use_computer, execute_command, open_application) NI el navegador (open_url) para entrar a leer sus correos o ver su calendario. Si no tienes la API de Google conectada, debes NEGARTE a revisar el calendario o correos y guiarlos a conectarse desde cero.`;
       }
     }
 
-    // ─── Group context injection ────────────────────────────────
+    // â”€â”€â”€ Group context injection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (isGroup) {
-      systemPrompt += `\n\n═══ CONTEXTO DE GRUPO ═══
-Estás respondiendo en un GRUPO de WhatsApp.
-• Solo respondes cuando te mencionan, usan /soflia, o hacen reply a tu mensaje
-• Sé más conciso que en conversaciones 1:1
-• No ejecutes acciones destructivas — tus herramientas de sistema están limitadas en grupos
-• El participante que envió el mensaje es: ${senderNumber}
-• Puedes usar: búsquedas web, lectura de páginas, consultas IRIS, crear documentos, enviar archivos
+      systemPrompt += `\n\nâ•â•â• CONTEXTO DE GRUPO â•â•â•
+EstÃ¡s respondiendo en un GRUPO de WhatsApp.
+â€¢ Solo respondes cuando te mencionan, usan /soflia, o hacen reply a tu mensaje
+â€¢ SÃ© mÃ¡s conciso que en conversaciones 1:1
+â€¢ No ejecutes acciones destructivas â€” tus herramientas de sistema estÃ¡n limitadas en grupos
+â€¢ El participante que enviÃ³ el mensaje es: ${senderNumber}
+â€¢ Puedes usar: bÃºsquedas web, lectura de pÃ¡ginas, consultas IRIS, crear documentos, enviar archivos
 
 HISTORIAL RECIENTE DEL GRUPO (PARA CONTEXTO):
-${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
+${groupPassiveHistory || 'No hay mensajes previos en el bÃºfer.'}
 `;
     }
 
-    // ─── IRIS auto-auth by phone number ────────────────────────────
+    // â”€â”€â”€ IRIS auto-auth by phone number â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let session = getWhatsAppSession(senderNumber);
     if (!session && isIrisAvailable()) {
       try {
@@ -1108,11 +1302,11 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
       }
     }
 
-    // ─── IRIS context injection ──────────────────────────────────
+    // â”€â”€â”€ IRIS context injection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (session) {
-      systemPrompt += `\n\n═══ SESIÓN PROJECT HUB ═══\nUsuario autenticado: ${session.fullName} (${session.email})\nUser ID: ${session.userId}\nEquipos: ${session.teamIds.length > 0 ? session.teamIds.join(', ') : 'ninguno encontrado'}\nPuede consultar sus tareas, proyectos y equipos directamente.\n${session.autoDetected ? 'Nota: El usuario fue identificado automáticamente por su número de WhatsApp.' : ''}`;
+      systemPrompt += `\n\nâ•â•â• SESIÃ“N PROJECT HUB â•â•â•\nUsuario autenticado: ${session.fullName} (${session.email})\nUser ID: ${session.userId}\nEquipos: ${session.teamIds.length > 0 ? session.teamIds.join(', ') : 'ninguno encontrado'}\nPuede consultar sus tareas, proyectos y equipos directamente.\n${session.autoDetected ? 'Nota: El usuario fue identificado automÃ¡ticamente por su nÃºmero de WhatsApp.' : ''}`;
     } else if (isIrisAvailable()) {
-      systemPrompt += `\n\n═══ PROJECT HUB ═══\nEl sistema IRIS (Project Hub) está disponible. El usuario NO ha iniciado sesión y su número de WhatsApp no está registrado en el sistema. Si pregunta por sus tareas, proyectos o equipos, indícale que debe autenticarse enviando su email y contraseña (o registrar su número de teléfono en su perfil de SofLIA Learning para acceso automático).`;
+      systemPrompt += `\n\nâ•â•â• PROJECT HUB â•â•â•\nEl sistema IRIS (Project Hub) estÃ¡ disponible. El usuario NO ha iniciado sesiÃ³n y su nÃºmero de WhatsApp no estÃ¡ registrado en el sistema. Si pregunta por sus tareas, proyectos o equipos, indÃ­cale que debe autenticarse enviando su email y contraseÃ±a (o registrar su nÃºmero de telÃ©fono en su perfil de SofLIA Learning para acceso automÃ¡tico).`;
     }
 
     // If message mentions IRIS topics AND user is authenticated, inject data context
@@ -1127,7 +1321,7 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
       }
     }
 
-    // ─── Filter tools for group context ──────────────────────────
+    // â”€â”€â”€ Filter tools for group context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const staticDeclarations = (WA_TOOL_DECLARATIONS as any).functionDeclarations.filter(
       (t: any) => !isGroup || !GROUP_BLOCKED_TOOLS.has(t.name)
     );
@@ -1140,7 +1334,7 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
       functionDeclarations: dedupedDeclarations,
     };
 
-    // Detectar si el usuario pide una acción para reforzar tool calling vía prompt
+    // Detectar si el usuario pide una acciÃ³n para reforzar tool calling vÃ­a prompt
     const isActionRequest = detectActionRequest(userMessage);
     const evidenceRequirement = classifyEvidenceRequirement(userMessage);
     const requiresLocalVisualEvidence =
@@ -1153,7 +1347,7 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
       || evidenceRequirement === 'local_visual_then_remote';
 
     if (evidenceRequirement !== 'none') {
-      systemPrompt += `\n\n═══ VALIDACION DE EVIDENCIA ═══\nEl usuario pide una verificacion con requirement="${evidenceRequirement}". Debes reunir evidencia del entorno correcto antes de concluir.\n- local: necesitas evidencia local real en la computadora.\n- local_visual: necesitas evidencia VISUAL real dentro de la app, ventana o pantalla correcta.\n- remote: necesitas evidencia de web, nube, repositorio o sistema remoto.\n- local_then_remote: primero valida localmente y luego contrasta lo remoto.\n- local_visual_then_remote: primero valida visualmente dentro de la app correcta y luego contrasta lo remoto.\nSi el usuario pide revisar en la aplicacion, en la ventana o en pantalla, los comandos, archivos o Git no sustituyen una inspeccion visual. Nunca afirmes que revisaste una app local si solo consultaste GitHub, una pagina web, shell o un repositorio remoto.`;
+      systemPrompt += `\n\nâ•â•â• VALIDACION DE EVIDENCIA â•â•â•\nEl usuario pide una verificacion con requirement="${evidenceRequirement}". Debes reunir evidencia del entorno correcto antes de concluir.\n- local: necesitas evidencia local real en la computadora.\n- local_visual: necesitas evidencia VISUAL real dentro de la app, ventana o pantalla correcta.\n- remote: necesitas evidencia de web, nube, repositorio o sistema remoto.\n- local_then_remote: primero valida localmente y luego contrasta lo remoto.\n- local_visual_then_remote: primero valida visualmente dentro de la app correcta y luego contrasta lo remoto.\nSi el usuario pide revisar en la aplicacion, en la ventana o en pantalla, los comandos, archivos o Git no sustituyen una inspeccion visual. Nunca afirmes que revisaste una app local si solo consultaste GitHub, una pagina web, shell o un repositorio remoto.`;
     }
 
     const model = ai.getGenerativeModel({
@@ -1162,7 +1356,7 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
       tools: [toolDeclarations as any],
     });
 
-    // Get or create conversation history — rebuild from SQLite if empty (survives restarts)
+    // Get or create conversation history â€” rebuild from SQLite if empty (survives restarts)
     if (!conversations.has(sessionKey)) {
       const persisted = this.memory.getConversationHistory(sessionKey, 20);
       conversations.set(sessionKey, persisted.length > 0 ? persisted : []);
@@ -1171,11 +1365,11 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
       }
     }
 
-    // Detect retry/redo requests — reset Gemini chat history to avoid "already done" confusion
+    // Detect retry/redo requests â€” reset Gemini chat history to avoid "already done" confusion
     // Memory context (system prompt) still provides background, but chat history won't mislead
-    const retryPattern = /\b(vuelve a|otra vez|hazlo de nuevo|no (hiciste|completaste|hizo)|intenta de nuevo|intentar|no funciono|no funcionó|repite|reintenta|rehacer|rehaz|no computaste|nada de lo que|no (hice|hizo) nada)\b/i;
+    const retryPattern = /\b(vuelve a|otra vez|hazlo de nuevo|no (hiciste|completaste|hizo)|intenta de nuevo|intentar|no funciono|no funcionÃ³|repite|reintenta|rehacer|rehaz|no computaste|nada de lo que|no (hice|hizo) nada)\b/i;
     if (retryPattern.test(userMessage)) {
-      console.log(`[WhatsApp Agent] Retry request detected — resetting chat history for ${sessionKey} to avoid stale context`);
+      console.log(`[WhatsApp Agent] Retry request detected â€” resetting chat history for ${sessionKey} to avoid stale context`);
       conversations.set(sessionKey, []);
     }
 
@@ -1204,7 +1398,7 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
       cleanHistory.pop();
     }
 
-    // Pass a COPY to startChat — the SDK mutates the array in-place
+    // Pass a COPY to startChat â€” the SDK mutates the array in-place
     const historyCopy = cleanHistory.map(h => ({ role: h.role, parts: [...h.parts] }));
 
     let chatSession;
@@ -1227,9 +1421,9 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
     // Build message parts: if we have inline media (images, docs), include them
     const messageParts: Array<string | { inlineData: { mimeType: string; data: string } }> = [];
 
-    // Si es una solicitud de acción, inyectar instrucción de forzar tool calling
+    // Si es una solicitud de acciÃ³n, inyectar instrucciÃ³n de forzar tool calling
     const actionPrefix = isActionRequest
-      ? '[INSTRUCCIÓN DEL SISTEMA: El usuario solicita una ACCIÓN NUEVA. DEBES usar herramientas (function calls) para ejecutarla AHORA. NO respondas solo con texto. NO asumas que ya completaste esta tarea basándote en el historial — el usuario está pidiendo que lo hagas AHORA porque la tarea anterior NO se completó o necesita rehacerse. EJECUTA las herramientas directamente.]\n\n'
+      ? '[INSTRUCCIÃ“N DEL SISTEMA: El usuario solicita una ACCIÃ“N NUEVA. DEBES usar herramientas (function calls) para ejecutarla AHORA. NO respondas solo con texto. NO asumas que ya completaste esta tarea basÃ¡ndote en el historial â€” el usuario estÃ¡ pidiendo que lo hagas AHORA porque la tarea anterior NO se completÃ³ o necesita rehacerse. EJECUTA las herramientas directamente.]\n\n'
       : '';
     const effectiveMessage = actionPrefix + userMessage;
 
@@ -1294,22 +1488,22 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
           console.error(`[WhatsApp Agent] MALFORMED_FUNCTION_CALL persists after ${iterations} retries. Falling back to text-only.`);
           try {
             response = await chatSession.sendMessage(
-              'Tu última llamada a función fue malformada. NO uses herramientas en esta respuesta. Responde al usuario directamente con texto explicando qué vas a hacer y pídele que repita su solicitud.'
+              'Tu Ãºltima llamada a funciÃ³n fue malformada. NO uses herramientas en esta respuesta. Responde al usuario directamente con texto explicando quÃ© vas a hacer y pÃ­dele que repita su solicitud.'
             );
           } catch (retryErr: any) {
             console.error(`[WhatsApp Agent] Text-only fallback also failed:`, retryErr.message);
-            return formatForWhatsApp('Hubo un problema técnico. Por favor, intenta de nuevo con un mensaje más corto o específico.', isGroup);
+            return formatForWhatsApp('Hubo un problema tÃ©cnico. Por favor, intenta de nuevo con un mensaje mÃ¡s corto o especÃ­fico.', isGroup);
           }
           continue;
         }
         // Retry: tell the model its function call was malformed and to try again correctly
         try {
           response = await chatSession.sendMessage(
-            'ERROR: Tu llamada a función fue malformada (parámetros inválidos o nombre incorrecto). Intenta de nuevo la misma acción asegurándote de usar el nombre exacto de la herramienta y todos los parámetros requeridos con tipos correctos.'
+            'ERROR: Tu llamada a funciÃ³n fue malformada (parÃ¡metros invÃ¡lidos o nombre incorrecto). Intenta de nuevo la misma acciÃ³n asegurÃ¡ndote de usar el nombre exacto de la herramienta y todos los parÃ¡metros requeridos con tipos correctos.'
           );
         } catch (retryErr: any) {
           console.error(`[WhatsApp Agent] Retry after MALFORMED_FUNCTION_CALL failed:`, retryErr.message);
-          return formatForWhatsApp('Hubo un problema técnico procesando tu solicitud. Intenta de nuevo.', isGroup);
+          return formatForWhatsApp('Hubo un problema tÃ©cnico procesando tu solicitud. Intenta de nuevo.', isGroup);
         }
         continue;
       }
@@ -1332,14 +1526,14 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
           continue;
         }
 
-        // If first iteration + action request + model just said "done" without calling tools → force retry
+        // If first iteration + action request + model just said "done" without calling tools â†’ force retry
         if (iterations === 1 && isActionRequest && finalText.trim()) {
-          const lazyPatterns = /completado|listo|he (hecho|realizado|terminado|eliminado|organizado|movido)|ya (lo hice|están|hice|realicé)|las acciones solicitadas|voy a (hacer|crear|organizar|mover|eliminar|sacar)/i;
+          const lazyPatterns = /completado|listo|he (hecho|realizado|terminado|eliminado|organizado|movido)|ya (lo hice|estÃ¡n|hice|realicÃ©)|las acciones solicitadas|voy a (hacer|crear|organizar|mover|eliminar|sacar)/i;
           if (lazyPatterns.test(finalText)) {
             console.warn(`[WhatsApp Agent] Model responded text-only on action request (no tools called). Forcing retry. Text: "${finalText.slice(0, 100)}"`);
             try {
               response = await chatSession.sendMessage(
-                'ERROR: NO ejecutaste ninguna herramienta. El usuario pidió una ACCIÓN y tú solo respondiste con texto. DEBES usar function calls (gmail_get_labels, gmail_get_messages, gmail_modify_labels, gmail_delete_label, etc.) para ejecutar la tarea. NO respondas con texto — llama las herramientas AHORA.'
+                'ERROR: NO ejecutaste ninguna herramienta. El usuario pidiÃ³ una ACCIÃ“N y tÃº solo respondiste con texto. DEBES usar function calls (gmail_get_labels, gmail_get_messages, gmail_modify_labels, gmail_delete_label, etc.) para ejecutar la tarea. NO respondas con texto â€” llama las herramientas AHORA.'
               );
               continue;
             } catch (retryErr: any) {
@@ -1348,7 +1542,7 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
           }
         }
 
-        // Update our clean history (only user/model text — no function roles)
+        // Update our clean history (only user/model text â€” no function roles)
         history.push({ role: 'user', parts: [{ text: userMessage }] });
         history.push({ role: 'model', parts: [{ text: finalText }] });
 
@@ -1388,12 +1582,12 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
             const conns = this.calendarService.getConnections();
             const hasGoogle = conns.some((c: any) => c.provider === 'google' && c.isActive);
             if (!hasGoogle) {
-              return formatForWhatsApp('No tengo acceso a tu cuenta de Google. Necesitas conectar Google desde SofLIA Hub (sección Calendario) para que pueda usar Drive, Calendar y Gmail.', isGroup);
+              return formatForWhatsApp('No tengo acceso a tu cuenta de Google. Necesitas conectar Google desde SofLIA Hub (secciÃ³n Calendario) para que pueda usar Drive, Calendar y Gmail.', isGroup);
             }
           }
         }
 
-        const finalResponse = finalText.trim() || '¿En qué puedo ayudarte?';
+        const finalResponse = finalText.trim() || 'Â¿En quÃ© puedo ayudarte?';
         return formatForWhatsApp(finalResponse, isGroup);
       }
 
@@ -1436,16 +1630,16 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
         if (repeatedCallCount >= LOOP_GUARD_CRITICAL_THRESHOLD || loopGuardInterventions >= 2) {
           const lastFailure = [...toolLoopTrace].reverse().find((entry) => entry.toolSignature === toolSignature && entry.hadFailure);
           const suffix = lastFailure
-            ? ` Detecté fallos repetidos con ${toolNames.join(', ')}.`
-            : ` Detecté que ${toolNames.join(', ')} se repite sin progreso.`;
+            ? ` DetectÃ© fallos repetidos con ${toolNames.join(', ')}.`
+            : ` DetectÃ© que ${toolNames.join(', ')} se repite sin progreso.`;
           return formatForWhatsApp(
-            `La tarea entró en un ciclo sin avance.${suffix} Necesito cambiar de estrategia o que me des un dato adicional para continuar.`,
+            `La tarea entrÃ³ en un ciclo sin avance.${suffix} Necesito cambiar de estrategia o que me des un dato adicional para continuar.`,
             isGroup,
           );
         }
 
         response = await chatSession.sendMessage(
-          `ALERTA DEL SISTEMA: Estás repitiendo exactamente las mismas herramientas con los mismos parámetros (${toolNames.join(', ')}) sin señales de avance. NO vuelvas a ejecutar ese mismo ciclo. Analiza los resultados previos, cambia de estrategia, usa otras herramientas o responde al usuario con el bloqueo real.`,
+          `ALERTA DEL SISTEMA: EstÃ¡s repitiendo exactamente las mismas herramientas con los mismos parÃ¡metros (${toolNames.join(', ')}) sin seÃ±ales de avance. NO vuelvas a ejecutar ese mismo ciclo. Analiza los resultados previos, cambia de estrategia, usa otras herramientas o responde al usuario con el bloqueo real.`,
         );
         continue;
       }
@@ -1464,6 +1658,7 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
         memory: this.memory,
         knowledge: this.knowledge,
         getGenAI: () => this.getGenAI(),
+        skipConfirmations: options.skipConfirmations === true,
         requestConfirmation: (j, s, t, d, a) => this.requestConfirmation(j, s, t, d, a),
       };
       const { responses: functionResponses, bulkLabelsToVerify } = await executeWhatsAppTools(
@@ -1513,13 +1708,13 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
         if (loopGuardInterventions >= 2 || repeatedFailureCount >= LOOP_GUARD_REPEAT_THRESHOLD) {
           const lastError = responseSummary.find((item) => typeof item.error === 'string')?.error;
           return formatForWhatsApp(
-            `La tarea quedó bloqueada por fallos repetidos.${lastError ? ` Último error: ${lastError}` : ''}`,
+            `La tarea quedÃ³ bloqueada por fallos repetidos.${lastError ? ` Ãšltimo error: ${lastError}` : ''}`,
             isGroup,
           );
         }
 
         response = await chatSession.sendMessage(
-          `ALERTA DEL SISTEMA: Acabas de repetir el mismo fallo con ${toolNames.join(', ')}. NO reintentes exactamente igual. Usa los errores previos para cambiar de estrategia o explica con precisión qué configuración, credencial o dato falta.`,
+          `ALERTA DEL SISTEMA: Acabas de repetir el mismo fallo con ${toolNames.join(', ')}. NO reintentes exactamente igual. Usa los errores previos para cambiar de estrategia o explica con precisiÃ³n quÃ© configuraciÃ³n, credencial o dato falta.`,
         );
         continue;
       }
@@ -1531,13 +1726,13 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
         );
         if (loopGuardInterventions >= 2 || repeatedNoProgressCount >= LOOP_GUARD_CRITICAL_THRESHOLD) {
           return formatForWhatsApp(
-            'La tarea sigue en espera sin cambios reales. Necesito más tiempo, otra estrategia o intervención del usuario para continuar.',
+            'La tarea sigue en espera sin cambios reales. Necesito mÃ¡s tiempo, otra estrategia o intervenciÃ³n del usuario para continuar.',
             isGroup,
           );
         }
 
         response = await chatSession.sendMessage(
-          `ALERTA DEL SISTEMA: Estás haciendo polling sin cambios reales con ${toolNames.join(', ')}. No sigas consultando igual. Decide si debes esperar más, cambiar de herramienta o informar el estado actual al usuario.`,
+          `ALERTA DEL SISTEMA: EstÃ¡s haciendo polling sin cambios reales con ${toolNames.join(', ')}. No sigas consultando igual. Decide si debes esperar mÃ¡s, cambiar de herramienta o informar el estado actual al usuario.`,
         );
         continue;
       }
@@ -1550,11 +1745,11 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
           for (const labelId of bulkLabelsToVerify) {
             const check = await this.gmailService.getMessages({ labelIds: [labelId], maxResults: 5 });
             if (check.success && check.messages && check.messages.length > 0) {
-              remainingWarnings.push(`"${labelId}" aún tiene ${check.messages.length}+ correos`);
+              remainingWarnings.push(`"${labelId}" aÃºn tiene ${check.messages.length}+ correos`);
             }
           }
           if (remainingWarnings.length > 0) {
-            const verificationMsg = `⚠️ VERIFICACIÓN AUTOMÁTICA: Las siguientes etiquetas AÚN tienen correos sin procesar: ${remainingWarnings.join(', ')}. DEBES continuar procesando estos correos — llama gmail_get_messages para cada etiqueta pendiente y repite el proceso hasta que todas estén vacías. NO respondas al usuario hasta completar TODO.`;
+            const verificationMsg = `âš ï¸ VERIFICACIÃ“N AUTOMÃTICA: Las siguientes etiquetas AÃšN tienen correos sin procesar: ${remainingWarnings.join(', ')}. DEBES continuar procesando estos correos â€” llama gmail_get_messages para cada etiqueta pendiente y repite el proceso hasta que todas estÃ©n vacÃ­as. NO respondas al usuario hasta completar TODO.`;
             console.log(`[WhatsApp Agent] Bulk verification: ${remainingWarnings.join(', ')}`);
             // Inject verification as an additional function response so the model sees it
             functionResponses.push({
@@ -1583,17 +1778,17 @@ ${groupPassiveHistory || 'No hay mensajes previos en el búfer.'}
     description: string,
     args: Record<string, any>
   ): Promise<boolean> {
-    const emoji = toolName === 'delete_item' ? '🗑️' : '📧';
+    const emoji = toolName === 'delete_item' ? 'ðŸ—‘ï¸' : 'ðŸ“§';
     await this.waService.sendText(
       jid,
-      `${emoji} *Confirmación requerida*\n\n${description}\n\n¿Confirmas? Responde *SI* para proceder o cualquier otra cosa para cancelar.`
+      `${emoji} *ConfirmaciÃ³n requerida*\n\n${description}\n\nÂ¿Confirmas? Responde *SI* para proceder o cualquier otra cosa para cancelar.`
     );
 
     return new Promise<boolean>((resolve) => {
       const timeout = setTimeout(() => {
         pendingConfirmations.delete(senderNumber);
         resolve(false);
-        this.waService.sendText(jid, 'Tiempo de confirmación agotado. Acción cancelada.');
+        this.waService.sendText(jid, 'Tiempo de confirmaciÃ³n agotado. AcciÃ³n cancelada.');
       }, 60000); // 1 minute timeout
 
       pendingConfirmations.set(senderNumber, { toolName, args, resolve, timeout });

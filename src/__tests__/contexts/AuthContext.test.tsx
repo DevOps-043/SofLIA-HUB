@@ -33,6 +33,18 @@ vi.mock('../../services/sofia-auth', () => ({
 const supabaseMocks = vi.hoisted(() => ({
   signOut: vi.fn(async () => ({ error: null })),
   getSession: vi.fn(async () => ({ data: { session: null }, error: null })),
+  signInWithPassword: vi.fn(async () => ({
+    data: {
+      session: {
+        user: { id: 'lia-user-1', email: 'test@soflia.com' },
+      },
+    },
+    error: null,
+  })),
+  signUp: vi.fn(async () => ({
+    data: { session: null, user: null },
+    error: null,
+  })),
   onAuthStateChange: vi.fn(() => ({
     data: { subscription: { unsubscribe: vi.fn() } },
   })),
@@ -43,6 +55,8 @@ vi.mock('../../lib/supabase', () => ({
     auth: {
       signOut: supabaseMocks.signOut,
       getSession: supabaseMocks.getSession,
+      signInWithPassword: supabaseMocks.signInWithPassword,
+      signUp: supabaseMocks.signUp,
       onAuthStateChange: supabaseMocks.onAuthStateChange,
     },
   },
@@ -75,6 +89,19 @@ describe('AuthContext', () => {
     sofiaMocks.onAuthStateChange.mockReturnValue({
       data: { subscription: { unsubscribe: vi.fn() } },
     });
+    supabaseMocks.getSession.mockResolvedValue({ data: { session: null }, error: null });
+    supabaseMocks.signInWithPassword.mockResolvedValue({
+      data: {
+        session: {
+          user: { id: 'lia-user-1', email: 'test@soflia.com' },
+        },
+      },
+      error: null,
+    });
+    supabaseMocks.signUp.mockResolvedValue({
+      data: { session: null, user: null },
+      error: null,
+    });
   });
 
   // AUTH-001: AuthProvider initializes with loading=true
@@ -85,6 +112,7 @@ describe('AuthContext', () => {
     expect(result.current.loading).toBe(true);
     expect(result.current.user).toBeNull();
     expect(result.current.session).toBeNull();
+    expect(result.current.dataUserId).toBeNull();
     expect(result.current.liaDegraded).toBe(false);
   });
 
@@ -114,6 +142,12 @@ describe('AuthContext', () => {
     });
 
     expect(result.current.user).not.toBeNull();
+    expect(supabaseMocks.signInWithPassword).toHaveBeenCalledWith({
+      email: 'test@soflia.com',
+      password: 'password123',
+    });
+    expect(result.current.session?.user.id).toBe('lia-user-1');
+    expect(result.current.dataUserId).toBe('lia-user-1');
   });
 
   // AUTH-003: Sign out clears state
@@ -159,7 +193,7 @@ describe('AuthContext', () => {
     });
   });
 
-  it('AUTH-006: optional Lia session failures do not block SOFIA access', async () => {
+  it('AUTH-006: Lia sync failures mark the session as degraded without blocking SOFIA access', async () => {
     const mockUser = { id: 'sofia-user-1', email: 'test@soflia.com', user_metadata: { first_name: 'Test' } };
     const mockProfile = {
       id: 'sofia-user-1',
@@ -176,6 +210,14 @@ describe('AuthContext', () => {
       sofiaProfile: mockProfile,
     });
     supabaseMocks.getSession.mockRejectedValueOnce(new Error('Invalid API key'));
+    supabaseMocks.signInWithPassword.mockResolvedValueOnce({
+      data: { session: null, user: null },
+      error: new Error('Invalid login credentials'),
+    } as any);
+    supabaseMocks.signUp.mockResolvedValueOnce({
+      data: { session: null, user: null },
+      error: new Error('User already registered'),
+    } as any);
 
     const { result } = renderHook(() => useAuth(), { wrapper: createWrapper() });
 
@@ -187,7 +229,8 @@ describe('AuthContext', () => {
     expect(signInResult.success).toBe(true);
     expect(signInResult.error).toBeUndefined();
     expect(result.current.user?.id).toBe('sofia-user-1');
-    expect(result.current.liaDegraded).toBe(false);
-    expect(result.current.liaStatusMessage).toBeNull();
+    expect(result.current.dataUserId).toBeNull();
+    expect(result.current.liaDegraded).toBe(true);
+    expect(result.current.liaStatusMessage).toContain('Lia');
   });
 });

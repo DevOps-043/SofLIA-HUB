@@ -8,30 +8,68 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { Auth } from "./components/Auth";
 import { ProjectHub } from "./components/ProjectHub";
 import { CreateFolderModal, MoveChatModal } from "./components/FolderModals";
+import { ShareModal } from "./components/ShareModal";
 import { UnifiedSettingsModal, SettingsTab } from "./components/UnifiedSettingsModal";
 import { Sidebar } from "./components/Sidebar";
 import {
   loadSettings,
   getCachedSettings,
+  migrateLegacySettingsCache,
   type UserAISettings,
 } from "./services/settings-service";
 import { FlowMode } from "./components/FlowMode";
 import { ProductivityDashboard } from "./components/ProductivityDashboard";
 import { UpdateNotification } from "./components/UpdateNotification";
 import { GOOGLE_API_KEY } from "./config";
+import { migrateLegacyChatCache } from "./services/chat-service";
+import { migrateLegacyFolderCache } from "./services/folder-service";
+import type { ShareTargetType } from "./services/share-service";
 type ActiveView = "chat" | "project" | "productivity";
 
 function AppContent() {
-  const { user, loading, signOut, sofiaContext } = useAuth();
+  const { user, dataUserId, loading, signOut, sofiaContext, liaDegraded, liaStatusMessage } = useAuth();
   const [activeView, setActiveView] = useState<ActiveView>("chat");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [externalPrompt, setExternalPrompt] = useState<string | null>(null);
+  const [shareTarget, setShareTarget] = useState<{
+    targetId: string;
+    targetType: ShareTargetType;
+    targetName: string;
+  } | null>(null);
 
-  const userId = user?.id;
+  const userId = dataUserId ?? undefined;
+  const orgId = sofiaContext?.currentOrganization?.id || "";
+  const accessUserIds = useMemo(
+    () => Array.from(new Set([dataUserId, user?.id].filter((value): value is string => Boolean(value)))),
+    [dataUserId, user?.id],
+  );
+
+  useEffect(() => {
+    const legacyUserId = user?.id;
+    if (!legacyUserId || !userId || legacyUserId === userId) return;
+
+    migrateLegacyChatCache(legacyUserId, userId);
+    migrateLegacyFolderCache(legacyUserId, userId);
+    migrateLegacySettingsCache(legacyUserId, userId);
+
+    const legacyCurrentChatKey = `lia_current_chat_id_${legacyUserId}`;
+    const syncedCurrentChatKey = `lia_current_chat_id_${userId}`;
+    const legacyCurrentChatId = localStorage.getItem(legacyCurrentChatKey);
+    if (legacyCurrentChatId && !localStorage.getItem(syncedCurrentChatKey)) {
+      localStorage.setItem(syncedCurrentChatKey, legacyCurrentChatId);
+    }
+    localStorage.removeItem(legacyCurrentChatKey);
+  }, [user?.id, userId]);
 
   // ── Hooks ──────────────────────────────────────────────────────────
-  const chat = useChatManager({ userId });
-  const folder = useFolderManager({ userId, setConversations: chat.setConversations });
+  const chat = useChatManager({ userId, orgId, accessUserIds });
+  const folder = useFolderManager({
+    userId,
+    orgId,
+    accessUserIds,
+    conversations: chat.conversations,
+    setConversations: chat.setConversations,
+  });
   const iris = useIrisData();
   const { theme, setTheme } = useTheme();
 
@@ -95,7 +133,7 @@ function AppContent() {
     };
 
     init();
-  }, [userId]);
+  }, [orgId, userId]);
 
   // ── Scoped messages handler ────────────────────────────────────────
   const scopedMessagesHandler = useMemo(
@@ -212,8 +250,10 @@ function AppContent() {
   const displayName =
     sofiaContext?.user?.full_name || user?.user_metadata?.first_name || user?.email || "Usuario";
   const initials = displayName.charAt(0).toUpperCase();
-  const orgId = sofiaContext?.currentOrganization?.id || "";
   const currentFolder = folder.folders.find((f) => f.id === folder.currentFolderId);
+  const currentConversation = chat.currentConversationId
+    ? chat.conversations.find((conversation) => conversation.id === chat.currentConversationId) || null
+    : null;
   const movingChat = folder.movingChatId
     ? chat.conversations.find((c) => c.id === folder.movingChatId)
     : null;
@@ -227,7 +267,7 @@ function AppContent() {
 
   if (isFlowWindow) {
     return (
-      <div className="h-screen w-screen bg-transparent flex items-end justify-center pb-0 overflow-hidden border-none shadow-none">
+      <div className="h-screen w-screen bg-transparent flex items-end justify-center pb-0 overflow-visible border-none shadow-none">
         <FlowMode
           key={flowKey}
           isActive={true}
@@ -295,25 +335,63 @@ function AppContent() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        {liaDegraded && !userId && (
+          <div className="mx-6 mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            <div className="font-semibold text-amber-50">Sincronizacion de chats no disponible</div>
+            <div className="mt-1 text-amber-100/90">
+              {liaStatusMessage || "Esta sesion no pudo abrir la base de datos de conversaciones. Cierra sesion e inicia nuevamente para restaurar la sincronizacion entre dispositivos."}
+            </div>
+          </div>
+        )}
+
         {activeView === "chat" && (
           <div className="flex-1 flex flex-col min-w-0 min-h-0 h-full overflow-hidden animate-view-in">
-            <ChatUI
-              messages={chat.currentMessages}
-              onMessagesChange={scopedMessagesHandler}
-              externalPrompt={externalPrompt}
-              onExternalPromptProcessed={() => setExternalPrompt(null)}
-              personalization={
-                userSettings
-                  ? {
-                      nickname: userSettings.nickname,
-                      occupation: userSettings.occupation,
-                      tone: userSettings.tone_style,
-                      instructions: userSettings.custom_instructions,
-                    }
-                  : undefined
-              }
-              userAvatar={avatarUrl}
-            />
+            {userId ? (
+              <ChatUI
+                messages={chat.currentMessages}
+                onMessagesChange={scopedMessagesHandler}
+                externalPrompt={externalPrompt}
+                onExternalPromptProcessed={() => setExternalPrompt(null)}
+                personalization={
+                  userSettings
+                    ? {
+                        nickname: userSettings.nickname,
+                        occupation: userSettings.occupation,
+                        tone: userSettings.tone_style,
+                        instructions: userSettings.custom_instructions,
+                      }
+                    : undefined
+                }
+                userAvatar={avatarUrl}
+                onShare={
+                  currentConversation?.can_share && orgId
+                    ? () =>
+                        setShareTarget({
+                          targetId: currentConversation.id,
+                          targetType: "conversation",
+                          targetName: currentConversation.title,
+                        })
+                    : undefined
+                }
+                canSendMessages={currentConversation?.can_edit !== false}
+                readOnlyReason={
+                  currentConversation && currentConversation.can_edit === false
+                    ? "Esta conversacion fue compartida contigo en modo solo lectura."
+                    : null
+                }
+              />
+            ) : (
+              <div className="flex flex-1 items-center justify-center px-6">
+                <div className="max-w-xl rounded-3xl border border-white/10 bg-white/[0.03] px-6 py-8 text-center">
+                  <h2 className="text-xl font-semibold text-white">La base de datos de conversaciones no esta lista</h2>
+                  <p className="mt-3 text-sm leading-6 text-gray-300">
+                    SofLIA solo habilita el chat cuando puede usar la identidad compartida de Lia.
+                    {` `}
+                    Cierra sesion e inicia nuevamente para restaurar la sincronizacion entre tu laptop y tu PC.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -334,6 +412,16 @@ function AppContent() {
               folder.handleRenameFolder(currentFolder.id, newName)
             }
             onRenameChat={chat.handleRenameChatFromHub}
+            onShareFolder={
+              currentFolder.can_share && orgId
+                ? () =>
+                    setShareTarget({
+                      targetId: currentFolder.id,
+                      targetType: "folder",
+                      targetName: currentFolder.name,
+                    })
+                : undefined
+            }
             userId={userId}
             orgId={orgId}
           />
@@ -349,10 +437,24 @@ function AppContent() {
       <MoveChatModal
         isOpen={folder.movingChatId !== null}
         onClose={() => folder.setMovingChatId(null)}
-        folders={folder.folders}
+        folders={folder.folders.filter((item) => item.can_edit)}
         currentFolderId={movingChat?.folder_id}
         onMove={(folderId) => folder.handleMoveChat(folder.movingChatId!, folderId)}
       />
+
+      {userId && orgId && shareTarget && (
+        <ShareModal
+          isOpen={true}
+          onClose={() => setShareTarget(null)}
+          targetId={shareTarget.targetId}
+          targetType={shareTarget.targetType}
+          targetName={shareTarget.targetName}
+          userId={userId}
+          orgId={orgId}
+          currentSofiaUserId={user?.id}
+          currentUserEmail={user?.email}
+        />
+      )}
 
       {userId && (
         <UnifiedSettingsModal

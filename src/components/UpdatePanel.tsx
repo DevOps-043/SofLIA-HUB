@@ -86,16 +86,16 @@ export function UpdatePanel() {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div>
-        <h3 className="text-lg font-bold text-white">Actualizaciones</h3>
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Actualizaciones</h3>
         <p className="text-xs text-gray-500 mt-1">Mantén SofLIA Hub actualizado con las últimas mejoras</p>
       </div>
 
       {/* Versión actual */}
-      <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+      <div className="p-4 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Versión actual</p>
-            <p className="text-2xl font-black text-white mt-1">v{currentVersion}</p>
+            <p className="text-2xl font-black text-gray-900 dark:text-white mt-1">v{currentVersion}</p>
           </div>
           <div className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
             state === 'available' || state === 'downloading' || state === 'downloaded'
@@ -118,7 +118,7 @@ export function UpdatePanel() {
       <button
         onClick={handleCheck}
         disabled={checking || state === 'checking' || state === 'downloading'}
-        className="w-full py-3.5 rounded-2xl bg-white text-black text-sm font-bold transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2"
+        className="w-full py-3.5 rounded-2xl bg-gray-900 dark:bg-white text-white dark:text-black text-sm font-bold transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2"
       >
         {checking || state === 'checking' ? (
           <>
@@ -148,14 +148,14 @@ export function UpdatePanel() {
               </svg>
             </div>
             <div>
-              <p className="text-sm font-bold text-white">SofLIA Hub v{availableVersion}</p>
+              <p className="text-sm font-bold text-gray-900 dark:text-white">SofLIA Hub v{availableVersion}</p>
               <p className="text-[10px] text-gray-500 mt-0.5">Nueva versión disponible para descargar</p>
             </div>
           </div>
 
           {/* Release Notes */}
           {notes && (
-            <div className="p-3 rounded-xl bg-black/30 border border-white/5 max-h-48 overflow-y-auto custom-scrollbar">
+            <div className="p-3 rounded-xl bg-gray-100 dark:bg-black/30 border border-gray-200 dark:border-white/5 max-h-48 overflow-y-auto custom-scrollbar">
               <p className="text-[10px] text-accent font-bold uppercase tracking-widest mb-3">Novedades</p>
               <div 
                 className="text-xs release-notes"
@@ -171,7 +171,7 @@ export function UpdatePanel() {
                 <span className="text-gray-500">Descargando actualización</span>
                 <span className="text-accent font-bold">{progress}%</span>
               </div>
-              <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+              <div className="h-2 bg-gray-200 dark:bg-white/5 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-accent rounded-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(0,186,255,0.4)]"
                   style={{ width: `${progress}%` }}
@@ -210,7 +210,7 @@ export function UpdatePanel() {
             </svg>
           </div>
           <div>
-            <p className="text-sm font-bold text-white">Estás al día</p>
+            <p className="text-sm font-bold text-gray-900 dark:text-white">Estás al día</p>
             <p className="text-[10px] text-gray-500 mt-0.5">SofLIA Hub v{currentVersion} es la versión más reciente</p>
           </div>
         </div>
@@ -225,14 +225,14 @@ export function UpdatePanel() {
             </svg>
           </div>
           <div>
-            <p className="text-sm font-bold text-white">Error al verificar</p>
+            <p className="text-sm font-bold text-gray-900 dark:text-white">Error al verificar</p>
             <p className="text-[10px] text-red-400/70 mt-0.5">{error || status?.error || 'No se pudo conectar al servidor de actualizaciones'}</p>
           </div>
         </div>
       )}
 
       {/* Info */}
-      <div className="pt-4 border-t border-white/5">
+      <div className="pt-4 border-t border-gray-200 dark:border-white/5">
         <p className="text-[10px] text-gray-600 leading-relaxed">
           Las actualizaciones se verifican automáticamente cada 4 horas. También puedes verificar manualmente usando el botón de arriba.
         </p>

@@ -77,6 +77,38 @@ describe('chat-service', () => {
     expect(mockFrom).toHaveBeenCalled();
   });
 
+  it('RS-001A: migrateLegacyChatCache moves cached conversations to the Lia user id', async () => {
+    const legacyConversation = {
+      id: 'conv-legacy',
+      user_id: 'sofia-user-1',
+      title: 'Chat legado',
+      created_at: '2026-01-01T00:00:00.000Z',
+      updated_at: '2026-01-01T00:00:00.000Z',
+    };
+
+    localStorage.setItem('lia_conversations_sofia-user-1', JSON.stringify([legacyConversation]));
+    localStorage.setItem(
+      'lia_pending_chat_state_sofia-user-1',
+      JSON.stringify({
+        conversationUpserts: { 'conv-legacy': legacyConversation },
+        messageSnapshots: {},
+        deletedConversationIds: [],
+      }),
+    );
+
+    const { migrateLegacyChatCache } = await import('../../services/chat-service');
+    migrateLegacyChatCache('sofia-user-1', 'lia-user-1');
+
+    expect(localStorage.getItem('lia_conversations_sofia-user-1')).toBeNull();
+
+    const migratedConversations = JSON.parse(localStorage.getItem('lia_conversations_lia-user-1') || '[]');
+    expect(migratedConversations).toHaveLength(1);
+    expect(migratedConversations[0].user_id).toBe('lia-user-1');
+
+    const migratedPendingState = JSON.parse(localStorage.getItem('lia_pending_chat_state_lia-user-1') || '{}');
+    expect(migratedPendingState.conversationUpserts['conv-legacy'].user_id).toBe('lia-user-1');
+  });
+
   // RS-002: loadMessages calls Supabase select with order
   it('RS-002: loadMessages calls Supabase select with ascending order', async () => {
     const mockMessages = [

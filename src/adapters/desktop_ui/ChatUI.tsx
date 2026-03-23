@@ -45,9 +45,21 @@ interface ChatUIProps {
   externalPrompt?: string | null;
   onExternalPromptProcessed?: () => void;
   onShare?: () => void;
+  canSendMessages?: boolean;
+  readOnlyReason?: string | null;
 }
 
-export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, personalization, userAvatar, externalPrompt, onExternalPromptProcessed, onShare }) => {
+export const ChatUI: React.FC<ChatUIProps> = ({
+  messages,
+  onMessagesChange,
+  personalization,
+  userAvatar,
+  externalPrompt,
+  onExternalPromptProcessed,
+  onShare,
+  canSendMessages = true,
+  readOnlyReason,
+}) => {
   const [input, setInput] = useState('');
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -129,10 +141,16 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
       return;
     }
 
+    if (!canSendMessages) {
+      lastProcessedExternalPromptRef.current = externalPrompt;
+      externalPromptProcessedRef.current?.();
+      return;
+    }
+
     lastProcessedExternalPromptRef.current = externalPrompt;
     externalPromptProcessedRef.current?.();
     processMessageRef.current?.(externalPrompt, [], messagesRef.current, false);
-  }, [externalPrompt]);
+  }, [canSendMessages, externalPrompt]);
 
   // Handle Dynamic Header
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -156,6 +174,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
 
   // Image/File upload handler
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!canSendMessages) return;
     const files = e.target.files;
     if (!files) return;
 
@@ -172,6 +191,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
 
   // Paste image handler
   const handlePaste = (e: React.ClipboardEvent) => {
+    if (!canSendMessages) return;
     const items = e.clipboardData.items;
     for (const item of items) {
       if (item.type.startsWith('image/')) {
@@ -193,6 +213,10 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
 
   // Tool selection handler
   const handleToolSelect = (toolId: string) => {
+    if (!canSendMessages) {
+      setIsToolsOpen(false);
+      return;
+    }
     switch (toolId) {
       case 'attach_file':
         fileInputRef.current?.click();
@@ -235,7 +259,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
   };
 
   const onSendClick = async () => {
-    if (!input.trim() || chat.showLoadingUI) return;
+    if (!canSendMessages || !input.trim() || chat.showLoadingUI) return;
 
     const text = input.trim();
     const images = [...selectedImages];
@@ -393,6 +417,14 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
         </div>
       </div>
 
+        {!canSendMessages && readOnlyReason && (
+          <div className="mx-auto w-full max-w-3xl px-4 pt-4">
+            <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-200">
+              {readOnlyReason}
+            </div>
+          </div>
+        )}
+
         {/* Empty State / Messages Area */}
         {messages.length === 0 && !chat.showLoadingUI ? (
           <div className="flex-1 flex flex-col items-center justify-center px-4">
@@ -487,9 +519,11 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                               </button>
                               <button
                                 onClick={() => {
+                                  if (!canSendMessages) return;
                                   chat.handleEditMessage(msg.id, editInput, msg.images || []);
                                   setEditingMessageId(null);
                                 }}
+                                disabled={!canSendMessages}
                                 className="px-7 py-2 bg-accent text-white rounded-full text-[13px] font-black uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-xl shadow-accent/20"
                               >
                                 Enviar
@@ -504,19 +538,21 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
 
                             {/* Message actions (hover) */}
                             <div className="absolute -left-12 top-0 flex flex-col gap-1 opacity-0 group-hover/msg-content:opacity-100 transition-all duration-200">
-                              <button
-                                onClick={() => {
-                                  setEditingMessageId(msg.id);
-                                  setEditInput(msg.text);
-                                }}
-                                className="p-2 rounded-xl bg-white dark:bg-[#2A2B32] text-gray-400 hover:text-accent hover:shadow-md border border-gray-100 dark:border-white/10 transition-all"
-                                title="Editar mensaje"
-                              >
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                </svg>
-                              </button>
+                              {canSendMessages && (
+                                <button
+                                  onClick={() => {
+                                    setEditingMessageId(msg.id);
+                                    setEditInput(msg.text);
+                                  }}
+                                  className="p-2 rounded-xl bg-white dark:bg-[#2A2B32] text-gray-400 hover:text-accent hover:shadow-md border border-gray-100 dark:border-white/10 transition-all"
+                                  title="Editar mensaje"
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                  </svg>
+                                </button>
+                              )}
 
                               <button
                                 onClick={() => chat.handleCopy(msg.id, msg.text)}
@@ -606,37 +642,41 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                           )}
                         </button>
 
-                        <button
-                          className="w-6 h-6 flex items-center justify-center rounded text-[#c5c5d2] hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-200 transition-all"
-                          title="Regenerar respuesta"
-                          onClick={() => chat.handleRegenerate(msg.id)}
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 1 8.51 15"></path></svg>
-                        </button>
+                        {canSendMessages && (
+                          <>
+                            <button
+                              className="w-6 h-6 flex items-center justify-center rounded text-[#c5c5d2] hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-200 transition-all"
+                              title="Regenerar respuesta"
+                              onClick={() => chat.handleRegenerate(msg.id)}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 1 8.51 15"></path></svg>
+                            </button>
 
-                        <button
-                          className={`w-6 h-6 flex items-center justify-center rounded transition-all ${
-                            msg.feedback === 'like'
-                              ? 'text-[#8ab4f8]'
-                              : 'text-[#c5c5d2] hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-200'
-                          }`}
-                          title="Me gusta"
-                          onClick={() => chat.handleFeedback(msg.id, 'like')}
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
-                        </button>
+                            <button
+                              className={`w-6 h-6 flex items-center justify-center rounded transition-all ${
+                                msg.feedback === 'like'
+                                  ? 'text-[#8ab4f8]'
+                                  : 'text-[#c5c5d2] hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-200'
+                              }`}
+                              title="Me gusta"
+                              onClick={() => chat.handleFeedback(msg.id, 'like')}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>
+                            </button>
 
-                        <button
-                          className={`w-6 h-6 flex items-center justify-center rounded transition-all ${
-                            msg.feedback === 'dislike'
-                              ? 'text-[#e57373]'
-                              : 'text-[#c5c5d2] hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-200'
-                          }`}
-                          title="No me gusta"
-                          onClick={() => chat.handleFeedback(msg.id, 'dislike')}
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.31 2.31H17"></path></svg>
-                        </button>
+                            <button
+                              className={`w-6 h-6 flex items-center justify-center rounded transition-all ${
+                                msg.feedback === 'dislike'
+                                  ? 'text-[#e57373]'
+                                  : 'text-[#c5c5d2] hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-700 dark:hover:text-gray-200'
+                              }`}
+                              title="No me gusta"
+                              onClick={() => chat.handleFeedback(msg.id, 'dislike')}
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.31 2.31H17"></path></svg>
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
@@ -782,6 +822,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
             <div className="relative mb-0.5 ml-0.5">
               <button
                 onClick={() => setIsToolsOpen(!isToolsOpen)}
+                disabled={!canSendMessages}
                 className={`w-9 h-9 flex items-center justify-center rounded-full transition-all ${isToolsOpen ? 'bg-accent text-white shadow-md' : 'bg-white dark:bg-black/20 text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:shadow-sm border border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10'}`}
                 title="Más opciones"
               >
@@ -843,10 +884,10 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
                 }
               }}
               onPaste={handlePaste}
-              placeholder={isImageGenMode ? "Describe la imagen que quieres generar..." : isPromptOptimizerMode ? "Escribe el prompt a optimizar..." : "Mensaje a SOFLIA..."}
+              placeholder={!canSendMessages ? (readOnlyReason || 'Conversacion en solo lectura') : isImageGenMode ? "Describe la imagen que quieres generar..." : isPromptOptimizerMode ? "Escribe el prompt a optimizar..." : "Mensaje a SOFLIA..."}
               className="flex-1 bg-transparent text-[15px] focus:outline-none placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 resize-none max-h-[160px] overflow-y-auto !no-scrollbar font-sans py-2.5 px-2 leading-relaxed mb-0.5"
               rows={1}
-              disabled={chat.showLoadingUI}
+              disabled={chat.showLoadingUI || !canSendMessages}
               style={{ height: '42px', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               onInput={(e) => {
                 const target = e.target as HTMLTextAreaElement;
@@ -860,7 +901,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
               {input.trim() ? (
                 <button
                   onClick={onSendClick}
-                  disabled={chat.showLoadingUI}
+                  disabled={chat.showLoadingUI || !canSendMessages}
                   className="w-9 h-9 flex items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
                   title="Enviar mensaje"
                 >
@@ -876,6 +917,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
               ) : (
                 <button
                   onClick={() => setIsRecording(!isRecording)}
+                  disabled={!canSendMessages}
                   className={`w-9 h-9 flex items-center justify-center rounded-full transition-all ${isRecording ? 'bg-red-500 text-white shadow-md animate-pulse' : 'bg-white dark:bg-black/20 text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:shadow-sm border border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10'}`}
                   title="Dictado por voz"
                 >
@@ -899,6 +941,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({ messages, onMessagesChange, pers
         accept="image/*,application/pdf,text/*,.doc,.docx,.xls,.xlsx,.csv,.json,.md"
         multiple
         className="hidden"
+        disabled={!canSendMessages}
         onChange={handleImageUpload}
       />
 

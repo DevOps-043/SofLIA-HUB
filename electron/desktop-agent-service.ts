@@ -589,8 +589,142 @@ export class DesktopAgentService extends EventEmitter {
     };
   }
 
-  private buildScreenshotLayout(targetWidth: number, targetHeight: number): ScreenshotLayout {
-    const virtualBounds = this.getVirtualDesktopBounds();
+  private intersectBounds(a: ScreenshotVirtualBounds, b: ScreenshotVirtualBounds): ScreenshotVirtualBounds | null {
+    const left = Math.max(a.x, b.x);
+    const top = Math.max(a.y, b.y);
+    const right = Math.min(a.x + a.width, b.x + b.width);
+    const bottom = Math.min(a.y + a.height, b.y + b.height);
+
+    if (right <= left || bottom <= top) {
+      return null;
+    }
+
+    return {
+      x: left,
+      y: top,
+      width: Math.max(1, right - left),
+      height: Math.max(1, bottom - top),
+    };
+  }
+
+  private async getForegroundWindowBounds(): Promise<{ title: string; process: string; bounds: ScreenshotVirtualBounds } | null> {
+    try {
+      const stdout = await this.psEncoded(`
+$source = @"
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+
+namespace W {
+  public static class FgWin {
+    [StructLayout(LayoutKind.Sequential)]
+    public struct RECT {
+      public int Left;
+      public int Top;
+      public int Right;
+      public int Bottom;
+    }
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
+
+    [DllImport("user32.dll")]
+    public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+  }
+}
+"@
+
+Add-Type -TypeDefinition $source
+
+$hwnd = [W.FgWin]::GetForegroundWindow()
+if ($hwnd -eq [IntPtr]::Zero) {
+  @{} | ConvertTo-Json -Compress
+  exit
+}
+
+$sb = New-Object System.Text.StringBuilder 1024
+[void][W.FgWin]::GetWindowText($hwnd, $sb, $sb.Capacity)
+$rect = New-Object W.FgWin+RECT
+[void][W.FgWin]::GetWindowRect($hwnd, [ref]$rect)
+$pid = [uint32]0
+[void][W.FgWin]::GetWindowThreadProcessId($hwnd, [ref]$pid)
+$proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
+
+@{
+  title = $sb.ToString()
+  process = if ($proc) { $proc.ProcessName } else { '' }
+  x = $rect.Left
+  y = $rect.Top
+  width = [Math]::Max(0, $rect.Right - $rect.Left)
+  height = [Math]::Max(0, $rect.Bottom - $rect.Top)
+} | ConvertTo-Json -Compress
+`, 3000);
+
+      const parsed = JSON.parse(stdout || '{}') as {
+        title?: string;
+        process?: string;
+        x?: number;
+        y?: number;
+        width?: number;
+        height?: number;
+      };
+
+      const width = Number(parsed.width || 0);
+      const height = Number(parsed.height || 0);
+      if (!Number.isFinite(width) || !Number.isFinite(height) || width < 120 || height < 120) {
+        return null;
+      }
+
+      return {
+        title: String(parsed.title || ''),
+        process: String(parsed.process || ''),
+        bounds: {
+          x: Number(parsed.x || 0),
+          y: Number(parsed.y || 0),
+          width,
+          height,
+        },
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private async getFocusedCaptureBounds(): Promise<ScreenshotVirtualBounds | null> {
+    if (!this.config.focusedCaptureEnabled) {
+      return null;
+    }
+
+    const focusedWindow = await this.getForegroundWindowBounds();
+    if (!focusedWindow) {
+      return null;
+    }
+
+    const normalizedTitle = `${focusedWindow.title} ${focusedWindow.process}`.toLowerCase();
+    if (!normalizedTitle.trim() || normalizedTitle.includes('program manager')) {
+      return null;
+    }
+
+    const padding = Math.max(0, this.config.focusedCapturePadding || 0);
+    const paddedBounds: ScreenshotVirtualBounds = {
+      x: focusedWindow.bounds.x - padding,
+      y: focusedWindow.bounds.y - padding,
+      width: focusedWindow.bounds.width + (padding * 2),
+      height: focusedWindow.bounds.height + (padding * 2),
+    };
+
+    return this.intersectBounds(this.getVirtualDesktopBounds(), paddedBounds);
+  }
+
+  private buildScreenshotLayout(targetWidth: number, targetHeight: number, captureBounds?: ScreenshotVirtualBounds | null): ScreenshotLayout {
+    const virtualBounds = captureBounds || this.getVirtualDesktopBounds();
     const renderScale = Math.min(
       targetWidth / virtualBounds.width,
       targetHeight / virtualBounds.height,
@@ -607,19 +741,31 @@ export class DesktopAgentService extends EventEmitter {
       offsetY,
       renderScale,
       virtualBounds,
-      displayRegions: electronScreen.getAllDisplays().map((display) => ({
-        displayId: String(display.id),
-        bounds: {
-          x: display.bounds.x,
-          y: display.bounds.y,
-          width: display.bounds.width,
-          height: display.bounds.height,
-        },
-        left: Math.round((display.bounds.x - virtualBounds.x) * renderScale) + offsetX,
-        top: Math.round((display.bounds.y - virtualBounds.y) * renderScale) + offsetY,
-        width: Math.max(1, Math.round(display.bounds.width * renderScale)),
-        height: Math.max(1, Math.round(display.bounds.height * renderScale)),
-      })),
+      displayRegions: electronScreen.getAllDisplays().reduce<ScreenshotDisplayRegion[]>((regions, display) => {
+        const intersection = this.intersectBounds(
+          {
+            x: display.bounds.x,
+            y: display.bounds.y,
+            width: display.bounds.width,
+            height: display.bounds.height,
+          },
+          virtualBounds,
+        );
+
+        if (!intersection) {
+          return regions;
+        }
+
+        regions.push({
+          displayId: String(display.id),
+          bounds: intersection,
+          left: Math.round((intersection.x - virtualBounds.x) * renderScale) + offsetX,
+          top: Math.round((intersection.y - virtualBounds.y) * renderScale) + offsetY,
+          width: Math.max(1, Math.round(intersection.width * renderScale)),
+          height: Math.max(1, Math.round(intersection.height * renderScale)),
+        });
+        return regions;
+      }, []),
     };
   }
 
@@ -629,6 +775,7 @@ export class DesktopAgentService extends EventEmitter {
     actualWidth: number;
     actualHeight: number;
   }> {
+    const displays = electronScreen.getAllDisplays();
     const thumbnailSize = {
       width: Math.max(targetWidth, 1600),
       height: Math.max(targetHeight, 900),
@@ -639,7 +786,8 @@ export class DesktopAgentService extends EventEmitter {
     });
     if (sources.length === 0) throw new Error('No se encontraron pantallas.');
 
-    const layout = this.buildScreenshotLayout(targetWidth, targetHeight);
+    const focusedCaptureBounds = await this.getFocusedCaptureBounds();
+    const layout = this.buildScreenshotLayout(targetWidth, targetHeight, focusedCaptureBounds);
     this.lastScreenshotLayout = layout;
     this.lastActualScreenshotWidth = targetWidth;
     this.lastActualScreenshotHeight = targetHeight;
@@ -656,10 +804,14 @@ export class DesktopAgentService extends EventEmitter {
     }
 
     const sourceByDisplayId = new Map<string, any>();
+    const displayById = new Map<string, Electron.Display>();
     for (const source of sources) {
       if (source.display_id) {
         sourceByDisplayId.set(String(source.display_id), source);
       }
+    }
+    for (const display of displays) {
+      displayById.set(String(display.id), display);
     }
 
     const orderedSources = [...sources];
@@ -667,9 +819,33 @@ export class DesktopAgentService extends EventEmitter {
     for (const [index, region] of layout.displayRegions.entries()) {
       const source = sourceByDisplayId.get(region.displayId) || orderedSources[index] || orderedSources[0];
       if (!source?.thumbnail) continue;
-      const resized = await sharpModule(source.thumbnail.toPNG())
-        .resize(region.width, region.height, { fit: 'fill' })
-        .toBuffer();
+      const sourcePng = source.thumbnail.toPNG();
+      const display = displayById.get(region.displayId);
+      let pipeline = sharpModule(sourcePng);
+
+      if (display) {
+        const metadata = await sharpModule(sourcePng).metadata();
+        const sourceWidth = metadata.width || thumbnailSize.width;
+        const sourceHeight = metadata.height || thumbnailSize.height;
+        const scaleX = sourceWidth / Math.max(1, display.bounds.width);
+        const scaleY = sourceHeight / Math.max(1, display.bounds.height);
+        const cropLeft = Math.max(0, region.bounds.x - display.bounds.x);
+        const cropTop = Math.max(0, region.bounds.y - display.bounds.y);
+        const cropWidth = Math.min(region.bounds.width, display.bounds.width - cropLeft);
+        const cropHeight = Math.min(region.bounds.height, display.bounds.height - cropTop);
+        const extractLeft = Math.max(0, Math.min(sourceWidth - 1, Math.round(cropLeft * scaleX)));
+        const extractTop = Math.max(0, Math.min(sourceHeight - 1, Math.round(cropTop * scaleY)));
+        const extractWidth = Math.max(1, Math.min(sourceWidth - extractLeft, Math.round(cropWidth * scaleX)));
+        const extractHeight = Math.max(1, Math.min(sourceHeight - extractTop, Math.round(cropHeight * scaleY)));
+        pipeline = pipeline.extract({
+          left: extractLeft,
+          top: extractTop,
+          width: extractWidth,
+          height: extractHeight,
+        });
+      }
+
+      const resized = await pipeline.resize(region.width, region.height, { fit: 'fill' }).toBuffer();
       composites.push({
         input: resized,
         left: region.left,
@@ -793,17 +969,32 @@ Add-Type -AssemblyName UIAutomationTypes
 Add-Type -Name FgWin -Namespace W -MemberDefinition '[DllImport(\\\"user32.dll\\\")] public static extern IntPtr GetForegroundWindow();'
 $hwnd = [W.FgWin]::GetForegroundWindow()
 $root = [System.Windows.Automation.AutomationElement]::FromHandle($hwnd)
-$cond = New-Object System.Windows.Automation.OrCondition(
-  (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::IsInvokePatternAvailableProperty, $true)),
-  (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::IsValuePatternAvailableProperty, $true)),
-  (New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::IsTogglePatternAvailableProperty, $true))
-)
-$elements = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)
+$elements = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)
 $result = @()
 $id = 1
+$interestingTypes = @('Button','Edit','TextBox','Hyperlink','MenuItem','ListItem','TreeItem','TabItem','Document','CheckBox','RadioButton','ComboBox','DataItem')
 foreach ($el in $elements) {
   $rect = $el.Current.BoundingRectangle
-  if ($rect.Width -gt 0 -and $rect.Height -gt 0 -and $rect.Width -lt 2000) {
+  $controlType = $el.Current.ControlType.ProgrammaticName -replace 'ControlType\\.', ''
+  $hasInteractivePattern = (
+    $el.Current.IsInvokePatternAvailable -or
+    $el.Current.IsValuePatternAvailable -or
+    $el.Current.IsTogglePatternAvailable -or
+    $el.Current.IsSelectionItemPatternAvailable -or
+    $el.Current.IsExpandCollapsePatternAvailable -or
+    $el.Current.IsScrollItemPatternAvailable -or
+    $el.Current.IsTextPatternAvailable
+  )
+  $looksInteractive = $interestingTypes -contains $controlType
+  $hasIdentity = -not [string]::IsNullOrWhiteSpace($el.Current.Name) -or -not [string]::IsNullOrWhiteSpace($el.Current.AutomationId)
+  if (
+    $rect.Width -gt 0 -and
+    $rect.Height -gt 0 -and
+    $rect.Width -lt 2000 -and
+    $rect.Height -lt 2000 -and
+    -not $el.Current.IsOffscreen -and
+    ($hasInteractivePattern -or $looksInteractive -or $hasIdentity)
+  ) {
     $value = ''
     try {
       $vp = $null
@@ -814,7 +1005,7 @@ foreach ($el in $elements) {
     $result += @{
       id = $id
       name = $el.Current.Name
-      controlType = $el.Current.ControlType.ProgrammaticName -replace 'ControlType\\.', ''
+      controlType = $controlType
       x = [int]$rect.X
       y = [int]$rect.Y
       width = [int]$rect.Width
@@ -824,7 +1015,7 @@ foreach ($el in $elements) {
       value = $value
     }
     $id++
-    if ($id -gt 40) { break }
+    if ($id -gt 60) { break }
   }
 }
 $result | ConvertTo-Json -Compress -Depth 3
@@ -841,7 +1032,14 @@ $result | ConvertTo-Json -Compress -Depth 3
           isEnabled: e.isEnabled !== false,
           automationId: e.automationId || '',
           value: e.value || '',
-        }));
+        }))
+        .sort((a, b) => {
+          const deltaY = a.boundingRect.y - b.boundingRect.y;
+          if (Math.abs(deltaY) > 12) {
+            return deltaY;
+          }
+          return a.boundingRect.x - b.boundingRect.x;
+        });
       return arr;
     } catch (err: any) {
       console.warn(`[DesktopAgent] UI Automation falló:`, err.message);
@@ -859,7 +1057,9 @@ $result | ConvertTo-Json -Compress -Depth 3
         scaleX: virtualBounds.width / this.config.screenshotWidth,
         scaleY: virtualBounds.height / this.config.screenshotHeight,
       };
-      console.log(`[DesktopAgent] Escala inicial: escritorio virtual ${virtualBounds.width}x${virtualBounds.height}`);
+      console.log(
+        `[DesktopAgent] Escala inicial: virtual ${virtualBounds.width}x${virtualBounds.height}, render ${this.lastScreenshotLayout.renderScale.toFixed(4)}, offset ${this.lastScreenshotLayout.offsetX},${this.lastScreenshotLayout.offsetY}`,
+      );
     } catch {
       this.screenScale = { scaleX: 1920 / this.config.screenshotWidth, scaleY: 1080 / this.config.screenshotHeight };
     }
@@ -870,14 +1070,17 @@ $result | ConvertTo-Json -Compress -Depth 3
     this.lastActualScreenshotWidth = actualWidth;
     this.lastActualScreenshotHeight = actualHeight;
     try {
-      this.lastScreenshotLayout = this.buildScreenshotLayout(actualWidth, actualHeight);
-      const virtualBounds = this.lastScreenshotLayout.virtualBounds;
+      const layout = this.lastScreenshotLayout ?? this.buildScreenshotLayout(actualWidth, actualHeight);
+      this.lastScreenshotLayout = layout;
+      const virtualBounds = layout.virtualBounds;
       const newScaleX = virtualBounds.width / actualWidth;
       const newScaleY = virtualBounds.height / actualHeight;
 
       // Only log on first call or if scale changed
       if (Math.abs(newScaleX - this.screenScale.scaleX) > 0.01 || Math.abs(newScaleY - this.screenScale.scaleY) > 0.01) {
-        console.log(`[DesktopAgent] Escala corregida: screenshot real ${actualWidth}x${actualHeight} → scale ${newScaleX.toFixed(2)}x${newScaleY.toFixed(2)}`);
+        console.log(
+          `[DesktopAgent] Escala corregida: screenshot ${actualWidth}x${actualHeight} -> virtual ${virtualBounds.width}x${virtualBounds.height}, scale ${newScaleX.toFixed(2)}x${newScaleY.toFixed(2)}, render ${layout.renderScale.toFixed(4)}, offset ${layout.offsetX},${layout.offsetY}`,
+        );
       }
       this.screenScale = { scaleX: newScaleX, scaleY: newScaleY };
     } catch {
@@ -885,23 +1088,338 @@ $result | ConvertTo-Json -Compress -Depth 3
     }
   }
 
-  private scale(x: number, y: number): { x: number; y: number } {
+  private getDisplayRegionLabelFromScreenshotPoint(
+    x: number,
+    y: number,
+    layout: ScreenshotLayout | null = this.lastScreenshotLayout,
+  ): string | null {
+    if (!layout) return null;
+
+    const regionIndex = layout.displayRegions.findIndex((region) => (
+      x >= region.left
+      && x <= (region.left + region.width)
+      && y >= region.top
+      && y <= (region.top + region.height)
+    ));
+
+    if (regionIndex === -1) {
+      return layout.offsetX > 0 || layout.offsetY > 0 ? 'padding' : null;
+    }
+
+    const region = layout.displayRegions[regionIndex];
+    return `monitor ${regionIndex + 1} (display ${region.displayId})`;
+  }
+
+  private describeScreenshotMonitorContext(layout: ScreenshotLayout | null = this.lastScreenshotLayout): string {
+    if (!layout) return '';
+    const desktopBounds = this.getVirtualDesktopBounds();
+    const hasMultipleDisplays = layout.displayRegions.length > 1;
+    const hasPadding = layout.offsetX > 0 || layout.offsetY > 0;
+    const isFocusedCrop =
+      layout.virtualBounds.x !== desktopBounds.x
+      || layout.virtualBounds.y !== desktopBounds.y
+      || layout.virtualBounds.width !== desktopBounds.width
+      || layout.virtualBounds.height !== desktopBounds.height;
+    if (!hasMultipleDisplays && !hasPadding && !isFocusedCrop) return '';
+
+    const regions = layout.displayRegions
+      .map((region, index) => {
+        const right = region.left + region.width;
+        const bottom = region.top + region.height;
+        return `- Monitor ${index + 1}: ocupa x=${region.left}-${right}, y=${region.top}-${bottom} dentro de la imagen`;
+      })
+      .join('\n');
+    const paddingNote = hasPadding
+      ? `Fuera de esas regiones hay padding oscuro agregado por el compositor (offset ${layout.offsetX},${layout.offsetY}). Evita clickear ahi.`
+      : '';
+    const focusedNote = isFocusedCrop
+      ? `La captura esta recortada a una region enfocada del escritorio: x=${layout.virtualBounds.x}-${layout.virtualBounds.x + layout.virtualBounds.width}, y=${layout.virtualBounds.y}-${layout.virtualBounds.y + layout.virtualBounds.height}.`
+      : '';
+
+    return `REGIONES DE MONITOR EN LA IMAGEN:
+${regions}
+${paddingNote}
+${focusedNote}
+`;
+  }
+
+  private resolveScreenPoint(x: number, y: number): {
+    x: number;
+    y: number;
+    dipX?: number;
+    dipY?: number;
+    source: 'layout' | 'scale';
+    regionLabel?: string | null;
+  } {
     const dipPoint = this.mapScreenshotToDipPoint(x, y);
     if (dipPoint) {
-      return this.dipToScreenPoint(dipPoint);
+      const screenPoint = this.dipToScreenPoint(dipPoint);
+      return {
+        x: screenPoint.x,
+        y: screenPoint.y,
+        dipX: dipPoint.x,
+        dipY: dipPoint.y,
+        source: 'layout',
+        regionLabel: this.getDisplayRegionLabelFromScreenshotPoint(x, y),
+      };
     }
+
     return {
       x: Math.round(x * this.screenScale.scaleX),
       y: Math.round(y * this.screenScale.scaleY),
+      source: 'scale',
     };
   }
 
+  private getUIElementPriority(controlType: string): number {
+    switch (controlType) {
+      case 'Button': return 100;
+      case 'Edit':
+      case 'TextBox': return 95;
+      case 'ComboBox': return 90;
+      case 'MenuItem':
+      case 'TabItem': return 85;
+      case 'CheckBox':
+      case 'RadioButton': return 82;
+      case 'Hyperlink': return 80;
+      case 'ListItem':
+      case 'TreeItem': return 76;
+      case 'DataItem': return 68;
+      case 'Document': return 10;
+      default: return 40;
+    }
+  }
+
+  private getPointDistanceToRect(
+    x: number,
+    y: number,
+    rect: { x: number; y: number; width: number; height: number },
+  ): number {
+    const dx = Math.max(rect.x - x, 0, x - (rect.x + rect.width));
+    const dy = Math.max(rect.y - y, 0, y - (rect.y + rect.height));
+    return Math.hypot(dx, dy);
+  }
+
+  private snapPointToVisibleRegion(
+    x: number,
+    y: number,
+    tolerance = 28,
+    layout: ScreenshotLayout | null = this.lastScreenshotLayout,
+  ): { x: number; y: number; adjusted: boolean; regionLabel?: string | null } {
+    if (!layout) {
+      return { x, y, adjusted: false };
+    }
+
+    const directRegion = this.getDisplayRegionLabelFromScreenshotPoint(x, y, layout);
+    if (directRegion && directRegion !== 'padding') {
+      return { x, y, adjusted: false, regionLabel: directRegion };
+    }
+
+    let bestCandidate: { x: number; y: number; distance: number; regionLabel: string | null } | null = null;
+    for (const [index, region] of layout.displayRegions.entries()) {
+      const snappedX = Math.min(Math.max(x, region.left), region.left + region.width);
+      const snappedY = Math.min(Math.max(y, region.top), region.top + region.height);
+      const distance = Math.hypot(snappedX - x, snappedY - y);
+      const regionLabel = `monitor ${index + 1} (display ${region.displayId})`;
+      if (!bestCandidate || distance < bestCandidate.distance) {
+        bestCandidate = { x: snappedX, y: snappedY, distance, regionLabel };
+      }
+    }
+
+    if (bestCandidate && bestCandidate.distance <= tolerance) {
+      return {
+        x: bestCandidate.x,
+        y: bestCandidate.y,
+        adjusted: true,
+        regionLabel: bestCandidate.regionLabel,
+      };
+    }
+
+    return { x, y, adjusted: false, regionLabel: directRegion };
+  }
+
+  private snapPointToStructuredElement(
+    x: number,
+    y: number,
+    tolerance = 40,
+  ): { x: number; y: number; element: UIElement; reason: 'inside' | 'near' } | null {
+    if (this.currentUIElements.length === 0) {
+      return null;
+    }
+
+    const candidates = this.currentUIElements
+      .filter((element) => element.isEnabled !== false)
+      .map((element) => {
+        const rect = this.mapDesktopRectToScreenshotRect(element.boundingRect);
+        if (!rect) return null;
+        const contains = x >= rect.x && x <= (rect.x + rect.width) && y >= rect.y && y <= (rect.y + rect.height);
+        const distance = this.getPointDistanceToRect(x, y, rect);
+        const area = rect.width * rect.height;
+        const priority = this.getUIElementPriority(element.controlType);
+        return {
+          element,
+          rect,
+          contains,
+          distance,
+          area,
+          priority,
+        };
+      })
+      .filter((candidate): candidate is {
+        element: UIElement;
+        rect: { x: number; y: number; width: number; height: number };
+        contains: boolean;
+        distance: number;
+        area: number;
+        priority: number;
+      } => Boolean(candidate))
+      .filter((candidate) => candidate.contains || candidate.distance <= tolerance)
+      .sort((a, b) => {
+        if (a.contains !== b.contains) return a.contains ? -1 : 1;
+        if (a.priority !== b.priority) return b.priority - a.priority;
+        if (Math.abs(a.distance - b.distance) > 0.5) return a.distance - b.distance;
+        return a.area - b.area;
+      });
+
+    const best = candidates[0];
+    if (!best) {
+      return null;
+    }
+
+    return {
+      x: best.rect.x + (best.rect.width / 2),
+      y: best.rect.y + (best.rect.height / 2),
+      element: best.element,
+      reason: best.contains ? 'inside' : 'near',
+    };
+  }
+
+  private refineActionCoordinates(action: DesktopActionPayload): DesktopActionPayload {
+    if (action.action === 'click_element' || action.action === 'type_in_element') {
+      return action;
+    }
+
+    const pointActions = new Set(['click', 'double_click', 'right_click', 'type']);
+    const dragAction = action.action === 'drag';
+
+    if (!pointActions.has(action.action) && !dragAction) {
+      return action;
+    }
+
+    let nextAction = action;
+    const maybeAdjustPoint = (pointX: number, pointY: number, label: string): { x: number; y: number } => {
+      const visiblePoint = this.snapPointToVisibleRegion(pointX, pointY);
+      let adjustedX = visiblePoint.x;
+      let adjustedY = visiblePoint.y;
+
+      if (visiblePoint.adjusted) {
+        console.log(`[DesktopAgent] Ajuste de coordenada ${label}: (${Math.round(pointX)}, ${Math.round(pointY)}) -> (${Math.round(adjustedX)}, ${Math.round(adjustedY)}) para salir del padding.`);
+      }
+
+      if (pointActions.has(action.action)) {
+        const snappedElement = this.snapPointToStructuredElement(adjustedX, adjustedY);
+        if (snappedElement) {
+          adjustedX = snappedElement.x;
+          adjustedY = snappedElement.y;
+          console.log(
+            `[DesktopAgent] Snap semantico ${label}: ${snappedElement.reason === 'inside' ? 'dentro de' : 'cerca de'} ${snappedElement.element.controlType} "${snappedElement.element.name || snappedElement.element.automationId || 'sin nombre'}" -> centro (${Math.round(adjustedX)}, ${Math.round(adjustedY)}).`,
+          );
+        }
+      }
+
+      return { x: adjustedX, y: adjustedY };
+    };
+
+    if (action.x !== undefined && action.y !== undefined) {
+      const adjusted = maybeAdjustPoint(action.x, action.y, 'principal');
+      nextAction = { ...nextAction, x: adjusted.x, y: adjusted.y };
+    }
+
+    if (dragAction && action.x2 !== undefined && action.y2 !== undefined) {
+      const adjustedEnd = maybeAdjustPoint(action.x2, action.y2, 'destino');
+      nextAction = { ...nextAction, x2: adjustedEnd.x, y2: adjustedEnd.y };
+    }
+
+    return nextAction;
+  }
+
+  private scale(x: number, y: number): { x: number; y: number } {
+    const resolved = this.resolveScreenPoint(x, y);
+    return { x: resolved.x, y: resolved.y };
+  }
+
+  private logActionCoordinateResolution(action: DesktopActionPayload): void {
+    const describePoint = (label: string, x: number, y: number) => {
+      const resolved = this.resolveScreenPoint(x, y);
+      const dipSuffix = resolved.source === 'layout' && resolved.dipX !== undefined && resolved.dipY !== undefined
+        ? ` -> dip (${resolved.dipX.toFixed(1)}, ${resolved.dipY.toFixed(1)})`
+        : '';
+      const regionSuffix = resolved.regionLabel ? ` [${resolved.regionLabel}]` : '';
+      return `${label} img (${Math.round(x)}, ${Math.round(y)})${dipSuffix} -> screen (${resolved.x}, ${resolved.y})${regionSuffix}`;
+    };
+
+    if (action.action === 'drag' && action.x !== undefined && action.y !== undefined && action.x2 !== undefined && action.y2 !== undefined) {
+      console.log(`[DesktopAgent] Coordenadas resueltas (${action.action}): ${describePoint('inicio', action.x, action.y)} | ${describePoint('fin', action.x2, action.y2)}`);
+      return;
+    }
+
+    if (action.x !== undefined && action.y !== undefined) {
+      console.log(`[DesktopAgent] Coordenadas resueltas (${action.action}): ${describePoint('punto', action.x, action.y)}`);
+      return;
+    }
+
+    if (action.action === 'zoom') {
+      const zx = action.zoomX ?? action.x;
+      const zy = action.zoomY ?? action.y;
+      if (zx !== undefined && zy !== undefined) {
+        console.log(`[DesktopAgent] Coordenadas resueltas (${action.action}): ${describePoint('centro', zx, zy)}`);
+      }
+    }
+  }
+
   // ─── PowerShell Helper ────────────────────────────────────────────
+
+  private assertActionTargetsVisibleContent(action: DesktopActionPayload): void {
+    const assertPoint = (label: string, x: number, y: number) => {
+      const resolved = this.resolveScreenPoint(x, y);
+      if (resolved.regionLabel === 'padding') {
+        throw new Error(`La coordenada ${label} cae en padding fuera del contenido visible (${Math.round(x)}, ${Math.round(y)}).`);
+      }
+    };
+
+    if (action.action === 'drag' && action.x !== undefined && action.y !== undefined && action.x2 !== undefined && action.y2 !== undefined) {
+      assertPoint('inicio', action.x, action.y);
+      assertPoint('fin', action.x2, action.y2);
+      return;
+    }
+
+    if (action.action === 'zoom') {
+      const zx = action.zoomX ?? action.x;
+      const zy = action.zoomY ?? action.y;
+      if (zx !== undefined && zy !== undefined) {
+        assertPoint('zoom', zx, zy);
+      }
+      return;
+    }
+
+    if (action.x !== undefined && action.y !== undefined) {
+      assertPoint('punto', action.x, action.y);
+    }
+  }
 
   private async ps(script: string): Promise<string> {
     const { stdout } = await execAsync(
       `powershell -NoProfile -Command "${script.replace(/\n/g, '; ').replace(/"/g, '\\"')}"`,
       { timeout: 10000, windowsHide: true },
+    );
+    return stdout?.trim() || '';
+  }
+
+  private async psEncoded(script: string, timeout = 10000): Promise<string> {
+    const encoded = Buffer.from(script, 'utf16le').toString('base64');
+    const { stdout } = await execAsync(
+      `powershell -NoProfile -EncodedCommand ${encoded}`,
+      { timeout, windowsHide: true },
     );
     return stdout?.trim() || '';
   }
@@ -1304,7 +1822,7 @@ if ($proc) {
     if (options?.backend === 'desktop') return false;
 
     const lower = task.toLowerCase();
-    return /https?:\/\/|www\.|gmail|google calendar|calendar\.google|mail\.google|drive\.google|docs\.google|sheets\.google|slides\.google|linkedin|notion|salesforce|hubspot|sitio web|pagina web|pagina de|navegador|browser|chrome|edge|formulario web|portal web/.test(lower);
+    return /https?:\/\/|www\.|gmail|google calendar|calendar\.google|mail\.google|drive\.google|docs\.google|sheets\.google|slides\.google|linkedin|notion|salesforce|hubspot|chatgpt|chat gpt|chat\.openai\.com|sitio web|pagina web|pagina de|navegador|browser|chrome|edge|formulario web|portal web/.test(lower);
   }
 
   private shouldUseWindowsUIABackend(task: string, options?: DesktopTaskExecutionOptions): boolean {
@@ -1516,6 +2034,7 @@ if ($proc) {
         }
 
         // ─── Execute action with retry ────────────────────────────
+        actionPayload = this.refineActionCoordinates(actionPayload);
         const entry: ActionHistoryEntry = {
           step: this.currentStep,
           action: actionPayload,
@@ -1946,9 +2465,10 @@ PREFIERE click_element/type_in_element sobre coordenadas cuando haya marcadores.
     // Determine actual screenshot dimensions for the prompt
     const imgW = this.lastActualScreenshotWidth || this.config.screenshotWidth;
     const imgH = this.lastActualScreenshotHeight || this.config.screenshotHeight;
+    const monitorContext = this.describeScreenshotMonitorContext();
 
     return `TAREA: ${task}
-${planContext}${recoveryNote}${summariesContext}${zoomNote}${somContext}
+${planContext}${recoveryNote}${summariesContext}${zoomNote}${somContext}${monitorContext}
 Paso ${this.currentStep + 1} de maximo ${this.config.maxSteps}.
 ${historyContext ? `\nHISTORIAL RECIENTE:\n${historyContext}\n` : ''}
 ANALIZA LA CAPTURA DE PANTALLA con cuidado antes de actuar.
@@ -2202,6 +2722,13 @@ Responde SOLO con JSON valido (sin markdown, sin backticks):
   // ─── Internal: Action Execution ───────────────────────────────────
 
   private async executeAction(action: DesktopActionPayload): Promise<void> {
+    action = this.refineActionCoordinates(action);
+
+    if (action.action !== 'done' && action.action !== 'fail') {
+      this.logActionCoordinateResolution(action);
+      this.assertActionTargetsVisibleContent(action);
+    }
+
     switch (action.action) {
       case 'click':
         await this.mouseClick(action.x!, action.y!);
@@ -2227,8 +2754,7 @@ Responde SOLO con JSON valido (sin markdown, sin backticks):
       case 'type':
         // If coordinates provided, click there first to ensure focus
         if (action.x !== undefined && action.y !== undefined) {
-          const { x: sx, y: sy } = this.scale(action.x, action.y);
-          await this.mouseClick(sx, sy);
+          await this.mouseClick(action.x, action.y);
           await this.delay(150);
         }
         await this.keyboardType(action.text!);

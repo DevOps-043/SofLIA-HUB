@@ -14,9 +14,55 @@ import {
 
 interface UseChatManagerOptions {
   userId: string | undefined;
+  orgId?: string;
+  accessUserIds?: string[];
 }
 
-export function useChatManager({ userId }: UseChatManagerOptions) {
+function hasActivePlaceholder(messages: ChatMessage[]): boolean {
+  return messages.some((message) => {
+    if (message.role !== 'model') return false;
+    const text = message.text?.trim() || '';
+    const hasImages = Boolean(message.images && message.images.length > 0);
+    return !hasImages && (!text || text === '...');
+  });
+}
+
+function areConversationListsEqual(left: Conversation[], right: Conversation[]): boolean {
+  if (left.length !== right.length) return false;
+
+  return left.every((conversation, index) => {
+    const other = right[index];
+    return (
+      conversation.id === other?.id &&
+      conversation.title === other?.title &&
+      conversation.folder_id === other?.folder_id &&
+      conversation.updated_at === other?.updated_at &&
+      conversation.is_shared === other?.is_shared &&
+      conversation.share_permission === other?.share_permission &&
+      conversation.can_edit === other?.can_edit &&
+      conversation.can_share === other?.can_share
+    );
+  });
+}
+
+function areMessageListsEqual(left: ChatMessage[], right: ChatMessage[]): boolean {
+  if (left.length !== right.length) return false;
+
+  return left.every((message, index) => {
+    const other = right[index];
+    return (
+      message.id === other?.id &&
+      message.role === other?.role &&
+      message.text === other?.text &&
+      message.timestamp === other?.timestamp &&
+      JSON.stringify(message.sources || []) === JSON.stringify(other?.sources || []) &&
+      JSON.stringify(message.images || []) === JSON.stringify(other?.images || []) &&
+      message.feedback === other?.feedback
+    );
+  });
+}
+
+export function useChatManager({ userId, orgId, accessUserIds }: UseChatManagerOptions) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [currentMessages, setCurrentMessages] = useState<ChatMessage[]>([]);
@@ -59,7 +105,7 @@ export function useChatManager({ userId }: UseChatManagerOptions) {
     const capturedScopeVersion = scopeVersionRef.current;
     setLoadingConversations(true);
     try {
-      const convs = await loadConversations(userId);
+      const convs = await loadConversations(userId, orgId, accessUserIds);
       setConversations(convs);
 
       const canHydrateActiveChat = () =>
@@ -101,7 +147,76 @@ export function useChatManager({ userId }: UseChatManagerOptions) {
     } finally {
       setLoadingConversations(false);
     }
-  }, [getCurrentChatStorageKey, userId]);
+  }, [accessUserIds, getCurrentChatStorageKey, orgId, userId]);
+
+  const refreshConversationsFromRemote = useCallback(async () => {
+    if (!userId) return;
+
+    const capturedScopeVersion = scopeVersionRef.current;
+    const convs = await loadConversations(userId, orgId, accessUserIds);
+
+    if (scopeVersionRef.current !== capturedScopeVersion) {
+      return;
+    }
+
+    setConversations((prev) => (areConversationListsEqual(prev, convs) ? prev : convs));
+
+    const activeConversationId = currentConvIdRef.current;
+    if (!activeConversationId) {
+      return;
+    }
+
+    const stillExists = convs.some((conversation) => conversation.id === activeConversationId);
+    if (!stillExists) {
+      setCurrentConversationId(null);
+      currentConvIdRef.current = null;
+      setCurrentMessages([]);
+      localStorage.removeItem(getCurrentChatStorageKey(userId));
+      return;
+    }
+
+    if (hasActivePlaceholder(currentMessagesRef.current)) {
+      return;
+    }
+
+    const refreshedMessages = await loadMessages(activeConversationId, userId);
+    if (
+      scopeVersionRef.current !== capturedScopeVersion ||
+      currentConvIdRef.current !== activeConversationId ||
+      hasActivePlaceholder(currentMessagesRef.current)
+    ) {
+      return;
+    }
+
+    setCurrentMessages((prev) => (areMessageListsEqual(prev, refreshedMessages) ? prev : refreshedMessages));
+  }, [accessUserIds, getCurrentChatStorageKey, orgId, userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const refreshSafely = () => {
+      void refreshConversationsFromRemote().catch((error) => {
+        console.warn('[useChatManager] refreshConversationsFromRemote FAILED:', error);
+      });
+    };
+
+    const intervalId = window.setInterval(refreshSafely, 15000);
+    const handleFocus = () => refreshSafely();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshSafely();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [refreshConversationsFromRemote, userId]);
 
   const createScopedMessagesHandler = useCallback(
     (capturedConvId: string | null, capturedFolderId: string | null) => {
@@ -115,13 +230,7 @@ export function useChatManager({ userId }: UseChatManagerOptions) {
       const executeSave = async () => {
         if (saving) { dirty = true; return; }
 
-        const hasActivePlaceholder = latestMessages.some((m) => {
-          if (m.role !== 'model') return false;
-          const text = m.text?.trim() || '';
-          const hasImages = Boolean(m.images && m.images.length > 0);
-          return !hasImages && (!text || text === '...');
-        });
-        if (hasActivePlaceholder) {
+        if (hasActivePlaceholder(latestMessages)) {
           dirty = true;
           return;
         }
@@ -143,6 +252,7 @@ export function useChatManager({ userId }: UseChatManagerOptions) {
               userId,
               title,
               capturedFolderId || undefined,
+              orgId,
             );
             if (!newConv) return;
 
@@ -215,7 +325,7 @@ export function useChatManager({ userId }: UseChatManagerOptions) {
         saveTimerRef.current = timer;
       };
     },
-    [getCurrentChatStorageKey, userId],
+    [getCurrentChatStorageKey, orgId, userId],
   );
 
   const flushPendingSave = useCallback(async () => {
@@ -259,6 +369,8 @@ export function useChatManager({ userId }: UseChatManagerOptions) {
   const handleDeleteConversation = useCallback(
     async (convId: string) => {
       if (!userId) return false;
+      const conversation = conversations.find((item) => item.id === convId);
+      if (!conversation?.can_share) return false;
       await flushPendingSave();
       scopeVersionRef.current += 1;
       const success = await deleteConversation(userId, convId);
@@ -273,12 +385,17 @@ export function useChatManager({ userId }: UseChatManagerOptions) {
       }
       return success;
     },
-    [flushPendingSave, getCurrentChatStorageKey, userId],
+    [conversations, flushPendingSave, getCurrentChatStorageKey, userId],
   );
 
   const handleRenameChat = useCallback(async () => {
     const newTitle = editingChatTitle.trim();
     if (!userId || !renamingChatId || !newTitle) {
+      setRenamingChatId(null);
+      return;
+    }
+    const conversation = conversations.find((item) => item.id === renamingChatId);
+    if (!conversation?.can_edit) {
       setRenamingChatId(null);
       return;
     }
@@ -289,16 +406,18 @@ export function useChatManager({ userId }: UseChatManagerOptions) {
       ),
     );
     setRenamingChatId(null);
-  }, [renamingChatId, editingChatTitle, userId]);
+  }, [conversations, renamingChatId, editingChatTitle, userId]);
 
   const handleRenameChatFromHub = useCallback(async (chatId: string, newTitle: string) => {
     const trimmed = newTitle.trim();
     if (!userId || !trimmed) return;
+    const conversation = conversations.find((item) => item.id === chatId);
+    if (!conversation?.can_edit) return;
     await updateConversationTitle(userId, chatId, trimmed);
     setConversations((prev) =>
       prev.map((c) => (c.id === chatId ? { ...c, title: trimmed } : c)),
     );
-  }, [userId]);
+  }, [conversations, userId]);
 
   const getScopedMessagesHandler = useCallback((currentFolderId: string | null) => {
     currentFolderIdRef.current = currentFolderId;

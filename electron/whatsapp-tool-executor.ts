@@ -44,6 +44,7 @@ export interface ToolExecutorContext {
   memory: MemoryService;
   knowledge: KnowledgeService;
   getGenAI: () => GoogleGenerativeAI;
+  skipConfirmations?: boolean;
   requestConfirmation: (jid: string, senderNumber: string, toolName: string, description: string, args: Record<string, any>) => Promise<boolean>;
 }
 
@@ -126,7 +127,7 @@ for (const part of functionCalls) {
   }
 
   // Confirmation for dangerous tools (checked early, before handlers)
-  if (CONFIRM_TOOLS_WA.has(toolName)) {
+  if (CONFIRM_TOOLS_WA.has(toolName) && !ctx.skipConfirmations) {
     let desc = '';
     switch (toolName) {
       case 'delete_item': desc = `🗑️ Eliminar: ${toolArgs.path}`; break;

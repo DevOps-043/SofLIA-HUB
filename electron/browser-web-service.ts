@@ -830,6 +830,7 @@ export class BrowserWebService extends EventEmitter {
     }
 
     const lower = task.toLowerCase();
+    if (lower.includes('chatgpt') || lower.includes('chat gpt') || lower.includes('chat.openai.com')) return 'https://chatgpt.com/';
     if (lower.includes('gmail')) return 'https://mail.google.com/';
     if (lower.includes('calendar')) return 'https://calendar.google.com/';
     if (lower.includes('google docs') || lower.includes('documento de google')) return 'https://docs.google.com/';

@@ -21,6 +21,30 @@ const defaultSettings: Omit<UserAISettings, 'user_id'> = {
   custom_instructions: '',
 };
 
+export function migrateLegacySettingsCache(sourceUserId: string, targetUserId: string): void {
+  if (!sourceUserId || !targetUserId || sourceUserId === targetUserId) {
+    return;
+  }
+
+  try {
+    const cached = localStorage.getItem(SETTINGS_CACHE_KEY);
+    if (!cached) return;
+
+    const parsed = JSON.parse(cached);
+    if (parsed?.user_id !== sourceUserId) {
+      return;
+    }
+
+    localStorage.setItem(
+      SETTINGS_CACHE_KEY,
+      JSON.stringify({
+        ...parsed,
+        user_id: targetUserId,
+      }),
+    );
+  } catch {}
+}
+
 /**
  * Load user settings from Supabase, with localStorage cache fallback.
  */

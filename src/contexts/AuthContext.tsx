@@ -9,6 +9,7 @@ type AuthUser = SofiaAuthUser | null;
 interface AuthContextType {
   session: Session | null;
   user: AuthUser;
+  dataUserId: string | null;
   loading: boolean;
   signOut: () => Promise<void>;
   usingSofia: boolean;
@@ -23,6 +24,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   session: null,
   user: null,
+  dataUserId: null,
   loading: true,
   signOut: async () => {},
   usingSofia: false,
@@ -65,6 +67,38 @@ function buildSofiaContext(profile: any): SofiaContext | null {
   };
 }
 
+function normalizeEmail(email?: string | null): string | null {
+  const normalized = email?.trim().toLowerCase();
+  return normalized ? normalized : null;
+}
+
+function buildLiaStatusMessage(error: unknown): string {
+  const rawMessage =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'object' && error && 'message' in error
+      ? String((error as { message?: unknown }).message || '')
+      : String(error || '');
+
+  if (/email not confirmed/i.test(rawMessage)) {
+    return 'La cuenta de Lia requiere confirmar el correo para poder sincronizar conversaciones.';
+  }
+
+  if (/user already registered/i.test(rawMessage)) {
+    return 'La cuenta de Lia ya existe, pero esta sesion no pudo abrirla. Cierra sesion e inicia de nuevo para reintentar la sincronizacion.';
+  }
+
+  if (/invalid login credentials/i.test(rawMessage)) {
+    return 'No se pudo abrir la sesion de Lia con estas credenciales. Cierra sesion e inicia nuevamente para restaurar la sincronizacion.';
+  }
+
+  if (rawMessage && rawMessage !== 'null' && rawMessage !== 'undefined') {
+    return `No se pudo activar la sincronizacion con Lia: ${rawMessage}`;
+  }
+
+  return 'No se pudo activar la sincronizacion con Lia en este dispositivo.';
+}
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<AuthUser>(null);
@@ -74,6 +108,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [liaStatusMessage, setLiaStatusMessage] = useState<string | null>(null);
 
   const usingSofia = isSofiaConfigured();
+  const dataUserId = usingSofia ? session?.user?.id ?? null : session?.user?.id ?? user?.id ?? null;
 
   const clearSessionState = useCallback(() => {
     setSession(null);
@@ -81,6 +116,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setSofiaContext(null);
     setLiaDegraded(false);
     setLiaStatusMessage(null);
+  }, []);
+
+  const syncLiaProfile = useCallback(async (liaSession: Session | null) => {
+    const liaUser = liaSession?.user;
+    if (!liaUser?.id || typeof (supabase as any).from !== 'function') {
+      return;
+    }
+
+    const metadata = (liaUser.user_metadata || {}) as Record<string, any>;
+    const email = normalizeEmail(liaUser.email) || liaUser.email || null;
+    const fullName =
+      metadata.full_name ||
+      metadata.name ||
+      [metadata.first_name, metadata.last_name].filter(Boolean).join(' ').trim() ||
+      null;
+    const avatarUrl = metadata.avatar_url || metadata.picture || null;
+
+    const { error } = await supabase
+      .from('profiles')
+      .upsert(
+        {
+          id: liaUser.id,
+          email,
+          full_name: fullName,
+          avatar_url: avatarUrl,
+        },
+        { onConflict: 'id' },
+      );
+
+    if (error) {
+      console.warn('No se pudo sincronizar el perfil base de Lia:', error.message);
+    }
   }, []);
 
   const signOut = useCallback(async () => {
@@ -107,17 +174,87 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return nextSofiaContext;
   }, []);
 
-  const syncOptionalLiaSession = useCallback(async () => {
+  const syncOptionalLiaSession = useCallback(async (expectedEmail?: string | null) => {
+    const normalizedExpectedEmail = normalizeEmail(expectedEmail);
+
     try {
       const { data: { session: liaSession } } = await supabase.auth.getSession();
-      setSession(liaSession ?? null);
-      return liaSession ?? null;
+      const liaEmail = normalizeEmail(liaSession?.user?.email);
+
+      if (liaSession && normalizedExpectedEmail && liaEmail && liaEmail !== normalizedExpectedEmail) {
+        await supabase.auth.signOut();
+        setSession(null);
+        return null;
+      }
+
+        setSession(liaSession ?? null);
+        if (liaSession) {
+          await syncLiaProfile(liaSession);
+        }
+        return liaSession ?? null;
     } catch (error) {
       console.warn('No se pudo restaurar la sesion opcional de Lia:', error);
       setSession(null);
       return null;
     }
-  }, []);
+  }, [syncLiaProfile]);
+
+  const ensureLiaSession = useCallback(async (email?: string | null, password?: string): Promise<Session | null> => {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail || !password) {
+      setSession(null);
+      setLiaDegraded(true);
+      setLiaStatusMessage('No fue posible obtener las credenciales necesarias para sincronizar conversaciones con Lia.');
+      return null;
+    }
+
+    const restoredSession = await syncOptionalLiaSession(normalizedEmail);
+    if (restoredSession) {
+      setLiaDegraded(false);
+      setLiaStatusMessage(null);
+      return restoredSession;
+    }
+
+    try {
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
+
+      if (signInData.session) {
+        setSession(signInData.session);
+        await syncLiaProfile(signInData.session);
+        setLiaDegraded(false);
+        setLiaStatusMessage(null);
+        return signInData.session;
+      }
+
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: normalizedEmail,
+        password,
+      });
+
+      if (signUpData.session) {
+        setSession(signUpData.session);
+        await syncLiaProfile(signUpData.session);
+        setLiaDegraded(false);
+        setLiaStatusMessage(null);
+        return signUpData.session;
+      }
+
+      const resolvedError = signUpError || signInError;
+      setSession(null);
+      setLiaDegraded(true);
+      setLiaStatusMessage(buildLiaStatusMessage(resolvedError));
+      return null;
+    } catch (error) {
+      console.warn('No se pudo abrir la sesion de Lia tras autenticar SOFIA:', error);
+      setSession(null);
+      setLiaDegraded(true);
+      setLiaStatusMessage(buildLiaStatusMessage(error));
+      return null;
+    }
+  }, [syncLiaProfile, syncOptionalLiaSession]);
 
   useEffect(() => {
     const initSession = async () => {
@@ -137,9 +274,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
           setUser(toAuthUser(sofiaSession.user, sofiaSession.user.user_metadata));
           setSofiaContext(nextSofiaContext);
-          setLiaDegraded(false);
-          setLiaStatusMessage(null);
-          await syncOptionalLiaSession();
+          const liaSession = await syncOptionalLiaSession(sofiaSession.user.email);
+          if (liaSession) {
+            setLiaDegraded(false);
+            setLiaStatusMessage(null);
+          } else {
+            setLiaDegraded(true);
+            setLiaStatusMessage(
+              'No hay una sesion activa de Lia en este dispositivo. Cierra sesion e inicia de nuevo para reactivar la sincronizacion de conversaciones.',
+            );
+          }
           return;
         }
 
@@ -178,9 +322,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
           setUser(toAuthUser(sofiaSession.user, sofiaSession.user.user_metadata));
           setSofiaContext(nextSofiaContext);
-          setLiaDegraded(false);
-          setLiaStatusMessage(null);
-          await syncOptionalLiaSession();
+          const liaSession = await syncOptionalLiaSession(sofiaSession.user.email);
+          if (liaSession) {
+            setLiaDegraded(false);
+            setLiaStatusMessage(null);
+          } else {
+            setLiaDegraded(true);
+            setLiaStatusMessage(
+              'No hay una sesion activa de Lia en este dispositivo. Cierra sesion e inicia de nuevo para reactivar la sincronizacion de conversaciones.',
+            );
+          }
           setLoading(false);
         },
       );
@@ -191,6 +342,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         (_event: AuthChangeEvent, nextSession: Session | null) => {
           setSession(nextSession);
           setUser(nextSession?.user ? toAuthUser(nextSession.user) : null);
+          if (nextSession) {
+            void syncLiaProfile(nextSession);
+          }
           setLoading(false);
         },
       );
@@ -201,7 +355,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       unsubscribe?.();
     };
-  }, [clearSessionState, resolveSofiaContext, signOut, syncOptionalLiaSession, usingSofia]);
+  }, [clearSessionState, resolveSofiaContext, signOut, syncLiaProfile, syncOptionalLiaSession, usingSofia]);
 
   const signInWithSofia = useCallback(async (emailOrUsername: string, password: string): Promise<SofiaAuthResult> => {
     const result = await sofiaAuth.signInWithSofia(emailOrUsername, password);
@@ -221,16 +375,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     setUser(result.user);
     setSofiaContext(nextSofiaContext);
-    setLiaDegraded(false);
-    setLiaStatusMessage(null);
-    const liaSession = await syncOptionalLiaSession();
+    const liaSession = await ensureLiaSession(result.user.email, password);
 
     return {
       ...result,
       session: liaSession,
       user: result.user,
     };
-  }, [signOut, syncOptionalLiaSession]);
+  }, [ensureLiaSession, signOut]);
 
   const setCurrentOrganization = (orgId: string) => {
     if (sofiaContext) {
@@ -259,6 +411,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const value = {
     session,
     user,
+    dataUserId,
     loading,
     signOut,
     usingSofia,

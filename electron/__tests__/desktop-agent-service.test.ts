@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ipcMain } from 'electron';
+import { ipcMain, screen as electronScreen } from 'electron';
 import type { DesktopAgentStatus } from '../desktop-agent-types';
 
 // ============================================================================
@@ -352,6 +352,226 @@ describe('DesktopAgentService', () => {
     expect(typeof service.on).toBe('function');
     expect(typeof service.emit).toBe('function');
     expect(typeof service.removeListener).toBe('function');
+  });
+
+  it('CU-143A: round-trips coordinates across multi-monitor screenshot layout', () => {
+    vi.mocked(electronScreen.getAllDisplays).mockReturnValue([
+      {
+        id: 0,
+        bounds: { x: 0, y: 0, width: 1920, height: 1080 },
+        scaleFactor: 1,
+        size: { width: 1920, height: 1080 },
+      },
+      {
+        id: 1,
+        bounds: { x: 1920, y: 0, width: 1366, height: 1080 },
+        scaleFactor: 1,
+        size: { width: 1366, height: 1080 },
+      },
+    ] as any);
+    vi.mocked(electronScreen.getPrimaryDisplay).mockReturnValue({
+      id: 0,
+      bounds: { x: 0, y: 0, width: 1920, height: 1080 },
+      workArea: { x: 0, y: 0, width: 1920, height: 1040 },
+      scaleFactor: 1,
+      size: { width: 1920, height: 1080 },
+    } as any);
+    (electronScreen as any).screenToDipPoint = vi.fn((point: { x: number; y: number }) => point);
+    (electronScreen as any).dipToScreenPoint = vi.fn((point: { x: number; y: number }) => point);
+
+    (service as any).calculateScreenScale();
+
+    const screenshotPoint = service.mapDesktopPointToScreenshotPoint(2500, 900);
+    expect(screenshotPoint).not.toBeNull();
+    expect(screenshotPoint!.x).toBeGreaterThan(700);
+    expect(screenshotPoint!.y).toBeGreaterThan(450);
+
+    const dipPoint = (service as any).mapScreenshotToDipPoint(screenshotPoint!.x, screenshotPoint!.y);
+    expect(dipPoint).not.toBeNull();
+    expect(dipPoint!.x).toBeCloseTo(2500, 0);
+    expect(dipPoint!.y).toBeCloseTo(900, 0);
+  });
+
+  it('CU-143B: type action uses screenshot coordinates directly before typing', async () => {
+    const mouseClickSpy = vi.spyOn(service, 'mouseClick').mockResolvedValue(undefined);
+    const keyboardTypeSpy = vi.spyOn(service, 'keyboardType').mockResolvedValue(undefined);
+    vi.spyOn(service as any, 'delay').mockResolvedValue(undefined);
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await (service as any).executeAction({
+      action: 'type',
+      x: 100,
+      y: 200,
+      text: 'hola',
+      message: 'enfocar y escribir',
+    });
+
+    expect(mouseClickSpy).toHaveBeenCalledWith(100, 200);
+    expect(keyboardTypeSpy).toHaveBeenCalledWith('hola');
+
+    consoleLogSpy.mockRestore();
+  });
+
+  it('CU-143C: updateScreenScale preserves focused capture layout when one is already active', () => {
+    vi.mocked(electronScreen.getAllDisplays).mockReturnValue([
+      {
+        id: 0,
+        bounds: { x: 0, y: 0, width: 1920, height: 1080 },
+        scaleFactor: 1,
+        size: { width: 1920, height: 1080 },
+      },
+    ] as any);
+    vi.mocked(electronScreen.getPrimaryDisplay).mockReturnValue({
+      id: 0,
+      bounds: { x: 0, y: 0, width: 1920, height: 1080 },
+      workArea: { x: 0, y: 0, width: 1920, height: 1040 },
+      scaleFactor: 1,
+      size: { width: 1920, height: 1080 },
+    } as any);
+    (electronScreen as any).screenToDipPoint = vi.fn((point: { x: number; y: number }) => point);
+    (electronScreen as any).dipToScreenPoint = vi.fn((point: { x: number; y: number }) => point);
+
+    (service as any).lastScreenshotLayout = {
+      screenshotWidth: 1024,
+      screenshotHeight: 768,
+      offsetX: 0,
+      offsetY: 0,
+      renderScale: 1,
+      virtualBounds: { x: 300, y: 200, width: 1024, height: 768 },
+      displayRegions: [
+        {
+          displayId: '0',
+          bounds: { x: 300, y: 200, width: 1024, height: 768 },
+          left: 0,
+          top: 0,
+          width: 1024,
+          height: 768,
+        },
+      ],
+    };
+
+    (service as any).updateScreenScale(1024, 768);
+
+    const dipPoint = (service as any).mapScreenshotToDipPoint(10, 20);
+    expect(dipPoint).not.toBeNull();
+    expect(dipPoint!.x).toBeCloseTo(310, 0);
+    expect(dipPoint!.y).toBeCloseTo(220, 0);
+  });
+
+  it('CU-143D: executeAction snaps approximate click to the center of the nearest interactive element', async () => {
+    vi.mocked(electronScreen.getAllDisplays).mockReturnValue([
+      {
+        id: 0,
+        bounds: { x: 0, y: 0, width: 1920, height: 1080 },
+        scaleFactor: 1,
+        size: { width: 1920, height: 1080 },
+      },
+    ] as any);
+    vi.mocked(electronScreen.getPrimaryDisplay).mockReturnValue({
+      id: 0,
+      bounds: { x: 0, y: 0, width: 1920, height: 1080 },
+      workArea: { x: 0, y: 0, width: 1920, height: 1040 },
+      scaleFactor: 1,
+      size: { width: 1920, height: 1080 },
+    } as any);
+    (electronScreen as any).screenToDipPoint = vi.fn((point: { x: number; y: number }) => point);
+    (electronScreen as any).dipToScreenPoint = vi.fn((point: { x: number; y: number }) => point);
+
+    (service as any).lastScreenshotLayout = {
+      screenshotWidth: 1024,
+      screenshotHeight: 768,
+      offsetX: 0,
+      offsetY: 0,
+      renderScale: 1,
+      virtualBounds: { x: 0, y: 0, width: 1024, height: 768 },
+      displayRegions: [
+        {
+          displayId: '0',
+          bounds: { x: 0, y: 0, width: 1024, height: 768 },
+          left: 0,
+          top: 0,
+          width: 1024,
+          height: 768,
+        },
+      ],
+    };
+    (service as any).currentUIElements = [
+      {
+        id: 1,
+        name: 'Primer chat',
+        controlType: 'ListItem',
+        boundingRect: { x: 300, y: 200, width: 160, height: 36 },
+        isEnabled: true,
+        automationId: '',
+        value: '',
+      },
+    ];
+
+    const mouseClickSpy = vi.spyOn(service, 'mouseClick').mockResolvedValue(undefined);
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await (service as any).executeAction({
+      action: 'click',
+      x: 312,
+      y: 214,
+      message: 'abrir chat',
+    });
+
+    expect(mouseClickSpy).toHaveBeenCalledWith(380, 218);
+    consoleLogSpy.mockRestore();
+  });
+
+  it('CU-143E: executeAction snaps near-padding coordinates back into visible content', async () => {
+    vi.mocked(electronScreen.getAllDisplays).mockReturnValue([
+      {
+        id: 0,
+        bounds: { x: 0, y: 0, width: 1920, height: 1080 },
+        scaleFactor: 1,
+        size: { width: 1920, height: 1080 },
+      },
+    ] as any);
+    vi.mocked(electronScreen.getPrimaryDisplay).mockReturnValue({
+      id: 0,
+      bounds: { x: 0, y: 0, width: 1920, height: 1080 },
+      workArea: { x: 0, y: 0, width: 1920, height: 1040 },
+      scaleFactor: 1,
+      size: { width: 1920, height: 1080 },
+    } as any);
+    (electronScreen as any).screenToDipPoint = vi.fn((point: { x: number; y: number }) => point);
+    (electronScreen as any).dipToScreenPoint = vi.fn((point: { x: number; y: number }) => point);
+
+    (service as any).lastScreenshotLayout = {
+      screenshotWidth: 1024,
+      screenshotHeight: 768,
+      offsetX: 0,
+      offsetY: 24,
+      renderScale: 1,
+      virtualBounds: { x: 0, y: 0, width: 1024, height: 720 },
+      displayRegions: [
+        {
+          displayId: '0',
+          bounds: { x: 0, y: 0, width: 1024, height: 720 },
+          left: 0,
+          top: 24,
+          width: 1024,
+          height: 720,
+        },
+      ],
+    };
+    (service as any).currentUIElements = [];
+
+    const mouseClickSpy = vi.spyOn(service, 'mouseClick').mockResolvedValue(undefined);
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await (service as any).executeAction({
+      action: 'click',
+      x: 240,
+      y: 18,
+      message: 'reentrar a contenido visible',
+    });
+
+    expect(mouseClickSpy).toHaveBeenCalledWith(240, 24);
+    consoleLogSpy.mockRestore();
   });
 });
 

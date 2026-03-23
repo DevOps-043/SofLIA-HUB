@@ -85,7 +85,8 @@
       "Bash(grep -E \"\\\\.ts$\")",
       "Bash(npx vitest:*)",
       "Bash(find electron/__tests__ src/__tests__ -name *.test.* -exec wc -l {} +)",
-      "Bash(tee /tmp/vitest-results.json)"
+      "Bash(tee /tmp/vitest-results.json)",
+      "Bash(\"/c/Users/fysg5/OneDrive/Escritorio/Pulse Hub/SofLIA - Hub/SofLIA-HUB/src/components/ops/AutomationOpsPanel.tsx.tmp\")"
     ]
   }
 }

@@ -18,6 +18,7 @@ interface ProjectHubProps {
   onDeleteChat: (chatId: string, e: React.MouseEvent) => void;
   onRenameFolder: (newName: string) => void;
   onRenameChat?: (chatId: string, newTitle: string) => void;
+  onShareFolder?: () => void;
   userId?: string;
   orgId?: string;
 }
@@ -31,6 +32,7 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
   onDeleteChat,
   onRenameFolder,
   onRenameChat,
+  onShareFolder,
   userId,
   orgId,
 }) => {
@@ -52,6 +54,8 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
   const [driveLoading, setDriveLoading] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const canEditFolder = folder.can_edit !== false;
+  const canShareFolder = Boolean(folder.can_share);
 
   useEffect(() => {
     setEditName(folder.name);
@@ -136,6 +140,11 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
   }, [isEditing]);
 
   const handleSaveName = () => {
+    if (!canShareFolder) {
+      setIsEditing(false);
+      setEditName(folder.name);
+      return;
+    }
     const trimmed = editName.trim();
     if (trimmed && trimmed !== folder.name) {
       onRenameFolder(trimmed);
@@ -146,6 +155,11 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
   };
 
   const handleSaveChatTitle = (chatId: string) => {
+    const targetChat = chats.find((chat) => chat.id === chatId);
+    if (!targetChat?.can_edit) {
+      setRenamingChatId(null);
+      return;
+    }
     if (onRenameChat) {
       const trimmed = editingChatTitle.trim();
       if (trimmed) {
@@ -201,12 +215,38 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
               className="text-3xl font-black bg-transparent border-b-2 border-accent focus:outline-none text-primary dark:text-white text-center w-full max-w-md"
             />
           ) : (
-            <h1
-              className="text-3xl font-black text-primary dark:text-white cursor-pointer hover:text-accent transition-colors"
-              onClick={() => setIsEditing(true)}
-            >
-              {folder.name}
-            </h1>
+            <div className="flex flex-col items-center gap-3">
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <h1
+                  className={`text-3xl font-black text-primary dark:text-white transition-colors ${canShareFolder ? 'cursor-pointer hover:text-accent' : ''}`}
+                  onClick={() => canShareFolder && setIsEditing(true)}
+                >
+                  {folder.name}
+                </h1>
+                {folder.is_shared && (
+                  <span className="rounded-full border border-accent/20 bg-accent/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-accent">
+                    Compartida
+                  </span>
+                )}
+              </div>
+              {folder.is_shared && (
+                <p className="text-[11px] font-semibold text-gray-500 dark:text-gray-400">
+                  {canEditFolder ? 'Tienes permiso para colaborar en esta carpeta.' : 'Esta carpeta esta en solo lectura para ti.'}
+                </p>
+              )}
+              {canShareFolder && onShareFolder && (
+                <button
+                  type="button"
+                  onClick={onShareFolder}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-accent/15 bg-accent/5 px-4 py-2 text-[10px] font-black uppercase tracking-[0.18em] text-accent transition-all hover:bg-accent/10"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+                  </svg>
+                  Compartir carpeta
+                </button>
+              )}
+            </div>
           )}
           <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-[0.2em] mt-2 opacity-60">
             {chats.length} {chats.length === 1 ? 'conversacion' : 'conversaciones'}
@@ -217,6 +257,7 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
         <form
           onSubmit={(e) => {
             e.preventDefault();
+            if (!canEditFolder) return;
             const text = chatInput.trim();
             if (!text) return;
             setChatInput('');
@@ -228,7 +269,7 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
           }}
           className="w-full relative group mb-12"
         >
-          <div className="w-full px-5 py-1 bg-gray-50/50 dark:bg-white/[0.03] backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-2xl flex items-center gap-4 shadow-sm focus-within:border-accent/30 focus-within:ring-4 focus-within:ring-accent/5 transition-all duration-300">
+          <div className={`w-full px-5 py-1 backdrop-blur-md border rounded-2xl flex items-center gap-4 shadow-sm transition-all duration-300 ${canEditFolder ? 'bg-gray-50/50 dark:bg-white/[0.03] border-gray-200 dark:border-white/10 focus-within:border-accent/30 focus-within:ring-4 focus-within:ring-accent/5' : 'bg-gray-100/70 dark:bg-white/[0.02] border-gray-200/80 dark:border-white/5 opacity-70'}`}>
              <div className="text-gray-400 dark:text-gray-500">
                <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -238,12 +279,13 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
                ref={chatInputRef}
                type="text"
                value={chatInput}
-               onChange={(e) => setChatInput(e.target.value)}
-               placeholder={`Mensaje en ${folder.name}...`}
-               className="flex-1 bg-transparent text-[14px] font-medium tracking-tight text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none py-3"
+                onChange={(e) => setChatInput(e.target.value)}
+               placeholder={canEditFolder ? `Mensaje en ${folder.name}...` : `Solo lectura en ${folder.name}`}
+                className="flex-1 bg-transparent text-[14px] font-medium tracking-tight text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none py-3"
+               disabled={!canEditFolder}
              />
              <div className="flex items-center gap-2 text-gray-300 dark:text-gray-600">
-                {chatInput.trim() ? (
+                {canEditFolder && chatInput.trim() ? (
                   <button
                     type="submit"
                     className="p-1.5 bg-accent rounded-lg text-white hover:bg-accent/80 transition-colors"
@@ -252,6 +294,10 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" />
                     </svg>
                   </button>
+                ) : !canEditFolder ? (
+                  <div className="rounded-full bg-white/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-gray-500 dark:bg-black/20 dark:text-gray-400">
+                    Solo lectura
+                  </div>
                 ) : (
                   <>
                     <div className="p-1 hover:text-accent transition-colors cursor-pointer">
@@ -328,9 +374,16 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
                               }}
                             />
                           ) : (
-                            <h3 className="text-[14px] font-bold text-primary dark:text-gray-100 truncate">
-                              {chat.title}
-                            </h3>
+                            <>
+                              <h3 className="text-[14px] font-bold text-primary dark:text-gray-100 truncate">
+                                {chat.title}
+                              </h3>
+                              {chat.is_shared && (
+                                <div className="mt-1 inline-flex rounded-full border border-accent/20 bg-accent/10 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.18em] text-accent">
+                                  Compartido
+                                </div>
+                              )}
+                            </>
                           )}
                           <p className="text-[12px] text-gray-400 dark:text-gray-500 truncate mt-0.5 italic">
                             Retomar conversación...
@@ -344,26 +397,30 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
                        </span>
                        
                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setRenamingChatId(chat.id);
-                              setEditingChatTitle(chat.title);
-                            }}
-                            className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-white/10 text-gray-400 hover:text-accent transition-all"
-                          >
-                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={(e) => onDeleteChat(chat.id, e)}
-                            className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-white/10 text-gray-400 hover:text-danger transition-all"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+                          {chat.can_edit && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRenamingChatId(chat.id);
+                                setEditingChatTitle(chat.title);
+                              }}
+                              className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-white/10 text-gray-400 hover:text-accent transition-all"
+                            >
+                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                            </button>
+                          )}
+                          {chat.can_share && (
+                            <button
+                              onClick={(e) => onDeleteChat(chat.id, e)}
+                              className="p-1.5 rounded-lg hover:bg-white dark:hover:bg-white/10 text-gray-400 hover:text-danger transition-all"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          )}
                        </div>
                     </div>
                   </div>

@@ -91,6 +91,11 @@ export interface GmailOrganizationApplyResult {
   error?: string;
 }
 
+interface GmailLabelRecord {
+  id: string;
+  name: string;
+}
+
 export interface GmailOrganizationUndoResult {
   [key: string]: unknown;
   success: boolean;
@@ -1025,12 +1030,15 @@ export class GmailService extends EventEmitter {
     if (!gmail) return { success: false, error };
 
     try {
+      const addLabelIds = await this.resolveLabelIds(addLabels, { createMissing: true });
+      const removeLabelIds = await this.resolveLabelIds(removeLabels, { createMissing: false });
+
       await gmail.users.messages.modify({
         userId: 'me',
         id: messageId,
         requestBody: {
-          addLabelIds: addLabels || [],
-          removeLabelIds: removeLabels || [],
+          addLabelIds,
+          removeLabelIds,
         },
       });
 
@@ -1040,6 +1048,59 @@ export class GmailService extends EventEmitter {
       console.error('[GmailService] ModifyLabels error:', err.message);
       return { success: false, error: err.message };
     }
+  }
+
+  private async resolveLabelIds(
+    labels: string[] | undefined,
+    options: { createMissing: boolean },
+  ): Promise<string[]> {
+    const requested = Array.isArray(labels)
+      ? labels.map((item) => String(item || '').trim()).filter(Boolean)
+      : [];
+    if (requested.length === 0) {
+      return [];
+    }
+
+    const labelsResult = await this.getLabels();
+    if (!labelsResult.success || !labelsResult.labels) {
+      throw new Error(labelsResult.error || 'No se pudieron leer las etiquetas de Gmail.');
+    }
+
+    const knownLabels = [...labelsResult.labels];
+    const resolvedIds: string[] = [];
+    for (const requestedLabel of requested) {
+      const resolved = this.findLabelId(knownLabels, requestedLabel);
+      if (resolved) {
+        resolvedIds.push(resolved);
+        continue;
+      }
+
+      if (!options.createMissing) {
+        console.warn(`[GmailService] Label not found while resolving removeLabels: ${requestedLabel}`);
+        continue;
+      }
+
+      const created = await this.createLabel(requestedLabel);
+      if (!created.success || !created.label?.id) {
+        throw new Error(created.error || `No se pudo crear la etiqueta ${requestedLabel}.`);
+      }
+      knownLabels.push(created.label);
+      resolvedIds.push(created.label.id);
+    }
+
+    return resolvedIds;
+  }
+
+  private findLabelId(labels: GmailLabelRecord[], query: string): string | null {
+    const normalized = String(query || '').trim().toLowerCase();
+    if (!normalized) {
+      return null;
+    }
+
+    const found = labels.find((label) =>
+      label.id.toLowerCase() === normalized || label.name.toLowerCase() === normalized,
+    );
+    return found?.id || null;
   }
 
   async trashMessage(messageId: string): Promise<{ success: boolean; error?: string }> {

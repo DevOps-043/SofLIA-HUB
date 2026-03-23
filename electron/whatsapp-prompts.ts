@@ -176,7 +176,10 @@ GOOGLE DRIVE:
 
 GOOGLE CHAT:
 - gchat_list_spaces: lista espacios/chats/grupos de Google Chat
-- gchat_get_messages: lee mensajes recientes de un espacio (usa gchat_list_spaces primero para obtener space_name)
+- gchat_get_messages: lee mensajes recientes de un espacio o chat directo. Puede recibir "spaces/...", el correo del contacto, "users/correo@dominio" o la URL del chat.
+- Si gchat_get_messages devuelve success:true, SÍ puedes leer y resumir el contenido devuelto. No inventes bloqueos de permisos si ya recibiste mensajes o previews del API.
+- Si el usuario pide "lee el chat con Ernesto", "dame los ultimos mensajes con X" o "resume los links que me mandaron", debes intentar resolver el chat directo de esa persona y leer ESE hilo; no te quedes con una sala o notificación automatica si el usuario pidió una conversación personal.
+- Si gchat_get_messages devuelve urls en los mensajes o a nivel top-level, usa read_webpage para leer esos enlaces y resumirlos sin pedirle al usuario que abra la URL manualmente.
 - gchat_send_message: envía mensaje a un espacio de Google Chat. Puede responder en hilo con thread_name
 - gchat_add_reaction: agrega reacción emoji a un mensaje de Google Chat
 - gchat_get_members: lista miembros de un espacio de Google Chat
@@ -341,6 +344,8 @@ GOOGLE INTEGRADO (prioridad sobre navegador):
 - "Sube este archivo a Drive" → smart_find_file + drive_upload
 - "Envía un mensaje en Google Chat a mi equipo" → gchat_list_spaces + gchat_send_message
 - "¿Qué mensajes hay en mi Google Chat?" → gchat_list_spaces + gchat_get_messages
+- "Lee los ultimos mensajes con Ernesto" → gchat_get_messages usando el correo, alias users/... o la URL del chat directo si la conoces; si la primera resolución cae en una sala automatica, reintenta el chat directo correcto
+- "Resume los links que me mando Ernesto por Google Chat" → gchat_get_messages del chat correcto → read_webpage en cada URL detectada → resumen
 - "Reacciona al último mensaje en el chat de proyecto" → gchat_get_messages + gchat_add_reaction
 - IMPORTANTE: SIEMPRE usa las APIs directas (google_calendar_*, gmail_*, drive_*, gchat_*) en lugar de abrir URLs en el navegador
 

@@ -19,68 +19,8 @@ export function registerGmailHandlers(
   ipcMain.handle('gmail:get-message', (_event, messageId: string) => handleIPC(() => gmailService.getMessage(messageId)));
 
   // ─── Modify labels ─────────────────────────────────────────────
-  ipcMain.handle('gmail:modify-labels', async (_event, messageId: string, addLabels?: string[], removeLabels?: string[]) => {
-    try {
-      if (!addLabels?.length && !removeLabels?.length) {
-        return { success: true };
-      }
-
-      // Fetch current labels to map names to IDs
-      const labelsRes = await gmailService.getLabels();
-      if (!labelsRes.success || !labelsRes.labels) {
-        return { success: false, error: labelsRes.error || 'Failed to fetch labels for mapping' };
-      }
-
-      const existingLabels = labelsRes.labels;
-      const addLabelIds: string[] = [];
-      const removeLabelIds: string[] = [];
-
-      // Helper to match label by exact ID or case-insensitive Name
-      const findLabelId = (query: string) => {
-        const q = query.toLowerCase();
-        const found = existingLabels.find(l => l.id.toLowerCase() === q || l.name.toLowerCase() === q);
-        return found?.id;
-      };
-
-      // Process addLabels: map to ID or create if missing
-      if (addLabels && addLabels.length > 0) {
-        for (const labelName of addLabels) {
-          if (!labelName.trim()) continue;
-          const existingId = findLabelId(labelName);
-          if (existingId) {
-            addLabelIds.push(existingId);
-          } else {
-            // Auto-create missing label
-            const createRes = await gmailService.createLabel(labelName);
-            if (createRes.success && createRes.label?.id) {
-              existingLabels.push(createRes.label); // Add to cache for subsequent matches
-              addLabelIds.push(createRes.label.id);
-            } else {
-              console.warn(`[GmailHandlers] Failed to auto-create label "${labelName}":`, createRes.error);
-            }
-          }
-        }
-      }
-
-      // Process removeLabels: map to ID
-      if (removeLabels && removeLabels.length > 0) {
-        for (const labelName of removeLabels) {
-          if (!labelName.trim()) continue;
-          const existingId = findLabelId(labelName);
-          if (existingId) {
-            removeLabelIds.push(existingId);
-          } else {
-            console.warn(`[GmailHandlers] Label to remove not found: "${labelName}"`);
-          }
-        }
-      }
-
-      // Proceed with actual modification using resolved IDs
-      return await gmailService.modifyLabels(messageId, addLabelIds, removeLabelIds);
-    } catch (err: any) {
-      return { success: false, error: err.message };
-    }
-  });
+  ipcMain.handle('gmail:modify-labels', (_event, messageId: string, addLabels?: string[], removeLabels?: string[]) =>
+    handleIPC(() => gmailService.modifyLabels(messageId, addLabels, removeLabels)));
 
   // ─── Trash message ──────────────────────────────────────────────
   ipcMain.handle('gmail:trash', (_event, messageId: string) => handleIPC(() => gmailService.trashMessage(messageId)));

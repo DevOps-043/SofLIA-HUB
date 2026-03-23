@@ -32,6 +32,7 @@ vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({
     signInWithSofia: mockSignInWithSofia,
     user: null,
+    dataUserId: null,
     loading: false,
     session: null,
     signOut: vi.fn(),
