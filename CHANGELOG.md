@@ -4,12 +4,13 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
-## [0.1.4] - 2026-03-23
+## [0.1.5] - 2026-03-23
 
 ### Fixed
 
-- **Variables de entorno en produccion:** El preload de Electron no recibia las variables `VITE_*` en el build empaquetado porque `vite.config.ts` solo aplicaba `define` al main process. Ahora el preload tambien las incrusta en build-time, resolviendo el error "Supabase rechazo la clave anonima de Lia".
-- **Sincronizacion de chats restaurada:** Se corrigio el flujo completo de configuracion de Supabase (Lia) con diagnosticos, fallback renderer/runtime y mensajes claros cuando la clave no es valida.
+- **Secrets de Lia actualizados:** Se re-sincronizaron las claves `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` en GitHub Secrets para que coincidan con el proyecto actual de Supabase.
+- **Variables de entorno en produccion:** El preload de Electron no recibia las variables `VITE_*` en el build empaquetado porque `vite.config.ts` solo aplicaba `define` al main process. Ahora el preload tambien las incrusta en build-time.
+- **Sincronizacion de chats restaurada:** Flujo completo de configuracion de Supabase (Lia) con diagnosticos, fallback renderer/runtime y mensajes claros cuando la clave no es valida.
 
 ### Changed
 
