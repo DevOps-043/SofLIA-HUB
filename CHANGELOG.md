@@ -4,6 +4,19 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.1.3] - 2026-03-23
+
+### Added
+
+### Changed
+
+- **AuthContext robusto:** Sincronizacion SOFIA + Lia unificada con migracion de cache legado y refresco mas confiable entre dispositivos.
+
+### Fixed
+
+- **Correccion de variables de entorno:** Ajuste de configuracion `.env` para empaquetado correcto.
+- **Estabilidad de servicios Google:** Correcciones en Gmail, Google Chat y Calendar para flujos mas confiables.
+
 ## [0.1.2] - 2026-03-22
 
 ### Added
