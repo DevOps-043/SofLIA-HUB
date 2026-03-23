@@ -77,6 +77,29 @@ function normalizeEmail(email?: string | null): string | null {
   return normalized ? normalized : null;
 }
 
+const LIA_CRED_KEY = 'lia-sync-cred';
+
+function storeLiaCredentials(email: string, password: string) {
+  try {
+    localStorage.setItem(LIA_CRED_KEY, JSON.stringify({ e: email, p: password }));
+  } catch { /* ignore */ }
+}
+
+function retrieveLiaCredentials(): { email: string; password: string } | null {
+  try {
+    const raw = localStorage.getItem(LIA_CRED_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.e && parsed?.p ? { email: parsed.e, password: parsed.p } : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearLiaCredentials() {
+  try { localStorage.removeItem(LIA_CRED_KEY); } catch { /* ignore */ }
+}
+
 function buildLiaStatusMessage(error: unknown): string {
   const rawMessage =
     error instanceof Error
@@ -190,6 +213,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       await supabase.auth.signOut();
     } finally {
+      clearLiaCredentials();
       clearSessionState();
     }
   }, [clearSessionState, usingSofia]);
@@ -210,7 +234,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const normalizedExpectedEmail = normalizeEmail(expectedEmail);
 
     try {
-      const { data: { session: liaSession } } = await supabase.auth.getSession();
+      let { data: { session: liaSession } } = await supabase.auth.getSession();
+
+      // Si no hay sesion en storage, intentar refrescar por si queda un refresh token
+      if (!liaSession) {
+        const { data: refreshData } = await supabase.auth.refreshSession();
+        liaSession = refreshData.session;
+      }
+
       const liaEmail = normalizeEmail(liaSession?.user?.email);
 
       if (liaSession && normalizedExpectedEmail && liaEmail && liaEmail !== normalizedExpectedEmail) {
@@ -318,6 +349,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setLiaDegraded(false);
             setLiaStatusMessage(null);
           } else {
+            // Intentar re-autenticar con credenciales guardadas
+            const savedCreds = retrieveLiaCredentials();
+            if (savedCreds) {
+              const retrySession = await ensureLiaSession(savedCreds.email, savedCreds.password);
+              if (retrySession) {
+                setLiaDegraded(false);
+                setLiaStatusMessage(null);
+                return;
+              }
+            }
             setLiaDegraded(true);
             setLiaStatusMessage(
               liaRestore.error
@@ -368,6 +409,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             setLiaDegraded(false);
             setLiaStatusMessage(null);
           } else {
+            const savedCreds = retrieveLiaCredentials();
+            if (savedCreds) {
+              const retrySession = await ensureLiaSession(savedCreds.email, savedCreds.password);
+              if (retrySession) {
+                setLiaDegraded(false);
+                setLiaStatusMessage(null);
+                setLoading(false);
+                return;
+              }
+            }
             setLiaDegraded(true);
             setLiaStatusMessage(
               liaRestore.error
@@ -398,7 +449,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       unsubscribe?.();
     };
-  }, [clearSessionState, resolveSofiaContext, signOut, syncLiaProfile, syncOptionalLiaSession, usingSofia]);
+  }, [clearSessionState, ensureLiaSession, resolveSofiaContext, signOut, syncLiaProfile, syncOptionalLiaSession, usingSofia]);
 
   const signInWithSofia = useCallback(async (emailOrUsername: string, password: string): Promise<SofiaAuthResult> => {
     const result = await sofiaAuth.signInWithSofia(emailOrUsername, password);
@@ -419,6 +470,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setUser(result.user);
     setSofiaContext(nextSofiaContext);
     const liaSession = await ensureLiaSession(result.user.email, password);
+
+    if (liaSession && result.user.email) {
+      storeLiaCredentials(result.user.email, password);
+    }
 
     return {
       ...result,

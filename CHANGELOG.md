@@ -4,6 +4,25 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.1.6] - 2026-03-23
+
+### Added
+
+- **Dictado por voz en chat:** El boton de microfono ahora activa dictado real usando Web Speech Recognition API (es-MX) con auto-stop por silencio de 2.5s, insertando el texto transcrito directamente en el campo de mensaje.
+
+### Changed
+
+- **Panel de conexiones unificado:** WhatsApp, Telegram y Google Workspace se gestionan ahora desde un unico panel "Conexiones" en configuracion, en lugar de estar dispersos en distintas secciones.
+- **Branding de modelos SofLIA:** Los nombres de los modelos Gemini ahora se muestran como SofLIA Pro, SofLIA, SofLIA Lite, SofLIA Deep y SofLIA Swift.
+- **Boton de enviar con paleta correcta:** El boton de enviar usa ahora el color accent del sistema en lugar de indigo, y esta correctamente alineado al fondo del textarea.
+
+### Fixed
+
+- **Foto de perfil del usuario no visible:** El avatar no se mostraba porque `saveSofiaSession` guardaba el objeto del RPC (sin `profile_picture_url`) en vez del perfil completo. Ahora se resuelve el avatar desde `sofiaProfile.avatar_url`. Ademas, el componente `UserAvatar` no reseteaba su estado de error al cambiar la URL, quedando permanentemente en fallback.
+- **Sesion de Lia en modo desarrollo:** Se agrego `refreshSession()` como fallback y cache de credenciales en localStorage para re-autenticar automaticamente tras HMR/reload.
+- **Typo en .env:** Corregido `eeyJ...` → `eyJ...` en `VITE_SUPABASE_ANON_KEY` que causaba "Failed to fetch".
+- **Error de tipo en vite.config.ts:** Resuelto el error IDE en el import dinamico de Electron.
+
 ## [0.1.5] - 2026-03-23
 
 ### Fixed

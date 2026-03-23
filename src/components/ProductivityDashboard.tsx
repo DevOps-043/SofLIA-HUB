@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { MonitoringControls } from './monitoring/MonitoringControls';
-import { CalendarPanel } from './monitoring/CalendarPanel';
+
 import { DailyTimeline } from './monitoring/DailyTimeline';
 import { AppUsageChart } from './monitoring/AppUsageChart';
 import { SummaryCard } from './monitoring/SummaryCard';
@@ -295,9 +295,6 @@ export function ProductivityDashboard({ userId }: ProductivityDashboardProps) {
               <AppUsageChart stats={appStats} />
             </div>
 
-            <div className="bg-white dark:bg-[#1a1c20]/50 backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-3xl p-6 shadow-xl">
-              <CalendarPanel />
-            </div>
           </div>
         </div>
       </div>

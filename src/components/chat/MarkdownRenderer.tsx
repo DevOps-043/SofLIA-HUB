@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 
 // ============================================
 // Advanced Markdown Renderer
@@ -267,6 +267,12 @@ export const MarkdownRenderer: React.FC<{ text: string }> = ({ text }) => {
 
 export const UserAvatar = ({ src, fallback }: { src?: string | null, fallback: React.ReactNode }) => {
   const [error, setError] = useState(false);
+  const prevSrc = useRef(src);
+
+  if (prevSrc.current !== src) {
+    prevSrc.current = src;
+    if (error) setError(false);
+  }
 
   if (!src || error) {
     return <>{fallback}</>;
@@ -277,6 +283,7 @@ export const UserAvatar = ({ src, fallback }: { src?: string | null, fallback: R
       src={src}
       alt="User"
       className="w-full h-full object-cover"
+      referrerPolicy="no-referrer"
       onError={() => setError(true)}
     />
   );

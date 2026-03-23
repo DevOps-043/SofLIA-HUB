@@ -101,7 +101,8 @@ class SofiaAuthService {
         memberships: activeMemberships
       };
 
-      await this.saveSofiaSession(sofiaUser);
+      const resolvedAvatar = sofiaProfile?.avatar_url || sofiaUser.profile_picture_url || null;
+      await this.saveSofiaSession({ ...sofiaUser, profile_picture_url: resolvedAvatar });
 
       const pseudoUser: SofiaAuthUser = {
         id: sofiaUser.id,
@@ -109,7 +110,7 @@ class SofiaAuthService {
         user_metadata: {
           first_name: sofiaUser.first_name,
           last_name: sofiaUser.last_name,
-          avatar_url: sofiaUser.profile_picture_url
+          avatar_url: resolvedAvatar
         }
       };
 

@@ -63,6 +63,10 @@ export const ChatUI: React.FC<ChatUIProps> = ({
   const [input, setInput] = useState('');
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const speechRecRef = useRef<any>(null);
+  const silenceTimerRef = useRef<number | null>(null);
+  const finalTranscriptRef = useRef('');
+  const shouldProcessRef = useRef(true);
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [isImageGenMode, setIsImageGenMode] = useState(false);
   const [isPromptOptimizerMode, setIsPromptOptimizerMode] = useState(false);
@@ -256,6 +260,91 @@ export const ChatUI: React.FC<ChatUIProps> = ({
     setSavePromptText('');
     setIsToolLibraryOpen(false);
     setIsToolEditorOpen(true);
+  };
+
+  const stopDictation = (process: boolean) => {
+    if (silenceTimerRef.current) {
+      window.clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    shouldProcessRef.current = process;
+    if (speechRecRef.current) {
+      try { speechRecRef.current.stop(); } catch { /* ignore */ }
+    }
+  };
+
+  const startDictation = () => {
+    const W = window as typeof window & { SpeechRecognition?: any; webkitSpeechRecognition?: any };
+    const Ctor = W.SpeechRecognition || W.webkitSpeechRecognition;
+    if (!Ctor) return;
+
+    finalTranscriptRef.current = '';
+    shouldProcessRef.current = true;
+
+    const recognition = new Ctor();
+    speechRecRef.current = recognition;
+    recognition.lang = navigator.language?.startsWith('es') ? navigator.language : 'es-MX';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => setIsRecording(true);
+
+    recognition.onresult = (event: any) => {
+      let nextFinal = finalTranscriptRef.current;
+      let nextInterim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const text = event.results[i]?.[0]?.transcript || '';
+        if (event.results[i].isFinal) {
+          nextFinal = [nextFinal, text].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+        } else {
+          nextInterim = [nextInterim, text].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+        }
+      }
+      finalTranscriptRef.current = nextFinal;
+      setInput((prev) => {
+        const base = prev.trimEnd();
+        const combined = [base, nextFinal, nextInterim].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+        return combined;
+      });
+
+      if (silenceTimerRef.current) window.clearTimeout(silenceTimerRef.current);
+      if (nextFinal && !nextInterim) {
+        silenceTimerRef.current = window.setTimeout(() => stopDictation(true), 2500);
+      }
+    };
+
+    recognition.onerror = () => {
+      speechRecRef.current = null;
+      setIsRecording(false);
+    };
+
+    recognition.onend = () => {
+      speechRecRef.current = null;
+      if (silenceTimerRef.current) {
+        window.clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
+      const transcript = finalTranscriptRef.current.trim();
+      setIsRecording(false);
+        if (shouldProcessRef.current && transcript) {
+        setInput((prev) => {
+          const base = prev.trimEnd();
+          if (base.includes(transcript)) return base;
+          return [base, transcript].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+        });
+      }
+    };
+
+    recognition.start();
+  };
+
+  const toggleDictation = () => {
+    if (isRecording) {
+      stopDictation(true);
+    } else {
+      startDictation();
+    }
   };
 
   const onSendClick = async () => {
@@ -897,16 +986,20 @@ export const ChatUI: React.FC<ChatUIProps> = ({
             />
 
             {/* Right Actions */}
-            <div className="flex items-center gap-1.5 pr-0.5 mb-0.5">
-              {input.trim() ? (
+            <div className="flex items-center gap-1.5 pr-0.5 self-end pb-1.5">
+              {input.trim() || isRecording ? (
                 <button
-                  onClick={onSendClick}
-                  disabled={chat.showLoadingUI || !canSendMessages}
-                  className="w-9 h-9 flex items-center justify-center rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
-                  title="Enviar mensaje"
+                  onClick={isRecording ? () => stopDictation(true) : onSendClick}
+                  disabled={!isRecording && (chat.showLoadingUI || !canSendMessages)}
+                  className="w-9 h-9 flex items-center justify-center rounded-full bg-accent hover:bg-accent/80 text-white shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105"
+                  title={isRecording ? "Detener dictado" : "Enviar mensaje"}
                 >
-                  {chat.showLoadingUI ? (
+                  {chat.showLoadingUI && !isRecording ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : isRecording ? (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="6" y="6" width="12" height="12" rx="2" />
+                    </svg>
                   ) : (
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="ml-0.5">
                       <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -916,9 +1009,9 @@ export const ChatUI: React.FC<ChatUIProps> = ({
                 </button>
               ) : (
                 <button
-                  onClick={() => setIsRecording(!isRecording)}
+                  onClick={toggleDictation}
                   disabled={!canSendMessages}
-                  className={`w-9 h-9 flex items-center justify-center rounded-full transition-all ${isRecording ? 'bg-red-500 text-white shadow-md animate-pulse' : 'bg-white dark:bg-black/20 text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:shadow-sm border border-gray-200 dark:border-white/5 hover:border-gray-300 dark:hover:border-white/10'}`}
+                  className="w-9 h-9 flex items-center justify-center rounded-full transition-all bg-white dark:bg-black/20 text-gray-500 hover:text-accent dark:hover:text-accent hover:shadow-sm border border-gray-200 dark:border-white/5 hover:border-accent/30 dark:hover:border-accent/20"
                   title="Dictado por voz"
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
