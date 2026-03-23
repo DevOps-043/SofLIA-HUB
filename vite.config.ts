@@ -51,12 +51,13 @@ async function stopElectronDevProcess(): Promise<void> {
 }
 
 async function startElectronDevProcess(argv = [".", "--no-sandbox"]): Promise<void> {
-  const electronModule = await import("electron");
-  const electronPath = electronModule.default ?? electronModule;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const electronModule: any = await import("electron");
+  const electronPath: string = electronModule.default ?? electronModule;
 
   await stopElectronDevProcess();
 
-  const child = spawn(electronPath as string, argv, {
+  const child = spawn(electronPath, argv, {
     stdio: ["inherit", "inherit", "inherit", "ipc"],
   });
 
@@ -152,6 +153,9 @@ export default defineConfig(({ mode }) => {
         },
         preload: {
           input: path.join(__dirname, "electron/preload.ts"),
+          vite: {
+            define: mainProcessEnvDefines,
+          },
         },
         renderer: {},
       }),
