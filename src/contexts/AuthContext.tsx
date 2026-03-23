@@ -1,10 +1,15 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import type { Session, AuthChangeEvent, User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { getSupabaseConfigDiagnostics, supabase } from '../lib/supabase';
 import { isSofiaConfigured } from '../lib/sofia-client';
 import { sofiaAuth, SofiaContext, SofiaAuthResult, SofiaAuthUser } from '../services/sofia-auth';
 
 type AuthUser = SofiaAuthUser | null;
+type LiaSessionSyncResult = {
+  session: Session | null;
+  retryAllowed: boolean;
+  error?: unknown;
+};
 
 interface AuthContextType {
   session: Session | null;
@@ -92,6 +97,33 @@ function buildLiaStatusMessage(error: unknown): string {
     return 'No se pudo abrir la sesion de Lia con estas credenciales. Cierra sesion e inicia nuevamente para restaurar la sincronizacion.';
   }
 
+  if (/invalid api key/i.test(rawMessage)) {
+    const diagnostics = getSupabaseConfigDiagnostics();
+
+    if (diagnostics.runtime && diagnostics.runtime.configError === null && diagnostics.renderer.configError !== null) {
+      return 'Lia si esta configurado en runtime, pero esta ventana se inicio con una configuracion vieja o incompleta. Reinicia SofLIA para reconstruir el frontend con la clave correcta.';
+    }
+
+    if (
+      diagnostics.runtime &&
+      diagnostics.renderer.projectRef &&
+      diagnostics.runtime.projectRef &&
+      diagnostics.renderer.projectRef !== diagnostics.runtime.projectRef
+    ) {
+      return `El frontend apunta a un proyecto de Lia distinto (${diagnostics.renderer.projectRef}) al que cargo Electron (${diagnostics.runtime.projectRef}). Reinicia SofLIA para alinear la sincronizacion de chats.`;
+    }
+
+    if (diagnostics.effective.configError) {
+      return `La configuracion de Lia en esta app no es valida: ${diagnostics.effective.configError}. Revisa VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY y reinicia SofLIA.`;
+    }
+
+    if (diagnostics.effective.source === 'runtime_env') {
+      return 'Supabase rechazo la clave anonima de Lia cargada en runtime para este dispositivo. Verifica que VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY pertenezcan al mismo proyecto.';
+    }
+
+    return 'Supabase rechazo la clave anonima de Lia que trae este frontend. Reinicia SofLIA o vuelve a compilar la app para cargar la configuracion correcta.';
+  }
+
   if (rawMessage && rawMessage !== 'null' && rawMessage !== 'undefined') {
     return `No se pudo activar la sincronizacion con Lia: ${rawMessage}`;
   }
@@ -174,7 +206,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return nextSofiaContext;
   }, []);
 
-  const syncOptionalLiaSession = useCallback(async (expectedEmail?: string | null) => {
+  const syncOptionalLiaSession = useCallback(async (expectedEmail?: string | null): Promise<LiaSessionSyncResult> => {
     const normalizedExpectedEmail = normalizeEmail(expectedEmail);
 
     try {
@@ -184,18 +216,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (liaSession && normalizedExpectedEmail && liaEmail && liaEmail !== normalizedExpectedEmail) {
         await supabase.auth.signOut();
         setSession(null);
-        return null;
+        return { session: null, retryAllowed: true };
       }
 
-        setSession(liaSession ?? null);
-        if (liaSession) {
-          await syncLiaProfile(liaSession);
-        }
-        return liaSession ?? null;
+      setSession(liaSession ?? null);
+      if (liaSession) {
+        await syncLiaProfile(liaSession);
+      }
+      return { session: liaSession ?? null, retryAllowed: true };
     } catch (error) {
       console.warn('No se pudo restaurar la sesion opcional de Lia:', error);
       setSession(null);
-      return null;
+      return { session: null, retryAllowed: false, error };
     }
   }, [syncLiaProfile]);
 
@@ -209,10 +241,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     const restoredSession = await syncOptionalLiaSession(normalizedEmail);
-    if (restoredSession) {
+    if (restoredSession.session) {
       setLiaDegraded(false);
       setLiaStatusMessage(null);
-      return restoredSession;
+      return restoredSession.session;
+    }
+
+    if (!restoredSession.retryAllowed) {
+      setSession(null);
+      setLiaDegraded(true);
+      setLiaStatusMessage(buildLiaStatusMessage(restoredSession.error));
+      return null;
     }
 
     try {
@@ -274,14 +313,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
           setUser(toAuthUser(sofiaSession.user, sofiaSession.user.user_metadata));
           setSofiaContext(nextSofiaContext);
-          const liaSession = await syncOptionalLiaSession(sofiaSession.user.email);
-          if (liaSession) {
+          const liaRestore = await syncOptionalLiaSession(sofiaSession.user.email);
+          if (liaRestore.session) {
             setLiaDegraded(false);
             setLiaStatusMessage(null);
           } else {
             setLiaDegraded(true);
             setLiaStatusMessage(
-              'No hay una sesion activa de Lia en este dispositivo. Cierra sesion e inicia de nuevo para reactivar la sincronizacion de conversaciones.',
+              liaRestore.error
+                ? buildLiaStatusMessage(liaRestore.error)
+                : 'No hay una sesion activa de Lia en este dispositivo. Cierra sesion e inicia de nuevo para reactivar la sincronizacion de conversaciones.',
             );
           }
           return;
@@ -322,14 +363,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
           setUser(toAuthUser(sofiaSession.user, sofiaSession.user.user_metadata));
           setSofiaContext(nextSofiaContext);
-          const liaSession = await syncOptionalLiaSession(sofiaSession.user.email);
-          if (liaSession) {
+          const liaRestore = await syncOptionalLiaSession(sofiaSession.user.email);
+          if (liaRestore.session) {
             setLiaDegraded(false);
             setLiaStatusMessage(null);
           } else {
             setLiaDegraded(true);
             setLiaStatusMessage(
-              'No hay una sesion activa de Lia en este dispositivo. Cierra sesion e inicia de nuevo para reactivar la sincronizacion de conversaciones.',
+              liaRestore.error
+                ? buildLiaStatusMessage(liaRestore.error)
+                : 'No hay una sesion activa de Lia en este dispositivo. Cierra sesion e inicia de nuevo para reactivar la sincronizacion de conversaciones.',
             );
           }
           setLoading(false);

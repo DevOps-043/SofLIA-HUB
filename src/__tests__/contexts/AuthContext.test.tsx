@@ -48,6 +48,30 @@ const supabaseMocks = vi.hoisted(() => ({
   onAuthStateChange: vi.fn(() => ({
     data: { subscription: { unsubscribe: vi.fn() } },
   })),
+  getSupabaseConfigDiagnostics: vi.fn(() => ({
+    renderer: {
+      source: 'renderer_env',
+      url: 'https://renderer.supabase.co',
+      projectRef: 'renderer',
+      keyKind: 'unknown',
+      configError: 'VITE_SUPABASE_ANON_KEY no tiene un formato de clave Supabase reconocido',
+    },
+    runtime: {
+      source: 'runtime_env',
+      url: 'https://lia-runtime.supabase.co',
+      projectRef: 'lia-runtime',
+      keyKind: 'jwt',
+      configError: null,
+    },
+    effective: {
+      source: 'runtime_env',
+      url: 'https://lia-runtime.supabase.co',
+      projectRef: 'lia-runtime',
+      keyKind: 'jwt',
+      configError: null,
+    },
+    usingRuntimeOverride: true,
+  })),
 }));
 
 vi.mock('../../lib/supabase', () => ({
@@ -60,6 +84,7 @@ vi.mock('../../lib/supabase', () => ({
       onAuthStateChange: supabaseMocks.onAuthStateChange,
     },
   },
+  getSupabaseConfigDiagnostics: supabaseMocks.getSupabaseConfigDiagnostics,
   isSupabaseConfigured: vi.fn(() => true),
 }));
 
@@ -101,6 +126,30 @@ describe('AuthContext', () => {
     supabaseMocks.signUp.mockResolvedValue({
       data: { session: null, user: null },
       error: null,
+    });
+    supabaseMocks.getSupabaseConfigDiagnostics.mockReturnValue({
+      renderer: {
+        source: 'renderer_env',
+        url: 'https://renderer.supabase.co',
+        projectRef: 'renderer',
+        keyKind: 'unknown',
+        configError: 'VITE_SUPABASE_ANON_KEY no tiene un formato de clave Supabase reconocido',
+      },
+      runtime: {
+        source: 'runtime_env',
+        url: 'https://lia-runtime.supabase.co',
+        projectRef: 'lia-runtime',
+        keyKind: 'jwt',
+        configError: null,
+      },
+      effective: {
+        source: 'runtime_env',
+        url: 'https://lia-runtime.supabase.co',
+        projectRef: 'lia-runtime',
+        keyKind: 'jwt',
+        configError: null,
+      },
+      usingRuntimeOverride: true,
     });
   });
 
@@ -231,6 +280,6 @@ describe('AuthContext', () => {
     expect(result.current.user?.id).toBe('sofia-user-1');
     expect(result.current.dataUserId).toBeNull();
     expect(result.current.liaDegraded).toBe(true);
-    expect(result.current.liaStatusMessage).toContain('Lia');
+    expect(result.current.liaStatusMessage).toContain('configuracion vieja o incompleta');
   });
 });
