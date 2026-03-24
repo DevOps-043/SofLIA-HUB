@@ -40,9 +40,30 @@ export interface AccessibleFolderShare extends FolderShare {
   folder?: Record<string, any> | null;
 }
 
+export interface ResolvedShareTarget {
+  targetType: ShareTargetType;
+  targetId: string;
+  permission: SharePermission;
+  shareToken: string;
+  orgId: string;
+}
+
 function normalizeEmail(email?: string | null): string | null {
   const normalized = email?.trim().toLowerCase();
   return normalized || null;
+}
+
+function normalizeShareToken(shareTokenOrUrl: string): string | null {
+  const rawValue = shareTokenOrUrl?.trim();
+  if (!rawValue) {
+    return null;
+  }
+
+  if (rawValue.startsWith('soflia://share/')) {
+    return rawValue.slice('soflia://share/'.length).trim() || null;
+  }
+
+  return rawValue;
 }
 
 function normalizeUserIds(userIds: string | string[] | null | undefined): string[] {
@@ -496,6 +517,35 @@ export async function loadConversationShares(conversationId: string): Promise<Co
   return (data || []).map((share: any) => normalizeConversationShare(share));
 }
 
+export async function loadOutgoingConversationShares(
+  sharedByUserId: string,
+  orgId?: string,
+): Promise<ConversationShare[]> {
+  const normalizedUserId = sharedByUserId?.trim();
+  if (!normalizedUserId || !isSupabaseConfigured()) {
+    return [];
+  }
+
+  let query = supabase
+    .from('conversation_shares')
+    .select('*')
+    .eq('shared_by', normalizedUserId)
+    .eq('is_active', true);
+
+  if (orgId) {
+    query = query.eq('org_id', orgId);
+  }
+
+  const { data, error } = await query.order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('[share-service] loadOutgoingConversationShares FAILED:', error.message, '| code:', error.code);
+    return [];
+  }
+
+  return (data || []).map((share: any) => normalizeConversationShare(share));
+}
+
 export async function loadFolderShares(folderId: string): Promise<FolderShare[]> {
   if (!isSupabaseConfigured()) {
     return [];
@@ -510,6 +560,35 @@ export async function loadFolderShares(folderId: string): Promise<FolderShare[]>
 
   if (error) {
     console.error('[share-service] loadFolderShares FAILED:', error.message, '| code:', error.code);
+    return [];
+  }
+
+  return (data || []).map((share: any) => normalizeFolderShare(share));
+}
+
+export async function loadOutgoingFolderShares(
+  sharedByUserId: string,
+  orgId?: string,
+): Promise<FolderShare[]> {
+  const normalizedUserId = sharedByUserId?.trim();
+  if (!normalizedUserId || !isSupabaseConfigured()) {
+    return [];
+  }
+
+  let query = supabase
+    .from('folder_shares')
+    .select('*')
+    .eq('shared_by', normalizedUserId)
+    .eq('is_active', true);
+
+  if (orgId) {
+    query = query.eq('org_id', orgId);
+  }
+
+  const { data, error } = await query.order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('[share-service] loadOutgoingFolderShares FAILED:', error.message, '| code:', error.code);
     return [];
   }
 
@@ -599,4 +678,67 @@ export async function loadAccessibleFolderShares(
     ...normalizeFolderShare(share),
     folder: share.folder || null,
   }));
+}
+
+export async function resolveShareTargetByToken(
+  shareTokenOrUrl: string,
+  orgId?: string,
+): Promise<ResolvedShareTarget | null> {
+  const shareToken = normalizeShareToken(shareTokenOrUrl);
+  if (!shareToken || !isSupabaseConfigured()) {
+    return null;
+  }
+
+  let conversationQuery = supabase
+    .from('conversation_shares')
+    .select('conversation_id, org_id, permission, share_token')
+    .eq('share_token', shareToken)
+    .eq('is_active', true);
+
+  if (orgId) {
+    conversationQuery = conversationQuery.eq('org_id', orgId);
+  }
+
+  const { data: conversationRows, error: conversationError } = await conversationQuery.limit(1);
+
+  if (conversationError) {
+    console.error('[share-service] resolveShareTargetByToken conversation FAILED:', conversationError.message, '| code:', conversationError.code);
+  } else if (conversationRows?.[0]?.conversation_id && conversationRows[0]?.share_token) {
+    return {
+      targetType: 'conversation',
+      targetId: conversationRows[0].conversation_id,
+      permission: conversationRows[0].permission === 'edit' ? 'edit' : 'view',
+      shareToken: conversationRows[0].share_token,
+      orgId: conversationRows[0].org_id,
+    };
+  }
+
+  let folderQuery = supabase
+    .from('folder_shares')
+    .select('folder_id, org_id, permission, share_token')
+    .eq('share_token', shareToken)
+    .eq('is_active', true);
+
+  if (orgId) {
+    folderQuery = folderQuery.eq('org_id', orgId);
+  }
+
+  const { data: folderRows, error: folderError } = await folderQuery.limit(1);
+
+  if (folderError) {
+    console.error('[share-service] resolveShareTargetByToken folder FAILED:', folderError.message, '| code:', folderError.code);
+    return null;
+  }
+
+  if (!folderRows?.[0]?.folder_id || !folderRows[0]?.share_token) {
+    return null;
+  }
+
+  return {
+    targetType: 'folder',
+    targetId: folderRows[0].folder_id,
+    permission: folderRows[0].permission === 'edit' ? 'edit' : 'view',
+    shareToken: folderRows[0].share_token,
+    orgId: folderRows[0].org_id,
+  };
 }

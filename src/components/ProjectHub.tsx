@@ -56,6 +56,7 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canEditFolder = folder.can_edit !== false;
   const canShareFolder = Boolean(folder.can_share);
+  const folderSharedBadgeLabel = canShareFolder ? 'Compartida' : 'Recibida';
 
   useEffect(() => {
     setEditName(folder.name);
@@ -224,8 +225,12 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
                   {folder.name}
                 </h1>
                 {folder.is_shared && (
-                  <span className="rounded-full border border-accent/20 bg-accent/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-accent">
-                    Compartida
+                  <span className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${
+                    canShareFolder
+                      ? 'border-accent/20 bg-accent/10 text-accent'
+                      : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-500 animate-pulse'
+                  }`}>
+                    {folderSharedBadgeLabel}
                   </span>
                 )}
               </div>
@@ -379,8 +384,12 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
                                 {chat.title}
                               </h3>
                               {chat.is_shared && (
-                                <div className="mt-1 inline-flex rounded-full border border-accent/20 bg-accent/10 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.18em] text-accent">
-                                  Compartido
+                                <div className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.18em] ${
+                                  chat.can_share
+                                    ? 'border-accent/20 bg-accent/10 text-accent'
+                                    : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-500 animate-pulse'
+                                }`}>
+                                  {chat.can_share ? 'Compartido' : 'Recibido'}
                                 </div>
                               )}
                             </>

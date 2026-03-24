@@ -23,7 +23,7 @@ import { UpdateNotification } from "./components/UpdateNotification";
 import { GOOGLE_API_KEY } from "./config";
 import { migrateLegacyChatCache } from "./services/chat-service";
 import { migrateLegacyFolderCache } from "./services/folder-service";
-import type { ShareTargetType } from "./services/share-service";
+import { resolveShareTargetByToken, type ShareTargetType } from "./services/share-service";
 type ActiveView = "chat" | "project" | "productivity";
 
 function AppContent() {
@@ -36,6 +36,12 @@ function AppContent() {
     targetType: ShareTargetType;
     targetName: string;
   } | null>(null);
+  const [pendingShareLink, setPendingShareLink] = useState<string | null>(null);
+  const [shareLinkNotice, setShareLinkNotice] = useState<{ tone: "info" | "error"; message: string } | null>(null);
+
+  const dismissShareLinkNotice = useCallback(() => {
+    setShareLinkNotice(null);
+  }, []);
 
   const userId = dataUserId ?? undefined;
   const orgId = sofiaContext?.currentOrganization?.id || "";
@@ -96,19 +102,35 @@ function AppContent() {
   // ── Electron IPC ───────────────────────────────────────────────────
   useEffect(() => {
     const ipc = (window as any).ipcRenderer;
+    const handleShareLink = (_event: any, shareLink: string) => {
+      setPendingShareLink(shareLink);
+    };
+
     if (ipc) {
       ipc.on("flow-message-received", (_event: any, text: string) => {
         setExternalPrompt(text);
       });
+      ipc.on("app:share-link", handleShareLink);
       if (isFlowWindow) {
         ipc.on("flow-window-shown", () => {
           setFlowKey((prev) => prev + 1);
         });
       }
+
+      void ipc.invoke("app:get-pending-share-link")
+        .then((shareLink: string | null) => {
+          if (shareLink) {
+            setPendingShareLink(shareLink);
+          }
+        })
+        .catch((error: unknown) => {
+          console.warn("[App] No pude recuperar el share link pendiente:", error);
+        });
     }
     return () => {
       if (ipc && ipc.off) {
         ipc.off("flow-message-received", () => {});
+        ipc.off("app:share-link", handleShareLink);
         ipc.off("flow-window-shown", () => {});
       }
     };
@@ -203,6 +225,92 @@ function AppContent() {
     },
     [folder],
   );
+
+  const handlePendingShareLink = useCallback(async (shareLink: string) => {
+    if (!orgId) {
+      return;
+    }
+
+    const sharedTarget = await resolveShareTargetByToken(shareLink, orgId);
+    if (!sharedTarget) {
+      setShareLinkNotice({
+        tone: "error",
+        message: "No encontre un recurso compartido valido para ese enlace.",
+      });
+      return;
+    }
+
+    if (sharedTarget.targetType === "conversation") {
+      const conversations = await chat.loadInitialConversations();
+      const hasConversation = conversations.some((conversation) => conversation.id === sharedTarget.targetId);
+
+      if (!hasConversation) {
+        setShareLinkNotice({
+          tone: "error",
+          message: "Ese chat compartido todavia no esta disponible para esta cuenta u organizacion.",
+        });
+        return;
+      }
+
+      await handleSelectConversation(sharedTarget.targetId);
+      setShareLinkNotice({
+        tone: "info",
+        message: sharedTarget.permission === "edit"
+          ? "Chat compartido abierto en modo colaborativo."
+          : "Chat compartido abierto en modo solo lectura.",
+      });
+      return;
+    }
+
+    const folders = await folder.loadInitialFolders();
+    const hasFolder = folders.some((item) => item.id === sharedTarget.targetId);
+
+    if (!hasFolder) {
+      setShareLinkNotice({
+        tone: "error",
+        message: "La carpeta compartida no esta disponible para esta cuenta u organizacion.",
+      });
+      return;
+    }
+
+    handleOpenProject(sharedTarget.targetId);
+    setShareLinkNotice({
+      tone: "info",
+      message: sharedTarget.permission === "edit"
+        ? "Carpeta compartida abierta en modo colaborativo."
+        : "Carpeta compartida abierta en modo solo lectura.",
+    });
+  }, [chat, folder, handleOpenProject, handleSelectConversation, orgId]);
+
+  useEffect(() => {
+    if (!pendingShareLink || !userId || !orgId) {
+      return;
+    }
+
+    void handlePendingShareLink(pendingShareLink)
+      .catch((error) => {
+        console.error("[App] Error abriendo shared link:", error);
+        setShareLinkNotice({
+          tone: "error",
+          message: "No pude abrir el recurso compartido desde el enlace.",
+        });
+      })
+      .finally(() => {
+        setPendingShareLink(null);
+      });
+  }, [handlePendingShareLink, orgId, pendingShareLink, userId]);
+
+  useEffect(() => {
+    if (!shareLinkNotice) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      dismissShareLinkNotice();
+    }, 5000);
+
+    return () => window.clearTimeout(timer);
+  }, [dismissShareLinkNotice, shareLinkNotice]);
 
   // ── IRIS handlers ──────────────────────────────────────────────────
   const handleIrisProjectClick = useCallback(
@@ -335,6 +443,16 @@ function AppContent() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+        {shareLinkNotice && (
+          <div className={`mx-6 mt-4 rounded-2xl border px-4 py-3 text-sm ${
+            shareLinkNotice.tone === "error"
+              ? "border-red-500/30 bg-red-500/10 text-red-100"
+              : "border-accent/30 bg-accent/10 text-white"
+          }`}>
+            {shareLinkNotice.message}
+          </div>
+        )}
+
         {liaDegraded && !userId && (
           <div className="mx-6 mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
             <div className="font-semibold text-amber-50">Sincronizacion de chats no disponible</div>

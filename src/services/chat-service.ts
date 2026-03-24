@@ -2,6 +2,7 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import {
   loadAccessibleConversationShares,
   loadAccessibleFolderShares,
+  loadOutgoingConversationShares,
   type ShareAccessLevel,
 } from './share-service';
 
@@ -94,16 +95,19 @@ function normalizeConversation(raw: any): Conversation {
   };
 }
 
-function decorateOwnedConversation(raw: any): Conversation {
+function decorateOwnedConversation(
+  raw: any,
+  activeShare?: { share_token?: string | null; created_at: string } | null,
+): Conversation {
   return normalizeConversation({
     ...raw,
-    is_shared: false,
+    is_shared: Boolean(activeShare),
     share_permission: 'owner',
     can_edit: true,
     can_share: true,
     shared_by_user_id: undefined,
-    share_token: null,
-    shared_at: undefined,
+    share_token: activeShare?.share_token ?? null,
+    shared_at: activeShare?.created_at ?? undefined,
   });
 }
 
@@ -613,7 +617,7 @@ async function fetchAccessibleConversations(
   accessUserIds: string[],
   orgId?: string,
 ): Promise<Conversation[]> {
-  const [ownConversationsResult, ownedFoldersResult, sharedConversationShares, sharedFolderShares] = await Promise.all([
+  const [ownConversationsResult, ownedFoldersResult, sharedConversationShares, sharedFolderShares, outgoingConversationShares] = await Promise.all([
     supabase
       .from('conversations')
       .select('*')
@@ -626,6 +630,7 @@ async function fetchAccessibleConversations(
       .eq('user_id', userId),
     loadAccessibleConversationShares(accessUserIds, orgId),
     loadAccessibleFolderShares(accessUserIds, orgId),
+    loadOutgoingConversationShares(userId, orgId),
   ]);
 
   if (ownConversationsResult.error) {
@@ -638,7 +643,20 @@ async function fetchAccessibleConversations(
     throw ownedFoldersResult.error;
   }
 
-  const ownedConversations = (ownConversationsResult.data || []).map((conversation: any) => decorateOwnedConversation(conversation));
+  const outgoingConversationShareMap = new Map<string, { share_token?: string | null; created_at: string }>();
+  for (const share of outgoingConversationShares) {
+    const existing = outgoingConversationShareMap.get(share.conversation_id);
+    if (!existing || (share.share_token && !existing.share_token)) {
+      outgoingConversationShareMap.set(share.conversation_id, {
+        share_token: share.share_token ?? null,
+        created_at: share.created_at,
+      });
+    }
+  }
+
+  const ownedConversations = (ownConversationsResult.data || []).map((conversation: any) =>
+    decorateOwnedConversation(conversation, outgoingConversationShareMap.get(conversation.id)),
+  );
   const ownedFolderIds = new Set((ownedFoldersResult.data || []).map((folder: any) => folder.id as string));
   const accessibleFolderIds = Array.from(
     new Set([
@@ -664,7 +682,7 @@ async function fetchAccessibleConversations(
     const sharedFolderShareMap = new Map(sharedFolderShares.map((share) => [share.folder_id, share]));
     folderConversations = (folderConversationData || []).map((conversation: any) => {
       if (conversation.user_id === userId) {
-        return decorateOwnedConversation(conversation);
+        return decorateOwnedConversation(conversation, outgoingConversationShareMap.get(conversation.id));
       }
 
       const folderShare = sharedFolderShareMap.get(conversation.folder_id);
@@ -693,7 +711,7 @@ async function fetchAccessibleConversations(
     .filter((share) => share.conversation)
     .map((share) => (
       share.conversation?.user_id === userId
-        ? decorateOwnedConversation(share.conversation)
+        ? decorateOwnedConversation(share.conversation, outgoingConversationShareMap.get(share.conversation.id))
         : decorateSharedConversation(share.conversation, share)
     ));
 
@@ -802,6 +820,34 @@ async function syncMessagesRemote(
 }
 
 async function deleteConversationRemote(conversationId: string): Promise<boolean> {
+  const deleteRelatedRows = async (table: string, column: string) => {
+    const { error } = await supabase
+      .from(table)
+      .delete()
+      .eq(column, conversationId);
+
+    if (!error) {
+      return true;
+    }
+
+    if (error.code === '42P01') {
+      console.warn(`[chat-service] ${table} table is missing while deleting conversation ${conversationId}; continuing.`);
+      return true;
+    }
+
+    console.error(`[chat-service] deleteConversationRemote ${table} FAILED:`, error.message, '| code:', error.code);
+    return false;
+  };
+
+  const dependenciesDeleted = await Promise.all([
+    deleteRelatedRows('conversation_shares', 'conversation_id'),
+    deleteRelatedRows('workspace_sources', 'conversation_id'),
+  ]);
+
+  if (dependenciesDeleted.some((result) => !result)) {
+    return false;
+  }
+
   const { error: messageError } = await supabase
     .from('messages')
     .delete()

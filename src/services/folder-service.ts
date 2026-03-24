@@ -1,5 +1,5 @@
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
-import { loadAccessibleFolderShares, type ShareAccessLevel } from './share-service';
+import { loadAccessibleFolderShares, loadOutgoingFolderShares, type ShareAccessLevel } from './share-service';
 
 export interface Folder {
   id: string;
@@ -51,16 +51,19 @@ function normalizeFolder(raw: any): Folder {
   };
 }
 
-function decorateOwnedFolder(raw: any): Folder {
+function decorateOwnedFolder(
+  raw: any,
+  activeShare?: { share_token?: string | null; created_at: string } | null,
+): Folder {
   return normalizeFolder({
     ...raw,
-    is_shared: false,
+    is_shared: Boolean(activeShare),
     share_permission: 'owner',
     can_edit: true,
     can_share: true,
     shared_by_user_id: undefined,
-    share_token: null,
-    shared_at: undefined,
+    share_token: activeShare?.share_token ?? null,
+    shared_at: activeShare?.created_at ?? undefined,
   });
 }
 
@@ -190,13 +193,14 @@ async function fetchAccessibleFolders(
   accessUserIds: string[],
   orgId?: string,
 ): Promise<Folder[]> {
-  const [ownedResult, sharedShares] = await Promise.all([
+  const [ownedResult, sharedShares, outgoingShares] = await Promise.all([
     supabase
       .from('folders')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false }),
     loadAccessibleFolderShares(accessUserIds, orgId),
+    loadOutgoingFolderShares(userId, orgId),
   ]);
 
   if (ownedResult.error) {
@@ -204,7 +208,20 @@ async function fetchAccessibleFolders(
     throw ownedResult.error;
   }
 
-  const ownedFolders = (ownedResult.data || []).map((folder: any) => decorateOwnedFolder(folder));
+  const outgoingShareMap = new Map<string, { share_token?: string | null; created_at: string }>();
+  for (const share of outgoingShares) {
+    const existing = outgoingShareMap.get(share.folder_id);
+    if (!existing || (share.share_token && !existing.share_token)) {
+      outgoingShareMap.set(share.folder_id, {
+        share_token: share.share_token ?? null,
+        created_at: share.created_at,
+      });
+    }
+  }
+
+  const ownedFolders = (ownedResult.data || []).map((folder: any) =>
+    decorateOwnedFolder(folder, outgoingShareMap.get(folder.id)),
+  );
   const sharedFolders = sharedShares
     .filter((share) => share.folder)
     .map((share) => decorateSharedFolder(share.folder, share));
@@ -336,6 +353,53 @@ export async function deleteFolder(userId: string, folderId: string): Promise<bo
 
   if (!isSupabaseConfigured()) {
     return true;
+  }
+
+  const deleteRelatedRows = async (table: string, action: () => Promise<{ error: any } | any>): Promise<boolean> => {
+    const { error } = await action();
+
+    if (!error) {
+      return true;
+    }
+
+    if (error.code === '42P01') {
+      console.warn(`[folder-service] ${table} table is missing while deleting folder ${folderId}; continuing.`);
+      return true;
+    }
+
+    console.error(`[folder-service] deleteFolder ${table} FAILED:`, error.message, '| code:', error.code);
+    return false;
+  };
+
+  const dependenciesDeleted = await Promise.all([
+    deleteRelatedRows('conversations', () =>
+      Promise.resolve(
+        supabase
+        .from('conversations')
+        .update({ folder_id: null })
+        .eq('folder_id', folderId),
+      ),
+    ),
+    deleteRelatedRows('folder_shares', () =>
+      Promise.resolve(
+        supabase
+        .from('folder_shares')
+        .delete()
+        .eq('folder_id', folderId),
+      ),
+    ),
+    deleteRelatedRows('workspace_sources', () =>
+      Promise.resolve(
+        supabase
+        .from('workspace_sources')
+        .delete()
+        .eq('folder_id', folderId),
+      ),
+    ),
+  ]);
+
+  if (dependenciesDeleted.some((result) => !result)) {
+    return false;
   }
 
   const { error } = await supabase

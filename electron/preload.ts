@@ -52,6 +52,8 @@ injectCSP()
 const ALLOWED_IPC_CHANNELS = [
   'capture-screen',
   'get-screen-sources',
+  'app:get-pending-share-link',
+  'app:share-link',
   'computer:list-directory',
   'computer:read-file',
   'computer:write-file',

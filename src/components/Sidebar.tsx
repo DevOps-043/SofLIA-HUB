@@ -187,6 +187,7 @@ function ChatItem({
   canMove: boolean;
   canDelete: boolean;
 }) {
+  const sharedBadgeLabel = conv.can_share ? 'Compartido' : 'Recibido';
   const baseClass = compact
     ? `w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[12.5px] transition-all duration-200 group/chat`
     : `w-full flex items-center ${sidebarOpen ? "gap-2.5 px-3" : "justify-center px-0"} py-2 rounded-lg text-[13px] transition-all duration-200 group`;
@@ -242,8 +243,12 @@ function ChatItem({
             <div className="flex flex-1 min-w-0 items-center gap-2">
               <span className={`min-w-0 flex-1 text-left truncate${compact ? '' : ' text-[13px]'}`}>{conv.title}</span>
               {conv.is_shared && (
-                <span className="shrink-0 rounded-full border border-accent/20 bg-accent/10 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.18em] text-accent">
-                  Compartido
+                <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.18em] ${
+                  conv.can_share
+                    ? 'border-accent/20 bg-accent/10 text-accent'
+                    : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-500 animate-pulse'
+                }`}>
+                  {sharedBadgeLabel}
                 </span>
               )}
             </div>
@@ -783,8 +788,12 @@ export function Sidebar(props: SidebarProps) {
                         <div className="flex flex-1 min-w-0 items-center gap-2">
                           <span className="min-w-0 flex-1 text-left truncate">{folder.name}</span>
                           {folder.is_shared && (
-                            <span className="shrink-0 rounded-full border border-accent/20 bg-accent/10 px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.18em] text-accent">
-                              Compartida
+                            <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.18em] ${
+                              folder.can_share
+                                ? 'border-accent/20 bg-accent/10 text-accent'
+                                : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-500 animate-pulse'
+                            }`}>
+                              {folder.can_share ? 'Compartida' : 'Recibida'}
                             </span>
                           )}
                         </div>

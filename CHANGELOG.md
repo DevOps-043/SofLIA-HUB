@@ -4,6 +4,21 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.1.8] - 2026-03-24
+
+### Changed
+
+- **Chats y carpetas compartidos ahora se distinguen mejor:** La app muestra estados visuales separados para elementos "Compartidos" y "Recibidos", ayudando a identificar de inmediato que vienen de otro flujo de colaboracion.
+- **Apertura de enlaces internos de comparticion:** SofLIA ahora registra y atiende el protocolo `soflia://share/...` para abrir chats y carpetas compartidas desde la misma app.
+
+### Fixed
+
+- **Renombrado de conversaciones con guardado tardio:** El cambio de nombre ahora se refleja de inmediato en UI y sigue sincronizando en segundo plano, evitando la sensacion de que "no se guardo".
+- **Eliminacion de conversaciones sin efecto:** Antes podian quedar bloqueadas por referencias activas en tablas relacionadas; ahora se limpian dependencias remotas antes de borrar el chat.
+- **Comparticion hacia miembros de la organizacion:** Se corrigio el uso del identificador de Lia al compartir, en lugar de mezclarlo con el de SOFIA, para que el recurso realmente llegue al companero correcto.
+- **Disponibilidad falsa de miembros para compartir:** El modal ya no habilita miembros que aun no activan Lia; ahora los marca correctamente como no disponibles hasta que tengan perfil sincronizado.
+- **Tokens de comparticion sin resolucion en la app:** Los enlaces internos de chats y carpetas compartidas ahora se resuelven dentro de la sesion actual y muestran retroalimentacion si el recurso no esta disponible.
+
 ## [0.1.7] - 2026-03-23
 
 ### Fixed

@@ -373,16 +373,14 @@ export function useChatManager({ userId, orgId, accessUserIds }: UseChatManagerO
       if (!conversation?.can_share) return false;
       await flushPendingSave();
       scopeVersionRef.current += 1;
-      const success = await deleteConversation(userId, convId);
-      if (success) {
-        setConversations((prev) => prev.filter((c) => c.id !== convId));
-        if (convId === currentConvIdRef.current) {
-          setCurrentConversationId(null);
-          currentConvIdRef.current = null;
-          setCurrentMessages([]);
-          localStorage.removeItem(getCurrentChatStorageKey(userId));
-        }
+      setConversations((prev) => prev.filter((c) => c.id !== convId));
+      if (convId === currentConvIdRef.current) {
+        setCurrentConversationId(null);
+        currentConvIdRef.current = null;
+        setCurrentMessages([]);
+        localStorage.removeItem(getCurrentChatStorageKey(userId));
       }
+      const success = await deleteConversation(userId, convId);
       return success;
     },
     [conversations, flushPendingSave, getCurrentChatStorageKey, userId],
@@ -390,22 +388,23 @@ export function useChatManager({ userId, orgId, accessUserIds }: UseChatManagerO
 
   const handleRenameChat = useCallback(async () => {
     const newTitle = editingChatTitle.trim();
-    if (!userId || !renamingChatId || !newTitle) {
+    const targetChatId = renamingChatId;
+    if (!userId || !targetChatId || !newTitle) {
       setRenamingChatId(null);
       return;
     }
-    const conversation = conversations.find((item) => item.id === renamingChatId);
+    const conversation = conversations.find((item) => item.id === targetChatId);
     if (!conversation?.can_edit) {
       setRenamingChatId(null);
       return;
     }
-    await updateConversationTitle(userId, renamingChatId, newTitle);
     setConversations((prev) =>
       prev.map((c) =>
-        c.id === renamingChatId ? { ...c, title: newTitle } : c,
+        c.id === targetChatId ? { ...c, title: newTitle } : c,
       ),
     );
     setRenamingChatId(null);
+    void updateConversationTitle(userId, targetChatId, newTitle);
   }, [conversations, renamingChatId, editingChatTitle, userId]);
 
   const handleRenameChatFromHub = useCallback(async (chatId: string, newTitle: string) => {
@@ -413,10 +412,10 @@ export function useChatManager({ userId, orgId, accessUserIds }: UseChatManagerO
     if (!userId || !trimmed) return;
     const conversation = conversations.find((item) => item.id === chatId);
     if (!conversation?.can_edit) return;
-    await updateConversationTitle(userId, chatId, trimmed);
     setConversations((prev) =>
       prev.map((c) => (c.id === chatId ? { ...c, title: trimmed } : c)),
     );
+    void updateConversationTitle(userId, chatId, trimmed);
   }, [conversations, userId]);
 
   const getScopedMessagesHandler = useCallback((currentFolderId: string | null) => {

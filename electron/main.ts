@@ -13,6 +13,10 @@ type Step<T> = () => Promise<T> | T
 const BACKGROUND_LAUNCH_ARG = '--background'
 const execFileAsync = promisify(execFile)
 
+function extractShareLinkArg(args: string[]): string | null {
+  return args.find((arg) => typeof arg === 'string' && arg.toLowerCase().startsWith('soflia://share/')) || null
+}
+
 function logBootstrapError(context: string, error: unknown): void {
   if (error instanceof Error) {
     console.error(`[BOOT] ${context} failed: ${error.message}`)
@@ -191,6 +195,7 @@ async function runBootstrap(): Promise<void> {
   let isQuitting = false
   let flowInsertTarget: { handle: string; title: string } | null = null
   const startInBackground = process.argv.includes(BACKGROUND_LAUNCH_ARG)
+  let pendingShareLink: string | null = extractShareLinkArg(process.argv)
   let currentGeminiApiKey: string | null = process.env.VITE_GEMINI_API_KEY || null
   let waAgent: InstanceType<typeof WhatsAppAgent> | null = null
   let neuralOrganizer: InstanceType<typeof NeuralOrganizerAI> | null = null
@@ -592,6 +597,24 @@ $handle = [IntPtr]::new([int64]${flowInsertTarget.handle})
     })
   }
 
+  function routeShareLinkToRenderer(shareLink: string): void {
+    pendingShareLink = shareLink
+
+    if (!win) {
+      createWindow(true)
+      return
+    }
+
+    if (win.isMinimized()) {
+      win.restore()
+    }
+    if (!win.isVisible()) {
+      win.show()
+    }
+    win.focus()
+    win.webContents.send('app:share-link', shareLink)
+  }
+
   async function sendSummaryWhatsApp(phoneNumber: string, summaryText: string): Promise<{ success: boolean; error?: string }> {
     try {
       if (!waService.getStatus().connected) {
@@ -884,7 +907,19 @@ $handle = [IntPtr]::new([int64]${flowInsertTarget.handle})
     config: proactiveService.getConfig(),
   }))
 
-  app.on('second-instance', () => {
+  ipcMain.handle('app:get-pending-share-link', async () => {
+    const nextShareLink = pendingShareLink
+    pendingShareLink = null
+    return nextShareLink
+  })
+
+  app.on('second-instance', (_event, commandLine) => {
+    const shareLink = extractShareLinkArg(commandLine)
+    if (shareLink) {
+      routeShareLinkToRenderer(shareLink)
+      return
+    }
+
     if (!win) {
       createWindow(true)
       return
@@ -946,6 +981,7 @@ $handle = [IntPtr]::new([int64]${flowInsertTarget.handle})
 
   await app.whenReady()
   console.log('[BOOT] App ready. Initializing subsystems...')
+  app.setAsDefaultProtocolClient('soflia')
 
   MenuManager.setup()
   registerFlowShortcut()

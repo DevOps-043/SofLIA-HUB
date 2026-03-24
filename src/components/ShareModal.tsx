@@ -97,7 +97,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             const profile = email ? profilesByEmail.get(email) : undefined;
             return {
               ...member,
-              shareTargetUserId: member.user_id || profile?.id,
+              shareTargetUserId: profile?.id,
               liaisonUserId: profile?.id,
               liaisonEmail: profile?.email || email || undefined,
             };
@@ -136,7 +136,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   );
 
   const handleShare = async (member: MemberWithLia) => {
-    const targetUserId = member.shareTargetUserId || member.user_id || member.liaisonUserId;
+    const targetUserId = member.shareTargetUserId || member.liaisonUserId;
     if (!targetUserId) {
       setErrorMessage('Ese miembro no tiene un identificador valido para compartir.');
       return;
@@ -314,7 +314,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                         member.user_profile?.email ||
                         'Usuario';
                       const avatar = member.user_profile?.profile_picture_url;
-                      const isAvailable = Boolean(member.shareTargetUserId || member.liaisonUserId);
+                      const isAvailable = Boolean(member.liaisonUserId);
                       const isBusy = pendingMemberId === member.id;
 
                       return (
