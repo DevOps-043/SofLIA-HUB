@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ============================================================================
 // WhatsApp Workflow Presentacion Tests (WA-151 to WA-160)
@@ -70,6 +70,10 @@ describe('PresentacionWorkflow', () => {
     mockGenerateContent.mockResolvedValue({
       response: { text: () => '{"company": "TechCorp", "email": "test@techcorp.com"}' },
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   // WA-151: El estado inicial es AWAITING_DATA
@@ -262,6 +266,41 @@ describe('PresentacionWorkflow', () => {
 
     expect((workflow as any).state).toBe('COMPLETED');
     delete process.env.VITE_GAMMA_API_KEY;
+  });
+
+  it('WA-161: permite cancelar el flujo desde AWAITING_DATA con lenguaje natural', async () => {
+    const extractSpy = vi.spyOn(workflow as any, 'extractData');
+
+    const handled = await workflow.handleInput('Cancela el flujo');
+
+    expect(handled).toBe(false);
+    expect(extractSpy).not.toHaveBeenCalled();
+    expect(mockSendText).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.stringContaining('cancelado'),
+    );
+  });
+
+  it('WA-162: cancela el flujo por inactividad despues de 5 minutos', async () => {
+    vi.useFakeTimers();
+
+    await WorkflowManager.startWorkflow(
+      'mgr-timeout',
+      '5551234567@s.whatsapp.net',
+      '5551234567',
+      mockWaService as any,
+      mockAgent as any,
+    );
+
+    expect(WorkflowManager.isActive('mgr-timeout')).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000);
+
+    expect(WorkflowManager.isActive('mgr-timeout')).toBe(false);
+    expect(mockSendText).toHaveBeenCalledWith(
+      '5551234567@s.whatsapp.net',
+      expect.stringContaining('inactividad'),
+    );
   });
 });
 

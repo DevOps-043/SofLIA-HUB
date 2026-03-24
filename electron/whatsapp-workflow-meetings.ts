@@ -2,7 +2,12 @@ import type { MeetingWorkflowService } from './meetings/meeting-workflow-service
 import type { MeetingRunDetail, UpdateMeetingActionInput } from './meetings/meeting-types';
 import type { WhatsAppService } from './whatsapp-service';
 
+const WORKFLOW_TIMEOUT_MS = 5 * 60 * 1000;
+const CANCEL_WORKFLOW_PATTERN = /\b(cancelar|cancela(?:r)?|cerrar|salir|detener)\b/i;
+
 class MeetingWhatsAppWorkflow {
+  private inactivityTimer: ReturnType<typeof setTimeout> | null = null;
+
   constructor(
     public readonly sessionKey: string,
     private readonly jid: string,
@@ -14,13 +19,15 @@ class MeetingWhatsAppWorkflow {
   ) {}
 
   async start(): Promise<void> {
+    this.scheduleInactivityTimeout();
+
     if (this.runId) {
       await this.waService.sendText(
         this.jid,
         this.introMessage || [
           'Detecte una reunion nueva y ya cargue la transcripcion.',
           `Run: ${this.runId}`,
-          'Usa "estado", "acciones", "aprobar resumen", "aprobar accion N" o "sincronizar".',
+          'Usa "estado", "acciones", "aprobar resumen", "aprobar accion N", "sincronizar" o "cancelar".',
         ].join('\n'),
       );
       return;
@@ -44,25 +51,27 @@ class MeetingWhatsAppWorkflow {
     const lower = text.trim().toLowerCase();
 
     try {
-      if (lower === 'cancelar' || lower === 'cerrar') {
-        await this.waService.sendText(this.jid, 'Workflow de reuniones cancelado.');
-        return false;
+      if (this.isCancelRequest(lower)) {
+        return this.cancelWorkflow('Workflow de reuniones cancelado.');
       }
 
       if (!this.runId) {
         const result = await this.importSource(text);
         this.runId = result.detail.run.id;
+        this.scheduleInactivityTimeout();
         await this.waService.sendText(this.jid, this.formatRunDetail(result.detail, result.deduplicated));
         return true;
       }
 
       if (lower === 'estado') {
+        this.scheduleInactivityTimeout();
         const detail = await this.workflowService.getRunDetail(this.runId);
         await this.waService.sendText(this.jid, this.formatStatus(detail));
         return true;
       }
 
       if (lower === 'acciones') {
+        this.scheduleInactivityTimeout();
         const detail = await this.workflowService.getRunDetail(this.runId);
         await this.waService.sendText(this.jid, this.formatActionList(detail));
         return true;
@@ -71,6 +80,7 @@ class MeetingWhatsAppWorkflow {
       if (lower === 'aprobar resumen') {
         const detail = await this.workflowService.approveAsset(this.runId, this.senderNumber, 'Aprobado desde WhatsApp');
         const shouldClose = this.shouldCloseWorkflow(detail);
+        if (!shouldClose) this.scheduleInactivityTimeout();
         await this.waService.sendText(
           this.jid,
           `Resumen aprobado.\n\n${this.formatStatus(detail)}${shouldClose ? '\n\nWorkflow de reuniones finalizado. Ya puedes volver a preguntarme lo que necesites.' : ''}`,
@@ -86,6 +96,7 @@ class MeetingWhatsAppWorkflow {
           'Acciones aprobadas desde WhatsApp',
         );
         const shouldClose = this.shouldCloseWorkflow(detail);
+        if (!shouldClose) this.scheduleInactivityTimeout();
         await this.waService.sendText(
           this.jid,
           `Acciones aprobadas.\n\n${this.formatStatus(detail)}${shouldClose ? '\n\nWorkflow de reuniones finalizado. Ya puedes volver a preguntarme lo que necesites.' : ''}`,
@@ -97,6 +108,7 @@ class MeetingWhatsAppWorkflow {
       if (approveSingleMatch) {
         const action = this.getActionByNumber(await this.workflowService.getRunDetail(this.runId), Number(approveSingleMatch[1]));
         if (!action) {
+          this.scheduleInactivityTimeout();
           await this.waService.sendText(this.jid, 'No encontre ese numero de accion.');
           return true;
         }
@@ -106,6 +118,7 @@ class MeetingWhatsAppWorkflow {
           [action.id],
           'Accion aprobada desde WhatsApp',
         );
+        this.scheduleInactivityTimeout();
         await this.waService.sendText(this.jid, `Accion ${approveSingleMatch[1]} aprobada.\n\n${this.formatActionList(detail)}`);
         return true;
       }
@@ -115,12 +128,14 @@ class MeetingWhatsAppWorkflow {
         const detail = await this.workflowService.getRunDetail(this.runId);
         const action = this.getActionByNumber(detail, Number(editMatch[1]));
         if (!action) {
+          this.scheduleInactivityTimeout();
           await this.waService.sendText(this.jid, 'No encontre ese numero de accion.');
           return true;
         }
 
         const updates = this.parseActionUpdates(editMatch[2]);
         if (Object.keys(updates).length === 0) {
+          this.scheduleInactivityTimeout();
           await this.waService.sendText(
             this.jid,
             'No detecte cambios validos. Usa por ejemplo: editar accion 1 titulo="Preparar minuta" fecha=2026-03-20 team=TEAM_ID proyecto=PROJECT_ID responsable="Juan Perez" assignee=USER_ID',
@@ -129,6 +144,7 @@ class MeetingWhatsAppWorkflow {
         }
 
         const updatedDetail = await this.workflowService.updateAction(action.id, updates);
+        this.scheduleInactivityTimeout();
         await this.waService.sendText(this.jid, `Accion ${editMatch[1]} actualizada.\n\n${this.formatActionList(updatedDetail)}`);
         return true;
       }
@@ -143,11 +159,54 @@ class MeetingWhatsAppWorkflow {
         this.jid,
         await this.buildUnknownInstructionMessage(),
       );
-      return !this.shouldCloseWorkflow(await this.workflowService.getRunDetail(this.runId));
+      const shouldStayOpen = !this.shouldCloseWorkflow(await this.workflowService.getRunDetail(this.runId));
+      if (shouldStayOpen) this.scheduleInactivityTimeout();
+      return shouldStayOpen;
     } catch (error: any) {
+      this.scheduleInactivityTimeout();
       await this.waService.sendText(this.jid, `No pude completar la accion: ${error?.message || String(error)}`);
       return true;
     }
+  }
+
+  dispose(): void {
+    this.clearInactivityTimer();
+  }
+
+  private isCancelRequest(text: string): boolean {
+    return CANCEL_WORKFLOW_PATTERN.test(text.trim());
+  }
+
+  private scheduleInactivityTimeout(): void {
+    this.clearInactivityTimer();
+    this.inactivityTimer = setTimeout(() => {
+      this.handleInactivityTimeout().catch((error) => {
+        console.error('[MeetingWhatsAppWorkflow] Error handling inactivity timeout:', error);
+      });
+    }, WORKFLOW_TIMEOUT_MS);
+  }
+
+  private clearInactivityTimer(): void {
+    if (this.inactivityTimer) {
+      clearTimeout(this.inactivityTimer);
+      this.inactivityTimer = null;
+    }
+  }
+
+  private async handleInactivityTimeout(): Promise<void> {
+    this.clearInactivityTimer();
+    await this.waService.sendText(
+      this.jid,
+      'Workflow de reuniones cancelado por inactividad despues de 5 minutos. Si quieres retomarlo, inicia /reunion de nuevo.',
+    );
+    MeetingWorkflowManager.endWorkflow(this.sessionKey);
+  }
+
+  private async cancelWorkflow(message: string): Promise<boolean> {
+    this.clearInactivityTimer();
+    await this.waService.sendText(this.jid, message);
+    MeetingWorkflowManager.endWorkflow(this.sessionKey);
+    return false;
   }
 
   private async importSource(text: string) {
@@ -340,12 +399,15 @@ class MeetingWorkflowManagerClass {
 
     const stillActive = await workflow.handleInput(text);
     if (!stillActive) {
+      workflow.dispose();
       this.activeWorkflows.delete(sessionKey);
     }
     return true;
   }
 
   endWorkflow(sessionKey: string): void {
+    const workflow = this.activeWorkflows.get(sessionKey);
+    workflow?.dispose();
     this.activeWorkflows.delete(sessionKey);
   }
 
@@ -358,6 +420,8 @@ class MeetingWorkflowManagerClass {
     runId?: string | null,
     introMessage?: string | null,
   ): Promise<void> {
+    const existingWorkflow = this.activeWorkflows.get(sessionKey);
+    existingWorkflow?.dispose();
     const workflow = new MeetingWhatsAppWorkflow(
       sessionKey,
       jid,

@@ -4,6 +4,15 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.1.7] - 2026-03-23
+
+### Fixed
+
+- **Timeout en flujos activos de WhatsApp:** Los workflows de presentacion y reuniones ahora se cancelan automaticamente tras 5 minutos de inactividad y recuerdan al usuario que puede escribir `cancelar` para salir.
+- **Bucle de respuesta generica del agente:** El agente ya no debe caer en respuestas repetidas como "¿En qué puedo ayudarte?" ante solicitudes sustantivas; ahora detecta ese fallback y reintenta la atencion real del mensaje.
+- **Promesas vacias de investigacion:** Cuando el usuario pide investigar o revisar algo, el agente ahora fuerza ejecucion real de herramientas en lugar de responder que "va a investigar" sin hacer nada por detras.
+- **Texto corrupto en salidas de WhatsApp:** Se agrego saneamiento de mojibake para normalizar caracteres rotos antes de formatear y enviar respuestas por WhatsApp.
+
 ## [0.1.6] - 2026-03-23
 
 ### Added

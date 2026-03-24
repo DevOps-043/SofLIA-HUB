@@ -140,6 +140,14 @@ describe('WhatsApp Prompts', () => {
     expect(classifyEvidenceRequirement('Verifica visualmente en la ventana principal si ya quedó guardado')).toBe('local_visual');
   });
 
+  it('WA-155: detecta peticiones de investigacion como solicitudes de accion', () => {
+    expect(detectActionRequest('Ayudame a investigar el capitulo 5 del CCNA')).toBe(true);
+  });
+
+  it('WA-156: repara texto mojibake al formatear para WhatsApp', () => {
+    expect(formatForWhatsApp('Â¿En quÃ© puedo ayudarte?')).toContain('¿En qué puedo ayudarte?');
+  });
+
   // WA-151: La longitud del prompt es sustancial (>500 caracteres)
   it('WA-151: la longitud del system prompt es sustancial (mayor a 500 caracteres)', async () => {
     const prompt = await buildSystemPrompt();

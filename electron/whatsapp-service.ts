@@ -16,6 +16,7 @@ import makeWASocket, {
 } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import QRCode from 'qrcode';
+import { normalizeOutgoingWhatsAppText } from './whatsapp-text';
 
 const logger = pino({ level: 'silent' });
 
@@ -553,14 +554,16 @@ export class WhatsAppService extends EventEmitter {
       throw new Error('WhatsApp no está conectado.');
     }
 
+    const normalizedText = normalizeOutgoingWhatsAppText(text);
+
     // Split long messages (WhatsApp limit ~65536 chars but readability limit ~4000)
     const MAX_MSG_LENGTH = 4000;
-    if (text.length <= MAX_MSG_LENGTH) {
-      await this.sock.sendMessage(jid, { text });
+    if (normalizedText.length <= MAX_MSG_LENGTH) {
+      await this.sock.sendMessage(jid, { text: normalizedText });
     } else {
       const parts = [];
-      for (let i = 0; i < text.length; i += MAX_MSG_LENGTH) {
-        parts.push(text.slice(i, i + MAX_MSG_LENGTH));
+      for (let i = 0; i < normalizedText.length; i += MAX_MSG_LENGTH) {
+        parts.push(normalizedText.slice(i, i + MAX_MSG_LENGTH));
       }
       for (const part of parts) {
         await this.sock.sendMessage(jid, { text: part });

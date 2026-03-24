@@ -8,6 +8,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { exec as execCb } from 'node:child_process';
 import { promisify } from 'node:util';
+import { normalizeOutgoingWhatsAppText } from './whatsapp-text';
 
 const execAsync = promisify(execCb);
 
@@ -413,6 +414,9 @@ Responde en español a menos que pidan otro idioma.${memoryContext}`;
 // ─── Action detection: force tool calling when user requests an action ──
 export function detectActionRequest(message: string): boolean {
   const actionPatterns = /\b(organiza|crea|envía|envia|busca|descarga|sube|elimina|borra|abre|programa|mueve|copia|lee|revisa|hazme|necesito que|puedes|ayúdame a|ayudame a|manda|pon|mete|clasifica|ordena|etiqueta|agenda|escribe|genera|analiza|enviar|crear|abrir|subir|descargar|mover|copiar|borrar|eliminar|organizar|etiquetar|clasificar|ordenar|vuelve a|hazlo otra vez|otra vez|repite|termina|continua|continúa|sigue con|saca|sacar|quita|quitar|intenta de nuevo|volver a intentar|rehaz|rehacer)\b/i;
+  if (/\b(investiga|investigar|averigua|averiguar|indaga|indagar|consulta|consultar|profundiza|profundizar)\b/i.test(message)) {
+    return true;
+  }
   return actionPatterns.test(message);
 }
 
@@ -729,7 +733,7 @@ export async function readWebpage(url: string): Promise<{ success: boolean; cont
 
 // ─── Post-process: strip markdown formatting for WhatsApp ───────────
 export const formatForWhatsApp = (text: string, isGroup: boolean = false): string => {
-  let result = text;
+  let result = normalizeOutgoingWhatsAppText(text);
 
   // Add group identity header like OpenClaw/Shelldon
   if (isGroup) {
@@ -754,5 +758,5 @@ export const formatForWhatsApp = (text: string, isGroup: boolean = false): strin
   result = result.replace(/^\s*[-•]\s+/gm, '• ');
   // Collapse 3+ newlines into 2
   result = result.replace(/\n{3,}/g, '\n\n');
-  return result.trim();
+  return normalizeOutgoingWhatsAppText(result).trim();
 }

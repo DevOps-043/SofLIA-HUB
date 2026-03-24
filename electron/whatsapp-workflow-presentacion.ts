@@ -10,9 +10,13 @@ interface PresentacionData {
   proposalContent?: string;
 }
 
+const WORKFLOW_TIMEOUT_MS = 5 * 60 * 1000;
+const CANCEL_WORKFLOW_PATTERN = /\b(cancela(?:r)?|cancelar|cancela el flujo|salir|detener)\b/i;
+
 export class PresentacionWorkflow {
   private state: WorkflowState = 'AWAITING_DATA';
   private data: PresentacionData = {};
+  private inactivityTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     public sessionKey: string,
@@ -24,29 +28,40 @@ export class PresentacionWorkflow {
 
   async start() {
     this.state = 'AWAITING_DATA';
+    this.scheduleInactivityTimeout();
+    await this.waService.sendText(this.jid, 'Si quieres salir del flujo en cualquier momento, escribe "cancelar".');
     await this.waService.sendText(this.jid, '¡Hola! Vamos a crear una presentación ejecutiva.\n\nPor favor, dime:\n1. El *nombre de la empresa* de tu cliente.\n2. El *correo electrónico* a donde la enviaremos.\n\n(Ej. "Empresa TechCorp y mi correo es test@example.com")');
   }
 
   async handleInput(text: string): Promise<boolean> {
+    if (this.isCancelRequest(text)) {
+      return this.cancelWorkflow('Flujo cancelado.');
+    }
+
     if (this.state === 'AWAITING_DATA') {
       await this.extractData(text);
       if (this.data.clientCompanyName && this.data.clientEmail) {
         this.state = 'PROCESSING_PROPOSAL';
+        this.clearInactivityTimer();
         await this.waService.sendText(this.jid, `¡Perfecto! Tengo los datos:\nEmpresa: *${this.data.clientCompanyName}*\nCorreo: *${this.data.clientEmail}*\n\n⏳ Preparando el resumen ejecutivo de la propuesta...`);
         
         // Lanzar el procesamiento en background
         this.generateProposal().catch(err => {
           console.error('[Workflow] Error en procesamiento:', err);
           this.waService.sendText(this.jid, '❌ Ocurrió un error al procesar el resumen. Intenta de nuevo más tarde.');
+          this.clearInactivityTimer();
           WorkflowManager.endWorkflow(this.sessionKey);
         });
       } else {
+        this.scheduleInactivityTimeout();
+        await this.waService.sendText(this.jid, 'Sigo dentro del flujo de presentacion. Necesito el nombre de la empresa y el correo para continuar. Si quieres salir, escribe "cancelar".');
         await this.waService.sendText(this.jid, 'No pude identificar claramente la empresa y el correo. Por favor, indícamelos nuevamente.');
       }
       return true;
     }
     
     if (this.state === 'PROCESSING_PROPOSAL') {
+      this.clearInactivityTimer();
       await this.waService.sendText(this.jid, '⏳ Sigo analizando y generando el resumen. Por favor espera...');
       return true;
     }
@@ -57,6 +72,7 @@ export class PresentacionWorkflow {
       
       if (isApproval) {
         this.state = 'GENERATING_PRESENTATION';
+        this.clearInactivityTimer();
         await this.waService.sendText(this.jid, '✅ ¡Aprobado! Generando la presentación con Gamma (esto puede tardar unos segundos)...');
         
         this.finishPresentation().catch(err => {
@@ -68,9 +84,10 @@ export class PresentacionWorkflow {
         // En un flujo real podríamos tomar esto como feedback y regenerar la propuesta
         // Para simplificar, le pediremos que confirme si desea cancelar
         if (lower.includes('no') || lower.includes('cancela')) {
-           await this.waService.sendText(this.jid, 'Flujo cancelado.');
-           return false; // Finaliza workflow
+           return this.cancelWorkflow('Flujo cancelado.');
         } else {
+           this.scheduleInactivityTimeout();
+           await this.waService.sendText(this.jid, 'Sigo dentro del flujo de presentacion. Responde "si" para generar la presentacion o "cancelar" para salir.');
            await this.waService.sendText(this.jid, 'Por favor, dime "sí" para generar la presentación o "cancelar" para detener el flujo.');
         }
       }
@@ -78,11 +95,56 @@ export class PresentacionWorkflow {
     }
 
     if (this.state === 'GENERATING_PRESENTATION') {
+      this.clearInactivityTimer();
       await this.waService.sendText(this.jid, '🎨 Terminando de generar y enviar tu presentación. Espera un momento...');
       return true;
     }
 
     return false; // Workflow finalizado
+  }
+
+  private isCancelRequest(text: string): boolean {
+    return CANCEL_WORKFLOW_PATTERN.test(text.trim());
+  }
+
+  private scheduleInactivityTimeout(): void {
+    this.clearInactivityTimer();
+    this.inactivityTimer = setTimeout(() => {
+      this.handleInactivityTimeout().catch((error) => {
+        console.error('[Workflow] Error handling inactivity timeout:', error);
+      });
+    }, WORKFLOW_TIMEOUT_MS);
+  }
+
+  private clearInactivityTimer(): void {
+    if (this.inactivityTimer) {
+      clearTimeout(this.inactivityTimer);
+      this.inactivityTimer = null;
+    }
+  }
+
+  private async handleInactivityTimeout(): Promise<void> {
+    if (this.state === 'COMPLETED') {
+      return;
+    }
+
+    this.clearInactivityTimer();
+    await this.waService.sendText(
+      this.jid,
+      'Flujo cancelado por inactividad despues de 5 minutos. Si quieres retomarlo, inicia el flujo de nuevo.',
+    );
+    WorkflowManager.endWorkflow(this.sessionKey);
+  }
+
+  private async cancelWorkflow(message: string): Promise<boolean> {
+    this.clearInactivityTimer();
+    await this.waService.sendText(this.jid, message);
+    WorkflowManager.endWorkflow(this.sessionKey);
+    return false;
+  }
+
+  dispose(): void {
+    this.clearInactivityTimer();
   }
 
   private async extractData(text: string) {
@@ -130,12 +192,14 @@ Este resumen es SOLO para que nuestro usuario local lo revise, no es la presenta
 
       // Transición al estado de aprobación
       this.state = 'AWAITING_APPROVAL';
+      this.scheduleInactivityTimeout();
 
       const msg = `📋 *Resumen Ejecutivo Propuesto para ${this.data.clientCompanyName}:*\n\n${this.data.proposalContent}\n\n¿Le doy el visto bueno para generar la presentación final enviarla a ${this.data.clientEmail}? (Responde "sí" o "cancelar")`;
       await this.waService.sendText(this.jid, msg);
     } catch (err: any) {
       console.error('[Workflow] Error en generateProposal:', err);
       await this.waService.sendText(this.jid, `❌ Hubo un error generando el resumen: ${err.message}`);
+      this.clearInactivityTimer();
       WorkflowManager.endWorkflow(this.sessionKey);
     }
   }
@@ -229,11 +293,13 @@ Genera el texto en formato markdown con títulos y bullet points viables para Ga
       await this.waService.sendText(this.jid, `✅ *Flujo Completado* 🎉\n\nPropuesta de valor generada para *${this.data.clientCompanyName}*.\n\n🔗 Link de la Presentación (Gamma):\n${presentationUrl}\n\n📨 Correo preparado para: ${this.data.clientEmail}\n(Se notificó al sistema de correos)`);
 
       this.state = 'COMPLETED';
+      this.clearInactivityTimer();
       WorkflowManager.endWorkflow(this.sessionKey);
 
     } catch (err: any) {
        console.error('[Workflow] Error en finishPresentation:', err);
        await this.waService.sendText(this.jid, `❌ Error en el paso final: ${err.message}`);
+       this.clearInactivityTimer();
        WorkflowManager.endWorkflow(this.sessionKey);
     }
   }
@@ -247,6 +313,8 @@ class WorkflowManagerClass {
   }
 
   async startWorkflow(sessionKey: string, jid: string, senderNumber: string, waService: WhatsAppService, agent: WhatsAppAgent) {
+    const existingWorkflow = this.activeWorkflows.get(sessionKey);
+    existingWorkflow?.dispose();
     const wf = new PresentacionWorkflow(sessionKey, jid, senderNumber, waService, agent);
     this.activeWorkflows.set(sessionKey, wf);
     await wf.start();
@@ -259,12 +327,15 @@ class WorkflowManagerClass {
     // Process input
     const isStillActive = await wf.handleInput(text);
     if (!isStillActive) {
+      wf.dispose();
       this.activeWorkflows.delete(sessionKey);
     }
     return true;
   }
 
   endWorkflow(sessionKey: string) {
+    const workflow = this.activeWorkflows.get(sessionKey);
+    workflow?.dispose();
     this.activeWorkflows.delete(sessionKey);
   }
 }

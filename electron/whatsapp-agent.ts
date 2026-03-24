@@ -35,6 +35,7 @@ import { WA_TOOL_DECLARATIONS, GROUP_BLOCKED_TOOLS } from './whatsapp-tools';
 import { buildSystemPrompt, classifyEvidenceRequirement, detectActionRequest, formatForWhatsApp } from './whatsapp-prompts';
 import { executeWhatsAppTools, type ToolExecutorContext } from './whatsapp-tool-executor';
 import { dynamicToolService } from './dynamic-tool-service';
+import { normalizeComparableText, normalizeOutgoingWhatsAppText } from './whatsapp-text';
 
 // â”€â”€â”€ [EXTRACTED] Tool definitions â†’ ./whatsapp-tools.ts â”€â”€â”€â”€â”€
 // â”€â”€â”€ [EXTRACTED] Prompts + helpers â†’ ./whatsapp-prompts.ts â”€â”€
@@ -156,6 +157,23 @@ function stableJson(value: any): string {
   } catch {
     return String(value);
   }
+}
+
+function isGenericHelpResponse(text: string): boolean {
+  const normalized = normalizeComparableText(text)
+    .replace(/[!?.,¿¡]/g, '')
+    .trim();
+  return /^(hola )?(soy soflia )?(en que|como) puedo ayudarte( hoy)?$/.test(normalized);
+}
+
+function isExecutionDeferralResponse(text: string): boolean {
+  const normalized = normalizeComparableText(text);
+  return /\b(voy a|hare|realizare|procedere|buscare|investigare|revisare|consultare|analizare|dame un momento|espera un momento|permiteme|me pongo a|voy a realizar una busqueda|voy a buscar|voy a investigar|voy a revisar|voy a analizar)\b/.test(normalized);
+}
+
+function isGreetingOrHelpRequest(text: string): boolean {
+  const normalized = normalizeComparableText(text);
+  return /^(hola|buenos dias|buenas tardes|buenas noches|hey|que puedes hacer|como puedes ayudarme|ayuda|help|menu|comandos|que haces)\b/.test(normalized);
 }
 
 function summarizeFunctionResponses(functionResponses: Array<{ functionResponse: { name: string; response: any } }>): Array<Record<string, any>> {
@@ -1512,7 +1530,11 @@ ${groupPassiveHistory || 'No hay mensajes previos en el bÃºfer.'}
         // If this is the FIRST iteration and user requested an action, the model skipped tool calling.
         // Force a retry telling it to use tools.
         const textParts = parts.filter((p: any) => p.text).map((p: any) => p.text);
-        const finalText = textParts.join('');
+        const finalText = normalizeOutgoingWhatsAppText(textParts.join('')).trim();
+        const genericHelpResponse = isGenericHelpResponse(finalText);
+        const executionDeferral = isExecutionDeferralResponse(finalText);
+        const shouldRetryGenericHelp = genericHelpResponse && !isGreetingOrHelpRequest(userMessage);
+        const shouldForceToolRetry = isActionRequest && (!finalText || executionDeferral || genericHelpResponse);
 
         if ((requiresLocalVisualEvidence && !hasLocalVisualEvidence) || (requiresLocalEvidence && !hasLocalEvidence) || (requiresRemoteEvidence && !hasRemoteEvidence)) {
           const missingEvidence: string[] = [];
@@ -1526,19 +1548,43 @@ ${groupPassiveHistory || 'No hay mensajes previos en el bÃºfer.'}
           continue;
         }
 
-        // If first iteration + action request + model just said "done" without calling tools â†’ force retry
-        if (iterations === 1 && isActionRequest && finalText.trim()) {
-          const lazyPatterns = /completado|listo|he (hecho|realizado|terminado|eliminado|organizado|movido)|ya (lo hice|estÃ¡n|hice|realicÃ©)|las acciones solicitadas|voy a (hacer|crear|organizar|mover|eliminar|sacar)/i;
-          if (lazyPatterns.test(finalText)) {
-            console.warn(`[WhatsApp Agent] Model responded text-only on action request (no tools called). Forcing retry. Text: "${finalText.slice(0, 100)}"`);
-            try {
-              response = await chatSession.sendMessage(
-                'ERROR: NO ejecutaste ninguna herramienta. El usuario pidiÃ³ una ACCIÃ“N y tÃº solo respondiste con texto. DEBES usar function calls (gmail_get_labels, gmail_get_messages, gmail_modify_labels, gmail_delete_label, etc.) para ejecutar la tarea. NO respondas con texto â€” llama las herramientas AHORA.'
-              );
-              continue;
-            } catch (retryErr: any) {
-              console.error(`[WhatsApp Agent] Force-tool retry failed:`, retryErr.message);
-            }
+        if (shouldForceToolRetry) {
+          if (iterations >= 2) {
+            return formatForWhatsApp(
+              'No pude ejecutar bien tu solicitud. Intenta de nuevo con mas detalle o dime exactamente que debo investigar o revisar.',
+              isGroup,
+            );
+          }
+
+          console.warn(`[WhatsApp Agent] Model skipped execution on actionable request. Retrying. Text: "${finalText.slice(0, 100)}"`);
+          try {
+            const retryMessage = !finalText
+              ? 'ERROR: Devolviste una respuesta vacia y no ejecutaste ninguna herramienta. El usuario pidio una accion. Usa function calls ahora y despues entrega el resultado real.'
+              : genericHelpResponse
+                ? 'ERROR: Respondiste con una pregunta generica en lugar de atender la solicitud actual. No preguntes "en que puedo ayudarte". Ejecuta la tarea o explica el bloqueo real.'
+                : 'ERROR: Prometiste que ibas a investigar o actuar pero no ejecutaste ninguna herramienta. No anuncies acciones futuras. Usa function calls ahora y responde solo cuando tengas avance real.';
+            response = await chatSession.sendMessage(retryMessage);
+            continue;
+          } catch (retryErr: any) {
+            console.error(`[WhatsApp Agent] Force-tool retry failed:`, retryErr.message);
+          }
+        }
+
+        if (shouldRetryGenericHelp) {
+          if (iterations >= 2) {
+            return formatForWhatsApp(
+              'No pude responder bien ese mensaje. Escribelo de nuevo o dime exactamente que necesitas.',
+              isGroup,
+            );
+          }
+
+          try {
+            response = await chatSession.sendMessage(
+              'ERROR: La ultima respuesta fue una pregunta generica que no atiende el mensaje actual. Responde directamente a la solicitud del usuario sin reiniciar el chat.',
+            );
+            continue;
+          } catch (retryErr: any) {
+            console.error(`[WhatsApp Agent] Generic-help retry failed:`, retryErr.message);
           }
         }
 
@@ -1547,7 +1593,7 @@ ${groupPassiveHistory || 'No hay mensajes previos en el bÃºfer.'}
         history.push({ role: 'model', parts: [{ text: finalText }] });
 
         // Persist model response to 3-layer memory
-        if (finalText.trim()) {
+        if (finalText) {
           this.memory.saveMessage({
             sessionKey,
             phoneNumber: senderNumber,
@@ -1567,13 +1613,13 @@ ${groupPassiveHistory || 'No hay mensajes previos en el bÃºfer.'}
         }
 
         // If the response was blocked or errored, provide useful feedback
-        if (!finalText.trim() && finishReason && finishReason !== 'STOP') {
+        if (!finalText && finishReason && finishReason !== 'STOP') {
           console.error(`[WhatsApp Agent] Model returned empty text with finishReason: ${finishReason}`);
           return formatForWhatsApp('Hubo un problema procesando tu solicitud. Intenta reformular tu mensaje.', isGroup);
         }
 
         // If empty text with STOP, check Google connection and provide contextual help
-        if (!finalText.trim()) {
+        if (!finalText) {
           console.warn(`[WhatsApp Agent] Empty text response for message: "${userMessage.slice(0, 80)}". finishReason: ${finishReason}, iterations: ${iterations}`);
 
           // Check if user message was about Google services and connection is missing
@@ -1587,7 +1633,10 @@ ${groupPassiveHistory || 'No hay mensajes previos en el bÃºfer.'}
           }
         }
 
-        const finalResponse = finalText.trim() || 'Â¿En quÃ© puedo ayudarte?';
+        const fallbackResponse = isGreetingOrHelpRequest(userMessage)
+          ? '\u00bfEn qu\u00e9 puedo ayudarte?'
+          : 'No pude procesar bien tu solicitud. Intenta de nuevo con mas detalle.';
+        const finalResponse = finalText || fallbackResponse;
         return formatForWhatsApp(finalResponse, isGroup);
       }
 
