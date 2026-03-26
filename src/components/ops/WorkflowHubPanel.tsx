@@ -883,7 +883,7 @@ export const WorkflowHubPanel: React.FC<WorkflowHubPanelProps> = ({ userId }) =>
 
                   {selectedWorkflow.passiveBehavior === 'system' ? (
                     <div className="rounded-xl border border-cyan-500/20 bg-white/70 dark:bg-black/10 px-4 py-3 text-xs text-cyan-700 dark:text-cyan-200">
-                      Reuniones ya funciona como workflow pasivo de sistema. SofLIA revisa Calendar, Gmail y Drive para detectar reuniones y correr el flujo completo automaticamente.
+                      Reuniones ya funciona como workflow pasivo de sistema. SofLIA revisa Calendar, Gmail y Drive para detectar artifacts, y tambien puede arrancar trazabilidad viva cuando una extension dispara `soflia://meeting-trigger`.
                     </div>
                   ) : (
                     <>

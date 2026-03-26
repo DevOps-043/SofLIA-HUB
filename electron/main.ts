@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import * as dotenv from 'dotenv'
+import { extractProtocolArg, parseAppProtocolCommand, type MeetingTriggerPayload } from './app-protocol'
 
 type BootstrapGuard = typeof globalThis & {
   __SOFLIA_BOOTSTRAP_COMPLETE__?: boolean
@@ -12,10 +13,6 @@ type BootstrapGuard = typeof globalThis & {
 type Step<T> = () => Promise<T> | T
 const BACKGROUND_LAUNCH_ARG = '--background'
 const execFileAsync = promisify(execFile)
-
-function extractShareLinkArg(args: string[]): string | null {
-  return args.find((arg) => typeof arg === 'string' && arg.toLowerCase().startsWith('soflia://share/')) || null
-}
 
 function logBootstrapError(context: string, error: unknown): void {
   if (error instanceof Error) {
@@ -195,7 +192,14 @@ async function runBootstrap(): Promise<void> {
   let isQuitting = false
   let flowInsertTarget: { handle: string; title: string } | null = null
   const startInBackground = process.argv.includes(BACKGROUND_LAUNCH_ARG)
-  let pendingShareLink: string | null = extractShareLinkArg(process.argv)
+  const initialProtocolCommand = parseAppProtocolCommand(extractProtocolArg(process.argv))
+  const shouldShowInitialWindow = !startInBackground && initialProtocolCommand?.type !== 'meeting-trigger'
+  let pendingShareLink: string | null = initialProtocolCommand?.type === 'share-link'
+    ? initialProtocolCommand.shareLink
+    : null
+  let pendingMeetingTrigger: MeetingTriggerPayload | null = initialProtocolCommand?.type === 'meeting-trigger'
+    ? initialProtocolCommand.payload
+    : null
   let currentGeminiApiKey: string | null = process.env.VITE_GEMINI_API_KEY || null
   let waAgent: InstanceType<typeof WhatsAppAgent> | null = null
   let neuralOrganizer: InstanceType<typeof NeuralOrganizerAI> | null = null
@@ -615,6 +619,31 @@ $handle = [IntPtr]::new([int64]${flowInsertTarget.handle})
     win.webContents.send('app:share-link', shareLink)
   }
 
+  function routeMeetingTriggerToRenderer(payload: MeetingTriggerPayload): void {
+    pendingMeetingTrigger = payload
+
+    if (!win) {
+      createWindow(false)
+      return
+    }
+
+    win.webContents.send('app:meeting-trigger', payload)
+
+    if (!Notification.isSupported()) {
+      return
+    }
+
+    const title = payload.meetingTitle || payload.meetingCode || 'Reunion detectada'
+    const body = payload.action === 'stop'
+      ? `${title}: la extension marco el cierre de la reunion.`
+      : `${title}: la extension activo el seguimiento de trazabilidad.`
+
+    new Notification({
+      title: 'Workflow de reuniones',
+      body,
+    }).show()
+  }
+
   async function sendSummaryWhatsApp(phoneNumber: string, summaryText: string): Promise<{ success: boolean; error?: string }> {
     try {
       if (!waService.getStatus().connected) {
@@ -913,10 +942,21 @@ $handle = [IntPtr]::new([int64]${flowInsertTarget.handle})
     return nextShareLink
   })
 
+  ipcMain.handle('app:get-pending-meeting-trigger', async () => {
+    const nextMeetingTrigger = pendingMeetingTrigger
+    pendingMeetingTrigger = null
+    return nextMeetingTrigger
+  })
+
   app.on('second-instance', (_event, commandLine) => {
-    const shareLink = extractShareLinkArg(commandLine)
-    if (shareLink) {
-      routeShareLinkToRenderer(shareLink)
+    const protocolCommand = parseAppProtocolCommand(extractProtocolArg(commandLine))
+    if (protocolCommand?.type === 'share-link') {
+      routeShareLinkToRenderer(protocolCommand.shareLink)
+      return
+    }
+
+    if (protocolCommand?.type === 'meeting-trigger') {
+      routeMeetingTriggerToRenderer(protocolCommand.payload)
       return
     }
 
@@ -1021,7 +1061,7 @@ $handle = [IntPtr]::new([int64]${flowInsertTarget.handle})
     remoteNodeService,
   }))
   await runOptionalStep('dynamicToolService.init', () => dynamicToolService.initialize())
-  await runOptionalStep('createWindow', () => createWindow(!startInBackground))
+  await runOptionalStep('createWindow', () => createWindow(shouldShowInitialWindow))
   await runOptionalStep('createTray', () => createTray())
 
   if (currentGeminiApiKey) {

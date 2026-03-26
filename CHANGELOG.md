@@ -4,6 +4,23 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.1.10] - 2026-03-26
+
+### Added
+
+- **Triggers nativos de reuniones desde la extension:** SofLIA ahora atiende `soflia://meeting-trigger` para iniciar, mantener y cerrar sesiones `meeting_auto` desde el navegador, reutilizando el motor de monitoreo operativo de la app.
+- **Cobertura de pruebas para meeting triggers de escritorio:** Se agregaron pruebas del protocolo de app, del workflow de reuniones y del servicio renderer que decide cuando arrancar, ignorar o cerrar una sesion automatica.
+
+### Changed
+
+- **Meeting Ops con trazabilidad operativa real:** La documentacion, el Workflow Hub y los mensajes del flujo de reuniones ahora distinguen claramente entre la sesion de evidencia `meeting_auto` y el `meeting_run` formal respaldado por artifacts.
+- **Monitoreo enriquecido para reuniones detectadas externamente:** Los snapshots y logs de actividad ahora etiquetan el origen `meeting_auto` para que passive detection y los flujos posteriores puedan reconstruir mejor el contexto de la sesion.
+
+### Fixed
+
+- **Sesion automatica mezclada entre usuarios locales:** El estado persistido de una reunion detectada por extension ya no puede reutilizar ni cerrar por error una sesion guardada para otro usuario del mismo equipo.
+- **Rutas de rechazo y cancelacion en reuniones:** El workflow de reuniones responde de forma mas consistente cuando el usuario rechaza, cancela o retoma un caso iniciado por deteccion pasiva o por trigger externo.
+
 ## [0.1.9] - 2026-03-26
 
 ### Added

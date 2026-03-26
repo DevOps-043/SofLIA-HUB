@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS monitoring_sessions (
   user_id UUID NOT NULL,
   started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   ended_at TIMESTAMPTZ,
-  trigger_type TEXT NOT NULL DEFAULT 'manual',        -- 'manual' | 'calendar_auto'
+  trigger_type TEXT NOT NULL DEFAULT 'manual',        -- 'manual' | 'calendar_auto' | 'meeting_auto'
   calendar_event_title TEXT,
   total_active_seconds INTEGER DEFAULT 0,
   total_idle_seconds INTEGER DEFAULT 0,

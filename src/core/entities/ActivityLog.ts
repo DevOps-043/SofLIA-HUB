@@ -21,7 +21,7 @@ export interface MonitoringSession {
   userId: string;
   startedAt: Date;
   endedAt?: Date;
-  triggerType: 'manual' | 'calendar_auto';
+  triggerType: 'manual' | 'calendar_auto' | 'meeting_auto';
   calendarEventTitle?: string;
   totalActiveSeconds: number;
   totalIdleSeconds: number;

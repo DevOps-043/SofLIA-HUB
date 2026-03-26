@@ -3,7 +3,191 @@ import type { MeetingRunDetail, UpdateMeetingActionInput } from './meetings/meet
 import type { WhatsAppService } from './whatsapp-service';
 
 const WORKFLOW_TIMEOUT_MS = 5 * 60 * 1000;
-const CANCEL_WORKFLOW_PATTERN = /\b(cancelar|cancela(?:r)?|cerrar|salir|detener)\b/i;
+const CANCEL_WORKFLOW_PATTERN = /\b(cancelar|cancela(?:r)?|cerrar|salir|detener|rechazar|rechaza(?:r)?|no aprobar|no apruebo)\b/i;
+const REJECT_WORKFLOW_PATTERN = /\b(rechazar|rechaza(?:r)?|no aprobar|no apruebo)\b/i;
+
+interface MeetingRunIntroMessageOptions {
+  fallbackTitle?: string | null;
+  busy?: boolean;
+}
+
+export function buildMeetingRunIntroMessage(
+  detail: MeetingRunDetail,
+  options: MeetingRunIntroMessageOptions = {},
+): string {
+  const title = resolveMeetingTitle(detail, options.fallbackTitle);
+  const typeLabel = resolveMeetingTypeLabel(detail);
+  const contextLine = buildContextLine(detail);
+  const focusLine = buildFocusLine(detail);
+  const promptPreview = buildPromptPreview(detail);
+  const summary = truncateText(getMeetingExecutiveSummary(detail), 360);
+  const lines = options.busy
+    ? [
+        'Detecte otra reunion mientras tu workflow actual sigue abierto.',
+        'La deje lista para que la revises despues.',
+      ]
+    : [
+        'Detecte una reunion nueva y ya prepare un brief para revisarla contigo.',
+        'Antes de sincronizar nada, quiero que valides el enfoque.',
+      ];
+
+  lines.push('');
+  lines.push(`Reunion: ${title}`);
+  lines.push(`Tipo detectado: ${typeLabel}`);
+  if (contextLine) {
+    lines.push(`Contexto: ${contextLine}`);
+  }
+  if (focusLine) {
+    lines.push(`Enfoque: ${focusLine}`);
+  }
+
+  if (promptPreview.length > 0) {
+    lines.push('');
+    lines.push('Prompt operativo generado:');
+    for (const line of promptPreview) {
+      lines.push(`- ${line}`);
+    }
+  }
+
+  if (summary) {
+    lines.push('');
+    lines.push(`Resumen inicial: ${summary}`);
+  }
+
+  lines.push('');
+  if (options.busy) {
+    lines.push('Cuando cierres el workflow actual, revisala desde la app en Meetings.');
+  } else {
+    lines.push('Si este encuadre si representa la reunion, responde "aprobar resumen".');
+    lines.push('Si quieres revisar el detalle antes, responde "estado" o "acciones".');
+    lines.push('Si no te convence, responde "rechazar" o "cancelar".');
+  }
+  lines.push(`Ref: ${detail.run.id}`);
+
+  return lines.join('\n');
+}
+
+function resolveMeetingTitle(detail: MeetingRunDetail, fallbackTitle?: string | null): string {
+  return detail.run.meeting_title
+    || detail.latest_asset?.payload.meeting_title
+    || fallbackTitle
+    || 'Sin titulo';
+}
+
+function resolveMeetingTypeLabel(detail: MeetingRunDetail): string {
+  const analysis = detail.latest_asset?.payload.analysis_result;
+  return analysis?.analysisStrategy.strategyName
+    || humanizeToken(analysis?.meetingType.suggestedType)
+    || humanizeToken(detail.latest_asset?.payload.meeting_type)
+    || humanizeToken(detail.run.meeting_type)
+    || 'General';
+}
+
+function buildContextLine(detail: MeetingRunDetail): string | null {
+  const analysis = detail.latest_asset?.payload.analysis_result;
+  const objectives = summarizeList(analysis?.detectedContext.meetingObjective, 2);
+  const parts = compactParts([
+    analysis?.detectedContext.team ? `equipo ${analysis.detectedContext.team}` : null,
+    analysis?.detectedContext.project ? `proyecto ${analysis.detectedContext.project}` : null,
+    objectives ? `objetivo ${objectives}` : null,
+  ]);
+  return parts.length > 0 ? parts.join(' | ') : null;
+}
+
+function buildFocusLine(detail: MeetingRunDetail): string | null {
+  const analysis = detail.latest_asset?.payload.analysis_result;
+  return summarizeList(
+    analysis?.analysisStrategy.extractionFocus || analysis?.detectedContext.meetingObjective,
+    3,
+  );
+}
+
+function buildPromptPreview(detail: MeetingRunDetail): string[] {
+  const analysis = detail.latest_asset?.payload.analysis_result;
+  if (!analysis) {
+    const fallbackFocus = buildFocusLine(detail);
+    return compactParts([
+      fallbackFocus ? `Me enfocare en ${fallbackFocus}.` : null,
+    ]);
+  }
+
+  const focus = summarizeList(analysis.analysisStrategy.extractionFocus, 3);
+  return compactParts([
+    `La estoy leyendo como ${resolveMeetingTypeLabel(detail)}.`,
+    analysis.analysisStrategy.whyThisStrategy
+      ? truncateSentence(stripStrategyPrefix(analysis.analysisStrategy.whyThisStrategy), 180)
+      : null,
+    focus ? `Voy a priorizar ${focus}.` : null,
+  ]);
+}
+
+function getMeetingExecutiveSummary(detail: MeetingRunDetail): string {
+  return detail.latest_asset?.executive_summary?.trim()
+    || detail.latest_asset?.payload.executive_summary?.trim()
+    || detail.latest_asset?.operational_summary?.trim()
+    || detail.latest_asset?.payload.operational_summary?.trim()
+    || 'Sin resumen.';
+}
+
+function compactParts(parts: Array<string | null | undefined>): string[] {
+  return parts
+    .map((part) => String(part || '').trim())
+    .filter(Boolean);
+}
+
+function summarizeList(values: string[] | null | undefined, limit: number): string | null {
+  const normalized = Array.from(new Set(
+    (values || [])
+      .map((value) => String(value || '').trim())
+      .filter(Boolean),
+  ));
+  if (normalized.length === 0) {
+    return null;
+  }
+  const trimmed = normalized.slice(0, limit);
+  const suffix = normalized.length > limit ? '...' : '';
+  return `${trimmed.join(', ')}${suffix}`;
+}
+
+function humanizeToken(value: string | null | undefined): string | null {
+  const normalized = String(value || '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  return normalized
+    .split(' ')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+function stripStrategyPrefix(value: string): string {
+  return value
+    .replace(/^estrategia seleccionada por clasificacion como\s+/i, '')
+    .replace(/^la estrategia de\s+/i, '')
+    .replace(/^clasifique como\s+/i, '')
+    .trim();
+}
+
+function truncateSentence(value: string, maxLength: number): string {
+  const text = truncateText(value, maxLength);
+  return /[.!?]$/.test(text) ? text : `${text}.`;
+}
+
+function truncateText(value: string | null | undefined, maxLength: number): string {
+  const normalized = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!normalized) {
+    return '';
+  }
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+  return `${normalized.slice(0, Math.max(0, maxLength - 3)).trim()}...`;
+}
 
 class MeetingWhatsAppWorkflow {
   private inactivityTimer: ReturnType<typeof setTimeout> | null = null;
@@ -22,14 +206,8 @@ class MeetingWhatsAppWorkflow {
     this.scheduleInactivityTimeout();
 
     if (this.runId) {
-      await this.waService.sendText(
-        this.jid,
-        this.introMessage || [
-          'Detecte una reunion nueva y ya cargue la transcripcion.',
-          `Run: ${this.runId}`,
-          'Usa "estado", "acciones", "aprobar resumen", "aprobar accion N", "sincronizar" o "cancelar".',
-        ].join('\n'),
-      );
+      const fallbackMessage = await this.buildExistingRunIntroMessage();
+      await this.waService.sendText(this.jid, this.introMessage || fallbackMessage);
       return;
     }
 
@@ -42,7 +220,7 @@ class MeetingWhatsAppWorkflow {
         '1. Notas de reunion en texto.',
         '2. Un link o ID de Google Drive con la transcripcion o notas.',
         '',
-        'Luego podras responder: "estado", "aprobar resumen", "aprobar acciones", "sincronizar" o "cancelar".',
+        'Luego podras responder: "estado", "aprobar resumen", "aprobar acciones", "sincronizar", "rechazar" o "cancelar".',
       ].join('\n'),
     );
   }
@@ -52,7 +230,11 @@ class MeetingWhatsAppWorkflow {
 
     try {
       if (this.isCancelRequest(lower)) {
-        return this.cancelWorkflow('Workflow de reuniones cancelado.');
+        return this.cancelWorkflow(
+          this.isRejectRequest(lower)
+            ? 'Workflow de reuniones rechazado. No sincronice nada y deje el run listo para revision manual.'
+            : 'Workflow de reuniones cancelado.',
+        );
       }
 
       if (!this.runId) {
@@ -177,6 +359,28 @@ class MeetingWhatsAppWorkflow {
     return CANCEL_WORKFLOW_PATTERN.test(text.trim());
   }
 
+  private isRejectRequest(text: string): boolean {
+    return REJECT_WORKFLOW_PATTERN.test(text.trim());
+  }
+
+  private async buildExistingRunIntroMessage(): Promise<string> {
+    if (!this.runId) {
+      return 'No pude preparar el resumen inicial de la reunion.';
+    }
+
+    try {
+      const detail = await this.workflowService.getRunDetail(this.runId);
+      return buildMeetingRunIntroMessage(detail);
+    } catch (error) {
+      console.warn('[MeetingWhatsAppWorkflow] Could not build intro message for existing run:', error);
+      return [
+        'Detecte una reunion nueva y ya cargue la transcripcion.',
+        `Ref: ${this.runId}`,
+        'Responde "estado", "acciones", "aprobar resumen", "rechazar" o "cancelar".',
+      ].join('\n');
+    }
+  }
+
   private scheduleInactivityTimeout(): void {
     this.clearInactivityTimer();
     this.inactivityTimer = setTimeout(() => {
@@ -264,7 +468,7 @@ class MeetingWhatsAppWorkflow {
       `Acciones propuestas: ${actionCount}`,
       `Flags de revision: ${flags.length}`,
       '',
-      'Siguiente paso: responde "acciones" para revisar, luego "aprobar resumen" y despues "aprobar accion N" o "aprobar acciones".',
+      'Siguiente paso: responde "acciones" para revisar, luego "aprobar resumen" y despues "aprobar accion N", "aprobar acciones" o "rechazar".',
     ];
     return lines.join('\n');
   }
@@ -297,7 +501,7 @@ class MeetingWhatsAppWorkflow {
 
   private async buildUnknownInstructionMessage(): Promise<string> {
     if (!this.runId) {
-      return 'No reconoci la instruccion. Usa: "estado", "acciones", "aprobar resumen", "aprobar acciones", "aprobar accion N", "editar accion N ...", "sincronizar" o "cancelar".';
+      return 'No reconoci la instruccion. Usa: "estado", "acciones", "aprobar resumen", "aprobar acciones", "aprobar accion N", "editar accion N ...", "sincronizar", "rechazar" o "cancelar".';
     }
 
     const detail = await this.workflowService.getRunDetail(this.runId);
@@ -305,7 +509,7 @@ class MeetingWhatsAppWorkflow {
       return 'Este workflow de reuniones ya termino. Lo cierro para devolverte el chat normal. Si quieres revisar otra reunion, usa /reunion.';
     }
 
-    return 'No reconoci la instruccion. Usa: "estado", "acciones", "aprobar resumen", "aprobar acciones", "aprobar accion N", "editar accion N ...", "sincronizar" o "cancelar".';
+    return 'No reconoci la instruccion. Usa: "estado", "acciones", "aprobar resumen", "aprobar acciones", "aprobar accion N", "editar accion N ...", "sincronizar", "rechazar" o "cancelar".';
   }
 
   private formatActionList(detail: MeetingRunDetail): string {

@@ -24,6 +24,8 @@ import { GOOGLE_API_KEY } from "./config";
 import { migrateLegacyChatCache } from "./services/chat-service";
 import { migrateLegacyFolderCache } from "./services/folder-service";
 import { resolveShareTargetByToken, type ShareTargetType } from "./services/share-service";
+import { handleAppMeetingTrigger } from "./services/app-meeting-trigger-service";
+import type { BrowserMeetingTriggerPayload } from "./services/meeting-auto-session-store";
 type ActiveView = "chat" | "project" | "productivity";
 
 function AppContent() {
@@ -37,6 +39,7 @@ function AppContent() {
     targetName: string;
   } | null>(null);
   const [pendingShareLink, setPendingShareLink] = useState<string | null>(null);
+  const [pendingMeetingTrigger, setPendingMeetingTrigger] = useState<BrowserMeetingTriggerPayload | null>(null);
   const [shareLinkNotice, setShareLinkNotice] = useState<{ tone: "info" | "error"; message: string } | null>(null);
 
   const dismissShareLinkNotice = useCallback(() => {
@@ -105,12 +108,16 @@ function AppContent() {
     const handleShareLink = (_event: any, shareLink: string) => {
       setPendingShareLink(shareLink);
     };
+    const handleMeetingTrigger = (_event: any, payload: BrowserMeetingTriggerPayload) => {
+      setPendingMeetingTrigger(payload);
+    };
 
     if (ipc) {
       ipc.on("flow-message-received", (_event: any, text: string) => {
         setExternalPrompt(text);
       });
       ipc.on("app:share-link", handleShareLink);
+      ipc.on("app:meeting-trigger", handleMeetingTrigger);
       if (isFlowWindow) {
         ipc.on("flow-window-shown", () => {
           setFlowKey((prev) => prev + 1);
@@ -126,11 +133,22 @@ function AppContent() {
         .catch((error: unknown) => {
           console.warn("[App] No pude recuperar el share link pendiente:", error);
         });
+
+      void ipc.invoke("app:get-pending-meeting-trigger")
+        .then((payload: BrowserMeetingTriggerPayload | null) => {
+          if (payload) {
+            setPendingMeetingTrigger(payload);
+          }
+        })
+        .catch((error: unknown) => {
+          console.warn("[App] No pude recuperar el trigger de reunion pendiente:", error);
+        });
     }
     return () => {
       if (ipc && ipc.off) {
         ipc.off("flow-message-received", () => {});
         ipc.off("app:share-link", handleShareLink);
+        ipc.off("app:meeting-trigger", handleMeetingTrigger);
         ipc.off("flow-window-shown", () => {});
       }
     };
@@ -299,6 +317,30 @@ function AppContent() {
         setPendingShareLink(null);
       });
   }, [handlePendingShareLink, orgId, pendingShareLink, userId]);
+
+  useEffect(() => {
+    if (!pendingMeetingTrigger || !userId) {
+      return;
+    }
+
+    void handleAppMeetingTrigger(userId, pendingMeetingTrigger)
+      .then((result) => {
+        setShareLinkNotice({
+          tone: result.kind === "error" ? "error" : "info",
+          message: result.message,
+        });
+      })
+      .catch((error) => {
+        console.error("[App] Error procesando el trigger de reunion:", error);
+        setShareLinkNotice({
+          tone: "error",
+          message: "No pude procesar el trigger de reunion enviado por la extension.",
+        });
+      })
+      .finally(() => {
+        setPendingMeetingTrigger(null);
+      });
+  }, [pendingMeetingTrigger, userId]);
 
   useEffect(() => {
     if (!shareLinkNotice) {

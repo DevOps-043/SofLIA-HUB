@@ -4,7 +4,7 @@ import type { DriveFile, DriveService } from '../drive-service';
 import type { GmailService } from '../gmail-service';
 import { getAllWhatsAppSessions, getSofiaUserByEmail } from '../iris-data-main';
 import type { WhatsAppService } from '../whatsapp-service';
-import { MeetingWorkflowManager } from '../whatsapp-workflow-meetings';
+import { buildMeetingRunIntroMessage, MeetingWorkflowManager } from '../whatsapp-workflow-meetings';
 import { MeetingDetectionStore } from './meeting-detection-store';
 import type { MeetingRunDetail } from './meeting-types';
 import type { MeetingWorkflowService } from './meeting-workflow-service';
@@ -316,22 +316,17 @@ export class MeetingPassiveDetectionService extends EventEmitter {
           this.whatsappService,
           this.workflowService,
           detail.run.id,
-          [
-            'Detecte una reunion nueva y ya cargue la transcripcion.',
-            `Titulo: ${detail.run.meeting_title || file?.name || 'Sin titulo'}`,
-            `Run: ${detail.run.id}`,
-            'Usa "estado", "acciones", "aprobar resumen", "aprobar accion N" o "sincronizar".',
-          ].join('\n'),
+          buildMeetingRunIntroMessage(detail, {
+            fallbackTitle: file?.name || null,
+          }),
         );
       } else {
         await this.whatsappService.sendText(
           jid,
-          [
-            'Detecte una reunion nueva, pero ya tienes otro workflow activo.',
-            `Run: ${detail.run.id}`,
-            `Titulo: ${detail.run.meeting_title || file?.name || 'Sin titulo'}`,
-            'Cuando termines el workflow actual, revisala desde la app en la pestana Meetings.',
-          ].join('\n'),
+          buildMeetingRunIntroMessage(detail, {
+            fallbackTitle: file?.name || null,
+            busy: true,
+          }),
         );
       }
       return;

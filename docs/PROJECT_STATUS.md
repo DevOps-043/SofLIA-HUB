@@ -1,7 +1,7 @@
 # SofLIA Hub Desktop — Estado del Proyecto
 
 ## Resumen
-Aplicacion de escritorio (Electron + Vite + React + TypeScript + Tailwind CSS v4) que replica todas las funcionalidades de la extension de Chrome "SofLIA Extension". Usa Gemini AI para chat con streaming, dual Supabase (SOFIA para auth + Lia para datos), y sistema de carpetas/proyectos.
+Aplicacion de escritorio (Electron + Vite + React + TypeScript + Tailwind CSS v4) que replica y extiende las funcionalidades de la extension de Chrome "SofLIA Extension". Usa Gemini AI para chat con streaming, dual Supabase (SOFIA para auth + Lia para datos), sistema de carpetas/proyectos y workflows operativos de reuniones con trazabilidad.
 
 ---
 
@@ -300,5 +300,5 @@ npm run build:win    # Empaquetar .exe con electron-builder
 
 ---
 
-## Referencia: Extension de Chrome (Soflia Extension/)
-La carpeta `Soflia Extension/` contiene la extension original con todas las funcionalidades completas. Usar como referencia para implementar las features pendientes. El archivo principal es `src/popup/App.tsx` (monolitico, ~5000 lineas).
+## Referencia: Extension de Chrome
+La documentacion historica hace referencia a una carpeta local `Soflia Extension/`, pero esa carpeta no esta presente en este workspace. A partir de ahora debe asumirse que la extension vive en un repo o paquete separado y que la integracion con desktop se hace mediante contratos explicitos, principalmente el protocolo `soflia://meeting-trigger`.

@@ -4,7 +4,7 @@
 
 Utiliza modelos de lenguaje de última generación (**Gemini 3.1 Pro / 3 Flash / 2.5 Flash**) para ofrecer una experiencia multimodal, autónoma y predictiva que se adapta dinámicamente a tu flujo de trabajo.
 
-> **v0.1.7** · Marzo 2026 · Desarrollado por [Pulse Hub](https://github.com/Memory-Bank)
+> **v0.1.10** · Marzo 2026 · Desarrollado por [Pulse Hub](https://github.com/Memory-Bank)
 
 ---
 
@@ -214,16 +214,21 @@ Sistema completo de tracking de actividad laboral (`electron/monitoring-service.
 | **Resúmenes Diarios** | Generados por Gemini con métricas agregadas |
 | **Digest Diario** | Reporte PDF + envío automático por WhatsApp |
 | **Integración Calendar** | Auto-start/stop basado en eventos de Google Calendar |
+| **Integración Extensión** | Trigger `soflia://meeting-trigger` para sesiones `meeting_auto` con trazabilidad durante reuniones |
 
 **Componentes UI**: `ProductivityDashboard`, `MonitoringControls`, `CalendarPanel`, `DailyTimeline`, `SummaryCard`, `AppUsageChart`.
 
 ### 🤖 Meeting Ops (12 módulos especializados)
 
-Sistema completo de gestión de reuniones con pipeline de IA end-to-end.
+Sistema completo de gestión de reuniones con pipeline de IA end-to-end y trazabilidad operativa durante la sesión.
 
 ```
-Transcripción → IA Processing → Revisión HITL → Sincronización IRIS
+Extensión / detección pasiva → sesión de evidencia `meeting_auto` → transcripción/notas → IA Processing → Revisión HITL → Sincronización IRIS
 ```
+
+- **Sesión de evidencia de reunión**: la extensión puede detectar DOM, pestaña activa o URL de reunión y disparar `soflia://meeting-trigger` para arrancar monitoreo con screenshots, OCR, ventana activa y URL.
+- **Separación de responsabilidades**: la sesión `meeting_auto` captura evidencia operativa; el `meeting_run` formal sigue naciendo cuando existe un artifact fuente autorizado (transcripción, notas, minuta o Drive).
+- **Trazabilidad ampliada**: si durante la reunión el usuario cambia a archivos, documentos o tabs de trabajo, el monitoreo registra ese avance y ya no dependemos solo de la transcripción.
 
 | Módulo | Archivo | Función |
 |--------|---------|---------|
@@ -244,9 +249,10 @@ Transcripción → IA Processing → Revisión HITL → Sincronización IRIS
 
 Hub central para flujos operativos con variantes, reglas pasivas, casos y aprobaciones HITL.
 
-- **Workflows disponibles**: Correo, agenda, seguimiento, reuniones, Drive, actualización de equipo, acciones de PC.
+- **Workflows disponibles**: Correo, agenda, seguimiento, reuniones, Drive, actualización de equipo, acciones de PC y disparadores nativos/externos para reuniones.
 - **Variantes personalizadas**: Guardar configuraciones de workflows para reutilización.
 - **Reglas pasivas**: Ejecución automática programada con `TaskScheduler` + `node-cron`.
+- **Disparadores de extensión**: el protocolo `soflia://meeting-trigger` permite que una extensión del navegador arranque o cierre la trazabilidad de una reunión sin abrir un canal IPC directo.
 - **Aprobaciones HITL**: Sin aprobación no se ejecuta — principio fundamental del sistema.
 - **Sincronización de casos**: Estado en tiempo real.
 - **Panel UI**: `WorkflowHubPanel.tsx` (64KB) — interfaz completa con glassmorphism.

@@ -176,6 +176,12 @@ Sistema completo de tracking de actividad:
 - Si hay un evento de Google Calendar en curso, el monitoreo se inicia automáticamente
 - Se detiene cuando el evento termina
 
+**Auto-monitoreo por extensión para reuniones:**
+- Una extensión del navegador puede disparar `soflia://meeting-trigger?action=start|heartbeat|stop`
+- El renderer abre una sesión `meeting_auto` reutilizando el mismo motor de productividad
+- Durante la reunión se capturan screenshots, OCR, ventana activa y URL aunque el usuario cambie a Docs, Drive, PDF, IDE u otras herramientas
+- Esta sesión sirve como evidencia operativa y complementa, pero no reemplaza, el `meeting_run` formal basado en artifacts autorizados
+
 ---
 
 ## AutoDev — Sistema de Auto-Programación

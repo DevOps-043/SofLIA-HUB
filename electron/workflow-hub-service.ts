@@ -881,7 +881,7 @@ export class WorkflowHubService {
         workflowId: 'reuniones',
         workflowName: this.getWorkflowDefinition('reuniones').name,
         name: 'Deteccion automatica de reuniones',
-        description: 'Escanea Calendar, Gmail y Drive para detectar reuniones y correr el flujo completo sin comando.',
+        description: 'Escanea Calendar, Gmail y Drive para detectar artifacts de reunion, y admite triggers externos via soflia://meeting-trigger para iniciar trazabilidad viva.',
         prompt: 'Deteccion automatica del sistema',
         scheduleLabel: 'Cada 20 minutos y por eventos de Google',
         cronExpression: null,
@@ -1007,13 +1007,13 @@ export class WorkflowHubService {
     }
 
     if (!googleConnection?.email) {
-      capabilities.push({
-        key: 'google_user_mapping',
-        label: 'Resolucion Google -> SOFIA',
-        state: 'disconnected',
-        message: 'Sin cuenta de Google conectada no puedo mapear el correo al usuario interno.',
-        guidance: 'Conecta Google para habilitar la deteccion automatica de reuniones.',
-      });
+        capabilities.push({
+          key: 'google_user_mapping',
+          label: 'Resolucion Google -> SOFIA',
+          state: 'disconnected',
+          message: 'Sin cuenta de Google conectada no puedo mapear el correo al usuario interno.',
+          guidance: 'Conecta Google para habilitar la deteccion pasiva de reuniones desde Calendar/Gmail/Drive. Los triggers de extension via soflia://meeting-trigger pueden seguir funcionando por separado.',
+        });
     } else {
       const sofiaUser = googleConnection.userId
         ? { id: googleConnection.userId }
@@ -1032,7 +1032,7 @@ export class WorkflowHubService {
           label: 'Resolucion Google -> SOFIA',
           state: 'blocked',
           message: `No encontre un usuario SOFIA para ${googleConnection.email}.`,
-          guidance: 'La deteccion automatica de reuniones quedara bloqueada hasta resolver ese mapeo.',
+          guidance: 'La deteccion pasiva de reuniones desde Google quedara bloqueada hasta resolver ese mapeo. Los triggers de extension via soflia://meeting-trigger siguen siendo una ruta alternativa.',
         });
       }
     }

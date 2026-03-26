@@ -5,6 +5,7 @@
  */
 import { SupabaseTrackingRepository } from '../adapters/tracking/SupabaseTrackingRepository';
 import type { ActivityLog, MonitoringSession, MonitoringConfig, ActivitySnapshot, MonitoringStatus } from '../core/entities/ActivityLog';
+import { buildMeetingAutoLogMetadata } from './meeting-auto-session-store';
 
 // ─── Window type augmentation ───────────────────────────────────────
 
@@ -41,7 +42,7 @@ const repo = new SupabaseTrackingRepository();
  */
 export async function startMonitoringSession(
   userId: string,
-  triggerType: 'manual' | 'calendar_auto' = 'manual',
+  triggerType: 'manual' | 'calendar_auto' | 'meeting_auto' = 'manual',
   calendarEventTitle?: string
 ): Promise<MonitoringSession> {
   // Create session in Supabase
@@ -131,6 +132,7 @@ export async function persistSnapshots(
       idle: snap.idle ?? false,
       idleSeconds: snap.idleSeconds ?? 0,
       ocrText: snap.ocrText,
+      metadata: buildMeetingAutoLogMetadata(sessionId),
     };
   });
 
