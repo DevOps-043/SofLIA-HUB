@@ -4,6 +4,22 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.1.9] - 2026-03-26
+
+### Added
+
+- **Contexto de chats internos desde WhatsApp:** SofLIA ahora puede listar conversaciones de la app, leer contexto reciente, agregar notas a un chat existente y recuperar archivos generados o adjuntos dentro de esa conversacion para enviarlos por WhatsApp.
+
+### Changed
+
+- **Agente de WhatsApp con memoria operativa cruzada:** El prompt y el dispatcher del agente ahora reconocen cuando el usuario se refiere a "un chat de la app" y resuelven la conversacion correcta antes de actuar sobre ella.
+
+### Fixed
+
+- **Conversaciones recortadas entre dispositivos:** Se corrigio la sincronizacion remota para que un equipo con historial incompleto ya no borre mensajes existentes en Supabase al guardar un chat.
+- **Actualizacion tardia del contenido del chat activo:** El chat abierto ahora refresca mensajes y metadata por realtime al cambiar en otro dispositivo, y volver a abrir la misma conversacion fuerza una recarga real del contenido.
+- **Bloqueo falso por palabras sensibles dentro de notas internas:** Las referencias legitimas a rutas o conceptos tecnicos dentro de notas de un chat ya no disparan el guardia de autoproteccion del agente cuando la accion es sobre conversaciones internas.
+
 ## [0.1.8] - 2026-03-24
 
 ### Changed

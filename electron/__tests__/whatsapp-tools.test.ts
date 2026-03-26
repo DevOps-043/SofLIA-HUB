@@ -154,6 +154,26 @@ describe('WA_TOOL_DECLARATIONS — specific tool parameter validation', () => {
     expect(tool).toBeDefined();
     expect(tool!.parameters.required).toContain('pattern');
   });
+
+  it('WA-068A: app_chat_get_context requires conversation_ref', () => {
+    const tool = toolMap.get('app_chat_get_context');
+    expect(tool).toBeDefined();
+    expect(tool!.parameters.required).toContain('conversation_ref');
+  });
+
+  it('WA-068B: app_chat_append_note requires conversation_ref and content', () => {
+    const tool = toolMap.get('app_chat_append_note');
+    expect(tool).toBeDefined();
+    expect(tool!.parameters.required).toContain('conversation_ref');
+    expect(tool!.parameters.required).toContain('content');
+  });
+
+  it('WA-068C: app_chat_send_asset requires conversation_ref and asset_ref', () => {
+    const tool = toolMap.get('app_chat_send_asset');
+    expect(tool).toBeDefined();
+    expect(tool!.parameters.required).toContain('conversation_ref');
+    expect(tool!.parameters.required).toContain('asset_ref');
+  });
 });
 
 describe('BLOCKED_TOOLS_WA', () => {
@@ -217,6 +237,19 @@ describe('GROUP_BLOCKED_TOOLS', () => {
     const expected = [
       'execute_command', 'write_file', 'delete_item', 'clipboard_write',
       'kill_process', 'lock_session', 'open_application', 'organize_files',
+    ];
+    for (const name of expected) {
+      expect(GROUP_BLOCKED_TOOLS.has(name)).toBe(true);
+    }
+  });
+
+  it('WA-078A: blocks app chat privacy tools in groups', () => {
+    const expected = [
+      'app_chat_list_conversations',
+      'app_chat_get_context',
+      'app_chat_append_note',
+      'app_chat_list_assets',
+      'app_chat_send_asset',
     ];
     for (const name of expected) {
       expect(GROUP_BLOCKED_TOOLS.has(name)).toBe(true);

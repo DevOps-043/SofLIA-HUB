@@ -16,6 +16,13 @@ import { isIrisTool, executeIrisTool } from './whatsapp-executors/iris-executors
 import { isSystemTool, executeSystemTool } from './whatsapp-executors/system-executors';
 import { dynamicToolService } from './dynamic-tool-service';
 import { remoteNodeService } from './remote-node-service';
+import {
+  appendNoteToAppConversation,
+  getAppChatConversationContext,
+  listAppChatConversationAssets,
+  listAppChatConversations,
+  prepareAppChatAssetForDelivery,
+} from './app-chat-service';
 import type { GoogleGenerativeAI } from '@google/generative-ai';
 import type { WhatsAppService } from './whatsapp-service';
 import type { CalendarService } from './calendar-service';
@@ -49,6 +56,14 @@ export interface ToolExecutorContext {
 }
 
 export type FunctionResponse = { functionResponse: { name: string; response: any } };
+
+const SELF_PROTECTED_EXEMPT_TOOLS = new Set([
+  'app_chat_list_conversations',
+  'app_chat_get_context',
+  'app_chat_append_note',
+  'app_chat_list_assets',
+  'app_chat_send_asset',
+]);
 
 /**
  * Ejecuta todos los function calls de una iteración del agent loop.
@@ -114,7 +129,8 @@ for (const part of functionCalls) {
     .filter((v): v is string => typeof v === 'string')
     .join(' ');
 
-  const isBlockedPath = SOFLIA_BLOCKED_PATHS.some(p => p.test(allArgValues));
+  const shouldInspectForProtectedPaths = !SELF_PROTECTED_EXEMPT_TOOLS.has(toolName);
+  const isBlockedPath = shouldInspectForProtectedPaths && SOFLIA_BLOCKED_PATHS.some(p => p.test(allArgValues));
   if (isBlockedPath) {
     console.warn(`[WhatsApp Agent] ⛔ SECURITY: Blocked tool "${toolName}" targeting SofLIA code: "${allArgValues.slice(0, 150)}"`);
     functionResponses.push({
@@ -198,6 +214,162 @@ for (const part of functionCalls) {
       functionResponses.push(result);
       continue;
     }
+  }
+
+  if (toolName === 'app_chat_list_conversations') {
+    try {
+      const result = await listAppChatConversations(senderNumber, {
+        query: typeof toolArgs.query === 'string' ? toolArgs.query : undefined,
+        limit: toolArgs.limit,
+      });
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: result,
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (toolName === 'app_chat_get_context') {
+    try {
+      const conversationRef = String(
+        toolArgs.conversation_ref || toolArgs.conversation_id || toolArgs.conversation_name || '',
+      ).trim();
+      const result = await getAppChatConversationContext(senderNumber, conversationRef, toolArgs.limit);
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: result,
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (toolName === 'app_chat_append_note') {
+    try {
+      const conversationRef = String(
+        toolArgs.conversation_ref || toolArgs.conversation_id || toolArgs.conversation_name || '',
+      ).trim();
+      const result = await appendNoteToAppConversation(
+        senderNumber,
+        conversationRef,
+        String(toolArgs.content || ''),
+      );
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: result,
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (toolName === 'app_chat_list_assets') {
+    try {
+      const conversationRef = String(
+        toolArgs.conversation_ref || toolArgs.conversation_id || toolArgs.conversation_name || '',
+      ).trim();
+      const result = await listAppChatConversationAssets(senderNumber, conversationRef, {
+        query: typeof toolArgs.query === 'string' ? toolArgs.query : undefined,
+        limit: toolArgs.limit,
+      });
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: result,
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
+  }
+
+  if (toolName === 'app_chat_send_asset') {
+    try {
+      const conversationRef = String(
+        toolArgs.conversation_ref || toolArgs.conversation_id || toolArgs.conversation_name || '',
+      ).trim();
+      const assetRef = String(toolArgs.asset_ref || toolArgs.file_name || toolArgs.asset_id || '').trim();
+      const prepared = await prepareAppChatAssetForDelivery(
+        senderNumber,
+        conversationRef,
+        assetRef,
+        ctx.driveService,
+      );
+
+      if (!prepared.success || !prepared.prepared) {
+        functionResponses.push({
+          functionResponse: {
+            name: toolName,
+            response: prepared,
+          },
+        });
+        continue;
+      }
+
+      await ctx.waService.sendFile(
+        jid,
+        prepared.prepared.localPath,
+        toolArgs.caption || prepared.prepared.caption,
+      );
+
+      if (prepared.prepared.cleanupAfterSend) {
+        setTimeout(() => {
+          fs.unlink(prepared.prepared!.localPath).catch(() => {});
+        }, 5000);
+      }
+
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: {
+            success: true,
+            conversation: prepared.conversation,
+            localPath: prepared.prepared.localPath,
+            message: `Archivo enviado desde la conversacion "${prepared.conversation?.title || conversationRef}".`,
+          },
+        },
+      });
+    } catch (err: any) {
+      functionResponses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: err.message },
+        },
+      });
+    }
+    continue;
   }
 
   if (toolName === 'list_dynamic_tools') {

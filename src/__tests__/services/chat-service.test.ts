@@ -10,6 +10,11 @@ const mockEq = vi.fn();
 const mockOrder = vi.fn();
 const mockSingle = vi.fn();
 const mockFrom = vi.fn();
+const mockConversationUpsert = vi.fn();
+const mockMessageUpsert = vi.fn();
+const mockDeleteEq = vi.fn();
+const mockDeleteIn = vi.fn();
+const mockDelete = vi.fn();
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
@@ -53,13 +58,27 @@ describe('chat-service', () => {
     mockEq.mockReturnValue({ order: mockOrder, eq: mockEq, single: mockSingle });
     mockSelect.mockReturnValue({ eq: mockEq, order: mockOrder });
     mockInsert.mockReturnValue({ select: vi.fn().mockReturnValue({ single: mockSingle }) });
-    const mockUpsert = vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ single: mockSingle }) });
-    mockFrom.mockReturnValue({
-      select: mockSelect,
-      insert: mockInsert,
-      upsert: mockUpsert,
-      delete: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }),
-      update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }),
+    mockConversationUpsert.mockReturnValue({ select: vi.fn().mockReturnValue({ single: mockSingle }) });
+    mockMessageUpsert.mockResolvedValue({ error: null });
+    mockDeleteEq.mockResolvedValue({ error: null });
+    mockDeleteIn.mockResolvedValue({ error: null });
+    mockDelete.mockReturnValue({ eq: mockDeleteEq, in: mockDeleteIn });
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'messages') {
+        return {
+          select: mockSelect,
+          upsert: mockMessageUpsert,
+          delete: mockDelete,
+        };
+      }
+
+      return {
+        select: mockSelect,
+        insert: mockInsert,
+        upsert: mockConversationUpsert,
+        delete: mockDelete,
+        update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }),
+      };
     });
   });
 
@@ -126,6 +145,36 @@ describe('chat-service', () => {
     expect(mockOrder).toHaveBeenCalledWith('created_at', { ascending: true });
     expect(messages.length).toBe(2);
     expect(messages[0].role).toBe('user');
+  });
+
+  it('RS-002A: saveMessages preserves created_at and avoids deleting remote siblings', async () => {
+    const { createConversation, saveMessages } = await import('../../services/chat-service');
+
+    const conversation = await createConversation('user-123', 'Test Chat');
+    expect(conversation).not.toBeNull();
+
+    await saveMessages(conversation!.id, 'user-123', [
+      {
+        id: 'msg-1',
+        role: 'user',
+        text: 'Hola desde otro dispositivo',
+        timestamp: Date.parse('2026-01-01T00:00:00.000Z'),
+      },
+    ]);
+
+    expect(mockMessageUpsert).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          id: 'msg-1',
+          conversation_id: conversation!.id,
+          user_id: 'user-123',
+          created_at: '2026-01-01T00:00:00.000Z',
+        }),
+      ],
+      { onConflict: 'id' },
+    );
+    expect(mockDelete).not.toHaveBeenCalled();
+    expect(mockDeleteIn).not.toHaveBeenCalled();
   });
 
   // RS-003: createConversation returns null for empty userId

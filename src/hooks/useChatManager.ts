@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { supabase } from '../lib/supabase';
 import {
   loadConversations,
   loadMessages,
@@ -149,6 +150,26 @@ export function useChatManager({ userId, orgId, accessUserIds }: UseChatManagerO
     }
   }, [accessUserIds, getCurrentChatStorageKey, orgId, userId]);
 
+  const refreshCurrentConversationMessages = useCallback(
+    async (conversationId: string, capturedScopeVersion: number = scopeVersionRef.current) => {
+      if (!userId) {
+        return;
+      }
+
+      const refreshedMessages = await loadMessages(conversationId, userId);
+      if (
+        scopeVersionRef.current !== capturedScopeVersion ||
+        currentConvIdRef.current !== conversationId ||
+        hasActivePlaceholder(currentMessagesRef.current)
+      ) {
+        return;
+      }
+
+      setCurrentMessages((prev) => (areMessageListsEqual(prev, refreshedMessages) ? prev : refreshedMessages));
+    },
+    [userId],
+  );
+
   const refreshConversationsFromRemote = useCallback(async () => {
     if (!userId) return;
 
@@ -179,17 +200,8 @@ export function useChatManager({ userId, orgId, accessUserIds }: UseChatManagerO
       return;
     }
 
-    const refreshedMessages = await loadMessages(activeConversationId, userId);
-    if (
-      scopeVersionRef.current !== capturedScopeVersion ||
-      currentConvIdRef.current !== activeConversationId ||
-      hasActivePlaceholder(currentMessagesRef.current)
-    ) {
-      return;
-    }
-
-    setCurrentMessages((prev) => (areMessageListsEqual(prev, refreshedMessages) ? prev : refreshedMessages));
-  }, [accessUserIds, getCurrentChatStorageKey, orgId, userId]);
+    await refreshCurrentConversationMessages(activeConversationId, capturedScopeVersion);
+  }, [accessUserIds, getCurrentChatStorageKey, orgId, refreshCurrentConversationMessages, userId]);
 
   useEffect(() => {
     if (!userId) return;
@@ -217,6 +229,52 @@ export function useChatManager({ userId, orgId, accessUserIds }: UseChatManagerO
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [refreshConversationsFromRemote, userId]);
+
+  useEffect(() => {
+    if (!userId || !currentConversationId) {
+      return;
+    }
+
+    const channel = supabase
+      .channel(`lia-chat-sync:${userId}:${currentConversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${currentConversationId}`,
+        },
+        () => {
+          if (hasActivePlaceholder(currentMessagesRef.current)) {
+            return;
+          }
+
+          void refreshCurrentConversationMessages(currentConversationId).catch((error) => {
+            console.warn('[useChatManager] realtime message refresh FAILED:', error);
+          });
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversations',
+          filter: `id=eq.${currentConversationId}`,
+        },
+        () => {
+          void refreshConversationsFromRemote().catch((error) => {
+            console.warn('[useChatManager] realtime conversation refresh FAILED:', error);
+          });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [currentConversationId, refreshConversationsFromRemote, refreshCurrentConversationMessages, userId]);
 
   const createScopedMessagesHandler = useCallback(
     (capturedConvId: string | null, capturedFolderId: string | null) => {
@@ -352,7 +410,11 @@ export function useChatManager({ userId, orgId, accessUserIds }: UseChatManagerO
   const handleSelectConversation = useCallback(
     async (convId: string) => {
       if (!userId) return false;
-      if (convId === currentConvIdRef.current) return false;
+      if (convId === currentConvIdRef.current) {
+        await flushPendingSave();
+        await refreshConversationsFromRemote();
+        return true;
+      }
 
       await flushPendingSave();
       scopeVersionRef.current += 1;
@@ -363,7 +425,7 @@ export function useChatManager({ userId, orgId, accessUserIds }: UseChatManagerO
       localStorage.setItem(getCurrentChatStorageKey(userId), convId);
       return true;
     },
-    [flushPendingSave, getCurrentChatStorageKey, userId],
+    [flushPendingSave, getCurrentChatStorageKey, refreshConversationsFromRemote, userId],
   );
 
   const handleDeleteConversation = useCallback(

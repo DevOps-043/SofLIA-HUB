@@ -46,7 +46,6 @@ const PENDING_CHAT_STATE_PREFIX = 'lia_pending_chat_state_';
 const ACTIVE_MODEL_PLACEHOLDER = '...';
 const MAX_CONVERSATIONS = 500;
 
-const saveSequenceByConversation = new Map<string, number>();
 const saveChainByConversation = new Map<string, Promise<void>>();
 
 function getConversationCacheKey(userId: string): string {
@@ -753,7 +752,6 @@ async function syncMessagesRemote(
   conversationId: string,
   userId: string,
   messages: ChatMessage[],
-  sequence: number,
 ): Promise<boolean> {
   const validMessages = dedupeMessages(messages);
 
@@ -764,6 +762,7 @@ async function syncMessagesRemote(
       user_id: userId,
       role: message.role,
       content: message.text,
+      created_at: new Date(message.timestamp).toISOString(),
       metadata: {
         sources: message.sources || null,
         images: message.images || null,
@@ -777,41 +776,6 @@ async function syncMessagesRemote(
 
     if (upsertError) {
       console.error('[chat-service] syncMessagesRemote upsert FAILED:', upsertError.message, '| code:', upsertError.code);
-      return false;
-    }
-  }
-
-  if (saveSequenceByConversation.get(conversationId) !== sequence) {
-    return false;
-  }
-
-  const { data: existing, error: fetchError } = await supabase
-    .from('messages')
-    .select('id')
-    .eq('conversation_id', conversationId);
-
-  if (fetchError) {
-    console.warn('[chat-service] syncMessagesRemote fetch existing FAILED:', fetchError.message);
-    return false;
-  }
-
-  if (saveSequenceByConversation.get(conversationId) !== sequence) {
-    return false;
-  }
-
-  const currentIds = new Set(validMessages.map((message) => message.id));
-  const orphanIds = (existing || [])
-    .map((message: any) => message.id as string)
-    .filter((id) => !currentIds.has(id));
-
-  if (orphanIds.length > 0) {
-    const { error: deleteError } = await supabase
-      .from('messages')
-      .delete()
-      .in('id', orphanIds);
-
-    if (deleteError) {
-      console.error('[chat-service] syncMessagesRemote delete orphans FAILED:', deleteError.message, '| code:', deleteError.code);
       return false;
     }
   }
@@ -921,8 +885,7 @@ export async function syncPendingChatState(userId: string, conversationIds?: str
       continue;
     }
 
-    const sequence = saveSequenceByConversation.get(conversationId) || 0;
-    const syncedMessages = await syncMessagesRemote(conversationId, userId, snapshot, sequence);
+    const syncedMessages = await syncMessagesRemote(conversationId, userId, snapshot);
     if (syncedMessages) {
       clearPendingMessageSnapshot(userId, conversationId);
       saveMessagesToCache(conversationId, snapshot);
@@ -1064,9 +1027,6 @@ export async function saveMessages(
   if (validMessages.length === 0) {
     return;
   }
-
-  const nextSequence = (saveSequenceByConversation.get(conversationId) || 0) + 1;
-  saveSequenceByConversation.set(conversationId, nextSequence);
 
   const previousChain = saveChainByConversation.get(conversationId) || Promise.resolve();
   const currentChain = previousChain

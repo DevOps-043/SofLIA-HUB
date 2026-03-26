@@ -87,6 +87,41 @@ vi.mock('../remote-node-service', () => ({
   },
 }));
 
+vi.mock('../app-chat-service', () => ({
+  listAppChatConversations: vi.fn(async () => ({
+    success: true,
+    count: 1,
+    conversations: [{ id: 'conv-1', title: 'base de datos', permission: 'edit' }],
+  })),
+  getAppChatConversationContext: vi.fn(async (_phone: string, conversationRef: string) => ({
+    success: true,
+    conversation: { id: 'conv-1', title: conversationRef, permission: 'edit' },
+    count: 1,
+    messages: [{ id: 'msg-1', role: 'user', text: 'Contexto del chat', created_at: '2026-03-25T00:00:00.000Z' }],
+  })),
+  appendNoteToAppConversation: vi.fn(async (_phone: string, conversationRef: string, content: string) => ({
+    success: true,
+    conversation: { id: 'conv-1', title: conversationRef, permission: 'edit' },
+    messageId: 'msg-new',
+    content,
+  })),
+  listAppChatConversationAssets: vi.fn(async (_phone: string, conversationRef: string) => ({
+    success: true,
+    conversation: { id: 'conv-1', title: conversationRef, permission: 'edit' },
+    count: 1,
+    assets: [{ asset_ref: 'source:1', file_name: 'reporte.pdf', created_at: '2026-03-25T00:00:00.000Z', kind: 'workspace_source', sendable: true }],
+  })),
+  prepareAppChatAssetForDelivery: vi.fn(async (_phone: string, conversationRef: string, assetRef: string) => ({
+    success: true,
+    conversation: { id: 'conv-1', title: conversationRef, permission: 'edit' },
+    prepared: {
+      localPath: `C:/tmp/${assetRef.replace(/[^a-z0-9_-]/gi, '_')}.pdf`,
+      caption: `Archivo de ${conversationRef}`,
+      cleanupAfterSend: false,
+    },
+  })),
+}));
+
 vi.mock('../smart-search-tool', () => ({
   SmartSearchTool: vi.fn(),
 }));
@@ -380,6 +415,65 @@ describe('Dispatch to delegated executors', () => {
 
     await executeWhatsAppTools([fc('gmail_send', { to: 'x@y.com', subject: 'T', body: 'B' })], ctx, 'jid', '5511111', false);
     expect(executeGoogleTool).toHaveBeenCalled();
+  });
+
+  it('WA-106A: dispatches app_chat_get_context to app chat service', async () => {
+    const { getAppChatConversationContext } = await import('../app-chat-service');
+    const ctx = makeCtx();
+
+    const result = await executeWhatsAppTools(
+      [fc('app_chat_get_context', { conversation_ref: 'base de datos', limit: 5 })],
+      ctx,
+      'jid',
+      '5511111',
+      false,
+    );
+
+    expect(getAppChatConversationContext).toHaveBeenCalledWith('5511111', 'base de datos', 5);
+    expect(result.responses[0].functionResponse.response.success).toBe(true);
+  });
+
+  it('WA-106B: app_chat_append_note is not blocked by protected-path keywords inside content', async () => {
+    const { appendNoteToAppConversation } = await import('../app-chat-service');
+    const ctx = makeCtx();
+
+    const result = await executeWhatsAppTools(
+      [fc('app_chat_append_note', { conversation_ref: 'base de datos', content: 'Anade Supabase y revisa src/services/chat-service.ts' })],
+      ctx,
+      'jid',
+      '5511111',
+      false,
+    );
+
+    expect(appendNoteToAppConversation).toHaveBeenCalledWith(
+      '5511111',
+      'base de datos',
+      'Anade Supabase y revisa src/services/chat-service.ts',
+    );
+    expect(result.responses[0].functionResponse.response.success).toBe(true);
+  });
+
+  it('WA-106C: app_chat_send_asset sends the prepared file by WhatsApp', async () => {
+    const { prepareAppChatAssetForDelivery } = await import('../app-chat-service');
+    const sendFile = vi.fn(async () => {});
+    const ctx = makeCtx({ waService: { sendFile } as any });
+
+    const result = await executeWhatsAppTools(
+      [fc('app_chat_send_asset', { conversation_ref: 'base de datos', asset_ref: 'reporte.pdf', caption: 'Aqui va el reporte' })],
+      ctx,
+      'jid',
+      '5511111',
+      false,
+    );
+
+    expect(prepareAppChatAssetForDelivery).toHaveBeenCalledWith(
+      '5511111',
+      'base de datos',
+      'reporte.pdf',
+      null,
+    );
+    expect(sendFile).toHaveBeenCalledWith('jid', 'C:/tmp/reporte_pdf.pdf', 'Aqui va el reporte');
+    expect(result.responses[0].functionResponse.response.success).toBe(true);
   });
 });
 
