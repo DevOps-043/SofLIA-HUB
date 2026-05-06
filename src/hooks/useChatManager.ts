@@ -230,29 +230,38 @@ export function useChatManager({ userId, orgId, accessUserIds }: UseChatManagerO
     };
   }, [refreshConversationsFromRemote, userId]);
 
+  // Suscripción Realtime a nivel de usuario (no por conversación), para que los cambios
+  // en cualquier conversación se propaguen a cualquier máquina conectada con el mismo usuario.
   useEffect(() => {
-    if (!userId || !currentConversationId) {
+    if (!userId) {
       return;
     }
 
     const channel = supabase
-      .channel(`lia-chat-sync:${userId}:${currentConversationId}`)
+      .channel(`lia-chat-sync:${userId}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'messages',
-          filter: `conversation_id=eq.${currentConversationId}`,
+          filter: `user_id=eq.${userId}`,
         },
-        () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (payload: any) => {
           if (hasActivePlaceholder(currentMessagesRef.current)) {
             return;
           }
 
-          void refreshCurrentConversationMessages(currentConversationId).catch((error) => {
-            console.warn('[useChatManager] realtime message refresh FAILED:', error);
-          });
+          const changedConvId: string | undefined =
+            payload?.new?.conversation_id ?? payload?.old?.conversation_id;
+          const activeConvId = currentConvIdRef.current;
+
+          if (changedConvId && activeConvId && changedConvId === activeConvId) {
+            void refreshCurrentConversationMessages(activeConvId).catch((error) => {
+              console.warn('[useChatManager] realtime message refresh FAILED:', error);
+            });
+          }
         },
       )
       .on(
@@ -261,7 +270,7 @@ export function useChatManager({ userId, orgId, accessUserIds }: UseChatManagerO
           event: '*',
           schema: 'public',
           table: 'conversations',
-          filter: `id=eq.${currentConversationId}`,
+          filter: `user_id=eq.${userId}`,
         },
         () => {
           void refreshConversationsFromRemote().catch((error) => {
@@ -274,7 +283,35 @@ export function useChatManager({ userId, orgId, accessUserIds }: UseChatManagerO
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [currentConversationId, refreshConversationsFromRemote, refreshCurrentConversationMessages, userId]);
+  }, [userId, refreshConversationsFromRemote, refreshCurrentConversationMessages]);
+
+  // Polling dedicado para mensajes de la conversación activa (independiente del polling de
+  // conversaciones). Esto garantiza que los mensajes se sincronicen aunque el Realtime falle.
+  useEffect(() => {
+    if (!userId || !currentConversationId) {
+      return;
+    }
+
+    const activeConvId = currentConversationId;
+
+    const pollMessages = () => {
+      if (hasActivePlaceholder(currentMessagesRef.current)) {
+        return;
+      }
+      if (currentConvIdRef.current !== activeConvId) {
+        return;
+      }
+      void refreshCurrentConversationMessages(activeConvId).catch((error) => {
+        console.warn('[useChatManager] message poll refresh FAILED:', error);
+      });
+    };
+
+    const intervalId = window.setInterval(pollMessages, 8000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [currentConversationId, userId, refreshCurrentConversationMessages]);
 
   const createScopedMessagesHandler = useCallback(
     (capturedConvId: string | null, capturedFolderId: string | null) => {

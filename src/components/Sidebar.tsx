@@ -187,7 +187,6 @@ function ChatItem({
   canMove: boolean;
   canDelete: boolean;
 }) {
-  const sharedBadgeLabel = conv.can_share ? 'Compartido' : 'Recibido';
   const baseClass = compact
     ? `w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-[12.5px] transition-all duration-200 group/chat`
     : `w-full flex items-center ${sidebarOpen ? "gap-2.5 px-3" : "justify-center px-0"} py-2 rounded-lg text-[13px] transition-all duration-200 group`;
@@ -243,12 +242,23 @@ function ChatItem({
             <div className="flex flex-1 min-w-0 items-center gap-2">
               <span className={`min-w-0 flex-1 text-left truncate${compact ? '' : ' text-[13px]'}`}>{conv.title}</span>
               {conv.is_shared && (
-                <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.18em] ${
-                  conv.can_share
-                    ? 'border-accent/20 bg-accent/10 text-accent'
-                    : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-500 animate-pulse'
-                }`}>
-                  {sharedBadgeLabel}
+                <span
+                  title={conv.can_share ? 'Compartido por ti' : 'Compartido contigo'}
+                  className={`shrink-0 flex items-center justify-center w-4.5 h-4.5 rounded-full transition-colors ${
+                    conv.can_share
+                      ? 'text-accent bg-accent/10'
+                      : 'text-emerald-500 bg-emerald-500/10'
+                  }`}
+                >
+                  {conv.can_share ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  )}
                 </span>
               )}
             </div>
@@ -788,12 +798,23 @@ export function Sidebar(props: SidebarProps) {
                         <div className="flex flex-1 min-w-0 items-center gap-2">
                           <span className="min-w-0 flex-1 text-left truncate">{folder.name}</span>
                           {folder.is_shared && (
-                            <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.18em] ${
-                              folder.can_share
-                                ? 'border-accent/20 bg-accent/10 text-accent'
-                                : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-500 animate-pulse'
-                            }`}>
-                              {folder.can_share ? 'Compartida' : 'Recibida'}
+                            <span
+                              title={folder.can_share ? 'Compartida por ti' : 'Compartida contigo'}
+                              className={`shrink-0 flex items-center justify-center w-4.5 h-4.5 rounded-full transition-colors ${
+                                folder.can_share
+                                  ? 'text-accent bg-accent/10'
+                                  : 'text-emerald-500 bg-emerald-500/10'
+                              }`}
+                            >
+                              {folder.can_share ? (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                                </svg>
+                              ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                              )}
                             </span>
                           )}
                         </div>
