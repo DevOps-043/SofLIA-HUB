@@ -1,4 +1,4 @@
-﻿/**
+/**
  * WhatsApp Agent â€” Main-process Gemini agentic loop for WhatsApp messages.
  * Uses executeToolDirect() to call computer-use tools without IPC.
  */
@@ -35,182 +35,37 @@ import { WA_TOOL_DECLARATIONS, GROUP_BLOCKED_TOOLS } from './whatsapp-tools';
 import { buildSystemPrompt, classifyEvidenceRequirement, detectActionRequest, formatForWhatsApp } from './whatsapp-prompts';
 import { executeWhatsAppTools, type ToolExecutorContext } from './whatsapp-tool-executor';
 import { dynamicToolService } from './dynamic-tool-service';
-import { normalizeComparableText, normalizeOutgoingWhatsAppText } from './whatsapp-text';
+import { normalizeOutgoingWhatsAppText } from './whatsapp-text';
 
 // â”€â”€â”€ [EXTRACTED] Tool definitions â†’ ./whatsapp-tools.ts â”€â”€â”€â”€â”€
 // â”€â”€â”€ [EXTRACTED] Prompts + helpers â†’ ./whatsapp-prompts.ts â”€â”€
 // â”€â”€â”€ [EXTRACTED] Tool executor â†’ ./whatsapp-tool-executor.ts â”€
 
-// â”€â”€â”€ Conversation history per session (DM: by number, Group: by group+number) â”€â”€
-const MAX_HISTORY = 20;
+
+import {
+  LOOP_GUARD_CRITICAL_THRESHOLD,
+  LOOP_GUARD_REPEAT_THRESHOLD,
+  MAX_HISTORY,
+  POLL_LIKE_TOOLS,
+  WA_MODEL,
+} from './wa-agent/constants';
+import {
+  getEvidenceModeFromToolCall,
+  isExecutionDeferralResponse,
+  isGenericHelpResponse,
+  isGreetingOrHelpRequest,
+  stableJson,
+  summarizeFunctionResponses,
+} from './wa-agent/loop-helpers';
+import type {
+  AgentLoopOptions,
+  PendingConfirmation,
+  ToolLoopTraceEntry,
+} from './wa-agent/types';
+
+// Conversation history per session (DM: by number, Group: by group+number).
 const conversations = new Map<string, Array<{ role: string; parts: Array<{ text: string }> }>>();
-
-// â”€â”€â”€ Pending confirmations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-interface PendingConfirmation {
-  toolName: string;
-  args: Record<string, any>;
-  resolve: (confirmed: boolean) => void;
-  timeout: ReturnType<typeof setTimeout>;
-}
 const pendingConfirmations = new Map<string, PendingConfirmation>();
-
-// â”€â”€â”€ Model selection: prefer stable models for main process â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const WA_MODEL = 'gemini-2.5-flash';
-
-const LOOP_GUARD_REPEAT_THRESHOLD = 3;
-const LOOP_GUARD_CRITICAL_THRESHOLD = 5;
-const POLL_LIKE_TOOLS = new Set([
-  'poll_process_session',
-  'list_process_sessions',
-  'list_active_tasks',
-  'autodev_status',
-  'get_background_host_status',
-]);
-
-const LOCAL_EVIDENCE_TOOLS = new Set([
-  'use_computer',
-  'take_screenshot',
-  'take_screenshot_and_send',
-  'execute_command',
-  'read_file',
-  'list_directory',
-  'list_directory_summary',
-  'search_files',
-  'semantic_file_search',
-  'get_file_info',
-]);
-
-const LOCAL_VISUAL_EVIDENCE_TOOLS = new Set([
-  'use_computer',
-  'take_screenshot',
-  'take_screenshot_and_send',
-]);
-
-const REMOTE_EVIDENCE_TOOLS = new Set([
-  'open_url',
-  'web_search',
-  'web_search_advanced',
-  'read_webpage',
-]);
-
-interface ToolLoopTraceEntry {
-  iteration: number;
-  toolSignature: string;
-  responseSignature: string;
-  toolNames: string[];
-  hadFailure: boolean;
-}
-
-interface AgentLoopOptions {
-  skipConfirmations?: boolean;
-}
-
-type EvidenceMode = 'local' | 'local_visual' | 'remote' | 'neutral';
-
-function getEvidenceModeFromToolCall(functionCall: { name?: string; args?: Record<string, any> }): EvidenceMode {
-  const toolName = functionCall.name || '';
-
-  if (REMOTE_EVIDENCE_TOOLS.has(toolName)) {
-    return 'remote';
-  }
-
-  if (toolName === 'use_computer') {
-    const backend = String(functionCall.args?.backend || '').toLowerCase();
-    const urlLikeArg = String(functionCall.args?.start_url || functionCall.args?.url || '').toLowerCase();
-    if (backend === 'browser' || urlLikeArg.length > 0) {
-      return 'remote';
-    }
-    return 'local_visual';
-  }
-
-  if (LOCAL_VISUAL_EVIDENCE_TOOLS.has(toolName)) {
-    return 'local_visual';
-  }
-
-  if (LOCAL_EVIDENCE_TOOLS.has(toolName)) {
-    return 'local';
-  }
-
-  return 'neutral';
-}
-
-function sortKeysDeep(value: any): any {
-  if (Array.isArray(value)) {
-    return value.map(sortKeysDeep);
-  }
-
-  if (value && typeof value === 'object') {
-    return Object.keys(value)
-      .sort((a, b) => a.localeCompare(b))
-      .reduce<Record<string, any>>((acc, key) => {
-        acc[key] = sortKeysDeep(value[key]);
-        return acc;
-      }, {});
-  }
-
-  return value;
-}
-
-function stableJson(value: any): string {
-  try {
-    return JSON.stringify(sortKeysDeep(value));
-  } catch {
-    return String(value);
-  }
-}
-
-function isGenericHelpResponse(text: string): boolean {
-  const normalized = normalizeComparableText(text)
-    .replace(/[!?.,¿¡]/g, '')
-    .trim();
-  return /^(hola )?(soy soflia )?(en que|como) puedo ayudarte( hoy)?$/.test(normalized);
-}
-
-function isExecutionDeferralResponse(text: string): boolean {
-  const normalized = normalizeComparableText(text);
-  return /\b(voy a|hare|realizare|procedere|buscare|investigare|revisare|consultare|analizare|dame un momento|espera un momento|permiteme|me pongo a|voy a realizar una busqueda|voy a buscar|voy a investigar|voy a revisar|voy a analizar)\b/.test(normalized);
-}
-
-function isGreetingOrHelpRequest(text: string): boolean {
-  const normalized = normalizeComparableText(text);
-  return /^(hola|buenos dias|buenas tardes|buenas noches|hey|que puedes hacer|como puedes ayudarme|ayuda|help|menu|comandos|que haces)\b/.test(normalized);
-}
-
-function summarizeFunctionResponses(functionResponses: Array<{ functionResponse: { name: string; response: any } }>): Array<Record<string, any>> {
-  return functionResponses.map(({ functionResponse }) => {
-    const response = functionResponse.response || {};
-    const summary: Record<string, any> = {
-      name: functionResponse.name,
-    };
-
-    if (typeof response.success === 'boolean') {
-      summary.success = response.success;
-    }
-    if (typeof response.error === 'string') {
-      summary.error = response.error;
-    }
-    if (typeof response.message === 'string') {
-      summary.message = response.message;
-    }
-    if (typeof response.status === 'string') {
-      summary.status = response.status;
-    }
-    if (typeof response.session_status === 'string') {
-      summary.session_status = response.session_status;
-    }
-    if (typeof response.count === 'number') {
-      summary.count = response.count;
-    }
-    if (typeof response.pid === 'number') {
-      summary.pid = response.pid;
-    }
-    if (typeof response.session_id === 'string') {
-      summary.session_id = response.session_id;
-    }
-
-    return summary;
-  });
-}
 
 
 

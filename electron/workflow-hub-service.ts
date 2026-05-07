@@ -23,6 +23,23 @@ import {
   MEETING_CASE_PREFIX,
   WORKFLOW_DEFINITIONS,
 } from './workflow-hub/definitions';
+import {
+  describeCron,
+  isWorkflowId,
+  normalizeAutomationStatus,
+  normalizeEnum,
+  normalizeMeetingActionStatus,
+  normalizeMeetingStatus,
+  normalizeNumber,
+  normalizeOptionalString,
+  parseCaseId,
+  requireNonEmptyString,
+  resolveOwnerUserId,
+} from './workflow-hub/normalizers';
+import {
+  resolveDriveFolderPreset,
+  resolveMailPresetQuery,
+} from './workflow-hub/preset-resolvers';
 import type {
   ExecuteWorkflowInput,
   PassiveWorkflowRule,
@@ -32,10 +49,8 @@ import type {
   WorkflowApprovalScope,
   WorkflowCaseAction,
   WorkflowCaseDetail,
-  WorkflowCaseStatus,
   WorkflowCaseSummary,
   WorkflowDefinition,
-  WorkflowEngine,
   WorkflowHubOverview,
   WorkflowHubState,
   WorkflowId,
@@ -121,7 +136,7 @@ export class WorkflowHubService {
   }
 
   async getCaseDetail(caseId: string): Promise<WorkflowCaseDetail> {
-    const resolved = this.parseCaseId(caseId);
+    const resolved = parseCaseId(caseId);
     if (resolved.engine === 'automation') {
       const run = this.deps.workspaceAutomationService.getRun(resolved.nativeId);
       return this.mapAutomationRunToDetail(run);
@@ -184,7 +199,7 @@ export class WorkflowHubService {
       throw new Error('Necesito un nombre para guardar el workflow pasivo.');
     }
 
-    const cronExpression = this.requireNonEmptyString(
+    const cronExpression = requireNonEmptyString(
       input.cronExpression,
       'Necesito una programacion valida para guardar el workflow pasivo.',
     );
@@ -206,7 +221,7 @@ export class WorkflowHubService {
       phoneNumber: String(input.phoneNumber || '').trim(),
       name,
       description: String(input.description || '').trim(),
-      scheduleLabel: String(input.scheduleLabel || '').trim() || this.describeCron(cronExpression),
+      scheduleLabel: String(input.scheduleLabel || '').trim() || describeCron(cronExpression),
       source: input.source === 'chat' || input.source === 'app' ? input.source : 'app',
       kind: workflow ? 'passive_workflow' : 'passive_prompt',
       executionMode,
@@ -232,7 +247,7 @@ export class WorkflowHubService {
         const preset = String(resolved.config.preset || 'unread').trim();
         const query = preset === 'custom'
           ? String(resolved.config.query || '').trim()
-          : this.resolveMailPresetQuery(preset);
+          : resolveMailPresetQuery(preset);
         const run = await this.deps.workspaceAutomationService.executeTemplate({
           templateId: 'gmail_triage',
           requestedBy,
@@ -250,24 +265,24 @@ export class WorkflowHubService {
           templateId: 'calendar_daily_brief',
           requestedBy,
           input: {
-            targetDate: this.normalizeOptionalString(resolved.config.targetDate) || undefined,
-            gchatSpace: this.normalizeOptionalString(resolved.config.gchatSpace) || undefined,
+            targetDate: normalizeOptionalString(resolved.config.targetDate) || undefined,
+            gchatSpace: normalizeOptionalString(resolved.config.gchatSpace) || undefined,
           },
         });
         return this.mapAutomationRunToDetail(run);
       }
       case 'seguimiento': {
-        const to = this.requireNonEmptyString(resolved.config.to, 'Necesito el correo destino para preparar el seguimiento.');
-        const topic = this.requireNonEmptyString(resolved.config.topic, 'Necesito el tema o motivo del seguimiento.');
+        const to = requireNonEmptyString(resolved.config.to, 'Necesito el correo destino para preparar el seguimiento.');
+        const topic = requireNonEmptyString(resolved.config.topic, 'Necesito el tema o motivo del seguimiento.');
         const run = await this.deps.workspaceAutomationService.executeTemplate({
           templateId: 'gmail_followup_draft',
           requestedBy,
           input: {
             to,
             topic,
-            context: this.normalizeOptionalString(resolved.config.context) || undefined,
-            tone: this.normalizeOptionalString(resolved.config.tone) || undefined,
-            signature: this.normalizeOptionalString(resolved.config.signature) || undefined,
+            context: normalizeOptionalString(resolved.config.context) || undefined,
+            tone: normalizeOptionalString(resolved.config.tone) || undefined,
+            signature: normalizeOptionalString(resolved.config.signature) || undefined,
           },
         });
         return this.mapAutomationRunToDetail(run);
@@ -275,42 +290,42 @@ export class WorkflowHubService {
       case 'reuniones':
         return this.executeMeetingWorkflow(resolved.config, requestedBy);
       case 'drive': {
-        const projectName = this.requireNonEmptyString(resolved.config.projectName, 'Necesito el nombre del proyecto o cliente.');
+        const projectName = requireNonEmptyString(resolved.config.projectName, 'Necesito el nombre del proyecto o cliente.');
         const run = await this.deps.workspaceAutomationService.executeTemplate({
           templateId: 'drive_project_workspace',
           requestedBy,
           input: {
             projectName,
-            parentFolderId: this.normalizeOptionalString(resolved.config.parentFolderId) || undefined,
-            gchatSpace: this.normalizeOptionalString(resolved.config.gchatSpace) || undefined,
-            folders: this.resolveDriveFolderPreset(String(resolved.config.folderPreset || 'cliente_estandar')),
+            parentFolderId: normalizeOptionalString(resolved.config.parentFolderId) || undefined,
+            gchatSpace: normalizeOptionalString(resolved.config.gchatSpace) || undefined,
+            folders: resolveDriveFolderPreset(String(resolved.config.folderPreset || 'cliente_estandar')),
           },
         });
         return this.mapAutomationRunToDetail(run);
       }
       case 'actualizacion_equipo': {
-        const spaceName = this.requireNonEmptyString(resolved.config.spaceName, 'Necesito el espacio de Google Chat.');
-        const context = this.requireNonEmptyString(resolved.config.context, 'Necesito el contexto de la actualizacion.');
+        const spaceName = requireNonEmptyString(resolved.config.spaceName, 'Necesito el espacio de Google Chat.');
+        const context = requireNonEmptyString(resolved.config.context, 'Necesito el contexto de la actualizacion.');
         const run = await this.deps.workspaceAutomationService.executeTemplate({
           templateId: 'gchat_executive_update',
           requestedBy,
           input: {
             spaceName,
             context,
-            tone: this.normalizeOptionalString(resolved.config.tone) || undefined,
+            tone: normalizeOptionalString(resolved.config.tone) || undefined,
           },
         });
         return this.mapAutomationRunToDetail(run);
       }
       case 'pc': {
-        const objective = this.requireNonEmptyString(resolved.config.objective, 'Necesito el objetivo de la accion en tu computadora.');
+        const objective = requireNonEmptyString(resolved.config.objective, 'Necesito el objetivo de la accion en tu computadora.');
         const run = await this.deps.workspaceAutomationService.executeTemplate({
           templateId: 'desktop_action',
           requestedBy,
           input: {
             objective,
-            backend: this.normalizeOptionalString(resolved.config.backend) || undefined,
-            startUrl: this.normalizeOptionalString(resolved.config.startUrl) || undefined,
+            backend: normalizeOptionalString(resolved.config.backend) || undefined,
+            startUrl: normalizeOptionalString(resolved.config.startUrl) || undefined,
           },
         });
         return this.mapAutomationRunToDetail(run);
@@ -321,7 +336,7 @@ export class WorkflowHubService {
   }
 
   async approveCase(input: { caseId: string; decidedBy: string; scope: WorkflowApprovalScope; actionId?: string; comment?: string | null }): Promise<WorkflowCaseDetail> {
-    const resolved = this.parseCaseId(input.caseId);
+    const resolved = parseCaseId(input.caseId);
     if (resolved.engine === 'automation') {
       if (input.scope !== 'case') {
         throw new Error('Ese tipo de aprobacion solo aplica a reuniones.');
@@ -339,7 +354,7 @@ export class WorkflowHubService {
       return this.mapMeetingRunToDetail(detail);
     }
     if (input.scope === 'action') {
-      const actionId = this.requireNonEmptyString(input.actionId, 'Necesito la accion que quieres aprobar.');
+      const actionId = requireNonEmptyString(input.actionId, 'Necesito la accion que quieres aprobar.');
       const detail = await this.deps.meetingWorkflowService.approveActions(resolved.nativeId, input.decidedBy, [actionId], input.comment || undefined);
       return this.mapMeetingRunToDetail(detail);
     }
@@ -348,7 +363,7 @@ export class WorkflowHubService {
   }
 
   async rejectCase(input: { caseId: string; decidedBy: string; scope: 'case' | 'action'; actionId?: string; comment?: string | null }): Promise<WorkflowCaseDetail> {
-    const resolved = this.parseCaseId(input.caseId);
+    const resolved = parseCaseId(input.caseId);
     if (resolved.engine === 'automation') {
       if (input.scope !== 'case') {
         throw new Error('Ese tipo de rechazo solo aplica a reuniones.');
@@ -360,25 +375,25 @@ export class WorkflowHubService {
     if (input.scope !== 'action') {
       throw new Error('En reuniones solo puedes rechazar acciones individuales.');
     }
-    const actionId = this.requireNonEmptyString(input.actionId, 'Necesito la accion que quieres rechazar.');
+    const actionId = requireNonEmptyString(input.actionId, 'Necesito la accion que quieres rechazar.');
     const detail = await this.deps.meetingWorkflowService.rejectAction(actionId, input.decidedBy, input.comment || undefined);
     return this.mapMeetingRunToDetail(detail);
   }
 
   async updateCaseAction(input: { caseId: string; actionId: string; updates: UpdateMeetingActionInput }): Promise<WorkflowCaseDetail> {
-    const resolved = this.parseCaseId(input.caseId);
+    const resolved = parseCaseId(input.caseId);
     if (resolved.engine !== 'meeting') {
       throw new Error('Solo las reuniones permiten editar acciones sincronizables.');
     }
     const detail = await this.deps.meetingWorkflowService.updateAction(
-      this.requireNonEmptyString(input.actionId, 'Necesito la accion a editar.'),
+      requireNonEmptyString(input.actionId, 'Necesito la accion a editar.'),
       input.updates,
     );
     return this.mapMeetingRunToDetail(detail);
   }
 
   async syncCase(input: { caseId: string; decidedBy: string }): Promise<WorkflowCaseDetail> {
-    const resolved = this.parseCaseId(input.caseId);
+    const resolved = parseCaseId(input.caseId);
     if (resolved.engine !== 'meeting') {
       throw new Error('Solo las reuniones requieren sincronizacion posterior.');
     }
@@ -393,8 +408,8 @@ export class WorkflowHubService {
         templateId: 'calendar_meeting_prep',
         requestedBy,
         input: {
-          targetDate: this.normalizeOptionalString(config.targetDate) || undefined,
-          gchatSpace: this.normalizeOptionalString(config.gchatSpace) || undefined,
+          targetDate: normalizeOptionalString(config.targetDate) || undefined,
+          gchatSpace: normalizeOptionalString(config.gchatSpace) || undefined,
         },
       });
       return this.mapAutomationRunToDetail(run);
@@ -404,15 +419,15 @@ export class WorkflowHubService {
       throw new Error('La deteccion automatica de reuniones corre en segundo plano. Usa manual, Drive o prep para crear un caso ahora.');
     }
 
-    const meetingTitle = this.normalizeOptionalString(config.meetingTitle);
-    const meetingType = this.normalizeOptionalString(config.meetingType) || 'general';
-    const defaultTeamId = this.normalizeOptionalString(config.defaultTeamId);
-    const defaultProjectId = this.normalizeOptionalString(config.defaultProjectId);
+    const meetingTitle = normalizeOptionalString(config.meetingTitle);
+    const meetingType = normalizeOptionalString(config.meetingType) || 'general';
+    const defaultTeamId = normalizeOptionalString(config.defaultTeamId);
+    const defaultProjectId = normalizeOptionalString(config.defaultProjectId);
 
     if (mode === 'drive') {
-      const fileIdOrUrl = this.requireNonEmptyString(config.driveRef, 'Necesito el link o ID de Google Drive.');
+      const fileIdOrUrl = requireNonEmptyString(config.driveRef, 'Necesito el link o ID de Google Drive.');
       const result = await this.deps.meetingWorkflowService.createDriveRun({
-        ownerUserId: this.resolveOwnerUserId(requestedBy),
+        ownerUserId: resolveOwnerUserId(requestedBy),
         originChannel: 'app',
         originRef: 'workflow-hub:reuniones',
         meetingTitle,
@@ -424,9 +439,9 @@ export class WorkflowHubService {
       return this.mapMeetingRunToDetail(result.detail);
     }
 
-    const text = this.requireNonEmptyString(config.manualText, 'Necesito las notas o transcripcion para procesar la reunion.');
+    const text = requireNonEmptyString(config.manualText, 'Necesito las notas o transcripcion para procesar la reunion.');
     const result = await this.deps.meetingWorkflowService.createManualRun({
-      ownerUserId: this.resolveOwnerUserId(requestedBy),
+      ownerUserId: resolveOwnerUserId(requestedBy),
       originChannel: 'app',
       originRef: 'workflow-hub:reuniones',
       meetingTitle,
@@ -462,55 +477,55 @@ export class WorkflowHubService {
     switch (workflowId) {
       case 'correo':
         return {
-          preset: this.normalizeEnum(config.preset, ['today', 'unread', 'priority', 'custom'], 'unread'),
-          query: this.normalizeOptionalString(config.query) || '',
-          maxResults: this.normalizeNumber(config.maxResults, 5, 1, 10),
-          gchatSpace: this.normalizeOptionalString(config.gchatSpace) || '',
+          preset: normalizeEnum(config.preset, ['today', 'unread', 'priority', 'custom'], 'unread'),
+          query: normalizeOptionalString(config.query) || '',
+          maxResults: normalizeNumber(config.maxResults, 5, 1, 10),
+          gchatSpace: normalizeOptionalString(config.gchatSpace) || '',
           removeFromInbox: config.removeFromInbox !== false,
         };
       case 'agenda':
         return {
-          targetDate: this.normalizeOptionalString(config.targetDate) || '',
-          gchatSpace: this.normalizeOptionalString(config.gchatSpace) || '',
+          targetDate: normalizeOptionalString(config.targetDate) || '',
+          gchatSpace: normalizeOptionalString(config.gchatSpace) || '',
         };
       case 'seguimiento':
         return {
-          to: this.normalizeOptionalString(config.to) || '',
-          topic: this.normalizeOptionalString(config.topic) || '',
-          context: this.normalizeOptionalString(config.context) || '',
-          tone: this.normalizeOptionalString(config.tone) || 'profesional y claro',
-          signature: this.normalizeOptionalString(config.signature) || '',
+          to: normalizeOptionalString(config.to) || '',
+          topic: normalizeOptionalString(config.topic) || '',
+          context: normalizeOptionalString(config.context) || '',
+          tone: normalizeOptionalString(config.tone) || 'profesional y claro',
+          signature: normalizeOptionalString(config.signature) || '',
         };
       case 'reuniones':
         return {
-          mode: this.normalizeEnum(config.mode, ['prep', 'manual', 'drive', 'auto'], 'manual'),
-          targetDate: this.normalizeOptionalString(config.targetDate) || '',
-          gchatSpace: this.normalizeOptionalString(config.gchatSpace) || '',
-          meetingTitle: this.normalizeOptionalString(config.meetingTitle) || '',
-          meetingType: this.normalizeOptionalString(config.meetingType) || 'general',
-          defaultTeamId: this.normalizeOptionalString(config.defaultTeamId) || '',
-          defaultProjectId: this.normalizeOptionalString(config.defaultProjectId) || '',
-          manualText: this.normalizeOptionalString(config.manualText) || '',
-          driveRef: this.normalizeOptionalString(config.driveRef) || '',
+          mode: normalizeEnum(config.mode, ['prep', 'manual', 'drive', 'auto'], 'manual'),
+          targetDate: normalizeOptionalString(config.targetDate) || '',
+          gchatSpace: normalizeOptionalString(config.gchatSpace) || '',
+          meetingTitle: normalizeOptionalString(config.meetingTitle) || '',
+          meetingType: normalizeOptionalString(config.meetingType) || 'general',
+          defaultTeamId: normalizeOptionalString(config.defaultTeamId) || '',
+          defaultProjectId: normalizeOptionalString(config.defaultProjectId) || '',
+          manualText: normalizeOptionalString(config.manualText) || '',
+          driveRef: normalizeOptionalString(config.driveRef) || '',
         };
       case 'drive':
         return {
-          projectName: this.normalizeOptionalString(config.projectName) || '',
-          parentFolderId: this.normalizeOptionalString(config.parentFolderId) || '',
-          gchatSpace: this.normalizeOptionalString(config.gchatSpace) || '',
-          folderPreset: this.normalizeEnum(config.folderPreset, ['cliente_estandar', 'proyecto_simple', 'operacion'], 'cliente_estandar'),
+          projectName: normalizeOptionalString(config.projectName) || '',
+          parentFolderId: normalizeOptionalString(config.parentFolderId) || '',
+          gchatSpace: normalizeOptionalString(config.gchatSpace) || '',
+          folderPreset: normalizeEnum(config.folderPreset, ['cliente_estandar', 'proyecto_simple', 'operacion'], 'cliente_estandar'),
         };
       case 'actualizacion_equipo':
         return {
-          spaceName: this.normalizeOptionalString(config.spaceName) || '',
-          context: this.normalizeOptionalString(config.context) || '',
-          tone: this.normalizeOptionalString(config.tone) || 'ejecutivo y claro',
+          spaceName: normalizeOptionalString(config.spaceName) || '',
+          context: normalizeOptionalString(config.context) || '',
+          tone: normalizeOptionalString(config.tone) || 'ejecutivo y claro',
         };
       case 'pc':
         return {
-          objective: this.normalizeOptionalString(config.objective) || '',
-          backend: this.normalizeEnum(config.backend, ['auto', 'browser', 'desktop', 'uia'], 'auto'),
-          startUrl: this.normalizeOptionalString(config.startUrl) || '',
+          objective: normalizeOptionalString(config.objective) || '',
+          backend: normalizeEnum(config.backend, ['auto', 'browser', 'desktop', 'uia'], 'auto'),
+          startUrl: normalizeOptionalString(config.startUrl) || '',
         };
       default:
         return {};
@@ -522,7 +537,7 @@ export class WorkflowHubService {
     prompt: string | null;
     config: Record<string, unknown>;
   }): string {
-    const explicitPrompt = this.normalizeOptionalString(input.prompt);
+    const explicitPrompt = normalizeOptionalString(input.prompt);
     if (explicitPrompt) {
       return explicitPrompt;
     }
@@ -545,7 +560,7 @@ export class WorkflowHubService {
         return `Dame un resumen ejecutivo de mis correos ${presetCopy}. Prioriza lo accionable, limita la revision a ${maxResults} resultados y responde por WhatsApp con lo mas importante.`;
       }
       case 'agenda': {
-        const targetDate = this.normalizeOptionalString(input.config.targetDate);
+        const targetDate = normalizeOptionalString(input.config.targetDate);
         return `Dame un briefing ejecutivo de mi agenda ${targetDate ? `para ${targetDate}` : 'de hoy'}, con riesgos, prioridades y reuniones importantes. Responde por WhatsApp.`;
       }
       default:
@@ -554,7 +569,7 @@ export class WorkflowHubService {
   }
 
   private mapScheduledTaskToPassiveRule(task: ScheduledTaskInfo): PassiveWorkflowRule {
-    const workflowId = task.workflowId && this.isWorkflowId(task.workflowId) ? task.workflowId : null;
+    const workflowId = task.workflowId && isWorkflowId(task.workflowId) ? task.workflowId : null;
     const workflowName = workflowId
       ? this.getWorkflowDefinition(workflowId).name
       : 'Rutina libre';
@@ -571,7 +586,7 @@ export class WorkflowHubService {
         ? `Workflow pasivo ${workflowName.toLowerCase()} programado.`
         : 'Instruccion recordada que el agente ejecutara automaticamente.'),
       prompt: task.prompt,
-      scheduleLabel: task.scheduleLabel || this.describeCron(task.cronExpression),
+      scheduleLabel: task.scheduleLabel || describeCron(task.cronExpression),
       cronExpression: task.cronExpression,
       source: task.source === 'chat' || task.source === 'app' ? task.source : 'legacy',
       status,
@@ -621,43 +636,7 @@ export class WorkflowHubService {
     ];
   }
 
-  private describeCron(cronExpression: string): string {
-    const normalized = String(cronExpression || '').trim();
-    const parts = normalized.split(/\s+/);
-    if (parts.length !== 5) {
-      return normalized;
-    }
 
-    const [minuteRaw, hourRaw, _dayOfMonth, _month, dayOfWeekRaw] = parts;
-    const minute = Number(minuteRaw);
-    const hour = Number(hourRaw);
-    const timeLabel = Number.isFinite(hour) && Number.isFinite(minute)
-      ? `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
-      : `${hourRaw}:${minuteRaw}`;
-
-    if (dayOfWeekRaw === '1-5') {
-      return `Lunes a viernes a las ${timeLabel}`;
-    }
-    if (dayOfWeekRaw === '*') {
-      return `Todos los dias a las ${timeLabel}`;
-    }
-
-    const weekdayMap: Record<string, string> = {
-      '0': 'Domingo',
-      '1': 'Lunes',
-      '2': 'Martes',
-      '3': 'Miercoles',
-      '4': 'Jueves',
-      '5': 'Viernes',
-      '6': 'Sabado',
-      '7': 'Domingo',
-    };
-    return `${weekdayMap[dayOfWeekRaw] || normalized} a las ${timeLabel}`;
-  }
-
-  private isWorkflowId(value: string): value is WorkflowId {
-    return WORKFLOW_DEFINITIONS.some((workflow) => workflow.id === value);
-  }
 
   private async getCapabilitiesSnapshot(): Promise<{ capabilities: WorkspaceCapabilityStatus[]; gchatSpaces: ChatSpace[] }> {
     const googleConnection = this.deps.calendarService
@@ -790,7 +769,7 @@ export class WorkflowHubService {
       engine: 'automation',
       title: run.title,
       summary: run.summary,
-      normalizedStatus: this.normalizeAutomationStatus(run.status),
+      normalizedStatus: normalizeAutomationStatus(run.status),
       nativeStatus: run.status,
       createdAt: run.createdAt,
       updatedAt: run.updatedAt,
@@ -829,7 +808,7 @@ export class WorkflowHubService {
       engine: 'meeting',
       title: run.run.meeting_title || 'Reunion sin titulo',
       summary: run.latest_asset?.executive_summary || 'Caso de reunion listo para revision.',
-      normalizedStatus: this.normalizeMeetingStatus(run.run.status),
+      normalizedStatus: normalizeMeetingStatus(run.run.status),
       nativeStatus: run.run.status,
       createdAt: run.run.created_at,
       updatedAt: run.run.updated_at,
@@ -886,7 +865,7 @@ export class WorkflowHubService {
         id: action.id,
         title: action.payload.title || action.summary,
         kind: action.action_type,
-        status: this.normalizeMeetingActionStatus(action.approval_state, action.sync_state, action.error_message),
+        status: normalizeMeetingActionStatus(action.approval_state, action.sync_state, action.error_message),
         payload: action.payload as unknown as Record<string, unknown>,
         error: action.error_message,
         blockingFlags: action.blocking_flags,
@@ -911,15 +890,6 @@ export class WorkflowHubService {
     }));
   }
 
-  private parseCaseId(caseId: string): { engine: WorkflowEngine; nativeId: string } {
-    if (caseId.startsWith(AUTOMATION_CASE_PREFIX)) {
-      return { engine: 'automation', nativeId: caseId.slice(AUTOMATION_CASE_PREFIX.length) };
-    }
-    if (caseId.startsWith(MEETING_CASE_PREFIX)) {
-      return { engine: 'meeting', nativeId: caseId.slice(MEETING_CASE_PREFIX.length) };
-    }
-    throw new Error('No reconoci el caso solicitado.');
-  }
 
   private getWorkflowDefinition(workflowId: WorkflowId): WorkflowDefinition {
     const workflow = WORKFLOW_DEFINITIONS.find((candidate) => candidate.id === workflowId);
@@ -929,143 +899,7 @@ export class WorkflowHubService {
     return workflow;
   }
 
-  private resolveMailPresetQuery(preset: string): string {
-    switch (preset) {
-      case 'today':
-        return 'in:inbox newer_than:1d';
-      case 'priority':
-        return 'in:inbox category:primary newer_than:7d';
-      case 'custom':
-        return 'in:inbox newer_than:7d';
-      case 'unread':
-      default:
-        return 'in:inbox is:unread newer_than:7d';
-    }
-  }
 
-  private resolveDriveFolderPreset(preset: string): Array<Record<string, unknown>> {
-    switch (preset) {
-      case 'proyecto_simple':
-        return [
-          { name: '01 Alcance' },
-          { name: '02 Operacion' },
-          { name: '03 Entregables' },
-        ];
-      case 'operacion':
-        return [
-          { name: '01 Operacion diaria' },
-          { name: '02 Reportes' },
-          { name: '03 Incidencias' },
-          { name: '04 Evidencias' },
-        ];
-      case 'cliente_estandar':
-      default:
-        return [
-          { name: '01 Direccion' },
-          { name: '02 Operacion' },
-          { name: '03 Comercial' },
-          { name: '04 Entregables' },
-          { name: '05 Finanzas' },
-        ];
-    }
-  }
-
-  private resolveOwnerUserId(requestedBy: string | null): string {
-    const normalized = String(requestedBy || '').trim();
-    if (!normalized) {
-      throw new Error('Necesito un usuario solicitante para crear el caso de reunion.');
-    }
-    if (normalized.startsWith('app:')) {
-      return normalized.slice(4);
-    }
-    if (normalized.startsWith('whatsapp:')) {
-      return normalized.slice(9);
-    }
-    if (normalized.startsWith('telegram:')) {
-      return normalized.slice(9);
-    }
-    return normalized;
-  }
-
-  private normalizeAutomationStatus(status: string): WorkflowCaseStatus {
-    switch (status) {
-      case 'needs_approval':
-        return 'pending_approval';
-      case 'completed':
-        return 'completed';
-      case 'failed':
-        return 'failed';
-      case 'rejected':
-      case 'cancelled':
-      default:
-        return 'attention';
-    }
-  }
-
-  private normalizeMeetingStatus(status: string): WorkflowCaseStatus {
-    switch (status) {
-      case 'REVIEW_REQUIRED':
-        return 'pending_approval';
-      case 'SOURCE_IMPORTED':
-      case 'EXTRACTING':
-      case 'SYNCING':
-      case 'APPROVED':
-      case 'FOLLOWUP_ACTIVE':
-        return 'in_progress';
-      case 'SYNCED':
-      case 'CLOSED':
-        return 'completed';
-      case 'FAILED_IMPORT':
-      case 'FAILED_EXTRACTION':
-      case 'SYNC_FAILED':
-        return 'failed';
-      case 'BLOCKED_REVIEW':
-      default:
-        return 'attention';
-    }
-  }
-
-  private normalizeMeetingActionStatus(approvalState: string, syncState: string, errorMessage: string | null): WorkflowCaseAction['status'] {
-    if (errorMessage || syncState === 'failed') {
-      return 'failed';
-    }
-    if (syncState === 'synced') {
-      return 'executed';
-    }
-    if (approvalState === 'approved') {
-      return 'approved';
-    }
-    if (approvalState === 'rejected') {
-      return 'skipped';
-    }
-    return 'pending';
-  }
-
-  private normalizeOptionalString(value: unknown): string | null {
-    const normalized = String(value || '').trim();
-    return normalized || null;
-  }
-
-  private normalizeEnum(value: unknown, allowed: string[], fallback: string): string {
-    const normalized = String(value || '').trim();
-    return allowed.includes(normalized) ? normalized : fallback;
-  }
-
-  private normalizeNumber(value: unknown, fallback: number, min: number, max: number): number {
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed)) {
-      return fallback;
-    }
-    return Math.max(min, Math.min(max, Math.round(parsed)));
-  }
-
-  private requireNonEmptyString(value: unknown, errorMessage: string): string {
-    const normalized = this.normalizeOptionalString(value);
-    if (!normalized) {
-      throw new Error(errorMessage);
-    }
-    return normalized;
-  }
 
   private getStatePath(): string {
     return path.join(app.getPath('userData'), 'workflow-hub-state.json');

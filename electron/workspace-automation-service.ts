@@ -3,373 +3,42 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { app } from 'electron';
-import type { GmailService, EmailMessage } from './gmail-service';
-import type { CalendarService } from './calendar-service';
-import type { GChatService } from './gchat-service';
+import type { EmailMessage } from './gmail-service';
 import type { DriveService } from './drive-service';
-import type { DesktopAgentService } from './desktop-agent-service';
-import { LlmTaskService, type LlmTaskSchema } from './llm-task-service';
+import { LlmTaskService } from './llm-task-service';
 
-type WorkflowTemplateId = string;
-type WorkflowRunStatus =
-  | 'needs_approval'
-  | 'completed'
-  | 'failed'
-  | 'rejected'
-  | 'cancelled';
-type WorkflowActionStatus = 'pending' | 'executed' | 'failed' | 'skipped';
-type WorkflowActionKind =
-  | 'gmail_labels'
-  | 'gmail_reply'
-  | 'gmail_send'
-  | 'calendar_event'
-  | 'gchat_message'
-  | 'drive_folder_tree'
-  | 'desktop_task';
+import {
+  CALENDAR_BRIEF_SCHEMA,
+  CALENDAR_MEETING_PREP_SCHEMA,
+  CUSTOM_EXECUTION_SCHEMA,
+  CUSTOM_TEMPLATE_SCHEMA,
+  DESKTOP_ACTION_SCHEMA,
+  GCHAT_EXECUTIVE_UPDATE_SCHEMA,
+  GMAIL_FOLLOWUP_SCHEMA,
+  GMAIL_TRIAGE_SCHEMA,
+} from './workspace-automation/schemas';
+import { TEMPLATE_DEFINITIONS } from './workspace-automation/templates';
+import type {
+  CreateCustomTemplateInput,
+  DriveFolderDefinition,
+  ExecuteTemplateInput,
+  WorkflowActionKind,
+  WorkflowActionRecord,
+  WorkflowDependencies,
+  WorkflowRunRecord,
+  WorkflowRunStatus,
+  WorkflowState,
+  WorkflowTemplateDefinition,
+  WorkflowTemplateId,
+} from './workspace-automation/types';
 
-export interface WorkflowTemplateDefinition {
-  id: WorkflowTemplateId;
-  name: string;
-  description: string;
-  kind: 'builtin' | 'custom';
-  inputSchema: Record<string, unknown>;
-  goal?: string | null;
-  guidance?: string | null;
-  inputHints?: string[];
-  capabilities?: WorkflowActionKind[];
-  createdAt?: string;
-  createdBy?: string | null;
-}
-
-export interface WorkflowActionRecord {
-  id: string;
-  kind: WorkflowActionKind;
-  title: string;
-  status: WorkflowActionStatus;
-  payload: Record<string, any>;
-  result?: Record<string, any> | null;
-  error?: string | null;
-}
-
-export interface WorkflowApprovalRecord {
-  id: string;
-  decision: 'approved' | 'rejected';
-  decidedBy: string;
-  comment?: string | null;
-  createdAt: string;
-}
-
-export interface WorkflowRunRecord {
-  id: string;
-  templateId: WorkflowTemplateId;
-  title: string;
-  status: WorkflowRunStatus;
-  summary: string;
-  requestedBy: string | null;
-  createdAt: string;
-  updatedAt: string;
-  input: Record<string, any>;
-  source: Record<string, any> | null;
-  preview: Record<string, any>;
-  actions: WorkflowActionRecord[];
-  approvals: WorkflowApprovalRecord[];
-  logs: Array<{
-    at: string;
-    level: 'info' | 'error';
-    message: string;
-  }>;
-}
-
-interface WorkflowState {
-  runs: WorkflowRunRecord[];
-  templates: WorkflowTemplateDefinition[];
-}
-
-interface WorkflowDependencies {
-  gmailService: GmailService;
-  calendarService: CalendarService;
-  gchatService: GChatService;
-  driveService: DriveService;
-  desktopAgentService: DesktopAgentService;
-}
-
-interface ExecuteTemplateInput {
-  templateId: WorkflowTemplateId;
-  input?: Record<string, any>;
-  requestedBy?: string | null;
-}
-
-interface CreateCustomTemplateInput {
-  name?: string | null;
-  objective: string;
-  requestedBy?: string | null;
-}
-
-const TEMPLATE_DEFINITIONS: WorkflowTemplateDefinition[] = [
-  {
-    id: 'gmail_triage',
-    name: 'Triage de Gmail',
-    description: 'Analiza el correo mas relevante, propone acciones y espera aprobacion antes de ejecutar.',
-    kind: 'builtin',
-    inputSchema: {
-      query: 'string opcional',
-      maxResults: 'number opcional',
-      gchatSpace: 'string opcional',
-      removeFromInbox: 'boolean opcional',
-    },
-  },
-  {
-    id: 'calendar_daily_brief',
-    name: 'Briefing diario de calendario',
-    description: 'Resume los eventos del dia y puede publicar el briefing en Google Chat bajo aprobacion.',
-    kind: 'builtin',
-    inputSchema: {
-      targetDate: 'YYYY-MM-DD opcional',
-      gchatSpace: 'string opcional',
-    },
-  },
-  {
-    id: 'gmail_followup_draft',
-    name: 'Correo de seguimiento',
-    description: 'Prepara un correo de seguimiento profesional y lo deja listo para enviar desde Gmail.',
-    kind: 'builtin',
-    inputSchema: {
-      to: 'correo requerido',
-      topic: 'string requerido',
-      context: 'string opcional',
-      tone: 'string opcional',
-      signature: 'string opcional',
-    },
-  },
-  {
-    id: 'calendar_meeting_prep',
-    name: 'Preparacion de reunion',
-    description: 'Resume la siguiente reunion del dia, sugiere talking points y puede compartir el prep en Google Chat.',
-    kind: 'builtin',
-    inputSchema: {
-      targetDate: 'YYYY-MM-DD opcional',
-      gchatSpace: 'string opcional',
-    },
-  },
-  {
-    id: 'drive_project_workspace',
-    name: 'Espacio de proyecto en Drive',
-    description: 'Crea una estructura base de carpetas en Drive para organizar un proyecto o cliente.',
-    kind: 'builtin',
-    inputSchema: {
-      projectName: 'string requerido',
-      parentFolderId: 'string opcional',
-      gchatSpace: 'string opcional',
-      folders: 'array opcional',
-    },
-  },
-  {
-    id: 'gchat_executive_update',
-    name: 'Actualizacion ejecutiva en Chat',
-    description: 'Redacta y prepara un mensaje ejecutivo para Google Chat.',
-    kind: 'builtin',
-    inputSchema: {
-      spaceName: 'string requerido',
-      context: 'string requerido',
-      tone: 'string opcional',
-    },
-  },
-  {
-    id: 'desktop_action',
-    name: 'Accion en mi computadora',
-    description: 'Prepara una accion operativa dentro de la computadora para ejecutarla con autorizacion.',
-    kind: 'builtin',
-    inputSchema: {
-      objective: 'string requerido',
-    },
-  },
-];
-
-const GMAIL_TRIAGE_SCHEMA: LlmTaskSchema = {
-  type: 'object',
-  required: ['decision', 'summary', 'rationale', 'labelsToAdd', 'archive', 'confidence'],
-  additionalProperties: false,
-  properties: {
-    decision: {
-      type: 'string',
-      enum: ['reply', 'label_only', 'schedule', 'notify_chat', 'ignore'],
-    },
-    summary: { type: 'string' },
-    rationale: { type: 'string' },
-    labelsToAdd: {
-      type: 'array',
-      items: { type: 'string' },
-    },
-    archive: { type: 'boolean' },
-    confidence: { type: 'number' },
-    reply: {
-      type: 'object',
-      required: ['subject', 'body'],
-      additionalProperties: false,
-      properties: {
-        subject: { type: 'string' },
-        body: { type: 'string' },
-      },
-    },
-    calendarEvent: {
-      type: 'object',
-      required: ['title', 'startIso', 'endIso', 'description'],
-      additionalProperties: false,
-      properties: {
-        title: { type: 'string' },
-        startIso: { type: 'string' },
-        endIso: { type: 'string' },
-        description: { type: 'string' },
-        location: { type: 'string' },
-      },
-    },
-    chatNotification: {
-      type: 'object',
-      required: ['text'],
-      additionalProperties: false,
-      properties: {
-        text: { type: 'string' },
-      },
-    },
-  },
-};
-
-const CALENDAR_BRIEF_SCHEMA: LlmTaskSchema = {
-  type: 'object',
-  required: ['summary', 'keyPoints', 'risks', 'shouldSendChat', 'confidence'],
-  additionalProperties: false,
-  properties: {
-    summary: { type: 'string' },
-    keyPoints: {
-      type: 'array',
-      items: { type: 'string' },
-    },
-    risks: {
-      type: 'array',
-      items: { type: 'string' },
-    },
-    shouldSendChat: { type: 'boolean' },
-    confidence: { type: 'number' },
-    chatDraft: { type: 'string' },
-  },
-};
-
-const GMAIL_FOLLOWUP_SCHEMA: LlmTaskSchema = {
-  type: 'object',
-  required: ['summary', 'subject', 'body', 'confidence'],
-  additionalProperties: false,
-  properties: {
-    summary: { type: 'string' },
-    subject: { type: 'string' },
-    body: { type: 'string' },
-    confidence: { type: 'number' },
-  },
-};
-
-const CALENDAR_MEETING_PREP_SCHEMA: LlmTaskSchema = {
-  type: 'object',
-  required: ['summary', 'talkingPoints', 'risks', 'shouldSendChat', 'confidence'],
-  additionalProperties: false,
-  properties: {
-    summary: { type: 'string' },
-    talkingPoints: {
-      type: 'array',
-      items: { type: 'string' },
-    },
-    risks: {
-      type: 'array',
-      items: { type: 'string' },
-    },
-    shouldSendChat: { type: 'boolean' },
-    chatDraft: { type: 'string' },
-    confidence: { type: 'number' },
-  },
-};
-
-const GCHAT_EXECUTIVE_UPDATE_SCHEMA: LlmTaskSchema = {
-  type: 'object',
-  required: ['summary', 'message', 'confidence'],
-  additionalProperties: false,
-  properties: {
-    summary: { type: 'string' },
-    message: { type: 'string' },
-    confidence: { type: 'number' },
-  },
-};
-
-const DESKTOP_ACTION_SCHEMA: LlmTaskSchema = {
-  type: 'object',
-  required: ['summary', 'rationale', 'task', 'confidence'],
-  additionalProperties: false,
-  properties: {
-    summary: { type: 'string' },
-    rationale: { type: 'string' },
-    task: { type: 'string' },
-    confidence: { type: 'number' },
-  },
-};
-
-const CUSTOM_TEMPLATE_SCHEMA: LlmTaskSchema = {
-  type: 'object',
-  required: ['name', 'description', 'goal', 'guidance', 'inputHints', 'capabilities'],
-  additionalProperties: false,
-  properties: {
-    name: { type: 'string' },
-    description: { type: 'string' },
-    goal: { type: 'string' },
-    guidance: { type: 'string' },
-    inputHints: {
-      type: 'array',
-      items: { type: 'string' },
-    },
-    capabilities: {
-      type: 'array',
-      items: {
-        type: 'string',
-        enum: ['desktop_task', 'gchat_message', 'gmail_reply', 'gmail_send', 'calendar_event', 'gmail_labels', 'drive_folder_tree'],
-      },
-    },
-  },
-};
-
-const CUSTOM_EXECUTION_SCHEMA: LlmTaskSchema = {
-  type: 'object',
-  required: ['summary', 'rationale', 'steps', 'missingData', 'confidence', 'needsApproval', 'actions'],
-  additionalProperties: false,
-  properties: {
-    summary: { type: 'string' },
-    rationale: { type: 'string' },
-    steps: {
-      type: 'array',
-      items: { type: 'string' },
-    },
-    missingData: {
-      type: 'array',
-      items: { type: 'string' },
-    },
-    confidence: { type: 'number' },
-    needsApproval: { type: 'boolean' },
-    actions: {
-      type: 'array',
-      items: {
-        type: 'object',
-        required: ['kind', 'title', 'payload'],
-        additionalProperties: false,
-        properties: {
-          kind: {
-            type: 'string',
-            enum: ['desktop_task', 'gchat_message', 'gmail_reply', 'gmail_send', 'calendar_event', 'gmail_labels', 'drive_folder_tree'],
-          },
-          title: { type: 'string' },
-          payload: {
-            type: 'object',
-            properties: {},
-          },
-        },
-      },
-    },
-  },
-};
+// Re-export public types so callers (rom './workspace-automation-service') keep working.
+export type {
+  WorkflowActionRecord,
+  WorkflowApprovalRecord,
+  WorkflowRunRecord,
+  WorkflowTemplateDefinition,
+} from './workspace-automation/types';
 
 export class WorkspaceAutomationService extends EventEmitter {
   private state: WorkflowState = { runs: [], templates: [] };
@@ -1670,11 +1339,6 @@ function sanitizeCapabilities(value: unknown): WorkflowActionKind[] {
     allowed.includes(item as WorkflowActionKind),
   );
   return normalized.length > 0 ? normalized : ['desktop_task'];
-}
-
-interface DriveFolderDefinition {
-  name: string;
-  children?: DriveFolderDefinition[];
 }
 
 function buildDriveWorkspaceFolders(): DriveFolderDefinition[] {

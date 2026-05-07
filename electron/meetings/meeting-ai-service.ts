@@ -14,14 +14,11 @@ import type {
   MeetingIssue,
   MeetingOpenQuestion,
   MeetingParkingLotItem,
-  MeetingParticipant,
-  MeetingSourceArtifactRecord,
 } from './meeting-types';
 import {
   DEFAULT_BLOCKED_ACTIONS,
   EXTRACTION_MODEL,
   LOW_CONFIDENCE_TASK_STATE_THRESHOLD,
-  MAX_SOURCE_TEXT_CHARS,
 } from './meeting-ai/constants';
 import type {
   ExtractMeetingAssetInput,
@@ -51,8 +48,6 @@ import {
 } from './meeting-ai/value-helpers';
 import {
   buildExecutiveSummary,
-  describeSource,
-  extractDateTimeHint,
   extractDueDate,
   extractOwnerCandidate,
   extractParticipants,
@@ -61,6 +56,7 @@ import {
   inferTitle,
   stripLabel,
 } from './meeting-ai/text-helpers';
+import { buildClassificationPrompt, buildExtractionPrompt } from './meeting-ai/prompts';
 
 export class MeetingAIService {
   private genAI: GoogleGenerativeAI | null = null;
@@ -102,9 +98,9 @@ export class MeetingAIService {
       });
 
       // Fase 1: Clasificar tipo de reunion
-      const classificationPrompt = this.buildClassificationPrompt(input, contextPack);
+      const classificationPrompt = buildClassificationPrompt(input, contextPack);
       const classificationResult = await model.generateContent(classificationPrompt);
-      const classification = this.parseJson<{
+      const classification = parseJson<{
         suggestedType?: string;
         alternativeTypes?: unknown[];
         confidence?: number;
@@ -126,13 +122,13 @@ export class MeetingAIService {
         resolvedType = 'fallback_general_operational';
       }
 
-      const typeDefinition = this.getMeetingTypeDefinition(contextPack, resolvedType)
-        || this.getMeetingTypeDefinition(contextPack, 'fallback_general_operational')!;
+      const typeDefinition = getMeetingTypeDefinition(contextPack, resolvedType)
+        || getMeetingTypeDefinition(contextPack, 'fallback_general_operational')!;
 
       console.log(`[MeetingAIService] Fase 1 completa: tipo=${resolvedType}, confianza=${resolvedConfidence.toFixed(2)}`);
 
       // Fase 2: Extraer con prompt unico para este tipo
-      const extractionPrompt = this.buildExtractionPrompt(
+      const extractionPrompt = buildExtractionPrompt(
         input, contextPack, typeDefinition, resolvedType, resolvedConfidence,
         classification?.reason || '',
         classification?.relevantSignals || [],
@@ -140,7 +136,7 @@ export class MeetingAIService {
         classification?.detectedContext || {},
       );
       const extractionResult = await model.generateContent(extractionPrompt);
-      const extraction = this.parseJson<unknown>(extractionResult.response.text());
+      const extraction = parseJson<unknown>(extractionResult.response.text());
 
       console.log(`[MeetingAIService] Fase 2 completa: extraccion con estrategia ${typeDefinition.displayName}`);
 
@@ -164,185 +160,6 @@ export class MeetingAIService {
     }
   }
 
-  // ── PHASE 1 PROMPT: CLASSIFICATION ──────────────────────────────────
-
-  private buildClassificationPrompt(input: ExtractMeetingAssetInput, contextPack: MeetingContextPack): string {
-    const transcriptPreview = input.sourceArtifact.normalized_text.slice(0, 6000);
-    const compactRegistry = contextPack.meetingTypes.map((mt) => ({
-      id: mt.id,
-      displayName: mt.displayName,
-      purpose: mt.purpose,
-      cadence: mt.cadence,
-      titleKeywords: mt.titleKeywords,
-      languagePatterns: mt.languagePatterns,
-      structuralSignals: mt.structuralSignals,
-      negativeSignals: mt.negativeSignals,
-      commonConfusions: mt.commonConfusions,
-      confidenceHints: mt.confidenceHints,
-    }));
-
-    return [
-      'Eres el clasificador de reuniones de SofLIA. Tu UNICA tarea es determinar el tipo de reunion.',
-      'NO extraigas minuta, NO resumas, NO generes tareas. Solo clasifica.',
-      '',
-      '### TAXONOMIA DE TIPOS DE REUNION',
-      JSON.stringify(compactRegistry, null, 2),
-      '',
-      '### REGLAS DE CLASIFICACION',
-      '- Evalua senales positivas y negativas por tipo.',
-      '- Genera un tipo sugerido (suggestedType) y hasta 3 alternativos.',
-      `- Si confidence < ${contextPack.fallbackThreshold.toFixed(2)}, usa "fallback_general_operational".`,
-      `- Si confidence esta entre ${contextPack.fallbackThreshold.toFixed(2)} y ${contextPack.reducedAggressivenessUpper.toFixed(2)}, marca como confianza media.`,
-      '- Sube confianza cuando varias senales convergen: titulo + estructura + lenguaje.',
-      '- Baja confianza si hay senales negativas o confusion con otros tipos.',
-      '- No inventes — si no hay senales claras, usa fallback.',
-      '',
-      '### INPUT',
-      JSON.stringify({
-        title: input.meetingTitle || null,
-        meetingTypeHint: input.meetingType || null,
-        sourceType: input.sourceArtifact.source_type,
-        transcriptPreview,
-      }, null, 2),
-      '',
-      '### FORMATO DE RESPUESTA (JSON estricto)',
-      JSON.stringify({
-        suggestedType: 'id_del_tipo',
-        alternativeTypes: [{ type: 'otro_id', confidence: 0.5, reason: 'razon' }],
-        confidence: 0.85,
-        reason: 'Explicacion de por que este tipo',
-        relevantSignals: ['titulo:keyword', 'lenguaje:pattern', 'estructura:signal'],
-        detectedContext: {
-          project: 'nombre_proyecto_o_null',
-          team: 'nombre_equipo_o_null',
-          meetingObjective: ['objetivo1', 'objetivo2'],
-        },
-      }, null, 2),
-      '',
-      'Devuelve SOLO JSON valido, sin markdown ni texto adicional.',
-    ].join('\n');
-  }
-
-  // ── PHASE 2 PROMPT: TYPE-SPECIFIC EXTRACTION ────────────────────────
-
-  private buildExtractionPrompt(
-    input: ExtractMeetingAssetInput,
-    contextPack: MeetingContextPack,
-    typeDefinition: MeetingTypeDefinition,
-    resolvedType: string,
-    resolvedConfidence: number,
-    classificationReason: string,
-    relevantSignals: string[],
-    alternativeTypes: unknown[],
-    detectedContext: Record<string, unknown>,
-  ): string {
-    const transcriptFull = input.sourceArtifact.normalized_text.slice(0, MAX_SOURCE_TEXT_CHARS);
-    const isLowConfidence = resolvedConfidence < contextPack.reducedAggressivenessUpper;
-
-    const meetingInput = {
-      meetingId: input.meetingRunId,
-      title: input.meetingTitle || null,
-      description: this.describeSource(input.sourceArtifact),
-      participants: this.extractParticipants(this.getLines(input.sourceArtifact.normalized_text)).map((p) => ({
-        name: p.display_name,
-        role: null,
-        email: p.email || null,
-      })),
-      dateTime: this.extractDateTimeHint(input.sourceArtifact),
-      transcriptRaw: transcriptFull,
-    };
-
-    // Bloque de estrategia especifica del tipo
-    const strategyBlock = [
-      `## TIPO DE REUNION CLASIFICADO: ${typeDefinition.displayName} (${resolvedType})`,
-      `Confianza de clasificacion: ${resolvedConfidence.toFixed(2)}`,
-      `Razon: ${classificationReason}`,
-      '',
-      `### PROPOSITO DE ESTE TIPO`,
-      typeDefinition.purpose,
-      '',
-      `### ESTRUCTURA ESPERADA`,
-      `Esta reunion deberia tener estas secciones:`,
-      ...typeDefinition.expectedStructure.map((s) => `- ${s}`),
-      '',
-      `### FOCO DE EXTRACCION (QUE BUSCAR)`,
-      `Prioriza extraer esta informacion del texto:`,
-      ...typeDefinition.extractionFocus.map((f) => `- ${f}`),
-      '',
-      `### OUTPUTS DE ALTO VALOR`,
-      `Lo mas valioso que puedes producir para este tipo de reunion:`,
-      ...typeDefinition.highValueOutputs.map((o) => `- ${o}`),
-      '',
-      `### CONTEXTO DE DESTINO`,
-      `Destino por defecto: ${typeDefinition.defaultDestination}`,
-      typeDefinition.routingNotes ? `Nota de routing: ${typeDefinition.routingNotes}` : '',
-      '',
-      `### CONFUSIONES COMUNES`,
-      typeDefinition.commonConfusions.length > 0
-        ? `Este tipo se confunde frecuentemente con: ${typeDefinition.commonConfusions.join(', ')}. Asegurate de que las senales correspondan.`
-        : 'Sin confusiones comunes registradas.',
-    ];
-
-    // Reglas de prudencia cuando la confianza es baja
-    const prudenceBlock = isLowConfidence ? [
-      '',
-      '### MODO PRUDENTE (confianza media-baja)',
-      '- Reduce la agresividad de recomendaciones.',
-      '- Solo incluye tareas con evidencia clara (confidence >= 0.68).',
-      '- No sugieras owners sin senales fuertes.',
-      '- No inventes fechas limite.',
-      '- Limita tareas a las mas claras (max 4).',
-      '- Prefiere destino "None" si no hay senales claras de routing.',
-    ] : [];
-
-    return [
-      'Eres el motor de extraccion de Meeting Intelligence de SofLIA.',
-      'La reunion YA fue clasificada. Tu tarea es EXTRAER la minuta operativa usando la estrategia especifica de este tipo.',
-      'NO reclasifiques. Usa el tipo y estrategia que te doy.',
-      '',
-      ...strategyBlock,
-      ...prudenceBlock,
-      '',
-      '### REGLAS DE EXTRACCION',
-      contextPack.extractionRulesRaw,
-      '',
-      '### SCHEMA DE SALIDA',
-      contextPack.outputSchemaRaw,
-      '',
-      '### REGLAS DURAS',
-      '- No inventes datos. Si no hay evidencia, deja el campo vacio o con confidence baja.',
-      '- Separa hechos explicitos de inferencias.',
-      '- Toda accion sensible requiere aprobacion humana (requiresHumanApproval: true).',
-      '- Cada tarea debe tener verbo accionable.',
-      '- No confundas "tema conversado" con "tarea aprobada".',
-      '- No trates hipotesis como decision tomada.',
-      '- Incluye evidence (citas cortas del texto) en decisions, tasks, risks.',
-      '- Devuelve SOLO JSON valido, sin markdown ni texto adicional.',
-      '',
-      '### CLASIFICACION YA RESUELTA (no cambiar)',
-      JSON.stringify({
-        meetingType: {
-          suggestedType: resolvedType,
-          alternativeTypes,
-          confidence: resolvedConfidence,
-          reason: classificationReason,
-        },
-        detectedContext: {
-          ...detectedContext,
-          relevantSignals,
-        },
-        analysisStrategy: {
-          strategyId: resolvedType,
-          strategyName: typeDefinition.displayName,
-          whyThisStrategy: `Estrategia seleccionada por clasificacion como ${typeDefinition.displayName}: ${classificationReason}`,
-          extractionFocus: typeDefinition.extractionFocus,
-        },
-      }, null, 2),
-      '',
-      '### TRANSCRIPCION / TEXTO FUENTE',
-      JSON.stringify(meetingInput, null, 2),
-    ].join('\n');
-  }
 
   private normalizeAnalysisResult(
     rawAnalysis: unknown | null,
@@ -367,8 +184,8 @@ export class MeetingAIService {
       suggestedType = 'fallback_general_operational';
     }
 
-    const typeDefinition = this.getMeetingTypeDefinition(contextPack, suggestedType)
-      || this.getMeetingTypeDefinition(contextPack, 'fallback_general_operational');
+    const typeDefinition = getMeetingTypeDefinition(contextPack, suggestedType)
+      || getMeetingTypeDefinition(contextPack, 'fallback_general_operational');
     const detectedContext = getObject(rawObject.detectedContext);
     const analysisStrategy = getObject(rawObject.analysisStrategy);
     const relevantSignals = limitStrings(asStringArray(detectedContext?.relevantSignals), 8);
@@ -468,7 +285,7 @@ export class MeetingAIService {
   }
 
   private buildFallbackAnalysis(input: ExtractMeetingAssetInput, contextPack: MeetingContextPack): MeetingAnalysisResult {
-    const lines = this.getLines(input.sourceArtifact.normalized_text);
+    const lines = getLines(input.sourceArtifact.normalized_text);
     const classification = this.classifyMeeting(input, contextPack);
     const decisions = this.extractDecisionSignals(lines);
     const agreements = this.extractAgreementSignals(lines);
@@ -504,7 +321,7 @@ export class MeetingAIService {
         whyThisStrategy: classification.strategyReason,
         extractionFocus: classification.extractionFocus,
       },
-      executiveSummary: this.buildExecutiveSummary(lines, tasks.length, decisions.length, risks.length),
+      executiveSummary: buildExecutiveSummary(lines, tasks.length, decisions.length, risks.length),
       keyPoints,
       decisions: decisions.map((decision) => ({
         description: decision.value,
@@ -569,7 +386,7 @@ export class MeetingAIService {
       })
       .sort((left, right) => right.confidence - left.confidence);
 
-    const fallbackDefinition = this.getMeetingTypeDefinition(contextPack, 'fallback_general_operational');
+    const fallbackDefinition = getMeetingTypeDefinition(contextPack, 'fallback_general_operational');
     const bestMatch = candidates[0];
     if (!bestMatch || bestMatch.confidence < contextPack.fallbackThreshold || !fallbackDefinition) {
       return {
@@ -611,9 +428,9 @@ export class MeetingAIService {
   }
 
   private toMeetingAssetPayload(analysis: MeetingAnalysisResult, input: ExtractMeetingAssetInput): MeetingAssetPayload {
-    const lines = this.getLines(input.sourceArtifact.normalized_text);
+    const lines = getLines(input.sourceArtifact.normalized_text);
     const sourceArtifactId = input.sourceArtifact.id;
-    const participants = this.extractParticipants(lines);
+    const participants = extractParticipants(lines);
     const decisions = analysis.decisions.map((decision) => this.toLegacyDecision(decision));
     const commitments = analysis.tasks.map((task) => this.toLegacyCommitment(task));
     const issues = analysis.risks.map((risk) => this.toLegacyRisk(risk));
@@ -629,7 +446,7 @@ export class MeetingAIService {
       schema_version: 'meeting_asset.v1',
       meeting_run_id: input.meetingRunId,
       trace_id: input.traceId,
-      meeting_title: input.meetingTitle || this.inferTitle(lines) || 'Reunion sin titulo',
+      meeting_title: input.meetingTitle || inferTitle(lines) || 'Reunion sin titulo',
       meeting_type: analysis.meetingType.suggestedType,
       source_refs: [{
         source_artifact_id: sourceArtifactId,
@@ -931,10 +748,10 @@ export class MeetingAIService {
     return lines
       .filter((line) => /^(?:[-*]\s*)?(accion|acci\u00f3n|tarea|compromiso|todo)\b/i.test(line) || /^\[\s?\]\s+/.test(line))
       .map((line) => {
-        const ownerSuggested = this.extractOwnerCandidate(line);
-        const dueDateSuggested = this.extractDueDate(line);
+        const ownerSuggested = extractOwnerCandidate(line);
+        const dueDateSuggested = extractDueDate(line);
         return {
-          description: this.stripLabel(line.replace(/^\[\s?\]\s+/, '')),
+          description: stripLabel(line.replace(/^\[\s?\]\s+/, '')),
           ownerSuggested,
           ownerConfidence: ownerSuggested ? 0.7 : undefined,
           dueDateSuggested,
@@ -954,7 +771,7 @@ export class MeetingAIService {
     return lines
       .filter((line) => /^(?:[-*]\s*)?(bloqueo|blocker|riesgo|issue|problema)\b/i.test(line))
       .map((line) => ({
-        description: this.stripLabel(line),
+        description: stripLabel(line),
         severity: inferSeverity(line),
         confidence: /critico|critical|alto/i.test(line) ? 0.82 : 0.7,
         reason: line,
@@ -965,7 +782,7 @@ export class MeetingAIService {
     return lines
       .filter((line) => /^(?:[-*]\s*)?(pregunta|question|duda)\b/i.test(line))
       .map((line) => ({
-        question: this.stripLabel(line),
+        question: stripLabel(line),
         confidence: 0.68,
       }));
   }
@@ -977,7 +794,7 @@ export class MeetingAIService {
     const explicit = lines
       .filter((line) => /^(?:[-*]\s*)?(parking|tema pendiente|backlog|pendiente)\b/i.test(line))
       .map((line) => ({
-        item: this.stripLabel(line),
+        item: stripLabel(line),
         reasonOpen: 'Quedo marcado como pendiente o parking lot.',
         confidence: 0.7,
       }));
@@ -1074,7 +891,7 @@ export class MeetingAIService {
       };
     }
 
-    const meetingType = this.getMeetingTypeDefinition(contextPack, suggestedType);
+    const meetingType = getMeetingTypeDefinition(contextPack, suggestedType);
     return {
       suggestedDestination: meetingType?.defaultDestination || 'None',
       confidence: Math.min(confidence, 0.86),
@@ -1125,7 +942,7 @@ export class MeetingAIService {
     return lines
       .filter((line) => pattern.test(line))
       .map((line) => ({
-        value: this.stripLabel(line),
+        value: stripLabel(line),
         evidence: [line],
         confidence,
       }));
@@ -1141,223 +958,4 @@ export class MeetingAIService {
     }));
   }
 
-  private extractParticipants(lines: string[]): MeetingParticipant[] {
-    const participants: MeetingParticipant[] = [];
-    for (const line of lines) {
-      if (!/^(participantes?|asistentes?|attendees?)\s*:/i.test(line)) continue;
-      const names = line.replace(/^[^:]+:/, '')
-        .split(/[;,]/)
-        .map((part) => part.trim())
-        .filter(Boolean);
-      for (const name of names) {
-        const emailMatch = name.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-        participants.push({
-          display_name: name.replace(/[<(].*$/, '').trim(),
-          email: emailMatch?.[0] || null,
-          external: false,
-          confidence: 0.7,
-        });
-      }
-    }
-    return participants;
-  }
-
-  private inferTitle(lines: string[]): string | null {
-    const firstLine = lines.find((line) => line.length > 8);
-    return firstLine ? firstLine.slice(0, 120) : null;
-  }
-
-  private buildExecutiveSummary(lines: string[], commitments: number, decisions: number, issues: number): string {
-    const seed = lines.slice(0, 3).join(' ');
-    return [
-      seed ? seed.slice(0, 240) : 'Reunion importada para revision.',
-      `Tareas detectadas: ${commitments}.`,
-      `Decisiones detectadas: ${decisions}.`,
-      issues > 0 ? `Riesgos o bloqueos detectados: ${issues}.` : null,
-    ].filter(Boolean).join(' ');
-  }
-
-  private extractOwnerCandidate(line: string): string | null {
-    const taggedOwner = line.match(/(?:owner|responsable|encargado|dueno|due\u00f1o)\s*[:=-]\s*([A-Za-z0-9 .@_-]+)/i);
-    if (taggedOwner?.[1]) return taggedOwner[1].trim();
-
-    const mention = line.match(/@([A-Za-z0-9._-]+)/);
-    return mention?.[1] || null;
-  }
-
-  private extractDueDate(line: string): string | null {
-    const isoDate = line.match(/(20\d{2}-\d{2}-\d{2})/);
-    if (isoDate?.[1]) return isoDate[1];
-
-    const slashDate = line.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
-    if (!slashDate) return null;
-
-    const day = slashDate[1].padStart(2, '0');
-    const month = slashDate[2].padStart(2, '0');
-    const year = slashDate[3].length === 2 ? `20${slashDate[3]}` : slashDate[3];
-    return `${year}-${month}-${day}`;
-  }
-
-  private stripLabel(line: string): string {
-    return line
-      .replace(/^(?:[-*]\s*)?(\[\s?\]\s*)?([A-Za-záéíóúñÁÉÍÓÚÑ ]+)\s*:\s*/i, '')
-      .trim();
-  }
-
-  private parseJson<T>(rawText: string): T {
-    const normalized = rawText.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/, '');
-    return JSON.parse(normalized) as T;
-  }
-
-  private getMeetingTypeDefinition(contextPack: MeetingContextPack, meetingTypeId: string): MeetingTypeDefinition | null {
-    return contextPack.meetingTypes.find((meetingType) => meetingType.id === meetingTypeId) || null;
-  }
-
-  private getLines(text: string): string[] {
-    return text
-      .split('\n')
-      .map((line) => line.trim())
-      .filter(Boolean);
-  }
-
-  private describeSource(sourceArtifact: MeetingSourceArtifactRecord): string {
-    const metadata = sourceArtifact.metadata || {};
-    const parts = [
-      sourceArtifact.source_type,
-      sourceArtifact.source_uri || null,
-      typeof metadata.file_name === 'string' ? metadata.file_name : null,
-    ].filter(Boolean);
-    return parts.join(' | ') || 'Fuente sin descripcion';
-  }
-
-  private extractDateTimeHint(sourceArtifact: MeetingSourceArtifactRecord): string | null {
-    const metadata = sourceArtifact.metadata || {};
-    const candidates = [metadata.created_time, metadata.imported_at, metadata.date];
-    for (const candidate of candidates) {
-      if (typeof candidate === 'string' && candidate.trim()) {
-        return candidate;
-      }
-    }
-    return null;
-  }
-
-  private getObject(value: unknown): Record<string, unknown> | null {
-    return value && typeof value === 'object' && !Array.isArray(value)
-      ? value as Record<string, unknown>
-      : null;
-  }
-
-  private normalizeStringItems(value: unknown): string[] {
-    return limitStrings(asStringArray(value), 8);
-  }
-
-  private asString(value: unknown): string {
-    return typeof value === 'string' ? value.trim() : '';
-  }
-
-  private asNullableString(value: unknown): string | null {
-    const nextValue = asString(value);
-    return nextValue || null;
-  }
-
-  private asStringArray(value: unknown): string[] {
-    if (!Array.isArray(value)) return [];
-    return value
-      .map((item) => asString(item))
-      .filter(Boolean);
-  }
-
-  private limitStrings(values: string[], limit: number): string[] {
-    return values.filter(Boolean).slice(0, limit);
-  }
-
-  private asConfidence(value: unknown, fallback: number): number {
-    if (typeof value !== 'number' || !Number.isFinite(value)) {
-      return clampNumber(fallback, 0, 1);
-    }
-    return clampNumber(value, 0, 1);
-  }
-
-  private asOptionalConfidence(value: unknown): number | null {
-    if (typeof value !== 'number' || !Number.isFinite(value)) {
-      return null;
-    }
-    return clampNumber(value, 0, 1);
-  }
-
-  private clampNumber(value: number, min: number, max: number): number {
-    return Math.min(max, Math.max(min, value));
-  }
-
-  private normalizeText(value: string): string {
-    return String(value || '')
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase()
-      .replace(/[^\w\s-]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
-
-  private toIsoDateOrNull(value: string | null | undefined): string | null {
-    if (!value) return null;
-    const trimmed = value.trim();
-    return /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? trimmed : null;
-  }
-
-  private normalizePriority(value: unknown): MeetingAnalysisTaskItem['prioritySuggested'] {
-    if (typeof value !== 'string') return 'medium';
-    const normalized = value.trim().toLowerCase();
-    return (ALLOWED_PRIORITIES as readonly string[]).includes(normalized)
-      ? normalized as MeetingAnalysisTaskItem['prioritySuggested']
-      : 'medium';
-  }
-
-  private normalizeSeverity(value: unknown): MeetingAnalysisRiskItem['severity'] {
-    if (typeof value !== 'string') return 'medium';
-    const normalized = value.trim().toLowerCase();
-    if (normalized === 'critical') return 'critical';
-    if (normalized === 'high') return 'high';
-    if (normalized === 'low') return 'low';
-    return 'medium';
-  }
-
-  private normalizeFollowUpType(value: unknown): MeetingAnalysisFollowUpRecommendation['type'] | undefined {
-    if (typeof value !== 'string') return undefined;
-    const normalized = value.trim().toLowerCase();
-    return (ALLOWED_FOLLOW_UP_TYPES as readonly string[]).includes(normalized)
-      ? normalized as MeetingAnalysisFollowUpRecommendation['type']
-      : undefined;
-  }
-
-  private normalizeDestinationValue(value: unknown): MeetingAnalysisDestinationRecommendation['suggestedDestination'] | null {
-    if (typeof value !== 'string') return null;
-    const normalized = value.trim();
-    return (ALLOWED_DESTINATIONS as readonly string[]).includes(normalized)
-      ? normalized as MeetingAnalysisDestinationRecommendation['suggestedDestination']
-      : null;
-  }
-
-  private normalizeMessageKind(value: unknown): MeetingAnalysisMessageDraft['kind'] | null {
-    if (typeof value !== 'string') return null;
-    const normalized = value.trim();
-    if (normalized === 'team_summary' || normalized === 'follow_up' || normalized === 'owner_confirmation' || normalized === 'other') {
-      return normalized;
-    }
-    return null;
-  }
-
-  private inferPriority(line: string): MeetingAnalysisTaskItem['prioritySuggested'] {
-    if (/critico|critical|urgente/i.test(line)) return 'critical';
-    if (/alto|high|importante/i.test(line)) return 'high';
-    if (/bajo|low/i.test(line)) return 'low';
-    return 'medium';
-  }
-
-  private inferSeverity(line: string): MeetingAnalysisRiskItem['severity'] {
-    if (/critico|critical/i.test(line)) return 'critical';
-    if (/alto|high/i.test(line)) return 'high';
-    if (/bajo|low/i.test(line)) return 'low';
-    return 'medium';
-  }
 }

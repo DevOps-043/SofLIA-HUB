@@ -17,15 +17,24 @@ const nodemailer = _require('nodemailer');
 const si = _require('systeminformation');
 const { createWorker } = _require('tesseract.js');
 import { VisualDebuggerService } from './visual-debugger-service';
-import { normalizePath, formatBytes, getFileExtension } from './utils/file-utils';
+import { normalizePath, formatBytes } from './utils/file-utils';
 import { organizeFiles, batchMoveFiles, listDirectorySummary, undoLastFileOperation } from './computer-use/batch-file-ops';
-import { backgroundProcessService, type ManagedSessionView } from './background-process-service';
+import {
+  handleCopyItem,
+  handleCreateDirectory,
+  handleDeleteItem,
+  handleGetFileInfo,
+  handleListDirectory,
+  handleMoveItem,
+  handleReadFile,
+  handleSearchFiles,
+  handleWriteFile,
+} from './computer-use/filesystem-handlers';
+import { backgroundProcessService } from './background-process-service';
 
 // ─── Security ────────────────────────────────────────────────────────
-const MAX_FILE_READ_SIZE = 1 * 1024 * 1024; // 1 MB
+// (MAX_FILE_READ_SIZE / MAX_SEARCH_* movidas a ./computer-use/filesystem-handlers.ts)
 const COMMAND_TIMEOUT = 30_000; // 30 seconds
-const MAX_SEARCH_RESULTS = 200;
-const MAX_SEARCH_DEPTH = 8;
 
 const BLOCKED_COMMANDS = [
   'format', 'diskpart', 'cipher /w', 'sfc', 'bcdedit',
@@ -41,458 +50,15 @@ function isCommandBlocked(cmd: string): boolean {
 }
 
 // ─── Computer Use GUI Automation Helpers ─────────────────────────────
+import {
+  focusExistingApplicationWindow,
+  launchPathNonBlocking,
+  looksLikeConcreteApplicationPath,
+  resolveApplicationTarget,
+  type ResolvedApplicationTarget,
+} from './computer-use/app-resolver';
+
 const execAsync = util.promisify(exec);
-
-const MAX_APP_SEARCH_RESULTS = 16;
-const MAX_APP_SEARCH_DIRS = 2500;
-
-const WINDOWS_APP_ALIASES: Record<string, string[]> = {
-  anydesk: ['AnyDesk.exe'],
-  calculadora: ['calc.exe'],
-  calculator: ['calc.exe'],
-  blocdenotas: ['notepad.exe'],
-  notepad: ['notepad.exe'],
-  explorer: ['explorer.exe'],
-  fileexplorer: ['explorer.exe'],
-  chrome: ['chrome.exe'],
-  edge: ['msedge.exe'],
-  brave: ['brave.exe'],
-  whatsapp: ['WhatsApp.exe'],
-  vscode: ['Code.exe'],
-  code: ['Code.exe'],
-  visualstudiocode: ['Code.exe'],
-  word: ['WINWORD.EXE'],
-  excel: ['EXCEL.EXE'],
-  powerpoint: ['POWERPNT.EXE'],
-  outlook: ['OUTLOOK.EXE'],
-  teams: ['Teams.exe', 'ms-teams.exe'],
-  zoom: ['Zoom.exe'],
-};
-
-type ResolvedApplicationTarget = {
-  path: string;
-  source: string;
-  score?: number;
-  searchedQuery?: string;
-  alternatives?: string[];
-};
-
-type ApplicationSearchRoot = {
-  root: string;
-  source: string;
-  maxDepth: number;
-};
-
-type ExistingWindowMatch = {
-  pid: number;
-  process: string;
-  title: string;
-};
-
-function normalizeLookupToken(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '');
-}
-
-function stripLaunchExtension(value: string): string {
-  return value.replace(/\.(exe|lnk|appref-ms|cmd|bat|com)$/i, '');
-}
-
-function looksLikeConcretePath(value: string): boolean {
-  const trimmed = (value || '').trim();
-  if (!trimmed) return false;
-  return path.isAbsolute(trimmed) || /[\\/]/.test(trimmed) || /\.[a-z0-9]{2,10}$/i.test(path.basename(trimmed));
-}
-
-function isLaunchableCandidatePath(filePath: string): boolean {
-  const ext = path.extname(filePath).toLowerCase();
-  return ['.exe', '.lnk', '.appref-ms', '.cmd', '.bat', '.com'].includes(ext);
-}
-
-function shouldSkipApplicationSearchDirectory(name: string): boolean {
-  const lower = name.toLowerCase();
-  return lower.startsWith('.') || [
-    'windows',
-    'winsxs',
-    'system32',
-    'syswow64',
-    'node_modules',
-    '.git',
-  ].includes(lower);
-}
-
-function scoreApplicationCandidate(filePath: string, normalizedQueries: string[]): number {
-  const lowerPath = filePath.toLowerCase();
-  const baseName = stripLaunchExtension(path.basename(filePath)).toLowerCase();
-  const compactBase = normalizeLookupToken(baseName);
-  const compactPath = normalizeLookupToken(lowerPath);
-
-  let score = 0;
-  for (const query of normalizedQueries) {
-    if (!query) continue;
-    if (compactBase === query) score = Math.max(score, 220);
-    else if (compactBase.startsWith(query)) score = Math.max(score, 180);
-    else if (compactBase.includes(query)) score = Math.max(score, 145);
-    else if (compactPath.includes(query)) score = Math.max(score, 70);
-  }
-
-  if (score === 0) return 0;
-
-  if (/[\\/]program files( \(x86\))?[\\/]/i.test(lowerPath) || /[\\/]appdata[\\/]local[\\/]programs[\\/]/i.test(lowerPath)) {
-    score += 90;
-  }
-  if (/[\\/]start menu[\\/]programs[\\/]/i.test(lowerPath)) score += 70;
-  if (lowerPath.includes('\\windowsapps\\')) score += 55;
-  if (lowerPath.includes('\\downloads\\')) score -= 80;
-  if (/(setup|installer|install|update|updater|uninstall|bootstrap|helper)/i.test(lowerPath)) score -= 180;
-
-  const ext = path.extname(lowerPath).toLowerCase();
-  if (ext === '.exe') score += 25;
-  if (ext === '.lnk' || ext === '.appref-ms') score += 10;
-
-  return score;
-}
-
-function buildApplicationQueryVariants(rawTarget: string): string[] {
-  const base = stripLaunchExtension(path.basename((rawTarget || '').trim()));
-  if (!base) return [];
-
-  const variants = new Set<string>();
-  variants.add(base);
-  variants.add(base.replace(/[-_]+/g, ' '));
-  variants.add(base.replace(/\s+/g, ''));
-  variants.add(`${base}.exe`);
-
-  const aliasKey = normalizeLookupToken(base);
-  for (const alias of WINDOWS_APP_ALIASES[aliasKey] || []) {
-    variants.add(alias);
-  }
-
-  return Array.from(variants)
-    .map(value => value.trim())
-    .filter(Boolean);
-}
-
-function getWindowsApplicationSearchRoots(): ApplicationSearchRoot[] {
-  const envCandidates: Array<ApplicationSearchRoot | null> = [
-    process.env.LOCALAPPDATA ? { root: path.join(process.env.LOCALAPPDATA, 'Programs'), source: 'local-programs', maxDepth: 4 } : null,
-    process.env.ProgramFiles ? { root: process.env.ProgramFiles, source: 'program-files', maxDepth: 4 } : null,
-    process.env['ProgramFiles(x86)'] ? { root: process.env['ProgramFiles(x86)'], source: 'program-files-x86', maxDepth: 4 } : null,
-    process.env.LOCALAPPDATA ? { root: path.join(process.env.LOCALAPPDATA, 'Microsoft', 'WindowsApps'), source: 'windows-apps', maxDepth: 2 } : null,
-    process.env.APPDATA ? { root: path.join(process.env.APPDATA, 'Microsoft', 'Windows', 'Start Menu', 'Programs'), source: 'start-menu-user', maxDepth: 3 } : null,
-    process.env.ProgramData ? { root: path.join(process.env.ProgramData, 'Microsoft', 'Windows', 'Start Menu', 'Programs'), source: 'start-menu-machine', maxDepth: 3 } : null,
-    { root: path.join(os.homedir(), 'Desktop'), source: 'desktop', maxDepth: 2 },
-    { root: path.join(os.homedir(), 'Downloads'), source: 'downloads', maxDepth: 2 },
-  ];
-
-  const seen = new Set<string>();
-  const roots: ApplicationSearchRoot[] = [];
-  for (const candidate of envCandidates) {
-    if (!candidate) continue;
-    const normalized = path.normalize(candidate.root);
-    if (seen.has(normalized.toLowerCase())) continue;
-    seen.add(normalized.toLowerCase());
-    try {
-      if (fsSync.existsSync(normalized)) {
-        roots.push({ ...candidate, root: normalized });
-      }
-    } catch {
-      // Ignore inaccessible roots.
-    }
-  }
-  return roots;
-}
-
-async function collectWhereMatches(queryVariants: string[]): Promise<ResolvedApplicationTarget[]> {
-  const results = new Map<string, ResolvedApplicationTarget>();
-  for (const rawVariant of queryVariants.slice(0, 8)) {
-    const baseVariant = stripLaunchExtension(path.basename(rawVariant));
-    const attempts = new Set<string>([rawVariant, baseVariant, `${baseVariant}.exe`]);
-
-    for (const attempt of attempts) {
-      const command = attempt.trim();
-      if (!command) continue;
-      try {
-        const { stdout } = await execAsync(`where.exe "${command.replace(/"/g, '\\"')}"`, {
-          timeout: 1500,
-          windowsHide: true,
-          maxBuffer: 1024 * 128,
-        });
-        for (const line of (stdout || '').split(/\r?\n/)) {
-          const candidate = line.trim();
-          if (!candidate || !fsSync.existsSync(candidate)) continue;
-          const key = candidate.toLowerCase();
-          if (!results.has(key)) {
-            results.set(key, { path: candidate, source: 'where', score: 260 });
-          }
-        }
-      } catch {
-        // Keep trying other variants.
-      }
-    }
-  }
-  return Array.from(results.values());
-}
-
-async function collectRegistryMatches(queryVariants: string[]): Promise<ResolvedApplicationTarget[]> {
-  const results = new Map<string, ResolvedApplicationTarget>();
-  const exeNames = Array.from(new Set(
-    queryVariants
-      .map(variant => {
-        const base = stripLaunchExtension(path.basename(variant.trim()));
-        return base ? `${base}.exe` : '';
-      })
-      .filter(Boolean),
-  ));
-
-  for (const exeName of exeNames.slice(0, 8)) {
-    for (const hive of ['HKLM', 'HKCU']) {
-      const registryKey = `${hive}\\Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\${exeName}`;
-      try {
-        const { stdout } = await execAsync(`reg query "${registryKey}" /ve`, {
-          timeout: 2000,
-          windowsHide: true,
-          maxBuffer: 1024 * 128,
-        });
-        const match = (stdout || '').match(/REG_\w+\s+([^\r\n]+)\s*$/m);
-        const candidate = match?.[1]?.trim();
-        if (!candidate || !fsSync.existsSync(candidate)) continue;
-        const key = candidate.toLowerCase();
-        if (!results.has(key)) {
-          results.set(key, { path: candidate, source: 'app-paths', score: 280 });
-        }
-      } catch {
-        // Ignore missing registry entries.
-      }
-    }
-  }
-
-  return Array.from(results.values());
-}
-
-async function searchWindowsApplicationRoots(queryVariants: string[]): Promise<ResolvedApplicationTarget[]> {
-  const normalizedQueries = queryVariants.map(variant => normalizeLookupToken(stripLaunchExtension(variant))).filter(Boolean);
-  const matches = new Map<string, ResolvedApplicationTarget>();
-  let scannedDirs = 0;
-
-  for (const searchRoot of getWindowsApplicationSearchRoots()) {
-    const queue: Array<{ dir: string; depth: number }> = [{ dir: searchRoot.root, depth: 0 }];
-
-    while (queue.length > 0 && matches.size < MAX_APP_SEARCH_RESULTS && scannedDirs < MAX_APP_SEARCH_DIRS) {
-      const current = queue.shift();
-      if (!current) break;
-      scannedDirs++;
-
-      let entries: fsSync.Dirent[] = [];
-      try {
-        entries = await fs.readdir(current.dir, { withFileTypes: true });
-      } catch {
-        continue;
-      }
-
-      for (const entry of entries) {
-        const fullPath = path.join(current.dir, entry.name);
-
-        if (entry.isDirectory()) {
-          if (current.depth < searchRoot.maxDepth && !shouldSkipApplicationSearchDirectory(entry.name)) {
-            queue.push({ dir: fullPath, depth: current.depth + 1 });
-          }
-          continue;
-        }
-
-        if (!isLaunchableCandidatePath(fullPath)) continue;
-
-        const score = scoreApplicationCandidate(fullPath, normalizedQueries);
-        if (score <= 0) continue;
-
-        const key = fullPath.toLowerCase();
-        const existing = matches.get(key);
-        if (!existing || score > (existing.score ?? 0)) {
-          matches.set(key, {
-            path: fullPath,
-            source: searchRoot.source,
-            score,
-          });
-        }
-      }
-    }
-  }
-
-  return Array.from(matches.values()).sort((a, b) => {
-    const byScore = (b.score ?? 0) - (a.score ?? 0);
-    if (byScore !== 0) return byScore;
-    return a.path.length - b.path.length;
-  });
-}
-
-async function resolveApplicationTarget(
-  target: string,
-  onProgress?: (message: string) => void,
-): Promise<ResolvedApplicationTarget | null> {
-  const rawTarget = (target || '').trim();
-  if (!rawTarget) return null;
-
-  const directPath = normalizePath(rawTarget);
-  if (looksLikeConcretePath(rawTarget) && fsSync.existsSync(directPath)) {
-    return { path: directPath, source: 'direct', searchedQuery: rawTarget };
-  }
-
-  if (process.platform !== 'win32') {
-    return null;
-  }
-
-  const query = stripLaunchExtension(path.basename(rawTarget));
-  const queryVariants = buildApplicationQueryVariants(query);
-  if (queryVariants.length === 0) return null;
-
-  const candidates = new Map<string, ResolvedApplicationTarget>();
-  const addCandidates = (items: ResolvedApplicationTarget[]) => {
-    for (const item of items) {
-      if (!item?.path || !fsSync.existsSync(item.path)) continue;
-      const key = item.path.toLowerCase();
-      const existing = candidates.get(key);
-      if (!existing || (item.score ?? 0) > (existing.score ?? 0)) {
-        candidates.set(key, { ...item, searchedQuery: query });
-      }
-    }
-  };
-
-  if (onProgress) onProgress(`Buscando "${query}" en alias de Windows y aplicaciones instaladas...`);
-  addCandidates(await collectWhereMatches(queryVariants));
-  addCandidates(await collectRegistryMatches(queryVariants));
-
-  if (candidates.size < 3) {
-    if (onProgress) onProgress(`Explorando ubicaciones comunes de programas para "${query}"...`);
-    addCandidates(await searchWindowsApplicationRoots(queryVariants));
-  }
-
-  const ranked = Array.from(candidates.values()).sort((a, b) => {
-    const byScore = (b.score ?? 0) - (a.score ?? 0);
-    if (byScore !== 0) return byScore;
-    return a.path.length - b.path.length;
-  });
-
-  if (ranked.length === 0) {
-    return null;
-  }
-
-  return {
-    ...ranked[0],
-    alternatives: ranked.slice(1, 5).map(candidate => candidate.path),
-  };
-}
-
-function escapePowerShellSingleQuoted(value: string): string {
-  return value.replace(/'/g, "''");
-}
-
-function buildWindowSearchTokens(requestedPath: string, resolvedPath: string): string[] {
-  const candidates = new Set<string>();
-  const requestedBase = stripLaunchExtension(path.basename((requestedPath || '').trim()));
-  const resolvedBase = stripLaunchExtension(path.basename((resolvedPath || '').trim()));
-
-  for (const candidate of [requestedBase, resolvedBase, requestedPath, resolvedPath]) {
-    const trimmed = String(candidate || '').trim();
-    if (!trimmed) continue;
-    candidates.add(trimmed);
-    candidates.add(trimmed.replace(/[-_]+/g, ' '));
-  }
-
-  return Array.from(candidates)
-    .map((token) => token.trim())
-    .filter((token) => token.length >= 2)
-    .slice(0, 8);
-}
-
-async function focusExistingApplicationWindow(
-  requestedPath: string,
-  resolvedPath: string,
-): Promise<ExistingWindowMatch | null> {
-  if (process.platform !== 'win32') return null;
-
-  const tokens = buildWindowSearchTokens(requestedPath, resolvedPath);
-  if (!tokens.length) return null;
-
-  const tokenConditions = tokens
-    .map((token) => {
-      const safe = escapePowerShellSingleQuoted(token);
-      return `$_.ProcessName -like '*${safe}*' -or $_.MainWindowTitle -like '*${safe}*'`;
-    })
-    .join(' -or ');
-
-  if (!tokenConditions) return null;
-
-  const script = `
-Add-Type -Name Win32 -Namespace W -MemberDefinition '
-  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
-  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-'
-$proc = Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and (${tokenConditions}) } | Sort-Object StartTime -Descending | Select-Object -First 1
-if ($proc) {
-  [W.Win32]::ShowWindow($proc.MainWindowHandle, 9) | Out-Null
-  [W.Win32]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null
-  @{ pid = $proc.Id; process = $proc.ProcessName; title = $proc.MainWindowTitle } | ConvertTo-Json -Compress
-}
-`;
-
-  try {
-    const { stdout } = await execAsync(`powershell -NoProfile -Command "${script.replace(/\n/g, '; ').replace(/"/g, '\\"')}"`, {
-      timeout: 4000,
-      windowsHide: true,
-      maxBuffer: 1024 * 128,
-    });
-    const trimmed = (stdout || '').trim();
-    if (!trimmed) return null;
-    const parsed = JSON.parse(trimmed);
-    if (!parsed?.pid) return null;
-    return {
-      pid: Number(parsed.pid) || 0,
-      process: String(parsed.process || ''),
-      title: String(parsed.title || ''),
-    };
-  } catch {
-    return null;
-  }
-}
-
-async function launchPathNonBlocking(
-  resolvedPath: string,
-  metadata?: Record<string, any>,
-): Promise<{ success: boolean; error?: string; session?: ManagedSessionView | null }> {
-  const normalized = normalizePath(resolvedPath);
-
-  if (process.platform === 'win32') {
-    try {
-      const session = await backgroundProcessService.launchApplication({
-        targetPath: normalized,
-        title: `Aplicacion: ${path.basename(normalized)}`,
-        metadata,
-      });
-      if (session.status === 'failed') {
-        return { success: false, error: session.lastError || 'No se pudo iniciar el proceso.', session };
-      }
-      return { success: true, session };
-    } catch (err: any) {
-      return {
-        success: false,
-        error: err?.stderr?.trim() || err?.stdout?.trim() || err?.message || 'No se pudo iniciar el proceso.',
-      };
-    }
-  }
-
-  try {
-    const result = await shell.openPath(normalized);
-    if (result) {
-      return { success: false, error: result };
-    }
-    return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err?.message || 'No se pudo abrir el elemento.' };
-  }
-}
 
 async function performGuiAction(action: string, coordinate?: number[], text?: string): Promise<void> {
   const platform = os.platform();
@@ -728,223 +294,32 @@ export async function executeToolDirect(
     case 'kill_process':
       return await handleKillProcess(Number(args.pid));
 
-    case 'list_directory': {
-      try {
-        const resolved = normalizePath(args.path || os.homedir());
-        if (onProgress) onProgress(`Listando directorio: ${resolved}...`);
-        const entries = await fs.readdir(resolved, { withFileTypes: true });
-        const showHidden = args.show_hidden || false;
+    case 'list_directory':
+      return handleListDirectory(args, onProgress);
 
-        if (entries.length > 100 && onProgress) {
-          onProgress(`Analizando detalles de ${entries.length} elementos...`);
-        }
+    case 'read_file':
+      return handleReadFile(args);
 
-        let processedCount = 0;
-        const items = await Promise.all(
-          entries
-            .filter(e => showHidden || !e.name.startsWith('.'))
-            .map(async (entry) => {
-              processedCount++;
-              if (processedCount % 100 === 0 && onProgress) {
-                onProgress(`Leyendo detalles... ${processedCount} de ${entries.length} archivos procesados.`);
-              }
-              const fullPath = path.join(resolved, entry.name);
-              try {
-                const stat = await fs.stat(fullPath);
-                return {
-                  name: entry.name,
-                  path: fullPath,
-                  isDirectory: entry.isDirectory(),
-                  size: entry.isDirectory() ? null : formatBytes(stat.size),
-                  sizeBytes: stat.size,
-                  extension: entry.isDirectory() ? null : getFileExtension(entry.name),
-                  modified: stat.mtime.toISOString(),
-                  created: stat.birthtime.toISOString(),
-                };
-              } catch {
-                return {
-                  name: entry.name,
-                  path: fullPath,
-                  isDirectory: entry.isDirectory(),
-                  size: null,
-                  sizeBytes: 0,
-                  extension: entry.isDirectory() ? null : getFileExtension(entry.name),
-                  modified: null,
-                  created: null,
-                };
-              }
-            })
-        );
+    case 'write_file':
+      return handleWriteFile(args, onProgress);
 
-        items.sort((a, b) => {
-          if (a.isDirectory && !b.isDirectory) return -1;
-          if (!a.isDirectory && b.isDirectory) return 1;
-          return a.name.localeCompare(b.name);
-        });
+    case 'create_directory':
+      return handleCreateDirectory(args);
 
-        return { success: true, path: resolved, items, count: items.length };
-      } catch (err: any) {
-        return { success: false, error: err.message };
-      }
-    }
+    case 'move_item':
+      return handleMoveItem(args, onProgress);
 
-    case 'read_file': {
-      try {
-        const resolved = normalizePath(args.path);
-        const stat = await fs.stat(resolved);
-        if (stat.isDirectory()) return { success: false, error: 'La ruta es un directorio, no un archivo.' };
-        if (stat.size > MAX_FILE_READ_SIZE) return { success: false, error: `Archivo demasiado grande (${formatBytes(stat.size)}). Máximo: ${formatBytes(MAX_FILE_READ_SIZE)}.` };
+    case 'copy_item':
+      return handleCopyItem(args, onProgress);
 
-        const ext = getFileExtension(resolved);
+    case 'delete_item':
+      return handleDeleteItem(args, onProgress);
 
-        // Handle .docx files — extract text using mammoth
-        if (ext === 'docx') {
-          try {
-            const mammoth = await import('mammoth');
-            const buffer = await fs.readFile(resolved);
-            const result = await mammoth.extractRawText({ buffer });
-            return { success: true, path: resolved, content: result.value, size: formatBytes(stat.size), extension: ext, format: 'docx (texto extraído)' };
-          } catch (docxErr: any) {
-            return { success: false, error: `Error al leer archivo .docx: ${docxErr.message}` };
-          }
-        }
+    case 'get_file_info':
+      return handleGetFileInfo(args);
 
-        const content = await fs.readFile(resolved, 'utf-8');
-        return { success: true, path: resolved, content, size: formatBytes(stat.size), extension: ext };
-      } catch (err: any) {
-        return { success: false, error: err.message };
-      }
-    }
-
-    case 'write_file': {
-      try {
-        const resolved = normalizePath(args.path);
-        if (onProgress) onProgress(`Escribiendo archivo: ${resolved}...`);
-        await fs.mkdir(path.dirname(resolved), { recursive: true });
-        await fs.writeFile(resolved, args.content, 'utf-8');
-        return { success: true, path: resolved, message: `Archivo creado/actualizado: ${path.basename(resolved)}` };
-      } catch (err: any) {
-        return { success: false, error: err.message };
-      }
-    }
-
-    case 'create_directory': {
-      try {
-        const resolved = normalizePath(args.path);
-        try {
-          await fs.mkdir(resolved, { recursive: true });
-        } catch (err: any) {
-          if (err.code === 'EEXIST') {
-            return { success: true, path: resolved, message: `La carpeta ya existe: ${path.basename(resolved)}` };
-          }
-          throw err;
-        }
-        return { success: true, path: resolved, message: `Carpeta creada: ${path.basename(resolved)}` };
-      } catch (err: any) {
-        return { success: false, error: err.message };
-      }
-    }
-
-    case 'move_item': {
-      try {
-        const src = normalizePath(args.source_path);
-        const dst = normalizePath(args.destination_path);
-        if (onProgress) onProgress(`Moviendo ${src} a ${dst}...`);
-        try {
-          await fs.rename(src, dst);
-        } catch (err: any) {
-          if (err.code === 'ENOENT') {
-            await fs.mkdir(path.dirname(dst), { recursive: true });
-            await fs.rename(src, dst);
-          }
-          else {
-            throw err;
-          }
-        }
-        return { success: true, from: src, to: dst, message: `Movido: ${path.basename(src)} → ${path.basename(dst)}` };
-      } catch (err: any) {
-        return { success: false, error: err.message };
-      }
-    }
-
-    case 'copy_item': {
-      try {
-        const src = normalizePath(args.source_path);
-        const dst = normalizePath(args.destination_path);
-        if (onProgress) onProgress(`Copiando de ${src} a ${dst}...`);
-        const stat = await fs.stat(src);
-        if (stat.isDirectory()) {
-          await fs.cp(src, dst, { recursive: true });
-        } else {
-          await fs.mkdir(path.dirname(dst), { recursive: true });
-          await fs.copyFile(src, dst);
-        }
-        return { success: true, from: src, to: dst, message: `Copiado: ${path.basename(src)}` };
-      } catch (err: any) {
-        return { success: false, error: err.message };
-      }
-    }
-
-    case 'delete_item': {
-      try {
-        const resolved = normalizePath(args.path);
-        if (onProgress) onProgress(`Enviando a la papelera: ${resolved}...`);
-        await shell.trashItem(resolved);
-        return { success: true, path: resolved, message: `Enviado a papelera: ${path.basename(resolved)}` };
-      } catch (err: any) {
-        return { success: false, error: err.message };
-      }
-    }
-
-    case 'get_file_info': {
-      try {
-        const resolved = normalizePath(args.path);
-        const stat = await fs.stat(resolved);
-        return {
-          success: true, path: resolved, name: path.basename(resolved),
-          isDirectory: stat.isDirectory(), size: formatBytes(stat.size), sizeBytes: stat.size,
-          extension: stat.isDirectory() ? null : getFileExtension(resolved),
-          created: stat.birthtime.toISOString(), modified: stat.mtime.toISOString(), accessed: stat.atime.toISOString(),
-        };
-      } catch (err: any) {
-        return { success: false, error: err.message };
-      }
-    }
-
-    case 'search_files': {
-      try {
-        const resolved = normalizePath(args.directory || os.homedir());
-        if (onProgress) onProgress(`Iniciando búsqueda en ${resolved}...`);
-        const results: Array<{ name: string; path: string; isDirectory: boolean }> = [];
-        const lowerPattern = (args.pattern as string).toLowerCase();
-        let scanned = 0;
-
-        async function walk(dir: string, depth: number) {
-          if (depth > MAX_SEARCH_DEPTH || results.length >= MAX_SEARCH_RESULTS) return;
-          try {
-            const entries = await fs.readdir(dir, { withFileTypes: true });
-            for (const entry of entries) {
-              if (results.length >= MAX_SEARCH_RESULTS) break;
-              scanned++;
-              if (scanned % 500 === 0 && onProgress) {
-                onProgress(`Buscando... Escaneados ${scanned} elementos, encontrados ${results.length}.`);
-              }
-              if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === '.git' || entry.name === 'AppData' || entry.name === '$Recycle.Bin' || entry.name === 'dist' || entry.name === 'dist-electron') continue;
-              const fullPath = path.join(dir, entry.name);
-              if (entry.name.toLowerCase().includes(lowerPattern)) {
-                results.push({ name: entry.name, path: fullPath, isDirectory: entry.isDirectory() });
-              }
-              if (entry.isDirectory()) await walk(fullPath, depth + 1);
-            }
-          } catch { /* skip */ }
-        }
-
-        await walk(resolved, 0);
-        return { success: true, pattern: args.pattern, searchPath: resolved, results, count: results.length };
-      } catch (err: any) {
-        return { success: false, error: err.message };
-      }
-    }
+    case 'search_files':
+      return handleSearchFiles(args, onProgress);
 
     // ─── Batch File Operations (delegated to computer-use/batch-file-ops) ───
 
@@ -993,7 +368,7 @@ export async function executeToolDirect(
         let resolvedTarget: ResolvedApplicationTarget | null = null;
         const progressMessages: string[] = [];
 
-        if (looksLikeConcretePath(requestedPath)) {
+        if (looksLikeConcreteApplicationPath(requestedPath)) {
           const directPath = normalizePath(requestedPath);
           if (!fsSync.existsSync(directPath)) {
             return {
