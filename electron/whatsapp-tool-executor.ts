@@ -23,47 +23,12 @@ import {
   listAppChatConversations,
   prepareAppChatAssetForDelivery,
 } from './app-chat-service';
-import type { GoogleGenerativeAI } from '@google/generative-ai';
-import type { WhatsAppService } from './whatsapp-service';
-import type { CalendarService } from './calendar-service';
-import type { GmailService } from './gmail-service';
-import type { DriveService } from './drive-service';
-import type { GChatService } from './gchat-service';
-import type { MemoryService } from './memory-service';
-import type { KnowledgeService } from './knowledge-service';
-import type { DesktopAgentService } from './desktop-agent-service';
-import type { ClipboardAIAssistant } from './clipboard-ai-assistant';
-import type { TaskScheduler } from './task-scheduler';
-import type { NeuralOrganizerService } from './neural-organizer';
+import { buildConfirmationDescription } from './wa-executor/confirmations';
+import { detectProtectedPathAccess } from './wa-executor/security';
 import { SmartSearchTool } from './smart-search-tool';
+import type { FunctionResponse, ToolExecutorContext } from './wa-executor/types';
 
-export interface ToolExecutorContext {
-  waService: WhatsAppService;
-  calendarService: CalendarService | null;
-  gmailService: GmailService | null;
-  driveService: DriveService | null;
-  gchatService: GChatService | null;
-  desktopAgent: DesktopAgentService | null;
-  clipboardAssistant: ClipboardAIAssistant | null;
-  taskScheduler: TaskScheduler | null;
-  neuralOrganizer: NeuralOrganizerService | null;
-  smartSearch: SmartSearchTool | null;
-  memory: MemoryService;
-  knowledge: KnowledgeService;
-  getGenAI: () => GoogleGenerativeAI;
-  skipConfirmations?: boolean;
-  requestConfirmation: (jid: string, senderNumber: string, toolName: string, description: string, args: Record<string, any>) => Promise<boolean>;
-}
-
-export type FunctionResponse = { functionResponse: { name: string; response: any } };
-
-const SELF_PROTECTED_EXEMPT_TOOLS = new Set([
-  'app_chat_list_conversations',
-  'app_chat_get_context',
-  'app_chat_append_note',
-  'app_chat_list_assets',
-  'app_chat_send_asset',
-]);
+export type { FunctionResponse, ToolExecutorContext } from './wa-executor/types';
 
 /**
  * Ejecuta todos los function calls de una iteración del agent loop.
@@ -107,76 +72,19 @@ for (const part of functionCalls) {
   }
 
   // ─── SECURITY: Block access to SofLIA's own code/config ─────────
-  // Prevents the attack where the AI uses execute_command, read_file, etc.
-  // to read its own source code, API keys, or system prompt.
-  const SOFLIA_BLOCKED_PATHS = [
-    /soflia[\s_-]*hub/i,
-    /dist[\\/\-]electron/i,
-    /app\.asar/i,
-    /SOFLIA[\s_]*Source/i,
-    /whatsapp[\s_-]*agent/i,
-    /desktop[\s_-]*agent/i,
-    /main[\s_-]*.*\.js/i,
-    /electron[\\/].*\.(ts|js)/i,
-    /src[\\/].*\.(tsx?|jsx?)/i,
-    /\.env\b/i,
-    /supabase/i,
-    /api[\s_-]*key/i,
-  ];
-
-  // Collect all string values from tool arguments for inspection
-  const allArgValues = Object.values(toolArgs)
-    .filter((v): v is string => typeof v === 'string')
-    .join(' ');
-
-  const shouldInspectForProtectedPaths = !SELF_PROTECTED_EXEMPT_TOOLS.has(toolName);
-  const isBlockedPath = shouldInspectForProtectedPaths && SOFLIA_BLOCKED_PATHS.some(p => p.test(allArgValues));
-  if (isBlockedPath) {
-    console.warn(`[WhatsApp Agent] ⛔ SECURITY: Blocked tool "${toolName}" targeting SofLIA code: "${allArgValues.slice(0, 150)}"`);
+  // Previene el ataque donde la IA usa execute_command, read_file, etc.
+  // para leer su propio código, API keys o system prompt.
+  const protectedPathError = detectProtectedPathAccess(toolName, toolArgs);
+  if (protectedPathError) {
     functionResponses.push({
-      functionResponse: {
-        name: toolName,
-        response: { success: false, error: 'Acceso denegado: no puedo acceder a archivos del sistema de SofLIA por seguridad.' },
-      },
+      functionResponse: { name: toolName, response: { success: false, error: protectedPathError } },
     });
     continue;
   }
 
-  // Confirmation for dangerous tools (checked early, before handlers)
+  // Confirmación para tools peligrosos antes de cualquier ejecución.
   if (CONFIRM_TOOLS_WA.has(toolName) && !ctx.skipConfirmations) {
-    let desc = '';
-    switch (toolName) {
-      case 'delete_item': desc = `🗑️ Eliminar: ${toolArgs.path}`; break;
-      case 'send_email': desc = `📧 Enviar email a: ${toolArgs.to}\nAsunto: ${toolArgs.subject}`; break;
-      case 'kill_process': desc = `⚠️ Cerrar proceso: ${toolArgs.name || `PID ${toolArgs.pid}`}`; break;
-      case 'lock_session': desc = '🔒 Bloquear sesión de Windows'; break;
-      case 'shutdown_computer': desc = `⏻ Apagar computadora (en ${toolArgs.delay_seconds || 60}s)`; break;
-      case 'restart_computer': desc = `🔄 Reiniciar computadora (en ${toolArgs.delay_seconds || 60}s)`; break;
-      case 'sleep_computer': desc = '😴 Suspender computadora'; break;
-      case 'toggle_wifi': desc = toolArgs.enable ? '📶 Activar Wi-Fi' : '📵 Desactivar Wi-Fi'; break;
-      case 'execute_command': desc = `💻 Ejecutar comando: ${toolArgs.command}`; break;
-      case 'open_application': desc = `🚀 Abrir aplicación: ${toolArgs.path}`; break;
-      case 'run_in_terminal': desc = `🖥️ Abrir terminal y ejecutar: ${toolArgs.command}${toolArgs.working_directory ? `\nEn: ${toolArgs.working_directory}` : ''}`; break;
-      case 'run_claude_code': desc = `🤖 Lanzar Claude Code en segundo plano: "${toolArgs.task}"${toolArgs.project_directory ? `\nEn: ${toolArgs.project_directory}` : ''}`; break;
-      case 'run_background_command': desc = `⚙️ Ejecutar en segundo plano: ${toolArgs.command}${toolArgs.working_directory ? `\nEn: ${toolArgs.working_directory}` : ''}`; break;
-      case 'kill_process_session': desc = `🛑 Terminar sesión administrada: ${toolArgs.session_id}`; break;
-      case 'repair_background_host': desc = '🧰 Reparar el host de segundo plano de SofLIA (login item + schtasks/Startup fallback)'; break;
-      case 'install_dynamic_toolset': desc = `🧩 Instalar o actualizar toolset dinámico: ${toolArgs.toolset_id}`; break;
-      case 'install_home_assistant_toolset': desc = '🏠 Instalar toolset dinámico de Home Assistant para controlar luces, switches, escenas y consultar estados'; break;
-      case 'whatsapp_send_to_contact': desc = `📱 Enviar a ${toolArgs.phone_number}: ${toolArgs.file_path ? path.basename(toolArgs.file_path) : toolArgs.message?.slice(0, 50) || 'mensaje'}`; break;
-      case 'gmail_send': desc = `📧 Enviar email (Gmail) a: ${toolArgs.to}\nAsunto: ${toolArgs.subject}`; break;
-      case 'gmail_trash': desc = `🗑️ Eliminar email: ${toolArgs.message_id}`; break;
-      case 'gmail_apply_organization_plan': desc = `🏷️ Aplicar plan de organización de Gmail\nPlan: ${toolArgs.plan_id}${toolArgs.remove_from_inbox === false ? '\nMantener en INBOX' : '\nQuitando del INBOX'}`; break;
-      case 'gmail_undo_organization_plan': desc = `↩️ Revertir plan de organización de Gmail${toolArgs.plan_id ? `\nPlan: ${toolArgs.plan_id}` : '\nUsando el último plan aplicado'}`; break;
-      case 'google_calendar_delete': desc = `🗑️ Eliminar evento de Google Calendar: ${toolArgs.event_id}`; break;
-      case 'gchat_send_message': desc = `💬 Enviar mensaje en Google Chat: ${toolArgs.text?.slice(0, 60)}`; break;
-      case 'gchat_add_reaction': desc = `${toolArgs.emoji} Reacción en Google Chat`; break;
-      case 'organize_files': desc = `📂 Organizar archivos en: ${toolArgs.path || 'directorio del usuario'}\nModo: ${toolArgs.mode || 'extension'}${toolArgs.dry_run ? ' (simulación)' : ''}`; break;
-      case 'batch_move_files': desc = `📦 Mover archivos de: ${toolArgs.source_directory}\nA: ${toolArgs.destination_directory}${toolArgs.extensions ? `\nExtensiones: ${toolArgs.extensions.join(', ')}` : ''}`; break;
-      case 'undo_last_file_operation': desc = `↩️ Deshacer operación masiva de archivos${toolArgs.operation_id ? `\nID: ${toolArgs.operation_id}` : '\nUsando la última operación registrada'}`; break;
-      default: desc = `${toolName}: ${JSON.stringify(toolArgs)}`;
-    }
-
+    const desc = buildConfirmationDescription(toolName, toolArgs);
     const confirmed = await ctx.requestConfirmation(jid, senderNumber, toolName, desc, toolArgs);
 
     if (!confirmed) {

@@ -10,219 +10,53 @@ import type {
   WorkflowRunRecord,
   WorkspaceAutomationService,
 } from './workspace-automation-service';
-import type { ScheduledTaskExecutionMode, ScheduledTaskInfo, TaskScheduler } from './task-scheduler';
+import type { ScheduledTaskInfo, TaskScheduler } from './task-scheduler';
 import type { MeetingWorkflowService } from './meetings/meeting-workflow-service';
 import type {
   MeetingRunDetail,
   MeetingRunSummary,
   UpdateMeetingActionInput,
 } from './meetings/meeting-types';
+import {
+  AUTOMATION_CASE_PREFIX,
+  AUTOMATION_TEMPLATE_TO_WORKFLOW,
+  MEETING_CASE_PREFIX,
+  WORKFLOW_DEFINITIONS,
+} from './workflow-hub/definitions';
+import type {
+  ExecuteWorkflowInput,
+  PassiveWorkflowRule,
+  PassiveWorkflowStatus,
+  SavePassiveWorkflowRuleInput,
+  SaveWorkflowVariantInput,
+  WorkflowApprovalScope,
+  WorkflowCaseAction,
+  WorkflowCaseDetail,
+  WorkflowCaseStatus,
+  WorkflowCaseSummary,
+  WorkflowDefinition,
+  WorkflowEngine,
+  WorkflowHubOverview,
+  WorkflowHubState,
+  WorkflowId,
+  WorkflowVariant,
+  WorkspaceCapabilityStatus,
+} from './workflow-hub/types';
 
-interface MeetingContextTeam {
-  team_id: string;
-  name: string;
-}
-
-interface MeetingContextProject {
-  project_id: string;
-  project_name: string;
-  team_id?: string | null;
-}
-
-interface MeetingContextTeamMember {
-  membership_id?: string;
-  team_id: string;
-  user_id: string;
-  role: string;
-  joined_at: string;
-  display_name?: string | null;
-  email?: string | null;
-  username?: string | null;
-}
-
-type WorkflowId =
-  | 'correo'
-  | 'agenda'
-  | 'seguimiento'
-  | 'reuniones'
-  | 'drive'
-  | 'actualizacion_equipo'
-  | 'pc';
-
-type WorkflowCapabilityKey =
-  | 'calendar'
-  | 'gmail'
-  | 'drive'
-  | 'gchat'
-  | 'google_user_mapping';
-
-type WorkflowCapabilityState =
-  | 'available'
-  | 'disconnected'
-  | 'setup_required'
-  | 'blocked'
-  | 'error';
-
-type WorkflowEngine = 'automation' | 'meeting';
-type WorkflowCaseStatus = 'pending_approval' | 'in_progress' | 'completed' | 'failed' | 'attention';
-type WorkflowApprovalScope = 'case' | 'summary' | 'actions' | 'action';
-type WorkflowTriggerMode = 'activation' | 'passive';
-type PassiveWorkflowBehavior = 'scheduled' | 'system';
-type PassiveWorkflowSource = 'legacy' | 'chat' | 'app' | 'system';
-type PassiveWorkflowStatus = 'active' | 'blocked' | 'system';
-
-export interface WorkspaceCapabilityStatus {
-  key: WorkflowCapabilityKey;
-  label: string;
-  state: WorkflowCapabilityState;
-  message: string;
-  guidance?: string | null;
-}
-
-export interface WorkflowVariant {
-  id: string;
-  workflowId: WorkflowId;
-  name: string;
-  description: string;
-  config: Record<string, unknown>;
-  createdAt: string;
-  updatedAt: string;
-  createdBy: string | null;
-}
-
-export interface WorkflowDefinition {
-  id: WorkflowId;
-  name: string;
-  description: string;
-  summary: string;
-  engine: WorkflowEngine | 'hybrid';
-  triggerModes: WorkflowTriggerMode[];
-  passiveBehavior?: PassiveWorkflowBehavior;
-  configurableFields: string[];
-  requiredCapabilities: WorkflowCapabilityKey[];
-  optionalCapabilities: WorkflowCapabilityKey[];
-  defaultConfig: Record<string, unknown>;
-  modes?: string[];
-}
-
-export interface PassiveWorkflowRule {
-  id: string;
-  workflowId?: WorkflowId | null;
-  workflowName: string;
-  name: string;
-  description: string;
-  prompt: string;
-  scheduleLabel: string;
-  cronExpression?: string | null;
-  source: PassiveWorkflowSource;
-  status: PassiveWorkflowStatus;
-  executionMode: ScheduledTaskExecutionMode;
-  createdAt: string;
-  updatedAt: string;
-  lastRunAt?: string | null;
-  requestedBy?: string | null;
-  phoneNumber?: string | null;
-  config?: Record<string, unknown>;
-  reason?: string | null;
-}
-
-export interface WorkflowCaseAction {
-  id: string;
-  title: string;
-  kind: string;
-  status: 'pending' | 'approved' | 'executed' | 'failed' | 'skipped';
-  payload: Record<string, unknown>;
-  error?: string | null;
-  blockingFlags?: string[];
-  approvalState?: string | null;
-  syncState?: string | null;
-}
-
-export interface WorkflowCaseSummary {
-  id: string;
-  nativeId: string;
-  workflowId: WorkflowId;
-  workflowName: string;
-  engine: WorkflowEngine;
-  title: string;
-  summary: string;
-  normalizedStatus: WorkflowCaseStatus;
-  nativeStatus: string;
-  createdAt: string;
-  updatedAt: string;
-  actions: {
-    pending: number;
-    approved: number;
-    failed: number;
-    total: number;
-  };
-  reasons: string[];
-}
-
-export interface WorkflowCaseDetail extends WorkflowCaseSummary {
-  preview: Record<string, unknown>;
-  approvals: Array<Record<string, unknown>>;
-  logs: Array<{ at: string; level: string; message: string }>;
-  actionsDetail: WorkflowCaseAction[];
-  capabilitiesUsed: WorkflowCapabilityKey[];
-  automationRun?: WorkflowRunRecord;
-  meetingDetail?: MeetingRunDetail;
-}
-
-export interface WorkflowHubOverview {
-  workflows: WorkflowDefinition[];
-  variants: WorkflowVariant[];
-  passiveRules: PassiveWorkflowRule[];
-  cases: WorkflowCaseSummary[];
-  capabilities: WorkspaceCapabilityStatus[];
-  gchatSpaces: ChatSpace[];
-  meetingContext: {
-    teams: MeetingContextTeam[];
-    projects: MeetingContextProject[];
-    teamMembers: MeetingContextTeamMember[];
-  };
-  legacyCustomTemplates: Array<{
-    id: string;
-    name: string;
-    description: string;
-    createdAt?: string;
-  }>;
-}
-
-export interface ExecuteWorkflowInput {
-  workflowId?: WorkflowId;
-  variantId?: string;
-  requestedBy?: string | null;
-  input?: Record<string, unknown>;
-}
-
-export interface SaveWorkflowVariantInput {
-  variantId?: string | null;
-  workflowId: WorkflowId;
-  name: string;
-  description?: string | null;
-  config?: Record<string, unknown>;
-  createdBy?: string | null;
-}
-
-export interface SavePassiveWorkflowRuleInput {
-  ruleId?: string | null;
-  workflowId?: WorkflowId | null;
-  name: string;
-  description?: string | null;
-  prompt?: string | null;
-  config?: Record<string, unknown>;
-  cronExpression?: string | null;
-  scheduleLabel?: string | null;
-  requestedBy?: string | null;
-  phoneNumber?: string | null;
-  source?: PassiveWorkflowSource;
-  executionMode?: ScheduledTaskExecutionMode;
-}
-
-interface WorkflowHubState {
-  variants: WorkflowVariant[];
-}
+// Re-export public types so callers (`from './workflow-hub-service'`) keep working.
+export type {
+  ExecuteWorkflowInput,
+  PassiveWorkflowRule,
+  SavePassiveWorkflowRuleInput,
+  SaveWorkflowVariantInput,
+  WorkflowCaseAction,
+  WorkflowCaseDetail,
+  WorkflowCaseSummary,
+  WorkflowDefinition,
+  WorkflowHubOverview,
+  WorkflowVariant,
+  WorkspaceCapabilityStatus,
+} from './workflow-hub/types';
 
 interface WorkflowHubDependencies {
   calendarService: CalendarService;
@@ -231,120 +65,6 @@ interface WorkflowHubDependencies {
   workspaceAutomationService: WorkspaceAutomationService;
   meetingWorkflowService: MeetingWorkflowService;
 }
-
-const AUTOMATION_CASE_PREFIX = 'automation:';
-const MEETING_CASE_PREFIX = 'meeting:';
-
-const WORKFLOW_DEFINITIONS: WorkflowDefinition[] = [
-  {
-    id: 'correo',
-    name: 'Correo',
-    description: 'Triage ejecutivo de Gmail con aprobacion antes de actuar.',
-    summary: 'Revisa correos prioritarios, propone etiquetas, respuesta o seguimiento.',
-    engine: 'automation',
-    triggerModes: ['activation', 'passive'],
-    passiveBehavior: 'scheduled',
-    configurableFields: ['preset de busqueda', 'maximo de resultados', 'salida opcional a Chat', 'archivar al terminar'],
-    requiredCapabilities: ['gmail'],
-    optionalCapabilities: ['gchat'],
-    defaultConfig: { preset: 'unread', maxResults: 5, removeFromInbox: true, gchatSpace: '' },
-  },
-  {
-    id: 'agenda',
-    name: 'Agenda',
-    description: 'Briefing diario del calendario con riesgos y puntos clave.',
-    summary: 'Resume el dia y opcionalmente lo comparte por Google Chat.',
-    engine: 'automation',
-    triggerModes: ['activation', 'passive'],
-    passiveBehavior: 'scheduled',
-    configurableFields: ['fecha objetivo', 'salida opcional a Chat'],
-    requiredCapabilities: ['calendar'],
-    optionalCapabilities: ['gchat'],
-    defaultConfig: { targetDate: '', gchatSpace: '' },
-  },
-  {
-    id: 'seguimiento',
-    name: 'Seguimiento',
-    description: 'Borrador de correo de seguimiento listo para autorizacion.',
-    summary: 'Redacta un seguimiento profesional con tono y firma configurables.',
-    engine: 'automation',
-    triggerModes: ['activation'],
-    configurableFields: ['destinatario', 'tema', 'contexto base', 'tono', 'firma'],
-    requiredCapabilities: ['gmail'],
-    optionalCapabilities: [],
-    defaultConfig: { to: '', topic: '', context: '', tone: 'profesional y claro', signature: '' },
-  },
-  {
-    id: 'reuniones',
-    name: 'Reuniones',
-    description: 'Preparacion previa, procesamiento de notas/transcripciones y deteccion automatica.',
-    summary: 'Unifica la preparacion, revision y sincronizacion de reuniones en un solo flujo.',
-    engine: 'hybrid',
-    triggerModes: ['activation', 'passive'],
-    passiveBehavior: 'system',
-    configurableFields: ['modo', 'fecha', 'equipo por defecto', 'proyecto por defecto', 'salida opcional a Chat'],
-    requiredCapabilities: [],
-    optionalCapabilities: ['calendar', 'drive', 'gmail', 'gchat', 'google_user_mapping'],
-    defaultConfig: {
-      mode: 'manual',
-      targetDate: '',
-      gchatSpace: '',
-      meetingTitle: '',
-      meetingType: 'general',
-      defaultTeamId: '',
-      defaultProjectId: '',
-      manualText: '',
-      driveRef: '',
-    },
-    modes: ['prep', 'manual', 'drive', 'auto'],
-  },
-  {
-    id: 'drive',
-    name: 'Drive',
-    description: 'Crea espacios base de proyecto con plantillas de carpetas.',
-    summary: 'Genera una estructura inicial y opcionalmente avisa al equipo.',
-    engine: 'automation',
-    triggerModes: ['activation'],
-    configurableFields: ['nombre del proyecto', 'carpeta padre', 'plantilla de carpetas', 'salida opcional a Chat'],
-    requiredCapabilities: ['drive'],
-    optionalCapabilities: ['gchat'],
-    defaultConfig: { projectName: '', parentFolderId: '', gchatSpace: '', folderPreset: 'cliente_estandar' },
-  },
-  {
-    id: 'actualizacion_equipo',
-    name: 'Actualizacion de equipo',
-    description: 'Convierte contexto operativo en un mensaje ejecutivo para Google Chat.',
-    summary: 'Redacta una actualizacion clara para un espacio de Chat.',
-    engine: 'automation',
-    triggerModes: ['activation'],
-    configurableFields: ['destino', 'contexto', 'tono'],
-    requiredCapabilities: ['gchat'],
-    optionalCapabilities: [],
-    defaultConfig: { spaceName: '', context: '', tone: 'ejecutivo y claro' },
-  },
-  {
-    id: 'pc',
-    name: 'PC',
-    description: 'Prepara una accion operativa en la computadora con aprobacion obligatoria.',
-    summary: 'Convierte un objetivo operativo en una tarea ejecutable por el agente de escritorio.',
-    engine: 'automation',
-    triggerModes: ['activation'],
-    configurableFields: ['objetivo', 'backend preferido', 'URL inicial'],
-    requiredCapabilities: [],
-    optionalCapabilities: [],
-    defaultConfig: { objective: '', backend: 'auto', startUrl: '' },
-  },
-];
-
-const AUTOMATION_TEMPLATE_TO_WORKFLOW: Record<string, WorkflowId> = {
-  gmail_triage: 'correo',
-  calendar_daily_brief: 'agenda',
-  gmail_followup_draft: 'seguimiento',
-  calendar_meeting_prep: 'reuniones',
-  drive_project_workspace: 'drive',
-  gchat_executive_update: 'actualizacion_equipo',
-  desktop_action: 'pc',
-};
 
 export class WorkflowHubService {
   private state: WorkflowHubState = { variants: [] };

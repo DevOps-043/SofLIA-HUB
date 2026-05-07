@@ -17,38 +17,50 @@ import type {
   MeetingParticipant,
   MeetingSourceArtifactRecord,
 } from './meeting-types';
-
-interface ExtractMeetingAssetInput {
-  traceId: string;
-  meetingRunId: string;
-  meetingTitle: string | null;
-  meetingType: string;
-  sourceArtifact: MeetingSourceArtifactRecord;
-}
-
-interface ExtractMeetingAssetResult {
-  payload: MeetingAssetPayload;
-  confidence: number | null;
-}
-
-interface LegacySignal {
-  value: string;
-  evidence: string[];
-  confidence: number;
-}
-
-const EXTRACTION_MODEL = 'gemini-2.5-flash';
-const MAX_SOURCE_TEXT_CHARS = 16000;
-const LOW_CONFIDENCE_TASK_STATE_THRESHOLD = 0.65;
-const ALLOWED_DESTINATIONS = ['IRIS', 'Project Hub', 'Team', 'Project', 'None'] as const;
-const ALLOWED_FOLLOW_UP_TYPES = ['meeting', 'message', 'validation', 'reminder', 'escalation'] as const;
-const ALLOWED_PRIORITIES = ['low', 'medium', 'high', 'critical'] as const;
-const DEFAULT_BLOCKED_ACTIONS = [
-  'mensajes externos automaticos',
-  'creacion final de compromisos no aprobados',
-  'asignacion definitiva de responsables sin revision',
-  'cambios de estado formales en sistemas de registro',
-];
+import {
+  DEFAULT_BLOCKED_ACTIONS,
+  EXTRACTION_MODEL,
+  LOW_CONFIDENCE_TASK_STATE_THRESHOLD,
+  MAX_SOURCE_TEXT_CHARS,
+} from './meeting-ai/constants';
+import type {
+  ExtractMeetingAssetInput,
+  ExtractMeetingAssetResult,
+  LegacySignal,
+} from './meeting-ai/internal-types';
+import {
+  asConfidence,
+  asNullableString,
+  asOptionalConfidence,
+  asString,
+  asStringArray,
+  clampNumber,
+  getObject,
+  inferPriority,
+  inferSeverity,
+  limitStrings,
+  normalizeDestinationValue,
+  normalizeFollowUpType,
+  normalizeMessageKind,
+  normalizePriority,
+  normalizeSeverity,
+  normalizeStringItems,
+  normalizeText,
+  parseJson,
+  toIsoDateOrNull,
+} from './meeting-ai/value-helpers';
+import {
+  buildExecutiveSummary,
+  describeSource,
+  extractDateTimeHint,
+  extractDueDate,
+  extractOwnerCandidate,
+  extractParticipants,
+  getLines,
+  getMeetingTypeDefinition,
+  inferTitle,
+  stripLabel,
+} from './meeting-ai/text-helpers';
 
 export class MeetingAIService {
   private genAI: GoogleGenerativeAI | null = null;
@@ -106,7 +118,7 @@ export class MeetingAIService {
       let resolvedType = classification?.suggestedType || 'fallback_general_operational';
       if (!allowedTypes.has(resolvedType)) resolvedType = 'fallback_general_operational';
 
-      const resolvedConfidence = this.clampNumber(
+      const resolvedConfidence = clampNumber(
         typeof classification?.confidence === 'number' ? classification.confidence : 0.4,
         0.05, 0.97,
       );
@@ -344,24 +356,24 @@ export class MeetingAIService {
 
     const rawObject = rawAnalysis as Record<string, unknown>;
     const allowedTypes = new Set(contextPack.meetingTypes.map((meetingType) => meetingType.id));
-    const rawMeetingType = this.getObject(rawObject.meetingType);
-    let suggestedType = this.asString(rawMeetingType?.suggestedType) || fallback.meetingType.suggestedType;
+    const rawMeetingType = getObject(rawObject.meetingType);
+    let suggestedType = asString(rawMeetingType?.suggestedType) || fallback.meetingType.suggestedType;
     if (!allowedTypes.has(suggestedType)) {
       suggestedType = fallback.meetingType.suggestedType;
     }
 
-    const typeConfidence = this.asConfidence(rawMeetingType?.confidence, fallback.meetingType.confidence);
+    const typeConfidence = asConfidence(rawMeetingType?.confidence, fallback.meetingType.confidence);
     if (typeConfidence < contextPack.fallbackThreshold) {
       suggestedType = 'fallback_general_operational';
     }
 
     const typeDefinition = this.getMeetingTypeDefinition(contextPack, suggestedType)
       || this.getMeetingTypeDefinition(contextPack, 'fallback_general_operational');
-    const detectedContext = this.getObject(rawObject.detectedContext);
-    const analysisStrategy = this.getObject(rawObject.analysisStrategy);
-    const relevantSignals = this.limitStrings(this.asStringArray(detectedContext?.relevantSignals), 8);
-    const meetingObjective = this.limitStrings(this.asStringArray(detectedContext?.meetingObjective), 6);
-    const reason = this.asString(rawMeetingType?.reason)
+    const detectedContext = getObject(rawObject.detectedContext);
+    const analysisStrategy = getObject(rawObject.analysisStrategy);
+    const relevantSignals = limitStrings(asStringArray(detectedContext?.relevantSignals), 8);
+    const meetingObjective = limitStrings(asStringArray(detectedContext?.meetingObjective), 6);
+    const reason = asString(rawMeetingType?.reason)
       || this.buildMeetingTypeReason(typeDefinition, relevantSignals, typeConfidence, fallback.meetingType.reason);
 
     const normalized: MeetingAnalysisResult = {
@@ -372,22 +384,22 @@ export class MeetingAIService {
         reason,
       },
       detectedContext: {
-        project: this.asNullableString(detectedContext?.project),
-        team: this.asNullableString(detectedContext?.team),
+        project: asNullableString(detectedContext?.project),
+        team: asNullableString(detectedContext?.team),
         meetingObjective: meetingObjective.length > 0 ? meetingObjective : fallback.detectedContext.meetingObjective,
         relevantSignals: relevantSignals.length > 0 ? relevantSignals : fallback.detectedContext.relevantSignals,
       },
       analysisStrategy: {
-        strategyId: this.asString(analysisStrategy?.strategyId) || suggestedType,
-        strategyName: this.asString(analysisStrategy?.strategyName)
+        strategyId: asString(analysisStrategy?.strategyId) || suggestedType,
+        strategyName: asString(analysisStrategy?.strategyName)
           || typeDefinition?.displayName
           || fallback.analysisStrategy.strategyName,
-        whyThisStrategy: this.asString(analysisStrategy?.whyThisStrategy)
+        whyThisStrategy: asString(analysisStrategy?.whyThisStrategy)
           || this.buildStrategyReason(typeDefinition, relevantSignals, reason),
-        extractionFocus: this.limitStrings(this.asStringArray(analysisStrategy?.extractionFocus), 8),
+        extractionFocus: limitStrings(asStringArray(analysisStrategy?.extractionFocus), 8),
       },
-      executiveSummary: this.asString(rawObject.executiveSummary) || fallback.executiveSummary,
-      keyPoints: this.normalizeStringItems(rawObject.keyPoints),
+      executiveSummary: asString(rawObject.executiveSummary) || fallback.executiveSummary,
+      keyPoints: normalizeStringItems(rawObject.keyPoints),
       decisions: this.normalizeDecisions(rawObject.decisions),
       agreements: this.normalizeAgreements(rawObject.agreements),
       tasks: this.normalizeTasks(rawObject.tasks),
@@ -521,17 +533,17 @@ export class MeetingAIService {
   }
 
   private classifyMeeting(input: ExtractMeetingAssetInput, contextPack: MeetingContextPack) {
-    const title = this.normalizeText(input.meetingTitle || '');
-    const body = this.normalizeText(input.sourceArtifact.normalized_text);
-    const hint = this.normalizeText(input.meetingType);
+    const title = normalizeText(input.meetingTitle || '');
+    const body = normalizeText(input.sourceArtifact.normalized_text);
+    const hint = normalizeText(input.meetingType);
     const candidates = contextPack.meetingTypes
       .filter((meetingType) => meetingType.id !== 'fallback_general_operational')
       .map((meetingType) => {
-        const titleMatches = meetingType.titleKeywords.filter((keyword) => title.includes(this.normalizeText(keyword)));
-        const languageMatches = meetingType.languagePatterns.filter((pattern) => body.includes(this.normalizeText(pattern)));
-        const structuralMatches = meetingType.structuralSignals.filter((signal) => body.includes(this.normalizeText(signal)));
-        const negativeMatches = meetingType.negativeSignals.filter((signal) => body.includes(this.normalizeText(signal)));
-        const hintMatch = hint && [meetingType.id, meetingType.displayName].some((token) => hint.includes(this.normalizeText(token)));
+        const titleMatches = meetingType.titleKeywords.filter((keyword) => title.includes(normalizeText(keyword)));
+        const languageMatches = meetingType.languagePatterns.filter((pattern) => body.includes(normalizeText(pattern)));
+        const structuralMatches = meetingType.structuralSignals.filter((signal) => body.includes(normalizeText(signal)));
+        const negativeMatches = meetingType.negativeSignals.filter((signal) => body.includes(normalizeText(signal)));
+        const hintMatch = hint && [meetingType.id, meetingType.displayName].some((token) => hint.includes(normalizeText(token)));
 
         const score = 0.18 * Math.min(titleMatches.length, 2)
           + 0.07 * Math.min(languageMatches.length, 4)
@@ -539,7 +551,7 @@ export class MeetingAIService {
           + (hintMatch ? 0.08 : 0)
           - 0.1 * Math.min(negativeMatches.length, 2);
 
-        const confidence = this.clampNumber((score > 0 ? 0.18 : 0.08) + score, 0.05, 0.97);
+        const confidence = clampNumber((score > 0 ? 0.18 : 0.08) + score, 0.05, 0.97);
         const relevantSignals = [
           ...titleMatches.map((match) => `titulo:${match}`),
           ...languageMatches.slice(0, 3).map((match) => `lenguaje:${match}`),
@@ -667,7 +679,7 @@ export class MeetingAIService {
     return {
       statement: task.description,
       owner_candidate: task.ownerSuggested || null,
-      due_date_candidate: this.toIsoDateOrNull(task.dueDateSuggested),
+      due_date_candidate: toIsoDateOrNull(task.dueDateSuggested),
       status: task.confidence < LOW_CONFIDENCE_TASK_STATE_THRESHOLD ? 'needs_clarification' : 'open',
       project_target: null,
       evidence_refs: (task.evidence || []).map((evidence) => ({ excerpt: evidence })),
@@ -747,11 +759,11 @@ export class MeetingAIService {
 
     const normalized = raw
       .map((item) => {
-        const source = this.getObject(item);
+        const source = getObject(item);
         return {
-          type: this.asString(source?.type),
-          confidence: this.asConfidence(source?.confidence, 0.4),
-          reason: this.asString(source?.reason) || 'Tipo alternativo sugerido por senales parciales.',
+          type: asString(source?.type),
+          confidence: asConfidence(source?.confidence, 0.4),
+          reason: asString(source?.reason) || 'Tipo alternativo sugerido por senales parciales.',
         };
       })
       .filter((item) => item.type && allowedTypes.has(item.type));
@@ -763,11 +775,11 @@ export class MeetingAIService {
     if (!Array.isArray(raw)) return [];
     return raw
       .map((item) => {
-        const source = this.getObject(item);
+        const source = getObject(item);
         return {
-          description: this.asString(source?.description),
-          confidence: this.asConfidence(source?.confidence, 0.65),
-          evidence: this.limitStrings(this.asStringArray(source?.evidence), 4),
+          description: asString(source?.description),
+          confidence: asConfidence(source?.confidence, 0.65),
+          evidence: limitStrings(asStringArray(source?.evidence), 4),
         };
       })
       .filter((item) => item.description);
@@ -777,11 +789,11 @@ export class MeetingAIService {
     if (!Array.isArray(raw)) return [];
     return raw
       .map((item) => {
-        const source = this.getObject(item);
+        const source = getObject(item);
         return {
-          description: this.asString(source?.description),
-          confidence: this.asConfidence(source?.confidence, 0.65),
-          evidence: this.limitStrings(this.asStringArray(source?.evidence), 4),
+          description: asString(source?.description),
+          confidence: asConfidence(source?.confidence, 0.65),
+          evidence: limitStrings(asStringArray(source?.evidence), 4),
         };
       })
       .filter((item) => item.description);
@@ -791,17 +803,17 @@ export class MeetingAIService {
     if (!Array.isArray(raw)) return [];
     return raw
       .map((item) => {
-        const source = this.getObject(item);
+        const source = getObject(item);
         return {
-          description: this.asString(source?.description),
-          ownerSuggested: this.asNullableString(source?.ownerSuggested),
-          ownerConfidence: this.asOptionalConfidence(source?.ownerConfidence),
-          dueDateSuggested: this.toIsoDateOrNull(this.asNullableString(source?.dueDateSuggested)),
-          prioritySuggested: this.normalizePriority(source?.prioritySuggested),
-          reason: this.asString(source?.reason) || 'Tarea sugerida con base en el contenido de la reunion.',
-          confidence: this.asConfidence(source?.confidence, 0.68),
+          description: asString(source?.description),
+          ownerSuggested: asNullableString(source?.ownerSuggested),
+          ownerConfidence: asOptionalConfidence(source?.ownerConfidence),
+          dueDateSuggested: toIsoDateOrNull(asNullableString(source?.dueDateSuggested)),
+          prioritySuggested: normalizePriority(source?.prioritySuggested),
+          reason: asString(source?.reason) || 'Tarea sugerida con base en el contenido de la reunion.',
+          confidence: asConfidence(source?.confidence, 0.68),
           requiresHumanReview: true,
-          evidence: this.limitStrings(this.asStringArray(source?.evidence), 4),
+          evidence: limitStrings(asStringArray(source?.evidence), 4),
         };
       })
       .filter((task) => task.description);
@@ -811,12 +823,12 @@ export class MeetingAIService {
     if (!Array.isArray(raw)) return [];
     return raw
       .map((item) => {
-        const source = this.getObject(item);
+        const source = getObject(item);
         return {
-          description: this.asString(source?.description),
-          severity: this.normalizeSeverity(source?.severity),
-          confidence: this.asConfidence(source?.confidence, 0.65),
-          reason: this.asString(source?.reason) || undefined,
+          description: asString(source?.description),
+          severity: normalizeSeverity(source?.severity),
+          confidence: asConfidence(source?.confidence, 0.65),
+          reason: asString(source?.reason) || undefined,
         };
       })
       .filter((risk) => risk.description);
@@ -826,10 +838,10 @@ export class MeetingAIService {
     if (!Array.isArray(raw)) return [];
     return raw
       .map((item) => {
-        const source = this.getObject(item);
+        const source = getObject(item);
         return {
-          question: this.asString(source?.question),
-          confidence: this.asConfidence(source?.confidence, 0.6),
+          question: asString(source?.question),
+          confidence: asConfidence(source?.confidence, 0.6),
         };
       })
       .filter((question) => question.question);
@@ -839,11 +851,11 @@ export class MeetingAIService {
     if (!Array.isArray(raw)) return [];
     return raw
       .map((item) => {
-        const source = this.getObject(item);
+        const source = getObject(item);
         return {
-          item: this.asString(source?.item),
-          reasonOpen: this.asString(source?.reasonOpen) || 'Pendiente de definicion o cierre.',
-          confidence: this.asConfidence(source?.confidence, 0.6),
+          item: asString(source?.item),
+          reasonOpen: asString(source?.reasonOpen) || 'Pendiente de definicion o cierre.',
+          confidence: asConfidence(source?.confidence, 0.6),
         };
       })
       .filter((item) => item.item);
@@ -853,15 +865,15 @@ export class MeetingAIService {
     raw: unknown,
     fallback: MeetingAnalysisFollowUpRecommendation,
   ): MeetingAnalysisFollowUpRecommendation {
-    const source = this.getObject(raw);
+    const source = getObject(raw);
     const suggested = typeof source?.suggested === 'boolean' ? source.suggested : fallback.suggested;
-    const type = this.normalizeFollowUpType(source?.type);
+    const type = normalizeFollowUpType(source?.type);
     return {
       suggested,
       type: suggested ? (type || fallback.type || 'validation') : undefined,
-      description: suggested ? (this.asString(source?.description) || fallback.description) : undefined,
-      confidence: this.asConfidence(source?.confidence, fallback.confidence),
-      reason: this.asString(source?.reason) || fallback.reason,
+      description: suggested ? (asString(source?.description) || fallback.description) : undefined,
+      confidence: asConfidence(source?.confidence, fallback.confidence),
+      reason: asString(source?.reason) || fallback.reason,
     };
   }
 
@@ -869,12 +881,12 @@ export class MeetingAIService {
     raw: unknown,
     fallback: MeetingAnalysisDestinationRecommendation,
   ): MeetingAnalysisDestinationRecommendation {
-    const source = this.getObject(raw);
-    const suggestedDestination = this.normalizeDestinationValue(source?.suggestedDestination) || fallback.suggestedDestination;
+    const source = getObject(raw);
+    const suggestedDestination = normalizeDestinationValue(source?.suggestedDestination) || fallback.suggestedDestination;
     return {
       suggestedDestination,
-      confidence: this.asConfidence(source?.confidence, fallback.confidence),
-      reason: this.asString(source?.reason) || fallback.reason,
+      confidence: asConfidence(source?.confidence, fallback.confidence),
+      reason: asString(source?.reason) || fallback.reason,
     };
   }
 
@@ -882,10 +894,10 @@ export class MeetingAIService {
     if (!Array.isArray(raw)) return [];
     return raw
       .map((item) => {
-        const source = this.getObject(item);
+        const source = getObject(item);
         return {
-          kind: this.normalizeMessageKind(source?.kind),
-          content: this.asString(source?.content),
+          kind: normalizeMessageKind(source?.kind),
+          content: asString(source?.content),
           requiresApproval: true,
         };
       })
@@ -894,14 +906,14 @@ export class MeetingAIService {
   }
 
   private normalizeGovernance(raw: unknown): MeetingAnalysisResult['governance'] {
-    const source = this.getObject(raw);
+    const source = getObject(raw);
     return {
-      autonomyLevelApplied: this.clampNumber(
+      autonomyLevelApplied: clampNumber(
         typeof source?.autonomyLevelApplied === 'number' ? source.autonomyLevelApplied : 2,
         0,
         2,
       ),
-      sensitiveActionsBlocked: this.limitStrings(this.asStringArray(source?.sensitiveActionsBlocked), 8),
+      sensitiveActionsBlocked: limitStrings(asStringArray(source?.sensitiveActionsBlocked), 8),
       requiresHumanApproval: typeof source?.requiresHumanApproval === 'boolean' ? source.requiresHumanApproval : true,
       explanationVisible: typeof source?.explanationVisible === 'boolean' ? source.explanationVisible : true,
     };
@@ -926,7 +938,7 @@ export class MeetingAIService {
           ownerSuggested,
           ownerConfidence: ownerSuggested ? 0.7 : undefined,
           dueDateSuggested,
-          prioritySuggested: this.inferPriority(line),
+          prioritySuggested: inferPriority(line),
           reason: ownerSuggested || dueDateSuggested
             ? 'La tarea aparece formulada como accion o compromiso explicito.'
             : 'Hay una referencia explicita a una accion, pero faltan datos de cierre.',
@@ -943,7 +955,7 @@ export class MeetingAIService {
       .filter((line) => /^(?:[-*]\s*)?(bloqueo|blocker|riesgo|issue|problema)\b/i.test(line))
       .map((line) => ({
         description: this.stripLabel(line),
-        severity: this.inferSeverity(line),
+        severity: inferSeverity(line),
         confidence: /critico|critical|alto/i.test(line) ? 0.82 : 0.7,
         reason: line,
       }));
@@ -1236,7 +1248,7 @@ export class MeetingAIService {
   }
 
   private normalizeStringItems(value: unknown): string[] {
-    return this.limitStrings(this.asStringArray(value), 8);
+    return limitStrings(asStringArray(value), 8);
   }
 
   private asString(value: unknown): string {
@@ -1244,14 +1256,14 @@ export class MeetingAIService {
   }
 
   private asNullableString(value: unknown): string | null {
-    const nextValue = this.asString(value);
+    const nextValue = asString(value);
     return nextValue || null;
   }
 
   private asStringArray(value: unknown): string[] {
     if (!Array.isArray(value)) return [];
     return value
-      .map((item) => this.asString(item))
+      .map((item) => asString(item))
       .filter(Boolean);
   }
 
@@ -1261,16 +1273,16 @@ export class MeetingAIService {
 
   private asConfidence(value: unknown, fallback: number): number {
     if (typeof value !== 'number' || !Number.isFinite(value)) {
-      return this.clampNumber(fallback, 0, 1);
+      return clampNumber(fallback, 0, 1);
     }
-    return this.clampNumber(value, 0, 1);
+    return clampNumber(value, 0, 1);
   }
 
   private asOptionalConfidence(value: unknown): number | null {
     if (typeof value !== 'number' || !Number.isFinite(value)) {
       return null;
     }
-    return this.clampNumber(value, 0, 1);
+    return clampNumber(value, 0, 1);
   }
 
   private clampNumber(value: number, min: number, max: number): number {

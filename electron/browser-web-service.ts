@@ -3,125 +3,31 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { app as electronApp } from 'electron';
+import {
+  DEFAULT_FALLBACK_MODEL,
+  DEFAULT_MODEL,
+  MAX_HISTORY_ITEMS,
+  MAX_TEXT_EXCERPT,
+  MAX_VISIBLE_ELEMENTS,
+  WAIT_AFTER_ACTION_MS,
+  WINDOWS_BROWSER_CANDIDATES,
+} from './browser-web/constants';
+import type {
+  BrowserActionPayload,
+  BrowserElementSnapshot,
+  BrowserHistoryEntry,
+  BrowserPageSnapshot,
+  BrowserProfileDescriptor,
+  BrowserProfileMode,
+  BrowserQueueEntry,
+  BrowserStatusSnapshot,
+  BrowserTaskArtifacts,
+  BrowserTaskOptions,
+  BrowserTaskStatus,
+  BrowserVerificationResult,
+} from './browser-web/types';
 
 type PlaywrightModule = typeof import('playwright-core');
-
-type BrowserTaskStatus = 'idle' | 'executing';
-type BrowserProfileMode = 'persistent' | 'isolated';
-
-interface BrowserTaskOptions {
-  maxSteps?: number;
-  startUrl?: string;
-  profileId?: string;
-  isolated?: boolean;
-  resetProfile?: boolean;
-}
-
-interface BrowserQueueEntry {
-  task: string;
-  options?: BrowserTaskOptions;
-  resolve: (value: string) => void;
-  reject: (error: Error) => void;
-}
-
-interface BrowserActionPayload {
-  action: 'goto' | 'click_ref' | 'fill_ref' | 'press_key' | 'scroll' | 'wait' | 'done' | 'fail';
-  ref?: string;
-  url?: string;
-  text?: string;
-  key?: string;
-  direction?: 'up' | 'down';
-  amount?: number;
-  message: string;
-  expected?: string;
-}
-
-interface BrowserElementSnapshot {
-  ref: string;
-  tag: string;
-  role: string;
-  text: string;
-  label: string;
-  placeholder: string;
-  type: string;
-  href: string;
-  value: string;
-  disabled: boolean;
-  checked: boolean;
-}
-
-interface BrowserPageSnapshot {
-  url: string;
-  title: string;
-  textExcerpt: string;
-  elements: BrowserElementSnapshot[];
-  screenshotBase64: string;
-  scrollY: number;
-  activeRef: string;
-  signature: string;
-}
-
-interface BrowserHistoryEntry {
-  step: number;
-  action: BrowserActionPayload;
-  success: boolean;
-  url: string;
-  title: string;
-  error?: string;
-  verification?: string;
-}
-
-interface BrowserVerificationResult {
-  success: boolean;
-  message: string;
-}
-
-interface BrowserStatusSnapshot {
-  status: BrowserTaskStatus;
-  currentTask: string | null;
-  currentStep: number;
-  maxSteps: number;
-  currentUrl: string | null;
-  currentProfileId: string | null;
-  currentProfileMode: BrowserProfileMode | null;
-  lastAction: string | null;
-  lastVerification: string | null;
-  lastTracePath: string | null;
-  lastReportPath: string | null;
-  lastScreenshotPath: string | null;
-  queuedTasks: number;
-}
-
-interface BrowserTaskArtifacts {
-  taskId: string;
-  runDirectory: string;
-  tracePath: string;
-  reportPath: string;
-  finalScreenshotPath: string;
-}
-
-interface BrowserProfileDescriptor {
-  id: string;
-  path: string;
-  exists: boolean;
-  lastModifiedAt: string | null;
-}
-
-const DEFAULT_MODEL = 'gemini-3-flash-preview';
-const DEFAULT_FALLBACK_MODEL = 'gemini-2.5-flash';
-const MAX_VISIBLE_ELEMENTS = 45;
-const MAX_TEXT_EXCERPT = 1800;
-const MAX_HISTORY_ITEMS = 8;
-const WAIT_AFTER_ACTION_MS = 450;
-
-const WINDOWS_BROWSER_CANDIDATES = [
-  { channel: 'msedge' as const },
-  { channel: 'chrome' as const },
-  { executablePath: 'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe' },
-  { executablePath: 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe' },
-  { executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' },
-  { executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe' },
-];
 
 export class BrowserWebService extends EventEmitter {
   private apiKey = '';
