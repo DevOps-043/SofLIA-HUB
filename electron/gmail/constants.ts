@@ -1,15 +1,3 @@
-/**
- * Constantes de dominio para clasificación de remitentes Gmail.
- *
- * Aisladas en un archivo para que sean fáciles de revisar y extender.
- * Si se agrega soporte para nuevos TLDs o brands, este es el único lugar.
- */
-
-/**
- * TLDs de segundo nivel donde el dominio "real" tiene 3 partes en lugar de 2.
- * Necesario para que `getBaseDomain('mail.empresa.com.mx')` devuelva
- * `empresa.com.mx` y no `com.mx`.
- */
 export const SECOND_LEVEL_TLDS = new Set([
   'com.mx',
   'com.br',
@@ -23,10 +11,6 @@ export const SECOND_LEVEL_TLDS = new Set([
   'com.ve',
 ]);
 
-/**
- * Dominios genéricos donde el "remitente" no aporta información de marca.
- * Para emails de estos dominios, agrupamos por persona en lugar de por dominio.
- */
 export const GENERIC_EMAIL_DOMAINS = new Set([
   'gmail.com',
   'outlook.com',
@@ -40,11 +24,6 @@ export const GENERIC_EMAIL_DOMAINS = new Set([
   'aol.com',
 ]);
 
-/**
- * Mapeo de dominios conocidos → nombre de marca presentable.
- * Usado para que las etiquetas autocreadas tengan nombres legibles
- * en lugar de identificadores técnicos.
- */
 export const BRAND_LABELS = new Map<string, string>([
   ['openai.com', 'OpenAI'],
   ['anthropic.com', 'Anthropic'],
@@ -57,4 +36,10 @@ export const BRAND_LABELS = new Map<string, string>([
   ['stripe.com', 'Stripe'],
   ['slack.com', 'Slack'],
   ['zoom.us', 'Zoom'],
+]);
+
+export const SYSTEM_LABEL_IDS = new Set([
+  'INBOX', 'SPAM', 'TRASH', 'UNREAD', 'STARRED', 'IMPORTANT', 'SENT', 'DRAFT',
+  'CATEGORY_PERSONAL', 'CATEGORY_SOCIAL', 'CATEGORY_PROMOTIONS',
+  'CATEGORY_UPDATES', 'CATEGORY_FORUMS', 'CHAT',
 ]);

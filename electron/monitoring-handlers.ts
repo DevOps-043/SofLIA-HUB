@@ -3,7 +3,8 @@
  * Follows the same pattern as computer-use-handlers.ts
  */
 import { ipcMain, type BrowserWindow } from 'electron';
-import type { MonitoringService, MonitoringConfig } from './monitoring-service';
+import type { MonitoringService } from './monitoring-service';
+import type { MonitoringConfig } from './monitoring/types';
 
 export function registerMonitoringHandlers(
   monitoringService: MonitoringService,

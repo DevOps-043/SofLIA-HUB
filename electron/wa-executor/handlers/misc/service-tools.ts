@@ -32,13 +32,14 @@ async function executeBrowserProfileTool(
     return errorResponse(toolName, 'Desktop Agent no inicializado.');
   }
   if (toolName === 'list_browser_profiles') {
-    const profiles = await ctx.desktopAgent.listBrowserProfiles();
+    const profiles = ctx.desktopAgent.listBrowserProfiles().map((profile) => ({ ...profile }));
     return buildResponse(toolName, { success: true, count: profiles.length, profiles });
   }
-  return buildResponse(
-    toolName,
-    await ctx.desktopAgent.resetBrowserProfile(String(toolArgs.profile_id || '').trim()),
-  );
+  const resetResult = await ctx.desktopAgent.resetBrowserProfile(String(toolArgs.profile_id || '').trim());
+  if (typeof resetResult === 'object' && resetResult !== null) {
+    return buildResponse(toolName, resetResult as Record<string, unknown>);
+  }
+  return buildResponse(toolName, { success: true, result: resetResult });
 }
 
 async function executeSchedulerTool(

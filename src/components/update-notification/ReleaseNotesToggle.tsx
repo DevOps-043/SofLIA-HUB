@@ -1,3 +1,5 @@
+import { SafeReleaseNotes } from '../update-notes/SafeReleaseNotes';
+
 type ReleaseNotesToggleProps = {
   releaseNotes: string;
   showNotes: boolean;
@@ -20,7 +22,7 @@ export function ReleaseNotesToggle({ releaseNotes, showNotes, onToggle }: Releas
       </p>
       {showNotes && (
         <div className="mt-2 p-2.5 bg-white/5 rounded-lg border border-white/5 max-h-32 overflow-y-auto custom-scrollbar">
-          <div className="text-[11px] release-notes" dangerouslySetInnerHTML={{ __html: releaseNotes }} />
+          <SafeReleaseNotes notes={releaseNotes} className="text-[11px] release-notes" />
         </div>
       )}
     </button>

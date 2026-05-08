@@ -50,5 +50,5 @@ export async function sendFile(service: WhatsAppServiceCore, jid: string, filePa
 }
 
 function ensureConnected(service: WhatsAppServiceCore): void {
-  if (!service.sock || !service.connected) throw new Error('WhatsApp no estÃ¡ conectado.');
+  if (!service.sock || !service.connected) throw new Error('WhatsApp no esta conectado.');
 }

@@ -4,19 +4,36 @@ import type {
   SafeIpc,
 } from './types';
 
-function sanitizePayload(payload: any): any {
+const DANGEROUS_OBJECT_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
+const MAX_IPC_DEPTH = 20;
+const MAX_IPC_ARRAY_LENGTH = 1000;
+const MAX_IPC_OBJECT_KEYS = 200;
+
+function sanitizePayload(payload: any, depth = 0): any {
+  if (depth > MAX_IPC_DEPTH) {
+    throw new Error('Security Violation: IPC payload is too deeply nested.');
+  }
   if (payload === null || payload === undefined) return payload;
   if (typeof payload === 'function') {
     throw new Error('Security Violation: Callbacks and functions are not allowed in IPC.');
   }
-  if (Array.isArray(payload)) return payload.map(sanitizePayload);
+  if (Array.isArray(payload)) {
+    if (payload.length > MAX_IPC_ARRAY_LENGTH) {
+      throw new Error('Security Violation: IPC array payload is too large.');
+    }
+    return payload.map((item) => sanitizePayload(item, depth + 1));
+  }
   if (typeof payload !== 'object') return payload;
 
-  const safeObj: Record<string, any> = { ...payload };
-  for (const key in safeObj) {
-    if (Object.prototype.hasOwnProperty.call(safeObj, key)) {
-      safeObj[key] = sanitizePayload(safeObj[key]);
-    }
+  const entries = Object.entries(payload);
+  if (entries.length > MAX_IPC_OBJECT_KEYS) {
+    throw new Error('Security Violation: IPC object payload has too many keys.');
+  }
+
+  const safeObj: Record<string, any> = {};
+  for (const [key, value] of entries) {
+    if (DANGEROUS_OBJECT_KEYS.has(key)) continue;
+    safeObj[key] = sanitizePayload(value, depth + 1);
   }
   return safeObj;
 }

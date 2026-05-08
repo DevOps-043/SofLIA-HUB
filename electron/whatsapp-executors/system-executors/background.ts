@@ -3,6 +3,7 @@ import { toolError, toolResponse } from '../types';
 import type { FunctionResponse } from '../types';
 import { backgroundProcessService } from '../../background-process-service';
 import { backgroundHostService } from '../../background-host-service';
+import { validateCommandSafety } from '../../security/command-policy';
 import { resolveClaudePath } from './claude-path';
 import { sessionResponse } from './session-response';
 
@@ -37,16 +38,17 @@ export async function executeBackgroundSystemTool(toolName: string, toolArgs: Re
 async function runTerminal(toolName: string, toolArgs: Record<string, any>) {
   const workDir = toolArgs.working_directory || os.homedir();
   const visible = toolArgs.visible_terminal !== false;
+  const command = validateCommandSafety(toolArgs.command);
   const session = visible
     ? await backgroundProcessService.startVisibleTerminal({
-        command: toolArgs.command,
+        command,
         workingDirectory: workDir,
         keepOpen: toolArgs.keep_open !== false,
         title: 'Terminal administrada',
         metadata: { source: 'whatsapp', tool: toolName },
       })
     : await backgroundProcessService.startBackgroundCommand({
-        command: toolArgs.command,
+        command,
         workingDirectory: workDir,
         title: 'Comando en segundo plano',
         metadata: { source: 'whatsapp', tool: toolName },
@@ -71,8 +73,9 @@ async function runClaude(toolName: string, toolArgs: Record<string, any>) {
 
 async function runBackgroundCommand(toolName: string, toolArgs: Record<string, any>) {
   const workDir = toolArgs.working_directory || os.homedir();
+  const command = validateCommandSafety(toolArgs.command);
   const session = await backgroundProcessService.startBackgroundCommand({
-    command: toolArgs.command,
+    command,
     workingDirectory: workDir,
     title: toolArgs.title || 'Comando en segundo plano',
     metadata: { source: 'whatsapp', tool: toolName },

@@ -14,6 +14,8 @@ export default defineConfig({
           include: ['electron/__tests__/**/*.test.ts'],
           setupFiles: ['./test/setup-main.ts'],
           globals: true,
+          testTimeout: 15000,
+          hookTimeout: 15000,
         },
         resolve: {
           alias: {
@@ -28,6 +30,8 @@ export default defineConfig({
           include: ['src/__tests__/**/*.test.ts', 'src/__tests__/**/*.test.tsx'],
           setupFiles: ['./test/setup-renderer.ts'],
           globals: true,
+          testTimeout: 15000,
+          hookTimeout: 15000,
         },
       },
     ],

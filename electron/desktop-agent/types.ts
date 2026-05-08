@@ -1,3 +1,5 @@
+export type { DesktopActionPayload } from '../desktop-agent-types';
+
 export type DesktopTaskExecutionOptions = {
   maxSteps?: number;
   startUrl?: string;

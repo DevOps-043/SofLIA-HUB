@@ -7,10 +7,11 @@
  */
 
 import { app } from 'electron';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import fs from 'node:fs';
 import path from 'node:path';
+import { createMainSupabaseClient } from '../supabase-client-factory';
 
 const envPath = path.join(app.getAppPath(), '.env');
 if (fs.existsSync(envPath)) {
@@ -25,23 +26,23 @@ const SOFIA_KEY = process.env.VITE_SOFIA_SUPABASE_ANON_KEY || '';
 let irisSupa: SupabaseClient | null = null;
 let sofiaSupa: SupabaseClient | null = null;
 
-const SUPABASE_OPTIONS = {
-  auth: { persistSession: false, autoRefreshToken: false },
-};
-
 export function getIrisClient(): SupabaseClient | null {
   if (irisSupa) return irisSupa;
   if (!IRIS_URL || !IRIS_KEY) {
     console.warn('[IRIS-Main] No IRIS credentials found in env');
     return null;
   }
-  try {
-    irisSupa = createClient(IRIS_URL, IRIS_KEY, SUPABASE_OPTIONS);
-    return irisSupa;
-  } catch (err) {
-    console.error('[IRIS-Main] Failed to create client:', err);
+  const result = createMainSupabaseClient({
+    url: IRIS_URL,
+    key: IRIS_KEY,
+    serviceName: 'IRIS-Main',
+  });
+  if (!result.client) {
+    console.error(`[IRIS-Main] ${result.error || 'No se pudo crear el cliente.'}`);
     return null;
   }
+  irisSupa = result.client;
+  return irisSupa;
 }
 
 export function getSofiaClient(): SupabaseClient | null {
@@ -50,13 +51,17 @@ export function getSofiaClient(): SupabaseClient | null {
     console.warn('[SOFIA-Main] No SOFIA credentials found in env');
     return null;
   }
-  try {
-    sofiaSupa = createClient(SOFIA_URL, SOFIA_KEY, SUPABASE_OPTIONS);
-    return sofiaSupa;
-  } catch (err) {
-    console.error('[SOFIA-Main] Failed to create client:', err);
+  const result = createMainSupabaseClient({
+    url: SOFIA_URL,
+    key: SOFIA_KEY,
+    serviceName: 'SOFIA-Main',
+  });
+  if (!result.client) {
+    console.error(`[SOFIA-Main] ${result.error || 'No se pudo crear el cliente.'}`);
     return null;
   }
+  sofiaSupa = result.client;
+  return sofiaSupa;
 }
 
 export function isIrisAvailable(): boolean {

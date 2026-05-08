@@ -1,5 +1,6 @@
 import type { WorkspaceApis } from './workspace-api';
 import { unavailable } from './workspace-api';
+import { buildSafeGmailSendParams } from './email-security';
 
 export async function executeGmailTool(toolName: string, args: Record<string, any>, apis: WorkspaceApis): Promise<string | null> {
   const { gmail } = apis;
@@ -11,13 +12,7 @@ export async function executeGmailTool(toolName: string, args: Record<string, an
     case 'gmail_read_message':
       return JSON.stringify(await gmail.getMessage(args.message_id));
     case 'gmail_send':
-      return JSON.stringify(await gmail.send({
-        to: Array.isArray(args.to) ? args.to : String(args.to).split(',').map((item: string) => item.trim()).filter(Boolean),
-        subject: args.subject,
-        body: args.body,
-        isHtml: args.is_html || false,
-        attachmentPaths: args.attachment_paths,
-      }));
+      return JSON.stringify(await gmail.send(buildSafeGmailSendParams(args)));
     case 'gmail_get_labels':
       return JSON.stringify(await gmail.getLabels());
     case 'gmail_preview_organization':

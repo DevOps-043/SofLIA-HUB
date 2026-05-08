@@ -85,8 +85,28 @@ ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_summaries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE calendar_connections ENABLE ROW LEVEL SECURITY;
 
--- Policies: allow all operations for the anon key (desktop app uses service role pattern)
-CREATE POLICY "Allow all for monitoring_sessions" ON monitoring_sessions FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all for activity_logs" ON activity_logs FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all for daily_summaries" ON daily_summaries FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all for calendar_connections" ON calendar_connections FOR ALL USING (true) WITH CHECK (true);
+-- Policies: cada usuario solo puede leer/escribir sus propias filas.
+-- Las operaciones administrativas deben usar service role desde backend, nunca anon.
+CREATE POLICY "Users manage own monitoring sessions"
+  ON monitoring_sessions
+  FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users manage own activity logs"
+  ON activity_logs
+  FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users manage own daily summaries"
+  ON daily_summaries
+  FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users manage own calendar connections"
+  ON calendar_connections
+  FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);

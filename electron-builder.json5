@@ -17,7 +17,12 @@
     output: "release/${version}",
     buildResources: "build",
   },
-  files: ["dist", "dist-electron"],
+  files: [
+    "dist",
+    "dist-electron",
+    "!node_modules/**/*.d.ts",
+    "!node_modules/**/*.d.ts.map",
+  ],
   mac: {
     target: ["dmg"],
     artifactName: "SofLIA-Hub-Mac-${version}-Installer.${ext}",

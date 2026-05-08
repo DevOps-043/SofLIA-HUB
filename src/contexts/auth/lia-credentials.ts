@@ -1,27 +1,12 @@
-const LIA_CRED_KEY = 'lia-sync-cred';
+const LEGACY_LIA_CRED_KEY = 'lia-sync-cred';
 
-export function storeLiaCredentials(email: string, password: string) {
-  try {
-    localStorage.setItem(LIA_CRED_KEY, JSON.stringify({ e: email, p: password }));
-  } catch {
-    // Local persistence is optional.
-  }
-}
-
-export function retrieveLiaCredentials(): { email: string; password: string } | null {
-  try {
-    const raw = localStorage.getItem(LIA_CRED_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return parsed?.e && parsed?.p ? { email: parsed.e, password: parsed.p } : null;
-  } catch {
-    return null;
-  }
-}
-
+/**
+ * Limpia credenciales heredadas. Las contrasenas ya no se persisten en el
+ * renderer; la sesion Lia debe restaurarse con los tokens propios de Supabase.
+ */
 export function clearLiaCredentials() {
   try {
-    localStorage.removeItem(LIA_CRED_KEY);
+    localStorage.removeItem(LEGACY_LIA_CRED_KEY);
   } catch {
     // Local persistence is optional.
   }

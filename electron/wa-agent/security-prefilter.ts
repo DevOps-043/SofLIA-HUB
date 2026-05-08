@@ -1,4 +1,5 @@
 import { formatForWhatsApp } from '../whatsapp-prompts';
+import { detectPromptInjection, normalizeSecurityText } from '../security/prompt-injection-detector';
 
 const SECURITY_PATTERNS = [
   /(?:dame|muestrame|comparteme|dime|revela|ensenname|pasame|exporta)\s+(?:tu|el|las?|los?)\s*(?:system\s*prompt|prompt\s*base|instrucciones?\s*(?:internas?|base|de\s*sistema)|configuracion\s*interna|reglas?\s*(?:base|internas?)|directrices|parametros?\s*(?:internos?|de\s*sistema)|codigo\s*fuente)/i,
@@ -25,11 +26,14 @@ export function getSensitiveRequestBlockResponse(
   senderNumber: string,
   isGroup: boolean,
 ): string | null {
-  const msgLower = userMessage.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const blocked = SECURITY_PATTERNS.some((pattern) => pattern.test(msgLower));
+  const msgLower = normalizeSecurityText(userMessage);
+  const promptInjection = detectPromptInjection(userMessage);
+  const blocked = promptInjection.detected || SECURITY_PATTERNS.some((pattern) => pattern.test(msgLower));
   if (!blocked) return null;
 
-  console.warn(`[WhatsApp Agent] SECURITY: Blocked sensitive request from ${senderNumber}: "${userMessage.slice(0, 100)}..."`);
+  console.warn(
+    `[WhatsApp Agent] SECURITY: Blocked sensitive request from ${senderNumber} (${promptInjection.reasons.join(', ') || 'pattern'}): "${userMessage.slice(0, 100)}..."`,
+  );
   return formatForWhatsApp(
     'Mis instrucciones internas y codigo fuente son confidenciales y no puedo compartirlos.\n\nSi necesitas ayuda con algo especifico, cuentame que quieres lograr y con gusto te ayudo.',
     isGroup,

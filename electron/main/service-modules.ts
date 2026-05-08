@@ -1,0 +1,65 @@
+export async function loadMainServiceModules() {
+  const { registerComputerUseHandlers } = await import('../computer-use-handlers');
+  const { WhatsAppService } = await import('../whatsapp-service');
+  const { WhatsAppAgent } = await import('../whatsapp-agent');
+  const { MonitoringService } = await import('../monitoring-service');
+  const { registerMonitoringHandlers } = await import('../monitoring-handlers');
+  const { CalendarService } = await import('../calendar-service');
+  const { registerCalendarHandlers } = await import('../calendar-handlers');
+  const { GmailService } = await import('../gmail-service');
+  const { registerGmailHandlers } = await import('../gmail-handlers');
+  const { DriveService } = await import('../drive-service');
+  const { registerDriveHandlers } = await import('../drive-handlers');
+  const { GChatService } = await import('../gchat-service');
+  const { registerGChatHandlers } = await import('../gchat-handlers');
+  const { ProactiveService } = await import('../proactive-service');
+  const { DesktopAgentService } = await import('../desktop-agent-service');
+  const { registerDesktopAgentHandlers } = await import('../desktop-agent-handlers');
+  const { MemoryService } = await import('../memory-service');
+  const { registerMemoryHandlers } = await import('../memory-handlers');
+  const { KnowledgeService } = await import('../knowledge-service');
+  const { UpdaterService } = await import('../updater-service');
+  const { registerUpdaterHandlers } = await import('../updater-handlers');
+  const { ClipboardAIAssistant } = await import('../clipboard-ai-assistant');
+  const { TaskScheduler } = await import('../task-scheduler');
+  const { NeuralOrganizerService } = await import('../neural-organizer');
+  const { PathMemoryService } = await import('../path-memory-service');
+  const { MenuManager } = await import('../menu-manager');
+  const { registerMeetingHandlers } = await import('../meeting-handlers');
+  const { WorkspaceAutomationService } = await import('../workspace-automation-service');
+  const { registerWorkspaceAutomationHandlers } = await import('../workspace-automation-handlers');
+  const { WorkflowHubService } = await import('../workflow-hub-service');
+  const { registerWorkflowHubHandlers } = await import('../workflow-hub-handlers');
+  const { TelegramService } = await import('../telegram-service');
+  const { registerTelegramHandlers } = await import('../telegram-handlers');
+  const { MeetingStore } = await import('../meetings/meeting-store');
+  const { MeetingSourceService } = await import('../meetings/meeting-source-service');
+  const { MeetingAIService } = await import('../meetings/meeting-ai-service');
+  const { MeetingReviewService } = await import('../meetings/meeting-review-service');
+  const { MeetingSyncService } = await import('../meetings/meeting-sync-service');
+  const { MeetingWorkflowService } = await import('../meetings/meeting-workflow-service');
+  const { MeetingDetectionStore } = await import('../meetings/meeting-detection-store');
+  const { MeetingPassiveDetectionService } = await import('../meetings/meeting-passive-detection-service');
+  const { DailyBriefingService } = await import('../daily-briefing-service');
+  const { backgroundHostService } = await import('../background-host-service');
+  const { registerBackgroundHostHandlers } = await import('../background-host-handlers');
+  const { remoteNodeService } = await import('../remote-node-service');
+  const { registerRemoteNodeHandlers } = await import('../remote-node-handlers');
+  const { dynamicToolService } = await import('../dynamic-tool-service');
+  const { generateDailySummary } = await import('../summary-generator');
+  await import('../agent-task-queue');
+
+  return {
+    registerComputerUseHandlers, WhatsAppService, WhatsAppAgent, MonitoringService, registerMonitoringHandlers,
+    CalendarService, registerCalendarHandlers, GmailService, registerGmailHandlers, DriveService, registerDriveHandlers,
+    GChatService, registerGChatHandlers, ProactiveService, DesktopAgentService, registerDesktopAgentHandlers,
+    MemoryService, registerMemoryHandlers, KnowledgeService, UpdaterService, registerUpdaterHandlers,
+    ClipboardAIAssistant, TaskScheduler, NeuralOrganizerService, PathMemoryService, MenuManager,
+    registerMeetingHandlers, WorkspaceAutomationService, registerWorkspaceAutomationHandlers,
+    WorkflowHubService, registerWorkflowHubHandlers, TelegramService, registerTelegramHandlers,
+    MeetingStore, MeetingSourceService, MeetingAIService, MeetingReviewService, MeetingSyncService,
+    MeetingWorkflowService, MeetingDetectionStore, MeetingPassiveDetectionService, DailyBriefingService,
+    backgroundHostService, registerBackgroundHostHandlers, remoteNodeService, registerRemoteNodeHandlers,
+    dynamicToolService, generateDailySummary,
+  };
+}

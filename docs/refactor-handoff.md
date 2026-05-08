@@ -1,8 +1,123 @@
 # Refactor Handoff — SofLIA Hub
 
+### Actualizacion Codex 2026-05-08
+
+Cierre de la fase solicitada para eliminar completamente las bandas **600-699** y **500-599**, extendiendo el criterio hasta dejar **todos los archivos `.ts/.tsx` por debajo de 100 lineas no vacias** segun el script oficial:
+
+- `powershell -ExecutionPolicy Bypass -File .\analyze_code.ps1`: **2164 archivos <100**, y **0 archivos** en todos los rangos desde `100-199` hasta `1000+`.
+- Se mantuvo `docs/prompt_maestro.md` como fuente de verdad: fachadas delgadas, modulos por responsabilidad, movimiento de logica sin cambiar contratos publicos y validacion con gates.
+- Modularizaciones/cableado estabilizado en App Chat, Workflow Hub, Computer Use, Browser Web, Desktop Agent, Memory, Flow Service, WhatsApp Agent loop y panel Workflow Hub.
+- Correcciones de continuidad detectadas por TypeScript: guards de tipos en Browser/Computer Use, hooks/controladores del panel Workflow Hub, suites fragmentadas de Computer Use y contratos dinamicos de BrowserWeb/DesktopAgent.
+
+Validacion:
+- `cmd /c npx tsc --noEmit --incremental false --pretty false`: **sin errores**.
+- `cmd /c npx vitest run electron/__tests__/computer-use-handlers.test.ts electron/__tests__/gmail-service.test.ts electron/__tests__/memory-service.test.ts electron/__tests__/desktop-agent-service.test.ts --pool forks --maxWorkers=1`: **4/4 archivos**, **152/152 tests** pasando.
+- `cmd /c npx vite build`: **sin errores**; solo warnings existentes de chunks grandes/imports dinamicos mezclados.
+- `git diff --check`: sin errores; solo warnings LF->CRLF esperados del worktree Windows.
+
+Pendiente recomendado: ejecutar suite completa antes de commit final si se desea una puerta aun mas estricta; el gate focalizado de dominios tocados y el build quedaron verdes.
+
+### Actualizacion Codex 2026-05-08
+
+Cierre final de la banda **300 a 399 lineas** usando `docs/prompt_maestro.md` como fuente de verdad y validando con el script oficial solicitado:
+
+- Banda **300-399** recalculada con `powershell -ExecutionPolicy Bypass -File .\analyze_code.ps1`: queda en **0 archivos**.
+- Archivos que salieron de la banda durante esta continuacion: `electron/whatsapp-remote-hub.ts`, `src/components/ProjectHub.tsx`, `src/components/WhatsAppSetup.tsx`, `src/components/meetings/MeetingOpsPanel.tsx`, `src/components/FlowMode.tsx`, `src/App.tsx`, `electron/whatsapp-workflow-meetings.ts`, `electron/knowledge-service.ts`, `electron/monitoring-service.ts` y `electron/meetings/meeting-passive-detection-service.ts`.
+- Patron aplicado: fachadas/composicion delgadas, hooks y componentes por responsabilidad, helpers de main process por dominio, exports publicos preservados y modulos nuevos bajo 100 lineas.
+- Ajuste seguro incluido en Remote Hub: nombres de documentos entrantes pasan por `path.basename()` antes de escribir en `os.tmpdir()`.
+
+Estado final por `analyze_code.ps1`:
+
+| Rango | Archivos |
+|---|---:|
+| Menos de 100 | 1959 |
+| 100-199 | 0 |
+| 200-299 | 0 |
+| 300-399 | 0 |
+| 400-499 | 0 |
+| 500-599 | 3 |
+| 600-699 | 12 |
+| 700-799 | 0 |
+| 800-899 | 0 |
+| 900-999 | 0 |
+| 1000+ | 0 |
+
+Validacion:
+- `powershell -ExecutionPolicy Bypass -File .\analyze_code.ps1`: **300-399 = 0**.
+- `cmd /c npx tsc --noEmit --incremental false --pretty false`: **sin errores**.
+- `cmd /c npx vitest run electron/__tests__/whatsapp-remote-hub.test.ts --reporter=dot`: **1/1 archivo**, **6/6 tests** pasando.
+- `git diff --check`: sin errores de whitespace; solo warnings CRLF esperados del worktree Windows.
+
+Pendiente inmediato: continuar con la banda **600-699** (12 archivos) y luego **500-599** (3 archivos), recalculando antes de tocar porque el worktree tiene cambios paralelos amplios.
+
+### Actualizacion Codex 2026-05-08
+
+Continuacion enfocada en limpiar completamente la banda de archivos de **700 a 799 lineas**, tomando `docs/prompt_maestro.md` como fuente de verdad y preservando el patron de movimiento puro, fachadas estables y modulos pequenos:
+
+- Banda **700-799** recalculada con `powershell -ExecutionPolicy Bypass -File .\analyze_code.ps1`: queda en **0 archivos**.
+- Archivos principales que salieron de la banda: `src/components/ops/WorkflowHubPanel.tsx` (**638**), `electron/desktop-agent-service.ts` (**569**), `electron/app-chat-service.ts` (**689**), `electron/meetings/meeting-ai-service.ts` (**564**), `electron/main.ts` (**658**), `electron/workflow-hub-service.ts` (**689**), `electron/memory-service.ts` (**633**), `electron/whatsapp-agent.ts` (**639**), `electron/browser-web-service.ts` (**644**), `electron/computer-use-handlers.ts` (**667**), `src/components/Sidebar.tsx` (**639**), `electron/presentation-premium.ts` (**680**), `electron/gmail/service.ts` (**639**), `electron/__tests__/computer-use-handlers.test.ts` (**691**) y `src/services/flow-service.ts` (**542**).
+- Extracciones aplicadas/normalizadas: clientes y contratos de App Chat; tipos/tema de presentaciones; helpers GUI/OCR de computer-use; casos de email de computer-use; snapshot de capacidades de Workflow Hub; mantenimiento, reset y migracion legacy de memoria; agrupacion de organizaciones Gmail; loop/screenshot del MonitoringService; subcomponentes de Workflow Hub Panel; carga modular de servicios de main; contexto Google del WhatsApp Agent; runtime/control de Desktop Agent (entrada de tarea, escala de pantalla, observacion, ejecucion interna, estado, accion y manejo de fallas).
+- Los modulos nuevos de este corte quedaron por debajo de 100 lineas: `electron/app-chat/*`, `electron/presentation-premium/*`, `electron/computer-use/*`, `electron/workflow-hub/*`, `electron/memory/*`, `electron/gmail/organization-groups.ts`, `electron/monitoring/service-loop.ts`, `electron/monitoring/service-screenshot.ts`, `electron/main/service-modules.ts`, `electron/wa-agent/google-connection-context.ts`, `src/services/flow-service/*`, `src/components/ops/workflow-hub-panel/*` y los modulos de runtime de `electron/desktop-agent/`.
+- Ajuste adicional para sostener el estandar de modulos pequenos: `electron/monitoring/monitoring-service.ts` quedo en **95** lineas, dejando tambien la banda **100-199** en **0**.
+
+Estado recalculado por `analyze_code.ps1`:
+
+| Rango | Archivos |
+|---|---:|
+| Menos de 100 | 1959 |
+| 100-199 | 0 |
+| 200-299 | 0 |
+| 300-399 | 0 |
+| 400-499 | 0 |
+| 500-599 | 3 |
+| 600-699 | 12 |
+| 700-799 | 0 |
+| 800-899 | 0 |
+| 900-999 | 0 |
+| 1000+ | 0 |
+
+Validacion:
+- `powershell -ExecutionPolicy Bypass -File .\analyze_code.ps1`: **700-799 = 0**, sin archivos >=700.
+- `cmd /c npx tsc --noEmit --incremental false --pretty false`: **sin errores**.
+- `cmd /c npx vitest run electron/__tests__/computer-use-handlers.test.ts electron/__tests__/computer-use-handlers.email.test.ts electron/__tests__/desktop-agent-service.test.ts electron/__tests__/whatsapp-agent.test.ts electron/__tests__/workflow-hub-service.test.ts electron/__tests__/memory-service.test.ts electron/__tests__/gmail-service.test.ts electron/__tests__/monitoring-service.test.ts --maxWorkers=1`: **8/8 archivos**, **200/200 tests** pasando.
+
+Pendiente inmediato: tomar la siguiente banda tecnica visible, **600-699** (12 archivos), manteniendo `analyze_code.ps1`, TypeScript y suites focalizadas como gates.
 **Última actualización:** 2026-05-08
 **Auditor inicial:** Claude Opus 4.7
 **Continuación:** este documento permite que cualquier modelo/desarrollador retome el trabajo donde quedó.
+
+### Actualizacion Codex 2026-05-08
+
+Continuacion enfocada en limpiar el unico archivo de la banda **300 a 399 lineas** reportado por `analyze_code.ps1`, usando `docs/prompt_maestro.md` como fuente de verdad y manteniendo el patron de fachadas delgadas + modulos pequenos:
+
+- `electron/whatsapp-remote-hub.ts`: baja de **397** a **62 lineas** no vacias y queda como fachada de inicializacion, estado pendiente, listeners e IPC.
+- Se extrajeron responsabilidades a `electron/whatsapp-remote-hub/`: sandbox Zod, parsing de mensajes, envio WhatsApp, conversion de documentos, ingestion de documentos, Quick-Conversion, acciones de sistema, ejecucion/aprobacion de comandos, transferencia ZIP, listeners e IPC.
+- Todos los modulos nuevos quedaron bajo 100 lineas; el mayor es `text-router.ts` con **62 lineas**.
+- Se mantuvieron exports publicos (`CommandInputSchema`, `CommandInput`, `SandboxGatekeeper`, `WhatsAppRemoteHub`, `remoteHub`) para no romper consumidores.
+- Ajuste seguro incluido: los nombres de documentos entrantes ahora pasan por `path.basename()` antes de escribir en `os.tmpdir()`, reduciendo riesgo de path traversal sin cambiar el flujo publico.
+
+Estado recalculado con `powershell -ExecutionPolicy Bypass -File .\analyze_code.ps1`:
+
+| Rango | Archivos |
+|---|---:|
+| Menos de 100 | 1740 |
+| 100-199 | 1 |
+| 200-299 | 4 |
+| 300-399 | 0 |
+| 400-499 | 10 |
+| 500-599 | 1 |
+| 600-699 | 7 |
+| 700-799 | 7 |
+| 800-899 | 0 |
+| 900-999 | 0 |
+| 1000+ | 0 |
+
+Validacion:
+- `cmd /c npx vitest run electron/__tests__/whatsapp-remote-hub.test.ts --reporter=dot`: **1/1 archivo**, **6/6 tests** pasando.
+- `cmd /c npx tsc --noEmit --incremental false --pretty false`: bloqueado por deuda previa/no relacionada en `electron/__tests__/agent-task-queue/execution-cases.ts`, `electron/__tests__/drive-service/*` y `electron/__tests__/integration-edge/edge-cases-suite-a.ts`; no reporto errores en `electron/whatsapp-remote-hub.ts` ni en `electron/whatsapp-remote-hub/`.
+- Primer intento de Vitest dentro del sandbox fallo por permisos al resolver `vitest.config.ts`; la corrida elevada paso limpia.
+
+Pendiente inmediato: continuar con la banda **700-799** y revisar la deuda previa de TypeScript en suites de pruebas antes de exigir TS global verde como gate estricto.
 
 ### Actualizacion Codex 2026-05-08
 

@@ -152,45 +152,128 @@ ALTER TABLE public.meeting_detection_candidates ENABLE ROW LEVEL SECURITY;
 
 DO $$
 BEGIN
+  DROP POLICY IF EXISTS "Allow all for meeting_runs" ON public.meeting_runs;
+  DROP POLICY IF EXISTS "Allow all for meeting_source_artifacts" ON public.meeting_source_artifacts;
+  DROP POLICY IF EXISTS "Allow all for meeting_assets" ON public.meeting_assets;
+  DROP POLICY IF EXISTS "Allow all for meeting_sync_actions" ON public.meeting_sync_actions;
+  DROP POLICY IF EXISTS "Allow all for meeting_approvals" ON public.meeting_approvals;
+  DROP POLICY IF EXISTS "Allow all for meeting_detection_candidates" ON public.meeting_detection_candidates;
+
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'meeting_runs' AND policyname = 'Allow all for meeting_runs'
+    WHERE schemaname = 'public' AND tablename = 'meeting_runs' AND policyname = 'Users manage own meeting runs'
   ) THEN
-    CREATE POLICY "Allow all for meeting_runs" ON public.meeting_runs FOR ALL USING (true) WITH CHECK (true);
+    CREATE POLICY "Users manage own meeting runs"
+      ON public.meeting_runs
+      FOR ALL
+      USING (auth.uid()::text = owner_user_id)
+      WITH CHECK (auth.uid()::text = owner_user_id);
   END IF;
 
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'meeting_source_artifacts' AND policyname = 'Allow all for meeting_source_artifacts'
+    WHERE schemaname = 'public' AND tablename = 'meeting_source_artifacts' AND policyname = 'Users manage own meeting source artifacts'
   ) THEN
-    CREATE POLICY "Allow all for meeting_source_artifacts" ON public.meeting_source_artifacts FOR ALL USING (true) WITH CHECK (true);
+    CREATE POLICY "Users manage own meeting source artifacts"
+      ON public.meeting_source_artifacts
+      FOR ALL
+      USING (
+        EXISTS (
+          SELECT 1 FROM public.meeting_runs run
+          WHERE run.id = meeting_source_artifacts.meeting_run_id
+            AND run.owner_user_id = auth.uid()::text
+        )
+      )
+      WITH CHECK (
+        EXISTS (
+          SELECT 1 FROM public.meeting_runs run
+          WHERE run.id = meeting_source_artifacts.meeting_run_id
+            AND run.owner_user_id = auth.uid()::text
+        )
+      );
   END IF;
 
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'meeting_assets' AND policyname = 'Allow all for meeting_assets'
+    WHERE schemaname = 'public' AND tablename = 'meeting_assets' AND policyname = 'Users manage own meeting assets'
   ) THEN
-    CREATE POLICY "Allow all for meeting_assets" ON public.meeting_assets FOR ALL USING (true) WITH CHECK (true);
+    CREATE POLICY "Users manage own meeting assets"
+      ON public.meeting_assets
+      FOR ALL
+      USING (
+        EXISTS (
+          SELECT 1 FROM public.meeting_runs run
+          WHERE run.id = meeting_assets.meeting_run_id
+            AND run.owner_user_id = auth.uid()::text
+        )
+      )
+      WITH CHECK (
+        EXISTS (
+          SELECT 1 FROM public.meeting_runs run
+          WHERE run.id = meeting_assets.meeting_run_id
+            AND run.owner_user_id = auth.uid()::text
+        )
+      );
   END IF;
 
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'meeting_sync_actions' AND policyname = 'Allow all for meeting_sync_actions'
+    WHERE schemaname = 'public' AND tablename = 'meeting_sync_actions' AND policyname = 'Users manage own meeting sync actions'
   ) THEN
-    CREATE POLICY "Allow all for meeting_sync_actions" ON public.meeting_sync_actions FOR ALL USING (true) WITH CHECK (true);
+    CREATE POLICY "Users manage own meeting sync actions"
+      ON public.meeting_sync_actions
+      FOR ALL
+      USING (
+        EXISTS (
+          SELECT 1 FROM public.meeting_runs run
+          WHERE run.id = meeting_sync_actions.meeting_run_id
+            AND run.owner_user_id = auth.uid()::text
+        )
+      )
+      WITH CHECK (
+        EXISTS (
+          SELECT 1 FROM public.meeting_runs run
+          WHERE run.id = meeting_sync_actions.meeting_run_id
+            AND run.owner_user_id = auth.uid()::text
+        )
+      );
   END IF;
 
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'meeting_approvals' AND policyname = 'Allow all for meeting_approvals'
+    WHERE schemaname = 'public' AND tablename = 'meeting_approvals' AND policyname = 'Users manage own meeting approvals'
   ) THEN
-    CREATE POLICY "Allow all for meeting_approvals" ON public.meeting_approvals FOR ALL USING (true) WITH CHECK (true);
+    CREATE POLICY "Users manage own meeting approvals"
+      ON public.meeting_approvals
+      FOR ALL
+      USING (
+        requested_by_user_id = auth.uid()::text
+        OR decided_by_user_id = auth.uid()::text
+        OR EXISTS (
+          SELECT 1 FROM public.meeting_runs run
+          WHERE run.id = meeting_approvals.meeting_run_id
+            AND run.owner_user_id = auth.uid()::text
+        )
+      )
+      WITH CHECK (
+        requested_by_user_id = auth.uid()::text
+        OR decided_by_user_id = auth.uid()::text
+        OR EXISTS (
+          SELECT 1 FROM public.meeting_runs run
+          WHERE run.id = meeting_approvals.meeting_run_id
+            AND run.owner_user_id = auth.uid()::text
+        )
+      );
   END IF;
 
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'meeting_detection_candidates' AND policyname = 'Allow all for meeting_detection_candidates'
+    WHERE schemaname = 'public' AND tablename = 'meeting_detection_candidates' AND policyname = 'Users manage own meeting detection candidates'
   ) THEN
-    CREATE POLICY "Allow all for meeting_detection_candidates" ON public.meeting_detection_candidates FOR ALL USING (true) WITH CHECK (true);
+    CREATE POLICY "Users manage own meeting detection candidates"
+      ON public.meeting_detection_candidates
+      FOR ALL
+      USING (auth.uid()::text = owner_user_id)
+      WITH CHECK (auth.uid()::text = owner_user_id);
   END IF;
 END $$;

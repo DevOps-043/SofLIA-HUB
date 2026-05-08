@@ -3,52 +3,69 @@ import os from 'node:os';
 
 export async function launchApp(name: string): Promise<any> {
   return new Promise((resolve) => {
+    const safeName = validateApplicationName(name);
+    if (!safeName) {
+      resolve({ success: false, error: 'Nombre de aplicacion invalido o inseguro.' });
+      return;
+    }
     const platform = os.platform();
-    const cmd = getLaunchCommand(platform, name);
+    const cmd = getLaunchCommand(platform, safeName);
 
     exec(cmd, (error, stdout, stderr) => {
       if (!error) {
-        resolve({ success: true, message: `Aplicacion "${name}" abierta exitosamente.`, stdout, stderr });
+        resolve({ success: true, message: `Aplicacion "${safeName}" abierta exitosamente.`, stdout, stderr });
         return;
       }
 
       if (platform === 'win32') {
-        exec(`start ${name}`, (fallbackError) => {
+        exec(getLaunchCommand(platform, safeName), (fallbackError) => {
           resolve(fallbackError
-            ? { success: false, error: `No se pudo abrir ${name}: ${error.message}` }
-            : { success: true, message: `Aplicacion "${name}" abierta exitosamente via fallback.` });
+            ? { success: false, error: `No se pudo abrir ${safeName}: ${error.message}` }
+            : { success: true, message: `Aplicacion "${safeName}" abierta exitosamente via fallback.` });
         });
         return;
       }
 
-      resolve({ success: false, error: `Error al abrir ${name}: ${error.message}` });
+      resolve({ success: false, error: `Error al abrir ${safeName}: ${error.message}` });
     });
   });
 }
 
 export async function closeApp(name: string): Promise<any> {
   return new Promise((resolve) => {
+    const safeName = validateApplicationName(name);
+    if (!safeName) {
+      resolve({ success: false, error: 'Nombre de aplicacion invalido o inseguro.' });
+      return;
+    }
     const platform = os.platform();
-    const cmd = getCloseCommand(platform, name);
+    const cmd = getCloseCommand(platform, safeName);
 
     exec(cmd, (error, stdout, stderr) => {
       if (!error) {
-        resolve({ success: true, message: `Aplicacion "${name}" cerrada exitosamente.`, stdout, stderr });
+        resolve({ success: true, message: `Aplicacion "${safeName}" cerrada exitosamente.`, stdout, stderr });
         return;
       }
 
-      if (platform === 'win32' && !name.toLowerCase().endsWith('.exe')) {
-        exec(`taskkill /IM "${name}" /F`, (fallbackError) => {
+      if (platform === 'win32' && !safeName.toLowerCase().endsWith('.exe')) {
+        exec(`taskkill /IM "${safeName}" /F`, (fallbackError) => {
           resolve(fallbackError
-            ? { success: false, error: `No se pudo encontrar o cerrar la aplicacion ${name}.` }
-            : { success: true, message: `Aplicacion "${name}" cerrada exitosamente via fallback.` });
+            ? { success: false, error: `No se pudo encontrar o cerrar la aplicacion ${safeName}.` }
+            : { success: true, message: `Aplicacion "${safeName}" cerrada exitosamente via fallback.` });
         });
         return;
       }
 
-      resolve({ success: false, error: `Error al cerrar ${name}: No se pudo encontrar o terminar el proceso.` });
+      resolve({ success: false, error: `Error al cerrar ${safeName}: No se pudo encontrar o terminar el proceso.` });
     });
   });
+}
+
+function validateApplicationName(value: string): string | null {
+  const normalized = String(value || '').trim();
+  if (!normalized || normalized.length > 260) return null;
+  if (/[\r\n\u0000-\u001F\u007F"`|&;<>()]/.test(normalized)) return null;
+  return normalized;
 }
 
 function getLaunchCommand(platform: NodeJS.Platform, name: string): string {

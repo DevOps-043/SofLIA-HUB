@@ -1,0 +1,80 @@
+import { Sidebar } from '../components/Sidebar';
+import type { MouseEvent } from 'react';
+import type { ThemeMode } from '../hooks/useTheme';
+import type { ActiveView, AuthState, ChatState, FolderState, IrisState } from './app-types';
+
+interface AppSidebarProps {
+  activeView: ActiveView;
+  auth: AuthState;
+  avatarUrl?: string;
+  chat: ChatState;
+  displayName: string;
+  folder: FolderState;
+  initials: string;
+  iris: IrisState;
+  isSidebarOpen: boolean;
+  onDeleteConversation: (conversationId: string, event: MouseEvent) => Promise<void>;
+  onDeleteFolder: (folderId: string, event: MouseEvent) => Promise<void>;
+  onIrisIssueClick: (issue: any) => Promise<void>;
+  onIrisProjectClick: (project: any) => Promise<void>;
+  onNewChat: () => Promise<void>;
+  onOpenProject: (folderId: string) => void;
+  onSelectConversation: (conversationId: string) => Promise<void>;
+  onSignOut: AuthState['signOut'];
+  onToggleSidebar: () => void;
+  onOpenSettings: () => void;
+  setTheme: (theme: ThemeMode) => void;
+  theme: ThemeMode;
+}
+
+export function AppSidebar(props: AppSidebarProps) {
+  const { auth, chat, folder, iris } = props;
+
+  return (
+    <Sidebar
+      isOpen={props.isSidebarOpen}
+      onToggle={props.onToggleSidebar}
+      activeView={props.activeView}
+      conversations={chat.conversations}
+      currentConversationId={chat.currentConversationId}
+      loadingConversations={chat.loadingConversations}
+      onNewChat={props.onNewChat}
+      onSelectConversation={props.onSelectConversation}
+      onDeleteConversation={props.onDeleteConversation}
+      renamingChatId={chat.renamingChatId}
+      onSetRenamingChatId={chat.setRenamingChatId}
+      editingChatTitle={chat.editingChatTitle}
+      onSetEditingChatTitle={chat.setEditingChatTitle}
+      onRenameChat={chat.handleRenameChat}
+      activeMenuChatId={chat.activeMenuChatId}
+      onSetActiveMenuChatId={chat.setActiveMenuChatId}
+      onSetMovingChatId={folder.setMovingChatId}
+      folders={folder.folders}
+      expandedFolders={folder.expandedFolders}
+      currentFolderId={folder.currentFolderId}
+      onCreateFolderClick={() => folder.setIsFolderModalOpen(true)}
+      onToggleFolder={folder.toggleFolder}
+      onOpenProject={props.onOpenProject}
+      onDeleteFolder={props.onDeleteFolder}
+      irisTeams={iris.irisTeams}
+      irisProjects={iris.irisProjects}
+      irisIssues={iris.irisIssues}
+      expandedTeams={iris.expandedTeams}
+      expandedProjects={iris.expandedProjects}
+      onToggleTeam={iris.toggleTeam}
+      onToggleProject={iris.toggleProject}
+      onIrisProjectClick={props.onIrisProjectClick}
+      onIrisIssueClick={props.onIrisIssueClick}
+      onRefreshIris={iris.refreshData}
+      displayName={props.displayName}
+      initials={props.initials}
+      userEmail={auth.user?.email}
+      avatarUrl={props.avatarUrl}
+      orgLogoUrl={auth.sofiaContext?.currentOrganization?.brand_favicon_url}
+      theme={props.theme}
+      onSetTheme={props.setTheme}
+      onOpenSettings={props.onOpenSettings}
+      onSignOut={props.onSignOut}
+    />
+  );
+}

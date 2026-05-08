@@ -1,105 +1,25 @@
 import { defineConfig, loadEnv } from "vite";
 import path from "node:path";
-import { spawn, execSync, type ChildProcess } from "node:child_process";
 import electron from "vite-plugin-electron/simple";
 import react from "@vitejs/plugin-react";
-import { builtinModules } from "node:module";
 import pkg from "./package.json";
+import { createElectronExternals, onElectronRollupWarning } from "./config/vite/electron-build";
+import { startElectronDevProcess } from "./config/vite/dev-electron-process";
+import { createMainProcessEnvDefines } from "./config/vite/env-defines";
 
-type ProcessWithElectronApp = NodeJS.Process & { electronApp?: ChildProcess | null };
-
-const electronRuntime = process as ProcessWithElectronApp;
-
-async function stopElectronDevProcess(): Promise<void> {
-  const child = electronRuntime.electronApp;
-  if (!child) return;
-
-  electronRuntime.electronApp = null;
-  child.removeAllListeners();
-
-  if (child.exitCode !== null || child.killed) {
-    return;
-  }
-
-  await new Promise<void>((resolve) => {
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      resolve();
-    };
-
-    child.once("exit", finish);
-
-    try {
-      if (!child.pid) {
-        finish();
-        return;
-      }
-
-      if (process.platform === "win32") {
-        execSync(`taskkill /pid ${child.pid} /T /F`, { stdio: "ignore" });
-      } else {
-        child.kill("SIGTERM");
-      }
-    } catch {
-      finish();
-    }
-
-    setTimeout(finish, 2000);
-  });
-}
-
-async function startElectronDevProcess(argv = [".", "--no-sandbox"]): Promise<void> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const electronModule: any = await import("electron");
-  const electronPath: string = electronModule.default ?? electronModule;
-
-  await stopElectronDevProcess();
-
-  const child = spawn(electronPath, argv, {
-    stdio: ["inherit", "inherit", "inherit", "ipc"],
-  });
-
-  electronRuntime.electronApp = child;
-  child.once("exit", () => {
-    if (electronRuntime.electronApp === child) {
-      electronRuntime.electronApp = null;
-      process.exit();
-    }
-  });
-}
-
-function isIgnorableRollupWarning(warning: { code?: string; message: string; id?: string }): boolean {
-  if (
-    warning.code === "UNUSED_EXTERNAL_IMPORT" &&
-    warning.message.includes('"WriteStream" is imported from external module "fs" but never used')
-  ) {
-    return true;
-  }
-
-  if (
-    warning.code === "EVAL" &&
-    warning.message.includes('Use of eval in "node_modules/@protobufjs/inquire/index.js"')
-  ) {
-    return true;
-  }
-
-  return false;
-}
+const OPTIMIZE_DEP_EXCLUDES = [
+  "mammoth",
+  "pptxgenjs",
+  "archiver",
+  "better-sqlite3",
+  "sharp",
+  "exceljs",
+  "docx",
+];
 
 export default defineConfig(({ mode }) => {
-  // Cargar variables VITE_* desde .env para inyectarlas en el main process en build time.
-  // En dev, dotenv las carga en runtime; en producción el .env no se empaqueta,
-  // así que deben quedar incrustadas en el bundle del main process.
-  const env = loadEnv(mode, process.cwd(), 'VITE_');
-
-  const mainProcessEnvDefines: Record<string, string> = {};
-  for (const key of Object.keys(env)) {
-    // No reemplazar VITE_DEV_SERVER_URL ni VITE_PUBLIC — son asignadas en runtime por el propio app
-    if (key === 'VITE_DEV_SERVER_URL' || key === 'VITE_PUBLIC') continue;
-    mainProcessEnvDefines[`process.env.${key}`] = JSON.stringify(env[key]);
-  }
+  const env = loadEnv(mode, process.cwd(), "VITE_");
+  const mainProcessEnvDefines = createMainProcessEnvDefines(env);
 
   return {
     server: {
@@ -111,7 +31,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     optimizeDeps: {
-      exclude: ["mammoth", "pptxgenjs", "archiver", "better-sqlite3", "sharp", "exceljs", "docx"],
+      exclude: OPTIMIZE_DEP_EXCLUDES,
     },
     plugins: [
       react(),
@@ -124,29 +44,14 @@ export default defineConfig(({ mode }) => {
           vite: {
             define: mainProcessEnvDefines,
             build: {
-              // Override vite-plugin-electron's auto-detection of "type":"module"
-              // to output CJS instead of ESM — avoids Node 20 cjsPreparseModuleExports crash
-              // with externalized CJS native modules (better-sqlite3, baileys, etc.)
               lib: {
                 entry: "electron/main.ts",
                 formats: ["cjs"],
                 fileName: () => "[name].js",
               },
               rollupOptions: {
-                external: [
-                  ...builtinModules,
-                  ...builtinModules.map((m) => `node:${m}`),
-                  // Externalizamos todo EXCEPTO Baileys para evitar el error ERR_REQUIRE_ESM
-                  ...Object.keys(pkg.dependencies || {}).filter(dep => dep !== "@whiskeysockets/baileys"),
-                  "bufferutil",
-                  "utf-8-validate",
-                ],
-                onwarn(warning, warn) {
-                  if (isIgnorableRollupWarning(warning)) {
-                    return;
-                  }
-                  warn(warning);
-                },
+                external: createElectronExternals(pkg.dependencies),
+                onwarn: onElectronRollupWarning,
               },
             },
           },

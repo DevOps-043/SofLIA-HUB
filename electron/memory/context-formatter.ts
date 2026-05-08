@@ -5,7 +5,7 @@ import {
   SUMMARY_TOKEN_BUDGET,
 } from './constants';
 import { truncateToTokens } from './math';
-import type { MemoryContext } from '../memory-service';
+import type { MemoryContext } from './types';
 
 function estimateTokens(text: string): number {
   return Math.ceil(text.length / CHARS_PER_TOKEN);

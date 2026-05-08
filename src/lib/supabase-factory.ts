@@ -4,6 +4,7 @@
  * Elimina la duplicación de localStorageAdapter, isValidUrl y electronFetch.
  */
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createSupabaseFetch } from '../shared/supabase-http';
 
 /** Adapter de almacenamiento usando localStorage (Electron desktop) */
 export const localStorageAdapter = {
@@ -29,13 +30,14 @@ export function isValidUrl(url: string): boolean {
 }
 
 /**
- * Custom fetch que elimina el AbortSignal automático.
- * Previene errores "signal is aborted" en Electron.
+ * Fetch resiliente para Electron renderer.
+ * Mantiene el workaround de ignorar AbortSignal entrante, pero agrega timeout
+ * propio y retries solo para lecturas idempotentes.
  */
-export const electronFetch: typeof globalThis.fetch = (input, init) => {
-  const { signal: _signal, ...rest } = init || {};
-  return globalThis.fetch(input, rest);
-};
+export const electronFetch: typeof globalThis.fetch = createSupabaseFetch({
+  serviceName: 'renderer-supabase',
+  stripIncomingSignal: true,
+});
 
 /**
  * Crea un cliente Supabase con la configuración estándar de Electron.

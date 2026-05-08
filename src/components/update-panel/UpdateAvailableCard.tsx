@@ -1,3 +1,5 @@
+import { SafeReleaseNotes } from '../update-notes/SafeReleaseNotes';
+
 interface UpdateAvailableCardProps {
   state: string;
   availableVersion?: string | null;
@@ -27,7 +29,7 @@ export function UpdateAvailableCard({ state, availableVersion, notes, progress, 
       {notes && (
         <div className="p-3 rounded-xl bg-gray-100 dark:bg-black/30 border border-gray-200 dark:border-white/5 max-h-48 overflow-y-auto custom-scrollbar">
           <p className="text-[10px] text-accent font-bold uppercase tracking-widest mb-3">Novedades</p>
-          <div className="text-xs release-notes" dangerouslySetInnerHTML={{ __html: notes }} />
+          <SafeReleaseNotes notes={notes} className="text-xs release-notes" />
         </div>
       )}
 

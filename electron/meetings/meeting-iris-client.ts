@@ -1,8 +1,9 @@
 import { app } from 'electron';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import fs from 'node:fs';
 import path from 'node:path';
+import { createMainSupabaseClient } from '../supabase-client-factory';
 
 let envLoaded = false;
 let irisClient: SupabaseClient | null = null;
@@ -30,12 +31,15 @@ export function getMeetingIrisClient(): SupabaseClient {
     throw new Error('Faltan las credenciales de IRIS Supabase para Meeting Ops.');
   }
 
-  irisClient = createClient(irisUrl, irisKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
+  const result = createMainSupabaseClient({
+    url: irisUrl,
+    key: irisKey,
+    serviceName: 'MeetingOps-IRIS',
   });
+  if (!result.client) {
+    throw new Error(result.error || 'No pude crear el cliente IRIS para Meeting Ops.');
+  }
 
+  irisClient = result.client;
   return irisClient;
 }

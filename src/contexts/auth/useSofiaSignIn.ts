@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { sofiaAuth, type SofiaAuthResult, type SofiaContext } from '../../services/sofia-auth';
-import { storeLiaCredentials } from './lia-credentials';
 import { buildSofiaContext } from './helpers';
 import type { AuthUser } from './types';
 
@@ -26,7 +25,6 @@ export function useSofiaSignIn({ ensureLiaSession, setSofiaContext, setUser, sig
     setUser(result.user);
     setSofiaContext(nextSofiaContext);
     const liaSession = await ensureLiaSession(result.user.email, password);
-    if (liaSession && result.user.email) storeLiaCredentials(result.user.email, password);
     return { ...result, session: liaSession, user: result.user };
   }, [ensureLiaSession, setSofiaContext, setUser, signOut]);
 }
