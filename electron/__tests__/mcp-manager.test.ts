@@ -8,28 +8,42 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // ─── Mock de fs (sincrónico + watch) ────────────────────────────────
 
-const mockExistsSync = vi.fn((_: string) => true);
-const mockMkdirSync = vi.fn((_: string, __?: { recursive?: boolean }) => undefined);
-const mockReaddirSync = vi.fn((_: string) => [] as string[]);
-const mockStatSync = vi.fn((_: string) => ({ isFile: () => true }));
-const mockReadFileSync = vi.fn((_: string) => '');
-const mockWatcherClose = vi.fn();
-const mockWatch = vi.fn((_: string, __?: unknown, ___?: unknown) => ({ close: mockWatcherClose }));
+const fsMocks = vi.hoisted(() => {
+  const mockWatcherClose = vi.fn();
+  return {
+    mockExistsSync: vi.fn((_: string) => true),
+    mockMkdirSync: vi.fn((_: string, __?: { recursive?: boolean }) => undefined),
+    mockReaddirSync: vi.fn((_: string) => [] as string[]),
+    mockStatSync: vi.fn((_: string) => ({ isFile: () => true })),
+    mockReadFileSync: vi.fn((_: string) => ''),
+    mockWatcherClose,
+    mockWatch: vi.fn((_: string, __?: unknown, ___?: unknown) => ({ close: mockWatcherClose })),
+  };
+});
+
+const {
+  mockExistsSync,
+  mockMkdirSync,
+  mockReaddirSync,
+  mockStatSync,
+  mockReadFileSync,
+  mockWatch,
+} = fsMocks;
 
 vi.mock('fs', () => ({
-  existsSync: mockExistsSync,
-  mkdirSync: mockMkdirSync,
-  readdirSync: mockReaddirSync,
-  statSync: mockStatSync,
-  readFileSync: mockReadFileSync,
-  watch: mockWatch,
+  existsSync: fsMocks.mockExistsSync,
+  mkdirSync: fsMocks.mockMkdirSync,
+  readdirSync: fsMocks.mockReaddirSync,
+  statSync: fsMocks.mockStatSync,
+  readFileSync: fsMocks.mockReadFileSync,
+  watch: fsMocks.mockWatch,
   default: {
-    existsSync: mockExistsSync,
-    mkdirSync: mockMkdirSync,
-    readdirSync: mockReaddirSync,
-    statSync: mockStatSync,
-    readFileSync: mockReadFileSync,
-    watch: mockWatch,
+    existsSync: fsMocks.mockExistsSync,
+    mkdirSync: fsMocks.mockMkdirSync,
+    readdirSync: fsMocks.mockReaddirSync,
+    statSync: fsMocks.mockStatSync,
+    readFileSync: fsMocks.mockReadFileSync,
+    watch: fsMocks.mockWatch,
   },
 }));
 

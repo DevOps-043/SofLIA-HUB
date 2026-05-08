@@ -16,117 +16,19 @@ import {
   type WorkflowHubOverview,
   type WorkflowId,
 } from '../../services/workflow-hub-service';
-
-interface WorkflowHubPanelProps {
-  userId: string;
-  organizationId?: string | null;
-}
-
-type ActionDraft = {
-  title: string;
-  dueDate: string;
-  teamId: string;
-  projectId: string;
-  assigneeId: string;
-};
-
-type PassiveScheduleFrequency = 'daily' | 'weekdays' | 'weekly';
-
-const STATUS_STYLES: Record<string, string> = {
-  pending_approval: 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/20',
-  in_progress: 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border-cyan-500/20',
-  completed: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/20',
-  failed: 'bg-red-500/15 text-red-600 dark:text-red-300 border-red-500/20',
-  attention: 'bg-orange-500/15 text-orange-600 dark:text-orange-300 border-orange-500/20',
-  available: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/20',
-  active: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/20',
-  disconnected: 'bg-gray-500/15 text-gray-500 dark:text-gray-400 border-gray-500/20',
-  setup_required: 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/20',
-  blocked: 'bg-orange-500/15 text-orange-600 dark:text-orange-300 border-orange-500/20',
-  error: 'bg-red-500/15 text-red-600 dark:text-red-300 border-red-500/20',
-  system: 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border-cyan-500/20',
-  pending: 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/20',
-  approved: 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border-cyan-500/20',
-  executed: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/20',
-  skipped: 'bg-gray-500/15 text-gray-500 dark:text-gray-400 border-gray-500/20',
-};
-
-function formatDateTime(value?: string | null): string {
-  if (!value) return 'n/d';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString('es-MX', {
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function previewValue(value: unknown): string {
-  if (Array.isArray(value)) return value.map((item) => previewValue(item)).join(', ');
-  if (value && typeof value === 'object') return JSON.stringify(value);
-  if (value === null || value === undefined || value === '') return 'n/d';
-  return String(value);
-}
-
-function prettyValue(value: string): string {
-  return value.replace(/_/g, ' ');
-}
-
-function tone(value: string): string {
-  return STATUS_STYLES[value] || 'bg-gray-500/15 text-gray-500 dark:text-gray-400 border-gray-500/20';
-}
-
-function buildCronExpression(frequency: PassiveScheduleFrequency, time: string, weekday: string): string {
-  const [hourRaw, minuteRaw] = (time || '08:00').split(':');
-  const hour = Number(hourRaw || 8);
-  const minute = Number(minuteRaw || 0);
-  if (frequency === 'weekdays') {
-    return `${minute} ${hour} * * 1-5`;
-  }
-  if (frequency === 'weekly') {
-    return `${minute} ${hour} * * ${weekday || '1'}`;
-  }
-  return `${minute} ${hour} * * *`;
-}
-
-function describeSchedule(frequency: PassiveScheduleFrequency, time: string, weekday: string): string {
-  const timeLabel = time || '08:00';
-  const weekdayLabel: Record<string, string> = {
-    '0': 'Domingo',
-    '1': 'Lunes',
-    '2': 'Martes',
-    '3': 'Miercoles',
-    '4': 'Jueves',
-    '5': 'Viernes',
-    '6': 'Sabado',
-  };
-  if (frequency === 'weekdays') {
-    return `Lunes a viernes a las ${timeLabel}`;
-  }
-  if (frequency === 'weekly') {
-    return `${weekdayLabel[weekday || '1'] || 'Lunes'} a las ${timeLabel}`;
-  }
-  return `Todos los dias a las ${timeLabel}`;
-}
-
-function Badge({ value }: { value: string }) {
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium uppercase tracking-wide border ${tone(value)}`}>
-      {prettyValue(value)}
-    </span>
-  );
-}
-
-function EmptyState({ text }: { text: string }) {
-  return (
-    <div className="rounded-xl border border-dashed border-gray-200 dark:border-white/[0.06] py-6 flex items-center justify-center">
-      <span className="text-[13px] text-gray-400 dark:text-gray-600">{text}</span>
-    </div>
-  );
-}
+import { Badge, EmptyState } from './workflow-hub-panel/components';
+import {
+  buildCronExpression,
+  describeSchedule,
+  formatDateTime,
+  prettyValue,
+  previewValue,
+} from './workflow-hub-panel/formatters';
+import type {
+  ActionDraft,
+  PassiveScheduleFrequency,
+  WorkflowHubPanelProps,
+} from './workflow-hub-panel/types';
 
 export const WorkflowHubPanel: React.FC<WorkflowHubPanelProps> = ({ userId }) => {
   const hubAvailable = useMemo(() => isWorkflowHubAvailable(), []);

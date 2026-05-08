@@ -8,46 +8,12 @@ import { useLiveApi } from '../../hooks/useLiveApi';
 import { useModelSelector, MODEL_OPTIONS } from '../../hooks/useModelSelector';
 import { useChatProcessor } from '../../hooks/useChatProcessor';
 import type { UserTool } from '../../services/tools-service';
-import type { ChatMessage } from '../../services/chat-service';
-
-const TOOL_DISPLAY_NAMES: Record<string, string> = {
-  list_directory: 'Listando archivos...',
-  read_file: 'Leyendo archivo...',
-  write_file: 'Escribiendo archivo...',
-  create_directory: 'Creando carpeta...',
-  move_item: 'Moviendo...',
-  copy_item: 'Copiando...',
-  delete_item: 'Eliminando...',
-  get_file_info: 'Obteniendo info...',
-  search_files: 'Buscando archivos...',
-  execute_command: 'Ejecutando comando...',
-  open_application: 'Abriendo aplicación...',
-  open_url: 'Abriendo URL...',
-  get_system_info: 'Info del sistema...',
-  clipboard_read: 'Leyendo portapapeles...',
-  clipboard_write: 'Copiando al portapapeles...',
-  take_screenshot: 'Capturando pantalla...',
-  get_email_config: 'Verificando email...',
-  configure_email: 'Configurando email...',
-  send_email: 'Enviando email...',
-};
-
-interface ChatUIProps {
-  messages: ChatMessage[];
-  onMessagesChange: (messages: ChatMessage[]) => void;
-  personalization?: {
-    nickname?: string;
-    occupation?: string;
-    tone?: string;
-    instructions?: string;
-  };
-  userAvatar?: string | null;
-  externalPrompt?: string | null;
-  onExternalPromptProcessed?: () => void;
-  onShare?: () => void;
-  canSendMessages?: boolean;
-  readOnlyReason?: string | null;
-}
+import { ChatLoadingIndicator } from './chat-ui/ChatLoadingIndicator';
+import { readImageFileAsDataUrl } from './chat-ui/image-files';
+import { EmptyChatState } from './chat-ui/EmptyChatState';
+import { ImageZoomModal } from './chat-ui/ImageZoomModal';
+import { ReadOnlyBanner } from './chat-ui/ReadOnlyBanner';
+import type { ChatUIProps, ConfirmationModalState, OptimizerTarget, ProcessMessageHandler } from './chat-ui/types';
 
 export const ChatUI: React.FC<ChatUIProps> = ({
   messages,
@@ -70,18 +36,14 @@ export const ChatUI: React.FC<ChatUIProps> = ({
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [isImageGenMode, setIsImageGenMode] = useState(false);
   const [isPromptOptimizerMode, setIsPromptOptimizerMode] = useState(false);
-  const [optimizerTarget, setOptimizerTarget] = useState<'chatgpt' | 'claude' | 'gemini'>('chatgpt');
+  const [optimizerTarget, setOptimizerTarget] = useState<OptimizerTarget>('chatgpt');
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   const [isToolEditorOpen, setIsToolEditorOpen] = useState(false);
   const [isToolLibraryOpen, setIsToolLibraryOpen] = useState(false);
   const [editingTool, setEditingTool] = useState<UserTool | null>(null);
   const [activeTool, setActiveTool] = useState<UserTool | null>(null);
   const [savePromptText, setSavePromptText] = useState('');
-  const [confirmModal, setConfirmModal] = useState<{
-    toolName: string;
-    description: string;
-    resolve: (confirmed: boolean) => void;
-  } | null>(null);
+  const [confirmModal, setConfirmModal] = useState<ConfirmationModalState | null>(null);
   const [showHeader, setShowHeader] = useState(true);
   const [isSticky, setIsSticky] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -91,11 +53,10 @@ export const ChatUI: React.FC<ChatUIProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesRef = useRef(messages);
   const lastProcessedExternalPromptRef = useRef<string | null>(null);
-  const processMessageRef = useRef<((text: string, images: string[], currentHistory: ChatMessage[], isRegeneration?: boolean) => Promise<void>) | null>(null);
+  const processMessageRef = useRef<ProcessMessageHandler | null>(null);
   const externalPromptProcessedRef = useRef<(() => void) | undefined>(onExternalPromptProcessed);
   messagesRef.current = messages;
 
-  // Hooks
   const model = useModelSelector();
 
   const liveApi = useLiveApi({
@@ -183,11 +144,9 @@ export const ChatUI: React.FC<ChatUIProps> = ({
     if (!files) return;
 
     Array.from(files).forEach(file => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setSelectedImages(prev => [...prev, reader.result as string]);
-      };
-      reader.readAsDataURL(file);
+      readImageFileAsDataUrl(file, (dataUrl) => {
+        setSelectedImages(prev => [...prev, dataUrl]);
+      });
     });
 
     e.target.value = '';
@@ -202,11 +161,9 @@ export const ChatUI: React.FC<ChatUIProps> = ({
         e.preventDefault();
         const file = item.getAsFile();
         if (!file) continue;
-        const reader = new FileReader();
-        reader.onload = () => {
-          setSelectedImages(prev => [...prev, reader.result as string]);
-        };
-        reader.readAsDataURL(file);
+        readImageFileAsDataUrl(file, (dataUrl) => {
+          setSelectedImages(prev => [...prev, dataUrl]);
+        });
       }
     }
   };
@@ -506,29 +463,11 @@ export const ChatUI: React.FC<ChatUIProps> = ({
         </div>
       </div>
 
-        {!canSendMessages && readOnlyReason && (
-          <div className="mx-auto w-full max-w-3xl px-4 pt-4">
-            <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-200">
-              {readOnlyReason}
-            </div>
-          </div>
-        )}
+        {!canSendMessages && <ReadOnlyBanner reason={readOnlyReason} />}
 
         {/* Empty State / Messages Area */}
         {messages.length === 0 && !chat.showLoadingUI ? (
-          <div className="flex-1 flex flex-col items-center justify-center px-4">
-            <div className="mb-6">
-              <div className="w-20 h-20 flex items-center justify-center mx-auto mb-4 rounded-full overflow-hidden">
-                <img src="./assets/lia-avatar.png" alt="SofLIA" className="w-full h-full object-cover drop-shadow-[0_0_15px_rgba(255,255,255,0.1)]" />
-              </div>
-              <h2 className="text-2xl font-semibold text-primary dark:text-white text-center">
-                Como puedo ayudarte hoy?
-              </h2>
-              <p className="text-secondary text-sm text-center mt-2">
-                Preguntale a SofLIA lo que necesites.
-              </p>
-            </div>
-          </div>
+          <EmptyChatState />
         ) : (
           <div className="flex-1">
           <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
@@ -782,36 +721,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({
               );
             })}
 
-            {chat.showLoadingUI && (
-              <div className="flex gap-4">
-                <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 rounded-full overflow-hidden">
-                  <img src="./assets/lia-avatar.png" alt="SOFLIA" className="w-full h-full object-cover" />
-                </div>
-                <div className="flex flex-col gap-2 pt-2">
-                  {chat.activeToolCall && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 bg-accent/10 border border-accent/20 rounded-xl animate-in fade-in duration-300">
-                      <div className="w-3.5 h-3.5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                      <span className="text-xs font-semibold text-accent">
-                        {TOOL_DISPLAY_NAMES[chat.activeToolCall.name] || chat.activeToolCall.name}
-                      </span>
-                      {chat.activeToolCall.args?.path && (
-                        <span className="text-[10px] text-gray-400 truncate max-w-[200px]">{chat.activeToolCall.args.path}</span>
-                      )}
-                      {chat.activeToolCall.args?.command && (
-                        <span className="text-[10px] text-gray-400 truncate max-w-[200px] font-mono">{chat.activeToolCall.args.command}</span>
-                      )}
-                    </div>
-                  )}
-                  {!chat.activeToolCall && (
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-                      <div className="w-2 h-2 bg-accent rounded-full animate-pulse [animation-delay:0.2s]" />
-                      <div className="w-2 h-2 bg-accent rounded-full animate-pulse [animation-delay:0.4s]" />
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+            {chat.showLoadingUI && <ChatLoadingIndicator activeToolCall={chat.activeToolCall} />}
 
             <div ref={messagesEndRef} />
           </div>
@@ -1055,49 +965,7 @@ export const ChatUI: React.FC<ChatUIProps> = ({
         onEditTool={handleEditTool}
       />
 
-      {/* Image Zoom Modal */}
-      {zoomedImage && (
-        <div
-          className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center cursor-pointer"
-          onClick={() => setZoomedImage(null)}
-        >
-          <button
-            className="absolute top-4 right-16 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
-            title="Descargar imagen"
-            onClick={(e) => {
-              e.stopPropagation();
-              const link = document.createElement('a');
-              link.href = zoomedImage;
-              link.download = `soflia-imagen-${new Date().getTime()}.png`;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-              <polyline points="7 10 12 15 17 10"></polyline>
-              <line x1="12" y1="15" x2="12" y2="3"></line>
-            </svg>
-          </button>
-          <button
-            className="absolute top-4 right-4 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white text-xl transition-colors"
-            title="Cerrar vista"
-            onClick={() => setZoomedImage(null)}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-          <img
-            src={zoomedImage}
-            alt="Zoom"
-            className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
+      <ImageZoomModal image={zoomedImage} onClose={() => setZoomedImage(null)} />
 
       {/* Computer Use Confirmation Modal */}
       <ConfirmActionModal

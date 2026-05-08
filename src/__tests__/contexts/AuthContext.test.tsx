@@ -33,6 +33,7 @@ vi.mock('../../services/sofia-auth', () => ({
 const supabaseMocks = vi.hoisted(() => ({
   signOut: vi.fn(async () => ({ error: null })),
   getSession: vi.fn(async () => ({ data: { session: null }, error: null })),
+  refreshSession: vi.fn(async () => ({ data: { session: null }, error: null })),
   signInWithPassword: vi.fn(async () => ({
     data: {
       session: {
@@ -79,6 +80,7 @@ vi.mock('../../lib/supabase', () => ({
     auth: {
       signOut: supabaseMocks.signOut,
       getSession: supabaseMocks.getSession,
+      refreshSession: supabaseMocks.refreshSession,
       signInWithPassword: supabaseMocks.signInWithPassword,
       signUp: supabaseMocks.signUp,
       onAuthStateChange: supabaseMocks.onAuthStateChange,
@@ -115,6 +117,7 @@ describe('AuthContext', () => {
       data: { subscription: { unsubscribe: vi.fn() } },
     });
     supabaseMocks.getSession.mockResolvedValue({ data: { session: null }, error: null });
+    supabaseMocks.refreshSession.mockResolvedValue({ data: { session: null }, error: null });
     supabaseMocks.signInWithPassword.mockResolvedValue({
       data: {
         session: {

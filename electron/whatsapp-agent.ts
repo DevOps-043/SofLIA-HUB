@@ -3,9 +3,6 @@
  * Uses executeToolDirect() to call computer-use tools without IPC.
  */
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { app } from 'electron';
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import type { WhatsAppService } from './whatsapp-service';
 import type { CalendarService } from './calendar-service';
 import type { GmailService } from './gmail-service';
@@ -57,6 +54,10 @@ import {
   stableJson,
   summarizeFunctionResponses,
 } from './wa-agent/loop-helpers';
+import { handleChatCommand as handleSlashChatCommand } from './wa-agent/chat-commands';
+import { transcribeWhatsAppAudio } from './wa-agent/audio-transcription';
+import { prepareWhatsAppMediaMessage } from './wa-agent/media-preparation';
+import { tryHandlePassiveWorkflowRequest } from './wa-agent/passive-workflows';
 import type {
   AgentLoopOptions,
   PendingConfirmation,
@@ -202,7 +203,12 @@ export class WhatsAppAgent {
       }
     }
 
-    const passiveWorkflowReply = this.tryHandlePassiveWorkflowRequest(senderNumber, text, isGroup);
+    const passiveWorkflowReply = tryHandlePassiveWorkflowRequest({
+      workflowHubService: this.workflowHubService,
+      senderNumber,
+      text,
+      isGroup,
+    });
     if (passiveWorkflowReply) {
       await this.waService.sendText(jid, passiveWorkflowReply);
       return;
@@ -264,648 +270,18 @@ export class WhatsAppAgent {
     text: string,
     isGroup: boolean,
   ): Promise<string | null> {
-    const parts = text.trim().split(/\s+/);
-    const cmd = parts[0].toLowerCase();
-    const args = parts.slice(1);
-
-    const sessionKey = isGroup ? `group:${jid}:${senderNumber}` : senderNumber;
-
-    switch (cmd) {
-      case '/status':
-        return `ðŸ¤– *SofLIA activa*\nâ€¢ Modelo: Gemini 2.5 Flash\nâ€¢ Modo: ${isGroup ? 'Grupo' : 'DM'}\nâ€¢ Historial: ${conversations.get(sessionKey)?.length || 0} mensajes`;
-
-      case '/reset':
-      case '/new':
-        conversations.delete(sessionKey);
-        this.memory.clearSessionContext(sessionKey);
-        return 'ðŸ”„ ConversaciÃ³n reiniciada.';
-
-      case '/activation': {
-        if (!isGroup) return 'âš ï¸ Este comando solo funciona en grupos.';
-        // Security: Only administrator can change activation mode
-        if (!this.waService.isAllowedNumber(senderNumber)) {
-          return 'âŒ Solo el administrador puede cambiar el modo de activaciÃ³n.';
-        }
-        const mode = args[0]?.toLowerCase();
-        if (mode === 'mention' || mode === 'always') {
-          await this.waService.setGroupConfig({ groupActivation: mode });
-          return `âœ… ActivaciÃ³n cambiada a: *${mode}*\n${mode === 'mention' ? 'â€¢ Solo responderÃ© cuando me mencionen, usen /soflia, o hagan reply a mi mensaje' : 'â€¢ ResponderÃ© a TODOS los mensajes del grupo'}`;
-        }
-        return 'ðŸ“‹ Uso: /activation mention | always';
-      }
-
-      case '/presentaciÃ³n':
-      case '/presentacion':
-        await WorkflowManager.startWorkflow(sessionKey, jid, senderNumber, this.waService, this);
-        return null;
-
-      case '/reunion':
-      case '/reuniÃ³n': {
-        const workflowHub = this.requireWorkflowHubService();
-        const raw = args.join(' ').trim();
-        if (!raw) {
-          return 'Uso: /reunion pega notas directamente, o /reunion prep 2026-03-22, o /reunion drive | LINK | titulo opcional';
-        }
-
-        if (/^prep(\s|$)/i.test(raw)) {
-          const targetDate = this.resolveAutomationBriefDate([raw.replace(/^prep\s*/i, '').trim()].filter(Boolean));
-          const detail = await workflowHub.executeWorkflow({
-            workflowId: 'reuniones',
-            requestedBy: `whatsapp:${senderNumber}`,
-            input: {
-              mode: 'prep',
-              targetDate,
-            },
-          });
-          return this.formatWorkflowCaseResponse(detail, 'Listo. Prepare la reunion.');
-        }
-
-        if (/^drive(\s*\||\s+)/i.test(raw)) {
-          const rest = raw.replace(/^drive/i, '').trim().replace(/^\|/, '').trim();
-          const parts = rest.split('|').map((item) => item.trim()).filter(Boolean);
-          const driveRef = parts[0] || '';
-          const meetingTitle = parts[1] || '';
-          if (!driveRef) {
-            return 'Uso: /reunion drive | LINK_O_ID | titulo opcional';
-          }
-          const detail = await workflowHub.executeWorkflow({
-            workflowId: 'reuniones',
-            requestedBy: `whatsapp:${senderNumber}`,
-            input: {
-              mode: 'drive',
-              driveRef,
-              meetingTitle,
-            },
-          });
-          return this.formatWorkflowCaseResponse(detail, 'Listo. Cree el caso de reunion desde Drive.');
-        }
-
-        if (/^auto(\s|$)/i.test(raw)) {
-          return 'La deteccion automatica de reuniones corre en segundo plano. Usa /flujos para revisar capacidades y casos detectados.';
-        }
-
-        const detail = await workflowHub.executeWorkflow({
-          workflowId: 'reuniones',
-          requestedBy: `whatsapp:${senderNumber}`,
-          input: {
-            mode: 'manual',
-            manualText: raw,
-          },
-        });
-        return this.formatWorkflowCaseResponse(detail, 'Listo. Cree el caso de reunion.');
-      }
-
-      case '/correo':
-      case '/correos': {
-        const workflowHub = this.requireWorkflowHubService();
-        if (!this.workspaceAutomationService?.isConfigured()) {
-          return 'Primero necesito una API key activa de Gemini para revisar correos.';
-        }
-
-        const query = this.resolveAutomationMailQuery(args);
-        const detail = await workflowHub.executeWorkflow({
-          workflowId: 'correo',
-          requestedBy: `whatsapp:${senderNumber}`,
-          input: {
-            preset: 'custom',
-            query,
-            maxResults: 5,
-            removeFromInbox: true,
-          },
-        });
-        return this.formatWorkflowCaseResponse(detail, 'Listo. Prepare una revision ejecutiva de correo.');
-      }
-
-      case '/agenda': {
-        const workflowHub = this.requireWorkflowHubService();
-        if (!this.workspaceAutomationService?.isConfigured()) {
-          return 'Primero necesito una API key activa de Gemini para preparar la agenda.';
-        }
-
-        const targetDate = this.resolveAutomationBriefDate(args);
-        const detail = await workflowHub.executeWorkflow({
-          workflowId: 'agenda',
-          requestedBy: `whatsapp:${senderNumber}`,
-          input: {
-            targetDate,
-          },
-        });
-        return this.formatWorkflowCaseResponse(detail, `Listo. Prepare tu resumen de agenda${targetDate ? ` para ${targetDate}` : ' de hoy'}.`);
-      }
-
-      case '/seguimiento':
-      case '/correoseguimiento': {
-        const workflowHub = this.requireWorkflowHubService();
-        if (!this.workspaceAutomationService?.isConfigured()) {
-          return 'Primero necesito una API key activa de Gemini para redactar el seguimiento.';
-        }
-
-        const raw = args.join(' ').trim();
-        const parts = raw.split('|').map((item) => item.trim());
-        const to = parts[0] || '';
-        const topic = parts[1] || '';
-        const context = parts[2] || '';
-        const tone = parts[3] || '';
-        const signature = parts[4] || '';
-        if (!to || !topic) {
-          return 'Uso: /seguimiento correo@empresa.com | tema | contexto opcional | tono opcional | firma opcional';
-        }
-
-        const detail = await workflowHub.executeWorkflow({
-          workflowId: 'seguimiento',
-          requestedBy: `whatsapp:${senderNumber}`,
-          input: {
-            to,
-            topic,
-            context: context || undefined,
-            tone: tone || undefined,
-            signature: signature || undefined,
-          },
-        });
-        return this.formatWorkflowCaseResponse(detail, 'Listo. Deje preparado el correo de seguimiento.');
-      }
-
-      case '/prepreunion':
-      case '/reunionprep': {
-        const workflowHub = this.requireWorkflowHubService();
-        if (!this.workspaceAutomationService?.isConfigured()) {
-          return 'Primero necesito una API key activa de Gemini para preparar la reunion.';
-        }
-
-        const targetDate = this.resolveAutomationBriefDate(args);
-        const detail = await workflowHub.executeWorkflow({
-          workflowId: 'reuniones',
-          requestedBy: `whatsapp:${senderNumber}`,
-          input: {
-            mode: 'prep',
-            targetDate,
-          },
-        });
-        return this.formatWorkflowCaseResponse(detail, `Listo. Prepare tu siguiente reunion${targetDate ? ` para ${targetDate}` : ''}.`);
-      }
-
-      case '/driveproyecto': {
-        const workflowHub = this.requireWorkflowHubService();
-        const raw = args.join(' ').trim();
-        const parts = raw.split('|').map((item) => item.trim());
-        const projectName = parts[0] || '';
-        const parentFolderId = parts[1] || '';
-        const gchatSpace = parts[2] || '';
-        const folderPreset = parts[3] || '';
-        if (!projectName) {
-          return 'Uso: /driveproyecto Nombre del proyecto | carpetaPadre opcional | espacioChat opcional | plantilla opcional';
-        }
-
-        const detail = await workflowHub.executeWorkflow({
-          workflowId: 'drive',
-          requestedBy: `whatsapp:${senderNumber}`,
-          input: {
-            projectName,
-            parentFolderId: parentFolderId || undefined,
-            gchatSpace: gchatSpace || undefined,
-            folderPreset: folderPreset || undefined,
-          },
-        });
-        return this.formatWorkflowCaseResponse(detail, 'Listo. Deje preparado el espacio base de Drive.');
-      }
-
-      case '/chatdirectivo':
-      case '/actualizacionchat': {
-        const workflowHub = this.requireWorkflowHubService();
-        if (!this.workspaceAutomationService?.isConfigured()) {
-          return 'Primero necesito una API key activa de Gemini para redactar la actualizacion.';
-        }
-
-        const raw = args.join(' ').trim();
-        const parts = raw.split('|').map((item) => item.trim());
-        const spaceName = parts[0] || '';
-        const context = parts[1] || '';
-        const tone = parts[2] || '';
-        if (!spaceName || !context) {
-          return 'Uso: /chatdirectivo SPACE | contexto | tono opcional';
-        }
-
-        const detail = await workflowHub.executeWorkflow({
-          workflowId: 'actualizacion_equipo',
-          requestedBy: `whatsapp:${senderNumber}`,
-          input: {
-            spaceName,
-            context,
-            tone: tone || undefined,
-          },
-        });
-        return this.formatWorkflowCaseResponse(detail, 'Listo. Deje lista la actualizacion ejecutiva para Google Chat.');
-      }
-
-      case '/computadora':
-      case '/pc':
-      case '/escritorio': {
-        const workflowHub = this.requireWorkflowHubService();
-        if (!this.workspaceAutomationService?.isConfigured()) {
-          return 'Primero necesito una API key activa de Gemini para preparar la accion.';
-        }
-
-        const objective = args.join(' ').trim();
-        if (!objective) {
-          return 'Uso: /computadora describe la accion que quieres preparar';
-        }
-
-        const detail = await workflowHub.executeWorkflow({
-          workflowId: 'pc',
-          requestedBy: `whatsapp:${senderNumber}`,
-          input: {
-            objective,
-          },
-        });
-        return this.formatWorkflowCaseResponse(detail, 'Listo. Prepare una accion para tu computadora.');
-      }
-
-      case '/crearflujo':
-        return 'La creacion libre de flujos ya no esta habilitada por chat. Ahora guardas variantes sobre workflows predeterminados desde la app.';
-
-      case '/flujos':
-      case '/misflujos': {
-        const workflowHub = this.requireWorkflowHubService();
-        const overview = await workflowHub.getOverview();
-        return this.formatWorkflowCatalogList(overview);
-      }
-
-      case '/usarflujo':
-      case '/ejecutarflujo':
-        return 'Los workflows ahora se ejecutan con comandos de negocio (/correo, /agenda, /seguimiento, /reunion, /driveproyecto, /chatdirectivo, /computadora) o desde variantes guardadas en la app.';
-
-      case '/pendientes': {
-        const workflowHub = this.requireWorkflowHubService();
-        const overview = await workflowHub.getOverview();
-        return this.formatPendingCases(overview);
-      }
-
-      case '/aprobar':
-      case '/autorizar': {
-        const workflowHub = this.requireWorkflowHubService();
-        const caseId = args[0]?.trim();
-        if (!caseId) {
-          return 'Uso: /aprobar CASE_ID comentario opcional';
-        }
-        const comment = args.slice(1).join(' ').trim() || null;
-        const detail = await workflowHub.approveCase({
-          caseId: this.normalizeWorkflowCaseId(caseId),
-          decidedBy: `whatsapp:${senderNumber}`,
-          scope: 'case',
-          comment,
-        });
-        return this.formatWorkflowCaseResponse(detail, 'Caso autorizado.');
-      }
-
-      case '/rechazar':
-      case '/noautorizar': {
-        const workflowHub = this.requireWorkflowHubService();
-        const caseId = args[0]?.trim();
-        if (!caseId) {
-          return 'Uso: /rechazar CASE_ID comentario opcional';
-        }
-        const comment = args.slice(1).join(' ').trim() || null;
-        const detail = await workflowHub.rejectCase({
-          caseId: this.normalizeWorkflowCaseId(caseId),
-          decidedBy: `whatsapp:${senderNumber}`,
-          scope: 'case',
-          comment,
-        });
-        return this.formatWorkflowCaseResponse(detail, 'Caso rechazado.');
-      }
-
-      case '/help':
-        return `*Comandos disponibles:*\n\n/status - Estado de SofLIA\n/reset - Reiniciar conversacion\n/new - Igual que /reset\n/correo - Revisar correo\n/correo hoy - Correos de hoy\n/correo noleidos - Correos pendientes\n/agenda - Preparar agenda de hoy\n/agenda 2026-03-22 - Preparar agenda de una fecha\n/seguimiento correo@empresa.com | tema | contexto - Borrador de seguimiento\n/reunion notas... - Crear caso de reunion desde notas\n/reunion prep 2026-03-22 - Preparar reunion\n/reunion drive | LINK | titulo - Crear caso desde Drive\n/driveproyecto Nombre | carpetaPadre | espacioChat - Crear espacio en Drive\n/chatdirectivo SPACE | contexto | tono - Actualizacion ejecutiva\n/computadora describe la accion - Preparar tarea en PC\n/flujos - Ver workflows, variantes y rutinas pasivas\n/pendientes - Ver casos pendientes\n/aprobar CASE_ID - Autorizar un caso\n/rechazar CASE_ID - Rechazar un caso\n/presentacion - Proceso de presentaciones\n${isGroup ? '/activation mention|always - Modo de activacion en grupo\n' : ''}/help - Esta ayuda\n\n${isGroup ? 'En grupos, solo respondo si me etiquetas (@SofLIA), usas el prefijo /soflia, o incluyes mi nombre "soflia" en tu mensaje.' : 'Tip: tambien puedes pedir cosas como "dame mis correos a las 8 am" o "prende las luces de mi cuarto a las 9 pm" y lo guardare como workflow pasivo.'}`;
-
-      default:
-        // Not a recognized command, return null to let agent process it
-        return null;
-    }
-  }
-
-  private resolveAutomationMailQuery(args: string[]): string {
-    const raw = args.join(' ').trim();
-    const normalized = raw
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
-
-    if (!normalized || normalized === 'hoy') {
-      return 'in:inbox newer_than:1d';
-    }
-    if (
-      normalized === 'noleidos'
-      || normalized === 'no leidos'
-      || normalized === 'pendientes'
-      || normalized === 'sin responder'
-    ) {
-      return 'in:inbox is:unread newer_than:7d';
-    }
-    if (
-      normalized === 'importantes'
-      || normalized === 'clientes'
-      || normalized === 'prioritarios'
-    ) {
-      return 'in:inbox category:primary newer_than:7d';
-    }
-
-    return raw;
-  }
-
-  private resolveAutomationBriefDate(args: string[]): string | undefined {
-    const raw = args.join(' ').trim();
-    if (!raw) {
-      return undefined;
-    }
-
-    const normalized = raw
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
-
-    if (normalized === 'hoy') {
-      return this.formatDateOnly(new Date());
-    }
-
-    if (normalized === 'manana') {
-      const nextDay = new Date();
-      nextDay.setDate(nextDay.getDate() + 1);
-      return this.formatDateOnly(nextDay);
-    }
-
-    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-      return raw;
-    }
-
-    return undefined;
-  }
-
-  private tryHandlePassiveWorkflowRequest(senderNumber: string, text: string, isGroup: boolean): string | null {
-    if (isGroup || !this.workflowHubService) {
-      return null;
-    }
-
-    const intent = this.parsePassiveWorkflowIntent(text);
-    if (!intent) {
-      return null;
-    }
-
-    const workflowHub = this.requireWorkflowHubService();
-    const rule = workflowHub.savePassiveRule({
-      workflowId: intent.workflowId,
-      name: intent.name,
-      description: intent.description,
-      prompt: intent.prompt,
-      cronExpression: intent.cronExpression,
-      scheduleLabel: intent.scheduleLabel,
-      requestedBy: `whatsapp:${senderNumber}`,
-      phoneNumber: senderNumber,
-      source: 'chat',
-      executionMode: 'agent_prompt',
+    return handleSlashChatCommand({
+      jid,
+      senderNumber,
+      text,
+      isGroup,
+      agent: this,
+      conversations,
+      memory: this.memory,
+      waService: this.waService,
+      workflowHubService: this.workflowHubService,
+      workspaceAutomationService: this.workspaceAutomationService,
     });
-
-    return [
-      `Listo. Lo guarde como workflow pasivo: *${rule.name}*`,
-      `Cuando: ${rule.scheduleLabel}`,
-      rule.workflowId ? `Tipo: ${rule.workflowName}` : 'Tipo: Rutina libre recordada',
-      'No necesitas volver a pedirlo con comandos; lo voy a ejecutar solo.',
-    ].join('\n');
-  }
-
-  private parsePassiveWorkflowIntent(text: string): {
-    workflowId?: 'correo' | 'agenda' | 'reuniones';
-    name: string;
-    description: string;
-    prompt: string;
-    cronExpression: string;
-    scheduleLabel: string;
-  } | null {
-    const schedule = this.extractPassiveSchedule(text);
-    if (!schedule) {
-      return null;
-    }
-
-    const normalized = this.normalizeForIntent(text);
-    if (!/\b(recuerdame|recuerdame|avisa|avisame|dame|enviame|mandame|prende|apaga|resume|resumeme|revisa|haz|ejecuta|prepara|busca|traeme|trae)\b/.test(normalized)) {
-      return null;
-    }
-
-    const workflowId = this.detectPassiveWorkflowId(text);
-    const compact = text.trim().replace(/\s+/g, ' ');
-    const name = workflowId === 'correo'
-      ? 'Resumen de correos'
-      : workflowId === 'agenda'
-        ? 'Briefing de agenda'
-        : workflowId === 'reuniones'
-          ? 'Seguimiento de reuniones'
-          : compact.slice(0, 72) || 'Rutina pasiva';
-    const description = workflowId
-      ? `Workflow pasivo de ${workflowId} creado desde WhatsApp.`
-      : 'Rutina pasiva libre creada desde WhatsApp.';
-
-    return {
-      workflowId,
-      name,
-      description,
-      prompt: compact,
-      cronExpression: schedule.cronExpression,
-      scheduleLabel: schedule.scheduleLabel,
-    };
-  }
-
-  private detectPassiveWorkflowId(text: string): 'correo' | 'agenda' | 'reuniones' | undefined {
-    const normalized = this.normalizeForIntent(text);
-    if (/\b(correo|correos|gmail|bandeja|inbox)\b/.test(normalized)) {
-      return 'correo';
-    }
-    if (/\b(agenda|calendario|calendar|briefing)\b/.test(normalized)) {
-      return 'agenda';
-    }
-    if (/\b(reunion|reuniones|meet|meeting)\b/.test(normalized)) {
-      return 'reuniones';
-    }
-    return undefined;
-  }
-
-  private extractPassiveSchedule(text: string): { cronExpression: string; scheduleLabel: string } | null {
-    const normalized = this.normalizeForIntent(text);
-
-    if (/\bcada\s+(\d+)\s+hora(s)?\b/.test(normalized)) {
-      const match = normalized.match(/\bcada\s+(\d+)\s+hora(s)?\b/);
-      const interval = Math.max(1, Math.min(24, Number(match?.[1] || 1)));
-      return {
-        cronExpression: `0 */${interval} * * *`,
-        scheduleLabel: `Cada ${interval} hora${interval === 1 ? '' : 's'}`,
-      };
-    }
-
-    if (/\bcada\s+hora\b/.test(normalized)) {
-      return {
-        cronExpression: '0 * * * *',
-        scheduleLabel: 'Cada hora',
-      };
-    }
-
-    const time = this.extractClockTime(normalized);
-    if (!time) {
-      return null;
-    }
-
-    if (/\b(manana|mañana|hoy|esta tarde|esta noche)\b/.test(normalized)
-      && !/\b(cada|todos los dias|todos los días|diario|diariamente|lunes|martes|miercoles|miércoles|jueves|viernes|sabado|sábado|domingo|entre semana|dias laborales|cada hora)\b/.test(normalized)) {
-      return null;
-    }
-
-    const [hour, minute] = time;
-    const timeLabel = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-
-    if (/\b(lunes a viernes|lun a vie|entre semana|dias laborales)\b/.test(normalized)) {
-      return {
-        cronExpression: `${minute} ${hour} * * 1-5`,
-        scheduleLabel: `Lunes a viernes a las ${timeLabel}`,
-      };
-    }
-
-    const weekdayMap: Array<{ regex: RegExp; cron: string; label: string }> = [
-      { regex: /\b(lunes|cada lunes|los lunes)\b/, cron: '1', label: 'Lunes' },
-      { regex: /\b(martes|cada martes|los martes)\b/, cron: '2', label: 'Martes' },
-      { regex: /\b(miercoles|miércoles|cada miercoles|cada miércoles|los miercoles|los miércoles)\b/, cron: '3', label: 'Miercoles' },
-      { regex: /\b(jueves|cada jueves|los jueves)\b/, cron: '4', label: 'Jueves' },
-      { regex: /\b(viernes|cada viernes|los viernes)\b/, cron: '5', label: 'Viernes' },
-      { regex: /\b(sabado|sábado|cada sabado|cada sábado|los sabados|los sábados)\b/, cron: '6', label: 'Sabado' },
-      { regex: /\b(domingo|cada domingo|los domingos)\b/, cron: '0', label: 'Domingo' },
-    ];
-    const weekday = weekdayMap.find((candidate) => candidate.regex.test(normalized));
-    if (weekday) {
-      return {
-        cronExpression: `${minute} ${hour} * * ${weekday.cron}`,
-        scheduleLabel: `${weekday.label} a las ${timeLabel}`,
-      };
-    }
-
-    if (/\b(todos los dias|todos los días|cada dia|cada día|diario|diariamente|cada manana|cada mañana|todas las mananas|todas las mañanas)\b/.test(normalized)
-      || /\ba las\b/.test(normalized)) {
-      return {
-        cronExpression: `${minute} ${hour} * * *`,
-        scheduleLabel: `Todos los dias a las ${timeLabel}`,
-      };
-    }
-
-    return null;
-  }
-
-  private extractClockTime(normalized: string): [number, number] | null {
-    const timeMatch = normalized.match(/\b(?:a las|a la|alas)?\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/);
-    if (!timeMatch) {
-      return null;
-    }
-
-    let hour = Number(timeMatch[1]);
-    const minute = Number(timeMatch[2] || 0);
-    const meridiem = timeMatch[3];
-    if (!Number.isFinite(hour) || !Number.isFinite(minute) || minute < 0 || minute > 59) {
-      return null;
-    }
-
-    if (meridiem === 'pm' && hour < 12) {
-      hour += 12;
-    } else if (meridiem === 'am' && hour === 12) {
-      hour = 0;
-    }
-
-    if (hour < 0 || hour > 23) {
-      return null;
-    }
-    return [hour, minute];
-  }
-
-  private normalizeForIntent(text: string): string {
-    return text
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '');
-  }
-
-  private requireWorkflowHubService(): WorkflowHubService {
-    if (!this.workflowHubService) {
-      throw new Error('El workflow hub todavia no esta disponible.');
-    }
-    return this.workflowHubService;
-  }
-
-  private normalizeWorkflowCaseId(caseId: string): string {
-    const normalized = caseId.trim();
-    if (!normalized) {
-      throw new Error('Necesito el identificador del caso.');
-    }
-    if (normalized.includes(':')) {
-      return normalized;
-    }
-    return `automation:${normalized}`;
-  }
-
-  private formatPendingCases(overview: Awaited<ReturnType<WorkflowHubService['getOverview']>>): string {
-    const pendingCases = overview.cases.filter((item) => item.normalizedStatus === 'pending_approval');
-    if (pendingCases.length === 0) {
-      return 'No hay decisiones pendientes por autorizar en este momento.';
-    }
-
-    return [
-      '*Pendientes por autorizar*',
-      ...pendingCases.slice(0, 5).map((item, index) => `${index + 1}. ${item.title}\nCASE_ID: ${item.id}\nResumen: ${item.summary}\nPendientes: ${item.actions.pending}`),
-      '',
-      'Para autorizar: /aprobar CASE_ID',
-      'Para rechazar: /rechazar CASE_ID',
-    ].join('\n\n');
-  }
-
-  private formatWorkflowCatalogList(overview: Awaited<ReturnType<WorkflowHubService['getOverview']>>): string {
-    const variantCountByWorkflow = overview.variants.reduce<Record<string, number>>((acc, variant) => {
-      acc[variant.workflowId] = (acc[variant.workflowId] || 0) + 1;
-      return acc;
-    }, {});
-    const passiveLines = overview.passiveRules.map((rule) => `- ${rule.name}: ${rule.scheduleLabel} (${rule.workflowName})`);
-
-    return [
-      '*Workflows disponibles*',
-      '',
-      '*Pasivos*',
-      ...overview.workflows
-        .filter((workflow) => workflow.triggerModes.includes('passive'))
-        .map((workflow) => `- ${workflow.name}: ${workflow.summary} (${workflow.passiveBehavior === 'system' ? 'automatico' : 'programable'})`),
-      passiveLines.length > 0 ? '' : null,
-      passiveLines.length > 0 ? '*Rutinas guardadas*' : null,
-      ...passiveLines,
-      '',
-      '*De activacion*',
-      ...overview.workflows
-        .filter((workflow) => workflow.triggerModes.includes('activation'))
-        .map((workflow) => `- ${workflow.name}: ${workflow.summary} (variantes: ${variantCountByWorkflow[workflow.id] || 0})`),
-      overview.legacyCustomTemplates.length > 0 ? `Legacy ocultos: ${overview.legacyCustomTemplates.length}` : null,
-      '',
-      'Tip: tambien puedes pedirme cosas como "dame mis correos a las 8 am" y lo guardare como workflow pasivo sin comandos especiales.',
-    ].filter(Boolean).join('\n');
-  }
-
-  private formatWorkflowCaseResponse(detail: Record<string, any>, intro?: string): string {
-    const actions = Array.isArray(detail.actionsDetail) ? detail.actionsDetail : [];
-    const lines = [
-      intro || null,
-      `Caso: ${detail.id}`,
-      `Workflow: ${detail.workflowName || detail.workflowId || 'n/d'}`,
-      `Estado: ${detail.nativeStatus || detail.normalizedStatus || 'n/d'}`,
-      `Titulo: ${detail.title || 'Sin titulo'}`,
-      `Resumen: ${detail.summary || 'Sin resumen.'}`,
-      actions.length > 0 ? `Acciones: ${actions.length}` : null,
-      ...actions.slice(0, 5).map((action: any) => `- ${action.title} | ${action.status}`),
-      detail.normalizedStatus === 'pending_approval' ? 'Siguiente paso: /aprobar CASE_ID o /rechazar CASE_ID' : 'Puedes usar /pendientes para revisar otros casos.',
-    ];
-
-    return lines.filter(Boolean).join('\n');
-  }
-
-  private formatDateOnly(value: Date): string {
-    return value.toISOString().slice(0, 10);
   }
 
   // â”€â”€â”€ Handle media (Photos, Docs) â€” FULL AGENTIC PIPELINE â”€â”€â”€â”€â”€
@@ -920,64 +296,20 @@ export class WhatsAppAgent {
     groupPassiveHistory: string = '',
   ): Promise<void> {
     try {
-      // â”€â”€â”€ Step 1: Save file to disk (persistent + referenceable) â”€â”€â”€â”€â”€â”€
-      const receivedDir = path.join(app.getPath('userData'), 'whatsapp-received');
-      await fs.mkdir(receivedDir, { recursive: true });
-
-      // Sanitize filename and make unique with timestamp
-      const safeName = fileName.replace(/[<>:"/\\|?*]/g, '_');
-      const timestamp = Date.now();
-      const ext = path.extname(safeName) || this.getExtensionFromMime(mimetype);
-      const baseName = path.basename(safeName, ext);
-      const savedFileName = `${baseName}_${timestamp}${ext}`;
-      const savedPath = path.join(receivedDir, savedFileName);
-
-      await fs.writeFile(savedPath, buffer);
-      console.log(`[WhatsApp Agent] Saved received file: ${savedPath} (${(buffer.length / 1024 / 1024).toFixed(2)} MB)`);
-
-      // â”€â”€â”€ Step 2: Determine if file can be sent inline to Gemini â”€â”€â”€â”€â”€â”€
-      const MAX_INLINE_SIZE = 15 * 1024 * 1024; // 15MB binary (~20MB base64)
-      const isInlineable = buffer.length <= MAX_INLINE_SIZE;
-      const isAnalyzable = /^(image\/(jpeg|png|gif|webp|bmp)|application\/pdf|text\/|audio\/)/.test(mimetype);
-
-      let inlineMediaParts: Array<{ inlineData: { mimeType: string; data: string } }> = [];
-      let userText = '';
-
-      if (isInlineable && isAnalyzable) {
-        // File is small enough and in a format Gemini can analyze â†’ send inline
-        const base64Data = buffer.toString('base64');
-        inlineMediaParts = [{
-          inlineData: {
-            mimeType: mimetype,
-            data: base64Data,
-          },
-        }];
-
-        userText = text && text.trim()
-          ? `${text.trim()}\n\n[Archivo adjunto: "${fileName}" (${mimetype}, ${(buffer.length / 1024 / 1024).toFixed(1)} MB). Lo he guardado en: ${savedPath}. Analiza el contenido del archivo.]`
-          : `[El usuario enviÃ³ un archivo: "${fileName}" (${mimetype}, ${(buffer.length / 1024 / 1024).toFixed(1)} MB). Lo he guardado en: ${savedPath}. Analiza el contenido del archivo y responde.]`;
-      } else {
-        // File is too large or not directly analyzable â€” tell agent where it's saved
-        const sizeInfo = `${(buffer.length / 1024 / 1024).toFixed(1)} MB`;
-        const reason = !isInlineable ? `demasiado grande (${sizeInfo})` : `formato no analizable directamente (${mimetype})`;
-
-        userText = text && text.trim()
-          ? `${text.trim()}\n\n[El usuario enviÃ³ un archivo: "${fileName}" (${mimetype}, ${sizeInfo}). Archivo ${reason} para anÃ¡lisis inline, pero lo he guardado en: ${savedPath}. Puedes usar read_file para leer su contenido si es un documento de texto, o informar al usuario dÃ³nde estÃ¡ guardado.]`
-          : `[El usuario enviÃ³ un archivo: "${fileName}" (${mimetype}, ${sizeInfo}). Archivo ${reason} para anÃ¡lisis inline, pero lo he guardado en: ${savedPath}. Puedes usar read_file para leer su contenido si es un documento de texto, o informar al usuario dÃ³nde estÃ¡ guardado.]`;
-
-        console.log(`[WhatsApp Agent] File too large or not analyzable inline (${reason}), saved to disk only: ${savedPath}`);
+      const prepared = await prepareWhatsAppMediaMessage(buffer, fileName, mimetype, text || '');
+      console.log(`[WhatsApp Agent] Saved received file: ${prepared.savedPath} (${(buffer.length / 1024 / 1024).toFixed(2)} MB)`);
+      if (!prepared.canAnalyzeInline && prepared.reason) {
+        console.log(`[WhatsApp Agent] File too large or not analyzable inline (${prepared.reason}), saved to disk only: ${prepared.savedPath}`);
       }
+      console.log(`[WhatsApp Agent] Processing media: ${fileName} (${mimetype}), inline: ${prepared.canAnalyzeInline}, caption: "${text?.slice(0, 60) || 'none'}"`);
 
-      console.log(`[WhatsApp Agent] Processing media: ${fileName} (${mimetype}), inline: ${isInlineable && isAnalyzable}, caption: "${text?.slice(0, 60) || 'none'}"`);
-
-      // â”€â”€â”€ Step 3: Run the FULL agentic loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       const response = await this.runAgentLoop(
         jid,
         senderNumber,
-        userText,
+        prepared.userText,
         isGroup,
         groupPassiveHistory,
-        inlineMediaParts,
+        prepared.inlineMediaParts,
         {},
       );
 
@@ -986,27 +318,10 @@ export class WhatsAppAgent {
       }
     } catch (err: any) {
       console.error('[WhatsApp Agent] Media error:', err);
-      await this.waService.sendText(jid, 'No pude procesar el archivo. Intenta de nuevo o envÃ­a un mensaje de texto.');
+      await this.waService.sendText(jid, 'No pude procesar el archivo. Intenta de nuevo o envia un mensaje de texto.');
     }
   }
 
-  /** Get file extension from MIME type */
-  private getExtensionFromMime(mime: string): string {
-    const map: Record<string, string> = {
-      'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif',
-      'image/webp': '.webp', 'application/pdf': '.pdf',
-      'application/msword': '.doc',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
-      'application/vnd.ms-excel': '.xls',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
-      'application/vnd.ms-powerpoint': '.ppt',
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
-      'text/plain': '.txt', 'text/csv': '.csv',
-      'application/zip': '.zip', 'application/x-rar-compressed': '.rar',
-      'video/mp4': '.mp4', 'audio/ogg': '.ogg', 'audio/mpeg': '.mp3',
-    };
-    return map[mime] || '';
-  }
 
   // â”€â”€â”€ Handle audio messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async handleAudio(
@@ -1017,7 +332,7 @@ export class WhatsAppAgent {
     groupPassiveHistory: string = '',
   ): Promise<void> {
     try {
-      const transcription = await this.transcribeAudio(audioBuffer);
+      const transcription = await transcribeWhatsAppAudio(this.getGenAI(), audioBuffer);
 
       if (!transcription || !transcription.trim()) {
         await this.waService.sendText(jid, 'No pude entender el audio. Â¿PodrÃ­as repetirlo o escribirlo?');
@@ -1032,25 +347,6 @@ export class WhatsAppAgent {
     }
   }
 
-  // â”€â”€â”€ Transcribe audio with Gemini â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  private async transcribeAudio(audioBuffer: Buffer): Promise<string> {
-    const ai = this.getGenAI();
-    const model = ai.getGenerativeModel({ model: WA_MODEL });
-
-    const base64Audio = audioBuffer.toString('base64');
-
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          mimeType: 'audio/ogg',
-          data: base64Audio,
-        },
-      },
-      'Transcribe este audio a texto. Solo devuelve la transcripciÃ³n exacta de lo que dice la persona, sin agregar nada mÃ¡s. Si no puedes entenderlo, responde con una cadena vacÃ­a.',
-    ]);
-
-    return result.response.text().trim();
-  }
 
   // â”€â”€â”€ Agentic loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   private async runAgentLoop(

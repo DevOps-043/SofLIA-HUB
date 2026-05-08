@@ -1,10 +1,14 @@
-import { app, BrowserWindow, Tray, Menu, Notification, nativeImage, ipcMain, desktopCapturer, screen, globalShortcut } from 'electron'
-import { execFile } from 'node:child_process'
+import { app, BrowserWindow, Tray, Menu, Notification, nativeImage, ipcMain, screen, globalShortcut } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import { promisify } from 'node:util'
 import * as dotenv from 'dotenv'
 import { extractProtocolArg, parseAppProtocolCommand, type MeetingTriggerPayload } from './app-protocol'
+import {
+  captureForegroundWindow,
+  restoreFlowInsertTarget,
+  type FlowInsertTarget,
+} from './flow-window/native-window-target'
+import { registerScreenCaptureHandlers } from './main/screen-capture-handlers'
 
 type BootstrapGuard = typeof globalThis & {
   __SOFLIA_BOOTSTRAP_COMPLETE__?: boolean
@@ -12,7 +16,6 @@ type BootstrapGuard = typeof globalThis & {
 
 type Step<T> = () => Promise<T> | T
 const BACKGROUND_LAUNCH_ARG = '--background'
-const execFileAsync = promisify(execFile)
 
 function logBootstrapError(context: string, error: unknown): void {
   if (error instanceof Error) {
@@ -190,7 +193,7 @@ async function runBootstrap(): Promise<void> {
   let flowWin: BrowserWindow | null = null
   let tray: Tray | null = null
   let isQuitting = false
-  let flowInsertTarget: { handle: string; title: string } | null = null
+  let flowInsertTarget: FlowInsertTarget | null = null
   const startInBackground = process.argv.includes(BACKGROUND_LAUNCH_ARG)
   const initialProtocolCommand = parseAppProtocolCommand(extractProtocolArg(process.argv))
   const shouldShowInitialWindow = !startInBackground && initialProtocolCommand?.type !== 'meeting-trigger'
@@ -327,45 +330,8 @@ async function runBootstrap(): Promise<void> {
     win?.webContents.send('whatsapp:status', status)
   })
 
-  async function captureForegroundWindow(): Promise<{ handle: string; title: string } | null> {
-    try {
-      const script = `
-Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-using System.Text;
-public static class ForegroundWindowReader {
-  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
-  [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
-}
-"@
-$handle = [ForegroundWindowReader]::GetForegroundWindow()
-$builder = New-Object System.Text.StringBuilder 512
-[ForegroundWindowReader]::GetWindowText($handle, $builder, $builder.Capacity) | Out-Null
-@{
-  handle = "$($handle.ToInt64())"
-  title = $builder.ToString()
-} | ConvertTo-Json -Compress
-`
-      const { stdout } = await execFileAsync('powershell.exe', ['-NoProfile', '-Command', script], {
-        timeout: 3000,
-        windowsHide: true,
-      })
-      const parsed = JSON.parse((stdout || '').trim()) as { handle?: string; title?: string }
-      const handle = String(parsed.handle || '').trim()
-      const title = String(parsed.title || '').trim()
-      if (!handle || handle === '0') {
-        return null
-      }
-      return { handle, title }
-    } catch (error) {
-      logBootstrapError('captureForegroundWindow', error)
-      return null
-    }
-  }
-
   async function rememberFlowInsertTarget(): Promise<void> {
-    const target = await captureForegroundWindow()
+    const target = await captureForegroundWindow(logBootstrapError)
     if (!target) {
       flowInsertTarget = null
       return
@@ -378,35 +344,6 @@ $builder = New-Object System.Text.StringBuilder 512
     }
 
     flowInsertTarget = target
-  }
-
-  async function restoreFlowInsertTarget(): Promise<void> {
-    if (!flowInsertTarget?.handle) {
-      return
-    }
-
-    const script = `
-Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-public static class FlowWindowFocus {
-  [DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
-  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
-}
-"@
-$handle = [IntPtr]::new([int64]${flowInsertTarget.handle})
-[FlowWindowFocus]::ShowWindowAsync($handle, 9) | Out-Null
-[FlowWindowFocus]::SetForegroundWindow($handle) | Out-Null
-`
-
-    try {
-      await execFileAsync('powershell.exe', ['-NoProfile', '-Command', script], {
-        timeout: 2500,
-        windowsHide: true,
-      })
-    } catch (error) {
-      logBootstrapError('restoreFlowInsertTarget', error)
-    }
   }
 
   async function createFlowWindow(): Promise<void> {
@@ -746,60 +683,7 @@ $handle = [IntPtr]::new([int64]${flowInsertTarget.handle})
     return sendSummaryWhatsApp(phoneNumber, summaryText)
   })
 
-  ipcMain.handle('capture-screen', async (_event, sourceId?: string) => {
-    try {
-      const sources = await desktopCapturer.getSources({
-        types: ['screen'],
-        thumbnailSize: { width: 1920, height: 1080 },
-      })
-
-      if (!sources.length) {
-        return null
-      }
-
-      const source = sourceId ? sources.find((item) => item.id === sourceId) || sources[0] : sources[0]
-      return source.thumbnail.toDataURL()
-    } catch {
-      return null
-    }
-  })
-
-  ipcMain.handle('get-screen-sources', async () => {
-    try {
-      const sources = await desktopCapturer.getSources({
-        types: ['screen', 'window'],
-        thumbnailSize: { width: 320, height: 180 },
-      })
-
-      return sources.map((source) => ({
-        id: source.id,
-        name: source.name,
-        thumbnail: source.thumbnail.toDataURL(),
-        isScreen: source.id.startsWith('screen:'),
-      }))
-    } catch {
-      return []
-    }
-  })
-
-  ipcMain.handle('get-desktop-sources', async () => {
-    try {
-      const sources = await desktopCapturer.getSources({
-        types: ['screen'],
-        thumbnailSize: { width: 1920, height: 1080 },
-      })
-
-      return sources.map((source) => ({
-        display_id: source.id,
-        id: source.id,
-        name: source.name,
-        thumbnail: source.thumbnail.toDataURL(),
-      }))
-    } catch (error) {
-      logBootstrapError('get-desktop-sources', error)
-      return []
-    }
-  })
+  registerScreenCaptureHandlers(logBootstrapError)
 
   ipcMain.on('flow-send-to-chat', (_event, text: string) => {
     if (!win) {
@@ -834,7 +718,7 @@ $handle = [IntPtr]::new([int64]${flowInsertTarget.handle})
     try {
       flowWin?.hide()
       await new Promise((resolve) => setTimeout(resolve, 140))
-      await restoreFlowInsertTarget()
+      await restoreFlowInsertTarget(flowInsertTarget, logBootstrapError)
       await new Promise((resolve) => setTimeout(resolve, 120))
       await desktopAgentService.keyboardType(normalizedText)
       return { success: true }

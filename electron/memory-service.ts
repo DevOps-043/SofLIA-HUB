@@ -15,38 +15,25 @@ import { app, safeStorage } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
-import { createRequire } from 'node:module';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-
-// better-sqlite3: native module loaded via require() to avoid ESM↔CJS interop crash
-type BetterSqlite3Constructor = new (filename: string, options?: Record<string, unknown>) => any;
-
-const _require = createRequire(import.meta.url);
-let Database: BetterSqlite3Constructor | null = null;
-
-function getDatabaseConstructor(): BetterSqlite3Constructor {
-  if (!Database) {
-    Database = _require('better-sqlite3') as BetterSqlite3Constructor;
-  }
-  return Database;
-}
-
-// ─── Constants ───────────────────────────────────────────────────────
-const DB_PATH = path.join(app.getPath('userData'), 'soflia-memory.db');
-const OLD_MEMORIES_PATH = path.join(app.getPath('userData'), 'whatsapp-memories.json');
-const EMBEDDING_MODEL = 'gemini-embedding-001';
-const EMBEDDING_MODEL_FALLBACK = 'text-embedding-004';
-const SUMMARIZE_MODEL = 'gemini-3-flash-preview';
-const CHUNK_TOKENS = 400;
-const CHUNK_OVERLAP = 80;
-const CHARS_PER_TOKEN = 4; // rough estimate for Spanish text
-const RECENT_MESSAGES_LIMIT = 20;
-const SEMANTIC_TOP_K = 5;
-const SEMANTIC_MIN_SCORE = 0.30;
-const SUMMARY_TOKEN_BUDGET = 2000;
-const SEMANTIC_TOKEN_BUDGET = 2000;
-const FACTS_TOKEN_BUDGET = 1000;
-const SUMMARIZE_THRESHOLD = 15; // messages before triggering summarization (lower = faster memory creation)
+import {
+  CHARS_PER_TOKEN,
+  CHUNK_OVERLAP,
+  CHUNK_TOKENS,
+  DB_PATH,
+  EMBEDDING_MODEL,
+  EMBEDDING_MODEL_FALLBACK,
+  OLD_MEMORIES_PATH,
+  RECENT_MESSAGES_LIMIT,
+  SEMANTIC_MIN_SCORE,
+  SEMANTIC_TOP_K,
+  SUMMARIZE_MODEL,
+  SUMMARIZE_THRESHOLD,
+} from './memory/constants';
+import { formatMemoryContextForPrompt } from './memory/context-formatter';
+import { getDatabaseConstructor } from './memory/database';
+import { cosineSimilarity, truncateToTokens } from './memory/math';
+import { SCHEMA_SQL } from './memory/schema';
 
 // ─── Types ───────────────────────────────────────────────────────────
 export interface MemoryContext {
@@ -69,88 +56,6 @@ interface StoredMessage {
   media_type: string | null;
   media_filename: string | null;
   timestamp: number;
-}
-
-// ─── SQL Schema ──────────────────────────────────────────────────────
-const SCHEMA_SQL = `
-CREATE TABLE IF NOT EXISTS messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_key TEXT NOT NULL,
-    phone_number TEXT NOT NULL,
-    group_jid TEXT,
-    role TEXT NOT NULL CHECK(role IN ('user', 'model')),
-    content TEXT NOT NULL,
-    media_type TEXT,
-    media_filename TEXT,
-    timestamp INTEGER NOT NULL,
-    created_at TEXT DEFAULT (datetime('now'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_messages_session_key ON messages(session_key);
-CREATE INDEX IF NOT EXISTS idx_messages_phone_ts ON messages(phone_number, timestamp);
-CREATE INDEX IF NOT EXISTS idx_messages_ts ON messages(timestamp);
-
-CREATE TABLE IF NOT EXISTS summaries (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_key TEXT NOT NULL,
-    phone_number TEXT NOT NULL,
-    period_start INTEGER NOT NULL,
-    period_end INTEGER NOT NULL,
-    summary_text TEXT NOT NULL,
-    message_count INTEGER NOT NULL,
-    created_at TEXT DEFAULT (datetime('now'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_summaries_session ON summaries(session_key);
-CREATE INDEX IF NOT EXISTS idx_summaries_phone_period ON summaries(phone_number, period_end DESC);
-
-CREATE TABLE IF NOT EXISTS memory_chunks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_key TEXT NOT NULL,
-    phone_number TEXT NOT NULL,
-    chunk_text TEXT NOT NULL,
-    embedding TEXT NOT NULL,
-    source_type TEXT NOT NULL CHECK(source_type IN ('conversation', 'summary', 'fact')),
-    source_start_time INTEGER,
-    source_end_time INTEGER,
-    created_at TEXT DEFAULT (datetime('now'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_chunks_session ON memory_chunks(session_key);
-CREATE INDEX IF NOT EXISTS idx_chunks_phone ON memory_chunks(phone_number);
-
-CREATE TABLE IF NOT EXISTS facts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    phone_number TEXT,
-    category TEXT NOT NULL,
-    fact_key TEXT NOT NULL,
-    fact_value TEXT NOT NULL,
-    source_context TEXT,
-    confidence REAL DEFAULT 1.0,
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
-);
-
-CREATE INDEX IF NOT EXISTS idx_facts_phone ON facts(phone_number);
-`;
-
-// ─── Helper: Cosine Similarity ───────────────────────────────────────
-function cosineSimilarity(a: number[], b: number[]): number {
-  let dot = 0, normA = 0, normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-  const denom = Math.sqrt(normA) * Math.sqrt(normB);
-  return denom === 0 ? 0 : dot / denom;
-}
-
-// ─── Helper: Truncate text to token budget ───────────────────────────
-function truncateToTokens(text: string, maxTokens: number): string {
-  const maxChars = maxTokens * CHARS_PER_TOKEN;
-  if (text.length <= maxChars) return text;
-  return text.slice(0, maxChars) + '...';
 }
 
 // ─── MemoryService ───────────────────────────────────────────────────
@@ -448,74 +353,7 @@ Soy SofLIA, asistente de IA para negocios hispanohablantes. Mi misión es ejecut
    * Respects token budgets per section.
    */
   formatContextForPrompt(ctx: MemoryContext): string {
-    let sections = '';
-
-    // Hierarchical Markdown Context
-    if (ctx.soul) {
-      sections += `\n\n═══ SOUL (Core Persona) ═══\n${truncateToTokens(ctx.soul, 500)}`;
-    }
-    if (ctx.identity) {
-      sections += `\n\n═══ IDENTITY (Current State) ═══\n${truncateToTokens(ctx.identity, 500)}`;
-    }
-    if (ctx.memoryCards) {
-      sections += `\n\n═══ RECENT MEMORY CARDS ═══\n${ctx.memoryCards}`;
-    }
-
-    // Recent verbatim messages (critical for context continuity after restarts)
-    if (ctx.recentMessages && ctx.recentMessages.length > 0) {
-      let recentText = '';
-      for (const m of ctx.recentMessages) {
-        const time = new Date(m.timestamp).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-        const role = m.role === 'user' ? 'Usuario' : 'Asistente';
-        recentText += `[${time}] ${role}: ${m.content}\n`;
-      }
-      if (recentText) {
-        sections += `\n\n═══ MENSAJES RECIENTES DE ESTA CONVERSACIÓN ═══\nEstos son los últimos mensajes intercambiados con este usuario (persisten entre reinicios):\n${recentText}`;
-      }
-    }
-
-    // Rolling summary
-    if (ctx.rollingSummary) {
-      const summaryText = truncateToTokens(ctx.rollingSummary, SUMMARY_TOKEN_BUDGET);
-      sections += `\n\n═══ RESUMEN DE CONVERSACIONES ANTERIORES ═══\n${summaryText}`;
-    }
-
-    // Semantic recall
-    if (ctx.semanticRecall.length > 0) {
-      let recallText = '';
-      let tokenCount = 0;
-      for (const r of ctx.semanticRecall) {
-        const date = new Date(r.timestamp).toLocaleDateString('es-MX', {
-          day: 'numeric', month: 'short', year: 'numeric',
-        });
-        const entry = `[${date}] ${r.text}\n---\n`;
-        const entryTokens = Math.ceil(entry.length / CHARS_PER_TOKEN);
-        if (tokenCount + entryTokens > SEMANTIC_TOKEN_BUDGET) break;
-        recallText += entry;
-        tokenCount += entryTokens;
-      }
-      if (recallText) {
-        sections += `\n\n═══ RECUERDOS RELEVANTES DE CONVERSACIONES PASADAS ═══\n${recallText}`;
-      }
-    }
-
-    // Structured facts
-    if (ctx.facts.length > 0) {
-      let factsText = '';
-      let tokenCount = 0;
-      for (const f of ctx.facts) {
-        const entry = `• [${f.category}] ${f.key}: ${f.value}\n`;
-        const entryTokens = Math.ceil(entry.length / CHARS_PER_TOKEN);
-        if (tokenCount + entryTokens > FACTS_TOKEN_BUDGET) break;
-        factsText += entry;
-        tokenCount += entryTokens;
-      }
-      if (factsText) {
-        sections += `\n\n═══ DATOS CONOCIDOS DEL USUARIO ═══\n${factsText}`;
-      }
-    }
-
-    return sections;
+    return formatMemoryContextForPrompt(ctx);
   }
 
   // ─── Layer 2: Rolling Summaries ────────────────────────────────────

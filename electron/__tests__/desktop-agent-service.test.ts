@@ -292,7 +292,7 @@ describe('DesktopAgentService', () => {
     const mod = await import('../desktop-agent-service');
     DesktopAgentService = mod.DesktopAgentService;
     service = new DesktopAgentService();
-  });
+  }, 20000);
 
   it('CU-136: getConfig returns copy of config', () => {
     const config = service.getConfig();

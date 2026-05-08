@@ -6,12 +6,19 @@ import { app as electronApp } from 'electron';
 import {
   DEFAULT_FALLBACK_MODEL,
   DEFAULT_MODEL,
-  MAX_HISTORY_ITEMS,
   MAX_TEXT_EXCERPT,
   MAX_VISIBLE_ELEMENTS,
-  WAIT_AFTER_ACTION_MS,
   WINDOWS_BROWSER_CANDIDATES,
 } from './browser-web/constants';
+import { executeBrowserAction, waitForBrowserPageSettled } from './browser-web/action-executor';
+import { parseBrowserAction } from './browser-web/action-parser';
+import {
+  inferStartUrl,
+  normalizeComparableUrl,
+  normalizeText,
+} from './browser-web/normalizers';
+import { buildBrowserActionPrompt } from './browser-web/prompts';
+import { verifyBrowserActionOutcome } from './browser-web/verifiers';
 import type {
   BrowserActionPayload,
   BrowserElementSnapshot,
@@ -24,7 +31,6 @@ import type {
   BrowserTaskArtifacts,
   BrowserTaskOptions,
   BrowserTaskStatus,
-  BrowserVerificationResult,
 } from './browser-web/types';
 
 type PlaywrightModule = typeof import('playwright-core');
@@ -209,10 +215,10 @@ export class BrowserWebService extends EventEmitter {
       traceStarted = traceStartResult.success;
       traceStartError = traceStartResult.error;
 
-      const startUrl = this.inferStartUrl(task, options?.startUrl);
+      const startUrl = inferStartUrl(task, options?.startUrl);
       if (startUrl && this.shouldNavigateToStartUrl(page, startUrl)) {
         await page.goto(startUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
-        await this.waitForSettled(page);
+        await waitForBrowserPageSettled(page);
       }
 
       this.currentUrl = page.url();
@@ -280,7 +286,7 @@ export class BrowserWebService extends EventEmitter {
           afterSnapshot = await this.collectSnapshot(page);
           finalSnapshot = afterSnapshot;
           this.currentUrl = afterSnapshot.url;
-          const verification = this.verifyActionOutcome(action, beforeSnapshot, afterSnapshot);
+          const verification = verifyBrowserActionOutcome(action, beforeSnapshot, afterSnapshot);
           success = verification.success;
           verificationMessage = verification.message;
           this.lastVerification = verification.message;
@@ -727,45 +733,9 @@ export class BrowserWebService extends EventEmitter {
     throw new Error(`No se pudo iniciar un browser persistente compatible con Playwright. ${lastError?.message || ''}`.trim());
   }
 
-  private inferStartUrl(task: string, explicitUrl?: string): string | null {
-    if (explicitUrl) return this.normalizeUrl(explicitUrl);
-
-    const urlMatch = task.match(/https?:\/\/[^\s)]+/i);
-    if (urlMatch) {
-      return this.normalizeUrl(urlMatch[0]);
-    }
-
-    const lower = task.toLowerCase();
-    if (lower.includes('chatgpt') || lower.includes('chat gpt') || lower.includes('chat.openai.com')) return 'https://chatgpt.com/';
-    if (lower.includes('gmail')) return 'https://mail.google.com/';
-    if (lower.includes('calendar')) return 'https://calendar.google.com/';
-    if (lower.includes('google docs') || lower.includes('documento de google')) return 'https://docs.google.com/';
-    if (lower.includes('google drive') || lower.includes('drive')) return 'https://drive.google.com/';
-    if (lower.includes('linkedin')) return 'https://www.linkedin.com/';
-    if (lower.includes('notion')) return 'https://www.notion.so/';
-    if (lower.includes('salesforce')) return 'https://www.salesforce.com/';
-    if (lower.includes('hubspot')) return 'https://app.hubspot.com/';
-    return null;
-  }
-
   private shouldNavigateToStartUrl(page: any, startUrl: string): boolean {
     const current = page.url?.() || '';
-    return this.normalizeComparableUrl(current) !== this.normalizeComparableUrl(startUrl);
-  }
-
-  private normalizeUrl(url: string): string {
-    if (/^https?:\/\//i.test(url)) {
-      return url;
-    }
-    return `https://${url}`;
-  }
-
-  private normalizeComparableUrl(url: string): string {
-    return (url || '')
-      .trim()
-      .replace(/#.*$/, '')
-      .replace(/\/+$/, '')
-      .toLowerCase();
+    return normalizeComparableUrl(current) !== normalizeComparableUrl(startUrl);
   }
 
   private async collectSnapshot(page: any): Promise<BrowserPageSnapshot> {
@@ -925,9 +895,9 @@ export class BrowserWebService extends EventEmitter {
     ].join('|'));
 
     return [
-      this.normalizeComparableUrl(snapshot.url),
-      this.normalizeText(snapshot.title),
-      this.normalizeText(snapshot.textExcerpt).slice(0, 700),
+      normalizeComparableUrl(snapshot.url),
+      normalizeText(snapshot.title),
+      normalizeText(snapshot.textExcerpt).slice(0, 700),
       String(snapshot.scrollY),
       snapshot.activeRef,
       compactElements.join('||'),
@@ -939,7 +909,7 @@ export class BrowserWebService extends EventEmitter {
     snapshot: BrowserPageSnapshot,
     history: BrowserHistoryEntry[],
   ): Promise<BrowserActionPayload> {
-    const prompt = this.buildPrompt(task, snapshot, history);
+    const prompt = buildBrowserActionPrompt(task, snapshot, history);
     const ai = this.getGenAI();
 
     for (const modelId of [DEFAULT_MODEL, DEFAULT_FALLBACK_MODEL]) {
@@ -958,7 +928,7 @@ export class BrowserWebService extends EventEmitter {
 
         parts.push({ text: prompt });
         const result = await model.generateContent(parts);
-        return this.parseAction(result.response.text());
+        return parseBrowserAction(result.response.text());
       } catch (err: any) {
         if (modelId === DEFAULT_FALLBACK_MODEL) {
           throw err;
@@ -969,327 +939,8 @@ export class BrowserWebService extends EventEmitter {
     throw new Error('No se pudo obtener una accion del modelo para browser_web.');
   }
 
-  private buildPrompt(task: string, snapshot: BrowserPageSnapshot, history: BrowserHistoryEntry[]): string {
-    const historyText = history.slice(-MAX_HISTORY_ITEMS).map((entry) => {
-      const status = entry.success ? 'OK' : `ERROR: ${entry.error || 'sin detalle'}`;
-      const verification = entry.verification ? ` Verificacion: ${entry.verification}` : '';
-      return `Paso ${entry.step}: ${entry.action.action} - ${status} - ${entry.action.message} - URL: ${entry.url}.${verification}`;
-    }).join('\n');
-
-    const elementsText = snapshot.elements.length > 0
-      ? snapshot.elements.map((element) => {
-        const fields = [
-          `[${element.ref}]`,
-          element.role || element.tag,
-          element.label && `label="${element.label}"`,
-          element.text && `text="${element.text}"`,
-          element.placeholder && `placeholder="${element.placeholder}"`,
-          element.type && `type="${element.type}"`,
-          element.value && `value="${element.value}"`,
-          element.checked ? 'checked=true' : '',
-          element.disabled ? 'disabled=true' : '',
-          element.href && `href="${element.href}"`,
-        ].filter(Boolean);
-
-        return fields.join(' | ');
-      }).join('\n')
-      : '(sin elementos interactivos visibles)';
-
-    return `TAREA WEB: ${task}
-
-CONTEXTO ACTUAL:
-- URL: ${snapshot.url}
-- Titulo: ${snapshot.title || '(sin titulo)'}
-- Texto visible resumido: ${snapshot.textExcerpt || '(sin texto relevante)'}
-- ScrollY: ${snapshot.scrollY}
-- Elemento enfocado: ${snapshot.activeRef || '(sin foco relevante)'}
-
-ELEMENTOS INTERACTIVOS VISIBLES:
-${elementsText}
-
-HISTORIAL RECIENTE:
-${historyText || '(sin historial)'}
-
-REGLAS:
-1. Prefiere acciones estructuradas basadas en refs visibles.
-2. Usa "goto" solo si necesitas ir a otro sitio o resolver una navegacion bloqueada.
-3. Usa "click_ref" para botones, links, tabs, menus y checkboxes.
-4. Usa "fill_ref" para inputs, textareas, selects o campos editables.
-5. Usa "press_key" solo para Enter, Tab, Escape o atajos concretos.
-6. Si la pagina ya muestra el objetivo cumplido, usa "done".
-7. Si una accion reciente fallo o no produjo cambio, no la repitas igual. Elige otra estrategia.
-8. Nunca inventes refs. Solo puedes usar refs listadas arriba.
-9. En "expected" describe un cambio observable: nueva URL, modal abierto, texto visible, valor escrito o foco cambiado.
-10. En "message" explica brevemente que ves y que haras.
-
-RESPONDE SOLO JSON valido:
-{
-  "action": "goto|click_ref|fill_ref|press_key|scroll|wait|done|fail",
-  "ref": "ref-1",
-  "url": "https://...",
-  "text": "texto a escribir",
-  "key": "Enter|Tab|Escape|Control+L|Control+K",
-  "direction": "up|down",
-  "amount": 1,
-  "expected": "que deberia cambiar despues de la accion",
-  "message": "que veo y que hago"
-}`;
-  }
-
-  private parseAction(rawText: string): BrowserActionPayload {
-    const jsonText = rawText.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
-    let parsed: any;
-
-    try {
-      parsed = JSON.parse(jsonText);
-    } catch {
-      const match = jsonText.match(/\{[\s\S]*\}/);
-      if (!match) {
-        throw new Error(`No se pudo parsear la respuesta del backend web: ${jsonText.slice(0, 240)}`);
-      }
-      parsed = JSON.parse(match[0]);
-    }
-
-    return {
-      action: parsed.action,
-      ref: typeof parsed.ref === 'string' ? parsed.ref.trim() : undefined,
-      url: typeof parsed.url === 'string' ? parsed.url.trim() : undefined,
-      text: typeof parsed.text === 'string' ? parsed.text : undefined,
-      key: typeof parsed.key === 'string' ? parsed.key.trim() : undefined,
-      direction: parsed.direction === 'up' ? 'up' : 'down',
-      amount: typeof parsed.amount === 'number' ? parsed.amount : undefined,
-      expected: typeof parsed.expected === 'string' ? parsed.expected.trim() : undefined,
-      message: typeof parsed.message === 'string' && parsed.message.trim()
-        ? parsed.message.trim()
-        : `Accion ${typeof parsed.action === 'string' ? parsed.action : 'desconocida'}`,
-    };
-  }
-
   private async executeAction(page: any, action: BrowserActionPayload): Promise<void> {
-    switch (action.action) {
-      case 'goto':
-        if (!action.url) throw new Error('La accion goto requiere url.');
-        await page.goto(this.normalizeUrl(action.url), { waitUntil: 'domcontentloaded', timeout: 20000 });
-        await this.waitForSettled(page);
-        return;
-
-      case 'click_ref': {
-        if (!action.ref) throw new Error('La accion click_ref requiere ref.');
-        const locator = this.locatorForRef(page, action.ref);
-        await locator.scrollIntoViewIfNeeded().catch(() => {});
-        await locator.waitFor({ state: 'visible', timeout: 7000 });
-
-        try {
-          await locator.click({ timeout: 7000 });
-        } catch (clickError: any) {
-          const fallbackClicked = await locator.evaluate((node: any) => {
-            if (node instanceof HTMLElement) {
-              node.click();
-              return true;
-            }
-            return false;
-          }).catch(() => false);
-
-          if (!fallbackClicked) {
-            throw clickError;
-          }
-        }
-
-        await this.waitForSettled(page);
-        return;
-      }
-
-      case 'fill_ref': {
-        if (!action.ref) throw new Error('La accion fill_ref requiere ref.');
-        const locator = this.locatorForRef(page, action.ref);
-        const text = action.text || '';
-        await locator.scrollIntoViewIfNeeded().catch(() => {});
-        await locator.waitFor({ state: 'visible', timeout: 7000 });
-
-        const tag = await locator.evaluate((node: any) => {
-          return node instanceof HTMLElement ? node.tagName.toLowerCase() : '';
-        }).catch(() => '');
-
-        const isContentEditable = await locator.evaluate((node: any) => {
-          return node instanceof HTMLElement ? !!node.isContentEditable : false;
-        }).catch(() => false);
-
-        if (tag === 'select') {
-          const selected = await locator.selectOption({ label: text }).catch(async () => {
-            return locator.selectOption({ value: text }).catch(async () => {
-              return locator.selectOption(text).catch(() => []);
-            });
-          });
-
-          if (!Array.isArray(selected) || selected.length === 0) {
-            throw new Error(`No se pudo seleccionar "${text}" en el campo ${action.ref}.`);
-          }
-        } else if (isContentEditable) {
-          await locator.click({ timeout: 7000 });
-          await page.keyboard.press('Control+A').catch(() => {});
-          await page.keyboard.type(text);
-        } else {
-          try {
-            await locator.fill(text, { timeout: 7000 });
-          } catch {
-            await locator.click({ timeout: 7000 });
-            await page.keyboard.press('Control+A').catch(() => {});
-            await page.keyboard.type(text);
-          }
-        }
-
-        await this.waitForSettled(page);
-        return;
-      }
-
-      case 'press_key':
-        if (!action.key) throw new Error('La accion press_key requiere key.');
-        await page.keyboard.press(action.key);
-        await this.waitForSettled(page);
-        return;
-
-      case 'scroll': {
-        const amount = Math.max(1, action.amount || 1);
-        const delta = (action.direction || 'down') === 'up' ? -800 * amount : 800 * amount;
-        await page.mouse.wheel(0, delta);
-        await this.waitForSettled(page);
-        return;
-      }
-
-      case 'wait':
-        await page.waitForTimeout(Math.max(500, (action.amount || 1) * 1000));
-        return;
-
-      default:
-        throw new Error(`Accion no soportada por browser_web: ${action.action}`);
-    }
+    await executeBrowserAction(page, action);
   }
 
-  private verifyActionOutcome(
-    action: BrowserActionPayload,
-    before: BrowserPageSnapshot,
-    after: BrowserPageSnapshot,
-  ): BrowserVerificationResult {
-    if (action.action === 'wait') {
-      return { success: true, message: 'Espera ejecutada.' };
-    }
-
-    if (action.expected && this.expectedAppears(action.expected, after)) {
-      return { success: true, message: `Cambio esperado detectado: ${action.expected}` };
-    }
-
-    if (action.action === 'goto') {
-      if (action.url && this.normalizeComparableUrl(after.url).startsWith(this.normalizeComparableUrl(this.normalizeUrl(action.url)))) {
-        return { success: true, message: `Navegacion confirmada a ${after.url}.` };
-      }
-      return {
-        success: false,
-        message: `La navegacion no llego al destino esperado. URL actual: ${after.url || '(sin URL)'}.`,
-      };
-    }
-
-    if (action.action === 'fill_ref') {
-      const afterElement = this.findElement(after, action.ref);
-      const typedText = this.normalizeText(action.text || '');
-      if (afterElement && typedText) {
-        const targetValue = this.normalizeText(afterElement.value || afterElement.text);
-        if (targetValue.includes(typedText)) {
-          return { success: true, message: `El campo ${action.ref} refleja el texto escrito.` };
-        }
-      }
-      if (before.signature !== after.signature) {
-        return { success: true, message: 'El DOM cambio despues del llenado.' };
-      }
-      return {
-        success: false,
-        message: `No se detecto cambio verificable despues de llenar ${action.ref}.`,
-      };
-    }
-
-    if (action.action === 'scroll') {
-      if (before.scrollY !== after.scrollY || before.signature !== after.signature) {
-        return { success: true, message: `Scroll detectado. Posicion actual ${after.scrollY}.` };
-      }
-      return { success: false, message: 'No se detecto desplazamiento visible despues del scroll.' };
-    }
-
-    if (action.action === 'press_key') {
-      const key = this.normalizeText(action.key || '');
-      if ((key === 'tab' || key === 'shift+tab') && before.activeRef !== after.activeRef) {
-        return { success: true, message: `El foco cambio de ${before.activeRef || 'ninguno'} a ${after.activeRef || 'ninguno'}.` };
-      }
-      if (before.signature !== after.signature || before.url !== after.url) {
-        return { success: true, message: `La tecla ${action.key} produjo un cambio visible.` };
-      }
-      return { success: false, message: `La tecla ${action.key} no produjo un cambio verificable.` };
-    }
-
-    if (action.action === 'click_ref') {
-      const afterElement = this.findElement(after, action.ref);
-      if (before.url !== after.url || before.title !== after.title) {
-        return { success: true, message: `El click cambio la pagina a ${after.url}.` };
-      }
-      if (before.activeRef !== after.activeRef && after.activeRef) {
-        return { success: true, message: `El click movio el foco a ${after.activeRef}.` };
-      }
-      if (!afterElement) {
-        return { success: true, message: `El elemento ${action.ref} ya no esta visible despues del click.` };
-      }
-      if (before.signature !== after.signature) {
-        return { success: true, message: 'El DOM cambio despues del click.' };
-      }
-      return { success: false, message: `No se detecto cambio visible despues de hacer click en ${action.ref}.` };
-    }
-
-    return { success: true, message: 'Accion ejecutada.' };
-  }
-
-  private expectedAppears(expected: string, snapshot: BrowserPageSnapshot): boolean {
-    const needle = this.normalizeText(expected);
-    if (!needle || needle.length < 3) {
-      return false;
-    }
-
-    const haystack = this.normalizeText([
-      snapshot.url,
-      snapshot.title,
-      snapshot.textExcerpt,
-      snapshot.activeRef,
-      snapshot.elements.map((element) => [
-        element.ref,
-        element.tag,
-        element.role,
-        element.label,
-        element.text,
-        element.placeholder,
-        element.type,
-        element.value,
-        element.href,
-        element.checked ? 'checked' : '',
-      ].join(' ')).join(' '),
-    ].join(' '));
-
-    return haystack.includes(needle);
-  }
-
-  private findElement(snapshot: BrowserPageSnapshot, ref?: string): BrowserElementSnapshot | undefined {
-    if (!ref) {
-      return undefined;
-    }
-    return snapshot.elements.find((element) => element.ref === ref);
-  }
-
-  private normalizeText(value: string): string {
-    return (value || '').replace(/\s+/g, ' ').trim().toLowerCase();
-  }
-
-  private locatorForRef(page: any, ref: string): any {
-    return page.locator(`[data-soflia-ref="${ref}"]`).first();
-  }
-
-  private async waitForSettled(page: any): Promise<void> {
-    await page.waitForLoadState('domcontentloaded', { timeout: 7000 }).catch(() => {});
-    await page.waitForLoadState('networkidle', { timeout: 1500 }).catch(() => {});
-    await page.waitForTimeout(WAIT_AFTER_ACTION_MS);
-  }
 }

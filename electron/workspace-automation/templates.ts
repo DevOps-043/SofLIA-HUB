@@ -8,7 +8,7 @@
  * Para agregar un template nuevo:
  *  1. Agrega su definición a este array
  *  2. Crea su `LlmTaskSchema` en `./schemas.ts`
- *  3. Implementa el método `executeXxx` en `WorkspaceAutomationService`
+ *  3. Implementa su handler en `workspace-automation/handlers/`
  *  4. Registra el alias correspondiente en `workflow-hub/definitions.ts` si
  *     debe aparecer en el Workflow Hub
  */
