@@ -1,77 +1,6 @@
-import { useState, useEffect } from 'react';
-
-interface ThinkingOption {
-  id: string;
-  name: string;
-  desc: string;
-  level?: string;
-  budget?: number;
-}
-
-interface ModelOption {
-  id: string;
-  name: string;
-  desc: string;
-  thinkingType: 'level' | 'budget';
-  thinkingOptions: ThinkingOption[];
-}
-
-const THINKING_OPTIONS_GEMINI3_FLASH: ThinkingOption[] = [
-  { id: 'minimal', name: 'Rápido', desc: 'Responde rápidamente', level: 'minimal' },
-  { id: 'low', name: 'Pensar', desc: 'Razonamiento básico', level: 'low' },
-  { id: 'medium', name: 'Medio', desc: 'Razonamiento balanceado', level: 'medium' },
-  { id: 'high', name: 'Alto', desc: 'Máximo razonamiento', level: 'high' },
-];
-
-const THINKING_OPTIONS_GEMINI3_PRO: ThinkingOption[] = [
-  { id: 'low', name: 'Pensar', desc: 'Razonamiento básico', level: 'low' },
-  { id: 'high', name: 'Pro', desc: 'Máximo razonamiento', level: 'high' },
-];
-
-const THINKING_OPTIONS_GEMINI25: ThinkingOption[] = [
-  { id: 'off', name: 'Rápido', desc: 'Sin pensamiento', budget: 0 },
-  { id: 'low', name: 'Pensar', desc: 'Pensamiento ligero', budget: 1024 },
-  { id: 'medium', name: 'Medio', desc: 'Pensamiento moderado', budget: 8192 },
-  { id: 'high', name: 'Alto', desc: 'Pensamiento profundo', budget: 24576 },
-];
-
-export const MODEL_OPTIONS: ModelOption[] = [
-  {
-    id: 'gemini-3.1-pro-preview',
-    name: 'SofLIA Pro',
-    desc: 'Mayor capacidad de razonamiento logico.',
-    thinkingType: 'level',
-    thinkingOptions: THINKING_OPTIONS_GEMINI3_PRO,
-  },
-  {
-    id: 'gemini-3-flash-preview',
-    name: 'SofLIA',
-    desc: 'Equilibrio perfecto entre velocidad y calidad.',
-    thinkingType: 'level',
-    thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH,
-  },
-  {
-    id: 'gemini-3.1-flash-lite-preview',
-    name: 'SofLIA Lite',
-    desc: 'Ultra rapido y ligero para tareas simples.',
-    thinkingType: 'level',
-    thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH,
-  },
-  {
-    id: 'gemini-2.5-pro',
-    name: 'SofLIA Deep',
-    desc: 'Modelo de maxima inteligencia.',
-    thinkingType: 'budget',
-    thinkingOptions: THINKING_OPTIONS_GEMINI25,
-  },
-  {
-    id: 'gemini-2.5-flash',
-    name: 'SofLIA Swift',
-    desc: 'Ultra rapido y ligero para tareas simples.',
-    thinkingType: 'budget',
-    thinkingOptions: THINKING_OPTIONS_GEMINI25,
-  },
-];
+import { useEffect, useState } from 'react';
+import { MODEL_OPTIONS } from './model-selector-options';
+import type { ModelOption, ThinkingOption } from './model-selector-options';
 
 export function useModelSelector() {
   const [preferredPrimaryModel, setPreferredPrimaryModel] = useState('gemini-3-flash-preview');
@@ -79,7 +8,6 @@ export function useModelSelector() {
   const [isThinkingDropdownOpen, setIsThinkingDropdownOpen] = useState(false);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
 
-  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = () => {
       setIsThinkingDropdownOpen(false);
@@ -94,27 +22,13 @@ export function useModelSelector() {
 
   const handleModelChange = (modelId: string) => {
     setPreferredPrimaryModel(modelId);
-
-    const newModel = MODEL_OPTIONS.find(m => m.id === modelId);
-    if (newModel) {
-      const isGemini3 = newModel.thinkingType === 'level';
-      const availableOptions = newModel.thinkingOptions.map(o => o.id);
-
-      if (!availableOptions.includes(thinkingMode)) {
-        if (modelId === 'gemini-3.1-pro-preview') {
-          setThinkingMode('low');
-        } else if (!isGemini3 && thinkingMode === 'minimal') {
-          setThinkingMode('off');
-        } else if (isGemini3 && thinkingMode === 'off') {
-          setThinkingMode('minimal');
-        }
-      }
-    }
+    const newModel = MODEL_OPTIONS.find((model) => model.id === modelId);
+    if (newModel) syncThinkingMode(modelId, newModel, thinkingMode, setThinkingMode);
     setIsModelSelectorOpen(false);
   };
 
-  const currentModel = MODEL_OPTIONS.find(m => m.id === preferredPrimaryModel);
-  const currentThinkingOption = currentModel?.thinkingOptions.find(o => o.id === thinkingMode);
+  const currentModel = MODEL_OPTIONS.find((model) => model.id === preferredPrimaryModel);
+  const currentThinkingOption = currentModel?.thinkingOptions.find((option) => option.id === thinkingMode);
 
   return {
     preferredPrimaryModel,
@@ -130,4 +44,18 @@ export function useModelSelector() {
   };
 }
 
+function syncThinkingMode(
+  modelId: string,
+  model: ModelOption,
+  currentThinkingMode: string,
+  setThinkingMode: (mode: string) => void,
+) {
+  const availableOptions = model.thinkingOptions.map((option) => option.id);
+  if (availableOptions.includes(currentThinkingMode)) return;
+  if (modelId === 'gemini-3.1-pro-preview') setThinkingMode('low');
+  else if (model.thinkingType === 'budget' && currentThinkingMode === 'minimal') setThinkingMode('off');
+  else if (model.thinkingType === 'level' && currentThinkingMode === 'off') setThinkingMode('minimal');
+}
+
+export { MODEL_OPTIONS };
 export type { ThinkingOption, ModelOption };

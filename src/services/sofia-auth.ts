@@ -1,265 +1,53 @@
 import type { Session } from '@supabase/supabase-js';
-import {
-  sofiaSupa,
-  isSofiaConfigured
-} from '../lib/sofia-client';
-import type {
-  SofiaOrganization,
-  SofiaTeam,
-  SofiaUserProfile,
-  SofiaOrganizationUser
-} from '../lib/sofia-client';
 
-export interface SofiaAuthUser {
-  id: string;
-  email?: string;
-  user_metadata?: {
-    first_name?: string;
-    last_name?: string;
-    avatar_url?: string;
-  };
-}
+import { isSofiaConfigured, sofiaSupa } from '../lib/sofia-client';
+import type { SofiaOrganization, SofiaTeam } from '../lib/sofia-client';
+import { buildActiveSofiaContext, createPseudoAuthUser } from './sofia-auth/context';
+import { fetchSofiaUserProfile } from './sofia-auth/profile';
+import { getSofiaStoredSession, saveSofiaSession } from './sofia-auth/session-storage';
+import type { SofiaAuthResult, SofiaContext } from './sofia-auth/types';
 
-export interface SofiaAuthResult {
-  success: boolean;
-  user: SofiaAuthUser | null;
-  session: Session | null;
-  error?: string;
-  sofiaProfile?: SofiaUserProfile | null;
-}
-
-export interface SofiaContext {
-  user: SofiaUserProfile | null;
-  currentOrganization: SofiaOrganization | null;
-  currentTeam: SofiaTeam | null;
-  organizations: SofiaOrganization[];
-  teams: SofiaTeam[];
-  memberships: SofiaOrganizationUser[];
-}
+export type { SofiaAuthResult, SofiaAuthUser, SofiaContext } from './sofia-auth/types';
 
 class SofiaAuthService {
   private sofiaContext: SofiaContext | null = null;
 
   async signInWithSofia(emailOrUsername: string, password: string): Promise<SofiaAuthResult> {
     if (!isSofiaConfigured() || !sofiaSupa) {
-      return {
-        success: false,
-        user: null,
-        session: null,
-        error: 'SOFIA no esta configurado. Verifica las variables de entorno.'
-      };
+      return { success: false, user: null, session: null, error: 'SOFIA no esta configurado. Verifica las variables de entorno.' };
     }
 
     try {
       console.log('Intentando autenticar con SOFIA:', { identifier: emailOrUsername });
+      const { data: authResult, error: authError } = await sofiaSupa.rpc('authenticate_user', {
+        p_identifier: emailOrUsername,
+        p_password: password,
+      });
 
-      const { data: authResult, error: authError } = await sofiaSupa
-        .rpc('authenticate_user', {
-          p_identifier: emailOrUsername,
-          p_password: password
-        });
-
-      if (authError) {
-        throw new Error(authError.message || 'Error de conexion con SOFIA');
-      }
-
-      if (!authResult?.success) {
-        throw new Error(authResult?.error || 'Credenciales invalidas');
-      }
+      if (authError) throw new Error(authError.message || 'Error de conexion con SOFIA');
+      if (!authResult?.success) throw new Error(authResult?.error || 'Credenciales invalidas');
 
       const sofiaUser = authResult.user;
-
       const sofiaProfile = await this.fetchSofiaUserProfile(sofiaUser.id);
-      
-      const activeMemberships = sofiaProfile?.memberships?.filter(m => m.status === 'active') || [];
-      const suspendedMemberships = sofiaProfile?.memberships?.filter(m => m.status === 'suspended') || [];
-
-      // Bloquear acceso si no hay membresías activas
-      if (activeMemberships.length === 0) {
-        if (suspendedMemberships.length > 0) {
-          throw new Error('Acceso denegado: Tu cuenta ha sido suspendida por el administrador.');
-        }
-        
-        throw new Error('Acceso denegado: No tienes una membresía activa en ninguna organización.');
-      }
-
-      // Filtrar organizaciones activas para el contexto
-      const activeOrgs = sofiaProfile?.organizations?.filter(o => 
-        activeMemberships.some(m => m.organization_id === o.id)
-      ) || [];
-
-      const activeTeams = sofiaProfile?.teams?.filter(t => 
-        activeMemberships.some(m => m.team_id === t.id)
-      ) || [];
-
-      this.sofiaContext = {
-        user: sofiaProfile,
-        currentOrganization: activeOrgs[0] || null,
-        currentTeam: activeTeams[0] || null,
-        organizations: activeOrgs,
-        teams: activeTeams,
-        memberships: activeMemberships
-      };
+      this.sofiaContext = buildActiveSofiaContext(sofiaProfile);
 
       const resolvedAvatar = sofiaProfile?.avatar_url || sofiaUser.profile_picture_url || null;
-      await this.saveSofiaSession({ ...sofiaUser, profile_picture_url: resolvedAvatar });
-
-      const pseudoUser: SofiaAuthUser = {
-        id: sofiaUser.id,
-        email: sofiaUser.email,
-        user_metadata: {
-          first_name: sofiaUser.first_name,
-          last_name: sofiaUser.last_name,
-          avatar_url: resolvedAvatar
-        }
-      };
+      await saveSofiaSession({ ...sofiaUser, profile_picture_url: resolvedAvatar });
 
       return {
         success: true,
-        user: pseudoUser,
+        user: createPseudoAuthUser(sofiaUser, resolvedAvatar),
         session: null,
-        sofiaProfile
+        sofiaProfile,
       };
     } catch (err: any) {
       console.error('Error en signInWithSofia:', err);
-      return {
-        success: false,
-        user: null,
-        session: null,
-        error: err.message || 'Error desconocido al iniciar sesion'
-      };
+      return { success: false, user: null, session: null, error: err.message || 'Error desconocido al iniciar sesion' };
     }
   }
 
-  async fetchSofiaUserProfile(userId: string): Promise<SofiaUserProfile | null> {
-    if (!sofiaSupa) return null;
-
-    try {
-      const { data: user, error: userError } = await sofiaSupa
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (userError) {
-        throw new Error(userError.message);
-      }
-
-      const { data: memberships, error: membershipsError } = await sofiaSupa
-        .from('organization_users')
-        .select(`
-          id,
-          organization_id,
-          user_id,
-          role,
-          status,
-          job_title,
-          team_id,
-          zone_id,
-          region_id,
-          joined_at,
-          organizations (
-            id,
-            name,
-            slug,
-            description,
-            logo_url,
-            contact_email,
-            subscription_plan,
-            subscription_status,
-            brand_color_primary,
-            brand_color_secondary,
-            brand_favicon_url,
-            is_active,
-            created_at
-          )
-        `)
-        .eq('user_id', userId);
-
-      if (membershipsError) {
-        throw new Error(membershipsError.message);
-      }
-
-      const organizations: SofiaOrganization[] = [];
-      const orgIds = new Set<string>();
-
-      memberships?.forEach((m: any) => {
-        if (m.organizations && !orgIds.has(m.organizations.id)) {
-          orgIds.add(m.organizations.id);
-          organizations.push(m.organizations);
-        }
-      });
-
-      const teamIds = memberships
-        ?.filter((m: any) => m.team_id)
-        .map((m: any) => m.team_id) || [];
-
-      let teams: SofiaTeam[] = [];
-      if (teamIds.length > 0) {
-        const { data: teamsData, error: teamsError } = await sofiaSupa
-          .from('organization_teams')
-          .select('*')
-          .in('id', teamIds)
-          .eq('is_active', true);
-
-        if (teamsError) {
-          throw new Error(teamsError.message);
-        }
-        teams = teamsData || [];
-      }
-
-      const fullName = user.display_name ||
-        [user.first_name, user.last_name].filter(Boolean).join(' ') ||
-        user.username;
-
-      return {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        full_name: fullName,
-        avatar_url: user.profile_picture_url,
-        cargo_rol: user.cargo_rol,
-        organizations,
-        teams,
-        memberships: memberships?.map((m: any) => ({
-          id: m.id,
-          organization_id: m.organization_id,
-          user_id: m.user_id,
-          role: m.role,
-          status: m.status,
-          job_title: m.job_title,
-          team_id: m.team_id,
-          zone_id: m.zone_id,
-          region_id: m.region_id,
-          joined_at: m.joined_at,
-          organization: m.organizations
-        })) || []
-      };
-    } catch (err: any) {
-      console.error('Error fetching SOFIA profile:', err.message || err);
-      return null;
-    }
-  }
-
-  private async saveSofiaSession(user: any) {
-    const sessionData = {
-      user,
-      timestamp: Date.now()
-    };
-    localStorage.setItem('sofia-session', JSON.stringify(sessionData));
-  }
-
-  private getSofiaStoredSession(): any | null {
-    const stored = localStorage.getItem('sofia-session');
-    if (stored) {
-      try {
-        const session = JSON.parse(stored);
-        if (Date.now() - session.timestamp < 24 * 60 * 60 * 1000) {
-          return session.user;
-        }
-      } catch { /* invalid JSON */ }
-    }
-    return null;
+  async fetchSofiaUserProfile(userId: string) {
+    return fetchSofiaUserProfile(userId);
   }
 
   async signOut() {
@@ -268,21 +56,19 @@ class SofiaAuthService {
   }
 
   async getSession(): Promise<Session | null> {
-    const storedUser = this.getSofiaStoredSession();
-    if (storedUser) {
-      return {
-        user: {
-          id: storedUser.id,
-          email: storedUser.email,
-          user_metadata: {
-            first_name: storedUser.first_name,
-            last_name: storedUser.last_name,
-            avatar_url: storedUser.profile_picture_url
-          }
-        }
-      } as any;
-    }
-    return null;
+    const storedUser = getSofiaStoredSession();
+    if (!storedUser) return null;
+    return {
+      user: {
+        id: storedUser.id,
+        email: storedUser.email,
+        user_metadata: {
+          first_name: storedUser.first_name,
+          last_name: storedUser.last_name,
+          avatar_url: storedUser.profile_picture_url,
+        },
+      },
+    } as any;
   }
 
   getSofiaContext(): SofiaContext | null {
@@ -290,39 +76,21 @@ class SofiaAuthService {
   }
 
   setCurrentOrganization(org: SofiaOrganization) {
-    if (this.sofiaContext) {
-      this.sofiaContext.currentOrganization = org;
-      this.sofiaContext.currentTeam = this.sofiaContext.teams.find(
-        t => t.organization_id === org.id
-      ) || null;
-    }
+    if (!this.sofiaContext) return;
+    this.sofiaContext.currentOrganization = org;
+    this.sofiaContext.currentTeam = this.sofiaContext.teams.find((team) => team.organization_id === org.id) || null;
   }
 
   setCurrentTeam(team: SofiaTeam) {
-    if (this.sofiaContext) {
-      this.sofiaContext.currentTeam = team;
-    }
+    if (this.sofiaContext) this.sofiaContext.currentTeam = team;
   }
 
   onAuthStateChange(callback: (event: string, session: Session | null) => void) {
-    (async () => {
-      try {
-        const session = await this.getSession();
-        if (session) {
-          callback('INITIAL_SESSION', session);
-        }
-      } catch (err) {
-        console.error('Error en onAuthStateChange:', err);
-      }
-    })();
+    this.getSession()
+      .then((session) => session && callback('INITIAL_SESSION', session))
+      .catch((err) => console.error('Error en onAuthStateChange:', err));
 
-    return {
-      data: {
-        subscription: {
-          unsubscribe: () => {}
-        }
-      }
-    };
+    return { data: { subscription: { unsubscribe: () => {} } } };
   }
 }
 

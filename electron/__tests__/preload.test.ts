@@ -13,23 +13,39 @@ import * as path from 'node:path';
 // 3. Testing the exposed APIs through the contextBridge mock
 // ============================================================================
 
-// Read the preload source to extract constants
-const preloadSource = fs.readFileSync(
-  path.join(__dirname, '..', 'preload.ts'),
-  'utf-8'
-);
+function readPreloadSources(): string {
+  const preloadRoot = path.join(__dirname, '..', 'preload');
+  const modularSources = fs.readdirSync(preloadRoot)
+    .filter((file) => file.endsWith('.ts'))
+    .map((file) => fs.readFileSync(path.join(preloadRoot, file), 'utf-8'));
+
+  return [
+    fs.readFileSync(path.join(__dirname, '..', 'preload.ts'), 'utf-8'),
+    ...modularSources,
+  ].join('\n');
+}
+
+const preloadSource = readPreloadSources();
 
 // Extract ALLOWED_IPC_CHANNELS from source
 function extractAllowedChannels(source: string): string[] {
-  const match = source.match(/const ALLOWED_IPC_CHANNELS\s*=\s*\[([\s\S]*?)\]/);
-  if (!match) return [];
-  const channelMatches = match[1].matchAll(/'([^']+)'/g);
-  return Array.from(channelMatches, m => m[1]);
+  const blocks = source.matchAll(/(?:const|export const)\s+CHANNEL_GROUP_\d+\s*=\s*\[([\s\S]*?)\]/g);
+  const channels = new Set<string>();
+  for (const block of blocks) {
+    for (const channelMatch of block[1].matchAll(/'([^']+)'/g)) {
+      channels.add(channelMatch[1]);
+    }
+  }
+  return Array.from(channels);
 }
 
 function extractCspContent(source: string): string {
   const match = source.match(/meta\.content\s*=\s*"([^"]+)"/);
-  return match?.[1] ?? '';
+  if (match?.[1]) return match[1];
+
+  const arrayMatch = source.match(/meta\.content\s*=\s*\[([\s\S]*?)\]\.join/);
+  if (!arrayMatch) return '';
+  return Array.from(arrayMatch[1].matchAll(/"([^"]+)"/g), (item) => item[1]).join('; ');
 }
 
 const ALLOWED_IPC_CHANNELS = extractAllowedChannels(preloadSource);
@@ -228,11 +244,11 @@ describe('Preload IPC Security Layer', () => {
 
     it('SEC-028: contextIsolation check present in source', () => {
       expect(preloadSource).toContain('process.contextIsolated');
-      expect(preloadSource).toContain('contextIsolation no está habilitado');
+      expect(preloadSource).toContain('contextIsolation no esta habilitado');
     });
 
     it('SEC-029: contextBridge.exposeInMainWorld called in source', () => {
-      const exposeCount = (preloadSource.match(/contextBridge\.exposeInMainWorld/g) || []).length;
+      const exposeCount = (preloadSource.match(/(?:contextBridge|bridge)\.exposeInMainWorld/g) || []).length;
       expect(exposeCount).toBeGreaterThanOrEqual(3); // ipcRenderer, screenCapture, computerUse at minimum
     });
 

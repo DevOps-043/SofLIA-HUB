@@ -57,6 +57,16 @@ import {
   stripLabel,
 } from './meeting-ai/text-helpers';
 import { buildClassificationPrompt, buildExtractionPrompt } from './meeting-ai/prompts';
+import { buildMessageDrafts as buildMeetingMessageDrafts } from './meeting-ai/message-draft-builders';
+import {
+  buildMeetingTypeReasonText,
+  buildOperationalSummaryText,
+  buildStrategyReasonText,
+} from './meeting-ai/reason-builders';
+import {
+  buildDestinationRecommendation as buildMeetingDestinationRecommendation,
+  buildFollowUpRecommendation as buildMeetingFollowUpRecommendation,
+} from './meeting-ai/recommendation-builders';
 
 export class MeetingAIService {
   private genAI: GoogleGenerativeAI | null = null;
@@ -531,15 +541,7 @@ export class MeetingAIService {
   }
 
   private buildOperationalSummary(analysis: MeetingAnalysisResult): string {
-    const parts = [
-      analysis.keyPoints.slice(0, 3).join(' '),
-      `Destino sugerido: ${analysis.destinationRecommendation.suggestedDestination}.`,
-      analysis.followUpRecommendation.suggested
-        ? `Follow-up sugerido: ${analysis.followUpRecommendation.description || analysis.followUpRecommendation.type || 'validacion manual'}.`
-        : null,
-    ].filter(Boolean);
-
-    return parts.join(' ').trim() || analysis.executiveSummary;
+    return buildOperationalSummaryText(analysis);
   }
 
   private buildMeetingTypeReason(
@@ -548,21 +550,11 @@ export class MeetingAIService {
     confidence: number,
     fallbackReason: string,
   ): string {
-    if (meetingType && relevantSignals.length > 0) {
-      return `Clasifique como ${meetingType.displayName} por estas senales: ${relevantSignals.join(', ')}. Confianza ${confidence.toFixed(2)}.`;
-    }
-    if (meetingType) {
-      return `Clasifique como ${meetingType.displayName} con confianza ${confidence.toFixed(2)} y senales limitadas.`;
-    }
-    return fallbackReason;
+    return buildMeetingTypeReasonText(meetingType, relevantSignals, confidence, fallbackReason);
   }
 
   private buildStrategyReason(meetingType: MeetingTypeDefinition | null, relevantSignals: string[], fallbackReason: string): string {
-    if (meetingType) {
-      const signals = relevantSignals.length > 0 ? ` Senales: ${relevantSignals.join(', ')}.` : '';
-      return `La estrategia de ${meetingType.displayName} prioriza ${meetingType.extractionFocus.join(', ')}.${signals}`;
-    }
-    return fallbackReason;
+    return buildStrategyReasonText(meetingType, relevantSignals, fallbackReason);
   }
 
   private normalizeAlternativeTypes(
@@ -837,44 +829,7 @@ export class MeetingAIService {
     risks: MeetingAnalysisResult['risks'],
     openQuestions: MeetingAnalysisResult['openQuestions'],
   ): MeetingAnalysisFollowUpRecommendation {
-    if (openQuestions.length > 0) {
-      return {
-        suggested: true,
-        type: 'validation',
-        description: 'Resolver las preguntas abiertas y confirmar la interpretacion de la reunion.',
-        confidence: 0.76,
-        reason: 'Quedaron preguntas abiertas sin cierre explicito.',
-      };
-    }
-
-    const tasksMissingOwner = tasks.filter((task) => !task.ownerSuggested);
-    const tasksMissingDate = tasks.filter((task) => !task.dueDateSuggested);
-    if (tasksMissingOwner.length > 0 || tasksMissingDate.length > 0) {
-      return {
-        suggested: true,
-        type: 'message',
-        description: 'Confirmar responsables y fechas de las tareas detectadas antes de sincronizar.',
-        confidence: 0.72,
-        reason: 'Hay tareas sin owner o sin fecha sugerida.',
-      };
-    }
-
-    const criticalRisk = risks.find((risk) => risk.severity === 'critical' || risk.severity === 'high');
-    if (criticalRisk) {
-      return {
-        suggested: true,
-        type: 'escalation',
-        description: `Escalar el riesgo principal: ${criticalRisk.description}.`,
-        confidence: 0.74,
-        reason: 'Se detecto un bloqueo o riesgo de severidad alta.',
-      };
-    }
-
-    return {
-      suggested: false,
-      confidence: 0.6,
-      reason: 'La reunion ya deja un siguiente paso razonablemente claro.',
-    };
+    return buildMeetingFollowUpRecommendation(tasks, risks, openQuestions);
   }
 
   private buildDestinationRecommendation(
@@ -883,20 +838,7 @@ export class MeetingAIService {
     reason: string,
     contextPack: MeetingContextPack,
   ): MeetingAnalysisDestinationRecommendation {
-    if (confidence < contextPack.fallbackThreshold) {
-      return {
-        suggestedDestination: 'None',
-        confidence: 0.4,
-        reason: 'La clasificacion es baja y no conviene empujar un destino operativo todavia.',
-      };
-    }
-
-    const meetingType = getMeetingTypeDefinition(contextPack, suggestedType);
-    return {
-      suggestedDestination: meetingType?.defaultDestination || 'None',
-      confidence: Math.min(confidence, 0.86),
-      reason,
-    };
+    return buildMeetingDestinationRecommendation(suggestedType, confidence, reason, contextPack);
   }
 
   private buildMessageDrafts(
@@ -905,37 +847,7 @@ export class MeetingAIService {
     keyPoints: string[],
     tasks: MeetingAnalysisResult['tasks'],
   ): MeetingAnalysisMessageDraft[] {
-    const drafts: MeetingAnalysisMessageDraft[] = [];
-
-    if (destination.suggestedDestination === 'Team' && keyPoints.length > 0) {
-      drafts.push({
-        kind: 'team_summary',
-        content: [
-          'Resumen operativo de la reunion:',
-          ...keyPoints.slice(0, 4).map((point) => `- ${point}`),
-        ].join('\n'),
-        requiresApproval: true,
-      });
-    }
-
-    if (followUp.suggested) {
-      drafts.push({
-        kind: 'follow_up',
-        content: followUp.description || followUp.reason,
-        requiresApproval: true,
-      });
-    }
-
-    const ownerlessTask = tasks.find((task) => !task.ownerSuggested);
-    if (ownerlessTask) {
-      drafts.push({
-        kind: 'owner_confirmation',
-        content: `Confirmar responsable para: ${ownerlessTask.description}`,
-        requiresApproval: true,
-      });
-    }
-
-    return drafts.slice(0, 3);
+    return buildMeetingMessageDrafts(destination, followUp, keyPoints, tasks);
   }
 
   private extractLegacySignals(lines: string[], pattern: RegExp, confidence: number): LegacySignal[] {

@@ -1,27 +1,10 @@
-import crypto from 'node:crypto';
-import type { EmailMessage } from '../../gmail-service';
 import { GMAIL_TRIAGE_SCHEMA } from '../schemas';
-import type { ExecuteTemplateInput, WorkflowActionRecord, WorkflowRunRecord } from '../types';
-import {
-  buildReplySubject,
-  extractPrimaryEmailAddress,
-  pickBestMessage,
-} from '../helpers';
+import type { ExecuteTemplateInput, WorkflowRunRecord } from '../types';
+import { pickBestMessage } from '../helpers';
+import { buildGmailTriageActions } from './gmail-triage/actions';
+import { GMAIL_TRIAGE_PROMPT } from './gmail-triage/prompt';
+import type { GmailTriageOutput } from './gmail-triage/types';
 import type { WorkspaceTemplateHandlerContext } from './types';
-
-type GmailTriageDecision = 'reply' | 'label_only' | 'schedule' | 'notify_chat' | 'ignore';
-
-interface GmailTriageOutput {
-  decision: GmailTriageDecision;
-  summary: string;
-  rationale: string;
-  labelsToAdd: string[];
-  archive: boolean;
-  confidence: number;
-  reply?: { subject: string; body: string };
-  calendarEvent?: { title: string; startIso: string; endIso: string; description: string; location?: string };
-  chatNotification?: { text: string };
-}
 
 export async function executeGmailTriage(
   payload: ExecuteTemplateInput,
@@ -45,16 +28,7 @@ export async function executeGmailTriage(
 
   const detail = messageDetailResult.message;
   const triage = await context.llmTaskService.runJsonTask<GmailTriageOutput>({
-    prompt: [
-      'Analiza este correo y propone una accion operativa.',
-      'Usa solo una decision principal: reply, label_only, schedule, notify_chat o ignore.',
-      'Si propones schedule, debes devolver calendarEvent con fechas ISO completas.',
-      'Si propones reply, debes devolver reply con subject y body listos para enviar.',
-      'Si propones notify_chat y existe gchatSpace, devuelve chatNotification.text.',
-      'Puedes agregar labelsToAdd siempre que ayuden a clasificar.',
-      'archive debe ser true solo si el correo ya quedara gestionado despues de ejecutar la accion propuesta.',
-      'Responde en espanol profesional y concreto.',
-    ].join('\n'),
+    prompt: GMAIL_TRIAGE_PROMPT,
     input: {
       email: {
         id: detail.id,
@@ -104,74 +78,4 @@ export async function executeGmailTriage(
     status: actions.length > 0 ? 'needs_approval' : 'completed',
     initialLog: `Correo analizado: ${detail.subject || 'Sin asunto'} (${detail.from}).`,
   });
-}
-
-function buildGmailTriageActions(
-  message: EmailMessage,
-  triage: GmailTriageOutput,
-  options: { gchatSpace: string; removeFromInbox: boolean },
-): WorkflowActionRecord[] {
-  const actions: WorkflowActionRecord[] = [];
-  const labelsToAdd = Array.isArray(triage.labelsToAdd)
-    ? triage.labelsToAdd.map((item) => String(item || '').trim()).filter(Boolean)
-    : [];
-  const removeLabels = triage.archive && options.removeFromInbox ? ['INBOX'] : [];
-
-  if (labelsToAdd.length > 0 || removeLabels.length > 0) {
-    actions.push({
-      id: crypto.randomUUID(),
-      kind: 'gmail_labels',
-      title: 'Aplicar etiquetas en Gmail',
-      status: 'pending',
-      payload: { messageId: message.id, addLabels: labelsToAdd, removeLabels },
-    });
-  }
-
-  if (triage.reply?.body?.trim()) {
-    const primaryRecipient = extractPrimaryEmailAddress(message.from);
-    if (primaryRecipient) {
-      actions.push({
-        id: crypto.randomUUID(),
-        kind: 'gmail_reply',
-        title: 'Enviar respuesta por Gmail',
-        status: 'pending',
-        payload: {
-          to: [primaryRecipient],
-          subject: triage.reply.subject?.trim() || buildReplySubject(message.subject),
-          body: triage.reply.body.trim(),
-        },
-      });
-    }
-  }
-
-  if (triage.calendarEvent?.title?.trim() && triage.calendarEvent.startIso && triage.calendarEvent.endIso) {
-    actions.push({
-      id: crypto.randomUUID(),
-      kind: 'calendar_event',
-      title: 'Crear evento en Google Calendar',
-      status: 'pending',
-      payload: {
-        title: triage.calendarEvent.title.trim(),
-        start: triage.calendarEvent.startIso,
-        end: triage.calendarEvent.endIso,
-        description: triage.calendarEvent.description?.trim() || '',
-        location: triage.calendarEvent.location?.trim() || '',
-      },
-    });
-  }
-
-  if (triage.chatNotification?.text?.trim() && options.gchatSpace) {
-    actions.push({
-      id: crypto.randomUUID(),
-      kind: 'gchat_message',
-      title: 'Enviar alerta a Google Chat',
-      status: 'pending',
-      payload: {
-        spaceName: options.gchatSpace,
-        text: triage.chatNotification.text.trim(),
-      },
-    });
-  }
-
-  return actions;
 }

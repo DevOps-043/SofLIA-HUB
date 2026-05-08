@@ -1,35 +1,5 @@
 import crypto from 'node:crypto';
-
-export type MeetingTriggerAction = 'start' | 'stop' | 'heartbeat';
-
-export interface MeetingTriggerPayload {
-  action: MeetingTriggerAction;
-  provider: string | null;
-  meetingTitle: string | null;
-  meetingUrl: string | null;
-  meetingCode: string | null;
-  tabUrl: string | null;
-  tabId: string | null;
-  detectedAt: string;
-  source: string | null;
-  reason: string | null;
-  extensionVersion: string | null;
-  browser: string | null;
-  triggerId: string;
-  rawUrl: string;
-}
-
-export type AppProtocolCommand =
-  | {
-      type: 'share-link';
-      shareLink: string;
-      rawUrl: string;
-    }
-  | {
-      type: 'meeting-trigger';
-      payload: MeetingTriggerPayload;
-    }
-  | null;
+import type { AppProtocolCommand, MeetingTriggerAction, MeetingTriggerPayload } from './app-protocol/types';
 
 function getOptionalQueryParam(url: URL, key: string): string | null {
   const value = url.searchParams.get(key);
@@ -55,11 +25,7 @@ function buildShareLink(url: URL): string | null {
   }
 
   const pathname = url.pathname.replace(/^\/+/, '').trim();
-  if (!pathname) {
-    return null;
-  }
-
-  return pathname;
+  return pathname || null;
 }
 
 function buildMeetingTrigger(rawUrl: string, url: URL): MeetingTriggerPayload | null {
@@ -109,20 +75,11 @@ export function parseAppProtocolCommand(rawValue: string | null | undefined): Ap
 
   const shareLink = buildShareLink(url);
   if (shareLink) {
-    return {
-      type: 'share-link',
-      shareLink,
-      rawUrl,
-    };
+    return { type: 'share-link', shareLink, rawUrl };
   }
 
   const meetingTrigger = buildMeetingTrigger(rawUrl, url);
-  if (meetingTrigger) {
-    return {
-      type: 'meeting-trigger',
-      payload: meetingTrigger,
-    };
-  }
-
-  return null;
+  return meetingTrigger ? { type: 'meeting-trigger', payload: meetingTrigger } : null;
 }
+
+export type { AppProtocolCommand, MeetingTriggerAction, MeetingTriggerPayload } from './app-protocol/types';

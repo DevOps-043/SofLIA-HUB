@@ -1,42 +1,22 @@
 import { app, BrowserWindow, Tray, Menu, Notification, nativeImage, ipcMain, screen, globalShortcut } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import * as dotenv from 'dotenv'
 import { extractProtocolArg, parseAppProtocolCommand, type MeetingTriggerPayload } from './app-protocol'
 import {
   captureForegroundWindow,
   restoreFlowInsertTarget,
   type FlowInsertTarget,
 } from './flow-window/native-window-target'
+import { logBootstrapError, runOptionalStep } from './main/bootstrap-steps'
+import { configureMainProcessEnvironment } from './main/environment'
 import { registerScreenCaptureHandlers } from './main/screen-capture-handlers'
+import { sendSummaryWhatsApp } from './main/whatsapp-summary'
 
 type BootstrapGuard = typeof globalThis & {
   __SOFLIA_BOOTSTRAP_COMPLETE__?: boolean
 }
 
-type Step<T> = () => Promise<T> | T
 const BACKGROUND_LAUNCH_ARG = '--background'
-
-function logBootstrapError(context: string, error: unknown): void {
-  if (error instanceof Error) {
-    console.error(`[BOOT] ${context} failed: ${error.message}`)
-    if (error.stack) {
-      console.error(error.stack)
-    }
-    return
-  }
-
-  console.error(`[BOOT] ${context} failed:`, error)
-}
-
-async function runOptionalStep<T>(name: string, step: Step<T>): Promise<T | undefined> {
-  try {
-    return await step()
-  } catch (error) {
-    logBootstrapError(name, error)
-    return undefined
-  }
-}
 
 const bootstrapGuard = globalThis as BootstrapGuard
 if (bootstrapGuard.__SOFLIA_BOOTSTRAP_COMPLETE__) {
@@ -107,25 +87,7 @@ async function runBootstrap(): Promise<void> {
   await import('./agent-task-queue')
 
   const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-  const envPaths = [
-    path.join(__dirname, '..', '.env'),
-    path.join(__dirname, '.env'),
-  ]
-
-  for (const envPath of envPaths) {
-    if (!dotenv.config({ path: envPath }).error) {
-      console.log(`[BOOT] Environment loaded from ${envPath}`)
-      break
-    }
-  }
-
-  process.env.APP_ROOT = path.join(__dirname, '..')
-  const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
-  const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
-  process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL
-    ? path.join(process.env.APP_ROOT, 'public')
-    : RENDERER_DIST
+  const { VITE_DEV_SERVER_URL, RENDERER_DIST } = configureMainProcessEnvironment(__dirname)
 
   // Disabled because BrowserWindow creation has been unstable in this project on Windows.
   // app.enableSandbox()
@@ -581,22 +543,6 @@ async function runBootstrap(): Promise<void> {
     }).show()
   }
 
-  async function sendSummaryWhatsApp(phoneNumber: string, summaryText: string): Promise<{ success: boolean; error?: string }> {
-    try {
-      if (!waService.getStatus().connected) {
-        return { success: false, error: 'WhatsApp no conectado' }
-      }
-
-      const cleanNumber = phoneNumber.replace(/[^0-9]/g, '')
-      const jid = `${cleanNumber}@s.whatsapp.net`
-      await waService.sendText(jid, summaryText)
-      return { success: true }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      return { success: false, error: message }
-    }
-  }
-
   function initWhatsAppAgent(apiKey: string): void {
     memoryService.setApiKey(apiKey)
     workspaceAutomationService.setApiKey(apiKey)
@@ -680,7 +626,7 @@ async function runBootstrap(): Promise<void> {
   })
 
   ipcMain.handle('monitoring:send-summary-whatsapp', async (_event, phoneNumber: string, summaryText: string) => {
-    return sendSummaryWhatsApp(phoneNumber, summaryText)
+    return sendSummaryWhatsApp(waService, phoneNumber, summaryText)
   })
 
   registerScreenCaptureHandlers(logBootstrapError)

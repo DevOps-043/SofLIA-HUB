@@ -1,8 +1,8 @@
 import { app } from 'electron';
-import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { DriveService } from '../drive-service';
+import { extractDriveFileId, hashMeetingText, normalizeMeetingText } from './meeting-source-utils';
 import type { PreparedMeetingSource } from './meeting-types';
 
 interface PrepareManualSourceInput {
@@ -18,7 +18,7 @@ export class MeetingSourceService {
   constructor(private readonly driveService: DriveService) {}
 
   async prepareManualSource(input: PrepareManualSourceInput): Promise<PreparedMeetingSource> {
-    const normalizedText = this.normalizeText(input.text);
+    const normalizedText = normalizeMeetingText(input.text);
     if (!normalizedText) {
       throw new Error('No hay contenido de reunion para procesar.');
     }
@@ -31,7 +31,7 @@ export class MeetingSourceService {
       mime_type: 'text/plain',
       authority_level: 'user_provided',
       normalized_text: normalizedText,
-      content_hash: this.hashText(normalizedText),
+      content_hash: hashMeetingText(normalizedText),
       metadata: {
         imported_at: new Date().toISOString(),
         content_length: normalizedText.length,
@@ -40,7 +40,7 @@ export class MeetingSourceService {
   }
 
   async prepareDriveSource(input: PrepareDriveSourceInput): Promise<PreparedMeetingSource> {
-    const fileId = this.extractDriveFileId(input.fileIdOrUrl);
+    const fileId = extractDriveFileId(input.fileIdOrUrl);
     if (!fileId) {
       throw new Error('No pude obtener el ID del archivo de Google Drive.');
     }
@@ -61,7 +61,7 @@ export class MeetingSourceService {
     }
 
     const rawText = downloadResult.textContent ?? await fs.readFile(downloadResult.path || tempPath, 'utf8');
-    const normalizedText = this.normalizeText(rawText);
+    const normalizedText = normalizeMeetingText(rawText);
     if (!normalizedText) {
       throw new Error('El archivo de Drive no contiene texto util para procesar.');
     }
@@ -74,7 +74,7 @@ export class MeetingSourceService {
       mime_type: metadataResult.file.mimeType,
       authority_level: 'google_workspace',
       normalized_text: normalizedText,
-      content_hash: this.hashText(normalizedText),
+      content_hash: hashMeetingText(normalizedText),
       metadata: {
         imported_at: new Date().toISOString(),
         file_name: metadataResult.file.name,
@@ -82,38 +82,5 @@ export class MeetingSourceService {
         size: metadataResult.file.size ?? null,
       },
     };
-  }
-
-  private normalizeText(text: string): string {
-    return text
-      .replace(/\r\n/g, '\n')
-      .replace(/\u00A0/g, ' ')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
-  }
-
-  private hashText(text: string): string {
-    return crypto.createHash('sha256').update(text, 'utf8').digest('hex');
-  }
-
-  private extractDriveFileId(value: string): string | null {
-    const trimmed = value.trim();
-    if (!trimmed) return null;
-
-    const idParamMatch = trimmed.match(/[?&]id=([a-zA-Z0-9_-]{10,})/);
-    if (idParamMatch?.[1]) {
-      return idParamMatch[1];
-    }
-
-    const pathMatch = trimmed.match(/\/d\/([a-zA-Z0-9_-]{10,})/);
-    if (pathMatch?.[1]) {
-      return pathMatch[1];
-    }
-
-    if (/^[a-zA-Z0-9_-]{10,}$/.test(trimmed)) {
-      return trimmed;
-    }
-
-    return null;
   }
 }

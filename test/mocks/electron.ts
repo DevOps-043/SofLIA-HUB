@@ -188,14 +188,16 @@ export class Menu {
 }
 
 // --- nativeImage ---
+const createMockNativeImage = () => ({
+  isEmpty: () => false,
+  toDataURL: () => 'data:image/png;base64,test',
+  resize: vi.fn(() => ({ toDataURL: () => 'data:image/png;base64,resized' })),
+  getSize: () => ({ width: 100, height: 100 }),
+});
+
 export const nativeImage = {
-  createFromPath: vi.fn(() => ({
-    isEmpty: () => false,
-    toDataURL: () => 'data:image/png;base64,test',
-    resize: vi.fn(() => ({ toDataURL: () => 'data:image/png;base64,resized' })),
-    getSize: () => ({ width: 100, height: 100 }),
-  })),
-  createFromDataURL: vi.fn(() => nativeImage.createFromPath('')),
+  createFromPath: vi.fn((_path?: string) => createMockNativeImage()),
+  createFromDataURL: vi.fn((_dataUrl?: string) => createMockNativeImage()),
   createEmpty: vi.fn(() => ({ isEmpty: () => true })),
 };
 

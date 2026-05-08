@@ -1,8 +1,187 @@
 # Refactor Handoff — SofLIA Hub
 
-**Última actualización:** 2026-05-07
+**Última actualización:** 2026-05-08
 **Auditor inicial:** Claude Opus 4.7
 **Continuación:** este documento permite que cualquier modelo/desarrollador retome el trabajo donde quedó.
+
+### Actualizacion Codex 2026-05-08
+
+Continuacion enfocada en limpiar completamente la banda de archivos de **100 a 199 lineas**, tomando `docs/prompt_maestro.md` como fuente de verdad y manteniendo el patron validado de modulos pequenos, barrels/fachadas estables y validacion inmediata:
+
+- Banda **100-199** recalculada sobre `.ts/.tsx` dentro de `electron/` y `src/`: queda en **0 archivos**.
+- Los ultimos 8 archivos del rango eran pruebas/fixtures; se separaron mocks, setup, fixtures y casos edge en archivos cohesivos bajo 100 lineas.
+- En la continuacion previa de esta misma sesion tambien se modularizaron servicios, componentes y tool declarations de main/renderer que estaban en 100-199, preservando exports publicos y cableado existente.
+- Los refactors nuevos siguen el criterio de `prompt_maestro`: responsabilidades pequenas, contratos explicitos, sin cambios funcionales intencionales y sin silenciar errores.
+- Durante la corrida completa se detecto un desajuste visible de UI en `AuthForm` (`Contrasena`/`Iniciar Sesion`); se corrigio a espanol natural (`Contraseña`/`Iniciar Sesión`) y la suite completa quedo verde.
+
+Estado recalculado actual sobre `.ts/.tsx` dentro de `electron/` y `src/`:
+
+| Rango | Archivos |
+|---|---:|
+| Menos de 100 | 1585 |
+| 100-199 | 0 |
+| 200-299 | 10 |
+| 300-399 | 0 |
+| 400-499 | 17 |
+| 500-599 | 0 |
+| 600-699 | 0 |
+| 700-799 | 15 |
+| 800-899 | 0 |
+| 900-999 | 0 |
+| 1000+ | 0 |
+
+Validacion:
+- `npm.cmd exec -- tsc --noEmit --pretty false --incremental false`: **sin errores**.
+- `npm.cmd exec -- vitest run ... --maxWorkers=1` sobre los 12 archivos/suites tocados de esta continuacion: **12/12 archivos**, **71/71 tests** pasando.
+- `npm.cmd test -- --run`: **44/44 archivos**, **596/596 tests** pasando.
+
+Pendiente inmediato: continuar con la banda **700-799** (15 archivos) y luego **400-499** (17 archivos). El archivo mas grande actual es `src/components/ops/WorkflowHubPanel.tsx` con **799 lineas**. Recalcular antes de tocar porque el worktree sigue teniendo cambios paralelos amplios.
+
+### Actualizacion Codex 2026-05-08
+
+Continuacion enfocada en limpiar la banda de archivos de **300 a 399 lineas**, usando `docs/prompt_maestro.md` como fuente de verdad y preservando contratos publicos con fachadas/barrels delgados:
+
+- Banda **300-399** recalculada sobre `electron/` y `src/`: queda en **0 archivos**.
+- Se modularizaron servicios y fachadas de main/renderer: `folder-service`, `computer-use-service`, `batch-file-ops`, `google-executors`, `system-executors`, `drive-service`, `semantic-indexer`, `path-memory-service`, `daily-digest-generator`, `presentation-pdf`, `presentation-workflow`, `meeting-types` y `meeting-context-pack`.
+- Se dividieron suites que volvieron a entrar al rango por cambios paralelos: `workflow-hub-service.test.ts`, `whatsapp-agent.test.ts` y `memory-service.test.ts`.
+- Se extrajeron controladores de estado de `src/contexts/AuthContext.tsx` y `src/hooks/useChatManager.ts` a modulos cohesivos bajo `src/contexts/auth/` y `src/hooks/chat-manager/`.
+- Ajustes de cableado detectados por TypeScript: barrel `UpdateNotification`, props de paneles de updater, firma de mock `nativeImage`, alias `ApiProvider` y tipos auxiliares de pruebas.
+
+Estado recalculado actual sobre `.ts/.tsx` dentro de `electron/` y `src/`:
+
+| Rango | Archivos |
+|---|---:|
+| Menos de 100 | 1425 |
+| 100-199 | 43 |
+| 200-299 | 10 |
+| 300-399 | 0 |
+| 400-499 | 17 |
+| 500-599 | 0 |
+| 600-699 | 0 |
+| 700-799 | 15 |
+| 800-899 | 0 |
+| 900-999 | 0 |
+| 1000+ | 0 |
+
+Validacion:
+- `.\\node_modules\\.bin\\tsc.cmd --noEmit --pretty false --incremental false`: **sin errores**.
+- `.\\node_modules\\.bin\\vitest.cmd run electron/__tests__/workflow-hub-service.test.ts electron/__tests__/whatsapp-agent.test.ts electron/__tests__/memory-service.test.ts --reporter=dot`: **3/3 archivos**, **49/49 tests** pasando.
+
+Pendiente inmediato: continuar con la banda **700-799** y luego **400-499**. Recalcular antes de tocar porque el worktree sigue teniendo cambios paralelos amplios.
+
+### Actualizacion Codex 2026-05-08
+
+Continuacion enfocada en limpiar la banda de archivos de **200 a 299 lineas**, usando `docs/prompt_maestro.md` como fuente de verdad y preservando APIs publicas mediante barrels/fachadas delgadas:
+
+- Banda **200-299** recalculada sobre `electron/` y `src/`: queda en **0 archivos**.
+- Se modularizaron fachadas y componentes del tramo: `workflow-hub/types.ts`, `desktop-agent-types.ts`, `meeting-ai/prompts.ts`, `gmail/helpers.ts`, `iris/resolvers.ts`, `agent-task-queue.ts`, `focus-mode-service.ts`, `whatsapp-terminal.ts`, `updater-service.ts`, `workflow-chat-commands.ts`, `iris-executors.ts`, `system-services.ts`, `neural-organizer.ts`, `MarkdownRenderer.tsx`, `mcp-manager.ts`, `business-anomaly-monitor.ts`, `iris/auth.ts`, `passive-workflows.ts`, `summary-generator.ts`, `meeting-detection-store.ts`, `app-meeting-trigger-service.ts`, `daily-briefing-service.ts`, `clipboard-ai-assistant.ts`, `UpdateNotification.tsx`, `UpdatePanel.tsx`, `ToolEditorModal.tsx`, `SummaryCard.tsx`, `CalendarPanel.tsx` y `MonitoringControls.tsx`.
+- Todos los modulos nuevos revisados de esta continuacion quedaron **<100 lineas**.
+- La distribucion actual de archivos `.ts/.tsx` en `electron/` y `src/` queda: `<100`: **1271**, `100-199`: **69**, `200-299`: **0**, `300-399`: **0**, `400-499`: **13**, `500-799`: **0**, `800-899`: **9**, `900-999`: **5**, `1000+`: **0**.
+
+Validacion:
+- `.\\node_modules\\.bin\\tsc.cmd --noEmit --pretty false --incremental false`: **sin errores**.
+- `npm.cmd test -- --run`: **39/39 archivos**, **596/596 tests** pasando.
+- Primer intento con `npx.cmd --no-update-notifier tsc --noEmit --pretty false --incremental false` fallo por resolucion transitoria de `electron/services/pc-alarm-service.ts`; el archivo existe y la validacion con el binario local de TypeScript paso limpia.
+
+Pendiente inmediato: continuar con los archivos de **800-999 lineas** que siguen concentrando riesgo; antes de cada corte, recalcular la distribucion porque hay muchos cambios paralelos en el worktree.
+
+### Actualizacion Codex 2026-05-08
+
+Continuacion enfocada en limpiar la banda de archivos de **800 a 899 lineas** siguiendo `docs/prompt_maestro.md` como fuente de verdad y el patron de movimiento puro sin cambios funcionales intencionales:
+
+- Banda **800-899** recalculada sobre `electron/` y `src/`: queda en **0 archivos**.
+- `electron/whatsapp-agent.ts`: baja a **792 lineas**. Extraidos pre-filtro de seguridad, historial, contexto de memoria, declaraciones de tools, audio, confirmaciones y verificacion bulk labels a `electron/wa-agent/`.
+- `src/components/ops/WorkflowHubPanel.tsx`: baja a **799 lineas**. Extraidos grids, secciones de workflows, reglas pasivas, picker de variantes y estados informativos a `src/components/ops/workflow-hub-panel/`.
+- `electron/meetings/meeting-ai-service.ts`: baja a **798 lineas**. Extraidos builders de razones, recomendaciones y borradores de mensajes a `electron/meetings/meeting-ai/`.
+- `electron/__tests__/computer-use-handlers.test.ts`: baja a **761 lineas**. Extraido setup de mocks a `electron/__tests__/computer-use-handlers.mocks.ts` preservando el orden de hoisting de Vitest.
+- `electron/workflow-hub-service.ts`: baja a **794 lineas**. Extraidos mappers de reglas pasivas y persistencia de estado a `electron/workflow-hub/`.
+- `electron/desktop-agent-service.ts`: baja a **799 lineas**. Extraidas APIs publicas de screenshot, observacion y runtime vision-step a `electron/desktop-agent/`.
+- `src/components/Sidebar.tsx`: baja a **773 lineas**. Extraidos menu contextual de chats e icono Chevron a `src/components/sidebar/`.
+- `electron/main.ts`: baja a **797 lineas**. Extraidos pasos de bootstrap, ambiente y resumen WhatsApp a `electron/main/`.
+- `electron/browser-web-service.ts`: baja a **790 lineas**. Extraida gestion de perfiles, artefactos y trazas a `electron/browser-web/artifacts.ts`.
+- `electron/memory-service.ts`: baja a **792 lineas**. Extraidos tokens cifrados y escritura markdown de memoria a `electron/memory/`.
+- Todos los modulos nuevos de esta continuacion quedaron **<100 lineas**.
+
+Validacion:
+- `npx.cmd --no-update-notifier tsc --noEmit --pretty false --incremental false`: **sin errores**. El comando conserva warnings de npm por flags reenviadas por `npx`, pero TypeScript sale en verde.
+- `npx.cmd --no-update-notifier vitest run electron/__tests__/computer-use-handlers.test.ts electron/__tests__/desktop-agent-service.test.ts electron/__tests__/workflow-hub-service.test.ts electron/__tests__/whatsapp-agent.test.ts electron/__tests__/memory-service.test.ts --maxWorkers=1`: **5/5 archivos**, **177/177 tests** pasando.
+- `git diff --check`: **sin errores de whitespace**; solo warnings esperados de normalizacion LF->CRLF del worktree.
+
+Estado recalculado actual sobre `.ts/.tsx` dentro de `electron/` y `src/`:
+
+| Rango | Archivos |
+|---|---:|
+| Menos de 100 | 1356 |
+| 100-199 | 51 |
+| 200-299 | 10 |
+| 300-399 | 3 |
+| 400-499 | 17 |
+| 500-599 | 0 |
+| 600-699 | 0 |
+| 700-799 | 15 |
+| 800-899 | 0 |
+| 900-999 | 0 |
+| 1000+ | 0 |
+
+Pendiente inmediato: continuar con la banda **700-799**, donde quedan 15 archivos; los mas altos son `electron/desktop-agent-service.ts`, `src/components/ops/WorkflowHubPanel.tsx`, `electron/app-chat-service.ts`, `electron/meetings/meeting-ai-service.ts`, `electron/main.ts`, `electron/computer-use-handlers.ts`, `electron/workflow-hub-service.ts`, `electron/whatsapp-agent.ts`, `electron/memory-service.ts` y `electron/browser-web-service.ts`.
+
+### Actualizacion Codex 2026-05-08
+
+Continuacion enfocada en limpiar la banda de archivos de **600 a 699 lineas** siguiendo `docs/prompt_maestro.md` y el patron de refactor validado:
+
+- Banda **600-699** recalculada sobre `electron/` y `src/`: queda en **0 archivos**.
+- `electron/meetings/meeting-store.ts`: baja a **55 lineas**. Extraidas operaciones y mappers a `electron/meetings/meeting-store/`; todos los modulos nuevos quedan <=100 lineas.
+- `electron/gchat-service.ts`: baja a **86 lineas**. Extraidas operaciones de espacios, mensajes, resolucion y utilidades a `electron/gchat/`; contratos en `electron/gchat/types.ts`.
+- `electron/workspace-automation-service.ts`: baja a **64 lineas**. Extraidas operaciones a `electron/workspace-automation/service/`; los metodos grandes se dividieron por builders/ejecutores de acciones, todos <=100 lineas.
+- `electron/preload.ts`: baja a **35 lineas**. Separadas allowlists IPC, CSP, runtime config, safe IPC y bridges por dominio en `electron/preload/`; ningun modulo nuevo supera 57 lineas.
+- `src/components/FlowMode.tsx`: baja de la banda 600-699 a **550 lineas**. Extraida vista a `src/components/flow-mode/` con componentes presentacionales <=65 lineas.
+- `electron/__tests__/desktop-agent-service.test.ts`: baja fuera de la banda; extraidos tests de config a `electron/__tests__/desktop-agent-config.test.ts`.
+- `electron/__tests__/whatsapp-agent.test.ts`: baja fuera de la banda; extraidos escenarios de setters y retry a `electron/__tests__/whatsapp-agent/`.
+- `src/components/meetings/MeetingOpsPanel.tsx`: aparecio en la banda durante el recalculo por cambios paralelos y tambien se bajo a **582 lineas** extrayendo header/alerts y formulario de creacion.
+- Ajuste de barrel autorreferente en `electron/whatsapp-prompts.ts`: ahora reexporta desde `./whatsapp-prompts/index`.
+
+QA de esta continuacion:
+
+- `vitest run electron/__tests__/desktop-agent-service.test.ts electron/__tests__/desktop-agent-config.test.ts electron/__tests__/whatsapp-agent.test.ts --reporter=dot`: **3/3 archivos**, **79/79 tests** pasando.
+- `tsc --noEmit --pretty false --incremental false`: no reporta errores en los archivos tocados al filtrar por rutas de esta continuacion. La corrida global queda bloqueada por declaraciones globales previas/externas en `window.calendar` y `window.whatsApp` (`src/components/connections-panel/window-connections.ts`, `src/components/monitoring/CalendarPanel.tsx`, `src/components/whatsapp-setup/types.ts`, `src/components/WhatsAppSetup.tsx`).
+
+### Actualizacion Codex 2026-05-08
+
+Continuacion enfocada en el rango 400-499 lineas, siguiendo `docs/prompt_maestro.md` y el patron de refactor de movimiento puro:
+
+- `electron/computer-use/app-resolver.ts`: baja de 564 a **4 lineas**. Separados tipos, aliases, scoring, variantes de busqueda, roots, fuentes `where`/registry/filesystem, resolver, foco de ventana y launcher en `electron/computer-use/app-resolver/`.
+- `electron/document-designer.ts`: baja de 541 a **2 lineas**. Separados parser inline, parser de tablas, builders de bloques, parser de contenido, portada, shell DOCX y API publica en `electron/document-designer/`.
+- `electron/remote-node-service.ts`: baja de 562 a **1 linea**. Separados estado persistido, registry de nodos, cliente HTTP remoto, host HTTP, rutas y servicio en `electron/remote-node/`.
+- `src/components/SettingsModal.tsx`: baja de 527 a **76 lineas**. Separados hooks de formulario/proactividad/autoguardado y subcomponentes visuales en `src/components/settings-modal/`.
+- `src/components/ConnectionsPanel.tsx`: baja de 470 a **46 lineas**. Separados hooks por integracion y secciones WhatsApp/Telegram/Google en `src/components/connections-panel/`.
+- `src/services/live-api.ts`: baja de 537 a **3 lineas**. Separados runtime Live, socket handlers, lifecycle, playback de audio, captura de microfono y setup message en `src/services/live-api/`.
+- `electron/proactive-service.ts`: baja de 524 a **77 lineas**. Separados config, collectors, chequeo de sistema, composicion IA/fallback, tick runner y trigger manual en `electron/proactive/`.
+- `electron/telegram-service.ts`: baja de 538 a **8 lineas**. Separados tipos, estado, status, API, chats recientes, mensajes, comandos, polling y servicio en `electron/telegram/`.
+- `electron/background-process-service.ts`: baja de 476 a **12 lineas**. Separados runtime, persistencia de sesiones, vista/refresh, launch de aplicaciones, terminal visible, comando background y administracion de sesiones en `electron/background-process/`.
+
+Todos los modulos nuevos de esta continuacion quedaron **<100 lineas**.
+
+Validacion:
+- `tsc` global esta bloqueado por cambios previos/no relacionados en el worktree: `electron/dynamic-tool/toolset-installer.ts(46,1)` espera `}`; otra corrida via `npx` tambien se detuvo en `electron/whatsapp-agent.ts` con error sintactico al EOF.
+- Validacion acotada de los archivos tocados encontro inicialmente declaraciones faltantes para `window.whatsApp`/`window.calendar`; se corrigio con `src/components/connections-panel/window-connections.ts`.
+- La validacion acotada posterior ya no reporta errores en los modulos tocados; queda bloqueada por deuda previa en `electron/iris/operations-read.ts`, `electron/iris/operations-write.ts` y `src/config.ts` al compilar fuera del tsconfig completo.
+
+Estado recalculado sobre `.ts/.tsx` dentro de `electron/` y `src/` con la metrica local actual:
+
+| Rango | Archivos |
+|---|---:|
+| Menos de 100 | 1148 |
+| 100-199 | 73 |
+| 200-299 | 18 |
+| 300-399 | 1 |
+| 400-499 | 20 |
+| 500-599 | 0 |
+| 600-699 | 0 |
+| 700-799 | 15 |
+| 800-999 | 0 |
+| 1000+ | 0 |
+
+Pendiente inmediato: continuar con `src/App.tsx`, `electron/monitoring-service.ts`, `src/components/ProjectHub.tsx`, `src/hooks/useChatManager.ts`, `src/components/FlowMode.tsx`, `src/components/WhatsAppSetup.tsx`, `src/contexts/AuthContext.tsx`, `electron/whatsapp-remote-hub.ts`, `electron/iris/operations-write.ts`, `electron/knowledge-service.ts`, `electron/meetings/meeting-passive-detection-service.ts`, `electron/whatsapp-workflow-meetings.ts` y los tests que siguen en 400-499.
 
 ### Actualizacion Codex 2026-05-07
 

@@ -1,0 +1,18 @@
+import { booleanProp, objectParams, stringArrayProp, stringProp } from './schema';
+import type { GeminiFunctionDeclaration } from './types';
+
+export const COMPUTER_FILE_TOOL_DECLARATIONS: GeminiFunctionDeclaration[] = [
+  { name: 'list_directory', description: 'Lista archivos y carpetas en un directorio del sistema.', parameters: objectParams({ path: stringProp('Ruta del directorio.'), show_hidden: booleanProp('Si es true, incluye elementos ocultos.') }, ['path']) },
+  { name: 'read_file', description: 'Lee el contenido de un archivo de texto.', parameters: objectParams({ path: stringProp('Ruta completa del archivo.') }, ['path']) },
+  { name: 'write_file', description: 'Crea o sobrescribe un archivo de texto.', parameters: objectParams({ path: stringProp('Ruta completa del archivo.'), content: stringProp('Contenido a escribir.') }, ['path', 'content']) },
+  { name: 'create_directory', description: 'Crea una carpeta nueva.', parameters: objectParams({ path: stringProp('Ruta completa de la carpeta.') }, ['path']) },
+  { name: 'move_item', description: 'Mueve o renombra un archivo o carpeta.', parameters: objectParams({ source_path: stringProp('Ruta origen.'), destination_path: stringProp('Ruta destino.') }, ['source_path', 'destination_path']) },
+  { name: 'copy_item', description: 'Copia un archivo o carpeta a otra ubicacion.', parameters: objectParams({ source_path: stringProp('Ruta origen.'), destination_path: stringProp('Ruta destino.') }, ['source_path', 'destination_path']) },
+  { name: 'delete_item', description: 'Envia un archivo o carpeta a la papelera. Requiere confirmacion.', parameters: objectParams({ path: stringProp('Ruta del archivo o carpeta.') }, ['path']) },
+  { name: 'get_file_info', description: 'Obtiene informacion detallada sobre un archivo o carpeta.', parameters: objectParams({ path: stringProp('Ruta del archivo o carpeta.') }, ['path']) },
+  { name: 'search_files', description: 'Busca archivos y carpetas por nombre dentro de un directorio.', parameters: objectParams({ directory: stringProp('Directorio donde buscar.'), pattern: stringProp('Texto a buscar en los nombres.') }, ['pattern']) },
+  { name: 'list_directory_summary', description: 'Resume un directorio grande antes de organizarlo.', parameters: objectParams({ path: stringProp('Ruta del directorio.'), recursive: booleanProp('Si es true, analiza subcarpetas.'), max_depth: { type: 'NUMBER', description: 'Profundidad maxima para analisis recursivo. Opcional.' } }, ['path']) },
+  { name: 'organize_files', description: 'Organiza los archivos de un directorio por extension, tipo, fecha o reglas personalizadas.', parameters: objectParams({ path: stringProp('Ruta del directorio a organizar.'), mode: stringProp('extension, type, date o custom.'), rules: { type: 'OBJECT', description: 'Mapa extension a carpeta para el modo custom.' }, dry_run: booleanProp('Si es true, solo devuelve la simulacion.'), recursive: booleanProp('Si es true, incluye archivos en subcarpetas.') }, ['path']) },
+  { name: 'batch_move_files', description: 'Mueve en lote archivos entre dos directorios.', parameters: objectParams({ source_directory: stringProp('Directorio origen.'), destination_directory: stringProp('Directorio destino.'), extensions: stringArrayProp('Lista opcional de extensiones sin punto.'), pattern: stringProp('Texto opcional para filtrar nombres.'), recursive: booleanProp('Si es true, incluye subcarpetas del origen.') }, ['source_directory', 'destination_directory']) },
+  { name: 'undo_last_file_operation', description: 'Revierte la ultima operacion masiva de archivos o una operacion especifica por su operation_id.', parameters: objectParams({ operation_id: stringProp('ID opcional de la operacion a revertir.') }) },
+];

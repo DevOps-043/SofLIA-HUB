@@ -1,0 +1,101 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { app as electronApp } from 'electron';
+
+export interface DesktopAgentConfig {
+  maxSteps: number;
+  screenshotWidth: number;
+  screenshotHeight: number;
+  defaultActionDelay: number;
+  waitForChangeTimeout: number;
+  waitForChangeInterval: number;
+  continuousObservationInterval: number;
+  planningEnabled: boolean;
+  memoryWindowSize: number;
+  model: string;
+  fallbackModel: string;
+  maxConsecutiveFailures: number;
+  stuckDetectionThreshold: number;
+  autoRecoverFromDialogs: boolean;
+  replanOnStuck: boolean;
+  maxRetryPerAction: number;
+  proactiveModel: string;
+  maxConcurrentAgents: number;
+  gridEnabled: boolean;
+  gridStep: number;
+  zoomEnabled: boolean;
+  zoomResolution: number;
+  verificationEnabled: boolean;
+  maxTotalSteps: number;
+  summarizeEveryNSteps: number;
+  maxRawHistorySteps: number;
+  hierarchicalPlanningEnabled: boolean;
+  progressReportEveryNSteps: number;
+  somEnabled: boolean;
+  somFallbackToGrid: boolean;
+  focusedCaptureEnabled: boolean;
+  focusedCapturePadding: number;
+}
+
+export const DEFAULT_CONFIG: DesktopAgentConfig = {
+  maxSteps: 200,
+  screenshotWidth: 1024,
+  screenshotHeight: 768,
+  defaultActionDelay: 300,
+  waitForChangeTimeout: 8000,
+  waitForChangeInterval: 500,
+  continuousObservationInterval: 2000,
+  planningEnabled: true,
+  memoryWindowSize: 10,
+  model: 'gemini-2.5-flash',
+  fallbackModel: 'gemini-2.5-pro',
+  maxConsecutiveFailures: 3,
+  stuckDetectionThreshold: 4,
+  autoRecoverFromDialogs: true,
+  replanOnStuck: true,
+  maxRetryPerAction: 2,
+  proactiveModel: 'gemini-2.5-pro',
+  maxConcurrentAgents: 3,
+  gridEnabled: true,
+  gridStep: 100,
+  zoomEnabled: true,
+  zoomResolution: 512,
+  verificationEnabled: true,
+  maxTotalSteps: 500,
+  summarizeEveryNSteps: 15,
+  maxRawHistorySteps: 8,
+  hierarchicalPlanningEnabled: true,
+  progressReportEveryNSteps: 25,
+  somEnabled: true,
+  somFallbackToGrid: true,
+  focusedCaptureEnabled: true,
+  focusedCapturePadding: 24,
+};
+
+function getConfigPath(): string {
+  try {
+    return path.join(electronApp.getPath('userData'), 'desktop-agent-config.json');
+  } catch {
+    return path.join(process.cwd(), 'desktop-agent-config.json');
+  }
+}
+
+export function loadConfig(): DesktopAgentConfig {
+  try {
+    const configPath = getConfigPath();
+    if (fs.existsSync(configPath)) {
+      return { ...DEFAULT_CONFIG, ...JSON.parse(fs.readFileSync(configPath, 'utf-8')) };
+    }
+  } catch {
+    // Defaults keep standalone runners compatible when Electron is unavailable.
+  }
+  return { ...DEFAULT_CONFIG };
+}
+
+export function saveConfig(config: DesktopAgentConfig): void {
+  try {
+    fs.writeFileSync(getConfigPath(), JSON.stringify(config, null, 2), 'utf-8');
+  } catch (err: any) {
+    console.error('[DesktopAgent] Error saving config:', err.message);
+  }
+}

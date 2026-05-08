@@ -1,55 +1,8 @@
-/**
- * Tools Service - CRUD for user_tools in Lia Supabase
- */
-
 import { supabase } from '../lib/supabase';
+import type { CreateUserToolInput, UserTool } from './tools/types';
 
-export type ToolCategory =
-  | 'desarrollo'
-  | 'marketing'
-  | 'educacion'
-  | 'productividad'
-  | 'creatividad'
-  | 'analisis'
-  | 'documentos'
-  | 'diagramas'
-  | 'comunicacion';
-
-export interface UserTool {
-  id: string;
-  user_id: string;
-  name: string;
-  description: string | null;
-  icon: string;
-  category: ToolCategory | null;
-  system_prompt: string;
-  starter_prompts: string[];
-  is_favorite: boolean;
-  usage_count: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateUserToolInput {
-  name: string;
-  description?: string;
-  icon?: string;
-  category?: ToolCategory;
-  system_prompt: string;
-  starter_prompts?: string[];
-}
-
-export const TOOL_CATEGORIES: { value: ToolCategory; label: string; icon: string }[] = [
-  { value: 'desarrollo', label: 'Desarrollo', icon: '💻' },
-  { value: 'marketing', label: 'Marketing', icon: '📣' },
-  { value: 'educacion', label: 'Educación', icon: '🎓' },
-  { value: 'productividad', label: 'Productividad', icon: '📋' },
-  { value: 'creatividad', label: 'Creatividad', icon: '🎨' },
-  { value: 'analisis', label: 'Análisis', icon: '📊' },
-  { value: 'documentos', label: 'Documentos', icon: '📄' },
-  { value: 'diagramas', label: 'Diagramas', icon: '🔀' },
-  { value: 'comunicacion', label: 'Comunicación', icon: '✉️' },
-];
+export { TOOL_CATEGORIES } from './tools/types';
+export type { CreateUserToolInput, ToolCategory, UserTool } from './tools/types';
 
 export async function getUserTools(): Promise<UserTool[]> {
   const { data, error } = await supabase
@@ -70,7 +23,7 @@ export async function createUserTool(tool: CreateUserToolInput): Promise<UserToo
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    throw new Error('Debes iniciar sesión para crear herramientas');
+    throw new Error('Debes iniciar sesion para crear herramientas');
   }
 
   const { data, error } = await supabase
@@ -79,7 +32,7 @@ export async function createUserTool(tool: CreateUserToolInput): Promise<UserToo
       user_id: user.id,
       name: tool.name,
       description: tool.description || null,
-      icon: tool.icon || '⚙️',
+      icon: tool.icon || '\u2699\uFE0F',
       category: tool.category || null,
       system_prompt: tool.system_prompt,
       starter_prompts: tool.starter_prompts || [],

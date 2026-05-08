@@ -26,6 +26,16 @@ import { SYSTEM_TOOLS } from './system';
 
 export { BLOCKED_TOOLS_WA, CONFIRM_TOOLS_WA, GROUP_BLOCKED_TOOLS } from './security';
 
+type WaToolDeclaration = {
+  name: string;
+  description: string;
+  parameters: {
+    type: 'OBJECT';
+    properties: Record<string, unknown>;
+    required?: string[];
+  };
+};
+
 export const WA_TOOL_DECLARATIONS = {
   functionDeclarations: [
     ...FILESYSTEM_TOOLS,
@@ -38,5 +48,5 @@ export const WA_TOOL_DECLARATIONS = {
     ...IRIS_TOOLS,
     ...GOOGLE_TOOLS,
     ...AUTOMATION_TOOLS,
-  ],
+  ] as WaToolDeclaration[],
 };

@@ -1,7 +1,4 @@
 import crypto from 'node:crypto';
-import fs from 'node:fs';
-import path from 'node:path';
-import { app } from 'electron';
 import { getSofiaUserByEmail } from './iris-data-main';
 import type { CalendarService } from './calendar-service';
 import type { ChatSpace, GChatService } from './gchat-service';
@@ -25,7 +22,6 @@ import {
 } from './workflow-hub/definitions';
 import {
   describeCron,
-  isWorkflowId,
   normalizeAutomationStatus,
   normalizeEnum,
   normalizeMeetingActionStatus,
@@ -37,13 +33,17 @@ import {
   resolveOwnerUserId,
 } from './workflow-hub/normalizers';
 import {
+  getSystemPassiveRules as buildSystemPassiveRules,
+  mapScheduledTaskToPassiveRule as buildScheduledPassiveRule,
+} from './workflow-hub/passive-rule-mappers';
+import { loadWorkflowHubState, saveWorkflowHubState } from './workflow-hub/state-store';
+import {
   resolveDriveFolderPreset,
   resolveMailPresetQuery,
 } from './workflow-hub/preset-resolvers';
 import type {
   ExecuteWorkflowInput,
   PassiveWorkflowRule,
-  PassiveWorkflowStatus,
   SavePassiveWorkflowRuleInput,
   SaveWorkflowVariantInput,
   WorkflowApprovalScope,
@@ -569,71 +569,11 @@ export class WorkflowHubService {
   }
 
   private mapScheduledTaskToPassiveRule(task: ScheduledTaskInfo): PassiveWorkflowRule {
-    const workflowId = task.workflowId && isWorkflowId(task.workflowId) ? task.workflowId : null;
-    const workflowName = workflowId
-      ? this.getWorkflowDefinition(workflowId).name
-      : 'Rutina libre';
-    const status: PassiveWorkflowStatus = task.kind === 'passive_workflow' || task.kind === 'passive_prompt'
-      ? 'active'
-      : 'active';
-
-    return {
-      id: task.id,
-      workflowId,
-      workflowName,
-      name: task.name || workflowName,
-      description: task.description || (workflowId
-        ? `Workflow pasivo ${workflowName.toLowerCase()} programado.`
-        : 'Instruccion recordada que el agente ejecutara automaticamente.'),
-      prompt: task.prompt,
-      scheduleLabel: task.scheduleLabel || describeCron(task.cronExpression),
-      cronExpression: task.cronExpression,
-      source: task.source === 'chat' || task.source === 'app' ? task.source : 'legacy',
-      status,
-      executionMode: task.executionMode || 'agent_prompt',
-      createdAt: task.createdAt,
-      updatedAt: task.updatedAt || task.createdAt,
-      lastRunAt: task.lastRun || null,
-      requestedBy: task.requestedBy || null,
-      phoneNumber: task.phoneNumber || null,
-      config: task.workflowInput && typeof task.workflowInput === 'object' ? { ...task.workflowInput } : {},
-      reason: null,
-    };
+    return buildScheduledPassiveRule(task, (workflowId) => this.getWorkflowDefinition(workflowId));
   }
 
   private getSystemPassiveRules(capabilities: WorkspaceCapabilityStatus[]): PassiveWorkflowRule[] {
-    const mappingCapability = capabilities.find((item) => item.key === 'google_user_mapping');
-    const googleCapability = capabilities.find((item) => item.key === 'calendar');
-    const systemTimestamp = new Date(0).toISOString();
-    const status: PassiveWorkflowStatus =
-      mappingCapability?.state === 'available' && googleCapability?.state === 'available'
-        ? 'system'
-        : 'blocked';
-
-    return [
-      {
-        id: 'system:reuniones-auto',
-        workflowId: 'reuniones',
-        workflowName: this.getWorkflowDefinition('reuniones').name,
-        name: 'Deteccion automatica de reuniones',
-        description: 'Escanea Calendar, Gmail y Drive para detectar artifacts de reunion, y admite triggers externos via soflia://meeting-trigger para iniciar trazabilidad viva.',
-        prompt: 'Deteccion automatica del sistema',
-        scheduleLabel: 'Cada 20 minutos y por eventos de Google',
-        cronExpression: null,
-        source: 'system',
-        status,
-        executionMode: 'workflow',
-        createdAt: systemTimestamp,
-        updatedAt: systemTimestamp,
-        lastRunAt: null,
-        requestedBy: null,
-        phoneNumber: null,
-        config: { mode: 'auto' },
-        reason: status === 'blocked'
-          ? mappingCapability?.guidance || mappingCapability?.message || 'La auto-deteccion esta bloqueada.'
-          : 'Activo en segundo plano.',
-      },
-    ];
+    return buildSystemPassiveRules(capabilities, (workflowId) => this.getWorkflowDefinition(workflowId));
   }
 
 
@@ -901,21 +841,9 @@ export class WorkflowHubService {
 
 
 
-  private getStatePath(): string {
-    return path.join(app.getPath('userData'), 'workflow-hub-state.json');
-  }
-
   private loadState(): void {
     try {
-      const statePath = this.getStatePath();
-      if (!fs.existsSync(statePath)) {
-        this.saveState();
-        return;
-      }
-      const parsed = JSON.parse(fs.readFileSync(statePath, 'utf-8')) as Partial<WorkflowHubState>;
-      this.state = {
-        variants: Array.isArray(parsed.variants) ? parsed.variants : [],
-      };
+      this.state = loadWorkflowHubState();
     } catch (error) {
       console.error('[WorkflowHubService] No se pudo cargar el estado:', error);
       this.state = { variants: [] };
@@ -924,8 +852,6 @@ export class WorkflowHubService {
   }
 
   private saveState(): void {
-    const statePath = this.getStatePath();
-    fs.mkdirSync(path.dirname(statePath), { recursive: true });
-    fs.writeFileSync(statePath, JSON.stringify(this.state, null, 2), 'utf-8');
+    saveWorkflowHubState(this.state);
   }
 }

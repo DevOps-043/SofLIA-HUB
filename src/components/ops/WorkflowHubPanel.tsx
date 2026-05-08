@@ -17,6 +17,12 @@ import {
   type WorkflowId,
 } from '../../services/workflow-hub-service';
 import { Badge, EmptyState } from './workflow-hub-panel/components';
+import { CapabilityGrid } from './workflow-hub-panel/CapabilityGrid';
+import { LegacyTemplatesNotice } from './workflow-hub-panel/LegacyTemplatesNotice';
+import { PassiveRulesList } from './workflow-hub-panel/PassiveRulesList';
+import { WorkflowCardSection } from './workflow-hub-panel/WorkflowCardSection';
+import { WorkflowHubUnavailable } from './workflow-hub-panel/WorkflowHubUnavailable';
+import { WorkflowVariantsPicker } from './workflow-hub-panel/WorkflowVariantsPicker';
 import {
   buildCronExpression,
   describeSchedule,
@@ -602,16 +608,7 @@ export const WorkflowHubPanel: React.FC<WorkflowHubPanelProps> = ({ userId }) =>
   }
 
   if (!hubAvailable) {
-    return (
-      <div className="h-full flex items-center justify-center p-10">
-        <div className="max-w-md rounded-3xl border border-dashed border-gray-300 dark:border-white/[0.08] px-8 py-10 text-center bg-white/60 dark:bg-white/[0.02]">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Workflow Hub no disponible</h3>
-          <p className="mt-3 text-sm text-gray-500 dark:text-gray-500">
-            Este panel necesita el bridge nuevo de workflows dentro de Electron.
-          </p>
-        </div>
-      </div>
-    );
+    return <WorkflowHubUnavailable />;
   }
 
   return (
@@ -638,133 +635,46 @@ export const WorkflowHubPanel: React.FC<WorkflowHubPanelProps> = ({ userId }) =>
 
       <div className="flex-1 overflow-y-auto no-scrollbar">
         <section className="px-6 pt-2 pb-5 space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
-            {(overview?.capabilities || []).map((capability) => (
-              <div key={capability.key} className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1a1c20]/50 p-4 shadow-sm dark:shadow-lg">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <p className="text-[12px] font-semibold text-gray-900 dark:text-white">{capability.label}</p>
-                  <Badge value={capability.state} />
-                </div>
-                <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-relaxed">{capability.message}</p>
-                {capability.guidance && <p className="mt-2 text-[11px] text-accent leading-relaxed">{capability.guidance}</p>}
-              </div>
-            ))}
-          </div>
+          <CapabilityGrid capabilities={overview?.capabilities || []} />
 
-          {overview && overview.legacyCustomTemplates.length > 0 && (
-            <div className="rounded-2xl border border-amber-500/20 bg-amber-500/8 px-5 py-4 text-xs text-amber-700 dark:text-amber-200">
-              Detecte {overview.legacyCustomTemplates.length} flujo(s) personalizados legacy. Se conservan en storage, pero ahora se crean variantes sobre workflows predeterminados.
-            </div>
-          )}
+          <LegacyTemplatesNotice overview={overview} />
 
           <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-5">
             <div className="space-y-4">
-              <div className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1a1c20]/50 p-5 shadow-sm dark:shadow-lg">
-                <div className="flex items-center justify-between gap-3 mb-3">
-                  <p className="text-sm font-bold text-gray-900 dark:text-white">Pasivos</p>
-                  <span className="text-[10px] uppercase tracking-[0.16em] text-gray-400 dark:text-gray-500">Se ejecutan solos</span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {passiveCapableWorkflows.map((workflow) => (
-                    <button key={workflow.id} type="button" onClick={() => { setSelectedWorkflowId(workflow.id); setSelectedVariantId(null); }}
-                      className={`rounded-2xl border text-left px-4 py-4 transition-all ${
-                        selectedWorkflowId === workflow.id
-                          ? 'border-accent/30 bg-accent/8 shadow-md ring-1 ring-accent/10'
-                          : 'border-gray-200 dark:border-white/[0.06] hover:border-accent/20 bg-gray-50 dark:bg-white/[0.02]'
-                      }`}>
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-bold text-gray-900 dark:text-white">{workflow.name}</p>
-                        <Badge value={workflow.passiveBehavior === 'system' ? 'system' : 'active'} />
-                      </div>
-                      <p className="mt-1 text-[12px] text-gray-500 dark:text-gray-400 leading-relaxed">{workflow.summary}</p>
-                      <p className="mt-2 text-[10px] text-accent">{workflow.passiveBehavior === 'system' ? 'Pasivo de sistema' : 'Pasivo programable'}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <WorkflowCardSection
+                title="Pasivos"
+                eyebrow="Se ejecutan solos"
+                workflows={passiveCapableWorkflows}
+                selectedWorkflowId={selectedWorkflowId}
+                passive
+                onSelect={(workflowId) => { setSelectedWorkflowId(workflowId); setSelectedVariantId(null); }}
+              />
 
-              <div className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1a1c20]/50 p-5 shadow-sm dark:shadow-lg">
-                <div className="flex items-center justify-between gap-3 mb-3">
-                  <p className="text-sm font-bold text-gray-900 dark:text-white">Rutinas guardadas</p>
-                  <span className="text-[10px] uppercase tracking-[0.16em] text-gray-400 dark:text-gray-500">{passiveRules.length}</span>
-                </div>
-                <div className="space-y-2">
-                  {passiveRules.length === 0 && <EmptyState text="Sin workflows pasivos guardados" />}
-                  {passiveRules.map((rule) => (
-                    <div key={rule.id} className="rounded-xl border border-gray-200 dark:border-white/[0.06] bg-gray-50 dark:bg-white/[0.02] px-4 py-3">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-[12px] font-semibold text-gray-900 dark:text-white">{rule.name}</p>
-                            <Badge value={rule.status} />
-                          </div>
-                          <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{rule.description}</p>
-                          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-gray-400 dark:text-gray-500">
-                            <span>{rule.workflowName}</span>
-                            <span>{rule.scheduleLabel}</span>
-                            {rule.lastRunAt && <span>Ultima: {formatDateTime(rule.lastRunAt)}</span>}
-                          </div>
-                          {rule.reason && <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-300">{rule.reason}</p>}
-                        </div>
-                        {rule.source !== 'system' && (
-                          <button
-                            type="button"
-                            className="rounded-xl border border-red-500/20 bg-red-500/8 hover:bg-red-500/12 text-red-600 dark:text-red-300 px-3 py-1.5 text-[11px] font-semibold transition disabled:opacity-40"
-                            onClick={() => void runAction(`delete-passive-${rule.id}`, async () => {
-                              const result = await deletePassiveWorkflowRule(rule.id);
-                              if (!result.success || !result.deleted) throw new Error(result.error || 'No pude eliminar el workflow pasivo.');
-                              await refreshOverview(true, selectedCaseId || undefined);
-                              setNotice(`Workflow pasivo eliminado: ${rule.name}.`);
-                            })}
-                            disabled={actionKey === `delete-passive-${rule.id}`}>
-                            {actionKey === `delete-passive-${rule.id}` ? 'Eliminando...' : 'Eliminar'}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <PassiveRulesList
+                passiveRules={passiveRules}
+                actionKey={actionKey}
+                onDeleteRule={(rule) => void runAction(`delete-passive-${rule.id}`, async () => {
+                  const result = await deletePassiveWorkflowRule(rule.id);
+                  if (!result.success || !result.deleted) throw new Error(result.error || 'No pude eliminar el workflow pasivo.');
+                  await refreshOverview(true, selectedCaseId || undefined);
+                  setNotice(`Workflow pasivo eliminado: ${rule.name}.`);
+                })}
+              />
 
-              <div className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1a1c20]/50 p-5 shadow-sm dark:shadow-lg">
-                <div className="flex items-center justify-between gap-3 mb-3">
-                  <p className="text-sm font-bold text-gray-900 dark:text-white">Activacion</p>
-                  <span className="text-[10px] uppercase tracking-[0.16em] text-gray-400 dark:text-gray-500">Se lanzan al pedirlos</span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {activationCapableWorkflows.map((workflow) => (
-                    <button key={workflow.id} type="button" onClick={() => { setSelectedWorkflowId(workflow.id); setSelectedVariantId(null); }}
-                      className={`rounded-2xl border text-left px-4 py-4 transition-all ${
-                        selectedWorkflowId === workflow.id
-                          ? 'border-accent/30 bg-accent/8 shadow-md ring-1 ring-accent/10'
-                          : 'border-gray-200 dark:border-white/[0.06] hover:border-accent/20 bg-gray-50 dark:bg-white/[0.02]'
-                      }`}>
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">{workflow.name}</p>
-                      <p className="mt-1 text-[12px] text-gray-500 dark:text-gray-400 leading-relaxed">{workflow.summary}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <WorkflowCardSection
+                title="Activacion"
+                eyebrow="Se lanzan al pedirlos"
+                workflows={activationCapableWorkflows}
+                selectedWorkflowId={selectedWorkflowId}
+                onSelect={(workflowId) => { setSelectedWorkflowId(workflowId); setSelectedVariantId(null); }}
+              />
 
-              <div className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1a1c20]/50 p-5 shadow-sm dark:shadow-lg">
-                <p className="text-sm font-bold text-gray-900 dark:text-white mb-3">Variantes</p>
-                <div className="flex flex-wrap gap-2">
-                  <button type="button" onClick={() => setSelectedVariantId(null)}
-                    className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition ${
-                      !selectedVariant ? 'border-accent/30 bg-accent/10 text-accent' : 'border-gray-200 dark:border-white/[0.06] text-gray-500 dark:text-gray-400'
-                    }`}>
-                    Base
-                  </button>
-                  {workflowVariants.map((variant) => (
-                    <button key={variant.id} type="button" onClick={() => setSelectedVariantId(variant.id)}
-                      className={`px-3 py-1.5 rounded-full text-[11px] font-semibold border transition ${
-                        selectedVariantId === variant.id ? 'border-accent/30 bg-accent/10 text-accent' : 'border-gray-200 dark:border-white/[0.06] text-gray-500 dark:text-gray-400'
-                      }`}>
-                      {variant.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <WorkflowVariantsPicker
+                variants={workflowVariants}
+                selectedVariantId={selectedVariantId}
+                hasSelectedVariant={Boolean(selectedVariant)}
+                onSelectVariant={setSelectedVariantId}
+              />
             </div>
 
             <div className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1a1c20]/50 p-5 shadow-sm dark:shadow-lg space-y-4">

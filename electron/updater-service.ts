@@ -1,230 +1,57 @@
-/**
- * UpdaterService — Gestiona auto-actualizaciones de la aplicación vía electron-updater.
- * Polling cada 4 horas + verificación al arrancar (con delay).
- */
-import { EventEmitter } from 'events'
-import electronUpdater from 'electron-updater'
-import type { UpdateInfo, ProgressInfo } from 'electron-updater'
-import { app } from 'electron'
+import { EventEmitter } from 'events';
+import { app } from 'electron';
+import electronUpdater from 'electron-updater';
+import { CHECK_INTERVAL_MS, STARTUP_DELAY_MS } from './updater/constants';
+import { registerUpdaterEvents } from './updater/events';
+import { UpdaterRuntime } from './updater/runtime';
+import type { UpdaterStatus } from './updater/types';
 
-const { autoUpdater } = electronUpdater as typeof import('electron-updater')
+const { autoUpdater } = electronUpdater as typeof import('electron-updater');
 
-// ─── Types ──────────────────────────────────────────────────────────
+export type { UpdaterState, UpdaterStatus } from './updater/types';
 
-/**
- * Representa los posibles estados del ciclo de vida del servicio de actualización.
- */
-export type UpdaterState =
-  | 'idle' // El servicio está inactivo.
-  | 'checking' // Buscando actualizaciones.
-  | 'available' // Actualización encontrada.
-  | 'not-available' // No hay actualizaciones.
-  | 'downloading' // Descargando actualización.
-  | 'downloaded' // Descarga completa, lista para instalar.
-  | 'error' // Ocurrió un error.
-
-/**
- * Define la estructura del objeto de estado que representa la situación actual del actualizador.
- */
-export interface UpdaterStatus {
-  /** El estado actual del ciclo de vida. */
-  state: UpdaterState
-  /** La versión actual de la aplicación. */
-  currentVersion: string
-  /** La nueva versión disponible, si existe. */
-  availableVersion: string | null
-  /** Notas de la versión para la actualización. */
-  releaseNotes: string | null
-  /** Progreso de descarga en porcentaje (0-100). */
-  downloadProgress: number | null
-  /** Mensaje de error si el estado es 'error'. */
-  error: string | null
-}
-
-// ─── Service ────────────────────────────────────────────────────────
-
-/** Intervalo para la verificación periódica de actualizaciones (4 horas). */
-const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000 // 4 horas
-
-/** Retraso antes de la primera verificación al iniciar la app (10 segundos). */
-const STARTUP_DELAY_MS = 10 * 1000 // 10 segundos
-
-/**
- * Gestiona el ciclo de vida de las actualizaciones de la aplicación usando `electron-updater`.
- *
- * Realiza una verificación al arrancar y luego periódicamente cada 4 horas.
- * Emite eventos para comunicar cambios de estado a través de la aplicación.
- *
- * @fires status-changed - Con el estado `UpdaterStatus` cada vez que cambia.
- * @fires update-available - Cuando se encuentra una nueva versión.
- * @fires download-progress - Durante la descarga de una actualización.
- * @fires update-downloaded - Cuando la descarga ha finalizado.
- * @fires error - Si ocurre un error durante el proceso.
- */
 export class UpdaterService extends EventEmitter {
-  private state: UpdaterState = 'idle'
-  private availableVersion: string | null = null
-  private releaseNotes: string | null = null
-  private downloadProgress: number | null = null
-  private errorMessage: string | null = null
-  private pollInterval: NodeJS.Timeout | null = null
+  private readonly runtime = new UpdaterRuntime(
+    (event, payload) => this.emit(event, payload),
+    () => app.getVersion(),
+  );
+  private pollInterval: NodeJS.Timeout | null = null;
 
-  /**
-   * Inicializa el servicio, configura `electron-updater` y comienza el ciclo de verificación.
-   */
   init(): void {
-    // Configuración: descarga automática + instala silenciosamente al cerrar
-    autoUpdater.autoDownload = true
-    autoUpdater.autoInstallOnAppQuit = true
-    autoUpdater.allowDowngrade = false
-
-    // ─── Eventos de electron-updater ──────────────────────────
-    autoUpdater.on('checking-for-update', () => {
-      this.state = 'checking'
-      this.emit('status-changed', this.getStatus())
-      console.log('[Updater] Verificando actualizaciones...')
-    })
-
-    /**
-     * @event update-available
-     * @description Emitido cuando una actualización está disponible. El payload contiene detalles de la versión.
-     */
-    autoUpdater.on('update-available', (info: UpdateInfo) => {
-      this.state = 'available'
-      this.availableVersion = info.version
-      this.releaseNotes = typeof info.releaseNotes === 'string'
-        ? info.releaseNotes
-        : Array.isArray(info.releaseNotes)
-          ? info.releaseNotes.map(n => typeof n === 'string' ? n : n.note).join('\n')
-          : null
-      this.errorMessage = null
-      this.emit('update-available', {
-        version: info.version,
-        releaseNotes: this.releaseNotes,
-        releaseDate: info.releaseDate,
-      })
-      this.emit('status-changed', this.getStatus())
-      console.log(`[Updater] Actualización disponible: v${info.version}`)
-    })
-
-    autoUpdater.on('update-not-available', (_info: UpdateInfo) => {
-      this.state = 'not-available'
-      this.errorMessage = null
-      this.emit('status-changed', this.getStatus())
-      console.log('[Updater] No hay actualizaciones disponibles')
-    })
-
-    /**
-     * @event download-progress
-     * @description Emitido periódicamente con el progreso de la descarga.
-     */
-    autoUpdater.on('download-progress', (progress: ProgressInfo) => {
-      this.state = 'downloading'
-      this.downloadProgress = Math.round(progress.percent)
-      this.emit('download-progress', {
-        percent: this.downloadProgress,
-        bytesPerSecond: progress.bytesPerSecond,
-        transferred: progress.transferred,
-        total: progress.total,
-      })
-      this.emit('status-changed', this.getStatus())
-    })
-
-    /**
-     * @event update-downloaded
-     * @description Emitido cuando la actualización ha sido descargada por completo.
-     */
-    autoUpdater.on('update-downloaded', (_info: UpdateInfo) => {
-      this.state = 'downloaded'
-      this.downloadProgress = 100
-      this.emit('update-downloaded', {
-        version: this.availableVersion,
-        releaseNotes: this.releaseNotes,
-      })
-      this.emit('status-changed', this.getStatus())
-      console.log('[Updater] Actualización descargada — lista para instalar')
-    })
-
-    /**
-     * @event error
-     * @description Emitido cuando ocurre un error durante el proceso de actualización.
-     */
-    autoUpdater.on('error', (err: Error) => {
-      this.state = 'error'
-      this.errorMessage = err.message
-      this.emit('error', { message: err.message })
-      this.emit('status-changed', this.getStatus())
-      console.error('[Updater] Error:', err.message)
-    })
-
-    // Verificar al arrancar (con delay para no bloquear startup)
-    setTimeout(() => {
-      this.checkForUpdates().catch(() => {})
-    }, STARTUP_DELAY_MS)
-
-    // Polling periódico
-    this.pollInterval = setInterval(() => {
-      this.checkForUpdates().catch(() => {})
-    }, CHECK_INTERVAL_MS)
-
-    console.log('[Updater] Inicializado — polling cada 4h')
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.allowDowngrade = false;
+    registerUpdaterEvents(autoUpdater, this.runtime.createEventHandlers());
+    setTimeout(() => this.checkForUpdates().catch(() => {}), STARTUP_DELAY_MS);
+    this.pollInterval = setInterval(() => this.checkForUpdates().catch(() => {}), CHECK_INTERVAL_MS);
+    console.log('[Updater] Inicializado - polling cada 4h');
   }
 
-  /**
-   * Dispara una búsqueda manual de actualizaciones.
-   * @returns {Promise<UpdaterStatus>} El estado actual después de la verificación.
-   */
   async checkForUpdates(): Promise<UpdaterStatus> {
     try {
-      await autoUpdater.checkForUpdates()
+      await autoUpdater.checkForUpdates();
     } catch (err: any) {
-      this.state = 'error'
-      this.errorMessage = err.message
+      this.runtime.handleError(err);
     }
-    return this.getStatus()
+    return this.getStatus();
   }
 
-  /**
-   * Inicia manualmente la descarga de una actualización.
-   */
   async downloadUpdate(): Promise<void> {
-    this.state = 'downloading'
-    this.downloadProgress = 0
-    this.emit('status-changed', this.getStatus())
-    await autoUpdater.downloadUpdate()
+    this.runtime.startDownload();
+    await autoUpdater.downloadUpdate();
   }
 
-  /**
-   * Cierra la aplicación e instala la actualización descargada.
-   */
   installUpdate(): void {
-    // isSilent=true: no muestra wizard/UI del instalador
-    // isForceRunAfter=true: reabre la app automáticamente después de instalar
-    autoUpdater.quitAndInstall(true, true)
+    autoUpdater.quitAndInstall(true, true);
   }
 
-  /**
-   * Devuelve el estado actual completo del servicio de actualización.
-   * @returns {UpdaterStatus} El objeto de estado actual.
-   */
   getStatus(): UpdaterStatus {
-    return {
-      state: this.state,
-      currentVersion: app.getVersion(),
-      availableVersion: this.availableVersion,
-      releaseNotes: this.releaseNotes,
-      downloadProgress: this.downloadProgress,
-      error: this.errorMessage,
-    }
+    return this.runtime.getStatus();
   }
 
-  /**
-   * Detiene la verificación periódica de actualizaciones.
-   */
   stop(): void {
-    if (this.pollInterval) {
-      clearInterval(this.pollInterval)
-      this.pollInterval = null
-    }
+    if (!this.pollInterval) return;
+    clearInterval(this.pollInterval);
+    this.pollInterval = null;
   }
 }

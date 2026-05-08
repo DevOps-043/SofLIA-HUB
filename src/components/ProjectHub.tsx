@@ -8,6 +8,9 @@ import {
   getSourcesForFolder, addSourceFromDrive, addSourceFromUpload,
   removeSource, getDownloadUrl,
 } from '../services/workspace-sources';
+import { AddSourceMenu } from './project-hub/AddSourceMenu';
+import { DrivePickerModal } from './project-hub/DrivePickerModal';
+import { formatDate, formatFileSize, getInitials, sourceTypeIcon } from './project-hub/formatters';
 
 interface ProjectHubProps {
   folder: Folder;
@@ -108,31 +111,6 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
     if (url) window.open(url, '_blank');
   };
 
-  const formatFileSize = (bytes?: number) => {
-    if (!bytes) return '';
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  };
-
-  const sourceTypeIcon = (type: string) => {
-    if (type === 'drive') return (
-      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
-      </svg>
-    );
-    if (type === 'outlook') return (
-      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-      </svg>
-    );
-    return (
-      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-      </svg>
-    );
-  };
-
   useEffect(() => {
     if (isEditing) {
       inputRef.current?.focus();
@@ -168,22 +146,6 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
       }
     }
     setRenamingChatId(null);
-  };
-
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) return 'Hoy';
-    if (diffDays === 1) return 'Ayer';
-    if (diffDays < 7) return `${diffDays} mar`; 
-    return d.toLocaleDateString('es', { day: 'numeric', month: 'short' });
-  };
-
-  const getInitials = (name: string) => {
-    return name.slice(0, 2).toUpperCase();
   };
 
   return (
@@ -440,43 +402,15 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
             <div className="w-full">
               {/* Add source button */}
               {userId && orgId && (
-                <div className="relative mb-6">
-                  <button
-                    onClick={() => setShowAddMenu(!showAddMenu)}
-                    className="w-full py-3.5 bg-accent/5 hover:bg-accent/10 text-accent text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl transition-all flex items-center justify-center gap-2.5 border border-accent/10 hover:border-accent/20"
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                    </svg>
-                    Agregar Fuente
-                  </button>
-
-                  {showAddMenu && (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={() => setShowAddMenu(false)} />
-                      <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-[#1a1b1e] border border-gray-200 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden z-20">
-                        <button
-                          onClick={() => { setShowAddMenu(false); setShowDrivePicker(true); loadDriveFiles(); }}
-                          className="w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-gray-50 dark:hover:bg-white/5 transition-all"
-                        >
-                          <div className="text-accent">{sourceTypeIcon('drive')}</div>
-                          <span className="text-[11px] font-bold uppercase tracking-widest text-gray-700 dark:text-gray-300">Google Drive</span>
-                        </button>
-                        <div className="h-px bg-gray-100 dark:bg-white/5" />
-                        <button
-                          onClick={() => { setShowAddMenu(false); fileInputRef.current?.click(); }}
-                          className="w-full flex items-center gap-3 px-5 py-3.5 text-left hover:bg-gray-50 dark:hover:bg-white/5 transition-all"
-                        >
-                          <div className="text-accent">{sourceTypeIcon('upload')}</div>
-                          <span className="text-[11px] font-bold uppercase tracking-widest text-gray-700 dark:text-gray-300">Subir Archivo</span>
-                        </button>
-                      </div>
-                    </>
-                  )}
-                  <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileUpload} />
-                </div>
+                <AddSourceMenu
+                  fileInputRef={fileInputRef}
+                  isOpen={showAddMenu}
+                  onFileUpload={handleFileUpload}
+                  onOpenDrivePicker={() => { setShowAddMenu(false); setShowDrivePicker(true); loadDriveFiles(); }}
+                  onToggle={() => setShowAddMenu(!showAddMenu)}
+                  onUploadClick={() => { setShowAddMenu(false); fileInputRef.current?.click(); }}
+                />
               )}
-
               {/* Sources list */}
               {loadingSources ? (
                 <div className="py-20 flex items-center justify-center">
@@ -522,76 +456,16 @@ export const ProjectHub: React.FC<ProjectHubProps> = ({
                 </div>
               )}
 
-              {/* Drive Picker Modal */}
-              {showDrivePicker && (
-                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowDrivePicker(false)}>
-                  <div className="relative bg-white dark:bg-[#1a1b1e]/90 border border-gray-200 dark:border-white/10 rounded-3xl shadow-2xl w-full max-w-md mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 blur-[60px] pointer-events-none" />
-
-                    <div className="absolute top-4 right-4 z-20">
-                      <button onClick={() => setShowDrivePicker(false)} className="w-8 h-8 rounded-full bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-all group">
-                        <svg className="w-4 h-4 transition-transform group-hover:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-
-                    <div className="relative z-10 px-8 pt-10 pb-2">
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-1.5 h-6 bg-accent rounded-full shadow-[0_0_10px_rgba(34,211,238,0.5)]" />
-                        <div>
-                          <h3 className="text-gray-900 dark:text-white text-lg font-black uppercase tracking-widest leading-none">Google Drive</h3>
-                          <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest mt-1 opacity-60">Seleccionar archivo</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="relative z-10 px-8 pb-2">
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={driveSearch}
-                          onChange={e => setDriveSearch(e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter') loadDriveFiles(driveSearch.trim() || undefined); }}
-                          placeholder="Buscar en Drive..."
-                          className="flex-1 px-4 py-2.5 bg-gray-100/50 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-xl text-[11px] font-bold text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-700 focus:outline-none focus:border-accent/30 transition-all"
-                        />
-                        <button onClick={() => loadDriveFiles(driveSearch.trim() || undefined)} className="px-4 py-2.5 bg-accent/10 text-accent rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-accent/20 transition-all">
-                          Buscar
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="relative z-10 px-4 py-2 max-h-72 overflow-y-auto custom-scrollbar mb-6">
-                      {driveLoading ? (
-                        <div className="py-12 flex items-center justify-center">
-                          <div className="w-5 h-5 border-2 border-accent/30 border-t-accent rounded-full animate-spin" />
-                        </div>
-                      ) : driveFiles.length === 0 ? (
-                        <div className="py-12 text-center opacity-30">
-                          <p className="text-[10px] font-black uppercase tracking-widest">Sin archivos</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-1">
-                          {driveFiles.map(file => (
-                            <button
-                              key={file.id}
-                              onClick={() => handleDriveSelect(file)}
-                              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-left hover:bg-black/5 dark:hover:bg-white/5 transition-all"
-                            >
-                              <div className="text-accent">{sourceTypeIcon('drive')}</div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-[11px] font-bold text-gray-900 dark:text-white truncate">{file.name}</p>
-                                <p className="text-[9px] text-gray-500 dark:text-gray-500 uppercase tracking-widest">{file.mimeType?.split('/').pop()}{file.size ? ` — ${formatFileSize(Number(file.size))}` : ''}</p>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
+              <DrivePickerModal
+                isOpen={showDrivePicker}
+                driveFiles={driveFiles}
+                driveLoading={driveLoading}
+                driveSearch={driveSearch}
+                onClose={() => setShowDrivePicker(false)}
+                onDriveSearchChange={setDriveSearch}
+                onSearch={() => loadDriveFiles(driveSearch.trim() || undefined)}
+                onSelect={handleDriveSelect}
+              />
             </div>
           )}
         </div>

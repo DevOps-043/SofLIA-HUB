@@ -1,8 +1,14 @@
 import { EventEmitter } from 'node:events';
 import fs from 'node:fs';
-import path from 'node:path';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { app as electronApp } from 'electron';
+import {
+  createBrowserTaskArtifacts,
+  getBrowserProfileDirectory,
+  getBrowserWebProfilesBaseDir,
+  resolveBrowserProfileId,
+  sanitizeBrowserProfileId,
+  startBrowserTaskTrace,
+} from './browser-web/artifacts';
 import {
   DEFAULT_FALLBACK_MODEL,
   DEFAULT_MODEL,
@@ -411,89 +417,28 @@ export class BrowserWebService extends EventEmitter {
       .catch(next.reject);
   }
 
-  private getArtifactsBaseDir(): string {
-    try {
-      return path.join(electronApp.getPath('userData'), 'computer-use', 'browser-web');
-    } catch {
-      return path.join(process.cwd(), 'computer-use-artifacts', 'browser-web');
-    }
-  }
-
   private getProfilesBaseDir(): string {
-    try {
-      return path.join(electronApp.getPath('userData'), 'computer-use', 'browser-web-profiles');
-    } catch {
-      return path.join(process.cwd(), 'computer-use-artifacts', 'browser-web-profiles');
-    }
+    return getBrowserWebProfilesBaseDir();
   }
 
   private sanitizeProfileId(profileId: string): string {
-    const cleaned = String(profileId || '')
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9_-]+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 48);
-
-    return cleaned || 'default';
+    return sanitizeBrowserProfileId(profileId);
   }
 
   private resolveProfileId(profileId?: string): string {
-    return this.sanitizeProfileId(profileId || 'default');
+    return resolveBrowserProfileId(profileId);
   }
 
   private getProfileDirectory(profileId: string): string {
-    return path.join(this.getProfilesBaseDir(), this.resolveProfileId(profileId));
-  }
-
-  private sanitizeTaskLabel(task: string): string {
-    const cleaned = task
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 48);
-
-    return cleaned || 'task';
+    return getBrowserProfileDirectory(profileId);
   }
 
   private createTaskArtifacts(task: string): BrowserTaskArtifacts {
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const taskId = `browser-${Date.now().toString(36)}`;
-    const runDirectory = path.join(
-      this.getArtifactsBaseDir(),
-      `${stamp}-${this.sanitizeTaskLabel(task)}`,
-    );
-
-    fs.mkdirSync(runDirectory, { recursive: true });
-
-    return {
-      taskId,
-      runDirectory,
-      tracePath: path.join(runDirectory, 'trace.zip'),
-      reportPath: path.join(runDirectory, 'report.json'),
-      finalScreenshotPath: path.join(runDirectory, 'final.png'),
-    };
+    return createBrowserTaskArtifacts(task);
   }
 
   private async startTaskTrace(): Promise<{ success: boolean; error: string | null }> {
-    if (!this.context?.tracing) {
-      return { success: false, error: 'Tracing de Playwright no disponible.' };
-    }
-
-    try {
-      await this.context.tracing.start({
-        screenshots: true,
-        snapshots: true,
-        sources: false,
-      });
-      return { success: true, error: null };
-    } catch (err: any) {
-      return {
-        success: false,
-        error: err.message || 'No se pudo iniciar el trace de Playwright.',
-      };
-    }
+    return startBrowserTaskTrace(this.context);
   }
 
   private async finalizeTaskArtifacts(params: {

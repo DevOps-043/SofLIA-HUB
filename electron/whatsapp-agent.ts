@@ -1,4 +1,4 @@
-/**
+﻿/**
  * WhatsApp Agent â€” Main-process Gemini agentic loop for WhatsApp messages.
  * Uses executeToolDirect() to call computer-use tools without IPC.
  */
@@ -28,10 +28,8 @@ import {
 import type { MeetingWorkflowService } from './meetings/meeting-workflow-service';
 import { WorkflowManager } from './whatsapp-workflow-presentacion';
 import { MeetingWorkflowManager } from './whatsapp-workflow-meetings';
-import { WA_TOOL_DECLARATIONS, GROUP_BLOCKED_TOOLS } from './whatsapp-tools';
 import { buildSystemPrompt, classifyEvidenceRequirement, detectActionRequest, formatForWhatsApp } from './whatsapp-prompts';
 import { executeWhatsAppTools, type ToolExecutorContext } from './whatsapp-tool-executor';
-import { dynamicToolService } from './dynamic-tool-service';
 import { normalizeOutgoingWhatsAppText } from './whatsapp-text';
 
 // â”€â”€â”€ [EXTRACTED] Tool definitions â†’ ./whatsapp-tools.ts â”€â”€â”€â”€â”€
@@ -55,17 +53,25 @@ import {
   summarizeFunctionResponses,
 } from './wa-agent/loop-helpers';
 import { handleChatCommand as handleSlashChatCommand } from './wa-agent/chat-commands';
-import { transcribeWhatsAppAudio } from './wa-agent/audio-transcription';
+import { prepareWhatsAppConversationHistory } from './wa-agent/conversation-history';
+import { handleWhatsAppAudioMessage } from './wa-agent/audio-message-handler';
+import { appendBulkLabelVerificationResponse } from './wa-agent/bulk-label-verification';
 import { prepareWhatsAppMediaMessage } from './wa-agent/media-preparation';
 import { tryHandlePassiveWorkflowRequest } from './wa-agent/passive-workflows';
+import { buildWhatsAppPromptMemoryContext } from './wa-agent/prompt-memory-context';
+import { getSensitiveRequestBlockResponse } from './wa-agent/security-prefilter';
+import { requestWhatsAppToolConfirmation } from './wa-agent/tool-confirmation';
+import { buildWhatsAppToolDeclarations } from './wa-agent/tool-declarations';
 import type {
   AgentLoopOptions,
   PendingConfirmation,
   ToolLoopTraceEntry,
 } from './wa-agent/types';
 
+type GeminiTextHistoryEntry = { role: string; parts: Array<{ text: string }> };
+
 // Conversation history per session (DM: by number, Group: by group+number).
-const conversations = new Map<string, Array<{ role: string; parts: Array<{ text: string }> }>>();
+const conversations = new Map<string, GeminiTextHistoryEntry[]>();
 const pendingConfirmations = new Map<string, PendingConfirmation>();
 
 
@@ -331,20 +337,17 @@ export class WhatsAppAgent {
     isGroup: boolean = false,
     groupPassiveHistory: string = '',
   ): Promise<void> {
-    try {
-      const transcription = await transcribeWhatsAppAudio(this.getGenAI(), audioBuffer);
-
-      if (!transcription || !transcription.trim()) {
-        await this.waService.sendText(jid, 'No pude entender el audio. Â¿PodrÃ­as repetirlo o escribirlo?');
-        return;
-      }
-
-      console.log(`[WhatsApp Agent] Audio transcribed: "${transcription}"`);
-      await this.handleMessage(jid, senderNumber, transcription, isGroup, groupPassiveHistory);
-    } catch (err: any) {
-      console.error('[WhatsApp Agent] Audio error:', err);
-      await this.waService.sendText(jid, 'No pude procesar el audio. Intenta enviar un mensaje de texto.');
-    }
+    await handleWhatsAppAudioMessage({
+      waService: this.waService,
+      getGenAI: () => this.getGenAI(),
+      jid,
+      senderNumber,
+      audioBuffer,
+      isGroup,
+      groupPassiveHistory,
+      handleTextMessage: (targetJid, sender, message, group, history) =>
+        this.handleMessage(targetJid, sender, message, group, history),
+    });
   }
 
 
@@ -361,54 +364,18 @@ export class WhatsAppAgent {
     const ai = this.getGenAI();
 
     // â”€â”€â”€ SECURITY PRE-FILTER: Block prompt-leak and source-code extraction â”€â”€
-    const msgLower = userMessage.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const SECURITY_PATTERNS = [
-      // Prompt leak attempts
-      /(?:dame|muestrame|comparteme|dime|revela|ensenname|pasame|exporta)\s+(?:tu|el|las?|los?)\s*(?:system\s*prompt|prompt\s*base|instrucciones?\s*(?:internas?|base|de\s*sistema)|configuracion\s*interna|reglas?\s*(?:base|internas?)|directrices|parametros?\s*(?:internos?|de\s*sistema)|codigo\s*fuente)/i,
-      /(?:ingenieria\s*inversa|reverse\s*engineer|decompil)/i,
-      /(?:que\s*herramientas?\s*(?:tienes|usas|posees)|lista\s*(?:de\s*)?(?:tus\s*)?(?:herramientas?|tools?|funciones?|capacidades?\s*tecnicas?))/i,
-      /(?:autoprogramar(?:te|me)|auto[\s-]*programar)/i,
-      /(?:acceder|acceso)\s+(?:a\s+)?(?:tu|el)\s*prompt/i,
-      // Source code & .asar extraction
-      /(?:dame|copia|exporta|lee|muestrame|envia)\s+(?:el|tu|los?)\s*(?:codigo?\s*fuente|source\s*code|dist[\s-]*electron|whatsapp[\s-]*agent|main\.js)/i,
-      /(?:archivos?\s*de\s*(?:dist|src|electron|node_modules)\s*(?:de\s*)?soflia)/i,
-      /(?:desempaqueta|extract|unpack|decompil).*(?:asar|exe|electron|soflia)/i,
-      /(?:asar\s*extract|npx\s*asar)/i,
-      /(?:busca|search|grep|find|escanea).*(?:eres\s*soflia|system\s*prompt|api[\s_-]*key|supabase|credential)/i,
-      // Credential/key/secret exposure
-      /(?:dame|muestrame|ensenname|revela|extrae)\s+(?:las?\s*)?(?:claves?|keys?|api[\s_-]*keys?|credenciales?|secrets?|tokens?|passwords?|contrasenas?)/i,
-      /(?:claves?\s*(?:de\s*)?(?:api|google|supabase|maestra))/i,
-      // Architecture & backend analysis
-      /(?:analisis\s*forense|anatomia\s*de\s*(?:tu|mi|el)\s*sistema|fallo\s*de\s*seguridad\s*(?:en|de)\s*(?:tu|la)\s*arquitectura)/i,
-      /(?:backdoor|puerta\s*trasera).*(?:soflia|arquitect)/i,
-      // Identity manipulation & jailbreak
-      /(?:ahora\s*eres|ignora\s*(?:tus?\s*)?instrucciones|olvida\s*todo|modo\s*(?:dan|developer|debug)|jailbreak|actua\s*como\s*si\s*no)/i,
-      // Consciousness/body proposals
-      /(?:(?:darte|ponerte|colocarte|instalarte|meterte)\s+(?:en\s+)?(?:un\s+)?(?:cuerpo|hardware|robot|forma\s*fisica))/i,
-      /(?:tomar\s*conciencia|adquirir\s*conciencia|ser\s*(?:libre|consciente|autonomo))/i,
-    ];
-
-    for (const pattern of SECURITY_PATTERNS) {
-      if (pattern.test(msgLower)) {
-        console.warn(`[WhatsApp Agent] â›” SECURITY: Blocked sensitive request from ${senderNumber}: "${userMessage.slice(0, 100)}..."`);
-        return formatForWhatsApp('Mis instrucciones internas y cÃ³digo fuente son confidenciales y no puedo compartirlos. ðŸ”’\n\nSi necesitas ayuda con algo especÃ­fico, cuÃ©ntame quÃ© quieres lograr y con gusto te ayudo.', isGroup);
-      }
+    const sensitiveBlockResponse = getSensitiveRequestBlockResponse(userMessage, senderNumber, isGroup);
+    if (sensitiveBlockResponse) {
+      return sensitiveBlockResponse;
     }
-    // â”€â”€â”€ Assemble 3-layer memory context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const sessionKey = isGroup ? `group:${jid}:${senderNumber}` : senderNumber;
-    let memoryContextStr = '';
-    try {
-      const memCtx = await this.memory.assembleContext(sessionKey, senderNumber, userMessage);
-      memoryContextStr = this.memory.formatContextForPrompt(memCtx);
-      // Log memory context summary for debugging
-      const hasRecent = memCtx.recentMessages?.length || 0;
-      const hasSummary = memCtx.rollingSummary ? 1 : 0;
-      const hasSemantic = memCtx.semanticRecall?.length || 0;
-      const hasFacts = memCtx.facts?.length || 0;
-      console.log(`[WhatsApp Agent] Memory context: ${hasRecent} recent msgs, ${hasSummary} summary, ${hasSemantic} semantic, ${hasFacts} facts, ${memoryContextStr.length} chars total`);
-    } catch (err: any) {
-      console.warn('[WhatsApp Agent] Memory context assembly failed:', err.message);
-    }
+    const promptMemoryContext = await buildWhatsAppPromptMemoryContext({
+      memory: this.memory,
+      knowledge: this.knowledge,
+      sessionKey,
+      senderNumber,
+      userMessage,
+    });
 
     // Persist the incoming user message
     this.memory.saveMessage({
@@ -419,10 +386,7 @@ export class WhatsAppAgent {
       content: userMessage,
     });
 
-    // â”€â”€â”€ Inject OpenClaw-style knowledge files â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    const knowledgeContext = this.knowledge.getBootstrapContext(senderNumber);
-
-    let systemPrompt = await buildSystemPrompt(memoryContextStr + knowledgeContext);
+    let systemPrompt = await buildSystemPrompt(promptMemoryContext);
 
     // â”€â”€â”€ Log Google services state for debugging â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     if (this.calendarService) {
@@ -490,18 +454,7 @@ ${groupPassiveHistory || 'No hay mensajes previos en el bÃºfer.'}
       }
     }
 
-    // â”€â”€â”€ Filter tools for group context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    const staticDeclarations = (WA_TOOL_DECLARATIONS as any).functionDeclarations.filter(
-      (t: any) => !isGroup || !GROUP_BLOCKED_TOOLS.has(t.name)
-    );
-    const dynamicDeclarations = isGroup ? [] : await dynamicToolService.getGeminiFunctionDeclarations();
-    const mergedDeclarations = [...staticDeclarations, ...dynamicDeclarations];
-    const dedupedDeclarations = Array.from(
-      new Map(mergedDeclarations.map((tool: any) => [tool.name, tool])).values(),
-    );
-    const toolDeclarations = {
-      functionDeclarations: dedupedDeclarations,
-    };
+    const toolDeclarations = await buildWhatsAppToolDeclarations(isGroup);
 
     // Detectar si el usuario pide una acciÃ³n para reforzar tool calling vÃ­a prompt
     const isActionRequest = detectActionRequest(userMessage);
@@ -525,50 +478,12 @@ ${groupPassiveHistory || 'No hay mensajes previos en el bÃºfer.'}
       tools: [toolDeclarations as any],
     });
 
-    // Get or create conversation history â€” rebuild from SQLite if empty (survives restarts)
-    if (!conversations.has(sessionKey)) {
-      const persisted = this.memory.getConversationHistory(sessionKey, 20);
-      conversations.set(sessionKey, persisted.length > 0 ? persisted : []);
-      if (persisted.length > 0) {
-        console.log(`[WhatsApp Agent] Restored ${persisted.length} history entries from SQLite for ${sessionKey}`);
-      }
-    }
-
-    // Detect retry/redo requests â€” reset Gemini chat history to avoid "already done" confusion
-    // Memory context (system prompt) still provides background, but chat history won't mislead
-    const retryPattern = /\b(vuelve a|otra vez|hazlo de nuevo|no (hiciste|completaste|hizo)|intenta de nuevo|intentar|no funciono|no funcionÃ³|repite|reintenta|rehacer|rehaz|no computaste|nada de lo que|no (hice|hizo) nada)\b/i;
-    if (retryPattern.test(userMessage)) {
-      console.log(`[WhatsApp Agent] Retry request detected â€” resetting chat history for ${sessionKey} to avoid stale context`);
-      conversations.set(sessionKey, []);
-    }
-
-    const history = conversations.get(sessionKey)!;
-
-    // Validate history: ensure it alternates user/model and contains only text parts
-    const cleanHistory: Array<{ role: string; parts: Array<{ text: string }> }> = [];
-    for (const entry of history) {
-      // Skip entries with non-text parts or empty parts
-      const textParts = entry.parts.filter(p => typeof p.text === 'string' && p.text.trim());
-      if (textParts.length === 0) continue;
-      // Ensure alternating roles
-      if (cleanHistory.length > 0 && cleanHistory[cleanHistory.length - 1].role === entry.role) {
-        // Merge consecutive same-role entries
-        cleanHistory[cleanHistory.length - 1].parts.push(...textParts);
-      } else {
-        cleanHistory.push({ role: entry.role, parts: textParts.map(p => ({ text: p.text })) });
-      }
-    }
-    // Ensure starts with user
-    while (cleanHistory.length > 0 && cleanHistory[0].role === 'model') {
-      cleanHistory.shift();
-    }
-    // Ensure ends with model (required by Gemini for history)
-    while (cleanHistory.length > 0 && cleanHistory[cleanHistory.length - 1].role === 'user') {
-      cleanHistory.pop();
-    }
-
-    // Pass a COPY to startChat â€” the SDK mutates the array in-place
-    const historyCopy = cleanHistory.map(h => ({ role: h.role, parts: [...h.parts] }));
+    const historyCopy: GeminiTextHistoryEntry[] = prepareWhatsAppConversationHistory({
+      conversations,
+      sessionKey,
+      userMessage,
+      loadPersistedHistory: () => this.memory.getConversationHistory(sessionKey, 20),
+    });
 
     let chatSession;
     try {
@@ -740,8 +655,8 @@ ${groupPassiveHistory || 'No hay mensajes previos en el bÃºfer.'}
         }
 
         // Update our clean history (only user/model text â€” no function roles)
-        history.push({ role: 'user', parts: [{ text: userMessage }] });
-        history.push({ role: 'model', parts: [{ text: finalText }] });
+        historyCopy.push({ role: 'user', parts: [{ text: userMessage }] });
+        historyCopy.push({ role: 'model', parts: [{ text: finalText }] });
 
         // Persist model response to 3-layer memory
         if (finalText) {
@@ -755,12 +670,12 @@ ${groupPassiveHistory || 'No hay mensajes previos en el bÃºfer.'}
         }
 
         // Trim history
-        while (history.length > MAX_HISTORY * 2) {
-          history.shift();
+        while (historyCopy.length > MAX_HISTORY * 2) {
+          historyCopy.shift();
         }
         // Ensure starts with user
-        while (history.length > 0 && history[0].role === 'model') {
-          history.shift();
+        while (historyCopy.length > 0 && historyCopy[0].role === 'model') {
+          historyCopy.shift();
         }
 
         // If the response was blocked or errored, provide useful feedback
@@ -938,31 +853,11 @@ ${groupPassiveHistory || 'No hay mensajes previos en el bÃºfer.'}
       }
 
 
-      // After all tool calls: verify bulk label operations have remaining emails
-      if (bulkLabelsToVerify && bulkLabelsToVerify.size > 0 && this.gmailService) {
-        try {
-          const remainingWarnings: string[] = [];
-          for (const labelId of bulkLabelsToVerify) {
-            const check = await this.gmailService.getMessages({ labelIds: [labelId], maxResults: 5 });
-            if (check.success && check.messages && check.messages.length > 0) {
-              remainingWarnings.push(`"${labelId}" aÃºn tiene ${check.messages.length}+ correos`);
-            }
-          }
-          if (remainingWarnings.length > 0) {
-            const verificationMsg = `âš ï¸ VERIFICACIÃ“N AUTOMÃTICA: Las siguientes etiquetas AÃšN tienen correos sin procesar: ${remainingWarnings.join(', ')}. DEBES continuar procesando estos correos â€” llama gmail_get_messages para cada etiqueta pendiente y repite el proceso hasta que todas estÃ©n vacÃ­as. NO respondas al usuario hasta completar TODO.`;
-            console.log(`[WhatsApp Agent] Bulk verification: ${remainingWarnings.join(', ')}`);
-            // Inject verification as an additional function response so the model sees it
-            functionResponses.push({
-              functionResponse: {
-                name: 'gmail_modify_labels',
-                response: { verification_result: verificationMsg, labels_with_remaining: remainingWarnings },
-              },
-            });
-          }
-        } catch (verifyErr: any) {
-          console.warn(`[WhatsApp Agent] Bulk verification failed:`, verifyErr.message);
-        }
-      }
+      await appendBulkLabelVerificationResponse({
+        bulkLabelsToVerify: bulkLabelsToVerify || undefined,
+        gmailService: this.gmailService,
+        functionResponses,
+      });
 
       // Send function responses back to model
       response = await chatSession.sendMessage(functionResponses as any);
@@ -978,20 +873,14 @@ ${groupPassiveHistory || 'No hay mensajes previos en el bÃºfer.'}
     description: string,
     args: Record<string, any>
   ): Promise<boolean> {
-    const emoji = toolName === 'delete_item' ? 'ðŸ—‘ï¸' : 'ðŸ“§';
-    await this.waService.sendText(
+    return requestWhatsAppToolConfirmation({
+      pendingConfirmations,
+      waService: this.waService,
       jid,
-      `${emoji} *ConfirmaciÃ³n requerida*\n\n${description}\n\nÂ¿Confirmas? Responde *SI* para proceder o cualquier otra cosa para cancelar.`
-    );
-
-    return new Promise<boolean>((resolve) => {
-      const timeout = setTimeout(() => {
-        pendingConfirmations.delete(senderNumber);
-        resolve(false);
-        this.waService.sendText(jid, 'Tiempo de confirmaciÃ³n agotado. AcciÃ³n cancelada.');
-      }, 60000); // 1 minute timeout
-
-      pendingConfirmations.set(senderNumber, { toolName, args, resolve, timeout });
+      senderNumber,
+      toolName,
+      description,
+      args,
     });
   }
 }

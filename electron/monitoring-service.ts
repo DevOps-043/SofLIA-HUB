@@ -8,6 +8,7 @@ import { app, desktopCapturer, powerMonitor, BrowserWindow } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { createRequire } from 'node:module';
+import { composeMonitorBuffers, renderMarkedScreenBuffer } from './monitoring/screenshot-processing';
 // Dynamic import to prevent crash if sharp native binaries aren't available
 const _require = createRequire(import.meta.url);
 let sharp: any;
@@ -17,8 +18,6 @@ try {
   console.warn('[MonitoringService] sharp module not available — screenshot compositing disabled:', err.message);
   sharp = null;
 }
-
-// ─── Types ──────────────────────────────────────────────────────────
 
 export interface MonitoringConfig {
   intervalSeconds: number;       // 30-60, default 30
@@ -55,8 +54,6 @@ export interface MonitoringStatus {
     activeWinFailCount: number;
   };
 }
-
-// ─── Active window via dynamic import (ESM module) ──────────────────
 
 let activeWinModule: any = null;
 
@@ -359,64 +356,12 @@ export class MonitoringService extends EventEmitter {
       const processedBuffers: Buffer[] = [];
 
       for (const source of targetSources) {
-        const thumbnail = source.thumbnail;
-        if (thumbnail.isEmpty()) continue;
-
-        const { width, height } = thumbnail.getSize();
-        const pngBuffer = thumbnail.toPNG();
-
-        // ─── Set-of-Mark (Grid Overlay) ─────────────────────────────
-        // Draws a semi-transparent grid with coordinate labels for LLM pixel reference.
-        const step = 100;
-        let svgElements = '';
-        
-        for (let x = 0; x < width; x += step) {
-          svgElements += `<line x1="${x}" y1="0" x2="${x}" y2="${height}" stroke="rgba(255, 0, 0, 0.2)" stroke-width="1" />`;
-          svgElements += `<text x="${x + 2}" y="12" fill="rgba(255, 0, 0, 0.6)" font-size="10" font-family="monospace">${x}</text>`;
-        }
-        for (let y = 0; y < height; y += step) {
-          svgElements += `<line x1="0" y1="${y}" x2="${width}" y2="${y}" stroke="rgba(255, 0, 0, 0.2)" stroke-width="1" />`;
-          svgElements += `<text x="2" y="${y + 12}" fill="rgba(255, 0, 0, 0.6)" font-size="10" font-family="monospace">${y}</text>`;
-        }
-
-        const svgOverlay = Buffer.from(`
-          <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-            ${svgElements}
-          </svg>
-        `);
-
-        const gridBuffer = await sharp(pngBuffer)
-          .composite([{ input: svgOverlay, top: 0, left: 0 }])
-          .toBuffer();
-          
-        processedBuffers.push(gridBuffer);
+        const markedBuffer = await renderMarkedScreenBuffer(sharp, source.thumbnail);
+        if (markedBuffer) processedBuffers.push(markedBuffer);
       }
 
-      if (processedBuffers.length === 0) return undefined;
-
-      let finalBuffer: Buffer;
-      if (processedBuffers.length === 1) {
-        finalBuffer = processedBuffers[0];
-      } else {
-        // Concatenate multiple monitors horizontally
-        const totalWidth = processedBuffers.length * 1280;
-        finalBuffer = await sharp({
-          create: {
-            width: totalWidth,
-            height: 720,
-            channels: 4,
-            background: { r: 0, g: 0, b: 0, alpha: 1 }
-          }
-        })
-        .composite(processedBuffers.map((input, i) => ({
-          input,
-          left: i * 1280,
-          top: 0
-        })))
-        .png()
-        .toBuffer();
-      }
-
+      const finalBuffer = await composeMonitorBuffers(sharp, processedBuffers);
+      if (!finalBuffer) return undefined;
       // --- Security Guardrail Check ---
       const isSafe = await this.validateScreenshotSafety(finalBuffer);
       if (!isSafe) {

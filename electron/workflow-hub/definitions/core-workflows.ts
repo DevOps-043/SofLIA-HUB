@@ -1,0 +1,42 @@
+import type { WorkflowDefinition } from '../types';
+
+export const CORE_WORKFLOW_DEFINITIONS: WorkflowDefinition[] = [
+  {
+    id: 'correo',
+    name: 'Correo',
+    description: 'Triage ejecutivo de Gmail con aprobacion antes de actuar.',
+    summary: 'Revisa correos prioritarios, propone etiquetas, respuesta o seguimiento.',
+    engine: 'automation',
+    triggerModes: ['activation', 'passive'],
+    passiveBehavior: 'scheduled',
+    configurableFields: ['preset de busqueda', 'maximo de resultados', 'salida opcional a Chat', 'archivar al terminar'],
+    requiredCapabilities: ['gmail'],
+    optionalCapabilities: ['gchat'],
+    defaultConfig: { preset: 'unread', maxResults: 5, removeFromInbox: true, gchatSpace: '' },
+  },
+  {
+    id: 'agenda',
+    name: 'Agenda',
+    description: 'Briefing diario del calendario con riesgos y puntos clave.',
+    summary: 'Resume el dia y opcionalmente lo comparte por Google Chat.',
+    engine: 'automation',
+    triggerModes: ['activation', 'passive'],
+    passiveBehavior: 'scheduled',
+    configurableFields: ['fecha objetivo', 'salida opcional a Chat'],
+    requiredCapabilities: ['calendar'],
+    optionalCapabilities: ['gchat'],
+    defaultConfig: { targetDate: '', gchatSpace: '' },
+  },
+  {
+    id: 'seguimiento',
+    name: 'Seguimiento',
+    description: 'Borrador de correo de seguimiento listo para autorizacion.',
+    summary: 'Redacta un seguimiento profesional con tono y firma configurables.',
+    engine: 'automation',
+    triggerModes: ['activation'],
+    configurableFields: ['destinatario', 'tema', 'contexto base', 'tono', 'firma'],
+    requiredCapabilities: ['gmail'],
+    optionalCapabilities: [],
+    defaultConfig: { to: '', topic: '', context: '', tone: 'profesional y claro', signature: '' },
+  },
+];

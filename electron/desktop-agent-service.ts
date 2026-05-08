@@ -1,4 +1,4 @@
-import { EventEmitter } from 'node:events';
+﻿import { EventEmitter } from 'node:events';
 import { exec as execCb } from 'node:child_process';
 import { promisify } from 'node:util';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -6,14 +6,11 @@ import { BrowserWebService } from './browser-web-service';
 import { WindowsUIAService } from './windows-uia-service';
 import { registerBackendEventForwarding } from './desktop-agent/backend-event-forwarding';
 import { getFocusedCaptureBounds as resolveFocusedCaptureBounds } from './desktop-agent/focused-capture-bounds';
-import { buildHistoryContext } from './desktop-agent/history-context';
 import { DesktopKeyboardControls } from './desktop-agent/keyboard-controls';
 import { DesktopMouseControls } from './desktop-agent/mouse-controls';
 import { resolveLegacyDesktopStatus } from './desktop-agent/legacy-status';
-import { parseVisionResponse } from './desktop-agent/parsers';
 import { executeParallelDesktopTasks } from './desktop-agent/parallel-task-runner';
 import { createDesktopTaskPlan } from './desktop-agent/plan-runtime';
-import { startContinuousObservation } from './desktop-agent/observation-runtime';
 import { runDesktopActionWithRetry } from './desktop-agent/desktop-action-runner';
 import { summarizeDesktopHistory } from './desktop-agent/history-summary-runtime';
 import { checkStrategicPhaseCompletion } from './desktop-agent/phase-runtime';
@@ -26,13 +23,7 @@ import {
 } from './desktop-agent/action-coordinate-resolution';
 import { refineDesktopActionCoordinates } from './desktop-agent/action-coordinate-refinement';
 import { executeDesktopAction } from './desktop-agent/action-executor';
-import {
-  executeBrowserBackendTask,
-  executeWindowsUIABackendTask,
-  runDesktopFallbackFromUIA as runUIAFallback,
-  shouldUseBrowserBackend,
-  shouldUseWindowsUIABackend,
-} from './desktop-agent/routing';
+import { executeBrowserBackendTask, executeWindowsUIABackendTask, runDesktopFallbackFromUIA as runUIAFallback, shouldUseBrowserBackend, shouldUseWindowsUIABackend } from './desktop-agent/routing';
 import { captureCompositeScreenshot as captureDesktopScreenshot } from './desktop-agent/screenshot-capture';
 import {
   dipToScreenPoint as convertDipToScreenPoint,
@@ -61,7 +52,7 @@ import {
   processDesktopTaskQueue,
   type DesktopTaskQueueItem,
 } from './desktop-agent/task-control';
-import { buildVisionPrompt } from './desktop-agent/vision-prompt';
+import { runDesktopVisionStep } from './desktop-agent/vision-step-runtime';
 import { quickScreenshotHash, waitForScreenHashChange, waitForWindowTitle } from './desktop-agent/waiting-runtime';
 import type {
   DesktopTaskExecutionOptions,
@@ -73,12 +64,14 @@ import { getForegroundUIElements } from './desktop-agent/ui-elements';
 import { DesktopWindowControls } from './desktop-agent/window-controls';
 import { createDesktopAgentTask, finishDesktopAgentTask } from './desktop-agent/task-lifecycle';
 import {
-  type DesktopAgentConfig, type DesktopActionPayload, type ActionHistoryEntry,
-  type TaskPlan, type StrategicPlan, type UIElement,
-  type HistorySummary, type AgentStatus, type AgentTask, type RecoveryContext,
-  type DesktopAgentStatus,
-  loadConfig, saveConfig,
-} from './desktop-agent-types';
+  takeDesktopAgentScreenshot,
+  takeMarkedDesktopAgentScreenshot,
+} from './desktop-agent/public-screenshot-api';
+import {
+  startDesktopAgentObservation,
+  stopDesktopAgentObservation,
+} from './desktop-agent/observation-api';
+import { type DesktopAgentConfig, type DesktopActionPayload, type ActionHistoryEntry, type TaskPlan, type StrategicPlan, type UIElement, type HistorySummary, type AgentStatus, type AgentTask, type RecoveryContext, type DesktopAgentStatus, loadConfig, saveConfig } from './desktop-agent-types';
 
 // Re-export types for consumers
 export type { DesktopAgentConfig, DesktopActionPayload, UIElement, AgentStatus, AgentTask, DesktopAgentStatus };
@@ -87,9 +80,6 @@ const execAsync = promisify(execCb);
 
 const sharpModule: SharpFactory | null = loadSharp();
 
-type VisionContentPart =
-  | { inlineData: { mimeType: 'image/png'; data: string } }
-  | { text: string };
 
 export class DesktopAgentService extends EventEmitter {
   private config: DesktopAgentConfig;
@@ -199,58 +189,27 @@ export class DesktopAgentService extends EventEmitter {
   async resetBrowserProfile(profileId: string) { return this.browserWeb.resetProfile(profileId); }
 
   async takeScreenshot(fullRes = false): Promise<string> {
-    const captureTarget = fullRes
-      ? { width: 1920, height: 1080 }
-      : { width: this.config.screenshotWidth, height: this.config.screenshotHeight };
-    const captured = await this.captureCompositeScreenshot(captureTarget.width, captureTarget.height);
-
-    if (!fullRes) {
-      this.updateScreenScale(captured.actualWidth, captured.actualHeight);
-    }
-
-    if (!this.config.gridEnabled || fullRes) {
-      return captured.base64;
-    }
-
-    try {
-      return await this.applyGridOverlay(captured.base64, captured.actualWidth, captured.actualHeight);
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.warn('[DesktopAgent] Grid overlay fallo, usando raw:', message);
-      return captured.base64;
-    }
+    return takeDesktopAgentScreenshot({
+      fullRes,
+      config: this.config,
+      captureCompositeScreenshot: (width, height) => this.captureCompositeScreenshot(width, height),
+      updateScreenScale: (width, height) => this.updateScreenScale(width, height),
+      applyGridOverlay: (base64, width, height) => this.applyGridOverlay(base64, width, height),
+    });
   }
 
   async takeScreenshotWithMarks(): Promise<{ screenshot: string; elements: UIElement[]; mode: 'som' | 'grid' }> {
-    const rawScreenshot = await this.takeScreenshotRaw();
-    const width = this.config.screenshotWidth;
-    const height = this.config.screenshotHeight;
-
-    if (this.config.somEnabled) {
-      try {
-        const elements = await this.getUIElements();
-        if (elements.length >= 3) {
-          const marked = await this.applySoMOverlay(rawScreenshot, width, height, elements);
-          this.currentUIElements = elements;
-          this.captureMode = 'som';
-          return { screenshot: marked, elements, mode: 'som' };
-        }
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error);
-        console.warn('[DesktopAgent] SoM overlay fallo, fallback a grid:', message);
-      }
-    }
-
-    this.currentUIElements = [];
-    this.captureMode = 'grid';
-    const screenshot = this.config.gridEnabled
-      ? await this.applyGridOverlay(rawScreenshot, width, height).catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : String(error);
-        console.warn('[DesktopAgent] Grid fallback fallo:', message);
-        return rawScreenshot;
-      })
-      : rawScreenshot;
-    return { screenshot, elements: [], mode: 'grid' };
+    return takeMarkedDesktopAgentScreenshot({
+      config: this.config,
+      takeScreenshotRaw: () => this.takeScreenshotRaw(),
+      getUIElements: () => this.getUIElements(),
+      applySoMOverlay: (base64, width, height, elements) => this.applySoMOverlay(base64, width, height, elements),
+      applyGridOverlay: (base64, width, height) => this.applyGridOverlay(base64, width, height),
+      setCaptureState: (elements, mode) => {
+        this.currentUIElements = elements;
+        this.captureMode = mode;
+      },
+    });
   }
 
   private async takeScreenshotRaw(): Promise<string> {
@@ -806,9 +765,7 @@ export class DesktopAgentService extends EventEmitter {
     this.status = 'observing';
     this.calculateScreenScale();
 
-    console.log(`[DesktopAgent] Modo observación: "${objective}"`);
-    this.emit('observation-started', { objective });
-    this.observationInterval = startContinuousObservation({
+    this.observationInterval = startDesktopAgentObservation({
       objective,
       reactionRules,
       intervalMs: this.config.continuousObservationInterval,
@@ -825,50 +782,37 @@ export class DesktopAgentService extends EventEmitter {
   }
 
   stopObservation(): void {
-    if (this.observationInterval) {
-      clearInterval(this.observationInterval);
-      this.observationInterval = null;
-    }
-    this.observationRunning = false;
-    this.status = 'idle';
-    this.emit('observation-stopped');
-    console.log('[DesktopAgent] Observación detenida.');
+    stopDesktopAgentObservation({
+      observationInterval: this.observationInterval,
+      setIntervalRef: (interval) => { this.observationInterval = interval; },
+      setRunning: (running) => { this.observationRunning = running; },
+      setStatusIdle: () => { this.status = 'idle'; },
+      emit: (eventName) => { this.emit(eventName); },
+    });
   }
 
   private async visionStep(task: string, screenshotBase64: string, useFallback = false, recoveryContext = false): Promise<DesktopActionPayload> {
-    const modelId = useFallback ? this.config.fallbackModel : this.config.model;
-    const ai = this.getGenAI();
-    const model = ai.getGenerativeModel({ model: modelId });
-
-    const prompt = buildVisionPrompt({
+    return runDesktopVisionStep({
       task,
+      screenshotBase64,
+      useFallback,
       recoveryContext,
-      historyContext: buildHistoryContext(this.actionHistory, this.config),
+      ai: this.getGenAI(),
+      config: this.config,
+      actionHistory: this.actionHistory,
       strategicPlan: this.strategicPlan,
       currentPlan: this.currentPlan,
       recovery: this.recovery,
       historySummaries: this.historySummaries,
-      hasZoomImage: Boolean(this.lastZoomImage),
+      lastZoomImage: this.lastZoomImage,
+      consumeLastZoomImage: () => { this.lastZoomImage = null; },
       captureMode: this.captureMode,
       currentUIElements: this.currentUIElements,
       screenshotWidth: this.lastActualScreenshotWidth || this.config.screenshotWidth,
       screenshotHeight: this.lastActualScreenshotHeight || this.config.screenshotHeight,
       monitorContext: this.describeScreenshotMonitorContext(),
       currentStep: this.currentStep,
-      config: this.config,
     });
-
-    const parts: VisionContentPart[] = [
-      { inlineData: { mimeType: 'image/png', data: screenshotBase64 } },
-    ];
-    if (this.lastZoomImage) {
-      parts.push({ inlineData: { mimeType: 'image/png', data: this.lastZoomImage } });
-      this.lastZoomImage = null; // Consumed — will be regenerated if zoom action is used again
-    }
-    parts.push({ text: prompt });
-
-    const result = await model.generateContent(parts);
-    return parseVisionResponse(result.response.text());
   }
 
   private async createPlan(task: string, screenshotBase64: string): Promise<TaskPlan> {

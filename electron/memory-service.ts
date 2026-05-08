@@ -34,6 +34,8 @@ import { formatMemoryContextForPrompt } from './memory/context-formatter';
 import { getDatabaseConstructor } from './memory/database';
 import { cosineSimilarity, truncateToTokens } from './memory/math';
 import { SCHEMA_SQL } from './memory/schema';
+import { updateIdentityFile, updateSoulFile } from './memory/markdown-store';
+import { deleteMemoryToken, getMemoryToken, saveMemoryToken } from './memory/token-store';
 
 // ─── Types ───────────────────────────────────────────────────────────
 export interface MemoryContext {
@@ -164,51 +166,15 @@ Soy SofLIA, asistente de IA para negocios hispanohablantes. Mi misión es ejecut
   // ─── Token Management (OAuth & API Keys) ───────────────────────────
 
   saveToken(serviceName: string, token: string): void {
-    const tokenPath = path.join(app.getPath('userData'), `${serviceName}-token.enc`);
-    try {
-      if (safeStorage.isEncryptionAvailable()) {
-        fs.writeFileSync(tokenPath, safeStorage.encryptString(token));
-      } else {
-        fs.writeFileSync(tokenPath, token, 'utf8');
-      }
-      console.log(`[MemoryService] Token safely saved for ${serviceName}`);
-    } catch (err: any) {
-      console.error(`[MemoryService] saveToken error for ${serviceName}:`, err.message);
-    }
+    saveMemoryToken(serviceName, token);
   }
 
   getToken(serviceName: string): string | null {
-    const tokenPath = path.join(app.getPath('userData'), `${serviceName}-token.enc`);
-    if (!fs.existsSync(tokenPath)) return null;
-
-    try {
-      const data = fs.readFileSync(tokenPath);
-      if (safeStorage.isEncryptionAvailable()) {
-        try {
-          return safeStorage.decryptString(data);
-        } catch (e) {
-          return data.toString('utf8');
-        }
-      }
-      return data.toString('utf8');
-    } catch (err: any) {
-      console.error(`[MemoryService] getToken error for ${serviceName}:`, err.message);
-      return null;
-    }
+    return getMemoryToken(serviceName);
   }
 
   deleteToken(serviceName: string): boolean {
-    const tokenPath = path.join(app.getPath('userData'), `${serviceName}-token.enc`);
-    if (fs.existsSync(tokenPath)) {
-      try {
-        fs.unlinkSync(tokenPath);
-        return true;
-      } catch (err: any) {
-        console.error(`[MemoryService] deleteToken error for ${serviceName}:`, err.message);
-        return false;
-      }
-    }
-    return false;
+    return deleteMemoryToken(serviceName);
   }
 
   // ─── Layer 1: Message Persistence ──────────────────────────────────
@@ -771,23 +737,11 @@ MEMORY CARD:`;
   // ─── Layer 4: Markdown Structured Memory (Hierarchical) ────────────
 
   updateSoul(content: string): void {
-    const soulPath = path.join(app.getPath('userData'), 'SOUL.md');
-    try {
-      fs.writeFileSync(soulPath, content, 'utf8');
-      console.log(`[MemoryService] SOUL.md updated`);
-    } catch (err: any) {
-      console.error('[MemoryService] updateSoul error:', err.message);
-    }
+    updateSoulFile(content);
   }
 
   updateIdentity(content: string): void {
-    const identityPath = path.join(app.getPath('userData'), 'IDENTITY.md');
-    try {
-      fs.writeFileSync(identityPath, content, 'utf8');
-      console.log(`[MemoryService] IDENTITY.md updated`);
-    } catch (err: any) {
-      console.error('[MemoryService] updateIdentity error:', err.message);
-    }
+    updateIdentityFile(content);
   }
 
   appendMemoryCard(sessionKey: string, summary: string): void {

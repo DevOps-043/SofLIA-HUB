@@ -7,25 +7,25 @@ import { ChatUI } from "./adapters/desktop_ui/ChatUI";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { Auth } from "./components/Auth";
 import { ProjectHub } from "./components/ProjectHub";
-import { CreateFolderModal, MoveChatModal } from "./components/FolderModals";
-import { ShareModal } from "./components/ShareModal";
-import { UnifiedSettingsModal, SettingsTab } from "./components/UnifiedSettingsModal";
+import type { SettingsTab } from "./components/UnifiedSettingsModal";
 import { Sidebar } from "./components/Sidebar";
 import {
   loadSettings,
   getCachedSettings,
-  migrateLegacySettingsCache,
   type UserAISettings,
 } from "./services/settings-service";
-import { FlowMode } from "./components/FlowMode";
 import { ProductivityDashboard } from "./components/ProductivityDashboard";
 import { UpdateNotification } from "./components/UpdateNotification";
-import { GOOGLE_API_KEY } from "./config";
-import { migrateLegacyChatCache } from "./services/chat-service";
-import { migrateLegacyFolderCache } from "./services/folder-service";
 import { resolveShareTargetByToken, type ShareTargetType } from "./services/share-service";
 import { handleAppMeetingTrigger } from "./services/app-meeting-trigger-service";
-import type { BrowserMeetingTriggerPayload } from "./services/meeting-auto-session-store";
+import { AppLoadingScreen } from "./app/AppLoadingScreen";
+import { FlowWindowRoot } from "./app/FlowWindowRoot";
+import { LiaDegradedNotice, ShareLinkNoticeBanner } from "./app/AppNotices";
+import { AppModals } from "./app/AppModals";
+import { ChatUnavailableState } from "./app/ChatUnavailableState";
+import { useCloseActiveChatMenu } from "./app/useCloseActiveChatMenu";
+import { useAppIpcTriggers } from "./app/useAppIpcTriggers";
+import { useLegacyUserMigration } from "./app/useLegacyUserMigration";
 type ActiveView = "chat" | "project" | "productivity";
 
 function AppContent() {
@@ -38,8 +38,6 @@ function AppContent() {
     targetType: ShareTargetType;
     targetName: string;
   } | null>(null);
-  const [pendingShareLink, setPendingShareLink] = useState<string | null>(null);
-  const [pendingMeetingTrigger, setPendingMeetingTrigger] = useState<BrowserMeetingTriggerPayload | null>(null);
   const [shareLinkNotice, setShareLinkNotice] = useState<{ tone: "info" | "error"; message: string } | null>(null);
 
   const dismissShareLinkNotice = useCallback(() => {
@@ -53,24 +51,8 @@ function AppContent() {
     [dataUserId, user?.id],
   );
 
-  useEffect(() => {
-    const legacyUserId = user?.id;
-    if (!legacyUserId || !userId || legacyUserId === userId) return;
+  useLegacyUserMigration(user?.id, userId);
 
-    migrateLegacyChatCache(legacyUserId, userId);
-    migrateLegacyFolderCache(legacyUserId, userId);
-    migrateLegacySettingsCache(legacyUserId, userId);
-
-    const legacyCurrentChatKey = `lia_current_chat_id_${legacyUserId}`;
-    const syncedCurrentChatKey = `lia_current_chat_id_${userId}`;
-    const legacyCurrentChatId = localStorage.getItem(legacyCurrentChatKey);
-    if (legacyCurrentChatId && !localStorage.getItem(syncedCurrentChatKey)) {
-      localStorage.setItem(syncedCurrentChatKey, legacyCurrentChatId);
-    }
-    localStorage.removeItem(legacyCurrentChatKey);
-  }, [user?.id, userId]);
-
-  // ── Hooks ──────────────────────────────────────────────────────────
   const chat = useChatManager({ userId, orgId, accessUserIds });
   const folder = useFolderManager({
     userId,
@@ -82,7 +64,6 @@ function AppContent() {
   const iris = useIrisData();
   const { theme, setTheme } = useTheme();
 
-  // ── Settings ───────────────────────────────────────────────────────
   const [userSettings, setUserSettings] = useState<UserAISettings | null>(null);
   const [isUnifiedSettingsOpen, setIsUnifiedSettingsOpen] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>("ai");
@@ -91,68 +72,16 @@ function AppContent() {
   const isFlowWindow =
     window.location.href.includes("view=flow") ||
     (window.process as any)?.argv?.includes("--view-mode=flow");
-  const [flowKey, setFlowKey] = useState(0);
+  const {
+    flowKey,
+    pendingShareLink,
+    setPendingShareLink,
+    pendingMeetingTrigger,
+    setPendingMeetingTrigger,
+  } = useAppIpcTriggers({ isFlowWindow, onExternalPrompt: setExternalPrompt });
 
   // ── Click outside to close menu ────────────────────────────────────
-  useEffect(() => {
-    const handleClickOutside = () => chat.setActiveMenuChatId(null);
-    if (chat.activeMenuChatId) {
-      window.addEventListener("click", handleClickOutside);
-      return () => window.removeEventListener("click", handleClickOutside);
-    }
-  }, [chat.activeMenuChatId]);
-
-  // ── Electron IPC ───────────────────────────────────────────────────
-  useEffect(() => {
-    const ipc = (window as any).ipcRenderer;
-    const handleShareLink = (_event: any, shareLink: string) => {
-      setPendingShareLink(shareLink);
-    };
-    const handleMeetingTrigger = (_event: any, payload: BrowserMeetingTriggerPayload) => {
-      setPendingMeetingTrigger(payload);
-    };
-
-    if (ipc) {
-      ipc.on("flow-message-received", (_event: any, text: string) => {
-        setExternalPrompt(text);
-      });
-      ipc.on("app:share-link", handleShareLink);
-      ipc.on("app:meeting-trigger", handleMeetingTrigger);
-      if (isFlowWindow) {
-        ipc.on("flow-window-shown", () => {
-          setFlowKey((prev) => prev + 1);
-        });
-      }
-
-      void ipc.invoke("app:get-pending-share-link")
-        .then((shareLink: string | null) => {
-          if (shareLink) {
-            setPendingShareLink(shareLink);
-          }
-        })
-        .catch((error: unknown) => {
-          console.warn("[App] No pude recuperar el share link pendiente:", error);
-        });
-
-      void ipc.invoke("app:get-pending-meeting-trigger")
-        .then((payload: BrowserMeetingTriggerPayload | null) => {
-          if (payload) {
-            setPendingMeetingTrigger(payload);
-          }
-        })
-        .catch((error: unknown) => {
-          console.warn("[App] No pude recuperar el trigger de reunion pendiente:", error);
-        });
-    }
-    return () => {
-      if (ipc && ipc.off) {
-        ipc.off("flow-message-received", () => {});
-        ipc.off("app:share-link", handleShareLink);
-        ipc.off("app:meeting-trigger", handleMeetingTrigger);
-        ipc.off("flow-window-shown", () => {});
-      }
-    };
-  }, [isFlowWindow]);
+  useCloseActiveChatMenu(chat.activeMenuChatId, chat.setActiveMenuChatId);
 
   // ── Init data ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -378,20 +307,7 @@ function AppContent() {
 
   // ── Loading / Auth gates ───────────────────────────────────────────
   if (loading) {
-    return (
-      <div className={`flex h-screen w-screen items-center justify-center ${isFlowWindow ? "bg-transparent" : "bg-background dark:bg-background-dark"}`}>
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-16 h-16 flex items-center justify-center">
-            <img src="./assets/Icono.png" alt="Loading" className="w-full h-full object-contain dark:filter-none filter-accent-themed" />
-          </div>
-          <div className="flex gap-1">
-            <div className="w-2 h-2 rounded-full bg-accent animate-bounce" style={{ animationDelay: "0ms" }} />
-            <div className="w-2 h-2 rounded-full bg-accent animate-bounce" style={{ animationDelay: "150ms" }} />
-            <div className="w-2 h-2 rounded-full bg-accent animate-bounce" style={{ animationDelay: "300ms" }} />
-          </div>
-        </div>
-      </div>
-    );
+    return <AppLoadingScreen isFlowWindow={isFlowWindow} />;
   }
 
   if (!user && !isFlowWindow) return <Auth />;
@@ -416,19 +332,7 @@ function AppContent() {
     (userSettings as any)?.profile_picture_url;
 
   if (isFlowWindow) {
-    return (
-      <div className="h-screen w-screen bg-transparent flex items-end justify-center pb-0 overflow-visible border-none shadow-none">
-        <FlowMode
-          key={flowKey}
-          isActive={true}
-          onClose={() => (window as any).ipcRenderer.send("close-flow")}
-          onSendToChat={(text) => {
-            (window as any).ipcRenderer.send("flow-send-to-chat", text);
-            (window as any).ipcRenderer.send("close-flow");
-          }}
-        />
-      </div>
-    );
+    return <FlowWindowRoot flowKey={flowKey} />;
   }
 
   // ── Render ─────────────────────────────────────────────────────────
@@ -472,7 +376,7 @@ function AppContent() {
         displayName={displayName}
         initials={initials}
         userEmail={user?.email}
-        avatarUrl={avatarUrl}
+          avatarUrl={avatarUrl ?? undefined}
         orgLogoUrl={sofiaContext?.currentOrganization?.brand_favicon_url}
         theme={theme}
         onSetTheme={setTheme}
@@ -485,23 +389,10 @@ function AppContent() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        {shareLinkNotice && (
-          <div className={`mx-6 mt-4 rounded-2xl border px-4 py-3 text-sm ${
-            shareLinkNotice.tone === "error"
-              ? "border-red-500/30 bg-red-500/10 text-red-100"
-              : "border-accent/30 bg-accent/10 text-white"
-          }`}>
-            {shareLinkNotice.message}
-          </div>
-        )}
+        {shareLinkNotice && <ShareLinkNoticeBanner notice={shareLinkNotice} />}
 
         {liaDegraded && !userId && (
-          <div className="mx-6 mt-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-            <div className="font-semibold text-amber-50">Sincronizacion de chats no disponible</div>
-            <div className="mt-1 text-amber-100/90">
-              {liaStatusMessage || "Esta sesion no pudo abrir la base de datos de conversaciones. Cierra sesion e inicia nuevamente para restaurar la sincronizacion entre dispositivos."}
-            </div>
-          </div>
+          <LiaDegradedNotice message={liaStatusMessage || undefined} />
         )}
 
         {activeView === "chat" && (
@@ -522,7 +413,7 @@ function AppContent() {
                       }
                     : undefined
                 }
-                userAvatar={avatarUrl}
+                userAvatar={avatarUrl ?? undefined}
                 onShare={
                   currentConversation?.can_share && orgId
                     ? () =>
@@ -537,21 +428,10 @@ function AppContent() {
                 readOnlyReason={
                   currentConversation && currentConversation.can_edit === false
                     ? "Esta conversacion fue compartida contigo en modo solo lectura."
-                    : null
+                    : undefined
                 }
               />
-            ) : (
-              <div className="flex flex-1 items-center justify-center px-6">
-                <div className="max-w-xl rounded-3xl border border-white/10 bg-white/[0.03] px-6 py-8 text-center">
-                  <h2 className="text-xl font-semibold text-white">La base de datos de conversaciones no esta lista</h2>
-                  <p className="mt-3 text-sm leading-6 text-gray-300">
-                    SofLIA solo habilita el chat cuando puede usar la identidad compartida de Lia.
-                    {` `}
-                    Cierra sesion e inicia nuevamente para restaurar la sincronizacion entre tu laptop y tu PC.
-                  </p>
-                </div>
-              </div>
-            )}
+            ) : <ChatUnavailableState />}
           </div>
         )}
 
@@ -588,46 +468,21 @@ function AppContent() {
         )}
       </main>
 
-      {/* Modals */}
-      <CreateFolderModal
-        isOpen={folder.isFolderModalOpen}
-        onClose={() => folder.setIsFolderModalOpen(false)}
-        onCreate={folder.handleCreateFolder}
+      <AppModals
+        folder={folder}
+        movingChat={movingChat}
+        shareTarget={shareTarget}
+        userId={userId}
+        orgId={orgId}
+        user={user}
+        userSettings={userSettings}
+        sofiaContext={sofiaContext}
+        isUnifiedSettingsOpen={isUnifiedSettingsOpen}
+        activeSettingsTab={activeSettingsTab}
+        onSetShareTarget={setShareTarget}
+        onSetUserSettings={setUserSettings}
+        onSetUnifiedSettingsOpen={setIsUnifiedSettingsOpen}
       />
-      <MoveChatModal
-        isOpen={folder.movingChatId !== null}
-        onClose={() => folder.setMovingChatId(null)}
-        folders={folder.folders.filter((item) => item.can_edit)}
-        currentFolderId={movingChat?.folder_id}
-        onMove={(folderId) => folder.handleMoveChat(folder.movingChatId!, folderId)}
-      />
-
-      {userId && orgId && shareTarget && (
-        <ShareModal
-          isOpen={true}
-          onClose={() => setShareTarget(null)}
-          targetId={shareTarget.targetId}
-          targetType={shareTarget.targetType}
-          targetName={shareTarget.targetName}
-          userId={userId}
-          orgId={orgId}
-          currentSofiaUserId={user?.id}
-          currentUserEmail={user?.email}
-        />
-      )}
-
-      {userId && (
-        <UnifiedSettingsModal
-          isOpen={isUnifiedSettingsOpen}
-          onClose={() => setIsUnifiedSettingsOpen(false)}
-          userId={userId}
-          userSettings={userSettings}
-          onSaveSettings={(settings) => setUserSettings(settings)}
-          sofiaContext={sofiaContext}
-          apiKey={GOOGLE_API_KEY}
-          initialTab={activeSettingsTab}
-        />
-      )}
     </div>
   );
 }

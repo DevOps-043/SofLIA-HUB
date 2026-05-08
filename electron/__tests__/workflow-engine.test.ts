@@ -2,311 +2,28 @@
  * Workflow Engine + CRM Workflow Tests
  *
  * 16 tests totales:
- *   WF-001 a WF-008 — Motor de estado generico (state machine)
- *   CRM-WF-001 a CRM-WF-008 — Flujo CRM con Supabase e IA mockeados
+ *   WF-001 a WF-008 â€” Motor de estado generico (state machine)
+ *   CRM-WF-001 a CRM-WF-008 â€” Flujo CRM con Supabase e IA mockeados
  *
- * Se reimplementa un WorkflowEngine generico porque el codebase no exporta
+ * Se reimplementa un FixtureWorkflowEngine generico porque el codebase no exporta
  * una clase generica; el patron de estado se repite en PresentacionWorkflow
  * y MeetingWorkflowService. Los tests validan la logica de transiciones,
  * HITL, idempotencia, trace_id, cancelacion y timeout.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { PRESENTATION_TRANSITIONS as FIXTURE_PRESENTATION_TRANSITIONS, WorkflowEngine as FixtureWorkflowEngine } from './workflow-engine.fixture';
+import { MockCRMStore as FixtureCRMStore, mockGeminiExtract as mockFixtureGeminiExtract } from './crm-workflow.fixture';
 
-// ─── Tipos de estado del workflow ────────────────────────────────────
+// TESTS â€” FixtureWorkflowEngine (WF-001 a WF-008)
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-type WorkflowState =
-  | 'AWAITING_DATA'
-  | 'PROCESSING_PROPOSAL'
-  | 'AWAITING_APPROVAL'
-  | 'GENERATING_PRESENTATION'
-  | 'COMPLETED'
-  | 'CANCELLED'
-  | 'TIMED_OUT';
-
-interface WorkflowTransition {
-  from: WorkflowState;
-  to: WorkflowState;
-  requiresApproval?: boolean;
-}
-
-// ─── Motor de workflow (state machine generico) ──────────────────────
-
-class WorkflowEngine {
-  private state: WorkflowState;
-  private transitions: WorkflowTransition[];
-  private traceId: string;
-  private idempotencyKeys = new Set<string>();
-  private approvals = new Map<string, boolean>();
-  private timeoutMs: number;
-  private startedAt: number;
-
-  constructor(opts: {
-    initialState: WorkflowState;
-    transitions: WorkflowTransition[];
-    traceId: string;
-    timeoutMs?: number;
-  }) {
-    this.state = opts.initialState;
-    this.transitions = opts.transitions;
-    this.traceId = opts.traceId;
-    this.timeoutMs = opts.timeoutMs || 0;
-    this.startedAt = Date.now();
-  }
-
-  getState(): WorkflowState {
-    return this.state;
-  }
-
-  getTraceId(): string {
-    return this.traceId;
-  }
-
-  isTimedOut(): boolean {
-    if (this.timeoutMs <= 0) return false;
-    return Date.now() - this.startedAt > this.timeoutMs;
-  }
-
-  approve(transitionKey: string): void {
-    this.approvals.set(transitionKey, true);
-  }
-
-  transition(
-    to: WorkflowState,
-    idempotencyKey?: string
-  ): { success: boolean; error?: string } {
-    // Verificar timeout
-    if (this.isTimedOut()) {
-      this.state = 'TIMED_OUT';
-      return { success: false, error: 'Workflow timed out' };
-    }
-
-    // Idempotencia: si la clave ya fue procesada, no-op
-    if (idempotencyKey) {
-      if (this.idempotencyKeys.has(idempotencyKey)) {
-        return { success: true }; // Ya procesado
-      }
-    }
-
-    // Buscar transicion valida
-    const tx = this.transitions.find(
-      (t) => t.from === this.state && t.to === to
-    );
-
-    if (!tx) {
-      return {
-        success: false,
-        error: `Invalid transition from ${this.state} to ${to}`,
-      };
-    }
-
-    // Verificacion HITL
-    if (tx.requiresApproval) {
-      const key = `${tx.from}->${tx.to}`;
-      if (!this.approvals.get(key)) {
-        return {
-          success: false,
-          error: `Transition ${key} requires human approval (HITL)`,
-        };
-      }
-    }
-
-    this.state = to;
-    if (idempotencyKey) {
-      this.idempotencyKeys.add(idempotencyKey);
-    }
-
-    return { success: true };
-  }
-
-  cancel(): void {
-    this.state = 'CANCELLED';
-  }
-}
-
-// ─── Transiciones estandar del flujo de presentacion ─────────────────
-
-const PRESENTATION_TRANSITIONS: WorkflowTransition[] = [
-  { from: 'AWAITING_DATA', to: 'PROCESSING_PROPOSAL' },
-  { from: 'PROCESSING_PROPOSAL', to: 'AWAITING_APPROVAL' },
-  {
-    from: 'AWAITING_APPROVAL',
-    to: 'GENERATING_PRESENTATION',
-    requiresApproval: true,
-  },
-  { from: 'GENERATING_PRESENTATION', to: 'COMPLETED' },
-];
-
-// ─── Jaccard Similarity (deduplicacion CRM por bigramas) ─────────────
-
-function bigrams(str: string): Set<string> {
-  const normalized = str.toLowerCase().trim();
-  if (normalized.length < 2)
-    return new Set(normalized.length === 1 ? [normalized] : []);
-  const result = new Set<string>();
-  for (let i = 0; i < normalized.length - 1; i++) {
-    result.add(normalized.substring(i, i + 2));
-  }
-  return result;
-}
-
-function jaccardSimilarity(a: string, b: string): number {
-  if (!a && !b) return 0;
-  if (!a || !b) return 0;
-
-  const setA = bigrams(a);
-  const setB = bigrams(b);
-
-  if (setA.size === 0 && setB.size === 0) return 0;
-
-  let intersection = 0;
-  for (const item of setA) {
-    if (setB.has(item)) intersection++;
-  }
-
-  const union = setA.size + setB.size - intersection;
-  if (union === 0) return 0;
-
-  return intersection / union;
-}
-
-// ─── Mock Supabase (instancia IRIS) ──────────────────────────────────
-
-interface CRMCompany {
-  id: string;
-  name: string;
-  industry?: string;
-  website?: string;
-  created_at?: string;
-}
-
-interface CRMContact {
-  id: string;
-  name: string;
-  email?: string;
-  company_id: string;
-}
-
-interface CRMOpportunity {
-  id: string;
-  title: string;
-  company_id: string;
-  status: 'open' | 'won' | 'lost';
-  value?: number;
-}
-
-// Almacen CRM en memoria simulando Supabase IRIS
-class MockCRMStore {
-  companies: CRMCompany[] = [];
-  contacts: CRMContact[] = [];
-  opportunities: CRMOpportunity[] = [];
-  private nextId = 1;
-
-  createCompany(name: string, opts?: Partial<CRMCompany>): CRMCompany {
-    // Verificar duplicado por Jaccard antes de crear
-    const existing = this.findSimilarCompany(name);
-    if (existing) {
-      throw new Error(
-        `Empresa duplicada detectada: "${existing.name}" (Jaccard >= 0.7)`
-      );
-    }
-
-    const company: CRMCompany = {
-      id: `comp-${this.nextId++}`,
-      name,
-      ...opts,
-      created_at: new Date().toISOString(),
-    };
-    this.companies.push(company);
-    return company;
-  }
-
-  // Fuerza creacion sin verificacion de duplicados (para tests internos)
-  forceCreateCompany(name: string, opts?: Partial<CRMCompany>): CRMCompany {
-    const company: CRMCompany = {
-      id: `comp-${this.nextId++}`,
-      name,
-      ...opts,
-      created_at: new Date().toISOString(),
-    };
-    this.companies.push(company);
-    return company;
-  }
-
-  findSimilarCompany(name: string, threshold = 0.7): CRMCompany | null {
-    for (const company of this.companies) {
-      if (jaccardSimilarity(company.name, name) >= threshold) {
-        return company;
-      }
-    }
-    return null;
-  }
-
-  createContact(
-    name: string,
-    companyId: string,
-    email?: string
-  ): CRMContact {
-    const contact: CRMContact = {
-      id: `cont-${this.nextId++}`,
-      name,
-      email,
-      company_id: companyId,
-    };
-    this.contacts.push(contact);
-    return contact;
-  }
-
-  createOpportunity(
-    title: string,
-    companyId: string,
-    value?: number
-  ): CRMOpportunity {
-    const opp: CRMOpportunity = {
-      id: `opp-${this.nextId++}`,
-      title,
-      company_id: companyId,
-      status: 'open',
-      value,
-    };
-    this.opportunities.push(opp);
-    return opp;
-  }
-
-  updateOpportunityStatus(
-    id: string,
-    status: 'open' | 'won' | 'lost'
-  ): CRMOpportunity | null {
-    const opp = this.opportunities.find((o) => o.id === id);
-    if (opp) opp.status = status;
-    return opp || null;
-  }
-}
-
-// ─── Mock Gemini (simula extraccion IA para CRM) ─────────────────────
-
-const mockGeminiExtract = vi.fn(
-  async (text: string): Promise<{ company: string | null; email: string | null }> => {
-    // Simula extraccion basica de empresa y correo
-    const emailMatch = text.match(/[\w.-]+@[\w.-]+\.\w+/);
-    const companyMatch = text.match(/empresa\s+(\S+)/i);
-    return {
-      company: companyMatch ? companyMatch[1] : null,
-      email: emailMatch ? emailMatch[0] : null,
-    };
-  }
-);
-
-// ═══════════════════════════════════════════════════════════════════════
-// TESTS — WorkflowEngine (WF-001 a WF-008)
-// ═══════════════════════════════════════════════════════════════════════
-
-describe('WorkflowEngine — Maquina de Estados', () => {
-  let engine: WorkflowEngine;
+describe('FixtureWorkflowEngine â€” Maquina de Estados', () => {
+  let engine: FixtureWorkflowEngine;
 
   beforeEach(() => {
-    engine = new WorkflowEngine({
+    engine = new FixtureWorkflowEngine({
       initialState: 'AWAITING_DATA',
-      transitions: PRESENTATION_TRANSITIONS,
+      transitions: FIXTURE_PRESENTATION_TRANSITIONS,
       traceId: 'trace-abc-123',
     });
   });
@@ -363,7 +80,7 @@ describe('WorkflowEngine — Maquina de Estados', () => {
     expect(r1.success).toBe(true);
     expect(engine.getState()).toBe('PROCESSING_PROPOSAL');
 
-    // Segunda transicion con misma clave — no-op, no error
+    // Segunda transicion con misma clave â€” no-op, no error
     const r2 = engine.transition('PROCESSING_PROPOSAL', 'paso-1');
     expect(r2.success).toBe(true);
     // Estado no deberia cambiar de forma anomala
@@ -409,9 +126,9 @@ describe('WorkflowEngine — Maquina de Estados', () => {
 
   // WF-008: Timeout del workflow manejado correctamente
   it('WF-008: workflow entra en TIMED_OUT al exceder el umbral', () => {
-    const shortEngine = new WorkflowEngine({
+    const shortEngine = new FixtureWorkflowEngine({
       initialState: 'AWAITING_DATA',
-      transitions: PRESENTATION_TRANSITIONS,
+      transitions: FIXTURE_PRESENTATION_TRANSITIONS,
       traceId: 'trace-timeout',
       timeoutMs: 100,
     });
@@ -437,16 +154,16 @@ describe('WorkflowEngine — Maquina de Estados', () => {
   });
 });
 
-// ═══════════════════════════════════════════════════════════════════════
-// TESTS — CRM Workflow (CRM-WF-001 a CRM-WF-008)
-// ═══════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// TESTS â€” CRM Workflow (CRM-WF-001 a CRM-WF-008)
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-describe('CRM Workflow — Operaciones con Supabase y Gemini mockeados', () => {
-  let store: MockCRMStore;
+describe('CRM Workflow â€” Operaciones con Supabase y Gemini mockeados', () => {
+  let store: FixtureCRMStore;
 
   beforeEach(() => {
-    store = new MockCRMStore();
-    mockGeminiExtract.mockClear();
+    store = new FixtureCRMStore();
+    mockFixtureGeminiExtract.mockClear();
   });
 
   // CRM-WF-001: Transicion valida en flujo CRM (crear empresa -> crear contacto)
@@ -466,7 +183,7 @@ describe('CRM Workflow — Operaciones con Supabase y Gemini mockeados', () => {
     expect(store.contacts).toHaveLength(1);
   });
 
-  // CRM-WF-002: Transicion invalida — duplicado rechazado por Jaccard
+  // CRM-WF-002: Transicion invalida â€” duplicado rechazado por Jaccard
   it('CRM-WF-002: crear empresa duplicada es rechazado por deduplicacion Jaccard', () => {
     store.forceCreateCompany('Acme Corporation');
 
@@ -480,7 +197,7 @@ describe('CRM Workflow — Operaciones con Supabase y Gemini mockeados', () => {
   // CRM-WF-003: HITL bloquea oportunidad sin validacion
   it('CRM-WF-003: oportunidad requiere empresa existente (bloqueo HITL simulado)', () => {
     // Simular que la oportunidad no puede crearse sin empresa validada
-    const engine = new WorkflowEngine({
+    const engine = new FixtureWorkflowEngine({
       initialState: 'AWAITING_DATA',
       transitions: [
         { from: 'AWAITING_DATA', to: 'PROCESSING_PROPOSAL' },
@@ -503,7 +220,7 @@ describe('CRM Workflow — Operaciones con Supabase y Gemini mockeados', () => {
 
   // CRM-WF-004: HITL con aprobacion permite crear oportunidad
   it('CRM-WF-004: oportunidad se crea despues de aprobacion HITL', () => {
-    const engine = new WorkflowEngine({
+    const engine = new FixtureWorkflowEngine({
       initialState: 'AWAITING_DATA',
       transitions: [
         { from: 'AWAITING_DATA', to: 'PROCESSING_PROPOSAL' },
@@ -531,9 +248,9 @@ describe('CRM Workflow — Operaciones con Supabase y Gemini mockeados', () => {
 
   // CRM-WF-005: Idempotencia previene oportunidades duplicadas
   it('CRM-WF-005: idempotencia previene creacion duplicada de oportunidad', () => {
-    const engine = new WorkflowEngine({
+    const engine = new FixtureWorkflowEngine({
       initialState: 'AWAITING_DATA',
-      transitions: PRESENTATION_TRANSITIONS,
+      transitions: FIXTURE_PRESENTATION_TRANSITIONS,
       traceId: 'crm-trace-005',
     });
 
@@ -544,7 +261,7 @@ describe('CRM Workflow — Operaciones con Supabase y Gemini mockeados', () => {
     const company = store.forceCreateCompany('Empresa Test');
     store.createOpportunity('Opp 1', company.id, 10000);
 
-    // Misma clave — no-op, no debe crear otra oportunidad
+    // Misma clave â€” no-op, no debe crear otra oportunidad
     const r2 = engine.transition('PROCESSING_PROPOSAL', 'crear-opp-001');
     expect(r2.success).toBe(true);
     // Solo una oportunidad debe existir (la logica de negocio se protege con la clave)
@@ -554,9 +271,9 @@ describe('CRM Workflow — Operaciones con Supabase y Gemini mockeados', () => {
   // CRM-WF-006: trace_id propagado en flujo CRM completo
   it('CRM-WF-006: trace_id se mantiene consistente en todo el flujo CRM', () => {
     const traceId = 'crm-trace-e2e-006';
-    const engine = new WorkflowEngine({
+    const engine = new FixtureWorkflowEngine({
       initialState: 'AWAITING_DATA',
-      transitions: PRESENTATION_TRANSITIONS,
+      transitions: FIXTURE_PRESENTATION_TRANSITIONS,
       traceId,
     });
 
@@ -583,9 +300,9 @@ describe('CRM Workflow — Operaciones con Supabase y Gemini mockeados', () => {
 
   // CRM-WF-007: Cancelar flujo CRM a mitad de proceso
   it('CRM-WF-007: cancelar flujo CRM limpia el estado correctamente', () => {
-    const engine = new WorkflowEngine({
+    const engine = new FixtureWorkflowEngine({
       initialState: 'AWAITING_DATA',
-      transitions: PRESENTATION_TRANSITIONS,
+      transitions: FIXTURE_PRESENTATION_TRANSITIONS,
       traceId: 'crm-trace-cancel',
     });
 
@@ -609,9 +326,9 @@ describe('CRM Workflow — Operaciones con Supabase y Gemini mockeados', () => {
 
   // CRM-WF-008: Timeout del flujo CRM manejado
   it('CRM-WF-008: flujo CRM entra en timeout y bloquea operaciones posteriores', () => {
-    const engine = new WorkflowEngine({
+    const engine = new FixtureWorkflowEngine({
       initialState: 'AWAITING_DATA',
-      transitions: PRESENTATION_TRANSITIONS,
+      transitions: FIXTURE_PRESENTATION_TRANSITIONS,
       traceId: 'crm-trace-timeout',
       timeoutMs: 50,
     });
@@ -634,7 +351,7 @@ describe('CRM Workflow — Operaciones con Supabase y Gemini mockeados', () => {
     expect(engine.getState()).toBe('TIMED_OUT');
 
     // Verificar que la extraccion Gemini mockeada no afecta el timeout
-    expect(mockGeminiExtract).not.toHaveBeenCalled();
+    expect(mockFixtureGeminiExtract).not.toHaveBeenCalled();
 
     vi.spyOn(Date, 'now').mockRestore();
   });

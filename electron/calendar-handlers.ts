@@ -1,30 +1,19 @@
-/**
- * CalendarHandlers — IPC handlers for calendar integration.
- */
 import { ipcMain, type BrowserWindow } from 'electron';
+import { registerCalendarEventForwarders } from './calendar/event-forwarder';
 import type { CalendarService } from './calendar-service';
 
 export function registerCalendarHandlers(
   calendarService: CalendarService,
-  getMainWindow: () => BrowserWindow | null
+  getMainWindow: () => BrowserWindow | null,
 ): void {
-  // ─── Connect Google Calendar ──────────────────────────────────────
-  ipcMain.handle('calendar:connect-google', async () => {
-    return calendarService.connectGoogle();
-  });
+  ipcMain.handle('calendar:connect-google', async () => calendarService.connectGoogle());
+  ipcMain.handle('calendar:connect-microsoft', async () => calendarService.connectMicrosoft());
 
-  // ─── Connect Microsoft Calendar ───────────────────────────────────
-  ipcMain.handle('calendar:connect-microsoft', async () => {
-    return calendarService.connectMicrosoft();
-  });
-
-  // ─── Disconnect provider ──────────────────────────────────────────
   ipcMain.handle('calendar:disconnect', async (_event, provider: 'google' | 'microsoft') => {
     calendarService.disconnect(provider);
     return { success: true };
   });
 
-  // ─── Get current events ───────────────────────────────────────────
   ipcMain.handle('calendar:get-events', async () => {
     try {
       const events = await calendarService.getCurrentEvents();
@@ -34,33 +23,26 @@ export function registerCalendarHandlers(
     }
   });
 
-  // ─── Get connections ──────────────────────────────────────────────
   ipcMain.handle('calendar:get-connections', async () => {
-    return calendarService.getConnections().map(c => ({
-      provider: c.provider,
-      email: c.email,
-      isActive: c.isActive,
+    return calendarService.getConnections().map((connection) => ({
+      provider: connection.provider,
+      email: connection.email,
+      isActive: connection.isActive,
     }));
   });
 
-  // ─── Start auto-monitoring based on calendar ──────────────────────
   ipcMain.handle('calendar:start-auto', async () => {
     calendarService.startPolling();
     return { success: true };
   });
 
-  // ─── Stop auto-monitoring ─────────────────────────────────────────
   ipcMain.handle('calendar:stop-auto', async () => {
     calendarService.stopPolling();
     return { success: true };
   });
 
-  // ─── Get polling status ───────────────────────────────────────────
-  ipcMain.handle('calendar:get-status', async () => {
-    return calendarService.getPollingStatus();
-  });
+  ipcMain.handle('calendar:get-status', async () => calendarService.getPollingStatus());
 
-  // ─── Create event ───────────────────────────────────────────────
   ipcMain.handle('calendar:create-event', async (_event, eventData) => {
     try {
       return await calendarService.createEvent(eventData);
@@ -69,7 +51,6 @@ export function registerCalendarHandlers(
     }
   });
 
-  // ─── Update event ──────────────────────────────────────────────
   ipcMain.handle('calendar:update-event', async (_event, eventId: string, updates) => {
     try {
       return await calendarService.updateEvent(eventId, updates);
@@ -78,7 +59,6 @@ export function registerCalendarHandlers(
     }
   });
 
-  // ─── Delete event ──────────────────────────────────────────────
   ipcMain.handle('calendar:delete-event', async (_event, eventId: string, calendarId?: string) => {
     try {
       return await calendarService.deleteEvent(eventId, calendarId);
@@ -87,40 +67,6 @@ export function registerCalendarHandlers(
     }
   });
 
-  // ─── Forward events to renderer ───────────────────────────────────
-  calendarService.on('connected', (data) => {
-    getMainWindow()?.webContents.send('calendar:connected', data);
-  });
-
-  calendarService.on('disconnected', (data) => {
-    getMainWindow()?.webContents.send('calendar:disconnected', data);
-  });
-
-  calendarService.on('work-start', (data) => {
-    getMainWindow()?.webContents.send('calendar:work-start', data);
-  });
-
-  calendarService.on('work-end', (data) => {
-    getMainWindow()?.webContents.send('calendar:work-end', data);
-  });
-
-  calendarService.on('poll', (data) => {
-    getMainWindow()?.webContents.send('calendar:poll', data);
-  });
-
-  calendarService.on('token-refreshed', (data) => {
-    getMainWindow()?.webContents.send('calendar:token-refreshed', data);
-  });
-
-  calendarService.on('session-restored', (data) => {
-    getMainWindow()?.webContents.send('calendar:connected', data);
-    console.log(`[CalendarHandlers] Session restored for ${data.provider} (${data.email})`);
-  });
-
-  calendarService.on('session-restore-failed', (data) => {
-    getMainWindow()?.webContents.send('calendar:disconnected', data);
-    console.log(`[CalendarHandlers] Session restore failed for ${data.provider}: ${data.error}`);
-  });
-
+  registerCalendarEventForwarders(calendarService, getMainWindow);
   console.log('[CalendarHandlers] Registered successfully');
 }
