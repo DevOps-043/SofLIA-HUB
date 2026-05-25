@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 # Solo un release a la vez
 concurrency:
   group: release
@@ -21,14 +24,31 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.RELEASES_TOKEN }}
 
       - name: Get version from package.json
         id: version
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Validate releases token
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Falta configurar el secret RELEASES_TOKEN en Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+          if ! CAN_PUSH=$(gh api repos/DevOps-043/PulseHub-SofLIA-releases --jq '.permissions.push // false'); then
+            echo "::error::RELEASES_TOKEN no puede acceder a DevOps-043/PulseHub-SofLIA-releases."
+            exit 1
+          fi
+
+          if [ "$CAN_PUSH" != "true" ]; then
+            echo "::error::RELEASES_TOKEN no tiene permisos de escritura sobre DevOps-043/PulseHub-SofLIA-releases."
+            exit 1
+          fi
 
       - name: Check if release already exists
         id: check_release
@@ -50,8 +70,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.RELEASES_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -98,8 +116,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.RELEASES_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -145,8 +161,6 @@ jobs:
     steps:
       - name: Checkout (for CHANGELOG)
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.RELEASES_TOKEN }}
 
       - name: Download Windows artifacts
         uses: actions/download-artifact@v4
