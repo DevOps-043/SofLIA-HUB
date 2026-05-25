@@ -40,8 +40,14 @@ jobs:
             exit 1
           fi
 
+          if ! TOKEN_USER=$(gh api user --jq '.login' 2>/dev/null); then
+            echo "::error::RELEASES_TOKEN es invalido, expiro o fue revocado. Genera un PAT nuevo y actualiza el secret."
+            exit 1
+          fi
+          echo "RELEASES_TOKEN autenticado como ${TOKEN_USER}."
+
           if ! CAN_PUSH=$(gh api repos/DevOps-043/PulseHub-SofLIA-releases --jq '.permissions.push // false'); then
-            echo "::error::RELEASES_TOKEN no puede acceder a DevOps-043/PulseHub-SofLIA-releases."
+            echo "::error::RELEASES_TOKEN es valido, pero no puede acceder a DevOps-043/PulseHub-SofLIA-releases."
             exit 1
           fi
 
