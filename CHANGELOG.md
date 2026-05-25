@@ -4,6 +4,20 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.2.0] - 2026-05-09
+
+### Added
+
+
+### Changed
+
+- **Rediseño de Interfaces de Carpeta y Chats:** Se rediseñaron las interfaces de los componentes de carpeta y chats, implementando una mejor organización visual y experiencia de usuario.
+
+### Fixed
+
+- **Correccion sobre actualizaciones en los chats y carpeta:** Se corrigio un bug que impedía que las actualizaciones en los chats y carpetas se reflejaran en tiempo real.
+
+- 
 ## [0.1.10] - 2026-03-26
 
 ### Added
