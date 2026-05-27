@@ -7,6 +7,7 @@ import { SecurityFooter } from './whatsapp-setup/SecurityFooter';
 import { WhatsAppDisconnectedState } from './whatsapp-setup/WhatsAppDisconnectedState';
 import { WhatsAppPairingState } from './whatsapp-setup/WhatsAppPairingState';
 import { WhatsAppFlowsCard } from './whatsapp-setup/WhatsAppFlowsCard';
+import { WhatsAppHistoryCard } from './whatsapp-setup/WhatsAppHistoryCard';
 import { WhatsAppSetupHeader } from './whatsapp-setup/WhatsAppSetupHeader';
 import { WhatsAppUnavailableState } from './whatsapp-setup/WhatsAppUnavailableState';
 import type { WhatsAppSetupProps } from './whatsapp-setup/types';
@@ -73,6 +74,12 @@ export function WhatsAppSetup({ isOpen, onClose, apiKey, embedded = false }: Wha
               onSelectTarget={(target) => setup.setSelectedPersonalizationTarget(target as Parameters<typeof setup.setSelectedPersonalizationTarget>[0])}
             />
             <WhatsAppFlowsCard selectedTarget={setup.selectedPersonalizationTarget} />
+            <WhatsAppHistoryCard
+              events={setup.historyEvents}
+              loading={setup.historyLoading}
+              stats={setup.historyStats}
+              onRefresh={setup.refreshHistory}
+            />
           </div>
         )}
         <ErrorAlert message={setup.error} />

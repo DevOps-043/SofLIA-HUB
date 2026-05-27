@@ -23,20 +23,30 @@ async function processIncomingMessage(service: WhatsAppServiceCore, msg: any): P
   if (!passesAccessChecks(service, msg, jid, isGroup, senderNumber)) return;
 
   const wasInvoked = isGroup ? shouldRespondInGroup(service.sock, service.config, msg) : true;
-  let cleanText = extractRawText(msg).trim();
-  if (cleanText && detectJailbreak(cleanText)) {
-    console.warn(`[Security] Posible Jailbreak o Prompt Injection detectado de ${senderNumber}. Mensaje ignorado.`);
-    return;
-  }
+  const rawText = extractRawText(msg).trim();
+  let cleanText = rawText;
   if (isGroup) cleanText = cleanGroupText(cleanText, service.config.groupPrefix || '/soflia', service.sock?.user?.id?.split(':')[0] || '');
-  if (isGroup && cleanText) addToGroupContext(service, jid, senderNumber, cleanText);
-
   const hasMedia = Boolean(
     msg.message.imageMessage ||
     msg.message.documentMessage ||
     msg.message.videoMessage ||
     msg.message.audioMessage,
   );
+  if (rawText && detectJailbreak(rawText)) {
+    recordIncomingText(service, msg, jid, senderNumber, isGroup, cleanText || rawText, {
+      rawText: rawText === cleanText ? undefined : rawText,
+      blockedReason: 'jailbreak',
+    });
+    console.warn(`[Security] Posible Jailbreak o Prompt Injection detectado de ${senderNumber}. Mensaje ignorado.`);
+    return;
+  }
+  if (cleanText && !hasMedia) {
+    recordIncomingText(service, msg, jid, senderNumber, isGroup, cleanText, {
+      rawText: rawText === cleanText ? undefined : rawText,
+    });
+  }
+  if (isGroup && cleanText) addToGroupContext(service, jid, senderNumber, cleanText);
+
   if (isGroup && !wasInvoked && !hasMedia) return;
   if (!cleanText && !wasInvoked && !hasMedia) return;
 
@@ -50,6 +60,32 @@ async function processIncomingMessage(service: WhatsAppServiceCore, msg: any): P
   if (!cleanText && !wasInvoked) return;
   console.log(`[WhatsApp] ${isGroup ? 'GROUP' : 'DM'} from ${senderNumber}${isGroup ? ` in ${jid}` : ''}: ${cleanText.slice(0, 60)}`);
   service.emit('message', { jid, senderNumber, text: cleanText, message: msg, isGroup, groupJid: isGroup ? jid : null, history });
+}
+
+function recordIncomingText(
+  service: WhatsAppServiceCore,
+  msg: any,
+  jid: string,
+  senderNumber: string,
+  isGroup: boolean,
+  text: string,
+  metadata: Record<string, unknown> = {},
+): void {
+  service.recordHistory({
+    direction: 'incoming',
+    kind: text.trim().startsWith('/') ? 'command' : 'text',
+    jid,
+    senderNumber,
+    groupJid: isGroup ? jid : null,
+    isGroup,
+    text,
+    source: 'whatsapp-service',
+    metadata: {
+      messageId: msg.key?.id,
+      participant: msg.key?.participant,
+      ...metadata,
+    },
+  });
 }
 
 function passesAccessChecks(service: WhatsAppServiceCore, msg: any, jid: string, isGroup: boolean, senderNumber: string): boolean {

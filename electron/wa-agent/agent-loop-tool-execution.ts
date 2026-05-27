@@ -22,6 +22,20 @@ export async function executeToolsAndTrackEvidence(
   );
   const responseSummary = summarizeFunctionResponses(functionResponses.responses);
   const responseSignature = stableJson(responseSummary);
+  state.agent.waService.recordHistory({
+    direction: 'system',
+    kind: 'tool',
+    jid: state.jid,
+    senderNumber: state.senderNumber,
+    groupJid: state.isGroup ? state.jid : null,
+    isGroup: state.isGroup,
+    tool: {
+      names: toolNames,
+      summary: responseSummary,
+    },
+    source: 'tool-loop',
+    metadata: { toolSignature },
+  });
   state.toolLoopTrace.push({
     iteration: state.toolLoopTrace.length + 1,
     toolSignature,

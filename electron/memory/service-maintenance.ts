@@ -6,7 +6,7 @@ import type { MemoryMaintenanceApi, MemoryServiceConstructor } from './service-t
 
 export function attachMemoryMaintenance(Service: MemoryServiceConstructor): void {
   Object.assign(Service.prototype, {
-    async compactOldData(daysToKeep = 90) {
+    async compactOldData(daysToKeep = 3650) {
       return compactMemoryData({
         db: this.db,
         daysToKeep,

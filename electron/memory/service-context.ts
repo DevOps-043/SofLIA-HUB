@@ -5,13 +5,14 @@ import {
   RECENT_MESSAGES_LIMIT,
   SEMANTIC_TOP_K,
 } from './constants';
+import { buildTimelineRecall } from './timeline-recall';
 import type { MemoryContextApi, MemoryServiceConstructor } from './service-types';
 import type { MemoryContext } from './types';
 
 export function attachMemoryContext(Service: MemoryServiceConstructor): void {
   Object.assign(Service.prototype, {
     async assembleContext(sessionKey: string, phoneNumber: string, currentMessage: string): Promise<MemoryContext> {
-      const context: MemoryContext = { recentMessages: [], rollingSummary: null, semanticRecall: [], facts: [] };
+      const context: MemoryContext = { recentMessages: [], rollingSummary: null, semanticRecall: [], timelineRecall: [], facts: [] };
       if (!this.db) return context;
 
       const recent = this.getRecentMessages(sessionKey, RECENT_MESSAGES_LIMIT);
@@ -21,6 +22,7 @@ export function attachMemoryContext(Service: MemoryServiceConstructor): void {
         timestamp: message.timestamp,
       }));
       context.rollingSummary = this.getLatestSummary(sessionKey);
+      context.timelineRecall = buildTimelineRecall(this.db, sessionKey, currentMessage, 16);
       if (this.apiKey && currentMessage.trim().length > 10) {
         try {
           const queryEmbedding = await this.embedText(currentMessage);

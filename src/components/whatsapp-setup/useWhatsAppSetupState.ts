@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_WHATSAPP_PERSONALIZATION, DEFAULT_WHATSAPP_STATUS } from './defaultStatus';
-import type { WhatsAppAgentPersonalization, WhatsAppStatus } from './types';
+import type {
+  WhatsAppAgentPersonalization,
+  WhatsAppConversationHistoryEvent,
+  WhatsAppConversationHistoryStats,
+  WhatsAppStatus,
+} from './types';
 
 interface UseWhatsAppSetupStateOptions {
   apiKey?: string;
@@ -18,6 +23,9 @@ export function useWhatsAppSetupState({ apiKey, isOpen }: UseWhatsAppSetupStateO
   const [isGroupPolicyDropdownOpen, setIsGroupPolicyDropdownOpen] = useState(false);
   const [selectedPersonalizationTarget, setSelectedPersonalizationTarget] = useState<PersonalizationTarget>('global');
   const [personalizationDraft, setPersonalizationDraft] = useState<WhatsAppAgentPersonalization>(DEFAULT_WHATSAPP_PERSONALIZATION);
+  const [historyEvents, setHistoryEvents] = useState<WhatsAppConversationHistoryEvent[]>([]);
+  const [historyStats, setHistoryStats] = useState<WhatsAppConversationHistoryStats | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const initialized = useRef(false);
 
   const currentPersonalization = useMemo(
@@ -48,6 +56,26 @@ export function useWhatsAppSetupState({ apiKey, isOpen }: UseWhatsAppSetupStateO
       initialized.current = false;
     };
   }, [apiKey, isOpen]);
+
+  const refreshHistory = useCallback(async () => {
+    if (!window.whatsApp) return;
+    setHistoryLoading(true);
+    try {
+      const [eventsResult, statsResult] = await Promise.all([
+        window.whatsApp.getConversationHistory({ limit: 25 }),
+        window.whatsApp.getConversationHistoryStats(),
+      ]);
+      if (eventsResult.success) setHistoryEvents(eventsResult.data || []);
+      if (statsResult.success) setHistoryStats(statsResult.data || null);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen || !window.whatsApp) return;
+    refreshHistory();
+  }, [isOpen, refreshHistory, status.connected]);
 
   useEffect(() => {
     setPersonalizationDraft(currentPersonalization);
@@ -211,6 +239,7 @@ export function useWhatsAppSetupState({ apiKey, isOpen }: UseWhatsAppSetupStateO
     connecting, error, groupInput, handleAddGroup, handleAddNumber, handleConnect,
     handleDisconnect, handleRemoveGroup, handleRemoveNumber, handleSavePersonalization,
     handleUpdateGroupConfig, handleUpdateWhitelistEnabled,
+    historyEvents, historyLoading, historyStats, refreshHistory,
     isAvailable: Boolean(window.whatsApp), isGroupPolicyDropdownOpen, numberInput,
     patchPersonalizationDraft, personalizationDraft, selectedPersonalizationTarget,
     setGroupInput, setIsGroupPolicyDropdownOpen, setNumberInput,

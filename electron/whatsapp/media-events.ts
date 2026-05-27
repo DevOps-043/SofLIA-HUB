@@ -17,12 +17,33 @@ export async function emitMediaIfPresent(
       logger,
       reuploadRequest: service.sock!.updateMediaMessage,
     });
+    const fileName = (mediaMsg as any).fileName || (msg.message.imageMessage ? 'image.jpg' : 'file');
+    const mimetype = mediaMsg.mimetype || 'application/octet-stream';
+    service.recordHistory({
+      direction: 'incoming',
+      kind: 'media',
+      jid,
+      senderNumber,
+      groupJid: isGroup ? jid : null,
+      isGroup,
+      text: cleanText || undefined,
+      media: {
+        fileName,
+        mimetype,
+        sizeBytes: Buffer.isBuffer(buffer) ? buffer.length : undefined,
+      },
+      source: 'whatsapp-service',
+      metadata: {
+        messageId: msg.key?.id,
+        participant: msg.key?.participant,
+      },
+    });
     service.emit('media', {
       jid,
       senderNumber,
       buffer: buffer as Buffer,
-      fileName: (mediaMsg as any).fileName || (msg.message.imageMessage ? 'image.jpg' : 'file'),
-      mimetype: mediaMsg.mimetype || 'application/octet-stream',
+      fileName,
+      mimetype,
       text: cleanText,
       isGroup,
       groupJid: isGroup ? jid : null,
@@ -36,6 +57,24 @@ export async function emitMediaIfPresent(
   const buffer = await downloadMediaMessage(msg, 'buffer', {}, {
     logger,
     reuploadRequest: service.sock!.updateMediaMessage,
+  });
+  service.recordHistory({
+    direction: 'incoming',
+    kind: 'audio',
+    jid,
+    senderNumber,
+    groupJid: isGroup ? jid : null,
+    isGroup,
+    media: {
+      fileName: 'audio.ogg',
+      mimetype: msg.message.audioMessage.mimetype || 'audio/ogg',
+      sizeBytes: Buffer.isBuffer(buffer) ? buffer.length : undefined,
+    },
+    source: 'whatsapp-service',
+    metadata: {
+      messageId: msg.key?.id,
+      participant: msg.key?.participant,
+    },
   });
   service.emit('audio', {
     jid,

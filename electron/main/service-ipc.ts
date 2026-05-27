@@ -10,6 +10,10 @@ export function registerMainServiceIpcHandlers(input: {
   ipcMain.handle('whatsapp:connect', async () => safeAsync(() => services.waService.connect()));
   ipcMain.handle('whatsapp:disconnect', async () => safeAsync(() => services.waService.disconnect()));
   ipcMain.handle('whatsapp:get-status', async () => services.waService.getStatus());
+  ipcMain.handle('whatsapp:get-conversation-history', async (_event, filters?: any) =>
+    safeResult(() => services.waService.getConversationHistory(filters)));
+  ipcMain.handle('whatsapp:get-conversation-history-stats', async () =>
+    safeResult(() => services.waService.getConversationHistoryStats()));
   ipcMain.handle('whatsapp:set-allowed-numbers', async (_event, numbers: string[]) => {
     const result = await safeAsync(() => services.waService.setAllowedNumbers(numbers));
     if (result.success && numbers.length > 0) services.dailyBriefingService.updateConfig({ ownerNumber: numbers[0] });
@@ -61,6 +65,14 @@ async function safeSync(action: () => void): Promise<{ success: boolean; error?:
   try {
     action();
     return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function safeResult<T>(action: () => Promise<T>): Promise<{ success: boolean; data?: T; error?: string }> {
+  try {
+    return { success: true, data: await action() };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) };
   }

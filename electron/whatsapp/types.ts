@@ -1,4 +1,5 @@
 import type { WASocket } from '@whiskeysockets/baileys';
+import type { WhatsAppConversationHistoryInput } from './history';
 
 export interface WhatsAppConfig {
   allowedNumbers: string[];
@@ -42,6 +43,7 @@ export interface WhatsAppServiceCore {
   maxReconnectAttempts: number;
   groupContext: Map<string, Array<{ sender: string; text: string; timestamp: number }>>;
   emit(eventName: string, ...args: any[]): boolean;
+  recordHistory(event: WhatsAppConversationHistoryInput): void;
   connect(): Promise<void>;
   getStatus(): Record<string, any>;
 }

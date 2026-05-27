@@ -9,6 +9,7 @@ beforeEach(async () => {
   waFixtures.mockFsMkdir.mockResolvedValue(undefined);
   waFixtures.mockFsReadFile.mockRejectedValue(new Error('ENOENT'));
   waFixtures.mockFsWriteFile.mockResolvedValue(undefined);
+  waFixtures.mockFsAppendFile.mockResolvedValue(undefined);
   waFixtures.mockFsRm.mockResolvedValue(undefined);
   waFixtures.mockFsStat.mockResolvedValue({ size: 1024 } as any);
   const mod = await import('../../whatsapp-service');

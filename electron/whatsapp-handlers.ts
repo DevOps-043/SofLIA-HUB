@@ -35,6 +35,22 @@ export function registerWhatsAppHandlers(
     return waService.getStatus();
   });
 
+  ipcMain.handle('whatsapp:get-conversation-history', async (_event, filters?: any) => {
+    try {
+      return { success: true, data: await waService.getConversationHistory(filters) };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('whatsapp:get-conversation-history-stats', async () => {
+    try {
+      return { success: true, data: await waService.getConversationHistoryStats() };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  });
+
   // Manejador para configurar números permitidos
   ipcMain.handle('whatsapp:set-allowed-numbers', async (_event, numbers: string[]) => {
     try {

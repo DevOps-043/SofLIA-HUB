@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest';
 import { insertMessage } from '../memory-service.fixtures';
+import { buildTimelineRecall } from '../../memory/timeline-recall';
 import type { MemoryServiceTestContext } from './types';
 
 export function registerMemoryContextCases(ctx: MemoryServiceTestContext): void {
@@ -61,5 +62,31 @@ export function registerMemoryContextCases(ctx: MemoryServiceTestContext): void 
     const rows = ctx.getDb().prepare('SELECT * FROM messages WHERE session_key = ? ORDER BY timestamp DESC LIMIT ?')
       .all('nonexistent-session', 20);
     expect(rows).toEqual([]);
+  });
+
+  it('MEM-019: timeline recall finds messages from two weeks ago', () => {
+    const twoWeeksAgo = Date.now() - (14 * 24 * 60 * 60 * 1000);
+    insertMessage(ctx.getDb(), {
+      sessionKey: '5215500000000',
+      phoneNumber: '5215500000000',
+      role: 'model',
+      content: 'Te recomende preparar el reporte comercial los viernes.',
+      timestamp: twoWeeksAgo,
+    });
+    insertMessage(ctx.getDb(), {
+      sessionKey: '5215500000000',
+      phoneNumber: '5215500000000',
+      role: 'user',
+      content: 'Mensaje reciente sin relacion',
+      timestamp: Date.now(),
+    });
+
+    const recall = buildTimelineRecall(
+      ctx.getDb(),
+      '5215500000000',
+      'Que me dijiste hace dos semanas?',
+      5,
+    );
+    expect(recall.some((entry) => entry.content.includes('reporte comercial'))).toBe(true);
   });
 }

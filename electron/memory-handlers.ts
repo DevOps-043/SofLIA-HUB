@@ -12,7 +12,7 @@ export function registerMemoryHandlers(memoryService: MemoryService): void {
   });
 
   ipcMain.handle('memory:compact', (_event, daysToKeep?: number) =>
-    handleIPC(() => memoryService.compactOldData(daysToKeep || 90)));
+    handleIPC(() => memoryService.compactOldData(daysToKeep || 3650)));
 
   ipcMain.handle('memory:get-facts', async (_event, phoneNumber: string) => {
     return memoryService.getFacts(phoneNumber);

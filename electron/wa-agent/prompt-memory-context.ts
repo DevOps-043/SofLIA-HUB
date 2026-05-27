@@ -19,8 +19,9 @@ export async function buildWhatsAppPromptMemoryContext(params: {
     const hasRecent = memCtx.recentMessages?.length || 0;
     const hasSummary = memCtx.rollingSummary ? 1 : 0;
     const hasSemantic = memCtx.semanticRecall?.length || 0;
+    const hasTimeline = memCtx.timelineRecall?.length || 0;
     const hasFacts = memCtx.facts?.length || 0;
-    console.log(`[WhatsApp Agent] Memory context: ${hasRecent} recent msgs, ${hasSummary} summary, ${hasSemantic} semantic, ${hasFacts} facts, ${memoryContext.length} chars total`);
+    console.log(`[WhatsApp Agent] Memory context: ${hasRecent} recent msgs, ${hasSummary} summary, ${hasSemantic} semantic, ${hasTimeline} timeline, ${hasFacts} facts, ${memoryContext.length} chars total`);
   } catch (err: any) {
     console.warn('[WhatsApp Agent] Memory context assembly failed:', err.message);
   }

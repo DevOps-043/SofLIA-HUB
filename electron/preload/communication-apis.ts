@@ -9,6 +9,8 @@ export function exposeWhatsAppApi(bridge: PreloadBridge, ipc: SafeIpc): void {
     connect: () => safeInvoke('whatsapp:connect'),
     disconnect: () => safeInvoke('whatsapp:disconnect'),
     getStatus: () => safeInvoke('whatsapp:get-status'),
+    getConversationHistory: (filters?: any) => safeInvoke('whatsapp:get-conversation-history', filters),
+    getConversationHistoryStats: () => safeInvoke('whatsapp:get-conversation-history-stats'),
     setAllowedNumbers: (numbers: string[]) => safeInvoke('whatsapp:set-allowed-numbers', numbers),
     setGroupConfig: (config: any) => safeInvoke('whatsapp:set-group-config', config),
     setPersonalization: (update: any) => safeInvoke('whatsapp:set-personalization', update),

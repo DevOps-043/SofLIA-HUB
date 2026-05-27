@@ -49,6 +49,31 @@ export function formatMemoryContextForPrompt(ctx: MemoryContext): string {
     )}`;
   }
 
+  if (ctx.timelineRecall && ctx.timelineRecall.length > 0) {
+    let timelineText = '';
+    let tokenCount = 0;
+
+    for (const recall of ctx.timelineRecall) {
+      const date = new Date(recall.timestamp).toLocaleString('es-MX', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      const role = recall.role === 'user' ? 'Usuario' : 'SofLIA';
+      const entry = `[${date}] ${role}: ${recall.content}\n`;
+      const entryTokens = estimateTokens(entry);
+      if (tokenCount + entryTokens > SEMANTIC_TOKEN_BUDGET) break;
+      timelineText += entry;
+      tokenCount += entryTokens;
+    }
+
+    if (timelineText) {
+      sections += `\n\n=== RECUERDOS FECHADOS DEL HISTORIAL WHATSAPP ===\nUsa estos fragmentos para responder preguntas sobre conversaciones pasadas. Si no son suficientes, dilo sin inventar.\n${timelineText}`;
+    }
+  }
+
   if (ctx.semanticRecall.length > 0) {
     let recallText = '';
     let tokenCount = 0;

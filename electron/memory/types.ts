@@ -2,6 +2,7 @@ export interface MemoryContext {
   recentMessages: Array<{ role: string; content: string; timestamp: number }>;
   rollingSummary: string | null;
   semanticRecall: Array<{ text: string; score: number; timestamp: number }>;
+  timelineRecall?: Array<{ role: string; content: string; timestamp: number; score: number; reason: string }>;
   facts: Array<{ key: string; value: string; category: string }>;
   soul?: string;
   identity?: string;

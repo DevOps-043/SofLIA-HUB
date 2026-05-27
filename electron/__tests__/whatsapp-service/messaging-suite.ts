@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import * as waFixtures from '../whatsapp-service.fixtures';
 import { createConnectedService, createService } from './setup';
 
@@ -12,8 +12,15 @@ describe('WhatsApp Service - mensajes salientes', () => {
 
   it('WA-014: sendText sends text payload', async () => {
     const service = await connectedService();
+    const historySpy = vi.spyOn(service, 'recordHistory');
     await service.sendText('5215500000000@s.whatsapp.net', 'Hola mundo');
     expect(waFixtures.mockSendMessage).toHaveBeenCalledWith('5215500000000@s.whatsapp.net', { text: 'Hola mundo' });
+    expect(historySpy).toHaveBeenCalledWith(expect.objectContaining({
+      direction: 'outgoing',
+      kind: 'text',
+      text: 'Hola mundo',
+      senderNumber: '5215500000000',
+    }));
   });
 
   it('WA-015: sendText throws when disconnected', async () => {
@@ -30,7 +37,12 @@ describe('WhatsApp Service - mensajes salientes', () => {
 
   it('WA-017: sendText splits long messages', async () => {
     const service = await connectedService();
+    const historySpy = vi.spyOn(service, 'recordHistory');
     await service.sendText('123@s.whatsapp.net', 'A'.repeat(5000));
     expect(waFixtures.mockSendMessage).toHaveBeenCalledTimes(2);
+    expect(historySpy).toHaveBeenCalledTimes(2);
+    expect(historySpy).toHaveBeenLastCalledWith(expect.objectContaining({
+      metadata: { part: 2, totalParts: 2 },
+    }));
   });
 });

@@ -8,6 +8,7 @@ export function createMockWaService() {
     getBotNumber: vi.fn().mockReturnValue('5215512345678'),
     isAllowedNumber: vi.fn().mockReturnValue(true),
     setGroupConfig: vi.fn().mockResolvedValue(undefined),
+    recordHistory: vi.fn(),
     setPersonalization: vi.fn().mockImplementation(function (this: any, update: any) {
       if (update.globalPersonalization) {
         this.config.globalPersonalization = { ...this.config.globalPersonalization, ...update.globalPersonalization };

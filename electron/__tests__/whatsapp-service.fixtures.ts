@@ -8,6 +8,7 @@ export const mockUpdateMediaMessage = vi.fn();
 export const mockFsMkdir = vi.fn().mockResolvedValue(undefined);
 export const mockFsReadFile = vi.fn().mockRejectedValue(new Error('ENOENT'));
 export const mockFsWriteFile = vi.fn().mockResolvedValue(undefined);
+export const mockFsAppendFile = vi.fn().mockResolvedValue(undefined);
 export const mockFsRm = vi.fn().mockResolvedValue(undefined);
 export const mockFsStat = vi.fn().mockResolvedValue({ size: 1024 });
 
@@ -47,6 +48,7 @@ vi.mock('node:fs/promises', () => ({
     mkdir: mockFsMkdir,
     readFile: mockFsReadFile,
     writeFile: mockFsWriteFile,
+    appendFile: mockFsAppendFile,
     rm: mockFsRm,
     stat: mockFsStat,
   },

@@ -26,6 +26,17 @@ export async function handleWhatsAppAudioMessage(params: {
     }
 
     console.log(`[WhatsApp Agent] Audio transcribed: "${transcription}"`);
+    params.waService.recordHistory({
+      direction: 'system',
+      kind: 'transcription',
+      jid: params.jid,
+      senderNumber: params.senderNumber,
+      groupJid: params.isGroup ? params.jid : null,
+      isGroup: params.isGroup,
+      text: transcription,
+      source: 'whatsapp-agent',
+      metadata: { derivedFrom: 'audio' },
+    });
     await params.handleTextMessage(
       params.jid,
       params.senderNumber,

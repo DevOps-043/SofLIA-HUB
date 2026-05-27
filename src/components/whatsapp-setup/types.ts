@@ -19,6 +19,49 @@ export interface WhatsAppPersonalizationUpdate {
   groupPersonalizations?: Record<string, WhatsAppAgentPersonalization | null>;
 }
 
+export interface WhatsAppConversationHistoryEvent {
+  id: string;
+  timestamp: string;
+  direction: 'incoming' | 'outgoing' | 'system';
+  kind: 'text' | 'command' | 'media' | 'audio' | 'file' | 'tool' | 'transcription';
+  jid: string;
+  senderNumber?: string | null;
+  groupJid?: string | null;
+  isGroup: boolean;
+  text?: string;
+  media?: { fileName?: string; mimetype?: string; sizeBytes?: number };
+  tool?: { names: string[]; summary: Array<Record<string, unknown>> };
+  source: 'whatsapp-service' | 'whatsapp-agent' | 'tool-loop';
+  metadata?: Record<string, unknown>;
+}
+
+export interface WhatsAppConversationHistoryStats {
+  total: number;
+  incoming: number;
+  outgoing: number;
+  system: number;
+  text: number;
+  command: number;
+  media: number;
+  audio: number;
+  file: number;
+  tool: number;
+  transcription: number;
+  lastEventAt: string | null;
+  byContact: Array<{ senderNumber: string; count: number; lastEventAt: string }>;
+}
+
+export interface WhatsAppConversationHistoryFilters {
+  jid?: string;
+  senderNumber?: string;
+  query?: string;
+  direction?: WhatsAppConversationHistoryEvent['direction'];
+  kind?: WhatsAppConversationHistoryEvent['kind'];
+  since?: string | number | Date;
+  until?: string | number | Date;
+  limit?: number;
+}
+
 export interface WhatsAppStatus {
   connected: boolean;
   phoneNumber: string | null;
@@ -48,6 +91,8 @@ declare global {
       connect: () => Promise<any>;
       disconnect: () => Promise<any>;
       getStatus: () => Promise<WhatsAppStatus>;
+      getConversationHistory: (filters?: WhatsAppConversationHistoryFilters) => Promise<{ success: boolean; data?: WhatsAppConversationHistoryEvent[]; error?: string }>;
+      getConversationHistoryStats: () => Promise<{ success: boolean; data?: WhatsAppConversationHistoryStats; error?: string }>;
       setAllowedNumbers: (numbers: string[]) => Promise<any>;
       setGroupConfig: (config: any) => Promise<any>;
       setPersonalization: (update: WhatsAppPersonalizationUpdate) => Promise<any>;

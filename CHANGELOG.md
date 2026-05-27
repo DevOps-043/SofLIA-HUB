@@ -4,6 +4,24 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.4.0] - 2026-05-27
+
+### Added
+
+- **Historial de conversaciones WhatsApp (`WhatsAppConversationHistoryStore`):** Nuevo subsistema que persiste cada evento de WhatsApp (texto, media, audio, transcripciones, ejecucion de tools) en un archivo JSONL local con filtros por JID, contacto, direccion, tipo, rango temporal y busqueda libre.
+- **Timeline Recall — capa de memoria temporal:** Nuevo modulo `timeline-recall.ts` que parsea consultas en lenguaje natural en español ("¿que hablamos ayer?", "recuerdas lo de hace 2 semanas?", "el 15/03") y recupera fragmentos relevantes del historial de mensajes SQLite, inyectandolos como contexto fechado en el prompt del agente.
+- **Tarjeta de Historial en la UI de WhatsApp (`WhatsAppHistoryCard`):** Nueva seccion en el panel de configuracion de WhatsApp que muestra estadisticas globales (total, entradas, salidas, tools, media) y un visor de eventos recientes con fecha, tipo y contenido.
+- **Canales IPC `whatsapp:get-conversation-history` y `whatsapp:get-conversation-history-stats`:** Nuevos canales registrados en preload, handlers y service-ipc para consultar historial y estadisticas desde el renderer.
+- **Grabacion automatica en todos los flujos de mensajes:** Texto entrante, texto saliente (incluyendo mensajes partidos), archivos enviados (imagen, video, documento), ejecucion de tools, transcripciones de audio y mensajes bloqueados por jailbreak ahora se registran automaticamente en el historial.
+- **Tests de historial de conversaciones:** Nuevos tests `WA-022`, `WA-026` y `WA-030` verifican grabacion de mensajes entrantes, media entrante, mensajes salientes, mensajes partidos y metadata de bloqueo por jailbreak.
+
+### Changed
+
+- **Retencion de memoria extendida a 10 años:** `compactOldData` ahora conserva datos por 3650 dias (antes 90), evitando la eliminacion prematura de historial valioso para el agente.
+- **Contexto de memoria con timeline recall:** `assembleContext` ahora incluye `timelineRecall` junto a `recentMessages`, `rollingSummary`, `semanticRecall` y `facts`, y el formateador de contexto inyecta una seccion `=== RECUERDOS FECHADOS DEL HISTORIAL WHATSAPP ===` cuando hay resultados temporales relevantes.
+- **Log de contexto de memoria ampliado:** El log del agente WhatsApp ahora reporta la cantidad de entradas de timeline recall ademas de mensajes recientes, resumen, semantico y hechos.
+- **Tipos de WhatsApp extendidos:** `WhatsAppServiceCore` ahora requiere `recordHistory()` como parte del contrato, asegurando que cualquier implementacion registre eventos.
+
 ## [0.3.1] - 2026-05-27
 
 ### Added

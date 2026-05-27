@@ -1,4 +1,10 @@
-import type { WhatsAppPersonalizationUpdate, WhatsAppStatus } from '../whatsapp-setup/types';
+import type {
+  WhatsAppConversationHistoryEvent,
+  WhatsAppConversationHistoryFilters,
+  WhatsAppConversationHistoryStats,
+  WhatsAppPersonalizationUpdate,
+  WhatsAppStatus,
+} from '../whatsapp-setup/types';
 
 export {};
 
@@ -8,6 +14,8 @@ declare global {
       connect: () => Promise<any>;
       disconnect: () => Promise<any>;
       getStatus: () => Promise<WhatsAppStatus>;
+      getConversationHistory: (filters?: WhatsAppConversationHistoryFilters) => Promise<{ success: boolean; data?: WhatsAppConversationHistoryEvent[]; error?: string }>;
+      getConversationHistoryStats: () => Promise<{ success: boolean; data?: WhatsAppConversationHistoryStats; error?: string }>;
       setAllowedNumbers: (numbers: string[]) => Promise<any>;
       setGroupConfig: (config: any) => Promise<any>;
       setPersonalization: (update: WhatsAppPersonalizationUpdate) => Promise<any>;

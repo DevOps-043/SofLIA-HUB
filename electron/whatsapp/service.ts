@@ -19,6 +19,11 @@ import {
   type WhatsAppPersonalizationUpdate,
 } from './personalization';
 import { normalizePhoneNumber } from './phone-utils';
+import {
+  WhatsAppConversationHistoryStore,
+  type WhatsAppConversationHistoryFilters,
+  type WhatsAppConversationHistoryInput,
+} from './history';
 
 export class WhatsAppService extends EventEmitter implements WhatsAppServiceCore {
   sock: WASocket | null = null;
@@ -29,6 +34,7 @@ export class WhatsAppService extends EventEmitter implements WhatsAppServiceCore
   reconnectAttempts = 0;
   maxReconnectAttempts = 5;
   groupContext = new Map<string, Array<{ sender: string; text: string; timestamp: number }>>();
+  history = new WhatsAppConversationHistoryStore();
 
   async init(): Promise<void> { this.config = await loadConfig(); }
 
@@ -63,6 +69,15 @@ export class WhatsAppService extends EventEmitter implements WhatsAppServiceCore
 
   sendText(jid: string, text: string): Promise<void> { return sendWhatsAppText(this, jid, text); }
   sendFile(jid: string, filePath: string, caption?: string): Promise<void> { return sendWhatsAppFile(this, jid, filePath, caption); }
+  recordHistory(event: WhatsAppConversationHistoryInput): void {
+    void this.history.append(event);
+  }
+  getConversationHistory(filters?: WhatsAppConversationHistoryFilters) {
+    return this.history.list(filters);
+  }
+  getConversationHistoryStats() {
+    return this.history.getStats();
+  }
   isConnected(): boolean { return this.connected; }
   isAllowedNumber(number: string): boolean { return isAllowedNumber(this.config, number); }
   getBotNumber(): string { return this.sock?.user?.id?.split(':')[0] || ''; }

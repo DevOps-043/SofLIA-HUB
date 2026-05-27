@@ -5,6 +5,7 @@ import { createConnectedService } from './setup';
 describe('WhatsApp Service - mensajes entrantes', () => {
   it('WA-022: emits message event for incoming text', async () => {
     const service = await createConnectedService();
+    const historySpy = vi.spyOn(service, 'recordHistory');
     const msgPromise = new Promise<any>(resolve => service.on('message', resolve));
 
     waFixtures.mockSockEvents.emit('messages.upsert', {
@@ -15,6 +16,12 @@ describe('WhatsApp Service - mensajes entrantes', () => {
     expect(msg.text).toBe('Hola SofLIA');
     expect(msg.senderNumber).toBe('5215500000000');
     expect(msg.isGroup).toBe(false);
+    expect(historySpy).toHaveBeenCalledWith(expect.objectContaining({
+      direction: 'incoming',
+      kind: 'text',
+      text: 'Hola SofLIA',
+      senderNumber: '5215500000000',
+    }));
   });
 
   it('WA-023: group messages detected by @g.us JID', async () => {
@@ -48,5 +55,26 @@ describe('WhatsApp Service - mensajes entrantes', () => {
     });
     await new Promise(resolve => setTimeout(resolve, 50));
     expect(msgHandler).not.toHaveBeenCalled();
+  });
+
+  it('WA-026: records incoming media metadata without storing buffer content', async () => {
+    const service = await createConnectedService();
+    const historySpy = vi.spyOn(service, 'recordHistory');
+    const mediaPromise = new Promise<any>(resolve => service.on('media', resolve));
+
+    waFixtures.mockSockEvents.emit('messages.upsert', {
+      messages: [{
+        key: { remoteJid: '5215500000000@s.whatsapp.net', fromMe: false, id: 'msg-media-1' },
+        message: { imageMessage: { mimetype: 'image/jpeg', caption: 'foto de prueba' } },
+      }],
+    });
+
+    await mediaPromise;
+    expect(historySpy).toHaveBeenCalledWith(expect.objectContaining({
+      direction: 'incoming',
+      kind: 'media',
+      text: 'foto de prueba',
+      media: expect.objectContaining({ fileName: 'image.jpg', mimetype: 'image/jpeg' }),
+    }));
   });
 });
