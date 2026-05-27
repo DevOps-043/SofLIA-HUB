@@ -4,6 +4,30 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.3.1] - 2026-05-27
+
+### Added
+
+- **Gestion de perfil por WhatsApp (`/perfil`):** Nuevo comando de chat `/perfil` (aliases `/personalizar`, `/personalizacion`) que permite ver, editar y reiniciar la personalizacion del agente directamente desde WhatsApp. Soporta campos: nombre, trato, tono, estilo, contexto, instrucciones y flujos.
+- **Herramienta `whatsapp_update_profile`:** Nueva tool del agente que persiste cambios de personalizacion automaticamente cuando el usuario pide cambiar nombre, tono o comportamiento en lenguaje natural, sin necesidad de comandos.
+- **Modulo `profile-update.ts`:** Logica centralizada para resolver el perfil activo (global, contacto o grupo), normalizar campos, formatear el perfil visible y construir patches de actualizacion.
+- **Handler de ejecucion `profile.ts`:** Nuevo executor handler que valida y aplica patches de personalizacion desde el agentic loop, con soporte de reset por perfil.
+- **Tab dedicado de WhatsApp en Configuracion:** Nuevo tab `WhatsApp` en el panel unificado de settings, permitiendo acceso directo a la configuracion de WhatsApp sin pasar por Conexiones.
+- **Tests de `/perfil` y personalizacion por grupo:** Nuevos tests `WA-043` que validan la persistencia de personalizacion por contacto (con whitelist activa) y por grupo desde chats grupales.
+
+### Changed
+
+- **Personalizacion de grupos independiente del allowlist:** La personalizacion de grupo ya no requiere que el grupo este en `allowedGroups`. Cualquier grupo con JID valido (`@g.us`) puede tener perfil persistente, permitiendo personalizar grupos incluso sin estar en la whitelist.
+- **Prompt de personalizacion con instruccion de persistencia:** El system prompt del agente ahora incluye la instruccion explicita de usar `whatsapp_update_profile` cuando el usuario pide cambios de nombre, tono o comportamiento, asegurando que los cambios se persistan antes de responder.
+- **Selector de perfiles ampliado en la UI:** `AgentPersonalizationCard` ahora muestra grupos con perfil existente ademas de los grupos permitidos, unificando ambas fuentes para el selector de perfil.
+- **Eliminacion de grupo no borra su personalizacion:** Al remover un grupo del allowlist, su perfil de personalizacion se mantiene intacto para que no se pierdan configuraciones si se vuelve a agregar.
+- **`resolveAllowedGroup` con fallback a JID normalizado:** Grupos no registrados en el allowlist ahora resuelven al JID normalizado en vez de `null`, habilitando personalizacion para cualquier grupo activo.
+- **Texto de test `WA-030B` actualizado:** El test de personalizacion de grupos refleja el nuevo comportamiento donde los perfiles se almacenan independientemente del allowlist.
+
+### Fixed
+
+- **Perfiles de grupo huerfanos al eliminar del allowlist:** Antes, eliminar un grupo del allowlist tambien borraba su personalizacion y forzaba redireccion al perfil global. Ahora solo se elimina de `allowedGroups` sin afectar perfiles existentes.
+
 ## [0.3.0] - 2026-05-27
 
 ### Added

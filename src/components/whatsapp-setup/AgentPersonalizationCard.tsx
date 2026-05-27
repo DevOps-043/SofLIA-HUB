@@ -2,7 +2,7 @@ import type { WhatsAppAgentPersonalization } from './types';
 
 interface AgentPersonalizationCardProps {
   allowedNumbers: string[];
-  allowedGroups: string[];
+  groupProfileJids: string[];
   whitelistEnabled: boolean;
   selectedTarget: string;
   draft: WhatsAppAgentPersonalization;
@@ -45,7 +45,7 @@ export function AgentPersonalizationCard(props: AgentPersonalizationCardProps) {
             {props.whitelistEnabled && props.allowedNumbers.map((number) => (
               <option key={`contact:${number}`} value={`contact:${number}`}>Contacto +{number}</option>
             ))}
-            {props.allowedGroups.map((groupJid) => (
+            {props.groupProfileJids.map((groupJid) => (
               <option key={`group:${groupJid}`} value={`group:${groupJid}`}>Grupo {groupJid}</option>
             ))}
           </select>

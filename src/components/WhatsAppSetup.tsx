@@ -61,7 +61,10 @@ export function WhatsAppSetup({ isOpen, onClose, apiKey, embedded = false }: Wha
             </div>
             <AgentPersonalizationCard
               allowedNumbers={setup.status.allowedNumbers}
-              allowedGroups={setup.status.allowedGroups}
+              groupProfileJids={Array.from(new Set([
+                ...setup.status.allowedGroups,
+                ...Object.keys(setup.status.groupPersonalizations || {}),
+              ]))}
               whitelistEnabled={setup.status.whitelistEnabled}
               selectedTarget={setup.selectedPersonalizationTarget}
               draft={setup.personalizationDraft}

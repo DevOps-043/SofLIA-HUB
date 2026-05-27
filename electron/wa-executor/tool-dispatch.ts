@@ -12,6 +12,7 @@ import {
 import { executeDeliveryTool, isDeliveryTool } from './handlers/delivery';
 import { executeMemoryTool, isMemoryTool } from './handlers/memory';
 import { executeMiscTool, isMiscTool } from './handlers/misc';
+import { executeProfileTool, isProfileTool } from './handlers/profile';
 import { executeRemoteNodeTool, isRemoteNodeTool } from './handlers/remote-nodes';
 import { executeUseComputerTool } from './handlers/use-computer';
 import type { FunctionResponse, ToolExecutorContext } from './types';
@@ -36,7 +37,7 @@ export async function dispatchTool(
   const dynamicResult = await executeDynamicTool(toolName, toolArgs, isGroup);
   if (dynamicResult) return { response: dynamicResult, bulkLabelsToVerify };
 
-  const specialized = await trySpecializedTool(toolName, toolArgs, ctx, jid, senderNumber);
+  const specialized = await trySpecializedTool(toolName, toolArgs, ctx, jid, senderNumber, isGroup);
   if (specialized) return { response: specialized, bulkLabelsToVerify };
 
   return executeFallbackTool(toolName, toolArgs, bulkLabelsToVerify);
@@ -79,8 +80,10 @@ async function trySpecializedTool(
   ctx: ToolExecutorContext,
   jid: string,
   senderNumber: string,
+  isGroup: boolean,
 ): Promise<FunctionResponse | null> {
   if (isDeliveryTool(toolName)) return executeDeliveryTool(toolName, toolArgs, ctx, jid);
+  if (isProfileTool(toolName)) return executeProfileTool(toolName, toolArgs, ctx, jid, senderNumber, isGroup);
   if (isMiscTool(toolName)) return executeMiscTool(toolName, toolArgs, ctx, senderNumber);
   if (isRemoteNodeTool(toolName)) return executeRemoteNodeTool(toolName, toolArgs);
   if (toolName === 'use_computer') return executeUseComputerTool(toolName, toolArgs, ctx, jid);

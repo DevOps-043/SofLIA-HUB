@@ -5,6 +5,7 @@ import { SettingsModal as AISettingsContent } from '../SettingsModal';
 import { UpdatePanel as UpdateContent } from '../UpdatePanel';
 import { UserManagementModal as TeamContent } from '../UserManagementModal';
 import { WorkflowHubPanel } from '../ops/WorkflowHubPanel';
+import { WhatsAppSetup } from '../WhatsAppSetup';
 import type { SettingsTab } from './settings-tabs';
 
 export function SettingsContent({
@@ -25,6 +26,8 @@ export function SettingsContent({
   switch (activeTab) {
     case 'ai':
       return <div className="h-full overflow-hidden"><AISettingsContent isOpen onClose={onClose} userId={userId} onSave={onSaveSettings} embedded /></div>;
+    case 'whatsapp':
+      return <div className="h-full overflow-hidden"><WhatsAppSetup isOpen onClose={onClose} apiKey={apiKey} embedded /></div>;
     case 'connections':
       return <div className="h-full overflow-hidden"><ConnectionsPanel apiKey={apiKey} /></div>;
     case 'team':

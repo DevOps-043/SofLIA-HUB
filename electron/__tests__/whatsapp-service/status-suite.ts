@@ -76,7 +76,7 @@ describe('WhatsApp Service - estado y configuracion', () => {
     expect(status.contactPersonalizations['5215500000000'].tone).toBe('emotional_support');
   });
 
-  it('WA-030B: setPersonalization stores group profiles only for allowed groups', async () => {
+  it('WA-030B: setPersonalization stores group profiles independently from group allowlist', async () => {
     const service = createService();
     await service.init();
     await service.setGroupConfig({ allowedGroups: ['120363000000@g.us'] });
@@ -94,6 +94,6 @@ describe('WhatsApp Service - estado y configuracion', () => {
     });
     const status = service.getStatus();
     expect(status.groupPersonalizations['120363000000@g.us'].displayName).toBe('SofLIA Equipo');
-    expect(status.groupPersonalizations['120363999999@g.us']).toBeUndefined();
+    expect(status.groupPersonalizations['120363999999@g.us'].displayName).toBe('No debe guardarse');
   });
 });

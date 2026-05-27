@@ -59,10 +59,10 @@ export function useWhatsAppSetupState({ apiKey, isOpen }: UseWhatsAppSetupStateO
     if (parsed.type === 'contact' && (!status.whitelistEnabled || !status.allowedNumbers.includes(parsed.id))) {
       setSelectedPersonalizationTarget('global');
     }
-    if (parsed.type === 'group' && !status.allowedGroups.includes(parsed.id)) {
+    if (parsed.type === 'group' && !status.allowedGroups.includes(parsed.id) && !status.groupPersonalizations?.[parsed.id]) {
       setSelectedPersonalizationTarget('global');
     }
-  }, [selectedPersonalizationTarget, status.allowedGroups, status.allowedNumbers, status.whitelistEnabled]);
+  }, [selectedPersonalizationTarget, status.allowedGroups, status.allowedNumbers, status.groupPersonalizations, status.whitelistEnabled]);
 
   const handleConnect = useCallback(async () => {
     if (!window.whatsApp) return;
@@ -203,12 +203,9 @@ export function useWhatsAppSetupState({ apiKey, isOpen }: UseWhatsAppSetupStateO
       return;
     }
     setStatus((previous) => {
-      const nextGroups = { ...previous.groupPersonalizations };
-      delete nextGroups[jid];
-      return { ...previous, allowedGroups, groupPersonalizations: nextGroups };
+      return { ...previous, allowedGroups };
     });
-    if (selectedPersonalizationTarget === `group:${jid}`) setSelectedPersonalizationTarget('global');
-  }, [selectedPersonalizationTarget, status.allowedGroups]);
+  }, [status.allowedGroups]);
 
   return {
     connecting, error, groupInput, handleAddGroup, handleAddNumber, handleConnect,

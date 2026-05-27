@@ -29,4 +29,29 @@ export function registerCommandTests(ctx: WhatsAppAgentTestContext): void {
       expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', expect.stringContaining('Comandos disponibles'));
     });
   });
+
+  describe('WA-043: /perfil command', () => {
+    it('should persist contact personalization when whitelist is active', async () => {
+      const { agent, waService } = createAgentWithService(ctx);
+      waService.config.whitelistEnabled = true;
+      waService.config.allowedNumbers = ['5215500000000'];
+      await agent.handleMessage('123@s.whatsapp.net', '5215500000000', '/perfil nombre LIA');
+      expect(waService.setPersonalization).toHaveBeenCalledWith({
+        contactPersonalizations: {
+          '5215500000000': { displayName: 'LIA' },
+        },
+      });
+      expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', expect.stringContaining('Guarde nombre'));
+    });
+
+    it('should persist group personalization from group chat', async () => {
+      const { agent, waService } = createAgentWithService(ctx);
+      await agent.handleMessage('120363000000@g.us', '5215500000000', '/perfil tono directo', true);
+      expect(waService.setPersonalization).toHaveBeenCalledWith({
+        groupPersonalizations: {
+          '120363000000@g.us': { tone: 'direct' },
+        },
+      });
+    });
+  });
 }

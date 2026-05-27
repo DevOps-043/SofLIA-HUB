@@ -21,6 +21,7 @@ import { FILESYSTEM_TOOLS } from './filesystem';
 import { GOOGLE_TOOLS } from './google';
 import { IRIS_TOOLS } from './iris';
 import { MEMORY_TOOLS } from './memory';
+import { PROFILE_TOOLS } from './profile';
 import { REMOTE_NODE_TOOLS } from './remote-nodes';
 import { SYSTEM_TOOLS } from './system';
 
@@ -41,6 +42,7 @@ export const WA_TOOL_DECLARATIONS = {
     ...FILESYSTEM_TOOLS,
     ...COMMUNICATION_TOOLS,
     ...MEMORY_TOOLS,
+    ...PROFILE_TOOLS,
     ...COMPUTER_TOOLS,
     ...REMOTE_NODE_TOOLS,
     ...SYSTEM_TOOLS,

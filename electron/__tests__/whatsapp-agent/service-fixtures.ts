@@ -8,6 +8,18 @@ export function createMockWaService() {
     getBotNumber: vi.fn().mockReturnValue('5215512345678'),
     isAllowedNumber: vi.fn().mockReturnValue(true),
     setGroupConfig: vi.fn().mockResolvedValue(undefined),
+    setPersonalization: vi.fn().mockImplementation(function (this: any, update: any) {
+      if (update.globalPersonalization) {
+        this.config.globalPersonalization = { ...this.config.globalPersonalization, ...update.globalPersonalization };
+      }
+      if (update.contactPersonalizations) {
+        this.config.contactPersonalizations = { ...this.config.contactPersonalizations, ...update.contactPersonalizations };
+      }
+      if (update.groupPersonalizations) {
+        this.config.groupPersonalizations = { ...this.config.groupPersonalizations, ...update.groupPersonalizations };
+      }
+      return Promise.resolve();
+    }),
     config: {
       allowedNumbers: [],
       whitelistEnabled: false,

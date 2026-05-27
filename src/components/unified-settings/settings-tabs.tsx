@@ -1,4 +1,4 @@
-export type SettingsTab = 'ai' | 'connections' | 'team' | 'productivity' | 'meetings' | 'agents' | 'updates';
+export type SettingsTab = 'ai' | 'whatsapp' | 'connections' | 'team' | 'productivity' | 'meetings' | 'agents' | 'updates';
 
 export function getSettingsTabs(sofiaContext: any): Array<{ id: SettingsTab; label: string; icon: JSX.Element; hidden?: boolean }> {
   return [
@@ -6,6 +6,11 @@ export function getSettingsTabs(sofiaContext: any): Array<{ id: SettingsTab; lab
       id: 'ai',
       label: 'Personalizacion',
       icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>,
+    },
+    {
+      id: 'whatsapp',
+      label: 'WhatsApp',
+      icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3.5h5m-8.5 8 1.4-3.8A8 8 0 1112 20a8.2 8.2 0 01-3.7-.88L4 19.75z" /></svg>,
     },
     {
       id: 'connections',
