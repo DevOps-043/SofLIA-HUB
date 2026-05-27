@@ -8,6 +8,7 @@ import type { AgentLoopRequest, AgentLoopState } from './agent-loop-types';
 export async function createAgentLoopState(request: AgentLoopRequest): Promise<AgentLoopState | string> {
   const promptContext = await buildWhatsAppAgentPromptContext({
     calendarService: request.agent.calendarService,
+    whatsappConfig: request.agent.waService.config,
     memory: request.agent.memory,
     knowledge: request.agent.knowledge,
     jid: request.jid,

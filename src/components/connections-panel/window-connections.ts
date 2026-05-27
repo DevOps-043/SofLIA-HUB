@@ -1,4 +1,4 @@
-import type { WhatsAppStatus } from '../whatsapp-setup/types';
+import type { WhatsAppPersonalizationUpdate, WhatsAppStatus } from '../whatsapp-setup/types';
 
 export {};
 
@@ -10,6 +10,7 @@ declare global {
       getStatus: () => Promise<WhatsAppStatus>;
       setAllowedNumbers: (numbers: string[]) => Promise<any>;
       setGroupConfig: (config: any) => Promise<any>;
+      setPersonalization: (update: WhatsAppPersonalizationUpdate) => Promise<any>;
       setApiKey: (apiKey: string) => Promise<any>;
       onQR: (callback: (qr: string) => void) => void;
       onStatusChange: (callback: (status: WhatsAppStatus) => void) => void;

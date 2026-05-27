@@ -17,6 +17,7 @@ export const CHANNEL_GROUP_2 = [
   'whatsapp:get-status',
   'whatsapp:set-allowed-numbers',
   'whatsapp:set-group-config',
+  'whatsapp:set-personalization',
   'whatsapp:set-api-key',
   'whatsapp:qr',
   'whatsapp:status',

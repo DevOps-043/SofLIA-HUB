@@ -1,21 +1,33 @@
 interface PersonalWhitelistCardProps {
   allowedNumbers: string[];
   numberInput: string;
+  whitelistEnabled: boolean;
   onAddNumber: () => void;
   onNumberInputChange: (value: string) => void;
   onRemoveNumber: (number: string) => void;
+  onWhitelistEnabledChange: (enabled: boolean) => void;
 }
 
 export function PersonalWhitelistCard(props: PersonalWhitelistCardProps) {
-  const { allowedNumbers, numberInput, onAddNumber, onNumberInputChange, onRemoveNumber } = props;
+  const { allowedNumbers, numberInput, whitelistEnabled, onAddNumber, onNumberInputChange, onRemoveNumber, onWhitelistEnabledChange } = props;
 
   return (
     <div className="bg-white dark:bg-white/3 border border-gray-200 dark:border-white/10 rounded-3xl p-6">
       <div className="flex items-center justify-between mb-6">
         <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Whitelist Personal</h4>
-        <div className="px-2 py-1 bg-gray-100 dark:bg-white/5 rounded-lg">
-          <span className="text-[9px] font-mono text-gray-500 dark:text-gray-400">{allowedNumbers.length}</span>
-        </div>
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <span className="text-[8px] font-black uppercase tracking-widest text-gray-500">{whitelistEnabled ? 'Activa' : 'Global'}</span>
+          <input
+            type="checkbox"
+            checked={whitelistEnabled}
+            disabled={allowedNumbers.length === 0}
+            onChange={(event) => onWhitelistEnabledChange(event.target.checked)}
+            className="sr-only"
+          />
+          <span className={`w-9 h-5 rounded-full border transition-all relative ${whitelistEnabled ? 'bg-accent border-accent' : 'bg-gray-200 dark:bg-white/5 border-gray-300 dark:border-white/10'}`}>
+            <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${whitelistEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          </span>
+        </label>
       </div>
       <div className="flex gap-2 mb-6">
         <input
@@ -42,7 +54,7 @@ export function PersonalWhitelistCard(props: PersonalWhitelistCardProps) {
           ))
         ) : (
           <div className="py-6 text-center border border-dashed border-gray-200 dark:border-white/5 rounded-xl">
-            <p className="text-[9px] text-amber-400/60 font-black uppercase tracking-widest">Acceso Publico</p>
+            <p className="text-[9px] text-amber-400/60 font-black uppercase tracking-widest">Perfil Global</p>
           </div>
         )}
       </div>

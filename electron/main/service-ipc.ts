@@ -17,6 +17,8 @@ export function registerMainServiceIpcHandlers(input: {
   });
   ipcMain.handle('whatsapp:set-group-config', async (_event, config: any) =>
     safeAsync(() => services.waService.setGroupConfig(config)));
+  ipcMain.handle('whatsapp:set-personalization', async (_event, update: any) =>
+    safeAsync(() => services.waService.setPersonalization(update)));
   ipcMain.handle('whatsapp:set-api-key', async (_event, apiKey: string) => {
     initWhatsAppAgent(apiKey);
     await services.waService.saveApiKey(apiKey);

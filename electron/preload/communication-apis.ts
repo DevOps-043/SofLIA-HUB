@@ -11,6 +11,7 @@ export function exposeWhatsAppApi(bridge: PreloadBridge, ipc: SafeIpc): void {
     getStatus: () => safeInvoke('whatsapp:get-status'),
     setAllowedNumbers: (numbers: string[]) => safeInvoke('whatsapp:set-allowed-numbers', numbers),
     setGroupConfig: (config: any) => safeInvoke('whatsapp:set-group-config', config),
+    setPersonalization: (update: any) => safeInvoke('whatsapp:set-personalization', update),
     setApiKey: (apiKey: string) => safeInvoke('whatsapp:set-api-key', apiKey),
     onQR: (cb: (qr: string) => void) => safeOn('whatsapp:qr', cb),
     onStatusChange: (cb: (status: any) => void) => safeOn('whatsapp:status', cb),

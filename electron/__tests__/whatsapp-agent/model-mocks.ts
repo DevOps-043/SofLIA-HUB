@@ -25,6 +25,10 @@ export function getMockSendMessage() {
   return modelMocks.mockSendMessage;
 }
 
+export function getMockGetGenerativeModel() {
+  return modelMocks.mockGetGenerativeModel;
+}
+
 export function mockTextResponse(text: string) {
   modelMocks.mockSendMessage.mockResolvedValueOnce({
     response: {

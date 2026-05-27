@@ -4,6 +4,33 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.3.0] - 2026-05-27
+
+### Added
+
+- **Personalizacion del agente WhatsApp por contacto y grupo:** Nuevo sistema que permite configurar nombre, tono, estilo de respuesta, alias del usuario, contexto e instrucciones personalizadas a nivel global, por contacto (whitelist) o por grupo. Incluye el tono `emotional_support` con guardrails de seguridad dedicados.
+- **Tarjeta de personalizacion en la UI de WhatsApp:** Nuevo componente `AgentPersonalizationCard` con selector de perfil (global / contacto / grupo), campos editables de personalización y guardado independiente por perfil.
+- **Flujos pasivos por perfil (WhatsApp Flows):** Nueva tarjeta `WhatsAppFlowsCard` que permite crear, listar y eliminar reglas de flujo pasivo asociadas a un contacto o al perfil global, directamente desde la configuracion de WhatsApp.
+- **Toggle de whitelist:** La whitelist de numeros personales ahora puede habilitarse o deshabilitarse sin borrar los numeros guardados, controlando si el filtro se aplica o no.
+- **Canal IPC `whatsapp:set-personalization`:** Nuevo canal registrado en preload, handlers y service-ipc para persistir cambios de personalizacion desde el renderer.
+- **Prompt de personalizacion inyectado al agente:** El system prompt del agente WhatsApp ahora recibe instrucciones de personalización resueltas segun el remitente (contacto, grupo o global), incluyendo guardrails para tono de apoyo emocional.
+- **Modulo `phone-utils`:** Funciones `normalizePhoneNumber` y `numbersMatch` extraidas a un modulo reutilizable, eliminando duplicacion entre `security.ts` y `personalization.ts`.
+
+### Changed
+
+- **Normalizacion robusta de configuracion WhatsApp:** `loadConfig` y `saveConfig` ahora pasan por `normalizeWhatsAppConfig`, que valida y normaliza personalización global, por contacto y por grupo en cada lectura y escritura.
+- **`isAllowedNumber` respeta `whitelistEnabled`:** El filtro de seguridad ahora solo bloquea numeros no registrados cuando la whitelist esta explicitamente habilitada.
+- **`setAllowedNumbers` normaliza numeros:** Los numeros se limpian con `normalizePhoneNumber` antes de guardar y la whitelist se desactiva automaticamente si la lista queda vacia.
+- **`setGroupConfig` normaliza config:** Al actualizar configuracion de grupos, la config resultante pasa por `normalizeWhatsAppConfig` para mantener consistencia.
+- **Estado de WhatsApp ampliado:** `getStatus()` ahora incluye `whitelistEnabled`, `globalPersonalization`, `contactPersonalizations` y `groupPersonalizations`.
+- **`PersonalWhitelistCard` con toggle de activacion:** La tarjeta de whitelist ahora muestra un switch para activar/desactivar el filtro y valida duplicados antes de agregar numeros.
+- **Limpieza al eliminar contacto o grupo:** Al remover un numero o grupo, se eliminan tambien sus personalizaciones asociadas y se redirige al perfil global si estaba seleccionado.
+
+### Fixed
+
+- **Duplicados en whitelist y grupos:** Ahora se valida que el numero o grupo no exista antes de agregarlo, mostrando un mensaje de error claro.
+- **Seleccion huerfana al eliminar perfil:** Si se elimina el contacto o grupo actualmente seleccionado en personalización, la seleccion vuelve automaticamente al perfil global.
+
 ## [0.2.0] - 2026-05-09
 
 ### Added

@@ -55,6 +55,15 @@ export function registerWhatsAppHandlers(
     }
   });
 
+  ipcMain.handle('whatsapp:set-personalization', async (_event, update: any) => {
+    try {
+      await waService.setPersonalization(update);
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  });
+
   // Manejador para guardar la API Key
   ipcMain.handle('whatsapp:set-api-key', async (_event, apiKey: string) => {
     try {

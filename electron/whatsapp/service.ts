@@ -13,6 +13,12 @@ import { registerMessageEvents } from './message-events';
 import { sendFile as sendWhatsAppFile, sendText as sendWhatsAppText } from './send';
 import { DEFAULT_CONFIG, type WhatsAppConfig, type WhatsAppServiceCore } from './types';
 import { isAllowedNumber } from './security';
+import {
+  applyWhatsAppPersonalizationUpdate,
+  normalizeWhatsAppConfig,
+  type WhatsAppPersonalizationUpdate,
+} from './personalization';
+import { normalizePhoneNumber } from './phone-utils';
 
 export class WhatsAppService extends EventEmitter implements WhatsAppServiceCore {
   sock: WASocket | null = null;
@@ -60,7 +66,19 @@ export class WhatsAppService extends EventEmitter implements WhatsAppServiceCore
   isConnected(): boolean { return this.connected; }
   isAllowedNumber(number: string): boolean { return isAllowedNumber(this.config, number); }
   getBotNumber(): string { return this.sock?.user?.id?.split(':')[0] || ''; }
-  async setAllowedNumbers(numbers: string[]): Promise<void> { this.config.allowedNumbers = numbers; await saveConfig(this.config); }
+  async setAllowedNumbers(numbers: string[]): Promise<void> {
+    const allowedNumbers = numbers.map(normalizePhoneNumber).filter(Boolean);
+    this.config = normalizeWhatsAppConfig({
+      ...this.config,
+      allowedNumbers,
+      whitelistEnabled: allowedNumbers.length > 0 && this.config.whitelistEnabled,
+    });
+    await saveConfig(this.config);
+  }
+  async setPersonalization(update: WhatsAppPersonalizationUpdate): Promise<void> {
+    this.config = applyWhatsAppPersonalizationUpdate(this.config, update);
+    await saveConfig(this.config);
+  }
   async saveApiKey(apiKey: string): Promise<void> { this.config.apiKey = apiKey; await saveConfig(this.config); }
   async getSavedApiKey(): Promise<string | undefined> { return (await loadConfig()).apiKey; }
 
@@ -70,16 +88,20 @@ export class WhatsAppService extends EventEmitter implements WhatsAppServiceCore
       phoneNumber: this.phoneNumber,
       qr: this.qrDataUrl,
       allowedNumbers: this.config.allowedNumbers,
+      whitelistEnabled: this.config.whitelistEnabled,
       groupPolicy: this.config.groupPolicy,
       groupActivation: this.config.groupActivation,
       groupPrefix: this.config.groupPrefix,
       allowedGroups: this.config.allowedGroups,
       groupAllowFrom: this.config.groupAllowFrom,
+      globalPersonalization: this.config.globalPersonalization,
+      contactPersonalizations: this.config.contactPersonalizations,
+      groupPersonalizations: this.config.groupPersonalizations,
     };
   }
 
   async setGroupConfig(config: Partial<Pick<WhatsAppConfig, 'groupPolicy' | 'groupActivation' | 'groupPrefix' | 'allowedGroups' | 'groupAllowFrom'>>): Promise<void> {
-    this.config = { ...this.config, ...config };
+    this.config = normalizeWhatsAppConfig({ ...this.config, ...config });
     await saveConfig(this.config);
   }
 

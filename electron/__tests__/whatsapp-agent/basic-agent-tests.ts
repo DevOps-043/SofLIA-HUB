@@ -10,6 +10,56 @@ export function registerBasicAgentTests(ctx: WhatsAppAgentTestContext): void {
       await agent.handleMessage('123@s.whatsapp.net', '5215500000000', 'Hola');
       expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', expect.any(String));
     });
+
+    it('should inject contact personalization into the system prompt when whitelist is active', async () => {
+      const { agent, waService } = createAgentWithService(ctx);
+      waService.config.whitelistEnabled = true;
+      waService.config.allowedNumbers = ['5215500000000'];
+      waService.config.contactPersonalizations = {
+        '5215500000000': {
+          ...waService.config.globalPersonalization,
+          displayName: 'LIA',
+          tone: 'emotional_support',
+          customInstructions: 'Prioriza acompanamiento emocional.',
+        },
+      };
+      ctx.mockTextResponse('Aqui estoy.');
+      await agent.handleMessage('123@s.whatsapp.net', '5215500000000', 'Hola');
+      expect(ctx.mockGetGenerativeModel).toHaveBeenCalledWith(expect.objectContaining({
+        systemInstruction: expect.stringContaining('Nombre del agente para este usuario: LIA.'),
+      }));
+      expect(ctx.mockGetGenerativeModel).toHaveBeenCalledWith(expect.objectContaining({
+        systemInstruction: expect.stringContaining('Prioriza acompanamiento emocional.'),
+      }));
+    });
+
+    it('should prefer group personalization over contact personalization in group messages', async () => {
+      const { agent, waService } = createAgentWithService(ctx);
+      waService.config.whitelistEnabled = true;
+      waService.config.allowedNumbers = ['5215500000000'];
+      waService.config.allowedGroups = ['120363000000@g.us'];
+      waService.config.contactPersonalizations = {
+        '5215500000000': {
+          ...waService.config.globalPersonalization,
+          displayName: 'LIA Personal',
+        },
+      };
+      waService.config.groupPersonalizations = {
+        '120363000000@g.us': {
+          ...waService.config.globalPersonalization,
+          displayName: 'SofLIA Equipo',
+          customInstructions: 'Prioriza coordinacion del grupo.',
+        },
+      };
+      ctx.mockTextResponse('Hecho.');
+      await agent.handleMessage('120363000000@g.us', '5215500000000', 'Hola equipo', true);
+      expect(ctx.mockGetGenerativeModel).toHaveBeenCalledWith(expect.objectContaining({
+        systemInstruction: expect.stringContaining('Nombre del agente para este usuario: SofLIA Equipo.'),
+      }));
+      expect(ctx.mockGetGenerativeModel).toHaveBeenCalledWith(expect.objectContaining({
+        systemInstruction: expect.stringContaining('Prioriza coordinacion del grupo.'),
+      }));
+    });
   });
 
   describe('WA-032: constructor stores dependencies', () => {

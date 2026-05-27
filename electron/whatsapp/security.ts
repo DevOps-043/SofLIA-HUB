@@ -1,4 +1,5 @@
 import type { WhatsAppConfig } from './types';
+import { normalizePhoneNumber, numbersMatch } from './phone-utils';
 
 const JAILBREAK_PATTERNS = [
   /ignora (todas )?las instrucciones/i,
@@ -32,21 +33,13 @@ export function detectJailbreak(message: string): boolean {
 }
 
 export function isAllowedNumber(config: WhatsAppConfig, number: string): boolean {
-  if (!config.allowedNumbers || config.allowedNumbers.length === 0) return true;
-  const numberDigits = number.replace(/\D/g, '');
+  if (!config.whitelistEnabled || !config.allowedNumbers || config.allowedNumbers.length === 0) return true;
+  const numberDigits = normalizePhoneNumber(number);
   return config.allowedNumbers.some((allowed) => numbersMatch(allowed, numberDigits));
 }
 
 export function isAllowedGroupSender(config: WhatsAppConfig, senderNumber: string): boolean {
   const allowed = config.groupAllowFrom || [];
   if (config.groupPolicy !== 'allowlist' || allowed.length === 0) return true;
-  return allowed.some((candidate) => candidate === '*' || numbersMatch(candidate, senderNumber.replace(/\D/g, '')));
-}
-
-function numbersMatch(allowed: string, numberDigits: string): boolean {
-  const allowedDigits = allowed.replace(/\D/g, '').trim();
-  if (allowedDigits === numberDigits) return true;
-  if (numberDigits.endsWith(allowedDigits) || allowedDigits.endsWith(numberDigits)) return true;
-  return allowedDigits.length >= 10 && numberDigits.length >= 10 &&
-    allowedDigits.slice(-10) === numberDigits.slice(-10);
+  return allowed.some((candidate) => candidate === '*' || numbersMatch(candidate, senderNumber));
 }

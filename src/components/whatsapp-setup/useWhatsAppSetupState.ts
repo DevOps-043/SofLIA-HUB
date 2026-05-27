@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { DEFAULT_WHATSAPP_STATUS } from './defaultStatus';
-import type { WhatsAppStatus } from './types';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { DEFAULT_WHATSAPP_PERSONALIZATION, DEFAULT_WHATSAPP_STATUS } from './defaultStatus';
+import type { WhatsAppAgentPersonalization, WhatsAppStatus } from './types';
 
 interface UseWhatsAppSetupStateOptions {
   apiKey?: string;
   isOpen: boolean;
 }
+
+type PersonalizationTarget = 'global' | `contact:${string}` | `group:${string}`;
 
 export function useWhatsAppSetupState({ apiKey, isOpen }: UseWhatsAppSetupStateOptions) {
   const [status, setStatus] = useState<WhatsAppStatus>(DEFAULT_WHATSAPP_STATUS);
@@ -14,7 +16,14 @@ export function useWhatsAppSetupState({ apiKey, isOpen }: UseWhatsAppSetupStateO
   const [groupInput, setGroupInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isGroupPolicyDropdownOpen, setIsGroupPolicyDropdownOpen] = useState(false);
+  const [selectedPersonalizationTarget, setSelectedPersonalizationTarget] = useState<PersonalizationTarget>('global');
+  const [personalizationDraft, setPersonalizationDraft] = useState<WhatsAppAgentPersonalization>(DEFAULT_WHATSAPP_PERSONALIZATION);
   const initialized = useRef(false);
+
+  const currentPersonalization = useMemo(
+    () => getPersonalizationForSelection(status, selectedPersonalizationTarget),
+    [selectedPersonalizationTarget, status],
+  );
 
   useEffect(() => {
     if (!isOpen || !window.whatsApp) return;
@@ -39,6 +48,21 @@ export function useWhatsAppSetupState({ apiKey, isOpen }: UseWhatsAppSetupStateO
       initialized.current = false;
     };
   }, [apiKey, isOpen]);
+
+  useEffect(() => {
+    setPersonalizationDraft(currentPersonalization);
+  }, [currentPersonalization]);
+
+  useEffect(() => {
+    if (selectedPersonalizationTarget === 'global') return;
+    const parsed = parsePersonalizationTarget(selectedPersonalizationTarget);
+    if (parsed.type === 'contact' && (!status.whitelistEnabled || !status.allowedNumbers.includes(parsed.id))) {
+      setSelectedPersonalizationTarget('global');
+    }
+    if (parsed.type === 'group' && !status.allowedGroups.includes(parsed.id)) {
+      setSelectedPersonalizationTarget('global');
+    }
+  }, [selectedPersonalizationTarget, status.allowedGroups, status.allowedNumbers, status.whitelistEnabled]);
 
   const handleConnect = useCallback(async () => {
     if (!window.whatsApp) return;
@@ -65,6 +89,61 @@ export function useWhatsAppSetupState({ apiKey, isOpen }: UseWhatsAppSetupStateO
     else setError(result.error || 'Error al actualizar configuracion');
   }, []);
 
+  const handleUpdateWhitelistEnabled = useCallback(async (whitelistEnabled: boolean) => {
+    if (!window.whatsApp) return;
+    const result = await window.whatsApp.setPersonalization({ whitelistEnabled });
+    if (result.success) {
+      setStatus((previous) => ({ ...previous, whitelistEnabled }));
+      if (!whitelistEnabled && selectedPersonalizationTarget.startsWith('contact:')) {
+        setSelectedPersonalizationTarget('global');
+      }
+      setError(null);
+    } else {
+      setError(result.error || 'Error al actualizar whitelist');
+    }
+  }, [selectedPersonalizationTarget]);
+
+  const patchPersonalizationDraft = useCallback((patch: Partial<WhatsAppAgentPersonalization>) => {
+    setPersonalizationDraft((previous) => ({ ...previous, ...patch }));
+  }, []);
+
+  const handleSavePersonalization = useCallback(async () => {
+    if (!window.whatsApp) return;
+    const normalizedDraft = normalizePersonalizationDraft(personalizationDraft);
+    const parsed = parsePersonalizationTarget(selectedPersonalizationTarget);
+    const update = buildPersonalizationUpdate(parsed, normalizedDraft, status.whitelistEnabled);
+    const result = await window.whatsApp.setPersonalization(update);
+    if (!result.success) {
+      setError(result.error || 'Error al guardar personalizacion');
+      return;
+    }
+    setStatus((previous) => {
+      if (parsed.type === 'contact' && status.whitelistEnabled) {
+        return {
+          ...previous,
+          contactPersonalizations: {
+            ...previous.contactPersonalizations,
+            [parsed.id]: normalizedDraft,
+          },
+        };
+      }
+      if (parsed.type === 'group') {
+        return {
+          ...previous,
+          groupPersonalizations: {
+            ...previous.groupPersonalizations,
+            [parsed.id]: normalizedDraft,
+          },
+        };
+      }
+      return {
+        ...previous,
+        globalPersonalization: normalizedDraft,
+      };
+    });
+    setError(null);
+  }, [personalizationDraft, selectedPersonalizationTarget, status.whitelistEnabled]);
+
   const handleAddNumber = useCallback(async () => {
     if (!window.whatsApp || !numberInput.trim()) return;
     const cleaned = numberInput.replace(/[^0-9]/g, '');
@@ -72,9 +151,17 @@ export function useWhatsAppSetupState({ apiKey, isOpen }: UseWhatsAppSetupStateO
       setError('Ingresa un numero valido (minimo 10 digitos con codigo de pais)');
       return;
     }
+    if (status.allowedNumbers.includes(cleaned)) {
+      setError('Ese numero ya esta en la whitelist');
+      return;
+    }
     const updated = [...status.allowedNumbers, cleaned];
     await window.whatsApp.setAllowedNumbers(updated);
-    setStatus((previous) => ({ ...previous, allowedNumbers: updated }));
+    setStatus((previous) => ({
+      ...previous,
+      allowedNumbers: updated,
+      whitelistEnabled: updated.length > 0 && previous.whitelistEnabled,
+    }));
     setNumberInput('');
     setError(null);
   }, [numberInput, status.allowedNumbers]);
@@ -83,23 +170,101 @@ export function useWhatsAppSetupState({ apiKey, isOpen }: UseWhatsAppSetupStateO
     if (!window.whatsApp) return;
     const updated = status.allowedNumbers.filter((item) => item !== number);
     await window.whatsApp.setAllowedNumbers(updated);
-    setStatus((previous) => ({ ...previous, allowedNumbers: updated }));
-  }, [status.allowedNumbers]);
+    setStatus((previous) => {
+      const nextContacts = { ...previous.contactPersonalizations };
+      delete nextContacts[number];
+      return {
+        ...previous,
+        allowedNumbers: updated,
+        whitelistEnabled: updated.length > 0 && previous.whitelistEnabled,
+        contactPersonalizations: nextContacts,
+      };
+    });
+    if (selectedPersonalizationTarget === `contact:${number}`) setSelectedPersonalizationTarget('global');
+  }, [selectedPersonalizationTarget, status.allowedNumbers]);
 
   const handleAddGroup = useCallback(async () => {
     if (!window.whatsApp || !groupInput.trim()) return;
-    await handleUpdateGroupConfig({ allowedGroups: [...status.allowedGroups, groupInput.trim()] });
+    const cleaned = groupInput.trim();
+    if (status.allowedGroups.includes(cleaned)) {
+      setError('Ese grupo ya esta en la lista');
+      return;
+    }
+    await handleUpdateGroupConfig({ allowedGroups: [...status.allowedGroups, cleaned] });
     setGroupInput('');
   }, [groupInput, handleUpdateGroupConfig, status.allowedGroups]);
 
   const handleRemoveGroup = useCallback(async (jid: string) => {
-    await handleUpdateGroupConfig({ allowedGroups: status.allowedGroups.filter((group) => group !== jid) });
-  }, [handleUpdateGroupConfig, status.allowedGroups]);
+    if (!window.whatsApp) return;
+    const allowedGroups = status.allowedGroups.filter((group) => group !== jid);
+    const result = await window.whatsApp.setGroupConfig({ allowedGroups });
+    if (!result.success) {
+      setError(result.error || 'Error al actualizar grupos');
+      return;
+    }
+    setStatus((previous) => {
+      const nextGroups = { ...previous.groupPersonalizations };
+      delete nextGroups[jid];
+      return { ...previous, allowedGroups, groupPersonalizations: nextGroups };
+    });
+    if (selectedPersonalizationTarget === `group:${jid}`) setSelectedPersonalizationTarget('global');
+  }, [selectedPersonalizationTarget, status.allowedGroups]);
 
   return {
     connecting, error, groupInput, handleAddGroup, handleAddNumber, handleConnect,
-    handleDisconnect, handleRemoveGroup, handleRemoveNumber, handleUpdateGroupConfig,
+    handleDisconnect, handleRemoveGroup, handleRemoveNumber, handleSavePersonalization,
+    handleUpdateGroupConfig, handleUpdateWhitelistEnabled,
     isAvailable: Boolean(window.whatsApp), isGroupPolicyDropdownOpen, numberInput,
-    setGroupInput, setIsGroupPolicyDropdownOpen, setNumberInput, setStatus, status,
+    patchPersonalizationDraft, personalizationDraft, selectedPersonalizationTarget,
+    setGroupInput, setIsGroupPolicyDropdownOpen, setNumberInput,
+    setSelectedPersonalizationTarget, setStatus, status,
+  };
+}
+
+function getPersonalizationForSelection(
+  status: WhatsAppStatus,
+  selectedTarget: PersonalizationTarget,
+): WhatsAppAgentPersonalization {
+  const globalProfile = normalizePersonalizationDraft(status.globalPersonalization);
+  const parsed = parsePersonalizationTarget(selectedTarget);
+  if (parsed.type === 'group') {
+    return normalizePersonalizationDraft({
+      ...globalProfile,
+      ...(status.groupPersonalizations?.[parsed.id] || {}),
+    });
+  }
+  if (!status.whitelistEnabled || parsed.type !== 'contact') return globalProfile;
+  return normalizePersonalizationDraft({
+    ...globalProfile,
+    ...(status.contactPersonalizations?.[parsed.id] || {}),
+  });
+}
+
+function parsePersonalizationTarget(target: PersonalizationTarget): { type: 'global' } | { type: 'contact' | 'group'; id: string } {
+  if (target.startsWith('contact:')) return { type: 'contact', id: target.slice('contact:'.length) };
+  if (target.startsWith('group:')) return { type: 'group', id: target.slice('group:'.length) };
+  return { type: 'global' };
+}
+
+function buildPersonalizationUpdate(
+  target: ReturnType<typeof parsePersonalizationTarget>,
+  profile: WhatsAppAgentPersonalization,
+  whitelistEnabled: boolean,
+) {
+  if (target.type === 'contact' && whitelistEnabled) return { contactPersonalizations: { [target.id]: profile } };
+  if (target.type === 'group') return { groupPersonalizations: { [target.id]: profile } };
+  return { globalPersonalization: profile };
+}
+
+function normalizePersonalizationDraft(input: Partial<WhatsAppAgentPersonalization>): WhatsAppAgentPersonalization {
+  return {
+    ...DEFAULT_WHATSAPP_PERSONALIZATION,
+    ...input,
+    displayName: String(input.displayName || DEFAULT_WHATSAPP_PERSONALIZATION.displayName).trim(),
+    userAlias: String(input.userAlias || '').trim(),
+    responseStyle: String(input.responseStyle || DEFAULT_WHATSAPP_PERSONALIZATION.responseStyle).trim(),
+    context: String(input.context || '').trim(),
+    customInstructions: String(input.customInstructions || '').trim(),
+    flowInstructions: String(input.flowInstructions || DEFAULT_WHATSAPP_PERSONALIZATION.flowInstructions).trim(),
   };
 }

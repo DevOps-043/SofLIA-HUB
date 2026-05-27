@@ -3,6 +3,7 @@ export type WhatsAppAgentTestContext = {
   createMockMemoryService: () => any;
   createMockWaService: () => any;
   getWhatsAppAgent: () => any;
+  mockGetGenerativeModel: any;
   mockSendMessage: any;
   mockTextResponse: (text: string) => void;
 };

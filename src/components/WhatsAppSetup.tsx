@@ -1,3 +1,4 @@
+import { AgentPersonalizationCard } from './whatsapp-setup/AgentPersonalizationCard';
 import { ConnectedChannelCard } from './whatsapp-setup/ConnectedChannelCard';
 import { ErrorAlert } from './whatsapp-setup/ErrorAlert';
 import { GroupSupportCard } from './whatsapp-setup/GroupSupportCard';
@@ -5,6 +6,7 @@ import { PersonalWhitelistCard } from './whatsapp-setup/PersonalWhitelistCard';
 import { SecurityFooter } from './whatsapp-setup/SecurityFooter';
 import { WhatsAppDisconnectedState } from './whatsapp-setup/WhatsAppDisconnectedState';
 import { WhatsAppPairingState } from './whatsapp-setup/WhatsAppPairingState';
+import { WhatsAppFlowsCard } from './whatsapp-setup/WhatsAppFlowsCard';
 import { WhatsAppSetupHeader } from './whatsapp-setup/WhatsAppSetupHeader';
 import { WhatsAppUnavailableState } from './whatsapp-setup/WhatsAppUnavailableState';
 import type { WhatsAppSetupProps } from './whatsapp-setup/types';
@@ -39,9 +41,11 @@ export function WhatsAppSetup({ isOpen, onClose, apiKey, embedded = false }: Wha
               <PersonalWhitelistCard
                 allowedNumbers={setup.status.allowedNumbers}
                 numberInput={setup.numberInput}
+                whitelistEnabled={setup.status.whitelistEnabled}
                 onAddNumber={setup.handleAddNumber}
                 onNumberInputChange={setup.setNumberInput}
                 onRemoveNumber={setup.handleRemoveNumber}
+                onWhitelistEnabledChange={setup.handleUpdateWhitelistEnabled}
               />
               <GroupSupportCard
                 groupInput={setup.groupInput}
@@ -55,6 +59,17 @@ export function WhatsAppSetup({ isOpen, onClose, apiKey, embedded = false }: Wha
                 onUpdateGroupConfig={setup.handleUpdateGroupConfig}
               />
             </div>
+            <AgentPersonalizationCard
+              allowedNumbers={setup.status.allowedNumbers}
+              allowedGroups={setup.status.allowedGroups}
+              whitelistEnabled={setup.status.whitelistEnabled}
+              selectedTarget={setup.selectedPersonalizationTarget}
+              draft={setup.personalizationDraft}
+              onDraftChange={setup.patchPersonalizationDraft}
+              onSave={setup.handleSavePersonalization}
+              onSelectTarget={(target) => setup.setSelectedPersonalizationTarget(target as Parameters<typeof setup.setSelectedPersonalizationTarget>[0])}
+            />
+            <WhatsAppFlowsCard selectedTarget={setup.selectedPersonalizationTarget} />
           </div>
         )}
         <ErrorAlert message={setup.error} />

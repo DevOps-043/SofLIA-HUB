@@ -7,6 +7,7 @@ import {
 } from '../iris-data-main';
 import type { CalendarService } from '../calendar-service';
 import { buildSystemPrompt } from '../whatsapp-prompts';
+import { buildWhatsAppPersonalizationPrompt } from '../whatsapp/personalization';
 import { getSensitiveRequestBlockResponse } from './security-prefilter';
 import { buildWhatsAppPromptMemoryContext } from './prompt-memory-context';
 import type { WhatsAppAgentPromptContextInput } from './system-prompt-context-types';
@@ -35,10 +36,20 @@ export async function buildWhatsAppAgentPromptContext(
   });
 
   let systemPrompt = await buildSystemPrompt(promptMemoryContext);
+  systemPrompt = appendPersonalizationPrompt(systemPrompt, input);
   systemPrompt = appendGoogleConnectionPrompt(systemPrompt, input.calendarService);
   systemPrompt = appendGroupPrompt(systemPrompt, input);
   systemPrompt = await appendIrisPrompt(systemPrompt, input.senderNumber, input.userMessage);
   return { sessionKey, systemPrompt };
+}
+
+function appendPersonalizationPrompt(systemPrompt: string, input: WhatsAppAgentPromptContextInput): string {
+  return `${systemPrompt}\n\n${buildWhatsAppPersonalizationPrompt(
+    input.whatsappConfig,
+    input.senderNumber,
+    input.isGroup,
+    input.isGroup ? input.jid : null,
+  )}`;
 }
 
 function appendGoogleConnectionPrompt(systemPrompt: string, calendarService: CalendarService | null): string {
