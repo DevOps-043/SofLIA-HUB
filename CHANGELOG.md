@@ -4,6 +4,39 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.5.0] - 2026-05-28
+
+### Added
+
+- **Sistema de control de acceso WhatsApp (`access-control.ts`):** Nuevo modulo que implementa numero maestro, permisos granulares por contacto (11 categorias: archivos, pantalla, control PC, terminal, portapapeles, Google Workspace, mensajeria, sistema, automatizaciones, nodos remotos) y filtrado dinamico de herramientas segun permisos del remitente.
+- **Tarjeta de Acceso Maestro en la UI (`MasterAccessCard`):** Nuevo componente en el panel de WhatsApp que permite configurar el numero maestro, ver numeros autorizados y habilitar/deshabilitar permisos individuales por contacto con toggles visuales.
+- **Comando `/permisos` en WhatsApp:** Nuevo comando de chat (aliases `/permisoswa`) exclusivo para el numero maestro que permite listar, dar, quitar y limpiar permisos de contactos directamente desde WhatsApp, con aliases en español para cada permiso.
+- **Nombre del agente dinamico en system prompt:** El system prompt ahora reemplaza `{{AGENT_NAME}}` con el `displayName` del perfil activo, permitiendo que el agente se presente con el nombre configurado por perfil en vez de usar siempre "SofLIA".
+- **Tareas programadas de ejecucion unica (`runOnce`):** El `TaskScheduler` ahora soporta tareas que se ejecutan una sola vez en el minuto programado y se auto-eliminan despues, con limpieza automatica de tareas expiradas al iniciar.
+- **Reglas de flexibilidad tonal en personalizacion:** El prompt del agente ahora incluye reglas contextuales segun el tono configurado (profesional vs. no profesional) y expande el alcance conversacional a vida diaria, relaciones y bienestar general, no solo productividad.
+- **Canal IPC `whatsapp:set-access-config`:** Nuevo canal registrado en preload, handlers y service-ipc para persistir configuracion de acceso maestro y permisos por contacto desde el renderer.
+- **Tests de control de acceso y permisos:** Nuevos tests que validan bloqueo por permisos en grupos, ejecucion de herramientas filtradas por acceso, y reglas pasivas con `runOnce` y `scheduledFor`.
+
+### Changed
+
+- **Visibilidad de herramientas filtrada por permisos:** `buildWhatsAppToolDeclarations` ahora recibe `senderNumber` y `whatsappConfig` para excluir herramientas a las que el remitente no tiene acceso, en vez de solo filtrar por grupo.
+- **Guardias de ejecucion con control de acceso:** `evaluateToolGuards` ahora evalua permisos del remitente antes de ejecutar cualquier herramienta, devolviendo mensajes claros indicando que permiso falta y como solicitarlo.
+- **Numero maestro como bypass de seguridad:** `isAllowedNumber` y `isAllowedGroupSender` ahora permiten automaticamente al numero maestro sin importar configuracion de whitelist o politica de grupo.
+- **Prompt de identidad dinamico:** La seccion de seguridad del system prompt usa `{{AGENT_NAME}}` en vez de "SOFLIA" hardcodeado, y la descripcion de identidad pasa de "asistente OMNIPOTENTE" a "asistente de IA operativo y personal" con lenguaje mas preciso sobre capacidades y permisos.
+- **Regla de continuidad conversacional:** Nuevo parrafo en el prompt que instruye al agente a interpretar referencias contextuales ("eso", "lo anterior", "para ese numero") contra mensajes recientes y memoria antes de pedir que el usuario repita todo.
+- **Historial de reintentos preservado:** Al detectar un mensaje de reintento, la conversacion ahora conserva las ultimas 8 entradas de historial en vez de borrar todo, manteniendo contexto util para completar la tarea.
+- **Limite de mensajes recientes ampliado a 30:** `RECENT_MESSAGES_LIMIT` y la carga de historial persistido pasan de 20 a 30 entradas para dar mas contexto al agente.
+- **Confirmacion de cambio de nombre en `/perfil`:** Al cambiar `displayName` via comando, el agente ahora confirma explicitamente que se presentara con el nuevo nombre.
+- **`dailyBriefingService` prioriza numero maestro:** La inicializacion y actualizacion del `ownerNumber` ahora prefieren `masterNumber` sobre el primer numero de la whitelist.
+- **Notificaciones WhatsApp incluyen numero maestro:** `notifyAllowedWhatsAppNumbers` ahora incluye al numero maestro en la lista de destinatarios, deduplicando automaticamente.
+- **UI de WhatsApp Flows con etiquetas legibles:** `WhatsAppFlowsCard` ahora muestra etiquetas como "Todos los dias a las 09:00" o "Lunes a viernes a las 14:30" en vez de expresiones cron crudas, e incluye soporte para tareas de ejecucion unica con selector de fecha/hora.
+- **Tipos de workflow-hub extendidos:** `PassiveWorkflowRule`, `SavePassiveWorkflowRuleInput` y `ScheduledTaskInfo` ahora incluyen `runOnce` y `scheduledFor` en todas las capas (tipos, mappers, servicio, renderer).
+- **Prompt de acceso inyectado al agente:** El contexto del system prompt ahora incluye una seccion `=== PERMISOS DE WHATSAPP ===` que informa al agente sobre el estado del numero maestro y los permisos del remitente actual.
+
+### Fixed
+
+- **Tareas cron de ejecucion unica disparando en minutos incorrectos:** Las tareas `runOnce` con `scheduledFor` ahora verifican que el minuto actual coincida con el programado antes de disparar, y se auto-eliminan si ya expiraron.
+
 ## [0.4.0] - 2026-05-27
 
 ### Added
