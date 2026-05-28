@@ -37,7 +37,7 @@ async function searchWithGemini(
   if (!genAI) return null;
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
     const result = await model.generateContent(buildClipboardPrompt(history, query));
     const responseText = result.response.text().trim();
     if (!responseText || responseText === NO_MATCH) return null;

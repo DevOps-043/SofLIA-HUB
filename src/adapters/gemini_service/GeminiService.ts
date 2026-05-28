@@ -7,7 +7,7 @@ export class GeminiService implements AIAssistant {
 
   constructor(apiKey: string) {
     this.genAI = new GoogleGenerativeAI(apiKey);
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
+    this.model = this.genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
   }
 
   async sendMessage(message: string, _context?: any): Promise<string> {

@@ -3,7 +3,7 @@ import { MODEL_OPTIONS } from './model-selector-options';
 import type { ModelOption, ThinkingOption } from './model-selector-options';
 
 export function useModelSelector() {
-  const [preferredPrimaryModel, setPreferredPrimaryModel] = useState('gemini-3-flash-preview');
+  const [preferredPrimaryModel, setPreferredPrimaryModel] = useState('gemini-3.5-flash');
   const [thinkingMode, setThinkingMode] = useState('minimal');
   const [isThinkingDropdownOpen, setIsThinkingDropdownOpen] = useState(false);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);

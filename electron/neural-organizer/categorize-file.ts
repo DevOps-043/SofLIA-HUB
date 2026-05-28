@@ -9,7 +9,7 @@ export async function categorizeFile(
   extractedText: string,
 ): Promise<FileCategoryInfo> {
   const model = ai.getGenerativeModel({
-    model: 'gemini-3-flash-preview',
+    model: 'gemini-3.5-flash',
     generationConfig: { responseMimeType: 'application/json' },
   });
 

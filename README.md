@@ -1,10 +1,10 @@
 # SofLIA Hub — Desktop AI Agent ✨🧬
 
-**SofLIA Hub** es un ecosistema de productividad empresarial de alto rendimiento construido como aplicación de escritorio con **Electron**. Centraliza el control total de tu entorno digital con una estética de ingeniería premium, fusionando inteligencia artificial (**Gemini 3.1 Pro / Flash / Flash Lite**), comunicación por **WhatsApp + Telegram**, gestión de proyectos en **IRIS**, Google Workspace completo, automación autónoma de la computadora, meetig ops inteligente y un motor de workflows ejecutivos — todo en una sola interfaz.
+**SofLIA Hub** es un ecosistema de productividad empresarial de alto rendimiento construido como aplicación de escritorio con **Electron**. Centraliza el control total de tu entorno digital con una estética de ingeniería premium, fusionando inteligencia artificial (**Gemini 3.5 Flash / 3.1 Pro / 3.1 Flash-Lite**), comunicación por **WhatsApp + Telegram**, gestión de proyectos en **IRIS**, Google Workspace completo, automación autónoma de la computadora, meeting ops inteligente y un motor de workflows ejecutivos — todo en una sola interfaz.
 
-Utiliza modelos de lenguaje de última generación (**Gemini 3.1 Pro / 3 Flash / 2.5 Flash**) para ofrecer una experiencia multimodal, autónoma y predictiva que se adapta dinámicamente a tu flujo de trabajo.
+Utiliza modelos de lenguaje de última generación (**Gemini 3.5 Flash / 3.1 Pro / 3.1 Flash-Lite**) para ofrecer una experiencia multimodal, autónoma y predictiva que se adapta dinámicamente a tu flujo de trabajo.
 
-> **v0.1.10** · Marzo 2026 · Desarrollado por [Pulse Hub](https://github.com/Memory-Bank)
+> **v0.5.1** · Mayo 2026 · Desarrollado por [Pulse Hub](https://github.com/Memory-Bank)
 
 ---
 
@@ -121,17 +121,17 @@ Motor cognitivo centralizado con 9 configuraciones de modelo y fallback automát
 
 | Alias | Modelo | Uso Principal |
 |-------|--------|---------------|
-| **PRIMARY** | `gemini-3-flash-preview` | Chat general, análisis rápido |
+| **PRIMARY** | `gemini-3.5-flash` | Chat general, agentes, análisis |
 | **PRO** | `gemini-3.1-pro-preview` | Razonamiento complejo, coding |
-| **FALLBACK** | `gemini-2.5-flash` | Respaldo general |
-| **WEB_AGENT** | `gemini-3-flash-preview` | Navegación web automatizada |
+| **FALLBACK** | `gemini-3.1-flash-lite` | Respaldo general, tareas ligeras |
+| **WEB_AGENT** | `gemini-3.5-flash` | Búsqueda web con grounding nativo |
 | **LIVE** | `gemini-2.5-flash-native-audio` | Audio bidireccional en tiempo real |
 | **IMAGE_GENERATION** | `gemini-2.5-flash-image` | Generación de imágenes |
 | **DEEP_RESEARCH** | `deep-research-pro-preview` | Investigación profunda |
-| **TRANSCRIPTION** | `gemini-2.5-flash` | Transcripción de audio |
-| **MAPS** | `gemini-2.5-flash` | Geolocalización y mapas |
+| **TRANSCRIPTION** | `gemini-3.1-flash-lite` | Transcripción de audio |
+| **MAPS** | `gemini-3.1-flash-lite` | Geolocalización y mapas |
 
-**Branding**: Los modelos se muestran al usuario como **SofLIA Pro**, **SofLIA**, **SofLIA Lite**, **SofLIA Deep** y **SofLIA Swift**.
+**Branding**: Los modelos se muestran al usuario como **SofLIA** (3.5 Flash), **SofLIA Pro** (3.1 Pro) y **SofLIA Lite** (3.1 Flash-Lite).
 
 ### 🖥️ Desktop Agent V2 (Agente Autónomo de Computadora)
 

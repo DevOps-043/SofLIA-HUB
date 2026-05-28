@@ -21,7 +21,7 @@ export class URLSummarizerWorkflow {
       throw new Error('API Key es requerida para iniciar URLSummarizerWorkflow');
     }
     this.genAI = new GoogleGenerativeAI(config.apiKey);
-    this.modelName = config.modelName || 'gemini-2.5-flash';
+    this.modelName = config.modelName || 'gemini-3.1-flash-lite';
   }
 
   public async processMessage(text: string): Promise<string | null> {

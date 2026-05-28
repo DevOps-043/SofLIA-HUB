@@ -1,1 +1,1 @@
-export const SUMMARY_MODEL = 'gemini-3-flash-preview';
+export const SUMMARY_MODEL = 'gemini-3.5-flash';

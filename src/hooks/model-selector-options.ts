@@ -35,6 +35,13 @@ const THINKING_OPTIONS_GEMINI25: ThinkingOption[] = [
 
 export const MODEL_OPTIONS: ModelOption[] = [
   {
+    id: 'gemini-3.5-flash',
+    name: 'SofLIA',
+    desc: 'Modelo mas inteligente para agentes y codificacion.',
+    thinkingType: 'level',
+    thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH,
+  },
+  {
     id: 'gemini-3.1-pro-preview',
     name: 'SofLIA Pro',
     desc: 'Mayor capacidad de razonamiento logico.',
@@ -42,31 +49,10 @@ export const MODEL_OPTIONS: ModelOption[] = [
     thinkingOptions: THINKING_OPTIONS_GEMINI3_PRO,
   },
   {
-    id: 'gemini-3-flash-preview',
-    name: 'SofLIA',
-    desc: 'Equilibrio perfecto entre velocidad y calidad.',
-    thinkingType: 'level',
-    thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH,
-  },
-  {
-    id: 'gemini-3.1-flash-lite-preview',
+    id: 'gemini-3.1-flash-lite',
     name: 'SofLIA Lite',
     desc: 'Ultra rapido y ligero para tareas simples.',
     thinkingType: 'level',
     thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH,
-  },
-  {
-    id: 'gemini-2.5-pro',
-    name: 'SofLIA Deep',
-    desc: 'Modelo de maxima inteligencia.',
-    thinkingType: 'budget',
-    thinkingOptions: THINKING_OPTIONS_GEMINI25,
-  },
-  {
-    id: 'gemini-2.5-flash',
-    name: 'SofLIA Swift',
-    desc: 'Ultra rapido y ligero para tareas simples.',
-    thinkingType: 'budget',
-    thinkingOptions: THINKING_OPTIONS_GEMINI25,
   },
 ];

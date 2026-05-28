@@ -9,7 +9,7 @@ export async function composeProactiveMessage(
   if (!apiKey) return composeMessageFallback(payload);
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
     const result = await model.generateContent(buildProactivePrompt(payload));
     return result.response.text() || composeMessageFallback(payload);
   } catch (error) {

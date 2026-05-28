@@ -6,7 +6,7 @@
  */
 
 /** Modelo Gemini usado para clasificación + extracción. */
-export const EXTRACTION_MODEL = 'gemini-2.5-flash';
+export const EXTRACTION_MODEL = 'gemini-3.5-flash';
 
 /** Tope de caracteres del texto fuente que se envía al modelo. */
 export const MAX_SOURCE_TEXT_CHARS = 16000;

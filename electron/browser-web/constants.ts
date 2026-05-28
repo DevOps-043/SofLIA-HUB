@@ -5,8 +5,8 @@
  * no requieran editar la clase principal.
  */
 
-export const DEFAULT_MODEL = 'gemini-3-flash-preview';
-export const DEFAULT_FALLBACK_MODEL = 'gemini-2.5-flash';
+export const DEFAULT_MODEL = 'gemini-3.5-flash';
+export const DEFAULT_FALLBACK_MODEL = 'gemini-3.1-flash-lite';
 
 /** Cantidad máxima de elementos visibles enviados al modelo en cada snapshot. */
 export const MAX_VISIBLE_ELEMENTS = 45;

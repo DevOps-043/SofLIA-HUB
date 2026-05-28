@@ -10,7 +10,7 @@
 export const MAX_HISTORY = 20;
 
 /** Modelo Gemini estable usado por el agente WhatsApp. */
-export const WA_MODEL = 'gemini-2.5-flash';
+export const WA_MODEL = 'gemini-3.5-flash';
 
 /**
  * Umbrales del loop guard:

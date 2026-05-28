@@ -4,6 +4,19 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.5.1] - 2026-05-28
+
+### Changed
+
+- **Migración a Gemini 3.5 Flash como modelo principal:** `PRIMARY` y `WEB_AGENT` actualizados de `gemini-3-flash-preview` a `gemini-3.5-flash` (stable) en `src/config.ts` y en todos los servicios del main process que usaban el modelo hardcodeado: WhatsApp agent, memoria, resúmenes, proactivo, meeting ops, neural organizer, clipboard AI, browser web service y desktop agent.
+- **Migración a Gemini 3.1 Flash-Lite como modelo de respaldo:** `FALLBACK`, `TRANSCRIPTION` y `MAPS` actualizados de `gemini-2.5-flash` a `gemini-3.1-flash-lite` (stable) en config y servicios: daily briefing, llm-task-service, url-summarizer, windows UIA, presentation workflow y flow mode.
+- **`gemini-2.5-pro` reemplazado por `gemini-3.1-pro-preview`:** Desktop agent (model, fallbackModel, proactiveModel) y presentation workflow actualizados al modelo Pro activo.
+- **Selector de modelos UI actualizado:** `model-selector-options.ts` ahora ofrece SofLIA (`gemini-3.5-flash`), SofLIA Pro (`gemini-3.1-pro-preview`) y SofLIA Lite (`gemini-3.1-flash-lite`). Eliminadas las opciones SofLIA Deep (`gemini-2.5-pro`) y SofLIA Swift (`gemini-2.5-flash`) por obsolescencia.
+
+### Fixed
+
+- **Búsquedas web con CAPTCHA bloqueando al agente WhatsApp:** `webSearch` en `web-tools.ts` ahora usa el tool nativo `googleSearchRetrieval` de la SDK de Gemini en lugar de scraping directo de HTML de DuckDuckGo/Google. Al pasar por la API oficial, el CAPTCHA desaparece completamente. El scraping HTML se mantiene solo como fallback de emergencia si no hay API key disponible.
+
 ## [0.5.0] - 2026-05-28
 
 ### Added
