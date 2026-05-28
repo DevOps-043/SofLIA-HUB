@@ -2,6 +2,7 @@ import { AgentPersonalizationCard } from './whatsapp-setup/AgentPersonalizationC
 import { ConnectedChannelCard } from './whatsapp-setup/ConnectedChannelCard';
 import { ErrorAlert } from './whatsapp-setup/ErrorAlert';
 import { GroupSupportCard } from './whatsapp-setup/GroupSupportCard';
+import { MasterAccessCard } from './whatsapp-setup/MasterAccessCard';
 import { PersonalWhitelistCard } from './whatsapp-setup/PersonalWhitelistCard';
 import { SecurityFooter } from './whatsapp-setup/SecurityFooter';
 import { WhatsAppDisconnectedState } from './whatsapp-setup/WhatsAppDisconnectedState';
@@ -60,6 +61,15 @@ export function WhatsAppSetup({ isOpen, onClose, apiKey, embedded = false }: Wha
                 onUpdateGroupConfig={setup.handleUpdateGroupConfig}
               />
             </div>
+            <MasterAccessCard
+              allowedNumbers={setup.status.allowedNumbers}
+              contactPermissions={setup.status.contactPermissions}
+              masterNumber={setup.status.masterNumber}
+              masterNumberInput={setup.masterNumberInput}
+              onMasterNumberInputChange={setup.setMasterNumberInput}
+              onSaveMasterNumber={setup.handleSaveMasterNumber}
+              onTogglePermission={setup.handleToggleContactPermission}
+            />
             <AgentPersonalizationCard
               allowedNumbers={setup.status.allowedNumbers}
               groupProfileJids={Array.from(new Set([

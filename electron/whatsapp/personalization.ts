@@ -1,4 +1,9 @@
 import { DEFAULT_CONFIG, type WhatsAppAgentPersonalization, type WhatsAppConfig, type WhatsAppPersonaTone } from './types';
+import {
+  normalizeWhatsAppAccessPermissions,
+  normalizeWhatsAppContactPermissions,
+  normalizeWhatsAppMasterNumber,
+} from './access-control';
 import { normalizePhoneNumber, numbersMatch } from './phone-utils';
 
 export interface WhatsAppPersonalizationUpdate {
@@ -6,6 +11,11 @@ export interface WhatsAppPersonalizationUpdate {
   globalPersonalization?: Partial<WhatsAppAgentPersonalization>;
   contactPersonalizations?: Record<string, Partial<WhatsAppAgentPersonalization> | null>;
   groupPersonalizations?: Record<string, Partial<WhatsAppAgentPersonalization> | null>;
+}
+
+export interface WhatsAppAccessConfigUpdate {
+  masterNumber?: string | null;
+  contactPermissions?: Record<string, WhatsAppConfig['contactPermissions'][string] | null>;
 }
 
 export interface ResolvedWhatsAppPersonalization {
@@ -43,6 +53,8 @@ export function normalizeWhatsAppConfig(input: Partial<WhatsAppConfig> = {}): Wh
     ...input,
     allowedNumbers,
     whitelistEnabled,
+    masterNumber: normalizeWhatsAppMasterNumber(input.masterNumber),
+    contactPermissions: normalizeWhatsAppContactPermissions(input.contactPermissions),
     allowedGroups: normalizeStringArray(input.allowedGroups),
     groupPolicy: VALID_GROUP_POLICIES.has(String(input.groupPolicy))
       ? input.groupPolicy as WhatsAppConfig['groupPolicy']
@@ -96,6 +108,28 @@ export function applyWhatsAppPersonalizationUpdate(
       }
     }
     next.groupPersonalizations = groups;
+  }
+  return normalizeWhatsAppConfig(next);
+}
+
+export function applyWhatsAppAccessConfigUpdate(
+  currentConfig: WhatsAppConfig,
+  update: WhatsAppAccessConfigUpdate,
+): WhatsAppConfig {
+  const next = normalizeWhatsAppConfig(currentConfig);
+  if (Object.prototype.hasOwnProperty.call(update, 'masterNumber')) {
+    next.masterNumber = normalizeWhatsAppMasterNumber(update.masterNumber);
+  }
+  if (update.contactPermissions) {
+    const permissions = { ...next.contactPermissions };
+    for (const [rawNumber, rawPermissions] of Object.entries(update.contactPermissions)) {
+      const number = normalizePhoneNumber(rawNumber);
+      if (!number) continue;
+      const normalized = normalizeWhatsAppAccessPermissions(rawPermissions);
+      if (!rawPermissions || normalized.length === 0) delete permissions[number];
+      else permissions[number] = normalized;
+    }
+    next.contactPermissions = permissions;
   }
   return normalizeWhatsAppConfig(next);
 }
@@ -157,11 +191,13 @@ export function buildWhatsAppPersonalizationPrompt(
     '=== PERSONALIZACION ACTIVA DE WHATSAPP ===',
     `Perfil aplicado: ${formatResolvedSource(resolved)}.`,
     `Nombre del agente para este usuario: ${profile.displayName}.`,
+    `Identidad visible obligatoria: cuando hables de ti o te pregunten quien eres, presentate como "${profile.displayName}". No uses "SofLIA" como nombre propio salvo que ese sea exactamente el nombre configurado para este perfil.`,
     profile.userAlias
       ? `Forma de dirigirte al usuario: ${profile.userAlias}.`
       : 'Forma de dirigirte al usuario: natural y respetuosa, sin asumir un apodo.',
     `Tono base: ${TONE_LABELS[profile.tone] || 'personalizado'}.`,
     `Estilo de respuesta: ${profile.responseStyle}`,
+    ...buildToneFlexibilityRules(profile),
     profile.context ? `Contexto del usuario: ${profile.context}` : '',
     profile.customInstructions ? `Instrucciones personalizadas: ${profile.customInstructions}` : '',
     profile.flowInstructions ? `Flujos y acciones: ${profile.flowInstructions}` : '',
@@ -251,6 +287,25 @@ function formatResolvedSource(resolved: ResolvedWhatsAppPersonalization): string
   if (resolved.source === 'contact') return `contacto ${resolved.profileRef}`;
   if (resolved.source === 'group') return `grupo ${resolved.profileRef}`;
   return 'global';
+}
+
+function buildToneFlexibilityRules(profile: WhatsAppAgentPersonalization): string[] {
+  const sharedRules = [
+    'Alcance conversacional: puedes ayudar con trabajo, vida diaria, relaciones, organizacion personal y bienestar general. No rechaces solo porque la pregunta no sea de productividad.',
+    'En temas medicos, legales o financieros: ofrece orientacion general, prudente y no diagnostica; recomienda un profesional cuando haya riesgo, sintomas, decisiones clinicas/legales o datos insuficientes.',
+  ];
+
+  if (profile.tone === 'professional') {
+    return [
+      ...sharedRules,
+      'Modo profesional: prioriza claridad, brevedad y utilidad operativa sin sonar frio ni evasivo.',
+    ];
+  }
+
+  return [
+    ...sharedRules,
+    'Modo no profesional: adapta calidez, cercania y contexto emocional al tono configurado. Evita responder como si fueras solamente una herramienta corporativa.',
+  ];
 }
 
 function buildEmotionalSupportGuardrails(profile: WhatsAppAgentPersonalization): string[] {

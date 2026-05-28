@@ -18,7 +18,7 @@ describe('WhatsApp Service - estado y configuracion', () => {
 
   it('WA-013: getStatus returns correct structure', () => {
     const status = createService().getStatus();
-    for (const key of ['connected', 'phoneNumber', 'qr', 'groupPolicy', 'groupActivation', 'groupPrefix', 'allowedNumbers', 'whitelistEnabled', 'globalPersonalization', 'contactPersonalizations', 'groupPersonalizations']) {
+    for (const key of ['connected', 'phoneNumber', 'qr', 'groupPolicy', 'groupActivation', 'groupPrefix', 'allowedNumbers', 'whitelistEnabled', 'masterNumber', 'contactPermissions', 'globalPersonalization', 'contactPersonalizations', 'groupPersonalizations']) {
       expect(status).toHaveProperty(key);
     }
   });
@@ -95,5 +95,30 @@ describe('WhatsApp Service - estado y configuracion', () => {
     const status = service.getStatus();
     expect(status.groupPersonalizations['120363000000@g.us'].displayName).toBe('SofLIA Equipo');
     expect(status.groupPersonalizations['120363999999@g.us'].displayName).toBe('No debe guardarse');
+  });
+
+  it('WA-030C: setAccessConfig stores master number and contact permissions', async () => {
+    const service = createService();
+    await service.init();
+    await service.setAllowedNumbers(['5215500000000']);
+    await service.setAccessConfig({
+      masterNumber: '+52 1 55 9999 9999',
+      contactPermissions: {
+        '5215500000000': ['screen_view', 'files_read', 'invalid' as any],
+      },
+    });
+    const status = service.getStatus();
+    expect(status.masterNumber).toBe('5215599999999');
+    expect(status.contactPermissions['5215500000000']).toEqual(['screen_view', 'files_read']);
+  });
+
+  it('WA-030D: master number bypasses personal whitelist', async () => {
+    const service = createService();
+    await service.init();
+    await service.setAllowedNumbers(['5215500000000']);
+    await service.setPersonalization({ whitelistEnabled: true });
+    await service.setAccessConfig({ masterNumber: '5215599999999' });
+    expect(service.isAllowedNumber('5215599999999')).toBe(true);
+    expect(service.isAllowedNumber('5215511111111')).toBe(false);
   });
 });

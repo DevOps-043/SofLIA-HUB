@@ -14,8 +14,10 @@ import { sendFile as sendWhatsAppFile, sendText as sendWhatsAppText } from './se
 import { DEFAULT_CONFIG, type WhatsAppConfig, type WhatsAppServiceCore } from './types';
 import { isAllowedNumber } from './security';
 import {
+  applyWhatsAppAccessConfigUpdate,
   applyWhatsAppPersonalizationUpdate,
   normalizeWhatsAppConfig,
+  type WhatsAppAccessConfigUpdate,
   type WhatsAppPersonalizationUpdate,
 } from './personalization';
 import { normalizePhoneNumber } from './phone-utils';
@@ -94,6 +96,10 @@ export class WhatsAppService extends EventEmitter implements WhatsAppServiceCore
     this.config = applyWhatsAppPersonalizationUpdate(this.config, update);
     await saveConfig(this.config);
   }
+  async setAccessConfig(update: WhatsAppAccessConfigUpdate): Promise<void> {
+    this.config = applyWhatsAppAccessConfigUpdate(this.config, update);
+    await saveConfig(this.config);
+  }
   async saveApiKey(apiKey: string): Promise<void> { this.config.apiKey = apiKey; await saveConfig(this.config); }
   async getSavedApiKey(): Promise<string | undefined> { return (await loadConfig()).apiKey; }
 
@@ -104,6 +110,8 @@ export class WhatsAppService extends EventEmitter implements WhatsAppServiceCore
       qr: this.qrDataUrl,
       allowedNumbers: this.config.allowedNumbers,
       whitelistEnabled: this.config.whitelistEnabled,
+      masterNumber: this.config.masterNumber,
+      contactPermissions: this.config.contactPermissions,
       groupPolicy: this.config.groupPolicy,
       groupActivation: this.config.groupActivation,
       groupPrefix: this.config.groupPrefix,

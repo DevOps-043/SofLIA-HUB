@@ -16,7 +16,20 @@ export function registerMainServiceIpcHandlers(input: {
     safeResult(() => services.waService.getConversationHistoryStats()));
   ipcMain.handle('whatsapp:set-allowed-numbers', async (_event, numbers: string[]) => {
     const result = await safeAsync(() => services.waService.setAllowedNumbers(numbers));
-    if (result.success && numbers.length > 0) services.dailyBriefingService.updateConfig({ ownerNumber: numbers[0] });
+    if (result.success && numbers.length > 0) {
+      const status = services.waService.getStatus() as { masterNumber?: string; allowedNumbers?: string[] };
+      services.dailyBriefingService.updateConfig({ ownerNumber: status.masterNumber || status.allowedNumbers?.[0] || numbers[0] });
+    }
+    return result;
+  });
+  ipcMain.handle('whatsapp:set-access-config', async (_event, config: any) => {
+    const result = await safeAsync(() => services.waService.setAccessConfig(config));
+    if (result.success) {
+      const status = services.waService.getStatus() as { masterNumber?: string; allowedNumbers?: string[] };
+      if (status.masterNumber || status.allowedNumbers?.[0]) {
+        services.dailyBriefingService.updateConfig({ ownerNumber: status.masterNumber || status.allowedNumbers?.[0] || '' });
+      }
+    }
     return result;
   });
   ipcMain.handle('whatsapp:set-group-config', async (_event, config: any) =>

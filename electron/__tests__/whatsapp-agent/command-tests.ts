@@ -54,4 +54,25 @@ export function registerCommandTests(ctx: WhatsAppAgentTestContext): void {
       });
     });
   });
+
+  describe('WA-044: /permisos command', () => {
+    it('should allow the master number to grant permissions', async () => {
+      const { agent, waService } = createAgentWithService(ctx);
+      waService.config.masterNumber = '5215500000000';
+      await agent.handleMessage('123@s.whatsapp.net', '5215500000000', '/permisos dar 5215511111111 pantalla archivos');
+      expect(waService.setAccessConfig).toHaveBeenCalledWith({
+        contactPermissions: {
+          '5215511111111': ['screen_view', 'files_read'],
+        },
+      });
+    });
+
+    it('should reject permission changes from non-master numbers', async () => {
+      const { agent, waService } = createAgentWithService(ctx);
+      waService.config.masterNumber = '5215500000000';
+      await agent.handleMessage('123@s.whatsapp.net', '5215511111111', '/permisos dar 5215522222222 pantalla');
+      expect(waService.setAccessConfig).not.toHaveBeenCalled();
+      expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', expect.stringContaining('Solo el numero maestro'));
+    });
+  });
 }

@@ -1,6 +1,18 @@
 export type WhatsAppGroupPolicy = 'open' | 'allowlist' | 'disabled';
 export type WhatsAppGroupActivation = 'mention' | 'always';
 export type WhatsAppPersonaTone = 'professional' | 'warm' | 'emotional_support' | 'direct' | 'custom';
+export type WhatsAppAccessPermission =
+  | 'files_read'
+  | 'files_write'
+  | 'screen_view'
+  | 'computer_control'
+  | 'shell'
+  | 'clipboard'
+  | 'google_workspace'
+  | 'messaging'
+  | 'system_control'
+  | 'automation'
+  | 'remote_nodes';
 
 export interface WhatsAppAgentPersonalization {
   displayName: string;
@@ -17,6 +29,11 @@ export interface WhatsAppPersonalizationUpdate {
   globalPersonalization?: WhatsAppAgentPersonalization;
   contactPersonalizations?: Record<string, WhatsAppAgentPersonalization | null>;
   groupPersonalizations?: Record<string, WhatsAppAgentPersonalization | null>;
+}
+
+export interface WhatsAppAccessConfigUpdate {
+  masterNumber?: string | null;
+  contactPermissions?: Record<string, WhatsAppAccessPermission[] | null>;
 }
 
 export interface WhatsAppConversationHistoryEvent {
@@ -68,6 +85,8 @@ export interface WhatsAppStatus {
   qr: string | null;
   allowedNumbers: string[];
   whitelistEnabled: boolean;
+  masterNumber: string;
+  contactPermissions: Record<string, WhatsAppAccessPermission[]>;
   groupPolicy: WhatsAppGroupPolicy;
   groupActivation: WhatsAppGroupActivation;
   groupPrefix: string;
@@ -94,6 +113,7 @@ declare global {
       getConversationHistory: (filters?: WhatsAppConversationHistoryFilters) => Promise<{ success: boolean; data?: WhatsAppConversationHistoryEvent[]; error?: string }>;
       getConversationHistoryStats: () => Promise<{ success: boolean; data?: WhatsAppConversationHistoryStats; error?: string }>;
       setAllowedNumbers: (numbers: string[]) => Promise<any>;
+      setAccessConfig: (config: WhatsAppAccessConfigUpdate) => Promise<any>;
       setGroupConfig: (config: any) => Promise<any>;
       setPersonalization: (update: WhatsAppPersonalizationUpdate) => Promise<any>;
       setApiKey: (apiKey: string) => Promise<any>;

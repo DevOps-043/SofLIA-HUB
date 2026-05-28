@@ -9,6 +9,19 @@ export function createMockWaService() {
     isAllowedNumber: vi.fn().mockReturnValue(true),
     setGroupConfig: vi.fn().mockResolvedValue(undefined),
     recordHistory: vi.fn(),
+    setAccessConfig: vi.fn().mockImplementation(function (this: any, update: any) {
+      if (Object.prototype.hasOwnProperty.call(update, 'masterNumber')) {
+        this.config.masterNumber = String(update.masterNumber || '').replace(/\D/g, '');
+      }
+      if (update.contactPermissions) {
+        this.config.contactPermissions = { ...this.config.contactPermissions };
+        for (const [number, permissions] of Object.entries(update.contactPermissions)) {
+          if (!permissions) delete this.config.contactPermissions[number];
+          else this.config.contactPermissions[number] = permissions;
+        }
+      }
+      return Promise.resolve();
+    }),
     setPersonalization: vi.fn().mockImplementation(function (this: any, update: any) {
       if (update.globalPersonalization) {
         this.config.globalPersonalization = { ...this.config.globalPersonalization, ...update.globalPersonalization };
@@ -24,6 +37,8 @@ export function createMockWaService() {
     config: {
       allowedNumbers: [],
       whitelistEnabled: false,
+      masterNumber: '',
+      contactPermissions: {},
       autoConnect: false,
       allowedGroups: [],
       groupPolicy: 'open',

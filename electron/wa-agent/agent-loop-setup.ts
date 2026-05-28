@@ -24,13 +24,17 @@ export async function createAgentLoopState(request: AgentLoopRequest): Promise<A
   const model = request.agent.getGenAI().getGenerativeModel({
     model: WA_MODEL,
     systemInstruction: systemPrompt,
-    tools: [await buildWhatsAppToolDeclarations(request.isGroup) as any],
+    tools: [await buildWhatsAppToolDeclarations({
+      isGroup: request.isGroup,
+      senderNumber: request.senderNumber,
+      whatsappConfig: request.agent.waService.config,
+    }) as any],
   });
   const historyCopy = prepareWhatsAppConversationHistory({
     conversations: request.conversations,
     sessionKey: promptContext.sessionKey,
     userMessage: request.userMessage,
-    loadPersistedHistory: () => request.agent.memory.getConversationHistory(promptContext.sessionKey, 20),
+    loadPersistedHistory: () => request.agent.memory.getConversationHistory(promptContext.sessionKey, 30),
   });
   const chatSession = startChatSafely(model, historyCopy, request.conversations, promptContext.sessionKey);
   const response = await sendInitialMessage(chatSession, request);

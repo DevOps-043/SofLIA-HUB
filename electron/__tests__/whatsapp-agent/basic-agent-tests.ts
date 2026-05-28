@@ -26,6 +26,9 @@ export function registerBasicAgentTests(ctx: WhatsAppAgentTestContext): void {
       ctx.mockTextResponse('Aqui estoy.');
       await agent.handleMessage('123@s.whatsapp.net', '5215500000000', 'Hola');
       expect(ctx.mockGetGenerativeModel).toHaveBeenCalledWith(expect.objectContaining({
+        systemInstruction: expect.stringContaining('Eres LIA'),
+      }));
+      expect(ctx.mockGetGenerativeModel).toHaveBeenCalledWith(expect.objectContaining({
         systemInstruction: expect.stringContaining('Nombre del agente para este usuario: LIA.'),
       }));
       expect(ctx.mockGetGenerativeModel).toHaveBeenCalledWith(expect.objectContaining({

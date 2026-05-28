@@ -12,6 +12,7 @@ export function exposeWhatsAppApi(bridge: PreloadBridge, ipc: SafeIpc): void {
     getConversationHistory: (filters?: any) => safeInvoke('whatsapp:get-conversation-history', filters),
     getConversationHistoryStats: () => safeInvoke('whatsapp:get-conversation-history-stats'),
     setAllowedNumbers: (numbers: string[]) => safeInvoke('whatsapp:set-allowed-numbers', numbers),
+    setAccessConfig: (config: any) => safeInvoke('whatsapp:set-access-config', config),
     setGroupConfig: (config: any) => safeInvoke('whatsapp:set-group-config', config),
     setPersonalization: (update: any) => safeInvoke('whatsapp:set-personalization', update),
     setApiKey: (apiKey: string) => safeInvoke('whatsapp:set-api-key', apiKey),

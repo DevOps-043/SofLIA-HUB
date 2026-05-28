@@ -26,4 +26,28 @@ export function registerWorkflowHubPassiveRuleCases(): void {
     expect(scheduled?.name).toBe('Correos 8 AM');
     expect(scheduled?.scheduleLabel).toBe('Lunes a viernes a las 08:00');
   });
+
+  it('stores one-shot passive workflows with their scheduled date', async () => {
+    const { service, taskScheduler } = createWorkflowHubTestService();
+    const rule = service.savePassiveRule({
+      name: 'Noticias puntuales',
+      prompt: 'Dame las noticias relevantes de IA',
+      cronExpression: '30 9 28 5 *',
+      scheduleLabel: 'El 28/05/2026 a las 09:30',
+      runOnce: true,
+      scheduledFor: '2026-05-28T09:30:00',
+      requestedBy: 'app:whatsapp:5215500000000',
+      phoneNumber: '5215500000000',
+      executionMode: 'agent_prompt',
+    });
+
+    expect(taskScheduler.upsertTask).toHaveBeenCalledWith(expect.objectContaining({
+      runOnce: true,
+      scheduledFor: '2026-05-28T09:30:00',
+    }));
+
+    const scheduled = (await service.getOverview()).passiveRules.find((item) => item.id === rule.id);
+    expect(scheduled?.runOnce).toBe(true);
+    expect(scheduled?.scheduledFor).toBe('2026-05-28T09:30:00');
+  });
 }

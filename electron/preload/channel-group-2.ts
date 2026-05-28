@@ -18,6 +18,7 @@ export const CHANNEL_GROUP_2 = [
   'whatsapp:get-conversation-history',
   'whatsapp:get-conversation-history-stats',
   'whatsapp:set-allowed-numbers',
+  'whatsapp:set-access-config',
   'whatsapp:set-group-config',
   'whatsapp:set-personalization',
   'whatsapp:set-api-key',

@@ -36,6 +36,8 @@ function createTaskScheduler() {
         createdAt: existingIndex >= 0 ? scheduledTasks[existingIndex].createdAt : now,
         updatedAt: now,
         lastRun: existingIndex >= 0 ? scheduledTasks[existingIndex].lastRun : undefined,
+        runOnce: input.runOnce === true,
+        scheduledFor: input.scheduledFor || null,
         name: input.name,
         description: input.description,
         scheduleLabel: input.scheduleLabel,

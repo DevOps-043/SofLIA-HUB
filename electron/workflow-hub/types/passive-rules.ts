@@ -14,6 +14,8 @@ export interface PassiveWorkflowRule {
   prompt: string;
   scheduleLabel: string;
   cronExpression?: string | null;
+  runOnce?: boolean;
+  scheduledFor?: string | null;
   source: PassiveWorkflowSource;
   status: PassiveWorkflowStatus;
   executionMode: ScheduledTaskExecutionMode;
@@ -35,6 +37,8 @@ export interface SavePassiveWorkflowRuleInput {
   config?: Record<string, unknown>;
   cronExpression?: string | null;
   scheduleLabel?: string | null;
+  runOnce?: boolean;
+  scheduledFor?: string | null;
   requestedBy?: string | null;
   phoneNumber?: string | null;
   source?: PassiveWorkflowSource;

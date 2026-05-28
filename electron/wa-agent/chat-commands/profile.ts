@@ -73,6 +73,7 @@ export async function handleProfileCommand(context: ChatCommandContext, args: st
   await context.waService.setPersonalization(buildWhatsAppProfileUpdate(target, patch));
   return [
     `Listo. Guarde ${action} para *${target.label}*.`,
+    field === 'displayName' ? `Desde ahora me presentare como *${rawValue}* en este perfil.` : '',
     target.type === 'global'
       ? 'Nota: como la whitelist no esta activa para este contacto, este cambio aplica al perfil global.'
       : '',

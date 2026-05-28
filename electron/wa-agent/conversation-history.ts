@@ -1,6 +1,7 @@
 type GeminiTextHistory = Array<{ role: string; parts: Array<{ text: string }> }>;
 
 const RETRY_PATTERN = /\b(vuelve a|otra vez|hazlo de nuevo|no (hiciste|completaste|hizo)|intenta de nuevo|intentar|no funciono|no funciono|repite|reintenta|rehacer|rehaz|no computaste|nada de lo que|no (hice|hizo) nada)\b/i;
+const RETRY_CONTEXT_KEEP_ENTRIES = 8;
 
 export function prepareWhatsAppConversationHistory(params: {
   conversations: Map<string, GeminiTextHistory>;
@@ -19,8 +20,10 @@ export function prepareWhatsAppConversationHistory(params: {
   }
 
   if (RETRY_PATTERN.test(userMessage)) {
-    console.log(`[WhatsApp Agent] Retry request detected - resetting chat history for ${sessionKey} to avoid stale context`);
-    conversations.set(sessionKey, []);
+    const currentHistory = conversations.get(sessionKey) || [];
+    const retainedHistory = currentHistory.slice(-RETRY_CONTEXT_KEEP_ENTRIES);
+    console.log(`[WhatsApp Agent] Retry request detected - keeping ${retainedHistory.length} recent history entries for ${sessionKey}`);
+    conversations.set(sessionKey, retainedHistory);
   }
 
   const history = conversations.get(sessionKey)!;

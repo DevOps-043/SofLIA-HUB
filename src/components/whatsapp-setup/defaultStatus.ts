@@ -16,6 +16,8 @@ export const DEFAULT_WHATSAPP_STATUS: WhatsAppStatus = {
   qr: null,
   allowedNumbers: [],
   whitelistEnabled: false,
+  masterNumber: '',
+  contactPermissions: {},
   groupPolicy: 'open',
   groupActivation: 'mention',
   groupPrefix: '/soflia',

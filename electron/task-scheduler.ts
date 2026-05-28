@@ -28,7 +28,16 @@ export class TaskScheduler extends EventEmitter {
 
   async init(): Promise<void> {
     this.tasks = await loadScheduledTasks(this.statePath);
-    for (const task of this.tasks.values()) this.startCronJob(task);
+    let removedExpired = false;
+    for (const task of this.tasks.values()) {
+      if (isExpiredRunOnceTask(task, new Date())) {
+        this.tasks.delete(task.id);
+        removedExpired = true;
+        continue;
+      }
+      this.startCronJob(task);
+    }
+    if (removedExpired) void this.persistState();
     console.log(`[TaskScheduler] Inicializado. ${this.tasks.size} tareas programadas cargadas.`);
   }
 
@@ -97,12 +106,20 @@ export class TaskScheduler extends EventEmitter {
   private startCronJob(task: ScheduledTaskInfo): void {
     this.activeJobs.get(task.id)?.stop();
     const job = cron.schedule(task.cronExpression, () => {
+      const now = new Date();
+      if (task.runOnce && task.scheduledFor && !isScheduledForCurrentMinute(task.scheduledFor, now)) {
+        if (isExpiredRunOnceTask(task, now)) this.deleteTask(task.id);
+        return;
+      }
       console.log(`[TaskScheduler] Disparando tarea diferida: ${task.id} - "${task.prompt}"`);
       task.lastRun = new Date().toISOString();
       task.updatedAt = task.lastRun;
       this.tasks.set(task.id, task);
       void this.persistState();
       this.emit('task-triggered', { ...task, triggeredAt: task.lastRun });
+      if (task.runOnce) {
+        this.deleteTask(task.id);
+      }
     });
     this.activeJobs.set(task.id, job);
   }
@@ -110,4 +127,21 @@ export class TaskScheduler extends EventEmitter {
   private persistState(): Promise<void> {
     return saveScheduledTasks(this.statePath, this.tasks.values());
   }
+}
+
+function isScheduledForCurrentMinute(scheduledFor: string, now: Date): boolean {
+  const target = new Date(scheduledFor);
+  if (Number.isNaN(target.getTime())) return true;
+  return target.getFullYear() === now.getFullYear()
+    && target.getMonth() === now.getMonth()
+    && target.getDate() === now.getDate()
+    && target.getHours() === now.getHours()
+    && target.getMinutes() === now.getMinutes();
+}
+
+function isExpiredRunOnceTask(task: ScheduledTaskInfo, now: Date): boolean {
+  if (!task.runOnce || !task.scheduledFor) return false;
+  const target = new Date(task.scheduledFor);
+  if (Number.isNaN(target.getTime())) return false;
+  return target.getTime() < now.getTime() - 60_000;
 }

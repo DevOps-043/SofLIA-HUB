@@ -31,6 +31,8 @@ export function mapScheduledTaskToPassiveRule(
     prompt: task.prompt,
     scheduleLabel: task.scheduleLabel || describeCron(task.cronExpression),
     cronExpression: task.cronExpression,
+    runOnce: task.runOnce === true,
+    scheduledFor: task.scheduledFor || null,
     source: task.source === 'chat' || task.source === 'app' ? task.source : 'legacy',
     status,
     executionMode: task.executionMode || 'agent_prompt',

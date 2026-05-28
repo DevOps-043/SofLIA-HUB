@@ -12,6 +12,7 @@ import type { WorkspaceAutomationService } from '../workspace-automation-service
 import { WorkflowManager } from '../whatsapp-workflow-presentacion';
 import { handleActivationCommand } from './chat-commands/activation';
 import { buildHelpText } from './chat-commands/help';
+import { handlePermissionsCommand } from './chat-commands/permissions';
 import { handleProfileCommand } from './chat-commands/profile';
 import { handleWorkflowBusinessCommand } from './chat-commands/workflow-router';
 
@@ -55,6 +56,10 @@ export async function handleChatCommand(context: ChatCommandContext): Promise<st
     case '/personalizar':
     case '/personalizacion':
       return handleProfileCommand(context, args);
+
+    case '/permisos':
+    case '/permisoswa':
+      return handlePermissionsCommand(context, args);
 
     case '/presentaci\u00f3n':
     case '/presentacion':

@@ -37,6 +37,8 @@ export function savePassiveRule(
     name,
     description: String(input.description || '').trim(),
     scheduleLabel: String(input.scheduleLabel || '').trim() || describeCron(cronExpression),
+    runOnce: input.runOnce === true,
+    scheduledFor: input.scheduledFor || null,
     source: input.source === 'chat' || input.source === 'app' ? input.source : 'app',
     kind: workflow ? 'passive_workflow' : 'passive_prompt',
     executionMode,

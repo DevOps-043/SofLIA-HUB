@@ -1,4 +1,5 @@
 import { BLOCKED_TOOLS_WA, CONFIRM_TOOLS_WA, GROUP_BLOCKED_TOOLS } from '../whatsapp-tools';
+import { getWhatsAppToolAccessError } from '../whatsapp/access-control';
 import { buildConfirmationDescription } from './confirmations';
 import { detectProtectedPathAccess } from './security';
 import { errorResponse, type FunctionResponse, type ToolExecutorContext } from './types';
@@ -15,8 +16,12 @@ export async function evaluateToolGuards(
     return errorResponse(toolName, 'Esta herramienta no esta disponible por WhatsApp por seguridad.');
   }
 
-  if (isGroup && GROUP_BLOCKED_TOOLS.has(toolName)) {
-    return errorResponse(toolName, 'Esta herramienta no esta permitida en grupos por seguridad.');
+  const accessError = getWhatsAppToolAccessError(ctx.waService.config, senderNumber, toolName, {
+    isGroup,
+    isGroupBlocked: isGroup && GROUP_BLOCKED_TOOLS.has(toolName),
+  });
+  if (accessError) {
+    return errorResponse(toolName, accessError);
   }
 
   const protectedPathError = detectProtectedPathAccess(toolName, toolArgs);

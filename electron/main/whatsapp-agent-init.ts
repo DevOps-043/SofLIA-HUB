@@ -48,10 +48,10 @@ export function createWhatsAppAgentInitializer(input: {
 function startApiKeyBoundServices(apiKey: string, services: any, state: MainRuntimeState, modules: any): void {
   services.proactiveService.setApiKey(apiKey);
   if (!services.proactiveService.isRunning()) services.proactiveService.start();
-  const status = services.waService.getStatus() as { allowedNumbers?: string[] };
+  const status = services.waService.getStatus() as { masterNumber?: string; allowedNumbers?: string[] };
   services.dailyBriefingService.updateConfig({
     apiKey,
-    ownerNumber: services.dailyBriefingService.getConfig().ownerNumber || status.allowedNumbers?.[0] || '',
+    ownerNumber: services.dailyBriefingService.getConfig().ownerNumber || status.masterNumber || status.allowedNumbers?.[0] || '',
   });
   services.desktopAgentService.setApiKey(apiKey);
   services.clipboardAssistant.updateApiKey(apiKey);
@@ -70,8 +70,9 @@ function startApiKeyBoundServices(apiKey: string, services: any, state: MainRunt
 
 async function notifyAllowedWhatsAppNumbers(services: any, message: string): Promise<void> {
   if (!services.waService.getStatus().connected) return;
-  const allowedNumbers = (services.waService.getStatus() as { allowedNumbers?: string[] }).allowedNumbers || [];
-  for (const number of allowedNumbers) {
+  const status = services.waService.getStatus() as { masterNumber?: string; allowedNumbers?: string[] };
+  const recipients = Array.from(new Set([status.masterNumber, ...(status.allowedNumbers || [])].filter((value): value is string => Boolean(value))));
+  for (const number of recipients) {
     const jid = `${number.replace(/\D/g, '')}@s.whatsapp.net`;
     await services.waService.sendText(jid, message).catch(() => {});
   }

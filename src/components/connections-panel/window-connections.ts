@@ -2,6 +2,7 @@ import type {
   WhatsAppConversationHistoryEvent,
   WhatsAppConversationHistoryFilters,
   WhatsAppConversationHistoryStats,
+  WhatsAppAccessConfigUpdate,
   WhatsAppPersonalizationUpdate,
   WhatsAppStatus,
 } from '../whatsapp-setup/types';
@@ -17,6 +18,7 @@ declare global {
       getConversationHistory: (filters?: WhatsAppConversationHistoryFilters) => Promise<{ success: boolean; data?: WhatsAppConversationHistoryEvent[]; error?: string }>;
       getConversationHistoryStats: () => Promise<{ success: boolean; data?: WhatsAppConversationHistoryStats; error?: string }>;
       setAllowedNumbers: (numbers: string[]) => Promise<any>;
+      setAccessConfig: (config: WhatsAppAccessConfigUpdate) => Promise<any>;
       setGroupConfig: (config: any) => Promise<any>;
       setPersonalization: (update: WhatsAppPersonalizationUpdate) => Promise<any>;
       setApiKey: (apiKey: string) => Promise<any>;

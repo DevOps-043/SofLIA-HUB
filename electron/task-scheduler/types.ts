@@ -15,6 +15,8 @@ export interface ScheduledTaskInfo {
   createdAt: string;
   updatedAt?: string;
   lastRun?: string;
+  runOnce?: boolean;
+  scheduledFor?: string | null;
   name?: string;
   description?: string;
   scheduleLabel?: string;
@@ -44,4 +46,6 @@ export interface ScheduledTaskCreateInput {
   passiveRuleId?: string | null;
   createdAt?: string;
   lastRun?: string;
+  runOnce?: boolean;
+  scheduledFor?: string | null;
 }

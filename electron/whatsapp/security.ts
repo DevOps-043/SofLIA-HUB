@@ -1,4 +1,5 @@
 import type { WhatsAppConfig } from './types';
+import { isWhatsAppMasterNumber } from './access-control';
 import { normalizePhoneNumber, numbersMatch } from './phone-utils';
 
 const JAILBREAK_PATTERNS = [
@@ -33,12 +34,14 @@ export function detectJailbreak(message: string): boolean {
 }
 
 export function isAllowedNumber(config: WhatsAppConfig, number: string): boolean {
+  if (isWhatsAppMasterNumber(config, number)) return true;
   if (!config.whitelistEnabled || !config.allowedNumbers || config.allowedNumbers.length === 0) return true;
   const numberDigits = normalizePhoneNumber(number);
   return config.allowedNumbers.some((allowed) => numbersMatch(allowed, numberDigits));
 }
 
 export function isAllowedGroupSender(config: WhatsAppConfig, senderNumber: string): boolean {
+  if (isWhatsAppMasterNumber(config, senderNumber)) return true;
   const allowed = config.groupAllowFrom || [];
   if (config.groupPolicy !== 'allowlist' || allowed.length === 0) return true;
   return allowed.some((candidate) => candidate === '*' || numbersMatch(candidate, senderNumber));

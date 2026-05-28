@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_WHATSAPP_PERSONALIZATION, DEFAULT_WHATSAPP_STATUS } from './defaultStatus';
 import type {
+  WhatsAppAccessPermission,
   WhatsAppAgentPersonalization,
   WhatsAppConversationHistoryEvent,
   WhatsAppConversationHistoryStats,
@@ -18,6 +19,7 @@ export function useWhatsAppSetupState({ apiKey, isOpen }: UseWhatsAppSetupStateO
   const [status, setStatus] = useState<WhatsAppStatus>(DEFAULT_WHATSAPP_STATUS);
   const [connecting, setConnecting] = useState(false);
   const [numberInput, setNumberInput] = useState('');
+  const [masterNumberInput, setMasterNumberInput] = useState('');
   const [groupInput, setGroupInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isGroupPolicyDropdownOpen, setIsGroupPolicyDropdownOpen] = useState(false);
@@ -80,6 +82,10 @@ export function useWhatsAppSetupState({ apiKey, isOpen }: UseWhatsAppSetupStateO
   useEffect(() => {
     setPersonalizationDraft(currentPersonalization);
   }, [currentPersonalization]);
+
+  useEffect(() => {
+    setMasterNumberInput(status.masterNumber || '');
+  }, [status.masterNumber]);
 
   useEffect(() => {
     if (selectedPersonalizationTarget === 'global') return;
@@ -198,18 +204,64 @@ export function useWhatsAppSetupState({ apiKey, isOpen }: UseWhatsAppSetupStateO
     if (!window.whatsApp) return;
     const updated = status.allowedNumbers.filter((item) => item !== number);
     await window.whatsApp.setAllowedNumbers(updated);
+    await window.whatsApp.setAccessConfig({ contactPermissions: { [number]: null } });
     setStatus((previous) => {
       const nextContacts = { ...previous.contactPersonalizations };
+      const nextPermissions = { ...previous.contactPermissions };
       delete nextContacts[number];
+      delete nextPermissions[number];
       return {
         ...previous,
         allowedNumbers: updated,
         whitelistEnabled: updated.length > 0 && previous.whitelistEnabled,
         contactPersonalizations: nextContacts,
+        contactPermissions: nextPermissions,
       };
     });
     if (selectedPersonalizationTarget === `contact:${number}`) setSelectedPersonalizationTarget('global');
   }, [selectedPersonalizationTarget, status.allowedNumbers]);
+
+  const handleSaveMasterNumber = useCallback(async () => {
+    if (!window.whatsApp) return;
+    const cleaned = masterNumberInput.replace(/[^0-9]/g, '');
+    if (masterNumberInput.trim() && cleaned.length < 10) {
+      setError('Ingresa un numero maestro valido con codigo de pais');
+      return;
+    }
+    const result = await window.whatsApp.setAccessConfig({ masterNumber: cleaned || null });
+    if (!result.success) {
+      setError(result.error || 'Error al guardar numero maestro');
+      return;
+    }
+    setStatus((previous) => ({ ...previous, masterNumber: cleaned }));
+    setError(null);
+  }, [masterNumberInput]);
+
+  const handleToggleContactPermission = useCallback(async (
+    number: string,
+    permission: WhatsAppAccessPermission,
+    enabled: boolean,
+  ) => {
+    if (!window.whatsApp) return;
+    const currentPermissions = new Set(status.contactPermissions?.[number] || []);
+    if (enabled) currentPermissions.add(permission);
+    else currentPermissions.delete(permission);
+    const nextPermissions = Array.from(currentPermissions);
+    const result = await window.whatsApp.setAccessConfig({
+      contactPermissions: { [number]: nextPermissions.length > 0 ? nextPermissions : null },
+    });
+    if (!result.success) {
+      setError(result.error || 'Error al actualizar permisos');
+      return;
+    }
+    setStatus((previous) => {
+      const contactPermissions = { ...previous.contactPermissions };
+      if (nextPermissions.length > 0) contactPermissions[number] = nextPermissions;
+      else delete contactPermissions[number];
+      return { ...previous, contactPermissions };
+    });
+    setError(null);
+  }, [status.contactPermissions]);
 
   const handleAddGroup = useCallback(async () => {
     if (!window.whatsApp || !groupInput.trim()) return;
@@ -238,11 +290,12 @@ export function useWhatsAppSetupState({ apiKey, isOpen }: UseWhatsAppSetupStateO
   return {
     connecting, error, groupInput, handleAddGroup, handleAddNumber, handleConnect,
     handleDisconnect, handleRemoveGroup, handleRemoveNumber, handleSavePersonalization,
+    handleSaveMasterNumber, handleToggleContactPermission,
     handleUpdateGroupConfig, handleUpdateWhitelistEnabled,
     historyEvents, historyLoading, historyStats, refreshHistory,
-    isAvailable: Boolean(window.whatsApp), isGroupPolicyDropdownOpen, numberInput,
+    isAvailable: Boolean(window.whatsApp), isGroupPolicyDropdownOpen, masterNumberInput, numberInput,
     patchPersonalizationDraft, personalizationDraft, selectedPersonalizationTarget,
-    setGroupInput, setIsGroupPolicyDropdownOpen, setNumberInput,
+    setGroupInput, setIsGroupPolicyDropdownOpen, setMasterNumberInput, setNumberInput,
     setSelectedPersonalizationTarget, setStatus, status,
   };
 }

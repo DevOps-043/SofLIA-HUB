@@ -12,6 +12,8 @@ export function normalizeScheduledTask(task: Partial<ScheduledTaskInfo>): Schedu
     createdAt,
     updatedAt: String(task.updatedAt || createdAt),
     lastRun: task.lastRun ? String(task.lastRun) : undefined,
+    runOnce: task.runOnce === true,
+    scheduledFor: task.scheduledFor ? String(task.scheduledFor).trim() : null,
     name: task.name ? String(task.name).trim() : undefined,
     description: task.description ? String(task.description).trim() : undefined,
     scheduleLabel: task.scheduleLabel ? String(task.scheduleLabel).trim() : undefined,

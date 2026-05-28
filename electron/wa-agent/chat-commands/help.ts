@@ -7,6 +7,7 @@ const HELP_LINES = [
   '/perfil - Ver o editar mi personalizacion persistente',
   '/perfil nombre LIA - Cambiar como se llama el agente para ti',
   '/perfil tono emocional - Cambiar tono: profesional, cercano, emocional, directo',
+  '/permisos - Ver o administrar permisos si eres numero maestro',
   '/correo - Revisar correo',
   '/correo hoy - Correos de hoy',
   '/correo noleidos - Correos pendientes',

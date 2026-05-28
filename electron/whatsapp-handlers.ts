@@ -61,6 +61,15 @@ export function registerWhatsAppHandlers(
     }
   });
 
+  ipcMain.handle('whatsapp:set-access-config', async (_event, config: any) => {
+    try {
+      await waService.setAccessConfig(config);
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  });
+
   // Manejador para configurar la política de grupos
   ipcMain.handle('whatsapp:set-group-config', async (_event, config: any) => {
     try {

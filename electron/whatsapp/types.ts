@@ -4,6 +4,8 @@ import type { WhatsAppConversationHistoryInput } from './history';
 export interface WhatsAppConfig {
   allowedNumbers: string[];
   whitelistEnabled: boolean;
+  masterNumber: string;
+  contactPermissions: Record<string, WhatsAppAccessPermission[]>;
   autoConnect: boolean;
   apiKey?: string;
   allowedGroups: string[];
@@ -22,6 +24,19 @@ export type WhatsAppPersonaTone =
   | 'emotional_support'
   | 'direct'
   | 'custom';
+
+export type WhatsAppAccessPermission =
+  | 'files_read'
+  | 'files_write'
+  | 'screen_view'
+  | 'computer_control'
+  | 'shell'
+  | 'clipboard'
+  | 'google_workspace'
+  | 'messaging'
+  | 'system_control'
+  | 'automation'
+  | 'remote_nodes';
 
 export interface WhatsAppAgentPersonalization {
   displayName: string;
@@ -51,6 +66,8 @@ export interface WhatsAppServiceCore {
 export const DEFAULT_CONFIG: WhatsAppConfig = {
   allowedNumbers: [],
   whitelistEnabled: false,
+  masterNumber: '',
+  contactPermissions: {},
   autoConnect: false,
   allowedGroups: [],
   groupPolicy: 'open',

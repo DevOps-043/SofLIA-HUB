@@ -14,6 +14,12 @@ describe('WhatsApp Prompts', () => {
     expect(prompt).toContain('asistente');
   });
 
+  it('WA-144b: el system prompt usa el nombre visible configurado', async () => {
+    const prompt = await buildSystemPrompt('', { agentName: 'LIA' });
+    expect(prompt).toContain('Eres LIA');
+    expect(prompt).toContain('Soy LIA');
+  });
+
   it('WA-145: el system prompt incluye capacidades y herramientas', async () => {
     const prompt = await buildSystemPrompt();
     expect(prompt).toContain('ARCHIVOS');
