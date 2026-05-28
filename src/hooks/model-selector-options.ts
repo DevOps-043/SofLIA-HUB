@@ -26,13 +26,6 @@ const THINKING_OPTIONS_GEMINI3_PRO: ThinkingOption[] = [
   { id: 'high', name: 'Pro', desc: 'Maximo razonamiento', level: 'high' },
 ];
 
-const THINKING_OPTIONS_GEMINI25: ThinkingOption[] = [
-  { id: 'off', name: 'Rapido', desc: 'Sin pensamiento', budget: 0 },
-  { id: 'low', name: 'Pensar', desc: 'Pensamiento ligero', budget: 1024 },
-  { id: 'medium', name: 'Medio', desc: 'Pensamiento moderado', budget: 8192 },
-  { id: 'high', name: 'Alto', desc: 'Pensamiento profundo', budget: 24576 },
-];
-
 export const MODEL_OPTIONS: ModelOption[] = [
   {
     id: 'gemini-3.5-flash',
