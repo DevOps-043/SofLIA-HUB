@@ -4,7 +4,7 @@
 
 Utiliza modelos de lenguaje de última generación (**Gemini 3.5 Flash / 3.1 Pro / 3.1 Flash-Lite**) para ofrecer una experiencia multimodal, autónoma y predictiva que se adapta dinámicamente a tu flujo de trabajo.
 
-> **v0.5.1** · Mayo 2026 · Desarrollado por [Pulse Hub](https://github.com/Memory-Bank)
+> **v0.5.2** · Mayo 2026 · Desarrollado por [Pulse Hub](https://github.com/Memory-Bank)
 
 ---
 

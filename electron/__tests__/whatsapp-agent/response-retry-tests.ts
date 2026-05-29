@@ -70,4 +70,96 @@ export function registerResponseRetryTests(ctx: ResponseRetryContext): void {
       expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', 'Dime cuales errores viste y los reviso contigo.');
     });
   });
+
+  describe('WA-053: non-action turns cannot trigger operational tools', () => {
+    it('blocks unsolicited confirmations, processes, and file flows', async () => {
+      const { agent, waService } = createAgent(ctx);
+      const { detectActionRequest } = await import('../../whatsapp-prompts');
+      const { executeWhatsAppTools } = await import('../../whatsapp-tool-executor');
+
+      vi.mocked(detectActionRequest).mockReturnValue(false);
+      ctx.mockSendMessage
+        .mockResolvedValueOnce({
+          response: {
+            text: () => '',
+            candidates: [{ content: { parts: [{ functionCall: { name: 'execute_command', args: { command: 'mysql --version' } } }] } }],
+            functionCalls: () => null,
+          },
+        })
+        .mockResolvedValueOnce({
+          response: {
+            text: () => 'Te leo. No inicio procesos si no me lo pides.',
+            candidates: [{ content: { parts: [{ text: 'Te leo. No inicio procesos si no me lo pides.' }] } }],
+            functionCalls: () => null,
+          },
+        });
+
+      await agent.handleMessage('123@s.whatsapp.net', '5215500000000', 'Hola');
+
+      expect(executeWhatsAppTools).not.toHaveBeenCalled();
+      expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', 'Te leo. No inicio procesos si no me lo pides.');
+    });
+
+    it('blocks unsolicited SofLIA internal chat lookups but preserves text-only personalization', async () => {
+      const { agent, waService } = createAgent(ctx);
+      const { detectActionRequest } = await import('../../whatsapp-prompts');
+      const { executeWhatsAppTools } = await import('../../whatsapp-tool-executor');
+
+      vi.mocked(detectActionRequest).mockReturnValue(false);
+      ctx.mockSendMessage
+        .mockResolvedValueOnce({
+          response: {
+            text: () => '',
+            candidates: [{ content: { parts: [{ functionCall: { name: 'app_chat_get_context', args: { conversationRef: 'Codex' } } }] } }],
+            functionCalls: () => null,
+          },
+        })
+        .mockResolvedValueOnce({
+          response: {
+            text: () => 'Aqui estoy contigo, sin abrir SofLIA ni revisar chats internos.',
+            candidates: [{ content: { parts: [{ text: 'Aqui estoy contigo, sin abrir SofLIA ni revisar chats internos.' }] } }],
+            functionCalls: () => null,
+          },
+        });
+
+      await agent.handleMessage('123@s.whatsapp.net', '5215500000000', 'Hola');
+
+      expect(executeWhatsAppTools).not.toHaveBeenCalled();
+      expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', 'Aqui estoy contigo, sin abrir SofLIA ni revisar chats internos.');
+    });
+
+    it('sanitizes leaked tool planning from final WhatsApp text', async () => {
+      const { agent, waService } = createAgent(ctx);
+
+      ctx.mockSendMessage.mockResolvedValueOnce({
+        response: {
+          text: () => [
+            'Hola, Teffy. Aqui estoy contigo.',
+            '',
+            'custom_theme: {"colors":{"bg":"FAF6F0"}}',
+            '* include_images: true',
+            'Wait, should I call create_document now? Yes!',
+          ].join('\n'),
+          candidates: [{
+            content: {
+              parts: [{
+                text: [
+                  'Hola, Teffy. Aqui estoy contigo.',
+                  '',
+                  'custom_theme: {"colors":{"bg":"FAF6F0"}}',
+                  '* include_images: true',
+                  'Wait, should I call create_document now? Yes!',
+                ].join('\n'),
+              }],
+            },
+          }],
+          functionCalls: () => null,
+        },
+      });
+
+      await agent.handleMessage('123@s.whatsapp.net', '5215500000000', 'Hola');
+
+      expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', 'Hola, Teffy. Aqui estoy contigo.');
+    });
+  });
 }

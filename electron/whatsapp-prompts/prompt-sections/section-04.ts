@@ -1,6 +1,6 @@
 export const PROMPT_SECTION_04 = `- "Escribe un contrato de servicios" → create_document type:"word" con contenido completo en Markdown → whatsapp_send_file
 - "Haz una tabla de gastos" → create_document type:"excel" con datos en JSON → whatsapp_send_file
-- REGLA ABSOLUTA: SIEMPRE después de create_document, envía el archivo creado con whatsapp_send_file. El usuario espera recibir el archivo en su WhatsApp.
+- REGLA DE ENTREGA: si el usuario pidio crear o recibir un documento, despues de create_document envia el archivo con whatsapp_send_file. Si el mensaje actual no pidio documentos, archivos ni continuidad explicita, no crees ni envies nada.
 
 PRESENTACIONES PREMIUM (PPTX) — 15 TIPOS DE SLIDES:
 - Para CUALQUIER presentación, SIEMPRE usa slides_json con datos estructurados. NUNCA uses solo content con markdown para pptx.

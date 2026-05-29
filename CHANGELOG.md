@@ -4,6 +4,25 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.5.2] - 2026-05-29
+
+### Added
+
+- **Guardia de intencion para herramientas operativas de WhatsApp:** el agentic loop bloquea herramientas de computadora, navegador, archivos, chats internos de SofLIA, Google Workspace, IRIS, comandos, creacion/envio de archivos y mensajes externos cuando el mensaje actual no solicita una accion explicita.
+- **Cobertura de regresion para stickers, reacciones y filtrado de herramientas:** nuevos tests verifican que interacciones pasivas no llegan a Gemini, que los turnos vacios no responden y que llamadas como `execute_command` se bloquean antes de pedir confirmacion si el usuario no las pidio.
+
+### Changed
+
+- **Prompt WhatsApp menos agresivo con herramientas:** las reglas ahora distinguen entre solicitud clara, continuidad explicita e interacciones sociales; stickers, reacciones, saludos y acompanamiento conservan la personalizacion/mensajes motivacionales, pero no autorizan computadora, navegador, chats internos, confirmaciones, flujos ni archivos.
+- **Deteccion de acciones mas precisa:** `puedes` dejo de contar como accion por si solo y solo activa herramientas cuando acompana un verbo operativo como crear, enviar, revisar o guardar.
+- **Confirmaciones HITL mas claras:** el mensaje de confirmacion ya no duplica "Confirmar Confirmacion requerida" e indica que se cancele si la accion no fue solicitada.
+
+### Fixed
+
+- **Stickers y reacciones activaban procesos no pedidos:** WhatsApp ahora registra stickers/reacciones como interacciones pasivas y no emite un mensaje al agente, evitando ejecuciones por texto vacio o por contexto viejo.
+- **Archivos y flujos enviados sin solicitud actual:** `create_document`, `whatsapp_send_file` y herramientas similares quedan bloqueadas si el usuario no pidio explicitamente crear/recibir/continuar un archivo.
+- **Fuga de razonamiento interno en WhatsApp:** la normalizacion de salida elimina secciones internas como `custom_theme`, `slides_json`, `include_images` y frases de planeacion tipo "Wait, should I call..." antes de enviar el texto.
+
 ## [0.5.1] - 2026-05-28
 
 ### Changed

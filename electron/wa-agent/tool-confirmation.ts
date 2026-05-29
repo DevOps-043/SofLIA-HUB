@@ -10,10 +10,9 @@ export async function requestWhatsAppToolConfirmation(params: {
   description: string;
   args: Record<string, any>;
 }): Promise<boolean> {
-  const emoji = params.toolName === 'delete_item' ? 'Eliminar' : 'Confirmar';
   await params.waService.sendText(
     params.jid,
-    `${emoji} *Confirmacion requerida*\n\n${params.description}\n\nConfirmas? Responde *SI* para proceder o cualquier otra cosa para cancelar.`,
+    `*Confirmacion requerida*\n\n${params.description}\n\nResponde *SI* para proceder. Si no pediste esta accion, responde *NO* o ignora este mensaje para cancelar.`,
   );
 
   return new Promise<boolean>((resolve) => {

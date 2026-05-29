@@ -36,6 +36,11 @@ describe('WhatsApp Prompts evidence helpers', () => {
     expect(detectActionRequest('Ayudame a investigar el capitulo 5 del CCNA')).toBe(true);
   });
 
+  it('WA-155b: no trata preguntas sociales con puedes como acciones operativas', () => {
+    expect(detectActionRequest('Puedes platicar conmigo un rato?')).toBe(false);
+    expect(detectActionRequest('Puedes crear una presentacion de ventas?')).toBe(true);
+  });
+
   it('WA-156: repara texto mojibake al formatear para WhatsApp', () => {
     expect(formatForWhatsApp('Ã‚Â¿En quÃƒÂ© puedo ayudarte?')).toContain('puedo ayudarte');
   });

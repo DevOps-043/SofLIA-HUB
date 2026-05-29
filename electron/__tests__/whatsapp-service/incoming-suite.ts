@@ -57,6 +57,52 @@ describe('WhatsApp Service - mensajes entrantes', () => {
     expect(msgHandler).not.toHaveBeenCalled();
   });
 
+  it('WA-025b: sticker-only messages are recorded but not emitted to the agent', async () => {
+    const service = await createConnectedService();
+    const msgHandler = vi.fn();
+    const historySpy = vi.spyOn(service, 'recordHistory');
+    service.on('message', msgHandler);
+
+    waFixtures.mockSockEvents.emit('messages.upsert', {
+      messages: [{
+        key: { remoteJid: '5215500000000@s.whatsapp.net', fromMe: false, id: 'msg-sticker-1' },
+        message: { stickerMessage: { mimetype: 'image/webp' } },
+      }],
+    });
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(msgHandler).not.toHaveBeenCalled();
+    expect(historySpy).toHaveBeenCalledWith(expect.objectContaining({
+      direction: 'incoming',
+      kind: 'media',
+      text: 'Sticker recibido',
+      metadata: expect.objectContaining({ passiveInteraction: 'sticker', ignoredByAgent: true }),
+    }));
+  });
+
+  it('WA-025c: reaction messages are recorded but not emitted to the agent', async () => {
+    const service = await createConnectedService();
+    const msgHandler = vi.fn();
+    const historySpy = vi.spyOn(service, 'recordHistory');
+    service.on('message', msgHandler);
+
+    waFixtures.mockSockEvents.emit('messages.upsert', {
+      messages: [{
+        key: { remoteJid: '5215500000000@s.whatsapp.net', fromMe: false, id: 'msg-reaction-1' },
+        message: { reactionMessage: { text: '❤️' } },
+      }],
+    });
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(msgHandler).not.toHaveBeenCalled();
+    expect(historySpy).toHaveBeenCalledWith(expect.objectContaining({
+      direction: 'incoming',
+      kind: 'text',
+      text: 'Reaccion recibida: ❤️',
+      metadata: expect.objectContaining({ passiveInteraction: 'reaction', ignoredByAgent: true }),
+    }));
+  });
+
   it('WA-026: records incoming media metadata without storing buffer content', async () => {
     const service = await createConnectedService();
     const historySpy = vi.spyOn(service, 'recordHistory');

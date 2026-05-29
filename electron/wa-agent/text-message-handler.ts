@@ -33,29 +33,32 @@ export async function handleWhatsAppTextMessage(input: {
   isGroup: boolean;
   groupPassiveHistory: string;
 }): Promise<void> {
+  const text = input.text.trim();
+  if (!text) return;
+
   const sessionKey = input.isGroup ? `group:${input.jid}:${input.senderNumber}` : input.senderNumber;
   if (MeetingWorkflowManager.isActive(sessionKey)) {
-    await MeetingWorkflowManager.handleMessage(sessionKey, input.text);
+    await MeetingWorkflowManager.handleMessage(sessionKey, text);
     return;
   }
   if (WorkflowManager.isActive(sessionKey)) {
-    await WorkflowManager.handleMessage(sessionKey, input.text);
+    await WorkflowManager.handleMessage(sessionKey, text);
     return;
   }
 
   const pending = input.pendingConfirmations.get(input.senderNumber);
   if (pending) {
-    const lower = input.text.toLowerCase().trim();
-    const confirmed = lower === 'si' || lower === 'sí' || lower === 'yes' || lower === 'confirmar' || lower === 'confirmo';
+    const lower = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    const confirmed = lower === 'si' || lower === 'yes' || lower === 'confirmar' || lower === 'confirmo';
     clearTimeout(pending.timeout);
     input.pendingConfirmations.delete(input.senderNumber);
     pending.resolve(confirmed);
     return;
   }
 
-  if (input.text.startsWith('/')) {
+  if (text.startsWith('/')) {
     try {
-      const commandResult = await input.handleChatCommand(input.jid, input.senderNumber, input.text, input.isGroup);
+      const commandResult = await input.handleChatCommand(input.jid, input.senderNumber, text, input.isGroup);
       if (commandResult) {
         await input.waService.sendText(input.jid, commandResult);
         return;
@@ -71,7 +74,7 @@ export async function handleWhatsAppTextMessage(input: {
   const passiveWorkflowReply = tryHandlePassiveWorkflowRequest({
     workflowHubService: input.workflowHubService,
     senderNumber: input.senderNumber,
-    text: input.text,
+    text,
     isGroup: input.isGroup,
   });
   if (passiveWorkflowReply) {
@@ -83,7 +86,7 @@ export async function handleWhatsAppTextMessage(input: {
     const response = await input.runAgentLoop(
       input.jid,
       input.senderNumber,
-      input.text,
+      text,
       input.isGroup,
       input.groupPassiveHistory,
     );

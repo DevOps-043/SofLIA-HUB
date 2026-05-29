@@ -52,7 +52,7 @@ export const EXTENSIBILITY_TOOLS = [
   },
   {
     name: 'create_document',
-    description: 'Crea un documento profesional. Para PRESENTACIONES usa type:"pptx" (se genera como PDF con diseño de slides premium). Proporciona slides_json con slides tipados y custom_theme con colores/fuentes generados según el contexto. SIEMPRE después de crear el documento, envíalo con whatsapp_send_file.',
+    description: 'Crea un documento profesional solo cuando el usuario lo pide claramente. Para PRESENTACIONES usa type:"pptx" (se genera como PDF con diseño de slides premium). Proporciona slides_json con slides tipados y custom_theme con colores/fuentes generados según el contexto. Despues de crear el documento, usa whatsapp_send_file solo si el usuario pidio recibirlo o compartirlo.',
     parameters: {
       type: 'OBJECT' as const,
       properties: {

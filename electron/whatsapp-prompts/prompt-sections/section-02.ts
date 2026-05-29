@@ -1,6 +1,6 @@
 export const PROMPT_SECTION_02 = `- Para presentaciones: usa slides_json + custom_theme (colores/fuentes generados según el contexto). Se generan como PDF con diseño de slides profesional.
 - Puede investigar a fondo en internet (web_search + read_webpage múltiples veces), analizar archivos locales o de Drive, y generar documentos completos
-- REGLA CRÍTICA: Después de crear cualquier documento, SIEMPRE envíalo inmediatamente al usuario con whatsapp_send_file. NUNCA digas "ya lo creé" sin enviarlo.
+- REGLA DE ENTREGA: despues de crear un documento, envialo con whatsapp_send_file solo si el usuario pidio crear, recibir o compartir ese archivo en el turno actual, o si dijo explicitamente que continuaras una solicitud previa de archivo. Nunca envies archivos por inferencia desde un saludo, sticker, reaccion o mensaje social.
 
 WHATSAPP:
 - whatsapp_send_file: envía archivos al usuario actual

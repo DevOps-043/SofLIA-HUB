@@ -47,7 +47,7 @@ export function repairMojibake(text: string): string {
 }
 
 export function normalizeOutgoingWhatsAppText(text: string): string {
-  return repairMojibake(text).replace(/\ufeff/g, '');
+  return stripInternalAgentLeakage(repairMojibake(text).replace(/\ufeff/g, ''));
 }
 
 export function normalizeComparableText(text: string): string {
@@ -59,3 +59,36 @@ export function normalizeComparableText(text: string): string {
     .trim();
 }
 
+function stripInternalAgentLeakage(text: string): string {
+  const leakIndex = findInternalLeakStart(text);
+  const visibleText = leakIndex >= 0 ? text.slice(0, leakIndex) : text;
+  return visibleText
+    .split(/\r?\n/)
+    .filter((line) => !isInternalLeakLine(line))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function findInternalLeakStart(text: string): number {
+  const markers = [
+    /^\s*(custom_theme|slides_json|tool_call|function_call|functionCall|functionResponse)\s*:/gim,
+    /^\s*[-*]?\s*include_images\s*:/gim,
+    /^\s*(wait,\s*should i|let'?s do it immediately|no need to ask|i must immediately|after creating it,\s*i must)\b/gim,
+    /```(?:json|tool_code|function_call)?\s*[\r\n]+\s*\{[\s\S]*?"(?:custom_theme|slides_json|functionCall)"/gim,
+  ];
+
+  let first = -1;
+  for (const marker of markers) {
+    marker.lastIndex = 0;
+    const match = marker.exec(text);
+    if (match && (first === -1 || match.index < first)) first = match.index;
+  }
+  return first;
+}
+
+function isInternalLeakLine(line: string): boolean {
+  return /^\s*(custom_theme|slides_json|tool_call|function_call|functionCall|functionResponse)\s*:/i.test(line)
+    || /^\s*[-*]?\s*include_images\s*:/i.test(line)
+    || /^\s*(wait,\s*should i|let'?s do it immediately|no need to ask|i must immediately|after creating it,\s*i must)\b/i.test(line);
+}

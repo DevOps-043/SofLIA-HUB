@@ -39,6 +39,31 @@ export function extractRawText(msg: any): string {
     '';
 }
 
+export type PassiveWhatsAppInteraction = {
+  kind: 'reaction' | 'sticker';
+  label: string;
+  value?: string;
+};
+
+export function getPassiveInteraction(msg: any): PassiveWhatsAppInteraction | null {
+  const message = msg.message || {};
+  const reaction = message.reactionMessage;
+  if (reaction) {
+    const value = String(reaction.text || '').trim();
+    return {
+      kind: 'reaction',
+      label: value ? `Reaccion recibida: ${value}` : 'Reaccion recibida',
+      value: value || undefined,
+    };
+  }
+
+  if (message.stickerMessage && !extractRawText(msg).trim()) {
+    return { kind: 'sticker', label: 'Sticker recibido' };
+  }
+
+  return null;
+}
+
 export function cleanGroupText(rawText: string, prefix: string, botNumber: string): string {
   let cleanText = rawText.trim();
   if (cleanText.toLowerCase().startsWith(prefix.toLowerCase())) {

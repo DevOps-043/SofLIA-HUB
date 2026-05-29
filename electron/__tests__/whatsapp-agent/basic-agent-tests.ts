@@ -11,6 +11,13 @@ export function registerBasicAgentTests(ctx: WhatsAppAgentTestContext): void {
       expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', expect.any(String));
     });
 
+    it('ignores empty text turns produced by passive WhatsApp interactions', async () => {
+      const { agent, waService } = createAgentWithService(ctx);
+      await agent.handleMessage('123@s.whatsapp.net', '5215500000000', '   ');
+      expect(ctx.mockSendMessage).not.toHaveBeenCalled();
+      expect(waService.sendText).not.toHaveBeenCalled();
+    });
+
     it('should inject contact personalization into the system prompt when whitelist is active', async () => {
       const { agent, waService } = createAgentWithService(ctx);
       waService.config.whitelistEnabled = true;

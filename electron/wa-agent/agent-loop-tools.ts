@@ -5,6 +5,7 @@ import { enforceEvidenceOrder } from './agent-loop-evidence';
 import { executeToolsAndTrackEvidence } from './agent-loop-tool-execution';
 import { guardRepeatedToolSignature, isPollLikeNoProgress } from './agent-loop-signature-guard';
 import { handlePollNoProgress, handleRepeatedFailure } from './agent-loop-tool-guards';
+import { guardUnrequestedOperationalTools } from './tool-intent-guard';
 
 type ToolCallAgentResponse = { done: true; text: string } | { done: false };
 
@@ -13,6 +14,9 @@ export async function handleToolCallAgentResponse(
   functionCalls: any[],
 ): Promise<ToolCallAgentResponse> {
   const toolNames = functionCalls.map((part) => part.functionCall?.name).filter(Boolean);
+  const intentGuard = await guardUnrequestedOperationalTools(state, functionCalls);
+  if (intentGuard) return intentGuard;
+
   if (await enforceEvidenceOrder(state, functionCalls)) return { done: false };
 
   const toolSignature = stableJson(functionCalls.map((part) => ({

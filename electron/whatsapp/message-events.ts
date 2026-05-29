@@ -1,7 +1,14 @@
 import { addToGroupContext, getGroupHistory } from './group-context';
 import { shouldRespondInGroup } from './group-activation';
 import { emitMediaIfPresent } from './media-events';
-import { cleanGroupText, extractRawText, resolveSenderNumber, unwrapMessageContainers } from './message-utils';
+import {
+  cleanGroupText,
+  extractRawText,
+  getPassiveInteraction,
+  resolveSenderNumber,
+  unwrapMessageContainers,
+  type PassiveWhatsAppInteraction,
+} from './message-utils';
 import { detectJailbreak, isAllowedGroupSender, isAllowedNumber } from './security';
 import type { WhatsAppServiceCore } from './types';
 
@@ -22,6 +29,7 @@ async function processIncomingMessage(service: WhatsAppServiceCore, msg: any): P
   const senderNumber = await resolveSenderNumber(service.sock, msg, jid, isGroup);
   if (!passesAccessChecks(service, msg, jid, isGroup, senderNumber)) return;
 
+  const passiveInteraction = getPassiveInteraction(msg);
   const wasInvoked = isGroup ? shouldRespondInGroup(service.sock, service.config, msg) : true;
   const rawText = extractRawText(msg).trim();
   let cleanText = rawText;
@@ -32,6 +40,12 @@ async function processIncomingMessage(service: WhatsAppServiceCore, msg: any): P
     msg.message.videoMessage ||
     msg.message.audioMessage,
   );
+
+  if (!cleanText && passiveInteraction) {
+    recordIncomingPassiveInteraction(service, msg, jid, senderNumber, isGroup, passiveInteraction);
+    return;
+  }
+
   if (rawText && detectJailbreak(rawText)) {
     recordIncomingText(service, msg, jid, senderNumber, isGroup, cleanText || rawText, {
       rawText: rawText === cleanText ? undefined : rawText,
@@ -60,6 +74,34 @@ async function processIncomingMessage(service: WhatsAppServiceCore, msg: any): P
   if (!cleanText && !wasInvoked) return;
   console.log(`[WhatsApp] ${isGroup ? 'GROUP' : 'DM'} from ${senderNumber}${isGroup ? ` in ${jid}` : ''}: ${cleanText.slice(0, 60)}`);
   service.emit('message', { jid, senderNumber, text: cleanText, message: msg, isGroup, groupJid: isGroup ? jid : null, history });
+}
+
+function recordIncomingPassiveInteraction(
+  service: WhatsAppServiceCore,
+  msg: any,
+  jid: string,
+  senderNumber: string,
+  isGroup: boolean,
+  interaction: PassiveWhatsAppInteraction,
+): void {
+  service.recordHistory({
+    direction: 'incoming',
+    kind: interaction.kind === 'sticker' ? 'media' : 'text',
+    jid,
+    senderNumber,
+    groupJid: isGroup ? jid : null,
+    isGroup,
+    text: interaction.label,
+    media: interaction.kind === 'sticker' ? { mimetype: msg.message?.stickerMessage?.mimetype || 'image/webp' } : undefined,
+    source: 'whatsapp-service',
+    metadata: {
+      messageId: msg.key?.id,
+      participant: msg.key?.participant,
+      passiveInteraction: interaction.kind,
+      value: interaction.value,
+      ignoredByAgent: true,
+    },
+  });
 }
 
 function recordIncomingText(
