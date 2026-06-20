@@ -4,6 +4,28 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.5.3] - 2026-06-20
+
+### Added
+
+- **Tareas programadas en WhatsApp (Scheduled Tasks):** El agente de WhatsApp ahora puede crear, listar y cancelar tareas programadas directamente desde la conversacion. El contexto de la tarea se genera con memoria activa del usuario para que el agente retome el hilo correctamente cuando se dispara.
+- **Auto-extraccion de hechos desde resumenes:** Despues de cada resumen de sesion, Gemini extrae automaticamente hechos estructurados (preferencias, contexto de trabajo, personas clave, compromisos) y los guarda como `facts` persistentes. Esto crea una memoria declarativa que no envejece y es consultable en cualquier sesion futura.
+- **Herramientas de ciclo de vida de aplicaciones:** Nuevas capacidades para gestionar el estado de procesos y aplicaciones desde el agente de WhatsApp, incluyendo verificacion de ventanas activas post-lanzamiento.
+
+### Changed
+
+- **Sistema de memoria reforzado para recall de largo plazo:** El contexto del agente ahora incluye los ultimos 5 resumenes de sesion (antes solo el mas reciente), con fechas de periodo visibles, permitiendo a SofLIA recordar conversaciones de semanas atras. `SEMANTIC_TOP_K` subio de 5 a 10 y `SEMANTIC_MIN_SCORE` bajo de 0.30 a 0.22 para ampliar el alcance semantico. `FACTS_TOKEN_BUDGET` paso de 1000 a 1800 tokens.
+- **Timeline recall ampliado a 30 entradas:** Las consultas de memoria temporal ("hace dos semanas", "la semana pasada") ahora recuperan hasta 30 mensajes del periodo en lugar de 16.
+- **Seccion de resumenes con contexto cronologico:** El formateador de contexto etiqueta cada bloque de resumen con su rango de fechas (`[3 jun — 5 jun]`) para que el modelo pueda ubicar temporalmente los eventos al responder.
+- **`UNIQUE INDEX` en tabla `facts`:** Se agrego el indice unico `idx_facts_unique` sobre `(COALESCE(phone_number,''), category, fact_key)` para que el upsert `ON CONFLICT` funcione correctamente. La migracion deduplica filas existentes antes de crear el indice.
+- **Historial en SQLite guarda ambos roles:** `persistFinalText` ahora guarda tanto el mensaje del usuario como la respuesta del modelo en SQLite (antes solo el modelo), asegurando que el historial recuperado tras un reinicio tenga pares completos user/model.
+
+### Fixed
+
+- **Perdida de contexto entre mensajes de WhatsApp (bug critico):** `persistFinalText` actualizaba `state.historyCopy` (copia local) pero nunca la sincronizaba de vuelta al `Map` de `conversations`. En cada mensaje nuevo, el agente reconstruia el historial desde el Map original vacio, causando que SofLIA "olvidara" todo lo conversado en la misma sesion. Fix: `state.conversations.set(state.sessionKey, state.historyCopy)` al final de cada turno.
+- **`open_application` reportaba exito cuando la ventana no aparecia:** `focusExistingApplicationWindow` coincid­ia con el proceso shell de Windows (`explorer.exe` del escritorio/barra de tareas) porque tenia `MainWindowHandle != 0` pero `MainWindowTitle` vacio. SofLIA decia "ya lo traje al frente" cuando en realidad habia "enfocado" el escritorio. Fix: se agrego el filtro `$_.MainWindowTitle -ne ''` para excluir ventanas de sistema sin titulo visible.
+- **Lanzamiento de aplicaciones sin verificacion de ventana:** `launchPathNonBlocking` retornaba `success: true` en cuanto `Start-Process` arrancaba el proceso, sin confirmar que la ventana realmente apareciera. Ahora `open_application` espera 1.8 segundos post-lanzamiento y verifica que la ventana exista via `focusExistingApplicationWindow`. Si no aparece, retorna `success: false` con mensaje honesto.
+
 ## [0.5.2] - 2026-05-29
 
 ### Added
