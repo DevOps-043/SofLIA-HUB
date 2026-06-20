@@ -48,7 +48,7 @@ Add-Type -Name Win32 -Namespace W -MemberDefinition '
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
   [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 '
-$proc = Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and (${tokenConditions}) } | Sort-Object StartTime -Descending | Select-Object -First 1
+$proc = Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -ne '' -and (${tokenConditions}) } | Sort-Object StartTime -Descending | Select-Object -First 1
 if ($proc) {
   [W.Win32]::ShowWindow($proc.MainWindowHandle, 9) | Out-Null
   [W.Win32]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null

@@ -56,6 +56,22 @@ function ensureDefaultSoulFile(): void {
   console.log('[MemoryService] Created default SOUL.md');
 }
 
+function runMigrations(db: any): void {
+  try {
+    // Dedup facts antes de crear el índice único (bases existentes pueden tener duplicados)
+    db.exec(`
+      DELETE FROM facts WHERE id NOT IN (
+        SELECT MAX(id) FROM facts GROUP BY COALESCE(phone_number,''), category, fact_key
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_facts_unique ON facts(COALESCE(phone_number,''), category, fact_key);
+      CREATE INDEX IF NOT EXISTS idx_summaries_period ON summaries(session_key, period_end DESC);
+    `);
+    console.log('[MemoryService] Migraciones aplicadas correctamente');
+  } catch (err: any) {
+    console.warn('[MemoryService] Migration warning (no bloqueante):', err.message);
+  }
+}
+
 export function initializeMemoryDatabase(): { db: any | null; initError: string | null } {
   try {
     const DatabaseCtor = getDatabaseConstructor();
@@ -66,6 +82,7 @@ export function initializeMemoryDatabase(): { db: any | null; initError: string 
     db.pragma(`key = '${resolveDatabaseKey(path.join(app.getPath('userData'), 'soflia-memory.key'))}'`);
     db.pragma('foreign_keys = ON');
     db.exec(SCHEMA_SQL);
+    runMigrations(db);
     console.log(`[MemoryService] Database initialized at ${DB_PATH}`);
     ensureDefaultSoulFile();
     return { db, initError: null };

@@ -13,6 +13,22 @@ export function attachMemorySummary(Service: MemoryServiceConstructor): void {
         return null;
       }
     },
+    getRecentSummaries(sessionKey: string, limit: number) {
+      if (!this.db) return [];
+      try {
+        const rows = this.db.prepare(`
+          SELECT summary_text, period_start, period_end FROM summaries
+          WHERE session_key = ? ORDER BY period_end DESC LIMIT ?
+        `).all(sessionKey, limit) as Array<{ summary_text: string; period_start: number; period_end: number }>;
+        return rows.reverse().map((row) => ({
+          text: row.summary_text,
+          periodStart: row.period_start,
+          periodEnd: row.period_end,
+        }));
+      } catch {
+        return [];
+      }
+    },
     checkSummarizationThreshold(sessionKey: string) {
       if (!this.db) return;
       try {

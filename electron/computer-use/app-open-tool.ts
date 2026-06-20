@@ -61,6 +61,27 @@ export async function handleOpenPath(
     if (!launchResult.success) {
       return { success: false, error: `No pude abrir "${target.path}". Detalle del sistema: ${launchResult.error || 'Error desconocido.'}` };
     }
+
+    // Para open_application: esperar y verificar que la ventana realmente apareció
+    if (toolName === 'open_application') {
+      await new Promise((resolve) => setTimeout(resolve, 1800));
+      const windowConfirm = await focusExistingApplicationWindow(requestedPath, target.path);
+      if (!windowConfirm) {
+        return {
+          success: false,
+          error: `Lancé "${target.path}" pero la ventana no apareció. Puede haber un problema con la aplicación o requiere permisos adicionales. Intenta de nuevo o verifica que la aplicación esté instalada correctamente.`,
+          resolvedPath: target.path,
+          session_id: launchResult.session?.id,
+        };
+      }
+      return {
+        ...buildLaunchSuccess(target, progressMessages, launchResult),
+        window_verified: true,
+        window_title: windowConfirm.title,
+        pid: windowConfirm.pid,
+      };
+    }
+
     return buildLaunchSuccess(target, progressMessages, launchResult);
   } catch (err: any) {
     return { success: false, error: `Excepcion al abrir el archivo o aplicacion: ${err.message}` };

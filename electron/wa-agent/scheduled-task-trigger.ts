@@ -1,6 +1,7 @@
 import type { ScheduledTaskInfo } from '../task-scheduler';
 import type { WhatsAppService } from '../whatsapp-service';
 import type { AgentLoopOptions } from './types';
+import { buildScheduledTaskPrompt, recordScheduledTaskResult } from './scheduled-task-prompt';
 
 type RunAgentLoop = (
   jid: string,
@@ -22,19 +23,26 @@ export async function handleScheduledWhatsAppTask(input: {
   const prompt = String(input.task.prompt || '').trim();
   if (!prompt) return;
 
-  const wrappedPrompt = [
-    'Esta es una automatizacion pasiva ya programada.',
-    'No la vuelvas a programar ni uses task_scheduler.',
-    'Ejecuta ahora la instruccion y responde por WhatsApp con el resultado.',
-    '',
-    `Solicitud original: ${prompt}`,
-  ].join('\n');
+  const wrappedPrompt = await buildScheduledTaskPrompt({
+    waService: input.waService,
+    senderNumber: input.senderNumber,
+    task: input.task,
+  });
 
   try {
     const response = await input.runAgentLoop(input.jid, input.senderNumber, wrappedPrompt, false, '', [], {
       skipConfirmations: true,
     });
-    if (response) await input.waService.sendText(input.jid, response);
+    if (response) {
+      await input.waService.sendText(input.jid, response);
+      recordScheduledTaskResult({
+        waService: input.waService,
+        jid: input.jid,
+        senderNumber: input.senderNumber,
+        task: input.task,
+        response,
+      });
+    }
   } catch (err: any) {
     console.error('[WhatsApp Agent] Scheduled task error:', err);
     await input.waService.sendText(

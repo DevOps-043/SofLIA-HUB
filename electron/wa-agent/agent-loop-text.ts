@@ -72,6 +72,13 @@ async function retryActionOrGenericResponse(state: AgentLoopState, finalText: st
 function persistFinalText(state: AgentLoopState, finalText: string): void {
   state.historyCopy.push({ role: 'user', parts: [{ text: state.userMessage }] });
   state.historyCopy.push({ role: 'model', parts: [{ text: finalText }] });
+  state.agent.memory.saveMessage({
+    sessionKey: state.sessionKey,
+    phoneNumber: state.senderNumber,
+    groupJid: state.isGroup ? state.jid : undefined,
+    role: 'user',
+    content: state.userMessage,
+  });
   if (finalText) {
     state.agent.memory.saveMessage({
       sessionKey: state.sessionKey,
@@ -83,6 +90,8 @@ function persistFinalText(state: AgentLoopState, finalText: string): void {
   }
   while (state.historyCopy.length > MAX_HISTORY * 2) state.historyCopy.shift();
   while (state.historyCopy.length > 0 && state.historyCopy[0].role === 'model') state.historyCopy.shift();
+  // Sincronizar de vuelta al Map para que el siguiente mensaje vea el historial actualizado
+  state.conversations.set(state.sessionKey, state.historyCopy);
 }
 
 async function missingGoogleConnectionResponse(state: AgentLoopState): Promise<boolean> {

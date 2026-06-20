@@ -13,6 +13,17 @@ export const MAX_HISTORY = 20;
 export const WA_MODEL = 'gemini-3.5-flash';
 
 /**
+ * Fallbacks de modelo para evitar que WhatsApp quede mudo cuando una key nueva
+ * no tiene acceso al alias principal configurado.
+ */
+export const WA_MODEL_FALLBACKS = [
+  'gemini-3.1-flash-lite',
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+];
+
+/**
  * Umbrales del loop guard:
  *  - REPEAT: cuántas veces seguidas una llamada idéntica activa warning
  *  - CRITICAL: a partir de cuántas iteraciones se aborta el loop

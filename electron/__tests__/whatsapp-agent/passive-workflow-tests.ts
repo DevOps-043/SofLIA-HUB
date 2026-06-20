@@ -54,6 +54,34 @@ export function registerPassiveWorkflowTests(ctx: WhatsAppAgentTestContext): voi
 
       expect(executeWhatsAppTools).toHaveBeenCalledWith(expect.any(Array), expect.objectContaining({ skipConfirmations: true }), '123@s.whatsapp.net', '5215500000000', false);
       expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', 'Enviado');
+      expect(waService.recordHistory).toHaveBeenCalledWith(expect.objectContaining({
+        direction: 'system',
+        text: expect.stringContaining('scheduled-task:task_1'),
+      }));
+    });
+
+    it('adds freshness and previous outputs to scheduled news prompts', async () => {
+      const { agent, waService } = createAgentWithService(ctx);
+      waService.getConversationHistory.mockResolvedValueOnce([
+        {
+          timestamp: '2026-06-19T14:00:00.000Z',
+          text: 'scheduled-task:news_1\nRespuesta enviada: Ayer mande una noticia sobre modelos multimodales.',
+        },
+      ]);
+      ctx.mockTextResponse('Noticias frescas');
+
+      await agent.handleScheduledTaskTrigger('123@s.whatsapp.net', '5215500000000', {
+        id: 'news_1',
+        cronExpression: '0 8 * * *',
+        prompt: 'Mandame noticias relevantes de IA',
+        phoneNumber: '5215500000000',
+        createdAt: new Date().toISOString(),
+      } as any);
+
+      expect(ctx.mockSendMessage).toHaveBeenCalledWith(expect.stringContaining('FRESCURA OBLIGATORIA'));
+      expect(ctx.mockSendMessage).toHaveBeenCalledWith(expect.stringContaining('Ayer mande una noticia sobre modelos multimodales'));
+      expect(ctx.mockSendMessage).toHaveBeenCalledWith(expect.stringContaining('Solicitud original: Mandame noticias relevantes de IA'));
+      expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', 'Noticias frescas');
     });
   });
 }

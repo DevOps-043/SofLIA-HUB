@@ -87,7 +87,8 @@
       "Bash(find electron/__tests__ src/__tests__ -name *.test.* -exec wc -l {} +)",
       "Bash(tee /tmp/vitest-results.json)",
       "Bash(\"/c/Users/fysg5/OneDrive/Escritorio/Pulse Hub/SofLIA - Hub/SofLIA-HUB/src/components/ops/AutomationOpsPanel.tsx.tmp\")",
-      "Bash(node -p \"require\\(''./package.json''\\).version\")"
+      "Bash(node -p \"require\\(''./package.json''\\).version\")",
+      "PowerShell(Set-Location \"C:\\\\Users\\\\fysg5\\\\OneDrive\\\\Escritorio\\\\PulseHub\\\\Soflia-Hub\\\\SofLIA-HUB\"; $env:ELECTRON_GET_USE_PROXY = \"\"; $env:DEBUG = \"electron-download\"; node node_modules/electron/install.js 2>&1)"
     ]
   }
 }

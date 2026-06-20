@@ -25,6 +25,7 @@ export interface MemoryContextApi {
 
 export interface MemorySummaryApi {
   getLatestSummary(sessionKey: string): string | null;
+  getRecentSummaries(sessionKey: string, limit: number): Array<{ text: string; periodStart: number; periodEnd: number }>;
   checkSummarizationThreshold(sessionKey: string): void;
   processSummarizeQueueDebounced(): void;
   processSummarizeQueue(): Promise<void>;

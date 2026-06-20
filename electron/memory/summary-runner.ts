@@ -5,6 +5,8 @@ import {
 } from './constants';
 import { truncateToTokens } from './math';
 
+const FACT_CATEGORIES = ['preferencia', 'contexto', 'persona', 'compromiso'] as const;
+
 export async function summarizeMemorySession(service: any, sessionKey: string): Promise<void> {
   if (!service.db || !service.apiKey) return;
   try {
@@ -30,6 +32,11 @@ export async function summarizeMemorySession(service: any, sessionKey: string): 
     service.appendMemoryCard(sessionKey, summary);
     await service.embedAndStoreChunks(sessionKey, summary, 'summary', periodStart, periodEnd);
     await service.embedConversationChunks(sessionKey, messages);
+    // Extraer hechos estructurados del resumen para memoria de largo plazo
+    const phoneNumber = sessionKey.includes(':') ? sessionKey.split(':').pop()! : sessionKey;
+    extractAndSaveFacts(service, phoneNumber, summary).catch((err: any) =>
+      console.warn('[MemoryService] Auto-fact extraction failed (no bloqueante):', err.message),
+    );
     service.emit('summary-created', { sessionKey, messageCount: messages.length });
   } catch (err: any) {
     console.error(`[MemoryService] summarizeSession error for ${sessionKey}:`, err.message);
@@ -62,4 +69,47 @@ function formatConversationForSummary(messages: Array<{ role: string; content: s
     const time = new Date(message.timestamp).toLocaleString('es-MX');
     return `[${time}] ${message.role === 'user' ? 'Usuario' : 'SofLIA'}: ${message.content}`;
   }).join('\n');
+}
+
+async function extractAndSaveFacts(service: any, phoneNumber: string, summaryText: string): Promise<void> {
+  if (!service.apiKey) return;
+  const genAI = new GoogleGenerativeAI(service.apiKey);
+  const model = genAI.getGenerativeModel({
+    model: SUMMARIZE_MODEL,
+    generationConfig: { maxOutputTokens: 400, responseMimeType: 'application/json' },
+  });
+  const prompt = `Analiza este resumen de conversacion y extrae hechos CONCRETOS Y DURABLES sobre el usuario.
+Solo extrae hechos que sirvan para futuras conversaciones (preferencias, contexto de trabajo, decisiones, personas clave).
+NO extraigas acciones temporales ya completadas.
+
+Categorias permitidas: ${FACT_CATEGORIES.join(', ')}
+
+Responde SOLO con un JSON array. Si no hay hechos durables, responde [].
+Ejemplo: [{"category":"preferencia","key":"formato_archivos","value":"prefiere PDF sobre DOCX"}]
+
+RESUMEN:
+${truncateToTokens(summaryText, 1500)}
+
+JSON:`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const raw = result.response.text().trim();
+    const facts = JSON.parse(raw) as Array<{ category: string; key: string; value: string }>;
+    if (!Array.isArray(facts)) return;
+    for (const fact of facts) {
+      if (!fact.category || !fact.key || !fact.value) continue;
+      if (!FACT_CATEGORIES.includes(fact.category as any)) continue;
+      service.saveFact({
+        phoneNumber,
+        category: fact.category,
+        key: String(fact.key).slice(0, 80),
+        value: String(fact.value).slice(0, 300),
+        context: 'auto-extraido de resumen',
+      });
+    }
+    if (facts.length > 0) console.log(`[MemoryService] Auto-facts extraidos: ${facts.length} para ${phoneNumber}`);
+  } catch (err: any) {
+    console.warn('[MemoryService] extractAndSaveFacts parse error:', err.message);
+  }
 }

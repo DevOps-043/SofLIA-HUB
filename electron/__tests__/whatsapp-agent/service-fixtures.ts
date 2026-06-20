@@ -6,6 +6,7 @@ export function createMockWaService() {
     sendFile: vi.fn().mockResolvedValue(undefined),
     isConnected: vi.fn().mockReturnValue(true),
     getBotNumber: vi.fn().mockReturnValue('5215512345678'),
+    getConversationHistory: vi.fn().mockResolvedValue([]),
     isAllowedNumber: vi.fn().mockReturnValue(true),
     setGroupConfig: vi.fn().mockResolvedValue(undefined),
     recordHistory: vi.fn(),

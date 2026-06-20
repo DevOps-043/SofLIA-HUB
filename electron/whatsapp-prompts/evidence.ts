@@ -20,7 +20,12 @@ export function classifyEvidenceRequirement(message: string): EvidenceRequiremen
     /\b(local|localmente|en mi computadora|en la computadora|en mi compu|en la compu|en mi pc|en la pc|en el equipo|en mi equipo|en escritorio|dentro de la aplicacion|dentro del programa|en la aplicacion|en el programa|en el sistema|instalad[oa])\b/.test(normalized);
   const hasRemoteContext =
     /\b(github|gitlab|bitbucket|repo|repositorio|nube|cloud|remot[oa]|en linea|online|web|pagina|sitio|portal|servidor)\b/.test(normalized);
+  const hasFreshExternalInfoIntent =
+    /\b(noticias?|news|actualidad|hoy|reciente|ultim[oa]s?|tendencias?|mercado|clima|precio|cotizacion|curios[oa]s?|dato curioso|efemerides)\b/.test(normalized);
 
+  if (hasFreshExternalInfoIntent) {
+    return 'remote';
+  }
   if ((hasVerificationIntent || hasComparisonIntent) && hasVisualLocalContext && hasRemoteContext) {
     return 'local_visual_then_remote';
   }

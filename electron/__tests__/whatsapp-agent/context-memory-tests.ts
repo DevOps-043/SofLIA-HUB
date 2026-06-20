@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createAgentWithService } from './create-agent';
 import type { WhatsAppAgentTestContext } from './types';
 
@@ -40,12 +40,36 @@ export function registerContextMemoryTests(ctx: WhatsAppAgentTestContext): void 
     });
   });
 
-  describe('WA-039: error handling resets conversation', () => {
-    it('should send error message and auto-reset on exception', async () => {
+  describe('WA-039: API error handling', () => {
+    it('should send a classified error without losing the chat on infrastructure errors', async () => {
       const { agent, waService } = createAgentWithService(ctx);
-      ctx.mockSendMessage.mockRejectedValueOnce(new Error('API Error'));
+      ctx.mockSendMessage.mockRejectedValueOnce(new Error('RESOURCE_EXHAUSTED: quota exceeded'));
       await agent.handleMessage('123@s.whatsapp.net', '5215500000000', 'test');
-      expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', expect.stringContaining('error'));
+      expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', expect.stringContaining('cuota'));
+    });
+  });
+
+  describe('WA-039B: model fallback', () => {
+    it('should retry with a fallback model when the primary model is unavailable', async () => {
+      const { agent, waService } = createAgentWithService(ctx);
+      const primarySendMessage = vi.fn().mockRejectedValue(new Error('models/gemini-3.5-flash is not found for API version v1beta'));
+      const fallbackSendMessage = vi.fn().mockResolvedValue({
+        response: {
+          text: () => 'OK fallback',
+          candidates: [{ content: { parts: [{ text: 'OK fallback' }] } }],
+          functionCalls: () => null,
+        },
+      });
+
+      ctx.mockGetGenerativeModel
+        .mockImplementationOnce(() => ({ startChat: () => ({ sendMessage: primarySendMessage }) }))
+        .mockImplementationOnce(() => ({ startChat: () => ({ sendMessage: fallbackSendMessage }) }));
+
+      await agent.handleMessage('123@s.whatsapp.net', '5215500000000', 'Hola');
+
+      expect(ctx.mockGetGenerativeModel).toHaveBeenNthCalledWith(1, expect.objectContaining({ model: 'gemini-3.5-flash' }));
+      expect(ctx.mockGetGenerativeModel).toHaveBeenNthCalledWith(2, expect.objectContaining({ model: 'gemini-3.1-flash-lite' }));
+      expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', 'OK fallback');
     });
   });
 }

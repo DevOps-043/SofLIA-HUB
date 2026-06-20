@@ -32,6 +32,11 @@ describe('WhatsApp Prompts evidence helpers', () => {
     expect(classifyEvidenceRequirement('Verifica visualmente en la ventana principal si ya quedo guardado')).toBe('local_visual');
   });
 
+  it('WA-154b: exige evidencia remota para informacion actual o rotativa', () => {
+    expect(classifyEvidenceRequirement('Mandame noticias relevantes de IA')).toBe('remote');
+    expect(classifyEvidenceRequirement('Dame un dato curioso nuevo para hoy')).toBe('remote');
+  });
+
   it('WA-155: detecta peticiones de investigacion como accion', () => {
     expect(detectActionRequest('Ayudame a investigar el capitulo 5 del CCNA')).toBe(true);
   });

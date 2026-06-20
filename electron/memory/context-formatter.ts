@@ -43,7 +43,7 @@ export function formatMemoryContextForPrompt(ctx: MemoryContext): string {
   }
 
   if (ctx.rollingSummary) {
-    sections += `\n\n=== RESUMEN DE CONVERSACIONES ANTERIORES ===\n${truncateToTokens(
+    sections += `\n\n=== RESUMENES DE SESIONES ANTERIORES (cronologico) ===\nCada bloque [fecha] es una sesion previa comprimida. Usalos para responder preguntas sobre el pasado.\n${truncateToTokens(
       ctx.rollingSummary,
       SUMMARY_TOKEN_BUDGET,
     )}`;

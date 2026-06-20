@@ -4,6 +4,7 @@ import { app } from 'electron';
 import {
   RECENT_MESSAGES_LIMIT,
   SEMANTIC_TOP_K,
+  SUMMARIES_IN_CONTEXT,
 } from './constants';
 import { buildTimelineRecall } from './timeline-recall';
 import type { MemoryContextApi, MemoryServiceConstructor } from './service-types';
@@ -21,8 +22,12 @@ export function attachMemoryContext(Service: MemoryServiceConstructor): void {
         content: message.content,
         timestamp: message.timestamp,
       }));
-      context.rollingSummary = this.getLatestSummary(sessionKey);
-      context.timelineRecall = buildTimelineRecall(this.db, sessionKey, currentMessage, 16);
+
+      // Múltiples resúmenes cronológicos en lugar de solo el último
+      const summaries = this.getRecentSummaries(sessionKey, SUMMARIES_IN_CONTEXT);
+      context.rollingSummary = summaries.length > 0 ? formatMultipleSummaries(summaries) : null;
+
+      context.timelineRecall = buildTimelineRecall(this.db, sessionKey, currentMessage, 30);
       if (this.apiKey && currentMessage.trim().length > 10) {
         try {
           const queryEmbedding = await this.embedText(currentMessage);
@@ -36,6 +41,16 @@ export function attachMemoryContext(Service: MemoryServiceConstructor): void {
       return context;
     },
   } satisfies MemoryContextApi & ThisType<any>);
+}
+
+function formatMultipleSummaries(summaries: Array<{ text: string; periodStart: number; periodEnd: number }>): string {
+  return summaries.map((s) => {
+    const fmt = (ts: number) => new Date(ts).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
+    const startLabel = fmt(s.periodStart);
+    const endLabel = fmt(s.periodEnd);
+    const dateLabel = startLabel === endLabel ? startLabel : `${startLabel} — ${endLabel}`;
+    return `[${dateLabel}]\n${s.text}`;
+  }).join('\n\n');
 }
 
 function readMarkdownMemory(context: MemoryContext): void {

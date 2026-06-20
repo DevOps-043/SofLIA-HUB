@@ -3,6 +3,10 @@ import type { WorkflowHubService } from '../workflow-hub-service';
 import { MeetingWorkflowManager } from '../whatsapp-workflow-meetings';
 import { WorkflowManager } from '../whatsapp-workflow-presentacion';
 import { tryHandlePassiveWorkflowRequest } from './passive-workflows';
+import {
+  getWhatsAppAgentUserErrorMessage,
+  shouldResetConversationAfterAgentError,
+} from './agent-errors';
 import type { PendingConfirmation } from './types';
 
 type HandleChatCommand = (
@@ -93,6 +97,10 @@ export async function handleWhatsAppTextMessage(input: {
     if (response) await input.waService.sendText(input.jid, response);
   } catch (err: any) {
     console.error('[WhatsApp Agent] Error:', err);
+    if (!shouldResetConversationAfterAgentError(err)) {
+      await input.waService.sendText(input.jid, getWhatsAppAgentUserErrorMessage(err));
+      return;
+    }
     input.conversations.delete(sessionKey);
     console.warn(`[WhatsApp Agent] Auto-reset conversation for ${sessionKey} after error`);
     await input.waService.sendText(input.jid, 'Ocurrió un error. He reiniciado la conversación. Intenta de nuevo.');
