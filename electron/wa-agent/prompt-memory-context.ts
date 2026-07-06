@@ -7,6 +7,7 @@ export async function buildWhatsAppPromptMemoryContext(params: {
   sessionKey: string;
   senderNumber: string;
   userMessage: string;
+  ownerKey?: string;
 }): Promise<string> {
   let memoryContext = '';
   try {
@@ -14,6 +15,7 @@ export async function buildWhatsAppPromptMemoryContext(params: {
       params.sessionKey,
       params.senderNumber,
       params.userMessage,
+      params.ownerKey,
     );
     memoryContext = params.memory.formatContextForPrompt(memCtx);
     const hasRecent = memCtx.recentMessages?.length || 0;

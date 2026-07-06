@@ -1,5 +1,6 @@
 import type { UIElement } from '../desktop-agent-types';
 import type { ScreenshotLayout } from './types';
+import type { CompositeScreenshot } from './screenshot-capture';
 
 export interface DesktopAgentCoordinateApi {
   dipToScreenPoint(point: { x: number; y: number }): { x: number; y: number };
@@ -7,7 +8,7 @@ export interface DesktopAgentCoordinateApi {
   mapDipPointToScreenshotPoint(x: number, y: number, layout?: ScreenshotLayout | null): { x: number; y: number } | null;
   mapDesktopPointToScreenshotPoint(x: number, y: number): { x: number; y: number } | null;
   mapDesktopRectToScreenshotRect(rect: { x: number; y: number; width: number; height: number }): { x: number; y: number; width: number; height: number } | null;
-  getUIElements(): Promise<UIElement[]>;
+  getUIElements(captura?: CompositeScreenshot): Promise<UIElement[]>;
   calculateScreenScale(): void;
   updateScreenScale(actualWidth: number, actualHeight: number): void;
   getDisplayRegionLabelFromScreenshotPoint(x: number, y: number, layout?: ScreenshotLayout | null): string | null;

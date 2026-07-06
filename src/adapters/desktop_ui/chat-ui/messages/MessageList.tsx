@@ -8,7 +8,7 @@ export function MessageList({ controller }: { controller: ChatUIController }) {
 
   return (
     <div className="flex-1">
-      <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
         {messages.map((message, index) => {
           if (chat.showLoadingUI && index === messages.length - 1 && message.role === 'model' && (!message.text || message.text === '...')) {
             return null;

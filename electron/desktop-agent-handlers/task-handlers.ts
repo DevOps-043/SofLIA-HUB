@@ -16,8 +16,13 @@ type ParallelDesktopTaskRequest = {
 export function registerDesktopAgentTaskHandlers(agentService: DesktopAgentService) {
   ipcMain.handle('desktop-agent:execute-task', async (_, task: string, options?: any) => {
     try {
-      const result = await agentService.executeTask(task, options);
-      return { success: true, message: result, status: agentService.getStatus() };
+      const outcome = await agentService.executeTaskDetailed(task, options);
+      return {
+        success: outcome.estado === 'completada',
+        message: outcome.mensaje,
+        outcome,
+        status: agentService.getStatus(),
+      };
     } catch (error) {
       return { success: false, error: getErrorMessage(error), status: agentService.getStatus() };
     }

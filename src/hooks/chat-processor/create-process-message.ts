@@ -17,6 +17,7 @@ interface CreateProcessMessageInput {
   optimizerTarget: 'chatgpt' | 'claude' | 'gemini';
   isImageGenMode: boolean;
   activeTool: UserTool | null;
+  sofiaUserId?: string;
 }
 
 export function createProcessMessage(input: CreateProcessMessageInput) {

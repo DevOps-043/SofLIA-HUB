@@ -7,6 +7,10 @@ export type DesktopTaskExecutionOptions = {
   browserProfile?: string;
   browserIsolated?: boolean;
   resetBrowserProfile?: boolean;
+  /** Cancelacion desde el llamador (p.ej. la conversacion que origino la tarea). */
+  signal?: AbortSignal;
+  /** Tiempo maximo en cola antes de expirar; 0 desactiva el timeout. */
+  queueTimeoutMs?: number;
 };
 
 export type ScreenshotVirtualBounds = {

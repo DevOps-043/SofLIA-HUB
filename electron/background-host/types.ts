@@ -5,6 +5,7 @@ export type BackgroundHostInstallMode =
   | 'unsupported'
   | 'scheduled-task'
   | 'startup-folder'
+  | 'xdg-autostart'
   | 'login-item-only';
 
 export type BackgroundHostConfig = {

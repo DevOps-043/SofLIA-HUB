@@ -1,4 +1,5 @@
 import { RECENT_MESSAGES_LIMIT } from './constants';
+import { phoneOwnerKey } from './scope';
 import type { MemoryMessageApi, MemoryServiceConstructor } from './service-types';
 import type { StoredMessage } from './types';
 
@@ -7,10 +8,13 @@ export function attachMemoryMessages(Service: MemoryServiceConstructor): void {
     saveMessage(params) {
       if (!this.db || !params.content.trim()) return;
       try {
+        // ownerKey unifica el scope entre superficies; si no llega se deriva del
+        // telefono (WhatsApp) para no cambiar el comportamiento existente.
+        const ownerKey = params.ownerKey || phoneOwnerKey(params.phoneNumber);
         this.db.prepare(`
-          INSERT INTO messages (session_key, phone_number, group_jid, role, content, media_type, media_filename, timestamp)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(params.sessionKey, params.phoneNumber, params.groupJid || null, params.role, params.content, params.mediaType || null, params.mediaFilename || null, Date.now());
+          INSERT INTO messages (session_key, phone_number, owner_key, group_jid, role, content, media_type, media_filename, timestamp)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(params.sessionKey, params.phoneNumber, ownerKey, params.groupJid || null, params.role, params.content, params.mediaType || null, params.mediaFilename || null, Date.now());
         this.checkSummarizationThreshold(params.sessionKey);
       } catch (err: any) {
         console.error('[MemoryService] saveMessage error:', err.message);

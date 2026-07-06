@@ -1,11 +1,15 @@
 import type { AgentStatus, AgentTask } from '../desktop-agent-types';
 import type { DesktopTaskExecutionOptions } from './types';
+import { buildTaskOutcome, type DesktopTaskOutcome } from './task-outcome';
 
 export type DesktopTaskQueueItem = {
   task: string;
   options?: DesktopTaskExecutionOptions;
-  resolve: (value: string) => void;
+  enqueuedAt: number;
+  resolve: (value: DesktopTaskOutcome) => void;
   reject: (error: Error) => void;
+  /** Limpieza (timeout/listeners) invocada al salir de la cola por cualquier via. */
+  onDequeue?: () => void;
 };
 
 type TaskEventEmitter = (eventName: string, payload?: unknown) => void;
@@ -73,11 +77,21 @@ export function processDesktopTaskQueue(input: {
   queue: DesktopTaskQueueItem[];
   activeTasks: Map<string, AgentTask>;
   maxConcurrentAgents: number;
-  executeTask: (task: string, options?: DesktopTaskExecutionOptions) => Promise<string>;
+  executeTask: (task: string, options?: DesktopTaskExecutionOptions) => Promise<DesktopTaskOutcome>;
 }): void {
   while (input.queue.length > 0 && input.activeTasks.size < input.maxConcurrentAgents) {
     const queued = input.queue.shift();
     if (!queued) return;
+    queued.onDequeue?.();
+    if (queued.options?.signal?.aborted) {
+      queued.resolve(buildTaskOutcome({
+        taskId: null,
+        estado: 'cancelada',
+        mensaje: 'Tarea cancelada mientras esperaba en cola.',
+        startedAt: queued.enqueuedAt,
+      }));
+      continue;
+    }
     input.executeTask(queued.task, queued.options).then(queued.resolve).catch(queued.reject);
   }
 }

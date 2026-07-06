@@ -3,11 +3,11 @@ import type { WorkflowHubController } from './useWorkflowHubController';
 
 export function VariantActionPanel({ controller }: { controller: WorkflowHubController }) {
   return (
-    <div className="rounded-2xl border border-gray-200 dark:border-white/[0.06] bg-gray-50 dark:bg-white/[0.02] p-4 space-y-3">
+    <div className="rounded-2xl border border-border bg-surface-2 p-4 space-y-3">
       <input className={controller.inputClass} value={controller.variantName} onChange={(event) => controller.setVariantName(event.target.value)} placeholder="Nombre de la variante" />
       <textarea className={controller.textareaClass} value={controller.variantDescription} onChange={(event) => controller.setVariantDescription(event.target.value)} placeholder="Descripcion corta" />
       <div className="flex gap-2">
-        <button type="button" className="flex-1 rounded-xl bg-accent hover:bg-accent/90 text-white py-2.5 text-sm font-semibold transition disabled:opacity-40"
+        <button type="button" className="flex-1 rounded-xl bg-accent hover:brightness-105 text-on-accent py-2.5 text-sm font-semibold transition disabled:opacity-40"
           onClick={() => void controller.runAction('execute-workflow', async () => {
             if (!controller.selectedWorkflow) throw new Error('Selecciona un workflow.');
             const result = await executeWorkflowHub({

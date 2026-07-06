@@ -350,7 +350,7 @@ Múltiples capas de protección implementadas:
 
 Arquitectura _Zero-Downtime_ para distribución de versiones:
 
-- **Electron Updater**: Actualizaciones silenciosas in-app desde GitHub Releases (Windows + macOS).
+- **Electron Updater**: Actualizaciones silenciosas in-app desde GitHub Releases (Windows + macOS + Linux AppImage).
 - **Polling Automático**: Verificación cada 4 horas.
 - **Notificaciones Reactivas**: Alertas minimalistas sobre disponibilidad de nuevas versiones.
 - **Barra de Progreso**: Descarga en tiempo real.
@@ -500,7 +500,7 @@ VITE_MICROSOFT_CLIENT_ID=...
 | **QR** | qrcode | 1.5.4 |
 | **Actualizaciones** | electron-updater | 6.8.3 |
 | **Testing** | Vitest + Testing Library + MSW + jsdom | 4.1.0 / 16.3.2 / 2.12.14 / 29.0.1 |
-| **CI/CD** | GitHub Actions | Multi-plataforma (Windows + macOS) |
+| **CI/CD** | GitHub Actions | Multi-plataforma (Windows + macOS + Linux AppImage) |
 
 ---
 
@@ -511,6 +511,9 @@ npm run dev           # Servidor de desarrollo (Vite + Electron)
 npm run dev:clean     # Limpieza de procesos zombie + dev
 npm run dev:fresh     # dev:clean + dev en secuencia
 npm run build         # Build producción: tsc → vite build → bitmaps → electron-builder
+npm run build:win     # Build Windows NSIS
+npm run build:mac     # Build macOS DMG
+npm run build:linux   # Build Linux AppImage x64
 npm run lint          # ESLint estricto (cero warnings)
 npx tsc --noEmit      # Verificación TypeScript
 npm run autodev       # Ejecutar AutoDev standalone (npx tsx scripts/autodev.ts)
@@ -520,6 +523,17 @@ npm run test:coverage # Vitest con cobertura V8
 npm run test:main     # Tests solo del main process
 npm run test:renderer # Tests solo del renderer
 ```
+
+### Linux AppImage
+
+El release Linux inicial se distribuye como `SofLIA-Hub-Linux-<version>-x64.AppImage`.
+
+```bash
+chmod +x SofLIA-Hub-Linux-0.5.3-x64.AppImage
+./SofLIA-Hub-Linux-0.5.3-x64.AppImage
+```
+
+Para integracion con el menu de aplicaciones se recomienda AppImageLauncher. Las funciones de automatizacion local en Linux degradan de forma segura: en X11 pueden usar `xdotool`; en Wayland/headless muestran un mensaje explicito. Dependencias opcionales por distribucion: `xdotool` para mouse/teclado/ventanas, `playerctl` para medios, `pactl` o `amixer` para volumen y `nmcli` para Wi-Fi.
 
 ---
 

@@ -3,7 +3,7 @@ import { getMeetingIrisClient } from '../meeting-iris-client';
 import type { MeetingRunSummary, MeetingReviewFlag } from '../meeting-types';
 import { parseJson, throwOnError } from './shared';
 
-export async function listRuns(this: MeetingStore, filters?: { ownerUserId?: string; limit?: number }): Promise<MeetingRunSummary[]> {
+export async function listRuns(this: MeetingStore, filters?: { ownerUserId?: string; organizationId?: string; limit?: number }): Promise<MeetingRunSummary[]> {
     const supabase = getMeetingIrisClient();
 
     let query = supabase
@@ -13,6 +13,9 @@ export async function listRuns(this: MeetingStore, filters?: { ownerUserId?: str
 
     if (filters?.ownerUserId) {
       query = query.eq('owner_user_id', filters.ownerUserId);
+    }
+    if (filters?.organizationId) {
+      query = query.eq('organization_id', filters.organizationId);
     }
     if (filters?.limit) {
       query = query.limit(filters.limit);

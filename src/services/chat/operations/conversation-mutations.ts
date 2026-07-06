@@ -61,3 +61,19 @@ export async function updateConversationTitle(userId: string, conversationId: st
     console.error('[chat-service] updateConversationTitle sync exception:', err);
   }
 }
+
+export async function toggleConversationPin(userId: string, conversationId: string, isPinned: boolean): Promise<void> {
+  const updated = updateConversationInCache(userId, conversationId, (conversation) => ({
+    ...conversation,
+    is_pinned: isPinned,
+    updated_at: new Date().toISOString(),
+  }));
+  if (!updated) return;
+
+  queueConversationUpsert(userId, updated);
+  try {
+    await syncPendingChatState(userId, [conversationId]);
+  } catch (err) {
+    console.error('[chat-service] toggleConversationPin sync exception:', err);
+  }
+}

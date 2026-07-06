@@ -1,3 +1,4 @@
+import { Button } from '../ui/Button';
 import { ConnectionChrome } from './ConnectionChrome';
 import { GoogleLogo, MicrosoftLogo } from './ProviderLogos';
 import type { CalendarConnection, CalendarConnectionsState } from './types';
@@ -36,9 +37,9 @@ export function GoogleConnectionSection(props: {
           onDisconnect={connection.disconnect}
           logo={<MicrosoftLogo />}
         />
-        {connection.error && <p className="text-[11px] text-red-500 text-center">{connection.error}</p>}
+        {connection.error && <p className="text-xs text-danger text-center">{connection.error}</p>}
         {connection.google && (
-          <p className="text-[10px] text-gray-400 text-center leading-relaxed">
+          <p className="text-xs text-secondary text-center leading-relaxed">
             Con Google conectado, SofLIA tiene acceso a Calendar, Gmail, Drive y Google Chat.
           </p>
         )}
@@ -57,20 +58,20 @@ function ProviderRow(props: {
   onDisconnect: (provider: 'google' | 'microsoft') => Promise<void>;
 }) {
   return (
-    <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-white/[0.03]">
-      <div className="w-8 h-8 rounded-lg bg-white dark:bg-white/[0.05] border border-gray-200 dark:border-white/10 flex items-center justify-center shrink-0">{props.logo}</div>
+    <div className="flex items-center gap-3 p-3 rounded-xl bg-surface-2 border border-border">
+      <div className="w-8 h-8 rounded-lg bg-surface border border-border flex items-center justify-center shrink-0">{props.logo}</div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium text-gray-900 dark:text-white">{props.label}</p>
-        {props.connection && <p className="text-[11px] text-gray-500 font-mono truncate">{props.connection.email}</p>}
+        <p className="text-sm font-medium text-gray-900 dark:text-white">{props.label}</p>
+        {props.connection && <p className="text-xs text-secondary font-mono truncate">{props.connection.email}</p>}
       </div>
       {props.connection ? (
-        <button onClick={() => props.onDisconnect(props.provider)} className="text-[10px] font-semibold text-red-500 hover:text-red-400 px-3 py-1.5 rounded-lg hover:bg-red-500/5 transition-colors">
+        <button onClick={() => props.onDisconnect(props.provider)} className="text-xs font-medium text-danger hover:text-danger px-3 py-1.5 rounded-lg hover:bg-danger/10 transition-colors">
           Desconectar
         </button>
       ) : (
-        <button onClick={() => props.onConnect(props.provider)} disabled={props.loading === props.provider} className="px-4 py-1.5 rounded-lg bg-gray-900 dark:bg-white text-white dark:text-black text-[11px] font-semibold hover:opacity-80 transition-opacity disabled:opacity-50">
-          {props.loading === props.provider ? '...' : 'Conectar'}
-        </button>
+        <Button variant="secondary" size="sm" onClick={() => props.onConnect(props.provider)} loading={props.loading === props.provider}>
+          Conectar
+        </Button>
       )}
     </div>
   );

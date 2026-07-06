@@ -1,4 +1,6 @@
+import { execFile as execFileCb } from 'node:child_process';
 import fsSync from 'node:fs';
+import { promisify } from 'node:util';
 import { shell } from 'electron';
 import { normalizePath } from '../utils/file-utils';
 import { assertSafeExternalUrl } from './email-security';
@@ -11,6 +13,27 @@ import {
 } from './app-resolver';
 
 type OpenFailure = { success: false; error: string };
+
+const execFileAsync = promisify(execFileCb);
+
+/** Apps UWP/Microsoft Store: se identifican por ruta shell:AppsFolder\<AppID>. */
+function isStartAppsPath(ruta: string): boolean {
+  return ruta.toLowerCase().startsWith('shell:appsfolder\\');
+}
+
+/** Lanza una app UWP; explorer.exe es la via soportada para shell:AppsFolder. */
+async function launchStartAppsTarget(
+  ruta: string,
+): Promise<{ success: boolean; error?: string; session?: { id?: string; pid?: number; status?: string } }> {
+  try {
+    await execFileAsync('explorer.exe', [ruta], { timeout: 10000, windowsHide: true });
+    return { success: true };
+  } catch (err: any) {
+    // explorer.exe suele devolver exit code 1 aunque lance correctamente.
+    if (typeof err?.code === 'number' && err.code === 1) return { success: true };
+    return { success: false, error: err.message };
+  }
+}
 
 export async function handleOpenUrl(rawUrl: string): Promise<Record<string, any>> {
   try {
@@ -52,12 +75,14 @@ export async function handleOpenPath(
       }
     }
 
-    const launchResult = await launchPathNonBlocking(target.path, {
-      requestedPath,
-      resolvedPath: target.path,
-      resolutionSource: target.source,
-      searchedQuery: target.searchedQuery,
-    });
+    const launchResult = isStartAppsPath(target.path)
+      ? await launchStartAppsTarget(target.path)
+      : await launchPathNonBlocking(target.path, {
+        requestedPath,
+        resolvedPath: target.path,
+        resolutionSource: target.source,
+        searchedQuery: target.searchedQuery,
+      });
     if (!launchResult.success) {
       return { success: false, error: `No pude abrir "${target.path}". Detalle del sistema: ${launchResult.error || 'Error desconocido.'}` };
     }
@@ -89,6 +114,9 @@ export async function handleOpenPath(
 }
 
 async function resolveTarget(requestedPath: string, progressMessages: string[], onProgress?: (message: string) => void): Promise<ResolvedApplicationTarget | OpenFailure> {
+  if (isStartAppsPath(requestedPath)) {
+    return { path: requestedPath, source: 'start-apps', searchedQuery: requestedPath, alternatives: [] };
+  }
   if (looksLikeConcreteApplicationPath(requestedPath)) {
     const directPath = normalizePath(requestedPath);
     if (!fsSync.existsSync(directPath)) {
@@ -96,11 +124,35 @@ async function resolveTarget(requestedPath: string, progressMessages: string[], 
     }
     return { path: directPath, source: 'direct', searchedQuery: requestedPath, alternatives: [] };
   }
+
+  // Indice de apps instaladas primero: cataloga los accesos directos del Menu
+  // Inicio, que el escaneo en vivo puede no alcanzar (presupuesto de
+  // directorios agotado en Program Files).
+  const indexed = await lookupInstalledAppsIndex(requestedPath);
+  if (indexed) {
+    progressMessages.push(`Resuelto via indice de apps instaladas: ${indexed.ruta}`);
+    onProgress?.(`Resuelto via indice de apps instaladas: ${indexed.ruta}`);
+    return { path: indexed.ruta, source: 'installed-apps-index', searchedQuery: requestedPath, alternatives: [] };
+  }
+
   const resolved = await resolveApplicationTarget(requestedPath, (message) => {
     progressMessages.push(message);
     onProgress?.(message);
   });
   return resolved || { success: false, error: `No pude localizar una aplicacion instalada que coincida con "${requestedPath}". Intenta con el nombre exacto, una ruta completa o primero usa list_directory/search_files para ubicarla.` };
+}
+
+async function lookupInstalledAppsIndex(requestedPath: string): Promise<{ nombre: string; ruta: string } | null> {
+  try {
+    const { findInstalledApp } = await import('../desktop-agent/installed-apps-index');
+    const entry = await findInstalledApp(requestedPath, 6 * 60 * 60 * 1000);
+    if (!entry) return null;
+    // Las rutas shell:AppsFolder (UWP) no existen en el filesystem: son AppIDs.
+    if (isStartAppsPath(entry.ruta)) return entry;
+    return fsSync.existsSync(entry.ruta) ? entry : null;
+  } catch {
+    return null;
+  }
 }
 
 function buildLaunchSuccess(resolvedTarget: ResolvedApplicationTarget, progress: string[], launchResult: any): Record<string, any> {
@@ -110,7 +162,11 @@ function buildLaunchSuccess(resolvedTarget: ResolvedApplicationTarget, progress:
       ? 'registro App Paths'
       : resolvedTarget.source === 'where'
         ? 'PATH del sistema'
-        : 'busqueda en accesos directos y carpetas comunes';
+        : resolvedTarget.source === 'installed-apps-index'
+          ? 'indice de apps instaladas'
+          : resolvedTarget.source === 'start-apps'
+            ? 'apps del Menu Inicio (UWP)'
+            : 'busqueda en accesos directos y carpetas comunes';
   return { success: true, message: `Aplicacion o archivo abierto: ${resolvedTarget.path}`, resolvedPath: resolvedTarget.path, resolvedFrom, searchedQuery: resolvedTarget.searchedQuery, alternatives: resolvedTarget.alternatives, progress, session_id: launchResult.session?.id, pid: launchResult.session?.pid, session_status: launchResult.session?.status };
 }
 

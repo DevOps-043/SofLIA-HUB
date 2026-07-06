@@ -6,14 +6,14 @@ import type { WorkflowHubOverview } from './types';
 import type { WorkflowHubServiceContext } from './service-context';
 import { mapAutomationRunToSummary, mapMeetingRunToSummary } from './case-mappers';
 
-export async function getOverview(ctx: WorkflowHubServiceContext): Promise<WorkflowHubOverview> {
+export async function getOverview(ctx: WorkflowHubServiceContext, organizationId?: string): Promise<WorkflowHubOverview> {
   const [capabilitySnapshot, meetingContext] = await Promise.all([
     getWorkspaceCapabilitiesSnapshot(ctx.deps),
     getSafeMeetingContext(ctx.deps.meetingWorkflowService),
   ]);
   const templates = ctx.deps.workspaceAutomationService.listTemplates();
   const automationRuns = ctx.deps.workspaceAutomationService.listRuns(100);
-  const meetingRuns = await ctx.deps.meetingWorkflowService.listRuns({ limit: 100 });
+  const meetingRuns = await ctx.deps.meetingWorkflowService.listRuns({ limit: 100, organizationId });
 
   const legacyCustomTemplates = templates
     .filter((template) => template.kind === 'custom')

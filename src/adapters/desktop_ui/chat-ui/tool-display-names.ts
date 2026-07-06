@@ -15,6 +15,7 @@ export const TOOL_DISPLAY_NAMES: Record<string, string> = {
   clipboard_read: 'Leyendo portapapeles...',
   clipboard_write: 'Copiando al portapapeles...',
   take_screenshot: 'Capturando pantalla...',
+  use_computer: 'Usando computadora...',
   get_email_config: 'Verificando email...',
   configure_email: 'Configurando email...',
   send_email: 'Enviando email...',

@@ -19,7 +19,6 @@ export function SummaryCard(props: SummaryCardProps) {
 
   return (
     <div className="relative overflow-hidden group/summary">
-      <div className="absolute top-0 right-0 w-64 h-64 bg-violet-500/5 rounded-full blur-3xl -mr-32 -mt-32" />
       <div className="p-8">
         <SummaryHeader hasSummary={!!summary?.aiSummary} />
         {!summary ? (
@@ -43,8 +42,8 @@ export function SummaryCard(props: SummaryCardProps) {
       </div>
 
       {actions.error && (
-        <div className="absolute bottom-4 left-8 right-8 p-3 bg-red-500/10 border border-red-500/20 rounded-xl animate-bounce">
-          <p className="text-[10px] text-red-500 font-black text-center uppercase tracking-widest">{actions.error}</p>
+        <div className="absolute bottom-4 left-8 right-8 p-3 bg-danger/10 border border-danger/20 rounded-xl">
+          <p className="text-xs text-danger font-medium text-center">{actions.error}</p>
         </div>
       )}
     </div>

@@ -23,6 +23,8 @@ export interface TaskPhase {
   status: 'pending' | 'in_progress' | 'completed' | 'failed';
   startStep?: number;
   endStep?: number;
+  /** Backend sugerido por el planner para esta fase (usa el contexto de entorno). */
+  backendPreferido?: 'browser' | 'uia' | 'desktop';
 }
 
 export interface UIElement {

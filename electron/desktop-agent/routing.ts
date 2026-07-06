@@ -21,19 +21,31 @@ type WindowsUIABackend = {
   getLastRunResult(): WindowsUIARunResult | null;
 };
 
-export function shouldUseBrowserBackend(task: string, options?: DesktopTaskExecutionOptions): boolean {
+export function shouldUseBrowserBackend(
+  task: string,
+  options?: DesktopTaskExecutionOptions,
+  keywordRoutingEnabled = true,
+): boolean {
   if (options?.backend === 'browser') return true;
   if (options?.backend === 'uia') return false;
   if (options?.backend === 'desktop') return false;
+  // Sin heuristica de palabras clave, la eleccion queda en el backend explicito
+  // del llamador o en el backendPreferido del planner estrategico.
+  if (!keywordRoutingEnabled) return false;
 
   const lower = task.toLowerCase();
   return /https?:\/\/|www\.|gmail|google calendar|calendar\.google|mail\.google|drive\.google|docs\.google|sheets\.google|slides\.google|linkedin|notion|salesforce|hubspot|chatgpt|chat gpt|chat\.openai\.com|sitio web|pagina web|pagina de|navegador|browser|chrome|edge|formulario web|portal web/.test(lower);
 }
 
-export function shouldUseWindowsUIABackend(task: string, options?: DesktopTaskExecutionOptions): boolean {
+export function shouldUseWindowsUIABackend(
+  task: string,
+  options?: DesktopTaskExecutionOptions,
+  keywordRoutingEnabled = true,
+): boolean {
   if (options?.backend === 'uia') return true;
   if (options?.backend === 'browser' || options?.backend === 'desktop') return false;
-  if (shouldUseBrowserBackend(task, options)) return false;
+  if (!keywordRoutingEnabled) return false;
+  if (shouldUseBrowserBackend(task, options, keywordRoutingEnabled)) return false;
 
   const lower = task.toLowerCase();
   return /explorador de archivos|file explorer|explorer|bloc de notas|notepad|calculadora|calculator|paint|word|excel|powerpoint|outlook|configuracion de windows|windows settings|panel de control|control panel|administrador de tareas|task manager|guardar como|save as|abrir archivo|open file|selector de archivos|file picker|dialogo de archivo|file dialog|office|winrar|7-zip|propiedades de carpeta|menu inicio|start menu/.test(lower);

@@ -59,6 +59,7 @@ export function attachDesktopAgentLifecycle(Service: DesktopAgentServiceConstruc
         currentStep: this.currentStep,
         currentPlan: this.currentPlan,
         config: this.getConfig(),
+        platformCapabilities: this.platformCapabilities,
       });
     },
     abort(taskId?: string) {

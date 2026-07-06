@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Auth } from '../components/Auth';
-import { AppLoadingScreen } from './AppLoadingScreen';
+import { AppLoadingScreen, type StartupLogoExitTarget } from './AppLoadingScreen';
 import { AppModals } from './AppModals';
 import { AppSidebar } from './AppSidebar';
 import { AppWorkspace } from './AppWorkspace';
@@ -23,6 +23,22 @@ import { useFolderManager } from '../hooks/useFolderManager';
 import { useIrisData } from '../hooks/useIrisData';
 import { useTheme } from '../hooks/useTheme';
 
+const STARTUP_INTRO_DURATION_MS = 4200;
+const STARTUP_AUTH_GRACE_MS = 700;
+const STARTUP_OVERLAY_EXIT_MS = 1250;
+
+type SidebarPosition = 'left' | 'right' | 'bottom';
+
+function resolveStoredSidebarPosition(value: string | null): SidebarPosition {
+  return value === 'right' || value === 'bottom' || value === 'left' ? value : 'left';
+}
+
+function getWindowArgv(): string[] {
+  const maybeProcess = (window as Window & { process?: { argv?: unknown } }).process;
+  if (!Array.isArray(maybeProcess?.argv)) return [];
+  return maybeProcess.argv.filter((arg): arg is string => typeof arg === 'string');
+}
+
 export function AppContent() {
   const auth = useAuth();
   const { user, dataUserId, loading, signOut, sofiaContext, liaDegraded, liaStatusMessage } = auth;
@@ -34,17 +50,30 @@ export function AppContent() {
   const [userSettings, setUserSettings] = useState<UserAISettings | null>(null);
   const [isUnifiedSettingsOpen, setIsUnifiedSettingsOpen] = useState(false);
   const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>('ai');
+  const [sidebarPosition, setSidebarPosition] = useState<SidebarPosition>(() => {
+    return resolveStoredSidebarPosition(localStorage.getItem('sofLia_sidebarPosition'));
+  });
   const dismissShareLinkNotice = useCallback(() => setShareLinkNotice(null), []);
   const userId = dataUserId ?? undefined;
   const orgId = sofiaContext?.currentOrganization?.id || '';
+  // Equipos de la organizacion activa (equipos SOFIA = equipos IRIS por id) para segmentar IRIS.
+  const orgTeamIds = useMemo(
+    () => (sofiaContext?.teams || []).filter((team) => team.organization_id === orgId).map((team) => team.id),
+    [sofiaContext?.teams, orgId],
+  );
   const accessUserIds = useMemo(() => Array.from(new Set([dataUserId, user?.id].filter((value): value is string => Boolean(value)))), [dataUserId, user?.id]);
   const chat = useChatManager({ userId, orgId, accessUserIds });
   const folder = useFolderManager({ userId, orgId, accessUserIds, conversations: chat.conversations, setConversations: chat.setConversations });
-  const iris = useIrisData();
+  const iris = useIrisData(orgTeamIds);
   const { theme, setTheme } = useTheme();
-  const isFlowWindow = window.location.href.includes('view=flow') || (window.process as any)?.argv?.includes('--view-mode=flow');
+  const isFlowWindow = window.location.href.includes('view=flow') || getWindowArgv().includes('--view-mode=flow');
+  const [showStartupIntro, setShowStartupIntro] = useState(() => !isFlowWindow);
+  const [startupAuthGraceElapsed, setStartupAuthGraceElapsed] = useState(() => isFlowWindow);
+  const [renderStartupOverlay, setRenderStartupOverlay] = useState(() => !isFlowWindow);
+  const [isStartupOverlayExiting, setIsStartupOverlayExiting] = useState(false);
   const ipc = useAppIpcTriggers({ isFlowWindow, onExternalPrompt: setExternalPrompt });
-  const scopedMessagesHandler = useMemo(() => chat.getScopedMessagesHandler(folder.currentFolderId), [chat.currentConversationId, folder.currentFolderId, chat.getScopedMessagesHandler]);
+  const { getScopedMessagesHandler } = chat;
+  const scopedMessagesHandler = useMemo(() => getScopedMessagesHandler(folder.currentFolderId), [folder.currentFolderId, getScopedMessagesHandler]);
   const handlers = useAppViewHandlers({ activeView, chat, folder, setActiveView, setExternalPrompt });
   const derived = useAppDerivedData({ auth, chat, folder, userSettings });
 
@@ -55,37 +84,128 @@ export function AppContent() {
   useMeetingTriggerNotice({ pendingMeetingTrigger: ipc.pendingMeetingTrigger, setPendingMeetingTrigger: ipc.setPendingMeetingTrigger, setShareLinkNotice, userId });
   useAutoDismissNotice(shareLinkNotice, dismissShareLinkNotice);
 
-  if (loading) return <AppLoadingScreen isFlowWindow={isFlowWindow} />;
-  if (!user && !isFlowWindow) return <Auth />;
-  if (isFlowWindow) return <FlowWindowRoot flowKey={ipc.flowKey} />;
+  useEffect(() => {
+    if (isFlowWindow) {
+      setShowStartupIntro(false);
+      setStartupAuthGraceElapsed(true);
+      return undefined;
+    }
+
+    const introTimer = window.setTimeout(() => {
+      setShowStartupIntro(false);
+    }, STARTUP_INTRO_DURATION_MS);
+    const authGraceTimer = window.setTimeout(() => {
+      setStartupAuthGraceElapsed(true);
+    }, STARTUP_INTRO_DURATION_MS + STARTUP_AUTH_GRACE_MS);
+
+    return () => {
+      window.clearTimeout(introTimer);
+      window.clearTimeout(authGraceTimer);
+    };
+  }, [isFlowWindow]);
+
+  useEffect(() => {
+    const loadSidebarPosition = async () => {
+      try {
+        if (window.computerUse?.getSidebarPosition) {
+          const pos = await window.computerUse.getSidebarPosition();
+          if (pos === 'left' || pos === 'right' || pos === 'bottom') {
+            setSidebarPosition(pos);
+            localStorage.setItem('sofLia_sidebarPosition', pos);
+          }
+        }
+      } catch (err) {
+        console.error('Error loading sidebar position from backend:', err);
+      }
+    };
+    loadSidebarPosition();
+
+    const handleUpdate = () => {
+      setSidebarPosition(resolveStoredSidebarPosition(localStorage.getItem('sofLia_sidebarPosition')));
+    };
+    window.addEventListener('sofLia_sidebarPositionChanged', handleUpdate);
+    return () => window.removeEventListener('sofLia_sidebarPositionChanged', handleUpdate);
+  }, []);
+
+  const shouldWaitForAuthDuringIntro = loading && !startupAuthGraceElapsed && !user;
+  const shouldShowStartupIntro = !isFlowWindow && (showStartupIntro || shouldWaitForAuthDuringIntro);
+  const startupLogoExitTarget: StartupLogoExitTarget = user
+    ? sidebarPosition === 'right'
+      ? 'workspace-right'
+      : sidebarPosition === 'bottom'
+        ? 'workspace-bottom'
+        : 'workspace-left'
+    : 'login';
+
+  useEffect(() => {
+    if (shouldShowStartupIntro) {
+      setRenderStartupOverlay(true);
+      setIsStartupOverlayExiting(false);
+      return undefined;
+    }
+
+    if (!renderStartupOverlay) return undefined;
+
+    setIsStartupOverlayExiting(true);
+    const overlayTimer = window.setTimeout(() => {
+      setRenderStartupOverlay(false);
+      setIsStartupOverlayExiting(false);
+    }, STARTUP_OVERLAY_EXIT_MS);
+
+    return () => window.clearTimeout(overlayTimer);
+  }, [renderStartupOverlay, shouldShowStartupIntro]);
+
+  const appShell = !user && !isFlowWindow ? (
+    <Auth key="auth" />
+  ) : isFlowWindow ? (
+    <FlowWindowRoot key="flow-window" flowKey={ipc.flowKey} />
+  ) : (
+    <div key="app-workspace" className={`flex h-screen w-screen overflow-hidden bg-background dark:bg-background-dark ${
+      sidebarPosition === 'bottom' ? 'flex-col-reverse' : sidebarPosition === 'right' ? 'flex-row-reverse' : 'flex-row'
+    }`}>
+        <AppSidebar
+          activeView={activeView}
+          auth={auth}
+          avatarUrl={derived.avatarUrl ?? undefined}
+          chat={chat}
+          displayName={derived.displayName}
+          folder={folder}
+          initials={derived.initials}
+          iris={iris}
+          isSidebarOpen={isSidebarOpen}
+          position={sidebarPosition}
+          onDeleteConversation={handlers.handleDeleteConversation}
+          onDeleteFolder={handlers.handleDeleteFolder}
+          onIrisIssueClick={handlers.handleIrisIssueClick}
+          onIrisProjectClick={handlers.handleIrisProjectClick}
+          onNewChat={handlers.handleNewChat}
+          onOpenProject={handlers.handleOpenProject}
+          onOpenSettings={() => { setActiveSettingsTab('ai'); setIsUnifiedSettingsOpen(true); }}
+          onSelectConversation={handlers.handleSelectConversation}
+          onSignOut={signOut}
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          setTheme={setTheme}
+          theme={theme}
+        />
+        <AppWorkspace activeView={activeView} avatarUrl={derived.avatarUrl ?? undefined} chat={chat} currentConversation={derived.currentConversation} currentFolder={derived.currentFolder} externalPrompt={externalPrompt} folder={folder} liaDegraded={liaDegraded} liaStatusMessage={liaStatusMessage} onDeleteConversation={handlers.handleDeleteConversation} onExternalPromptProcessed={() => setExternalPrompt(null)} onMessagesChange={scopedMessagesHandler} onNewChatInProject={handlers.handleNewChatInProject} onNewChatWithMessage={handlers.handleNewChatWithMessage} onSelectConversation={handlers.handleSelectConversation} orgId={orgId} setShareTarget={setShareTarget} shareLinkNotice={shareLinkNotice} userId={userId} userSettings={userSettings} />
+        <AppModals folder={folder} movingChat={derived.movingChat} shareTarget={shareTarget} userId={userId} orgId={orgId} user={user} userSettings={userSettings} sofiaContext={sofiaContext} isUnifiedSettingsOpen={isUnifiedSettingsOpen} activeSettingsTab={activeSettingsTab} onSetShareTarget={setShareTarget} onSetUserSettings={setUserSettings} onSetUnifiedSettingsOpen={setIsUnifiedSettingsOpen} />
+      </div>
+  );
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background dark:bg-background-dark">
-      <AppSidebar
-        activeView={activeView}
-        auth={auth}
-        avatarUrl={derived.avatarUrl ?? undefined}
-        chat={chat}
-        displayName={derived.displayName}
-        folder={folder}
-        initials={derived.initials}
-        iris={iris}
-        isSidebarOpen={isSidebarOpen}
-        onDeleteConversation={handlers.handleDeleteConversation}
-        onDeleteFolder={handlers.handleDeleteFolder}
-        onIrisIssueClick={handlers.handleIrisIssueClick}
-        onIrisProjectClick={handlers.handleIrisProjectClick}
-        onNewChat={handlers.handleNewChat}
-        onOpenProject={handlers.handleOpenProject}
-        onOpenSettings={() => { setActiveSettingsTab('ai'); setIsUnifiedSettingsOpen(true); }}
-        onSelectConversation={handlers.handleSelectConversation}
-        onSignOut={signOut}
-        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-        setTheme={setTheme}
-        theme={theme}
-      />
-      <AppWorkspace activeView={activeView} avatarUrl={derived.avatarUrl ?? undefined} chat={chat} currentConversation={derived.currentConversation} currentFolder={derived.currentFolder} externalPrompt={externalPrompt} folder={folder} liaDegraded={liaDegraded} liaStatusMessage={liaStatusMessage} onDeleteConversation={handlers.handleDeleteConversation} onExternalPromptProcessed={() => setExternalPrompt(null)} onMessagesChange={scopedMessagesHandler} onNewChatInProject={handlers.handleNewChatInProject} onNewChatWithMessage={handlers.handleNewChatWithMessage} onSelectConversation={handlers.handleSelectConversation} orgId={orgId} setShareTarget={setShareTarget} shareLinkNotice={shareLinkNotice} userId={userId} userSettings={userSettings} />
-      <AppModals folder={folder} movingChat={derived.movingChat} shareTarget={shareTarget} userId={userId} orgId={orgId} user={user} userSettings={userSettings} sofiaContext={sofiaContext} isUnifiedSettingsOpen={isUnifiedSettingsOpen} activeSettingsTab={activeSettingsTab} onSetShareTarget={setShareTarget} onSetUserSettings={setUserSettings} onSetUnifiedSettingsOpen={setIsUnifiedSettingsOpen} />
+    <div className={`h-screen w-screen overflow-hidden ${isFlowWindow ? 'bg-transparent' : 'bg-[#f4faf9] dark:bg-[#080b11]'}`}>
+      <div className="h-full w-full" aria-hidden={shouldShowStartupIntro}>
+        {appShell}
+      </div>
+      {renderStartupOverlay && (
+        <AppLoadingScreen
+          isExiting={isStartupOverlayExiting}
+          isFlowWindow={isFlowWindow}
+          logoExitTarget={startupLogoExitTarget}
+          playIntroSound={!isStartupOverlayExiting}
+          themeMode={theme}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import type { GoogleGenerativeAI } from '@google/generative-ai';
 import { buildHistoryContext } from './history-context';
-import { parseVisionResponse } from './parsers';
+import { parseDesktopActionResponse } from './parsers';
 import { buildVisionPrompt } from './vision-prompt';
 import type {
   ActionHistoryEntry,
@@ -36,9 +36,21 @@ export async function runDesktopVisionStep(params: {
   screenshotWidth: number;
   screenshotHeight: number;
   monitorContext: string;
+  environmentContext: string;
   currentStep: number;
 }): Promise<DesktopActionPayload> {
-  const modelId = params.useFallback ? params.config.fallbackModel : params.config.model;
+  // Hibrido de modelos: flash para pasos rutinarios (rapido/barato); se escala al
+  // modelo pesado (Pro, config.fallbackModel) cuando el agente TIENE DIFICULTAD —
+  // error del modelo, accion fallida, o la pantalla lleva >=2 pasos sin cambiar
+  // (bucle de "clic->no pasa nada" como el visto con Word). Pro razona mejor y
+  // rompe el bucle; al recuperar el progreso vuelve a flash.
+  const struggling = params.useFallback
+    || params.recovery.consecutiveFailures > 0
+    || params.recovery.sameScreenCount >= 2;
+  const modelId = struggling ? params.config.fallbackModel : params.config.model;
+  if (struggling && !params.useFallback) {
+    console.log(`[DesktopAgent] Escalando a modelo pesado (${modelId}) por dificultad — fallos:${params.recovery.consecutiveFailures} pantallaIgual:${params.recovery.sameScreenCount}`);
+  }
   const model = params.ai.getGenerativeModel({ model: modelId });
   const prompt = buildVisionPrompt({
     task: params.task,
@@ -54,6 +66,7 @@ export async function runDesktopVisionStep(params: {
     screenshotWidth: params.screenshotWidth,
     screenshotHeight: params.screenshotHeight,
     monitorContext: params.monitorContext,
+    environmentContext: params.environmentContext,
     currentStep: params.currentStep,
     config: params.config,
   });
@@ -68,5 +81,5 @@ export async function runDesktopVisionStep(params: {
   parts.push({ text: prompt });
 
   const result = await model.generateContent(parts);
-  return parseVisionResponse(result.response.text());
+  return parseDesktopActionResponse(result.response.text());
 }

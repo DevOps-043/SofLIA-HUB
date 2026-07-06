@@ -4,6 +4,7 @@ import type {
   RecoveryContext,
   TaskPlan,
 } from '../desktop-agent-types';
+import { DESKTOP_ACTIONS } from './action-types';
 
 export type RecoveryPromptReason = 'stuck' | 'fail' | 'failures';
 
@@ -76,7 +77,7 @@ Responde SOLO con JSON:
 {
   "strategy": "dismiss_dialog|retry_adjusted|navigate|refocus|alternative_approach|replan",
   "actions": [
-    {"action": "...", "x": ..., "y": ..., "text": "...", "key": "...", "message": "..."}
+    {"action": "${DESKTOP_ACTIONS.join('|')}", "x": ..., "y": ..., "text": "...", "key": "...", "message": "..."}
   ],
   "newSubGoals": ["..."],
   "reasoning": "explicacion de por que esta estrategia funcionara"

@@ -21,12 +21,19 @@ vi.mock('node:fs', () => ({
   writeFileSync: desktopAgentMocks.mockWriteFileSync,
 }));
 
-vi.mock('node:child_process', () => ({
-  exec: vi.fn((_cmd: string, _opts: any, cb: any) => {
+vi.mock('node:child_process', () => {
+  const exec = vi.fn((_cmd: string, _opts: any, cb: any) => {
     if (cb) cb(null, '', '');
     return {} as any;
-  }),
-}));
+  });
+  const execFile = vi.fn((_file: string, _args: any, _opts: any, cb: any) => {
+    if (typeof cb === 'function') cb(null, '', '');
+    return {} as any;
+  });
+  const spawn = vi.fn(() => ({ pid: 1234, unref: vi.fn(), on: vi.fn(), once: vi.fn(), kill: vi.fn() }));
+  const execSync = vi.fn(() => '');
+  return { default: { exec, execFile, spawn, execSync }, exec, execFile, spawn, execSync };
+});
 
 vi.mock('node:module', () => ({
   createRequire: vi.fn(() => (mod: string) => mod === 'sharp' ? null : {}),

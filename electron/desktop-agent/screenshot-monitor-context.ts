@@ -1,26 +1,12 @@
 import type { ScreenshotLayout, ScreenshotVirtualBounds } from './types';
 
-export function getDisplayRegionLabelFromScreenshotPoint(
-  layout: ScreenshotLayout | null,
-  x: number,
-  y: number,
-): string | null {
-  if (!layout) return null;
-  const regionIndex = layout.displayRegions.findIndex((region) => (
-    x >= region.left
-    && x <= (region.left + region.width)
-    && y >= region.top
-    && y <= (region.top + region.height)
-  ));
-
-  if (regionIndex === -1) return layout.offsetX > 0 || layout.offsetY > 0 ? 'padding' : null;
-  const region = layout.displayRegions[regionIndex];
-  return `monitor ${regionIndex + 1} (display ${region.displayId})`;
-}
+// getDisplayRegionLabelFromScreenshotPoint vive en screenshot-coordinates.ts
+// (fuente canonica); antes habia una copia identica aqui.
 
 export function describeScreenshotMonitorContext(
   layout: ScreenshotLayout | null,
   desktopBounds: ScreenshotVirtualBounds,
+  totalDisplays?: number,
 ): string {
   if (!layout) return '';
   const hasMultipleDisplays = layout.displayRegions.length > 1;
@@ -30,7 +16,8 @@ export function describeScreenshotMonitorContext(
     || layout.virtualBounds.y !== desktopBounds.y
     || layout.virtualBounds.width !== desktopBounds.width
     || layout.virtualBounds.height !== desktopBounds.height;
-  if (!hasMultipleDisplays && !hasPadding && !isFocusedCrop) return '';
+  const hiddenDisplays = (totalDisplays ?? layout.displayRegions.length) - layout.displayRegions.length;
+  if (!hasMultipleDisplays && !hasPadding && !isFocusedCrop && hiddenDisplays <= 0) return '';
 
   const regions = layout.displayRegions
     .map((region, index) => {
@@ -45,10 +32,14 @@ export function describeScreenshotMonitorContext(
   const focusedNote = isFocusedCrop
     ? `La captura esta recortada a una region enfocada del escritorio: x=${layout.virtualBounds.x}-${layout.virtualBounds.x + layout.virtualBounds.width}, y=${layout.virtualBounds.y}-${layout.virtualBounds.y + layout.virtualBounds.height}.`
     : '';
+  const hiddenNote = hiddenDisplays > 0
+    ? `ATENCION: estas viendo ${layout.displayRegions.length} de ${totalDisplays} monitores. Las ventanas de los otros ${hiddenDisplays} monitor(es) NO aparecen en la imagen. Para trabajar con una ventana que no ves, usa focus_window con parte de su titulo (revisa CONTEXTO DEL EQUIPO): la captura seguira automaticamente a la ventana activa. NO asumas que una app esta cerrada solo porque no la ves.`
+    : '';
 
   return `REGIONES DE MONITOR EN LA IMAGEN:
 ${regions}
 ${paddingNote}
 ${focusedNote}
+${hiddenNote}
 `;
 }

@@ -19,12 +19,9 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
 
   const content = (
     <div
-      className={`flex flex-col overflow-hidden relative ${embedded ? 'w-full h-full' : 'w-full max-w-180 max-h-[85vh] bg-white dark:bg-sidebar rounded-3xl border border-gray-100 dark:border-white/10 shadow-2xl animate-fade-in'}`}
+      className={`flex flex-col overflow-hidden relative ${embedded ? 'w-full h-full' : 'w-full max-w-180 max-h-[85vh] bg-background rounded-3xl border border-border shadow-2xl animate-fade-in'}`}
       onClick={event => event.stopPropagation()}
     >
-      <div className="absolute top-0 right-0 w-64 h-64 bg-accent/5 blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/5 blur-[100px] pointer-events-none" />
-
       {!embedded && <UserManagementHeader organization={organization} onClose={onClose} />}
 
       <div className="flex-1 overflow-y-auto custom-scrollbar px-8 py-8 relative z-10">

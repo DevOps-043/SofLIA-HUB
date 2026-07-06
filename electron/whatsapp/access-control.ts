@@ -153,10 +153,16 @@ export function isWhatsAppMasterNumber(
 }
 
 export function getWhatsAppPermissionsForSender(
-  config: Pick<WhatsAppConfig, 'masterNumber' | 'contactPermissions'> | undefined,
+  config: Pick<WhatsAppConfig, 'masterNumber' | 'masterPermissions' | 'contactPermissions'> | undefined,
   senderNumber: string,
 ): WhatsAppAccessPermission[] {
-  if (isWhatsAppMasterNumber(config, senderNumber)) return [...WHATSAPP_ACCESS_PERMISSIONS];
+  if (isWhatsAppMasterNumber(config, senderNumber)) {
+    return normalizeWhatsAppAccessPermissions(
+      Object.prototype.hasOwnProperty.call(config || {}, 'masterPermissions')
+        ? config?.masterPermissions
+        : WHATSAPP_ACCESS_PERMISSIONS,
+    );
+  }
   const permissions = normalizeWhatsAppContactPermissions(config?.contactPermissions);
   const matched = Object.entries(permissions).find(([number]) => numbersMatch(number, senderNumber));
   return matched ? matched[1] : [];
@@ -172,7 +178,7 @@ export function getRequiredPermissionForWhatsAppTool(toolName: string): WhatsApp
 }
 
 export function getWhatsAppToolAccessError(
-  config: Pick<WhatsAppConfig, 'masterNumber' | 'contactPermissions'> | undefined,
+  config: Pick<WhatsAppConfig, 'masterNumber' | 'masterPermissions' | 'contactPermissions'> | undefined,
   senderNumber: string,
   toolName: string,
   options: { isGroup: boolean; isGroupBlocked: boolean },
@@ -181,19 +187,18 @@ export function getWhatsAppToolAccessError(
   const isMaster = isWhatsAppMasterNumber(config, senderNumber);
   const requiredPermission = getRequiredPermissionForWhatsAppTool(toolName);
 
-  if (options.isGroupBlocked && isMaster) return null;
-  if (options.isGroupBlocked && hasMasterNumber && requiredPermission) {
-    const granted = getWhatsAppPermissionsForSender(config, senderNumber).includes(requiredPermission);
-    if (granted) return null;
-  }
   if (options.isGroupBlocked) {
     return 'Esta herramienta no esta permitida en grupos por seguridad.';
   }
 
-  if (!hasMasterNumber || isMaster || !requiredPermission) return null;
+  if (!hasMasterNumber || !requiredPermission) return null;
 
   const granted = getWhatsAppPermissionsForSender(config, senderNumber).includes(requiredPermission);
   if (granted) return null;
+
+  if (isMaster) {
+    return `Permiso maestro requerido: ${WHATSAPP_ACCESS_PERMISSION_LABELS[requiredPermission]}. Habilitalo desde Acceso Maestro.`;
+  }
 
   return `Permiso requerido: ${WHATSAPP_ACCESS_PERMISSION_LABELS[requiredPermission]}. Pide al numero maestro que habilite este permiso para tu numero.`;
 }
@@ -204,7 +209,7 @@ export function formatWhatsAppPermissionList(permissions: WhatsAppAccessPermissi
 }
 
 export function buildWhatsAppAccessPrompt(
-  config: Pick<WhatsAppConfig, 'masterNumber' | 'contactPermissions'> | undefined,
+  config: Pick<WhatsAppConfig, 'masterNumber' | 'masterPermissions' | 'contactPermissions'> | undefined,
   senderNumber: string,
 ): string {
   const hasMasterNumber = Boolean(normalizeWhatsAppMasterNumber(config?.masterNumber));

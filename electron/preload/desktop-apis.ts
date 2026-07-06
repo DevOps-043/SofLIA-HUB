@@ -31,5 +31,6 @@ export function exposeDesktopApi(bridge: PreloadBridge, ipc: SafeIpc): void {
     focusWindow: (title: string) => safeInvoke('desktop-agent:focus-window', title),
     listWindows: () => safeInvoke('desktop-agent:list-windows'),
     takeScreenshot: (fullRes?: boolean) => safeInvoke('desktop-agent:take-screenshot', fullRes),
+    runCalibration: () => safeInvoke('desktop-agent:run-calibration'),
   });
 }

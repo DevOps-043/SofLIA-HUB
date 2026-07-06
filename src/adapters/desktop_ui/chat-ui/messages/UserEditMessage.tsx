@@ -23,8 +23,11 @@ export function UserEditMessage({
         autoFocus
         placeholder="Edita tu mensaje..."
       />
-      <div className="flex justify-end items-center gap-4 pt-4 border-t border-gray-300/30 dark:border-white/10">
-        <button onClick={() => editing.setMessageId(null)} className="px-5 py-2 text-[13px] font-bold text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white transition-all bg-gray-200/50 dark:bg-white/5 rounded-full">
+      <div className="flex justify-end items-center gap-3 pt-3.5 border-t border-gray-200/50 dark:border-white/[0.06]">
+        <button
+          onClick={() => editing.setMessageId(null)}
+          className="px-4 py-1.5 text-[12.5px] font-semibold text-gray-500 hover:text-gray-900 dark:text-white/40 dark:hover:text-white bg-transparent hover:bg-gray-100/50 dark:hover:bg-white/[0.03] border border-gray-200 dark:border-white/[0.08] rounded-xl transition-all"
+        >
           Cancelar
         </button>
         <button
@@ -34,7 +37,7 @@ export function UserEditMessage({
             editing.setMessageId(null);
           }}
           disabled={!controller.props.canSendMessages}
-          className="px-7 py-2 bg-accent text-white rounded-full text-[13px] font-black uppercase tracking-widest hover:brightness-110 active:scale-95 transition-all shadow-xl shadow-accent/20"
+          className="px-5 py-1.5 bg-accent hover:bg-accent/90 text-white rounded-xl text-[12.5px] font-semibold shadow-md shadow-accent/10 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Enviar
         </button>

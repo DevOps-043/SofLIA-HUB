@@ -72,11 +72,16 @@ async function processTelegramUpdate(context: TelegramRuntimeContext, update: an
   const chatId = String(chat?.id || '');
   if (!chatId || !text) return;
   recordRecentTelegramChat(context.state, chat, text, message.date);
-  if (isTelegramChatAllowed(context.state, chatId)) {
+  if (isTelegramChatAllowed(context.state, chatId) && await isTelegramPrincipalAllowed(context, chatId)) {
     await handleIncomingTelegramCommand(context, chatId, text);
   }
 }
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function isTelegramPrincipalAllowed(context: TelegramRuntimeContext, chatId: string): Promise<boolean> {
+  if (!context.deps?.communicationHubService) return true;
+  return context.deps.communicationHubService.isTelegramChatAuthorized(chatId);
 }

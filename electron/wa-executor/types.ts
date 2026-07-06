@@ -10,6 +10,7 @@ import type { DriveService } from '../drive-service';
 import type { GChatService } from '../gchat-service';
 import type { GmailService } from '../gmail-service';
 import type { KnowledgeService } from '../knowledge-service';
+import type { CommunicationHubService } from '../communication-hub/service';
 import type { MemoryService } from '../memory-service';
 import type { NeuralOrganizerService } from '../neural-organizer';
 import type { SmartSearchTool } from '../smart-search-tool';
@@ -36,6 +37,11 @@ export interface ToolExecutorContext {
   smartSearch: SmartSearchTool | null;
   memory: MemoryService;
   knowledge: KnowledgeService;
+  communicationHub?: CommunicationHubService | null;
+  /** Motor de procedimientos con HITL (para ejecutar skills ejecutables guardadas). */
+  workspaceAutomation?: { executeCustomTemplate: (payload: { templateId: string; input: Record<string, unknown> }) => Promise<unknown> } | null;
+  /** OwnerKey de memoria del remitente, resuelto al construir el contexto. */
+  ownerKey?: string;
   getGenAI: () => GoogleGenerativeAI;
   /** Si true, se omiten todas las confirmaciones (para tests/automatización). */
   skipConfirmations?: boolean;

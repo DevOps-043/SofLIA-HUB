@@ -2,6 +2,7 @@ import {
   CHARS_PER_TOKEN,
   FACTS_TOKEN_BUDGET,
   SEMANTIC_TOKEN_BUDGET,
+  SKILLS_TOKEN_BUDGET,
   SUMMARY_TOKEN_BUDGET,
 } from './constants';
 import { truncateToTokens } from './math';
@@ -111,6 +112,26 @@ export function formatMemoryContextForPrompt(ctx: MemoryContext): string {
     if (factsText) {
       sections += `\n\n=== DATOS CONOCIDOS DEL USUARIO ===\n${factsText}`;
     }
+  }
+
+  if (ctx.skills && ctx.skills.length > 0) {
+    let skillsText = '';
+    let tokenCount = 0;
+    for (const skill of ctx.skills) {
+      const entry = `- [${skill.type}] ${skill.title}: ${skill.content}\n`;
+      const entryTokens = estimateTokens(entry);
+      if (tokenCount + entryTokens > SKILLS_TOKEN_BUDGET) break;
+      skillsText += entry;
+      tokenCount += entryTokens;
+    }
+    if (skillsText) {
+      sections += `\n\n=== LO QUE HE APRENDIDO DE TRABAJAR CONTIGO ===\nAplica estas preferencias, correcciones y formas de trabajar aprendidas del usuario. Tienen prioridad sobre suposiciones genericas.\n${skillsText}`;
+    }
+  }
+
+  if (ctx.executableSkills && ctx.executableSkills.length > 0) {
+    const list = ctx.executableSkills.map((skill) => `- ${skill.title}: ${skill.summary}`).join('\n');
+    sections += `\n\n=== PROCEDIMIENTOS QUE PUEDES EJECUTAR ===\nEl usuario tiene procedimientos guardados. Si su peticion coincide con uno, OFRECE ejecutarlo y pide confirmacion ANTES de correrlo (sin aprobacion no se ejecuta).\n${list}`;
   }
 
   return sections;

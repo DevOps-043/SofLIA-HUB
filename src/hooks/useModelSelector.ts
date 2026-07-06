@@ -52,7 +52,7 @@ function syncThinkingMode(
 ) {
   const availableOptions = model.thinkingOptions.map((option) => option.id);
   if (availableOptions.includes(currentThinkingMode)) return;
-  if (modelId === 'gemini-3.1-pro-preview') setThinkingMode('low');
+  if (modelId === 'gemini-2.5-pro') setThinkingMode('low');
   else if (model.thinkingType === 'budget' && currentThinkingMode === 'minimal') setThinkingMode('off');
   else if (model.thinkingType === 'level' && currentThinkingMode === 'off') setThinkingMode('minimal');
 }

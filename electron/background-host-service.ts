@@ -11,7 +11,7 @@ import {
   removeScheduledTask,
   removeStartupScript,
   setLoginItemEnabled,
-} from './background-host/windows-installers';
+} from './background-host/platform-installers';
 
 export { BACKGROUND_HOST_ARG } from './background-host/types';
 export type { BackgroundHostConfig, BackgroundHostStatus } from './background-host/types';
@@ -63,9 +63,12 @@ export class BackgroundHostService {
   private async applyPackagedBackgroundInstall(): Promise<void> {
     if (!app.isPackaged) {
       this.config.installMode = 'login-item-only';
-      this.config.lastError = 'Modo desarrollo: se habilita solo openAtLogin; schtasks requiere app empaquetada.';
+      this.config.lastError = process.platform === 'linux'
+        ? 'Modo desarrollo: XDG Autostart se aplica solo en app empaquetada.'
+        : 'Modo desarrollo: se habilita solo openAtLogin; schtasks requiere app empaquetada.';
     } else {
-      await this.tryInstallWindowsBackgroundHost();
+      if (process.platform === 'linux') await this.tryInstallLinuxBackgroundHost();
+      else await this.tryInstallWindowsBackgroundHost();
     }
     this.config.lastAppliedAt = new Date().toISOString();
     await this.saveConfig();
@@ -86,6 +89,18 @@ export class BackgroundHostService {
         this.config.installMode = 'login-item-only';
         this.config.lastError = `No se pudo instalar schtasks ni Startup fallback: ${fallbackError?.message || String(fallbackError)}`;
       }
+    }
+  }
+
+  private async tryInstallLinuxBackgroundHost(): Promise<void> {
+    try {
+      await removeScheduledTask(this.config).catch(() => {});
+      await installStartupScript(this.config);
+      this.config.installMode = 'xdg-autostart';
+      this.config.lastError = undefined;
+    } catch (error: any) {
+      this.config.installMode = 'disabled';
+      this.config.lastError = `No se pudo instalar XDG Autostart: ${error?.message || String(error)}`;
     }
   }
 

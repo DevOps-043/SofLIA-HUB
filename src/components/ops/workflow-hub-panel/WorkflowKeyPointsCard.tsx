@@ -1,7 +1,7 @@
 export function WorkflowKeyPointsCard({ analysis }: { analysis: any }) {
   if (!analysis?.keyPoints?.length) return null;
   return (
-    <div className="rounded-2xl bg-white dark:bg-[#1a1c20]/50 border border-gray-200 dark:border-white/10 p-5 shadow-sm dark:shadow-lg">
+    <div className="rounded-2xl bg-surface border border-border p-5 shadow-sm dark:shadow-none">
       <p className="text-sm font-bold text-gray-900 dark:text-white mb-3">Puntos clave</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {analysis.keyPoints.map((point: string, index: number) => (

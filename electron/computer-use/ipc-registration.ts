@@ -14,6 +14,7 @@ const IPC_TOOL_MAPPINGS: IpcMap[] = [
   { channel: 'computer:list-directory', tool: 'list_directory', args: (path: string, showHidden = false) => ({ path, show_hidden: showHidden }) },
   { channel: 'computer:read-file', tool: 'read_file', args: (path: string) => ({ path }) },
   { channel: 'computer:write-file', tool: 'write_file', args: (path: string, content: string) => ({ path, content }) },
+  { channel: 'computer:create-word-document', tool: 'create_word_document', args: (options: Record<string, any>) => options || {} },
   { channel: 'computer:create-directory', tool: 'create_directory', args: (path: string) => ({ path }) },
   { channel: 'computer:move-item', tool: 'move_item', args: (source_path: string, destination_path: string) => ({ source_path, destination_path }) },
   { channel: 'computer:copy-item', tool: 'copy_item', args: (source_path: string, destination_path: string) => ({ source_path, destination_path }) },

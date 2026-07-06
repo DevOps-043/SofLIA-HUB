@@ -69,6 +69,13 @@ export function resolveScreenPointFromState(input: {
   x: number;
   y: number;
   screenScale: ScreenScale;
+  /**
+   * Fallback legacy 'scale' (x * scaleX): matematica ROTA en multi-monitor
+   * (ignora offsets negativos del escritorio virtual). Solo se permite tras
+   * el flag de compatibilidad; sin el, la falta de layout es un error
+   * explicito en lugar de un click en coordenadas incorrectas.
+   */
+  legacyScaleFallbackEnabled: boolean;
   mapScreenshotToDipPoint: (x: number, y: number) => { x: number; y: number } | null;
   dipToScreenPoint: (point: { x: number; y: number }) => { x: number; y: number };
   getRegionLabel: (x: number, y: number) => string | null;
@@ -84,6 +91,10 @@ export function resolveScreenPointFromState(input: {
       source: 'layout',
       regionLabel: input.getRegionLabel(input.x, input.y),
     };
+  }
+
+  if (!input.legacyScaleFallbackEnabled) {
+    throw new Error('Captura sin layout: no se puede resolver la coordenada con precision; se reintenta con captura nueva.');
   }
 
   return {

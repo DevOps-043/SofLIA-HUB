@@ -15,7 +15,7 @@ export function exposeWorkflowApis(bridge: PreloadBridge, ipc: SafeIpc): void {
     rejectRun: (input: any) => safeInvoke('automation:reject-run', input),
   });
   bridge.exposeInMainWorld('workflowHub', {
-    getOverview: () => safeInvoke('workflow-hub:get-overview'),
+    getOverview: (organizationId?: string) => safeInvoke('workflow-hub:get-overview', organizationId),
     getCaseDetail: (caseId: string) => safeInvoke('workflow-hub:get-case-detail', caseId),
     executeWorkflow: (input: any) => safeInvoke('workflow-hub:execute-workflow', input),
     saveVariant: (input: any) => safeInvoke('workflow-hub:save-variant', input),

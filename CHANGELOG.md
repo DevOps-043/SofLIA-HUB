@@ -4,6 +4,38 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.6.0] - 2026-07-05
+
+### Added
+
+- **Soporte para Linux:** SofLIA Hub ahora se puede instalar y usar en Linux, con inicio automatico al arrancar el sistema. Ya funciona en Windows, Mac y Linux.
+- **Centro de comunicaciones por organizacion:** Nuevo sistema que unifica y controla los canales de mensajeria (WhatsApp, Telegram y futuros) a nivel de organizacion. El acceso por WhatsApp ahora valida que la persona pertenezca activamente a tu organizacion antes de responder.
+- **Agente de escritorio mas confiable:** El control de la computadora se volvio mas preciso y estable: movimiento del cursor mas natural, mejor deteccion de las aplicaciones instaladas, auto-calibracion de la pantalla al iniciar y un limite por tarea para evitar que se quede dando vueltas.
+- **SofLIA aprende de ti:** Nuevo sistema de aprendizaje que recuerda tus correcciones, preferencias y patrones entre sesiones para mejorar con el uso.
+- **Busqueda web verificada en el chat:** El chat detecta automaticamente cuando una pregunta necesita informacion actualizada (noticias, precios, datos recientes) y responde citando fuentes verificadas.
+- **Creacion de documentos de Word:** SofLIA puede generar documentos profesionales con portada, titulo, autor y contenido, y guardarlos directamente en el escritorio.
+- **Busqueda de chats:** Nuevo buscador rapido de conversaciones con filtrado en tiempo real y agrupacion por fecha (Hoy, Ayer, ultimos 7 dias y anteriores).
+- **Chats fijados:** Ahora puedes fijar tus conversaciones mas importantes en una seccion dedicada de la barra lateral.
+- **Consola de canales por organizacion:** Nueva vista para ver y gestionar los canales de comunicacion registrados en tu organizacion.
+- **Novedades visuales en la app:** El panel de actualizaciones ahora muestra las notas de version con un formato visual mas claro y atractivo.
+- **Lectura de texto en imagenes sin conexion:** El reconocimiento de texto (espanol e ingles) ahora viene incluido para funcionar sin internet.
+
+### Changed
+
+- **Renovacion visual completa:** Se unifico el diseno en toda la aplicacion (configuracion, barra lateral, WhatsApp, paneles y chat) para una experiencia mas consistente y pulida, tanto en modo claro como oscuro.
+- **Tu tema se recuerda:** La app ahora conserva tu preferencia de tema (claro/oscuro) entre sesiones en lugar de reiniciarla cada vez.
+- **Mas seguridad por defecto:** El acceso desde grupos de WhatsApp viene deshabilitado de fabrica, y el acceso individual se valida contra la membresia de tu organizacion.
+- **Permisos del numero maestro configurables:** El numero principal de WhatsApp ahora tiene permisos ajustables en detalle (antes tenia acceso total automatico).
+- **Contenido filtrado por organizacion:** Proyectos, equipos, reuniones e incidencias ahora se pueden ver filtrados por la organizacion activa.
+- **Barra lateral y menu de usuario renovados:** Nueva estructura con busqueda, chats fijados y mas opciones de configuracion a la mano.
+
+### Fixed
+
+- **Acceso no autorizado a WhatsApp:** Los mensajes de numeros en la lista de permitidos pero sin membresia activa en la organizacion ahora se rechazan correctamente.
+- **El tema se reiniciaba al recargar la app:** Ahora tu preferencia de tema se guarda y se restaura como corresponde.
+- **Tareas fantasma del agente de escritorio:** Las tareas que quedaban en cola despues de que el usuario las abandonaba ya no se ejecutan por sorpresa; ahora expiran y se pueden cancelar.
+- **Apertura de aplicaciones mas honesta:** Al abrir una app, SofLIA confirma que la ventana realmente aparecio antes de reportar exito, en vez de enfocar ventanas del sistema por error.
+
 ## [0.5.3] - 2026-06-20
 
 ### Added

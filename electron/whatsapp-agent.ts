@@ -13,6 +13,7 @@ import type { NeuralOrganizerService } from './neural-organizer';
 import type { WorkspaceAutomationService } from './workspace-automation-service';
 import type { WorkflowHubService } from './workflow-hub-service';
 import type { MeetingWorkflowService } from './meetings/meeting-workflow-service';
+import type { CommunicationHubService } from './communication-hub/service';
 import { SmartSearchTool } from './smart-search-tool';
 import { handleSlashChatCommand } from './wa-agent/agent-chat-command';
 import { handleWhatsAppAudioMessage } from './wa-agent/audio-message-handler';
@@ -41,6 +42,7 @@ export class WhatsAppAgent {
   smartSearch: SmartSearchTool | null = null;
   workspaceAutomationService: WorkspaceAutomationService | null = null;
   workflowHubService: WorkflowHubService | null = null;
+  communicationHubService: CommunicationHubService | null = null;
 
   constructor(
     public waService: WhatsAppService,
@@ -59,6 +61,7 @@ export class WhatsAppAgent {
   setMeetingWorkflowService(service: MeetingWorkflowService): void { void service; console.log('[WhatsApp Agent] Meeting workflow service connected'); }
   setWorkspaceAutomationService(service: WorkspaceAutomationService): void { this.workspaceAutomationService = service; console.log('[WhatsApp Agent] Workspace automation service connected'); }
   setWorkflowHubService(service: WorkflowHubService): void { this.workflowHubService = service; console.log('[WhatsApp Agent] Workflow hub service connected'); }
+  setCommunicationHubService(service: CommunicationHubService): void { this.communicationHubService = service; console.log('[WhatsApp Agent] Communication Hub connected'); }
   setNeuralOrganizer(service: NeuralOrganizerService): void { this.neuralOrganizer = service; console.log('[WhatsApp Agent] Neural Organizer connected'); }
   updateApiKey(key: string): void { this.apiKey = key; this.genAI = null; }
   getGenAI(): GoogleGenerativeAI { this.genAI ||= new GoogleGenerativeAI(this.apiKey); return this.genAI; }

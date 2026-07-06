@@ -12,12 +12,12 @@ const activationOptions: Array<{ id: WhatsAppGroupActivation; label: string }> =
 
 export function GroupActivationToggle({ activation, onSelectActivation }: GroupActivationToggleProps) {
   return (
-    <div className="flex p-1 bg-gray-100 dark:bg-white/5 rounded-xl gap-1">
+    <div className="flex p-1 bg-surface-2 rounded-xl gap-1">
       {activationOptions.map((mode) => (
         <button
           key={mode.id}
           onClick={() => onSelectActivation(mode.id)}
-          className={`flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activation === mode.id ? 'bg-accent text-white shadow-lg shadow-accent/20' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
+          className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${activation === mode.id ? 'bg-accent text-on-accent' : 'text-secondary hover:text-gray-900 dark:hover:text-white'}`}
         >
           {mode.label}
         </button>

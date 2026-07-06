@@ -10,6 +10,7 @@ export interface UseChatManagerOptions {
 export type ChatManagerState = {
   activeMenuChatId: string | null;
   conversations: Conversation[];
+  conversationsRef: MutableRefObject<Conversation[]>;
   currentConversationId: string | null;
   currentConvIdRef: MutableRefObject<string | null>;
   currentFolderIdRef: MutableRefObject<string | null>;

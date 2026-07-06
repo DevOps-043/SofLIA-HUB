@@ -20,6 +20,17 @@ describe('DesktopAgentService - coordenadas de pantalla', () => {
 
   it('CU-143B: type action uses screenshot coordinates directly before typing', async () => {
     const service = await createDesktopAgentService();
+    mockSingleDisplay();
+    // Con el binding de layout, resolver coordenadas exige un layout valido de la captura.
+    setLayout(service, {
+      screenshotWidth: 1024,
+      screenshotHeight: 768,
+      offsetX: 0,
+      offsetY: 0,
+      renderScale: 1,
+      virtualBounds: { x: 0, y: 0, width: 1024, height: 768 },
+      displayRegions: [{ displayId: '0', bounds: { x: 0, y: 0, width: 1024, height: 768 }, left: 0, top: 0, width: 1024, height: 768 }],
+    });
     const mouseClickSpy = vi.spyOn(service, 'mouseClick').mockResolvedValue(undefined);
     const keyboardTypeSpy = vi.spyOn(service, 'keyboardType').mockResolvedValue(undefined);
     vi.spyOn(service, 'delay').mockResolvedValue(undefined);

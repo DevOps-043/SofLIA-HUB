@@ -20,6 +20,7 @@ export function useChatProcessor({
   activeTool,
   isLiveActive,
   liveClientRef,
+  sofiaUserId,
 }: UseChatProcessorParams) {
   const [isLoading, setIsLoading] = useState(false);
   const [activeToolCall, setActiveToolCall] = useState<ToolCallInfo | null>(null);
@@ -42,6 +43,7 @@ export function useChatProcessor({
     optimizerTarget,
     isImageGenMode,
     activeTool,
+    sofiaUserId,
   });
 
   const handleSend = useCallback(async (input: string, selectedImages: string[]) => {

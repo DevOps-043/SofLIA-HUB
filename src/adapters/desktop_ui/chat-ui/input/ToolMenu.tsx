@@ -1,6 +1,37 @@
 import type { ChatUIController } from '../useChatUIController';
+import {
+  LiveIcon,
+  ImageIcon,
+  SparklesIcon,
+  DocumentIcon,
+  ToolsIcon,
+  PaperclipIcon
+} from '../../../../components/ui/Icons';
 
 type ToolOption = { id: string; label: string; sub: string; active?: boolean };
+
+function getToolIcon(id: string, active: boolean) {
+  const size = 13.5;
+  const className = active
+    ? 'text-accent'
+    : 'text-gray-500 dark:text-white/40 group-hover:text-gray-700 dark:group-hover:text-white/80';
+  switch (id) {
+    case 'live_api':
+      return <LiveIcon size={size} className={className} />;
+    case 'image_gen':
+      return <ImageIcon size={size} className={className} />;
+    case 'prompt_opt':
+      return <SparklesIcon size={size} className={className} />;
+    case 'create_prompt':
+      return <DocumentIcon size={size} className={className} />;
+    case 'my_tools':
+      return <ToolsIcon size={size} className={className} />;
+    case 'attach_file':
+      return <PaperclipIcon size={size} className={className} />;
+    default:
+      return <span className={className}>+</span>;
+  }
+}
 
 export function ToolMenu({ controller }: { controller: ChatUIController }) {
   const liveApi = controller.runtime.liveApi;
@@ -19,27 +50,50 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
       <button
         onClick={() => controller.state.tools.setOpen(!controller.state.tools.isOpen)}
         disabled={!controller.props.canSendMessages}
-        className={`w-9 h-9 flex items-center justify-center rounded-full transition-all ${controller.state.tools.isOpen ? 'bg-accent text-white shadow-md' : 'bg-white dark:bg-black/20 text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:shadow-sm border border-gray-200 dark:border-white/5'}`}
+        className={`w-9 h-9 flex items-center justify-center rounded-full transition-all ${
+          controller.state.tools.isOpen
+            ? 'bg-accent text-white shadow-md'
+            : 'bg-white dark:bg-white/[0.04] text-gray-500 hover:text-gray-700 dark:hover:text-white/80 hover:shadow-sm border border-gray-200/60 dark:border-white/[0.06]'
+        }`}
         title="Mas opciones"
       >
-        +
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+        </svg>
       </button>
       {controller.state.tools.isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => controller.state.tools.setOpen(false)} />
-          <div className="absolute bottom-full left-0 mb-3 w-64 bg-white dark:bg-[#1E1E1E] border border-gray-200 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden z-50 p-1.5">
+          <div className="absolute bottom-full left-0 mb-3 w-64 bg-white/95 dark:bg-[#161B22]/95 border border-gray-200/50 dark:border-white/[0.08] rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_48px_rgba(0,0,0,0.5)] overflow-hidden z-50 p-1.5 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
             {options.map((tool) => (
               <button
                 key={tool.id}
-                onClick={() => controller.tools.handleToolSelect(tool.id)}
-                className={`w-full text-left flex items-start gap-3 px-3 py-2.5 rounded-xl transition-colors group ${tool.active ? 'bg-accent/10 dark:bg-accent/15' : 'hover:bg-gray-100 dark:hover:bg-white/5'}`}
+                onClick={() => {
+                  controller.tools.handleToolSelect(tool.id);
+                  controller.state.tools.setOpen(false);
+                }}
+                className={`w-full text-left flex items-center gap-3 px-2 py-2 rounded-xl transition-all duration-150 group ${
+                  tool.active
+                    ? 'bg-accent/8 dark:bg-accent/12 border border-accent/10'
+                    : 'border border-transparent hover:bg-gray-50 dark:hover:bg-white/[0.03]'
+                }`}
               >
-                <div className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center text-xs ${tool.active ? 'text-accent border-accent/40' : 'text-gray-400 border-gray-300 dark:border-white/10'}`}>
-                  {tool.active ? '•' : '+'}
+                <div
+                  className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                    tool.active
+                      ? 'bg-accent text-white shadow-[0_0_10px_rgba(0,212,179,0.25)]'
+                      : 'bg-gray-100 dark:bg-white/[0.06] text-gray-500'
+                  }`}
+                >
+                  {getToolIcon(tool.id, !!tool.active)}
                 </div>
-                <div>
-                  <div className={`text-[13px] font-semibold ${tool.active ? 'text-accent' : 'text-gray-700 dark:text-gray-200'}`}>{tool.label}</div>
-                  <div className="text-[11px] font-medium text-gray-400 dark:text-gray-500">{tool.sub}</div>
+                <div className="min-w-0 flex-1">
+                  <div className={`text-[12.5px] font-bold truncate ${tool.active ? 'text-accent' : 'text-gray-900 dark:text-white/90'}`}>
+                    {tool.label}
+                  </div>
+                  <div className="text-[10.5px] font-medium text-gray-400 dark:text-white/30 truncate">
+                    {tool.sub}
+                  </div>
                 </div>
               </button>
             ))}

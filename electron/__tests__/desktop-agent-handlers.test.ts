@@ -28,15 +28,31 @@ describe('Desktop Agent Handlers Registration', () => {
     expect(handlers.size).toBeGreaterThanOrEqual(expectedDesktopAgentChannels.length);
   });
 
-  it('CU-145: execute-task handler calls service.executeTask', async () => {
+  it('CU-145: execute-task handler calls service.executeTaskDetailed y devuelve outcome', async () => {
     const handler = (ipcMain as any)._getHandler('desktop-agent:execute-task');
     const result = await handler({}, 'click the button');
     expect(result.success).toBe(true);
-    expect(mockService.executeTask).toHaveBeenCalledWith('click the button', undefined);
+    expect(result.outcome).toMatchObject({ estado: 'completada' });
+    expect(mockService.executeTaskDetailed).toHaveBeenCalledWith('click the button', undefined);
+  });
+
+  it('CU-145B: execute-task con presupuesto agotado reporta success=false con outcome', async () => {
+    mockService.executeTaskDetailed.mockResolvedValue({
+      taskId: 'agent-test',
+      estado: 'presupuesto_agotado' as const,
+      mensaje: 'Completé 40 pasos de uso de computadora.',
+      pasosEjecutados: 40,
+      duracionMs: 1000,
+    });
+    const handler = (ipcMain as any)._getHandler('desktop-agent:execute-task');
+    const result = await handler({}, 'tarea larga');
+    expect(result.success).toBe(false);
+    expect(result.outcome.estado).toBe('presupuesto_agotado');
+    expect(result.message).toContain('40 pasos');
   });
 
   it('CU-146: execute-task handler returns error on failure', async () => {
-    mockService.executeTask.mockRejectedValue(new Error('Vision failed'));
+    mockService.executeTaskDetailed.mockRejectedValue(new Error('Vision failed'));
     const handler = (ipcMain as any)._getHandler('desktop-agent:execute-task');
     const result = await handler({}, 'bad task');
     expect(result.success).toBe(false);

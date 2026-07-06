@@ -37,14 +37,29 @@ describe('chat-service messages', () => {
     expect(Array.isArray(messages)).toBe(true);
   });
 
-  it('RS-005: generateTitle produces a trimmed title from messages', async () => {
+  it('RS-005: generateTitle produces a short semantic title from messages', async () => {
     const { generateTitle } = await import('../../services/chat-service');
     const title = generateTitle([
       { id: '1', role: 'user' as const, text: 'Necesito ayuda con mi proyecto de React', timestamp: Date.now() },
       { id: '2', role: 'model' as const, text: 'Claro, en que te ayudo?', timestamp: Date.now() },
     ]);
-    expect(typeof title).toBe('string');
-    expect(title.length).toBeGreaterThan(0);
-    expect(title.length).toBeLessThanOrEqual(60);
+    expect(title).toBe('Proyecto React');
+    expect(title.length).toBeLessThanOrEqual(44);
+  });
+
+  it('RS-006: generateTitle removes prompt filler and keeps useful chat context', async () => {
+    const { generateTitle } = await import('../../services/chat-service');
+    const title = generateTitle([
+      { id: '1', role: 'user' as const, text: 'Cual es la diferencia entre procesos y proyectos empresariales?', timestamp: Date.now() },
+    ]);
+    expect(title).toBe('Diferencia procesos proyectos empresariales');
+  });
+
+  it('RS-007: generateTitle avoids using a greeting as the chat title', async () => {
+    const { generateTitle } = await import('../../services/chat-service');
+    const title = generateTitle([
+      { id: '1', role: 'user' as const, text: 'Hola', timestamp: Date.now() },
+    ]);
+    expect(title).toBe('Conversacion inicial');
   });
 });

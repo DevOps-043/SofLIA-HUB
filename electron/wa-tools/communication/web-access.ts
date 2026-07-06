@@ -12,7 +12,7 @@ export const WEB_ACCESS_TOOLS = [
   },
   {
     name: 'open_url',
-    description: 'Abre una URL en el navegador predeterminado de la computadora del usuario.',
+    description: 'Abre una URL en el navegador predeterminado de la computadora del usuario. SOLO abre la pagina: no interactua con ella. Si el usuario pidio ademas una accion dentro del sitio (reproducir, dar click, llenar formularios), continua con use_computer describiendo la tarea completa y solo reporta exito con estado "completada".',
     parameters: {
       type: 'OBJECT' as const,
       properties: {

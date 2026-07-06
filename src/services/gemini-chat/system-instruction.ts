@@ -23,6 +23,7 @@ export function buildSystemInstruction(message: string, options?: SendMessageStr
     const p = options.personalization;
     systemInstruction += `\n\n=== PERSONALIZACION DEL USUARIO ===\n${p.nickname ? `Nombre: "${p.nickname}"` : ''}\n${p.occupation ? `Ocupacion: ${p.occupation}` : ''}\n${p.tone ? `Tono preferido: ${p.tone}` : ''}\n${p.instructions ? `Instrucciones personalizadas: ${p.instructions}` : ''}\n=====================================`;
   }
+  if (options?.memoryContext) systemInstruction += options.memoryContext;
   if (options?.irisContext) systemInstruction += buildIrisRules(options.irisContext);
   if (options?.sourcesContext) systemInstruction += options.sourcesContext;
   if (options?.toolSystemPrompt) {

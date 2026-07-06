@@ -1,3 +1,4 @@
+import { Button } from '../ui/Button';
 import { ConnectionChrome } from './ConnectionChrome';
 import type { WhatsAppConnectionState } from './types';
 
@@ -5,6 +6,7 @@ export function WhatsAppConnectionSection(props: {
   open: boolean;
   onToggle: () => void;
   connection: WhatsAppConnectionState;
+  isOrgAdmin?: boolean;
 }) {
   const { status } = props.connection;
   return (
@@ -14,31 +16,35 @@ export function WhatsAppConnectionSection(props: {
       connected={status.connected}
       icon={<WhatsAppIcon />}
       title="WhatsApp"
-      subtitle={status.connected ? `Conectado — ${status.phoneNumber || 'Dispositivo enlazado'}` : 'No conectado'}
+      subtitle={status.connected ? `Conectado - ${status.phoneNumber || 'Dispositivo enlazado'}` : 'No conectado'}
     >
-      <WhatsAppBody connection={props.connection} />
+      <WhatsAppBody connection={props.connection} isOrgAdmin={Boolean(props.isOrgAdmin)} />
     </ConnectionChrome>
   );
 }
 
-function WhatsAppBody({ connection }: { connection: WhatsAppConnectionState }) {
+function WhatsAppBody({ connection, isOrgAdmin }: { connection: WhatsAppConnectionState; isOrgAdmin: boolean }) {
   const { status } = connection;
   if (status.connected) {
     return (
       <div className="pt-4 space-y-3">
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-white/[0.03]">
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-surface-2 border border-border">
           <div className="w-8 h-8 rounded-lg bg-[#25D366]/10 flex items-center justify-center">
             <CheckIcon />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-gray-900 dark:text-white">Dispositivo enlazado</p>
-            {status.phoneNumber && <p className="text-[11px] text-gray-500 font-mono">{status.phoneNumber}</p>}
+            <p className="text-sm font-medium text-gray-900 dark:text-white">Dispositivo enlazado</p>
+            {status.phoneNumber && <p className="text-xs text-secondary font-mono">{status.phoneNumber}</p>}
           </div>
-          <button onClick={connection.disconnect} className="text-[10px] font-semibold text-red-500 hover:text-red-400 px-3 py-1.5 rounded-lg hover:bg-red-500/5 transition-colors">
+          <button onClick={connection.disconnect} className="text-xs font-medium text-danger hover:text-danger px-3 py-1.5 rounded-lg hover:bg-danger/10 transition-colors">
             Desconectar
           </button>
         </div>
-        <p className="text-[10px] text-gray-400 text-center">Para configurar whitelist y grupos, usa el panel completo de WhatsApp.</p>
+        <p className="text-xs text-secondary text-center">
+          {isOrgAdmin
+            ? 'La configuracion avanzada vive en la consola organizacional de WhatsApp.'
+            : 'Uso personal: notificaciones, recordatorios y control de tus dispositivos propios.'}
+        </p>
       </div>
     );
   }
@@ -46,16 +52,20 @@ function WhatsAppBody({ connection }: { connection: WhatsAppConnectionState }) {
     return (
       <div className="pt-4 flex flex-col items-center gap-3">
         <div className="bg-white p-3 rounded-2xl"><img src={status.qr} alt="QR WhatsApp" className="w-48 h-48" /></div>
-        <p className="text-[11px] text-gray-400 text-center">Escanea el codigo QR con WhatsApp en tu telefono</p>
+        <p className="text-xs text-secondary text-center">Escanea el codigo QR con WhatsApp en tu telefono</p>
       </div>
     );
   }
   return (
     <div className="pt-4 flex flex-col items-center gap-3">
-      <p className="text-xs text-gray-500 dark:text-gray-400 text-center">Vincula tu cuenta para recibir notificaciones y ejecutar comandos remotos.</p>
-      <button onClick={connection.connect} disabled={connection.connecting} className="px-6 py-2.5 rounded-xl bg-[#25D366] text-white text-xs font-semibold hover:bg-[#20bd5a] transition-colors disabled:opacity-50">
+      <p className="text-sm text-secondary text-center">
+        {isOrgAdmin
+          ? 'Vincula el canal autorizado para operar la organizacion desde SofLIA.'
+          : 'Vincula tu cuenta para uso personal, recordatorios y tus dispositivos propios.'}
+      </p>
+      <Button variant="primary" size="md" onClick={connection.connect} loading={connection.connecting}>
         {connection.connecting ? 'Conectando...' : 'Conectar WhatsApp'}
-      </button>
+      </Button>
     </div>
   );
 }

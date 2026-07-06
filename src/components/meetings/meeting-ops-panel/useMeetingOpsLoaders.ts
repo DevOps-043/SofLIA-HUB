@@ -12,6 +12,7 @@ import {
 
 interface LoaderConfig {
   userId: string;
+  organizationId?: string;
   selectedRunId: string | null;
   setLoading: Dispatch<SetStateAction<boolean>>;
   setError: Dispatch<SetStateAction<string | null>>;
@@ -29,7 +30,7 @@ export function useMeetingOpsLoaders(config: LoaderConfig) {
     config.setError(null);
     try {
       const [runsResult, contextResult] = await Promise.all([
-        listMeetingRuns({ ownerUserId: config.userId, limit: 20 }),
+        listMeetingRuns({ ownerUserId: config.userId, organizationId: config.organizationId, limit: 20 }),
         getMeetingContext(),
       ]);
       if (!runsResult.success) throw new Error(runsResult.error || 'No pude cargar los runs.');

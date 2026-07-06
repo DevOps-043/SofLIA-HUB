@@ -8,6 +8,10 @@ export function getConfigPath(app: App): string {
 }
 
 export function getStartupScriptPathFromConfig(config: BackgroundHostConfig): string | null {
+  if (process.platform === 'linux') {
+    return path.join(process.env.HOME || process.cwd(), '.config', 'autostart', config.startupScriptName);
+  }
+
   if (process.platform !== 'win32') return null;
 
   const appData = process.env.APPDATA?.trim();

@@ -44,4 +44,41 @@ describe('Sidebar component', () => {
     fireEvent.click(screen.getByText('Mi Chat'));
     expect(onSelectConversation).toHaveBeenCalledWith('c1');
   });
+
+  it('UI-015: clicking delete in the chat menu does not select the conversation underneath', () => {
+    const onDeleteConversation = vi.fn();
+    const onSelectConversation = vi.fn();
+    const onSetActiveMenuChatId = vi.fn();
+
+    render(
+      <Sidebar
+        {...createDefaultProps({
+          activeMenuChatId: 'c1',
+          conversations: [
+            {
+              id: 'c1',
+              user_id: 'u1',
+              title: 'Chat con menu',
+              created_at: '2026-01-01',
+              updated_at: '2026-01-01',
+              can_edit: true,
+              can_share: true,
+            },
+          ],
+          onDeleteConversation,
+          onSelectConversation,
+          onSetActiveMenuChatId,
+        })}
+      />
+    );
+
+    const deleteAction = screen.getByText('Eliminar');
+    fireEvent.pointerDown(deleteAction);
+    fireEvent.click(deleteAction);
+
+    expect(onDeleteConversation).toHaveBeenCalledTimes(1);
+    expect(onDeleteConversation.mock.calls[0][0]).toBe('c1');
+    expect(onSelectConversation).not.toHaveBeenCalled();
+    expect(onSetActiveMenuChatId).toHaveBeenCalledWith(null);
+  });
 });

@@ -4,6 +4,9 @@ export type {
   ActionHistoryEntry,
   DesktopAction,
   DesktopActionPayload,
+  FailedActionTargetMemory,
+  ResolvedActionTarget,
+  TargetWindowLock,
 } from './desktop-agent/action-types';
 export type {
   HistorySummary,

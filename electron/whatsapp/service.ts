@@ -26,6 +26,7 @@ import {
   type WhatsAppConversationHistoryFilters,
   type WhatsAppConversationHistoryInput,
 } from './history';
+import type { CommunicationHubService } from '../communication-hub/service';
 
 export class WhatsAppService extends EventEmitter implements WhatsAppServiceCore {
   sock: WASocket | null = null;
@@ -37,8 +38,10 @@ export class WhatsAppService extends EventEmitter implements WhatsAppServiceCore
   maxReconnectAttempts = 5;
   groupContext = new Map<string, Array<{ sender: string; text: string; timestamp: number }>>();
   history = new WhatsAppConversationHistoryStore();
+  communicationHubService: CommunicationHubService | null = null;
 
   async init(): Promise<void> { this.config = await loadConfig(); }
+  setCommunicationHubService(service: CommunicationHubService): void { this.communicationHubService = service; }
 
   async connect(): Promise<void> {
     if (this.sock) { this.emit('status', this.getStatus()); return; }
@@ -111,6 +114,7 @@ export class WhatsAppService extends EventEmitter implements WhatsAppServiceCore
       allowedNumbers: this.config.allowedNumbers,
       whitelistEnabled: this.config.whitelistEnabled,
       masterNumber: this.config.masterNumber,
+      masterPermissions: this.config.masterPermissions,
       contactPermissions: this.config.contactPermissions,
       groupPolicy: this.config.groupPolicy,
       groupActivation: this.config.groupActivation,

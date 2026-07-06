@@ -6,6 +6,7 @@ import {
   isGenericHelpResponse,
   isGreetingOrHelpRequest,
 } from './loop-helpers';
+import { resolveWhatsAppOwnerKey } from './whatsapp-owner';
 import type { AgentLoopState } from './agent-loop-types';
 
 export async function handleTextOnlyAgentResponse(
@@ -72,9 +73,11 @@ async function retryActionOrGenericResponse(state: AgentLoopState, finalText: st
 function persistFinalText(state: AgentLoopState, finalText: string): void {
   state.historyCopy.push({ role: 'user', parts: [{ text: state.userMessage }] });
   state.historyCopy.push({ role: 'model', parts: [{ text: finalText }] });
+  const ownerKey = resolveWhatsAppOwnerKey(state.senderNumber, state.isGroup);
   state.agent.memory.saveMessage({
     sessionKey: state.sessionKey,
     phoneNumber: state.senderNumber,
+    ownerKey,
     groupJid: state.isGroup ? state.jid : undefined,
     role: 'user',
     content: state.userMessage,
@@ -83,6 +86,7 @@ function persistFinalText(state: AgentLoopState, finalText: string): void {
     state.agent.memory.saveMessage({
       sessionKey: state.sessionKey,
       phoneNumber: state.senderNumber,
+      ownerKey,
       groupJid: state.isGroup ? state.jid : undefined,
       role: 'model',
       content: finalText,

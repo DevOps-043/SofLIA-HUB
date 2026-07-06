@@ -35,6 +35,9 @@ export interface DesktopAgentControlsApi {
 export function attachDesktopAgentControls(Service: DesktopAgentServiceConstructor): void {
   Object.assign(Service.prototype, {
     async ps(script: string) {
+      if (process.platform !== 'win32') {
+        throw new Error('PowerShell/Win32 solo esta disponible en Windows. En Linux usa X11 + xdotool para automatizacion GUI.');
+      }
       const { stdout } = await execAsync(
         `powershell -NoProfile -Command "${script.replace(/\n/g, '; ').replace(/"/g, '\\"')}"`,
         { timeout: 10000, windowsHide: true },
@@ -42,6 +45,9 @@ export function attachDesktopAgentControls(Service: DesktopAgentServiceConstruct
       return stdout?.trim() || '';
     },
     async psEncoded(script: string, timeout = 10000) {
+      if (process.platform !== 'win32') {
+        throw new Error('PowerShell/Win32 solo esta disponible en Windows. La captura degradara a escritorio completo en Linux.');
+      }
       const encoded = Buffer.from(script, 'utf16le').toString('base64');
       const { stdout } = await execAsync(`powershell -NoProfile -EncodedCommand ${encoded}`, { timeout, windowsHide: true });
       return stdout?.trim() || '';

@@ -4,6 +4,8 @@ import {
   SUMMARIZE_THRESHOLD,
 } from './constants';
 import { truncateToTokens } from './math';
+import { phoneOwnerKey } from './scope';
+import { extractAndSaveSkills } from './skills-extractor';
 
 const FACT_CATEGORIES = ['preferencia', 'contexto', 'persona', 'compromiso'] as const;
 
@@ -37,6 +39,13 @@ export async function summarizeMemorySession(service: any, sessionKey: string): 
     extractAndSaveFacts(service, phoneNumber, summary).catch((err: any) =>
       console.warn('[MemoryService] Auto-fact extraction failed (no bloqueante):', err.message),
     );
+    // Aprendizaje autónomo de skills (conocimiento que personaliza). El ownerKey
+    // REAL viaja en los mensajes (columna owner_key), correcto para cualquier
+    // superficie (chat/WhatsApp/desktop); si falta, se deriva del telefono.
+    const ownerKey = resolveSessionOwnerKey(service, sessionKey, phoneNumber);
+    extractAndSaveSkills(service, ownerKey, summary, ownerKindLabel(ownerKey)).catch((err: any) =>
+      console.warn('[MemoryService] Auto-skill extraction failed (no bloqueante):', err.message),
+    );
     service.emit('summary-created', { sessionKey, messageCount: messages.length });
   } catch (err: any) {
     console.error(`[MemoryService] summarizeSession error for ${sessionKey}:`, err.message);
@@ -62,6 +71,26 @@ MEMORY CARD:`;
     console.error('[MemoryService] Gemini summarize error:', err.message);
     return null;
   }
+}
+
+/** Owner real de la sesion (columna owner_key de sus mensajes); fallback al telefono. */
+function resolveSessionOwnerKey(service: any, sessionKey: string, phoneNumber: string): string {
+  try {
+    const row = service.db.prepare(
+      'SELECT owner_key FROM messages WHERE session_key = ? AND owner_key IS NOT NULL ORDER BY timestamp DESC LIMIT 1',
+    ).get(sessionKey) as { owner_key: string } | undefined;
+    if (row?.owner_key) return row.owner_key;
+  } catch {
+    // fallback abajo
+  }
+  return phoneOwnerKey(phoneNumber);
+}
+
+/** Etiqueta de origen para 'source' de la skill segun el tipo de owner. */
+function ownerKindLabel(ownerKey: string): string {
+  if (ownerKey.startsWith('user:')) return 'app';
+  if (ownerKey.startsWith('phone:')) return 'whatsapp';
+  return 'local';
 }
 
 function formatConversationForSummary(messages: Array<{ role: string; content: string; timestamp: number }>): string {

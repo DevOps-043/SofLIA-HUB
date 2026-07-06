@@ -1,9 +1,29 @@
 import type { ActionHistoryEntry, TaskPhase } from '../desktop-agent-types';
 
-export function buildStrategicPlanPrompt(task: string): string {
+export type PlanPromptOptions = {
+  /** Seccion "CONTEXTO DEL EQUIPO" ya formateada (ventanas, monitores, apps). */
+  contextoEntorno?: string;
+  /** Instruir al planner a preferir open_application/open_url sobre clicks visuales. */
+  deterministaPrimero?: boolean;
+};
+
+const DETERMINISTIC_PLANNING_GUIDANCE = `Planifica como un usuario que conoce su maquina:
+- Si una fase requiere abrir una aplicacion, usa la accion open_application (con el nombre de la app) en UN solo paso.
+- Si requiere abrir un sitio web, usa open_url con la URL completa en UN solo paso.
+- NUNCA planifiques buscar iconos en la barra de tareas ni en el menu inicio.
+- Si la ventana ya aparece en el contexto como abierta, planifica focus_window en lugar de abrir otra instancia.
+Para cada fase puedes indicar "backendPreferido": "browser" (portales web complejos), "uia" (apps nativas de Windows con controles estandar) o "desktop" (superficies visuales sin alternativa).`;
+
+function buildPlanPreamble(task: string, options?: PlanPromptOptions): string {
+  const contexto = options?.contextoEntorno ? `\n${options.contextoEntorno}\n` : '';
+  const guidance = options?.deterministaPrimero ? `\n${DETERMINISTIC_PLANNING_GUIDANCE}\n` : '';
   return `Analiza la pantalla actual y la tarea solicitada.
 TAREA: ${task}
+${contexto}${guidance}`;
+}
 
+export function buildStrategicPlanPrompt(task: string, options?: PlanPromptOptions): string {
+  return `${buildPlanPreamble(task, options)}
 Descompone la tarea en fases de alto nivel. Cada fase es un objetivo independiente
 con criterios de exito claros sobre lo que debe verse en pantalla.
 
@@ -16,17 +36,16 @@ Responde SOLO con JSON valido (sin markdown, sin backticks):
       "description": "descripcion detallada",
       "successCriteria": "que debe verse en pantalla cuando esta fase este completa",
       "subGoals": ["paso 1", "paso 2", "..."],
-      "estimatedSteps": number
+      "estimatedSteps": number,
+      "backendPreferido": "browser|uia|desktop"
     }
   ],
   "totalEstimatedSteps": number
 }`;
 }
 
-export function buildFlatPlanPrompt(task: string): string {
-  return `Analiza la pantalla actual y la tarea solicitada.
-TAREA: ${task}
-
+export function buildFlatPlanPrompt(task: string, options?: PlanPromptOptions): string {
+  return `${buildPlanPreamble(task, options)}
 Descompone la tarea en sub-objetivos claros y ordenados.
 Cada sub-objetivo debe ser una accion concreta y verificable.
 

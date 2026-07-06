@@ -43,8 +43,8 @@ export class WorkflowHubService {
     this.loadState();
   }
 
-  getOverview(): Promise<WorkflowHubOverview> {
-    return getOverview(this);
+  getOverview(organizationId?: string): Promise<WorkflowHubOverview> {
+    return getOverview(this, organizationId);
   }
 
   async getCaseDetail(caseId: string): Promise<WorkflowCaseDetail> {

@@ -12,6 +12,7 @@ export function injectCSP(): void {
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https: http:",
+    "media-src 'self' data: blob:",
     "font-src 'self' data: https: http:",
     "connect-src 'self' https: http: ws: wss:",
     "object-src 'none'",

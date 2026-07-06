@@ -8,6 +8,7 @@ import type {
 } from '../desktop-agent-types';
 import { buildRecoveryPrompt } from './recovery-prompt';
 import { parseVisionResponse } from './parsers';
+import { isKnownDesktopAction } from './action-types';
 
 export type RecoveryStrategyPayload = DesktopActionPayload & {
   strategy?: string;
@@ -64,6 +65,10 @@ export async function executeProactiveRecovery(input: {
 
     for (const action of (Array.isArray(parsed.actions) ? parsed.actions : []).slice(0, 5)) {
       if (input.abortSignal?.aborted) return false;
+      if (!isValidRecoveryAction(action)) {
+        console.warn(`[DesktopAgent] Recovery rechazo accion desconocida: ${JSON.stringify(action)}`);
+        continue;
+      }
       try {
         await input.executeAction(action);
         input.actionHistory.push({
@@ -93,4 +98,8 @@ export async function executeProactiveRecovery(input: {
     input.setStatus('executing');
     return false;
   }
+}
+
+function isValidRecoveryAction(action: DesktopActionPayload): boolean {
+  return Boolean(action && isKnownDesktopAction(action.action));
 }

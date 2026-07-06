@@ -1,12 +1,16 @@
 import type { DesktopAgentConfig } from '../desktop-agent-types';
 import type { ScreenshotVirtualBounds } from './types';
 import { getVirtualDesktopBounds, intersectBounds } from './screenshot-bounds';
+import { physicalRectToDipRect } from './screenshot-coordinates';
 
 export type EncodedPowerShellExecutor = (script: string, timeout?: number) => Promise<string>;
 
-type ForegroundWindowBounds = {
+export type PhysicalToDipRectConverter = (rect: ScreenshotVirtualBounds) => ScreenshotVirtualBounds;
+
+export type ForegroundWindowBounds = {
   title: string;
   process: string;
+  /** Bounds en DIP (ya convertidos desde los pixeles fisicos de GetWindowRect). */
   bounds: ScreenshotVirtualBounds;
 };
 
@@ -48,7 +52,16 @@ $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
 } | ConvertTo-Json -Compress
 `;
 
-async function getForegroundWindowBounds(psEncoded: EncodedPowerShellExecutor): Promise<ForegroundWindowBounds | null> {
+/**
+ * Ventana en primer plano con bounds en DIP. GetWindowRect devuelve pixeles
+ * FISICOS; aqui se convierten a DIP antes de usarlos con los bounds de
+ * Electron (que son DIP) — sin esta conversion, cualquier monitor con escala
+ * distinta de 100% produce doble escalado en los clicks.
+ */
+export async function getForegroundWindowDipBounds(
+  psEncoded: EncodedPowerShellExecutor,
+  convertRect: PhysicalToDipRectConverter = physicalRectToDipRect,
+): Promise<ForegroundWindowBounds | null> {
   try {
     const stdout = await psEncoded(FOREGROUND_WINDOW_SCRIPT, 3000);
     const parsed = JSON.parse(stdout || '{}') as Partial<Record<'title' | 'process' | 'x' | 'y' | 'width' | 'height', string | number>>;
@@ -56,10 +69,17 @@ async function getForegroundWindowBounds(psEncoded: EncodedPowerShellExecutor): 
     const height = Number(parsed.height || 0);
     if (!Number.isFinite(width) || !Number.isFinite(height) || width < 120 || height < 120) return null;
 
+    const physicalBounds = { x: Number(parsed.x || 0), y: Number(parsed.y || 0), width, height };
+    const dipBounds = convertRect(physicalBounds);
+    if (dipBounds.x !== physicalBounds.x || dipBounds.width !== physicalBounds.width) {
+      console.log(
+        `[DesktopAgent] Ventana enfocada: fisico (${physicalBounds.x},${physicalBounds.y} ${physicalBounds.width}x${physicalBounds.height}) -> dip (${Math.round(dipBounds.x)},${Math.round(dipBounds.y)} ${Math.round(dipBounds.width)}x${Math.round(dipBounds.height)})`,
+      );
+    }
     return {
       title: String(parsed.title || ''),
       process: String(parsed.process || ''),
-      bounds: { x: Number(parsed.x || 0), y: Number(parsed.y || 0), width, height },
+      bounds: dipBounds,
     };
   } catch {
     return null;
@@ -69,9 +89,9 @@ async function getForegroundWindowBounds(psEncoded: EncodedPowerShellExecutor): 
 export async function getFocusedCaptureBounds(
   config: DesktopAgentConfig,
   psEncoded: EncodedPowerShellExecutor,
+  convertRect: PhysicalToDipRectConverter = physicalRectToDipRect,
 ): Promise<ScreenshotVirtualBounds | null> {
-  if (!config.focusedCaptureEnabled) return null;
-  const focusedWindow = await getForegroundWindowBounds(psEncoded);
+  const focusedWindow = await getForegroundWindowDipBounds(psEncoded, convertRect);
   if (!focusedWindow) return null;
 
   const normalizedTitle = `${focusedWindow.title} ${focusedWindow.process}`.toLowerCase();

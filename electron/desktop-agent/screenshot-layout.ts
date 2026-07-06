@@ -38,6 +38,35 @@ export function intersectBounds(
     : { x: left, y: top, width: Math.max(1, right - left), height: Math.max(1, bottom - top) };
 }
 
+export type AdaptiveTargetSizeOptions = {
+  targetWidth: number;
+  targetHeight: number;
+  minRenderScale: number;
+  maxScreenshotEdge: number;
+};
+
+/**
+ * Calcula el tamano objetivo del screenshot garantizando renderScale >= minRenderScale
+ * cuando sea posible (acotado por maxScreenshotEdge). Evita comprimir escritorios
+ * anchos (p.ej. 5206px de 3 monitores) en una caja fija donde los iconos quedan
+ * ilegibles para el modelo.
+ */
+export function computeAdaptiveTargetSize(
+  bounds: ScreenshotVirtualBounds,
+  options: AdaptiveTargetSizeOptions,
+): { width: number; height: number } {
+  const baseScale = Math.min(options.targetWidth / bounds.width, options.targetHeight / bounds.height);
+  if (baseScale >= options.minRenderScale) {
+    return { width: options.targetWidth, height: options.targetHeight };
+  }
+  const maxEdge = Math.max(options.targetWidth, options.targetHeight, options.maxScreenshotEdge);
+  const scale = Math.min(options.minRenderScale, maxEdge / Math.max(bounds.width, bounds.height));
+  return {
+    width: Math.max(1, Math.min(maxEdge, Math.round(bounds.width * scale))),
+    height: Math.max(1, Math.min(maxEdge, Math.round(bounds.height * scale))),
+  };
+}
+
 export function buildScreenshotLayout(options: ScreenshotLayoutOptions): ScreenshotLayout {
   const displays = options.displays ?? electronScreen.getAllDisplays();
   const { targetWidth, targetHeight, captureBounds } = options;

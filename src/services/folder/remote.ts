@@ -8,12 +8,11 @@ export async function fetchAccessibleFolders(
   accessUserIds: string[],
   orgId?: string,
 ): Promise<Folder[]> {
+  const ownedFoldersQuery = supabase.from('folders').select('*').eq('user_id', userId);
+  if (orgId) ownedFoldersQuery.eq('org_id', orgId);
+
   const [ownedResult, sharedShares, outgoingShares] = await Promise.all([
-    supabase
-      .from('folders')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false }),
+    ownedFoldersQuery.order('created_at', { ascending: false }),
     loadAccessibleFolderShares(accessUserIds, orgId),
     loadOutgoingFolderShares(userId, orgId),
   ]);

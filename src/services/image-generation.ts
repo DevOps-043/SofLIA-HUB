@@ -7,6 +7,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GOOGLE_API_KEY, MODELS } from '../config';
 import { getImageGenerationPrompt } from '../prompts/utils';
 import { getApiKeyWithCache } from './api-keys';
+import { getPublicAiErrorMessage } from './gemini-chat/public-error';
 
 export interface ImageGenResult {
   text: string;
@@ -73,7 +74,12 @@ export async function generateImage(prompt: string): Promise<ImageGenResult> {
   } catch (error: any) {
     console.error('[ImageGeneration] Error:', error);
     return {
-      text: `❌ Error al generar la imagen: ${error.message || 'Error desconocido'}.`,
+      text: getPublicAiErrorMessage(error, {
+        rateLimit: 'No pude generar la imagen por capacidad temporal. Intenta de nuevo en unos segundos.',
+        timeout: 'La generacion de imagen tardo mas de lo esperado. Intenta de nuevo en unos segundos.',
+        safety: 'No pude generar esa imagen de forma segura. Ajusta la solicitud y vuelvo a intentarlo.',
+        generic: 'No pude generar la imagen en este momento. Intenta de nuevo.',
+      }),
     };
   }
 }

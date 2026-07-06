@@ -23,7 +23,7 @@ describe('Config Persistence', () => {
 
   it('CU-134: saveConfig writes JSON to file', () => {
     saveConfig(DEFAULT_CONFIG);
-    expect(JSON.parse(mockWriteFileSync.mock.calls[0][1]).maxSteps).toBe(200);
+    expect(JSON.parse(mockWriteFileSync.mock.calls[0][1]).maxSteps).toBe(DEFAULT_CONFIG.maxSteps);
   });
 
   it('CU-135: saveConfig does not throw on write error', () => {

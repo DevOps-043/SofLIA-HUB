@@ -1,6 +1,6 @@
 import type { GoogleGenerativeAI } from '@google/generative-ai';
 import type { DesktopActionPayload } from '../desktop-agent-types';
-import { parseVisionResponse } from './parsers';
+import { parseDesktopActionResponse } from './parsers';
 
 type VisionContentPart = { inlineData: { mimeType: 'image/png'; data: string } } | { text: string };
 
@@ -38,7 +38,7 @@ export function startContinuousObservation(input: {
         { text: buildObservationPrompt(input.objective, input.reactionRules) },
       ];
       const result = await model.generateContent(parts);
-      const action = parseVisionResponse(result.response.text());
+      const action = parseDesktopActionResponse(result.response.text());
 
       if (action.action !== 'wait') {
         input.emit('observation-action', action);

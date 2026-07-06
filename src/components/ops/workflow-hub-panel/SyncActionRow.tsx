@@ -12,11 +12,11 @@ export function SyncActionRow({ action, controller, detail }: { action: any; con
   };
   const updateDraft = (updates: Partial<typeof draft>) => controller.setActionDrafts((current) => ({ ...current, [action.id]: { ...draft, ...updates } }));
   return (
-    <div className="rounded-xl bg-gray-50 dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04] p-3 space-y-2">
+    <div className="rounded-xl bg-surface-2 border border-gray-100 dark:border-white/[0.04] p-3 space-y-2">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="text-[13px] text-gray-700 dark:text-gray-200 leading-snug">{action.summary}</div>
-          <div className="mt-1 text-[10px] text-gray-500 dark:text-gray-400">{action.action_type} · {action.approval_state} · {action.sync_state}</div>
+          <div className="mt-1 text-[10px] text-secondary">{action.action_type} · {action.approval_state} · {action.sync_state}</div>
         </div>
         <Badge value={action.error_message ? 'failed' : action.sync_state === 'synced' ? 'executed' : action.approval_state === 'approved' ? 'approved' : action.approval_state === 'rejected' ? 'skipped' : 'pending'} />
       </div>
@@ -46,7 +46,7 @@ export function SyncActionRow({ action, controller, detail }: { action: any; con
 function SyncActionButtons({ action, controller, detail, draft }: { action: any; controller: WorkflowHubController; detail: WorkflowCaseDetail; draft: any }) {
   return (
     <div className="flex flex-wrap gap-2">
-      <button type="button" className="rounded-xl border border-gray-200 dark:border-white/[0.06] py-1.5 px-3 text-[11px] text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition"
+      <button type="button" className="rounded-xl border border-border py-1.5 px-3 text-[11px] text-secondary hover:text-gray-900 dark:hover:text-white transition"
         onClick={() => void controller.runAction(`save-action-${action.id}`, async () => {
           const result = await updateWorkflowCaseAction({ caseId: detail.id, actionId: action.id, updates: { title: draft.title, due_date: draft.dueDate || null, team_id: draft.teamId || null, project_id: draft.projectId || null, assignee_id: draft.assigneeId || null } });
           if (!result.success || !result.detail) throw new Error(result.error || 'No pude guardar la accion.');

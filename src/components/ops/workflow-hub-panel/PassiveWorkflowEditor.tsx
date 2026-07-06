@@ -6,17 +6,17 @@ export function PassiveWorkflowEditor({ controller }: { controller: WorkflowHubC
   const workflow = controller.selectedWorkflow;
   if (!workflow) return null;
   return (
-    <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/8 p-4 space-y-3">
+    <div className="rounded-2xl border border-accent/20 bg-accent/5 p-4 space-y-3">
       <div>
         <p className="text-sm font-bold text-gray-900 dark:text-white">Workflow pasivo</p>
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-1 text-xs text-secondary">
           {workflow.passiveBehavior === 'system'
             ? 'Este flujo corre solo en segundo plano y se refleja en la bandeja de casos.'
             : 'Programa este flujo para que se ejecute sin comando y quede recordado por el sistema.'}
         </p>
       </div>
       {workflow.passiveBehavior === 'system' ? (
-        <div className="rounded-xl border border-cyan-500/20 bg-white/70 dark:bg-black/10 px-4 py-3 text-xs text-cyan-700 dark:text-cyan-200">
+        <div className="rounded-xl border border-accent/20 bg-accent/5 px-4 py-3 text-xs text-accent">
           Reuniones ya funciona como workflow pasivo de sistema. SofLIA revisa Calendar, Gmail y Drive para detectar artifacts, y tambien puede arrancar trazabilidad viva cuando una extension dispara `soflia://meeting-trigger`.
         </div>
       ) : <PassiveWorkflowForm controller={controller} />}
@@ -40,9 +40,9 @@ function PassiveWorkflowForm({ controller }: { controller: WorkflowHubController
         <input className={controller.inputClass} type="time" value={controller.scheduleTime} onChange={(event) => controller.setScheduleTime(event.target.value)} />
         {controller.scheduleFrequency === 'weekly'
           ? <WeekdaySelect controller={controller} />
-          : <div className="rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.03] px-3 py-2 text-[13px] text-gray-500 dark:text-gray-400">{describeSchedule(controller.scheduleFrequency, controller.scheduleTime, controller.scheduleWeekday)}</div>}
+          : <div className="rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-secondary">{describeSchedule(controller.scheduleFrequency, controller.scheduleTime, controller.scheduleWeekday)}</div>}
       </div>
-      <button type="button" className="w-full rounded-xl border border-cyan-500/20 bg-cyan-500/10 hover:bg-cyan-500/15 text-cyan-700 dark:text-cyan-200 py-2.5 text-sm font-semibold transition disabled:opacity-40"
+      <button type="button" className="w-full rounded-xl border border-accent/20 bg-accent/10 hover:bg-accent/15 text-accent py-2.5 text-sm font-semibold transition disabled:opacity-40"
         onClick={() => void controller.runAction('save-passive-workflow', async () => {
           if (!controller.selectedWorkflow) throw new Error('Selecciona un workflow.');
           await controller.persistPassiveWorkflow({ workflowId: controller.selectedWorkflow.id, executionMode: 'workflow' });

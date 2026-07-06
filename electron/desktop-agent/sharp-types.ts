@@ -11,12 +11,23 @@ export type SharpCreateInput = {
   };
 };
 
+export type SharpExtendOptions = {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+  background: { r: number; g: number; b: number };
+};
+
 export type SharpPipeline = {
   metadata(): Promise<SharpMetadata>;
   composite(inputs: SharpCompositeInput[]): SharpPipeline;
   extract(region: { left: number; top: number; width: number; height: number }): SharpPipeline;
   resize(width: number, height: number, options?: { fit: 'fill' }): SharpPipeline;
   png(): SharpPipeline;
+  removeAlpha(): SharpPipeline;
+  extend(options: SharpExtendOptions): SharpPipeline;
+  raw(): SharpPipeline;
   toBuffer(): Promise<Buffer>;
 };
 

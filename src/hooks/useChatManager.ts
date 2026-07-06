@@ -7,7 +7,7 @@ import { useScopedMessagesHandler } from './chat-manager/useScopedMessagesHandle
 import type { UseChatManagerOptions } from './chat-manager/types';
 
 export function useChatManager({ userId, orgId, accessUserIds }: UseChatManagerOptions) {
-  const state = useChatManagerState(userId);
+  const state = useChatManagerState(userId, orgId);
   const getCurrentChatStorageKey = useCallback((scopeUserId: string) => `lia_current_chat_id_${scopeUserId}`, []);
   const refresh = useConversationRefresh({ accessUserIds, getCurrentChatStorageKey, orgId, state, userId });
   const scoped = useScopedMessagesHandler({ accessUserIds, getCurrentChatStorageKey, orgId, state, userId });

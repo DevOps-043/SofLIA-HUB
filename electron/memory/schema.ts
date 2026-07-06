@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     session_key TEXT NOT NULL,
     phone_number TEXT NOT NULL,
+    owner_key TEXT,
     group_jid TEXT,
     role TEXT NOT NULL CHECK(role IN ('user', 'model')),
     content TEXT NOT NULL,
@@ -59,4 +60,26 @@ CREATE TABLE IF NOT EXISTS facts (
 
 CREATE INDEX IF NOT EXISTS idx_facts_phone ON facts(phone_number);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_facts_unique ON facts(COALESCE(phone_number,''), category, fact_key);
+
+-- Skills: conocimiento durable APRENDIDO del usuario (preferencias, formato
+-- preferido, fuentes confiables, correcciones, procedimientos que funcionaron).
+-- Indexado por owner_key (user:<id> / phone:<num> / local:owner) para unificar
+-- entre superficies. Se refuerza (confidence/usage) al reaparecer.
+CREATE TABLE IF NOT EXISTS skills (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner_key TEXT NOT NULL,
+    skill_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    trigger_context TEXT,
+    confidence REAL DEFAULT 0.6,
+    usage_count INTEGER DEFAULT 0,
+    last_used_at TEXT,
+    source TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_skills_owner ON skills(owner_key, confidence DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_skills_unique ON skills(owner_key, skill_type, title);
 `;

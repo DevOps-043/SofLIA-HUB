@@ -1,4 +1,5 @@
 import { getFocusedCaptureBounds as resolveFocusedCaptureBounds } from './focused-capture-bounds';
+import { resolveCaptureBounds } from './capture-strategy';
 import { captureCompositeScreenshot as captureDesktopScreenshot } from './screenshot-capture';
 import { buildScreenshotLayout, getVirtualDesktopBounds } from './screenshot-layout';
 import { applyGridOverlay, applySoMOverlay } from './screenshot-overlays';
@@ -15,17 +16,27 @@ import type { CompositeScreenshotResult, DesktopAgentServiceConstructor } from '
 
 const sharpModule: SharpFactory | null = loadSharp();
 
+/**
+ * Proposito de cada captura:
+ * - 'decision': la imagen que vera el modelo; actualiza el layout activo del paso.
+ * - 'verification' | 'zoom': capturas auxiliares; con layoutBindingEnabled NO
+ *   mutan el estado del servicio, evitando que un screenshot de verificacion
+ *   desincronice las coordenadas de una accion decidida sobre otra imagen.
+ */
+export type CapturePurpose = 'decision' | 'verification' | 'zoom';
+
 export interface DesktopAgentScreenshotApi {
   takeScreenshot(fullRes?: boolean): Promise<string>;
-  takeScreenshotWithMarks(): Promise<{ screenshot: string; elements: UIElement[]; mode: 'som' | 'grid' }>;
+  takeScreenshotWithMarks(): Promise<{ screenshot: string; elements: UIElement[]; mode: 'som' | 'grid'; layout: ScreenshotLayout | null }>;
   takeScreenshotRaw(): Promise<string>;
+  takeScreenshotForVerification(): Promise<string>;
   applyGridOverlay(base64: string, width: number, height: number): Promise<string>;
   applySoMOverlay(base64: string, width: number, height: number, elements: UIElement[]): Promise<string>;
   takeZoomScreenshot(centerX: number, centerY: number, radius?: number): Promise<string>;
   getVirtualDesktopBounds(): ScreenshotVirtualBounds;
   getFocusedCaptureBounds(): Promise<ScreenshotVirtualBounds | null>;
   buildScreenshotLayout(targetWidth: number, targetHeight: number, captureBounds?: ScreenshotVirtualBounds | null): ScreenshotLayout;
-  captureCompositeScreenshot(targetWidth: number, targetHeight: number): Promise<CompositeScreenshotResult>;
+  captureCompositeScreenshot(targetWidth: number, targetHeight: number, options?: { purpose?: CapturePurpose }): Promise<CompositeScreenshotResult>;
 }
 
 export function attachDesktopAgentScreenshot(Service: DesktopAgentServiceConstructor): void {
@@ -42,8 +53,13 @@ export function attachDesktopAgentScreenshot(Service: DesktopAgentServiceConstru
     takeScreenshotWithMarks() {
       return takeMarkedDesktopAgentScreenshot({
         config: this.config,
-        takeScreenshotRaw: () => this.takeScreenshotRaw(),
-        getUIElements: () => this.getUIElements(),
+        takeScreenshotRawDetailed: async () => {
+          const composite = await this.captureCompositeScreenshot(this.config.screenshotWidth, this.config.screenshotHeight);
+          this.lastDecisionCapture = composite;
+          this.updateScreenScale(composite.actualWidth, composite.actualHeight);
+          return composite;
+        },
+        getUIElements: (captura) => this.getUIElements(captura),
         applySoMOverlay: (base64, width, height, elements) => this.applySoMOverlay(base64, width, height, elements),
         applyGridOverlay: (base64, width, height) => this.applyGridOverlay(base64, width, height),
         setCaptureState: (elements, mode) => {
@@ -55,6 +71,15 @@ export function attachDesktopAgentScreenshot(Service: DesktopAgentServiceConstru
     async takeScreenshotRaw() {
       const composite = await this.captureCompositeScreenshot(this.config.screenshotWidth, this.config.screenshotHeight);
       this.updateScreenScale(composite.actualWidth, composite.actualHeight);
+      return composite.base64;
+    },
+    async takeScreenshotForVerification() {
+      if (!this.config.layoutBindingEnabled) return this.takeScreenshotRaw();
+      const composite = await this.captureCompositeScreenshot(
+        this.config.screenshotWidth,
+        this.config.screenshotHeight,
+        { purpose: 'verification' },
+      );
       return composite.base64;
     },
     applyGridOverlay(base64, width, height) {
@@ -69,12 +94,12 @@ export function attachDesktopAgentScreenshot(Service: DesktopAgentServiceConstru
         centerX,
         centerY,
         radius,
-        screenshotWidth: this.config.screenshotWidth,
+        screenshotWidth: this.lastActualScreenshotWidth || this.config.screenshotWidth,
         zoomResolution: this.config.zoomResolution,
-        captureCompositeScreenshot: (width, height) => this.captureCompositeScreenshot(width, height),
+        captureCompositeScreenshot: (width, height) => this.captureCompositeScreenshot(width, height, { purpose: 'zoom' }),
         mapScreenshotToDipPoint: (x, y) => this.mapScreenshotToDipPoint(x, y),
         mapDipPointToScreenshotPoint: (x, y, layout) => this.mapDipPointToScreenshotPoint(x, y, layout),
-        takeScreenshotRaw: () => this.takeScreenshotRaw(),
+        takeScreenshotRaw: () => this.takeScreenshotForVerification(),
       });
     },
     getVirtualDesktopBounds: () => getVirtualDesktopBounds(),
@@ -84,11 +109,30 @@ export function attachDesktopAgentScreenshot(Service: DesktopAgentServiceConstru
     buildScreenshotLayout(targetWidth, targetHeight, captureBounds) {
       return buildScreenshotLayout({ targetWidth, targetHeight, captureBounds });
     },
-    async captureCompositeScreenshot(targetWidth, targetHeight) {
-      const captured = await captureDesktopScreenshot({ targetWidth, targetHeight, sharpModule, getFocusedCaptureBounds: () => this.getFocusedCaptureBounds() });
-      this.lastScreenshotLayout = captured.layout;
-      this.lastActualScreenshotWidth = captured.actualWidth;
-      this.lastActualScreenshotHeight = captured.actualHeight;
+    async captureCompositeScreenshot(targetWidth, targetHeight, options) {
+      const purpose: CapturePurpose = options?.purpose ?? 'decision';
+      const captured = await captureDesktopScreenshot({
+        targetWidth,
+        targetHeight,
+        sharpModule,
+        getCaptureBounds: async () => {
+          const resolved = await resolveCaptureBounds({
+            config: this.config,
+            psEncoded: (script, timeout) => this.psEncoded(script, timeout),
+          });
+          return resolved.bounds;
+        },
+        minRenderScale: this.config.minRenderScale,
+        maxScreenshotEdge: this.config.maxScreenshotEdge,
+      });
+
+      const bindingEnabled = this.config.layoutBindingEnabled;
+      if (!bindingEnabled || purpose === 'decision') {
+        this.lastScreenshotLayout = captured.layout;
+        this.lastActualScreenshotWidth = captured.actualWidth;
+        this.lastActualScreenshotHeight = captured.actualHeight;
+        if (bindingEnabled) this.activeStepLayout = captured.layout;
+      }
       return captured;
     },
   } satisfies DesktopAgentScreenshotApi & ThisType<DesktopAgentService>);

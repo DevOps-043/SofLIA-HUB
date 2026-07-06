@@ -10,8 +10,8 @@ export function exposeWhatsAppApi(bridge: PreloadBridge, ipc: SafeIpc): void {
     disconnect: () => safeInvoke('whatsapp:disconnect'),
     getStatus: () => safeInvoke('whatsapp:get-status'),
     getConversationHistory: (filters?: any) => safeInvoke('whatsapp:get-conversation-history', filters),
-    getConversationHistoryStats: () => safeInvoke('whatsapp:get-conversation-history-stats'),
-    setAllowedNumbers: (numbers: string[]) => safeInvoke('whatsapp:set-allowed-numbers', numbers),
+    getConversationHistoryStats: (actor?: any) => safeInvoke('whatsapp:get-conversation-history-stats', actor),
+    setAllowedNumbers: (numbers: string[], actor?: any) => safeInvoke('whatsapp:set-allowed-numbers', numbers, actor),
     setAccessConfig: (config: any) => safeInvoke('whatsapp:set-access-config', config),
     setGroupConfig: (config: any) => safeInvoke('whatsapp:set-group-config', config),
     setPersonalization: (update: any) => safeInvoke('whatsapp:set-personalization', update),
@@ -22,6 +22,24 @@ export function exposeWhatsAppApi(bridge: PreloadBridge, ipc: SafeIpc): void {
       safeRemoveAllListeners('whatsapp:qr');
       safeRemoveAllListeners('whatsapp:status');
     },
+  });
+}
+
+export function exposeCommunicationHubApi(bridge: PreloadBridge, ipc: SafeIpc): void {
+  const { safeInvoke } = ipc;
+  bridge.exposeInMainWorld('communicationHub', {
+    getCapabilities: (actor?: any) => safeInvoke('channels:get-capabilities', actor),
+    getPersonalStatus: (actor?: any) => safeInvoke('channels:get-personal-status', actor),
+    updatePersonalPreferences: (actor: any, updates: any) =>
+      safeInvoke('channels:update-personal-preferences', actor, updates),
+    getOrgStatus: (actor?: any) => safeInvoke('channels:get-org-status', actor),
+    updateOrgConnection: (actor: any, update: any) =>
+      safeInvoke('channels:update-org-connection', actor, update),
+    updatePolicy: (actor: any, updates: any) => safeInvoke('channels:update-policy', actor, updates),
+    listIdentities: (actor?: any) => safeInvoke('channels:list-identities', actor),
+    listHistory: (actor?: any) => safeInvoke('channels:list-history', actor),
+    sendMessage: (request: any) => safeInvoke('channels:send-message', request),
+    scheduleMessage: (request: any) => safeInvoke('channels:schedule-message', request),
   });
 }
 

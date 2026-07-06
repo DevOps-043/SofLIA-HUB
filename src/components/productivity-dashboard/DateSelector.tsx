@@ -16,8 +16,8 @@ export function DateSelector({ selectedDate, isToday, loadingData, onChange, onR
 
   return (
     <div className="flex items-center justify-between">
-      <div className="flex items-center gap-4 bg-gray-100 dark:bg-white/5 backdrop-blur-md border border-gray-200 dark:border-white/10 p-1.5 rounded-xl shadow-inner">
-        <button onClick={() => moveDate(-1)} className="p-2 rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-white/10 transition-all active:scale-95">
+      <div className="flex items-center gap-4 bg-surface-2 border border-border p-1.5 rounded-xl">
+        <button onClick={() => moveDate(-1)} className="p-2 rounded-lg text-secondary hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors active:scale-95">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
@@ -32,7 +32,7 @@ export function DateSelector({ selectedDate, isToday, loadingData, onChange, onR
         <button
           onClick={() => moveDate(1)}
           disabled={isToday}
-          className="p-2 rounded-lg text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-white/10 transition-all disabled:opacity-20 active:scale-95"
+          className="p-2 rounded-lg text-secondary hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/10 transition-colors disabled:opacity-20 active:scale-95"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -42,11 +42,11 @@ export function DateSelector({ selectedDate, isToday, loadingData, onChange, onR
 
       <div className="flex items-center gap-3">
         {!isToday && (
-          <button onClick={() => onChange(new Date().toISOString().split('T')[0])} className="text-xs font-semibold px-4 py-2 rounded-xl bg-accent text-white shadow-lg shadow-accent/20 hover:bg-accent/80 transition-all active:scale-95">
+          <button onClick={() => onChange(new Date().toISOString().split('T')[0])} className="text-sm font-medium px-4 py-2 rounded-xl bg-accent text-on-accent hover:brightness-105 transition-all active:scale-95">
             Hoy
           </button>
         )}
-        <button onClick={onRefresh} disabled={loadingData} className="p-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-white/10 transition-all active:rotate-180 duration-500" title="Actualizar datos">
+        <button onClick={onRefresh} disabled={loadingData} className="p-2.5 rounded-xl bg-surface-2 border border-border text-secondary hover:text-gray-900 dark:hover:text-white hover:border-accent/40 transition-colors" title="Actualizar datos">
           <svg xmlns="http://www.w3.org/2000/svg" className={`h-4.5 w-4.5 ${loadingData ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>

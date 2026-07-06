@@ -32,5 +32,7 @@ export interface SendMessageStreamOptions {
   context?: string;
   irisContext?: string;
   sourcesContext?: string;
+  /** Memoria unificada del usuario (recientes, resúmenes, hechos, skills) ya formateada. */
+  memoryContext?: string;
   onToolCall?: (toolCall: ToolCallInfo) => void;
 }

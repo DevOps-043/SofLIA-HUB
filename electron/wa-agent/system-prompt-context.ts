@@ -11,6 +11,7 @@ import { buildWhatsAppAccessPrompt } from '../whatsapp/access-control';
 import { buildWhatsAppPersonalizationPrompt, resolveWhatsAppAgentPersonalization } from '../whatsapp/personalization';
 import { getSensitiveRequestBlockResponse } from './security-prefilter';
 import { buildWhatsAppPromptMemoryContext } from './prompt-memory-context';
+import { resolveWhatsAppOwnerKey } from './whatsapp-owner';
 import type { WhatsAppAgentPromptContextInput } from './system-prompt-context-types';
 
 export async function buildWhatsAppAgentPromptContext(
@@ -20,17 +21,23 @@ export async function buildWhatsAppAgentPromptContext(
   const sessionKey = input.isGroup ? `group:${input.jid}:${input.senderNumber}` : input.senderNumber;
   if (sensitiveBlockResponse) return { sensitiveBlockResponse, sessionKey, systemPrompt: '' };
 
+  // Owner unificado: en 1:1 con número ligado a SOFIA usa user:<id> (comparte
+  // memoria con el chat/escritorio); en grupos o sin ligar, scope por teléfono.
+  const ownerKey = resolveWhatsAppOwnerKey(input.senderNumber, input.isGroup);
+
   const promptMemoryContext = await buildWhatsAppPromptMemoryContext({
     memory: input.memory,
     knowledge: input.knowledge,
     sessionKey,
     senderNumber: input.senderNumber,
     userMessage: input.userMessage,
+    ownerKey,
   });
 
   input.memory.saveMessage({
     sessionKey,
     phoneNumber: input.senderNumber,
+    ownerKey,
     groupJid: input.isGroup ? input.jid : undefined,
     role: 'user',
     content: input.userMessage,

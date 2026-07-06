@@ -1,4 +1,5 @@
 import type { ActionHistoryEntry, DesktopAgentConfig, TaskPlan } from './task-types';
+import type { PlatformCapabilities } from '../platform-capabilities';
 
 export interface TaskPhase {
   name: string;
@@ -70,6 +71,7 @@ export interface DesktopAgentStatus {
   plan: TaskPlan | null;
   lastAction: string | null;
   config: DesktopAgentConfig;
+  platformCapabilities?: PlatformCapabilities;
   activeTasks: Array<{
     id: string;
     task: string;

@@ -3,6 +3,9 @@ import { buildMaxStepsResult, updateRecoveryScreenHash } from './task-loop-helpe
 import { runDesktopAgentActionAttempt } from './task-execution-action';
 import { handleDesktopAgentReportedFailure } from './task-execution-failure';
 import { finishDesktopAgentRuntimeTask, startDesktopAgentRuntimeTask } from './task-execution-state';
+import { resolveTaskStepBudget } from './task-budget';
+import { buildTaskOutcome, type DesktopTaskOutcome } from './task-outcome';
+import { ensureTargetWindowLock } from './window-lock';
 import type { DesktopActionPayload } from '../desktop-agent-types';
 import type {
   DesktopTaskExecutionOptions,
@@ -12,8 +15,18 @@ export async function runDesktopAgentTaskInternal(
   service: any,
   task: string,
   options?: DesktopTaskExecutionOptions,
-): Promise<string> {
-  const { taskId, maxSteps, taskAbort, agentTask } = startDesktopAgentRuntimeTask(service, task, options);
+): Promise<DesktopTaskOutcome> {
+  const { taskId, taskAbort, agentTask } = startDesktopAgentRuntimeTask(service, task, options);
+  let maxSteps: number = agentTask.maxSteps;
+
+  const outcome = async (estado: DesktopTaskOutcome['estado'], mensaje: string): Promise<DesktopTaskOutcome> => buildTaskOutcome({
+    taskId,
+    estado,
+    mensaje,
+    pasosEjecutados: service.currentStep,
+    startedAt: agentTask.startedAt,
+    ultimaVentana: await readActiveWindowTitle(service),
+  });
 
   try {
     if (service.config.planningEnabled) {
@@ -24,13 +37,30 @@ export async function runDesktopAgentTaskInternal(
       console.log(`[DesktopAgent] Plan: ${service.currentPlan.subGoals.length} sub-objetivos, ~${service.currentPlan.estimatedSteps} pasos`);
     }
 
+    // Presupuesto proporcional a la complejidad estimada, acotado por el tope duro.
+    maxSteps = resolveTaskStepBudget({
+      requestedMaxSteps: options?.maxSteps,
+      planEstimatedSteps: service.currentPlan?.estimatedSteps ?? null,
+      task,
+      config: service.config,
+    });
+    agentTask.maxSteps = maxSteps;
+    console.log(`[DesktopAgent] Presupuesto de pasos para [${taskId}]: ${maxSteps}`);
+
     service.status = 'executing';
     for (service.currentStep = 0; service.currentStep < maxSteps; service.currentStep++) {
       agentTask.currentStep = service.currentStep;
-      if (taskAbort.signal.aborted) return 'Tarea cancelada por el usuario.';
+      if (taskAbort.signal.aborted) return outcome('cancelada', 'Tarea cancelada por el usuario.');
       if (service.currentStep > 0 && service.currentStep % service.config.summarizeEveryNSteps === 0) await service.summarizeHistory();
+      // Refresco barato del contexto de entorno (ventanas abiertas) para que el modelo no persiga apps ya visibles.
+      if (service.config.environmentContextEnabled
+        && service.currentStep % Math.max(1, service.config.environmentRefreshEveryNSteps) === 0
+        && (service.currentStep > 0 || !service.environmentContextText)) {
+        await service.refreshEnvironmentContext();
+      }
       if (service.strategicPlan && service.currentStep > 0 && service.currentStep % 10 === 0) await service.checkPhaseCompletion(task);
 
+      await ensureTargetWindowLock(service);
       const { screenshot } = await service.takeScreenshotWithMarks();
       const currentHash = service.quickHash(screenshot);
       updateRecoveryScreenHash(service.recovery, currentHash);
@@ -55,7 +85,7 @@ export async function runDesktopAgentTaskInternal(
         } catch {
           service.recovery.consecutiveFailures++;
           if (service.recovery.consecutiveFailures >= service.config.maxConsecutiveFailures * 2) {
-            return `Error persistente al analizar la pantalla después de ${service.currentStep} pasos.`;
+            return outcome('fallida', `Error persistente al analizar la pantalla después de ${service.currentStep} pasos.`);
           }
           continue;
         }
@@ -66,14 +96,17 @@ export async function runDesktopAgentTaskInternal(
       if (actionPayload.action === 'done') {
         const msg = actionPayload.message || 'Tarea completada.';
         agentTask.result = msg;
-        service.emit('task-completed', { message: msg, steps: service.currentStep + 1, recoveries: service.recovery.totalRecoveries, taskId });
-        return msg;
+        service.emit('task-completed', { task, message: msg, steps: service.currentStep + 1, recoveries: service.recovery.totalRecoveries, taskId });
+        return outcome('completada', msg);
       }
       if (actionPayload.action === 'fail') {
         const recovered = await handleDesktopAgentReportedFailure(service, task, screenshot, actionPayload, agentTask, taskId);
         if (recovered === true) continue;
-        return recovered;
+        return outcome('fallida', recovered);
       }
+
+      // Cancelacion entre la decision de vision y la ejecucion de la accion.
+      if (taskAbort.signal.aborted) return outcome('cancelada', 'Tarea cancelada por el usuario.');
 
       await runDesktopAgentActionAttempt({ service, task, currentHash, actionPayload });
     }
@@ -81,16 +114,26 @@ export async function runDesktopAgentTaskInternal(
     const lastMsg = service.actionHistory[service.actionHistory.length - 1]?.action.message || '';
     const resultMsg = buildMaxStepsResult(maxSteps, lastMsg);
     agentTask.result = resultMsg;
-    return resultMsg;
+    service.emit('task-budget-exhausted', { taskId, maxSteps, message: resultMsg });
+    return outcome('presupuesto_agotado', resultMsg);
   } catch (err: unknown) {
     const message = getErrorMessage(err);
     const stackPreview = err instanceof Error ? err.stack?.split('\n').slice(0, 3).join('\n') : undefined;
     const errorMsg = `Error en paso ${service.currentStep}: ${message}`;
     console.error(`[DesktopAgent] ? FATAL [${taskId}]:`, message, stackPreview);
     agentTask.error = errorMsg;
-    service.emit('task-failed', { message: errorMsg, steps: service.currentStep, taskId, error: message });
+    service.emit('task-failed', { task, message: errorMsg, steps: service.currentStep, taskId, error: message });
     throw err;
   } finally {
     finishDesktopAgentRuntimeTask(service, agentTask, taskId);
+  }
+}
+
+async function readActiveWindowTitle(service: any): Promise<string | undefined> {
+  try {
+    const activeWindow = await service.getActiveWindow();
+    return activeWindow?.title || undefined;
+  } catch {
+    return undefined;
   }
 }

@@ -1,6 +1,7 @@
 import type { SidebarProps } from './types';
 import { FolderRow } from './FolderRow';
 import { splitChatsByFolder } from './chatProps';
+import { SidebarSectionLabel } from './SidebarSectionLabel';
 
 export function FolderSection({ props }: { props: SidebarProps }) {
   const { folderChats } = splitChatsByFolder(props);
@@ -8,11 +9,7 @@ export function FolderSection({ props }: { props: SidebarProps }) {
 
   return (
     <>
-      {props.isOpen && (
-        <div className="pt-5 pb-2 px-3">
-          <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] font-semibold">Carpetas</span>
-        </div>
-      )}
+      {props.isOpen && <SidebarSectionLabel label="Carpetas" />}
       {props.folders.map((folder) => (
         <FolderRow
           key={folder.id}

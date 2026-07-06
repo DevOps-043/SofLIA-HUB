@@ -1,9 +1,11 @@
 import { useCallback } from 'react';
 import {
   createConversation,
-  generateTitle,
+  generateTitleWithModel,
+  PENDING_MODEL_TITLE,
   saveMessages,
   saveMessagesToCache,
+  updateConversationTitle,
   type ChatMessage,
   type Conversation,
 } from '../../services/chat-service';
@@ -45,15 +47,37 @@ export function useScopedMessagesHandler({ getCurrentChatStorageKey, orgId, stat
     };
 
     const createMissingConversation = async (messages: ChatMessage[], folderId: string | null, scopeVersion: number) => {
-      const newConv = await createConversation(userId!, generateTitle(messages), folderId || undefined, orgId);
+      const newConv = await createConversation(userId!, PENDING_MODEL_TITLE, folderId || undefined, orgId);
       if (!newConv) return null;
-      state.setConversations((prev) => [newConv, ...prev]);
+      state.setConversations((prev) => {
+        const next = [newConv, ...prev];
+        state.conversationsRef.current = next;
+        return next;
+      });
+      void applyModelGeneratedTitle(newConv.id, messages);
       if (state.scopeVersionRef.current === scopeVersion && !state.currentConvIdRef.current && state.currentFolderIdRef.current === folderId) {
         state.setCurrentConversationId(newConv.id);
         state.currentConvIdRef.current = newConv.id;
         localStorage.setItem(getCurrentChatStorageKey(userId!), newConv.id);
       }
       return newConv.id;
+    };
+
+    const applyModelGeneratedTitle = async (conversationId: string, messages: ChatMessage[]) => {
+      if (!userId) return;
+      const generatedTitle = await generateTitleWithModel(messages);
+      const title = generatedTitle.trim();
+      if (!title || title === PENDING_MODEL_TITLE) return;
+      if (!state.conversationsRef.current.some((conversation) => conversation.id === conversationId)) return;
+
+      state.setConversations((prev) => {
+        const next = prev.map((conversation) => (
+          conversation.id === conversationId ? { ...conversation, title } : conversation
+        ));
+        state.conversationsRef.current = next;
+        return next;
+      });
+      await updateConversationTitle(userId, conversationId, title);
     };
 
     state.flushSaveRef.current = async () => {

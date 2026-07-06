@@ -63,6 +63,9 @@ async function registerRemoteNode(toolName: string, toolArgs: Record<string, any
       base_url: toolArgs.base_url,
       token: toolArgs.token,
       enabled: toolArgs.enabled,
+      owner_user_id: toolArgs.owner_user_id,
+      organization_id: toolArgs.organization_id,
+      visibility: toolArgs.visibility,
     }),
   );
 }

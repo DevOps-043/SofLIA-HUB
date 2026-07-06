@@ -8,6 +8,9 @@ export interface RegisterRemoteNodeInput {
   base_url: string;
   token: string;
   enabled?: boolean;
+  owner_user_id?: string | null;
+  organization_id?: string | null;
+  visibility?: 'personal' | 'organization';
 }
 
 export function listRemoteNodes(state: RemoteNodeState): RemoteNodeRecord[] {
@@ -32,6 +35,11 @@ export function registerRemoteNode(state: RemoteNodeState, input: RegisterRemote
     baseUrl,
     token: input.token.trim(),
     enabled: input.enabled !== false,
+    owner_user_id: input.owner_user_id?.trim() || previous?.owner_user_id || null,
+    organization_id: input.organization_id?.trim() || previous?.organization_id || null,
+    visibility: input.visibility === 'organization' || input.visibility === 'personal'
+      ? input.visibility
+      : previous?.visibility || 'personal',
     createdAt: previous?.createdAt || now,
     updatedAt: now,
     lastHealthAt: previous?.lastHealthAt || null,

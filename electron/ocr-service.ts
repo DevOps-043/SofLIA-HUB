@@ -23,7 +23,10 @@ async function getWorker(): Promise<any> {
       // @ts-ignore - logger option exists but types may not include it
       logger: () => {}, // Suppress progress logs
     });
-    console.log('[OCRService] Worker initialized (spa+eng)');
+    // Declarar el DPI evita el warning "Invalid resolution 25 dpi" y mejora el
+    // reconocimiento de fuentes de UI (que tesseract asume a baja resolucion).
+    await workerInstance.setParameters({ user_defined_dpi: '96' });
+    console.log('[OCRService] Worker initialized (spa+eng, 96dpi)');
     return workerInstance;
   } catch (err: any) {
     console.error('[OCRService] Failed to initialize:', err.message);
@@ -60,6 +63,47 @@ export async function extractTextFromBase64(base64Data: string): Promise<string>
   } catch (err: any) {
     console.error('[OCRService] OCR error:', err.message);
     return '';
+  }
+}
+
+/** Texto reconocido con su caja delimitadora en pixeles de la imagen de entrada. */
+export type OcrTextBox = {
+  texto: string;
+  /** Confianza 0-1 reportada por tesseract. */
+  confianza: number;
+  bbox: { x0: number; y0: number; x1: number; y1: number };
+};
+
+/**
+ * Reconoce texto CON coordenadas (lineas y palabras) desde una imagen base64.
+ * Base del proveedor OCR del element-locator: permite ubicar un texto visible
+ * en cualquier aplicacion (Chromium, Java, juegos, terminales) leyendo los
+ * pixeles, sin depender de arboles de accesibilidad.
+ */
+export async function extractTextBoxesFromBase64(
+  base64Data: string,
+): Promise<{ lineas: OcrTextBox[]; palabras: OcrTextBox[] }> {
+  try {
+    const worker = await getWorker();
+    const imageData = base64Data.startsWith('data:') ? base64Data : `data:image/png;base64,${base64Data}`;
+    const { data } = await worker.recognize(imageData);
+    const toBox = (item: any): OcrTextBox => ({
+      texto: String(item?.text || '').trim(),
+      confianza: Math.max(0, Math.min(1, (item?.confidence ?? 0) / 100)),
+      bbox: {
+        x0: Number(item?.bbox?.x0 ?? 0),
+        y0: Number(item?.bbox?.y0 ?? 0),
+        x1: Number(item?.bbox?.x1 ?? 0),
+        y1: Number(item?.bbox?.y1 ?? 0),
+      },
+    });
+    return {
+      lineas: (data?.lines || []).map(toBox).filter((box: OcrTextBox) => box.texto),
+      palabras: (data?.words || []).map(toBox).filter((box: OcrTextBox) => box.texto),
+    };
+  } catch (err: any) {
+    console.error('[OCRService] OCR con coordenadas fallo:', err.message);
+    return { lineas: [], palabras: [] };
   }
 }
 

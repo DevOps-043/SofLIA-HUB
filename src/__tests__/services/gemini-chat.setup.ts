@@ -30,6 +30,9 @@ vi.mock('../../config', () => ({
   GOOGLE_API_KEY: 'env-test-key',
   MODELS: {
     PRIMARY: 'gemini-2.0-flash',
+    FALLBACK: 'gemini-3.1-flash-lite',
+    PRO: 'gemini-2.5-pro',
+    WEB_AGENT: 'gemini-3.5-flash',
     VISION: 'gemini-2.0-flash',
     THINKING: 'gemini-2.0-flash-thinking',
   },
@@ -41,8 +44,13 @@ vi.mock('../../prompts/chat', () => ({
 }));
 
 vi.mock('../../services/gemini-tools', () => ({
-  COMPUTER_USE_TOOLS: { functionDeclarations: [{ name: 'list_directory', description: 'test', parameters: {} }] },
-  COMPUTER_TOOL_NAMES: new Set(['list_directory']),
+  COMPUTER_USE_TOOLS: {
+    functionDeclarations: [
+      { name: 'list_directory', description: 'test', parameters: {} },
+      { name: 'create_word_document', description: 'test', parameters: {} },
+    ],
+  },
+  COMPUTER_TOOL_NAMES: new Set(['list_directory', 'create_word_document']),
   PROJECT_HUB_TOOLS: { functionDeclarations: [] },
   PROJECT_HUB_TOOL_NAMES: new Set(),
   GOOGLE_WORKSPACE_TOOLS: { functionDeclarations: [] },
@@ -75,11 +83,18 @@ vi.mock('../../lib/supabase', () => ({
 }));
 
 export function createMockChat(text: string) {
+  const response = {
+    candidates: [{ groundingMetadata: null, content: { parts: [{ text }] } }],
+  };
   return {
     sendMessage: vi.fn(async () => ({
-      response: {
-        candidates: [{ groundingMetadata: null, content: { parts: [{ text }] } }],
-      },
+      response,
+    })),
+    sendMessageStream: vi.fn(async () => ({
+      stream: (async function* () {
+        yield { text: () => text };
+      })(),
+      response: Promise.resolve(response),
     })),
   };
 }

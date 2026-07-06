@@ -1,5 +1,6 @@
 import type { SofiaAuthUser, SofiaContext } from './types';
 import type { SofiaUserProfile } from '../../lib/sofia-client';
+import { pickInitialOrganization } from './org-preference';
 
 export function buildActiveSofiaContext(sofiaProfile: SofiaUserProfile | null): SofiaContext {
   const activeMemberships = sofiaProfile?.memberships?.filter((membership) => membership.status === 'active') || [];
@@ -19,10 +20,15 @@ export function buildActiveSofiaContext(sofiaProfile: SofiaUserProfile | null): 
     activeMemberships.some((membership) => membership.team_id === team.id)
   ) || [];
 
+  const currentOrganization = pickInitialOrganization(sofiaProfile?.id, activeOrgs);
+  const currentTeam = currentOrganization
+    ? activeTeams.find((team) => team.organization_id === currentOrganization.id) || null
+    : activeTeams[0] || null;
+
   return {
     user: sofiaProfile,
-    currentOrganization: activeOrgs[0] || null,
-    currentTeam: activeTeams[0] || null,
+    currentOrganization,
+    currentTeam,
     organizations: activeOrgs,
     teams: activeTeams,
     memberships: activeMemberships,

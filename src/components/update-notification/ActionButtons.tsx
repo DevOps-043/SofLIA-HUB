@@ -21,13 +21,13 @@ export function ActionButtons({
         <>
           <button
             onClick={onDownload}
-            className="flex-1 py-2 px-3 rounded-xl bg-white text-black text-xs font-bold transition-all hover:scale-[1.02] active:scale-[0.98]"
+            className="flex-1 py-2 px-3 rounded-xl bg-accent text-on-accent text-xs font-medium transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             Actualizar ahora
           </button>
           <button
             onClick={onDismiss}
-            className="py-2 px-3 rounded-xl bg-white/5 border border-white/10 text-gray-400 text-xs font-medium hover:text-white transition-colors"
+            className="py-2 px-3 rounded-xl bg-surface-2 border border-border text-secondary text-xs font-medium hover:text-gray-900 dark:hover:text-white transition-colors"
           >
             Mas tarde
           </button>
@@ -36,7 +36,7 @@ export function ActionButtons({
       {phase === 'ready' && (
         <button
           onClick={onInstall}
-          className="flex-1 py-2 px-3 rounded-xl bg-emerald-500 text-white text-xs font-bold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-emerald-500/20"
+          className="flex-1 py-2 px-3 rounded-xl bg-success text-white text-xs font-medium transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-emerald-500/20"
         >
           Reiniciar para actualizar
         </button>
@@ -44,7 +44,7 @@ export function ActionButtons({
       {phase === 'error' && (
         <button
           onClick={onRetry}
-          className="flex-1 py-2 px-3 rounded-xl bg-white/5 border border-white/10 text-gray-400 text-xs font-medium hover:text-white transition-colors"
+          className="flex-1 py-2 px-3 rounded-xl bg-surface-2 border border-border text-secondary text-xs font-medium hover:text-gray-900 dark:hover:text-white transition-colors"
         >
           Reintentar
         </button>

@@ -3,7 +3,7 @@ import { getWorkflowCaseDetail, getWorkflowHubOverview, isWorkflowHubAvailable, 
 import { buildCronExpression, describeSchedule } from './formatters';
 import type { ActionDraft, PassiveScheduleFrequency } from './types';
 
-export function useWorkflowHubPanelModel(userId: string) {
+export function useWorkflowHubPanelModel(userId: string, organizationId?: string) {
   const hubAvailable = useMemo(() => isWorkflowHubAvailable(), []);
   const [overview, setOverview] = useState<WorkflowHubOverview | null>(null);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<WorkflowId>('correo');
@@ -24,7 +24,7 @@ export function useWorkflowHubPanelModel(userId: string) {
   const [actionKey, setActionKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const inputClass = 'w-full rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.03] px-3 py-2 text-[13px] text-gray-800 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:outline-none focus:border-accent/35 focus:ring-1 focus:ring-accent/20 transition';
+  const inputClass = 'w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder:text-secondary/70 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 transition-colors';
   const textareaClass = `${inputClass} min-h-[88px] resize-y`;
   const selectedWorkflow = useMemo(() => overview?.workflows.find((workflow) => workflow.id === selectedWorkflowId) || null, [overview, selectedWorkflowId]);
   const workflowVariants = useMemo(() => (overview?.variants || []).filter((variant) => variant.workflowId === selectedWorkflowId), [overview, selectedWorkflowId]);
@@ -36,7 +36,7 @@ export function useWorkflowHubPanelModel(userId: string) {
   const passiveRules = overview?.passiveRules || [], passiveCapableWorkflows = (overview?.workflows || []).filter((workflow) => workflow.triggerModes.includes('passive'));
   const activationCapableWorkflows = (overview?.workflows || []).filter((workflow) => workflow.triggerModes.includes('activation'));
 
-  useEffect(() => { void refreshOverview(false); }, [userId]);
+  useEffect(() => { void refreshOverview(false); }, [userId, organizationId]);
   useEffect(() => {
     if (!overview) return;
     const workflow = overview.workflows.find((item) => item.id === selectedWorkflowId) || overview.workflows[0] || null;
@@ -65,7 +65,7 @@ export function useWorkflowHubPanelModel(userId: string) {
   async function refreshOverview(preserveSelection: boolean, preferredCaseId?: string): Promise<void> {
     setLoading(true); setError(null);
     try {
-      const result = await getWorkflowHubOverview();
+      const result = await getWorkflowHubOverview(organizationId);
       if (!result.success || !result.overview) throw new Error(result.error || 'No pude cargar el hub de workflows.');
       setOverview(result.overview);
       setSelectedCaseId((current) => preferredCaseId && result.overview!.cases.some((item) => item.id === preferredCaseId) ? preferredCaseId : preserveSelection && current && result.overview!.cases.some((item) => item.id === current) ? current : result.overview!.cases[0]?.id || null);

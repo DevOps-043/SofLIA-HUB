@@ -51,7 +51,7 @@ function DownloadProgress({ progress }: { progress: number }) {
       </div>
       <div className="h-2 bg-gray-200 dark:bg-white/5 rounded-full overflow-hidden">
         <div
-          className="h-full bg-accent rounded-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(0,186,255,0.4)]"
+          className="h-full bg-accent rounded-full transition-all duration-500 ease-out"
           style={{ width: `${progress}%` }}
         />
       </div>

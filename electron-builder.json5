@@ -4,6 +4,9 @@
   appId: "com.pulsehub.sofliahub",
   npmRebuild: false,
   asar: true,
+  asarUnpack: [
+    "**/node_modules/onnxruntime-node/**",
+  ],
   productName: "SofLIA Hub",
   publish: [
     {
@@ -51,7 +54,26 @@
     uninstallDisplayName: "SofLIA Hub",
   },
   linux: {
-    target: ["AppImage"],
-    artifactName: "SofLIA-Hub-Linux-${version}.${ext}",
+    icon: "public/assets/Icono.png",
+    category: "Office",
+    synopsis: "AI-powered business operations platform",
+    description: "SofLIA Hub Desktop Client",
+    executableName: "soflia-hub",
+    target: [
+      {
+        target: "AppImage",
+        arch: ["x64"],
+      },
+    ],
+    artifactName: "SofLIA-Hub-Linux-${version}-${arch}.${ext}",
+    desktop: {
+      entry: {
+        Name: "SofLIA Hub",
+        Comment: "AI-powered business operations platform",
+        Categories: "Office;Productivity;",
+        Keywords: "productivity;business;ai;whatsapp;google;",
+        StartupWMClass: "soflia-hub",
+      },
+    },
   },
 }

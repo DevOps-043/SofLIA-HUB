@@ -30,6 +30,7 @@ export async function createAgentLoopState(request: AgentLoopRequest): Promise<A
     isGroup: request.isGroup,
     senderNumber: request.senderNumber,
     whatsappConfig: request.agent.waService.config,
+    communicationHub: request.agent.communicationHubService,
   }) as any];
   const historyCopy = prepareWhatsAppConversationHistory({
     conversations: request.conversations,

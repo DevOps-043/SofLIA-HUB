@@ -15,5 +15,7 @@ export const SEMANTIC_MIN_SCORE = 0.22;
 export const SUMMARY_TOKEN_BUDGET = 3000;
 export const SEMANTIC_TOKEN_BUDGET = 2500;
 export const FACTS_TOKEN_BUDGET = 1800;
+export const SKILLS_TOKEN_BUDGET = 1500;
+export const SKILLS_IN_CONTEXT = 8;
 export const SUMMARIZE_THRESHOLD = 15;
 export const SUMMARIES_IN_CONTEXT = 5;

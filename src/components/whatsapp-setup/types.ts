@@ -25,6 +25,7 @@ export interface WhatsAppAgentPersonalization {
 }
 
 export interface WhatsAppPersonalizationUpdate {
+  actor?: { userId?: string | null; organizationId?: string | null };
   whitelistEnabled?: boolean;
   globalPersonalization?: WhatsAppAgentPersonalization;
   contactPersonalizations?: Record<string, WhatsAppAgentPersonalization | null>;
@@ -32,7 +33,9 @@ export interface WhatsAppPersonalizationUpdate {
 }
 
 export interface WhatsAppAccessConfigUpdate {
+  actor?: { userId?: string | null; organizationId?: string | null };
   masterNumber?: string | null;
+  masterPermissions?: WhatsAppAccessPermission[];
   contactPermissions?: Record<string, WhatsAppAccessPermission[] | null>;
 }
 
@@ -69,6 +72,7 @@ export interface WhatsAppConversationHistoryStats {
 }
 
 export interface WhatsAppConversationHistoryFilters {
+  actor?: { userId?: string | null; organizationId?: string | null };
   jid?: string;
   senderNumber?: string;
   query?: string;
@@ -86,6 +90,7 @@ export interface WhatsAppStatus {
   allowedNumbers: string[];
   whitelistEnabled: boolean;
   masterNumber: string;
+  masterPermissions: WhatsAppAccessPermission[];
   contactPermissions: Record<string, WhatsAppAccessPermission[]>;
   groupPolicy: WhatsAppGroupPolicy;
   groupActivation: WhatsAppGroupActivation;
@@ -107,16 +112,16 @@ export interface WhatsAppSetupProps {
 declare global {
   interface Window {
     whatsApp?: {
-      connect: () => Promise<any>;
-      disconnect: () => Promise<any>;
+      connect: () => Promise<{ success: boolean; error?: string }>;
+      disconnect: () => Promise<{ success: boolean; error?: string }>;
       getStatus: () => Promise<WhatsAppStatus>;
       getConversationHistory: (filters?: WhatsAppConversationHistoryFilters) => Promise<{ success: boolean; data?: WhatsAppConversationHistoryEvent[]; error?: string }>;
-      getConversationHistoryStats: () => Promise<{ success: boolean; data?: WhatsAppConversationHistoryStats; error?: string }>;
-      setAllowedNumbers: (numbers: string[]) => Promise<any>;
-      setAccessConfig: (config: WhatsAppAccessConfigUpdate) => Promise<any>;
-      setGroupConfig: (config: any) => Promise<any>;
-      setPersonalization: (update: WhatsAppPersonalizationUpdate) => Promise<any>;
-      setApiKey: (apiKey: string) => Promise<any>;
+      getConversationHistoryStats: (actor?: { userId?: string | null; organizationId?: string | null }) => Promise<{ success: boolean; data?: WhatsAppConversationHistoryStats; error?: string }>;
+      setAllowedNumbers: (numbers: string[], actor?: { userId?: string | null; organizationId?: string | null }) => Promise<{ success: boolean; error?: string }>;
+      setAccessConfig: (config: WhatsAppAccessConfigUpdate) => Promise<{ success: boolean; error?: string }>;
+      setGroupConfig: (config: Partial<WhatsAppStatus> & { actor?: { userId?: string | null; organizationId?: string | null } }) => Promise<{ success: boolean; error?: string }>;
+      setPersonalization: (update: WhatsAppPersonalizationUpdate) => Promise<{ success: boolean; error?: string }>;
+      setApiKey: (apiKey: string) => Promise<unknown>;
       onQR: (cb: (qr: string) => void) => void;
       onStatusChange: (cb: (status: WhatsAppStatus) => void) => void;
       removeListeners: () => void;

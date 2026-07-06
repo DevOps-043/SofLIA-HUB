@@ -1,3 +1,4 @@
+import type { DesktopTaskOutcome } from '../../desktop-agent/task-outcome';
 import type { FunctionResponse, ToolExecutorContext } from '../types';
 
 export async function executeUseComputerTool(
@@ -8,14 +9,14 @@ export async function executeUseComputerTool(
 ): Promise<FunctionResponse> {
   try {
     if (!ctx.desktopAgent) throw new Error('Desktop Agent no inicializado.');
-    const result = await runDesktopAgentTask(toolArgs, ctx, jid);
-    return buildUseComputerResponse(toolName, true, result, ctx.desktopAgent.getStatus());
+    const outcome = await runDesktopAgentTask(toolArgs, ctx, jid);
+    return buildUseComputerResponse(toolName, outcome.estado === 'completada', outcome.mensaje, ctx.desktopAgent.getStatus(), outcome);
   } catch (err: any) {
     return buildUseComputerResponse(toolName, false, err.message, ctx.desktopAgent?.getStatus?.());
   }
 }
 
-async function runDesktopAgentTask(toolArgs: Record<string, any>, ctx: ToolExecutorContext, jid: string): Promise<string> {
+async function runDesktopAgentTask(toolArgs: Record<string, any>, ctx: ToolExecutorContext, jid: string): Promise<DesktopTaskOutcome> {
   const progressInterval = ctx.desktopAgent!.getConfig().progressReportEveryNSteps || 25;
   const onStep = async (data: any) => {
     if (data.step % progressInterval === 0 && data.step > 0) {
@@ -30,7 +31,7 @@ async function runDesktopAgentTask(toolArgs: Record<string, any>, ctx: ToolExecu
   ctx.desktopAgent!.on('step', onStep);
   ctx.desktopAgent!.on('phase-completed', onPhase);
   try {
-    return await ctx.desktopAgent!.executeTask(toolArgs.task, {
+    return await ctx.desktopAgent!.executeTaskDetailed(toolArgs.task, {
       maxSteps: toolArgs.max_steps,
       backend: toolArgs.backend,
       startUrl: toolArgs.start_url,
@@ -44,13 +45,26 @@ async function runDesktopAgentTask(toolArgs: Record<string, any>, ctx: ToolExecu
   }
 }
 
-function buildUseComputerResponse(toolName: string, success: boolean, message: string, agentStatus: any): FunctionResponse {
+function buildUseComputerResponse(
+  toolName: string,
+  success: boolean,
+  message: string,
+  agentStatus: any,
+  outcome?: DesktopTaskOutcome,
+): FunctionResponse {
   return {
     functionResponse: {
       name: toolName,
       response: {
         success,
         ...(success ? { message } : { error: message }),
+        // Contrato de finalizacion: SOLO afirmar exito al usuario con estado
+        // 'completada'; con 'presupuesto_agotado'/'fallida' reportar el
+        // progreso real y preguntar si continuar.
+        estado: outcome?.estado ?? (success ? 'completada' : 'fallida'),
+        pasos_ejecutados: outcome?.pasosEjecutados,
+        duracion_ms: outcome?.duracionMs,
+        ultima_ventana: outcome?.ultimaVentana || null,
         current_backend: agentStatus?.currentBackend || null,
         current_url: agentStatus?.currentUrl || null,
         current_browser_profile: agentStatus?.currentBrowserProfileId || null,

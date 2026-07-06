@@ -6,6 +6,14 @@ export async function executeVolumeTool(toolName: string, toolArgs: Record<strin
   if (toolName !== 'set_volume') return null;
 
   try {
+    if (process.platform === 'linux') {
+      await executeLinuxVolumeCommand(toolArgs);
+      return toolResponse(toolName, { success: true, message: describeVolumeAction(toolArgs) });
+    }
+    if (process.platform !== 'win32') {
+      return toolResponse(toolName, { success: false, error: `Control de volumen no soportado en ${process.platform}.` });
+    }
+
     const psCmd = buildVolumeCommand(toolArgs);
     if (!psCmd) {
       return toolResponse(toolName, { success: false, error: 'Debes especificar level (0-100) o action (mute/unmute/up/down).' });
@@ -16,6 +24,36 @@ export async function executeVolumeTool(toolName: string, toolArgs: Record<strin
   } catch (err: any) {
     return toolError(toolName, err.message);
   }
+}
+
+async function executeLinuxVolumeCommand(toolArgs: Record<string, any>): Promise<void> {
+  const commands = buildLinuxVolumeCommands(toolArgs);
+  if (!commands) throw new Error('Debes especificar level (0-100) o action (mute/unmute/up/down).');
+
+  const [primary, fallback] = commands;
+  try {
+    await execAsync(primary, { timeout: 10000 });
+  } catch (primaryError: any) {
+    try {
+      await execAsync(fallback, { timeout: 10000 });
+    } catch (fallbackError: any) {
+      throw new Error(`No se pudo controlar volumen. Instala pactl/pulseaudio-utils o amixer/alsa-utils. Detalle: ${fallbackError.message || primaryError.message}`);
+    }
+  }
+}
+
+function buildLinuxVolumeCommands(toolArgs: Record<string, any>): [string, string] | null {
+  if (toolArgs.action === 'mute' || toolArgs.action === 'unmute') {
+    const mute = toolArgs.action === 'mute' ? '1' : '0';
+    const amixer = toolArgs.action === 'mute' ? 'mute' : 'unmute';
+    return [`pactl set-sink-mute @DEFAULT_SINK@ ${mute}`, `amixer -D pulse sset Master ${amixer}`];
+  }
+  if (toolArgs.action === 'up') return ['pactl set-sink-volume @DEFAULT_SINK@ +5%', 'amixer -D pulse sset Master 5%+'];
+  if (toolArgs.action === 'down') return ['pactl set-sink-volume @DEFAULT_SINK@ -5%', 'amixer -D pulse sset Master 5%-'];
+  if (toolArgs.level === undefined) return null;
+
+  const level = Math.max(0, Math.min(100, Number(toolArgs.level) || 0));
+  return [`pactl set-sink-volume @DEFAULT_SINK@ ${level}%`, `amixer -D pulse sset Master ${level}%`];
 }
 
 function buildVolumeCommand(toolArgs: Record<string, any>): string | null {

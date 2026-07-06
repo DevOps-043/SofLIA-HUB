@@ -15,8 +15,8 @@ export function DailyTimeline({ timeline }: DailyTimelineProps) {
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h3 className="text-white text-lg font-black tracking-tight">Timeline de Actividad</h3>
-          <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-0.5">Distribucion visual del tiempo</p>
+          <h3 className="text-gray-900 dark:text-white text-lg font-semibold">Timeline de Actividad</h3>
+          <p className="text-xs text-secondary mt-0.5">Distribucion visual del tiempo</p>
         </div>
         <TimelineLegend />
       </div>

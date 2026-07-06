@@ -30,7 +30,7 @@ describe('Group allowing - safe tools pass in groups', () => {
     }
   });
 
-  it('WA-101: master number can use group-blocked tools', async () => {
+  it('WA-101: master number cannot bypass group-blocked tools', async () => {
     const result = await executeWhatsAppTools(
       [fc('execute_command', { command: 'dir' })],
       makeCtx({ waService: { config: { masterNumber: '5511111', contactPermissions: {} } } as any, skipConfirmations: true }),
@@ -38,10 +38,11 @@ describe('Group allowing - safe tools pass in groups', () => {
       '5511111',
       true,
     );
-    expect(result.responses[0].functionResponse.response.success).toBe(true);
+    expect(result.responses[0].functionResponse.response.success).toBe(false);
+    expect(result.responses[0].functionResponse.response.error).toContain('grupo');
   });
 
-  it('WA-102: granted contact can use a specific group-blocked category', async () => {
+  it('WA-102: granted contact cannot bypass group-blocked categories', async () => {
     const result = await executeWhatsAppTools(
       [fc('write_file', { path: 'test.txt', content: 'hola' })],
       makeCtx({
@@ -56,7 +57,8 @@ describe('Group allowing - safe tools pass in groups', () => {
       '5511111',
       true,
     );
-    expect(result.responses[0].functionResponse.response.success).toBe(true);
+    expect(result.responses[0].functionResponse.response.success).toBe(false);
+    expect(result.responses[0].functionResponse.response.error).toContain('grupo');
   });
 });
 
@@ -71,5 +73,17 @@ describe('Master access permissions - direct messages', () => {
     );
     expect(result.responses[0].functionResponse.response.success).toBe(false);
     expect(result.responses[0].functionResponse.response.error).toContain('Permiso requerido');
+  });
+
+  it('WA-104: configurable master permissions can block a master tool', async () => {
+    const result = await executeWhatsAppTools(
+      [fc('execute_command', { command: 'dir' })],
+      makeCtx({ waService: { config: { masterNumber: '5511111', masterPermissions: ['files_read'], contactPermissions: {} } } as any }),
+      'jid',
+      '5511111',
+      false,
+    );
+    expect(result.responses[0].functionResponse.response.success).toBe(false);
+    expect(result.responses[0].functionResponse.response.error).toContain('Permiso maestro requerido');
   });
 });

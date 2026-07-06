@@ -1,7 +1,7 @@
 import { desktopCapturer, screen as electronScreen } from 'electron';
 import type { ScreenshotLayout, ScreenshotVirtualBounds } from './types';
 import type { SharpModule } from './sharp-types';
-import { buildScreenshotLayout } from './screenshot-layout';
+import { buildScreenshotLayout, computeAdaptiveTargetSize, getVirtualDesktopBounds } from './screenshot-layout';
 import { getDisplayExtractRegion } from './screenshot-capture-region';
 
 type CaptureSource = Awaited<ReturnType<typeof desktopCapturer.getSources>>[number];
@@ -12,33 +12,48 @@ type CaptureCompositeOptions = {
   targetWidth: number;
   targetHeight: number;
   sharpModule: SharpModule | null;
-  getFocusedCaptureBounds: () => Promise<ScreenshotVirtualBounds | null>;
+  getCaptureBounds: () => Promise<ScreenshotVirtualBounds | null>;
+  /** Resolucion adaptativa: garantiza renderScale >= minRenderScale acotado por maxScreenshotEdge. */
+  minRenderScale?: number;
+  maxScreenshotEdge?: number;
 };
 
 export async function captureCompositeScreenshot(options: CaptureCompositeOptions): Promise<CompositeScreenshot> {
+  const displays = electronScreen.getAllDisplays();
+  const captureBounds = await options.getCaptureBounds();
+  const effectiveBounds = captureBounds ?? getVirtualDesktopBounds(displays);
+  const target = options.minRenderScale && options.maxScreenshotEdge
+    ? computeAdaptiveTargetSize(effectiveBounds, {
+      targetWidth: options.targetWidth,
+      targetHeight: options.targetHeight,
+      minRenderScale: options.minRenderScale,
+      maxScreenshotEdge: options.maxScreenshotEdge,
+    })
+    : { width: options.targetWidth, height: options.targetHeight };
+
   const thumbnailSize = {
-    width: Math.max(options.targetWidth, 1600),
-    height: Math.max(options.targetHeight, 900),
+    width: Math.max(target.width, 1600),
+    height: Math.max(target.height, 900),
   };
   const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize });
   if (sources.length === 0) throw new Error('No se encontraron pantallas.');
 
   const layout = buildScreenshotLayout({
-    displays: electronScreen.getAllDisplays(),
-    targetWidth: options.targetWidth,
-    targetHeight: options.targetHeight,
-    captureBounds: await options.getFocusedCaptureBounds(),
+    displays,
+    targetWidth: target.width,
+    targetHeight: target.height,
+    captureBounds,
   });
 
-  if (!options.sharpModule || sources.length === 1) {
-    return buildFallbackCapture(sources[0], layout, options.targetWidth, options.targetHeight);
+  if (!options.sharpModule) {
+    return buildFallbackCapture(sources[0], target.width, target.height);
   }
 
   const composites = await buildDisplayComposites(sources, layout, thumbnailSize, options.sharpModule);
   const result = await options.sharpModule({
     create: {
-      width: options.targetWidth,
-      height: options.targetHeight,
+      width: target.width,
+      height: target.height,
       channels: 4,
       background: { r: 18, g: 18, b: 18, alpha: 1 },
     },
@@ -47,24 +62,40 @@ export async function captureCompositeScreenshot(options: CaptureCompositeOption
   return {
     base64: result.toString('base64'),
     layout,
-    actualWidth: options.targetWidth,
-    actualHeight: options.targetHeight,
+    actualWidth: target.width,
+    actualHeight: target.height,
   };
 }
 
+/**
+ * Sin Sharp no se puede recortar/componer: se devuelve el thumbnail completo
+ * de la primera pantalla y se RECONSTRUYE el layout para que describa
+ * exactamente esa imagen (nunca un layout de recorte con imagen completa).
+ */
 function buildFallbackCapture(
   source: CaptureSource,
-  layout: ScreenshotLayout,
   targetWidth: number,
   targetHeight: number,
 ): CompositeScreenshot {
   const fallback = source.thumbnail;
   const fallbackSize = fallback.getSize();
+  const actualWidth = fallbackSize.width || targetWidth;
+  const actualHeight = fallbackSize.height || targetHeight;
+
+  const displays = electronScreen.getAllDisplays();
+  const sourceDisplay = displays.find((display) => String(display.id) === String(source.display_id)) ?? displays[0];
+  const layout = buildScreenshotLayout({
+    displays: sourceDisplay ? [sourceDisplay] : displays,
+    targetWidth: actualWidth,
+    targetHeight: actualHeight,
+    captureBounds: sourceDisplay ? { ...sourceDisplay.bounds } : null,
+  });
+
   return {
     base64: fallback.toDataURL().replace(/^data:image\/png;base64,/, ''),
     layout,
-    actualWidth: fallbackSize.width || targetWidth,
-    actualHeight: fallbackSize.height || targetHeight,
+    actualWidth,
+    actualHeight,
   };
 }
 

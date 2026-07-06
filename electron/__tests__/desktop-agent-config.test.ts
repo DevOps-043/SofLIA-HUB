@@ -6,8 +6,8 @@ import { DEFAULT_CONFIG } from '../desktop-agent-types';
 // ============================================================================
 
 describe('Desktop Agent Types & Config', () => {
-  it('CU-101: DEFAULT_CONFIG has maxSteps=200', () => {
-    expect(DEFAULT_CONFIG.maxSteps).toBe(200);
+  it('CU-101: DEFAULT_CONFIG has maxSteps=60 (tope duro; el presupuesto real lo fija el plan)', () => {
+    expect(DEFAULT_CONFIG.maxSteps).toBe(60);
   });
 
   it('CU-102: DEFAULT_CONFIG has maxTotalSteps=500', () => {
@@ -62,8 +62,8 @@ describe('Desktop Agent Types & Config', () => {
     expect(DEFAULT_CONFIG.stuckDetectionThreshold).toBe(4);
   });
 
-  it('CU-115: DEFAULT_CONFIG has maxConcurrentAgents=3', () => {
-    expect(DEFAULT_CONFIG.maxConcurrentAgents).toBe(3);
+  it('CU-115: DEFAULT_CONFIG serializa tareas desktop visuales (maxConcurrentAgents=1)', () => {
+    expect(DEFAULT_CONFIG.maxConcurrentAgents).toBe(1);
   });
 
   it('CU-116: DEFAULT_CONFIG has planningEnabled=true', () => {
@@ -84,5 +84,26 @@ describe('Desktop Agent Types & Config', () => {
 
   it('CU-120: DEFAULT_CONFIG has autoRecoverFromDialogs=true', () => {
     expect(DEFAULT_CONFIG.autoRecoverFromDialogs).toBe(true);
+  });
+
+  it('CU-121: DEFAULT_CONFIG activa determinista-primero y contexto de entorno', () => {
+    expect(DEFAULT_CONFIG.deterministicFirstEnabled).toBe(true);
+    expect(DEFAULT_CONFIG.environmentContextEnabled).toBe(true);
+    expect(DEFAULT_CONFIG.environmentRefreshEveryNSteps).toBeGreaterThan(0);
+    expect(DEFAULT_CONFIG.installedAppsIndexTtlMs).toBeGreaterThan(0);
+  });
+
+  it('CU-122: DEFAULT_CONFIG usa captura active-monitor con binding de layout', () => {
+    expect(DEFAULT_CONFIG.captureStrategy).toBe('active-monitor');
+    expect(DEFAULT_CONFIG.layoutBindingEnabled).toBe(true);
+    expect(DEFAULT_CONFIG.legacyScaleFallbackEnabled).toBe(false);
+    expect(DEFAULT_CONFIG.minRenderScale).toBeGreaterThan(0);
+    expect(DEFAULT_CONFIG.maxScreenshotEdge).toBeGreaterThanOrEqual(DEFAULT_CONFIG.screenshotWidth);
+  });
+
+  it('CU-123: DEFAULT_CONFIG define presupuesto y timeout de cola', () => {
+    expect(DEFAULT_CONFIG.defaultStepBudget).toBeLessThanOrEqual(DEFAULT_CONFIG.maxSteps);
+    expect(DEFAULT_CONFIG.queueTimeoutMs).toBeGreaterThan(0);
+    expect(DEFAULT_CONFIG.keywordRoutingEnabled).toBe(true);
   });
 });

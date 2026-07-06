@@ -9,6 +9,11 @@ export function startDesktopAgentRuntimeTask(
   const taskId = service.generateTaskId();
   const maxSteps = options?.maxSteps ?? service.config.maxSteps;
   const taskAbort = new AbortController();
+  // Encadenar la cancelacion del llamador (p.ej. la conversacion) a la tarea.
+  if (options?.signal) {
+    if (options.signal.aborted) taskAbort.abort();
+    else options.signal.addEventListener('abort', () => taskAbort.abort(), { once: true });
+  }
   const agentTask = createDesktopAgentTask({ taskId, task, maxSteps, abortController: taskAbort });
 
   service.activeTasks.set(taskId, agentTask);
@@ -24,6 +29,7 @@ export function startDesktopAgentRuntimeTask(
   service.lastZoomImage = null;
   service.currentUIElements = [];
   service.captureMode = 'grid';
+  service.targetWindowLock = null;
   service.calculateScreenScale();
   service.emit('task-started', { task, maxSteps, taskId });
   console.log(`[DesktopAgent] Iniciando tarea [${taskId}]: "${task}" (max ${maxSteps} pasos)`);

@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { deleteConversation, loadMessages, updateConversationTitle } from '../../services/chat-service';
+import { deleteConversation, loadMessages, updateConversationTitle, toggleConversationPin } from '../../services/chat-service';
 import type { ChatManagerState, ChatStorageKeyResolver, UseChatManagerOptions } from './types';
 
 type ChatActionsDeps = UseChatManagerOptions & {
@@ -75,5 +75,13 @@ export function useChatActions({ flushPendingSave, getCurrentChatStorageKey, ref
     void updateConversationTitle(userId, chatId, trimmed);
   }, [state, userId]);
 
-  return { handleDeleteConversation, handleNewChat, handleRenameChat, handleRenameChatFromHub, handleSelectConversation };
+  const handleTogglePinChat = useCallback(async (convId: string, isPinned: boolean) => {
+    if (!userId) return;
+    state.setConversations((prev) =>
+      prev.map((item) => (item.id === convId ? { ...item, is_pinned: isPinned } : item))
+    );
+    void toggleConversationPin(userId, convId, isPinned);
+  }, [state, userId]);
+
+  return { handleDeleteConversation, handleNewChat, handleRenameChat, handleRenameChatFromHub, handleSelectConversation, handleTogglePinChat };
 }

@@ -18,6 +18,9 @@ export interface RemoteNodeRecord {
   baseUrl: string;
   token: string;
   enabled: boolean;
+  owner_user_id?: string | null;
+  organization_id?: string | null;
+  visibility?: 'personal' | 'organization';
   createdAt: string;
   updatedAt: string;
   lastHealthAt?: string | null;
@@ -75,6 +78,9 @@ export async function registerRemoteNode(node: {
   base_url: string;
   token: string;
   enabled?: boolean;
+  owner_user_id?: string | null;
+  organization_id?: string | null;
+  visibility?: 'personal' | 'organization';
 }) {
   return getAPI().registerNode(node) as Promise<{ success: boolean; node?: RemoteNodeRecord; error?: string }>;
 }

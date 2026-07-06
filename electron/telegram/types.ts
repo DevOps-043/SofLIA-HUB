@@ -1,6 +1,7 @@
 import type { RemoteNodeService } from '../remote-node-service';
 import type { WorkflowHubService } from '../workflow-hub-service';
 import type { WorkspaceAutomationService } from '../workspace-automation-service';
+import type { CommunicationHubService } from '../communication-hub/service';
 
 export interface TelegramConfig {
   enabled: boolean;
@@ -37,6 +38,7 @@ export interface TelegramDeps {
   workspaceAutomationService: WorkspaceAutomationService;
   workflowHubService: WorkflowHubService;
   remoteNodeService: RemoteNodeService;
+  communicationHubService?: CommunicationHubService;
 }
 
 export interface TelegramRuntimeContext {

@@ -4,6 +4,7 @@ const LOCAL_TOOL_HANDLERS: Record<string, (args: Record<string, any>, api: Compu
   list_directory: (args, api) => api.listDirectory(args.path || '', args.show_hidden || false),
   read_file: (args, api) => api.readFile(args.path),
   write_file: (args, api) => api.writeFile(args.path, args.content),
+  create_word_document: (args, api) => api.createWordDocument(args),
   create_directory: (args, api) => api.createDirectory(args.path),
   move_item: (args, api) => api.moveItem(args.source_path, args.destination_path),
   copy_item: (args, api) => api.copyItem(args.source_path, args.destination_path),

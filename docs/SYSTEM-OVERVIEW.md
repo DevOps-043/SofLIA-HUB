@@ -223,10 +223,10 @@ Desarrollador hace push a main
        ↓
 GitHub Actions detecta el push
        ↓
-Build en paralelo: Windows (.exe) + Mac (.dmg)
+Build en paralelo: Windows (.exe) + Mac (.dmg) + Linux AppImage
        ↓
 Se crea un Release en DevOps-043/PulseHub-SofLIA-releases
-con los instaladores + latest.yml + blockmap
+con los instaladores/AppImage + metadata de actualizacion por plataforma + blockmap
        ↓
 La app instalada del usuario hace polling cada 4 horas
        ↓
@@ -244,6 +244,7 @@ La app se cierra, instala la actualización, y se reabre
 ```
 
 ### Componentes:
+- **Linux AppImage** - Publica `latest-linux.yml` junto al AppImage x64 para actualizaciones por plataforma.
 - **UpdaterService** (`electron/updater-service.ts`) — Servicio en main process que maneja electron-updater
 - **UpdateNotification** (`src/components/UpdateNotification.tsx`) — Toast reactivo estilo VS Code
 - **UpdatePanel** (`src/components/UpdatePanel.tsx`) — Panel en Configuración para buscar actualizaciones manualmente

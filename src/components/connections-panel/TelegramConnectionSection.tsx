@@ -1,3 +1,5 @@
+import { Button } from '../ui/Button';
+import { Toggle } from '../ui/Toggle';
 import { ConnectionChrome } from './ConnectionChrome';
 import type { TelegramConnectionState } from './types';
 
@@ -5,6 +7,7 @@ export function TelegramConnectionSection(props: {
   open: boolean;
   onToggle: () => void;
   connection: TelegramConnectionState;
+  isOrgAdmin?: boolean;
 }) {
   const { connection } = props;
   return (
@@ -16,50 +19,59 @@ export function TelegramConnectionSection(props: {
       title="Telegram"
       subtitle={connection.connected ? `@${connection.status?.bot?.username || 'Bot conectado'}` : 'No configurado'}
     >
-      {connection.connected ? <TelegramConnected connection={connection} /> : <TelegramSetup connection={connection} />}
+      {connection.connected
+        ? <TelegramConnected connection={connection} isOrgAdmin={Boolean(props.isOrgAdmin)} />
+        : <TelegramSetup connection={connection} isOrgAdmin={Boolean(props.isOrgAdmin)} />}
     </ConnectionChrome>
   );
 }
 
-function TelegramConnected({ connection }: { connection: TelegramConnectionState }) {
+function TelegramConnected({ connection, isOrgAdmin }: { connection: TelegramConnectionState; isOrgAdmin: boolean }) {
   return (
     <div className="pt-4 space-y-3">
-      <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-white/[0.03]">
+      <div className="flex items-center gap-3 p-3 rounded-xl bg-surface-2 border border-border">
         <div className="w-8 h-8 rounded-lg bg-[#2AABEE]/10 flex items-center justify-center"><CheckIcon /></div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-gray-900 dark:text-white">@{connection.status?.bot?.username}</p>
-          <p className="text-[11px] text-gray-500">{connection.status?.bot?.first_name}</p>
+          <p className="text-sm font-medium text-gray-900 dark:text-white">@{connection.status?.bot?.username}</p>
+          <p className="text-xs text-secondary">{connection.status?.bot?.first_name}</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => connection.toggle(!connection.status?.enabled)} className={`relative w-9 h-5 rounded-full transition-colors ${connection.status?.enabled ? 'bg-[#2AABEE]' : 'bg-gray-300 dark:bg-gray-600'}`}>
-            <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${connection.status?.enabled ? 'translate-x-4' : ''}`} />
-          </button>
-          <button onClick={connection.disconnect} className="text-[10px] font-semibold text-red-500 hover:text-red-400 px-3 py-1.5 rounded-lg hover:bg-red-500/5 transition-colors">Quitar</button>
+          <Toggle checked={Boolean(connection.status?.enabled)} onChange={(next) => connection.toggle(next)} aria-label="Activar bot de Telegram" />
+          <button onClick={connection.disconnect} className="text-xs font-medium text-danger hover:text-danger px-3 py-1.5 rounded-lg hover:bg-danger/10 transition-colors">Quitar</button>
         </div>
       </div>
+      <p className="text-xs text-secondary text-center">
+        {isOrgAdmin
+          ? 'Canal administrado para automatizaciones y mensajes organizacionales.'
+          : 'Canal personal para recordatorios, notificaciones y tu agente privado.'}
+      </p>
       <RecentChats chats={connection.status?.recent_chats || []} />
     </div>
   );
 }
 
-function TelegramSetup({ connection }: { connection: TelegramConnectionState }) {
+function TelegramSetup({ connection, isOrgAdmin }: { connection: TelegramConnectionState; isOrgAdmin: boolean }) {
   return (
     <div className="pt-4 space-y-3">
-      <p className="text-xs text-gray-500 dark:text-gray-400">Ingresa el token de tu bot de Telegram para recibir comandos y notificaciones.</p>
+      <p className="text-sm text-secondary">
+        {isOrgAdmin
+          ? 'Ingresa el token del bot organizacional de Telegram.'
+          : 'Ingresa el token de tu bot personal para recordatorios y notificaciones propias.'}
+      </p>
       <div className="flex gap-2">
         <input
           type="password"
           value={connection.tokenInput}
           onChange={(event) => connection.setTokenInput(event.target.value)}
           placeholder="123456:ABC-DEF..."
-          className="flex-1 px-3 py-2 text-xs rounded-xl bg-gray-100 dark:bg-white/[0.05] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#2AABEE]/50"
+          className="flex-1 px-3.5 py-2.5 text-sm rounded-xl bg-surface-2 border border-border text-gray-900 dark:text-white placeholder-secondary/70 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 transition-colors"
           onKeyDown={(event) => event.key === 'Enter' && connection.saveToken()}
         />
-        <button onClick={connection.saveToken} disabled={connection.testing || !connection.tokenInput.trim()} className="px-4 py-2 rounded-xl bg-[#2AABEE] text-white text-xs font-semibold hover:bg-[#229ED9] transition-colors disabled:opacity-50 shrink-0">
-          {connection.testing ? '...' : 'Conectar'}
-        </button>
+        <Button variant="primary" size="sm" onClick={connection.saveToken} loading={connection.testing} disabled={!connection.tokenInput.trim()}>
+          Conectar
+        </Button>
       </div>
-      {connection.error && <p className="text-[11px] text-red-500">{connection.error}</p>}
+      {connection.error && <p className="text-xs text-danger">{connection.error}</p>}
     </div>
   );
 }
@@ -68,12 +80,12 @@ function RecentChats({ chats }: { chats: Array<{ chatId: string; title: string; 
   if (chats.length === 0) return null;
   return (
     <div>
-      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Chats recientes</p>
+      <p className="text-xs font-medium text-secondary mb-2">Chats recientes</p>
       <div className="space-y-1">
         {chats.slice(0, 3).map((chat) => (
-          <div key={chat.chatId} className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 dark:bg-white/[0.02]">
-            <p className="text-[11px] text-gray-600 dark:text-gray-300 truncate flex-1">{chat.title}</p>
-            <p className="text-[10px] text-gray-400 shrink-0">{chat.type}</p>
+          <div key={chat.chatId} className="flex items-center gap-2 p-2 rounded-lg bg-surface-2">
+            <p className="text-xs text-gray-600 dark:text-gray-300 truncate flex-1">{chat.title}</p>
+            <p className="text-xs text-secondary shrink-0">{chat.type}</p>
           </div>
         ))}
       </div>

@@ -1,10 +1,12 @@
 import type { WASocket } from '@whiskeysockets/baileys';
 import type { WhatsAppConversationHistoryInput } from './history';
+import type { CommunicationHubService } from '../communication-hub/service';
 
 export interface WhatsAppConfig {
   allowedNumbers: string[];
   whitelistEnabled: boolean;
   masterNumber: string;
+  masterPermissions: WhatsAppAccessPermission[];
   contactPermissions: Record<string, WhatsAppAccessPermission[]>;
   autoConnect: boolean;
   apiKey?: string;
@@ -57,6 +59,7 @@ export interface WhatsAppServiceCore {
   reconnectAttempts: number;
   maxReconnectAttempts: number;
   groupContext: Map<string, Array<{ sender: string; text: string; timestamp: number }>>;
+  communicationHubService?: CommunicationHubService | null;
   emit(eventName: string, ...args: any[]): boolean;
   recordHistory(event: WhatsAppConversationHistoryInput): void;
   connect(): Promise<void>;
@@ -67,10 +70,23 @@ export const DEFAULT_CONFIG: WhatsAppConfig = {
   allowedNumbers: [],
   whitelistEnabled: false,
   masterNumber: '',
+  masterPermissions: [
+    'files_read',
+    'files_write',
+    'screen_view',
+    'computer_control',
+    'shell',
+    'clipboard',
+    'google_workspace',
+    'messaging',
+    'system_control',
+    'automation',
+    'remote_nodes',
+  ],
   contactPermissions: {},
   autoConnect: false,
   allowedGroups: [],
-  groupPolicy: 'open',
+  groupPolicy: 'disabled',
   groupAllowFrom: [],
   groupActivation: 'mention',
   groupPrefix: '/soflia',

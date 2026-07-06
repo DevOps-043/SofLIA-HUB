@@ -30,7 +30,7 @@ export function useMeetingOpsState({ userId, organizationId }: { userId: string;
   const [expandedAction, setExpandedAction] = useState<string | null>(null);
 
   const { loadInitialData, loadRunDetail } = useMeetingOpsLoaders({
-    userId, selectedRunId, setLoading, setError, setRuns, setTeams,
+    userId, organizationId, selectedRunId, setLoading, setError, setRuns, setTeams,
     setProjects, setTeamMembers, setSelectedRunId, setDetail,
   });
 
@@ -39,7 +39,7 @@ export function useMeetingOpsState({ userId, organizationId }: { userId: string;
     setForm, setLoading, setError, setNotice, setSelectedRunId, setDetail,
   });
 
-  useEffect(() => { void loadInitialData(); }, [userId]);
+  useEffect(() => { void loadInitialData(); }, [userId, organizationId]);
 
   useEffect(() => {
     onMeetingDetected((event) => {

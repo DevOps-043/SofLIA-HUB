@@ -1,4 +1,5 @@
 import type { DesktopActionPayload } from '../desktop-agent-types';
+import { DeterministicActionError } from './action-errors';
 
 export type ResolvedScreenPoint = {
   x: number;
@@ -45,7 +46,12 @@ export function assertActionTargetsVisibleContent(
   const assertPoint = (label: string, x: number, y: number): void => {
     const resolved = resolveScreenPoint(x, y);
     if (resolved.regionLabel === 'padding') {
-      throw new Error(`La coordenada ${label} cae en padding fuera del contenido visible (${Math.round(x)}, ${Math.round(y)}).`);
+      // Es geometria determinista: ese punto es la barra negra del compositor,
+      // no contenido. Reintentar la misma coordenada no cambia nada -> se falla
+      // rapido (sin 3 reintentos) con un mensaje que empuja a otra estrategia.
+      throw new DeterministicActionError(
+        `La coordenada ${label} (${Math.round(x)}, ${Math.round(y)}) cae en el padding negro fuera del contenido visible. NO reintentes ahi: elige un marcador [N] sobre contenido real, o usa scroll/teclado para navegar.`,
+      );
     }
   };
 

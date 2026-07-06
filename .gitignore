@@ -11,6 +11,8 @@ node_modules
 dist
 dist-ssr
 *.local
+models/*.onnx
+models/*.onnx.*
 
 # Electron
 dist-electron

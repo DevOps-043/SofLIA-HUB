@@ -1,37 +1,46 @@
 import { motion } from 'framer-motion';
 
+const EASE_OUT_EXPO = [0.16, 1, 0.3, 1] as const;
+
 export function AuthLogo() {
   return (
-    <div className="flex flex-col items-center mb-10">
+    <div className="flex flex-col items-center mb-8">
       <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
+        initial={{ scale: 0.96, opacity: 1 }}
         animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 0.2, duration: 0.5 }}
-        className="w-24 h-24 mb-6 relative group"
+        transition={{ duration: 0.65, ease: EASE_OUT_EXPO }}
+        className="w-16 h-16 mb-4 relative flex items-center justify-center"
       >
-        <div className="absolute inset-0 bg-accent/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        <img
+        <motion.div
+          aria-hidden="true"
+          className="absolute inset-1 rounded-full bg-accent/12 blur-xl"
+          initial={{ opacity: 0, scale: 0.7 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.08, duration: 0.5, ease: EASE_OUT_EXPO }}
+        />
+        <motion.img
           src="./assets/Icono.png"
           alt="SofLIA Logo"
-          className="w-full h-full object-contain relative z-10 drop-shadow-2xl"
+          className="relative w-full h-full object-contain"
+          style={{ filter: 'drop-shadow(0 0 22px rgba(0, 212, 179, 0.28)) drop-shadow(0 14px 26px rgba(0, 0, 0, 0.34))' }}
         />
       </motion.div>
 
       <motion.h1
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.3 }}
-        className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60 tracking-tight text-center"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1, duration: 0.45, ease: EASE_OUT_EXPO }}
+        className="text-2xl font-light bg-clip-text text-transparent bg-gradient-to-b from-gray-900 via-gray-900 to-gray-700 dark:from-white dark:via-white dark:to-white/80 tracking-wide text-center"
       >
-        Bienvenido
+        SofLIA Hub
       </motion.h1>
       <motion.p
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.4 }}
-        className="text-white/40 text-sm mt-2 text-center"
+        transition={{ delay: 0.16, duration: 0.38, ease: 'easeOut' }}
+        className="text-gray-500/70 dark:text-white/30 text-[12.5px] font-light mt-1.5 tracking-wide text-center"
       >
-        Ingresa a tu espacio de trabajo
+        Ingresa a tu espacio de operaciones digitales
       </motion.p>
     </div>
   );

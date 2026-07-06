@@ -1,4 +1,6 @@
-import { ipcMain } from 'electron';
+import { ipcMain, app, nativeTheme } from 'electron';
+import fs from 'node:fs';
+import path from 'node:path';
 import type { MainRuntimeState } from './runtime-state';
 
 export function registerMainServiceIpcHandlers(input: {
@@ -11,10 +13,18 @@ export function registerMainServiceIpcHandlers(input: {
   ipcMain.handle('whatsapp:disconnect', async () => safeAsync(() => services.waService.disconnect()));
   ipcMain.handle('whatsapp:get-status', async () => services.waService.getStatus());
   ipcMain.handle('whatsapp:get-conversation-history', async (_event, filters?: any) =>
-    safeResult(() => services.waService.getConversationHistory(filters)));
-  ipcMain.handle('whatsapp:get-conversation-history-stats', async () =>
-    safeResult(() => services.waService.getConversationHistoryStats()));
-  ipcMain.handle('whatsapp:set-allowed-numbers', async (_event, numbers: string[]) => {
+    safeResult(async () => {
+      await requireOrgAdmin(services, filters?.actor, 'whatsapp:get-conversation-history');
+      return services.waService.getConversationHistory(stripActor(filters));
+    }));
+  ipcMain.handle('whatsapp:get-conversation-history-stats', async (_event, actor?: any) =>
+    safeResult(async () => {
+      await requireOrgAdmin(services, actor, 'whatsapp:get-conversation-history-stats');
+      return services.waService.getConversationHistoryStats();
+    }));
+  ipcMain.handle('whatsapp:set-allowed-numbers', async (_event, numbers: string[], actor?: any) => {
+    const admin = await safeAdminCheck(services, actor, 'whatsapp:set-allowed-numbers');
+    if (!admin.success) return admin;
     const result = await safeAsync(() => services.waService.setAllowedNumbers(numbers));
     if (result.success && numbers.length > 0) {
       const status = services.waService.getStatus() as { masterNumber?: string; allowedNumbers?: string[] };
@@ -23,7 +33,9 @@ export function registerMainServiceIpcHandlers(input: {
     return result;
   });
   ipcMain.handle('whatsapp:set-access-config', async (_event, config: any) => {
-    const result = await safeAsync(() => services.waService.setAccessConfig(config));
+    const admin = await safeAdminCheck(services, config?.actor, 'whatsapp:set-access-config');
+    if (!admin.success) return admin;
+    const result = await safeAsync(() => services.waService.setAccessConfig(stripActor(config)));
     if (result.success) {
       const status = services.waService.getStatus() as { masterNumber?: string; allowedNumbers?: string[] };
       if (status.masterNumber || status.allowedNumbers?.[0]) {
@@ -33,9 +45,17 @@ export function registerMainServiceIpcHandlers(input: {
     return result;
   });
   ipcMain.handle('whatsapp:set-group-config', async (_event, config: any) =>
-    safeAsync(() => services.waService.setGroupConfig(config)));
+    safeAsync(async () => {
+      await requireOrgAdmin(services, config?.actor, 'whatsapp:set-group-config');
+      await services.waService.setGroupConfig(stripActor(config));
+    }));
   ipcMain.handle('whatsapp:set-personalization', async (_event, update: any) =>
-    safeAsync(() => services.waService.setPersonalization(update)));
+    safeAsync(async () => {
+      if (requiresOrgAdminForPersonalization(update)) {
+        await requireOrgAdmin(services, update?.actor, 'whatsapp:set-personalization');
+      }
+      await services.waService.setPersonalization(stripActor(update));
+    }));
   ipcMain.handle('whatsapp:set-api-key', async (_event, apiKey: string) => {
     initWhatsAppAgent(apiKey);
     await services.waService.saveApiKey(apiKey);
@@ -63,6 +83,95 @@ export function registerMainServiceIpcHandlers(input: {
     state.pendingMeetingTrigger = null;
     return nextMeetingTrigger;
   });
+
+  const UI_PREFS_PATH = path.join(app.getPath('userData'), 'ui-preferences.json');
+
+  ipcMain.handle('computer:get-sidebar-position', async () => {
+    try {
+      if (fs.existsSync(UI_PREFS_PATH)) {
+        const content = fs.readFileSync(UI_PREFS_PATH, 'utf-8');
+        const data = JSON.parse(content);
+        if (data && typeof data.sidebarPosition === 'string') {
+          return data.sidebarPosition;
+        }
+      }
+    } catch (err) {
+      console.error('[service-ipc] Error reading UI preferences:', err);
+    }
+    return 'left';
+  });
+
+  ipcMain.handle('computer:set-sidebar-position', async (_event, pos: string) => {
+    try {
+      let data: any = {};
+      if (fs.existsSync(UI_PREFS_PATH)) {
+        try {
+          const content = fs.readFileSync(UI_PREFS_PATH, 'utf-8');
+          data = JSON.parse(content) || {};
+        } catch {
+          // ignore parsing error, start fresh
+        }
+      }
+      data.sidebarPosition = pos;
+      fs.writeFileSync(UI_PREFS_PATH, JSON.stringify(data, null, 2), 'utf-8');
+      return true;
+    } catch (err) {
+      console.error('[service-ipc] Error writing UI preferences:', err);
+      return false;
+    }
+  });
+
+  // Set initial theme source on handler registration to match OS titlebar theme
+  try {
+    if (fs.existsSync(UI_PREFS_PATH)) {
+      const content = fs.readFileSync(UI_PREFS_PATH, 'utf-8');
+      const data = JSON.parse(content);
+      if (data && typeof data.theme === 'string') {
+        nativeTheme.themeSource = data.theme as 'system' | 'light' | 'dark';
+      }
+    }
+  } catch (err) {
+    console.error('[service-ipc] Error setting initial native themeSource:', err);
+  }
+
+  ipcMain.handle('computer:get-theme', async () => {
+    try {
+      if (fs.existsSync(UI_PREFS_PATH)) {
+        const content = fs.readFileSync(UI_PREFS_PATH, 'utf-8');
+        const data = JSON.parse(content);
+        if (data && typeof data.theme === 'string') {
+          return data.theme;
+        }
+      }
+    } catch (err) {
+      console.error('[service-ipc] Error reading UI theme preference:', err);
+    }
+    return 'system';
+  });
+
+  ipcMain.handle('computer:set-theme', async (_event, theme: string) => {
+    try {
+      let data: any = {};
+      if (fs.existsSync(UI_PREFS_PATH)) {
+        try {
+          const content = fs.readFileSync(UI_PREFS_PATH, 'utf-8');
+          data = JSON.parse(content) || {};
+        } catch {
+          // ignore parsing error, start fresh
+        }
+      }
+      data.theme = theme;
+      fs.writeFileSync(UI_PREFS_PATH, JSON.stringify(data, null, 2), 'utf-8');
+      
+      // Update Electron native window titlebar theme
+      nativeTheme.themeSource = theme as 'system' | 'light' | 'dark';
+      
+      return true;
+    } catch (err) {
+      console.error('[service-ipc] Error writing UI theme preference:', err);
+      return false;
+    }
+  });
 }
 
 async function safeAsync(action: () => Promise<void>): Promise<{ success: boolean; error?: string }> {
@@ -89,4 +198,34 @@ async function safeResult<T>(action: () => Promise<T>): Promise<{ success: boole
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
+}
+
+async function safeAdminCheck(services: any, actor: any, action: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireOrgAdmin(services, actor, action);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+async function requireOrgAdmin(services: any, actor: any, action: string): Promise<void> {
+  if (!services.communicationHubService) return;
+  const status = await services.communicationHubService.getOrgStatus(actor || undefined);
+  if (!status?.success) throw new Error(status?.error || `La accion ${action} requiere rol owner o admin.`);
+}
+
+function stripActor<T>(value: T): T {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value;
+  const { actor: _actor, ...rest } = value as Record<string, unknown>;
+  return rest as T;
+}
+
+function requiresOrgAdminForPersonalization(update: any): boolean {
+  if (!update || typeof update !== 'object') return false;
+  return Boolean(
+    Object.prototype.hasOwnProperty.call(update, 'whitelistEnabled') ||
+    update.contactPersonalizations ||
+    update.groupPersonalizations,
+  );
 }

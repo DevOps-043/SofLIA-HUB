@@ -59,11 +59,13 @@ export async function handlePermissionsCommand(
 
   const number = normalizePhoneNumber(args[1]);
   if (!number) return 'Uso: /permisos dar 521... pantalla archivos | /permisos quitar 521... pantalla | /permisos limpiar 521...';
-  if (isWhatsAppMasterNumber(config, number)) {
-    return 'Ese numero ya es el maestro y tiene todos los permisos.';
-  }
+  const targetIsMaster = isWhatsAppMasterNumber(config, number);
 
   if (['limpiar', 'clear', 'reset'].includes(action)) {
+    if (targetIsMaster) {
+      await context.waService.setAccessConfig({ masterPermissions: [] });
+      return `Permisos maestros desactivados para +${number}.`;
+    }
     await context.waService.setAccessConfig({ contactPermissions: { [number]: null } });
     return `Permisos eliminados para +${number}.`;
   }
@@ -83,6 +85,10 @@ export async function handlePermissionsCommand(
   }
 
   const nextPermissions = normalizeWhatsAppAccessPermissions(Array.from(current));
+  if (targetIsMaster) {
+    await context.waService.setAccessConfig({ masterPermissions: nextPermissions });
+    return `Permisos maestros de +${number}: ${formatWhatsAppPermissionList(nextPermissions)}.`;
+  }
   await context.waService.setAccessConfig({
     contactPermissions: { [number]: nextPermissions.length > 0 ? nextPermissions : null },
   });
@@ -94,6 +100,7 @@ function formatPermissionsStatus(context: ChatCommandContext): string {
   const lines = [
     '*Permisos WhatsApp*',
     `Maestro: +${config.masterNumber}`,
+    `Permisos maestro: ${formatWhatsAppPermissionList(getWhatsAppPermissionsForSender(config, config.masterNumber))}`,
   ];
   const entries = Object.entries(config.contactPermissions || {});
   if (entries.length === 0) {

@@ -34,7 +34,7 @@ export function ConnectionCard({ connection, loading, provider, onConnect, onDis
           <button
             onClick={() => onConnect(provider)}
             disabled={loading}
-            className="text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl bg-white text-black hover:bg-gray-200 transition-all disabled:opacity-50 active:scale-95"
+            className="text-sm font-medium px-4 py-2 rounded-xl bg-accent text-on-accent hover:brightness-105 transition-all disabled:opacity-50 active:scale-95"
           >
             {loading ? '...' : 'Conectar'}
           </button>

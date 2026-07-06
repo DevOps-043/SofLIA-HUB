@@ -17,9 +17,9 @@ export function UpdateNotification() {
 
   return (
     <div className="fixed bottom-6 right-6 z-[9999] max-w-sm animate-in slide-in-from-bottom-4 fade-in duration-500">
-      <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0a0a0f]/95 backdrop-blur-xl shadow-2xl shadow-black/50">
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl shadow-black/30">
         {state.phase === 'downloading' && (
-          <div className="h-0.5 bg-white/5">
+          <div className="h-0.5 bg-surface-2">
             <div className="h-full bg-accent transition-all duration-500 ease-out" style={{ width: `${state.progress}%` }} />
           </div>
         )}
@@ -28,13 +28,13 @@ export function UpdateNotification() {
             <div className="flex items-center gap-2.5">
               <StatusIcon phase={state.phase} />
               <div>
-                <p className="text-xs font-bold text-white">{getTitle(state.phase)}</p>
-                <p className="text-[10px] text-gray-500 font-medium mt-0.5">
+                <p className="text-sm font-semibold text-gray-900 dark:text-white">{getTitle(state.phase)}</p>
+                <p className="text-xs text-secondary mt-0.5">
                   {state.phase === 'error' ? state.error : `SofLIA Hub v${state.version}`}
                 </p>
               </div>
             </div>
-            <button onClick={handleDismiss} className="text-gray-600 hover:text-gray-400 transition-colors p-0.5">
+            <button onClick={handleDismiss} className="text-secondary hover:text-gray-900 dark:hover:text-white transition-colors p-0.5">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
               </svg>

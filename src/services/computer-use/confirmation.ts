@@ -19,11 +19,45 @@ const DANGEROUS_TOOLS = new Set([
   'reset_browser_profile',
 ]);
 
+/**
+ * Comandos de consulta que no modifican el sistema: no ameritan interrumpir
+ * al usuario con un modal de confirmacion. Lista conservadora: cualquier
+ * encadenamiento, redireccion o comando fuera de la lista sigue pidiendo
+ * confirmacion.
+ */
+const READ_ONLY_COMMANDS = new Set([
+  'dir', 'where', 'whoami', 'hostname', 'ver', 'systeminfo', 'tasklist',
+  'ipconfig', 'echo', 'type', 'tree', 'findstr',
+  'get-childitem', 'gci', 'ls', 'get-process', 'gps', 'get-item',
+  'get-content', 'gc', 'cat', 'test-path', 'get-location', 'pwd', 'get-date',
+]);
+
+export function isReadOnlyCommand(command: string): boolean {
+  const trimmed = (command || '').trim();
+  if (!trimmed) return false;
+  // Encadenamiento, redireccion o subexpresiones anulan la garantia de solo lectura.
+  if (/[&|<>^;`]|\$\(/.test(trimmed)) return false;
+  const unwrapped = trimmed
+    .replace(/^cmd(\.exe)?\s+\/c\s+/i, '')
+    .replace(/^powershell(\.exe)?\s+(-\w+\s+)*/i, '')
+    .replace(/^"([\s\S]*)"$/, '$1')
+    .trim();
+  const firstToken = unwrapped.split(/\s+/)[0]?.toLowerCase().replace(/^["']|["']$/g, '') || '';
+  return READ_ONLY_COMMANDS.has(firstToken);
+}
+
 export function setConfirmationHandler(handler: ConfirmationHandler | null) {
   confirmationHandler = handler;
 }
 
 export async function confirmToolExecution(toolName: string, args: Record<string, any>, api: Window['computerUse']): Promise<boolean> {
+  if (
+    (toolName === 'execute_command' || toolName === 'run_background_command')
+    && isReadOnlyCommand(String(args.command || ''))
+  ) {
+    return true;
+  }
+
   const needsConfirmation =
     DANGEROUS_TOOLS.has(toolName)
     || (toolName === 'organize_files' && !args.dry_run)

@@ -9,6 +9,7 @@ import { attachMemoryFacts } from './memory/service-facts';
 import { attachMemoryLifecycle } from './memory/service-lifecycle';
 import { attachMemoryMaintenance } from './memory/service-maintenance';
 import { attachMemoryMessages } from './memory/service-messages';
+import { attachMemorySkills, type MemorySkillsApi } from './memory/skills-store';
 import { attachMemorySummary } from './memory/service-summary';
 import type {
   MemoryContextApi,
@@ -44,6 +45,7 @@ export interface MemoryService
     MemorySummaryApi,
     MemoryEmbeddingApi,
     MemoryFactsApi,
+    MemorySkillsApi,
     MemoryMaintenanceApi {}
 
 attachMemoryLifecycle(MemoryService);
@@ -52,4 +54,5 @@ attachMemoryContext(MemoryService);
 attachMemorySummary(MemoryService);
 attachMemoryEmbedding(MemoryService);
 attachMemoryFacts(MemoryService);
+attachMemorySkills(MemoryService);
 attachMemoryMaintenance(MemoryService);

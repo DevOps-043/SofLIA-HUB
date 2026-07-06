@@ -12,11 +12,14 @@
  * el knowledge base es para datos persistentes a largo plazo.
  */
 
+import { matchExecutableSkill, runExecutableSkill } from '../../memory/skills-executable';
+import { phoneOwnerKey } from '../../memory/scope';
 import { buildResponse, errorResponse, type FunctionResponse, type ToolExecutorContext } from '../types';
 
 const MEMORY_TOOLS = new Set([
   'save_lesson',
   'recall_memories',
+  'run_saved_procedure',
   'knowledge_save',
   'knowledge_update_user',
   'knowledge_search',
@@ -66,6 +69,23 @@ export async function executeMemoryTool(
         });
         console.log(`[WhatsApp Agent] Lesson saved via MemoryService: "${toolArgs.lesson}"`);
         return buildResponse(toolName, result as Record<string, unknown>);
+      }
+
+      case 'run_saved_procedure': {
+        const request = String(toolArgs.request ?? toolArgs.procedure ?? '').trim();
+        if (!request) return buildResponse(toolName, { success: false, message: 'Necesito saber qué procedimiento quieres ejecutar.' });
+        const ownerKey = ctx.ownerKey || phoneOwnerKey(senderNumber);
+        const match = matchExecutableSkill(request, ctx.memory.getExecutableSkills(ownerKey));
+        if (!match) return buildResponse(toolName, { success: false, message: 'No tengo un procedimiento guardado que coincida con eso.' });
+        if (!ctx.workspaceAutomation) return buildResponse(toolName, { success: false, message: 'El motor de automatización no está disponible ahora.' });
+        const result = await runExecutableSkill(ctx.workspaceAutomation, match.skill, request);
+        if (!result.ok) return buildResponse(toolName, { success: false, message: result.reason });
+        ctx.memory.markSkillUsed(match.skill.id);
+        return buildResponse(toolName, {
+          success: true,
+          procedure: match.skill.title,
+          message: `Inicié el procedimiento "${match.skill.title}". Requiere tu aprobación antes de ejecutar cualquier acción.`,
+        });
       }
 
       case 'recall_memories': {

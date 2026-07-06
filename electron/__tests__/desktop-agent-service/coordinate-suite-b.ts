@@ -13,7 +13,10 @@ const BASE_LAYOUT = {
 };
 
 describe('DesktopAgentService - snapping de acciones', () => {
-  it('CU-143D: executeAction snaps approximate click to the center of the nearest interactive element', async () => {
+  it('CU-143D: un click crudo NO hace snap al centro del elemento cercano (usar click_element para eso)', async () => {
+    // El snap semantico de clicks crudos se retiro a proposito: movia el punto
+    // (coordenada visual correcta -> centro equivocado de un Text/Pane/ListItem).
+    // El camino preciso para elementos estructurados es click_element con id.
     const service = await createDesktopAgentService();
     mockSingleDisplay();
     setLayout(service, BASE_LAYOUT);
@@ -31,7 +34,8 @@ describe('DesktopAgentService - snapping de acciones', () => {
 
     await service.executeAction({ action: 'click', x: 312, y: 214, message: 'abrir chat' });
 
-    expect(mouseClickSpy).toHaveBeenCalledWith(380, 218);
+    // El click se ejecuta donde el modelo apunto, sin desviarse al centro del ListItem.
+    expect(mouseClickSpy).toHaveBeenCalledWith(312, 214);
     consoleLogSpy.mockRestore();
   });
 

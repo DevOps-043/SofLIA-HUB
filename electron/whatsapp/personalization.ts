@@ -15,6 +15,7 @@ export interface WhatsAppPersonalizationUpdate {
 
 export interface WhatsAppAccessConfigUpdate {
   masterNumber?: string | null;
+  masterPermissions?: WhatsAppConfig['masterPermissions'];
   contactPermissions?: Record<string, WhatsAppConfig['contactPermissions'][string] | null>;
 }
 
@@ -54,6 +55,11 @@ export function normalizeWhatsAppConfig(input: Partial<WhatsAppConfig> = {}): Wh
     allowedNumbers,
     whitelistEnabled,
     masterNumber: normalizeWhatsAppMasterNumber(input.masterNumber),
+    masterPermissions: normalizeWhatsAppAccessPermissions(
+      Object.prototype.hasOwnProperty.call(input, 'masterPermissions')
+        ? input.masterPermissions
+        : DEFAULT_CONFIG.masterPermissions,
+    ),
     contactPermissions: normalizeWhatsAppContactPermissions(input.contactPermissions),
     allowedGroups: normalizeStringArray(input.allowedGroups),
     groupPolicy: VALID_GROUP_POLICIES.has(String(input.groupPolicy))
@@ -119,6 +125,9 @@ export function applyWhatsAppAccessConfigUpdate(
   const next = normalizeWhatsAppConfig(currentConfig);
   if (Object.prototype.hasOwnProperty.call(update, 'masterNumber')) {
     next.masterNumber = normalizeWhatsAppMasterNumber(update.masterNumber);
+  }
+  if (Object.prototype.hasOwnProperty.call(update, 'masterPermissions')) {
+    next.masterPermissions = normalizeWhatsAppAccessPermissions(update.masterPermissions);
   }
   if (update.contactPermissions) {
     const permissions = { ...next.contactPermissions };

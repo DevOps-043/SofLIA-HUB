@@ -13,6 +13,7 @@ interface AppSidebarProps {
   initials: string;
   iris: IrisState;
   isSidebarOpen: boolean;
+  position?: 'left' | 'right' | 'bottom';
   onDeleteConversation: (conversationId: string, event: MouseEvent) => Promise<void>;
   onDeleteFolder: (folderId: string, event: MouseEvent) => Promise<void>;
   onIrisIssueClick: (issue: any) => Promise<void>;
@@ -33,6 +34,7 @@ export function AppSidebar(props: AppSidebarProps) {
   return (
     <Sidebar
       isOpen={props.isSidebarOpen}
+      position={props.position}
       onToggle={props.onToggleSidebar}
       activeView={props.activeView}
       conversations={chat.conversations}
@@ -41,6 +43,7 @@ export function AppSidebar(props: AppSidebarProps) {
       onNewChat={props.onNewChat}
       onSelectConversation={props.onSelectConversation}
       onDeleteConversation={props.onDeleteConversation}
+      onTogglePinConversation={chat.handleTogglePinChat}
       renamingChatId={chat.renamingChatId}
       onSetRenamingChatId={chat.setRenamingChatId}
       editingChatTitle={chat.editingChatTitle}
@@ -70,7 +73,11 @@ export function AppSidebar(props: AppSidebarProps) {
       initials={props.initials}
       userEmail={auth.user?.email}
       avatarUrl={props.avatarUrl}
+      orgName={auth.sofiaContext?.currentOrganization?.name}
       orgLogoUrl={auth.sofiaContext?.currentOrganization?.brand_favicon_url}
+      organizations={auth.sofiaContext?.organizations}
+      currentOrgId={auth.sofiaContext?.currentOrganization?.id}
+      onSelectOrganization={auth.setCurrentOrganization}
       theme={props.theme}
       onSetTheme={props.setTheme}
       onOpenSettings={props.onOpenSettings}

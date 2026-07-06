@@ -2,6 +2,8 @@ import { app } from 'electron';
 import { logBootstrapError } from './main/bootstrap-steps';
 import { runBootstrap } from './main/bootstrap';
 
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+
 type BootstrapGuard = typeof globalThis & {
   __SOFLIA_BOOTSTRAP_COMPLETE__?: boolean;
 };

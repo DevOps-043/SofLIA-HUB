@@ -21,7 +21,7 @@ export function ReleaseNotesToggle({ releaseNotes, showNotes, onToggle }: Releas
         </svg>
       </p>
       {showNotes && (
-        <div className="mt-2 p-2.5 bg-white/5 rounded-lg border border-white/5 max-h-32 overflow-y-auto custom-scrollbar">
+        <div className="mt-2 p-2.5 bg-surface-2 rounded-lg border border-border max-h-32 overflow-y-auto custom-scrollbar">
           <SafeReleaseNotes notes={releaseNotes} className="text-[11px] release-notes" />
         </div>
       )}

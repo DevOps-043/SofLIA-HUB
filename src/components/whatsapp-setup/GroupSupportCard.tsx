@@ -1,3 +1,4 @@
+import { Card } from '../ui/Card';
 import { GroupActivationToggle } from './GroupActivationToggle';
 import { GroupAllowlistEditor } from './GroupAllowlistEditor';
 import { GroupPolicyDropdown } from './GroupPolicyDropdown';
@@ -19,9 +20,9 @@ export function GroupSupportCard(props: GroupSupportCardProps) {
   const { groupInput, isPolicyDropdownOpen, status, onUpdateGroupConfig } = props;
 
   return (
-    <div className="bg-white dark:bg-white/3 border border-gray-200 dark:border-white/10 rounded-3xl p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Soporte de Grupos</h4>
+    <Card>
+      <div className="flex items-center justify-between mb-5">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Soporte de Grupos</h3>
         <GroupPolicyDropdown
           isOpen={isPolicyDropdownOpen}
           policy={status.groupPolicy}
@@ -36,13 +37,13 @@ export function GroupSupportCard(props: GroupSupportCardProps) {
             onSelectActivation={(groupActivation) => onUpdateGroupConfig({ groupActivation })}
           />
           <div className="space-y-1.5">
-            <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest px-1">Comando Global / Trigger</label>
+            <label className="block text-xs font-medium text-secondary">Comando Global / Trigger</label>
             <input
               type="text"
               value={status.groupPrefix}
               onChange={(event) => props.onPreviewGroupPrefix(event.target.value)}
               onBlur={(event) => props.onUpdateGroupConfig({ groupPrefix: event.target.value })}
-              className="w-full px-3 py-2 bg-gray-50 dark:bg-background-dark/80 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-[10px] font-mono focus:outline-none focus:border-accent/30 transition-all"
+              className="w-full px-3.5 py-2.5 bg-surface-2 border border-border rounded-xl text-gray-900 dark:text-white text-sm font-mono focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 transition-colors"
             />
           </div>
           {status.groupPolicy === 'allowlist' && (
@@ -56,6 +57,6 @@ export function GroupSupportCard(props: GroupSupportCardProps) {
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 }

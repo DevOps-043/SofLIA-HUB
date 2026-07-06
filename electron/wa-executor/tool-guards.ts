@@ -6,7 +6,7 @@ import { errorResponse, type FunctionResponse, type ToolExecutorContext } from '
 
 export async function evaluateToolGuards(
   toolName: string,
-  toolArgs: Record<string, any>,
+  toolArgs: Record<string, unknown>,
   ctx: ToolExecutorContext,
   jid: string,
   senderNumber: string,
@@ -14,6 +14,23 @@ export async function evaluateToolGuards(
 ): Promise<FunctionResponse | null> {
   if (BLOCKED_TOOLS_WA.has(toolName)) {
     return errorResponse(toolName, 'Esta herramienta no esta disponible por WhatsApp por seguridad.');
+  }
+
+  if (ctx.communicationHub) {
+    const hubAccess = await ctx.communicationHub.authorizeTool({
+      provider: 'whatsapp',
+      senderNumber,
+      channelId: jid,
+      toolName,
+      isGroup,
+      targetNodeId: typeof toolArgs.node_id === 'string' ? toolArgs.node_id : null,
+    });
+    if (!hubAccess.allowed) {
+      return errorResponse(toolName, hubAccess.reason || 'No tienes permisos para ejecutar esta herramienta desde este canal.');
+    }
+    if (hubAccess.principal.source !== 'legacy') {
+      return await evaluateProtectedPathAndConfirmation(toolName, toolArgs, ctx, jid, senderNumber);
+    }
   }
 
   const accessError = getWhatsAppToolAccessError(ctx.waService.config, senderNumber, toolName, {
@@ -24,6 +41,16 @@ export async function evaluateToolGuards(
     return errorResponse(toolName, accessError);
   }
 
+  return await evaluateProtectedPathAndConfirmation(toolName, toolArgs, ctx, jid, senderNumber);
+}
+
+async function evaluateProtectedPathAndConfirmation(
+  toolName: string,
+  toolArgs: Record<string, unknown>,
+  ctx: ToolExecutorContext,
+  jid: string,
+  senderNumber: string,
+): Promise<FunctionResponse | null> {
   const protectedPathError = detectProtectedPathAccess(toolName, toolArgs);
   if (protectedPathError) {
     return errorResponse(toolName, protectedPathError);

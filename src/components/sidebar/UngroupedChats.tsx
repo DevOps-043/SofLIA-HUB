@@ -1,5 +1,6 @@
 import { ChatItem } from './ChatItem';
 import { buildChatItemProps, splitChatsByFolder } from './chatProps';
+import { SidebarSectionLabel } from './SidebarSectionLabel';
 import type { SidebarProps } from './types';
 
 export function UngroupedChats({ props }: { props: SidebarProps }) {
@@ -8,11 +9,7 @@ export function UngroupedChats({ props }: { props: SidebarProps }) {
   return (
     <>
       {props.isOpen && (
-        <div className="pt-5 pb-2 px-3">
-          <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] font-semibold">
-            {props.folders.length > 0 ? 'Sin carpeta' : 'Conversaciones'}
-          </span>
-        </div>
+        <SidebarSectionLabel label={props.folders.length > 0 ? 'Sin carpeta' : 'Conversaciones'} />
       )}
       {renderUngroupedBody(props, ungroupedChats)}
     </>
@@ -25,8 +22,8 @@ function renderUngroupedBody(props: SidebarProps, ungroupedChats: ReturnType<typ
   }
   if (ungroupedChats.length === 0) {
     return props.isOpen ? (
-      <div className="px-3 py-4 text-center">
-        <p className="text-xs text-gray-400 dark:text-gray-500">Sin conversaciones aun</p>
+      <div className="px-2 py-3 text-center">
+        <p className="text-xs text-secondary/70 dark:text-white/40">Sin conversaciones aun</p>
       </div>
     ) : null;
   }
@@ -37,11 +34,11 @@ function renderUngroupedBody(props: SidebarProps, ungroupedChats: ReturnType<typ
 
 function LoadingDots() {
   return (
-    <div className="px-3 py-4 text-center">
+    <div className="px-2 py-3 text-center">
       <div className="flex gap-1 justify-center">
-        <div className="w-1.5 h-1.5 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse" />
-        <div className="w-1.5 h-1.5 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse [animation-delay:0.2s]" />
-        <div className="w-1.5 h-1.5 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse [animation-delay:0.4s]" />
+        <div className="w-1.5 h-1.5 bg-accent/60 rounded-full animate-pulse" />
+        <div className="w-1.5 h-1.5 bg-accent/40 rounded-full animate-pulse [animation-delay:0.2s]" />
+        <div className="w-1.5 h-1.5 bg-accent/30 rounded-full animate-pulse [animation-delay:0.4s]" />
       </div>
     </div>
   );

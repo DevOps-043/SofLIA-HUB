@@ -56,6 +56,13 @@ function ensureDefaultSoulFile(): void {
   console.log('[MemoryService] Created default SOUL.md');
 }
 
+/** Agrega una columna solo si no existe (ALTER ADD COLUMN falla si ya existe). Idempotente. */
+function addColumnIfMissing(db: any, table: string, column: string, definition: string): void {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  if (cols.some((c) => c.name === column)) return;
+  db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+}
+
 function runMigrations(db: any): void {
   try {
     // Dedup facts antes de crear el índice único (bases existentes pueden tener duplicados)
@@ -65,6 +72,16 @@ function runMigrations(db: any): void {
       );
       CREATE UNIQUE INDEX IF NOT EXISTS idx_facts_unique ON facts(COALESCE(phone_number,''), category, fact_key);
       CREATE INDEX IF NOT EXISTS idx_summaries_period ON summaries(session_key, period_end DESC);
+    `);
+    // Memoria unificada por owner: columna ADITIVA owner_key en messages (el
+    // aprendizaje deriva de aqui el scope correcto para cualquier superficie).
+    // No se tocan indices unicos de facts (evita riesgo de colision en bases
+    // existentes); WhatsApp sigue igual.
+    addColumnIfMissing(db, 'messages', 'owner_key', 'TEXT');
+    db.exec(`
+      UPDATE messages SET owner_key = 'phone:' || phone_number
+      WHERE owner_key IS NULL AND phone_number IS NOT NULL AND phone_number <> '';
+      CREATE INDEX IF NOT EXISTS idx_messages_owner ON messages(owner_key);
     `);
     console.log('[MemoryService] Migraciones aplicadas correctamente');
   } catch (err: any) {

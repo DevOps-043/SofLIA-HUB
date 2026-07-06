@@ -1,4 +1,5 @@
 import { completedStreamResult, singleChunkStream } from './streams';
+import { getPublicAiErrorMessage } from './public-error';
 import { withGeminiTimeout, withToolTimeout } from './resilience';
 import { executeGeminiToolCall, isKnownGeminiTool } from './tool-dispatch';
 import type { SendMessageStreamOptions, StreamResult, ToolCallInfo } from './types';
@@ -9,6 +10,7 @@ export async function runAgenticLoop(params: {
   options?: SendMessageStreamOptions;
   allToolCalls: ToolCallInfo[];
   allGeneratedImages: string[];
+  failFastOnModelError?: boolean;
 }): Promise<StreamResult> {
   let response: any;
   try {
@@ -17,6 +19,7 @@ export async function runAgenticLoop(params: {
       () => params.chatSession.sendMessage(params.messageContent),
     );
   } catch (error: any) {
+    if (params.failFastOnModelError) throw error;
     return safeFailureResult(error, params);
   }
   let maxIterations = 10;
@@ -35,6 +38,7 @@ export async function runAgenticLoop(params: {
         () => params.chatSession.sendMessage(functionResponses as any),
       );
     } catch (error: any) {
+      if (params.failFastOnModelError) throw error;
       return safeFailureResult(error, params);
     }
   }
@@ -47,6 +51,17 @@ export async function runAgenticLoop(params: {
     generatedImages: params.allGeneratedImages.length > 0 ? params.allGeneratedImages : undefined,
   };
 }
+
+/**
+ * Presupuesto de tiempo por herramienta: las tareas de computer use tardan
+ * MINUTOS (planeacion + varios pasos de vision). Con el timeout generico de
+ * 30s el chat "abandonaba" la llamada (que seguia corriendo en el main),
+ * reintentaba con otra use_computer y terminaba con agentes duplicados.
+ */
+const LONG_RUNNING_TOOL_TIMEOUTS_MS: Record<string, number> = {
+  use_computer: 15 * 60_000,
+  use_computer_on_node: 15 * 60_000,
+};
 
 async function executeFunctionCalls(
   functionCalls: any[],
@@ -65,9 +80,15 @@ async function executeFunctionCalls(
         await withToolTimeout(
           `Tool call ${fc.name}`,
           () => executeGeminiToolCall(fc.name, fc.args || {}, params.options, params.allToolCalls, params.allGeneratedImages),
+          LONG_RUNNING_TOOL_TIMEOUTS_MS[fc.name],
         ),
       );
     } catch (error: any) {
+      // Si use_computer expiro, abortar la tarea en el main para no dejar un
+      // agente zombi ejecutando acciones a espaldas del usuario.
+      if (fc.name === 'use_computer' && error?.name === 'TimeoutError') {
+        try { await (window as any).desktopAgent?.abort?.(); } catch { /* mejor esfuerzo */ }
+      }
       const errorResult = { success: false, error: error.message || 'Timeout ejecutando herramienta.' };
       params.allToolCalls.push({ name: fc.name, args: fc.args || {}, result: JSON.stringify(errorResult) });
       responses.push({ functionResponse: { name: fc.name, response: errorResult } });
@@ -89,9 +110,10 @@ function safeFailureResult(
   error: any,
   params: { allToolCalls: ToolCallInfo[]; allGeneratedImages: string[] },
 ): StreamResult {
-  const message = error?.message || 'El modelo no respondio a tiempo.';
+  console.warn('[GeminiChat] agentic loop failed:', error);
+  const message = getPublicAiErrorMessage(error);
   return {
-    stream: singleChunkStream(`No pude completar la respuesta de forma segura: ${message}`),
+    stream: singleChunkStream(message),
     sources: Promise.resolve(null),
     toolCalls: params.allToolCalls.length > 0 ? params.allToolCalls : undefined,
     generatedImages: params.allGeneratedImages.length > 0 ? params.allGeneratedImages : undefined,

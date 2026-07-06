@@ -18,6 +18,13 @@ export async function fetchAccessibleConversations(
   accessUserIds: string[],
   orgId?: string,
 ): Promise<Conversation[]> {
+  const ownConversationsQuery = supabase.from('conversations').select('*').eq('user_id', userId);
+  const ownedFoldersQuery = supabase.from('folders').select('id').eq('user_id', userId);
+  if (orgId) {
+    ownConversationsQuery.eq('org_id', orgId);
+    ownedFoldersQuery.eq('org_id', orgId);
+  }
+
   const [
     ownConversationsResult,
     ownedFoldersResult,
@@ -25,8 +32,8 @@ export async function fetchAccessibleConversations(
     sharedFolderShares,
     outgoingConversationShares,
   ] = await Promise.all([
-    supabase.from('conversations').select('*').eq('user_id', userId).order('updated_at', { ascending: false }).limit(MAX_CONVERSATIONS),
-    supabase.from('folders').select('id').eq('user_id', userId),
+    ownConversationsQuery.order('updated_at', { ascending: false }).limit(MAX_CONVERSATIONS),
+    ownedFoldersQuery,
     loadAccessibleConversationShares(accessUserIds, orgId),
     loadAccessibleFolderShares(accessUserIds, orgId),
     loadOutgoingConversationShares(userId, orgId),

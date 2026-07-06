@@ -1,5 +1,6 @@
 import { registerScreenCaptureHandlers } from './screen-capture-handlers';
 import { logBootstrapError } from './bootstrap-steps';
+import { recordDesktopTaskMemory } from '../memory/record-desktop-task';
 
 export function registerPlatformHandlers(input: { modules: any; services: any; state: any }): void {
   const { modules, services, state } = input;
@@ -13,12 +14,23 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
   modules.registerDriveHandlers(services.driveService, () => state.win);
   modules.registerGChatHandlers(services.gchatService, () => state.win);
   modules.registerDesktopAgentHandlers(services.desktopAgentService);
-  modules.registerMemoryHandlers(services.memoryService);
+  // Skills ejecutables (Fase 3): el motor de ejecución con HITL es Workspace Automation.
+  modules.registerMemoryHandlers(services.memoryService, {
+    executeCustomTemplate: (payload: { templateId: string; input: Record<string, unknown> }) =>
+      services.workspaceAutomationService.executeCustomTemplate(payload),
+  });
+  // Aprender de las tareas de escritorio: su resultado se guarda en la memoria
+  // del usuario activo (mismo motor que chat/WhatsApp) para futuras mejoras.
+  services.desktopAgentService.on('task-completed', (payload: unknown) =>
+    recordDesktopTaskMemory(services.memoryService, payload as { task?: string; message?: string }, false));
+  services.desktopAgentService.on('task-failed', (payload: unknown) =>
+    recordDesktopTaskMemory(services.memoryService, payload as { task?: string; message?: string }, true));
   modules.registerUpdaterHandlers(services.updaterService, () => state.win);
   modules.registerMeetingHandlers(services.meetingWorkflowService);
   modules.registerWorkspaceAutomationHandlers(services.workspaceAutomationService);
   modules.registerWorkflowHubHandlers(services.workflowHubService);
   modules.registerTelegramHandlers(services.telegramService);
+  modules.registerCommunicationHubHandlers(services.communicationHubService);
 }
 
 export async function initializeMainServices(input: {
@@ -43,13 +55,17 @@ export async function initializeMainServices(input: {
   await runOptionalStep('taskScheduler.init', () => services.taskScheduler.init());
   await runOptionalStep('clipboardAssistant.init', () => services.clipboardAssistant.init());
   await runOptionalStep('dailyBriefingService.init', () => services.dailyBriefingService.init());
+  await runOptionalStep('communicationHubService.init', () => Promise.resolve(services.communicationHubService.init()));
+  await runOptionalStep('waService.setCommunicationHubService', () => Promise.resolve(services.waService.setCommunicationHubService(services.communicationHubService)));
   await runOptionalStep('backgroundHostService.init', () => modules.backgroundHostService.init());
   await runOptionalStep('remoteNodeService.init', () => modules.remoteNodeService.initialize({ desktopAgent: services.desktopAgentService }));
   await runOptionalStep('telegramService.init', () => services.telegramService.init({
     workspaceAutomationService: services.workspaceAutomationService,
     workflowHubService: services.workflowHubService,
     remoteNodeService: modules.remoteNodeService,
+    communicationHubService: services.communicationHubService,
   }));
+  await runOptionalStep('sofliaLearningService.init', () => Promise.resolve(services.sofliaLearningService.init()));
   await runOptionalStep('dynamicToolService.init', () => modules.dynamicToolService.initialize());
   await runOptionalStep('createWindow', () => controls.createWindow(state.shouldShowInitialWindow));
   await runOptionalStep('createTray', () => controls.createTray());

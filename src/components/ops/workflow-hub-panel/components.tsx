@@ -10,8 +10,8 @@ export function Badge({ value }: { value: string }) {
 
 export function EmptyState({ text }: { text: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-gray-200 dark:border-white/[0.06] py-6 flex items-center justify-center">
-      <span className="text-[13px] text-gray-400 dark:text-gray-600">{text}</span>
+    <div className="rounded-xl border border-dashed border-border py-6 flex items-center justify-center">
+      <span className="text-[13px] text-secondary">{text}</span>
     </div>
   );
 }

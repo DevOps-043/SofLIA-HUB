@@ -1,6 +1,7 @@
 import type { ActionHistoryEntry } from './action-types';
 import type { DesktopAgentConfig } from './agent-config';
 import type { TaskPlan } from './planning-types';
+import type { PlatformCapabilities } from '../platform-capabilities';
 
 export type AgentStatus = 'idle' | 'executing' | 'observing' | 'planning' | 'waiting' | 'recovering';
 
@@ -44,6 +45,7 @@ export interface DesktopAgentStatus {
   plan: TaskPlan | null;
   lastAction: string | null;
   config: DesktopAgentConfig;
+  platformCapabilities?: PlatformCapabilities;
   activeTasks: Array<{
     id: string;
     task: string;

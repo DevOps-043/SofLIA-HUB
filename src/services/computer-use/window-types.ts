@@ -4,6 +4,7 @@ declare global {
       listDirectory: (dirPath: string, showHidden?: boolean) => Promise<any>;
       readFile: (filePath: string) => Promise<any>;
       writeFile: (filePath: string, content: string) => Promise<any>;
+      createWordDocument: (options: any) => Promise<any>;
       createDirectory: (dirPath: string) => Promise<any>;
       moveItem: (source: string, dest: string) => Promise<any>;
       copyItem: (source: string, dest: string) => Promise<any>;
@@ -29,6 +30,10 @@ declare global {
       getEmailConfig: () => Promise<any>;
       configureEmail: (email: string, password: string) => Promise<any>;
       sendEmail: (to: string, subject: string, body: string, attachmentPaths?: string[], isHtml?: boolean) => Promise<any>;
+      getSidebarPosition?: () => Promise<'left' | 'right' | 'bottom'>;
+      setSidebarPosition?: (position: 'left' | 'right' | 'bottom') => Promise<boolean>;
+      getTheme?: () => Promise<'system' | 'light' | 'dark'>;
+      setTheme?: (theme: 'system' | 'light' | 'dark') => Promise<boolean>;
     };
     desktopAgent?: {
       executeTask: (task: string, options?: any) => Promise<any>;
@@ -53,6 +58,7 @@ declare global {
       focusWindow: (title: string) => Promise<any>;
       listWindows: () => Promise<any>;
       takeScreenshot: (fullRes?: boolean) => Promise<any>;
+      runCalibration: () => Promise<any>;
     };
     remoteNode?: {
       getHostStatus: () => Promise<any>;

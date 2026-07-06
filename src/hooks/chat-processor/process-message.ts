@@ -1,9 +1,10 @@
 import type { Dispatch, SetStateAction } from 'react';
 
 import type { ChatMessage } from '../../services/chat-service';
-import { sendMessageStream, optimizePrompt, type ToolCallInfo } from '../../services/gemini-chat';
+import { getPublicAiErrorMessage, sendMessageStream, optimizePrompt, type ToolCallInfo } from '../../services/gemini-chat';
 import { generateImage } from '../../services/image-generation';
 import { buildIrisContext, needsIrisData } from '../../services/iris-data';
+import { fetchChatMemoryContext, recordChatTurn } from '../../services/memory-bridge';
 import type { UserTool } from '../../services/tools-service';
 import type { ThinkingOption } from '../useModelSelector';
 import { createAiPlaceholder, createUserMessage, PLACEHOLDER_TEXT } from './message-utils';
@@ -23,6 +24,8 @@ interface ProcessChatMessageInput {
   optimizerTarget: 'chatgpt' | 'claude' | 'gemini';
   isImageGenMode: boolean;
   activeTool: UserTool | null;
+  /** Usuario SOFIA para la memoria unificada (owner de la memoria del chat). */
+  sofiaUserId?: string;
 }
 
 export async function processChatMessage(input: ProcessChatMessageInput) {
@@ -56,6 +59,8 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
       .filter((message) => message.id !== aiMessageId)
       .map((message) => ({ role: message.role, text: message.text }));
     const irisContext = needsIrisData(text) ? await buildIrisContext() : undefined;
+    // Memoria unificada: inyecta lo que SofLIA sabe/aprendio del usuario.
+    const memoryContext = await fetchChatMemoryContext(input.sofiaUserId, text);
     const result = await sendMessageStream(text, cleanHistory, {
       model: input.preferredPrimaryModel,
       thinking: input.thinkingOption,
@@ -63,6 +68,7 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
       images: images.length > 0 ? images : undefined,
       toolSystemPrompt: input.activeTool?.system_prompt,
       irisContext,
+      memoryContext: memoryContext || undefined,
       onToolCall: (toolCall) => input.setActiveToolCall(toolCall),
     });
 
@@ -71,6 +77,9 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
       fullText += chunk;
       updateAiMessage(updatedMessages, aiMessageId, { text: fullText || PLACEHOLDER_TEXT }, onMessagesChange);
     }
+
+    // Registra el turno para que SofLIA aprenda (resumen + skills autonomos).
+    recordChatTurn(input.sofiaUserId, text, fullText);
 
     const sources = await result.sources;
     const genImages = result.generatedImages;
@@ -84,8 +93,7 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
     }
   } catch (error) {
     console.error('Chat error:', error);
-    const errorText = error instanceof Error ? error.message : 'Error desconocido';
-    updateAiMessage(updatedMessages, aiMessageId, { text: `**Error**: ${errorText}` }, onMessagesChange);
+    updateAiMessage(updatedMessages, aiMessageId, { text: getPublicAiErrorMessage(error) }, onMessagesChange);
   } finally {
     input.setIsLoading(false);
     input.setActiveToolCall(null);

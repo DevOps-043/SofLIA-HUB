@@ -55,7 +55,7 @@ export class MeetingWorkflowService {
     return this.createRunFromPreparedSource(input, source);
   }
 
-  async listRuns(filters?: { ownerUserId?: string; limit?: number }): Promise<MeetingRunSummary[]> { return this.store.listRuns(filters); }
+  async listRuns(filters?: { ownerUserId?: string; organizationId?: string; limit?: number }): Promise<MeetingRunSummary[]> { return this.store.listRuns(filters); }
 
   async getRunDetail(runId: string): Promise<MeetingRunDetail> {
     const detail = await this.store.getRunDetail(runId);

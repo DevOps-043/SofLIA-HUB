@@ -1,6 +1,7 @@
 import { app } from 'electron';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { registerAiGroundingHandler } from '../ai-grounding-handler';
 import { extractProtocolArg, parseAppProtocolCommand } from '../app-protocol';
 import { logBootstrapError, runOptionalStep } from './bootstrap-steps';
 import { configureMainProcessEnvironment } from './environment';
@@ -34,6 +35,7 @@ export async function runBootstrap(): Promise<void> {
   registerServiceEvents({ modules, services, state, controls });
   registerSummaryIpcHandlers({ modules, services, state });
   registerFlowIpcHandlers({ services, state, controls });
+  registerAiGroundingHandler();
   registerMainServiceIpcHandlers({ services, state, initWhatsAppAgent });
   registerAppLifecycle({ services, state, controls });
 

@@ -1,6 +1,6 @@
 import type { DesktopActionPayload, UIElement } from '../desktop-agent-types';
 import type { ScreenshotLayout } from './types';
-import { snapPointToStructuredElement, snapPointToVisibleRegion } from './coordinate-snapping';
+import { snapPointToVisibleRegion } from './coordinate-snapping';
 
 type Rect = { x: number; y: number; width: number; height: number };
 
@@ -26,22 +26,6 @@ export function refineDesktopActionCoordinates(params: {
 
     if (visiblePoint.adjusted) {
       params.log(`[DesktopAgent] Ajuste de coordenada ${label}: (${Math.round(pointX)}, ${Math.round(pointY)}) -> (${Math.round(adjustedX)}, ${Math.round(adjustedY)}) para salir del padding.`);
-    }
-
-    if (POINT_ACTIONS.has(action.action)) {
-      const snappedElement = snapPointToStructuredElement({
-        x: adjustedX,
-        y: adjustedY,
-        elements: params.currentUIElements,
-        mapRect: params.mapDesktopRectToScreenshotRect,
-      });
-      if (snappedElement) {
-        adjustedX = snappedElement.x;
-        adjustedY = snappedElement.y;
-        params.log(
-          `[DesktopAgent] Snap semantico ${label}: ${snappedElement.reason === 'inside' ? 'dentro de' : 'cerca de'} ${snappedElement.element.controlType} "${snappedElement.element.name || snappedElement.element.automationId || 'sin nombre'}" -> centro (${Math.round(adjustedX)}, ${Math.round(adjustedY)}).`,
-        );
-      }
     }
     return { x: adjustedX, y: adjustedY };
   };

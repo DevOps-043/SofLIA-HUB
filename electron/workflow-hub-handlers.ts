@@ -3,9 +3,9 @@ import type { WorkflowHubService } from './workflow-hub-service';
 import { handleIPC } from './utils/ipc-helpers';
 
 export function registerWorkflowHubHandlers(workflowHubService: WorkflowHubService): void {
-  ipcMain.handle('workflow-hub:get-overview', () =>
+  ipcMain.handle('workflow-hub:get-overview', (_event, organizationId?: string) =>
     handleIPC(async () => ({
-      overview: await workflowHubService.getOverview(),
+      overview: await workflowHubService.getOverview(organizationId),
     })));
 
   ipcMain.handle('workflow-hub:get-case-detail', (_event, caseId: string) =>

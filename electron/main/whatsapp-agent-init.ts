@@ -34,6 +34,7 @@ export function createWhatsAppAgentInitializer(input: {
     state.waAgent.setGoogleServices(services.calendarService, services.gmailService, services.driveService, services.gchatService);
     state.waAgent.setWorkspaceAutomationService(services.workspaceAutomationService);
     state.waAgent.setWorkflowHubService(services.workflowHubService);
+    state.waAgent.setCommunicationHubService(services.communicationHubService);
     state.waAgent.setDesktopAgentService(services.desktopAgentService);
     state.waAgent.setClipboardAssistant(services.clipboardAssistant);
     state.waAgent.setTaskScheduler(services.taskScheduler);

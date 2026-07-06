@@ -27,48 +27,96 @@ export const UnifiedSettingsModal = ({
   initialTab = 'ai',
 }: UnifiedSettingsModalProps) => {
   const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
+  const [currentVersion, setCurrentVersion] = useState('0.5.3');
 
   useEffect(() => {
     if (isOpen && initialTab) setActiveTab(initialTab);
   }, [isOpen, initialTab]);
 
+  useEffect(() => {
+    if (isOpen && typeof window.updater !== 'undefined') {
+      window.updater.getStatus().then((status) => {
+        if (status?.currentVersion) {
+          setCurrentVersion(status.currentVersion);
+        }
+      });
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
   const tabs = getSettingsTabs(sofiaContext);
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-100 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={onClose}>
-      <div className="w-full max-w-260 h-[90vh] bg-white dark:bg-[#0c0d10] rounded-[2.5rem] border border-black/[0.03] dark:border-white/[0.05] shadow-2xl flex animate-in zoom-in-95 duration-300 overflow-hidden relative" onClick={(event) => event.stopPropagation()}>
-        <div className="absolute top-[-10%] left-[-10%] w-[35%] h-[35%] bg-accent/5 blur-[80px] rounded-full pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[35%] h-[35%] bg-purple-500/5 blur-[80px] rounded-full pointer-events-none" />
-        <div className="w-20 bg-gray-50 dark:bg-black/20 backdrop-blur-3xl border-r border-black/[0.03] dark:border-white/[0.05] flex flex-col items-center transition-all z-20 relative overflow-x-hidden">
-          <div className="py-4 flex-shrink-0" />
-          <nav className="flex-1 w-full overflow-y-auto overflow-x-hidden no-scrollbar py-6 space-y-5 flex flex-col items-center">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-100 flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={onClose}>
+      <div className="w-full max-w-320 h-[92vh] bg-background rounded-3xl border border-border shadow-2xl flex animate-in zoom-in-95 duration-300 overflow-hidden relative" onClick={(event) => event.stopPropagation()}>
+        
+        {/* Floating Premium Close Button (Top-Right of modal) */}
+        <button 
+          onClick={onClose} 
+          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-surface-2 hover:bg-black/[0.04] dark:hover:bg-white/[0.04] border border-border text-secondary hover:text-danger transition-all duration-200 flex items-center justify-center z-50 group"
+          title="Cerrar Ajustes"
+        >
+          <svg className="w-4 h-4 group-hover:rotate-90 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+
+        {/* Sidebar rediseñado: ultra-minimalista, limpio y profesional */}
+        <div className="w-56 bg-sidebar border-r border-border flex flex-col transition-all z-30 relative shrink-0">
+          
+          {/* Header del Sidebar (Minimalista) */}
+          <div className="p-6 pb-5 flex items-center gap-2">
+            <svg className="w-4 h-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span className="text-[10px] font-bold text-gray-900 dark:text-white uppercase tracking-widest leading-none">Ajustes</span>
+          </div>
+
+          {/* Menú de Navegación */}
+          <nav className="flex-1 w-full px-3 py-2 space-y-0.5 flex flex-col overflow-y-auto no-scrollbar">
             {tabs.map((tab) => !tab.hidden && (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex flex-col items-center justify-center w-11 h-11 rounded-xl transition-all duration-300 group relative flex-shrink-0 ${activeTab === tab.id ? 'bg-accent/10 text-accent shadow-[0_0_20px_rgba(34,211,238,0.1)] scale-105' : 'text-gray-400 dark:text-gray-600 hover:text-gray-900 dark:hover:text-gray-300 hover:bg-black/[0.02] dark:hover:bg-white/[0.03]'}`} title={tab.label}>
-                <div className={`${activeTab === tab.id ? 'text-accent scale-105' : 'text-gray-600 group-hover:text-gray-400 group-hover:scale-105'} transition-transform duration-300`}>
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-150 w-full text-left relative ${
+                  activeTab === tab.id
+                    ? 'bg-black/[0.03] dark:bg-white/[0.03] text-accent font-medium'
+                    : 'text-secondary hover:text-gray-900 dark:hover:text-white hover:bg-black/[0.015] dark:hover:bg-white/[0.015]'
+                }`}
+              >
+                {/* Indicador de Línea Activa */}
+                {activeTab === tab.id && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-accent rounded-r-md" />
+                )}
+                
+                <div className={`transition-transform duration-150 shrink-0 ${activeTab === tab.id ? 'text-accent scale-105' : ''}`}>
                   {tab.icon}
                 </div>
-                <div className="absolute left-full ml-4 px-3 py-1.5 bg-white/95 dark:bg-[#0f1115]/95 backdrop-blur-xl text-gray-900 dark:text-white text-[9px] font-bold uppercase tracking-wider rounded-lg opacity-0 translate-x-[-10px] group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300 pointer-events-none whitespace-nowrap z-[100] border border-black/5 dark:border-white/5 shadow-2xl flex items-center gap-2">
-                  <div className="w-1 h-1 rounded-full bg-accent" />
-                  {tab.label}
-                </div>
-                {activeTab === tab.id && <div className="absolute -right-5 top-1/2 -translate-y-1/2 w-1 h-6 bg-accent rounded-full shadow-[0_0_15px_rgba(34,211,238,0.4)]" />}
+                <span className="text-[11px] font-medium truncate">{tab.label}</span>
               </button>
             ))}
           </nav>
-          <div className="mt-auto w-full px-3 pb-8 flex-shrink-0 border-t border-black/[0.03] dark:border-white/[0.03] pt-6 overflow-x-hidden">
-            <button onClick={onClose} className="w-11 h-11 rounded-xl bg-black/[0.02] dark:bg-white/[0.02] border border-black/[0.05] dark:border-white/[0.05] text-gray-400 dark:text-gray-600 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/5 hover:border-red-500/20 transition-all flex items-center justify-center group relative mx-auto" title="Volver al Chat">
-              <svg className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M11 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-            </button>
+
+          {/* Footer del Sidebar (Solo versión, limpio) */}
+          <div className="mt-auto w-full p-6 text-center border-t border-border/50 shrink-0 select-none">
+            <span className="text-[9px] text-secondary/50 font-mono tracking-wider uppercase">SofLIA Hub v{currentVersion}</span>
           </div>
+
         </div>
-        <div className="flex-1 flex flex-col min-w-0 bg-transparent">
-          <div className="flex-1 overflow-hidden">
-            <SettingsContent activeTab={activeTab} onClose={onClose} userId={userId} onSaveSettings={onSaveSettings} sofiaContext={sofiaContext} apiKey={apiKey} />
-          </div>
+
+        {/* Contenido Principal */}
+        <div className="flex-1 flex flex-col min-w-0 bg-transparent overflow-hidden">
+          <SettingsContent
+            activeTab={activeTab}
+            onClose={onClose}
+            userId={userId}
+            onSaveSettings={onSaveSettings}
+            sofiaContext={sofiaContext}
+            apiKey={apiKey}
+          />
         </div>
+
       </div>
     </div>
   );

@@ -61,6 +61,18 @@ async function decideCase(
 
 async function testNode(context: TelegramRuntimeContext, chatId: string, text: string): Promise<void> {
   const nodeId = text.replace(/^\/node\s+test\s+/i, '').trim();
+  const allowed = await context.deps?.communicationHubService?.authorizeTool({
+    provider: 'telegram',
+    telegramChatId: chatId,
+    channelId: chatId,
+    toolName: 'test_remote_node',
+    targetNodeId: nodeId,
+    isGroup: false,
+  });
+  if (allowed && !allowed.allowed) {
+    await context.sendMessage(chatId, allowed.reason || 'No tienes permisos para probar este nodo.');
+    return;
+  }
   const result = await context.deps!.remoteNodeService.testNode(nodeId);
   await context.sendMessage(chatId, [
     `Nodo ${nodeId}:`,

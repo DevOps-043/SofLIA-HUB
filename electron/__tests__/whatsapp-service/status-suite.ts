@@ -18,7 +18,7 @@ describe('WhatsApp Service - estado y configuracion', () => {
 
   it('WA-013: getStatus returns correct structure', () => {
     const status = createService().getStatus();
-    for (const key of ['connected', 'phoneNumber', 'qr', 'groupPolicy', 'groupActivation', 'groupPrefix', 'allowedNumbers', 'whitelistEnabled', 'masterNumber', 'contactPermissions', 'globalPersonalization', 'contactPersonalizations', 'groupPersonalizations']) {
+    for (const key of ['connected', 'phoneNumber', 'qr', 'groupPolicy', 'groupActivation', 'groupPrefix', 'allowedNumbers', 'whitelistEnabled', 'masterNumber', 'masterPermissions', 'contactPermissions', 'globalPersonalization', 'contactPersonalizations', 'groupPersonalizations']) {
       expect(status).toHaveProperty(key);
     }
   });
@@ -110,6 +110,17 @@ describe('WhatsApp Service - estado y configuracion', () => {
     const status = service.getStatus();
     expect(status.masterNumber).toBe('5215599999999');
     expect(status.contactPermissions['5215500000000']).toEqual(['screen_view', 'files_read']);
+  });
+
+  it('WA-030C2: setAccessConfig stores configurable master permissions', async () => {
+    const service = createService();
+    await service.init();
+    await service.setAccessConfig({
+      masterNumber: '5215599999999',
+      masterPermissions: ['files_read', 'shell', 'invalid' as any],
+    });
+    const status = service.getStatus();
+    expect(status.masterPermissions).toEqual(['files_read', 'shell']);
   });
 
   it('WA-030D: master number bypasses personal whitelist', async () => {

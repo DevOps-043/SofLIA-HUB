@@ -2,7 +2,7 @@ import type { PassiveScheduleFrequency } from './types';
 
 const STATUS_STYLES: Record<string, string> = {
   pending_approval: 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/20',
-  in_progress: 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border-cyan-500/20',
+  in_progress: 'bg-accent/15 text-accent border-accent/20',
   completed: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/20',
   failed: 'bg-red-500/15 text-red-600 dark:text-red-300 border-red-500/20',
   attention: 'bg-orange-500/15 text-orange-600 dark:text-orange-300 border-orange-500/20',
@@ -12,9 +12,9 @@ const STATUS_STYLES: Record<string, string> = {
   setup_required: 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/20',
   blocked: 'bg-orange-500/15 text-orange-600 dark:text-orange-300 border-orange-500/20',
   error: 'bg-red-500/15 text-red-600 dark:text-red-300 border-red-500/20',
-  system: 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border-cyan-500/20',
+  system: 'bg-accent/15 text-accent border-accent/20',
   pending: 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-500/20',
-  approved: 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border-cyan-500/20',
+  approved: 'bg-accent/15 text-accent border-accent/20',
   executed: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/20',
   skipped: 'bg-gray-500/15 text-gray-500 dark:text-gray-400 border-gray-500/20',
 };

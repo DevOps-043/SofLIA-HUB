@@ -17,6 +17,7 @@ export const CHANNEL_GROUP_4 = [
   'close-flow',
   'flow-message-received',
   'flow-window-shown',
+  'ai:generate-grounded',
   'updater:check-for-updates',
   'updater:download-update',
   'updater:install-update',

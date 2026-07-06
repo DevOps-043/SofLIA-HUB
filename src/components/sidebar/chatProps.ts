@@ -26,6 +26,8 @@ export function buildChatItemProps(props: SidebarProps, conv: Conversation, comp
     canRename: Boolean(conv.can_edit),
     canMove: Boolean(conv.can_share),
     canDelete: Boolean(conv.can_share),
+    isPinned: Boolean(conv.is_pinned),
+    onTogglePin: () => props.onTogglePinConversation?.(conv.id, !conv.is_pinned),
   };
 }
 
@@ -36,8 +38,12 @@ export function splitChatsByFolder(props: SidebarProps) {
       ? conversation.folder_id
       : undefined;
 
+  const pinnedChats = props.conversations.filter((c) => c.is_pinned);
+  const unpinned = props.conversations.filter((c) => !c.is_pinned);
+
   return {
-    folderChats: (folderId: string) => props.conversations.filter((conversation) => getVisibleFolderId(conversation) === folderId),
-    ungroupedChats: props.conversations.filter((conversation) => !getVisibleFolderId(conversation)),
+    pinnedChats,
+    folderChats: (folderId: string) => unpinned.filter((conversation) => getVisibleFolderId(conversation) === folderId),
+    ungroupedChats: unpinned.filter((conversation) => !getVisibleFolderId(conversation)),
   };
 }

@@ -8,11 +8,11 @@ export function WorkflowHubHeader({ loading, onRefresh }: WorkflowHubHeaderProps
     <div className="shrink-0 px-6 py-5 flex items-center justify-between">
       <div>
         <h3 className="text-lg font-bold text-gray-900 dark:text-white tracking-tight">Asistente Ejecutivo</h3>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Workflows predeterminados, variantes y casos en una sola vista</p>
+        <p className="text-xs text-secondary mt-0.5">Workflows predeterminados, variantes y casos en una sola vista</p>
       </div>
       <button
         type="button"
-        className="p-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-white/10 transition-all"
+        className="p-2.5 rounded-xl bg-surface-2 border border-border text-secondary hover:text-gray-900 dark:hover:text-white hover:border-accent/40 transition-colors"
         onClick={onRefresh}
         title="Recargar"
       >

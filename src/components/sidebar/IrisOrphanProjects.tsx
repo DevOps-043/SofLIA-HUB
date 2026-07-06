@@ -2,6 +2,7 @@ import { PROJECT_STATUS_COLORS } from '../../services/iris-data';
 import type { SidebarProps } from './types';
 import { ChevronIcon } from './ChevronIcon';
 import { IrisIssuesList } from './IrisProjectRows';
+import { SidebarSectionLabel } from './SidebarSectionLabel';
 
 export function IrisOrphanProjects({ props }: { props: SidebarProps }) {
   const orphans = props.irisProjects.filter(
@@ -10,30 +11,26 @@ export function IrisOrphanProjects({ props }: { props: SidebarProps }) {
   if (orphans.length === 0) return null;
 
   return (
-    <div className="mt-2 pl-1">
-      {props.isOpen && (
-        <div className="px-3 py-1 mb-1">
-          <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] font-semibold">WorkSpaces Globales</span>
-        </div>
-      )}
+    <div className="mt-1">
+      {props.isOpen && <SidebarSectionLabel label="Globales" />}
       {orphans.map((project) => {
         const expanded = props.expandedProjects.has(project.project_id);
         return (
           <div key={project.project_id} className="mb-0.5">
             <div
-              className={`w-full flex items-center ${props.isOpen ? 'gap-2.5 px-3' : 'justify-center px-0'} py-1.5 rounded-md text-[13px] transition-all duration-200 cursor-pointer group/proj ${expanded ? 'bg-gray-100/50 dark:bg-white/[0.04] text-gray-900 dark:text-gray-100 font-medium' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100/30 dark:hover:bg-white/[0.02] hover:text-gray-900 dark:hover:text-gray-200'}`}
+              className={`min-h-9 w-full flex items-center ${props.isOpen ? 'gap-2 px-2' : 'justify-center px-0'} rounded-2xl text-[13px] transition-all duration-200 cursor-pointer group/proj ${expanded ? 'bg-gray-100/80 text-[#0A2540] font-semibold dark:bg-white/[0.05] dark:text-white' : 'text-secondary dark:text-white/50 hover:bg-[#0A2540]/5 hover:text-[#0A2540] dark:hover:bg-white/[0.05] dark:hover:text-white/80'}`}
               onClick={() => props.onToggleProject(project.project_id)}
               onDoubleClick={() => props.onIrisProjectClick(project)}
               title={`${project.project_name} - ${project.project_status}`}
             >
-              {props.isOpen && <ChevronIcon className={`h-3 w-3 shrink-0 text-gray-400 opacity-0 group-hover/proj:opacity-100 transition-all duration-200 ${expanded ? 'rotate-90 opacity-100' : ''}`} />}
-              <div className="flex items-center justify-center w-[18px] h-[18px] shrink-0 rounded-[4px] border border-gray-200/50 dark:border-white/10 bg-white dark:bg-white/5 shadow-none">
-                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: PROJECT_STATUS_COLORS[project.project_status] || '#6b7280' }} />
+              {props.isOpen && <ChevronIcon className={`h-3 w-3 shrink-0 text-secondary/70 opacity-50 transition-all duration-200 group-hover/proj:opacity-100 dark:text-white/40 ${expanded ? 'rotate-90 opacity-100' : ''}`} />}
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-2xl bg-white shadow-[inset_0_0_0_1px_rgba(10,37,64,0.08)] dark:bg-white/[0.04] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]">
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: PROJECT_STATUS_COLORS[project.project_status] || '#6b7280' }} />
               </div>
               {props.isOpen && (
                 <>
                   <span className="flex-1 text-left truncate tracking-wide">{project.project_name}</span>
-                  <span className="text-[10px] text-gray-400 px-1 py-0.5 opacity-0 group-hover/proj:opacity-100 transition-opacity">{project.completion_percentage}%</span>
+                  <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[9px] font-medium text-secondary opacity-0 transition-opacity group-hover/proj:opacity-100 dark:bg-white/[0.06] dark:text-white/40">{project.completion_percentage}%</span>
                 </>
               )}
             </div>

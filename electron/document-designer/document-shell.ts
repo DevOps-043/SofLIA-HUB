@@ -57,7 +57,7 @@ function createFooter(): Footer {
   return new Footer({
     children: [new Paragraph({
       children: [
-        new TextRun({ text: 'SofLIA — ', size: 16, color: COLORS.muted, font: 'Calibri' }),
+        new TextRun({ text: 'SofLIA - ', size: 16, color: COLORS.muted, font: 'Calibri' }),
         new TextRun({ children: [PageNumber.CURRENT], size: 16, color: COLORS.muted, font: 'Calibri' }),
         new TextRun({ text: ' / ', size: 16, color: COLORS.muted }),
         new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: COLORS.muted, font: 'Calibri' }),

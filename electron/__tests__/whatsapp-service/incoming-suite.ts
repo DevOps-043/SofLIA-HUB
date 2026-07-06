@@ -26,6 +26,7 @@ describe('WhatsApp Service - mensajes entrantes', () => {
 
   it('WA-023: group messages detected by @g.us JID', async () => {
     const service = await createConnectedService();
+    await service.setGroupConfig({ groupPolicy: 'open' });
     const msgPromise = new Promise<any>(resolve => service.on('message', resolve));
 
     waFixtures.mockSockEvents.emit('messages.upsert', {

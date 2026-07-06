@@ -21,4 +21,6 @@ export interface UseChatProcessorParams {
   activeTool: UserTool | null;
   isLiveActive: boolean;
   liveClientRef: MutableRefObject<LiveClient | null>;
+  /** Usuario SOFIA para la memoria unificada del chat (owner). */
+  sofiaUserId?: string;
 }

@@ -14,6 +14,9 @@ export interface RemoteNodeRecord {
   baseUrl: string;
   token: string;
   enabled: boolean;
+  owner_user_id?: string | null;
+  organization_id?: string | null;
+  visibility?: 'personal' | 'organization';
   createdAt: string;
   updatedAt: string;
   lastHealthAt?: string | null;

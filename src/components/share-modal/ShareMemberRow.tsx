@@ -14,27 +14,34 @@ export function ShareMemberRow({ member, existingShare, isBusy, onShare, onRevok
   const isAvailable = Boolean(member.liaisonUserId);
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-black/5 dark:hover:bg-white/5 transition-all">
+    <div className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-gray-100/50 dark:hover:bg-white/[0.03] transition-all duration-200">
       {avatar ? (
         <img src={avatar} alt="" className="w-8 h-8 rounded-full object-cover" />
       ) : (
-        <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-accent text-[10px] font-black">
+        <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-accent text-[11px] font-bold">
           {displayName.charAt(0).toUpperCase()}
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <p className="text-[11px] font-bold text-gray-900 dark:text-white truncate">{displayName}</p>
-        <p className="text-[9px] text-gray-500 dark:text-gray-500 uppercase tracking-widest">
-          {member.role}
-          {!isAvailable ? ' - Activa Lia primero' : ''}
+        <p className="text-[12px] font-semibold text-gray-900 dark:text-white/80 truncate">{displayName}</p>
+        <p className="text-[9.5px] text-gray-400 dark:text-white/30 font-medium">
+          {member.role === 'owner' ? 'Propietario' : member.role === 'admin' ? 'Administrador' : 'Miembro'}
+          {!isAvailable ? ' • Inactivo en Lia' : ''}
         </p>
       </div>
       {existingShare ? (
-        <button onClick={() => onRevoke(existingShare.id)} className="px-3 py-1.5 bg-red-500/10 text-red-400 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all">
+        <button
+          onClick={() => onRevoke(existingShare.id)}
+          className="px-2.5 py-1 bg-red-500/10 hover:bg-red-500/20 text-red-500 dark:text-red-400 rounded-lg text-[10.5px] font-bold transition-all duration-150"
+        >
           Revocar
         </button>
       ) : (
-        <button onClick={() => onShare(member)} disabled={!isAvailable || isBusy} className="px-3 py-1.5 bg-accent/10 text-accent rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-accent/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+        <button
+          onClick={() => onShare(member)}
+          disabled={!isAvailable || isBusy}
+          className="px-2.5 py-1 bg-accent/10 hover:bg-accent/20 text-accent rounded-lg text-[10.5px] font-bold transition-all duration-150 disabled:opacity-30 disabled:hover:bg-accent/10 disabled:cursor-not-allowed"
+        >
           {isBusy ? '...' : 'Compartir'}
         </button>
       )}

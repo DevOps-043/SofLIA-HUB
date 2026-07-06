@@ -13,11 +13,7 @@ export function resolveModelId(options?: SendMessageStreamOptions): string {
 
 export function buildGenerationConfig(options?: SendMessageStreamOptions): Record<string, any> {
   const generationConfig: Record<string, any> = { maxOutputTokens: 16384 };
-  if (options?.thinking?.level) {
-    generationConfig.thinkingConfig = { thinkingLevel: options.thinking.level };
-  } else if (options?.thinking?.budget !== undefined && options.thinking.budget > 0) {
-    generationConfig.thinkingConfig = { thinkingBudget: options.thinking.budget };
-  }
+  void options;
   return generationConfig;
 }
 

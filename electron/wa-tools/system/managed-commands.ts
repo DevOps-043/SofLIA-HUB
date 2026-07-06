@@ -1,11 +1,11 @@
 export const MANAGED_COMMAND_TOOLS = [
   {
     name: 'execute_command',
-    description: 'Ejecuta un comando en la terminal del sistema (PowerShell en Windows). REQUIERE confirmacion. Timeout de 30 segundos. Usa run_in_terminal para comandos de larga duracion.',
+    description: 'Ejecuta un comando en la terminal del sistema (PowerShell en Windows, bash en Linux/macOS). REQUIERE confirmacion. Timeout de 30 segundos. Usa run_in_terminal para comandos de larga duracion.',
     parameters: {
       type: 'OBJECT' as const,
       properties: {
-        command: { type: 'STRING' as const, description: 'Comando a ejecutar en PowerShell.' },
+        command: { type: 'STRING' as const, description: 'Comando a ejecutar en la shell del sistema.' },
       },
       required: ['command'],
     },

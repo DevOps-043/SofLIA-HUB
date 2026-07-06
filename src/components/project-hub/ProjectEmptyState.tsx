@@ -13,7 +13,7 @@ export function ProjectEmptyState({ label, type }: ProjectEmptyStateProps) {
       <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
         <path strokeLinecap="round" strokeLinejoin="round" d={path} />
       </svg>
-      <p className="text-[10px] font-black uppercase tracking-widest">{label}</p>
+      <p className="text-[10px] font-medium tracking-wider uppercase text-gray-500">{label}</p>
     </div>
   );
 }

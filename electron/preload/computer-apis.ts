@@ -9,6 +9,7 @@ export function exposeComputerApis(bridge: PreloadBridge, ipc: SafeIpc): void {
     listDirectory: (dirPath: string, showHidden?: boolean) => safeInvoke('computer:list-directory', dirPath, showHidden),
     readFile: (filePath: string) => safeInvoke('computer:read-file', filePath),
     writeFile: (filePath: string, content: string) => safeInvoke('computer:write-file', filePath, content),
+    createWordDocument: (options: any) => safeInvoke('computer:create-word-document', options),
     createDirectory: (dirPath: string) => safeInvoke('computer:create-directory', dirPath),
     moveItem: (source: string, dest: string) => safeInvoke('computer:move-item', source, dest),
     copyItem: (source: string, dest: string) => safeInvoke('computer:copy-item', source, dest),
@@ -35,5 +36,9 @@ export function exposeComputerApis(bridge: PreloadBridge, ipc: SafeIpc): void {
     configureEmail: (email: string, password: string) => safeInvoke('computer:configure-email', email, password),
     sendEmail: (to: string, subject: string, body: string, attachmentPaths?: string[], isHtml?: boolean) =>
       safeInvoke('computer:send-email', to, subject, body, attachmentPaths, isHtml),
+    getSidebarPosition: () => safeInvoke('computer:get-sidebar-position'),
+    setSidebarPosition: (position: string) => safeInvoke('computer:set-sidebar-position', position),
+    getTheme: () => safeInvoke('computer:get-theme'),
+    setTheme: (theme: string) => safeInvoke('computer:set-theme', theme),
   });
 }

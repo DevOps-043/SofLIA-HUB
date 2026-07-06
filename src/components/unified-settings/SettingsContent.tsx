@@ -1,6 +1,7 @@
 import type { UserAISettings } from '../../services/settings-service';
 import { ConnectionsPanel } from '../ConnectionsPanel';
 import { ProductivityDashboard as ProductivityContent } from '../ProductivityDashboard';
+import { MemorySkillsCard } from '../memory/MemorySkillsCard';
 import { SettingsModal as AISettingsContent } from '../SettingsModal';
 import { UpdatePanel as UpdateContent } from '../UpdatePanel';
 import { UserManagementModal as TeamContent } from '../UserManagementModal';
@@ -26,6 +27,8 @@ export function SettingsContent({
   switch (activeTab) {
     case 'ai':
       return <div className="h-full overflow-hidden"><AISettingsContent isOpen onClose={onClose} userId={userId} onSave={onSaveSettings} embedded /></div>;
+    case 'memory':
+      return <div className="h-full overflow-y-auto p-6"><MemorySkillsCard userId={userId} /></div>;
     case 'whatsapp':
       return <div className="h-full overflow-hidden"><WhatsAppSetup isOpen onClose={onClose} apiKey={apiKey} embedded /></div>;
     case 'connections':
@@ -49,11 +52,11 @@ export function SettingsContent({
     case 'productivity':
       return (
         <div className="h-full overflow-hidden flex flex-col pt-2">
-          <div className="px-6 pb-2">
+          <div className="px-6 pb-3">
             <h3 className="text-gray-900 dark:text-white text-lg font-semibold">Dashboard de Productividad</h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Analiza tus metricas de trabajo y tiempo</p>
+            <p className="text-xs text-secondary">Analiza tus metricas de trabajo y tiempo</p>
           </div>
-          <div className="flex-1 overflow-y-auto no-scrollbar border-t border-white/5">
+          <div className="flex-1 overflow-y-auto no-scrollbar border-t border-border">
             <ProductivityContent userId={userId} />
           </div>
         </div>

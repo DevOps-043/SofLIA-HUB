@@ -1,7 +1,7 @@
 export const POWER_TOOLS = [
   {
     name: 'lock_session',
-    description: 'Bloquea la sesion de Windows (pantalla de bloqueo). REQUIERE confirmacion. El usuario debera ingresar su contrasena para desbloquear.',
+    description: 'Bloquea la sesion del sistema (Windows o Linux). REQUIERE confirmacion. El usuario debera ingresar su contrasena para desbloquear.',
     parameters: { type: 'OBJECT' as const, properties: {} },
   },
   {

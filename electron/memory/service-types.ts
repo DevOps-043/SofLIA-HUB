@@ -14,13 +14,13 @@ export interface MemoryLifecycleApi {
 }
 
 export interface MemoryMessageApi {
-  saveMessage(params: { sessionKey: string; phoneNumber: string; groupJid?: string; role: 'user' | 'model'; content: string; mediaType?: string; mediaFilename?: string }): void;
+  saveMessage(params: { sessionKey: string; phoneNumber: string; ownerKey?: string; groupJid?: string; role: 'user' | 'model'; content: string; mediaType?: string; mediaFilename?: string }): void;
   getRecentMessages(sessionKey: string, limit?: number): StoredMessage[];
   getConversationHistory(sessionKey: string, limit?: number): Array<{ role: string; parts: Array<{ text: string }> }>;
 }
 
 export interface MemoryContextApi {
-  assembleContext(sessionKey: string, phoneNumber: string, currentMessage: string): Promise<MemoryContext>;
+  assembleContext(sessionKey: string, phoneNumber: string, currentMessage: string, ownerKey?: string): Promise<MemoryContext>;
 }
 
 export interface MemorySummaryApi {

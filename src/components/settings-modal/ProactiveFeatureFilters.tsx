@@ -22,7 +22,7 @@ export function ProactiveFeatureFilters({ proactive }: { proactive: ProactiveCon
         <button
           key={filter.id}
           onClick={() => filter.set(!filter.active)}
-          className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-[9px] font-bold uppercase tracking-wider transition-all ${filter.active ? 'bg-purple-500/5 border-purple-500/20 text-purple-600 dark:text-purple-400' : 'bg-gray-50 dark:bg-black/20 border-gray-100 dark:border-white/[0.03] text-gray-400 dark:text-gray-700'}`}
+          className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-medium transition-colors ${filter.active ? 'bg-accent/10 border-accent/30 text-accent' : 'bg-surface-2 border-border text-secondary hover:border-accent/20'}`}
         >
           {filter.icon}
           <span className="flex-1 text-left">{filter.label}</span>

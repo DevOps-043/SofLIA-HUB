@@ -58,8 +58,12 @@ export async function withGeminiTimeout<T>(
   }
 }
 
-export function withToolTimeout<T>(label: string, operationFactory: () => Promise<T>): Promise<T> {
-  return withGeminiTimeout(label, operationFactory, TOOL_CALL_TIMEOUT_MS);
+export function withToolTimeout<T>(
+  label: string,
+  operationFactory: () => Promise<T>,
+  timeoutMs: number = TOOL_CALL_TIMEOUT_MS,
+): Promise<T> {
+  return withGeminiTimeout(label, operationFactory, timeoutMs);
 }
 
 export function resetGeminiResilienceState(): void {

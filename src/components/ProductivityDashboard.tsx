@@ -51,16 +51,16 @@ export function ProductivityDashboard({ userId }: ProductivityDashboardProps) {
 
         <div className="grid grid-cols-12 gap-8">
           <div className="col-span-12 lg:col-span-8 space-y-8">
-            <div className="bg-white dark:bg-[#1a1c20]/50 backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-3xl overflow-hidden shadow-xl">
+            <div className="bg-surface border border-border rounded-2xl overflow-hidden shadow-sm dark:shadow-none">
               <DailyTimeline timeline={timeline} />
             </div>
-            <div className="bg-white dark:bg-[#1a1c20]/50 backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-3xl overflow-hidden shadow-xl">
+            <div className="bg-surface border border-border rounded-2xl overflow-hidden shadow-sm dark:shadow-none">
               <SummaryCard summary={summary} userId={userId} logs={logs} selectedDate={selectedDate} onSummaryGenerated={setSummary} />
             </div>
           </div>
 
           <div className="col-span-12 lg:col-span-4 space-y-8">
-            <div className="bg-white dark:bg-[#1a1c20]/50 backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-3xl p-6 shadow-xl relative overflow-hidden group">
+            <div className="bg-surface border border-border rounded-2xl p-6 shadow-sm dark:shadow-none relative overflow-hidden group">
               <div className="absolute -top-10 -right-10 w-32 h-32 bg-accent/10 rounded-full blur-3xl group-hover:bg-accent/20 transition-all duration-700" />
               <MonitoringControls
                 userId={userId}
@@ -71,7 +71,7 @@ export function ProductivityDashboard({ userId }: ProductivityDashboardProps) {
               />
             </div>
 
-            <div className="bg-white dark:bg-[#1a1c20]/50 backdrop-blur-sm border border-gray-200 dark:border-white/10 rounded-3xl p-6 shadow-xl">
+            <div className="bg-surface border border-border rounded-2xl p-6 shadow-sm dark:shadow-none">
               <AppUsageChart stats={appStats} />
             </div>
           </div>

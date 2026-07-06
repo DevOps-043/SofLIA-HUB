@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
+import { useAuth } from '../../../contexts/AuthContext';
 import { useChatProcessor } from '../../../hooks/useChatProcessor';
 import { useLiveApi } from '../../../hooks/useLiveApi';
 import { useModelSelector } from '../../../hooks/useModelSelector';
+import { syncCurrentOwner } from '../../../services/memory-bridge';
 import type { ChatUIProps, ProcessMessageHandler } from './types';
 import type { useChatUIState } from './useChatUIState';
 
@@ -16,11 +18,15 @@ export function useChatRuntime(
   messagesRef.current = props.messages;
 
   const model = useModelSelector();
+  const { dataUserId } = useAuth();
+  // Informa al main quién es el usuario activo (memoria unificada cross-superficie).
+  useEffect(() => { syncCurrentOwner(dataUserId ?? null); }, [dataUserId]);
   const liveApi = useLiveApi({ messagesRef, onMessagesChange: props.onMessagesChange });
   const chat = useChatProcessor({
     messages: props.messages,
     onMessagesChange: props.onMessagesChange,
     personalization: props.personalization,
+    sofiaUserId: dataUserId ?? undefined,
     preferredPrimaryModel: model.preferredPrimaryModel,
     thinkingMode: model.thinkingMode,
     isImageGenMode: state.modes.imageGen,

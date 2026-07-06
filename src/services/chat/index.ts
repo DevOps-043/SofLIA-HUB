@@ -12,10 +12,13 @@ export {
   createConversation,
   deleteConversation,
   generateTitle,
+  generateTitleWithModel,
   loadConversations,
   loadMessages,
+  PENDING_MODEL_TITLE,
   saveMessages,
   updateConversationTitle,
+  toggleConversationPin,
 } from './operations';
 
 export { saveMessagesToCache } from './cache';

@@ -14,7 +14,7 @@ import type { WorkflowHubOverview } from './overview';
 declare global {
   interface Window {
     workflowHub?: {
-      getOverview: () => Promise<{ success: boolean; overview?: WorkflowHubOverview; error?: string }>;
+      getOverview: (organizationId?: string) => Promise<{ success: boolean; overview?: WorkflowHubOverview; error?: string }>;
       getCaseDetail: (caseId: string) => Promise<{ success: boolean; detail?: WorkflowCaseDetail; error?: string }>;
       executeWorkflow: (input: ExecuteWorkflowInput) => Promise<{ success: boolean; detail?: WorkflowCaseDetail; error?: string }>;
       saveVariant: (input: SaveWorkflowVariantInput) => Promise<{ success: boolean; variant?: WorkflowVariant; error?: string }>;
@@ -51,8 +51,8 @@ export function isWorkflowHubAvailable(): boolean {
   return !!window.workflowHub;
 }
 
-export async function getWorkflowHubOverview() {
-  return getAPI().getOverview();
+export async function getWorkflowHubOverview(organizationId?: string) {
+  return getAPI().getOverview(organizationId);
 }
 
 export async function getWorkflowCaseDetail(caseId: string) {

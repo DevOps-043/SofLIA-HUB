@@ -6,6 +6,7 @@ type Rect = { x: number; y: number; width: number; height: number };
 type ScreenConverters = typeof electronScreen & {
   dipToScreenPoint?: (point: Point) => Point;
   screenToDipPoint?: (point: Point) => Point;
+  screenToDipRect?: (window: null, rect: Rect) => Rect;
 };
 
 export function dipToScreenPoint(point: Point): Point {
@@ -32,6 +33,35 @@ export function screenToDipPoint(point: Point): Point {
     // Keep fallback below.
   }
   return { x: point.x, y: point.y };
+}
+
+/**
+ * Convierte un rect en pixeles FISICOS (p.ej. GetWindowRect de user32) a DIP.
+ * Usa screen.screenToDipRect cuando existe; si no, convierte por esquinas.
+ * Critico en monitores con escala de Windows distinta de 100%.
+ */
+export function physicalRectToDipRect(rect: Rect): Rect {
+  try {
+    const converted = (electronScreen as ScreenConverters).screenToDipRect?.(null, {
+      x: Math.round(rect.x),
+      y: Math.round(rect.y),
+      width: Math.round(rect.width),
+      height: Math.round(rect.height),
+    });
+    if (converted && Number.isFinite(converted.x) && Number.isFinite(converted.width) && converted.width > 0) {
+      return converted;
+    }
+  } catch {
+    // Fallback por esquinas debajo.
+  }
+  const topLeft = screenToDipPoint({ x: rect.x, y: rect.y });
+  const bottomRight = screenToDipPoint({ x: rect.x + rect.width, y: rect.y + rect.height });
+  return {
+    x: topLeft.x,
+    y: topLeft.y,
+    width: Math.max(1, bottomRight.x - topLeft.x),
+    height: Math.max(1, bottomRight.y - topLeft.y),
+  };
 }
 
 export function mapScreenshotToDipPoint(x: number, y: number, layout: ScreenshotLayout | null): Point | null {

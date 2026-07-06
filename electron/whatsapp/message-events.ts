@@ -11,6 +11,7 @@ import {
 } from './message-utils';
 import { detectJailbreak, isAllowedGroupSender, isAllowedNumber } from './security';
 import type { WhatsAppServiceCore } from './types';
+import { isOrgAdminRole } from '../communication-hub/authorization';
 
 export function registerMessageEvents(service: WhatsAppServiceCore): void {
   service.sock!.ev.on('messages.upsert', async (messageBatch) => {
@@ -27,7 +28,7 @@ async function processIncomingMessage(service: WhatsAppServiceCore, msg: any): P
   unwrapMessageContainers(msg);
 
   const senderNumber = await resolveSenderNumber(service.sock, msg, jid, isGroup);
-  if (!passesAccessChecks(service, msg, jid, isGroup, senderNumber)) return;
+  if (!await passesAccessChecks(service, msg, jid, isGroup, senderNumber)) return;
 
   const passiveInteraction = getPassiveInteraction(msg);
   const wasInvoked = isGroup ? shouldRespondInGroup(service.sock, service.config, msg) : true;
@@ -130,16 +131,29 @@ function recordIncomingText(
   });
 }
 
-function passesAccessChecks(service: WhatsAppServiceCore, msg: any, jid: string, isGroup: boolean, senderNumber: string): boolean {
+async function passesAccessChecks(service: WhatsAppServiceCore, msg: any, jid: string, isGroup: boolean, senderNumber: string): Promise<boolean> {
   if (!isGroup) {
-    if (isAllowedNumber(service.config, senderNumber)) return true;
-    console.log(`[WhatsApp] Ignoring message from unauthorized number: ${senderNumber} (JID: ${jid})`);
-    return false;
+    if (!isAllowedNumber(service.config, senderNumber)) {
+      console.log(`[WhatsApp] Ignoring message from unauthorized number: ${senderNumber} (JID: ${jid})`);
+      return false;
+    }
+    if (service.communicationHubService) {
+      const principal = await service.communicationHubService.resolvePrincipalFromWhatsApp(senderNumber);
+      if (!principal.active || !principal.capabilities.includes('personal_agent')) {
+        console.log(`[WhatsApp] Ignoring message without active SOFIA channel principal: ${senderNumber} (JID: ${jid})`);
+        return false;
+      }
+    }
+    return true;
   }
 
   if (service.config.groupPolicy === 'disabled') return false;
   const allowedGroups = service.config.allowedGroups || [];
   if (allowedGroups.length > 0 && !allowedGroups.includes(jid)) return false;
   if (!isAllowedGroupSender(service.config, senderNumber)) return false;
+  if (service.communicationHubService) {
+    const principal = await service.communicationHubService.resolvePrincipalFromWhatsApp(senderNumber);
+    if (!principal.active || !isOrgAdminRole(principal.role)) return false;
+  }
   return shouldRespondInGroup(service.sock, service.config, msg);
 }

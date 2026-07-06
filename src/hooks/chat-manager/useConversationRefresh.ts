@@ -25,26 +25,14 @@ export function useConversationRefresh({ accessUserIds, getCurrentChatStorageKey
 
   const loadInitialConversations = useCallback(async () => {
     if (!userId) return [];
-    const capturedScopeVersion = state.scopeVersionRef.current;
     state.setLoadingConversations(true);
     try {
       const convs = await loadConversations(userId, orgId, accessUserIds);
       state.setConversations(convs);
-      if (!canHydrateActiveChat(state, capturedScopeVersion)) return convs;
-
-      const lastChatId = localStorage.getItem(getCurrentChatStorageKey(userId));
-      const found = lastChatId ? convs.find((item) => item.id === lastChatId) : null;
-      if (!found) {
-        if (lastChatId) localStorage.removeItem(getCurrentChatStorageKey(userId));
-        clearActiveChat(state);
-        return convs;
-      }
-
-      const msgs = await loadMessages(found.id, userId);
-      if (!canHydrateActiveChat(state, capturedScopeVersion)) return convs;
-      state.setCurrentConversationId(found.id);
-      state.currentConvIdRef.current = found.id;
-      state.setCurrentMessages(msgs);
+      
+      // Siempre iniciar con una nueva conversación vacía al iniciar sesión
+      clearActiveChat(state);
+      localStorage.removeItem(getCurrentChatStorageKey(userId));
       return convs;
     } finally {
       state.setLoadingConversations(false);
@@ -71,10 +59,6 @@ export function useConversationRefresh({ accessUserIds, getCurrentChatStorageKey
   }, [accessUserIds, getCurrentChatStorageKey, orgId, refreshCurrentConversationMessages, state, userId]);
 
   return { loadInitialConversations, refreshConversationsFromRemote, refreshCurrentConversationMessages };
-}
-
-function canHydrateActiveChat(state: ChatManagerState, capturedScopeVersion: number): boolean {
-  return state.scopeVersionRef.current === capturedScopeVersion && !state.currentConvIdRef.current && state.currentMessagesRef.current.length === 0;
 }
 
 function clearActiveChat(state: ChatManagerState): void {

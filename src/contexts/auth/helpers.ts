@@ -1,5 +1,6 @@
 import type { User } from '@supabase/supabase-js';
 import type { SofiaAuthUser, SofiaContext } from '../../services/sofia-auth';
+import { pickInitialOrganization } from '../../services/sofia-auth/org-preference';
 
 export const LIA_RESTORE_MESSAGE =
   'No hay una sesion activa de Lia en este dispositivo. Cierra sesion e inicia de nuevo para reactivar la sincronizacion de conversaciones.';
@@ -23,10 +24,15 @@ export function buildSofiaContext(profile: any): SofiaContext | null {
     activeMemberships.some((membership: any) => membership.team_id === team.id),
   ) || [];
 
+  const currentOrganization = pickInitialOrganization(profile?.id, activeOrgs);
+  const currentTeam = currentOrganization
+    ? activeTeams.find((team: any) => team.organization_id === currentOrganization.id) || null
+    : activeTeams[0] || null;
+
   return {
     user: profile,
-    currentOrganization: activeOrgs[0] || null,
-    currentTeam: activeTeams[0] || null,
+    currentOrganization,
+    currentTeam,
     organizations: activeOrgs,
     teams: activeTeams,
     memberships: activeMemberships,

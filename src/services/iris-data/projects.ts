@@ -2,9 +2,15 @@ import { irisSupa, isIrisConfigured } from '../../lib/iris-client';
 import { resolveTeamReference } from './team-resolution';
 import type { IrisProject } from './types';
 
-export async function getProjects(teamRef?: string): Promise<IrisProject[]> {
+/**
+ * @param teamRef  Filtra por un equipo especifico (por id o nombre).
+ * @param teamIds  Restringe a los equipos de la organizacion activa. Si es un arreglo vacio,
+ *   devuelve [] (la org no tiene equipos). Si es undefined, no restringe (compat).
+ */
+export async function getProjects(teamRef?: string, teamIds?: string[]): Promise<IrisProject[]> {
   try {
     if (!irisSupa || !isIrisConfigured()) return [];
+    if (teamIds && teamIds.length === 0) return [];
     let resolvedTeamId: string | null = null;
     if (teamRef?.trim()) {
       const teamResult = await resolveTeamReference(
@@ -17,6 +23,7 @@ export async function getProjects(teamRef?: string): Promise<IrisProject[]> {
 
     let query = irisSupa.from('pm_projects').select('*').order('updated_at', { ascending: false });
     if (resolvedTeamId) query = query.eq('team_id', resolvedTeamId);
+    else if (teamIds) query = query.in('team_id', teamIds);
     const { data, error } = await query;
     return error ? [] : ((data || []) as IrisProject[]);
   } catch {

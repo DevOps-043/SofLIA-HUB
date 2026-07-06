@@ -21,7 +21,7 @@ const THINKING_OPTIONS_GEMINI3_FLASH: ThinkingOption[] = [
   { id: 'high', name: 'Alto', desc: 'Maximo razonamiento', level: 'high' },
 ];
 
-const THINKING_OPTIONS_GEMINI3_PRO: ThinkingOption[] = [
+const THINKING_OPTIONS_GEMINI25_PRO: ThinkingOption[] = [
   { id: 'low', name: 'Pensar', desc: 'Razonamiento basico', level: 'low' },
   { id: 'high', name: 'Pro', desc: 'Maximo razonamiento', level: 'high' },
 ];
@@ -35,11 +35,11 @@ export const MODEL_OPTIONS: ModelOption[] = [
     thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH,
   },
   {
-    id: 'gemini-3.1-pro-preview',
+    id: 'gemini-2.5-pro',
     name: 'SofLIA Pro',
     desc: 'Mayor capacidad de razonamiento logico.',
     thinkingType: 'level',
-    thinkingOptions: THINKING_OPTIONS_GEMINI3_PRO,
+    thinkingOptions: THINKING_OPTIONS_GEMINI25_PRO,
   },
   {
     id: 'gemini-3.1-flash-lite',

@@ -3,7 +3,7 @@ import { handleIPC } from './utils/ipc-helpers';
 import type { MeetingWorkflowService } from './meetings/meeting-workflow-service';
 
 export function registerMeetingHandlers(meetingWorkflowService: MeetingWorkflowService): void {
-  ipcMain.handle('meeting:list-runs', (_event, filters?: { ownerUserId?: string; limit?: number }) =>
+  ipcMain.handle('meeting:list-runs', (_event, filters?: { ownerUserId?: string; organizationId?: string; limit?: number }) =>
     handleIPC(async () => ({
       runs: await meetingWorkflowService.listRuns(filters),
     })));

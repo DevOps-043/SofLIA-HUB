@@ -1,3 +1,5 @@
+import { Card } from '../ui/Card';
+import { Button } from '../ui/Button';
 import type { WhatsAppAccessPermission } from './types';
 
 const PERMISSION_OPTIONS: Array<{ id: WhatsAppAccessPermission; label: string }> = [
@@ -19,8 +21,10 @@ interface MasterAccessCardProps {
   contactPermissions: Record<string, WhatsAppAccessPermission[]>;
   masterNumber: string;
   masterNumberInput: string;
+  masterPermissions: WhatsAppAccessPermission[];
   onMasterNumberInputChange: (value: string) => void;
   onSaveMasterNumber: () => void;
+  onToggleMasterPermission: (permission: WhatsAppAccessPermission, enabled: boolean) => void;
   onTogglePermission: (number: string, permission: WhatsAppAccessPermission, enabled: boolean) => void;
 }
 
@@ -30,17 +34,20 @@ export function MasterAccessCard(props: MasterAccessCardProps) {
     contactPermissions,
     masterNumber,
     masterNumberInput,
+    masterPermissions,
     onMasterNumberInputChange,
     onSaveMasterNumber,
+    onToggleMasterPermission,
     onTogglePermission,
   } = props;
+  const identityNumbers = Array.from(new Set([masterNumber, ...allowedNumbers].filter(Boolean)));
 
   return (
-    <div className="bg-white dark:bg-white/3 border border-gray-200 dark:border-white/10 rounded-3xl p-6">
+    <Card>
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-6">
         <div>
-          <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Acceso Maestro</h4>
-          <p className="mt-2 text-[10px] text-gray-500 dark:text-gray-400">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Acceso Maestro</h3>
+          <p className="mt-1 text-xs text-secondary">
             {masterNumber ? `Maestro activo: +${masterNumber}` : 'Sin numero maestro'}
           </p>
         </div>
@@ -50,29 +57,26 @@ export function MasterAccessCard(props: MasterAccessCardProps) {
             value={masterNumberInput}
             onChange={(event) => onMasterNumberInputChange(event.target.value)}
             placeholder="521..."
-            className="min-w-0 flex-1 md:w-48 pl-3 pr-4 py-2.5 bg-gray-50 dark:bg-background-dark/80 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-xs font-mono focus:outline-none focus:border-accent/30 transition-all"
+            className="min-w-0 flex-1 md:w-48 px-3.5 py-2.5 bg-surface-2 border border-border rounded-xl text-gray-900 dark:text-white text-sm font-mono placeholder-secondary/70 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 transition-colors"
             onKeyDown={(event) => event.key === 'Enter' && onSaveMasterNumber()}
           />
-          <button
-            onClick={onSaveMasterNumber}
-            className="px-4 py-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-200 dark:hover:bg-white/10 transition-all"
-          >
+          <Button variant="secondary" size="sm" onClick={onSaveMasterNumber}>
             Guardar
-          </button>
+          </Button>
         </div>
       </div>
 
       <div className="space-y-3">
-        {allowedNumbers.length > 0 ? (
-          allowedNumbers.map((number) => {
-            const granted = new Set(contactPermissions[number] || []);
+        {identityNumbers.length > 0 ? (
+          identityNumbers.map((number) => {
             const isMaster = Boolean(masterNumber && number.endsWith(masterNumber.slice(-10)));
+            const granted = new Set(isMaster ? masterPermissions : (contactPermissions[number] || []));
             return (
-              <div key={number} className="border-t border-gray-100 dark:border-white/5 pt-4 first:border-t-0 first:pt-0">
+              <div key={number} className="border-t border-border pt-4 first:border-t-0 first:pt-0">
                 <div className="flex items-center justify-between gap-3 mb-3">
-                  <span className="text-[10px] text-gray-600 dark:text-gray-300 font-mono tracking-widest">+{number}</span>
-                  <span className={`text-[8px] font-black uppercase tracking-widest ${isMaster ? 'text-accent' : 'text-gray-400'}`}>
-                    {isMaster ? 'Maestro' : `${granted.size} permisos`}
+                  <span className="text-xs text-gray-700 dark:text-gray-300 font-mono">+{number}</span>
+                  <span className={`text-xs font-medium ${isMaster ? 'text-accent' : 'text-secondary'}`}>
+                    {isMaster ? `${granted.size} permisos maestro` : `${granted.size} permisos`}
                   </span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
@@ -82,13 +86,15 @@ export function MasterAccessCard(props: MasterAccessCardProps) {
                       <button
                         key={permission.id}
                         type="button"
-                        disabled={Boolean(isMaster)}
-                        onClick={() => onTogglePermission(number, permission.id, !checked)}
-                        className={`min-h-9 rounded-xl border px-3 text-[9px] font-black uppercase tracking-widest transition-all ${
-                          checked || isMaster
-                            ? 'bg-accent/15 border-accent/30 text-accent'
-                            : 'bg-white dark:bg-background-dark/60 border-gray-200 dark:border-white/10 text-gray-500 hover:text-gray-900 dark:hover:text-white'
-                        } ${isMaster ? 'opacity-60 cursor-not-allowed' : ''}`}
+                        onClick={() => {
+                          if (isMaster) onToggleMasterPermission(permission.id, !checked);
+                          else onTogglePermission(number, permission.id, !checked);
+                        }}
+                        className={`min-h-9 rounded-xl border px-3 text-xs font-medium transition-colors ${
+                          checked
+                            ? 'bg-accent/10 border-accent/30 text-accent'
+                            : 'bg-surface-2 border-border text-secondary hover:text-gray-900 dark:hover:text-white hover:border-accent/20'
+                        }`}
                       >
                         {permission.label}
                       </button>
@@ -99,11 +105,11 @@ export function MasterAccessCard(props: MasterAccessCardProps) {
             );
           })
         ) : (
-          <div className="py-6 text-center border border-dashed border-gray-200 dark:border-white/5 rounded-xl">
-            <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest">Agrega numeros a la whitelist</p>
+          <div className="py-6 text-center border border-dashed border-border rounded-xl">
+            <p className="text-xs text-secondary">Agrega numeros a la whitelist</p>
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

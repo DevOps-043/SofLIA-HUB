@@ -7,6 +7,7 @@ interface CreateDesktopTaskPlanInput {
   config: DesktopAgentConfig;
   task: string;
   screenshotBase64: string;
+  contextoEntorno?: string;
 }
 type ParsedPhase = {
   name?: string;
@@ -14,7 +15,14 @@ type ParsedPhase = {
   successCriteria?: string;
   subGoals?: string[];
   estimatedSteps?: number;
+  backendPreferido?: string;
 };
+
+const VALID_PHASE_BACKENDS = new Set(['browser', 'uia', 'desktop']);
+
+function parsePhaseBackend(value: string | undefined): 'browser' | 'uia' | 'desktop' | undefined {
+  return value && VALID_PHASE_BACKENDS.has(value) ? (value as 'browser' | 'uia' | 'desktop') : undefined;
+}
 type ParsedPlan = {
   goal?: string;
   phases?: ParsedPhase[];
@@ -28,13 +36,17 @@ export async function createDesktopTaskPlan(input: CreateDesktopTaskPlanInput): 
   strategicPlan: StrategicPlan | null;
 }> {
   const { ai, config, task, screenshotBase64 } = input;
+  const promptOptions = {
+    contextoEntorno: input.contextoEntorno,
+    deterministaPrimero: config.deterministicFirstEnabled,
+  };
 
   if (config.hierarchicalPlanningEnabled) {
     try {
       const proModel = ai.getGenerativeModel({ model: config.proactiveModel });
       const result = await proModel.generateContent([
         { inlineData: { mimeType: 'image/png', data: screenshotBase64 } },
-        { text: buildStrategicPlanPrompt(task) },
+        { text: buildStrategicPlanPrompt(task, promptOptions) },
       ]);
       const parsed = parseVisionResponse(result.response.text()) as ParsedPlan;
 
@@ -49,6 +61,7 @@ export async function createDesktopTaskPlan(input: CreateDesktopTaskPlanInput): 
             currentSubGoalIndex: 0,
             estimatedSteps: phase.estimatedSteps || 15,
             status: 'pending' as const,
+            backendPreferido: parsePhaseBackend(phase.backendPreferido),
           })),
           currentPhaseIndex: 0,
           totalEstimatedSteps: parsed.totalEstimatedSteps || 50,
@@ -78,7 +91,7 @@ export async function createDesktopTaskPlan(input: CreateDesktopTaskPlanInput): 
   try {
     const result = await model.generateContent([
       { inlineData: { mimeType: 'image/png', data: screenshotBase64 } },
-      { text: buildFlatPlanPrompt(task) },
+      { text: buildFlatPlanPrompt(task, promptOptions) },
     ]);
     const parsed = parseVisionResponse(result.response.text()) as ParsedPlan;
     return {

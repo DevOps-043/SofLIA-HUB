@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Card } from '../ui/Card';
+import { Button } from '../ui/Button';
 import {
   deletePassiveWorkflowRule,
   getWorkflowHubOverview,
@@ -116,19 +118,15 @@ export function WhatsAppFlowsCard({ selectedTarget }: WhatsAppFlowsCardProps) {
   if (!isWorkflowHubAvailable() || target.isGroup) return null;
 
   return (
-    <div className="bg-white dark:bg-white/3 border border-gray-200 dark:border-white/10 rounded-3xl p-6">
+    <Card>
       <div className="flex items-center justify-between gap-3 mb-5">
         <div>
-          <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Flujos por Perfil</h4>
-          <p className="text-[9px] text-gray-400 uppercase tracking-widest mt-1">{target.label}</p>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Flujos por Perfil</h3>
+          <p className="text-xs text-secondary mt-0.5">{target.label}</p>
         </div>
-        <button
-          type="button"
-          onClick={loadRules}
-          className="px-3 py-1.5 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-200 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-gray-200 dark:hover:bg-white/10 transition-all"
-        >
+        <Button variant="secondary" size="sm" onClick={loadRules}>
           {busy === 'load' ? '...' : 'Actualizar'}
-        </button>
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-[1fr_170px_140px_120px] gap-3">
@@ -137,12 +135,12 @@ export function WhatsAppFlowsCard({ selectedTarget }: WhatsAppFlowsCardProps) {
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder="Nombre del flujo"
-          className="px-3 py-2.5 bg-gray-50 dark:bg-background-dark/80 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-xs focus:outline-none focus:border-accent/30 transition-all"
+          className="px-3 py-2.5 bg-surface-2 border border-border rounded-xl text-gray-900 dark:text-white text-xs focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 transition-colors"
         />
         <select
           value={scheduleMode}
           onChange={(event) => setScheduleMode(event.target.value as ScheduleMode)}
-          className="px-3 py-2.5 bg-gray-50 dark:bg-background-dark/80 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-xs focus:outline-none focus:border-accent/30 transition-all"
+          className="px-3 py-2.5 bg-surface-2 border border-border rounded-xl text-gray-900 dark:text-white text-xs focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 transition-colors"
         >
           {SCHEDULE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>{option.label}</option>
@@ -154,7 +152,7 @@ export function WhatsAppFlowsCard({ selectedTarget }: WhatsAppFlowsCardProps) {
             value={customCronExpression}
             onChange={(event) => setCustomCronExpression(event.target.value)}
             placeholder="0 9 * * *"
-            className="md:col-span-2 px-3 py-2.5 bg-gray-50 dark:bg-background-dark/80 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-xs font-mono focus:outline-none focus:border-accent/30 transition-all"
+            className="md:col-span-2 px-3 py-2.5 bg-surface-2 border border-border rounded-xl text-gray-900 dark:text-white text-xs font-mono focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 transition-colors"
           />
         ) : (
           <>
@@ -164,14 +162,14 @@ export function WhatsAppFlowsCard({ selectedTarget }: WhatsAppFlowsCardProps) {
                 value={scheduleDate}
                 min={getTodayInputDate()}
                 onChange={(event) => setScheduleDate(event.target.value)}
-                className="px-3 py-2.5 bg-gray-50 dark:bg-background-dark/80 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-xs font-mono focus:outline-none focus:border-accent/30 transition-all"
+                className="px-3 py-2.5 bg-surface-2 border border-border rounded-xl text-gray-900 dark:text-white text-xs font-mono focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 transition-colors"
               />
             )}
             <input
               type="time"
               value={scheduleTime}
               onChange={(event) => setScheduleTime(event.target.value)}
-              className={`${scheduleMode === 'once' ? '' : 'md:col-span-2'} px-3 py-2.5 bg-gray-50 dark:bg-background-dark/80 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-xs font-mono focus:outline-none focus:border-accent/30 transition-all`}
+              className={`${scheduleMode === 'once' ? '' : 'md:col-span-2'} px-3 py-2.5 bg-surface-2 border border-border rounded-xl text-gray-900 dark:text-white text-xs font-mono focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 transition-colors`}
             />
           </>
         )}
@@ -179,43 +177,38 @@ export function WhatsAppFlowsCard({ selectedTarget }: WhatsAppFlowsCardProps) {
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
           placeholder="Instruccion que se ejecutara cuando se dispare"
-          className="md:col-span-4 h-20 px-3 py-2.5 bg-gray-50 dark:bg-background-dark/80 border border-gray-200 dark:border-white/10 rounded-xl text-gray-900 dark:text-white text-xs focus:outline-none focus:border-accent/30 transition-all resize-none"
+          className="md:col-span-4 h-20 px-3 py-2.5 bg-surface-2 border border-border rounded-xl text-gray-900 dark:text-white text-xs focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 transition-colors resize-none"
         />
       </div>
       <div className="mt-3 flex items-center justify-between gap-3">
-        <p className="min-w-0 truncate text-[10px] text-gray-500 dark:text-gray-400">
-          Programacion: <span className="font-semibold text-gray-700 dark:text-gray-200">{schedule.scheduleLabel}</span>
+        <p className="min-w-0 truncate text-xs text-secondary">
+          Programacion: <span className="font-medium text-gray-700 dark:text-gray-200">{schedule.scheduleLabel}</span>
         </p>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={busy === 'save'}
-          className="px-4 py-2 bg-accent text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
-        >
+        <Button variant="primary" size="sm" onClick={handleSave} loading={busy === 'save'}>
           {busy === 'save' ? 'Guardando' : 'Crear flujo'}
-        </button>
+        </Button>
       </div>
 
-      {error && <p className="mt-3 text-[10px] text-red-400 font-semibold">{error}</p>}
+      {error && <p className="mt-3 text-xs text-danger font-medium">{error}</p>}
 
       <div className="mt-5 space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
         {rules.length === 0 ? (
-          <div className="py-5 text-center border border-dashed border-gray-200 dark:border-white/5 rounded-xl">
-            <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest">Sin flujos guardados</p>
+          <div className="py-5 text-center border border-dashed border-border rounded-xl">
+            <p className="text-xs text-secondary">Sin flujos guardados</p>
           </div>
         ) : rules.map((rule) => (
-          <div key={rule.id} className="flex items-start justify-between gap-3 rounded-xl bg-gray-50 dark:bg-white/2 border border-gray-100 dark:border-white/5 px-3 py-2.5">
+          <div key={rule.id} className="flex items-start justify-between gap-3 rounded-xl bg-surface-2 border border-border px-3 py-2.5">
             <div className="min-w-0">
-              <p className="text-[11px] font-bold text-gray-800 dark:text-white truncate">{rule.name}</p>
-              <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{formatRuleSchedule(rule)}</p>
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate">{rule.prompt}</p>
+              <p className="text-sm font-medium text-gray-800 dark:text-white truncate">{rule.name}</p>
+              <p className="text-xs text-secondary truncate">{formatRuleSchedule(rule)}</p>
+              <p className="text-xs text-secondary/80 truncate">{rule.prompt}</p>
             </div>
             {rule.source !== 'system' && (
               <button
                 type="button"
                 onClick={() => handleDelete(rule.id)}
                 disabled={busy === rule.id}
-                className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-red-500 hover:bg-red-500/10 transition-all disabled:opacity-50"
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-danger hover:bg-danger/10 transition-colors disabled:opacity-50"
               >
                 {busy === rule.id ? '...' : 'Eliminar'}
               </button>
@@ -223,7 +216,7 @@ export function WhatsAppFlowsCard({ selectedTarget }: WhatsAppFlowsCardProps) {
           </div>
         ))}
       </div>
-    </div>
+    </Card>
   );
 }
 

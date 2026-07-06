@@ -19,8 +19,8 @@ interface ShareMembersTabProps {
 export function ShareMembersTab(props: ShareMembersTabProps) {
   return (
     <div>
-      <div className="px-8 pb-3 flex items-center gap-3">
-        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500">Permiso</span>
+      <div className="px-6 pb-3 flex items-center gap-3">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-white/30">Permiso</span>
         <SelectDropdown
           value={props.permission}
           onChange={(value: string) => props.onPermissionChange(value as SharePermission)}
@@ -29,17 +29,17 @@ export function ShareMembersTab(props: ShareMembersTabProps) {
         />
       </div>
 
-      <div className="px-8 pb-2">
+      <div className="px-6 pb-3">
         <input
           type="text"
           value={props.searchTerm}
           onChange={(event: any) => props.onSearchChange(event.target.value)}
           placeholder="Buscar miembro..."
-          className="w-full px-4 py-2.5 bg-gray-100/50 dark:bg-black/40 border border-gray-200 dark:border-white/10 rounded-xl text-[11px] font-bold text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-700 focus:outline-none focus:border-accent/30 transition-all"
+          className="w-full px-3.5 py-2 bg-gray-100/50 dark:bg-white/[0.04] border border-gray-200/50 dark:border-white/[0.06] rounded-xl text-[12px] font-medium text-gray-950 dark:text-white placeholder-gray-400 dark:placeholder-white/20 focus:outline-none focus:border-accent/30 focus:ring-1 focus:ring-accent/30 transition-all duration-200"
         />
       </div>
 
-      <div className="px-4 py-1 max-h-64 overflow-y-auto custom-scrollbar mb-6">
+      <div className="px-3.5 py-1 max-h-60 overflow-y-auto custom-scrollbar mb-4">
         {props.loading ? <ShareMembersLoading /> : props.filteredMembers.length === 0 ? <ShareMembersEmpty /> : (
           <div className="space-y-1">
             {props.filteredMembers.map(member => (

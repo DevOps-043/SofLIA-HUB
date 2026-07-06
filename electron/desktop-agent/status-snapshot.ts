@@ -1,4 +1,5 @@
 import type { ActionHistoryEntry, AgentStatus, AgentTask, DesktopAgentConfig, DesktopAgentStatus, TaskPlan } from '../desktop-agent-types';
+import type { PlatformCapabilities } from '../platform-capabilities';
 
 type BackendRuntimeStatus = {
   status: string;
@@ -25,6 +26,7 @@ export type DesktopAgentStatusSnapshotContext = {
   currentStep: number;
   currentPlan: TaskPlan | null;
   config: DesktopAgentConfig;
+  platformCapabilities: PlatformCapabilities;
 };
 
 function isActive(status: BackendRuntimeStatus): boolean { return status.status !== 'idle'; }
@@ -93,6 +95,7 @@ export function buildDesktopAgentStatus(context: DesktopAgentStatusSnapshotConte
     plan: context.currentPlan ? { ...context.currentPlan } : null,
     lastAction: backendValue(context.browserStatus, context.windowsUIAStatus, 'lastAction', lastDesktopAction),
     config: context.config,
+    platformCapabilities: context.platformCapabilities,
     activeTasks: activeTasksList,
     totalActiveAgents: activeTasksList.length,
   };

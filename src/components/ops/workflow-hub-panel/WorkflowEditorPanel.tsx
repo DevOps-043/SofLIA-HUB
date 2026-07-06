@@ -6,10 +6,10 @@ import type { WorkflowHubController } from './useWorkflowHubController';
 export function WorkflowEditorPanel({ controller }: { controller: WorkflowHubController }) {
   const { selectedWorkflow, selectedVariant } = controller;
   return (
-    <div className="rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1a1c20]/50 p-5 shadow-sm dark:shadow-lg space-y-4">
+    <div className="rounded-2xl border border-border bg-surface p-5 shadow-sm dark:shadow-none space-y-4">
       <div>
         <p className="text-sm font-bold text-gray-900 dark:text-white">{selectedWorkflow?.name || 'Workflow'}</p>
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-1 text-xs text-secondary">
           {selectedVariant ? `Editando variante: ${selectedVariant.name}` : selectedWorkflow?.description}
         </p>
       </div>

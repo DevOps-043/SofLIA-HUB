@@ -1,9 +1,8 @@
 import type { App } from 'electron';
-import fsSync from 'node:fs';
 
 import { getStartupScriptPathFromConfig } from './paths';
 import type { BackgroundHostConfig, BackgroundHostStatus } from './types';
-import { getLoginItemEnabled, isScheduledTaskInstalled, isSupported } from './windows-installers';
+import { getLoginItemEnabled, isScheduledTaskInstalled, isStartupScriptInstalled, isSupported } from './platform-installers';
 
 export async function buildBackgroundHostStatus(app: App, config: BackgroundHostConfig): Promise<BackgroundHostStatus> {
   const startupScriptPath = getStartupScriptPathFromConfig(config);
@@ -14,7 +13,7 @@ export async function buildBackgroundHostStatus(app: App, config: BackgroundHost
     installMode: config.installMode,
     loginItemEnabled: getLoginItemEnabled(app, config),
     scheduledTaskInstalled: await isScheduledTaskInstalled(config),
-    startupScriptInstalled: Boolean(startupScriptPath && fsSync.existsSync(startupScriptPath)),
+    startupScriptInstalled: await isStartupScriptInstalled(config),
     taskName: config.taskName,
     startupScriptPath,
     executablePath: process.execPath,

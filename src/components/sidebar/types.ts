@@ -2,10 +2,12 @@ import type { MouseEvent } from 'react';
 import type { Conversation } from '../../services/chat-service';
 import type { Folder } from '../../services/folder-service';
 import type { IrisIssue, IrisProject, IrisTeam } from '../../lib/iris-client';
+import type { SofiaOrganization } from '../../lib/sofia-client';
 import type { ThemeMode } from '../../hooks/useTheme';
 
 export interface SidebarProps {
   isOpen: boolean;
+  position?: 'left' | 'right' | 'bottom';
   onToggle: () => void;
   activeView: string;
   conversations: Conversation[];
@@ -14,6 +16,7 @@ export interface SidebarProps {
   onNewChat: () => void;
   onSelectConversation: (id: string) => void;
   onDeleteConversation: (id: string, e: MouseEvent) => void;
+  onTogglePinConversation: (id: string, isPinned: boolean) => void;
   renamingChatId: string | null;
   onSetRenamingChatId: (id: string | null) => void;
   editingChatTitle: string;
@@ -43,7 +46,11 @@ export interface SidebarProps {
   initials: string;
   userEmail: string | undefined;
   avatarUrl: string | undefined;
+  orgName?: string | undefined;
   orgLogoUrl: string | undefined;
+  organizations?: SofiaOrganization[];
+  currentOrgId?: string;
+  onSelectOrganization?: (orgId: string) => void;
   theme: ThemeMode;
   onSetTheme: (t: ThemeMode) => void;
   onOpenSettings: () => void;

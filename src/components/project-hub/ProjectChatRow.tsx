@@ -25,8 +25,8 @@ export function ProjectChatRow(props: ProjectChatRowProps) {
       onClick={() => onOpenChat(chat.id)}
       className="group flex items-center justify-between p-3 hover:bg-primary/5 dark:hover:bg-white/[0.03] rounded-2xl cursor-pointer transition-all border border-transparent hover:border-gray-200 dark:hover:border-white/5"
     >
-      <div className="flex items-center gap-4 flex-1 min-w-0">
-        <div className="w-9 h-9 rounded-full bg-accent/10 flex items-center justify-center text-accent text-[11px] font-black uppercase ring-1 ring-accent/20">
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="w-8 h-8 rounded-full bg-accent/5 flex items-center justify-center text-accent text-[10px] font-semibold uppercase ring-1 ring-accent/10">
           {getInitials(chat.title)}
         </div>
         <div className="flex-1 min-w-0">
@@ -47,19 +47,19 @@ export function ProjectChatRow(props: ProjectChatRowProps) {
             />
           ) : (
             <>
-              <h3 className="text-[14px] font-bold text-primary dark:text-gray-100 truncate">{chat.title}</h3>
+              <h3 className="text-[13px] font-light tracking-wide text-primary dark:text-gray-100 truncate">{chat.title}</h3>
               {chat.is_shared && (
-                <div className={`mt-1 inline-flex rounded-full border px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.18em] ${chat.can_share ? 'border-accent/20 bg-accent/10 text-accent' : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-500 animate-pulse'}`}>
+                <div className={`mt-1 inline-flex rounded-md border px-2 py-0.5 text-[8px] font-semibold uppercase tracking-[0.12em] ${chat.can_share ? 'border-accent/15 bg-accent/5 text-accent' : 'border-emerald-500/15 bg-emerald-500/5 text-emerald-500 animate-pulse'}`}>
                   {chat.can_share ? 'Compartido' : 'Recibido'}
                 </div>
               )}
             </>
           )}
-          <p className="text-[12px] text-gray-400 dark:text-gray-500 truncate mt-0.5 italic">Retomar conversacion...</p>
+          <p className="text-[11.5px] font-light text-secondary/60 dark:text-white/20 truncate mt-0.5">Retomar conversación...</p>
         </div>
       </div>
       <div className="flex items-center gap-6 ml-4 shrink-0">
-        <span className="text-[11px] text-gray-400 dark:text-gray-600 font-bold uppercase tracking-tighter">
+        <span className="text-[10px] text-secondary/50 dark:text-white/20 font-light tracking-wider uppercase">
           {formatDate(chat.updated_at)}
         </span>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">

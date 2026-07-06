@@ -56,6 +56,6 @@ function DecisionButton(props: { label: string; busyLabel: string; actionKey: st
     ? 'border border-red-500/20 bg-red-500/8 hover:bg-red-500/12 text-red-600 dark:text-red-300'
     : props.variant === 'success'
       ? 'border border-emerald-500/20 bg-emerald-500/10 hover:bg-emerald-500/15 text-emerald-600 dark:text-emerald-300'
-      : props.variant === 'soft' ? 'border border-accent/20 bg-accent/10 hover:bg-accent/15 text-accent' : 'bg-accent hover:bg-accent/90 text-white';
+      : props.variant === 'soft' ? 'border border-accent/20 bg-accent/10 hover:bg-accent/15 text-accent' : 'bg-accent hover:brightness-105 text-on-accent';
   return <button type="button" className={`rounded-xl px-4 py-2 text-sm font-semibold transition disabled:opacity-40 ${classes}`} onClick={() => void props.controller.runAction(props.actionKey, props.onClick)} disabled={props.controller.actionKey === props.actionKey}>{props.controller.actionKey === props.actionKey ? props.busyLabel : props.label}</button>;
 }

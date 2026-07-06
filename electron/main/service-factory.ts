@@ -53,6 +53,13 @@ export function createMainServices(modules: any) {
     ownerNumber: '',
     apiKey: '',
   }, waService);
+  const telegramService = new modules.TelegramService();
+  const communicationHubService = new modules.CommunicationHubService({
+    waService,
+    telegramService,
+    remoteNodeService: modules.remoteNodeService,
+  });
+  const sofliaLearningService = new modules.SofliaLearningService();
 
   return {
     waService,
@@ -74,6 +81,8 @@ export function createMainServices(modules: any) {
     meetingPassiveDetectionService,
     workflowHubService,
     dailyBriefingService,
-    telegramService: new modules.TelegramService(),
+    telegramService,
+    communicationHubService,
+    sofliaLearningService,
   };
 }

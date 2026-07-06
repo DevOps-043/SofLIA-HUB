@@ -18,6 +18,7 @@ import { handleConfigureEmail, handleGetEmailConfig, handleSendEmail } from './e
 import { handleUseComputer } from './gui-tool';
 import { handleListScreens, handleTakeScreenshot } from './screenshot-tool';
 import { handleGetSystemInfo, handleKillProcess, handleListProcesses } from './process-system-tools';
+import { handleCreateWordDocument } from './document-tool';
 
 export async function executeToolDirect(
   toolName: string,
@@ -31,6 +32,7 @@ export async function executeToolDirect(
     case 'list_directory': return handleListDirectory(args, onProgress);
     case 'read_file': return handleReadFile(args);
     case 'write_file': return handleWriteFile(args, onProgress);
+    case 'create_word_document': return handleCreateWordDocument(args);
     case 'create_directory': return handleCreateDirectory(args);
     case 'move_item': return handleMoveItem(args, onProgress);
     case 'copy_item': return handleCopyItem(args, onProgress);

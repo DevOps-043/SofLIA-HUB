@@ -4,6 +4,10 @@ export interface MemoryContext {
   semanticRecall: Array<{ text: string; score: number; timestamp: number }>;
   timelineRecall?: Array<{ role: string; content: string; timestamp: number; score: number; reason: string }>;
   facts: Array<{ key: string; value: string; category: string }>;
+  /** Skills aprendidas relevantes (conocimiento que personaliza al agente). */
+  skills?: Array<{ type: string; title: string; content: string }>;
+  /** Procedimientos ejecutables guardados (recetas que el agente puede proponer). */
+  executableSkills?: Array<{ title: string; summary: string }>;
   soul?: string;
   identity?: string;
   memoryCards?: string;

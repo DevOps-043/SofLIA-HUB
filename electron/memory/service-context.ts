@@ -4,16 +4,19 @@ import { app } from 'electron';
 import {
   RECENT_MESSAGES_LIMIT,
   SEMANTIC_TOP_K,
+  SKILLS_IN_CONTEXT,
   SUMMARIES_IN_CONTEXT,
 } from './constants';
 import { buildTimelineRecall } from './timeline-recall';
+import { phoneOwnerKey } from './scope';
+import { parseRecipe } from './skills-executable';
 import type { MemoryContextApi, MemoryServiceConstructor } from './service-types';
 import type { MemoryContext } from './types';
 
 export function attachMemoryContext(Service: MemoryServiceConstructor): void {
   Object.assign(Service.prototype, {
-    async assembleContext(sessionKey: string, phoneNumber: string, currentMessage: string): Promise<MemoryContext> {
-      const context: MemoryContext = { recentMessages: [], rollingSummary: null, semanticRecall: [], timelineRecall: [], facts: [] };
+    async assembleContext(sessionKey: string, phoneNumber: string, currentMessage: string, ownerKey?: string): Promise<MemoryContext> {
+      const context: MemoryContext = { recentMessages: [], rollingSummary: null, semanticRecall: [], timelineRecall: [], facts: [], skills: [] };
       if (!this.db) return context;
 
       const recent = this.getRecentMessages(sessionKey, RECENT_MESSAGES_LIMIT);
@@ -37,6 +40,15 @@ export function attachMemoryContext(Service: MemoryServiceConstructor): void {
         }
       }
       context.facts = this.getFacts(phoneNumber);
+      // Skills aprendidas del owner: si no llega ownerKey (aun sin cablear la
+      // superficie), se deriva del telefono (aislado) para no romper WhatsApp.
+      const resolvedOwnerKey = ownerKey || phoneOwnerKey(phoneNumber);
+      context.skills = this.getRelevantSkills(resolvedOwnerKey, SKILLS_IN_CONTEXT)
+        .map((skill: { type: string; title: string; content: string }) => ({ type: skill.type, title: skill.title, content: skill.content }));
+      // Procedimientos ejecutables: título + resumen legible (nunca el JSON interno).
+      context.executableSkills = this.getExecutableSkills(resolvedOwnerKey)
+        .map((skill: { title: string; content: string }) => ({ title: skill.title, summary: parseRecipe(skill.content)?.summary || '' }))
+        .filter((entry: { title: string; summary: string }) => entry.summary);
       readMarkdownMemory(context);
       return context;
     },

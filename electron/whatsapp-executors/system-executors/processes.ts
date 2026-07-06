@@ -1,6 +1,9 @@
+import { createRequire } from 'node:module';
 import { toolError, toolResponse } from '../types';
 import type { FunctionResponse } from '../types';
-import { execAsync } from './exec';
+
+const requireModule = createRequire(import.meta.url);
+const si = requireModule('systeminformation');
 
 const PROCESS_TOOLS = new Set(['list_processes', 'kill_process']);
 
@@ -11,13 +14,19 @@ export async function executeProcessTool(toolName: string, toolArgs: Record<stri
     try {
       const sortBy = toolArgs.sort_by || 'memory';
       const top = toolArgs.top || 15;
-      const sortCol = sortBy === 'cpu' ? 'CPU' : sortBy === 'name' ? 'ProcessName' : 'WorkingSet64';
-      const { stdout } = await execAsync(
-        `powershell -NoProfile -Command "Get-Process | Sort-Object ${sortCol} -Descending | Select-Object -First ${top} ProcessName, Id, @{N='CPU_s';E={[math]::Round($_.CPU,1)}}, @{N='Mem_MB';E={[math]::Round($_.WorkingSet64/1MB,1)}} | ConvertTo-Json -Compress"`,
-        { timeout: 10000, windowsHide: true },
-      );
-      let processes = JSON.parse(stdout.trim());
-      if (!Array.isArray(processes)) processes = [processes];
+      const data = await si.processes();
+      const sortKey = sortBy === 'cpu' ? 'cpu' : sortBy === 'name' ? 'name' : 'memRss';
+      const processes = data.list
+        .sort((left: any, right: any) => sortBy === 'name'
+          ? String(left.name || '').localeCompare(String(right.name || ''))
+          : Number(right[sortKey] || 0) - Number(left[sortKey] || 0))
+        .slice(0, Math.max(1, Math.min(Number(top) || 15, 50)))
+        .map((processInfo: any) => ({
+          ProcessName: processInfo.name || 'Unknown',
+          Id: processInfo.pid,
+          CPU_s: Number((processInfo.cpu || 0).toFixed(1)),
+          Mem_MB: Number(((processInfo.memRss || 0) / 1024).toFixed(1)),
+        }));
       return toolResponse(toolName, { success: true, processes, count: processes.length });
     } catch (err: any) {
       return toolError(toolName, err.message);
@@ -26,20 +35,23 @@ export async function executeProcessTool(toolName: string, toolArgs: Record<stri
 
   try {
     if (toolArgs.pid) {
-      await execAsync(`powershell -NoProfile -Command "Stop-Process -Id ${toolArgs.pid} -Force"`, { timeout: 10000, windowsHide: true });
-      return toolResponse(toolName, { success: true, message: `Proceso con PID ${toolArgs.pid} cerrado.` });
+      const pid = Number(toolArgs.pid);
+      if (!Number.isFinite(pid) || pid <= 0) return toolResponse(toolName, { success: false, error: 'PID invalido.' });
+      process.kill(pid, 'SIGKILL');
+      return toolResponse(toolName, { success: true, message: `Proceso con PID ${pid} cerrado.` });
     }
 
     if (!toolArgs.name) return toolResponse(toolName, { success: false, error: 'Debes especificar pid o name.' });
-    const procName = toolArgs.name.replace(/\.exe$/i, '');
-    const { stdout } = await execAsync(
-      `powershell -NoProfile -Command "(Get-Process -Name '${procName}' -ErrorAction SilentlyContinue).Count"`,
-      { timeout: 10000, windowsHide: true },
-    );
-    const count = parseInt(stdout.trim()) || 0;
-    if (count === 0) return toolResponse(toolName, { success: false, error: `No se encontro ningun proceso con nombre "${procName}".` });
-    await execAsync(`powershell -NoProfile -Command "Stop-Process -Name '${procName}' -Force"`, { timeout: 10000, windowsHide: true });
-    return toolResponse(toolName, { success: true, message: `${count} instancia(s) de "${procName}" cerrada(s).` });
+    const procName = String(toolArgs.name).replace(/\.exe$/i, '').trim().toLowerCase();
+    if (!procName || /[\r\n\u0000-\u001f]/.test(procName)) {
+      return toolResponse(toolName, { success: false, error: 'Nombre de proceso invalido.' });
+    }
+    const data = await si.processes();
+    const matches = data.list.filter((processInfo: any) =>
+      String(processInfo.name || '').replace(/\.exe$/i, '').toLowerCase() === procName);
+    if (matches.length === 0) return toolResponse(toolName, { success: false, error: `No se encontro ningun proceso con nombre "${procName}".` });
+    for (const match of matches) process.kill(Number(match.pid), 'SIGKILL');
+    return toolResponse(toolName, { success: true, message: `${matches.length} instancia(s) de "${procName}" cerrada(s).` });
   } catch (err: any) {
     return toolError(toolName, err.message);
   }

@@ -26,6 +26,7 @@ export function createOrFocusMainWindow(input: {
     minHeight: 500,
     icon: input.iconPath,
     show: input.showWindow,
+    title: ' ',
     webPreferences: {
       preload: input.preloadPath,
       sandbox: true,

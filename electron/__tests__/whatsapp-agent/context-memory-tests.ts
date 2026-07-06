@@ -10,7 +10,8 @@ export function registerContextMemoryTests(ctx: WhatsAppAgentTestContext): void 
       const agent = new (ctx.getWhatsAppAgent())(waService, 'test-key', memory, ctx.createMockKnowledgeService());
       ctx.mockTextResponse('Respuesta');
       await agent.handleMessage('123@s.whatsapp.net', '5215500000000', 'test');
-      expect(memory.assembleContext).toHaveBeenCalledWith('5215500000000', '5215500000000', 'test');
+      // El 4º arg es el ownerKey unificado; sin sesión ligada cae al scope por teléfono.
+      expect(memory.assembleContext).toHaveBeenCalledWith('5215500000000', '5215500000000', 'test', 'phone:5215500000000');
     });
   });
 

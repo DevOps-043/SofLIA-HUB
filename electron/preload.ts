@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import { exposeCalendarApi } from './preload/calendar-api';
 import { exposeComputerApis } from './preload/computer-apis';
 import {
+  exposeCommunicationHubApi,
   exposeMonitoringApi,
   exposeWhatsAppApi,
 } from './preload/communication-apis';
@@ -27,6 +28,7 @@ exposeCoreApis(contextBridge, ipcRenderer, safeIpc, runtimeConfig);
 exposeComputerApis(contextBridge, safeIpc);
 exposeRemoteApis(contextBridge, safeIpc);
 exposeWorkflowApis(contextBridge, safeIpc);
+exposeCommunicationHubApi(contextBridge, safeIpc);
 exposeWhatsAppApi(contextBridge, safeIpc);
 exposeMonitoringApi(contextBridge, safeIpc);
 exposeCalendarApi(contextBridge, safeIpc);

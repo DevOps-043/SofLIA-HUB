@@ -1,4 +1,5 @@
 import { sofiaAuth, type SofiaContext } from '../../services/sofia-auth';
+import { savePreferredOrgId } from '../../services/sofia-auth/org-preference';
 
 type SofiaSelectionDeps = {
   setSofiaContext: (updater: (prev: SofiaContext | null) => SofiaContext | null) => void;
@@ -10,6 +11,7 @@ export function useSofiaSelection({ setSofiaContext, sofiaContext }: SofiaSelect
     const organization = sofiaContext?.organizations.find((org) => org.id === orgId);
     if (!organization) return;
     sofiaAuth.setCurrentOrganization(organization);
+    savePreferredOrgId(sofiaContext?.user?.id, organization.id);
     setSofiaContext((prev) => prev ? {
       ...prev,
       currentOrganization: organization,

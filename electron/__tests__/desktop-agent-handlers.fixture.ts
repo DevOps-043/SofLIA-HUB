@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 import { DEFAULT_CONFIG } from '../desktop-agent-types';
+import type { DesktopTaskOutcome } from '../desktop-agent/task-outcome';
 
 export const expectedDesktopAgentChannels = [
   'desktop-agent:execute-task',
@@ -29,6 +30,13 @@ export const expectedDesktopAgentChannels = [
 export function createMockDesktopAgentService() {
   return {
     executeTask: vi.fn(async () => 'Task completed'),
+    executeTaskDetailed: vi.fn(async (): Promise<DesktopTaskOutcome> => ({
+      taskId: 'agent-test',
+      estado: 'completada',
+      mensaje: 'Task completed',
+      pasosEjecutados: 1,
+      duracionMs: 10,
+    })),
     executeParallelTasks: vi.fn(async () => []),
     getActiveTasks: vi.fn(() => []),
     abort: vi.fn(),

@@ -39,27 +39,38 @@ export async function takeDesktopAgentScreenshot(params: {
 
 export async function takeMarkedDesktopAgentScreenshot(params: {
   config: DesktopAgentConfig;
-  takeScreenshotRaw: () => Promise<string>;
-  getUIElements: () => Promise<UIElement[]>;
+  takeScreenshotRawDetailed: () => Promise<CompositeScreenshot>;
+  getUIElements: (captura: CompositeScreenshot) => Promise<UIElement[]>;
   applySoMOverlay: (base64: string, width: number, height: number, elements: UIElement[]) => Promise<string>;
   applyGridOverlay: (base64: string, width: number, height: number) => Promise<string>;
   setCaptureState: (elements: UIElement[], mode: 'som' | 'grid') => void;
-}): Promise<{ screenshot: string; elements: UIElement[]; mode: 'som' | 'grid' }> {
-  const rawScreenshot = await params.takeScreenshotRaw();
-  const width = params.config.screenshotWidth;
-  const height = params.config.screenshotHeight;
+}): Promise<{ screenshot: string; elements: UIElement[]; mode: 'som' | 'grid'; layout: ScreenshotLayout | null }> {
+  const captured = await params.takeScreenshotRawDetailed();
+  const rawScreenshot = captured.base64;
+  // Usar el tamano real de la captura (puede ser adaptativo), no el de config.
+  const width = captured.actualWidth || params.config.screenshotWidth;
+  const height = captured.actualHeight || params.config.screenshotHeight;
 
   if (params.config.somEnabled) {
     try {
-      const elements = await params.getUIElements();
+      // Se reutiliza la captura de decision para el OCR/vision: cero capturas
+      // extra y el OCR lee exactamente la imagen que vera el modelo.
+      const elements = await params.getUIElements(captured);
       if (elements.length >= 3) {
         const marked = await params.applySoMOverlay(rawScreenshot, width, height, elements);
         params.setCaptureState(elements, 'som');
-        return { screenshot: marked, elements, mode: 'som' };
+        return { screenshot: marked, elements, mode: 'som', layout: captured.layout };
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       console.warn('[DesktopAgent] SoM overlay fallo, fallback a grid:', message);
+    }
+    // SoM activo pero sin marcas suficientes: el flag decide si degradar a grid
+    // o entregar la imagen limpia (para que el modelo no se guie por una malla
+    // que no coincide con controles reales).
+    if (!params.config.somFallbackToGrid) {
+      params.setCaptureState([], 'grid');
+      return { screenshot: rawScreenshot, elements: [], mode: 'grid', layout: captured.layout };
     }
   }
 
@@ -71,5 +82,5 @@ export async function takeMarkedDesktopAgentScreenshot(params: {
       return rawScreenshot;
     })
     : rawScreenshot;
-  return { screenshot, elements: [], mode: 'grid' };
+  return { screenshot, elements: [], mode: 'grid', layout: captured.layout };
 }

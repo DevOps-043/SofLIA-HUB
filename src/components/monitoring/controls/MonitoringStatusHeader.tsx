@@ -6,16 +6,16 @@ export function MonitoringStatusHeader({ isRunning }: MonitoringStatusHeaderProp
   return (
     <div className="flex items-center justify-between mb-6">
       <div>
-        <h3 className="text-sm font-bold text-white tracking-tight">Estado de Monitoreo</h3>
-        <p className="text-[10px] text-gray-500 uppercase tracking-widest mt-0.5">Control en tiempo real</p>
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Estado de Monitoreo</h3>
+        <p className="text-xs text-secondary mt-0.5">Control en tiempo real</p>
       </div>
-      <div className={`flex items-center gap-2 px-3 py-1 rounded-full border transition-all duration-500 ${
+      <div className={`flex items-center gap-2 px-3 py-1 rounded-full border transition-colors ${
         isRunning
-          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]'
-          : 'bg-white/5 border-white/10 text-gray-500'
+          ? 'bg-success/10 border-success/20 text-success'
+          : 'bg-surface-2 border-border text-secondary'
       }`}>
-        <span className={`w-1.5 h-1.5 rounded-full ${isRunning ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'bg-gray-600'}`} />
-        <span className="text-[10px] font-bold uppercase tracking-wider">{isRunning ? 'En Vivo' : 'Pausado'}</span>
+        <span className={`w-1.5 h-1.5 rounded-full ${isRunning ? 'bg-success animate-pulse' : 'bg-secondary/50'}`} />
+        <span className="text-xs font-medium">{isRunning ? 'En Vivo' : 'Pausado'}</span>
       </div>
     </div>
   );

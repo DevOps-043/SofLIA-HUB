@@ -82,6 +82,13 @@ export function dedupeConversations(conversations: Conversation[]): Conversation
   }
 
   return Array.from(byId.values())
-    .sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime())
+    .sort((a, b) => {
+      const aPinned = a.is_pinned ? 1 : 0;
+      const bPinned = b.is_pinned ? 1 : 0;
+      if (aPinned !== bPinned) {
+        return bPinned - aPinned;
+      }
+      return new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime();
+    })
     .slice(0, MAX_CONVERSATIONS);
 }
