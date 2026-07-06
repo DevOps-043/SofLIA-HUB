@@ -65,7 +65,10 @@
         arch: ["x64"],
       },
     ],
-    artifactName: "SofLIA-Hub-Linux-${version}-${arch}.${ext}",
+    // ${arch} se renderiza como "x86_64" para AppImage x64, pero el workflow y
+    // el smoke test esperan el sufijo literal "x64" (igual que Windows/Mac fijan
+    // Setup/Installer). Fijarlo evita el desajuste de nombre en release.yml.
+    artifactName: "SofLIA-Hub-Linux-${version}-x64.${ext}",
     desktop: {
       entry: {
         Name: "SofLIA Hub",

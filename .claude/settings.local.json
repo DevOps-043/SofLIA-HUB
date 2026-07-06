@@ -147,7 +147,8 @@
       "Bash(grep -nA18 \"interface FunctionResponse \" node_modules/@google/genai/dist/genai.d.ts)",
       "Bash(ELECTRON_RUN_AS_NODE=1 ./node_modules/electron/dist/electron.exe _f.cjs)",
       "Bash(npm audit *)",
-      "Bash(timeout 60 npx eslint electron/memory src/services/memory-bridge.ts --max-warnings 9999)"
+      "Bash(timeout 60 npx eslint electron/memory src/services/memory-bridge.ts --max-warnings 9999)",
+      "Bash(node -e \"const fs=require\\('fs'\\);const s=fs.readFileSync\\('electron-builder.json5','utf8'\\);const JSON5=require\\('json5'\\);const c=JSON5.parse\\(s\\);console.log\\('OK json5 válido. linux.artifactName =', c.linux.artifactName\\);console.log\\('linux.target =', JSON.stringify\\(c.linux.target\\)\\);console.log\\('directories.output =', c.directories.output\\);\")"
     ]
   }
 }
