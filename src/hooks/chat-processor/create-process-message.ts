@@ -26,5 +26,7 @@ export function createProcessMessage(input: CreateProcessMessageInput) {
     images: string[],
     currentHistory: ChatMessage[],
     isRegeneration = false,
-  ) => processChatMessage({ ...input, text, images, currentHistory, isRegeneration });
+    signal?: AbortSignal,
+    isCurrent?: () => boolean,
+  ) => processChatMessage({ ...input, text, images, currentHistory, isRegeneration, signal, isCurrent });
 }

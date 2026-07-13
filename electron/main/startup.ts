@@ -31,6 +31,17 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
   modules.registerWorkflowHubHandlers(services.workflowHubService);
   modules.registerTelegramHandlers(services.telegramService);
   modules.registerCommunicationHubHandlers(services.communicationHubService);
+  modules.registerVoicePassiveHandlers(modules.pythonRuntimeService);
+  modules.registerPythonToolsHandlers(modules.pythonToolsService);
+  modules.registerOrbIpcHandlers({
+    pythonRuntimeService: modules.pythonRuntimeService,
+    getOrbWindow: () => state.orbWin,
+    consumePendingWake: () => {
+      const pending = state.pendingOrbWake === true;
+      state.pendingOrbWake = false;
+      return pending;
+    },
+  });
 }
 
 export async function initializeMainServices(input: {
@@ -67,6 +78,12 @@ export async function initializeMainServices(input: {
   }));
   await runOptionalStep('sofliaLearningService.init', () => Promise.resolve(services.sofliaLearningService.init()));
   await runOptionalStep('dynamicToolService.init', () => modules.dynamicToolService.initialize());
+  // Voz pasiva local (Vosk): al detectar la wake word se abre la orbe con
+  // escucha automatica (pendingWake consumido por el renderer, sin race).
+  modules.pythonRuntimeService.on('wake-word', () => {
+    void runOptionalStep('orbWindow.wakeWord', () => controls.createOrbWindow(true));
+  });
+  await runOptionalStep('pythonRuntimeService.init', () => modules.pythonRuntimeService.init());
   await runOptionalStep('createWindow', () => controls.createWindow(state.shouldShowInitialWindow));
   await runOptionalStep('createTray', () => controls.createTray());
   if (state.currentGeminiApiKey) await runOptionalStep('initWhatsAppAgent(.env)', () => initWhatsAppAgent(state.currentGeminiApiKey));

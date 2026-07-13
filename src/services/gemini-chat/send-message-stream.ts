@@ -6,8 +6,8 @@ import { getGenAI } from './client';
 import { buildGeminiHistory } from './history';
 import { buildMessageContent } from './message-content';
 import { buildGenerationConfig, buildModelTools, resolveModelId } from './model-config';
-import { withGeminiTimeout } from './resilience';
-import { completedStreamResult } from './streams';
+import { withGeminiModelCall } from './resilience';
+import { completedStreamResult, isAbortError, stoppedStreamResult } from './streams';
 import { buildSystemInstruction } from './system-instruction';
 import type { ConversationMessage, SendMessageStreamOptions, StreamResult, ToolCallInfo } from './types';
 import { sendGroundedMessage, shouldUseWebGrounding } from './web-grounding';
@@ -43,14 +43,18 @@ export async function sendMessageStream(
       generationConfig,
       allToolCalls: [],
       allGeneratedImages: [],
+      signal: options?.signal,
     });
   }
 
   const ai = await getGenAI();
+  const signal = options?.signal;
+  const requestOptions = signal ? { signal } : undefined;
 
   for (const modelId of candidateModelIds) {
     const allToolCalls: ToolCallInfo[] = [];
     const allGeneratedImages: string[] = [];
+    if (signal?.aborted) return stoppedStreamResult(allToolCalls, allGeneratedImages);
     try {
       const modelParams: { model: string; systemInstruction: string; tools?: any[] } = { model: modelId, systemInstruction };
       if (useToolLoop) modelParams.tools = buildModelTools(computerUseEnabled);
@@ -68,9 +72,10 @@ export async function sendMessageStream(
         });
       }
 
-      const result = await withGeminiTimeout(
+      const result = await withGeminiModelCall(
         'Gemini direct message',
-        () => chatSession.sendMessage(messageContent),
+        () => chatSession.sendMessage(messageContent, requestOptions),
+        { signal },
       );
       return completedStreamResult(
         extractResponseText(result.response),
@@ -79,6 +84,8 @@ export async function sendMessageStream(
         allGeneratedImages,
       );
     } catch (error) {
+      // Cancelación del usuario: no reintentar con otros modelos, detener limpio.
+      if (isAbortError(error, signal)) return stoppedStreamResult(allToolCalls, allGeneratedImages);
       lastError = error;
       console.warn('[GeminiChat] model attempt failed:', { modelId, error });
     }

@@ -6,7 +6,7 @@ export function createMainTray(input: {
   setTray: (tray: Tray | null) => void;
   getWindow: () => BrowserWindow | null;
   createWindow: (showWindow?: boolean) => void;
-  createFlowWindow: () => void;
+  createOrbWindow: () => void;
   setQuitting: (value: boolean) => void;
 }): void {
   if (input.currentTray()) return;
@@ -34,7 +34,7 @@ export function createMainTray(input: {
         }
       },
     },
-    { label: 'Modo voz', click: () => input.createFlowWindow() },
+    { label: 'Modo voz', click: () => input.createOrbWindow() },
     { type: 'separator' },
     {
       label: 'Salir',

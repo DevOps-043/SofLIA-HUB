@@ -20,16 +20,48 @@ export const MAX_HISTORY_ITEMS = 8;
 /** Pausa fija después de cada acción para permitir que la UI se asiente. */
 export const WAIT_AFTER_ACTION_MS = 450;
 
-/**
- * Browsers soportados en Windows, en orden de preferencia. Se intenta cada
- * candidato hasta encontrar uno disponible. `channel` usa el browser
- * registrado por Playwright; `executablePath` apunta a binarios conocidos.
- */
-export const WINDOWS_BROWSER_CANDIDATES = [
-  { channel: 'msedge' as const },
-  { channel: 'chrome' as const },
-  { executablePath: 'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe' },
-  { executablePath: 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe' },
+export type WindowsBrowserCandidate =
+  | { channel: 'msedge' | 'chrome' }
+  | { executablePath: string };
+
+const CHROME_CANDIDATES: WindowsBrowserCandidate[] = [
+  { channel: 'chrome' },
   { executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' },
   { executablePath: 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe' },
 ];
+
+const EDGE_CANDIDATES: WindowsBrowserCandidate[] = [
+  { channel: 'msedge' },
+  { executablePath: 'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe' },
+  { executablePath: 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe' },
+];
+
+let cachedCandidates: WindowsBrowserCandidate[] | null = null;
+
+/**
+ * Browsers soportados en Windows, ordenados segun el navegador PREDETERMINADO
+ * del usuario (leido del registro: ProgId de la asociacion http). Antes Edge
+ * iba fijo primero y el agente web siempre abria Edge aunque el usuario usara
+ * Chrome. Se intenta cada candidato hasta encontrar uno disponible.
+ */
+export function getWindowsBrowserCandidates(): WindowsBrowserCandidate[] {
+  if (cachedCandidates) return cachedCandidates;
+  let progId = '';
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { execSync } = require('node:child_process') as typeof import('node:child_process');
+    const out = execSync(
+      'reg query "HKCU\\Software\\Microsoft\\Windows\\Shell\\Associations\\UrlAssociations\\http\\UserChoice" /v ProgId',
+      { encoding: 'utf8', windowsHide: true, timeout: 3000 },
+    );
+    progId = /ProgId\s+REG_SZ\s+(\S+)/.exec(out)?.[1] ?? '';
+  } catch {
+    // Sin lectura del registro se usa el orden por defecto (Chrome primero).
+  }
+  const prefersEdge = /edge/i.test(progId);
+  cachedCandidates = prefersEdge
+    ? [...EDGE_CANDIDATES, ...CHROME_CANDIDATES]
+    : [...CHROME_CANDIDATES, ...EDGE_CANDIDATES];
+  console.log(`[BrowserWeb] Navegador predeterminado detectado: ${progId || 'desconocido'} → orden ${prefersEdge ? 'Edge' : 'Chrome'} primero`);
+  return cachedCandidates;
+}

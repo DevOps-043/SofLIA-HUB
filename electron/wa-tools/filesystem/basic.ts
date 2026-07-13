@@ -13,7 +13,7 @@ export const BASIC_FILE_TOOLS = [
   },
   {
     name: 'read_file',
-    description: 'Lee y devuelve el contenido de un archivo de texto. Maximo 1MB.',
+    description: 'Lee el contenido de un archivo. Ademas de texto plano, lee PDF, Excel (.xlsx), PowerPoint (.pptx) y Word (.docx): los convierte a Markdown e incluye las TABLAS estructuradas. No hace falta subir el archivo a la nube.',
     parameters: {
       type: 'OBJECT' as const,
       properties: { path: { type: 'STRING' as const, description: 'Ruta completa del archivo.' } },

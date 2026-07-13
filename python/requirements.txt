@@ -1,0 +1,7 @@
+# Dependencias del sidecar Python de SofLIA (versiones fijadas).
+# Instaladas dentro del runtime embebido por scripts/setup-python-runtime.js.
+# Licencias: vosk (Apache-2.0), sounddevice (MIT) — aptas para redistribucion.
+# NOTA: el TTS (Piper) NO va por pip: piper-phonemize no tiene wheels cp312.
+# Se usa el binario standalone piper.exe (scripts/install-piper-voice.js).
+vosk==0.3.45
+sounddevice==0.5.1

@@ -22,6 +22,11 @@ export default defineConfig(({ mode }) => {
   const mainProcessEnvDefines = createMainProcessEnvDefines(env);
 
   return {
+    // Un unico prefijo: VITE_. Es el que loadEnv (arriba) carga y el que se
+    // incrusta en el proceso main via `define`, asi que una variable con este
+    // prefijo funciona igual en renderer y en main, tambien en la app instalada
+    // (no se empaqueta ningun .env). Sin VITE_, la variable no llega al build.
+    envPrefix: "VITE_",
     server: {
       warmup: {
         clientFiles: ["./src/main.tsx", "./src/index.css"],

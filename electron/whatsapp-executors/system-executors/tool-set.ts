@@ -7,6 +7,7 @@ export const SYSTEM_TOOLS = new Set([
   'sleep_computer',
   'cancel_shutdown',
   'set_volume',
+  'contextual_control',
   'toggle_wifi',
   'run_in_terminal',
   'run_claude_code',

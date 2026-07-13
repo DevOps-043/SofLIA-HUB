@@ -26,11 +26,13 @@ export const EXCLUDED_DIRS = new Set([
 
 export const EXCLUDED_PREFIXES = ['.', '$'];
 
+// Respaldo cuando el SO no declara la ruta: nombres de carpeta habituales en
+// Windows, macOS y Linux (incluye acentos, que Linux localizado si usa).
 export const KEY_FOLDER_VARIANTS: Record<string, string[]> = {
   Escritorio: ['Desktop', 'Escritorio'],
   Documentos: ['Documents', 'Documentos'],
   Descargas: ['Downloads', 'Descargas'],
-  Imagenes: ['Pictures', 'Imagenes'],
-  Musica: ['Music', 'Musica'],
-  Videos: ['Videos'],
+  Imagenes: ['Pictures', 'Imagenes', 'Imágenes'],
+  Musica: ['Music', 'Musica', 'Música'],
+  Videos: ['Videos', 'Vídeos', 'Movies'],
 };

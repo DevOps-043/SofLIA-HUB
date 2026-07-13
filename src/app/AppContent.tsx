@@ -4,7 +4,7 @@ import { AppLoadingScreen, type StartupLogoExitTarget } from './AppLoadingScreen
 import { AppModals } from './AppModals';
 import { AppSidebar } from './AppSidebar';
 import { AppWorkspace } from './AppWorkspace';
-import { FlowWindowRoot } from './FlowWindowRoot';
+import { OrbWindowRoot } from './OrbWindowRoot';
 import type { ActiveView, ShareLinkNotice, ShareTarget } from './app-types';
 import type { SettingsTab } from '../components/UnifiedSettingsModal';
 import type { UserAISettings } from '../services/settings-service';
@@ -66,12 +66,12 @@ export function AppContent() {
   const folder = useFolderManager({ userId, orgId, accessUserIds, conversations: chat.conversations, setConversations: chat.setConversations });
   const iris = useIrisData(orgTeamIds);
   const { theme, setTheme } = useTheme();
-  const isFlowWindow = window.location.href.includes('view=flow') || getWindowArgv().includes('--view-mode=flow');
-  const [showStartupIntro, setShowStartupIntro] = useState(() => !isFlowWindow);
-  const [startupAuthGraceElapsed, setStartupAuthGraceElapsed] = useState(() => isFlowWindow);
-  const [renderStartupOverlay, setRenderStartupOverlay] = useState(() => !isFlowWindow);
+  const isOrbWindow = window.location.href.includes('view=orb') || getWindowArgv().includes('--view-mode=orb');
+  const [showStartupIntro, setShowStartupIntro] = useState(() => !isOrbWindow);
+  const [startupAuthGraceElapsed, setStartupAuthGraceElapsed] = useState(() => isOrbWindow);
+  const [renderStartupOverlay, setRenderStartupOverlay] = useState(() => !isOrbWindow);
   const [isStartupOverlayExiting, setIsStartupOverlayExiting] = useState(false);
-  const ipc = useAppIpcTriggers({ isFlowWindow, onExternalPrompt: setExternalPrompt });
+  const ipc = useAppIpcTriggers({ isOrbWindow });
   const { getScopedMessagesHandler } = chat;
   const scopedMessagesHandler = useMemo(() => getScopedMessagesHandler(folder.currentFolderId), [folder.currentFolderId, getScopedMessagesHandler]);
   const handlers = useAppViewHandlers({ activeView, chat, folder, setActiveView, setExternalPrompt });
@@ -85,7 +85,7 @@ export function AppContent() {
   useAutoDismissNotice(shareLinkNotice, dismissShareLinkNotice);
 
   useEffect(() => {
-    if (isFlowWindow) {
+    if (isOrbWindow) {
       setShowStartupIntro(false);
       setStartupAuthGraceElapsed(true);
       return undefined;
@@ -102,7 +102,7 @@ export function AppContent() {
       window.clearTimeout(introTimer);
       window.clearTimeout(authGraceTimer);
     };
-  }, [isFlowWindow]);
+  }, [isOrbWindow]);
 
   useEffect(() => {
     const loadSidebarPosition = async () => {
@@ -128,7 +128,7 @@ export function AppContent() {
   }, []);
 
   const shouldWaitForAuthDuringIntro = loading && !startupAuthGraceElapsed && !user;
-  const shouldShowStartupIntro = !isFlowWindow && (showStartupIntro || shouldWaitForAuthDuringIntro);
+  const shouldShowStartupIntro = !isOrbWindow && (showStartupIntro || shouldWaitForAuthDuringIntro);
   const startupLogoExitTarget: StartupLogoExitTarget = user
     ? sidebarPosition === 'right'
       ? 'workspace-right'
@@ -155,10 +155,10 @@ export function AppContent() {
     return () => window.clearTimeout(overlayTimer);
   }, [renderStartupOverlay, shouldShowStartupIntro]);
 
-  const appShell = !user && !isFlowWindow ? (
+  const appShell = !user && !isOrbWindow ? (
     <Auth key="auth" />
-  ) : isFlowWindow ? (
-    <FlowWindowRoot key="flow-window" flowKey={ipc.flowKey} />
+  ) : isOrbWindow ? (
+    <OrbWindowRoot key="orb-window" />
   ) : (
     <div key="app-workspace" className={`flex h-screen w-screen overflow-hidden bg-background dark:bg-background-dark ${
       sidebarPosition === 'bottom' ? 'flex-col-reverse' : sidebarPosition === 'right' ? 'flex-row-reverse' : 'flex-row'
@@ -193,14 +193,14 @@ export function AppContent() {
   );
 
   return (
-    <div className={`h-screen w-screen overflow-hidden ${isFlowWindow ? 'bg-transparent' : 'bg-[#f4faf9] dark:bg-[#080b11]'}`}>
+    <div className={`h-screen w-screen overflow-hidden ${isOrbWindow ? 'bg-transparent' : 'bg-[#f4faf9] dark:bg-[#080b11]'}`}>
       <div className="h-full w-full" aria-hidden={shouldShowStartupIntro}>
         {appShell}
       </div>
       {renderStartupOverlay && (
         <AppLoadingScreen
           isExiting={isStartupOverlayExiting}
-          isFlowWindow={isFlowWindow}
+          isOrbWindow={isOrbWindow}
           logoExitTarget={startupLogoExitTarget}
           playIntroSound={!isStartupOverlayExiting}
           themeMode={theme}

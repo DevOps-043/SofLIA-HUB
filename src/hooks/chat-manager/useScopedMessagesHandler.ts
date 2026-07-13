@@ -9,7 +9,7 @@ import {
   type ChatMessage,
   type Conversation,
 } from '../../services/chat-service';
-import { hasActivePlaceholder } from './helpers';
+import { hasActivePlaceholder, withoutActivePlaceholders } from './helpers';
 import type { ChatManagerState, ChatStorageKeyResolver, UseChatManagerOptions } from './types';
 
 type ScopedMessagesDeps = UseChatManagerOptions & {
@@ -89,10 +89,18 @@ export function useScopedMessagesHandler({ getCurrentChatStorageKey, orgId, stat
 
     return (messages: ChatMessage[]) => {
       latestMessages = messages;
-      const isActive = (state.scopeVersionRef.current === capturedScopeVersion && state.currentConvIdRef.current === resolvedConvId) ||
-        (!resolvedConvId && !state.currentConvIdRef.current);
+      // Para una conversación YA guardada basta con que sea la que se está viendo
+      // (mismo id): así un turno que terminó mientras el usuario navegaba a otra
+      // conversación y volvió, SÍ se pinta al regresar (no lo invalida el
+      // scopeVersion). El scopeVersion se mantiene solo para chats nuevos aún sin
+      // id, para no filtrar una respuesta tardía a otro chat nuevo distinto.
+      const isActive = resolvedConvId
+        ? state.currentConvIdRef.current === resolvedConvId
+        : (state.scopeVersionRef.current === capturedScopeVersion && !state.currentConvIdRef.current);
       if (isActive) state.setCurrentMessages(messages);
-      if (resolvedConvId) saveMessagesToCache(resolvedConvId, getPersistableMessages(messages));
+      // Nunca cachear el placeholder "..." de un turno en curso (evita que un
+      // turno interrumpido deje el chat bloqueado al recargar).
+      if (resolvedConvId) saveMessagesToCache(resolvedConvId, getPersistableMessages(withoutActivePlaceholders(messages)));
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => executeSave(), 1000);
       state.saveTimerRef.current = timer;

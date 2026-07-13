@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { formatBytes, getFileExtension, normalizePath } from '../../utils/file-utils';
+import { isSidecarDocument, pythonToolsService } from '../../python-tools-service';
 import { MAX_FILE_READ_SIZE } from './constants';
 import type { ProgressCallback } from './types';
 
@@ -17,6 +18,17 @@ export async function handleReadFile(args: Record<string, any>): Promise<any> {
     }
 
     const ext = getFileExtension(resolved);
+
+    // Documentos (PDF, Excel, PowerPoint, Word): los lee el sidecar Python y
+    // devuelve Markdown + tablas estructuradas. Antes un PDF se leia como
+    // utf-8 (binario ilegible) y el unico camino era subirlo entero a Gemini.
+    if (isSidecarDocument(resolved)) {
+      const parsed = await readDocumentWithSidecar(resolved, ext, stat.size);
+      // El .docx tiene respaldo en TypeScript (mammoth): si el sidecar no esta
+      // disponible se conserva el comportamiento anterior en vez de fallar.
+      if (parsed || ext !== 'docx') return parsed ?? sidecarUnavailableError(ext);
+    }
+
     if (ext === 'docx') {
       try {
         const mammoth = await import('mammoth');
@@ -33,6 +45,36 @@ export async function handleReadFile(args: Record<string, any>): Promise<any> {
   } catch (err: any) {
     return { success: false, error: err.message };
   }
+}
+
+/** Devuelve el documento como Markdown, o null si el sidecar no esta disponible. */
+async function readDocumentWithSidecar(resolved: string, ext: string, size: number): Promise<any | null> {
+  if (!pythonToolsService.isAvailable()) return null;
+
+  const result = await pythonToolsService.parseDocument(resolved);
+  if (result.success) {
+    return {
+      success: true,
+      path: resolved,
+      content: result.data.markdown,
+      tables: result.data.tables,
+      size: formatBytes(size),
+      extension: ext,
+      format: `${ext} (convertido a Markdown, ${result.data.tables.length} tabla(s))`,
+    };
+  }
+  // El sidecar existe pero no pudo leerlo (cifrado, escaneado, corrupto): se
+  // devuelve el motivo real, que es accionable para el usuario y el agente.
+  if (result.error.code === 'SIDECAR_UNAVAILABLE') return null;
+  return { success: false, error: result.error.message, code: result.error.code };
+}
+
+function sidecarUnavailableError(ext: string): any {
+  return {
+    success: false,
+    error: `Para leer archivos .${ext} hace falta el runtime Python de SofLIA. Ejecuta "npm run python:setup" (desarrollo) o reinstala la app.`,
+    code: 'SIDECAR_UNAVAILABLE',
+  };
 }
 
 export async function handleWriteFile(

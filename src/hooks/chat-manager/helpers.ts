@@ -1,12 +1,23 @@
 import type { ChatMessage, Conversation } from '../../services/chat-service';
 
 export function hasActivePlaceholder(messages: ChatMessage[]): boolean {
-  return messages.some((message) => {
-    if (message.role !== 'model') return false;
-    const text = message.text?.trim() || '';
-    const hasImages = Boolean(message.images && message.images.length > 0);
-    return !hasImages && (!text || text === '...');
-  });
+  return messages.some((message) => isActivePlaceholder(message));
+}
+
+function isActivePlaceholder(message: ChatMessage): boolean {
+  if (message.role !== 'model') return false;
+  const text = message.text?.trim() || '';
+  const hasImages = Boolean(message.images && message.images.length > 0);
+  return !hasImages && (!text || text === '...');
+}
+
+/**
+ * Devuelve los mensajes sin placeholders "..." de un turno en curso. Se usa al
+ * cachear y al cargar una conversación para que un turno interrumpido nunca
+ * deje un "..." pegado que bloquee el input de forma permanente.
+ */
+export function withoutActivePlaceholders(messages: ChatMessage[]): ChatMessage[] {
+  return messages.filter((message) => !isActivePlaceholder(message));
 }
 
 export function areConversationListsEqual(left: Conversation[], right: Conversation[]): boolean {

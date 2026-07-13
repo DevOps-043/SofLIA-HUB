@@ -1,6 +1,6 @@
-import { completedStreamResult, singleChunkStream } from './streams';
+import { completedStreamResult, isAbortError, singleChunkStream, stoppedStreamResult } from './streams';
 import { getPublicAiErrorMessage } from './public-error';
-import { withGeminiTimeout, withToolTimeout } from './resilience';
+import { withGeminiModelCall, withToolTimeout } from './resilience';
 import { executeGeminiToolCall, isKnownGeminiTool } from './tool-dispatch';
 import type { SendMessageStreamOptions, StreamResult, ToolCallInfo } from './types';
 
@@ -12,13 +12,21 @@ export async function runAgenticLoop(params: {
   allGeneratedImages: string[];
   failFastOnModelError?: boolean;
 }): Promise<StreamResult> {
+  const signal = params.options?.signal;
+  // El envío al SDK acepta { signal } para cancelar la petición HTTP en curso.
+  const requestOptions = signal ? { signal } : undefined;
+
+  if (signal?.aborted) return stoppedStreamResult(params.allToolCalls, params.allGeneratedImages);
+
   let response: any;
   try {
-    response = await withGeminiTimeout(
+    response = await withGeminiModelCall(
       'Gemini initial agentic message',
-      () => params.chatSession.sendMessage(params.messageContent),
+      () => params.chatSession.sendMessage(params.messageContent, requestOptions),
+      { signal },
     );
   } catch (error: any) {
+    if (isAbortError(error, signal)) return stoppedStreamResult(params.allToolCalls, params.allGeneratedImages);
     if (params.failFastOnModelError) throw error;
     return safeFailureResult(error, params);
   }
@@ -26,18 +34,22 @@ export async function runAgenticLoop(params: {
 
   while (maxIterations > 0) {
     maxIterations -= 1;
+    if (signal?.aborted) return stoppedStreamResult(params.allToolCalls, params.allGeneratedImages);
     const parts = response.response.candidates?.[0]?.content?.parts || [];
     const functionCalls = parts.filter((part: any) => part.functionCall);
     if (functionCalls.length === 0) return finalTextResult(parts, response.response, params);
 
     const functionResponses = await executeFunctionCalls(functionCalls, params);
+    if (signal?.aborted) return stoppedStreamResult(params.allToolCalls, params.allGeneratedImages);
     if (functionResponses.length === 0) return finalTextResult(parts, response.response, params);
     try {
-      response = await withGeminiTimeout(
+      response = await withGeminiModelCall(
         'Gemini tool response message',
-        () => params.chatSession.sendMessage(functionResponses as any),
+        () => params.chatSession.sendMessage(functionResponses as any, requestOptions),
+        { signal },
       );
     } catch (error: any) {
+      if (isAbortError(error, signal)) return stoppedStreamResult(params.allToolCalls, params.allGeneratedImages);
       if (params.failFastOnModelError) throw error;
       return safeFailureResult(error, params);
     }

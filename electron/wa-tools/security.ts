@@ -61,6 +61,7 @@ export const GROUP_BLOCKED_TOOLS = new Set([
   'restart_computer',
   'sleep_computer',
   'toggle_wifi',
+  'contextual_control',
   'run_in_terminal',
   'run_claude_code',
   'run_background_command',

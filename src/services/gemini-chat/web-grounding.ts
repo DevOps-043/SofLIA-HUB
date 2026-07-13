@@ -6,11 +6,46 @@ import {
 } from '../../shared/gemini-grounding-config';
 import { getApiKeyWithCache } from '../api-keys';
 import { extractSources } from './sources';
-import { completedStreamResult } from './streams';
+import { completedStreamResult, isAbortError, stoppedStreamResult } from './streams';
 import type { StreamResult, ToolCallInfo } from './types';
 
 const WEB_GROUNDING_FAILURE =
   'No pude verificar informacion actualizada con fuentes externas en este momento. Intenta de nuevo o comparte una URL concreta para analizarla.';
+
+// La búsqueda web va por fetch/IPC crudos: sin límite podían colgarse para
+// siempre (p. ej. API bloqueada) y dejar el chat en "..." eterno. Se acota.
+const GROUNDING_REQUEST_TIMEOUT_MS = 60_000;
+
+/**
+ * Combina la señal de cancelación del usuario (botón Stop) con un timeout, para
+ * que ninguna petición de grounding quede colgada indefinidamente.
+ */
+function createBoundedSignal(userSignal: AbortSignal | undefined, timeoutMs: number): { signal: AbortSignal; cleanup: () => void } {
+  const controller = new AbortController();
+  const onUserAbort = () => controller.abort();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  if (userSignal) {
+    if (userSignal.aborted) controller.abort();
+    else userSignal.addEventListener('abort', onUserAbort, { once: true });
+  }
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      clearTimeout(timer);
+      userSignal?.removeEventListener('abort', onUserAbort);
+    },
+  };
+}
+
+/** Corre una promesa (p. ej. IPC sin signal) pero la rechaza si se aborta la señal. */
+function raceWithSignal<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(new DOMException('Aborted', 'AbortError'));
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', onAbort));
+  });
+}
 
 type GroundingApiKeySource = 'user' | 'environment';
 
@@ -37,6 +72,7 @@ export async function sendGroundedMessage(input: {
   generationConfig: Record<string, any>;
   allToolCalls: ToolCallInfo[];
   allGeneratedImages: string[];
+  signal?: AbortSignal;
 }): Promise<StreamResult> {
   const apiKeys = await resolveApiKeyCandidates();
   if (!apiKeys.length) return completedStreamResult(WEB_GROUNDING_FAILURE, {}, input.allToolCalls, input.allGeneratedImages);
@@ -44,6 +80,7 @@ export async function sendGroundedMessage(input: {
   let lastError: unknown = null;
   for (const modelId of resolveGroundingModelIds(input.candidateModelIds)) {
     for (const apiKey of apiKeys) {
+      if (input.signal?.aborted) return stoppedStreamResult(input.allToolCalls, input.allGeneratedImages);
       try {
         const response = await requestGroundedContent(modelId, apiKey, input);
         const text = extractResponseText(response);
@@ -51,6 +88,8 @@ export async function sendGroundedMessage(input: {
         if (!text.trim() || !sources?.length) throw new Error('WEB_GROUNDING_NO_VERIFIED_SOURCES');
         return completedStreamResult(text, response, input.allToolCalls, input.allGeneratedImages);
       } catch (error) {
+        // Cancelación del usuario: detener limpio, no seguir probando modelos.
+        if (isAbortError(error, input.signal)) return stoppedStreamResult(input.allToolCalls, input.allGeneratedImages);
         lastError = error;
         console.warn('[GeminiChat] grounded model attempt failed:', {
           modelId,
@@ -94,31 +133,40 @@ async function requestGroundedContent(
     systemInstruction: string;
     history: Array<{ role: string; parts: Array<{ text: string }> }>;
     generationConfig: Record<string, any>;
+    signal?: AbortSignal;
   },
 ): Promise<any> {
   const modelName = normalizeModelName(modelId);
   const body = buildGroundingRequestBody(input);
-  const mainResponse = await requestGroundedContentViaMain(modelName, apiKey.value, body);
-  if (mainResponse) return mainResponse;
+  // Acota la petición con timeout + cancelación del usuario para no colgarse.
+  const { signal, cleanup } = createBoundedSignal(input.signal, GROUNDING_REQUEST_TIMEOUT_MS);
+  try {
+    const mainResponse = await requestGroundedContentViaMain(modelName, apiKey.value, body, signal);
+    if (mainResponse) return mainResponse;
 
-  const response = await fetch(`${GEMINI_GROUNDING_API.generateContentBaseUrl}/${modelName}:generateContent?key=${encodeURIComponent(apiKey.value)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+    const response = await fetch(`${GEMINI_GROUNDING_API.generateContentBaseUrl}/${modelName}:generateContent?key=${encodeURIComponent(apiKey.value)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal,
+    });
 
-  const raw = await response.text();
-  const payload = parseJsonResponse(raw);
-  if (!response.ok) throw new Error(payload?.error?.message || `HTTP ${response.status}`);
-  return payload;
+    const raw = await response.text();
+    const payload = parseJsonResponse(raw);
+    if (!response.ok) throw new Error(payload?.error?.message || `HTTP ${response.status}`);
+    return payload;
+  } finally {
+    cleanup();
+  }
 }
 
-async function requestGroundedContentViaMain(modelName: string, apiKey: string, body: Record<string, any>): Promise<any | null> {
+async function requestGroundedContentViaMain(modelName: string, apiKey: string, body: Record<string, any>, signal: AbortSignal): Promise<any | null> {
   const ipc = getIpcRenderer();
   if (!ipc?.invoke) return null;
 
   try {
-    const result = await ipc.invoke('ai:generate-grounded', { modelName, apiKey, body });
+    // El IPC no acepta signal: se acota con raceWithSignal (timeout + Stop).
+    const result = await raceWithSignal(ipc.invoke('ai:generate-grounded', { modelName, apiKey, body }), signal);
     if (result?.success) return result.payload || {};
     if (!result || typeof result !== 'object') return null;
     throw new Error(result?.error || `HTTP ${result?.status || 'unknown'}`);

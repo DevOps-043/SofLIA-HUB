@@ -13,6 +13,7 @@ export const app = {
     };
     return paths[name] || `/tmp/test-${name}`;
   }),
+  getAppPath: vi.fn(() => '/tmp/test-app'),
   getName: vi.fn(() => 'SofLIA-HUB-Test'),
   getVersion: vi.fn(() => '1.0.0-test'),
   isReady: vi.fn(() => true),

@@ -1,4 +1,4 @@
-export type SettingsTab = 'ai' | 'memory' | 'whatsapp' | 'connections' | 'team' | 'productivity' | 'meetings' | 'agents' | 'updates';
+export type SettingsTab = 'ai' | 'memory' | 'whatsapp' | 'voice' | 'privacy' | 'connections' | 'team' | 'productivity' | 'meetings' | 'agents' | 'updates';
 
 export function getSettingsTabs(sofiaContext: any): Array<{ id: SettingsTab; label: string; icon: JSX.Element; hidden?: boolean }> {
   return [
@@ -16,6 +16,16 @@ export function getSettingsTabs(sofiaContext: any): Array<{ id: SettingsTab; lab
       id: 'whatsapp',
       label: 'WhatsApp',
       icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3.5h5m-8.5 8 1.4-3.8A8 8 0 1112 20a8.2 8.2 0 01-3.7-.88L4 19.75z" /></svg>,
+    },
+    {
+      id: 'voice',
+      label: 'Voz',
+      icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" /></svg>,
+    },
+    {
+      id: 'privacy',
+      label: 'Privacidad',
+      icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3.5l6.5 2.5v5.2c0 4-2.8 7.6-6.5 8.8-3.7-1.2-6.5-4.8-6.5-8.8V6z" /><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 12.25l1.5 1.5 3-3.5" /></svg>,
     },
     {
       id: 'connections',

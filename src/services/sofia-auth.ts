@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { isSofiaConfigured, sofiaSupa } from '../lib/sofia-client';
 import type { SofiaOrganization, SofiaTeam } from '../lib/sofia-client';
 import { buildActiveSofiaContext, createPseudoAuthUser } from './sofia-auth/context';
+import { findLoginUserRow, INVALID_CREDENTIALS_MESSAGE, mapSupabaseAuthError } from './sofia-auth/login';
 import { fetchSofiaUserProfile } from './sofia-auth/profile';
 import { getSofiaStoredSession, saveSofiaSession } from './sofia-auth/session-storage';
 import type { SofiaAuthResult, SofiaContext } from './sofia-auth/types';
@@ -18,31 +19,46 @@ class SofiaAuthService {
     }
 
     try {
-      console.log('Intentando autenticar con SOFIA:', { identifier: emailOrUsername });
-      const { data: authResult, error: authError } = await sofiaSupa.rpc('authenticate_user', {
-        p_identifier: emailOrUsername,
-        p_password: password,
+      console.log('[SOFIA] Iniciando sesion via Supabase Auth');
+
+      // 1. Resolver email/username a la fila de public.users (perfil + username).
+      const userRow = await findLoginUserRow(emailOrUsername);
+      if (!userRow) throw new Error(INVALID_CREDENTIALS_MESSAGE);
+
+      // 2. Validar la contraseña contra Supabase Auth (auth.users), la unica
+      //    fuente de verdad desde la migracion de SofLIA Learning.
+      const { data: authData, error: authError } = await sofiaSupa.auth.signInWithPassword({
+        email: userRow.email,
+        password,
       });
+      if (authError || !authData?.user) {
+        console.warn('[SOFIA] Supabase Auth rechazo el login:', authError?.message || 'sin usuario');
+        throw new Error(mapSupabaseAuthError(authError?.message));
+      }
 
-      if (authError) throw new Error(authError.message || 'Error de conexion con SOFIA');
-      if (!authResult?.success) throw new Error(authResult?.error || 'Credenciales invalidas');
+      // 3. Perfil y membresias siguen en public.users (mismo UUID que auth.users).
+      const sofiaProfile = await this.fetchSofiaUserProfile(userRow.id);
+      try {
+        this.sofiaContext = buildActiveSofiaContext(sofiaProfile);
+      } catch (contextError) {
+        // Sin membresia activa: no dejar una sesion de Supabase Auth abierta.
+        await sofiaSupa.auth.signOut().catch(() => undefined);
+        throw contextError;
+      }
 
-      const sofiaUser = authResult.user;
-      const sofiaProfile = await this.fetchSofiaUserProfile(sofiaUser.id);
-      this.sofiaContext = buildActiveSofiaContext(sofiaProfile);
-
-      const resolvedAvatar = sofiaProfile?.avatar_url || sofiaUser.profile_picture_url || null;
-      await saveSofiaSession({ ...sofiaUser, profile_picture_url: resolvedAvatar });
+      const resolvedAvatar = sofiaProfile?.avatar_url || userRow.profile_picture_url || null;
+      await saveSofiaSession({ ...userRow, profile_picture_url: resolvedAvatar });
 
       return {
         success: true,
-        user: createPseudoAuthUser(sofiaUser, resolvedAvatar),
-        session: null,
+        user: createPseudoAuthUser(userRow, resolvedAvatar),
+        session: authData.session,
         sofiaProfile,
       };
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error en signInWithSofia:', err);
-      return { success: false, user: null, session: null, error: err.message || 'Error desconocido al iniciar sesion' };
+      const message = err instanceof Error ? err.message : 'Error desconocido al iniciar sesion';
+      return { success: false, user: null, session: null, error: message };
     }
   }
 
@@ -53,6 +69,8 @@ class SofiaAuthService {
   async signOut() {
     localStorage.removeItem('sofia-session');
     this.sofiaContext = null;
+    // Cerrar tambien la sesion de Supabase Auth; no debe bloquear el logout local.
+    if (sofiaSupa) await sofiaSupa.auth.signOut().catch((err) => console.warn('[SOFIA] signOut de Supabase fallo:', err));
   }
 
   async getSession(): Promise<Session | null> {

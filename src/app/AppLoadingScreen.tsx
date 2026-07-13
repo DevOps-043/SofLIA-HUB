@@ -234,13 +234,13 @@ function LogoIgnition({ colorScheme, exitTarget, isExiting, reducedMotion }: { c
 
 export function AppLoadingScreen({
   isExiting = false,
-  isFlowWindow,
+  isOrbWindow,
   logoExitTarget = 'login',
   themeMode = 'system',
   playIntroSound = true,
 }: {
   isExiting?: boolean;
-  isFlowWindow: boolean;
+  isOrbWindow: boolean;
   logoExitTarget?: StartupLogoExitTarget;
   themeMode?: ThemeMode;
   playIntroSound?: boolean;
@@ -249,12 +249,12 @@ export function AppLoadingScreen({
   const colorScheme = useResolvedStartupScheme(themeMode);
   const baseBackground = colorScheme === 'dark' ? '#080b11' : '#f4faf9';
   const exitDuration = getLogoExitPose(logoExitTarget).duration;
-  useStartupIntroAudio(playIntroSound && !isFlowWindow && !isExiting);
+  useStartupIntroAudio(playIntroSound && !isOrbWindow && !isExiting);
 
   return (
     <motion.main
       className="fixed inset-0 z-[80] flex h-screen w-screen items-center justify-center overflow-hidden"
-      style={{ background: isFlowWindow ? 'transparent' : baseBackground, pointerEvents: isExiting ? 'none' : 'auto' }}
+      style={{ background: isOrbWindow ? 'transparent' : baseBackground, pointerEvents: isExiting ? 'none' : 'auto' }}
       role="status"
       aria-live="polite"
       initial={false}
@@ -265,7 +265,7 @@ export function AppLoadingScreen({
           : { duration: reducedMotion ? 0.2 : exitDuration, ease: EASE_OUT_EXPO }
       }
     >
-      {!isFlowWindow && <StartupStage colorScheme={colorScheme} isExiting={isExiting} reducedMotion={reducedMotion} />}
+      {!isOrbWindow && <StartupStage colorScheme={colorScheme} isExiting={isExiting} reducedMotion={reducedMotion} />}
 
       <motion.section
         className="relative flex items-center justify-center"

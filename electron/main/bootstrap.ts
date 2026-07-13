@@ -11,7 +11,6 @@ import { createRuntimeState } from './runtime-state';
 import { createWindowControls } from './window-controls';
 import { createWhatsAppAgentInitializer } from './whatsapp-agent-init';
 import { registerAppLifecycle } from './app-lifecycle';
-import { registerFlowIpcHandlers } from './flow-ipc';
 import { registerMainServiceIpcHandlers } from './service-ipc';
 import { registerServiceEvents } from './service-events';
 import { registerSummaryIpcHandlers } from './summary-ipc';
@@ -34,7 +33,6 @@ export async function runBootstrap(): Promise<void> {
 
   registerServiceEvents({ modules, services, state, controls });
   registerSummaryIpcHandlers({ modules, services, state });
-  registerFlowIpcHandlers({ services, state, controls });
   registerAiGroundingHandler();
   registerMainServiceIpcHandlers({ services, state, initWhatsAppAgent });
   registerAppLifecycle({ services, state, controls });
@@ -44,7 +42,7 @@ export async function runBootstrap(): Promise<void> {
   app.setAsDefaultProtocolClient('soflia');
 
   modules.MenuManager.setup();
-  controls.registerFlowShortcut();
+  controls.registerOrbShortcut();
   registerPlatformHandlers({ modules, services, state });
   await initializeMainServices({
     modules,

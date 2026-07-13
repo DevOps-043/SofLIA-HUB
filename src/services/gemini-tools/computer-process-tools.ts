@@ -1,4 +1,4 @@
-import { booleanProp, emptyParams, objectParams, stringArrayProp, stringProp } from './schema';
+import { booleanProp, emptyParams, numberProp, objectParams, stringArrayProp, stringProp } from './schema';
 import type { GeminiFunctionDeclaration } from './types';
 
 export const COMPUTER_PROCESS_TOOL_DECLARATIONS: GeminiFunctionDeclaration[] = [
@@ -14,7 +14,7 @@ export const COMPUTER_PROCESS_TOOL_DECLARATIONS: GeminiFunctionDeclaration[] = [
   { name: 'get_system_info', description: 'Obtiene informacion del sistema y rutas base del usuario.', parameters: emptyParams() },
   { name: 'clipboard_read', description: 'Lee el contenido del portapapeles.', parameters: emptyParams() },
   { name: 'clipboard_write', description: 'Escribe texto en el portapapeles.', parameters: objectParams({ text: stringProp('Texto a copiar.') }, ['text']) },
-  { name: 'take_screenshot', description: 'Captura una imagen de la pantalla actual.', parameters: emptyParams() },
+  { name: 'take_screenshot', description: 'Captura una imagen de la pantalla. El usuario puede tener VARIOS monitores: sin argumentos captura el monitor donde esta el cursor. La respuesta incluye available_displays con todos los monitores; si lo que buscas no aparece, vuelve a llamar con otro display_index.', parameters: objectParams({ display_index: numberProp('Numero de monitor a capturar (1 = primero). Omitir para el monitor activo.') }) },
   { name: 'configure_email', description: 'Configura el email SMTP local del usuario.', parameters: objectParams({ email: stringProp('Direccion de email del usuario.'), password: stringProp('Contrasena de aplicacion.') }, ['email', 'password']) },
   { name: 'get_email_config', description: 'Verifica si el email SMTP local esta configurado.', parameters: emptyParams() },
   { name: 'send_email', description: 'Envia un email usando la configuracion SMTP local. Requiere confirmacion.', parameters: objectParams({ to: stringProp('Direccion de email del destinatario.'), subject: stringProp('Asunto del email.'), body: stringProp('Cuerpo del email.'), attachment_paths: stringArrayProp('Rutas completas de archivos a adjuntar.'), is_html: booleanProp('Si es true, el body se trata como HTML.') }, ['to', 'subject', 'body']) },

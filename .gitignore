@@ -13,6 +13,10 @@ dist-ssr
 *.local
 models/*.onnx
 models/*.onnx.*
+models/vosk-model-*
+
+# Runtime Python embebido (generado por scripts/setup-python-runtime.js)
+python-runtime
 
 # Electron
 dist-electron
@@ -36,3 +40,5 @@ app/renderer/dist
 *.njsproj
 *.sln
 *.sw?
+
+models/piper

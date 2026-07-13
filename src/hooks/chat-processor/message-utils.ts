@@ -2,9 +2,18 @@ import type { ChatMessage } from '../../services/chat-service';
 
 export const PLACEHOLDER_TEXT = '...';
 
-export function shouldShowLoadingUi(isLoading: boolean, messages: ChatMessage[]): boolean {
+/**
+ * ¿Mostrar el indicador de "generando" para la conversación VISIBLE?
+ *
+ * Se basa únicamente en el placeholder de los mensajes visibles (no en un flag
+ * global de carga), para que la generación sea consciente de la conversación:
+ * el turno en curso vive como placeholder dentro de los mensajes de SU
+ * conversación, así que al cambiar a otra conversación (sin placeholder) NO se
+ * muestra carga y el usuario puede seguir chateando ahí — como en ChatGPT.
+ */
+export function shouldShowLoadingUi(messages: ChatMessage[]): boolean {
   const lastMessage = messages[messages.length - 1];
-  return isLoading || Boolean(
+  return Boolean(
     lastMessage &&
     lastMessage.role === 'model' &&
     (!lastMessage.text || lastMessage.text.trim() === PLACEHOLDER_TEXT) &&

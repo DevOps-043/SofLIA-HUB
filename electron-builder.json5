@@ -20,15 +20,46 @@
     output: "release/${version}",
     buildResources: "build",
   },
+  afterPack: "scripts/verify-packaged-python.cjs",
   files: [
     "dist",
     "dist-electron",
     "!node_modules/**/*.d.ts",
     "!node_modules/**/*.d.ts.map",
   ],
+  // Python y el sidecar se distribuyen con la aplicacion en las tres plataformas.
+  extraResources: [
+    {
+      from: "python-runtime",
+      to: "python",
+      filter: ["**/*", "!.setup-lock.json"],
+    },
+    {
+      from: "python/sidecar",
+      to: "python-sidecar",
+      filter: ["**/*", "!**/__pycache__/**", "!**/*.pyc"],
+    },
+    {
+      // Sidecar de herramientas (documentos + privacidad). Proceso separado del
+      // de voz: un fallo leyendo un PDF no debe tumbar la escucha pasiva.
+      from: "python/tools_sidecar",
+      to: "python-tools",
+      filter: ["**/*", "!tests/**", "!**/__pycache__/**", "!**/*.pyc"],
+    },
+  ],
   mac: {
     target: ["dmg"],
+    icon: "public/assets/Icono.png",
     artifactName: "SofLIA-Hub-Mac-${version}-Installer.${ext}",
+  },
+  dmg: {
+    background: "build/installer/dmg-background.png",
+    iconSize: 104,
+    window: { width: 660, height: 400 },
+    contents: [
+      { x: 180, y: 214, type: "file" },
+      { x: 480, y: 214, type: "link", path: "/Applications" },
+    ],
   },
   win: {
     icon: "public/assets/icono.ico",
@@ -41,13 +72,19 @@
     artifactName: "SofLIA-Hub-Windows-${version}-Setup.${ext}",
   },
   nsis: {
-    oneClick: true,
+    oneClick: false,
     perMachine: false,
+    allowElevation: true,
+    allowToChangeInstallationDirectory: true,
     deleteAppDataOnUninstall: false,
     installerIcon: "public/assets/icono.ico",
     uninstallerIcon: "public/assets/icono.ico",
+    installerHeader: "build/installer/installerHeader.bmp",
+    installerSidebar: "build/installer/installerSidebar.bmp",
+    uninstallerSidebar: "build/installer/uninstallerSidebar.bmp",
     include: "build/installer.nsh",
     unicode: true,
+    runAfterFinish: true,
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
     shortcutName: "SofLIA Hub",
@@ -64,6 +101,10 @@
         target: "AppImage",
         arch: ["x64"],
       },
+      {
+        target: "deb",
+        arch: ["x64"],
+      },
     ],
     // ${arch} se renderiza como "x86_64" para AppImage x64, pero el workflow y
     // el smoke test esperan el sufijo literal "x64" (igual que Windows/Mac fijan
@@ -78,5 +119,8 @@
         StartupWMClass: "soflia-hub",
       },
     },
+  },
+  deb: {
+    depends: ["libportaudio2"],
   },
 }

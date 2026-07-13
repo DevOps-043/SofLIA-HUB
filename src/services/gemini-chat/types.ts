@@ -35,4 +35,6 @@ export interface SendMessageStreamOptions {
   /** Memoria unificada del usuario (recientes, resúmenes, hechos, skills) ya formateada. */
   memoryContext?: string;
   onToolCall?: (toolCall: ToolCallInfo) => void;
+  /** Señal para cancelar la generación (botón Stop del usuario). */
+  signal?: AbortSignal;
 }

@@ -248,6 +248,22 @@ body {
   background: transparent !important;
 }
 
+/* Regiones nativas de la ventana frameless de la orbe. El canvas y los
+   controles permanecen fuera del drag para conservar hover, scroll y clics. */
+.orb-drag-region {
+  -webkit-app-region: drag;
+  cursor: grab;
+  user-select: none;
+}
+
+.orb-drag-region:active {
+  cursor: grabbing;
+}
+
+.orb-no-drag {
+  -webkit-app-region: no-drag;
+}
+
 @utility filter-accent-themed {
   filter: hue-rotate(40deg) brightness(0.4) saturate(2); /* Turns Aqua green into Deep Blue */
 }

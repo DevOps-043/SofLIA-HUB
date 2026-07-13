@@ -56,7 +56,8 @@ function buildLinuxVolumeCommands(toolArgs: Record<string, any>): [string, strin
   return [`pactl set-sink-volume @DEFAULT_SINK@ ${level}%`, `amixer -D pulse sset Master ${level}%`];
 }
 
-function buildVolumeCommand(toolArgs: Record<string, any>): string | null {
+// Exportado para reuso desde contextual-control (mismo snippet COM CoreAudio).
+export function buildVolumeCommand(toolArgs: Record<string, any>): string | null {
   if (toolArgs.action === 'mute' || toolArgs.action === 'unmute') {
     return `$wsh = New-Object -ComObject WScript.Shell; $wsh.SendKeys([char]173)`;
   }

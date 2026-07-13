@@ -67,3 +67,12 @@ export function getSofiaClient(): SupabaseClient | null {
 export function isIrisAvailable(): boolean {
   return !!getIrisClient();
 }
+
+/**
+ * Credenciales de SOFIA para clientes efimeros (ej. verificacion de contraseña
+ * via Supabase Auth sin contaminar la sesion del cliente memoizado).
+ */
+export function getSofiaCredentials(): { url: string; key: string } | null {
+  if (!SOFIA_URL || !SOFIA_KEY) return null;
+  return { url: SOFIA_URL, key: SOFIA_KEY };
+}

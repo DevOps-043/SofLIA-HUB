@@ -49,6 +49,11 @@ export async function loadMainServiceModules() {
   const { remoteNodeService } = await import('../remote-node-service');
   const { registerRemoteNodeHandlers } = await import('../remote-node-handlers');
   const { dynamicToolService } = await import('../dynamic-tool-service');
+  const { pythonRuntimeService } = await import('../python-runtime-service');
+  const { registerVoicePassiveHandlers } = await import('../voice-passive-handlers');
+  const { registerOrbIpcHandlers } = await import('../orb-ipc-handlers');
+  const { pythonToolsService } = await import('../python-tools-service');
+  const { registerPythonToolsHandlers } = await import('../python-tools-handlers');
   const { generateDailySummary } = await import('../summary-generator');
   await import('../agent-task-queue');
 
@@ -65,6 +70,7 @@ export async function loadMainServiceModules() {
     MeetingStore, MeetingSourceService, MeetingAIService, MeetingReviewService, MeetingSyncService,
     MeetingWorkflowService, MeetingDetectionStore, MeetingPassiveDetectionService, DailyBriefingService,
     backgroundHostService, registerBackgroundHostHandlers, remoteNodeService, registerRemoteNodeHandlers,
-    dynamicToolService, generateDailySummary,
+    dynamicToolService, pythonRuntimeService, registerVoicePassiveHandlers, registerOrbIpcHandlers,
+    pythonToolsService, registerPythonToolsHandlers, generateDailySummary,
   };
 }

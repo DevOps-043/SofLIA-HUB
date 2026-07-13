@@ -1,10 +1,37 @@
 import { extractSources } from './sources';
 import type { StreamResult, ToolCallInfo } from './types';
 
+/** Texto mostrado cuando el usuario cancela la generación con el botón Stop. */
+export const STOP_MESSAGE = '⏹️ Detenido.';
+
 export function singleChunkStream(text: string): AsyncIterable<string> {
   return (async function* () {
     yield text;
   })();
+}
+
+/** ¿El error/estado corresponde a una cancelación del usuario (AbortSignal)? */
+export function isAbortError(error: unknown, signal?: AbortSignal): boolean {
+  if (signal?.aborted) return true;
+  const name = (error as { name?: string } | null)?.name;
+  return name === 'AbortError';
+}
+
+/**
+ * Resultado cuando el usuario detiene la generación: conserva las tool calls e
+ * imágenes ya producidas y muestra el texto parcial acumulado (o STOP_MESSAGE).
+ */
+export function stoppedStreamResult(
+  toolCalls: ToolCallInfo[],
+  generatedImages: string[],
+  partialText?: string,
+): StreamResult {
+  return {
+    stream: singleChunkStream(partialText?.trim() ? partialText : STOP_MESSAGE),
+    sources: Promise.resolve(null),
+    toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+    generatedImages: generatedImages.length > 0 ? generatedImages : undefined,
+  };
 }
 
 export function completedStreamResult(

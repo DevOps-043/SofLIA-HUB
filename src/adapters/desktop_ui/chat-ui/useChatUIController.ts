@@ -52,6 +52,9 @@ export function useChatUIController(props: ChatUIProps) {
     await runtime.chat.handleSend(text, images);
   };
 
+  // Detiene la generación de texto y cualquier proceso de Computer Use en curso.
+  const onStopClick = () => runtime.chat.stopGeneration();
+
   return {
     props: normalizedProps,
     state,
@@ -62,6 +65,7 @@ export function useChatUIController(props: ChatUIProps) {
     refs: state.refs,
     handleScroll,
     onSendClick,
+    onStopClick,
   };
 }
 

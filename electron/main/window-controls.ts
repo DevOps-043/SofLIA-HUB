@@ -1,9 +1,8 @@
 import { Notification } from 'electron';
 import path from 'node:path';
-import { createFlowWindowController } from './flow-window-controller';
+import { createOrbWindowController } from './orb-window-controller';
 import { createMainTray } from './tray-controller';
 import { createOrFocusMainWindow } from './window-controller';
-import { logBootstrapError } from './bootstrap-steps';
 import type { MeetingTriggerPayload } from '../app-protocol';
 import type { MainRuntimeState } from './runtime-state';
 
@@ -15,19 +14,18 @@ export function createWindowControls(input: {
   state: MainRuntimeState;
 }) {
   const { env, runtimeDirname, state } = input;
-  const flowController = createFlowWindowController({
+  const orbController = createOrbWindowController({
     preloadPath: path.join(runtimeDirname, 'preload.js'),
     rendererDist: env.RENDERER_DIST,
     devServerUrl: env.VITE_DEV_SERVER_URL,
-    logError: logBootstrapError,
-    getWindow: () => state.flowWin,
-    setWindow: (nextFlowWin) => { state.flowWin = nextFlowWin; },
-    setInsertTarget: (target) => { state.flowInsertTarget = target; },
+    getWindow: () => state.orbWin,
+    setWindow: (nextOrbWin) => { state.orbWin = nextOrbWin; },
+    setPendingWake: (value) => { state.pendingOrbWake = value; },
   });
 
   const controls = {
-    createFlowWindow: flowController.createFlowWindow,
-    registerFlowShortcut: flowController.registerFlowShortcut,
+    createOrbWindow: orbController.createOrbWindow,
+    registerOrbShortcut: orbController.registerOrbShortcut,
     createWindow(showWindow = !state.startInBackground): void {
       state.win = createOrFocusMainWindow({
         currentWindow: state.win,
@@ -46,7 +44,7 @@ export function createWindowControls(input: {
         setTray: (nextTray) => { state.tray = nextTray; },
         getWindow: () => state.win,
         createWindow: controls.createWindow,
-        createFlowWindow: flowController.createFlowWindow,
+        createOrbWindow: orbController.createOrbWindow,
         setQuitting: (value) => { state.isQuitting = value; },
       });
     },

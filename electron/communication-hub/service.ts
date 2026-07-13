@@ -4,6 +4,7 @@ import { getSofiaClient } from '../iris/clients';
 import { normalizePhone } from '../iris/phone';
 import { normalizePhoneNumber, numbersMatch } from '../whatsapp/phone-utils';
 import { authorizeChannelTool, authorizeHubAdminAction, getCapabilitiesForRole, isOrgAdminRole } from './authorization';
+import { rankUsersByPhoneMatch } from './phone-match';
 import {
   appendAuditEvent,
   getOrCreateChannelPolicy,
@@ -316,14 +317,27 @@ export class CommunicationHubService extends EventEmitter {
       .from('users')
       .select('id, username, email, first_name, last_name, display_name, phone')
       .not('phone', 'is', null);
-    if (error || !users) return null;
-    const matched = (users as SofiaUserRow[]).find((user) => {
-      const userPhone = normalizePhone(user.phone || '');
-      return userPhone === normalizedPhone || userPhone.endsWith(normalizedPhone) || normalizedPhone.endsWith(userPhone);
-    });
-    if (!matched) return null;
-    const memberships = await this.fetchActiveMemberships(matched.id);
-    return { user: matched, memberships };
+    if (error || !users) {
+      if (error) console.warn(`[CommunicationHub] Error consultando usuarios SOFIA por telefono: ${error.message}`);
+      return null;
+    }
+
+    // Puede haber varios usuarios con el mismo telefono (duplicados historicos):
+    // se elige el primer candidato con membresia activa para no resolver un
+    // principal inactivo cuando existe una identidad valida.
+    const candidates = rankUsersByPhoneMatch(users as SofiaUserRow[], normalizedPhone);
+    if (candidates.length === 0) return null;
+
+    let inactiveFallback: { user: SofiaUserRow; memberships: SofiaMembershipRow[] } | null = null;
+    for (const candidate of candidates) {
+      const memberships = await this.fetchActiveMemberships(candidate.id);
+      if (memberships.length > 0) return { user: candidate, memberships };
+      if (!inactiveFallback) inactiveFallback = { user: candidate, memberships };
+    }
+    console.warn(
+      `[CommunicationHub] ${candidates.length} usuario(s) SOFIA coinciden con el telefono del remitente, pero ninguno tiene membresia activa.`,
+    );
+    return inactiveFallback;
   }
 
   private async fetchSofiaProfileByUserId(userId: string, organizationId?: string): Promise<{ user: SofiaUserRow; memberships: SofiaMembershipRow[] } | null> {
@@ -349,8 +363,11 @@ export class CommunicationHubService extends EventEmitter {
       .eq('status', 'active');
     if (organizationId) query = query.eq('organization_id', organizationId);
     const { data, error } = await query;
-    if (error || !data) return [];
-    return data as SofiaMembershipRow[];
+    if (error) {
+      console.warn(`[CommunicationHub] Error consultando membresias SOFIA: ${error.message}`);
+      return [];
+    }
+    return (data || []) as SofiaMembershipRow[];
   }
 
   private buildPrincipalFromProfile(

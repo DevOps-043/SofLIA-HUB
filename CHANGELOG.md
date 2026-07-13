@@ -4,6 +4,32 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.7.0] - 2026-07-12
+
+### Added
+
+- **Orb, el nuevo asistente de voz:** Reemplaza al antiguo Flow Mode. Una esfera 3D flotante que reacciona al sonido de la conversacion: le hablas, te responde con voz natural en espanol y puedes consultar el detalle de lo dicho en su panel de informacion.
+- **Activacion por voz sin internet (experimental):** SofLIA puede escuchar una palabra clave para activarse, con reconocimiento 100% local — el audio nunca sale de tu computadora. Viene apagada de fabrica y se controla desde la nueva seccion de Voz en ajustes.
+- **Motor Python integrado:** La app ahora incluye su propio motor de Python dentro del instalador, que habilita nuevas capacidades (voz local, lectura de documentos, privacidad) sin que tengas que instalar nada extra.
+- **Lectura de documentos en tu computadora:** PDF, Word, Excel y PowerPoint ahora se leen localmente, incluyendo tablas. Mas rapido, sin el limite anterior de 15 MB y sin necesidad de subir el documento completo a la nube.
+- **Proteccion de datos personales:** Nueva seccion de Privacidad en ajustes. SofLIA puede detectar y tachar datos sensibles (RFC, CURP, CLABE, tarjetas, telefonos y correos) antes de enviar contenido a la nube.
+- **Modos de contexto para tu equipo:** Nuevo control que ajusta de una sola vez volumen, brillo, plan de energia y no molestar — por ejemplo para enfocarte, ver una pelicula o ahorrar bateria (solo Windows, disponible desde WhatsApp).
+- **Soporte multi-monitor en capturas:** Si tienes varias pantallas, SofLIA ya puede verlas todas: captura la pantalla donde esta el cursor o la que le indiques.
+
+### Changed
+
+- **Inicio de sesion mas seguro:** La autenticacion del Hub y la verificacion de identidad por WhatsApp migraron al sistema estandar de Supabase Auth, eliminando de raiz los problemas de contrasenas que funcionaban o no segun donde se hubieran creado.
+- **Chat mas estable:** Ahora puedes detener una respuesta en curso; si el servicio de IA esta saturado, SofLIA reintenta sola en segundos (antes habia que reenviar el mensaje a mano); y las respuestas ya no se pierden si cambias de conversacion mientras se generan.
+- **SofLIA encuentra mejor tus carpetas:** Escritorio, Documentos y Descargas ahora se resuelven preguntandole directamente al sistema operativo, lo que corrige los casos de carpetas redirigidas a OneDrive y las diferencias en Mac y Linux.
+- **WhatsApp al dia:** La libreria de conexion se actualizo a su version mas reciente, que incluye un parche de seguridad importante y mejoras de estabilidad en la recepcion de mensajes.
+- **Instalador renovado:** Nuevas imagenes del instalador y desinstalador, fondo de instalacion para Mac y paquete .deb para Linux.
+
+### Fixed
+
+- **WhatsApp ignoraba tus mensajes (bug critico):** Si tu numero de telefono aparecia registrado mas de una vez en el sistema de usuarios, el asistente podia identificarte con el registro equivocado y dejar de responderte por completo. Ahora identifica correctamente tu cuenta activa y deja rastro en los registros cuando algo impide autorizar a un remitente.
+- **No podias iniciar sesion aunque tu contrasena fuera correcta:** Usuarios con contrasenas creadas en SofLIA Learning no podian entrar al Hub. Quedo resuelto con la migracion de autenticacion.
+- **La voz del asistente no sonaba para algunos usuarios:** La sintesis de voz fallaba en silencio cuando la clave del servicio no llegaba a la interfaz; ahora se procesa en el nucleo de la app con la configuracion correcta y la clave nunca se expone.
+
 ## [0.6.0] - 2026-07-05
 
 ### Added

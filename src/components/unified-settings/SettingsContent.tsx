@@ -2,10 +2,12 @@ import type { UserAISettings } from '../../services/settings-service';
 import { ConnectionsPanel } from '../ConnectionsPanel';
 import { ProductivityDashboard as ProductivityContent } from '../ProductivityDashboard';
 import { MemorySkillsCard } from '../memory/MemorySkillsCard';
+import { PrivacySettings } from '../PrivacySettings';
 import { SettingsModal as AISettingsContent } from '../SettingsModal';
 import { UpdatePanel as UpdateContent } from '../UpdatePanel';
 import { UserManagementModal as TeamContent } from '../UserManagementModal';
 import { WorkflowHubPanel } from '../ops/WorkflowHubPanel';
+import { VoicePassiveSettings } from '../VoicePassiveSettings';
 import { WhatsAppSetup } from '../WhatsAppSetup';
 import type { SettingsTab } from './settings-tabs';
 
@@ -31,6 +33,10 @@ export function SettingsContent({
       return <div className="h-full overflow-y-auto p-6"><MemorySkillsCard userId={userId} /></div>;
     case 'whatsapp':
       return <div className="h-full overflow-hidden"><WhatsAppSetup isOpen onClose={onClose} apiKey={apiKey} embedded /></div>;
+    case 'voice':
+      return <div className="h-full overflow-y-auto"><VoicePassiveSettings /></div>;
+    case 'privacy':
+      return <div className="h-full overflow-y-auto"><PrivacySettings /></div>;
     case 'connections':
       return <div className="h-full overflow-hidden"><ConnectionsPanel apiKey={apiKey} /></div>;
     case 'team':

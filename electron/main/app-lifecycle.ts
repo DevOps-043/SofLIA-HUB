@@ -25,6 +25,8 @@ export function registerAppLifecycle(input: { services: any; state: MainRuntimeS
     void services.clipboardAssistant.stop();
     services.proactiveService.stop();
     services.meetingPassiveDetectionService.stopPolling();
+    void import('../python-runtime-service').then((m) => m.pythonRuntimeService.stop());
+    void import('../python-tools-service').then((m) => m.pythonToolsService.stop());
     if (state.tray) {
       state.tray.destroy();
       state.tray = null;

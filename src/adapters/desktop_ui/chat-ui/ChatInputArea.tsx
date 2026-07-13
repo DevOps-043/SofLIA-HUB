@@ -45,7 +45,16 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
             }}
           />
           <div className="flex items-center gap-1.5 pr-0.5">
-            {input.value.trim() || controller.dictation.isRecording ? (
+            {chat.showLoadingUI ? (
+              <button
+                onClick={controller.onStopClick}
+                className="w-9 h-9 flex items-center justify-center rounded-full bg-red-500 hover:bg-red-600 text-white shadow-md transition-all animate-pulse"
+                title="Detener lo que SOFLIA está haciendo"
+                aria-label="Detener"
+              >
+                <span className="block w-3 h-3 rounded-[3px] bg-white" />
+              </button>
+            ) : input.value.trim() || controller.dictation.isRecording ? (
               <button
                 onClick={controller.dictation.isRecording ? () => controller.dictation.stopDictation(true) : controller.onSendClick}
                 disabled={!controller.dictation.isRecording && (chat.showLoadingUI || !canSend || controller.dictation.isTranscribing)}

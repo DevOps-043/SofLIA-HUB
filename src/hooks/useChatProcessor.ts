@@ -27,8 +27,13 @@ export function useChatProcessor({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
+  // Controlador de cancelación del turno en curso (botón Stop).
+  const abortRef = useRef<AbortController | null>(null);
+  // Token de generación: solo la más reciente puede escribir en el chat. Al
+  // editar/regenerar/enviar se incrementa y la generación anterior queda superada.
+  const genTokenRef = useRef(0);
 
-  const showLoadingUI = shouldShowLoadingUi(isLoading, messages);
+  const showLoadingUI = shouldShowLoadingUi(messages);
   const activeModel = MODEL_OPTIONS.find((model) => model.id === preferredPrimaryModel);
   const thinkingOption: ThinkingOption | undefined = activeModel?.thinkingOptions.find((option) => option.id === thinkingMode);
 
@@ -46,6 +51,34 @@ export function useChatProcessor({
     sofiaUserId,
   });
 
+  // Ejecuta un turno bajo un AbortController fresco para poder cancelarlo.
+  // Aborta cualquier generación previa y la marca superada (token), para poder
+  // editar/regenerar mientras otra genera sin que la vieja pise a la nueva.
+  const runWithAbort = useCallback(async (
+    text: string,
+    images: string[],
+    history: ChatMessage[],
+    isRegeneration: boolean,
+  ) => {
+    abortRef.current?.abort();
+    const token = ++genTokenRef.current;
+    const controller = new AbortController();
+    abortRef.current = controller;
+    try {
+      await processMessage(text, images, history, isRegeneration, controller.signal, () => genTokenRef.current === token);
+    } finally {
+      if (abortRef.current === controller) abortRef.current = null;
+    }
+  }, [processMessage]);
+
+  // Detiene TODO lo que SofLIA esté ejecutando: el stream/loop de texto y
+  // cualquier tarea de Computer Use / Desktop Agent en curso.
+  const stopGeneration = useCallback(() => {
+    abortRef.current?.abort();
+    const desktopAgent = (window as unknown as { desktopAgent?: { abort?: () => Promise<unknown> } }).desktopAgent;
+    void desktopAgent?.abort?.();
+  }, []);
+
   const handleSend = useCallback(async (input: string, selectedImages: string[]) => {
     if (!input.trim() || showLoadingUI) return;
 
@@ -59,11 +92,11 @@ export function useChatProcessor({
     const text = input.trim();
     const autodev = (window as unknown as { autodev?: { logFeedback?: (text: string) => Promise<void> } }).autodev;
     autodev?.logFeedback?.(text)?.catch(console.error);
-    await processMessage(text, [...selectedImages], [...messages], false);
-  }, [showLoadingUI, messages, onMessagesChange, processMessage, isLiveActive, liveClientRef]);
+    await runWithAbort(text, [...selectedImages], [...messages], false);
+  }, [showLoadingUI, messages, onMessagesChange, runWithAbort, isLiveActive, liveClientRef]);
 
   const handleRegenerate = async (messageId: string) => {
-    if (showLoadingUI) return;
+    // Se permite durante una generación: runWithAbort aborta la anterior.
     const targetIndex = messages.findIndex((message) => message.id === messageId);
     if (targetIndex === -1) return;
 
@@ -74,17 +107,17 @@ export function useChatProcessor({
     const userMsg = historyUpToNow[lastUserMsgIndex];
     const dedupedHistory = dedupeMessageList(messages.slice(0, lastUserMsgIndex + 1));
     onMessagesChange(dedupedHistory);
-    await processMessage(userMsg.text, userMsg.images || [], dedupedHistory, true);
+    await runWithAbort(userMsg.text, userMsg.images || [], dedupedHistory, true);
   };
 
   const handleEditMessage = async (messageId: string, nextText: string, nextImages: string[] = []) => {
-    if (showLoadingUI) return;
+    // Se permite durante una generación: runWithAbort aborta la anterior.
     const userMessageIndex = messages.findIndex((message) => message.id === messageId && message.role === 'user');
     if (userMessageIndex === -1) return;
 
     const history = dedupeMessageList(messages.slice(0, userMessageIndex));
     onMessagesChange(history);
-    await processMessage(nextText.trim(), nextImages, history, false);
+    await runWithAbort(nextText.trim(), nextImages, history, false);
   };
 
   const handleCopy = (id: string, text: string) => {
@@ -104,5 +137,5 @@ export function useChatProcessor({
     )));
   };
 
-  return { isLoading, showLoadingUI, activeToolCall, copiedId, messagesRef, processMessage, handleSend, handleRegenerate, handleEditMessage, handleCopy, handleFeedback };
+  return { isLoading, showLoadingUI, activeToolCall, copiedId, messagesRef, processMessage, handleSend, handleRegenerate, handleEditMessage, handleCopy, handleFeedback, stopGeneration };
 }

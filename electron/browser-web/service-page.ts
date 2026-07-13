@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { WINDOWS_BROWSER_CANDIDATES } from './constants';
+import { getWindowsBrowserCandidates } from './constants';
 import type { BrowserTaskOptions } from './types';
 import type { PlaywrightModule } from './service-types';
 
@@ -57,7 +57,7 @@ export async function disposeBrowserResources(service: any): Promise<void> {
 
 export async function launchBrowser(playwright: PlaywrightModule): Promise<any> {
   let lastError: Error | null = null;
-  for (const candidate of WINDOWS_BROWSER_CANDIDATES) {
+  for (const candidate of getWindowsBrowserCandidates()) {
     try {
       if ('executablePath' in candidate && candidate.executablePath && !fs.existsSync(candidate.executablePath)) continue;
       return await playwright.chromium.launch({
@@ -77,7 +77,7 @@ export async function launchPersistentContext(service: any, playwright: Playwrig
   let lastError: Error | null = null;
   const profilePath = service.getProfileDirectory(profileId);
   fs.mkdirSync(profilePath, { recursive: true });
-  for (const candidate of WINDOWS_BROWSER_CANDIDATES) {
+  for (const candidate of getWindowsBrowserCandidates()) {
     try {
       if ('executablePath' in candidate && candidate.executablePath && !fs.existsSync(candidate.executablePath)) continue;
       return await playwright.chromium.launchPersistentContext(profilePath, {

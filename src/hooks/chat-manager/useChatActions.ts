@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { deleteConversation, loadMessages, updateConversationTitle, toggleConversationPin } from '../../services/chat-service';
+import { withoutActivePlaceholders } from './helpers';
 import type { ChatManagerState, ChatStorageKeyResolver, UseChatManagerOptions } from './types';
 
 type ChatActionsDeps = UseChatManagerOptions & {
@@ -31,7 +32,7 @@ export function useChatActions({ flushPendingSave, getCurrentChatStorageKey, ref
     }
     await flushPendingSave();
     state.scopeVersionRef.current += 1;
-    const msgs = await loadMessages(convId, userId);
+    const msgs = withoutActivePlaceholders(await loadMessages(convId, userId));
     state.setCurrentConversationId(convId);
     state.currentConvIdRef.current = convId;
     state.setCurrentMessages(msgs);

@@ -1,0 +1,13 @@
+# Dependencias del sidecar de herramientas de SofLIA (versiones fijadas).
+# Instaladas en el runtime embebido por scripts/setup-python-runtime.js.
+#
+# Criterio: solo librerias LIGERAS y con licencia apta para producto comercial.
+# - pdfplumber (MIT): texto Y TABLAS de PDF. Se descarta PyMuPDF a proposito:
+#   es AGPL-3.0 y contaminaria la licencia de la app.
+# - openpyxl / python-pptx / python-docx (MIT): lectura de Office.
+# Se descartan markitdown/docling/unstructured: arrastran decenas de deps
+# transitivas para lo que aqui son ~150 lineas de conversion a Markdown.
+pdfplumber==0.11.4
+openpyxl==3.1.5
+python-pptx==1.0.2
+python-docx==1.1.2

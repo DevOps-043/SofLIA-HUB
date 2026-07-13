@@ -3,7 +3,35 @@ import { setSession } from '../sessions';
 import type { WhatsAppSession } from '../types';
 import { ensureUserExistsInIris } from '../user-sync';
 import { buildFullName, fetchUserTeamIds } from './helpers';
+import { verifySofiaPassword } from './password-verifier';
 import type { SofiaUser } from './types';
+
+/** Escapa comodines de ilike para tratar el identificador como literal. */
+function escapeIlikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
+/**
+ * Resuelve email o username a la fila de public.users (mismo UUID que auth.users).
+ * Espejo del flujo del renderer en src/services/sofia-auth/login.ts.
+ */
+async function findSofiaUserByIdentifier(identifier: string): Promise<SofiaUser | null> {
+  const sofia = getSofiaClient();
+  if (!sofia) return null;
+  const value = identifier.trim();
+  if (!value) return null;
+
+  const column = value.includes('@') ? 'email' : 'username';
+  const { data, error } = await sofia
+    .from('users')
+    .select('id, username, email, first_name, last_name, display_name, phone, profile_picture_url')
+    .ilike(column, escapeIlikePattern(value))
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw new Error(`No se pudo consultar el usuario: ${error.message}`);
+  return (data as SofiaUser | null) ?? null;
+}
 
 export async function authenticateWhatsAppUser(
   phoneNumber: string,
@@ -16,20 +44,19 @@ export async function authenticateWhatsAppUser(
   }
 
   try {
-    const { data: authResult, error: authError } = await sofia.rpc('authenticate_user', {
-      p_identifier: emailOrUsername,
-      p_password: password,
-    });
-
-    if (authError) {
-      console.error('[IRIS-Main] authenticate_user RPC error:', authError);
-      return { success: false, message: 'Error de conexion con el sistema.' };
-    }
-    if (!authResult?.success) {
-      return { success: false, message: authResult?.error || 'Credenciales invalidas.' };
+    // 1. Resolver identificador a la fila de public.users.
+    const sofiaUser = await findSofiaUserByIdentifier(emailOrUsername);
+    if (!sofiaUser?.email) {
+      // Mensaje generico: no revelar si la cuenta existe (anti-enumeracion).
+      return { success: false, message: 'Credenciales invalidas.' };
     }
 
-    const sofiaUser: SofiaUser = authResult.user;
+    // 2. Validar la contraseña contra Supabase Auth (fuente de verdad desde la
+    //    migracion de SofLIA Learning; reemplaza al RPC authenticate_user).
+    const verification = await verifySofiaPassword(sofiaUser.email, password);
+    if (!verification.success) {
+      return { success: false, message: verification.error || 'Credenciales invalidas.' };
+    }
     const email = sofiaUser.email || emailOrUsername;
     const fullName = buildFullName(sofiaUser, email);
     await ensureUserExistsInIris(sofiaUser.id);

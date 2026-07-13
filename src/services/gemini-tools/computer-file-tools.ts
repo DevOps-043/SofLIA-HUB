@@ -3,7 +3,7 @@ import type { GeminiFunctionDeclaration } from './types';
 
 export const COMPUTER_FILE_TOOL_DECLARATIONS: GeminiFunctionDeclaration[] = [
   { name: 'list_directory', description: 'Lista archivos y carpetas en un directorio del sistema.', parameters: objectParams({ path: stringProp('Ruta del directorio.'), show_hidden: booleanProp('Si es true, incluye elementos ocultos.') }, ['path']) },
-  { name: 'read_file', description: 'Lee el contenido de un archivo de texto.', parameters: objectParams({ path: stringProp('Ruta completa del archivo.') }, ['path']) },
+  { name: 'read_file', description: 'Lee el contenido de un archivo. Ademas de texto plano, lee PDF, Excel (.xlsx), PowerPoint (.pptx) y Word (.docx): los convierte a Markdown e incluye las TABLAS estructuradas. Usalo en vez de pedirle al usuario que suba el archivo.', parameters: objectParams({ path: stringProp('Ruta completa del archivo.') }, ['path']) },
   { name: 'write_file', description: 'Crea o sobrescribe un archivo de texto.', parameters: objectParams({ path: stringProp('Ruta completa del archivo.'), content: stringProp('Contenido a escribir.') }, ['path', 'content']) },
   {
     name: 'create_word_document',

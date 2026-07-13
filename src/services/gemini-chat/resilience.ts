@@ -2,6 +2,12 @@ const GEMINI_CALL_TIMEOUT_MS = 45_000;
 const TOOL_CALL_TIMEOUT_MS = 30_000;
 const CIRCUIT_FAILURE_THRESHOLD = 3;
 const CIRCUIT_COOLDOWN_MS = 60_000;
+// Reintentos ante errores transitorios (429/quota/503 sobrecarga/timeout). El
+// primer mensaje de una conversación dispara una ráfaga de llamadas (chat +
+// título + memoria + herramientas) que puede topar el límite por minuto; un
+// backoff corto lo resuelve solo, igual que un "intentalo de nuevo" manual.
+const MODEL_CALL_MAX_RETRIES = 2;
+const MODEL_CALL_BACKOFF_MS = [1_200, 3_500];
 
 let consecutiveFailures = 0;
 let circuitOpenUntil = 0;
@@ -30,31 +36,70 @@ export function assertGeminiCircuitClosed(): void {
   }
 }
 
+/** Ejecuta la operación con un timeout duro, sin tocar el circuit breaker. */
+async function runWithTimeout<T>(label: string, operationFactory: () => Promise<T>, timeoutMs: number): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const operation = operationFactory();
+  operation.catch(() => {});
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<T>((_resolve, reject) => {
+        timeoutId = setTimeout(() => reject(createTimeoutError(label, timeoutMs)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
 export async function withGeminiTimeout<T>(
   label: string,
   operationFactory: () => Promise<T>,
   timeoutMs = GEMINI_CALL_TIMEOUT_MS,
 ): Promise<T> {
   assertGeminiCircuitClosed();
-
-  let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  const operation = operationFactory();
-  operation.catch(() => {});
-
   try {
-    const result = await Promise.race([
-      operation,
-      new Promise<T>((_resolve, reject) => {
-        timeoutId = setTimeout(() => reject(createTimeoutError(label, timeoutMs)), timeoutMs);
-      }),
-    ]);
+    const result = await runWithTimeout(label, operationFactory, timeoutMs);
     noteSuccess();
     return result;
   } catch (error) {
     noteFailure();
     throw error;
-  } finally {
-    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Como withGeminiTimeout pero, ante errores transitorios (429/quota/sobrecarga/
+ * timeout), reintenta con backoff antes de rendirse. Los reintentos NO cuentan
+ * como fallas del circuit breaker (para no bloquear un reintento inmediato del
+ * usuario); solo se registra el resultado final. Respeta el AbortSignal (Stop).
+ */
+export async function withGeminiModelCall<T>(
+  label: string,
+  operationFactory: () => Promise<T>,
+  options?: { signal?: AbortSignal; timeoutMs?: number },
+): Promise<T> {
+  assertGeminiCircuitClosed();
+  const timeoutMs = options?.timeoutMs ?? GEMINI_CALL_TIMEOUT_MS;
+  let attempt = 0;
+  for (;;) {
+    try {
+      const result = await runWithTimeout(label, operationFactory, timeoutMs);
+      noteSuccess();
+      return result;
+    } catch (error) {
+      if (options?.signal?.aborted) throw error;
+      if (attempt < MODEL_CALL_MAX_RETRIES && isTransientGeminiError(error)) {
+        const delay = MODEL_CALL_BACKOFF_MS[attempt] ?? MODEL_CALL_BACKOFF_MS[MODEL_CALL_BACKOFF_MS.length - 1];
+        attempt += 1;
+        console.warn(`[GeminiChat] error transitorio en ${label} → reintento ${attempt}/${MODEL_CALL_MAX_RETRIES} en ${delay}ms`);
+        await sleepWithSignal(delay, options?.signal);
+        continue;
+      }
+      noteFailure();
+      throw error;
+    }
   }
 }
 
@@ -64,6 +109,45 @@ export function withToolTimeout<T>(
   timeoutMs: number = TOOL_CALL_TIMEOUT_MS,
 ): Promise<T> {
   return withGeminiTimeout(label, operationFactory, timeoutMs);
+}
+
+/**
+ * ¿El error es transitorio y vale la pena reintentar con backoff? Cubre rate
+ * limit y sobrecarga del proveedor (429/quota/503/500). Los timeouts NO se
+ * reintentan: es mejor fallar al siguiente modelo que esperar al mismo colgado.
+ */
+export function isTransientGeminiError(error: unknown): boolean {
+  const message = (error instanceof Error ? error.message : String(error || '')).toLowerCase();
+  return (
+    message.includes('quota') ||
+    message.includes('rate limit') ||
+    message.includes('rate-limit') ||
+    message.includes('resource_exhausted') ||
+    message.includes('too many requests') ||
+    message.includes('exceeded') ||
+    message.includes('overloaded') ||
+    message.includes('unavailable') ||
+    message.includes('internal error') ||
+    // Códigos HTTP con límite de palabra: evita falsos positivos como el "500"
+    // dentro de "45000ms" del mensaje de timeout.
+    /\b(429|500|503)\b/.test(message)
+  );
+}
+
+/** Espera `ms`, o rechaza de inmediato si se aborta la señal (botón Stop). */
+function sleepWithSignal(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) return reject(new DOMException('Aborted', 'AbortError'));
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
 }
 
 export function resetGeminiResilienceState(): void {

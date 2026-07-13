@@ -1,5 +1,17 @@
 import { MODELS } from '../../config';
 
+const LIVE_VOICE_STORAGE_KEY = 'soflia-live-voice';
+const DEFAULT_LIVE_VOICE = 'Aoede';
+
+/** Voz prebuilt del Live API (configurable via localStorage; default Aoede). */
+function getStoredLiveVoice(): string {
+  try {
+    return localStorage.getItem(LIVE_VOICE_STORAGE_KEY) || DEFAULT_LIVE_VOICE;
+  } catch {
+    return DEFAULT_LIVE_VOICE;
+  }
+}
+
 export function buildSetupMessage(includeTools: boolean): any {
   const setupMessage: any = {
     setup: {
@@ -7,8 +19,11 @@ export function buildSetupMessage(includeTools: boolean): any {
       generationConfig: {
         responseModalities: ['AUDIO'],
         speechConfig: {
-          voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Aoede' } },
+          voiceConfig: { prebuiltVoiceConfig: { voiceName: getStoredLiveVoice() } },
         },
+        // Gemini 3.1 Live usa thinkingLevel (no thinkingBudget); minimal = menor
+        // latencia de respuesta, lo correcto para conversacion de voz en vivo.
+        thinkingConfig: { thinkingLevel: 'minimal' },
       },
       systemInstruction: {
         parts: [{

@@ -1,5 +1,6 @@
 import type { FunctionResponse } from './types';
 import { executeBackgroundSystemTool } from './system-executors/background';
+import { executeContextualControlTool } from './system-executors/contextual-control';
 import { executePowerTool } from './system-executors/power';
 import { executeProcessTool } from './system-executors/processes';
 import { executeVolumeTool } from './system-executors/volume';
@@ -20,6 +21,7 @@ export async function executeSystemTool(
     await executeProcessTool(toolName, toolArgs)
     || await executePowerTool(toolName, toolArgs)
     || await executeVolumeTool(toolName, toolArgs)
+    || await executeContextualControlTool(toolName, toolArgs)
     || await executeWifiTool(toolName, toolArgs)
     || await executeBackgroundSystemTool(toolName, toolArgs)
   );
