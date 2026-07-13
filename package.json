@@ -3,7 +3,10 @@
   "private": true,
   "version": "0.7.0",
   "description": "SofLIA Hub Desktop Client",
-  "author": "Pulse Hub",
+  "author": {
+    "name": "SofLIA Hub",
+    "email": "devops@soflia.ai"
+  },
   "scripts": {
     "dev": "vite",
     "dev:clean": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-clean.ps1",

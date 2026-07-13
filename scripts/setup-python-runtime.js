@@ -1,9 +1,15 @@
 // =============================================================================
 // SofLIA Hub - Setup del runtime Python privado (Windows, macOS y Linux)
 // =============================================================================
-// Descarga la distribucion "embeddable" oficial de Python (PSF License,
-// redistribuible), la extrae en python-runtime/, habilita site-packages,
-// instala pip y las dependencias fijadas en python/requirements.txt.
+// Descarga una distribucion autonoma de CPython (python-build-standalone, del
+// proyecto Astral; PSF License, redistribuible), la extrae en python-runtime/
+// e instala las dependencias fijadas de ambos sidecars.
+//
+// Se usa python-build-standalone en las TRES plataformas: python.org dejo de
+// publicar binarios (incluido el "embeddable") para 3.12.x al entrar la rama
+// en fase security-only (las 3.12.11+ son solo codigo fuente), por lo que el
+// zip embeddable de Windows ya no existe para versiones con los ultimos CVEs.
+// Ademas estos builds incluyen pip, asi que no se necesita get-pip.py.
 //
 // El resultado (python-runtime/) se empaqueta en el instalador via
 // extraResources de electron-builder (ver electron-builder.json5).
@@ -19,12 +25,9 @@ const { execFileSync } = require('node:child_process');
 
 const PYTHON_VERSION = '3.12.11';
 const STANDALONE_RELEASE = '20250612';
-const PYTHON_EMBED_URL = process.env.PYTHON_EMBED_URL
-  || `https://www.python.org/ftp/python/${PYTHON_VERSION}/python-${PYTHON_VERSION}-embed-amd64.zip`;
-// Verificacion de integridad: si se define PYTHON_EMBED_SHA256 se exige que
+// Verificacion de integridad: si se define PYTHON_RUNTIME_SHA256 se exige que
 // coincida; si no, se ancla el hash calculado en el lockfile (trust-on-first-use).
-const EXPECTED_SHA256 = (process.env.PYTHON_EMBED_SHA256 || '').toLowerCase();
-const GET_PIP_URL = 'https://bootstrap.pypa.io/get-pip.py';
+const EXPECTED_SHA256 = (process.env.PYTHON_RUNTIME_SHA256 || '').toLowerCase();
 
 const ROOT = path.resolve(__dirname, '..');
 const RUNTIME_DIR = path.join(ROOT, 'python-runtime');
@@ -60,9 +63,7 @@ async function main() {
 
   console.log(`[PythonRuntime] Preparando Python embebido ${PYTHON_VERSION} en: ${RUNTIME_DIR}`);
   if (fs.existsSync(RUNTIME_DIR)) fs.rmSync(RUNTIME_DIR, { recursive: true, force: true });
-  const archiveHash = process.platform === 'win32'
-    ? await prepareWindowsRuntime(compatibleLock)
-    : await prepareUnixRuntime(compatibleLock);
+  const { archiveHash, archiveUrl } = await prepareStandaloneRuntime(compatibleLock);
 
   console.log('[PythonRuntime] Instalando dependencias de los sidecars (voz + herramientas)...');
   execFileSync(pythonExe, ['-m', 'pip', 'install', '--no-warn-script-location',
@@ -78,6 +79,7 @@ async function main() {
     pythonVersion: PYTHON_VERSION,
     platform: process.platform,
     arch: process.arch,
+    archiveUrl,
     archiveSha256: archiveHash,
     requirementsSha256: requirementsHash,
     createdAt: new Date().toISOString(),
@@ -99,31 +101,11 @@ function getRuntimeExecutable() {
     : path.join(RUNTIME_DIR, 'bin', 'python3');
 }
 
-async function prepareWindowsRuntime(lock) {
-  fs.mkdirSync(RUNTIME_DIR, { recursive: true });
-  const zipPath = path.join(RUNTIME_DIR, 'python-embed.zip');
-  console.log(`[PythonRuntime] Descargando: ${PYTHON_EMBED_URL}`);
-  await downloadFile(PYTHON_EMBED_URL, zipPath, 0);
-  const archiveHash = verifyArchive(zipPath, lock);
-  execFileSync('powershell', ['-NoProfile', '-Command',
-    `Expand-Archive -LiteralPath "${zipPath}" -DestinationPath "${RUNTIME_DIR}" -Force`], { stdio: 'inherit' });
-  fs.rmSync(zipPath, { force: true });
-
-  const pthFile = fs.readdirSync(RUNTIME_DIR).find((file) => /^python\d+\._pth$/.test(file));
-  if (!pthFile) throw new Error('No se encontro el archivo ._pth del runtime embebido.');
-  const pthPath = path.join(RUNTIME_DIR, pthFile);
-  const pth = fs.readFileSync(pthPath, 'utf8').replace('#import site', 'import site');
-  fs.writeFileSync(pthPath, `${pth.trimEnd()}\nLib\\site-packages\n`, 'utf8');
-
-  const getPipPath = path.join(RUNTIME_DIR, 'get-pip.py');
-  await downloadFile(GET_PIP_URL, getPipPath, 0);
-  execFileSync(getRuntimeExecutable(), [getPipPath, '--no-warn-script-location'], { stdio: 'inherit' });
-  fs.rmSync(getPipPath, { force: true });
-  return archiveHash;
-}
-
-async function prepareUnixRuntime(lock) {
+async function prepareStandaloneRuntime(lock) {
   const targets = {
+    win32: {
+      x64: 'x86_64-pc-windows-msvc',
+    },
     darwin: {
       x64: 'x86_64-apple-darwin',
       arm64: 'aarch64-apple-darwin',
@@ -137,32 +119,38 @@ async function prepareUnixRuntime(lock) {
   if (!target) throw new Error(`Plataforma Python no soportada: ${process.platform}/${process.arch}`);
 
   const fileName = `cpython-${PYTHON_VERSION}+${STANDALONE_RELEASE}-${target}-install_only_stripped.tar.gz`;
-  const url = `https://github.com/astral-sh/python-build-standalone/releases/download/${STANDALONE_RELEASE}/${fileName}`;
+  const url = process.env.PYTHON_RUNTIME_URL
+    || `https://github.com/astral-sh/python-build-standalone/releases/download/${STANDALONE_RELEASE}/${fileName}`;
   const archivePath = path.join(ROOT, `.python-runtime-${process.platform}-${process.arch}.tar.gz`);
   const extractDir = path.join(ROOT, `.python-runtime-extract-${process.pid}`);
   console.log(`[PythonRuntime] Descargando distribucion autonoma: ${url}`);
   await downloadFile(url, archivePath, 0);
-  const archiveHash = verifyArchive(archivePath, lock);
+  const archiveHash = verifyArchive(archivePath, url, lock);
 
   try {
     fs.mkdirSync(extractDir, { recursive: true });
+    // `tar` existe nativo en Windows 10+ (bsdtar), macOS y Linux.
     execFileSync('tar', ['-xzf', archivePath, '-C', extractDir], { stdio: 'inherit' });
     const extractedPython = path.join(extractDir, 'python');
-    if (!fs.existsSync(path.join(extractedPython, 'bin', 'python3'))) {
-      throw new Error('El archivo autonomo no contiene python/bin/python3.');
+    const exeRelative = process.platform === 'win32' ? ['python.exe'] : ['bin', 'python3'];
+    if (!fs.existsSync(path.join(extractedPython, ...exeRelative))) {
+      throw new Error(`El archivo autonomo no contiene python/${exeRelative.join('/')}.`);
     }
     fs.renameSync(extractedPython, RUNTIME_DIR);
   } finally {
     fs.rmSync(archivePath, { force: true });
     fs.rmSync(extractDir, { recursive: true, force: true });
   }
-  return archiveHash;
+  return { archiveHash, archiveUrl: url };
 }
 
-function verifyArchive(archivePath, lock) {
+function verifyArchive(archivePath, url, lock) {
   const archiveHash = sha256File(archivePath);
   console.log(`[PythonRuntime] SHA256: ${archiveHash}`);
-  const anchor = EXPECTED_SHA256 || (lock && lock.archiveSha256) || (lock && lock.pythonZipSha256) || '';
+  // El hash del lockfile solo sirve de ancla si proviene de la MISMA URL:
+  // al cambiar de fuente/version el hash anterior dejaria de aplicar.
+  const lockAnchor = lock && lock.archiveUrl === url ? lock.archiveSha256 : '';
+  const anchor = EXPECTED_SHA256 || lockAnchor || '';
   if (anchor && anchor !== archiveHash) {
     throw new Error(`SHA256 no coincide. Esperado ${anchor}, obtenido ${archiveHash}.`);
   }

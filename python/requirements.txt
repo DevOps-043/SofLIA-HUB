@@ -3,5 +3,9 @@
 # Licencias: vosk (Apache-2.0), sounddevice (MIT) — aptas para redistribucion.
 # NOTA: el TTS (Piper) NO va por pip: piper-phonemize no tiene wheels cp312.
 # Se usa el binario standalone piper.exe (scripts/install-piper-voice.js).
-vosk==0.3.45
+#
+# vosk 0.3.45 no publico wheel para macOS (solo Windows/Linux); en macOS se usa
+# 0.3.44, cuya wheel universal2 cubre Intel y Apple Silicon.
+vosk==0.3.45; sys_platform != 'darwin'
+vosk==0.3.44; sys_platform == 'darwin'
 sounddevice==0.5.1
