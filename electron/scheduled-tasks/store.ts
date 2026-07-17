@@ -1,9 +1,14 @@
 import cron from 'node-cron';
 import fs from 'node:fs/promises';
 
+import { mirrorHubStateFile, restoreHubStateFile } from '../hub-state-store';
 import type { ScheduledTask, ScheduledTaskMeta } from './types';
 
+const HUB_STATE_SERVICE_NAME = 'scheduled-tasks';
+
 export async function loadScheduledTaskMap(storagePath: string): Promise<Map<string, ScheduledTask>> {
+  // Primero la base del Hub: las tareas de WhatsApp sobreviven formateos.
+  await restoreHubStateFile(HUB_STATE_SERVICE_NAME, storagePath);
   const tasks = new Map<string, ScheduledTask>();
   try {
     const savedTasks = JSON.parse(await fs.readFile(storagePath, 'utf-8')) as ScheduledTaskMeta[];
@@ -23,6 +28,7 @@ export async function saveScheduledTaskMap(storagePath: string, tasks: Iterable<
   try {
     const metadataList = Array.from(tasks).map(({ task: _task, ...meta }) => meta);
     await fs.writeFile(storagePath, JSON.stringify(metadataList, null, 2), 'utf-8');
+    mirrorHubStateFile(HUB_STATE_SERVICE_NAME, storagePath);
   } catch (err) {
     console.error('[ScheduledTasksService] Error guardando tareas:', err);
   }

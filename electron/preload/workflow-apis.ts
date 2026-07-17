@@ -41,4 +41,26 @@ export function exposeWorkflowApis(bridge: PreloadBridge, ipc: SafeIpc): void {
     onDetected: (cb: (payload: any) => void) => safeOn('meeting:detected', cb),
     removeListeners: () => safeRemoveAllListeners('meeting:detected'),
   });
+  bridge.exposeInMainWorld('meetingLive', {
+    start: (input?: { title?: string; language?: string; modelSize?: string; screenshotIntervalMs?: number }) =>
+      safeInvoke('meeting-live:start', input),
+    stop: () => safeInvoke('meeting-live:stop'),
+    getStatus: () => safeInvoke('meeting-live:status'),
+    pushAudioChunk: (input: { source: 'mic' | 'system'; audioB64: string }) =>
+      safeInvoke('meeting-live:audio-chunk', input),
+    setLoopback: (enabled: boolean) => safeInvoke('meeting-live:set-loopback', enabled),
+    dismissDetection: () => safeInvoke('meeting-live:dismiss-detection'),
+    createRun: (input: { ownerUserId: string; organizationId?: string | null; meetingTitle?: string | null }) =>
+      safeInvoke('meeting-live:create-run', input),
+    onSegment: (cb: (payload: unknown) => void) => safeOn('meeting-live:segment', cb),
+    onStatusChanged: (cb: (payload: unknown) => void) => safeOn('meeting-live:status-changed', cb),
+    onError: (cb: (payload: unknown) => void) => safeOn('meeting-live:error', cb),
+    onMeetingDetected: (cb: (payload: unknown) => void) => safeOn('meeting-live:meeting-detected', cb),
+    removeListeners: () => {
+      safeRemoveAllListeners('meeting-live:segment');
+      safeRemoveAllListeners('meeting-live:status-changed');
+      safeRemoveAllListeners('meeting-live:error');
+      safeRemoveAllListeners('meeting-live:meeting-detected');
+    },
+  });
 }

@@ -21,10 +21,12 @@ export async function executeGeminiToolCall(
   allToolCalls: ToolCallInfo[],
   generatedImages: string[],
 ): Promise<{ functionResponse: { name: string; response: any } }> {
+  // toolInfo conserva los args originales (sin base64) para UI e historial;
+  // el ejecutor recibe los args enriquecidos (p. ej. graficas para el Word).
   const toolInfo: ToolCallInfo = { name: toolName, args: toolArgs };
   options?.onToolCall?.(toolInfo);
   try {
-    const resultStr = await executeKnownTool(toolName, toolArgs, generatedImages);
+    const resultStr = await executeKnownTool(toolName, enrichToolArgs(toolName, toolArgs, generatedImages), generatedImages);
     toolInfo.result = resultStr;
     allToolCalls.push(toolInfo);
     return { functionResponse: { name: toolName, response: JSON.parse(resultStr) } };
@@ -34,6 +36,18 @@ export async function executeGeminiToolCall(
     allToolCalls.push(toolInfo);
     return { functionResponse: { name: toolName, response: errorResult } };
   }
+}
+
+/**
+ * Las graficas de code execution viven como data URLs en el pipeline, no en el
+ * modelo (no puede re-emitir base64 en los args). Al crear un Word se inyectan
+ * automaticamente para que el documento incluya las graficas de la conversacion.
+ */
+function enrichToolArgs(toolName: string, args: Record<string, any>, generatedImages: string[]): Record<string, any> {
+  if (toolName === 'create_word_document' && generatedImages.length > 0 && !args.chart_images) {
+    return { ...args, chart_images: generatedImages.slice(0, 8) };
+  }
+  return args;
 }
 
 function executeKnownTool(toolName: string, args: Record<string, any>, generatedImages: string[]): Promise<string> {

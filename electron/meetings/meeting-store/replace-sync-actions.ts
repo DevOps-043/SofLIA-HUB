@@ -1,11 +1,11 @@
 import type { MeetingStore } from '../meeting-store.ts';
 import crypto from 'node:crypto';
-import { getMeetingIrisClient } from '../meeting-iris-client';
+import { getMeetingHubClient } from '../meeting-hub-client';
 import type { MeetingSyncActionRecord, ProposedMeetingAction } from '../meeting-types';
 import { nowIso, makeId, throwOnError } from './shared';
 
 export async function replaceSyncActions(this: MeetingStore, runId: string, assetId: string, actions: ProposedMeetingAction[]): Promise<MeetingSyncActionRecord[]> {
-    const supabase = getMeetingIrisClient();
+    const supabase = getMeetingHubClient();
 
     const { error: deleteError } = await supabase
       .from('meeting_sync_actions')
@@ -45,13 +45,15 @@ export async function replaceSyncActions(this: MeetingStore, runId: string, asse
       return [];
     }
 
+    // La tabla usa payload_json/blocking_flags_json; los campos TS `payload` y
+    // `blocking_flags` NO deben viajar en el insert (PostgREST los rechaza).
     const { error } = await supabase
       .from('meeting_sync_actions')
       .insert(
-        records.map((record) => ({
-          ...record,
-          payload_json: record.payload,
-          blocking_flags_json: record.blocking_flags,
+        records.map(({ payload, blocking_flags, ...columns }) => ({
+          ...columns,
+          payload_json: payload,
+          blocking_flags_json: blocking_flags ?? [],
         })),
       );
 

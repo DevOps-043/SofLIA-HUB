@@ -591,6 +591,22 @@ export class PythonRuntimeService extends EventEmitter {
     });
   }
 
+  /**
+   * Escribe un comando SIN esperar respuesta (el sidecar no la emite). Uso:
+   * chunks de audio de reunion (~2-4/seg), donde una respuesta por chunk solo
+   * duplicaria el trafico stdio. Devuelve false si el sidecar no esta corriendo.
+   */
+  sendNotification(cmd: string, params: Record<string, unknown>): boolean {
+    const proc = this.proc;
+    if (!proc || proc.stdin.destroyed) return false;
+    return proc.stdin.write(`${JSON.stringify({ cmd, params })}\n`);
+  }
+
+  /** Garantiza que el sidecar este corriendo (lo lanza si es necesario). */
+  async ensureSidecarRunning(): Promise<void> {
+    await this.ensureSidecar();
+  }
+
   /** Ejecuta un comando arbitrario en el sidecar (base para futuras capacidades Python). */
   async sendCommand(cmd: string, params: Record<string, unknown>, timeoutMs = COMMAND_TIMEOUT_MS): Promise<Record<string, unknown>> {
     const proc = this.proc;
@@ -765,6 +781,23 @@ export class PythonRuntimeService extends EventEmitter {
       case 'wake_word':
         console.log(`[PythonRuntime] Wake word detectada: "${String(msg.text ?? '')}"`);
         this.emit('wake-word', { text: String(msg.text ?? '') });
+        break;
+      case 'meeting_segment':
+        this.emit('meeting-segment', {
+          sessionId: String(msg.session_id ?? ''),
+          source: msg.source === 'mic' ? 'mic' : 'system',
+          speaker: String(msg.speaker ?? (msg.source === 'mic' ? 'usuario' : 'participantes')),
+          text: String(msg.text ?? ''),
+          t0Ms: Number(msg.t0_ms ?? 0),
+          t1Ms: Number(msg.t1_ms ?? 0),
+        });
+        break;
+      case 'meeting_error':
+        console.warn(`[PythonRuntime] Error de transcripcion de reunion: ${String(msg.message ?? '')}`);
+        this.emit('meeting-error', {
+          sessionId: String(msg.session_id ?? ''),
+          message: String(msg.message ?? ''),
+        });
         break;
       case 'model_preloaded':
         console.log(`[PythonRuntime] Modelo de dictado precargado en ${String(msg.seconds ?? '?')}s (la primera peticion ya no perdera palabras).`);

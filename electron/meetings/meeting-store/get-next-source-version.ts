@@ -1,11 +1,11 @@
 import type { MeetingStore } from '../meeting-store.ts';
-import { getMeetingIrisClient } from '../meeting-iris-client';
+import { getMeetingHubClient } from '../meeting-hub-client';
 import { throwOnError } from './shared';
 
 export async function getNextSourceVersion(this: MeetingStore, ownerUserId: string, sourceUri?: string | null): Promise<number> {
     if (!sourceUri) return 1;
 
-    const supabase = getMeetingIrisClient();
+    const supabase = getMeetingHubClient();
     const { data, error } = await supabase
       .from('meeting_runs')
       .select('source_version')

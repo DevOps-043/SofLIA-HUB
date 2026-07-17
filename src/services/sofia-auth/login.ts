@@ -19,10 +19,10 @@ export interface SofiaLoginUserRow {
   last_name?: string | null;
   display_name?: string | null;
   profile_picture_url?: string | null;
-  cargo_rol?: string | null;
+  platform_role?: string | null;
 }
 
-const LOGIN_USER_COLUMNS = 'id, username, email, first_name, last_name, display_name, profile_picture_url, cargo_rol';
+const LOGIN_USER_COLUMNS = 'id, username, email, first_name, last_name, display_name, profile_picture_url, platform_role';
 
 /** Mensaje unico para credenciales/usuario invalido: evita enumeracion de cuentas. */
 export const INVALID_CREDENTIALS_MESSAGE = 'Credenciales invalidas';

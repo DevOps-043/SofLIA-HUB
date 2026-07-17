@@ -1,4 +1,7 @@
 export const TOOL_DISPLAY_NAMES: Record<string, string> = {
+  web_research: 'Investigando en la web...',
+  research_actions: 'Preparando entregables...',
+  create_word_document: 'Creando documento Word...',
   list_directory: 'Listando archivos...',
   read_file: 'Leyendo archivo...',
   write_file: 'Escribiendo archivo...',

@@ -1,10 +1,10 @@
 import type { MeetingStore } from '../meeting-store.ts';
-import { getMeetingIrisClient } from '../meeting-iris-client';
+import { getMeetingHubClient } from '../meeting-hub-client';
 import type { MeetingRunStatus } from '../meeting-types';
 import { nowIso, throwOnError } from './shared';
 
 export async function updateRunStatus(this: MeetingStore, runId: string, status: MeetingRunStatus, lastError?: string | null): Promise<void> {
-    const supabase = getMeetingIrisClient();
+    const supabase = getMeetingHubClient();
     const { error } = await supabase
       .from('meeting_runs')
       .update({

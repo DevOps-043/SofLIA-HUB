@@ -1,10 +1,10 @@
 import type { MeetingStore } from '../meeting-store.ts';
-import { getMeetingIrisClient } from '../meeting-iris-client';
+import { getMeetingHubClient } from '../meeting-hub-client';
 import type { MeetingSyncActionState } from '../meeting-types';
 import { nowIso, throwOnError } from './shared';
 
 export async function updateActionSyncState(this: MeetingStore, actionId: string, syncState: MeetingSyncActionState, externalRef?: string | null, errorMessage?: string | null): Promise<void> {
-    const supabase = getMeetingIrisClient();
+    const supabase = getMeetingHubClient();
     const { error } = await supabase
       .from('meeting_sync_actions')
       .update({

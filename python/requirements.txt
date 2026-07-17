@@ -9,3 +9,11 @@
 vosk==0.3.45; sys_platform != 'darwin'
 vosk==0.3.44; sys_platform == 'darwin'
 sounddevice==0.5.1
+# Transcripcion de reuniones en vivo (meeting_transcription.py). Whisper via
+# CTranslate2: sin PyTorch, wheels para Windows/macOS/Linux, licencia MIT.
+# El modelo (~480MB "small") se descarga en el primer uso a userData/models.
+faster-whisper==1.2.0
+# Diarizacion de hablantes (embeddings CAM++ 3D-Speaker via onnxruntime).
+# Sin PyTorch; wheels Win/macOS/Linux; licencia Apache-2.0. El modelo (~28MB)
+# lo descarga Electron a userData/models/speaker.
+sherpa-onnx==1.13.4

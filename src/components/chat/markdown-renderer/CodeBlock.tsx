@@ -1,7 +1,11 @@
 import { useState } from 'react';
 
+// Lenguajes que son prosa (prompts, texto plano): se envuelven en vez de hacer scroll horizontal.
+const PROSE_LANGUAGES = new Set(['', 'text', 'txt', 'plaintext', 'plain', 'prompt', 'markdown', 'md']);
+
 export function CodeBlock({ language, code }: { language: string; code: string }) {
   const [copied, setCopied] = useState(false);
+  const isProse = PROSE_LANGUAGES.has(language.toLowerCase());
 
   const handleCopy = () => {
     navigator.clipboard.writeText(code);
@@ -31,7 +35,7 @@ export function CodeBlock({ language, code }: { language: string; code: string }
         </button>
       </div>
       <div className="p-4 overflow-x-auto custom-scrollbar">
-        <code className="text-[13px] leading-relaxed font-mono text-gray-200 block min-w-full whitespace-pre font-ligatures-none">{code}</code>
+        <code className={`text-[13px] leading-relaxed font-mono text-gray-200 block min-w-full ${isProse ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'} font-ligatures-none`}>{code}</code>
       </div>
     </div>
   );

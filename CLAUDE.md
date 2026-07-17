@@ -134,8 +134,12 @@ Every feature follows this 4-layer pattern:
 | Instance | Purpose | Key Tables | Env Vars |
 |----------|---------|------------|----------|
 | **SOFIA** | Auth, organizations, teams, user profiles, roles | `users`, `organizations`, `organization_users`, `organization_teams` | `VITE_SOFIA_SUPABASE_URL`, `VITE_SOFIA_SUPABASE_ANON_KEY` |
-| **Lia** | Conversations, messages, folders, monitoring, calendar connections, profiles | `conversations`, `messages`, `folders`, `profiles`, `monitoring_sessions`, `activity_logs`, `daily_summaries`, `calendar_connections` | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` |
-| **IRIS** | Projects, issues, sprints, CRM, workflows, meetings, approvals | `teams`, `projects`, `issues`, `statuses`, `priorities`, `crm_companies`, `crm_contacts`, `crm_opportunities`, `workflow_runs`, `workflow_steps`, `approvals`, `artifacts`, `meeting_runs`, `meeting_assets` | `VITE_IRIS_SUPABASE_URL`, `VITE_IRIS_SUPABASE_ANON_KEY` |
+| **Lia (SofLIA Hub DB)** | Conversations, messages, folders, monitoring, calendar connections, profiles, **meeting ops (runs, minutas, aprobaciones)** | `conversations`, `messages`, `folders`, `profiles`, `monitoring_sessions`, `activity_logs`, `daily_summaries`, `calendar_connections`, `meeting_runs`, `meeting_source_artifacts`, `meeting_assets`, `meeting_sync_actions`, `meeting_approvals`, `meeting_detection_candidates` | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` |
+| **IRIS** | Projects, issues, sprints, CRM (producto compartido; SOLO recibe lo aprobado, no persiste lo operativo del Hub) | `teams`, `projects`, `issues`, `statuses`, `priorities`, `crm_companies`, `crm_contacts`, `crm_opportunities` | `VITE_IRIS_SUPABASE_URL`, `VITE_IRIS_SUPABASE_ANON_KEY` |
+
+**Regla de arquitectura de datos:** lo operativo de SofLIA Hub (meeting ops, estado de workflows) vive en la base del Hub (Lia). A IRIS solo se le **comparte** el resultado aprobado (issues, proyectos) via `iris-data-main`. Las bases no se mezclan.
+
+**Respaldo de estado de servicios (`hub_service_state`):** los JSON locales de workflows (`workflow-hub-state.json`, workspace-automation, `scheduler-state.json`, `scheduled_tasks.json`) se espejan en la tabla `hub_service_state` de la base del Hub via `electron/hub-state-store.ts` (restaurar al iniciar si el Hub tiene estado; espejar tras cada guardado). Sobreviven formateos y cambios de maquina. SQL: `sql/hub-service-state.sql`.
 
 **Access patterns:**
 - SOFIA: renderer only (`src/lib/sofia-client.ts`, `src/contexts/AuthContext.tsx`)
@@ -837,7 +841,8 @@ Services are initialized in dependency order using `runOptionalStep()` (non-fata
 
 ### `sql/` — Database Schemas
 - `Schema-Database.sql` — Main database schema
-- `meeting-ops-tables.sql` — Meeting operations tables (IRIS Supabase)
+- `meeting-ops-tables.sql` — Meeting operations tables (base de SofLIA Hub / Lia Supabase)
+- `drop-meeting-ops-from-iris.sql` — Limpieza de las tablas de meetings creadas por error en IRIS (destructivo, revisar antes)
 - `monitoring-tables.sql` — Monitoring tables (Lia Supabase)
 
 ### `scripts/` — Build & CLI

@@ -1,10 +1,10 @@
 import type { MeetingStore } from '../meeting-store.ts';
-import { getMeetingIrisClient } from '../meeting-iris-client';
+import { getMeetingHubClient } from '../meeting-hub-client';
 import type { MeetingRunSummary, MeetingReviewFlag } from '../meeting-types';
 import { parseJson, throwOnError } from './shared';
 
 export async function listRuns(this: MeetingStore, filters?: { ownerUserId?: string; organizationId?: string; limit?: number }): Promise<MeetingRunSummary[]> {
-    const supabase = getMeetingIrisClient();
+    const supabase = getMeetingHubClient();
 
     let query = supabase
       .from('meeting_runs')

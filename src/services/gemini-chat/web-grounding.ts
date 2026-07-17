@@ -3,18 +3,21 @@ import {
   GEMINI_GROUNDING_API,
   GEMINI_GROUNDING_MODELS,
   GEMINI_GROUNDING_TOOLS,
+  supportsCodeExecutionCombo,
 } from '../../shared/gemini-grounding-config';
 import { getApiKeyWithCache } from '../api-keys';
 import { extractSources } from './sources';
 import { completedStreamResult, isAbortError, stoppedStreamResult } from './streams';
 import type { StreamResult, ToolCallInfo } from './types';
 
-const WEB_GROUNDING_FAILURE =
+export const WEB_GROUNDING_FAILURE =
   'No pude verificar informacion actualizada con fuentes externas en este momento. Intenta de nuevo o comparte una URL concreta para analizarla.';
 
 // La búsqueda web va por fetch/IPC crudos: sin límite podían colgarse para
 // siempre (p. ej. API bloqueada) y dejar el chat en "..." eterno. Se acota.
-const GROUNDING_REQUEST_TIMEOUT_MS = 60_000;
+// 150s: los informes profundos hacen varias búsquedas y generan 900-1500
+// palabras; con 60s se cortaban investigaciones legítimas a la mitad.
+const GROUNDING_REQUEST_TIMEOUT_MS = 150_000;
 
 /**
  * Combina la señal de cancelación del usuario (botón Stop) con un timeout, para
@@ -86,7 +89,9 @@ export async function sendGroundedMessage(input: {
         const text = extractResponseText(response);
         const sources = extractSources(response);
         if (!text.trim() || !sources?.length) throw new Error('WEB_GROUNDING_NO_VERIFIED_SOURCES');
-        return completedStreamResult(text, response, input.allToolCalls, input.allGeneratedImages);
+        // Graficas de code execution (matplotlib) llegan como imagenes inline.
+        const images = [...input.allGeneratedImages, ...extractInlineImages(response)];
+        return completedStreamResult(text, response, input.allToolCalls, images);
       } catch (error) {
         // Cancelación del usuario: detener limpio, no seguir probando modelos.
         if (isAbortError(error, input.signal)) return stoppedStreamResult(input.allToolCalls, input.allGeneratedImages);
@@ -137,7 +142,7 @@ async function requestGroundedContent(
   },
 ): Promise<any> {
   const modelName = normalizeModelName(modelId);
-  const body = buildGroundingRequestBody(input);
+  const body = buildGroundingRequestBody(input, modelName);
   // Acota la petición con timeout + cancelación del usuario para no colgarse.
   const { signal, cleanup } = createBoundedSignal(input.signal, GROUNDING_REQUEST_TIMEOUT_MS);
   try {
@@ -192,7 +197,7 @@ function buildGroundingRequestBody(input: {
   systemInstruction: string;
   history: Array<{ role: string; parts: Array<{ text: string }> }>;
   generationConfig: Record<string, any>;
-}): Record<string, any> {
+}, modelName: string): Record<string, any> {
   return {
     contents: [
       ...input.history,
@@ -202,7 +207,7 @@ function buildGroundingRequestBody(input: {
       parts: [{ text: buildGroundingInstruction(input.systemInstruction) }],
     },
     generationConfig: input.generationConfig,
-    tools: buildGroundingTools(input.finalMessage),
+    tools: buildGroundingTools(input.finalMessage, modelName),
   };
 }
 
@@ -239,9 +244,13 @@ function uniqueModelIds(modelIds: Array<string | undefined>): string[] {
   });
 }
 
-function buildGroundingTools(message: string): Array<Record<string, Record<string, never>>> {
+function buildGroundingTools(message: string, modelName: string): Array<Record<string, Record<string, never>>> {
   const tools: Array<Record<string, Record<string, never>>> = [{ [GEMINI_GROUNDING_TOOLS.googleSearch]: {} }];
   if (extractPublicUrls(message).length > 0) tools.push({ [GEMINI_GROUNDING_TOOLS.urlContext]: {} });
+  // Solo Gemini 3+ soporta combinar busqueda con ejecucion de codigo; en los
+  // fallbacks 2.x se omite para no invalidar la peticion. Con codigo real los
+  // calculos (totales, comparativas, proyecciones) no salen "de memoria".
+  if (supportsCodeExecutionCombo(modelName)) tools.push({ [GEMINI_GROUNDING_TOOLS.codeExecution]: {} });
   return tools;
 }
 
@@ -256,6 +265,15 @@ function extractResponseText(response: any): string {
   return parts.filter((part: any) => part.text).map((part: any) => part.text).join('');
 }
 
+/** Imagenes inline de la respuesta (graficas de code execution) como data URLs. */
+function extractInlineImages(response: any): string[] {
+  const parts = response?.candidates?.[0]?.content?.parts || [];
+  return parts
+    .map((part: any) => part.inlineData || part.inline_data)
+    .filter((data: any) => data?.data && String(data.mimeType || data.mime_type || '').startsWith('image/'))
+    .map((data: any) => `data:${data.mimeType || data.mime_type};base64,${data.data}`);
+}
+
 function buildGroundingInstruction(systemInstruction: string): string {
   return `${systemInstruction}
 
@@ -263,7 +281,23 @@ function buildGroundingInstruction(systemInstruction: string): string {
 Usa Google Search y URL Context para consultas de investigacion, noticias, productos, modelos de IA, datos recientes, precios, versiones o URLs.
 No afirmes que consultaste informacion actualizada si no puedes respaldarla con fuentes recuperadas.
 Prioriza fuentes oficiales y recientes. Si hay incertidumbre, dilo con claridad.
-Responde en espanol y conserva un tono profesional.`;
+Responde en espanol y conserva un tono profesional.
+
+=== PROFUNDIDAD DE LA INVESTIGACION ===
+Distingue el tipo de peticion:
+- Consulta puntual (un dato, un precio, una fecha): responde directo y breve, sin informe.
+- INVESTIGACION o informe (el usuario pide "investiga", "investigacion", "informe", "analisis", "reporte"): entrega un informe profesional EXTENSO y exhaustivo.
+
+Para investigaciones e informes:
+1. Realiza MULTIPLES busquedas complementarias antes de redactar: caracteristicas tecnicas, precios y disponibilidad, comparativas con alternativas, opiniones y analisis de terceros, contexto de mercado e historia relevante.
+2. Estructura minima del informe: Resumen ejecutivo; Contexto y antecedentes; Analisis detallado dividido en secciones tematicas; Datos concretos (cifras, fechas, precios, especificaciones) en tablas Markdown cuando aplique; Comparativa con alternativas relevantes; Implicaciones, riesgos y recomendaciones practicas; Conclusion.
+3. Extension objetivo: entre 900 y 1500 palabras. Un informe de menos de 600 palabras es insuficiente salvo que el tema tenga muy poca informacion disponible (y en ese caso dilo explicitamente).
+4. Cada afirmacion importante debe estar respaldada por las fuentes recuperadas. Si las fuentes se contradicen, senala la discrepancia en lugar de elegir una en silencio.
+5. Incluye detalles concretos y verificables (numeros, fechas, nombres, versiones); evita generalidades de relleno.
+
+=== CALCULOS CON CODIGO (cuando la herramienta este disponible) ===
+Si tienes la herramienta de ejecucion de codigo, usala para TODO calculo no trivial: totales, promedios, porcentajes, conversiones de moneda, comparativas numericas entre productos o proyecciones. Nunca calcules "de memoria" cifras que puedas computar con Python.
+Si una grafica sencilla (barras, lineas) ayuda a comparar datos clave, generala con matplotlib.`;
 }
 
 function normalizeText(text: string): string {

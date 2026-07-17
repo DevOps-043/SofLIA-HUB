@@ -1,4 +1,4 @@
-import type { FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTheme } from '../../hooks/useTheme';
 
@@ -105,6 +105,10 @@ function AuthInput({
   disabled: boolean;
   icon: React.ReactNode;
 }) {
+  const isPassword = type === 'password';
+  const [showPassword, setShowPassword] = useState(false);
+  const inputType = isPassword && showPassword ? 'text' : type;
+
   return (
     <motion.div initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay, ease: [0.16, 1, 0.3, 1], duration: 0.6 }}>
       <div className="relative group">
@@ -112,13 +116,38 @@ function AuthInput({
           {icon}
         </div>
         <input
-          type={type}
+          type={inputType}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          className="w-full bg-gray-100/50 dark:bg-[#161B22]/40 border border-gray-200/80 dark:border-white/[0.06] rounded-xl pl-11 pr-4 py-3 text-[13px] font-light text-gray-900 dark:text-white placeholder-gray-400/80 dark:placeholder-white/20 focus:outline-none focus:border-accent/40 focus:ring-1 focus:ring-accent/40 transition-all duration-200 backdrop-blur-sm group-hover:bg-gray-100/80 dark:group-hover:bg-[#161B22]/70 group-hover:border-gray-300 dark:group-hover:border-white/[0.08]"
+          className={`w-full bg-gray-100/50 dark:bg-[#161B22]/40 border border-gray-200/80 dark:border-white/[0.06] rounded-xl pl-11 ${isPassword ? 'pr-11' : 'pr-4'} py-3 text-[13px] font-light text-gray-900 dark:text-white placeholder-gray-400/80 dark:placeholder-white/20 focus:outline-none focus:border-accent/40 focus:ring-1 focus:ring-accent/40 transition-all duration-200 backdrop-blur-sm group-hover:bg-gray-100/80 dark:group-hover:bg-[#161B22]/70 group-hover:border-gray-300 dark:group-hover:border-white/[0.08]`}
           disabled={disabled}
         />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 dark:text-white/30 hover:text-gray-600 dark:hover:text-white/60 focus:outline-none transition-colors duration-200"
+            tabIndex={-1}
+            aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+          >
+            {showPassword ? (
+              /* Eye-off icon (password visible → click to hide) */
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+                <line x1="1" y1="1" x2="23" y2="23" />
+              </svg>
+            ) : (
+              /* Eye icon (password hidden → click to show) */
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            )}
+          </button>
+        )}
       </div>
     </motion.div>
   );

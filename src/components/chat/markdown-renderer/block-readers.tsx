@@ -1,6 +1,7 @@
 import type React from 'react';
 import { CodeBlock } from './CodeBlock';
 import { formatInline } from './inline-format';
+import { QuoteBlock } from './QuoteBlock';
 import { TableBlock } from './TableBlock';
 
 const HEADER_CLASSES = {
@@ -19,7 +20,7 @@ export function readNextBlock(
   const line = lines[index];
   if (line.startsWith('```')) return readCodeBlock(lines, index);
   if (line.trim().startsWith('|')) return readTableBlock(lines, index);
-  if (line.startsWith('> ')) return readQuoteBlock(lines, index);
+  if (line.trimStart().startsWith('>')) return readQuoteBlock(lines, index);
   if (line.startsWith('#')) return readHeaderBlock(line, index);
   if (line.trim() === '---' || line.trim() === '***') {
     return { element: <hr key={`hr-${index}`} className="my-6 border-gray-200 dark:border-white/10" />, nextIndex: index + 1 };
@@ -52,25 +53,50 @@ function readTableBlock(lines: string[], index: number) {
 }
 
 function readQuoteBlock(lines: string[], index: number) {
+  // Consume tambien las lineas de '>' solo (separador de parrafos dentro de la cita)
+  // para que un prompt citado se renderice como un solo bloque y no aparezcan '>' literales.
   const quoteContent: string[] = [];
   let nextIndex = index;
-  while (nextIndex < lines.length && lines[nextIndex].startsWith('> ')) {
-    quoteContent.push(lines[nextIndex].slice(2));
+  while (nextIndex < lines.length && lines[nextIndex].trimStart().startsWith('>')) {
+    quoteContent.push(lines[nextIndex].trimStart().replace(/^>\s?/, ''));
     nextIndex++;
   }
+
+  const trimmedContent = trimEmptyEdges(quoteContent);
   return {
     element: (
-      <blockquote key={`quote-${nextIndex}`} className="border-l-4 border-accent bg-accent/5 py-2 px-4 my-4 rounded-r text-gray-600 dark:text-gray-400 italic">
-        {quoteContent.map((quote, quoteIndex) => <p key={quoteIndex} className="my-1">{formatInline(quote)}</p>)}
-      </blockquote>
+      <QuoteBlock key={`quote-${nextIndex}`} rawText={trimmedContent.filter((quote) => quote.trim() !== '').join('\n')}>
+        {trimmedContent.map((quote, quoteIndex) => (
+          quote.trim() === ''
+            ? <div key={quoteIndex} className="h-2" />
+            : <p key={quoteIndex} className="my-1 leading-relaxed">{formatInline(quote)}</p>
+        ))}
+      </QuoteBlock>
     ),
     nextIndex,
   };
 }
 
+function trimEmptyEdges(content: string[]): string[] {
+  let start = 0;
+  let end = content.length;
+  while (start < end && content[start].trim() === '') start++;
+  while (end > start && content[end - 1].trim() === '') end--;
+  return content.slice(start, end);
+}
+
+// Los encabezados se limpian de emojis para mantener un aspecto profesional,
+// incluso en conversaciones guardadas antes de la regla de estilo del prompt.
+function stripEmojis(text: string): string {
+  return text
+    .replace(/[\p{Extended_Pictographic}\u{FE0F}\u{200D}\u{20E3}]/gu, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 function readHeaderBlock(line: string, index: number) {
   const level = line.match(/^#+/)?.[0].length || 0;
-  const content = line.slice(level).trim();
+  const content = stripEmojis(line.slice(level).trim());
   const className = HEADER_CLASSES[level as keyof typeof HEADER_CLASSES] || HEADER_CLASSES[6];
   return { element: <div key={`h-${index}`} className={className}>{formatInline(content)}</div>, nextIndex: index + 1 };
 }

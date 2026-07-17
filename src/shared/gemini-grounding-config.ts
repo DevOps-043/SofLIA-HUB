@@ -11,4 +11,14 @@ export const GEMINI_GROUNDING_MODELS = {
 export const GEMINI_GROUNDING_TOOLS = {
   googleSearch: 'google_search',
   urlContext: 'url_context',
+  codeExecution: 'code_execution',
 } as const;
+
+/**
+ * ¿El modelo soporta combinar ejecucion de codigo con otras herramientas
+ * (busqueda, function calling)? Solo Gemini 3 en adelante; en los 2.x la
+ * combinacion invalida la peticion completa.
+ */
+export function supportsCodeExecutionCombo(modelName: string): boolean {
+  return /^gemini-(3|[4-9]|\d{2,})/.test(modelName.replace(/^models\//, '').trim());
+}

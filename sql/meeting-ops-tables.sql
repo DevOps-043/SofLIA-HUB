@@ -1,6 +1,15 @@
 -- =====================================================================
 -- SofLIA Hub - Meeting Ops tables
--- Execute this SQL in the IRIS Supabase instance (SQL Editor)
+-- EJECUTAR EN LA INSTANCIA SUPABASE DE SOFLIA HUB (VITE_SUPABASE_URL),
+-- en el SQL Editor. NO en IRIS.
+--
+-- Regla de arquitectura: lo operativo del Hub (runs de reunion, minutas,
+-- aprobaciones, candidatos de deteccion) vive en la base del Hub. A IRIS
+-- solo se le COMPARTE el resultado aprobado (issues/proyectos) via el
+-- sync de meeting_sync_actions. Las bases no se mezclan.
+--
+-- Si estas tablas se crearon antes en IRIS por error, limpialas ahi con
+-- sql/drop-meeting-ops-from-iris.sql (revisa antes de ejecutar).
 -- =====================================================================
 
 CREATE TABLE IF NOT EXISTS public.meeting_runs (
@@ -150,130 +159,31 @@ ALTER TABLE public.meeting_sync_actions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.meeting_approvals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.meeting_detection_candidates ENABLE ROW LEVEL SECURITY;
 
+-- El proceso main del Hub se conecta con la anon key SIN sesion de Supabase
+-- Auth (la migracion de auth sigue pendiente): politicas con auth.uid()
+-- bloquearian toda la app. Politicas permisivas EXPLICITAS y documentadas;
+-- el aislamiento por usuario (owner_user_id) se aplica a nivel de aplicacion.
+-- TODO(seguridad): endurecer con auth.uid()/roles cuando el Hub complete la
+-- migracion a Supabase Auth.
 DO $$
+DECLARE
+  tabla TEXT;
 BEGIN
-  DROP POLICY IF EXISTS "Allow all for meeting_runs" ON public.meeting_runs;
-  DROP POLICY IF EXISTS "Allow all for meeting_source_artifacts" ON public.meeting_source_artifacts;
-  DROP POLICY IF EXISTS "Allow all for meeting_assets" ON public.meeting_assets;
-  DROP POLICY IF EXISTS "Allow all for meeting_sync_actions" ON public.meeting_sync_actions;
-  DROP POLICY IF EXISTS "Allow all for meeting_approvals" ON public.meeting_approvals;
-  DROP POLICY IF EXISTS "Allow all for meeting_detection_candidates" ON public.meeting_detection_candidates;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'meeting_runs' AND policyname = 'Users manage own meeting runs'
-  ) THEN
-    CREATE POLICY "Users manage own meeting runs"
-      ON public.meeting_runs
-      FOR ALL
-      USING (auth.uid()::text = owner_user_id)
-      WITH CHECK (auth.uid()::text = owner_user_id);
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'meeting_source_artifacts' AND policyname = 'Users manage own meeting source artifacts'
-  ) THEN
-    CREATE POLICY "Users manage own meeting source artifacts"
-      ON public.meeting_source_artifacts
-      FOR ALL
-      USING (
-        EXISTS (
-          SELECT 1 FROM public.meeting_runs run
-          WHERE run.id = meeting_source_artifacts.meeting_run_id
-            AND run.owner_user_id = auth.uid()::text
-        )
-      )
-      WITH CHECK (
-        EXISTS (
-          SELECT 1 FROM public.meeting_runs run
-          WHERE run.id = meeting_source_artifacts.meeting_run_id
-            AND run.owner_user_id = auth.uid()::text
-        )
+  FOREACH tabla IN ARRAY ARRAY[
+    'meeting_runs', 'meeting_source_artifacts', 'meeting_assets',
+    'meeting_sync_actions', 'meeting_approvals', 'meeting_detection_candidates'
+  ] LOOP
+    EXECUTE format('DROP POLICY IF EXISTS "Allow all for %s" ON public.%I', tabla, tabla);
+    EXECUTE format('DROP POLICY IF EXISTS "Users manage own %s" ON public.%I',
+      replace(tabla, '_', ' '), tabla);
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_policies
+      WHERE schemaname = 'public' AND tablename = tabla AND policyname = 'Hub app manages ' || tabla
+    ) THEN
+      EXECUTE format(
+        'CREATE POLICY "Hub app manages %s" ON public.%I FOR ALL TO anon, authenticated USING (true) WITH CHECK (true)',
+        tabla, tabla
       );
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'meeting_assets' AND policyname = 'Users manage own meeting assets'
-  ) THEN
-    CREATE POLICY "Users manage own meeting assets"
-      ON public.meeting_assets
-      FOR ALL
-      USING (
-        EXISTS (
-          SELECT 1 FROM public.meeting_runs run
-          WHERE run.id = meeting_assets.meeting_run_id
-            AND run.owner_user_id = auth.uid()::text
-        )
-      )
-      WITH CHECK (
-        EXISTS (
-          SELECT 1 FROM public.meeting_runs run
-          WHERE run.id = meeting_assets.meeting_run_id
-            AND run.owner_user_id = auth.uid()::text
-        )
-      );
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'meeting_sync_actions' AND policyname = 'Users manage own meeting sync actions'
-  ) THEN
-    CREATE POLICY "Users manage own meeting sync actions"
-      ON public.meeting_sync_actions
-      FOR ALL
-      USING (
-        EXISTS (
-          SELECT 1 FROM public.meeting_runs run
-          WHERE run.id = meeting_sync_actions.meeting_run_id
-            AND run.owner_user_id = auth.uid()::text
-        )
-      )
-      WITH CHECK (
-        EXISTS (
-          SELECT 1 FROM public.meeting_runs run
-          WHERE run.id = meeting_sync_actions.meeting_run_id
-            AND run.owner_user_id = auth.uid()::text
-        )
-      );
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'meeting_approvals' AND policyname = 'Users manage own meeting approvals'
-  ) THEN
-    CREATE POLICY "Users manage own meeting approvals"
-      ON public.meeting_approvals
-      FOR ALL
-      USING (
-        requested_by_user_id = auth.uid()::text
-        OR decided_by_user_id = auth.uid()::text
-        OR EXISTS (
-          SELECT 1 FROM public.meeting_runs run
-          WHERE run.id = meeting_approvals.meeting_run_id
-            AND run.owner_user_id = auth.uid()::text
-        )
-      )
-      WITH CHECK (
-        requested_by_user_id = auth.uid()::text
-        OR decided_by_user_id = auth.uid()::text
-        OR EXISTS (
-          SELECT 1 FROM public.meeting_runs run
-          WHERE run.id = meeting_approvals.meeting_run_id
-            AND run.owner_user_id = auth.uid()::text
-        )
-      );
-  END IF;
-
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE schemaname = 'public' AND tablename = 'meeting_detection_candidates' AND policyname = 'Users manage own meeting detection candidates'
-  ) THEN
-    CREATE POLICY "Users manage own meeting detection candidates"
-      ON public.meeting_detection_candidates
-      FOR ALL
-      USING (auth.uid()::text = owner_user_id)
-      WITH CHECK (auth.uid()::text = owner_user_id);
-  END IF;
+    END IF;
+  END LOOP;
 END $$;

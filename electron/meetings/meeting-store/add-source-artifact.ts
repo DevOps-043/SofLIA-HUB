@@ -1,10 +1,10 @@
 import type { MeetingStore } from '../meeting-store.ts';
-import { getMeetingIrisClient } from '../meeting-iris-client';
+import { getMeetingHubClient } from '../meeting-hub-client';
 import type { CreateMeetingRunInput, MeetingSourceArtifactRecord } from '../meeting-types';
 import { nowIso, makeId, throwOnError } from './shared';
 
 export async function addSourceArtifact(this: MeetingStore, runId: string, input: CreateMeetingRunInput['source']): Promise<MeetingSourceArtifactRecord> {
-    const supabase = getMeetingIrisClient();
+    const supabase = getMeetingHubClient();
     const record: MeetingSourceArtifactRecord = {
       id: makeId('msrc'),
       meeting_run_id: runId,
@@ -20,11 +20,14 @@ export async function addSourceArtifact(this: MeetingStore, runId: string, input
       created_at: nowIso(),
     };
 
+    // La tabla usa metadata_json; el campo TS `metadata` NO debe viajar en el
+    // insert (PostgREST rechaza columnas desconocidas: PGRST204).
+    const { metadata, ...columns } = record;
     const { error } = await supabase
       .from('meeting_source_artifacts')
       .insert({
-        ...record,
-        metadata_json: record.metadata,
+        ...columns,
+        metadata_json: metadata ?? {},
       });
 
     throwOnError(error, 'addSourceArtifact');

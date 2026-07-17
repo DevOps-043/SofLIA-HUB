@@ -1,10 +1,10 @@
 import type { MeetingStore } from '../meeting-store.ts';
-import { getMeetingIrisClient } from '../meeting-iris-client';
+import { getMeetingHubClient } from '../meeting-hub-client';
 import type { MeetingRunRecord } from '../meeting-types';
 import { throwOnError } from './shared';
 
 export async function findRunByOwnerAndSourceHash(this: MeetingStore, ownerUserId: string, sourceHash: string): Promise<MeetingRunRecord | null> {
-    const supabase = getMeetingIrisClient();
+    const supabase = getMeetingHubClient();
     const { data, error } = await supabase
       .from('meeting_runs')
       .select('*')

@@ -10,6 +10,13 @@ export function singleChunkStream(text: string): AsyncIterable<string> {
   })();
 }
 
+/** Acumula un stream de texto en un unico string. */
+export async function collectStreamText(stream: AsyncIterable<string>): Promise<string> {
+  let text = '';
+  for await (const chunk of stream) text += chunk;
+  return text;
+}
+
 /** ¿El error/estado corresponde a una cancelación del usuario (AbortSignal)? */
 export function isAbortError(error: unknown, signal?: AbortSignal): boolean {
   if (signal?.aborted) return true;

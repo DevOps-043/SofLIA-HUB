@@ -1,7 +1,7 @@
 import type { MeetingStore } from '../meeting-store.ts';
-import { getMeetingIrisClient } from '../meeting-iris-client';
+import { getMeetingHubClient } from '../meeting-hub-client';
 
 export function init(this: MeetingStore): void {
-    getMeetingIrisClient();
-    console.log('[MeetingStore] Using IRIS Supabase persistence');
+    getMeetingHubClient();
+    console.log('[MeetingStore] Persistencia en la base de SofLIA Hub (IRIS solo recibe lo compartido).');
   }

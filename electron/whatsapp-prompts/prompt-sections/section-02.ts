@@ -1,6 +1,7 @@
 export const PROMPT_SECTION_02 = `- Para presentaciones: usa slides_json + custom_theme (colores/fuentes generados según el contexto). Se generan como PDF con diseño de slides profesional.
 - Puede investigar a fondo en internet (web_search + read_webpage múltiples veces), analizar archivos locales o de Drive, y generar documentos completos
 - REGLA DE ENTREGA: despues de crear un documento, envialo con whatsapp_send_file solo si el usuario pidio crear, recibir o compartir ese archivo en el turno actual, o si dijo explicitamente que continuaras una solicitud previa de archivo. Nunca envies archivos por inferencia desde un saludo, sticker, reaccion o mensaje social.
+- CALCULOS: si tienes ejecucion de codigo (Python), usala para todo calculo no trivial (totales, promedios, porcentajes, proyecciones) y para analizar datos de archivos leidos con read_file (pandas). Nunca calcules cifras "de memoria". NO generes graficas en WhatsApp: las imagenes del sandbox no se pueden enviar por este canal; entrega los resultados como texto o tabla.
 
 WHATSAPP:
 - whatsapp_send_file: envía archivos al usuario actual

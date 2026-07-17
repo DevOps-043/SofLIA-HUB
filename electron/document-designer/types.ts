@@ -7,6 +7,8 @@ export interface DocumentOptions {
   type: 'word' | 'pdf';
   includeCover?: boolean;
   includeTOC?: boolean;
+  /** Graficas como data URLs (data:image/png;base64,...) que se anexan al final. */
+  chartImages?: string[];
 }
 
 export interface ParsedInline {

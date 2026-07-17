@@ -97,7 +97,10 @@ export async function withGeminiModelCall<T>(
         await sleepWithSignal(delay, options?.signal);
         continue;
       }
-      noteFailure();
+      // Rate limit = el servicio esta ARRIBA pero throttled (p.ej. cuota del
+      // free tier por minuto): NO es una falla del circuit breaker. Contarla
+      // bloquearia al usuario 60s justo cuando bastaba esperar unos segundos.
+      if (!isRateLimitError(error)) noteFailure();
       throw error;
     }
   }
@@ -131,6 +134,24 @@ export function isTransientGeminiError(error: unknown): boolean {
     // Códigos HTTP con límite de palabra: evita falsos positivos como el "500"
     // dentro de "45000ms" del mensaje de timeout.
     /\b(429|500|503)\b/.test(message)
+  );
+}
+
+/**
+ * ¿El error es SOLO rate limit (429/cuota)? A diferencia de un 500/503/red,
+ * significa que el servicio esta disponible pero throttled; no debe abrir el
+ * circuit breaker (que existe para servicios caidos, no para throttling).
+ */
+export function isRateLimitError(error: unknown): boolean {
+  const message = (error instanceof Error ? error.message : String(error || '')).toLowerCase();
+  return (
+    message.includes('quota') ||
+    message.includes('rate limit') ||
+    message.includes('rate-limit') ||
+    message.includes('resource_exhausted') ||
+    message.includes('too many requests') ||
+    message.includes('free_tier') ||
+    /\b429\b/.test(message)
   );
 }
 

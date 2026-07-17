@@ -1,10 +1,10 @@
 import type { MeetingStore } from '../meeting-store.ts';
-import { getMeetingIrisClient } from '../meeting-iris-client';
+import { getMeetingHubClient } from '../meeting-hub-client';
 import type { MeetingSyncActionRecord } from '../meeting-types';
 import { nowIso, throwOnError } from './shared';
 
 export async function rejectAction(this: MeetingStore, actionId: string, decidedByUserId: string, comment?: string): Promise<MeetingSyncActionRecord | null> {
-    const supabase = getMeetingIrisClient();
+    const supabase = getMeetingHubClient();
     const row = await this.getAction(actionId);
     if (!row) return null;
 

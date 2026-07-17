@@ -1,70 +1,88 @@
+import { useId, useState } from 'react';
 import { MarkdownRenderer } from '../chat/MarkdownRenderer';
 import type { OrbSource } from './useOrbConversation';
 
 // Panel reservado para respuestas verificadas con fuentes. La conversación
 // cotidiana permanece en modo voz y conserva a la orbe como único foco visual.
 export function OrbInfoPanel({ responseText, sources }: { responseText: string; sources: OrbSource[] }) {
-  const sourceLabel = sources.length === 1 ? '1 fuente' : `${sources.length} fuentes`;
+  const [sourcesOpen, setSourcesOpen] = useState(false);
+  const sourcesId = useId();
+  const sourceLabel = sources.length === 1 ? '1 fuente consultada' : `${sources.length} fuentes consultadas`;
 
   return (
-    <section className="relative mx-3 mb-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[24px] border border-amber-200/15 bg-[linear-gradient(155deg,rgba(8,13,22,0.97),rgba(3,6,12,0.94))] shadow-[0_24px_80px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.07)] backdrop-blur-2xl">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/70 to-transparent"
-      />
-
-      <header className="relative flex items-center gap-3 border-b border-white/[0.08] px-4 py-3.5">
-        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-amber-300/20 bg-amber-300/[0.08] shadow-[0_0_24px_rgba(251,191,36,0.1)]">
-          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-[18px] w-[18px] text-amber-200" fill="none" stroke="currentColor" strokeWidth="1.6">
-            <path d="M12 3.5 13.4 8l4.4 1.5-4.4 1.4L12 15.5l-1.4-4.6-4.4-1.4L10.6 8 12 3.5Z" />
-            <path d="m18.5 14 .7 2.2 2.1.8-2.1.7-.7 2.3-.8-2.3-2.1-.7 2.1-.8.8-2.2Z" />
-          </svg>
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-amber-200/90">
-            Información verificada
-          </p>
-          <p className="mt-0.5 truncate text-[11px] text-slate-400">
-            SofLIA encontró referencias para esta respuesta
-          </p>
-        </div>
-        <span className="shrink-0 rounded-full border border-cyan-300/15 bg-cyan-300/[0.07] px-2.5 py-1 text-[10px] font-medium text-cyan-100/90">
-          {sourceLabel}
-        </span>
-      </header>
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 text-[13px] leading-6 text-slate-100 [scrollbar-color:rgba(251,191,36,0.38)_rgba(255,255,255,0.04)] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-amber-300/35 [&::-webkit-scrollbar-track]:bg-white/[0.03] [&_a]:!text-cyan-300 [&_blockquote]:!text-slate-300 [&_code]:!text-amber-100 [&_em]:!text-slate-300 [&_h1]:!text-white [&_h2]:!text-white [&_h3]:!text-amber-100 [&_h4]:!text-slate-100 [&_h5]:!text-slate-200 [&_h6]:!text-slate-300 [&_p]:!text-slate-100 [&_strong]:!text-white [&_td]:!text-slate-200 [&_thead]:!text-white">
+    <section
+      aria-label="Respuesta de SofLIA"
+      className="orb-no-drag relative mx-3 mb-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[22px] border border-border bg-card/95 text-primary shadow-[0_24px_70px_rgba(10,37,64,0.16),inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur-2xl dark:shadow-[0_24px_70px_rgba(0,0,0,0.44),inset_0_1px_0_rgba(255,255,255,0.06)]"
+    >
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 text-[13px] leading-6 text-primary [scrollbar-color:color-mix(in_srgb,var(--color-accent-val)_28%,transparent)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-accent/25 [&::-webkit-scrollbar-track]:bg-transparent [&_a]:!text-accent [&_blockquote]:!text-secondary [&_em]:!text-secondary [&_h1]:!text-primary [&_h2]:!text-primary [&_h3]:!text-primary [&_h4]:!text-primary [&_h5]:!text-primary [&_h6]:!text-primary [&_p]:!text-primary [&_strong]:!text-primary [&_td]:!text-secondary [&_thead]:!text-primary">
         <MarkdownRenderer text={responseText} />
       </div>
 
-      <footer className="border-t border-white/[0.08] bg-black/20 px-4 py-3">
-        <p className="mb-2 text-[9px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-          Fuentes consultadas
-        </p>
-        <div className="max-h-28 space-y-1.5 overflow-y-auto pr-1 [scrollbar-width:thin]">
-          {sources.slice(0, 6).map((source, index) => (
-            <a
-              key={`${source.uri}-${index}`}
-              href={source.uri}
-              target="_blank"
-              rel="noreferrer"
-              className="group flex items-center gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.035] px-3 py-2 transition-colors hover:border-cyan-300/20 hover:bg-cyan-300/[0.06]"
-              title={source.uri}
-            >
-              <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-white/[0.06] text-[9px] font-semibold text-slate-300 group-hover:text-cyan-200">
-                {index + 1}
-              </span>
-              <span className="min-w-0 flex-1 truncate text-[11px] text-slate-300 group-hover:text-slate-100">
-                {source.title || source.uri}
-              </span>
-              <svg aria-hidden="true" viewBox="0 0 20 20" className="h-3.5 w-3.5 shrink-0 text-slate-600 group-hover:text-cyan-300" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M7 13 13 7M8.5 7H13v4.5" />
-                <path d="M13 11.5V15H5V7h3.5" />
+      {sources.length > 0 && (
+        <div className="shrink-0 border-t border-border bg-surface-2/80">
+          <button
+            type="button"
+            aria-label={`${sourcesOpen ? 'Ocultar' : 'Mostrar'} ${sourceLabel}`}
+            aria-controls={sourcesId}
+            aria-expanded={sourcesOpen}
+            onClick={() => setSourcesOpen((open) => !open)}
+            className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/50"
+          >
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-accent/[0.08] text-accent">
+              <svg aria-hidden="true" viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M6.5 5.5h8v9h-8z" />
+                <path d="M4 3v9h2.5M9 8h3.5M9 11h3.5" />
               </svg>
-            </a>
-          ))}
+            </span>
+            <span className="min-w-0 flex-1 text-[11px] font-semibold text-primary">
+              {sourceLabel}
+            </span>
+            <span className="text-[10px] font-medium text-secondary">
+              {sourcesOpen ? 'Ocultar' : 'Mostrar'}
+            </span>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 20 20"
+              className={`h-4 w-4 shrink-0 text-secondary transition-transform duration-200 ${sourcesOpen ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+            >
+              <path d="m6 8 4 4 4-4" />
+            </svg>
+          </button>
+
+          {sourcesOpen && (
+            <div
+              id={sourcesId}
+              className="max-h-40 space-y-1.5 overflow-y-auto border-t border-border px-3 py-3 [scrollbar-color:color-mix(in_srgb,var(--color-accent-val)_24%,transparent)_transparent] [scrollbar-width:thin]"
+            >
+              {sources.map((source, index) => (
+                <a
+                  key={`${source.uri}-${index}`}
+                  aria-label={source.title || source.uri}
+                  href={source.uri}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="group flex items-center gap-2.5 rounded-xl border border-border bg-card px-3 py-2.5 transition-colors hover:border-accent/30 hover:bg-background"
+                  title={source.uri}
+                >
+                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-md bg-surface-2 text-[9px] font-semibold text-secondary group-hover:text-accent">
+                    {index + 1}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-[11px] text-secondary group-hover:text-primary">
+                    {source.title || source.uri}
+                  </span>
+                  <svg aria-hidden="true" viewBox="0 0 20 20" className="h-3.5 w-3.5 shrink-0 text-secondary/70 group-hover:text-accent" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M7 13 13 7M8.5 7H13v4.5" />
+                    <path d="M13 11.5V15H5V7h3.5" />
+                  </svg>
+                </a>
+              ))}
+            </div>
+          )}
         </div>
-      </footer>
+      )}
     </section>
   );
 }

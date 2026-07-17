@@ -1,5 +1,6 @@
 import type { DesktopTaskExecutionOptions, WindowsUIAFallbackRunResult } from './types';
 import { buildDesktopFallbackTask } from './fallback';
+import { describeRealBrowserContext } from '../browser-web/real-browser-profile';
 
 type BrowserBackend = {
   executeTask(task: string, options?: {
@@ -21,14 +22,51 @@ type WindowsUIABackend = {
   getLastRunResult(): WindowsUIARunResult | null;
 };
 
+/**
+ * Frases que indican que la tarea depende de la sesion/contraseñas REALES del
+ * usuario. El perfil automatizado de Playwright esta vacio (sin logins), asi
+ * que estas tareas deben ir al backend visual sobre el navegador predeterminado.
+ */
+const REAL_BROWSER_SESSION_PATTERN = /mi cuenta|mis cuentas|mi sesi[oó]n|sesi[oó]n iniciada|sesi[oó]n abierta|ya (estoy|esta) loguead|estoy loguead|ya inici[eé] sesi[oó]n|con mi usuario|mis contrase[ñn]as|contrase[ñn]as? guardadas?|credenciales guardadas|autocompletar|autofill|navegador real|mi navegador|navegador predeterminado|perfil real|mi perfil (de|del) (chrome|edge|brave|navegador)|donde (ya )?estoy conectad/;
+
+/**
+ * true si la tarea debe ejecutarse sobre el navegador REAL del usuario
+ * (backend visual + open_url) porque necesita sus sesiones o contraseñas.
+ * Un backend "browser" explicito del llamador gana sobre la heuristica,
+ * pero nunca sobre el flag useRealBrowser.
+ */
+export function requiresRealBrowserSession(
+  task: string,
+  options?: DesktopTaskExecutionOptions,
+  keywordRoutingEnabled = true,
+): boolean {
+  if (options?.useRealBrowser) return true;
+  if (options?.backend === 'browser' || options?.browserProfile || options?.browserIsolated) return false;
+  if (!keywordRoutingEnabled) return false;
+  return REAL_BROWSER_SESSION_PATTERN.test(task.toLowerCase());
+}
+
+/**
+ * Anexa a la tarea el contexto del navegador real (nombre y perfil activo) con
+ * instrucciones para que el agente visual use open_url y NO Playwright.
+ */
+export function appendRealBrowserSessionGuidance(task: string): string {
+  return `${task}
+
+[NAVEGADOR REAL] ${describeRealBrowserContext()} Abre los sitios web con la accion open_url (abre el navegador predeterminado con el perfil del usuario) y trabaja sobre esa ventana. NO uses el navegador automatizado: ahi el usuario no tiene sesiones ni contraseñas.`;
+}
+
 export function shouldUseBrowserBackend(
   task: string,
   options?: DesktopTaskExecutionOptions,
   keywordRoutingEnabled = true,
 ): boolean {
+  if (options?.useRealBrowser) return false;
   if (options?.backend === 'browser') return true;
   if (options?.backend === 'uia') return false;
   if (options?.backend === 'desktop') return false;
+  // Tareas que dependen de la sesion real del usuario nunca van a Playwright.
+  if (requiresRealBrowserSession(task, options, keywordRoutingEnabled)) return false;
   // Sin heuristica de palabras clave, la eleccion queda en el backend explicito
   // del llamador o en el backendPreferido del planner estrategico.
   if (!keywordRoutingEnabled) return false;
@@ -44,6 +82,8 @@ export function shouldUseWindowsUIABackend(
 ): boolean {
   if (options?.backend === 'uia') return true;
   if (options?.backend === 'browser' || options?.backend === 'desktop') return false;
+  // Las tareas con sesion real van al backend visual (navegador real), no a UIA.
+  if (requiresRealBrowserSession(task, options, keywordRoutingEnabled)) return false;
   if (!keywordRoutingEnabled) return false;
   if (shouldUseBrowserBackend(task, options, keywordRoutingEnabled)) return false;
 

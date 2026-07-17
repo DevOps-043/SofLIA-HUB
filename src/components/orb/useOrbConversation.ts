@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { sendMessageStream } from '../../services/gemini-chat';
+import { getPublicAiErrorMessage, sendMessageStream } from '../../services/gemini-chat';
 import type { ConversationMessage } from '../../services/gemini-chat/types';
 import { orbService } from '../../services/orb-service';
 import { synthesizeCloudSpeech } from '../../services/orb/google-cloud-tts';
@@ -17,6 +17,11 @@ const CLOSE_COMMAND_REGEX = /^\s*(cierra|cierrate|adios|gracias,?\s+(soflia|sofi
 // peticion, por eso el texto se trocea en bloques de hasta SPEECH_BLOCK_CHARS.
 const SPEECH_MAX_CHARS = 4000;
 const SPEECH_BLOCK_CHARS = 1200;
+// Durante el streaming, un grupo de frases completas se manda a sintetizar en
+// cuanto junta este tamano (~2-3 frases): esperar el stream completo dejaba
+// 5-10s de silencio tras la primera frase. Es un punto medio entre latencia
+// (bloques chicos) y prosodia natural de las voces Chirp (bloques grandes).
+const SPEECH_CHUNK_TARGET_CHARS = 300;
 
 function normalizeSpokenText(text: string): string {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -224,10 +229,16 @@ export function useOrbConversation() {
         return;
       }
       pipelineState.spokenChars += clean.length;
+      // PREFETCH: la sintesis de este bloque arranca YA, en paralelo con la de
+      // los bloques anteriores; la cadena solo garantiza el ORDEN de reproduccion.
+      // Serializar tambien la sintesis creaba silencios de varios segundos entre
+      // frases (cada bloque esperaba la peticion completa del anterior).
+      const audioPromise = synthesizeCloudSpeech(clean);
+      audioPromise.catch(() => undefined); // el error se maneja al reproducir; esto evita un unhandled rejection si el turno se aborta antes
       pipelineState.chain = pipelineState.chain.then(async () => {
         if (!isCurrent() || pipelineState.cloudFailed) return;
         try {
-          const audio = await synthesizeCloudSpeech(clean);
+          const audio = await audioPromise;
           if (!isCurrent() || pipelineState.cloudFailed) return;
           if (!pipelineState.started) {
             pipelineState.started = true;
@@ -285,17 +296,25 @@ export function useOrbConversation() {
         accumulated += token;
         setResponseText(accumulated);
         speechBuffer += token;
+        const { sentences, rest } = extractCompleteSentences(speechBuffer);
+        if (sentences.length === 0) continue;
         if (!firstSentenceSpoken) {
-          const { sentences, rest } = extractCompleteSentences(speechBuffer);
-          if (sentences.length > 0) {
-            pushSentence(sentences[0]);
-            firstSentenceSpoken = true;
-            speechBuffer = [...sentences.slice(1), rest].join(' ');
-          }
+          // La primera frase sale sola y de inmediato: es la latencia percibida.
+          pushSentence(sentences[0]);
+          firstSentenceSpoken = true;
+          speechBuffer = [...sentences.slice(1), rest].join(' ');
+          continue;
+        }
+        // Las siguientes se agrupan y se sintetizan DURANTE el stream: esperar
+        // al final de la generacion dejaba un hueco de varios segundos de voz.
+        const completed = sentences.join(' ');
+        if (completed.length >= SPEECH_CHUNK_TARGET_CHARS) {
+          pushSentence(completed);
+          speechBuffer = rest;
         }
       }
-      // El resto va en bloques grandes (prosodia natural) que respetan el
-      // limite por peticion del TTS; la cadena los reproduce en orden.
+      // La cola restante va en bloques grandes (prosodia natural) que respetan
+      // el limite por peticion del TTS; la cadena los reproduce en orden.
       for (const block of splitIntoSpeechBlocks(speechBuffer, SPEECH_BLOCK_CHARS)) {
         pushSentence(block);
       }
@@ -347,8 +366,9 @@ export function useOrbConversation() {
     } catch (error) {
       if (!isCurrent()) return;
       console.error('[Orb] Error del agente:', error);
-      const message = error instanceof Error ? error.message : String(error);
-      setErrorMessage(`No pude procesar la peticion: ${message}`);
+      // Mensaje sanitizado para el usuario: nunca filtrar detalles internos
+      // (circuit breaker, cuota del proveedor, URLs de la API).
+      setErrorMessage(getPublicAiErrorMessage(error));
       setActiveTool(null);
       windDown(sourceSessionId);
     }

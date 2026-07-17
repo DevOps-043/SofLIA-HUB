@@ -214,7 +214,7 @@ describe('gemini-chat', () => {
       expect(String(fetchSpy.mock.calls[0]?.[0])).toContain('/gemini-3.5-flash:generateContent');
       expect(String(fetchSpy.mock.calls[0]?.[0])).toContain('?key=');
       expect(requestInit.headers).toEqual({ 'Content-Type': 'application/json' });
-      expect(body.tools).toEqual([{ google_search: {} }]);
+      expect(body.tools).toEqual([{ google_search: {} }, { code_execution: {} }]);
       expect(sources?.[0]).toMatchObject({ uri: 'https://example.com/source', title: 'Fuente actual' });
     } finally {
       (window as any).ipcRenderer = previousIpc;
@@ -284,7 +284,7 @@ describe('gemini-chat', () => {
       expect(fetchSpy).not.toHaveBeenCalled();
       expect(invoke).toHaveBeenCalledWith('ai:generate-grounded', expect.any(Object));
       expect(payload).toMatchObject({ modelName: 'gemini-3.5-flash', apiKey: 'env-test-key' });
-      expect(payload.body.tools).toEqual([{ google_search: {} }]);
+      expect(payload.body.tools).toEqual([{ google_search: {} }, { code_execution: {} }]);
       expect(sources?.[0]).toMatchObject({ uri: 'https://example.com/main-source', title: 'Fuente main' });
     } finally {
       (window as any).ipcRenderer = previousIpc;
@@ -313,7 +313,7 @@ describe('gemini-chat', () => {
       const body = JSON.parse(String(requestInit.body));
 
       expect(text).toBe('Resumen de URL verificado');
-      expect(body.tools).toEqual([{ google_search: {} }, { url_context: {} }]);
+      expect(body.tools).toEqual([{ google_search: {} }, { url_context: {} }, { code_execution: {} }]);
       expect(sources?.[0]).toMatchObject({ uri: 'https://anthropic.com/news' });
     } finally {
       (window as any).ipcRenderer = previousIpc;

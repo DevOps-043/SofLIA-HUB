@@ -1,5 +1,5 @@
 import { WORKFLOW_DEFINITIONS } from './workflow-hub/definitions';
-import { loadWorkflowHubState, saveWorkflowHubState } from './workflow-hub/state-store';
+import { loadWorkflowHubState, restoreWorkflowHubStateFromHub, saveWorkflowHubState } from './workflow-hub/state-store';
 import type {
   ExecuteWorkflowInput,
   PassiveWorkflowRule,
@@ -39,8 +39,13 @@ export class WorkflowHubService {
 
   constructor(public readonly deps: WorkflowHubDependencies) {}
 
-  init(): void {
+  async init(): Promise<void> {
+    // Local primero (sincrono: el servicio queda operativo de inmediato);
+    // luego se adopta el estado de la base del Hub SOLO si existe alli
+    // (sobrevive formateos). Sin red, el local manda.
     this.loadState();
+    const restore = await restoreWorkflowHubStateFromHub();
+    if (restore === 'restaurado') this.loadState();
   }
 
   getOverview(organizationId?: string): Promise<WorkflowHubOverview> {

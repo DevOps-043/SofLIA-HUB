@@ -8,6 +8,8 @@ import {
   type AudioFeatureSource,
 } from '../components/orb/useAudioFeatures';
 import { useOrbConversation, type OrbSource } from '../components/orb/useOrbConversation';
+import { MeetingLivePanel } from '../components/orb/MeetingLivePanel';
+import { useMeetingLive } from '../components/orb/useMeetingLive';
 
 const STATE_LABELS: Record<string, string> = {
   idle: '',
@@ -28,13 +30,11 @@ const STATE_GLOWS: Record<OrbVisualState, { soft: string; text: string }> = {
 
 const VISUAL_STATES = new Set<OrbVisualState>(['idle', 'listening', 'thinking', 'acting', 'speaking']);
 
-const DEVELOPMENT_PANEL_TEXT = `## Investigación verificada
-
-SofLIA contrastó la información y preparó una síntesis breve para que puedas revisar los datos importantes sin perder el contexto de la conversación.
+const DEVELOPMENT_PANEL_TEXT = `SofLIA contrastó la información y preparó una síntesis breve para que puedas revisar los datos importantes sin perder el contexto de la conversación.
 
 - La respuesta normal permanece únicamente en voz.
 - Este panel aparece cuando existen referencias verificables.
-- Puedes abrir cada fuente desde la sección inferior.`;
+- Puedes desplegar las fuentes cuando necesites consultarlas.`;
 
 const DEVELOPMENT_PANEL_SOURCES: OrbSource[] = [
   { uri: 'https://example.com/referencia-principal', title: 'Referencia principal del análisis' },
@@ -89,6 +89,7 @@ function useDevelopmentAudioPreview(audio: AudioFeatureRefs, enabled: boolean): 
 // Copilot. Solo la orbe + transcript; el panel aparece con respuestas largas.
 export function OrbWindowRoot() {
   const orb = useOrbConversation();
+  const meetingLive = useMeetingLive();
   const previewState = useMemo(getDevelopmentPreviewState, []);
   const previewAudio = useMemo(getDevelopmentAudioPreview, []);
   const previewCompact = useMemo(getDevelopmentCompactPreview, []);
@@ -139,6 +140,15 @@ export function OrbWindowRoot() {
           ✕
         </button>
       </div>
+
+      {/* Toma de notas de reunion: propuesta HITL + indicador de grabacion */}
+      <MeetingLivePanel
+        state={meetingLive.state}
+        onAccept={() => { void meetingLive.acceptAndStart(); }}
+        onDecline={meetingLive.decline}
+        onStop={() => { void meetingLive.stopAndCreateMinuta(); }}
+        onDismiss={meetingLive.dismissMessage}
+      />
 
       {/* Orbe: grande centrada, o compacta arriba cuando hay panel de info */}
       <div

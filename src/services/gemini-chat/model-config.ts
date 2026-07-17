@@ -1,4 +1,5 @@
 import { MODELS } from '../../config';
+import { supportsCodeExecutionCombo } from '../../shared/gemini-grounding-config';
 import {
   COMPUTER_USE_TOOLS,
   GOOGLE_WORKSPACE_TOOLS,
@@ -17,11 +18,14 @@ export function buildGenerationConfig(options?: SendMessageStreamOptions): Recor
   return generationConfig;
 }
 
-export function buildModelTools(computerUseEnabled: boolean): any[] {
+export function buildModelTools(computerUseEnabled: boolean, modelId?: string): any[] {
   const hasGoogleWorkspace = typeof window !== 'undefined' && !!(window as any).calendar;
-  const tools = computerUseEnabled
+  const tools: any[] = computerUseEnabled
     ? [COMPUTER_USE_TOOLS, PROJECT_HUB_TOOLS, NATIVE_AI_TOOLS]
     : [PROJECT_HUB_TOOLS, NATIVE_AI_TOOLS];
   if (hasGoogleWorkspace) tools.push(GOOGLE_WORKSPACE_TOOLS);
+  // Gemini 3+ permite combinar function calling con ejecucion de codigo:
+  // calculos y analisis de datos (pandas) salen de Python real, no de memoria.
+  if (modelId && supportsCodeExecutionCombo(modelId)) tools.push({ codeExecution: {} });
   return tools;
 }

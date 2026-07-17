@@ -36,6 +36,7 @@ export async function runAgenticLoop(params: {
     maxIterations -= 1;
     if (signal?.aborted) return stoppedStreamResult(params.allToolCalls, params.allGeneratedImages);
     const parts = response.response.candidates?.[0]?.content?.parts || [];
+    collectInlineImages(parts, params.allGeneratedImages);
     const functionCalls = parts.filter((part: any) => part.functionCall);
     if (functionCalls.length === 0) return finalTextResult(parts, response.response, params);
 
@@ -107,6 +108,20 @@ async function executeFunctionCalls(
     }
   }
   return responses;
+}
+
+/**
+ * Graficas de code execution (matplotlib) llegan como partes inlineData en
+ * cualquier iteracion del loop; se acumulan para mostrarlas en el mensaje.
+ */
+function collectInlineImages(parts: any[], allGeneratedImages: string[]) {
+  for (const part of parts) {
+    const data = part?.inlineData || part?.inline_data;
+    const mimeType = String(data?.mimeType || data?.mime_type || '');
+    if (!data?.data || !mimeType.startsWith('image/')) continue;
+    const dataUrl = `data:${mimeType};base64,${data.data}`;
+    if (!allGeneratedImages.includes(dataUrl)) allGeneratedImages.push(dataUrl);
+  }
 }
 
 function finalTextResult(

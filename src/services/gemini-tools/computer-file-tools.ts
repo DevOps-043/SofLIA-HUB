@@ -7,7 +7,7 @@ export const COMPUTER_FILE_TOOL_DECLARATIONS: GeminiFunctionDeclaration[] = [
   { name: 'write_file', description: 'Crea o sobrescribe un archivo de texto.', parameters: objectParams({ path: stringProp('Ruta completa del archivo.'), content: stringProp('Contenido a escribir.') }, ['path', 'content']) },
   {
     name: 'create_word_document',
-    description: 'Crea un documento profesional de Microsoft Word (.docx) con portada, formato y contenido estructurado. Si no se indica output_path, lo guarda en el Escritorio del usuario.',
+    description: 'Crea un documento profesional de Microsoft Word (.docx) con portada, formato y contenido estructurado. Si no se indica output_path, lo guarda en el Escritorio del usuario. Las graficas generadas con Python en esta conversacion se anexan automaticamente al final del documento; no necesitas pasarlas.',
     parameters: objectParams({
       title: stringProp('Titulo profesional del documento.'),
       content: stringProp('Contenido completo del documento en texto o Markdown. Debe incluir la informacion que el usuario pidio guardar.'),

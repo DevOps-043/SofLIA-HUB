@@ -22,6 +22,7 @@
 # =============================================================================
 import base64
 import json
+import os
 import queue
 import re
 import sys
@@ -29,7 +30,12 @@ import threading
 import time
 import unicodedata
 
-PROTOCOL_VERSION = 3
+# El runtime Python EMBEBIDO (python3xx._pth) reemplaza sys.path y NO incluye
+# el directorio del script: sin esta linea, los modulos hermanos del sidecar
+# (meeting_transcription) no se pueden importar.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+PROTOCOL_VERSION = 4
 
 DEFAULT_DICTATION_SILENCE_MS = 1800
 DEFAULT_DICTATION_INITIAL_SILENCE_MS = 8000
@@ -39,6 +45,7 @@ _stdout_lock = threading.Lock()
 _wake_listener = None
 _dictation_listener = None
 _tts_speaker = None
+_meeting_transcriber = None
 
 # Los modelos Vosk tardan segundos en cargar: cache global por ruta.
 _vosk_models: dict = {}
@@ -693,7 +700,7 @@ def stop_listeners() -> None:
 
 
 def handle_command(msg: dict) -> None:
-    global _wake_listener, _dictation_listener, _tts_speaker
+    global _wake_listener, _dictation_listener, _tts_speaker, _meeting_transcriber
     cmd = msg.get("cmd", "")
     msg_id = msg.get("id")
     params = msg.get("params") or {}
@@ -797,6 +804,77 @@ def handle_command(msg: dict) -> None:
                     return
             emit({"id": msg_id, "ok": True})
 
+        # ── Transcripcion de reuniones en vivo (Electron envia el audio) ──────
+        elif cmd == "meeting_capabilities":
+            import meeting_transcription
+            emit({"id": msg_id, "ok": True,
+                  "whisper_available": meeting_transcription.whisper_available(),
+                  "speaker_diarization_available": meeting_transcription.speaker_diarization_available()})
+
+        elif cmd == "meeting_start":
+            import meeting_transcription
+            session_id = str(params.get("session_id") or "").strip()
+            if not session_id:
+                emit({"id": msg_id, "ok": False, "error": "Falta params.session_id."})
+                return
+            if not meeting_transcription.whisper_available():
+                emit({"id": msg_id, "ok": False,
+                      "error": "faster-whisper no esta instalado en el runtime Python."})
+                return
+            if _meeting_transcriber is not None:
+                _meeting_transcriber.stop(drain_timeout_seconds=5)
+            model_size = str(params.get("model_size") or "small")
+            download_root = str(params.get("download_root") or "")
+            # Diarizacion opcional: si el modelo de hablantes o sherpa-onnx no
+            # estan disponibles, la sesion arranca igual (sin separar voces).
+            speaker_labeler = None
+            speaker_model_path = str(params.get("speaker_model_path") or "")
+            if speaker_model_path and meeting_transcription.speaker_diarization_available():
+                try:
+                    speaker_labeler = meeting_transcription.SpeakerLabeler(
+                        model_path=speaker_model_path,
+                        similarity_threshold=float(params.get("speaker_threshold", 0.40)),
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    emit({"event": "meeting_error", "session_id": session_id,
+                          "message": f"Diarizacion desactivada: {type(exc).__name__}: {exc}"})
+            _meeting_transcriber = meeting_transcription.MeetingTranscriber(
+                session_id=session_id,
+                emit_fn=emit,
+                language=str(params.get("language") or "es"),
+                model_size=model_size,
+                download_root=download_root,
+                speaker_labeler=speaker_labeler,
+            )
+            # Precalentar el modelo en segundo plano (descarga/carga) para que
+            # la primera ventana de audio no pague ese costo.
+            threading.Thread(
+                target=meeting_transcription.preload_model,
+                args=(model_size, download_root), daemon=True,
+            ).start()
+            emit({"id": msg_id, "ok": True, "session_id": session_id,
+                  "speaker_diarization": speaker_labeler is not None})
+
+        elif cmd == "meeting_audio":
+            # Fire-and-forget (sin respuesta): llegan ~2-4 chunks/segundo y una
+            # respuesta por chunk duplicaria el trafico stdio sin aportar nada.
+            if _meeting_transcriber is not None:
+                _meeting_transcriber.push_audio(
+                    str(params.get("source") or ""), str(params.get("audio_b64") or ""),
+                )
+
+        elif cmd == "meeting_stop":
+            segments_count = 0
+            if _meeting_transcriber is not None:
+                requested = str(params.get("session_id") or "").strip()
+                if requested and requested != _meeting_transcriber.session_id:
+                    emit({"id": msg_id, "ok": True, "ignored": True,
+                          "active_session_id": _meeting_transcriber.session_id})
+                    return
+                segments_count = _meeting_transcriber.stop()
+                _meeting_transcriber = None
+            emit({"id": msg_id, "ok": True, "segments_count": segments_count})
+
         elif cmd == "list_devices":
             emit({"id": msg_id, "ok": True, "devices": list_input_devices()})
 
@@ -808,6 +886,9 @@ def handle_command(msg: dict) -> None:
             stop_listeners()
             if _tts_speaker is not None:
                 _tts_speaker.stop()
+            if _meeting_transcriber is not None:
+                _meeting_transcriber.stop(drain_timeout_seconds=5)
+                _meeting_transcriber = None
             emit({"id": msg_id, "ok": True, "bye": True})
             sys.exit(0)
 

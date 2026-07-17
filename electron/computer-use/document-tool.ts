@@ -17,6 +17,8 @@ interface CreateWordDocumentArgs {
   output_path?: string;
   include_cover?: boolean;
   open_after_save?: boolean;
+  /** Graficas (data:image/png;base64,...) generadas en la conversacion; se anexan al final. */
+  chart_images?: string[];
 }
 
 export async function handleCreateWordDocument(args: CreateWordDocumentArgs = {}): Promise<Record<string, any>> {
@@ -47,6 +49,7 @@ export async function handleCreateWordDocument(args: CreateWordDocumentArgs = {}
     content,
     outputPath,
     includeCover: args.include_cover !== false,
+    chartImages: Array.isArray(args.chart_images) ? args.chart_images : [],
   });
 
   if (args.open_after_save) {

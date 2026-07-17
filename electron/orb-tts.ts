@@ -62,12 +62,17 @@ export async function synthesizeOrbSpeech(text: string): Promise<OrbSpeechAudio>
   return { audioBase64: parsed.audioContent, voice };
 }
 
+// Conexion reutilizable: sin keep-alive cada bloque de voz pagaba un handshake
+// TLS completo, sumando latencia entre frases durante una misma respuesta.
+const ttsAgent = new https.Agent({ keepAlive: true, maxSockets: 4 });
+
 function postJson(path: string, payload: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const request = https.request({
       host: TTS_HOST,
       path,
       method: 'POST',
+      agent: ttsAgent,
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(payload),

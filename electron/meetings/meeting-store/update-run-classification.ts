@@ -1,5 +1,5 @@
 import type { MeetingStore } from '../meeting-store.ts';
-import { getMeetingIrisClient } from '../meeting-iris-client';
+import { getMeetingHubClient } from '../meeting-hub-client';
 import { nowIso, throwOnError } from './shared';
 
 export async function updateRunClassification(this: MeetingStore, runId: string, updates: { meetingTitle?: string | null; meetingType?: string }): Promise<void> {
@@ -14,7 +14,7 @@ export async function updateRunClassification(this: MeetingStore, runId: string,
       nextPayload.meeting_type = updates.meetingType;
     }
 
-    const supabase = getMeetingIrisClient();
+    const supabase = getMeetingHubClient();
     const { error } = await supabase
       .from('meeting_runs')
       .update(nextPayload)

@@ -6,8 +6,10 @@ import type { DesktopTaskExecutionOptions, WindowsUIAFallbackRunResult } from '.
 import type { DesktopTaskQueueItem } from './task-control';
 import { buildTaskOutcome, wrapExternalBackendResult, type DesktopTaskOutcome } from './task-outcome';
 import {
+  appendRealBrowserSessionGuidance,
   executeBrowserBackendTask,
   executeWindowsUIABackendTask,
+  requiresRealBrowserSession,
   shouldUseBrowserBackend,
   shouldUseWindowsUIABackend,
 } from './routing';
@@ -60,11 +62,20 @@ export async function executeDesktopAgentTaskEntrypoint(
     return wrapExternalBackendResult(message, startedAt);
   }
 
-  if (ctx.activeTasks.size >= ctx.config.maxConcurrentAgents) {
-    return enqueueDesktopTask(task, options, ctx);
+  // Sesion real: el backend visual maneja el navegador predeterminado del
+  // usuario (open_url), donde viven sus logins; se le inyecta ese contexto.
+  let effectiveTask = task;
+  if (requiresRealBrowserSession(task, options, ctx.config.keywordRoutingEnabled)) {
+    effectiveTask = appendRealBrowserSessionGuidance(task);
+    ctx.emit('task-real-browser-session', { task });
+    console.log('[DesktopAgent] Tarea requiere sesion real del usuario: se usara el navegador predeterminado via backend visual.');
   }
 
-  return ctx.executeTaskInternal(task, options);
+  if (ctx.activeTasks.size >= ctx.config.maxConcurrentAgents) {
+    return enqueueDesktopTask(effectiveTask, options, ctx);
+  }
+
+  return ctx.executeTaskInternal(effectiveTask, options);
 }
 
 /**

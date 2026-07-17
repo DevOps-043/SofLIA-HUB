@@ -32,7 +32,7 @@ export async function fetchSofiaUserProfile(userId: string): Promise<SofiaUserPr
       email: user.email,
       full_name: fullName,
       avatar_url: user.profile_picture_url,
-      cargo_rol: user.cargo_rol,
+      platform_role: user.platform_role,
       organizations,
       teams,
       memberships: memberships?.map((membership: any) => ({

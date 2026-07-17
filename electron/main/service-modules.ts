@@ -26,6 +26,7 @@ export async function loadMainServiceModules() {
   const { PathMemoryService } = await import('../path-memory-service');
   const { MenuManager } = await import('../menu-manager');
   const { registerMeetingHandlers } = await import('../meeting-handlers');
+  const { createMeetingLiveService, registerMeetingLiveHandlers } = await import('../meeting-live-handlers');
   const { WorkspaceAutomationService } = await import('../workspace-automation-service');
   const { registerWorkspaceAutomationHandlers } = await import('../workspace-automation-handlers');
   const { WorkflowHubService } = await import('../workflow-hub-service');
@@ -63,7 +64,8 @@ export async function loadMainServiceModules() {
     GChatService, registerGChatHandlers, ProactiveService, DesktopAgentService, registerDesktopAgentHandlers,
     MemoryService, registerMemoryHandlers, KnowledgeService, UpdaterService, registerUpdaterHandlers,
     ClipboardAIAssistant, TaskScheduler, NeuralOrganizerService, PathMemoryService, MenuManager,
-    registerMeetingHandlers, WorkspaceAutomationService, registerWorkspaceAutomationHandlers,
+    registerMeetingHandlers, createMeetingLiveService, registerMeetingLiveHandlers,
+    WorkspaceAutomationService, registerWorkspaceAutomationHandlers,
     WorkflowHubService, registerWorkflowHubHandlers, TelegramService, registerTelegramHandlers,
     CommunicationHubService, registerCommunicationHubHandlers,
     SofliaLearningService,

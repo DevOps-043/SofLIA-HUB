@@ -27,6 +27,12 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
     recordDesktopTaskMemory(services.memoryService, payload as { task?: string; message?: string }, true));
   modules.registerUpdaterHandlers(services.updaterService, () => state.win);
   modules.registerMeetingHandlers(services.meetingWorkflowService);
+  // Transcripcion de reuniones en vivo: audio del renderer -> sidecar Python
+  // (faster-whisper) -> pipeline de meetings existente para la minuta.
+  modules.registerMeetingLiveHandlers(
+    modules.createMeetingLiveService(modules.pythonRuntimeService),
+    services.meetingWorkflowService,
+  );
   modules.registerWorkspaceAutomationHandlers(services.workspaceAutomationService);
   modules.registerWorkflowHubHandlers(services.workflowHubService);
   modules.registerTelegramHandlers(services.telegramService);

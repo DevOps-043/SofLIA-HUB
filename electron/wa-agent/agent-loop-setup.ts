@@ -1,3 +1,4 @@
+import { supportsCodeExecutionCombo } from '../../src/shared/gemini-grounding-config';
 import { WA_MODEL, WA_MODEL_FALLBACKS } from './constants';
 import { prepareWhatsAppConversationHistory } from './conversation-history';
 import { buildWhatsAppAgentPromptContext } from './system-prompt-context';
@@ -70,10 +71,15 @@ async function createModelConversation(input: {
   let lastModelError: unknown = null;
   for (const modelName of getWhatsAppModelCandidates()) {
     try {
+      // Gemini 3+ combina function calling con ejecucion de codigo (Python):
+      // calculos sobre datos reales en vez de aritmetica "de memoria".
+      const modelTools = supportsCodeExecutionCombo(modelName)
+        ? [...input.tools, { codeExecution: {} }]
+        : input.tools;
       const model = input.request.agent.getGenAI().getGenerativeModel({
         model: modelName,
         systemInstruction: input.systemPrompt,
-        tools: input.tools,
+        tools: modelTools,
       });
       const chatSession = startChatSafely(model, input.historyCopy, input.request.conversations, input.sessionKey);
       const initial = await sendInitialMessage(model, chatSession, input.request, input.request.conversations, input.sessionKey);

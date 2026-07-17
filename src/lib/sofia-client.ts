@@ -28,7 +28,7 @@ export interface SofiaUser {
   last_name?: string;
   display_name?: string;
   profile_picture_url?: string;
-  cargo_rol?: 'Usuario' | 'Instructor' | 'Administrador' | 'Business' | 'Business User';
+  platform_role?: 'Usuario' | 'Instructor' | 'Administrador' | 'Business' | 'Business User';
   phone?: string;
   bio?: string;
   location?: string;
@@ -82,7 +82,7 @@ export interface SofiaUserProfile {
   email: string;
   full_name: string;
   avatar_url?: string;
-  cargo_rol?: string;
+  platform_role?: string;
   organizations: SofiaOrganization[];
   teams: SofiaTeam[];
   memberships: SofiaOrganizationUser[];

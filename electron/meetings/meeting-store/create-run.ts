@@ -1,10 +1,10 @@
 import type { MeetingStore } from '../meeting-store.ts';
-import { getMeetingIrisClient } from '../meeting-iris-client';
+import { getMeetingHubClient } from '../meeting-hub-client';
 import type { CreateMeetingRunInput, MeetingRunRecord } from '../meeting-types';
 import { nowIso, makeId, throwOnError } from './shared';
 
 export async function createRun(this: MeetingStore, input: CreateMeetingRunInput & { traceId: string; sourceVersion: number }): Promise<MeetingRunRecord> {
-    const supabase = getMeetingIrisClient();
+    const supabase = getMeetingHubClient();
     const timestamp = nowIso();
     const record: MeetingRunRecord = {
       id: makeId('mrun'),

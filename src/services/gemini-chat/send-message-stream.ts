@@ -7,6 +7,7 @@ import { buildGeminiHistory } from './history';
 import { buildMessageContent } from './message-content';
 import { buildGenerationConfig, buildModelTools, resolveModelId } from './model-config';
 import { withGeminiModelCall } from './resilience';
+import { runResearchActionPhase } from './research-action';
 import { completedStreamResult, isAbortError, stoppedStreamResult } from './streams';
 import { buildSystemInstruction } from './system-instruction';
 import type { ConversationMessage, SendMessageStreamOptions, StreamResult, ToolCallInfo } from './types';
@@ -34,7 +35,10 @@ export async function sendMessageStream(
   // grounding web es solo para consultas informativas sin accion ejecutable.
   const actionTakesPriority = useToolLoop && hasComputerActionCommand(normalizeToolIntentText(message));
   if (!actionTakesPriority && shouldUseWebGrounding(message)) {
-    return sendGroundedMessage({
+    // Estado visible para el usuario: la investigacion no streamea, y sin esto
+    // solo se ven los puntos suspensivos durante decenas de segundos.
+    options?.onToolCall?.({ name: 'web_research', args: {} });
+    const grounded = await sendGroundedMessage({
       candidateModelIds,
       finalMessage,
       messageContent,
@@ -44,6 +48,20 @@ export async function sendMessageStream(
       allToolCalls: [],
       allGeneratedImages: [],
       signal: options?.signal,
+    });
+    // Peticion mixta ("investiga X y ponlo en un Word"): el grounding no tiene
+    // herramientas locales, asi que las acciones se ejecutan en una fase 2 con
+    // el tool loop; sin esto el modelo alucinaba haber creado el archivo.
+    if (!useToolLoop || !hasLocalDeliverableRequest(normalizeToolIntentText(message))) return grounded;
+    return runResearchActionPhase({
+      grounded,
+      originalMessage: message,
+      systemInstruction,
+      history,
+      generationConfig,
+      candidateModelIds,
+      computerUseEnabled,
+      options,
     });
   }
 
@@ -57,7 +75,7 @@ export async function sendMessageStream(
     if (signal?.aborted) return stoppedStreamResult(allToolCalls, allGeneratedImages);
     try {
       const modelParams: { model: string; systemInstruction: string; tools?: any[] } = { model: modelId, systemInstruction };
-      if (useToolLoop) modelParams.tools = buildModelTools(computerUseEnabled);
+      if (useToolLoop) modelParams.tools = buildModelTools(computerUseEnabled, modelId);
       const model = ai.getGenerativeModel(modelParams);
       const chatSession = model.startChat({ history, generationConfig });
 
@@ -150,6 +168,18 @@ function hasNativeAiIntent(text: string): boolean {
 
 function hasComputerUseIntent(text: string): boolean {
   return /\b(archivo|archivos|carpeta|carpetas|directorio|directorios|documento|documentos|word|docx|escritorio|desktop|pc|computadora|sistema|ventana|pantalla|captura|screenshot|navegador|browser|url|abre|abrir|lee|leer|lista|listar|busca|buscar|mueve|mover|copia|copiar|elimina|eliminar|borra|borrar|organiza|organizar|descarga|descargar|sube|subir|ejecuta\w*|ejecutar|terminal|powershell|aplicacion|app|reproduce|reproducir|inicia|iniciar|lanza|lanzar|arranca|arrancar|instala\w*|instalar|desinstala\w*|cierra|cerrar|clic|click|presiona|presionar|escribe|escribir|configura|configurar|apaga|apagar|reinicia|reiniciar|minimiza|maximiza|juega|jugar)\b/.test(text);
+}
+
+/**
+ * Peticion mixta con entregable local: ademas de investigar, el usuario pide
+ * materializar el resultado (crear/guardar un documento, enviarlo, abrirlo...).
+ * Requiere verbo de accion Y sustantivo de entregable para no disparar la
+ * fase 2 en consultas puramente informativas ("investiga esta URL").
+ */
+function hasLocalDeliverableRequest(text: string): boolean {
+  const hasActionVerb = /\b(pon\w*|guarda\w*|crea\w*|genera\w*|haz\w*|hacer|exporta\w*|redacta\w*|prepara\w*|elabora\w*|escribe\w*|convierte\w*|envia\w*|enviar|manda\w*|mandar|abre\w*|abrir|agenda\w*|sube\w*|subir|adjunta\w*)\b/.test(text);
+  const hasDeliverable = /\b(documento|documentos|word|docx|excel|xlsx|csv|pdf|powerpoint|pptx|presentacion|archivo|archivos|reporte|informe|carpeta|escritorio|desktop|correo|email|gmail|calendario|evento|reunion|drive)\b/.test(text);
+  return hasActionVerb && hasDeliverable;
 }
 
 /**

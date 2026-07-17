@@ -1,4 +1,4 @@
-import { getMeetingIrisClient } from './meeting-iris-client';
+import { getMeetingHubClient } from './meeting-hub-client';
 import { buildDetectionUpsertRecord } from './meeting-detection-store/record-builder';
 import { mapMeetingDetectionRecord } from './meeting-detection-store/record-mapper';
 import { nowIso, throwOnDetectionStoreError } from './meeting-detection-store/store-utils';
@@ -17,11 +17,11 @@ export type {
 
 export class MeetingDetectionStore {
   init(): void {
-    getMeetingIrisClient();
+    getMeetingHubClient();
   }
 
   async getByDetectionKey(detectionKey: string): Promise<MeetingDetectionRecord | null> {
-    const supabase = getMeetingIrisClient();
+    const supabase = getMeetingHubClient();
     const { data, error } = await supabase
       .from('meeting_detection_candidates')
       .select('*')
@@ -33,7 +33,7 @@ export class MeetingDetectionStore {
   }
 
   async upsertCandidate(input: UpsertMeetingDetectionInput): Promise<MeetingDetectionRecord> {
-    const supabase = getMeetingIrisClient();
+    const supabase = getMeetingHubClient();
     const existing = await this.getByDetectionKey(input.detectionKey);
     const record = buildDetectionUpsertRecord(input, existing);
     const { error } = await supabase
@@ -47,7 +47,7 @@ export class MeetingDetectionStore {
   }
 
   async markRunCreated(detectionKey: string, runId: string): Promise<void> {
-    const supabase = getMeetingIrisClient();
+    const supabase = getMeetingHubClient();
     const { error } = await supabase
       .from('meeting_detection_candidates')
       .update({
@@ -68,7 +68,7 @@ export class MeetingDetectionStore {
     patch?: { errorMessage?: string | null; metadata?: Record<string, unknown> },
   ): Promise<void> {
     const existing = await this.getByDetectionKey(detectionKey);
-    const supabase = getMeetingIrisClient();
+    const supabase = getMeetingHubClient();
     const { error } = await supabase
       .from('meeting_detection_candidates')
       .update({
@@ -84,7 +84,7 @@ export class MeetingDetectionStore {
   }
 
   async hasNotifiedRun(runId: string): Promise<boolean> {
-    const supabase = getMeetingIrisClient();
+    const supabase = getMeetingHubClient();
     const { data, error } = await supabase
       .from('meeting_detection_candidates')
       .select('id')

@@ -1,10 +1,10 @@
 import type { MeetingStore } from '../meeting-store.ts';
-import { getMeetingIrisClient } from '../meeting-iris-client';
+import { getMeetingHubClient } from '../meeting-hub-client';
 import type { MeetingRunDetail } from '../meeting-types';
 import { throwOnError } from './shared';
 
 export async function getRunDetail(this: MeetingStore, runId: string): Promise<MeetingRunDetail | null> {
-    const supabase = getMeetingIrisClient();
+    const supabase = getMeetingHubClient();
     const [
       { data: runRow, error: runError },
       { data: sourceRows, error: sourceError },

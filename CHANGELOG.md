@@ -4,6 +4,29 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.8.0] - 2026-07-17
+
+### Added
+
+- **Transcripcion de reuniones en vivo (sin bot):** Con el Orb abierto, SofLIA detecta cuando estas en una reunion de Google Meet, Microsoft Teams o Zoom, te pregunta si quieres que tome notas y transcribe todo lo que se habla — 100% local en tu equipo, sin meter ningun bot a la llamada.
+- **Minuta y resumen ejecutivo automaticos:** Al terminar la reunion, la transcripcion se convierte en una minuta con acuerdos y tareas, mas un resumen ejecutivo, listos para tu revision antes de sincronizarse a proyectos.
+- **Identifica quien dijo que:** SofLIA separa a cada participante remoto por su voz e identifica sus nombres reales leyendo los recuadros de la videollamada, para que la minuta atribuya cada intervencion a la persona correcta.
+- **Capturas de pantalla con contexto:** Durante la reunion se toman capturas periodicas y se lee su texto (slides, documentos compartidos) para enriquecer el resumen final.
+- **Navegador real en control de la computadora:** Cuando una tarea necesita cuentas donde ya iniciaste sesion, SofLIA ahora usa tu navegador predeterminado real (Chrome, Edge, Brave, Opera, Vivaldi o Firefox) con tu perfil activo, en lugar de un navegador vacio sin tus contrasenas.
+- **Respaldo de tus automatizaciones en la nube:** Tus workflows, plantillas y tareas programadas ahora se guardan en la base de datos de SofLIA Hub. Si formateas tu computadora o cambias de equipo, ya no los pierdes.
+
+### Changed
+
+- **Separacion clara de datos:** Lo operativo de SofLIA Hub (reuniones, workflows) vive en la base del Hub; a IRIS solo se le comparte el resultado aprobado (proyectos e incidencias). Las bases de datos ya no se mezclan.
+- **Deteccion de la ventana activa mas robusta:** Nuevo mecanismo nativo para Windows, macOS y Linux que reemplaza una dependencia que habia dejado de funcionar en Windows, y que ahora permite detectar reuniones y automatizar con mayor fiabilidad.
+- **La IA ya no se bloquea por limites de uso:** Cuando el proveedor responde con un limite de cuota temporal, SofLIA reintenta sola con una espera breve en lugar de quedar bloqueada; y los mensajes de error internos ya no se muestran al usuario.
+
+### Fixed
+
+- **La minuta no se podia guardar:** Las politicas de seguridad de la base de datos rechazaban la creacion de reuniones desde la app, y ademas habia una incompatibilidad de columnas al guardar. Ambos quedaron resueltos y el flujo completo de reunion a minuta ya funciona.
+- **La transcripcion no arrancaba:** Se corrigio la captura de audio de la reunion, que quedaba bloqueada por la politica de seguridad de contenido, y el motor de transcripcion que no se encontraba dentro del paquete instalado.
+- **El aviso de "¿Tomo notas?" se perdia:** Si la reunion se detectaba antes de abrir el Orb, el aviso no aparecia; ahora se recupera al abrir el Orb.
+
 ## [0.7.0] - 2026-07-12
 
 ### Added

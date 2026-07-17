@@ -1,11 +1,11 @@
 import type { MeetingStore } from '../meeting-store.ts';
 import crypto from 'node:crypto';
-import { getMeetingIrisClient } from '../meeting-iris-client';
+import { getMeetingHubClient } from '../meeting-hub-client';
 import type { MeetingReviewFlagCode, MeetingSyncActionRecord, UpdateMeetingActionInput } from '../meeting-types';
 import { nowIso, throwOnError } from './shared';
 
 export async function updateActionDraft(this: MeetingStore, actionId: string, updates: UpdateMeetingActionInput & { blockingFlags: MeetingReviewFlagCode[] }): Promise<MeetingSyncActionRecord | null> {
-    const supabase = getMeetingIrisClient();
+    const supabase = getMeetingHubClient();
     const current = await this.getAction(actionId);
     if (!current) return null;
     if (current.sync_state === 'synced') {

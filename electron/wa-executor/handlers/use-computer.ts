@@ -38,6 +38,7 @@ async function runDesktopAgentTask(toolArgs: Record<string, any>, ctx: ToolExecu
       browserProfile: toolArgs.browser_profile,
       browserIsolated: toolArgs.browser_isolated,
       resetBrowserProfile: toolArgs.reset_browser_profile,
+      useRealBrowser: toolArgs.use_real_browser,
     });
   } finally {
     ctx.desktopAgent!.removeListener('step', onStep);

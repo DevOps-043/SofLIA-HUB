@@ -1,10 +1,10 @@
 import type { MeetingStore } from '../meeting-store.ts';
-import { getMeetingIrisClient } from '../meeting-iris-client';
+import { getMeetingHubClient } from '../meeting-hub-client';
 import type { MeetingAssetPayload, MeetingAssetRecord } from '../meeting-types';
 import { nowIso, makeId, throwOnError } from './shared';
 
 export async function addAsset(this: MeetingStore, runId: string, payload: MeetingAssetPayload, confidence: number | null): Promise<MeetingAssetRecord> {
-    const supabase = getMeetingIrisClient();
+    const supabase = getMeetingHubClient();
     const { data: versions, error: versionError } = await supabase
       .from('meeting_assets')
       .select('asset_version')
@@ -28,12 +28,15 @@ export async function addAsset(this: MeetingStore, runId: string, payload: Meeti
       created_at: nowIso(),
     };
 
+    // La tabla usa payload_json/review_flags_json; los campos TS `payload` y
+    // `review_flags` NO deben viajar en el insert (PostgREST los rechaza).
+    const { payload: recordPayload, review_flags: reviewFlags, ...columns } = record;
     const { error } = await supabase
       .from('meeting_assets')
       .insert({
-        ...record,
-        payload_json: record.payload,
-        review_flags_json: record.review_flags,
+        ...columns,
+        payload_json: recordPayload,
+        review_flags_json: reviewFlags ?? [],
       });
 
     throwOnError(error, 'addAsset.insert');
