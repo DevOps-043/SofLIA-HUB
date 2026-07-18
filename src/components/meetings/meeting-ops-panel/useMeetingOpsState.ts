@@ -14,7 +14,7 @@ import type { ActionDraft, CreateMode, MeetingOpsForm } from './types';
 import { useMeetingOpsActions } from './useMeetingOpsActions';
 import { useMeetingOpsLoaders } from './useMeetingOpsLoaders';
 
-export function useMeetingOpsState({ userId, organizationId }: { userId: string; organizationId?: string }) {
+export function useMeetingOpsState({ userId, organizationId, accessUserIds }: { userId: string; organizationId?: string; accessUserIds?: string[] }) {
   const [mode, setMode] = useState<CreateMode>('manual');
   const [form, setForm] = useState<MeetingOpsForm>(DEFAULT_FORM);
   const [runs, setRuns] = useState<MeetingRunSummary[]>([]);
@@ -30,7 +30,7 @@ export function useMeetingOpsState({ userId, organizationId }: { userId: string;
   const [expandedAction, setExpandedAction] = useState<string | null>(null);
 
   const { loadInitialData, loadRunDetail } = useMeetingOpsLoaders({
-    userId, organizationId, selectedRunId, setLoading, setError, setRuns, setTeams,
+    userId, accessUserIds, organizationId, selectedRunId, setLoading, setError, setRuns, setTeams,
     setProjects, setTeamMembers, setSelectedRunId, setDetail,
   });
 
@@ -43,7 +43,8 @@ export function useMeetingOpsState({ userId, organizationId }: { userId: string;
 
   useEffect(() => {
     onMeetingDetected((event) => {
-      if (event.ownerUserId !== userId) return;
+      const ownIds = accessUserIds?.length ? accessUserIds : [userId];
+      if (!ownIds.includes(event.ownerUserId)) return;
       setNotice(`Nueva reunion detectada: ${event.meetingTitle || event.sourceFileName || 'Sin titulo'}.`);
       setSelectedRunId(event.runId);
       void loadInitialData();

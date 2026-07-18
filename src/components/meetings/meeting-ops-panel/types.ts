@@ -1,6 +1,8 @@
 export interface MeetingOpsPanelProps {
   userId: string;
   organizationId?: string | null;
+  /** Todas las identidades del usuario (uid de Lia + id de SOFIA) para listar sus runs. */
+  accessUserIds?: string[];
 }
 
 export type CreateMode = 'manual' | 'drive';

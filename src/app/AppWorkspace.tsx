@@ -9,6 +9,7 @@ import type { ActiveView, ChatState, FolderState, ShareLinkNotice, ShareTarget }
 import type { UserAISettings } from '../services/settings-service';
 
 interface AppWorkspaceProps {
+  accessUserIds?: string[];
   activeView: ActiveView;
   avatarUrl?: string;
   chat: ChatState;
@@ -58,7 +59,7 @@ export function AppWorkspace(props: AppWorkspaceProps) {
       {props.activeView === 'sdo' && props.userId && <RegistroDecisiones userId={props.userId} />}
       {props.activeView === 'meetings' && props.userId && (
         <div className="flex-1 min-h-0 overflow-hidden animate-view-in">
-          <MeetingOpsPanel userId={props.userId} organizationId={props.orgId || null} />
+          <MeetingOpsPanel userId={props.userId} organizationId={props.orgId || null} accessUserIds={props.accessUserIds} />
         </div>
       )}
       {props.activeView === 'project' && props.currentFolder && props.userId && (

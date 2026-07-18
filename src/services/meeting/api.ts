@@ -1,4 +1,4 @@
-import type {
+﻿import type {
   MeetingContextProject,
   MeetingContextTeam,
   MeetingContextTeamMember,
@@ -10,7 +10,7 @@ import type { MeetingRunSummary } from './summaries';
 declare global {
   interface Window {
     meeting: {
-      listRuns: (filters?: { ownerUserId?: string; organizationId?: string; limit?: number }) => Promise<{ success: boolean; runs?: MeetingRunSummary[]; error?: string }>;
+      listRuns: (filters?: { ownerUserId?: string; ownerUserIds?: string[]; organizationId?: string; limit?: number }) => Promise<{ success: boolean; runs?: MeetingRunSummary[]; error?: string }>;
       getRunDetail: (runId: string) => Promise<{ success: boolean; detail?: MeetingRunDetail; error?: string }>;
       createManualRun: (input: any) => Promise<{ success: boolean; result?: { detail: MeetingRunDetail; deduplicated: boolean }; error?: string }>;
       createDriveRun: (input: any) => Promise<{ success: boolean; result?: { detail: MeetingRunDetail; deduplicated: boolean }; error?: string }>;
@@ -33,7 +33,7 @@ declare global {
   }
 }
 
-export function listMeetingRuns(filters?: { ownerUserId?: string; organizationId?: string; limit?: number }) {
+export function listMeetingRuns(filters?: { ownerUserId?: string; ownerUserIds?: string[]; organizationId?: string; limit?: number }) {
   return window.meeting.listRuns(filters);
 }
 
@@ -84,3 +84,4 @@ export function onMeetingDetected(cb: (payload: MeetingDetectedEvent) => void) {
 export function removeMeetingListeners() {
   window.meeting.removeListeners?.();
 }
+

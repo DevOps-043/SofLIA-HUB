@@ -5,8 +5,8 @@ import { RunsList } from './meeting-ops-panel/RunsList';
 import type { MeetingOpsPanelProps } from './meeting-ops-panel/types';
 import { useMeetingOpsState } from './meeting-ops-panel/useMeetingOpsState';
 
-export function MeetingOpsPanel({ userId, organizationId }: MeetingOpsPanelProps) {
-  const state = useMeetingOpsState({ userId, organizationId: organizationId ?? undefined });
+export function MeetingOpsPanel({ userId, organizationId, accessUserIds }: MeetingOpsPanelProps) {
+  const state = useMeetingOpsState({ userId, organizationId: organizationId ?? undefined, accessUserIds });
   const inputClass = 'w-full rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.03] px-3 py-2 text-sm text-gray-800 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-600 focus:outline-none focus:border-accent/40 focus:ring-1 focus:ring-accent/20 transition';
   const selectClass = `${inputClass} appearance-none cursor-pointer`;
 

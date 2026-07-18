@@ -3,7 +3,7 @@ import { getMeetingHubClient } from '../meeting-hub-client';
 import type { MeetingRunSummary, MeetingReviewFlag } from '../meeting-types';
 import { parseJson, throwOnError } from './shared';
 
-export async function listRuns(this: MeetingStore, filters?: { ownerUserId?: string; organizationId?: string; limit?: number }): Promise<MeetingRunSummary[]> {
+export async function listRuns(this: MeetingStore, filters?: { ownerUserId?: string; ownerUserIds?: string[]; organizationId?: string; limit?: number }): Promise<MeetingRunSummary[]> {
     const supabase = getMeetingHubClient();
 
     let query = supabase
@@ -11,11 +11,18 @@ export async function listRuns(this: MeetingStore, filters?: { ownerUserId?: str
       .select('*')
       .order('updated_at', { ascending: false });
 
-    if (filters?.ownerUserId) {
+    // Un mismo usuario puede tener runs bajo varias identidades (id de SOFIA
+    // desde la orbe, uid de Lia desde la app): ownerUserIds las cubre todas.
+    const ownerIds = (filters?.ownerUserIds || []).filter(Boolean);
+    if (ownerIds.length > 0) {
+      query = query.in('owner_user_id', ownerIds);
+    } else if (filters?.ownerUserId) {
       query = query.eq('owner_user_id', filters.ownerUserId);
     }
     if (filters?.organizationId) {
-      query = query.eq('organization_id', filters.organizationId);
+      // Incluir runs personales (sin organizacion): la orbe y los runs
+      // manuales no siempre conocen la organizacion activa.
+      query = query.or(`organization_id.eq.${filters.organizationId},organization_id.is.null`);
     }
     if (filters?.limit) {
       query = query.limit(filters.limit);

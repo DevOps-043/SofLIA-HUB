@@ -1,4 +1,4 @@
-import crypto from 'node:crypto';
+﻿import crypto from 'node:crypto';
 import { getTeamMembersDetailed } from '../iris-data-main';
 import { MeetingAIService } from './meeting-ai-service';
 import { MeetingAssigneeService } from './meeting-assignee-service';
@@ -70,7 +70,7 @@ export class MeetingWorkflowService {
     return this.createRunFromPreparedSource(input, source);
   }
 
-  async listRuns(filters?: { ownerUserId?: string; organizationId?: string; limit?: number }): Promise<MeetingRunSummary[]> { return this.store.listRuns(filters); }
+  async listRuns(filters?: { ownerUserId?: string; ownerUserIds?: string[]; organizationId?: string; limit?: number }): Promise<MeetingRunSummary[]> { return this.store.listRuns(filters); }
 
   async getRunDetail(runId: string): Promise<MeetingRunDetail> {
     const detail = await this.store.getRunDetail(runId);
@@ -133,3 +133,4 @@ export class MeetingWorkflowService {
   }
 
 }
+
