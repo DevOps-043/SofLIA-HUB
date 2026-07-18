@@ -16,6 +16,8 @@ import type {
   MeetingEvidenceRef,
   MeetingRunDetail,
 } from '../../meetings/meeting-types';
+import { EXTRACTION_MODEL } from '../../meetings/meeting-ai/constants';
+import { EXTRACTION_PROMPT_VERSION } from '../../meetings/meeting-ai/extraction-prompt';
 import type { SdoService } from '../sdo-service';
 import { sha256Hex } from '../sdo-shared';
 import type { SdoSourceRef } from '../sdo-types';
@@ -27,7 +29,7 @@ function mapEvidenceRefs(refs: MeetingEvidenceRef[] | undefined, artifactToEvide
   return (refs || []).map((ref) => ({
     evidence_id: ref.source_artifact_id ? artifactToEvidence.get(ref.source_artifact_id) : undefined,
     excerpt: ref.excerpt,
-    locator: null,
+    locator: ref.locator ?? null,
   }));
 }
 
@@ -107,6 +109,8 @@ export async function registrarAprobacionAsset(sdo: SdoService, detail: MeetingR
         origin_ref: run.id,
         idempotency_key: claveDecision(run.id, decision),
         extracted_by: 'ia',
+        model_version: EXTRACTION_MODEL,
+        prompt_version: EXTRACTION_PROMPT_VERSION,
         confidence: decision.confidence ?? null,
         confidentiality: MEETING_CONFIDENTIALITY,
         owner_user_id: run.owner_user_id,
@@ -129,6 +133,8 @@ export async function registrarAprobacionAsset(sdo: SdoService, detail: MeetingR
         origin_ref: run.id,
         idempotency_key: `meeting:${run.id}:riesgo:${sha256Hex(issue.statement)}`,
         extracted_by: 'ia',
+        model_version: EXTRACTION_MODEL,
+        prompt_version: EXTRACTION_PROMPT_VERSION,
         confidence: issue.confidence ?? null,
         confidentiality: MEETING_CONFIDENTIALITY,
         owner_user_id: run.owner_user_id,

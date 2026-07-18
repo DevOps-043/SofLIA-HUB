@@ -177,7 +177,8 @@
       "Bash(./python-runtime/python.exe -m pip install -q pytest)",
       "Bash(PYTHONIOENCODING=utf-8 ./python-runtime/python.exe -m pytest python/tools_sidecar/tests -q)",
       "Bash(PYTHONIOENCODING=utf-8 timeout 20 ../../python-runtime/python.exe -u main.py)",
-      "Bash(PYTHONIOENCODING=utf-8 ../../python-runtime/python.exe -c ' *)"
+      "Bash(PYTHONIOENCODING=utf-8 ../../python-runtime/python.exe -c ' *)",
+      "PowerShell(git checkout -b feature/sdo-registro-operativo)"
     ]
   }
 }

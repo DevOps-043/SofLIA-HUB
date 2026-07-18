@@ -62,6 +62,23 @@ export function createMainServices(modules: any) {
     ownerNumber: '',
     apiKey: '',
   }, waService);
+  // Alertas de vigencia del SDO por WhatsApp: reutiliza el ownerNumber del
+  // briefing diario (el duenio del Hub). Sin owner o sin conexion, solo log.
+  sdoService.on('alerta-vigencia', (payload: { mensaje: string }) => {
+    void (async () => {
+      try {
+        const ownerNumber = dailyBriefingService.getConfig?.()?.ownerNumber;
+        if (!ownerNumber || !waService.isConnected?.()) {
+          console.log('[SDO] Alerta de vigencia (sin canal WhatsApp configurado):\n' + payload.mensaje);
+          return;
+        }
+        const jid = ownerNumber.includes('@') ? ownerNumber : `${ownerNumber.replace(/\D/g, '')}@s.whatsapp.net`;
+        await waService.sendText(jid, payload.mensaje);
+      } catch (error) {
+        console.warn('[SDO] No pude enviar la alerta de vigencia por WhatsApp:', error);
+      }
+    })();
+  });
   const telegramService = new modules.TelegramService();
   const communicationHubService = new modules.CommunicationHubService({
     waService,

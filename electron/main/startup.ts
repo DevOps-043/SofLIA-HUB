@@ -65,6 +65,7 @@ export async function initializeMainServices(input: {
   await runOptionalStep('knowledgeService.init', () => services.knowledgeService.init());
   await runOptionalStep('meetingWorkflowService.init', () => Promise.resolve(services.meetingWorkflowService.init()));
   await runOptionalStep('sdoService.init', () => services.sdoService.init());
+  await runOptionalStep('sdoService.start', () => Promise.resolve(services.sdoService.start()));
   await runOptionalStep('workspaceAutomationService.init', () => Promise.resolve(services.workspaceAutomationService.init()));
   await runOptionalStep('workflowHubService.init', () => Promise.resolve(services.workflowHubService.init()));
   await runOptionalStep('meetingPassiveDetectionService.init', () => services.meetingPassiveDetectionService.init());

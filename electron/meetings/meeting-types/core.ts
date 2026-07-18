@@ -38,9 +38,16 @@ export interface MeetingParticipant {
   confidence?: number | null;
 }
 
+/** Localizador estructurado de una cita dentro de la fuente (opcional, aditivo). */
+export interface MeetingEvidenceLocator {
+  tipo: 'offset' | 'linea' | 'timestamp' | 'pagina';
+  valor: string;
+}
+
 export interface MeetingEvidenceRef {
   source_artifact_id?: string;
   excerpt?: string;
+  locator?: MeetingEvidenceLocator | null;
 }
 
 export interface MeetingDecision {

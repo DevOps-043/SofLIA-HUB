@@ -7,18 +7,23 @@
  */
 import { EventEmitter } from 'node:events';
 import { SdoStore } from './sdo-store';
+import { SdoVigenciaService } from './sdo-vigencia-service';
 import type { SdoServiceStatus } from './sdo-types';
 
 export class SdoService extends EventEmitter {
   readonly store: SdoStore;
+  readonly vigencia: SdoVigenciaService;
   private initialized = false;
   private lastAdapterError: string | null = null;
   private lastAdapterRunId: string | null = null;
   private lastAdapterAt: string | null = null;
 
-  constructor(store = new SdoStore()) {
+  constructor(store = new SdoStore(), vigencia = new SdoVigenciaService()) {
     super();
     this.store = store;
+    this.vigencia = vigencia;
+    // Re-emitir para que el arranque del Hub cablee la notificacion (WhatsApp).
+    this.vigencia.on('alerta-vigencia', (payload) => this.emit('alerta-vigencia', payload));
   }
 
   async init(): Promise<void> {
@@ -26,11 +31,11 @@ export class SdoService extends EventEmitter {
   }
 
   start(): void {
-    // Fase 2: aqui arranca el polling de vigencia.
+    this.vigencia.start();
   }
 
   stop(): void {
-    // Fase 2: aqui se detiene el polling de vigencia.
+    this.vigencia.stop();
   }
 
   getConfig(): Record<string, unknown> {

@@ -2,6 +2,14 @@ import type { MeetingContextPack, MeetingTypeDefinition } from '../meeting-conte
 import type { ExtractMeetingAssetInput } from './internal-types';
 import { buildMeetingInput, buildPrudenceBlock, buildStrategyBlock } from './extraction-prompt-blocks';
 
+/**
+ * Identidad y version del prompt de extraccion (trazabilidad SDO).
+ * REGLA: cualquier cambio al contenido del prompt exige subir PROMPT_VERSION;
+ * el hash persistido en sdo_generation_runs delata los olvidos.
+ */
+export const EXTRACTION_PROMPT_ID = 'meeting-extraction';
+export const EXTRACTION_PROMPT_VERSION = '1.1.0';
+
 export function buildExtractionPrompt(
   input: ExtractMeetingAssetInput,
   contextPack: MeetingContextPack,
@@ -37,6 +45,7 @@ export function buildExtractionPrompt(
     '- No confundas "tema conversado" con "tarea aprobada".',
     '- No trates hipotesis como decision tomada.',
     '- Incluye evidence (citas cortas del texto) en decisions, tasks, risks.',
+    '- Cuando cites evidencia, agrega si puedes un localizador aproximado con el formato "[linea N]" o "[minuto MM:SS]" al inicio de la cita. Si no puedes ubicarla, omite el localizador (no lo inventes).',
     '- Devuelve SOLO JSON valido, sin markdown ni texto adicional.',
     '',
     '### CLASIFICACION YA RESUELTA (no cambiar)',

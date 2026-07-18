@@ -23,7 +23,7 @@ export class FakeSupabaseDb {
   }
 }
 
-type Filter = { kind: 'eq' | 'ilike'; column: string; value: unknown };
+type Filter = { kind: 'eq' | 'ilike' | 'lt' | 'lte'; column: string; value: unknown };
 
 class FakeQuery implements PromiseLike<{ data: FakeRow[] | null; error: null }> {
   private filters: Filter[] = [];
@@ -92,6 +92,16 @@ class FakeQuery implements PromiseLike<{ data: FakeRow[] | null; error: null }> 
     return this;
   }
 
+  lt(column: string, value: unknown) {
+    this.filters.push({ kind: 'lt', column, value });
+    return this;
+  }
+
+  lte(column: string, value: unknown) {
+    this.filters.push({ kind: 'lte', column, value });
+    return this;
+  }
+
   in(column: string, values: unknown[]) {
     const set = new Set(values);
     if (this.pendingUpdate) {
@@ -123,6 +133,11 @@ class FakeQuery implements PromiseLike<{ data: FakeRow[] | null; error: null }> 
         if (f.kind === 'eq') {
           if (Array.isArray(f.value)) return (f.value as unknown[]).includes(fila[f.column]);
           return fila[f.column] === f.value;
+        }
+        if (f.kind === 'lt' || f.kind === 'lte') {
+          const actual = fila[f.column];
+          if (actual === null || actual === undefined) return false;
+          return f.kind === 'lt' ? String(actual) < String(f.value) : String(actual) <= String(f.value);
         }
         const patron = String(f.value).replace(/%/g, '').toLowerCase();
         return String(fila[f.column] ?? '').toLowerCase().includes(patron);

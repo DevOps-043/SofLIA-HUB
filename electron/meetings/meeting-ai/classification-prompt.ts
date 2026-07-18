@@ -1,6 +1,10 @@
 import type { MeetingContextPack } from '../meeting-context-pack';
 import type { ExtractMeetingAssetInput } from './internal-types';
 
+/** Identidad y version del prompt de clasificacion (trazabilidad SDO). */
+export const CLASSIFICATION_PROMPT_ID = 'meeting-classification';
+export const CLASSIFICATION_PROMPT_VERSION = '1.0.0';
+
 const CLASSIFICATION_TRANSCRIPT_PREVIEW_CHARS = 6000;
 
 export function buildClassificationPrompt(
