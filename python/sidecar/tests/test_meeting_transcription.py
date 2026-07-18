@@ -174,7 +174,7 @@ class SpeakerLabelerTests(unittest.TestCase):
 
     def test_segments_carry_speaker_labels(self) -> None:
         events: list[dict] = []
-        voices = iter([[1.0, 0.0], [0.0, 1.0]])
+        voices = iter([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
         transcriber = MeetingTranscriber(
             session_id="s1",
             emit_fn=events.append,
@@ -193,8 +193,70 @@ class SpeakerLabelerTests(unittest.TestCase):
             self.assertTrue(wait_until(lambda: len(events) == 3))
         finally:
             transcriber.stop(drain_timeout_seconds=2)
+        # La voz del mic reclama el indice 1 como "usuario"; las voces del
+        # canal del sistema toman los indices siguientes.
         speakers = {event["speaker"] for event in events}
-        self.assertEqual(speakers, {"usuario", "participante-1", "participante-2"})
+        self.assertEqual(speakers, {"usuario", "participante-2", "participante-3"})
+
+    def test_mic_bleed_separates_remote_voices_without_system_audio(self) -> None:
+        """Sin loopback, las voces remotas entran por el mic (bocinas): la
+        primera voz local es "usuario" y las demas se separan como
+        participante-N, en vez de etiquetar todo como usuario."""
+        events: list[dict] = []
+        voices = iter([[1.0, 0.0], [0.0, 1.0], [0.95, 0.05]])
+        transcriber = MeetingTranscriber(
+            session_id="s1",
+            emit_fn=events.append,
+            transcribe_fn=lambda pcm: "texto",
+            speaker_labeler=SpeakerLabeler(
+                embed_fn=lambda pcm: next(voices), similarity_threshold=0.8,
+            ),
+        )
+        try:
+            for freq in (440.0, 880.0, 440.0):
+                transcriber.push_audio("mic", b64(tone_pcm(4.5, freq=freq)))
+                transcriber.push_audio("mic", b64(silence_pcm(1.0)))
+            self.assertTrue(wait_until(lambda: len(events) == 3))
+        finally:
+            transcriber.stop(drain_timeout_seconds=2)
+        self.assertEqual(
+            [event["speaker"] for event in events],
+            ["usuario", "participante-2", "usuario"],
+        )
+
+    def test_user_slot_released_if_that_voice_appears_on_system_channel(self) -> None:
+        """Si la huella que reclamo "usuario" suena luego en el canal remoto,
+        era una voz remota colada: se libera el puesto y la siguiente voz
+        local distinta pasa a ser el usuario real."""
+        events: list[dict] = []
+        remote_voice = [1.0, 0.0]
+        local_voice = [0.0, 1.0]
+        sequence = iter([remote_voice, remote_voice, local_voice])
+        transcriber = MeetingTranscriber(
+            session_id="s1",
+            emit_fn=events.append,
+            transcribe_fn=lambda pcm: "texto",
+            speaker_labeler=SpeakerLabeler(
+                embed_fn=lambda pcm: next(sequence), similarity_threshold=0.8,
+            ),
+        )
+        try:
+            transcriber.push_audio("mic", b64(tone_pcm(4.5)))          # remoto por bocinas
+            transcriber.push_audio("mic", b64(silence_pcm(1.0)))
+            transcriber.push_audio("system", b64(tone_pcm(4.5)))       # la misma voz, ahora en loopback
+            transcriber.push_audio("system", b64(silence_pcm(1.0)))
+            transcriber.push_audio("mic", b64(tone_pcm(4.5, freq=880.0)))  # el usuario real
+            transcriber.push_audio("mic", b64(silence_pcm(1.0)))
+            self.assertTrue(wait_until(lambda: len(events) == 3))
+        finally:
+            transcriber.stop(drain_timeout_seconds=2)
+        ordered = sorted(events, key=lambda e: (e["source"], e["t0_ms"]))
+        by_key = {(e["source"], e["t0_ms"]): e["speaker"] for e in events}
+        self.assertEqual(by_key[("system", 0)], "participante-1")
+        # La segunda voz del mic (distinta) reclama "usuario" tras la liberacion.
+        mic_speakers = [e["speaker"] for e in events if e["source"] == "mic"]
+        self.assertIn("usuario", mic_speakers)
+        self.assertEqual(len(ordered), 3)
 
     def test_without_labeler_system_segments_use_generic_label(self) -> None:
         events: list[dict] = []

@@ -8,15 +8,15 @@
 import type { MeetingLiveScreenshot, MeetingLiveSegment } from './types';
 
 /**
- * Etiqueta legible del hablante: "usuario" → Usuario; "participante-3" →
- * Participante 3 (diarizacion por huella de voz); cualquier otro valor cae a
- * la etiqueta generica de participantes remotos.
+ * Etiqueta legible del hablante. La etiqueta del sidecar manda: el canal del
+ * microfono TAMBIEN puede traer voces remotas (bocinas), asi que un segmento
+ * de mic con "participante-N" se respeta como participante, no como Usuario.
  */
 export function formatSpeakerLabel(segment: MeetingLiveSegment): string {
-  if (segment.speaker === 'usuario' || segment.source === 'mic') return 'Usuario';
+  if (segment.speaker === 'usuario') return 'Usuario';
   const match = /^participante-(\d+)$/.exec(segment.speaker);
   if (match) return `Participante ${match[1]}`;
-  return 'Participantes';
+  return segment.source === 'mic' ? 'Usuario' : 'Participantes';
 }
 
 /** Maximo de texto OCR por captura dentro del transcript (evita inflar tokens). */
@@ -67,10 +67,10 @@ export function buildMeetingTranscript(input: {
     `Fin: ${input.endedAt}`,
     '',
     '=== NOTA PARA EL ANALISIS ===',
-    '"Usuario" es quien tomo las notas (hablo por el microfono local).',
+    '"Usuario" es quien tomo las notas (la voz local detectada). Si los demas sonaban por bocinas, sus voces pudieron entrar por el microfono: por eso tambien hay "Participante N" en el canal local, y la etiqueta "Usuario" es una inferencia que puede requerir confirmacion por contexto.',
     distinctSpeakers.size > 0
-      ? `Los hablantes remotos fueron separados automaticamente por huella de voz como Participante 1..${distinctSpeakers.size}. Las etiquetas son consistentes pero anonimas: si el contexto revela nombres reales (se presentan, se mencionan entre si, responden preguntas dirigidas), usa los nombres reales en el resumen y la minuta indicando la correspondencia.`
-      : 'Los hablantes remotos no pudieron separarse por voz y aparecen agrupados como "Participantes"; infiere del contexto quien dijo que cuando sea posible.',
+      ? `Los demas hablantes fueron separados automaticamente por huella de voz como Participante 1..${distinctSpeakers.size} (numeracion no necesariamente consecutiva). Las etiquetas son consistentes pero anonimas: si el contexto revela nombres reales (se presentan, se mencionan entre si, responden preguntas dirigidas), usa los nombres reales en el resumen y la minuta indicando la correspondencia.`
+      : 'Los demas hablantes no pudieron separarse por voz y aparecen agrupados como "Participantes" (o mezclados con "Usuario" si sonaban por bocinas); infiere del contexto quien dijo que cuando sea posible.',
   ];
   if (participants.length > 0) {
     lines.push(

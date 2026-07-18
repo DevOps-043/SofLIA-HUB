@@ -41,6 +41,7 @@ function createSidecarTranscriptionPort(runtime: PythonRuntimeService): MeetingT
         model_size: params.modelSize,
         download_root: params.downloadRoot,
         speaker_model_path: params.speakerModelPath ?? '',
+        initial_prompt: params.initialPrompt ?? '',
       }, MEETING_START_TIMEOUT_MS);
       if (res.ok !== true) {
         throw new Error(String(res.error ?? 'El sidecar rechazo meeting_start.'));

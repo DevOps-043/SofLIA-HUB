@@ -15,8 +15,9 @@ export type MeetingLiveStatus = 'idle' | 'grabando' | 'finalizando';
 export interface MeetingLiveSegment {
   source: MeetingLiveSource;
   /**
-   * Hablante detectado: "usuario" (microfono), "participante-N" (diarizacion
-   * por huella de voz en el canal del sistema) o "participantes" (sin modelo).
+   * Hablante detectado: "usuario" (la voz local), "participante-N"
+   * (diarizacion por huella de voz en ambos canales: el mic tambien puede
+   * traer voces remotas por bocinas) o "participantes" (sin modelo).
    */
   speaker: string;
   text: string;
@@ -79,6 +80,8 @@ export interface MeetingTranscriptionPort {
     downloadRoot: string;
     /** Ruta del modelo de embeddings de voz; null desactiva la diarizacion. */
     speakerModelPath: string | null;
+    /** Sesgo de vocabulario para Whisper (titulo de la reunion, terminos). */
+    initialPrompt?: string;
   }): Promise<void>;
   /** Fire-and-forget; false si el sidecar no esta disponible. */
   pushAudio(source: MeetingLiveSource, audioB64: string): boolean;

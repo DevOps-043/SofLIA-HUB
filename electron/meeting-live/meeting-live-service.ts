@@ -90,17 +90,20 @@ export class MeetingLiveService extends EventEmitter {
       }
     }
 
+    const title = input.title?.trim() || `Reunion ${startedAt.toLocaleString('es-MX')}`;
     await this.deps.transcription.start({
       sessionId,
       language: (input.language || 'es').trim(),
       modelSize: (input.modelSize || 'small').trim(),
       downloadRoot: this.deps.whisperModelsDir,
       speakerModelPath,
+      // Sesgo de vocabulario: mejora nombres propios y terminos del dominio.
+      initialPrompt: `Reunion de trabajo en espanol (Mexico): ${title}. Terminos frecuentes: SofLIA, IRIS, minuta.`,
     });
 
     const session: ActiveSession = {
       sessionId,
-      title: input.title?.trim() || `Reunion ${startedAt.toLocaleString('es-MX')}`,
+      title,
       startedAt,
       segments: [],
       screenshots: [],

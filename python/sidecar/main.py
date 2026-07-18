@@ -845,6 +845,7 @@ def handle_command(msg: dict) -> None:
                 model_size=model_size,
                 download_root=download_root,
                 speaker_labeler=speaker_labeler,
+                initial_prompt=str(params.get("initial_prompt") or ""),
             )
             # Precalentar el modelo en segundo plano (descarga/carga) para que
             # la primera ventana de audio no pague ese costo.

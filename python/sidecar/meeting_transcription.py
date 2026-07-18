@@ -91,7 +91,8 @@ def _rms_int16(pcm: bytes) -> float:
     return (total / len(samples)) ** 0.5
 
 
-def _default_transcribe(pcm: bytes, language: str, model_size: str, download_root: str) -> str:
+def _default_transcribe(pcm: bytes, language: str, model_size: str, download_root: str,
+                        initial_prompt: str = "") -> str:
     """Transcribe un bloque PCM int16 16kHz mono y devuelve el texto plano."""
     # numpy llega como dependencia transitiva de faster-whisper/ctranslate2.
     import numpy as np
@@ -104,6 +105,9 @@ def _default_transcribe(pcm: bytes, language: str, model_size: str, download_roo
         beam_size=1,          # latencia sobre precision marginal en vivo
         vad_filter=True,      # descarta silencios internos de la ventana
         condition_on_previous_text=False,  # evita alucinaciones en ventanas cortas
+        # Sesga el vocabulario hacia el dominio (titulo de la reunion, marca,
+        # terminos frecuentes) sin condicionar en texto previo.
+        initial_prompt=initial_prompt or None,
     )
     return " ".join(segment.text.strip() for segment in segments).strip()
 
@@ -153,8 +157,8 @@ class SpeakerLabeler:
             return 0.0
         return dot / (norm_a * norm_b)
 
-    def label(self, pcm: bytes) -> str:
-        """Devuelve la etiqueta estable del hablante para esta ventana."""
+    def label_index(self, pcm: bytes) -> int:
+        """Indice estable (0-based) de la huella de voz de esta ventana."""
         embedding = self._embed(pcm)
         best_index = -1
         best_score = -1.0
@@ -170,10 +174,14 @@ class SpeakerLabeler:
                 for c, e in zip(self._centroids[best_index], embedding)
             ]
             self._counts[best_index] = count + 1
-            return f"participante-{best_index + 1}"
+            return best_index
         self._centroids.append(list(embedding))
         self._counts.append(1)
-        return f"participante-{len(self._centroids)}"
+        return len(self._centroids) - 1
+
+    def label(self, pcm: bytes) -> str:
+        """Devuelve la etiqueta estable del hablante para esta ventana."""
+        return f"participante-{self.label_index(pcm) + 1}"
 
 
 class _SourceBuffer:
@@ -228,18 +236,24 @@ class MeetingTranscriber:
 
     def __init__(self, session_id: str, emit_fn, language: str = "es",
                  model_size: str = "small", download_root: str = "",
-                 transcribe_fn=None, speaker_labeler=None):
+                 transcribe_fn=None, speaker_labeler=None, initial_prompt: str = ""):
         self.session_id = session_id
         self._emit = emit_fn
         self._language = language
         self._model_size = model_size
         self._download_root = download_root
         self._transcribe = transcribe_fn or (
-            lambda pcm: _default_transcribe(pcm, language, model_size, download_root)
+            lambda pcm: _default_transcribe(pcm, language, model_size, download_root, initial_prompt)
         )
-        # Diarizacion del canal del sistema (los participantes remotos). El
-        # microfono siempre es "usuario"; sin labeler todo remoto es "participantes".
+        # Diarizacion por huella de voz en AMBOS canales. En el microfono
+        # tambien: si los participantes remotos suenan por bocinas, sus voces
+        # entran por el mic y deben separarse igual (no todo el mic es el
+        # usuario). La primera huella del mic que no aparezca en el canal del
+        # sistema se asume como el usuario; sin labeler se cae al esquema
+        # simple (mic="usuario", system="participantes").
         self._speaker_labeler = speaker_labeler
+        self._user_speaker_index: int | None = None
+        self._system_speaker_indices: set[int] = set()
         self._buffers = {"mic": _SourceBuffer("mic"), "system": _SourceBuffer("system")}
         self._queue: list[tuple[str, bytes, int, int]] = []
         self._queue_lock = threading.Lock()
@@ -268,14 +282,31 @@ class MeetingTranscriber:
         return self.segments_count
 
     def _resolve_speaker(self, source: str, pcm: bytes) -> str:
-        if source == "mic":
-            return "usuario"
         if self._speaker_labeler is None:
-            return "participantes"
+            return "usuario" if source == "mic" else "participantes"
         try:
-            return self._speaker_labeler.label(pcm)
-        except Exception:  # noqa: BLE001 — sin diarizacion se degrada a etiqueta generica
-            return "participantes"
+            index = self._speaker_labeler.label_index(pcm)
+        except Exception:  # noqa: BLE001 — sin diarizacion se degrada a etiqueta simple
+            return "usuario" if source == "mic" else "participantes"
+
+        if source == "system":
+            self._system_speaker_indices.add(index)
+            if index == self._user_speaker_index:
+                # La huella que creiamos del usuario suena en el canal remoto:
+                # era una voz remota colada por bocinas. Liberar el puesto para
+                # que la voz local real pueda reclamarlo despues.
+                self._user_speaker_index = None
+            return f"participante-{index + 1}"
+
+        # Canal del microfono.
+        if index in self._system_speaker_indices:
+            return f"participante-{index + 1}"  # sangrado de bocinas: voz remota
+        if self._user_speaker_index is None:
+            self._user_speaker_index = index
+            return "usuario"
+        if index == self._user_speaker_index:
+            return "usuario"
+        return f"participante-{index + 1}"
 
     def _enqueue_window(self, buffer: _SourceBuffer) -> None:
         pcm, t0, t1 = buffer.take_window()
