@@ -80,6 +80,32 @@ export function registerSdoHandlers(sdoService: SdoService): void {
       events: await sdoService.store.listarBitacora(input.objectType, input.objectId, input.limit),
     })));
 
+  ipcMain.handle('sdo:generate-document', (_event, input: { tipo: 'minuta' | 'decision_record'; ref: string; titulo?: string }) =>
+    handleIPC(async () => {
+      if (input.tipo === 'decision_record') {
+        return { result: await sdoService.documentos.generarDecisionRecord(input.ref) };
+      }
+      return { result: await sdoService.documentos.generarMinuta(input.ref, input.titulo) };
+    }));
+
+  ipcMain.handle('sdo:get-context-card', (_event, input: { sujeto: string; persistir?: boolean; ownerUserId?: string }) =>
+    handleIPC(async () => ({
+      card: await sdoService.documentos.generarTarjetaContexto(input.sujeto, {
+        persistir: input.persistir,
+        ownerUserId: input.ownerUserId,
+      }),
+    })));
+
+  ipcMain.handle('sdo:list-artifacts', (_event, filters?: { ownerUserId?: string; artifactType?: string; limit?: number }) =>
+    handleIPC(async () => ({
+      artifacts: await sdoService.store.listarArtefactos(filters),
+    })));
+
+  ipcMain.handle('sdo:approve-artifact', (_event, input: { artifactId: string; decidedByUserId: string; comment?: string }) =>
+    handleIPC(async () => ({
+      snapshot: await sdoService.documentos.aprobarArtefacto(input.artifactId, input.decidedByUserId, input.comment),
+    })));
+
   ipcMain.handle('sdo:get-status', () =>
     handleIPC(async () => ({ status: sdoService.getStatus() })));
 

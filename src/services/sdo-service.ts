@@ -137,9 +137,29 @@ declare global {
       approve: (input: SdoApproveInput) => SdoResult<{ approval: SdoApproval }>;
       reject: (input: SdoApproveInput) => SdoResult<{ approval: SdoApproval }>;
       listAudit: (input: { objectType: string; objectId: string; limit?: number }) => SdoResult<{ events: SdoAuditEvent[] }>;
+      generateDocument: (input: { tipo: 'minuta' | 'decision_record'; ref: string; titulo?: string }) => SdoResult<{ result: { artifactId: string; markdown: string; filePath: string } }>;
+      getContextCard: (input: { sujeto: string; persistir?: boolean; ownerUserId?: string }) => SdoResult<{ card: { markdown: string; artifactId?: string; filePath?: string } }>;
+      listArtifacts: (filters?: { ownerUserId?: string; artifactType?: string; limit?: number }) => SdoResult<{ artifacts: SdoArtifact[] }>;
+      approveArtifact: (input: { artifactId: string; decidedByUserId: string; comment?: string }) => SdoResult<{ snapshot: { sha256: string } }>;
       getStatus: () => SdoResult<{ status: { initialized: boolean; lastAdapterError: string | null } }>;
     };
   }
+}
+
+export interface SdoArtifact {
+  id: string;
+  artifact_type: 'minuta' | 'decision_record' | 'tarjeta_contexto';
+  title: string;
+  template_id: string;
+  template_version: string;
+  authority_status: SdoAuthorityStatus;
+  temporal_status: SdoTemporalStatus;
+  local_path: string | null;
+  sha256: string | null;
+  approved_by_user_id: string | null;
+  approved_at: string | null;
+  owner_user_id: string;
+  created_at: string;
 }
 
 export function listSdoDecisions(filters?: SdoListFilters) {
@@ -180,4 +200,20 @@ export function listSdoAudit(input: { objectType: string; objectId: string; limi
 
 export function getSdoStatus() {
   return window.sdo.getStatus();
+}
+
+export function generateSdoDocument(input: { tipo: 'minuta' | 'decision_record'; ref: string; titulo?: string }) {
+  return window.sdo.generateDocument(input);
+}
+
+export function getSdoContextCard(input: { sujeto: string; persistir?: boolean; ownerUserId?: string }) {
+  return window.sdo.getContextCard(input);
+}
+
+export function listSdoArtifacts(filters?: { ownerUserId?: string; artifactType?: string; limit?: number }) {
+  return window.sdo.listArtifacts(filters);
+}
+
+export function approveSdoArtifact(input: { artifactId: string; decidedByUserId: string; comment?: string }) {
+  return window.sdo.approveArtifact(input);
 }

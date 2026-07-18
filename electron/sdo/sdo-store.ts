@@ -305,6 +305,7 @@ export class SdoStore {
     if (filters?.authorityStatus) query = query.eq('authority_status', filters.authorityStatus);
     if (filters?.temporalStatus) query = query.eq('temporal_status', filters.temporalStatus);
     if (filters?.epistemicStatus) query = query.eq('epistemic_status', filters.epistemicStatus);
+    if (filters?.subject) query = query.ilike('statement', `%${filters.subject}%`);
     if (filters?.originRef) query = query.eq('origin_ref', filters.originRef);
     query = query.limit(filters?.limit ?? 100);
 
@@ -512,6 +513,87 @@ export class SdoStore {
     });
 
     return aprobacionRow as SdoApproval;
+  }
+
+  // ------------------------------------------------------------------
+  // Artefactos (vistas generadas desde registros; snapshot al aprobar)
+  // ------------------------------------------------------------------
+
+  async crearArtefacto(input: {
+    artifact_type: 'minuta' | 'decision_record' | 'tarjeta_contexto';
+    title: string;
+    template_id: string;
+    template_version: string;
+    record_refs: Array<{ object_type: string; object_id: string }>;
+    local_path?: string | null;
+    confidentiality?: string;
+    owner_user_id: string;
+    organization_id?: string | null;
+    trace_id?: string | null;
+    metadata_json?: Record<string, unknown>;
+  }): Promise<Row> {
+    const supabase = getSdoHubClient();
+    const id = makeSdoId('sdoart');
+    const { data, error } = await supabase
+      .from('sdo_artifacts')
+      .insert({
+        id,
+        artifact_type: input.artifact_type,
+        title: input.title,
+        template_id: input.template_id,
+        template_version: input.template_version,
+        record_refs: input.record_refs,
+        authority_status: 'borrador',
+        temporal_status: 'futuro',
+        local_path: input.local_path ?? null,
+        confidentiality: input.confidentiality ?? 'P1',
+        owner_user_id: input.owner_user_id,
+        organization_id: input.organization_id ?? null,
+        trace_id: input.trace_id ?? null,
+        metadata_json: input.metadata_json ?? {},
+        updated_at: nowIso(),
+      })
+      .select()
+      .single();
+
+    throwOnSdoError(error, 'crearArtefacto');
+    await registrarEvento({
+      actor_type: 'sistema',
+      event_type: 'creado',
+      object_type: 'artifact',
+      object_id: id,
+      after_json: { artifact_type: input.artifact_type, title: input.title },
+      trace_id: input.trace_id ?? null,
+    });
+    return data as Row;
+  }
+
+  async obtenerArtefacto(id: string): Promise<Row | null> {
+    const supabase = getSdoHubClient();
+    const { data, error } = await supabase.from('sdo_artifacts').select('*').eq('id', id).maybeSingle();
+    throwOnSdoError(error, 'obtenerArtefacto');
+    return (data as Row | null) ?? null;
+  }
+
+  async listarArtefactos(filters?: { ownerUserId?: string; artifactType?: string; limit?: number }): Promise<Row[]> {
+    const supabase = getSdoHubClient();
+    let query = supabase.from('sdo_artifacts').select('*').order('created_at', { ascending: false });
+    if (filters?.ownerUserId) query = query.eq('owner_user_id', filters.ownerUserId);
+    if (filters?.artifactType) query = query.eq('artifact_type', filters.artifactType);
+    query = query.limit(filters?.limit ?? 100);
+
+    const { data, error } = await query;
+    throwOnSdoError(error, 'listarArtefactos');
+    return (data || []) as Row[];
+  }
+
+  async actualizarArtefacto(id: string, updates: Row): Promise<void> {
+    const supabase = getSdoHubClient();
+    const { error } = await supabase
+      .from('sdo_artifacts')
+      .update({ ...updates, updated_at: nowIso() })
+      .eq('id', id);
+    throwOnSdoError(error, 'actualizarArtefacto');
   }
 
   async listarAprobaciones(objectType: SdoApprovalObjectType, objectId: string): Promise<SdoApproval[]> {

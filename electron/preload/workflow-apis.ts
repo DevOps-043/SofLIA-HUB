@@ -55,6 +55,10 @@ export function exposeWorkflowApis(bridge: PreloadBridge, ipc: SafeIpc): void {
     approve: (input: unknown) => safeInvoke('sdo:approve', input),
     reject: (input: unknown) => safeInvoke('sdo:reject', input),
     listAudit: (input: unknown) => safeInvoke('sdo:list-audit', input),
+    generateDocument: (input: unknown) => safeInvoke('sdo:generate-document', input),
+    getContextCard: (input: unknown) => safeInvoke('sdo:get-context-card', input),
+    listArtifacts: (filters?: unknown) => safeInvoke('sdo:list-artifacts', filters),
+    approveArtifact: (input: unknown) => safeInvoke('sdo:approve-artifact', input),
     getStatus: () => safeInvoke('sdo:get-status'),
   });
   bridge.exposeInMainWorld('meetingLive', {

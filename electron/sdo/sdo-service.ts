@@ -6,6 +6,7 @@
  * via start(); por ahora start() no hace nada.
  */
 import { EventEmitter } from 'node:events';
+import { SdoDocumentService } from './sdo-document-service';
 import { SdoStore } from './sdo-store';
 import { SdoVigenciaService } from './sdo-vigencia-service';
 import type { SdoServiceStatus } from './sdo-types';
@@ -13,15 +14,17 @@ import type { SdoServiceStatus } from './sdo-types';
 export class SdoService extends EventEmitter {
   readonly store: SdoStore;
   readonly vigencia: SdoVigenciaService;
+  readonly documentos: SdoDocumentService;
   private initialized = false;
   private lastAdapterError: string | null = null;
   private lastAdapterRunId: string | null = null;
   private lastAdapterAt: string | null = null;
 
-  constructor(store = new SdoStore(), vigencia = new SdoVigenciaService()) {
+  constructor(store = new SdoStore(), vigencia = new SdoVigenciaService(), documentos?: SdoDocumentService) {
     super();
     this.store = store;
     this.vigencia = vigencia;
+    this.documentos = documentos ?? new SdoDocumentService(store);
     // Re-emitir para que el arranque del Hub cablee la notificacion (WhatsApp).
     this.vigencia.on('alerta-vigencia', (payload) => this.emit('alerta-vigencia', payload));
   }
