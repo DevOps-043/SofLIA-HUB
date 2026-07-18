@@ -27,6 +27,7 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
     recordDesktopTaskMemory(services.memoryService, payload as { task?: string; message?: string }, true));
   modules.registerUpdaterHandlers(services.updaterService, () => state.win);
   modules.registerMeetingHandlers(services.meetingWorkflowService);
+  modules.registerSdoHandlers(services.sdoService);
   // Transcripcion de reuniones en vivo: audio del renderer -> sidecar Python
   // (faster-whisper) -> pipeline de meetings existente para la minuta.
   modules.registerMeetingLiveHandlers(
@@ -63,6 +64,7 @@ export async function initializeMainServices(input: {
   await runOptionalStep('memoryService.init', () => services.memoryService.init());
   await runOptionalStep('knowledgeService.init', () => services.knowledgeService.init());
   await runOptionalStep('meetingWorkflowService.init', () => Promise.resolve(services.meetingWorkflowService.init()));
+  await runOptionalStep('sdoService.init', () => services.sdoService.init());
   await runOptionalStep('workspaceAutomationService.init', () => Promise.resolve(services.workspaceAutomationService.init()));
   await runOptionalStep('workflowHubService.init', () => Promise.resolve(services.workflowHubService.init()));
   await runOptionalStep('meetingPassiveDetectionService.init', () => services.meetingPassiveDetectionService.init());

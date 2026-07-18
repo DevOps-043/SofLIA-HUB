@@ -33,6 +33,15 @@ export function createMainServices(modules: any) {
     meetingReviewService,
     meetingSyncService,
   );
+  // SDO-AN: al aprobar minutas/acciones, el resultado aprobado se registra en
+  // el Registro Operativo Gobernado (no bloqueante para el flujo de meetings).
+  const sdoService = new modules.SdoService();
+  meetingWorkflowService.setSdoAdapter({
+    onAssetApproved: (detail: unknown, decidedByUserId: string) =>
+      modules.registrarAprobacionAsset(sdoService, detail, decidedByUserId),
+    onActionsApproved: (detail: unknown, decidedByUserId: string) =>
+      modules.registrarAprobacionAcciones(sdoService, detail, decidedByUserId),
+  });
   const meetingPassiveDetectionService = new modules.MeetingPassiveDetectionService(
     calendarService,
     gmailService,
@@ -78,6 +87,7 @@ export function createMainServices(modules: any) {
     proactiveService,
     workspaceAutomationService,
     meetingWorkflowService,
+    sdoService,
     meetingPassiveDetectionService,
     workflowHubService,
     dailyBriefingService,

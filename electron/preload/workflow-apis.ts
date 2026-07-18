@@ -41,6 +41,22 @@ export function exposeWorkflowApis(bridge: PreloadBridge, ipc: SafeIpc): void {
     onDetected: (cb: (payload: any) => void) => safeOn('meeting:detected', cb),
     removeListeners: () => safeRemoveAllListeners('meeting:detected'),
   });
+  // SDO-AN: Registro Operativo Gobernado. approve/reject solo desde la UI
+  // (usuario SOFIA); las herramientas de agente no tienen ruta de aprobacion.
+  bridge.exposeInMainWorld('sdo', {
+    listDecisions: (filters?: unknown) => safeInvoke('sdo:list-decisions', filters),
+    getDecision: (decisionId: string) => safeInvoke('sdo:get-decision', decisionId),
+    createDecision: (input: unknown) => safeInvoke('sdo:create-decision', input),
+    listClaims: (filters?: unknown) => safeInvoke('sdo:list-claims', filters),
+    createClaim: (input: unknown) => safeInvoke('sdo:create-claim', input),
+    listActions: (filters?: unknown) => safeInvoke('sdo:list-actions', filters),
+    createAction: (input: unknown) => safeInvoke('sdo:create-action', input),
+    updateAction: (input: unknown) => safeInvoke('sdo:update-action', input),
+    approve: (input: unknown) => safeInvoke('sdo:approve', input),
+    reject: (input: unknown) => safeInvoke('sdo:reject', input),
+    listAudit: (input: unknown) => safeInvoke('sdo:list-audit', input),
+    getStatus: () => safeInvoke('sdo:get-status'),
+  });
   bridge.exposeInMainWorld('meetingLive', {
     start: (input?: { title?: string; language?: string; modelSize?: string; screenshotIntervalMs?: number }) =>
       safeInvoke('meeting-live:start', input),
