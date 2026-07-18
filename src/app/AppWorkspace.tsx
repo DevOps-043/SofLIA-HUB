@@ -1,4 +1,5 @@
 import { ProductivityDashboard } from '../components/ProductivityDashboard';
+import { RegistroDecisiones } from '../components/sdo/RegistroDecisiones';
 import type { MouseEvent } from 'react';
 import { LiaDegradedNotice, ShareLinkNoticeBanner } from './AppNotices';
 import { AppChatView } from './AppChatView';
@@ -53,6 +54,7 @@ export function AppWorkspace(props: AppWorkspaceProps) {
         </div>
       )}
       {props.activeView === 'productivity' && props.userId && <ProductivityDashboard userId={props.userId} />}
+      {props.activeView === 'sdo' && props.userId && <RegistroDecisiones userId={props.userId} />}
       {props.activeView === 'project' && props.currentFolder && props.userId && (
         <AppProjectView
           chat={props.chat}

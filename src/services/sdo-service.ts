@@ -38,6 +38,8 @@ export interface SdoDecision {
   origin_system: string | null;
   origin_ref: string | null;
   extracted_by: 'humano' | 'ia';
+  model_version: string | null;
+  prompt_version: string | null;
   confidence: number | null;
   confidentiality: SdoConfidentiality;
   owner_user_id: string;

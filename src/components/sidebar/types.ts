@@ -14,6 +14,8 @@ export interface SidebarProps {
   currentConversationId: string | null;
   loadingConversations: boolean;
   onNewChat: () => void;
+  /** Abre el Registro de decisiones del SDO (opcional). */
+  onOpenSdo?: () => void;
   onSelectConversation: (id: string) => void;
   onDeleteConversation: (id: string, e: MouseEvent) => void;
   onTogglePinConversation: (id: string, isPinned: boolean) => void;

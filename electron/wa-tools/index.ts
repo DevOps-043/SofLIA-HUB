@@ -23,6 +23,7 @@ import { IRIS_TOOLS } from './iris';
 import { MEMORY_TOOLS } from './memory';
 import { PROFILE_TOOLS } from './profile';
 import { REMOTE_NODE_TOOLS } from './remote-nodes';
+import { SDO_TOOLS } from './sdo';
 import { SYSTEM_TOOLS } from './system';
 
 export { BLOCKED_TOOLS_WA, CONFIRM_TOOLS_WA, GROUP_BLOCKED_TOOLS } from './security';
@@ -50,5 +51,6 @@ export const WA_TOOL_DECLARATIONS = {
     ...IRIS_TOOLS,
     ...GOOGLE_TOOLS,
     ...AUTOMATION_TOOLS,
+    ...SDO_TOOLS,
   ] as WaToolDeclaration[],
 };

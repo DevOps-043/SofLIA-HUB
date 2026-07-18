@@ -180,6 +180,7 @@ export function AppContent() {
           onIrisProjectClick={handlers.handleIrisProjectClick}
           onNewChat={handlers.handleNewChat}
           onOpenProject={handlers.handleOpenProject}
+          onOpenSdo={() => setActiveView('sdo')}
           onOpenSettings={() => { setActiveSettingsTab('ai'); setIsUnifiedSettingsOpen(true); }}
           onSelectConversation={handlers.handleSelectConversation}
           onSignOut={signOut}
