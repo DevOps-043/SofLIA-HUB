@@ -16,6 +16,10 @@ export interface MeetingRunDetail {
     source_system: string;
     source_type: string;
     source_uri: string | null;
+    /** Texto completo de la fuente (transcripcion normalizada). */
+    normalized_text?: string | null;
+    sha256?: string;
+    created_at?: string;
   }>;
   latest_asset: {
     id: string;

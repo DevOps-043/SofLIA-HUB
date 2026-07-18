@@ -21,6 +21,7 @@ interface AppSidebarProps {
   onNewChat: () => Promise<void>;
   onOpenProject: (folderId: string) => void;
   onOpenSdo?: () => void;
+  onOpenMeetings?: () => void;
   onSelectConversation: (conversationId: string) => Promise<void>;
   onSignOut: AuthState['signOut'];
   onToggleSidebar: () => void;
@@ -60,6 +61,7 @@ export function AppSidebar(props: AppSidebarProps) {
       onToggleFolder={folder.toggleFolder}
       onOpenProject={props.onOpenProject}
       onOpenSdo={props.onOpenSdo}
+      onOpenMeetings={props.onOpenMeetings}
       onDeleteFolder={props.onDeleteFolder}
       irisTeams={iris.irisTeams}
       irisProjects={iris.irisProjects}

@@ -6,6 +6,7 @@ import { RunHeaderCard } from './RunHeaderCard';
 import { SummaryCards } from './SummaryCards';
 import { SyncActionsCard } from './SyncActionsCard';
 import { TasksCard } from './TasksCard';
+import { TranscriptCard } from './TranscriptCard';
 import { UnresolvedItemsCard } from './UnresolvedItemsCard';
 import type { FormClassNames, MeetingOpsState } from './run-detail-types';
 
@@ -27,6 +28,7 @@ export function RunDetailPanel({ inputClass, selectClass, state }: RunDetailPane
       />
       <AnalysisStrip analysis={currentAnalysis} />
       <SummaryCards detail={detail} />
+      <TranscriptCard detail={detail} />
       <KeyPointsCard analysis={currentAnalysis} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <TasksCard analysis={currentAnalysis} detail={detail} />

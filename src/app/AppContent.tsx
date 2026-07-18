@@ -181,6 +181,7 @@ export function AppContent() {
           onNewChat={handlers.handleNewChat}
           onOpenProject={handlers.handleOpenProject}
           onOpenSdo={() => setActiveView('sdo')}
+          onOpenMeetings={() => setActiveView('meetings')}
           onOpenSettings={() => { setActiveSettingsTab('ai'); setIsUnifiedSettingsOpen(true); }}
           onSelectConversation={handlers.handleSelectConversation}
           onSignOut={signOut}

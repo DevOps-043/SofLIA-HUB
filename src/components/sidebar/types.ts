@@ -16,6 +16,8 @@ export interface SidebarProps {
   onNewChat: () => void;
   /** Abre el Registro de decisiones del SDO (opcional). */
   onOpenSdo?: () => void;
+  /** Abre el panel de Reuniones (runs, transcripciones y minutas). */
+  onOpenMeetings?: () => void;
   onSelectConversation: (id: string) => void;
   onDeleteConversation: (id: string, e: MouseEvent) => void;
   onTogglePinConversation: (id: string, isPinned: boolean) => void;

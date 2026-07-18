@@ -6,7 +6,7 @@ import type { SettingsTab } from '../components/UnifiedSettingsModal';
 import type { ShareTargetType } from '../services/share-service';
 import type { UserAISettings } from '../services/settings-service';
 
-export type ActiveView = 'chat' | 'project' | 'productivity' | 'sdo';
+export type ActiveView = 'chat' | 'project' | 'productivity' | 'sdo' | 'meetings';
 export type AuthState = ReturnType<typeof useAuth>;
 export type ChatState = ReturnType<typeof useChatManager>;
 export type FolderState = ReturnType<typeof useFolderManager>;
