@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { OrbCanvas } from '../components/orb/OrbCanvas';
 import { OrbInfoPanel } from '../components/orb/OrbInfoPanel';
+import { OrbTranscriptPanel } from '../components/orb/OrbTranscriptPanel';
 import { toVisualState, type OrbVisualState } from '../components/orb/orb-types';
 import {
   useAudioFeatures,
@@ -9,7 +10,7 @@ import {
 } from '../components/orb/useAudioFeatures';
 import { useOrbConversation, type OrbSource } from '../components/orb/useOrbConversation';
 import { MeetingLivePanel } from '../components/orb/MeetingLivePanel';
-import { useMeetingLive } from '../components/orb/useMeetingLive';
+import { useMeetingLive, type MeetingLiveUiState } from '../components/orb/useMeetingLive';
 
 const STATE_LABELS: Record<string, string> = {
   idle: '',
@@ -57,6 +58,25 @@ function getDevelopmentCompactPreview(): boolean {
     && new URLSearchParams(window.location.search).get('orbCompact') === '1';
 }
 
+function getDevelopmentMeetingPreview(): MeetingLiveUiState | null {
+  if (!import.meta.env.DEV) return null;
+  if (new URLSearchParams(window.location.search).get('orbMeeting') !== 'recording') return null;
+  return {
+    phase: 'grabando',
+    detected: null,
+    segmentsCount: 17,
+    systemAudioMode: 'loopback',
+    message: null,
+  };
+}
+
+function getDevelopmentTranscriptPreview(): string {
+  if (!import.meta.env.DEV) return '';
+  return new URLSearchParams(window.location.search).get('orbTranscript') === 'demo'
+    ? 'Con respecto a la generación de materiales del curso, me di cuenta de que lo mismo aplica a ambas alternativas y necesitamos revisar el siguiente paso.'
+    : '';
+}
+
 /** Señal de voz irregular exclusiva de la vista QA de Vite. */
 function useDevelopmentAudioPreview(audio: AudioFeatureRefs, enabled: boolean): void {
   useEffect(() => {
@@ -93,6 +113,8 @@ export function OrbWindowRoot() {
   const previewState = useMemo(getDevelopmentPreviewState, []);
   const previewAudio = useMemo(getDevelopmentAudioPreview, []);
   const previewCompact = useMemo(getDevelopmentCompactPreview, []);
+  const previewMeeting = useMemo(getDevelopmentMeetingPreview, []);
+  const previewTranscript = useMemo(getDevelopmentTranscriptPreview, []);
 
   // Fuente de audio para la reactividad: mic al escuchar, salida TTS al hablar.
   const audioSource = useMemo<AudioFeatureSource>(() => {
@@ -111,6 +133,8 @@ export function OrbWindowRoot() {
   const visualState = previewState ?? toVisualState(orb.state, orb.ttsPlaying);
   const glow = STATE_GLOWS[visualState];
   const compact = previewCompact || orb.infoVisible;
+  const visibleMeetingState = previewMeeting ?? meetingLive.state;
+  const meetingPanelVisible = visibleMeetingState.phase !== 'oculto';
   const panelText = previewCompact && !orb.responseText ? DEVELOPMENT_PANEL_TEXT : orb.responseText;
   const panelSources = previewCompact && orb.sources.length === 0
     ? DEVELOPMENT_PANEL_SOURCES
@@ -118,6 +142,13 @@ export function OrbWindowRoot() {
   const statusLabel = orb.activeTool
     ? `Ejecutando: ${orb.activeTool.replace(/_/g, ' ')}`
     : STATE_LABELS[previewState ?? orb.state] ?? '';
+  const transcriptText = previewTranscript || (
+    orb.state === 'listening'
+      ? orb.transcript
+      : orb.userText && !compact
+        ? orb.userText
+        : ''
+  );
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-transparent flex flex-col select-none">
@@ -143,7 +174,7 @@ export function OrbWindowRoot() {
 
       {/* Toma de notas de reunion: propuesta HITL + indicador de grabacion */}
       <MeetingLivePanel
-        state={meetingLive.state}
+        state={visibleMeetingState}
         onAccept={() => { void meetingLive.acceptAndStart(); }}
         onDecline={meetingLive.decline}
         onStop={() => { void meetingLive.stopAndCreateMinuta(); }}
@@ -153,7 +184,11 @@ export function OrbWindowRoot() {
       {/* Orbe: grande centrada, o compacta arriba cuando hay panel de info */}
       <div
         className={`relative isolate transition-all duration-700 ease-out mx-auto ${
-          compact ? 'h-44 w-44 mt-0' : 'h-[340px] w-[340px] mt-10'
+          compact
+            ? 'h-44 w-44 shrink-0 mt-0'
+            : meetingPanelVisible
+              ? 'h-[248px] w-[248px] shrink-0 mt-2'
+              : 'h-[340px] w-[340px] shrink-0 mt-10'
         }`}
       >
         {/* Halo de marca tenue; el centro queda transparente sobre el escritorio. */}
@@ -169,31 +204,13 @@ export function OrbWindowRoot() {
         </div>
       </div>
 
-      {/* Estado + transcript en vivo */}
-      <div className="px-5 pt-1 pb-2 text-center min-h-[3.5rem]">
-        {statusLabel && (
-          <p
-            className="text-[10px] font-medium uppercase tracking-[0.28em] transition-colors duration-500"
-            style={{ color: glow.text, textShadow: `0 0 14px ${glow.soft}` }}
-          >
-            {statusLabel}
-          </p>
-        )}
-        {/* Texto COMPLETO de lo que dice el usuario (con scroll si crece). */}
-        {orb.state === 'listening' && (
-          <p className="mt-1 max-h-36 overflow-y-auto whitespace-pre-wrap break-words text-sm text-white/85 [scrollbar-width:thin]">
-            {orb.transcript || '…'}
-          </p>
-        )}
-        {orb.state !== 'listening' && orb.userText && !compact && (
-          <p className="mt-1 max-h-28 overflow-y-auto whitespace-pre-wrap break-words text-xs italic text-white/50 [scrollbar-width:thin]">
-            “{orb.userText}”
-          </p>
-        )}
-        {orb.errorMessage && (
-          <p className="mt-1 text-xs text-red-300/90 line-clamp-2">{orb.errorMessage}</p>
-        )}
-      </div>
+      <OrbTranscriptPanel
+        errorMessage={orb.errorMessage}
+        glow={glow}
+        isListening={(previewState ?? orb.state) === 'listening'}
+        statusLabel={statusLabel}
+        text={transcriptText}
+      />
 
       {/* Solo investigación con fuentes abandona temporalmente el modo voz-only. */}
       {compact && <OrbInfoPanel responseText={panelText} sources={panelSources} />}

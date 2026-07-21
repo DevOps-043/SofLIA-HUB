@@ -15,7 +15,7 @@ interface MeetingLivePanelProps {
   onDismiss: () => void;
 }
 
-const CARD_CLASS = 'orb-no-drag mx-4 mt-1 rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-left shadow-xl backdrop-blur-xl';
+const CARD_CLASS = 'orb-no-drag mx-4 mt-1 shrink-0 rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-left shadow-xl backdrop-blur-xl';
 
 export function MeetingLivePanel({ state, onAccept, onDecline, onStop, onDismiss }: MeetingLivePanelProps) {
   if (state.phase === 'oculto') return null;
