@@ -6,7 +6,9 @@ const root = process.cwd();
 const errors = [];
 const required = [
   'AGENTS.md', 'CLAUDE.md', 'codex.md',
-  'docs/README.md', 'docs/standards/base.md', 'docs/architecture/module-map.md',
+  'docs/README.md', 'docs/prompt_maestro.md', 'docs/standards/base.md',
+  'docs/standards/engineering-practices.md',
+  'docs/operations/harness-quickstart.md', 'docs/architecture/module-map.md',
   'ai-specs/README.md', 'ai-specs/agents/registry.yaml',
   'ai-specs/policies/tool-boundaries.md', 'ai-specs/policies/runtime-exposure.md',
   'openspec/config.yaml', 'database/README.md', 'resources/README.md',
@@ -27,6 +29,28 @@ for (const adapter of ['CLAUDE.md', 'codex.md']) {
   const path = join(root, adapter);
   if (existsSync(path) && !readFileSync(path, 'utf8').includes('AGENTS.md')) {
     errors.push(`${adapter} no apunta al router AGENTS.md`);
+  }
+}
+
+const engineeringStandard = 'docs/standards/engineering-practices.md';
+for (const [file, expectedReference] of [
+  ['AGENTS.md', engineeringStandard],
+  ['.agents/rules/soflia-harness.md', engineeringStandard],
+  ['docs/prompt_maestro.md', engineeringStandard],
+]) {
+  const absolute = join(root, file);
+  if (existsSync(absolute) && !readFileSync(absolute, 'utf8').includes(expectedReference)) {
+    errors.push(`${file} no carga el estandar maestro: ${expectedReference}`);
+  }
+}
+
+const engineeringPath = join(root, engineeringStandard);
+if (existsSync(engineeringPath)) {
+  const engineering = readFileSync(engineeringPath, 'utf8');
+  for (let section = 1; section <= 17; section += 1) {
+    if (!engineering.includes(`## ${section}.`)) {
+      errors.push(`Estandar maestro sin area historica ${section}`);
+    }
   }
 }
 

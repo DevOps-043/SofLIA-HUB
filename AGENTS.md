@@ -7,13 +7,17 @@ herramienta.
 ## Lectura obligatoria
 
 1. `docs/standards/base.md`
-2. La guia del area afectada:
+2. `docs/standards/engineering-practices.md`
+3. La guia del area afectada:
    - Electron/IPC: `docs/standards/electron-ipc.md`
    - Base de datos: `docs/standards/database.md`
    - Pruebas: `docs/standards/testing.md`
    - Documentacion: `docs/standards/documentation.md`
-3. El cambio activo en `openspec/changes/`, cuando exista.
-4. El `SKILL.md` coincidente bajo `ai-specs/skills/`.
+4. El cambio activo en `openspec/changes/`, cuando exista.
+5. El `SKILL.md` coincidente bajo `ai-specs/skills/`.
+
+`docs/prompt_maestro.md` conserva el alias `@prompt_maestro`, pero las reglas
+extensas solo se mantienen en el estandar de ingenieria del punto 2.
 
 ## Reglas no negociables
 

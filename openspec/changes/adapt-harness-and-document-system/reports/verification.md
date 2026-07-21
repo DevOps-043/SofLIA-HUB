@@ -14,18 +14,22 @@ Rama: `codex/harness-foundation`.
 - Catalogo documental de producto, arquitectura, datos, UX/UI, seguridad,
   operaciones y calidad.
 - Validadores de estructura, trazabilidad, inventario IPC, pruebas y paleta.
+- Recuperacion de las 17 areas del prompt maestro como estandar canonico,
+  alias compatible y guia operativa para Antigravity.
 
-No se modifico codigo de ejecucion de `electron/` o `src/`, no se aplicaron
-migraciones, no se desplego, no se publico y no se realizaron envios externos.
+No se modifico logica de ejecucion de `electron/` o `src/`; solo se corrigieron
+dos comentarios de observabilidad que apuntaban a la ruta eliminada. No se
+aplicaron migraciones, no se desplego, no se publico y no se realizaron envios
+externos.
 
 ## Resultados reproducibles
 
 | Comando | Resultado observado |
 | --- | --- |
 | `npm.cmd run adapters:check` | Aprobado: 24 adaptadores sincronizados. |
-| `npm.cmd run harness:validate` | Aprobado: 22 rutas y 8 skills canonicas. |
-| `npm.cmd run docs:system:check` | Aprobado: 26 documentos, 138 IDs, 271 canales IPC y 278 archivos de prueba. |
-| `npm.cmd run docs:check` | Aprobado: 100 documentos Markdown activos en la verificacion final. |
+| `npm.cmd run harness:validate` | Aprobado: 25 rutas, 17 areas del estandar y 8 skills canonicas. |
+| `npm.cmd run docs:system:check` | Aprobado: 28 documentos, 138 IDs, 271 canales IPC y 278 archivos de prueba. |
+| `npm.cmd run docs:check` | Aprobado: 103 documentos Markdown activos en la verificacion final. |
 | `npm.cmd run openspec:validate` | Aprobado: 3 cambios OpenSpec validos en modo estricto. |
 | `npm.cmd run verify:pr` | Aprobado: adaptadores, arnes, documentacion, OpenSpec, tipos, lint y 962 pruebas en 104 archivos. |
 | `npm.cmd run build:app` | Aprobado: renderer, main y preload construidos. |
@@ -50,6 +54,10 @@ ABI de Electron. La compuerta termino con codigo cero.
 4. El inventario previo describia estructuras, versiones y cantidades obsoletas.
    Los nuevos validadores derivan las rutas de evidencia, los canales IPC, las
    pruebas y los tokens de color desde el repositorio.
+5. La limpieza fundacional elimino las 491 lineas del `prompt_maestro` sin una
+   migracion uno a uno y dejo referencias activas. Se recuperaron sus 17 areas en
+   un estandar adaptado al sistema real, con alias, carga automatica y proteccion
+   del validador.
 
 ### Escenarios atacados
 
@@ -62,7 +70,9 @@ ABI de Electron. La compuerta termino con codigo cero.
 | Inventario IPC o pruebas desactualizado | Conteo derivado del codigo y Git | Bloqueado por `docs:system:check`. |
 | Paleta inventada | Comparacion de tokens con `src/index.css` | Bloqueada por `docs:system:check`. |
 | Filtracion de secretos | Busqueda de formatos de llave/token/clave privada | No se detectaron secretos. |
-| Cambio accidental del runtime | Revision de nombres y estado Git | No hay cambios bajo `electron/` o `src/`. |
+| Perdida del prompt maestro | Presencia, referencias desde router/regla/alias y 17 encabezados | Bloqueada por `harness:validate`. |
+| Copias divergentes del prompt | Canon en `docs/standards/` y alias corto | No se mantiene una segunda copia normativa. |
+| Cambio accidental del runtime | Diff de `electron/utils/*` | Solo cambiaron comentarios; no hay cambio funcional. |
 
 ## Riesgo residual documentado
 
@@ -86,8 +96,10 @@ ABI de Electron. La compuerta termino con codigo cero.
 ## Rollback
 
 El cambio es reversible retirando `.agents`, restaurando los adaptadores
-anteriores y revirtiendo los scripts/documentos de este commit. No existe estado
-externo que restaurar porque no se ejecutaron migraciones, despliegues ni envios.
+anteriores y revirtiendo los scripts/documentos de estos commits. La recuperacion
+del prompt puede revertirse retirando el estandar, alias, guia y referencias de
+carga. No existe estado externo que restaurar porque no se ejecutaron
+migraciones, despliegues ni envios.
 
 ## Veredicto
 

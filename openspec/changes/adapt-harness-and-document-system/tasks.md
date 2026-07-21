@@ -34,3 +34,16 @@
 - [x] 5.3 Ejecutar validacion OpenSpec, adaptadores, arnes, enlaces, tipos, lint,
   pruebas, build y `git diff --check`.
 - [x] 5.4 Ejecutar revision adversarial y completar evidencia final.
+
+## 6. Recuperacion del prompt maestro y adopcion
+
+- [x] 6.1 Mapear las 17 areas historicas y crear el estandar canonico adaptado a
+  los contratos reales de SofLIA Hub.
+- [x] 6.2 Restaurar `docs/prompt_maestro.md` como alias compatible y conectar el
+  estandar desde `AGENTS.md` y la regla Antigravity.
+- [x] 6.3 Agregar una guia operativa, actualizar indices y corregir referencias
+  activas al prompt maestro.
+- [x] 6.4 Endurecer validadores para impedir que el estandar o sus rutas de carga
+  vuelvan a desaparecer.
+- [x] 6.5 Ejecutar verificacion proporcional, revision adversarial y actualizar la
+  evidencia del cambio.

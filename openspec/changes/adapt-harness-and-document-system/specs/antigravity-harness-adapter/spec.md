@@ -39,3 +39,21 @@ Gemini CLI como adaptador de desarrollo retirado.
 #### Scenario: Se consulta el stack de IA
 - **WHEN** un mantenedor revisa la documentacion
 - **THEN** encuentra que Antigravity es la superficie de desarrollo y Gemini continua siendo una dependencia runtime hasta una migracion especifica
+
+### Requirement: Buenas practicas de ingenieria siempre disponibles
+
+El arnes SHALL mantener las reglas detalladas de ingenieria en una fuente
+canonica, SHALL cargarla desde el router general y la regla Antigravity, y SHALL
+conservar `docs/prompt_maestro.md` como alias de compatibilidad.
+
+#### Scenario: El usuario invoca el prompt maestro
+- **WHEN** referencia `@docs/prompt_maestro.md` en Antigravity
+- **THEN** el agente recibe la instruccion de cargar el estandar canonico completo
+
+#### Scenario: Un agente inicia una tarea sin invocacion manual
+- **WHEN** sigue `AGENTS.md` o `.agents/rules/soflia-harness.md`
+- **THEN** carga las buenas practicas antes de seleccionar la guia del area
+
+#### Scenario: Se elimina o desconecta el estandar
+- **WHEN** se ejecuta `npm run harness:validate`
+- **THEN** la validacion falla e identifica la ruta o enlace obligatorio ausente

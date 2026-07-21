@@ -33,6 +33,8 @@ para Node y restauran después su ABI de Electron.
 - [Documentación](docs/README.md)
 - [Arquitectura](docs/architecture/system-overview.md)
 - [Normas del proyecto](docs/standards/base.md)
+- [Empezar a usar el Arnes](docs/operations/harness-quickstart.md)
+- [Estandar maestro de ingenieria](docs/standards/engineering-practices.md)
 - [Catalogo de producto y requisitos](docs/product/product-definition.md)
 - [Matriz de trazabilidad](docs/product/traceability-matrix.md)
 - [Arnés de agentes](ai-specs/README.md)

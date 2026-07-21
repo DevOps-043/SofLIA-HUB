@@ -46,3 +46,13 @@ pero MUST NOT contener valores de `.env`, tokens, claves ni credenciales.
 #### Scenario: Se documenta una integracion
 - **WHEN** requiere una variable sensible
 - **THEN** solo se registra su nombre, obligatoriedad, proceso consumidor y manejo seguro
+
+### Requirement: Guia operativa del arnes
+
+El catalogo SHALL explicar como iniciar una tarea en Antigravity, cuando usar los
+workflows OpenSpec, como invocar el alias `@prompt_maestro` y que compuertas
+ejecutar antes de cerrar.
+
+#### Scenario: Un integrante inicia su primera tarea
+- **WHEN** abre la guia rapida desde `docs/README.md`
+- **THEN** encuentra un flujo reproducible desde la solicitud hasta la evidencia y el commit local

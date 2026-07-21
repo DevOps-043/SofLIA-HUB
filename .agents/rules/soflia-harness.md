@@ -1,8 +1,9 @@
 # Regla de workspace de SofLIA Hub
 
-Lee y aplica `AGENTS.md` antes de modificar el repositorio. La fuente canonica
-de contexto es `docs/`, la de agentes y skills es `ai-specs/`, y el estado
-durable de cada cambio material vive en `openspec/changes/`.
+Lee y aplica `AGENTS.md` y `docs/standards/engineering-practices.md` antes de
+modificar el repositorio. La fuente canonica de contexto es `docs/`, la de
+agentes y skills es `ai-specs/`, y el estado durable de cada cambio material
+vive en `openspec/changes/`.
 
 Reglas obligatorias:
 
@@ -17,4 +18,5 @@ Reglas obligatorias:
 - Ejecutar la compuerta proporcional indicada en `AGENTS.md` antes de cerrar.
 
 Para procedimientos repetibles usa los workflows `openspec-*` de este workspace
-y las skills descubiertas desde `.agents/skills/`.
+y las skills descubiertas desde `.agents/skills/`. El alias compatible
+`@docs/prompt_maestro.md` conduce al mismo estandar canonico.

@@ -5,6 +5,7 @@ import { join } from 'node:path';
 const root = process.cwd();
 const errors = [];
 const requiredDocs = [
+  'docs/standards/engineering-practices.md',
   'docs/product/product-definition.md',
   'docs/product/stakeholders-and-actors.md',
   'docs/product/business-rules.md',
@@ -29,6 +30,7 @@ const requiredDocs = [
   'docs/operations/configuration.md',
   'docs/operations/development-and-devops.md',
   'docs/operations/release-and-recovery.md',
+  'docs/operations/harness-quickstart.md',
   'docs/quality/test-strategy-and-inventory.md',
   'docs/references/harness-sources.md',
 ];

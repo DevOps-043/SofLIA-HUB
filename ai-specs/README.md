@@ -12,6 +12,12 @@ carpetas específicas de cada herramienta solo adaptan estas instrucciones.
 5. Ejecutar evidencia proporcional al riesgo.
 6. Hacer una revisión adversarial antes de declarar el cambio listo.
 
+La operacion paso a paso se documenta en
+[`docs/operations/harness-quickstart.md`](../docs/operations/harness-quickstart.md).
+Las buenas practicas extensas viven solo en
+[`docs/standards/engineering-practices.md`](../docs/standards/engineering-practices.md);
+`docs/prompt_maestro.md` mantiene el alias historico para Antigravity.
+
 ## Áreas
 
 - `policies/`: límites de herramientas, permisos y separación de contextos.

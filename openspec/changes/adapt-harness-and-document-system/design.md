@@ -61,6 +61,15 @@ de marcadores pendientes y existencia de rutas declaradas como evidencia. No
 intenta validar semantica con expresiones regulares; esa parte queda en revision
 humana/adversarial.
 
+### Prompt maestro como estandar, no como copia por herramienta
+
+Las 17 areas del antiguo `docs/prompt_maestro.md` se conservan en
+`docs/standards/engineering-practices.md`, adaptadas a Electron, React,
+Supabase, SQLite, IPC y las compuertas reales. `docs/prompt_maestro.md` queda
+como alias corto y estable para quienes lo invocan con `@prompt_maestro`; el
+router `AGENTS.md` y la regla Antigravity cargan directamente la fuente
+canonica. Esto evita perder las buenas practicas sin crear copias divergentes.
+
 ## Risks / Trade-offs
 
 - La documentacion puede envejecer: la compuerta y la regla de actualizarla en el
@@ -79,6 +88,8 @@ humana/adversarial.
 3. Construir catalogo y matriz desde codigo, SQL y configuracion versionados.
 4. Agregar validador de documentacion a la compuerta de PR.
 5. Ejecutar revision adversarial, compuerta completa y build de aplicacion.
+6. Recuperar el prompt maestro, conectarlo al flujo normal y documentar el uso
+   operativo del arnes.
 
 Rollback: revertir el commit restaura adaptadores y retira el catalogo. No hay
 estado remoto ni migraciones que revertir.

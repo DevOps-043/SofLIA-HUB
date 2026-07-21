@@ -2,8 +2,9 @@
  * Logger estructurado para el proceso main.
  *
  * Reemplaza el uso disperso de console.log/error con logging JSON parseable,
- * niveles correctos y soporte para correlation IDs. Cumple §10 del prompt_maestro.md
- * (observabilidad: logs estructurados, niveles, correlation IDs, trazabilidad).
+ * niveles correctos y soporte para correlation IDs. Cumple la seccion 10 de
+ * docs/standards/engineering-practices.md (logs estructurados, niveles,
+ * correlation IDs y trazabilidad).
  *
  * Uso:
  *   import { createLogger } from './utils/logger';

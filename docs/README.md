@@ -19,6 +19,12 @@ Este indice separa documentacion vigente de material historico.
 - `plans/`: trabajo aprobado y adopciones progresivas, incluido el [Arnes](plans/harness-rollout.md).
 - `reports/`: evidencia y auditorias actuales.
 
+## Empezar a trabajar
+
+- [Guia rapida del Arnes en Antigravity](operations/harness-quickstart.md)
+- [Estandar maestro de ingenieria](standards/engineering-practices.md)
+- [Alias compatible `@prompt_maestro`](prompt_maestro.md)
+
 ## Producto y requisitos
 
 - [Definicion, alcance y capacidades](product/product-definition.md)

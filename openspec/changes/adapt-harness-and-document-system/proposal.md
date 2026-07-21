@@ -22,6 +22,9 @@ contradicciones.
 - Agregar una compuerta automatizada de cobertura documental y trazabilidad.
 - Registrar las fuentes del modelo Arnes, Specboot y Antigravity y actualizar el
   plan de adopcion con el estado realmente implementado.
+- Recuperar las 17 areas de buenas practicas del antiguo `prompt_maestro`,
+  adaptarlas al stack y contratos reales de SofLIA, y mantener un alias estable
+  para su invocacion explicita desde Antigravity.
 
 No objetivos: cambiar modelos o APIs de IA del producto, ejecutar SQL remoto,
 desplegar, publicar o documentar como existente una capacidad solo planeada.
@@ -41,6 +44,7 @@ Ninguna especificacion base: los cambios fundacionales aun no se han archivado.
 
 ## Impact
 
-Afecta archivos de agentes, scripts del arnes, CI de PR, indices y documentacion.
+Afecta archivos de agentes, scripts del arnes, CI de PR, indices, estandares y
+documentacion.
 El cambio no altera ejecutables del producto, IPC, datos, permisos runtime,
 variables de entorno ni artefactos de release.

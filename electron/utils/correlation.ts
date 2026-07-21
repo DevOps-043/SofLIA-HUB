@@ -5,7 +5,8 @@
  * ejecución de tool, request IPC) y recuperarlo desde cualquier punto de la cadena
  * de llamadas asíncronas — sin pasarlo manualmente por cada función.
  *
- * Cumple §10 del prompt_maestro.md (observabilidad: correlation IDs / trace IDs).
+ * Cumple la seccion 10 de docs/standards/engineering-practices.md
+ * (observabilidad: correlation IDs / trace IDs).
  *
  * Uso:
  *   import { withCorrelation, getCorrelationId } from './utils/correlation';
