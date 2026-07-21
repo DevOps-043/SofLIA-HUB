@@ -27,7 +27,7 @@ feedback— y los adapta a Electron, OpenSpec y las fronteras existentes de SofL
 ### Fuente canónica y adaptadores delgados
 
 `AGENTS.md`, `docs/`, `ai-specs/` y `openspec/` son normativos. Los archivos para
-Claude, Cursor, Gemini y Codex apuntan a esas fuentes. Se descartan copias completas
+Codex, Claude y Antigravity apuntan a esas fuentes. Se descartan copias completas
 porque divergen; también se descartan symlinks como única solución por su fragilidad
 en Windows y OneDrive.
 

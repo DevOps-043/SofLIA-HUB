@@ -27,7 +27,8 @@ conocimiento e índices locales. La asignación detallada vive en
 - Automatización visual: `electron/desktop-agent/`.
 - Google Workspace: módulos `calendar/`, `gmail/`, `drive/` y `gchat/`.
 - Memoria y búsqueda: módulos `memory/`, `knowledge/` y `semantic-indexer/`.
-- Renderer: `src/app/`, `src/features/`, `src/components/` y `src/services/`.
+- Renderer: `src/app/`, `src/components/`, `src/hooks/`, `src/services/` y
+  `src/adapters/`.
 - Sidecars: `python/sidecar/` y `python/tools_sidecar/`.
 
 ## Seguridad

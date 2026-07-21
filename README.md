@@ -33,7 +33,10 @@ para Node y restauran después su ABI de Electron.
 - [Documentación](docs/README.md)
 - [Arquitectura](docs/architecture/system-overview.md)
 - [Normas del proyecto](docs/standards/base.md)
+- [Catalogo de producto y requisitos](docs/product/product-definition.md)
+- [Matriz de trazabilidad](docs/product/traceability-matrix.md)
 - [Arnés de agentes](ai-specs/README.md)
+- [Antigravity: reglas y workflows](.agents/rules/soflia-harness.md)
 - [Cambios OpenSpec](openspec/changes/)
 - [Base de datos](database/README.md)
 

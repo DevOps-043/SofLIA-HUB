@@ -15,7 +15,7 @@ function collect(path, { skipArchive = false } = {}) {
   }
 }
 
-['README.md', 'AGENTS.md', 'CLAUDE.md', 'GEMINI.md', 'codex.md'].forEach((file) => collect(join(root, file)));
+['README.md', 'AGENTS.md', 'CLAUDE.md', 'codex.md'].forEach((file) => collect(join(root, file)));
 collect(join(root, 'docs'), { skipArchive: true });
 collect(join(root, 'ai-specs'));
 collect(join(root, 'openspec'));

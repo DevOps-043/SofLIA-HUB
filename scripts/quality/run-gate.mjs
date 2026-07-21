@@ -6,6 +6,7 @@ const release = process.argv.includes('--release');
 const scripts = [
   'adapters:check',
   'harness:validate',
+  'docs:system:check',
   'docs:check',
   'openspec:validate',
   'typecheck',

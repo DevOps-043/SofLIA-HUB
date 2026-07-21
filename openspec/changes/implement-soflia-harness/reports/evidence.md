@@ -10,7 +10,7 @@
 
 `npm run verify:pr` completó correctamente sobre el estado final:
 
-- 32 adaptadores verificados.
+- 24 adaptadores verificados tras adaptar las superficies a Codex, Claude y Antigravity.
 - 18 rutas obligatorias y 8 skills canónicas válidas.
 - 63 archivos Markdown activos sin enlaces relativos rotos.
 - Cambio OpenSpec válido en modo estricto.

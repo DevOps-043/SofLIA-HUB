@@ -21,3 +21,15 @@ carpetas específicas de cada herramienta solo adaptan estas instrucciones.
 - `templates/`: formatos mínimos para contexto y evidencia.
 
 Consulta `agents/registry.yaml` antes de conectar una capacidad a un agente runtime.
+
+## Superficies compatibles
+
+- Codex: adaptadores en `.codex/skills/` y router `codex.md`.
+- Claude: adaptadores en `.claude/skills/` y router `CLAUDE.md`.
+- Antigravity: adaptadores en `.agents/skills/`, regla de workspace en
+  `.agents/rules/` y workflows en `.agents/workflows/`.
+
+Cursor y Gemini CLI no forman parte del entorno de desarrollo de SofLIA Hub. No
+se deben regenerar `.cursor/`, `.gemini/` ni `GEMINI.md`. Las referencias a
+Gemini dentro de `src/` o `electron/` corresponden al proveedor de IA del
+producto, no a una superficie del arnes.

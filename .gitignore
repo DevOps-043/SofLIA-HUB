@@ -38,10 +38,9 @@ app/renderer/dist
 .env
 .env.*
 
-# Agent-local configuration (canonical rules live in ai-specs/)
+# Agent-local configuration (workspace adapters are versioned)
 .claude/settings.local.json
 .cursor/settings.local.json
-.agents/
 
 # Editor directories and files
 .vscode/*

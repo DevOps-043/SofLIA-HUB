@@ -14,7 +14,7 @@
 ## 3. Skills y especificaciones
 
 - [x] 3.1 Inicializar y completar las skills canónicas con `skill-creator`.
-- [x] 3.2 Generar adaptadores delgados para Codex, Claude, Cursor y Gemini.
+- [x] 3.2 Generar adaptadores delgados para Codex, Claude y Antigravity.
 - [x] 3.3 Inicializar OpenSpec y crear propuesta, requisitos, diseño y tareas del piloto.
 - [x] 3.4 Validar todas las skills y el cambio OpenSpec en modo estricto.
 

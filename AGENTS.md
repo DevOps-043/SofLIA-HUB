@@ -50,6 +50,7 @@ empaquetado y verificaciones mas costosas.
 - `resources/`: recursos runtime versionados.
 - `docs/`: fuente de verdad tecnica y operativa.
 - `ai-specs/`: agentes, skills, politicas y scripts del Arnes.
+- `.agents/`: adaptadores, reglas y workflows de Antigravity.
 - `openspec/`: especificaciones vigentes y cambios activos.
 
 El detalle historico anterior se conserva en

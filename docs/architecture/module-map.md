@@ -21,8 +21,9 @@
 - Herramientas runtime gobernadas: `electron/mcp-manager/`,
   `electron/dynamic-tool/` y
   [contrato de plugins dinámicos](runtime-dynamic-tools.md).
-- Renderer: componentes, servicios y hooks se migran gradualmente a
-  `src/features/<dominio>/`.
+- Renderer: composicion en `src/app/`, pantallas en `src/components/`, estado en
+  `src/hooks/`, contratos en `src/services/` y adaptadores migrados en
+  `src/adapters/`.
 
 Los archivos pequenos de reexportacion en la raiz son facades de compatibilidad.
 No agregar nuevas facades sin una razon de migracion documentada.

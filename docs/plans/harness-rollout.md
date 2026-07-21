@@ -1,47 +1,76 @@
-# Adopción progresiva del Arnés
+# Adopcion del Arnes
 
-La base estructural se implementó en `codex/harness-foundation`. La adopción debe
-continuar por dominios para no mezclar reorganización, refactor masivo y permisos
-runtime en un solo despliegue.
+Estado: en ejecucion local. Actualizado: 2026-07-21.
 
-## Etapa 1 — Fundación implementada
+<!-- evidence: openspec/changes/implement-soflia-harness/tasks.md -->
+<!-- evidence: openspec/changes/enforce-runtime-tool-policies/tasks.md -->
+<!-- evidence: openspec/changes/adapt-harness-and-document-system/tasks.md -->
 
-- Contexto canónico en `AGENTS.md`, `docs/`, `ai-specs/` y `openspec/`.
-- Ocho skills propias y adaptadores para Codex, Claude, Cursor y Gemini.
-- OpenSpec inicializado y primer cambio piloto validado.
-- Compuertas de estructura, enlaces, tipos, lint incremental, pruebas y build.
-- Taxonomía única para SQL, recursos, documentación y archivo histórico.
+El plan adapta los cinco pilares del PDF (instrucciones, herramientas, entorno,
+estado y feedback) al repositorio real. Los cambios permanecen sin archivar hasta
+integrarse en la rama objetivo; que una tarea local este marcada no equivale a
+despliegue.
 
-## Etapa 2 — Piloto funcional
+## Fase 1 - limpieza y fundacion: implementada localmente
 
-Aplicar el flujo completo a una capacidad acotada de Meeting Ops:
+- raiz y material historico ordenados;
+- router `AGENTS.md`, standards, maps e indices;
+- `ai-specs/` con roles, skills, politicas y plantillas;
+- OpenSpec y compuertas adapters/harness/docs/types/lint/tests/build;
+- SQL separado por Lia/IRIS/SOFIA y recursos runtime fuera de prompts dev.
 
-1. Enriquecer un requerimiento real con `$enrich-requirement`.
-2. Crear propuesta, requisitos, diseño y tareas OpenSpec.
-3. Implementar un cambio vertical con pruebas y evidencia.
-4. Medir retrabajo, errores de contexto, tiempo de revisión y defectos escapados.
-5. Ajustar skills solo con evidencia del piloto.
+Evidencia: cambio `implement-soflia-harness`, commit local `dcf3125`.
 
-Criterio de salida: un cambio de producto archivado en OpenSpec, compuerta de PR
-verde y revisión humana que confirme trazabilidad útil.
+## Fase 2 - especificacion y piloto: implementada, pendiente de integracion
 
-## Etapa 3 — Gobernanza runtime ejecutable
+- flujo requisito -> Context Pack -> proposal/spec/design/tasks -> evidencia;
+- Meeting Ops usado como dominio con contratos, approvals, idempotencia y sync;
+- documentacion y pruebas conectadas al flujo.
 
-Crear un cambio OpenSpec independiente para un registro tipado en Electron main.
-Cada capacidad deberá declarar esquema cerrado, propietario, agente permitido, riesgo,
-HITL, contexto de grupo, timeout, idempotencia y auditoría. Migrar primero una tool
-de solo lectura; después una escritura reversible con aprobación. No cargar las
-skills Markdown de desarrollo dentro del registro.
+El cambio fundacional aun no se archiva porque esta rama no se ha fusionado.
 
-Criterio de salida: llamadas sin metadatos o fuera de allowlist rechazadas por pruebas
-automáticas, y ninguna regresión en las restricciones de grupos de WhatsApp.
+## Fase 3 - gobernanza runtime: implementada localmente
 
-## Etapa 4 — Endurecimiento por módulo
+- herramientas dinamicas requieren contrato cerrado y metadata de seguridad;
+- validacion Zod input/output, agent/group/HITL, timeout y auditoria;
+- fingerprint evita usar aprobacion tras hot reload;
+- Home Assistant migrado como toolset builtin;
+- skills de desarrollo permanecen fuera del runtime.
 
-- Reducir el baseline de lint por dominio y convertir gradualmente `lint:changed` en lint completo.
-- Definir cobertura mínima para módulos estabilizados.
-- Resolver vulnerabilidades restantes por paquete y superficie de explotación, sin actualizaciones forzadas.
-- Dividir bundles grandes y eliminar importaciones estáticas/dinámicas mezcladas.
-- Archivar planes y reportes cuando sus decisiones se consoliden como arquitectura.
+Evidencia: `enforce-runtime-tool-policies`, commit local `506bab2`.
 
-Cada etapa debe tener su propio cambio OpenSpec, diff acotado y rollback independiente.
+## Fase 4 - Antigravity y catalogo integral: en verificacion
+
+- retirar Cursor y Gemini CLI del arnes;
+- generar wrappers en `.agents/skills` y agregar rules/workflows oficiales;
+- documentar producto, reglas, RF/RNF, historias, frontend, backend, datos,
+  DevOps, UX/UI, paleta, limites, seguridad, pruebas y recuperacion;
+- validar IDs, rutas de evidencia, links y cifras derivables.
+
+Criterio de salida: `adapt-harness-and-document-system` completo, compuerta PR y
+build app aprobados, revision adversarial y commit local.
+
+## Fase 5 - endurecimiento posterior
+
+Cada punto requiere un OpenSpec independiente:
+
+1. Propagar identidad confiable a main y reemplazar RLS permisivo de meetings,
+   SDO y `hub_service_state`.
+2. Eliminar/renombrar referencias legacy AutoDev y datos aleatorios del digest.
+3. Activar deteccion de prompt injection de Computer Use tras validacion.
+4. Definir WCAG objetivo, axe/visual tests y reduced-motion global.
+5. Definir RPO/RTO y backup local cifrado/verificado.
+6. Alinear Node CI/release, cobertura por modulo y audit de dependencias/secrets.
+7. Reducir bundle renderer y deuda de lint por dominio.
+
+## Metricas de adopcion
+
+- cambios materiales con OpenSpec y Context Pack;
+- requisitos/reglas/historias afectados identificados en PR;
+- fallos introducidos frente a preexistentes;
+- bypass de permisos/HITL encontrados en adversarial;
+- enlaces/evidencias rotos detectados por compuerta;
+- retrabajo por contexto faltante y tiempo de revision.
+
+No se fija una meta numerica sin linea base observada. La primera medicion debe
+registrarse en reportes de cambios integrados, no inferirse de conversaciones.

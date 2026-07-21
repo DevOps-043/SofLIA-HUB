@@ -5,23 +5,53 @@ import { join, relative } from 'node:path';
 const root = process.cwd();
 const errors = [];
 const required = [
-  'AGENTS.md', 'CLAUDE.md', 'GEMINI.md', 'codex.md',
+  'AGENTS.md', 'CLAUDE.md', 'codex.md',
   'docs/README.md', 'docs/standards/base.md', 'docs/architecture/module-map.md',
   'ai-specs/README.md', 'ai-specs/agents/registry.yaml',
   'ai-specs/policies/tool-boundaries.md', 'ai-specs/policies/runtime-exposure.md',
   'openspec/config.yaml', 'database/README.md', 'resources/README.md',
   '.github/workflows/ci.yml', 'scripts/ai/sync-agent-adapters.mjs',
   'scripts/quality/check-doc-links.mjs', 'scripts/quality/lint-changed.mjs',
+  '.agents/rules/soflia-harness.md',
+  '.agents/workflows/openspec-propose.md',
+  '.agents/workflows/openspec-apply.md',
+  '.agents/workflows/openspec-verify.md',
+  '.agents/workflows/openspec-archive.md',
 ];
 
 for (const path of required) {
   if (!existsSync(join(root, path))) errors.push(`Falta ruta obligatoria: ${path}`);
 }
 
-for (const adapter of ['CLAUDE.md', 'GEMINI.md', 'codex.md']) {
+for (const adapter of ['CLAUDE.md', 'codex.md']) {
   const path = join(root, adapter);
   if (existsSync(path) && !readFileSync(path, 'utf8').includes('AGENTS.md')) {
     errors.push(`${adapter} no apunta al router AGENTS.md`);
+  }
+}
+
+function directoryHasFiles(path) {
+  return readdirSync(path, { withFileTypes: true }).some((entry) => (
+    entry.isFile() || (entry.isDirectory() && directoryHasFiles(join(path, entry.name)))
+  ));
+}
+
+for (const retiredPath of ['GEMINI.md', '.gemini', '.cursor']) {
+  const retired = join(root, retiredPath);
+  const hasContent = existsSync(retired) && (!retiredPath.startsWith('.') || directoryHasFiles(retired));
+  if (hasContent) {
+    errors.push(`Adaptador retirado todavia presente: ${retiredPath}`);
+  }
+}
+
+for (const antigravityDir of ['rules', 'workflows']) {
+  const dir = join(root, '.agents', antigravityDir);
+  if (!existsSync(dir)) continue;
+  for (const entry of readdirSync(dir, { withFileTypes: true }).filter((item) => item.isFile() && item.name.endsWith('.md'))) {
+    const file = join(dir, entry.name);
+    if (readFileSync(file, 'utf8').length > 12_000) {
+      errors.push(`Archivo Antigravity excede 12000 caracteres: ${relative(root, file)}`);
+    }
   }
 }
 
@@ -68,6 +98,7 @@ const forbidden = [
   /^(vite\.config|config\/vite\/[^/]+)\.(js|d\.ts)$/i,
   /(^|\/)main\.ts\.temp$/i, /(^|\/)(eng|spa)\.traineddata$/i,
   /^docs\/(?!archive\/).*\/source-files\//i,
+  /^\.cursor\//i, /^\.gemini\//i, /^GEMINI\.md$/i,
 ];
 
 try {

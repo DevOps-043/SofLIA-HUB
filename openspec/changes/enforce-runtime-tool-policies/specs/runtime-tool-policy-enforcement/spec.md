@@ -85,7 +85,7 @@ incluir argumentos, resultados, identidad personal ni secretos.
 
 El registro runtime MUST aceptar solo contratos de herramienta del producto y
 MUST NOT descubrir ni publicar automáticamente skills, prompts o adaptadores de
-`ai-specs/`, `.codex/`, `.claude/`, `.cursor/` o `.gemini/`.
+`ai-specs/`, `.codex/`, `.claude/` o `.agents/`.
 
 #### Scenario: Skill de desarrollo presente
 - **WHEN** el repositorio contiene una nueva skill del arnés

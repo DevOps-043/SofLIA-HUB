@@ -3,7 +3,7 @@ import { join, relative } from 'node:path';
 
 const root = process.cwd();
 const sourceRoot = join(root, 'ai-specs', 'skills');
-const targets = ['.codex', '.claude', '.cursor', '.gemini'];
+const targets = ['.codex', '.claude', '.agents'];
 const checkOnly = process.argv.includes('--check');
 
 function parseFrontmatter(content, file) {

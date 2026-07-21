@@ -26,6 +26,7 @@
     "adapters:check": "node scripts/ai/sync-agent-adapters.mjs --check",
     "harness:validate": "node scripts/quality/validate-harness.mjs",
     "docs:check": "node scripts/quality/check-doc-links.mjs",
+    "docs:system:check": "node scripts/quality/validate-system-docs.mjs",
     "openspec:validate": "openspec validate --all --strict --no-interactive",
     "verify:pr": "node scripts/quality/run-gate.mjs",
     "verify:release": "node scripts/quality/run-gate.mjs --release",
