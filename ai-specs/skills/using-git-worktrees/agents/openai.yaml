@@ -1,0 +1,4 @@
+interface:
+  display_name: "Aislar con worktree"
+  short_description: "Prepara trabajo Git aislado y recuperable"
+  default_prompt: "Usa $using-git-worktrees para aislar esta implementación."

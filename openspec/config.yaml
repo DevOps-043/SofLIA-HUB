@@ -1,0 +1,23 @@
+schema: spec-driven
+
+context: |
+  SofLIA Hub es una aplicación Electron con React, TypeScript estricto, sidecars
+  Python, tres instancias Supabase y SQLite local. La interfaz, prompts, logs y
+  documentación se mantienen en español. Todo IPC cruza servicio main, handler,
+  allowlist/preload y wrapper tipado. Acciones críticas requieren HITL. Los
+  agentes de desarrollo no se exponen como herramientas runtime. Las normas
+  canónicas viven en AGENTS.md, docs/standards/ y ai-specs/policies/.
+
+rules:
+  proposal:
+    - Mantener el alcance conciso e incluir no objetivos cuando eviten ambigüedad.
+    - Identificar efectos sobre IPC, datos, permisos, empaquetado y documentación.
+  specs:
+    - Expresar requisitos normativos con escenarios observables.
+    - Incluir errores, permisos denegados y HITL cuando sean relevantes.
+  design:
+    - Registrar decisiones, alternativas descartadas, migración y rollback.
+    - Separar capacidades de desarrollo de capacidades runtime.
+  tasks:
+    - Crear tareas pequeñas, ordenadas y con verificación explícita.
+    - Incluir actualización documental y revisión adversarial.

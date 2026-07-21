@@ -1,0 +1,4 @@
+interface:
+  display_name: "Enriquecer requerimiento"
+  short_description: "Convierte una solicitud en criterios verificables"
+  default_prompt: "Usa $enrich-requirement para aclarar y estructurar este cambio."

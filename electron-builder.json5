@@ -46,6 +46,13 @@
       to: "python-tools",
       filter: ["**/*", "!tests/**", "!**/__pycache__/**", "!**/*.pyc"],
     },
+    {
+      // Contexto operativo de reuniones. Se distribuye separado del código
+      // para impedir que las instrucciones de desarrollo lleguen al runtime.
+      from: "resources/context-packs/meetings/v1",
+      to: "context-packs/meetings/v1",
+      filter: ["**/*"],
+    },
   ],
   mac: {
     target: ["dmg"],

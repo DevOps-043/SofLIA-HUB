@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cambio IPC Electron"
+  short_description: "Implementa cambios IPC completos y seguros"
+  default_prompt: "Usa $electron-ipc-change para implementar este flujo IPC."

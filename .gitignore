@@ -11,6 +11,14 @@ node_modules
 dist
 dist-ssr
 *.local
+tmp/
+.worktrees/
+*.tsbuildinfo
+*.temp
+ts_errors.txt
+**/__pycache__/
+*.py[cod]
+*.traineddata
 models/*.onnx
 models/*.onnx.*
 models/vosk-model-*
@@ -29,6 +37,11 @@ app/renderer/dist
 # Environment variables
 .env
 .env.*
+
+# Agent-local configuration (canonical rules live in ai-specs/)
+.claude/settings.local.json
+.cursor/settings.local.json
+.agents/
 
 # Editor directories and files
 .vscode/*

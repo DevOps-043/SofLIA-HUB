@@ -24,7 +24,7 @@ export function throwOnDetectionStoreError(error: PostgrestError | null, operati
   if (!error) return;
   if (/relation .* does not exist/i.test(error.message)) {
     throw new Error(
-      `Faltan las tablas actualizadas de Meeting Ops en IRIS Supabase. Vuelve a ejecutar sql/meeting-ops-tables.sql. Detalle: ${error.message}`,
+      `Faltan las tablas actualizadas de Meeting Ops en Lia Supabase. Vuelve a ejecutar database/lia/migrations/meeting-ops-tables.sql. Detalle: ${error.message}`,
     );
   }
   throw new Error(`[MeetingDetectionStore] ${operation}: ${error.message}`);

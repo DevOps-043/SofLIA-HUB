@@ -29,7 +29,7 @@ export function throwOnError(error: PostgrestError | null, operation: string): v
 
   if (/relation .* does not exist/i.test(error.message)) {
     throw new Error(
-      `Faltan las tablas de Meeting Ops en IRIS Supabase. Aplica el archivo sql/meeting-ops-tables.sql antes de usar este workflow. Detalle: ${error.message}`,
+      `Faltan las tablas de Meeting Ops en Lia Supabase. Aplica database/lia/migrations/meeting-ops-tables.sql antes de usar este workflow. Detalle: ${error.message}`,
     );
   }
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Verificar cambio"
+  short_description: "Ejecuta evidencia proporcional al riesgo"
+  default_prompt: "Usa $verify-change para comprobar este cambio antes de entregarlo."

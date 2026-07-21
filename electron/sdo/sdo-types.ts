@@ -1,6 +1,6 @@
 /**
  * SDO-AN — Tipos del Registro Operativo Gobernado.
- * Espejo de sql/sdo-tables.sql. Columnas en ingles, valores de estado en
+ * Espejo de database/lia/migrations/sdo-tables.sql. Columnas en ingles, valores de estado en
  * espanol (regla del proyecto: los enums del SDO son en espanol).
  */
 

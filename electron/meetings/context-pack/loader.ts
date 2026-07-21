@@ -4,7 +4,13 @@ import { app } from 'electron';
 import { parseMeetingTypeRegistry, parseThreshold } from './parser';
 import type { ContextPackFileMap, LoadedContextPackFiles, MeetingContextPack } from './types';
 
-const PACK_DIR = 'Context Pack';
+const DEVELOPMENT_PACK_PATH = path.join('resources', 'context-packs', 'meetings', 'v1');
+const PACKAGED_PACK_PATH = path.join('context-packs', 'meetings', 'v1');
+
+type ContextPackLocation = {
+  rootDir: string;
+  packDir: string;
+};
 
 async function pathExists(targetPath: string): Promise<boolean> {
   try {
@@ -24,8 +30,8 @@ export class MeetingContextPackLoader {
   }
 
   private async loadInternal(): Promise<MeetingContextPack> {
-    const rootDir = await this.resolveRootDir();
-    const files = await this.readFiles(rootDir);
+    const location = await this.resolveLocation();
+    const files = await this.readFiles(location);
     let outputSchema: Record<string, unknown> = {};
     try {
       outputSchema = JSON.parse(files.outputSchemaRaw) as Record<string, unknown>;
@@ -42,52 +48,75 @@ export class MeetingContextPackLoader {
     };
   }
 
-  private async resolveRootDir(): Promise<string> {
-    const candidates = new Set<string>();
-    if (process.env.APP_ROOT) candidates.add(process.env.APP_ROOT);
+  private async resolveLocation(): Promise<ContextPackLocation> {
+    const candidates: ContextPackLocation[] = [];
+    const developmentRoots = new Set<string>();
+    if (process.env.APP_ROOT) developmentRoots.add(process.env.APP_ROOT);
+
+    let appRoot = process.cwd();
     try {
       const appPath = app.getAppPath();
-      candidates.add(appPath);
-      candidates.add(path.resolve(appPath, '..'));
+      appRoot = appPath;
+      developmentRoots.add(appPath);
+      developmentRoots.add(path.resolve(appPath, '..'));
     } catch {
       // process.cwd remains as fallback
     }
-    candidates.add(process.cwd());
+    developmentRoots.add(process.cwd());
+
+    if (process.resourcesPath) {
+      candidates.push({
+        rootDir: appRoot,
+        packDir: path.join(process.resourcesPath, PACKAGED_PACK_PATH),
+      });
+    }
+
+    for (const rootDir of developmentRoots) {
+      candidates.push({
+        rootDir,
+        packDir: path.join(rootDir, DEVELOPMENT_PACK_PATH),
+      });
+    }
 
     for (const candidate of candidates) {
-      const hasRootAgents = await pathExists(path.join(candidate, 'AGENTS.md'));
-      const hasPromptMaster = await pathExists(path.join(candidate, PACK_DIR, 'prompt_master.md'));
-      if (hasRootAgents && hasPromptMaster) return candidate;
+      const hasPromptMaster = await pathExists(path.join(candidate.packDir, 'prompt_master.md'));
+      if (hasPromptMaster) return candidate;
     }
-    return Array.from(candidates)[0] || process.cwd();
+
+    throw new Error(
+      `No pude localizar el context pack de reuniones. Rutas revisadas: ${candidates
+        .map(candidate => candidate.packDir)
+        .join(', ')}`,
+    );
   }
 
-  private async readFiles(rootDir: string): Promise<LoadedContextPackFiles> {
+  private async readFiles(location: ContextPackLocation): Promise<LoadedContextPackFiles> {
     const fileMap: Record<keyof ContextPackFileMap, string> = {
-      rootAgents: 'AGENTS.md',
-      packAgents: path.join(PACK_DIR, 'AGENTS.md'),
-      meetingTypeRegistryRaw: path.join(PACK_DIR, 'meeting_type_registry.yaml'),
-      extractionRulesRaw: path.join(PACK_DIR, 'extraction_rules.yaml'),
-      outputSchemaRaw: path.join(PACK_DIR, 'output_schema.json'),
-      promptMaster: path.join(PACK_DIR, 'prompt_master.md'),
-      sourceTraceability: path.join(PACK_DIR, 'source_traceability.md'),
-      implementationNotes: path.join(PACK_DIR, 'implementation_notes.md'),
-      rootReadme: 'README.md',
-      packReadme: path.join(PACK_DIR, 'README.md'),
-      manifest: path.join(PACK_DIR, 'manifest.txt'),
+      rootAgents: path.join(location.rootDir, 'AGENTS.md'),
+      packAgents: path.join(location.packDir, 'AGENTS.md'),
+      meetingTypeRegistryRaw: path.join(location.packDir, 'meeting_type_registry.yaml'),
+      extractionRulesRaw: path.join(location.packDir, 'extraction_rules.yaml'),
+      outputSchemaRaw: path.join(location.packDir, 'output_schema.json'),
+      promptMaster: path.join(location.packDir, 'prompt_master.md'),
+      sourceTraceability: path.join(location.packDir, 'source_traceability.md'),
+      implementationNotes: path.join(location.packDir, 'implementation_notes.md'),
+      rootReadme: path.join(location.rootDir, 'README.md'),
+      packReadme: path.join(location.packDir, 'README.md'),
+      manifest: path.join(location.packDir, 'manifest.txt'),
     };
     const requiredKeys: Array<keyof ContextPackFileMap> = [
-      'rootAgents', 'packAgents', 'meetingTypeRegistryRaw', 'extractionRulesRaw', 'outputSchemaRaw', 'promptMaster',
+      'packAgents', 'meetingTypeRegistryRaw', 'extractionRulesRaw', 'outputSchemaRaw', 'promptMaster',
     ];
     const values = {} as ContextPackFileMap;
     const missingFiles: string[] = [];
 
-    for (const [key, relativePath] of Object.entries(fileMap) as Array<[keyof ContextPackFileMap, string]>) {
+    for (const [key, filePath] of Object.entries(fileMap) as Array<[keyof ContextPackFileMap, string]>) {
       try {
-        values[key] = await fs.readFile(path.join(rootDir, relativePath), 'utf8');
+        values[key] = await fs.readFile(filePath, 'utf8');
       } catch {
-        if (requiredKeys.includes(key)) throw new Error(`No pude cargar el archivo obligatorio del context pack: ${relativePath}`);
-        missingFiles.push(relativePath);
+        if (requiredKeys.includes(key)) throw new Error(`No pude cargar el archivo obligatorio del context pack: ${filePath}`);
+        values[key] = '';
+        missingFiles.push(filePath);
       }
     }
     return { ...values, missingFiles };

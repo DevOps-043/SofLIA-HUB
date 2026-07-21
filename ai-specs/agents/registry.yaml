@@ -1,0 +1,30 @@
+version: 1
+development:
+  - id: spec-analyst
+    source: development/spec-analyst.md
+    skills: [enrich-requirement, update-project-docs]
+  - id: electron-engineer
+    source: development/electron-engineer.md
+    skills: [electron-ipc-change, verify-change]
+  - id: data-security-engineer
+    source: development/data-security-engineer.md
+    skills: [supabase-migration, adversarial-review]
+  - id: qa-verifier
+    source: development/qa-verifier.md
+    skills: [verify-change, adversarial-review]
+  - id: delivery-maintainer
+    source: development/delivery-maintainer.md
+    skills: [using-git-worktrees, update-project-docs, prepare-pull-request]
+runtime:
+  - id: whatsapp-agent
+    source: runtime/whatsapp-agent.md
+    default_policy: deny
+    development_skills_exposed: []
+  - id: desktop-agent
+    source: runtime/desktop-agent.md
+    default_policy: deny
+    development_skills_exposed: []
+  - id: meeting-agent
+    source: runtime/meeting-agent.md
+    default_policy: deny
+    development_skills_exposed: []

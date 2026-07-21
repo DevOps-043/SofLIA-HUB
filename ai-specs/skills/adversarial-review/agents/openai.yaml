@@ -1,0 +1,4 @@
+interface:
+  display_name: "Revisión adversarial"
+  short_description: "Busca fallos, regresiones y límites de seguridad"
+  default_prompt: "Usa $adversarial-review para intentar refutar que este cambio está listo."

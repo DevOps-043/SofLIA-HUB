@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import type { ThemeMode } from '../hooks/useTheme';
-import startupSoundSrc from '../../Soflia_Song.mp3';
+import startupSoundSrc from '../assets/audio/soflia-startup.mp3';
 
 const LOGO_SRC = './assets/Icono.png';
 

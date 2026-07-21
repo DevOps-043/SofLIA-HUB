@@ -1,0 +1,4 @@
+interface:
+  display_name: "Migración Supabase"
+  short_description: "Diseña migraciones por instancia con RLS segura"
+  default_prompt: "Usa $supabase-migration para diseñar y verificar esta migración."

@@ -4,25 +4,34 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import type { ButtonHTMLAttributes, HTMLAttributes, ImgHTMLAttributes, ReactNode } from 'react';
+
+type MockMotionProps<T> = T & {
+  children?: ReactNode;
+  initial?: unknown;
+  animate?: unknown;
+  exit?: unknown;
+  transition?: unknown;
+  whileHover?: unknown;
+  whileTap?: unknown;
+  variants?: unknown;
+};
 
 // Mock framer-motion to avoid animation issues in tests
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: any) => <div {...filterMotionProps(props)}>{children}</div>,
-    h1: ({ children, ...props }: any) => <h1 {...filterMotionProps(props)}>{children}</h1>,
-    p: ({ children, ...props }: any) => <p {...filterMotionProps(props)}>{children}</p>,
+    div: ({ children, ...props }: MockMotionProps<HTMLAttributes<HTMLDivElement>>) => <div {...filterMotionProps(props)}>{children}</div>,
+    h1: ({ children, ...props }: MockMotionProps<HTMLAttributes<HTMLHeadingElement>>) => <h1 {...filterMotionProps(props)}>{children}</h1>,
+    p: ({ children, ...props }: MockMotionProps<HTMLAttributes<HTMLParagraphElement>>) => <p {...filterMotionProps(props)}>{children}</p>,
+    img: (props: MockMotionProps<ImgHTMLAttributes<HTMLImageElement>>) => <img {...filterMotionProps(props)} />,
+    button: ({ children, ...props }: MockMotionProps<ButtonHTMLAttributes<HTMLButtonElement>>) => <button {...filterMotionProps(props)}>{children}</button>,
   },
-  AnimatePresence: ({ children }: any) => <>{children}</>,
+  AnimatePresence: ({ children }: { children?: ReactNode }) => <>{children}</>,
 }));
 
-function filterMotionProps(props: Record<string, any>) {
-  const filtered: Record<string, any> = {};
-  for (const [key, value] of Object.entries(props)) {
-    if (!['initial', 'animate', 'exit', 'transition', 'whileHover', 'whileTap', 'variants'].includes(key)) {
-      filtered[key] = value;
-    }
-  }
-  return filtered;
+function filterMotionProps<T extends object>(props: T): T {
+  const motionKeys = new Set(['initial', 'animate', 'exit', 'transition', 'whileHover', 'whileTap', 'variants']);
+  return Object.fromEntries(Object.entries(props).filter(([key]) => !motionKeys.has(key))) as T;
 }
 
 // Mock AuthContext
@@ -50,6 +59,19 @@ import { Auth } from '../../components/Auth';
 describe('Auth component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
     mockSignInWithSofia.mockResolvedValue({ success: true, user: { id: '1' }, session: {} });
   });
 
@@ -57,7 +79,7 @@ describe('Auth component', () => {
   it('UI-001: renders login form with identifier and password inputs', () => {
     render(<Auth />);
 
-    const identifierInput = screen.getByPlaceholderText('Usuario o Correo');
+    const identifierInput = screen.getByPlaceholderText(/Usuario o Correo/i);
     const passwordInput = screen.getByPlaceholderText('Contraseña');
 
     expect(identifierInput).toBeInTheDocument();
@@ -76,7 +98,7 @@ describe('Auth component', () => {
 
     render(<Auth />);
 
-    const identifierInput = screen.getByPlaceholderText('Usuario o Correo');
+    const identifierInput = screen.getByPlaceholderText(/Usuario o Correo/i);
     const passwordInput = screen.getByPlaceholderText('Contraseña');
 
     fireEvent.change(identifierInput, { target: { value: 'test@test.com' } });
@@ -103,7 +125,7 @@ describe('Auth component', () => {
   it('UI-014: submit button is enabled with valid inputs', () => {
     render(<Auth />);
 
-    const identifierInput = screen.getByPlaceholderText('Usuario o Correo');
+    const identifierInput = screen.getByPlaceholderText(/Usuario o Correo/i);
     const passwordInput = screen.getByPlaceholderText('Contraseña');
 
     fireEvent.change(identifierInput, { target: { value: 'user@test.com' } });

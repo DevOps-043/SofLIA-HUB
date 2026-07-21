@@ -1,0 +1,4 @@
+interface:
+  display_name: "Preparar pull request"
+  short_description: "Entrega un cambio trazable con evidencia"
+  default_prompt: "Usa $prepare-pull-request para preparar la entrega de este cambio."

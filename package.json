@@ -8,26 +8,37 @@
     "email": "devops@soflia.ai"
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --config vite.config.ts",
     "dev:clean": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-clean.ps1",
     "dev:fresh": "npm run dev:clean && npm run dev",
-    "build": "tsc && vite build && node scripts/generate-bitmaps.js && node scripts/setup-python-runtime.js && electron-builder",
-    "build:win": "tsc && vite build && node scripts/generate-bitmaps.js && node scripts/setup-python-runtime.js && electron-builder --win",
-    "build:mac": "tsc && vite build && node scripts/generate-bitmaps.js && node scripts/setup-python-runtime.js && electron-builder --mac",
-    "build:linux": "tsc && vite build && node scripts/generate-bitmaps.js && node scripts/setup-python-runtime.js && electron-builder --linux AppImage deb --x64",
-    "postinstall": "npm run rebuild:native",
-    "rebuild:native": "electron-rebuild -f -w better-sqlite3",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
+    "build:app": "npm run typecheck && vite build --config vite.config.ts",
+    "build": "npm run build:app && node scripts/generate-bitmaps.js && node scripts/setup-python-runtime.js && electron-builder",
+    "build:win": "npm run build:app && node scripts/generate-bitmaps.js && node scripts/setup-python-runtime.js && electron-builder --win",
+    "build:mac": "npm run build:app && node scripts/generate-bitmaps.js && node scripts/setup-python-runtime.js && electron-builder --mac",
+    "build:linux": "npm run build:app && node scripts/generate-bitmaps.js && node scripts/setup-python-runtime.js && electron-builder --linux AppImage deb --x64",
+    "postinstall": "npm run rebuild:native:electron",
+    "rebuild:native": "npm run rebuild:native:electron",
+    "rebuild:native:electron": "electron-rebuild -f --only better-sqlite3",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:changed": "node scripts/quality/lint-changed.mjs",
+    "adapters:sync": "node scripts/ai/sync-agent-adapters.mjs",
+    "adapters:check": "node scripts/ai/sync-agent-adapters.mjs --check",
+    "harness:validate": "node scripts/quality/validate-harness.mjs",
+    "docs:check": "node scripts/quality/check-doc-links.mjs",
+    "openspec:validate": "openspec validate --all --strict --no-interactive",
+    "verify:pr": "node scripts/quality/run-gate.mjs",
+    "verify:release": "node scripts/quality/run-gate.mjs --release",
     "preview": "vite preview",
-    "autodev": "npx tsx scripts/autodev.ts",
     "desktop-agent:install-omniparser": "node scripts/install-omniparser-model.js",
     "python:setup": "node scripts/setup-python-runtime.js",
     "python:install-vosk-model": "node scripts/install-vosk-model.js",
-    "test": "vitest run",
+    "test": "node scripts/quality/test-native.mjs",
+    "test:fast": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "test:main": "vitest run --project main",
-    "test:renderer": "vitest run --project renderer"
+    "test:coverage": "node scripts/quality/test-native.mjs --coverage",
+    "test:main": "node scripts/quality/test-native.mjs --project main",
+    "test:renderer": "node scripts/quality/test-native.mjs --project renderer"
   },
   "dependencies": {
     "@azure/msal-node": "^5.0.4",
@@ -70,6 +81,7 @@
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.3",
+    "@fission-ai/openspec": "^1.6.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -93,7 +105,6 @@
     "install": "0.13.0",
     "jsdom": "^29.0.1",
     "msw": "^2.12.14",
-    "npm": "^11.14.1",
     "png-to-ico": "^3.0.1",
     "tailwindcss": "^4.1.18",
     "typescript": "^5.7.3",
@@ -103,7 +114,8 @@
     "vitest": "^4.1.0"
   },
   "overrides": {
-    "protobufjs": "^7.5.6"
+    "protobufjs": "^7.5.6",
+    "tar": "^7.5.20"
   },
   "main": "dist-electron/main.js"
 }

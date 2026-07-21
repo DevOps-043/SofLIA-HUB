@@ -1,0 +1,4 @@
+interface:
+  display_name: "Actualizar documentación"
+  short_description: "Mantiene documentación útil y sin duplicados"
+  default_prompt: "Usa $update-project-docs para actualizar la documentación afectada."
