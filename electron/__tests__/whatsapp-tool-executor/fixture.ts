@@ -35,6 +35,7 @@ vi.mock('../../dynamic-tool-service', () => ({
     uninstallToolset: vi.fn(async () => ({ success: true })),
     installHomeAssistantToolset: vi.fn(async () => ({ success: true })),
     hasTool: vi.fn(async () => false),
+    getRuntimeDescriptor: vi.fn(async () => undefined),
     executeTool: vi.fn(async () => ({ success: true })),
   },
 }));
@@ -75,22 +76,22 @@ export const executeWhatsAppTools = whatsappExecutorModule.executeWhatsAppTools;
 
 export function makeCtx(overrides: Partial<ToolExecutorContext> = {}): ToolExecutorContext {
   return {
-    waService: { sendFile: vi.fn(async () => {}) } as any,
+    waService: { sendFile: vi.fn(async () => {}) } as unknown as ToolExecutorContext['waService'],
     calendarService: null, gmailService: null, driveService: null, gchatService: null, desktopAgent: null,
     clipboardAssistant: null, taskScheduler: null, neuralOrganizer: null, smartSearch: null,
-    memory: { storeFact: vi.fn(), searchSemantic: vi.fn(), getStats: vi.fn() } as any,
-    knowledge: { save: vi.fn(), search: vi.fn() } as any,
-    getGenAI: vi.fn() as any,
+    memory: { storeFact: vi.fn(), searchSemantic: vi.fn(), getStats: vi.fn() } as unknown as ToolExecutorContext['memory'],
+    knowledge: { save: vi.fn(), search: vi.fn() } as unknown as ToolExecutorContext['knowledge'],
+    getGenAI: vi.fn() as unknown as ToolExecutorContext['getGenAI'],
     requestConfirmation: vi.fn(async () => true),
     ...overrides,
   };
 }
 
-export function fc(name: string, args: Record<string, any> = {}) {
+export function fc(name: string, args: Record<string, unknown> = {}) {
   return { functionCall: { name, args } };
 }
 
-export const SOFLIA_BLOCKED_PATHS = [/soflia[\s_-]*hub/i, /dist[\\/\-]electron/i, /app\.asar/i, /SOFLIA[\s_]*Source/i, /whatsapp[\s_-]*agent/i, /desktop[\s_-]*agent/i, /main[\s_-]*.*\.js/i, /electron[\\/].*\.(ts|js)/i, /src[\\/].*\.(tsx?|jsx?)/i, /\.env\b/i, /supabase/i, /api[\s_-]*key/i];
+export const SOFLIA_BLOCKED_PATHS = [/soflia[\s_-]*hub/i, /dist[\\/-]electron/i, /app\.asar/i, /SOFLIA[\s_]*Source/i, /whatsapp[\s_-]*agent/i, /desktop[\s_-]*agent/i, /main[\s_-]*.*\.js/i, /electron[\\/].*\.(ts|js)/i, /src[\\/].*\.(tsx?|jsx?)/i, /\.env\b/i, /supabase/i, /api[\s_-]*key/i];
 
 export function isBlockedPath(value: string): boolean {
   return SOFLIA_BLOCKED_PATHS.some((pattern) => pattern.test(value));

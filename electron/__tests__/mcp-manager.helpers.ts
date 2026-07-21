@@ -3,13 +3,30 @@ import { vi } from 'vitest';
 const fsMocks = vi.hoisted(() => {
   const mockWatcherClose = vi.fn();
   return {
-    mockExistsSync: vi.fn((_: string) => true),
-    mockMkdirSync: vi.fn((_: string, __?: { recursive?: boolean }) => undefined),
-    mockReaddirSync: vi.fn((_: string) => [] as string[]),
-    mockStatSync: vi.fn((_: string) => ({ isFile: () => true })),
-    mockReadFileSync: vi.fn((_: string) => ''),
+    mockExistsSync: vi.fn((filePath: string) => Boolean(filePath)),
+    mockMkdirSync: vi.fn((filePath: string, options?: { recursive?: boolean }) => {
+      void filePath;
+      void options;
+    }),
+    mockReaddirSync: vi.fn((directoryPath: string) => {
+      void directoryPath;
+      return [] as string[];
+    }),
+    mockStatSync: vi.fn((filePath: string) => {
+      void filePath;
+      return { isFile: () => true };
+    }),
+    mockReadFileSync: vi.fn((filePath: string) => {
+      void filePath;
+      return '';
+    }),
     mockWatcherClose,
-    mockWatch: vi.fn((_: string, __?: unknown, ___?: unknown) => ({ close: mockWatcherClose })),
+    mockWatch: vi.fn((directoryPath: string, options?: unknown, listener?: unknown) => {
+      void directoryPath;
+      void options;
+      void listener;
+      return { close: mockWatcherClose };
+    }),
   };
 });
 
@@ -66,15 +83,33 @@ export function crearToolJson(name: string, description = 'Herramienta de prueba
       type: 'object',
       properties: { input: { type: 'string', description: 'Entrada de prueba' } },
       required: ['input'],
+      additionalProperties: false,
     },
   });
 }
 
-export function crearToolSchema(name: string, handler?: (args: any) => any): ToolSchema {
+export function crearToolSchema(name: string, handler?: ToolSchema['handler']): ToolSchema {
   return {
     name,
     description: `Herramienta ${name}`,
-    inputSchema: { type: 'object', properties: { input: { type: 'string' } } },
+    inputSchema: { type: 'object', properties: { input: { type: 'string' } }, additionalProperties: false },
+    ...(handler ? {
+      outputSchema: {
+        type: 'object' as const,
+        properties: { resultado: { type: 'string' as const }, valor: { type: 'number' as const } },
+        required: ['resultado', 'valor'],
+        additionalProperties: false as const,
+      },
+      runtime: {
+        owner: 'test-platform',
+        risk: 'read' as const,
+        allowedAgents: ['whatsapp-agent' as const],
+        hitl: 'never' as const,
+        allowInGroups: false,
+        timeoutMs: 1_000,
+        audit: true as const,
+      },
+    } : {}),
     handler,
   };
 }

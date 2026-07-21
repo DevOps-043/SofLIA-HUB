@@ -2,13 +2,27 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { normalizeDirectories } from './mcp-manager/directories';
-import type { ToolSchema, ToolSourceInfo } from './mcp-manager/types';
+import type { RuntimeToolAuditEvent, RuntimeToolExecutionContext, ToolSchema, ToolSourceInfo } from './mcp-manager/types';
 import { ensureToolDirectories } from './mcp-manager/ensure-directories';
 import { executeRegisteredTool } from './mcp-manager/execution';
+import { getToolContractFingerprint, isExecutableTool } from './mcp-manager/tool-contract';
 import { registerToolFromPath } from './mcp-manager/registry';
 import { scanToolDirectories } from './mcp-manager/scan';
 import { closeToolWatchers, resetToolWatchers } from './mcp-manager/watchers';
-export type { ToolSchema, ToolSourceInfo } from './mcp-manager/types';
+export type {
+  ClosedObjectSchema,
+  JsonSchemaNode,
+  RuntimeAgentId,
+  RuntimeToolAuditEvent,
+  RuntimeToolExecutionContext,
+  RuntimeToolHandlerContext,
+  RuntimeToolDescriptor,
+  RuntimeToolPolicy,
+  RuntimeToolRisk,
+  ToolSchema,
+  ToolSourceInfo,
+} from './mcp-manager/types';
+export { RuntimeToolExecutionError } from './mcp-manager/execution';
 export class MCPManager extends EventEmitter {
   private readonly defaultToolDirectories: string[];
   private toolDirectories: string[];
@@ -59,8 +73,8 @@ export class MCPManager extends EventEmitter {
     await this.scanTools();
     if (this.initialized) this.watchTools();
   }
-  public async executeTool(name: string, args: any): Promise<any> {
-    return executeRegisteredTool(this.tools, name, args);
+  public async executeTool(name: string, args: unknown, context: RuntimeToolExecutionContext): Promise<unknown> {
+    return executeRegisteredTool(this.tools, name, args, context, (event) => this.emitAudit(event));
   }
   public destroy(): void {
     this.watchers = closeToolWatchers(this.watchers);
@@ -82,6 +96,19 @@ export class MCPManager extends EventEmitter {
     this.watchers = resetToolWatchers(this.watchers, this.toolDirectories, async () => {
       await this.scanTools();
     });
+  }
+  public getRuntimeDescriptor(name: string) {
+    const tool = this.tools.get(name);
+    if (!tool || !isExecutableTool(tool)) return undefined;
+    return {
+      policy: tool.runtime,
+      contractFingerprint: getToolContractFingerprint(tool),
+    };
+  }
+
+  private emitAudit(event: RuntimeToolAuditEvent): void {
+    this.emit('tool-audit', event);
+    console.info(`[MCP][AUDIT] ${JSON.stringify(event)}`);
   }
 }
 export const mcpManager = new MCPManager();

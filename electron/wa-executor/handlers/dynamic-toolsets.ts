@@ -10,8 +10,10 @@
  * lugar de exigir al modelo recordar el toolset_id.
  */
 
+import { createHash, randomUUID } from 'node:crypto';
 import { dynamicToolService } from '../../dynamic-tool-service';
-import { buildResponse, errorResponse, type FunctionResponse } from '../types';
+import type { RuntimeToolPolicy } from '../../mcp-manager';
+import { buildResponse, errorResponse, type FunctionResponse, type ToolExecutorContext } from '../types';
 
 const TOOLSET_TOOLS = new Set([
   'list_dynamic_tools',
@@ -29,7 +31,7 @@ export function isDynamicToolsetTool(name: string): boolean {
 
 export async function executeDynamicToolsetTool(
   toolName: string,
-  toolArgs: Record<string, any>,
+  toolArgs: Record<string, unknown>,
 ): Promise<FunctionResponse | null> {
   if (!TOOLSET_TOOLS.has(toolName)) {
     return null;
@@ -79,8 +81,8 @@ export async function executeDynamicToolsetTool(
       default:
         return null;
     }
-  } catch (err: any) {
-    return errorResponse(toolName, err.message);
+  } catch (error: unknown) {
+    return errorResponse(toolName, getErrorMessage(error));
   }
 }
 
@@ -93,19 +95,57 @@ export async function executeDynamicToolsetTool(
  */
 export async function executeDynamicTool(
   toolName: string,
-  toolArgs: Record<string, any>,
+  toolArgs: Record<string, unknown>,
+  ctx: ToolExecutorContext,
+  jid: string,
+  senderNumber: string,
   isGroup: boolean,
 ): Promise<FunctionResponse | null> {
-  if (isGroup) return null;
   if (!(await dynamicToolService.hasTool(toolName))) return null;
 
   try {
-    const result = await dynamicToolService.executeTool(toolName, toolArgs);
+    const descriptor = await dynamicToolService.getRuntimeDescriptor(toolName);
+    if (!descriptor) throw new Error(`La herramienta ${toolName} no tiene una política runtime ejecutable.`);
+    const { policy, contractFingerprint } = descriptor;
+
+    let approvedByHuman = false;
+    if (policy.hitl === 'required' && !(isGroup && !policy.allowInGroups)) {
+      approvedByHuman = await ctx.requestConfirmation(
+        jid,
+        senderNumber,
+        toolName,
+        buildDynamicConfirmationDescription(toolName, policy),
+        {},
+      );
+    }
+
+    const result = await dynamicToolService.executeTool(toolName, toolArgs, {
+      agentId: 'whatsapp-agent',
+      channel: 'whatsapp',
+      isGroup,
+      approvedByHuman,
+      traceId: randomUUID(),
+      contractFingerprint,
+      actorRef: createActorRef(senderNumber),
+    });
     return buildResponse(
       toolName,
-      typeof result === 'object' && result !== null ? result : { success: true, result },
+      typeof result === 'object' && result !== null ? result as Record<string, unknown> : { success: true, result },
     );
-  } catch (err: any) {
-    return errorResponse(toolName, err.message);
+  } catch (error: unknown) {
+    return errorResponse(toolName, getErrorMessage(error));
   }
+}
+
+function buildDynamicConfirmationDescription(toolName: string, policy: RuntimeToolPolicy): string {
+  return `Ejecutar herramienta dinámica "${toolName}" (riesgo: ${policy.risk}; responsable: ${policy.owner}).`;
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function createActorRef(senderNumber: string): string {
+  const digest = createHash('sha256').update(senderNumber).digest('hex').slice(0, 16);
+  return `wa:${digest}`;
 }

@@ -1,4 +1,4 @@
-import { mcpManager } from './mcp-manager';
+import { mcpManager, type RuntimeToolExecutionContext } from './mcp-manager';
 import { buildBuiltinToolsetCatalog } from './dynamic-tool/home-assistant';
 import { createDynamicToolPaths } from './dynamic-tool/paths';
 import { getGeminiFunctionDeclarations, listDynamicTools } from './dynamic-tool/runtime';
@@ -29,12 +29,17 @@ export class DynamicToolService {
     return Boolean(mcpManager.getTool(name));
   }
 
-  async executeTool(name: string, args: any): Promise<any> {
+  async getRuntimeDescriptor(name: string) {
     await this.initialize();
-    return mcpManager.executeTool(name, args);
+    return mcpManager.getRuntimeDescriptor(name);
   }
 
-  async getGeminiFunctionDeclarations(): Promise<any[]> {
+  async executeTool(name: string, args: unknown, context: RuntimeToolExecutionContext): Promise<unknown> {
+    await this.initialize();
+    return mcpManager.executeTool(name, args, context);
+  }
+
+  async getGeminiFunctionDeclarations(): Promise<Array<Record<string, unknown>>> {
     await this.initialize();
     return getGeminiFunctionDeclarations();
   }

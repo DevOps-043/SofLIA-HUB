@@ -1,7 +1,8 @@
 import * as fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import type { LoadedTool, ToolSchema } from './types';
+import { parseToolContract } from './tool-contract';
+import type { LoadedTool } from './types';
 
 export async function loadToolFromPath(
   filePath: string,
@@ -19,33 +20,19 @@ export async function loadToolFromPath(
       ? JSON.parse(fs.readFileSync(filePath, 'utf-8'))
       : await importToolModule(filePath);
 
-    if (!isValidToolSchema(toolData)) {
-      console.warn(`[MCP] Invalid tool schema in file: ${filePath}`);
-      return null;
-    }
+    const tool = parseToolContract(toolData);
 
-    return { tool: toolData, source: { filePath, filename, rootPath } };
+    return { tool, source: { filePath, filename, rootPath } };
   } catch (error) {
-    console.error(`[MCP] Error loading tool from ${filePath}:`, error);
+    const reason = error instanceof Error ? error.message : String(error);
+    console.warn(`[MCP] Invalid tool contract in ${filePath}: ${reason}`);
     return null;
   }
 }
 
-async function importToolModule(filePath: string): Promise<any> {
+async function importToolModule(filePath: string): Promise<unknown> {
   const fileUrl = pathToFileURL(filePath).href;
   const moduleUrl = `${fileUrl}?t=${Date.now()}`;
-  const module = await import(moduleUrl);
-  return module.default || module.tool || module;
-}
-
-function isValidToolSchema(data: any): data is ToolSchema {
-  return (
-    data &&
-    typeof data.name === 'string' &&
-    typeof data.description === 'string' &&
-    data.inputSchema &&
-    typeof data.inputSchema === 'object' &&
-    data.inputSchema.type === 'object' &&
-    typeof data.inputSchema.properties === 'object'
-  );
+  const module = await import(moduleUrl) as Record<string, unknown>;
+  return module.default ?? module.tool ?? module;
 }

@@ -1,5 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { getToolContractFingerprint } from '../mcp-manager/tool-contract';
 import { MCPManager, crearToolJson, crearToolSchema, mockReadFileSync, mockReaddirSync, mockWatch, resetMcpMocks } from './mcp-manager.helpers';
+
+const runtimeContext = {
+  agentId: 'whatsapp-agent' as const,
+  channel: 'whatsapp' as const,
+  isGroup: false,
+  approvedByHuman: false,
+  traceId: '11111111-1111-4111-8111-111111111111',
+  contractFingerprint: '0'.repeat(64),
+  actorRef: 'wa:0123456789abcdef',
+};
 
 describe('MCPManager execution and lifecycle', () => {
   beforeEach(resetMcpMocks);
@@ -23,12 +34,16 @@ describe('MCPManager execution and lifecycle', () => {
 
   it('MCP-009: executeTool invoca el handler', async () => {
     const handler = vi.fn().mockResolvedValue({ resultado: 'exito', valor: 42 });
+    const tool = crearToolSchema('calc-tool', handler);
     const mgr = new MCPManager('/tmp/tools-test');
     await mgr.initialize();
-    // @ts-ignore acceso intencional a propiedad privada para test
-    mgr['tools'].set('calc-tool', crearToolSchema('calc-tool', handler));
-    await expect(mgr.executeTool('calc-tool', { a: 3, b: 4 })).resolves.toEqual({ resultado: 'exito', valor: 42 });
-    expect(handler).toHaveBeenCalledWith({ a: 3, b: 4 });
+    (mgr as unknown as { tools: Map<string, ReturnType<typeof crearToolSchema>> }).tools
+      .set('calc-tool', tool);
+    await expect(mgr.executeTool('calc-tool', { input: 'calcular' }, {
+      ...runtimeContext,
+      contractFingerprint: getToolContractFingerprint(tool as Parameters<typeof getToolContractFingerprint>[0]),
+    })).resolves.toEqual({ resultado: 'exito', valor: 42 });
+    expect(handler).toHaveBeenCalledWith({ input: 'calcular' }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     mgr.destroy();
   });
 
@@ -37,7 +52,7 @@ describe('MCPManager execution and lifecycle', () => {
     mockReadFileSync.mockReturnValue(crearToolJson('tool-declarativa'));
     const mgr = new MCPManager('/tmp/tools-test');
     await mgr.initialize();
-    await expect(mgr.executeTool('tool-declarativa', {})).rejects.toThrow('has no executable handler');
+    await expect(mgr.executeTool('tool-declarativa', {}, runtimeContext)).rejects.toThrow('has no executable handler');
     mgr.destroy();
   });
 

@@ -41,7 +41,7 @@ describe('MCPManager discovery', () => {
     await mgr.initialize();
     expect(mgr.getTool('tool-rota')).toBeUndefined();
     expect(mgr.getTools()).toHaveLength(0);
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid tool schema'));
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid tool contract'));
     warnSpy.mockRestore();
     mgr.destroy();
   });

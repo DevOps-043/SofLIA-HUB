@@ -25,7 +25,7 @@ type DispatchResult = {
 
 export async function dispatchTool(
   toolName: string,
-  toolArgs: Record<string, any>,
+  toolArgs: Record<string, unknown>,
   ctx: ToolExecutorContext,
   jid: string,
   senderNumber: string,
@@ -35,7 +35,7 @@ export async function dispatchTool(
   const delegated = await tryDelegatedTool(toolName, toolArgs, ctx, jid, senderNumber, bulkLabelsToVerify);
   if (delegated) return delegated;
 
-  const dynamicResult = await executeDynamicTool(toolName, toolArgs, isGroup);
+  const dynamicResult = await executeDynamicTool(toolName, toolArgs, ctx, jid, senderNumber, isGroup);
   if (dynamicResult) return { response: dynamicResult, bulkLabelsToVerify };
 
   const specialized = await trySpecializedTool(toolName, toolArgs, ctx, jid, senderNumber, isGroup);
@@ -46,7 +46,7 @@ export async function dispatchTool(
 
 async function tryDelegatedTool(
   toolName: string,
-  toolArgs: Record<string, any>,
+  toolArgs: Record<string, unknown>,
   ctx: ToolExecutorContext,
   jid: string,
   senderNumber: string,
@@ -77,7 +77,7 @@ async function tryDelegatedTool(
 
 async function trySpecializedTool(
   toolName: string,
-  toolArgs: Record<string, any>,
+  toolArgs: Record<string, unknown>,
   ctx: ToolExecutorContext,
   jid: string,
   senderNumber: string,
@@ -96,15 +96,15 @@ async function trySpecializedTool(
 
 async function executeFallbackTool(
   toolName: string,
-  toolArgs: Record<string, any>,
+  toolArgs: Record<string, unknown>,
   bulkLabelsToVerify: Set<string> | null,
 ): Promise<DispatchResult> {
   try {
     const response = await executeToolDirect(toolName, toolArgs);
     return { response: { functionResponse: { name: toolName, response } }, bulkLabelsToVerify };
-  } catch (err: any) {
+  } catch (error: unknown) {
     return {
-      response: { functionResponse: { name: toolName, response: { success: false, error: err.message } } },
+      response: { functionResponse: { name: toolName, response: { success: false, error: error instanceof Error ? error.message : String(error) } } },
       bulkLabelsToVerify,
     };
   }

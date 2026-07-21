@@ -3,9 +3,13 @@ import path from 'node:path';
 
 import { mcpManager } from '../mcp-manager';
 import type { DynamicToolPaths } from './paths';
-import type { ToolsetManifest } from './types';
+import type { InstallableToolsetDefinition, ToolsetManifest } from './types';
 
-export async function installToolset(paths: DynamicToolPaths, builtinToolsets: Record<string, any>, toolsetId: string) {
+export async function installToolset(
+  paths: DynamicToolPaths,
+  builtinToolsets: Record<string, InstallableToolsetDefinition>,
+  toolsetId: string,
+) {
   const toolset = builtinToolsets[toolsetId];
   if (!toolset) throw new Error(`No existe un toolset instalable con id "${toolsetId}".`);
 
@@ -30,12 +34,11 @@ export async function installToolset(paths: DynamicToolPaths, builtinToolsets: R
     toolset_id: toolset.id,
     name: toolset.name,
     installedTools: [...toolset.toolNames],
-    files: writtenFiles,
-    managedToolsPath,
-    manifestPath,
+    files: writtenFiles.map((file) => path.basename(file)),
+    manifestFile: path.basename(manifestPath),
     envRequired: [...toolset.envRequired],
     alreadyInstalled,
-    message: buildInstallMessage(toolset.name, managedToolsPath, toolset.envRequired, alreadyInstalled),
+    message: buildInstallMessage(toolset.name, toolset.envRequired, alreadyInstalled),
   };
 }
 
@@ -51,7 +54,7 @@ export async function uninstallToolset(paths: DynamicToolPaths, toolsetId: strin
   return {
     success: true,
     toolset_id: toolsetId,
-    removedFiles: files,
+    removedFiles: files.map((file) => path.basename(file)),
     removedManifest,
     message: files.length > 0 || removedManifest
       ? `Toolset ${toolsetId} desinstalado del directorio dinamico administrado.`
@@ -59,7 +62,7 @@ export async function uninstallToolset(paths: DynamicToolPaths, toolsetId: strin
   };
 }
 
-function buildManifest(toolset: any): ToolsetManifest {
+function buildManifest(toolset: InstallableToolsetDefinition): ToolsetManifest {
   return {
     id: toolset.id,
     name: toolset.name,
@@ -73,8 +76,8 @@ function buildManifest(toolset: any): ToolsetManifest {
   };
 }
 
-function buildInstallMessage(name: string, managedToolsPath: string, envRequired: string[], alreadyInstalled: boolean): string {
+function buildInstallMessage(name: string, envRequired: string[], alreadyInstalled: boolean): string {
   return alreadyInstalled
-    ? `Toolset ${name} actualizado en ${managedToolsPath}. Verifica las variables ${envRequired.join(', ')} para usarlo.`
-    : `Toolset ${name} instalado en ${managedToolsPath}. Configura ${envRequired.join(', ')} para usarlo.`;
+    ? `Toolset ${name} actualizado. Verifica las variables ${envRequired.join(', ')} para usarlo.`
+    : `Toolset ${name} instalado. Configura ${envRequired.join(', ')} para usarlo.`;
 }

@@ -6,24 +6,29 @@ export function listDynamicTools(paths: DynamicToolPaths): Array<{
   name: string;
   description: string;
   inputSchema: ToolSchema['inputSchema'];
+  outputSchema?: ToolSchema['outputSchema'];
+  runtime?: ToolSchema['runtime'];
+  contractFingerprint?: string;
   executable: boolean;
   sourceScope: 'workspace' | 'managed' | 'unknown';
-  sourcePath?: string;
 }> {
   return mcpManager.getTools().map((tool) => {
     const source = mcpManager.getToolSource(tool.name);
+    const descriptor = mcpManager.getRuntimeDescriptor(tool.name);
     return {
       name: tool.name,
       description: tool.description,
       inputSchema: tool.inputSchema,
+      outputSchema: tool.outputSchema,
+      runtime: tool.runtime,
+      contractFingerprint: descriptor?.contractFingerprint,
       executable: typeof tool.handler === 'function',
       sourceScope: getToolSourceScope(paths, source),
-      sourcePath: source?.filePath,
     };
   });
 }
 
-export function getGeminiFunctionDeclarations(): any[] {
+export function getGeminiFunctionDeclarations(): Array<Record<string, unknown>> {
   return mcpManager.getTools().map((tool) => ({
     name: tool.name,
     description: tool.description,

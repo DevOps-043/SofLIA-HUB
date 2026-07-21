@@ -12,6 +12,8 @@ al producto deben existir, como mínimo:
 7. Auditoría con `trace_id`, actor y resultado sin secretos.
 8. Pruebas positivas, negativas y de permisos.
 
-El registro documental vive en `ai-specs/agents/registry.yaml`. El registro
-ejecutable se implementará por dominio; nunca debe cargar `ai-specs/skills/`
-directamente ni convertir instrucciones Markdown en permisos.
+El registro documental vive en `ai-specs/agents/registry.yaml`. El primer
+registro ejecutable por dominio vive en `electron/mcp-manager/` para plugins
+dinámicos y se documenta en
+`docs/architecture/runtime-dynamic-tools.md`. Nunca debe cargar
+`ai-specs/skills/` directamente ni convertir instrucciones Markdown en permisos.

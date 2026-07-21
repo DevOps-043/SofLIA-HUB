@@ -1,3 +1,4 @@
+import path from 'node:path';
 import type { DynamicToolPaths } from './paths';
 import type { ToolsetManifest } from './types';
 
@@ -26,8 +27,8 @@ export async function doctorToolsets(
       env,
       installedTools: [...toolset.toolNames],
       loadedTools: loadedForToolset,
-      manifestPath: paths.getToolsetManifestPath(toolset.id),
-      files,
+      manifestFile: path.basename(paths.getToolsetManifestPath(toolset.id)),
+      files: files.map((file) => path.basename(file)),
     };
   }));
 

@@ -18,6 +18,9 @@
 - Reuniones: `electron/meetings/` y `electron/meeting-live/`.
 - Google Workspace: `electron/calendar/`, `gmail/`, `drive/`, `gchat/`.
 - Memoria: `electron/memory/`, `knowledge/`, `semantic-indexer/`.
+- Herramientas runtime gobernadas: `electron/mcp-manager/`,
+  `electron/dynamic-tool/` y
+  [contrato de plugins dinámicos](runtime-dynamic-tools.md).
 - Renderer: componentes, servicios y hooks se migran gradualmente a
   `src/features/<dominio>/`.
 
