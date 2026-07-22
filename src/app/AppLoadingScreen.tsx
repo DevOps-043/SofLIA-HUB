@@ -86,8 +86,15 @@ function useStartupIntroAudio(enabled: boolean): void {
     audio.addEventListener('ended', releaseAudio, { once: true });
     audio.addEventListener('error', releaseAudio, { once: true });
 
-    const playTimer = window.setTimeout(() => {
-      if (cancelled) return;
+    // El intro solo debe sonar cuando la ventana es visible. En autostart
+    // (--background) la ventana se crea oculta y su renderer reporta
+    // visibilityState='hidden'; reproducir ahi provoca el desfase de "sonido
+    // antes que ventana". Si esta oculta, esperamos a que sea visible.
+    const isWindowVisible = (): boolean =>
+      typeof document === 'undefined' || document.visibilityState === 'visible';
+
+    const attemptPlay = () => {
+      if (cancelled || startupIntroAudioStarted || !isWindowVisible()) return;
       void audio.play()
         .then(() => {
           startupIntroAudioStarted = true;
@@ -98,11 +105,23 @@ function useStartupIntroAudio(enabled: boolean): void {
           console.info('[Startup] El audio de intro no se pudo reproducir automaticamente:', error);
           releaseAudio();
         });
-    }, 120);
+    };
+
+    const handleVisibilityChange = () => {
+      if (isWindowVisible()) attemptPlay();
+    };
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+    }
+
+    const playTimer = window.setTimeout(attemptPlay, 120);
 
     return () => {
       cancelled = true;
       window.clearTimeout(playTimer);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
       if (!startupIntroAudioStarted) {
         startupIntroAudioPending = false;
         audio.pause();

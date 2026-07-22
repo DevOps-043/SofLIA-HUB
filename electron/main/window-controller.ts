@@ -1,5 +1,10 @@
 import { BrowserWindow } from 'electron';
 import path from 'node:path';
+import { markBoot } from './boot-timeline';
+
+// Si `ready-to-show` no dispara (entorno atipico o carga bloqueada), se muestra
+// la ventana de todos modos tras este tiempo para no dejar al usuario sin UI.
+const READY_TO_SHOW_FALLBACK_MS = 4000;
 
 export function createOrFocusMainWindow(input: {
   currentWindow: BrowserWindow | null;
@@ -25,7 +30,10 @@ export function createOrFocusMainWindow(input: {
     minWidth: 700,
     minHeight: 500,
     icon: input.iconPath,
-    show: input.showWindow,
+    // Siempre oculta al crear: se revela en `ready-to-show` para evitar el
+    // destello en blanco. En modo background (showWindow=false) permanece oculta
+    // hasta que el usuario/tray la muestre.
+    show: false,
     title: ' ',
     webPreferences: {
       preload: input.preloadPath,
@@ -34,6 +42,21 @@ export function createOrFocusMainWindow(input: {
       nodeIntegration: false,
     },
   });
+  markBoot('ventana:creada');
+
+  if (input.showWindow) {
+    let shown = false;
+    const reveal = (motivo: string) => {
+      if (shown || win.isDestroyed()) return;
+      shown = true;
+      clearTimeout(fallbackTimer);
+      markBoot(`ventana:visible:${motivo}`);
+      win.show();
+      win.focus();
+    };
+    win.once('ready-to-show', () => reveal('ready-to-show'));
+    const fallbackTimer = setTimeout(() => reveal('fallback-timeout'), READY_TO_SHOW_FALLBACK_MS);
+  }
 
   win.setMenu(null);
   win.on('close', (event) => {

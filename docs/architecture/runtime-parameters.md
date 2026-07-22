@@ -8,6 +8,27 @@ Inventario de defaults y topes con impacto operativo. Los overrides guardados en
 <!-- evidence: electron/desktop-agent/agent-config.ts -->
 <!-- evidence: electron/memory/constants.ts -->
 <!-- evidence: electron/monitoring/service-state.ts -->
+<!-- evidence: electron/main/boot-timeline.ts -->
+<!-- evidence: electron/main/window-controller.ts -->
+<!-- evidence: electron/main/bootstrap.ts -->
+
+## Arranque
+
+La ventana principal se crea antes de la cadena de servicios no esenciales y se
+revela en `ready-to-show` para evitar el destello en blanco. El intro de audio
+solo suena con la ventana visible (`visibilityState`), no en modo background.
+
+| Parametro | Default/tope | Fuente |
+|---|---:|---|
+| fallback de `ready-to-show` | 4000 ms | `electron/main/window-controller.ts` |
+| orden serial legacy (rollback) | `SOFLIA_STARTUP_LEGACY_ORDER=1` | `electron/main/bootstrap.ts` |
+| hitos de arranque | `[BOOT] hito fase=... t_relativo_ms=... duracion_ms=...` | `electron/main/boot-timeline.ts` |
+
+Presupuestos (tiempo hasta `ventana:visible` y hasta `servicios:init:fin`): se
+fijan con la medicion antes/despues de la instrumentacion en los escenarios frio
+tras reinicio, caliente y `--background`. Ver el cambio
+`openspec/changes/optimize-startup-fluidity`. No se declara una cifra sin
+evidencia medida en el host de referencia.
 
 ## Aplicacion e IPC
 
@@ -24,6 +45,7 @@ Inventario de defaults y topes con impacto operativo. Los overrides guardados en
 | Parametro | Default/tope | Fuente |
 |---|---:|---|
 | Supabase timeout / retries read / backoff | 25 s / 2 / 250 ms | `src/shared/supabase-http.ts` |
+| RNF concurrencia (objetivo) / lectura p95 / error | 800 usuarios / < 400 ms / < 0.5 % | `docs/architecture/load-and-scalability.md` |
 | archivo leido / search results / depth | 1 MiB / 200 / 8 | `electron/computer-use/filesystem-handlers/constants.ts` |
 | comando / shell WhatsApp | 30 s / 15 s | `electron/computer-use/command-tool.ts`, `electron/whatsapp-terminal/shell-handler.ts` |
 | destinatarios / asunto / cuerpo / adjuntos | 20 / 300 / 200000 / 10 | `electron/computer-use/email-security.ts` |

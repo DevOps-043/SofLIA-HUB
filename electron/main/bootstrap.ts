@@ -15,6 +15,7 @@ import { registerMainServiceIpcHandlers } from './service-ipc';
 import { registerServiceEvents } from './service-events';
 import { registerSummaryIpcHandlers } from './summary-ipc';
 import { initializeMainServices, registerPlatformHandlers } from './startup';
+import { markBoot } from './boot-timeline';
 
 export async function runBootstrap(): Promise<void> {
   const modules = await loadMainServiceModules();
@@ -38,12 +39,29 @@ export async function runBootstrap(): Promise<void> {
   registerAppLifecycle({ services, state, controls });
 
   await app.whenReady();
+  markBoot('app:ready');
   console.log('[BOOT] App ready. Initializing subsystems...');
   app.setAsDefaultProtocolClient('soflia');
 
   modules.MenuManager.setup();
   controls.registerOrbShortcut();
   registerPlatformHandlers({ modules, services, state });
+
+  // Ventana temprana: crear la ventana antes de la cadena de servicios no
+  // esenciales para el primer pintado, de modo que la UI aparezca sin esperar a
+  // todo el arranque. Los handlers IPC ya estan registrados arriba, asi que el
+  // renderer no encuentra canales ausentes. createOrFocusMainWindow es
+  // idempotente: la creacion posterior dentro de initializeMainServices no
+  // duplica la ventana. La ventana se revela en `ready-to-show`.
+  // Rollback: SOFLIA_STARTUP_LEGACY_ORDER=1 omite la creacion temprana y conserva
+  // el orden anterior (ventana creada al final de la cadena de servicios).
+  if (process.env.SOFLIA_STARTUP_LEGACY_ORDER !== '1') {
+    markBoot('ventana-temprana:inicio');
+    controls.createWindow(state.shouldShowInitialWindow);
+    markBoot('ventana-temprana:fin');
+  }
+
+  markBoot('servicios:init:inicio');
   await initializeMainServices({
     modules,
     services,
@@ -53,4 +71,5 @@ export async function runBootstrap(): Promise<void> {
     runOptionalStep,
     logBootstrapError,
   });
+  markBoot('servicios:init:fin');
 }
