@@ -7,6 +7,7 @@ import {
   isMeaningfulOcrChange,
 } from '../meeting-live/transcript-builder';
 import { matchMeetingWindow, MeetingDetectorService } from '../meeting-live/meeting-detector';
+import { resetAuthStateForTests, setAuthState } from '../main/auth-state';
 import { extractCandidateNames, ParticipantNameCollector } from '../meeting-live/participant-names';
 import type {
   MeetingLiveSegment,
@@ -158,6 +159,37 @@ describe('participant-names', () => {
 });
 
 describe('meeting-detector', () => {
+  // La deteccion es una funcion protegida: sin sesion el poll no corre. Las
+  // pruebas de deteccion simulan un usuario autenticado.
+  beforeEach(() => {
+    resetAuthStateForTests();
+    setAuthState({ authenticated: true, userId: 'user-test' });
+  });
+
+  afterEach(() => {
+    resetAuthStateForTests();
+  });
+
+  it('MD-000: sin sesion iniciada el detector no emite ni deja deteccion pendiente', async () => {
+    resetAuthStateForTests();
+    vi.useFakeTimers();
+    const detector = new MeetingDetectorService({
+      getActiveWindow: vi.fn(async () => ({ process: 'chrome.exe', title: 'Meet: yab-noco-myv - Google Chrome' })),
+      isCaptureActive: () => false,
+      pollIntervalMs: 1_000,
+    });
+    const onDetected = vi.fn();
+    detector.on('meeting-detected', onDetected);
+
+    detector.start();
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(onDetected).not.toHaveBeenCalled();
+    expect(detector.getPendingDetection()).toBeNull();
+    detector.stop();
+    vi.useRealTimers();
+  });
+
   it('MD-001: matchMeetingWindow reconoce reuniones activas y descarta apps sin llamada', () => {
     expect(matchMeetingWindow('zoom.exe', 'Zoom Meeting')?.platform).toBe('zoom');
     expect(matchMeetingWindow('Zoom', 'Reunión de Zoom')?.platform).toBe('zoom');

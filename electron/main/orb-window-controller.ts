@@ -12,6 +12,8 @@
 import { app, BrowserWindow, globalShortcut, screen, type Rectangle } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
+import { canUseProtectedFeature } from './require-auth';
+import { onAuthStateChange } from './auth-state';
 
 const ORB_WIDTH = 420;
 // La vista de voz necesita ~516 px (handle + orbe de 340 px + estado).
@@ -109,6 +111,14 @@ interface OrbWindowControllerOptions {
 
 export function createOrbWindowController(options: OrbWindowControllerOptions) {
   const createOrbWindow = async (wake = false): Promise<void> => {
+    // Negacion por defecto: sin sesion la orbe no se crea ni se muestra. Cubre
+    // wake word, atajo global y tray, que son los tres puntos de entrada.
+    if (!canUseProtectedFeature()) {
+      console.warn('[AUTH] Orbe bloqueada: no hay sesion iniciada.');
+      options.setPendingWake(false);
+      return;
+    }
+
     const current = options.getWindow();
     if (current) {
       const safeBounds = normalizeBounds(current.getBounds());
@@ -193,6 +203,17 @@ export function createOrbWindowController(options: OrbWindowControllerOptions) {
       callback(permission === 'media');
     });
   };
+
+  // Revocacion: al pasar a "no autenticado" la orbe se cierra y deja de
+  // responder a wake word/atajo hasta que exista una sesion nueva.
+  onAuthStateChange((state) => {
+    if (state.authenticated) return;
+    options.setPendingWake(false);
+    const orbWindow = options.getWindow();
+    if (!orbWindow || orbWindow.isDestroyed()) return;
+    console.warn('[AUTH] Sesion cerrada: se cierra la orbe.');
+    orbWindow.close();
+  });
 
   const registerOrbShortcut = (): void => {
     const accelerator = 'CommandOrControl+M';

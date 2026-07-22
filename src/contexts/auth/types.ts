@@ -9,6 +9,15 @@ export type LiaSessionSyncResult = {
   error?: unknown;
 };
 
+// Resultado de resolver el contexto SOFIA (organizacion/equipos):
+// - ok: contexto valido con al menos una membresia activa.
+// - denied: perfil valido SIN membresia activa -> denegacion real (cerrar sesion).
+// - error: SOFIA no disponible o fallo transitorio -> conservar la sesion y degradar.
+export type SofiaContextResolution =
+  | { status: 'ok'; context: SofiaContext }
+  | { status: 'denied' }
+  | { status: 'error'; error: unknown };
+
 export interface AuthContextType {
   session: Session | null;
   user: AuthUser;

@@ -12,6 +12,7 @@ import { scanGmailSignals } from './passive-detection-scan-gmail';
 import type { PassiveTranscriptInput } from './passive-detection-types';
 import type { MeetingWorkflowService } from './meeting-workflow-service';
 import { notifyMeetingDetectionUser } from './passive-detection-notifier';
+import { canUseProtectedFeature } from '../main/require-auth';
 import { resolvePassiveDetectionUserContext } from './passive-detection-user-context';
 
 export class MeetingPassiveDetectionService extends EventEmitter {
@@ -56,6 +57,10 @@ export class MeetingPassiveDetectionService extends EventEmitter {
   }
 
   async runScanNow(): Promise<void> {
+    // Negacion por defecto: sin sesion no se escanea Gmail/Calendar/Drive ni se
+    // notifica al usuario. Cubre el tick inicial y el polling periodico.
+    if (!canUseProtectedFeature()) return;
+
     if (this.scanInFlight) {
       console.log('[MeetingPassiveDetection] Scan skipped because another scan is still running');
       return;

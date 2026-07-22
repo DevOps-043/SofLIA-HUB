@@ -4,7 +4,7 @@ import type { PresentacionData } from './types';
 export async function extractPresentationData(agent: WhatsAppAgent, text: string): Promise<PresentacionData> {
   try {
     const model = agent.getGenAI().getGenerativeModel({
-      model: 'gemini-3.1-flash-lite',
+      model: 'gemini-3.5-flash-lite',
       generationConfig: { responseMimeType: 'application/json' },
     });
     const prompt = `Extrae correo electronico y nombre de empresa. Responde solo JSON: { "company": "Nombre", "email": "correo@ejemplo.com" }. Texto: "${text}"`;

@@ -69,7 +69,7 @@ export function registerContextMemoryTests(ctx: WhatsAppAgentTestContext): void 
       await agent.handleMessage('123@s.whatsapp.net', '5215500000000', 'Hola');
 
       expect(ctx.mockGetGenerativeModel).toHaveBeenNthCalledWith(1, expect.objectContaining({ model: 'gemini-3.5-flash' }));
-      expect(ctx.mockGetGenerativeModel).toHaveBeenNthCalledWith(2, expect.objectContaining({ model: 'gemini-3.1-flash-lite' }));
+      expect(ctx.mockGetGenerativeModel).toHaveBeenNthCalledWith(2, expect.objectContaining({ model: 'gemini-3.5-flash-lite' }));
       expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', 'OK fallback');
     });
   });

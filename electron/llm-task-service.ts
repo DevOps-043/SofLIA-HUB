@@ -10,7 +10,7 @@ export type {
   LlmTaskSchema,
 } from './llm-task/types';
 
-const DEFAULT_MODEL = 'gemini-3.1-flash-lite';
+const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
 
 export class LlmTaskService {
   private apiKey: string | null = null;

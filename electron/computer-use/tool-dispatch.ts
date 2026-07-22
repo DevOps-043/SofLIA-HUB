@@ -1,3 +1,4 @@
+import { denyIfUnauthenticated } from '../main/require-auth';
 import { organizeFiles, batchMoveFiles, listDirectorySummary, undoLastFileOperation } from './batch-file-ops';
 import {
   handleCopyItem,
@@ -22,9 +23,20 @@ import { handleCreateWordDocument } from './document-tool';
 
 export async function executeToolDirect(
   toolName: string,
+  // Deuda preexistente: el despacho es heterogeneo (cada herramienta tiene su
+  // propio contrato) y tiparlo con `unknown` obliga a casts en este archivo y en
+  // wa-executor. Tiparlo de verdad es un refactor aparte, fuera del alcance del
+  // gate de seguridad.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   args: Record<string, any>,
   onProgress?: (message: string) => void,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
+  // Negacion por defecto: ninguna herramienta de computer-use se ejecuta sin
+  // sesion. Es el punto unico por el que pasan todas las herramientas.
+  const denegado = denyIfUnauthenticated(`computer-use:${toolName}`);
+  if (denegado) return denegado;
+
   switch (toolName) {
     case 'list_screens': return handleListScreens();
     case 'list_processes': return handleListProcesses();

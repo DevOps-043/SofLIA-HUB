@@ -1,5 +1,7 @@
 import { ipcMain } from 'electron';
 import type { DesktopAgentService } from '../desktop-agent-service';
+import type { DesktopTaskExecutionOptions } from '../desktop-agent/types';
+import { denyIfUnauthenticated } from '../main/require-auth';
 import { buildActiveTaskViews } from './active-task-view';
 import { getErrorMessage } from './errors';
 
@@ -14,7 +16,10 @@ type ParallelDesktopTaskRequest = {
 };
 
 export function registerDesktopAgentTaskHandlers(agentService: DesktopAgentService) {
-  ipcMain.handle('desktop-agent:execute-task', async (_, task: string, options?: any) => {
+  ipcMain.handle('desktop-agent:execute-task', async (_, task: string, options?: DesktopTaskExecutionOptions) => {
+    // Negacion por defecto: el agente de escritorio no ejecuta tareas sin sesion.
+    const denegado = denyIfUnauthenticated('desktop-agent:execute-task');
+    if (denegado) return { success: false, error: denegado.error, message: denegado.message };
     try {
       const outcome = await agentService.executeTaskDetailed(task, options);
       return {
@@ -29,6 +34,8 @@ export function registerDesktopAgentTaskHandlers(agentService: DesktopAgentServi
   });
 
   ipcMain.handle('desktop-agent:execute-parallel', async (_, tasks: ParallelDesktopTaskRequest[]) => {
+    const denegado = denyIfUnauthenticated('desktop-agent:execute-parallel');
+    if (denegado) return { success: false, error: denegado.error, message: denegado.message };
     try {
       const results = await agentService.executeParallelTasks(tasks);
       return { success: true, results };

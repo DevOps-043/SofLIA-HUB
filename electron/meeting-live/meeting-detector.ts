@@ -8,6 +8,7 @@
  * la orbe decide si pregunta "¿Tomo notas?". Nunca inicia captura sola (HITL).
  */
 import { EventEmitter } from 'node:events';
+import { canUseProtectedFeature } from '../main/require-auth';
 
 export type MeetingPlatform = 'zoom' | 'teams' | 'meet' | 'webex';
 
@@ -128,6 +129,8 @@ export class MeetingDetectorService extends EventEmitter {
   }
 
   private async poll(): Promise<void> {
+    // Negacion por defecto: sin sesion no se detectan reuniones ni se notifica.
+    if (!canUseProtectedFeature()) return;
     // Un poll lento (active-win puede tardar) no debe encimarse con el siguiente.
     if (this.polling || this.deps.isCaptureActive()) return;
     this.polling = true;

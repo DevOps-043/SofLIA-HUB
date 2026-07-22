@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import { exposeAuthApis } from './preload/auth-apis';
 import { exposeCalendarApi } from './preload/calendar-api';
 import { exposeComputerApis } from './preload/computer-apis';
 import {
@@ -35,3 +36,4 @@ exposeCalendarApi(contextBridge, safeIpc);
 exposeGoogleApis(contextBridge, safeIpc);
 exposeDesktopApi(contextBridge, safeIpc);
 exposeUtilityApis(contextBridge, safeIpc);
+exposeAuthApis(contextBridge, safeIpc);

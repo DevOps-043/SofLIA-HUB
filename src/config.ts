@@ -21,15 +21,15 @@ export const IRIS_SUPABASE = {
 // Model Configurations
 export const MODELS = {
   PRIMARY: 'gemini-3.5-flash',
-  FALLBACK: 'gemini-3.1-flash-lite',
+  FALLBACK: 'gemini-3.5-flash-lite',
   PRO: 'gemini-2.5-pro',
   WEB_AGENT: 'gemini-3.5-flash',
   // Live API (voz bidireccional): 3.1 soporta function calling, grounding y thinkingLevel.
   LIVE: 'gemini-3.1-flash-live-preview',
   IMAGE_GENERATION: 'gemini-2.5-flash-image',
   DEEP_RESEARCH: 'deep-research-pro-preview-12-2025',
-  TRANSCRIPTION: 'gemini-3.1-flash-lite',
-  MAPS: 'gemini-3.1-flash-lite',
+  TRANSCRIPTION: 'gemini-3.5-flash-lite',
+  MAPS: 'gemini-3.5-flash-lite',
 };
 
 export const LIVE_API_URL = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';

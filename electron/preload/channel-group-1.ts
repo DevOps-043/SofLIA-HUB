@@ -69,4 +69,7 @@ export const CHANNEL_GROUP_1 = [
   'computer:set-sidebar-position',
   'computer:get-theme',
   'computer:set-theme',
+  // Estado de sesion publicado por el renderer para el gate del proceso main.
+  'auth:set-state',
+  'auth:get-state',
 ] as const;

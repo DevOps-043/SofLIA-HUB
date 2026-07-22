@@ -5,7 +5,7 @@ export const GEMINI_GROUNDING_API = {
 } as const;
 
 export const GEMINI_GROUNDING_MODELS = {
-  preferredFallbacks: ['gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-2.5-pro'],
+  preferredFallbacks: ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-pro'],
 } as const;
 
 export const GEMINI_GROUNDING_TOOLS = {

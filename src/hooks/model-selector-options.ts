@@ -35,6 +35,13 @@ export const MODEL_OPTIONS: ModelOption[] = [
     thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH,
   },
   {
+    id: 'gemini-3.6-flash',
+    name: 'SofLIA 3.6',
+    desc: 'Modelo mas reciente y rapido (recien lanzado, en evaluacion).',
+    thinkingType: 'level',
+    thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH,
+  },
+  {
     id: 'gemini-2.5-pro',
     name: 'SofLIA Pro',
     desc: 'Mayor capacidad de razonamiento logico.',
@@ -42,7 +49,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     thinkingOptions: THINKING_OPTIONS_GEMINI25_PRO,
   },
   {
-    id: 'gemini-3.1-flash-lite',
+    id: 'gemini-3.5-flash-lite',
     name: 'SofLIA Lite',
     desc: 'Ultra rapido y ligero para tareas simples.',
     thinkingType: 'level',

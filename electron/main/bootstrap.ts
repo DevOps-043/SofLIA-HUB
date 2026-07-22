@@ -16,6 +16,8 @@ import { registerServiceEvents } from './service-events';
 import { registerSummaryIpcHandlers } from './summary-ipc';
 import { initializeMainServices, registerPlatformHandlers } from './startup';
 import { markBoot } from './boot-timeline';
+import { registerAuthStateHandlers } from '../auth-state-handlers';
+import { registerWhatsAppAuthGate } from './whatsapp-auth-gate';
 
 export async function runBootstrap(): Promise<void> {
   const modules = await loadMainServiceModules();
@@ -45,6 +47,12 @@ export async function runBootstrap(): Promise<void> {
 
   modules.MenuManager.setup();
   controls.registerOrbShortcut();
+  // Debe registrarse antes de crear la ventana: el renderer publica su estado de
+  // sesion apenas monta y el gate del main depende de ese canal.
+  registerAuthStateHandlers();
+  // La autoconexion de WhatsApp del arranque queda denegada por el gate; se
+  // reintenta al iniciar sesion y se desconecta al cerrarla.
+  registerWhatsAppAuthGate({ waService: services.waService, initWhatsAppAgent });
   registerPlatformHandlers({ modules, services, state });
 
   // Ventana temprana: crear la ventana antes de la cadena de servicios no

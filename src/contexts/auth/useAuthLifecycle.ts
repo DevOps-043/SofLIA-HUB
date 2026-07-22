@@ -4,14 +4,14 @@ import { supabase } from '../../lib/supabase';
 import { sofiaAuth, type SofiaContext } from '../../services/sofia-auth';
 import { applyLiaRestore } from './lia-recovery';
 import { syncLiaProfile } from './lia-profile';
-import { toAuthUser } from './helpers';
-import type { AuthUser, LiaSessionSyncResult } from './types';
+import { SOFIA_CONTEXT_DEGRADED_MESSAGE, toAuthUser } from './helpers';
+import type { AuthUser, LiaSessionSyncResult, SofiaContextResolution } from './types';
 
 type AuthLifecycleDeps = {
   usingSofia: boolean;
   clearSessionState: () => void;
   ensureLiaSession: (email?: string | null, password?: string) => Promise<Session | null>;
-  resolveSofiaContext: (sofiaUserId: string) => Promise<SofiaContext | null>;
+  resolveSofiaContext: (sofiaUserId: string) => Promise<SofiaContextResolution>;
   signOut: () => Promise<void>;
   syncOptionalLiaSession: (expectedEmail?: string | null) => Promise<LiaSessionSyncResult>;
   setLiaDegraded: (value: boolean) => void;
@@ -41,6 +41,9 @@ export function useAuthLifecycle(deps: AuthLifecycleDeps): void {
     void initSession();
     const unsubscribe = deps.usingSofia ? subscribeSofia(deps) : subscribeLia(deps);
     return () => unsubscribe?.();
+    // Se depende de las funciones estables, no del objeto `deps`: este se
+    // recrea en cada render y volveria a suscribir la sesion en bucle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     deps.clearSessionState,
     deps.ensureLiaSession,
@@ -80,15 +83,28 @@ function subscribeLia(deps: AuthLifecycleDeps): (() => void) | undefined {
   return subscription.unsubscribe;
 }
 
-async function applySofiaSession(sofiaSession: any, deps: AuthLifecycleDeps, finishLoading: boolean): Promise<void> {
-  const nextContext = await deps.resolveSofiaContext(sofiaSession.user.id);
-  if (!nextContext) {
+async function applySofiaSession(sofiaSession: Session, deps: AuthLifecycleDeps, finishLoading: boolean): Promise<void> {
+  const resolution = await deps.resolveSofiaContext(sofiaSession.user.id);
+
+  // Denegacion real (perfil valido sin membresia activa): cerrar sesion.
+  if (resolution.status === 'denied') {
     await deps.signOut();
     if (finishLoading) deps.setLoading(false);
     return;
   }
+
+  // Fallo transitorio de SOFIA: conservar la sesion persistida y degradar en vez
+  // de cerrar sesion. Reiniciar la computadora no debe desloguear al usuario.
+  if (resolution.status === 'error') {
+    deps.setUser(toAuthUser(sofiaSession.user, sofiaSession.user.user_metadata));
+    deps.setLiaDegraded(true);
+    deps.setLiaStatusMessage(SOFIA_CONTEXT_DEGRADED_MESSAGE);
+    if (finishLoading) deps.setLoading(false);
+    return;
+  }
+
   deps.setUser(toAuthUser(sofiaSession.user, sofiaSession.user.user_metadata));
-  deps.setSofiaContext(nextContext);
+  deps.setSofiaContext(resolution.context);
   const liaRestore = await deps.syncOptionalLiaSession(sofiaSession.user.email);
   const recovered = await applyLiaRestore(liaRestore, deps);
   if (finishLoading || recovered) deps.setLoading(false);

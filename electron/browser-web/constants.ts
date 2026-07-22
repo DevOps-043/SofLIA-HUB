@@ -6,7 +6,7 @@
  */
 
 export const DEFAULT_MODEL = 'gemini-3.5-flash';
-export const DEFAULT_FALLBACK_MODEL = 'gemini-3.1-flash-lite';
+export const DEFAULT_FALLBACK_MODEL = 'gemini-3.5-flash-lite';
 
 /** Cantidad máxima de elementos visibles enviados al modelo en cada snapshot. */
 export const MAX_VISIBLE_ELEMENTS = 45;

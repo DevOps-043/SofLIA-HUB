@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { isSofiaConfigured } from '../../lib/sofia-client';
+import { isOrbWindowRenderer, publishAuthState } from '../../services/auth-state';
 import { useAuthLifecycle } from './useAuthLifecycle';
 import { useAuthState } from './useAuthState';
 import { useLiaSession } from './useLiaSession';
@@ -26,6 +28,23 @@ export function useAuthProviderModel(): AuthContextType {
     ensureLiaSession: lia.ensureLiaSession,
     syncOptionalLiaSession: lia.syncOptionalLiaSession,
   });
+
+  // El proceso main niega por defecto las funciones sensibles (orbe, deteccion
+  // de reuniones) hasta conocer que hay sesion. Se publica en cada cambio de
+  // usuario: login, cierre de sesion y restauracion al arrancar.
+  const authenticatedUserId = state.user?.id ?? null;
+  const authLoading = state.loading;
+  useEffect(() => {
+    // Solo la ventana principal publica: la orbe es consumidora del gate.
+    if (isOrbWindowRenderer()) return;
+    // Mientras se restaura la sesion no se publica: un `false` transitorio
+    // revocaria el acceso y cerraria la orbe recien abierta.
+    if (authLoading) return;
+    void publishAuthState({
+      authenticated: Boolean(authenticatedUserId),
+      userId: authenticatedUserId,
+    });
+  }, [authenticatedUserId, authLoading]);
 
   return {
     session: state.session,

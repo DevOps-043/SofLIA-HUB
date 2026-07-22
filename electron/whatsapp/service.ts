@@ -27,6 +27,7 @@ import {
   type WhatsAppConversationHistoryInput,
 } from './history';
 import type { CommunicationHubService } from '../communication-hub/service';
+import { canUseProtectedFeature } from '../main/require-auth';
 
 export class WhatsAppService extends EventEmitter implements WhatsAppServiceCore {
   sock: WASocket | null = null;
@@ -44,8 +45,17 @@ export class WhatsAppService extends EventEmitter implements WhatsAppServiceCore
   setCommunicationHubService(service: CommunicationHubService): void { this.communicationHubService = service; }
 
   async connect(): Promise<void> {
+    // Negacion por defecto: sin sesion en el Hub no se establece la conexion de
+    // WhatsApp. Cubre autoconexion de arranque y cualquier conexion manual.
+    if (!canUseProtectedFeature()) {
+      console.warn('[AUTH] WhatsApp bloqueado: no hay sesion iniciada en SofLIA Hub.');
+      return;
+    }
     if (this.sock) { this.emit('status', this.getStatus()); return; }
     await fs.mkdir(AUTH_DIR, { recursive: true });
+    // `useMultiFileAuthState` es una funcion de Baileys, no un hook de React; la
+    // regla de hooks la detecta por el prefijo "use" y da un falso positivo.
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
     const { version } = await fetchLatestBaileysVersion();
     this.sock = makeWASocket({
