@@ -26,7 +26,7 @@ export function UpdatePanel() {
   let sphereColor = 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500';
   let glowColor = 'bg-emerald-500/20';
   let statusTitle = 'Sistema al día';
-  let statusDesc = `SofLIA Hub v${currentVersion} es la versión más reciente.`;
+  let statusDesc = `Pulse Hub v${currentVersion} es la versión más reciente.`;
   let buttonLabel = 'Buscar actualizaciones';
   let buttonAction: () => void = () => {
     handleCheck();
@@ -40,7 +40,7 @@ export function UpdatePanel() {
     sphereColor = 'bg-accent/10 border-accent/30 text-accent';
     glowColor = 'bg-accent/20';
     statusTitle = 'Buscando actualizaciones';
-    statusDesc = 'Conectando con el servidor de SofLIA...';
+    statusDesc = 'Conectando con el servidor de Pulse...';
     buttonLabel = 'Buscando...';
     isButtonDisabled = true;
     showLoader = true;
@@ -75,7 +75,7 @@ export function UpdatePanel() {
     sphereColor = 'bg-success/10 border-success/40 text-success';
     glowColor = 'bg-success/35';
     statusTitle = 'Lista para instalar';
-    statusDesc = 'SofLIA Hub ha descargado los nuevos archivos con éxito.';
+    statusDesc = 'Pulse Hub ha descargado los nuevos archivos con éxito.';
     buttonLabel = 'Reiniciar e instalar';
     buttonAction = () => { handleInstall(); };
     isButtonDisabled = false;
@@ -117,7 +117,7 @@ export function UpdatePanel() {
         {/* Título de la consola */}
         <div className="space-y-1 w-full text-left">
           <h3 className="text-sm font-bold text-gray-900 dark:text-white tracking-tight uppercase">Consola de Estado</h3>
-          <p className="text-[10px] text-secondary">Control de versiones de SofLIA</p>
+          <p className="text-[10px] text-secondary">Control de versiones de Pulse</p>
         </div>
 
         {/* Orbe Visual de Estado */}

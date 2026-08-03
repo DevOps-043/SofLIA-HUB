@@ -29,7 +29,7 @@ function UpToDateCard({ currentVersion }: { currentVersion: string }) {
       </div>
       <div>
         <p className="text-sm font-bold text-gray-900 dark:text-white">Estas al dia</p>
-        <p className="text-[10px] text-gray-500 mt-0.5">SofLIA Hub v{currentVersion} es la version mas reciente</p>
+        <p className="text-[10px] text-gray-500 mt-0.5">Pulse Hub v{currentVersion} es la version mas reciente</p>
       </div>
     </div>
   );

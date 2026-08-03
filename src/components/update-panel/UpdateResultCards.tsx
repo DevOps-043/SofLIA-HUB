@@ -20,7 +20,7 @@ export function UpdateResultCards({ state, checking, currentVersion, error, stat
           </div>
           <div>
             <p className="text-xs font-semibold text-gray-900 dark:text-white">Estás al día</p>
-            <p className="text-[10px] text-secondary">SofLIA Hub v{currentVersion} es la versión más reciente.</p>
+            <p className="text-[10px] text-secondary">Pulse Hub v{currentVersion} es la versión más reciente.</p>
           </div>
         </div>
       )}

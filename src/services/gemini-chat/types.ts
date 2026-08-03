@@ -34,6 +34,10 @@ export interface SendMessageStreamOptions {
   sourcesContext?: string;
   /** Memoria unificada del usuario (recientes, resúmenes, hechos, skills) ya formateada. */
   memoryContext?: string;
+  /** Superficie que origina el turno; decide el modelo cuando el usuario no fijo uno. */
+  task?: 'chat' | 'orb';
+  /** Usuario SOFIA del turno; da alcance a la cuota mensual de Pulse Max. */
+  userId?: string;
   onToolCall?: (toolCall: ToolCallInfo) => void;
   /** Señal para cancelar la generación (botón Stop del usuario). */
   signal?: AbortSignal;

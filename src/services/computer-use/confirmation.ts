@@ -79,7 +79,7 @@ function describeDangerousTool(toolName: string, args: Record<string, any>): str
     batch_move_files: `Mover archivos de: ${args.source_directory}\nA: ${args.destination_directory}`,
     run_background_command: `Ejecutar en segundo plano: ${args.command}${args.working_directory ? `\nEn: ${args.working_directory}` : ''}`,
     kill_process_session: `Terminar sesion administrada: ${args.session_id}`,
-    repair_background_host: 'Reparar el host en segundo plano de SofLIA',
+    repair_background_host: 'Reparar el host en segundo plano de Pulse',
     configure_remote_node_host: `Configurar host remoto: ${args.bind_address || '127.0.0.1'}:${args.port || ''}`,
     register_remote_node: `Registrar nodo remoto: ${args.name} (${args.base_url})`,
     remove_remote_node: `Eliminar nodo remoto: ${args.node_id}`,

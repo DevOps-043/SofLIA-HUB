@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createProfessionalDocument } from '../document-designer';
 
-const DEFAULT_DOCUMENT_TITLE = 'Documento SofLIA';
+const DEFAULT_DOCUMENT_TITLE = 'Documento Pulse';
 const MAX_DOCUMENT_CONTENT_LENGTH = 250_000;
 const DOCX_EXTENSION = '.docx';
 

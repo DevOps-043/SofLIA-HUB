@@ -1,6 +1,10 @@
 import { MODELS } from '../../config';
 import { buildPrimaryChatPrompt } from '../../prompts/chat';
+import { isOpenAIModel } from '../../shared/model-providers';
 import { isComputerUseAvailable } from '../computer-use-service';
+import { consumePulseMaxUse, PULSE_MAX_MONTHLY_LIMIT } from '../model-quota';
+import { resolveRoutedModel } from '../model-routing';
+import { sendOpenAIMessageStream } from '../openai-chat';
 import { runAgenticLoop } from './agentic-loop';
 import { getGenAI } from './client';
 import { buildGeminiHistory } from './history';
@@ -34,6 +38,34 @@ export async function sendMessageStream(
   // mencione palabras de investigacion ("ultima version", "reciente"). El
   // grounding web es solo para consultas informativas sin accion ejecutable.
   const actionTakesPriority = useToolLoop && hasComputerActionCommand(normalizeToolIntentText(message));
+
+  // Ruteo por proveedor. La misma señal que prioriza herramientas sobre
+  // grounding ("abre X", "haz clic") marca el turno como accion real, que es lo
+  // que se manda a Pulse Max. GPT-5.6 trae su propio grounding web, asi que no
+  // pasa por la rama de Google Search de abajo.
+  const routed = resolveRoutedModel({
+    options,
+    isComputerActionTurn: computerUseEnabled && actionTakesPriority,
+    isCommandTurn: useToolLoop,
+  });
+  if (isOpenAIModel(routed.modelId)) {
+    if (routed.consumesPulseMaxQuota) consumePulseMaxUse(options?.userId);
+    return sendOpenAIMessageStream({
+      modelId: routed.modelId,
+      finalMessage,
+      systemInstruction,
+      conversationHistory,
+      options,
+      useToolLoop,
+      computerUseEnabled,
+      useWebSearch: !actionTakesPriority && shouldUseWebGrounding(message),
+      reasoningEffort: routed.reasoningEffort,
+      prefixNotice: routed.quotaExhausted
+        ? `⚠️ Pulse Max llego a su limite de ${PULSE_MAX_MONTHLY_LIMIT} usos este mes. Respondo con Pulse Pro.`
+        : undefined,
+    });
+  }
+
   if (!actionTakesPriority && shouldUseWebGrounding(message)) {
     // Estado visible para el usuario: la investigacion no streamea, y sin esto
     // solo se ven los puntos suspensivos durante decenas de segundos.

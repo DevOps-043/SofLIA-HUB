@@ -12,7 +12,7 @@ La aplicacion no usa rutas URL internas para cada pantalla. El shell mantiene un
 vista activa y la barra lateral organiza el acceso:
 
 ```text
-SofLIA Hub
+Pulse Hub
 |- Inicio/auth o ventana Orbe
 `- Workspace autenticado
    |- Sidebar izquierda/derecha/inferior

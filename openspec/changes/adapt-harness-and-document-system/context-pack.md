@@ -1,9 +1,9 @@
 # Contexto del cambio
 
 - Objetivo: adaptar el arnes AI-spec a Codex, Claude y Antigravity y crear la
-  documentacion especifica y trazable del sistema SofLIA Hub implementado.
+  documentacion especifica y trazable del sistema Pulse Hub implementado.
 - Usuario o actor: equipo de producto, desarrollo, QA, seguridad, operaciones y
-  agentes de desarrollo que mantienen SofLIA Hub.
+  agentes de desarrollo que mantienen Pulse Hub.
 - Alcance: adaptadores del arnes, reglas/workflows Antigravity, catalogo de
   producto, requisitos, reglas, historias, arquitectura, datos, UX/UI, seguridad,
   DevOps, operacion, limites y decisiones.

@@ -4,7 +4,7 @@ export const formatForWhatsApp = (text: string, isGroup: boolean = false): strin
   let result = normalizeOutgoingWhatsAppText(text);
 
   if (isGroup) {
-    result = `[✨ *SofLIA*]: ${result}`;
+    result = `[✨ *Pulse*]: ${result}`;
   }
 
   result = result.replace(/^#{1,6}\s+(.+)$/gm, '*$1*');

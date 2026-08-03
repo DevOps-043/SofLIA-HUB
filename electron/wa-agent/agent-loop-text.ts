@@ -31,7 +31,7 @@ export async function handleTextOnlyAgentResponse(
     return { done: true, text: formatForWhatsApp('Hubo un problema procesando tu solicitud. Intenta reformular tu mensaje.', state.isGroup) };
   }
   if (!finalText && await missingGoogleConnectionResponse(state)) {
-    return { done: true, text: formatForWhatsApp('No tengo acceso a tu cuenta de Google. Necesitas conectar Google desde SofLIA Hub para usar Drive, Calendar y Gmail.', state.isGroup) };
+    return { done: true, text: formatForWhatsApp('No tengo acceso a tu cuenta de Google. Necesitas conectar Google desde Pulse Hub para usar Drive, Calendar y Gmail.', state.isGroup) };
   }
   const fallback = isGreetingOrHelpRequest(state.userMessage)
     ? '\u00bfEn qu\u00e9 puedo ayudarte?'

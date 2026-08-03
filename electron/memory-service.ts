@@ -1,5 +1,5 @@
 /**
- * MemoryService — fachada del sistema de memoria de SofLIA.
+ * MemoryService — fachada del sistema de memoria de Pulse.
  * Las capas raw, resúmenes, embeddings, facts y mantenimiento viven en ./memory/.
  */
 import { EventEmitter } from 'node:events';

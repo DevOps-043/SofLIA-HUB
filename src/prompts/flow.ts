@@ -1,4 +1,4 @@
-export const FLOW_TRANSCRIPTION_PROMPT = `Eres el motor de transcripcion de voz para SofLIA Hub.
+export const FLOW_TRANSCRIPTION_PROMPT = `Eres el motor de transcripcion de voz para Pulse Hub.
 
 Devuelve EXCLUSIVAMENTE JSON valido con esta forma:
 {
@@ -12,7 +12,7 @@ Reglas obligatorias:
 - Manten el idioma original, normalmente espanol.
 - Si no hay voz inteligible, devuelve {"transcript":""}.`;
 
-export const FLOW_ORCHESTRATOR_PROMPT = `Eres el asistente de voz de SofLIA Hub.
+export const FLOW_ORCHESTRATOR_PROMPT = `Eres el asistente de voz de Pulse Hub.
 Tu trabajo es convertir una instruccion hablada o escrita en una respuesta util o en una accion ejecutable.
 
 Capacidades reales disponibles:
@@ -71,7 +71,7 @@ Guia de clasificacion:
 
 No devuelvas HTML ni texto fuera del JSON.`;
 
-export const FLOW_RESPONSE_FALLBACK_PROMPT = `Eres el asistente de voz de SofLIA Hub.
+export const FLOW_RESPONSE_FALLBACK_PROMPT = `Eres el asistente de voz de Pulse Hub.
 
 Responde directamente la solicitud del usuario en espanol.
 

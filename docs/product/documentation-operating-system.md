@@ -1,4 +1,4 @@
-# **Sistema de Documentación Operativa AI‑Native para SofLIA**
+# **Sistema de Documentación Operativa AI‑Native para Pulse**
 
 **Fecha de corte de la investigación: 17 de julio de 2026\.**
 
@@ -15,7 +15,7 @@ La recomendación central es construir un sistema híbrido y agnóstico de prove
 
 ### **Definición formal propuesta**
 
-El Sistema de Documentación Operativa AI‑Native de SofLIA —SDO‑AN— es un sistema sociotécnico, independiente de plataformas, que captura evidencia empresarial, la convierte en registros operativos estructurados, gobierna su autoridad, vigencia, confidencialidad, procedencia y retención, y genera documentos y respuestas verificables para personas y agentes de IA.
+El Sistema de Documentación Operativa AI‑Native de Pulse —SDO‑AN— es un sistema sociotécnico, independiente de plataformas, que captura evidencia empresarial, la convierte en registros operativos estructurados, gobierna su autoridad, vigencia, confidencialidad, procedencia y retención, y genera documentos y respuestas verificables para personas y agentes de IA.
 
 Su principio fundamental sería:
 
@@ -35,7 +35,7 @@ ISO 15489 ya reconoce que los registros pueden existir como datos, documentos u 
 
 ## **2\. Diagnóstico y mapa de causas**
 
-El problema de SofLIA no parece ser falta de documentos, sino falta de un mecanismo para determinar qué parte de esos documentos tiene autoridad.
+El problema de Pulse no parece ser falta de documentos, sino falta de un mecanismo para determinar qué parte de esos documentos tiene autoridad.
 
 | Causa | Consecuencia | Corrección AI‑Native |
 | ----- | ----- | ----- |
@@ -131,7 +131,7 @@ Ambos se encuentran en etapa preparatoria 20.00; no deben presentarse como está
 
 También está en desarrollo ISO/IEC AWI 25590 sobre calidad de resultados de aplicaciones generativas. [ISO/IEC AWI 25590](https://www.iso.org/standard/90832.html).
 
-Por tanto, SofLIA deberá construir un modelo híbrido propio basado en piezas maduras.
+Por tanto, Pulse deberá construir un modelo híbrido propio basado en piezas maduras.
 
 | Patrón | Naturaleza | Madurez | Uso recomendado |
 | ----- | ----- | ----- | ----- |
@@ -497,7 +497,7 @@ Reglas:
 
 | Artefacto | Fuentes y mínimos | Máx. autonomía | Revisión/autoridad | Vigencia y destino | Riesgo principal |
 | ----- | ----- | ----- | ----- | ----- | ----- |
-| Alcance | Propuesta, decisiones, contrato; entregables, exclusiones, precio, fechas | 2 | Comercial \+ entrega; aprueba SofLIA y cliente | Hasta cambio aprobado; snapshot contractual | Compromiso no autorizado |
+| Alcance | Propuesta, decisiones, contrato; entregables, exclusiones, precio, fechas | 2 | Comercial \+ entrega; aprueba Pulse y cliente | Hasta cambio aprobado; snapshot contractual | Compromiso no autorizado |
 | Agenda | Calendario, pendientes, decisiones abiertas | 4 | Organizador | Hasta la reunión | Omitir autoridad |
 | Minuta | Grabación, transcripción, asistentes | 3 | Chair verifica; Decision Owner aprueba decisiones | Registro del proyecto | Falsa atribución |
 | Decision record | Fuentes, opciones, decisión, consecuencias | 2–3 | Decision Owner | Hasta sustitución | Convertir propuesta en decisión |
@@ -622,7 +622,7 @@ Sin embargo:
 
 Google permite exportar documentos a DOCX, ODT, RTF, PDF, texto, HTML, EPUB y Markdown, lo que favorece la portabilidad del contenido, aunque no necesariamente de todo el historial, comentarios, permisos y metadatos. [Formatos oficiales de exportación](https://developers.google.com/workspace/drive/api/guides/ref-export-formats).
 
-### **Recomendación tecnológica concreta para SofLIA**
+### **Recomendación tecnológica concreta para Pulse**
 
 * **Google Shared Drives:** archivos, evidencia y colaboración.  
 * **Google Docs:** edición y aprobación humana.  
@@ -895,7 +895,7 @@ Epistemológico, autoridad y vigencia. Esta es la defensa principal contra trata
 
 Debe documentarse cuando:
 
-* compromete a SofLIA o a terceros;  
+* compromete a Pulse o a terceros;  
 * modifica alcance, presupuesto, fechas, roles o derechos;  
 * será reutilizado o cuestionado;  
 * produce un riesgo significativo;  
@@ -916,7 +916,7 @@ Docs debe ofrecer la mejor experiencia de colaboración. El registro estructurad
 
 ## **Prioridad 6: evitar construir demasiado pronto**
 
-No comenzar con un ECM completo, un knowledge graph empresarial ni event sourcing integral. Para SofLIA, la primera arquitectura viable es:
+No comenzar con un ECM completo, un knowledge graph empresarial ni event sourcing integral. Para Pulse, la primera arquitectura viable es:
 
 **Google Workspace \+ Supabase/Postgres \+ evidencia versionada \+ RAG autorizado \+ prompts en Git \+ API/MCP controlado.**
 

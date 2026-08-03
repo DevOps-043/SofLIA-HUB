@@ -24,7 +24,7 @@ export function buildExtractionPrompt(
   const isLowConfidence = resolvedConfidence < contextPack.reducedAggressivenessUpper;
 
   return [
-    'Eres el motor de extraccion de Meeting Intelligence de SofLIA.',
+    'Eres el motor de extraccion de Meeting Intelligence de Pulse.',
     'La reunion YA fue clasificada. Tu tarea es EXTRAER la minuta operativa usando la estrategia especifica de este tipo.',
     'NO reclasifiques. Usa el tipo y estrategia que te doy.',
     '',

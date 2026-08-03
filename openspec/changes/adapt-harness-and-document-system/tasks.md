@@ -38,7 +38,7 @@
 ## 6. Recuperacion del prompt maestro y adopcion
 
 - [x] 6.1 Mapear las 17 areas historicas y crear el estandar canonico adaptado a
-  los contratos reales de SofLIA Hub.
+  los contratos reales de Pulse Hub.
 - [x] 6.2 Restaurar `docs/prompt_maestro.md` como alias compatible y conectar el
   estandar desde `AGENTS.md` y la regla Antigravity.
 - [x] 6.3 Agregar una guia operativa, actualizar indices y corregir referencias

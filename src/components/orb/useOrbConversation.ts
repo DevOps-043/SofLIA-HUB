@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { MODELS } from '../../config';
 import { getPublicAiErrorMessage, sendMessageStream } from '../../services/gemini-chat';
 import type { ConversationMessage } from '../../services/gemini-chat/types';
 import { orbService } from '../../services/orb-service';
@@ -179,7 +180,7 @@ export function useOrbConversation() {
 
   /**
    * Ultimo recurso cuando el pipeline por bloques no llego a sonar: sintetiza el
-   * texto completo de una vez. SofLIA solo habla con la voz de Google Cloud (no
+   * texto completo de una vez. Pulse solo habla con la voz de Google Cloud (no
    * hay respaldo local: sonaba robotico y ocultaba el fallo real). Si no hay voz,
    * se muestra el motivo en la orbe.
    */
@@ -279,6 +280,10 @@ export function useOrbConversation() {
 
     try {
       const result = await sendMessageStream(text, historyRef.current, {
+        model: MODELS.ORB,
+        // La orbe es la superficie de computer use: con OpenAI configurado el
+        // ruteo la manda a GPT-5.6 (Terra para acciones, Luna para el resto).
+        task: 'orb',
         signal: controller.signal,
         onToolCall: (toolCall) => {
           if (!isCurrent()) return;

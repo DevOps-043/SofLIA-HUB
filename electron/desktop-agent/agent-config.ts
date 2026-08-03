@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { app as electronApp } from 'electron';
+import { COMPUTER_USE_MODEL_DEFAULTS } from './gemini-cu/model-registry';
 
 /** Estrategia de captura de pantalla para los pasos de vision. */
 export type CaptureStrategy = 'all-monitors' | 'active-monitor' | 'focused-window';
@@ -78,7 +79,12 @@ export interface DesktopAgentConfig {
   // --- Gemini Computer Use (cerebro nativo entrenado, tool computer_use) ---
   /** 'gemini' usa la Computer Use API; 'legacy' el loop de vision propio (fallback). */
   computerUseEngine: 'gemini' | 'legacy';
+  /** Perfil recomendado. Resolver siempre via `gemini-cu/model-registry`. */
   computerUseModel: string;
+  /** Perfil compatibilidad: respaldo ante indisponibilidad del proveedor. */
+  computerUseFallbackModel: string;
+  /** Perfil economia: flujos sencillos, repetitivos y de bajo riesgo. */
+  computerUseEconomyModel: string;
   /** Habilita el cerebro CU para el backend desktop (nut.js). */
   computerUseDesktopEnabled: boolean;
   /** Habilita el cerebro CU para el backend browser (Playwright). */
@@ -158,13 +164,18 @@ export const DEFAULT_CONFIG: DesktopAgentConfig = {
   // maxDetectedElements + NMS + prioridad de fuente controlan el volumen final.
   visualScoreThreshold: 0.10,
   visualNmsIou: 0.45,
-  // Default 'legacy' hasta validar CU en la maquina; se activa poniendo 'gemini'
-  // en userData/desktop-agent-config.json. Modelo recomendado por Google para CU.
-  computerUseEngine: 'legacy',
-  computerUseModel: 'gemini-3.5-flash',
+  // Cerebro nativo entrenado para Computer Use. 'legacy' (loop de vision propio)
+  // queda como rollback poniendo el valor en userData/desktop-agent-config.json.
+  computerUseEngine: 'gemini',
+  computerUseModel: COMPUTER_USE_MODEL_DEFAULTS.recommended,
+  computerUseFallbackModel: COMPUTER_USE_MODEL_DEFAULTS.compatibility,
+  computerUseEconomyModel: COMPUTER_USE_MODEL_DEFAULTS.economy,
   computerUseDesktopEnabled: true,
   computerUseBrowserEnabled: true,
-  computerUsePromptInjectionDetection: false,
+  // Protección contra instrucciones inyectadas en lo que se ve en pantalla
+  // (páginas, documentos). Va activada por defecto: el agente actúa sobre la
+  // máquina del usuario a partir de contenido que no controlamos.
+  computerUsePromptInjectionDetection: true,
 };
 
 function getConfigPath(): string {

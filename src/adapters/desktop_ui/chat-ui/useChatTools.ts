@@ -1,11 +1,9 @@
 import type { UserTool } from '../../../services/tools-service';
-import type { useChatRuntime } from './useChatRuntime';
 import type { useChatUIState } from './useChatUIState';
 
 export function useChatTools(
   canSendMessages: boolean,
   state: ReturnType<typeof useChatUIState>,
-  runtime: ReturnType<typeof useChatRuntime>,
 ) {
   const handleToolSelect = (toolId: string) => {
     if (!canSendMessages) {
@@ -31,9 +29,6 @@ export function useChatTools(
         break;
       case 'my_tools':
         state.toolModals.setLibraryOpen(true);
-        break;
-      case 'live_api':
-        runtime.liveApi.startLiveConversation();
         break;
       default:
         break;

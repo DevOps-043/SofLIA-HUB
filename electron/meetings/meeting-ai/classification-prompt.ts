@@ -29,7 +29,7 @@ export function buildClassificationPrompt(
   }));
 
   return [
-    'Eres el clasificador de reuniones de SofLIA. Tu UNICA tarea es determinar el tipo de reunion.',
+    'Eres el clasificador de reuniones de Pulse. Tu UNICA tarea es determinar el tipo de reunion.',
     'NO extraigas minuta, NO resumas, NO generes tareas. Solo clasifica.',
     '',
     '### TAXONOMIA DE TIPOS DE REUNION',

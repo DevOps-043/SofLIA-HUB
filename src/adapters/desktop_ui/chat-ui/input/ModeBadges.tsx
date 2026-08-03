@@ -4,9 +4,8 @@ const OPTIMIZER_TARGETS = ['chatgpt', 'claude', 'gemini'] as const;
 
 export function ModeBadges({ controller }: { controller: ChatUIController }) {
   const { modes, toolModals } = controller.state;
-  const liveApi = controller.runtime.liveApi;
 
-  if (!modes.imageGen && !modes.promptOptimizer && !toolModals.activeTool && !liveApi.isLiveActive && !liveApi.isLiveConnecting) {
+  if (!modes.imageGen && !modes.promptOptimizer && !toolModals.activeTool) {
     return null;
   }
 
@@ -42,13 +41,6 @@ export function ModeBadges({ controller }: { controller: ChatUIController }) {
           <span>{toolModals.activeTool.icon}</span>
           {toolModals.activeTool.name}
           <button onClick={() => toolModals.setActiveTool(null)} className="ml-1 hover:opacity-70">x</button>
-        </span>
-      )}
-      {(liveApi.isLiveActive || liveApi.isLiveConnecting) && (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-accent/10 text-accent rounded-full border border-accent/20">
-          <div className={`w-2 h-2 rounded-full ${liveApi.isLiveActive ? 'bg-accent animate-pulse' : 'bg-yellow-500 animate-spin'}`} />
-          {liveApi.isLiveConnecting ? 'Conectando...' : 'En Vivo'}
-          <button onClick={liveApi.stopLiveConversation} className="ml-1 hover:opacity-70">x</button>
         </span>
       )}
     </div>

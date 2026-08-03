@@ -126,11 +126,11 @@ function buildModelTitlePrompt(messages: ChatMessage[]): string {
   const transcript = messages
     .filter((message) => message.text.trim().length > 0)
     .slice(0, 4)
-    .map((message) => `${message.role === 'user' ? 'Usuario' : 'SofLIA'}: ${message.text.trim()}`)
+    .map((message) => `${message.role === 'user' ? 'Usuario' : 'Pulse'}: ${message.text.trim()}`)
     .join('\n');
 
   return [
-    'Crea un titulo corto en espanol para esta conversacion de SofLIA Hub.',
+    'Crea un titulo corto en espanol para esta conversacion de Pulse Hub.',
     'Reglas estrictas:',
     '- Usa 2 a 5 palabras.',
     '- No copies literalmente el primer mensaje del usuario.',

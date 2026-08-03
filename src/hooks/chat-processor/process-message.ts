@@ -84,7 +84,7 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
     const irisContext = needsIrisData(text)
       ? await withTimeoutFallback(buildIrisContext(), CONTEXT_TIMEOUT_MS, undefined)
       : undefined;
-    // Memoria unificada: inyecta lo que SofLIA sabe/aprendio del usuario.
+    // Memoria unificada: inyecta lo que Pulse sabe/aprendio del usuario.
     const memoryContext = await withTimeoutFallback(fetchChatMemoryContext(input.sofiaUserId, text), CONTEXT_TIMEOUT_MS, '');
     log('contexto listo → llamando al modelo');
     const result = await sendMessageStream(text, cleanHistory, {
@@ -95,6 +95,7 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
       toolSystemPrompt: input.activeTool?.system_prompt,
       irisContext,
       memoryContext: memoryContext || undefined,
+      userId: input.sofiaUserId,
       onToolCall: (toolCall) => { log(`herramienta: ${toolCall.name}`); input.setActiveToolCall(toolCall); },
       signal: input.signal,
     });
@@ -116,7 +117,7 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
       return;
     }
 
-    // Registra el turno para que SofLIA aprenda (resumen + skills autonomos).
+    // Registra el turno para que Pulse aprenda (resumen + skills autonomos).
     recordChatTurn(input.sofiaUserId, text, fullText);
 
     const sources = await result.sources;

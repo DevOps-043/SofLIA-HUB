@@ -1,5 +1,5 @@
 // =============================================================================
-// SofLIA Hub - IPC de la Orbe de Voz
+// Pulse Hub - IPC de la Orbe de Voz
 // =============================================================================
 // Puente entre la ventana orbe (renderer) y el sidecar Python (via
 // PythonRuntimeService): dictado libre, TTS local y ciclo de vida de la

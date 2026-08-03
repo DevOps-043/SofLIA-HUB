@@ -1,6 +1,6 @@
 ## Context
 
-SofLIA Hub es una app de escritorio Electron donde cada cliente se conecta
+Pulse Hub es una app de escritorio Electron donde cada cliente se conecta
 directamente a Supabase (Lia, SOFIA/Learning, IRIS) con clave anónima sobre
 PostgREST, usando un fetch resiliente propio (`src/shared/supabase-http.ts`) y un
 factory de cliente (`src/lib/supabase-factory.ts`) con `persistSession` y

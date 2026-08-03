@@ -1,6 +1,5 @@
 import type { ChatUIController } from '../useChatUIController';
 import {
-  LiveIcon,
   ImageIcon,
   SparklesIcon,
   DocumentIcon,
@@ -16,8 +15,6 @@ function getToolIcon(id: string, active: boolean) {
     ? 'text-accent'
     : 'text-gray-500 dark:text-white/40 group-hover:text-gray-700 dark:group-hover:text-white/80';
   switch (id) {
-    case 'live_api':
-      return <LiveIcon size={size} className={className} />;
     case 'image_gen':
       return <ImageIcon size={size} className={className} />;
     case 'prompt_opt':
@@ -34,10 +31,8 @@ function getToolIcon(id: string, active: boolean) {
 }
 
 export function ToolMenu({ controller }: { controller: ChatUIController }) {
-  const liveApi = controller.runtime.liveApi;
   const modes = controller.state.modes;
   const options: ToolOption[] = [
-    { id: 'live_api', label: liveApi.isLiveActive ? 'Detener Conversacion' : 'Conversacion en Vivo', sub: liveApi.isLiveActive ? 'Conectada' : 'Audio en tiempo real', active: liveApi.isLiveActive },
     { id: 'image_gen', label: 'Generar Imagen', sub: 'Crea imagenes con IA', active: modes.imageGen },
     { id: 'prompt_opt', label: 'Mejorar Prompt', sub: 'Optimiza para otra IA', active: modes.promptOptimizer },
     { id: 'create_prompt', label: 'Crear Prompt', sub: 'Guarda para reusar' },

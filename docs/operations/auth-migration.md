@@ -1,4 +1,4 @@
-# Migración del login de SofLIA Hub a Supabase Auth
+# Migración del login de Pulse Hub a Supabase Auth
 
 Fecha: 2026-07-08
 Estado: **Implementado en código** — pendiente deploy + limpieza de BD
@@ -8,7 +8,7 @@ Estado: **Implementado en código** — pendiente deploy + limpieza de BD
 ## Problema (causa raíz confirmada)
 
 SofLIA Learning migró las contraseñas a **Supabase Auth** (`auth.users`, mayo 2026),
-pero SofLIA Hub seguía validando login con el RPC `authenticate_user`, que compara
+pero Pulse Hub seguía validando login con el RPC `authenticate_user`, que compara
 contra **`public.users.password_hash`** usando pgcrypto. Esa columna quedó congelada:
 
 | Estado de `password_hash` | Resultado en el Hub |

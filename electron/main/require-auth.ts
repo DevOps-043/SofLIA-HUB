@@ -36,6 +36,6 @@ export function denyIfUnauthenticated(capacidad: string): AuthDeniedResult | nul
   return {
     ok: false,
     error: AUTH_REQUIRED,
-    message: 'Inicia sesion en SofLIA Hub para usar esta funcion.',
+    message: 'Inicia sesion en Pulse Hub para usar esta funcion.',
   };
 }

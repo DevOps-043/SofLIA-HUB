@@ -15,7 +15,7 @@ export function useChatUIController(props: ChatUIProps) {
   const runtime = useChatRuntime(normalizedProps, state);
   const files = useChatFileHandlers(canSendMessages, state.images.setSelected);
   const dictation = useDictation(state.input.set);
-  const tools = useChatTools(canSendMessages, state, runtime);
+  const tools = useChatTools(canSendMessages, state);
   const setConfirmationModal = state.confirmation.setModal;
 
   useEffect(() => {

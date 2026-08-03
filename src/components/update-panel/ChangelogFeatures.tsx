@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 /**
- * ChangelogFeatures — Muestra las versiones de SofLIA Hub en una línea de tiempo
+ * ChangelogFeatures — Muestra las versiones de Pulse Hub en una línea de tiempo
  * interactiva de alta fidelidad, minimalista y premium.
  */
 
@@ -65,7 +65,7 @@ const RECENT_VERSIONS: VersionData[] = [
       'Migración a Gemini 3.5 Flash como modelo principal: Actualizado en el agente de WhatsApp, memoria, resúmenes, proactivo y desktop agent.',
       'Migración a Gemini 3.1 Flash-Lite como modelo de respaldo: Reemplaza a gemini-2.5-flash en resúmenes diarios, transcripciones y flujos de trabajo.',
       'Modelo Pro actualizado: gemini-2.5-pro reemplazado por gemini-3.1-pro-preview en desktop agent y flujos de presentaciones.',
-      'Selector de modelos actualizado: UI ofrece opciones actualizadas (SofLIA, SofLIA Pro, SofLIA Lite) y elimina modelos obsoletos.'
+      'Selector de modelos actualizado: UI ofrece opciones actualizadas (Pulse, Pulse Pro, Pulse Lite) y elimina modelos obsoletos.'
     ],
     correcciones: [
       'Búsquedas web con CAPTCHA: Se migró la herramienta de búsqueda de DuckDuckGo a la API oficial googleSearchRetrieval de Gemini para evitar bloqueos.'

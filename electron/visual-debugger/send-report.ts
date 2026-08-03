@@ -23,7 +23,7 @@ export async function sendVisualDebugReport({
 
   const cleanNumber = phoneNumber.replace(/\D/g, '');
   const jid = `${cleanNumber}@s.whatsapp.net`;
-  const caption = `*SofLIA Visual Debugger*\n\n*Error:* ${errorMessage}\n\nError visual en la zona marcada. Intento otra ruta?`;
+  const caption = `*Pulse Visual Debugger*\n\n*Error:* ${errorMessage}\n\nError visual en la zona marcada. Intento otra ruta?`;
   await waService.sendFile(jid, tempFilePath, caption);
   console.log(`[VisualDebugger] Alerta interactiva enviada con exito a ${jid}`);
   setTimeout(() => {

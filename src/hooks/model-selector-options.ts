@@ -6,10 +6,14 @@ export interface ThinkingOption {
   budget?: number;
 }
 
+export type ModelIconKey = 'spark' | 'bolt' | 'nodes' | 'feather' | 'globe' | 'moon';
+
 export interface ModelOption {
   id: string;
   name: string;
   desc: string;
+  icon: ModelIconKey;
+  badge?: string;
   thinkingType: 'level' | 'budget';
   thinkingOptions: ThinkingOption[];
 }
@@ -21,37 +25,49 @@ const THINKING_OPTIONS_GEMINI3_FLASH: ThinkingOption[] = [
   { id: 'high', name: 'Alto', desc: 'Maximo razonamiento', level: 'high' },
 ];
 
-const THINKING_OPTIONS_GEMINI25_PRO: ThinkingOption[] = [
+// GPT-5.6 expone el esfuerzo de razonamiento en `reasoning.effort`; los ids
+// coinciden con los valores que acepta la Responses API.
+const THINKING_OPTIONS_GPT56: ThinkingOption[] = [
+  { id: 'minimal', name: 'Rapido', desc: 'Responde rapidamente', level: 'minimal' },
   { id: 'low', name: 'Pensar', desc: 'Razonamiento basico', level: 'low' },
-  { id: 'high', name: 'Pro', desc: 'Maximo razonamiento', level: 'high' },
+  { id: 'medium', name: 'Medio', desc: 'Razonamiento balanceado', level: 'medium' },
+  { id: 'high', name: 'Alto', desc: 'Maximo razonamiento', level: 'high' },
 ];
+
+/** Modelo por defecto del chat. */
+export const DEFAULT_MODEL_ID = 'gemini-3.6-flash';
 
 export const MODEL_OPTIONS: ModelOption[] = [
   {
-    id: 'gemini-3.5-flash',
-    name: 'SofLIA',
-    desc: 'Modelo mas inteligente para agentes y codificacion.',
+    id: DEFAULT_MODEL_ID,
+    name: 'Pulse',
+    desc: 'Equilibrio ideal para el dia a dia.',
+    icon: 'spark',
     thinkingType: 'level',
     thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH,
   },
   {
-    id: 'gemini-3.6-flash',
-    name: 'SofLIA 3.6',
-    desc: 'Modelo mas reciente y rapido (recien lanzado, en evaluacion).',
+    id: 'gpt-5.6-terra',
+    name: 'Pulse Max',
+    desc: 'Maxima potencia para tareas exigentes.',
+    icon: 'globe',
+    badge: '3/mes',
     thinkingType: 'level',
-    thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH,
+    thinkingOptions: THINKING_OPTIONS_GPT56,
   },
   {
-    id: 'gemini-2.5-pro',
-    name: 'SofLIA Pro',
-    desc: 'Mayor capacidad de razonamiento logico.',
+    id: 'gpt-5.6-luna',
+    name: 'Pulse Pro',
+    desc: 'Rapido y capaz para comandos y acciones.',
+    icon: 'moon',
     thinkingType: 'level',
-    thinkingOptions: THINKING_OPTIONS_GEMINI25_PRO,
+    thinkingOptions: THINKING_OPTIONS_GPT56,
   },
   {
     id: 'gemini-3.5-flash-lite',
-    name: 'SofLIA Lite',
-    desc: 'Ultra rapido y ligero para tareas simples.',
+    name: 'Pulse Lite',
+    desc: 'Ultra ligero para tareas simples.',
+    icon: 'feather',
     thinkingType: 'level',
     thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH,
   },

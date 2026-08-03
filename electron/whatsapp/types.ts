@@ -91,7 +91,7 @@ export const DEFAULT_CONFIG: WhatsAppConfig = {
   groupActivation: 'mention',
   groupPrefix: '/soflia',
   globalPersonalization: {
-    displayName: 'SofLIA',
+    displayName: 'Pulse',
     userAlias: '',
     tone: 'professional',
     responseStyle: 'Responde en espanol, de forma clara, util y respetuosa.',

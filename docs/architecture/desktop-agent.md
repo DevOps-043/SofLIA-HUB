@@ -2,7 +2,7 @@
 
 > Estado: activo · Última actualización: julio 2026 · Rama: `feature/desktop-agent-confiable`
 >
-> Este documento describe la arquitectura del **Desktop Agent** de SofLIA Hub: el
+> Este documento describe la arquitectura del **Desktop Agent** de Pulse Hub: el
 > subsistema que permite a un modelo de lenguaje (Gemini/GPT/Claude) operar la
 > computadora del usuario de forma autónoma — abrir aplicaciones, encontrar y
 > clickear controles, escribir, arrastrar y completar tareas como lo haría una

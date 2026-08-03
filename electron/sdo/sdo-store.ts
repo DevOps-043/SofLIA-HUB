@@ -1,6 +1,6 @@
 /**
  * SdoStore — persistencia del Registro Operativo Gobernado en la base
- * de SofLIA Hub (tablas sdo_*).
+ * de Pulse Hub (tablas sdo_*).
  *
  * Reglas de gobierno que aplica este store:
  * - Aprobar/rechazar exige un usuario humano (decided_by_user_id no vacio).

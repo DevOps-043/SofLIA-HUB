@@ -1,5 +1,5 @@
 // =============================================================================
-// SofLIA Hub - PythonRuntimeService
+// Pulse Hub - PythonRuntimeService
 // =============================================================================
 // Gestiona el runtime Python embebido que se distribuye con el instalador
 // (ver scripts/setup-python-runtime.js) y el sidecar de voz pasiva local

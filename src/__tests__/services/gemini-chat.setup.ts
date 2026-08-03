@@ -28,6 +28,7 @@ vi.mock('../../services/api-keys', () => ({
 
 vi.mock('../../config', () => ({
   GOOGLE_API_KEY: 'env-test-key',
+  OPENAI_API_KEY: '',
   MODELS: {
     PRIMARY: 'gemini-2.0-flash',
     FALLBACK: 'gemini-3.1-flash-lite',
@@ -36,11 +37,17 @@ vi.mock('../../config', () => ({
     VISION: 'gemini-2.0-flash',
     THINKING: 'gemini-2.0-flash-thinking',
   },
+  OPENAI_MODELS: {
+    COMPUTER_USE: 'gpt-5.6-terra',
+    COMMANDS: 'gpt-5.6-luna',
+  },
+  // Sin llave de OpenAI: esta suite cubre el pipeline de Gemini.
+  isOpenAIConfigured: () => false,
 }));
 
 vi.mock('../../prompts/chat', () => ({
-  PRIMARY_CHAT_PROMPT: 'Eres SofLIA, asistente de negocios.',
-  buildPrimaryChatPrompt: vi.fn(() => 'Eres SofLIA, asistente de negocios.'),
+  PRIMARY_CHAT_PROMPT: 'Eres Pulse, asistente de negocios.',
+  buildPrimaryChatPrompt: vi.fn(() => 'Eres Pulse, asistente de negocios.'),
 }));
 
 vi.mock('../../services/gemini-tools', () => ({

@@ -1,5 +1,5 @@
 // =============================================================================
-// SofLIA Hub - Ventana flotante de la Orbe de Voz
+// Pulse Hub - Ventana flotante de la Orbe de Voz
 // =============================================================================
 // Reemplaza al Flow Mode. La ventana vive oculta (hide, no destroy) y reaparece
 // al instante con la wake word "soflia", Ctrl+M o el menu del tray.

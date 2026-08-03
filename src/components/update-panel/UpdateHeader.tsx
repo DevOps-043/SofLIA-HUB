@@ -8,7 +8,7 @@ export function UpdateHeader() {
       </div>
       <div>
         <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Actualizaciones</h3>
-        <p className="text-[11px] text-secondary">Mantén SofLIA Hub al día</p>
+        <p className="text-[11px] text-secondary">Mantén Pulse Hub al día</p>
       </div>
     </div>
   );

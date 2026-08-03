@@ -7,7 +7,7 @@
   asarUnpack: [
     "**/node_modules/onnxruntime-node/**",
   ],
-  productName: "SofLIA Hub",
+  productName: "Pulse Hub",
   publish: [
     {
       provider: "github",
@@ -57,7 +57,7 @@
   mac: {
     target: ["dmg"],
     icon: "public/assets/Icono.png",
-    artifactName: "SofLIA-Hub-Mac-${version}-Installer.${ext}",
+    artifactName: "Pulse-Hub-Mac-${version}-Installer.${ext}",
   },
   dmg: {
     background: "build/installer/dmg-background.png",
@@ -76,7 +76,7 @@
         arch: ["x64"],
       },
     ],
-    artifactName: "SofLIA-Hub-Windows-${version}-Setup.${ext}",
+    artifactName: "Pulse-Hub-Windows-${version}-Setup.${ext}",
   },
   nsis: {
     oneClick: false,
@@ -94,14 +94,14 @@
     runAfterFinish: true,
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
-    shortcutName: "SofLIA Hub",
-    uninstallDisplayName: "SofLIA Hub",
+    shortcutName: "Pulse Hub",
+    uninstallDisplayName: "Pulse Hub",
   },
   linux: {
     icon: "public/assets/Icono.png",
     category: "Office",
     synopsis: "AI-powered business operations platform",
-    description: "SofLIA Hub Desktop Client",
+    description: "Pulse Hub Desktop Client",
     executableName: "soflia-hub",
     target: [
       {
@@ -116,10 +116,10 @@
     // ${arch} se renderiza como "x86_64" para AppImage x64, pero el workflow y
     // el smoke test esperan el sufijo literal "x64" (igual que Windows/Mac fijan
     // Setup/Installer). Fijarlo evita el desajuste de nombre en release.yml.
-    artifactName: "SofLIA-Hub-Linux-${version}-x64.${ext}",
+    artifactName: "Pulse-Hub-Linux-${version}-x64.${ext}",
     desktop: {
       entry: {
-        Name: "SofLIA Hub",
+        Name: "Pulse Hub",
         Comment: "AI-powered business operations platform",
         Categories: "Office;Productivity;",
         Keywords: "productivity;business;ai;whatsapp;google;",

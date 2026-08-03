@@ -3,7 +3,7 @@
 El PDF `Resumen - Arnes.pdf` entregado por el usuario define cinco pilares:
 instrucciones, herramientas, entorno local, estado y feedback/verificacion. El
 repositorio LIDR Specboot aporta el ciclo de enriquecimiento, especificacion,
-tareas atomicas, ejecucion aislada y auditoria. SofLIA ya tiene parte de esa base,
+tareas atomicas, ejecucion aislada y auditoria. Pulse ya tiene parte de esa base,
 pero sus adaptadores no coinciden con las herramientas reales y su documentacion
 de sistema esta fragmentada.
 

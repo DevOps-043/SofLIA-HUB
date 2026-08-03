@@ -10,9 +10,9 @@ Estado: vigente. Actualizado: 2026-07-21.
 
 | Plataforma | Target | Nombre |
 |---|---|---|
-| Windows x64 | NSIS, instalacion por usuario, directorio elegible | `SofLIA-Hub-Windows-<version>-Setup.exe` + blockmap/latest.yml |
-| macOS | DMG | `SofLIA-Hub-Mac-<version>-Installer.dmg` + latest-mac.yml |
-| Linux x64 | AppImage y DEB | `SofLIA-Hub-Linux-<version>-x64.<ext>` + latest-linux.yml |
+| Windows x64 | NSIS, instalacion por usuario, directorio elegible | `Pulse-Hub-Windows-<version>-Setup.exe` + blockmap/latest.yml |
+| macOS | DMG | `Pulse-Hub-Mac-<version>-Installer.dmg` + latest-mac.yml |
+| Linux x64 | AppImage y DEB | `Pulse-Hub-Linux-<version>-x64.<ext>` + latest-linux.yml |
 
 NSIS conserva `userData` al desinstalar (`deleteAppDataOnUninstall: false`), crea
 shortcuts y permite elevacion/directorio. Linux DEB depende de `libportaudio2`.

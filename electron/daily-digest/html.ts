@@ -36,13 +36,13 @@ export function buildDailyDigestHtml(stats: DailyDigestStats): string {
   ${renderHardwareSection(stats)}
   ${renderImpactSection(stats)}
   ${renderInsights(stats)}
-  <div class="footer">Generado de manera autonoma por el <strong>Agente SofLIA Hub</strong><br>&copy; ${stats.year} - El Sistema Operativo de IA</div>
+  <div class="footer">Generado de manera autonoma por el <strong>Agente Pulse Hub</strong><br>&copy; ${stats.year} - El Sistema Operativo de IA</div>
 </body>
 </html>`;
 }
 
 function renderHeader(stats: DailyDigestStats): string {
-  return `<div class="header"><h1>Reporte Ejecutivo SofLIA Hub</h1><p>${stats.capitalizedDate}</p></div>`;
+  return `<div class="header"><h1>Reporte Ejecutivo Pulse Hub</h1><p>${stats.capitalizedDate}</p></div>`;
 }
 
 function renderHardwareSection(stats: DailyDigestStats): string {

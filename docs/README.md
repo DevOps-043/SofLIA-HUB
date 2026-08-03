@@ -1,4 +1,4 @@
-# Documentacion de SofLIA Hub
+# Documentacion de Pulse Hub
 
 Estado: vigente. Actualizado: 2026-07-21.
 
@@ -43,6 +43,8 @@ Este indice separa documentacion vigente de material historico.
 - [Backend Electron](architecture/backend-electron.md)
 - [IPC e integraciones](architecture/ipc-and-integrations.md)
 - [Agentes y automatizacion](architecture/agents-and-automation.md)
+- [Manual del agente runtime](architecture/runtime-agents-manual.md)
+- [Referencia completa del agente (consolidada)](architecture/agent-complete-reference.md)
 - [Parametros runtime](architecture/runtime-parameters.md)
 - [Arquitectura de datos](data/data-architecture.md)
 - [Diccionario de datos](data/data-dictionary.md)

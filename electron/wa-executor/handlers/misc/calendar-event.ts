@@ -31,7 +31,7 @@ function buildIcsContent(toolArgs: Record<string, any>, title: string, startDate
   const location = toolArgs.location || '';
 
   return [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//SofLIA Hub//WhatsApp Agent//ES',
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Pulse Hub//WhatsApp Agent//ES',
     'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
     `UID:soflia-${Date.now()}@sofliaHub`,
     `DTSTAMP:${formatIcsDate(new Date())}`,

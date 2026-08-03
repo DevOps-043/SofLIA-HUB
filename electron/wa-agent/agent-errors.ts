@@ -81,9 +81,9 @@ export function isModelAvailabilityError(error: unknown): boolean {
 export function getWhatsAppAgentUserErrorMessage(error: unknown): string {
   switch (classifyWhatsAppAgentError(error)) {
     case 'missing-api-key':
-      return 'No tengo una API key de Gemini configurada para WhatsApp. Actualizala en SofLIA Hub y vuelve a intentar.';
+      return 'No tengo una API key de Gemini configurada para WhatsApp. Actualizala en Pulse Hub y vuelve a intentar.';
     case 'invalid-api-key':
-      return 'Gemini rechazo la API key configurada. Revisa que la key nueva este guardada en SofLIA Hub y que tenga acceso a Generative Language API.';
+      return 'Gemini rechazo la API key configurada. Revisa que la key nueva este guardada en Pulse Hub y que tenga acceso a Generative Language API.';
     case 'quota':
       return 'Gemini rechazo la solicitud por cuota o limite temporal. Intenta de nuevo en unos minutos o revisa la cuota de la key.';
     case 'model-unavailable':

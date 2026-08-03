@@ -48,7 +48,7 @@ export class WhatsAppService extends EventEmitter implements WhatsAppServiceCore
     // Negacion por defecto: sin sesion en el Hub no se establece la conexion de
     // WhatsApp. Cubre autoconexion de arranque y cualquier conexion manual.
     if (!canUseProtectedFeature()) {
-      console.warn('[AUTH] WhatsApp bloqueado: no hay sesion iniciada en SofLIA Hub.');
+      console.warn('[AUTH] WhatsApp bloqueado: no hay sesion iniciada en Pulse Hub.');
       return;
     }
     if (this.sock) { this.emit('status', this.getStatus()); return; }

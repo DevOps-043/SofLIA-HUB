@@ -24,7 +24,7 @@ declare global {
 
 function getAPI() {
   if (!window.gchat) {
-    throw new Error('Google Chat API no disponible. Ejecuta SofLIA dentro de Electron.');
+    throw new Error('Google Chat API no disponible. Ejecuta Pulse dentro de Electron.');
   }
   return window.gchat;
 }

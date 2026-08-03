@@ -24,7 +24,7 @@ export function buildLiaStatusMessage(error: unknown): string {
     const diagnostics = getSupabaseConfigDiagnostics();
 
     if (diagnostics.runtime && diagnostics.runtime.configError === null && diagnostics.renderer.configError !== null) {
-      return 'Lia si esta configurado en runtime, pero esta ventana se inicio con una configuracion vieja o incompleta. Reinicia SofLIA para reconstruir el frontend con la clave correcta.';
+      return 'Lia si esta configurado en runtime, pero esta ventana se inicio con una configuracion vieja o incompleta. Reinicia Pulse para reconstruir el frontend con la clave correcta.';
     }
 
     if (
@@ -33,18 +33,18 @@ export function buildLiaStatusMessage(error: unknown): string {
       diagnostics.runtime.projectRef &&
       diagnostics.renderer.projectRef !== diagnostics.runtime.projectRef
     ) {
-      return `El frontend apunta a un proyecto de Lia distinto (${diagnostics.renderer.projectRef}) al que cargo Electron (${diagnostics.runtime.projectRef}). Reinicia SofLIA para alinear la sincronizacion de chats.`;
+      return `El frontend apunta a un proyecto de Lia distinto (${diagnostics.renderer.projectRef}) al que cargo Electron (${diagnostics.runtime.projectRef}). Reinicia Pulse para alinear la sincronizacion de chats.`;
     }
 
     if (diagnostics.effective.configError) {
-      return `La configuracion de Lia en esta app no es valida: ${diagnostics.effective.configError}. Revisa VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY y reinicia SofLIA.`;
+      return `La configuracion de Lia en esta app no es valida: ${diagnostics.effective.configError}. Revisa VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY y reinicia Pulse.`;
     }
 
     if (diagnostics.effective.source === 'runtime_env') {
       return 'Supabase rechazo la clave anonima de Lia cargada en runtime para este dispositivo. Verifica que VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY pertenezcan al mismo proyecto.';
     }
 
-    return 'Supabase rechazo la clave anonima de Lia que trae este frontend. Reinicia SofLIA o vuelve a compilar la app para cargar la configuracion correcta.';
+    return 'Supabase rechazo la clave anonima de Lia que trae este frontend. Reinicia Pulse o vuelve a compilar la app para cargar la configuracion correcta.';
   }
 
   if (rawMessage && rawMessage !== 'null' && rawMessage !== 'undefined') {

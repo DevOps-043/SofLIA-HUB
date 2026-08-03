@@ -1,4 +1,4 @@
-# Análisis: Soporte para Grupos de WhatsApp en SofLIA Hub
+# Análisis: Soporte para Grupos de WhatsApp en Pulse Hub
 
 # Investigación de OpenClaw + Arquitectura Actual
 
@@ -15,7 +15,7 @@
 - **Multi-canal**: WhatsApp, Telegram, Slack, Discord, Signal, iMessage, Microsoft Teams, WebChat
 - **Self-hosted / Local-first**: Corre en tu máquina, los datos quedan locales
 - **Gateway architecture**: Un daemon siempre activo que es el control plane
-- **Baileys para WhatsApp**: Usa la misma librería que SofLIA (`@whiskeysockets/baileys`)
+- **Baileys para WhatsApp**: Usa la misma librería que Pulse (`@whiskeysockets/baileys`)
 - **Soporte COMPLETO de grupos**: Con whitelist, menciones, comandos `/`, y activación configurable
 
 ### Nombres anteriores:
@@ -92,7 +92,7 @@ OpenClaw tiene **dos modos de activación** en grupos, controlados con el comand
 | Modo                  | Comando               | Comportamiento                                                                                                     |
 | --------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | **Mention** (default) | `/activation mention` | Solo responde cuando: ① lo mencionan con @, ② usan regex patterns configurados, ③ hacen reply a un mensaje del bot |
-| **Always**            | `/activation always`  | Responde a TODOS los mensajes del grupo (como funciona SofLIA en DMs actualmente)                                  |
+| **Always**            | `/activation always`  | Responde a TODOS los mensajes del grupo (como funciona Pulse en DMs actualmente)                                  |
 
 ### 2.4 Mention Patterns (Regex configurable)
 
@@ -193,7 +193,7 @@ Herramientas bloqueadas en sandbox: `browser, canvas, nodes, cron, discord, gate
 
 ---
 
-## 3. Arquitectura Actual de SofLIA (Comparación)
+## 3. Arquitectura Actual de Pulse (Comparación)
 
 ### 3.1 Archivos Involucrados
 
@@ -232,9 +232,9 @@ const senderNumber = jid.replace("@s.whatsapp.net", "").replace("@g.us", "");
 - `senderNumber` = `"120363xxxxxxxx"` (ID del grupo, NO del usuario real)
 - El participante real está en `msg.key.participant` → **NO SE USA**
 
-### 3.4 SofLIA vs OpenClaw — Comparación Directa
+### 3.4 Pulse vs OpenClaw — Comparación Directa
 
-| Feature                         | OpenClaw                | SofLIA Actual        | SofLIA Necesita      |
+| Feature                         | OpenClaw                | Pulse Actual        | Pulse Necesita      |
 | ------------------------------- | ----------------------- | -------------------- | -------------------- |
 | Conexión WhatsApp               | Baileys ✅              | Baileys ✅           | —                    |
 | DM (1:1)                        | ✅                      | ✅                   | —                    |
@@ -252,7 +252,7 @@ const senderNumber = jid.replace("@s.whatsapp.net", "").replace("@g.us", "");
 
 ---
 
-## 4. Plan de Implementación para SofLIA
+## 4. Plan de Implementación para Pulse
 
 ### Fase 1: Detección Correcta de Grupos (CRÍTICO)
 
@@ -349,7 +349,7 @@ if (text.startsWith("/")) {
   const [cmd, ...args] = text.slice(1).split(" ");
   switch (cmd.toLowerCase()) {
     case "status":
-      return "🤖 SofLIA activa. Modelo: Gemini 2.5 Flash";
+      return "🤖 Pulse activa. Modelo: Gemini 2.5 Flash";
     case "reset":
     case "new":
       conversations.delete(sessionKey);
@@ -452,9 +452,9 @@ Agregar nueva sección al modal:
 
 ---
 
-## 5. Resumen de Similitudes SofLIA ↔ OpenClaw
+## 5. Resumen de Similitudes Pulse ↔ OpenClaw
 
-| Aspecto                    | OpenClaw                     | SofLIA                             |
+| Aspecto                    | OpenClaw                     | Pulse                             |
 | -------------------------- | ---------------------------- | ---------------------------------- |
 | **Librería WhatsApp**      | Baileys                      | Baileys ✅ (igual)                 |
 | **Arquitectura**           | Gateway daemon (Node.js)     | Electron main process              |
@@ -463,7 +463,7 @@ Agregar nueva sección al modal:
 | **Memoria**                | Markdown files (MEMORY.md)   | JSON file (whatsapp-memories.json) |
 | **Grupos**                 | Soporte completo + config    | **FALTA** — a implementar          |
 
-### Lo que SofLIA ya tiene que OpenClaw también tiene:
+### Lo que Pulse ya tiene que OpenClaw también tiene:
 
 - ✅ Conexión Baileys con QR
 - ✅ Whitelist de números (allowedNumbers ≈ allowFrom)
@@ -471,10 +471,10 @@ Agregar nueva sección al modal:
 - ✅ Transcripción de audio
 - ✅ Envío de archivos/media
 - ✅ Sistema de memoria/lecciones
-- ✅ Computer Use (SofLIA tiene más → usa mouse/teclado directo)
-- ✅ Integración con IRIS/Project Hub (SofLIA unique)
+- ✅ Computer Use (Pulse tiene más → usa mouse/teclado directo)
+- ✅ Integración con IRIS/Project Hub (Pulse unique)
 
-### Lo que SofLIA necesita adoptar de OpenClaw:
+### Lo que Pulse necesita adoptar de OpenClaw:
 
 - 🔲 Detección correcta de `msg.key.participant` en grupos
 - 🔲 `groupPolicy` + `groupAllowFrom`

@@ -1,5 +1,5 @@
 // =============================================================================
-// SofLIA Hub - Setup del runtime Python privado (Windows, macOS y Linux)
+// Pulse Hub - Setup del runtime Python privado (Windows, macOS y Linux)
 // =============================================================================
 // Descarga una distribucion autonoma de CPython (python-build-standalone, del
 // proyecto Astral; PSF License, redistribuible), la extrae en python-runtime/

@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useChatProcessor } from '../../../hooks/useChatProcessor';
-import { useLiveApi } from '../../../hooks/useLiveApi';
 import { useModelSelector } from '../../../hooks/useModelSelector';
 import { syncCurrentOwner } from '../../../services/memory-bridge';
 import type { ChatUIProps, ProcessMessageHandler } from './types';
@@ -21,7 +20,6 @@ export function useChatRuntime(
   const { dataUserId } = useAuth();
   // Informa al main quién es el usuario activo (memoria unificada cross-superficie).
   useEffect(() => { syncCurrentOwner(dataUserId ?? null); }, [dataUserId]);
-  const liveApi = useLiveApi({ messagesRef, onMessagesChange: props.onMessagesChange });
   const chat = useChatProcessor({
     messages: props.messages,
     onMessagesChange: props.onMessagesChange,
@@ -33,8 +31,6 @@ export function useChatRuntime(
     isPromptOptimizerMode: state.modes.promptOptimizer,
     optimizerTarget: state.modes.optimizerTarget,
     activeTool: state.toolModals.activeTool,
-    isLiveActive: liveApi.isLiveActive,
-    liveClientRef: liveApi.liveClientRef,
   });
   processMessageRef.current = chat.processMessage;
   externalPromptProcessedRef.current = props.onExternalPromptProcessed;
@@ -52,5 +48,5 @@ export function useChatRuntime(
     }
   }, [props.canSendMessages, props.externalPrompt]);
 
-  return { model, liveApi, chat, messagesRef };
+  return { model, chat, messagesRef };
 }

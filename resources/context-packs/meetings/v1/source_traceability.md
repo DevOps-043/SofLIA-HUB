@@ -2,9 +2,9 @@
 
 Este archivo resume qué documentos sustentan el paquete.
 
-## PRD SofLIA
+## PRD Pulse
 Fuente principal:
-- `PRD Meetings SofLIA 13Marzo26.pdf`
+- `PRD Meetings Pulse 13Marzo26.pdf`
 
 Aportes incorporados:
 - necesidad de inferir tipo de reunión;

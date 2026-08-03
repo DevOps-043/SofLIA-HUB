@@ -1,8 +1,5 @@
-import type { MutableRefObject } from 'react';
-
 import type { ChatMessage } from '../../services/chat-service';
 import type { UserTool } from '../../services/tools-service';
-import type { LiveClient } from '../../services/live-api';
 
 export interface UseChatProcessorParams {
   messages: ChatMessage[];
@@ -19,8 +16,6 @@ export interface UseChatProcessorParams {
   isPromptOptimizerMode: boolean;
   optimizerTarget: 'chatgpt' | 'claude' | 'gemini';
   activeTool: UserTool | null;
-  isLiveActive: boolean;
-  liveClientRef: MutableRefObject<LiveClient | null>;
   /** Usuario SOFIA para la memoria unificada del chat (owner). */
   sofiaUserId?: string;
 }

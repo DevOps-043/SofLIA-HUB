@@ -44,7 +44,7 @@ export async function executeDriveProjectWorkspace(
       status: 'pending',
       payload: {
         spaceName: gchatSpace,
-        text: `SofLIA dejara listo el espacio base de Drive para "${projectName}" con las carpetas iniciales del proyecto.`,
+        text: `Pulse dejara listo el espacio base de Drive para "${projectName}" con las carpetas iniciales del proyecto.`,
       },
     });
   }

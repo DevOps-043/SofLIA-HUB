@@ -6,7 +6,7 @@ export function registerBasicAgentTests(ctx: WhatsAppAgentTestContext): void {
   describe('WA-031: handleMessage returns text response', () => {
     it('should call waService.sendText with agent response', async () => {
       const { agent, waService } = createAgentWithService(ctx);
-      ctx.mockTextResponse('Hola, soy SofLIA.');
+      ctx.mockTextResponse('Hola, soy Pulse.');
       await agent.handleMessage('123@s.whatsapp.net', '5215500000000', 'Hola');
       expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', expect.any(String));
     });
@@ -57,14 +57,14 @@ export function registerBasicAgentTests(ctx: WhatsAppAgentTestContext): void {
       waService.config.groupPersonalizations = {
         '120363000000@g.us': {
           ...waService.config.globalPersonalization,
-          displayName: 'SofLIA Equipo',
+          displayName: 'Pulse Equipo',
           customInstructions: 'Prioriza coordinacion del grupo.',
         },
       };
       ctx.mockTextResponse('Hecho.');
       await agent.handleMessage('120363000000@g.us', '5215500000000', 'Hola equipo', true);
       expect(ctx.mockGetGenerativeModel).toHaveBeenCalledWith(expect.objectContaining({
-        systemInstruction: expect.stringContaining('Nombre del agente para este usuario: SofLIA Equipo.'),
+        systemInstruction: expect.stringContaining('Nombre del agente para este usuario: Pulse Equipo.'),
       }));
       expect(ctx.mockGetGenerativeModel).toHaveBeenCalledWith(expect.objectContaining({
         systemInstruction: expect.stringContaining('Prioriza coordinacion del grupo.'),

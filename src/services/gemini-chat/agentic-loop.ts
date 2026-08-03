@@ -71,7 +71,7 @@ export async function runAgenticLoop(params: {
  * 30s el chat "abandonaba" la llamada (que seguia corriendo en el main),
  * reintentaba con otra use_computer y terminaba con agentes duplicados.
  */
-const LONG_RUNNING_TOOL_TIMEOUTS_MS: Record<string, number> = {
+export const LONG_RUNNING_TOOL_TIMEOUTS_MS: Record<string, number> = {
   use_computer: 15 * 60_000,
   use_computer_on_node: 15 * 60_000,
 };

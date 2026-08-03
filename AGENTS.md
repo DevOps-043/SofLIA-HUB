@@ -1,4 +1,4 @@
-# SofLIA Hub - Entrada para agentes
+# Pulse Hub - Entrada para agentes
 
 Este archivo es el router de contexto. La fuente canonica vive en `docs/` y
 `ai-specs/`; no dupliques reglas extensas en archivos especificos de una
@@ -13,11 +13,22 @@ herramienta.
    - Base de datos: `docs/standards/database.md`
    - Pruebas: `docs/standards/testing.md`
    - Documentacion: `docs/standards/documentation.md`
+   - Agentes runtime del producto: `docs/architecture/runtime-agents-manual.md`
 4. El cambio activo en `openspec/changes/`, cuando exista.
 5. El `SKILL.md` coincidente bajo `ai-specs/skills/`.
 
 `docs/prompt_maestro.md` conserva el alias `@prompt_maestro`, pero las reglas
 extensas solo se mantienen en el estandar de ingenieria del punto 2.
+
+## Dos planos de agente
+
+Este archivo gobierna el **plano de desarrollo**: los agentes que modifican el
+repositorio bajo Git y OpenSpec. El **plano runtime** son los agentes embebidos
+en el producto (`whatsapp-agent`, `desktop-agent`, `meeting-agent` y el agente de
+chat del renderer); su comportamiento, catalogo de herramientas, guardas y
+limites estan en `docs/architecture/runtime-agents-manual.md` y su registro en
+`ai-specs/agents/registry.yaml`. Los planos no comparten permisos: una skill de
+desarrollo nunca es una herramienta runtime.
 
 ## Reglas no negociables
 

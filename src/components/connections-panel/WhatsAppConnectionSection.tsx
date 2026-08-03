@@ -60,7 +60,7 @@ function WhatsAppBody({ connection, isOrgAdmin }: { connection: WhatsAppConnecti
     <div className="pt-4 flex flex-col items-center gap-3">
       <p className="text-sm text-secondary text-center">
         {isOrgAdmin
-          ? 'Vincula el canal autorizado para operar la organizacion desde SofLIA.'
+          ? 'Vincula el canal autorizado para operar la organizacion desde Pulse.'
           : 'Vincula tu cuenta para uso personal, recordatorios y tus dispositivos propios.'}
       </p>
       <Button variant="primary" size="md" onClick={connection.connect} loading={connection.connecting}>

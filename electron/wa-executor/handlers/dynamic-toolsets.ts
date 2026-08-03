@@ -1,7 +1,7 @@
 /**
  * Handlers para gestión de toolsets dinámicos.
  *
- * SofLIA Hub soporta plugins/toolsets que se cargan en runtime desde
+ * Pulse Hub soporta plugins/toolsets que se cargan en runtime desde
  * `userData/toolsets/`. Estos handlers cubren la inspección, instalación
  * y desinstalación de toolsets disponibles.
  *

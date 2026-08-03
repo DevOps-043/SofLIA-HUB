@@ -1,4 +1,4 @@
-# Arnés de agentes de SofLIA
+# Arnés de agentes de Pulse
 
 Este directorio es la fuente canónica para el trabajo asistido por agentes. Las
 carpetas específicas de cada herramienta solo adaptan estas instrucciones.
@@ -35,7 +35,7 @@ Consulta `agents/registry.yaml` antes de conectar una capacidad a un agente runt
 - Antigravity: adaptadores en `.agents/skills/`, regla de workspace en
   `.agents/rules/` y workflows en `.agents/workflows/`.
 
-Cursor y Gemini CLI no forman parte del entorno de desarrollo de SofLIA Hub. No
+Cursor y Gemini CLI no forman parte del entorno de desarrollo de Pulse Hub. No
 se deben regenerar `.cursor/`, `.gemini/` ni `GEMINI.md`. Las referencias a
 Gemini dentro de `src/` o `electron/` corresponden al proveedor de IA del
 producto, no a una superficie del arnes.

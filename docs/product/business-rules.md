@@ -42,7 +42,7 @@ regla se aplica en el proceso Electron; `DB` significa constraint/RLS/migracion;
 
 | ID | Regla obligatoria | Aplicacion | Evidencia principal |
 |---|---|---|---|
-| BR-001 | Solo una instancia de SofLIA Hub puede poseer el runtime; una segunda instancia sale sin inicializar servicios. | Main | `electron/main.ts` |
+| BR-001 | Solo una instancia de Pulse Hub puede poseer el runtime; una segunda instancia sale sin inicializar servicios. | Main | `electron/main.ts` |
 | BR-002 | La identidad principal proviene de SOFIA; Lia se resuelve como perfil operativo y no sustituye la autenticacion principal. | Renderer + DB | `src/contexts/auth/`, `src/lib/sofia-client.ts` |
 | BR-003 | Organizaciones y equipos visibles deben pertenecer a la organizacion activa; los IDs de equipo delimitan consultas IRIS. | Renderer + DB | `src/app/AppContent.tsx`, `src/services/iris-data/` |
 | BR-004 | Si Lia no puede resolverse, la aplicacion puede entrar en estado degradado y debe informar que las capacidades dependientes no estan disponibles. | UI + renderer | `src/contexts/auth/lia-status-message.ts`, `src/app/AppNotices.tsx` |

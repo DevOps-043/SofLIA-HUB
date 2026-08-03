@@ -21,10 +21,10 @@ export function createMainTray(input: {
   }
 
   const tray = new Tray(trayIcon);
-  tray.setToolTip('SofLIA Hub Desktop');
+  tray.setToolTip('Pulse Hub Desktop');
   tray.setContextMenu(Menu.buildFromTemplate([
     {
-      label: 'Abrir SofLIA Hub',
+      label: 'Abrir Pulse Hub',
       click: () => {
         const win = input.getWindow();
         if (!win) input.createWindow(true);

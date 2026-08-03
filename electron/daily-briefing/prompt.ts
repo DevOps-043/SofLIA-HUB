@@ -3,7 +3,7 @@ import type { DailyBriefingSystemData } from './types';
 export function buildDailyBriefingPrompt(systemData: DailyBriefingSystemData): string {
   return `
 Genera un "Resumen Ejecutivo" matutino muy breve y motivador para el usuario, basado en la siguiente informacion del sistema.
-Actua como SofLIA, el sistema operativo de IA.
+Actua como Pulse, el sistema operativo de IA.
 Instrucciones:
 1. Da los buenos dias y menciona la fecha.
 2. Proporciona un resumen rapido del estado del sistema de forma amigable.

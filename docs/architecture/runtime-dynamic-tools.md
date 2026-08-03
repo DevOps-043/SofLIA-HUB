@@ -23,7 +23,7 @@ Todo módulo con `handler` debe exportar este contrato. Los objetos de entrada y
 salida, incluidos objetos anidados tipados, declaran
 `additionalProperties: false`. La entrada no admite nodos opacos. En la salida,
 un nodo `{}` es opaco de forma explícita y se usa solo cuando una API externa
-devuelve una estructura que SofLIA no controla.
+devuelve una estructura que Pulse no controla.
 
 ```js
 export default {

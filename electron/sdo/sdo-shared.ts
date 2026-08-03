@@ -33,7 +33,7 @@ export function throwOnSdoError(error: PostgrestError | null, operation: string)
 
   if (/relation .* does not exist/i.test(error.message)) {
     throw new Error(
-      `Faltan las tablas del SDO en la base de SofLIA Hub. Aplica database/lia/migrations/sdo-tables.sql antes de usar el registro operativo. Detalle: ${error.message}`,
+      `Faltan las tablas del SDO en la base de Pulse Hub. Aplica database/lia/migrations/sdo-tables.sql antes de usar el registro operativo. Detalle: ${error.message}`,
     );
   }
 

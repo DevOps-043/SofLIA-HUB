@@ -1,5 +1,5 @@
 // =============================================================================
-// SofLIA Hub - Descarga on-demand de Piper TTS (binario + voces en español)
+// Pulse Hub - Descarga on-demand de Piper TTS (binario + voces en español)
 // =============================================================================
 // Mismo patron que install-vosk-model.js: nada se bundlea en el instalador;
 // se descarga bajo demanda a models/piper/ (dev) o userData/models/piper (prod).
@@ -40,7 +40,7 @@ async function main() {
   }
 
   console.log('');
-  console.log('PIPER TTS LOCAL (voz de SofLIA)');
+  console.log('PIPER TTS LOCAL (voz de Pulse)');
   console.log('Binario MIT (rhasspy/piper) + voces MIT (rhasspy/piper-voices).');
   console.log('');
   fs.mkdirSync(TARGET_DIR, { recursive: true });

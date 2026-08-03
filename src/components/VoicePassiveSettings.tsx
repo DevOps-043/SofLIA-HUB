@@ -97,7 +97,7 @@ export function VoicePassiveSettings() {
       <div>
         <h3 className="text-gray-900 dark:text-white text-lg font-semibold">Voz pasiva local</h3>
         <p className="text-xs text-secondary mt-1">
-          SofLIA escucha la palabra de activación con un modelo 100% local (Vosk).
+          Pulse escucha la palabra de activación con un modelo 100% local (Vosk).
           Ningún audio sale de tu equipo hasta que dices la wake word; entonces se abre el modo voz.
         </p>
       </div>
@@ -149,7 +149,7 @@ export function VoicePassiveSettings() {
           <div>
             <p className="text-sm font-medium text-gray-900 dark:text-white">Mejorar precisión de reconocimiento</p>
             <p className="text-xs text-secondary">
-              Si SofLIA confunde palabras, instala el modelo grande de español (~1.4 GB de descarga,
+              Si Pulse confunde palabras, instala el modelo grande de español (~1.4 GB de descarga,
               usa ~2 GB de RAM). Reconoce mucho mejor el habla natural y se activa automáticamente.
             </p>
           </div>
@@ -196,7 +196,7 @@ export function VoicePassiveSettings() {
           <label className="text-sm font-medium text-gray-900 dark:text-white" htmlFor="mic-device">
             Micrófono
           </label>
-          <p className="text-xs text-secondary">SofLIA escucha por este dispositivo. Si usas diadema, selecciónala aquí.</p>
+          <p className="text-xs text-secondary">Pulse escucha por este dispositivo. Si usas diadema, selecciónala aquí.</p>
           <div className="flex gap-2 items-center">
             <select
               id="mic-device"

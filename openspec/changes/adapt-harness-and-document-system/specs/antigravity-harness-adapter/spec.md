@@ -21,7 +21,7 @@ rutas `.agents/rules/` y `.agents/workflows/`, cada archivo dentro del limite de
 
 #### Scenario: Un agente Antigravity abre el workspace
 - **WHEN** descubre las customizaciones del proyecto
-- **THEN** puede cargar las reglas de SofLIA y ejecutar los flujos de propuesta, aplicacion, verificacion y archivo
+- **THEN** puede cargar las reglas de Pulse y ejecutar los flujos de propuesta, aplicacion, verificacion y archivo
 
 ### Requirement: Superficies retiradas no reaparecen
 

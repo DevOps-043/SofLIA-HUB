@@ -40,6 +40,15 @@ export class DesktopKeyboardControls {
   }
 
   async keyboardKey(key: string): Promise<void> {
+    // Computer Use emite combinaciones como un solo string ("ctrl+shift+n").
+    // Sin este desglose el driver nut.js no encontraba ninguna tecla con ese
+    // nombre, filtraba todo y la accion se perdia SIN error: el agente creia
+    // haber pulsado el atajo. SEND_KEYS_MAP solo cubre unos pocos combos fijos.
+    const partes = splitKeyCombination(key);
+    if (partes.length > 1) {
+      await this.keyboardHotkey(...partes);
+      return;
+    }
     if (this.inputDriver) {
       await this.inputDriver.pressKeys([key]);
       return;
@@ -102,4 +111,33 @@ function normalizeXdotoolKey(key: string): string {
     space: 'space',
   };
   return map[normalized] || key;
+}
+
+/**
+ * Desglosa "ctrl+shift+n" en sus teclas. Un "+" suelto (la tecla mas) se
+ * conserva como tecla: "ctrl++" es Ctrl y el signo mas.
+ */
+export function splitKeyCombination(key: string): string[] {
+  const limpio = (key || '').trim();
+  if (!limpio) return [];
+  if (!limpio.includes('+')) return [limpio];
+
+  // Se recorre a mano en vez de split('+'): con split, "ctrl++" produce dos
+  // cadenas vacias y no se distingue el separador de la tecla mas.
+  const teclas: string[] = [];
+  let actual = '';
+  for (const caracter of limpio) {
+    if (caracter !== '+') {
+      actual += caracter;
+      continue;
+    }
+    if (actual.trim() === '') {
+      teclas.push('+');
+      continue;
+    }
+    teclas.push(actual.trim());
+    actual = '';
+  }
+  if (actual.trim()) teclas.push(actual.trim());
+  return teclas;
 }

@@ -1,4 +1,4 @@
-# AGENTS.md — SofLIA Meeting Intelligence Context
+# AGENTS.md — Pulse Meeting Intelligence Context
 
 ## Propósito
 Este workspace existe para que el agente convierta reuniones en resultados operativos.

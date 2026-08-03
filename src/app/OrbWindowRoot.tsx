@@ -31,7 +31,7 @@ const STATE_GLOWS: Record<OrbVisualState, { soft: string; text: string }> = {
 
 const VISUAL_STATES = new Set<OrbVisualState>(['idle', 'listening', 'thinking', 'acting', 'speaking']);
 
-const DEVELOPMENT_PANEL_TEXT = `SofLIA contrastó la información y preparó una síntesis breve para que puedas revisar los datos importantes sin perder el contexto de la conversación.
+const DEVELOPMENT_PANEL_TEXT = `Pulse contrastó la información y preparó una síntesis breve para que puedas revisar los datos importantes sin perder el contexto de la conversación.
 
 - La respuesta normal permanece únicamente en voz.
 - Este panel aparece cuando existen referencias verificables.
@@ -153,14 +153,14 @@ export function OrbWindowRoot() {
   return (
     <div className="h-screen w-screen overflow-hidden bg-transparent flex flex-col select-none">
       {/* Handle nativo: mueve la ventana sin robar eventos al canvas. */}
-      <div className="orb-drag-region relative flex h-10 shrink-0 items-center justify-center px-3 pt-2" title="Arrastra para mover SofLIA">
+      <div className="orb-drag-region relative flex h-10 shrink-0 items-center justify-center px-3 pt-2" title="Arrastra para mover Pulse">
         <div className="pointer-events-none flex h-7 items-center gap-2 rounded-full border border-white/10 bg-black/45 px-3 shadow-lg backdrop-blur-xl">
           <svg aria-hidden="true" viewBox="0 0 12 18" className="h-3.5 w-2.5 text-white/35" fill="currentColor">
             <circle cx="3" cy="3" r="1" /><circle cx="9" cy="3" r="1" />
             <circle cx="3" cy="9" r="1" /><circle cx="9" cy="9" r="1" />
             <circle cx="3" cy="15" r="1" /><circle cx="9" cy="15" r="1" />
           </svg>
-          <span className="text-[9px] font-semibold uppercase tracking-[0.22em] text-white/55">SofLIA</span>
+          <span className="text-[9px] font-semibold uppercase tracking-[0.22em] text-white/55">Pulse</span>
         </div>
         <button
           type="button"

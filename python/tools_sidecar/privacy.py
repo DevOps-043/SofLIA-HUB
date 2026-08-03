@@ -1,7 +1,7 @@
 # =============================================================================
-# SofLIA Hub - Deteccion y redaccion de datos personales (PII)
+# Pulse Hub - Deteccion y redaccion de datos personales (PII)
 # =============================================================================
-# Hoy SofLIA envia a Gemini screenshots, texto OCR, documentos y correos SIN
+# Hoy Pulse envia a Gemini screenshots, texto OCR, documentos y correos SIN
 # ningun filtrado (lo unico que existia era enmascarado de LOGS y un detector
 # anti prompt-injection, que bloquea pero no redacta).
 #

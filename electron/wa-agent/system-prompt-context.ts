@@ -82,7 +82,7 @@ function appendGoogleConnectionPrompt(systemPrompt: string, calendarService: Cal
   const hasGoogle = conns.some((conn: any) => conn.provider === 'google' && conn.isActive);
   if (hasGoogle) return systemPrompt;
 
-  return `${systemPrompt}\n\n=== ESTADO DE CONEXION GOOGLE ===\nGoogle NO esta conectado. Si el usuario pide acciones de Calendar, Gmail, eventos o Drive, informale EXPRESAMENTE que debe conectar Google desde la interfaz de SofLIA Hub primero.\nPROHIBICIONES ESTRICTAS: NO INTENTES USAR las herramientas de computadora (use_computer, execute_command, open_application) NI el navegador (open_url) para entrar a leer sus correos o ver su calendario. Si no tienes la API de Google conectada, debes NEGARTE a revisar el calendario o correos y guiarlos a conectarse desde cero.`;
+  return `${systemPrompt}\n\n=== ESTADO DE CONEXION GOOGLE ===\nGoogle NO esta conectado. Si el usuario pide acciones de Calendar, Gmail, eventos o Drive, informale EXPRESAMENTE que debe conectar Google desde la interfaz de Pulse Hub primero.\nPROHIBICIONES ESTRICTAS: NO INTENTES USAR las herramientas de computadora (use_computer, execute_command, open_application) NI el navegador (open_url) para entrar a leer sus correos o ver su calendario. Si no tienes la API de Google conectada, debes NEGARTE a revisar el calendario o correos y guiarlos a conectarse desde cero.`;
 }
 
 function appendGroupPrompt(systemPrompt: string, input: WhatsAppAgentPromptContextInput): string {

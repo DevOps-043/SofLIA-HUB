@@ -113,8 +113,8 @@ jobs:
         with:
           name: windows-artifacts
           path: |
-            release/${{ needs.check.outputs.version }}/SofLIA-Hub-Windows-${{ needs.check.outputs.version }}-Setup.exe
-            release/${{ needs.check.outputs.version }}/SofLIA-Hub-Windows-${{ needs.check.outputs.version }}-Setup.exe.blockmap
+            release/${{ needs.check.outputs.version }}/Pulse-Hub-Windows-${{ needs.check.outputs.version }}-Setup.exe
+            release/${{ needs.check.outputs.version }}/Pulse-Hub-Windows-${{ needs.check.outputs.version }}-Setup.exe.blockmap
             release/${{ needs.check.outputs.version }}/latest.yml
 
   # ─── Paso 2b: Build Mac ───
@@ -163,7 +163,7 @@ jobs:
         with:
           name: mac-artifacts
           path: |
-            release/${{ needs.check.outputs.version }}/SofLIA-Hub-Mac-${{ needs.check.outputs.version }}-Installer.dmg
+            release/${{ needs.check.outputs.version }}/Pulse-Hub-Mac-${{ needs.check.outputs.version }}-Installer.dmg
             release/${{ needs.check.outputs.version }}/latest-mac.yml
 
   # ─── Paso 2c: Build Linux ───
@@ -222,7 +222,7 @@ jobs:
         env:
           APPIMAGE_EXTRACT_AND_RUN: 1
         run: |
-          APPIMAGE="release/${{ needs.check.outputs.version }}/SofLIA-Hub-Linux-${{ needs.check.outputs.version }}-x64.AppImage"
+          APPIMAGE="release/${{ needs.check.outputs.version }}/Pulse-Hub-Linux-${{ needs.check.outputs.version }}-x64.AppImage"
           chmod +x "$APPIMAGE"
           set +e
           xvfb-run --auto-servernum --server-args="-screen 0 1280x720x24" timeout 20s "$APPIMAGE" --no-sandbox
@@ -235,8 +235,8 @@ jobs:
 
       - name: Verify Linux artifacts
         run: |
-          test -f "release/${{ needs.check.outputs.version }}/SofLIA-Hub-Linux-${{ needs.check.outputs.version }}-x64.AppImage"
-          test -f "release/${{ needs.check.outputs.version }}/SofLIA-Hub-Linux-${{ needs.check.outputs.version }}-x64.deb"
+          test -f "release/${{ needs.check.outputs.version }}/Pulse-Hub-Linux-${{ needs.check.outputs.version }}-x64.AppImage"
+          test -f "release/${{ needs.check.outputs.version }}/Pulse-Hub-Linux-${{ needs.check.outputs.version }}-x64.deb"
           test -f "release/${{ needs.check.outputs.version }}/latest-linux.yml"
 
       - name: Upload Linux artifacts
@@ -244,8 +244,8 @@ jobs:
         with:
           name: linux-artifacts
           path: |
-            release/${{ needs.check.outputs.version }}/SofLIA-Hub-Linux-${{ needs.check.outputs.version }}-x64.AppImage
-            release/${{ needs.check.outputs.version }}/SofLIA-Hub-Linux-${{ needs.check.outputs.version }}-x64.deb
+            release/${{ needs.check.outputs.version }}/Pulse-Hub-Linux-${{ needs.check.outputs.version }}-x64.AppImage
+            release/${{ needs.check.outputs.version }}/Pulse-Hub-Linux-${{ needs.check.outputs.version }}-x64.deb
             release/${{ needs.check.outputs.version }}/latest-linux.yml
 
   # ─── Paso 3: Crear Release con todos los artefactos ───
@@ -285,7 +285,7 @@ jobs:
           # Extraer novedades del CHANGELOG para esta versión
           NOTES=$(sed -n "/## \[${VERSION}\]/,/## \[/p" CHANGELOG.md | head -n -1)
           if [ -z "$NOTES" ]; then
-            NOTES="SofLIA Hub v${VERSION}"
+            NOTES="Pulse Hub v${VERSION}"
           fi
 
           # Listar archivos disponibles
@@ -296,6 +296,6 @@ jobs:
           # Crear release y subir todos los archivos
           gh release create "v${VERSION}" \
             --repo DevOps-043/PulseHub-SofLIA-releases \
-            --title "SofLIA Hub v${VERSION}" \
+            --title "Pulse Hub v${VERSION}" \
             --notes "$NOTES" \
             artifacts/*

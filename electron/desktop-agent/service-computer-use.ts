@@ -2,6 +2,7 @@ import { createComputerUseClient, type CuClient } from './gemini-cu/client';
 import { createDesktopCuDriver } from './gemini-cu/desktop-driver';
 import { createBrowserCuDriver, type PlaywrightPage } from './gemini-cu/browser-driver';
 import { runComputerUseLoop, type CuLoopEstado } from './gemini-cu/loop';
+import { resolveComputerUseModel } from './gemini-cu/model-registry';
 import type { CuDriver, CuEnvironment } from './gemini-cu/types';
 import { resolveTaskStepBudget } from './task-budget';
 import { buildTaskOutcome, type DesktopTaskEstado, type DesktopTaskOutcome } from './task-outcome';
@@ -23,9 +24,12 @@ function mapEstado(estado: CuLoopEstado): DesktopTaskEstado {
 
 function nuevoCliente(service: any, environment: CuEnvironment): CuClient {
   const config: DesktopAgentConfig = service.config;
+  // El ID del modelo se resuelve SIEMPRE por el registro: ningun literal de
+  // modelo debe vivir en el wiring.
+  const { model } = resolveComputerUseModel(config);
   return createComputerUseClient({
     apiKey: service.apiKey,
-    model: config.computerUseModel,
+    model,
     environment,
     enablePromptInjectionDetection: config.computerUsePromptInjectionDetection,
   });
@@ -100,7 +104,7 @@ async function runCuTaskCommon(
   service.status = 'executing';
   service.currentTask = task;
   service.currentStep = 0;
-  console.log(`[DesktopAgent][CU] Iniciando tarea (${etiqueta}, ${config.computerUseModel}, ${maxSteps} pasos): "${task.slice(0, 80)}"`);
+  console.log(`[DesktopAgent][CU] Iniciando tarea (${etiqueta}, ${resolveComputerUseModel(config).model}, ${maxSteps} pasos): "${task.slice(0, 80)}"`);
 
   const result = await runComputerUseLoop({
     client,

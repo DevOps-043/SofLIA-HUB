@@ -2,7 +2,7 @@
 
 ## Resumen del problema
 
-Cuando un usuario cambia su contraseña desde la pagina de cambio de contraseña de **SofLIA Learning**, al intentar iniciar sesion en **SofLIA Hub** (ya sea con usuario o correo) la contraseña nueva es rechazada como "incorrecta".
+Cuando un usuario cambia su contraseña desde la pagina de cambio de contraseña de **SofLIA Learning**, al intentar iniciar sesion en **Pulse Hub** (ya sea con usuario o correo) la contraseña nueva es rechazada como "incorrecta".
 
 ---
 
@@ -19,12 +19,12 @@ password_hash text CHECK (
 
 Los hashes existentes en la BD son bcrypt validos (ej: `$2b$10$Ds5Vs2xD6d82...`).
 
-### Como funciona el login en SofLIA Hub
+### Como funciona el login en Pulse Hub
 
-SofLIA Hub llama a la funcion RPC `authenticate_user` en la BD de SOFIA:
+Pulse Hub llama a la funcion RPC `authenticate_user` en la BD de SOFIA:
 
 ```typescript
-// src/services/sofia-auth.ts (SofLIA Hub)
+// src/services/sofia-auth.ts (Pulse Hub)
 const { data: authResult } = await sofiaSupa.rpc('authenticate_user', {
   p_identifier: emailOrUsername,  // usuario o correo
   p_password: password            // contraseña en texto plano
@@ -280,9 +280,9 @@ WHERE email = 'correo@ejemplo.com';
 
 ---
 
-## Problema secundario: Cache de credenciales en SofLIA Hub
+## Problema secundario: Cache de credenciales en Pulse Hub
 
-SofLIA Hub cachea las credenciales de Lia (Supabase secundario) en `localStorage` bajo la key `lia-sync-cred` con el formato `{ e: email, p: password }`. Despues de un cambio de contraseña:
+Pulse Hub cachea las credenciales de Lia (Supabase secundario) en `localStorage` bajo la key `lia-sync-cred` con el formato `{ e: email, p: password }`. Despues de un cambio de contraseña:
 
 1. El cache tiene la contraseña vieja
 2. Al reiniciar la app, intenta re-autenticar con Lia usando la contraseña vieja
@@ -303,7 +303,7 @@ SofLIA Hub cachea las credenciales de Lia (Supabase secundario) en `localStorage
 
 ---
 
-## Archivos relevantes en SofLIA Hub (para referencia)
+## Archivos relevantes en Pulse Hub (para referencia)
 
 | Archivo | Que hace |
 |---|---|

@@ -2,9 +2,9 @@
   "name": "soflia-hub-desktop",
   "private": true,
   "version": "0.8.0",
-  "description": "SofLIA Hub Desktop Client",
+  "description": "Pulse Hub Desktop Client",
   "author": {
-    "name": "SofLIA Hub",
+    "name": "Pulse Hub",
     "email": "devops@soflia.ai"
   },
   "scripts": {
@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "@azure/msal-node": "^5.0.4",
-    "@google/genai": "^2.10.0",
+    "@google/genai": "^2.15.0",
     "@google/generative-ai": "^0.24.1",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "@nut-tree-fork/nut-js": "^4.2.6",
@@ -68,6 +68,7 @@
     "node-cron": "3.0.3",
     "nodemailer": "^8.0.7",
     "onnxruntime-node": "^1.27.0",
+    "openai": "^7.3.0",
     "pino": "^10.3.1",
     "playwright-core": "^1.58.2",
     "pptxgenjs": "^4.0.1",

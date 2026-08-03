@@ -30,7 +30,7 @@ export function UpdateNotification() {
               <div>
                 <p className="text-sm font-semibold text-gray-900 dark:text-white">{getTitle(state.phase)}</p>
                 <p className="text-xs text-secondary mt-0.5">
-                  {state.phase === 'error' ? state.error : `SofLIA Hub v${state.version}`}
+                  {state.phase === 'error' ? state.error : `Pulse Hub v${state.version}`}
                 </p>
               </div>
             </div>

@@ -80,7 +80,7 @@ export function normalizeTone(value: unknown): WhatsAppPersonaTone | null {
 export function formatWhatsAppProfile(profile: WhatsAppAgentPersonalization, target: WhatsAppProfileTarget): string {
   return [
     `Perfil activo: *${target.label}*`,
-    `Nombre: ${profile.displayName || 'SofLIA'}`,
+    `Nombre: ${profile.displayName || 'Pulse'}`,
     `Trato: ${profile.userAlias || 'natural'}`,
     `Tono: ${formatTone(profile.tone)}`,
     `Estilo: ${profile.responseStyle || 'sin estilo especifico'}`,

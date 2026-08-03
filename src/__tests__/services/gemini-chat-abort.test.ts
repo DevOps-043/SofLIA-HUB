@@ -3,7 +3,7 @@
  *
  * Verifican que un AbortSignal detiene el stream/loop de texto de forma limpia
  * (mensaje "Detenido") y SIN reintentar con otros modelos, para que el usuario
- * pueda parar lo que SofLIA esté haciendo.
+ * pueda parar lo que Pulse esté haciendo.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMockChat, getGeminiChatMocks } from './gemini-chat.setup';

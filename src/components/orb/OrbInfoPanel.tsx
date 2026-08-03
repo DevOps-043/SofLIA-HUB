@@ -11,7 +11,7 @@ export function OrbInfoPanel({ responseText, sources }: { responseText: string; 
 
   return (
     <section
-      aria-label="Respuesta de SofLIA"
+      aria-label="Respuesta de Pulse"
       className="orb-no-drag relative mx-3 mb-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[22px] border border-border bg-card/95 text-primary shadow-[0_24px_70px_rgba(10,37,64,0.16),inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur-2xl dark:shadow-[0_24px_70px_rgba(0,0,0,0.44),inset_0_1px_0_rgba(255,255,255,0.06)]"
     >
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 text-[13px] leading-6 text-primary [scrollbar-color:color-mix(in_srgb,var(--color-accent-val)_28%,transparent)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-accent/25 [&::-webkit-scrollbar-track]:bg-transparent [&_a]:!text-accent [&_blockquote]:!text-secondary [&_em]:!text-secondary [&_h1]:!text-primary [&_h2]:!text-primary [&_h3]:!text-primary [&_h4]:!text-primary [&_h5]:!text-primary [&_h6]:!text-primary [&_p]:!text-primary [&_strong]:!text-primary [&_td]:!text-secondary [&_thead]:!text-primary">

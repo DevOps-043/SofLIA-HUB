@@ -50,7 +50,7 @@ export function PrivacySettings() {
       <div>
         <h3 className="text-gray-900 dark:text-white text-lg font-semibold">Privacidad de tus datos</h3>
         <p className="text-xs text-secondary mt-1">
-          Cuando SofLIA lee un documento (PDF, Excel, PowerPoint o Word), el texto se envía al modelo de IA
+          Cuando Pulse lee un documento (PDF, Excel, PowerPoint o Word), el texto se envía al modelo de IA
           para poder responderte. Aquí decides si los datos personales viajan o se ocultan antes de salir de tu equipo.
         </p>
       </div>

@@ -15,7 +15,7 @@ export async function executeCalendarTool(
   if (toolName === 'google_calendar_create') {
     try {
       if (!ctx.calendarService) {
-        return { response: toolError(toolName, 'Google Calendar no esta disponible. El usuario debe conectar Google en SofLIA Hub.'), bulkLabelsToVerify };
+        return { response: toolError(toolName, 'Google Calendar no esta disponible. El usuario debe conectar Google en Pulse Hub.'), bulkLabelsToVerify };
       }
 
       const startDate = new Date(toolArgs.start_date);

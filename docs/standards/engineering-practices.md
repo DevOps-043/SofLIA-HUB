@@ -9,7 +9,7 @@ Estado: vigente. Actualizado: 2026-07-21.
 <!-- evidence: database/README.md -->
 
 Este documento recupera las 17 areas del antiguo `docs/prompt_maestro.md` y las
-adapta a la arquitectura real de SofLIA Hub. Es la fuente canonica extensa de
+adapta a la arquitectura real de Pulse Hub. Es la fuente canonica extensa de
 buenas practicas; `docs/prompt_maestro.md` es solamente un alias compatible.
 
 ## Como se aplica
@@ -82,7 +82,7 @@ Se aplican SOLID, DRY, KISS, separacion de responsabilidades, composicion y fail
 fast cuando reducen riesgo real. Ningun principio justifica una jerarquia o
 framework interno mas complejo que el problema.
 
-## 4. Estructura y modularidad de SofLIA Hub
+## 4. Estructura y modularidad de Pulse Hub
 
 ### Electron e IPC
 
@@ -124,7 +124,7 @@ pruebas independientes, no para cumplir una cifra arbitraria.
 
 ## 5. Bases de datos y modelo de datos
 
-SofLIA usa tres instancias Supabase y bases SQLite locales. Antes de cambiar
+Pulse usa tres instancias Supabase y bases SQLite locales. Antes de cambiar
 persistencia se identifica propietario y consumidor:
 
 - SOFIA: identidad, organizaciones, equipos y membresias;

@@ -20,5 +20,5 @@ export async function buildSystemPrompt(
 
 function normalizeAgentName(value: unknown): string {
   const name = String(value || '').trim().replace(/[\r\n]+/g, ' ').slice(0, 60);
-  return name || 'SofLIA';
+  return name || 'Pulse';
 }

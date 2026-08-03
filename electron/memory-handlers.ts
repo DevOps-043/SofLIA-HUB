@@ -33,7 +33,7 @@ export function registerMemoryHandlers(memoryService: MemoryService, executableE
   ipcMain.handle('memory:search', (_event, sessionKey: string, phoneNumber: string, query: string) =>
     handleIPC(async () => ({ results: await memoryService.searchMemory(sessionKey, phoneNumber, query) })));
 
-  // Skills aprendidas: el usuario puede ver y borrar lo que SofLIA aprendio.
+  // Skills aprendidas: el usuario puede ver y borrar lo que Pulse aprendio.
   ipcMain.handle('memory:list-skills', async (_event, ownerKey: string) => {
     return memoryService.listSkills(ownerKey);
   });

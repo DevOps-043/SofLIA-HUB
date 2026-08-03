@@ -45,7 +45,7 @@ export function buildConfirmationDescription(
     case 'kill_process_session':
       return `🛑 Terminar sesión administrada: ${toolArgs.session_id}`;
     case 'repair_background_host':
-      return '🧰 Reparar el host de segundo plano de SofLIA (login item + schtasks/Startup fallback)';
+      return '🧰 Reparar el host de segundo plano de Pulse (login item + schtasks/Startup fallback)';
     case 'install_dynamic_toolset':
       return `🧩 Instalar o actualizar toolset dinámico: ${toolArgs.toolset_id}`;
     case 'install_home_assistant_toolset':

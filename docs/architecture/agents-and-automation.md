@@ -6,6 +6,10 @@ Estado: vigente. Actualizado: 2026-07-21.
 <!-- evidence: electron/wa-agent/agent-loop.ts -->
 <!-- evidence: electron/desktop-agent/agent-config.ts -->
 
+Este documento es el resumen normativo. El detalle exhaustivo de cada agente
+runtime, su catalogo de herramientas, sus guardas y sus limites vive en
+[Manual del agente runtime](runtime-agents-manual.md).
+
 ## Dos planos separados
 
 | Plano | Ubicacion | Puede modificar repo | Puede ejecutar acciones del usuario |

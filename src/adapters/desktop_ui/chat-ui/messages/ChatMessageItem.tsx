@@ -18,7 +18,7 @@ export function ChatMessageItem({
     <div className={`flex gap-4 ${isUser && !isEditing ? 'justify-end' : ''}`}>
       {message.role === 'model' && (
         <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 rounded-full overflow-hidden">
-          <img src="./assets/lia-avatar.png" alt="SOFLIA" className="w-full h-full object-cover" />
+          <img src="./assets/lia-avatar.png" alt="PULSE" className="w-full h-full object-cover" />
         </div>
       )}
       <div className={`flex flex-col ${isEditing ? 'w-full' : 'max-w-[85%]'} ${isUser && !isEditing ? 'items-end' : 'items-start'}`}>

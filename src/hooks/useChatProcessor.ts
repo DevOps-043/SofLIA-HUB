@@ -18,8 +18,6 @@ export function useChatProcessor({
   isPromptOptimizerMode,
   optimizerTarget,
   activeTool,
-  isLiveActive,
-  liveClientRef,
   sofiaUserId,
 }: UseChatProcessorParams) {
   const [isLoading, setIsLoading] = useState(false);
@@ -71,7 +69,7 @@ export function useChatProcessor({
     }
   }, [processMessage]);
 
-  // Detiene TODO lo que SofLIA esté ejecutando: el stream/loop de texto y
+  // Detiene TODO lo que Pulse esté ejecutando: el stream/loop de texto y
   // cualquier tarea de Computer Use / Desktop Agent en curso.
   const stopGeneration = useCallback(() => {
     abortRef.current?.abort();
@@ -82,18 +80,11 @@ export function useChatProcessor({
   const handleSend = useCallback(async (input: string, selectedImages: string[]) => {
     if (!input.trim() || showLoadingUI) return;
 
-    if (isLiveActive && liveClientRef.current) {
-      const userMsg: ChatMessage = { id: crypto.randomUUID(), role: 'user', text: input.trim(), timestamp: Date.now() };
-      onMessagesChange([...messages, userMsg]);
-      liveClientRef.current.sendText(input.trim());
-      return;
-    }
-
     const text = input.trim();
     const autodev = (window as unknown as { autodev?: { logFeedback?: (text: string) => Promise<void> } }).autodev;
     autodev?.logFeedback?.(text)?.catch(console.error);
     await runWithAbort(text, [...selectedImages], [...messages], false);
-  }, [showLoadingUI, messages, onMessagesChange, runWithAbort, isLiveActive, liveClientRef]);
+  }, [showLoadingUI, messages, runWithAbort]);
 
   const handleRegenerate = async (messageId: string) => {
     // Se permite durante una generación: runWithAbort aborta la anterior.

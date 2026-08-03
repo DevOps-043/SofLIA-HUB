@@ -7,9 +7,9 @@ function withoutAccents(value: string) {
 }
 
 describe('WhatsApp Prompts', () => {
-  it('WA-144: el system prompt contiene la identidad "SofLIA" en espanol', async () => {
+  it('WA-144: el system prompt contiene la identidad "Pulse" en espanol', async () => {
     const prompt = await buildSystemPrompt();
-    expect(prompt).toContain('SOFLIA');
+    expect(prompt).toContain('PULSE');
     expect(withoutAccents(prompt).toLowerCase()).toContain('espanol');
     expect(prompt).toContain('asistente');
   });
@@ -52,7 +52,7 @@ describe('WhatsApp Prompts', () => {
     const prompt = await buildSystemPrompt();
     expect(prompt).toContain('WhatsApp');
     expect(prompt).toContain('FORMATO WHATSAPP');
-    expect(formatForWhatsApp('Hola', true)).toContain('SofLIA');
+    expect(formatForWhatsApp('Hola', true)).toContain('Pulse');
   });
 
   it('WA-149: el prompt menciona protecciones internas', async () => {

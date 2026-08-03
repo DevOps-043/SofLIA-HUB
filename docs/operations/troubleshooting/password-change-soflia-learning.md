@@ -8,13 +8,13 @@ Fecha: 2026-03-24
 
 ## Problema confirmado
 
-Cuando un usuario cambia su contraseña desde SofLIA Learning, **no puede iniciar sesion en SofLIA Hub**.
+Cuando un usuario cambia su contraseña desde SofLIA Learning, **no puede iniciar sesion en Pulse Hub**.
 
 ### Causa raiz (verificada)
 
 SofLIA Learning hashea la nueva contraseña con **bcrypt de JavaScript** (`bcryptjs` o `bcrypt`) y guarda el resultado en `public.users.password_hash` via UPDATE directo.
 
-SofLIA Hub valida contraseñas con la funcion RPC `authenticate_user`, que internamente usa **`extensions.crypt()`** (pgcrypto de PostgreSQL):
+Pulse Hub valida contraseñas con la funcion RPC `authenticate_user`, que internamente usa **`extensions.crypt()`** (pgcrypto de PostgreSQL):
 
 ```sql
 -- Dentro de authenticate_user:
@@ -255,5 +255,5 @@ Todas retornan `jsonb` con formato: `{ "success": true/false, "error": "mensaje 
 - [ ] Verificar que el registro de usuarios nuevos tambien use pgcrypto (via RPC o via `crypt()` en un trigger)
 - [ ] Resetear la contraseña de `lordget_yt@hotmail.com` con el SQL de arriba
 - [ ] Identificar y resetear otros usuarios afectados
-- [ ] Probar el flujo completo: cambiar contraseña en SofLIA Learning → login en SofLIA Hub
+- [ ] Probar el flujo completo: cambiar contraseña en SofLIA Learning → login en Pulse Hub
 - [ ] (Opcional) Desinstalar bcryptjs/bcrypt si ya no se usa

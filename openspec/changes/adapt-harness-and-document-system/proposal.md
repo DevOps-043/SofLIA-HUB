@@ -23,7 +23,7 @@ contradicciones.
 - Registrar las fuentes del modelo Arnes, Specboot y Antigravity y actualizar el
   plan de adopcion con el estado realmente implementado.
 - Recuperar las 17 areas de buenas practicas del antiguo `prompt_maestro`,
-  adaptarlas al stack y contratos reales de SofLIA, y mantener un alias estable
+  adaptarlas al stack y contratos reales de Pulse, y mantener un alias estable
   para su invocacion explicita desde Antigravity.
 
 No objetivos: cambiar modelos o APIs de IA del producto, ejecutar SQL remoto,
@@ -36,7 +36,7 @@ desplegar, publicar o documentar como existente una capacidad solo planeada.
 - `antigravity-harness-adapter`: reglas, skills y workflows Antigravity derivados
   de la fuente canonica, sin adaptadores Cursor/Gemini CLI.
 - `system-documentation-catalog`: documentacion integral, trazable y validable del
-  comportamiento y arquitectura implementados de SofLIA Hub.
+  comportamiento y arquitectura implementados de Pulse Hub.
 
 ### Modified Capabilities
 

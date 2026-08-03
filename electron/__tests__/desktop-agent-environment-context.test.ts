@@ -12,7 +12,7 @@ const MONITORES = [
 
 function buildDeps(overrides: Partial<EnvironmentContextDeps> = {}): EnvironmentContextDeps {
   return {
-    listWindows: async () => [{ title: 'SofLIA Hub', process: 'electron', pid: 100 }],
+    listWindows: async () => [{ title: 'Pulse Hub', process: 'electron', pid: 100 }],
     getActiveWindow: async () => ({ title: 'Visual Studio Code', process: 'Code' }),
     getMonitors: () => MONITORES,
     getInstalledApps: async () => [

@@ -19,7 +19,7 @@ export async function executeCustomTemplate(this: WorkspaceAutomationService, pa
       }>;
     }>({
       prompt: [
-        'Genera la ejecucion concreta de un workflow personalizado de SofLIA.',
+        'Genera la ejecucion concreta de un workflow personalizado de Pulse.',
         'No inventes accesos ni datos.',
         'Si faltan datos criticos, mencialos en missingData y evita acciones riesgosas.',
         'Solo puedes usar acciones de los tipos permitidos por capabilities.',

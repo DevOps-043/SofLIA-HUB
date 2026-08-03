@@ -235,7 +235,7 @@ function LogoIgnition({ colorScheme, exitTarget, isExiting, reducedMotion }: { c
 
       <motion.img
         src={LOGO_SRC}
-        alt="SofLIA"
+        alt="Pulse"
         className="relative h-56 w-56 object-contain"
         style={{ filter: logoFilter }}
         initial={{ opacity: 0 }}
@@ -293,7 +293,7 @@ export function AppLoadingScreen({
         exit={{ opacity: 1 }}
         transition={{ duration: reducedMotion ? 0.2 : exitDuration, ease: EASE_OUT_EXPO }}
       >
-        <span className="sr-only">Iniciando SofLIA Hub</span>
+        <span className="sr-only">Iniciando Pulse Hub</span>
         <LogoIgnition colorScheme={colorScheme} exitTarget={logoExitTarget} isExiting={isExiting} reducedMotion={reducedMotion} />
       </motion.section>
     </motion.main>

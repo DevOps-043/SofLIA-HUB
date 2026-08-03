@@ -10,11 +10,11 @@ export function CustomFlowForm({ controller }: { controller: AutomationOpsContro
     <div className="space-y-4">
       <div>
         <p className="text-sm font-bold text-gray-900 dark:text-white">Flujos personalizados</p>
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Describe un proceso y SofLIA lo convierte en un flujo reusable.</p>
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Describe un proceso y Pulse lo convierte en un flujo reusable.</p>
       </div>
       <div className="space-y-2">
         <input className={inputClass} value={custom.name} onChange={(event) => custom.setName(event.target.value)} placeholder="Nombre del flujo" />
-        <textarea className={textareaClass} value={custom.objective} onChange={(event) => custom.setObjective(event.target.value)} placeholder="Que debe lograr SofLIA y cuando pedir autorizacion." />
+        <textarea className={textareaClass} value={custom.objective} onChange={(event) => custom.setObjective(event.target.value)} placeholder="Que debe lograr Pulse y cuando pedir autorizacion." />
         <button
           type="button"
           className="w-full rounded-xl bg-accent hover:bg-accent/90 text-white py-2.5 text-sm font-semibold transition disabled:opacity-40"

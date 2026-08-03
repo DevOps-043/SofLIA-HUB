@@ -33,7 +33,7 @@ function printNotice() {
   console.log('AVISO DE LICENCIA OMNIPARSER');
   console.log('Este comando descarga pesos ONNX de OmniParser icon_detect desde Hugging Face.');
   console.log('Los pesos de icon_detect tienen aviso de licencia AGPL en la documentacion del proyecto.');
-  console.log('SofLIA no bundlea este modelo en el instalador ni lo descarga silenciosamente.');
+  console.log('Pulse no bundlea este modelo en el instalador ni lo descarga silenciosamente.');
   console.log('Al ejecutar este comando aceptas revisar y cumplir la licencia del modelo en tu entorno.');
   console.log('');
 }

@@ -1,4 +1,4 @@
-# Página de Descarga — SofLIA Hub
+# Página de Descarga — Pulse Hub
 
 Guía para implementar la sección de descarga en SofLIA Learning.
 
@@ -16,21 +16,21 @@ https://github.com/DevOps-043/PulseHub-SofLIA-releases/releases
 
 **Windows:**
 ```
-https://github.com/DevOps-043/PulseHub-SofLIA-releases/releases/latest/download/SofLIA.Hub-Windows-Setup.exe
+https://github.com/DevOps-043/PulseHub-SofLIA-releases/releases/latest/download/Pulse-Hub-Windows-Setup.exe
 ```
 
 **macOS:**
 ```
-https://github.com/DevOps-043/PulseHub-SofLIA-releases/releases/latest/download/SofLIA.Hub-Mac-Installer.dmg
+https://github.com/DevOps-043/PulseHub-SofLIA-releases/releases/latest/download/Pulse-Hub-Mac-Installer.dmg
 ```
 
-> **Nota:** Los links con `/latest/download/` redirigen automáticamente al release más reciente. Sin embargo, los nombres de archivo incluyen la versión (ej: `SofLIA.Hub-Windows-0.0.3-Setup.exe`), por lo que los links genéricos no funcionarán directamente. Usa la API para obtener los links reales (ver abajo).
+> **Nota:** Los links con `/latest/download/` redirigen automáticamente al release más reciente. Sin embargo, los nombres de archivo incluyen la versión (ej: `Pulse-Hub-Windows-0.0.3-Setup.exe`), por lo que los links genéricos no funcionarán directamente. Usa la API para obtener los links reales (ver abajo).
 
 ### Links por versión específica
 
 ```
-https://github.com/DevOps-043/PulseHub-SofLIA-releases/releases/download/v0.0.3/SofLIA.Hub-Windows-0.0.3-Setup.exe
-https://github.com/DevOps-043/PulseHub-SofLIA-releases/releases/download/v0.0.3/SofLIA.Hub-Mac-0.0.3-Installer.dmg
+https://github.com/DevOps-043/PulseHub-SofLIA-releases/releases/download/v0.0.3/Pulse-Hub-Windows-0.0.3-Setup.exe
+https://github.com/DevOps-043/PulseHub-SofLIA-releases/releases/download/v0.0.3/Pulse-Hub-Mac-0.0.3-Installer.dmg
 ```
 
 ---
@@ -48,17 +48,17 @@ GET https://api.github.com/repos/DevOps-043/PulseHub-SofLIA-releases/releases/la
 ```json
 {
   "tag_name": "v0.0.3",
-  "name": "SofLIA Hub v0.0.3",
+  "name": "Pulse Hub v0.0.3",
   "body": "### Added\n- Build para macOS...",
   "assets": [
     {
-      "name": "SofLIA.Hub-Windows-0.0.3-Setup.exe",
-      "browser_download_url": "https://github.com/DevOps-043/PulseHub-SofLIA-releases/releases/download/v0.0.3/SofLIA.Hub-Windows-0.0.3-Setup.exe",
+      "name": "Pulse-Hub-Windows-0.0.3-Setup.exe",
+      "browser_download_url": "https://github.com/DevOps-043/PulseHub-SofLIA-releases/releases/download/v0.0.3/Pulse-Hub-Windows-0.0.3-Setup.exe",
       "size": 107000000
     },
     {
-      "name": "SofLIA.Hub-Mac-0.0.3-Installer.dmg",
-      "browser_download_url": "https://github.com/DevOps-043/PulseHub-SofLIA-releases/releases/download/v0.0.3/SofLIA.Hub-Mac-0.0.3-Installer.dmg",
+      "name": "Pulse-Hub-Mac-0.0.3-Installer.dmg",
+      "browser_download_url": "https://github.com/DevOps-043/PulseHub-SofLIA-releases/releases/download/v0.0.3/Pulse-Hub-Mac-0.0.3-Installer.dmg",
       "size": 95000000
     }
   ]
@@ -150,7 +150,7 @@ export function DownloadSection() {
 
   return (
     <div>
-      <h2>Descargar SofLIA Hub {release.version}</h2>
+      <h2>Descargar Pulse Hub {release.version}</h2>
       <p>Publicado el {release.date}</p>
 
       <div style={{ display: 'flex', gap: '1rem', margin: '2rem 0' }}>
@@ -185,7 +185,7 @@ export function DownloadSection() {
 
 ```html
 <section id="download-section">
-  <h2>Descargar SofLIA Hub</h2>
+  <h2>Descargar Pulse Hub</h2>
   <p id="version-text">Cargando versión...</p>
 
   <div id="download-buttons" style="display:flex; gap:1rem; margin:2rem 0;">
@@ -200,7 +200,7 @@ export function DownloadSection() {
     .then(r => r.json())
     .then(data => {
       document.getElementById('version-text').textContent =
-        `SofLIA Hub ${data.tag_name} — ${new Date(data.published_at).toLocaleDateString('es-ES')}`;
+        `Pulse Hub ${data.tag_name} — ${new Date(data.published_at).toLocaleDateString('es-ES')}`;
 
       const container = document.getElementById('download-buttons');
       container.innerHTML = '';
@@ -247,19 +247,19 @@ export function DownloadSection() {
 1. Descarga el archivo `.exe`
 2. Ejecuta el instalador
 3. Sigue el asistente de instalación (puedes elegir la carpeta)
-4. SofLIA Hub se abrirá automáticamente al terminar
+4. Pulse Hub se abrirá automáticamente al terminar
 
 ### macOS
 1. Descarga el archivo `.dmg`
-2. Abre el `.dmg` y arrastra SofLIA Hub a la carpeta Aplicaciones
+2. Abre el `.dmg` y arrastra Pulse Hub a la carpeta Aplicaciones
 3. La primera vez: clic derecho → Abrir (macOS puede bloquear apps no firmadas)
-4. Inicia SofLIA Hub desde Aplicaciones
+4. Inicia Pulse Hub desde Aplicaciones
 
 ---
 
 ## Notas importantes
 
-- **Auto-actualización:** Una vez instalado, SofLIA Hub se actualiza automáticamente. La página de descarga es solo para la primera instalación.
+- **Auto-actualización:** Una vez instalado, Pulse Hub se actualiza automáticamente. La página de descarga es solo para la primera instalación.
 - **Rate limit de GitHub API:** La API pública permite 60 requests/hora por IP. Suficiente para una página de descarga. Si necesitas más, agrega un token en el header `Authorization: Bearer <token>`.
 - **Cache:** Considera cachear la respuesta de la API por 5-10 minutos para no exceder el rate limit.
 - **Linux:** De momento no se distribuye build para Linux. Si se necesita en el futuro, el pipeline ya soporta AppImage — solo hay que agregar un job `build-linux`.

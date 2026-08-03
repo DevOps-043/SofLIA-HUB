@@ -1,5 +1,5 @@
 # =============================================================================
-# SofLIA Hub - Transcripcion de reuniones en vivo (sidecar Python)
+# Pulse Hub - Transcripcion de reuniones en vivo (sidecar Python)
 # =============================================================================
 # El sidecar NO captura audio de reunion: Electron (Chromium) es quien tiene la
 # API multiplataforma de loopback (Windows/macOS/Linux) y envia aqui chunks PCM

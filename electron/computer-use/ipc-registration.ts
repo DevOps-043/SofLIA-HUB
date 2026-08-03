@@ -57,8 +57,8 @@ export function registerComputerUseHandlers(): void {
       buttons: ['Cancelar', 'Confirmar'],
       defaultId: 0,
       cancelId: 0,
-      title: 'SofLIA â€” Confirmar acciÃ³n',
-      message: 'SofLIA quiere realizar una acciÃ³n',
+      title: 'Pulse â€” Confirmar acciÃ³n',
+      message: 'Pulse quiere realizar una acciÃ³n',
       detail: message,
     });
     return { confirmed: result.response === 1 };

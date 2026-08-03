@@ -2,7 +2,7 @@ import { getCurrentOwnerKey } from './owner-context';
 
 /**
  * Registra el resultado de una tarea del agente de escritorio en la memoria del
- * usuario ACTIVO, para que SofLIA aprenda de sus tareas (procedimientos,
+ * usuario ACTIVO, para que Pulse aprenda de sus tareas (procedimientos,
  * preferencias) igual que del chat y WhatsApp. No bloqueante y tolerante a
  * payloads incompletos (otros backends emiten el evento sin `task`).
  */

@@ -23,7 +23,7 @@ export function AvailableUpdateCard({ availableVersion, notes, progress, state, 
           </svg>
         </div>
         <div>
-          <p className="text-sm font-bold text-gray-900 dark:text-white">SofLIA Hub v{availableVersion}</p>
+          <p className="text-sm font-bold text-gray-900 dark:text-white">Pulse Hub v{availableVersion}</p>
           <p className="text-[10px] text-gray-500 mt-0.5">Nueva version disponible para descargar</p>
         </div>
       </div>

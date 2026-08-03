@@ -7,7 +7,7 @@ export function renderSlide(slide: SlideData, theme: ResolvedTheme, index: numbe
     ? `url('${image}') center/cover no-repeat`
     : `linear-gradient(135deg,${h(theme.colors.bg)},${h(theme.colors.bgAlt)})`;
   const body = renderSlideBody(slide, theme, Boolean(image));
-  const brand = slide.type !== 'title' && slide.type !== 'closing' ? '<div class="br">SofLIA</div>' : '';
+  const brand = slide.type !== 'title' && slide.type !== 'closing' ? '<div class="br">Pulse</div>' : '';
 
   return `<div class="slide" style="${pageBreak}background:${background};position:relative;">
     ${image ? '<div class="scrim"></div>' : ''}

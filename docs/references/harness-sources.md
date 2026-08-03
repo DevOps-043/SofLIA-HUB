@@ -23,7 +23,7 @@ Principios extraidos:
 7. Spec-driven: propuesta, requisitos, diseno y tareas atomicas.
 8. Aislar ejecucion y auditar con una perspectiva adversarial antes de PR.
 
-Adaptacion SofLIA: `AGENTS.md`/docs/skills, tooling del repo, npm+Electron+Python,
+Adaptacion Pulse: `AGENTS.md`/docs/skills, tooling del repo, npm+Electron+Python,
 OpenSpec+Git y compuertas de PR/release.
 
 ## LIDR Specboot
@@ -34,7 +34,7 @@ commit `d19d286e9895bdf9be54b3e97070b9fe081c93af` observado el 2026-07-21.
 Elementos adoptados:
 
 - `ai-specs/skills` como procedimientos reutilizables;
-- roles separados de backend/frontend/producto adaptados a dominios SofLIA;
+- roles separados de backend/frontend/producto adaptados a dominios Pulse;
 - enriquecimiento, OpenSpec, tareas atomicas, worktrees y auditoria;
 - una fuente canonica con adaptadores por herramienta;
 - documentacion como fuente de verdad que debe personalizarse al proyecto real.
@@ -71,4 +71,4 @@ equipo. El proveedor Gemini del producto permanece documentado en stack/runtime.
 
 Una idea externa se adapta solo cuando coincide con contratos y riesgos reales del
 repo. La fuente externa orienta el proceso; el codigo, SQL y configuracion
-versionados determinan lo que SofLIA implementa.
+versionados determinan lo que Pulse implementa.

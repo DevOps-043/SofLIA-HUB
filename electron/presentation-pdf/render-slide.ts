@@ -20,7 +20,7 @@ export function renderSlide(slide: SlideData, theme: ResolvedTheme, index: numbe
   const pageBreak = index > 0 ? 'page-break-before:always;' : '';
   const imageBg = image ? `url('${image}') center/cover no-repeat` : `linear-gradient(135deg,${h(colors.bg)},${h(colors.bgAlt)})`;
   const scrim = image ? '<div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.3),rgba(0,0,0,.7));z-index:1"></div>' : '';
-  const brand = slide.type !== 'title' && slide.type !== 'closing' ? '<div class="br">SofLIA</div>' : '';
+  const brand = slide.type !== 'title' && slide.type !== 'closing' ? '<div class="br">Pulse</div>' : '';
   const titleStyle = `font-family:'${theme.fontHeading}';color:${h(colors.heading)};font-weight:700;text-shadow:0 2px 20px rgba(0,0,0,.3)`;
   const shell = (inner: string, background = h(colors.bg)) =>
     `<div class="slide" style="${pageBreak}background:${background};">${inner}<div class="sn">${index + 1}/${total}</div>${brand}</div>`;

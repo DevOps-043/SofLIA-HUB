@@ -2,14 +2,14 @@
  * Sets de seguridad para herramientas del agente WhatsApp.
  *
  * Tres niveles:
- *  - `BLOCKED_TOOLS_WA`: tools deshabilitadas globalmente (vacío hoy — SofLIA es omnipotente)
+ *  - `BLOCKED_TOOLS_WA`: tools deshabilitadas globalmente (vacío hoy — Pulse es omnipotente)
  *  - `CONFIRM_TOOLS_WA`: tools que requieren confirmación explícita del usuario antes de ejecutar
  *  - `GROUP_BLOCKED_TOOLS`: tools bloqueadas en chats grupales (impide que miembros del grupo
  *    controlen la máquina del host)
  */
 
 export const BLOCKED_TOOLS_WA = new Set<string>([
-  // Vacío — SofLIA puede ejecutar todo lo demás.
+  // Vacío — Pulse puede ejecutar todo lo demás.
 ]);
 
 export const CONFIRM_TOOLS_WA = new Set([

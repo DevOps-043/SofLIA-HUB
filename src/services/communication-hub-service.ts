@@ -37,7 +37,7 @@ export function isCommunicationHubAvailable(): boolean {
 
 export function getCommunicationHub() {
   if (!window.communicationHub) {
-    throw new Error('Communication Hub no disponible. Ejecuta SofLIA dentro de Electron.');
+    throw new Error('Communication Hub no disponible. Ejecuta Pulse dentro de Electron.');
   }
   return window.communicationHub;
 }

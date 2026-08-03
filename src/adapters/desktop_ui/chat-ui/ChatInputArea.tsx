@@ -14,7 +14,7 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
       ? 'Describe la imagen que quieres generar...'
       : modes.promptOptimizer
         ? 'Escribe el prompt a optimizar...'
-        : 'Mensaje a SOFLIA...';
+        : 'Mensaje a PULSE...';
 
   return (
     <div className="flex-shrink-0 px-4 pb-4 pt-2 bg-background dark:bg-background-dark">
@@ -49,7 +49,7 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
               <button
                 onClick={controller.onStopClick}
                 className="w-9 h-9 flex items-center justify-center rounded-full bg-red-500 hover:bg-red-600 text-white shadow-md transition-all animate-pulse"
-                title="Detener lo que SOFLIA está haciendo"
+                title="Detener lo que PULSE está haciendo"
                 aria-label="Detener"
               >
                 <span className="block w-3 h-3 rounded-[3px] bg-white" />

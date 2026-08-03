@@ -40,7 +40,7 @@ export function GoogleConnectionSection(props: {
         {connection.error && <p className="text-xs text-danger text-center">{connection.error}</p>}
         {connection.google && (
           <p className="text-xs text-secondary text-center leading-relaxed">
-            Con Google conectado, SofLIA tiene acceso a Calendar, Gmail, Drive y Google Chat.
+            Con Google conectado, Pulse tiene acceso a Calendar, Gmail, Drive y Google Chat.
           </p>
         )}
       </div>

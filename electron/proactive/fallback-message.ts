@@ -24,7 +24,7 @@ export function composeMessageFallback(payload: ProactivePayload): string {
     message += '\n';
   }
 
-  return `${message}— SofLIA 💜`;
+  return `${message}— Pulse 💜`;
 }
 
 function appendTaskSummary(payload: ProactivePayload, append: (chunk: string) => void): void {

@@ -100,7 +100,7 @@ export const UnifiedSettingsModal = ({
 
           {/* Footer del Sidebar (Solo versión, limpio) */}
           <div className="mt-auto w-full p-6 text-center border-t border-border/50 shrink-0 select-none">
-            <span className="text-[9px] text-secondary/50 font-mono tracking-wider uppercase">SofLIA Hub v{currentVersion}</span>
+            <span className="text-[9px] text-secondary/50 font-mono tracking-wider uppercase">Pulse Hub v{currentVersion}</span>
           </div>
 
         </div>

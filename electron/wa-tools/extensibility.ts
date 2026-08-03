@@ -5,17 +5,17 @@
 export const EXTENSIBILITY_TOOLS = [
   {
     name: 'list_dynamic_tools',
-    description: 'Lista las herramientas dinámicas actualmente cargadas por SofLIA desde sus rutas de descubrimiento (workspace y toolsets instalados en userData). Útil para inspeccionar capacidades nuevas estilo plugin.',
+    description: 'Lista las herramientas dinámicas actualmente cargadas por Pulse desde sus rutas de descubrimiento (workspace y toolsets instalados en userData). Útil para inspeccionar capacidades nuevas estilo plugin.',
     parameters: { type: 'OBJECT' as const, properties: {} },
   },
   {
     name: 'list_installable_toolsets',
-    description: 'Lista los toolsets dinámicos instalables estilo plugin que SofLIA puede agregar para nuevas integraciones.',
+    description: 'Lista los toolsets dinámicos instalables estilo plugin que Pulse puede agregar para nuevas integraciones.',
     parameters: { type: 'OBJECT' as const, properties: {} },
   },
   {
     name: 'list_installed_toolsets',
-    description: 'Lista los toolsets dinámicos ya instalados por SofLIA junto con sus variables de entorno requeridas.',
+    description: 'Lista los toolsets dinámicos ya instalados por Pulse junto con sus variables de entorno requeridas.',
     parameters: { type: 'OBJECT' as const, properties: {} },
   },
   {
@@ -25,7 +25,7 @@ export const EXTENSIBILITY_TOOLS = [
   },
   {
     name: 'install_dynamic_toolset',
-    description: 'Instala o actualiza un toolset dinámico por id. Usa esto cuando falte una integración que SofLIA puede agregar en caliente. REQUIERE confirmación.',
+    description: 'Instala o actualiza un toolset dinámico por id. Usa esto cuando falte una integración que Pulse puede agregar en caliente. REQUIERE confirmación.',
     parameters: {
       type: 'OBJECT' as const,
       properties: {

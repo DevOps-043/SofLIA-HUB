@@ -1,23 +1,23 @@
-# SofLIA Hub — Notificaciones por WhatsApp y Telegram
+# Pulse Hub — Notificaciones por WhatsApp y Telegram
 
 **Estado:** Especificación técnica (documentación). No incluye cambios de código.
-**Audiencia:** ingeniería de plataforma (SofLIA Learning), equipo/agente que construya el servicio "SofLIA Hub" para VPS de cliente.
+**Audiencia:** ingeniería de plataforma (SofLIA Learning), equipo/agente que construya el servicio "Pulse Hub" para VPS de cliente.
 **Relacionado:** `CLAUDE.md` (arquitectura general), `README.md` (variables `SOFLIA_HUB_*` ya documentadas).
 
 ---
 
 ## 1. Resumen ejecutivo
 
-SofLIA Learning ya tiene un **sistema de notificaciones in-app completo** (tablas, RLS, preferencias por usuario, configuración por organización) y un **borrador parcial** de entrega externa por WhatsApp: una tabla de cola (`notification_channel_deliveries`) y un cron de Netlify (`process-notification-deliveries.ts`) que reenvía cada entrega pendiente a una URL externa llamada "SofLIA Hub" mediante POST firmado con HMAC.
+SofLIA Learning ya tiene un **sistema de notificaciones in-app completo** (tablas, RLS, preferencias por usuario, configuración por organización) y un **borrador parcial** de entrega externa por WhatsApp: una tabla de cola (`notification_channel_deliveries`) y un cron de Netlify (`process-notification-deliveries.ts`) que reenvía cada entrega pendiente a una URL externa llamada "Pulse Hub" mediante POST firmado con HMAC.
 
-Lo que falta para cumplir la premisa del negocio — *"cada organización despliega su propio SofLIA Hub en su VPS, y SofLIA les manda a sus empleados, por WhatsApp o Telegram, las notificaciones que ya genera el sistema (ej. recordatorios de avanzar el curso)"* — es:
+Lo que falta para cumplir la premisa del negocio — *"cada organización despliega su propio Pulse Hub en su VPS, y Pulse les manda a sus empleados, por WhatsApp o Telegram, las notificaciones que ya genera el sistema (ej. recordatorios de avanzar el curso)"* — es:
 
 1. **Multi-tenencia real de configuración de Hub.** Hoy el cron usa **una sola** URL/API-key global (`SOFLIA_HUB_NOTIFICATIONS_URL` / `SOFLIA_HUB_API_KEY`) para *toda* la plataforma. El modelo de negocio requiere que **cada organización tenga su propia URL de Hub, su propia API key, y sus propias credenciales de WhatsApp/Telegram**, ya que cada una corre su propia instancia en su propia VPS con su propia cuenta de WhatsApp Business y su propio bot de Telegram.
 2. **Canal Telegram**, que no existe en absoluto hoy (ni en el esquema de BD, ni en el código).
 3. **Vinculación de identidad (opt-in) verificada** — hoy el sistema confía ciegamente en `users.phone`/`users.country_code`, campos sin validación de formato y sin verificación de que el usuario realmente controla ese número. Para WhatsApp esto además choca con una regla de cumplimiento de Meta (ver §6.3).
-4. **Especificación completa del servicio SofLIA Hub** (el software que corre en la VPS del cliente): qué expone, qué consume, cómo se autentica, cómo maneja WhatsApp/Telegram, y cómo reporta estado de vuelta a la plataforma central.
+4. **Especificación completa del servicio Pulse Hub** (el software que corre en la VPS del cliente): qué expone, qué consume, cómo se autentica, cómo maneja WhatsApp/Telegram, y cómo reporta estado de vuelta a la plataforma central.
 
-Este documento cubre: (A) el sistema de notificaciones actual tal como existe hoy, con nombres exactos de archivos/tablas/columnas; (B) el diagnóstico de brechas; (C) el diseño propuesto multi-tenant de SofLIA Hub, con contrato de API, modelo de datos nuevo, flujo de vinculación, y consideraciones de seguridad/cumplimiento; (D) un plan de implementación por fases.
+Este documento cubre: (A) el sistema de notificaciones actual tal como existe hoy, con nombres exactos de archivos/tablas/columnas; (B) el diagnóstico de brechas; (C) el diseño propuesto multi-tenant de Pulse Hub, con contrato de API, modelo de datos nuevo, flujo de vinculación, y consideraciones de seguridad/cumplimiento; (D) un plan de implementación por fases.
 
 ---
 
@@ -215,8 +215,8 @@ NOTIFICATION_DELIVERY_PROCESSING_STALE_MINUTES=15
 | 5 | Lógica de gating (teléfono, preferencia, plan) está **duplicada** entre `delivery-queue.service.ts` y `process-learning-reminders.ts`. | Cualquier regla nueva debe mantenerse en dos lugares; alto riesgo de divergencia. | Media |
 | 6 | Catálogo de `event_type` de `notification_settings` (config de organización) no coincide con los `notification_type` reales creados por el sistema. | El toggle de canal por organización puede no aplicar sin que nadie lo note. | Media |
 | 7 | Ninguna UI (usuario ni admin) muestra estado de entrega externa (`sent`/`failed`/`pending`). | Soporte no puede diagnosticar "no me llegó el WhatsApp" sin acceso a BD. | Media |
-| 8 | El servicio "SofLIA Hub" en sí **no existe como código** — solo el lado emisor (plataforma → Hub) está implementado. | Sin este documento y sin implementación, no hay receptor real. | Bloqueante |
-| 9 | Riesgo de **SSRF**: si un admin de organización puede configurar libremente la URL de su propio Hub, la plataforma central terminará haciendo peticiones HTTP salientes a una URL arbitraria suministrada por un tercero (el cliente). | Un admin malicioso o comprometido podría apuntar la URL a infraestructura interna de SofLIA (`http://169.254.169.254/...`, IPs privadas, `localhost`). | Alta (seguridad) |
+| 8 | El servicio "Pulse Hub" en sí **no existe como código** — solo el lado emisor (plataforma → Hub) está implementado. | Sin este documento y sin implementación, no hay receptor real. | Bloqueante |
+| 9 | Riesgo de **SSRF**: si un admin de organización puede configurar libremente la URL de su propio Hub, la plataforma central terminará haciendo peticiones HTTP salientes a una URL arbitraria suministrada por un tercero (el cliente). | Un admin malicioso o comprometido podría apuntar la URL a infraestructura interna de Pulse (`http://169.254.169.254/...`, IPs privadas, `localhost`). | Alta (seguridad) |
 | 10 | Tablas legacy (`notification_email_queue`, `organization_notification_preferences`) sin código que las use — confusión para quien lea el esquema. | Deuda técnica, no bloqueante. | Baja |
 
 ---
@@ -238,7 +238,7 @@ NOTIFICATION_DELIVERY_PROCESSING_STALE_MINUTES=15
 
 ```
 ┌─────────────────────────────┐        HTTPS (saliente, firmado HMAC)        ┌──────────────────────────────┐
-│   SofLIA Learning (SaaS)    │ ───────────────────────────────────────────▶ │   SofLIA Hub — VPS del Org A  │
+│   SofLIA Learning (SaaS)    │ ───────────────────────────────────────────▶ │   Pulse Hub — VPS del Org A  │
 │  apps/web + Netlify Functions│                                              │  (Node.js, self-hosted)       │
 │                              │ ◀─────────────────────────────────────────── │  - Adaptador WhatsApp Cloud   │
 │  notification_channel_       │      HTTPS callback de estado (firmado)      │  - Adaptador Telegram Bot API │
@@ -246,7 +246,7 @@ NOTIFICATION_DELIVERY_PROCESSING_STALE_MINUTES=15
 │  service_role)               │                                              │    (viven solo aquí)          │
 └─────────────────────────────┘                                              └──────────────────────────────┘
                                                                                ┌──────────────────────────────┐
-                                                                               │   SofLIA Hub — VPS del Org B  │
+                                                                               │   Pulse Hub — VPS del Org B  │
                                                                                │   (instancia independiente)   │
                                                                                └──────────────────────────────┘
 ```
@@ -281,7 +281,7 @@ Telegram Bot API es simple y sin restricciones de plantillas: cada organización
 
 ### 6.5 Vinculación de identidad (opt-in) — reemplaza la confianza ciega en `users.phone`
 
-Se propone una nueva tabla `user_notification_channel_links` (§7) y un flujo de vinculación explícito por canal, iniciado desde el perfil del usuario en SofLIA (`features/profile/`):
+Se propone una nueva tabla `user_notification_channel_links` (§7) y un flujo de vinculación explícito por canal, iniciado desde el perfil del usuario en Pulse (`features/profile/`):
 
 **Telegram:**
 1. Usuario hace clic en "Conectar Telegram" en su perfil → la plataforma genera un `linking_token` de un solo uso (TTL 10 min) y construye `https://t.me/<bot_username_de_su_org>?start=<linking_token>`.
@@ -402,7 +402,7 @@ alter table public.user_notification_preferences
 | **3 — Canal Telegram** | Migración de `channel` CHECK; `telegram_enabled` en preferencias; UI de preferencias de usuario; generalizar cron y contrato HTTP a multi-canal. | Fase 2 |
 | **4 — Cumplimiento WhatsApp** | Flujo de registro/selección de plantilla aprobada por organización; adjuntar `template` en el payload cuando corresponda; bloquear envío si no hay plantilla aprobada y está fuera de ventana 24h. | Fase 1 |
 | **5 — Observabilidad** | Vista de solo-lectura en business-panel del estado de `notification_channel_deliveries` de la organización (sent/failed/pending) para soporte de primer nivel. | Fase 1 |
-| **6 — Referencia de SofLIA Hub** | Especificación detallada suficiente para que un equipo/agente construya el servicio Node.js desplegable en VPS (adaptadores WhatsApp Cloud API + Telegram Bot API, verificación HMAC, endpoints descritos en §6.6). **Fuera del alcance de este documento** — entregable siguiente si se decide construir el código. | Fases 0–4 |
+| **6 — Referencia de Pulse Hub** | Especificación detallada suficiente para que un equipo/agente construya el servicio Node.js desplegable en VPS (adaptadores WhatsApp Cloud API + Telegram Bot API, verificación HMAC, endpoints descritos en §6.6). **Fuera del alcance de este documento** — entregable siguiente si se decide construir el código. | Fases 0–4 |
 
 ---
 
@@ -412,7 +412,7 @@ alter table public.user_notification_preferences
 - **Privacidad:** `user_notification_channel_links.destination` y `hub_api_key_hash` son datos sensibles; deben excluirse de cualquier exportación/backup no cifrado y de logs.
 - **Disponibilidad:** si el Hub de una organización está caído, las entregas deben acumularse en `pending`/`failed` con backoff (ya existe) y no deben bloquear el procesamiento de otras organizaciones (el nuevo enrutamiento por `organization_id` debe iterar Hubs independientemente, con timeout por Hub).
 - **Idempotencia:** el `UNIQUE (notification_id, channel)` en `notification_channel_deliveries` ya cubre reintentos duplicados del lado plataforma; el Hub debe tratar `deliveryId` como clave de idempotencia si reintenta hacia el proveedor.
-- **Qué no cubre este documento:** el código del servicio SofLIA Hub en sí (Fase 6), la UI final de vinculación en `features/profile/`, y el mecanismo exacto de cifrado de `hub_api_key` (debe alinearse con el patrón ya usado en `lib/security/` para secretos de organización, que no fue auditado en profundidad en esta investigación).
+- **Qué no cubre este documento:** el código del servicio Pulse Hub en sí (Fase 6), la UI final de vinculación en `features/profile/`, y el mecanismo exacto de cifrado de `hub_api_key` (debe alinearse con el patrón ya usado en `lib/security/` para secretos de organización, que no fue auditado en profundidad en esta investigación).
 
 ---
 

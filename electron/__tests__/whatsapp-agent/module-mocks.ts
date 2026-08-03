@@ -39,7 +39,7 @@ vi.mock('../../whatsapp-tools', () => ({
 
 vi.mock('../../whatsapp-prompts', () => ({
   buildSystemPrompt: vi.fn((_memoryContext = '', options: { agentName?: string } = {}) =>
-    Promise.resolve(`Eres ${options.agentName || 'SOFLIA'}, asistente de productividad.`),
+    Promise.resolve(`Eres ${options.agentName || 'PULSE'}, asistente de productividad.`),
   ),
   classifyEvidenceRequirement: vi.fn().mockReturnValue('none'),
   detectActionRequest: vi.fn().mockReturnValue(false),

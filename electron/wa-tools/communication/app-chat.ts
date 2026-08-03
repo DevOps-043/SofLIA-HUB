@@ -1,7 +1,7 @@
 export const APP_CHAT_TOOLS = [
   {
     name: 'app_chat_list_conversations',
-    description: 'Lista las conversaciones internas de SofLIA Hub a las que el usuario tiene acceso dentro de la aplicacion.',
+    description: 'Lista las conversaciones internas de Pulse Hub a las que el usuario tiene acceso dentro de la aplicacion.',
     parameters: {
       type: 'OBJECT' as const,
       properties: {
@@ -12,7 +12,7 @@ export const APP_CHAT_TOOLS = [
   },
   {
     name: 'app_chat_get_context',
-    description: 'Lee mensajes recientes de una conversacion interna de SofLIA Hub para obtener contexto o resumen.',
+    description: 'Lee mensajes recientes de una conversacion interna de Pulse Hub para obtener contexto o resumen.',
     parameters: {
       type: 'OBJECT' as const,
       properties: {
@@ -24,7 +24,7 @@ export const APP_CHAT_TOOLS = [
   },
   {
     name: 'app_chat_append_note',
-    description: 'Agrega una nota o mensaje nuevo a una conversacion interna de SofLIA Hub.',
+    description: 'Agrega una nota o mensaje nuevo a una conversacion interna de Pulse Hub.',
     parameters: {
       type: 'OBJECT' as const,
       properties: {
@@ -36,7 +36,7 @@ export const APP_CHAT_TOOLS = [
   },
   {
     name: 'app_chat_list_assets',
-    description: 'Lista archivos o assets asociados a una conversacion interna de SofLIA Hub.',
+    description: 'Lista archivos o assets asociados a una conversacion interna de Pulse Hub.',
     parameters: {
       type: 'OBJECT' as const,
       properties: {
@@ -49,7 +49,7 @@ export const APP_CHAT_TOOLS = [
   },
   {
     name: 'app_chat_send_asset',
-    description: 'Recupera un archivo de una conversacion interna de SofLIA Hub y lo envia al usuario por WhatsApp.',
+    description: 'Recupera un archivo de una conversacion interna de Pulse Hub y lo envia al usuario por WhatsApp.',
     parameters: {
       type: 'OBJECT' as const,
       properties: {

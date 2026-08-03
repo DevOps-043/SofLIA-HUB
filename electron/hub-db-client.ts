@@ -1,5 +1,5 @@
 /**
- * Cliente generico a la BASE DE DATOS DE SOFLIA HUB (VITE_SUPABASE_URL)
+ * Cliente generico a la BASE DE DATOS DE PULSE HUB (VITE_SUPABASE_URL)
  * para el proceso main.
  *
  * Regla de arquitectura: lo operativo del Hub (meetings, estado de workflows,
@@ -36,7 +36,7 @@ export function getHubDbClient(): SupabaseClient {
   const hubUrl = process.env.VITE_SUPABASE_URL || '';
   const hubKey = process.env.VITE_SUPABASE_ANON_KEY || '';
   if (!hubUrl || !hubKey) {
-    throw new Error('Faltan las credenciales de la base de datos de SofLIA Hub (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).');
+    throw new Error('Faltan las credenciales de la base de datos de Pulse Hub (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).');
   }
 
   const result = createMainSupabaseClient({
@@ -45,7 +45,7 @@ export function getHubDbClient(): SupabaseClient {
     serviceName: 'HubDB',
   });
   if (!result.client) {
-    throw new Error(result.error || 'No pude crear el cliente de la base de SofLIA Hub.');
+    throw new Error(result.error || 'No pude crear el cliente de la base de Pulse Hub.');
   }
 
   hubClient = result.client;

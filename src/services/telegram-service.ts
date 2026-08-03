@@ -52,7 +52,7 @@ declare global {
 
 function getAPI() {
   if (!window.telegram) {
-    throw new Error('Telegram API no disponible. Ejecuta SofLIA dentro de Electron.');
+    throw new Error('Telegram API no disponible. Ejecuta Pulse dentro de Electron.');
   }
   return window.telegram;
 }

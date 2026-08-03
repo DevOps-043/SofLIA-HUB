@@ -25,7 +25,7 @@ const alarmSchema: any = z.object({
  * Herramienta: PC Alarm
  * Exposición del servicio de Alarmas de PC para el Agente Autónomo.
  * Permite al agente programar alarmas físicas (sonido y notificación de SO)
- * en la computadora donde se ejecuta SofLIA, ideal para técnicas Pomodoro
+ * en la computadora donde se ejecuta Pulse, ideal para técnicas Pomodoro
  * o recordatorios inmediatos al usuario.
  */
 export const pcAlarmTool = {
@@ -42,7 +42,7 @@ export const pcAlarmTool = {
           throw new Error('La acción "set" requiere la propiedad "minutes" con un número mayor a 0.');
         }
 
-        const message = input.message || 'Alarma de SofLIA';
+        const message = input.message || 'Alarma de Pulse';
         
         // Se puede proveer un ID personalizado, si no el servicio genera un UUID
         const customId = input.id;

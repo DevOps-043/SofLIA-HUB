@@ -48,7 +48,7 @@ export async function handlePermissionsCommand(
 ): Promise<string> {
   const config = context.waService.config;
   if (!config.masterNumber) {
-    return 'No hay numero maestro configurado. Configuralo primero desde SofLIA Hub > WhatsApp > Acceso Maestro.';
+    return 'No hay numero maestro configurado. Configuralo primero desde Pulse Hub > WhatsApp > Acceso Maestro.';
   }
   if (!isWhatsAppMasterNumber(config, context.senderNumber)) {
     return 'Solo el numero maestro puede administrar permisos de WhatsApp.';

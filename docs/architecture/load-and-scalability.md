@@ -16,7 +16,7 @@ carga ejecutada por un operador. Ver el cambio
 
 ## Modelo de conexión
 
-SofLIA Hub es una app de escritorio Electron. Cada cliente se conecta
+Pulse Hub es una app de escritorio Electron. Cada cliente se conecta
 directamente a Supabase (Lia, SOFIA/Learning, IRIS) con la clave anónima sobre
 PostgREST/HTTPS. "800 usuarios concurrentes" significa ~800 clientes de escritorio
 consultando esas instancias, no un servidor de aplicación intermedio.

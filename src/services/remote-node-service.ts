@@ -48,7 +48,7 @@ export function isRemoteNodeAvailable(): boolean {
 
 function getAPI() {
   if (!window.remoteNode) {
-    throw new Error('Remote Node API no disponible. Ejecuta SofLIA dentro de Electron.');
+    throw new Error('Remote Node API no disponible. Ejecuta Pulse dentro de Electron.');
   }
   return window.remoteNode;
 }

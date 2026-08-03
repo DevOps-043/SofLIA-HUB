@@ -61,7 +61,7 @@ describe('WhatsApp Service - estado y configuracion', () => {
     await service.init();
     await service.setAllowedNumbers(['5215500000000']);
     await service.setPersonalization({
-      globalPersonalization: { displayName: 'SofLIA Pro', tone: 'professional' },
+      globalPersonalization: { displayName: 'Pulse Pro', tone: 'professional' },
       contactPersonalizations: {
         '5215500000000': {
           displayName: 'LIA',
@@ -71,7 +71,7 @@ describe('WhatsApp Service - estado y configuracion', () => {
       },
     });
     const status = service.getStatus();
-    expect(status.globalPersonalization.displayName).toBe('SofLIA Pro');
+    expect(status.globalPersonalization.displayName).toBe('Pulse Pro');
     expect(status.contactPersonalizations['5215500000000'].displayName).toBe('LIA');
     expect(status.contactPersonalizations['5215500000000'].tone).toBe('emotional_support');
   });
@@ -83,7 +83,7 @@ describe('WhatsApp Service - estado y configuracion', () => {
     await service.setPersonalization({
       groupPersonalizations: {
         '120363000000@g.us': {
-          displayName: 'SofLIA Equipo',
+          displayName: 'Pulse Equipo',
           tone: 'direct',
           customInstructions: 'Responde como coordinadora del grupo.',
         },
@@ -93,7 +93,7 @@ describe('WhatsApp Service - estado y configuracion', () => {
       },
     });
     const status = service.getStatus();
-    expect(status.groupPersonalizations['120363000000@g.us'].displayName).toBe('SofLIA Equipo');
+    expect(status.groupPersonalizations['120363000000@g.us'].displayName).toBe('Pulse Equipo');
     expect(status.groupPersonalizations['120363999999@g.us'].displayName).toBe('No debe guardarse');
   });
 

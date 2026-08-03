@@ -1,5 +1,9 @@
 export const GOOGLE_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 
+// OpenAI (familia GPT-5.6). Unica variable que hay que poner en el .env para
+// habilitar Terra/Luna; sin ella el producto sigue funcionando solo con Gemini.
+export const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || '';
+
 // Lia Supabase (conversaciones, meetings, settings)
 export const SUPABASE = {
   URL: import.meta.env.VITE_SUPABASE_URL || '',
@@ -20,19 +24,42 @@ export const IRIS_SUPABASE = {
 
 // Model Configurations
 export const MODELS = {
-  PRIMARY: 'gemini-3.5-flash',
+  // Pulse: el modelo por defecto del chat.
+  PRIMARY: 'gemini-3.6-flash',
   FALLBACK: 'gemini-3.5-flash-lite',
   PRO: 'gemini-2.5-pro',
   WEB_AGENT: 'gemini-3.5-flash',
-  // Live API (voz bidireccional): 3.1 soporta function calling, grounding y thinkingLevel.
-  LIVE: 'gemini-3.1-flash-live-preview',
+  // Orbe de voz: usa el modelo mas reciente por latencia de primera frase.
+  // Si falla, sendMessageStream cae a FALLBACK/PRIMARY automaticamente.
+  ORB: 'gemini-3.6-flash',
   IMAGE_GENERATION: 'gemini-2.5-flash-image',
   DEEP_RESEARCH: 'deep-research-pro-preview-12-2025',
   TRANSCRIPTION: 'gemini-3.5-flash-lite',
   MAPS: 'gemini-3.5-flash-lite',
 };
 
-export const LIVE_API_URL = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent';
+// Familia GPT-5.6 de OpenAI. Terra (Pulse Max) se reserva para acciones reales
+// sobre la computadora: abrir apps, mover el cursor, hacer clic. Luna (Pulse
+// Pro) atiende la orbe y el resto de comandos, que son la mayoria del uso.
+// Solo se enrutan si hay OPENAI_API_KEY: sin llave el producto cae a Gemini.
+export const OPENAI_MODELS = {
+  COMPUTER_USE: 'gpt-5.6-terra',
+  COMMANDS: 'gpt-5.6-luna',
+};
+
+/**
+ * Vector stores de OpenAI para file_search (lo que la doc llama "retrieval").
+ * La API exige al menos un `vector_store_ids`, asi que la herramienta queda
+ * apagada mientras no se configure. Formato: ids separados por coma.
+ */
+export const OPENAI_VECTOR_STORE_IDS = (import.meta.env.VITE_OPENAI_VECTOR_STORE_IDS || '')
+  .split(',')
+  .map((id: string) => id.trim())
+  .filter(Boolean);
+
+export function isOpenAIConfigured(): boolean {
+  return OPENAI_API_KEY.trim().length > 0;
+}
 
 // Google Cloud Text-to-Speech (voz de la orbe). Todas las variables llevan
 // prefijo VITE_: es el unico que el build incrusta tanto en el renderer como en

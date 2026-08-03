@@ -1,5 +1,5 @@
 // =============================================================================
-// SofLIA Hub - Voz de la orbe (Google Cloud Text-to-Speech) — Main Process
+// Pulse Hub - Voz de la orbe (Google Cloud Text-to-Speech) — Main Process
 // =============================================================================
 // La sintesis vive en main y NO en el renderer por dos motivos:
 //   1. Fiabilidad: main tiene TODAS las variables del .env (dotenv). El renderer
@@ -41,7 +41,7 @@ let configLogged = false;
 export async function synthesizeOrbSpeech(text: string): Promise<OrbSpeechAudio> {
   const { apiKey, voice, languageCode } = getTtsConfig();
   if (!apiKey) {
-    throw new Error('Falta VITE_GOOGLE_CLOUD_TTS_API_KEY en el .env para la voz de SofLIA.');
+    throw new Error('Falta VITE_GOOGLE_CLOUD_TTS_API_KEY en el .env para la voz de Pulse.');
   }
   if (!configLogged) {
     configLogged = true;

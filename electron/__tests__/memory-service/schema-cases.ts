@@ -12,10 +12,10 @@ export function registerMemorySchemaCases(ctx: MemoryServiceTestContext): void {
   });
 
   it('MEM-002: saveMessage inserts a row into messages table', () => {
-    insertMessage(ctx.getDb(), { content: 'Hola SofLIA' });
+    insertMessage(ctx.getDb(), { content: 'Hola Pulse' });
     const rows = ctx.getDb().prepare('SELECT * FROM messages').all();
     expect(rows).toHaveLength(1);
-    expect(rows[0].content).toBe('Hola SofLIA');
+    expect(rows[0].content).toBe('Hola Pulse');
     expect(rows[0].role).toBe('user');
   });
 

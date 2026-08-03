@@ -17,7 +17,7 @@ export function PassiveWorkflowEditor({ controller }: { controller: WorkflowHubC
       </div>
       {workflow.passiveBehavior === 'system' ? (
         <div className="rounded-xl border border-accent/20 bg-accent/5 px-4 py-3 text-xs text-accent">
-          Reuniones ya funciona como workflow pasivo de sistema. SofLIA revisa Calendar, Gmail y Drive para detectar artifacts, y tambien puede arrancar trazabilidad viva cuando una extension dispara `soflia://meeting-trigger`.
+          Reuniones ya funciona como workflow pasivo de sistema. Pulse revisa Calendar, Gmail y Drive para detectar artifacts, y tambien puede arrancar trazabilidad viva cuando una extension dispara `soflia://meeting-trigger`.
         </div>
       ) : <PassiveWorkflowForm controller={controller} />}
     </div>

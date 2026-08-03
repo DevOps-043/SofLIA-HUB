@@ -32,7 +32,7 @@ export async function embedConversationMemoryChunks(
 ): Promise<void> {
   const text = messages.map((message) => {
     const date = new Date(message.timestamp).toLocaleDateString('es-MX');
-    return `[${date}] ${message.role === 'user' ? 'Usuario' : 'SofLIA'}: ${message.content}`;
+    return `[${date}] ${message.role === 'user' ? 'Usuario' : 'Pulse'}: ${message.content}`;
   }).join('\n');
   const startTime = messages[0]?.timestamp || Date.now();
   const endTime = messages[messages.length - 1]?.timestamp || Date.now();

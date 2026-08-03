@@ -16,7 +16,7 @@ function showNativeNotification(message: string): void {
   }
 
   new Notification({
-    title: 'SofLIA Alarma',
+    title: 'Pulse Alarma',
     body: message,
     urgency: 'critical',
   }).show();

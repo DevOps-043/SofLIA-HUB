@@ -1,5 +1,5 @@
 /**
- * Respaldo del estado de servicios en la BASE DE DATOS DE SOFLIA HUB.
+ * Respaldo del estado de servicios en la BASE DE DATOS DE PULSE HUB.
  *
  * Problema que resuelve: workflows, plantillas y tareas programadas vivian
  * SOLO en JSON locales (userData/); un formateo o cambio de maquina los

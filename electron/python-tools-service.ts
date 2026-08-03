@@ -1,5 +1,5 @@
 // =============================================================================
-// SofLIA Hub - PythonToolsService (documentos + privacidad)
+// Pulse Hub - PythonToolsService (documentos + privacidad)
 // =============================================================================
 // Cliente del sidecar de herramientas (python/tools_sidecar). Proceso SEPARADO
 // del sidecar de voz: aquel tiene el microfono en exclusiva y los modelos Vosk

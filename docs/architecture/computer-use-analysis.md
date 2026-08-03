@@ -1,4 +1,4 @@
-# Analisis profundo del sistema de Computer Use de SofLIA
+# Analisis profundo del sistema de Computer Use de Pulse
 
 Fecha: 2026-03-16
 
@@ -6,7 +6,7 @@ Fecha: 2026-03-16
 
 El problema principal no es que el modelo "piense mal" solamente. El problema es sistemico:
 
-1. SofLIA tiene dos sistemas distintos de computer use y no una sola arquitectura coherente.
+1. Pulse tiene dos sistemas distintos de computer use y no una sola arquitectura coherente.
 2. El sistema mas avanzado (`desktop-agent-service.ts`) existe, pero hoy esta integrado sobre todo con WhatsApp, no con el chat local del renderer.
 3. El camino alterno (`computer-use-handlers.ts`) usa automatizacion muy primitiva: screenshot + OCR + `SendKeys`/`mouse_event`, sin estado estructural robusto.
 4. La verificacion actual es debil: compara hashes parciales de screenshots y asume que si la pantalla cambio, la accion fue correcta.
@@ -106,7 +106,7 @@ Eso genera prompts, contratos, retries y observabilidad distintos.
 
 ### 3.2 Precision basada en pixeles en escenarios donde deberia haber estructura
 
-Para web moderna, formularios y apps SaaS, un sistema serio usa DOM, accessibility tree, locators o browser-native controls antes de caer a vision. SofLIA hace lo contrario.
+Para web moderna, formularios y apps SaaS, un sistema serio usa DOM, accessibility tree, locators o browser-native controls antes de caer a vision. Pulse hace lo contrario.
 
 ### 3.3 Falta de verificacion semantica
 
@@ -159,7 +159,7 @@ Lecciones clave:
 
 1. Auto-waiting y actionability.
    - Antes de clickear, Playwright valida unicidad, visibilidad, estabilidad, que reciba eventos y que este habilitado.
-   - SofLIA hoy no tiene equivalente.
+   - Pulse hoy no tiene equivalente.
 
 2. Locators semanticos.
    - `getByRole`, `getByLabel`, `getByText`, `getByPlaceholder`, `getByTestId`.
@@ -260,9 +260,9 @@ Inferencia razonable:
 
 - Al ser un browser AI-native basado en Chromium y con controles por dominio/permiso, Comet juega en una categoria estructural muy distinta a un desktop clicker sobre apps arbitrarias. Perplexity no publica un paper tecnico detallado del motor de interaccion, asi que no conviene inventar mas alla de esto.
 
-## 5. Comparativa directa contra SofLIA
+## 5. Comparativa directa contra Pulse
 
-| Dimension | SofLIA hoy | Playwright / MCP | Claude CU | Atlas / Comet |
+| Dimension | Pulse hoy | Playwright / MCP | Claude CU | Atlas / Comet |
 |---|---|---|---|---|
 | Unidad arquitectonica | Fragmentada | Unificada para browser | Agent loop definido | Browser-native |
 | Precision web | Pixel + OCR | DOM + accessibility + locators | Vision; para browser empujan Playwright | Browser integrado |
@@ -272,7 +272,7 @@ Inferencia razonable:
 | Aislamiento | Maquina real | Browser controlado | VM/container recomendado | Browser/profile/session isolation |
 | Reintentos | `x +/- 5px`, reprompt | Deterministas por locator | Tool loop con mejores acciones | Producto integrado |
 
-## 6. Lo que hay que hacer para que SofLIA sea util de verdad
+## 6. Lo que hay que hacer para que Pulse sea util de verdad
 
 ## 6.1 Principio rector
 
@@ -367,7 +367,7 @@ Y aun asi debe tener:
 - verificacion semantica por OCR/estado
 - replay y snapshot before/after
 
-## 6.3 Cambios tecnicos concretos en SofLIA
+## 6.3 Cambios tecnicos concretos en Pulse
 
 ### P0
 

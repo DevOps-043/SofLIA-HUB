@@ -2,7 +2,7 @@
 
 Estado: vigente. Actualizado: 2026-07-21.
 
-SofLIA Hub es una aplicacion de escritorio Electron orientada a equipos de habla
+Pulse Hub es una aplicacion de escritorio Electron orientada a equipos de habla
 espanola. Unifica conversacion asistida por IA, gestion de proyectos y fuentes,
 reuniones, decisiones operativas, productividad, canales WhatsApp/Telegram,
 Google Workspace, automatizacion de escritorio, memoria y herramientas dinamicas.

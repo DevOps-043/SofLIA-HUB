@@ -30,9 +30,9 @@ export function Sidebar(props: SidebarProps) {
               {/* Left: Start / Logo */}
               <div className="flex items-center gap-2 flex-shrink-0">
                 <div className="grid h-8 w-8 place-items-center rounded-xl bg-[#0A2540]/10 dark:bg-white/[0.04]">
-                  <img src="./assets/Icono.png" alt="SofLIA" className="h-5 w-5 object-contain" />
+                  <img src="./assets/Icono.png" alt="Pulse" className="h-5 w-5 object-contain" />
                 </div>
-                <span className="hidden sm:inline text-xs font-bold tracking-wide text-[#0A2540] dark:text-white">SofLIA Hub</span>
+                <span className="hidden sm:inline text-xs font-bold tracking-wide text-[#0A2540] dark:text-white">Pulse Hub</span>
               </div>
 
               {/* Middle Left: Action button & Popovers group */}

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { MODEL_OPTIONS } from './model-selector-options';
-import type { ModelOption, ThinkingOption } from './model-selector-options';
+import { DEFAULT_MODEL_ID, MODEL_OPTIONS } from './model-selector-options';
+import type { ModelIconKey, ModelOption, ThinkingOption } from './model-selector-options';
 
 export function useModelSelector() {
-  const [preferredPrimaryModel, setPreferredPrimaryModel] = useState('gemini-3.5-flash');
+  const [preferredPrimaryModel, setPreferredPrimaryModel] = useState(DEFAULT_MODEL_ID);
   const [thinkingMode, setThinkingMode] = useState('minimal');
   const [isThinkingDropdownOpen, setIsThinkingDropdownOpen] = useState(false);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
@@ -23,7 +23,7 @@ export function useModelSelector() {
   const handleModelChange = (modelId: string) => {
     setPreferredPrimaryModel(modelId);
     const newModel = MODEL_OPTIONS.find((model) => model.id === modelId);
-    if (newModel) syncThinkingMode(modelId, newModel, thinkingMode, setThinkingMode);
+    if (newModel) syncThinkingMode(newModel, thinkingMode, setThinkingMode);
     setIsModelSelectorOpen(false);
   };
 
@@ -45,17 +45,15 @@ export function useModelSelector() {
 }
 
 function syncThinkingMode(
-  modelId: string,
   model: ModelOption,
   currentThinkingMode: string,
   setThinkingMode: (mode: string) => void,
 ) {
   const availableOptions = model.thinkingOptions.map((option) => option.id);
   if (availableOptions.includes(currentThinkingMode)) return;
-  if (modelId === 'gemini-2.5-pro') setThinkingMode('low');
-  else if (model.thinkingType === 'budget' && currentThinkingMode === 'minimal') setThinkingMode('off');
+  if (model.thinkingType === 'budget' && currentThinkingMode === 'minimal') setThinkingMode('off');
   else if (model.thinkingType === 'level' && currentThinkingMode === 'off') setThinkingMode('minimal');
 }
 
 export { MODEL_OPTIONS };
-export type { ThinkingOption, ModelOption };
+export type { ThinkingOption, ModelOption, ModelIconKey };

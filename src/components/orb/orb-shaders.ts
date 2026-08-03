@@ -1,4 +1,4 @@
-// Shaders de la Orbe SofLIA. La composición mantiene un cuerpo oscuro sólido y
+// Shaders de la Orbe Pulse. La composición mantiene un cuerpo oscuro sólido y
 // reserva el blending aditivo para pistas, nodos y halo: así conserva detalle
 // sobre escritorios claros sin quemar el centro a blanco.
 

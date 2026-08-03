@@ -98,7 +98,7 @@ export class MeetingLiveService extends EventEmitter {
       downloadRoot: this.deps.whisperModelsDir,
       speakerModelPath,
       // Sesgo de vocabulario: mejora nombres propios y terminos del dominio.
-      initialPrompt: `Reunion de trabajo en espanol (Mexico): ${title}. Terminos frecuentes: SofLIA, IRIS, minuta.`,
+      initialPrompt: `Reunion de trabajo en espanol (Mexico): ${title}. Terminos frecuentes: Pulse, IRIS, minuta.`,
     });
 
     const session: ActiveSession = {
