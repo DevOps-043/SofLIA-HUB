@@ -30,7 +30,7 @@ single-instance lock. `runBootstrap` despues:
 | `MonitoringService` | desktopCapturer, active-win, sharp/OCR | buffer + Lia + screenshots |
 | `CalendarService` | Google/Microsoft OAuth | tokens/conexiones |
 | `GmailService`, `DriveService`, `GChatService` | auth de CalendarService | proveedores externos |
-| `IntegratedBrowserService` | `BrowserWindow` + `WebContentsView` | particion `persist:soflia-integrated-browser` |
+| `IntegratedBrowserService` | `BrowserWindow` + `WebContentsView`, historial, boveda y extensiones | particion Chromium + archivos administrados en `userData/integrated-browser` |
 | `DesktopAgentService` | vision, UIA/OCR/ONNX, nut/Playwright | config JSON, tareas en memoria |
 | `UpdaterService` | electron-updater | estado de descarga |
 | `ClipboardAIAssistant` | clipboard; max 100, poll 5 s | historial en memoria |
@@ -83,7 +83,10 @@ canal permitido. Los servicios no deben importar componentes React.
 - Navegador integrado: `electron/integrated-browser/` administra una
   `WebContentsView` dentro de la ventana principal, con sesion persistente
   aislada, protocolos HTTP(S), permisos sensibles con HITL y un driver de
-  Computer Use sobre la misma superficie visible.
+  Computer Use sobre la misma superficie visible. `BrowserHistoryStore` conserva
+  visitas HTTP(S) saneadas; `BrowserCredentialVault` cifra secretos con
+  `safeStorage` y solo devuelve metadata; `BrowserExtensionManager` valida,
+  copia y carga extensiones Manifest V3 desempaquetadas aprobadas por el usuario.
 - Browser automation aislada: Playwright Core se conserva para perfiles
   configurables o ejecuciones explicitamente aisladas; no es la ruta normal de
   la vista compartida con el usuario.

@@ -30,3 +30,38 @@ export interface IntegratedBrowserOpenInput {
 export interface IntegratedBrowserNavigateInput {
   target: string;
 }
+
+export interface BrowserHistoryEntry {
+  id: string;
+  url: string;
+  title: string;
+  visitedAt: string;
+}
+
+export interface BrowserCredentialMetadata {
+  id: string;
+  origin: string;
+  username: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BrowserCredentialSaveInput {
+  id?: string;
+  username: string;
+  password: string;
+}
+
+export type BrowserExtensionStatus = 'loaded' | 'disabled' | 'error';
+
+export interface BrowserExtensionMetadata {
+  installId: string;
+  extensionId: string | null;
+  name: string;
+  version: string;
+  permissions: string[];
+  hostPermissions: string[];
+  enabled: boolean;
+  status: BrowserExtensionStatus;
+  error: string | null;
+}

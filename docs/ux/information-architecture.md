@@ -1,6 +1,6 @@
 # Arquitectura de informacion
 
-Estado: vigente. Actualizado: 2026-07-21.
+Estado: vigente. Actualizado: 2026-08-04.
 
 <!-- evidence: src/app/app-types.ts -->
 <!-- evidence: src/app/AppSidebar.tsx -->
@@ -28,7 +28,10 @@ Pulse Hub
       |- Project Hub
       |- Productividad
       |- Reuniones
-      `- Registro de decisiones SDO
+      |- Registro de decisiones SDO
+      `- Modo navegador
+         |- Chat activo a la izquierda
+         `- Navegador ajustable a la derecha o a ancho completo
 ```
 
 Productividad existe como `ActiveView`, pero su acceso puede venir de settings o
@@ -76,6 +79,9 @@ El modal unificado expone once tabs:
   como si existiera.
 - El sidebar puede cambiar de posicion, pero debe conservar jerarquia, acciones y
   seleccion.
+- Abrir Navegador oculta temporalmente el Sidebar de navegacion y conserva una
+  sola instancia del chat activo junto al panel web. Cerrar restaura Sidebar y
+  vista anterior; el ancho preferido del navegador se conserva localmente.
 - Notices de share/meeting/degradacion viven sobre el workspace y no sustituyen un
   estado de pantalla.
 - El cierre de modal o cambio de vista no debe cancelar silenciosamente una

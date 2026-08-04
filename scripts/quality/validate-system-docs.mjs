@@ -76,7 +76,7 @@ for (const file of definitionDocs) {
   }
 }
 
-const expectedCounts = { BR: 28, RF: 39, RNF: 20, HU: 25, DEC: 13, LIM: 17 };
+const expectedCounts = { BR: 28, RF: 39, RNF: 20, HU: 25, DEC: 14, LIM: 18 };
 for (const [prefix, expected] of Object.entries(expectedCounts)) {
   const ids = [...definitions].filter(([id]) => id.startsWith(`${prefix}-`));
   if (ids.length !== expected) errors.push(`Cobertura ${prefix}: esperados ${expected}, encontrados ${ids.length}`);
@@ -91,7 +91,7 @@ for (const id of definitions.keys()) {
   if (!traceability.includes(id)) errors.push(`ID sin trazabilidad: ${id}`);
 }
 
-const channelFiles = [1, 2, 3, 4].map((group) => join(root, 'electron', 'preload', `channel-group-${group}.ts`));
+const channelFiles = [1, 2, 3, 4, 5].map((group) => join(root, 'electron', 'preload', `channel-group-${group}.ts`));
 const channelCount = channelFiles.reduce((total, file) => {
   if (!existsSync(file)) return total;
   return total + [...readFileSync(file, 'utf8').matchAll(/^\s*'[^']+',?\s*$/gm)].length;

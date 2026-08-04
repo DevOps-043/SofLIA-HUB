@@ -5,6 +5,7 @@ import type { ActiveView, AuthState, ChatState, FolderState, IrisState } from '.
 
 interface AppSidebarProps {
   activeView: ActiveView;
+  browserOpen?: boolean;
   auth: AuthState;
   avatarUrl?: string;
   chat: ChatState;
@@ -40,6 +41,7 @@ export function AppSidebar(props: AppSidebarProps) {
       position={props.position}
       onToggle={props.onToggleSidebar}
       activeView={props.activeView}
+      browserOpen={props.browserOpen}
       conversations={chat.conversations}
       currentConversationId={chat.currentConversationId}
       loadingConversations={chat.loadingConversations}

@@ -8,8 +8,8 @@ Estado: vigente. Actualizado: 2026-08-04.
 
 ## Contrato IPC
 
-La allowlist actual contiene 285 canales derivados de cuatro arrays: 72, 59, 65
-y 89. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 295 canales derivados de cinco arrays: 72, 59, 65,
+89 y 10. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |
@@ -23,7 +23,7 @@ el catalogo y su validador deben actualizarse juntos.
 | `meeting`, `whatsapp` | 12 cada uno | runs/approvals/sync; conexion/config/status |
 | `meeting-live` | 11 | audio, segmentos, deteccion y estado live |
 | `channels`, `workflow-hub` | 10 cada uno | hub multicanal y casos de workflow |
-| `integrated-browser` | 12 | estado, navegacion, viewport, visibilidad y eventos main-renderer |
+| `integrated-browser` | 22 | navegacion, viewport, eventos, historial, credenciales y extensiones |
 | otros | 60 | voice, updater, automation, drive, pytools, telegram, gchat, app, proactive, background-host, root y AI |
 
 ### Recorrido obligatorio
@@ -54,15 +54,17 @@ actualizar las cuatro capas, tipos y pruebas segun
 
 ### Contrato del navegador integrado
 
-`electron/integrated-browser-handlers.ts` registra diez operaciones invocables:
-estado, apertura, navegacion, atras, adelante, recarga, detener, foco, viewport y
-ocultar. Dos canales adicionales entregan estado y solicitudes de apertura del
-agente al renderer. `electron/preload/integrated-browser-api.ts` y
+`electron/integrated-browser-handlers.ts` registra veinte operaciones invocables:
+diez de estado/navegacion/viewport, dos de historial, cuatro de credenciales y
+cuatro de extensiones. Dos canales adicionales entregan estado y solicitudes de
+apertura del agente al renderer. `electron/preload/integrated-browser-api.ts` y
 `src/services/integrated-browser-service.ts` son las capas publicas.
 
 Los payloads de URL admiten HTTP(S), `about:blank` y busqueda normalizada; los
 bounds son enteros y se ajustan al contenido de la ventana. Un emisor distinto
-del renderer principal recibe `sender_denied`.
+del renderer principal recibe `sender_denied`. El renderer nunca recibe el
+secreto descifrado ni una ruta de extension; esas operaciones se resuelven en
+main y no forman parte del catalogo de herramientas del agente.
 
 ## Integraciones y propietarios
 

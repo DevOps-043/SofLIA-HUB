@@ -31,7 +31,7 @@ metricas de negocio; esos temas no se presentan como hechos.
 |---|---|---|---|
 | Identidad y organizaciones | Inicio de sesion SOFIA, seleccion de organizacion y equipos | Pantalla de autenticacion y menu de usuario | `src/contexts/auth/`, `src/lib/sofia-client.ts` |
 | Chat | Conversaciones, mensajes, carpetas, adjuntos, fuentes y uso de herramientas | Vista `chat` | `src/app/AppChatView.tsx`, `src/services/chat/` |
-| Navegador integrado | Navegacion persistente dentro del workspace y control visible compartido con Computer Use | Vista `browser` o tarea web del agente | `electron/integrated-browser/`, `src/components/browser/` |
+| Navegador integrado | Panel lateral ajustable junto al chat, sesion e historial persistentes, boveda local, extensiones compatibles y control visible compartido con Computer Use | Boton Navegador o tarea web del agente | `electron/integrated-browser/`, `src/components/browser/` |
 | Project Hub | Chat y fuentes agrupados por carpeta/proyecto; navegacion IRIS | Vista `project` y sidebar | `src/app/AppProjectView.tsx`, `src/components/project-hub/`, `src/services/iris-data/` |
 | Productividad | Sesiones, actividad, aplicaciones, OCR opcional y resumen | Vista `productivity` | `src/components/ProductivityDashboard.tsx`, `electron/monitoring/` |
 | Reuniones | Ingesta manual/Drive/live, artefactos, aprobacion y sincronizacion | Vista `meetings` | `src/components/meetings/`, `electron/meetings/` |

@@ -13,7 +13,7 @@ Estado: vigente. Actualizado: 2026-08-04.
 | Startup | ventana principal | theme + auth lifecycle | ninguna durante intro | animando, gracia auth, salida |
 | Auth | sin user y no orb | SOFIA auth | login/recuperacion segun componente | loading, error, credenciales invalidas |
 | Workspace Chat | `activeView=chat` | chat, messages, IA, tools | nuevo/enviar/adjuntar/share/delete | vacio, streaming, tool, error, degraded |
-| Navegador integrado | `activeView=browser` o apertura del agente | `IntegratedBrowserService`, Computer Use | URL/busqueda, atras/adelante, recargar/detener, retomar control | carga, error, permiso HITL, agente controlando |
+| Navegador integrado | boton Navegador o apertura del agente | `IntegratedBrowserService`, historial, boveda, extensiones, Computer Use | ajustar/expandir, navegar, historial, guardar/rellenar, instalar/deshabilitar/remover | carga, vacio, cancelacion, error, permiso HITL, agente controlando |
 | Sidebar | workspace autenticado | chats, folders, IRIS, org/user | seleccionar, crear, pin, rename, delete, tema, settings | loading por seccion, menu contextual |
 | Project Hub | `project` + folder + user | sources/chats/folder/Drive | fuente, chat de proyecto, share | empty source/chat, picker, error |
 | Productividad | `productivity` + user | monitoring, summaries, calendar | rango, start/stop, auto config | sin datos, sesion activa, resumen, error |
@@ -59,12 +59,15 @@ Enviar mensaje -> persistir/pending -> stream IA
 
 ```text
 Usuario abre Navegador o solicita una tarea web en Chat
+  -> Sidebar se oculta; chat activo y panel web comparten el workspace
+  -> usuario ajusta el divisor o expande el navegador a ancho completo
   -> renderer reserva/publica el viewport
   -> main crea o reutiliza WebContentsView + sesion persistente aislada
   -> navegacion manual o use_computer captura la misma pagina visible
   -> acciones del agente se inyectan en esa vista
   -> usuario observa, interrumpe o retoma sobre la misma sesion
-  -> al cambiar de seccion la vista se oculta, no se destruye
+  -> historial se registra; boveda/extensiones solo responden a gesto humano
+  -> al cerrar, la vista se oculta y Sidebar/vista anterior se restauran
 ```
 
 ### Reunion gobernada

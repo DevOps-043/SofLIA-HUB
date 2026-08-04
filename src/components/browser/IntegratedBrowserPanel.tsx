@@ -5,13 +5,15 @@ import {
   type IntegratedBrowserResponse,
   type IntegratedBrowserState,
 } from '../../services/integrated-browser-service';
+import { BrowserManagementPanel, type BrowserManagementTab } from './BrowserManagementPanel';
 
-export function IntegratedBrowserPanel() {
+export function IntegratedBrowserPanel(props: { onClose?: () => void; maximized?: boolean; onToggleMaximize?: () => void }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const addressEditingRef = useRef(false);
   const [state, setState] = useState<IntegratedBrowserState>(EMPTY_INTEGRATED_BROWSER_STATE);
   const [address, setAddress] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
+  const [managementTab, setManagementTab] = useState<BrowserManagementTab | null>(null);
 
   const consumeResponse = useCallback((response: IntegratedBrowserResponse) => {
     if (!response.success) {
@@ -118,6 +120,11 @@ export function IntegratedBrowserPanel() {
               Ir
             </button>
           </form>
+          <ManagementButton label="Historial" active={managementTab === 'history'} onClick={() => setManagementTab((current) => current === 'history' ? null : 'history')}>H</ManagementButton>
+          <ManagementButton label="Contrasenas" active={managementTab === 'credentials'} onClick={() => setManagementTab((current) => current === 'credentials' ? null : 'credentials')}>C</ManagementButton>
+          <ManagementButton label="Extensiones" active={managementTab === 'extensions'} onClick={() => setManagementTab((current) => current === 'extensions' ? null : 'extensions')}>E</ManagementButton>
+          {props.onToggleMaximize && <ManagementButton label={props.maximized ? 'Restaurar panel' : 'Expandir navegador'} onClick={props.onToggleMaximize}>{props.maximized ? '↙' : '↗'}</ManagementButton>}
+          {props.onClose && <ManagementButton label="Cerrar navegador" onClick={props.onClose}>×</ManagementButton>}
         </div>
         <div className="flex min-h-5 items-center justify-between gap-3 px-1 text-xs">
           <span className="truncate text-gray-500 dark:text-white/50">{state.title || 'Navegador'}</span>
@@ -133,6 +140,7 @@ export function IntegratedBrowserPanel() {
           </div>
         )}
       </header>
+      {managementTab && <BrowserManagementPanel tab={managementTab} />}
       <div ref={viewportRef} className="relative min-h-0 flex-1 bg-white dark:bg-[#111820]" data-testid="integrated-browser-viewport">
         {state.isLoading && (
           <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden bg-accent/15">
@@ -144,6 +152,20 @@ export function IntegratedBrowserPanel() {
         </div>
       </div>
     </section>
+  );
+}
+
+function ManagementButton(props: { label: string; active?: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-label={props.label}
+      title={props.label}
+      onClick={props.onClick}
+      className={`grid h-9 min-w-9 place-items-center rounded-xl px-2 text-xs font-bold transition ${props.active ? 'bg-accent/12 text-accent' : 'text-gray-600 hover:bg-gray-100 dark:text-white/70 dark:hover:bg-white/[0.06]'}`}
+    >
+      {props.children}
+    </button>
   );
 }
 

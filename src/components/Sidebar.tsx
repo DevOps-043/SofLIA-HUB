@@ -112,7 +112,7 @@ export function Sidebar(props: SidebarProps) {
                   <button
                     onClick={props.onOpenBrowser}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-200 shrink-0 ${
-                      props.activeView === 'browser'
+                      props.browserOpen
                         ? 'bg-accent/10 border-accent/20 text-accent font-bold shadow-sm'
                         : 'bg-transparent border-gray-200/50 dark:border-white/[0.06] text-gray-600 hover:text-gray-900 dark:text-white/70 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/[0.04]'
                     }`}
@@ -249,7 +249,7 @@ export function Sidebar(props: SidebarProps) {
                   <button
                     onClick={props.onOpenBrowser}
                     className={`mb-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-all duration-200 ${
-                      props.activeView === 'browser'
+                      props.browserOpen
                         ? 'bg-accent/10 text-accent font-bold'
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-white/70 dark:hover:bg-white/[0.04] dark:hover:text-white'
                     }`}
