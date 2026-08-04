@@ -1,7 +1,7 @@
 import { MeetingOpsPanel } from '../components/meetings/MeetingOpsPanel';
 import { ProductivityDashboard } from '../components/ProductivityDashboard';
 import { RegistroDecisiones } from '../components/sdo/RegistroDecisiones';
-import { IntegratedBrowserPanel } from '../components/browser/IntegratedBrowserPanel';
+import { BrowserWorkspaceLayout } from '../components/browser/BrowserWorkspaceLayout';
 import type { MouseEvent } from 'react';
 import { LiaDegradedNotice, ShareLinkNoticeBanner } from './AppNotices';
 import { AppChatView } from './AppChatView';
@@ -12,6 +12,8 @@ import type { UserAISettings } from '../services/settings-service';
 interface AppWorkspaceProps {
   accessUserIds?: string[];
   activeView: ActiveView;
+  browserWorkspaceOpen?: boolean;
+  onCloseBrowserWorkspace?: () => void;
   avatarUrl?: string;
   chat: ChatState;
   currentConversation: ChatState['conversations'][number] | null;
@@ -36,28 +38,41 @@ interface AppWorkspaceProps {
 export function AppWorkspace(props: AppWorkspaceProps) {
   const canShareConversation = Boolean(props.currentConversation?.can_share && props.orgId);
 
+  const chatView = (
+    <AppChatView
+      avatarUrl={props.avatarUrl}
+      canShareConversation={canShareConversation}
+      chat={props.chat}
+      currentConversation={props.currentConversation}
+      externalPrompt={props.externalPrompt}
+      onExternalPromptProcessed={props.onExternalPromptProcessed}
+      onMessagesChange={props.onMessagesChange}
+      onShareConversation={canShareConversation ? () => props.setShareTarget({ targetId: props.currentConversation!.id, targetType: 'conversation', targetName: props.currentConversation!.title }) : undefined}
+      userId={props.userId}
+      userSettings={props.userSettings}
+    />
+  );
+
+  if (props.browserWorkspaceOpen) {
+    return (
+      <main className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
+        {props.shareLinkNotice && <ShareLinkNoticeBanner notice={props.shareLinkNotice} />}
+        {props.liaDegraded && !props.userId && <LiaDegradedNotice message={props.liaStatusMessage || undefined} />}
+        <BrowserWorkspaceLayout chat={chatView} onClose={props.onCloseBrowserWorkspace ?? (() => undefined)} />
+      </main>
+    );
+  }
+
   return (
     <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
       {props.shareLinkNotice && <ShareLinkNoticeBanner notice={props.shareLinkNotice} />}
       {props.liaDegraded && !props.userId && <LiaDegradedNotice message={props.liaStatusMessage || undefined} />}
       {props.activeView === 'chat' && (
         <div className="flex-1 flex flex-col min-w-0 min-h-0 h-full overflow-hidden animate-view-in">
-          <AppChatView
-            avatarUrl={props.avatarUrl}
-            canShareConversation={canShareConversation}
-            chat={props.chat}
-            currentConversation={props.currentConversation}
-            externalPrompt={props.externalPrompt}
-            onExternalPromptProcessed={props.onExternalPromptProcessed}
-            onMessagesChange={props.onMessagesChange}
-            onShareConversation={canShareConversation ? () => props.setShareTarget({ targetId: props.currentConversation!.id, targetType: 'conversation', targetName: props.currentConversation!.title }) : undefined}
-            userId={props.userId}
-            userSettings={props.userSettings}
-          />
+          {chatView}
         </div>
       )}
       {props.activeView === 'productivity' && props.userId && <ProductivityDashboard userId={props.userId} />}
-      {props.activeView === 'browser' && <IntegratedBrowserPanel />}
       {props.activeView === 'sdo' && props.userId && <RegistroDecisiones userId={props.userId} />}
       {props.activeView === 'meetings' && props.userId && (
         <div className="flex-1 min-h-0 overflow-hidden animate-view-in">

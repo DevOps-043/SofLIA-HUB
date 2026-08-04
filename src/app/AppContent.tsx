@@ -44,6 +44,7 @@ export function AppContent() {
   const auth = useAuth();
   const { user, dataUserId, loading, signOut, sofiaContext, liaDegraded, liaStatusMessage } = auth;
   const [activeView, setActiveView] = useState<ActiveView>('chat');
+  const [isBrowserWorkspaceOpen, setIsBrowserWorkspaceOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [externalPrompt, setExternalPrompt] = useState<string | null>(null);
   const [shareTarget, setShareTarget] = useState<ShareTarget | null>(null);
@@ -88,7 +89,7 @@ export function AppContent() {
   useEffect(() => {
     if (!user || !integratedBrowserService.isAvailable()) return undefined;
     return integratedBrowserService.subscribe({
-      onOpenRequested: () => setActiveView('browser'),
+      onOpenRequested: () => setIsBrowserWorkspaceOpen(true),
     });
   }, [user]);
 
@@ -169,10 +170,11 @@ export function AppContent() {
     <OrbWindowRoot key="orb-window" />
   ) : (
     <div key="app-workspace" className={`flex h-screen w-screen overflow-hidden bg-background dark:bg-background-dark ${
-      sidebarPosition === 'bottom' ? 'flex-col-reverse' : sidebarPosition === 'right' ? 'flex-row-reverse' : 'flex-row'
+      !isBrowserWorkspaceOpen && sidebarPosition === 'bottom' ? 'flex-col-reverse' : !isBrowserWorkspaceOpen && sidebarPosition === 'right' ? 'flex-row-reverse' : 'flex-row'
     }`}>
-        <AppSidebar
+        {!isBrowserWorkspaceOpen && <AppSidebar
           activeView={activeView}
+          browserOpen={isBrowserWorkspaceOpen}
           auth={auth}
           avatarUrl={derived.avatarUrl ?? undefined}
           chat={chat}
@@ -190,15 +192,15 @@ export function AppContent() {
           onOpenProject={handlers.handleOpenProject}
           onOpenSdo={() => setActiveView('sdo')}
           onOpenMeetings={() => setActiveView('meetings')}
-          onOpenBrowser={() => setActiveView('browser')}
+          onOpenBrowser={() => setIsBrowserWorkspaceOpen(true)}
           onOpenSettings={() => { setActiveSettingsTab('ai'); setIsUnifiedSettingsOpen(true); }}
           onSelectConversation={handlers.handleSelectConversation}
           onSignOut={signOut}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           setTheme={setTheme}
           theme={theme}
-        />
-        <AppWorkspace accessUserIds={accessUserIds} activeView={activeView} avatarUrl={derived.avatarUrl ?? undefined} chat={chat} currentConversation={derived.currentConversation} currentFolder={derived.currentFolder} externalPrompt={externalPrompt} folder={folder} liaDegraded={liaDegraded} liaStatusMessage={liaStatusMessage} onDeleteConversation={handlers.handleDeleteConversation} onExternalPromptProcessed={() => setExternalPrompt(null)} onMessagesChange={scopedMessagesHandler} onNewChatInProject={handlers.handleNewChatInProject} onNewChatWithMessage={handlers.handleNewChatWithMessage} onSelectConversation={handlers.handleSelectConversation} orgId={orgId} setShareTarget={setShareTarget} shareLinkNotice={shareLinkNotice} userId={userId} userSettings={userSettings} />
+        />}
+        <AppWorkspace accessUserIds={accessUserIds} activeView={activeView} avatarUrl={derived.avatarUrl ?? undefined} browserWorkspaceOpen={isBrowserWorkspaceOpen} onCloseBrowserWorkspace={() => setIsBrowserWorkspaceOpen(false)} chat={chat} currentConversation={derived.currentConversation} currentFolder={derived.currentFolder} externalPrompt={externalPrompt} folder={folder} liaDegraded={liaDegraded} liaStatusMessage={liaStatusMessage} onDeleteConversation={handlers.handleDeleteConversation} onExternalPromptProcessed={() => setExternalPrompt(null)} onMessagesChange={scopedMessagesHandler} onNewChatInProject={handlers.handleNewChatInProject} onNewChatWithMessage={handlers.handleNewChatWithMessage} onSelectConversation={handlers.handleSelectConversation} orgId={orgId} setShareTarget={setShareTarget} shareLinkNotice={shareLinkNotice} userId={userId} userSettings={userSettings} />
         <AppModals folder={folder} movingChat={derived.movingChat} shareTarget={shareTarget} userId={userId} orgId={orgId} user={user} userSettings={userSettings} sofiaContext={sofiaContext} isUnifiedSettingsOpen={isUnifiedSettingsOpen} activeSettingsTab={activeSettingsTab} onSetShareTarget={setShareTarget} onSetUserSettings={setUserSettings} onSetUnifiedSettingsOpen={setIsUnifiedSettingsOpen} />
       </div>
   );

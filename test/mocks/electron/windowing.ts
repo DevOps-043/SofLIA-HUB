@@ -8,7 +8,15 @@ export class BrowserWindow extends EventEmitter {
     once: vi.fn(),
     openDevTools: vi.fn(),
     id: 1,
-    session: { setPermissionRequestHandler: vi.fn(), setPermissionCheckHandler: vi.fn() },
+    session: {
+      setPermissionRequestHandler: vi.fn(),
+      setPermissionCheckHandler: vi.fn(),
+      extensions: {
+        loadExtension: vi.fn(async () => ({ id: 'extension-id', name: 'Extension', version: '1.0.0' })),
+        removeExtension: vi.fn(),
+        getAllExtensions: vi.fn(() => []),
+      },
+    },
     executeJavaScript: vi.fn(),
   };
   contentView = {
@@ -56,6 +64,11 @@ class MockWebContents extends EventEmitter {
   session = {
     setPermissionRequestHandler: vi.fn(),
     setPermissionCheckHandler: vi.fn(),
+    extensions: {
+      loadExtension: vi.fn(async () => ({ id: 'extension-id', name: 'Extension', version: '1.0.0' })),
+      removeExtension: vi.fn(),
+      getAllExtensions: vi.fn(() => []),
+    },
   };
   navigationHistory = {
     canGoBack: vi.fn(() => false),
@@ -67,6 +80,7 @@ class MockWebContents extends EventEmitter {
     this.currentUrl = url;
     this.emit('did-start-loading');
     this.emit('did-navigate', {}, url, 200, 'OK');
+    this.emit('did-finish-load');
     this.emit('did-stop-loading');
   });
   getURL = vi.fn(() => this.currentUrl);
@@ -80,6 +94,7 @@ class MockWebContents extends EventEmitter {
   capturePage = vi.fn(async () => ({ toPNG: () => Buffer.from('captura') }));
   sendInputEvent = vi.fn();
   insertText = vi.fn(async () => {});
+  executeJavaScript = vi.fn(async () => ({ username: true, password: true }));
 }
 
 export class WebContentsView extends EventEmitter {

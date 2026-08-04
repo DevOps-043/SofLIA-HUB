@@ -10,6 +10,7 @@ export interface SidebarProps {
   position?: 'left' | 'right' | 'bottom';
   onToggle: () => void;
   activeView: string;
+  browserOpen?: boolean;
   conversations: Conversation[];
   currentConversationId: string | null;
   loadingConversations: boolean;

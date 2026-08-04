@@ -52,9 +52,15 @@ evidencia medida en el host de referencia.
 | viewport minimo | 160 x 120 DIP | mismo archivo |
 | protocolos de pagina principal | HTTP(S) y `about:blank` | mismo archivo |
 | permisos con HITL | `media`, `geolocation` | `electron/integrated-browser/permission-governance.ts` |
+| ancho del panel | minimo 420 DIP; chat minimo 320 DIP; snap al ancho total | `src/components/browser/BrowserWorkspaceLayout.tsx` |
+| historial | 2.000 entradas; consulta maxima 200 | `electron/integrated-browser/browser-history-store.ts` |
+| credenciales | usuario 320; secreto 4.096 caracteres; maximo almacenado 500 | `electron/integrated-browser/credential-vault.ts` |
+| extension desempaquetada | Manifest V3; 2.000 archivos; 20 MiB | `electron/integrated-browser/extension-manager.ts` |
 
 La vista integrada es unica por ventana principal. Perfiles explicitamente
-aislados o con identificador siguen usando `BrowserWebService`/Playwright.
+aislados o con identificador siguen usando `BrowserWebService`/Playwright. Las
+extensiones se recargan al iniciar porque Electron no las conserva cargadas; se
+rechazan `nativeMessaging`, `debugger`, `proxy` y `management`.
 
 ## Red, archivos y correo
 

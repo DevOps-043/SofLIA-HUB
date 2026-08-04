@@ -12,6 +12,7 @@ Estado: vigente. Actualizado: 2026-08-04.
 - credenciales WhatsApp/Telegram/SMTP y API keys;
 - conversaciones, archivos, transcripciones, screenshots/OCR y memoria;
 - cookies, almacenamiento y sesiones de la particion del navegador integrado;
+- historial, credenciales cifradas y extensiones locales del navegador integrado;
 - filesystem, procesos, portapapeles, mouse/teclado y nodos remotos;
 - decisiones/aprobaciones y efectos externos (correo, mensajes, issues, eventos);
 - pipeline de release y token de repositorio de distribucion.
@@ -36,8 +37,8 @@ aprobacion.
 | Capa | Control | Evidencia |
 |---|---|---|
 | Ventana | sandbox, context isolation, Node off | `electron/main/window-controller.ts`, `orb-window-controller.ts` |
-| Preload | 285 canales permitidos, sanitizacion y CSP | `electron/preload/` |
-| Navegador integrado | particion propia, sin preload/Node, HTTP(S), popup confinado y permisos HITL | `electron/integrated-browser/` |
+| Preload | 295 canales permitidos, sanitizacion y CSP | `electron/preload/` |
+| Navegador integrado | particion propia, sin preload/Node, HTTP(S), popup confinado, boveda metadata-only y extensiones con HITL | `electron/integrated-browser/` |
 | Handlers | payloads serializables y servicios por dominio | `electron/*-handlers.ts` |
 | Canales | principal, rol, scope y capabilities | `electron/communication-hub/authorization.ts` |
 | WhatsApp | normalizacion, allowlists, politica de grupo y tools bloqueadas | `electron/whatsapp/security.ts`, `electron/wa-agent/tool-declarations.ts` |
@@ -63,6 +64,9 @@ acreditan una tool dinamica que exige HITL.
 | Mensajes/memoria | Lia + SQLite/Markdown | owner/scope autorizado y contexto acotado | mezcla de owners si se omite owner_key |
 | Screenshots/OCR | `userData`, buffer y Lia metadata | usuario/monitoring; screenshot solo si habilita | puede capturar secretos en pantalla |
 | Sesiones web integradas | particion Chromium en `userData` | `WebContentsView` aislada; no renderer/modelo | cookies y storage sobreviven reinicios |
+| Historial web | `history.jsonl`, maximo 2.000 entradas | usuario mediante wrapper acotado | URLs pueden revelar temas visitados; se eliminan credenciales embebidas |
+| Contrasenas web | `credentials.json`, secreto cifrado con `safeStorage` | main rellena por gesto y origen exacto; renderer recibe metadata | un proceso del mismo usuario puede heredar la frontera del sistema operativo |
+| Extensiones web | copia administrada + registro en `userData` | usuario instala/deshabilita/remueve; agente sin API | una extension aprobada puede observar paginas y campos que su permiso alcance |
 | Transcripciones | Meeting sources/assets | participantes/owner y aprobadores | datos personales y empresariales |
 | Auditoria | Lia/JSON/log | metadata minima para revision | before/after SDO puede contener contenido sensible |
 | Rutas locales | main | basename/scope cuando sea suficiente | revelar estructura del host |
@@ -76,13 +80,19 @@ acreditan una tool dinamica que exige HITL.
 3. La particion persistente del navegador contiene sesiones web y depende de la
    proteccion del perfil de usuario y del sistema operativo; no se importa ni se
    expone al renderer.
-4. Plugins JS/TS dinamicos se tratan como codigo local confiable: se gobierna su
+4. `safeStorage` protege la boveda con el proveedor del sistema, pero no es una
+   defensa contra otro proceso ya ejecutado como el mismo usuario. En Linux se
+   rechaza el backend `basic_text`.
+5. Las extensiones solo admiten carpetas Manifest V3 desempaquetadas. No hay
+   Chrome Web Store, `.crx`, compatibilidad total con Chrome ni aislamiento entre
+   una extension aprobada y las paginas para las que obtuvo permiso.
+6. Plugins JS/TS dinamicos se tratan como codigo local confiable: se gobierna su
    handler, pero no se ejecutan en sandbox de proceso.
-5. Config JSON y knowledge local no tienen cifrado en reposo demostrado por el
+7. Config JSON y knowledge local no tienen cifrado en reposo demostrado por el
    codigo; depende de seguridad del perfil/OS.
-6. OCR, clipboard y filesystem amplian superficie de datos; deben estar apagados
+8. OCR, clipboard y filesystem amplian superficie de datos; deben estar apagados
    o confirmados cuando no sean necesarios.
-7. No hay SAST/DAST, escaneo de secretos ni audit de dependencias en la compuerta
+9. No hay SAST/DAST, escaneo de secretos ni audit de dependencias en la compuerta
    PR actual; el reporte base registra vulnerabilidades conocidas.
 
 ## Respuesta a incidentes

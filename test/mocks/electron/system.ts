@@ -20,6 +20,7 @@ export const safeStorage = {
   isEncryptionAvailable: vi.fn(() => true),
   encryptString: vi.fn((text: string) => Buffer.from(`encrypted:${text}`)),
   decryptString: vi.fn((buffer: Buffer) => buffer.toString().replace('encrypted:', '')),
+  getSelectedStorageBackend: vi.fn(() => 'dpapi'),
 };
 
 export const dialog = {

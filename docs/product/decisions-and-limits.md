@@ -23,6 +23,7 @@ historica. `No documentada` evita inventar el porqué.
 <!-- define: DEC-011 -->
 <!-- define: DEC-012 -->
 <!-- define: DEC-013 -->
+<!-- define: DEC-014 -->
 <!-- define: LIM-001 -->
 <!-- define: LIM-002 -->
 <!-- define: LIM-003 -->
@@ -40,6 +41,7 @@ historica. `No documentada` evita inventar el porqué.
 <!-- define: LIM-015 -->
 <!-- define: LIM-016 -->
 <!-- define: LIM-017 -->
+<!-- define: LIM-018 -->
 
 ## Decisiones arquitectonicas vigentes
 
@@ -58,6 +60,7 @@ historica. `No documentada` evita inventar el porqué.
 | DEC-011 | Inicializacion de subsistemas con pasos opcionales aislados. | **Inferida:** maximiza arranque parcial cuando una integracion falla. | `electron/main/bootstrap-steps.ts`, `electron/main/startup.ts` |
 | DEC-012 | Lint de PR es incremental mientras existe deuda historica. | **Confirmada en el plan del arnes:** bloquear deuda nueva sin fingir que la base esta limpia. | `scripts/quality/lint-changed.mjs`, `docs/reports/harness-baseline-2026-07-21.md` |
 | DEC-013 | El navegador compartido usa una `WebContentsView` con particion propia, no `<webview>`, iframe ni perfil externo. | **Confirmada en OpenSpec:** permite sitios reales y control main sin exponer Node/IPC ni mezclar cookies privilegiadas. | `openspec/changes/add-integrated-agent-browser/design.md`, `electron/integrated-browser/service.ts` |
+| DEC-014 | Historial, credenciales y extensiones del navegador se administran en main; la apertura del panel es estado ortogonal a `ActiveView`. | **Confirmada en OpenSpec:** conserva una sola instancia de chat y evita entregar secretos/rutas al renderer o al agente. | `openspec/changes/evolve-integrated-browser-workspace/design.md`, `src/app/AppContent.tsx` |
 
 ## Limites funcionales y de seguridad
 
@@ -80,6 +83,7 @@ historica. `No documentada` evita inventar el porqué.
 | LIM-015 | Supabase renderer | timeout 25 s; 2 reintentos read; base 250 ms | **Confirmada en comentarios:** solo lecturas idempotentes reintentan. | `src/shared/supabase-http.ts` |
 | LIM-016 | Auditoria Communication Hub / updater | 500 eventos / check cada 4 h | **Inferida:** acotar disco y evitar polling excesivo; cifras exactas sin ADR. | `electron/communication-hub/state.ts`, `electron/updater/constants.ts` |
 | LIM-017 | Navegador integrado | URL 2048 caracteres; viewport minimo 160x120 DIP; espera agente 8 s; HTTP(S) | **Confirmada en OpenSpec:** acotar IPC/layout y no actuar sobre otra superficie si la vista no monta. | `electron/integrated-browser/types.ts`, `electron/integrated-browser/validation.ts` |
+| LIM-018 | Workspace y datos del navegador | panel 420 DIP, chat 320 DIP, historial 2.000, extension 2.000 archivos/20 MiB, credencial por origen | **Confirmada en OpenSpec:** conservar usabilidad, acotar disco y fallar cerrado para secretos/codigo local. | `src/components/browser/BrowserWorkspaceLayout.tsx`, `electron/integrated-browser/` |
 
 ## Parametros configurables
 

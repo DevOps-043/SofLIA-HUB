@@ -22,6 +22,11 @@ describe('handlers del navegador integrado', () => {
     navigate: vi.fn(async () => ({ url: 'https://example.com' })),
     goBack: vi.fn(), goForward: vi.fn(), reload: vi.fn(), stop: vi.fn(), focus: vi.fn(),
     setViewport: vi.fn(() => ({ isVisible: true })), hide: vi.fn(),
+    listHistory: vi.fn(async () => []), clearHistory: vi.fn(async () => true),
+    listCredentials: vi.fn(async () => []), saveCredential: vi.fn(async () => ({ id: 'credencial-id' })),
+    fillCredential: vi.fn(async () => ({ id: 'credencial-id' })), removeCredential: vi.fn(async () => true),
+    listExtensions: vi.fn(async () => []), installExtension: vi.fn(async () => ({ canceled: true })),
+    setExtensionEnabled: vi.fn(async () => ({ installId: 'extension-id' })), removeExtension: vi.fn(async () => true),
   };
   let window: BrowserWindow;
 
@@ -34,7 +39,7 @@ describe('handlers del navegador integrado', () => {
 
   it('registra el contrato completo y enruta payloads validos', async () => {
     const handlers = ipcMainHarness._getHandlers();
-    expect(Array.from(handlers.keys()).filter((key: unknown) => String(key).startsWith('integrated-browser:'))).toHaveLength(10);
+    expect(Array.from(handlers.keys()).filter((key: unknown) => String(key).startsWith('integrated-browser:'))).toHaveLength(20);
     const navigateHandler = handlers.get('integrated-browser:navigate');
     expect(navigateHandler).toBeDefined();
     const result = await navigateHandler!(
@@ -43,6 +48,14 @@ describe('handlers del navegador integrado', () => {
     );
     expect(result.success).toBe(true);
     expect(service.navigate).toHaveBeenCalledWith('example.com');
+
+    const saveHandler = handlers.get('integrated-browser:credentials-save');
+    const saved = await saveHandler!(
+      { sender: window.webContents },
+      { username: 'persona@example.com', password: 'secreto' },
+    );
+    expect(saved).toMatchObject({ success: true, credential: { id: 'credencial-id' } });
+    expect(service.saveCredential).toHaveBeenCalledWith({ id: undefined, username: 'persona@example.com', password: 'secreto' });
   });
 
   it('rechaza emisores distintos y payloads malformados', async () => {
@@ -51,5 +64,10 @@ describe('handlers del navegador integrado', () => {
     const invalid = await handler({ sender: window.webContents }, { target: 42 });
     expect(invalid.success).toBe(false);
     expect(service.navigate).not.toHaveBeenCalled();
+
+    const extensionHandler = ipcMainHarness._getHandler('integrated-browser:extensions-set-enabled');
+    const malformed = await extensionHandler({ sender: window.webContents }, { installId: 'extension-id', enabled: 'si' });
+    expect(malformed.success).toBe(false);
+    expect(service.setExtensionEnabled).not.toHaveBeenCalled();
   });
 });
