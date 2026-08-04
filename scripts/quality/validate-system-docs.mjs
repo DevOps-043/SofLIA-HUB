@@ -76,7 +76,7 @@ for (const file of definitionDocs) {
   }
 }
 
-const expectedCounts = { BR: 28, RF: 38, RNF: 20, HU: 24, DEC: 12, LIM: 16 };
+const expectedCounts = { BR: 28, RF: 39, RNF: 20, HU: 25, DEC: 13, LIM: 17 };
 for (const [prefix, expected] of Object.entries(expectedCounts)) {
   const ids = [...definitions].filter(([id]) => id.startsWith(`${prefix}-`));
   if (ids.length !== expected) errors.push(`Cobertura ${prefix}: esperados ${expected}, encontrados ${ids.length}`);
@@ -103,7 +103,9 @@ if (!ipcDoc.includes(`contiene ${channelCount} canales`)) {
 
 let tracked = [];
 try {
-  tracked = execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean);
+  const versioned = execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean);
+  const untracked = execFileSync('git', ['ls-files', '--others', '--exclude-standard', '-z'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean);
+  tracked = [...new Set([...versioned, ...untracked])];
 } catch (error) {
   errors.push(`No se pudo derivar inventario Git: ${error.message}`);
 }

@@ -1,6 +1,6 @@
 # Definicion y alcance del producto
 
-Estado: vigente. Actualizado: 2026-07-21.
+Estado: vigente. Actualizado: 2026-08-04.
 
 Pulse Hub es una aplicacion de escritorio Electron orientada a equipos de habla
 espanola. Unifica conversacion asistida por IA, gestion de proyectos y fuentes,
@@ -31,6 +31,7 @@ metricas de negocio; esos temas no se presentan como hechos.
 |---|---|---|---|
 | Identidad y organizaciones | Inicio de sesion SOFIA, seleccion de organizacion y equipos | Pantalla de autenticacion y menu de usuario | `src/contexts/auth/`, `src/lib/sofia-client.ts` |
 | Chat | Conversaciones, mensajes, carpetas, adjuntos, fuentes y uso de herramientas | Vista `chat` | `src/app/AppChatView.tsx`, `src/services/chat/` |
+| Navegador integrado | Navegacion persistente dentro del workspace y control visible compartido con Computer Use | Vista `browser` o tarea web del agente | `electron/integrated-browser/`, `src/components/browser/` |
 | Project Hub | Chat y fuentes agrupados por carpeta/proyecto; navegacion IRIS | Vista `project` y sidebar | `src/app/AppProjectView.tsx`, `src/components/project-hub/`, `src/services/iris-data/` |
 | Productividad | Sesiones, actividad, aplicaciones, OCR opcional y resumen | Vista `productivity` | `src/components/ProductivityDashboard.tsx`, `electron/monitoring/` |
 | Reuniones | Ingesta manual/Drive/live, artefactos, aprobacion y sincronizacion | Vista `meetings` | `src/components/meetings/`, `electron/meetings/` |

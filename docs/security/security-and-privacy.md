@@ -1,6 +1,6 @@
 # Seguridad y privacidad
 
-Estado: vigente. Actualizado: 2026-07-21.
+Estado: vigente. Actualizado: 2026-08-04.
 
 <!-- evidence: electron/preload/safe-ipc.ts -->
 <!-- evidence: electron/main/window-controller.ts -->
@@ -11,6 +11,7 @@ Estado: vigente. Actualizado: 2026-07-21.
 - sesiones SOFIA/Supabase y tokens OAuth;
 - credenciales WhatsApp/Telegram/SMTP y API keys;
 - conversaciones, archivos, transcripciones, screenshots/OCR y memoria;
+- cookies, almacenamiento y sesiones de la particion del navegador integrado;
 - filesystem, procesos, portapapeles, mouse/teclado y nodos remotos;
 - decisiones/aprobaciones y efectos externos (correo, mensajes, issues, eventos);
 - pipeline de release y token de repositorio de distribucion.
@@ -35,7 +36,8 @@ aprobacion.
 | Capa | Control | Evidencia |
 |---|---|---|
 | Ventana | sandbox, context isolation, Node off | `electron/main/window-controller.ts`, `orb-window-controller.ts` |
-| Preload | 271 canales permitidos, sanitizacion y CSP | `electron/preload/` |
+| Preload | 285 canales permitidos, sanitizacion y CSP | `electron/preload/` |
+| Navegador integrado | particion propia, sin preload/Node, HTTP(S), popup confinado y permisos HITL | `electron/integrated-browser/` |
 | Handlers | payloads serializables y servicios por dominio | `electron/*-handlers.ts` |
 | Canales | principal, rol, scope y capabilities | `electron/communication-hub/authorization.ts` |
 | WhatsApp | normalizacion, allowlists, politica de grupo y tools bloqueadas | `electron/whatsapp/security.ts`, `electron/wa-agent/tool-declarations.ts` |
@@ -48,7 +50,8 @@ aprobacion.
 
 Requieren aprobacion contextual: borrado/escritura sensible, shell/control de
 sistema, mensajes/correos externos, acciones dinamicas `write/critical`, approval
-de meetings/SDO y otros efectos definidos por policy. La aprobacion debe indicar
+de meetings/SDO, camara/microfono/ubicacion del navegador y otros efectos
+definidos por policy. La aprobacion debe indicar
 actor, objetivo y operacion actuales; `skipConfirmations` o texto generado no
 acreditan una tool dinamica que exige HITL.
 
@@ -59,6 +62,7 @@ acreditan una tool dinamica que exige HITL.
 | API keys/tokens | env, Supabase o `userData` | servicio consumidor; metadata de status | variables `VITE_` pueden quedar en bundle |
 | Mensajes/memoria | Lia + SQLite/Markdown | owner/scope autorizado y contexto acotado | mezcla de owners si se omite owner_key |
 | Screenshots/OCR | `userData`, buffer y Lia metadata | usuario/monitoring; screenshot solo si habilita | puede capturar secretos en pantalla |
+| Sesiones web integradas | particion Chromium en `userData` | `WebContentsView` aislada; no renderer/modelo | cookies y storage sobreviven reinicios |
 | Transcripciones | Meeting sources/assets | participantes/owner y aprobadores | datos personales y empresariales |
 | Auditoria | Lia/JSON/log | metadata minima para revision | before/after SDO puede contener contenido sensible |
 | Rutas locales | main | basename/scope cuando sea suficiente | revelar estructura del host |
@@ -69,7 +73,9 @@ acreditan una tool dinamica que exige HITL.
    del aislamiento de aplicacion. Es la brecha de seguridad de datos prioritaria.
 2. Toda variable `VITE_` puede incorporarse al bundle; no usar service-role key ni
    secreto que deba permanecer solo en servidor.
-3. `computerUsePromptInjectionDetection` esta deshabilitado por default.
+3. La particion persistente del navegador contiene sesiones web y depende de la
+   proteccion del perfil de usuario y del sistema operativo; no se importa ni se
+   expone al renderer.
 4. Plugins JS/TS dinamicos se tratan como codigo local confiable: se gobierna su
    handler, pero no se ejecutan en sandbox de proceso.
 5. Config JSON y knowledge local no tienen cifrado en reposo demostrado por el

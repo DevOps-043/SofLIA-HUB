@@ -7,8 +7,14 @@ export class BrowserWindow extends EventEmitter {
     on: vi.fn(),
     once: vi.fn(),
     openDevTools: vi.fn(),
-    session: { setPermissionRequestHandler: vi.fn() },
+    id: 1,
+    session: { setPermissionRequestHandler: vi.fn(), setPermissionCheckHandler: vi.fn() },
     executeJavaScript: vi.fn(),
+  };
+  contentView = {
+    addChildView: vi.fn(),
+    removeChildView: vi.fn(),
+    children: [] as unknown[],
   };
 
   loadURL = vi.fn();
@@ -27,9 +33,11 @@ export class BrowserWindow extends EventEmitter {
   restore = vi.fn();
   focus = vi.fn();
   isVisible = vi.fn(() => true);
+  isMinimized = vi.fn(() => false);
   setAlwaysOnTop = vi.fn();
   setBounds = vi.fn();
   getBounds = vi.fn(() => ({ x: 0, y: 0, width: 1024, height: 768 }));
+  getContentBounds = vi.fn(() => ({ x: 0, y: 0, width: 1024, height: 768 }));
   setMenu = vi.fn();
 
   static getAllWindows = vi.fn(() => []);
@@ -37,6 +45,54 @@ export class BrowserWindow extends EventEmitter {
 
   constructor(_options?: any) {
     super();
+  }
+}
+
+class MockWebContents extends EventEmitter {
+  id = 2;
+  private currentUrl = 'about:blank';
+  private title = '';
+  private destroyed = false;
+  session = {
+    setPermissionRequestHandler: vi.fn(),
+    setPermissionCheckHandler: vi.fn(),
+  };
+  navigationHistory = {
+    canGoBack: vi.fn(() => false),
+    canGoForward: vi.fn(() => false),
+    goBack: vi.fn(),
+    goForward: vi.fn(),
+  };
+  loadURL = vi.fn(async (url: string) => {
+    this.currentUrl = url;
+    this.emit('did-start-loading');
+    this.emit('did-navigate', {}, url, 200, 'OK');
+    this.emit('did-stop-loading');
+  });
+  getURL = vi.fn(() => this.currentUrl);
+  getTitle = vi.fn(() => this.title);
+  setWindowOpenHandler = vi.fn();
+  focus = vi.fn();
+  reload = vi.fn();
+  stop = vi.fn();
+  isDestroyed = vi.fn(() => this.destroyed);
+  close = vi.fn(() => { this.destroyed = true; });
+  capturePage = vi.fn(async () => ({ toPNG: () => Buffer.from('captura') }));
+  sendInputEvent = vi.fn();
+  insertText = vi.fn(async () => {});
+}
+
+export class WebContentsView extends EventEmitter {
+  static instances: WebContentsView[] = [];
+  webContents = new MockWebContents();
+  setVisible = vi.fn();
+  setBackgroundColor = vi.fn();
+  setBounds = vi.fn();
+  getBounds = vi.fn(() => ({ x: 0, y: 0, width: 800, height: 600 }));
+
+  constructor(public options?: unknown) {
+    super();
+    WebContentsView.instances.push(this);
   }
 }
 

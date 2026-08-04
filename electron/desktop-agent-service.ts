@@ -35,6 +35,7 @@ import { attachDesktopAgentControls, type DesktopAgentControlsApi } from './desk
 import { attachDesktopAgentTasks, type DesktopAgentTaskApi } from './desktop-agent/service-tasks';
 import { attachDesktopAgentObservation, type DesktopAgentObservationApi } from './desktop-agent/service-observation';
 import { attachDesktopAgentPlanning, type DesktopAgentPlanningApi } from './desktop-agent/service-planning';
+import type { IntegratedBrowserService } from './integrated-browser';
 
 export type { DesktopAgentConfig, DesktopActionPayload, UIElement, AgentStatus, AgentTask, DesktopAgentStatus };
 
@@ -96,6 +97,7 @@ export class DesktopAgentService extends EventEmitter {
   /** Ventana objetivo protegida durante tareas de apps nativas/launchers. */
   targetWindowLock: import('./desktop-agent-types').TargetWindowLock | null = null;
   browserWeb = new BrowserWebService();
+  integratedBrowser: IntegratedBrowserService | null;
   windowsUIA = new WindowsUIAService(this);
   mouseControls: DesktopMouseControls;
   keyboardControls: DesktopKeyboardControls;
@@ -103,8 +105,9 @@ export class DesktopAgentService extends EventEmitter {
   /** Driver de entrada de alto nivel resuelto (nut.js o legacy). */
   inputDriver: InputDriver | null = null;
 
-  constructor() {
+  constructor(integratedBrowser: IntegratedBrowserService | null = null) {
     super();
+    this.integratedBrowser = integratedBrowser;
     this.mouseControls = new DesktopMouseControls((script) => this.ps(script), (x, y) => this.scale(x, y), (ms) => this.delay(ms));
     this.keyboardControls = new DesktopKeyboardControls((script) => this.ps(script), (ms) => this.delay(ms));
     // psEncoded (base64) preserva los scripts multilinea; ps() aplana \n a ';'

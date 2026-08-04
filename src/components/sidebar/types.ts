@@ -18,6 +18,8 @@ export interface SidebarProps {
   onOpenSdo?: () => void;
   /** Abre el panel de Reuniones (runs, transcripciones y minutas). */
   onOpenMeetings?: () => void;
+  /** Abre el navegador persistente compartido con el agente. */
+  onOpenBrowser?: () => void;
   onSelectConversation: (id: string) => void;
   onDeleteConversation: (id: string, e: MouseEvent) => void;
   onTogglePinConversation: (id: string, isPinned: boolean) => void;

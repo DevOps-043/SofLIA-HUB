@@ -1,6 +1,6 @@
 # Parametros runtime
 
-Estado: vigente. Actualizado: 2026-07-21.
+Estado: vigente. Actualizado: 2026-08-04.
 
 Inventario de defaults y topes con impacto operativo. Los overrides guardados en
 `userData` pueden cambiar el valor efectivo de un host.
@@ -11,6 +11,8 @@ Inventario de defaults y topes con impacto operativo. Los overrides guardados en
 <!-- evidence: electron/main/boot-timeline.ts -->
 <!-- evidence: electron/main/window-controller.ts -->
 <!-- evidence: electron/main/bootstrap.ts -->
+<!-- evidence: electron/integrated-browser/types.ts -->
+<!-- evidence: electron/integrated-browser/validation.ts -->
 
 ## Arranque
 
@@ -39,6 +41,20 @@ evidencia medida en el host de referencia.
 | profundidad / array / claves IPC | 20 / 1000 / 200 | `electron/preload/safe-ipc.ts` |
 | notas de release | 8000 caracteres | `src/components/update-notes/SafeReleaseNotes.tsx` |
 | updater polling | 4 h | `electron/updater/constants.ts` |
+
+## Navegador integrado
+
+| Parametro | Default/tope | Fuente |
+|---|---:|---|
+| particion persistente | `persist:soflia-integrated-browser` | `electron/integrated-browser/types.ts` |
+| espera de viewport para el agente | 8000 ms | mismo archivo |
+| longitud de direccion/busqueda | 2048 caracteres | `electron/integrated-browser/validation.ts` |
+| viewport minimo | 160 x 120 DIP | mismo archivo |
+| protocolos de pagina principal | HTTP(S) y `about:blank` | mismo archivo |
+| permisos con HITL | `media`, `geolocation` | `electron/integrated-browser/permission-governance.ts` |
+
+La vista integrada es unica por ventana principal. Perfiles explicitamente
+aislados o con identificador siguen usando `BrowserWebService`/Playwright.
 
 ## Red, archivos y correo
 
@@ -87,11 +103,7 @@ evidencia medida en el host de referencia.
 | contexto | memory 10, resumen cada 15, raw 8, progress 25 | mismo archivo |
 | elementos | max 60, dedup IoU .6, sufficient 12, skip visual 40, score .10, NMS .45 | mismo archivo |
 | concurrencia | 1 agente visual | mismo archivo |
-| engine | legacy; model CU `gemini-3.5-flash`; prompt injection detection off | mismo archivo |
-
-`computerUsePromptInjectionDetection=false` es un riesgo visible, no una
-recomendacion. Activarlo requiere validar falsos positivos y comportamiento del
-proveedor; hasta entonces contenido visual externo debe tratarse como no confiable.
+| engine | Gemini; modelo CU por registro; deteccion de prompt injection activa | mismo archivo |
 
 ## Reuniones, voz y agentes
 

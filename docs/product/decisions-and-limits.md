@@ -1,6 +1,6 @@
 # Decisiones, limites y parametros de producto
 
-Estado: vigente. Actualizado: 2026-07-21.
+Estado: vigente. Actualizado: 2026-08-04.
 
 `Confirmada` significa que el codigo/comentario o una especificacion explica el
 motivo. `Inferida` describe la consecuencia tecnica observable, no una memoria
@@ -22,6 +22,7 @@ historica. `No documentada` evita inventar el porqué.
 <!-- define: DEC-010 -->
 <!-- define: DEC-011 -->
 <!-- define: DEC-012 -->
+<!-- define: DEC-013 -->
 <!-- define: LIM-001 -->
 <!-- define: LIM-002 -->
 <!-- define: LIM-003 -->
@@ -38,6 +39,7 @@ historica. `No documentada` evita inventar el porqué.
 <!-- define: LIM-014 -->
 <!-- define: LIM-015 -->
 <!-- define: LIM-016 -->
+<!-- define: LIM-017 -->
 
 ## Decisiones arquitectonicas vigentes
 
@@ -51,10 +53,11 @@ historica. `No documentada` evita inventar el porqué.
 | DEC-006 | `ai-specs/` es canonico y Codex/Claude/Antigravity reciben adaptadores. | **Confirmada:** evita drift y coincide con las herramientas reales del equipo. | `ai-specs/README.md`, `scripts/ai/sync-agent-adapters.mjs` |
 | DEC-007 | Antigravity reemplaza adaptadores Cursor/Gemini CLI; Gemini sigue como proveedor runtime. | **Confirmada en este cambio:** la superficie de desarrollo y el proveedor de producto son conceptos distintos. | `openspec/changes/adapt-harness-and-document-system/design.md`, `src/config.ts` |
 | DEC-008 | Desktop Agent visual tiene concurrencia 1. | **Confirmada por comentario:** hay un mouse/teclado y estado de paso compartidos; concurrencia corromperia ejecuciones. | `electron/desktop-agent/agent-config.ts` |
-| DEC-009 | Computer Use nativo inicia en `legacy` y se habilita por config. | **Confirmada por comentario:** mantener rollback hasta validarlo en la maquina. | `electron/desktop-agent/agent-config.ts` |
+| DEC-009 | Computer Use nativo usa Gemini por default y conserva `legacy` como rollback configurable. | **Confirmada por codigo:** el default activa el motor nativo y la configuracion persistida puede revertirlo. | `electron/desktop-agent/agent-config.ts` |
 | DEC-010 | Captura default `active-monitor`, con layout binding y sin fallback de escala legacy. | **Inferida:** reduce superficie/costo y evita coordenadas ambiguas; el motivo completo no esta registrado. | `electron/desktop-agent/agent-config.ts` |
 | DEC-011 | Inicializacion de subsistemas con pasos opcionales aislados. | **Inferida:** maximiza arranque parcial cuando una integracion falla. | `electron/main/bootstrap-steps.ts`, `electron/main/startup.ts` |
 | DEC-012 | Lint de PR es incremental mientras existe deuda historica. | **Confirmada en el plan del arnes:** bloquear deuda nueva sin fingir que la base esta limpia. | `scripts/quality/lint-changed.mjs`, `docs/reports/harness-baseline-2026-07-21.md` |
+| DEC-013 | El navegador compartido usa una `WebContentsView` con particion propia, no `<webview>`, iframe ni perfil externo. | **Confirmada en OpenSpec:** permite sitios reales y control main sin exponer Node/IPC ni mezclar cookies privilegiadas. | `openspec/changes/add-integrated-agent-browser/design.md`, `electron/integrated-browser/service.ts` |
 
 ## Limites funcionales y de seguridad
 
@@ -76,6 +79,7 @@ historica. `No documentada` evita inventar el porqué.
 | LIM-014 | Fuente para IA de reuniones | 16000 caracteres; low confidence <0.65 | **Inferida:** contener contexto y pedir revision en incertidumbre; umbral exacto sin ADR. | `electron/meetings/meeting-ai/constants.ts` |
 | LIM-015 | Supabase renderer | timeout 25 s; 2 reintentos read; base 250 ms | **Confirmada en comentarios:** solo lecturas idempotentes reintentan. | `src/shared/supabase-http.ts` |
 | LIM-016 | Auditoria Communication Hub / updater | 500 eventos / check cada 4 h | **Inferida:** acotar disco y evitar polling excesivo; cifras exactas sin ADR. | `electron/communication-hub/state.ts`, `electron/updater/constants.ts` |
+| LIM-017 | Navegador integrado | URL 2048 caracteres; viewport minimo 160x120 DIP; espera agente 8 s; HTTP(S) | **Confirmada en OpenSpec:** acotar IPC/layout y no actuar sobre otra superficie si la vista no monta. | `electron/integrated-browser/types.ts`, `electron/integrated-browser/validation.ts` |
 
 ## Parametros configurables
 

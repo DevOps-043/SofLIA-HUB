@@ -1,4 +1,6 @@
 export async function loadMainServiceModules() {
+  const { IntegratedBrowserService } = await import('../integrated-browser');
+  const { registerIntegratedBrowserHandlers } = await import('../integrated-browser-handlers');
   const { registerComputerUseHandlers } = await import('../computer-use-handlers');
   const { WhatsAppService } = await import('../whatsapp-service');
   const { WhatsAppAgent } = await import('../whatsapp-agent');
@@ -62,6 +64,7 @@ export async function loadMainServiceModules() {
   await import('../agent-task-queue');
 
   return {
+    IntegratedBrowserService, registerIntegratedBrowserHandlers,
     registerComputerUseHandlers, WhatsAppService, WhatsAppAgent, MonitoringService, registerMonitoringHandlers,
     CalendarService, registerCalendarHandlers, GmailService, registerGmailHandlers, DriveService, registerDriveHandlers,
     GChatService, registerGChatHandlers, ProactiveService, DesktopAgentService, registerDesktopAgentHandlers,

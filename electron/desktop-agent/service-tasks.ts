@@ -98,6 +98,21 @@ export function attachDesktopAgentTasks(Service: DesktopAgentServiceConstructor)
           this.runDesktopFallbackFromUIA(fallbackTask, fallbackOptions, runResult),
         computerUseBrowserEnabled: computerUseBrowserHabilitado(this.config),
         runComputerUseBrowser: (cuTask, cuOptions) => runComputerUseBrowserTask(this, cuTask, cuOptions),
+        runVisibleBrowserFallback: this.integratedBrowser
+          ? async (browserTask, browserOptions) => {
+              let acquiredControl = false;
+              try {
+                await this.integratedBrowser!.openForAgent(browserOptions?.startUrl);
+                acquiredControl = true;
+                return await this.executeTaskInternal(
+                  `${browserTask}\n\n[NAVEGADOR INTEGRADO] Trabaja exclusivamente sobre la vista Navegador de SofLIA que esta abierta y visible.`,
+                  { ...browserOptions, backend: 'desktop', startUrl: undefined },
+                );
+              } finally {
+                if (acquiredControl) this.integratedBrowser!.releaseAgentControl();
+              }
+            }
+          : undefined,
       });
     },
     async executeTaskInternal(task, options) {

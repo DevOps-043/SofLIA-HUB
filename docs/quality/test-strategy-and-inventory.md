@@ -1,8 +1,8 @@
 # Estrategia e inventario de pruebas
 
-Estado: vigente. Actualizado: 2026-07-21.
+Estado: vigente. Actualizado: 2026-08-04.
 
-El inventario versionado contiene 278 archivos de prueba: 234 para main y 44
+El inventario del cambio contiene 292 archivos de prueba: 242 para main y 50
 para renderer. El validador documental recalcula estas cifras; el numero de casos
 ejecutados se registra en el reporte de evidencia de cada cambio, no aqui.
 

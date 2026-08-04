@@ -22,6 +22,7 @@ import { useChatManager } from '../hooks/useChatManager';
 import { useFolderManager } from '../hooks/useFolderManager';
 import { useIrisData } from '../hooks/useIrisData';
 import { useTheme } from '../hooks/useTheme';
+import { integratedBrowserService } from '../services/integrated-browser-service';
 
 const STARTUP_INTRO_DURATION_MS = 4200;
 const STARTUP_AUTH_GRACE_MS = 700;
@@ -90,6 +91,13 @@ export function AppContent() {
   useShareLinkRouting({ chat: { loadInitialConversations: chat.loadInitialConversations }, folder: { loadInitialFolders: folder.loadInitialFolders }, handleOpenProject: handlers.handleOpenProject, handleSelectConversation: handlers.handleSelectConversation, orgId, pendingShareLink: ipc.pendingShareLink, setPendingShareLink: ipc.setPendingShareLink, setShareLinkNotice, userId });
   useMeetingTriggerNotice({ pendingMeetingTrigger: ipc.pendingMeetingTrigger, setPendingMeetingTrigger: ipc.setPendingMeetingTrigger, setShareLinkNotice, userId });
   useAutoDismissNotice(shareLinkNotice, dismissShareLinkNotice);
+
+  useEffect(() => {
+    if (!user || !integratedBrowserService.isAvailable()) return undefined;
+    return integratedBrowserService.subscribe({
+      onOpenRequested: () => setActiveView('browser'),
+    });
+  }, [user]);
 
   useEffect(() => {
     if (isOrbWindow) {
@@ -189,6 +197,7 @@ export function AppContent() {
           onOpenProject={handlers.handleOpenProject}
           onOpenSdo={() => setActiveView('sdo')}
           onOpenMeetings={() => setActiveView('meetings')}
+          onOpenBrowser={() => setActiveView('browser')}
           onOpenSettings={() => { setActiveSettingsTab('ai'); setIsUnifiedSettingsOpen(true); }}
           onSelectConversation={handlers.handleSelectConversation}
           onSignOut={signOut}

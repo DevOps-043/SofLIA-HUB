@@ -23,6 +23,7 @@ tenga un test unitario exclusivo. La ausencia se declara como brecha.
 | SDO | BR-013 | RF-023, RF-024 | HU-015 | DEC-002 | `electron/sdo/`, `database/lia/migrations/sdo-*` | `electron/__tests__/sdo-*` |
 | Memoria | BR-016 | RF-025, RF-026 | HU-016 | DEC-003, LIM-006 | `electron/memory/`, `knowledge/`, `semantic-indexer/` | `electron/__tests__/memory-*`, `knowledge-*`, `semantic-*` |
 | Desktop y procesos | BR-018, BR-019 | RF-027, RF-028, RF-029 | HU-017, HU-018, HU-019 | DEC-008, DEC-009, DEC-010, LIM-007, LIM-008, LIM-009, LIM-010 | `electron/desktop-agent/`, `background-host/`, `remote-node/` | `electron/__tests__/desktop-agent-*`, `background-host-*`, `remote-node-*` |
+| Navegador integrado | BR-009, BR-018, BR-019 | RF-039 | HU-025 | DEC-001, DEC-008, DEC-013, LIM-007, LIM-017 | `electron/integrated-browser/`, `src/components/browser/` | `electron/__tests__/integrated-browser-*`, `src/__tests__/components/IntegratedBrowserPanel.test.tsx` |
 | Tools dinamicas | BR-010, BR-011, BR-028 | RF-030 | HU-020 | DEC-004 | `electron/mcp-manager/`, `dynamic-tool/` | `electron/__tests__/mcp-manager.test.ts`, `dynamic-tool-*` |
 | Voz, privacidad y orbe | BR-017 | RF-031, RF-032, RF-036 | HU-021, HU-022 | DEC-005 | `electron/python-runtime-service.ts`, `python/`, `src/components/orb/` | `electron/__tests__/python-*`, `voice-*`, `orb-*` |
 | Automatizacion y actualizacion | BR-021, BR-022 | RF-033, RF-034, RF-035 | HU-023, HU-024 | LIM-016 | `electron/updater/`, `workspace-automation/`, `workflow-hub/`, `proactive/` | `electron/__tests__/updater-*`, `workspace-automation-*`, `workflow-hub-*` |
@@ -42,7 +43,7 @@ tenga un test unitario exclusivo. La ausencia se declara como brecha.
 
 ## Brechas conocidas de trazabilidad
 
-- No existe E2E empaquetado que recorra las 24 historias en los tres sistemas
+- No existe E2E empaquetado que recorra las 25 historias en los tres sistemas
   operativos; CI combina unit/integration y smoke de Linux release.
 - Accesibilidad no tiene auditoria automatizada axe ni objetivo WCAG versionado.
 - Snapshots Supabase no prueban politicas activas de produccion; se requiere

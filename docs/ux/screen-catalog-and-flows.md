@@ -1,6 +1,6 @@
 # Catalogo de pantallas y flujos
 
-Estado: vigente. Actualizado: 2026-07-21.
+Estado: vigente. Actualizado: 2026-08-04.
 
 <!-- evidence: src/app/AppWorkspace.tsx -->
 <!-- evidence: src/app/AppModals.tsx -->
@@ -13,6 +13,7 @@ Estado: vigente. Actualizado: 2026-07-21.
 | Startup | ventana principal | theme + auth lifecycle | ninguna durante intro | animando, gracia auth, salida |
 | Auth | sin user y no orb | SOFIA auth | login/recuperacion segun componente | loading, error, credenciales invalidas |
 | Workspace Chat | `activeView=chat` | chat, messages, IA, tools | nuevo/enviar/adjuntar/share/delete | vacio, streaming, tool, error, degraded |
+| Navegador integrado | `activeView=browser` o apertura del agente | `IntegratedBrowserService`, Computer Use | URL/busqueda, atras/adelante, recargar/detener, retomar control | carga, error, permiso HITL, agente controlando |
 | Sidebar | workspace autenticado | chats, folders, IRIS, org/user | seleccionar, crear, pin, rename, delete, tema, settings | loading por seccion, menu contextual |
 | Project Hub | `project` + folder + user | sources/chats/folder/Drive | fuente, chat de proyecto, share | empty source/chat, picker, error |
 | Productividad | `productivity` + user | monitoring, summaries, calendar | rango, start/stop, auto config | sin datos, sesion activa, resumen, error |
@@ -52,6 +53,18 @@ Enviar mensaje -> persistir/pending -> stream IA
      -> IPC main -> servicio -> resultado serializable
      -> devolver resultado al modelo
   -> persistir respuesta/fallo recuperable
+```
+
+### Navegador compartido con el agente
+
+```text
+Usuario abre Navegador o solicita una tarea web en Chat
+  -> renderer reserva/publica el viewport
+  -> main crea o reutiliza WebContentsView + sesion persistente aislada
+  -> navegacion manual o use_computer captura la misma pagina visible
+  -> acciones del agente se inyectan en esa vista
+  -> usuario observa, interrumpe o retoma sobre la misma sesion
+  -> al cambiar de seccion la vista se oculta, no se destruye
 ```
 
 ### Reunion gobernada

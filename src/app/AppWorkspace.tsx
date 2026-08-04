@@ -1,6 +1,7 @@
 import { MeetingOpsPanel } from '../components/meetings/MeetingOpsPanel';
 import { ProductivityDashboard } from '../components/ProductivityDashboard';
 import { RegistroDecisiones } from '../components/sdo/RegistroDecisiones';
+import { IntegratedBrowserPanel } from '../components/browser/IntegratedBrowserPanel';
 import type { MouseEvent } from 'react';
 import { ShareLinkNoticeBanner } from './AppNotices';
 import { AppChatView } from './AppChatView';
@@ -55,6 +56,7 @@ export function AppWorkspace(props: AppWorkspaceProps) {
         </div>
       )}
       {props.activeView === 'productivity' && props.userId && <ProductivityDashboard userId={props.userId} />}
+      {props.activeView === 'browser' && <IntegratedBrowserPanel />}
       {props.activeView === 'sdo' && props.userId && <RegistroDecisiones userId={props.userId} />}
       {props.activeView === 'meetings' && props.userId && (
         <div className="flex-1 min-h-0 overflow-hidden animate-view-in">
