@@ -10,7 +10,7 @@
 
 SofLIA Learning ya tiene un **sistema de notificaciones in-app completo** (tablas, RLS, preferencias por usuario, configuración por organización) y un **borrador parcial** de entrega externa por WhatsApp: una tabla de cola (`notification_channel_deliveries`) y un cron de Netlify (`process-notification-deliveries.ts`) que reenvía cada entrega pendiente a una URL externa llamada "Pulse Hub" mediante POST firmado con HMAC.
 
-Lo que falta para cumplir la premisa del negocio — *"cada organización despliega su propio Pulse Hub en su VPS, y Pulse les manda a sus empleados, por WhatsApp o Telegram, las notificaciones que ya genera el sistema (ej. recordatorios de avanzar el curso)"* — es:
+Lo que falta para cumplir la premisa del negocio — *"cada organización despliega su propio Pulse Hub en su VPS, y SofLIA les manda a sus empleados, por WhatsApp o Telegram, las notificaciones que ya genera el sistema (ej. recordatorios de avanzar el curso)"* — es:
 
 1. **Multi-tenencia real de configuración de Hub.** Hoy el cron usa **una sola** URL/API-key global (`SOFLIA_HUB_NOTIFICATIONS_URL` / `SOFLIA_HUB_API_KEY`) para *toda* la plataforma. El modelo de negocio requiere que **cada organización tenga su propia URL de Hub, su propia API key, y sus propias credenciales de WhatsApp/Telegram**, ya que cada una corre su propia instancia en su propia VPS con su propia cuenta de WhatsApp Business y su propio bot de Telegram.
 2. **Canal Telegram**, que no existe en absoluto hoy (ni en el esquema de BD, ni en el código).
@@ -216,7 +216,7 @@ NOTIFICATION_DELIVERY_PROCESSING_STALE_MINUTES=15
 | 6 | Catálogo de `event_type` de `notification_settings` (config de organización) no coincide con los `notification_type` reales creados por el sistema. | El toggle de canal por organización puede no aplicar sin que nadie lo note. | Media |
 | 7 | Ninguna UI (usuario ni admin) muestra estado de entrega externa (`sent`/`failed`/`pending`). | Soporte no puede diagnosticar "no me llegó el WhatsApp" sin acceso a BD. | Media |
 | 8 | El servicio "Pulse Hub" en sí **no existe como código** — solo el lado emisor (plataforma → Hub) está implementado. | Sin este documento y sin implementación, no hay receptor real. | Bloqueante |
-| 9 | Riesgo de **SSRF**: si un admin de organización puede configurar libremente la URL de su propio Hub, la plataforma central terminará haciendo peticiones HTTP salientes a una URL arbitraria suministrada por un tercero (el cliente). | Un admin malicioso o comprometido podría apuntar la URL a infraestructura interna de Pulse (`http://169.254.169.254/...`, IPs privadas, `localhost`). | Alta (seguridad) |
+| 9 | Riesgo de **SSRF**: si un admin de organización puede configurar libremente la URL de su propio Hub, la plataforma central terminará haciendo peticiones HTTP salientes a una URL arbitraria suministrada por un tercero (el cliente). | Un admin malicioso o comprometido podría apuntar la URL a infraestructura interna de SofLIA (`http://169.254.169.254/...`, IPs privadas, `localhost`). | Alta (seguridad) |
 | 10 | Tablas legacy (`notification_email_queue`, `organization_notification_preferences`) sin código que las use — confusión para quien lea el esquema. | Deuda técnica, no bloqueante. | Baja |
 
 ---
@@ -281,7 +281,7 @@ Telegram Bot API es simple y sin restricciones de plantillas: cada organización
 
 ### 6.5 Vinculación de identidad (opt-in) — reemplaza la confianza ciega en `users.phone`
 
-Se propone una nueva tabla `user_notification_channel_links` (§7) y un flujo de vinculación explícito por canal, iniciado desde el perfil del usuario en Pulse (`features/profile/`):
+Se propone una nueva tabla `user_notification_channel_links` (§7) y un flujo de vinculación explícito por canal, iniciado desde el perfil del usuario en SofLIA (`features/profile/`):
 
 **Telegram:**
 1. Usuario hace clic en "Conectar Telegram" en su perfil → la plataforma genera un `linking_token` de un solo uso (TTL 10 min) y construye `https://t.me/<bot_username_de_su_org>?start=<linking_token>`.

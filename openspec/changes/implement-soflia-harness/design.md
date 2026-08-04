@@ -5,7 +5,7 @@ taxonomía, archivos generados versionados y scripts que ya no correspondían al
 código presente. Al mismo tiempo, los agentes runtime tienen permisos y riesgos muy
 distintos de los agentes que desarrollan el producto. El diseño toma los cinco
 componentes del modelo Arnés —instrucciones, herramientas, entorno, estado y
-feedback— y los adapta a Electron, OpenSpec y las fronteras existentes de Pulse.
+feedback— y los adapta a Electron, OpenSpec y las fronteras existentes de SofLIA.
 
 ## Goals / Non-Goals
 

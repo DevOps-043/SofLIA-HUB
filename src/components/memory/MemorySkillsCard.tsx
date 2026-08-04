@@ -9,7 +9,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 /**
- * Tarjeta de gestión de lo que Pulse ha APRENDIDO del usuario. Muestra las
+ * Tarjeta de gestión de lo que SofLIA ha APRENDIDO del usuario. Muestra las
  * skills (preferencias, correcciones, contexto, procedimientos) que el sistema
  * infirió por su cuenta y permite borrarlas — el usuario controla su memoria.
  */
@@ -34,7 +34,7 @@ export function MemorySkillsCard({ userId }: { userId: string }) {
       <div className="mb-4">
         <h3 className="text-base font-semibold text-primary">Lo que he aprendido de ti</h3>
         <p className="mt-1 text-sm text-secondary">
-          Pulse aprende tus preferencias, correcciones y forma de trabajar de todas tus conversaciones y tareas, y lo aplica automáticamente. Puedes borrar lo que no quieras que recuerde.
+          SofLIA aprende tus preferencias, correcciones y forma de trabajar de todas tus conversaciones y tareas, y lo aplica automáticamente. Puedes borrar lo que no quieras que recuerde.
         </p>
       </div>
 

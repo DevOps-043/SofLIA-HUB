@@ -20,7 +20,7 @@ export function AuthLogo() {
         />
         <motion.img
           src="./assets/Icono.png"
-          alt="Pulse Logo"
+          alt="Pulse Hub"
           className="relative w-full h-full object-contain"
           style={{ filter: 'drop-shadow(0 0 22px rgba(0, 212, 179, 0.28)) drop-shadow(0 14px 26px rgba(0, 0, 0, 0.34))' }}
         />

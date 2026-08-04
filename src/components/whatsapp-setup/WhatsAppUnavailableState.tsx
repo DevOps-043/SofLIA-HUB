@@ -9,7 +9,7 @@ export function WhatsAppUnavailableState() {
       <div>
         <p className="text-sm font-semibold text-gray-900 dark:text-white">Protocolo no disponible</p>
         <p className="text-sm text-secondary mt-1">
-          Requiere ejecucion bajo el entorno de escritorio Pulse
+          Requiere ejecucion bajo el entorno de escritorio SofLIA
         </p>
       </div>
     </div>

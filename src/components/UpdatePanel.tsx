@@ -40,7 +40,7 @@ export function UpdatePanel() {
     sphereColor = 'bg-accent/10 border-accent/30 text-accent';
     glowColor = 'bg-accent/20';
     statusTitle = 'Buscando actualizaciones';
-    statusDesc = 'Conectando con el servidor de Pulse...';
+    statusDesc = 'Conectando con el servidor de Pulse Hub...';
     buttonLabel = 'Buscando...';
     isButtonDisabled = true;
     showLoader = true;
@@ -117,7 +117,7 @@ export function UpdatePanel() {
         {/* Título de la consola */}
         <div className="space-y-1 w-full text-left">
           <h3 className="text-sm font-bold text-gray-900 dark:text-white tracking-tight uppercase">Consola de Estado</h3>
-          <p className="text-[10px] text-secondary">Control de versiones de Pulse</p>
+          <p className="text-[10px] text-secondary">Control de versiones de Pulse Hub</p>
         </div>
 
         {/* Orbe Visual de Estado */}

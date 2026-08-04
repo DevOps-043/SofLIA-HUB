@@ -24,6 +24,9 @@ vi.doMock('../../../services/sofia-auth', () => ({
 }));
 
 export function resetSofiaMocks(): void {
+  // Ver resetSupabaseMocks: las colas de `...Once` sobreviven a clearAllMocks.
+  for (const mock of Object.values(sofiaMocks)) mock.mockReset();
+
   sofiaMocks.getSession.mockResolvedValue(null);
   sofiaMocks.onAuthStateChange.mockReturnValue({
     data: { subscription: { unsubscribe: vi.fn() } },

@@ -180,7 +180,7 @@ export function useOrbConversation() {
 
   /**
    * Ultimo recurso cuando el pipeline por bloques no llego a sonar: sintetiza el
-   * texto completo de una vez. Pulse solo habla con la voz de Google Cloud (no
+   * texto completo de una vez. SofLIA solo habla con la voz de Google Cloud (no
    * hay respaldo local: sonaba robotico y ocultaba el fallo real). Si no hay voz,
    * se muestra el motivo en la orbe.
    */

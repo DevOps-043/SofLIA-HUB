@@ -1,6 +1,6 @@
 # Configuracion, secretos y estado local
 
-Estado: vigente. Actualizado: 2026-07-21.
+Estado: vigente. Actualizado: 2026-08-04.
 
 No se leen ni documentan valores de `.env`. Esta pagina registra solo nombres,
 consumidores y comportamiento cuando faltan.
@@ -51,6 +51,18 @@ consumidores y comportamiento cuando faltan.
 
 Los nombres exactos adicionales se resuelven en cada servicio con
 `app.getPath('userData')`. No deben codificarse rutas absolutas del equipo.
+
+## Secretos de funciones backend
+
+`sofia-session-exchange`, desplegada en Lia, requiere `SOFIA_SUPABASE_URL` y
+`SOFIA_SUPABASE_ANON_KEY` en el gestor de secretos de funciones. La URL y clave
+administrativa Lia son provistas por el entorno Supabase. Ninguna se declara con
+prefijo `VITE_`, se copia a Electron o se versiona con valores.
+
+La función acepta un JWT emitido por otro proyecto, por lo que desactiva la
+validación del gateway Lia y autentica explícitamente contra SOFIA dentro del
+handler. Desactivar el gateway sin esa validación interna es una configuración
+insegura y no autorizada.
 
 ## Carga de entorno
 

@@ -36,6 +36,13 @@ export interface SidebarProps {
   onToggleFolder: (id: string) => void;
   onOpenProject: (id: string) => void;
   onDeleteFolder: (id: string, e: MouseEvent) => void;
+  /** Edicion inline del nombre de carpeta (mismo patron que los chats). */
+  renamingFolderId: string | null;
+  editingFolderName: string;
+  onSetEditingFolderName: (name: string) => void;
+  onStartRenameFolder: (id: string) => void;
+  onFinishRenameFolder: () => void;
+  onCancelRenameFolder: () => void;
   irisTeams: IrisTeam[];
   irisProjects: IrisProject[];
   irisIssues: Record<string, IrisIssue[]>;

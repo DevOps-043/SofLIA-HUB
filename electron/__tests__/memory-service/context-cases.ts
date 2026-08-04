@@ -10,7 +10,7 @@ export function registerMemoryContextCases(ctx: MemoryServiceTestContext): void 
       rollingSummary: 'Resumen de conversacion anterior',
       semanticRecall: [{ text: 'Dato relevante', score: 0.85, timestamp: Date.now() }],
       facts: [{ key: 'empresa', value: 'Acme', category: 'trabajo' }],
-      soul: '# Pulse - Identidad Central',
+      soul: '# SofLIA - Identidad Central',
     };
     let sections = '';
     if (context.soul) sections += `\n\n=== SOUL ===\n${context.soul}`;
@@ -26,8 +26,8 @@ export function registerMemoryContextCases(ctx: MemoryServiceTestContext): void 
   });
 
   it('MEM-015: SOUL.md default content includes identity section', () => {
-    const defaultSoul = '# Pulse - Identidad Central\n\n## Quien Soy\nSoy Pulse, asistente de IA para negocios hispanohablantes.';
-    expect(defaultSoul).toContain('Pulse');
+    const defaultSoul = '# SofLIA - Identidad Central\n\n## Quien Soy\nSoy SofLIA, asistente de IA para negocios hispanohablantes.';
+    expect(defaultSoul).toContain('SofLIA');
     expect(defaultSoul).toContain('Identidad Central');
   });
 

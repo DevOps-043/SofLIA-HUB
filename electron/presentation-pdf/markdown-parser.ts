@@ -45,7 +45,7 @@ export function parseMarkdownToSlides(content: string, title: string): SlideData
     slides.push({
       type: 'closing',
       title: 'Gracias',
-      subtitle: 'Presentacion generada por Pulse',
+      subtitle: 'Presentacion generada por SofLIA',
       imagePrompt: 'Professional thank you slide background, abstract gradient',
     });
   }

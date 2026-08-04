@@ -100,7 +100,7 @@ export function registerResponseRetryTests(ctx: ResponseRetryContext): void {
       expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', 'Te leo. No inicio procesos si no me lo pides.');
     });
 
-    it('blocks unsolicited Pulse internal chat lookups but preserves text-only personalization', async () => {
+    it('blocks unsolicited SofLIA internal chat lookups but preserves text-only personalization', async () => {
       const { agent, waService } = createAgent(ctx);
       const { detectActionRequest } = await import('../../whatsapp-prompts');
       const { executeWhatsAppTools } = await import('../../whatsapp-tool-executor');
@@ -116,8 +116,8 @@ export function registerResponseRetryTests(ctx: ResponseRetryContext): void {
         })
         .mockResolvedValueOnce({
           response: {
-            text: () => 'Aqui estoy contigo, sin abrir Pulse ni revisar chats internos.',
-            candidates: [{ content: { parts: [{ text: 'Aqui estoy contigo, sin abrir Pulse ni revisar chats internos.' }] } }],
+            text: () => 'Aqui estoy contigo, sin abrir SofLIA ni revisar chats internos.',
+            candidates: [{ content: { parts: [{ text: 'Aqui estoy contigo, sin abrir SofLIA ni revisar chats internos.' }] } }],
             functionCalls: () => null,
           },
         });
@@ -125,7 +125,7 @@ export function registerResponseRetryTests(ctx: ResponseRetryContext): void {
       await agent.handleMessage('123@s.whatsapp.net', '5215500000000', 'Hola');
 
       expect(executeWhatsAppTools).not.toHaveBeenCalled();
-      expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', 'Aqui estoy contigo, sin abrir Pulse ni revisar chats internos.');
+      expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', 'Aqui estoy contigo, sin abrir SofLIA ni revisar chats internos.');
     });
 
     it('sanitizes leaked tool planning from final WhatsApp text', async () => {

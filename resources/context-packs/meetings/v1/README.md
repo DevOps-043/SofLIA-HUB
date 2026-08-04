@@ -1,4 +1,4 @@
-# Pulse Meeting Context Pack
+# SofLIA Meeting Context Pack
 
 Paquete reutilizable para Claude Code, Codex o cualquier agente que deba:
 
@@ -23,7 +23,7 @@ Paquete reutilizable para Claude Code, Codex o cualquier agente que deba:
 - `source_traceability.md`  
   Mapa humano de qué fuentes sustentan cada tipo de reunión.
 - `implementation_notes.md`  
-  Notas prácticas para integrarlo en Pulse.
+  Notas prácticas para integrarlo en SofLIA.
 - `manifest.txt`  
   Lista simple de archivos del paquete.
 

@@ -23,10 +23,16 @@ describe('AuthContext session actions', () => {
     });
 
     expect(result.current.user).not.toBeNull();
-    expect(supabaseMocks.signInWithPassword).toHaveBeenCalledWith({
-      email: 'test@soflia.com',
-      password: 'password123',
+    expect(supabaseMocks.invoke).toHaveBeenCalledWith('sofia-session-exchange', {
+      body: {},
+      headers: { Authorization: 'Bearer token' },
     });
+    expect(supabaseMocks.verifyOtp).toHaveBeenCalledWith({
+      token_hash: 'token-un-solo-uso',
+      type: 'magiclink',
+    });
+    expect(supabaseMocks.signInWithPassword).not.toHaveBeenCalled();
+    expect(supabaseMocks.signUp).not.toHaveBeenCalled();
     expect(result.current.session?.user.id).toBe('lia-user-1');
     expect(result.current.dataUserId).toBe('lia-user-1');
     expect(localStorage.getItem('lia-sync-cred')).toBeNull();

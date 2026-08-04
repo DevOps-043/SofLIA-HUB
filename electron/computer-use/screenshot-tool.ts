@@ -4,7 +4,7 @@ import { BrowserWindow, desktopCapturer, screen } from 'electron';
  * Captura de pantalla con soporte MULTI-MONITOR.
  *
  * Antes se devolvia siempre `sources[0]` (la pantalla principal) y el tamaño se
- * calculaba con el display primario: con varios monitores, Pulse solo "veia" uno.
+ * calculaba con el display primario: con varios monitores, SofLIA solo "veia" uno.
  * Ahora se puede elegir monitor y, si no se indica ninguno, se captura aquel
  * donde esta el cursor (el que el usuario esta mirando).
  */

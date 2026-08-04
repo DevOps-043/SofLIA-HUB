@@ -21,7 +21,7 @@ export async function extractPresentationData(agent: WhatsAppAgent, text: string
 
 export async function generateProposalContent(agent: WhatsAppAgent, clientCompanyName: string): Promise<string> {
   const model = agent.getGenAI().getGenerativeModel({ model: 'gemini-2.5-pro'});
-  const internalKnowledge = 'Pulse Hub desarrolla Pulse, un ecosistema de IA empresarial con automatizacion, agentes IA y consultoria en transformacion digital.';
+  const internalKnowledge = 'Pulse Hub desarrolla SofLIA, un ecosistema de IA empresarial con automatizacion, agentes IA y consultoria en transformacion digital.';
   const externalPrompt = `Resume brevemente que hace la empresa "${clientCompanyName}" y que necesidades tecnologicas puede tener.`;
   const externalKnowledge = (await model.generateContent(externalPrompt)).response.text();
   const proposalPrompt = `Actua como estratega de negocios.

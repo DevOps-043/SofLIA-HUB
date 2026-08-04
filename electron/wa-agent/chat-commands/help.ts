@@ -1,7 +1,7 @@
 const HELP_LINES = [
   '*Comandos disponibles:*',
   '',
-  '/status - Estado de Pulse',
+  '/status - Estado de SofLIA',
   '/reset - Reiniciar conversacion',
   '/new - Igual que /reset',
   '/perfil - Ver o editar mi personalizacion persistente',

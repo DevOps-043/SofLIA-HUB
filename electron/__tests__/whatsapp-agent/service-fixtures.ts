@@ -47,7 +47,7 @@ export function createMockWaService() {
       groupActivation: 'mention',
       groupPrefix: '/soflia',
       globalPersonalization: {
-        displayName: 'Pulse',
+        displayName: 'SofLIA',
         userAlias: '',
         tone: 'professional',
         responseStyle: 'Responde en espanol, de forma clara, util y respetuosa.',

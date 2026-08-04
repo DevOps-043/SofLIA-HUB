@@ -7,6 +7,10 @@ export const supabaseMocks = {
   refreshSession: vi.fn(),
   signInWithPassword: vi.fn(),
   signUp: vi.fn(),
+  updateUser: vi.fn(),
+  verifyOtp: vi.fn(),
+  invoke: vi.fn(),
+  getSofiaSession: vi.fn(),
   onAuthStateChange: vi.fn(),
   getSupabaseConfigDiagnostics: vi.fn(),
 };
@@ -19,7 +23,12 @@ vi.doMock('../../../lib/supabase', () => ({
       refreshSession: supabaseMocks.refreshSession,
       signInWithPassword: supabaseMocks.signInWithPassword,
       signUp: supabaseMocks.signUp,
+      updateUser: supabaseMocks.updateUser,
+      verifyOtp: supabaseMocks.verifyOtp,
       onAuthStateChange: supabaseMocks.onAuthStateChange,
+    },
+    functions: {
+      invoke: supabaseMocks.invoke,
     },
   },
   getSupabaseConfigDiagnostics: supabaseMocks.getSupabaseConfigDiagnostics,
@@ -27,7 +36,7 @@ vi.doMock('../../../lib/supabase', () => ({
 }));
 
 vi.doMock('../../../lib/sofia-client', () => ({
-  sofiaSupa: null,
+  sofiaSupa: { auth: { getSession: supabaseMocks.getSofiaSession } },
   isSofiaConfigured: vi.fn(() => true),
 }));
 
@@ -37,6 +46,11 @@ vi.doMock('../../../config', () => ({
 }));
 
 export function resetSupabaseMocks(): void {
+  // mockReset y no solo clearAllMocks: este ultimo borra el historial de
+  // llamadas pero NO la cola de mockResolvedValueOnce. Un caso que encolaba una
+  // respuesta y no llegaba a consumirla se la dejaba servida al siguiente test.
+  for (const mock of Object.values(supabaseMocks)) mock.mockReset();
+
   supabaseMocks.signOut.mockResolvedValue({ error: null });
   supabaseMocks.getSession.mockResolvedValue({ data: { session: null }, error: null });
   supabaseMocks.refreshSession.mockResolvedValue({ data: { session: null }, error: null });
@@ -45,6 +59,13 @@ export function resetSupabaseMocks(): void {
     error: null,
   });
   supabaseMocks.signUp.mockResolvedValue({ data: { session: null, user: null }, error: null });
+  supabaseMocks.updateUser.mockResolvedValue({ data: { user: { id: 'lia-user-1' } }, error: null });
+  supabaseMocks.verifyOtp.mockResolvedValue({
+    data: { session: { user: { id: 'lia-user-1', email: 'test@soflia.com' } }, user: null },
+    error: null,
+  });
+  supabaseMocks.invoke.mockResolvedValue({ data: { tokenHash: 'token-un-solo-uso' }, error: null });
+  supabaseMocks.getSofiaSession.mockResolvedValue({ data: { session: { access_token: 'token-restaurado' } }, error: null });
   supabaseMocks.onAuthStateChange.mockReturnValue({
     data: { subscription: { unsubscribe: vi.fn() } },
   });

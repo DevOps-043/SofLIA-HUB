@@ -10,9 +10,9 @@ const sources = [
 
 describe('OrbInfoPanel', () => {
   it('prioriza la respuesta y mantiene las fuentes colapsadas inicialmente', () => {
-    render(<OrbInfoPanel responseText="Respuesta completa de Pulse." sources={sources} />);
+    render(<OrbInfoPanel responseText="Respuesta completa de SofLIA." sources={sources} />);
 
-    expect(screen.getByText('Respuesta completa de Pulse.')).toBeVisible();
+    expect(screen.getByText('Respuesta completa de SofLIA.')).toBeVisible();
     expect(screen.queryByText('Información verificada')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /mostrar 2 fuentes consultadas/i })).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('link', { name: 'Primera referencia' })).not.toBeInTheDocument();

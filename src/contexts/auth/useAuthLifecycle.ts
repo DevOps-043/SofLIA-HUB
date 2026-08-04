@@ -2,18 +2,16 @@ import { useEffect } from 'react';
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { supabase } from '../../lib/supabase';
 import { sofiaAuth, type SofiaContext } from '../../services/sofia-auth';
-import { applyLiaRestore } from './lia-recovery';
 import { syncLiaProfile } from './lia-profile';
 import { SOFIA_CONTEXT_DEGRADED_MESSAGE, toAuthUser } from './helpers';
-import type { AuthUser, LiaSessionSyncResult, SofiaContextResolution } from './types';
+import type { AuthUser, SofiaContextResolution } from './types';
 
 type AuthLifecycleDeps = {
   usingSofia: boolean;
   clearSessionState: () => void;
-  ensureLiaSession: (email?: string | null, password?: string) => Promise<Session | null>;
+  ensureLiaSession: (email?: string | null, sofiaAccessToken?: string | null) => Promise<Session | null>;
   resolveSofiaContext: (sofiaUserId: string) => Promise<SofiaContextResolution>;
   signOut: () => Promise<void>;
-  syncOptionalLiaSession: (expectedEmail?: string | null) => Promise<LiaSessionSyncResult>;
   setLiaDegraded: (value: boolean) => void;
   setLiaStatusMessage: (value: string | null) => void;
   setLoading: (value: boolean) => void;
@@ -49,7 +47,6 @@ export function useAuthLifecycle(deps: AuthLifecycleDeps): void {
     deps.ensureLiaSession,
     deps.resolveSofiaContext,
     deps.signOut,
-    deps.syncOptionalLiaSession,
     deps.usingSofia,
   ]);
 }
@@ -105,7 +102,6 @@ async function applySofiaSession(sofiaSession: Session, deps: AuthLifecycleDeps,
 
   deps.setUser(toAuthUser(sofiaSession.user, sofiaSession.user.user_metadata));
   deps.setSofiaContext(resolution.context);
-  const liaRestore = await deps.syncOptionalLiaSession(sofiaSession.user.email);
-  const recovered = await applyLiaRestore(liaRestore, deps);
+  const recovered = Boolean(await deps.ensureLiaSession(sofiaSession.user.email, sofiaSession.access_token));
   if (finishLoading || recovered) deps.setLoading(false);
 }

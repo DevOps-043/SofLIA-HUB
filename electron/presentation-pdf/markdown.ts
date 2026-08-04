@@ -42,7 +42,7 @@ export function parseMarkdownToSlides(content: string, title: string): SlideData
   flush();
 
   if (slides.length > 0) {
-    slides.push({ type: 'closing', title: 'Gracias', subtitle: 'Presentacion generada por Pulse', imagePrompt: 'Professional thank you slide background' });
+    slides.push({ type: 'closing', title: 'Gracias', subtitle: 'Presentacion generada por SofLIA', imagePrompt: 'Professional thank you slide background' });
   }
   return slides;
 }

@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react';
 import { AttachmentPreviewStrip } from './input/AttachmentPreviewStrip';
 import { ModeBadges } from './input/ModeBadges';
 import { ToolMenu } from './input/ToolMenu';
@@ -8,22 +9,32 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
   const chat = controller.runtime.chat;
   const canSend = controller.props.canSendMessages;
   const modes = controller.state.modes;
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
   const placeholder = !canSend
     ? controller.props.readOnlyReason || 'Conversacion en solo lectura'
     : modes.imageGen
       ? 'Describe la imagen que quieres generar...'
       : modes.promptOptimizer
         ? 'Escribe el prompt a optimizar...'
-        : 'Mensaje a PULSE...';
+        : 'Mensaje a SOFLIA...';
+
+  useLayoutEffect(() => {
+    const target = textareaRef.current;
+    if (!target) return;
+    target.style.height = '38px';
+    target.style.height = `${Math.min(target.scrollHeight, 160)}px`;
+  }, [input.value]);
 
   return (
     <div className="flex-shrink-0 px-4 pb-4 pt-2 bg-background dark:bg-background-dark">
       <div className="max-w-5xl mx-auto">
         <ModeBadges controller={controller} />
         <AttachmentPreviewStrip controller={controller} />
-        <div className="w-full bg-[#f0f2f5] dark:bg-[#2A2B32] rounded-[30px] border border-transparent focus-within:border-accent/40 focus-within:ring-2 focus-within:ring-accent/15 focus-within:shadow-[0_0_12px_rgba(0,212,179,0.12)] transition-all flex items-center gap-2 px-2 py-1.5 mt-1 relative">
+        <div className="w-full bg-[#f0f2f5] dark:bg-[#2A2B32] rounded-[30px] border border-transparent focus-within:border-accent/40 focus-within:ring-2 focus-within:ring-accent/15 focus-within:shadow-[0_0_12px_rgba(0,212,179,0.12)] transition-all flex items-end gap-2 px-2 py-1.5 mt-1 relative">
           <ToolMenu controller={controller} />
           <textarea
+            ref={textareaRef}
             value={input.value}
             onChange={(event) => input.set(event.target.value)}
             onKeyDown={(event) => {
@@ -38,18 +49,13 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
             rows={1}
             disabled={chat.showLoadingUI || !canSend}
             style={{ height: '38px', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            onInput={(event) => {
-              const target = event.target as HTMLTextAreaElement;
-              target.style.height = '38px';
-              target.style.height = `${Math.min(target.scrollHeight, 160)}px`;
-            }}
           />
-          <div className="flex items-center gap-1.5 pr-0.5">
+          <div className="flex items-center gap-1.5 pr-0.5 mb-0.5">
             {chat.showLoadingUI ? (
               <button
                 onClick={controller.onStopClick}
                 className="w-9 h-9 flex items-center justify-center rounded-full bg-red-500 hover:bg-red-600 text-white shadow-md transition-all animate-pulse"
-                title="Detener lo que PULSE está haciendo"
+                title="Detener lo que SOFLIA está haciendo"
                 aria-label="Detener"
               >
                 <span className="block w-3 h-3 rounded-[3px] bg-white" />

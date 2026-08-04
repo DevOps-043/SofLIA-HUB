@@ -18,7 +18,7 @@ El agente IA debe ejecutar acciones en dos planos: plano local (equipo del usuar
 
 El tablero debe dar trazabilidad de avance a dos niveles: individual (lo que hice, en qué me atoré, qué recomiendo) y de equipo (progreso comparativo, sin exponer información sensible). Debe incluir un mecanismo de “reporte” (manual) para complementar telemetría (automática), porque la productividad real no siempre es deducible de actividad del teclado.
 
-Integraciones adicionales requeridas: WhatsApp (con estrategia de cumplimiento), Google Calendar, y “herramientas internas” (Project Hub, Pulse y el generador de contenido). Google Calendar es viable vía Calendar API (REST + OAuth + scopes), y se puede mejorar con notificaciones push (watch/webhook). citeturn15search5turn15search3turn15search2
+Integraciones adicionales requeridas: WhatsApp (con estrategia de cumplimiento), Google Calendar, y “herramientas internas” (Project Hub, SofLIA y el generador de contenido). Google Calendar es viable vía Calendar API (REST + OAuth + scopes), y se puede mejorar con notificaciones push (watch/webhook). citeturn15search5turn15search3turn15search2
 
 ## Arquitectura propuesta
 
@@ -108,7 +108,7 @@ Implementación recomendada: el **VPS** aloja el webhook receptor y la lógica d
 
 En “demás” (Drive/Gmail/Docs), el patrón es el mismo: OAuth + scopes mínimos + tools tipadas en el Tool Registry.
 
-### Integración con Project Hub, Pulse y generador de contenido
+### Integración con Project Hub, SofLIA y generador de contenido
 
 No pude revisar tus repositorios internos (no hay acceso a fuentes internas ni archivos subidos en este chat), así que el plan se basa en un enfoque estándar: convertir cada herramienta interna en un **conjunto de endpoints/funciones** expuestas como tools con esquema (por ejemplo: `projecthub_create_task`, `soflia_generate_outline`, `contentgen_publish_article`, etc.). En Gemini, estas tools se declaran con JSON (subconjunto OpenAPI) para function calling. citeturn17search0 En Claude, puedes forzar “strict tool use” y/o structured outputs para minimizar ejecuciones inválidas. citeturn17search8turn17search1
 

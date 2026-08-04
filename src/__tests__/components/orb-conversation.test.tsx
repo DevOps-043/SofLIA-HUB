@@ -192,7 +192,7 @@ describe('useOrbConversation session lifecycle', () => {
     unmount();
   });
 
-  // Pulse solo habla con la voz de Google Cloud: el respaldo local (Piper) se
+  // SofLIA solo habla con la voz de Google Cloud: el respaldo local (Piper) se
   // retiro porque sonaba robotico y, al saltar en silencio, ocultaba el fallo real.
   it('ORB-VOICE-6: si el TTS de Google falla, muestra el motivo y no usa voz local', async () => {
     mocks.startDictation.mockResolvedValueOnce({ success: true, sessionId: 'dictation-sin-voz' });

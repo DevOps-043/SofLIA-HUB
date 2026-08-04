@@ -9,7 +9,7 @@ export const PATHS_FILE = path.join(KNOWLEDGE_DIR, 'PATHS.md');
 export const BOOTSTRAP_MAX_CHARS = 15000;
 export const BOOTSTRAP_TOTAL_MAX_CHARS = 25000;
 
-export const DEFAULT_MEMORY = `# Pulse - Memoria Persistente
+export const DEFAULT_MEMORY = `# SofLIA - Memoria Persistente
 
 ## Preferencias Generales
 <!-- Preferencias que aplican a todos los usuarios -->

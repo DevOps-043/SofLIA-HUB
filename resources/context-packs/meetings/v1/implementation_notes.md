@@ -1,6 +1,6 @@
 # Implementation Notes
 
-## Recomendación para Pulse
+## Recomendación para SofLIA
 Usa este paquete en tres capas:
 
 ### 1. Context pack persistente

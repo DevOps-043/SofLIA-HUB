@@ -24,7 +24,7 @@ opciones visibles en `src/hooks/model-selector-options.ts`. `MODELS.PRIMARY`
 
 ### Reemplazo de la opción Lite y adición de 3.6-flash
 
-La opción "Pulse Lite" pasa de `gemini-3.1-flash-lite` a `gemini-3.5-flash-lite`.
+La opción "SofLIA Lite" pasa de `gemini-3.1-flash-lite` a `gemini-3.5-flash-lite`.
 Se agrega una opción para `gemini-3.6-flash` (marca visible propia) seleccionable
 pero no default. `MODELS.PRIMARY` no cambia.
 

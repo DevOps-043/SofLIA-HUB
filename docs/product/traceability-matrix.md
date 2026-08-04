@@ -1,6 +1,6 @@
 # Matriz de trazabilidad
 
-Estado: vigente. Actualizado: 2026-07-21.
+Estado: vigente. Actualizado: 2026-08-04.
 
 Esta matriz conecta definiciones de producto con implementacion y evidencia. Una
 ruta de pruebas indica cobertura existente del dominio, no garantiza que cada ID
@@ -12,7 +12,7 @@ tenga un test unitario exclusivo. La ausencia se declara como brecha.
 
 | Dominio | Reglas | Requisitos | Historias | Decisiones/limites | Implementacion | Evidencia de prueba |
 |---|---|---|---|---|---|---|
-| Identidad y organizacion | BR-002, BR-003, BR-004 | RF-001, RF-002 | HU-001 | DEC-002 | `src/contexts/auth/`, `src/lib/sofia-client.ts` | `src/__tests__/Auth*`, `src/__tests__/auth-*` |
+| Identidad y organizacion | BR-002, BR-003, BR-004 | RF-001, RF-002 | HU-001 | DEC-002 | `src/contexts/auth/`, `src/services/lia-session-exchange.ts`, `database/lia/supabase/functions/` | `src/__tests__/contexts/AuthContext.test.tsx`, `src/__tests__/services/lia-session-exchange-core.test.ts`, `src/__tests__/components/ChatUnavailableState.test.tsx` |
 | Chat, carpetas y share | BR-005 | RF-003, RF-004, RF-005 | HU-002, HU-003, HU-004 | LIM-015 | `src/services/chat/`, `folder/`, `share/` | `src/__tests__/chat-*`, `folder-*`, `share-*` |
 | IA renderer y computer use | BR-009 | RF-007, RF-008 | HU-005 | DEC-001, LIM-002, LIM-003, LIM-004 | `src/services/gemini-chat/`, `electron/computer-use/` | `src/__tests__/gemini-*`, `electron/__tests__/computer-use-*` |
 | IRIS y proyectos | BR-003 | RF-006 | HU-006 | DEC-002 | `src/services/iris-data/`, `electron/iris/` | `src/__tests__/iris-*`, `electron/__tests__/iris-*` |

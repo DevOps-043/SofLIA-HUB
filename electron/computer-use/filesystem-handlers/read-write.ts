@@ -72,7 +72,7 @@ async function readDocumentWithSidecar(resolved: string, ext: string, size: numb
 function sidecarUnavailableError(ext: string): any {
   return {
     success: false,
-    error: `Para leer archivos .${ext} hace falta el runtime Python de Pulse. Ejecuta "npm run python:setup" (desarrollo) o reinstala la app.`,
+    error: `Para leer archivos .${ext} hace falta el runtime Python de SofLIA. Ejecuta "npm run python:setup" (desarrollo) o reinstala la app.`,
     code: 'SIDECAR_UNAVAILABLE',
   };
 }

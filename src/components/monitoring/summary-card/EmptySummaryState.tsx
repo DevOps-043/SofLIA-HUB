@@ -15,7 +15,7 @@ export function EmptySummaryState({ generating, hasLogs, onGenerate }: Props) {
       <div className="max-w-xs">
         <p className="text-sm text-secondary leading-relaxed">
           {hasLogs
-            ? 'Hemos analizado tu actividad. Haz clic para generar un resumen detallado con Pulse AI.'
+            ? 'Hemos analizado tu actividad. Haz clic para generar un resumen detallado con SofLIA AI.'
             : 'Aun no hay actividad suficiente para generar un analisis. Inicia un monitoreo para comenzar.'}
         </p>
       </div>

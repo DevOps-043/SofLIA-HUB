@@ -1,6 +1,6 @@
 # Requisitos funcionales
 
-Estado: vigente. Actualizado: 2026-07-21.
+Estado: vigente. Actualizado: 2026-08-04.
 
 Cada requisito usa lenguaje observable. La matriz de cobertura se encuentra en
 [trazabilidad](traceability-matrix.md).
@@ -52,7 +52,7 @@ Cada requisito usa lenguaje observable. La matriz de cobertura se encuentra en
 
 | ID | El sistema debe... | Resultado verificable | Evidencia |
 |---|---|---|---|
-| RF-001 | autenticar con SOFIA y resolver perfil operativo Lia | un usuario valido entra al workspace; un fallo Lia muestra estado degradado | `src/contexts/auth/` |
+| RF-001 | autenticar únicamente con SOFIA y resolver automáticamente la sesión operativa de conversaciones | un usuario válido entra al workspace sin otra credencial; un fallo secundario conserva SOFIA, muestra un estado simple y permite reintentar | `src/contexts/auth/`, `src/services/lia-session-exchange.ts`, `database/lia/supabase/functions/sofia-session-exchange/`, `src/app/ChatUnavailableState.tsx` |
 | RF-002 | cargar organizaciones, membresias y equipos y permitir cambiar la organizacion activa | sidebar, IRIS y shares cambian al scope seleccionado | `src/contexts/auth/useSofiaSelection.ts`, `src/app/AppContent.tsx` |
 | RF-003 | mantener conversaciones y mensajes con carga, creacion, renombrado, pin, eliminacion y recuperacion de pendientes | la lista y el chat remoto/local convergen despues de reintentos | `src/services/chat/`, `src/hooks/chat-manager/` |
 | RF-004 | crear, renombrar y eliminar carpetas y mover conversaciones entre ellas | el Project Hub refleja el agrupamiento persistido | `src/services/folder/`, `src/hooks/folder-manager/` |

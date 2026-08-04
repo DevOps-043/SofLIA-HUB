@@ -42,7 +42,7 @@ declare global {
 
 function getAPI() {
   if (!window.workflowHub) {
-    throw new Error('Workflow Hub no disponible. Ejecuta Pulse dentro de Electron.');
+    throw new Error('Workflow Hub no disponible. Ejecuta SofLIA dentro de Electron.');
   }
   return window.workflowHub;
 }

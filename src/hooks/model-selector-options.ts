@@ -40,7 +40,7 @@ export const DEFAULT_MODEL_ID = 'gemini-3.6-flash';
 export const MODEL_OPTIONS: ModelOption[] = [
   {
     id: DEFAULT_MODEL_ID,
-    name: 'Pulse',
+    name: 'SofLIA',
     desc: 'Equilibrio ideal para el dia a dia.',
     icon: 'spark',
     thinkingType: 'level',
@@ -48,7 +48,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
   },
   {
     id: 'gpt-5.6-terra',
-    name: 'Pulse Max',
+    name: 'SofLIA Max',
     desc: 'Maxima potencia para tareas exigentes.',
     icon: 'globe',
     badge: '3/mes',
@@ -57,7 +57,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
   },
   {
     id: 'gpt-5.6-luna',
-    name: 'Pulse Pro',
+    name: 'SofLIA Pro',
     desc: 'Rapido y capaz para comandos y acciones.',
     icon: 'moon',
     thinkingType: 'level',
@@ -65,7 +65,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
   },
   {
     id: 'gemini-3.5-flash-lite',
-    name: 'Pulse Lite',
+    name: 'SofLIA Lite',
     desc: 'Ultra ligero para tareas simples.',
     icon: 'feather',
     thinkingType: 'level',

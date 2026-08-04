@@ -36,7 +36,7 @@ export interface SendMessageStreamOptions {
   memoryContext?: string;
   /** Superficie que origina el turno; decide el modelo cuando el usuario no fijo uno. */
   task?: 'chat' | 'orb';
-  /** Usuario SOFIA del turno; da alcance a la cuota mensual de Pulse Max. */
+  /** Usuario SOFIA del turno; da alcance a la cuota mensual de SofLIA Max. */
   userId?: string;
   onToolCall?: (toolCall: ToolCallInfo) => void;
   /** Señal para cancelar la generación (botón Stop del usuario). */

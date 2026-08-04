@@ -1,7 +1,7 @@
 import { isOpenAIConfigured, MODELS, OPENAI_MODELS } from '../config';
 import { isOpenAIModel } from '../shared/model-providers';
 import type { SendMessageStreamOptions } from './gemini-chat/types';
-import { hasPulseMaxQuota, PULSE_MAX_MODEL_ID } from './model-quota';
+import { hasSofliaMaxQuota, SOFLIA_MAX_MODEL_ID } from './model-quota';
 
 /**
  * Esfuerzo de razonamiento forzado en acciones reales sobre la computadora.
@@ -14,9 +14,9 @@ export interface RoutedModel {
   modelId: string;
   /** Sobrescribe el esfuerzo elegido por el usuario para este turno. */
   reasoningEffort?: string;
-  /** El turno gasta una unidad de la cuota mensual de Pulse Max. */
-  consumesPulseMaxQuota?: boolean;
-  /** Se pidio Pulse Max sin cuota disponible y se degrado a Pulse Pro. */
+  /** El turno gasta una unidad de la cuota mensual de SofLIA Max. */
+  consumesSofliaMaxQuota?: boolean;
+  /** Se pidio SofLIA Max sin cuota disponible y se degrado a SofLIA Pro. */
   quotaExhausted?: boolean;
 }
 
@@ -24,13 +24,13 @@ export interface RoutedModel {
  * Decide con que modelo se atiende el turno.
  *
  * Politica del producto:
- * - Accion real sobre la computadora (abrir app, clic, mover cursor) -> Pulse
+ * - Accion real sobre la computadora (abrir app, clic, mover cursor) -> SofLIA
  *   Max (GPT-5.6 Terra) con maximo razonamiento.
- * - Orbe y demas comandos con herramientas -> Pulse Pro (GPT-5.6 Luna), que es
+ * - Orbe y demas comandos con herramientas -> SofLIA Pro (GPT-5.6 Luna), que es
  *   la mayoria del uso.
  * - Chat normal -> el modelo que el usuario eligio en el selector.
  *
- * La cuota de 3/mes aplica SOLO cuando el usuario elige Pulse Max a mano en el
+ * La cuota de 3/mes aplica SOLO cuando el usuario elige SofLIA Max a mano en el
  * selector. El ruteo interno a Terra para ejecutar acciones no la consume: si
  * lo hiciera, la orbe dejaria de poder actuar tras la tercera orden del mes.
  *
@@ -45,9 +45,9 @@ export function resolveRoutedModel(params: {
   const selected = params.options?.model?.trim();
   const userId = params.options?.userId;
 
-  // Eleccion explicita de Pulse Max: es el unico camino sujeto a cuota.
-  if (selected === PULSE_MAX_MODEL_ID && isOpenAIConfigured()) {
-    if (hasPulseMaxQuota(userId)) return { modelId: PULSE_MAX_MODEL_ID, consumesPulseMaxQuota: true };
+  // Eleccion explicita de SofLIA Max: es el unico camino sujeto a cuota.
+  if (selected === SOFLIA_MAX_MODEL_ID && isOpenAIConfigured()) {
+    if (hasSofliaMaxQuota(userId)) return { modelId: SOFLIA_MAX_MODEL_ID, consumesSofliaMaxQuota: true };
     return { modelId: OPENAI_MODELS.COMMANDS, quotaExhausted: true };
   }
 

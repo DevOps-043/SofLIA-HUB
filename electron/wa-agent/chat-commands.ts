@@ -41,7 +41,7 @@ export async function handleChatCommand(context: ChatCommandContext): Promise<st
 
   switch (cmd) {
     case '/status':
-      return `*Pulse activa*\n- Modelo: Gemini 2.5 Flash\n- Modo: ${context.isGroup ? 'Grupo' : 'DM'}\n- Historial: ${context.conversations.get(sessionKey)?.length || 0} mensajes`;
+      return `*SofLIA activa*\n- Modelo: Gemini 2.5 Flash\n- Modo: ${context.isGroup ? 'Grupo' : 'DM'}\n- Historial: ${context.conversations.get(sessionKey)?.length || 0} mensajes`;
 
     case '/reset':
     case '/new':

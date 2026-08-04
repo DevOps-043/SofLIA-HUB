@@ -40,11 +40,12 @@ export function createUserMessage(text: string, images: string[]): ChatMessage {
   };
 }
 
-export function createAiPlaceholder(id: string): ChatMessage {
+export function createAiPlaceholder(id: string, userTimestamp?: number): ChatMessage {
+  const baseTime = typeof userTimestamp === 'number' ? userTimestamp : Date.now();
   return {
     id,
     role: 'model',
     text: PLACEHOLDER_TEXT,
-    timestamp: Date.now(),
+    timestamp: Math.max(Date.now(), baseTime + 1),
   };
 }

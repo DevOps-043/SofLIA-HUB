@@ -126,7 +126,7 @@ function buildModelTitlePrompt(messages: ChatMessage[]): string {
   const transcript = messages
     .filter((message) => message.text.trim().length > 0)
     .slice(0, 4)
-    .map((message) => `${message.role === 'user' ? 'Usuario' : 'Pulse'}: ${message.text.trim()}`)
+    .map((message) => `${message.role === 'user' ? 'Usuario' : 'SofLIA'}: ${message.text.trim()}`)
     .join('\n');
 
   return [

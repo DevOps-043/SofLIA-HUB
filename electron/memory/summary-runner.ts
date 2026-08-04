@@ -96,7 +96,7 @@ function ownerKindLabel(ownerKey: string): string {
 function formatConversationForSummary(messages: Array<{ role: string; content: string; timestamp: number }>): string {
   return messages.map((message) => {
     const time = new Date(message.timestamp).toLocaleString('es-MX');
-    return `[${time}] ${message.role === 'user' ? 'Usuario' : 'Pulse'}: ${message.content}`;
+    return `[${time}] ${message.role === 'user' ? 'Usuario' : 'SofLIA'}: ${message.content}`;
   }).join('\n');
 }
 

@@ -124,7 +124,7 @@ pruebas independientes, no para cumplir una cifra arbitraria.
 
 ## 5. Bases de datos y modelo de datos
 
-Pulse usa tres instancias Supabase y bases SQLite locales. Antes de cambiar
+SofLIA usa tres instancias Supabase y bases SQLite locales. Antes de cambiar
 persistencia se identifica propietario y consumidor:
 
 - SOFIA: identidad, organizaciones, equipos y membresias;

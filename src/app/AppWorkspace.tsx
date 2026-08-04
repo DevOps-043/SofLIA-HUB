@@ -2,7 +2,7 @@ import { MeetingOpsPanel } from '../components/meetings/MeetingOpsPanel';
 import { ProductivityDashboard } from '../components/ProductivityDashboard';
 import { RegistroDecisiones } from '../components/sdo/RegistroDecisiones';
 import type { MouseEvent } from 'react';
-import { LiaDegradedNotice, ShareLinkNoticeBanner } from './AppNotices';
+import { ShareLinkNoticeBanner } from './AppNotices';
 import { AppChatView } from './AppChatView';
 import { AppProjectView } from './AppProjectView';
 import type { ActiveView, ChatState, FolderState, ShareLinkNotice, ShareTarget } from './app-types';
@@ -17,11 +17,10 @@ interface AppWorkspaceProps {
   currentFolder?: FolderState['folders'][number];
   externalPrompt: string | null;
   folder: FolderState;
-  liaDegraded: boolean;
-  liaStatusMessage?: string | null;
+  onRetryConversations?: () => Promise<boolean>;
   onDeleteConversation: (conversationId: string, event: MouseEvent) => Promise<void>;
   onExternalPromptProcessed: () => void;
-  onMessagesChange: (messages: any) => void;
+  onMessagesChange: (messages: ChatState['currentMessages']) => void;
   onNewChatInProject: (folderId: string) => Promise<void>;
   onNewChatWithMessage: (folderId: string, message: string) => Promise<void>;
   onSelectConversation: (conversationId: string) => Promise<void>;
@@ -38,7 +37,6 @@ export function AppWorkspace(props: AppWorkspaceProps) {
   return (
     <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
       {props.shareLinkNotice && <ShareLinkNoticeBanner notice={props.shareLinkNotice} />}
-      {props.liaDegraded && !props.userId && <LiaDegradedNotice message={props.liaStatusMessage || undefined} />}
       {props.activeView === 'chat' && (
         <div className="flex-1 flex flex-col min-w-0 min-h-0 h-full overflow-hidden animate-view-in">
           <AppChatView
@@ -52,6 +50,7 @@ export function AppWorkspace(props: AppWorkspaceProps) {
             onShareConversation={canShareConversation ? () => props.setShareTarget({ targetId: props.currentConversation!.id, targetType: 'conversation', targetName: props.currentConversation!.title }) : undefined}
             userId={props.userId}
             userSettings={props.userSettings}
+            onRetryConversations={props.onRetryConversations}
           />
         </div>
       )}

@@ -13,7 +13,7 @@ export function ChatLoadingIndicator({ activeToolCall }: { activeToolCall?: Acti
     <div className="flex gap-4 select-none animate-in fade-in duration-300">
       {/* Avatar de LIA */}
       <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 rounded-full overflow-hidden border border-border shadow-sm">
-        <img src="./assets/lia-avatar.png" alt="PULSE" className="w-full h-full object-cover" />
+        <img src="./assets/lia-avatar.png" alt="SOFLIA" className="w-full h-full object-cover" />
       </div>
 
       <div className="flex flex-col gap-2 pt-1.5">

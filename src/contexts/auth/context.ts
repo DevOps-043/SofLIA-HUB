@@ -11,6 +11,7 @@ export const AuthContext = createContext<AuthContextType>({
   sofiaContext: null,
   liaDegraded: false,
   liaStatusMessage: null,
+  retryConversations: async () => false,
   signInWithSofia: async () => ({ success: false, user: null, session: null, error: 'Not initialized' }),
   setCurrentOrganization: () => {},
   setCurrentTeam: () => {},

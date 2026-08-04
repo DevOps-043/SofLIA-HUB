@@ -86,7 +86,7 @@ class SofiaAuthService {
           avatar_url: storedUser.profile_picture_url,
         },
       },
-    } as any;
+    } as unknown as Session;
   }
 
   getSofiaContext(): SofiaContext | null {

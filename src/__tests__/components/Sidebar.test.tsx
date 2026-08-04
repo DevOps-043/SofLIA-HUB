@@ -17,14 +17,14 @@ describe('Sidebar component', () => {
       <Sidebar
         {...createDefaultProps({
           conversations: [
-            { id: 'c1', user_id: 'u1', title: 'Chat con Pulse', created_at: '2026-01-01', updated_at: '2026-01-01' },
+            { id: 'c1', user_id: 'u1', title: 'Chat con SofLIA', created_at: '2026-01-01', updated_at: '2026-01-01' },
             { id: 'c2', user_id: 'u1', title: 'Proyecto React', created_at: '2026-01-02', updated_at: '2026-01-02' },
           ],
         })}
       />
     );
 
-    expect(screen.getByText('Chat con Pulse')).toBeInTheDocument();
+    expect(screen.getByText('Chat con SofLIA')).toBeInTheDocument();
     expect(screen.getByText('Proyecto React')).toBeInTheDocument();
   });
 

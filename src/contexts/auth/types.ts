@@ -28,6 +28,7 @@ export interface AuthContextType {
   sofiaContext: SofiaContext | null;
   liaDegraded: boolean;
   liaStatusMessage: string | null;
+  retryConversations: () => Promise<boolean>;
   signInWithSofia: (email: string, password: string) => Promise<SofiaAuthResult>;
   setCurrentOrganization: (orgId: string) => void;
   setCurrentTeam: (teamId: string) => void;

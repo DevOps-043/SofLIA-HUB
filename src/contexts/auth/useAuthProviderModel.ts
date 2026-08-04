@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { isSofiaConfigured } from '../../lib/sofia-client';
 import { isOrbWindowRenderer, publishAuthState } from '../../services/auth-state';
 import { useAuthLifecycle } from './useAuthLifecycle';
@@ -17,16 +17,20 @@ export function useAuthProviderModel(): AuthContextType {
   const signOut = useSignOut(usingSofia, state.clearSessionState);
   const resolveSofiaContext = useSofiaResolver();
   const lia = useLiaSession(state);
-  const signInWithSofia = useSofiaSignIn({ ...state, ensureLiaSession: lia.ensureLiaSession, signOut });
+  const ensureLiaSession = lia.ensureLiaSession;
+  const signInWithSofia = useSofiaSignIn({ ...state, ensureLiaSession, signOut });
   const selection = useSofiaSelection(state);
+  const retryConversations = useCallback(
+    async () => Boolean(await ensureLiaSession(state.user?.email)),
+    [ensureLiaSession, state.user?.email],
+  );
 
   useAuthLifecycle({
     ...state,
     usingSofia,
     signOut,
     resolveSofiaContext,
-    ensureLiaSession: lia.ensureLiaSession,
-    syncOptionalLiaSession: lia.syncOptionalLiaSession,
+    ensureLiaSession,
   });
 
   // El proceso main niega por defecto las funciones sensibles (orbe, deteccion
@@ -56,6 +60,7 @@ export function useAuthProviderModel(): AuthContextType {
     sofiaContext: state.sofiaContext,
     liaDegraded: state.liaDegraded,
     liaStatusMessage: state.liaStatusMessage,
+    retryConversations,
     signInWithSofia,
     setCurrentOrganization: selection.setCurrentOrganization,
     setCurrentTeam: selection.setCurrentTeam,

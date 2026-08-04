@@ -1,7 +1,7 @@
 import type { WhatsAppStatus } from './types';
 
 export const DEFAULT_WHATSAPP_PERSONALIZATION = {
-  displayName: 'Pulse',
+  displayName: 'SofLIA',
   userAlias: '',
   tone: 'professional' as const,
   responseStyle: 'Responde en espanol, de forma clara, util y respetuosa.',

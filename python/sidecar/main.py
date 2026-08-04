@@ -256,7 +256,7 @@ class WakeListener:
         recognizer = KaldiRecognizer(model, self.sample_rate, grammar)
         recognizer.SetWords(True)  # habilita conf/start/end por palabra
         # Permite activar al reconocer el nombre, sin esperar a que termine toda
-        # la instruccion ("Pulse, abre..."). Reduce la perdida del comando al
+        # la instruccion ("SofLIA, abre..."). Reduce la perdida del comando al
         # hacer el handoff del listener wake al dictado libre.
         if hasattr(recognizer, "SetPartialWords"):
             recognizer.SetPartialWords(True)

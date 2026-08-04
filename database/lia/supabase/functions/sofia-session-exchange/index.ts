@@ -1,0 +1,98 @@
+import { createClient } from 'npm:@supabase/supabase-js@2';
+import { exchangeSofiaSession } from '../_shared/sofia-session-exchange-core.ts';
+
+const CORS_HEADERS = {
+  'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Origin': '*',
+};
+
+const RESPONSE_HEADERS = {
+  ...CORS_HEADERS,
+  'Cache-Control': 'no-store',
+  'Content-Type': 'application/json; charset=utf-8',
+};
+
+Deno.serve(async (request: Request) => {
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS });
+  if (request.method !== 'POST') return jsonResponse(405, { code: 'method_not_allowed' });
+
+  const liaUrl = Deno.env.get('SUPABASE_URL') || '';
+  const liaAdminKey = getLiaAdminKey();
+  const sofiaUrl = Deno.env.get('SOFIA_SUPABASE_URL') || '';
+  const sofiaAnonKey = Deno.env.get('SOFIA_SUPABASE_ANON_KEY') || '';
+
+  if (!liaUrl || !liaAdminKey || !sofiaUrl || !sofiaAnonKey) {
+    console.error('[intercambio-sesion] configuracion incompleta');
+    return jsonResponse(503, { code: 'exchange_unavailable' });
+  }
+
+  const liaAdmin = createClient(liaUrl, liaAdminKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const result = await exchangeSofiaSession(request.headers.get('Authorization'), {
+    getSofiaIdentity: async (accessToken) => {
+      const sofia = createSofiaClient(sofiaUrl, sofiaAnonKey, accessToken);
+      const { data, error } = await sofia.auth.getUser(accessToken);
+      if (error) {
+        if (error.status === 401 || error.status === 403) return null;
+        throw new Error('identity_provider_unavailable');
+      }
+      if (!data.user) return null;
+      return {
+        id: data.user.id,
+        email: data.user.email || null,
+        emailVerified: Boolean(data.user.email_confirmed_at || data.user.confirmed_at),
+      };
+    },
+    hasActiveMembership: async (accessToken, userId) => {
+      const sofia = createSofiaClient(sofiaUrl, sofiaAnonKey, accessToken);
+      const { data, error } = await sofia
+        .from('organization_users')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .limit(1)
+        .maybeSingle();
+      if (error) throw new Error('membership_lookup_failed');
+      return Boolean(data?.id);
+    },
+    generateOperationalAccess: async (email) => {
+      const { data, error } = await liaAdmin.auth.admin.generateLink({ type: 'magiclink', email });
+      if (error || !data.properties?.hashed_token || !data.user) {
+        throw new Error('operational_link_failed');
+      }
+      return {
+        tokenHash: data.properties.hashed_token,
+        email: data.user.email || null,
+      };
+    },
+  });
+
+  if (result.status >= 500) console.error('[intercambio-sesion] servicio no disponible');
+  return jsonResponse(result.status, result.body);
+});
+
+function createSofiaClient(url: string, anonKey: string, accessToken: string) {
+  return createClient(url, anonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+    global: { headers: { Authorization: `Bearer ${accessToken}` } },
+  });
+}
+
+function getLiaAdminKey(): string {
+  const legacyKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || Deno.env.get('SUPABASE_SECRET_KEY');
+  if (legacyKey) return legacyKey;
+
+  try {
+    const keys = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') || '{}') as Record<string, string>;
+    return keys.default || '';
+  } catch {
+    return '';
+  }
+}
+
+function jsonResponse(status: number, body: object): Response {
+  return new Response(JSON.stringify(body), { status, headers: RESPONSE_HEADERS });
+}

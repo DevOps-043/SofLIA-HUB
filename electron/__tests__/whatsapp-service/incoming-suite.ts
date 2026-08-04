@@ -9,17 +9,17 @@ describe('WhatsApp Service - mensajes entrantes', () => {
     const msgPromise = new Promise<any>(resolve => service.on('message', resolve));
 
     waFixtures.mockSockEvents.emit('messages.upsert', {
-      messages: [{ key: { remoteJid: '5215500000000@s.whatsapp.net', fromMe: false }, message: { conversation: 'Hola Pulse' } }],
+      messages: [{ key: { remoteJid: '5215500000000@s.whatsapp.net', fromMe: false }, message: { conversation: 'Hola SofLIA' } }],
     });
 
     const msg = await msgPromise;
-    expect(msg.text).toBe('Hola Pulse');
+    expect(msg.text).toBe('Hola SofLIA');
     expect(msg.senderNumber).toBe('5215500000000');
     expect(msg.isGroup).toBe(false);
     expect(historySpy).toHaveBeenCalledWith(expect.objectContaining({
       direction: 'incoming',
       kind: 'text',
-      text: 'Hola Pulse',
+      text: 'Hola SofLIA',
       senderNumber: '5215500000000',
     }));
   });

@@ -40,7 +40,7 @@ export function createCoverPage(title: string, subtitle?: string, author?: strin
   }));
 
   paragraphs.push(new Paragraph({
-    children: [new TextRun({ text: author || 'Generado por Pulse', size: 22, color: COLORS.muted, font: 'Calibri' })],
+    children: [new TextRun({ text: author || 'Generado por SofLIA', size: 22, color: COLORS.muted, font: 'Calibri' })],
     alignment: AlignmentType.CENTER,
   }));
 

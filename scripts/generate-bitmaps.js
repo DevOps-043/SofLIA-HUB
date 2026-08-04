@@ -28,7 +28,7 @@ async function renderBrandSources() {
     <circle cx="75" cy="248" r="2" fill="#FFFFFF" fill-opacity=".35"/>
     <circle cx="126" cy="217" r="3" fill="#00D4B3" fill-opacity=".5"/>
     <rect x="20" y="91" width="34" height="2" rx="1" fill="#00D4B3"/>
-    <text x="20" y="124" fill="#FFFFFF" font-family="Inter,Segoe UI,Arial" font-size="24" font-weight="700">Pulse</text>
+    <text x="20" y="124" fill="#FFFFFF" font-family="Inter,Segoe UI,Arial" font-size="24" font-weight="700">SofLIA</text>
     <text x="20" y="148" fill="#A7B8C8" font-family="Inter,Segoe UI,Arial" font-size="15">Hub Desktop</text>
     <text x="20" y="178" fill="#FFFFFF" fill-opacity=".7" font-family="Inter,Segoe UI,Arial" font-size="9">IA PARA TRABAJO</text>
     <text x="20" y="191" fill="#FFFFFF" fill-opacity=".7" font-family="Inter,Segoe UI,Arial" font-size="9">Y OPERACIONES</text>
@@ -41,7 +41,7 @@ async function renderBrandSources() {
     <circle cx="22" cy="50" r="4" fill="#FFFFFF"/><circle cx="36" cy="38" r="4" fill="#6C757D"/><circle cx="36" cy="62" r="4" fill="#6C757D"/><circle cx="50" cy="48" r="4" fill="#FFFFFF"/>
     <path d="M0 250 C50 215 98 269 164 214" fill="none" stroke="#00D4B3" stroke-opacity=".16"/>
     <rect x="20" y="91" width="34" height="2" rx="1" fill="#6C757D"/>
-    <text x="20" y="124" fill="#FFFFFF" font-family="Inter,Segoe UI,Arial" font-size="23" font-weight="700">Pulse</text>
+    <text x="20" y="124" fill="#FFFFFF" font-family="Inter,Segoe UI,Arial" font-size="23" font-weight="700">SofLIA</text>
     <text x="20" y="147" fill="#A7B8C8" font-family="Inter,Segoe UI,Arial" font-size="14">Desinstalar</text>
     <text x="20" y="177" fill="#FFFFFF" fill-opacity=".62" font-family="Inter,Segoe UI,Arial" font-size="9">CONTROL LIMPIO</text>
     <text x="20" y="190" fill="#FFFFFF" fill-opacity=".62" font-family="Inter,Segoe UI,Arial" font-size="9">Y TRANSPARENTE</text>

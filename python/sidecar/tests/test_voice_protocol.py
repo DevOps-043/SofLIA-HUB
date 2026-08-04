@@ -56,7 +56,7 @@ class WakeWordExpansionTests(unittest.TestCase):
         )
 
     def test_configured_prefix_does_not_make_other_prefixes_mandatory(self) -> None:
-        grammar, match_set = expand_wake_words(["Oye, Pulse"])
+        grammar, match_set = expand_wake_words(["Oye, SofLIA"])
 
         self.assertIn("sof\u00eda", grammar)
         self.assertIn("hola sofia", grammar)

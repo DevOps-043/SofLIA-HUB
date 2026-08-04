@@ -63,6 +63,12 @@ export function AppSidebar(props: AppSidebarProps) {
       onOpenSdo={props.onOpenSdo}
       onOpenMeetings={props.onOpenMeetings}
       onDeleteFolder={props.onDeleteFolder}
+      renamingFolderId={folder.renamingFolderId}
+      editingFolderName={folder.editingFolderName}
+      onSetEditingFolderName={folder.setEditingFolderName}
+      onStartRenameFolder={folder.startFolderRename}
+      onFinishRenameFolder={folder.commitFolderRename}
+      onCancelRenameFolder={folder.cancelFolderRename}
       irisTeams={iris.irisTeams}
       irisProjects={iris.irisProjects}
       irisIssues={iris.irisIssues}

@@ -19,7 +19,7 @@ export async function createCustomTemplate(this: WorkspaceAutomationService, inp
       capabilities: WorkflowActionKind[];
     }>({
       prompt: [
-        'Convierte esta necesidad empresarial en un workflow reusable para Pulse.',
+        'Convierte esta necesidad empresarial en un workflow reusable para SofLIA.',
         'El resultado debe ser entendible para directivos no tecnicos.',
         'Si el flujo puede ocurrir fuera de Google Workspace, prioriza desktop_task como capacidad principal.',
         'No inventes integraciones inexistentes.',

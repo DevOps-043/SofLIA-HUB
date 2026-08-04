@@ -145,7 +145,7 @@ export function useMeetingLive() {
         setState((prev) => ({
           ...prev,
           phase: 'completado',
-          message: 'Transcripcion guardada. Inicia sesion en Pulse para generar la minuta.',
+          message: 'Transcripcion guardada. Inicia sesion en SofLIA para generar la minuta.',
         }));
       }
     } catch (err) {

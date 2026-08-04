@@ -106,7 +106,7 @@ export class DailyDigestGenerator extends EventEmitter {
     }
 
     const jid = `${phoneNumber.replace(/\D/g, '')}@s.whatsapp.net`;
-    const caption = `Reporte Ejecutivo Semanal de Pulse - ${dateStr}\n\nResumen automatizado del estado del sistema, rendimiento de hardware y actividades recientes de AutoDev.`;
+    const caption = `Reporte Ejecutivo Semanal de SofLIA - ${dateStr}\n\nResumen automatizado del estado del sistema, rendimiento de hardware y actividades recientes de AutoDev.`;
     await this.waService.sendFile(jid, filePath, caption);
     this.emit('sent', { filePath, phoneNumber });
     console.log(`[DailyDigest] Reporte enviado exitosamente a ${phoneNumber}`);

@@ -41,7 +41,7 @@ let configLogged = false;
 export async function synthesizeOrbSpeech(text: string): Promise<OrbSpeechAudio> {
   const { apiKey, voice, languageCode } = getTtsConfig();
   if (!apiKey) {
-    throw new Error('Falta VITE_GOOGLE_CLOUD_TTS_API_KEY en el .env para la voz de Pulse.');
+    throw new Error('Falta VITE_GOOGLE_CLOUD_TTS_API_KEY en el .env para la voz de SofLIA.');
   }
   if (!configLogged) {
     configLogged = true;

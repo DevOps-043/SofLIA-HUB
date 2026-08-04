@@ -4,6 +4,7 @@ import type { SidebarProps } from './types';
 import { ChatItem } from './ChatItem';
 import { buildChatItemProps } from './chatProps';
 import { ChevronIcon } from './ChevronIcon';
+import { EditIcon } from './ChatIcons';
 import { ShareBadge } from './ShareBadge';
 
 export function FolderRow({
@@ -20,17 +21,20 @@ export function FolderRow({
   isActive: boolean;
 }) {
   const { isOpen } = props;
+  const isRenaming = props.renamingFolderId === folder.id;
   return (
     <div className="mb-0.5">
       <div
         className={`min-h-9 w-full flex items-center ${isOpen ? 'gap-2 px-2' : 'justify-center px-0'} rounded-2xl text-[13px] transition-all duration-200 cursor-pointer group ${folderStateClass(isActive, isExpanded)}`}
-        onClick={() => props.onToggleFolder(folder.id)}
-        onDoubleClick={() => props.onOpenProject(folder.id)}
+        onClick={() => { if (!isRenaming) props.onToggleFolder(folder.id); }}
+        onDoubleClick={() => { if (!isRenaming) props.onOpenProject(folder.id); }}
         title={folder.name}
       >
         {isOpen && <ChevronIcon className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 opacity-50 group-hover:opacity-100 ${isActive ? 'text-accent opacity-100' : ''} ${isExpanded ? 'rotate-90' : ''}`} />}
         <FolderIcon active={isActive} />
-        {isOpen && <FolderTitle folder={folder} chats={chats} props={props} />}
+        {isOpen && (isRenaming
+          ? <FolderRenameInput props={props} />
+          : <FolderTitle folder={folder} chats={chats} props={props} />)}
       </div>
       {isExpanded && isOpen && (
         <div className="ml-4 mt-1 space-y-0.5 border-l border-gray-200/60 pl-2 dark:border-white/[0.06]">
@@ -67,13 +71,44 @@ function FolderTitle({ folder, chats, props }: { folder: Folder; chats: Conversa
         {folder.is_shared && <ShareBadge owner={Boolean(folder.can_share)} ownerTitle="Compartida por ti" memberTitle="Compartida contigo" />}
       </div>
       {chats.length > 0 && <span className="text-[10px] bg-gray-200/50 dark:bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 rounded-full text-gray-500 dark:text-gray-400">{chats.length}</span>}
+      {/* Renombrar y eliminar solo las carpetas propias: en una recibida el
+          usuario no es dueño y la accion la rechazaria el servicio igual. */}
       {folder.can_share && (
-        <button onClick={(e) => props.onDeleteFolder(folder.id, e)} className="rounded-lg p-1 opacity-0 transition-all hover:bg-danger/10 group-hover:opacity-100" title="Eliminar carpeta">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-500 hover:text-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-        </button>
+        <>
+          <button
+            onClick={(event) => { event.stopPropagation(); props.onStartRenameFolder(folder.id); }}
+            className="rounded-lg p-1 text-gray-500 opacity-0 transition-all hover:bg-[#0A2540]/10 hover:text-[#0A2540] group-hover:opacity-100 dark:hover:bg-white/10 dark:hover:text-accent"
+            title="Renombrar carpeta"
+          >
+            <EditIcon />
+          </button>
+          <button onClick={(e) => props.onDeleteFolder(folder.id, e)} className="rounded-lg p-1 opacity-0 transition-all hover:bg-danger/10 group-hover:opacity-100" title="Eliminar carpeta">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-500 hover:text-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        </>
       )}
     </>
+  );
+}
+
+function FolderRenameInput({ props }: { props: SidebarProps }) {
+  return (
+    <input
+      autoFocus
+      type="text"
+      className="min-w-0 flex-1 rounded-xl border border-accent bg-white px-2 py-1 text-[13px] text-gray-900 outline-none dark:bg-[#111820] dark:text-white"
+      value={props.editingFolderName}
+      onChange={(event) => props.onSetEditingFolderName(event.target.value)}
+      onBlur={props.onFinishRenameFolder}
+      onClick={(event) => event.stopPropagation()}
+      onDoubleClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => {
+        event.stopPropagation();
+        if (event.key === 'Enter') props.onFinishRenameFolder();
+        else if (event.key === 'Escape') props.onCancelRenameFolder();
+      }}
+    />
   );
 }

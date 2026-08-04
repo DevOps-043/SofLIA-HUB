@@ -27,7 +27,7 @@ export async function buildOpsStatusMessage(context: TelegramRuntimeContext): Pr
   const overview = await context.deps!.workflowHubService.getOverview();
   const pending = overview.cases.filter((run) => run.normalizedStatus === 'pending_approval').length;
   return [
-    'Estado operativo Pulse:',
+    'Estado operativo SofLIA:',
     `Telegram: ${status.enabled ? 'habilitado' : 'deshabilitado'} / ${status.polling ? 'polling activo' : 'polling detenido'}`,
     `Bot: ${status.bot?.username || status.bot?.first_name || 'sin-bot'}`,
     `Ultimo poll: ${status.last_poll_at || 'n/a'}`,

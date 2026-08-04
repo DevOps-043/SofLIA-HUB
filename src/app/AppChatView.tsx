@@ -10,14 +10,19 @@ interface AppChatViewProps {
   currentConversation: ChatState['conversations'][number] | null;
   externalPrompt: string | null;
   onExternalPromptProcessed: () => void;
-  onMessagesChange: (messages: any) => void;
+  onMessagesChange: (messages: ChatState['currentMessages']) => void;
   onShareConversation?: () => void;
   userId?: string;
   userSettings: UserAISettings | null;
+  onRetryConversations?: () => Promise<boolean>;
 }
 
 export function AppChatView(props: AppChatViewProps) {
-  if (!props.userId) return <ChatUnavailableState />;
+  if (!props.userId) {
+    return (
+      <ChatUnavailableState onRetry={props.onRetryConversations} />
+    );
+  }
 
   return (
     <ChatUI

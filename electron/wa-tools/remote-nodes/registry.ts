@@ -1,7 +1,7 @@
 export const REMOTE_NODE_REGISTRY_TOOLS = [
   {
     name: 'get_remote_node_host_status',
-    description: 'Obtiene el estado del host de nodo remoto de esta instancia de Pulse.',
+    description: 'Obtiene el estado del host de nodo remoto de esta instancia de SofLIA.',
     parameters: { type: 'OBJECT' as const, properties: {} },
   },
   {
@@ -26,7 +26,7 @@ export const REMOTE_NODE_REGISTRY_TOOLS = [
   },
   {
     name: 'register_remote_node',
-    description: 'Registra o actualiza un nodo remoto de Pulse. REQUIERE confirmacion.',
+    description: 'Registra o actualiza un nodo remoto de SofLIA. REQUIERE confirmacion.',
     parameters: {
       type: 'OBJECT' as const,
       properties: {

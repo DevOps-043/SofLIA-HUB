@@ -8,7 +8,7 @@
  *     mensaje viene de un chat grupal, para evitar que miembros del grupo
  *     controlen la máquina del host.
  *  3. **Self-protected paths**: bloquea cualquier argumento que mencione el
- *     código fuente de Pulse, secrets, o rutas de Electron. Previene el
+ *     código fuente de SofLIA, secrets, o rutas de Electron. Previene el
  *     ataque "AI lee su propio prompt/keys vía read_file/execute_command".
  *
  * Las tools en `SELF_PROTECTED_EXEMPT_TOOLS` están exentas de la inspección
@@ -41,7 +41,7 @@ export const SELF_PROTECTED_EXEMPT_TOOLS = new Set([
 
 /**
  * Determina si los argumentos de un tool intentan acceder a recursos
- * protegidos del propio Pulse. Devuelve un mensaje de error legible si
+ * protegidos del propio SofLIA. Devuelve un mensaje de error legible si
  * hay match, o `null` si está limpio.
  */
 export function detectProtectedPathAccess(
@@ -62,7 +62,7 @@ export function detectProtectedPathAccess(
   if (!isBlocked) return null;
 
   console.warn(
-    `[WhatsApp Agent] ⛔ SECURITY: Blocked tool "${toolName}" targeting Pulse code: "${allArgValues.slice(0, 150)}"`,
+    `[WhatsApp Agent] ⛔ SECURITY: Blocked tool "${toolName}" targeting SofLIA code: "${allArgValues.slice(0, 150)}"`,
   );
-  return 'Acceso denegado: no puedo acceder a archivos del sistema de Pulse por seguridad.';
+  return 'Acceso denegado: no puedo acceder a archivos del sistema de SofLIA por seguridad.';
 }

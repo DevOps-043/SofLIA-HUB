@@ -6,7 +6,7 @@ export function registerBasicLifecycleTests(ctx: WhatsAppAgentTestContext): void
   describe('WA-031: handleMessage returns text response', () => {
     it('should call waService.sendText with agent response', async () => {
       const { agent, waService } = createAgentWithServices(ctx);
-      ctx.mockTextResponse('Hola, soy Pulse.');
+      ctx.mockTextResponse('Hola, soy SofLIA.');
 
       await agent.handleMessage('123@s.whatsapp.net', '5215500000000', 'Hola');
       expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', expect.any(String));

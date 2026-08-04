@@ -78,7 +78,7 @@ export function buildMeetingTranscript(input: {
       'Estos son los nombres reales mas probables de los hablantes remotos: usa la linea de tiempo "EN PANTALLA" y el contenido de la conversacion para asignar cada "Participante N" a uno de estos nombres.',
     );
   }
-  lines.push('', '=== TRANSCRIPCION (capturada en vivo por Pulse) ===');
+  lines.push('', '=== TRANSCRIPCION (capturada en vivo por SofLIA) ===');
 
   const ordered = [...input.segments].sort((a, b) => a.t0Ms - b.t0Ms || a.t1Ms - b.t1Ms);
   for (const segment of ordered) {

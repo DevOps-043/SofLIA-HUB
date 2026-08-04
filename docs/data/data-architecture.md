@@ -1,6 +1,6 @@
 # Arquitectura de datos
 
-Estado: vigente. Actualizado: 2026-07-21.
+Estado: vigente. Actualizado: 2026-08-04.
 
 <!-- evidence: database/README.md -->
 <!-- evidence: src/config.ts -->
@@ -35,10 +35,14 @@ meeting sync crea referencias externas; SDO guarda `origin_ref`/`external_ref`.
 ### Identidad
 
 1. Auth SOFIA obtiene usuario y memberships.
-2. Resolver Lia busca/crea el perfil operativo asociado.
-3. `dataUserId` se usa para tablas Lia; `user.id` y aliases se consideran en
+2. Una función Lia valida el JWT SOFIA y la membresía activa, y emite un token
+   Lia de un solo uso para el correo verificado; ninguna contraseña cruza entre
+   proyectos.
+3. El renderer canjea el token por una sesión Lia ordinaria; el usuario Lia
+   existente conserva su UUID y RLS.
+4. `dataUserId` se usa para tablas Lia; `user.id` y aliases se consideran en
    access lists durante migracion.
-4. Cambio de organizacion recalcula equipos y scope IRIS.
+5. Cambio de organizacion recalcula equipos y scope IRIS.
 
 ### Chat
 

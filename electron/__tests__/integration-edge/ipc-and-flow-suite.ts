@@ -39,10 +39,10 @@ describe('E2E Flow Simulation', () => {
       return { success: true, messages: [...messageQueue] };
     };
 
-    const result = await sendMessage('Hola Pulse');
+    const result = await sendMessage('Hola SofLIA');
     expect(result.success).toBe(true);
     expect(result.messages).toHaveLength(2);
-    expect(result.messages[1].text).toContain('Hola Pulse');
+    expect(result.messages[1].text).toContain('Hola SofLIA');
   });
 
   it('INT-004: complete conversation lifecycle simulation', async () => {

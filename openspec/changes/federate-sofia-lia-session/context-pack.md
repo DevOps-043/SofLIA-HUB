@@ -1,0 +1,11 @@
+# Contexto del cambio
+
+- Objetivo: usar la sesión válida de SOFIA como única autenticación visible y abrir automáticamente la sesión operativa de conversaciones sin reutilizar ni sincronizar contraseñas.
+- Usuario o actor: cualquier usuario con cuenta SOFIA y membresía activa que inicia o restaura sesión en Pulse Hub.
+- Alcance: intercambio de identidad SOFIA→Lia mediante una función backend confiable, restauración automática en el renderer, alta idempotente del usuario operativo, estados no técnicos y pruebas del contrato.
+- No objetivos: unificar físicamente ambos proyectos Supabase, migrar los datos históricos a nuevos UUID, exponer claves administrativas al cliente, desplegar secretos o publicar una versión desde este cambio local.
+- Restricciones: conservar el UUID existente de Lia para no romper RLS ni propiedad de conversaciones; validar el JWT de SOFIA dentro del backend; aceptar únicamente la identidad contenida en ese JWT; mantener `service_role` solo en backend; no registrar tokens, contraseñas ni enlaces de acceso.
+- Contratos afectados: inicio y restauración de sesión del `AuthProvider`, función `sofia-session-exchange`, sesión Supabase de Lia, estados degradados de chat, documentación operativa y trazabilidad de autenticación.
+- Riesgo y HITL: riesgo alto por puente entre dos dominios de autenticación. El código y las pruebas son locales; configurar secretos, desplegar la función y liberar la aplicación son mutaciones remotas que requieren autorización y revisión humana explícitas.
+- Criterios verificables: un cambio de contraseña en SOFIA no afecta el chat; el cliente nunca envía la contraseña a Lia; una sesión SOFIA válida recibe un token de un solo uso solo para su propio correo; una identidad inválida/inactiva no obtiene sesión; usuarios Lia existentes conservan su UUID; fallos transitorios muestran un mensaje simple y permiten reintento; no aparece “Lia”, “Supabase”, “credenciales” ni reparación de contraseña en la UI.
+- Incertidumbres: la función deberá configurarse con verificación JWT del gateway desactivada porque el JWT procede de otro proyecto y validarlo manualmente contra SOFIA; el despliegue debe confirmar nombres de secretos y límites operativos del proyecto Lia sin versionar sus valores.

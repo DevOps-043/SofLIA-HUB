@@ -40,7 +40,7 @@ async function main() {
   }
 
   console.log('');
-  console.log('PIPER TTS LOCAL (voz de Pulse)');
+  console.log('PIPER TTS LOCAL (voz de SofLIA)');
   console.log('Binario MIT (rhasspy/piper) + voces MIT (rhasspy/piper-voices).');
   console.log('');
   fs.mkdirSync(TARGET_DIR, { recursive: true });

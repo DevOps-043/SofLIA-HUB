@@ -24,7 +24,7 @@ export function slideWrapper(
   const pageBreak = idx > 0 ? 'page-break-before:always;' : '';
   const bar = opts?.noBar ? '' : '<div class="accent-bar-top"></div>';
   const shouldBrand = !opts?.noBrand && slide.type !== 'title' && slide.type !== 'closing';
-  const brand = shouldBrand ? '<div class="branding">Pulse</div>' : '';
+  const brand = shouldBrand ? '<div class="branding">SofLIA</div>' : '';
   return `<div class="slide" style="${pageBreak}background:${bg};">${bar}${inner}<div class="slide-number">${idx + 1} / ${total}</div>${brand}</div>`;
 }
 

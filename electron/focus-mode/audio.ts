@@ -14,7 +14,7 @@ export async function muteSystemAudio(): Promise<void> {
       console.log('[SmartFocus] Audio silenciado (macOS).');
     } else if (platform === 'linux') {
       await execPromise('amixer -D pulse sset Master mute');
-      console.log('[SmartFocus] Audio silenciado (Linux - ALSA/Pulse).');
+      console.log('[SmartFocus] Audio silenciado (Linux - ALSA/SofLIA).');
     } else {
       console.warn(`[SmartFocus] Plataforma ${platform} no soportada para silenciar audio nativamente.`);
     }
@@ -33,7 +33,7 @@ export async function restoreSystemAudio(): Promise<void> {
       console.log('[SmartFocus] Audio restaurado (macOS).');
     } else if (platform === 'linux') {
       await execPromise('amixer -D pulse sset Master unmute');
-      console.log('[SmartFocus] Audio restaurado (Linux - ALSA/Pulse).');
+      console.log('[SmartFocus] Audio restaurado (Linux - ALSA/SofLIA).');
     } else {
       console.warn(`[SmartFocus] Plataforma ${platform} no soportada para restaurar audio nativamente.`);
     }

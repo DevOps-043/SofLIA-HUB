@@ -62,7 +62,7 @@ export function AgentPersonalizationCard(props: AgentPersonalizationCardProps) {
             label="Nombre"
             value={props.draft.displayName}
             onChange={(event) => props.onDraftChange({ displayName: event.target.value })}
-            placeholder="Pulse"
+            placeholder="SofLIA"
           />
           <TextField
             label="Trato"

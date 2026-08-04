@@ -12,7 +12,7 @@ export async function createCalendarFocusEvent(
   }
 
   const result = await calendarService.createEvent({
-    title: 'Modo Concentracion - Pulse',
+    title: 'Modo Concentracion - SofLIA',
     start,
     end,
     description: 'Sesion de trabajo enfocada generada automaticamente por Pulse Hub. Por favor, no interrumpir.',

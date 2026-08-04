@@ -2,7 +2,7 @@ import { MODELS } from '../../config';
 import { buildPrimaryChatPrompt } from '../../prompts/chat';
 import { isOpenAIModel } from '../../shared/model-providers';
 import { isComputerUseAvailable } from '../computer-use-service';
-import { consumePulseMaxUse, PULSE_MAX_MONTHLY_LIMIT } from '../model-quota';
+import { consumeSofliaMaxUse, SOFLIA_MAX_MONTHLY_LIMIT } from '../model-quota';
 import { resolveRoutedModel } from '../model-routing';
 import { sendOpenAIMessageStream } from '../openai-chat';
 import { runAgenticLoop } from './agentic-loop';
@@ -41,7 +41,7 @@ export async function sendMessageStream(
 
   // Ruteo por proveedor. La misma señal que prioriza herramientas sobre
   // grounding ("abre X", "haz clic") marca el turno como accion real, que es lo
-  // que se manda a Pulse Max. GPT-5.6 trae su propio grounding web, asi que no
+  // que se manda a SofLIA Max. GPT-5.6 trae su propio grounding web, asi que no
   // pasa por la rama de Google Search de abajo.
   const routed = resolveRoutedModel({
     options,
@@ -49,7 +49,7 @@ export async function sendMessageStream(
     isCommandTurn: useToolLoop,
   });
   if (isOpenAIModel(routed.modelId)) {
-    if (routed.consumesPulseMaxQuota) consumePulseMaxUse(options?.userId);
+    if (routed.consumesSofliaMaxQuota) consumeSofliaMaxUse(options?.userId);
     return sendOpenAIMessageStream({
       modelId: routed.modelId,
       finalMessage,
@@ -61,7 +61,7 @@ export async function sendMessageStream(
       useWebSearch: !actionTakesPriority && shouldUseWebGrounding(message),
       reasoningEffort: routed.reasoningEffort,
       prefixNotice: routed.quotaExhausted
-        ? `⚠️ Pulse Max llego a su limite de ${PULSE_MAX_MONTHLY_LIMIT} usos este mes. Respondo con Pulse Pro.`
+        ? `⚠️ SofLIA Max llego a su limite de ${SOFLIA_MAX_MONTHLY_LIMIT} usos este mes. Respondo con SofLIA Pro.`
         : undefined,
     });
   }

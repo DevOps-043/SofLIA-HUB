@@ -69,7 +69,7 @@ export function useChatProcessor({
     }
   }, [processMessage]);
 
-  // Detiene TODO lo que Pulse esté ejecutando: el stream/loop de texto y
+  // Detiene TODO lo que SofLIA esté ejecutando: el stream/loop de texto y
   // cualquier tarea de Computer Use / Desktop Agent en curso.
   const stopGeneration = useCallback(() => {
     abortRef.current?.abort();

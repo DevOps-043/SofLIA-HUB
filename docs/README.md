@@ -59,6 +59,7 @@ Este indice separa documentacion vigente de material historico.
 - [Configuracion y secretos](operations/configuration.md)
 - [Desarrollo, CI y DevOps](operations/development-and-devops.md)
 - [Release, respaldo y recuperacion](operations/release-and-recovery.md)
+- [Conversaciones no disponibles después del login](operations/troubleshooting/password-change-login.md)
 - [Estrategia e inventario de pruebas](quality/test-strategy-and-inventory.md)
 - [Fuentes del Arnes y Antigravity](references/harness-sources.md)
 

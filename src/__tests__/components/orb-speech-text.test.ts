@@ -42,7 +42,7 @@ describe('Orbe: texto para voz', () => {
   });
 
   it('devuelve un solo bloque cuando el texto cabe en el límite', () => {
-    expect(splitIntoSpeechBlocks('Hola, soy Pulse.', 1200)).toEqual(['Hola, soy Pulse.']);
+    expect(splitIntoSpeechBlocks('Hola, soy SofLIA.', 1200)).toEqual(['Hola, soy SofLIA.']);
     expect(splitIntoSpeechBlocks('   ', 1200)).toEqual([]);
   });
 });

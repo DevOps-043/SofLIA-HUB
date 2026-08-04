@@ -1,4 +1,4 @@
-# Arnés de agentes de Pulse
+# Arnés de agentes de SofLIA
 
 Este directorio es la fuente canónica para el trabajo asistido por agentes. Las
 carpetas específicas de cada herramienta solo adaptan estas instrucciones.

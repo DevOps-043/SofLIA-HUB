@@ -41,7 +41,14 @@ function getWindowArgv(): string[] {
 
 export function AppContent() {
   const auth = useAuth();
-  const { user, dataUserId, loading, signOut, sofiaContext, liaDegraded, liaStatusMessage } = auth;
+  const {
+    user,
+    dataUserId,
+    loading,
+    signOut,
+    sofiaContext,
+    retryConversations,
+  } = auth;
   const [activeView, setActiveView] = useState<ActiveView>('chat');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [externalPrompt, setExternalPrompt] = useState<string | null>(null);
@@ -189,7 +196,7 @@ export function AppContent() {
           setTheme={setTheme}
           theme={theme}
         />
-        <AppWorkspace accessUserIds={accessUserIds} activeView={activeView} avatarUrl={derived.avatarUrl ?? undefined} chat={chat} currentConversation={derived.currentConversation} currentFolder={derived.currentFolder} externalPrompt={externalPrompt} folder={folder} liaDegraded={liaDegraded} liaStatusMessage={liaStatusMessage} onDeleteConversation={handlers.handleDeleteConversation} onExternalPromptProcessed={() => setExternalPrompt(null)} onMessagesChange={scopedMessagesHandler} onNewChatInProject={handlers.handleNewChatInProject} onNewChatWithMessage={handlers.handleNewChatWithMessage} onSelectConversation={handlers.handleSelectConversation} orgId={orgId} setShareTarget={setShareTarget} shareLinkNotice={shareLinkNotice} userId={userId} userSettings={userSettings} />
+        <AppWorkspace accessUserIds={accessUserIds} activeView={activeView} avatarUrl={derived.avatarUrl ?? undefined} chat={chat} currentConversation={derived.currentConversation} currentFolder={derived.currentFolder} externalPrompt={externalPrompt} folder={folder} onRetryConversations={retryConversations} onDeleteConversation={handlers.handleDeleteConversation} onExternalPromptProcessed={() => setExternalPrompt(null)} onMessagesChange={scopedMessagesHandler} onNewChatInProject={handlers.handleNewChatInProject} onNewChatWithMessage={handlers.handleNewChatWithMessage} onSelectConversation={handlers.handleSelectConversation} orgId={orgId} setShareTarget={setShareTarget} shareLinkNotice={shareLinkNotice} userId={userId} userSettings={userSettings} />
         <AppModals folder={folder} movingChat={derived.movingChat} shareTarget={shareTarget} userId={userId} orgId={orgId} user={user} userSettings={userSettings} sofiaContext={sofiaContext} isUnifiedSettingsOpen={isUnifiedSettingsOpen} activeSettingsTab={activeSettingsTab} onSetShareTarget={setShareTarget} onSetUserSettings={setUserSettings} onSetUnifiedSettingsOpen={setIsUnifiedSettingsOpen} />
       </div>
   );

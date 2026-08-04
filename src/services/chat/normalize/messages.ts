@@ -38,8 +38,14 @@ export function normalizeMessage(
 
 export function dedupeMessages(messages: ChatMessage[]): ChatMessage[] {
   const byId = new Map<string, ChatMessage>();
+  const originalOrder = new Map<string, number>();
 
+  let idx = 0;
   for (const rawMessage of messages) {
+    if (rawMessage?.id && !originalOrder.has(rawMessage.id.trim())) {
+      originalOrder.set(rawMessage.id.trim(), idx++);
+    }
+
     const message = normalizeMessage(rawMessage);
     if (!message) continue;
 
@@ -51,7 +57,15 @@ export function dedupeMessages(messages: ChatMessage[]): ChatMessage[] {
     byId.set(message.id, getMessageScore(message) >= getMessageScore(existing) ? message : existing);
   }
 
-  return Array.from(byId.values()).sort((a, b) => a.timestamp - b.timestamp);
+  return Array.from(byId.values()).sort((a, b) => {
+    if (a.timestamp !== b.timestamp) {
+      return a.timestamp - b.timestamp;
+    }
+    if (a.role !== b.role) {
+      return a.role === 'user' ? -1 : 1;
+    }
+    return (originalOrder.get(a.id) ?? 0) - (originalOrder.get(b.id) ?? 0);
+  });
 }
 
 function getMessageScore(message: ChatMessage): number {

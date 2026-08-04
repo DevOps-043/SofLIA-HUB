@@ -14,14 +14,14 @@ export function ProactiveBlock({ proactive }: { proactive: ProactiveConfigState 
             <BellIcon className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Pulse Proactiva</h3>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">SofLIA Proactiva</h3>
             <p className="text-xs text-secondary mt-0.5">WhatsApp Autonomo</p>
           </div>
         </div>
         <Toggle
           checked={proactive.proactiveEnabled}
           onChange={proactive.setProactiveEnabled}
-          aria-label="Activar Pulse Proactiva"
+          aria-label="Activar SofLIA Proactiva"
         />
       </div>
       {proactive.proactiveEnabled && (

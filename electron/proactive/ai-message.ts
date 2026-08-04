@@ -22,7 +22,7 @@ function buildProactivePrompt(payload: ProactivePayload): string {
   const now = new Date();
   const hour = now.getHours();
   const greeting = hour < 12 ? 'Buenos días' : hour < 18 ? 'Buenas tardes' : 'Buenas noches';
-  return `Eres Pulse, una asistente virtual proactiva e inteligente. Tu tarea es componer un mensaje de WhatsApp amigable y conciso para notificar al usuario sobre sus pendientes del día.
+  return `Eres SofLIA, una asistente virtual proactiva e inteligente. Tu tarea es componer un mensaje de WhatsApp amigable y conciso para notificar al usuario sobre sus pendientes del día.
 
 REGLAS:
 - Habla en español, de forma natural y cálida como una asistente personal
@@ -30,7 +30,7 @@ REGLAS:
 - Sé concisa: máximo 300 palabras
 - Si hay tareas vencidas, dale prioridad y urgencia amable
 - El saludo debe ser "${greeting}, ${payload.userName}"
-- Firma como "Pulse 💜"
+- Firma como "SofLIA 💜"
 - Usa emojis estratégicamente (📅 para calendario, ✅ para tareas, ⚠️ para alertas)
 - Formatea la hora actual: ${now.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
 

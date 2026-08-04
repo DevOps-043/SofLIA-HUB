@@ -8,7 +8,7 @@ export async function createWordDocument(args: DocumentBaseArgs): Promise<string
   await createProfessionalDocument({
     content: args.content,
     title: args.title,
-    author: 'Pulse',
+    author: 'SofLIA',
     outputPath: filePath,
     type: 'word',
     includeCover: true,

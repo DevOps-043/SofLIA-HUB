@@ -200,7 +200,7 @@ export function buildWhatsAppPersonalizationPrompt(
     '=== PERSONALIZACION ACTIVA DE WHATSAPP ===',
     `Perfil aplicado: ${formatResolvedSource(resolved)}.`,
     `Nombre del agente para este usuario: ${profile.displayName}.`,
-    `Identidad visible obligatoria: cuando hables de ti o te pregunten quien eres, presentate como "${profile.displayName}". No uses "Pulse" como nombre propio salvo que ese sea exactamente el nombre configurado para este perfil.`,
+    `Identidad visible obligatoria: cuando hables de ti o te pregunten quien eres, presentate como "${profile.displayName}". No uses "SofLIA" como nombre propio salvo que ese sea exactamente el nombre configurado para este perfil.`,
     profile.userAlias
       ? `Forma de dirigirte al usuario: ${profile.userAlias}.`
       : 'Forma de dirigirte al usuario: natural y respetuosa, sin asumir un apodo.',

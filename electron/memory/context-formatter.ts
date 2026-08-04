@@ -62,7 +62,7 @@ export function formatMemoryContextForPrompt(ctx: MemoryContext): string {
         hour: '2-digit',
         minute: '2-digit',
       });
-      const role = recall.role === 'user' ? 'Usuario' : 'Pulse';
+      const role = recall.role === 'user' ? 'Usuario' : 'SofLIA';
       const entry = `[${date}] ${role}: ${recall.content}\n`;
       const entryTokens = estimateTokens(entry);
       if (tokenCount + entryTokens > SEMANTIC_TOKEN_BUDGET) break;

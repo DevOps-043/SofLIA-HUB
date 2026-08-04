@@ -40,7 +40,7 @@ export async function resolveWhatsAppUser(phoneNumber: string): Promise<Resolved
 
   if (!session?.userId) {
     throw new Error(
-      'No pude identificar tu cuenta de Pulse para acceder a tus conversaciones. Asegurate de tener tu numero ligado a tu perfil.',
+      'No pude identificar tu cuenta de SofLIA para acceder a tus conversaciones. Asegurate de tener tu numero ligado a tu perfil.',
     );
   }
 

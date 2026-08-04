@@ -1,4 +1,4 @@
-# Pulse Extension -> Meeting Trigger -> Pulse Hub
+# SofLIA Extension -> Meeting Trigger -> Pulse Hub
 
 ## Objetivo
 

@@ -1,6 +1,6 @@
 # Sidecars de Python en Pulse Hub
 
-Pulse distribuye un runtime de Python **embebido** (`python-runtime/`, no versionado, generado por
+SofLIA distribuye un runtime de Python **embebido** (`python-runtime/`, no versionado, generado por
 `npm run python:setup` y empaquetado con `extraResources`). Sobre él corren **dos procesos sidecar
 independientes**, ambos con el mismo protocolo NDJSON sobre stdin/stdout:
 

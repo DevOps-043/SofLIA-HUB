@@ -235,7 +235,7 @@ function LogoIgnition({ colorScheme, exitTarget, isExiting, reducedMotion }: { c
 
       <motion.img
         src={LOGO_SRC}
-        alt="Pulse"
+        alt="Pulse Hub"
         className="relative h-56 w-56 object-contain"
         style={{ filter: logoFilter }}
         initial={{ opacity: 0 }}

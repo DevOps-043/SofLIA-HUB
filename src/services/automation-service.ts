@@ -6,7 +6,7 @@ import './automation/window-api';
 
 function getAPI() {
   if (!window.automation) {
-    throw new Error('Automation API no disponible. Ejecuta Pulse dentro de Electron.');
+    throw new Error('Automation API no disponible. Ejecuta SofLIA dentro de Electron.');
   }
   return window.automation;
 }

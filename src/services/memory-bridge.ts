@@ -2,7 +2,7 @@
  * Puente del renderer hacia la memoria unificada del usuario (proceso main).
  * El chat de la app comparte el MISMO motor de memoria que WhatsApp: lee su
  * contexto (recientes, resúmenes, hechos y skills aprendidas) y registra cada
- * turno para que Pulse aprenda. Todo es no bloqueante y tolera que la API no
+ * turno para que SofLIA aprenda. Todo es no bloqueante y tolera que la API no
  * exista (degradación elegante).
  */
 
@@ -73,7 +73,7 @@ export async function listUserSkills(sofiaUserId?: string | null): Promise<Learn
   }
 }
 
-/** Borra una skill aprendida (el usuario controla lo que Pulse recuerda). */
+/** Borra una skill aprendida (el usuario controla lo que SofLIA recuerda). */
 export async function deleteUserSkill(skillId: number): Promise<boolean> {
   const api = bridge();
   if (!api?.deleteSkill) return false;

@@ -46,8 +46,8 @@ vi.mock('../../config', () => ({
 }));
 
 vi.mock('../../prompts/chat', () => ({
-  PRIMARY_CHAT_PROMPT: 'Eres Pulse, asistente de negocios.',
-  buildPrimaryChatPrompt: vi.fn(() => 'Eres Pulse, asistente de negocios.'),
+  PRIMARY_CHAT_PROMPT: 'Eres SofLIA, asistente de negocios.',
+  buildPrimaryChatPrompt: vi.fn(() => 'Eres SofLIA, asistente de negocios.'),
 }));
 
 vi.mock('../../services/gemini-tools', () => ({

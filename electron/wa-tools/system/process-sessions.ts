@@ -1,7 +1,7 @@
 export const PROCESS_SESSION_TOOLS = [
   {
     name: 'list_process_sessions',
-    description: 'Lista las sesiones administradas por Pulse (terminales, comandos en segundo plano, Claude Code y aplicaciones lanzadas) con su estado actual.',
+    description: 'Lista las sesiones administradas por SofLIA (terminales, comandos en segundo plano, Claude Code y aplicaciones lanzadas) con su estado actual.',
     parameters: { type: 'OBJECT' as const, properties: {} },
   },
   {
@@ -17,7 +17,7 @@ export const PROCESS_SESSION_TOOLS = [
   },
   {
     name: 'kill_process_session',
-    description: 'Termina una sesion administrada por Pulse usando su session_id. REQUIERE confirmacion.',
+    description: 'Termina una sesion administrada por SofLIA usando su session_id. REQUIERE confirmacion.',
     parameters: {
       type: 'OBJECT' as const,
       properties: {

@@ -1,0 +1,2 @@
+[functions.sofia-session-exchange]
+verify_jwt = false

@@ -5,7 +5,7 @@ import { buildSofiaContext } from './helpers';
 import type { AuthUser } from './types';
 
 type SofiaSignInDeps = {
-  ensureLiaSession: (email?: string | null, password?: string) => Promise<Session | null>;
+  ensureLiaSession: (email?: string | null, sofiaAccessToken?: string | null) => Promise<Session | null>;
   setSofiaContext: (value: SofiaContext | null) => void;
   setUser: (value: AuthUser) => void;
   signOut: () => Promise<void>;
@@ -24,7 +24,7 @@ export function useSofiaSignIn({ ensureLiaSession, setSofiaContext, setUser, sig
 
     setUser(result.user);
     setSofiaContext(nextSofiaContext);
-    const liaSession = await ensureLiaSession(result.user.email, password);
+    const liaSession = await ensureLiaSession(result.user.email, result.session?.access_token);
     return { ...result, session: liaSession, user: result.user };
   }, [ensureLiaSession, setSofiaContext, setUser, signOut]);
 }

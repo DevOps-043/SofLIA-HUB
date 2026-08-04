@@ -3,7 +3,8 @@ export function SidebarHeader({ isOpen, onToggle }: { isOpen: boolean; onToggle:
     <div className={`px-2.5 pt-2.5 pb-1.5 flex items-center ${isOpen ? 'justify-between' : 'justify-center'} min-h-[48px]`}>
       {isOpen && (
         <div className="flex min-w-0 items-center gap-2.5 overflow-hidden whitespace-nowrap">
-          <img src="./assets/Icono.png" alt="Pulse" className="h-7 w-7 shrink-0 object-contain" />
+          <img src="./assets/Icono.png" alt="Pulse Hub" className="h-7 w-7 shrink-0 object-contain" />
+          {/* Nombre del PRODUCTO en dos lineas ("Pulse" / "Hub"), no del agente. */}
           <div className="min-w-0 leading-none">
             <p className="truncate text-[13px] font-semibold tracking-wide text-[#0A2540] dark:text-white">Pulse</p>
             <p className="mt-1 text-[10px] font-medium text-secondary dark:text-white/40">Hub</p>

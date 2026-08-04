@@ -24,7 +24,7 @@ export const IRIS_SUPABASE = {
 
 // Model Configurations
 export const MODELS = {
-  // Pulse: el modelo por defecto del chat.
+  // SofLIA: el modelo por defecto del chat.
   PRIMARY: 'gemini-3.6-flash',
   FALLBACK: 'gemini-3.5-flash-lite',
   PRO: 'gemini-2.5-pro',
@@ -38,8 +38,8 @@ export const MODELS = {
   MAPS: 'gemini-3.5-flash-lite',
 };
 
-// Familia GPT-5.6 de OpenAI. Terra (Pulse Max) se reserva para acciones reales
-// sobre la computadora: abrir apps, mover el cursor, hacer clic. Luna (Pulse
+// Familia GPT-5.6 de OpenAI. Terra (SofLIA Max) se reserva para acciones reales
+// sobre la computadora: abrir apps, mover el cursor, hacer clic. Luna (SofLIA
 // Pro) atiende la orbe y el resto de comandos, que son la mayoria del uso.
 // Solo se enrutan si hay OPENAI_API_KEY: sin llave el producto cae a Gemini.
 export const OPENAI_MODELS = {

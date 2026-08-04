@@ -12,7 +12,7 @@ import type {
   StreamResult,
   ToolCallInfo,
 } from '../gemini-chat/types';
-import { PULSE_MAX_MODEL_ID, recordPulseMaxTokens } from '../model-quota';
+import { SOFLIA_MAX_MODEL_ID, recordSofliaMaxTokens } from '../model-quota';
 import { getOpenAI } from './client';
 import { buildHostedTools } from './hosted-tools';
 import { buildOpenAIHistory, buildUserMessage } from './input-builder';
@@ -50,7 +50,7 @@ export interface OpenAIStreamParams {
 }
 
 /**
- * Camino de GPT-5.6 (Pulse Max / Pulse Pro). Devuelve el mismo `StreamResult`
+ * Camino de GPT-5.6 (SofLIA Max / SofLIA Pro). Devuelve el mismo `StreamResult`
  * que el pipeline de Gemini para que el chat, la orbe y el procesador de
  * mensajes no tengan que distinguir de que proveedor viene la respuesta.
  *
@@ -214,10 +214,10 @@ function resolveReasoningEffort(params: OpenAIStreamParams): ReasoningEffort | u
   return isReasoningEffort(chosen) ? chosen : undefined;
 }
 
-/** El gasto de Pulse Max se acumula para dar contexto al limite mensual. */
+/** El gasto de SofLIA Max se acumula para dar contexto al limite mensual. */
 function noteTokenUsage(params: OpenAIStreamParams, totalTokens: unknown): void {
-  if (params.modelId !== PULSE_MAX_MODEL_ID || typeof totalTokens !== 'number') return;
-  recordPulseMaxTokens(params.options?.userId, totalTokens);
+  if (params.modelId !== SOFLIA_MAX_MODEL_ID || typeof totalTokens !== 'number') return;
+  recordSofliaMaxTokens(params.options?.userId, totalTokens);
 }
 
 function parseToolArguments(raw: unknown): Record<string, any> {

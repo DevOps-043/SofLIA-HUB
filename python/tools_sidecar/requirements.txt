@@ -1,4 +1,4 @@
-# Dependencias del sidecar de herramientas de Pulse (versiones fijadas).
+# Dependencias del sidecar de herramientas de SofLIA (versiones fijadas).
 # Instaladas en el runtime embebido por scripts/setup-python-runtime.js.
 #
 # Criterio: solo librerias LIGERAS y con licencia apta para producto comercial.

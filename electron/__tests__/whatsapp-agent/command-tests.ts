@@ -7,7 +7,7 @@ export function registerCommandTests(ctx: WhatsAppAgentTestContext): void {
     it('should respond with status info without entering agent loop', async () => {
       const { agent, waService } = createAgentWithService(ctx);
       await agent.handleMessage('123@s.whatsapp.net', '5215500000000', '/status');
-      expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', expect.stringContaining('Pulse'));
+      expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', expect.stringContaining('SofLIA'));
     });
   });
 
