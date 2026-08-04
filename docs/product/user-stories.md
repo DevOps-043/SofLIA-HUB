@@ -1,6 +1,6 @@
 # Historias de usuario
 
-Estado: vigente. Actualizado: 2026-07-21.
+Estado: vigente. Actualizado: 2026-08-04.
 
 Las historias reflejan rutas implementadas; no son un backlog aspiracional. La
 aceptacion completa tambien exige las reglas y RNF enlazados.
@@ -33,6 +33,7 @@ aceptacion completa tambien exige las reglas y RNF enlazados.
 <!-- define: HU-022 -->
 <!-- define: HU-023 -->
 <!-- define: HU-024 -->
+<!-- define: HU-025 -->
 
 | ID | Historia | Criterios de aceptacion implementados | Requisitos |
 |---|---|---|---|
@@ -60,6 +61,7 @@ aceptacion completa tambien exige las reglas y RNF enlazados.
 | HU-022 | Como usuario preocupado por privacidad, quiero parsear documentos y redactar texto en un proceso aislado. | Sidecar de tools separado; status; parse/redact; config privacidad; timeout/restart. | RF-032; RNF-005 |
 | HU-023 | Como usuario, quiero conocer y aplicar actualizaciones sin descargar ejecutables manualmente. | Check; notas sanitizadas; progreso; descarga; instalacion explicita; errores. | RF-033; BR-021, BR-022 |
 | HU-024 | Como owner, quiero automatizar tareas recurrentes conservando aprobacion y trazabilidad. | Templates/runs/cases; approve/reject; reglas pasivas; alertas proactivas; estados y auditoria. | RF-034, RF-035; BR-009 |
+| HU-025 | Como usuario, quiero navegar dentro de SofLIA y ver o retomar las acciones web que ejecuta el agente. | Navegador en workspace; sesion aislada persistente; misma pagina para usuario y agente; permisos sensibles con HITL; protocolos peligrosos bloqueados. | RF-039; BR-009, BR-018, BR-019 |
 
 ## Cobertura de excepciones
 

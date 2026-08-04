@@ -1103,15 +1103,14 @@ mueve el cursor a puntos conocidos por monitor y verifica con `GetCursorPos`
 
 ### 4.7 Cerebro Gemini Computer Use
 
-`gemini-cu/` implementa la Computer Use API nativa de Gemini como cerebro
-alternativo, con drivers separados para escritorio (nut.js) y browser
-(Playwright) y mapeo de acciones propio. Se controla con:
+`gemini-cu/` implementa la Computer Use API nativa de Gemini, con drivers para
+escritorio (nut.js), navegador integrado (`WebContentsView`) y Playwright
+aislado, mas mapeo de acciones propio. Se controla con:
 
-- `computerUseEngine`: `'gemini'` o `'legacy'` (**default `'legacy'`** hasta
-  validar en la máquina; se activa en `userData/desktop-agent-config.json`);
+- `computerUseEngine`: `'gemini'` o `'legacy'` (default `'gemini'`);
 - `computerUseModel`: `gemini-3.5-flash`;
 - `computerUseDesktopEnabled` / `computerUseBrowserEnabled`: `true`;
-- `computerUsePromptInjectionDetection`: `false` (detección de inyección en la
+- `computerUsePromptInjectionDetection`: `true` (detección de inyección en la
   captura).
 
 ### 4.8 Ciclo de vida, cola y contrato de finalización
@@ -1188,9 +1187,9 @@ alternativo, con drivers separados para escritorio (nut.js) y browser
 | `maxDetectedElements` / `elementDedupIouThreshold` | 60 / 0.6 | Volumen y dedup |
 | `sufficientElementCount` / `visualSkipWhenUiaRich` | 12 / 40 | Omisión de OCR y de parser visual |
 | `visualScoreThreshold` / `visualNmsIou` | 0.10 / 0.45 | Detector visual |
-| `computerUseEngine` / `computerUseModel` | `legacy` / `gemini-3.5-flash` | Cerebro Computer Use |
+| `computerUseEngine` / `computerUseModel` | `gemini` / registro recomendado | Cerebro Computer Use |
 | `computerUseDesktopEnabled` / `computerUseBrowserEnabled` | true / true | CU por backend |
-| `computerUsePromptInjectionDetection` | false | Detección de inyección en captura |
+| `computerUsePromptInjectionDetection` | true | Detección de inyección en captura |
 
 **Rollback a conducta previa**:
 `{ inputBackend: 'legacy', humanMotionEnabled: false, uiaWorkerEnabled: false,

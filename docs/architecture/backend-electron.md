@@ -1,6 +1,6 @@
 # Arquitectura backend Electron
 
-Estado: vigente. Actualizado: 2026-07-21.
+Estado: vigente. Actualizado: 2026-08-04.
 
 <!-- evidence: electron/main/bootstrap.ts -->
 <!-- evidence: electron/main/service-factory.ts -->
@@ -30,6 +30,7 @@ single-instance lock. `runBootstrap` despues:
 | `MonitoringService` | desktopCapturer, active-win, sharp/OCR | buffer + Lia + screenshots |
 | `CalendarService` | Google/Microsoft OAuth | tokens/conexiones |
 | `GmailService`, `DriveService`, `GChatService` | auth de CalendarService | proveedores externos |
+| `IntegratedBrowserService` | `BrowserWindow` + `WebContentsView` | particion `persist:soflia-integrated-browser` |
 | `DesktopAgentService` | vision, UIA/OCR/ONNX, nut/Playwright | config JSON, tareas en memoria |
 | `UpdaterService` | electron-updater | estado de descarga |
 | `ClipboardAIAssistant` | clipboard; max 100, poll 5 s | historial en memoria |
@@ -79,8 +80,13 @@ canal permitido. Los servicios no deben importar componentes React.
   fallos y timeout.
 - UIA nativo: workers PowerShell/Windows administran accesibilidad/input cuando
   la plataforma lo soporta.
-- Browser automation: Playwright Core usa perfiles configurables y ventanas
-  seguras.
+- Navegador integrado: `electron/integrated-browser/` administra una
+  `WebContentsView` dentro de la ventana principal, con sesion persistente
+  aislada, protocolos HTTP(S), permisos sensibles con HITL y un driver de
+  Computer Use sobre la misma superficie visible.
+- Browser automation aislada: Playwright Core se conserva para perfiles
+  configurables o ejecuciones explicitamente aisladas; no es la ruta normal de
+  la vista compartida con el usuario.
 
 ## Funcionalidad no activa aunque existan referencias
 

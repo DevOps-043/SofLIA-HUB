@@ -4,7 +4,7 @@ import type { GeminiFunctionDeclaration } from './types';
 export const COMPUTER_AUTOMATION_TOOL_DECLARATIONS: GeminiFunctionDeclaration[] = [
   {
     name: 'use_computer',
-    description: 'Ejecuta una tarea autonoma de computer use en backend browser, uia o desktop. El backend uia puede escalar automaticamente a desktop si no logra verificar cambios. El resultado incluye "outcome.estado": SOLO afirma al usuario que la tarea se completo si estado es "completada"; con "presupuesto_agotado", "fallida", "cancelada" o "cola_expirada" reporta el progreso real (outcome.mensaje) y pregunta si desea continuar. NUNCA anuncies exito antes de recibir este resultado.',
+    description: 'Ejecuta una tarea autonoma de computer use en backend browser, uia o desktop. Browser abre y controla el navegador integrado visible de SofLIA sobre la misma pagina y sesion del usuario; un perfil o modo aislado explicito usa Playwright. El backend uia puede escalar automaticamente a desktop si no logra verificar cambios. El resultado incluye "outcome.estado": SOLO afirma al usuario que la tarea se completo si estado es "completada"; con "presupuesto_agotado", "fallida", "cancelada" o "cola_expirada" reporta el progreso real (outcome.mensaje) y pregunta si desea continuar. NUNCA anuncies exito antes de recibir este resultado.',
     parameters: objectParams({
       task: stringProp('Descripcion detallada de la tarea.'),
       max_steps: numberProp('Maximo de pasos.'),

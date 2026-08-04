@@ -7,6 +7,13 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { createDefaultProps, Sidebar } from './Sidebar.fixture';
 
 describe('Sidebar component', () => {
+  it('UI-002: abre el navegador integrado desde la navegacion principal', () => {
+    const onOpenBrowser = vi.fn();
+    render(<Sidebar {...createDefaultProps({ onOpenBrowser })} />);
+    fireEvent.click(screen.getByText('Navegador'));
+    expect(onOpenBrowser).toHaveBeenCalledTimes(1);
+  });
+
   it('UI-003: renders sidebar with user info when open', () => {
     render(<Sidebar {...createDefaultProps()} />);
     expect(screen.getByText('TU')).toBeInTheDocument();

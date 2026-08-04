@@ -13,6 +13,7 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
   modules.registerGmailHandlers(services.gmailService, () => state.win);
   modules.registerDriveHandlers(services.driveService, () => state.win);
   modules.registerGChatHandlers(services.gchatService, () => state.win);
+  modules.registerIntegratedBrowserHandlers(services.integratedBrowserService, () => state.win);
   modules.registerDesktopAgentHandlers(services.desktopAgentService);
   // Skills ejecutables (Fase 3): el motor de ejecución con HITL es Workspace Automation.
   modules.registerMemoryHandlers(services.memoryService, {

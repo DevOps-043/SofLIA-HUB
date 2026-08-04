@@ -58,7 +58,9 @@ export function createSafeIpc(ipcRenderer: IpcRendererLike): SafeIpc {
     },
     safeOn: (channel, cb) => {
       validateChannel(channel);
-      ipcRenderer.on(channel, (_event, ...args) => cb(...args.map(sanitizePayload)));
+      const listener = (_event: unknown, ...args: unknown[]) => cb(...args.map(sanitizePayload));
+      ipcRenderer.on(channel, listener);
+      return () => ipcRenderer.off(channel, listener);
     },
     safeRemoveAllListeners: (channel) => {
       validateChannel(channel);

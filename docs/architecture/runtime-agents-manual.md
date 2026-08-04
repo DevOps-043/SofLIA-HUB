@@ -1,6 +1,6 @@
 # Manual del agente runtime de SofLIA Hub
 
-Estado: vigente. Actualizado: 2026-07-27.
+Estado: vigente. Actualizado: 2026-08-04.
 
 Este documento es la referencia extendida de **el agente**: qué es, cómo razona,
 qué puede hacer, qué tiene prohibido, con qué límites numéricos opera y cómo se
@@ -707,12 +707,14 @@ que la pantalla cambió.
 
 `executeDesktopAgentTaskEntrypoint` elige entre cuatro caminos:
 
-1. **Browser (Playwright)** si `backend: 'browser'` o si el texto de la tarea
+1. **Navegador integrado visible** si `backend: 'browser'` o si el texto de la tarea
    contiene señales web (`https?://`, `www.`, Gmail, Google Calendar/Drive/Docs,
    LinkedIn, Notion, Salesforce, HubSpot, ChatGPT, "sitio web", "navegador",
-   "chrome", "edge", "formulario web", "portal web"). Con el cerebro Computer Use
-   habilitado para browser se intenta primero y, si no resuelve, cae al browser
-   legacy.
+   "chrome", "edge", "formulario web", "portal web"). Computer Use abre o
+   reutiliza la `WebContentsView` de SofLIA, espera el viewport y captura/actua
+   sobre la misma pagina que ve el usuario. Un perfil o modo aislado explicito
+   conserva `BrowserWebService`/Playwright. Si Computer Use browser no esta
+   disponible, la vista integrada cae al backend desktop visual.
 2. **Windows UIA** si `backend: 'uia'` o si la tarea menciona superficies nativas
    instrumentables (explorador de archivos, bloc de notas, calculadora, Paint,
    Word, Excel, PowerPoint, Outlook, configuración de Windows, panel de control,
@@ -824,15 +826,14 @@ mueve el cursor a puntos conocidos por monitor y verifica con `GetCursorPos`
 
 ### 4.7 Cerebro Gemini Computer Use
 
-`gemini-cu/` implementa la Computer Use API nativa de Gemini como cerebro
-alternativo, con drivers separados para escritorio (nut.js) y browser
-(Playwright) y mapeo de acciones propio. Se controla con:
+`gemini-cu/` implementa la Computer Use API nativa de Gemini, con drivers para
+escritorio (nut.js), navegador integrado (`WebContentsView`) y Playwright
+aislado, mas mapeo de acciones propio. Se controla con:
 
-- `computerUseEngine`: `'gemini'` o `'legacy'` (**default `'legacy'`** hasta
-  validar en la máquina; se activa en `userData/desktop-agent-config.json`);
+- `computerUseEngine`: `'gemini'` o `'legacy'` (default `'gemini'`);
 - `computerUseModel`: `gemini-3.5-flash`;
 - `computerUseDesktopEnabled` / `computerUseBrowserEnabled`: `true`;
-- `computerUsePromptInjectionDetection`: `false` (detección de inyección en la
+- `computerUsePromptInjectionDetection`: `true` (detección de inyección en la
   captura).
 
 ### 4.8 Ciclo de vida, cola y contrato de finalización
@@ -909,9 +910,9 @@ alternativo, con drivers separados para escritorio (nut.js) y browser
 | `maxDetectedElements` / `elementDedupIouThreshold` | 60 / 0.6 | Volumen y dedup |
 | `sufficientElementCount` / `visualSkipWhenUiaRich` | 12 / 40 | Omisión de OCR y de parser visual |
 | `visualScoreThreshold` / `visualNmsIou` | 0.10 / 0.45 | Detector visual |
-| `computerUseEngine` / `computerUseModel` | `legacy` / `gemini-3.5-flash` | Cerebro Computer Use |
+| `computerUseEngine` / `computerUseModel` | `gemini` / registro recomendado | Cerebro Computer Use |
 | `computerUseDesktopEnabled` / `computerUseBrowserEnabled` | true / true | CU por backend |
-| `computerUsePromptInjectionDetection` | false | Detección de inyección en captura |
+| `computerUsePromptInjectionDetection` | true | Detección de inyección en captura |
 
 **Rollback a conducta previa**:
 `{ inputBackend: 'legacy', humanMotionEnabled: false, uiaWorkerEnabled: false,
@@ -1095,6 +1096,7 @@ la allowlist ni la autorización del usuario.
 | Pasos del agente de escritorio (tope / default / total) | 60 / 40 / 500 | `desktop-agent/agent-config.ts` |
 | Tareas visuales concurrentes | 1 | `desktop-agent/agent-config.ts` |
 | Expiración en cola de escritorio | 60 s | `desktop-agent/agent-config.ts` |
+| Espera de viewport del navegador integrado | 8 s | `integrated-browser/types.ts` |
 | Timeout de herramienta dinámica | 100 ms – 60 s | `mcp-manager/tool-contract.ts` |
 | Longitud máxima de comando | 4000 caracteres | `security/command-policy.ts` |
 | Gracia de apagado/reinicio | 60 s | `wa-tools/system/power.ts` |

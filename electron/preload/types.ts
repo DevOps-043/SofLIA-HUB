@@ -13,7 +13,7 @@ export type IpcRendererLike = {
 export type SafeIpc = {
   safeInvoke: (channel: string, ...args: any[]) => Promise<any>;
   safeSend: (channel: string, ...args: any[]) => void;
-  safeOn: (channel: string, cb: (...args: any[]) => void) => void;
+  safeOn: (channel: string, cb: (...args: any[]) => void) => () => void;
   safeRemoveAllListeners: (channel: string) => void;
   sanitizePayload: (payload: any) => any;
   validateChannel: (channel: string) => void;

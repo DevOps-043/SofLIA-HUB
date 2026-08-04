@@ -7,6 +7,7 @@ import type { CuDriver, CuEnvironment } from './gemini-cu/types';
 import { resolveTaskStepBudget } from './task-budget';
 import { buildTaskOutcome, type DesktopTaskEstado, type DesktopTaskOutcome } from './task-outcome';
 import { ensureBrowserPage } from '../browser-web/service-page';
+import { createIntegratedBrowserCuDriver } from '../integrated-browser';
 import type { DesktopAgentConfig } from '../desktop-agent-types';
 import type { DesktopTaskExecutionOptions } from './types';
 
@@ -77,6 +78,23 @@ export async function runComputerUseBrowserTask(
 ): Promise<DesktopTaskOutcome | null> {
   const client = nuevoCliente(service, 'ENVIRONMENT_BROWSER');
   if (!client.disponible()) return null;
+  if (service.integratedBrowser && !options?.browserIsolated && !options?.browserProfile && !options?.resetBrowserProfile) {
+    let acquiredControl = false;
+    try {
+      await service.integratedBrowser.openForAgent(options?.startUrl);
+      acquiredControl = true;
+      return await runCuTaskCommon(
+        service,
+        task,
+        options,
+        client,
+        createIntegratedBrowserCuDriver(service.integratedBrowser),
+        'navegador_integrado',
+      );
+    } finally {
+      if (acquiredControl) service.integratedBrowser.releaseAgentControl();
+    }
+  }
   try {
     await ensureBrowserPage(service.browserWeb);
   } catch (error: unknown) {

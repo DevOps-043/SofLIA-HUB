@@ -32,6 +32,7 @@ type DesktopTaskEntrypointContext = {
   /** Cerebro Computer Use para browser (Gemini); null si no aplica -> browser legacy. */
   computerUseBrowserEnabled?: boolean;
   runComputerUseBrowser?: (task: string, options?: DesktopTaskExecutionOptions) => Promise<DesktopTaskOutcome | null>;
+  runVisibleBrowserFallback?: (task: string, options?: DesktopTaskExecutionOptions) => Promise<DesktopTaskOutcome>;
 };
 
 export async function executeDesktopAgentTaskEntrypoint(
@@ -49,6 +50,7 @@ export async function executeDesktopAgentTaskEntrypoint(
       const cuOutcome = await ctx.runComputerUseBrowser(task, options);
       if (cuOutcome) return cuOutcome;
     }
+    if (ctx.runVisibleBrowserFallback) return ctx.runVisibleBrowserFallback(task, options);
     return wrapExternalBackendResult(await executeBrowserBackendTask(ctx.browserWeb, task, options), startedAt);
   }
   if (shouldUseWindowsUIABackend(task, options, ctx.config.keywordRoutingEnabled)) {

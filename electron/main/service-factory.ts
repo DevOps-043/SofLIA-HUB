@@ -7,7 +7,8 @@ export function createMainServices(modules: any) {
   const gmailService = new modules.GmailService(calendarService);
   const driveService = new modules.DriveService(calendarService);
   const gchatService = new modules.GChatService(calendarService);
-  const desktopAgentService = new modules.DesktopAgentService();
+  const integratedBrowserService = new modules.IntegratedBrowserService();
+  const desktopAgentService = new modules.DesktopAgentService(integratedBrowserService);
   const updaterService = new modules.UpdaterService();
   const clipboardAssistant = new modules.ClipboardAIAssistant({ maxHistorySize: 100, pollingIntervalMs: 5000 });
   const taskScheduler = new modules.TaskScheduler();
@@ -96,6 +97,7 @@ export function createMainServices(modules: any) {
     gmailService,
     driveService,
     gchatService,
+    integratedBrowserService,
     desktopAgentService,
     updaterService,
     clipboardAssistant,

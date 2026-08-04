@@ -48,4 +48,11 @@ export function registerPreloadChannelTests() {
     expect(ALLOWED_IPC_CHANNELS.filter((channel) => channel.startsWith('memory:')).length).toBeGreaterThanOrEqual(3);
     expect(ALLOWED_IPC_CHANNELS.filter((channel) => channel.startsWith('workflow-hub:')).length).toBeGreaterThanOrEqual(6);
   });
+
+  it('SEC-035: el navegador integrado expone solo su contrato allowlisted', () => {
+    const browserChannels = ALLOWED_IPC_CHANNELS.filter((channel) => channel.startsWith('integrated-browser:'));
+    expect(browserChannels).toHaveLength(12);
+    expect(browserChannels).toContain('integrated-browser:set-viewport');
+    expect(browserChannels).toContain('integrated-browser:open-requested');
+  });
 }

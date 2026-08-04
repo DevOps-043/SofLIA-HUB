@@ -13,7 +13,7 @@ export function createWindowControls(input: {
   services: any;
   state: MainRuntimeState;
 }) {
-  const { env, runtimeDirname, state } = input;
+  const { env, runtimeDirname, services, state } = input;
   const orbController = createOrbWindowController({
     preloadPath: path.join(runtimeDirname, 'preload.js'),
     rendererDist: env.RENDERER_DIST,
@@ -35,8 +35,12 @@ export function createWindowControls(input: {
         iconPath: path.join(process.env.VITE_PUBLIC!, 'assets/icono.ico'),
         rendererUrl: env.VITE_DEV_SERVER_URL,
         rendererDist: env.RENDERER_DIST,
-        onClosed: () => { state.win = null; },
+        onClosed: () => {
+          services.integratedBrowserService.detachWindow();
+          state.win = null;
+        },
       });
+      services.integratedBrowserService.attachWindow(state.win);
     },
     createTray(): void {
       createMainTray({

@@ -10,6 +10,7 @@ import {
 import { exposeCoreApis } from './preload/core-apis';
 import { exposeDesktopApi } from './preload/desktop-apis';
 import { exposeGoogleApis } from './preload/google-apis';
+import { exposeIntegratedBrowserApi } from './preload/integrated-browser-api';
 import { exposeRemoteApis } from './preload/remote-apis';
 import { runtimeConfig } from './preload/runtime-config';
 import { createSafeIpc } from './preload/safe-ipc';
@@ -34,6 +35,7 @@ exposeWhatsAppApi(contextBridge, safeIpc);
 exposeMonitoringApi(contextBridge, safeIpc);
 exposeCalendarApi(contextBridge, safeIpc);
 exposeGoogleApis(contextBridge, safeIpc);
+exposeIntegratedBrowserApi(contextBridge, safeIpc);
 exposeDesktopApi(contextBridge, safeIpc);
 exposeUtilityApis(contextBridge, safeIpc);
 exposeAuthApis(contextBridge, safeIpc);
