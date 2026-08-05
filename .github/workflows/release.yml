@@ -156,7 +156,16 @@ jobs:
       - name: Build Electron app (Mac)
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
-        run: npx tsc && npx vite build && node scripts/generate-bitmaps.js && node scripts/setup-python-runtime.js && npx electron-builder --mac
+          # tsc pica en ~2.4 GB en este proyecto. El runner de macOS tiene 7 GB
+          # de RAM (Windows y Linux tienen 16), asi que Node deriva un heap por
+          # defecto de ~2 GB y aborta con "Reached heap limit" (exit 134) antes
+          # de terminar el chequeo. 4 GB dan margen sin dejar que un proceso
+          # desbocado se coma toda la RAM del runner.
+          NODE_OPTIONS: --max-old-space-size=4096
+        # build:mac es la cadena canonica (typecheck de ambos tsconfig, vite,
+        # bitmaps, runtime de Python y electron-builder). Antes se replicaba a
+        # mano y se perdia el chequeo de tsconfig.node.json.
+        run: npm run build:mac
 
       - name: Upload Mac artifacts
         uses: actions/upload-artifact@v4
