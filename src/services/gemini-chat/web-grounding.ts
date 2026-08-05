@@ -60,7 +60,7 @@ interface GroundingApiKeyCandidate {
 export function shouldUseWebGrounding(message: string): boolean {
   const normalized = normalizeText(message);
   if (hasPublicUrl(message)) return true;
-  if (/\b(investiga|investigar|investigacion|busqueda|busca en internet|buscar en internet|googlea|consulta fuentes|fuentes|citas)\b/.test(normalized)) return true;
+  if (/\b(investiga|investigar|investigacion|busqueda|busqueda web|busca en internet|buscar en internet|busca en la web|buscar en la web|googlea|consulta fuentes|fuentes|citas)\b/.test(normalized)) return true;
   if (/\b(actualizado|actualizada|reciente|recientes|ultimas|ultimos|hoy|ayer|esta semana|este mes|noticia|noticias|lanzamiento|release)\b/.test(normalized)) return true;
   if (/\b(precio|cotizacion|ranking|version|versiones|benchmark|comparativa)\b/.test(normalized)) return true;
   return /\b(claude|anthropic|openai|gemini|llama|mistral|modelo de ia|modelos de ia|ai model|llm)\b/.test(normalized);
@@ -224,10 +224,10 @@ function normalizeModelName(modelId: string): string {
   return modelId.replace(/^models\//, '').trim();
 }
 
-function resolveGroundingModelIds(candidateModelIds: string[]): string[] {
+export function resolveGroundingModelIds(candidateModelIds: string[]): string[] {
   return uniqueModelIds([
-    MODELS.WEB_AGENT,
     ...candidateModelIds,
+    MODELS.WEB_AGENT,
     MODELS.FALLBACK,
     MODELS.PRO,
     ...GEMINI_GROUNDING_MODELS.preferredFallbacks,

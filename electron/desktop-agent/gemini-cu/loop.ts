@@ -33,7 +33,7 @@ export async function runComputerUseLoop(deps: CuLoopDeps): Promise<CuLoopResult
   }
 
   let shot = await deps.driver.capturar();
-  let turn = await deps.client.iniciar(deps.task, shot.base64);
+  let turn = await deps.client.iniciar(deps.task, shot.base64, shot.context);
 
   for (let step = 0; step < deps.maxSteps; step++) {
     if (deps.abortSignal?.aborted) return { estado: 'cancelada', mensaje: 'Tarea cancelada.', pasos: step };
@@ -71,7 +71,7 @@ export async function runComputerUseLoop(deps: CuLoopDeps): Promise<CuLoopResult
 
     // Recapturar el nuevo estado y devolverlo como function_response.
     shot = await deps.driver.capturar();
-    const contexto = deps.driver.contexto?.() ?? {};
+    const contexto = { ...(shot.context ?? {}), ...(deps.driver.contexto?.() ?? {}) };
     turn = await deps.client.continuar(fc.id ?? null, fc.name ?? 'action', shot.base64, { ...contexto, ...extraResponse });
   }
 

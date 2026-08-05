@@ -281,8 +281,8 @@ export function useOrbConversation() {
     try {
       const result = await sendMessageStream(text, historyRef.current, {
         model: MODELS.ORB,
-        // La orbe es la superficie de computer use: con OpenAI configurado el
-        // ruteo la manda a GPT-5.6 (Terra para acciones, Luna para el resto).
+        // La Orbe usa Gemini 3.6 Flash para Computer Use y SofLIA Pro para los
+        // demás comandos cuando OpenAI está configurado.
         task: 'orb',
         signal: controller.signal,
         onToolCall: (toolCall) => {

@@ -17,6 +17,7 @@ describe('gemini-chat', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    mockGetGenerativeModel.mockReset();
     mockGetApiKeyWithCache.mockResolvedValue(null);
   });
 
@@ -119,34 +120,29 @@ describe('gemini-chat', () => {
     ]));
   });
 
-  it('RS-010I: direct model calls time out and retry the next model', async () => {
+  it('RS-010I: un timeout falla explícitamente sin cambiar de modelo', async () => {
     vi.useFakeTimers();
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const hangingChat = {
       sendMessage: vi.fn(() => new Promise(() => undefined)),
       sendMessageStream: vi.fn(),
     };
-    const fallbackChat = createMockChat('respuesta despues del timeout');
-    mockGetGenerativeModel
-      .mockReturnValueOnce({ startChat: vi.fn(() => hangingChat) })
-      .mockReturnValueOnce({ startChat: vi.fn(() => fallbackChat) });
+    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => hangingChat) });
 
     try {
       const { sendMessageStream } = await import('../../services/gemini-chat');
-      const pending = sendMessageStream('Hola', []);
+      const pending = expect(sendMessageStream('Hola', [])).rejects.toThrow('tiempo limite');
       await vi.advanceTimersByTimeAsync(45_000);
-      const result = await pending;
-      const text = await collectStream(result.stream);
-
-      expect(text).toBe('respuesta despues del timeout');
-      expect(mockGetGenerativeModel).toHaveBeenCalledTimes(2);
+      await pending;
+      expect(mockGetGenerativeModel).toHaveBeenCalledTimes(1);
+      expect(mockGetGenerativeModel).toHaveBeenCalledWith(expect.objectContaining({ model: 'gemini-3.6-flash' }));
     } finally {
       warnSpy.mockRestore();
       vi.useRealTimers();
     }
   });
 
-  it('RS-010B: does not send unsupported thinkingConfig to the legacy Gemini SDK', async () => {
+  it('RS-010B: migra el thinkingLevel rápido heredado a low para Gemini', async () => {
     const startChat = vi.fn(() => createMockChat('ok'));
     mockGetGenerativeModel.mockReturnValue({ startChat });
 
@@ -154,11 +150,13 @@ describe('gemini-chat', () => {
     await sendMessageStream('Hola', [], { thinking: { id: 'minimal', level: 'minimal' } });
 
     const startChatOptions = (startChat.mock.calls as any)[0][0];
-    expect(startChatOptions.generationConfig).toEqual({ maxOutputTokens: 16384 });
-    expect(startChatOptions.generationConfig).not.toHaveProperty('thinkingConfig');
+    expect(startChatOptions.generationConfig).toEqual({
+      maxOutputTokens: 16384,
+      thinkingConfig: { thinkingLevel: 'low' },
+    });
   });
 
-  it('RS-010C: retries the next configured model when the selected model fails', async () => {
+  it('RS-010C: un error del modelo no degrada silenciosamente a otro', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const failingChat = {
       sendMessage: vi.fn(async () => {
@@ -166,19 +164,13 @@ describe('gemini-chat', () => {
       }),
       sendMessageStream: vi.fn(),
     };
-    const fallbackChat = createMockChat('respuesta de respaldo');
-    mockGetGenerativeModel
-      .mockReturnValueOnce({ startChat: vi.fn(() => failingChat) })
-      .mockReturnValueOnce({ startChat: vi.fn(() => fallbackChat) });
+    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => failingChat) });
 
     try {
       const { sendMessageStream } = await import('../../services/gemini-chat');
-      const result = await sendMessageStream('Hola', []);
-      const text = await collectStream(result.stream);
-
-      expect(text).toBe('respuesta de respaldo');
-      expect(mockGetGenerativeModel).toHaveBeenCalledTimes(2);
-      expect(mockGetGenerativeModel.mock.calls[1]?.[0]).toMatchObject({ model: 'gemini-3.1-flash-lite' });
+      await expect(sendMessageStream('Hola', [])).rejects.toThrow('quota exceeded');
+      expect(mockGetGenerativeModel).toHaveBeenCalledTimes(1);
+      expect(mockGetGenerativeModel.mock.calls[0]?.[0]).toMatchObject({ model: 'gemini-3.6-flash' });
     } finally {
       warnSpy.mockRestore();
     }
@@ -211,7 +203,7 @@ describe('gemini-chat', () => {
       expect(text).toBe('Respuesta verificada');
       expect(mockGetGenerativeModel).not.toHaveBeenCalled();
       expect(fetchSpy).toHaveBeenCalledTimes(1);
-      expect(String(fetchSpy.mock.calls[0]?.[0])).toContain('/gemini-3.5-flash:generateContent');
+      expect(String(fetchSpy.mock.calls[0]?.[0])).toContain('/gemini-3.6-flash:generateContent');
       expect(String(fetchSpy.mock.calls[0]?.[0])).toContain('?key=');
       expect(requestInit.headers).toEqual({ 'Content-Type': 'application/json' });
       expect(body.tools).toEqual([{ google_search: {} }, { code_execution: {} }]);
@@ -283,7 +275,7 @@ describe('gemini-chat', () => {
       expect(text).toBe('Respuesta desde main');
       expect(fetchSpy).not.toHaveBeenCalled();
       expect(invoke).toHaveBeenCalledWith('ai:generate-grounded', expect.any(Object));
-      expect(payload).toMatchObject({ modelName: 'gemini-3.5-flash', apiKey: 'env-test-key' });
+      expect(payload).toMatchObject({ modelName: 'gemini-3.6-flash', apiKey: 'env-test-key' });
       expect(payload.body.tools).toEqual([{ google_search: {} }, { code_execution: {} }]);
       expect(sources?.[0]).toMatchObject({ uri: 'https://example.com/main-source', title: 'Fuente main' });
     } finally {
@@ -330,6 +322,21 @@ describe('gemini-chat', () => {
 
     expect(text).toBe('No pude completar la respuesta por capacidad temporal. Intenta de nuevo en unos segundos.');
     expect(text).not.toMatch(/gemini|google|https|quota|429|model/i);
+  });
+
+  it('RS-012: explica un nivel de razonamiento incompatible sin filtrar el error del proveedor', async () => {
+    const { getPublicAiErrorMessage } = await import('../../services/gemini-chat');
+    const text = getPublicAiErrorMessage(new Error('Invalid value for reasoning.effort: minimal'));
+
+    expect(text).toBe('El nivel de razonamiento no es compatible con el modelo seleccionado. Elige otro nivel e intenta de nuevo.');
+    expect(text).not.toContain('reasoning.effort');
+  });
+
+  it('RS-013: indica cuando Pro o Max no tienen una clave OpenAI configurada', async () => {
+    const { getPublicAiErrorMessage } = await import('../../services/gemini-chat');
+
+    expect(getPublicAiErrorMessage(new Error('OPENAI_API_KEY_MISSING')))
+      .toBe('SofLIA Pro y Max requieren una clave de OpenAI válida en Configuración.');
   });
 });
 

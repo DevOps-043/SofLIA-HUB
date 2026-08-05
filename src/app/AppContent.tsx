@@ -48,6 +48,8 @@ export function AppContent() {
     loading,
     signOut,
     sofiaContext,
+    liaDegraded,
+    liaStatusMessage,
     retryConversations,
   } = auth;
   const [activeView, setActiveView] = useState<ActiveView>('chat');
@@ -206,7 +208,36 @@ export function AppContent() {
         setTheme={setTheme}
         theme={theme}
       />}
-      <AppWorkspace accessUserIds={accessUserIds} activeView={activeView} avatarUrl={derived.avatarUrl ?? undefined} browserWorkspaceOpen={isBrowserWorkspaceOpen} onCloseBrowserWorkspace={() => setIsBrowserWorkspaceOpen(false)} chat={chat} currentConversation={derived.currentConversation} currentFolder={derived.currentFolder} externalPrompt={externalPrompt} folder={folder} liaDegraded={liaDegraded} liaStatusMessage={liaStatusMessage} onDeleteConversation={handlers.handleDeleteConversation} onExternalPromptProcessed={() => setExternalPrompt(null)} onMessagesChange={scopedMessagesHandler} onNewChatInProject={handlers.handleNewChatInProject} onNewChatWithMessage={handlers.handleNewChatWithMessage} onSelectConversation={handlers.handleSelectConversation} orgId={orgId} setShareTarget={setShareTarget} shareLinkNotice={shareLinkNotice} userId={userId} userSettings={userSettings} />
+      <AppWorkspace
+        accessUserIds={accessUserIds}
+        activeView={activeView}
+        avatarUrl={derived.avatarUrl ?? undefined}
+        browserWorkspaceOpen={isBrowserWorkspaceOpen}
+        onCloseBrowserWorkspace={() => setIsBrowserWorkspaceOpen(false)}
+        chat={chat}
+        currentConversation={derived.currentConversation}
+        currentFolder={derived.currentFolder}
+        externalPrompt={externalPrompt}
+        folder={folder}
+        liaDegraded={liaDegraded}
+        liaStatusMessage={liaStatusMessage}
+        onRetryConversations={retryConversations}
+        onDeleteConversation={handlers.handleDeleteConversation}
+        onExternalPromptProcessed={() => setExternalPrompt(null)}
+        onMessagesChange={scopedMessagesHandler}
+        onNewChat={handlers.handleNewChat}
+        onNewChatInProject={handlers.handleNewChatInProject}
+        onNewChatWithMessage={handlers.handleNewChatWithMessage}
+        onSelectConversation={handlers.handleSelectConversation}
+        onOpenBrowser={() => setIsBrowserWorkspaceOpen(true)}
+        onOpenMeetings={() => { setIsBrowserWorkspaceOpen(false); setActiveView('meetings'); }}
+        onOpenSdo={() => { setIsBrowserWorkspaceOpen(false); setActiveView('sdo'); }}
+        orgId={orgId}
+        setShareTarget={setShareTarget}
+        shareLinkNotice={shareLinkNotice}
+        userId={userId}
+        userSettings={userSettings}
+      />
       <AppModals folder={folder} movingChat={derived.movingChat} shareTarget={shareTarget} userId={userId} orgId={orgId} user={user} userSettings={userSettings} sofiaContext={sofiaContext} isUnifiedSettingsOpen={isUnifiedSettingsOpen} activeSettingsTab={activeSettingsTab} onSetShareTarget={setShareTarget} onSetUserSettings={setUserSettings} onSetUnifiedSettingsOpen={setIsUnifiedSettingsOpen} />
     </div>
   );

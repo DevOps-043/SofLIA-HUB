@@ -21,10 +21,10 @@ export function Card({ children, className, padded = true, active = false, onCli
     <div
       onClick={onClick}
       className={cn(
-        'rounded-2xl bg-surface border transition-colors',
+        'rounded-[20px] bg-surface border transition-colors',
         active ? 'border-accent/50 ring-1 ring-accent/20' : 'border-border',
-        'shadow-sm dark:shadow-none',
-        padded && 'p-6',
+        'shadow-[0_8px_28px_rgba(10,37,64,0.035)] dark:shadow-none',
+        padded && 'p-5',
         onClick && 'cursor-pointer hover:border-accent/30',
         className,
       )}

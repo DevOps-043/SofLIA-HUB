@@ -1,5 +1,5 @@
 import { supportsCodeExecutionCombo } from '../../src/shared/gemini-grounding-config';
-import { WA_MODEL, WA_MODEL_FALLBACKS } from './constants';
+import { WA_MODEL } from './constants';
 import { prepareWhatsAppConversationHistory } from './conversation-history';
 import { buildWhatsAppAgentPromptContext } from './system-prompt-context';
 import { buildWhatsAppToolDeclarations } from './tool-declarations';
@@ -132,13 +132,7 @@ async function sendInitialMessage(
 }
 
 function getWhatsAppModelCandidates(): string[] {
-  const configured = [
-    process.env.VITE_WHATSAPP_GEMINI_MODEL,
-    process.env.WHATSAPP_GEMINI_MODEL,
-    WA_MODEL,
-    ...WA_MODEL_FALLBACKS,
-  ].filter((value): value is string => Boolean(value?.trim()));
-  return Array.from(new Set(configured.map((value) => value.trim())));
+  return [WA_MODEL];
 }
 
 function isRecoverableHistoryError(error: any): boolean {

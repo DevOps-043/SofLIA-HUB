@@ -1,1 +1,3 @@
-export const SUMMARY_MODEL = 'gemini-3.5-flash';
+import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
+
+export const SUMMARY_MODEL = SOFLIA_RUNTIME_MODEL;

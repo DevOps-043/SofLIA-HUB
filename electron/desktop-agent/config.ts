@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { app as electronApp } from 'electron';
+import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
 
 import type { DesktopAgentConfig } from './task-types';
 
@@ -14,14 +15,14 @@ export const DEFAULT_CONFIG: DesktopAgentConfig = {
   continuousObservationInterval: 2000,
   planningEnabled: true,
   memoryWindowSize: 10,
-  model: 'gemini-3.5-flash',
-  fallbackModel: 'gemini-2.5-pro',
+  model: SOFLIA_RUNTIME_MODEL,
+  fallbackModel: SOFLIA_RUNTIME_MODEL,
   maxConsecutiveFailures: 3,
   stuckDetectionThreshold: 4,
   autoRecoverFromDialogs: true,
   replanOnStuck: true,
   maxRetryPerAction: 2,
-  proactiveModel: 'gemini-2.5-pro',
+  proactiveModel: SOFLIA_RUNTIME_MODEL,
   maxConcurrentAgents: 3,
   gridEnabled: true,
   gridStep: 100,

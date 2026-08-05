@@ -48,19 +48,32 @@ evidencia medida en el host de referencia.
 |---|---:|---|
 | particion persistente | `persist:soflia-integrated-browser` | `electron/integrated-browser/types.ts` |
 | espera de viewport para el agente | 8000 ms | mismo archivo |
+| pestañas del navegador integrado | máximo 500 lógicas; máximo 8 `WebContentsView` vivas globales; una principal y una secundaria visible | `electron/integrated-browser/types.ts` |
+| ventanas separadas | máximo 4 `BaseWindow`; mueven la misma vista y cuentan dentro de las 8 vivas | `electron/integrated-browser/types.ts`, `electron/integrated-browser/service.ts` |
+| composición de pestañas | `single`, `split` o `overlay`; foco = objetivo de Computer Use | `electron/integrated-browser/service.ts` |
+| percepción de pestaña activa | cadencia base 10.000 ms; calma 4.000 ms tras interacción/navegación/resize; máximo 1024 px en captura pasiva; solo con ventana enfocada y fuera de Computer Use; DOM completo bajo demanda; una captura por tipo en vuelo; solo último snapshot en memoria; pausada por usuario | `electron/integrated-browser/types.ts`, `electron/integrated-browser/service.ts` |
+| límites del DOM observado | texto 24.000 caracteres; 100 encabezados; 60 landmarks; 240 controles; 30 frames; 1.800 nodos y margen de viewport 240 px; sin valores de formularios | `electron/integrated-browser/page-observation.ts` |
 | longitud de direccion/busqueda | 2048 caracteres | `electron/integrated-browser/validation.ts` |
 | viewport minimo | 160 x 120 DIP | mismo archivo |
 | protocolos de pagina principal | HTTP(S) y `about:blank` | mismo archivo |
 | permisos con HITL | `media`, `geolocation` | `electron/integrated-browser/permission-governance.ts` |
-| ancho del panel | minimo 420 DIP; chat minimo 320 DIP; snap al ancho total | `src/components/browser/BrowserWorkspaceLayout.tsx` |
+| chat flotante | 332 a 560 DIP (388 default); lado izquierdo o derecho; header de 40 DIP; minimizable o sustituible por Orbe; inicio medido bajo la barra superior | `src/components/browser/BrowserWorkspaceLayout.tsx` |
+| convivencia chat/navegador | `WebContentsView` vivo con inset del panel; ancho completo al minimizar | `src/components/browser/IntegratedBrowserPanel.tsx` |
+| overlay de gestores | captura puntual + `hide`; no usa polling para componer la página | `src/components/browser/IntegratedBrowserPanel.tsx` |
 | historial | 2.000 entradas; consulta maxima 200 | `electron/integrated-browser/browser-history-store.ts` |
 | credenciales | usuario 320; secreto 4.096 caracteres; maximo almacenado 500 | `electron/integrated-browser/credential-vault.ts` |
 | extension desempaquetada | Manifest V3; 2.000 archivos; 20 MiB | `electron/integrated-browser/extension-manager.ts` |
+| autorizacion de instalacion | token efimero en memoria; 5 minutos | `electron/integrated-browser/extension-manager.ts` |
 
-La vista integrada es unica por ventana principal. Perfiles explicitamente
+Las pestañas integradas y separadas comparten una sola partición. Las
+inactivas se suspenden por LRU al superar ocho vistas vivas y recuperan su última
+URL cuando vuelven a activarse; no se promete conservar su pila atrás/adelante.
+Las pestañas separadas nunca se eligen como víctimas LRU mientras exista su ventana.
+Perfiles explicitamente
 aislados o con identificador siguen usando `BrowserWebService`/Playwright. Las
 extensiones se recargan al iniciar porque Electron no las conserva cargadas; se
-rechazan `nativeMessaging`, `debugger`, `proxy` y `management`.
+rechazan `nativeMessaging`, `debugger`, `proxy` y `management`. Seleccionar otra
+carpeta o vencer el plazo invalida la autorizacion pendiente anterior.
 
 ## Red, archivos y correo
 
@@ -102,7 +115,10 @@ rechazan `nativeMessaging`, `debugger`, `proxy` y `management`.
 
 | Grupo | Valores default | Fuente |
 |---|---|---|
-| pasos | `maxSteps=60`, `defaultStepBudget=40`, `maxTotalSteps=500` | `electron/desktop-agent/agent-config.ts` |
+| pasos | `maxSteps=120`, `defaultStepBudget=60`, mínimo integrado `90`, `maxTotalSteps=500` | `electron/desktop-agent/agent-config.ts`, `electron/desktop-agent/task-budget.ts` |
+| modelo conversacional/CU | `gemini-3.6-flash`, sin degradación de modelo | `src/shared/soflia-runtime-model.ts`, `electron/desktop-agent/gemini-cu/model-registry.ts` |
+| selector conversacional | SofLIA y Lite: Google; Max y Pro: OpenAI; elección y razonamiento persistidos por modelo | `src/hooks/model-selector-options.ts`, `src/hooks/useModelSelector.ts`, `src/services/model-routing.ts` |
+| razonamiento Gemini / OpenAI | `low/medium/high` / `low/medium/high/xhigh/max`; `minimal` y `none` heredados migran a `low` | `src/services/gemini-chat/model-config.ts`, `src/services/openai-chat/reasoning.ts` |
 | captura | 1024x768, active monitor, max edge 1568, min scale .5 | mismo archivo |
 | timing | action 300 ms, change 8 s/500 ms, observation 2 s, queue 60 s | mismo archivo |
 | recovery | 3 fallos, stuck 4, 2 retries, autorecover/replan on | mismo archivo |

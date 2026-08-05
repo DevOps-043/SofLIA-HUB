@@ -4,8 +4,18 @@ export function exposeIntegratedBrowserApi(bridge: PreloadBridge, ipc: SafeIpc):
   const { safeInvoke, safeOn } = ipc;
   bridge.exposeInMainWorld('integratedBrowser', {
     getState: () => safeInvoke('integrated-browser:get-state'),
+    captureVisible: () => safeInvoke('integrated-browser:capture-visible'),
+    getObservation: (forceFresh = false) => safeInvoke('integrated-browser:get-observation', { forceFresh }),
+    setObservationEnabled: (enabled: boolean) => safeInvoke('integrated-browser:set-observation-enabled', { enabled }),
     open: (url?: string) => safeInvoke('integrated-browser:open', url === undefined ? {} : { url }),
     navigate: (target: string) => safeInvoke('integrated-browser:navigate', { target }),
+    createTab: (url?: string) => safeInvoke('integrated-browser:tab-create', url === undefined ? {} : { url }),
+    closeTab: (tabId: string) => safeInvoke('integrated-browser:tab-close', { tabId }),
+    activateTab: (tabId: string) => safeInvoke('integrated-browser:tab-activate', { tabId }),
+    detachTab: (tabId: string) => safeInvoke('integrated-browser:tab-detach', { tabId }),
+    reattachTab: (tabId: string) => safeInvoke('integrated-browser:tab-reattach', { tabId }),
+    setViewMode: (mode: 'single' | 'split' | 'overlay', secondaryTabId?: string) =>
+      safeInvoke('integrated-browser:view-mode', { mode, secondaryTabId }),
     goBack: () => safeInvoke('integrated-browser:go-back'),
     goForward: () => safeInvoke('integrated-browser:go-forward'),
     reload: () => safeInvoke('integrated-browser:reload'),
@@ -22,6 +32,7 @@ export function exposeIntegratedBrowserApi(bridge: PreloadBridge, ipc: SafeIpc):
     removeCredential: (id: string) => safeInvoke('integrated-browser:credentials-remove', { id }),
     listExtensions: () => safeInvoke('integrated-browser:extensions-list'),
     installExtension: () => safeInvoke('integrated-browser:extensions-install'),
+    confirmExtensionInstall: (token: string) => safeInvoke('integrated-browser:extensions-confirm-install', { token }),
     setExtensionEnabled: (installId: string, enabled: boolean) => safeInvoke('integrated-browser:extensions-set-enabled', { installId, enabled }),
     removeExtension: (installId: string) => safeInvoke('integrated-browser:extensions-remove', { installId }),
     onStateChanged: (callback: (state: unknown) => void) => safeOn('integrated-browser:state-changed', callback),

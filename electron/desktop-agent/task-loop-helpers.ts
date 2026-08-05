@@ -24,5 +24,6 @@ export function applyPlanSubGoalProgress(
 }
 
 export function buildMaxStepsResult(maxSteps: number, lastMessage: string): string {
-  return `Completé ${maxSteps} pasos de uso de computadora. ${lastMessage}`;
+  const progress = lastMessage.trim() ? ` Último progreso: ${lastMessage.trim()}` : '';
+  return `Se alcanzó el límite de ${maxSteps} pasos sin confirmar la meta.${progress} El estado actual se conserva para continuar.`;
 }

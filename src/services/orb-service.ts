@@ -40,6 +40,7 @@ export interface OrbSynthesisResult {
 }
 
 interface OrbBridge {
+  show: () => Promise<{ success: boolean; visible?: boolean; error?: string }>;
   getPendingWake: () => Promise<{ success: boolean; wake?: boolean }>;
   synthesize: (text: string) => Promise<OrbSynthesisResult>;
   startDictation: () => Promise<{ success: boolean; sessionId?: string; error?: string }>;
@@ -74,6 +75,7 @@ export const orbService = {
     return typeof window.orb !== 'undefined';
   },
   getPendingWake: () => api().getPendingWake(),
+  show: () => api().show(),
   synthesize: (text: string) => api().synthesize(text),
   startDictation: () => api().startDictation(),
   stopDictation: (sessionId?: string | null) => api().stopDictation(sessionId),

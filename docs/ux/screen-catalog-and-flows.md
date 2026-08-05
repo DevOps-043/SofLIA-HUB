@@ -13,7 +13,7 @@ Estado: vigente. Actualizado: 2026-08-04.
 | Startup | ventana principal | theme + auth lifecycle | ninguna durante intro | animando, gracia auth, salida |
 | Auth | sin user y no orb | SOFIA auth | login/recuperacion segun componente | loading, error, credenciales invalidas |
 | Workspace Chat | `activeView=chat` | chat, messages, IA, tools | nuevo/enviar/adjuntar/share/delete | vacio, streaming, tool, error, degraded |
-| Navegador integrado | boton Navegador o apertura del agente | `IntegratedBrowserService`, historial, boveda, extensiones, Computer Use | ajustar/expandir, navegar, historial, guardar/rellenar, instalar/deshabilitar/remover | carga, vacio, cancelacion, error, permiso HITL, agente controlando |
+| Navegador integrado | boton Navegador o apertura del agente | `IntegratedBrowserService`, historial, boveda, extensiones, Computer Use | mover/minimizar/ajustar chat, navegar, abrir gestores flotantes, guardar/rellenar, instalar/deshabilitar/remover | carga, vacio, cancelacion, error, permiso HITL, agente controlando |
 | Sidebar | workspace autenticado | chats, folders, IRIS, org/user | seleccionar, crear, pin, rename, delete, tema, settings | loading por seccion, menu contextual |
 | Project Hub | `project` + folder + user | sources/chats/folder/Drive | fuente, chat de proyecto, share | empty source/chat, picker, error |
 | Productividad | `productivity` + user | monitoring, summaries, calendar | rango, start/stop, auto config | sin datos, sesion activa, resumen, error |
@@ -59,14 +59,31 @@ Enviar mensaje -> persistir/pending -> stream IA
 
 ```text
 Usuario abre Navegador o solicita una tarea web en Chat
-  -> Sidebar se oculta; chat activo y panel web comparten el workspace
-  -> usuario ajusta el divisor o expande el navegador a ancho completo
-  -> renderer reserva/publica el viewport
+  -> Sidebar se oculta; navegador ocupa el espacio libre y el chat activo usa un panel compacto
+  -> usuario ajusta el grip, mueve el panel entre lados o lo minimiza; la conversación sigue montada
+  -> barra superior agrupa navegación, dirección, expansión y cierre; la fila secundaria contiene título, favoritos, extensiones instaladas e historial/contraseñas/extensiones, y puede ocultarse y restaurarse
+  -> dirección sugiere URLs recientes deduplicadas, ignora coincidencias exclusivas del protocolo y admite flechas, Enter, Escape o puntero en un menú flotante que se superpone sin desplazar pestañas, favoritos ni página
+  -> al abrir predicciones: captura una vez la página, oculta temporalmente la capa nativa y restaura la misma vista al seleccionar, pulsar Escape, perder foco o quedar sin resultados
+  -> la fila de pestañas permite crear, activar, cerrar y elegir una segunda vista dividida o superpuesta; al superar ocho vistas vivas suspende por LRU hasta un máximo de 500 pestañas lógicas
+  -> Separar pestaña mueve la misma vista a una ventana nativa; Integrar o cerrar esa ventana la devuelve sin recarga, con máximo cuatro ventanas dentro de las ocho vistas vivas
+  -> popups HTTP(S) se convierten en pestañas internas; la pestaña enfocada queda marcada como objetivo del agente
+  -> el panel de SofLIA mide el inicio de la página y queda alineado debajo de esa barra, sin cubrirla
+  -> renderer publica bounds con inset en el lado del chat; al minimizar recupera todo el ancho
   -> main crea o reutiliza WebContentsView + sesion persistente aislada
+  -> el chat permite cambiar modelo y razonamiento mediante filas tipo menú; otro popover buscable permite abrir un chat existente o crear uno nuevo sin restaurar la Sidebar
+  -> el compositor es delgado, usa padding simétrico, omite herramientas y Compartir, y no genera scroll horizontal
+  -> Modo Orbe abre la Orbe general movible, oculta el chat sin desmontarlo y deja un control para restaurarlo
+  -> la vista nativa permanece visible e interactiva durante el chat; main mantiene una captura visual pasiva y obtiene DOM saneado bajo demanda sin usar PNG para componer la página
+  -> el control de ojo pausa o reactiva la percepción; al pausar se descarta la evidencia retenida
+  -> al abrir un gestor: captura puntual, oculta la capa nativa y superpone el modal redondeado
+  -> al cerrar el gestor: restaura bounds sobre la misma pagina, cookies y sesion
+  -> borrados e instalacion muestran confirmacion renderer con foco contenido antes del IPC mutador
   -> navegacion manual o use_computer captura la misma pagina visible
-  -> acciones del agente se inyectan en esa vista
+  -> cada turno con el navegador visible puede adjuntar la observación reciente; el DOM se marca como página no confiable
+  -> acciones del agente reciben captura y DOM de esa vista; si falla, no saltan al navegador externo
+  -> Computer Use usa Gemini 3.6 Flash y un presupuesto web de 90 pasos, con tope 120 y salida anticipada al completar
   -> usuario observa, interrumpe o retoma sobre la misma sesion
-  -> historial se registra; boveda/extensiones solo responden a gesto humano
+  -> historial se registra; favoritos HTTP(S) se sanean y guardan localmente con límite; bóveda/extensiones solo responden a gesto humano; extensiones muestran permisos opcionales y permiten reintentar una carga fallida
   -> al cerrar, la vista se oculta y Sidebar/vista anterior se restauran
 ```
 

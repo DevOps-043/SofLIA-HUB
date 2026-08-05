@@ -4,17 +4,35 @@ import type { IntegratedBrowserService } from './service';
 
 export function createIntegratedBrowserCuDriver(service: IntegratedBrowserService): CuDriver {
   let captureSize = service.getViewportSize();
+  let latestContext: Record<string, unknown> = {};
   return {
     entorno: 'ENVIRONMENT_BROWSER',
     async capturar() {
+      const viewportSize = service.getViewportSize();
+      const observed = await service.getObservation(true);
+      const observation = observed.observation;
+      if (observation?.screenshot.startsWith('data:image/png;base64,')) {
+        captureSize = viewportSize;
+        latestContext = {
+          observedAt: observation.capturedAt,
+          page: observation.dom,
+          trust: 'untrusted_page_content',
+        };
+        return {
+          base64: observation.screenshot.slice('data:image/png;base64,'.length),
+          width: captureSize.width,
+          height: captureSize.height,
+          context: latestContext,
+        };
+      }
       const contents = service.getWebContentsForAgent();
       const image = await contents.capturePage();
-      const viewportSize = service.getViewportSize();
       const imageWithSize = image as typeof image & { getSize?: () => ViewportSize };
       captureSize = normalizeCaptureSize(imageWithSize.getSize?.(), viewportSize);
-      return { base64: image.toPNG().toString('base64'), width: captureSize.width, height: captureSize.height };
+      latestContext = { url: service.getState().url, superficie: 'navegador_integrado' };
+      return { base64: image.toPNG().toString('base64'), width: captureSize.width, height: captureSize.height, context: latestContext };
     },
-    contexto: () => ({ url: service.getState().url, superficie: 'navegador_integrado' }),
+    contexto: () => ({ ...latestContext, url: service.getState().url, superficie: 'navegador_integrado' }),
     async ejecutar(action) {
       const contents = service.getWebContentsForAgent();
       const size = service.getViewportSize();

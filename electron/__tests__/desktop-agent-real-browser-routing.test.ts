@@ -101,3 +101,53 @@ describe('Entrypoint con sesion real', () => {
     expect(outcome.estado).toBe('completada');
   });
 });
+
+describe('Entrypoint con navegador integrado', () => {
+  it('RB-050: falla cerrado si Computer Use no está disponible y no abre otro navegador', async () => {
+    const browserWeb = { executeTask: vi.fn(async () => 'no debe ejecutarse') };
+    const executeTaskInternal = vi.fn();
+
+    const outcome = await executeDesktopAgentTaskEntrypoint('abre example.com', { backend: 'browser' }, {
+      apiKey: 'test-key',
+      browserWeb: browserWeb as never,
+      windowsUIA: { executeTask: vi.fn(), getLastRunResult: vi.fn(() => null) } as never,
+      config: { keywordRoutingEnabled: true, maxConcurrentAgents: 1, queueTimeoutMs: 1000 } as never,
+      activeTasks: new Map(),
+      taskQueue: [],
+      emit: vi.fn(),
+      executeTaskInternal,
+      runDesktopFallbackFromUIA: vi.fn(),
+      integratedBrowserAvailable: true,
+      computerUseBrowserEnabled: false,
+    });
+
+    expect(outcome.estado).toBe('fallida');
+    expect(outcome.mensaje).toContain('no se abrió en otro navegador');
+    expect(browserWeb.executeTask).not.toHaveBeenCalled();
+    expect(executeTaskInternal).not.toHaveBeenCalled();
+  });
+
+  it('RB-051: un fallo de captura integrada no cae al backend desktop', async () => {
+    const browserWeb = { executeTask: vi.fn(async () => 'no debe ejecutarse') };
+    const runComputerUseBrowser = vi.fn(async () => { throw new Error('captura vacía'); });
+
+    const outcome = await executeDesktopAgentTaskEntrypoint('pulsa el botón visible', { backend: 'browser' }, {
+      apiKey: 'test-key',
+      browserWeb: browserWeb as never,
+      windowsUIA: { executeTask: vi.fn(), getLastRunResult: vi.fn(() => null) } as never,
+      config: { keywordRoutingEnabled: true, maxConcurrentAgents: 1, queueTimeoutMs: 1000 } as never,
+      activeTasks: new Map(),
+      taskQueue: [],
+      emit: vi.fn(),
+      executeTaskInternal: vi.fn(),
+      runDesktopFallbackFromUIA: vi.fn(),
+      integratedBrowserAvailable: true,
+      computerUseBrowserEnabled: true,
+      runComputerUseBrowser,
+    });
+
+    expect(outcome).toMatchObject({ estado: 'fallida' });
+    expect(outcome.mensaje).toContain('captura vacía');
+    expect(browserWeb.executeTask).not.toHaveBeenCalled();
+  });
+});

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { app as electronApp } from 'electron';
+import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
 import { COMPUTER_USE_MODEL_DEFAULTS } from './gemini-cu/model-registry';
 
 /** Estrategia de captura de pantalla para los pasos de vision. */
@@ -94,7 +95,7 @@ export interface DesktopAgentConfig {
 }
 
 export const DEFAULT_CONFIG: DesktopAgentConfig = {
-  maxSteps: 60,
+  maxSteps: 120,
   screenshotWidth: 1024,
   screenshotHeight: 768,
   defaultActionDelay: 300,
@@ -103,14 +104,14 @@ export const DEFAULT_CONFIG: DesktopAgentConfig = {
   continuousObservationInterval: 2000,
   planningEnabled: true,
   memoryWindowSize: 10,
-  model: 'gemini-3.5-flash',
-  fallbackModel: 'gemini-2.5-pro',
+  model: SOFLIA_RUNTIME_MODEL,
+  fallbackModel: SOFLIA_RUNTIME_MODEL,
   maxConsecutiveFailures: 3,
   stuckDetectionThreshold: 4,
   autoRecoverFromDialogs: true,
   replanOnStuck: true,
   maxRetryPerAction: 2,
-  proactiveModel: 'gemini-2.5-pro',
+  proactiveModel: SOFLIA_RUNTIME_MODEL,
   // El backend desktop visual es single-instance: hay UN mouse, UN teclado y
   // el estado del paso (historial, layout activo) vive en el servicio. Dos
   // tareas visuales concurrentes se corrompen mutuamente; las adicionales
@@ -139,7 +140,7 @@ export const DEFAULT_CONFIG: DesktopAgentConfig = {
   maxScreenshotEdge: 1568,
   layoutBindingEnabled: true,
   legacyScaleFallbackEnabled: false,
-  defaultStepBudget: 40,
+  defaultStepBudget: 60,
   queueTimeoutMs: 60_000,
   keywordRoutingEnabled: true,
   inputBackend: 'nut',        // 'legacy' revierte a PowerShell/SetCursorPos (sin movimiento humano)
@@ -191,12 +192,25 @@ export function loadConfig(): DesktopAgentConfig {
     const configPath = getConfigPath();
     if (fs.existsSync(configPath)) {
       const saved = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as Partial<DesktopAgentConfig>;
-      return applyLegacyCaptureCompatibility({ ...DEFAULT_CONFIG, ...saved }, saved);
+      return normalizeDesktopAgentConfig(applyLegacyCaptureCompatibility({ ...DEFAULT_CONFIG, ...saved }, saved));
     }
   } catch {
     // Defaults keep standalone runners compatible when Electron is unavailable.
   }
-  return { ...DEFAULT_CONFIG };
+  return normalizeDesktopAgentConfig({ ...DEFAULT_CONFIG });
+}
+
+/** Impide que una configuración persistida reactive modelos retirados. */
+export function normalizeDesktopAgentConfig(config: DesktopAgentConfig): DesktopAgentConfig {
+  return {
+    ...config,
+    model: SOFLIA_RUNTIME_MODEL,
+    fallbackModel: SOFLIA_RUNTIME_MODEL,
+    proactiveModel: SOFLIA_RUNTIME_MODEL,
+    computerUseModel: SOFLIA_RUNTIME_MODEL,
+    computerUseFallbackModel: SOFLIA_RUNTIME_MODEL,
+    computerUseEconomyModel: SOFLIA_RUNTIME_MODEL,
+  };
 }
 
 /**
@@ -216,7 +230,7 @@ function applyLegacyCaptureCompatibility(
 
 export function saveConfig(config: DesktopAgentConfig): void {
   try {
-    fs.writeFileSync(getConfigPath(), JSON.stringify(config, null, 2), 'utf-8');
+    fs.writeFileSync(getConfigPath(), JSON.stringify(normalizeDesktopAgentConfig(config), null, 2), 'utf-8');
   } catch (err: any) {
     console.error('[DesktopAgent] Error saving config:', err.message);
   }

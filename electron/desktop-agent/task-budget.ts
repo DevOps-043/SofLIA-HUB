@@ -1,5 +1,7 @@
 const MIN_PLANNED_BUDGET = 15;
 const MIN_NATIVE_LAUNCH_BUDGET = 35;
+const MIN_INTEGRATED_BROWSER_BUDGET = 90;
+const INTEGRATED_BROWSER_HARD_CAP = 120;
 const PLAN_BUDGET_MULTIPLIER = 2;
 
 /**
@@ -13,12 +15,24 @@ export function resolveTaskStepBudget(params: {
   requestedMaxSteps?: number;
   planEstimatedSteps?: number | null;
   task?: string;
+  surface?: 'integrated-browser' | 'other';
   config: { maxSteps: number; defaultStepBudget: number };
 }): number {
-  const hardCap = Math.max(1, params.config.maxSteps);
+  // El presupuesto integrado es un contrato del producto y no debe quedar
+  // reducido a 60 por un desktop-agent-config.json creado en versiones previas.
+  const hardCap = params.surface === 'integrated-browser'
+    ? INTEGRATED_BROWSER_HARD_CAP
+    : Math.max(1, params.config.maxSteps);
+  const browserMinimum = params.surface === 'integrated-browser'
+    ? Math.min(MIN_INTEGRATED_BROWSER_BUDGET, hardCap)
+    : 1;
   const nativeLaunch = requiresNativeLaunchBudget(params.task);
-  const requestedMinBudget = nativeLaunch ? Math.min(MIN_NATIVE_LAUNCH_BUDGET, hardCap) : 1;
-  const plannedMinBudget = nativeLaunch ? Math.min(MIN_NATIVE_LAUNCH_BUDGET, hardCap) : Math.min(MIN_PLANNED_BUDGET, hardCap);
+  const nativeMinimum = nativeLaunch ? Math.min(MIN_NATIVE_LAUNCH_BUDGET, hardCap) : 1;
+  const requestedMinBudget = Math.max(browserMinimum, nativeMinimum);
+  const plannedMinBudget = Math.max(
+    browserMinimum,
+    nativeLaunch ? nativeMinimum : Math.min(MIN_PLANNED_BUDGET, hardCap),
+  );
   if (params.requestedMaxSteps !== undefined && Number.isFinite(params.requestedMaxSteps)) {
     return clamp(Math.round(params.requestedMaxSteps), requestedMinBudget, hardCap);
   }

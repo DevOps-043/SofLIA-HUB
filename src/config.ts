@@ -1,3 +1,5 @@
+import { SOFLIA_RUNTIME_MODEL } from './shared/soflia-runtime-model';
+
 export const GOOGLE_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 
 // OpenAI (familia GPT-5.6). Unica variable que hay que poner en el .env para
@@ -24,24 +26,24 @@ export const IRIS_SUPABASE = {
 
 // Model Configurations
 export const MODELS = {
-  // SofLIA: el modelo por defecto del chat.
-  PRIMARY: 'gemini-3.6-flash',
-  FALLBACK: 'gemini-3.5-flash-lite',
-  PRO: 'gemini-2.5-pro',
-  WEB_AGENT: 'gemini-3.5-flash',
-  // Orbe de voz: usa el modelo mas reciente por latencia de primera frase.
-  // Si falla, sendMessageStream cae a FALLBACK/PRIMARY automaticamente.
-  ORB: 'gemini-3.6-flash',
+  // Base Gemini compartida; el catálogo visible se define por separado.
+  // Computer Use fija PRIMARY y no consulta FALLBACK/PRO.
+  PRIMARY: SOFLIA_RUNTIME_MODEL,
+  FALLBACK: SOFLIA_RUNTIME_MODEL,
+  PRO: SOFLIA_RUNTIME_MODEL,
+  WEB_AGENT: SOFLIA_RUNTIME_MODEL,
+  ORB: SOFLIA_RUNTIME_MODEL,
   IMAGE_GENERATION: 'gemini-2.5-flash-image',
   DEEP_RESEARCH: 'deep-research-pro-preview-12-2025',
-  TRANSCRIPTION: 'gemini-3.5-flash-lite',
-  MAPS: 'gemini-3.5-flash-lite',
+  TRANSCRIPTION: SOFLIA_RUNTIME_MODEL,
+  MAPS: SOFLIA_RUNTIME_MODEL,
 };
 
-// Familia GPT-5.6 de OpenAI. Terra (SofLIA Max) se reserva para acciones reales
-// sobre la computadora: abrir apps, mover el cursor, hacer clic. Luna (SofLIA
-// Pro) atiende la orbe y el resto de comandos, que son la mayoria del uso.
-// Solo se enrutan si hay OPENAI_API_KEY: sin llave el producto cae a Gemini.
+// Familia GPT-5.6 de OpenAI. Terra corresponde a SofLIA Max y conserva la clave
+// histórica `COMPUTER_USE` por compatibilidad, aunque el actuador Computer Use
+// usa exclusivamente Gemini 3.6 Flash. Luna corresponde a SofLIA Pro. El
+// proveedor efectivo se decide por el modelo seleccionado; la llave puede
+// provenir de la configuración guardada del usuario o del entorno.
 export const OPENAI_MODELS = {
   COMPUTER_USE: 'gpt-5.6-terra',
   COMMANDS: 'gpt-5.6-luna',

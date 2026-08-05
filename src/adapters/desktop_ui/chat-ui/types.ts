@@ -16,6 +16,7 @@ export interface ConfirmationModalState {
 }
 
 export interface ChatUIProps {
+  compact?: boolean;
   messages: ChatMessage[];
   onMessagesChange: (messages: ChatMessage[]) => void;
   personalization?: {
@@ -30,4 +31,7 @@ export interface ChatUIProps {
   onShare?: () => void;
   canSendMessages?: boolean;
   readOnlyReason?: string | null;
+  onOpenBrowser?: () => void;
+  onOpenMeetings?: () => void;
+  onOpenSdo?: () => void;
 }

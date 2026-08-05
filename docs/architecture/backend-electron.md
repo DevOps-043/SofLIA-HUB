@@ -30,10 +30,11 @@ single-instance lock. `runBootstrap` despues:
 | `MonitoringService` | desktopCapturer, active-win, sharp/OCR | buffer + Lia + screenshots |
 | `CalendarService` | Google/Microsoft OAuth | tokens/conexiones |
 | `GmailService`, `DriveService`, `GChatService` | auth de CalendarService | proveedores externos |
-| `IntegratedBrowserService` | `BrowserWindow` + `WebContentsView`, historial, boveda y extensiones | particion Chromium + archivos administrados en `userData/integrated-browser` |
+| `IntegratedBrowserService` | `BrowserWindow` + pestañas `WebContentsView`, doble vista, historial, boveda y extensiones | particion Chromium + archivos administrados en `userData/integrated-browser` |
 | `DesktopAgentService` | vision, UIA/OCR/ONNX, nut/Playwright | config JSON, tareas en memoria |
 | `UpdaterService` | electron-updater | estado de descarga |
 | `ClipboardAIAssistant` | clipboard; max 100, poll 5 s | historial en memoria |
+
 | `TaskScheduler` | node-cron | `scheduler-state.json` |
 | `PathMemoryService` | filesystem/watch | indice/rutas en `userData` |
 | `ProactiveService` | Calendar + WhatsApp | `proactive-config.json` |
@@ -46,6 +47,13 @@ single-instance lock. `runBootstrap` despues:
 | `CommunicationHubService` | WhatsApp, Telegram, remote nodes | `communication-hub-state.json` |
 | `SofliaLearningService` | Supabase Learning | estado remoto |
 | Servicios singleton importados | background host, remote node, dynamic tools, Python voice/tools | `userData` y procesos hijos |
+
+La consulta del historial indexa título, dominio, ruta y query; omite el
+protocolo salvo que el usuario escriba `://`, y permite buscar el dominio con o
+sin `www.`. Esto evita coincidencias universales por `https://`. Los favoritos
+son metadata HTTP(S) saneada y acotada del renderer; las extensiones visibles en
+su misma fila se obtienen por el contrato de listado existente, sin canales ni
+permisos nuevos.
 
 ## Orden de inicializacion
 
@@ -80,13 +88,30 @@ canal permitido. Los servicios no deben importar componentes React.
   fallos y timeout.
 - UIA nativo: workers PowerShell/Windows administran accesibilidad/input cuando
   la plataforma lo soporta.
-- Navegador integrado: `electron/integrated-browser/` administra una
-  `WebContentsView` dentro de la ventana principal, con sesion persistente
-  aislada, protocolos HTTP(S), permisos sensibles con HITL y un driver de
-  Computer Use sobre la misma superficie visible. `BrowserHistoryStore` conserva
+- Navegador integrado: `electron/integrated-browser/` administra hasta 500
+  pestañas lógicas con un presupuesto máximo global de ocho `WebContentsView`
+  vivas, con una o dos
+  superficies visibles y sesion persistente
+  aislada, protocolos HTTP(S), User-Agent derivado de Chromium sin token
+  Electron, permisos sensibles con HITL y un driver de Computer Use sobre la
+  pestaña enfocada. La captura visual pasiva no recorre el DOM, se reduce a
+  1024 px, usa cadencia adaptativa y cede durante interacción o Computer Use;
+  la extracción saneada se realiza bajo demanda. Los popups HTTP(S) se convierten en
+  pestañas internas. `BrowserHistoryStore` conserva
   visitas HTTP(S) saneadas; `BrowserCredentialVault` cifra secretos con
   `safeStorage` y solo devuelve metadata; `BrowserExtensionManager` valida,
-  copia y carga extensiones Manifest V3 desempaquetadas aprobadas por el usuario.
+  copia y carga extensiones Manifest V3 desempaquetadas aprobadas por el usuario,
+  incluye permisos opcionales y verifica SHA-256 por archivo entre inspección y
+  confirmación; no serializa rutas en errores de carga. Una extensión fallida
+  puede reintentarse sobre su copia administrada. Los overlays renderer que
+  deben cubrir contenido nativo —gestores y predicciones de dirección— toman
+  una captura puntual, ocultan temporalmente las vistas y republican los mismos
+  bounds al cerrar; no destruyen pestañas, recargan ni cambian de partición.
+  Al superar ocho vistas vivas, la pestaña inactiva menos reciente se suspende
+  conservando URL y título; al activarla se recrea en la misma partición. La
+  activa, las dos superficies visibles y hasta cuatro pestañas trasladadas a
+  `BaseWindow` quedan protegidas de la suspensión. Separar o reintegrar mueve la
+  misma vista sin recargar, duplicar perfil ni crear un renderer de aplicación.
 - Browser automation aislada: Playwright Core se conserva para perfiles
   configurables o ejecuciones explicitamente aisladas; no es la ruta normal de
   la vista compartida con el usuario.

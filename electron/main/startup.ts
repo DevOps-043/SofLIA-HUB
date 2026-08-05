@@ -2,8 +2,22 @@ import { registerScreenCaptureHandlers } from './screen-capture-handlers';
 import { logBootstrapError } from './bootstrap-steps';
 import { recordDesktopTaskMemory } from '../memory/record-desktop-task';
 
-export function registerPlatformHandlers(input: { modules: any; services: any; state: any }): void {
-  const { modules, services, state } = input;
+type StartupWindowControls = {
+  createOrbWindow: (wake?: boolean) => Promise<void>;
+};
+
+type OptionalStepRunner = <T>(name: string, fn: () => T | Promise<T>) => Promise<T>;
+
+type WhatsAppStartupServices = {
+  waService: {
+    shouldAutoConnect: () => Promise<boolean>;
+    getSavedApiKey: () => Promise<string | null>;
+    connect: () => Promise<unknown>;
+  };
+};
+
+export function registerPlatformHandlers(input: { modules: any; services: any; state: any; controls: StartupWindowControls }): void {
+  const { modules, services, state, controls } = input;
   registerScreenCaptureHandlers(logBootstrapError);
   modules.registerComputerUseHandlers();
   modules.registerBackgroundHostHandlers(modules.backgroundHostService);
@@ -44,6 +58,8 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
   modules.registerOrbIpcHandlers({
     pythonRuntimeService: modules.pythonRuntimeService,
     getOrbWindow: () => state.orbWin,
+    getMainWindow: () => state.win,
+    showOrbWindow: () => controls.createOrbWindow(false),
     consumePendingWake: () => {
       const pending = state.pendingOrbWake === true;
       state.pendingOrbWake = false;
@@ -103,7 +119,7 @@ export async function initializeMainServices(input: {
   await tryAutoConnectWhatsApp({ services, initWhatsAppAgent, runOptionalStep });
 }
 
-async function tryAutoConnectWhatsApp(input: { services: any; initWhatsAppAgent: (apiKey: string) => void; runOptionalStep: (name: string, fn: () => any) => Promise<any> }): Promise<void> {
+async function tryAutoConnectWhatsApp(input: { services: WhatsAppStartupServices; initWhatsAppAgent: (apiKey: string) => void; runOptionalStep: OptionalStepRunner }): Promise<void> {
   const { services, initWhatsAppAgent, runOptionalStep } = input;
   const shouldAutoConnect = await runOptionalStep('waService.shouldAutoConnect', () => services.waService.shouldAutoConnect());
   if (!shouldAutoConnect) return;

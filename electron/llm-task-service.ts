@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { SOFLIA_RUNTIME_MODEL } from '../src/shared/soflia-runtime-model';
 import { composeJsonTaskPrompt } from './llm-task/prompt';
 import { parseJsonResponse } from './llm-task/json-parser';
 import { validateSchema } from './llm-task/schema-validator';
@@ -10,7 +11,7 @@ export type {
   LlmTaskSchema,
 } from './llm-task/types';
 
-const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
+const DEFAULT_MODEL = SOFLIA_RUNTIME_MODEL;
 
 export class LlmTaskService {
   private apiKey: string | null = null;

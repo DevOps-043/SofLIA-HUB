@@ -32,7 +32,7 @@ type DesktopTaskEntrypointContext = {
   /** Cerebro Computer Use para browser (Gemini); null si no aplica -> browser legacy. */
   computerUseBrowserEnabled?: boolean;
   runComputerUseBrowser?: (task: string, options?: DesktopTaskExecutionOptions) => Promise<DesktopTaskOutcome | null>;
-  runVisibleBrowserFallback?: (task: string, options?: DesktopTaskExecutionOptions) => Promise<DesktopTaskOutcome>;
+  integratedBrowserAvailable?: boolean;
 };
 
 export async function executeDesktopAgentTaskEntrypoint(
@@ -45,12 +45,35 @@ export async function executeDesktopAgentTaskEntrypoint(
   }
   const startedAt = Date.now();
   if (shouldUseBrowserBackend(task, options, ctx.config.keywordRoutingEnabled)) {
-    // Cerebro Computer Use (Gemini) para browser, con fallback al browser legacy.
+    const targetsIntegratedBrowser = Boolean(
+      ctx.integratedBrowserAvailable
+      && !options?.browserIsolated
+      && !options?.browserProfile
+      && !options?.resetBrowserProfile,
+    );
+    // La vista integrada falla cerrado: nunca cambia silenciosamente al escritorio.
     if (ctx.computerUseBrowserEnabled && ctx.runComputerUseBrowser) {
-      const cuOutcome = await ctx.runComputerUseBrowser(task, options);
-      if (cuOutcome) return cuOutcome;
+      try {
+        const cuOutcome = await ctx.runComputerUseBrowser(task, options);
+        if (cuOutcome) return cuOutcome;
+      } catch (error) {
+        if (!targetsIntegratedBrowser) throw error;
+        return buildTaskOutcome({
+          taskId: null,
+          estado: 'fallida',
+          mensaje: `El navegador integrado no pudo completar la tarea: ${safeEntrypointError(error)}`,
+          startedAt,
+        });
+      }
     }
-    if (ctx.runVisibleBrowserFallback) return ctx.runVisibleBrowserFallback(task, options);
+    if (targetsIntegratedBrowser) {
+      return buildTaskOutcome({
+        taskId: null,
+        estado: 'fallida',
+        mensaje: 'El motor de control del navegador integrado no está disponible. La tarea no se abrió en otro navegador.',
+        startedAt,
+      });
+    }
     return wrapExternalBackendResult(await executeBrowserBackendTask(ctx.browserWeb, task, options), startedAt);
   }
   if (shouldUseWindowsUIABackend(task, options, ctx.config.keywordRoutingEnabled)) {
@@ -78,6 +101,11 @@ export async function executeDesktopAgentTaskEntrypoint(
   }
 
   return ctx.executeTaskInternal(effectiveTask, options);
+}
+
+function safeEntrypointError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.replace(/[\r\n\t]+/g, ' ').trim().slice(0, 220) || 'error no especificado';
 }
 
 /**

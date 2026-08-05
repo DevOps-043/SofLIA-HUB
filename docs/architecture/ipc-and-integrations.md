@@ -8,8 +8,8 @@ Estado: vigente. Actualizado: 2026-08-04.
 
 ## Contrato IPC
 
-La allowlist actual contiene 295 canales derivados de cinco arrays: 72, 59, 65,
-89 y 10. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 306 canales derivados de cinco arrays: 72, 59, 65,
+99 y 11. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |
@@ -18,12 +18,13 @@ el catalogo y su validador deben actualizarse juntos.
 | `desktop-agent` | 23 | tareas, abort, config, UI input, ventanas, screenshot, calibracion |
 | `calendar` | 17 | OAuth, conexiones, eventos, polling y eventos de trabajo |
 | `sdo` | 16 | decisiones, claims, acciones, aprobacion, audit y artifacts |
-| `memory`, `orb` | 14 cada uno | contexto/facts/skills; dictado/TTS/ventana flotante |
+| `memory` | 14 | contexto, facts y skills |
+| `orb` | 15 | dictado, TTS, apertura y ventana flotante |
 | `monitoring`, `gmail`, `remote-node` | 13 cada uno | actividad; correo; host remoto |
 | `meeting`, `whatsapp` | 12 cada uno | runs/approvals/sync; conexion/config/status |
 | `meeting-live` | 11 | audio, segmentos, deteccion y estado live |
 | `channels`, `workflow-hub` | 10 cada uno | hub multicanal y casos de workflow |
-| `integrated-browser` | 22 | navegacion, viewport, eventos, historial, credenciales y extensiones |
+| `integrated-browser` | 30 | navegación, pestañas, composición, captura visible, percepción, viewport, visibilidad, eventos, historial, credenciales y extensiones |
 | otros | 60 | voice, updater, automation, drive, pytools, telegram, gchat, app, proactive, background-host, root y AI |
 
 ### Recorrido obligatorio
@@ -54,9 +55,9 @@ actualizar las cuatro capas, tipos y pruebas segun
 
 ### Contrato del navegador integrado
 
-`electron/integrated-browser-handlers.ts` registra veinte operaciones invocables:
-diez de estado/navegacion/viewport, dos de historial, cuatro de credenciales y
-cuatro de extensiones. Dos canales adicionales entregan estado y solicitudes de
+`electron/integrated-browser-handlers.ts` registra veintiocho operaciones invocables:
+diecisiete de estado/navegacion/pestañas/composición/viewport/captura/percepción/visibilidad, dos de historial, cuatro de credenciales y
+cinco de extensiones. Dos canales adicionales entregan estado y solicitudes de
 apertura del agente al renderer. `electron/preload/integrated-browser-api.ts` y
 `src/services/integrated-browser-service.ts` son las capas publicas.
 
@@ -64,7 +65,40 @@ Los payloads de URL admiten HTTP(S), `about:blank` y busqueda normalizada; los
 bounds son enteros y se ajustan al contenido de la ventana. Un emisor distinto
 del renderer principal recibe `sender_denied`. El renderer nunca recibe el
 secreto descifrado ni una ruta de extension; esas operaciones se resuelven en
-main y no forman parte del catalogo de herramientas del agente.
+main y no forman parte del catalogo de herramientas del agente. La instalacion
+separa inspeccion y confirmacion: main emite metadata y un token efimero, y solo
+copia o carga al recibir la confirmacion renderer. La captura de
+solo lectura exige un viewport visible. La percepción pasiva conserva una
+captura visual reducida a 1024 px en su lado mayor con cadencia base de diez
+segundos, y la difiere cuatro segundos después de interacción, navegación o
+resize sin ejecutar DOM. Un turno explícito obtiene una revisión vigente y el
+DOM saneado bajo demanda. Solo el último snapshot queda en memoria, Computer Use
+no compite con el temporizador pasivo y el refresco nunca invoca al modelo.
+Los turnos contextuales solicitan un snapshot puntual reciente: referencias a
+personas, mensajes o recursos visibles se resuelven aunque no contengan un verbo
+de visión, y los recursos enlazados que requieren lectura se continúan mediante
+Computer Use sobre la misma sesión.
+`integrated-browser:set-observation-enabled` permite pausar y descartar esa
+evidencia. El DOM omite valores de formularios, contenido editable, contraseñas
+y credenciales de URL, y se entrega como contenido de página no confiable.
+
+Main administra hasta 500 pestañas lógicas dentro de la misma partición
+persistente y conserva como máximo ocho `WebContentsView` vivas mediante LRU.
+Los popups HTTP(S) se convierten en pestañas internas. Los canales
+`integrated-browser:tab-detach` y `integrated-browser:tab-reattach` permiten al
+renderer principal mover una pestaña validada a una de hasta cuatro
+`BaseWindow`, siempre dentro del mismo presupuesto y sesión. Una composición puede mantener una vista única,
+dos mitades o una secundaria superpuesta. El foco determina `activeTabId`, que
+es el único destino de navegación, captura, autofill y Computer Use.
+
+`orb:show` permite al renderer principal autenticado abrir o enfocar la Orbe
+general. El canal no expone primitivas de ventana y rechaza otro emisor.
+
+El panel de chat no mueve la capa nativa fuera de pantalla ni compone la página
+mediante polling de capturas. El renderer publica bounds con inset izquierdo o derecho y la vista
+permanece viva. Solo los gestores flotantes toman una captura puntual y llaman a
+`hide`; al cerrarlos republican el viewport. Una tarea dirigida a esta vista
+falla cerrado y nunca cambia silenciosamente al backend desktop.
 
 ## Integraciones y propietarios
 

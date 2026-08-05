@@ -32,6 +32,7 @@ function getToolIcon(id: string, active: boolean) {
 
 export function ToolMenu({ controller }: { controller: ChatUIController }) {
   const modes = controller.state.modes;
+  const compact = controller.props.compact === true;
   const options: ToolOption[] = [
     { id: 'image_gen', label: 'Generar Imagen', sub: 'Crea imagenes con IA', active: modes.imageGen },
     { id: 'prompt_opt', label: 'Mejorar Prompt', sub: 'Optimiza para otra IA', active: modes.promptOptimizer },
@@ -45,7 +46,7 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
       <button
         onClick={() => controller.state.tools.setOpen(!controller.state.tools.isOpen)}
         disabled={!controller.props.canSendMessages}
-        className={`w-9 h-9 flex items-center justify-center rounded-full transition-all ${
+        className={`${compact ? 'h-8 w-8' : 'h-9 w-9'} flex items-center justify-center rounded-full transition-all ${
           controller.state.tools.isOpen
             ? 'bg-accent text-white shadow-md'
             : 'bg-white dark:bg-white/[0.04] text-gray-500 hover:text-gray-700 dark:hover:text-white/80 hover:shadow-sm border border-gray-200/60 dark:border-white/[0.06]'

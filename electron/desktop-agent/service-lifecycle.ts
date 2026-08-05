@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { AgentStatus, DesktopAgentConfig, DesktopAgentStatus } from '../desktop-agent-types';
-import { saveConfig } from '../desktop-agent-types';
+import { normalizeDesktopAgentConfig, saveConfig } from '../desktop-agent-types';
 import type { BrowserProfileDescriptor } from '../browser-web/types';
 import type { DesktopAgentService } from '../desktop-agent-service';
 import { buildDesktopAgentStatus } from './status-snapshot';
@@ -44,7 +44,7 @@ export function attachDesktopAgentLifecycle(Service: DesktopAgentServiceConstruc
       return { ...this.config };
     },
     setConfig(updates: Partial<DesktopAgentConfig>) {
-      this.config = { ...this.config, ...updates };
+      this.config = normalizeDesktopAgentConfig({ ...this.config, ...updates });
       saveConfig(this.config);
       this.emit('config-updated', this.config);
     },

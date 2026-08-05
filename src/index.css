@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Inter+Tight:wght@400;500;600;700&family=Inter:wght@100;200;300;400;500;600;700;800;900&family=Newsreader:opsz,wght@6..72,300;6..72,400&display=swap');
 @import "tailwindcss";
 @variant dark (&:where(.dark, .dark *));
 
@@ -16,6 +16,9 @@
   --color-primary-val: #0a2540;
   --color-accent-val: #0a2540; /* Blue in light mode per user request */
   --color-on-accent-val: #ffffff; /* Text over aqua/accent buttons (light) */
+  --font-system-display: "Newsreader", Georgia, serif;
+  --font-system-ui: "Inter Tight", "Inter", system-ui, sans-serif;
+  --font-system-label: "IBM Plex Sans", "Inter", system-ui, sans-serif;
 }
 
 .dark {
@@ -203,9 +206,225 @@ body {
   background: transparent !important;
 }
 
+/* Navegador integrado: superficies flotantes del sistema SofLIA. */
+.soflia-browser-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  justify-content: flex-end;
+  align-items: stretch;
+  padding: 0.85rem;
+  background: rgb(3 12 22 / 0.42);
+  backdrop-filter: blur(0.38rem) saturate(108%);
+  animation: fadeIn 180ms ease-out both;
+}
+
+.soflia-browser-overlay--center {
+  position: fixed;
+  place-items: center;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  background: rgb(3 12 22 / 0.58);
+  backdrop-filter: blur(0.48rem) saturate(108%);
+}
+
+.soflia-browser-dialog {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-accent-val) 20%, var(--color-border-val));
+  background: color-mix(in srgb, var(--color-card-val) 98%, transparent);
+  box-shadow:
+    0 2.25rem 5.5rem rgb(2 12 23 / 0.38),
+    inset 0 1px 0 rgb(255 255 255 / 0.08);
+  backdrop-filter: blur(0.85rem) saturate(112%);
+  color: var(--color-text-main);
+  animation: browserDialogIn 240ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.soflia-browser-dialog--panel {
+  width: min(32rem, calc(100vw - 1.7rem));
+  height: 100%;
+  max-height: 44rem;
+  align-self: flex-start;
+  border-radius: 1.55rem;
+}
+
+.soflia-browser-dialog--confirmation {
+  width: min(27rem, calc(100vw - 2rem));
+  max-height: min(32rem, calc(100svh - 2rem));
+  border-radius: 1.65rem;
+}
+
+.soflia-browser-dialog__header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.8rem;
+  min-height: 4.6rem;
+  padding: 0.7rem 0.82rem 0.7rem 0.95rem;
+  border-bottom: 1px solid var(--color-border-val);
+  background: color-mix(in srgb, var(--color-card-val) 92%, transparent);
+  backdrop-filter: blur(0.65rem);
+}
+
+.soflia-browser-dialog__icon {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--color-accent-val) 24%, var(--color-border-val));
+  border-radius: 0.9rem;
+  color: var(--color-accent-val);
+  background: color-mix(in srgb, var(--color-accent-val) 8%, transparent);
+}
+
+.soflia-browser-dialog__icon svg,
+.soflia-browser-icon-button svg {
+  width: 1.08rem;
+  height: 1.08rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.soflia-browser-dialog__eyebrow {
+  display: block;
+  margin-bottom: 0.14rem;
+  color: var(--color-text-secondary-val);
+  font: 600 0.56rem/1.2 var(--font-system-label);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.soflia-browser-dialog__title {
+  overflow: hidden;
+  color: var(--color-text-main);
+  font: 400 clamp(1.45rem, 2vw, 1.75rem)/1.05 var(--font-system-display);
+  letter-spacing: -0.028em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.soflia-browser-dialog__description {
+  margin-top: 0.2rem;
+  overflow: hidden;
+  color: var(--color-text-secondary-val);
+  font: 400 0.72rem/1.35 var(--font-system-ui);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.soflia-browser-dialog__body {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.9rem;
+}
+
+.soflia-browser-dialog__footer {
+  display: flex;
+  min-height: 4rem;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  padding: 0.72rem 1rem;
+  border-top: 1px solid var(--color-border-val);
+  background: color-mix(in srgb, var(--color-card-val) 92%, transparent);
+  backdrop-filter: blur(0.6rem);
+}
+
+.soflia-browser-icon-button {
+  display: grid;
+  width: 2.7rem;
+  height: 2.7rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 0.82rem;
+  color: var(--color-text-secondary-val);
+  background: transparent;
+  transition: 175ms ease-out;
+}
+
+.soflia-browser-icon-button:hover {
+  border-color: var(--color-border-val);
+  color: var(--color-text-main);
+  background: color-mix(in srgb, var(--color-accent-val) 6%, var(--color-card-val));
+  transform: translateY(-1px);
+}
+
+.soflia-browser-icon-button:disabled {
+  cursor: wait;
+  opacity: 0.42;
+  transform: none;
+}
+
+.soflia-browser-icon-button:focus-visible,
+.soflia-browser-button:focus-visible,
+.soflia-browser-field:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent-val) 14%, transparent);
+}
+
+.soflia-browser-button {
+  min-height: 2.7rem;
+  padding: 0.62rem 0.95rem;
+  border: 1px solid var(--color-border-val);
+  border-radius: 0.88rem;
+  font: 600 0.76rem/1 var(--font-system-ui);
+  transition: 175ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.soflia-browser-button:not(:disabled):hover { transform: translateY(-1px); }
+.soflia-browser-button:disabled { cursor: not-allowed; opacity: 0.45; }
+.soflia-browser-button--secondary { color: var(--color-text-main); background: var(--color-surface-2-val); }
+.soflia-browser-button--primary { border-color: var(--color-primary-val); color: var(--color-on-accent-val); background: var(--color-primary-val); box-shadow: 0 0.8rem 2rem color-mix(in srgb, var(--color-primary-val) 16%, transparent); }
+.dark .soflia-browser-button--primary { border-color: var(--color-accent-val); color: var(--color-on-accent-val); background: var(--color-accent-val); }
+.soflia-browser-button--danger { border-color: color-mix(in srgb, #ef4444 55%, transparent); color: white; background: #ef4444; box-shadow: 0 0.8rem 2rem rgb(239 68 68 / 0.18); }
+
+.soflia-browser-field {
+  min-height: 2.85rem;
+  width: 100%;
+  border: 1px solid var(--color-border-val);
+  border-radius: 0.92rem;
+  padding: 0.65rem 0.85rem;
+  color: var(--color-text-main);
+  background: var(--color-surface-2-val);
+  font: 500 0.78rem/1.3 var(--font-system-ui);
+  transition: 170ms ease-out;
+}
+
+.soflia-browser-field:hover { border-color: color-mix(in srgb, var(--color-accent-val) 26%, var(--color-border-val)); }
+.soflia-browser-field:focus { border-color: color-mix(in srgb, var(--color-accent-val) 54%, var(--color-border-val)); outline: none; }
+
+@keyframes browserDialogIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.978); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 640px) {
+  .soflia-browser-overlay { padding: 0.45rem; }
+  .soflia-browser-dialog--panel { width: 100%; max-width: none; height: 100%; max-height: none; border-radius: 1.1rem; }
+  .soflia-browser-dialog__footer { padding-bottom: max(0.72rem, env(safe-area-inset-bottom)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .soflia-browser-overlay,
+  .soflia-browser-dialog,
+  .soflia-browser-button,
+  .soflia-browser-icon-button { animation-duration: 1ms; transition-duration: 1ms; }
+}
+
 body {
   @apply antialiased;
-  font-family: var(--font-sans);
+  font-family: var(--font-system-ui);
   color: var(--color-text-main);
   min-width: 320px;
 }

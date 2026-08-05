@@ -1,4 +1,5 @@
 import type { GoogleGenerativeAI } from '@google/generative-ai';
+import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
 import type { ClipboardItem } from './types';
 
 const NO_MATCH = 'NO_MATCH';
@@ -37,7 +38,7 @@ async function searchWithGemini(
   if (!genAI) return null;
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
+    const model = genAI.getGenerativeModel({ model: SOFLIA_RUNTIME_MODEL });
     const result = await model.generateContent(buildClipboardPrompt(history, query));
     const responseText = result.response.text().trim();
     if (!responseText || responseText === NO_MATCH) return null;

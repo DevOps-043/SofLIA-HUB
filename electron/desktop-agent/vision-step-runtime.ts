@@ -1,4 +1,5 @@
 import type { GoogleGenerativeAI } from '@google/generative-ai';
+import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
 import { buildHistoryContext } from './history-context';
 import { parseDesktopActionResponse } from './parsers';
 import { buildVisionPrompt } from './vision-prompt';
@@ -39,19 +40,15 @@ export async function runDesktopVisionStep(params: {
   environmentContext: string;
   currentStep: number;
 }): Promise<DesktopActionPayload> {
-  // Hibrido de modelos: flash para pasos rutinarios (rapido/barato); se escala al
-  // modelo pesado (Pro, config.fallbackModel) cuando el agente TIENE DIFICULTAD —
-  // error del modelo, accion fallida, o la pantalla lleva >=2 pasos sin cambiar
-  // (bucle de "clic->no pasa nada" como el visto con Word). Pro razona mejor y
-  // rompe el bucle; al recuperar el progreso vuelve a flash.
+  // Los reintentos conservan el modelo único; un fallo visual no debe cambiar
+  // silenciosamente de proveedor o volver a un modelo retirado.
   const struggling = params.useFallback
     || params.recovery.consecutiveFailures > 0
     || params.recovery.sameScreenCount >= 2;
-  const modelId = struggling ? params.config.fallbackModel : params.config.model;
   if (struggling && !params.useFallback) {
-    console.log(`[DesktopAgent] Escalando a modelo pesado (${modelId}) por dificultad — fallos:${params.recovery.consecutiveFailures} pantallaIgual:${params.recovery.sameScreenCount}`);
+    console.log(`[DesktopAgent] Reintentando con ${SOFLIA_RUNTIME_MODEL} y contexto de recuperación — fallos:${params.recovery.consecutiveFailures} pantallaIgual:${params.recovery.sameScreenCount}`);
   }
-  const model = params.ai.getGenerativeModel({ model: modelId });
+  const model = params.ai.getGenerativeModel({ model: SOFLIA_RUNTIME_MODEL });
   const prompt = buildVisionPrompt({
     task: params.task,
     recoveryContext: params.recoveryContext,

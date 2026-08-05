@@ -226,8 +226,10 @@ simple quemaba 200 pasos.
 - **Cola con timeout y cancelación** (`task-entrypoint.ts`, `task-control.ts`):
   una tarea encolada expira (`queueTimeoutMs` 60 s) y acepta `AbortSignal` —
   nunca se ejecuta a espaldas del usuario minutos después.
-- **Presupuesto de pasos** (`task-budget.ts`): `maxSteps: 60` es el tope duro; el
-  presupuesto real es proporcional al plan (2× pasos estimados, mín. 15).
+- **Presupuesto de pasos** (`task-budget.ts`): `maxSteps: 120` es el tope duro;
+  el presupuesto general parte de 60 y las tareas del navegador integrado
+  reciben un mínimo de 90 para autenticación y navegación multipaso. El loop
+  termina anticipadamente cuando completa.
 - **Outcome estructurado** (`task-outcome.ts`): `completada | fallida |
   cancelada | presupuesto_agotado | cola_expirada`. El tool `use_computer`
   reporta este estado; el agente conversacional **solo afirma éxito con
@@ -260,7 +262,7 @@ Config en `agent-config.ts`, persistida en
 | `deterministicFirstEnabled` | `true` | Preferir open_application/open_url/UIA |
 | `environmentContextEnabled` | `true` | Contexto de entorno en el prompt |
 | `maxConcurrentAgents` | `1` | Serialización de tareas visuales |
-| `maxSteps` / `defaultStepBudget` | `60` / `40` | Presupuesto de pasos |
+| `maxSteps` / `defaultStepBudget` | `120` / `60` | Presupuesto de pasos; mínimo integrado 90 |
 | `queueTimeoutMs` | `60000` | Expiración en cola |
 | `keywordRoutingEnabled` | `true` | Ruteo por palabras clave a browser/uia |
 

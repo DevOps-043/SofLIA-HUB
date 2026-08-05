@@ -1,7 +1,7 @@
 /**
  * Contratos del backend Gemini Computer Use (CU).
  *
- * El modelo (`gemini-3.5-flash`) devuelve, por la vía entrenada `computer_use`,
+ * El modelo (`gemini-3.6-flash`) devuelve, por la vía entrenada `computer_use`,
  * una `function_call` con una accion de UI y coordenadas NORMALIZADAS 0-999
  * sobre la captura enviada. Aqui se normaliza a una accion interna (`CuAction`)
  * con coordenadas ya en PIXELES de la captura; cada driver (desktop/browser) la
@@ -50,7 +50,7 @@ export type CuMappedCall = {
 };
 
 /** Captura para el modelo: imagen + dimensiones REALES (para denormalizar 0-999). */
-export type CuCapture = { base64: string; width: number; height: number };
+export type CuCapture = { base64: string; width: number; height: number; context?: Record<string, unknown> };
 
 /**
  * Driver de ejecucion: abstrae "capturar pantalla" y "ejecutar accion" para que

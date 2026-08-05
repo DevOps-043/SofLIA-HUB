@@ -5,15 +5,29 @@
  * informativas sin accion ejecutable.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { BrowserObservationSnapshot } from '../../services/integrated-browser-service';
 import { createMockChat, getGeminiChatMocks } from './gemini-chat.setup';
 
 const groundingMocks = vi.hoisted(() => ({
   sendGroundedMessage: vi.fn(async () => ({
-    stream: (async function* () { yield { text: () => 'respuesta con fuentes' }; })(),
+    stream: (async function* () { yield 'respuesta con fuentes'; })(),
     response: Promise.resolve({}),
     toolCalls: [],
     generatedImages: [],
   })),
+}));
+
+const providerMocks = vi.hoisted(() => ({
+  sendOpenAIMessageStream: vi.fn(async () => ({
+    stream: (async function* () { yield 'respuesta OpenAI'; })(),
+    sources: Promise.resolve(null),
+    toolCalls: [],
+    generatedImages: [],
+  })),
+}));
+
+vi.mock('../../services/openai-chat', () => ({
+  sendOpenAIMessageStream: providerMocks.sendOpenAIMessageStream,
 }));
 
 vi.mock('../../services/gemini-chat/web-grounding', async (importOriginal) => {
@@ -23,10 +37,37 @@ vi.mock('../../services/gemini-chat/web-grounding', async (importOriginal) => {
 
 const { mockGetGenerativeModel } = getGeminiChatMocks();
 
+function installVisibleBrowserObservation(options?: { observation?: BrowserObservationSnapshot | null }) {
+  const observation = options && 'observation' in options ? options.observation : {
+    id: 'obs-contextual', sequence: 9, capturedAt: '2026-08-05T12:00:00.000Z', tabId: 'tab-chat',
+    screenshot: 'data:image/png;base64,Y2hhdC12aXNpYmxl',
+    dom: {
+      title: 'Correo de SofLIA', url: 'https://mail.google.com/mail/u/0/#chat/home', language: 'es',
+      text: 'Ernesto Hernández Martínez compartió Tencent Cloud · GitHub', headings: [], landmarks: [],
+      controls: [{ ref: 'dom-1', tag: 'a', role: 'link', name: 'Tencent Cloud · GitHub', text: 'https://github.com/TencentCloud', type: '', href: 'https://github.com/TencentCloud', disabled: false, checked: null, rect: { x: 1, y: 1, width: 20, height: 10 }, scope: 'document' }],
+      frames: [], viewport: { width: 1200, height: 800, scrollX: 0, scrollY: 0, documentWidth: 1200, documentHeight: 800 }, truncated: false,
+    },
+  };
+  const api = {
+    getState: vi.fn(async () => ({
+      success: true,
+      state: { isVisible: true, url: 'https://mail.google.com/mail/u/0/#chat/home', title: 'Correo de SofLIA' },
+    })),
+    getObservation: vi.fn(async () => ({
+      success: true,
+      observation,
+      state: { isVisible: true, url: 'https://mail.google.com/mail/u/0/#chat/home', title: 'Correo de SofLIA' },
+    })),
+  };
+  Object.defineProperty(window, 'integratedBrowser', { configurable: true, value: api });
+  return api;
+}
+
 describe('gemini-chat: prioridad accion vs grounding web', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    Reflect.deleteProperty(window, 'integratedBrowser');
   });
 
   it('RT-001: una orden de accion con palabras de investigacion usa herramientas, no grounding', async () => {
@@ -67,5 +108,282 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
 
     expect(groundingMocks.sendGroundedMessage).not.toHaveBeenCalled();
     expect(mockGetGenerativeModel.mock.calls[0]?.[0]?.tools).toBeDefined();
+  });
+
+  it('RT-005: una referencia a la vista actual inspecciona el navegador visible antes de responder', async () => {
+    const chat = createMockChat('Veo la pagina actual.');
+    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => chat) });
+    Object.defineProperty(window, 'integratedBrowser', {
+      configurable: true,
+      value: {
+        getState: vi.fn(async () => ({
+          success: true,
+          state: { isVisible: true, url: 'https://example.com/', title: 'Ejemplo' },
+        })),
+        getObservation: vi.fn(async () => ({
+          success: true,
+          observation: {
+            id: 'obs-1', sequence: 1, capturedAt: '2026-08-05T01:00:00.000Z', tabId: 'tab-1',
+            screenshot: 'data:image/png;base64,Y2FwdHVyYQ==',
+            dom: { title: 'Ejemplo', url: 'https://example.com/', language: 'es', text: 'Contenido visible', headings: [], landmarks: [], controls: [], frames: [], viewport: { width: 800, height: 600, scrollX: 0, scrollY: 0, documentWidth: 800, documentHeight: 600 }, truncated: false },
+          },
+          state: { isVisible: true, url: 'https://example.com/', title: 'Ejemplo' },
+        })),
+      },
+    });
+    const onToolCall = vi.fn();
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    const result = await sendMessageStream('puedes ver lo que estoy viendo?', [], { onToolCall });
+
+    expect(onToolCall).toHaveBeenCalledWith(expect.objectContaining({ name: 'inspect_browser_view' }));
+    expect(result.toolCalls?.[0]).toEqual(expect.objectContaining({ name: 'inspect_browser_view' }));
+    expect(chat.sendMessage).toHaveBeenCalledWith(expect.arrayContaining([
+      expect.stringContaining('INICIO_CONTEXTO_DOM_NO_CONFIABLE'),
+      expect.objectContaining({ inlineData: { mimeType: 'image/png', data: 'Y2FwdHVyYQ==' } }),
+    ]), undefined);
+    expect(mockGetGenerativeModel.mock.calls[0]?.[0]?.systemInstruction).not.toContain('Contenido visible');
+    expect(mockGetGenerativeModel.mock.calls[0]?.[0]?.tools).toBeUndefined();
+  });
+
+  it('RT-006: no inventa una observacion si el navegador integrado no esta visible', async () => {
+    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => createMockChat('Necesito abrir la vista.')) });
+    Object.defineProperty(window, 'integratedBrowser', {
+      configurable: true,
+      value: {
+        getState: vi.fn(async () => ({
+          success: true,
+          state: { isVisible: false },
+        })),
+        captureVisible: vi.fn(),
+        getObservation: vi.fn(),
+      },
+    });
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    await sendMessageStream('ves lo que estoy viendo?');
+
+    expect(window.integratedBrowser?.getObservation).not.toHaveBeenCalled();
+    expect(mockGetGenerativeModel.mock.calls[0]?.[0]?.tools).toBeDefined();
+  });
+
+  it('RT-007: SofLIA Pro usa OpenAI y conserva el esfuerzo seleccionado', async () => {
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    await sendMessageStream('Hola', [], {
+      model: 'gpt-5.6-luna',
+      thinking: { id: 'xhigh', level: 'xhigh' },
+    });
+
+    expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({
+      modelId: 'gpt-5.6-luna',
+      options: expect.objectContaining({
+        model: 'gpt-5.6-luna',
+        thinking: { id: 'xhigh', level: 'xhigh' },
+      }),
+    }));
+    expect(mockGetGenerativeModel).not.toHaveBeenCalled();
+  });
+
+  it('RT-008: SofLIA Lite usa Gemini y envia su nivel de razonamiento', async () => {
+    const startChat = vi.fn(() => createMockChat('respuesta Gemini'));
+    mockGetGenerativeModel.mockReturnValue({ startChat });
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    await sendMessageStream('Hola', [], {
+      model: 'gemini-3.5-flash-lite',
+      thinking: { id: 'high', level: 'high' },
+    });
+
+    expect(providerMocks.sendOpenAIMessageStream).not.toHaveBeenCalled();
+    expect(mockGetGenerativeModel).toHaveBeenCalledWith(expect.objectContaining({
+      model: 'gemini-3.5-flash-lite',
+    }));
+    expect(startChat).toHaveBeenCalledWith(expect.objectContaining({
+      generationConfig: expect.objectContaining({
+        thinkingConfig: { thinkingLevel: 'high' },
+      }),
+    }));
+  });
+
+  it('RT-009: Computer Use conserva SofLIA Max como orquestador y delega use_computer al actuador', async () => {
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    await sendMessageStream('abre el bloc de notas', [], {
+      model: 'gpt-5.6-terra',
+      thinking: { id: 'max', level: 'max' },
+    });
+
+    expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({
+      modelId: 'gpt-5.6-terra',
+      useToolLoop: true,
+      computerUseEnabled: true,
+      options: expect.objectContaining({
+        model: 'gpt-5.6-terra',
+        thinking: { id: 'max', level: 'max' },
+      }),
+    }));
+    expect(mockGetGenerativeModel).not.toHaveBeenCalled();
+  });
+
+  it('RT-010: una configuración OpenAI inválida no consume cuota de SofLIA Max', async () => {
+    const userId = 'usuario-sin-clave-openai';
+    const { remainingSofliaMaxUses, resetSofliaMaxQuota } = await import('../../services/model-quota');
+    resetSofliaMaxQuota(userId);
+    providerMocks.sendOpenAIMessageStream.mockRejectedValueOnce(new Error('OPENAI_API_KEY_MISSING'));
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    await expect(sendMessageStream('Hola', [], {
+      model: 'gpt-5.6-terra',
+      thinking: { id: 'medium', level: 'medium' },
+      userId,
+    })).rejects.toThrow('OPENAI_API_KEY_MISSING');
+
+    expect(remainingSofliaMaxUses(userId)).toBe(3);
+  });
+
+  it('RT-011: un repositorio compartido habilita DOM y web_search sin forzar Computer Use', async () => {
+    const browser = installVisibleBrowserObservation();
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    await sendMessageStream('haz un resumen del repositorio que me mandó Ernesto', [], {
+      model: 'gpt-5.6-luna',
+    });
+
+    expect(browser.getObservation).toHaveBeenCalledWith(true);
+    expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({
+      modelId: 'gpt-5.6-luna',
+      useToolLoop: true,
+      computerUseEnabled: true,
+      useWebSearch: true,
+      finalMessage: expect.stringContaining('Tencent Cloud · GitHub'),
+      systemInstruction: expect.stringContaining('contenido detrás de un recurso visible'),
+      options: expect.objectContaining({
+        model: 'gpt-5.6-luna',
+        images: ['data:image/png;base64,Y2hhdC12aXNpYmxl'],
+      }),
+    }));
+    const providerCalls = providerMocks.sendOpenAIMessageStream.mock.calls as unknown as Array<[{ systemInstruction?: string }]>;
+    const lastProviderCall = providerCalls[providerCalls.length - 1]?.[0];
+    expect(lastProviderCall?.systemInstruction)
+      .toContain('Reserva use_computer para interacción visual');
+    expect(mockGetGenerativeModel).not.toHaveBeenCalled();
+  });
+
+  it('RT-012: SofLIA Pro recibe imagen y DOM para leer el chat visible sin abrir otra sesión', async () => {
+    installVisibleBrowserObservation();
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    await sendMessageStream('¿qué dice el chat que tengo abierto?', [], { model: 'gpt-5.6-luna' });
+
+    expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({
+      modelId: 'gpt-5.6-luna',
+      useToolLoop: false,
+      finalMessage: expect.stringContaining('Tencent Cloud · GitHub'),
+      systemInstruction: expect.stringContaining('referencias a personas, mensajes y recursos visibles'),
+      options: expect.objectContaining({
+        images: ['data:image/png;base64,Y2hhdC12aXNpYmxl'],
+      }),
+    }));
+  });
+
+  it('RT-013: si falta la captura contextual intenta leer DOM antes de Computer Use', async () => {
+    installVisibleBrowserObservation({ observation: null });
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    await sendMessageStream('haz un resumen del repositorio que me mandó Ernesto', [], {
+      model: 'gpt-5.6-luna',
+    });
+
+    expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({
+      modelId: 'gpt-5.6-luna',
+      useToolLoop: true,
+      useWebSearch: true,
+      systemInstruction: expect.stringContaining('intenta read_browser_dom'),
+    }));
+    expect(mockGetGenerativeModel).not.toHaveBeenCalled();
+  });
+
+  it('RT-014: SofLIA Gemini amplía un enlace visible con grounding sin iniciar el loop visual', async () => {
+    installVisibleBrowserObservation();
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    await sendMessageStream('haz un resumen del repositorio que me mandó Ernesto', [], {
+      model: 'gemini-3.6-flash',
+    });
+
+    expect(groundingMocks.sendGroundedMessage).toHaveBeenCalledWith(expect.objectContaining({
+      finalMessage: expect.stringContaining('https://github.com/TencentCloud'),
+      systemInstruction: expect.stringContaining('búsqueda web o URL Context'),
+    }));
+    expect(mockGetGenerativeModel).not.toHaveBeenCalled();
+  });
+
+  it('RT-015: una interacción explícita conserva Computer Use y no se convierte en búsqueda web', async () => {
+    const startChat = vi.fn(() => createMockChat('clic completado'));
+    mockGetGenerativeModel.mockReturnValue({ startChat });
+    installVisibleBrowserObservation();
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    await sendMessageStream('haz clic en ese enlace', [], { model: 'gemini-3.6-flash' });
+
+    expect(groundingMocks.sendGroundedMessage).not.toHaveBeenCalled();
+    expect(mockGetGenerativeModel).toHaveBeenCalledWith(expect.objectContaining({
+      tools: expect.any(Array),
+    }));
+  });
+
+  it('RT-016: una búsqueda web normal de SofLIA Pro usa web_search sin tool loop local', async () => {
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    await sendMessageStream('busca en la web las noticias más recientes de OpenAI', [], {
+      model: 'gpt-5.6-luna',
+    });
+
+    expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({
+      modelId: 'gpt-5.6-luna',
+      useWebSearch: true,
+      useToolLoop: false,
+    }));
+  });
+
+  it('RT-017: si el grounding no puede leer un recurso, escala primero a herramientas DOM', async () => {
+    const { WEB_GROUNDING_FAILURE } = await import('../../services/gemini-chat/web-grounding');
+    groundingMocks.sendGroundedMessage.mockResolvedValueOnce({
+      stream: (async function* () { yield WEB_GROUNDING_FAILURE; })(),
+      response: Promise.resolve({}),
+      toolCalls: [],
+      generatedImages: [],
+    });
+    const startChat = vi.fn(() => createMockChat('lectura por DOM'));
+    mockGetGenerativeModel.mockReturnValue({ startChat });
+    installVisibleBrowserObservation();
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    await sendMessageStream('haz un resumen del repositorio que me mandó Ernesto', [], {
+      model: 'gemini-3.6-flash',
+    });
+
+    const modelTools = mockGetGenerativeModel.mock.calls[0]?.[0]?.tools ?? [];
+    const declarations = (modelTools as Array<{ functionDeclarations?: Array<{ name: string }> }>)
+      .flatMap((group) => group.functionDeclarations || []);
+    expect(declarations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'read_browser_dom' }),
+      expect.objectContaining({ name: 'navigate_integrated_browser' }),
+    ]));
+  });
+
+  it('RT-018: OpenAI conserva web_search en una solicitud mixta antes de actuar', async () => {
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    await sendMessageStream('busca en la web la documentación oficial y abre el resultado', [], {
+      model: 'gpt-5.6-luna',
+    });
+
+    expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({
+      modelId: 'gpt-5.6-luna',
+      useWebSearch: true,
+      useToolLoop: true,
+    }));
   });
 });

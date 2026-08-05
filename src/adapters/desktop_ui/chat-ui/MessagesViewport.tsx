@@ -9,7 +9,7 @@ export function MessagesViewport({ controller }: { controller: ChatUIController 
   const chat = controller.runtime.chat;
 
   return (
-    <div className="flex-1 overflow-y-auto no-scrollbar flex flex-col" onScroll={controller.handleScroll}>
+    <div className="no-scrollbar flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto" onScroll={controller.handleScroll}>
       <ChatHeader controller={controller} />
       {!controller.props.canSendMessages && <ReadOnlyBanner reason={controller.props.readOnlyReason} />}
       {messages.length === 0 && !chat.showLoadingUI ? (

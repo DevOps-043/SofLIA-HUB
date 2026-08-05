@@ -32,6 +32,16 @@ describe('persistencia privada del navegador integrado', () => {
     expect(await store.list()).toEqual([]);
   });
 
+  it('busca dominio y ruta sin hacer coincidir todas las URLs por https', async () => {
+    const store = new BrowserHistoryStore(path.join(testRoot, 'history-search.jsonl'));
+    await store.record({ url: 'https://www.google.com/', title: 'Google' });
+    await store.record({ url: 'https://soflia.ai/aprender', title: 'SofLIA Learn' });
+
+    expect((await store.list({ query: 's', limit: 10 })).map((entry) => entry.title)).toEqual(['SofLIA Learn']);
+    expect((await store.list({ query: 'www.google', limit: 10 })).map((entry) => entry.title)).toEqual(['Google']);
+    expect(await store.list({ query: 'https://', limit: 10 })).toHaveLength(2);
+  });
+
   it('cifra contrasenas, expone solo metadatos y exige el origen exacto', async () => {
     const file = path.join(testRoot, 'credentials.json');
     const vault = new BrowserCredentialVault(file);

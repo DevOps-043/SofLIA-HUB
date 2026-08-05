@@ -42,17 +42,28 @@ export class BrowserWindow extends EventEmitter {
   focus = vi.fn();
   isVisible = vi.fn(() => true);
   isMinimized = vi.fn(() => false);
+  isFocused = vi.fn(() => true);
   setAlwaysOnTop = vi.fn();
   setBounds = vi.fn();
   getBounds = vi.fn(() => ({ x: 0, y: 0, width: 1024, height: 768 }));
   getContentBounds = vi.fn(() => ({ x: 0, y: 0, width: 1024, height: 768 }));
   setMenu = vi.fn();
+  setTitle = vi.fn();
 
   static getAllWindows = vi.fn(() => []);
   static getFocusedWindow = vi.fn(() => null);
 
   constructor(_options?: any) {
     super();
+  }
+}
+
+export class BaseWindow extends BrowserWindow {
+  static instances: BaseWindow[] = [];
+
+  constructor(options?: unknown) {
+    super(options);
+    BaseWindow.instances.push(this);
   }
 }
 
@@ -85,16 +96,26 @@ class MockWebContents extends EventEmitter {
   });
   getURL = vi.fn(() => this.currentUrl);
   getTitle = vi.fn(() => this.title);
+  getUserAgent = vi.fn(() => 'Mozilla/5.0 Chrome/140.0.0.0 Electron/39.0.0 Safari/537.36');
+  setUserAgent = vi.fn();
   setWindowOpenHandler = vi.fn();
   focus = vi.fn();
   reload = vi.fn();
   stop = vi.fn();
   isDestroyed = vi.fn(() => this.destroyed);
   close = vi.fn(() => { this.destroyed = true; });
-  capturePage = vi.fn(async () => ({ toPNG: () => Buffer.from('captura') }));
+  capturePage = vi.fn(async () => new MockNativeImage());
   sendInputEvent = vi.fn();
   insertText = vi.fn(async () => {});
   executeJavaScript = vi.fn(async () => ({ username: true, password: true }));
+}
+
+class MockNativeImage {
+  isEmpty = () => false;
+  getSize = () => ({ width: 1_920, height: 1_080 });
+  resize = vi.fn(() => this);
+  toDataURL = () => 'data:image/png;base64,Y2FwdHVyYQ==';
+  toPNG = () => Buffer.from('captura');
 }
 
 export class WebContentsView extends EventEmitter {
@@ -102,8 +123,9 @@ export class WebContentsView extends EventEmitter {
   webContents = new MockWebContents();
   setVisible = vi.fn();
   setBackgroundColor = vi.fn();
-  setBounds = vi.fn();
-  getBounds = vi.fn(() => ({ x: 0, y: 0, width: 800, height: 600 }));
+  private bounds = { x: 0, y: 0, width: 800, height: 600 };
+  setBounds = vi.fn((bounds: { x: number; y: number; width: number; height: number }) => { this.bounds = bounds; });
+  getBounds = vi.fn(() => this.bounds);
 
   constructor(public options?: unknown) {
     super();

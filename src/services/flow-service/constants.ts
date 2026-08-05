@@ -1,7 +1,7 @@
 import { MODELS } from '../../config';
 import type { FlowActionType, FlowIntent, FlowMode } from './types';
 
-export const FLOW_MODEL = MODELS.FALLBACK || 'gemini-3.5-flash-lite';
+export const FLOW_MODEL = MODELS.PRIMARY;
 export const FLOW_TRANSCRIPTION_MODEL = MODELS.TRANSCRIPTION || FLOW_MODEL;
 
 export const VALID_INTENTS: FlowIntent[] = [

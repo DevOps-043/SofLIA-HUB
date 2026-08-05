@@ -40,7 +40,7 @@ export class BrowserHistoryStore {
     const query = typeof input.query === 'string' ? input.query.trim().toLocaleLowerCase().slice(0, 200) : '';
     const limit = normalizeLimit(input.limit);
     return (await this.readAllUnsafe())
-      .filter((entry) => !query || `${entry.title}\n${entry.url}`.toLocaleLowerCase().includes(query))
+      .filter((entry) => !query || historySearchText(entry, query).includes(query))
       .sort((left, right) => Date.parse(right.visitedAt) - Date.parse(left.visitedAt))
       .slice(0, limit);
   }
@@ -84,6 +84,15 @@ export class BrowserHistoryStore {
     await fs.writeFile(temporary, content, 'utf8');
     await fs.rename(temporary, this.filePath);
   }
+}
+
+function historySearchText(entry: BrowserHistoryEntry, query: string): string {
+  const normalizedUrl = entry.url.toLocaleLowerCase();
+  const withoutProtocol = normalizedUrl.replace(/^https?:\/\//, '');
+  const searchableUrl = query.includes('://')
+    ? normalizedUrl
+    : `${withoutProtocol}\n${withoutProtocol.replace(/^www\./, '')}`;
+  return `${entry.title}\n${searchableUrl}`.toLocaleLowerCase();
 }
 
 export function sanitizeHistoryUrl(raw: unknown): string | null {

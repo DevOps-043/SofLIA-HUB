@@ -87,7 +87,7 @@ export function getWhatsAppAgentUserErrorMessage(error: unknown): string {
     case 'quota':
       return 'Gemini rechazo la solicitud por cuota o limite temporal. Intenta de nuevo en unos minutos o revisa la cuota de la key.';
     case 'model-unavailable':
-      return 'El modelo de Gemini configurado no esta disponible para esta key. Ya intente modelos alternativos; revisa la configuracion de modelos/API.';
+      return 'Gemini 3.6 Flash no esta disponible para esta key. No cambie a otro modelo; revisa el acceso de la API y vuelve a intentar.';
     case 'network':
       return 'No pude conectarme con Gemini en este momento. La conversacion sigue intacta; intenta de nuevo cuando haya conexion.';
     case 'safety':

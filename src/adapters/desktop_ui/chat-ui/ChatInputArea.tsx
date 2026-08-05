@@ -9,6 +9,7 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
   const chat = controller.runtime.chat;
   const canSend = controller.props.canSendMessages;
   const modes = controller.state.modes;
+  const compact = controller.props.compact === true;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const placeholder = !canSend
@@ -17,44 +18,53 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
       ? 'Describe la imagen que quieres generar...'
       : modes.promptOptimizer
         ? 'Escribe el prompt a optimizar...'
-        : 'Mensaje a SOFLIA...';
+        : compact ? 'Escribe a SofLIA...' : 'Mensaje a SOFLIA...';
 
   useLayoutEffect(() => {
     const target = textareaRef.current;
     if (!target) return;
-    target.style.height = '38px';
-    target.style.height = `${Math.min(target.scrollHeight, 160)}px`;
-  }, [input.value]);
+    const baseHeight = compact ? 30 : 36;
+    target.style.height = `${baseHeight}px`;
+    target.style.height = `${Math.min(Math.max(baseHeight, target.scrollHeight), compact ? 112 : 160)}px`;
+  }, [compact, input.value]);
 
   return (
-    <div className="flex-shrink-0 px-4 pb-4 pt-2 bg-background dark:bg-background-dark">
-      <div className="max-w-5xl mx-auto">
+    <div className={`min-w-0 flex-shrink-0 overflow-hidden bg-background dark:bg-background-dark ${compact ? 'px-2 pb-2 pt-1' : 'px-4 pb-3 pt-1.5'}`}>
+      <div className="mx-auto min-w-0 max-w-5xl">
         <ModeBadges controller={controller} />
         <AttachmentPreviewStrip controller={controller} />
-        <div className="w-full bg-[#f0f2f5] dark:bg-[#2A2B32] rounded-[30px] border border-transparent focus-within:border-accent/40 focus-within:ring-2 focus-within:ring-accent/15 focus-within:shadow-[0_0_12px_rgba(0,212,179,0.12)] transition-all flex items-end gap-2 px-2 py-1.5 mt-1 relative">
+        <div className={`relative mt-1 flex w-full items-center border border-border/70 bg-surface-2 transition-all focus-within:border-accent/40 focus-within:ring-2 focus-within:ring-accent/12 ${compact ? 'gap-1 rounded-[18px] px-1 py-1' : 'gap-1.5 rounded-[24px] px-1.5 py-1'}`} style={{ fontFamily: 'var(--font-system-ui)' }}>
           <ToolMenu controller={controller} />
-          <textarea
-            ref={textareaRef}
-            value={input.value}
-            onChange={(event) => input.set(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                controller.onSendClick();
-              }
-            }}
-            onPaste={controller.files.handlePaste}
-            placeholder={placeholder}
-            className="flex-1 bg-transparent text-[15px] focus:outline-none placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 resize-none max-h-[160px] overflow-y-auto !no-scrollbar font-sans py-2 px-2 leading-relaxed mb-0.5"
-            rows={1}
-            disabled={chat.showLoadingUI || !canSend}
-            style={{ height: '38px', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-          />
-          <div className="flex items-center gap-1.5 pr-0.5 mb-0.5">
+          <div className="relative min-w-0 flex-1">
+            {compact && !input.value && (
+              <span aria-hidden="true" className="pointer-events-none absolute inset-x-1 top-1/2 -translate-y-1/2 truncate text-[12px] leading-[18px] text-secondary">
+                {placeholder}
+              </span>
+            )}
+            <textarea
+              ref={textareaRef}
+              value={input.value}
+              onChange={(event) => input.set(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                  event.preventDefault();
+                  controller.onSendClick();
+                }
+              }}
+              onPaste={controller.files.handlePaste}
+              placeholder={compact ? '' : placeholder}
+              aria-label={placeholder}
+              className={`!no-scrollbar min-w-0 w-full resize-none overflow-y-auto bg-transparent text-gray-900 placeholder:text-secondary focus:outline-none dark:text-gray-100 ${compact ? 'px-1 py-[6px] text-[12px] leading-[18px]' : 'px-2 py-[7px] text-[14px] leading-[22px]'}`}
+              rows={1}
+              disabled={chat.showLoadingUI || !canSend}
+              style={{ height: compact ? '30px' : '36px', scrollbarWidth: 'none', msOverflowStyle: 'none', fontFamily: 'var(--font-system-ui)' }}
+            />
+          </div>
+          <div className="flex items-center gap-1 pr-0.5">
             {chat.showLoadingUI ? (
               <button
                 onClick={controller.onStopClick}
-                className="w-9 h-9 flex items-center justify-center rounded-full bg-red-500 hover:bg-red-600 text-white shadow-md transition-all animate-pulse"
+                className={`${compact ? 'h-[30px] w-[30px]' : 'h-[34px] w-[34px]'} flex items-center justify-center rounded-full bg-red-500 hover:bg-red-600 text-white shadow-sm transition-all animate-pulse`}
                 title="Detener lo que SOFLIA está haciendo"
                 aria-label="Detener"
               >
@@ -64,7 +74,7 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
               <button
                 onClick={controller.dictation.isRecording ? () => controller.dictation.stopDictation(true) : controller.onSendClick}
                 disabled={!controller.dictation.isRecording && (chat.showLoadingUI || !canSend || controller.dictation.isTranscribing)}
-                className="w-9 h-9 flex items-center justify-center rounded-full bg-accent hover:bg-accent/80 text-white shadow-md transition-all disabled:opacity-50"
+                className={`${compact ? 'h-[30px] w-[30px]' : 'h-[34px] w-[34px]'} flex items-center justify-center rounded-full bg-accent hover:bg-accent/80 text-on-accent shadow-sm transition-all disabled:opacity-50`}
                 title={controller.dictation.isRecording ? 'Detener dictado' : controller.dictation.isTranscribing ? 'Transcribiendo audio' : 'Enviar mensaje'}
               >
                 {(chat.showLoadingUI || controller.dictation.isTranscribing) && !controller.dictation.isRecording ? '...' : controller.dictation.isRecording ? '■' : '➤'}
@@ -73,7 +83,7 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
               <button
                 onClick={controller.dictation.toggleDictation}
                 disabled={!canSend || controller.dictation.isTranscribing}
-                className="w-9 h-9 flex items-center justify-center rounded-full transition-all bg-white dark:bg-white/[0.04] text-gray-500 hover:text-accent dark:hover:text-accent hover:shadow-sm border border-gray-200 dark:border-white/[0.06]"
+                className={`${compact ? 'h-[30px] w-[30px]' : 'h-[34px] w-[34px]'} flex items-center justify-center rounded-full border border-border bg-card text-secondary transition-all hover:border-accent/25 hover:text-accent`}
                 title={controller.dictation.errorMessage || 'Dictado por voz'}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

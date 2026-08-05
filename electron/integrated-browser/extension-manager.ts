@@ -1,8 +1,8 @@
 import { app, dialog, type BrowserWindow, type Session } from 'electron';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import type { BrowserExtensionMetadata } from './types';
+import type { BrowserExtensionInstallPreview, BrowserExtensionMetadata } from './types';
 
 type StoredExtension = BrowserExtensionMetadata & { managedPath: string };
 type ExtensionRegistry = { version: 1; extensions: StoredExtension[] };
@@ -12,17 +12,24 @@ type ExtensionManifest = {
   version?: unknown;
   permissions?: unknown;
   host_permissions?: unknown;
+  optional_permissions?: unknown;
+  optional_host_permissions?: unknown;
   content_scripts?: unknown;
 };
-type ScannedFile = { source: string; relative: string; size: number };
+type ScannedFile = { source: string; relative: string; size: number; sha256: string };
+type InspectedExtension = Awaited<ReturnType<typeof inspectExtension>>;
+type PendingInstall = { token: string; inspected: InspectedExtension; expiresAt: number };
 
 const MAX_EXTENSION_FILES = 2_000;
 const MAX_EXTENSION_BYTES = 20 * 1024 * 1024;
 const BLOCKED_PERMISSIONS = new Set(['nativeMessaging', 'debugger', 'proxy', 'management']);
+const PENDING_INSTALL_TTL_MS = 5 * 60_000;
 
 export class BrowserExtensionManager {
   private readonly registryPath: string;
   private writeQueue: Promise<void> = Promise.resolve();
+  private pendingInstall: PendingInstall | null = null;
+  private pendingInstallTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private readonly managedRoot = path.join(app.getPath('userData'), 'integrated-browser', 'extensions')) {
     this.registryPath = path.join(this.managedRoot, 'registry.json');
@@ -33,7 +40,8 @@ export class BrowserExtensionManager {
     return (await this.readRegistry()).extensions.map(toMetadata);
   }
 
-  async installFromDialog(parent: BrowserWindow, session: Session): Promise<{ canceled: boolean; extension?: BrowserExtensionMetadata }> {
+  async prepareFromDialog(parent: BrowserWindow): Promise<{ canceled: boolean; preview?: BrowserExtensionInstallPreview }> {
+    this.clearPendingInstall();
     const selection = await dialog.showOpenDialog(parent, {
       title: 'Seleccionar extension desempaquetada',
       properties: ['openDirectory'],
@@ -47,21 +55,34 @@ export class BrowserExtensionManager {
       throw new Error('Selecciona una extension fuera del directorio administrado por SofLIA.');
     }
     const inspected = await inspectExtension(sourceRoot);
-    const permissionLines = [...inspected.permissions, ...inspected.hostPermissions];
-    const permissionDetail = permissionLines.length
-      ? permissionLines.join('\n')
-      : 'Sin permisos adicionales declarados.';
-    const confirmation = await dialog.showMessageBox(parent, {
-      type: 'warning',
-      title: 'Instalar extension del navegador',
-      message: `Instalar ${inspected.name} ${inspected.version}?`,
-      detail: `Origen seleccionado:\n${sourceRoot}\n\nLa extension podra ejecutar codigo en el navegador. Permisos y sitios declarados:\n${permissionDetail}`,
-      buttons: ['Cancelar', 'Instalar'],
-      defaultId: 0,
-      cancelId: 0,
-      noLink: true,
-    });
-    if (confirmation.response !== 1) return { canceled: true };
+    const token = randomUUID();
+    this.pendingInstall = { token, inspected, expiresAt: Date.now() + PENDING_INSTALL_TTL_MS };
+    this.pendingInstallTimer = setTimeout(() => {
+      if (this.pendingInstall?.token === token) this.clearPendingInstall();
+    }, PENDING_INSTALL_TTL_MS);
+    this.pendingInstallTimer.unref?.();
+    return {
+      canceled: false,
+      preview: {
+        token,
+        name: inspected.name,
+        version: inspected.version,
+        permissions: [...inspected.permissions],
+        hostPermissions: [...inspected.hostPermissions],
+      },
+    };
+  }
+
+  async confirmInstall(token: string, session: Session): Promise<BrowserExtensionMetadata> {
+    validateInstallToken(token);
+    const pending = this.pendingInstall;
+    if (!pending || pending.token !== token) throw new Error('La solicitud de instalacion ya no esta disponible.');
+    if (pending.expiresAt < Date.now()) {
+      this.clearPendingInstall();
+      throw new Error('La solicitud de instalacion expiro. Selecciona de nuevo la carpeta.');
+    }
+    this.clearPendingInstall();
+    const { inspected } = pending;
 
     const installId = randomUUID();
     const managedPath = this.resolveManagedPath(installId);
@@ -74,7 +95,11 @@ export class BrowserExtensionManager {
         if (!stat.isFile() || stat.isSymbolicLink() || stat.size !== file.size) {
           throw new Error('La extension cambio durante la instalacion.');
         }
-        await fs.copyFile(file.source, destination);
+        const content = await fs.readFile(file.source);
+        if (content.byteLength !== file.size || hashBuffer(content) !== file.sha256) {
+          throw new Error('La extension cambio durante la instalacion.');
+        }
+        await fs.writeFile(destination, content);
       }
     } catch (error) {
       await fs.rm(managedPath, { recursive: true, force: true });
@@ -89,7 +114,8 @@ export class BrowserExtensionManager {
       extensionId = loaded.id;
       status = 'loaded';
     } catch (error) {
-      loadError = safeError(error);
+      reportLoadFailure(error);
+      loadError = PUBLIC_LOAD_ERROR;
     }
     const stored: StoredExtension = {
       installId,
@@ -110,13 +136,14 @@ export class BrowserExtensionManager {
       await fs.rm(managedPath, { recursive: true, force: true });
       throw error;
     }
-    return { canceled: false, extension: toMetadata(stored) };
+    return toMetadata(stored);
   }
 
   async restore(session: Session): Promise<BrowserExtensionMetadata[]> {
     await this.mutate(async (registry) => {
       for (const item of registry.extensions) {
         if (!item.enabled) {
+          item.extensionId = null;
           item.status = 'disabled';
           item.error = null;
           continue;
@@ -129,7 +156,8 @@ export class BrowserExtensionManager {
         } catch (error) {
           item.extensionId = null;
           item.status = 'error';
-          item.error = safeError(error);
+          item.error = PUBLIC_LOAD_ERROR;
+          reportLoadFailure(error);
         }
       }
     });
@@ -143,6 +171,10 @@ export class BrowserExtensionManager {
     await this.mutate(async (registry) => {
       const item = registry.extensions.find((candidate) => candidate.installId === installId);
       if (!item) throw new Error('Extension no encontrada.');
+      if (enabled && item.enabled && item.status === 'loaded' && item.extensionId) {
+        result = item;
+        return;
+      }
       if (!enabled) {
         if (item.extensionId) session.extensions.removeExtension(item.extensionId);
         item.enabled = false;
@@ -160,7 +192,8 @@ export class BrowserExtensionManager {
           item.enabled = true;
           item.extensionId = null;
           item.status = 'error';
-          item.error = safeError(error);
+          item.error = PUBLIC_LOAD_ERROR;
+          reportLoadFailure(error);
         }
       }
       result = item;
@@ -169,23 +202,12 @@ export class BrowserExtensionManager {
     return toMetadata(result);
   }
 
-  async remove(installId: string, parent: BrowserWindow, session: Session): Promise<boolean> {
+  async remove(installId: string, session: Session): Promise<boolean> {
     validateInstallId(installId);
     await this.writeQueue;
     const registry = await this.readRegistry();
     const item = registry.extensions.find((candidate) => candidate.installId === installId);
     if (!item) return false;
-    const confirmation = await dialog.showMessageBox(parent, {
-      type: 'warning',
-      title: 'Remover extension',
-      message: `Remover ${item.name}?`,
-      detail: 'La extension se descargara y se eliminara su copia administrada de este equipo.',
-      buttons: ['Cancelar', 'Remover'],
-      defaultId: 0,
-      cancelId: 0,
-      noLink: true,
-    });
-    if (confirmation.response !== 1) return false;
     if (item.extensionId) session.extensions.removeExtension(item.extensionId);
     const managedPath = this.resolveManagedPath(installId);
     if (path.resolve(item.managedPath) !== managedPath) throw new Error('Ruta administrada de extension invalida.');
@@ -199,6 +221,12 @@ export class BrowserExtensionManager {
   private resolveManagedPath(installId: string): string {
     validateInstallId(installId);
     return safeJoin(this.managedRoot, installId);
+  }
+
+  private clearPendingInstall(): void {
+    if (this.pendingInstallTimer) clearTimeout(this.pendingInstallTimer);
+    this.pendingInstallTimer = null;
+    this.pendingInstall = null;
   }
 
   private async mutate(operation: (registry: ExtensionRegistry) => void | Promise<void>): Promise<void> {
@@ -264,24 +292,35 @@ async function inspectExtension(root: string): Promise<{
       }
       if (!entry.isFile()) throw new Error('La extension contiene un tipo de archivo no permitido.');
       totalBytes += stat.size;
-      files.push({ source, relative: path.relative(root, source), size: stat.size });
-      if (files.length > MAX_EXTENSION_FILES || totalBytes > MAX_EXTENSION_BYTES) {
+      if (files.length + 1 > MAX_EXTENSION_FILES || totalBytes > MAX_EXTENSION_BYTES) {
         throw new Error('La extension excede los limites de archivos o tamano.');
       }
+      const content = await fs.readFile(source);
+      if (content.byteLength !== stat.size) throw new Error('La extension cambio durante la inspeccion.');
+      files.push({ source, relative: path.relative(root, source), size: stat.size, sha256: hashBuffer(content) });
     }
   };
   await walk(root);
   const manifestFile = files.find((file) => file.relative.replace(/\\/g, '/') === 'manifest.json');
   if (!manifestFile || manifestFile.size > 256 * 1024) throw new Error('La extension no contiene un manifest valido.');
-  const manifest = JSON.parse(await fs.readFile(manifestFile.source, 'utf8')) as ExtensionManifest;
+  const manifestContent = await fs.readFile(manifestFile.source);
+  if (manifestContent.byteLength !== manifestFile.size || hashBuffer(manifestContent) !== manifestFile.sha256) {
+    throw new Error('La extension cambio durante la inspeccion.');
+  }
+  const manifest = JSON.parse(manifestContent.toString('utf8')) as ExtensionManifest;
   if (manifest.manifest_version !== 3) throw new Error('Solo se permiten extensiones Manifest V3.');
   const name = readManifestText(manifest.name, 'nombre', 120);
   const version = readManifestText(manifest.version, 'version', 40);
-  const permissions = readStringArray(manifest.permissions, 100);
+  const permissions = [...new Set([
+    ...readStringArray(manifest.permissions, 100),
+    ...readStringArray(manifest.optional_permissions, 100),
+  ])];
   const hostPermissions = [...new Set([
     ...readStringArray(manifest.host_permissions, 100),
+    ...readStringArray(manifest.optional_host_permissions, 100),
     ...readContentScriptMatches(manifest.content_scripts),
   ])];
+  if (hostPermissions.length > 300) throw new Error('La extension declara demasiados sitios.');
   const blocked = permissions.find((permission) => BLOCKED_PERMISSIONS.has(permission));
   if (blocked) throw new Error(`La extension solicita el permiso bloqueado ${blocked}.`);
   return { name, version, permissions, hostPermissions, files };
@@ -327,6 +366,10 @@ function validateInstallId(value: unknown): asserts value is string {
   if (typeof value !== 'string' || !/^[a-f\d-]{16,64}$/i.test(value)) throw new Error('Identificador de extension invalido.');
 }
 
+function validateInstallToken(value: unknown): asserts value is string {
+  if (typeof value !== 'string' || !/^[a-f\d-]{16,64}$/i.test(value)) throw new Error('Token de instalacion invalido.');
+}
+
 function isStoredExtension(value: unknown): value is StoredExtension {
   if (!value || typeof value !== 'object') return false;
   const item = value as Partial<StoredExtension>;
@@ -348,10 +391,20 @@ function isStringArray(value: unknown): value is string[] {
 }
 
 function toMetadata(value: StoredExtension): BrowserExtensionMetadata {
-  const { installId, extensionId, name, version, permissions, hostPermissions, enabled, status, error } = value;
-  return { installId, extensionId, name, version, permissions: [...permissions], hostPermissions: [...hostPermissions], enabled, status, error };
+  const { installId, extensionId, name, version, permissions, hostPermissions, enabled, status } = value;
+  return { installId, extensionId, name, version, permissions: [...permissions], hostPermissions: [...hostPermissions], enabled, status, error: status === 'error' ? PUBLIC_LOAD_ERROR : null };
 }
 
 function safeError(error: unknown): string {
   return (error instanceof Error ? error.message : String(error)).replace(/[\r\n\t]+/g, ' ').slice(0, 240);
+}
+
+const PUBLIC_LOAD_ERROR = 'No se pudo cargar la extensión. Revisa que sea compatible con Electron y vuelve a intentarlo.';
+
+function reportLoadFailure(error: unknown): void {
+  console.warn('[Navegador][Extensiones] Falló una carga:', safeError(error));
+}
+
+function hashBuffer(value: Uint8Array): string {
+  return createHash('sha256').update(value).digest('hex');
 }

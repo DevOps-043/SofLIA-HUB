@@ -1,7 +1,7 @@
 import { OPENAI_VECTOR_STORE_IDS } from '../../config';
 
-/** web_search no admite razonamiento 'minimal' en la familia GPT-5. */
-const WEB_SEARCH_UNSUPPORTED_EFFORTS = new Set(['none', 'minimal']);
+/** web_search se omite en el modo sin razonamiento. */
+const WEB_SEARCH_UNSUPPORTED_EFFORTS = new Set(['none']);
 
 export interface HostedToolParams {
   useWebSearch: boolean;

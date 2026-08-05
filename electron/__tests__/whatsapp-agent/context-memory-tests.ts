@@ -50,27 +50,18 @@ export function registerContextMemoryTests(ctx: WhatsAppAgentTestContext): void 
     });
   });
 
-  describe('WA-039B: model fallback', () => {
-    it('should retry with a fallback model when the primary model is unavailable', async () => {
+  describe('WA-039B: modelo único', () => {
+    it('should report an unavailable model without silently falling back', async () => {
       const { agent, waService } = createAgentWithService(ctx);
-      const primarySendMessage = vi.fn().mockRejectedValue(new Error('models/gemini-3.5-flash is not found for API version v1beta'));
-      const fallbackSendMessage = vi.fn().mockResolvedValue({
-        response: {
-          text: () => 'OK fallback',
-          candidates: [{ content: { parts: [{ text: 'OK fallback' }] } }],
-          functionCalls: () => null,
-        },
-      });
+      const primarySendMessage = vi.fn().mockRejectedValue(new Error('models/gemini-3.6-flash is not found for API version v1beta'));
 
-      ctx.mockGetGenerativeModel
-        .mockImplementationOnce(() => ({ startChat: () => ({ sendMessage: primarySendMessage }) }))
-        .mockImplementationOnce(() => ({ startChat: () => ({ sendMessage: fallbackSendMessage }) }));
+      ctx.mockGetGenerativeModel.mockImplementationOnce(() => ({ startChat: () => ({ sendMessage: primarySendMessage }) }));
 
       await agent.handleMessage('123@s.whatsapp.net', '5215500000000', 'Hola');
 
-      expect(ctx.mockGetGenerativeModel).toHaveBeenNthCalledWith(1, expect.objectContaining({ model: 'gemini-3.5-flash' }));
-      expect(ctx.mockGetGenerativeModel).toHaveBeenNthCalledWith(2, expect.objectContaining({ model: 'gemini-3.5-flash-lite' }));
-      expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', 'OK fallback');
+      expect(ctx.mockGetGenerativeModel).toHaveBeenCalledTimes(1);
+      expect(ctx.mockGetGenerativeModel).toHaveBeenCalledWith(expect.objectContaining({ model: 'gemini-3.6-flash' }));
+      expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', expect.stringContaining('No cambie a otro modelo'));
     });
   });
 }

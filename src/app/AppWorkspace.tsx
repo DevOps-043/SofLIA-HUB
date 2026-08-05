@@ -3,7 +3,7 @@ import { ProductivityDashboard } from '../components/ProductivityDashboard';
 import { RegistroDecisiones } from '../components/sdo/RegistroDecisiones';
 import { BrowserWorkspaceLayout } from '../components/browser/BrowserWorkspaceLayout';
 import type { MouseEvent } from 'react';
-import { ShareLinkNoticeBanner } from './AppNotices';
+import { LiaDegradedNotice, ShareLinkNoticeBanner } from './AppNotices';
 import { AppChatView } from './AppChatView';
 import { AppProjectView } from './AppProjectView';
 import type { ActiveView, ChatState, FolderState, ShareLinkNotice, ShareTarget } from './app-types';
@@ -20,13 +20,19 @@ interface AppWorkspaceProps {
   currentFolder?: FolderState['folders'][number];
   externalPrompt: string | null;
   folder: FolderState;
+  liaDegraded: boolean;
+  liaStatusMessage?: string | null;
   onRetryConversations?: () => Promise<boolean>;
   onDeleteConversation: (conversationId: string, event: MouseEvent) => Promise<void>;
   onExternalPromptProcessed: () => void;
   onMessagesChange: (messages: ChatState['currentMessages']) => void;
+  onNewChat: () => Promise<void>;
   onNewChatInProject: (folderId: string) => Promise<void>;
   onNewChatWithMessage: (folderId: string, message: string) => Promise<void>;
   onSelectConversation: (conversationId: string) => Promise<void>;
+  onOpenBrowser?: () => void;
+  onOpenMeetings?: () => void;
+  onOpenSdo?: () => void;
   orgId: string;
   setShareTarget: (target: ShareTarget | null) => void;
   shareLinkNotice: ShareLinkNotice | null;
@@ -39,6 +45,7 @@ export function AppWorkspace(props: AppWorkspaceProps) {
 
   const chatView = (
     <AppChatView
+      compact={props.browserWorkspaceOpen}
       avatarUrl={props.avatarUrl}
       canShareConversation={canShareConversation}
       chat={props.chat}
@@ -46,9 +53,13 @@ export function AppWorkspace(props: AppWorkspaceProps) {
       externalPrompt={props.externalPrompt}
       onExternalPromptProcessed={props.onExternalPromptProcessed}
       onMessagesChange={props.onMessagesChange}
+      onRetryConversations={props.onRetryConversations}
       onShareConversation={canShareConversation ? () => props.setShareTarget({ targetId: props.currentConversation!.id, targetType: 'conversation', targetName: props.currentConversation!.title }) : undefined}
       userId={props.userId}
       userSettings={props.userSettings}
+      onOpenBrowser={props.onOpenBrowser}
+      onOpenMeetings={props.onOpenMeetings}
+      onOpenSdo={props.onOpenSdo}
     />
   );
 
@@ -57,7 +68,14 @@ export function AppWorkspace(props: AppWorkspaceProps) {
       <main className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
         {props.shareLinkNotice && <ShareLinkNoticeBanner notice={props.shareLinkNotice} />}
         {props.liaDegraded && !props.userId && <LiaDegradedNotice message={props.liaStatusMessage || undefined} />}
-        <BrowserWorkspaceLayout chat={chatView} onClose={props.onCloseBrowserWorkspace ?? (() => undefined)} />
+        <BrowserWorkspaceLayout
+          chat={chatView}
+          conversations={props.chat.conversations}
+          currentConversationId={props.chat.currentConversationId}
+          onClose={props.onCloseBrowserWorkspace ?? (() => undefined)}
+          onNewChat={props.onNewChat}
+          onSelectConversation={props.onSelectConversation}
+        />
       </main>
     );
   }

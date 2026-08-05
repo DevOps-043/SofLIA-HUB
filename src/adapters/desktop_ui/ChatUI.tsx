@@ -8,7 +8,7 @@ export const ChatUI = (props: ChatUIProps) => {
   const controller = useChatUIController(props);
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-background dark:bg-background-dark relative">
+    <div className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background dark:bg-background-dark">
       <MessagesViewport controller={controller} />
       <ChatInputArea controller={controller} />
       <input

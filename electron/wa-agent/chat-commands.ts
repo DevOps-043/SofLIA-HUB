@@ -10,6 +10,7 @@ import type { WhatsAppService } from '../whatsapp-service';
 import type { WorkflowHubService } from '../workflow-hub-service';
 import type { WorkspaceAutomationService } from '../workspace-automation-service';
 import { WorkflowManager } from '../whatsapp-workflow-presentacion';
+import { WA_MODEL } from './constants';
 import { handleActivationCommand } from './chat-commands/activation';
 import { buildHelpText } from './chat-commands/help';
 import { handlePermissionsCommand } from './chat-commands/permissions';
@@ -41,7 +42,7 @@ export async function handleChatCommand(context: ChatCommandContext): Promise<st
 
   switch (cmd) {
     case '/status':
-      return `*SofLIA activa*\n- Modelo: Gemini 2.5 Flash\n- Modo: ${context.isGroup ? 'Grupo' : 'DM'}\n- Historial: ${context.conversations.get(sessionKey)?.length || 0} mensajes`;
+      return `*SofLIA activa*\n- Modelo: ${WA_MODEL}\n- Modo: ${context.isGroup ? 'Grupo' : 'DM'}\n- Historial: ${context.conversations.get(sessionKey)?.length || 0} mensajes`;
 
     case '/reset':
     case '/new':

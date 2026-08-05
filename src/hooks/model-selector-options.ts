@@ -1,3 +1,5 @@
+import { SOFLIA_RUNTIME_MODEL } from '../shared/soflia-runtime-model';
+
 export interface ThinkingOption {
   id: string;
   name: string;
@@ -6,6 +8,8 @@ export interface ThinkingOption {
   budget?: number;
 }
 
+export type ModelProvider = 'google' | 'openai';
+
 export type ModelIconKey = 'spark' | 'bolt' | 'nodes' | 'feather' | 'globe' | 'moon';
 
 export interface ModelOption {
@@ -13,29 +17,31 @@ export interface ModelOption {
   name: string;
   desc: string;
   icon: ModelIconKey;
+  provider: ModelProvider;
   badge?: string;
   thinkingType: 'level' | 'budget';
+  defaultThinkingId: string;
   thinkingOptions: ThinkingOption[];
 }
 
 const THINKING_OPTIONS_GEMINI3_FLASH: ThinkingOption[] = [
-  { id: 'minimal', name: 'Rapido', desc: 'Responde rapidamente', level: 'minimal' },
-  { id: 'low', name: 'Pensar', desc: 'Razonamiento basico', level: 'low' },
+  { id: 'low', name: 'Bajo', desc: 'Razonamiento ligero', level: 'low' },
   { id: 'medium', name: 'Medio', desc: 'Razonamiento balanceado', level: 'medium' },
   { id: 'high', name: 'Alto', desc: 'Maximo razonamiento', level: 'high' },
 ];
 
-// GPT-5.6 expone el esfuerzo de razonamiento en `reasoning.effort`; los ids
-// coinciden con los valores que acepta la Responses API.
+// El producto no expone un modo sin razonamiento. `xhigh` y `max` son
+// exclusivos de la familia OpenAI.
 const THINKING_OPTIONS_GPT56: ThinkingOption[] = [
-  { id: 'minimal', name: 'Rapido', desc: 'Responde rapidamente', level: 'minimal' },
-  { id: 'low', name: 'Pensar', desc: 'Razonamiento basico', level: 'low' },
+  { id: 'low', name: 'Bajo', desc: 'Razonamiento ligero', level: 'low' },
   { id: 'medium', name: 'Medio', desc: 'Razonamiento balanceado', level: 'medium' },
-  { id: 'high', name: 'Alto', desc: 'Maximo razonamiento', level: 'high' },
+  { id: 'high', name: 'Alto', desc: 'Razonamiento profundo', level: 'high' },
+  { id: 'xhigh', name: 'Muy alto', desc: 'Mayor exploracion y verificacion', level: 'xhigh' },
+  { id: 'max', name: 'Maximo', desc: 'Calidad prioritaria para tareas dificiles', level: 'max' },
 ];
 
 /** Modelo por defecto del chat. */
-export const DEFAULT_MODEL_ID = 'gemini-3.6-flash';
+export const DEFAULT_MODEL_ID = SOFLIA_RUNTIME_MODEL;
 
 export const MODEL_OPTIONS: ModelOption[] = [
   {
@@ -43,7 +49,9 @@ export const MODEL_OPTIONS: ModelOption[] = [
     name: 'SofLIA',
     desc: 'Equilibrio ideal para el dia a dia.',
     icon: 'spark',
+    provider: 'google',
     thinkingType: 'level',
+    defaultThinkingId: 'medium',
     thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH,
   },
   {
@@ -51,16 +59,20 @@ export const MODEL_OPTIONS: ModelOption[] = [
     name: 'SofLIA Max',
     desc: 'Maxima potencia para tareas exigentes.',
     icon: 'globe',
+    provider: 'openai',
     badge: '3/mes',
     thinkingType: 'level',
+    defaultThinkingId: 'medium',
     thinkingOptions: THINKING_OPTIONS_GPT56,
   },
   {
     id: 'gpt-5.6-luna',
     name: 'SofLIA Pro',
-    desc: 'Rapido y capaz para comandos y acciones.',
+    desc: 'Capaz para comandos y acciones.',
     icon: 'moon',
+    provider: 'openai',
     thinkingType: 'level',
+    defaultThinkingId: 'medium',
     thinkingOptions: THINKING_OPTIONS_GPT56,
   },
   {
@@ -68,7 +80,9 @@ export const MODEL_OPTIONS: ModelOption[] = [
     name: 'SofLIA Lite',
     desc: 'Ultra ligero para tareas simples.',
     icon: 'feather',
+    provider: 'google',
     thinkingType: 'level',
+    defaultThinkingId: 'low',
     thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH,
   },
 ];

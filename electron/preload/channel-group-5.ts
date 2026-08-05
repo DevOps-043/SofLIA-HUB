@@ -7,6 +7,7 @@ export const CHANNEL_GROUP_5 = [
   'integrated-browser:credentials-remove',
   'integrated-browser:extensions-list',
   'integrated-browser:extensions-install',
+  'integrated-browser:extensions-confirm-install',
   'integrated-browser:extensions-set-enabled',
   'integrated-browser:extensions-remove',
 ] as const;

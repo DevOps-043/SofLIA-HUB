@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
 import { composeMessageFallback } from './fallback-message';
 import type { ProactivePayload } from './types';
 
@@ -9,7 +10,7 @@ export async function composeProactiveMessage(
   if (!apiKey) return composeMessageFallback(payload);
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
+    const model = genAI.getGenerativeModel({ model: SOFLIA_RUNTIME_MODEL });
     const result = await model.generateContent(buildProactivePrompt(payload));
     return result.response.text() || composeMessageFallback(payload);
   } catch (error) {

@@ -103,17 +103,27 @@ ejecutando acciones a espaldas del usuario.
 
 ### 2.3 Modelos y razonamiento
 
-`src/hooks/model-selector-options.ts` expone cuatro modelos con nombre de
-producto:
+`src/hooks/model-selector-options.ts` expone el catálogo conversacional:
 
 | Nombre en la UI | Modelo | Modos de razonamiento |
 |---|---|---|
-| SofLIA | `gemini-3.5-flash` | Rapido / Pensar / Medio / Alto |
-| SofLIA Next | `gemini-3.6-flash` (badge "Nuevo") | Rapido / Pensar / Medio / Alto |
-| SofLIA Pro | `gemini-2.5-pro` | Pensar / Pro |
-| SofLIA Lite | `gemini-3.5-flash-lite` | Rapido / Pensar / Medio / Alto |
+| SofLIA | `gemini-3.6-flash` | Bajo / Medio / Alto |
+| SofLIA Max | `gpt-5.6-terra` | Bajo / Medio / Alto / Muy alto / Maximo |
+| SofLIA Pro | `gpt-5.6-luna` | Bajo / Medio / Alto / Muy alto / Maximo |
+| SofLIA Lite | `gemini-3.5-flash-lite` | Bajo / Medio / Alto |
 
-`buildGenerationConfig` fija `maxOutputTokens: 16384`. En modelos que lo
+SofLIA usa `gemini-3.6-flash` por defecto. El modelo elegido determina el
+proveedor del turno: SofLIA y Lite usan Google; Max y Pro usan OpenAI. La
+selección y el nivel se conservan por modelo en preferencias locales. El modo
+“Rápido” no se expone; preferencias antiguas `minimal` o `none` se migran a
+`low`. Una solicitud que necesita Computer Use conserva el modelo y esfuerzo
+seleccionados como orquestador del turno. La herramienta `use_computer` delega
+solo la percepción y actuación al `gemini-3.6-flash` fijo de main, sin degradar
+ese actuador ni sustituir silenciosamente el proveedor conversacional.
+
+`buildGenerationConfig` fija `maxOutputTokens: 16384` y envía
+`thinkingConfig.thinkingLevel` a Gemini. OpenAI usa Responses API y envía el
+nivel como `reasoning.effort`. En modelos que lo
 soportan (`supportsCodeExecutionCombo`), se agrega `{ codeExecution: {} }` a las
 herramientas: los cálculos salen de Python real, no de aritmética "de memoria".
 
@@ -124,22 +134,39 @@ herramientas: los cálculos salen de Python real, no de aritmética "de memoria"
 - con computer use habilitado: `COMPUTER_USE_TOOLS`, `PROJECT_HUB_TOOLS`,
   `NATIVE_AI_TOOLS`;
 - sin computer use: solo `PROJECT_HUB_TOOLS` y `NATIVE_AI_TOOLS`;
+- si existe el navegador integrado: `INTEGRATED_BROWSER_TOOLS` se agrega con
+  `read_browser_dom` y `navigate_integrated_browser`, independientemente de
+  Computer Use;
 - `GOOGLE_WORKSPACE_TOOLS` se agrega únicamente si el bridge `window.calendar`
   existe (Google conectado);
 - `codeExecution` si el modelo lo permite.
+
+OpenAI recibe `web_search` hospedado con `tool_choice: auto` cuando la intención
+requiere investigación pública. Gemini conserva primero el modelo elegido por
+el usuario y usa Google Search/URL Context; los modelos de fallback sólo se
+intentan después. En ambos proveedores la jerarquía es DOM o búsqueda web,
+navegación determinista y, únicamente si hacen falta percepción visual o
+acciones iterativas, `use_computer`.
 
 El dispatcher (`tool-dispatch.ts`) rechaza cualquier nombre desconocido
 (`isKnownGeminiTool`) antes de intentar ejecutarlo.
 
 ### 2.5 Catálogo del agente de chat
 
-**78 declaraciones** repartidas en nueve módulos de `src/services/gemini-tools/`.
+**80 declaraciones** repartidas en diez módulos de `src/services/gemini-tools/`.
+
+**Navegador integrado determinista** (`integrated-browser-tools.ts`)
+
+| Herramienta | Qué hace |
+|---|---|
+| `read_browser_dom` | Lee el DOM saneado y acotado de la pestaña activa sin captura base64 ni Computer Use. |
+| `navigate_integrated_browser` | Abre una URL HTTP(S) o consulta en la pestaña activa y devuelve su DOM saneado, conservando la sesión. |
 
 **Automatización de computadora** (`computer-automation-tools.ts`)
 
 | Herramienta | Qué hace |
 |---|---|
-| `use_computer` | Tarea autónoma en backend `browser`, `uia` o `desktop`; `uia` puede escalar a `desktop` si no verifica el cambio. Devuelve `outcome`/`estado`. |
+| `use_computer` | Observa o ejecuta una tarea autónoma en backend `browser`, `uia` o `desktop`; `browser` reutiliza la vista y sesión visibles, y `uia` puede escalar a `desktop` si no verifica el cambio. Devuelve `outcome`/`estado`. |
 | `list_browser_profiles` | Lista perfiles persistentes de `browser_web`. |
 | `reset_browser_profile` | Borra un perfil persistente. |
 
@@ -300,20 +327,12 @@ con el objetivo real.
 
 ### 3.6 Selección de modelo
 
-`WA_MODEL` es `gemini-3.5-flash`. Los candidatos se prueban en orden:
-`VITE_WHATSAPP_GEMINI_MODEL` → `WHATSAPP_GEMINI_MODEL` → `WA_MODEL` →
-`WA_MODEL_FALLBACKS` (`gemini-3.5-flash-lite`, `gemini-2.5-flash`,
-`gemini-2.0-flash`, `gemini-1.5-flash`). Solo se salta al siguiente ante error
-de disponibilidad del modelo; cualquier otro error se propaga. Esto evita que
-WhatsApp quede mudo si una API key nueva no tiene acceso al alias principal.
+`WA_MODEL` es `gemini-3.6-flash`. No se aceptan overrides ni fallbacks de
+modelo: un error de disponibilidad se reporta sin degradar silenciosamente.
 
 `generationConfig`: `maxOutputTokens: 4096`. El historial persistido se limita a
 30 mensajes al cargar y `MAX_HISTORY` es 20. Si el historial está corrupto, se
 reinicia la sesión en vez de fallar.
-
-> Detalle conocido: el comando `/status` imprime "Modelo: Gemini 2.5 Flash" como
-> texto fijo; el modelo real es el de `WA_MODEL`. Es una cadena desactualizada en
-> `wa-agent/chat-commands.ts`, no un cambio de modelo.
 
 ### 3.7 Visibilidad de herramientas
 
@@ -830,8 +849,67 @@ mueve el cursor a puntos conocidos por monitor y verifica con `GetCursorPos`
 escritorio (nut.js), navegador integrado (`WebContentsView`) y Playwright
 aislado, mas mapeo de acciones propio. Se controla con:
 
+Mientras el navegador integrado está visible, main conserva una captura visual
+acotada de la pestaña enfocada con cadencia base de diez segundos. Esa ruta
+pasiva no ejecuta JavaScript ni recorre el DOM, espera cuatro segundos de calma
+después de interacción, navegación o resize y se omite cuando su ventana no
+tiene foco o Computer Use está actuando. La copia se reduce a un máximo de 1024
+px en su lado mayor antes de codificarla; las capturas explícitas no se degradan.
+Cuando un turno o herramienta necesita
+comprender la página, reutiliza la captura reciente y obtiene bajo demanda DOM
+semántico acotado; solo el último snapshot permanece en memoria. La evidencia combina:
+texto público, encabezados, landmarks, controles, frames y geometría. Omite
+valores escritos, contenido editable, contraseñas y credenciales de URL. El
+renderer la obtiene por `integrated-browser:get-observation` y la adjunta al
+siguiente turno multimodal; el refresco por sí solo nunca invoca al modelo. El
+usuario puede pausarlo con el control visible, lo que descarta la evidencia.
+Antes de resolver cada turno con una referencia contextual, el renderer solicita
+una observación puntual reciente. La clasificación incluye expresiones sin verbo
+visual como “el repositorio que me mandó Ernesto”: una lectura del texto visible
+se responde con captura + DOM. El contenido público detrás de un enlace se
+resuelve primero mediante búsqueda web o URL Context; `read_browser_dom` puede
+refrescar la estructura visible y `navigate_integrated_browser` abre un destino
+conocido en la misma sesión sin actuador visual. Si la captura puntual no está
+disponible, la ruta intenta observar con la herramienta antes de afirmar que
+carece de acceso. Para clics, escritura, scroll, formularios, autenticación o
+contenido dinámico que no pueda leerse de forma determinista, `use_computer` con
+backend `browser` conserva la misma URL, cookies y sesión. Si la vista no está
+visible o la captura falla, el chat no presenta una observación
+inventada. El DOM se marca como contenido no confiable y no autoriza acciones.
+
+El navegador puede mantener hasta 500 pestañas lógicas, con un máximo de ocho
+`WebContentsView` vivas y dos visibles en composición dividida o superpuesta.
+Hasta cuatro de esas ocho vistas pueden separarse en `BaseWindow` nativas sin
+recarga o sesión adicional; cerrar una ventana la reintegra al workspace.
+`activeTabId` sigue el foco; captura, tamaño del viewport,
+eventos de entrada y credenciales se resuelven exclusivamente contra esa pestaña.
+Los popups HTTP(S) crean otra pestaña interna y nunca cambian al navegador externo.
+
+El chat compacto reserva un inset izquierdo o derecho y mantiene el
+`WebContentsView` visible; no estaciona la vista ni usa PNG para componer la
+página. La percepción de main está serializada para no solapar capturas y el
+walker DOM descarta nodos alejados del viewport antes de consultar estilos. Si
+Computer Use no puede iniciar o capturar esa vista, la tarea termina como
+`fallida` y no se reintenta mediante desktop ni el navegador predeterminado.
+El panel mide el inicio del contenido y comienza debajo de la barra superior;
+por ello no tapa atrás, adelante, dirección ni las herramientas del navegador.
+El encabezado compacto permite cambiar el modelo conversacional y su nivel de
+razonamiento; la preferencia se sincroniza con el runtime del chat antes del
+siguiente turno. También ofrece un popover de conversaciones con búsqueda,
+chat activo y `Nuevo chat`; reutiliza los handlers del workspace y no desmonta
+el navegador. La fila secundaria con título y gestores puede plegarse para
+ganar altura y la barra de dirección ofrece sugerencias deduplicadas del
+historial local. El menú se superpone sin cambiar la geometría del navegador:
+usa una captura puntual en memoria, oculta la capa nativa solo mientras está
+visible y restaura la misma sesión al cerrarse. Estas sugerencias no exponen
+contenido de página ni secretos.
+
+Las extensiones desempaquetadas muestran permisos, hosts y declaraciones
+opcionales antes de instalarse. Una extensión con error puede reintentarse sin
+reinstalarla; el renderer recibe un diagnóstico genérico y nunca una ruta local.
+
 - `computerUseEngine`: `'gemini'` o `'legacy'` (default `'gemini'`);
-- `computerUseModel`: `gemini-3.5-flash`;
+- `computerUseModel`: `gemini-3.6-flash` (único; sin fallback de modelo);
 - `computerUseDesktopEnabled` / `computerUseBrowserEnabled`: `true`;
 - `computerUsePromptInjectionDetection`: `true` (detección de inyección en la
   captura).
@@ -845,9 +923,10 @@ aislado, mas mapeo de acciones propio. Se controla con:
   emitiendo `task-queued`. Expiran a `queueTimeoutMs` (60 s) emitiendo
   `task-queue-timeout`, y respetan `AbortSignal` — una tarea abandonada nunca se
   ejecuta minutos después a espaldas del usuario.
-- **Presupuesto de pasos**: `maxSteps` 60 es el tope duro, `defaultStepBudget` 40
-  el default, `maxTotalSteps` 500 el acumulado; el presupuesto real es
-  proporcional al plan.
+- **Presupuesto de pasos**: `maxSteps` 120 es el tope duro,
+  `defaultStepBudget` 60 el default y `maxTotalSteps` 500 el acumulado; las
+  tareas del navegador integrado reciben un mínimo de 90 para autenticaciones
+  y flujos multipaso, pero terminan antes al completar.
 - **Outcome estructurado** (`task-outcome.ts`): `completada`, `fallida`,
   `cancelada`, `presupuesto_agotado`, `cola_expirada`, con `pasosEjecutados`,
   `duracionMs` y `ultimaVentana`.
@@ -866,8 +945,8 @@ aislado, mas mapeo de acciones propio. Se controla con:
 
 | Flag | Default | Controla |
 |---|---|---|
-| `maxSteps` | 60 | Tope duro de pasos |
-| `defaultStepBudget` | 40 | Presupuesto por defecto |
+| `maxSteps` | 120 | Tope duro de pasos |
+| `defaultStepBudget` | 60 | Presupuesto por defecto; 90 mínimo en navegador integrado |
 | `maxTotalSteps` | 500 | Pasos acumulados |
 | `screenshotWidth` / `screenshotHeight` | 1024 / 768 | Tamaño base de captura |
 | `defaultActionDelay` | 300 ms | Espera entre acciones |
@@ -876,8 +955,8 @@ aislado, mas mapeo de acciones propio. Se controla con:
 | `planningEnabled` | true | Planeación estratégica |
 | `hierarchicalPlanningEnabled` | true | Plan por fases |
 | `memoryWindowSize` | 10 | Ventana de memoria del paso |
-| `model` / `fallbackModel` | `gemini-3.5-flash` / `gemini-2.5-pro` | Modelo de visión |
-| `proactiveModel` | `gemini-2.5-pro` | Modelo proactivo |
+| `model` / `fallbackModel` | `gemini-3.6-flash` / `gemini-3.6-flash` | Modelo único de visión; el campo fallback se conserva por compatibilidad |
+| `proactiveModel` | `gemini-3.6-flash` | Modelo proactivo |
 | `maxConsecutiveFailures` | 3 | Fallos seguidos tolerados |
 | `stuckDetectionThreshold` | 4 | Detección de atasco |
 | `autoRecoverFromDialogs` | true | Recuperación ante diálogos |

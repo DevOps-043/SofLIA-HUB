@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { saveSettings } from '../services/settings-service';
 import { IdentityCard } from './settings-modal/IdentityCard';
 import { LoadingState } from './settings-modal/LoadingState';
@@ -15,6 +15,7 @@ import { SectionHeader } from './ui/SectionHeader';
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, userId, onSave, embedded = false }) => {
   const [saving, setSaving] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const form = useSettingsForm({ isOpen, userId });
   const proactive = useProactiveConfig(isOpen);
 
@@ -28,6 +29,40 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
   });
 
   const [activeSubTab, setActiveSubTab] = useState<'personality' | 'interface' | 'proactive'>('personality');
+
+  useEffect(() => {
+    if (!isOpen || embedded) return undefined;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const frame = requestAnimationFrame(() => dialogRef.current?.focus());
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+      const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'));
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus();
+    };
+  }, [embedded, isOpen, onClose]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -45,23 +80,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
 
   const content = (
     <div
+      ref={dialogRef}
+      role={embedded ? undefined : 'dialog'}
+      aria-modal={embedded ? undefined : true}
+      aria-labelledby={embedded ? undefined : 'settings-modal-title'}
+      tabIndex={embedded ? undefined : -1}
       className={`flex flex-col overflow-hidden ${
         embedded
           ? 'w-full h-full'
-          : 'w-175 max-h-[85vh] bg-background rounded-3xl border border-border shadow-2xl animate-fade-in relative'
+          : 'w-[760px] max-w-[calc(100vw-2rem)] max-h-[88vh] bg-background rounded-[30px] border border-border shadow-[0_2rem_6rem_rgba(2,12,23,0.48)] animate-fade-in relative'
       }`}
+      style={{ fontFamily: 'var(--font-system-ui)' }}
+      onMouseDown={(event) => event.stopPropagation()}
       onClick={(event) => event.stopPropagation()}
     >
       {!embedded && <SettingsHeader onClose={onClose} />}
 
       {/* Sub-tab navigation bar */}
-      <div className="flex border-b border-border/30 bg-black/[0.01] dark:bg-white/[0.01] px-6 py-2.5 gap-2 flex-shrink-0">
+      <div className="flex flex-shrink-0 gap-1 border-b border-border bg-surface/70 px-6 pt-2">
         <button
           onClick={() => setActiveSubTab('personality')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer select-none ${
+          className={`flex items-center gap-2 border-b-2 px-3 py-2.5 text-xs font-semibold transition-colors duration-150 cursor-pointer select-none ${
             activeSubTab === 'personality'
-              ? 'bg-accent/10 text-accent shadow-[0_2px_8px_rgba(0,212,179,0.06)] border border-accent/20'
-              : 'text-secondary hover:text-primary hover:bg-black/[0.03] dark:hover:bg-white/[0.03] border border-transparent'
+              ? 'border-accent text-accent'
+              : 'border-transparent text-secondary hover:text-primary'
           }`}
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -72,10 +114,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
         
         <button
           onClick={() => setActiveSubTab('interface')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer select-none ${
+          className={`flex items-center gap-2 border-b-2 px-3 py-2.5 text-xs font-semibold transition-colors duration-150 cursor-pointer select-none ${
             activeSubTab === 'interface'
-              ? 'bg-accent/10 text-accent shadow-[0_2px_8px_rgba(0,212,179,0.06)] border border-accent/20'
-              : 'text-secondary hover:text-primary hover:bg-black/[0.03] dark:hover:bg-white/[0.03] border border-transparent'
+              ? 'border-accent text-accent'
+              : 'border-transparent text-secondary hover:text-primary'
           }`}
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -88,10 +130,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
         {proactive.available && (
           <button
             onClick={() => setActiveSubTab('proactive')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer select-none ${
+            className={`flex items-center gap-2 border-b-2 px-3 py-2.5 text-xs font-semibold transition-colors duration-150 cursor-pointer select-none ${
               activeSubTab === 'proactive'
-                ? 'bg-accent/10 text-accent shadow-[0_2px_8px_rgba(0,212,179,0.06)] border border-accent/20'
-                : 'text-secondary hover:text-primary hover:bg-black/[0.03] dark:hover:bg-white/[0.03] border border-transparent'
+                ? 'border-accent text-accent'
+                : 'border-transparent text-secondary hover:text-primary'
             }`}
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -103,7 +145,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
       </div>
 
       {/* Scrollable content area */}
-      <div className="flex-1 overflow-y-auto overflow-x-visible no-scrollbar px-6 py-6 relative z-10">
+      <div className="relative z-10 flex-1 overflow-y-auto overflow-x-visible px-6 py-5 no-scrollbar">
         {form.loading ? (
           <LoadingState />
         ) : (
@@ -135,7 +177,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
   if (embedded) return content;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#030c16]/60 px-4 backdrop-blur-[6px]" onMouseDown={onClose}>
       {content}
     </div>
   );

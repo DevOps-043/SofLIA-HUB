@@ -16,6 +16,7 @@ describe('driver Computer Use del navegador integrado', () => {
       getWebContentsForAgent: () => contents,
       getViewportSize: () => ({ width: 800, height: 600 }),
       getState: () => ({ url: 'https://example.com' }),
+      getObservation: vi.fn(async () => ({ observation: null, observationStatus: { enabled: true } })),
       navigate: vi.fn(async () => ({})),
       goBack: vi.fn(),
       goForward: vi.fn(),
@@ -32,5 +33,24 @@ describe('driver Computer Use del navegador integrado', () => {
     expect(contents.insertText).toHaveBeenCalledWith('hola');
     expect(contents.sendInputEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'mouseWheel', deltaY: -300 }));
     expect(service.navigate).toHaveBeenCalledWith('example.com');
+  });
+
+  it('refuerza cada captura con el DOM saneado de la misma pestaña', async () => {
+    const service = {
+      getViewportSize: () => ({ width: 800, height: 600 }),
+      getState: () => ({ url: 'https://example.com' }),
+      getObservation: vi.fn(async () => ({
+        observation: {
+          capturedAt: '2026-08-05T01:00:00.000Z',
+          screenshot: 'data:image/png;base64,aW1hZ2Vu',
+          dom: { title: 'Ejemplo', url: 'https://example.com/', text: 'Texto público', controls: [] },
+        },
+      })),
+    };
+    const driver = createIntegratedBrowserCuDriver(service as unknown as IntegratedBrowserService);
+    const capture = await driver.capturar();
+
+    expect(capture).toMatchObject({ width: 800, height: 600, base64: 'aW1hZ2Vu' });
+    expect(capture.context).toMatchObject({ trust: 'untrusted_page_content', page: { text: 'Texto público' } });
   });
 });

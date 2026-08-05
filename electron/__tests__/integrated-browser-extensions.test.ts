@@ -22,26 +22,36 @@ afterEach(async () => {
 });
 
 describe('administracion de extensiones del navegador', () => {
-  it('instala una copia MV3 administrada y muestra todos los sitios alcanzados', async () => {
+  it('prepara permisos sin rutas y solo instala la copia MV3 despues de confirmar', async () => {
     await writeManifest({
       manifest_version: 3,
       name: 'Extension de prueba',
       version: '1.2.3',
       permissions: ['storage'],
       host_permissions: ['https://api.example/*'],
+      optional_permissions: ['tabs'],
+      optional_host_permissions: ['https://optional.example/*'],
       content_scripts: [{ matches: ['https://app.example/*'], js: ['content.js'] }],
     });
     await fs.writeFile(path.join(sourceRoot, 'content.js'), 'document.title;', 'utf8');
     vi.mocked(dialog.showOpenDialog).mockResolvedValue({ canceled: false, filePaths: [sourceRoot] });
-    vi.mocked(dialog.showMessageBox).mockResolvedValue({ response: 1, checkboxChecked: false });
     const window = new BrowserWindow();
     const manager = new BrowserExtensionManager(managedRoot);
 
-    const result = await manager.installFromDialog(window, window.webContents.session);
+    const prepared = await manager.prepareFromDialog(window);
+    expect(prepared.preview).toMatchObject({
+      name: 'Extension de prueba',
+      version: '1.2.3',
+      permissions: expect.arrayContaining(['storage', 'tabs']),
+      hostPermissions: expect.arrayContaining(['https://api.example/*', 'https://optional.example/*', 'https://app.example/*']),
+    });
+    expect(prepared.preview).not.toHaveProperty('sourceRoot');
+    expect(dialog.showMessageBox).not.toHaveBeenCalled();
 
-    expect(result.extension?.status).toBe('loaded');
-    expect(result.extension?.hostPermissions).toEqual(expect.arrayContaining(['https://api.example/*', 'https://app.example/*']));
-    expect(dialog.showMessageBox).toHaveBeenCalledWith(window, expect.objectContaining({ detail: expect.stringContaining('https://app.example/*') }));
+    const result = await manager.confirmInstall(prepared.preview!.token, window.webContents.session);
+
+    expect(result.status).toBe('loaded');
+    expect(result.hostPermissions).toEqual(expect.arrayContaining(['https://api.example/*', 'https://app.example/*']));
     expect(window.webContents.session.extensions.loadExtension).toHaveBeenCalledWith(
       expect.stringMatching(/managed/),
       { allowFileAccess: false },
@@ -54,8 +64,44 @@ describe('administracion de extensiones del navegador', () => {
     const window = new BrowserWindow();
     const manager = new BrowserExtensionManager(managedRoot);
 
-    await expect(manager.installFromDialog(window, window.webContents.session)).rejects.toThrow(/permiso bloqueado debugger/i);
+    await expect(manager.prepareFromDialog(window)).rejects.toThrow(/permiso bloqueado debugger/i);
     expect(dialog.showMessageBox).not.toHaveBeenCalled();
+  });
+
+  it('rechaza confirmar una seleccion inexistente o con token distinto', async () => {
+    const window = new BrowserWindow();
+    const manager = new BrowserExtensionManager(managedRoot);
+
+    await expect(manager.confirmInstall('12345678-1234-1234-1234-123456789abc', window.webContents.session))
+      .rejects.toThrow(/ya no esta disponible/i);
+  });
+
+  it('invalida la autorizacion anterior si se abre y cancela un nuevo selector', async () => {
+    await writeManifest({ manifest_version: 3, name: 'Temporal', version: '1.0.0' });
+    vi.mocked(dialog.showOpenDialog)
+      .mockResolvedValueOnce({ canceled: false, filePaths: [sourceRoot] })
+      .mockResolvedValueOnce({ canceled: true, filePaths: [] });
+    const window = new BrowserWindow();
+    const manager = new BrowserExtensionManager(managedRoot);
+
+    const prepared = await manager.prepareFromDialog(window);
+    await expect(manager.prepareFromDialog(window)).resolves.toEqual({ canceled: true });
+    await expect(manager.confirmInstall(prepared.preview!.token, window.webContents.session))
+      .rejects.toThrow(/ya no esta disponible/i);
+  });
+
+  it('rechaza cambios de contenido aunque el archivo conserve el mismo tamaño', async () => {
+    await writeManifest({ manifest_version: 3, name: 'Inmutable', version: '1.0.0' });
+    await fs.writeFile(path.join(sourceRoot, 'content.js'), 'safe();', 'utf8');
+    vi.mocked(dialog.showOpenDialog).mockResolvedValue({ canceled: false, filePaths: [sourceRoot] });
+    const window = new BrowserWindow();
+    const manager = new BrowserExtensionManager(managedRoot);
+
+    const prepared = await manager.prepareFromDialog(window);
+    await fs.writeFile(path.join(sourceRoot, 'content.js'), 'evil();', 'utf8');
+
+    await expect(manager.confirmInstall(prepared.preview!.token, window.webContents.session)).rejects.toThrow(/cambio durante la instalacion/i);
+    expect(window.webContents.session.extensions.loadExtension).not.toHaveBeenCalled();
   });
 
   it('falla cerrado si el registro intenta cargar una ruta externa', async () => {
@@ -80,6 +126,24 @@ describe('administracion de extensiones del navegador', () => {
 
     await expect(manager.restore(window.webContents.session)).rejects.toThrow(/registro.+danado/i);
     expect(window.webContents.session.extensions.loadExtension).not.toHaveBeenCalled();
+  });
+
+  it('no expone rutas locales en errores de carga y permite reintentar', async () => {
+    await writeManifest({ manifest_version: 3, name: 'Recuperable', version: '1.0.0', permissions: ['storage'] });
+    vi.mocked(dialog.showOpenDialog).mockResolvedValue({ canceled: false, filePaths: [sourceRoot] });
+    const window = new BrowserWindow();
+    const loadExtension = vi.mocked(window.webContents.session.extensions.loadExtension);
+    loadExtension.mockRejectedValueOnce(new Error(`No se pudo abrir ${managedRoot}\\archivo.js`));
+    const manager = new BrowserExtensionManager(managedRoot);
+
+    const prepared = await manager.prepareFromDialog(window);
+    const failed = await manager.confirmInstall(prepared.preview!.token, window.webContents.session);
+
+    expect(failed.status).toBe('error');
+    expect(failed.error).not.toContain(managedRoot);
+    loadExtension.mockResolvedValueOnce({ id: 'extension-recuperada' } as never);
+    const recovered = await manager.setEnabled(failed.installId, true, window.webContents.session);
+    expect(recovered).toMatchObject({ status: 'loaded', extensionId: 'extension-recuperada', error: null });
   });
 });
 

@@ -1,4 +1,5 @@
 import type { GoogleGenerativeAI } from '@google/generative-ai';
+import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
 import { sanitizeSearchLogText } from './sensitive';
 import type { ClipboardItem } from './types';
 
@@ -29,7 +30,7 @@ async function searchWithAi(
   genAI: GoogleGenerativeAI,
 ): Promise<string | null> {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
+    const model = genAI.getGenerativeModel({ model: SOFLIA_RUNTIME_MODEL });
     const historyContext = history.map((item, index) => `[ITEM ${index}]:\n${item.text}\n`).join('\n');
     const prompt = `Actua como un asistente que busca informacion en el historial del portapapeles.
 El usuario esta buscando: "${query}"

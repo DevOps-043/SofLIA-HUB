@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { UserMenu } from './sidebar/UserMenu';
 import { SidebarHeader } from './sidebar/SidebarHeader';
 import { SidebarTopActions } from './sidebar/SidebarTopActions';
@@ -11,11 +11,76 @@ import type { SidebarProps } from './sidebar/types';
 
 export type { SidebarProps } from './sidebar/types';
 
+const DEFAULT_SIDEBAR_WIDTH = 276;
+const MIN_SIDEBAR_WIDTH = 220;
+const MAX_SIDEBAR_WIDTH = 520;
+
 export function Sidebar(props: SidebarProps) {
   const { isOpen, onToggle, onNewChat, onCreateFolderClick } = props;
   const [foldersOpen, setFoldersOpen] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    try {
+      const stored = localStorage.getItem('sofLia_sidebarWidth');
+      if (stored) {
+        const parsed = parseInt(stored, 10);
+        if (!isNaN(parsed) && parsed >= MIN_SIDEBAR_WIDTH && parsed <= MAX_SIDEBAR_WIDTH) {
+          return parsed;
+        }
+      }
+    } catch {
+      // Fallback
+    }
+    return DEFAULT_SIDEBAR_WIDTH;
+  });
+
+  const [isResizing, setIsResizing] = useState(false);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  };
+
+  useEffect(() => {
+    if (!isResizing) return undefined;
+
+    const handlePointerMove = (e: PointerEvent) => {
+      let newWidth = e.clientX;
+      if (props.position === 'right') {
+        newWidth = window.innerWidth - e.clientX;
+      }
+      const clamped = Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, newWidth));
+      setSidebarWidth(clamped);
+    };
+
+    const handlePointerUp = () => {
+      setIsResizing(false);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+  }, [isResizing, props.position]);
+
+  useEffect(() => {
+    if (!isResizing) {
+      try {
+        localStorage.setItem('sofLia_sidebarWidth', sidebarWidth.toString());
+      } catch {
+        // Fallback
+      }
+    }
+  }, [isResizing, sidebarWidth]);
 
   if (props.position === 'bottom') {
     return (
@@ -108,55 +173,58 @@ export function Sidebar(props: SidebarProps) {
                   )}
                 </div>
 
-                {props.onOpenBrowser && (
-                  <button
-                    onClick={props.onOpenBrowser}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-200 shrink-0 ${
-                      props.browserOpen
-                        ? 'bg-accent/10 border-accent/20 text-accent font-bold shadow-sm'
-                        : 'bg-transparent border-gray-200/50 dark:border-white/[0.06] text-gray-600 hover:text-gray-900 dark:text-white/70 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/[0.04]'
-                    }`}
-                    title="Navegador integrado"
-                  >
-                    <BrowserNavigationIcon className="w-3.5 h-3.5" />
-                    <span className="hidden md:inline">Navegador</span>
-                  </button>
-                )}
+                {/* Panel de Herramientas (separado) */}
+                {(props.onOpenBrowser || props.onOpenMeetings || props.onOpenSdo) && (
+                  <div className="flex items-center gap-1 p-1 rounded-xl bg-gray-100/70 border border-gray-200/50 dark:bg-white/[0.03] dark:border-white/[0.06] shrink-0">
+                    {props.onOpenBrowser && (
+                      <button
+                        onClick={props.onOpenBrowser}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all duration-200 shrink-0 ${
+                          props.browserOpen
+                            ? 'bg-white text-[#0A2540] shadow-sm font-bold dark:bg-accent/20 dark:text-accent'
+                            : 'text-gray-600 hover:text-gray-900 dark:text-white/70 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/[0.04]'
+                        }`}
+                        title="Navegador integrado"
+                      >
+                        <BrowserNavigationIcon className="w-3.5 h-3.5" />
+                        <span className="hidden md:inline">Navegador</span>
+                      </button>
+                    )}
 
-                {/* Reuniones (transcripciones y minutas) */}
-                {props.onOpenMeetings && (
-                  <button
-                    onClick={props.onOpenMeetings}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-200 shrink-0 ${
-                      props.activeView === 'meetings'
-                        ? 'bg-accent/10 border-accent/20 text-accent font-bold shadow-sm'
-                        : 'bg-transparent border-gray-200/50 dark:border-white/[0.06] text-gray-600 hover:text-gray-900 dark:text-white/70 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/[0.04]'
-                    }`}
-                    title="Reuniones: transcripciones y minutas"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
-                    </svg>
-                    <span className="hidden md:inline">Reuniones</span>
-                  </button>
-                )}
+                    {props.onOpenMeetings && (
+                      <button
+                        onClick={props.onOpenMeetings}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all duration-200 shrink-0 ${
+                          props.activeView === 'meetings'
+                            ? 'bg-white text-[#0A2540] shadow-sm font-bold dark:bg-accent/20 dark:text-accent'
+                            : 'text-gray-600 hover:text-gray-900 dark:text-white/70 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/[0.04]'
+                        }`}
+                        title="Reuniones: transcripciones y minutas"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                        </svg>
+                        <span className="hidden md:inline">Reuniones</span>
+                      </button>
+                    )}
 
-                {/* Registro de decisiones (SDO) */}
-                {props.onOpenSdo && (
-                  <button
-                    onClick={props.onOpenSdo}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-200 shrink-0 ${
-                      props.activeView === 'sdo'
-                        ? 'bg-accent/10 border-accent/20 text-accent font-bold shadow-sm'
-                        : 'bg-transparent border-gray-200/50 dark:border-white/[0.06] text-gray-600 hover:text-gray-900 dark:text-white/70 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/[0.04]'
-                    }`}
-                    title="Registro de decisiones"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7 3h10a2 2 0 012 2v16l-2-1-2 1-2-1-2 1-2-1-2 1V5a2 2 0 012-2z" />
-                    </svg>
-                    <span className="hidden md:inline">Decisiones</span>
-                  </button>
+                    {props.onOpenSdo && (
+                      <button
+                        onClick={props.onOpenSdo}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all duration-200 shrink-0 ${
+                          props.activeView === 'sdo'
+                            ? 'bg-white text-[#0A2540] shadow-sm font-bold dark:bg-accent/20 dark:text-accent'
+                            : 'text-gray-600 hover:text-gray-900 dark:text-white/70 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/[0.04]'
+                        }`}
+                        title="Registro de decisiones"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7 3h10a2 2 0 012 2v16l-2-1-2 1-2-1-2 1-2-1-2 1V5a2 2 0 012-2z" />
+                        </svg>
+                        <span className="hidden md:inline">Decisiones</span>
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -220,9 +288,12 @@ export function Sidebar(props: SidebarProps) {
   return (
     <>
       <aside
-        className={`${
-          isOpen ? 'w-[252px]' : 'w-[64px]'
-        } flex-shrink-0 h-full p-2 bg-background text-gray-700 dark:text-white transition-all duration-300 ease-in-out z-30`}
+        style={{
+          width: isOpen ? `${sidebarWidth}px` : '64px',
+        }}
+        className={`relative flex-shrink-0 h-full p-2 bg-background text-gray-700 dark:text-white ${
+          isResizing ? 'select-none' : 'transition-[width] duration-300 ease-in-out'
+        } z-30`}
       >
         <div className="h-full overflow-hidden rounded-[24px] border border-gray-200/80 bg-white/80 shadow-[0_18px_45px_rgba(10,37,64,0.10)] backdrop-blur-xl dark:border-white/[0.07] dark:bg-[rgba(10,13,18,0.92)] dark:shadow-[0_18px_55px_rgba(0,0,0,0.42)]">
           <div className="flex h-full flex-col">
@@ -243,61 +314,21 @@ export function Sidebar(props: SidebarProps) {
               }}
             />
 
-            {isOpen && (
-              <nav className="flex-1 px-2 pb-2 pt-1 overflow-y-auto sidebar-scrollbar">
-                {props.onOpenBrowser && (
-                  <button
-                    onClick={props.onOpenBrowser}
-                    className={`mb-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-all duration-200 ${
-                      props.browserOpen
-                        ? 'bg-accent/10 text-accent font-bold'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-white/70 dark:hover:bg-white/[0.04] dark:hover:text-white'
-                    }`}
-                    title="Navegador integrado"
-                  >
-                    <BrowserNavigationIcon className="h-4 w-4" />
-                    Navegador
-                  </button>
-                )}
-                {props.onOpenMeetings && (
-                  <button
-                    onClick={props.onOpenMeetings}
-                    className={`mb-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-all duration-200 ${
-                      props.activeView === 'meetings'
-                        ? 'bg-accent/10 text-accent font-bold'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-white/70 dark:hover:bg-white/[0.04] dark:hover:text-white'
-                    }`}
-                    title="Reuniones: transcripciones y minutas"
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
-                    </svg>
-                    Reuniones
-                  </button>
-                )}
-                {props.onOpenSdo && (
-                  <button
-                    onClick={props.onOpenSdo}
-                    className={`mb-1 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-all duration-200 ${
-                      props.activeView === 'sdo'
-                        ? 'bg-accent/10 text-accent font-bold'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-white/70 dark:hover:bg-white/[0.04] dark:hover:text-white'
-                    }`}
-                    title="Registro de decisiones"
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7 3h10a2 2 0 012 2v16l-2-1-2 1-2-1-2 1-2-1-2 1V5a2 2 0 012-2z" />
-                    </svg>
-                    Registro de decisiones
-                  </button>
-                )}
-                <PinnedChats props={props} />
-                <IrisSection props={props} />
-                <FolderSection props={props} />
-                <UngroupedChats props={props} />
-              </nav>
+            {isOpen ? (
+              <div className="flex-1 min-h-0 flex flex-col overflow-hidden pt-1">
+                <div className="px-3 pb-1 flex items-center justify-between text-[10px] font-bold tracking-wider uppercase text-gray-400 dark:text-white/35 shrink-0">
+                  <span>Proyectos y Chats</span>
+                </div>
+                <nav className="flex-1 px-2 pb-2 overflow-y-auto sidebar-scrollbar">
+                  <PinnedChats props={props} />
+                  <IrisSection props={props} />
+                  <FolderSection props={props} />
+                  <UngroupedChats props={props} />
+                </nav>
+              </div>
+            ) : (
+              <div className="flex-1" />
             )}
-            {!isOpen && <div className="flex-1" />}
 
             <UserMenu
               isOpen={isOpen}
@@ -318,6 +349,23 @@ export function Sidebar(props: SidebarProps) {
             />
           </div>
         </div>
+
+        {/* Drag Handle de redimensionamiento */}
+        {isOpen && (
+          <div
+            onPointerDown={handlePointerDown}
+            className={`absolute ${props.position === 'right' ? '-left-1.5' : '-right-1.5'} top-0 bottom-0 w-3 cursor-col-resize group z-40 flex items-center justify-center`}
+            title="Arrastra hacia la derecha o izquierda para cambiar el tamaño del menú"
+          >
+            <div
+              className={`w-1 rounded-full transition-all duration-200 ${
+                isResizing
+                  ? 'h-24 bg-accent shadow-[0_0_12px_rgba(0,212,179,0.7)]'
+                  : 'h-8 bg-gray-300/40 group-hover:h-16 group-hover:bg-accent/80 dark:bg-white/10 dark:group-hover:bg-accent/80'
+              }`}
+            />
+          </div>
+        )}
       </aside>
 
       <SearchChatsModal

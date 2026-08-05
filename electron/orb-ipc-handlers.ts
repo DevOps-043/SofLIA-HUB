@@ -9,15 +9,18 @@ import { BrowserWindow, ipcMain } from 'electron';
 import { synthesizeOrbSpeech } from './orb-tts';
 import type { PythonRuntimeService } from './python-runtime-service';
 import { handleIPC, handleIPCVoid } from './utils/ipc-helpers';
+import { denyIfUnauthenticated } from './main/require-auth';
 
 interface OrbIpcOptions {
   pythonRuntimeService: PythonRuntimeService;
   getOrbWindow: () => BrowserWindow | null;
+  getMainWindow: () => BrowserWindow | null;
+  showOrbWindow: () => Promise<void>;
   consumePendingWake: () => boolean;
 }
 
 export function registerOrbIpcHandlers(options: OrbIpcOptions): void {
-  const { pythonRuntimeService, getOrbWindow, consumePendingWake } = options;
+  const { pythonRuntimeService, getOrbWindow, getMainWindow, showOrbWindow, consumePendingWake } = options;
 
   const sendToOrb = (channel: string, payload?: unknown): void => {
     const win = getOrbWindow();
@@ -41,6 +44,17 @@ export function registerOrbIpcHandlers(options: OrbIpcOptions): void {
 
   ipcMain.handle('orb:get-pending-wake', () =>
     handleIPC(async () => ({ wake: consumePendingWake() })));
+
+  ipcMain.handle('orb:show', (event) => handleIPC(async () => {
+    const denied = denyIfUnauthenticated('orb:show');
+    if (denied) throw new Error(denied.error);
+    const mainWindow = getMainWindow();
+    if (!mainWindow || mainWindow.isDestroyed() || event.sender.id !== mainWindow.webContents.id) {
+      throw new Error('sender_denied');
+    }
+    await showOrbWindow();
+    return { visible: true };
+  }));
 
   // Voz de la orbe: se sintetiza en main (unico lugar con la key del .env).
   ipcMain.handle('orb:synthesize', (_event, text: string) =>

@@ -6,8 +6,8 @@ import { DEFAULT_CONFIG } from '../desktop-agent-types';
 // ============================================================================
 
 describe('Desktop Agent Types & Config', () => {
-  it('CU-101: DEFAULT_CONFIG has maxSteps=60 (tope duro; el presupuesto real lo fija el plan)', () => {
-    expect(DEFAULT_CONFIG.maxSteps).toBe(60);
+  it('CU-101: DEFAULT_CONFIG has maxSteps=120 (tope duro; el presupuesto real lo fija el plan)', () => {
+    expect(DEFAULT_CONFIG.maxSteps).toBe(120);
   });
 
   it('CU-102: DEFAULT_CONFIG has maxTotalSteps=500', () => {
@@ -105,5 +105,16 @@ describe('Desktop Agent Types & Config', () => {
     expect(DEFAULT_CONFIG.defaultStepBudget).toBeLessThanOrEqual(DEFAULT_CONFIG.maxSteps);
     expect(DEFAULT_CONFIG.queueTimeoutMs).toBeGreaterThan(0);
     expect(DEFAULT_CONFIG.keywordRoutingEnabled).toBe(true);
+  });
+
+  it('CU-124: DEFAULT_CONFIG usa un único modelo conversacional y de Computer Use', () => {
+    expect(new Set([
+      DEFAULT_CONFIG.model,
+      DEFAULT_CONFIG.fallbackModel,
+      DEFAULT_CONFIG.proactiveModel,
+      DEFAULT_CONFIG.computerUseModel,
+      DEFAULT_CONFIG.computerUseFallbackModel,
+      DEFAULT_CONFIG.computerUseEconomyModel,
+    ])).toEqual(new Set(['gemini-3.6-flash']));
   });
 });

@@ -117,36 +117,55 @@ async function runCuTaskCommon(
 ): Promise<DesktopTaskOutcome> {
   const config: DesktopAgentConfig = service.config;
   const startedAt = Date.now();
-  const maxSteps = resolveTaskStepBudget({ requestedMaxSteps: options?.maxSteps, task, config });
+  const integratedBrowserTask = etiqueta === 'navegador_integrado';
+  const maxSteps = resolveTaskStepBudget({
+    requestedMaxSteps: options?.maxSteps,
+    task,
+    surface: integratedBrowserTask ? 'integrated-browser' : 'other',
+    config,
+  });
 
   service.status = 'executing';
   service.currentTask = task;
   service.currentStep = 0;
   console.log(`[DesktopAgent][CU] Iniciando tarea (${etiqueta}, ${resolveComputerUseModel(config).model}, ${maxSteps} pasos): "${task.slice(0, 80)}"`);
 
-  const result = await runComputerUseLoop({
-    client,
-    driver,
-    task,
-    maxSteps,
-    abortSignal: options?.signal ?? null,
-    delay: (ms: number) => service.delay(ms),
-    onStep: ({ step, nombre, action, intent }) => {
-      service.currentStep = step;
-      console.log(`[DesktopAgent][CU] Paso ${step}: ${nombre} (${action.tipo}) — ${intent}`);
-      service.emit('step', { step, maxSteps, action: { action: action.tipo, message: intent } });
-    },
-  });
+  try {
+    const result = await runComputerUseLoop({
+      client,
+      driver,
+      task,
+      maxSteps,
+      abortSignal: options?.signal ?? null,
+      delay: (ms: number) => service.delay(ms),
+      onStep: ({ step, nombre, action, intent }) => {
+        service.currentStep = step;
+        console.log(`[DesktopAgent][CU] Paso ${step}: ${nombre} (${action.tipo}) — ${intent}`);
+        service.emit('step', { step, maxSteps, action: { action: action.tipo, message: intent } });
+      },
+    });
 
-  console.log(`[DesktopAgent][CU] Fin (${etiqueta}): ${result.estado} en ${result.pasos} pasos.`);
-  if (result.estado === 'completada') {
-    service.emit('task-completed', { task, message: result.mensaje, steps: result.pasos, taskId: null });
+    const resultMessage = result.estado === 'presupuesto_agotado' && integratedBrowserTask
+      ? `Se alcanzó el límite de ${maxSteps} pasos sin confirmar la meta. La página, cookies y sesión del navegador integrado permanecen abiertas para continuar desde este punto.`
+      : result.mensaje;
+    console.log(`[DesktopAgent][CU] Fin (${etiqueta}): ${result.estado} en ${result.pasos} pasos.`);
+    if (result.estado === 'completada') {
+      service.emit('task-completed', { task, message: resultMessage, steps: result.pasos, taskId: null });
+    } else if (result.estado === 'presupuesto_agotado') {
+      service.emit('task-budget-exhausted', { taskId: null, maxSteps, message: resultMessage });
+    }
+    return buildTaskOutcome({
+      taskId: null,
+      estado: mapEstado(result.estado),
+      mensaje: resultMessage,
+      pasosEjecutados: result.pasos,
+      startedAt,
+    });
+  } finally {
+    if (service.currentTask === task) {
+      service.status = 'idle';
+      service.currentTask = null;
+      service.currentStep = 0;
+    }
   }
-  return buildTaskOutcome({
-    taskId: null,
-    estado: mapEstado(result.estado),
-    mensaje: result.mensaje,
-    pasosEjecutados: result.pasos,
-    startedAt,
-  });
 }

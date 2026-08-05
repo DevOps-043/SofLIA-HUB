@@ -16,6 +16,9 @@ let currentApiKey: string | null = null;
 export async function getOpenAI(): Promise<OpenAI> {
   const dbApiKey = await getApiKeyWithCache('openai');
   const apiKey = dbApiKey || OPENAI_API_KEY || '';
+  if (!apiKey.trim()) {
+    throw new Error('OPENAI_API_KEY_MISSING');
+  }
   if (!client || currentApiKey !== apiKey) {
     client = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
     currentApiKey = apiKey;

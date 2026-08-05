@@ -1,12 +1,16 @@
 const RATE_LIMIT_MESSAGE = 'No pude completar la respuesta por capacidad temporal. Intenta de nuevo en unos segundos.';
 const TIMEOUT_MESSAGE = 'La respuesta tardo mas de lo esperado. Intenta de nuevo en unos segundos.';
 const SAFETY_MESSAGE = 'No pude completar esta solicitud de forma segura. Reformula el mensaje y vuelvo a intentarlo.';
+const MODEL_CONFIG_MESSAGE = 'El nivel de razonamiento no es compatible con el modelo seleccionado. Elige otro nivel e intenta de nuevo.';
+const OPENAI_CONFIG_MESSAGE = 'SofLIA Pro y Max requieren una clave de OpenAI válida en Configuración.';
 const GENERIC_MESSAGE = 'No pude completar la respuesta en este momento. Intenta de nuevo.';
 
 interface PublicAiErrorMessages {
   rateLimit?: string;
   timeout?: string;
   safety?: string;
+  modelConfig?: string;
+  openAIConfig?: string;
   generic?: string;
 }
 
@@ -17,9 +21,31 @@ export function getPublicAiErrorMessage(error: unknown, messages: PublicAiErrorM
   if (isRateLimitError(normalized)) return messages.rateLimit || RATE_LIMIT_MESSAGE;
   if (isTimeoutError(normalized)) return messages.timeout || TIMEOUT_MESSAGE;
   if (isSafetyError(normalized)) return messages.safety || SAFETY_MESSAGE;
+  if (isModelConfigurationError(normalized)) return messages.modelConfig || MODEL_CONFIG_MESSAGE;
+  if (isMissingOpenAIKey(normalized)) return messages.openAIConfig || OPENAI_CONFIG_MESSAGE;
   if (containsProviderDetails(normalized)) return messages.generic || GENERIC_MESSAGE;
 
   return messages.generic || GENERIC_MESSAGE;
+}
+
+function isModelConfigurationError(message: string): boolean {
+  const referencesReasoning = (
+    message.includes('thinking_level') ||
+    message.includes('thinkinglevel') ||
+    message.includes('reasoning.effort') ||
+    message.includes('reasoning_effort')
+  );
+  const isRejected = (
+    message.includes('invalid') ||
+    message.includes('unsupported') ||
+    message.includes('not supported') ||
+    message.includes('not allowed')
+  );
+  return referencesReasoning && isRejected;
+}
+
+function isMissingOpenAIKey(message: string): boolean {
+  return message.includes('openai_api_key_missing');
 }
 
 function getRawErrorMessage(error: unknown): string {

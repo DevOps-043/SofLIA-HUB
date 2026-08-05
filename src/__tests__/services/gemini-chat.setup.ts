@@ -30,12 +30,12 @@ vi.mock('../../config', () => ({
   GOOGLE_API_KEY: 'env-test-key',
   OPENAI_API_KEY: '',
   MODELS: {
-    PRIMARY: 'gemini-2.0-flash',
-    FALLBACK: 'gemini-3.1-flash-lite',
-    PRO: 'gemini-2.5-pro',
-    WEB_AGENT: 'gemini-3.5-flash',
-    VISION: 'gemini-2.0-flash',
-    THINKING: 'gemini-2.0-flash-thinking',
+    PRIMARY: 'gemini-3.6-flash',
+    FALLBACK: 'gemini-3.6-flash',
+    PRO: 'gemini-3.6-flash',
+    WEB_AGENT: 'gemini-3.6-flash',
+    VISION: 'gemini-3.6-flash',
+    THINKING: 'gemini-3.6-flash',
   },
   OPENAI_MODELS: {
     COMPUTER_USE: 'gpt-5.6-terra',
@@ -55,13 +55,21 @@ vi.mock('../../services/gemini-tools', () => ({
     functionDeclarations: [
       { name: 'list_directory', description: 'test', parameters: {} },
       { name: 'create_word_document', description: 'test', parameters: {} },
+      { name: 'use_computer', description: 'test', parameters: {} },
     ],
   },
-  COMPUTER_TOOL_NAMES: new Set(['list_directory', 'create_word_document']),
+  COMPUTER_TOOL_NAMES: new Set(['list_directory', 'create_word_document', 'use_computer']),
   PROJECT_HUB_TOOLS: { functionDeclarations: [] },
   PROJECT_HUB_TOOL_NAMES: new Set(),
   GOOGLE_WORKSPACE_TOOLS: { functionDeclarations: [] },
   GOOGLE_WORKSPACE_TOOL_NAMES: new Set(),
+  INTEGRATED_BROWSER_TOOLS: {
+    functionDeclarations: [
+      { name: 'read_browser_dom', description: 'test', parameters: {} },
+      { name: 'navigate_integrated_browser', description: 'test', parameters: {} },
+    ],
+  },
+  INTEGRATED_BROWSER_TOOL_NAMES: new Set(['read_browser_dom', 'navigate_integrated_browser']),
   NATIVE_AI_TOOLS: { functionDeclarations: [] },
   NATIVE_AI_TOOL_NAMES: new Set(),
 }));

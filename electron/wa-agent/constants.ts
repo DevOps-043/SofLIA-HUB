@@ -9,19 +9,10 @@
 
 export const MAX_HISTORY = 20;
 
-/** Modelo Gemini estable usado por el agente WhatsApp. */
-export const WA_MODEL = 'gemini-3.5-flash';
+import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
 
-/**
- * Fallbacks de modelo para evitar que WhatsApp quede mudo cuando una key nueva
- * no tiene acceso al alias principal configurado.
- */
-export const WA_MODEL_FALLBACKS = [
-  'gemini-3.5-flash-lite',
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
-];
+/** Modelo único usado por el agente WhatsApp. */
+export const WA_MODEL = SOFLIA_RUNTIME_MODEL;
 
 /**
  * Umbrales del loop guard:

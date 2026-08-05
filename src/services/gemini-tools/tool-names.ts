@@ -1,5 +1,6 @@
 import { COMPUTER_USE_TOOLS } from './computer-tools';
 import { GOOGLE_WORKSPACE_TOOLS } from './google-workspace-tools';
+import { INTEGRATED_BROWSER_TOOLS } from './integrated-browser-tools';
 import { NATIVE_AI_TOOLS } from './native-tools';
 import { PROJECT_HUB_TOOLS } from './project-hub-tools';
 
@@ -13,6 +14,10 @@ export const PROJECT_HUB_TOOL_NAMES = new Set(
 
 export const GOOGLE_WORKSPACE_TOOL_NAMES = new Set(
   GOOGLE_WORKSPACE_TOOLS.functionDeclarations.map((tool) => tool.name),
+);
+
+export const INTEGRATED_BROWSER_TOOL_NAMES = new Set(
+  INTEGRATED_BROWSER_TOOLS.functionDeclarations.map((tool) => tool.name),
 );
 
 export const NATIVE_AI_TOOL_NAMES = new Set(

@@ -75,6 +75,7 @@ export function exposeUtilityApis(bridge: PreloadBridge, ipc: SafeIpc): void {
   // Ventana de la Orbe de Voz: dictado local (Vosk) + habla local (Piper).
   bridge.exposeInMainWorld('orb', {
     getPendingWake: () => safeInvoke('orb:get-pending-wake'),
+    show: () => safeInvoke('orb:show'),
     synthesize: (text: string) => safeInvoke('orb:synthesize', text),
     startDictation: () => safeInvoke('orb:start-dictation'),
     stopDictation: (sessionId?: string | null) => safeInvoke('orb:stop-dictation', sessionId),

@@ -1,0 +1,29 @@
+import { describe, expect, it } from 'vitest';
+import { classifyBrowserGroundingIntent } from '../../services/gemini-chat/browser-grounding-intent';
+
+describe('clasificación contextual del navegador', () => {
+  it('BGI-001: reconoce un recurso compartido por una persona sin verbo visual', () => {
+    expect(classifyBrowserGroundingIntent('haz un resumen del repositorio que me mandó Ernesto'))
+      .toBe('follow-resource');
+  });
+
+  it('BGI-002: distingue una pregunta sobre el chat que ya está visible', () => {
+    expect(classifyBrowserGroundingIntent('pero el chat está abierto, ¿no puedes observar qué hay?'))
+      .toBe('read-current');
+  });
+
+  it('BGI-003: conserva la referencia visual explícita existente', () => {
+    expect(classifyBrowserGroundingIntent('¿puedes ver lo que estoy viendo?'))
+      .toBe('read-current');
+  });
+
+  it('BGI-004: no ancla una consulta general a la pestaña por mencionar repositorio', () => {
+    expect(classifyBrowserGroundingIntent('haz un resumen del repositorio de Electron'))
+      .toBe('none');
+  });
+
+  it('BGI-005: reconoce contenido compartido en plural sin ampliar permisos', () => {
+    expect(classifyBrowserGroundingIntent('¿qué dice lo que compartieron en el chat?'))
+      .toBe('read-current');
+  });
+});

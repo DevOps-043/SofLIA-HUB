@@ -1,4 +1,5 @@
 import type { GoogleGenerativeAI } from '@google/generative-ai';
+import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
 import type { FileCategoryInfo } from './types';
 
 const VALID_CATEGORIES = ['Facturas', 'Trabajo', 'Personal', 'Software', 'Otros'];
@@ -9,7 +10,7 @@ export async function categorizeFile(
   extractedText: string,
 ): Promise<FileCategoryInfo> {
   const model = ai.getGenerativeModel({
-    model: 'gemini-3.5-flash',
+    model: SOFLIA_RUNTIME_MODEL,
     generationConfig: { responseMimeType: 'application/json' },
   });
 

@@ -11,6 +11,7 @@ vi.mock('../../config', () => ({
 }));
 
 const { buildHostedTools } = await import('../../services/openai-chat/hosted-tools');
+const { resolveOpenAIReasoningEffort } = await import('../../services/openai-chat/reasoning');
 
 describe('Herramientas hospedadas de OpenAI', () => {
   beforeEach(() => {
@@ -23,8 +24,8 @@ describe('Herramientas hospedadas de OpenAI', () => {
     expect(tools).toContainEqual({ type: 'web_search' });
   });
 
-  it('HT-002: web_search se omite con razonamiento minimal, que no lo soporta', () => {
-    const tools = buildHostedTools({ useWebSearch: true, reasoningEffort: 'minimal' });
+  it('HT-002: web_search se omite sin razonamiento', () => {
+    const tools = buildHostedTools({ useWebSearch: true, reasoningEffort: 'none' });
 
     expect(tools.some((tool) => tool.type === 'web_search')).toBe(false);
   });
@@ -47,5 +48,11 @@ describe('Herramientas hospedadas de OpenAI', () => {
     const tools = buildHostedTools({ useWebSearch: true, reasoningEffort: 'high' });
 
     expect(tools.some((tool) => tool.type === 'computer')).toBe(false);
+  });
+
+  it('HT-005: preferencias rápidas heredadas se elevan a low antes del payload OpenAI', () => {
+    expect(resolveOpenAIReasoningEffort({ forced: 'none' })).toBe('low');
+    expect(resolveOpenAIReasoningEffort({ selected: 'minimal' })).toBe('low');
+    expect(resolveOpenAIReasoningEffort({ forced: 'xhigh' })).toBe('xhigh');
   });
 });

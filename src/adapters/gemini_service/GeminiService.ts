@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
 import { AIAssistant } from '../../core/ports/AIAssistant';
+import { SOFLIA_RUNTIME_MODEL } from '../../shared/soflia-runtime-model';
 
 export class GeminiService implements AIAssistant {
   private genAI: GoogleGenerativeAI;
@@ -7,7 +8,7 @@ export class GeminiService implements AIAssistant {
 
   constructor(apiKey: string) {
     this.genAI = new GoogleGenerativeAI(apiKey);
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
+    this.model = this.genAI.getGenerativeModel({ model: SOFLIA_RUNTIME_MODEL });
   }
 
   async sendMessage(message: string, _context?: any): Promise<string> {

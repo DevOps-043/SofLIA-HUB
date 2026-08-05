@@ -53,7 +53,7 @@ export async function runBootstrap(): Promise<void> {
   // La autoconexion de WhatsApp del arranque queda denegada por el gate; se
   // reintenta al iniciar sesion y se desconecta al cerrarla.
   registerWhatsAppAuthGate({ waService: services.waService, initWhatsAppAgent });
-  registerPlatformHandlers({ modules, services, state });
+  registerPlatformHandlers({ modules, services, state, controls });
 
   // Ventana temprana: crear la ventana antes de la cadena de servicios no
   // esenciales para el primer pintado, de modo que la UI aparezca sin esperar a

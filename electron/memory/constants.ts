@@ -1,11 +1,12 @@
 import { app } from 'electron';
 import path from 'node:path';
+import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
 
 export const DB_PATH = path.join(app.getPath('userData'), 'soflia-memory.db');
 export const OLD_MEMORIES_PATH = path.join(app.getPath('userData'), 'whatsapp-memories.json');
 export const EMBEDDING_MODEL = 'gemini-embedding-001';
 export const EMBEDDING_MODEL_FALLBACK = 'text-embedding-004';
-export const SUMMARIZE_MODEL = 'gemini-3.5-flash';
+export const SUMMARIZE_MODEL = SOFLIA_RUNTIME_MODEL;
 export const CHUNK_TOKENS = 400;
 export const CHUNK_OVERLAP = 80;
 export const CHARS_PER_TOKEN = 4;

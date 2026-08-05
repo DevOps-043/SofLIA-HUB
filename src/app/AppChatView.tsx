@@ -4,6 +4,7 @@ import type { ChatState } from './app-types';
 import type { UserAISettings } from '../services/settings-service';
 
 interface AppChatViewProps {
+  compact?: boolean;
   avatarUrl?: string;
   canShareConversation: boolean;
   chat: ChatState;
@@ -15,6 +16,9 @@ interface AppChatViewProps {
   userId?: string;
   userSettings: UserAISettings | null;
   onRetryConversations?: () => Promise<boolean>;
+  onOpenBrowser?: () => void;
+  onOpenMeetings?: () => void;
+  onOpenSdo?: () => void;
 }
 
 export function AppChatView(props: AppChatViewProps) {
@@ -26,6 +30,7 @@ export function AppChatView(props: AppChatViewProps) {
 
   return (
     <ChatUI
+      compact={props.compact}
       messages={props.chat.currentMessages}
       onMessagesChange={props.onMessagesChange}
       externalPrompt={props.externalPrompt}
@@ -40,6 +45,9 @@ export function AppChatView(props: AppChatViewProps) {
       onShare={props.canShareConversation ? props.onShareConversation : undefined}
       canSendMessages={props.currentConversation?.can_edit !== false}
       readOnlyReason={props.currentConversation?.can_edit === false ? 'Esta conversacion fue compartida contigo en modo solo lectura.' : undefined}
+      onOpenBrowser={props.onOpenBrowser}
+      onOpenMeetings={props.onOpenMeetings}
+      onOpenSdo={props.onOpenSdo}
     />
   );
 }

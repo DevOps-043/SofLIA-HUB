@@ -1,2 +1,4 @@
-export const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
-export const DEFAULT_FALLBACK_MODEL = 'gemini-2.5-pro';
+import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
+
+export const DEFAULT_MODEL = SOFLIA_RUNTIME_MODEL;
+export const DEFAULT_FALLBACK_MODEL = SOFLIA_RUNTIME_MODEL;

@@ -1,5 +1,5 @@
 import { app, contextBridge, ipcMain, ipcRenderer } from './electron/app-ipc';
-import { BrowserWindow, WebContentsView, desktopCapturer, powerMonitor, screen } from './electron/windowing';
+import { BaseWindow, BrowserWindow, WebContentsView, desktopCapturer, powerMonitor, screen } from './electron/windowing';
 import {
   Menu,
   Tray,
@@ -12,7 +12,7 @@ import {
 } from './electron/system-ui';
 
 export { app, contextBridge, ipcMain, ipcRenderer };
-export { BrowserWindow, WebContentsView, desktopCapturer, powerMonitor, screen };
+export { BaseWindow, BrowserWindow, WebContentsView, desktopCapturer, powerMonitor, screen };
 export {
   Menu,
   Tray,
@@ -30,6 +30,7 @@ export default {
   ipcRenderer,
   contextBridge,
   BrowserWindow,
+  BaseWindow,
   WebContentsView,
   desktopCapturer,
   powerMonitor,

@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
 
-const SEARCH_MODEL = 'gemini-3.5-flash';
+const SEARCH_MODEL = SOFLIA_RUNTIME_MODEL;
 
 function getApiKey(): string | null {
   return process.env.VITE_GEMINI_API_KEY || null;

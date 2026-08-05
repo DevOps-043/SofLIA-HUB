@@ -1,5 +1,5 @@
 export type { DesktopAgentConfig } from './desktop-agent/agent-config';
-export { DEFAULT_CONFIG, loadConfig, saveConfig } from './desktop-agent/agent-config';
+export { DEFAULT_CONFIG, loadConfig, normalizeDesktopAgentConfig, saveConfig } from './desktop-agent/agent-config';
 export type {
   ActionHistoryEntry,
   DesktopAction,

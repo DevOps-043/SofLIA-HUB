@@ -1,4 +1,5 @@
 import type { DesktopAgentConfig } from '../../desktop-agent-types';
+import { SOFLIA_RUNTIME_MODEL } from '../../../src/shared/soflia-runtime-model';
 
 /**
  * Registro central de modelos actuadores de Computer Use.
@@ -22,18 +23,17 @@ export interface ComputerUseModelConfig {
  * degradar de perfil cuesta pasos y precision visual.
  */
 export const COMPUTER_USE_MODEL_DEFAULTS: Record<ComputerUseProfile, string> = {
-  recommended: 'gemini-3.6-flash',
-  compatibility: 'gemini-3.5-flash',
-  economy: 'gemini-3.5-flash-lite',
+  recommended: SOFLIA_RUNTIME_MODEL,
+  compatibility: SOFLIA_RUNTIME_MODEL,
+  economy: SOFLIA_RUNTIME_MODEL,
 };
 
 export function resolveComputerUseModel(
   config: DesktopAgentConfig,
   profile: ComputerUseProfile = 'recommended',
 ): ComputerUseModelConfig {
-  const model = modelForProfile(config, profile).trim();
-  if (!model) throw new Error(`No hay modelo de Computer Use configurado para el perfil "${profile}".`);
-  return { provider: 'google', model, profile };
+  void config;
+  return { provider: 'google', model: SOFLIA_RUNTIME_MODEL, profile };
 }
 
 /**
@@ -42,14 +42,6 @@ export function resolveComputerUseModel(
  * siempre viene de DPI, monitor equivocado o coordenadas, no del modelo.
  */
 export function nextComputerUseProfile(profile: ComputerUseProfile): ComputerUseProfile | null {
-  if (profile === 'recommended') return 'compatibility';
-  if (profile === 'compatibility') return 'economy';
+  void profile;
   return null;
-}
-
-/** Un valor en blanco cuenta como "sin configurar" y cae al default del perfil. */
-function modelForProfile(config: DesktopAgentConfig, profile: ComputerUseProfile): string {
-  if (profile === 'compatibility') return config.computerUseFallbackModel?.trim() || COMPUTER_USE_MODEL_DEFAULTS.compatibility;
-  if (profile === 'economy') return config.computerUseEconomyModel?.trim() || COMPUTER_USE_MODEL_DEFAULTS.economy;
-  return config.computerUseModel?.trim() || COMPUTER_USE_MODEL_DEFAULTS.recommended;
 }

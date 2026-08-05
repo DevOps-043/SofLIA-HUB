@@ -15,6 +15,19 @@ describe('Config Persistence', () => {
     expect(loadConfig().screenshotWidth).toBe(DEFAULT_CONFIG.screenshotWidth);
   });
 
+  it('CU-132B: loadConfig normaliza modelos heredados al runtime único', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(JSON.stringify({
+      model: 'gemini-3.5-flash',
+      fallbackModel: 'gemini-2.5-pro',
+      computerUseModel: 'gemini-3.5-flash-lite',
+    }));
+    const config = loadConfig();
+    expect(config.model).toBe('gemini-3.6-flash');
+    expect(config.fallbackModel).toBe('gemini-3.6-flash');
+    expect(config.computerUseModel).toBe('gemini-3.6-flash');
+  });
+
   it('CU-133: loadConfig returns defaults on JSON parse error', () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue('invalid json{{{');

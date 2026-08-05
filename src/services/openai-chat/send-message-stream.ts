@@ -16,22 +16,17 @@ import { SOFLIA_MAX_MODEL_ID, recordSofliaMaxTokens } from '../model-quota';
 import { getOpenAI } from './client';
 import { buildHostedTools } from './hosted-tools';
 import { buildOpenAIHistory, buildUserMessage } from './input-builder';
+import { resolveOpenAIReasoningEffort } from './reasoning';
 import { toOpenAITools } from './tool-schema';
 
 const MAX_TOOL_ITERATIONS = 10;
 const MAX_OUTPUT_TOKENS = 16384;
-/** Niveles que la Responses API acepta en `reasoning.effort`. */
-const REASONING_EFFORTS: readonly ReasoningEffort[] = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
-
-function isReasoningEffort(value: unknown): value is ReasoningEffort {
-  return typeof value === 'string' && (REASONING_EFFORTS as readonly string[]).includes(value);
-}
 /**
  * Items de salida que se reinyectan en el siguiente turno del ciclo. Incluye
  * `reasoning` a proposito: sin el, GPT-5.6 pierde el hilo del razonamiento
  * entre una tanda de acciones y la siguiente.
  */
-const REPLAYABLE_OUTPUT_TYPES = new Set(['message', 'reasoning', 'function_call']);
+const REPLAYABLE_OUTPUT_TYPES = new Set(['message', 'reasoning', 'function_call', 'web_search_call']);
 
 export interface OpenAIStreamParams {
   modelId: string;
@@ -43,7 +38,7 @@ export interface OpenAIStreamParams {
   useToolLoop: boolean;
   computerUseEnabled: boolean;
   useWebSearch: boolean;
-  /** Esfuerzo de razonamiento forzado por el ruteo (acciones reales). */
+  /** Esfuerzo de razonamiento forzado por una politica explicita del turno. */
   reasoningEffort?: string;
   /** Aviso que se emite antes de la respuesta (p. ej. cuota agotada). */
   prefixNotice?: string;
@@ -62,7 +57,10 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
   const client = await getOpenAI();
   const { options } = params;
   const signal = options?.signal;
-  const effort = resolveReasoningEffort(params);
+  const effort = resolveOpenAIReasoningEffort({
+    forced: params.reasoningEffort,
+    selected: params.options?.thinking?.level,
+  });
 
   const toolCalls: ToolCallInfo[] = [];
   const generatedImages: string[] = [];
@@ -96,6 +94,7 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
             max_output_tokens: MAX_OUTPUT_TOKENS,
             stream: true,
             ...(tools.length > 0 ? { tools } : {}),
+            ...(tools.length > 0 ? { tool_choice: 'auto' as const } : {}),
             ...(effort ? { reasoning: { effort } } : {}),
           },
           signal ? { signal } : undefined,
@@ -204,14 +203,6 @@ function buildTools(params: OpenAIStreamParams, effort: ReasoningEffort | undefi
       reasoningEffort: effort,
     }),
   ];
-}
-
-function resolveReasoningEffort(params: OpenAIStreamParams): ReasoningEffort | undefined {
-  // El esfuerzo forzado por el ruteo gana sobre el del selector: una accion
-  // real sobre la maquina no debe ejecutarse en modo "Rapido".
-  if (isReasoningEffort(params.reasoningEffort)) return params.reasoningEffort;
-  const chosen = params.options?.thinking?.level;
-  return isReasoningEffort(chosen) ? chosen : undefined;
 }
 
 /** El gasto de SofLIA Max se acumula para dar contexto al limite mensual. */

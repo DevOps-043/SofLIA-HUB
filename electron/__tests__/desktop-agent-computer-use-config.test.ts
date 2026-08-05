@@ -14,27 +14,27 @@ describe('Registro de modelos de Computer Use', () => {
     expect(resolveComputerUseModel(DEFAULT_CONFIG).provider).toBe('google');
   });
 
-  it('CUM-002: los perfiles de respaldo resuelven a sus modelos', () => {
-    expect(resolveComputerUseModel(DEFAULT_CONFIG, 'compatibility').model).toBe('gemini-3.5-flash');
-    expect(resolveComputerUseModel(DEFAULT_CONFIG, 'economy').model).toBe('gemini-3.5-flash-lite');
+  it('CUM-002: los perfiles heredados permanecen en el modelo único', () => {
+    expect(resolveComputerUseModel(DEFAULT_CONFIG, 'compatibility').model).toBe('gemini-3.6-flash');
+    expect(resolveComputerUseModel(DEFAULT_CONFIG, 'economy').model).toBe('gemini-3.6-flash');
   });
 
-  it('CUM-003: la configuracion del usuario gana sobre el default del registro', () => {
+  it('CUM-003: una configuracion heredada no puede reactivar otro modelo', () => {
     const config = { ...DEFAULT_CONFIG, computerUseModel: 'gemini-4.0-flash' };
 
-    expect(resolveComputerUseModel(config).model).toBe('gemini-4.0-flash');
+    expect(resolveComputerUseModel(config).model).toBe('gemini-3.6-flash');
   });
 
   it('CUM-004: un modelo en blanco cae al default en vez de llamar a la API sin modelo', () => {
     const config = { ...DEFAULT_CONFIG, computerUseModel: '   ', computerUseFallbackModel: '  ' };
 
     expect(resolveComputerUseModel(config).model).toBe('gemini-3.6-flash');
-    expect(resolveComputerUseModel(config, 'compatibility').model).toBe('gemini-3.5-flash');
+    expect(resolveComputerUseModel(config, 'compatibility').model).toBe('gemini-3.6-flash');
   });
 
-  it('CUM-005: la degradacion de perfil se agota en economy', () => {
-    expect(nextComputerUseProfile('recommended')).toBe('compatibility');
-    expect(nextComputerUseProfile('compatibility')).toBe('economy');
+  it('CUM-005: no existe degradacion silenciosa de perfil', () => {
+    expect(nextComputerUseProfile('recommended')).toBeNull();
+    expect(nextComputerUseProfile('compatibility')).toBeNull();
     expect(nextComputerUseProfile('economy')).toBeNull();
   });
 

@@ -5,7 +5,7 @@ export const GEMINI_GROUNDING_API = {
 } as const;
 
 export const GEMINI_GROUNDING_MODELS = {
-  preferredFallbacks: ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-pro'],
+  preferredFallbacks: [SOFLIA_RUNTIME_MODEL],
 } as const;
 
 export const GEMINI_GROUNDING_TOOLS = {
@@ -22,3 +22,4 @@ export const GEMINI_GROUNDING_TOOLS = {
 export function supportsCodeExecutionCombo(modelName: string): boolean {
   return /^gemini-(3|[4-9]|\d{2,})/.test(modelName.replace(/^models\//, '').trim());
 }
+import { SOFLIA_RUNTIME_MODEL } from './soflia-runtime-model';

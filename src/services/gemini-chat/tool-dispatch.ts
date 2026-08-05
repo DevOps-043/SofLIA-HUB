@@ -1,6 +1,7 @@
 import {
   COMPUTER_TOOL_NAMES,
   GOOGLE_WORKSPACE_TOOL_NAMES,
+  INTEGRATED_BROWSER_TOOL_NAMES,
   NATIVE_AI_TOOL_NAMES,
   PROJECT_HUB_TOOL_NAMES,
 } from '../gemini-tools';
@@ -9,9 +10,10 @@ import { executeNativeAiTool } from './native-ai-tools';
 import { executeProjectHubTool } from './project-hub-tools';
 import type { SendMessageStreamOptions, ToolCallInfo } from './types';
 import { executeGoogleWorkspaceTool } from './workspace-tools';
+import { executeIntegratedBrowserTool } from './integrated-browser-tools';
 
 export function isKnownGeminiTool(toolName: string): boolean {
-  return COMPUTER_TOOL_NAMES.has(toolName) || PROJECT_HUB_TOOL_NAMES.has(toolName) || GOOGLE_WORKSPACE_TOOL_NAMES.has(toolName) || NATIVE_AI_TOOL_NAMES.has(toolName);
+  return COMPUTER_TOOL_NAMES.has(toolName) || PROJECT_HUB_TOOL_NAMES.has(toolName) || GOOGLE_WORKSPACE_TOOL_NAMES.has(toolName) || INTEGRATED_BROWSER_TOOL_NAMES.has(toolName) || NATIVE_AI_TOOL_NAMES.has(toolName);
 }
 
 export async function executeGeminiToolCall(
@@ -52,6 +54,7 @@ function enrichToolArgs(toolName: string, args: Record<string, any>, generatedIm
 
 function executeKnownTool(toolName: string, args: Record<string, any>, generatedImages: string[]): Promise<string> {
   if (GOOGLE_WORKSPACE_TOOL_NAMES.has(toolName)) return executeGoogleWorkspaceTool(toolName, args);
+  if (INTEGRATED_BROWSER_TOOL_NAMES.has(toolName)) return executeIntegratedBrowserTool(toolName, args);
   if (PROJECT_HUB_TOOL_NAMES.has(toolName)) return executeProjectHubTool(toolName, args);
   if (NATIVE_AI_TOOL_NAMES.has(toolName)) return executeNativeAiTool(toolName, args, generatedImages);
   return executeComputerToolAsJson(toolName, args);

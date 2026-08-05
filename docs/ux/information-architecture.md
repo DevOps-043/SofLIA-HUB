@@ -30,8 +30,8 @@ Pulse Hub
       |- Reuniones
       |- Registro de decisiones SDO
       `- Modo navegador
-         |- Chat activo a la izquierda
-         `- Navegador ajustable a la derecha o a ancho completo
+         |- Chat activo compacto, movible y minimizable
+         `- Navegador vivo en el espacio libre o a ancho completo
 ```
 
 Productividad existe como `ActiveView`, pero su acceso puede venir de settings o
