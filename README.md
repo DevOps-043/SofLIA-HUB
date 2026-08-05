@@ -16,12 +16,39 @@ npm run dev
 La aplicación separa el proceso Electron main del renderer React. No expongas APIs
 nativas directamente: sigue el contrato de cuatro capas documentado para IPC.
 
+## Variables de entorno
+
+Vite incrusta las variables `VITE_*` **en tiempo de compilación**: deben existir en
+el `.env` de la máquina que construye el instalador, no en la del usuario final.
+Una variable ausente no rompe el build, se compila como cadena vacía y desactiva
+su función en silencio.
+
+Sin estas el producto sale inutilizable:
+
+| Variable | Habilita |
+| --- | --- |
+| `VITE_GEMINI_API_KEY` | SofLIA y SofLIA Lite |
+| `VITE_OPENAI_API_KEY` | SofLIA Pro y SofLIA Max |
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Conversaciones, reuniones y ajustes |
+| `VITE_SOFIA_SUPABASE_URL`, `VITE_SOFIA_SUPABASE_ANON_KEY` | Autenticación y organizaciones |
+
+El resto son opcionales y solo apagan su integración: `VITE_IRIS_SUPABASE_*`
+(Project Hub), `VITE_GOOGLE_OAUTH_CLIENT_*` (Google Workspace),
+`VITE_GOOGLE_CLOUD_TTS_*` y `VITE_CHAT_TTS_PROVIDER` (voz), `VITE_GAMMA_API_KEY`,
+`VITE_OPENAI_VECTOR_STORE_IDS` (file search), `VITE_MICROSOFT_CLIENT_ID` y
+`VITE_SOFLIA_LEARNING_SUPABASE_*`.
+
+En release cada variable se alimenta de un secret homónimo del repositorio. Toda
+`VITE_*` nueva debe añadirse a los tres bloques `.env` de
+[`release.yml`](.github/workflows/release.yml); la compuerta lo verifica.
+
 ## Verificación
 
 ```powershell
 npm run typecheck
 npm run test
 npm run verify:pr
+node scripts/quality/check-release-env.mjs
 ```
 
 `npm run verify:release` agrega la compilación y el empaquetado; úsalo solo para un

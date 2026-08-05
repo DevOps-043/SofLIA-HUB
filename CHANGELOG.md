@@ -4,6 +4,23 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.9.1] - 2026-08-05
+
+### Fixed
+
+- **SofLIA Pro y Max inutilizables en la version distribuida:** El workflow de release no escribia `VITE_OPENAI_API_KEY` en el `.env` del runner. Vite incrusta esas variables en tiempo de compilacion, asi que el instalador viajaba con la clave vacia y todo turno con un modelo OpenAI respondia "SofLIA Pro y Max requieren una clave de OpenAI valida en Configuracion" aunque el secret existiera en GitHub. El mismo hueco afectaba a `VITE_OPENAI_VECTOR_STORE_IDS`, `VITE_MICROSOFT_CLIENT_ID` y las dos variables de SofLIA Learning.
+- **Respuestas vacias de Gemini sin explicacion:** Un turno que terminaba sin texto mostraba siempre "No obtuve una respuesta. Intenta de nuevo.", descartando el `finishReason` que venia en la respuesta. Ahora el bloqueo de seguridad, el presupuesto de tokens agotado por el razonamiento, la recitacion y la llamada de herramienta malformada producen un mensaje accionable, y el motivo queda registrado en consola.
+- **Icono de Windows rechazado por el instalador:** `icono.ico` contenia una unica imagen de 256x170 y NSIS exige un lado minimo de 256, lo que abortaba el build de Windows. Los iconos de aplicacion se generan ahora desde el logotipo con `scripts/generate-app-icons.js`.
+- **Build de macOS abortado por falta de memoria:** El runner de macOS tiene 7 GB y `tsc`, que pica en ~2.4 GB en este proyecto, superaba el heap por defecto de Node y terminaba con `Reached heap limit` (exit 134). El job fija el limite de heap y usa la cadena canonica `npm run build:mac`, que ademas recupera el chequeo de `tsconfig.node.json` que se habia perdido.
+
+### Added
+
+- **Compuerta de variables de build:** `scripts/quality/check-release-env.mjs` falla el release si alguna `VITE_*` que consume el codigo no se escribe en los tres bloques `.env` del workflow, o si una clave critica llega vacia al runner.
+
+### Changed
+
+- **Etiquetas de herramienta en el chat:** El indicador de actividad muestra un nombre legible para todas las herramientas del catalogo (Gmail, Drive, Calendar, IRIS, nodos remotos, navegador) en lugar del identificador tecnico.
+
 ## [0.9.0] - 2026-08-05
 
 ### Added

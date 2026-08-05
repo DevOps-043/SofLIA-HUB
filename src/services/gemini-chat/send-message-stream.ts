@@ -7,6 +7,7 @@ import { resolveRoutedModel } from '../model-routing';
 import { sendOpenAIMessageStream } from '../openai-chat';
 import { runAgenticLoop } from './agentic-loop';
 import { getGenAI } from './client';
+import { resolveEmptyGeminiText } from './empty-response';
 import { buildGeminiHistory } from './history';
 import { buildMessageContent } from './message-content';
 import { buildGenerationConfig, buildModelTools, resolveModelId } from './model-config';
@@ -191,7 +192,7 @@ export async function sendMessageStream(
         { signal },
       );
       return completedStreamResult(
-        extractResponseText(result.response),
+        resolveEmptyGeminiText(extractResponseText(result.response), result.response, allGeneratedImages),
         result.response,
         allToolCalls,
         allGeneratedImages,

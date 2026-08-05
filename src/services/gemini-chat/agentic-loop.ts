@@ -1,4 +1,5 @@
 import { completedStreamResult, isAbortError, singleChunkStream, stoppedStreamResult } from './streams';
+import { resolveEmptyGeminiText } from './empty-response';
 import { getPublicAiErrorMessage } from './public-error';
 import { withGeminiModelCall, withToolTimeout } from './resilience';
 import { executeGeminiToolCall, isKnownGeminiTool } from './tool-dispatch';
@@ -130,7 +131,12 @@ function finalTextResult(
   params: { allToolCalls: ToolCallInfo[]; allGeneratedImages: string[] },
 ): StreamResult {
   const fullText = parts.filter((part: any) => part.text).map((part: any) => part.text).join('');
-  return completedStreamResult(fullText, response, params.allToolCalls, params.allGeneratedImages);
+  return completedStreamResult(
+    resolveEmptyGeminiText(fullText, response, params.allGeneratedImages),
+    response,
+    params.allToolCalls,
+    params.allGeneratedImages,
+  );
 }
 
 function safeFailureResult(
