@@ -1,6 +1,6 @@
 # Definicion y alcance del producto
 
-Estado: vigente. Actualizado: 2026-08-04.
+Estado: vigente. Actualizado: 2026-08-05.
 
 Pulse Hub es una aplicacion de escritorio Electron orientada a equipos de habla
 espanola. Unifica conversacion asistida por IA, gestion de proyectos y fuentes,
@@ -45,7 +45,7 @@ metricas de negocio; esos temas no se presentan como hechos.
 
 ## Alcance de esta version documentada
 
-- Version de aplicacion: `0.8.0`, tomada de `package.json`.
+- Version de aplicacion: `0.9.0`, tomada de `package.json`.
 - Entrada desktop: `electron/main.ts`; entrada renderer: `src/main.tsx`.
 - Plataformas empaquetadas: Windows x64/NSIS, macOS DMG y Linux x64
   AppImage/DEB, segun `electron-builder.json5`.

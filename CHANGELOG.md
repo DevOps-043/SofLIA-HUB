@@ -4,6 +4,52 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.9.0] - 2026-08-05
+
+### Added
+
+- **Navegador integrado completo:** Pulse Hub incorpora una superficie Chromium compartida entre el usuario y SofLIA, con sesion persistente aislada, historial, favoritos, sugerencias de direccion, gestor de credenciales cifradas y extensiones Manifest V3 desempaquetadas.
+- **Pestañas, doble vista y ventanas separadas:** El navegador admite hasta 500 pestañas logicas con un presupuesto acotado de vistas activas, composicion dividida o superpuesta y hasta cuatro ventanas nativas separadas que conservan la misma sesion.
+- **Asistente dentro del navegador:** El chat de SofLIA puede flotar, redimensionarse, minimizarse, cambiar de lado o sustituirse por la Orbe movible sin reducir permanentemente el espacio de la pagina.
+- **Comprension real de la pagina:** SofLIA puede obtener captura y DOM semantico saneado de la pestaña activa, leer referencias contextuales, navegar de forma determinista y realizar busquedas web sin iniciar Computer Use cuando no es necesario.
+- **Computer Use sobre la misma pagina:** Las acciones visuales reutilizan la pestaña, cookies y sesion visibles. El modelo elegido por el usuario conserva la orquestacion y `gemini-3.6-flash` actua exclusivamente como motor visual interno.
+- **Catalogo multimodelo y razonamiento por proveedor:** SofLIA y Lite usan Gemini; SofLIA Max y Pro usan OpenAI. Cada modelo conserva su nivel compatible y los modelos OpenAI pueden utilizar busqueda web alojada.
+- **Registro Operativo Gobernado (SDO):** Nueva vista de decisiones con fuentes, evidencia, claims, acciones, aprobaciones, vigencia, auditoria y documentos oficiales correlacionados mediante hash.
+- **Reuniones y transcripciones accesibles:** Nueva entrada de Reuniones en la barra lateral, consulta de transcripciones, diarizacion de ambos canales y sesgo de vocabulario para mejorar nombres y terminos del contexto.
+- **Sesion operativa federada:** El inicio de sesion visible de SOFIA puede resolver automaticamente la sesion de conversaciones de la misma identidad mediante un intercambio backend de un solo uso, sin compartir una segunda contraseña.
+- **Agente de escritorio ampliado:** Se incorporaron planeacion por fases, presupuestos de tarea, percepcion verificable, UI Automation/OCR, entrada nativa y rutas gobernadas para automatizacion local y WhatsApp.
+- **Arnes de desarrollo y OpenSpec:** El repositorio ahora incluye reglas canonicas, skills, adaptadores para Codex, Claude y Antigravity, especificaciones trazables y compuertas automatizadas de PR y release.
+
+### Changed
+
+- **Inicio de la aplicacion por fases:** La ventana principal se crea antes de inicializar servicios secundarios, muestra el renderer cuando esta listo e instrumenta tiempos de arranque para reducir la espera y evitar pantallas en blanco.
+- **Percepcion del navegador adaptativa:** La captura pasiva se reduce a un maximo de 1024 px, usa una cadencia base de diez segundos, espera cuatro segundos de calma y cede durante cargas, interaccion o Computer Use.
+- **Interfaz premium y minimalista:** Navegador, chat compacto, selectores de modelo y razonamiento, dialogos, historial, contraseñas y extensiones adoptan superficies redondeadas, densidad compacta y el sistema visual de SofLIA Learning.
+- **Seleccion de razonamiento simplificada:** Se retiro el modo Rapido; las preferencias antiguas se migran a Bajo y los niveles se traducen al contrato propio de Gemini u OpenAI.
+- **Autenticacion mas resistente:** Los fallos recuperables ya no destruyen la sesion valida de SOFIA, el renderer mantiene un unico gate de entrada y los servicios sensibles esperan un estado de autenticacion conocido.
+- **Herramientas dinamicas gobernadas:** Los toolsets ejecutables ahora requieren esquemas cerrados, metadata de riesgo, permisos por agente y grupo, timeout, cancelacion, fingerprint y auditoria. Este cambio es incompatible con plugins dinamicos que no declaren el nuevo contrato.
+- **Documentacion reorganizada:** `docs/`, `ai-specs/`, recursos runtime, migraciones y scripts se convirtieron en fuentes canonicas verificables; se retiraron snapshots, configuraciones locales y artefactos generados versionados.
+- **Modelo predeterminado actualizado:** SofLIA utiliza `gemini-3.6-flash`; los modelos, fallbacks y prompts de servicios auxiliares se alinearon con el catalogo vigente.
+
+### Fixed
+
+- **Transcripciones y paneles dinamicos lentos:** La observacion de fondo ya no recorre el DOM ni comprime capturas completas durante la carga de YouTube y descarta capturas obsoletas cuando la pagina cambia.
+- **Navegador congelado o en blanco:** Se corrigieron carreras de viewport, captura, visibilidad y control del agente que podian bloquear la pagina o provocar que la automatizacion intentara actuar fuera de Pulse Hub.
+- **Predicciones que desplazaban la pagina:** El menu de la barra de direccion ahora se superpone como en un navegador convencional, conserva los insets reales y queda por encima del chat flotante.
+- **Redirecciones OAuth y verificacion en dos pasos:** Los cambios de subframes autorizados ya no producen falsos errores globales; los protocolos no permitidos del frame principal continúan bloqueados.
+- **SofLIA no reconocia el contenido visible:** Las referencias a mensajes, personas, enlaces o repositorios de la pagina activa solicitan evidencia vigente antes de responder y pueden leer el DOM sin depender del nivel de razonamiento.
+- **Errores de seleccion de modelo:** Se restauro el catalogo completo, se corrigio la persistencia por modelo y se evita trasladar niveles exclusivos de OpenAI al actuador Gemini.
+- **Reuniones ausentes o incompletas:** La lista de runs ahora cubre todas las identidades asociadas al usuario y la transcripcion visible conserva la atribucion de participantes.
+- **Politicas faltantes en mensajes:** Se agregaron las politicas RLS necesarias para actualizar y eliminar mensajes sin relajar el aislamiento de lectura.
+
+### Security
+
+- **Aislamiento del navegador:** Las paginas se ejecutan sin Node ni preload, con sandbox, context isolation, web security, particion propia y allowlist de protocolos HTTP(S).
+- **Boveda y extensiones protegidas:** Las contraseñas se cifran con `safeStorage` y nunca regresan al renderer; las extensiones requieren inspeccion, permisos visibles, confirmacion humana y verificacion SHA-256 antes de copiarse.
+- **DOM y capturas minimizados:** La lectura omite valores de formularios, contenido editable, contraseñas, credenciales de URL y rutas locales; la evidencia contextual no concede autorizacion para ejecutar instrucciones de una pagina.
+- **Servicios sensibles deny-by-default:** Orbe, WhatsApp, automatizacion y otros servicios protegidos no arrancan ni aceptan operaciones hasta conocer una sesion valida.
+- **Aprobacion humana y auditoria:** Las acciones destructivas, permisos web y herramientas dinamicas de escritura o riesgo critico conservan confirmacion contextual, trace ID y resultado auditable.
+
 ## [0.8.0] - 2026-07-17
 
 ### Added
