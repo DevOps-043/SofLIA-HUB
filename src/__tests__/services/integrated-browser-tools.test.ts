@@ -56,6 +56,7 @@ function installBrowserApi() {
 describe('herramientas deterministas del navegador integrado', () => {
   afterEach(() => {
     Reflect.deleteProperty(window, 'integratedBrowser');
+    setConfirmationHandler(null);
   });
 
   it('IBT-001: read_browser_dom devuelve DOM saneado sin captura base64', async () => {
@@ -197,17 +198,33 @@ describe('herramientas deterministas del navegador integrado', () => {
     const typed = JSON.parse(await executeIntegratedBrowserTool('type_in_browser_element', {
       ref: 'dom-2',
       text: 'facturas',
-      submit: true,
+      submit: false,
     }));
     const scrolled = JSON.parse(await executeIntegratedBrowserTool('scroll_integrated_browser', { direction: 'down', amount: 5 }));
     const back = JSON.parse(await executeIntegratedBrowserTool('go_back_integrated_browser', {}));
 
-    expect(api.typeInElement).toHaveBeenCalledWith('dom-2', 'facturas', true);
+    expect(api.typeInElement).toHaveBeenCalledWith('dom-2', 'facturas', false);
     expect(api.scrollView).toHaveBeenCalledWith('down', 5);
     expect(api.goBack).toHaveBeenCalled();
     expect(typed.success).toBe(true);
     expect(scrolled.success).toBe(true);
     expect(back.success).toBe(true);
+  });
+
+  it('IBT-011: enviar con Enter exige confirmacion y no escribe si se cancela', async () => {
+    const api = installBrowserApi();
+    const confirm = vi.fn(async () => false);
+    setConfirmationHandler(confirm);
+
+    const result = JSON.parse(await executeIntegratedBrowserTool('type_in_browser_element', {
+      ref: 'dom-2',
+      text: 'Resumen ejecutivo',
+      submit: true,
+    }));
+
+    expect(confirm).toHaveBeenCalledWith('type_in_browser_element', expect.stringContaining('Resumen ejecutivo'));
+    expect(api.typeInElement).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ success: false, error: 'Acción cancelada por el usuario.' });
   });
 
   it('IBT-010: sin pestaña visible el controlador no actúa', async () => {

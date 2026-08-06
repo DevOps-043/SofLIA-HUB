@@ -7,6 +7,14 @@ El navegador SHALL conservar compatibilidad Chromium para aplicaciones web moder
 - **WHEN** una página visible actualiza contenido multimedia, transcripciones o paneles asíncronos sin intervención del agente
 - **THEN** el sistema toma una captura visual acotada sin ejecutar un recorrido DOM completo y espera al menos diez segundos antes de repetirla
 
+#### Scenario: Panel multimedia tras una interacción
+- **WHEN** el usuario abre una transcripción u otro panel asíncrono en una superficie multimedia conocida
+- **THEN** la observación pasiva espera al menos doce segundos de calma y separa sus capturas al menos treinta segundos, mientras la captura o lectura solicitada explícitamente continúa disponible
+
+#### Scenario: Turno no relacionado con el navegador
+- **WHEN** el navegador permanece visible pero el mensaje no se refiere a su contenido ni solicita una acción web
+- **THEN** el renderer no fuerza captura ni recorrido DOM para ese turno y el navegador conserva su presupuesto para la página
+
 #### Scenario: Interacción y panel asíncrono en curso
 - **WHEN** el usuario hace clic, escribe, desplaza o cambia una vista mientras la página resuelve contenido dinámico
 - **THEN** el sistema difiere y deduplica la captura pasiva hasta una ventana de calma, no compite con Computer Use y conserva una captura explícita bajo demanda
@@ -81,6 +89,14 @@ El agente de chat SHALL inspeccionar y operar el mismo `WebContentsView` visible
 - **WHEN** el usuario solicita abrir una URL o recurso conocido sin clics, escritura, scroll ni formularios
 - **THEN** el orquestador usa `navigate_integrated_browser`, espera la carga y recibe el DOM saneado de la misma sesión sin delegar en Gemini Computer Use
 
+#### Scenario: Flujo híbrido entre Codex y Google Chat
+- **WHEN** el usuario pide observar una aplicación de escritorio, elaborar un resumen y llevarlo a una sesión de Google Chat abierta en el navegador integrado
+- **THEN** el modelo seleccionado conserva la orquestación, usa Computer Use con superficie desktop solo para la evidencia externa, vuelve al DOM o Computer Use browser para la pestaña integrada y solicita confirmación antes del envío
+
+#### Scenario: Fallo de una superficie en un plan híbrido
+- **WHEN** un paso declarado para desktop o navegador integrado falla o no puede verificarse
+- **THEN** el sistema reporta el estado real y no cambia silenciosamente de superficie ni afirma que el siguiente paso fue completado
+
 ### Requirement: Percepción continua visual y semántica gobernada
 El sistema SHALL mantener en memoria una observación reciente de la pestaña activa y visible que combine captura visual y DOM semántico saneado, SHALL refrescarla con frecuencia acotada sin invocar al modelo por sí sola y MUST permitir al usuario pausarla explícitamente.
 
@@ -126,3 +142,7 @@ El sistema SHALL usar `gemini-3.6-flash` como modelo fijo de Computer Use de Sof
 #### Scenario: Herramientas de lectura independientes del actuador
 - **WHEN** el modelo seleccionado solo necesita buscar en la web, inspeccionar el DOM o navegar a un destino directo
 - **THEN** esas herramientas se ejecutan en el proveedor orquestador o mediante el wrapper tipado existente y `gemini-3.6-flash` no recibe una tarea de Computer Use
+
+#### Scenario: Tarea de Computer Use con efecto externo
+- **WHEN** una instrucción de Computer Use pretende enviar, publicar, pagar, borrar o confirmar una acción irreversible
+- **THEN** el runtime solicita confirmación humana antes de iniciar ese paso, incluso si la tarea combina lectura DOM y otras acciones permitidas

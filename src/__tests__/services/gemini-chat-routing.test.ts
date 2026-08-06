@@ -386,4 +386,50 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
       useToolLoop: true,
     }));
   });
+
+  it('RT-019: un turno ajeno al navegador no fuerza captura ni DOM aunque la vista este abierta', async () => {
+    const browser = installVisibleBrowserObservation();
+    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => createMockChat('Hola')) });
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    await sendMessageStream('Hola, ayudame a planear mi semana', [], { model: 'gemini-3.6-flash' });
+
+    expect(browser.getState).not.toHaveBeenCalled();
+    expect(browser.getObservation).not.toHaveBeenCalled();
+  });
+
+  it('RT-019B: crear un documento local no observa el navegador por el verbo escribir', async () => {
+    const browser = installVisibleBrowserObservation();
+    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => createMockChat('documento creado')) });
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    await sendMessageStream('escribe un documento Word con el resumen', [], { model: 'gemini-3.6-flash' });
+
+    expect(browser.getState).not.toHaveBeenCalled();
+    expect(browser.getObservation).not.toHaveBeenCalled();
+  });
+
+  it('RT-020: un flujo Codex a Google Chat habilita herramientas sin confundir desktop con el DOM activo', async () => {
+    const browser = installVisibleBrowserObservation();
+    const startChat = vi.fn(() => createMockChat('flujo preparado'));
+    mockGetGenerativeModel.mockReturnValue({ startChat });
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    await sendMessageStream(
+      'mira lo que hace Codex, prepara un resumen ejecutivo y mandalo al usuario de Google Chat que tengo abierto',
+      [],
+      { model: 'gemini-3.6-flash' },
+    );
+
+    expect(browser.getObservation).not.toHaveBeenCalled();
+    const modelConfig = mockGetGenerativeModel.mock.calls[0]?.[0];
+    expect(modelConfig?.systemInstruction).toContain('backend desktop');
+    const declarations = (modelConfig?.tools as Array<{ functionDeclarations?: Array<{ name: string }> }> | undefined)
+      ?.flatMap((group) => group.functionDeclarations || []) ?? [];
+    expect(declarations).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'use_computer' }),
+      expect.objectContaining({ name: 'read_browser_dom' }),
+      expect.objectContaining({ name: 'navigate_integrated_browser' }),
+    ]));
+  });
 });

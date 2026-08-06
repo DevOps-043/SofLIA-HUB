@@ -6,6 +6,7 @@ La vista integrada actual reemplaza todo el workspace de chat y no ofrece admini
 
 - Optimizar páginas dinámicas y multimedia separando la captura visual pasiva de la extracción DOM bajo demanda, reduciendo su frecuencia y presentando un User-Agent Chromium compatible sin relajar sandbox, aislamiento ni throttling de pestañas ocultas.
 - Hacer adaptativa la percepción pasiva: comprimir una copia visual acotada, esperar a que termine la interacción y evitar capturas redundantes durante cargas, Computer Use o cambios rápidos del viewport.
+- Aplicar un perfil de observación de bajo impacto a superficies multimedia como YouTube: ampliar la cadencia y la calma tras interacciones asíncronas, y no forzar captura/DOM en turnos que no se refieren al navegador.
 - Corregir la composición visual de las predicciones: el menú debe quedar por encima del chat flotante y la captura temporal debe conservar exactamente los insets de la vista nativa, sin ampliar ni desplazar la página.
 - Convertir Navegador en la superficie completa del workspace y superponer un chat compacto, redimensionable y colapsable con SofLIA sin reducir el viewport web.
 - Permitir separar pestañas en ventanas nativas independientes y reintegrarlas sin recargar, conservando la misma sesión y el presupuesto global de vistas Chromium.
@@ -33,6 +34,7 @@ La vista integrada actual reemplaza todo el workspace de chat y no ofrece admini
 
 - Resolver referencias contextuales a mensajes, personas y recursos de la pestaña activa aunque el usuario no use verbos visuales. La lectura usa primero el DOM saneado y búsqueda web/URL Context; navegar directamente a un destino conocido usa el contrato determinista del navegador y Computer Use queda reservado para interacción visual, contenido autenticado no accesible por lectura o fallos de las rutas de solo lectura.
 - Conservar el modelo y razonamiento elegidos como orquestador del turno aunque necesite Computer Use; solo el actuador visual interno queda fijado en `gemini-3.6-flash`.
+- Permitir planes híbridos explícitos dentro del mismo turno: leer DOM o controlar la pestaña integrada, observar una aplicación de escritorio con Computer Use y volver al navegador para completar el flujo. Cada paso conserva su superficie declarada y los envíos, publicaciones o acciones irreversibles mantienen confirmación HITL.
 - Permitir que SofLIA Max y Pro usen `web_search` alojado de OpenAI y el DOM del navegador integrado sin sustituir el proveedor ni iniciar Computer Use; SofLIA y Lite conservan Google Search/URL Context con el mismo criterio.
 - Permitir crear una conversación o cambiar a otra desde el encabezado compacto del navegador mediante un menú flotante buscable, sin restaurar la Sidebar completa.
 

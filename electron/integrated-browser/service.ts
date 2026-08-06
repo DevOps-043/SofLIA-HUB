@@ -15,6 +15,8 @@ import {
   INTEGRATED_BROWSER_MAX_DETACHED_WINDOWS,
   INTEGRATED_BROWSER_MAX_LIVE_TABS,
   INTEGRATED_BROWSER_MAX_TABS,
+  INTEGRATED_BROWSER_MEDIA_OBSERVATION_IDLE_MS,
+  INTEGRATED_BROWSER_MEDIA_OBSERVATION_INTERVAL_MS,
   INTEGRATED_BROWSER_OBSERVATION_IDLE_MS,
   INTEGRATED_BROWSER_OBSERVATION_INTERVAL_MS,
   INTEGRATED_BROWSER_OBSERVATION_MAX_EDGE,
@@ -509,10 +511,11 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   getObservationStatus(): BrowserObservationStatus {
+    const active = this.getActiveTab();
     return {
       enabled: this.observationEnabled,
       capturing: this.observationInFlight !== null || this.visualCaptureInFlight !== null,
-      intervalMs: INTEGRATED_BROWSER_OBSERVATION_INTERVAL_MS,
+      intervalMs: passiveObservationIntervalMs(active?.view?.webContents.getURL() ?? active?.url ?? ''),
       lastCapturedAt: this.latestVisualCapture?.capturedAt ?? this.latestObservation?.capturedAt ?? null,
       lastError: this.observationLastError,
     };
@@ -1171,7 +1174,8 @@ export class IntegratedBrowserService extends EventEmitter {
 
   private startObservationTimer(): void {
     if (!this.observationEnabled || this.observationTimer) return;
-    this.schedulePassiveCapture(INTEGRATED_BROWSER_OBSERVATION_INTERVAL_MS);
+    const active = this.getActiveTab();
+    this.schedulePassiveCapture(passiveObservationIntervalMs(active?.view?.webContents.getURL() ?? active?.url ?? ''));
   }
 
   private stopObservationTimer(): void {
@@ -1201,7 +1205,8 @@ export class IntegratedBrowserService extends EventEmitter {
         // se reintenta al cerrarla, no al siguiente intervalo completo.
         const active = this.getActiveTab();
         const remainingCalm = active ? active.passiveCaptureNotBefore - Date.now() : 0;
-        this.schedulePassiveCapture(remainingCalm > 0 ? remainingCalm : INTEGRATED_BROWSER_OBSERVATION_INTERVAL_MS);
+        const activeUrl = active?.view?.webContents.getURL() ?? active?.url ?? '';
+        this.schedulePassiveCapture(remainingCalm > 0 ? remainingCalm : passiveObservationIntervalMs(activeUrl));
       });
     }, Math.max(0, delayMs));
     this.observationTimer.unref?.();
@@ -1214,12 +1219,14 @@ export class IntegratedBrowserService extends EventEmitter {
    */
   private deferPassiveCapture(tab: BrowserTabRuntime): void {
     const now = Date.now();
-    tab.passiveCaptureNotBefore = now + INTEGRATED_BROWSER_OBSERVATION_IDLE_MS;
+    const currentUrl = tab.view?.webContents.getURL() ?? tab.url;
+    const idleMs = passiveObservationIdleMs(currentUrl);
+    tab.passiveCaptureNotBefore = now + idleMs;
     if (now - tab.lastDeferAt < INTEGRATED_BROWSER_DEFER_THROTTLE_MS) return;
     tab.lastDeferAt = now;
     tab.visualRevision += 1;
     if (this.latestObservation?.tabId === tab.id) this.latestObservation = null;
-    this.schedulePassiveCapture(INTEGRATED_BROWSER_OBSERVATION_IDLE_MS);
+    this.schedulePassiveCapture(idleMs);
   }
 
   private invalidateObservation(tabId?: string): void {
@@ -1243,13 +1250,14 @@ export class IntegratedBrowserService extends EventEmitter {
     const contents = tab.view.webContents;
     const startedUrl = contents.getURL();
     const startedRevision = tab.visualRevision;
+    const intervalMs = passiveObservationIntervalMs(startedUrl);
     const compatibleLatest = this.compatibleLatestVisualCapture(tabId, startedUrl, startedRevision);
     if (!force) {
       if (this.agentControlling || Date.now() < tab.passiveCaptureNotBefore) return Promise.resolve(compatibleLatest);
       const latestAge = compatibleLatest
         ? Date.now() - Date.parse(compatibleLatest.capturedAt)
         : Number.POSITIVE_INFINITY;
-      if (latestAge < INTEGRATED_BROWSER_OBSERVATION_INTERVAL_MS) return Promise.resolve(compatibleLatest);
+      if (latestAge < intervalMs) return Promise.resolve(compatibleLatest);
     }
     if (this.observationInFlight && !force) {
       return Promise.resolve(compatibleLatest);
@@ -1353,7 +1361,39 @@ export class IntegratedBrowserService extends EventEmitter {
     const tab = this.tabs.get(tabId);
     const latest = this.compatibleLatestVisualCapture(tabId, url, tab?.visualRevision);
     const age = latest ? Date.now() - Date.parse(latest.capturedAt) : Number.POSITIVE_INFINITY;
+    // La cadencia multimedia solo limita el muestreo pasivo. Un turno
+    // explicito no debe reutilizar durante 30 s una imagen que pudo cambiar por
+    // XHR sin producir un evento de entrada.
     return age < INTEGRATED_BROWSER_OBSERVATION_INTERVAL_MS ? Promise.resolve(latest) : this.refreshVisualCapture(true);
+  }
+}
+
+function passiveObservationIntervalMs(url: string): number {
+  return isHighCostMediaUrl(url)
+    ? INTEGRATED_BROWSER_MEDIA_OBSERVATION_INTERVAL_MS
+    : INTEGRATED_BROWSER_OBSERVATION_INTERVAL_MS;
+}
+
+function passiveObservationIdleMs(url: string): number {
+  return isHighCostMediaUrl(url)
+    ? INTEGRATED_BROWSER_MEDIA_OBSERVATION_IDLE_MS
+    : INTEGRATED_BROWSER_OBSERVATION_IDLE_MS;
+}
+
+/**
+ * YouTube mantiene paneles como la transcripcion mediante solicitudes y
+ * renders posteriores a la carga principal. Capturar a los cuatro segundos
+ * puede coincidir exactamente con ese trabajo y bloquear su compositor.
+ */
+function isHighCostMediaUrl(rawUrl: string): boolean {
+  try {
+    const hostname = new URL(rawUrl).hostname.toLowerCase();
+    return hostname === 'youtube.com'
+      || hostname.endsWith('.youtube.com')
+      || hostname === 'youtu.be'
+      || hostname.endsWith('.youtu.be');
+  } catch {
+    return false;
   }
 }
 

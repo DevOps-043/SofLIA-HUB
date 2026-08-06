@@ -2,6 +2,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BaseWindow, BrowserWindow, WebContentsView, dialog } from 'electron';
 import { IntegratedBrowserService } from '../integrated-browser';
 
+// El servicio materializa su primera vista con el gestor de extensiones real,
+// que lee su registro en disco de forma asincrona. Esta suite no ejercita
+// extensiones y esa lectura emitia avisos despues del teardown del worker.
+vi.mock('../integrated-browser/extension-manager', () => ({
+  BrowserExtensionManager: class {
+    restore = vi.fn(async () => []);
+    list = vi.fn(async () => []);
+    prepareFromDialog = vi.fn(async () => ({ canceled: true }));
+    confirmInstall = vi.fn(async () => { throw new Error('Extensiones no disponibles en pruebas.'); });
+    setEnabled = vi.fn(async () => { throw new Error('Extensiones no disponibles en pruebas.'); });
+    remove = vi.fn(async () => false);
+  },
+}));
+
 type MockIntegratedBrowserView = {
   options?: { webPreferences?: Record<string, unknown> };
   setBounds: ReturnType<typeof vi.fn>;
@@ -76,14 +90,16 @@ describe('IntegratedBrowserService', () => {
     service.setViewport({ x: 0, y: 0, width: 1280, height: 720 });
 
     expect(contents.capturePage).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(4_000);
+    await vi.advanceTimersByTimeAsync(11_999);
+    expect(contents.capturePage).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
     expect(contents.capturePage).toHaveBeenCalledTimes(1);
     expect(contents.executeJavaScript).not.toHaveBeenCalled();
     const passiveImage = await contents.capturePage.mock.results[0].value;
     expect(passiveImage.resize).toHaveBeenCalledWith({ width: 1024, height: 576, quality: 'good' });
     await expect(service.getObservation(false)).resolves.toMatchObject({
       observation: null,
-      observationStatus: { intervalMs: 10_000 },
+      observationStatus: { intervalMs: 30_000 },
     });
 
     await expect(service.getObservation(true)).resolves.toMatchObject({
@@ -111,7 +127,7 @@ describe('IntegratedBrowserService', () => {
     expect(contents.capturePage).not.toHaveBeenCalled();
 
     service.releaseAgentControl();
-    await vi.advanceTimersByTimeAsync(3_999);
+    await vi.advanceTimersByTimeAsync(11_999);
     expect(contents.capturePage).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);
     expect(contents.capturePage).toHaveBeenCalledTimes(1);

@@ -26,4 +26,9 @@ describe('clasificación contextual del navegador', () => {
     expect(classifyBrowserGroundingIntent('¿qué dice lo que compartieron en el chat?'))
       .toBe('read-current');
   });
+
+  it('BGI-006: una referencia visual a Codex se conserva como superficie desktop', () => {
+    expect(classifyBrowserGroundingIntent('mira lo que hace Codex y prepara un resumen ejecutivo'))
+      .toBe('none');
+  });
 });

@@ -146,6 +146,12 @@ Las tareas dirigidas al navegador integrado fallan de forma cerrada si esa vista
 
 Las operaciones destructivas de historial, credenciales y extensiones dejan de abrir `showMessageBox`: el renderer exige una confirmación accesible con objeto, consecuencia y botones inequívocos antes de invocar el IPC mutador. La instalación de extensiones se divide en selección/inspección y confirmación; main entrega únicamente un token efímero y metadata de permisos, y solo copia/carga después de la confirmación renderer.
 
+### Presupuesto multimedia y orquestación híbrida por superficies
+
+La observación pasiva distingue páginas multimedia de superficies ordinarias. En hosts de vídeo conocidos, la captura periódica se separa al menos treinta segundos y una interacción abre doce segundos de calma para que XHR, render diferido y paneles como transcripciones terminen sin competir con `capturePage`. La inspección explícita conserva disponibilidad inmediata. El renderer solo solicita captura + DOM al iniciar un turno cuando la clasificación detecta referencia o acción sobre el navegador; tener el workspace abierto no convierte todos los mensajes en observaciones forzadas.
+
+El modelo conversacional elegido compone una secuencia de herramientas sin transferir la orquestación. `read_browser_dom` y el controlador determinista operan la pestaña integrada; `use_computer` con `backend: 'browser'` cubre interacción visual compleja en esa misma sesión; `use_computer` con `backend: 'desktop'` observa o actúa sobre aplicaciones externas como Codex. Un plan puede alternar esas superficies de forma explícita, pero un fallo en una de ellas no autoriza cambiar silenciosamente de destino. Antes de enviar mensajes, publicar, pagar o borrar, tanto el controlador DOM como una tarea de Computer Use exigen confirmación humana basada en la intención del paso.
+
 ## Risks / Trade-offs
 
 - [Una extensión puede observar páginas y credenciales rellenadas] → advertencia explícita, permisos visibles, denylist de permisos críticos, instalación manual y remoción accesible; no se promete aislamiento entre una extensión aprobada y las páginas que modifica.

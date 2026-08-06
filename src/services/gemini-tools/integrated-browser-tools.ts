@@ -32,7 +32,7 @@ export const INTEGRATED_BROWSER_TOOLS: GeminiToolGroup = {
     },
     {
       name: 'type_in_browser_element',
-      description: 'Escribe texto en un campo editable de la pestaña activa identificado por su "ref" de read_browser_dom. Reemplaza el contenido previo del campo y, si submit es true, envía con Enter. Úsala para buscadores y formularios de la propia página. Nunca la uses para credenciales: las contraseñas se rellenan solo desde el gestor de contraseñas del navegador.',
+      description: 'Escribe texto en un campo editable de la pestaña activa identificado por su "ref" de read_browser_dom. Reemplaza el contenido previo del campo y, si submit es true, intenta enviar con Enter después de solicitar confirmación humana. Úsala para buscadores y formularios de la propia página. Nunca la uses para credenciales: las contraseñas se rellenan solo desde el gestor de contraseñas del navegador.',
       parameters: objectParams({
         ref: stringProp('Identificador del campo editable devuelto por read_browser_dom.'),
         text: stringProp('Texto que debe quedar en el campo. Máximo 5000 caracteres.'),

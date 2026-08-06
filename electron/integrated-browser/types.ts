@@ -8,6 +8,11 @@ export const INTEGRATED_BROWSER_MAX_LIVE_TABS = 8;
 export const INTEGRATED_BROWSER_MAX_DETACHED_WINDOWS = 4;
 export const INTEGRATED_BROWSER_OBSERVATION_INTERVAL_MS = 10_000;
 export const INTEGRATED_BROWSER_OBSERVATION_IDLE_MS = 4_000;
+/** Las aplicaciones multimedia necesitan terminar XHR y render diferido sin
+ * competir con el readback del compositor. La inspeccion explicita no usa
+ * estos retrasos. */
+export const INTEGRATED_BROWSER_MEDIA_OBSERVATION_INTERVAL_MS = 30_000;
+export const INTEGRATED_BROWSER_MEDIA_OBSERVATION_IDLE_MS = 12_000;
 /** Reprogramacion minima entre eventos de entrada seguidos. */
 export const INTEGRATED_BROWSER_DEFER_THROTTLE_MS = 250;
 export const INTEGRATED_BROWSER_OBSERVATION_MAX_EDGE = 1_024;

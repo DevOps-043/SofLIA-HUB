@@ -95,8 +95,9 @@ canal permitido. Los servicios no deben importar componentes React.
   aislada, protocolos HTTP(S), User-Agent derivado de Chromium sin token
   Electron, permisos sensibles con HITL y un driver de Computer Use sobre la
   pestaña enfocada. La captura visual pasiva no recorre el DOM, se reduce a
-  1024 px, usa cadencia adaptativa y cede durante interacción o Computer Use;
-  la extracción saneada se realiza bajo demanda. Los popups HTTP(S) se convierten en
+  1024 px, usa cadencia adaptativa (más amplia para YouTube) y cede durante
+  interacción o Computer Use; la extracción saneada se realiza bajo demanda y
+  no se fuerza para turnos ajenos al navegador. Los popups HTTP(S) se convierten en
   pestañas internas. `BrowserHistoryStore` conserva
   visitas HTTP(S) saneadas; `BrowserCredentialVault` cifra secretos con
   `safeStorage` y solo devuelve metadata; `BrowserExtensionManager` valida,

@@ -72,7 +72,10 @@ copia o carga al recibir la confirmacion renderer. La captura de
 solo lectura exige un viewport visible. La percepción pasiva conserva una
 captura visual reducida a 1024 px en su lado mayor y codificada en JPEG, con
 cadencia base de diez segundos, y la difiere cuatro segundos después de
-interacción, navegación o resize sin ejecutar DOM. Un turno explícito obtiene una revisión vigente y el
+interacción, navegación o resize sin ejecutar DOM. En YouTube la cadencia es de
+treinta segundos y la calma de doce para dejar terminar transcripciones y
+paneles asíncronos. Solo un turno clasificado como dependiente del navegador
+obtiene una revisión vigente y el
 DOM saneado bajo demanda. Solo el último snapshot queda en memoria, Computer Use
 no compite con el temporizador pasivo y el refresco nunca invoca al modelo.
 Los turnos contextuales solicitan un snapshot puntual reciente: referencias a
@@ -82,6 +85,10 @@ de visión. Los canales `integrated-browser:element-click`,
 controlador determinista: actúan por la referencia del último snapshot, resuelven
 el elemento vivo antes de enviar entrada real y se rechazan sin pestaña visible o
 mientras Computer Use controla la vista.
+Una secuencia híbrida puede usar Computer Use desktop para una aplicación
+externa y volver a estos canales para la pestaña integrada; la superficie se
+declara por paso, no existe fallback silencioso y los efectos externos conservan
+confirmación HITL.
 `integrated-browser:set-observation-enabled` permite pausar y descartar esa
 evidencia. El DOM omite valores de formularios, contenido editable, contraseñas
 y credenciales de URL, y se entrega como contenido de página no confiable.

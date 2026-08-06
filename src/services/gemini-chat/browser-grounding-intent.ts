@@ -7,6 +7,11 @@ export type BrowserGroundingIntent = 'none' | 'read-current' | 'follow-resource'
  */
 export function classifyBrowserGroundingIntent(message: string): BrowserGroundingIntent {
   const text = normalizeBrowserGroundingText(message);
+  const namesDesktopSurface = /\b(codex|escritorio|desktop|otra ventana|aplicacion de escritorio|programa abierto)\b/.test(text);
+  const namesBrowserSurface = /\b(navegador|browser|pagina|pestana|sitio|chat abierto|correo abierto|mensaje abierto)\b/.test(text);
+  // "Mira lo que hace Codex" describe una superficie externa. Adjuntar el DOM
+  // de la pestaña activa contaminaria la evidencia antes de elegir desktop.
+  if (namesDesktopSurface && !namesBrowserSurface) return 'none';
   const explicitVisualReference = hasExplicitVisualReference(text);
   const deicticReference = /\b(esto|eso|aqui|esta pagina|este sitio|este chat|este correo|este mensaje|ese enlace|ese link|el de arriba|lo de arriba)\b/.test(text);
   const sharedBySomeone = /\bque\b.{0,80}\b(?:me\s+)?(?:mando|mandaron|envio|enviaron|compartio|compartieron|paso|pasaron|escribio|escribieron|dijo|dijeron|recomendo|recomendaron|dejo|dejaron)\b/.test(text);

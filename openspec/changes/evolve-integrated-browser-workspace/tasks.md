@@ -163,3 +163,10 @@
 - [x] 23.2 Reducir y codificar la evidencia pasiva dentro de un presupuesto visual sin afectar capturas explícitas ni coordenadas de Computer Use.
 - [x] 23.3 Cubrir deduplicación, carga, interacción, tarea agente y resolución visual con pruebas dirigidas.
 - [x] 23.4 Actualizar parámetros y arquitectura; ejecutar verificación proporcional y revisión adversarial.
+
+## 24. Multimedia y orquestación híbrida por superficies
+
+- [x] 24.1 Evitar observación forzada en turnos ajenos al navegador y aplicar una cadencia de bajo impacto a YouTube y superficies multimedia.
+- [x] 24.2 Permitir que el orquestador combine DOM, Computer Use browser y Computer Use desktop con superficie explícita, outcome verificable y HITL para efectos externos.
+- [x] 24.3 Cubrir presupuesto multimedia, ruteo híbrido y confirmaciones con pruebas dirigidas.
+- [x] 24.4 Actualizar documentación, ejecutar verificación proporcional y revisión adversarial.

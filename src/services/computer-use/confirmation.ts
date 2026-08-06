@@ -19,6 +19,8 @@ const DANGEROUS_TOOLS = new Set([
   'reset_browser_profile',
 ]);
 
+const EXTERNAL_EFFECT_COMPUTER_TASK = /\b(envia\w*|enviar|send\w*|manda\w*|mandar|responde\w*|reply\w*|publica\w*|postear|post|paga\w*|pagar|compra\w*|comprar|transfiere\w*|transferir|elimina\w*|eliminar|borra\w*|borrar|delete\w*|confirmar compra|suscribe\w*|suscribir|cancelar suscripci)/;
+
 /**
  * Comandos de consulta que no modifican el sistema: no ameritan interrumpir
  * al usuario con un modal de confirmacion. Lista conservadora: cualquier
@@ -73,6 +75,7 @@ export async function confirmToolExecution(toolName: string, args: Record<string
 
   const needsConfirmation =
     DANGEROUS_TOOLS.has(toolName)
+    || (toolName === 'use_computer' && hasExternalEffectComputerTask(args.task))
     || (toolName === 'organize_files' && !args.dry_run)
     || toolName === 'batch_move_files';
 
@@ -83,6 +86,14 @@ export async function confirmToolExecution(toolName: string, args: Record<string
 
   const result = await api!.confirmAction(description);
   return result.confirmed;
+}
+
+function hasExternalEffectComputerTask(task: unknown): boolean {
+  const normalized = String(task || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  return EXTERNAL_EFFECT_COMPUTER_TASK.test(normalized);
 }
 
 function describeDangerousTool(toolName: string, args: Record<string, any>): string {
@@ -102,6 +113,7 @@ function describeDangerousTool(toolName: string, args: Record<string, any>): str
     use_computer_on_node: `Controlar nodo ${args.node_id}: ${args.task}`,
     kill_remote_node_process_session: `Terminar sesion remota ${args.session_id} en ${args.node_id}`,
     reset_browser_profile: `Resetear perfil de navegador: ${args.profile_id}`,
+    use_computer: `Computer Use ejecutara una accion con efecto externo.\nTarea: ${String(args.task || '').slice(0, 500)}`,
   };
 
   if (toolName === 'send_email') {

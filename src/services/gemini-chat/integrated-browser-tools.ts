@@ -64,6 +64,13 @@ export async function executeIntegratedBrowserTool(
     if (!ref) return failure('Indica el identificador "ref" de un campo devuelto por read_browser_dom.');
     if (typeof args.text !== 'string') return failure('El texto a escribir debe ser una cadena.');
     if (args.text.length > 5_000) return failure('El texto a escribir excede el límite de 5000 caracteres.');
+    if (args.submit === true) {
+      const confirmed = await requestUserConfirmation(
+        'type_in_browser_element',
+        `Escribir y enviar contenido mediante Enter en el navegador integrado.\nContenido: ${args.text.slice(0, 500)}`,
+      );
+      if (!confirmed) return failure('Acción cancelada por el usuario.');
+    }
     const result = await api.typeInElement(ref, args.text, args.submit === true);
     if (!result.success) return failure(result.error || 'No fue posible escribir en el campo indicado.');
     return serializeInteraction(result, await api.getObservation(true));

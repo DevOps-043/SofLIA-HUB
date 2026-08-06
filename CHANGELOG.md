@@ -4,6 +4,22 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.9.3] - 2026-08-05
+
+### Fixed
+
+- **Percepcion del navegador cobrada en turnos que no la necesitaban:** Tener el navegador abierto bastaba para capturar el compositor y recorrer el DOM en cada turno, incluido un saludo, una tarea de archivos o una pregunta general. Ahora la observacion completa solo se paga cuando el turno realmente depende de esa superficie; la percepcion pasiva sigue disponible para el resto.
+- **Evidencia contaminada al hablar de una aplicacion externa:** Una peticion como "mira lo que hace Codex" nombra una superficie de escritorio, pero se clasificaba como referencia a la pestaña activa y adjuntaba su DOM antes de que el modelo pudiera elegir el backend correcto. Nombrar escritorio sin nombrar navegador ya no ancla el turno al navegador integrado.
+- **Paneles de YouTube compitiendo con la captura pasiva:** YouTube completa paneles como la transcripcion con solicitudes y render posteriores a la carga principal. Una captura a los cuatro segundos podia caer exactamente sobre ese trabajo y bloquear su compositor. El muestreo pasivo en dominios multimedia pasa a 30.000 ms de cadencia y 12.000 ms de calma; la inspeccion explicita de un turno no aplica ese retraso.
+
+### Added
+
+- **Tareas hibridas entre superficies:** El modelo conserva la orquestacion cuando un encargo cruza una aplicacion externa y el navegador integrado ("revisa Codex, prepara un resumen y mandalo por Google Chat"): observa la aplicacion con backend desktop, redacta desde ese resultado y vuelve a la sesion integrada con DOM o controlador. Cada llamada se limita a una superficie, el resultado de cada fase es la evidencia de la siguiente y el envio nunca viaja dentro de una tarea de observacion.
+
+### Changed
+
+- **Confirmacion humana ante efectos externos:** `use_computer` exige confirmacion explicita cuando la tarea descrita implica enviar, responder, publicar, pagar, comprar, transferir o borrar, y el modal muestra la tarea concreta que se ejecutaria. `type_in_browser_element` tambien la exige cuando `submit` enviaria el formulario con Enter. Antes esas acciones solo dependian de las guardas internas del actuador.
+
 ## [0.9.2] - 2026-08-05
 
 ### Fixed

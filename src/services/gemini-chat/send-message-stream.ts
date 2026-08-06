@@ -38,13 +38,23 @@ export async function sendMessageStream(
 
   const computerUseEnabled = isComputerUseAvailable();
   const browserGroundingIntent = classifyBrowserGroundingIntent(message);
-  const browserObservation = await captureVisibleIntegratedBrowser(options);
+  const normalizedIntent = normalizeToolIntentText(message);
+  const hasBrowserInteraction = hasBrowserInteractionCommand(normalizedIntent);
+  const hybridSurfaceRequest = hasHybridSurfaceRequest(normalizedIntent);
+  const shouldInspectBrowser = browserGroundingIntent !== 'none'
+    || hasLikelyBrowserContentRequest(normalizedIntent)
+    || (hasBrowserInteraction && hasExplicitBrowserSurface(normalizedIntent));
+  // Tener el navegador abierto no justifica recorrer el DOM ni capturar su
+  // compositor en cada saludo, tarea local o pregunta general. La percepcion
+  // pasiva sigue disponible; la observacion completa se paga solo cuando el
+  // turno realmente depende de esa superficie.
+  const browserObservation = shouldInspectBrowser
+    ? await captureVisibleIntegratedBrowser(options)
+    : null;
   // Una pregunta puramente visual ya tiene la evidencia necesaria en la
   // captura adjunta. No debe convertirse en un comando de Computer Use ni
   // cambiar silenciosamente al modelo de comandos; las herramientas se
   // reservan para acciones o como fallback cuando no hay una vista capturable.
-  const normalizedIntent = normalizeToolIntentText(message);
-  const hasBrowserInteraction = hasBrowserInteractionCommand(normalizedIntent);
   const browserReadTask = browserGroundingIntent !== 'none' && !hasBrowserInteraction;
   const hasExecutableAction = hasComputerActionCommand(normalizedIntent) && !browserReadTask;
   const requestsWebGrounding = shouldUseWebGrounding(message);
@@ -66,6 +76,9 @@ export async function sendMessageStream(
     finalMessage = `${finalMessage}\n\n${browserObservation.domContext}`;
   } else if (browserGroundingIntent !== 'none') {
     systemInstruction = `${systemInstruction}\n\nLa solicitud contiene una referencia contextual a la pestaña activa, pero no hay una observación adjunta utilizable. Antes de responder que no tienes acceso, intenta read_browser_dom sobre la misma sesión visible.${BROWSER_CONTROLLER_NOTICE} No cambies al escritorio ni a un navegador externo.`;
+  }
+  if (hybridSurfaceRequest) {
+    systemInstruction = `${systemInstruction}\n\nEsta es una tarea hibrida por superficies. Conserva el modelo actual como orquestador: primero usa use_computer con backend desktop solo para observar la aplicacion externa; despues utiliza read_browser_dom y el controlador del navegador integrado (o backend browser si el DOM no basta) sobre la sesion visible. Verifica el resultado de cada fase. No incluyas el envio dentro de la observacion desktop y solicita confirmacion humana antes de enviar o publicar.`;
   }
   const messageContent = buildMessageContent(finalMessage, effectiveOptions?.images);
 
@@ -287,6 +300,22 @@ function hasComputerActionCommand(text: string): boolean {
  */
 function hasBrowserInteractionCommand(text: string): boolean {
   return BROWSER_INTERACTION_COMMAND_PATTERN.test(text);
+}
+
+function hasLikelyBrowserContentRequest(text: string): boolean {
+  const asksToUnderstand = /\b(resume|resumir|resumen|analiza|analizar|explica|explicar|lee|leer|revisa|revisar)\b/.test(text);
+  const referencesWebContent = /\b(transcripcion|video|pagina|sitio|pestana|chat abierto|correo abierto|mensaje abierto)\b/.test(text);
+  return asksToUnderstand && referencesWebContent;
+}
+
+function hasExplicitBrowserSurface(text: string): boolean {
+  return /\b(navegador|browser|pagina|pestana|sitio|enlace|link|youtube|google chat|gchat|gmail|correo abierto|chat abierto|transcripcion|video)\b/.test(text);
+}
+
+function hasHybridSurfaceRequest(text: string): boolean {
+  const externalSurface = /\b(codex|escritorio|desktop|otra ventana|aplicacion de escritorio|programa abierto)\b/.test(text);
+  const browserDestination = /\b(google chat|gchat|navegador|browser|pagina|pestana|chat abierto|correo abierto)\b/.test(text);
+  return externalSurface && browserDestination;
 }
 
 /** Imperativos de "abrir" con y sin pronombre enclitico. */

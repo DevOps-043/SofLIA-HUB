@@ -148,6 +148,13 @@ intentan después. En ambos proveedores la jerarquía es DOM o búsqueda web,
 navegación determinista y, únicamente si hacen falta percepción visual o
 acciones iterativas, `use_computer`.
 
+Una tarea puede combinar superficies sin cambiar de orquestador: `backend:
+'desktop'` observa aplicaciones externas como Codex; el DOM y el controlador
+determinista regresan a la pestaña integrada; `backend: 'browser'` se reserva
+para interacción visual compleja en esa pestaña. Cada llamada declara su
+superficie y un fallo no habilita fallback silencioso. Enviar, publicar, pagar
+o borrar mediante Computer Use requiere HITL antes de iniciar el paso.
+
 El dispatcher (`tool-dispatch.ts`) rechaza cualquier nombre desconocido
 (`isKnownGeminiTool`) antes de intentar ejecutarlo.
 
@@ -162,7 +169,7 @@ El dispatcher (`tool-dispatch.ts`) rechaza cualquier nombre desconocido
 | `read_browser_dom` | Lee el DOM saneado y acotado de la pestaña activa sin captura base64 ni Computer Use. Cada control expone un `ref` reutilizable por el controlador. |
 | `navigate_integrated_browser` | Abre una URL HTTP(S) o consulta en la pestaña activa y devuelve su DOM saneado, conservando la sesión. |
 | `click_browser_element` | Hace clic real sobre el control identificado por su `ref` y devuelve el DOM posterior. Resuelve el elemento vivo y recalcula su punto de impacto, por lo que el scroll o un re-render no desvían la acción. Un control irreversible (enviar, pagar, borrar, cerrar sesión) exige confirmación explícita del usuario. |
-| `type_in_browser_element` | Reemplaza el contenido de un campo editable por su `ref` y opcionalmente envía con Enter. Nunca se usa para credenciales. |
+| `type_in_browser_element` | Reemplaza el contenido de un campo editable por su `ref`; enviar con Enter requiere confirmación explícita. Nunca se usa para credenciales. |
 | `scroll_integrated_browser` | Desplaza la pestaña activa para revelar contenido fuera del área visible. |
 | `go_back_integrated_browser` | Vuelve a la página anterior y devuelve el DOM resultante; complementa al clic para recorrer listas. |
 
@@ -861,8 +868,10 @@ escritorio (nut.js), navegador integrado (`WebContentsView`) y Playwright
 aislado, mas mapeo de acciones propio. Se controla con:
 
 Mientras el navegador integrado está visible, main conserva una captura visual
-acotada de la pestaña enfocada con cadencia base de diez segundos. Esa ruta
-pasiva no ejecuta JavaScript ni recorre el DOM, espera cuatro segundos de calma
+acotada de la pestaña enfocada con cadencia base de diez segundos. YouTube usa
+un perfil de bajo impacto de treinta segundos y doce segundos de calma para no
+competir con transcripciones, XHR y render diferido. Esa ruta pasiva no ejecuta
+JavaScript ni recorre el DOM; el resto de sitios espera cuatro segundos de calma
 después de interacción, navegación o resize y se omite cuando su ventana no
 tiene foco o Computer Use está actuando. La copia se reduce a un máximo de 1024
 px en su lado mayor y se codifica en JPEG; el respaldo visual que muestra el
@@ -874,8 +883,10 @@ comprender la página, reutiliza la captura reciente y obtiene bajo demanda DOM
 semántico acotado; solo el último snapshot permanece en memoria. La evidencia combina:
 texto público, encabezados, landmarks, controles, frames y geometría. Omite
 valores escritos, contenido editable, contraseñas y credenciales de URL. El
-renderer la obtiene por `integrated-browser:get-observation` y la adjunta al
-siguiente turno multimodal; el refresco por sí solo nunca invoca al modelo. El
+renderer la obtiene por `integrated-browser:get-observation` y la adjunta solo
+a turnos clasificados como dependientes del navegador; un turno general no
+fuerza captura ni DOM por el mero hecho de mantener la vista abierta. El
+refresco por sí solo nunca invoca al modelo. El
 usuario puede pausarlo con el control visible, lo que descarta la evidencia.
 Antes de resolver cada turno con una referencia contextual, el renderer solicita
 una observación puntual reciente. La clasificación incluye expresiones sin verbo
