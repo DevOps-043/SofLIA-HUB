@@ -5,6 +5,7 @@ Estado: implementación local; despliegue pendiente. Actualizado: 2026-08-05.
 <!-- evidence: src/services/lia-session-exchange.ts -->
 <!-- evidence: src/contexts/auth/useLiaSession.ts -->
 <!-- evidence: database/lia/supabase/functions/sofia-session-exchange/index.ts -->
+<!-- evidence: database/lia/audits/federated-chat-account-diagnostic.sql -->
 <!-- evidence: openspec/changes/federate-sofia-lia-session -->
 
 ## Causa corregida
@@ -76,6 +77,44 @@ es compatible con la ruta legada únicamente si coinciden UUID y correo, y
 `public.users` conserva tanto el booleano como la fecha de verificación. Cualquier
 discordancia requiere revisión manual: no se debe marcar el correo como confirmado
 por el solo hecho de que exista o tenga un inicio de sesión reciente.
+
+El archivo se ejecuta en el proyecto **SofLIA Learning/SOFIA**, no en
+**Pulse Hub/Lia**. El error `relation "public.users" does not exist` significa que
+se abrió la instancia de conversaciones; no indica que falte una migración en
+Pulse Hub y no debe resolverse creando allí una tabla `users` duplicada.
+En SOFIA, el error `column u.password_hash does not exist` corresponde a una
+versión obsoleta del diagnóstico: el esquema actual ya retiró esa columna. Use la
+versión vigente, que solo compara identidad y confirmación y no inspecciona hashes.
+
+### Identidad SOFIA consistente pero conversaciones no disponibles
+
+Si la consulta SOFIA devuelve el mismo UUID y correo, confirmación vigente y una
+sesión reciente, la migración de identidad queda descartada para esa cuenta. No
+se deben modificar `public.users`, `auth.users` ni contraseñas para intentar
+recuperarla.
+
+Ejecutar entonces `database/lia/audits/federated-chat-account-diagnostic.sql` en
+el proyecto **Pulse Hub/Lia**, reemplazando los dos parámetros iniciales por el
+UUID y correo obtenidos en SOFIA. La consulta compara por separado ambos valores,
+comprueba el perfil operativo y cuenta conversaciones sin modificar datos. La
+guarda solo exige `auth.users`, `public.profiles` y `public.conversations`; si
+alguna falta, enumera las relaciones ausentes y señala que debe cambiarse al
+proyecto Lia. No se deben crear esas tablas en SOFIA.
+
+| Diagnóstico Lia | Interpretación | Acción segura |
+|---|---|---|
+| `identidad_operativa_consistente` en ambos criterios | Lia conserva la misma identidad | revisar respuesta y logs seguros de la Edge Function; no migrar datos |
+| `sin_coincidencia_en_auth_lia` en ambos criterios | la cuenta operativa aún no existe | revisar despliegue/secretos de la función; `generateLink` debe crearla al intercambiar |
+| `mismo_correo_con_uuid_distinto` | Lia ya asoció el correo a otro UUID | detener automatismos y reconciliar ownership con revisión humana |
+| `mismo_uuid_con_correo_distinto` | el UUID operativo pertenece a otro correo | detener automatismos; no cambiar correo ni UUID desde soporte |
+| `auth_lia_sin_perfil` | existe Auth Lia, pero falta su perfil público | revisar el error de `syncLiaProfile`; no impide por sí solo generar la sesión |
+| RLS habilitado y cero políticas SELECT/ALL | una sesión válida no podrá listar chats | revisar y probar las políticas versionadas antes de cualquier cambio remoto |
+
+La pantalla de acceso muestra la versión proveniente de `package.json`. Una
+captura en v0.8.1 identifica un cliente anterior al código local v0.9.1 de este
+arreglo. El orden de recuperación es: desplegar y probar primero
+`sofia-session-exchange` en Lia, publicar después el cliente corregido y confirmar
+la versión instalada antes de usar **Reintentar**.
 
 Después de publicar este código se debe redesplegar `sofia-session-exchange`; el
 botón **Reintentar** recuperará la sesión sin cambiar contraseñas ni tocar el UUID

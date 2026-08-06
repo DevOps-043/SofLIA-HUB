@@ -67,3 +67,51 @@ Hallazgos corregidos durante la revisión:
 - Para recuperar al usuario es necesario desplegar primero la Edge Function
   actualizada con `verify_jwt = false`, probar una cuenta controlada y después
   usar **Reintentar**. Esas mutaciones remotas requieren HITL.
+
+## Seguimiento: ejecución en instancia incorrecta
+
+La captura de soporte del 2026-08-05 confirmó que el diagnóstico SOFIA se pegó
+en el SQL Editor de Pulse Hub/Lia. PostgreSQL respondió `42P01` porque Lia no es
+propietaria de `public.users`. Se añadió una guarda al inicio del archivo para
+detener el lote con un error `P0001` accionable y se corrigieron las dos guías
+operativas. No se creó ninguna tabla en Lia ni se ejecutó una mutación remota.
+
+Una segunda ejecución en SOFIA reveló `42703` sobre `u.password_hash`: el script
+todavía mezclaba el diagnóstico vigente con una limpieza histórica ya aplicada.
+Se retiraron todas las referencias a hashes, `encrypted_password`, RPCs legados y
+DDL destructivo. El archivo final contiene solo comprobaciones de esquema y
+consultas de identidad/confirmación compatibles con `public.users` actual.
+
+La verificación del seguimiento confirmó que la guarda precede a las consultas,
+que las columnas requeridas existen en el snapshot, que no hay DML/DDL ni nombres
+de campos de contraseña, y que pasan `typecheck`, `lint:changed`, `docs:check`,
+`harness:validate` y OpenSpec estricto. `verify:pr` conserva el mismo bloqueo de
+línea base documentado: inventario de 314 frente a 315 archivos de prueba.
+
+## Seguimiento: usuario afectado Lord
+
+El resultado productivo aportado para `Lord` descarta la hipótesis de identidad
+SOFIA incompleta: el perfil y Auth tienen el mismo UUID y correo, el correo está
+confirmado y existe una sesión reciente. La divergencia mostrada para otro usuario
+no debe atribuirse ni aplicarse a Lord.
+
+Se añadió `database/lia/audits/federated-chat-account-diagnostic.sql`, una
+consulta de solo lectura para comparar en Lia el UUID y correo SOFIA por separado,
+detectar ownership histórico, contar conversaciones y exponer el estado RLS sin
+mutaciones. La captura también muestra Pulse Hub v0.8.1, anterior al código local
+v0.9.1; por tanto, la verificación operativa debe incluir versión instalada,
+despliegue de la Edge Function y sus secretos antes de atribuir el fallo a datos.
+
+La revisión adversarial encontró además una guía vigente de marzo que todavía
+proponía escribir hashes y contenía datos reales, incluida una credencial en
+texto claro. `password-change-soflia-learning.md` se sustituyó por un aviso sin
+datos personales que dirige al contrato Supabase Auth actual. La credencial se
+considera expuesta y debe rotarse fuera del repositorio; no se reescribió el
+historial Git ni se hizo ninguna mutación remota.
+
+Una ejecución posterior de la auditoría Lia se detuvo en la guarda porque una o
+más relaciones esperadas no estaban disponibles. Se retiró `public.folders` de
+las precondiciones y del resultado porque no participa en el intercambio ni en
+el ownership de conversaciones. La guarda ahora enumera solo las relaciones
+esenciales ausentes y ordena cambiar al proyecto Pulse Hub/Lia sin crear tablas
+duplicadas en SOFIA.
