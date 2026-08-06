@@ -8,8 +8,8 @@ Estado: vigente. Actualizado: 2026-08-04.
 
 ## Contrato IPC
 
-La allowlist actual contiene 306 canales derivados de cinco arrays: 72, 59, 65,
-99 y 11. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 309 canales derivados de cinco arrays: 72, 59, 65,
+102 y 11. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |
@@ -24,7 +24,7 @@ el catalogo y su validador deben actualizarse juntos.
 | `meeting`, `whatsapp` | 12 cada uno | runs/approvals/sync; conexion/config/status |
 | `meeting-live` | 11 | audio, segmentos, deteccion y estado live |
 | `channels`, `workflow-hub` | 10 cada uno | hub multicanal y casos de workflow |
-| `integrated-browser` | 30 | navegación, pestañas, composición, captura visible, percepción, viewport, visibilidad, eventos, historial, credenciales y extensiones |
+| `integrated-browser` | 33 | navegación, pestañas, composición, captura visible, percepción, controlador determinista, viewport, visibilidad, eventos, historial, credenciales y extensiones |
 | otros | 60 | voice, updater, automation, drive, pytools, telegram, gchat, app, proactive, background-host, root y AI |
 
 ### Recorrido obligatorio
@@ -55,8 +55,9 @@ actualizar las cuatro capas, tipos y pruebas segun
 
 ### Contrato del navegador integrado
 
-`electron/integrated-browser-handlers.ts` registra veintiocho operaciones invocables:
-diecisiete de estado/navegacion/pestañas/composición/viewport/captura/percepción/visibilidad, dos de historial, cuatro de credenciales y
+`electron/integrated-browser-handlers.ts` registra treinta y una operaciones invocables:
+diecisiete de estado/navegacion/pestañas/composición/viewport/captura/percepción/visibilidad,
+tres del controlador determinista, dos de historial, cuatro de credenciales y
 cinco de extensiones. Dos canales adicionales entregan estado y solicitudes de
 apertura del agente al renderer. `electron/preload/integrated-browser-api.ts` y
 `src/services/integrated-browser-service.ts` son las capas publicas.
@@ -69,15 +70,18 @@ main y no forman parte del catalogo de herramientas del agente. La instalacion
 separa inspeccion y confirmacion: main emite metadata y un token efimero, y solo
 copia o carga al recibir la confirmacion renderer. La captura de
 solo lectura exige un viewport visible. La percepción pasiva conserva una
-captura visual reducida a 1024 px en su lado mayor con cadencia base de diez
-segundos, y la difiere cuatro segundos después de interacción, navegación o
-resize sin ejecutar DOM. Un turno explícito obtiene una revisión vigente y el
+captura visual reducida a 1024 px en su lado mayor y codificada en JPEG, con
+cadencia base de diez segundos, y la difiere cuatro segundos después de
+interacción, navegación o resize sin ejecutar DOM. Un turno explícito obtiene una revisión vigente y el
 DOM saneado bajo demanda. Solo el último snapshot queda en memoria, Computer Use
 no compite con el temporizador pasivo y el refresco nunca invoca al modelo.
 Los turnos contextuales solicitan un snapshot puntual reciente: referencias a
 personas, mensajes o recursos visibles se resuelven aunque no contengan un verbo
-de visión, y los recursos enlazados que requieren lectura se continúan mediante
-Computer Use sobre la misma sesión.
+de visión. Los canales `integrated-browser:element-click`,
+`integrated-browser:element-type` e `integrated-browser:scroll` exponen el
+controlador determinista: actúan por la referencia del último snapshot, resuelven
+el elemento vivo antes de enviar entrada real y se rechazan sin pestaña visible o
+mientras Computer Use controla la vista.
 `integrated-browser:set-observation-enabled` permite pausar y descartar esa
 evidencia. El DOM omite valores de formularios, contenido editable, contraseñas
 y credenciales de URL, y se entrega como contenido de página no confiable.

@@ -11,15 +11,16 @@ export function createIntegratedBrowserCuDriver(service: IntegratedBrowserServic
       const viewportSize = service.getViewportSize();
       const observed = await service.getObservation(true);
       const observation = observed.observation;
-      if (observation?.screenshot.startsWith('data:image/png;base64,')) {
+      const encoded = readDataUrlPayload(observation?.screenshot);
+      if (encoded) {
         captureSize = viewportSize;
         latestContext = {
-          observedAt: observation.capturedAt,
-          page: observation.dom,
+          observedAt: observation!.capturedAt,
+          page: observation!.dom,
           trust: 'untrusted_page_content',
         };
         return {
-          base64: observation.screenshot.slice('data:image/png;base64,'.length),
+          base64: encoded,
           width: captureSize.width,
           height: captureSize.height,
           context: latestContext,
@@ -114,6 +115,12 @@ export function createIntegratedBrowserCuDriver(service: IntegratedBrowserServic
 
 type BrowserContents = ReturnType<IntegratedBrowserService['getWebContentsForAgent']>;
 type ViewportSize = { width: number; height: number };
+
+/** La percepcion pasiva se codifica en JPEG; PNG sigue aceptandose por compatibilidad. */
+function readDataUrlPayload(value: string | undefined): string | null {
+  const match = typeof value === 'string' ? value.match(/^data:image\/(?:png|jpeg);base64,(.+)$/s) : null;
+  return match ? match[1] : null;
+}
 
 function toViewportPoint(point: CuPoint, source: ViewportSize, target: ViewportSize): CuPoint {
   return {

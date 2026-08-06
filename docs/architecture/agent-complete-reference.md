@@ -413,9 +413,9 @@ herramientas: los cálculos salen de Python real, no de aritmética "de memoria"
 - con computer use habilitado: `COMPUTER_USE_TOOLS`, `PROJECT_HUB_TOOLS`,
   `NATIVE_AI_TOOLS`;
 - sin computer use: solo `PROJECT_HUB_TOOLS` y `NATIVE_AI_TOOLS`;
-- si existe el navegador integrado: `INTEGRATED_BROWSER_TOOLS` se agrega con
-  `read_browser_dom` y `navigate_integrated_browser`, independientemente de
-  Computer Use;
+- si existe el navegador integrado: `INTEGRATED_BROWSER_TOOLS` se agrega con la
+  lectura, la navegación y el controlador determinista (clic, escritura, scroll
+  y retroceso), independientemente de Computer Use;
 - `GOOGLE_WORKSPACE_TOOLS` se agrega únicamente si el bridge `window.calendar`
   existe (Google conectado);
 - `codeExecution` si el modelo lo permite.
@@ -430,14 +430,18 @@ El dispatcher (`tool-dispatch.ts`) rechaza cualquier nombre desconocido
 
 ### 2.5 Catálogo del agente de chat
 
-**80 declaraciones** repartidas en diez módulos de `src/services/gemini-tools/`.
+**84 declaraciones** repartidas en diez módulos de `src/services/gemini-tools/`.
 
 **Navegador integrado determinista** (`integrated-browser-tools.ts`)
 
 | Herramienta | Qué hace |
 |---|---|
-| `read_browser_dom` | Lee el DOM saneado y acotado de la pestaña activa sin captura base64 ni Computer Use. |
+| `read_browser_dom` | Lee el DOM saneado y acotado de la pestaña activa sin captura base64 ni Computer Use. Cada control expone un `ref` reutilizable por el controlador. |
 | `navigate_integrated_browser` | Abre una URL HTTP(S) o consulta en la pestaña activa y devuelve su DOM saneado, conservando la sesión. |
+| `click_browser_element` | Hace clic real sobre el control identificado por su `ref` y devuelve el DOM posterior. Un control irreversible exige confirmación explícita del usuario. |
+| `type_in_browser_element` | Reemplaza el contenido de un campo editable por su `ref` y opcionalmente envía con Enter. |
+| `scroll_integrated_browser` | Desplaza la pestaña activa para revelar contenido fuera del área visible. |
+| `go_back_integrated_browser` | Vuelve a la página anterior y devuelve el DOM resultante. |
 
 **Automatización de computadora** (`computer-automation-tools.ts`)
 
@@ -1131,10 +1135,12 @@ observación puntual reciente de la pestaña enfocada mediante
 `integrated-browser:get-observation` y adjunta captura + DOM al turno multimodal.
 Si el contenido solicitado está detrás de un enlace visible, el orquestador usa
 primero búsqueda web o URL Context; puede refrescar `read_browser_dom` o abrir un
-destino conocido con `navigate_integrated_browser` en la misma sesión. Para
-clics, escritura, scroll, formularios, autenticación o contenido dinámico que no
-pueda leerse de forma determinista, `use_computer` con backend `browser` conserva
-la misma URL, cookies y sesión. Si la vista no está visible o la captura falla,
+destino conocido con `navigate_integrated_browser` en la misma sesión. Los clics,
+la escritura, el desplazamiento y el retroceso se resuelven con el controlador
+determinista por `ref`; el ciclo leer -> clic -> volver recorre listas completas
+sin actuador visual. `use_computer` con backend `browser` queda como escalón
+siguiente para lo que ese controlador no cubra y conserva la misma URL, cookies
+y sesión. Si la vista no está visible o la captura falla,
 el chat no presenta una observación
 inventada. Este contrato ofrece capturas actuales e iterativas, no una
 transmisión continua de video.

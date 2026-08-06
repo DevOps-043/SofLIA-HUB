@@ -14,6 +14,34 @@ import { BrowserQuickAccessBar } from './BrowserQuickAccessBar';
 
 const UTILITY_BAR_STORAGE_KEY = 'sofLia_integratedBrowserUtilityBarVisible';
 
+/**
+ * La vista del navegador es una superficie nativa que se compone por encima del
+ * renderer: intercambiarla por el respaldo (o al reves) sin esperar a que el
+ * cuadro este pintado deja el area en blanco y se percibe como un refresco de
+ * toda la pagina. Dos cuadros garantizan que React ya confirmo el DOM y que el
+ * compositor ya lo mostro.
+ */
+function waitForNextPaint(): Promise<void> {
+  return new Promise<void>((resolve) => {
+    if (typeof requestAnimationFrame !== 'function') {
+      setTimeout(resolve, 0);
+      return;
+    }
+    let settled = false;
+    const settle = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    requestAnimationFrame(() => requestAnimationFrame(settle));
+    // Con la ventana minimizada u oculta el compositor deja de entregar
+    // cuadros: sin salvaguarda la barra de direcciones quedaria bloqueada.
+    setTimeout(settle, PAINT_WAIT_FALLBACK_MS);
+  });
+}
+
+const PAINT_WAIT_FALLBACK_MS = 120;
+
 export function IntegratedBrowserPanel(props: {
   onClose?: () => void;
   maximized?: boolean;
@@ -90,20 +118,31 @@ export function IntegratedBrowserPanel(props: {
       const wasVisible = suggestionOverlayRef.current;
       const pendingOpen = suggestionOpenPromiseRef.current;
       suggestionOverlayRef.current = false;
-      setSuggestionSnapshot(null);
 
       if (!wasVisible) {
+        setSuggestionSnapshot(null);
         if (pendingOpen) await pendingOpen;
         if (suggestionRestorePromiseRef.current) await suggestionRestorePromiseRef.current;
         return;
       }
-      if (managementTabRef.current) return;
+      if (managementTabRef.current) {
+        setSuggestionSnapshot(null);
+        return;
+      }
 
       const restorePromise = (async () => {
         if (pendingOpen) await pendingOpen;
-        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-        if (requestId !== suggestionOverlayRequestIdRef.current || managementTabRef.current) return;
+        if (requestId !== suggestionOverlayRequestIdRef.current || managementTabRef.current) {
+          setSuggestionSnapshot(null);
+          return;
+        }
         await publishViewport(true);
+        // La vista nativa vuelve a componer un cuadro despues de recibir el
+        // viewport. Retirar el respaldo antes deja el area en blanco y produce
+        // el parpadeo visible al cerrar la barra o al navegar.
+        await waitForNextPaint();
+        if (requestId !== suggestionOverlayRequestIdRef.current) return;
+        setSuggestionSnapshot(null);
       })();
       suggestionRestorePromiseRef.current = restorePromise;
       try {
@@ -129,6 +168,14 @@ export function IntegratedBrowserPanel(props: {
         } catch {
           if (requestId !== suggestionOverlayRequestIdRef.current || !suggestionOverlayRef.current) return;
           setSuggestionSnapshot(null);
+        }
+
+        // Ocultar la vista nativa antes de que el respaldo este pintado deja el
+        // area en blanco durante uno o dos cuadros.
+        await waitForNextPaint();
+        if (requestId !== suggestionOverlayRequestIdRef.current || !suggestionOverlayRef.current) {
+          if (!managementTabRef.current) await publishViewport(true);
+          return;
         }
 
         const hidden = await integratedBrowserService.hide();
@@ -176,9 +223,11 @@ export function IntegratedBrowserPanel(props: {
     const closedTab = managementTabRef.current;
     managementTabRef.current = null;
     setManagementTab(null);
-    setManagementSnapshot(null);
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await waitForNextPaint();
     await publishViewport(true);
+    // El respaldo se retira solo cuando la vista nativa ya volvio a pintar.
+    await waitForNextPaint();
+    if (!managementTabRef.current) setManagementSnapshot(null);
     if (closedTab === 'extensions') await refreshToolbarExtensions();
   }, [publishViewport, refreshToolbarExtensions]);
 
@@ -201,6 +250,7 @@ export function IntegratedBrowserPanel(props: {
     }
     managementTabRef.current = tab;
     try {
+      await waitForNextPaint();
       const hidden = await integratedBrowserService.hide();
       if (!hidden.success) {
         managementTabRef.current = null;

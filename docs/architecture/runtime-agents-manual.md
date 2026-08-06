@@ -134,9 +134,9 @@ herramientas: los cálculos salen de Python real, no de aritmética "de memoria"
 - con computer use habilitado: `COMPUTER_USE_TOOLS`, `PROJECT_HUB_TOOLS`,
   `NATIVE_AI_TOOLS`;
 - sin computer use: solo `PROJECT_HUB_TOOLS` y `NATIVE_AI_TOOLS`;
-- si existe el navegador integrado: `INTEGRATED_BROWSER_TOOLS` se agrega con
-  `read_browser_dom` y `navigate_integrated_browser`, independientemente de
-  Computer Use;
+- si existe el navegador integrado: `INTEGRATED_BROWSER_TOOLS` se agrega con la
+  lectura, la navegación y el controlador determinista (clic, escritura, scroll
+  y retroceso), independientemente de Computer Use;
 - `GOOGLE_WORKSPACE_TOOLS` se agrega únicamente si el bridge `window.calendar`
   existe (Google conectado);
 - `codeExecution` si el modelo lo permite.
@@ -153,14 +153,25 @@ El dispatcher (`tool-dispatch.ts`) rechaza cualquier nombre desconocido
 
 ### 2.5 Catálogo del agente de chat
 
-**80 declaraciones** repartidas en diez módulos de `src/services/gemini-tools/`.
+**84 declaraciones** repartidas en diez módulos de `src/services/gemini-tools/`.
 
 **Navegador integrado determinista** (`integrated-browser-tools.ts`)
 
 | Herramienta | Qué hace |
 |---|---|
-| `read_browser_dom` | Lee el DOM saneado y acotado de la pestaña activa sin captura base64 ni Computer Use. |
+| `read_browser_dom` | Lee el DOM saneado y acotado de la pestaña activa sin captura base64 ni Computer Use. Cada control expone un `ref` reutilizable por el controlador. |
 | `navigate_integrated_browser` | Abre una URL HTTP(S) o consulta en la pestaña activa y devuelve su DOM saneado, conservando la sesión. |
+| `click_browser_element` | Hace clic real sobre el control identificado por su `ref` y devuelve el DOM posterior. Resuelve el elemento vivo y recalcula su punto de impacto, por lo que el scroll o un re-render no desvían la acción. Un control irreversible (enviar, pagar, borrar, cerrar sesión) exige confirmación explícita del usuario. |
+| `type_in_browser_element` | Reemplaza el contenido de un campo editable por su `ref` y opcionalmente envía con Enter. Nunca se usa para credenciales. |
+| `scroll_integrated_browser` | Desplaza la pestaña activa para revelar contenido fuera del área visible. |
+| `go_back_integrated_browser` | Vuelve a la página anterior y devuelve el DOM resultante; complementa al clic para recorrer listas. |
+
+El ciclo `read_browser_dom` → `click_browser_element` → `go_back_integrated_browser`
+permite abrir uno por uno los elementos de una bandeja o listado sin invocar el
+actuador visual. Las referencias `ref` caducan cuando la página cambia: el
+controlador falla con un error explícito que pide releer el DOM en vez de actuar
+sobre coordenadas obsoletas. El controlador se rechaza si la pestaña no está
+visible o si Computer Use ya está actuando sobre ella.
 
 **Automatización de computadora** (`computer-automation-tools.ts`)
 
@@ -854,7 +865,10 @@ acotada de la pestaña enfocada con cadencia base de diez segundos. Esa ruta
 pasiva no ejecuta JavaScript ni recorre el DOM, espera cuatro segundos de calma
 después de interacción, navegación o resize y se omite cuando su ventana no
 tiene foco o Computer Use está actuando. La copia se reduce a un máximo de 1024
-px en su lado mayor antes de codificarla; las capturas explícitas no se degradan.
+px en su lado mayor y se codifica en JPEG; el respaldo visual que muestra el
+renderer mientras la capa nativa está oculta usa la escala lógica del viewport y
+una calidad mayor. Ninguna de las dos rutas codifica PNG a resolución de
+dispositivo: hacerlo bloqueaba el proceso principal en cada captura.
 Cuando un turno o herramienta necesita
 comprender la página, reutiliza la captura reciente y obtiene bajo demanda DOM
 semántico acotado; solo el último snapshot permanece en memoria. La evidencia combina:
@@ -871,10 +885,12 @@ resuelve primero mediante búsqueda web o URL Context; `read_browser_dom` puede
 refrescar la estructura visible y `navigate_integrated_browser` abre un destino
 conocido en la misma sesión sin actuador visual. Si la captura puntual no está
 disponible, la ruta intenta observar con la herramienta antes de afirmar que
-carece de acceso. Para clics, escritura, scroll, formularios, autenticación o
-contenido dinámico que no pueda leerse de forma determinista, `use_computer` con
-backend `browser` conserva la misma URL, cookies y sesión. Si la vista no está
-visible o la captura falla, el chat no presenta una observación
+carece de acceso. Los clics, la escritura, el desplazamiento y el retroceso se
+resuelven con el controlador determinista descrito en 2.5, que actúa por `ref`
+sobre la misma pestaña visible. `use_computer` con backend `browser` queda como
+escalón siguiente para lo que ese controlador no cubra: percepción puramente
+visual, autenticación o contenido que no expone estructura accesible. Si la
+vista no está visible o la captura falla, el chat no presenta una observación
 inventada. El DOM se marca como contenido no confiable y no autoriza acciones.
 
 El navegador puede mantener hasta 500 pestañas lógicas, con un máximo de ocho
@@ -887,8 +903,18 @@ Los popups HTTP(S) crean otra pestaña interna y nunca cambian al navegador exte
 
 El chat compacto reserva un inset izquierdo o derecho y mantiene el
 `WebContentsView` visible; no estaciona la vista ni usa PNG para componer la
-página. La percepción de main está serializada para no solapar capturas y el
-walker DOM descarta nodos alejados del viewport antes de consultar estilos. Si
+página. La publicación de viewport solo aplica los cambios reales de bounds y
+visibilidad: reenviar la misma geometría, u ocultar y volver a mostrar la vista,
+obligaba a la página a descartar su cuadro compuesto y a reiniciar la carga
+diferida, y era la causa de que sitios como YouTube tardaran en pintar paneles y
+listas. Las vistas del navegador integrado no aplican `backgroundThrottling`,
+porque quedan ocultas cada vez que se abre un gestor o las sugerencias y esa
+pausa congelaba temporizadores y peticiones en curso.
+La percepción de main está serializada para no solapar capturas; el
+walker DOM clasifica cada nodo antes de medirlo, descarta los alejados del
+viewport y respeta un presupuesto de tiempo dentro de la página para no
+bloquear el hilo del renderer. Una ráfaga de eventos de entrada extiende la
+ventana de calma sin reconstruir el temporizador en cada evento. Si
 Computer Use no puede iniciar o capturar esa vista, la tarea termina como
 `fallida` y no se reintenta mediante desktop ni el navegador predeterminado.
 El panel mide el inicio del contenido y comienza debajo de la barra superior;
@@ -901,7 +927,13 @@ el navegador. La fila secundaria con título y gestores puede plegarse para
 ganar altura y la barra de dirección ofrece sugerencias deduplicadas del
 historial local. El menú se superpone sin cambiar la geometría del navegador:
 usa una captura puntual en memoria, oculta la capa nativa solo mientras está
-visible y restaura la misma sesión al cerrarse. Estas sugerencias no exponen
+visible y restaura la misma sesión al cerrarse. El intercambio entre la capa
+nativa y ese respaldo está sincronizado con el cuadro pintado en ambos sentidos
+—se oculta la vista solo cuando el respaldo ya es visible y se retira el respaldo
+solo cuando la vista ya volvió a componer—, porque hacerlo en el mismo turno
+dejaba el área en blanco y se percibía como un refresco de toda la página. Si el
+compositor no entrega cuadros (ventana minimizada u oculta) una salvaguarda de
+tiempo evita que la secuencia quede bloqueada. Estas sugerencias no exponen
 contenido de página ni secretos.
 
 Las extensiones desempaquetadas muestran permisos, hosts y declaraciones

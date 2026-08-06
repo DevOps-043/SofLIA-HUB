@@ -134,6 +134,25 @@ export interface BrowserObservationStatus {
   lastError: string | null;
 }
 
+export interface BrowserElementTargetSummary {
+  ref: string;
+  tag: string;
+  role: string;
+  name: string;
+  type: string;
+  href: string;
+  disabled: boolean;
+  editable: boolean;
+  x: number;
+  y: number;
+  occluded: boolean;
+}
+
+export interface IntegratedBrowserInteractionResponse extends IntegratedBrowserResponse {
+  target?: BrowserElementTargetSummary;
+  warning?: string | null;
+}
+
 export interface IntegratedBrowserObservationResponse extends IntegratedBrowserResponse {
   observation?: BrowserObservationSnapshot | null;
   observationStatus?: BrowserObservationStatus;
@@ -146,6 +165,9 @@ export interface IntegratedBrowserApi {
   setObservationEnabled(enabled: boolean): Promise<IntegratedBrowserObservationResponse>;
   open(url?: string): Promise<IntegratedBrowserResponse>;
   navigate(target: string): Promise<IntegratedBrowserResponse>;
+  clickElement(ref: string): Promise<IntegratedBrowserInteractionResponse>;
+  typeInElement(ref: string, text: string, submit?: boolean): Promise<IntegratedBrowserInteractionResponse>;
+  scrollView(direction: 'up' | 'down' | 'left' | 'right', amount?: number): Promise<IntegratedBrowserResponse>;
   createTab(url?: string): Promise<IntegratedBrowserResponse>;
   closeTab(tabId: string): Promise<IntegratedBrowserResponse>;
   activateTab(tabId: string): Promise<IntegratedBrowserResponse>;
@@ -193,6 +215,11 @@ export const integratedBrowserService = {
   setObservationEnabled: (enabled: boolean): Promise<IntegratedBrowserObservationResponse> => requireApi().setObservationEnabled(enabled),
   open: (url?: string): Promise<IntegratedBrowserResponse> => requireApi().open(url),
   navigate: (target: string): Promise<IntegratedBrowserResponse> => requireApi().navigate(target),
+  clickElement: (ref: string): Promise<IntegratedBrowserInteractionResponse> => requireApi().clickElement(ref),
+  typeInElement: (ref: string, text: string, submit?: boolean): Promise<IntegratedBrowserInteractionResponse> =>
+    requireApi().typeInElement(ref, text, submit),
+  scrollView: (direction: 'up' | 'down' | 'left' | 'right', amount?: number): Promise<IntegratedBrowserResponse> =>
+    requireApi().scrollView(direction, amount),
   createTab: (url?: string): Promise<IntegratedBrowserResponse> => requireApi().createTab(url),
   closeTab: (tabId: string): Promise<IntegratedBrowserResponse> => requireApi().closeTab(tabId),
   activateTab: (tabId: string): Promise<IntegratedBrowserResponse> => requireApi().activateTab(tabId),

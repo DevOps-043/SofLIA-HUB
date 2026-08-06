@@ -50,6 +50,19 @@ export function setConfirmationHandler(handler: ConfirmationHandler | null) {
   confirmationHandler = handler;
 }
 
+/**
+ * Pide confirmacion explicita al usuario desde cualquier herramienta, no solo
+ * las de Computer Use. Sin handler ni API disponibles la respuesta es negativa:
+ * una accion irreversible nunca procede por omision.
+ */
+export async function requestUserConfirmation(toolName: string, description: string): Promise<boolean> {
+  if (confirmationHandler) return confirmationHandler(toolName, description);
+  const api = window.computerUse;
+  if (!api) return false;
+  const result = await api.confirmAction(description);
+  return result.confirmed;
+}
+
 export async function confirmToolExecution(toolName: string, args: Record<string, any>, api: Window['computerUse']): Promise<boolean> {
   if (
     (toolName === 'execute_command' || toolName === 'run_background_command')

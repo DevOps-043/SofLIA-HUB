@@ -15,13 +15,16 @@ export function ChatMessageItem({
   const isUser = message.role === 'user';
 
   return (
-    <div className={`flex gap-4 ${isUser && !isEditing ? 'justify-end' : ''}`}>
+    <div className={`flex min-w-0 gap-4 ${isUser && !isEditing ? 'justify-end' : ''}`}>
       {message.role === 'model' && (
         <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 rounded-full overflow-hidden">
           <img src="./assets/lia-avatar.png" alt="SOFLIA" className="w-full h-full object-cover" />
         </div>
       )}
-      <div className={`flex flex-col ${isEditing ? 'w-full' : 'max-w-[85%]'} ${isUser && !isEditing ? 'items-end' : 'items-start'}`}>
+      {/* min-w-0 evita que el tamano minimo automatico del item flex (tablas,
+          codigo o URLs largas) desborde el panel flotante del navegador: sin el,
+          el contenido se sale y el contenedor superior lo recorta. */}
+      <div className={`flex min-w-0 flex-col ${isEditing ? 'w-full' : 'max-w-[85%]'} ${isUser && !isEditing ? 'items-end' : 'items-start'}`}>
         {isUser ? <UserMessageBubble controller={controller} message={message} /> : <ModelMessageContent controller={controller} message={message} />}
       </div>
       {isUser && (

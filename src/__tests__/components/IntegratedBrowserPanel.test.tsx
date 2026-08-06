@@ -33,6 +33,9 @@ describe('IntegratedBrowserPanel', () => {
       setObservationEnabled: vi.fn(async (enabled) => ({ success: true, state, observation: null, observationStatus: { enabled, capturing: false, intervalMs: 10_000, lastCapturedAt: null, lastError: null } })),
       open: vi.fn(async () => ({ success: true, state })),
       navigate: vi.fn(async () => ({ success: true, state })),
+      clickElement: vi.fn(async () => ({ success: true, state })),
+      typeInElement: vi.fn(async () => ({ success: true, state })),
+      scrollView: vi.fn(async () => ({ success: true, state })),
       createTab: vi.fn(async () => ({ success: true, state })),
       closeTab: vi.fn(async () => ({ success: true, state })),
       activateTab: vi.fn(async () => ({ success: true, state })),
@@ -129,7 +132,7 @@ describe('IntegratedBrowserPanel', () => {
     await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('https://soflia.ai/aprender'));
     await waitFor(() => expect(api.setViewport).toHaveBeenCalled());
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
-    expect(screen.queryByAltText('Vista actual del navegador')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByAltText('Vista actual del navegador')).not.toBeInTheDocument());
   });
 
   it('conserva la geometria de la vista nativa en la captura de sugerencias', async () => {
@@ -171,7 +174,7 @@ describe('IntegratedBrowserPanel', () => {
 
     await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
     await waitFor(() => expect(api.setViewport).toHaveBeenCalled());
-    expect(screen.queryByAltText('Vista actual del navegador')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByAltText('Vista actual del navegador')).not.toBeInTheDocument());
   });
 
   it('ignora una captura tardía si las sugerencias ya se cerraron', async () => {
@@ -393,7 +396,7 @@ describe('IntegratedBrowserPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Historial' }));
     expect((await screen.findAllByText('Ejemplo')).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole('button', { name: 'Borrar historial' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Borrar historial' }));
 
     const confirmation = screen.getByRole('dialog', { name: 'Borrar todo el historial' });
     expect(confirmation).toBeInTheDocument();

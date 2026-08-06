@@ -22,5 +22,5 @@ export function MarkdownRenderer({ text }: { text: string }) {
     index++;
   }
 
-  return <div className="space-y-1">{elements}</div>;
+  return <div className="min-w-0 space-y-1 break-words">{elements}</div>;
 }

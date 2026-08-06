@@ -110,11 +110,11 @@ function readListBlock(line: string, index: number) {
   const content = line.replace(/^(\s*)([-*]|\d+\.)\s/, '');
   return {
     element: (
-      <div key={`list-${index}`} className="flex gap-2 my-1" style={{ marginLeft: `${indent * 0.5}rem` }}>
+      <div key={`list-${index}`} className="flex min-w-0 gap-2 my-1" style={{ marginLeft: `${indent * 0.5}rem` }}>
         <span className={`flex-shrink-0 ${isOrdered ? 'text-accent font-medium text-xs mt-[3px]' : 'text-accent mt-1.5'}`}>
           {isOrdered ? listMatch[2] : '\u2022'}
         </span>
-        <span className="leading-relaxed">{formatInline(content)}</span>
+        <span className="min-w-0 flex-1 leading-relaxed break-words">{formatInline(content)}</span>
       </div>
     ),
     nextIndex: index + 1,

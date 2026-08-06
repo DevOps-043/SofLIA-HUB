@@ -116,6 +116,7 @@ class MockNativeImage {
   resize = vi.fn(() => this);
   toDataURL = () => 'data:image/png;base64,Y2FwdHVyYQ==';
   toPNG = () => Buffer.from('captura');
+  toJPEG = vi.fn(() => Buffer.from('captura'));
 }
 
 export class WebContentsView extends EventEmitter {

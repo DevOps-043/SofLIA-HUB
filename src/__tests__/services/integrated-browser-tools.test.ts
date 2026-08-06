@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { executeIntegratedBrowserTool } from '../../services/gemini-chat/integrated-browser-tools';
 import { buildModelTools } from '../../services/gemini-chat/model-config';
+import { setConfirmationHandler } from '../../services/computer-use/confirmation';
 
 function observation() {
   return {
@@ -33,6 +34,20 @@ function installBrowserApi() {
     getState: vi.fn(async () => ({ success: true, state: { isVisible: true } })),
     getObservation: vi.fn(async (): Promise<Record<string, unknown>> => observation()),
     navigate: vi.fn(async () => ({ success: true, state: { isVisible: true } })),
+    clickElement: vi.fn(async () => ({
+      success: true,
+      state: { isVisible: true },
+      target: { ref: 'dom-1', tag: 'a', role: 'link', name: 'Código', type: '', href: 'https://github.com/example/repo', disabled: false, editable: false, x: 10, y: 20, occluded: false },
+      warning: null,
+    })),
+    typeInElement: vi.fn(async () => ({
+      success: true,
+      state: { isVisible: true },
+      target: { ref: 'dom-2', tag: 'input', role: '', name: 'Buscar', type: 'text', href: '', disabled: false, editable: true, x: 10, y: 20, occluded: false },
+      warning: null,
+    })),
+    scrollView: vi.fn(async () => ({ success: true, state: { isVisible: true } })),
+    goBack: vi.fn(async () => ({ success: true, state: { isVisible: true } })),
   };
   Object.defineProperty(window, 'integratedBrowser', { configurable: true, value: api });
   return api;
@@ -127,5 +142,81 @@ describe('herramientas deterministas del navegador integrado', () => {
     expect(result.success).toBe(false);
     expect(api.navigate).not.toHaveBeenCalled();
     expect(api.getObservation).not.toHaveBeenCalled();
+  });
+
+  it('IBT-007: el clic determinista actúa por referencia y devuelve el DOM posterior', async () => {
+    const api = installBrowserApi();
+    const desktopSpy = vi.fn();
+    Object.defineProperty(window, 'desktopAgent', { configurable: true, value: { executeTask: desktopSpy } });
+
+    const result = JSON.parse(await executeIntegratedBrowserTool('click_browser_element', {
+      ref: 'dom-1',
+      reason: 'Abrir el correo de la bandeja',
+    }));
+
+    expect(api.clickElement).toHaveBeenCalledWith('dom-1');
+    expect(api.getObservation).toHaveBeenLastCalledWith(true);
+    expect(desktopSpy).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      success: true,
+      source: 'integrated-browser-controller',
+      acted: { ref: 'dom-1', name: 'Código' },
+      dom: { title: 'Repositorio' },
+      untrustedContent: true,
+    });
+    Reflect.deleteProperty(window, 'desktopAgent');
+  });
+
+  it('IBT-008: un control irreversible exige confirmación y se cancela sin actuar', async () => {
+    const api = installBrowserApi();
+    api.getObservation.mockResolvedValueOnce({
+      success: true,
+      state: { isVisible: true },
+      observation: {
+        ...observation().observation,
+        dom: {
+          ...observation().observation.dom,
+          controls: [{ ref: 'dom-9', tag: 'button', role: 'button', name: 'Eliminar definitivamente', text: 'Eliminar', type: '', href: '', disabled: false, checked: null, rect: { x: 1, y: 1, width: 10, height: 10 }, scope: 'document' }],
+        },
+      },
+    });
+    const confirm = vi.fn(async () => false);
+    setConfirmationHandler(confirm);
+
+    const result = JSON.parse(await executeIntegratedBrowserTool('click_browser_element', { ref: 'dom-9' }));
+
+    expect(confirm).toHaveBeenCalledWith('click_browser_element', expect.stringContaining('Eliminar definitivamente'));
+    expect(api.clickElement).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ success: false, error: 'Acción cancelada por el usuario.' });
+    setConfirmationHandler(null);
+  });
+
+  it('IBT-009: escritura, desplazamiento y retroceso quedan fuera de Computer Use', async () => {
+    const api = installBrowserApi();
+
+    const typed = JSON.parse(await executeIntegratedBrowserTool('type_in_browser_element', {
+      ref: 'dom-2',
+      text: 'facturas',
+      submit: true,
+    }));
+    const scrolled = JSON.parse(await executeIntegratedBrowserTool('scroll_integrated_browser', { direction: 'down', amount: 5 }));
+    const back = JSON.parse(await executeIntegratedBrowserTool('go_back_integrated_browser', {}));
+
+    expect(api.typeInElement).toHaveBeenCalledWith('dom-2', 'facturas', true);
+    expect(api.scrollView).toHaveBeenCalledWith('down', 5);
+    expect(api.goBack).toHaveBeenCalled();
+    expect(typed.success).toBe(true);
+    expect(scrolled.success).toBe(true);
+    expect(back.success).toBe(true);
+  });
+
+  it('IBT-010: sin pestaña visible el controlador no actúa', async () => {
+    const api = installBrowserApi();
+    api.getState.mockResolvedValue({ success: true, state: { isVisible: false } });
+
+    const result = JSON.parse(await executeIntegratedBrowserTool('click_browser_element', { ref: 'dom-1' }));
+
+    expect(result.success).toBe(false);
+    expect(api.clickElement).not.toHaveBeenCalled();
   });
 });

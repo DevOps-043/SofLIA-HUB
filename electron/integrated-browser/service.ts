@@ -5,9 +5,12 @@ import { BrowserHistoryStore } from './browser-history-store';
 import { BrowserCredentialVault } from './credential-vault';
 import { BrowserExtensionManager } from './extension-manager';
 import { collectIntegratedBrowserDom } from './page-observation';
+import { describeResolutionFailure, resolveBrowserElement, type BrowserElementTarget } from './page-interaction';
 import { configureIntegratedBrowserPermissions } from './permission-governance';
 import {
   INTEGRATED_BROWSER_AGENT_VIEWPORT_TIMEOUT_MS,
+  INTEGRATED_BROWSER_BACKDROP_QUALITY,
+  INTEGRATED_BROWSER_DEFER_THROTTLE_MS,
   INTEGRATED_BROWSER_HOME,
   INTEGRATED_BROWSER_MAX_DETACHED_WINDOWS,
   INTEGRATED_BROWSER_MAX_LIVE_TABS,
@@ -15,12 +18,14 @@ import {
   INTEGRATED_BROWSER_OBSERVATION_IDLE_MS,
   INTEGRATED_BROWSER_OBSERVATION_INTERVAL_MS,
   INTEGRATED_BROWSER_OBSERVATION_MAX_EDGE,
+  INTEGRATED_BROWSER_OBSERVATION_QUALITY,
   INTEGRATED_BROWSER_PARTITION,
   type BrowserCredentialMetadata,
   type BrowserCredentialSaveInput,
   type BrowserExtensionInstallPreview,
   type BrowserExtensionMetadata,
   type BrowserHistoryEntry,
+  type BrowserInteractionOutcome,
   type BrowserObservationSnapshot,
   type BrowserObservationStatus,
   type IntegratedBrowserState,
@@ -47,6 +52,12 @@ type BrowserTabRuntime = {
   lastActivatedAt: number;
   visualRevision: number;
   passiveCaptureNotBefore: number;
+  lastDeferAt: number;
+  /** Ultimo estado aplicado a la vista nativa: evita ocultar y volver a mostrar
+   *  la pagina en cada publicacion de viewport, que la obliga a descartar el
+   *  cuadro compuesto y reiniciar temporizadores de carga. */
+  appliedVisible: boolean | null;
+  appliedBounds: Rectangle | null;
 };
 
 type BrowserVisualCapture = {
@@ -305,6 +316,7 @@ export class IntegratedBrowserService extends EventEmitter {
     }
     this.overlayTopTabId = null;
     this.applyViewLayout();
+    tab.appliedVisible = true;
     view.setVisible(true);
     detached.show();
     detached.focus();
@@ -381,9 +393,7 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   hide(): IntegratedBrowserState {
-    for (const tab of this.tabs.values()) {
-      if (!this.detachedWindows.has(tab.id)) tab.view?.setVisible(false);
-    }
+    this.hideWorkspaceTabsExcept();
     this.visible = false;
     this.latestObservation = null;
     this.latestVisualCapture = null;
@@ -481,13 +491,21 @@ export class IntegratedBrowserService extends EventEmitter {
     return contents;
   }
 
+  /**
+   * Respaldo visual que el renderer muestra mientras la vista nativa esta
+   * oculta. Se codifica en JPEG y a la escala logica del viewport: el PNG a
+   * resolucion de dispositivo tardaba cientos de milisegundos en codificarse y
+   * viajaba por IPC como varios megabytes en cada apertura de la barra.
+   */
   async captureVisiblePage(): Promise<string> {
     const active = this.getActiveTab();
     if (!active || !this.isTabVisible(active)) throw new Error('El navegador integrado no esta visible.');
     const contents = this.getWebContentsForAgent();
     const image = await contents.capturePage();
     if (image.isEmpty()) throw new Error('La captura del navegador integrado esta vacia.');
-    return image.toDataURL();
+    const bounds = this.requireTabView(active).getBounds();
+    const logicalEdge = Math.max(1, bounds.width, bounds.height);
+    return encodeBrowserCapture(image, logicalEdge, INTEGRATED_BROWSER_BACKDROP_QUALITY);
   }
 
   getObservationStatus(): BrowserObservationStatus {
@@ -522,6 +540,98 @@ export class IntegratedBrowserService extends EventEmitter {
     this.startObservationTimer();
     await this.refreshVisualCapture(true);
     return { observation: null, observationStatus: this.getObservationStatus() };
+  }
+
+  /**
+   * Controlador determinista: hace clic sobre un control del ultimo snapshot
+   * usando entrada real del navegador, sin pasar por el actuador visual. La
+   * referencia se resuelve contra el elemento vivo, no contra coordenadas
+   * guardadas, para que el scroll o un re-render no desvien el clic.
+   */
+  async clickElement(rawRef: unknown): Promise<BrowserInteractionOutcome> {
+    const { contents, target } = await this.requireInteractiveTarget(rawRef);
+    if (target.disabled) throw new Error(`El control "${target.name || target.tag}" esta deshabilitado.`);
+    sendBrowserClick(contents, target.x, target.y);
+    this.noteInteraction();
+    return { target, warning: target.occluded ? 'Otro elemento cubria el punto de impacto; verifica el resultado antes de continuar.' : null };
+  }
+
+  /**
+   * Escribe en un campo del ultimo snapshot. Enfoca con un clic real para que
+   * los editores controlados del sitio reciban los mismos eventos que con un
+   * usuario, limpia el valor previo y opcionalmente envia el formulario.
+   */
+  async typeInElement(rawRef: unknown, rawText: unknown, rawSubmit: unknown): Promise<BrowserInteractionOutcome> {
+    if (typeof rawText !== 'string') throw new Error('El texto a escribir debe ser una cadena.');
+    if (rawText.length > 5_000) throw new Error('El texto a escribir excede el limite de 5000 caracteres.');
+    const { contents, target } = await this.requireInteractiveTarget(rawRef);
+    if (!target.editable) throw new Error(`El elemento "${target.name || target.tag}" no es un campo editable.`);
+    if (target.disabled) throw new Error(`El campo "${target.name || target.tag}" esta deshabilitado.`);
+    sendBrowserClick(contents, target.x, target.y);
+    const selectionModifier = process.platform === 'darwin' ? 'meta' : 'control';
+    contents.sendInputEvent({ type: 'keyDown', keyCode: 'A', modifiers: [selectionModifier] });
+    contents.sendInputEvent({ type: 'keyUp', keyCode: 'A', modifiers: [selectionModifier] });
+    await contents.insertText(rawText);
+    if (rawSubmit === true) {
+      contents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
+      contents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
+    }
+    this.noteInteraction();
+    return { target, warning: null };
+  }
+
+  /** Desplaza la pestaña activa con la rueda real del navegador. */
+  scrollView(rawDirection: unknown, rawAmount: unknown): void {
+    const direction = rawDirection === undefined ? 'down' : rawDirection;
+    if (direction !== 'up' && direction !== 'down' && direction !== 'left' && direction !== 'right') {
+      throw new Error('La direccion de desplazamiento debe ser up, down, left o right.');
+    }
+    const amount = rawAmount === undefined ? 3 : rawAmount;
+    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 1 || amount > 20) {
+      throw new Error('La magnitud de desplazamiento debe estar entre 1 y 20.');
+    }
+    const contents = this.requireVisibleContents();
+    const size = this.getViewportSize();
+    const delta = Math.round(amount) * 100;
+    contents.sendInputEvent({
+      type: 'mouseWheel',
+      x: Math.round(size.width / 2),
+      y: Math.round(size.height / 2),
+      deltaX: direction === 'right' ? -delta : direction === 'left' ? delta : 0,
+      deltaY: direction === 'down' ? -delta : direction === 'up' ? delta : 0,
+      canScroll: true,
+    });
+    this.noteInteraction();
+  }
+
+  private async requireInteractiveTarget(rawRef: unknown): Promise<{ contents: WebContents; target: BrowserElementTarget }> {
+    if (typeof rawRef !== 'string' || !rawRef.trim() || rawRef.length > 60) {
+      throw new Error('La referencia del elemento es invalida.');
+    }
+    const contents = this.requireVisibleContents();
+    const resolution = await resolveBrowserElement(contents, rawRef.trim());
+    if (!resolution.ok) throw new Error(describeResolutionFailure(resolution.reason));
+    return { contents, target: resolution.target };
+  }
+
+  private requireVisibleContents(): WebContents {
+    const active = this.getActiveTab();
+    if (!active || !this.isTabVisible(active)) {
+      throw new Error('El navegador integrado no tiene una pestaña visible para interactuar.');
+    }
+    if (this.agentControlling) {
+      throw new Error('El navegador integrado esta siendo controlado por otra tarea.');
+    }
+    return this.getWebContentsForAgent();
+  }
+
+  /** La interaccion invalida la percepcion previa y abre una ventana de calma. */
+  private noteInteraction(): void {
+    const active = this.getActiveTab();
+    if (!active) return;
+    this.invalidateObservation(active.id);
+    active.lastDeferAt = 0;
+    this.deferPassiveCapture(active);
   }
 
   listHistory(input?: { query?: unknown; limit?: unknown }): Promise<BrowserHistoryEntry[]> {
@@ -619,6 +729,9 @@ export class IntegratedBrowserService extends EventEmitter {
       lastActivatedAt: Date.now(),
       visualRevision: 0,
       passiveCaptureNotBefore: 0,
+      lastDeferAt: 0,
+      appliedVisible: null,
+      appliedBounds: null,
     };
     this.tabs.set(tab.id, tab);
     this.materializeTab(tab, false);
@@ -636,7 +749,11 @@ export class IntegratedBrowserService extends EventEmitter {
         nodeIntegration: false,
         webSecurity: true,
         allowRunningInsecureContent: false,
-        backgroundThrottling: true,
+        // La vista se oculta cada vez que se abre un panel del navegador o las
+        // sugerencias de la barra. Con el throttling activo esa pausa congela
+        // temporizadores y carga diferida de la pagina (paneles de YouTube,
+        // listas de Gmail) y la reanudacion tarda segundos.
+        backgroundThrottling: false,
         spellcheck: true,
       },
     });
@@ -645,6 +762,8 @@ export class IntegratedBrowserService extends EventEmitter {
     parent.contentView.addChildView(view);
     this.overlayTopTabId = null;
     tab.view = view;
+    tab.appliedVisible = false;
+    tab.appliedBounds = null;
     this.configureWebContents(tab);
     if (!this.permissionCleanup) {
       this.permissionCleanup = configureIntegratedBrowserPermissions({
@@ -814,40 +933,50 @@ export class IntegratedBrowserService extends EventEmitter {
     this.enforceLiveTabBudget();
   }
 
+  /**
+   * Solo aplica los cambios reales de bounds y visibilidad. Ocultar y volver a
+   * mostrar la vista nativa (o reenviar los mismos bounds) obliga a la pagina a
+   * descartar su cuadro compuesto y a reiniciar la carga diferida, que es lo
+   * que hacia que sitios como YouTube tardaran en pintar paneles y listas.
+   */
   private applyViewLayout(): void {
-    for (const tab of this.tabs.values()) {
-      if (!this.detachedWindows.has(tab.id)) tab.view?.setVisible(false);
+    if (!this.visible || !this.viewport) {
+      this.hideWorkspaceTabsExcept();
+      return;
     }
-    if (!this.visible || !this.viewport) return;
     const requestedPrimaryId = this.primaryTabId ?? this.activeTabId;
     const primaryId = requestedPrimaryId && !this.detachedWindows.has(requestedPrimaryId)
       ? requestedPrimaryId
       : Array.from(this.tabs.values()).find((tab) => !this.detachedWindows.has(tab.id))?.id ?? null;
     this.primaryTabId = primaryId;
     const primary = primaryId ? this.tabs.get(primaryId) : null;
-    if (!primary) return;
-    const primaryView = this.materializeTab(primary, true);
-    if (this.viewMode === 'single' || !this.secondaryTabId) {
-      primaryView.setBounds(this.viewport);
-      primaryView.setVisible(true);
-      this.enforceLiveTabBudget();
+    if (!primary) {
+      this.hideWorkspaceTabsExcept();
       return;
     }
-    const secondary = this.tabs.get(this.secondaryTabId);
-    if (!secondary || secondary.id === primary.id || this.detachedWindows.has(secondary.id)) {
+
+    let secondary = this.viewMode === 'single' || !this.secondaryTabId ? null : this.tabs.get(this.secondaryTabId) ?? null;
+    if (secondary && (secondary.id === primary.id || this.detachedWindows.has(secondary.id))) secondary = null;
+    if (this.viewMode !== 'single' && !secondary) {
       this.viewMode = 'single';
       this.secondaryTabId = null;
-      primaryView.setBounds(this.viewport);
-      primaryView.setVisible(true);
+    }
+    this.hideWorkspaceTabsExcept(primary.id, secondary?.id);
+
+    const primaryView = this.materializeTab(primary, true);
+    if (!secondary) {
+      this.applyTabBounds(primary, primaryView, this.viewport);
+      this.applyTabVisibility(primary, primaryView, true);
       this.enforceLiveTabBudget();
       return;
     }
+
     const secondaryView = this.materializeTab(secondary, true);
     if (this.viewMode === 'split') {
       const gap = 6;
       const primaryWidth = Math.floor((this.viewport.width - gap) / 2);
-      primaryView.setBounds({ ...this.viewport, width: primaryWidth });
-      secondaryView.setBounds({
+      this.applyTabBounds(primary, primaryView, { ...this.viewport, width: primaryWidth });
+      this.applyTabBounds(secondary, secondaryView, {
         x: this.viewport.x + primaryWidth + gap,
         y: this.viewport.y,
         width: this.viewport.width - primaryWidth - gap,
@@ -857,8 +986,8 @@ export class IntegratedBrowserService extends EventEmitter {
       const margin = Math.min(16, Math.max(0, Math.floor((this.viewport.width - 160) / 2)));
       const overlayWidth = Math.min(Math.max(280, Math.round(this.viewport.width * 0.42)), Math.max(160, this.viewport.width - margin * 2));
       const overlayHeight = Math.min(Math.max(220, Math.round(this.viewport.height * 0.48)), Math.max(120, this.viewport.height - margin * 2));
-      primaryView.setBounds(this.viewport);
-      secondaryView.setBounds({
+      this.applyTabBounds(primary, primaryView, this.viewport);
+      this.applyTabBounds(secondary, secondaryView, {
         x: this.viewport.x + this.viewport.width - overlayWidth - margin,
         y: this.viewport.y + margin,
         width: overlayWidth,
@@ -874,9 +1003,32 @@ export class IntegratedBrowserService extends EventEmitter {
         }
       }
     }
-    primaryView.setVisible(true);
-    secondaryView.setVisible(true);
+    this.applyTabVisibility(primary, primaryView, true);
+    this.applyTabVisibility(secondary, secondaryView, true);
     this.enforceLiveTabBudget();
+  }
+
+  private hideWorkspaceTabsExcept(...visibleTabIds: Array<string | undefined>): void {
+    const keep = new Set(visibleTabIds.filter((id): id is string => typeof id === 'string'));
+    for (const tab of this.tabs.values()) {
+      if (this.detachedWindows.has(tab.id) || keep.has(tab.id) || !tab.view) continue;
+      this.applyTabVisibility(tab, tab.view, false);
+    }
+  }
+
+  private applyTabVisibility(tab: BrowserTabRuntime, view: WebContentsView, visible: boolean): void {
+    if (tab.appliedVisible === visible) return;
+    tab.appliedVisible = visible;
+    view.setVisible(visible);
+  }
+
+  private applyTabBounds(tab: BrowserTabRuntime, view: WebContentsView, bounds: Rectangle): void {
+    const applied = tab.appliedBounds;
+    if (applied && applied.x === bounds.x && applied.y === bounds.y && applied.width === bounds.width && applied.height === bounds.height) {
+      return;
+    }
+    tab.appliedBounds = { ...bounds };
+    view.setBounds(bounds);
   }
 
   private toTabState(tab: BrowserTabRuntime): IntegratedBrowserTabState {
@@ -949,8 +1101,8 @@ export class IntegratedBrowserService extends EventEmitter {
     const tab = this.tabs.get(tabId);
     if (!detached || detached.isDestroyed() || !tab?.view || tab.view.webContents.isDestroyed()) return;
     const bounds = detached.getContentBounds();
-    tab.view.setBounds({ x: 0, y: 0, width: Math.max(1, bounds.width), height: Math.max(1, bounds.height) });
-    tab.view.setVisible(true);
+    this.applyTabBounds(tab, tab.view, { x: 0, y: 0, width: Math.max(1, bounds.width), height: Math.max(1, bounds.height) });
+    this.applyTabVisibility(tab, tab.view, true);
   }
 
   private isWindowUsable(window: BaseWindow | BrowserWindow): boolean {
@@ -1039,20 +1191,33 @@ export class IntegratedBrowserService extends EventEmitter {
       this.observationTimer = null;
       void this.refreshVisualCapture().finally(() => {
         if (
-          generation === this.observationTimerGeneration
-          && this.observationEnabled
-          && this.parentWindow
+          generation !== this.observationTimerGeneration
+          || !this.observationEnabled
+          || !this.parentWindow
         ) {
-          this.schedulePassiveCapture(INTEGRATED_BROWSER_OBSERVATION_INTERVAL_MS);
+          return;
         }
+        // Si la ventana de calma sigue abierta (el usuario acaba de interactuar)
+        // se reintenta al cerrarla, no al siguiente intervalo completo.
+        const active = this.getActiveTab();
+        const remainingCalm = active ? active.passiveCaptureNotBefore - Date.now() : 0;
+        this.schedulePassiveCapture(remainingCalm > 0 ? remainingCalm : INTEGRATED_BROWSER_OBSERVATION_INTERVAL_MS);
       });
     }, Math.max(0, delayMs));
     this.observationTimer.unref?.();
   }
 
+  /**
+   * Una rafaga de entrada (rueda, teclado) llegaba a reprogramar el temporizador
+   * decenas de veces por segundo. Extender la ventana de calma es barato;
+   * reconstruir el temporizador en cada evento no lo es.
+   */
   private deferPassiveCapture(tab: BrowserTabRuntime): void {
+    const now = Date.now();
+    tab.passiveCaptureNotBefore = now + INTEGRATED_BROWSER_OBSERVATION_IDLE_MS;
+    if (now - tab.lastDeferAt < INTEGRATED_BROWSER_DEFER_THROTTLE_MS) return;
+    tab.lastDeferAt = now;
     tab.visualRevision += 1;
-    tab.passiveCaptureNotBefore = Date.now() + INTEGRATED_BROWSER_OBSERVATION_IDLE_MS;
     if (this.latestObservation?.tabId === tab.id) this.latestObservation = null;
     this.schedulePassiveCapture(INTEGRATED_BROWSER_OBSERVATION_IDLE_MS);
   }
@@ -1193,11 +1358,22 @@ export class IntegratedBrowserService extends EventEmitter {
 }
 
 function encodePassiveCapture(image: Awaited<ReturnType<WebContents['capturePage']>>): string {
+  return encodeBrowserCapture(image, INTEGRATED_BROWSER_OBSERVATION_MAX_EDGE, INTEGRATED_BROWSER_OBSERVATION_QUALITY);
+}
+
+/**
+ * JPEG en vez de PNG: la captura es una fotografia de pantalla, no un grafico
+ * plano. El PNG bloqueaba el proceso principal durante la codificacion y
+ * multiplicaba por diez el tamano transferido por IPC en cada percepcion.
+ */
+function encodeBrowserCapture(
+  image: Awaited<ReturnType<WebContents['capturePage']>>,
+  maxEdge: number,
+  quality: number,
+): string {
   const size = image.getSize();
   const longestEdge = Math.max(size.width, size.height);
-  const scale = longestEdge > INTEGRATED_BROWSER_OBSERVATION_MAX_EDGE
-    ? INTEGRATED_BROWSER_OBSERVATION_MAX_EDGE / longestEdge
-    : 1;
+  const scale = longestEdge > maxEdge ? maxEdge / longestEdge : 1;
   const encodedImage = scale < 1
     ? image.resize({
       width: Math.max(1, Math.round(size.width * scale)),
@@ -1205,7 +1381,13 @@ function encodePassiveCapture(image: Awaited<ReturnType<WebContents['capturePage
       quality: 'good',
     })
     : image;
-  return `data:image/png;base64,${encodedImage.toPNG().toString('base64')}`;
+  return `data:image/jpeg;base64,${encodedImage.toJPEG(quality).toString('base64')}`;
+}
+
+function sendBrowserClick(contents: WebContents, x: number, y: number): void {
+  contents.sendInputEvent({ type: 'mouseMove', x, y });
+  contents.sendInputEvent({ type: 'mouseDown', button: 'left', clickCount: 1, x, y });
+  contents.sendInputEvent({ type: 'mouseUp', button: 'left', clickCount: 1, x, y });
 }
 
 function isMeaningfulBrowserInput(input: unknown): boolean {

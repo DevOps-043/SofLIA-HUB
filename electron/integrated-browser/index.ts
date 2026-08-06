@@ -12,6 +12,8 @@ export type {
   BrowserHistoryEntry,
   BrowserDomControl,
   BrowserDomSnapshot,
+  BrowserElementTargetSummary,
+  BrowserInteractionOutcome,
   BrowserObservationSnapshot,
   BrowserObservationStatus,
   IntegratedBrowserNavigateInput,

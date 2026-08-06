@@ -14,7 +14,7 @@ export function CodeBlock({ language, code }: { language: string; code: string }
   };
 
   return (
-    <div className="my-4 rounded-lg overflow-hidden bg-[#1E1E1E] border border-white/10 shadow-sm relative group">
+    <div className="my-4 w-full max-w-full min-w-0 rounded-lg overflow-hidden bg-[#1E1E1E] border border-white/10 shadow-sm relative group">
       <div className="flex items-center justify-between px-4 py-2 bg-white/5 border-b border-white/5">
         <span className="text-xs text-gray-400 uppercase font-mono">{language || 'text'}</span>
         <button

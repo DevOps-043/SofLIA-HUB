@@ -8,7 +8,13 @@ export const INTEGRATED_BROWSER_MAX_LIVE_TABS = 8;
 export const INTEGRATED_BROWSER_MAX_DETACHED_WINDOWS = 4;
 export const INTEGRATED_BROWSER_OBSERVATION_INTERVAL_MS = 10_000;
 export const INTEGRATED_BROWSER_OBSERVATION_IDLE_MS = 4_000;
+/** Reprogramacion minima entre eventos de entrada seguidos. */
+export const INTEGRATED_BROWSER_DEFER_THROTTLE_MS = 250;
 export const INTEGRATED_BROWSER_OBSERVATION_MAX_EDGE = 1_024;
+/** Calidad JPEG de la percepcion enviada al modelo. */
+export const INTEGRATED_BROWSER_OBSERVATION_QUALITY = 80;
+/** Calidad JPEG del respaldo visual mostrado mientras la vista esta oculta. */
+export const INTEGRATED_BROWSER_BACKDROP_QUALITY = 92;
 
 export type IntegratedBrowserViewMode = 'single' | 'split' | 'overlay';
 
@@ -84,6 +90,25 @@ export interface BrowserObservationSnapshot {
   tabId: string;
   screenshot: string;
   dom: BrowserDomSnapshot;
+}
+
+export interface BrowserElementTargetSummary {
+  ref: string;
+  tag: string;
+  role: string;
+  name: string;
+  type: string;
+  href: string;
+  disabled: boolean;
+  editable: boolean;
+  x: number;
+  y: number;
+  occluded: boolean;
+}
+
+export interface BrowserInteractionOutcome {
+  target: BrowserElementTargetSummary;
+  warning: string | null;
 }
 
 export interface BrowserObservationStatus {

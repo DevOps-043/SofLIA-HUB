@@ -21,7 +21,7 @@ export function UserMessageBubble({
           <UserEditMessage controller={controller} message={message} />
         ) : (
           <>
-            <div className="flex flex-col">{message.text}</div>
+            <div className="flex min-w-0 flex-col whitespace-pre-wrap break-words">{message.text}</div>
             <UserMessageActions controller={controller} message={message} />
           </>
         )}

@@ -46,6 +46,22 @@ export function registerIntegratedBrowserHandlers(
     return service.open(url);
   });
   handle('integrated-browser:navigate', (_event, input) => service.navigate(readTarget(input)));
+  handle('integrated-browser:element-click', async (_event, input) => ({
+    ...(await service.clickElement(readElementRef(input))),
+    state: service.getState(),
+  }), (result) => result as Record<string, unknown>);
+  handle('integrated-browser:element-type', async (_event, input) => {
+    const value = readElementTypeInput(input);
+    return {
+      ...(await service.typeInElement(value.ref, value.text, value.submit)),
+      state: service.getState(),
+    };
+  }, (result) => result as Record<string, unknown>);
+  handle('integrated-browser:scroll', (_event, input) => {
+    const value = readScrollInput(input);
+    service.scrollView(value.direction, value.amount);
+    return service.getState();
+  });
   handle('integrated-browser:tab-create', (_event, input) => service.createTab(readOptionalUrl(input)));
   handle('integrated-browser:tab-close', (_event, input) => service.closeTab(readTabId(input)));
   handle('integrated-browser:tab-activate', (_event, input) => service.activateTab(readTabId(input)));
@@ -96,6 +112,33 @@ function readTarget(input: unknown): string {
   const target = (input as { target?: unknown }).target;
   if (typeof target !== 'string') throw new Error('La direccion debe ser texto.');
   return target;
+}
+
+function readElementRef(input: unknown): string {
+  if (!input || typeof input !== 'object') throw new Error('La referencia del elemento es invalida.');
+  const ref = (input as { ref?: unknown }).ref;
+  if (typeof ref !== 'string' || !ref.trim() || ref.length > 60) throw new Error('La referencia del elemento es invalida.');
+  return ref;
+}
+
+function readElementTypeInput(input: unknown): { ref: string; text: string; submit: boolean } {
+  const ref = readElementRef(input);
+  const value = input as { text?: unknown; submit?: unknown };
+  if (typeof value.text !== 'string') throw new Error('El texto a escribir debe ser una cadena.');
+  if (value.submit !== undefined && typeof value.submit !== 'boolean') throw new Error('El indicador de envio es invalido.');
+  return { ref, text: value.text, submit: value.submit === true };
+}
+
+function readScrollInput(input: unknown): { direction: string; amount: number | undefined } {
+  if (!input || typeof input !== 'object') throw new Error('El desplazamiento es invalido.');
+  const value = input as { direction?: unknown; amount?: unknown };
+  if (value.direction !== 'up' && value.direction !== 'down' && value.direction !== 'left' && value.direction !== 'right') {
+    throw new Error('La direccion de desplazamiento debe ser up, down, left o right.');
+  }
+  if (value.amount !== undefined && (typeof value.amount !== 'number' || !Number.isFinite(value.amount))) {
+    throw new Error('La magnitud de desplazamiento es invalida.');
+  }
+  return { direction: value.direction, amount: value.amount as number | undefined };
 }
 
 function readForceFresh(input: unknown): boolean {

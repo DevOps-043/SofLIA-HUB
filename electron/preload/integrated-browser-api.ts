@@ -9,6 +9,11 @@ export function exposeIntegratedBrowserApi(bridge: PreloadBridge, ipc: SafeIpc):
     setObservationEnabled: (enabled: boolean) => safeInvoke('integrated-browser:set-observation-enabled', { enabled }),
     open: (url?: string) => safeInvoke('integrated-browser:open', url === undefined ? {} : { url }),
     navigate: (target: string) => safeInvoke('integrated-browser:navigate', { target }),
+    clickElement: (ref: string) => safeInvoke('integrated-browser:element-click', { ref }),
+    typeInElement: (ref: string, text: string, submit = false) =>
+      safeInvoke('integrated-browser:element-type', { ref, text, submit }),
+    scrollView: (direction: 'up' | 'down' | 'left' | 'right', amount?: number) =>
+      safeInvoke('integrated-browser:scroll', { direction, amount }),
     createTab: (url?: string) => safeInvoke('integrated-browser:tab-create', url === undefined ? {} : { url }),
     closeTab: (tabId: string) => safeInvoke('integrated-browser:tab-close', { tabId }),
     activateTab: (tabId: string) => safeInvoke('integrated-browser:tab-activate', { tabId }),

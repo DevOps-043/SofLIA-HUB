@@ -11,6 +11,8 @@ type MockIntegratedBrowserView = {
       emit: (event: string, ...args: unknown[]) => boolean;
       capturePage: ReturnType<typeof vi.fn>;
       executeJavaScript: ReturnType<typeof vi.fn>;
+      sendInputEvent: ReturnType<typeof vi.fn>;
+      insertText: ReturnType<typeof vi.fn>;
       getUserAgent: ReturnType<typeof vi.fn>;
       setUserAgent: ReturnType<typeof vi.fn>;
       loadURL: ReturnType<typeof vi.fn>;
@@ -52,7 +54,7 @@ describe('IntegratedBrowserService', () => {
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
-      backgroundThrottling: true,
+      backgroundThrottling: false,
     });
     expect(view.webContents.setUserAgent).toHaveBeenCalledWith('Mozilla/5.0 Chrome/140.0.0.0 Safari/537.36');
     expect(window.contentView.addChildView).toHaveBeenCalledTimes(1);
@@ -85,7 +87,7 @@ describe('IntegratedBrowserService', () => {
     });
 
     await expect(service.getObservation(true)).resolves.toMatchObject({
-      observation: expect.objectContaining({ screenshot: 'data:image/png;base64,Y2FwdHVyYQ==' }),
+      observation: expect.objectContaining({ screenshot: 'data:image/jpeg;base64,Y2FwdHVyYQ==' }),
     });
     expect(contents.capturePage).toHaveBeenCalledTimes(1);
     expect(contents.executeJavaScript).toHaveBeenCalledTimes(1);
@@ -153,6 +155,65 @@ describe('IntegratedBrowserService', () => {
     expect(service.getState().isVisible).toBe(false);
   });
 
+  it('no oculta ni reposiciona la vista cuando el viewport se republica igual', async () => {
+    const service = new IntegratedBrowserService();
+    service.attachWindow(new BrowserWindow());
+    await service.open('https://www.youtube.com/watch?v=video');
+    const view = browserViewHarness.instances[0];
+
+    service.setViewport({ x: 200, y: 80, width: 800, height: 600 });
+    view.setBounds.mockClear();
+    view.setVisible.mockClear();
+
+    service.setViewport({ x: 200, y: 80, width: 800, height: 600 });
+    service.setViewport({ x: 200, y: 80, width: 800, height: 600 });
+
+    expect(view.setBounds).not.toHaveBeenCalled();
+    expect(view.setVisible).not.toHaveBeenCalled();
+
+    service.setViewport({ x: 200, y: 80, width: 640, height: 600 });
+    expect(view.setBounds).toHaveBeenCalledTimes(1);
+    expect(view.setVisible).not.toHaveBeenCalled();
+    service.detachWindow();
+  });
+
+  it('interactua por referencia del DOM y rechaza referencias vencidas', async () => {
+    const service = new IntegratedBrowserService();
+    service.attachWindow(new BrowserWindow());
+    await service.open('https://mail.example/inbox');
+    service.setViewport({ x: 0, y: 0, width: 800, height: 600 });
+    const contents = browserViewHarness.instances[0].webContents;
+
+    contents.executeJavaScript.mockResolvedValueOnce({
+      ok: true, tag: 'a', role: 'link', name: 'Correo de Israel', type: '',
+      href: 'https://mail.example/mensaje/1', disabled: false, editable: false, x: 120, y: 240, occluded: false,
+    });
+    const outcome = await service.clickElement('dom-7');
+
+    expect(outcome.target).toMatchObject({ ref: 'dom-7', name: 'Correo de Israel' });
+    expect(outcome.warning).toBeNull();
+    expect(contents.sendInputEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'mouseDown', x: 120, y: 240 }));
+    expect(contents.sendInputEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'mouseUp', x: 120, y: 240 }));
+
+    contents.executeJavaScript.mockResolvedValueOnce({ ok: false, reason: 'referencia-vencida' });
+    await expect(service.clickElement('dom-7')).rejects.toThrow(/vuelve a leer el DOM/i);
+    service.detachWindow();
+  });
+
+  it('no interactua sin pestaña visible ni mientras el actuador visual controla', async () => {
+    const service = new IntegratedBrowserService();
+    service.attachWindow(new BrowserWindow());
+    await service.open('https://mail.example/inbox');
+
+    await expect(service.clickElement('dom-1')).rejects.toThrow(/pestaña visible/i);
+
+    service.setViewport({ x: 0, y: 0, width: 800, height: 600 });
+    await service.openForAgent();
+    await expect(service.clickElement('dom-1')).rejects.toThrow(/controlado por otra tarea/i);
+    expect(browserViewHarness.instances[0].webContents.executeJavaScript).not.toHaveBeenCalled();
+    service.detachWindow();
+  });
+
   it('captura exclusivamente la pagina visible para el turno multimodal', async () => {
     const service = new IntegratedBrowserService();
     service.attachWindow(new BrowserWindow());
@@ -161,7 +222,7 @@ describe('IntegratedBrowserService', () => {
 
     service.setViewport({ x: 200, y: 80, width: 800, height: 600 });
 
-    await expect(service.captureVisiblePage()).resolves.toBe('data:image/png;base64,Y2FwdHVyYQ==');
+    await expect(service.captureVisiblePage()).resolves.toBe('data:image/jpeg;base64,Y2FwdHVyYQ==');
     expect(browserViewHarness.instances[0].webContents.capturePage).toHaveBeenCalled();
   });
 
@@ -249,7 +310,7 @@ describe('IntegratedBrowserService', () => {
     expect(detachedState.tabs.find((tab) => tab.id === tabId)?.isDetached).toBe(true);
     expect(view.webContents.loadURL).not.toHaveBeenCalled();
     expect(service.getViewportSize()).toEqual({ width: 1024, height: 768 });
-    await expect(service.captureVisiblePage()).resolves.toContain('data:image/png');
+    await expect(service.captureVisiblePage()).resolves.toContain('data:image/jpeg');
 
     window.emit('focus');
     expect(service.getState().activeTabId).not.toBe(tabId);

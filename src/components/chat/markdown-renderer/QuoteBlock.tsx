@@ -11,8 +11,8 @@ export function QuoteBlock({ rawText, children }: { rawText: string; children: R
   };
 
   return (
-    <div className="relative group my-3">
-      <blockquote className="border-l-4 border-accent bg-gray-50 dark:bg-white/5 rounded-r-lg py-3 pl-4 pr-12 text-gray-700 dark:text-gray-300">
+    <div className="relative group my-3 min-w-0">
+      <blockquote className="min-w-0 break-words border-l-4 border-accent bg-gray-50 dark:bg-white/5 rounded-r-lg py-3 pl-4 pr-12 text-gray-700 dark:text-gray-300">
         {children}
       </blockquote>
       <button

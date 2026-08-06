@@ -4,6 +4,23 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.9.2] - 2026-08-05
+
+### Fixed
+
+- **Respuestas del chat recortadas dentro del navegador:** El mensaje del modelo era un item flex sin `min-w-0`, asi que su tamano minimo automatico lo calculaba el contenido (tablas, bloques de codigo, URLs largas). El item crecia por encima de su `max-width` y el contenedor superior lo recortaba, de modo que en el panel flotante las tablas quedaban cortadas contra el borde. Ahora la cadena de contenedores esta acotada, las celdas parten palabras y solo si aun no cabe la tabla desplaza en horizontal dentro de su propio contenedor.
+- **Parpadeo al abrir la barra de direcciones, navegar o cerrar un gestor:** La vista nativa se sustituye por un respaldo visual mientras se superpone la interfaz del navegador, pero el intercambio ocurria en el mismo turno: se ocultaba la capa nativa antes de que el respaldo estuviera pintado y se retiraba el respaldo antes de que la vista volviera a componer. El area quedaba en blanco uno o dos cuadros y se percibia como un refresco de toda la pagina. El intercambio ahora esta sincronizado con el cuadro pintado en ambos sentidos, con salvaguarda de tiempo si el compositor no entrega cuadros.
+- **Paginas lentas en cargar paneles y listas:** Cada publicacion de viewport ocultaba todas las vistas y volvia a mostrar la activa, y reenviaba los mismos bounds. La pagina descartaba su cuadro compuesto y reiniciaba la carga diferida en cada redimension o cambio del panel de chat, que es lo que hacia que la transcripcion de YouTube o las listas de Gmail tardaran en aparecer. El layout ahora solo aplica los cambios reales de bounds y visibilidad. Ademas, las vistas del navegador dejan de aplicar `backgroundThrottling`: quedaban ocultas cada vez que se abria un gestor o las sugerencias y esa pausa congelaba temporizadores y peticiones en curso.
+- **SofLIA no podia abrir elementos de la pagina que ya estaba leyendo:** El agente del navegador solo tenia lectura de DOM y navegacion por URL. Ante "resume los ultimos correos y abrelos" leia la bandeja pero respondia que no tenia controlador para abrir cada mensaje, porque abrirlos exigia escalar al actuador visual. Ademas el ruteo no reconocia los imperativos con pronombre enclitico ("abrelos", "abrirlas") y clasificaba la peticion como lectura pasiva.
+
+### Added
+
+- **Controlador determinista del navegador integrado:** `click_browser_element`, `type_in_browser_element`, `scroll_integrated_browser` y `go_back_integrated_browser` actuan sobre la pestaña visible con entrada real del navegador, sin Computer Use y conservando cookies y sesion. Operan por la referencia `ref` que ya devolvia `read_browser_dom`: el elemento se resuelve vivo y su punto de impacto se recalcula al momento, de modo que el scroll o un re-render no desvian el clic, y una referencia vencida falla con un error que pide releer el DOM en vez de actuar sobre coordenadas obsoletas. El ciclo leer -> clic -> volver permite recorrer una bandeja completa. Un control irreversible (enviar, pagar, borrar, cerrar sesion) exige confirmacion explicita del usuario, y el controlador se rechaza sin pestaña visible o mientras Computer Use ya controla la vista.
+
+### Changed
+
+- **Costo de la percepcion del navegador:** Las capturas pasan de PNG a resolucion de dispositivo a JPEG en la escala que corresponde a cada uso, lo que elimina cientos de milisegundos de codificacion en el proceso principal y reduce en un orden de magnitud lo que viaja por IPC en cada percepcion y en cada apertura de la barra de direcciones. El recorrido de DOM clasifica cada nodo antes de medirlo (antes consultaba geometria y estilo de hasta 1800 elementos), respeta un presupuesto de tiempo dentro de la pagina y una rafaga de eventos de entrada extiende la ventana de calma sin reconstruir el temporizador en cada evento.
+
 ## [0.9.1] - 2026-08-05
 
 ### Fixed

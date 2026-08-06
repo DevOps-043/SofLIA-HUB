@@ -266,7 +266,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     const providerCalls = providerMocks.sendOpenAIMessageStream.mock.calls as unknown as Array<[{ systemInstruction?: string }]>;
     const lastProviderCall = providerCalls[providerCalls.length - 1]?.[0];
     expect(lastProviderCall?.systemInstruction)
-      .toContain('Reserva use_computer para interacción visual');
+      .toContain('Reserva use_computer para lo que ese controlador no cubra');
     expect(mockGetGenerativeModel).not.toHaveBeenCalled();
   });
 
