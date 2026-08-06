@@ -9,8 +9,16 @@ export type OperationalAccess = {
   email: string | null;
 };
 
+export type LegacyEmailVerification = {
+  id: string;
+  email: string | null;
+  emailVerified: boolean;
+  emailVerifiedAt: string | null;
+};
+
 export type SessionExchangeDependencies = {
   getSofiaIdentity: (accessToken: string) => Promise<SofiaIdentity | null>;
+  getLegacyEmailVerification: (accessToken: string, userId: string) => Promise<LegacyEmailVerification | null>;
   hasActiveMembership: (accessToken: string, userId: string) => Promise<boolean>;
   generateOperationalAccess: (email: string) => Promise<OperationalAccess>;
 };
@@ -37,7 +45,17 @@ export async function exchangeSofiaSession(
   try {
     const identity = await dependencies.getSofiaIdentity(accessToken);
     const email = normalizeEmail(identity?.email);
-    if (!identity?.id || !email || !identity.emailVerified) return failure(401, 'not_authenticated');
+    if (!identity?.id || !email) return failure(401, 'not_authenticated');
+
+    const legacyVerification = identity.emailVerified
+      ? null
+      : await dependencies.getLegacyEmailVerification(accessToken, identity.id);
+    const emailVerified = identity.emailVerified || matchesVerifiedLegacyEmail(
+      legacyVerification,
+      identity.id,
+      email,
+    );
+    if (!emailVerified) return failure(401, 'not_authenticated');
 
     const active = await dependencies.hasActiveMembership(accessToken, identity.id);
     if (!active) return failure(403, 'access_denied');
@@ -54,6 +72,19 @@ export async function exchangeSofiaSession(
   } catch {
     return failure(503, 'exchange_unavailable');
   }
+}
+
+export function matchesVerifiedLegacyEmail(
+  verification: LegacyEmailVerification | null,
+  authenticatedUserId: string,
+  authenticatedEmail: string,
+): boolean {
+  return Boolean(
+    verification?.id === authenticatedUserId &&
+    normalizeEmail(verification.email) === normalizeEmail(authenticatedEmail) &&
+    verification.emailVerified &&
+    verification.emailVerifiedAt,
+  );
 }
 
 function normalizeEmail(value: string | null | undefined): string {

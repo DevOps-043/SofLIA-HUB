@@ -1,6 +1,6 @@
 # Conversaciones no disponibles después del login
 
-Estado: implementación local; despliegue pendiente. Actualizado: 2026-08-04.
+Estado: implementación local; despliegue pendiente. Actualizado: 2026-08-05.
 
 <!-- evidence: src/services/lia-session-exchange.ts -->
 <!-- evidence: src/contexts/auth/useLiaSession.ts -->
@@ -18,6 +18,9 @@ Los intentos SOFIA incorrectos no llegaban a Lia porque el flujo se detenía ant
 SOFIA es la única autenticación visible. Después de validar el login y la membresía, el cliente envía el JWT SOFIA vigente a `sofia-session-exchange`. La función:
 
 1. verifica el bearer token y el correo confirmado directamente contra SOFIA;
+   para cuentas migradas sin `email_confirmed_at`, admite únicamente la evidencia
+   legada completa del mismo UUID y correo (`email_verified = true` y
+   `email_verified_at` presente);
 2. comprueba una membresía activa del mismo sujeto;
 3. obtiene el correo únicamente de la identidad verificada;
 4. genera en Lia un token de un solo uso para ese correo;
@@ -43,6 +46,7 @@ La función vive en `database/lia/supabase/` y debe desplegarse antes del client
 - Mantener la clave administrativa Lia únicamente en el entorno backend.
 - Respetar `verify_jwt = false`: el gateway Lia no puede validar un JWT emitido por SOFIA; el handler lo valida explícitamente contra SOFIA antes de tocar Lia.
 - Probar token ausente/inválido, membresía inactiva, cuenta existente, cuenta nueva autorizada y fallo transitorio.
+- Probar una cuenta migrada sin `email_confirmed_at` que conserve evidencia legada completa, además de rechazar UUID, correo o fecha divergentes.
 - Reconciliar en las cuentas piloto que cada correo pertenezca a la misma persona en SOFIA y Lia antes de habilitar el cliente.
 - Confirmar que logs/telemetría no contienen correo, JWT, contraseña, enlace mágico ni `tokenHash`.
 
@@ -52,9 +56,29 @@ No se ejecutó despliegue remoto ni se modificaron secretos durante la implement
 
 | Resultado backend | Interpretación | Acción |
 |---|---|---|
-| `401 not_authenticated` | sesión SOFIA ausente, inválida o vencida | revisar restauración/refresh de SOFIA; no tocar contraseñas Lia |
+| `401 not_authenticated` | sesión SOFIA ausente, inválida o vencida; también evidencia de correo incompleta | revisar restauración/refresh y ejecutar la consulta de cuentas migradas; no tocar contraseñas Lia |
 | `403 access_denied` | identidad válida sin membresía activa o política la niega | revisar membresía SOFIA del usuario |
 | `503 exchange_unavailable` | configuración o dependencia temporalmente indisponible | revisar secretos, función, SOFIA/Lia y reintentar |
 | `200` pero falla `verifyOtp` | token vencido/consumido o Auth Lia indisponible | reintentar intercambio y revisar límites Auth |
+
+### Cuenta migrada desde el Auth legado
+
+La hipótesis principal para una cuenta antigua es que el login por contraseña sí
+entrega una sesión, pero la migración no copió `auth.users.email_confirmed_at`.
+Ese caso se reprodujo contra el contrato anterior: la función lo trataba como
+identidad no autenticada y nunca llegaba a comprobar la membresía ni a generar
+acceso a conversaciones. La consulta siguiente debe confirmar o descartar la
+hipótesis para el usuario afectado antes de atribuirle la causa productiva.
+
+Ejecutar solo las consultas de lectura de
+`database/sofia-learning/migrations/auth-supabase-hub.sql`, sección 2B. Una cuenta
+es compatible con la ruta legada únicamente si coinciden UUID y correo, y
+`public.users` conserva tanto el booleano como la fecha de verificación. Cualquier
+discordancia requiere revisión manual: no se debe marcar el correo como confirmado
+por el solo hecho de que exista o tenga un inicio de sesión reciente.
+
+Después de publicar este código se debe redesplegar `sofia-session-exchange`; el
+botón **Reintentar** recuperará la sesión sin cambiar contraseñas ni tocar el UUID
+Lia. La implementación local por sí sola no modifica la función remota.
 
 Rollback: volver al cliente anterior y deshabilitar la función. No existe migración SQL ni cambio de UUID que revertir. El comportamiento de doble contraseña anterior no debe restaurarse como solución permanente.

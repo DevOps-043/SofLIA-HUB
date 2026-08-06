@@ -55,6 +55,41 @@ ORDER BY u.email;
 
 
 -- =============================================================================
+-- SECCIÓN 2B — Confirmación incompleta en cuentas migradas (solo lectura)
+-- Detecta usuarios que pueden iniciar sesión pero no tienen la marca de correo
+-- confirmado en Auth. La federación solo admite el fallback legado cuando UUID
+-- y correo coinciden y public.users conserva booleano + fecha de verificación.
+-- No usar last_sign_in_at como prueba de propiedad del correo.
+-- =============================================================================
+SELECT
+  profile_by_id.id AS public_user_id,
+  au.id AS auth_user_id,
+  profile_by_id.username,
+  profile_by_id.email AS public_email,
+  au.email AS auth_email,
+  profile_by_id.email_verified,
+  profile_by_id.email_verified_at,
+  au.email_confirmed_at,
+  au.last_sign_in_at,
+  CASE
+    WHEN profile_by_id.id IS NULL AND profile_by_email.id IS NOT NULL
+      THEN 'revision_manual_uuid_distinto'
+    WHEN profile_by_id.id IS NULL THEN 'revision_manual_sin_perfil'
+    WHEN lower(au.email) <> lower(profile_by_id.email)
+      THEN 'revision_manual_email_distinto'
+    WHEN profile_by_id.email_verified IS TRUE AND profile_by_id.email_verified_at IS NOT NULL
+      THEN 'compatible_fallback_legado'
+    ELSE 'revision_manual_sin_evidencia_completa'
+  END AS diagnostico_federacion
+FROM auth.users au
+LEFT JOIN public.users profile_by_id ON profile_by_id.id = au.id
+LEFT JOIN public.users profile_by_email ON lower(profile_by_email.email) = lower(au.email)
+WHERE au.email_confirmed_at IS NULL
+  AND au.last_sign_in_at IS NOT NULL
+ORDER BY diagnostico_federacion, au.email;
+
+
+-- =============================================================================
 -- SECCIÓN 3 — Limpieza futura ⛔ NO EJECUTAR TODAVÍA
 -- Requisitos previos:
 --   a) El Hub con la migración desplegado y validado en producción.
