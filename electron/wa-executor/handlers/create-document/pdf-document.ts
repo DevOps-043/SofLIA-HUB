@@ -12,7 +12,7 @@ const PDF_HTML_STYLES = `
 `;
 
 export async function createPdfDocument(args: DocumentBaseArgs): Promise<string> {
-  const win = new BrowserWindow({ show: false, webPreferences: { offscreen: true } });
+  const win = new BrowserWindow({ show: false, webPreferences: { offscreen: { deviceScaleFactor: 1 } } });
   const html = buildPdfHtml(args.title, args.content);
   const filePath = path.join(args.saveDir, `${args.filename}.pdf`);
 

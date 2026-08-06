@@ -19,6 +19,7 @@ export const CHANNEL_GROUP_4 = [
   'integrated-browser:reload',
   'integrated-browser:stop',
   'integrated-browser:focus',
+  'integrated-browser:toggle-devtools',
   'integrated-browser:set-viewport',
   'integrated-browser:hide',
   'integrated-browser:state-changed',

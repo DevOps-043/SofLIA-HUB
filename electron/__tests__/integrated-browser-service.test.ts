@@ -5,6 +5,17 @@ import { IntegratedBrowserService } from '../integrated-browser';
 // El servicio materializa su primera vista con el gestor de extensiones real,
 // que lee su registro en disco de forma asincrona. Esta suite no ejercita
 // extensiones y esa lectura emitia avisos despues del teardown del worker.
+// El historial escribe y lee en disco de forma asincrona al terminar cada
+// carga. Esta suite no lo ejercita y esas lecturas emitian avisos despues del
+// teardown del worker.
+vi.mock('../integrated-browser/browser-history-store', () => ({
+  BrowserHistoryStore: class {
+    record = vi.fn(async () => null);
+    list = vi.fn(async () => []);
+    clear = vi.fn(async () => {});
+  },
+}));
+
 vi.mock('../integrated-browser/extension-manager', () => ({
   BrowserExtensionManager: class {
     restore = vi.fn(async () => []);
@@ -70,7 +81,12 @@ describe('IntegratedBrowserService', () => {
       nodeIntegration: false,
       backgroundThrottling: false,
     });
-    expect(view.webContents.setUserAgent).toHaveBeenCalledWith('Mozilla/5.0 Chrome/140.0.0.0 Safari/537.36');
+    // El User-Agent queda identico al de un Chromium de escritorio: sin el
+    // nombre de la aplicacion ni la ficha `Electron/`, que lo convertian en un
+    // cliente desconocido frente a lo que anuncia `Sec-CH-UA`.
+    expect(view.webContents.setUserAgent).toHaveBeenCalledWith(
+      'Mozilla/5.0 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+    );
     expect(window.contentView.addChildView).toHaveBeenCalledTimes(1);
   });
 
@@ -227,6 +243,23 @@ describe('IntegratedBrowserService', () => {
     await service.openForAgent();
     await expect(service.clickElement('dom-1')).rejects.toThrow(/controlado por otra tarea/i);
     expect(browserViewHarness.instances[0].webContents.executeJavaScript).not.toHaveBeenCalled();
+    service.detachWindow();
+  });
+
+  it('no reporta como error la navegacion que el propio sitio reemplaza', async () => {
+    const service = new IntegratedBrowserService();
+    service.attachWindow(new BrowserWindow());
+    await service.open('https://www.youtube.com/watch?v=video');
+    const contents = browserViewHarness.instances[0].webContents;
+
+    // YouTube reescribe su URL al arrancar y aborta la carga en curso.
+    contents.loadURL.mockRejectedValueOnce(new Error("ERR_ABORTED (-3) loading 'https://www.youtube.com/watch?v=video&sttick=0'"));
+    await expect(service.navigate('https://www.youtube.com/watch?v=video')).resolves.toBeTruthy();
+    expect(service.getState().error).toBeNull();
+
+    contents.loadURL.mockRejectedValueOnce(new Error('ERR_NAME_NOT_RESOLVED (-105) loading https://inexistente.example'));
+    await expect(service.navigate('https://inexistente.example')).rejects.toThrow();
+    expect(service.getState().error).toMatch(/ERR_NAME_NOT_RESOLVED/);
     service.detachWindow();
   });
 

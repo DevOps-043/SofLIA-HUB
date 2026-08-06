@@ -26,6 +26,7 @@ describe('wrapper renderer del navegador integrado', () => {
       reload: vi.fn(async () => ({ success: true })),
       stop: vi.fn(async () => ({ success: true })),
       focus: vi.fn(async () => ({ success: true })),
+      toggleDevTools: vi.fn(async () => ({ success: true })),
       setViewport: vi.fn(async () => ({ success: true })),
       hide: vi.fn(async () => ({ success: true })),
       listHistory: vi.fn(async () => ({ success: true, history: [] })),

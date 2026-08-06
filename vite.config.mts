@@ -2,10 +2,10 @@ import { defineConfig, loadEnv } from "vite";
 import path from "node:path";
 import electron from "vite-plugin-electron/simple";
 import react from "@vitejs/plugin-react";
-import pkg from "./package.json";
-import { createElectronExternals, onElectronRollupWarning } from "./config/vite/electron-build";
-import { startElectronDevProcess } from "./config/vite/dev-electron-process";
-import { createMainProcessEnvDefines } from "./config/vite/env-defines";
+import pkg from "./package.json" with { type: "json" };
+import { createElectronExternals, onElectronRollupWarning } from "./config/vite/electron-build.mjs";
+import { startElectronDevProcess } from "./config/vite/dev-electron-process.mjs";
+import { createMainProcessEnvDefines } from "./config/vite/env-defines.mjs";
 
 const OPTIMIZE_DEP_EXCLUDES = [
   "mammoth",
@@ -54,7 +54,7 @@ export default defineConfig(({ mode }) => {
                 formats: ["cjs"],
                 fileName: () => "[name].js",
               },
-              rollupOptions: {
+              rolldownOptions: {
                 external: createElectronExternals(pkg.dependencies),
                 onwarn: onElectronRollupWarning,
               },
@@ -62,9 +62,15 @@ export default defineConfig(({ mode }) => {
           },
         },
         preload: {
-          input: path.join(__dirname, "electron/preload.ts"),
+          input: path.join(import.meta.dirname, "electron/preload.ts"),
           vite: {
             define: mainProcessEnvDefines,
+            build: {
+              rolldownOptions: {
+                external: createElectronExternals(pkg.dependencies),
+                onwarn: onElectronRollupWarning,
+              },
+            },
           },
         },
         renderer: {},

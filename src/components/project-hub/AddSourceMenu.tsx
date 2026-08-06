@@ -2,7 +2,7 @@ import type { ChangeEvent, RefObject } from 'react';
 import { sourceTypeIcon } from './formatters';
 
 interface AddSourceMenuProps {
-  fileInputRef: RefObject<HTMLInputElement>;
+  fileInputRef: RefObject<HTMLInputElement | null>;
   isOpen: boolean;
   onFileUpload: (event: ChangeEvent<HTMLInputElement>) => void;
   onOpenDrivePicker: () => void;

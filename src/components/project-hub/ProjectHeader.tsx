@@ -8,7 +8,7 @@ interface ProjectHeaderProps {
   editName: string;
   folder: Folder;
   folderSharedBadgeLabel: string;
-  inputRef: React.RefObject<HTMLInputElement>;
+  inputRef: React.RefObject<HTMLInputElement | null>;
   isEditing: boolean;
   onSaveName: () => void;
   onSetEditName: (value: string) => void;

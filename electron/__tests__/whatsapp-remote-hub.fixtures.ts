@@ -19,7 +19,7 @@ export const commandInjections = [
 ];
 
 export function hasSecurityError(result: any): boolean {
-  return result.error.errors.some(
+  return result.error.issues.some(
     (error: any) => error.message.includes('bloqueado') || error.message.includes('Patron peligroso') || error.message.includes('Patr'),
   );
 }

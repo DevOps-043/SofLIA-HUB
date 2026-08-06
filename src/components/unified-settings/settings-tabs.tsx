@@ -1,6 +1,6 @@
 export type SettingsTab = 'ai' | 'memory' | 'whatsapp' | 'voice' | 'privacy' | 'connections' | 'team' | 'productivity' | 'meetings' | 'agents' | 'updates';
 
-export function getSettingsTabs(sofiaContext: any): Array<{ id: SettingsTab; label: string; icon: JSX.Element; hidden?: boolean }> {
+export function getSettingsTabs(sofiaContext: any): Array<{ id: SettingsTab; label: string; icon: React.JSX.Element; hidden?: boolean }> {
   return [
     {
       id: 'ai',

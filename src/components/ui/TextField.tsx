@@ -26,7 +26,9 @@ export function TextField({ label, icon, wrapperClassName, className, id, ...res
             {icon}
           </span>
         )}
-        <input id={id} className={cn(INPUT_CLASS, icon && 'pl-10', className)} {...rest} />
+        {/* ReactNode admite bigint en React 19: `icon && ...` podia dar 0n, que
+            no es un valor de clase valido. */}
+        <input id={id} className={cn(INPUT_CLASS, icon ? 'pl-10' : undefined, className)} {...rest} />
       </div>
     </div>
   );

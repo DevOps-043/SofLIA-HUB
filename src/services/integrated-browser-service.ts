@@ -179,6 +179,7 @@ export interface IntegratedBrowserApi {
   reload(): Promise<IntegratedBrowserResponse>;
   stop(): Promise<IntegratedBrowserResponse>;
   focus(): Promise<IntegratedBrowserResponse>;
+  toggleDevTools(): Promise<IntegratedBrowserResponse>;
   setViewport(viewport: IntegratedBrowserViewport): Promise<IntegratedBrowserResponse>;
   hide(): Promise<IntegratedBrowserResponse>;
   listHistory(query?: string, limit?: number): Promise<IntegratedBrowserDataResponse>;
@@ -231,6 +232,7 @@ export const integratedBrowserService = {
   reload: (): Promise<IntegratedBrowserResponse> => requireApi().reload(),
   stop: (): Promise<IntegratedBrowserResponse> => requireApi().stop(),
   focus: (): Promise<IntegratedBrowserResponse> => requireApi().focus(),
+  toggleDevTools: (): Promise<IntegratedBrowserResponse> => requireApi().toggleDevTools(),
   setViewport: (viewport: IntegratedBrowserViewport): Promise<IntegratedBrowserResponse> => requireApi().setViewport(viewport),
   hide: (): Promise<IntegratedBrowserResponse> => requireApi().hide(),
   listHistory: (query?: string, limit?: number): Promise<IntegratedBrowserDataResponse> => requireApi().listHistory(query, limit),

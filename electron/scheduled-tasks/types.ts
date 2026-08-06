@@ -1,4 +1,4 @@
-import type cron from 'node-cron';
+import type { ScheduledTask as CronScheduledTask } from 'node-cron';
 
 export interface ScheduledTaskMeta {
   id: string;
@@ -10,7 +10,7 @@ export interface ScheduledTaskMeta {
 }
 
 export interface ScheduledTask extends ScheduledTaskMeta {
-  task: cron.ScheduledTask;
+  task: CronScheduledTask;
 }
 
 export interface ScheduledTasksConfig {

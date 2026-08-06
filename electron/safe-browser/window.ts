@@ -12,7 +12,7 @@ export function createSuspiciousUrlWindow(): BrowserWindow {
     width: 1280,
     height: 800,
     webPreferences: {
-      offscreen: true,
+      offscreen: { deviceScaleFactor: 1 },
       contextIsolation: true,
       nodeIntegration: false,
       plugins: false,

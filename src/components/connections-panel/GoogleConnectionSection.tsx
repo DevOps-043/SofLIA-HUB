@@ -53,7 +53,7 @@ function ProviderRow(props: {
   provider: 'google' | 'microsoft';
   connection?: CalendarConnection;
   loading: string | null;
-  logo: JSX.Element;
+  logo: React.JSX.Element;
   onConnect: (provider: 'google' | 'microsoft') => Promise<void>;
   onDisconnect: (provider: 'google' | 'microsoft') => Promise<void>;
 }) {

@@ -26,6 +26,7 @@ export function exposeIntegratedBrowserApi(bridge: PreloadBridge, ipc: SafeIpc):
     reload: () => safeInvoke('integrated-browser:reload'),
     stop: () => safeInvoke('integrated-browser:stop'),
     focus: () => safeInvoke('integrated-browser:focus'),
+    toggleDevTools: () => safeInvoke('integrated-browser:toggle-devtools'),
     setViewport: (viewport: { x: number; y: number; width: number; height: number }) =>
       safeInvoke('integrated-browser:set-viewport', viewport),
     hide: () => safeInvoke('integrated-browser:hide'),

@@ -5,9 +5,8 @@ import { z } from 'zod';
 const execAsync = promisify(exec);
 
 export const mediaControllerSchema: any = z.object({
-  action: z.enum(['play_pause', 'next', 'prev', 'vol_up', 'vol_down', 'mute'], {
-    description: 'La acción multimedia a ejecutar',
-  }),
+  action: z.enum(['play_pause', 'next', 'prev', 'vol_up', 'vol_down', 'mute'])
+    .describe('La acción multimedia a ejecutar'),
 });
 
 export const mediaControllerTool = {

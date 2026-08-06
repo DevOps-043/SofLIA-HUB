@@ -9,7 +9,7 @@ interface ProjectSourcesPanelProps {
   driveFiles: DriveFile[];
   driveLoading: boolean;
   driveSearch: string;
-  fileInputRef: React.RefObject<HTMLInputElement>;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
   isAddMenuOpen: boolean;
   isDrivePickerOpen: boolean;
   loadingSources: boolean;

@@ -403,6 +403,18 @@ export class IntegratedBrowserService extends EventEmitter {
     return this.getState();
   }
 
+  /**
+   * Abre o cierra las herramientas de desarrollo de la pestaña activa. Es la
+   * unica via para observar directamente las peticiones y los errores de una
+   * pagina cuando algo falla dentro de la vista integrada, en vez de inferirlo.
+   */
+  toggleDevTools(): IntegratedBrowserState {
+    const contents = this.getWebContentsForAgent();
+    if (contents.isDevToolsOpened()) contents.closeDevTools();
+    else contents.openDevTools({ mode: 'detach' });
+    return this.getState();
+  }
+
   focus(): IntegratedBrowserState {
     const active = this.getActiveTab();
     const detached = active ? this.detachedWindows.get(active.id) : null;
@@ -792,7 +804,7 @@ export class IntegratedBrowserService extends EventEmitter {
     const { id: tabId } = tab;
     const view = this.requireTabView(tab);
     const contents = view.webContents;
-    contents.setUserAgent(toChromiumCompatibleUserAgent(contents.getUserAgent()));
+    contents.setUserAgent(toStandardChromiumUserAgent(contents.getUserAgent()));
     const isCurrentView = () => tab.view === view && !contents.isDestroyed();
     contents.setWindowOpenHandler(({ url }) => {
       if (!isCurrentView()) return { action: 'deny' };
@@ -886,6 +898,13 @@ export class IntegratedBrowserService extends EventEmitter {
     try {
       await this.ensureView().webContents.loadURL(target);
     } catch (error) {
+      // Una navegacion abortada no es un fallo: ocurre cada vez que el propio
+      // sitio navega por su cuenta (las aplicaciones de una sola pagina lo
+      // hacen al arrancar) o el usuario pide otro destino antes de terminar.
+      if (isSupersededNavigation(error)) {
+        this.recordError(error, this.activeTabId ?? undefined);
+        return;
+      }
       this.recordError(error, this.activeTabId ?? undefined);
       throw error;
     }
@@ -895,7 +914,11 @@ export class IntegratedBrowserService extends EventEmitter {
     const tab = tabId ? this.tabs.get(tabId) : this.getActiveTab();
     if (tab) {
       tab.loading = false;
-      tab.error = safeErrorMessage(error instanceof Error ? error.message : String(error));
+      // El aborto por navegacion superada no se muestra al usuario: es el curso
+      // normal de un sitio que redirige o reescribe su propia URL al cargar.
+      if (!isSupersededNavigation(error)) {
+        tab.error = safeErrorMessage(error instanceof Error ? error.message : String(error));
+      }
     }
     this.emitState();
   }
@@ -1436,8 +1459,23 @@ function isMeaningfulBrowserInput(input: unknown): boolean {
   return typeof type === 'string' && !['mouseMove', 'pointerMove', 'pointerRawUpdate', 'mouseEnter', 'mouseLeave'].includes(type);
 }
 
-function toChromiumCompatibleUserAgent(userAgent: string): string {
-  return userAgent.replace(/\s+Electron\/\d+(?:\.\d+)*/gi, '').replace(/\s{2,}/g, ' ').trim();
+/**
+ * Deja el User-Agent identico al de un Chromium de escritorio.
+ *
+ * Electron inserta dos fichas propias: el nombre y version de la aplicacion
+ * (`soflia-hub-desktop/x.y.z`) y `Electron/x.y.z`. Ambas convierten la cadena
+ * en la de un cliente desconocido, mientras `Sec-CH-UA` sigue anunciando
+ * `"Chromium"`. Los endpoints que validan la coherencia del cliente rechazan
+ * esa combinacion; es lo que devolvia `FAILED_PRECONDITION` al pedir la
+ * transcripcion de YouTube. Sin esas fichas, la cadena y las Client Hints
+ * describen al mismo Chromium.
+ */
+function toStandardChromiumUserAgent(userAgent: string): string {
+  return userAgent
+    .replace(/\s+Electron\/\d+(?:\.\d+)*/gi, '')
+    .replace(/\s+[\w.-]+\/\d+(?:\.\d+)*(?=\s+Chrome\/)/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }
 
 function detachedWindowTitle(tab: BrowserTabRuntime): string {
@@ -1491,6 +1529,16 @@ async function replaceFocusedField(contents: WebContents, point: { x: number; y:
   contents.sendInputEvent({ type: 'keyDown', keyCode: 'A', modifiers: [selectionModifier] });
   contents.sendInputEvent({ type: 'keyUp', keyCode: 'A', modifiers: [selectionModifier] });
   await contents.insertText(value);
+}
+
+/**
+ * `ERR_ABORTED (-3)` es el rechazo que devuelve `loadURL` cuando otra
+ * navegacion reemplaza a la que estaba en curso. No indica que la pagina haya
+ * fallado y no debe llegar a la barra de errores.
+ */
+function isSupersededNavigation(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? '');
+  return /ERR_ABORTED|\(-3\)/.test(message);
 }
 
 function safeErrorMessage(message: string): string {

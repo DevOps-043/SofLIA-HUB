@@ -37,7 +37,7 @@ async function printHtmlToPdf(fullHTML: string, outputPath: string): Promise<voi
     show: false,
     width: 1920,
     height: 1080,
-    webPreferences: { offscreen: true },
+    webPreferences: { offscreen: { deviceScaleFactor: 1 } },
   });
 
   try {

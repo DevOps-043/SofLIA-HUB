@@ -76,6 +76,7 @@ export function registerIntegratedBrowserHandlers(
   handle('integrated-browser:reload', () => service.reload());
   handle('integrated-browser:stop', () => service.stop());
   handle('integrated-browser:focus', () => service.focus());
+  handle('integrated-browser:toggle-devtools', () => service.toggleDevTools());
   handle('integrated-browser:set-viewport', (_event, viewport) => service.setViewport(viewport));
   handle('integrated-browser:hide', () => service.hide());
   handle('integrated-browser:history-list', (_event, input) => service.listHistory(readHistoryQuery(input)), (history) => ({ history }));

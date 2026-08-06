@@ -1,12 +1,9 @@
-import { createRequire } from 'node:module';
 import path from 'node:path';
 import { app } from 'electron';
+import { createSqliteDatabase, type SqliteDatabase } from '../sqlite/database';
 
-const requireModule = createRequire(import.meta.url);
-const Database = requireModule('better-sqlite3');
-
-export function createThoughtDatabase(): any {
-  const db = new Database(resolveThoughtDbPath());
+export function createThoughtDatabase(): SqliteDatabase {
+  const db = createSqliteDatabase(resolveThoughtDbPath());
   initThoughtDatabase(db);
   return db;
 }
@@ -20,7 +17,7 @@ function resolveThoughtDbPath(): string {
   return path.join(process.cwd(), 'thoughts.db');
 }
 
-function initThoughtDatabase(db: any): void {
+function initThoughtDatabase(db: SqliteDatabase): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS event_stream (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,7 +32,7 @@ function initThoughtDatabase(db: any): void {
   addColumnIfMissing(db, `ALTER TABLE event_stream ADD COLUMN update_time DATETIME DEFAULT CURRENT_TIMESTAMP`);
 }
 
-function addColumnIfMissing(db: any, sql: string): void {
+function addColumnIfMissing(db: SqliteDatabase, sql: string): void {
   try {
     db.exec(sql);
   } catch {

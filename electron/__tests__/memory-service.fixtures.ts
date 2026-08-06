@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import { createSqliteDatabase, type SqliteDatabase } from '../sqlite/database';
 import { CHARS_PER_TOKEN, SCHEMA_SQL } from './memory-service.schema';
 
 export function cosineSimilarity(a: number[], b: number[]): number {
@@ -18,8 +18,8 @@ export function truncateToTokens(text: string, maxTokens: number): string {
   return text.slice(0, maxChars) + '...';
 }
 
-export function createTestDb(): any {
-  const db = new Database(':memory:');
+export function createTestDb(): SqliteDatabase {
+  const db = createSqliteDatabase(':memory:');
   db.pragma('journal_mode = WAL');
   db.exec(SCHEMA_SQL);
   return db;

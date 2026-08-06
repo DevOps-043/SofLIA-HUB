@@ -30,7 +30,7 @@ export async function handleCommandExecutionRequest(options: CommandApprovalOpti
   const validationResult = SandboxGatekeeper.validate({ text: command, jid, messageId });
 
   if (!validationResult.success) {
-    const errorMessage = validationResult.error.errors[0]?.message || 'Comando bloqueado por seguridad.';
+    const errorMessage = validationResult.error.issues[0]?.message || 'Comando bloqueado por seguridad.';
     console.warn(`[SandboxGatekeeper] Bloqueo proactivo: ${command}`);
     await sendMessage(jid, `*ALERTA DE SEGURIDAD*\n\n${errorMessage}`);
     emitSecurityAlert(mainWindow, { type: 'BLOCKED', command, jid, reason: errorMessage, timestamp: Date.now() });

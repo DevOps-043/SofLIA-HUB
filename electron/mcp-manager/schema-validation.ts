@@ -7,7 +7,9 @@ export const jsonSchemaNodeSchema: z.ZodType<JsonSchemaNode> = z.lazy(() =>
   z.object({
     type: z.enum(['object', 'array', 'string', 'number', 'integer', 'boolean', 'null']).optional(),
     description: z.string().min(1).optional(),
-    properties: z.record(jsonSchemaNodeSchema).optional(),
+    // zod 4 exige declarar el tipo de clave: sin el, el valor se infiere como
+    // `unknown` y el nodo deja de encajar con JsonSchemaNode.
+    properties: z.record(z.string(), jsonSchemaNodeSchema).optional(),
     required: z.array(z.string().min(1)).optional(),
     additionalProperties: z.boolean().optional(),
     items: jsonSchemaNodeSchema.optional(),

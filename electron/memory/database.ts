@@ -1,13 +1,15 @@
-import { createRequire } from 'node:module';
+import { createSqliteDatabase, type SqliteDatabase } from '../sqlite/database';
 
-export type BetterSqlite3Constructor = new (filename: string, options?: Record<string, unknown>) => any;
+export type MemoryDatabaseConstructor = new (filename: string) => SqliteDatabase;
 
-const requireFromModule = createRequire(import.meta.url);
-let Database: BetterSqlite3Constructor | null = null;
-
-export function getDatabaseConstructor(): BetterSqlite3Constructor {
-  if (!Database) {
-    Database = requireFromModule('better-sqlite3') as BetterSqlite3Constructor;
-  }
-  return Database;
+/**
+ * La memoria se abre sobre `node:sqlite`, incluido en Electron. Se conserva la
+ * forma de constructor porque los consumidores la instancian con `new`.
+ */
+export function getDatabaseConstructor(): MemoryDatabaseConstructor {
+  return class {
+    constructor(filename: string) {
+      return createSqliteDatabase(filename) as unknown as this;
+    }
+  } as unknown as MemoryDatabaseConstructor;
 }

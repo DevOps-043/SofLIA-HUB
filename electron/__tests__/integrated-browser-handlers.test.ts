@@ -49,7 +49,7 @@ describe('handlers del navegador integrado', () => {
 
   it('registra el contrato completo y enruta payloads validos', async () => {
     const handlers = ipcMainHarness._getHandlers();
-    expect(Array.from(handlers.keys()).filter((key: unknown) => String(key).startsWith('integrated-browser:'))).toHaveLength(33);
+    expect(Array.from(handlers.keys()).filter((key: unknown) => String(key).startsWith('integrated-browser:'))).toHaveLength(34);
     const captureHandler = handlers.get('integrated-browser:capture-visible');
     expect(await captureHandler!({ sender: window.webContents })).toMatchObject({
       success: true,

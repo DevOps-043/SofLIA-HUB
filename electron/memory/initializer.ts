@@ -1,5 +1,4 @@
-import { app, safeStorage } from 'electron';
-import crypto from 'node:crypto';
+import { app } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import { DB_PATH } from './constants';
@@ -23,29 +22,6 @@ Soy SofLIA, asistente de IA para negocios hispanohablantes. Mi mision es ejecuta
 - Respondo en espanol
 - Formato WhatsApp (texto plano, *negritas*, emojis)
 `;
-
-function resolveDatabaseKey(keyPath: string): string {
-  if (fs.existsSync(keyPath)) {
-    const encryptedKey = fs.readFileSync(keyPath);
-    if (!safeStorage.isEncryptionAvailable()) {
-      return encryptedKey.toString('utf8');
-    }
-    try {
-      return safeStorage.decryptString(encryptedKey);
-    } catch {
-      console.warn('[MemoryService] Fallback to unencrypted DB key');
-      return encryptedKey.toString('utf8');
-    }
-  }
-
-  const dbKey = crypto.randomBytes(32).toString('hex');
-  if (safeStorage.isEncryptionAvailable()) {
-    fs.writeFileSync(keyPath, safeStorage.encryptString(dbKey));
-  } else {
-    fs.writeFileSync(keyPath, dbKey, 'utf8');
-  }
-  return dbKey;
-}
 
 function ensureDefaultSoulFile(): void {
   const soulPath = path.join(app.getPath('userData'), 'SOUL.md');
@@ -96,7 +72,12 @@ export function initializeMemoryDatabase(): { db: any | null; initError: string 
     db.pragma('journal_mode = WAL');
     db.pragma('synchronous = NORMAL');
     db.pragma('busy_timeout = 5000');
-    db.pragma(`key = '${resolveDatabaseKey(path.join(app.getPath('userData'), 'soflia-memory.key'))}'`);
+    // La base local NO esta cifrada en reposo. Aqui se emitia
+    // `PRAGMA key = '<secreto>'`, que SQLite ignora en silencio por ser un
+    // pragma desconocido: nunca cifro nada y ademas interpolaba un secreto
+    // dentro de una sentencia SQL. Cifrar de verdad exigiria SQLCipher, es
+    // decir volver a un modulo nativo compilado. Queda como decision pendiente
+    // y explicita en vez de una proteccion aparente.
     db.pragma('foreign_keys = ON');
     db.exec(SCHEMA_SQL);
     runMigrations(db);

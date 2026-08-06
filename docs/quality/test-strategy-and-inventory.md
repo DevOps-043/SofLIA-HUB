@@ -2,14 +2,14 @@
 
 Estado: vigente. Actualizado: 2026-08-05.
 
-El inventario del cambio contiene 317 archivos de prueba: 247 para main y 70
+El inventario del cambio contiene 318 archivos de prueba: 248 para main y 70
 para renderer. El validador documental recalcula estas cifras; el numero de casos
 ejecutados se registra en el reporte de evidencia de cada cambio, no aqui.
 
 <!-- evidence: vitest.config.ts -->
 <!-- evidence: electron/__tests__ -->
 <!-- evidence: src/__tests__ -->
-<!-- evidence: scripts/quality/test-native.mjs -->
+<!-- evidence: electron/sqlite/database.ts -->
 
 ## Proyectos Vitest
 
@@ -34,12 +34,13 @@ No hay suite E2E empaquetada que automatice Windows/macOS completos ni proveedor
 real de WhatsApp/Google/Supabase/Gemini. Dobles locales no sustituyen pruebas de
 contrato en entorno autorizado.
 
-## ABI nativa
+## SQLite sin ABI nativa
 
-`npm run test` usa `test-native.mjs`: reconstruye `better-sqlite3` para Node,
-ejecuta Vitest y en `finally` lo restaura para Electron. Interrumpir el proceso
-puede dejar ABI incorrecta; ejecutar `npm run rebuild:native:electron` antes de
-desarrollo/build si aparece `NODE_MODULE_VERSION`.
+`npm run test` ejecuta Vitest directamente. La persistencia local usa
+`node:sqlite`, incluido en el Node que trae Electron, asi que no hay extension
+compilada contra la ABI de V8 que reconstruir entre Node y Electron. El
+adaptador vive en `electron/sqlite/database.ts` y los errores
+`NODE_MODULE_VERSION` de `better-sqlite3` dejaron de ser posibles.
 
 ## Piramide por tipo de cambio
 

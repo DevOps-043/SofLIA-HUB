@@ -226,6 +226,55 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     expect(mockGetGenerativeModel).not.toHaveBeenCalled();
   });
 
+  it('RT-013: leer una carpeta local no se degrada a investigación web aunque pida versiones recientes', async () => {
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    // Caso reportado: el turno se quedaba sin herramientas locales porque
+    // "versiones" y "recientes" activan grounding, y "entra"/"busca"/"analiza"
+    // no figuran entre las órdenes de acción.
+    await sendMessageStream(
+      'entra a la carpeta PulseHub y busca el archivo package.json y analiza las dependencias desactualizadas y las versiones mas recientes',
+      [],
+      { model: 'gpt-5.6-luna' },
+    );
+
+    expect(groundingMocks.sendGroundedMessage).not.toHaveBeenCalled();
+    expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({
+      useToolLoop: true,
+      computerUseEnabled: true,
+      // La parte de investigación del encargo se conserva con la herramienta
+      // hospedada, sin sacrificar las herramientas de archivos.
+      useWebSearch: true,
+    }));
+  });
+
+  it('RT-014: una ruta del sistema basta para habilitar las herramientas locales', async () => {
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    await sendMessageStream(
+      'esta es la ruta C:\\Users\\fysg5\\OneDrive\\Escritorio\\PulseHub\\SofLIA-HUB, dame el informe de versiones',
+      [],
+      { model: 'gpt-5.6-luna' },
+    );
+
+    expect(groundingMocks.sendGroundedMessage).not.toHaveBeenCalled();
+    expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({ useToolLoop: true }));
+  });
+
+  it('RT-015: una consulta informativa sin recurso local sigue yendo a grounding', async () => {
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    await sendMessageStream('cuales son las versiones mas recientes de react y typescript', [], {
+      model: 'gpt-5.6-luna',
+    });
+
+    expect(groundingMocks.sendGroundedMessage).not.toHaveBeenCalled();
+    expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({
+      useToolLoop: false,
+      useWebSearch: true,
+    }));
+  });
+
   it('RT-010: una configuración OpenAI inválida no consume cuota de SofLIA Max', async () => {
     const userId = 'usuario-sin-clave-openai';
     const { remainingSofliaMaxUses, resetSofliaMaxQuota } = await import('../../services/model-quota');

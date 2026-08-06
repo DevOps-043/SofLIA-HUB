@@ -58,9 +58,16 @@ export async function sendMessageStream(
   const browserReadTask = browserGroundingIntent !== 'none' && !hasBrowserInteraction;
   const hasExecutableAction = hasComputerActionCommand(normalizedIntent) && !browserReadTask;
   const requestsWebGrounding = shouldUseWebGrounding(message);
+  // Leer una carpeta o un archivo del equipo es algo que la busqueda web no
+  // puede hacer. Sin esta senal, "busca el package.json y compara con las
+  // versiones mas recientes" se clasificaba como investigacion pura: el turno
+  // se quedaba sin herramientas locales y el modelo respondia que no podia
+  // leer archivos.
+  const inspectsLocalResource = hasLocalInspectionRequest(normalizedIntent, message);
   const isPureWebResearch = requestsWebGrounding
     && !hasLocalDeliverableRequest(normalizedIntent)
-    && !hasExecutableAction;
+    && !hasExecutableAction
+    && !inspectsLocalResource;
   const isReadOnlyBrowserObservation = !!browserObservation
     && browserGroundingIntent === 'read-current'
     && !hasBrowserInteraction;
@@ -86,7 +93,11 @@ export async function sendMessageStream(
   // ejecutalo", "reproduce Y") se atiende con el loop de herramientas aunque
   // mencione palabras de investigacion ("ultima version", "reciente"). El
   // grounding web es solo para consultas informativas sin accion ejecutable.
-  const actionTakesPriority = useToolLoop && hasExecutableAction;
+  // Una lectura local tambien tiene prioridad sobre el grounding: la fase de
+  // investigacion no tiene herramientas de archivos y devolveria la respuesta
+  // sin haber abierto nada. En OpenAI el loop conserva `web_search`, asi que
+  // no se pierde la parte de investigacion del encargo.
+  const actionTakesPriority = useToolLoop && (hasExecutableAction || inspectsLocalResource);
   const wantsWebGrounding = requestsWebGrounding
     || (browserGroundingIntent === 'follow-resource' && !hasBrowserInteraction);
 
@@ -316,6 +327,29 @@ function hasHybridSurfaceRequest(text: string): boolean {
   const externalSurface = /\b(codex|escritorio|desktop|otra ventana|aplicacion de escritorio|programa abierto)\b/.test(text);
   const browserDestination = /\b(google chat|gchat|navegador|browser|pagina|pestana|chat abierto|correo abierto)\b/.test(text);
   return externalSurface && browserDestination;
+}
+
+/**
+ * Peticion de leer o inspeccionar algo del equipo. Verbos como "busca", "lee" o
+ * "analiza" son ambiguos por si solos —por eso no estan entre las ordenes de
+ * accion—, pero dejan de serlo cuando el objeto es una carpeta, un archivo o
+ * una ruta del sistema. Una ruta explicita basta por si misma.
+ */
+function hasLocalInspectionRequest(normalized: string, original: string): boolean {
+  if (hasFilesystemPath(original)) return true;
+  const inspects = /\b(busca|buscar|lee|leer|analiza|analizar|revisa|revisar|inspecciona|inspeccionar|explora|explorar|lista|listar|compara|comparar|entra|entrar|abre|abrir)\b/.test(normalized);
+  const localResource = /\b(carpeta|carpetas|directorio|directorios|archivo|archivos|fichero|ficheros|ruta|rutas|package\.json|node_modules|lockfile|repositorio local|proyecto local|disco|escritorio)\b/.test(normalized);
+  return inspects && localResource;
+}
+
+/**
+ * Ruta absoluta de Windows o de tipo Unix escrita por el usuario. La unidad de
+ * Windows es una sola letra precedida de un limite: sin esa condicion, el `s:/`
+ * de `https://` se confundia con una ruta y desviaba la investigacion web.
+ */
+function hasFilesystemPath(text: string): boolean {
+  return /(?:^|[\s"'(])[a-zA-Z]:[\\/][^\s]/.test(text)
+    || /(?:^|[\s"'(])~?\/[\w.-]+\/[\w.-]/.test(text);
 }
 
 /** Imperativos de "abrir" con y sin pronombre enclitico. */

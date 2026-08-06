@@ -44,7 +44,7 @@ const MAX_CHART_IMAGES = 8;
 function buildChartSection(chartImages: string[]): Paragraph[] {
   const images = chartImages
     .map(decodeChartDataUrl)
-    .filter((image): image is Buffer => image !== null)
+    .filter((image): image is DecodedChartImage => image !== null)
     .slice(0, MAX_CHART_IMAGES);
   if (images.length === 0) return [];
 
@@ -55,10 +55,10 @@ function buildChartSection(chartImages: string[]): Paragraph[] {
       spacing: { before: 400, after: 200 },
     }),
   ];
-  for (const data of images) {
-    const { width, height } = resolveChartDimensions(data);
+  for (const image of images) {
+    const { width, height } = resolveChartDimensions(image.data);
     paragraphs.push(new Paragraph({
-      children: [new ImageRun({ data, transformation: { width, height } })],
+      children: [new ImageRun({ data: image.data, type: image.type, transformation: { width, height } })],
       alignment: AlignmentType.CENTER,
       spacing: { after: 300 },
     }));
@@ -66,12 +66,15 @@ function buildChartSection(chartImages: string[]): Paragraph[] {
   return paragraphs;
 }
 
-function decodeChartDataUrl(dataUrl: unknown): Buffer | null {
+/** docx 9 exige declarar el formato, asi que se conserva el del data URL. */
+type DecodedChartImage = { data: Buffer; type: 'png' | 'jpg' };
+
+function decodeChartDataUrl(dataUrl: unknown): DecodedChartImage | null {
   if (typeof dataUrl !== 'string') return null;
   const match = dataUrl.match(/^data:image\/(png|jpe?g);base64,([A-Za-z0-9+/=]+)$/);
   if (!match) return null;
   try {
-    return Buffer.from(match[2], 'base64');
+    return { data: Buffer.from(match[2], 'base64'), type: match[1] === 'png' ? 'png' : 'jpg' };
   } catch {
     return null;
   }

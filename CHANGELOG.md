@@ -4,6 +4,19 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+
+
+## [0.9.5] - 2026-08-06
+
+### Fixed
+
+- **La transcripcion de YouTube no cargaba en el navegador integrado:** El panel quedaba girando indefinidamente mientras los capitulos y el asistente del sitio si aparecian. Electron deja incompletos los User-Agent Client Hints (electron/electron#34762): las pistas de baja entropia solo viajan tras un `Accept-CH` y las de alta entropia no viajan nunca, aunque el sitio las pida. Como la vista anuncia un User-Agent de Chrome, la identidad que presentaba era incoherente —decia ser Chrome pero no respondia al desafio— y el endpoint que sirve la transcripcion, que valida esa coherencia por ser blanco habitual de extraccion masiva, rechazaba la peticion. Los capitulos no se veian afectados porque viajan dentro del documento inicial. La particion del navegador integrado completa ahora esas cabeceras derivandolas del mismo User-Agent anunciado, y las de alta entropia solo se envian al origen que las solicito, no a todos los sitios.
+- **Aborto de navegacion mostrado como error:** Una aplicacion de una sola pagina que reescribe su propia URL al arrancar aborta la carga en curso, y ese `ERR_ABORTED (-3)` aparecia como una franja roja de error sobre el navegador aunque la pagina hubiera cargado bien. Deja de tratarse como fallo; los errores reales de red se siguen reportando.
+
+### Changed
+
+- **Deteccion de ABI para modulos nativos:** `node-abi` queda fijado en `^4.33.0` porque la version anterior no reconocia Electron 43 y `electron-rebuild` abortaba con "Could not detect abi" antes de poder evaluar el modulo. Esto no resuelve por si solo la reconstruccion de `better-sqlite3` para Electron 43: ninguna publicacion de esa dependencia ofrece binario para su ABI todavia.
+
 ## [0.9.4] - 2026-08-05
 
 ### Fixed

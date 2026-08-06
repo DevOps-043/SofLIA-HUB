@@ -3,7 +3,7 @@ import type React from 'react';
 interface ProjectChatInputProps {
   canEditFolder: boolean;
   chatInput: string;
-  chatInputRef: React.RefObject<HTMLInputElement>;
+  chatInputRef: React.RefObject<HTMLInputElement | null>;
   folderName: string;
   onSetChatInput: (value: string) => void;
   onSubmit: () => void;

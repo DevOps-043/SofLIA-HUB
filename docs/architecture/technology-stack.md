@@ -42,7 +42,7 @@ los servicios lo invocan; cambiarlo exige un cambio funcional propio.
 | Tecnologia | Version | Uso |
 |---|---:|---|
 | Supabase JS | `^2.95.3` | SOFIA, Lia e IRIS con clientes separados |
-| better-sqlite3 | `^12.8.0` | memoria, pensamientos e indice local |
+| `node:sqlite` | Node de Electron | memoria, pensamientos e indice local; sin modulo nativo que compilar |
 | Google APIs | `^171.4.0` | Calendar, Gmail, Drive y Chat |
 | Microsoft Graph/MSAL | `^3.0.7` / `^5.0.4` | calendario Microsoft/OAuth |
 | Baileys | `^7.0.0-rc13` | WebSocket WhatsApp/QR/media |

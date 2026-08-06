@@ -6,7 +6,7 @@ No se leen ni documentan valores de `.env`. Esta pagina registra solo nombres,
 consumidores y comportamiento cuando faltan.
 
 <!-- evidence: src/config.ts -->
-<!-- evidence: config/vite/env-defines.ts -->
+<!-- evidence: config/vite/env-defines.mts -->
 <!-- evidence: electron/main/environment.ts -->
 
 ## Variables de build/runtime

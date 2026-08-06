@@ -75,6 +75,10 @@ class MockWebContents extends EventEmitter {
   session = {
     setPermissionRequestHandler: vi.fn(),
     setPermissionCheckHandler: vi.fn(),
+    webRequest: {
+      onBeforeSendHeaders: vi.fn(),
+      onHeadersReceived: vi.fn(),
+    },
     extensions: {
       loadExtension: vi.fn(async () => ({ id: 'extension-id', name: 'Extension', version: '1.0.0' })),
       removeExtension: vi.fn(),
@@ -96,7 +100,7 @@ class MockWebContents extends EventEmitter {
   });
   getURL = vi.fn(() => this.currentUrl);
   getTitle = vi.fn(() => this.title);
-  getUserAgent = vi.fn(() => 'Mozilla/5.0 Chrome/140.0.0.0 Electron/39.0.0 Safari/537.36');
+  getUserAgent = vi.fn(() => 'Mozilla/5.0 (KHTML, like Gecko) soflia-hub-desktop/1.0.0 Chrome/140.0.0.0 Electron/39.0.0 Safari/537.36');
   setUserAgent = vi.fn();
   setWindowOpenHandler = vi.fn();
   focus = vi.fn();

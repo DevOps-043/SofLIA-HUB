@@ -28,7 +28,7 @@ export async function createPresentationPDF(options: CreatePresentationPDFOption
 
   const imageCache = await generateSlideImages({ ...options, includeImages });
   const slideHTMLs = slides.map((slide, index) => renderSlide(slide, theme, index, slides.length, imageCache.get(index) || null));
-  const win = new BrowserWindow({ show: false, width: 1280, height: 720, webPreferences: { offscreen: true } });
+  const win = new BrowserWindow({ show: false, width: 1280, height: 720, webPreferences: { offscreen: { deviceScaleFactor: 1 } } });
 
   try {
     await new Promise<void>((resolve, reject) => {

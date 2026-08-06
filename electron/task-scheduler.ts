@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+import cron, { type ScheduledTask } from 'node-cron';
 import path from 'node:path';
 import { app } from 'electron';
 import { randomUUID } from 'node:crypto';
@@ -19,7 +19,7 @@ export { TASK_SCHEDULER_TOOL_DECLARATIONS, handleTaskSchedulerTool } from './tas
 export class TaskScheduler extends EventEmitter {
   private statePath: string;
   private tasks: Map<string, ScheduledTaskInfo> = new Map();
-  private activeJobs: Map<string, cron.ScheduledTask> = new Map();
+  private activeJobs: Map<string, ScheduledTask> = new Map();
 
   constructor() {
     super();

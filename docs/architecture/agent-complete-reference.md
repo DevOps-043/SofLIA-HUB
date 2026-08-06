@@ -81,8 +81,8 @@ npm run verify:pr
 ```
 
 `npm run verify:release` agrega la compilación y el empaquetado; se usa solo
-para un candidato a distribución. Las pruebas reconstruyen temporalmente
-`better-sqlite3` para Node y restauran después su ABI de Electron.
+para un candidato a distribución. Las pruebas se ejecutan directamente: la
+persistencia local usa `node:sqlite` y ya no hay ABI nativa que intercambiar.
 
 ---
 

@@ -521,6 +521,12 @@ export function IntegratedBrowserPanel(props: {
             <ManagementButton label="Contrasenas" active={managementTab === 'credentials'} onClick={() => void toggleManagement('credentials')}>
               <svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4" /><path d="M11 12l8-8M15 8l2 2M17 6l2 2" /></svg><span className="hidden xl:inline">Contrasenas</span>
             </ManagementButton>
+            <ManagementButton
+              label="Herramientas de desarrollo"
+              onClick={() => void run(integratedBrowserService.toggleDevTools)}
+            >
+              <svg viewBox="0 0 24 24"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M13 6l-2 12" /></svg><span className="hidden xl:inline">Inspeccionar</span>
+            </ManagementButton>
             <ManagementButton label="Extensiones" active={managementTab === 'extensions'} onClick={() => void toggleManagement('extensions')}>
               <svg viewBox="0 0 24 24"><path d="M8 3h5v5a2 2 0 104 0V3h4v7h-5a2 2 0 100 4h5v7h-7v-5a2 2 0 10-4 0v5H3v-7h5a2 2 0 100-4H3V3h5z" /></svg><span className="hidden xl:inline">Extensiones</span>
             </ManagementButton>

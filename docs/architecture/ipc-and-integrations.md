@@ -8,8 +8,8 @@ Estado: vigente. Actualizado: 2026-08-04.
 
 ## Contrato IPC
 
-La allowlist actual contiene 309 canales derivados de cinco arrays: 72, 59, 65,
-102 y 11. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 310 canales derivados de cinco arrays: 72, 59, 65,
+103 y 11. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |
@@ -24,7 +24,7 @@ el catalogo y su validador deben actualizarse juntos.
 | `meeting`, `whatsapp` | 12 cada uno | runs/approvals/sync; conexion/config/status |
 | `meeting-live` | 11 | audio, segmentos, deteccion y estado live |
 | `channels`, `workflow-hub` | 10 cada uno | hub multicanal y casos de workflow |
-| `integrated-browser` | 33 | navegación, pestañas, composición, captura visible, percepción, controlador determinista, viewport, visibilidad, eventos, historial, credenciales y extensiones |
+| `integrated-browser` | 34 | navegación, pestañas, composición, captura visible, percepción, controlador determinista, viewport, visibilidad, eventos, historial, credenciales y extensiones |
 | otros | 60 | voice, updater, automation, drive, pytools, telegram, gchat, app, proactive, background-host, root y AI |
 
 ### Recorrido obligatorio
@@ -55,9 +55,10 @@ actualizar las cuatro capas, tipos y pruebas segun
 
 ### Contrato del navegador integrado
 
-`electron/integrated-browser-handlers.ts` registra treinta y una operaciones invocables:
+`electron/integrated-browser-handlers.ts` registra treinta y dos operaciones invocables:
 diecisiete de estado/navegacion/pestañas/composición/viewport/captura/percepción/visibilidad,
-tres del controlador determinista, dos de historial, cuatro de credenciales y
+tres del controlador determinista, una para abrir las herramientas de
+desarrollo de la pestaña activa, dos de historial, cuatro de credenciales y
 cinco de extensiones. Dos canales adicionales entregan estado y solicitudes de
 apertura del agente al renderer. `electron/preload/integrated-browser-api.ts` y
 `src/services/integrated-browser-service.ts` son las capas publicas.
@@ -92,6 +93,16 @@ confirmación HITL.
 `integrated-browser:set-observation-enabled` permite pausar y descartar esa
 evidencia. El DOM omite valores de formularios, contenido editable, contraseñas
 y credenciales de URL, y se entrega como contenido de página no confiable.
+
+El navegador integrado normaliza el User-Agent de su vista al de un Chromium de
+escritorio. Electron le inserta el nombre y la versión de la aplicación y la
+ficha `Electron/`, que lo convierten en un cliente desconocido frente a lo que
+anuncia `Sec-CH-UA`; los endpoints que validan esa coherencia devolvían
+`FAILED_PRECONDITION`, que es lo que impedía cargar la transcripción de YouTube.
+No se inyecta ninguna cabecera Client Hints: hacerlo introducía marcas que
+contradecían las que el propio Chromium ya envía. Un `ERR_ABORTED` por
+navegación reemplazada tampoco se trata como fallo: es el curso normal de un
+sitio que reescribe su propia URL al cargar.
 
 Main administra hasta 500 pestañas lógicas dentro de la misma partición
 persistente y conserva como máximo ocho `WebContentsView` vivas mediante LRU.

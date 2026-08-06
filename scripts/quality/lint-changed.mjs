@@ -30,7 +30,12 @@ if (!lintable.length) {
 
 const requireFromWorkspace = createRequire(join(root, 'package.json'));
 const { ESLint } = requireFromWorkspace('eslint');
-const eslint = new ESLint({ cwd: root, errorOnUnmatchedPattern: false, reportUnusedDisableDirectives: 'error' });
+// ESLint 10 movio `reportUnusedDisableDirectives` dentro de `linterOptions`.
+const eslint = new ESLint({
+  cwd: root,
+  errorOnUnmatchedPattern: false,
+  overrideConfig: { linterOptions: { reportUnusedDisableDirectives: 'error' } },
+});
 const currentResults = await eslint.lintFiles(lintable);
 const regressions = [];
 

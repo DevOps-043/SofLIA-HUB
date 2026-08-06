@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import cron from 'node-cron';
+import cron, { type ScheduledTask } from 'node-cron';
 import type { WhatsAppService } from './whatsapp-service';
 import { generateBriefingSummary } from './daily-briefing/gemini';
 import { collectDailyBriefingSystemData } from './daily-briefing/system-data';
@@ -10,7 +10,7 @@ export type { DailyBriefingConfig, DailyBriefingStatus } from './daily-briefing/
 
 export class DailyBriefingService extends EventEmitter {
   private config: DailyBriefingConfig;
-  private task: cron.ScheduledTask | null = null;
+  private task: ScheduledTask | null = null;
   private waService: WhatsAppService;
   private isRunning = false;
   private lastRun?: Date;

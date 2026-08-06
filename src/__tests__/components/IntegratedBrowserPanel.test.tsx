@@ -47,6 +47,7 @@ describe('IntegratedBrowserPanel', () => {
       reload: vi.fn(async () => ({ success: true, state })),
       stop: vi.fn(async () => ({ success: true, state })),
       focus: vi.fn(async () => ({ success: true, state })),
+      toggleDevTools: vi.fn(async () => ({ success: true, state })),
       setViewport: vi.fn(async () => ({ success: true, state })),
       hide: vi.fn(async () => ({ success: true, state: { ...state, isVisible: false } })),
       listHistory: vi.fn(async () => ({ success: true, history: [] })),
@@ -346,18 +347,20 @@ describe('IntegratedBrowserPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Historial' }));
     expect(await screen.findByRole('heading', { name: 'Historial' })).toBeInTheDocument();
     expect(screen.getByRole('dialog', { name: 'Historial' })).toHaveClass('soflia-browser-dialog--panel');
-    expect(screen.getByAltText('Vista actual del navegador')).toBeInTheDocument();
-    expect(api.captureVisible).toHaveBeenCalled();
-    expect(api.hide).toHaveBeenCalled();
-    expect(api.listHistory).toHaveBeenCalled();
+    // El respaldo visual y la ocultacion de la capa nativa son asincronos:
+    // afirmarlos de forma sincrona hacia la prueba inestable bajo carga.
+    expect(await screen.findByAltText('Vista actual del navegador')).toBeInTheDocument();
+    await waitFor(() => expect(api.captureVisible).toHaveBeenCalled());
+    await waitFor(() => expect(api.hide).toHaveBeenCalled());
+    await waitFor(() => expect(api.listHistory).toHaveBeenCalled());
 
     fireEvent.click(screen.getByRole('button', { name: 'Contrasenas' }));
     expect(await screen.findByRole('heading', { name: 'Contraseñas' })).toBeInTheDocument();
-    expect(api.listCredentials).toHaveBeenCalled();
+    await waitFor(() => expect(api.listCredentials).toHaveBeenCalled());
 
     fireEvent.click(screen.getByRole('button', { name: 'Extensiones' }));
     expect(await screen.findByRole('heading', { name: 'Extensiones' })).toBeInTheDocument();
-    expect(api.listExtensions).toHaveBeenCalled();
+    await waitFor(() => expect(api.listExtensions).toHaveBeenCalled());
   });
 
   it('reabre una visita y permite guardar y rellenar una credencial', async () => {
@@ -396,9 +399,13 @@ describe('IntegratedBrowserPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Historial' }));
     expect((await screen.findAllByText('Ejemplo')).length).toBeGreaterThan(0);
-    fireEvent.click(await screen.findByRole('button', { name: 'Borrar historial' }));
+    // El boton solo se habilita cuando el historial termino de cargar: hacer
+    // clic antes no abre nada porque la accion no tendria sobre que actuar.
+    const clearButton = await screen.findByRole('button', { name: 'Borrar historial' });
+    await waitFor(() => expect(clearButton).toBeEnabled());
+    fireEvent.click(clearButton);
 
-    const confirmation = screen.getByRole('dialog', { name: 'Borrar todo el historial' });
+    const confirmation = await screen.findByRole('dialog', { name: 'Borrar todo el historial' });
     expect(confirmation).toBeInTheDocument();
     expect(api.clearHistory).not.toHaveBeenCalled();
     fireEvent.click(within(confirmation).getByRole('button', { name: 'Borrar historial' }));

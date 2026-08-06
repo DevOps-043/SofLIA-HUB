@@ -1,19 +1,19 @@
-import { createRequire } from 'node:module';
 import * as fs from 'fs';
+import { createSqliteDatabase, type SqliteDatabase } from '../sqlite/database';
 
-const requireNative = createRequire(import.meta.url);
-const Database = requireNative('better-sqlite3');
-export type BetterSqlite3Database = ReturnType<typeof Database>;
+export type IndexerDatabase = SqliteDatabase;
+/** Alias historico: el indexador se escribio contra la forma de better-sqlite3. */
+export type BetterSqlite3Database = SqliteDatabase;
 
-export function createIndexerDatabase(dbPath: string): BetterSqlite3Database {
-  const db = new Database(dbPath);
+export function createIndexerDatabase(dbPath: string): IndexerDatabase {
+  const db = createSqliteDatabase(dbPath);
   db.pragma('journal_mode = WAL');
   db.pragma('synchronous = NORMAL');
   initializeSchema(db);
   return db;
 }
 
-function initializeSchema(db: BetterSqlite3Database): void {
+function initializeSchema(db: IndexerDatabase): void {
   try {
     db.exec(`
       CREATE VIRTUAL TABLE IF NOT EXISTS docs USING fts5(

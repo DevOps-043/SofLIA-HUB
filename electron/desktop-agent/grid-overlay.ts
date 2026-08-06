@@ -1,4 +1,6 @@
-type SharpFactory = typeof import('sharp');
+// El tipo estructural del proyecto no depende de la forma del modulo, que
+// cambio en sharp 0.35 al pasar a exportaciones duales ESM/CJS.
+import type { SharpFactory } from './sharp-types';
 
 export async function applyGridOverlay(params: {
   sharpModule: SharpFactory | null;

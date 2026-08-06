@@ -5,7 +5,7 @@ interface FeatureFilter {
   id: string;
   active: boolean;
   set: Dispatch<SetStateAction<boolean>>;
-  icon: JSX.Element;
+  icon: React.JSX.Element;
   label: string;
 }
 

@@ -10,7 +10,7 @@ interface ProjectSourcesTabProps {
   driveFiles: DriveFile[];
   driveLoading: boolean;
   driveSearch: string;
-  fileInputRef: RefObject<HTMLInputElement>;
+  fileInputRef: RefObject<HTMLInputElement | null>;
   hasWorkspaceIdentity: boolean;
   loadingSources: boolean;
   showAddMenu: boolean;
