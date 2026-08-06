@@ -8,6 +8,7 @@ Pulse Hub autentica al usuario en SOFIA pero intenta abrir las conversaciones re
 - Un backend confiable valida la sesión SOFIA y emite una prueba de acceso de un solo uso para la cuenta operativa del mismo correo.
 - El cliente deja de enviar la contraseña SOFIA a Lia y elimina el alta/inicio/reparación mediante contraseña secundaria.
 - La restauración y el reintento de conversaciones se vuelven automáticos e idempotentes.
+- Las cuentas migradas conservan acceso cuando Supabase Auth no copió la marca de confirmación, pero el perfil legado del mismo UUID y correo contiene evidencia verificable de confirmación.
 - Los estados degradados usan lenguaje simple, sin nombres internos ni instrucciones de credenciales.
 - Se documentan el despliegue, secretos, seguridad, reversión y evidencia necesaria antes de habilitar el intercambio en producción.
 

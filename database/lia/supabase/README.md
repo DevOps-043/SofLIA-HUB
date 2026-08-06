@@ -16,7 +16,8 @@ Antes de desplegar:
 1. Vincular el CLI con el proyecto Lia desde este directorio.
 2. Cargar los dos secretos SOFIA en el gestor de secretos del proyecto.
 3. Desplegar `sofia-session-exchange` respetando `verify_jwt = false`.
-4. Probar token ausente, token inválido, membresía inactiva, cuenta Lia existente y alta autorizada nueva.
+4. Probar token ausente, token inválido, membresía inactiva, cuenta Lia existente, alta autorizada nueva y cuenta SOFIA migrada con confirmación legada completa.
+   Rechazar la evidencia legada si no coinciden UUID/correo o falta `email_verified_at`.
 5. Confirmar que los logs no incluyen bearer tokens, correos, enlaces ni `tokenHash`.
 
 El backend debe publicarse y validarse antes que el cliente. Para revertir, se vuelve a la versión anterior del cliente y se deshabilita la función; no existe migración SQL que deshacer.

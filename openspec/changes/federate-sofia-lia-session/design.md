@@ -25,7 +25,7 @@ La corrección cruza autenticación, una Edge Function, el renderer y operación
 
 ### Intercambio mediante token de un solo uso
 
-Una Edge Function alojada en Lia recibirá `Authorization: Bearer <JWT SOFIA>`. Validará el token y el correo confirmado contra el servicio Auth de SOFIA, comprobará una membresía `organization_users.status = active` del mismo `user.id` y usará el cliente administrativo de Lia para `generateLink(type: magiclink, email)`. Devolverá solo `hashed_token`; el renderer lo canjeará con `verifyOtp(type: magiclink)` para obtener la sesión Lia normal.
+Una Edge Function alojada en Lia recibirá `Authorization: Bearer <JWT SOFIA>`. Validará el token y el correo confirmado contra el servicio Auth de SOFIA, comprobará una membresía `organization_users.status = active` del mismo `user.id` y usará el cliente administrativo de Lia para `generateLink(type: magiclink, email)`. Para cuentas migradas cuyo `auth.users.email_confirmed_at` no fue copiado, aceptará como evidencia equivalente únicamente `public.users.email_verified = true` con `email_verified_at` presente, el mismo UUID autenticado y el mismo correo normalizado. Devolverá solo `hashed_token`; el renderer lo canjeará con `verifyOtp(type: magiclink)` para obtener la sesión Lia normal.
 
 `generateLink` conserva el usuario existente por correo y crea el faltante para `magiclink`, por lo que el `sub` Lia usado por RLS permanece estable. El token es breve, de un solo uso y viaja con `Cache-Control: no-store`.
 
@@ -38,7 +38,7 @@ Alternativas descartadas:
 
 ### Validación explícita del JWT externo
 
-La verificación JWT del gateway de la función estará desactivada porque el token está firmado por SOFIA, no por Lia. Esto no vuelve pública la capacidad: el handler rechazará cualquier solicitud sin bearer token y llamará a `sofia.auth.getUser(token)` antes de cualquier operación administrativa. La consulta de membresía se ejecutará con el mismo JWT bajo RLS de SOFIA y comparará siempre `user_id` con el sujeto autenticado.
+La verificación JWT del gateway de la función estará desactivada porque el token está firmado por SOFIA, no por Lia. Esto no vuelve pública la capacidad: el handler rechazará cualquier solicitud sin bearer token y llamará a `sofia.auth.getUser(token)` antes de cualquier operación administrativa. La consulta opcional de evidencia legada y la consulta de membresía se ejecutarán con el mismo JWT bajo RLS de SOFIA y compararán siempre `user_id` con el sujeto autenticado. Nunca se aceptará un UUID o correo enviado por el cliente, `user_metadata` editable ni una coincidencia por correo con otro UUID.
 
 Alternativa descartada: validar el JWT SOFIA con una clave copiada o decodificarlo sin verificación. Eso duplicaría material criptográfico y permitiría aceptar claims no autenticados.
 

@@ -59,6 +59,9 @@ Todas las queries (diagnóstico, detección de cuentas huérfanas y limpieza fut
 viven en **`database/sofia-learning/migrations/auth-supabase-hub.sql`**, organizadas por secciones:
 
 - **Sección 1 y 2**: solo lectura — ejecutar cuando se quiera.
+- **Sección 2B**: identifica cuentas que iniciaron sesión pero cuya confirmación
+  de correo quedó únicamente en `public.users`; también detecta UUID o correos
+  incoherentes que deben revisarse manualmente.
 - **Sección 3 (limpieza)**: destructiva y comentada — NO ejecutar hasta que Learning
   confirme que tampoco usa los RPCs. Beneficio al completarla: se elimina el
   almacenamiento duplicado de credenciales.

@@ -26,6 +26,14 @@ El backend SHALL aceptar únicamente un JWT SOFIA verificable con correo confirm
 - **WHEN** el JWT pertenece a un usuario cuyo correo no está confirmado
 - **THEN** la función deniega el intercambio antes de consultar membresía o generar acceso operativo
 
+#### Scenario: Cuenta migrada con confirmación legada verificable
+- **WHEN** el JWT pertenece a una cuenta migrada sin marca de confirmación en Auth, pero `public.users` registra el mismo UUID, el mismo correo normalizado, `email_verified = true` y `email_verified_at` presente
+- **THEN** la función acepta esa evidencia legada, comprueba la membresía activa del mismo sujeto y continúa el intercambio
+
+#### Scenario: Evidencia legada ambigua o incompleta
+- **WHEN** falta la fecha de verificación legada o no coinciden UUID o correo
+- **THEN** la función deniega el intercambio antes de consultar membresía o generar acceso operativo
+
 #### Scenario: Usuario sin membresía activa
 - **WHEN** el JWT es válido pero el sujeto no tiene membresía activa
 - **THEN** la función deniega el intercambio antes de ejecutar una operación administrativa en Lia

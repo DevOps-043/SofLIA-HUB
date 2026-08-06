@@ -3,6 +3,7 @@
 - [x] 1.1 Implementar el núcleo comprobable que valida bearer token, identidad SOFIA, membresía activa y generación del token Lia
 - [x] 1.2 Implementar la Edge Function con CORS, respuestas no cacheables, clientes SOFIA/Lia separados y errores seguros
 - [x] 1.3 Versionar la configuración `verify_jwt = false` y la guía de secretos/despliegue sin valores sensibles
+- [x] 1.4 Admitir confirmación legada solo para el mismo UUID y correo autenticados, con evidencia completa
 
 ## 2. Cliente y sesión
 
@@ -21,3 +22,4 @@
 - [x] 4.2 Actualizar documentación canónica, operación, trazabilidad y plan de despliegue/reversión
 - [x] 4.3 Ejecutar verificación proporcional y registrar resultados/bloqueos de baseline
 - [x] 4.4 Ejecutar revisión adversarial de permisos, tokens, estados parciales y regresiones
+- [x] 4.5 Cubrir la regresión de cuentas migradas y registrar la verificación adicional

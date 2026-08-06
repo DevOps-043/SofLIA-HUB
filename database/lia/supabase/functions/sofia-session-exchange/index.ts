@@ -43,7 +43,24 @@ Deno.serve(async (request: Request) => {
       return {
         id: data.user.id,
         email: data.user.email || null,
-        emailVerified: Boolean(data.user.email_confirmed_at || data.user.confirmed_at),
+        emailVerified: Boolean(data.user.email_confirmed_at),
+      };
+    },
+    getLegacyEmailVerification: async (accessToken, userId) => {
+      const sofia = createSofiaClient(sofiaUrl, sofiaAnonKey, accessToken);
+      const { data, error } = await sofia
+        .from('users')
+        .select('id, email, email_verified, email_verified_at')
+        .eq('id', userId)
+        .limit(1)
+        .maybeSingle();
+      if (error) throw new Error('legacy_email_verification_lookup_failed');
+      if (!data) return null;
+      return {
+        id: data.id,
+        email: data.email,
+        emailVerified: data.email_verified === true,
+        emailVerifiedAt: data.email_verified_at || null,
       };
     },
     hasActiveMembership: async (accessToken, userId) => {
