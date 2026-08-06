@@ -4,6 +4,13 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.9.4] - 2026-08-05
+
+### Fixed
+
+- **El chat mostraba el andamiaje interno del modelo:** En una tarea que cruzaba escritorio y navegador, la respuesta visible incluia el JSON de la llamada a `use_computer` y el token de control `<|assistant to=use_computer code|>` incrustados en medio de la prosa. Ocurre cuando el proveedor entrega esa mecanica por el canal de texto en vez de separarla en su propio item de salida, y el cliente la mostraba tal cual. El canal visible se sanea ahora de forma incremental, porque un token o un objeto JSON pueden repartirse entre muchos fragmentos del stream: se descartan los tokens de control y los objetos sueltos cuyas claves encajan por completo en la firma declarada de una herramienta. El contenido dentro de un bloque de codigo se respeta literal y un JSON que no corresponde a ninguna herramienta se conserva.
+- **Burbuja vacia cuando el turno solo traia andamiaje:** Al retirar esa mecanica, una respuesta que no contenia nada mas quedaba en blanco. Ahora ese caso lo dice explicitamente en vez de dejar el mensaje vacio.
+
 ## [0.9.3] - 2026-08-05
 
 ### Fixed

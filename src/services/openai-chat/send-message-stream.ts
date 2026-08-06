@@ -1,6 +1,7 @@
 import type { ResponseInput } from 'openai/resources/responses/responses';
 import type { ReasoningEffort } from 'openai/resources/shared';
 import { LONG_RUNNING_TOOL_TIMEOUTS_MS } from '../gemini-chat/agentic-loop';
+import { createAssistantTextSanitizer } from '../gemini-chat/assistant-text-sanitizer';
 import { buildModelTools } from '../gemini-chat/model-config';
 import { getPublicAiErrorMessage } from '../gemini-chat/public-error';
 import { withToolTimeout } from '../gemini-chat/resilience';
@@ -21,6 +22,7 @@ import { toOpenAITools } from './tool-schema';
 
 const MAX_TOOL_ITERATIONS = 10;
 const MAX_OUTPUT_TOKENS = 16384;
+const UNUSABLE_RESPONSE_MESSAGE = 'No obtuve una respuesta utilizable en este turno. Vuelve a intentarlo o reformula la solicitud.';
 /**
  * Items de salida que se reinyectan en el siguiente turno del ciclo. Incluye
  * `reasoning` a proposito: sin el, GPT-5.6 pierde el hilo del razonamiento
@@ -101,11 +103,18 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
         );
 
         const outputItems: any[] = [];
+        // El canal visible a veces trae andamiaje interno del modelo (tokens de
+        // control y el JSON de la llamada que el proveedor no separo en su
+        // propio item). Eso es razonamiento y mecanica, no la respuesta.
+        const sanitizer = createAssistantTextSanitizer();
         for await (const event of events) {
           if (signal?.aborted) return;
           if (event.type === 'response.output_text.delta' && event.delta) {
-            emittedText = true;
-            yield event.delta as string;
+            const safeDelta = sanitizer.push(event.delta as string);
+            if (safeDelta) {
+              emittedText = true;
+              yield safeDelta;
+            }
             continue;
           }
           if (event.type === 'response.output_item.done' && event.item) {
@@ -120,9 +129,19 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
             noteTokenUsage(params, event.response?.usage?.total_tokens);
           }
         }
+        const safeTail = sanitizer.flush();
+        if (safeTail) {
+          emittedText = true;
+          yield safeTail;
+        }
 
         const functionCalls = outputItems.filter((item) => item.type === 'function_call');
-        if (functionCalls.length === 0) return;
+        if (functionCalls.length === 0) {
+          // Un turno cuyo canal visible solo traia andamiaje se queda sin texto
+          // tras el saneado: es preferible decirlo a dejar la burbuja vacia.
+          if (!emittedText) yield UNUSABLE_RESPONSE_MESSAGE;
+          return;
+        }
 
         // Sin `previous_response_id` el modelo solo ve lo que va en `input`: se
         // reinyecta la salida del turno antes de adjuntar los resultados.
@@ -132,7 +151,10 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
 
         const ejecutadas = await runFunctionCalls(functionCalls, params, toolCalls, generatedImages, input);
         if (signal?.aborted) return;
-        if (ejecutadas === 0) return;
+        if (ejecutadas === 0) {
+          if (!emittedText) yield UNUSABLE_RESPONSE_MESSAGE;
+          return;
+        }
       }
 
       if (!emittedText) yield 'He ejecutado las acciones solicitadas. Si necesitas algo mas, no dudes en pedirlo.';
