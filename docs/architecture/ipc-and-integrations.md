@@ -8,8 +8,8 @@ Estado: vigente. Actualizado: 2026-08-06.
 
 ## Contrato IPC
 
-La allowlist actual contiene 340 canales derivados de cinco arrays: 75, 59, 65,
-112 y 29. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 354 canales derivados de cinco arrays: 80, 59, 65,
+115 y 35. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |

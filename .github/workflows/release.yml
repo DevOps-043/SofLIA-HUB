@@ -102,6 +102,8 @@ jobs:
           echo "VITE_MICROSOFT_CLIENT_ID=${{ secrets.VITE_MICROSOFT_CLIENT_ID }}" >> .env
           echo "VITE_SOFLIA_LEARNING_SUPABASE_URL=${{ secrets.VITE_SOFLIA_LEARNING_SUPABASE_URL }}" >> .env
           echo "VITE_SOFLIA_LEARNING_SUPABASE_ANON_KEY=${{ secrets.VITE_SOFLIA_LEARNING_SUPABASE_ANON_KEY }}" >> .env
+          echo "VITE_LEARNING_BASE_URL=${{ secrets.VITE_LEARNING_BASE_URL || vars.VITE_LEARNING_BASE_URL }}" >> .env
+          echo "VITE_LEARNING_SSO_ENABLED=${{ secrets.VITE_LEARNING_SSO_ENABLED || vars.VITE_LEARNING_SSO_ENABLED }}" >> .env
           echo "ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}" >> .env
           echo "ELEVENLABS_VOICE_ID=${{ secrets.ELEVENLABS_VOICE_ID }}" >> .env
           echo "ELEVENLABS_MODEL_ID=${{ secrets.ELEVENLABS_MODEL_ID }}" >> .env
@@ -160,6 +162,8 @@ jobs:
           echo "VITE_MICROSOFT_CLIENT_ID=${{ secrets.VITE_MICROSOFT_CLIENT_ID }}" >> .env
           echo "VITE_SOFLIA_LEARNING_SUPABASE_URL=${{ secrets.VITE_SOFLIA_LEARNING_SUPABASE_URL }}" >> .env
           echo "VITE_SOFLIA_LEARNING_SUPABASE_ANON_KEY=${{ secrets.VITE_SOFLIA_LEARNING_SUPABASE_ANON_KEY }}" >> .env
+          echo "VITE_LEARNING_BASE_URL=${{ secrets.VITE_LEARNING_BASE_URL || vars.VITE_LEARNING_BASE_URL }}" >> .env
+          echo "VITE_LEARNING_SSO_ENABLED=${{ secrets.VITE_LEARNING_SSO_ENABLED || vars.VITE_LEARNING_SSO_ENABLED }}" >> .env
           echo "ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}" >> .env
           echo "ELEVENLABS_VOICE_ID=${{ secrets.ELEVENLABS_VOICE_ID }}" >> .env
           echo "ELEVENLABS_MODEL_ID=${{ secrets.ELEVENLABS_MODEL_ID }}" >> .env
@@ -231,6 +235,8 @@ jobs:
           echo "VITE_MICROSOFT_CLIENT_ID=${{ secrets.VITE_MICROSOFT_CLIENT_ID }}" >> .env
           echo "VITE_SOFLIA_LEARNING_SUPABASE_URL=${{ secrets.VITE_SOFLIA_LEARNING_SUPABASE_URL }}" >> .env
           echo "VITE_SOFLIA_LEARNING_SUPABASE_ANON_KEY=${{ secrets.VITE_SOFLIA_LEARNING_SUPABASE_ANON_KEY }}" >> .env
+          echo "VITE_LEARNING_BASE_URL=${{ secrets.VITE_LEARNING_BASE_URL || vars.VITE_LEARNING_BASE_URL }}" >> .env
+          echo "VITE_LEARNING_SSO_ENABLED=${{ secrets.VITE_LEARNING_SSO_ENABLED || vars.VITE_LEARNING_SSO_ENABLED }}" >> .env
           echo "ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}" >> .env
           echo "ELEVENLABS_VOICE_ID=${{ secrets.ELEVENLABS_VOICE_ID }}" >> .env
           echo "ELEVENLABS_MODEL_ID=${{ secrets.ELEVENLABS_MODEL_ID }}" >> .env
