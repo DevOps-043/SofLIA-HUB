@@ -35,4 +35,35 @@ describe('percepción DOM del navegador integrado', () => {
     expect(script).toContain('const measurements = new WeakMap()');
     expect(script).not.toContain('textNodesScanned < 6000');
   });
+
+  it('expone las imagenes de contenido conservando su query y sin credenciales', async () => {
+    const executeJavaScript = vi.fn(async (script: string) => ({
+      title: script.length ? 'Informe' : '', url: 'https://example.com/doc', language: 'es', text: 'Contenido',
+      headings: [], landmarks: [], controls: [], frames: [],
+      images: [
+        // La query lleva el tamano o la firma: quitarla devolveria un 403, asi
+        // que aqui SI se conserva, al reves que en las URL de pagina.
+        { url: 'https://cdn.example.com/grafica.png?w=1200&sig=abc', alt: 'Evolucion de ingresos', width: 1200, height: 800 },
+        { url: 'https://usuario:secreto@cdn.example.com/foto.jpg?v=2', alt: '', width: 900, height: 600 },
+        { url: 'data:image/png;base64,AAAA', alt: 'incrustada', width: 900, height: 600 },
+        { url: 'no-es-una-url', alt: 'rota', width: 900, height: 600 },
+      ],
+      viewport: { width: 800, height: 600, scrollX: 0, scrollY: 0, documentWidth: 800, documentHeight: 1200 },
+      truncated: false,
+    }));
+
+    const contents = { executeJavaScript } as unknown as Parameters<typeof collectIntegratedBrowserDom>[0];
+    const snapshot = await collectIntegratedBrowserDom(contents);
+    const script = executeJavaScript.mock.calls[0]?.[0];
+
+    expect(snapshot.images).toEqual([
+      { url: 'https://cdn.example.com/grafica.png?w=1200&sig=abc', alt: 'Evolucion de ingresos', width: 1200, height: 800 },
+      { url: 'https://cdn.example.com/foto.jpg?v=2', alt: '', width: 900, height: 600 },
+    ]);
+    // `data:` y `blob:` no se pueden volver a pedir desde el proceso principal.
+    expect(JSON.stringify(snapshot)).not.toContain('data:image');
+    expect(JSON.stringify(snapshot)).not.toContain('secreto');
+    // Los iconos y pixeles de seguimiento se descartan dentro de la pagina.
+    expect(script).toContain('minImage: 200');
+  });
 });

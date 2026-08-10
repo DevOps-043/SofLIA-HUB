@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { TOOL_DISPLAY_NAMES } from '../../adapters/desktop_ui/chat-ui/tool-display-names';
+import { TOOL_DISPLAY_NAMES, getToolDisplayName } from '../../adapters/desktop_ui/chat-ui/tool-display-names';
 import { WHATSAPP_SEND_FILE_TOOL } from '../../services/gemini-tools/native-tools';
+import { SKILL_WORKSPACE_TOOL_NAMES } from '../../shared/skills/workspace-tool-names';
 import {
   COMPUTER_TOOL_NAMES,
   GOOGLE_WORKSPACE_TOOL_NAMES,
@@ -26,6 +27,7 @@ const DECLARED_TOOL_NAMES = [
   ...GOOGLE_WORKSPACE_TOOL_NAMES,
   ...INTEGRATED_BROWSER_TOOL_NAMES,
   ...NATIVE_AI_TOOL_NAMES,
+  ...SKILL_WORKSPACE_TOOL_NAMES,
   // Se declara fuera de NATIVE_AI_TOOLS: se agrega segun el canal activo.
   WHATSAPP_SEND_FILE_TOOL.name,
 ];
@@ -53,4 +55,11 @@ describe('TOOL_DISPLAY_NAMES', () => {
       expect(label.length, `${name} deberia tener una etiqueta corta`).toBeLessThanOrEqual(40);
     }
   });
+
+  it('getToolDisplayName devuelve la etiqueta mapeada o un fallback sin guiones ni prefijos', () => {
+    expect(getToolDisplayName('workspace_read_file')).toBe('Leyendo archivo...');
+    expect(getToolDisplayName('workspace_custom_unknown_action')).toBe('Custom unknown action...');
+    expect(getToolDisplayName(undefined)).toBe('Procesando...');
+  });
 });
+

@@ -28,7 +28,7 @@ Estado: vigente. Actualizado: 2026-07-21.
 | Agente de WhatsApp | Conversacion y dispatch de herramientas | Politica por canal, grupo, capability, HITL y contrato de tool |
 | Desktop Agent | Control de UI, navegador y escritorio | Un mouse/teclado compartido, cola, presupuesto de pasos, abort y verificacion |
 | Agente de reuniones | Extraer y proponer minuta/acciones | No sincroniza resultados sin aprobacion requerida |
-| Orbe/voz | Dictado, TTS y conversacion flotante | Acceso mediante APIs preload y sidecar local |
+| Orbe/voz | Dictado local, TTS ElevenLabs y conversación flotante | Preload acotado; API key confinada a main; sidecar local para wake/dictado |
 | Automatizacion Workspace | Ejecutar plantillas/workflows | Contratos de dominio y aprobaciones en operaciones criticas |
 | Herramienta dinamica | Plugin descubierto por MCP Manager | Registro denegado sin schema, owner, riesgo, agentes, HITL, timeout y auditoria |
 

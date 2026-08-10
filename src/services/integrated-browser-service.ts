@@ -24,6 +24,80 @@ export interface IntegratedBrowserState {
   primaryTabId: string | null;
   secondaryTabId: string | null;
   viewMode: IntegratedBrowserViewMode;
+  /** La pagina pidio pantalla completa y la vista nativa cubre la ventana. */
+  isFullscreen: boolean;
+}
+
+export const BROWSER_SITE_PERMISSION_KINDS = [
+  'camera',
+  'microphone',
+  'geolocation',
+  'notifications',
+  'display-capture',
+  'clipboard-read',
+  'idle-detection',
+  'window-management',
+  'fullscreen',
+  'pointer-lock',
+  'keyboard-lock',
+  'speaker-selection',
+  'protected-media',
+] as const;
+
+export type BrowserSitePermissionKind = (typeof BROWSER_SITE_PERMISSION_KINDS)[number];
+export type BrowserSitePermissionState = 'ask' | 'granted' | 'denied';
+
+export interface BrowserSitePermissionEntry {
+  kind: BrowserSitePermissionKind;
+  label: string;
+  state: BrowserSitePermissionState;
+  requested: boolean;
+}
+
+export interface BrowserSitePermissionSummary {
+  origin: string | null;
+  url: string;
+  secure: boolean;
+  permissions: BrowserSitePermissionEntry[];
+}
+
+export interface BrowserSitePermissionResponse {
+  success: boolean;
+  site?: BrowserSitePermissionSummary;
+  error?: string;
+}
+
+export interface BrowserTabSummary {
+  tabId: string;
+  url: string;
+  title: string;
+  isCurrent: boolean;
+  text: string;
+}
+
+export interface IntegratedBrowserTabSummariesResponse {
+  success: boolean;
+  summaries?: BrowserTabSummary[];
+  error?: string;
+}
+
+export interface BrowserTabContentResponse {
+  success: boolean;
+  content?: {
+    tabId: string;
+    url: string;
+    title: string;
+    text: string;
+  };
+  error?: string;
+}
+
+export interface TabContextAttachment {
+  tabId: string;
+  url: string;
+  title: string;
+  text: string;
+  isCurrent: boolean;
 }
 
 export interface IntegratedBrowserViewport {
@@ -88,6 +162,8 @@ export interface IntegratedBrowserDataResponse extends IntegratedBrowserResponse
 
 export interface IntegratedBrowserCaptureResponse extends IntegratedBrowserResponse {
   screenshot?: string;
+  /** Rectangulo que ocupaba la vista nativa al capturar, en coordenadas de ventana. */
+  captureBounds?: IntegratedBrowserViewport;
 }
 
 export interface BrowserDomControl {
@@ -104,6 +180,19 @@ export interface BrowserDomControl {
   scope: string;
 }
 
+/**
+ * Imagen de contenido de la pagina. Permite reutilizar el material grafico que
+ * el usuario ya esta viendo en vez de generar uno nuevo. Refleja
+ * `BrowserDomImage` de main: los iconos y pixeles de seguimiento se descartan
+ * alli, antes de cruzar el IPC.
+ */
+export interface BrowserDomImage {
+  url: string;
+  alt: string;
+  width: number;
+  height: number;
+}
+
 export interface BrowserDomSnapshot {
   title: string;
   url: string;
@@ -112,6 +201,7 @@ export interface BrowserDomSnapshot {
   headings: Array<{ level: number; text: string; scope: string }>;
   landmarks: Array<{ role: string; name: string; scope: string }>;
   controls: BrowserDomControl[];
+  images: BrowserDomImage[];
   frames: Array<{ title: string; url: string; accessible: boolean }>;
   viewport: { width: number; height: number; scrollX: number; scrollY: number; documentWidth: number; documentHeight: number };
   truncated: boolean;
@@ -158,6 +248,86 @@ export interface IntegratedBrowserObservationResponse extends IntegratedBrowserR
   observationStatus?: BrowserObservationStatus;
 }
 
+export interface BrowserSelectionActionRequest {
+  action: 'ask' | 'improve' | 'translate' | 'summarize';
+  /** Texto seleccionado en la pagina; se adjunta al compositor, no se envia. */
+  text: string;
+  /** Titulo de la pestaña, para etiquetar la procedencia del adjunto. */
+  title: string;
+  /** Instruccion sugerida que se precarga en el campo de escritura. */
+  instruction: string;
+}
+
+export interface BrowserReadingModeRequest {
+  url: string;
+  title: string;
+  selection: string;
+}
+
+export type BrowserReadingBlockKind = 'heading' | 'paragraph' | 'list-item' | 'quote';
+
+export interface BrowserReadingBlock {
+  id: string;
+  kind: BrowserReadingBlockKind;
+  text: string;
+  level: number | null;
+  start: number;
+  end: number;
+}
+
+export interface BrowserReadingContent {
+  readingId: string;
+  tabId: string;
+  url: string;
+  title: string;
+  language: string;
+  text: string;
+  blocks: BrowserReadingBlock[];
+  selectionOnly: boolean;
+  truncated: boolean;
+}
+
+export interface BrowserReadingWordTiming {
+  start: number;
+  end: number;
+  startTime: number;
+  endTime: number;
+}
+
+export interface BrowserReadingSpeech {
+  readingId: string;
+  start: number;
+  end: number;
+  audioBase64: string;
+  mimeType: 'audio/mpeg';
+  durationSeconds: number;
+  timings: BrowserReadingWordTiming[];
+}
+
+export type BrowserReadingToolbarActionName = 'toggle' | 'stop' | 'speed-down' | 'speed-up' | 'close' | 'closed';
+
+export interface BrowserReadingToolbarAction {
+  readingId: string;
+  action: BrowserReadingToolbarActionName;
+}
+
+export interface BrowserReadingToolbarState {
+  readingId: string;
+  status: 'idle' | 'loading' | 'playing' | 'paused' | 'completed' | 'error';
+  speed: number;
+  message?: string;
+}
+
+export interface BrowserReadingResponse extends IntegratedBrowserResponse {
+  reading?: BrowserReadingContent;
+  speech?: BrowserReadingSpeech;
+  toolbarAction?: BrowserReadingToolbarAction;
+  toolbarVisible?: boolean;
+  canceled?: boolean | number;
+  highlighted?: boolean;
+  closed?: boolean;
+}
+
 export interface IntegratedBrowserApi {
   getState(): Promise<IntegratedBrowserResponse>;
   captureVisible(): Promise<IntegratedBrowserCaptureResponse>;
@@ -173,6 +343,7 @@ export interface IntegratedBrowserApi {
   activateTab(tabId: string): Promise<IntegratedBrowserResponse>;
   detachTab(tabId: string): Promise<IntegratedBrowserResponse>;
   reattachTab(tabId: string): Promise<IntegratedBrowserResponse>;
+  reorderTabs?: (sourceId: string, targetId: string) => Promise<IntegratedBrowserResponse>;
   setViewMode(mode: IntegratedBrowserViewMode, secondaryTabId?: string): Promise<IntegratedBrowserResponse>;
   goBack(): Promise<IntegratedBrowserResponse>;
   goForward(): Promise<IntegratedBrowserResponse>;
@@ -180,8 +351,17 @@ export interface IntegratedBrowserApi {
   stop(): Promise<IntegratedBrowserResponse>;
   focus(): Promise<IntegratedBrowserResponse>;
   toggleDevTools(): Promise<IntegratedBrowserResponse>;
-  setViewport(viewport: IntegratedBrowserViewport): Promise<IntegratedBrowserResponse>;
+  setViewport(viewport: { x: number; y: number; width: number; height: number }): Promise<IntegratedBrowserResponse>;
+  setOverlayBounds?: (bounds: { x: number; y: number; width: number; height: number }) => Promise<IntegratedBrowserResponse>;
+  setOverlayPosition?: (pos: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'center') => Promise<IntegratedBrowserResponse>;
   hide(): Promise<IntegratedBrowserResponse>;
+  prepareReadingMode(input?: { sourceUrl?: string; selection?: string }): Promise<BrowserReadingResponse>;
+  synthesizeReadingSegment(input: { readingId: string; requestId: string; start: number; end: number }): Promise<BrowserReadingResponse>;
+  highlightReadingRange(input: { readingId: string; start?: number; end?: number }): Promise<BrowserReadingResponse>;
+  waitForReadingToolbarAction(input: { readingId: string }): Promise<BrowserReadingResponse>;
+  syncReadingToolbar(input: BrowserReadingToolbarState): Promise<BrowserReadingResponse>;
+  cancelReadingSpeech(input: { readingId: string; requestId?: string }): Promise<BrowserReadingResponse>;
+  closeReadingMode(input: { readingId: string }): Promise<BrowserReadingResponse>;
   listHistory(query?: string, limit?: number): Promise<IntegratedBrowserDataResponse>;
   clearHistory(): Promise<IntegratedBrowserDataResponse>;
   listCredentials(): Promise<IntegratedBrowserDataResponse>;
@@ -193,8 +373,20 @@ export interface IntegratedBrowserApi {
   confirmExtensionInstall(token: string): Promise<IntegratedBrowserDataResponse>;
   setExtensionEnabled(installId: string, enabled: boolean): Promise<IntegratedBrowserDataResponse>;
   removeExtension(installId: string): Promise<IntegratedBrowserDataResponse>;
+  getSitePermissions(): Promise<BrowserSitePermissionResponse>;
+  setSitePermission(input: {
+    origin?: string;
+    kind: BrowserSitePermissionKind;
+    state: BrowserSitePermissionState;
+  }): Promise<BrowserSitePermissionResponse>;
+  resetSitePermissions(input?: { origin?: string }): Promise<BrowserSitePermissionResponse>;
+  getTabSummaries(): Promise<IntegratedBrowserTabSummariesResponse>;
+  getTabContent(tabId: string): Promise<BrowserTabContentResponse>;
   onStateChanged(callback: (state: IntegratedBrowserState) => void): () => void;
   onOpenRequested(callback: (request: { url?: string }) => void): () => void;
+  onSelectionAction(callback: (request: BrowserSelectionActionRequest) => void): () => void;
+  onReadingModeRequested(callback: (request: BrowserReadingModeRequest) => void): () => void;
+  onSitePermissionsChanged(callback: () => void): () => void;
 }
 
 declare global {
@@ -226,6 +418,8 @@ export const integratedBrowserService = {
   activateTab: (tabId: string): Promise<IntegratedBrowserResponse> => requireApi().activateTab(tabId),
   detachTab: (tabId: string): Promise<IntegratedBrowserResponse> => requireApi().detachTab(tabId),
   reattachTab: (tabId: string): Promise<IntegratedBrowserResponse> => requireApi().reattachTab(tabId),
+  reorderTabs: (sourceId: string, targetId: string): Promise<IntegratedBrowserResponse> =>
+    requireApi().reorderTabs?.(sourceId, targetId) ?? Promise.resolve({ success: false }),
   setViewMode: (mode: IntegratedBrowserViewMode, secondaryTabId?: string): Promise<IntegratedBrowserResponse> => requireApi().setViewMode(mode, secondaryTabId),
   goBack: (): Promise<IntegratedBrowserResponse> => requireApi().goBack(),
   goForward: (): Promise<IntegratedBrowserResponse> => requireApi().goForward(),
@@ -234,7 +428,18 @@ export const integratedBrowserService = {
   focus: (): Promise<IntegratedBrowserResponse> => requireApi().focus(),
   toggleDevTools: (): Promise<IntegratedBrowserResponse> => requireApi().toggleDevTools(),
   setViewport: (viewport: IntegratedBrowserViewport): Promise<IntegratedBrowserResponse> => requireApi().setViewport(viewport),
+  setOverlayBounds: (bounds: { x: number; y: number; width: number; height: number }): Promise<IntegratedBrowserResponse> =>
+    requireApi().setOverlayBounds?.(bounds) ?? Promise.resolve({ success: false }),
+  setOverlayPosition: (pos: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'center'): Promise<IntegratedBrowserResponse> =>
+    requireApi().setOverlayPosition?.(pos) ?? Promise.resolve({ success: false }),
   hide: (): Promise<IntegratedBrowserResponse> => requireApi().hide(),
+  prepareReadingMode: (input?: { sourceUrl?: string; selection?: string }): Promise<BrowserReadingResponse> => requireApi().prepareReadingMode(input),
+  synthesizeReadingSegment: (input: { readingId: string; requestId: string; start: number; end: number }): Promise<BrowserReadingResponse> => requireApi().synthesizeReadingSegment(input),
+  highlightReadingRange: (input: { readingId: string; start?: number; end?: number }): Promise<BrowserReadingResponse> => requireApi().highlightReadingRange(input),
+  waitForReadingToolbarAction: (input: { readingId: string }): Promise<BrowserReadingResponse> => requireApi().waitForReadingToolbarAction(input),
+  syncReadingToolbar: (input: BrowserReadingToolbarState): Promise<BrowserReadingResponse> => requireApi().syncReadingToolbar(input),
+  cancelReadingSpeech: (input: { readingId: string; requestId?: string }): Promise<BrowserReadingResponse> => requireApi().cancelReadingSpeech(input),
+  closeReadingMode: (input: { readingId: string }): Promise<BrowserReadingResponse> => requireApi().closeReadingMode(input),
   listHistory: (query?: string, limit?: number): Promise<IntegratedBrowserDataResponse> => requireApi().listHistory(query, limit),
   clearHistory: (): Promise<IntegratedBrowserDataResponse> => requireApi().clearHistory(),
   listCredentials: (): Promise<IntegratedBrowserDataResponse> => requireApi().listCredentials(),
@@ -246,14 +451,29 @@ export const integratedBrowserService = {
   confirmExtensionInstall: (token: string): Promise<IntegratedBrowserDataResponse> => requireApi().confirmExtensionInstall(token),
   setExtensionEnabled: (installId: string, enabled: boolean): Promise<IntegratedBrowserDataResponse> => requireApi().setExtensionEnabled(installId, enabled),
   removeExtension: (installId: string): Promise<IntegratedBrowserDataResponse> => requireApi().removeExtension(installId),
+  getSitePermissions: (): Promise<BrowserSitePermissionResponse> => requireApi().getSitePermissions(),
+  setSitePermission: (input: {
+    origin?: string;
+    kind: BrowserSitePermissionKind;
+    state: BrowserSitePermissionState;
+  }): Promise<BrowserSitePermissionResponse> => requireApi().setSitePermission(input),
+  resetSitePermissions: (input?: { origin?: string }): Promise<BrowserSitePermissionResponse> => requireApi().resetSitePermissions(input),
+  getTabSummaries: (): Promise<IntegratedBrowserTabSummariesResponse> => requireApi().getTabSummaries(),
+  getTabContent: (tabId: string): Promise<BrowserTabContentResponse> => requireApi().getTabContent(tabId),
   subscribe: (callbacks: {
     onStateChanged?: (state: IntegratedBrowserState) => void;
     onOpenRequested?: (request: { url?: string }) => void;
+    onSelectionAction?: (request: BrowserSelectionActionRequest) => void;
+    onReadingModeRequested?: (request: BrowserReadingModeRequest) => void;
+    onSitePermissionsChanged?: () => void;
   }): (() => void) => {
     const api = requireApi();
     const cleanups: Array<() => void> = [];
     if (callbacks.onStateChanged) cleanups.push(api.onStateChanged(callbacks.onStateChanged));
     if (callbacks.onOpenRequested) cleanups.push(api.onOpenRequested(callbacks.onOpenRequested));
+    if (callbacks.onSelectionAction) cleanups.push(api.onSelectionAction(callbacks.onSelectionAction));
+    if (callbacks.onReadingModeRequested) cleanups.push(api.onReadingModeRequested(callbacks.onReadingModeRequested));
+    if (callbacks.onSitePermissionsChanged) cleanups.push(api.onSitePermissionsChanged(callbacks.onSitePermissionsChanged));
     return () => cleanups.forEach((cleanup) => cleanup());
   },
 };
@@ -272,6 +492,7 @@ export const EMPTY_INTEGRATED_BROWSER_STATE: IntegratedBrowserState = {
   primaryTabId: null,
   secondaryTabId: null,
   viewMode: 'single',
+  isFullscreen: false,
 };
 
 export {};

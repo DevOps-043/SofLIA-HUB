@@ -33,6 +33,9 @@ export function createOrFocusMainWindow(input: {
     // Siempre oculta al crear: se revela en `ready-to-show` para evitar el
     // destello en blanco. En modo background (showWindow=false) permanece oculta
     // hasta que el usuario/tray la muestre.
+    // Ventana frameless para soportar barra de pestañas integrada tipo navegador
+    frame: false,
+    titleBarStyle: 'hidden',
     show: false,
     title: ' ',
     webPreferences: {
@@ -59,6 +62,16 @@ export function createOrFocusMainWindow(input: {
   }
 
   win.setMenu(null);
+  // Sin menu no hay acelerador de DevTools, y sin DevTools no hay forma de
+  // diagnosticar el renderer. Se reponen los atajos sin devolver la barra.
+  win.webContents.on('before-input-event', (event, input) => {
+    const esF12 = input.key === 'F12';
+    const esCombinacion = input.control && input.shift && input.key.toLowerCase() === 'i';
+    if (input.type !== 'keyDown' || (!esF12 && !esCombinacion)) return;
+    event.preventDefault();
+    if (win.webContents.isDevToolsOpened()) win.webContents.closeDevTools();
+    else win.webContents.openDevTools({ mode: 'detach' });
+  });
   win.on('close', (event) => {
     if (!input.isQuitting()) {
       event.preventDefault();

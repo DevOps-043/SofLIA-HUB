@@ -117,4 +117,30 @@ export const TOOL_DISPLAY_NAMES: Record<string, string> = {
   list_remote_node_process_sessions: 'Revisando procesos del nodo...',
   poll_remote_node_process_session: 'Consultando el proceso remoto...',
   kill_remote_node_process_session: 'Deteniendo el proceso remoto...',
+
+  // Workspace de Skill
+  workspace_list_files: 'Explorando workspace...',
+  workspace_read_file: 'Leyendo archivo...',
+  workspace_write_file: 'Guardando archivo...',
+  workspace_edit_file: 'Editando archivo...',
+  workspace_generate_image: 'Generando imagen...',
+  workspace_download_image: 'Descargando recurso...',
 };
+
+/**
+ * Obtiene la etiqueta en lenguaje natural de una herramienta activa.
+ * Si la herramienta no está registrada en el diccionario, genera un fallback
+ * sin guiones ni prefijos técnicos.
+ */
+export function getToolDisplayName(toolName?: string): string {
+  if (!toolName) return 'Procesando...';
+  if (TOOL_DISPLAY_NAMES[toolName]) {
+    return TOOL_DISPLAY_NAMES[toolName];
+  }
+  const clean = toolName
+    .replace(/^(workspace_|skill_)/, '')
+    .replace(/_/g, ' ');
+
+  return clean.charAt(0).toUpperCase() + clean.slice(1) + '...';
+}
+

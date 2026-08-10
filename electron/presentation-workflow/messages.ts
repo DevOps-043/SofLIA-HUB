@@ -7,11 +7,11 @@ export const GENERATING_MESSAGE = 'Terminando de generar y enviar tu presentacio
 export const MISSING_DATA_CONTEXT_MESSAGE = 'Sigo dentro del flujo de presentacion. Necesito empresa y correo. Si quieres salir, escribe "cancelar".';
 export const MISSING_DATA_MESSAGE = 'No pude identificar claramente la empresa y el correo. Por favor, indicalos nuevamente.';
 export const APPROVAL_HELP_MESSAGE = 'Sigo dentro del flujo. Responde "si" para generar la presentacion o "cancelar" para salir.';
-export const APPROVED_MESSAGE = 'Aprobado. Generando la presentacion con Gamma...';
+export const APPROVED_MESSAGE = 'Aprobado. Generando la presentacion...';
 export const CANCELLED_MESSAGE = 'Flujo cancelado.';
 export const INACTIVITY_MESSAGE = 'Flujo cancelado por inactividad despues de 5 minutos. Si quieres retomarlo, inicia el flujo de nuevo.';
 export const PROCESSING_ERROR_MESSAGE = 'Ocurrio un error al procesar el resumen. Intenta de nuevo mas tarde.';
-export const GAMMA_ERROR_MESSAGE = 'Ocurrio un error al comunicarse con Gamma API.';
+export const GENERATION_ERROR_MESSAGE = 'Ocurrio un error al generar la presentacion. Intenta de nuevo mas tarde.';
 
 export function buildDataConfirmedMessage(data: PresentacionData): string {
   return `Perfecto. Empresa: *${data.clientCompanyName}*\nCorreo: *${data.clientEmail}*\n\nPreparando resumen ejecutivo...`;

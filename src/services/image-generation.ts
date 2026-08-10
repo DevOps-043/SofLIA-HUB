@@ -5,7 +5,7 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GOOGLE_API_KEY, MODELS } from '../config';
-import { getImageGenerationPrompt } from '../prompts/utils';
+import { getDirectedImagePrompt, getImageGenerationPrompt } from '../prompts/utils';
 import { getApiKeyWithCache } from './api-keys';
 import { getPublicAiErrorMessage } from './gemini-chat/public-error';
 
@@ -14,7 +14,10 @@ export interface ImageGenResult {
   imageData?: string;
 }
 
-export async function generateImage(prompt: string): Promise<ImageGenResult> {
+export async function generateImage(
+  prompt: string,
+  options: { artDirection?: string } = {},
+): Promise<ImageGenResult> {
   const apiKey = (await getApiKeyWithCache('google')) || GOOGLE_API_KEY || '';
   const ai = new GoogleGenerativeAI(apiKey);
 
@@ -22,7 +25,11 @@ export async function generateImage(prompt: string): Promise<ImageGenResult> {
     model: MODELS.IMAGE_GENERATION,
   });
 
-  const enhancedPrompt = getImageGenerationPrompt(prompt);
+  // Con direccion de arte propia se omite el envoltorio general, que empuja a
+  // fotorrealismo y rompe la coherencia de una serie ilustrada.
+  const enhancedPrompt = options.artDirection
+    ? getDirectedImagePrompt(prompt, options.artDirection)
+    : getImageGenerationPrompt(prompt);
 
   try {
     const result = await model.generateContent({

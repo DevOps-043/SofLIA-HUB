@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { IntegratedBrowserPanel } from '../../components/browser/IntegratedBrowserPanel';
-import type { IntegratedBrowserApi, IntegratedBrowserState } from '../../services/integrated-browser-service';
+import type {
+  BrowserSitePermissionSummary,
+  IntegratedBrowserApi,
+  IntegratedBrowserState,
+} from '../../services/integrated-browser-service';
 
 const state: IntegratedBrowserState = {
   url: 'https://example.com/',
@@ -17,7 +21,21 @@ const state: IntegratedBrowserState = {
   primaryTabId: 'tab-1',
   secondaryTabId: null,
   viewMode: 'single',
+  isFullscreen: false,
 };
+
+const emptySite: BrowserSitePermissionSummary = {
+  origin: 'https://example.com',
+  url: 'https://example.com/',
+  secure: true,
+  permissions: [],
+};
+
+/** Los gestores viven en el menu de herramientas: hay que abrirlo primero. */
+function openTool(name: 'Historial' | 'Contraseñas' | 'Extensiones' | 'Inspeccionar') {
+  fireEvent.click(screen.getByRole('button', { name: 'Herramientas del navegador' }));
+  fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitem', { name }));
+}
 
 describe('IntegratedBrowserPanel', () => {
   let api: IntegratedBrowserApi;
@@ -61,8 +79,23 @@ describe('IntegratedBrowserPanel', () => {
       confirmExtensionInstall: vi.fn(async () => ({ success: true })),
       setExtensionEnabled: vi.fn(async () => ({ success: true })),
       removeExtension: vi.fn(async () => ({ success: true, removed: true })),
+      getSitePermissions: vi.fn(async () => ({ success: true, site: emptySite })),
+      setSitePermission: vi.fn(async () => ({ success: true, site: emptySite })),
+      resetSitePermissions: vi.fn(async () => ({ success: true, site: emptySite })),
+      getTabSummaries: vi.fn(async () => ({ success: true, summaries: [] })),
+      getTabContent: vi.fn(async () => ({ success: true })),
       onStateChanged: vi.fn(() => listenerCleanup),
       onOpenRequested: vi.fn(() => vi.fn()),
+      onSelectionAction: vi.fn(() => vi.fn()),
+      onReadingModeRequested: vi.fn(() => vi.fn()),
+      onSitePermissionsChanged: vi.fn(() => vi.fn()),
+      prepareReadingMode: vi.fn(async () => ({ success: true })),
+      synthesizeReadingSegment: vi.fn(async () => ({ success: true })),
+      cancelReadingSpeech: vi.fn(async () => ({ success: true })),
+      highlightReadingRange: vi.fn(async () => ({ success: true })),
+      waitForReadingToolbarAction: vi.fn(async () => ({ success: true, toolbarAction: { readingId: 'reading-123', action: 'closed' as const } })),
+      syncReadingToolbar: vi.fn(async () => ({ success: true, toolbarVisible: true })),
+      closeReadingMode: vi.fn(async () => ({ success: true })),
     };
     Object.defineProperty(window, 'integratedBrowser', { value: api, configurable: true, writable: true });
     vi.stubGlobal('ResizeObserver', class {
@@ -155,6 +188,35 @@ describe('IntegratedBrowserPanel', () => {
     expect(api.setViewport).toHaveBeenCalledWith({ x: 560, y: 80, width: 416, height: 600 });
   });
 
+  it('coloca el respaldo en el rectangulo real de la captura en vez de estirarlo', async () => {
+    // El proceso principal devuelve la geometria que ocupaba la vista nativa.
+    // El contenedor mide 800 x 600 desde (200, 80): sin usar este rectangulo el
+    // respaldo se estiraba y la pagina aparecia ampliada bajo el panel.
+    vi.mocked(api.captureVisible).mockResolvedValue({
+      success: true,
+      state,
+      screenshot: 'data:image/png;base64,captura',
+      captureBounds: { x: 560, y: 80, width: 416, height: 600 },
+    });
+    vi.mocked(api.listHistory).mockResolvedValue({
+      success: true,
+      history: [{ id: 'visita-1', url: 'https://soflia.ai/', title: 'SofLIA', visitedAt: '2026-08-04T12:00:00.000Z' }],
+    });
+    render(<IntegratedBrowserPanel viewportInsets={{ left: 360, right: 24 }} />);
+
+    fireEvent.focus(screen.getByLabelText('Dirección o búsqueda'));
+    fireEvent.change(screen.getByLabelText('Dirección o búsqueda'), { target: { value: 'soflia' } });
+
+    await screen.findByRole('listbox');
+    await waitFor(() => expect(screen.getByTestId('integrated-browser-snapshot')).toBeInTheDocument());
+    expect(screen.getByTestId('integrated-browser-snapshot')).toHaveStyle({
+      left: '360px',
+      top: '0px',
+      width: '416px',
+      height: '600px',
+    });
+  });
+
   it('restaura la misma vista al cerrar las sugerencias con Escape', async () => {
     vi.mocked(api.listHistory).mockResolvedValue({
       success: true,
@@ -220,7 +282,7 @@ describe('IntegratedBrowserPanel', () => {
     await waitFor(() => expect(api.hide).toHaveBeenCalledTimes(1));
 
     fireEvent.blur(address);
-    fireEvent.click(screen.getByRole('button', { name: 'Historial' }));
+    openTool('Historial');
     expect(api.captureVisible).toHaveBeenCalledTimes(1);
     resolveHide({ success: true, state: { ...state, isVisible: false } });
 
@@ -229,18 +291,88 @@ describe('IntegratedBrowserPanel', () => {
     expect(api.hide).toHaveBeenCalledTimes(2);
   });
 
-  it('oculta y restaura la barra secundaria conservando la preferencia', () => {
+  it('agrupa el encabezado en dos filas al estilo de un navegador', async () => {
     render(<IntegratedBrowserPanel />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ocultar barra de herramientas' }));
-    expect(screen.queryByRole('button', { name: 'Historial' })).not.toBeInTheDocument();
-    expect(localStorage.getItem('sofLia_integratedBrowserUtilityBarVisible')).toBe('false');
+    // Fila de pestañas: tambien aloja composicion y controles de la superficie,
+    // de modo que no ocupa un nivel propio.
+    const tabsRow = screen.getByLabelText('Pestañas del navegador').parentElement!;
+    expect(within(tabsRow).getByLabelText('Composición de pestañas')).toBeInTheDocument();
+    expect(within(tabsRow).getByRole('button', { name: 'Nueva pestaña' })).toBeInTheDocument();
+    // Separar, expandir y cerrar son controles de la superficie: viven junto a
+    // los modos de composicion, no en la fila de direccion.
+    // El control aparece cuando llega el estado con la pestaña activa.
+    await screen.findByRole('button', { name: 'Separar pestaña en otra ventana' });
+    expect(within(tabsRow).getByRole('button', { name: 'Separar pestaña en otra ventana' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Mostrar barra de herramientas' }));
-    expect(screen.getByRole('button', { name: 'Historial' })).toBeInTheDocument();
+    // Fila de direccion: navegacion, URL y utilidades comparten nivel.
+    const addressRow = screen.getByLabelText('Dirección o búsqueda').closest('form')!.parentElement!.parentElement!;
+    expect(within(addressRow).getByRole('button', { name: 'Atras' })).toBeInTheDocument();
+    // Los cuatro gestores viven en un menu para que la direccion ocupe el ancho.
+    expect(within(addressRow).getByRole('button', { name: 'Herramientas del navegador' })).toBeInTheDocument();
+    expect(within(addressRow).queryByRole('button', { name: 'Historial' })).not.toBeInTheDocument();
+    expect(within(addressRow).getByRole('button', { name: 'Pausar percepción de SofLIA' })).toBeInTheDocument();
   });
 
-  it('guarda, abre y elimina favoritos y muestra extensiones en la misma barra', async () => {
+  it('abre y cierra el modo lectura sin cubrir la barra del navegador', async () => {
+    vi.mocked(api.prepareReadingMode).mockResolvedValue({
+      success: true,
+      reading: {
+        readingId: 'reading-123',
+        tabId: 'tab-1',
+        url: state.url,
+        title: 'Documento ejecutivo',
+        language: 'es',
+        text: 'Titulo\n\nContenido principal.',
+        blocks: [
+          { id: 'block-1', kind: 'heading', text: 'Titulo', level: 1, start: 0, end: 6 },
+          { id: 'block-2', kind: 'paragraph', text: 'Contenido principal.', level: null, start: 8, end: 28 },
+        ],
+        selectionOnly: false,
+        truncated: false,
+      },
+    });
+    render(<IntegratedBrowserPanel />);
+
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalled());
+    vi.mocked(api.setViewport).mockClear();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Abrir modo lectura' }));
+
+    expect(await screen.findByTestId('browser-reading-mode')).toBeInTheDocument();
+    expect(screen.getByTestId('integrated-browser-toolbar')).toBeInTheDocument();
+    expect(screen.getByLabelText('Controlador del modo lectura')).toBeInTheDocument();
+    await waitFor(() => expect(api.prepareReadingMode).toHaveBeenCalledWith({ sourceUrl: state.url, selection: undefined }));
+    expect(api.hide).not.toHaveBeenCalled();
+    expect(api.setViewport).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar modo lectura' }));
+    await waitFor(() => expect(screen.queryByTestId('browser-reading-mode')).not.toBeInTheDocument());
+    await waitFor(() => expect(api.closeReadingMode).toHaveBeenCalledWith({ readingId: 'reading-123' }));
+    expect(api.setViewport).not.toHaveBeenCalled();
+  });
+
+  it('abre la seleccion enviada por el menu contextual de la pagina', async () => {
+    vi.mocked(api.prepareReadingMode).mockResolvedValue({
+      success: true,
+      reading: {
+        readingId: 'reading-selection', tabId: 'tab-1', url: state.url, title: 'Ejemplo', language: 'es',
+        text: 'Texto seleccionado',
+        blocks: [{ id: 'block-1', kind: 'paragraph', text: 'Texto seleccionado', level: null, start: 0, end: 18 }],
+        selectionOnly: true, truncated: false,
+      },
+    });
+    render(<IntegratedBrowserPanel />);
+    await waitFor(() => expect(api.onReadingModeRequested).toHaveBeenCalled());
+    const listener = vi.mocked(api.onReadingModeRequested).mock.calls[0][0];
+
+    listener({ url: state.url, title: state.title, selection: 'Texto seleccionado' });
+
+    expect(await screen.findByLabelText('Controlador del modo lectura')).toBeInTheDocument();
+    expect(api.prepareReadingMode).toHaveBeenCalledWith({ sourceUrl: state.url, selection: 'Texto seleccionado' });
+  });
+
+  it('marca la pagina desde la barra de direcciones y la lista en su propia fila', async () => {
     vi.mocked(api.listExtensions).mockResolvedValue({
       success: true,
       extensions: [{
@@ -256,25 +388,27 @@ describe('IntegratedBrowserPanel', () => {
       }],
     });
     const view = render(<IntegratedBrowserPanel />);
-    const quickAccess = screen.getByLabelText('Favoritos y extensiones');
-    const addFavorite = within(quickAccess).getByRole('button', { name: 'Agregar página actual a favoritos' });
 
-    await waitFor(() => expect(addFavorite).toBeEnabled());
-    fireEvent.click(addFavorite);
+    // Sin marcadores no se dibuja la fila: no debe quedar un nivel vacio.
+    expect(screen.queryByLabelText('Marcadores')).not.toBeInTheDocument();
+
+    const addBookmark = screen.getByRole('button', { name: 'Agregar página actual a marcadores' });
+    await waitFor(() => expect(addBookmark).toBeEnabled());
+    fireEvent.click(addBookmark);
     expect(localStorage.getItem('sofLia_integratedBrowserFavorites')).toContain('https://example.com/');
-    fireEvent.click(within(quickAccess).getByRole('button', { name: 'Ejemplo' }));
+
+    const bookmarks = await screen.findByLabelText('Marcadores');
+    fireEvent.click(within(bookmarks).getByRole('button', { name: 'Ejemplo' }));
     await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('https://example.com/'));
 
-    expect(await within(quickAccess).findByRole('button', { name: 'Abrir extensión Notas rápidas' })).toBeInTheDocument();
-    fireEvent.click(within(quickAccess).getByRole('button', { name: 'Abrir extensión Notas rápidas' }));
+    // Las extensiones acompanan a la direccion, no a los marcadores.
+    const extensions = await screen.findByLabelText('Extensiones del navegador');
+    fireEvent.click(within(extensions).getByRole('button', { name: 'Abrir extensión Notas rápidas' }));
     expect(await screen.findByRole('heading', { name: 'Extensiones' })).toBeInTheDocument();
 
     view.unmount();
     render(<IntegratedBrowserPanel />);
-    const restored = screen.getByLabelText('Favoritos y extensiones');
-    expect(within(restored).getByRole('button', { name: 'Ejemplo' })).toBeInTheDocument();
-    fireEvent.click(within(restored).getByRole('button', { name: 'Quitar Ejemplo de favoritos' }));
-    expect(within(restored).queryByRole('button', { name: 'Ejemplo' })).not.toBeInTheDocument();
+    expect(within(await screen.findByLabelText('Marcadores')).getByRole('button', { name: 'Ejemplo' })).toBeInTheDocument();
   });
 
   it('crea pestañas y permite división o superposición con un objetivo explícito', async () => {
@@ -299,8 +433,6 @@ describe('IntegratedBrowserPanel', () => {
     await waitFor(() => expect(api.activateTab).toHaveBeenCalledWith('tab-2'));
     fireEvent.click(screen.getByRole('button', { name: 'Pantalla dividida' }));
     await waitFor(() => expect(api.setViewMode).toHaveBeenCalledWith('split', undefined));
-    fireEvent.click(screen.getByRole('button', { name: 'Pestaña superpuesta' }));
-    await waitFor(() => expect(api.setViewMode).toHaveBeenCalledWith('overlay', undefined));
   });
 
   it('republica un viewport vivo con inset izquierdo o derecho', async () => {
@@ -341,10 +473,13 @@ describe('IntegratedBrowserPanel', () => {
 
   it('abre historial, contrasenas y extensiones en un panel flotante sobre una captura', async () => {
     render(<IntegratedBrowserPanel />);
-    expect(screen.getByRole('button', { name: 'Historial' }).querySelector('svg')).not.toBeNull();
-    expect(screen.getByRole('button', { name: 'Contrasenas' }).querySelector('svg')).not.toBeNull();
-    expect(screen.getByRole('button', { name: 'Extensiones' }).querySelector('svg')).not.toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Historial' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Herramientas del navegador' }));
+    const menu = screen.getByRole('menu');
+    for (const name of ['Historial', 'Contraseñas', 'Extensiones', 'Inspeccionar']) {
+      expect(within(menu).getByRole('menuitem', { name }).querySelector('svg')).not.toBeNull();
+    }
+    fireEvent.keyDown(document, { key: 'Escape' });
+    openTool('Historial');
     expect(await screen.findByRole('heading', { name: 'Historial' })).toBeInTheDocument();
     expect(screen.getByRole('dialog', { name: 'Historial' })).toHaveClass('soflia-browser-dialog--panel');
     // El respaldo visual y la ocultacion de la capa nativa son asincronos:
@@ -354,11 +489,11 @@ describe('IntegratedBrowserPanel', () => {
     await waitFor(() => expect(api.hide).toHaveBeenCalled());
     await waitFor(() => expect(api.listHistory).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Contrasenas' }));
+    openTool('Contraseñas');
     expect(await screen.findByRole('heading', { name: 'Contraseñas' })).toBeInTheDocument();
     await waitFor(() => expect(api.listCredentials).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Extensiones' }));
+    openTool('Extensiones');
     expect(await screen.findByRole('heading', { name: 'Extensiones' })).toBeInTheDocument();
     await waitFor(() => expect(api.listExtensions).toHaveBeenCalled());
   });
@@ -374,12 +509,12 @@ describe('IntegratedBrowserPanel', () => {
     });
     render(<IntegratedBrowserPanel />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Historial' }));
+    openTool('Historial');
     fireEvent.click(await screen.findByText('Informe'));
     expect(api.navigate).toHaveBeenCalledWith('https://example.com/informe');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole('button', { name: 'Contrasenas' }));
+    openTool('Contraseñas');
     await screen.findByRole('heading', { name: 'Contraseñas' });
     await screen.findByText('persona@example.com');
     fireEvent.change(screen.getByLabelText('Usuario o correo'), { target: { value: 'persona@example.com' } });
@@ -397,7 +532,7 @@ describe('IntegratedBrowserPanel', () => {
     });
     render(<IntegratedBrowserPanel />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Historial' }));
+    openTool('Historial');
     expect((await screen.findAllByText('Ejemplo')).length).toBeGreaterThan(0);
     // El boton solo se habilita cuando el historial termino de cargar: hacer
     // clic antes no abre nada porque la accion no tendria sobre que actuar.
@@ -425,7 +560,7 @@ describe('IntegratedBrowserPanel', () => {
       },
     });
     render(<IntegratedBrowserPanel />);
-    fireEvent.click(screen.getByRole('button', { name: 'Extensiones' }));
+    openTool('Extensiones');
     await screen.findByRole('heading', { name: 'Extensiones' });
     fireEvent.click(screen.getByRole('button', { name: 'Instalar carpeta' }));
 
@@ -437,7 +572,7 @@ describe('IntegratedBrowserPanel', () => {
   it('muestra error de extensiones y respeta cancelacion de instalacion', async () => {
     vi.mocked(api.listExtensions).mockResolvedValue({ success: false, error: 'Registro no disponible' });
     render(<IntegratedBrowserPanel />);
-    fireEvent.click(screen.getByRole('button', { name: 'Extensiones' }));
+    openTool('Extensiones');
     expect(await screen.findByRole('alert')).toHaveTextContent('Registro no disponible');
 
     fireEvent.click(screen.getByRole('button', { name: 'Instalar carpeta' }));
@@ -461,7 +596,7 @@ describe('IntegratedBrowserPanel', () => {
       }],
     });
     render(<IntegratedBrowserPanel />);
-    fireEvent.click(screen.getByRole('button', { name: 'Extensiones' }));
+    openTool('Extensiones');
 
     expect(await screen.findByText('storage')).toBeInTheDocument();
     expect(screen.getByText('https://example.com/*')).toBeInTheDocument();
@@ -473,7 +608,7 @@ describe('IntegratedBrowserPanel', () => {
     vi.mocked(api.hide).mockResolvedValueOnce({ success: false, error: 'No se pudo ocultar la vista' });
     render(<IntegratedBrowserPanel />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Historial' }));
+    openTool('Historial');
 
     expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo ocultar la vista');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -481,7 +616,7 @@ describe('IntegratedBrowserPanel', () => {
 
   it('recorre las secciones del gestor con flechas', async () => {
     render(<IntegratedBrowserPanel />);
-    fireEvent.click(screen.getByRole('button', { name: 'Historial' }));
+    openTool('Historial');
     const historyTab = await screen.findByRole('tab', { name: 'Historial' });
 
     fireEvent.keyDown(historyTab, { key: 'ArrowRight' });

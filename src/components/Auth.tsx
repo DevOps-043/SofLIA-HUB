@@ -5,10 +5,18 @@ import { useAuth } from '../contexts/AuthContext';
 import { AuthChrome } from './auth/AuthChrome';
 import { AuthForm } from './auth/AuthForm';
 import { AuthLogo } from './auth/AuthLogo';
+import { AuthSsoButton } from './auth/AuthSsoButton';
 import { AuthVersion } from './auth/AuthVersion';
 
 export function Auth() {
-  const { signInWithSofia } = useAuth();
+  const {
+    signInWithSofia,
+    learningSsoAvailable,
+    signInWithLearningSso,
+    cancelLearningSso,
+    ssoPending,
+    ssoError,
+  } = useAuth();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -42,6 +50,17 @@ export function Auth() {
         onPasswordChange={setPassword}
         onSubmit={handleSubmit}
       />
+      {/* Con el interruptor apagado no se monta: la pantalla queda idéntica a
+          la anterior a este cambio. */}
+      {learningSsoAvailable && (
+        <AuthSsoButton
+          disabled={loading}
+          error={ssoError}
+          pending={ssoPending}
+          onCancel={cancelLearningSso}
+          onStart={() => { void signInWithLearningSso(); }}
+        />
+      )}
       <AuthVersion version={appPackage.version} />
     </AuthChrome>
   );

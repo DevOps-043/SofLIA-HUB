@@ -1,21 +1,65 @@
 import { useEffect } from 'react';
 import type { UIEvent } from 'react';
 import { setConfirmationHandler } from '../../../services/computer-use-service';
+import { useAuth } from '../../../contexts/AuthContext';
+import { usePresentationWorkspaceContext } from '../../../contexts/presentation-workspace-context';
 import type { ChatUIProps } from './types';
 import { useChatFileHandlers } from './useChatFileHandlers';
 import { useChatRuntime } from './useChatRuntime';
 import { useChatTools } from './useChatTools';
 import { useChatUIState } from './useChatUIState';
+import { useSkillCommands } from './useSkillCommands';
+import { useSkillWorkspaceResume } from './useSkillWorkspaceResume';
+import { resolveTurnSkill } from './resolve-turn-skill';
 import { useDictation } from './useDictation';
+import { integratedBrowserService } from '../../../services/integrated-browser-service';
 
 export function useChatUIController(props: ChatUIProps) {
   const canSendMessages = props.canSendMessages ?? true;
   const normalizedProps = { ...props, canSendMessages };
   const state = useChatUIState();
-  const runtime = useChatRuntime(normalizedProps, state);
   const files = useChatFileHandlers(canSendMessages, state.images.setSelected);
   const dictation = useDictation(state.input.set);
-  const tools = useChatTools(canSendMessages, state);
+  const { sofiaContext } = useAuth();
+  const presentation = usePresentationWorkspaceContext();
+  // La Skill del turno se deriva del espacio de trabajo resuelto por la
+  // conversacion, no solo del estado del compositor: ese estado no sobrevive a
+  // un remonte y el modelo se quedaba sin herramientas de archivo.
+  const turnSkill = resolveTurnSkill({
+    activeSkill: state.skillModals.activeSkill,
+    workspaceId: presentation.workspaceId,
+    skillId: presentation.skillId,
+  });
+  const runtime = useChatRuntime(normalizedProps, state, turnSkill);
+  const tools = useChatTools(canSendMessages, state, {
+    conversationId: props.conversationId ?? null,
+    organizationId: sofiaContext?.currentOrganization?.id ?? null,
+    organizationName: sofiaContext?.currentOrganization?.name ?? null,
+    // Senales que deciden por que rama del protocolo arranca la Skill: sin
+    // ellas preguntaria por informacion que el usuario ya tiene delante.
+    activation: {
+      hasConversation: normalizedProps.messages.length > 0,
+      hasBrowserPage: normalizedProps.browserOpen === true,
+      hasAttachments: state.images.selected.length > 0 || state.selection.value !== null,
+      organizationName: sofiaContext?.currentOrganization?.name ?? null,
+    },
+    onWorkspaceReady: presentation.activate,
+  });
+  // Una conversacion que ya tiene entregable recupera su Skill sola: sin esto,
+  // pedir un cambio sobre la presentacion llegaba al modelo sin herramientas
+  // de workspace y respondia que no tenia acceso a los archivos.
+  useSkillWorkspaceResume({
+    conversationId: props.conversationId ?? null,
+    activeSkill: state.skillModals.activeSkill,
+    setActiveSkill: state.skillModals.setActiveSkill,
+    onWorkspaceResolved: presentation.restore,
+  });
+  // Comandos `/skill`: al activarlos se limpia el compositor, porque el
+  // comando no es un mensaje que deba viajar al modelo.
+  const skillCommands = useSkillCommands(state.input.value, (skill) => {
+    state.input.set('');
+    void tools.handleUseSkill(skill);
+  });
   const setConfirmationModal = state.confirmation.setModal;
 
   useEffect(() => {
@@ -45,11 +89,43 @@ export function useChatUIController(props: ChatUIProps) {
 
   const onSendClick = async () => {
     if (!canSendMessages || !state.input.value.trim() || runtime.chat.showLoadingUI) return;
+    // La burbuja lleva solo lo que escribio el usuario. La seleccion y las pestañas
+    // adjuntas acompanan al turno como contexto para el modelo.
     const text = state.input.value.trim();
+    const selContext = state.selection.value?.text.trim();
+
+    const attached = state.tabs?.attached ?? [];
+    const tabContextParts = await Promise.all(
+      attached.map(async (tab, idx) => {
+        let contentText = tab.text;
+        if (!contentText && integratedBrowserService.isAvailable()) {
+          try {
+            const res = await integratedBrowserService.getTabContent(tab.tabId);
+            if (res.success && res.content?.text) {
+              contentText = res.content.text;
+            }
+          } catch {
+            // fallback si no se puede leer la pestaña
+          }
+        }
+        const header = `--- Pestaña ${idx + 1}: ${tab.title} (${tab.url}) ---`;
+        const body = contentText ? contentText.slice(0, 4000) : '[Información de la pestaña cargada]';
+        return `${header}\n${body}`;
+      })
+    );
+
+    const combinedContextParts = [
+      selContext ? `Selección del usuario:\n${selContext}` : '',
+      tabContextParts.length > 0 ? `Pestañas del navegador adjuntas para análisis multi-pestaña:\n${tabContextParts.join('\n\n')}` : '',
+    ].filter(Boolean);
+
+    const contexto = combinedContextParts.length > 0 ? combinedContextParts.join('\n\n') : undefined;
     const images = [...state.images.selected];
     state.input.set('');
+    state.selection.set(null);
+    state.tabs?.setAttached([]);
     state.images.setSelected(() => []);
-    await runtime.chat.handleSend(text, images);
+    await runtime.chat.handleSend(text, images, contexto);
   };
 
   // Detiene la generación de texto y cualquier proceso de Computer Use en curso.
@@ -62,6 +138,7 @@ export function useChatUIController(props: ChatUIProps) {
     files,
     dictation,
     tools,
+    skillCommands,
     refs: state.refs,
     handleScroll,
     onSendClick,

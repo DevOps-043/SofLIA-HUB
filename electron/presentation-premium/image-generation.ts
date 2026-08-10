@@ -14,7 +14,7 @@ export async function generateSlideImage(
   isDiagram = false,
 ): Promise<string | null> {
   try {
-    const imgModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image' });
+    const imgModel = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-image' });
     const result = await imgModel.generateContent({
       contents: [{ role: 'user', parts: [{ text: buildImagePrompt(prompt, isDiagram) }] }],
       generationConfig: { responseModalities: ['IMAGE'] } as any,

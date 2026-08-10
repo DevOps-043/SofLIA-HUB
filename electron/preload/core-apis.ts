@@ -31,4 +31,11 @@ export function exposeCoreApis(
     getScreenSources: (): Promise<Array<{ id: string; name: string; thumbnail: string; isScreen: boolean }>> =>
       safeInvoke('get-screen-sources'),
   });
+  bridge.exposeInMainWorld('windowControls', {
+    minimize: () => safeInvoke('app:window-minimize'),
+    maximize: () => safeInvoke('app:window-maximize'),
+    close: () => safeInvoke('app:window-close'),
+    isMaximized: () => safeInvoke('app:window-is-maximized'),
+    getPlatform: () => safeInvoke('app:window-get-platform'),
+  });
 }

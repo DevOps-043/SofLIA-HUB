@@ -139,7 +139,12 @@ herramientas: los cálculos salen de Python real, no de aritmética "de memoria"
   y retroceso), independientemente de Computer Use;
 - `GOOGLE_WORKSPACE_TOOLS` se agrega únicamente si el bridge `window.calendar`
   existe (Google conectado);
+- las herramientas que aporta la **Skill activa** del turno, si las tiene
+  (`turn-catalog.ts`);
 - `codeExecution` si el modelo lo permite.
+
+El catálogo se resuelve **por turno**, no por módulo. Sin Skill activa el set
+es idéntico al de siempre.
 
 OpenAI recibe `web_search` hospedado con `tool_choice: auto` cuando la intención
 requiere investigación pública. Gemini conserva primero el modelo elegido por
@@ -157,6 +162,247 @@ o borrar mediante Computer Use requiere HITL antes de iniciar el paso.
 
 El dispatcher (`tool-dispatch.ts`) rechaza cualquier nombre desconocido
 (`isKnownGeminiTool`) antes de intentar ejecutarlo.
+
+### 2.4.1 Skills
+
+Una **Skill** es una capacidad nombrada e invocable que SofLIA ofrece con el
+mismo contrato en el chat del Hub y en WhatsApp. Sustituye a los dos modelos
+anteriores: los "flujos activos" de WhatsApp y las "herramientas del usuario".
+
+No confundir con `electron/memory/skills-*.ts`, que modela **memoria aprendida**
+del usuario (preferencias, correcciones, procedimientos). Ese modelo no es
+invocable y no aparece en el catálogo de Skills.
+
+| Clase | Dónde se declara | Puede aportar herramientas | Puede tener workspace |
+|---|---|---|---|
+| Sistema | `src/shared/skills/registry.ts` (código versionado) | Sí, filtradas por superficie | Sí |
+| Usuario | Tabla `skills` de Supabase LIA, con RLS por propietario | No | No |
+
+La clase se deriva **de la fuente**, nunca de una columna: una fila de la base
+de datos jamás puede presentarse como Skill del sistema, ni suplantando su
+identificador. `catalog.ts` descarta las filas que lo intenten.
+
+**Invocación por comando.** El usuario escribe `/` en el compositor y aparece
+el catálogo filtrable; funciona igual en el chat completo y en el chat flotante
+del navegador. El comando sale de lo que el usuario configuró; si lo dejó
+vacío, se deriva del nombre (`Resumen ejecutivo` → `/resumen-ejecutivo`), de
+modo que una Skill recién creada ya es invocable sin configurar nada. Una Skill
+del sistema **declara** el suyo (`presentacion`) para que sea el mismo en todas
+las superficies aunque su nombre cambie; ante un choque gana la del sistema, y
+un índice único por usuario impide dos Skills propias con el mismo comando. El
+texto deja de ser comando en cuanto lleva un espacio: `/presentacion para Acme`
+es un mensaje, no una invocación.
+
+**Configuración.** La pestaña *Skills* de los ajustes es donde el usuario crea y
+edita las suyas: nombre, comando de invocación, icono, categoría, instrucciones
+y prompts de inicio. Las del sistema aparecen ahí como referencia —para ver su
+comando y no repetirlo— pero no se editan. El atajo "Crear Skill" del compositor
+abre el **mismo formulario**, de modo que las dos superficies nunca ofrecen
+campos distintos para el mismo registro.
+
+**Iconos.** Se guarda el identificador de un catálogo cerrado
+(`src/components/skill-library/skill-icons.tsx`), no un glifo: un emoji depende
+de la fuente del equipo y se ve distinto en cada uno, mientras que un trazo SVG
+se ve igual y hereda el color del tema. Las Skills migradas desde `user_tools`
+traían emoji y se normalizan al icono por defecto.
+
+**Guardas de las herramientas aportadas** (`src/shared/skills/surface-tools.ts`):
+
+- una Skill solo puede activar lo que la superficie ya permite; nunca amplía lo
+  que la superficie prohíbe;
+- `NEVER_FROM_SKILLS` bloquea de forma absoluta `use_computer`,
+  `use_computer_on_node`, `execute_command`, `delete_item`, `gmail_send` y
+  `whatsapp_send_file`, aunque una Skill los declare;
+- las herramientas de workspace **solo se declaran si hay un workspace vivo**;
+  sin él no se ofrecen y cualquier invocación se rechaza.
+
+**Herramientas de workspace** (`workspace_list_files`, `workspace_read_file`,
+`workspace_write_file`, `workspace_edit_file`, `workspace_generate_image`,
+`workspace_download_image`). Operan únicamente dentro del
+espacio de trabajo de la Skill activa, con rutas relativas que main resuelve:
+
+- toda ruta se valida contra la raíz **real** del workspace (`realpath`), lo que
+  cierra el escape por enlace simbólico que una comparación textual no detecta;
+- se rechazan rutas absolutas, segmentos `..` y extensiones no declaradas;
+- hay límite por archivo, por workspace y de número de archivos;
+- los **archivos protegidos** (por ejemplo `estilos/marca.css`) los escribe el
+  sistema y el modelo no puede modificarlos ni borrarlos: es lo que impide que
+  una inyección en una fuente suplante la identidad de la organización;
+- `workspace_edit_file` falla **sin tocar el archivo** si el fragmento no existe
+  o es ambiguo; reescribir el archivo entero por un cambio acotado destruiría
+  trabajo que el usuario no pidió cambiar;
+- las dos herramientas de imagen escriben siempre en `assets/` con nombre saneado
+  y formato restringido (PNG, JPEG, WebP). `workspace_generate_image` usa el
+  modelo de imagen del producto (`MODELS.IMAGE_GENERATION`, Nano Banana) y
+  `workspace_download_image` sale por main con guardas anti-SSRF; el prompt
+  reserva las imágenes para fondos e ilustraciones y prohíbe usarlas para
+  gráficas, iconos o cualquier cosa que contenga datos, que se dibujan en SVG.
+
+**Skill del sistema `sistema:presentaciones`.** Se invoca con `/presentacion`
+en el chat y en WhatsApp. Genera presentaciones ejecutivas en HTML y CSS con la
+identidad de la organización, leída de `organizations` en Supabase SOFIA. Main
+escribe `estilos/marca.css` con las variables de marca **antes** de que el
+modelo empiece, y el prompt le prohíbe escribir colores literales: así la
+identidad no depende de que el modelo copie bien un hexadecimal.
+
+*Paleta desde el logo.* En la práctica `brand_color_*` suele quedarse con los
+valores por defecto del esquema mientras el logo sí es el real. Cuando la
+organización no configuró colores propios, main extrae la paleta del propio
+logotipo (`nativeImage` → bitmap BGRA → cuantización, descartando
+transparencias, blancos, negros y grises) y corrige cada color hasta alcanzar
+contraste 4.5:1 sobre fondo claro: un logo amarillo es buena marca y pésimo
+color de texto. Un logo SVG o monocromo no aporta paleta y se conserva lo
+declarado. `--marca-origen-color` registra de dónde salieron: `logo`,
+`declarado` o `neutro`.
+
+*Entradas visibles.* Las animaciones de entrada estaban ligadas al scroll
+(`animation-timeline: view()`). Con `scroll-snap`, el salto de una diapositiva a
+la siguiente **recorre entero el rango de entrada** en lo que dura el salto: la
+animación ocurría, pero era imperceptible, y los retardos escalonados ni
+siquiera se aplicaban —sobre una línea de tiempo de scroll `animation-delay` se
+ignora—. Ahora el sistema escribe también `guion-base.js`, un archivo protegido
+que marca con `.activa` la diapositiva en pantalla mediante `IntersectionObserver`
+y dispara animaciones **por tiempo**: se ven, duran y se escalonan. Ese guion
+además numera las palabras de `.palabras`, anima los `data-contador` y resuelve
+la rueda en la baraja horizontal. El estado inicial oculto depende de la clase
+`deck-js` que pone el propio guion, así que si no se ejecuta la presentación
+queda visible y estática, nunca en blanco; con `prefers-reduced-motion` ni
+siquiera se instala. El exportador incrusta el guion en el HTML autocontenido.
+
+*Ediciones que enseñan.* Cuando una edición por reemplazo falla, el error
+**dice qué hay realmente en el archivo**: si el fragmento existe con otros
+espacios o saltos, si aparece —y en qué líneas— o el contexto real alrededor de
+la zona. Un mensaje genérico ("no existe, lee el archivo") producía reintentos
+a ciegas: el modelo volvía a adivinar y volvía a fallar, quince veces seguidas
+sin aplicar un solo cambio. El prompt añade la regla que cierra el ciclo: dos
+fallos seguidos sobre el mismo archivo obligan a releerlo entero.
+
+*Ajuste a la ventana.* `guion-base.js` envuelve el contenido de cada diapositiva
+y lo **reduce hasta que quepa** (suelo del 50 %). La medida se repite cuando cada
+ilustración termina de cargar, al terminar la página y ante cualquier cambio de
+altura (`ResizeObserver`): medir solo en `DOMContentLoaded` daba una altura menor
+que la real —las imágenes aún no ocupan su alto—, no se escalaba nada y al
+aparecer la ilustración el texto quedaba fuera de la pantalla. El fondo, el halo y la retícula
+quedan fuera del envoltorio: no son contenido. Sin esto, en la baraja horizontal
+—que no tiene desplazamiento vertical— lo que no cabía quedaba cortado por
+arriba o por abajo sin forma de alcanzarlo, y en la vertical aparecía empujado
+fuera de vista. El CSS deja además `overflow-y: auto` en esas diapositivas como
+respaldo por si el guion no se ejecuta.
+
+*Serie ilustrada.* La calidad percibida de una baraja depende menos de los
+efectos que de que **todo parezca de la misma mano**. Por eso la dirección de
+arte viaja como **parámetro** de `workspace_generate_image` (`art_direction`) y
+no como algo que el modelo deba acordarse de repetir: un hueco que rellenar en
+cada llamada produce series coherentes; un recordatorio en el prompt, no.
+Cuando ese parámetro llega, la generación usa `getDirectedImagePrompt`, que
+conserva las reglas de seguridad pero **omite** el envoltorio general —éste
+empuja a fotorrealismo con luz natural y color vibrante, que es lo contrario de
+una serie ilustrada—. `estilos/base.css` acompaña con la capa de plano técnico
+(`.plano`, `.cota`), las composiciones densas (`.rail` con `.bloque`) y el
+dibujado progresivo de los esquemas (`.traza-auto`, `.surge-auto`).
+
+*Sistema de diseño.* `estilos/base.css` lo escribe el sistema y el modelo compone
+sobre él, con primitivas de diagrama (`.flujo`, `.orbita`, `.diagrama`) que
+evitan el SVG con coordenadas colocadas a ojo —la causa de los diagramas
+descuadrados o cortados— y una pareja de contraste fija (`--sobre-oscuro`,
+`--sobre-claro`) para las superficies tintadas: derivar el color del texto de la
+marca producía texto negro sobre fondo oscuro. El pie va en flujo y la
+diapositiva usa `align-content: safe center`, de modo que ni se superpone al
+contenido ni lo empuja fuera de pantalla cuando no cabe. La baraja admite dos sentidos —vertical (`.baraja`) y horizontal
+(`.baraja--horizontal`)— y el modelo elige según el contenido; en la horizontal
+la rueda del ratón no desplaza sola, así que el prompt entrega el manejador que
+lo resuelve, y `base.css` liga las entradas al eje X, porque el vertical nunca se
+mueve y las animaciones no se dispararían. El escalonado de las entradas se
+expresa con `animation-range`, **no** con `animation-delay`: sobre una línea de
+tiempo de scroll el retardo temporal no se aplica y todo entraba a la vez.
+
+*Skill del turno.* La Skill que gobierna un turno **no sale solo del estado del
+compositor**: ese estado no sobrevive a un remonte del chat, y por eso pedir un
+cambio sobre una presentación ya generada llegaba al modelo sin herramientas de
+archivo, respondiendo "no tengo acceso operativo a los archivos" con la carpeta
+intacta en disco. `resolve-turn-skill.ts` la deriva del espacio de trabajo que
+la conversación tiene resuelto —el mismo que alimenta el panel—, de modo que la
+invariante es comprobable: **si el panel muestra la presentación, el turno tiene
+sus herramientas**. Una Skill elegida a mano sigue mandando, y si le falta el
+workspace porque la carpeta aún se estaba creando, se completa con el de la
+conversación. La nota de contexto le dice además al modelo que compruebe con
+`workspace_list_files` antes de afirmar que no puede acceder.
+
+*Frontera del resultado de herramienta.* Lo que una herramienta devuelve viaja
+como **texto** dentro del contexto y se reenvía en cada iteración del turno, así
+que no todo puede pasar. Una captura llega como `data:image/…`: en base64 son
+megabytes de texto, y como tokens de texto cuesta cientos de miles frente a un
+par de miles como imagen. `src/services/gemini-chat/tool-result-payload.ts` la
+extrae del JSON y la adjunta como imagen de verdad —parte `inlineData` en
+Gemini, mensaje con `input_image` en OpenAI—, dejando una nota en su lugar para
+que el modelo no crea que la herramienta no devolvió nada y la repita. Los
+volcados estructurales desproporcionados (un árbol de accesibilidad completo) se
+descartan por peso, dejando constancia de cuánto se omitió. Solo se conservan
+las capturas recientes del turno: una pantalla de hace ocho acciones ya no
+describe nada que siga siendo cierto.
+
+Sin esa frontera un solo `take_screenshot` producía una petición de ~400 000
+tokens contra un límite de 200 000 por minuto. Ese fallo llega como 429, pero no
+es capacidad: es tamaño, y ningún reintento lo salva. Por eso `request too
+large` se clasifica junto al contexto agotado y **no** entra en los reintentos.
+La visión de Computer Use se resuelve en main con su propio modelo; el
+orquestador decide con el resultado, no con los píxeles.
+
+*Turno de generación.* Una Skill con espacio de trabajo entrega varios archivos,
+no una respuesta: mientras hay workspace vivo el turno dispone de más iteraciones
+y más presupuesto de salida que un turno de chat. El contenido de un archivo ya
+escrito se omite al replicar la llamada en las iteraciones siguientes —el
+resultado de la herramienta confirma la escritura y el archivo está en disco—,
+porque reenviarlo entero en cada petición es lo que empujaba el turno contra el
+límite del proveedor. El límite por minuto del proveedor **no llega al abrir el stream, sino leyéndolo**, así que el reintento envuelve el intento entero —abrir y consumir— y solo mientras no se haya emitido texto: repetirlo después lo duplicaría en pantalla. Cuando el proveedor dice cuánto falta (*«try again in 1.049s»*) se respeta esa cifra, que conoce el estado real de su ventana, con un margen y un techo.
+
+El gasto que agota la cuota no es una petición enorme sino su acumulación: leer una página, descargar un documento y listar carpetas deja resultados grandes que se reenvían íntegros en cada iteración, y diez iteraciones así suman los tokens por minuto de la organización. Por eso la petición tiene un presupuesto propio: los resultados de herramienta más antiguos se sustituyen por una nota que indica cómo recuperarlos, conservando intactos los recientes —el material con el que el modelo trabaja ahora—. Las imágenes cuentan por su coste real, no por la longitud de su base64.
+
+*Vista previa.* Se renderiza sobre un **lienzo fijo de 16:9** escalado para caber
+en el panel, no sobre el ancho real del panel. Una baraja compuesta para una
+pantalla ancha vista en una columna estrecha crece a lo alto y deja el título
+fuera de vista; con el lienzo fijo, la vista previa muestra exactamente lo mismo
+que la pantalla completa, solo más pequeño.
+
+*Panel de trabajo.* Las imágenes se muestran **como imágenes**, servidas por el
+protocolo local; nunca se leen como texto. Leer un PNG de medio mega en UTF-8
+producía cientos de miles de caracteres binarios que el visor convertía en
+decenas de miles de nodos del DOM, y la aplicación se bloqueaba al abrir el
+archivo o al cambiar de pestaña. Por lo mismo el visor corta a 4000 líneas y la
+selección automática abre el documento de entrada, no la primera imagen. El
+usuario puede editar y guardar los archivos propios desde el panel; main aplica
+las mismas guardas que al modelo, así que los archivos del sistema —identidad,
+sistema de diseño y guion— no se ofrecen para editar. El tirador de ancho vive
+**dentro** del panel: colocado fuera de su borde quedaba recortado por
+`overflow-hidden` y el ancho no se podía cambiar. Al exportar se abre la carpeta,
+porque el archivo se escribe ahí y sin eso quedaba fuera del alcance.
+
+*Panel de trabajo.* Ancho ajustable con puntero o teclado y recordado entre
+sesiones; árbol de archivos agrupado por carpeta con icono por tipo; visor con
+resaltado de sintaxis (`highlight.js` con solo XML, CSS y Markdown registrados)
+y números de línea, sin ajuste de línea. El resaltado se omite por encima de
+120 000 caracteres: las gramáticas son expresiones regulares y el contenido lo
+escribe un modelo. Al terminar la generación, el panel abre la vista previa una
+sola vez; si el usuario vuelve al código, una iteración posterior ya no se la
+arrebata.
+
+*Exportación.* Se produce **un solo archivo HTML autocontenido**: los estilos
+enlazados se incrustan conservando su orden (`marca.css` antes que los propios,
+o la identidad se rompe) y las imágenes locales pasan a `data:`. No se exporta a
+PDF: imprimir aplana las transiciones y animaciones, que son la razón de generar
+la presentación en HTML. Ese mismo archivo es el que se entrega por WhatsApp.
+
+*Protocolo de recolección.* La Skill no genera nada al activarse. Según el
+contexto que le pasa el chat (`buildPresentacionesContextNote`) entra por una
+de cuatro ramas: **A** hay contenido previo o adjuntos, lo resume y confirma;
+**B** hay una página abierta en el navegador, la lee con `read_browser_dom`
+antes de preguntar; **C** la conversación está vacía, pregunta tema,
+destinatario y origen de la información ofreciendo Drive, archivo local o
+investigación; **D** el usuario pide investigar, y entonces presenta un esquema
+de diapositivas y **espera validación explícita** antes de escribir. El documento se sirve por el protocolo local
+`pulse-presentacion://` con CSP restrictiva, de modo que renderiza sin conexión
+y no puede alcanzar IPC, `node` ni la red. Está detrás de la bandera
+`VITE_SKILL_PRESENTACIONES_ENABLED` y bloqueada en grupos de WhatsApp.
 
 ### 2.5 Catálogo del agente de chat
 
@@ -678,7 +924,8 @@ Dispatcher: `wa-agent/chat-commands.ts` + `chat-commands/workflow-router.ts`.
 | `/activation` | Configura las reglas de activación. |
 | `/perfil`, `/personalizar`, `/personalizacion` | Personalización del agente para ese remitente. |
 | `/permisos`, `/permisoswa` | Consulta y gestión de permisos por número. |
-| `/presentacion`, `/presentación` | Inicia el workflow conversacional de presentaciones. |
+| `/skills` | Lista las Skills disponibles por WhatsApp en ese contexto. |
+| `/presentacion`, `/presentación` | Inicia el workflow de presentaciones (Skill `sistema:presentaciones`). Genera HTML propio, exporta a PDF y lo entrega por el mismo chat tras la aprobación del usuario. Bloqueado en grupos. |
 | `/help` | Ayuda contextual (difiere en grupo). |
 | `/reunion`, `/reunión` | Workflow de reuniones. |
 | `/correo`, `/correos` | Revisión de correo. |

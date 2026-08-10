@@ -1,5 +1,6 @@
 import { ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import type { IntegratedBrowserService } from './integrated-browser';
+import { BROWSER_SITE_PERMISSION_KINDS } from './integrated-browser/types';
 import { denyIfUnauthenticated } from './main/require-auth';
 
 export function registerIntegratedBrowserHandlers(
@@ -29,10 +30,14 @@ export function registerIntegratedBrowserHandlers(
   };
 
   handle('integrated-browser:get-state', () => service.getState());
-  handle('integrated-browser:capture-visible', async () => ({
-    screenshot: await service.captureVisiblePage(),
-    state: service.getState(),
-  }), (result) => result as Record<string, unknown>);
+  handle('integrated-browser:capture-visible', async () => {
+    const capture = await service.captureVisibleBackdrop();
+    return {
+      screenshot: capture.screenshot,
+      captureBounds: capture.bounds,
+      state: service.getState(),
+    };
+  }, (result) => result as Record<string, unknown>);
   handle('integrated-browser:get-observation', async (_event, input) => ({
     ...(await service.getObservation(readForceFresh(input))),
     state: service.getState(),
@@ -67,6 +72,10 @@ export function registerIntegratedBrowserHandlers(
   handle('integrated-browser:tab-activate', (_event, input) => service.activateTab(readTabId(input)));
   handle('integrated-browser:tab-detach', (_event, input) => service.detachTab(readTabId(input)));
   handle('integrated-browser:tab-reattach', (_event, input) => service.reattachTab(readTabId(input)));
+  handle('integrated-browser:tab-reorder', (_event, input) => {
+    const { sourceId, targetId } = (input as { sourceId?: unknown; targetId?: unknown }) ?? {};
+    return service.reorderTabs(sourceId, targetId);
+  });
   handle('integrated-browser:view-mode', (_event, input) => {
     const value = readViewMode(input);
     return service.setViewMode(value.mode, value.secondaryTabId);
@@ -78,7 +87,16 @@ export function registerIntegratedBrowserHandlers(
   handle('integrated-browser:focus', () => service.focus());
   handle('integrated-browser:toggle-devtools', () => service.toggleDevTools());
   handle('integrated-browser:set-viewport', (_event, viewport) => service.setViewport(viewport));
+  handle('integrated-browser:set-overlay-bounds', (_event, input) => service.setOverlayBounds(readOverlayBoundsInput(input)));
+  handle('integrated-browser:set-overlay-position', (_event, input) => service.setOverlayPosition(readOverlayPositionInput(input)));
   handle('integrated-browser:hide', () => service.hide());
+  handle('integrated-browser:reading-prepare', (_event, input) => service.prepareReadingMode(readReadingPrepareInput(input)), (reading) => ({ reading }));
+  handle('integrated-browser:reading-synthesize', (_event, input) => service.synthesizeReadingSegment(readReadingSynthesisInput(input)), (speech) => ({ speech }));
+  handle('integrated-browser:reading-highlight', (_event, input) => service.highlightReadingRange(readReadingHighlightInput(input)), (result) => result as Record<string, unknown>);
+  handle('integrated-browser:reading-toolbar-wait', (_event, input) => service.waitForReadingToolbarAction(readReadingIdInput(input)), (toolbarAction) => ({ toolbarAction }));
+  handle('integrated-browser:reading-toolbar-sync', (_event, input) => service.syncReadingToolbar(readReadingToolbarState(input)), (result) => result as Record<string, unknown>);
+  handle('integrated-browser:reading-cancel', (_event, input) => service.cancelReadingSpeech(readReadingCancelInput(input)), (result) => result as Record<string, unknown>);
+  handle('integrated-browser:reading-close', (_event, input) => service.closeReadingMode(readReadingIdInput(input)), (result) => result as Record<string, unknown>);
   handle('integrated-browser:history-list', (_event, input) => service.listHistory(readHistoryQuery(input)), (history) => ({ history }));
   handle('integrated-browser:history-clear', () => service.clearHistory(), (cleared) => ({ cleared }));
   handle('integrated-browser:credentials-list', () => service.listCredentials(), (credentials) => ({ credentials }));
@@ -97,6 +115,47 @@ export function registerIntegratedBrowserHandlers(
     return service.setExtensionEnabled(readId(input, 'extension', 'installId'), (input as { enabled: boolean }).enabled);
   }, (extension) => ({ extension }));
   handle('integrated-browser:extensions-remove', (_event, input) => service.removeExtension(readId(input, 'extension', 'installId')), (removed) => ({ removed }));
+  handle('integrated-browser:site-permissions-get', () => service.getSitePermissions(), (site) => ({ site }));
+  handle('integrated-browser:site-permissions-set', (_event, input) => (
+    service.setSitePermission(readSitePermissionInput(input))
+  ), (site) => ({ site }));
+  handle('integrated-browser:site-permissions-reset', (_event, input) => (
+    service.resetSitePermissions(readSiteOriginInput(input))
+  ), (site) => ({ site }));
+  handle('integrated-browser:tab-summaries', () => {
+    const summaries = service.getTabSummaries();
+    return { summaries, state: service.getState() };
+  }, (result) => result as Record<string, unknown>);
+  handle('integrated-browser:get-tab-content', async (_event, input) => {
+    const tabId = readTabId(input);
+    const content = await service.getTabContent(tabId);
+    return { content, state: service.getState() };
+  }, (result) => result as Record<string, unknown>);
+}
+
+function readSitePermissionInput(input: unknown): { origin?: string; kind: string; state: string } {
+  if (!input || typeof input !== 'object') throw new Error('Payload de permiso invalido.');
+  const value = input as { origin?: unknown; kind?: unknown; state?: unknown };
+  if (typeof value.kind !== 'string' || !BROWSER_SITE_PERMISSION_KINDS.includes(value.kind as never)) {
+    throw new Error('El permiso indicado no existe.');
+  }
+  if (value.state !== 'ask' && value.state !== 'granted' && value.state !== 'denied') {
+    throw new Error('El estado del permiso no es valido.');
+  }
+  return {
+    ...readSiteOriginInput(value),
+    kind: value.kind,
+    state: value.state,
+  };
+}
+
+function readSiteOriginInput(input: unknown): { origin?: string } {
+  if (input === undefined || input === null) return {};
+  if (typeof input !== 'object') throw new Error('Payload de permiso invalido.');
+  const origin = (input as { origin?: unknown }).origin;
+  if (origin === undefined) return {};
+  if (typeof origin !== 'string' || origin.length > 2_048) throw new Error('El origen del permiso es invalido.');
+  return { origin };
 }
 
 function readOptionalUrl(input: unknown): string | undefined {
@@ -188,6 +247,83 @@ function readHistoryQuery(input: unknown): { query?: string; limit?: number } {
   return { query: value.query, limit: value.limit };
 }
 
+function readReadingPrepareInput(input: unknown): { sourceUrl?: string; selection?: string } {
+  if (input === undefined || input === null) return {};
+  if (typeof input !== 'object') throw new Error('La solicitud de modo lectura es inválida.');
+  const value = input as { sourceUrl?: unknown; selection?: unknown };
+  if (value.sourceUrl !== undefined && (typeof value.sourceUrl !== 'string' || value.sourceUrl.length > 2_048)) {
+    throw new Error('La URL de origen del modo lectura es inválida.');
+  }
+  if (value.selection !== undefined && (typeof value.selection !== 'string' || value.selection.length > 50_000)) {
+    throw new Error('La selección del modo lectura excede el límite permitido.');
+  }
+  return { sourceUrl: value.sourceUrl, selection: value.selection };
+}
+
+function readReadingSynthesisInput(input: unknown): { readingId: string; requestId: string; start: number; end: number } {
+  if (!input || typeof input !== 'object') throw new Error('La solicitud de narración es inválida.');
+  const value = input as { readingId?: unknown; requestId?: unknown; start?: unknown; end?: unknown };
+  if (typeof value.readingId !== 'string' || typeof value.requestId !== 'string'
+    || typeof value.start !== 'number' || typeof value.end !== 'number'
+    || !Number.isSafeInteger(value.start) || !Number.isSafeInteger(value.end)
+    || value.start < 0 || value.end <= value.start || value.end - value.start > 3_500) {
+    throw new Error('La solicitud de narración es inválida.');
+  }
+  return { readingId: value.readingId, requestId: value.requestId, start: value.start, end: value.end };
+}
+
+function readReadingCancelInput(input: unknown): { readingId: string; requestId?: string } {
+  if (!input || typeof input !== 'object') throw new Error('La cancelación de narración es inválida.');
+  const value = input as { readingId?: unknown; requestId?: unknown };
+  if (typeof value.readingId !== 'string' || (value.requestId !== undefined && typeof value.requestId !== 'string')) {
+    throw new Error('La cancelación de narración es inválida.');
+  }
+  return { readingId: value.readingId, requestId: value.requestId };
+}
+
+function readReadingHighlightInput(input: unknown): { readingId: string; start?: number; end?: number } {
+  if (!input || typeof input !== 'object') throw new Error('La solicitud de resaltado es inválida.');
+  const value = input as { readingId?: unknown; start?: unknown; end?: unknown };
+  const hasStart = value.start !== undefined;
+  const hasEnd = value.end !== undefined;
+  if (typeof value.readingId !== 'string' || hasStart !== hasEnd
+    || (hasStart && (typeof value.start !== 'number' || typeof value.end !== 'number'
+      || !Number.isSafeInteger(value.start) || !Number.isSafeInteger(value.end)
+      || value.start < 0 || value.end <= value.start || value.end > 60_000))) {
+    throw new Error('La solicitud de resaltado es inválida.');
+  }
+  return { readingId: value.readingId, start: value.start as number | undefined, end: value.end as number | undefined };
+}
+
+function readReadingIdInput(input: unknown): { readingId: string } {
+  if (!input || typeof input !== 'object' || typeof (input as { readingId?: unknown }).readingId !== 'string') {
+    throw new Error('La sesión de lectura es inválida.');
+  }
+  return { readingId: (input as { readingId: string }).readingId };
+}
+
+function readReadingToolbarState(input: unknown): {
+  readingId: string;
+  status: 'idle' | 'loading' | 'playing' | 'paused' | 'completed' | 'error';
+  speed: number;
+  message?: string;
+} {
+  if (!input || typeof input !== 'object') throw new Error('El estado del reproductor es inválido.');
+  const value = input as { readingId?: unknown; status?: unknown; speed?: unknown; message?: unknown };
+  const statuses = new Set(['idle', 'loading', 'playing', 'paused', 'completed', 'error']);
+  if (typeof value.readingId !== 'string' || typeof value.status !== 'string' || !statuses.has(value.status)
+    || typeof value.speed !== 'number' || !Number.isFinite(value.speed) || value.speed < 0.5 || value.speed > 3
+    || (value.message !== undefined && (typeof value.message !== 'string' || value.message.length > 240))) {
+    throw new Error('El estado del reproductor es inválido.');
+  }
+  return {
+    readingId: value.readingId,
+    status: value.status as 'idle' | 'loading' | 'playing' | 'paused' | 'completed' | 'error',
+    speed: value.speed,
+    message: value.message as string | undefined,
+  };
+}
+
 function readCredentialInput(input: unknown): { id?: string; username: string; password: string } {
   if (!input || typeof input !== 'object') throw new Error('La credencial es invalida.');
   const value = input as { id?: unknown; username?: unknown; password?: unknown };
@@ -201,6 +337,29 @@ function readId(input: unknown, label: string, key = 'id'): string {
   const id = (input as Record<string, unknown>)[key];
   if (typeof id !== 'string') throw new Error(`El identificador de ${label} es invalido.`);
   return id;
+}
+
+function readOverlayBoundsInput(input: unknown): { x: number; y: number; width: number; height: number } {
+  if (!input || typeof input !== 'object') throw new Error('Los límites del panel superpuesto son inválidos.');
+  const value = input as { x?: unknown; y?: unknown; width?: unknown; height?: unknown };
+  if (typeof value.x !== 'number' || typeof value.y !== 'number' || typeof value.width !== 'number' || typeof value.height !== 'number'
+    || !Number.isFinite(value.x) || !Number.isFinite(value.y) || !Number.isFinite(value.width) || !Number.isFinite(value.height)) {
+    throw new Error('Los límites del panel superpuesto son inválidos.');
+  }
+  return {
+    x: Math.round(value.x),
+    y: Math.round(value.y),
+    width: Math.max(160, Math.round(value.width)),
+    height: Math.max(120, Math.round(value.height)),
+  };
+}
+
+function readOverlayPositionInput(input: unknown): 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'center' {
+  if (!input || typeof input !== 'object') throw new Error('La posición del panel superpuesto es inválida.');
+  const pos = (input as { pos?: unknown }).pos;
+  const allowed = new Set(['top-right', 'top-left', 'bottom-right', 'bottom-left', 'center']);
+  if (typeof pos !== 'string' || !allowed.has(pos)) throw new Error('La posición del panel superpuesto es inválida.');
+  return pos as 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'center';
 }
 
 function safeBrowserError(error: unknown): string {

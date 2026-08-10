@@ -1,4 +1,4 @@
-import { app, contextBridge, ipcMain, ipcRenderer } from './electron/app-ipc';
+import { app, contextBridge, ipcMain, ipcRenderer, protocol, session } from './electron/app-ipc';
 import { BaseWindow, BrowserWindow, WebContentsView, desktopCapturer, powerMonitor, screen } from './electron/windowing';
 import {
   Menu,
@@ -9,9 +9,10 @@ import {
   nativeImage,
   safeStorage,
   shell,
+  systemPreferences,
 } from './electron/system-ui';
 
-export { app, contextBridge, ipcMain, ipcRenderer };
+export { app, contextBridge, ipcMain, ipcRenderer, protocol, session };
 export { BaseWindow, BrowserWindow, WebContentsView, desktopCapturer, powerMonitor, screen };
 export {
   Menu,
@@ -22,6 +23,7 @@ export {
   nativeImage,
   safeStorage,
   shell,
+  systemPreferences,
 };
 
 export default {
@@ -29,6 +31,8 @@ export default {
   ipcMain,
   ipcRenderer,
   contextBridge,
+  protocol,
+  session,
   BrowserWindow,
   BaseWindow,
   WebContentsView,
@@ -43,4 +47,5 @@ export default {
   nativeImage,
   screen,
   globalShortcut,
+  systemPreferences,
 };

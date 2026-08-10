@@ -13,6 +13,11 @@ export const CHANNEL_GROUP_4 = [
   'integrated-browser:tab-activate',
   'integrated-browser:tab-detach',
   'integrated-browser:tab-reattach',
+  // Reordenar arrastrando. El handler y el metodo de preload existian, pero el
+  // canal faltaba aqui: `validateChannel` lanzaba de forma SINCRONA y, como la
+  // llamada vivia dentro de un updater de React, el throw tumbaba el arbol
+  // entero y la aplicacion se quedaba en blanco.
+  'integrated-browser:tab-reorder',
   'integrated-browser:view-mode',
   'integrated-browser:go-back',
   'integrated-browser:go-forward',
@@ -21,9 +26,20 @@ export const CHANNEL_GROUP_4 = [
   'integrated-browser:focus',
   'integrated-browser:toggle-devtools',
   'integrated-browser:set-viewport',
+  'integrated-browser:set-overlay-bounds',
+  'integrated-browser:set-overlay-position',
   'integrated-browser:hide',
   'integrated-browser:state-changed',
   'integrated-browser:open-requested',
+  'integrated-browser:selection-action',
+  'integrated-browser:reading-mode-requested',
+  'integrated-browser:reading-prepare',
+  'integrated-browser:reading-synthesize',
+  'integrated-browser:reading-highlight',
+  'integrated-browser:reading-toolbar-wait',
+  'integrated-browser:reading-toolbar-sync',
+  'integrated-browser:reading-cancel',
+  'integrated-browser:reading-close',
   'memory:search',
   'meeting:list-runs',
   'meeting:get-run-detail',

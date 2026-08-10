@@ -79,7 +79,7 @@ describe('BrowserWorkspaceLayout', () => {
     renderLayout();
 
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar modelo y razonamiento' }));
-    fireEvent.click(screen.getByRole('button', { name: /SofLIA Pro/ }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: /SofLIA Pro/ }));
 
     expect(localStorage.getItem('soflia:selected-model')).toBe('gpt-5.6-luna');
     expect(screen.getByRole('button', { name: 'Cambiar modelo y razonamiento' })).toHaveTextContent('SofLIA Pro');
@@ -177,4 +177,55 @@ describe('BrowserWorkspaceLayout', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('No pude abrir ese chat. Intenta de nuevo.');
     expect(screen.getByRole('dialog', { name: 'Conversaciones de SofLIA' })).toBeInTheDocument();
   });
+
+  it('BR-LAY-001: el asa de ancho queda sobre el panel en ambos lados', () => {
+    // La vista nativa del navegador se compone por encima del renderer: si el
+    // asa se desplaza hacia el area del navegador, queda tapada.
+    renderLayout();
+    const separador = screen.getByRole('separator', { name: 'Ajustar ancho del panel de SofLIA' });
+
+    // Panel a la izquierda: el asa debe correrse hacia la izquierda.
+    expect(separador.className).toContain('-translate-x-1/2');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mover panel a la derecha' }));
+    const movido = screen.getByRole('separator', { name: 'Ajustar ancho del panel de SofLIA' });
+
+    // Panel a la derecha: se refleja hacia el otro lado.
+    expect(movido.className).toContain('translate-x-1/2');
+    expect(movido.className).not.toContain('-translate-x-1/2');
+  });
+
+  it('reabre automáticamente el panel flotante si estaba minimizado al recibir una selección externa ("Preguntar a SofLIA")', () => {
+    const { rerender } = render(
+      <BrowserWorkspaceLayout
+        chat={<div>Chat activo</div>}
+        conversations={conversations}
+        currentConversationId="chat-1"
+        onClose={vi.fn()}
+        onNewChat={vi.fn(async () => undefined)}
+        onSelectConversation={vi.fn(async () => undefined)}
+      />,
+    );
+
+    // Minimizar el panel de chat
+    fireEvent.click(screen.getByRole('button', { name: 'Minimizar panel de SofLIA' }));
+    expect(document.querySelector('[aria-label="Chat flotante con SofLIA"]')).toHaveAttribute('aria-hidden', 'true');
+
+    // Recibir seleccion externa ("Preguntar a SofLIA")
+    rerender(
+      <BrowserWorkspaceLayout
+        chat={<div>Chat activo</div>}
+        conversations={conversations}
+        currentConversationId="chat-1"
+        externalSelection={{ action: 'ask', text: 'Texto seleccionado', title: 'Gmail', instruction: '' }}
+        onClose={vi.fn()}
+        onNewChat={vi.fn(async () => undefined)}
+        onSelectConversation={vi.fn(async () => undefined)}
+      />,
+    );
+
+    // El panel de chat vuelve a desplegarse visiblemente
+    expect(document.querySelector('[aria-label="Chat flotante con SofLIA"]')).toHaveAttribute('aria-hidden', 'false');
+  });
 });
+

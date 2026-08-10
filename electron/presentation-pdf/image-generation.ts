@@ -2,7 +2,7 @@ import type { GoogleGenerativeAI } from '@google/generative-ai';
 
 export async function generateSlideImage(genAI: GoogleGenerativeAI, prompt: string): Promise<string | null> {
   try {
-    const imgModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-image' });
+    const imgModel = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-image' });
     const enhancedPrompt = [
       'Generate a high-quality professional presentation image.',
       'Style: modern, clean, corporate-quality. No text overlays, no watermarks.',

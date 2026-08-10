@@ -1,10 +1,13 @@
 import './mocks';
 import { vi } from 'vitest';
 import { PresentacionWorkflow, WorkflowManager } from '../../whatsapp-workflow-presentacion';
-import { mockAgent, mockFetch, mockGenAI, mockGenerateContent, mockWaService } from './mocks';
+import { mockAgent, mockFetch, mockGenAI, mockGenerateContent, mockWaService, mockWorkspaceService } from './mocks';
 
 export { PresentacionWorkflow, WorkflowManager };
-export { mockAgent, mockFetch, mockGenerateContent, mockSendText, mockWaService } from './mocks';
+export {
+  mockAgent, mockFetch, mockGenerateContent, mockSendText, mockSendFile, mockWaService,
+  mockWorkspaceService, mockWriteFile, mockWriteSystemFile, mockExportHtml, mockResolveBranding,
+} from './mocks';
 
 export function resetPresentationWorkflowMocks(): void {
   vi.clearAllMocks();
@@ -18,8 +21,6 @@ export function resetPresentationWorkflowMocks(): void {
     response: { text: () => '{"company": "TechCorp", "email": "test@techcorp.com"}' },
   });
   mockFetch.mockReset();
-  delete process.env.VITE_GAMMA_API_KEY;
-  delete process.env.GAMMA_API_KEY;
 }
 
 export function createPresentationWorkflow(): PresentacionWorkflow {
@@ -27,7 +28,8 @@ export function createPresentationWorkflow(): PresentacionWorkflow {
     'test-session',
     '5551234567@s.whatsapp.net',
     '5551234567',
-    mockWaService as any,
-    mockAgent as any,
+    mockWaService as unknown as ConstructorParameters<typeof PresentacionWorkflow>[3],
+    mockAgent as unknown as ConstructorParameters<typeof PresentacionWorkflow>[4],
+    mockWorkspaceService as unknown as ConstructorParameters<typeof PresentacionWorkflow>[5],
   );
 }

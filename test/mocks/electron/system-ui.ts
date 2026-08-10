@@ -49,12 +49,22 @@ const createMockNativeImage = () => ({
   toDataURL: () => 'data:image/png;base64,test',
   resize: vi.fn(() => ({ toDataURL: () => 'data:image/png;base64,resized' })),
   getSize: () => ({ width: 100, height: 100 }),
+  // BGRA opaco, como devuelve Electron. Las pruebas de paleta usan el
+  // extractor puro con sus propios pixeles; esto solo evita undefined.
+  getBitmap: vi.fn(() => Buffer.alloc(100 * 100 * 4, 0)),
 });
 
 export const nativeImage = {
   createFromPath: vi.fn((_path?: string) => createMockNativeImage()),
   createFromDataURL: vi.fn((_dataUrl?: string) => createMockNativeImage()),
   createEmpty: vi.fn(() => ({ isEmpty: () => true })),
+};
+
+type MediaAccessStatus = 'not-determined' | 'granted' | 'denied' | 'restricted' | 'unknown';
+
+export const systemPreferences = {
+  getMediaAccessStatus: vi.fn<(mediaType: 'microphone' | 'camera' | 'screen') => MediaAccessStatus>(() => 'granted'),
+  askForMediaAccess: vi.fn<(mediaType: 'microphone' | 'camera') => Promise<boolean>>(async () => true),
 };
 
 export const globalShortcut = {

@@ -45,8 +45,40 @@ describe('app-protocol', () => {
     }
   });
 
+  it('parses auth-callback commands', () => {
+    const command = parseAppProtocolCommand('soflia://auth/callback?ticket=abc123&state=xyz789');
+
+    expect(command?.type).toBe('auth-callback');
+    if (command?.type === 'auth-callback') {
+      expect(command.payload.ticket).toBe('abc123');
+      expect(command.payload.state).toBe('xyz789');
+      expect(command.payload.error).toBeNull();
+    }
+  });
+
+  it('parses auth-callback errors without ticket', () => {
+    const command = parseAppProtocolCommand('soflia://auth/callback?state=xyz789&error=access_denied');
+
+    expect(command?.type).toBe('auth-callback');
+    if (command?.type === 'auth-callback') {
+      expect(command.payload.ticket).toBeNull();
+      expect(command.payload.error).toBe('access_denied');
+    }
+  });
+
+  it('rejects auth callbacks that cannot be correlated or acted upon', () => {
+    // Sin `state` el renderer no puede comprobar que el retorno sea suyo.
+    expect(parseAppProtocolCommand('soflia://auth/callback?ticket=abc123')).toBeNull();
+    // Sin ticket ni error el retorno no dice nada.
+    expect(parseAppProtocolCommand('soflia://auth/callback?state=xyz789')).toBeNull();
+    // Ruta ajena bajo el mismo host.
+    expect(parseAppProtocolCommand('soflia://auth/otra?state=xyz789&ticket=abc')).toBeNull();
+  });
+
   it('returns null for unsupported urls', () => {
     expect(parseAppProtocolCommand('https://example.com')).toBeNull();
     expect(parseAppProtocolCommand('soflia://unknown/path')).toBeNull();
+    // Un esquema ajeno no debe colarse aunque imite la ruta del retorno.
+    expect(parseAppProtocolCommand('otraapp://auth/callback?state=xyz&ticket=abc')).toBeNull();
   });
 });

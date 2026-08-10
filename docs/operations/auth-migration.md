@@ -43,6 +43,26 @@ El RPC `authenticate_user` **ya no se usa en ningún punto del Hub**.
 Con este cambio, todos entran al Hub con **la misma contraseña que ya usan en
 Learning**. No se requiere ninguna acción de los usuarios normales.
 
+## Actualización 2026-08-07: cuentas creadas por SSO
+
+La migración anterior asumía que toda cuenta con acceso a Learning tenía
+contraseña en `auth.users`. No es cierto para las que nacen del SSO propio de
+Learning: su `createUserFromOAuth` crea el usuario en Auth **sin contraseña**
+(`admin.createUser` sin el campo `password`). Esas personas entran a Learning con
+Google o Microsoft sin problema, pero `signInWithPassword` les falla siempre, de
+modo que hasta ahora no podían entrar al Hub por ninguna vía.
+
+La solución **no** es asignarles una contraseña. El Hub gana una segunda entrada,
+"Continuar con SofLIA Learning", que delega la identidad en Learning y recibe de
+vuelta una sesión SOFIA legítima mediante un ticket de un solo uso. Ver el cambio
+`openspec/changes/federate-learning-sso-desktop` y la sección correspondiente de
+`docs/operations/configuration.md`.
+
+**Pendiente conocido**: el inicio de sesión por WhatsApp
+(`electron/iris/auth/`) sigue validando contraseña, así que las cuentas solo-SSO
+tampoco pueden autenticarse por ese canal. Necesita una solución propia y no
+forma parte de aquel cambio.
+
 ## Caso borde único (no es un cambio de contraseña)
 
 ### Cuentas que no tienen contraseña NI en Supabase Auth

@@ -34,9 +34,23 @@ Sin estas el producto sale inutilizable:
 
 El resto son opcionales y solo apagan su integración: `VITE_IRIS_SUPABASE_*`
 (Project Hub), `VITE_GOOGLE_OAUTH_CLIENT_*` (Google Workspace),
-`VITE_GOOGLE_CLOUD_TTS_*` y `VITE_CHAT_TTS_PROVIDER` (voz), `VITE_GAMMA_API_KEY`,
 `VITE_OPENAI_VECTOR_STORE_IDS` (file search), `VITE_MICROSOFT_CLIENT_ID` y
 `VITE_SOFLIA_LEARNING_SUPABASE_*`.
+
+La Orbe y el modo lectura del navegador usan `ELEVENLABS_API_KEY` y
+`ELEVENLABS_VOICE_ID`; aceptan opcionalmente `ELEVENLABS_MODEL_ID` (default
+`eleven_turbo_v2_5`) y `ELEVENLABS_OUTPUT_FORMAT` (default
+`mp3_44100_128`). No llevan prefijo `VITE_`: la configuración de build las
+inyecta solo en Electron main y no en renderer/preload. Sin ellas, la lectura
+visual permanece disponible, pero la Orbe mantiene la respuesta escrita e
+informa que la voz no está configurada. El formato MP3 es solo el transporte de
+reproducción: el modo lectura no ofrece descarga. La voz configurada debe estar
+disponible en el mismo workspace de la clave, no únicamente visible en el
+catálogo público de ElevenLabs.
+Las solicitudes en español declaran el idioma, preparan localmente marcas y
+decimales ambiguos y conservan el texto visible intacto. En Google Docs el
+seguimiento se muestra en la cápsula porque su lienzo no expone rangos DOM
+seguros para subrayar sin tocar la interfaz.
 
 En release cada variable se alimenta de un secret homónimo del repositorio. Toda
 `VITE_*` nueva debe añadirse a los tres bloques `.env` de

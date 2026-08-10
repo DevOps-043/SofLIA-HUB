@@ -61,6 +61,15 @@
     target: ["dmg"],
     icon: "public/assets/icon.png",
     artifactName: "Pulse-Hub-Mac-${version}-Installer.${ext}",
+    // El runtime endurecido bloquea camara y microfono si no se declaran las
+    // entitlements, y macOS deniega el acceso (o cierra el proceso) si el
+    // Info.plist no explica para que se piden.
+    entitlements: "build/entitlements.mac.plist",
+    entitlementsInherit: "build/entitlements.mac.plist",
+    extendInfo: {
+      NSCameraUsageDescription: "Pulse Hub usa la camara cuando una pagina abierta en el navegador integrado la solicita y tu apruebas el permiso.",
+      NSMicrophoneUsageDescription: "Pulse Hub usa el microfono para dictado, reuniones y para las paginas del navegador integrado a las que apruebas el permiso.",
+    },
   },
   dmg: {
     background: "build/installer/dmg-background.png",

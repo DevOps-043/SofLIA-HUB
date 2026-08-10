@@ -289,37 +289,33 @@ export function Sidebar(props: SidebarProps) {
     <>
       <aside
         style={{
-          width: isOpen ? `${sidebarWidth}px` : '64px',
+          width: isOpen ? `${sidebarWidth}px` : '78px',
         }}
-        className={`relative flex-shrink-0 h-full p-2 bg-background text-gray-700 dark:text-white ${
+        className={`relative flex-shrink-0 h-full p-2.5 bg-background text-gray-700 dark:text-white ${
           isResizing ? 'select-none' : 'transition-[width] duration-300 ease-in-out'
         } z-30`}
       >
-        <div className="h-full overflow-hidden rounded-[24px] border border-gray-200/80 bg-white/80 shadow-[0_18px_45px_rgba(10,37,64,0.10)] backdrop-blur-xl dark:border-white/[0.07] dark:bg-[rgba(10,13,18,0.92)] dark:shadow-[0_18px_55px_rgba(0,0,0,0.42)]">
+        <div className="h-full overflow-hidden rounded-2xl border border-gray-200/60 bg-white/80 shadow-[0_0.75rem_2.5rem_rgba(10,37,64,0.08)] backdrop-blur-xl saturate-[140%] dark:border-white/10 dark:bg-[#0a0e14]/90 dark:shadow-[0_0.75rem_2.5rem_rgba(0,0,0,0.38)]">
           <div className="flex h-full flex-col">
             <SidebarHeader isOpen={isOpen} onToggle={onToggle} />
             <SidebarTopActions
               isOpen={isOpen}
-              onNewChat={() => {
-                if (!isOpen) onToggle();
-                onNewChat();
-              }}
-              onCreateFolderClick={() => {
-                if (!isOpen) onToggle();
-                onCreateFolderClick();
-              }}
-              onOpenSearch={() => {
-                if (!isOpen) onToggle();
-                setIsSearchOpen(true);
-              }}
+              onNewChat={onNewChat}
+              onCreateFolderClick={onCreateFolderClick}
+              onOpenSearch={() => setIsSearchOpen(true)}
             />
+
+            {!isOpen && <div className="w-8 h-px bg-gray-200/60 dark:bg-white/10 my-2 self-center shrink-0" aria-hidden="true" />}
 
             {isOpen ? (
               <div className="flex-1 min-h-0 flex flex-col overflow-hidden pt-1">
-                <div className="px-3 pb-1 flex items-center justify-between text-[10px] font-bold tracking-wider uppercase text-gray-400 dark:text-white/35 shrink-0">
+                <div
+                  className="px-3 pb-1 flex items-center justify-between text-[9.5px] font-bold tracking-[0.16em] uppercase text-gray-400 dark:text-white/35 shrink-0"
+                  style={{ fontFamily: 'var(--font-system-label)' }}
+                >
                   <span>Proyectos y Chats</span>
                 </div>
-                <nav className="flex-1 px-2 pb-2 overflow-y-auto sidebar-scrollbar">
+                <nav className="flex-1 overflow-y-auto sidebar-scrollbar px-2 pb-2">
                   <PinnedChats props={props} />
                   <IrisSection props={props} />
                   <FolderSection props={props} />

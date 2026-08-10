@@ -3,7 +3,6 @@ import type { Conversation } from '../../services/chat-service';
 import type { SidebarProps } from './types';
 import { ChatItem } from './ChatItem';
 import { buildChatItemProps } from './chatProps';
-import { ChevronIcon } from './ChevronIcon';
 import { EditIcon } from './ChatIcons';
 import { ShareBadge } from './ShareBadge';
 
@@ -22,25 +21,44 @@ export function FolderRow({
 }) {
   const { isOpen } = props;
   const isRenaming = props.renamingFolderId === folder.id;
+
+  if (!isOpen) return null;
+
   return (
-    <div className="mb-0.5">
+    <div className="mb-0.5" style={{ fontFamily: 'var(--font-system-ui)' }}>
       <div
-        className={`min-h-9 w-full flex items-center ${isOpen ? 'gap-2 px-2' : 'justify-center px-0'} rounded-2xl text-[13px] transition-all duration-200 cursor-pointer group ${folderStateClass(isActive, isExpanded)}`}
+        className={`h-8.5 w-full flex items-center gap-2 px-2 rounded-xl text-[13px] transition-all duration-150 cursor-pointer group ${folderStateClass(isActive, isExpanded)}`}
         onClick={() => { if (!isRenaming) props.onToggleFolder(folder.id); }}
         onDoubleClick={() => { if (!isRenaming) props.onOpenProject(folder.id); }}
         title={folder.name}
       >
-        {isOpen && <ChevronIcon className={`h-3 w-3 flex-shrink-0 transition-transform duration-200 opacity-50 group-hover:opacity-100 ${isActive ? 'text-accent opacity-100' : ''} ${isExpanded ? 'rotate-90' : ''}`} />}
-        <FolderIcon active={isActive} />
-        {isOpen && (isRenaming
-          ? <FolderRenameInput props={props} />
-          : <FolderTitle folder={folder} chats={chats} props={props} />)}
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 text-gray-400 dark:text-white/40 group-hover:text-gray-700 dark:group-hover:text-white ${isActive ? 'text-accent opacity-100' : ''} ${isExpanded ? 'rotate-90' : ''}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+
+        <FolderIcon active={isActive} isExpanded={isExpanded} />
+
+        {isRenaming ? (
+          <FolderRenameInput props={props} />
+        ) : (
+          <FolderTitle folder={folder} chats={chats} props={props} />
+        )}
       </div>
-      {isExpanded && isOpen && (
-        <div className="ml-4 mt-1 space-y-0.5 border-l border-gray-200/60 pl-2 dark:border-white/[0.06]">
-          {chats.length === 0
-            ? <p className="px-2 py-1.5 text-[11px] italic text-secondary/70 dark:text-white/30">Vacia</p>
-            : chats.map((conv) => <ChatItem key={conv.id} {...buildChatItemProps(props, conv, true)} />)}
+
+      {isExpanded && (
+        <div className="ml-4 mt-1 space-y-0.5 border-l border-gray-200/60 pl-2 dark:border-white/10">
+          {chats.length === 0 ? (
+            <p className="px-2 py-1 text-[11px] italic text-gray-400 dark:text-white/35">Vacía</p>
+          ) : (
+            chats.map((conv) => <ChatItem key={conv.id} {...buildChatItemProps(props, conv, true)} />)
+          )}
         </div>
       )}
     </div>
@@ -48,46 +66,70 @@ export function FolderRow({
 }
 
 function folderStateClass(isActive: boolean, isExpanded: boolean): string {
-  if (isActive) return 'bg-[#0A2540]/10 text-[#0A2540] font-semibold shadow-[inset_0_0_0_1px_rgba(10,37,64,0.08)] dark:bg-accent/10 dark:text-accent dark:shadow-[inset_0_0_0_1px_rgba(0,212,179,0.12)]';
-  if (isExpanded) return 'bg-gray-100/80 text-[#0A2540] font-medium dark:bg-white/[0.05] dark:text-white';
-  return 'text-secondary dark:text-white/50 hover:bg-[#0A2540]/5 hover:text-[#0A2540] dark:hover:bg-white/[0.05] dark:hover:text-white/80';
+  if (isActive) return 'bg-accent/12 dark:bg-accent/15 text-accent font-semibold shadow-2xs';
+  if (isExpanded) return 'bg-gray-100/70 dark:bg-white/[0.05] text-gray-900 dark:text-white font-medium';
+  return 'text-gray-600 dark:text-white/60 hover:bg-gray-100/70 dark:hover:bg-white/[0.05] hover:text-gray-900 dark:hover:text-white';
 }
 
-function FolderIcon({ active }: { active: boolean }) {
+function FolderIcon({ active, isExpanded }: { active: boolean; isExpanded: boolean }) {
   return (
-    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-2xl transition-all duration-200 ${active ? 'bg-[#0A2540] text-white dark:bg-accent dark:text-on-accent' : 'bg-white text-secondary shadow-[inset_0_0_0_1px_rgba(10,37,64,0.08)] group-hover:text-[#0A2540] dark:bg-white/[0.04] dark:text-white/50 dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)] dark:group-hover:text-accent'}`}>
-      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={active ? 2.5 : 2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-      </svg>
-    </div>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className={`h-4 w-4 shrink-0 transition-colors ${
+        active
+          ? 'text-accent'
+          : isExpanded
+          ? 'text-gray-700 dark:text-white/90'
+          : 'text-gray-400 dark:text-white/45 group-hover:text-gray-700 dark:group-hover:text-white'
+      }`}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={1.8}
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9.75A1.5 1.5 0 015.25 8.25h4.125c.398 0 .78.158 1.06.44l1.125 1.125c.28.282.662.44 1.06.44H18.75a1.5 1.5 0 011.5 1.5v6.75a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5V9.75z" />
+    </svg>
   );
 }
 
 function FolderTitle({ folder, chats, props }: { folder: Folder; chats: Conversation[]; props: SidebarProps }) {
   return (
     <>
-      <div className="flex flex-1 min-w-0 items-center gap-2">
+      <div className="flex flex-1 min-w-0 items-center gap-1.5">
         <span className="min-w-0 flex-1 text-left truncate">{folder.name}</span>
         {folder.is_shared && <ShareBadge owner={Boolean(folder.can_share)} ownerTitle="Compartida por ti" memberTitle="Compartida contigo" />}
       </div>
-      {chats.length > 0 && <span className="text-[10px] bg-gray-200/50 dark:bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 rounded-full text-gray-500 dark:text-gray-400">{chats.length}</span>}
-      {/* Renombrar y eliminar solo las carpetas propias: en una recibida el
-          usuario no es dueño y la accion la rechazaria el servicio igual. */}
+
+      {chats.length > 0 && (
+        <span
+          className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-gray-200/60 dark:bg-white/10 text-gray-500 dark:text-white/40 opacity-0 group-hover:opacity-100 transition-opacity"
+          style={{ fontFamily: 'var(--font-system-label)' }}
+        >
+          {chats.length}
+        </span>
+      )}
+
       {folder.can_share && (
-        <>
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
+            type="button"
             onClick={(event) => { event.stopPropagation(); props.onStartRenameFolder(folder.id); }}
-            className="rounded-lg p-1 text-gray-500 opacity-0 transition-all hover:bg-[#0A2540]/10 hover:text-[#0A2540] group-hover:opacity-100 dark:hover:bg-white/10 dark:hover:text-accent"
+            className="flex h-6 w-6 items-center justify-center rounded-md text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/60 dark:hover:bg-white/10 transition-all"
             title="Renombrar carpeta"
           >
             <EditIcon />
           </button>
-          <button onClick={(e) => props.onDeleteFolder(folder.id, e)} className="rounded-lg p-1 opacity-0 transition-all hover:bg-danger/10 group-hover:opacity-100" title="Eliminar carpeta">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-gray-500 hover:text-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          <button
+            type="button"
+            onClick={(e) => props.onDeleteFolder(folder.id, e)}
+            className="flex h-6 w-6 items-center justify-center rounded-md text-gray-400 hover:text-danger hover:bg-danger/10 transition-all"
+            title="Eliminar carpeta"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
             </svg>
           </button>
-        </>
+        </div>
       )}
     </>
   );
@@ -98,7 +140,7 @@ function FolderRenameInput({ props }: { props: SidebarProps }) {
     <input
       autoFocus
       type="text"
-      className="min-w-0 flex-1 rounded-xl border border-accent bg-white px-2 py-1 text-[13px] text-gray-900 outline-none dark:bg-[#111820] dark:text-white"
+      className="min-w-0 flex-1 rounded-lg border border-accent bg-white px-2 py-0.5 text-[13px] text-gray-900 outline-none dark:bg-[#111820] dark:text-white"
       value={props.editingFolderName}
       onChange={(event) => props.onSetEditingFolderName(event.target.value)}
       onBlur={props.onFinishRenameFolder}

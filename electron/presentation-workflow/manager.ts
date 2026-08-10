@@ -1,5 +1,6 @@
 import type { WhatsAppAgent } from '../whatsapp-agent';
 import type { WhatsAppService } from '../whatsapp-service';
+import type { SkillWorkspaceService } from '../skill-workspace/service';
 import { PresentacionWorkflow } from './workflow';
 
 class WorkflowManagerClass {
@@ -15,9 +16,13 @@ class WorkflowManagerClass {
     senderNumber: string,
     waService: WhatsAppService,
     agent: WhatsAppAgent,
+    workspaceService: SkillWorkspaceService,
   ) {
     this.activeWorkflows.get(sessionKey)?.dispose();
-    const workflow = new PresentacionWorkflow(sessionKey, jid, senderNumber, waService, agent, () => this.endWorkflow(sessionKey));
+    const workflow = new PresentacionWorkflow(
+      sessionKey, jid, senderNumber, waService, agent, workspaceService,
+      () => this.endWorkflow(sessionKey),
+    );
     this.activeWorkflows.set(sessionKey, workflow);
     await workflow.start();
   }

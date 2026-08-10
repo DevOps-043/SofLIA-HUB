@@ -67,23 +67,29 @@ export function ThinkingSelector({ model }: { model: ReturnType<typeof useModelS
   };
 
   return (
-    <div className="border-t border-border bg-surface-2/45 px-3.5 py-3 select-none" style={{ fontFamily: 'var(--font-system-ui)' }}>
+    <div
+      className="border-t border-gray-200/80 dark:border-white/10 bg-gray-50/70 dark:bg-[#12161f]/70 px-4 py-3 select-none"
+      style={{ fontFamily: 'var(--font-system-ui)' }}
+    >
       {/* Encabezado */}
       <div className="mb-2 flex items-center justify-between px-0.5">
-        <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-secondary/75" style={{ fontFamily: 'var(--font-system-label)' }}>
-          Razonamiento
+        <span
+          className="text-[9.5px] font-bold uppercase tracking-[0.16em] text-gray-400 dark:text-white/40"
+          style={{ fontFamily: 'var(--font-system-label)' }}
+        >
+          Nivel de Razonamiento
         </span>
-        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-accent/10 border border-accent/20">
+        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-accent/15 border border-accent/25">
           <svg className="w-3 h-3 text-accent animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
-          <span className="text-xs font-bold text-accent">
+          <span className="text-[11px] font-bold text-accent" style={{ fontFamily: 'var(--font-system-label)' }}>
             {currentOption?.name}
           </span>
         </div>
       </div>
 
-      {/* Slider Pista de Razonamiento Estilo Codex */}
+      {/* Slider Pista de Razonamiento */}
       <div
         ref={trackRef}
         role="slider"
@@ -95,12 +101,12 @@ export function ThinkingSelector({ model }: { model: ReturnType<typeof useModelS
         tabIndex={0}
         onKeyDown={handleKeyDown}
         onPointerDown={handlePointerDown}
-        className="relative my-2.5 h-8 w-full rounded-full bg-gray-200/80 dark:bg-[#1e2229] border border-gray-300/60 dark:border-white/[0.08] cursor-pointer touch-none flex items-center focus:outline-none focus:ring-2 focus:ring-accent/40"
+        className="relative my-2.5 h-7 w-full rounded-full bg-gray-200/80 dark:bg-[#1e2329] border border-gray-300/60 dark:border-white/10 cursor-pointer touch-none flex items-center focus:outline-none focus:ring-2 focus:ring-accent/40"
         title="Arrastra o haz clic para ajustar el nivel de razonamiento"
       >
         {/* Barra de progreso de color acento */}
         <div
-          className="absolute left-1 top-1 bottom-1 rounded-full bg-accent transition-all duration-150 ease-out"
+          className="absolute left-1 top-1 bottom-1 rounded-full bg-accent transition-all duration-150 ease-out shadow-2xs"
           style={{ width: `calc(10px + (100% - 20px) * ${stepRatio})` }}
         />
 
@@ -112,7 +118,7 @@ export function ThinkingSelector({ model }: { model: ReturnType<typeof useModelS
               <span
                 key={opt.id}
                 className={`h-1.5 w-1.5 rounded-full transition-all ${
-                  isReached ? 'bg-white shadow-sm scale-110' : 'bg-gray-400/40 dark:bg-white/20'
+                  isReached ? 'bg-white shadow-xs scale-110' : 'bg-gray-400/40 dark:bg-white/20'
                 }`}
               />
             );
@@ -121,18 +127,24 @@ export function ThinkingSelector({ model }: { model: ReturnType<typeof useModelS
 
         {/* Perilla Deslizante (Thumb Knob) */}
         <div
-          className="absolute z-20 h-6 w-6 rounded-full bg-white shadow-md border border-black/10 dark:border-white/20 transition-all duration-150 ease-out transform -translate-x-1/2 flex items-center justify-center cursor-grab active:cursor-grabbing hover:scale-110"
-          style={{ left: `calc(14px + (100% - 28px) * ${stepRatio})` }}
+          className="absolute z-20 h-5.5 w-5.5 rounded-full bg-white shadow-md border border-black/10 dark:border-white/20 transition-all duration-150 ease-out transform -translate-x-1/2 flex items-center justify-center cursor-grab active:cursor-grabbing hover:scale-110"
+          style={{ left: `calc(12px + (100% - 24px) * ${stepRatio})` }}
         >
           <div className="h-2 w-2 rounded-full bg-accent" />
         </div>
       </div>
 
       {/* Descripción del nivel activo */}
-      <div className="mt-1 px-0.5 flex items-center justify-between text-[11px] text-secondary/80">
+      <div className="mt-1 px-0.5 flex items-center justify-between text-[11px] text-gray-500 dark:text-white/45">
         <span className="truncate font-medium">{currentOption?.desc}</span>
-        <span className="text-[10px] text-secondary/50 font-semibold">{safeIndex + 1}/{options.length}</span>
+        <span
+          className="text-[10px] text-gray-400 dark:text-white/35 font-semibold ml-2 shrink-0"
+          style={{ fontFamily: 'var(--font-system-label)' }}
+        >
+          {safeIndex + 1}/{options.length}
+        </span>
       </div>
     </div>
   );
 }
+

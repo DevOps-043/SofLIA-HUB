@@ -1,4 +1,4 @@
-// Reproduce los chunks PCM16 (base64) que sintetiza Piper en el sidecar.
+// Reproduce tanto chunks PCM16 del sidecar como MP3 de ElevenLabs.
 // Encola por frase (gapless) y expone un AudioNode para que la orbe analice
 // la señal (meyda) y anime el "habla" estilo Jarvis.
 
@@ -9,6 +9,7 @@ export class OrbTtsPlayback {
   private activeSources = new Set<AudioBufferSourceNode>();
   private onDrained: (() => void) | null = null;
   private ttsFinished = false;
+  private generation = 0;
 
   /** Nodo de salida (post-mezcla) para conectar analizadores de audio. */
   getOutputNode(): AudioNode | null {
@@ -49,6 +50,30 @@ export class OrbTtsPlayback {
     const channel = buffer.getChannelData(0);
     for (let i = 0; i < pcm.length; i++) channel[i] = pcm[i] / 32768;
 
+    this.enqueueBuffer(buffer);
+  }
+
+  /** Decodifica un bloque MP3 de ElevenLabs y lo agrega a la cola gapless. */
+  async enqueueEncoded(audioBase64: string): Promise<void> {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.output) return;
+    const generation = this.generation;
+    const encoded = base64ToArrayBuffer(audioBase64);
+    if (!encoded.byteLength) throw new Error('ElevenLabs devolvió un audio vacío.');
+    let buffer: AudioBuffer;
+    try {
+      buffer = await ctx.decodeAudioData(encoded);
+    } catch {
+      throw new Error('No se pudo decodificar el audio de ElevenLabs.');
+    }
+    if (generation !== this.generation) return;
+    this.ttsFinished = false;
+    this.enqueueBuffer(buffer);
+  }
+
+  private enqueueBuffer(buffer: AudioBuffer): void {
+    const ctx = this.ensureContext();
+    if (!ctx || !this.output || buffer.length === 0) return;
     const source = ctx.createBufferSource();
     source.buffer = buffer;
     source.connect(this.output);
@@ -63,6 +88,7 @@ export class OrbTtsPlayback {
   }
 
   stop(): void {
+    this.generation += 1;
     for (const source of this.activeSources) {
       try { source.stop(); } catch { /* ya detenido */ }
     }
@@ -90,7 +116,7 @@ export class OrbTtsPlayback {
   private ensureContext(): AudioContext | null {
     if (!this.ctx) {
       // Contexto a la tasa NATIVA del dispositivo: cada AudioBuffer conserva su
-      // propia sample rate (22050 Piper / 24000 Google) y WebAudio remuestrea
+      // propia sample rate (Piper o ElevenLabs) y WebAudio remuestrea
       // UNA sola vez con alta calidad. Forzar la tasa degradaba los agudos.
       this.ctx = new AudioContext();
       this.output = this.ctx.createGain();
@@ -111,5 +137,16 @@ function base64ToInt16(base64: string): Int16Array {
     return new Int16Array(bytes.buffer, 0, Math.floor(bytes.length / 2));
   } catch {
     return new Int16Array(0);
+  }
+}
+
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  try {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+    return bytes.buffer;
+  } catch {
+    return new ArrayBuffer(0);
   }
 }

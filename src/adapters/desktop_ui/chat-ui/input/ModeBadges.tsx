@@ -3,9 +3,10 @@ import type { ChatUIController } from '../useChatUIController';
 const OPTIMIZER_TARGETS = ['chatgpt', 'claude', 'gemini'] as const;
 
 export function ModeBadges({ controller }: { controller: ChatUIController }) {
-  const { modes, toolModals } = controller.state;
+  const { modes, skillModals } = controller.state;
+  const activeSkill = skillModals.activeSkill?.skill ?? null;
 
-  if (!modes.imageGen && !modes.promptOptimizer && !toolModals.activeTool) {
+  if (!modes.imageGen && !modes.promptOptimizer && !activeSkill && !skillModals.activeSkill?.workspaceError) {
     return null;
   }
 
@@ -36,11 +37,24 @@ export function ModeBadges({ controller }: { controller: ChatUIController }) {
           </div>
         </div>
       )}
-      {toolModals.activeTool && (
+      {skillModals.activeSkill?.workspaceError && (
+        // Sin espacio de trabajo la skill no puede escribir archivos. Decirlo
+        // aqui evita que el usuario espere un entregable que no va a llegar.
+        <span role="alert" className="inline-flex items-center gap-1.5 rounded-full border border-danger/25 bg-danger/[0.07] px-3 py-1 text-xs font-medium text-danger">
+          Sin espacio de trabajo: {skillModals.activeSkill.workspaceError}
+        </span>
+      )}
+      {activeSkill && (
         <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium bg-accent/10 text-accent rounded-full border border-accent/20">
-          <span>{toolModals.activeTool.icon}</span>
-          {toolModals.activeTool.name}
-          <button onClick={() => toolModals.setActiveTool(null)} className="ml-1 hover:opacity-70">x</button>
+          <span>{activeSkill.icon}</span>
+          {activeSkill.name}
+          <button
+            aria-label={`Desactivar la skill ${activeSkill.name}`}
+            onClick={() => controller.tools.handleDeactivateSkill()}
+            className="ml-1 hover:opacity-70"
+          >
+            x
+          </button>
         </span>
       )}
     </div>

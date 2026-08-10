@@ -3,7 +3,7 @@ import { MODELS } from '../../config';
 import { getPublicAiErrorMessage, sendMessageStream } from '../../services/gemini-chat';
 import type { ConversationMessage } from '../../services/gemini-chat/types';
 import { orbService } from '../../services/orb-service';
-import { synthesizeCloudSpeech } from '../../services/orb/google-cloud-tts';
+import { synthesizeElevenLabsSpeech } from '../../services/orb/elevenlabs-tts';
 import { OrbTtsPlayback } from '../../services/orb/tts-playback';
 import type { OrbConversationState } from './orb-types';
 
@@ -14,7 +14,8 @@ export interface OrbSource {
 
 const CLOSE_COMMAND_REGEX = /^\s*(cierra|cierrate|adios|gracias,?\s+(soflia|sofia|suplia))\b/i;
 // Presupuesto TOTAL de habla por turno: debe leer la respuesta completa
-// (antes 300 chars cortaba tras ~2 parrafos). Google TTS acepta 5000 bytes por
+// (antes 300 chars cortaba tras ~2 parrafos). ElevenLabs acepta hasta 5000
+// caracteres por solicitud, pero usamos bloques menores para reducir latencia.
 // peticion, por eso el texto se trocea en bloques de hasta SPEECH_BLOCK_CHARS.
 const SPEECH_MAX_CHARS = 4000;
 const SPEECH_BLOCK_CHARS = 1200;
@@ -61,8 +62,8 @@ export function useOrbConversation() {
   const piperSpeechIdRef = useRef<string | null>(null);
   const piperPlaybackStartedRef = useRef(false);
   const pendingWakeRequestRef = useRef<Promise<{ success: boolean; wake?: boolean }> | null>(null);
-  /** Motivo del ultimo fallo del TTS en la nube (para mostrarlo si tampoco hay voz local). */
-  const cloudTtsErrorRef = useRef<string | null>(null);
+  /** Motivo del último fallo ElevenLabs para mantener visible un error accionable. */
+  const elevenLabsTtsErrorRef = useRef<string | null>(null);
   infoVisibleRef.current = infoVisible;
 
   const updateState = useCallback((nextState: OrbConversationState) => {
@@ -180,9 +181,8 @@ export function useOrbConversation() {
 
   /**
    * Ultimo recurso cuando el pipeline por bloques no llego a sonar: sintetiza el
-   * texto completo de una vez. SofLIA solo habla con la voz de Google Cloud (no
-   * hay respaldo local: sonaba robotico y ocultaba el fallo real). Si no hay voz,
-   * se muestra el motivo en la orbe.
+   * texto completo de una vez. SofLIA usa la voz ElevenLabs configurada y no
+   * degrada silenciosamente a otro proveedor o a una voz local distinta.
    */
   const speakEntireResponse = useCallback(async (fullText: string, turnId: number) => {
     if (activeTurnRef.current !== turnId) return;
@@ -192,27 +192,28 @@ export function useOrbConversation() {
       return;
     }
     try {
-      const audio = await synthesizeCloudSpeech(speech);
+      const audio = await synthesizeElevenLabsSpeech(speech);
       if (activeTurnRef.current !== turnId) return;
       setTtsPlaying(true);
       updateState(stateRef.current === 'info' ? 'info' : 'speaking');
-      playback.enqueuePcm(audio.pcm, audio.sampleRate);
+      await playback.enqueueEncoded(audio.audioBase64);
+      if (activeTurnRef.current !== turnId) return;
       playback.markTtsFinished();
       return;
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      cloudTtsErrorRef.current = reason;
-      console.error('[Orb] Sin voz: Google Cloud TTS fallo:', reason);
+      elevenLabsTtsErrorRef.current = reason;
+      console.error('[Orb] Sin voz: ElevenLabs falló:', reason);
     }
-    setErrorMessage(`No pude responder con voz: ${cloudTtsErrorRef.current}`);
+    setErrorMessage(`No pude responder con voz: ${elevenLabsTtsErrorRef.current}`);
     setTtsPlaying(false);
   }, [finishTurnAndListen, playback, updateState]);
 
-  /** Pipeline cloud protegido por el ID del turno, incluso despues de cada await. */
+  /** Pipeline ElevenLabs protegido por el ID del turno, incluso después de cada await. */
   const createSpeechPipeline = useCallback((turnId: number, signal: AbortSignal) => {
     const pipelineState = {
       chain: Promise.resolve() as Promise<void>,
-      cloudFailed: false,
+      ttsFailed: false,
       spokenChars: 0,
       started: false,
     };
@@ -223,7 +224,7 @@ export function useOrbConversation() {
     });
 
     const pushSentence = (rawSentence: string) => {
-      if (!isCurrent() || pipelineState.cloudFailed || pipelineState.spokenChars >= SPEECH_MAX_CHARS) return;
+      if (!isCurrent() || pipelineState.ttsFailed || pipelineState.spokenChars >= SPEECH_MAX_CHARS) return;
       const clean = buildSpeechText(rawSentence);
       if (clean.length < 2) {
         console.warn('[Orb] Fragmento descartado para voz (vacio tras normalizar):', JSON.stringify(rawSentence.slice(0, 60)));
@@ -234,25 +235,26 @@ export function useOrbConversation() {
       // los bloques anteriores; la cadena solo garantiza el ORDEN de reproduccion.
       // Serializar tambien la sintesis creaba silencios de varios segundos entre
       // frases (cada bloque esperaba la peticion completa del anterior).
-      const audioPromise = synthesizeCloudSpeech(clean);
+      const audioPromise = synthesizeElevenLabsSpeech(clean);
       audioPromise.catch(() => undefined); // el error se maneja al reproducir; esto evita un unhandled rejection si el turno se aborta antes
       pipelineState.chain = pipelineState.chain.then(async () => {
-        if (!isCurrent() || pipelineState.cloudFailed) return;
+        if (!isCurrent() || pipelineState.ttsFailed) return;
         try {
           const audio = await audioPromise;
-          if (!isCurrent() || pipelineState.cloudFailed) return;
+          if (!isCurrent() || pipelineState.ttsFailed) return;
+          await playback.enqueueEncoded(audio.audioBase64);
+          if (!isCurrent() || pipelineState.ttsFailed) return;
           if (!pipelineState.started) {
             pipelineState.started = true;
             setTtsPlaying(true);
             updateState(stateRef.current === 'info' ? 'info' : 'speaking');
           }
-          playback.enqueuePcm(audio.pcm, audio.sampleRate);
         } catch (error) {
           if (!isCurrent()) return;
-          pipelineState.cloudFailed = true;
+          pipelineState.ttsFailed = true;
           const reason = error instanceof Error ? error.message : String(error);
-          cloudTtsErrorRef.current = reason;
-          console.warn('[Orb] Google Cloud TTS fallo, se usara el respaldo local:', reason);
+          elevenLabsTtsErrorRef.current = reason;
+          console.warn('[Orb] ElevenLabs falló; la respuesta permanece visible sin cambiar de voz:', reason);
         }
       });
     };
@@ -274,9 +276,9 @@ export function useOrbConversation() {
     setActiveTool(null);
     setInfoVisible(false);
     updateState('thinking');
-    cloudTtsErrorRef.current = null;
+    elevenLabsTtsErrorRef.current = null;
     const { pipelineState, pushSentence } = createSpeechPipeline(turnId, controller.signal);
-    controller.signal.addEventListener('abort', () => { pipelineState.cloudFailed = true; }, { once: true });
+    controller.signal.addEventListener('abort', () => { pipelineState.ttsFailed = true; }, { once: true });
 
     try {
       const result = await sendMessageStream(text, historyRef.current, {
@@ -344,8 +346,8 @@ export function useOrbConversation() {
       console.log('[Orb] Fin del turno del agente:', JSON.stringify({
         chars: accumulated.length,
         ttsIniciado: pipelineState.started,
-        ttsNubeFallo: pipelineState.cloudFailed,
-        motivo: cloudTtsErrorRef.current,
+        ttsElevenLabsFallo: pipelineState.ttsFailed,
+        motivo: elevenLabsTtsErrorRef.current,
       }));
 
       if (!accumulated.trim()) {

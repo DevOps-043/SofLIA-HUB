@@ -74,13 +74,16 @@ describe('PresentacionWorkflow lifecycle', () => {
     expect(mockSendText).toHaveBeenCalledWith(expect.any(String), expect.stringContaining('cancelado'));
   });
 
-  it('WA-156: finishPresentation moves to COMPLETED', async () => {
+  it('WA-156: finishPresentation llega a COMPLETED', async () => {
     (workflow as any).state = 'GENERATING_PRESENTATION';
     (workflow as any).data = { clientCompanyName: 'MiEmpresa', clientEmail: 'info@miempresa.com', proposalContent: 'Propuesta de valor' };
-    mockGenerateContent.mockResolvedValue({ response: { text: () => '# Contenido de diapositiva formateado' } });
+    // El motor propio espera un documento HTML, no markdown para un tercero.
+    mockGenerateContent.mockResolvedValue({
+      response: { text: () => '<!doctype html><html><body><section class="diapositiva">Portada</section></body></html>' },
+    });
 
     await (workflow as any).finishPresentation();
     expect((workflow as any).state).toBe('COMPLETED');
-    expect(mockSendText).toHaveBeenCalledWith(expect.any(String), expect.stringContaining('Flujo Completado'));
+    expect(mockSendText).toHaveBeenCalledWith(expect.any(String), expect.stringContaining('Flujo completado'));
   });
 });

@@ -180,22 +180,35 @@ CREATE TABLE public.tools (
   CONSTRAINT tools_author_id_fkey FOREIGN KEY (author_id) REFERENCES auth.users(id),
   CONSTRAINT tools_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES auth.users(id)
 );
-CREATE TABLE public.user_tools (
+-- Skills creadas por el usuario (reemplaza a user_tools desde
+-- database/lia/migrations/skills-registry.sql). Solo aportan instrucciones
+-- y prompts de inicio: las Skills del sistema se declaran en codigo.
+CREATE TABLE public.skills (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
-  name text NOT NULL,
+  name text NOT NULL CHECK (length(btrim(name)) > 0),
   description text,
-  icon text DEFAULT '⚙️'::text,
-  category USER-DEFINED,
-  system_prompt text NOT NULL,
-  starter_prompts jsonb DEFAULT '[]'::jsonb,
-  is_favorite boolean DEFAULT false,
-  usage_count integer DEFAULT 0,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT user_tools_pkey PRIMARY KEY (id),
-  CONSTRAINT user_tools_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id)
+  icon text NOT NULL DEFAULT '⚙️'::text,
+  category text,
+  instructions text NOT NULL CHECK (length(btrim(instructions)) > 0),
+  starter_prompts jsonb NOT NULL DEFAULT '[]'::jsonb,
+  is_favorite boolean NOT NULL DEFAULT false,
+  usage_count integer NOT NULL DEFAULT 0,
+  migrated_from_user_tool_id uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT skills_pkey PRIMARY KEY (id),
+  CONSTRAINT skills_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 );
+
+-- Vista de compatibilidad de solo lectura sobre public.skills. Permite
+-- revertir el renderer sin revertir datos; se elimina en una release
+-- posterior. La tabla original quedo como public.user_tools_legacy.
+CREATE VIEW public.user_tools WITH (security_invoker = true) AS
+SELECT id, user_id, name, description, icon, category,
+       instructions AS system_prompt, starter_prompts,
+       is_favorite, usage_count, created_at, updated_at
+FROM public.skills;
 CREATE TABLE public.user_favorite_tools (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,

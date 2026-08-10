@@ -2,7 +2,7 @@ import type { Dispatch, SetStateAction } from 'react';
 
 import type { ChatMessage } from '../../services/chat-service';
 import type { ToolCallInfo } from '../../services/gemini-chat';
-import type { UserTool } from '../../services/tools-service';
+import type { ActiveSkillState } from '../../services/skills/active-skill';
 import type { ThinkingOption } from '../useModelSelector';
 import { processChatMessage } from './process-message';
 
@@ -16,7 +16,7 @@ interface CreateProcessMessageInput {
   isPromptOptimizerMode: boolean;
   optimizerTarget: 'chatgpt' | 'claude' | 'gemini';
   isImageGenMode: boolean;
-  activeTool: UserTool | null;
+  activeSkill: ActiveSkillState | null;
   sofiaUserId?: string;
 }
 
@@ -28,5 +28,6 @@ export function createProcessMessage(input: CreateProcessMessageInput) {
     isRegeneration = false,
     signal?: AbortSignal,
     isCurrent?: () => boolean,
-  ) => processChatMessage({ ...input, text, images, currentHistory, isRegeneration, signal, isCurrent });
+    selectionContext?: string,
+  ) => processChatMessage({ ...input, text, images, currentHistory, isRegeneration, signal, isCurrent, selectionContext });
 }

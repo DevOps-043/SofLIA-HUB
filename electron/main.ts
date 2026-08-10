@@ -1,8 +1,14 @@
 import { app } from 'electron';
 import { logBootstrapError } from './main/bootstrap-steps';
 import { runBootstrap } from './main/bootstrap';
+import { registerPresentationScheme } from './skill-workspace/protocol';
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+
+// Electron exige declarar los esquemas privilegiados antes de que la app este
+// lista. Sin esto, el documento de la presentacion se serviria en un origen
+// sin privilegios y no podria cargar su CSS ni sus imagenes relativas.
+registerPresentationScheme();
 
 type BootstrapGuard = typeof globalThis & {
   __SOFLIA_BOOTSTRAP_COMPLETE__?: boolean;

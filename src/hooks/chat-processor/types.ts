@@ -1,5 +1,5 @@
 import type { ChatMessage } from '../../services/chat-service';
-import type { UserTool } from '../../services/tools-service';
+import type { ActiveSkillState } from '../../services/skills/active-skill';
 
 export interface UseChatProcessorParams {
   messages: ChatMessage[];
@@ -15,7 +15,7 @@ export interface UseChatProcessorParams {
   isImageGenMode: boolean;
   isPromptOptimizerMode: boolean;
   optimizerTarget: 'chatgpt' | 'claude' | 'gemini';
-  activeTool: UserTool | null;
+  activeSkill: ActiveSkillState | null;
   /** Usuario SOFIA para la memoria unificada del chat (owner). */
   sofiaUserId?: string;
 }

@@ -1,5 +1,6 @@
 // Wrapper del renderer para la ventana de la Orbe de Voz (canales orb:*).
-// Dictado y TTS corren 100% locales en el sidecar Python (Vosk + Piper).
+// El dictado corre en el sidecar local; la voz conversacional se sintetiza en
+// Electron main con ElevenLabs para mantener la credencial fuera del renderer.
 
 export interface OrbDictationFinal {
   sessionId: string;
@@ -33,9 +34,11 @@ export interface OrbTtsEnd {
 
 export interface OrbSynthesisResult {
   success: boolean;
-  /** WAV (LINEAR16) en base64 devuelto por Google Cloud TTS. */
+  /** MP3 en base64 devuelto por ElevenLabs a través de Electron main. */
   audioBase64?: string;
-  voice?: string;
+  mimeType?: 'audio/mpeg';
+  voiceId?: string;
+  modelId?: string;
   error?: string;
 }
 

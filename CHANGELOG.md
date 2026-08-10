@@ -4,7 +4,208 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.9.6] - 2026-08-10
 
+### Added
+- Inicio de sesion federado con SofLIA Learning. Las cuentas creadas por Google o
+  Microsoft nacen en Supabase Auth sin contrasena y hasta ahora no podian entrar
+  al escritorio por ninguna via; ahora Learning ejecuta su propio SSO y devuelve
+  al Hub un ticket de un solo uso que este canjea por una sesion SOFIA ordinaria.
+  A partir de ahi el perfil, la membresia y las conversaciones siguen el camino
+  de siempre.
+- El retorno llega por `soflia://auth/callback`. Como cualquier aplicacion local
+  puede registrar ese esquema, el ticket viaja ligado a un desafio PKCE cuyo
+  verificador nunca sale del renderer: interceptar el enlace no alcanza para
+  obtener sesion. El ticket es de un solo uso y dura un minuto.
+- Manejador `open-url` en el proceso principal, sin el cual los deep links no
+  llegaban en macOS.
+- Panel de permisos por sitio en la barra de direcciones del navegador
+  integrado, equivalente al candado de un navegador de escritorio. Administra
+  camara, microfono, ubicacion, notificaciones, compartir pantalla, portapapeles
+  y el resto del catalogo por origen, guarda la decision y permite revocarla sin
+  esperar a que el sitio vuelva a pedirla.
+- Compartir pantalla (`getDisplayMedia`) con selector nativo de pantalla o
+  ventana. Antes la solicitud se rechazaba y el boton de presentar de Meet o
+  Teams fallaba sin explicacion.
+- Pantalla completa de la pagina: la vista pasa a cubrir la ventana y la ventana
+  entra en pantalla completa del sistema, restaurando el estado previo al salir.
+- Permisos que faltaban por completo: notificaciones, portapapeles, deteccion de
+  inactividad, gestion de ventanas, bloqueo de puntero y teclado, seleccion de
+  salida de audio y contenido protegido. Los permisos de dispositivo (`usb`,
+  `serial`, `hid`, MIDI) siguen denegados y no son configurables.
+- Traza `[ModoLectura]` en la consola del renderer: motivo de cada abandono,
+  tamaño del audio recibido, tamaño del blob y desenlace de `play()`.
+- F12 y Ctrl+Shift+I abren las DevTools del renderer. La ventana quita el menu
+  por defecto y con el se perdia el acelerador, de modo que no habia manera de
+  diagnosticar la interfaz desde la app instalada.
+- Traza `[Navegador][Seleccion]` en el proceso principal para diagnosticar por
+  que un fragmento seleccionado no llega al chat: registra el disparador, los
+  marcos ilegibles con su error y el envio.
+- Basta seleccionar texto en el navegador para que el fragmento quede adjunto
+  al chat: el chip aparece solo, sin abrir el menu contextual. El compositor
+  sigue vacio y no se envia nada hasta que el usuario lo decide.
+- Chip de seleccion sobre el compositor: muestra la procedencia y un extracto
+  del fragmento, y permite descartarlo sin enviar nada.
+- Modo lectura del navegador para texto seleccionado o documentos web, accesible
+  desde la barra y el menu contextual, con tipografia configurable y navegacion
+  por bloques semanticos.
+- Narracion bajo demanda con ElevenLabs, subrayado sincronizado por palabra,
+  control de velocidad y descarga de los segmentos de audio generados.
+
+### Changed
+- El inicio por usuario y contrasena no cambia y ambas vias conviven. La entrada
+  federada se monta solo con `VITE_LEARNING_SSO_ENABLED=true`, de modo que
+  apagarla revierte el cambio sin publicar version.
+- La voz prepara `SofLIA`, decimales y versiones en español, declara el idioma
+  a ElevenLabs y conserva contexto acotado entre microlotes para mejorar la
+  continuidad sin perder los offsets del documento.
+- El lector elige el contenido puntuando densidad de prosa en toda la pagina,
+  como los modos lectura del navegador, en vez de exigir <article> o <main>.
+  Penaliza el texto que vive dentro de enlaces y los contenedores cuyo nombre
+  los delata (nav, sidebar, footer, toolbar), y premia parrafos reales.
+- Google Docs se lee ahora por la seleccion explicita o por una exportacion
+  autenticada con la misma sesion del navegador; el arbol de accesibilidad de
+  Chromium funciona como respaldo acotado y se desactiva tras la captura.
+- El modo lectura respeta la seleccion viva de la pagina: si hay texto marcado
+  se narra ese fragmento, y solo sin seleccion se recurre al documento completo.
+- La cápsula de lectura incorpora un asa accesible para moverla libremente sin
+  desplazar la página; permanece dentro del viewport y un doble clic devuelve
+  su posición al texto de origen.
+- Los dos lotes posteriores empiezan a prepararse en cuanto llega el primer
+  audio, antes de la decodificación y reproducción local, para mantener fluida
+  la narración sin sintetizar el documento completo.
+- Al deshacer la seleccion el chip se retira solo, en vez de quedarse hasta
+  que el usuario lo descartara.
+- Separar pestaña, expandir y cerrar suben a la fila de pestañas, junto a los
+  modos de composicion. Son controles de la superficie, no de la navegacion,
+  y ahi dejan mas ancho libre a la barra de direcciones.
+- El modo lectura deja de sustituir el documento con una pantalla completa y
+  mantiene visibles imágenes, gráficas y controles durante la narración.
+- El seguimiento de ElevenLabs subraya temporalmente la palabra narrada en el DOM
+  original mediante CSS Highlights; detener, cerrar, navegar o expirar la sesión
+  elimina la marca sin editar ni persistir el documento.
+- La seleccion adjunta dejo de copiarse dentro del mensaje. La burbuja lleva
+  solo lo que escribio el usuario y el fragmento viaja como contexto del turno
+  hacia el modelo, como hacen los asistentes de navegador.
+- El chip cita el fragmento en cursiva y entrecomillado, con el titulo de la
+  pestaña como procedencia.
+- La Orbe usa ahora la misma voz ElevenLabs del modo lectura, con
+  `eleven_turbo_v2_5` por defecto, síntesis anticipada y reproducción MP3
+  ordenada mediante Web Audio.
+- `orb:synthesize` queda restringido a renderers autenticados de Pulse Hub y
+  entrega sólo audio y metadatos no secretos.
+- El adjunto no se retira solo al pasar el foco al chat; se sustituye al marcar
+  otro fragmento y se descarta desde el chip. Deshacer la seleccion permite
+  volver a adjuntar el mismo texto.
+- La lectura de la seleccion se aplaza mientras se arrastra el raton y se omite
+  cuando el agente controla el navegador, para no confundir sus clics
+  sinteticos con una seleccion del usuario.
+- El menu contextual del navegador ya no envia el turno al pulsar una accion.
+  La seleccion queda adjunta sobre la barra de escritura y es el usuario quien
+  redacta su peticion y decide cuando mandarla, como en los asistentes de
+  navegador al uso.
+- "Preguntar a SofLIA" solo adjunta el contexto y deja el compositor vacio.
+  "Mejorar la redaccion", "Traducir" y "Resumir" precargan su instruccion en el
+  campo de texto, editable antes de enviar.
+
+### Fixed
+- Los cuadros de permiso se muestran de uno en uno. Una videollamada pide camara
+  y microfono a la vez y desde varios marcos: los cuadros se tapaban entre si,
+  el usuario no podia responder al de abajo y la solicitud quedaba esperando
+  para siempre, dejando la llamada sin arrancar. Ahora se encolan y un fallo al
+  mostrarlos responde que no en vez de colgar a la pagina.
+- La ventana emergente sin destino hereda las preferencias de quien la abre. Al
+  fijarle las suyas quedaba en otro proceso y el abridor perdia el acceso al
+  documento hijo antes de terminar de inicializarlo.
+- El respaldo que cubre la vista mientras hay un panel abierto se coloca en el
+  rectangulo real de la captura. Se estiraba al espacio disponible y la pagina
+  aparecia ampliada durante ese instante.
+- Solo el Picture-in-Picture se queda encima de las demas ventanas; un popup
+  ordinario de inicio de sesion ya no flota sobre todo.
+- Google Meet no permitia conceder el microfono ni la camara. La pagina consulta
+  `navigator.permissions.query` antes de solicitarlos y recibia "denegado", de
+  modo que mostraba "Meet no puede usar el microfono" y nunca llamaba a
+  `getUserMedia`: el dialogo de aprobacion no llegaba a abrirse nunca.
+- El area de la llamada quedaba en negro. Meet abre su interfaz en una ventana
+  de Document Picture-in-Picture y el navegador convertia ese `window.open` en
+  pestañas `about:blank` vacias, dejando a la pagina esperando una ventana que
+  nunca existio.
+- Camara y microfono en el navegador integrado. El empaquetado de macOS no
+  declaraba las entitlements de captura ni las descripciones de uso, de modo que
+  el runtime endurecido bloqueaba el dispositivo aunque el usuario aprobara el
+  permiso en la aplicacion.
+- La gobernanza de permisos solo aceptaba la pestaña activa, asi que la pestaña
+  secundaria de la vista dividida y las abiertas en ventana separada quedaban sin
+  camara ni microfono estando visibles y en primer plano.
+- Antes de conceder `media` se consulta el permiso nativo en macOS y Windows. Si
+  el sistema lo tiene denegado no se muestra el dialogo de la aplicacion, que era
+  inutil, sino la ruta de ajustes para desbloquearlo; en macOS un estado sin
+  decidir dispara la solicitud del sistema.
+- Google Docs muestra ahora en la cápsula el token subrayado que corresponde al
+  audio; no intenta modificar el lienzo ni buscar coincidencias en sus menús.
+- Si la via especifica de un sitio no entrega nada, se recurre al extractor
+  general en vez de dar la pagina por ilegible.
+- Google Docs ya no cae en el extractor general ni subraya etiquetas como
+  "Pestanas del documento" cuando el lienzo no ofrece rangos DOM. En ese caso
+  la narracion continua y el seguimiento visual se degrada de forma segura a
+  la cápsula.
+- Los errores estructurados de ElevenLabs distinguen voz, modelo, permisos,
+  creditos y formato sin mostrar el cuerpo del proveedor ni reintentar.
+- Google Docs dibuja el documento en un canvas, de modo que su texto no esta en
+  el DOM y ninguna heuristica sobre elementos podia encontrarlo: el lector
+  acababa narrando la barra lateral. Ahora se pide la exportacion en texto
+  plano del propio documento, con la sesion del usuario.
+- En Google Docs el lector tomaba la interfaz en vez del documento. Se elegia
+  el primer campo editable del DOM, y el panel de pestañas del documento trae
+  uno antes que el lienzo del texto; ahora se toma el candidato visible con mas
+  contenido, que siempre es el cuerpo.
+- El modo lectura nunca reproducia: la bandera de montaje del panel solo se
+  ponia en false al desmontar y jamas volvia a true al remontar, de modo que el
+  ciclo del modo estricto la dejaba apagada y toda respuesta de sintesis se
+  descartaba. El audio si se generaba; se tiraba al llegar.
+- El modo lectura se quedaba en "generando audio" sin rastro cuando la
+  sintesis no devolvia audio: el flujo abandonaba en silencio y el estado nunca
+  se resolvia. Ahora ese caso lanza un error visible.
+- La narración del modo lectura ya no deja la cápsula generando durante
+  minutos: usa un microlote inicial de hasta 180 caracteres, lotes posteriores
+  de hasta 480 y cancela cada solicitud lenta a los 20 segundos con un error
+  recuperable.
+- La deteccion de la seleccion ya no depende de `input-event`, que puede no
+  emitirse para una vista nativa. Cada marco instala un vigia que avisa por
+  consola al cambiar la seleccion, y ese aviso llega siempre al proceso
+  principal. Tambien cubre seleccionar con teclado.
+- La cápsula del modo lectura ya no usa `innerHTML`: sus controles DOM/SVG se
+  construyen nodo por nodo, por lo que funciona en Gmail y otros sitios que
+  exigen Trusted Types sin relajar su CSP ni llenar la consola de errores.
+- El encabezado del navegador recupera el orden de cualquier navegador: las
+  pestañas arriba y la barra de direcciones debajo. Se habia invertido, y los
+  gestores habian vuelto a ocupar una fila propia en vez del menu desplegable.
+- El modo lectura ya no reserva una franja ni redimensiona la pagina. Sus
+  controles aparecen en una capsula flotante, redondeada y anclada sobre el
+  texto seleccionado; al acercarse a un borde cambia de lado y permanece dentro
+  del viewport.
+- La narracion de documentos largos comienza con un fragmento corto y, mientras
+  se reproduce, anticipa hasta dos fragmentos posteriores. Las solicitudes se
+  deduplican y se cancelan al detener o cerrar para reducir latencia y consumo.
+- El asa para ajustar el ancho del panel de SofLIA volvia a verse solo con el
+  panel a la derecha. El desplazamiento era fijo hacia la derecha, asi que con
+  el panel a la izquierda el asa caia bajo la vista nativa del navegador, que
+  se compone por encima del renderer. Ahora se refleja segun el lado.
+- La seleccion se busca ahora en todos los marcos de la pagina. En Gmail, Docs
+  o cualquier app compuesta el texto marcado vive dentro de un iframe, y leer
+  solo el documento principal devolvia vacio: el chip no llegaba a aparecer.
+- Se sincronizaron el inventario de pruebas, el catalogo IPC y los dobles de
+  prueba del navegador con los canales del modo lectura en curso.
+- El lector conserva la sesion y la pestaña nativa al abrirse o cerrarse, cancela
+  generaciones obsoletas y no envia el documento al proveedor de voz hasta que
+  el usuario solicita reproducirlo.
+
+### Removed
+- Se retiro la descarga de audio del modo lectura: no quedan boton, canal IPC,
+  escritura nativa ni cache main asociada. El MP3 solo se usa como transporte
+  transitorio para la reproduccion.
+- Se retiraron Google Cloud Text-to-Speech y las variables
+  `VITE_GOOGLE_CLOUD_TTS_*`/`VITE_CHAT_TTS_PROVIDER` del runtime y release.
 
 ## [0.9.5] - 2026-08-06
 

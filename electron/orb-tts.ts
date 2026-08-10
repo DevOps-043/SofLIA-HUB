@@ -1,91 +1,72 @@
-// =============================================================================
-// Pulse Hub - Voz de la orbe (Google Cloud Text-to-Speech) — Main Process
-// =============================================================================
-// La sintesis vive en main y NO en el renderer por dos motivos:
-//   1. Fiabilidad: main tiene TODAS las variables del .env (dotenv). El renderer
-//      solo ve las que Vite expone, y la key de TTS se quedaba fuera: caia a otra
-//      key cuyo proyecto no tiene habilitada la API (403) y la voz no sonaba.
-//   2. Seguridad: la API key nunca viaja al renderer.
-// =============================================================================
-import https from 'node:https';
+import {
+  ELEVENLABS_TTS_MAX_CHARS,
+  elevenLabsProviderError,
+  requestElevenLabsSpeech,
+} from './elevenlabs-tts';
+import { prepareSpeechText } from './speech-text-normalizer';
 
-const TTS_HOST = 'texttospeech.googleapis.com';
-const TTS_PATH = '/v1/text:synthesize';
-const DEFAULT_VOICE = 'es-US-Chirp3-HD-Aoede';
-const DEFAULT_LANGUAGE = 'es-US';
+export const ORB_SPEECH_TIMEOUT_MS = 30_000;
+export const ORB_SPEECH_MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
 
 export interface OrbSpeechAudio {
-  /** WAV (LINEAR16) en base64, tal cual lo devuelve Google. */
   audioBase64: string;
-  voice: string;
+  mimeType: 'audio/mpeg';
+  voiceId: string;
+  modelId: string;
 }
 
-// Solo variables con prefijo VITE_: son las unicas que el build incrusta en el
-// proceso main (vite.config -> loadEnv("VITE_") -> define). Sin ese prefijo la
-// variable queda undefined en la app instalada (no se empaqueta ningun .env).
-function getTtsConfig(): { apiKey: string; voice: string; languageCode: string } {
-  const apiKey = process.env.VITE_GOOGLE_CLOUD_TTS_API_KEY
-    || process.env.VITE_GEMINI_API_KEY
-    || '';
-  const voice = process.env.VITE_GOOGLE_CLOUD_TTS_VOICE
-    || DEFAULT_VOICE;
-  const languageCode = process.env.VITE_GOOGLE_CLOUD_TTS_LANGUAGE
-    || voice.split('-').slice(0, 2).join('-')
-    || DEFAULT_LANGUAGE;
-  return { apiKey, voice, languageCode };
-}
-
-let configLogged = false;
-
-/** Sintetiza texto con Google Cloud TTS. Devuelve el WAV en base64. */
+/** Sintetiza la voz de la Orbe con ElevenLabs sin exponer la credencial al renderer. */
 export async function synthesizeOrbSpeech(text: string): Promise<OrbSpeechAudio> {
-  const { apiKey, voice, languageCode } = getTtsConfig();
-  if (!apiKey) {
-    throw new Error('Falta VITE_GOOGLE_CLOUD_TTS_API_KEY en el .env para la voz de SofLIA.');
-  }
-  if (!configLogged) {
-    configLogged = true;
-    console.log(`[OrbTTS] Voz de Google Cloud: ${voice} (${languageCode})`);
+  const speech = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!speech) throw new Error('No hay texto que sintetizar.');
+  if (speech.length > ELEVENLABS_TTS_MAX_CHARS) {
+    throw new Error(`La voz admite hasta ${ELEVENLABS_TTS_MAX_CHARS} caracteres por solicitud.`);
   }
 
-  const payload = JSON.stringify({
-    input: { text },
-    voice: { languageCode, name: voice },
-    // Sin sampleRateHertz: Google entrega la tasa nativa de la voz (mejor calidad).
-    audioConfig: { audioEncoding: 'LINEAR16' },
-  });
-
-  const body = await postJson(`${TTS_PATH}?key=${apiKey}`, payload);
-  const parsed = JSON.parse(body) as { audioContent?: string; error?: { message?: string } };
-  if (parsed.error?.message) throw new Error(parsed.error.message);
-  if (!parsed.audioContent) throw new Error('Google Cloud TTS no devolvio audio.');
-  return { audioBase64: parsed.audioContent, voice };
+  const controller = new AbortController();
+  const prepared = prepareSpeechText(speech, 'es');
+  const timeout = setTimeout(() => controller.abort(), ORB_SPEECH_TIMEOUT_MS);
+  try {
+    const { response, config } = await requestElevenLabsSpeech({
+      text: prepared.text,
+      withTimestamps: false,
+      signal: controller.signal,
+      languageCode: 'es',
+    });
+    if (!response.ok) {
+      const detail = await readErrorDetail(response);
+      throw new Error(elevenLabsProviderError(response.status, detail));
+    }
+    const contentLength = Number(response.headers.get('content-length') || '0');
+    if (Number.isFinite(contentLength) && contentLength > ORB_SPEECH_MAX_RESPONSE_BYTES) {
+      throw new Error('ElevenLabs devolvió un audio fuera de rango.');
+    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (!buffer.length || buffer.length > ORB_SPEECH_MAX_RESPONSE_BYTES) {
+      throw new Error('ElevenLabs devolvió un audio fuera de rango.');
+    }
+    return {
+      audioBase64: buffer.toString('base64'),
+      mimeType: 'audio/mpeg',
+      voiceId: config.voiceId,
+      modelId: config.modelId,
+    };
+  } catch (error) {
+    // El vencimiento del plazo es un desenlace propio, no el sintoma de `error`.
+    // eslint-disable-next-line preserve-caught-error
+    if (controller.signal.aborted) throw new Error('Tiempo agotado al sintetizar la voz con ElevenLabs.');
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
-// Conexion reutilizable: sin keep-alive cada bloque de voz pagaba un handshake
-// TLS completo, sumando latencia entre frases durante una misma respuesta.
-const ttsAgent = new https.Agent({ keepAlive: true, maxSockets: 4 });
-
-function postJson(path: string, payload: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const request = https.request({
-      host: TTS_HOST,
-      path,
-      method: 'POST',
-      agent: ttsAgent,
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload),
-      },
-      timeout: 30_000,
-    }, (response) => {
-      const chunks: Buffer[] = [];
-      response.on('data', (chunk: Buffer) => chunks.push(chunk));
-      response.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-    });
-    request.on('timeout', () => request.destroy(new Error('Timeout al sintetizar la voz.')));
-    request.on('error', reject);
-    request.write(payload);
-    request.end();
-  });
+async function readErrorDetail(response: Response): Promise<unknown> {
+  const text = (await response.text()).slice(0, 16_384);
+  try {
+    const payload = JSON.parse(text) as { detail?: unknown };
+    return payload.detail;
+  } catch {
+    return undefined;
+  }
 }

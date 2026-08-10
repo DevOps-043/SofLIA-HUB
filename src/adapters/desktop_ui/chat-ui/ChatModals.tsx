@@ -1,33 +1,33 @@
 import { ConfirmActionModal } from '../../../components/ConfirmActionModal';
-import { ToolEditorModal } from '../../../components/ToolEditorModal';
-import { ToolLibrary } from '../../../components/ToolLibrary';
+import { SkillEditorModal } from '../../../components/skills-settings/SkillEditorModal';
+import { SkillLibrary } from '../../../components/SkillLibrary';
 import { ImageZoomModal } from './ImageZoomModal';
 import type { ChatUIController } from './useChatUIController';
 
 export function ChatModals({ controller }: { controller: ChatUIController }) {
-  const modals = controller.state.toolModals;
+  const modals = controller.state.skillModals;
   const confirmation = controller.state.confirmation;
 
-  const closeToolEditor = () => {
+  const closeSkillEditor = () => {
     modals.setEditorOpen(false);
-    modals.setEditingTool(null);
+    modals.setEditingSkill(null);
     modals.setSavePromptText('');
   };
 
   return (
     <>
-      <ToolEditorModal
+      <SkillEditorModal
         isOpen={modals.editorOpen}
-        tool={modals.editingTool}
-        initialPromptText={modals.savePromptText}
-        onClose={closeToolEditor}
-        onSave={closeToolEditor}
+        skill={modals.editingSkill}
+        initialInstructions={modals.savePromptText}
+        onClose={closeSkillEditor}
+        onSaved={closeSkillEditor}
       />
-      <ToolLibrary
+      <SkillLibrary
         isOpen={modals.libraryOpen}
         onClose={() => modals.setLibraryOpen(false)}
-        onUseTool={controller.tools.handleUseTool}
-        onEditTool={controller.tools.handleEditTool}
+        onUseSkill={(skill) => void controller.tools.handleUseSkill(skill)}
+        onEditSkill={controller.tools.handleEditSkill}
       />
       <ImageZoomModal image={controller.state.images.zoomed} onClose={() => controller.state.images.setZoomed(null)} />
       <ConfirmActionModal

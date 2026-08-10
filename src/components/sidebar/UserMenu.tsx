@@ -64,27 +64,31 @@ export function UserMenu({
   };
 
   return (
-    <div className="relative flex-shrink-0 border-t border-gray-200/70 p-2 dark:border-white/[0.06]">
+    <div className="relative flex-shrink-0 border-t border-gray-200/60 dark:border-white/10 p-2" style={{ fontFamily: 'var(--font-system-ui)' }}>
       {/* Trigger button */}
       <button
+        type="button"
         onClick={() => {
           if (!sidebarOpen && onToggleSidebar) {
             onToggleSidebar();
           }
           setIsMenuOpen((open) => !open);
         }}
-        className={`flex min-h-10 w-full items-center rounded-2xl text-left transition-all hover:bg-[#0A2540]/5 dark:hover:bg-white/[0.05] ${
-          sidebarOpen ? 'gap-2.5 px-2' : 'justify-center px-0'
+        aria-haspopup="menu"
+        aria-expanded={isMenuOpen}
+        aria-label={`Menú de usuario. Usuario actual: ${displayName}`}
+        className={`flex min-h-[2.25rem] w-full items-center rounded-xl text-left transition-all duration-150 hover:bg-gray-100/80 dark:hover:bg-white/[0.06] focus:outline-none ${
+          sidebarOpen ? 'gap-2.5 px-2 py-1' : 'justify-center px-0 py-1'
         }`}
         title={orgName || displayName}
       >
         <OrgAvatar avatarUrl={avatarUrl} displayName={displayName} initials={initials} orgLogoUrl={orgLogoUrl} />
         {sidebarOpen && (
           <div className="flex min-w-0 flex-1 items-center gap-1">
-            <span className="min-w-0 flex-1 truncate text-[14px] font-bold text-[#0A2540] dark:text-white">
+            <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[#0A2540] dark:text-white/90">
               {orgName || displayName}
             </span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 text-gray-400 transition-transform duration-200 dark:text-white/30 ${isMenuOpen ? 'rotate-180' : ''}`}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={`shrink-0 text-gray-400 dark:text-white/40 transition-transform duration-200 ${isMenuOpen ? 'rotate-180 text-accent' : ''}`}>
               <polyline points="6 9 12 15 18 9" />
             </svg>
           </div>
@@ -234,14 +238,18 @@ function OrgAvatar({
 }) {
   if (orgLogoUrl) {
     return (
-      <div className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-xl bg-white shadow-[inset_0_0_0_1px_rgba(10,37,64,0.08)] dark:bg-white/[0.05] dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]">
+      <div className="grid h-9.5 w-9.5 shrink-0 place-items-center overflow-hidden rounded-full bg-white ring-1 ring-gray-200 dark:bg-white/[0.08] dark:ring-white/15">
         <img src={orgLogoUrl} alt="Logo organizacion" className="h-full w-full object-contain p-1" />
       </div>
     );
   }
 
   return (
-    <div className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-xl bg-[#0A2540]/10 text-[11px] font-bold text-[#0A2540] dark:bg-accent/10 dark:text-accent" title={displayName}>
+    <div
+      className="grid h-9.5 w-9.5 shrink-0 place-items-center overflow-hidden rounded-full bg-accent/15 text-[12.5px] font-bold text-accent dark:bg-accent/20 dark:text-accent ring-1 ring-accent/30"
+      style={{ fontFamily: 'var(--font-system-label)' }}
+      title={displayName}
+    >
       {avatarUrl ? <img src={avatarUrl} alt="Usuario" className="h-full w-full object-cover" /> : initials}
     </div>
   );

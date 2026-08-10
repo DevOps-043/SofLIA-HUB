@@ -30,6 +30,12 @@ export interface AuthContextType {
   liaStatusMessage: string | null;
   retryConversations: () => Promise<boolean>;
   signInWithSofia: (email: string, password: string) => Promise<SofiaAuthResult>;
+  /** Inicio federado con SofLIA Learning; false cuando el interruptor esta apagado. */
+  learningSsoAvailable: boolean;
+  signInWithLearningSso: () => Promise<void>;
+  cancelLearningSso: () => void;
+  ssoPending: boolean;
+  ssoError: string | null;
   setCurrentOrganization: (orgId: string) => void;
   setCurrentTeam: (teamId: string) => void;
 }

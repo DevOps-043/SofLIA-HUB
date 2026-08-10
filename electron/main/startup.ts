@@ -28,6 +28,15 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
   modules.registerDriveHandlers(services.driveService, () => state.win);
   modules.registerGChatHandlers(services.gchatService, () => state.win);
   modules.registerIntegratedBrowserHandlers(services.integratedBrowserService, () => state.win);
+  // Espacio de trabajo de Skills y protocolo local de presentaciones. El
+  // protocolo se registra aqui (post `app.ready`); el ESQUEMA se declara
+  // antes de ready en el bootstrap, que es donde Electron lo exige.
+  // El agente de WhatsApp entra por su propia cadena de comandos y no recibe
+  // servicios por inyeccion: comparte esta instancia para no abrir un segundo
+  // indice sobre el mismo directorio.
+  modules.setSkillWorkspaceService(services.skillWorkspaceService);
+  modules.registerSkillWorkspaceHandlers(services.skillWorkspaceService, () => state.win);
+  modules.registerPresentationProtocolHandler(services.skillWorkspaceService);
   modules.registerDesktopAgentHandlers(services.desktopAgentService);
   // Skills ejecutables (Fase 3): el motor de ejecución con HITL es Workspace Automation.
   modules.registerMemoryHandlers(services.memoryService, {

@@ -4,13 +4,24 @@ import { BaseWindow, WebContentsView, type BrowserWindow, type Rectangle, type W
 import { BrowserHistoryStore } from './browser-history-store';
 import { BrowserCredentialVault } from './credential-vault';
 import { BrowserExtensionManager } from './extension-manager';
+import { buildBrowserContextMenu, buildSelectionInstruction, MAX_SELECTION_CHARS } from './context-menu';
 import { collectIntegratedBrowserDom } from './page-observation';
 import { describeResolutionFailure, resolveBrowserElement, type BrowserElementTarget } from './page-interaction';
-import { configureIntegratedBrowserPermissions } from './permission-governance';
+import { IntegratedBrowserPermissionGovernance } from './permission-governance';
+import { BrowserSitePermissionStore } from './site-permissions';
+import { pickDisplayMediaSource } from './display-media-picker';
+import { BrowserReadingModeService, type BrowserReadingSpeechResult } from './reading-mode-service';
+import type {
+  BrowserReadingContent,
+  BrowserReadingPrepareInput,
+  BrowserReadingToolbarAction,
+  BrowserReadingToolbarState,
+} from './reading-mode-content';
 import {
   INTEGRATED_BROWSER_AGENT_VIEWPORT_TIMEOUT_MS,
   INTEGRATED_BROWSER_BACKDROP_QUALITY,
   INTEGRATED_BROWSER_DEFER_THROTTLE_MS,
+  SELECTION_PROBE_DELAY_MS,
   INTEGRATED_BROWSER_HOME,
   INTEGRATED_BROWSER_MAX_DETACHED_WINDOWS,
   INTEGRATED_BROWSER_MAX_LIVE_TABS,
@@ -30,6 +41,9 @@ import {
   type BrowserInteractionOutcome,
   type BrowserObservationSnapshot,
   type BrowserObservationStatus,
+  type BrowserSitePermissionKind,
+  type BrowserSitePermissionState,
+  type BrowserSitePermissionSummary,
   type IntegratedBrowserState,
   type IntegratedBrowserTabState,
   type IntegratedBrowserViewMode,
@@ -80,10 +94,16 @@ export class IntegratedBrowserService extends EventEmitter {
   private secondaryTabId: string | null = null;
   private viewMode: IntegratedBrowserViewMode = 'single';
   private overlayTopTabId: string | null = null;
+  private customOverlayBounds: Rectangle | null = null;
   private viewport: Rectangle | null = null;
   private visible = false;
   private agentControlling = false;
-  private permissionCleanup: (() => void) | null = null;
+  private permissions: IntegratedBrowserPermissionGovernance | null = null;
+  /** Pestaña que pidio pantalla completa a la pagina, si hay alguna. */
+  private fullscreenTabId: string | null = null;
+  /** Estado de la ventana anfitriona antes de entrar en pantalla completa. */
+  private fullscreenRestore: { window: BaseWindow | BrowserWindow; wasFullScreen: boolean } | null = null;
+  private pictureInPictureWindows = new Set<BrowserWindow>();
   private viewportWaiters = new Set<ViewportWaiter>();
   private extensionsRestored = false;
   private observationEnabled = true;
@@ -102,8 +122,45 @@ export class IntegratedBrowserService extends EventEmitter {
     private readonly historyStore = new BrowserHistoryStore(),
     private readonly credentialVault = new BrowserCredentialVault(),
     private readonly extensionManager = new BrowserExtensionManager(),
+    private readonly readingModeService = new BrowserReadingModeService(),
+    private readonly sitePermissionStore = new BrowserSitePermissionStore(),
   ) {
     super();
+  }
+
+  /** Permisos del origen que ocupa la pestaña activa, para el panel del sitio. */
+  async getSitePermissions(): Promise<BrowserSitePermissionSummary> {
+    const url = this.getActiveTab()?.url ?? '';
+    if (!this.permissions) {
+      return { origin: null, url, secure: false, permissions: [] };
+    }
+    return this.permissions.getSummary(url);
+  }
+
+  async setSitePermission(input: {
+    origin?: unknown;
+    kind?: unknown;
+    state?: unknown;
+  }): Promise<BrowserSitePermissionSummary> {
+    if (!this.permissions) throw new Error('El navegador no esta iniciado.');
+    const origin = typeof input.origin === 'string' && input.origin
+      ? input.origin
+      : this.getActiveTab()?.url ?? '';
+    await this.permissions.setPermission(
+      origin,
+      input.kind as BrowserSitePermissionKind,
+      input.state as BrowserSitePermissionState,
+    );
+    return this.permissions.getSummary(origin);
+  }
+
+  async resetSitePermissions(input: { origin?: unknown } = {}): Promise<BrowserSitePermissionSummary> {
+    if (!this.permissions) throw new Error('El navegador no esta iniciado.');
+    const origin = typeof input.origin === 'string' && input.origin
+      ? input.origin
+      : this.getActiveTab()?.url ?? '';
+    await this.permissions.resetOrigin(origin);
+    return this.permissions.getSummary(origin);
   }
 
   attachWindow(window: BrowserWindow): void {
@@ -126,8 +183,11 @@ export class IntegratedBrowserService extends EventEmitter {
   detachWindow(expectedWindow?: BrowserWindow): void {
     if (expectedWindow && this.parentWindow !== expectedWindow) return;
     this.rejectViewportWaiters(new Error('La ventana principal se cerro antes de mostrar el navegador.'));
-    this.permissionCleanup?.();
-    this.permissionCleanup = null;
+    this.permissions?.dispose();
+    this.permissions = null;
+    this.closePictureInPictureWindows();
+    this.fullscreenTabId = null;
+    this.fullscreenRestore = null;
     if (this.parentWindow && this.mainWindowFocusHandler) {
       this.parentWindow.removeListener('focus', this.mainWindowFocusHandler);
     }
@@ -152,6 +212,11 @@ export class IntegratedBrowserService extends EventEmitter {
     this.visible = false;
     this.agentControlling = false;
     this.stopObservationTimer();
+    if (this.selectionProbeTimer) {
+      clearTimeout(this.selectionProbeTimer);
+      this.selectionProbeTimer = null;
+    }
+    this.lastReportedSelection = '';
     this.latestObservation = null;
     this.observationInFlight = null;
     this.observationInFlightTarget = null;
@@ -159,6 +224,7 @@ export class IntegratedBrowserService extends EventEmitter {
     this.visualCaptureInFlight = null;
     this.visualCaptureInFlightTarget = null;
     this.observationLastError = null;
+    this.readingModeService.dispose();
   }
 
   getState(): IntegratedBrowserState {
@@ -179,6 +245,10 @@ export class IntegratedBrowserService extends EventEmitter {
       primaryTabId: this.primaryTabId,
       secondaryTabId: this.viewMode === 'single' ? null : this.secondaryTabId,
       viewMode: this.viewMode,
+      // El renderer necesita saberlo para retirar su barra y su chat: en
+      // pantalla completa la vista nativa los cubre y quedarian pintados
+      // debajo, capturando clics que el usuario ya no ve.
+      isFullscreen: this.fullscreenTabId !== null,
     };
   }
 
@@ -351,6 +421,25 @@ export class IntegratedBrowserService extends EventEmitter {
     return this.getState();
   }
 
+  reorderTabs(rawSourceId: unknown, rawTargetId: unknown): IntegratedBrowserState {
+    const sourceId = this.requireTabId(rawSourceId);
+    const targetId = this.requireTabId(rawTargetId);
+    if (sourceId === targetId) return this.getState();
+
+    const entries = Array.from(this.tabs.entries());
+    const sourceIndex = entries.findIndex(([id]) => id === sourceId);
+    const targetIndex = entries.findIndex(([id]) => id === targetId);
+
+    if (sourceIndex === -1 || targetIndex === -1) return this.getState();
+
+    const [movedEntry] = entries.splice(sourceIndex, 1);
+    entries.splice(targetIndex, 0, movedEntry);
+
+    this.tabs = new Map(entries);
+    this.emitState();
+    return this.getState();
+  }
+
   async setViewMode(rawMode: unknown, rawSecondaryTabId?: unknown): Promise<IntegratedBrowserState> {
     const mode = this.parseViewMode(rawMode);
     this.ensureView();
@@ -373,10 +462,62 @@ export class IntegratedBrowserService extends EventEmitter {
       if (!secondaryTabId) throw new Error('No se pudo preparar la segunda pestaña.');
       this.primaryTabId = this.activeTabId;
       this.secondaryTabId = secondaryTabId;
-      this.viewMode = mode;
+      this.viewMode = mode === 'overlay' ? 'split' : mode;
+      this.customOverlayBounds = null;
     }
     this.applyViewLayout();
     this.emitState();
+    return this.getState();
+  }
+
+  public setOverlayBounds(bounds: Rectangle): IntegratedBrowserState {
+    if (this.viewMode === 'overlay' && this.secondaryTabId) {
+      this.customOverlayBounds = bounds;
+      const secondary = this.tabs.get(this.secondaryTabId);
+      if (secondary && secondary.view && this.viewport) {
+        this.applyTabBounds(secondary, secondary.view, {
+          x: this.viewport.x + bounds.x,
+          y: this.viewport.y + bounds.y + 32,
+          width: Math.max(160, bounds.width),
+          height: Math.max(100, bounds.height - 32),
+        });
+      }
+    }
+    return this.getState();
+  }
+
+  public setOverlayPosition(pos: string): IntegratedBrowserState {
+    if (this.viewMode === 'overlay' && this.secondaryTabId && this.viewport) {
+      const margin = 12;
+      let w = Math.min(Math.max(360, Math.round(this.viewport.width * 0.40)), this.viewport.width - margin * 2);
+      let h = Math.max(200, this.viewport.height - margin * 2);
+
+      if (pos === 'horizontal') {
+        w = Math.min(Math.max(480, Math.round(this.viewport.width * 0.55)), this.viewport.width - margin * 2);
+        h = Math.min(Math.max(300, Math.round(this.viewport.height * 0.50)), this.viewport.height - margin * 2);
+      }
+
+      let x = this.viewport.width - w - margin;
+      let y = margin;
+
+      if (pos === 'top-left' || pos === 'vertical-left') {
+        x = margin;
+        y = margin;
+      } else if (pos === 'bottom-right') {
+        x = this.viewport.width - w - margin;
+        y = this.viewport.height - h - margin;
+      } else if (pos === 'bottom-left') {
+        x = margin;
+        y = this.viewport.height - h - margin;
+      } else if (pos === 'center' || pos === 'vertical-center') {
+        x = Math.round((this.viewport.width - w) / 2);
+        y = margin;
+      }
+
+      this.customOverlayBounds = { x, y, width: w, height: h };
+      this.applyViewLayout();
+      this.emitState();
+    }
     return this.getState();
   }
 
@@ -401,6 +542,45 @@ export class IntegratedBrowserService extends EventEmitter {
     this.latestVisualCapture = null;
     this.emitState();
     return this.getState();
+  }
+
+  async prepareReadingMode(request: BrowserReadingPrepareInput): Promise<BrowserReadingContent> {
+    const active = this.getActiveTab();
+    const contents = active?.view?.webContents;
+    if (!active || !contents || contents.isDestroyed()) {
+      throw new Error('La pestaña activa no está disponible para lectura.');
+    }
+    // Si el usuario tiene texto marcado, eso es lo que quiere escuchar. Solo se
+    // recurre al documento completo cuando no hay seleccion viva.
+    const solicitud = request.selection?.trim()
+      ? request
+      : { ...request, selection: await this.readSelectionText(contents) };
+    if (solicitud.selection) selectionLog(`modo lectura sobre la seleccion (${solicitud.selection.length} chars)`);
+    return this.readingModeService.prepare({ contents, tabId: active.id, request: solicitud });
+  }
+
+  synthesizeReadingSegment(input: { readingId: string; requestId: string; start: number; end: number }): Promise<BrowserReadingSpeechResult> {
+    return this.readingModeService.synthesize(input);
+  }
+
+  highlightReadingRange(input: { readingId: string; start?: number; end?: number }): Promise<{ highlighted: boolean }> {
+    return this.readingModeService.highlight(input);
+  }
+
+  waitForReadingToolbarAction(input: { readingId: string }): Promise<BrowserReadingToolbarAction> {
+    return this.readingModeService.waitForToolbarAction(input);
+  }
+
+  syncReadingToolbar(input: BrowserReadingToolbarState): Promise<{ toolbarVisible: boolean }> {
+    return this.readingModeService.syncToolbar(input);
+  }
+
+  cancelReadingSpeech(input: { readingId: string; requestId?: string }): { canceled: number } {
+    return this.readingModeService.cancel(input);
+  }
+
+  closeReadingMode(input: { readingId: string }): Promise<{ closed: boolean }> {
+    return this.readingModeService.close(input);
   }
 
   /**
@@ -512,6 +692,16 @@ export class IntegratedBrowserService extends EventEmitter {
    * viajaba por IPC como varios megabytes en cada apertura de la barra.
    */
   async captureVisiblePage(): Promise<string> {
+    return (await this.captureVisibleBackdrop()).screenshot;
+  }
+
+  /**
+   * Captura y el rectangulo exacto que ocupaba la vista al tomarla. El
+   * renderer usa el respaldo mientras oculta la vista nativa para desplegar un
+   * panel encima; sin el rectangulo lo estiraba al contenedor disponible y la
+   * pagina aparecia ampliada durante ese instante.
+   */
+  async captureVisibleBackdrop(): Promise<{ screenshot: string; bounds: Rectangle }> {
     const active = this.getActiveTab();
     if (!active || !this.isTabVisible(active)) throw new Error('El navegador integrado no esta visible.');
     const contents = this.getWebContentsForAgent();
@@ -519,7 +709,72 @@ export class IntegratedBrowserService extends EventEmitter {
     if (image.isEmpty()) throw new Error('La captura del navegador integrado esta vacia.');
     const bounds = this.requireTabView(active).getBounds();
     const logicalEdge = Math.max(1, bounds.width, bounds.height);
-    return encodeBrowserCapture(image, logicalEdge, INTEGRATED_BROWSER_BACKDROP_QUALITY);
+    return {
+      screenshot: encodeBrowserCapture(image, logicalEdge, INTEGRATED_BROWSER_BACKDROP_QUALITY),
+      bounds,
+    };
+  }
+
+  /**
+   * Devuelve un resumen instantáneo de cada pestaña abierta (id, url, título, isCurrent).
+   * No recorre el DOM de forma síncrona para no ralentizar la apertura del menú flotante.
+   */
+  getTabSummaries(): Array<{
+    tabId: string;
+    url: string;
+    title: string;
+    isCurrent: boolean;
+    text: string;
+  }> {
+    const summaries: Array<{
+      tabId: string;
+      url: string;
+      title: string;
+      isCurrent: boolean;
+      text: string;
+    }> = [];
+
+    for (const tab of this.tabs.values()) {
+      const isCurrent = tab.id === this.activeTabId;
+      summaries.push({
+        tabId: tab.id,
+        url: sanitizeStateUrl(tab.view?.webContents.getURL() ?? tab.url ?? 'about:blank'),
+        title: tab.title || 'Nueva pestaña',
+        isCurrent,
+        text: '',
+      });
+    }
+    return summaries;
+  }
+
+  /**
+   * Obtiene el contenido DOM completo de una pestaña específica bajo demanda cuando es seleccionada.
+   */
+  async getTabContent(tabId: string): Promise<{
+    tabId: string;
+    url: string;
+    title: string;
+    text: string;
+  }> {
+    const tab = this.tabs.get(tabId);
+    if (!tab) {
+      return { tabId, url: '', title: '', text: '' };
+    }
+    let text = '';
+    if (tab.view && !tab.view.webContents.isDestroyed()) {
+      try {
+        const dom = await collectIntegratedBrowserDom(tab.view.webContents);
+        text = dom.text;
+      } catch {
+        // Fallback si la pestaña está inaccesible o cargando
+      }
+    }
+    return {
+      tabId: tab.id,
+      url: sanitizeStateUrl(tab.view?.webContents.getURL() ?? tab.url ?? 'about:blank'),
+      title: tab.title || 'Nueva pestaña',
+      text,
+    };
   }
 
   getObservationStatus(): BrowserObservationStatus {
@@ -780,12 +1035,15 @@ export class IntegratedBrowserService extends EventEmitter {
     tab.appliedVisible = false;
     tab.appliedBounds = null;
     this.configureWebContents(tab);
-    if (!this.permissionCleanup) {
-      this.permissionCleanup = configureIntegratedBrowserPermissions({
+    if (!this.permissions) {
+      this.permissions = new IntegratedBrowserPermissionGovernance({
         session: view.webContents.session,
-        getBrowserContents: () => this.getWebContents(),
+        store: this.sitePermissionStore,
+        isBrowserContents: (contents) => this.isBrowserContents(contents),
         getParentWindow: () => this.parentWindow,
+        onChanged: () => this.sendToRenderer('integrated-browser:site-permissions-changed', {}),
       });
+      this.configureDisplayMedia(view.webContents.session);
     }
     if (!this.extensionsRestored) {
       this.extensionsRestored = true;
@@ -800,17 +1058,97 @@ export class IntegratedBrowserService extends EventEmitter {
     return view;
   }
 
+  /**
+   * `getDisplayMedia`. Sin este handler Electron rechaza la solicitud y el
+   * boton de presentar de Meet o Teams falla sin explicacion. El selector de
+   * origen es el consentimiento: no se comparte nada que el usuario no elija.
+   */
+  private configureDisplayMedia(session: WebContentsView['webContents']['session']): void {
+    session.setDisplayMediaRequestHandler(async (request, callback) => {
+      try {
+        const source = await pickDisplayMediaSource({
+          parentWindow: this.parentWindow,
+          audioRequested: request.audioRequested,
+        });
+        if (!source) {
+          // Electron exige responder siempre; un objeto vacio cancela la
+          // solicitud y la pagina recibe NotAllowedError, igual que al cerrar
+          // el selector de Chrome.
+          callback({});
+          return;
+        }
+        callback({
+          video: source.video,
+          // La captura de audio del sistema solo existe en Windows.
+          ...(source.withSystemAudio && process.platform === 'win32' ? { audio: 'loopback' as const } : {}),
+        });
+      } catch (error) {
+        this.recordError(error);
+        callback({});
+      }
+    }, { useSystemPicker: false });
+  }
+
   private configureWebContents(tab: BrowserTabRuntime): void {
     const { id: tabId } = tab;
     const view = this.requireTabView(tab);
     const contents = view.webContents;
     contents.setUserAgent(toStandardChromiumUserAgent(contents.getUserAgent()));
     const isCurrentView = () => tab.view === view && !contents.isDestroyed();
-    contents.setWindowOpenHandler(({ url }) => {
+    contents.setWindowOpenHandler((details) => {
       if (!isCurrentView()) return { action: 'deny' };
+      const { url } = details;
+      // Document Picture-in-Picture y los popups que la pagina rellena por
+      // script piden `about:blank`. Convertirlos en pestañas dejaba pestañas
+      // vacias y a la pagina esperando una ventana que nunca existio: es lo
+      // que dejaba a Google Meet con el area de la llamada en negro.
+      if (isBlankPopupTarget(url)) {
+        console.info('[Navegador][Ventana] Apertura sin destino permitida como ventana real.');
+        // Sin `webPreferences` propias: la ventana hereda las del abridor y
+        // conserva su proceso y su relacion `window.opener`. Fijarlas la
+        // colocaba en otro SiteInstance y el abridor perdia el acceso al
+        // documento hijo antes de que terminara de inicializarse.
+        return {
+          action: 'allow',
+          overrideBrowserWindowOptions: buildPopupWindowOptions(details),
+        };
+      }
       if (isAllowedBrowserUrl(url)) void this.createTab(url, true).catch((error) => this.recordError(error));
       else this.recordError(new Error('El sitio intento abrir un protocolo no permitido.'));
       return { action: 'deny' };
+    });
+    contents.on('did-create-window', (window) => {
+      this.adoptPictureInPictureWindow(window);
+    });
+    // Pantalla completa de la pagina. Chromium solo cambia su propio estado
+    // interno: la vista conserva los bounds del layout y la ventana su tamaño,
+    // asi que sin esto el video quedaba encerrado en el mismo recuadro.
+    contents.on('enter-html-full-screen', () => {
+      if (!isCurrentView()) return;
+      this.enterHtmlFullScreen(tabId);
+    });
+    contents.on('leave-html-full-screen', () => {
+      if (!isCurrentView()) return;
+      this.leaveHtmlFullScreen(tabId);
+    });
+    contents.on('context-menu', (_event, params) => {
+      if (!isCurrentView()) return;
+      buildBrowserContextMenu({
+        contents,
+        params,
+        pageTitle: tab.title,
+        onSelectionAction: (request) => this.sendToRenderer('integrated-browser:selection-action', {
+          action: request.action,
+          text: request.text,
+          title: request.title,
+          instruction: buildSelectionInstruction(request.action),
+        }),
+        onOpenReadingMode: (selection) => this.sendToRenderer('integrated-browser:reading-mode-requested', {
+          url: contents.getURL(),
+          title: tab.title,
+          selection,
+        }),
+      }).popup({ window: this.requireParentWindow() });
     });
     contents.on('will-navigate', (event) => {
       if (!isCurrentView()) return;
@@ -856,6 +1194,7 @@ export class IntegratedBrowserService extends EventEmitter {
     });
     contents.on('did-finish-load', () => {
       if (!isCurrentView()) return;
+      void this.installSelectionWatcher(contents);
       this.snapshotTab(tab);
       if (isAllowedBrowserUrl(tab.url)) tab.error = null;
       void this.historyStore.record({ url: contents.getURL(), title: contents.getTitle() }).catch((error) => {
@@ -868,8 +1207,25 @@ export class IntegratedBrowserService extends EventEmitter {
       this.deferPassiveCapture(tab);
       this.emitState();
     });
+    // La pagina avisa por consola cuando cambia su seleccion. Es el unico
+    // disparador que no depende de que Electron emita eventos de entrada para
+    // una vista nativa, y ademas cubre seleccionar con teclado o por script.
+    contents.on('console-message', (...args: unknown[]) => {
+      if (!isCurrentView()) return;
+      const detalle = args[0] as { message?: string } | undefined;
+      const mensaje = typeof detalle?.message === 'string' ? detalle.message : String(args[2] ?? '');
+      if (!mensaje.includes(SELECTION_BEACON)) return;
+      this.deferSelectionProbe(tab);
+    });
     contents.on('input-event', (_event, input) => {
-      if (!isCurrentView() || !isMeaningfulBrowserInput(input)) return;
+      if (!isCurrentView()) return;
+      // Al soltar el raton o el teclado puede haber terminado una seleccion:
+      // el chat la adjunta sola, sin pasar por el menu contextual.
+      if (input.type === 'mouseUp' || input.type === 'keyUp') {
+        selectionLog(`entrada ${input.type}: sondeo programado`);
+        this.deferSelectionProbe(tab);
+      }
+      if (!isMeaningfulBrowserInput(input)) return;
       this.deferPassiveCapture(tab);
     });
     contents.on('page-title-updated', () => {
@@ -923,6 +1279,11 @@ export class IntegratedBrowserService extends EventEmitter {
     this.emitState();
   }
 
+  private sendToRenderer(channel: string, payload: unknown): void {
+    const parent = this.parentWindow;
+    if (parent && !parent.isDestroyed()) parent.webContents.send(channel, payload);
+  }
+
   private emitState(): void {
     const state = this.getState();
     this.emit('state-changed', state);
@@ -935,6 +1296,19 @@ export class IntegratedBrowserService extends EventEmitter {
     if (!tab) return null;
     const view = this.requireTabView(tab);
     return view.webContents.isDestroyed() ? null : view.webContents;
+  }
+
+  // La particion del navegador es compartida por todas sus pestañas, incluidas
+  // la secundaria de la vista dividida y las ventanas separadas. Restringir los
+  // permisos a la pestaña activa dejaba sin camara ni microfono a las demas,
+  // aunque estuvieran visibles y en primer plano.
+  private isBrowserContents(contents: WebContents | null): boolean {
+    if (!contents || contents.isDestroyed()) return false;
+    for (const tab of this.tabs.values()) {
+      const candidate = tab.view?.webContents;
+      if (candidate && !candidate.isDestroyed() && candidate === contents) return true;
+    }
+    return false;
   }
 
   private getActiveTab(): BrowserTabRuntime | null {
@@ -965,7 +1339,94 @@ export class IntegratedBrowserService extends EventEmitter {
    * descartar su cuadro compuesto y a reiniciar la carga diferida, que es lo
    * que hacia que sitios como YouTube tardaran en pintar paneles y listas.
    */
+  /**
+   * Pantalla completa de la pagina, con el mismo alcance que un navegador de
+   * escritorio: la vista cubre la ventana anfitriona y la ventana pasa a
+   * pantalla completa del sistema. Al salir se restaura el estado anterior,
+   * incluido el caso de una ventana que ya estaba maximizada a pantalla
+   * completa por decision del usuario.
+   */
+  private enterHtmlFullScreen(tabId: string): void {
+    const tab = this.tabs.get(tabId);
+    if (!tab || this.fullscreenTabId === tabId) return;
+    const host = this.getTabHost(tab);
+    if (!host || host.isDestroyed()) return;
+    this.fullscreenTabId = tabId;
+    this.fullscreenRestore = { window: host, wasFullScreen: host.isFullScreen() };
+    if (!host.isFullScreen()) host.setFullScreen(true);
+    if (this.detachedWindows.has(tabId)) this.layoutDetachedTab(tabId);
+    else this.applyViewLayout();
+    this.emitState();
+  }
+
+  private leaveHtmlFullScreen(tabId: string): void {
+    if (this.fullscreenTabId !== tabId) return;
+    this.fullscreenTabId = null;
+    const restore = this.fullscreenRestore;
+    this.fullscreenRestore = null;
+    if (restore && !restore.window.isDestroyed() && !restore.wasFullScreen && restore.window.isFullScreen()) {
+      restore.window.setFullScreen(false);
+    }
+    // Los bounds memorizados corresponden a la pantalla completa; forzar el
+    // recalculo evita que la vista se quede cubriendo la barra y el chat.
+    const tab = this.tabs.get(tabId);
+    if (tab) tab.appliedBounds = null;
+    if (this.detachedWindows.has(tabId)) this.layoutDetachedTab(tabId);
+    else this.applyViewLayout();
+    this.emitState();
+  }
+
+  private applyFullScreenLayout(tab: BrowserTabRuntime): boolean {
+    const host = this.getTabHost(tab);
+    if (!host || host.isDestroyed()) return false;
+    const view = this.materializeTab(tab, true);
+    const bounds = host.getContentBounds();
+    this.hideWorkspaceTabsExcept(tab.id);
+    this.applyTabBounds(tab, view, { x: 0, y: 0, width: Math.max(1, bounds.width), height: Math.max(1, bounds.height) });
+    this.applyTabVisibility(tab, view, true);
+    return true;
+  }
+
+  /**
+   * Ventanas de Document Picture-in-Picture. Electron las crea con el aspecto
+   * de una ventana de aplicacion; se les quita el menu y se dejan siempre
+   * encima para que se comporten como el PiP de un navegador.
+   */
+  private adoptPictureInPictureWindow(window: BrowserWindow): void {
+    if (window.isDestroyed()) return;
+    this.pictureInPictureWindows.add(window);
+    // `setMenu` solo existe en Windows y Linux; en macOS el menu es de
+    // aplicacion y llamarlo aqui lanzaria.
+    if (process.platform !== 'darwin') window.setMenu(null);
+    // Solo el Picture-in-Picture se queda encima. Una ventana grande es un
+    // popup ordinario (inicio de sesion, transferencia de una llamada) y
+    // dejarla flotando sobre todo lo demas estorba al usuario.
+    const [width] = window.getSize();
+    if (width <= POPUP_ALWAYS_ON_TOP_MAX_WIDTH) window.setAlwaysOnTop(true, 'floating');
+    window.once('closed', () => this.pictureInPictureWindows.delete(window));
+    window.webContents.on('will-navigate', (event) => {
+      if (isAllowedBrowserUrl(event.url)) return;
+      event.preventDefault();
+    });
+  }
+
+  private closePictureInPictureWindows(): void {
+    for (const window of this.pictureInPictureWindows) {
+      if (!window.isDestroyed()) window.close();
+    }
+    this.pictureInPictureWindows.clear();
+  }
+
   private applyViewLayout(): void {
+    const fullscreenTab = this.fullscreenTabId ? this.tabs.get(this.fullscreenTabId) : null;
+    if (fullscreenTab && !this.detachedWindows.has(fullscreenTab.id) && this.visible) {
+      if (this.applyFullScreenLayout(fullscreenTab)) {
+        this.enforceLiveTabBudget();
+        return;
+      }
+      this.fullscreenTabId = null;
+      this.fullscreenRestore = null;
+    }
     if (!this.visible || !this.viewport) {
       this.hideWorkspaceTabsExcept();
       return;
@@ -1009,15 +1470,20 @@ export class IntegratedBrowserService extends EventEmitter {
         height: this.viewport.height,
       });
     } else {
-      const margin = Math.min(16, Math.max(0, Math.floor((this.viewport.width - 160) / 2)));
-      const overlayWidth = Math.min(Math.max(280, Math.round(this.viewport.width * 0.42)), Math.max(160, this.viewport.width - margin * 2));
-      const overlayHeight = Math.min(Math.max(220, Math.round(this.viewport.height * 0.48)), Math.max(120, this.viewport.height - margin * 2));
+      const margin = 12;
+      const defaultWidth = Math.min(Math.max(360, Math.round(this.viewport.width * 0.40)), Math.max(200, this.viewport.width - margin * 2));
+      const defaultHeight = Math.max(200, this.viewport.height - margin * 2);
+      const defaultX = this.viewport.width - defaultWidth - margin;
+      const defaultY = margin;
+
+      const eff = this.customOverlayBounds ?? { x: defaultX, y: defaultY, width: defaultWidth, height: defaultHeight };
+
       this.applyTabBounds(primary, primaryView, this.viewport);
       this.applyTabBounds(secondary, secondaryView, {
-        x: this.viewport.x + this.viewport.width - overlayWidth - margin,
-        y: this.viewport.y + margin,
-        width: overlayWidth,
-        height: overlayHeight,
+        x: this.viewport.x + eff.x,
+        y: this.viewport.y + eff.y + 32,
+        width: Math.max(160, eff.width),
+        height: Math.max(100, eff.height - 32),
       });
       if (this.overlayTopTabId !== secondary.id) {
         try {
@@ -1240,6 +1706,98 @@ export class IntegratedBrowserService extends EventEmitter {
    * decenas de veces por segundo. Extender la ventana de calma es barato;
    * reconstruir el temporizador en cada evento no lo es.
    */
+  /**
+   * Espera a que la seleccion se asiente antes de leerla: arrastrar el raton
+   * emite muchos eventos y solo interesa el resultado final.
+   */
+  /** Espera antes de leer la seleccion; evita releer en cada arrastre. */
+  private selectionProbeTimer: NodeJS.Timeout | null = null;
+  private lastReportedSelection = '';
+
+  /**
+   * Instala en cada marco un vigia que avisa por consola cuando cambia la
+   * seleccion. El aviso viaja por `console-message`, que el proceso principal
+   * siempre recibe, sin necesidad de preload ni de un canal IPC nuevo.
+   */
+  private async installSelectionWatcher(contents: WebContents): Promise<void> {
+    for (const marco of collectSelectableFrames(contents)) {
+      await marco.executeJavaScript(SELECTION_WATCHER_SCRIPT, true).catch((error: unknown) => {
+        selectionLog(`vigia no instalado en un marco: ${error instanceof Error ? error.message : String(error)}`);
+      });
+    }
+  }
+
+  private deferSelectionProbe(tab: BrowserTabRuntime): void {
+    // Los clics que sintetiza el agente no son una seleccion del usuario.
+    if (this.agentControlling) {
+      selectionLog('sondeo omitido: el agente controla el navegador');
+      return;
+    }
+    if (this.selectionProbeTimer) clearTimeout(this.selectionProbeTimer);
+    this.selectionProbeTimer = setTimeout(() => {
+      this.selectionProbeTimer = null;
+      void this.reportSelection(tab);
+    }, SELECTION_PROBE_DELAY_MS);
+  }
+
+  /**
+   * Adjunta al chat la seleccion viva de la pagina. Nunca la retira sola: si
+   * el usuario pasa al chat a escribir, el fragmento debe seguir a la vista;
+   * quitarlo es decision suya desde el chip.
+   */
+  private async reportSelection(tab: BrowserTabRuntime): Promise<void> {
+    const contents = tab.view?.webContents;
+    if (!contents || contents.isDestroyed()) return;
+    const texto = await this.readSelectionText(contents);
+    // Al deshacer la seleccion se avisa al chat para que retire el chip, y se
+    // olvida la ultima leida para poder volver a adjuntar el mismo fragmento.
+    if (!texto) {
+      if (!this.lastReportedSelection) return;
+      this.lastReportedSelection = '';
+      selectionLog('seleccion deshecha: se retira el adjunto');
+      this.sendToRenderer('integrated-browser:selection-action', {
+        action: 'ask',
+        text: '',
+        title: tab.title,
+        instruction: '',
+      });
+      return;
+    }
+    if (texto === this.lastReportedSelection) return;
+    this.lastReportedSelection = texto;
+    selectionLog(`seleccion enviada al chat (${texto.length} chars)`);
+    this.sendToRenderer('integrated-browser:selection-action', {
+      action: 'ask',
+      text: texto,
+      title: tab.title,
+      instruction: '',
+    });
+  }
+
+  /**
+   * Lee la seleccion recorriendo tambien los iframes: en Gmail, Docs o
+   * cualquier app compuesta, el texto marcado casi nunca vive en el documento
+   * principal. Devuelve la primera seleccion no vacia que encuentre.
+   */
+  private async readSelectionText(contents: WebContents): Promise<string> {
+    const marcos = collectSelectableFrames(contents);
+    let fallos = 0;
+    for (const marco of marcos) {
+      const crudo = await marco.executeJavaScript('(() => { const s = window.getSelection(); return s ? String(s) : ""; })()', true).catch((error: unknown) => {
+        fallos += 1;
+        selectionLog(`marco ilegible: ${error instanceof Error ? error.message : String(error)}`);
+        return '';
+      });
+      const texto = typeof crudo === 'string' ? crudo.trim() : '';
+      if (texto) {
+        selectionLog(`seleccion leida (${texto.length} chars) en ${marcos.length} marco(s)`);
+        return texto.slice(0, MAX_SELECTION_CHARS);
+      }
+    }
+    selectionLog(`sin seleccion en ${marcos.length} marco(s), ${fallos} ilegible(s)`);
+    return '';
+  }
+
   private deferPassiveCapture(tab: BrowserTabRuntime): void {
     const now = Date.now();
     const currentUrl = tab.view?.webContents.getURL() ?? tab.url;
@@ -1483,6 +2041,48 @@ function detachedWindowTitle(tab: BrowserTabRuntime): string {
   return `${title || 'Nueva pestaña'} · Navegador SofLIA`;
 }
 
+/**
+ * Un `window.open` sin destino: Document Picture-in-Picture y los popups que la
+ * pagina rellena por script. Necesitan una ventana real; convertirlos en
+ * pestañas rompe a quien los abrio.
+ */
+function isBlankPopupTarget(url: unknown): boolean {
+  return typeof url === 'string' && (url === '' || url === 'about:blank' || url === 'about:blank#blocked');
+}
+
+const POPUP_DEFAULT_WIDTH = 640;
+const POPUP_DEFAULT_HEIGHT = 480;
+const POPUP_MIN_EDGE = 180;
+const POPUP_MAX_EDGE = 2_048;
+/** Por encima de este ancho la ventana es un popup, no un Picture-in-Picture. */
+const POPUP_ALWAYS_ON_TOP_MAX_WIDTH = 700;
+
+function buildPopupWindowOptions(details: { features?: string }): Record<string, unknown> {
+  const features = parseWindowFeatures(details.features);
+  return {
+    width: clampWindowEdge(features.width, POPUP_DEFAULT_WIDTH),
+    height: clampWindowEdge(features.height, POPUP_DEFAULT_HEIGHT),
+    autoHideMenuBar: true,
+  };
+}
+
+function parseWindowFeatures(raw: unknown): { width?: number; height?: number } {
+  if (typeof raw !== 'string' || !raw) return {};
+  const parsed: { width?: number; height?: number } = {};
+  for (const part of raw.split(',')) {
+    const [name, value] = part.split('=').map((piece) => piece.trim().toLowerCase());
+    if (name !== 'width' && name !== 'height') continue;
+    const numeric = Number.parseInt(value ?? '', 10);
+    if (Number.isFinite(numeric)) parsed[name] = numeric;
+  }
+  return parsed;
+}
+
+function clampWindowEdge(value: number | undefined, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  return Math.min(POPUP_MAX_EDGE, Math.max(POPUP_MIN_EDGE, Math.round(value)));
+}
+
 type CredentialFieldTargets = {
   username?: { x: number; y: number } | null;
   password: { x: number; y: number };
@@ -1558,3 +2158,28 @@ function sanitizeStateUrl(value: string): string {
     return '';
   }
 }
+
+/** Tope de marcos a inspeccionar; una pagina anidada no debe costar una ronda cara. */
+const MAX_SELECTION_FRAMES = 12;
+
+interface SelectableFrame {
+  executeJavaScript(code: string, userGesture?: boolean): Promise<unknown>;
+}
+
+function collectSelectableFrames(contents: WebContents): SelectableFrame[] {
+  const principal = contents.mainFrame;
+  if (!principal) return [contents];
+  const subarbol = principal.framesInSubtree ?? [];
+  const marcos = subarbol.length > 0 ? subarbol : [principal];
+  return marcos.slice(0, MAX_SELECTION_FRAMES);
+}
+
+/** Traza del camino de la seleccion; sin ella los fallos por marco son invisibles. */
+function selectionLog(mensaje: string): void {
+  console.log('[Navegador][Seleccion] ' + mensaje);
+}
+
+/** Marca que la pagina emite por consola al cambiar su seleccion. */
+const SELECTION_BEACON = '__SOFLIA_SELECTION__';
+
+const SELECTION_WATCHER_SCRIPT = '(() => { if (window.__sofliaSelWatch) return true; window.__sofliaSelWatch = true; document.addEventListener("selectionchange", () => { clearTimeout(window.__sofliaSelTimer); window.__sofliaSelTimer = setTimeout(() => console.log("__SOFLIA_SELECTION__"), 180); }, true); return true; })()';

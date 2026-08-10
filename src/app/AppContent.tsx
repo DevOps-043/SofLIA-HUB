@@ -3,6 +3,7 @@ import { Auth } from '../components/Auth';
 import { AppLoadingScreen, type StartupLogoExitTarget } from './AppLoadingScreen';
 import { AppModals } from './AppModals';
 import { AppSidebar } from './AppSidebar';
+import { AppTitleBar } from '../components/ui/AppTitleBar';
 import { AppWorkspace } from './AppWorkspace';
 import { OrbWindowRoot } from './OrbWindowRoot';
 import type { ActiveView, ShareLinkNotice, ShareTarget } from './app-types';
@@ -22,7 +23,7 @@ import { useChatManager } from '../hooks/useChatManager';
 import { useFolderManager } from '../hooks/useFolderManager';
 import { useIrisData } from '../hooks/useIrisData';
 import { useTheme } from '../hooks/useTheme';
-import { integratedBrowserService } from '../services/integrated-browser-service';
+import { integratedBrowserService, type BrowserSelectionActionRequest } from '../services/integrated-browser-service';
 
 const STARTUP_INTRO_DURATION_MS = 4200;
 const STARTUP_AUTH_GRACE_MS = 700;
@@ -56,6 +57,7 @@ export function AppContent() {
   const [isBrowserWorkspaceOpen, setIsBrowserWorkspaceOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [externalPrompt, setExternalPrompt] = useState<string | null>(null);
+  const [externalSelection, setExternalSelection] = useState<BrowserSelectionActionRequest | null>(null);
   const [shareTarget, setShareTarget] = useState<ShareTarget | null>(null);
   const [shareLinkNotice, setShareLinkNotice] = useState<ShareLinkNotice | null>(null);
   const [userSettings, setUserSettings] = useState<UserAISettings | null>(null);
@@ -99,6 +101,12 @@ export function AppContent() {
     if (!user || !integratedBrowserService.isAvailable()) return undefined;
     return integratedBrowserService.subscribe({
       onOpenRequested: () => setIsBrowserWorkspaceOpen(true),
+      // El menu contextual adjunta la seleccion al compositor del chat; nunca
+      // envia el turno. El usuario escribe su peticion y decide cuando mandarla.
+      onSelectionAction: (request) => {
+        setIsBrowserWorkspaceOpen(true);
+        setExternalSelection(request);
+      },
     });
   }, [user]);
 
@@ -178,67 +186,71 @@ export function AppContent() {
   ) : isOrbWindow ? (
     <OrbWindowRoot key="orb-window" />
   ) : (
-    <div key="app-workspace" className={`flex h-screen w-screen overflow-hidden bg-background dark:bg-background-dark ${!isBrowserWorkspaceOpen && sidebarPosition === 'bottom' ? 'flex-col-reverse' : !isBrowserWorkspaceOpen && sidebarPosition === 'right' ? 'flex-row-reverse' : 'flex-row'
-      }`}>
-      {!isBrowserWorkspaceOpen && <AppSidebar
-        activeView={activeView}
-        browserOpen={isBrowserWorkspaceOpen}
-        auth={auth}
-        avatarUrl={derived.avatarUrl ?? undefined}
-        chat={chat}
-        displayName={derived.displayName}
-        folder={folder}
-        initials={derived.initials}
-        iris={iris}
-        isSidebarOpen={isSidebarOpen}
-        position={sidebarPosition}
-        onDeleteConversation={handlers.handleDeleteConversation}
-        onDeleteFolder={handlers.handleDeleteFolder}
-        onIrisIssueClick={handlers.handleIrisIssueClick}
-        onIrisProjectClick={handlers.handleIrisProjectClick}
-        onNewChat={handlers.handleNewChat}
-        onOpenProject={handlers.handleOpenProject}
-        onOpenSdo={() => setActiveView('sdo')}
-        onOpenMeetings={() => setActiveView('meetings')}
-        onOpenBrowser={() => setIsBrowserWorkspaceOpen(true)}
-        onOpenSettings={() => { setActiveSettingsTab('ai'); setIsUnifiedSettingsOpen(true); }}
-        onSelectConversation={handlers.handleSelectConversation}
-        onSignOut={signOut}
-        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
-        setTheme={setTheme}
-        theme={theme}
-      />}
-      <AppWorkspace
-        accessUserIds={accessUserIds}
-        activeView={activeView}
-        avatarUrl={derived.avatarUrl ?? undefined}
-        browserWorkspaceOpen={isBrowserWorkspaceOpen}
-        onCloseBrowserWorkspace={() => setIsBrowserWorkspaceOpen(false)}
-        chat={chat}
-        currentConversation={derived.currentConversation}
-        currentFolder={derived.currentFolder}
-        externalPrompt={externalPrompt}
-        folder={folder}
-        liaDegraded={liaDegraded}
-        liaStatusMessage={liaStatusMessage}
-        onRetryConversations={retryConversations}
-        onDeleteConversation={handlers.handleDeleteConversation}
-        onExternalPromptProcessed={() => setExternalPrompt(null)}
-        onMessagesChange={scopedMessagesHandler}
-        onNewChat={handlers.handleNewChat}
-        onNewChatInProject={handlers.handleNewChatInProject}
-        onNewChatWithMessage={handlers.handleNewChatWithMessage}
-        onSelectConversation={handlers.handleSelectConversation}
-        onOpenBrowser={() => setIsBrowserWorkspaceOpen(true)}
-        onOpenMeetings={() => { setIsBrowserWorkspaceOpen(false); setActiveView('meetings'); }}
-        onOpenSdo={() => { setIsBrowserWorkspaceOpen(false); setActiveView('sdo'); }}
-        orgId={orgId}
-        setShareTarget={setShareTarget}
-        shareLinkNotice={shareLinkNotice}
-        userId={userId}
-        userSettings={userSettings}
-      />
-      <AppModals folder={folder} movingChat={derived.movingChat} shareTarget={shareTarget} userId={userId} orgId={orgId} user={user} userSettings={userSettings} sofiaContext={sofiaContext} isUnifiedSettingsOpen={isUnifiedSettingsOpen} activeSettingsTab={activeSettingsTab} onSetShareTarget={setShareTarget} onSetUserSettings={setUserSettings} onSetUnifiedSettingsOpen={setIsUnifiedSettingsOpen} />
+    <div key="app-workspace" className="flex h-screen w-screen flex-col overflow-hidden bg-background dark:bg-background-dark">
+      {!isBrowserWorkspaceOpen && <AppTitleBar />}
+      <div className={`flex min-h-0 flex-1 w-full overflow-hidden ${!isBrowserWorkspaceOpen && sidebarPosition === 'bottom' ? 'flex-col-reverse' : !isBrowserWorkspaceOpen && sidebarPosition === 'right' ? 'flex-row-reverse' : 'flex-row'}`}>
+        {!isBrowserWorkspaceOpen && <AppSidebar
+          activeView={activeView}
+          browserOpen={isBrowserWorkspaceOpen}
+          auth={auth}
+          avatarUrl={derived.avatarUrl ?? undefined}
+          chat={chat}
+          displayName={derived.displayName}
+          folder={folder}
+          initials={derived.initials}
+          iris={iris}
+          isSidebarOpen={isSidebarOpen}
+          position={sidebarPosition}
+          onDeleteConversation={handlers.handleDeleteConversation}
+          onDeleteFolder={handlers.handleDeleteFolder}
+          onIrisIssueClick={handlers.handleIrisIssueClick}
+          onIrisProjectClick={handlers.handleIrisProjectClick}
+          onNewChat={handlers.handleNewChat}
+          onOpenProject={handlers.handleOpenProject}
+          onOpenSdo={() => setActiveView('sdo')}
+          onOpenMeetings={() => setActiveView('meetings')}
+          onOpenBrowser={() => setIsBrowserWorkspaceOpen(true)}
+          onOpenSettings={() => { setActiveSettingsTab('ai'); setIsUnifiedSettingsOpen(true); }}
+          onSelectConversation={handlers.handleSelectConversation}
+          onSignOut={signOut}
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          setTheme={setTheme}
+          theme={theme}
+        />}
+        <AppWorkspace
+          accessUserIds={accessUserIds}
+          activeView={activeView}
+          avatarUrl={derived.avatarUrl ?? undefined}
+          browserWorkspaceOpen={isBrowserWorkspaceOpen}
+          onCloseBrowserWorkspace={() => setIsBrowserWorkspaceOpen(false)}
+          chat={chat}
+          currentConversation={derived.currentConversation}
+          currentFolder={derived.currentFolder}
+          externalPrompt={externalPrompt}
+          externalSelection={externalSelection}
+          onExternalSelectionProcessed={() => setExternalSelection(null)}
+          folder={folder}
+          liaDegraded={liaDegraded}
+          liaStatusMessage={liaStatusMessage}
+          onRetryConversations={retryConversations}
+          onDeleteConversation={handlers.handleDeleteConversation}
+          onExternalPromptProcessed={() => setExternalPrompt(null)}
+          onMessagesChange={scopedMessagesHandler}
+          onNewChat={handlers.handleNewChat}
+          onNewChatInProject={handlers.handleNewChatInProject}
+          onNewChatWithMessage={handlers.handleNewChatWithMessage}
+          onSelectConversation={handlers.handleSelectConversation}
+          onOpenBrowser={() => setIsBrowserWorkspaceOpen(true)}
+          onOpenMeetings={() => { setIsBrowserWorkspaceOpen(false); setActiveView('meetings'); }}
+          onOpenSdo={() => { setIsBrowserWorkspaceOpen(false); setActiveView('sdo'); }}
+          orgId={orgId}
+          setShareTarget={setShareTarget}
+          shareLinkNotice={shareLinkNotice}
+          userId={userId}
+          userSettings={userSettings}
+        />
+        <AppModals folder={folder} movingChat={derived.movingChat} shareTarget={shareTarget} userId={userId} orgId={orgId} user={user} userSettings={userSettings} sofiaContext={sofiaContext} isUnifiedSettingsOpen={isUnifiedSettingsOpen} activeSettingsTab={activeSettingsTab} onSetShareTarget={setShareTarget} onSetUserSettings={setUserSettings} onSetUnifiedSettingsOpen={setIsUnifiedSettingsOpen} />
+      </div>
     </div>
   );
 

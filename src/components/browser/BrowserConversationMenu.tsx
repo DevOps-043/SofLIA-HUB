@@ -87,11 +87,16 @@ export function BrowserConversationMenu(props: BrowserConversationMenuProps) {
         aria-haspopup="dialog"
         aria-expanded={props.open}
         onClick={() => props.onOpenChange(!props.open)}
-        className={`grid h-7 w-7 place-items-center rounded-[9px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${props.open ? 'bg-accent/10 text-accent' : 'text-secondary hover:bg-accent/10 hover:text-accent'}`}
+        className={`grid h-7 w-7 place-items-center rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+          props.open
+            ? 'bg-accent/15 text-accent shadow-xs'
+            : 'text-secondary hover:bg-accent/10 hover:text-accent'
+        }`}
       >
         <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M7 17.5 3.5 20v-4.5A7.5 7.5 0 0 1 2 11c0-4.4 4.25-8 9.5-8S21 6.6 21 11s-4.25 8-9.5 8a11.4 11.4 0 0 1-4.5-.9" />
-          <path d="M16.5 7.5v6M13.5 10.5h6" />
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          <path d="M8 9h8" />
+          <path d="M8 13h5" />
         </svg>
       </button>
 
@@ -99,40 +104,43 @@ export function BrowserConversationMenu(props: BrowserConversationMenuProps) {
         <div
           role="dialog"
           aria-label="Conversaciones de SofLIA"
-          className="absolute right-0 top-full z-50 mt-2 flex max-h-[28rem] w-80 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card/98 p-2 shadow-[0_1.5rem_4rem_rgba(2,12,23,0.24)] backdrop-blur-xl"
+          className="absolute right-0 top-full z-50 mt-2 flex max-h-[28rem] w-80 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border border-gray-200/90 dark:border-white/12 bg-white/95 dark:bg-[#11161d]/95 p-2.5 shadow-[0_1.75rem_4.5rem_rgba(2,12,23,0.36)] backdrop-blur-2xl animate-in fade-in slide-in-from-top-2 duration-150"
           style={{ fontFamily: 'var(--font-system-ui)' }}
         >
-          <div className="flex items-center justify-between gap-3 px-2 pb-2 pt-1">
+          {/* Luz ambiental sutil */}
+          <div className="absolute right-0 top-0 h-32 w-32 rounded-full bg-accent/8 blur-2xl pointer-events-none" aria-hidden="true" />
+
+          <div className="flex items-center justify-between gap-3 px-1.5 pb-2 pt-0.5 relative z-10">
             <div className="min-w-0">
-              <p className="truncate text-[13px] font-semibold text-primary dark:text-white">Conversaciones</p>
-              <p className="text-[10px] text-secondary">Continúa donde lo dejaste</p>
+              <p className="truncate text-[13px] font-bold text-gray-900 dark:text-white">Conversaciones</p>
+              <p className="text-[10px] text-gray-500 dark:text-white/50">Continúa donde lo dejaste</p>
             </div>
             <button
               type="button"
               disabled={Boolean(pendingAction)}
               onClick={() => void runAction('new', props.onNewChat)}
-              className="inline-flex h-8 items-center gap-1.5 rounded-xl bg-accent px-2.5 text-[11px] font-semibold text-on-accent shadow-sm transition hover:-translate-y-px hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 disabled:cursor-wait disabled:opacity-60"
+              className="inline-flex h-7.5 items-center gap-1.5 rounded-xl bg-accent px-3 text-[11px] font-bold text-on-accent shadow-xs transition-all hover:scale-[1.02] hover:shadow-md active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 disabled:cursor-wait disabled:opacity-60"
             >
-              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-              Nuevo chat
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+              <span>Nuevo chat</span>
             </button>
           </div>
 
-          <label className="relative block px-1 pb-2">
+          <label className="relative block px-0.5 pb-2 pt-0.5 relative z-10">
             <span className="sr-only">Buscar chats</span>
-            <svg className="pointer-events-none absolute left-3.5 top-2 h-3.5 w-3.5 text-secondary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+            <svg className="pointer-events-none absolute left-3 top-2.5 h-3.5 w-3.5 text-gray-400 dark:text-white/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
             <input
               ref={searchRef}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Buscar chats..."
-              className="h-8 w-full rounded-xl border border-border bg-background/70 pl-8 pr-3 text-[11px] text-primary outline-none transition placeholder:text-secondary/70 focus:border-accent/50 focus:ring-2 focus:ring-accent/10 dark:bg-background-dark/70 dark:text-white"
+              className="h-8 w-full rounded-xl border border-gray-200/80 dark:border-white/10 bg-gray-100/60 dark:bg-white/[0.05] pl-8.5 pr-3 text-[11px] text-gray-900 dark:text-white outline-none transition placeholder:text-gray-400 dark:placeholder:text-white/40 focus:border-accent/60 focus:bg-white dark:focus:bg-[#161c24] focus:ring-2 focus:ring-accent/15"
             />
           </label>
 
-          <div className="no-scrollbar min-h-0 overflow-y-auto px-1 pb-1">
+          <div className="no-scrollbar min-h-0 overflow-y-auto px-0.5 pb-0.5 relative z-10">
             {visibleConversations.length > 0 ? (
-              <div className="space-y-0.5">
+              <div className="space-y-1">
                 {visibleConversations.map((conversation) => {
                   const active = conversation.id === props.currentConversationId;
                   const pending = pendingAction === conversation.id;
@@ -148,17 +156,23 @@ export function BrowserConversationMenu(props: BrowserConversationMenuProps) {
                         }
                         void runAction(conversation.id, () => props.onSelectConversation(conversation.id));
                       }}
-                      className={`flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20 disabled:cursor-wait disabled:opacity-60 ${active ? 'bg-accent/10 text-accent' : 'text-primary hover:bg-primary/[0.045] dark:text-white dark:hover:bg-white/[0.05]'}`}
+                      className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20 disabled:cursor-wait disabled:opacity-60 border ${
+                        active
+                          ? 'bg-accent/10 dark:bg-accent/15 border-accent/25 text-accent shadow-xs'
+                          : 'border-transparent text-gray-800 dark:text-white/90 hover:bg-gray-100/80 dark:hover:bg-white/[0.05] hover:border-gray-200/50 dark:hover:border-white/5'
+                      }`}
                     >
-                      <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-[10px] border ${active ? 'border-accent/25 bg-accent/10' : 'border-border bg-background/60 dark:bg-background-dark/60'}`}>
-                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M8 18 3 21v-5a8 8 0 1 1 5 2Z" /></svg>
+                      <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg border transition-all ${active ? 'border-accent/30 bg-accent/15 text-accent' : 'border-gray-200/70 dark:border-white/10 bg-gray-100/70 dark:bg-white/[0.06] text-gray-500 dark:text-white/45'}`}>
+                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        </svg>
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[11px] font-semibold">{conversation.title || 'Chat sin título'}</span>
-                        <span className="block truncate text-[9px] text-secondary">{formatUpdatedAt(conversation.updated_at)}</span>
+                        <span className={`block truncate text-[11.5px] ${active ? 'font-bold text-accent' : 'font-semibold text-gray-900 dark:text-white'}`}>{conversation.title || 'Chat sin título'}</span>
+                        <span className="block truncate text-[9.5px] text-gray-400 dark:text-white/45 mt-0.5">{formatUpdatedAt(conversation.updated_at)}</span>
                       </span>
                       {active && (
-                        <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-label="Chat activo"><path d="m5 12 4 4L19 6" /></svg>
+                        <svg className="h-3.5 w-3.5 shrink-0 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-label="Chat activo"><polyline points="20 6 9 17 4 12" /></svg>
                       )}
                       {pending && <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-r-transparent" aria-label="Abriendo chat" />}
                     </button>
@@ -166,15 +180,15 @@ export function BrowserConversationMenu(props: BrowserConversationMenuProps) {
                 })}
               </div>
             ) : (
-              <div className="rounded-xl border border-dashed border-border px-3 py-6 text-center">
-                <p className="text-[11px] font-semibold text-primary dark:text-white">Sin coincidencias</p>
-                <p className="mt-1 text-[10px] text-secondary">Prueba con otro título.</p>
+              <div className="rounded-xl border border-dashed border-gray-200 dark:border-white/10 px-3 py-6 text-center">
+                <p className="text-[11px] font-semibold text-gray-800 dark:text-white">Sin coincidencias</p>
+                <p className="mt-1 text-[10px] text-gray-400 dark:text-white/40">Prueba con otro título.</p>
               </div>
             )}
           </div>
 
           {actionError && (
-            <p role="alert" className="mx-1 mt-1 rounded-xl bg-danger/10 px-2.5 py-2 text-[10px] text-danger">
+            <p role="alert" className="mx-1 mt-1.5 rounded-xl bg-danger/10 border border-danger/20 px-2.5 py-2 text-[10px] text-danger font-medium">
               {actionError}
             </p>
           )}

@@ -1,6 +1,6 @@
 # Parametros runtime
 
-Estado: vigente. Actualizado: 2026-08-04.
+Estado: vigente. Actualizado: 2026-08-06.
 
 Inventario de defaults y topes con impacto operativo. Los overrides guardados en
 `userData` pueden cambiar el valor efectivo de un host.
@@ -56,10 +56,21 @@ evidencia medida en el host de referencia.
 | longitud de direccion/busqueda | 2048 caracteres | `electron/integrated-browser/validation.ts` |
 | viewport minimo | 160 x 120 DIP | mismo archivo |
 | protocolos de pagina principal | HTTP(S) y `about:blank` | mismo archivo |
-| permisos con HITL | `media`, `geolocation` | `electron/integrated-browser/permission-governance.ts` |
+| permisos administrados por sitio | `camera`, `microphone`, `geolocation`, `notifications`, `display-capture`, `clipboard-read`, `idle-detection`, `window-management` preguntan; `fullscreen`, `pointer-lock`, `keyboard-lock`, `speaker-selection`, `protected-media` se conceden sin interrumpir; alcanzan a cualquier pestaña viva de la partición | `electron/integrated-browser/permission-governance.ts`, `electron/integrated-browser/types.ts` |
+| permisos concedidos sin panel | `clipboard-sanitized-write`, `storage-access`, `top-level-storage-access` | `electron/integrated-browser/permission-governance.ts` |
+| permisos siempre denegados | `usb`, `serial`, `hid`, `midi`, `midiSysex`, `openExternal`, `fileSystem` y cualquier nombre desconocido | mismo archivo |
+| estado reportado a `permissions.query` | `camera`, `microphone` y `speaker-selection` sin decidir responden concedido para que la página llegue a solicitarlos; la concesión real ocurre en el diálogo | mismo archivo |
+| almacén de permisos por sitio | `site-permissions.json` en `userData/integrated-browser`; clave por origen HTTP(S) exacto; máximo 500 orígenes | `electron/integrated-browser/site-permissions.ts` |
+| permiso nativo de cámara y micrófono | consultado en macOS y Windows antes de conceder; `denied`/`restricted` corta sin preguntar; `not-determined` en macOS dispara `askForMediaAccess`; Linux lo delega al servidor de audio/video | `electron/integrated-browser/permission-governance.ts`, `electron-builder.json5`, `build/entitlements.mac.plist` |
+| compartir pantalla | selector nativo de pantallas y ventanas, máximo 24 orígenes listados; audio del sistema solo en Windows y bajo casilla explícita | `electron/integrated-browser/display-media-picker.ts` |
+| pantalla completa de la página | la vista cubre la ventana anfitriona y la ventana pasa a pantalla completa del sistema; al salir se restaura el estado previo | `electron/integrated-browser/service.ts` |
+| ventanas emergentes sin destino | `window.open` sin destino abre ventana real que hereda las preferencias del abridor, entre 180 y 2.048 px por lado (640 x 480 por omisión) y sin navegación fuera de HTTP(S); solo se queda encima por debajo de 700 px de ancho | `electron/integrated-browser/service.ts` |
+| cuadros de permiso | uno a la vez, encolados; un fallo al mostrarlos responde denegado y nunca deja la solicitud pendiente | `electron/integrated-browser/permission-governance.ts` |
 | chat flotante | 332 a 560 DIP (388 default); lado izquierdo o derecho; header de 40 DIP; minimizable o sustituible por Orbe; inicio medido bajo la barra superior | `src/components/browser/BrowserWorkspaceLayout.tsx` |
 | convivencia chat/navegador | `WebContentsView` vivo con inset del panel; ancho completo al minimizar | `src/components/browser/IntegratedBrowserPanel.tsx` |
 | overlay de gestores | captura puntual + `hide`; no usa polling para componer la página | `src/components/browser/IntegratedBrowserPanel.tsx` |
+| contenido del modo lectura | selección hasta 50.000 caracteres; documento hasta 60.000; solo HTTP(S); excluye formularios, controles y contenido editable; Google Docs usa exportación autenticada de hasta 2 MiB con timeout 8 s y árbol AX de hasta 20.000 nodos como respaldo | `electron/integrated-browser/reading-mode-content.ts`, `electron/integrated-browser/reading-accessibility.ts` |
+| voz ElevenLabs (Orbe y lectura) | Orbe: máximo 5.000 caracteres por solicitud, timeout 30 s, MP3 hasta 16 MiB; lectura: microlote inicial de hasta 180 caracteres, posteriores de hasta 480, anticipación máxima de dos lotes, contexto anterior/posterior de hasta 600 caracteres, límite defensivo de 3.500 por solicitud, timeout 20 s sin reintento automático y audio transitorio hasta 64 MiB por respuesta; `eleven_turbo_v2_5` + `mp3_44100_128` por defecto; el idioma ISO 639-1 procede del contenido y los aliases españoles conservan un mapa a offsets originales | `electron/elevenlabs-tts.ts`, `electron/speech-text-normalizer.ts`, `electron/orb-tts.ts`, `electron/integrated-browser/reading-mode-service.ts`, `src/components/browser/browser-reading-utils.ts` |
 | historial | 2.000 entradas; consulta maxima 200 | `electron/integrated-browser/browser-history-store.ts` |
 | credenciales | usuario 320; secreto 4.096 caracteres; maximo almacenado 500 | `electron/integrated-browser/credential-vault.ts` |
 | extension desempaquetada | Manifest V3; 2.000 archivos; 20 MiB | `electron/integrated-browser/extension-manager.ts` |

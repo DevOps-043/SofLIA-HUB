@@ -43,6 +43,12 @@ export class BrowserWindow extends EventEmitter {
   isVisible = vi.fn(() => true);
   isMinimized = vi.fn(() => false);
   isFocused = vi.fn(() => true);
+  // La pantalla completa del navegador integrado cambia el estado de la
+  // ventana anfitriona: el mock lo recuerda para que entrar y salir se
+  // comporte como en el sistema.
+  private fullScreen = false;
+  setFullScreen = vi.fn((value: boolean) => { this.fullScreen = value; });
+  isFullScreen = vi.fn(() => this.fullScreen);
   setAlwaysOnTop = vi.fn();
   setBounds = vi.fn();
   getBounds = vi.fn(() => ({ x: 0, y: 0, width: 1024, height: 768 }));
@@ -75,6 +81,7 @@ class MockWebContents extends EventEmitter {
   session = {
     setPermissionRequestHandler: vi.fn(),
     setPermissionCheckHandler: vi.fn(),
+    setDisplayMediaRequestHandler: vi.fn(),
     webRequest: {
       onBeforeSendHeaders: vi.fn(),
       onHeadersReceived: vi.fn(),

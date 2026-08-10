@@ -1,5 +1,10 @@
 import crypto from 'node:crypto';
-import type { AppProtocolCommand, MeetingTriggerAction, MeetingTriggerPayload } from './app-protocol/types';
+import type {
+  AppProtocolCommand,
+  AuthCallbackPayload,
+  MeetingTriggerAction,
+  MeetingTriggerPayload,
+} from './app-protocol/types';
 
 function getOptionalQueryParam(url: URL, key: string): string | null {
   const value = url.searchParams.get(key);
@@ -52,6 +57,39 @@ function buildMeetingTrigger(rawUrl: string, url: URL): MeetingTriggerPayload | 
   };
 }
 
+/**
+ * Retorno del inicio de sesion federado.
+ *
+ * Aqui solo se valida la forma. La autorizacion ocurre despues, en el canje:
+ * este comando no concede nada por si mismo, y el renderer descarta un `state`
+ * que no corresponda a una solicitud suya viva.
+ */
+function buildAuthCallback(url: URL): AuthCallbackPayload | null {
+  if (url.hostname.toLowerCase() !== 'auth') {
+    return null;
+  }
+
+  if (url.pathname.replace(/^\/+/, '').trim().toLowerCase() !== 'callback') {
+    return null;
+  }
+
+  const state = getOptionalQueryParam(url, 'state');
+  if (!state) {
+    return null;
+  }
+
+  const ticket = getOptionalQueryParam(url, 'ticket');
+  const error = getOptionalQueryParam(url, 'error');
+
+  // Sin ticket ni error el retorno no dice nada: se descarta en vez de
+  // despertar al renderer con una respuesta vacia.
+  if (!ticket && !error) {
+    return null;
+  }
+
+  return { error, state, ticket };
+}
+
 export function extractProtocolArg(args: string[]): string | null {
   return args.find((arg) => typeof arg === 'string' && arg.toLowerCase().startsWith('soflia://')) || null;
 }
@@ -78,8 +116,18 @@ export function parseAppProtocolCommand(rawValue: string | null | undefined): Ap
     return { type: 'share-link', shareLink, rawUrl };
   }
 
+  const authCallback = buildAuthCallback(url);
+  if (authCallback) {
+    return { type: 'auth-callback', payload: authCallback };
+  }
+
   const meetingTrigger = buildMeetingTrigger(rawUrl, url);
   return meetingTrigger ? { type: 'meeting-trigger', payload: meetingTrigger } : null;
 }
 
-export type { AppProtocolCommand, MeetingTriggerAction, MeetingTriggerPayload } from './app-protocol/types';
+export type {
+  AppProtocolCommand,
+  AuthCallbackPayload,
+  MeetingTriggerAction,
+  MeetingTriggerPayload,
+} from './app-protocol/types';

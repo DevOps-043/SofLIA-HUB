@@ -19,6 +19,26 @@ import { markBoot } from './boot-timeline';
 import { registerAuthStateHandlers } from '../auth-state-handlers';
 import { registerWhatsAppAuthGate } from './whatsapp-auth-gate';
 
+/**
+ * Registra el esquema `soflia://` en el sistema operativo.
+ *
+ * En una aplicacion empaquetada basta con el nombre: el ejecutable es la propia
+ * aplicacion. En desarrollo NO, porque el ejecutable es `electron.exe` y espera
+ * la ruta del script como primer argumento. Si se registra sin ella, el sistema
+ * lanza `electron.exe soflia://...` y Electron interpreta la URL como la ruta de
+ * la aplicacion, fallando con "Unable to find Electron app at".
+ */
+function registerAppProtocolClient(): void {
+  // `defaultApp` es true cuando Electron corre un script en vez de un binario
+  // empaquetado, que es exactamente el caso de desarrollo.
+  if (process.defaultApp && process.argv.length >= 2) {
+    app.setAsDefaultProtocolClient('soflia', process.execPath, [path.resolve(process.argv[1])]);
+    return;
+  }
+
+  app.setAsDefaultProtocolClient('soflia');
+}
+
 export async function runBootstrap(): Promise<void> {
   const modules = await loadMainServiceModules();
   const runtimeDirname = path.dirname(fileURLToPath(import.meta.url));
@@ -43,7 +63,7 @@ export async function runBootstrap(): Promise<void> {
   await app.whenReady();
   markBoot('app:ready');
   console.log('[BOOT] App ready. Initializing subsystems...');
-  app.setAsDefaultProtocolClient('soflia');
+  registerAppProtocolClient();
 
   modules.MenuManager.setup();
   controls.registerOrbShortcut();

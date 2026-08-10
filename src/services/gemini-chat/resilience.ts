@@ -121,6 +121,9 @@ export function withToolTimeout<T>(
  */
 export function isTransientGeminiError(error: unknown): boolean {
   const message = (error instanceof Error ? error.message : String(error || '')).toLowerCase();
+  // Un contexto que ya no cabe tambien dice "exceeded", pero no es transitorio:
+  // reintentarlo con el mismo payload gasta el backoff para volver a fallar.
+  if (isContextLengthError(message)) return false;
   return (
     message.includes('quota') ||
     message.includes('rate limit') ||
@@ -155,8 +158,22 @@ export function isRateLimitError(error: unknown): boolean {
   );
 }
 
+function isContextLengthError(message: string): boolean {
+  return (
+    message.includes('request too large') ||
+    message.includes('too large for') ||
+    message.includes('must be reduced') ||
+    message.includes('context length') ||
+    message.includes('context_length') ||
+    message.includes('context window') ||
+    message.includes('maximum context') ||
+    message.includes('too many tokens') ||
+    message.includes('reduce the length')
+  );
+}
+
 /** Espera `ms`, o rechaza de inmediato si se aborta la señal (botón Stop). */
-function sleepWithSignal(ms: number, signal?: AbortSignal): Promise<void> {
+export function sleepWithSignal(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     if (signal?.aborted) return reject(new DOMException('Aborted', 'AbortError'));
     const timer = setTimeout(() => {

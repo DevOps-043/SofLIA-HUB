@@ -23,7 +23,7 @@ const mocks = vi.hoisted(() => {
     conversationEnded: vi.fn(async () => ({ success: true })),
     hide: vi.fn(),
     sendMessageStream: vi.fn(),
-    synthesizeCloudSpeech: vi.fn(),
+    synthesizeElevenLabsSpeech: vi.fn(),
   };
 });
 
@@ -58,9 +58,8 @@ vi.mock('../../services/gemini-chat', () => ({
   sendMessageStream: mocks.sendMessageStream,
 }));
 
-vi.mock('../../services/orb/google-cloud-tts', () => ({
-  getStoredCloudVoice: () => 'test-voice',
-  synthesizeCloudSpeech: mocks.synthesizeCloudSpeech,
+vi.mock('../../services/orb/elevenlabs-tts', () => ({
+  synthesizeElevenLabsSpeech: mocks.synthesizeElevenLabsSpeech,
 }));
 
 vi.mock('../../services/orb/tts-playback', () => ({
@@ -69,6 +68,7 @@ vi.mock('../../services/orb/tts-playback', () => ({
     setOnDrained(callback: (() => void) | null) { this.onDrained = callback; }
     stop() { this.onDrained = null; }
     dispose() { this.onDrained = null; }
+    async enqueueEncoded() {}
     enqueuePcm() {}
     enqueueChunk() {}
     markTtsFinished() {
@@ -99,7 +99,7 @@ describe('useOrbConversation session lifecycle', () => {
     mocks.getPendingWake.mockResolvedValue({ success: true, wake: false });
     mocks.startDictation.mockResolvedValue({ success: true, sessionId: 'dictation-default' });
     mocks.speak.mockResolvedValue({ success: true, speechId: 'speech-default' });
-    mocks.synthesizeCloudSpeech.mockReset();
+    mocks.synthesizeElevenLabsSpeech.mockReset();
     // Mantiene el agente pendiente para observar que ningun evento ajeno lo aborte.
     mocks.sendMessageStream.mockImplementation(() => new Promise(() => undefined));
   });
@@ -192,11 +192,10 @@ describe('useOrbConversation session lifecycle', () => {
     unmount();
   });
 
-  // SofLIA solo habla con la voz de Google Cloud: el respaldo local (Piper) se
-  // retiro porque sonaba robotico y, al saltar en silencio, ocultaba el fallo real.
-  it('ORB-VOICE-6: si el TTS de Google falla, muestra el motivo y no usa voz local', async () => {
+  // SofLIA conserva una sola voz ElevenLabs y no cambia silenciosamente a Piper.
+  it('ORB-VOICE-6: si ElevenLabs falla, muestra el motivo y no usa voz local', async () => {
     mocks.startDictation.mockResolvedValueOnce({ success: true, sessionId: 'dictation-sin-voz' });
-    mocks.synthesizeCloudSpeech.mockRejectedValue(new Error('Cloud Text-to-Speech API has not been used'));
+    mocks.synthesizeElevenLabsSpeech.mockRejectedValue(new Error('La clave no tiene permiso de texto a voz'));
     mocks.sendMessageStream.mockResolvedValueOnce({
       stream: (async function* () { yield 'Respuesta sin voz.'; })(),
       sources: Promise.resolve(null),

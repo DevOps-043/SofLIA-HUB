@@ -1,5 +1,6 @@
 import { WhatsAppService } from '../whatsapp-service';
 import { WhatsAppAgent } from '../whatsapp-agent';
+import type { SkillWorkspaceService } from '../skill-workspace/service';
 import type { PresentacionData, WorkflowState } from './types';
 import { CANCEL_WORKFLOW_PATTERN, WORKFLOW_TIMEOUT_MS } from './constants';
 import { extractPresentationData } from './ai';
@@ -19,6 +20,7 @@ export class PresentacionWorkflow {
   constructor(
     public sessionKey: string, public jid: string, public senderNumber: string,
     private waService: WhatsAppService, private agent: WhatsAppAgent,
+    private workspaceService: SkillWorkspaceService,
     private onEnd: WorkflowEndHandler = () => {},
   ) {}
 
@@ -55,7 +57,7 @@ export class PresentacionWorkflow {
     this.state = 'GENERATING_PRESENTATION';
     this.timer.clear();
     await this.waService.sendText(this.jid, msg.APPROVED_MESSAGE);
-    this.finishPresentation().catch((err) => this.failWorkflow('Error en generacion Gamma', err, msg.GAMMA_ERROR_MESSAGE));
+    this.finishPresentation().catch((err) => this.failWorkflow('Error generando la presentacion', err, msg.GENERATION_ERROR_MESSAGE));
     return true;
   }
 
@@ -80,7 +82,10 @@ export class PresentacionWorkflow {
 
   private async finishPresentation(): Promise<void> {
     const sendProgress = (text: string) => this.waService.sendText(this.jid, text);
-    await this.waService.sendText(this.jid, await completePresentation(this.agent, this.data, sendProgress));
+    const resumen = await completePresentation(
+      this.agent, this.workspaceService, this.waService, this.jid, this.data, sendProgress,
+    );
+    await this.waService.sendText(this.jid, resumen);
     this.state = 'COMPLETED';
     this.endWorkflow();
   }

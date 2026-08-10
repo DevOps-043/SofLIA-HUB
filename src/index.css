@@ -204,6 +204,9 @@ body {
   width: 100vw;
   overflow: hidden;
   background: transparent !important;
+  font-family: var(--font-system-ui);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Navegador integrado: superficies flotantes del sistema SofLIA. */
@@ -497,3 +500,66 @@ select option {
   background: #1e2329;
   color: #e5e7eb;
 }
+
+/* ---------------------------------------------------------------------
+   Resaltado de codigo del panel de presentaciones.
+
+   Tema propio en vez de uno de los que trae highlight.js: los suyos fijan
+   su propio fondo y paleta, y al lado del resto de la interfaz se ven como
+   un recorte de otra aplicacion. Estas reglas heredan el fondo del panel y
+   se adaptan a claro y oscuro.
+   --------------------------------------------------------------------- */
+.hljs {
+  background: transparent;
+  color: #24292f;
+}
+
+.hljs-comment,
+.hljs-quote { color: #6e7781; font-style: italic; }
+.hljs-tag,
+.hljs-name,
+.hljs-selector-tag { color: #cf222e; }
+.hljs-attr,
+.hljs-attribute,
+.hljs-selector-attr,
+.hljs-selector-class,
+.hljs-selector-id { color: #8250df; }
+.hljs-string,
+.hljs-meta .hljs-string { color: #0a3069; }
+.hljs-number,
+.hljs-literal { color: #0550ae; }
+.hljs-keyword,
+.hljs-built_in,
+.hljs-type { color: #cf222e; }
+.hljs-title,
+.hljs-section,
+.hljs-strong { color: #0550ae; font-weight: 600; }
+.hljs-symbol,
+.hljs-bullet,
+.hljs-link { color: #0a7c5a; }
+.hljs-emphasis { font-style: italic; }
+
+.dark .hljs { color: #d5dbe3; }
+.dark .hljs-comment,
+.dark .hljs-quote { color: #7d8792; }
+.dark .hljs-tag,
+.dark .hljs-name,
+.dark .hljs-selector-tag { color: #ff7b72; }
+.dark .hljs-attr,
+.dark .hljs-attribute,
+.dark .hljs-selector-attr,
+.dark .hljs-selector-class,
+.dark .hljs-selector-id { color: #d2a8ff; }
+.dark .hljs-string,
+.dark .hljs-meta .hljs-string { color: #a5d6ff; }
+.dark .hljs-number,
+.dark .hljs-literal { color: #79c0ff; }
+.dark .hljs-keyword,
+.dark .hljs-built_in,
+.dark .hljs-type { color: #ff7b72; }
+.dark .hljs-title,
+.dark .hljs-section,
+.dark .hljs-strong { color: #79c0ff; }
+.dark .hljs-symbol,
+.dark .hljs-bullet,
+.dark .hljs-link { color: #56d364; }

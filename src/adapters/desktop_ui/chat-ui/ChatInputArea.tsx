@@ -2,7 +2,11 @@ import { useLayoutEffect, useRef } from 'react';
 import { AttachmentPreviewStrip } from './input/AttachmentPreviewStrip';
 import { ModeBadges } from './input/ModeBadges';
 import { ToolMenu } from './input/ToolMenu';
+import { SkillCommandMenu } from './input/SkillCommandMenu';
+import { StarterPrompts } from './input/StarterPrompts';
 import type { ChatUIController } from './useChatUIController';
+import { SelectionAttachmentChip } from './SelectionAttachmentChip';
+import { TabAttachmentChips } from './input/TabAttachmentChips';
 
 export function ChatInputArea({ controller }: { controller: ChatUIController }) {
   const input = controller.state.input;
@@ -33,6 +37,27 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
       <div className="mx-auto min-w-0 max-w-5xl">
         <ModeBadges controller={controller} />
         <AttachmentPreviewStrip controller={controller} />
+        <TabAttachmentChips
+          attachedTabs={controller.state.tabs?.attached ?? []}
+          onRemoveTab={(tabId) => {
+            controller.state.tabs?.setAttached(
+              (controller.state.tabs?.attached ?? []).filter((t) => t.tabId !== tabId)
+            );
+          }}
+        />
+        <SelectionAttachmentChip
+          selection={controller.state.selection.value}
+          onDismiss={() => controller.state.selection.set(null)}
+        />
+        <StarterPrompts controller={controller} />
+        {controller.skillCommands.visible && (
+          <SkillCommandMenu
+            matches={controller.skillCommands.matches}
+            highlighted={controller.skillCommands.highlighted}
+            onHighlight={controller.skillCommands.setHighlighted}
+            onSelect={controller.skillCommands.activate}
+          />
+        )}
         <div className={`relative mt-1 flex w-full items-center border border-border/70 bg-surface-2 transition-all focus-within:border-accent/40 focus-within:ring-2 focus-within:ring-accent/12 ${compact ? 'gap-1 rounded-[18px] px-1 py-1' : 'gap-1.5 rounded-[24px] px-1.5 py-1'}`} style={{ fontFamily: 'var(--font-system-ui)' }}>
           <ToolMenu controller={controller} />
           <div className="relative min-w-0 flex-1">
@@ -46,6 +71,9 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
               value={input.value}
               onChange={(event) => input.set(event.target.value)}
               onKeyDown={(event) => {
+                // El menu de skills tiene prioridad: si consume la tecla, el
+                // compositor no debe enviar el mensaje.
+                if (controller.skillCommands.handleKeyDown(event)) return;
                 if (event.key === 'Enter' && !event.shiftKey) {
                   event.preventDefault();
                   controller.onSendClick();

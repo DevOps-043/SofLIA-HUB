@@ -1,11 +1,18 @@
 import type { WebContents } from 'electron';
-import type { BrowserDomControl, BrowserDomSnapshot } from './types';
+import type { BrowserDomControl, BrowserDomImage, BrowserDomSnapshot } from './types';
 
 const MAX_TEXT = 24_000;
 const MAX_HEADINGS = 100;
 const MAX_LANDMARKS = 60;
 const MAX_CONTROLS = 240;
 const MAX_FRAMES = 30;
+const MAX_IMAGES = 24;
+/**
+ * Lado minimo para considerar que una imagen es contenido. Por debajo son
+ * iconos, avatares, separadores y pixeles de seguimiento: reutilizarlos en una
+ * presentacion no aporta nada y llenaria la observacion de ruido.
+ */
+const MIN_IMAGE_SIDE_PX = 200;
 const MAX_FIELD_TEXT = 180;
 const MAX_SCANNED_NODES = 1_800;
 const VIEWPORT_MARGIN_PX = 240;
@@ -26,6 +33,7 @@ type RawSnapshot = {
   headings?: unknown[];
   landmarks?: unknown[];
   controls?: unknown[];
+  images?: unknown[];
   frames?: unknown[];
   viewport?: Record<string, unknown>;
   truncated?: unknown;
@@ -74,6 +82,9 @@ function normalizeSnapshot(raw: RawSnapshot): BrowserDomSnapshot {
       return { role: clean(value.role, 40), name: clean(value.name, MAX_FIELD_TEXT), scope: clean(value.scope, 120) };
     }).filter((item) => item.role || item.name) : [],
     controls,
+    images: Array.isArray(raw?.images)
+      ? raw.images.slice(0, MAX_IMAGES).map(normalizeImage).filter((item): item is BrowserDomImage => item !== null)
+      : [],
     frames: Array.isArray(raw?.frames) ? raw.frames.slice(0, MAX_FRAMES).map((item) => {
       const value = asRecord(item);
       return { title: clean(value.title, MAX_FIELD_TEXT), url: sanitizeObservedUrl(value.url), accessible: value.accessible === true };
@@ -88,6 +99,38 @@ function normalizeSnapshot(raw: RawSnapshot): BrowserDomSnapshot {
     },
     truncated: raw?.truncated === true || text.length >= MAX_TEXT || controls.length >= MAX_CONTROLS,
   };
+}
+
+function normalizeImage(input: unknown): BrowserDomImage | null {
+  const value = asRecord(input);
+  const url = sanitizeImageUrl(value.url);
+  if (!url) return null;
+  return {
+    url,
+    alt: clean(value.alt, MAX_FIELD_TEXT),
+    width: finiteInt(value.width),
+    height: finiteInt(value.height),
+  };
+}
+
+/**
+ * A diferencia de `sanitizeObservedUrl`, conserva la query: en las URL de
+ * imagen suele llevar el tamano o la firma, y quitarla devuelve un 403 o una
+ * imagen distinta. Se descartan las credenciales y todo lo que no sea HTTP(S)
+ * —`data:` y `blob:` no se pueden volver a pedir desde el proceso principal—.
+ */
+function sanitizeImageUrl(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return '';
+    url.username = '';
+    url.password = '';
+    url.hash = '';
+    return url.toString().slice(0, 1_000);
+  } catch {
+    return '';
+  }
 }
 
 function normalizeControl(input: unknown): BrowserDomControl | null {
@@ -126,11 +169,11 @@ function finiteInt(value: unknown): number {
 }
 
 const DOM_SNAPSHOT_SCRIPT = `(() => {
-  const LIMITS = { text: ${MAX_TEXT}, headings: ${MAX_HEADINGS}, landmarks: ${MAX_LANDMARKS}, controls: ${MAX_CONTROLS}, frames: ${MAX_FRAMES}, scanned: ${MAX_SCANNED_NODES}, viewportMargin: ${VIEWPORT_MARGIN_PX} };
+  const LIMITS = { text: ${MAX_TEXT}, headings: ${MAX_HEADINGS}, landmarks: ${MAX_LANDMARKS}, controls: ${MAX_CONTROLS}, images: ${MAX_IMAGES}, minImage: ${MIN_IMAGE_SIDE_PX}, frames: ${MAX_FRAMES}, scanned: ${MAX_SCANNED_NODES}, viewportMargin: ${VIEWPORT_MARGIN_PX} };
   const deadline = Date.now() + ${SNAPSHOT_BUDGET_MS};
   const registry = new Map();
   const clean = (value, max = ${MAX_FIELD_TEXT}) => String(value || '').replace(/[\\u0000-\\u001f\\u007f]+/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, max);
-  const result = { title: clean(document.title, 300), url: location.href, language: clean(document.documentElement.lang, 40), text: '', headings: [], landmarks: [], controls: [], frames: [], viewport: { width: innerWidth, height: innerHeight, scrollX, scrollY, documentWidth: document.documentElement.scrollWidth, documentHeight: document.documentElement.scrollHeight }, truncated: false };
+  const result = { title: clean(document.title, 300), url: location.href, language: clean(document.documentElement.lang, 40), text: '', headings: [], landmarks: [], controls: [], images: [], frames: [], viewport: { width: innerWidth, height: innerHeight, scrollX, scrollY, documentWidth: document.documentElement.scrollWidth, documentHeight: document.documentElement.scrollHeight }, truncated: false };
   const textParts = [];
   let textLength = 0;
   let textNodesScanned = 0;
@@ -214,10 +257,21 @@ const DOM_SNAPSHOT_SCRIPT = `(() => {
       const landmarkRole = explicitRole || ({ main: 'main', nav: 'navigation', header: 'banner', footer: 'contentinfo', aside: 'complementary', form: 'form' }[tag] || '');
       const isLandmark = !!landmarkRole && /^(main|navigation|banner|contentinfo|complementary|form|search|region)$/.test(landmarkRole) && result.landmarks.length < LIMITS.landmarks;
       const isFrame = tag === 'iframe' || tag === 'frame';
+      const isImage = tag === 'img' && result.images.length < LIMITS.images;
       const pendingControl = result.controls.length < LIMITS.controls && !seen.has(el)
         && el.matches('a[href],button,input,textarea,select,summary,[role="button"],[role="link"],[role="textbox"],[role="combobox"],[role="checkbox"],[role="radio"],[role="switch"],[role="tab"],[role="menuitem"],[tabindex]:not([tabindex="-1"]),[contenteditable="true"],[contenteditable=""]');
-      if (!isHeading && !isLandmark && !isFrame && !pendingControl) continue;
+      if (!isHeading && !isLandmark && !isFrame && !isImage && !pendingControl) continue;
       if (!visible(el)) continue;
+      if (isImage) {
+        // El tamano renderizado manda sobre el natural: una imagen enorme
+        // servida en un recuadro de 40px sigue siendo un icono en esta pagina.
+        const ancho = Math.round(el.naturalWidth || el.width || 0);
+        const alto = Math.round(el.naturalHeight || el.height || 0);
+        const caja = el.getBoundingClientRect();
+        const util = Math.min(ancho, alto) >= LIMITS.minImage && Math.min(caja.width, caja.height) >= 80;
+        const origen = el.currentSrc || el.src || '';
+        if (util && origen) result.images.push({ url: origen, alt: clean(el.alt, 180), width: ancho, height: alto });
+      }
       if (isHeading) result.headings.push({ level: Number(tag[1]), text: clean(el.textContent), scope });
       if (isLandmark) result.landmarks.push({ role: landmarkRole, name: label(el, root), scope });
       if (isFrame) {

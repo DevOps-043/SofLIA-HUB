@@ -2,12 +2,15 @@ import { MeetingOpsPanel } from '../components/meetings/MeetingOpsPanel';
 import { ProductivityDashboard } from '../components/ProductivityDashboard';
 import { RegistroDecisiones } from '../components/sdo/RegistroDecisiones';
 import { BrowserWorkspaceLayout } from '../components/browser/BrowserWorkspaceLayout';
+import { PresentationWorkspacePanel } from '../components/presentation/PresentationWorkspacePanel';
+import { usePresentationWorkspaceContext } from '../contexts/presentation-workspace-context';
 import type { MouseEvent } from 'react';
 import { LiaDegradedNotice, ShareLinkNoticeBanner } from './AppNotices';
 import { AppChatView } from './AppChatView';
 import { AppProjectView } from './AppProjectView';
 import type { ActiveView, ChatState, FolderState, ShareLinkNotice, ShareTarget } from './app-types';
 import type { UserAISettings } from '../services/settings-service';
+import type { BrowserSelectionActionRequest } from '../services/integrated-browser-service';
 
 interface AppWorkspaceProps {
   accessUserIds?: string[];
@@ -19,6 +22,8 @@ interface AppWorkspaceProps {
   currentConversation: ChatState['conversations'][number] | null;
   currentFolder?: FolderState['folders'][number];
   externalPrompt: string | null;
+  externalSelection: BrowserSelectionActionRequest | null;
+  onExternalSelectionProcessed: () => void;
   folder: FolderState;
   liaDegraded: boolean;
   liaStatusMessage?: string | null;
@@ -42,6 +47,7 @@ interface AppWorkspaceProps {
 
 export function AppWorkspace(props: AppWorkspaceProps) {
   const canShareConversation = Boolean(props.currentConversation?.can_share && props.orgId);
+  const presentation = usePresentationWorkspaceContext();
 
   const chatView = (
     <AppChatView
@@ -51,6 +57,8 @@ export function AppWorkspace(props: AppWorkspaceProps) {
       chat={props.chat}
       currentConversation={props.currentConversation}
       externalPrompt={props.externalPrompt}
+      externalSelection={props.externalSelection}
+      onExternalSelectionProcessed={props.onExternalSelectionProcessed}
       onExternalPromptProcessed={props.onExternalPromptProcessed}
       onMessagesChange={props.onMessagesChange}
       onRetryConversations={props.onRetryConversations}
@@ -65,13 +73,14 @@ export function AppWorkspace(props: AppWorkspaceProps) {
 
   if (props.browserWorkspaceOpen) {
     return (
-      <main className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
+      <main className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
         {props.shareLinkNotice && <ShareLinkNoticeBanner notice={props.shareLinkNotice} />}
         {props.liaDegraded && !props.userId && <LiaDegradedNotice message={props.liaStatusMessage || undefined} />}
         <BrowserWorkspaceLayout
           chat={chatView}
           conversations={props.chat.conversations}
           currentConversationId={props.chat.currentConversationId}
+          externalSelection={props.externalSelection}
           onClose={props.onCloseBrowserWorkspace ?? (() => undefined)}
           onNewChat={props.onNewChat}
           onSelectConversation={props.onSelectConversation}
@@ -81,12 +90,28 @@ export function AppWorkspace(props: AppWorkspaceProps) {
   }
 
   return (
-    <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
+    <main className="flex-1 flex flex-col min-w-0 h-full min-h-0 overflow-hidden">
       {props.shareLinkNotice && <ShareLinkNoticeBanner notice={props.shareLinkNotice} />}
       {props.liaDegraded && !props.userId && <LiaDegradedNotice message={props.liaStatusMessage || undefined} />}
       {props.activeView === 'chat' && (
-        <div className="flex-1 flex flex-col min-w-0 min-h-0 h-full overflow-hidden animate-view-in">
-          {chatView}
+        // El panel de la presentacion convive con el chat en lugar de
+        // sustituirlo: el usuario debe poder pedir cambios mientras ve el
+        // codigo escribirse.
+        <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden animate-view-in">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            {chatView}
+          </div>
+          {presentation.visible && presentation.workspaceId && (
+            // El panel gestiona su propio ancho (ajustable y recordado), asi
+            // que aqui no se le impone uno.
+            // La clave lo remonta al cambiar de presentacion, para que nunca
+            // muestre los archivos de la anterior.
+            <PresentationWorkspacePanel
+              key={presentation.workspaceId}
+              workspaceId={presentation.workspaceId}
+              onHide={presentation.hide}
+            />
+          )}
         </div>
       )}
       {props.activeView === 'productivity' && props.userId && <ProductivityDashboard userId={props.userId} />}

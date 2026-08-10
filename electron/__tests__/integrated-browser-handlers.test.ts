@@ -19,6 +19,10 @@ describe('handlers del navegador integrado', () => {
   const service = {
     getState: vi.fn(() => ({ url: 'about:blank' })),
     captureVisiblePage: vi.fn(async () => 'data:image/png;base64,captura'),
+    captureVisibleBackdrop: vi.fn(async () => ({
+      screenshot: 'data:image/png;base64,captura',
+      bounds: { x: 12, y: 34, width: 800, height: 600 },
+    })),
     getObservation: vi.fn(async () => ({ observation: null, observationStatus: { enabled: true } })),
     setObservationEnabled: vi.fn(async (enabled: boolean) => ({ observation: null, observationStatus: { enabled } })),
     open: vi.fn(async () => ({ url: 'https://example.com' })),
@@ -37,6 +41,13 @@ describe('handlers del navegador integrado', () => {
     listExtensions: vi.fn(async () => []), prepareExtensionInstall: vi.fn(async () => ({ canceled: true })),
     confirmExtensionInstall: vi.fn(async () => ({ installId: 'extension-id' })),
     setExtensionEnabled: vi.fn(async () => ({ installId: 'extension-id' })), removeExtension: vi.fn(async () => true),
+    prepareReadingMode: vi.fn(async () => ({ readingId: 'reading-id', text: 'Contenido legible' })),
+    synthesizeReadingSegment: vi.fn(async () => ({ readingId: 'reading-id', timings: [] })),
+    highlightReadingRange: vi.fn(async () => ({ highlighted: true })),
+    waitForReadingToolbarAction: vi.fn(async () => ({ readingId: 'reading-id', action: 'toggle' as const })),
+    syncReadingToolbar: vi.fn(async () => ({ toolbarVisible: true })),
+    cancelReadingSpeech: vi.fn(() => ({ canceled: 1 })),
+    closeReadingMode: vi.fn(async () => ({ closed: true })),
   };
   let window: BrowserWindow;
 
@@ -49,11 +60,16 @@ describe('handlers del navegador integrado', () => {
 
   it('registra el contrato completo y enruta payloads validos', async () => {
     const handlers = ipcMainHarness._getHandlers();
-    expect(Array.from(handlers.keys()).filter((key: unknown) => String(key).startsWith('integrated-browser:'))).toHaveLength(34);
+    expect(Array.from(handlers.keys()).filter((key: unknown) => String(key).startsWith('integrated-browser:'))).toHaveLength(49);
+    expect(handlers.has('integrated-browser:reading-download')).toBe(false);
+    expect(handlers.has('integrated-browser:tab-summaries')).toBe(true);
+    expect(handlers.has('integrated-browser:get-tab-content')).toBe(true);
     const captureHandler = handlers.get('integrated-browser:capture-visible');
     expect(await captureHandler!({ sender: window.webContents })).toMatchObject({
       success: true,
       screenshot: 'data:image/png;base64,captura',
+      // El renderer necesita el rectangulo real para no estirar el respaldo.
+      captureBounds: { x: 12, y: 34, width: 800, height: 600 },
       state: { url: 'about:blank' },
     });
     const navigateHandler = handlers.get('integrated-browser:navigate');
@@ -96,6 +112,37 @@ describe('handlers del navegador integrado', () => {
     const confirmInstallHandler = handlers.get('integrated-browser:extensions-confirm-install');
     expect(await confirmInstallHandler!({ sender: window.webContents }, { token: '12345678-1234-1234-1234-123456789abc' }))
       .toMatchObject({ success: true, extension: { installId: 'extension-id' } });
+
+    const readingHandler = handlers.get('integrated-browser:reading-prepare');
+    expect(await readingHandler!({ sender: window.webContents }, { sourceUrl: 'https://example.com', selection: 'Texto' }))
+      .toMatchObject({ success: true, reading: { readingId: 'reading-id' } });
+    expect(service.prepareReadingMode).toHaveBeenCalledWith({ sourceUrl: 'https://example.com', selection: 'Texto' });
+
+    const synthesisHandler = handlers.get('integrated-browser:reading-synthesize');
+    expect(await synthesisHandler!({ sender: window.webContents }, {
+      readingId: 'reading-id', requestId: 'request-id', start: 0, end: 16,
+    })).toMatchObject({ success: true, speech: { readingId: 'reading-id' } });
+
+    const highlightHandler = handlers.get('integrated-browser:reading-highlight');
+    expect(await highlightHandler!({ sender: window.webContents }, {
+      readingId: 'reading-id', start: 0, end: 9,
+    })).toMatchObject({ success: true, highlighted: true });
+    expect(service.highlightReadingRange).toHaveBeenCalledWith({ readingId: 'reading-id', start: 0, end: 9 });
+
+    const toolbarWaitHandler = handlers.get('integrated-browser:reading-toolbar-wait');
+    expect(await toolbarWaitHandler!({ sender: window.webContents }, { readingId: 'reading-id' }))
+      .toMatchObject({ success: true, toolbarAction: { action: 'toggle' } });
+    const toolbarSyncHandler = handlers.get('integrated-browser:reading-toolbar-sync');
+    expect(await toolbarSyncHandler!({ sender: window.webContents }, {
+      readingId: 'reading-id', status: 'playing', speed: 1.25,
+    })).toMatchObject({ success: true, toolbarVisible: true });
+    expect(service.syncReadingToolbar).toHaveBeenCalledWith({
+      readingId: 'reading-id', status: 'playing', speed: 1.25, message: undefined,
+    });
+
+    const closeHandler = handlers.get('integrated-browser:reading-close');
+    expect(await closeHandler!({ sender: window.webContents }, { readingId: 'reading-id' }))
+      .toMatchObject({ success: true, closed: true });
   });
 
   it('rechaza emisores distintos y payloads malformados', async () => {
@@ -125,5 +172,27 @@ describe('handlers del navegador integrado', () => {
     const detachHandler = ipcMainHarness._getHandler('integrated-browser:tab-detach');
     expect((await detachHandler({ sender: window.webContents }, { tabId: '' })).success).toBe(false);
     expect(service.detachTab).not.toHaveBeenCalled();
+
+    const synthesisHandler = ipcMainHarness._getHandler('integrated-browser:reading-synthesize');
+    expect((await synthesisHandler({ sender: window.webContents }, {
+      readingId: 'reading-id', requestId: 'request-id', start: -1, end: 99_999,
+    })).success).toBe(false);
+    expect(service.synthesizeReadingSegment).not.toHaveBeenCalled();
+
+    const highlightHandler = ipcMainHarness._getHandler('integrated-browser:reading-highlight');
+    expect((await highlightHandler({ sender: window.webContents }, {
+      readingId: 'reading-id', start: 20, end: 10,
+    })).success).toBe(false);
+    expect(service.highlightReadingRange).not.toHaveBeenCalled();
+
+    const toolbarSyncHandler = ipcMainHarness._getHandler('integrated-browser:reading-toolbar-sync');
+    expect((await toolbarSyncHandler({ sender: window.webContents }, {
+      readingId: 'reading-id', status: 'volando', speed: 99,
+    })).success).toBe(false);
+    expect(service.syncReadingToolbar).not.toHaveBeenCalled();
+
+    const closeHandler = ipcMainHarness._getHandler('integrated-browser:reading-close');
+    expect((await closeHandler({ sender: window.webContents }, { readingId: 42 })).success).toBe(false);
+    expect(service.closeReadingMode).not.toHaveBeenCalled();
   });
 });

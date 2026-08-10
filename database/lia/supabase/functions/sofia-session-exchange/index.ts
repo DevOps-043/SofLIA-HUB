@@ -1,4 +1,7 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
+// esm.sh y no `npm:`: el runtime del editor web del panel no resuelve el
+// especificador npm y la funcion falla al arrancar, antes de ejecutar el
+// handler. esm.sh funciona en ambas rutas de despliegue, CLI y panel.
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { exchangeSofiaSession } from '../_shared/sofia-session-exchange-core.ts';
 
 const CORS_HEADERS = {
@@ -14,6 +17,19 @@ const RESPONSE_HEADERS = {
 };
 
 Deno.serve(async (request: Request) => {
+  try {
+    return await handleRequest(request);
+  } catch (error) {
+    // Sin esta red, un fallo inesperado devuelve un 500 opaco y SIN cabeceras
+    // CORS: el navegador solo ve "bloqueado por CORS" y la causa real queda
+    // invisible. Aqui se convierte en la misma respuesta degradada que el
+    // cliente ya sabe reintentar.
+    console.error('[intercambio-sesion] fallo no controlado:', error instanceof Error ? error.message : 'desconocido');
+    return jsonResponse(503, { code: 'exchange_unavailable' });
+  }
+});
+
+async function handleRequest(request: Request): Promise<Response> {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS });
   if (request.method !== 'POST') return jsonResponse(405, { code: 'method_not_allowed' });
 
@@ -89,7 +105,7 @@ Deno.serve(async (request: Request) => {
 
   if (result.status >= 500) console.error('[intercambio-sesion] servicio no disponible');
   return jsonResponse(result.status, result.body);
-});
+}
 
 function createSofiaClient(url: string, anonKey: string, accessToken: string) {
   return createClient(url, anonKey, {

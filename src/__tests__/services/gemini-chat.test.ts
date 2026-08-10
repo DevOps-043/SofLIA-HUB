@@ -324,6 +324,34 @@ describe('gemini-chat', () => {
     expect(text).not.toMatch(/gemini|google|https|quota|429|model/i);
   });
 
+  it('RS-011b: un contexto agotado no se anuncia como capacidad temporal', async () => {
+    const { getPublicAiErrorMessage } = await import('../../services/gemini-chat');
+    // El proveedor dice "exceeded" en ambos casos, pero aqui reintentar en unos
+    // segundos no arregla nada: el consejo tiene que ser el contrario.
+    const text = getPublicAiErrorMessage(
+      new Error("This model's maximum context length is 400000 tokens, however you requested 412345 tokens"),
+    );
+
+    expect(text).toContain('supero el tamano que admite');
+    expect(text).not.toContain('unos segundos');
+    expect(text).not.toMatch(/token|400000|412345|gpt|https/i);
+  });
+
+  it('RS-011c: una peticion demasiado grande no se anuncia como capacidad temporal', async () => {
+    const { getPublicAiErrorMessage } = await import('../../services/gemini-chat');
+    // Mensaje real del incidente: llega como 429, pero pedir lo mismo dentro de
+    // unos segundos vuelve a fallar. Lo que hay que reducir es la peticion.
+    const text = getPublicAiErrorMessage(new Error(
+      'Request too large for gpt-5.6-luna in organization org-XXXX on tokens per min (TPM): Limit 200000, '
+      + 'Requested 399008. The input or output tokens must be reduced in order to run successfully. '
+      + 'Visit https://platform.openai.com/account/rate-limits to learn more.',
+    ));
+
+    expect(text).toContain('supero el tamano que admite');
+    expect(text).not.toContain('unos segundos');
+    expect(text).not.toMatch(/gpt|organization|https|TPM|200000/i);
+  });
+
   it('RS-012: explica un nivel de razonamiento incompatible sin filtrar el error del proveedor', async () => {
     const { getPublicAiErrorMessage } = await import('../../services/gemini-chat');
     const text = getPublicAiErrorMessage(new Error('Invalid value for reasoning.effort: minimal'));

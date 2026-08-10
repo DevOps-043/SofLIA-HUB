@@ -5,6 +5,11 @@ export const CHANNEL_GROUP_1 = [
   'app:get-pending-meeting-trigger',
   'app:share-link',
   'app:meeting-trigger',
+  // Inicio de sesion federado con SofLIA Learning: apertura del navegador del
+  // sistema y retorno del ticket por deep link.
+  'auth:open-sso',
+  'app:get-pending-auth-callback',
+  'app:auth-callback',
   'computer:list-directory',
   'computer:read-file',
   'computer:write-file',
@@ -72,4 +77,10 @@ export const CHANNEL_GROUP_1 = [
   // Estado de sesion publicado por el renderer para el gate del proceso main.
   'auth:set-state',
   'auth:get-state',
+  // Controles de ventana frameless
+  'app:window-minimize',
+  'app:window-maximize',
+  'app:window-close',
+  'app:window-is-maximized',
+  'app:window-get-platform',
 ] as const;

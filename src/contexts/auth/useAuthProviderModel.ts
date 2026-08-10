@@ -7,6 +7,7 @@ import { useLiaSession } from './useLiaSession';
 import { useSofiaResolver } from './useSofiaResolver';
 import { useSofiaSelection } from './useSofiaSelection';
 import { useSofiaSignIn } from './useSofiaSignIn';
+import { useLearningSso } from './useLearningSso';
 import { useSignOut } from './useSignOut';
 import type { AuthContextType } from './types';
 
@@ -19,6 +20,7 @@ export function useAuthProviderModel(): AuthContextType {
   const lia = useLiaSession(state);
   const ensureLiaSession = lia.ensureLiaSession;
   const signInWithSofia = useSofiaSignIn({ ...state, ensureLiaSession, signOut });
+  const learningSso = useLearningSso({ ...state, ensureLiaSession, signOut });
   const selection = useSofiaSelection(state);
   const retryConversations = useCallback(
     async () => Boolean(await ensureLiaSession(state.user?.email)),
@@ -62,6 +64,11 @@ export function useAuthProviderModel(): AuthContextType {
     liaStatusMessage: state.liaStatusMessage,
     retryConversations,
     signInWithSofia,
+    learningSsoAvailable: learningSso.learningSsoAvailable,
+    signInWithLearningSso: learningSso.signInWithLearningSso,
+    cancelLearningSso: learningSso.cancelLearningSso,
+    ssoPending: learningSso.ssoPending,
+    ssoError: learningSso.ssoError,
     setCurrentOrganization: selection.setCurrentOrganization,
     setCurrentTeam: selection.setCurrentTeam,
   };

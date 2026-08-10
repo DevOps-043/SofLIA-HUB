@@ -1,16 +1,23 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import {
   EMPTY_INTEGRATED_BROWSER_STATE,
   integratedBrowserService,
   type BrowserExtensionMetadata,
+  type IntegratedBrowserCaptureResponse,
   type BrowserObservationStatus,
+  type BrowserReadingContent,
+  type BrowserReadingModeRequest,
   type IntegratedBrowserResponse,
   type IntegratedBrowserState,
-  type IntegratedBrowserViewMode,
 } from '../../services/integrated-browser-service';
 import { BrowserManagementPanel, type BrowserManagementTab } from './BrowserManagementPanel';
 import { BrowserAddressBar } from './BrowserAddressBar';
-import { BrowserQuickAccessBar } from './BrowserQuickAccessBar';
+import { BrowserBookmarksBar, BrowserBookmarkToggle, BrowserExtensionsBar } from './BrowserBookmarksBar';
+import { BrowserToolsMenu } from './BrowserToolsMenu';
+import { BrowserAppGridMenu } from './BrowserAppGridMenu';
+import { useBrowserBookmarks } from './use-browser-bookmarks';
+import { BrowserReadingModePanel } from './BrowserReadingModePanel';
+import { BrowserTabStrip } from './BrowserTabStrip';
 
 const UTILITY_BAR_STORAGE_KEY = 'sofLia_integratedBrowserUtilityBarVisible';
 
@@ -55,6 +62,7 @@ export function IntegratedBrowserPanel(props: {
   const rootRef = useRef<HTMLElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const viewportInsetsRef = useRef({ left: 0, right: 0 });
+  const currentUrlRef = useRef(EMPTY_INTEGRATED_BROWSER_STATE.url);
   const extensionRequestIdRef = useRef(0);
   const addressEditingRef = useRef(false);
   const managementTabRef = useRef<BrowserManagementTab | null>(null);
@@ -62,14 +70,25 @@ export function IntegratedBrowserPanel(props: {
   const suggestionOverlayRequestIdRef = useRef(0);
   const suggestionOpenPromiseRef = useRef<Promise<void> | null>(null);
   const suggestionRestorePromiseRef = useRef<Promise<void> | null>(null);
+  const readingModeRef = useRef<BrowserReadingContent | null>(null);
   const [state, setState] = useState<IntegratedBrowserState>(EMPTY_INTEGRATED_BROWSER_STATE);
   const [address, setAddress] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
   const [managementTab, setManagementTab] = useState<BrowserManagementTab | null>(null);
   const [managementSnapshot, setManagementSnapshot] = useState<string | null>(null);
   const [suggestionSnapshot, setSuggestionSnapshot] = useState<string | null>(null);
+  /**
+   * Rectangulo que ocupaba la vista nativa al capturar el respaldo, ya en
+   * coordenadas del contenedor. Sin el, el respaldo se estiraba al espacio
+   * disponible y la pagina aparecia ampliada mientras el panel estaba abierto.
+   */
+  const [snapshotStyle, setSnapshotStyle] = useState<CSSProperties | null>(null);
   const [utilityBarVisible, setUtilityBarVisible] = useState(readStoredUtilityBarVisible);
   const [toolbarExtensions, setToolbarExtensions] = useState<BrowserExtensionMetadata[]>([]);
+  const [readingContent, setReadingContent] = useState<BrowserReadingContent | null>(null);
+  const [toolsMenuOpen, setToolsMenuOpen] = useState(false);
+  const [appGridOpen, setAppGridOpen] = useState(false);
+  const bookmarks = useBrowserBookmarks(state.url, state.title);
   const [observationStatus, setObservationStatus] = useState<BrowserObservationStatus>({
     enabled: true,
     capturing: false,
@@ -88,6 +107,27 @@ export function IntegratedBrowserPanel(props: {
     }
     setLocalError(null);
     if (response.state) setState(response.state);
+  }, []);
+
+  /**
+   * Traduce el rectangulo que devuelve el proceso principal, en coordenadas de
+   * ventana, al sistema del contenedor del respaldo. Si la captura no lo trae
+   * se cae al comportamiento anterior de ocupar el contenedor completo.
+   */
+  const adoptSnapshotBounds = useCallback((capture: IntegratedBrowserCaptureResponse) => {
+    const element = viewportRef.current;
+    const bounds = capture.captureBounds;
+    if (!element || !bounds || bounds.width < 1 || bounds.height < 1) {
+      setSnapshotStyle(null);
+      return;
+    }
+    const rect = element.getBoundingClientRect();
+    setSnapshotStyle({
+      left: Math.round(bounds.x - rect.left),
+      top: Math.round(bounds.y - rect.top),
+      width: bounds.width,
+      height: bounds.height,
+    });
   }, []);
 
   const publishViewport = useCallback(async (force = false) => {
@@ -164,6 +204,7 @@ export function IntegratedBrowserPanel(props: {
         try {
           const capture = await integratedBrowserService.captureVisible();
           if (requestId !== suggestionOverlayRequestIdRef.current || !suggestionOverlayRef.current) return;
+          adoptSnapshotBounds(capture);
           setSuggestionSnapshot(capture.success && capture.screenshot ? capture.screenshot : null);
         } catch {
           if (requestId !== suggestionOverlayRequestIdRef.current || !suggestionOverlayRef.current) return;
@@ -208,6 +249,16 @@ export function IntegratedBrowserPanel(props: {
     }
   }, [consumeResponse, publishViewport]);
 
+  const handleToolsMenuOpenChange = useCallback((open: boolean) => {
+    setToolsMenuOpen(open);
+    void handleSuggestionsVisibilityChange(open);
+  }, [handleSuggestionsVisibilityChange]);
+
+  const handleAppGridOpenChange = useCallback((open: boolean) => {
+    setAppGridOpen(open);
+    void handleSuggestionsVisibilityChange(open);
+  }, [handleSuggestionsVisibilityChange]);
+
   const refreshToolbarExtensions = useCallback(async () => {
     if (!integratedBrowserService.isAvailable()) return;
     const requestId = ++extensionRequestIdRef.current;
@@ -244,7 +295,10 @@ export function IntegratedBrowserPanel(props: {
     }
     try {
       const capture = await integratedBrowserService.captureVisible();
-      if (capture.success && capture.screenshot) setManagementSnapshot(capture.screenshot);
+      if (capture.success && capture.screenshot) {
+        adoptSnapshotBounds(capture);
+        setManagementSnapshot(capture.screenshot);
+      }
     } catch {
       setManagementSnapshot(null);
     }
@@ -273,6 +327,31 @@ export function IntegratedBrowserPanel(props: {
     return response;
   }, [closeManagement, consumeResponse]);
 
+  const closeReadingMode = useCallback(async () => {
+    const reading = readingModeRef.current;
+    readingModeRef.current = null;
+    setReadingContent(null);
+    if (!reading) return;
+    await integratedBrowserService.closeReadingMode({ readingId: reading.readingId }).catch(() => undefined);
+  }, []);
+
+  const openReadingMode = useCallback(async (request: Partial<BrowserReadingModeRequest> = {}) => {
+    if (!integratedBrowserService.isAvailable()) return;
+    if (readingModeRef.current) await closeReadingMode();
+    try {
+      const response = await integratedBrowserService.prepareReadingMode({
+        sourceUrl: request.url || currentUrlRef.current,
+        selection: request.selection || undefined,
+      });
+      if (!response.success || !response.reading) throw new Error(response.error || 'No se pudo abrir el modo lectura.');
+      readingModeRef.current = response.reading;
+      setReadingContent(response.reading);
+      setLocalError(null);
+    } catch (error) {
+      setLocalError(error instanceof Error ? error.message : String(error));
+    }
+  }, [closeReadingMode]);
+
   useEffect(() => {
     if (!integratedBrowserService.isAvailable()) {
       setLocalError('El navegador integrado solo esta disponible en la aplicacion de escritorio.');
@@ -281,9 +360,13 @@ export function IntegratedBrowserPanel(props: {
 
     const unsubscribe = integratedBrowserService.subscribe({
       onStateChanged: (nextState) => {
+        currentUrlRef.current = nextState.url;
         setState(nextState);
         if (!addressEditingRef.current) setAddress(nextState.url === 'about:blank' ? '' : nextState.url);
+        const reading = readingModeRef.current;
+        if (reading && nextState.url !== reading.url) void closeReadingMode();
       },
+      onReadingModeRequested: (request) => { void openReadingMode(request); },
     });
     const syncViewport = () => { void publishViewport(); };
     const observer = new ResizeObserver(syncViewport);
@@ -297,6 +380,7 @@ export function IntegratedBrowserPanel(props: {
         const response = await integratedBrowserService.open();
         if (canceled) return;
         consumeResponse(response);
+        if (response.state?.url) currentUrlRef.current = response.state.url;
         if (!addressEditingRef.current && response.state?.url && response.state.url !== 'about:blank') setAddress(response.state.url);
         await publishViewport();
         const observation = await integratedBrowserService.getObservation(false);
@@ -314,9 +398,12 @@ export function IntegratedBrowserPanel(props: {
       observer.disconnect();
       window.removeEventListener('resize', handleWindowResize);
       unsubscribe();
+      const reading = readingModeRef.current;
+      readingModeRef.current = null;
+      if (reading) void integratedBrowserService.closeReadingMode({ readingId: reading.readingId }).catch(() => undefined);
       void integratedBrowserService.hide().catch(() => undefined);
     };
-  }, [consumeResponse, publishViewport]);
+  }, [closeReadingMode, consumeResponse, openReadingMode, publishViewport]);
 
   useEffect(() => {
     void publishViewport();
@@ -360,190 +447,129 @@ export function IntegratedBrowserPanel(props: {
 
   return (
     <section ref={rootRef} className="relative flex h-full min-h-0 flex-1 flex-col bg-background dark:bg-background-dark" aria-label="Navegador integrado">
+      <BrowserTabStrip
+        tabs={state.tabs}
+        activeTabId={state.activeTabId}
+        secondaryTabId={state.secondaryTabId}
+        viewMode={state.viewMode}
+        onActivateTab={(tabId) => void run(() => integratedBrowserService.activateTab(tabId))}
+        onCloseTab={(tabId) => void run(() => integratedBrowserService.closeTab(tabId))}
+        onCreateTab={() => void run(() => integratedBrowserService.createTab())}
+        onSetViewMode={(mode, secId) => void run(() => integratedBrowserService.setViewMode(mode, secId))}
+        activeTab={activeTab}
+        onReattachTab={(tabId) => void run(() => integratedBrowserService.reattachTab(tabId))}
+        onDetachTab={(tabId) => void run(() => integratedBrowserService.detachTab(tabId))}
+        maximized={props.maximized}
+        onToggleMaximize={props.onToggleMaximize}
+        onCloseBrowser={props.onClose}
+      />
       <header
-        className="relative z-50 flex flex-col gap-2 border-b border-gray-200/80 bg-white/95 px-3 py-2.5 shadow-sm dark:border-white/[0.08] dark:bg-[#0d1117]/95"
+        className="relative z-50 flex flex-col gap-2 border-b border-gray-200/80 bg-white/95 px-3 py-2 shadow-xs dark:border-white/[0.08] dark:bg-[#0d1117]/95"
         data-testid="integrated-browser-toolbar"
       >
         <div className="flex min-w-0 items-start gap-2">
-          <div className="flex shrink-0 items-center rounded-xl border border-gray-200 bg-gray-50/80 p-0.5 dark:border-white/[0.08] dark:bg-white/[0.03]">
-          <BrowserIconButton label="Atras" disabled={!state.canGoBack} onClick={() => void run(integratedBrowserService.goBack)}>
-            <path d="M15 18l-6-6 6-6" />
-          </BrowserIconButton>
-          <BrowserIconButton label="Adelante" disabled={!state.canGoForward} onClick={() => void run(integratedBrowserService.goForward)}>
-            <path d="M9 18l6-6-6-6" />
-          </BrowserIconButton>
-          <BrowserIconButton
-            label={state.isLoading ? 'Detener carga' : 'Recargar'}
-            onClick={() => void run(state.isLoading ? integratedBrowserService.stop : integratedBrowserService.reload)}
-          >
-            {state.isLoading
-              ? <path d="M8 8h8v8H8z" />
-              : <path d="M20 11a8.1 8.1 0 10.5 4M20 4v7h-7" />}
-          </BrowserIconButton>
+          <div className="flex shrink-0 items-center gap-0.5 rounded-xl border border-gray-200/80 bg-gray-50/80 p-1 shadow-xs backdrop-blur-md dark:border-white/[0.08] dark:bg-white/[0.03]">
+            <BrowserIconButton label="Atras" disabled={!state.canGoBack} onClick={() => void run(integratedBrowserService.goBack)}>
+              <path d="M15 18l-6-6 6-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </BrowserIconButton>
+            <BrowserIconButton label="Adelante" disabled={!state.canGoForward} onClick={() => void run(integratedBrowserService.goForward)}>
+              <path d="M9 18l6-6-6-6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </BrowserIconButton>
+            <BrowserIconButton
+              label={state.isLoading ? 'Detener carga' : 'Recargar'}
+              onClick={() => void run(state.isLoading ? integratedBrowserService.stop : integratedBrowserService.reload)}
+            >
+              {state.isLoading ? (
+                <rect x="7" y="7" width="10" height="10" rx="1.5" strokeWidth="2" />
+              ) : (
+                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              )}
+            </BrowserIconButton>
           </div>
           <BrowserAddressBar
             address={address}
+            currentUrl={state.url}
             onAddressChange={setAddress}
             onEditingChange={(editing) => { addressEditingRef.current = editing; }}
             onNavigate={navigate}
             onSuggestionsVisibilityChange={handleSuggestionsVisibilityChange}
           />
-          <div className="flex shrink-0 items-center rounded-xl border border-gray-200 bg-gray-50/80 p-0.5 dark:border-white/[0.08] dark:bg-white/[0.03]">
+          <div className="flex shrink-0 items-center gap-0.5 rounded-xl border border-gray-200/80 bg-gray-50/80 p-1 shadow-xs backdrop-blur-md dark:border-white/[0.08] dark:bg-white/[0.03]">
+            <BrowserAppGridMenu
+              open={appGridOpen}
+              onOpenChange={handleAppGridOpenChange}
+              onNavigate={navigate}
+              favorites={bookmarks.favorites}
+            />
+            <BrowserBookmarkToggle bookmarks={bookmarks} />
+            <BrowserExtensionsBar extensions={toolbarExtensions} onOpenExtensions={() => void toggleManagement('extensions')} />
             <BrowserIconButton
               label={observationStatus.enabled ? 'Pausar percepción de SofLIA' : 'Activar percepción de SofLIA'}
               active={observationStatus.enabled}
               onClick={toggleObservation}
             >
-              {observationStatus.enabled
-                ? <><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z" /><circle cx="12" cy="12" r="2.5" /></>
-                : <><path d="M3 3l18 18" /><path d="M10.6 6.2A11.8 11.8 0 0112 6c6.5 0 10 6 10 6a15.8 15.8 0 01-2.1 2.8M6.5 6.5C3.6 8.3 2 12 2 12s3.5 6 10 6a10.9 10.9 0 004.1-.8" /></>}
+              {observationStatus.enabled ? (
+                <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2z" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              ) : (
+                <><path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8L12 3z" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" /><line x1="3" y1="3" x2="21" y2="21" strokeWidth="1.8" strokeLinecap="round" /></>
+              )}
             </BrowserIconButton>
-            <BrowserIconButton label={utilityBarVisible ? 'Ocultar barra de herramientas' : 'Mostrar barra de herramientas'} onClick={toggleUtilityBar}>
-              {utilityBarVisible ? <><path d="M4 7h16M7 12h10M10 17h4" /><path d="M18 15l3 3M21 15l-3 3" /></> : <><path d="M4 7h16M7 12h10M10 17h4" /><path d="M18 15l3 3 3-3" /></>}
-            </BrowserIconButton>
-            {activeTab && (
-              <BrowserIconButton
-                label={activeTab.isDetached ? 'Integrar pestaña en SofLIA' : 'Separar pestaña en otra ventana'}
-                active={activeTab.isDetached}
-                onClick={() => void run(() => activeTab.isDetached
-                  ? integratedBrowserService.reattachTab(activeTab.id)
-                  : integratedBrowserService.detachTab(activeTab.id))}
-              >
-                {activeTab.isDetached
-                  ? <><path d="M5 5h14v14H5z" /><path d="M9 9h6v6H9" /></>
-                  : <><path d="M4 8h12v12H4z" /><path d="M9 4h11v11M14 4h6v6" /></>}
-              </BrowserIconButton>
-            )}
-            {props.onToggleMaximize && (
-              <BrowserIconButton label={props.maximized ? 'Restaurar panel' : 'Expandir navegador'} onClick={props.onToggleMaximize}>
-                {props.maximized
-                  ? <><path d="M9 4v5H4M15 20v-5h5M4 9l5-5M20 15l-5 5" /></>
-                  : <><path d="M9 4H4v5M15 20h5v-5M4 4l6 6M20 20l-6-6" /></>}
-              </BrowserIconButton>
-            )}
-            {props.onClose && (
-              <BrowserIconButton label="Cerrar navegador" danger onClick={props.onClose}>
-                <path d="M6 6l12 12M18 6L6 18" />
-              </BrowserIconButton>
-            )}
-          </div>
-        </div>
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]" aria-label="Pestañas del navegador">
-            <div className="flex min-w-max items-center gap-1">
-              {state.tabs.map((tab) => {
-                const active = tab.id === state.activeTabId;
-                const secondary = tab.id === state.secondaryTabId && state.viewMode !== 'single';
-                return (
-                  <div
-                    key={tab.id}
-                    style={{ contentVisibility: 'auto', contain: 'layout paint style' }}
-                    className={`group flex h-8 max-w-[220px] items-center rounded-[10px] border transition ${active ? 'border-accent/30 bg-accent/10 text-accent' : secondary ? 'border-sky-400/25 bg-sky-400/10 text-sky-600 dark:text-sky-300' : 'border-transparent bg-gray-100/70 text-secondary hover:border-gray-200 dark:bg-white/[0.04] dark:hover:border-white/[0.09]'}`}
-                  >
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={active}
-                      aria-label={`${tab.title || 'Nueva pestaña'}${tab.isDetached ? ', ventana separada' : tab.isSuspended ? ', suspendida' : ''}`}
-                      title={`${tab.title || tab.url}${tab.isDetached ? ' · Ventana separada' : tab.isSuspended ? ' · Se restaurará al abrir' : ''}`}
-                      onClick={() => void run(() => integratedBrowserService.activateTab(tab.id))}
-                      className="flex min-w-0 flex-1 items-center gap-1.5 px-2 text-left text-xs font-medium outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
-                    >
-                      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${tab.isLoading ? 'animate-pulse bg-amber-400' : tab.isDetached ? 'bg-sky-500 ring-2 ring-sky-500/20' : active ? 'bg-accent' : tab.isSuspended ? 'border border-current bg-transparent opacity-55' : 'bg-gray-400/60'}`} />
-                      <span className="truncate">{tab.title || 'Nueva pestaña'}</span>
-                    </button>
-                    {!active && (
-                      <button
-                        type="button"
-                        aria-label={`Mostrar ${tab.title || 'pestaña'} junto a la activa`}
-                        title="Mostrar junto"
-                        onClick={() => void run(() => integratedBrowserService.setViewMode(state.viewMode === 'overlay' ? 'overlay' : 'split', tab.id))}
-                        className="grid h-7 w-7 shrink-0 place-items-center rounded-lg opacity-60 transition hover:bg-black/5 hover:opacity-100 focus-visible:opacity-100 dark:hover:bg-white/10"
-                      >
-                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 5h7v14H4zM13 5h7v14h-7z" /></svg>
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      aria-label={`Cerrar ${tab.title || 'pestaña'}`}
-                      title="Cerrar pestaña"
-                      onClick={() => void run(() => integratedBrowserService.closeTab(tab.id))}
-                      className="grid h-7 w-7 shrink-0 place-items-center rounded-lg opacity-55 transition hover:bg-danger/10 hover:text-danger hover:opacity-100 focus-visible:opacity-100"
-                    >
-                      <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 6l12 12M18 6L6 18" /></svg>
-                    </button>
-                  </div>
-                );
-              })}
-              <button
-                type="button"
-                aria-label="Nueva pestaña"
-                title="Nueva pestaña"
-                onClick={() => void run(() => integratedBrowserService.createTab())}
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] text-secondary transition hover:bg-accent/10 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-              >
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" /></svg>
-              </button>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center rounded-xl border border-gray-200 bg-gray-50/80 p-0.5 dark:border-white/[0.08] dark:bg-white/[0.03]" aria-label="Composición de pestañas">
-            <ViewModeButton mode="single" current={state.viewMode} label="Una pestaña" onSelect={(mode) => void run(() => integratedBrowserService.setViewMode(mode))} />
-            <ViewModeButton mode="split" current={state.viewMode} label="Pantalla dividida" onSelect={(mode) => void run(() => integratedBrowserService.setViewMode(mode))} />
-            <ViewModeButton mode="overlay" current={state.viewMode} label="Pestaña superpuesta" onSelect={(mode) => void run(() => integratedBrowserService.setViewMode(mode))} />
-          </div>
-        </div>
-        {utilityBarVisible && <div className="flex min-w-0 items-center gap-2">
-          <div className="hidden min-w-0 max-w-[13rem] shrink-0 items-center gap-2 px-1 text-xs text-gray-500 dark:text-white/50 sm:flex">
-            <span className={`h-2 w-2 shrink-0 rounded-full ${state.agentControlling ? 'animate-pulse bg-accent' : state.isLoading ? 'animate-pulse bg-amber-400' : 'bg-emerald-500'}`} />
-            <span className="truncate">{state.title || 'Navegador integrado'}</span>
-            {state.agentControlling && (
-              <span className="shrink-0 rounded-full bg-accent/10 px-2 py-0.5 font-semibold text-accent">
-                SofLIA controla esta vista
-              </span>
-            )}
-          </div>
-          <BrowserQuickAccessBar
-            currentUrl={state.url}
-            currentTitle={state.title}
-            extensions={toolbarExtensions}
-            onNavigate={navigate}
-            onOpenExtensions={() => void toggleManagement('extensions')}
-          />
-          <nav className="flex shrink-0 items-center gap-1 overflow-x-auto" aria-label="Herramientas del navegador">
-            {!props.chatVisible && props.onShowChat && (
-              <ManagementButton label="Mostrar chat" onClick={props.onShowChat}>
-              <svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z" /></svg><span className="hidden xl:inline">Chat</span>
-              </ManagementButton>
-            )}
-            <ManagementButton label="Historial" active={managementTab === 'history'} onClick={() => void toggleManagement('history')}>
-              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2M5 5l-2 2" /></svg><span className="hidden xl:inline">Historial</span>
-            </ManagementButton>
-            <ManagementButton label="Contrasenas" active={managementTab === 'credentials'} onClick={() => void toggleManagement('credentials')}>
-              <svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4" /><path d="M11 12l8-8M15 8l2 2M17 6l2 2" /></svg><span className="hidden xl:inline">Contrasenas</span>
-            </ManagementButton>
-            <ManagementButton
-              label="Herramientas de desarrollo"
-              onClick={() => void run(integratedBrowserService.toggleDevTools)}
+            <BrowserIconButton
+              label={readingContent ? 'Cerrar modo lectura' : 'Abrir modo lectura'}
+              active={Boolean(readingContent)}
+              disabled={!state.activeTabId || state.url === 'about:blank'}
+              onClick={() => { void (readingContent ? closeReadingMode() : openReadingMode()); }}
             >
-              <svg viewBox="0 0 24 24"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M13 6l-2 12" /></svg><span className="hidden xl:inline">Inspeccionar</span>
-            </ManagementButton>
-            <ManagementButton label="Extensiones" active={managementTab === 'extensions'} onClick={() => void toggleManagement('extensions')}>
-              <svg viewBox="0 0 24 24"><path d="M8 3h5v5a2 2 0 104 0V3h4v7h-5a2 2 0 100 4h5v7h-7v-5a2 2 0 10-4 0v5H3v-7h5a2 2 0 100-4H3V3h5z" /></svg><span className="hidden xl:inline">Extensiones</span>
-            </ManagementButton>
-          </nav>
-        </div>}
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </BrowserIconButton>
+            <BrowserToolsMenu
+              open={toolsMenuOpen}
+              onOpenChange={handleToolsMenuOpenChange}
+              items={[
+                { id: 'bookmarks', label: 'Marcadores', active: utilityBarVisible, icon: <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>, onSelect: toggleUtilityBar },
+                { id: 'history', label: 'Historial', active: managementTab === 'history', icon: <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" strokeWidth="1.8" /><path d="M12 7v5l3 2M5 5l-2 2" strokeWidth="1.8" strokeLinecap="round" /></svg>, onSelect: () => void toggleManagement('history') },
+                { id: 'credentials', label: 'Contraseñas', active: managementTab === 'credentials', icon: <svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4" strokeWidth="1.8" /><path d="M11 12l8-8M15 8l2 2M17 6l2 2" strokeWidth="1.8" strokeLinecap="round" /></svg>, onSelect: () => void toggleManagement('credentials') },
+                { id: 'extensions', label: 'Extensiones', active: managementTab === 'extensions', icon: <svg viewBox="0 0 24 24"><path d="M8 3h5v5a2 2 0 104 0V3h4v7h-5a2 2 0 100 4h5v7h-7v-5a2 2 0 10-4 0v5H3v-7h5a2 2 0 100-4H3V3h5z" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>, onSelect: () => void toggleManagement('extensions') },
+                { id: 'devtools', label: 'Inspeccionar', icon: <svg viewBox="0 0 24 24"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M13 6l-2 12" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>, onSelect: () => void run(integratedBrowserService.toggleDevTools) },
+              ]}
+            />
+          </div>
+        </div>
+        {(utilityBarVisible || state.agentControlling) && (
+          <div className="flex flex-col gap-1.5">
+            {state.agentControlling && (
+              <div className="flex items-center gap-2 px-1 text-xs">
+                <span className="h-2 w-2 shrink-0 rounded-full bg-accent animate-pulse" />
+                <span className="shrink-0 rounded-full bg-accent/10 px-2.5 py-0.5 font-semibold text-accent">
+                  SofLIA controla esta vista
+                </span>
+              </div>
+            )}
+            {utilityBarVisible && (
+              <BrowserBookmarksBar bookmarks={bookmarks} onNavigate={navigate} />
+            )}
+          </div>
+        )}
         {(localError || state.error) && (
           <div role="alert" className="rounded-lg bg-danger/10 px-3 py-1.5 text-xs text-danger">
             {localError || state.error}
           </div>
         )}
       </header>
+      {readingContent && (
+        <BrowserReadingModePanel
+          key={readingContent.readingId}
+          content={readingContent}
+          onClose={() => { void closeReadingMode(); }}
+        />
+      )}
       <div ref={viewportRef} className="relative z-0 min-h-0 flex-1 bg-white dark:bg-[#111820]" data-testid="integrated-browser-viewport">
         {(managementSnapshot ?? suggestionSnapshot) && (
           <div
-            className="pointer-events-none absolute inset-y-0 overflow-hidden bg-white dark:bg-[#111820]"
+            className="pointer-events-none absolute overflow-hidden bg-white dark:bg-[#111820]"
             data-testid="integrated-browser-snapshot"
-            style={{ left: viewportInsetLeft, right: viewportInsetRight }}
+            style={snapshotStyle ?? { inset: 0, left: viewportInsetLeft, right: viewportInsetRight }}
           >
             <img
               src={managementSnapshot ?? suggestionSnapshot ?? ''}
@@ -577,44 +603,7 @@ function readStoredUtilityBarVisible(): boolean {
   try { return localStorage.getItem(UTILITY_BAR_STORAGE_KEY) !== 'false'; } catch { return true; }
 }
 
-function ViewModeButton(props: {
-  mode: IntegratedBrowserViewMode;
-  current: IntegratedBrowserViewMode;
-  label: string;
-  onSelect: (mode: IntegratedBrowserViewMode) => void;
-}) {
-  const active = props.mode === props.current;
-  return (
-    <button
-      type="button"
-      aria-label={props.label}
-      title={props.label}
-      aria-pressed={active}
-      onClick={() => props.onSelect(props.mode)}
-      className={`grid h-8 w-8 place-items-center rounded-[9px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${active ? 'bg-white text-accent shadow-sm dark:bg-white/[0.1]' : 'text-secondary hover:text-accent'}`}
-    >
-      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        {props.mode === 'single' && <rect x="4" y="5" width="16" height="14" rx="2" />}
-        {props.mode === 'split' && <><rect x="3" y="5" width="8" height="14" rx="1.5" /><rect x="13" y="5" width="8" height="14" rx="1.5" /></>}
-        {props.mode === 'overlay' && <><rect x="3" y="5" width="16" height="14" rx="2" /><rect x="11" y="9" width="10" height="8" rx="1.5" /></>}
-      </svg>
-    </button>
-  );
-}
 
-function ManagementButton(props: { label: string; active?: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-label={props.label}
-      title={props.label}
-      onClick={props.onClick}
-      className={`flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent [&_svg]:h-4 [&_svg]:w-4 [&_svg]:shrink-0 [&_svg]:fill-none [&_svg]:stroke-current [&_svg]:stroke-2 [&_svg]:[stroke-linecap:round] [&_svg]:[stroke-linejoin:round] ${props.active ? 'bg-accent/12 text-accent' : 'text-gray-600 hover:bg-gray-100 dark:text-white/70 dark:hover:bg-white/[0.06]'}`}
-    >
-      {props.children}
-    </button>
-  );
-}
 
 function BrowserIconButton(props: {
   label: string;
@@ -632,12 +621,20 @@ function BrowserIconButton(props: {
       disabled={props.disabled}
       onClick={props.onClick}
       aria-pressed={props.active}
-      className={`relative grid h-9 w-9 shrink-0 place-items-center rounded-[10px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-30 ${props.active ? 'bg-accent/12 text-accent' : props.danger ? 'text-gray-600 hover:bg-danger/10 hover:text-danger dark:text-white/70' : 'text-gray-600 hover:bg-white hover:shadow-sm dark:text-white/70 dark:hover:bg-white/[0.08]'}`}
+      className={`group relative grid h-8.5 w-8.5 shrink-0 place-items-center rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:scale-100 ${
+        props.active
+          ? 'bg-accent/15 text-accent shadow-xs shadow-accent/20 font-semibold'
+          : props.danger
+          ? 'text-gray-600 hover:bg-danger/10 hover:text-danger dark:text-white/70'
+          : 'text-gray-600 hover:bg-white hover:text-accent hover:shadow-xs dark:text-white/70 dark:hover:bg-white/[0.1] dark:hover:text-accent'
+      }`}
     >
-      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+      <svg className="h-4 w-4 transition-transform duration-200 group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
         {props.children}
       </svg>
-      {props.active && <span aria-hidden="true" className="absolute right-1 top-1 h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400 ring-2 ring-white/80 dark:ring-[#0d1117]" />}
+      {props.active && (
+        <span aria-hidden="true" className="absolute right-1 top-1 h-2 w-2 animate-pulse rounded-full bg-emerald-400 ring-2 ring-white/90 dark:ring-[#0d1117]" />
+      )}
     </button>
   );
 }

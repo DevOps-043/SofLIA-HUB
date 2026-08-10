@@ -1,6 +1,6 @@
 # Arquitectura backend Electron
 
-Estado: vigente. Actualizado: 2026-08-04.
+Estado: vigente. Actualizado: 2026-08-06.
 
 <!-- evidence: electron/main/bootstrap.ts -->
 <!-- evidence: electron/main/service-factory.ts -->
@@ -30,7 +30,7 @@ single-instance lock. `runBootstrap` despues:
 | `MonitoringService` | desktopCapturer, active-win, sharp/OCR | buffer + Lia + screenshots |
 | `CalendarService` | Google/Microsoft OAuth | tokens/conexiones |
 | `GmailService`, `DriveService`, `GChatService` | auth de CalendarService | proveedores externos |
-| `IntegratedBrowserService` | `BrowserWindow` + pestañas `WebContentsView`, doble vista, historial, boveda y extensiones | particion Chromium + archivos administrados en `userData/integrated-browser` |
+| `IntegratedBrowserService` | `BrowserWindow` + pestañas `WebContentsView`, doble vista, modo lectura, historial, boveda y extensiones | particion Chromium + archivos administrados en `userData/integrated-browser`; audio lector efímero en memoria |
 | `DesktopAgentService` | vision, UIA/OCR/ONNX, nut/Playwright | config JSON, tareas en memoria |
 | `UpdaterService` | electron-updater | estado de descarga |
 | `ClipboardAIAssistant` | clipboard; max 100, poll 5 s | historial en memoria |
@@ -94,7 +94,14 @@ canal permitido. Los servicios no deben importar componentes React.
   superficies visibles y sesion persistente
   aislada, protocolos HTTP(S), User-Agent derivado de Chromium sin token
   Electron, permisos sensibles con HITL y un driver de Computer Use sobre la
-  pestaña enfocada. La captura visual pasiva no recorre el DOM, se reduce a
+  pestaña enfocada. `BrowserSitePermissionStore` administra los permisos por
+  origen y `IntegratedBrowserPermissionGovernance` los aplica a cualquier
+  pestaña viva de la partición, no solo la activa; para cámara y micrófono
+  verifica además el permiso del sistema operativo antes de conceder.
+  `getDisplayMedia` pasa por un selector nativo de pantalla o ventana. La
+  pantalla completa de la página lleva la vista a cubrir la ventana anfitriona
+  y la ventana a pantalla completa del sistema, y `window.open` sin destino
+  abre una ventana real para Document Picture-in-Picture en vez de una pestaña. La captura visual pasiva no recorre el DOM, se reduce a
   1024 px, usa cadencia adaptativa (más amplia para YouTube) y cede durante
   interacción o Computer Use; la extracción saneada se realiza bajo demanda y
   no se fuerza para turnos ajenos al navegador. Los popups HTTP(S) se convierten en
@@ -113,6 +120,25 @@ canal permitido. Los servicios no deben importar componentes React.
   activa, las dos superficies visibles y hasta cuatro pestañas trasladadas a
   `BaseWindow` quedan protegidas de la suspensión. Separar o reintegrar mueve la
   misma vista sin recargar, duplicar perfil ni crear un renderer de aplicación.
+  `BrowserReadingModeService` extrae selección o estructura semántica bajo
+  demanda, sintetiza segmentos explícitos con timestamps de ElevenLabs y
+  conserva sesiones/audio únicamente en una caché acotada en memoria. El
+  controlador React no ocupa espacio visual: una cápsula redondeada vive en un
+  `ShadowRoot` efímero, se ancla sobre la selección, puede arrastrarse dentro
+  del viewport y se reposiciona al hacer
+  scroll o resize sin modificar el viewport. El primer segmento es corto y se
+  precargan hasta dos posteriores durante la reproducción. Main relaciona offsets con nodos
+  visibles y aplica un CSS Custom Highlight efímero; un DOM opaco o modificado
+  degrada el subrayado al token sincronizado dentro de la cápsula, no la
+  reproducción ni la página. La síntesis prepara aliases españoles y decimales
+  con un mapa reversible a los offsets originales; no existe descarga de audio.
+  La ruta crítica de voz usa un microlote inicial de hasta 180 caracteres,
+  prepara como máximo dos lotes de hasta 480 mientras reproduce y cancela cada
+  solicitud a los 20 segundos; no reintenta automáticamente operaciones
+  facturables.
+  `orb:synthesize` reutiliza la configuración ElevenLabs main-only con modelo
+  `eleven_turbo_v2_5` por defecto y entrega MP3 al renderer autorizado; la Orbe
+  decodifica y encola los bloques con Web Audio sin exponer la API key.
 - Browser automation aislada: Playwright Core se conserva para perfiles
   configurables o ejecuciones explicitamente aisladas; no es la ruta normal de
   la vista compartida con el usuario.

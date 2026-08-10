@@ -19,13 +19,17 @@ const OPTIMIZE_DEP_EXCLUDES = [
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "VITE_");
-  const mainProcessEnvDefines = createMainProcessEnvDefines(env);
+  // Las credenciales ElevenLabs solo se incrustan en el bundle main. No usan
+  // el prefijo VITE_ y por tanto no forman parte de import.meta.env ni del
+  // renderer/preload.
+  const elevenLabsEnv = loadEnv(mode, process.cwd(), "ELEVENLABS_");
+  const mainProcessEnvDefines = createMainProcessEnvDefines({ ...env, ...elevenLabsEnv });
+  const preloadEnvDefines = createMainProcessEnvDefines(env);
 
   return {
-    // Un unico prefijo: VITE_. Es el que loadEnv (arriba) carga y el que se
-    // incrusta en el proceso main via `define`, asi que una variable con este
-    // prefijo funciona igual en renderer y en main, tambien en la app instalada
-    // (no se empaqueta ningun .env). Sin VITE_, la variable no llega al build.
+    // El renderer conserva un unico prefijo publico: VITE_. Las variables
+    // main-only de ElevenLabs se cargan por separado arriba y nunca pasan por
+    // `envPrefix`, import.meta.env ni el bundle preload.
     envPrefix: "VITE_",
     server: {
       warmup: {
@@ -64,7 +68,7 @@ export default defineConfig(({ mode }) => {
         preload: {
           input: path.join(import.meta.dirname, "electron/preload.ts"),
           vite: {
-            define: mainProcessEnvDefines,
+            define: preloadEnvDefines,
             build: {
               rolldownOptions: {
                 external: createElectronExternals(pkg.dependencies),

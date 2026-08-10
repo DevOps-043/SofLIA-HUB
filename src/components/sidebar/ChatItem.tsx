@@ -29,16 +29,24 @@ export type ChatItemProps = {
 export function ChatItem(props: ChatItemProps) {
   const { conv, isActive, isRenaming, editingTitle, compact, sidebarOpen } = props;
   const baseClass = compact
-    ? 'relative min-h-7 w-full flex items-center px-2.5 py-1 rounded-xl text-[12.5px] transition-all duration-200 group/chat'
-    : `relative min-h-9 w-full flex items-center ${sidebarOpen ? 'px-2.5' : 'justify-center px-0'} rounded-2xl text-[13px] transition-all duration-200 group`;
+    ? 'relative min-h-7 w-full flex items-center px-2.5 py-1 rounded-xl text-[12.5px] transition-all duration-150 group/chat'
+    : `relative min-h-[2.15rem] w-full flex items-center ${sidebarOpen ? 'px-2.5 py-1.5' : 'justify-center px-0 py-1'} rounded-xl text-[13px] transition-all duration-150 group`;
   const activeClass = isActive
-    ? 'bg-[#0A2540]/10 text-[#0A2540] font-semibold shadow-[inset_0_0_0_1px_rgba(10,37,64,0.08)] dark:bg-accent/10 dark:text-accent dark:shadow-[inset_0_0_0_1px_rgba(0,212,179,0.12)]'
-    : 'text-secondary dark:text-white/50 hover:bg-[#0A2540]/5 hover:text-[#0A2540] dark:hover:bg-white/[0.05] dark:hover:text-white/80';
+    ? 'bg-accent/10 text-accent font-semibold dark:bg-accent/15 dark:text-accent'
+    : 'text-gray-600 dark:text-white/60 hover:bg-gray-100/70 hover:text-gray-900 dark:hover:bg-white/[0.05] dark:hover:text-white/90';
   const menuLayerClass = props.isMenuOpen ? 'z-40' : 'z-0';
 
   return (
-    <div role="button" tabIndex={0} onClick={(event) => handleItemClick(event, props)} onKeyDown={(e) => handleSelectKey(e, props.onSelect)} className={`${baseClass} ${activeClass} ${menuLayerClass}`} title={conv.title}>
-      {!sidebarOpen && <ChatIndicator active={isActive} />}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={(event) => handleItemClick(event, props)}
+      onKeyDown={(e) => handleSelectKey(e, props.onSelect)}
+      className={`${baseClass} ${activeClass} ${menuLayerClass}`}
+      style={{ fontFamily: 'var(--font-system-ui)' }}
+      title={conv.title}
+    >
+      {!sidebarOpen && <ChatIndicator active={isActive} title={conv.title} isPinned={conv.is_pinned} />}
       {sidebarOpen && (
         <>
           {isRenaming ? <RenameInput compact={compact} value={editingTitle} props={props} /> : <ChatTitle conv={conv} compact={compact} />}
@@ -49,8 +57,27 @@ export function ChatItem(props: ChatItemProps) {
   );
 }
 
-function ChatIndicator({ active }: { active: boolean }) {
-  return <div className={`h-2.5 w-2.5 shrink-0 rounded-full transition-all duration-200 ${active ? 'bg-accent shadow-[0_0_10px_rgba(0,212,179,0.45)]' : 'bg-gray-300 group-hover:bg-[#0A2540]/40 dark:bg-white/[0.16] dark:group-hover:bg-accent/60'}`} />;
+function ChatIndicator({ active, title, isPinned }: { active: boolean; title: string; isPinned?: boolean }) {
+  return (
+    <div
+      className={`h-9.5 w-9.5 shrink-0 rounded-xl flex items-center justify-center transition-all duration-150 ${
+        active
+          ? 'text-accent dark:text-accent bg-accent/15 font-semibold'
+          : 'text-gray-400 dark:text-white/55 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-white/[0.08]'
+      }`}
+      title={title}
+    >
+      {isPinned ? (
+        <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V3h1.5V1.5h-12V3h1.5v7.5L5.25 12v1.5h5.25v7.5h1.5v-7.5h5.25V12L16.5 10.5z" />
+        </svg>
+      ) : (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a.75.75 0 01-1.004-.766c.098-1.042.44-2.02 1.004-2.85A8.172 8.172 0 013 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+        </svg>
+      )}
+    </div>
+  );
 }
 
 function ChatTitle({ conv, compact }: { conv: Conversation; compact?: boolean }) {

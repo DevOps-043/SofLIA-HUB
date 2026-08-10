@@ -17,7 +17,7 @@ export function useChatProcessor({
   isImageGenMode,
   isPromptOptimizerMode,
   optimizerTarget,
-  activeTool,
+  activeSkill,
   sofiaUserId,
 }: UseChatProcessorParams) {
   const [isLoading, setIsLoading] = useState(false);
@@ -45,7 +45,7 @@ export function useChatProcessor({
     isPromptOptimizerMode,
     optimizerTarget,
     isImageGenMode,
-    activeTool,
+    activeSkill,
     sofiaUserId,
   });
 
@@ -57,13 +57,14 @@ export function useChatProcessor({
     images: string[],
     history: ChatMessage[],
     isRegeneration: boolean,
+    selectionContext?: string,
   ) => {
     abortRef.current?.abort();
     const token = ++genTokenRef.current;
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      await processMessage(text, images, history, isRegeneration, controller.signal, () => genTokenRef.current === token);
+      await processMessage(text, images, history, isRegeneration, controller.signal, () => genTokenRef.current === token, selectionContext);
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
     }
@@ -77,13 +78,13 @@ export function useChatProcessor({
     void desktopAgent?.abort?.();
   }, []);
 
-  const handleSend = useCallback(async (input: string, selectedImages: string[]) => {
+  const handleSend = useCallback(async (input: string, selectedImages: string[], selectionContext?: string) => {
     if (!input.trim() || showLoadingUI) return;
 
     const text = input.trim();
     const autodev = (window as unknown as { autodev?: { logFeedback?: (text: string) => Promise<void> } }).autodev;
     autodev?.logFeedback?.(text)?.catch(console.error);
-    await runWithAbort(text, [...selectedImages], [...messages], false);
+    await runWithAbort(text, [...selectedImages], [...messages], false, selectionContext);
   }, [showLoadingUI, messages, runWithAbort]);
 
   const handleRegenerate = async (messageId: string) => {

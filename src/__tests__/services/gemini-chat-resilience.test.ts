@@ -83,6 +83,12 @@ describe('gemini-chat resilience', () => {
     expect(() => assertGeminiCircuitClosed()).not.toThrow();
   });
 
+  it('GCHAT-RES-010: un contexto que ya no cabe NO es transitorio aunque diga "exceeded"', () => {
+    // Reintentarlo con el mismo payload gasta el backoff para volver a fallar.
+    expect(isTransientGeminiError(new Error("This model's maximum context length is 400000 tokens, however you requested 412000"))).toBe(false);
+    expect(isTransientGeminiError(new Error('Input exceeds the context window of this model'))).toBe(false);
+  });
+
   it('GCHAT-RES-009: fallas de servicio caido (503) SI abren el circuit breaker', async () => {
     vi.useFakeTimers();
     const operation = vi.fn(async () => { throw new Error('[503] service unavailable'); });

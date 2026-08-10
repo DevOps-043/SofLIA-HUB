@@ -4,16 +4,35 @@ import type { MainRuntimeState } from './runtime-state';
 
 export function registerAppLifecycle(input: { services: any; state: MainRuntimeState; controls: any }): void {
   const { services, state, controls } = input;
-  app.on('second-instance', (_event, commandLine) => {
-    const protocolCommand = parseAppProtocolCommand(extractProtocolArg(commandLine));
+
+  function routeProtocolCommand(rawUrl: string | null): boolean {
+    const protocolCommand = parseAppProtocolCommand(rawUrl);
     if (protocolCommand?.type === 'share-link') {
       controls.routeShareLinkToRenderer(protocolCommand.shareLink);
-      return;
+      return true;
+    }
+    if (protocolCommand?.type === 'auth-callback') {
+      controls.routeAuthCallbackToRenderer(protocolCommand.payload);
+      return true;
     }
     if (protocolCommand?.type === 'meeting-trigger') {
       controls.routeMeetingTriggerToRenderer(protocolCommand.payload);
-      return;
+      return true;
     }
+    return false;
+  }
+
+  app.on('second-instance', (_event, commandLine) => {
+    if (routeProtocolCommand(extractProtocolArg(commandLine))) return;
+    focusMainWindow(state, controls);
+  });
+
+  // macOS no relanza el proceso con el argumento: entrega el deep link por este
+  // evento. Sin el, el retorno del inicio federado no llega nunca en esa
+  // plataforma.
+  app.on('open-url', (event, url) => {
+    event.preventDefault();
+    if (routeProtocolCommand(url)) return;
     focusMainWindow(state, controls);
   });
 

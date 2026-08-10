@@ -8,6 +8,7 @@ export function createMainServices(modules: any) {
   const driveService = new modules.DriveService(calendarService);
   const gchatService = new modules.GChatService(calendarService);
   const integratedBrowserService = new modules.IntegratedBrowserService();
+  const skillWorkspaceService = new modules.SkillWorkspaceService();
   const desktopAgentService = new modules.DesktopAgentService(integratedBrowserService);
   const updaterService = new modules.UpdaterService();
   const clipboardAssistant = new modules.ClipboardAIAssistant({ maxHistorySize: 100, pollingIntervalMs: 5000 });
@@ -98,6 +99,7 @@ export function createMainServices(modules: any) {
     driveService,
     gchatService,
     integratedBrowserService,
+    skillWorkspaceService,
     desktopAgentService,
     updaterService,
     clipboardAssistant,

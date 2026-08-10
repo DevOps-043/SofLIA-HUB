@@ -43,6 +43,10 @@ vi.doMock('../../../lib/sofia-client', () => ({
 vi.doMock('../../../config', () => ({
   SUPABASE: { URL: 'https://test.supabase.co', ANON_KEY: 'test-key' },
   SOFIA_SUPABASE: { URL: 'https://test-sofia.supabase.co', ANON_KEY: 'test-key' },
+  // El inicio federado queda apagado en estas pruebas: cubren el camino de
+  // contrasena y no deben montar la suscripcion al deep link.
+  LEARNING_SSO: { BASE_URL: '', ENABLED: false },
+  isLearningSsoConfigured: () => false,
 }));
 
 export function resetSupabaseMocks(): void {

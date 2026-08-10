@@ -26,15 +26,29 @@ export function useModelSelector() {
   }, []);
 
   useEffect(() => {
-    const handleClickOutside = () => {
+    if (!isThinkingDropdownOpen && !isModelSelectorOpen) return undefined;
+
+    const handleClickOutside = (e: MouseEvent | PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target?.closest('[role="menu"]') ||
+        target?.closest('[aria-label*="modelo"]') ||
+        target?.closest('[aria-label*="Modelo"]')
+      ) {
+        return;
+      }
       setIsThinkingDropdownOpen(false);
       setIsModelSelectorOpen(false);
     };
 
-    if (isThinkingDropdownOpen || isModelSelectorOpen) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
+    const timer = window.setTimeout(() => {
+      document.addEventListener('pointerdown', handleClickOutside);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener('pointerdown', handleClickOutside);
+    };
   }, [isThinkingDropdownOpen, isModelSelectorOpen]);
 
   const currentModel = findModel(preferredPrimaryModel);

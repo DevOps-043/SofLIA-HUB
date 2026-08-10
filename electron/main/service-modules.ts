@@ -2,6 +2,10 @@ export async function loadMainServiceModules() {
   const { IntegratedBrowserService } = await import('../integrated-browser');
   const { registerIntegratedBrowserHandlers } = await import('../integrated-browser-handlers');
   const { registerComputerUseHandlers } = await import('../computer-use-handlers');
+  const { SkillWorkspaceService } = await import('../skill-workspace/service');
+  const { registerSkillWorkspaceHandlers } = await import('../skill-workspace-handlers');
+  const { registerPresentationProtocolHandler } = await import('../skill-workspace/protocol');
+  const { setSkillWorkspaceService } = await import('../skill-workspace/shared-instance');
   const { WhatsAppService } = await import('../whatsapp-service');
   const { WhatsAppAgent } = await import('../whatsapp-agent');
   const { MonitoringService } = await import('../monitoring-service');
@@ -65,6 +69,8 @@ export async function loadMainServiceModules() {
 
   return {
     IntegratedBrowserService, registerIntegratedBrowserHandlers,
+    SkillWorkspaceService, registerSkillWorkspaceHandlers, registerPresentationProtocolHandler,
+    setSkillWorkspaceService,
     registerComputerUseHandlers, WhatsAppService, WhatsAppAgent, MonitoringService, registerMonitoringHandlers,
     CalendarService, registerCalendarHandlers, GmailService, registerGmailHandlers, DriveService, registerDriveHandlers,
     GChatService, registerGChatHandlers, ProactiveService, DesktopAgentService, registerDesktopAgentHandlers,

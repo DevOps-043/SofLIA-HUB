@@ -13,6 +13,11 @@ export const AuthContext = createContext<AuthContextType>({
   liaStatusMessage: null,
   retryConversations: async () => false,
   signInWithSofia: async () => ({ success: false, user: null, session: null, error: 'Not initialized' }),
+  learningSsoAvailable: false,
+  signInWithLearningSso: async () => {},
+  cancelLearningSso: () => {},
+  ssoPending: false,
+  ssoError: null,
   setCurrentOrganization: () => {},
   setCurrentTeam: () => {},
 });

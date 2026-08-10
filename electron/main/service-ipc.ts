@@ -83,6 +83,46 @@ export function registerMainServiceIpcHandlers(input: {
     state.pendingMeetingTrigger = null;
     return nextMeetingTrigger;
   });
+  ipcMain.handle('app:get-pending-auth-callback', async () => {
+    const nextAuthCallback = state.pendingAuthCallback;
+    state.pendingAuthCallback = null;
+    return nextAuthCallback;
+  });
+  ipcMain.handle('app:window-minimize', async () => {
+    if (state.win && !state.win.isDestroyed()) {
+      state.win.minimize();
+    }
+  });
+  ipcMain.handle('app:window-maximize', async () => {
+    if (state.win && !state.win.isDestroyed()) {
+      if (state.win.isMaximized()) {
+        state.win.unmaximize();
+      } else {
+        state.win.maximize();
+      }
+    }
+  });
+  ipcMain.handle('app:window-close', async () => {
+    if (state.win && !state.win.isDestroyed()) {
+      state.win.close();
+    }
+  });
+  ipcMain.handle('app:window-is-maximized', async () => {
+    if (state.win && !state.win.isDestroyed()) {
+      return state.win.isMaximized();
+    }
+    return false;
+  });
+  ipcMain.handle('app:window-get-platform', async () => {
+    return process.platform;
+  });
+  // El renderer solo aporta su `state` y su desafio: la direccion la construye
+  // el main desde la configuracion, para que este canal no sirva para abrir una
+  // URL arbitraria en el navegador del usuario.
+  ipcMain.handle('auth:open-sso', async (_event, input: { state: string; codeChallenge: string }) => {
+    const { openLearningSso } = await import('../learning-sso');
+    return openLearningSso(input);
+  });
 
   const UI_PREFS_PATH = path.join(app.getPath('userData'), 'ui-preferences.json');
 

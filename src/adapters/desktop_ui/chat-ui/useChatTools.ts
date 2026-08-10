@@ -1,9 +1,26 @@
-import type { UserTool } from '../../../services/tools-service';
+import { prepareSkillWorkspace, type SkillActivationContext } from '../../../services/skills/active-skill';
+import { markUserSkillUsed } from '../../../services/skills/user-skills-store';
+import { isSystemSkill, isUserSkill, type Skill, type UserSkill } from '../../../shared/skills/types';
 import type { useChatUIState } from './useChatUIState';
 
+/**
+ * Acciones del menu de herramientas del compositor y activacion de Skills.
+ *
+ * Activar una Skill del sistema con workspace crea (o recupera) su carpeta y
+ * escribe la hoja de marca antes de que el modelo pueda escribir nada.
+ */
 export function useChatTools(
   canSendMessages: boolean,
   state: ReturnType<typeof useChatUIState>,
+  context: {
+    conversationId: string | null;
+    organizationId: string | null;
+    organizationName: string | null;
+    /** Senales que deciden por que rama del protocolo arranca la Skill. */
+    activation: SkillActivationContext;
+    /** Avisa al panel de que hay una presentacion activa. */
+    onWorkspaceReady?: (workspace: { id: string; skillId: string }) => void;
+  },
 ) {
   const handleToolSelect = (toolId: string) => {
     if (!canSendMessages) {
@@ -23,12 +40,12 @@ export function useChatTools(
         state.modes.setImageGen(false);
         break;
       case 'create_prompt':
-        state.toolModals.setSavePromptText(state.input.value.trim());
-        state.toolModals.setEditingTool(null);
-        state.toolModals.setEditorOpen(true);
+        state.skillModals.setSavePromptText(state.input.value.trim());
+        state.skillModals.setEditingSkill(null);
+        state.skillModals.setEditorOpen(true);
         break;
-      case 'my_tools':
-        state.toolModals.setLibraryOpen(true);
+      case 'my_skills':
+        state.skillModals.setLibraryOpen(true);
         break;
       default:
         break;
@@ -36,17 +53,42 @@ export function useChatTools(
     state.tools.setOpen(false);
   };
 
-  const handleUseTool = (tool: UserTool) => {
-    state.toolModals.setActiveTool(tool);
-    state.toolModals.setLibraryOpen(false);
+  const handleUseSkill = async (skill: Skill) => {
+    state.skillModals.setLibraryOpen(false);
+    // Se activa de inmediato con sus instrucciones; el workspace llega
+    // despues para no bloquear la interfaz mientras se crea la carpeta.
+    state.skillModals.setActiveSkill({ skill, workspaceId: null, brandingNotice: null, workspaceError: null, contextNote: null });
+
+    // El uso ordena la biblioteca del usuario. No bloquea la activacion: si
+    // falla, la Skill se usa igual y solo se pierde el contador.
+    if (isUserSkill(skill)) {
+      void markUserSkillUsed(skill.id, skill.usageCount);
+    }
+
+    if (!isSystemSkill(skill) || !skill.workspace) return;
+
+    const prepared = await prepareSkillWorkspace({
+      skill,
+      conversationId: context.conversationId,
+      organizationId: context.organizationId,
+      context: { ...context.activation, organizationName: context.organizationName },
+    });
+    state.skillModals.setActiveSkill(prepared);
+    if (prepared.workspaceId) context.onWorkspaceReady?.({ id: prepared.workspaceId, skillId: skill.id });
   };
 
-  const handleEditTool = (tool: UserTool) => {
-    state.toolModals.setEditingTool(tool);
-    state.toolModals.setSavePromptText('');
-    state.toolModals.setLibraryOpen(false);
-    state.toolModals.setEditorOpen(true);
+  const handleDeactivateSkill = () => {
+    // Desactivar solo quita las instrucciones del turno: la conversacion y el
+    // workspace siguen intactos.
+    state.skillModals.setActiveSkill(null);
   };
 
-  return { handleToolSelect, handleUseTool, handleEditTool };
+  const handleEditSkill = (skill: UserSkill) => {
+    state.skillModals.setEditingSkill(skill);
+    state.skillModals.setSavePromptText('');
+    state.skillModals.setLibraryOpen(false);
+    state.skillModals.setEditorOpen(true);
+  };
+
+  return { handleToolSelect, handleUseSkill, handleDeactivateSkill, handleEditSkill };
 }

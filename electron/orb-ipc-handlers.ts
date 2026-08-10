@@ -57,12 +57,24 @@ export function registerOrbIpcHandlers(options: OrbIpcOptions): void {
   }));
 
   // Voz de la orbe: se sintetiza en main (unico lugar con la key del .env).
-  ipcMain.handle('orb:synthesize', (_event, text: string) =>
+  ipcMain.handle('orb:synthesize', (event, text: unknown) =>
     handleIPC(async () => {
-      const speech = String(text || '').trim();
+      const denied = denyIfUnauthenticated('orb:synthesize');
+      if (denied) throw new Error(denied.error);
+      const allowedSenderIds = [getMainWindow(), getOrbWindow()]
+        .filter((window): window is BrowserWindow => Boolean(window && !window.isDestroyed()))
+        .map((window) => window.webContents.id);
+      if (!allowedSenderIds.includes(event.sender.id)) throw new Error('sender_denied');
+      if (typeof text !== 'string') throw new Error('El texto de voz no es válido.');
+      const speech = text.replace(/\s+/g, ' ').trim();
       if (!speech) throw new Error('No hay texto que sintetizar.');
       const audio = await synthesizeOrbSpeech(speech);
-      return { audioBase64: audio.audioBase64, voice: audio.voice };
+      return {
+        audioBase64: audio.audioBase64,
+        mimeType: audio.mimeType,
+        voiceId: audio.voiceId,
+        modelId: audio.modelId,
+      };
     }));
 
   ipcMain.handle('orb:start-dictation', () =>

@@ -26,10 +26,26 @@ export function buildSystemInstruction(message: string, options?: SendMessageStr
   if (options?.memoryContext) systemInstruction += options.memoryContext;
   if (options?.irisContext) systemInstruction += buildIrisRules(options.irisContext);
   if (options?.sourcesContext) systemInstruction += options.sourcesContext;
-  if (options?.toolSystemPrompt) {
+  if (options?.activeSkill) {
+    systemInstruction += buildActiveSkillSection(options.activeSkill);
+  } else if (options?.toolSystemPrompt) {
+    // Camino heredado: se conserva mientras quede codigo que active una
+    // herramienta de usuario por su prompt suelto en vez de como Skill.
     systemInstruction += `\n\n=== INSTRUCCIONES DE HERRAMIENTA ACTIVA ===\n${options.toolSystemPrompt}\n=====================================`;
   }
   return systemInstruction;
+}
+
+/**
+ * Instrucciones de la Skill activa. Se marcan como seccion propia para que
+ * el modelo distinga lo que aporta la Skill de su comportamiento base, y se
+ * indica el espacio de trabajo cuando lo hay.
+ */
+function buildActiveSkillSection(skill: NonNullable<SendMessageStreamOptions['activeSkill']>): string {
+  const workspaceNote = skill.workspaceId
+    ? '\n\nTienes un espacio de trabajo activo para esta skill. Usa las herramientas workspace_* para leer y escribir sus archivos; no uses las herramientas generales de archivos del sistema para este entregable.'
+    : '';
+  return `\n\n=== SKILL ACTIVA: ${skill.name} ===\n${skill.instructions}${workspaceNote}\n=====================================`;
 }
 
 function buildIrisRules(irisContext: string): string {

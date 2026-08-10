@@ -1,6 +1,6 @@
 # Historias de usuario
 
-Estado: vigente. Actualizado: 2026-08-04.
+Estado: vigente. Actualizado: 2026-08-06.
 
 Las historias reflejan rutas implementadas; no son un backlog aspiracional. La
 aceptacion completa tambien exige las reglas y RNF enlazados.
@@ -34,6 +34,7 @@ aceptacion completa tambien exige las reglas y RNF enlazados.
 <!-- define: HU-023 -->
 <!-- define: HU-024 -->
 <!-- define: HU-025 -->
+<!-- define: HU-026 -->
 
 | ID | Historia | Criterios de aceptacion implementados | Requisitos |
 |---|---|---|---|
@@ -57,11 +58,12 @@ aceptacion completa tambien exige las reglas y RNF enlazados.
 | HU-018 | Como operador tecnico, quiero lanzar procesos largos sin bloquear la app y revisar su salida. | Session ID; list/poll/kill; limites de salida y timeout; status independiente. | RF-028; RNF-009 |
 | HU-019 | Como operador, quiero registrar otro equipo como nodo y ejecutar alli una tarea autorizada. | Alta/baja/test; estado; app/comando/tarea/screenshot; capability `remote_nodes`. | RF-029; BR-025 |
 | HU-020 | Como administrador de integraciones, quiero instalar tools dinamicas sin convertir cualquier archivo en permiso. | Loader valida contrato; lista/doctor; hot reload; HITL/grupo/timeout/auditoria central. | RF-030; BR-010, BR-011, BR-028 |
-| HU-021 | Como usuario, quiero invocar la orbe por voz y continuar mediante dictado/TTS. | Wake word abre orbe; mic/model status; parciales/final; TTS; stop/hide; errores visibles. | RF-031, RF-036 |
+| HU-021 | Como usuario, quiero invocar la orbe por voz y continuar mediante dictado/TTS. | Wake word abre orbe; mic/model status; parciales/final; voz ElevenLabs configurada en main; bloques MP3 ordenados; stop/hide; texto y errores visibles. | RF-031, RF-036 |
 | HU-022 | Como usuario preocupado por privacidad, quiero parsear documentos y redactar texto en un proceso aislado. | Sidecar de tools separado; status; parse/redact; config privacidad; timeout/restart. | RF-032; RNF-005 |
 | HU-023 | Como usuario, quiero conocer y aplicar actualizaciones sin descargar ejecutables manualmente. | Check; notas sanitizadas; progreso; descarga; instalacion explicita; errores. | RF-033; BR-021, BR-022 |
 | HU-024 | Como owner, quiero automatizar tareas recurrentes conservando aprobacion y trazabilidad. | Templates/runs/cases; approve/reject; reglas pasivas; alertas proactivas; estados y auditoria. | RF-034, RF-035; BR-009 |
-| HU-025 | Como usuario, quiero conversar con SofLIA mientras navego y retomar las acciones web que ejecuta el agente. | Hasta 500 pestañas lógicas con ocho vistas vivas y restauración LRU; hasta cuatro ventanas nativas separadas; foco explícito; chat compacto premium; el modelo visible orquesta y puede alternar DOM, Computer Use browser y Computer Use desktop sin cambiar silenciosamente de superficie; un flujo puede observar Codex, elaborar un resumen y volver a Google Chat, pero enviar exige HITL; la percepción pasiva no se fuerza en turnos ajenos al navegador y usa un perfil 30/12 segundos en YouTube para no competir con transcripciones; Gemini 3.6 Flash actúa sólo cuando hace falta actuación visual; OAuth/2FA conserva el frame principal gobernado; navegador vivo sin fallback externo; contraseñas cifradas por origen; extensiones MV3 con permisos visibles, aprobación y reintento. | RF-039; BR-009, BR-018, BR-019 |
+| HU-025 | Como usuario, quiero conversar con SofLIA mientras navego, retomar las acciones web del agente y consumir documentos en un lector accesible. | Hasta 500 pestañas lógicas con ocho vistas vivas y restauración LRU; hasta cuatro ventanas nativas separadas; foco explícito; chat compacto premium; el modelo visible orquesta y puede alternar DOM, Computer Use browser y Computer Use desktop sin cambiar silenciosamente de superficie; un flujo puede observar Codex, elaborar un resumen y volver a Google Chat, pero enviar exige HITL; la percepción pasiva no se fuerza en turnos ajenos al navegador y usa un perfil 30/12 segundos en YouTube para no competir con transcripciones; Gemini 3.6 Flash actúa sólo cuando hace falta actuación visual; OAuth/2FA conserva el frame principal gobernado; navegador vivo sin fallback externo; contraseñas cifradas por origen; extensiones MV3 con permisos visibles, aprobación y reintento; modo lectura por selección/documento con cápsula flotante y movible que conserva imágenes, gráficas y viewport, narración explícita por microlotes con dos anticipados y timeout recuperable, pronunciación española de marca/decimales, extracción autenticada o accesible de Google Docs sin leer su interfaz, subrayado temporal sobre rangos DOM fiables o seguimiento del token en la cápsula para lienzos virtuales, y botones para reducir/aumentar velocidad, sin descarga de audio. | RF-039; BR-009, BR-018, BR-019 |
+| HU-026 | Como usuario, quiero pedirle a SofLIA una presentacion ejecutiva con la identidad de mi organizacion y ver como la construye. | Catalogo unico de Skills del sistema y propias, invocable en chat y WhatsApp; las del sistema no se editan y las del usuario no habilitan herramientas; la presentacion se arma desde un archivo, un documento de Drive, la pagina abierta en el navegador o mis indicaciones; los colores, tipografia y logo salen de mi organizacion y, si no tiene branding, se avisa y se usa el tema neutro; el panel derecho muestra en vivo el archivo que se escribe, permite reproducir la presentacion embebida o a pantalla completa, exportar a PDF y abrir la carpeta; puedo ocultarlo sin detener el trabajo y recuperarlo desde el menu de herramientas; pedir un cambio acotado edita solo esa parte; por WhatsApp recibo el PDF tras aprobarlo y nada se envia a un generador externo. | RF-040, RF-041; BR-009 |
 
 ## Cobertura de excepciones
 

@@ -1,6 +1,6 @@
 # IPC e integraciones externas
 
-Estado: vigente. Actualizado: 2026-08-04.
+Estado: vigente. Actualizado: 2026-08-06.
 
 <!-- evidence: electron/preload/channels.ts -->
 <!-- evidence: electron/preload/safe-ipc.ts -->
@@ -8,8 +8,8 @@ Estado: vigente. Actualizado: 2026-08-04.
 
 ## Contrato IPC
 
-La allowlist actual contiene 310 canales derivados de cinco arrays: 72, 59, 65,
-103 y 11. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 340 canales derivados de cinco arrays: 75, 59, 65,
+112 y 29. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |
@@ -24,7 +24,9 @@ el catalogo y su validador deben actualizarse juntos.
 | `meeting`, `whatsapp` | 12 cada uno | runs/approvals/sync; conexion/config/status |
 | `meeting-live` | 11 | audio, segmentos, deteccion y estado live |
 | `channels`, `workflow-hub` | 10 cada uno | hub multicanal y casos de workflow |
-| `integrated-browser` | 34 | navegación, pestañas, composición, captura visible, percepción, controlador determinista, viewport, visibilidad, eventos, historial, credenciales y extensiones |
+| `integrated-browser` | 46 | navegación, pestañas, composición, captura visible, percepción, modo lectura, controlador determinista, viewport, visibilidad, eventos, historial, credenciales y extensiones |
+| `skill-workspace` | 13 | espacio de trabajo de Skills: crear, estado, leer, escribir, editar, borrar, guardar y descargar imagenes, abrir carpeta, progreso y URL de vista previa |
+| `presentation`, `presentation-view` | 5 | vista a pantalla completa, exportacion a HTML autocontenido y preparacion de la identidad de marca |
 | otros | 60 | voice, updater, automation, drive, pytools, telegram, gchat, app, proactive, background-host, root y AI |
 
 ### Recorrido obligatorio
@@ -55,13 +57,56 @@ actualizar las cuatro capas, tipos y pruebas segun
 
 ### Contrato del navegador integrado
 
-`electron/integrated-browser-handlers.ts` registra treinta y dos operaciones invocables:
-diecisiete de estado/navegacion/pestañas/composición/viewport/captura/percepción/visibilidad,
-tres del controlador determinista, una para abrir las herramientas de
-desarrollo de la pestaña activa, dos de historial, cuatro de credenciales y
-cinco de extensiones. Dos canales adicionales entregan estado y solicitudes de
-apertura del agente al renderer. `electron/preload/integrated-browser-api.ts` y
+`integrated-browser:tab-reorder` reordena las pestañas al arrastrarlas. El
+handler y el método de preload ya existían, pero el canal **faltaba en la
+allowlist**: `validateChannel` lanza de forma síncrona, y como la llamada vivía
+dentro de un updater de estado de React, el error se propagaba por la fase de
+render y dejaba la aplicación en blanco. El arrastre usa Pointer Events con
+captura —el gesto no se pierde al salir de la pestaña ni compite con la región
+de arrastre de la ventana— y el reordenamiento se calcula fuera del updater.
+
+`electron/integrated-browser-handlers.ts` registra cuarenta y una operaciones invocables:
+veintitrés de estado, navegación, pestañas, composición, viewport, captura,
+percepción, controlador determinista y herramientas de desarrollo; siete del
+modo lectura, dos de historial, cuatro de credenciales y cinco de extensiones.
+Dos canales adicionales entregan estado y solicitudes de
+apertura del agente al renderer, y otros dos entregan las acciones del menu
+contextual: la seleccion de texto convertida en peticion para el chat y la
+apertura del modo lectura. `electron/preload/integrated-browser-api.ts` y
 `src/services/integrated-browser-service.ts` son las capas publicas.
+
+El modo lectura usa `integrated-browser:reading-prepare`,
+`integrated-browser:reading-synthesize`, `integrated-browser:reading-highlight`,
+`integrated-browser:reading-cancel`, `integrated-browser:reading-close`, además de
+`integrated-browser:reading-toolbar-wait` y
+`integrated-browser:reading-toolbar-sync`. Main extrae texto semántico de la
+pestaña activa, excluye formularios y contenido editable y, para Google Docs,
+prioriza la selección explícita, la exportación autenticada mediante la misma
+`Session` de Electron y el árbol de accesibilidad temporal de Chromium. Si esas
+vías no entregan el documento, falla sin usar el DOM de menús como respaldo.
+Main conserva la clave de
+ElevenLabs fuera del renderer y entrega únicamente audio, offsets y marcas de
+tiempo. El resaltado acepta sólo un `readingId` y offsets enteros validados,
+comprueba sesión/URL y aplica un CSS Highlight temporal sin mutar nodos. La
+reproducción de Google Docs omite el CSS Highlight porque su lienzo virtual no
+ofrece rangos DOM estables; así nunca subraya etiquetas de la interfaz por una
+coincidencia textual. En su lugar, el mismo canal de resaltado actualiza un
+token subrayado en la cápsula con los offsets originales. La cápsula se inyecta en un
+`ShadowRoot` efímero de la página y entrega acciones mediante una espera IPC
+cancelable; no consulta el DOM por polling ni modifica el viewport. Su asa usa
+Pointer Events locales para moverla y limitarla al área visible, sin abrir un
+canal IPC adicional ni persistir coordenadas. La síntesis divide el contenido en
+un microlote inicial y lotes anticipados acotados; una espera lenta se aborta y
+no dispara reintentos automáticos. Antes de cada solicitud, main prepara aliases
+como `SofLIA` → “Soflía” y decimales como `5.12` → “cinco punto doce”,
+declara `language_code` y envía contexto vecino acotado. Un mapa de fronteras
+traduce los timestamps de ese texto hablado al contenido original.
+
+`orb:synthesize` comparte la misma configuración main-only de ElevenLabs,
+acepta únicamente texto acotado desde la ventana principal o la Orbe
+autenticadas y devuelve MP3 Base64 con `mimeType`, `voiceId` y `modelId`. La
+reproducción decodifica MP3 mediante Web Audio para conservar la cola y el nodo
+que anima la Orbe; ninguna credencial cruza IPC.
 
 Los payloads de URL admiten HTTP(S), `about:blank` y busqueda normalizada; los
 bounds son enteros y se ajustan al contenido de la ventana. Un emisor distinto
@@ -81,7 +126,17 @@ DOM saneado bajo demanda. Solo el último snapshot queda en memoria, Computer Us
 no compite con el temporizador pasivo y el refresco nunca invoca al modelo.
 Los turnos contextuales solicitan un snapshot puntual reciente: referencias a
 personas, mensajes o recursos visibles se resuelven aunque no contengan un verbo
-de visión. Los canales `integrated-browser:element-click`,
+de visión.
+El snapshot incluye `images`: las imágenes de contenido de la página con su URL,
+su texto alternativo y su tamaño, para que el agente pueda reutilizar el material
+gráfico que el usuario ya está viendo —una presentación construida sobre esa
+página debe llevar sus imágenes, no unas inventadas—. Se descartan por tamaño
+los iconos, avatares y píxeles de seguimiento, y los esquemas `data:` y `blob:`,
+que el proceso principal no puede volver a pedir. A diferencia de las URL de
+página, **la query se conserva**: en una URL de imagen suele llevar el tamaño o
+la firma, y quitarla devuelve un 403 o una imagen distinta; a cambio, esa query
+puede contener un token de acceso al recurso, así que viaja al modelo como parte
+del contenido no confiable de la página. Los canales `integrated-browser:element-click`,
 `integrated-browser:element-type` e `integrated-browser:scroll` exponen el
 controlador determinista: actúan por la referencia del último snapshot, resuelven
 el elemento vivo antes de enviar entrada real y se rechazan sin pestaña visible o
@@ -122,6 +177,55 @@ permanece viva. Solo los gestores flotantes toman una captura puntual y llaman a
 `hide`; al cerrarlos republican el viewport. Una tarea dirigida a esta vista
 falla cerrado y nunca cambia silenciosamente al backend desktop.
 
+## Espacio de trabajo de Skills y presentaciones
+
+Los canales `skill-workspace:*` operan **solo dentro** del workspace que indica
+su identificador. El renderer y el modelo manejan siempre rutas relativas: la
+ruta absoluta no cruza la frontera IPC, de modo que no puede reutilizarse contra
+otras herramientas del sistema. No existe ningún canal de ruta absoluta ni de
+ejecución en este espacio de nombres.
+
+| Canal | Efecto |
+|---|---|
+| `skill-workspace:create` | Crea el workspace de una Skill del sistema con su política. |
+| `skill-workspace:find-by-conversation` | Recupera el workspace asociado a una conversación. |
+| `skill-workspace:get-state` | Archivos, tamaño total y si existe el documento de entrada. |
+| `skill-workspace:read-file` / `write-file` / `edit-file` / `delete-file` | Operaciones acotadas con validación de contención por `realpath`. |
+| `skill-workspace:write-image` | Guarda en `assets/` una imagen generada por el modelo; el nombre se sanea y la extensión debe ser PNG, JPEG o WebP. |
+| `skill-workspace:download-image` | Descarga una imagen HTTPS y la guarda en `assets/`. Las guardas de red viven en main (ver abajo). |
+| `skill-workspace:open-folder` | Abre la carpeta en el explorador del sistema operativo. |
+| `skill-workspace:progress` | Evento por archivo (`en_curso`, `completado`, `error`) que alimenta el panel. |
+| `skill-workspace:preview-url` | URL `pulse-presentacion://` del documento; falla si aún no existe. |
+| `presentation-view:open` / `close` / `closed` | Vista nativa a pantalla completa, creada bajo demanda y destruida al cerrar. |
+| `presentation:export-html` | Empaqueta la presentación en un HTML autocontenido: estilos incrustados e imágenes en `data:`. |
+| `presentation:prepare-branding` | Resuelve la identidad de la organización y escribe `estilos/marca.css`. |
+
+El protocolo `pulse-presentacion://` se declara privilegiado **antes** de
+`app.ready` (`electron/main.ts`) y su handler se registra después **en cada
+sesión que lo use**: la del renderer, que carga el `iframe`, y la partición
+propia de la vista a pantalla completa. `protocol.handle` del módulo solo afecta
+a la sesión por defecto; una `WebContentsView` con partición propia se quedaría
+sin handler y el sistema operativo recibiría el esquema como enlace externo. Sirve
+exclusivamente archivos del workspace indicado, reutilizando la misma validación
+de contención del servicio, devuelve 404 para cualquier otra ruta o extensión
+desconocida, y envía una CSP sin `connect-src`, de modo que el documento no
+puede pedir recursos remotos. La vista previa embebida lo carga en un `iframe`
+con `sandbox="allow-scripts"` **sin** `allow-same-origin`: origen opaco, sin
+acceso a las APIs de preload.
+
+**Imágenes en el workspace.** Son la única vía por la que entra un binario, y
+por eso no comparten camino con las escrituras de texto: el nombre lo sanea main
+(se descarta la ruta propuesta y se fuerza el prefijo `assets/`), la extensión
+debe ser PNG, JPEG o WebP, y el tamaño tiene tope propio además del presupuesto
+del workspace. La generación ocurre en el renderer, que ya tiene configurado el
+modelo de imagen; main solo escribe los bytes. La descarga sí ocurre en main
+(`electron/skill-workspace/fetch-image.ts`) porque la URL la elige el modelo a
+partir de fuentes que no controlamos: solo HTTPS, sin destinos privados ni
+enlace-local, con `redirect: 'manual'` para revalidar cada salto —una URL pública
+que redirige a `169.254.169.254` es el caso que esto cierra—, límite de tamaño y
+de tiempo. Poner esas guardas en el renderer no serviría: una respuesta
+manipulada podría saltárselas.
+
 ## Integraciones y propietarios
 
 | Integracion | Cliente/servicio | Configuracion | Patrón de fallo |
@@ -129,17 +233,39 @@ falla cerrado y nunca cambia silenciosamente al backend desktop.
 | Gemini | dos SDK + REST/Live WebSocket | `VITE_GEMINI_API_KEY`, modelos en `src/config.ts` | fallback de modelo, timeout, error publico |
 | Supabase Lia | renderer + main por dominio | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | diagnostico/degradado Lia |
 | Supabase SOFIA | renderer auth/org | `VITE_SOFIA_SUPABASE_*` | bloquea auth principal si no configura |
+| SSO SofLIA Learning | navegador del sistema + deep link `soflia://auth/callback` | `VITE_LEARNING_BASE_URL`, `VITE_LEARNING_SSO_ENABLED` | entrada no se ofrece con el interruptor apagado; el inicio por contrasena no depende de ella |
 | Supabase IRIS | renderer/main proyecto | `VITE_IRIS_SUPABASE_*` | Project Hub degradado |
 | Google OAuth/APIs | Calendar auth compartido | `VITE_GOOGLE_OAUTH_CLIENT_ID/SECRET` | conexion por usuario, refresh y desconexion |
 | Microsoft Calendar | MSAL/Graph | `VITE_MICROSOFT_CLIENT_ID` | conexion separada por provider |
-| Google Cloud TTS | REST desde orbe | API key, voice y language `VITE_*` | fallback/estado de voz |
+| ElevenLabs | REST binario y `with-timestamps` desde main | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`; default `eleven_turbo_v2_5`, formato opcional | Orbe conserva texto sin voz; lector visual disponible; errores saneados de permiso, cuota o timeout |
 | WhatsApp | Baileys WebSocket | QR + config en `userData` | reconnect/status; allowlists |
 | Telegram | Bot API | config cifrada/estado local del servicio | test de conexion y status |
-| Gamma | API de presentaciones | `VITE_GAMMA_API_KEY` | workflow queda en error sin artifact |
 | SMTP | Nodemailer | configurado via handlers computer | confirmacion de envio y error seguro |
 | GitHub Releases | electron-updater/Actions | repo publico de releases + token solo CI | check/download/install por estado |
 | Home Assistant | toolset dinamico builtin | URL/token provistos al instalar | doctor, contrato, timeout y HITL write |
 | Nodos remotos | servicio propio de host/node | config en `userData` | status/test y capability de canal |
+
+## Protocolo `soflia://` e inicio federado
+
+`parseAppProtocolCommand` acepta tres comandos: `share/<token>`,
+`meeting-trigger` y `auth/callback`. El enrutado cubre las tres vias de entrada
+de un deep link: `second-instance` (Windows y Linux con la aplicacion abierta),
+`process.argv` en arranque en frio, y `open-url` en macOS, que es el unico canal
+por el que esa plataforma entrega el enlace.
+
+El inicio federado usa dos canales IPC: `auth:open-sso`, que abre el navegador
+del sistema, y `app:auth-callback` junto con `app:get-pending-auth-callback`,
+que entregan el retorno al renderer en caliente o tras un arranque en frio.
+
+Dos limites que no deben relajarse:
+
+- El renderer **no envia una URL** por `auth:open-sso`, solo su `state` y su
+  desafio. La direccion la construye el proceso main desde la configuracion, de
+  modo que el canal no sirva para abrir una direccion arbitraria en el navegador
+  del usuario.
+- El verificador PKCE vive solo en memoria del renderer. No cruza a main, no se
+  persiste y no aparece en registros. Es lo unico que hace inservible un ticket
+  interceptado por otra aplicacion que haya registrado el mismo esquema.
 
 ## Limites de contrato
 

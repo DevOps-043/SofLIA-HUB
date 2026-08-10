@@ -22,6 +22,15 @@ export function registerPreloadChannelTests() {
     });
   });
 
+  it('SEC-019b: federated sign-in channels are allowed', () => {
+    // El flujo SSO no funciona si falta cualquiera de los tres: apertura del
+    // navegador, retorno en caliente y retorno retenido del arranque en frio.
+    ['auth:open-sso', 'app:auth-callback', 'app:get-pending-auth-callback'].forEach((channel) => {
+      expect(ALLOWED_IPC_CHANNELS).toContain(channel);
+      expect(() => validateChannel(channel)).not.toThrow();
+    });
+  });
+
   it('SEC-021: has 150+ channels total', () => {
     expect(ALLOWED_IPC_CHANNELS.length).toBeGreaterThanOrEqual(150);
   });
@@ -51,8 +60,24 @@ export function registerPreloadChannelTests() {
 
   it('SEC-035: el navegador integrado expone solo su contrato allowlisted', () => {
     const browserChannels = ALLOWED_IPC_CHANNELS.filter((channel) => channel.startsWith('integrated-browser:'));
-    expect(browserChannels).toHaveLength(36);
+    expect(browserChannels).toHaveLength(54);
     expect(browserChannels).toContain('integrated-browser:toggle-devtools');
+    expect(browserChannels).toContain('integrated-browser:site-permissions-get');
+    expect(browserChannels).toContain('integrated-browser:site-permissions-set');
+    expect(browserChannels).toContain('integrated-browser:site-permissions-reset');
+    expect(browserChannels).toContain('integrated-browser:site-permissions-changed');
+    expect(browserChannels).toContain('integrated-browser:tab-summaries');
+    expect(browserChannels).toContain('integrated-browser:get-tab-content');
+    expect(browserChannels).toContain('integrated-browser:selection-action');
+    expect(browserChannels).toContain('integrated-browser:reading-mode-requested');
+    expect(browserChannels).toContain('integrated-browser:reading-prepare');
+    expect(browserChannels).toContain('integrated-browser:reading-synthesize');
+    expect(browserChannels).toContain('integrated-browser:reading-highlight');
+    expect(browserChannels).toContain('integrated-browser:reading-toolbar-wait');
+    expect(browserChannels).toContain('integrated-browser:reading-toolbar-sync');
+    expect(browserChannels).toContain('integrated-browser:reading-cancel');
+    expect(browserChannels).toContain('integrated-browser:reading-close');
+    expect(browserChannels).not.toContain('integrated-browser:reading-download');
     expect(browserChannels).toContain('integrated-browser:capture-visible');
     expect(browserChannels).toContain('integrated-browser:element-click');
     expect(browserChannels).toContain('integrated-browser:element-type');
@@ -63,11 +88,47 @@ export function registerPreloadChannelTests() {
     expect(browserChannels).toContain('integrated-browser:tab-create');
     expect(browserChannels).toContain('integrated-browser:tab-detach');
     expect(browserChannels).toContain('integrated-browser:tab-reattach');
+    // Sin este canal en la allowlist, `validateChannel` lanzaba de forma
+    // sincrona dentro de un updater de React y la aplicacion se quedaba en
+    // blanco al arrastrar una pestana.
+    expect(browserChannels).toContain('integrated-browser:tab-reorder');
     expect(browserChannels).toContain('integrated-browser:view-mode');
     expect(browserChannels).toContain('integrated-browser:open-requested');
     expect(browserChannels).toContain('integrated-browser:credentials-save');
     expect(browserChannels).toContain('integrated-browser:extensions-install');
     expect(browserChannels).toContain('integrated-browser:extensions-confirm-install');
     expect(ALLOWED_IPC_CHANNELS).toContain('orb:show');
+  });
+
+  it('SEC-036: el espacio de trabajo de skills expone solo su contrato allowlisted', () => {
+    const workspaceChannels = ALLOWED_IPC_CHANNELS.filter((channel) => channel.startsWith('skill-workspace:'));
+    expect(workspaceChannels).toHaveLength(13);
+    expect(workspaceChannels).toContain('skill-workspace:create');
+    expect(workspaceChannels).toContain('skill-workspace:get-state');
+    expect(workspaceChannels).toContain('skill-workspace:read-file');
+    expect(workspaceChannels).toContain('skill-workspace:write-file');
+    expect(workspaceChannels).toContain('skill-workspace:edit-file');
+    expect(workspaceChannels).toContain('skill-workspace:delete-file');
+    expect(workspaceChannels).toContain('skill-workspace:open-folder');
+    expect(workspaceChannels).toContain('skill-workspace:progress');
+    expect(workspaceChannels).toContain('skill-workspace:preview-url');
+    expect(workspaceChannels).toContain('skill-workspace:write-image');
+    expect(workspaceChannels).toContain('skill-workspace:download-image');
+    // El workspace nunca expone un canal de ruta absoluta ni de ejecucion:
+    // main resuelve la ruta real y el renderer solo maneja rutas relativas.
+    expect(workspaceChannels).not.toContain('skill-workspace:absolute-path');
+    expect(workspaceChannels).not.toContain('skill-workspace:execute');
+  });
+
+  it('SEC-037: las presentaciones exponen vista, exportacion y branding', () => {
+    const presentationChannels = ALLOWED_IPC_CHANNELS.filter((channel) => channel.startsWith('presentation'));
+    expect(presentationChannels).toHaveLength(5);
+    expect(presentationChannels).toContain('presentation-view:open');
+    expect(presentationChannels).toContain('presentation-view:close');
+    expect(presentationChannels).toContain('presentation-view:closed');
+    expect(presentationChannels).toContain('presentation:export-html');
+    // La exportacion es HTML, no PDF: imprimir aplanaria las animaciones.
+    expect(presentationChannels).not.toContain('presentation:export-pdf');
+    expect(presentationChannels).toContain('presentation:prepare-branding');
   });
 }

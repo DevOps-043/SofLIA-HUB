@@ -97,16 +97,16 @@ jobs:
           echo "VITE_IRIS_SUPABASE_ANON_KEY=${{ secrets.VITE_IRIS_SUPABASE_ANON_KEY }}" >> .env
           echo "VITE_GOOGLE_OAUTH_CLIENT_ID=${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_ID }}" >> .env
           echo "VITE_GOOGLE_OAUTH_CLIENT_SECRET=${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_SECRET }}" >> .env
-          echo "VITE_GAMMA_API_KEY=${{ secrets.VITE_GAMMA_API_KEY }}" >> .env
-          echo "VITE_GOOGLE_CLOUD_TTS_API_KEY=${{ secrets.VITE_GOOGLE_CLOUD_TTS_API_KEY }}" >> .env
-          echo "VITE_CHAT_TTS_PROVIDER=${{ secrets.VITE_CHAT_TTS_PROVIDER }}" >> .env
-          echo "VITE_GOOGLE_CLOUD_TTS_VOICE=${{ secrets.VITE_GOOGLE_CLOUD_TTS_VOICE }}" >> .env
-          echo "VITE_GOOGLE_CLOUD_TTS_LANGUAGE=${{ secrets.VITE_GOOGLE_CLOUD_TTS_LANGUAGE }}" >> .env
           echo "VITE_OPENAI_API_KEY=${{ secrets.VITE_OPENAI_API_KEY }}" >> .env
           echo "VITE_OPENAI_VECTOR_STORE_IDS=${{ secrets.VITE_OPENAI_VECTOR_STORE_IDS }}" >> .env
           echo "VITE_MICROSOFT_CLIENT_ID=${{ secrets.VITE_MICROSOFT_CLIENT_ID }}" >> .env
           echo "VITE_SOFLIA_LEARNING_SUPABASE_URL=${{ secrets.VITE_SOFLIA_LEARNING_SUPABASE_URL }}" >> .env
           echo "VITE_SOFLIA_LEARNING_SUPABASE_ANON_KEY=${{ secrets.VITE_SOFLIA_LEARNING_SUPABASE_ANON_KEY }}" >> .env
+          echo "ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}" >> .env
+          echo "ELEVENLABS_VOICE_ID=${{ secrets.ELEVENLABS_VOICE_ID }}" >> .env
+          echo "ELEVENLABS_MODEL_ID=${{ secrets.ELEVENLABS_MODEL_ID }}" >> .env
+          echo "ELEVENLABS_OUTPUT_FORMAT=${{ secrets.ELEVENLABS_OUTPUT_FORMAT }}" >> .env
+          echo "VITE_SKILL_PRESENTACIONES_ENABLED=${{ vars.VITE_SKILL_PRESENTACIONES_ENABLED }}" >> .env
 
       - name: Verify build-time keys
         run: node scripts/quality/check-release-env.mjs
@@ -155,16 +155,16 @@ jobs:
           echo "VITE_IRIS_SUPABASE_ANON_KEY=${{ secrets.VITE_IRIS_SUPABASE_ANON_KEY }}" >> .env
           echo "VITE_GOOGLE_OAUTH_CLIENT_ID=${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_ID }}" >> .env
           echo "VITE_GOOGLE_OAUTH_CLIENT_SECRET=${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_SECRET }}" >> .env
-          echo "VITE_GAMMA_API_KEY=${{ secrets.VITE_GAMMA_API_KEY }}" >> .env
-          echo "VITE_GOOGLE_CLOUD_TTS_API_KEY=${{ secrets.VITE_GOOGLE_CLOUD_TTS_API_KEY }}" >> .env
-          echo "VITE_CHAT_TTS_PROVIDER=${{ secrets.VITE_CHAT_TTS_PROVIDER }}" >> .env
-          echo "VITE_GOOGLE_CLOUD_TTS_VOICE=${{ secrets.VITE_GOOGLE_CLOUD_TTS_VOICE }}" >> .env
-          echo "VITE_GOOGLE_CLOUD_TTS_LANGUAGE=${{ secrets.VITE_GOOGLE_CLOUD_TTS_LANGUAGE }}" >> .env
           echo "VITE_OPENAI_API_KEY=${{ secrets.VITE_OPENAI_API_KEY }}" >> .env
           echo "VITE_OPENAI_VECTOR_STORE_IDS=${{ secrets.VITE_OPENAI_VECTOR_STORE_IDS }}" >> .env
           echo "VITE_MICROSOFT_CLIENT_ID=${{ secrets.VITE_MICROSOFT_CLIENT_ID }}" >> .env
           echo "VITE_SOFLIA_LEARNING_SUPABASE_URL=${{ secrets.VITE_SOFLIA_LEARNING_SUPABASE_URL }}" >> .env
           echo "VITE_SOFLIA_LEARNING_SUPABASE_ANON_KEY=${{ secrets.VITE_SOFLIA_LEARNING_SUPABASE_ANON_KEY }}" >> .env
+          echo "ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}" >> .env
+          echo "ELEVENLABS_VOICE_ID=${{ secrets.ELEVENLABS_VOICE_ID }}" >> .env
+          echo "ELEVENLABS_MODEL_ID=${{ secrets.ELEVENLABS_MODEL_ID }}" >> .env
+          echo "ELEVENLABS_OUTPUT_FORMAT=${{ secrets.ELEVENLABS_OUTPUT_FORMAT }}" >> .env
+          echo "VITE_SKILL_PRESENTACIONES_ENABLED=${{ vars.VITE_SKILL_PRESENTACIONES_ENABLED }}" >> .env
 
       - name: Verify build-time keys
         run: node scripts/quality/check-release-env.mjs
@@ -226,16 +226,16 @@ jobs:
           echo "VITE_IRIS_SUPABASE_ANON_KEY=${{ secrets.VITE_IRIS_SUPABASE_ANON_KEY }}" >> .env
           echo "VITE_GOOGLE_OAUTH_CLIENT_ID=${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_ID }}" >> .env
           echo "VITE_GOOGLE_OAUTH_CLIENT_SECRET=${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_SECRET }}" >> .env
-          echo "VITE_GAMMA_API_KEY=${{ secrets.VITE_GAMMA_API_KEY }}" >> .env
-          echo "VITE_GOOGLE_CLOUD_TTS_API_KEY=${{ secrets.VITE_GOOGLE_CLOUD_TTS_API_KEY }}" >> .env
-          echo "VITE_CHAT_TTS_PROVIDER=${{ secrets.VITE_CHAT_TTS_PROVIDER }}" >> .env
-          echo "VITE_GOOGLE_CLOUD_TTS_VOICE=${{ secrets.VITE_GOOGLE_CLOUD_TTS_VOICE }}" >> .env
-          echo "VITE_GOOGLE_CLOUD_TTS_LANGUAGE=${{ secrets.VITE_GOOGLE_CLOUD_TTS_LANGUAGE }}" >> .env
           echo "VITE_OPENAI_API_KEY=${{ secrets.VITE_OPENAI_API_KEY }}" >> .env
           echo "VITE_OPENAI_VECTOR_STORE_IDS=${{ secrets.VITE_OPENAI_VECTOR_STORE_IDS }}" >> .env
           echo "VITE_MICROSOFT_CLIENT_ID=${{ secrets.VITE_MICROSOFT_CLIENT_ID }}" >> .env
           echo "VITE_SOFLIA_LEARNING_SUPABASE_URL=${{ secrets.VITE_SOFLIA_LEARNING_SUPABASE_URL }}" >> .env
           echo "VITE_SOFLIA_LEARNING_SUPABASE_ANON_KEY=${{ secrets.VITE_SOFLIA_LEARNING_SUPABASE_ANON_KEY }}" >> .env
+          echo "ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}" >> .env
+          echo "ELEVENLABS_VOICE_ID=${{ secrets.ELEVENLABS_VOICE_ID }}" >> .env
+          echo "ELEVENLABS_MODEL_ID=${{ secrets.ELEVENLABS_MODEL_ID }}" >> .env
+          echo "ELEVENLABS_OUTPUT_FORMAT=${{ secrets.ELEVENLABS_OUTPUT_FORMAT }}" >> .env
+          echo "VITE_SKILL_PRESENTACIONES_ENABLED=${{ vars.VITE_SKILL_PRESENTACIONES_ENABLED }}" >> .env
 
       - name: Verify build-time keys
         run: node scripts/quality/check-release-env.mjs

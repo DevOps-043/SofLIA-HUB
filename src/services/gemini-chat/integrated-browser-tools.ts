@@ -11,6 +11,7 @@ const MAX_TOOL_HEADINGS = 60;
 const MAX_TOOL_LANDMARKS = 40;
 const MAX_TOOL_CONTROLS = 120;
 const MAX_TOOL_FRAMES = 20;
+const MAX_TOOL_IMAGES = 16;
 
 /**
  * Controles cuyo efecto no es reversible desde la propia pagina. El agente
@@ -186,6 +187,7 @@ function compactDom(dom: BrowserDomSnapshot): BrowserDomSnapshot {
     headings: dom.headings.slice(0, MAX_TOOL_HEADINGS),
     landmarks: dom.landmarks.slice(0, MAX_TOOL_LANDMARKS),
     controls: dom.controls.slice(0, MAX_TOOL_CONTROLS),
+    images: (dom.images ?? []).slice(0, MAX_TOOL_IMAGES),
     frames: dom.frames.slice(0, MAX_TOOL_FRAMES),
     truncated: dom.truncated
       || dom.text.length > MAX_TOOL_TEXT

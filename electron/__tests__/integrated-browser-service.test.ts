@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { BaseWindow, BrowserWindow, WebContentsView, dialog } from 'electron';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { BaseWindow, BrowserWindow, WebContentsView, dialog, systemPreferences } from 'electron';
 import { IntegratedBrowserService } from '../integrated-browser';
+import { BrowserSitePermissionStore } from '../integrated-browser/site-permissions';
 
 // El servicio materializa su primera vista con el gestor de extensiones real,
 // que lee su registro en disco de forma asincrona. Esta suite no ejercita
@@ -57,9 +62,46 @@ const detachedWindowHarness = BaseWindow as unknown as {
   instances: Array<BrowserWindow & { emit: (event: string, ...args: unknown[]) => boolean }>;
 };
 
+// La concesion de `media` encadena el almacen en disco, el dialogo HITL y la
+// consulta al sistema operativo: la respuesta al renderer llega varios ciclos
+// despues, incluidos los de entrada/salida.
+const flushPermissionQueue = async () => {
+  for (let index = 0; index < 6; index += 1) await new Promise((resolve) => setImmediate(resolve));
+};
+
+/**
+ * Cada prueba usa su propio archivo de permisos: el almacen es persistente y
+ * una decision guardada en una prueba cambiaria el resultado de la siguiente.
+ */
+const permissionStorePaths: string[] = [];
+
+function newStore(): BrowserSitePermissionStore {
+  const filePath = path.join(os.tmpdir(), `soflia-site-permissions-${randomUUID()}.json`);
+  permissionStorePaths.push(filePath);
+  return new BrowserSitePermissionStore(filePath);
+}
+
+function newService(store: BrowserSitePermissionStore = newStore()): IntegratedBrowserService {
+  return new IntegratedBrowserService(undefined, undefined, undefined, undefined, store);
+}
+
+// `process.platform` decide si se consulta el permiso nativo. Fijarlo mantiene
+// la prueba estable en cualquier runner.
+const withPlatform = (platform: NodeJS.Platform, run: () => Promise<void>) => {
+  const original = Object.getOwnPropertyDescriptor(process, 'platform')!;
+  Object.defineProperty(process, 'platform', { ...original, value: platform });
+  return run().finally(() => Object.defineProperty(process, 'platform', original));
+};
+
 describe('IntegratedBrowserService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // `clearAllMocks` borra las llamadas pero conserva las implementaciones:
+    // sin reponerlas, el cuadro que una prueba deja rechazando arrastra a la
+    // siguiente.
+    vi.mocked(dialog.showMessageBox).mockResolvedValue({ response: 0, checkboxChecked: false });
+    vi.mocked(systemPreferences.getMediaAccessStatus).mockReturnValue('granted');
+    vi.mocked(systemPreferences.askForMediaAccess).mockResolvedValue(true);
     browserViewHarness.instances.length = 0;
     detachedWindowHarness.instances.length = 0;
   });
@@ -90,8 +132,9 @@ describe('IntegratedBrowserService', () => {
     expect(window.contentView.addChildView).toHaveBeenCalledTimes(1);
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     vi.useRealTimers();
+    await Promise.all(permissionStorePaths.splice(0).map((filePath) => fs.rm(filePath, { force: true })));
   });
 
   it('mantiene la percepción pasiva ligera y extrae DOM solo bajo demanda', async () => {
@@ -124,6 +167,127 @@ describe('IntegratedBrowserService', () => {
     expect(contents.capturePage).toHaveBeenCalledTimes(1);
     expect(contents.executeJavaScript).toHaveBeenCalledTimes(1);
     service.detachWindow();
+  });
+
+  it('BR-SEL-001: adjunta la selección viva al chat sin pasar por el menú contextual', async () => {
+    vi.useFakeTimers();
+    const parent = new BrowserWindow();
+    const service = new IntegratedBrowserService();
+    service.attachWindow(parent);
+    await service.open('https://mail.google.com/chat');
+    service.setViewport({ x: 0, y: 0, width: 1280, height: 720 });
+    const contents = browserViewHarness.instances[0].webContents;
+    const enviar = parent.webContents.send as unknown as ReturnType<typeof vi.fn>;
+    enviar.mockClear();
+    contents.executeJavaScript.mockResolvedValue('  CONCEPTO 3.2  ');
+
+    contents.emit('input-event', {}, { type: 'mouseUp', x: 400, y: 300 });
+    await vi.advanceTimersByTimeAsync(500);
+
+    const avisos = enviar.mock.calls.filter(
+      (call: unknown[]) => call[0] === 'integrated-browser:selection-action',
+    );
+    expect(avisos).toHaveLength(1);
+    // Solo adjunta contexto: el compositor queda libre para que escriba el usuario.
+    expect(avisos[0][1]).toMatchObject({ action: 'ask', text: 'CONCEPTO 3.2', instruction: '' });
+
+    // La misma seleccion no se reenvia mientras siga viva.
+    contents.emit('input-event', {}, { type: 'mouseUp', x: 410, y: 300 });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(enviar.mock.calls.filter(
+      (call: unknown[]) => call[0] === 'integrated-browser:selection-action',
+    )).toHaveLength(1);
+
+    service.detachWindow();
+    vi.useRealTimers();
+  });
+
+  it('BR-SEL-002: al deshacer la selección deja de adjuntarla', async () => {
+    vi.useFakeTimers();
+    const parent = new BrowserWindow();
+    const service = new IntegratedBrowserService();
+    service.attachWindow(parent);
+    await service.open('https://mail.google.com/chat');
+    service.setViewport({ x: 0, y: 0, width: 1280, height: 720 });
+    const contents = browserViewHarness.instances[0].webContents;
+    const enviar = parent.webContents.send as unknown as ReturnType<typeof vi.fn>;
+    enviar.mockClear();
+    contents.executeJavaScript.mockResolvedValue('');
+
+    contents.emit('input-event', {}, { type: 'mouseUp', x: 400, y: 300 });
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(enviar.mock.calls.filter(
+      (call: unknown[]) => call[0] === 'integrated-browser:selection-action',
+    )).toHaveLength(0);
+
+    service.detachWindow();
+    vi.useRealTimers();
+  });
+
+  it('BR-SEL-003: encuentra la selección aunque viva dentro de un iframe', async () => {
+    vi.useFakeTimers();
+    const parent = new BrowserWindow();
+    const service = new IntegratedBrowserService();
+    service.attachWindow(parent);
+    await service.open('https://mail.google.com/mail/u/0/#chat/dm/wOBiBCAAAAE');
+    service.setViewport({ x: 0, y: 0, width: 1280, height: 720 });
+    const contents = browserViewHarness.instances[0].webContents;
+    const enviar = parent.webContents.send as unknown as ReturnType<typeof vi.fn>;
+    enviar.mockClear();
+    // Gmail rinde el panel de chat en un marco anidado: el documento principal
+    // no tiene seleccion, pero el hijo si.
+    const marcoPrincipal = { executeJavaScript: vi.fn(async () => '') };
+    const marcoHijo = { executeJavaScript: vi.fn(async () => '  CONCEPTO 3.2  ') };
+    (contents as unknown as { mainFrame: unknown }).mainFrame = { framesInSubtree: [marcoPrincipal, marcoHijo] };
+
+    contents.emit('input-event', {}, { type: 'mouseUp', x: 400, y: 300 });
+    await vi.advanceTimersByTimeAsync(500);
+
+    const avisos = enviar.mock.calls.filter(
+      (call: unknown[]) => call[0] === 'integrated-browser:selection-action',
+    );
+    expect(avisos).toHaveLength(1);
+    expect(avisos[0][1]).toMatchObject({ action: 'ask', text: 'CONCEPTO 3.2' });
+    expect(marcoPrincipal.executeJavaScript).toHaveBeenCalled();
+
+    service.detachWindow();
+    vi.useRealTimers();
+  });
+
+  it('BR-SEL-004: el aviso de la página dispara el sondeo y retira el adjunto al deseleccionar', async () => {
+    vi.useFakeTimers();
+    const parent = new BrowserWindow();
+    const service = new IntegratedBrowserService();
+    service.attachWindow(parent);
+    await service.open('https://mail.google.com/chat');
+    service.setViewport({ x: 0, y: 0, width: 1280, height: 720 });
+    const contents = browserViewHarness.instances[0].webContents;
+    const enviar = parent.webContents.send as unknown as ReturnType<typeof vi.fn>;
+    const avisos = () => enviar.mock.calls.filter((call: unknown[]) => call[0] === 'integrated-browser:selection-action');
+    enviar.mockClear();
+
+    // La pagina avisa por consola: no hace falta ningun evento de entrada.
+    contents.executeJavaScript.mockResolvedValue('CONCEPTO 3.2');
+    contents.emit('console-message', { message: '__SOFLIA_SELECTION__' });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(avisos()).toHaveLength(1);
+    expect(avisos()[0][1]).toMatchObject({ text: 'CONCEPTO 3.2' });
+
+    // Al deshacer la seleccion se avisa con texto vacio para retirar el chip.
+    contents.executeJavaScript.mockResolvedValue('');
+    contents.emit('console-message', { message: '__SOFLIA_SELECTION__' });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(avisos()).toHaveLength(2);
+    expect(avisos()[1][1]).toMatchObject({ text: '' });
+
+    // Y no se repite el aviso mientras siga sin haber seleccion.
+    contents.emit('console-message', { message: '__SOFLIA_SELECTION__' });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(avisos()).toHaveLength(2);
+
+    service.detachWindow();
+    vi.useRealTimers();
   });
 
   it('espera una ventana de calma y no compite con Computer Use', async () => {
@@ -239,6 +403,8 @@ describe('IntegratedBrowserService', () => {
 
     await expect(service.clickElement('dom-1')).rejects.toThrow(/pestaña visible/i);
 
+    // Instalar el vigia de seleccion al cargar no es interactuar con la pagina.
+    browserViewHarness.instances[0].webContents.executeJavaScript.mockClear();
     service.setViewport({ x: 0, y: 0, width: 800, height: 600 });
     await service.openForAgent();
     await expect(service.clickElement('dom-1')).rejects.toThrow(/controlado por otra tarea/i);
@@ -447,9 +613,9 @@ describe('IntegratedBrowserService', () => {
     expect(service.getState().error).toBeNull();
   });
 
-  it('deniega permisos no allowlisted y exige aprobacion para media', async () => {
-    vi.mocked(dialog.showMessageBox).mockResolvedValueOnce({ response: 1, checkboxChecked: false });
-    const service = new IntegratedBrowserService();
+  it('deniega permisos de dispositivo y exige aprobacion para media', async () => {
+    vi.mocked(dialog.showMessageBox).mockResolvedValue({ response: 1, checkboxChecked: false });
+    const service = newService();
     service.attachWindow(new BrowserWindow());
     await service.open('https://example.com');
     const contents = browserViewHarness.instances[0].webContents;
@@ -460,13 +626,220 @@ describe('IntegratedBrowserService', () => {
 
     request(contents, 'usb', usbCallback, { requestingUrl: 'https://example.com' });
     request(contents, 'media', mediaCallback, { securityOrigin: 'https://example.com', mediaTypes: ['audio'] });
-    await Promise.resolve();
+    await vi.waitFor(() => expect(mediaCallback).toHaveBeenCalledWith(true));
 
     expect(usbCallback).toHaveBeenCalledWith(false);
-    expect(dialog.showMessageBox).toHaveBeenCalled();
-    expect(mediaCallback).toHaveBeenCalledWith(true);
+    expect(dialog.showMessageBox).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ message: '¿Permitir acceso a micrófono?' }),
+    );
     expect(check(contents, 'media', 'https://example.com', { isMainFrame: true, mediaType: 'audio' })).toBe(true);
-    expect(check(contents, 'media', 'https://example.com', { isMainFrame: true, mediaType: 'video' })).toBe(false);
+    // Un permiso de dispositivo nunca es configurable ni consultable.
+    expect(check(contents, 'usb', 'https://example.com', { isMainFrame: true })).toBe(false);
+  });
+
+  it('reporta camara y microfono sin decidir como disponibles para permissions.query', async () => {
+    const service = newService();
+    service.attachWindow(new BrowserWindow());
+    await service.open('https://meet.example/');
+    const contents = browserViewHarness.instances[0].webContents;
+    const check = contents.session.setPermissionCheckHandler.mock.calls[0][0];
+
+    // Sin esto, Google Meet leia "denied", mostraba "no puede usar el
+    // microfono" y jamas llamaba a getUserMedia: el permiso no se podia
+    // conceder nunca porque el dialogo no llegaba a abrirse.
+    expect(check(contents, 'media', 'https://meet.example', { isMainFrame: true, mediaType: 'audio' })).toBe(true);
+    expect(check(contents, 'media', 'https://meet.example', { isMainFrame: true, mediaType: 'video' })).toBe(true);
+    // Lo que no se consulta antes de pedirlo sigue respondiendo que no.
+    expect(check(contents, 'notifications', 'https://meet.example', { isMainFrame: true })).toBe(false);
+  });
+
+  it('respeta una decision guardada sin volver a preguntar', async () => {
+    const store = newStore();
+    await store.set('https://guardado.example', 'microphone', 'granted');
+    await store.set('https://guardado.example', 'camera', 'denied');
+    const service = newService(store);
+    service.attachWindow(new BrowserWindow());
+    await service.open('https://guardado.example/');
+    const contents = browserViewHarness.instances[0].webContents;
+    const request = contents.session.setPermissionRequestHandler.mock.calls[0][0];
+    const check = contents.session.setPermissionCheckHandler.mock.calls[0][0];
+    const micCallback = vi.fn();
+    const camCallback = vi.fn();
+
+    request(contents, 'media', micCallback, { securityOrigin: 'https://guardado.example', mediaTypes: ['audio'] });
+    request(contents, 'media', camCallback, { securityOrigin: 'https://guardado.example', mediaTypes: ['video'] });
+    await flushPermissionQueue();
+
+    expect(micCallback).toHaveBeenCalledWith(true);
+    expect(camCallback).toHaveBeenCalledWith(false);
+    expect(dialog.showMessageBox).not.toHaveBeenCalled();
+    expect(check(contents, 'media', 'https://guardado.example', { mediaType: 'video' })).toBe(false);
+  });
+
+  it('concede camara y microfono a una pestaña no activa de la misma particion', async () => {
+    vi.mocked(dialog.showMessageBox).mockResolvedValue({ response: 1, checkboxChecked: false });
+    const service = newService();
+    service.attachWindow(new BrowserWindow());
+    await service.open('https://activa.example/');
+    await service.createTab('https://reunion.example/', false);
+    const activeContents = browserViewHarness.instances[0].webContents;
+    const backgroundContents = browserViewHarness.instances[1].webContents;
+    const request = activeContents.session.setPermissionRequestHandler.mock.calls[0][0];
+    const check = activeContents.session.setPermissionCheckHandler.mock.calls[0][0];
+    const mediaCallback = vi.fn();
+
+    request(backgroundContents, 'media', mediaCallback, {
+      securityOrigin: 'https://reunion.example',
+      mediaTypes: ['audio', 'video'],
+    });
+    await vi.waitFor(() => expect(mediaCallback).toHaveBeenCalledWith(true));
+
+    expect(check(backgroundContents, 'media', 'https://reunion.example', { mediaType: 'video' })).toBe(true);
+    expect(check(backgroundContents, 'media', 'https://reunion.example', { mediaType: 'audio' })).toBe(true);
+  });
+
+  it('muestra un cuadro a la vez y siempre responde a la pagina', async () => {
+    // Una videollamada pide camara y microfono desde varios marcos a la vez.
+    // Con los cuadros superpuestos el usuario no podia responder y la
+    // solicitud quedaba colgada, dejando la llamada sin arrancar.
+    let abiertos = 0;
+    let maximoSimultaneo = 0;
+    vi.mocked(dialog.showMessageBox).mockImplementation(async () => {
+      abiertos += 1;
+      maximoSimultaneo = Math.max(maximoSimultaneo, abiertos);
+      await new Promise((resolve) => setImmediate(resolve));
+      abiertos -= 1;
+      return { response: 1, checkboxChecked: false };
+    });
+    const service = newService();
+    service.attachWindow(new BrowserWindow());
+    await service.open('https://meet.example/');
+    const contents = browserViewHarness.instances[0].webContents;
+    const request = contents.session.setPermissionRequestHandler.mock.calls[0][0];
+    const primero = vi.fn();
+    const segundo = vi.fn();
+
+    request(contents, 'media', primero, { securityOrigin: 'https://meet.example', mediaTypes: ['audio', 'video'] });
+    request(contents, 'media', segundo, { securityOrigin: 'https://meet.example', mediaTypes: ['video'] });
+
+    await vi.waitFor(() => expect(primero).toHaveBeenCalledWith(true));
+    await vi.waitFor(() => expect(segundo).toHaveBeenCalledWith(true));
+    expect(maximoSimultaneo).toBe(1);
+  });
+
+  it('responde que no cuando el cuadro de permiso no se puede mostrar', async () => {
+    vi.mocked(dialog.showMessageBox).mockRejectedValue(new Error('sin ventana disponible'));
+    const service = newService();
+    service.attachWindow(new BrowserWindow());
+    await service.open('https://example.com');
+    const contents = browserViewHarness.instances[0].webContents;
+    const request = contents.session.setPermissionRequestHandler.mock.calls[0][0];
+    const callback = vi.fn();
+
+    request(contents, 'media', callback, { securityOrigin: 'https://example.com', mediaTypes: ['audio'] });
+
+    // Lo importante es que responda: dejar la promesa pendiente colgaba a la
+    // pagina indefinidamente.
+    await vi.waitFor(() => expect(callback).toHaveBeenCalledWith(false));
+  });
+
+  it('concede sin interrumpir lo que solo cambia la presentacion y deniega lo demas', async () => {
+    const service = newService();
+    service.attachWindow(new BrowserWindow());
+    await service.open('https://example.com');
+    const contents = browserViewHarness.instances[0].webContents;
+    const request = contents.session.setPermissionRequestHandler.mock.calls[0][0];
+    const responses = new Map<string, ReturnType<typeof vi.fn>>();
+
+    for (const permission of ['fullscreen', 'pointerLock', 'keyboardLock', 'mediaKeySystem', 'speaker-selection', 'clipboard-sanitized-write', 'storage-access', 'midi', 'openExternal']) {
+      const callback = vi.fn();
+      responses.set(permission, callback);
+      request(contents, permission, callback, { securityOrigin: 'https://example.com' });
+    }
+    await flushPermissionQueue();
+
+    for (const permission of ['fullscreen', 'pointerLock', 'keyboardLock', 'mediaKeySystem', 'speaker-selection', 'clipboard-sanitized-write', 'storage-access']) {
+      expect(responses.get(permission)).toHaveBeenCalledWith(true);
+    }
+    for (const permission of ['midi', 'openExternal']) {
+      expect(responses.get(permission)).toHaveBeenCalledWith(false);
+    }
+    expect(dialog.showMessageBox).not.toHaveBeenCalled();
+  });
+
+  it('no pregunta y explica la ruta del sistema cuando el sistema operativo bloquea la camara', async () => {
+    await withPlatform('win32', async () => {
+      vi.mocked(systemPreferences.getMediaAccessStatus).mockImplementation((mediaType) => (
+        mediaType === 'camera' ? 'denied' : 'granted'
+      ));
+      const service = newService();
+      service.attachWindow(new BrowserWindow());
+      await service.open('https://example.com');
+      const contents = browserViewHarness.instances[0].webContents;
+      const request = contents.session.setPermissionRequestHandler.mock.calls[0][0];
+      const mediaCallback = vi.fn();
+
+      request(contents, 'media', mediaCallback, { securityOrigin: 'https://example.com', mediaTypes: ['video'] });
+      await flushPermissionQueue();
+
+      expect(mediaCallback).toHaveBeenCalledWith(false);
+      expect(dialog.showMessageBox).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ title: 'Permiso del sistema bloqueado' }),
+      );
+      expect(dialog.showMessageBox).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ title: 'Permiso del navegador' }),
+      );
+    });
+  });
+
+  it('abre una ventana real para Document Picture-in-Picture en vez de una pestaña vacia', async () => {
+    const service = newService();
+    service.attachWindow(new BrowserWindow());
+    await service.open('https://meet.example/');
+    const contents = browserViewHarness.instances[0].webContents;
+    const openHandler = contents.setWindowOpenHandler.mock.calls[0][0];
+
+    const pip = openHandler({ url: 'about:blank', disposition: 'new-window', features: 'width=420,height=260' });
+    const popup = openHandler({ url: 'https://accounts.example/oauth', disposition: 'new-window', features: '' });
+    await Promise.resolve();
+
+    expect(pip.action).toBe('allow');
+    expect(pip.overrideBrowserWindowOptions).toMatchObject({ width: 420, height: 260 });
+    // Sin `webPreferences` propias: la ventana debe heredar las del abridor
+    // para conservar su proceso y el acceso desde `window.opener`.
+    expect(pip.overrideBrowserWindowOptions).not.toHaveProperty('webPreferences');
+    // El popup con destino real sigue convirtiendose en pestaña interna.
+    expect(popup.action).toBe('deny');
+    expect(service.getState().tabs.map((tab) => tab.url)).toContain('https://accounts.example/oauth');
+    // Y ya no queda ninguna pestaña vacia de las que dejaba el PiP.
+    expect(service.getState().tabs.filter((tab) => tab.url === 'about:blank')).toHaveLength(0);
+  });
+
+  it('lleva la vista a pantalla completa y restaura el layout al salir', async () => {
+    const service = newService();
+    const window = new BrowserWindow();
+    service.attachWindow(window);
+    await service.open('https://video.example/');
+    service.setViewport({ x: 200, y: 120, width: 800, height: 600 });
+    const view = browserViewHarness.instances[0];
+    const contents = view.webContents;
+    view.setBounds.mockClear();
+
+    contents.emit('enter-html-full-screen');
+
+    expect(window.setFullScreen).toHaveBeenCalledWith(true);
+    expect(view.setBounds).toHaveBeenCalledWith({ x: 0, y: 0, width: 1024, height: 768 });
+    expect(service.getState().isFullscreen).toBe(true);
+
+    view.setBounds.mockClear();
+    contents.emit('leave-html-full-screen');
+
+    expect(window.setFullScreen).toHaveBeenCalledWith(false);
+    expect(view.setBounds).toHaveBeenCalledWith({ x: 200, y: 120, width: 800, height: 600 });
+    expect(service.getState().isFullscreen).toBe(false);
   });
 
   it('impide dos tareas agentes simultaneas y libera el control tras un fallo de viewport', async () => {

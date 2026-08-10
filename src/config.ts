@@ -24,6 +24,25 @@ export const IRIS_SUPABASE = {
   ANON_KEY: import.meta.env.VITE_IRIS_SUPABASE_ANON_KEY || ''
 };
 
+/**
+ * Inicio de sesion federado con SofLIA Learning.
+ *
+ * Ninguna de las dos variables es un secreto: la URL base es publica y el
+ * interruptor solo decide si se ofrece la entrada. Las claves del proveedor de
+ * identidad viven en Learning, que es quien ejecuta el intercambio.
+ *
+ * Apagar el interruptor devuelve el inicio por contrasena como unica via, sin
+ * publicar una version nueva.
+ */
+export const LEARNING_SSO = {
+  BASE_URL: (import.meta.env.VITE_LEARNING_BASE_URL || '').trim().replace(/\/+$/, ''),
+  ENABLED: import.meta.env.VITE_LEARNING_SSO_ENABLED === 'true',
+};
+
+export function isLearningSsoConfigured(): boolean {
+  return LEARNING_SSO.ENABLED && LEARNING_SSO.BASE_URL.length > 0;
+}
+
 // Model Configurations
 export const MODELS = {
   // Base Gemini compartida; el catálogo visible se define por separado.
@@ -33,7 +52,7 @@ export const MODELS = {
   PRO: SOFLIA_RUNTIME_MODEL,
   WEB_AGENT: SOFLIA_RUNTIME_MODEL,
   ORB: SOFLIA_RUNTIME_MODEL,
-  IMAGE_GENERATION: 'gemini-2.5-flash-image',
+  IMAGE_GENERATION: 'gemini-3.1-flash-image',
   DEEP_RESEARCH: 'deep-research-pro-preview-12-2025',
   TRANSCRIPTION: SOFLIA_RUNTIME_MODEL,
   MAPS: SOFLIA_RUNTIME_MODEL,
@@ -62,12 +81,3 @@ export const OPENAI_VECTOR_STORE_IDS = (import.meta.env.VITE_OPENAI_VECTOR_STORE
 export function isOpenAIConfigured(): boolean {
   return OPENAI_API_KEY.trim().length > 0;
 }
-
-// Google Cloud Text-to-Speech (voz de la orbe). Todas las variables llevan
-// prefijo VITE_: es el unico que el build incrusta tanto en el renderer como en
-// el proceso main, asi que la misma variable sirve en ambos lados.
-export const GOOGLE_TTS = {
-  API_KEY: import.meta.env.VITE_GOOGLE_CLOUD_TTS_API_KEY || '',
-  VOICE: import.meta.env.VITE_GOOGLE_CLOUD_TTS_VOICE || 'es-US-Chirp3-HD-Aoede',
-  LANGUAGE: import.meta.env.VITE_GOOGLE_CLOUD_TTS_LANGUAGE || 'es-US',
-};

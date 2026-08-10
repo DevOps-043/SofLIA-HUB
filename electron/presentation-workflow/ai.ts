@@ -32,12 +32,3 @@ Empresa Cliente: ${externalKnowledge} (Nombre: ${clientCompanyName})
 Crea un resumen ejecutivo muy breve, maximo 3 puntos clave, de la propuesta de valor.`;
   return (await model.generateContent(proposalPrompt)).response.text();
 }
-
-export async function generateGammaMarkdown(agent: WhatsAppAgent, proposalContent: string): Promise<string> {
-  const model = agent.getGenAI().getGenerativeModel({ model: SOFLIA_RUNTIME_MODEL });
-  const prompt = `Convierte este resumen ejecutivo en una presentacion formal de 3 diapositivas:
-Resumen: ${proposalContent}
-
-Genera texto en markdown con titulos y bullet points viables para Gamma App.`;
-  return (await model.generateContent(prompt)).response.text();
-}

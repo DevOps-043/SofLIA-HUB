@@ -15,6 +15,8 @@ export const INTEGRATED_BROWSER_MEDIA_OBSERVATION_INTERVAL_MS = 30_000;
 export const INTEGRATED_BROWSER_MEDIA_OBSERVATION_IDLE_MS = 12_000;
 /** Reprogramacion minima entre eventos de entrada seguidos. */
 export const INTEGRATED_BROWSER_DEFER_THROTTLE_MS = 250;
+/** Margen para que la seleccion se asiente antes de leerla y adjuntarla al chat. */
+export const SELECTION_PROBE_DELAY_MS = 220;
 export const INTEGRATED_BROWSER_OBSERVATION_MAX_EDGE = 1_024;
 /** Calidad JPEG de la percepcion enviada al modelo. */
 export const INTEGRATED_BROWSER_OBSERVATION_QUALITY = 80;
@@ -47,6 +49,8 @@ export interface IntegratedBrowserState {
   primaryTabId: string | null;
   secondaryTabId: string | null;
   viewMode: IntegratedBrowserViewMode;
+  /** La pagina pidio pantalla completa y la vista cubre la ventana. */
+  isFullscreen: boolean;
 }
 
 export interface IntegratedBrowserViewport extends Rectangle {}
@@ -75,6 +79,19 @@ export interface BrowserDomControl {
   scope: string;
 }
 
+/**
+ * Imagen de contenido de la pagina. Se expone para que el agente pueda
+ * reutilizar el material grafico que el usuario ya esta viendo en vez de
+ * generar uno nuevo. Solo entran las de tamano real: los iconos y los pixeles
+ * de seguimiento no aportan y ensucian la observacion.
+ */
+export interface BrowserDomImage {
+  url: string;
+  alt: string;
+  width: number;
+  height: number;
+}
+
 export interface BrowserDomSnapshot {
   title: string;
   url: string;
@@ -83,6 +100,7 @@ export interface BrowserDomSnapshot {
   headings: Array<{ level: number; text: string; scope: string }>;
   landmarks: Array<{ role: string; name: string; scope: string }>;
   controls: BrowserDomControl[];
+  images: BrowserDomImage[];
   frames: Array<{ title: string; url: string; accessible: boolean }>;
   viewport: { width: number; height: number; scrollX: number; scrollY: number; documentWidth: number; documentHeight: number };
   truncated: boolean;
@@ -187,4 +205,90 @@ export interface BrowserExtensionInstallPreview {
   version: string;
   permissions: string[];
   hostPermissions: string[];
+}
+
+/**
+ * Permisos que el navegador integrado administra por origen. La lista es la
+ * traduccion de los nombres de Electron a las categorias que el usuario
+ * reconoce en el panel del candado: `media` se abre en camara y microfono
+ * porque se conceden por separado, y los permisos de dispositivo (`usb`,
+ * `serial`, `hid`, `bluetooth`, MIDI) quedan fuera a proposito: se deniegan
+ * siempre y no son configurables.
+ */
+export const BROWSER_SITE_PERMISSION_KINDS = [
+  'camera',
+  'microphone',
+  'geolocation',
+  'notifications',
+  'display-capture',
+  'clipboard-read',
+  'idle-detection',
+  'window-management',
+  'fullscreen',
+  'pointer-lock',
+  'keyboard-lock',
+  'speaker-selection',
+  'protected-media',
+] as const;
+
+export type BrowserSitePermissionKind = (typeof BROWSER_SITE_PERMISSION_KINDS)[number];
+
+export type BrowserSitePermissionState = 'ask' | 'granted' | 'denied';
+
+/**
+ * Estado inicial de cada permiso. Reproduce el criterio de un navegador de
+ * escritorio: lo que abre un dispositivo, publica notificaciones o revela
+ * presencia se pregunta; lo que solo altera la presentacion de la pagina y ya
+ * exige un gesto del usuario en Chromium se concede sin interrumpir.
+ */
+export const BROWSER_SITE_PERMISSION_DEFAULTS: Record<BrowserSitePermissionKind, BrowserSitePermissionState> = {
+  camera: 'ask',
+  microphone: 'ask',
+  geolocation: 'ask',
+  notifications: 'ask',
+  'display-capture': 'ask',
+  'clipboard-read': 'ask',
+  'idle-detection': 'ask',
+  'window-management': 'ask',
+  fullscreen: 'granted',
+  'pointer-lock': 'granted',
+  'keyboard-lock': 'granted',
+  'speaker-selection': 'granted',
+  'protected-media': 'granted',
+};
+
+export const BROWSER_SITE_PERMISSION_LABELS: Record<BrowserSitePermissionKind, string> = {
+  camera: 'Cámara',
+  microphone: 'Micrófono',
+  geolocation: 'Ubicación',
+  notifications: 'Notificaciones',
+  'display-capture': 'Compartir pantalla',
+  'clipboard-read': 'Leer el portapapeles',
+  'idle-detection': 'Detección de inactividad',
+  'window-management': 'Gestión de ventanas',
+  fullscreen: 'Pantalla completa',
+  'pointer-lock': 'Bloqueo del puntero',
+  'keyboard-lock': 'Bloqueo del teclado',
+  'speaker-selection': 'Elegir la salida de audio',
+  'protected-media': 'Contenido protegido',
+};
+
+export interface BrowserSitePermissionDecision {
+  state: BrowserSitePermissionState;
+  decidedAt: string;
+}
+
+export interface BrowserSitePermissionEntry {
+  kind: BrowserSitePermissionKind;
+  label: string;
+  state: BrowserSitePermissionState;
+  /** Verdadero cuando la pagina lo solicito durante esta sesion del navegador. */
+  requested: boolean;
+}
+
+export interface BrowserSitePermissionSummary {
+  origin: string | null;
+  url: string;
+  secure: boolean;
+  permissions: BrowserSitePermissionEntry[];
 }

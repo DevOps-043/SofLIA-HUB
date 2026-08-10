@@ -4,6 +4,7 @@ import { isSofiaConfigured, sofiaSupa } from '../lib/sofia-client';
 import type { SofiaOrganization, SofiaTeam } from '../lib/sofia-client';
 import { buildActiveSofiaContext, createPseudoAuthUser } from './sofia-auth/context';
 import { findLoginUserRow, INVALID_CREDENTIALS_MESSAGE, mapSupabaseAuthError } from './sofia-auth/login';
+import type { SofiaLoginUserRow } from './sofia-auth/login';
 import { fetchSofiaUserProfile } from './sofia-auth/profile';
 import { getSofiaStoredSession, saveSofiaSession } from './sofia-auth/session-storage';
 import type { SofiaAuthResult, SofiaContext } from './sofia-auth/types';
@@ -37,29 +38,78 @@ class SofiaAuthService {
       }
 
       // 3. Perfil y membresias siguen en public.users (mismo UUID que auth.users).
-      const sofiaProfile = await this.fetchSofiaUserProfile(userRow.id);
-      try {
-        this.sofiaContext = buildActiveSofiaContext(sofiaProfile);
-      } catch (contextError) {
-        // Sin membresia activa: no dejar una sesion de Supabase Auth abierta.
-        await sofiaSupa.auth.signOut().catch(() => undefined);
-        throw contextError;
-      }
-
-      const resolvedAvatar = sofiaProfile?.avatar_url || userRow.profile_picture_url || null;
-      await saveSofiaSession({ ...userRow, profile_picture_url: resolvedAvatar });
-
-      return {
-        success: true,
-        user: createPseudoAuthUser(userRow, resolvedAvatar),
-        session: authData.session,
-        sofiaProfile,
-      };
+      return await this.completeAuthenticatedSession(userRow, authData.session);
     } catch (err) {
       console.error('Error en signInWithSofia:', err);
       const message = err instanceof Error ? err.message : 'Error desconocido al iniciar sesion';
       return { success: false, user: null, session: null, error: message };
     }
+  }
+
+  /**
+   * Cierra una sesion abierta por el inicio federado con SofLIA Learning.
+   *
+   * Llega aqui con la sesion Supabase ya establecida por el canje del ticket,
+   * asi que solo falta resolver perfil y membresia: exactamente los mismos
+   * pasos que el inicio por contrasena, sin ninguna via alterna de autorizacion.
+   */
+  async completeSofiaSsoSession(session: Session): Promise<SofiaAuthResult> {
+    if (!isSofiaConfigured() || !sofiaSupa) {
+      return { success: false, user: null, session: null, error: 'SOFIA no esta configurado. Verifica las variables de entorno.' };
+    }
+
+    try {
+      const email = session.user?.email;
+      if (!email) throw new Error('Acceso denegado: la sesion no tiene un correo asociado.');
+
+      const userRow = await findLoginUserRow(email);
+      if (!userRow) {
+        throw new Error('Acceso denegado: tu cuenta no esta habilitada en el Hub.');
+      }
+
+      // El perfil se resuelve por correo; si su UUID no es el de la sesion
+      // autenticada, la identidad no es la misma y no se continua.
+      if (userRow.id !== session.user.id) {
+        throw new Error('Acceso denegado: la identidad no coincide con tu perfil.');
+      }
+
+      return await this.completeAuthenticatedSession(userRow, session);
+    } catch (err) {
+      console.error('Error en completeSofiaSsoSession:', err);
+      // Nunca dejar una sesion de Supabase Auth abierta tras un fallo.
+      await sofiaSupa.auth.signOut().catch(() => undefined);
+      const message = err instanceof Error ? err.message : 'Error desconocido al iniciar sesion';
+      return { success: false, user: null, session: null, error: message };
+    }
+  }
+
+  /**
+   * Perfil, contexto activo y sesion local a partir de una identidad ya
+   * autenticada. Compartido por el inicio con contrasena y el federado para que
+   * ambos apliquen las mismas guardas de membresia.
+   */
+  private async completeAuthenticatedSession(
+    userRow: SofiaLoginUserRow,
+    session: Session | null,
+  ): Promise<SofiaAuthResult> {
+    const sofiaProfile = await this.fetchSofiaUserProfile(userRow.id);
+    try {
+      this.sofiaContext = buildActiveSofiaContext(sofiaProfile);
+    } catch (contextError) {
+      // Sin membresia activa: no dejar una sesion de Supabase Auth abierta.
+      await sofiaSupa!.auth.signOut().catch(() => undefined);
+      throw contextError;
+    }
+
+    const resolvedAvatar = sofiaProfile?.avatar_url || userRow.profile_picture_url || null;
+    await saveSofiaSession({ ...userRow, profile_picture_url: resolvedAvatar });
+
+    return {
+      success: true,
+      user: createPseudoAuthUser(userRow, resolvedAvatar),
+      session,
+      sofiaProfile,
+    };
   }
 
   async fetchSofiaUserProfile(userId: string) {

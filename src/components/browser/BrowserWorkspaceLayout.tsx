@@ -4,6 +4,7 @@ import { orbService } from '../../services/orb-service';
 import { useModelSelector } from '../../hooks/useModelSelector';
 import { ModelSelectorDropdown } from '../../adapters/desktop_ui/chat-ui/header/ModelSelectorDropdown';
 import { BrowserConversationMenu, type BrowserConversationItem } from './BrowserConversationMenu';
+import { integratedBrowserService, type BrowserSelectionActionRequest } from '../../services/integrated-browser-service';
 
 const CHAT_WIDTH_STORAGE_KEY = 'sofLia_integratedBrowserFloatingChatWidth';
 const CHAT_SIDE_STORAGE_KEY = 'sofLia_integratedBrowserFloatingChatSide';
@@ -19,6 +20,7 @@ interface BrowserWorkspaceLayoutProps {
   chat: ReactNode;
   conversations: BrowserConversationItem[];
   currentConversationId: string | null;
+  externalSelection?: BrowserSelectionActionRequest | null;
   onClose: () => void;
   onNewChat: () => Promise<void>;
   onSelectConversation: (conversationId: string) => Promise<void>;
@@ -35,6 +37,23 @@ export function BrowserWorkspaceLayout(props: BrowserWorkspaceLayoutProps) {
   const [orbError, setOrbError] = useState<string | null>(null);
   const [conversationMenuOpen, setConversationMenuOpen] = useState(false);
   const model = useModelSelector();
+
+  useEffect(() => {
+    if (props.externalSelection) {
+      setOrbError(null);
+      setChatVisible(true);
+    }
+  }, [props.externalSelection]);
+
+  useEffect(() => {
+    if (!integratedBrowserService.isAvailable()) return undefined;
+    return integratedBrowserService.subscribe({
+      onSelectionAction: () => {
+        setOrbError(null);
+        setChatVisible(true);
+      },
+    });
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return undefined;
@@ -132,13 +151,14 @@ export function BrowserWorkspaceLayout(props: BrowserWorkspaceLayoutProps) {
       </section>
 
       <section
-        className={`absolute z-30 flex min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border bg-card/97 shadow-[0_1.75rem_4.5rem_rgba(2,12,23,0.32)] backdrop-blur-xl transition-[opacity,transform] duration-200 ${chatVisible ? 'visible translate-y-0 opacity-100' : 'pointer-events-none invisible translate-y-2 opacity-0'}`}
+        className={`absolute z-30 flex min-w-0 flex-col rounded-[1.75rem] border border-border bg-card/97 shadow-[0_1.75rem_4.5rem_rgba(2,12,23,0.32)] backdrop-blur-xl transition-[opacity,transform] duration-200 ${chatVisible ? 'visible translate-y-0 opacity-100' : 'pointer-events-none invisible translate-y-2 opacity-0'}`}
         style={{ width: chatWidth, top: browserContentTop + PANEL_INSET, bottom: PANEL_INSET, ...panelPosition }}
         aria-label="Chat flotante con SofLIA"
         aria-hidden={!chatVisible}
       >
-        <header className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-border px-3" style={{ fontFamily: 'var(--font-system-ui)' }}>
-          <div className="relative min-w-0 flex-1">
+        <header className="relative z-50 flex h-10 shrink-0 items-center justify-between gap-2 border-b border-border/80 bg-card/90 px-3 rounded-t-[1.75rem] backdrop-blur-xl" style={{ fontFamily: 'var(--font-system-ui)' }}>
+          {/* Lado izquierdo: Selector de modelo (SofLIA Pro) */}
+          <div className="relative z-50 min-w-0 flex-1">
             <button
               type="button"
               aria-label="Cambiar modelo y razonamiento"
@@ -148,19 +168,25 @@ export function BrowserWorkspaceLayout(props: BrowserWorkspaceLayoutProps) {
                 setConversationMenuOpen(false);
                 model.setIsModelSelectorOpen(!model.isModelSelectorOpen);
               }}
-              className="flex max-w-full items-center gap-1.5 rounded-lg px-1.5 py-1 text-left transition hover:bg-accent/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20"
+              className={`flex max-w-full items-center gap-1.5 rounded-xl border px-2 py-1 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20 ${
+                model.isModelSelectorOpen
+                  ? 'border-accent/40 bg-accent/15 text-accent shadow-xs'
+                  : 'border-transparent hover:bg-accent/10'
+              }`}
             >
               <span className="min-w-0">
-                <span className="block truncate text-[12px] font-semibold leading-tight text-primary dark:text-white">{model.currentModel.name}</span>
-                <span className="block truncate text-[9px] leading-tight text-secondary">{model.currentThinkingOption?.name ?? 'Medio'} · Asistente</span>
+                <span className="block truncate text-[12px] font-bold leading-tight text-primary dark:text-white">{model.currentModel.name}</span>
+                <span className="block truncate text-[9px] leading-tight text-secondary font-medium">{model.currentThinkingOption?.name ?? 'Medio'} · Asistente</span>
               </span>
-              <svg className={`h-3.5 w-3.5 shrink-0 text-secondary transition ${model.isModelSelectorOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+              <svg className={`h-3.5 w-3.5 shrink-0 text-secondary transition-transform duration-200 ${model.isModelSelectorOpen ? 'rotate-180 text-accent' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
             </button>
-            {model.isModelSelectorOpen && <ModelSelectorDropdown model={model} compact />}
+            {model.isModelSelectorOpen && <ModelSelectorDropdown model={model} compact align="left" />}
           </div>
-          <div className="flex shrink-0 items-center gap-1">
+
+          {/* Lado derecho: Botones de control (Orbe, Mover, Minimizar, Conversaciones) */}
+          <div className="relative z-50 flex shrink-0 items-center gap-1">
             <PanelButton label="Usar Modo Orbe" onClick={() => void activateOrbMode()}>
-              <circle cx="12" cy="12" r="6" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2" />
+              <circle cx="12" cy="12" r="5" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4" />
             </PanelButton>
             <PanelButton
               label={`Mover panel a la ${panelSide === 'left' ? 'derecha' : 'izquierda'}`}
@@ -169,7 +195,7 @@ export function BrowserWorkspaceLayout(props: BrowserWorkspaceLayoutProps) {
               <path d="M8 7l-5 5 5 5M16 7l5 5-5 5M4 12h16" />
             </PanelButton>
             <PanelButton label="Minimizar panel de SofLIA" onClick={() => setChatVisible(false)}>
-              <path d="M6 12h12" />
+              <path d="M5 12h14" />
             </PanelButton>
             <BrowserConversationMenu
               conversations={props.conversations}
@@ -184,7 +210,7 @@ export function BrowserWorkspaceLayout(props: BrowserWorkspaceLayoutProps) {
             />
           </div>
         </header>
-        <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+        <div className="min-h-0 min-w-0 flex-1 overflow-hidden rounded-b-[1.75rem]">
           {props.chat}
         </div>
       </section>
@@ -212,7 +238,10 @@ export function BrowserWorkspaceLayout(props: BrowserWorkspaceLayoutProps) {
           onPointerCancel={finishResize}
           onLostPointerCapture={() => setIsResizing(false)}
           onKeyDown={handleKeyDown}
-          className="group absolute z-40 w-5 translate-x-1/2 cursor-col-resize touch-none outline-none"
+          // El desplazamiento se refleja segun el lado: la mitad del asa debe
+          // caer sobre el panel y no bajo la vista nativa del navegador, que se
+          // compone por encima del renderer y la taparia.
+          className={`group absolute z-40 w-5 cursor-col-resize touch-none outline-none ${panelSide === 'left' ? '-translate-x-1/2' : 'translate-x-1/2'}`}
           style={{ ...separatorPosition, top: browserContentTop + PANEL_GAP * 2, bottom: PANEL_GAP * 2 }}
         >
           <span

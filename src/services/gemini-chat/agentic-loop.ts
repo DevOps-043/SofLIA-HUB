@@ -32,7 +32,10 @@ export async function runAgenticLoop(params: {
     if (params.failFastOnModelError) throw error;
     return safeFailureResult(error, params);
   }
-  let maxIterations = 10;
+  // Una Skill con espacio de trabajo entrega varios archivos, no una respuesta:
+  // con el tope de 10 el turno se quedaba a medias sobre una carpeta a medio
+  // escribir y respondia como si hubiera terminado.
+  let maxIterations = params.options?.activeSkill?.workspaceId ? 20 : 10;
 
   while (maxIterations > 0) {
     maxIterations -= 1;
@@ -85,19 +88,26 @@ async function executeFunctionCalls(
     allToolCalls: ToolCallInfo[];
     allGeneratedImages: string[];
   },
-): Promise<Array<{ functionResponse: { name: string; response: any } }>> {
-  const responses: Array<{ functionResponse: { name: string; response: any } }> = [];
+): Promise<any[]> {
+  const responses: any[] = [];
   for (const part of functionCalls) {
     const fc = (part as any).functionCall;
-    if (!isKnownGeminiTool(fc.name)) continue;
+    // El catalogo del turno incluye las herramientas de la Skill activa; sin
+    // Skill, la comprobacion es la del catalogo base de siempre.
+    if (!isKnownGeminiTool(fc.name, params.options?.activeSkill)) continue;
     try {
-      responses.push(
-        await withToolTimeout(
-          `Tool call ${fc.name}`,
-          () => executeGeminiToolCall(fc.name, fc.args || {}, params.options, params.allToolCalls, params.allGeneratedImages),
-          LONG_RUNNING_TOOL_TIMEOUTS_MS[fc.name],
-        ),
+      const ejecutada = await withToolTimeout(
+        `Tool call ${fc.name}`,
+        () => executeGeminiToolCall(fc.name, fc.args || {}, params.options, params.allToolCalls, params.allGeneratedImages),
+        LONG_RUNNING_TOOL_TIMEOUTS_MS[fc.name],
       );
+      responses.push({ functionResponse: ejecutada.functionResponse });
+      // La captura viaja como IMAGEN, no dentro del JSON: en base64 dentro del
+      // texto costaba cientos de miles de tokens y tumbaba el turno.
+      for (const dataUrl of ejecutada.images ?? []) {
+        const inline = toInlineData(dataUrl);
+        if (inline) responses.push(inline);
+      }
     } catch (error: any) {
       // Si use_computer expiro, abortar la tarea en el main para no dejar un
       // agente zombi ejecutando acciones a espaldas del usuario.
@@ -110,6 +120,15 @@ async function executeFunctionCalls(
     }
   }
   return responses;
+}
+
+/** Convierte una data URL en la parte `inlineData` que espera el SDK. */
+function toInlineData(dataUrl: string): { inlineData: { mimeType: string; data: string } } | null {
+  const separador = dataUrl.indexOf(',');
+  if (!dataUrl.startsWith('data:') || separador === -1) return null;
+  const mimeType = dataUrl.slice(5, dataUrl.indexOf(';'));
+  const data = dataUrl.slice(separador + 1);
+  return mimeType && data ? { inlineData: { mimeType, data } } : null;
 }
 
 /**

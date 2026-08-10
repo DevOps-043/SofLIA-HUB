@@ -2,6 +2,7 @@ import { ChatUI } from '../adapters/desktop_ui/ChatUI';
 import { ChatUnavailableState } from './ChatUnavailableState';
 import type { ChatState } from './app-types';
 import type { UserAISettings } from '../services/settings-service';
+import type { BrowserSelectionActionRequest } from '../services/integrated-browser-service';
 
 interface AppChatViewProps {
   compact?: boolean;
@@ -10,6 +11,8 @@ interface AppChatViewProps {
   chat: ChatState;
   currentConversation: ChatState['conversations'][number] | null;
   externalPrompt: string | null;
+  externalSelection: BrowserSelectionActionRequest | null;
+  onExternalSelectionProcessed: () => void;
   onExternalPromptProcessed: () => void;
   onMessagesChange: (messages: ChatState['currentMessages']) => void;
   onShareConversation?: () => void;
@@ -31,9 +34,13 @@ export function AppChatView(props: AppChatViewProps) {
   return (
     <ChatUI
       compact={props.compact}
+      conversationId={props.chat.currentConversationId}
+      browserOpen={props.compact}
       messages={props.chat.currentMessages}
       onMessagesChange={props.onMessagesChange}
       externalPrompt={props.externalPrompt}
+      externalSelection={props.externalSelection}
+      onExternalSelectionProcessed={props.onExternalSelectionProcessed}
       onExternalPromptProcessed={props.onExternalPromptProcessed}
       personalization={props.userSettings ? {
         nickname: props.userSettings.nickname,

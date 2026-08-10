@@ -5,11 +5,18 @@ import { getPublicAiErrorMessage, sendMessageStream, optimizePrompt, type ToolCa
 import { generateImage } from '../../services/image-generation';
 import { buildIrisContext, needsIrisData } from '../../services/iris-data';
 import { fetchChatMemoryContext, recordChatTurn } from '../../services/memory-bridge';
-import type { UserTool } from '../../services/tools-service';
+import { toActiveSkillContext } from '../../services/skills/active-skill';
+import type { ActiveSkillState } from '../../services/skills/active-skill';
 import type { ThinkingOption } from '../useModelSelector';
 import { createAiPlaceholder, createUserMessage, PLACEHOLDER_TEXT } from './message-utils';
 
 interface ProcessChatMessageInput {
+  /**
+   * Fragmento de la pagina que el usuario adjunto. Viaja al modelo como
+   * material del turno, pero no entra en la burbuja: el usuario ya lo ve en el
+   * chip del compositor y repetirlo ensuciaria la conversacion.
+   */
+  selectionContext?: string;
   text: string;
   images: string[];
   currentHistory: ChatMessage[];
@@ -23,7 +30,7 @@ interface ProcessChatMessageInput {
   isPromptOptimizerMode: boolean;
   optimizerTarget: 'chatgpt' | 'claude' | 'gemini';
   isImageGenMode: boolean;
-  activeTool: UserTool | null;
+  activeSkill: ActiveSkillState | null;
   /** Usuario SOFIA para la memoria unificada (owner de la memoria del chat). */
   sofiaUserId?: string;
   /** Señal para cancelar la generación con el botón Stop. */
@@ -88,12 +95,12 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
     // Memoria unificada: inyecta lo que SofLIA sabe/aprendio del usuario.
     const memoryContext = await withTimeoutFallback(fetchChatMemoryContext(input.sofiaUserId, text), CONTEXT_TIMEOUT_MS, '');
     log('contexto listo → llamando al modelo');
-    const result = await sendMessageStream(text, cleanHistory, {
+    const result = await sendMessageStream(withSelectionContext(text, input.selectionContext), cleanHistory, {
       model: input.preferredPrimaryModel,
       thinking: input.thinkingOption,
       personalization: input.personalization,
       images: images.length > 0 ? images : undefined,
-      toolSystemPrompt: input.activeTool?.system_prompt,
+      activeSkill: toActiveSkillContext(input.activeSkill),
       irisContext,
       memoryContext: memoryContext || undefined,
       userId: input.sofiaUserId,
@@ -173,3 +180,17 @@ function updateAiMessage(
     message.id === aiMessageId ? { ...message, ...patch } : message
   )));
 }
+
+/**
+ * Antepone al turno el fragmento adjunto. Solo lo ve el modelo: la burbuja
+ * conserva la pregunta tal cual la escribio el usuario, igual que hacen los
+ * asistentes de navegador, donde la seleccion es contexto y no parte del texto.
+ */
+export function withSelectionContext(text: string, selection?: string): string {
+  const fragmento = selection?.trim();
+  if (!fragmento) return text;
+  const cita = fragmento.split(NEWLINE).map((linea) => '> ' + linea).join(NEWLINE);
+  return ['El usuario tiene seleccionado este fragmento de la página que está viendo:', cita, 'Su mensaje sobre ese fragmento:', text].join(NEWLINE + NEWLINE);
+}
+
+const NEWLINE = String.fromCharCode(10);

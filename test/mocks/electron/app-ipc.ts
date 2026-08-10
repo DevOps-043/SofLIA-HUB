@@ -43,6 +43,45 @@ export const ipcMain = {
   _clearHandlers: () => handlers.clear(),
 };
 
+type ProtocolHandler = (request: { url: string }) => unknown;
+
+/**
+ * Cada sesion tiene su propio registro de protocolos, igual que en Electron:
+ * registrar en la sesion por defecto NO cubre una particion propia.
+ */
+function createProtocolMock() {
+  const handlers = new Map<string, ProtocolHandler>();
+  return {
+    registerSchemesAsPrivileged: vi.fn(),
+    handle: vi.fn((scheme: string, handler: ProtocolHandler) => {
+      if (handlers.has(scheme)) throw new Error(`Protocol ${scheme} already handled`);
+      handlers.set(scheme, handler);
+    }),
+    unhandle: vi.fn((scheme: string) => {
+      handlers.delete(scheme);
+    }),
+    isProtocolHandled: vi.fn((scheme: string) => handlers.has(scheme)),
+    _getHandler: (scheme: string) => handlers.get(scheme),
+    _clearHandlers: () => handlers.clear(),
+  };
+}
+
+export const protocol = createProtocolMock();
+
+const partitionSessions = new Map<string, { protocol: ReturnType<typeof createProtocolMock> }>();
+export const session = {
+  get defaultSession() {
+    return { protocol };
+  },
+  fromPartition: vi.fn((partition: string) => {
+    if (!partitionSessions.has(partition)) {
+      partitionSessions.set(partition, { protocol: createProtocolMock() });
+    }
+    return partitionSessions.get(partition)!;
+  }),
+  _clearPartitions: () => partitionSessions.clear(),
+};
+
 const rendererListeners = new Map<string, Set<Function>>();
 export const ipcRenderer = {
   invoke: vi.fn(async (_channel: string, ..._args: any[]) => ({ success: true })),

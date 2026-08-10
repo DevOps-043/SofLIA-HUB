@@ -24,7 +24,8 @@ const HELP_LINES = [
   '/pendientes - Ver casos pendientes',
   '/aprobar CASE_ID - Autorizar un caso',
   '/rechazar CASE_ID - Rechazar un caso',
-  '/presentacion - Proceso de presentaciones',
+  '/skills - Skills disponibles por WhatsApp',
+  '/presentacion - Crea una presentacion ejecutiva y te la envio',
 ];
 
 export function buildHelpText(isGroup: boolean): string {

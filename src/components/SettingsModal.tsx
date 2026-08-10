@@ -183,7 +183,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
   );
 };
 
-function InterfaceSettingsBlock() {
+export function InterfaceSettingsBlock() {
   const [sidebarPosition, setSidebarPositionState] = useState<'left' | 'right' | 'bottom'>(() => {
     return (localStorage.getItem('sofLia_sidebarPosition') as any) || 'left';
   });

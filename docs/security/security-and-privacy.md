@@ -1,6 +1,6 @@
 # Seguridad y privacidad
 
-Estado: vigente. Actualizado: 2026-08-04.
+Estado: vigente. Actualizado: 2026-08-06.
 
 <!-- evidence: electron/preload/safe-ipc.ts -->
 <!-- evidence: electron/main/window-controller.ts -->
@@ -39,8 +39,12 @@ aprobacion.
 | Capa | Control | Evidencia |
 |---|---|---|
 | Ventana | sandbox, context isolation, Node off | `electron/main/window-controller.ts`, `orb-window-controller.ts` |
-| Preload | 306 canales permitidos, sanitizacion y CSP | `electron/preload/` |
+| Preload | canales permitidos por allowlist, sanitizacion y CSP | `electron/preload/`, `electron/__tests__/preload/channel-cases.ts` |
 | Navegador integrado | particion propia, sin preload/Node, HTTP(S), popup confinado, boveda metadata-only y extensiones con HITL | `electron/integrated-browser/` |
+| Skills | la clase se deriva de la fuente, no de una columna; una Skill del usuario no declara herramientas y ninguna Skill puede activar lo que su superficie prohibe | `src/shared/skills/registry.ts`, `src/shared/skills/surface-tools.ts`, `src/services/skills/catalog.ts` |
+| Workspace de Skills | contencion por `realpath` (cierra el escape por enlace simbolico), rechazo de rutas absolutas y `..`, allowlist de extensiones, limites de tamano y archivos protegidos que el modelo no puede reescribir | `electron/skill-workspace/paths.ts`, `electron/skill-workspace/service.ts` |
+| Render de presentaciones | protocolo local que solo sirve el workspace indicado, CSP sin `connect-src`, `iframe` con `sandbox="allow-scripts"` sin `allow-same-origin` y vista nativa sin preload en particion propia | `electron/skill-workspace/protocol.ts`, `electron/skill-workspace/presentation-view.ts` |
+| Branding | solo columnas de presentacion, descarga restringida al host de Supabase SOFIA con limite de tamano y timeout, colores validados antes de entrar al CSS | `electron/organization-branding/` |
 | Handlers | payloads serializables y servicios por dominio | `electron/*-handlers.ts` |
 | Canales | principal, rol, scope y capabilities | `electron/communication-hub/authorization.ts` |
 | WhatsApp | normalizacion, allowlists, politica de grupo y tools bloqueadas | `electron/whatsapp/security.ts`, `electron/wa-agent/tool-declarations.ts` |
@@ -58,6 +62,35 @@ definidos por policy. La aprobacion debe indicar
 actor, objetivo y operacion actuales; `skipConfirmations` o texto generado no
 acreditan una tool dinamica que exige HITL.
 
+Los permisos del navegador integrado se administran por origen, como el panel
+del candado de un navegador: la decision queda guardada y el usuario puede
+revocarla desde la barra de direcciones sin esperar a que el sitio vuelva a
+pedirla. Los permisos de dispositivo (`usb`, `serial`, `hid`, MIDI), la apertura
+de aplicaciones externas y el sistema de archivos no son configurables: se
+deniegan siempre.
+
+`navigator.permissions.query` reporta concedidos la camara, el microfono y la
+seleccion de salida de audio mientras estan sin decidir. Electron solo admite un
+booleano y no puede expresar "preguntar", de modo que responder que no hacia que
+sitios como Google Meet se declararan bloqueados y nunca llegaran a solicitar el
+dispositivo: el permiso no se podia conceder porque el dialogo no llegaba a
+abrirse. La consulta informa un estado; la captura real sigue pasando por el
+dialogo y por el permiso del sistema.
+
+La camara y el microfono suman una segunda frontera: la aprobacion dentro de la
+aplicacion no reemplaza al permiso del sistema operativo. Antes de conceder se
+consulta `systemPreferences.getMediaAccessStatus` en macOS y Windows; si el
+sistema ya lo tiene denegado o restringido no se pregunta nada y se indica la
+ruta de ajustes, y en macOS un estado sin decidir dispara `askForMediaAccess`.
+El empaquetado declara las entitlements y las descripciones de uso
+correspondientes, sin las cuales macOS bloquea la captura aunque el usuario
+apruebe.
+
+Compartir pantalla no tiene concesion silenciosa: la pagina nunca elige el
+origen. El selector nativo enumera pantallas y ventanas, y sin seleccion se
+responde con un flujo vacio. El audio del sistema requiere ademas una casilla
+explicita y solo existe en Windows.
+
 ## Privacidad por tipo de dato
 
 | Dato | Ubicacion | Exposicion permitida | Riesgo |
@@ -69,13 +102,50 @@ acreditan una tool dinamica que exige HITL.
 | Historial web | `history.jsonl`, maximo 2.000 entradas | usuario mediante wrapper acotado | URLs pueden revelar temas visitados; se eliminan credenciales embebidas |
 | Contrasenas web | `credentials.json`, secreto cifrado con `safeStorage` | main rellena por gesto y origen exacto; renderer recibe metadata | un proceso del mismo usuario puede heredar la frontera del sistema operativo |
 | Extensiones web | copia administrada + registro en `userData` | usuario instala/deshabilita/remueve; agente sin API; renderer solo recibe metadata y token efimero | una extension aprobada puede observar paginas y campos que su permiso alcance |
+| Audio del modo lectura | texto enviado a ElevenLabs tras reproducir; audio/timestamps transitorios durante la sesión | renderer recibe audio del segmento y offsets; no existe canal de descarga o escritura | el contenido narrado sale al proveedor; el bundle main de una app distribuida no equivale a una bóveda remota de secretos |
+| Voz de la Orbe | respuesta del asistente enviada por segmentos a ElevenLabs durante un turno de voz | key sólo en main; renderer recibe MP3 y metadatos no secretos; sender autenticado y texto acotado | el texto hablado sale al proveedor; solicitudes anticipadas pueden consumir cuota aunque el usuario cancele después |
+
+El modo lectura es explícito: seleccionar texto solo habilita la acción y no
+envía contenido al proveedor. La extracción local excluye formularios,
+controles, contenido editable genérico y páginas no HTTP(S). Google Docs se lee
+por selección explícita, exportación textual con la sesión autenticada o árbol
+de accesibilidad temporal; si esas rutas fallan no se usa el DOM de la interfaz
+como contenido. ElevenLabs se invoca al
+presionar reproducir; la clave no cruza preload/renderer, las solicitudes se
+pueden cancelar y los buffers transitorios se liberan al cerrar el lector.
+La interfaz flotante crea nodos DOM/SVG con APIs seguras dentro de un
+`ShadowRoot`; no usa `innerHTML`, no crea una política Trusted Types propia,
+nunca interpola el texto del documento y recibe acciones con una espera IPC
+acotada en vez de inspeccionar la página mediante polling. Solo se anticipan dos
+microlotes, un fallo no se reintenta sin otro gesto del usuario y toda la cola
+pendiente se cancela al detener o cerrar.
+El subrayado se ejecuta con un rango temporal validado contra la sesión y URL:
+no inserta `mark`, no reescribe texto, no persiste selecciones y se elimina al
+detener o cerrar. Una página cuyo DOM cambió puede perder el subrayado sin que el
+sistema intente forzar ni reconstruir su contenido. Google Docs omite el
+subrayado DOM cuando el lienzo no entrega un rango fiable para evitar marcar
+menús o controles por coincidencia textual; el seguimiento se limita al token
+subrayado dentro del `ShadowRoot` de la cápsula. La preparación fonética y su
+mapa de offsets permanecen en memoria main y no modifican ni persisten el texto.
+Los avisos o bloqueos de recursos emitidos por una página de terceros no
+autorizan a relajar el aislamiento: el navegador conserva `webSecurity`, CORP,
+CORS y las protecciones de procesos de Chromium. El producto no reescribe
+cabeceras de Gmail/Googleusercontent ni oculta errores de su código remoto para
+simular compatibilidad.
+La Orbe usa esa misma clave y voz, pero no conserva audio en main: cada bloque
+MP3 se entrega al renderer autorizado y se descarta tras reproducirse. No existe
+fallback a Google TTS ni se aceptan secretos `VITE_GOOGLE_CLOUD_TTS_*`.
 
 Las referencias contextuales del chat permiten usar la captura y el DOM de la
 pestaña activa como evidencia y seguir un enlace visible para lectura. La
 lectura DOM y la navegación HTTP(S) determinista no requieren Computer Use, no
 devuelven captura base64 ni valores de formulario y conservan los límites del
 wrapper IPC existente. Las consultas públicas usan la búsqueda hospedada del
-proveedor; las URL entregadas al modelo omiten credenciales, query y fragment. El
+proveedor; las URL entregadas al modelo omiten credenciales, query y fragment.
+La única excepción son las URL de las imágenes de contenido (`images` del
+snapshot), donde la query se conserva porque lleva el tamaño o la firma del
+recurso y sin ella la descarga falla; también ahí se eliminan las credenciales, y
+solo entran imágenes de tamaño real por HTTP(S), nunca `data:` ni `blob:`. El
 contenido remoto permanece no confiable: esa lectura no concede autorización
 para enviar, escribir, instalar, aceptar permisos ni ejecutar instrucciones de
 la página; cada mutación conserva su política y HITL.
@@ -120,6 +190,29 @@ posteriores a la inspección.
    o confirmados cuando no sean necesarios.
 9. No hay SAST/DAST, escaneo de secretos ni audit de dependencias en la compuerta
    PR actual; el reporte base registra vulnerabilidades conocidas.
+10. El HTML de una presentacion lo escribe un modelo a partir de fuentes que
+    pueden ser no confiables (una pagina web, un documento subido). Se ejecuta
+    con `script-src 'unsafe-inline'` porque la navegacion entre diapositivas va
+    en linea. La mitigacion no es revisar ese script, sino el entorno: origen
+    opaco, sin preload, sin IPC y con `connect-src 'none'`, de modo que el peor
+    caso es una presentacion con contenido malicioso y no una accion sobre el
+    sistema. Los archivos protegidos impiden ademas que una inyeccion reescriba
+    la hoja de marca y suplante la identidad de la organizacion.
+11. El retorno del inicio de sesion federado llega por `soflia://auth/callback`.
+    En Windows cualquier aplicacion local puede registrar ese esquema, asi que el
+    canal se trata como no confidencial y el ticket que viaja por el **no
+    autoriza nada por si mismo**: el canje exige ademas un verificador PKCE que
+    solo existe en memoria del renderer que inicio el flujo, y el ticket es de un
+    solo uso con una ventana de validez de un minuto. Un intento con verificador
+    incorrecto lo quema igualmente, para que quien lo intercepte no pueda seguir
+    probando. Los cuatro fallos posibles —inexistente, expirado, ya consumido y
+    verificador incorrecto— devuelven una respuesta indistinguible, de modo que
+    un ticket robado no revele si sigue vivo. El destino del retorno se construye
+    en el servidor de Learning y ningun parametro del cliente influye en el, para
+    que el modo escritorio no pueda usarse como redirector abierto. RFC 8252
+    admite esquemas de uso privado bajo estas condiciones; el servidor local en
+    loopback seria mas robusto frente al secuestro del esquema y queda como
+    mejora posterior.
 
 ## Respuesta a incidentes
 

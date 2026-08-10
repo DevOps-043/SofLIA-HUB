@@ -28,7 +28,24 @@ export interface SendMessageStreamOptions {
   personalization?: { nickname?: string; occupation?: string; tone?: string; instructions?: string };
   imageMetadata?: any;
   images?: string[];
+  /**
+   * @deprecated Sustituido por `activeSkill`. Se conserva mientras quede
+   * codigo que active una herramienta de usuario por su prompt suelto.
+   */
   toolSystemPrompt?: string;
+  /**
+   * Skill activa del turno. Aporta instrucciones al prompt y, si es del
+   * sistema y tiene workspace vivo, herramientas al catalogo del turno.
+   */
+  activeSkill?: {
+    id: string;
+    name: string;
+    instructions: string;
+    /** Herramientas declaradas por la Skill, antes de filtrar por superficie. */
+    tools: readonly string[];
+    /** Workspace vivo; sin el, no se declaran herramientas de workspace. */
+    workspaceId: string | null;
+  };
   context?: string;
   irisContext?: string;
   sourcesContext?: string;

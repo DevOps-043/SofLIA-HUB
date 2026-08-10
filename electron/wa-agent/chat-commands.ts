@@ -10,11 +10,14 @@ import type { WhatsAppService } from '../whatsapp-service';
 import type { WorkflowHubService } from '../workflow-hub-service';
 import type { WorkspaceAutomationService } from '../workspace-automation-service';
 import { WorkflowManager } from '../whatsapp-workflow-presentacion';
+import { getSkillWorkspaceService } from '../skill-workspace/shared-instance';
+import { PRESENTACIONES_SKILL_ID } from '../../src/shared/skills/presentaciones-skill';
 import { WA_MODEL } from './constants';
 import { handleActivationCommand } from './chat-commands/activation';
 import { buildHelpText } from './chat-commands/help';
 import { handlePermissionsCommand } from './chat-commands/permissions';
 import { handleProfileCommand } from './chat-commands/profile';
+import { buildSkillsCommandText, resolveWhatsAppSkill } from './chat-commands/skills';
 import { handleWorkflowBusinessCommand } from './chat-commands/workflow-router';
 
 type ConversationHistory = Map<string, Array<{ role: string; parts: Array<{ text: string }> }>>;
@@ -62,16 +65,26 @@ export async function handleChatCommand(context: ChatCommandContext): Promise<st
     case '/permisoswa':
       return handlePermissionsCommand(context, args);
 
+    case '/skills':
+      return buildSkillsCommandText(context.isGroup);
+
     case '/presentaci\u00f3n':
-    case '/presentacion':
+    case '/presentacion': {
+      // El catalogo decide si la skill existe aqui; las guardas de WhatsApp
+      // (superficie y grupo) se aplican encima, nunca al reves.
+      const disponibilidad = resolveWhatsAppSkill(PRESENTACIONES_SKILL_ID, context.isGroup);
+      if (!disponibilidad.ok) return disponibilidad.message;
+
       await WorkflowManager.startWorkflow(
         sessionKey,
         context.jid,
         context.senderNumber,
         context.waService,
         context.agent,
+        getSkillWorkspaceService(),
       );
       return null;
+    }
 
     case '/help':
       return buildHelpText(context.isGroup);

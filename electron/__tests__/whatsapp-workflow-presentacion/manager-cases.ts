@@ -3,6 +3,7 @@ import {
   WorkflowManager,
   mockAgent,
   mockWaService,
+  mockWorkspaceService,
   resetPresentationWorkflowMocks,
 } from './setup';
 
@@ -18,8 +19,9 @@ describe('WorkflowManager', () => {
       'mgr-test',
       '5551234567@s.whatsapp.net',
       '5551234567',
-      mockWaService as any,
-      mockAgent as any,
+      mockWaService as unknown as Parameters<typeof WorkflowManager.startWorkflow>[3],
+      mockAgent as unknown as Parameters<typeof WorkflowManager.startWorkflow>[4],
+      mockWorkspaceService as unknown as Parameters<typeof WorkflowManager.startWorkflow>[5],
     );
     expect(WorkflowManager.isActive('mgr-test')).toBe(true);
   });
@@ -29,8 +31,9 @@ describe('WorkflowManager', () => {
       'mgr-test',
       '5551234567@s.whatsapp.net',
       '5551234567',
-      mockWaService as any,
-      mockAgent as any,
+      mockWaService as unknown as Parameters<typeof WorkflowManager.startWorkflow>[3],
+      mockAgent as unknown as Parameters<typeof WorkflowManager.startWorkflow>[4],
+      mockWorkspaceService as unknown as Parameters<typeof WorkflowManager.startWorkflow>[5],
     );
     WorkflowManager.endWorkflow('mgr-test');
     expect(WorkflowManager.isActive('mgr-test')).toBe(false);
