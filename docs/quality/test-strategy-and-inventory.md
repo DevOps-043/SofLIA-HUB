@@ -126,6 +126,8 @@ rollback. No todos aplican a cada cambio; el Context Pack decide.
 |---|---|
 | `electron/__tests__/integrated-browser-selection-menu.test.ts` | El menú flotante inyectado en la página, sobre jsdom: las cinco acciones publicadas, que aparece anclado sobre la selección al terminar el gesto —sin clic derecho—, que el clic conserva la selección viva para que main pueda leerla, que se retira al deseleccionar y con Escape, que se apaga mientras el agente conduce, que reinstalar no lo duplica y que el aviso de consola solo acepta las acciones publicadas. |
 | `electron/__tests__/integrated-browser-context-menu.test.ts` | La otra entrada a las mismas acciones: opciones según haya selección o no, recorte del adjunto de chat frente al límite mayor del lector, y que preguntar a SofLIA no precarga instrucción. |
+| `electron/__tests__/integrated-browser-writing-panel.test.ts` | El panel de redacción sobre jsdom: que el menú lo abre sin mandar nada al chat, que la petición se entrega una sola vez, que la propuesta se escribe con `insertText` en el campo editable y, cuando el origen no lo era, en el compositor de la página, que un fallo del modelo se ve sin cerrar el panel, que una respuesta tardía ya no encuentra destinatario, y que el control del agente lo cierra. |
+| `src/__tests__/services/browser-writing.test.ts` | El único punto donde el texto de una página entra a un modelo: que el fragmento y la instrucción del usuario van etiquetados como datos —una selección que dice "ignora todo lo anterior" sigue siendo material a reescribir—, que sin instrucción se pide una mejora conservadora, que se retira el andamiaje del modelo y que una respuesta vacía se declara como fallo. |
 
 ## Cobertura y deuda
 

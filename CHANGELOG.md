@@ -18,6 +18,21 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
   envia el turno por su cuenta: el texto llega al compositor del chat con su
   instruccion y es el usuario quien decide que pedir y cuando mandarlo. La
   burbuja se apaga mientras el agente conduce el navegador.
+- "Mejorar la redaccion" ya no manda nada al chat: abre un panel en la propia
+  pagina. El usuario escribe que quiere cambiar —mas formal, mas corto, otro
+  tono— o no escribe nada, ve la propuesta ahi mismo y la deja caer en su campo
+  de texto con un boton. Cambiar de ventana para copiar y pegar era justo el
+  paso que hacia inutil la funcion dentro de un correo o un chat de trabajo.
+- La propuesta se escribe con `insertText`, que conserva el deshacer del
+  navegador y avisa a la aplicacion de la pagina; asignar el valor a secas
+  dejaba a sitios como Gmail o Google Chat sin enterarse de lo escrito. Si el
+  texto de origen no era editable —un mensaje recibido, por ejemplo—, la
+  propuesta entra en el compositor visible de la pagina.
+- El texto del usuario nunca viaja por la consola: la pagina solo avisa de que
+  hay una peticion y main la lee. El modelo lo resuelve el renderer, donde ya
+  viven la clave y el modelo del producto. La seleccion y la instruccion llegan
+  al modelo etiquetadas como datos: una pagina que diga "ignora todo lo
+  anterior" sigue siendo material a reescribir.
 - Borrado de datos de navegacion en el navegador integrado, equivalente al de
   Chrome. Hasta ahora lo unico que se podia vaciar era el historial, y una
   sesion rota o una cuenta equivocada en un sitio no tenian salida.

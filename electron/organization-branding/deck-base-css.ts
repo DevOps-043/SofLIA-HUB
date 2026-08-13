@@ -5,8 +5,8 @@
  * es un HTML que debe abrirse sin conexion y viajar como archivo unico.
  * Tailwind necesita un paso de compilacion y React un bundle; traerlos por CDN
  * choca con la regla de recursos remotos y con la CSP del visor. Una capa
- * curada da lo mismo que se busca —escala tipografica coherente, primitivas de
- * composicion y utilidades de animacion— sin build, sin red y en pocos KB.
+ * curada da lo mismo que se busca â€”escala tipografica coherente, primitivas de
+ * composicion y utilidades de animacionâ€” sin build, sin red y en pocos KB.
  *
  * El modelo compone con estas clases en vez de reinventar el sistema en cada
  * presentacion, que es lo que hacia que unas salieran bien y otras no.
@@ -106,31 +106,34 @@ body {
   row-gap: calc(var(--ritmo) * 1.5);
 }
 
-/* Con el guion instalado la diapositiva NO crece: se queda en la ventana y lo
-   que no cabe lo reduce el ajuste. Sin este tope la diapositiva crecia con su
-   contenido, su altura medida era esa altura ya crecida, el ajuste comparaba
-   contra ella y concluia que todo cabia —y el texto se salia por abajo, que es
-   el fallo que se veia en cada baraja vertical—.
-
-   El respaldo es desplazamiento DENTRO de la diapositiva: si tras reducir al
-   minimo sigue sin caber, se puede leer. Nunca se recorta en silencio. Sin
-   guion la regla no aplica y la diapositiva crece como antes. */
+/* Con el guion instalado, la diapositiva representa un lienzo y no puede
+   crecer mas que la ventana. El ajuste reduce el contenido; el scroll interno
+   es la red de seguridad cuando ni al 50 % cabe. */
 .deck-js .diapositiva {
+  height: 100vh;
   max-height: 100vh;
   overflow-y: auto;
   scrollbar-width: none;
 }
 .deck-js .diapositiva::-webkit-scrollbar { display: none; }
 
-/* Envoltorio que crea guion-base.js para escalar el contenido cuando no cabe.
-   Se declara aqui para que herede la composicion de la diapositiva. */
+/* Marco de altura explicita + contenido absoluto: el transform reduce los
+   pixeles y el marco reduce a la vez el espacio de maquetacion. */
+.diapositiva__marco {
+  position: absolute;
+  inset-inline: 0;
+  width: 100%;
+  justify-self: stretch;
+}
 .diapositiva__ajuste {
   display: grid;
   grid-auto-rows: min-content;
   row-gap: calc(var(--ritmo) * 1.5);
-  position: relative;
+  position: absolute;
+  inset: 0 auto auto 0;
   z-index: 1;
   width: 100%;
+  transform-origin: top center;
 }
 
 /* --- Tipografia --------------------------------------------------------- */
@@ -260,8 +263,8 @@ body {
 }
 .imagen-fondo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 /* El velo SIEMPRE oscurece. Antes se tenia del color primario a secas: con una
-   marca de color claro el velo salia claro, y el texto —que usaba el color de
-   fondo de la marca, oscuro en un tema oscuro— quedaba negro sobre verde
+   marca de color claro el velo salia claro, y el texto â€”que usaba el color de
+   fondo de la marca, oscuro en un tema oscuroâ€” quedaba negro sobre verde
    claro, ilegible. Mezclar contra negro garantiza el contraste sea cual sea
    la marca, y conserva su tinte. */
 .imagen-fondo::after {
@@ -292,6 +295,11 @@ body {
   border-color: rgb(255 255 255 / 0.16);
   backdrop-filter: blur(6px);
 }
+/* Un componente local puede conservar deliberadamente una superficie clara
+   sobre la imagen. El guion la detecta por luminancia y restaura texto oscuro. */
+.diapositiva--imagen .superficie--clara-auto,
+.diapositiva--imagen .superficie--clara-auto .cuerpo,
+.diapositiva--imagen .superficie--clara-auto .subtitulo { color: var(--sobre-claro); }
 
 .figura { margin: 0; }
 .figura img {
@@ -506,7 +514,7 @@ body {
 }
 
 /* --- Capa de plano tecnico ----------------------------------------------- */
-/* Retícula tenue y marcas de registro en las esquinas. Es la firma visual que
+/* RetÃ­cula tenue y marcas de registro en las esquinas. Es la firma visual que
    hace que una baraja parezca un documento tecnico coherente en vez de una
    sucesion de diapositivas sueltas. Va en la diapositiva, detras de todo. */
 .plano {
@@ -678,8 +686,8 @@ body {
    Estaba ligada al scroll (animation-timeline: view()). Con scroll-snap el
    salto de una diapositiva a la siguiente RECORRE ENTERO el rango de entrada
    en lo que dura el salto: la animacion ocurria, pero era imperceptible, y los
-   retardos escalonados ni siquiera se aplicaban —sobre una linea de tiempo de
-   scroll animation-delay se ignora—. Ahora la dispara guion-base.js cuando la
+   retardos escalonados ni siquiera se aplicaban â€”sobre una linea de tiempo de
+   scroll animation-delay se ignoraâ€”. Ahora la dispara guion-base.js cuando la
    diapositiva entra en pantalla, y son animaciones por TIEMPO: se ven, duran y
    se escalonan de verdad.
 
@@ -798,10 +806,8 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  /* El guion SI se instala con movimiento reducido, porque el ajuste a la
-     ventana es maquetacion y no movimiento: una diapositiva que no cabe deja
-     el texto fuera de la pantalla con animaciones y sin ellas. Lo que se anula
-     aqui es todo lo que se mueve, incluido lo que escriba la propia baraja. */
+  /* El guion sigue instalado porque tambien resuelve maquetacion. Aqui se
+     neutraliza solamente el movimiento y se conserva el estado final. */
   .capa, .capa:hover { transform: none; }
   .orbita__satelite, .orbita__nucleo { opacity: 1 !important; animation: none !important; }
   .orbita::before { opacity: 1 !important; animation: none !important; transform: translate(-50%, -50%) !important; }
@@ -812,8 +818,6 @@ body {
     filter: none !important;
     clip-path: none !important;
   }
-  /* Un trazo sin su animacion se queda con el guion oculto por completo: hay
-     que devolverle la linea entera o el diagrama aparece vacio. */
   .traza, .traza-auto {
     stroke-dasharray: none !important;
     stroke-dashoffset: 0 !important;
@@ -829,10 +833,24 @@ body {
   .baraja { height: auto; overflow: visible; }
   .baraja--horizontal { display: block; height: auto; overflow: visible; }
   .baraja--horizontal > .diapositiva { flex-basis: auto; }
-  /* Al imprimir no hay ventana que respetar: se suelta el tope de la pantalla
-     para que la diapositiva se lleve entera al papel en vez de recortarse. */
   .diapositiva,
-  .deck-js .diapositiva { min-height: auto; max-height: none; overflow: visible; page-break-after: always; }
+  .deck-js .diapositiva { height: auto; min-height: auto; max-height: none; overflow: visible; page-break-after: always; }
+  .diapositiva__marco { position: static; height: auto !important; }
+  .diapositiva__ajuste { position: relative; inset: auto; transform: none !important; }
   #pulse-salir { display: none; }
 }
+/* Con WAAPI disponible, el guion posee la coreografia. Estas animaciones CSS
+   quedan como degradacion para navegadores antiguos y no deben competir con
+   dos transformaciones simultaneas sobre el mismo elemento. */
+.deck-waapi .diapositiva.activa .aparece,
+.deck-waapi .diapositiva.activa .palabras > *,
+.deck-waapi .diapositiva.activa .cascada > * {
+  animation: none;
+  opacity: 1;
+  transform: none;
+  filter: none;
+  clip-path: none;
+}
 `;
+
+

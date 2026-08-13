@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "meta": {
+    "titulo": "Sistema de presentaciones",
+    "audiencia": "Direccion de producto",
+    "direccionVisual": "Plano editorial tecnico, alto contraste y continuidad de flujo"
+  },
+  "slides": [
+    {
+      "id": "portada",
+      "tipo": "portada",
+      "antetitulo": "Pulse Hub · nuevo runtime",
+      "titulo": "Las ideas se mueven; la geometria permanece estable.",
+      "subtitulo": "HyperFrames dirige la continuidad. React, Tailwind y Framer Motion garantizan el lienzo.",
+      "movimiento": { "continuidad": "flujo", "entrada": "revelado", "enfasis": "recorrido" }
+    },
+    {
+      "id": "comparacion",
+      "tipo": "comparacion",
+      "antetitulo": "Cambio de arquitectura",
+      "titulo": "El modelo deja de improvisar el layout.",
+      "izquierda": {
+        "etiqueta": "Antes",
+        "titulo": "HTML libre",
+        "texto": "Cada deck inventaba su propia geometria.",
+        "puntos": ["Columnas colapsadas", "Texto fuera del lienzo", "Animaciones inconexas"]
+      },
+      "derecha": {
+        "etiqueta": "Ahora",
+        "titulo": "Contrato declarativo",
+        "texto": "El runtime selecciona composiciones verificadas.",
+        "puntos": ["Lienzo fijo 1920×1080", "Densidad validada", "Movimiento semantico"]
+      },
+      "movimiento": { "continuidad": "empuje", "entrada": "ascenso", "enfasis": "ninguno" }
+    },
+    {
+      "id": "proceso",
+      "tipo": "proceso",
+      "antetitulo": "Movimiento maestro",
+      "titulo": "Una sola camara narrativa atraviesa la baraja.",
+      "introduccion": "Cada escena conserva una relacion visual con la anterior.",
+      "pasos": [
+        { "titulo": "Tesis", "texto": "Define lo que debe cambiar." },
+        { "titulo": "Evidencia", "texto": "Demuestra por que importa." },
+        { "titulo": "Mecanismo", "texto": "Explica como sucede." },
+        { "titulo": "Decision", "texto": "Cierra con una accion." }
+      ],
+      "movimiento": { "continuidad": "zoom", "entrada": "trazo", "enfasis": "recorrido" }
+    },
+    {
+      "id": "metricas",
+      "tipo": "metricas",
+      "antetitulo": "Guardas de calidad",
+      "titulo": "La legibilidad ya no depende de suerte.",
+      "metricas": [
+        { "valor": "1920×1080", "etiqueta": "Lienzo logico", "detalle": "Escala uniforme en cualquier ventana." },
+        { "valor": "8", "etiqueta": "Arquetipos", "detalle": "Composiciones cerradas y editables." },
+        { "valor": "4", "etiqueta": "Continuidades", "detalle": "Un vocabulario expresivo y coherente." }
+      ],
+      "movimiento": { "continuidad": "flujo", "entrada": "foco", "enfasis": "conteo" }
+    },
+    {
+      "id": "cierre",
+      "tipo": "cierre",
+      "antetitulo": "Siguiente etapa",
+      "titulo": "La creatividad queda libre sin romper el escenario.",
+      "texto": "El agente decide la historia y la direccion visual; el sistema conserva calidad, acceso y movimiento.",
+      "accion": "Generar el primer deck real",
+      "movimiento": { "continuidad": "empuje", "entrada": "ascenso", "enfasis": "pulso" }
+    }
+  ]
+}
+
+

@@ -101,6 +101,17 @@ function newService(store: BrowserSitePermissionStore = newStore()): IntegratedB
   return new IntegratedBrowserService(undefined, undefined, undefined, undefined, store);
 }
 
+/**
+ * Cuenta solo las lecturas del DOM. El servicio tambien inyecta piezas propias
+ * —vigia de seleccion, menu flotante, panel de redaccion— y contar guiones a
+ * secas confundia instalar la interfaz con leer la pagina del usuario.
+ */
+function domExtractions(contents: { executeJavaScript: { mock: { calls: unknown[][] } } }): number {
+  return contents.executeJavaScript.mock.calls
+    .filter((call) => String(call[0]).includes('const LIMITS = { text:'))
+    .length;
+}
+
 type PermissionPromptPayload = { id: string; origin: string; kinds: string[]; labels: string[] };
 
 /**
@@ -301,7 +312,9 @@ describe('IntegratedBrowserService', () => {
     expect(contents.capturePage).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);
     expect(contents.capturePage).toHaveBeenCalledTimes(1);
-    expect(contents.executeJavaScript).not.toHaveBeenCalled();
+    // Lo que no debe ocurrir sin peticion es leer el DOM. Instalar el vigia de
+    // seleccion, el menu flotante o el panel de redaccion no lee la pagina.
+    expect(domExtractions(contents)).toBe(0);
     const passiveImage = await contents.capturePage.mock.results[0].value;
     expect(passiveImage.resize).toHaveBeenCalledWith({ width: 1024, height: 576, quality: 'good' });
     await expect(service.getObservation(false)).resolves.toMatchObject({
@@ -313,7 +326,7 @@ describe('IntegratedBrowserService', () => {
       observation: expect.objectContaining({ screenshot: 'data:image/jpeg;base64,Y2FwdHVyYQ==' }),
     });
     expect(contents.capturePage).toHaveBeenCalledTimes(1);
-    expect(contents.executeJavaScript).toHaveBeenCalledTimes(1);
+    expect(domExtractions(contents)).toBe(1);
     service.detachWindow();
   });
 
@@ -497,6 +510,63 @@ describe('IntegratedBrowserService', () => {
     vi.useRealTimers();
   });
 
+  it('BR-SEL-007: la petición del panel de redacción sube al renderer y su respuesta baja a la página', async () => {
+    vi.useFakeTimers();
+    const parent = new BrowserWindow();
+    const service = new IntegratedBrowserService();
+    service.attachWindow(parent);
+    await service.open('https://mail.google.com/chat');
+    service.setViewport({ x: 0, y: 0, width: 1280, height: 720 });
+    const contents = browserViewHarness.instances[0].webContents;
+    const enviar = parent.webContents.send as unknown as ReturnType<typeof vi.fn>;
+    enviar.mockClear();
+    contents.executeJavaScript.mockResolvedValue({ requestId: 'w1a2b3c4d5', prompt: 'mas formal', text: 'hola q tal' });
+
+    contents.emit('console-message', { message: '__SOFLIA_WRITING__' });
+    await vi.advanceTimersByTimeAsync(100);
+
+    const peticiones = enviar.mock.calls.filter((call: unknown[]) => call[0] === 'integrated-browser:writing-request');
+    expect(peticiones).toHaveLength(1);
+    expect(peticiones[0][1]).toMatchObject({
+      requestId: 'w1a2b3c4d5',
+      prompt: 'mas formal',
+      text: 'hola q tal',
+      url: 'https://mail.google.com/chat',
+    });
+    // El texto del usuario nunca viaja por la consola: el aviso solo avisa.
+    expect(enviar.mock.calls.filter((call: unknown[]) => call[0] === 'integrated-browser:selection-action')).toHaveLength(0);
+
+    contents.executeJavaScript.mockClear();
+    contents.executeJavaScript.mockResolvedValue(true);
+    await expect(service.resolveWritingRequest({ requestId: 'w1a2b3c4d5', text: 'Hola, ¿qué tal?' })).resolves.toEqual({ delivered: true });
+    expect(String(contents.executeJavaScript.mock.calls[0][0])).toContain('w1a2b3c4d5');
+
+    service.detachWindow();
+    vi.useRealTimers();
+  });
+
+  it('BR-SEL-008: el panel de redacción no actúa mientras el agente conduce', async () => {
+    vi.useFakeTimers();
+    const parent = new BrowserWindow();
+    const service = new IntegratedBrowserService();
+    service.attachWindow(parent);
+    await service.open('https://mail.google.com/chat');
+    service.setViewport({ x: 0, y: 0, width: 1280, height: 720 });
+    const contents = browserViewHarness.instances[0].webContents;
+    const enviar = parent.webContents.send as unknown as ReturnType<typeof vi.fn>;
+    await service.openForAgent();
+    enviar.mockClear();
+    contents.executeJavaScript.mockResolvedValue({ requestId: 'w1a2b3c4d5', prompt: '', text: 'hola' });
+
+    contents.emit('console-message', { message: '__SOFLIA_WRITING__' });
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(enviar.mock.calls.filter((call: unknown[]) => call[0] === 'integrated-browser:writing-request')).toHaveLength(0);
+
+    service.detachWindow();
+    vi.useRealTimers();
+  });
+
   it('espera una ventana de calma y no compite con Computer Use', async () => {
     vi.useFakeTimers();
     const service = new IntegratedBrowserService();
@@ -537,7 +607,7 @@ describe('IntegratedBrowserService', () => {
 
     await service.getObservation(true);
     expect(contents.capturePage).toHaveBeenCalledTimes(1);
-    expect(contents.executeJavaScript).toHaveBeenCalledTimes(1);
+    expect(domExtractions(contents)).toBe(1);
   });
 
   it('publica bounds visibles, estado y libera recursos al cerrar', async () => {
@@ -617,7 +687,7 @@ describe('IntegratedBrowserService', () => {
     await service.openForAgent();
     await expect(service.clickElement('dom-1')).rejects.toThrow(/controlado por otra tarea/i);
     const guiones = browserViewHarness.instances[0].webContents.executeJavaScript.mock.calls.map((call: unknown[]) => String(call[0]));
-    expect(guiones.every((guion: string) => guion.includes('setSelectionMenuEnabledInPage'))).toBe(true);
+    expect(guiones.every((guion: string) => /SelectionMenu|WritingPanel|sofliaSelWatch/.test(guion))).toBe(true);
     service.detachWindow();
   });
 

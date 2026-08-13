@@ -259,7 +259,15 @@ export function mergeSystemSkills(input: {
       return;
     }
 
-    porId.set(id, lectura.skill);
+    const instalada = porId.get(id);
+    // El prompt y el formato de workspace de Presentaciones forman parte del
+    // mismo contrato que su runtime local. Una fila remota antigua puede
+    // cambiar textos de catalogo, pero no volver a pedir index.html cuando la
+    // version instalada solo sabe reproducir deck.json (ni al reves).
+    const skill = id === 'sistema:presentaciones' && instalada
+      ? { ...lectura.skill, instructions: instalada.instructions, workspace: instalada.workspace }
+      : lectura.skill;
+    porId.set(id, skill);
     orden.set(id, typeof row.sort_order === 'number' ? row.sort_order : 100 + indice);
   });
 

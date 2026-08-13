@@ -276,6 +276,21 @@ describe('catalogo de skills del sistema', () => {
     });
   });
 
+  it('una fila remota antigua no revierte el contrato React de Presentaciones', () => {
+    const remota = fila({
+      instructions: 'Genera index.html legado',
+      workspace: { ...PRESENTACIONES_SKILL.workspace, entryFile: 'index.html', allowedExtensions: ['.html', '.css'] },
+    });
+    const [resuelta] = mergeSystemSkills({
+      code: [PRESENTACIONES_SKILL],
+      rows: [remota],
+      surface: 'chat',
+      appVersion: '0.9.6',
+    });
+    expect(resuelta.workspace?.entryFile).toBe('deck.json');
+    expect(resuelta.instructions).toBe(PRESENTACIONES_SKILL.instructions);
+  });
+
   describe('comparacion de versiones', () => {
     it('acepta cuando la instalada alcanza o supera', () => {
       expect(versionAlcanza('0.9.6', '0.9.6')).toBe(true);

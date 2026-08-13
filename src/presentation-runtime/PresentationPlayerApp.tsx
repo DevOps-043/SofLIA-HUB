@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   formatDeckValidationError,
   parsePresentationDeck,
@@ -20,6 +20,8 @@ export function PresentationPlayerApp() {
   const reducedMotion = useReducedMotion();
   const runtime = useMemo(() => resolveRuntimeLocation(), []);
   const scale = useStageScale();
+  const wheelLocked = useRef(false);
+  const wheelUnlockTimer = useRef<number | null>(null);
 
   useEffect(() => {
     if (embedded?.brandCss) {
@@ -63,6 +65,7 @@ export function PresentationPlayerApp() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.repeat) return;
       if (['ArrowRight', 'ArrowDown', 'PageDown', ' '].includes(event.key)) {
         event.preventDefault();
         move(1);
@@ -77,15 +80,22 @@ export function PresentationPlayerApp() {
   }, [deck, move]);
 
   useEffect(() => {
-    let locked = false;
     const onWheel = (event: WheelEvent) => {
-      if (locked || Math.abs(event.deltaY) < 18) return;
-      locked = true;
-      move(event.deltaY > 0 ? 1 : -1);
-      window.setTimeout(() => { locked = false; }, 620);
+      const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+      if (Math.abs(delta) < 18) return;
+      event.preventDefault();
+      if (wheelLocked.current) return;
+      wheelLocked.current = true;
+      move(delta > 0 ? 1 : -1);
+      if (wheelUnlockTimer.current !== null) window.clearTimeout(wheelUnlockTimer.current);
+      wheelUnlockTimer.current = window.setTimeout(() => { wheelLocked.current = false; }, 620);
     };
-    window.addEventListener('wheel', onWheel, { passive: true });
-    return () => window.removeEventListener('wheel', onWheel);
+    window.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      window.removeEventListener('wheel', onWheel);
+      if (wheelUnlockTimer.current !== null) window.clearTimeout(wheelUnlockTimer.current);
+      wheelLocked.current = false;
+    };
   }, [move]);
 
   if (error) return <RuntimeError message={error} />;
@@ -112,8 +122,8 @@ export function PresentationPlayerApp() {
           />
         </AnimatePresence>
         <nav className="absolute bottom-8 right-10 z-50 flex items-center gap-3" aria-label="Navegacion de diapositivas">
-          <button className="runtime-nav" onClick={() => move(-1)} disabled={safeIndex === 0} aria-label="Diapositiva anterior">â†</button>
-          <button className="runtime-nav" onClick={() => move(1)} disabled={safeIndex === deck.slides.length - 1} aria-label="Diapositiva siguiente">â†’</button>
+          <button className="runtime-nav" onClick={() => move(-1)} disabled={safeIndex === 0} aria-label="Diapositiva anterior">←</button>
+          <button className="runtime-nav" onClick={() => move(1)} disabled={safeIndex === deck.slides.length - 1} aria-label="Diapositiva siguiente">→</button>
         </nav>
       </div>
     </main>
@@ -144,7 +154,7 @@ function SlideFrame(props: {
       <Atmosphere emphasis={slide.movimiento.enfasis} />
       <SlideContent slide={slide} reducedMotion={reducedMotion} assetBase={props.assetBase} embeddedAssets={props.embeddedAssets} />
       <footer className="absolute bottom-12 left-16 right-16 z-30 flex items-end justify-between border-t border-current/15 pt-5 text-[17px] font-semibold uppercase tracking-[.18em] opacity-55">
-        <span className="max-w-[75%] truncate">{slide.fuente ?? 'Pulse Hub Â· Presentacion ejecutiva'}</span>
+        <span className="max-w-[75%] truncate">{slide.fuente ?? 'Pulse Hub · Presentacion ejecutiva'}</span>
         <span>{String(props.index + 1).padStart(2, '0')} / {String(props.total).padStart(2, '0')}</span>
       </footer>
     </motion.article>
@@ -198,10 +208,10 @@ function SlideContent(props: { slide: PresentationSlide; reducedMotion: boolean;
   }
 
   if (slide.tipo === 'cita') {
-    return <motion.div variants={group} initial="hidden" animate="visible" className="runtime-pad grid h-full grid-cols-[1.25fr_.75fr] items-center gap-20 pb-36"><div>{slide.antetitulo ? <motion.p {...common} className="runtime-eyebrow">{slide.antetitulo}</motion.p> : null}<motion.blockquote {...common} className="text-[68px] font-black leading-[1.06] tracking-[-.045em]">â€œ{slide.cita}â€</motion.blockquote><motion.p {...common} className="mt-10 text-[26px] font-bold">{slide.autor}{slide.cargo ? <span className="font-normal opacity-60"> Â· {slide.cargo}</span> : null}</motion.p></div><motion.div {...common} className="h-[620px] overflow-hidden rounded-full border-[14px] border-white/70 bg-white/40">{slide.imagen ? <RuntimeImage image={slide.imagen} assetBase={props.assetBase} embeddedAssets={props.embeddedAssets} /> : <GraphicField />}</motion.div></motion.div>;
+    return <motion.div variants={group} initial="hidden" animate="visible" className="runtime-pad grid h-full grid-cols-[1.25fr_.75fr] items-center gap-20 pb-36"><div>{slide.antetitulo ? <motion.p {...common} className="runtime-eyebrow">{slide.antetitulo}</motion.p> : null}<motion.blockquote {...common} className="text-[68px] font-black leading-[1.06] tracking-[-.045em]">“{slide.cita}”</motion.blockquote><motion.p {...common} className="mt-10 text-[26px] font-bold">{slide.autor}{slide.cargo ? <span className="font-normal opacity-60"> · {slide.cargo}</span> : null}</motion.p></div><motion.div {...common} className="h-[620px] overflow-hidden rounded-full border-[14px] border-white/70 bg-white/40">{slide.imagen ? <RuntimeImage image={slide.imagen} assetBase={props.assetBase} embeddedAssets={props.embeddedAssets} /> : <GraphicField />}</motion.div></motion.div>;
   }
 
-  return <motion.div variants={group} initial="hidden" animate="visible" className="runtime-pad grid h-full grid-cols-[1.05fr_.95fr] items-center gap-20 pb-36"><div>{header}{slide.texto ? <motion.p {...common} className="runtime-lead mt-8">{slide.texto}</motion.p> : null}<motion.div {...common} className="mt-12 inline-flex rounded-full bg-[var(--marca-color-primario)] px-10 py-6 text-[27px] font-black text-white">{slide.accion} â†’</motion.div></div><motion.div {...common} className="h-[650px] overflow-hidden rounded-[54px] bg-white/35">{slide.imagen ? <RuntimeImage image={slide.imagen} assetBase={props.assetBase} embeddedAssets={props.embeddedAssets} /> : <GraphicField />}</motion.div></motion.div>;
+  return <motion.div variants={group} initial="hidden" animate="visible" className="runtime-pad grid h-full grid-cols-[1.05fr_.95fr] items-center gap-20 pb-36"><div>{header}{slide.texto ? <motion.p {...common} className="runtime-lead mt-8">{slide.texto}</motion.p> : null}<motion.div {...common} className="mt-12 inline-flex rounded-full bg-[var(--marca-color-primario)] px-10 py-6 text-[27px] font-black text-white">{slide.accion} →</motion.div></div><motion.div {...common} className="h-[650px] overflow-hidden rounded-[54px] bg-white/35">{slide.imagen ? <RuntimeImage image={slide.imagen} assetBase={props.assetBase} embeddedAssets={props.embeddedAssets} /> : <GraphicField />}</motion.div></motion.div>;
 }
 
 function CompareBlock(props: { block: { etiqueta?: string; titulo: string; texto?: string; puntos?: string[] }; item: ReturnType<typeof contentVariants>; primary?: boolean }) {
@@ -209,7 +219,7 @@ function CompareBlock(props: { block: { etiqueta?: string; titulo: string; texto
     {props.block.etiqueta ? <p className="text-[18px] font-bold uppercase tracking-[.17em] opacity-65">{props.block.etiqueta}</p> : null}
     <h2 className="mt-5 text-[42px] font-black leading-tight">{props.block.titulo}</h2>
     {props.block.texto ? <p className="mt-5 text-[24px] leading-snug opacity-75">{props.block.texto}</p> : null}
-    {props.block.puntos ? <ul className="mt-7 space-y-4 text-[23px] leading-snug">{props.block.puntos.map((point) => <li key={point} className="flex gap-4"><span aria-hidden>â€”</span><span>{point}</span></li>)}</ul> : null}
+    {props.block.puntos ? <ul className="mt-7 space-y-4 text-[23px] leading-snug">{props.block.puntos.map((point) => <li key={point} className="flex gap-4"><span aria-hidden>—</span><span>{point}</span></li>)}</ul> : null}
   </motion.section>;
 }
 
@@ -279,5 +289,4 @@ function positionClass(position: string) {
 
 function RuntimeLoading() { return <div className="fixed inset-0 grid place-items-center bg-[#071119] text-white"><div className="h-14 w-14 animate-spin rounded-full border-4 border-white/20 border-t-[var(--marca-color-acento,#00d4b3)]" /></div>; }
 function RuntimeError({ message }: { message: string }) { return <div className="fixed inset-0 grid place-items-center bg-[#071119] p-10 text-white"><section className="max-w-3xl border-l-4 border-amber-400 bg-white/5 p-8"><p className="text-sm font-bold uppercase tracking-widest text-amber-300">Presentacion invalida</p><h1 className="mt-3 text-3xl font-black">No se puede reproducir deck.json</h1><pre className="mt-5 whitespace-pre-wrap font-sans text-base leading-relaxed text-white/70">{message}</pre></section></div>; }
-
 

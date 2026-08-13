@@ -65,10 +65,11 @@ render y dejaba la aplicación en blanco. El arrastre usa Pointer Events con
 captura —el gesto no se pierde al salir de la pestaña ni compite con la región
 de arrastre de la ventana— y el reordenamiento se calcula fuera del updater.
 
-`electron/integrated-browser-handlers.ts` registra cuarenta y una operaciones invocables:
+`electron/integrated-browser-handlers.ts` registra cuarenta y dos operaciones invocables:
 veintitrés de estado, navegación, pestañas, composición, viewport, captura,
 percepción, controlador determinista y herramientas de desarrollo; siete del
-modo lectura, dos de historial, cuatro de credenciales y cinco de extensiones.
+modo lectura, dos de historial, cuatro de credenciales, cinco de extensiones y
+una del panel de redacción.
 Dos canales adicionales entregan estado y solicitudes de
 apertura del agente al renderer, y otros dos entregan las acciones sobre el
 texto seleccionado: la seleccion convertida en peticion para el chat y la
@@ -86,6 +87,20 @@ desplazar. Sus pulsaciones vuelven a main por `console-message`, el mismo canal
 que ya usa el vigia de seleccion, y main solo acepta las acciones publicadas por
 el propio menu: la pagina es contenido no confiable y ninguna accion envia el
 turno por su cuenta. El menu se apaga mientras el agente conduce el navegador.
+
+"Mejorar la redaccion" es la excepcion: no viaja al chat. Abre un panel en la
+propia pagina (`electron/integrated-browser/writing-panel.ts`) donde el usuario
+escribe que quiere cambiar, ve la propuesta y la deja caer en su campo de texto
+sin copiar ni pegar. El circuito tiene tres tramos: la pagina avisa por consola
+que hay una peticion; main la **lee** con `executeJavaScript` —el texto del
+usuario nunca viaja por la consola— y la sube por
+`integrated-browser:writing-request`; el renderer resuelve con el modelo
+(`src/services/browser-writing.ts`, donde estan la clave y el modelo del
+producto) y devuelve por `integrated-browser:writing-resolve`, que main inyecta
+de vuelta en el panel. Escribir en el campo se hace con `insertText`, lo unico
+que conserva el deshacer del navegador y avisa a la aplicacion de la pagina;
+si el fragmento de origen no era editable, la propuesta entra en el compositor
+visible. El panel se cierra cuando el agente toma el control.
 
 El modo lectura usa `integrated-browser:reading-prepare`,
 `integrated-browser:reading-synthesize`, `integrated-browser:reading-highlight`,

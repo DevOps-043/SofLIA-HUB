@@ -303,7 +303,7 @@ export class SkillWorkspaceService extends EventEmitter {
       );
     }
 
-    if (!hasAllowedExtension(resolved.relativePath, entry.data.allowedExtensions)) {
+    if (!fromSystem && !hasAllowedExtension(resolved.relativePath, entry.data.allowedExtensions)) {
       return this.fail(
         workspaceId,
         'escritura',

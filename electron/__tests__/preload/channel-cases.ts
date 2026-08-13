@@ -60,7 +60,7 @@ export function registerPreloadChannelTests() {
 
   it('SEC-035: el navegador integrado expone solo su contrato allowlisted', () => {
     const browserChannels = ALLOWED_IPC_CHANNELS.filter((channel) => channel.startsWith('integrated-browser:'));
-    expect(browserChannels).toHaveLength(57);
+    expect(browserChannels).toHaveLength(59);
     expect(browserChannels).toContain('integrated-browser:toggle-devtools');
     expect(browserChannels).toContain('integrated-browser:clear-browsing-data');
     expect(browserChannels).toContain('integrated-browser:site-permissions-get');
@@ -81,6 +81,10 @@ export function registerPreloadChannelTests() {
     expect(browserChannels).toContain('integrated-browser:reading-cancel');
     expect(browserChannels).toContain('integrated-browser:reading-close');
     expect(browserChannels).not.toContain('integrated-browser:reading-download');
+    // Panel de redaccion de la pagina: main pide al renderer y el renderer
+    // devuelve el texto. Son dos canales, no una via libre a la pagina.
+    expect(browserChannels).toContain('integrated-browser:writing-request');
+    expect(browserChannels).toContain('integrated-browser:writing-resolve');
     expect(browserChannels).toContain('integrated-browser:capture-visible');
     expect(browserChannels).toContain('integrated-browser:element-click');
     expect(browserChannels).toContain('integrated-browser:element-type');

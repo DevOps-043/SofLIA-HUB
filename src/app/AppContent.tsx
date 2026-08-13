@@ -24,6 +24,7 @@ import { useFolderManager } from '../hooks/useFolderManager';
 import { useIrisData } from '../hooks/useIrisData';
 import { useTheme } from '../hooks/useTheme';
 import { integratedBrowserService, type BrowserSelectionActionRequest } from '../services/integrated-browser-service';
+import { improveBrowserSelection } from '../services/browser-writing';
 
 const STARTUP_INTRO_DURATION_MS = 4200;
 const STARTUP_AUTH_GRACE_MS = 700;
@@ -106,6 +107,18 @@ export function AppContent() {
       onSelectionAction: (request) => {
         setIsBrowserWorkspaceOpen(true);
         setExternalSelection(request);
+      },
+      // Mejorar la redaccion se resuelve en el panel de la propia pagina: no
+      // abre el chat ni toca la conversacion. Siempre se responde —con texto o
+      // con error— para que el panel no se quede esperando.
+      onWritingRequest: (request) => {
+        void improveBrowserSelection(request)
+          .then((text) => integratedBrowserService.resolveWriting({ requestId: request.requestId, text }))
+          .catch((error) => integratedBrowserService.resolveWriting({
+            requestId: request.requestId,
+            error: error instanceof Error ? error.message : 'No se pudo mejorar el texto.',
+          }))
+          .catch(() => undefined);
       },
     });
   }, [user]);

@@ -422,7 +422,15 @@ export function installWritingPanelInPage(input: WritingPanelConfig): boolean {
     seleccionar();
     // `insertText` es lo unico que conserva el deshacer del navegador y avisa a
     // la aplicacion de la pagina; asignar `value` deja a React sin enterarse.
-    if (document.execCommand('insertText', false, texto)) return true;
+    // Una pagina puede haberlo desactivado, asi que el respaldo sigue abajo.
+    const insertado = (() => {
+      try {
+        return typeof document.execCommand === 'function' && document.execCommand('insertText', false, texto);
+      } catch {
+        return false;
+      }
+    })();
+    if (insertado) return true;
     if (esCampo(elemento)) {
       const inicio = elemento.selectionStart ?? 0;
       const fin = elemento.selectionEnd ?? inicio;

@@ -203,11 +203,10 @@ describe('guion base de las presentaciones', () => {
     expect(DECK_BASE_JS).toContain("addEventListener('resize'");
   });
 
-  it('reduce con zoom, que si encoge la caja de maquetacion', () => {
-    // Con transform: scale la caja seguia midiendo lo mismo: lo poco que
-    // sobraba obligaba a recorrer cientos de pixeles de vacio para alcanzarlo.
-    expect(DECK_BASE_JS).toContain('caja.style.zoom');
-    expect(DECK_BASE_JS).not.toContain("transform = 'scale(");
+  it('reduce dentro de un marco estable sin usar zoom', () => {
+    expect(DECK_BASE_JS).toContain('diapositiva__marco');
+    expect(DECK_BASE_JS).not.toContain('caja.style.zoom');
+    expect(DECK_BASE_JS).toContain("transform = factor >= 0.999 ? '' : 'scale(");
   });
 
   it('mide contra el alto visible, no contra el de la diapositiva', () => {
@@ -215,15 +214,11 @@ describe('guion base de las presentaciones', () => {
     // comparada consigo misma siempre cabe, y el texto se salia por abajo.
     expect(DECK_BASE_JS).toContain('slide.parentElement');
     expect(DECK_BASE_JS).toContain('Math.min(slide.clientHeight, visible)');
-    // El alto real se toma del rectangulo, que ya incluye la reduccion.
-    expect(DECK_BASE_JS).toContain('getBoundingClientRect().height');
+    expect(DECK_BASE_JS).toContain('caja.scrollHeight');
   });
 
   it('no reduce mas de lo necesario', () => {
-    // La regla de tres se queda corta porque el zoom encoge tambien la
-    // tipografia fluida: dejaba un cuarto del lienzo vacio y la letra pequena
-    // sin motivo. Se recupera buscando el mayor factor que todavia cabe.
-    expect(DECK_BASE_JS).toContain('(bajo + arriba) / 2');
+    expect(DECK_BASE_JS).toContain('disponible / natural');
   });
 
   it('vuelve a medir cuando las ilustraciones terminan de cargar', () => {
@@ -233,7 +228,7 @@ describe('guion base de las presentaciones', () => {
     expect(DECK_BASE_JS).toContain('document.images');
     expect(DECK_BASE_JS).toContain("imagen.addEventListener('load'");
     expect(DECK_BASE_JS).toContain("window.addEventListener('load'");
-    expect(DECK_BASE_JS).toContain('ResizeObserver');
+    expect(DECK_BASE_JS).toContain("addEventListener('resize'");
   });
 
   it('reparte los satelites de la orbita por igual', () => {
@@ -254,6 +249,10 @@ describe('guion base de las presentaciones', () => {
   it('resuelve la rueda en la baraja horizontal', () => {
     expect(DECK_BASE_JS).toContain('baraja--horizontal');
     expect(DECK_BASE_JS).toContain("addEventListener('wheel'");
+    expect(DECK_BASE_JS).toContain('navegacionBloqueada');
+    expect(DECK_BASE_JS).toContain('indiceVisible');
+    expect(DECK_BASE_JS).toContain('scrollTo');
+    expect(DECK_BASE_JS).not.toContain('horizontal.scrollBy');
   });
 
   it('anima los contadores hasta su valor', () => {
