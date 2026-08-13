@@ -40,6 +40,22 @@ describe('sistema de diseno de las presentaciones', () => {
     expect(diapositiva).not.toContain('overflow: hidden');
   });
 
+  it('con el guion la diapositiva se queda en la ventana en vez de crecer', () => {
+    // Al crecer, la altura de la diapositiva pasaba a ser la del contenido: el
+    // ajuste comparaba contra ella, concluia que todo cabia y el texto se salia
+    // por abajo. Es el desbordamiento que se veia en toda baraja vertical.
+    const conGuion = regla('.deck-js .diapositiva');
+    expect(conGuion).toContain('max-height: 100vh');
+    // Y lo que sobre tras reducir sigue siendo alcanzable, nunca recortado.
+    expect(conGuion).toContain('overflow-y: auto');
+  });
+
+  it('al imprimir se suelta el tope de la ventana', () => {
+    const impresion = DECK_BASE_CSS.slice(DECK_BASE_CSS.indexOf('@media print'));
+    expect(impresion).toContain('max-height: none');
+    expect(impresion).toContain('overflow: visible');
+  });
+
   it('el velo sobre la imagen oscurece sea cual sea el color de la marca', () => {
     const velo = regla('.imagen-fondo::after');
     // Mezclar solo con el color primario producia un velo CLARO en marcas
@@ -132,6 +148,15 @@ describe('sistema de diseno de las presentaciones', () => {
     expect(reducido).toContain('.tarjeta:hover { transform: none; }');
   });
 
+  it('con movimiento reducido el trazo del diagrama sigue viendose', () => {
+    // El guion SI se instala ahora con movimiento reducido, y con el llega el
+    // estado inicial de deck-js: un trazo con su guion oculto y sin animacion
+    // que lo dibuje dejaria el diagrama vacio.
+    const reducido = DECK_BASE_CSS.slice(DECK_BASE_CSS.indexOf('@media (prefers-reduced-motion'));
+    expect(reducido).toContain('stroke-dashoffset: 0 !important');
+    expect(reducido).toContain('stroke-dasharray: none !important');
+  });
+
   it('no depende de ningun recurso remoto', () => {
     expect(DECK_BASE_CSS).not.toMatch(/@import|https?:\/\//);
   });
@@ -146,10 +171,21 @@ describe('guion base de las presentaciones', () => {
     expect(DECK_BASE_JS).toContain("classList.remove('activa')");
   });
 
-  it('no se instala con movimiento reducido', () => {
-    const inicio = DECK_BASE_JS.indexOf('prefers-reduced-motion');
-    expect(inicio).toBeGreaterThan(-1);
-    expect(DECK_BASE_JS.slice(inicio, inicio + 120)).toContain('return');
+  it('se instala tambien con movimiento reducido, porque el ajuste es maquetacion', () => {
+    // Antes cortaba con un retorno temprano y se llevaba por delante el ajuste
+    // a la ventana: una diapositiva que no cabe deja el texto fuera con
+    // animaciones y sin ellas.
+    expect(DECK_BASE_JS).toContain('prefers-reduced-motion');
+    expect(DECK_BASE_JS).not.toMatch(/if \(reducido\) return;/);
+    const claseAntesDelSalto = DECK_BASE_JS.indexOf("classList.add('deck-js')");
+    expect(claseAntesDelSalto).toBeGreaterThan(-1);
+    expect(claseAntesDelSalto).toBeLessThan(DECK_BASE_JS.indexOf('if (!reducido)'));
+  });
+
+  it('con movimiento reducido la cifra se escribe ya en su valor final', () => {
+    // No basta con saltarse el contador: el modelo puede dejar el nodo vacio
+    // confiando en que lo rellena el guion.
+    expect(DECK_BASE_JS).toContain('destino.toFixed(decimales)');
   });
 
   it('degrada mostrando todo si no hay observador', () => {
@@ -160,12 +196,34 @@ describe('guion base de las presentaciones', () => {
     // En la baraja horizontal no hay desplazamiento vertical: lo que no cabia
     // quedaba cortado por arriba o por abajo, sin forma de alcanzarlo.
     expect(DECK_BASE_JS).toContain('diapositiva__ajuste');
-    expect(DECK_BASE_JS).toContain('scale(');
     // El fondo, el halo y la retícula no son contenido y no deben encogerse.
     expect(DECK_BASE_JS).toContain("classList.contains('imagen-fondo')");
     expect(DECK_BASE_JS).toContain('paddingTop');
     // Y se rehace al cambiar el tamano de la ventana.
     expect(DECK_BASE_JS).toContain("addEventListener('resize'");
+  });
+
+  it('reduce con zoom, que si encoge la caja de maquetacion', () => {
+    // Con transform: scale la caja seguia midiendo lo mismo: lo poco que
+    // sobraba obligaba a recorrer cientos de pixeles de vacio para alcanzarlo.
+    expect(DECK_BASE_JS).toContain('caja.style.zoom');
+    expect(DECK_BASE_JS).not.toContain("transform = 'scale(");
+  });
+
+  it('mide contra el alto visible, no contra el de la diapositiva', () => {
+    // Una diapositiva que crece con su contenido devuelve esa altura crecida:
+    // comparada consigo misma siempre cabe, y el texto se salia por abajo.
+    expect(DECK_BASE_JS).toContain('slide.parentElement');
+    expect(DECK_BASE_JS).toContain('Math.min(slide.clientHeight, visible)');
+    // El alto real se toma del rectangulo, que ya incluye la reduccion.
+    expect(DECK_BASE_JS).toContain('getBoundingClientRect().height');
+  });
+
+  it('no reduce mas de lo necesario', () => {
+    // La regla de tres se queda corta porque el zoom encoge tambien la
+    // tipografia fluida: dejaba un cuarto del lienzo vacio y la letra pequena
+    // sin motivo. Se recupera buscando el mayor factor que todavia cabe.
+    expect(DECK_BASE_JS).toContain('(bajo + arriba) / 2');
   });
 
   it('vuelve a medir cuando las ilustraciones terminan de cargar', () => {

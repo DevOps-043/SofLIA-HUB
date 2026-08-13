@@ -1,6 +1,5 @@
 import { MeetingOpsPanel } from '../components/meetings/MeetingOpsPanel';
 import { ProductivityDashboard } from '../components/ProductivityDashboard';
-import { RegistroDecisiones } from '../components/sdo/RegistroDecisiones';
 import { BrowserWorkspaceLayout } from '../components/browser/BrowserWorkspaceLayout';
 import { PresentationWorkspacePanel } from '../components/presentation/PresentationWorkspacePanel';
 import { usePresentationWorkspaceContext } from '../contexts/presentation-workspace-context';
@@ -37,7 +36,6 @@ interface AppWorkspaceProps {
   onSelectConversation: (conversationId: string) => Promise<void>;
   onOpenBrowser?: () => void;
   onOpenMeetings?: () => void;
-  onOpenSdo?: () => void;
   orgId: string;
   setShareTarget: (target: ShareTarget | null) => void;
   shareLinkNotice: ShareLinkNotice | null;
@@ -67,7 +65,6 @@ export function AppWorkspace(props: AppWorkspaceProps) {
       userSettings={props.userSettings}
       onOpenBrowser={props.onOpenBrowser}
       onOpenMeetings={props.onOpenMeetings}
-      onOpenSdo={props.onOpenSdo}
     />
   );
 
@@ -115,7 +112,6 @@ export function AppWorkspace(props: AppWorkspaceProps) {
         </div>
       )}
       {props.activeView === 'productivity' && props.userId && <ProductivityDashboard userId={props.userId} />}
-      {props.activeView === 'sdo' && props.userId && <RegistroDecisiones userId={props.userId} />}
       {props.activeView === 'meetings' && props.userId && (
         <div className="flex-1 min-h-0 overflow-hidden animate-view-in">
           <MeetingOpsPanel userId={props.userId} organizationId={props.orgId || null} accessUserIds={props.accessUserIds} />

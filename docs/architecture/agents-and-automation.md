@@ -52,12 +52,11 @@ La ruta selecciona backend determinista, browser, desktop visual o UIA. El agent
 La concurrencia visual es 1. Browser/nodos pueden tener estado separado, pero
 `executeParallel` no autoriza dos tareas a compartir mouse/teclado sin cola.
 
-### Reuniones y SDO
+### Reuniones
 
 Los servicios de IA extraen propuestas y artefactos; review y sync son servicios
 separados. Aprobacion humana es un estado de negocio persistido, no una frase
-interpretada por el modelo. Meetings envia resultados aprobados al adaptador SDO
-de forma no bloqueante.
+interpretada por el modelo.
 
 ### Workspace Automation y Workflow Hub
 

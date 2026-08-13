@@ -1,6 +1,6 @@
-import { app } from 'electron';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { browserProfilePath, resolveStoreLocation } from './profile-scope';
 import type {
   BrowserSitePermissionDecision,
   BrowserSitePermissionKind,
@@ -29,8 +29,21 @@ export class BrowserSitePermissionStore {
   private writeQueue: Promise<void> = Promise.resolve();
 
   constructor(
-    private readonly filePath = path.join(app.getPath('userData'), 'integrated-browser', 'site-permissions.json'),
+    private readonly location: string | (() => string) = () => browserProfilePath('site-permissions.json'),
   ) {}
+
+  private get filePath(): string {
+    return resolveStoreLocation(this.location);
+  }
+
+  /**
+   * Suelta el archivo en memoria. Obligatorio al cambiar de usuario: el cache
+   * pertenece al perfil anterior y `resolveSync` seguiria concediendo camara o
+   * microfono con decisiones que la nueva sesion nunca tomo.
+   */
+  invalidateCache(): void {
+    this.cache = null;
+  }
 
   /**
    * Estado efectivo de un permiso. `ask` significa que todavia hay que
@@ -90,6 +103,16 @@ export class BrowserSitePermissionStore {
 
   async clear(): Promise<void> {
     await this.mutate((origins) => origins.clear());
+  }
+
+  /** Como `clear`, pero informa cuantos origenes tenian una decision guardada. */
+  async clearAll(): Promise<number> {
+    let removed = 0;
+    await this.mutate((origins) => {
+      removed = origins.size;
+      origins.clear();
+    });
+    return removed;
   }
 
   /** Precarga el archivo para que `resolveSync` responda desde el primer chequeo. */

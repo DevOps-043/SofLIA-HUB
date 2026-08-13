@@ -1,6 +1,12 @@
 import type { Rectangle } from 'electron';
 
-const MAX_TARGET_LENGTH = 2_048;
+// El limite acota la memoria de una direccion, no decide si es segura: eso lo
+// resuelve la allowlist de protocolos. Con 2 KB los flujos de autenticacion de
+// Google quedaban fuera, porque encadenan `TL`, `ifkv` y `continue` anidados y
+// superan ese tamaño con facilidad; la redireccion legitima de la verificacion
+// en dos pasos se bloqueaba como si fuera un protocolo prohibido. Se alinea con
+// el maximo practico que acepta la barra de direcciones de Chrome.
+const MAX_TARGET_LENGTH = 32_768;
 const MIN_VIEWPORT_WIDTH = 160;
 const MIN_VIEWPORT_HEIGHT = 120;
 const EXPLICIT_SCHEME = /^[a-z][a-z\d+.-]*:/i;
@@ -43,6 +49,24 @@ export function isAllowedBrowserUrl(raw: unknown): boolean {
     return url.protocol === 'https:' || url.protocol === 'http:';
   } catch {
     return false;
+  }
+}
+
+/**
+ * Describe un destino rechazado para el registro tecnico. Un bloqueo sin rastro
+ * deja al usuario con un aviso y sin forma de saber que se corto, pero la URL
+ * completa de un flujo de autenticacion lleva tokens de sesion: se conservan
+ * protocolo, host y tamaño, que es lo que permite distinguir un protocolo
+ * prohibido de una direccion demasiado larga.
+ */
+export function describeBlockedUrl(raw: unknown): string {
+  if (typeof raw !== 'string' || !raw.trim()) return 'destino vacio';
+  try {
+    const url = new URL(raw);
+    return `${url.protocol}//${url.host || '(sin host)'} (${raw.length} caracteres)`;
+  } catch {
+    const scheme = EXPLICIT_SCHEME.exec(raw)?.[0] ?? '(sin protocolo)';
+    return `${scheme} no interpretable (${raw.length} caracteres)`;
   }
 }
 

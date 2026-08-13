@@ -21,10 +21,15 @@ export const DECK_BASE_JS = `/* Guion base de las presentaciones de Pulse Hub.
 
   var raiz = document.documentElement;
   var reducido = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (reducido) return;
 
   // A partir de aqui el CSS puede ocultar el estado inicial: solo lo hace si
   // esta clase existe, de modo que un fallo del guion nunca esconde contenido.
+  //
+  // Se pone TAMBIEN con movimiento reducido. El guion no solo anima: tambien
+  // ajusta a la ventana lo que no cabe, y eso es maquetacion. Saltarselo dejaba
+  // el texto fuera de la pantalla justo a quien menos puede perseguirlo. Las
+  // entradas se saltan una por una mas abajo, y la hoja base ya neutraliza con
+  // !important todo lo que se mueva.
   raiz.classList.add('deck-js');
 
   function alEstarListo(accion) {
@@ -38,7 +43,7 @@ export const DECK_BASE_JS = `/* Guion base de las presentaciones de Pulse Hub.
 
     // Numera las palabras de los titulares marcados para escalonarlas sin que
     // el modelo tenga que escribir el indice a mano en cada span.
-    Array.prototype.forEach.call(document.querySelectorAll('.palabras'), function (bloque) {
+    if (!reducido) Array.prototype.forEach.call(document.querySelectorAll('.palabras'), function (bloque) {
       if (bloque.children.length) {
         Array.prototype.forEach.call(bloque.children, function (hijo, indice) {
           hijo.style.setProperty('--i', String(indice));
@@ -76,7 +81,7 @@ export const DECK_BASE_JS = `/* Guion base de las presentaciones de Pulse Hub.
 
     // Numera los trazos y las piezas de cada diagrama para que se dibujen en
     // orden sin que haya que escribir el indice uno por uno.
-    Array.prototype.forEach.call(document.querySelectorAll('.diagrama'), function (diagrama) {
+    if (!reducido) Array.prototype.forEach.call(document.querySelectorAll('.diagrama'), function (diagrama) {
       Array.prototype.forEach.call(diagrama.querySelectorAll('.traza-auto, .surge-auto'), function (pieza, indice) {
         if (!pieza.style.getPropertyValue('--i')) pieza.style.setProperty('--i', String(indice));
         // Longitud real del trazo: sin ella, stroke-dasharray usa un valor
@@ -90,29 +95,40 @@ export const DECK_BASE_JS = `/* Guion base de las presentaciones de Pulse Hub.
       });
     });
 
-    if (typeof IntersectionObserver !== 'function') {
-      // Sin observador se muestran todas: es preferible a una baraja en blanco.
-      diapositivas.forEach(function (slide) { slide.classList.add('activa'); });
-      return;
+    // Entradas del contenido. Antes esto podia cortar la ejecucion con un
+    // retorno temprano, y con ella el ajuste a la ventana que viene despues: el
+    // desbordamiento no tiene nada que ver con las animaciones y no puede
+    // depender de que estas se instalen.
+    activarEntradas();
+
+    function activarEntradas() {
+      // Con movimiento reducido se marcan todas y no se anima ninguna: la hoja
+      // base neutraliza las animaciones, pero la clase activa mantiene visible lo que
+      // el estado inicial de deck-js oculta.
+      if (reducido || typeof IntersectionObserver !== 'function') {
+        // Sin observador se muestran todas: es preferible a una baraja en blanco.
+        diapositivas.forEach(function (slide) { slide.classList.add('activa'); });
+        return;
+      }
+
+      var observador = new IntersectionObserver(function (entradas) {
+        entradas.forEach(function (entrada) {
+          if (entrada.isIntersecting) {
+            entrada.target.classList.add('activa');
+            return;
+          }
+          // Al salir se retira para que la entrada se repita al volver: una
+          // presentacion se recorre hacia delante y hacia atras.
+          entrada.target.classList.remove('activa');
+        });
+      }, { threshold: 0.35 });
+
+      diapositivas.forEach(function (slide) { observador.observe(slide); });
+
+      // La primera se activa de inmediato: al cargar ya esta en pantalla y
+      // esperar al observador deja un parpadeo inicial.
+      diapositivas[0].classList.add('activa');
     }
-
-    var observador = new IntersectionObserver(function (entradas) {
-      entradas.forEach(function (entrada) {
-        if (entrada.isIntersecting) {
-          entrada.target.classList.add('activa');
-          return;
-        }
-        // Al salir se retira para que la entrada se repita al volver: una
-        // presentacion se recorre hacia delante y hacia atras.
-        entrada.target.classList.remove('activa');
-      });
-    }, { threshold: 0.35 });
-
-    diapositivas.forEach(function (slide) { observador.observe(slide); });
-
-    // La primera se activa de inmediato: al cargar ya esta en pantalla y
-    // esperar al observador deja un parpadeo inicial.
-    diapositivas[0].classList.add('activa');
 
     // Contadores: cualquier elemento con data-contador sube hasta su valor
     // cuando su diapositiva se activa. Es el efecto que mas eleva una cifra.
@@ -125,6 +141,13 @@ export const DECK_BASE_JS = `/* Guion base de las presentaciones de Pulse Hub.
       var sufijo = nodo.getAttribute('data-sufijo') || '';
       var slide = nodo.closest('.diapositiva');
       var animado = false;
+      // Con movimiento reducido la cifra se escribe ya en su valor final. No
+      // basta con saltarse el contador: el modelo puede haber dejado el nodo
+      // vacio confiando en que lo rellena el guion.
+      if (reducido) {
+        nodo.textContent = prefijo + destino.toFixed(decimales) + sufijo;
+        return;
+      }
       nodo.textContent = prefijo + (0).toFixed(decimales) + sufijo;
 
       function contar() {
@@ -177,19 +200,71 @@ export const DECK_BASE_JS = `/* Guion base de las presentaciones de Pulse Hub.
     function ajustar(slide) {
       var caja = slide.querySelector(':scope > .' + ENVOLTORIO);
       if (!caja) return;
-      caja.style.transform = '';
+      caja.style.zoom = '';
       // clientHeight incluye el relleno, y el contenido vive dentro de el:
       // restarlo evita escalar de menos y que siga sin caber.
       var estilo = window.getComputedStyle(slide);
       var relleno = parseFloat(estilo.paddingTop || '0') + parseFloat(estilo.paddingBottom || '0');
-      var disponible = slide.clientHeight - relleno - 2;
-      var necesario = caja.scrollHeight;
-      if (!disponible || necesario <= disponible) return;
-      // Suelo del 50%: por debajo el problema es que sobra contenido. Con un
-      // panel estrecho una diapositiva crece mucho, y quedarse corto aqui es
-      // lo que dejaba el titulo fuera de la pantalla.
-      var factor = Math.max(0.5, disponible / necesario);
-      caja.style.transform = 'scale(' + factor.toFixed(3) + ')';
+      // Contra la altura VISIBLE, no contra la de la diapositiva. Una baraja
+      // generada antes de este arreglo no lleva el tope de la hoja base: la
+      // diapositiva crece con su contenido, la altura medida es esa altura
+      // crecida, la comparacion concluia que todo cabia y el texto se salia por
+      // abajo sin que nada lo redujera. Es el fallo del desbordamiento.
+      var baraja = slide.parentElement;
+      var visible = baraja ? baraja.clientHeight : 0;
+      var alto = visible ? Math.min(slide.clientHeight, visible) : slide.clientHeight;
+      var disponible = alto - relleno - 2;
+      if (!disponible || medir(caja) <= disponible) return;
+
+      // Suelo del 50%: por debajo el problema es que sobra contenido, y letra
+      // mas pequena no lo arregla. Lo que quede fuera se alcanza desplazando
+      // dentro de la propia diapositiva.
+      var SUELO = 0.5;
+
+      // Primera aproximacion por regla de tres. Queda siempre del lado seguro
+      // —cabe— porque al reducir encoge tambien la tipografia fluida y el alto
+      // baja MAS que el factor.
+      var estimado = Math.max(SUELO, disponible / medir(caja));
+      aplicar(caja, estimado);
+      if (estimado <= SUELO || medir(caja) > disponible) return;
+
+      // Y por eso hace falta la segunda parte: esa misma desproporcion dejaba
+      // la diapositiva mucho mas pequena de lo necesario —un cuarto del lienzo
+      // vacio y la letra encogida sin motivo—. Se recupera lo que sobra
+      // buscando el mayor factor que todavia cabe.
+      var bajo = estimado;
+      var arriba = 1;
+      var mejor = estimado;
+      for (var intento = 0; intento < 4; intento += 1) {
+        var medio = (bajo + arriba) / 2;
+        aplicar(caja, medio);
+        if (medir(caja) <= disponible) {
+          mejor = medio;
+          bajo = medio;
+        } else {
+          arriba = medio;
+        }
+      }
+      aplicar(caja, mejor);
+    }
+
+    /**
+     * Alto REAL en pantalla, ya con la reduccion aplicada. Se mide asi y no con
+     * scrollHeight porque scrollHeight vive en las coordenadas propias de la
+     * caja, que son justo las que la reduccion cambia.
+     */
+    function medir(caja) {
+      return caja.getBoundingClientRect().height;
+    }
+
+    /**
+     * zoom y no transform: scale, porque zoom SI reduce la caja de maquetacion.
+     * Con la transformacion la caja seguia midiendo lo mismo, y lo poco que
+     * sobraba tras reducir obligaba a recorrer cientos de pixeles de vacio para
+     * alcanzarlo.
+     */
+    function aplicar(caja, factor) {
+      caja.style.zoom = factor >= 0.999 ? '' : factor.toFixed(3);
     }
 
     var pendiente = null;

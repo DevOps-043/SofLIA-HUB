@@ -72,6 +72,103 @@ describe('reanudacion del espacio de trabajo de una conversacion', () => {
     expect(setActiveSkill).not.toHaveBeenCalled();
   });
 
+  it('al abrir otro chat reapunta el panel aunque haya una skill activa', async () => {
+    // El fallo reportado: tras generar, la Skill queda activa y la reanudacion
+    // se saltaba entera, asi que el panel seguia mostrando la presentacion del
+    // chat anterior.
+    const setActiveSkill = vi.fn();
+    const onWorkspaceResolved = vi.fn();
+    const activa = { skill: PRESENTACIONES_SKILL, workspaceId: 'ws-1' } as ActiveSkillState;
+    const { rerender } = renderHook(
+      (props: { conversationId: string }) => useSkillWorkspaceResume({
+        conversationId: props.conversationId,
+        activeSkill: activa,
+        setActiveSkill,
+        onWorkspaceResolved,
+      }),
+      { initialProps: { conversationId: 'conv-1' } },
+    );
+
+    findByConversation.mockResolvedValue({
+      success: true,
+      workspace: { ...workspace, id: 'ws-2', conversationId: 'conv-2' },
+    });
+    rerender({ conversationId: 'conv-2' });
+
+    await waitFor(() => expect(onWorkspaceResolved).toHaveBeenCalledWith({
+      id: 'ws-2',
+      skillId: PRESENTACIONES_SKILL.id,
+    }));
+  });
+
+  it('al abrir un chat sin presentacion suelta la del anterior', async () => {
+    // Y no solo en el panel: dejar la Skill activa apuntando al workspace del
+    // chat anterior pondria esa baraja en manos del modelo desde aqui.
+    const setActiveSkill = vi.fn();
+    const onWorkspaceResolved = vi.fn();
+    const activa = { skill: PRESENTACIONES_SKILL, workspaceId: 'ws-1' } as ActiveSkillState;
+    const { rerender } = renderHook(
+      (props: { conversationId: string }) => useSkillWorkspaceResume({
+        conversationId: props.conversationId,
+        activeSkill: activa,
+        setActiveSkill,
+        onWorkspaceResolved,
+      }),
+      { initialProps: { conversationId: 'conv-1' } },
+    );
+
+    findByConversation.mockResolvedValue({ success: true, workspace: null });
+    rerender({ conversationId: 'conv-sin-baraja' });
+
+    await waitFor(() => expect(onWorkspaceResolved).toHaveBeenCalledWith(null));
+    expect(setActiveSkill).toHaveBeenCalledWith(null);
+  });
+
+  it('al abrir un chat nuevo vacia el panel sin consultar nada', async () => {
+    const setActiveSkill = vi.fn();
+    const onWorkspaceResolved = vi.fn();
+    const activa = { skill: PRESENTACIONES_SKILL, workspaceId: 'ws-1' } as ActiveSkillState;
+    const { rerender } = renderHook(
+      (props: { conversationId: string | null }) => useSkillWorkspaceResume({
+        conversationId: props.conversationId,
+        activeSkill: activa,
+        setActiveSkill,
+        onWorkspaceResolved,
+      }),
+      { initialProps: { conversationId: 'conv-1' as string | null } },
+    );
+
+    rerender({ conversationId: null });
+
+    await waitFor(() => expect(onWorkspaceResolved).toHaveBeenCalledWith(null));
+    expect(setActiveSkill).toHaveBeenCalledWith(null);
+  });
+
+  it('guardar el chat nuevo NO se confunde con cambiar de chat', async () => {
+    // Pasar de "sin identificador" al suyo es el mismo chat al guardarse. Si se
+    // tratara como un cambio, la presentacion recien generada desapareceria del
+    // panel justo al enviar el primer mensaje.
+    const setActiveSkill = vi.fn();
+    const onWorkspaceResolved = vi.fn();
+    const activa = { skill: PRESENTACIONES_SKILL, workspaceId: 'ws-1' } as ActiveSkillState;
+    const { rerender } = renderHook(
+      (props: { conversationId: string | null }) => useSkillWorkspaceResume({
+        conversationId: props.conversationId,
+        activeSkill: activa,
+        setActiveSkill,
+        onWorkspaceResolved,
+      }),
+      { initialProps: { conversationId: null as string | null } },
+    );
+
+    rerender({ conversationId: 'conv-recien-creada' });
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(onWorkspaceResolved).not.toHaveBeenCalled();
+    expect(setActiveSkill).not.toHaveBeenCalled();
+    expect(findByConversation).not.toHaveBeenCalled();
+  });
+
   it('no vuelve a imponerla si el usuario la desactiva en la misma conversacion', async () => {
     const setActiveSkill = vi.fn();
     const { rerender } = renderHook(

@@ -13,6 +13,16 @@ export interface SkillCommand {
   skill: Skill;
   /** Comando sin la barra, en minusculas y sin acentos. */
   command: string;
+  /**
+   * Otras formas que llevan a esta Skill. No se muestran: solo se buscan.
+   *
+   * Existen porque el comando declarado y el nombre pueden no coincidir. La
+   * Skill se llama "Presentaciones" y su comando es `/presentacion` —el mismo
+   * que en WhatsApp—, de modo que quien escribia el nombre de la Skill no
+   * encontraba nada: la busqueda es por prefijo y el termino era mas largo que
+   * el comando.
+   */
+  aliases: readonly string[];
 }
 
 /** Convierte un nombre en comando: minusculas, sin acentos, con guiones. */
@@ -43,10 +53,21 @@ export function buildSkillCommands(catalog: SkillCatalog): SkillCommand[] {
     const command = toSkillCommand(skill.command || skill.name);
     if (!command || seen.has(command)) continue;
     seen.add(command);
-    commands.push({ skill, command });
+    // El nombre siempre encuentra a su Skill, aunque su comando sea otro.
+    const porNombre = toSkillCommand(skill.name);
+    commands.push({
+      skill,
+      command,
+      aliases: porNombre && porNombre !== command ? [porNombre] : [],
+    });
   }
 
   return commands;
+}
+
+/** Formas por las que se puede alcanzar una Skill al escribir. */
+function formas(entry: SkillCommand): string[] {
+  return [entry.command, ...entry.aliases];
 }
 
 /**
@@ -76,13 +97,13 @@ export function parseSlashInput(input: string, commands: SkillCommand[]): SlashQ
 
   const term = toSkillCommand(body);
   const matches = commands
-    .filter((entry) => !term || entry.command.startsWith(term) || entry.command.includes(term))
+    .filter((entry) => !term || formas(entry).some((forma) => forma.includes(term)))
     .sort((left, right) => rank(left, term) - rank(right, term))
     .slice(0, 8);
 
   return {
     term,
-    exact: commands.find((entry) => entry.command === term) ?? null,
+    exact: commands.find((entry) => formas(entry).includes(term)) ?? null,
     matches,
   };
 }
@@ -90,5 +111,5 @@ export function parseSlashInput(input: string, commands: SkillCommand[]): SlashQ
 /** Prefijo antes que coincidencia interna; a igualdad, orden del catalogo. */
 function rank(entry: SkillCommand, term: string): number {
   if (!term) return 1;
-  return entry.command.startsWith(term) ? 0 : 1;
+  return formas(entry).some((forma) => forma.startsWith(term)) ? 0 : 1;
 }

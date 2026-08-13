@@ -67,6 +67,24 @@ export interface BrowserSitePermissionResponse {
   error?: string;
 }
 
+/**
+ * Aviso de permiso que llega del proceso principal. Los permisos que la pagina
+ * pide a la vez viajan juntos para preguntarlos en un solo globo.
+ */
+export interface BrowserPermissionPromptRequest {
+  id: string;
+  origin: string;
+  kinds: BrowserSitePermissionKind[];
+  /** Etiquetas legibles de `kinds`, en el mismo orden. */
+  labels: string[];
+}
+
+export interface BrowserPermissionDecisionResponse {
+  success: boolean;
+  resolved?: boolean;
+  error?: string;
+}
+
 export interface BrowserTabSummary {
   tabId: string;
   url: string;
@@ -158,6 +176,44 @@ export interface IntegratedBrowserDataResponse extends IntegratedBrowserResponse
   canceled?: boolean;
   cleared?: boolean;
   removed?: boolean;
+}
+
+export const BROWSING_DATA_CATEGORIES = [
+  'historial',
+  'cookies',
+  'cache',
+  'contrasenas',
+  'permisos',
+] as const;
+
+export type BrowsingDataCategory = (typeof BROWSING_DATA_CATEGORIES)[number];
+
+export const BROWSING_DATA_RANGES = [
+  'ultima-hora',
+  'ultimo-dia',
+  'ultima-semana',
+  'ultimo-mes',
+  'todo',
+] as const;
+
+export type BrowsingDataRange = (typeof BROWSING_DATA_RANGES)[number];
+
+export interface BrowsingDataResult {
+  category: BrowsingDataCategory;
+  cleared: boolean;
+  removed?: number;
+  /** True cuando la categoría borró todo por no poder acotarse al rango. */
+  ignoredRange: boolean;
+  error?: string;
+}
+
+export interface BrowsingDataSummary {
+  range: BrowsingDataRange;
+  results: BrowsingDataResult[];
+}
+
+export interface BrowsingDataResponse extends IntegratedBrowserResponse {
+  summary?: BrowsingDataSummary;
 }
 
 export interface IntegratedBrowserCaptureResponse extends IntegratedBrowserResponse {
@@ -264,6 +320,27 @@ export interface BrowserReadingModeRequest {
   selection: string;
 }
 
+/**
+ * Peticion del panel de redaccion que vive en la pagina. A diferencia de las
+ * demas acciones no pasa por el chat: el renderer resuelve y devuelve el texto
+ * para que la pagina lo ofrezca en su propio panel.
+ */
+export interface BrowserWritingRequest {
+  requestId: string;
+  /** Instruccion escrita por el usuario; vacia significa "mejorala sin mas". */
+  prompt: string;
+  /** Texto seleccionado; contenido no confiable de la pagina. */
+  text: string;
+  title: string;
+  url: string;
+}
+
+export interface BrowserWritingResolution {
+  requestId: string;
+  text?: string;
+  error?: string;
+}
+
 export type BrowserReadingBlockKind = 'heading' | 'paragraph' | 'list-item' | 'quote';
 
 export interface BrowserReadingBlock {
@@ -364,6 +441,7 @@ export interface IntegratedBrowserApi {
   closeReadingMode(input: { readingId: string }): Promise<BrowserReadingResponse>;
   listHistory(query?: string, limit?: number): Promise<IntegratedBrowserDataResponse>;
   clearHistory(): Promise<IntegratedBrowserDataResponse>;
+  clearBrowsingData(input: { categories: BrowsingDataCategory[]; range: BrowsingDataRange }): Promise<BrowsingDataResponse>;
   listCredentials(): Promise<IntegratedBrowserDataResponse>;
   saveCredential(input: { id?: string; username: string; password: string }): Promise<IntegratedBrowserDataResponse>;
   fillCredential(id: string): Promise<IntegratedBrowserDataResponse>;
@@ -386,7 +464,11 @@ export interface IntegratedBrowserApi {
   onOpenRequested(callback: (request: { url?: string }) => void): () => void;
   onSelectionAction(callback: (request: BrowserSelectionActionRequest) => void): () => void;
   onReadingModeRequested(callback: (request: BrowserReadingModeRequest) => void): () => void;
+  onWritingRequest(callback: (request: BrowserWritingRequest) => void): () => void;
+  resolveWriting(input: BrowserWritingResolution): Promise<IntegratedBrowserResponse>;
   onSitePermissionsChanged(callback: () => void): () => void;
+  decidePermissionPrompt(input: { id: string; granted: boolean }): Promise<BrowserPermissionDecisionResponse>;
+  onPermissionPrompt(callback: (request: BrowserPermissionPromptRequest) => void): () => void;
 }
 
 declare global {
@@ -442,6 +524,10 @@ export const integratedBrowserService = {
   closeReadingMode: (input: { readingId: string }): Promise<BrowserReadingResponse> => requireApi().closeReadingMode(input),
   listHistory: (query?: string, limit?: number): Promise<IntegratedBrowserDataResponse> => requireApi().listHistory(query, limit),
   clearHistory: (): Promise<IntegratedBrowserDataResponse> => requireApi().clearHistory(),
+  clearBrowsingData: (input: {
+    categories: BrowsingDataCategory[];
+    range: BrowsingDataRange;
+  }): Promise<BrowsingDataResponse> => requireApi().clearBrowsingData(input),
   listCredentials: (): Promise<IntegratedBrowserDataResponse> => requireApi().listCredentials(),
   saveCredential: (input: { id?: string; username: string; password: string }): Promise<IntegratedBrowserDataResponse> => requireApi().saveCredential(input),
   fillCredential: (id: string): Promise<IntegratedBrowserDataResponse> => requireApi().fillCredential(id),
@@ -460,12 +546,18 @@ export const integratedBrowserService = {
   resetSitePermissions: (input?: { origin?: string }): Promise<BrowserSitePermissionResponse> => requireApi().resetSitePermissions(input),
   getTabSummaries: (): Promise<IntegratedBrowserTabSummariesResponse> => requireApi().getTabSummaries(),
   getTabContent: (tabId: string): Promise<BrowserTabContentResponse> => requireApi().getTabContent(tabId),
+  decidePermissionPrompt: (input: { id: string; granted: boolean }): Promise<BrowserPermissionDecisionResponse> => (
+    requireApi().decidePermissionPrompt(input)
+  ),
+  resolveWriting: (input: BrowserWritingResolution): Promise<IntegratedBrowserResponse> => requireApi().resolveWriting(input),
   subscribe: (callbacks: {
     onStateChanged?: (state: IntegratedBrowserState) => void;
     onOpenRequested?: (request: { url?: string }) => void;
     onSelectionAction?: (request: BrowserSelectionActionRequest) => void;
     onReadingModeRequested?: (request: BrowserReadingModeRequest) => void;
+    onWritingRequest?: (request: BrowserWritingRequest) => void;
     onSitePermissionsChanged?: () => void;
+    onPermissionPrompt?: (request: BrowserPermissionPromptRequest) => void;
   }): (() => void) => {
     const api = requireApi();
     const cleanups: Array<() => void> = [];
@@ -473,7 +565,9 @@ export const integratedBrowserService = {
     if (callbacks.onOpenRequested) cleanups.push(api.onOpenRequested(callbacks.onOpenRequested));
     if (callbacks.onSelectionAction) cleanups.push(api.onSelectionAction(callbacks.onSelectionAction));
     if (callbacks.onReadingModeRequested) cleanups.push(api.onReadingModeRequested(callbacks.onReadingModeRequested));
+    if (callbacks.onWritingRequest) cleanups.push(api.onWritingRequest(callbacks.onWritingRequest));
     if (callbacks.onSitePermissionsChanged) cleanups.push(api.onSitePermissionsChanged(callbacks.onSitePermissionsChanged));
+    if (callbacks.onPermissionPrompt) cleanups.push(api.onPermissionPrompt(callbacks.onPermissionPrompt));
     return () => cleanups.forEach((cleanup) => cleanup());
   },
 };

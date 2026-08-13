@@ -3,6 +3,7 @@ import { EventEmitter } from 'node:events';
 import {
   executeClipboardTool,
   type ClipboardToolInput,
+  type ClipboardToolResult,
 } from './clipboard-manager/tool';
 import type { ClipboardConfig } from './clipboard-manager/types';
 
@@ -26,9 +27,9 @@ export class ClipboardManager extends EventEmitter {
     this.pollingIntervalMs = config.pollingIntervalMs || 1000;
   }
 
-  init(): void {
+  async init(): Promise<void> {
     try {
-      this.lastReadText = clipboard.readText() || '';
+      this.lastReadText = await clipboard.readText() || '';
       if (this.lastReadText) this.addToHistory(this.lastReadText);
       console.log('[ClipboardManager] Inicializado correctamente.');
     } catch (error) {
@@ -38,7 +39,7 @@ export class ClipboardManager extends EventEmitter {
 
   start(): void {
     if (this.intervalId) return;
-    this.intervalId = setInterval(() => this.checkClipboard(), this.pollingIntervalMs);
+    this.intervalId = setInterval(() => { void this.checkClipboard(); }, this.pollingIntervalMs);
     console.log('[ClipboardManager] Servicio de monitoreo iniciado.');
   }
 
@@ -56,24 +57,30 @@ export class ClipboardManager extends EventEmitter {
     return { maxHistorySize: this.maxHistorySize, pollingIntervalMs: this.pollingIntervalMs };
   }
 
-  writeText(text: string): void {
+  async writeText(text: string): Promise<void> {
     try {
-      clipboard.writeText(text);
+      await clipboard.writeText(text);
       this.lastReadText = text;
       this.addToHistory(text);
       this.emit('changed', text);
     } catch (error) {
       console.error('[ClipboardManager] Error al escribir en portapapeles:', error);
-      throw new Error(`No se pudo escribir en el portapapeles: ${(error as Error).message}`);
+      throw Object.assign(
+        new Error(`No se pudo escribir en el portapapeles: ${(error as Error).message}`),
+        { cause: error },
+      );
     }
   }
 
-  readText(): string {
+  async readText(): Promise<string> {
     try {
-      return clipboard.readText() || '';
+      return await clipboard.readText() || '';
     } catch (error) {
       console.error('[ClipboardManager] Error al leer portapapeles:', error);
-      throw new Error(`No se pudo leer el portapapeles: ${(error as Error).message}`);
+      throw Object.assign(
+        new Error(`No se pudo leer el portapapeles: ${(error as Error).message}`),
+        { cause: error },
+      );
     }
   }
 
@@ -81,13 +88,13 @@ export class ClipboardManager extends EventEmitter {
     return [...this.history];
   }
 
-  async executeTool(args: ClipboardToolInput): Promise<any> {
+  async executeTool(args: ClipboardToolInput): Promise<ClipboardToolResult> {
     return executeClipboardTool(this, args);
   }
 
-  private checkClipboard(): void {
+  private async checkClipboard(): Promise<void> {
     try {
-      const currentText = clipboard.readText();
+      const currentText = await clipboard.readText();
       if (!currentText || currentText === this.lastReadText) return;
       this.lastReadText = currentText;
       this.addToHistory(currentText);

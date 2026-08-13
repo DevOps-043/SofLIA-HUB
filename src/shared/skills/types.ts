@@ -108,10 +108,47 @@ export interface SystemSkill extends SkillBase {
   /** Bandera de entorno que habilita la Skill. Ausente = siempre activa. */
   readonly featureFlag?: string;
   /**
+   * Que pasa cuando la bandera no esta definida en el entorno.
+   *
+   * Por omision, apagada: una capacidad en desarrollo no debe aparecer sola.
+   * Una Skill YA PUBLICADA declara lo contrario, porque de un instalador al que
+   * le falte la variable no puede seguirse que la capacidad desaparezca para
+   * todos sus usuarios.
+   */
+  readonly enabledByDefault?: boolean;
+  /**
    * Bloqueada en conversaciones de grupo. Aplica a Skills cuyo resultado es
    * material del usuario: en un grupo, entregarlo lo expone a terceros.
    */
   readonly blockedInGroups?: boolean;
+}
+
+/**
+ * Entrada del catalogo de Skills del sistema tal y como llega de la base de
+ * datos, ANTES de acotarse.
+ *
+ * Todo campo es sospechoso hasta que `system-catalog.ts` lo valida: la fila
+ * declara herramientas y politica de espacio de trabajo, y de ahi no puede
+ * seguirse que la aplicacion las conceda tal cual. Los tipos son laxos a
+ * proposito —la fila la escribe otro sistema— y el mapeo es quien decide.
+ */
+export interface SystemSkillRow {
+  readonly id: string;
+  readonly name: string;
+  readonly description?: string | null;
+  readonly icon?: string | null;
+  readonly command?: string | null;
+  readonly category?: string | null;
+  readonly surfaces?: readonly string[] | null;
+  readonly sort_order?: number | null;
+  readonly enabled?: boolean | null;
+  readonly blocked_in_groups?: boolean | null;
+  readonly starter_prompts?: unknown;
+  readonly instructions?: string | null;
+  readonly tools?: unknown;
+  readonly workspace?: unknown;
+  /** Una version anterior a esta ignora la fila en vez de malinterpretarla. */
+  readonly min_app_version?: string | null;
 }
 
 /** Skill creada por el usuario. Solo instrucciones y prompts de inicio. */

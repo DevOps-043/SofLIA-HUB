@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { integratedBrowserService, type BrowserHistoryEntry } from '../../services/integrated-browser-service';
 import { BrowserSitePermissionsPanel } from './BrowserSitePermissionsPanel';
+import { BrowserPermissionPrompt } from './BrowserPermissionPrompt';
 
 const SUGGESTION_LIMIT = 8;
 const SUGGESTION_DELAY_MS = 140;
@@ -19,6 +20,7 @@ export function BrowserAddressBar(props: {
   const [suggestions, setSuggestions] = useState<BrowserHistoryEntry[]>([]);
   const [open, setOpen] = useState(false);
   const [siteOpen, setSiteOpen] = useState(false);
+  const [permissionPromptOpen, setPermissionPromptOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   visibilityHandlerRef.current = props.onSuggestionsVisibilityChange;
 
@@ -74,7 +76,9 @@ export function BrowserAddressBar(props: {
   };
 
   const listVisible = open && suggestions.length > 0;
-  const overlayVisible = listVisible || siteOpen;
+  // El globo de permiso se pinta sobre el area de la vista nativa, que se
+  // compone por encima del renderer: sin entrar aqui quedaria tapado.
+  const overlayVisible = listVisible || siteOpen || permissionPromptOpen;
 
   useEffect(() => {
     if (suggestionsVisibleRef.current === overlayVisible) return;
@@ -143,6 +147,8 @@ export function BrowserAddressBar(props: {
         url={props.currentUrl ?? props.address}
         onClose={() => setSiteOpen(false)}
       />
+
+      <BrowserPermissionPrompt onOpenChange={setPermissionPromptOpen} />
 
       {listVisible && (
         <div id="integrated-browser-suggestions" role="listbox" aria-label="Sugerencias del historial" className="absolute left-0 top-[calc(100%+0.375rem)] z-[80] max-h-64 w-full max-w-[42rem] overflow-y-auto rounded-2xl border border-gray-200/80 bg-white/98 p-1.5 shadow-xl shadow-black/10 backdrop-blur-xl dark:border-white/[0.1] dark:bg-[#161b22]/98">

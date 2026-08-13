@@ -4,6 +4,60 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [Unreleased]
+
+### Added
+- Menu flotante sobre el texto seleccionado en el navegador integrado. Preguntar
+  a SofLIA, mejorar la redaccion, traducir, resumir y abrir en modo lectura ya
+  estaban, pero solo aparecian con el boton derecho: quien no lo probaba nunca
+  supo que existian. Ahora la burbuja aparece sola junto al texto al terminar de
+  seleccionarlo, sigue a la seleccion al desplazar la pagina y se retira al
+  deseleccionar o con Escape. El menu contextual sigue ofreciendo lo mismo.
+- El menu se dibuja dentro de la pagina, no en la interfaz de la aplicacion,
+  porque la vista del navegador se pinta encima del renderer. Ninguna accion
+  envia el turno por su cuenta: el texto llega al compositor del chat con su
+  instruccion y es el usuario quien decide que pedir y cuando mandarlo. La
+  burbuja se apaga mientras el agente conduce el navegador.
+- Borrado de datos de navegacion en el navegador integrado, equivalente al de
+  Chrome. Hasta ahora lo unico que se podia vaciar era el historial, y una
+  sesion rota o una cuenta equivocada en un sitio no tenian salida.
+- Cinco categorias: historial, cookies y datos de sitios, archivos en cache,
+  contrasenas guardadas y permisos por sitio. Marcadores y extensiones no se
+  tocan, igual que en Chrome.
+- El intervalo de tiempo se aplica **exacto al historial** y las demas
+  categorias se borran completas. Chromium sabe acotar por fecha pero Electron
+  no lo expone, asi que en vez de aparentar que el intervalo alcanza a todo, la
+  interfaz lo advierte al marcar la categoria y el resumen lo repite.
+- Nada se borra sin confirmacion explicita, y al terminar se muestra por
+  categoria cuanto se quito, si se ignoro el intervalo y que fallo. Una
+  categoria que falla no impide borrar las demas.
+- El borrado se acota al perfil del usuario con sesion activa: el perfil de otra
+  cuenta del equipo queda intacto y las pestanas abiertas no se cierran.
+- La caja de "archivos en cache" vacia tambien la cache de autenticacion HTTP.
+  Sin eso una sesion Basic o NTLM sobrevivia al borrado de cookies.
+- Adjuntar al chat las aplicaciones abiertas del equipo, con la misma ergonomia
+  del selector de pestanas. Hasta ahora, para hablar de un presupuesto en Excel
+  o de un contrato en Word habia que copiarlos a mano o adjuntar el archivo,
+  aunque la aplicacion ya estuviera abierta delante del usuario.
+- El selector lista las ventanas con miniatura y aplicacion de origen sin leer
+  el contenido de ninguna: abrirlo no cuesta nada aunque haya veinte ventanas.
+  Las ventanas del propio Pulse Hub quedan fuera.
+- La lectura baja por la primera via util. Un documento de Office llega completo
+  y con sus tablas, porque COM resuelve la ruta del archivo y la lee el sidecar
+  de documentos; el resto de aplicaciones llegan como texto de la ventana por UI
+  Automation; y lo que no expone nada llega como captura. Cada nivel degrada
+  solo al fallar o agotar su presupuesto.
+- COM se usa **solo** para consultar la ruta y el estado de guardado: el flujo no
+  puede modificar el documento del usuario. Si el archivo tiene cambios sin
+  guardar, el adjunto se marca como desactualizado en vez de callarlo.
+- El chip declara la fidelidad real antes de enviar, no despues. Saber que el
+  modelo recibira una captura y no la hoja de calculo cambia lo que uno escribe,
+  asi que la lectura arranca al marcar la aplicacion y el chip pasa de "leyendo"
+  al nivel obtenido con sus avisos.
+- Nada se captura sin seleccion explicita, no hay observacion continua y el
+  contenido no se persiste. `SOFLIA_DISABLE_DESKTOP_CONTEXT=1` desactiva la
+  capacidad completa: los canales no se registran y la entrada no aparece.
+
 ## [0.9.6] - 2026-08-10
 
 ### Added
@@ -109,6 +163,24 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
   campo de texto, editable antes de enviar.
 
 ### Fixed
+- Las ventanas compactas de Meet podían abrirse solas cuando Gmail restauraba o
+  reintentaba internamente una ruta `/call`, incluso bastante después de la
+  interacción original. Esa ruta siempre se cancela y ahora solo un clic
+  izquierdo reciente, observado por Electron antes de entregarlo al iframe y
+  confirmado allí por el control real de llamada, puede crear la reunión
+  alternativa. Un clic genérico, una señal aislada, botones distintos, tokens
+  vencidos y reintentos automáticos ya no crean pestañas ni ventanas.
+- El navegador integrado aceptaba direcciones de hasta 2 KB y rechazaba el resto
+  como si fueran un protocolo prohibido. Los flujos de inicio de sesion de Google
+  encadenan `TL`, `ifkv` y `continue` anidados y superan ese tamaño, asi que la
+  verificacion en dos pasos de Gmail terminaba en "La redireccion fue bloqueada
+  por seguridad" con la sesion a medias. El limite pasa a 32 KB, el maximo
+  practico de la barra de direcciones de Chrome; la allowlist HTTP(S) sigue
+  intacta.
+- Cada navegacion o redireccion bloqueada deja traza `[Navegador][Seguridad]` con
+  protocolo, host y tamaño del destino. Antes el aviso no decia que se corto y no
+  habia forma de distinguir un protocolo peligroso de una direccion legitima; la
+  traza omite la ruta y los parametros para no registrar tokens de sesion.
 - Los cuadros de permiso se muestran de uno en uno. Una videollamada pide camara
   y microfono a la vez y desde varios marcos: los cuadros se tapaban entre si,
   el usuario no podia responder al de abajo y la solicitud quedaba esperando
@@ -126,6 +198,39 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
   `navigator.permissions.query` antes de solicitarlos y recibia "denegado", de
   modo que mostraba "Meet no puede usar el microfono" y nunca llamaba a
   `getUserMedia`: el dialogo de aprobacion no llegaba a abrirse nunca.
+- Al iniciar Meet desde Gmail o Google Chat, la ventana hija podia consultar
+  `media` mientras aun estaba en `about:blank` y sin origen. Esa consulta ahora
+  queda gobernada antes de entregar la ventana a Chromium y puede avanzar hasta
+  la solicitud real, que conserva origen HTTP(S), decision por sitio,
+  aprobacion del usuario y permiso nativo obligatorios. El registro temprano
+  evita depender del evento tardio `did-create-window` sin confiar en cualquier
+  contenido que comparta la sesion.
+- Meet también consulta permisos desde un iframe cruzado dentro de Gmail; en
+  ese caso Electron entrega `webContents = null`. La gobernanza ahora valida
+  `embeddingOrigin` y el origen solicitante, permite la consulta de `media` y
+  `background-sync`, y mantiene la solicitud real de dispositivos bajo origen,
+  ventana registrada, aprobación y permiso nativo.
+- Electron 43 puede omitir también todos los orígenes en el preflight de
+  `media` de Meet y entregar la identidad ausente como `undefined` aunque el
+  contrato la tipifique como `null`. Ambos valores se normalizan solo para esa
+  consulta, que ya no se interpreta como una denegación de
+  cámara o micrófono: solo la consulta previa avanza dentro de la partición
+  aislada; `getUserMedia` conserva ventana registrada, origen HTTP(S), decisión
+  por sitio, aprobación y permiso nativo obligatorios.
+- Las llamadas directas de Google Chat vuelven a usar el flujo nativo de la
+  aplicación web. La evidencia en Brave y Comet demostró que la ventana pequeña,
+  el timbrado y el registro de Chat no dependen del ejecutable Chrome, sino de
+  conservar el contrato Chromium. SofLIA ya no cancela `meet.google.com/call`,
+  no lo sustituye por `meet.google.com/new` y no sondea el botón para fabricar
+  ventanas. La hija real conserva `window.opener`, la partición autenticada y
+  los permisos gobernados; Google mantiene su propia acción para moverla a una
+  pestaña. El intento limpio sobre Electron 43.4.0 / Chromium 150 cargó NetEq y
+  respondió `CreateMediaSession`, pero se detuvo antes de `CreateMeetingDevice`.
+  El trial BUNDLE eliminó sus diagnósticos sin cambiar `StartupCode 219`, por lo
+  que fue retirado. Electron queda fijado temporalmente en `44.0.0-beta.3` /
+  Chromium 152 con identidad limpia en vistas, ventanas, frames y workers, sin
+  falsificar Client Hints, modificar SDP ni ampliar permisos. El smoke real
+  requiere comprobar `CreateMeetingDevice`, `CreateMeetingInvite` y timbrado.
 - El area de la llamada quedaba en negro. Meet abre su interfaz en una ventana
   de Document Picture-in-Picture y el navegador convertia ese `window.open` en
   pestañas `about:blank` vacias, dejando a la pagina esperando una ventana que

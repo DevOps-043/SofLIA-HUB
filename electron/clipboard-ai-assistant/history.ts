@@ -3,9 +3,9 @@ import type { ClipboardConfig, ClipboardItem } from './types';
 const LONG_SECRET_PATTERN = /[A-Za-z0-9-_]{25,}/;
 const SENSITIVE_WORD_PATTERN = /(password|contrase\u00f1a|token|secret|key)/i;
 
-export function readClipboardText(clipboardApi: { readText: () => string }): string {
+export async function readClipboardText(clipboardApi: { readText: () => Promise<string> }): Promise<string> {
   try {
-    return clipboardApi.readText();
+    return await clipboardApi.readText();
   } catch {
     return '';
   }

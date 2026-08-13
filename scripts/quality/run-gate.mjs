@@ -9,6 +9,10 @@ const scripts = [
   'audit:supply-chain',
   'docs:system:check',
   'docs:check',
+  // La semilla del catalogo de Skills y el respaldo en codigo deben decir lo
+  // mismo: si divergen, el usuario recibe una Skill distinta justo cuando falla
+  // la red, que es el peor momento para una sorpresa.
+  'skills:seed:check',
   'openspec:validate',
   'typecheck',
   'lint:changed',

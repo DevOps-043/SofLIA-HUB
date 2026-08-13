@@ -31,18 +31,7 @@ import type {
   UpdateMeetingActionInput,
 } from './meeting-types';
 
-/**
- * Adaptador opcional hacia el Registro Operativo Gobernado (SDO).
- * Se inyecta desde main.ts; si falla, la aprobacion de la reunion NO falla.
- */
-export interface MeetingSdoAdapter {
-  onAssetApproved(detail: MeetingRunDetail, decidedByUserId: string): Promise<void>;
-  onActionsApproved(detail: MeetingRunDetail, decidedByUserId: string): Promise<void>;
-}
-
 export class MeetingWorkflowService {
-  private sdoAdapter: MeetingSdoAdapter | null = null;
-
   constructor(
     private readonly store: MeetingStore,
     private readonly sourceService: MeetingSourceService,
@@ -51,10 +40,6 @@ export class MeetingWorkflowService {
     private readonly syncService: MeetingSyncService,
     private readonly assigneeService = new MeetingAssigneeService(),
   ) {}
-
-  setSdoAdapter(adapter: MeetingSdoAdapter | null): void {
-    this.sdoAdapter = adapter;
-  }
 
   async init(): Promise<void> { this.store.init(); }
 
@@ -79,16 +64,12 @@ export class MeetingWorkflowService {
   }
 
   async approveAsset(runId: string, decidedByUserId: string, comment?: string): Promise<MeetingRunDetail> {
-    const detail = await approveMeetingAsset(this.store, (id) => this.getRunDetail(id), runId, decidedByUserId, comment);
-    this.notificarSdo((adapter) => adapter.onAssetApproved(detail, decidedByUserId));
-    return detail;
+    return approveMeetingAsset(this.store, (id) => this.getRunDetail(id), runId, decidedByUserId, comment);
   }
 
   async approveActions(runId: string, decidedByUserId: string, actionIds?: string[], comment?: string): Promise<MeetingRunDetail> {
     await this.getRunDetail(runId);
-    const detail = await approveMeetingActions(this.store, (id) => this.refreshReviewStatus(id), runId, decidedByUserId, actionIds, comment);
-    this.notificarSdo((adapter) => adapter.onActionsApproved(detail, decidedByUserId));
-    return detail;
+    return approveMeetingActions(this.store, (id) => this.refreshReviewStatus(id), runId, decidedByUserId, actionIds, comment);
   }
 
   async rejectAction(actionId: string, decidedByUserId: string, comment?: string): Promise<MeetingRunDetail> {
@@ -115,14 +96,6 @@ export class MeetingWorkflowService {
 
   private async refreshReviewStatus(runId: string): Promise<MeetingRunDetail> {
     return refreshMeetingReviewStatus(this.store, (id) => this.getRunDetail(id), runId);
-  }
-
-  /** Fire-and-forget: el SDO nunca bloquea el flujo de reuniones. */
-  private notificarSdo(fn: (adapter: MeetingSdoAdapter) => Promise<void>): void {
-    if (!this.sdoAdapter) return;
-    fn(this.sdoAdapter).catch((error) => {
-      console.warn('[MeetingWorkflow] El adaptador SDO fallo (no bloqueante):', error?.message || error);
-    });
   }
 
   private async createRunFromPreparedSource(

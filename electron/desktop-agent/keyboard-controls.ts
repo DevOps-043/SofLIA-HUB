@@ -31,12 +31,15 @@ export class DesktopKeyboardControls {
       await runXdotool(['type', '--clearmodifiers', text]);
       return;
     }
-    const savedClip = electronClipboard.readText();
-    electronClipboard.writeText(text);
-    await this.delay(50);
-    await this.ps(`Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('^v')`);
-    await this.delay(100);
-    electronClipboard.writeText(savedClip);
+    const savedClip = await electronClipboard.readText();
+    await electronClipboard.writeText(text);
+    try {
+      await this.delay(50);
+      await this.ps(`Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait('^v')`);
+      await this.delay(100);
+    } finally {
+      await electronClipboard.writeText(savedClip);
+    }
   }
 
   async keyboardKey(key: string): Promise<void> {
@@ -88,8 +91,12 @@ async function runXdotool(args: string[]): Promise<void> {
   if (!capabilities.linuxXdotool) throw new Error(capabilities.unsupportedReason || 'xdotool solo se usa en Linux X11.');
   try {
     await execFileAsync('xdotool', args, { timeout: 10000, windowsHide: true });
-  } catch (err: any) {
-    throw new Error(`No se pudo ejecutar xdotool. Instala xdotool y usa una sesion X11. Detalle: ${err.message}`);
+  } catch (error: unknown) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw Object.assign(
+      new Error(`No se pudo ejecutar xdotool. Instala xdotool y usa una sesion X11. Detalle: ${detail}`),
+      { cause: error },
+    );
   }
 }
 

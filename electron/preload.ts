@@ -9,6 +9,7 @@ import {
 } from './preload/communication-apis';
 import { exposeCoreApis } from './preload/core-apis';
 import { exposeDesktopApi } from './preload/desktop-apis';
+import { exposeDesktopContextApi } from './preload/desktop-context-api';
 import { exposeGoogleApis } from './preload/google-apis';
 import { exposeIntegratedBrowserApi } from './preload/integrated-browser-api';
 import { exposeRemoteApis } from './preload/remote-apis';
@@ -39,5 +40,6 @@ exposeGoogleApis(contextBridge, safeIpc);
 exposeIntegratedBrowserApi(contextBridge, safeIpc);
 exposeSkillWorkspaceApi(contextBridge, safeIpc);
 exposeDesktopApi(contextBridge, safeIpc);
+exposeDesktopContextApi(contextBridge, safeIpc);
 exposeUtilityApis(contextBridge, safeIpc);
 exposeAuthApis(contextBridge, safeIpc);

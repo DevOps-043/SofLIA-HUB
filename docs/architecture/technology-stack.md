@@ -1,6 +1,6 @@
 # Stack tecnologico
 
-Estado: vigente. Actualizado: 2026-07-21.
+Estado: vigente. Actualizado: 2026-08-12.
 
 Las versiones son las restricciones declaradas en `package.json`, no la salida de
 un host concreto. `package-lock.json` fija la resolucion reproducible.
@@ -13,7 +13,7 @@ un host concreto. `package-lock.json` fija la resolucion reproducible.
 
 | Capa | Tecnologia | Restriccion versionada | Uso real |
 |---|---|---:|---|
-| Desktop | Electron | `^39.8.5` | main, preload, BrowserWindow, tray, desktopCapturer, powerMonitor, updater |
+| Desktop | Electron | `44.0.0-beta.3` | main, preload, BrowserWindow, tray, desktopCapturer, powerMonitor, updater; beta fijada exactamente para validar llamadas directas sobre Chromium 152 con identidad global limpia; rollback exacto a `43.4.0` |
 | UI | React / React DOM | `^18.2.0` | renderer y componentes funcionales |
 | Lenguaje | TypeScript | `^5.7.3` | renderer, main, preload y config estrictos |
 | Build | Vite / vite-plugin-electron | `^7.0.0` / `^0.29.0` | bundles renderer, main CJS y preload |

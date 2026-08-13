@@ -11,7 +11,7 @@ Estado: vigente. Actualizado: 2026-07-21.
 `src/main.tsx` monta `App`; `src/App.tsx` envuelve la aplicacion en
 `AuthProvider`, renderiza `AppContent` y mantiene `UpdateNotification` global.
 No se usa React Router: `ActiveView` es la union `chat | project | productivity |
-sdo | meetings` y `AppWorkspace` selecciona el componente con render condicional.
+meetings` y `AppWorkspace` selecciona el componente con render condicional.
 
 `AppContent` coordina:
 
@@ -24,6 +24,23 @@ sdo | meetings` y `AppWorkspace` selecciona el componente con render condicional
 
 El intro de inicio dura 4200 ms, concede 700 ms adicionales al auth y anima la
 salida 1250 ms. Son parametros UI en `src/app/AppContent.tsx`, no tiempos de SLA.
+
+### Adjuntos de contexto del turno
+
+El compositor del chat admite dos origenes de contexto que comparten el area de
+chips y el presupuesto del turno: las pestañas del navegador integrado y las
+aplicaciones abiertas del equipo. `src/adapters/desktop_ui/chat-ui/` aloja
+ambos: `input/TabAttachmentPicker.tsx` e `input/AppAttachmentPicker.tsx` para
+elegir, `input/*AttachmentChips.tsx` para mostrar lo adjunto y
+`app-attachments.ts` para armar el bloque que recibe el modelo.
+
+Los dos difieren en cuando leen. Una pestaña resuelve su texto en `handleSend`
+porque el navegador es nuestro y el contenido esta a una llamada. Una aplicacion
+arranca su lectura al marcarse, porque el chip debe declarar la fidelidad real
+—documento completo, texto de la ventana o captura— antes de que el usuario
+envie: enterarse despues no le sirve de nada. Al enviar solo se espera lo que
+siga en curso, y lo que no llegue se declara como no leido en lugar de retener
+el turno.
 
 ## Capas del renderer
 
@@ -65,6 +82,17 @@ fetch con timeout/retry controlados.
   tabs declaradas en `src/components/unified-settings/settings-tabs.tsx`.
 - Estado UI efimero (view, modal, sidebar) usa hooks locales; posicion/tema tambien
   se sincronizan con main cuando existe API.
+- Las preferencias personales en `localStorage` se acotan al usuario activo con
+  `scopedPreferenceKey` (`src/services/user-scope.ts`): favoritos y ajustes del
+  navegador, modelo elegido y cache de ajustes personales. El ambito se fija en
+  `useAuthProviderModel` durante el render, y al iniciar sesion se descarta lo
+  guardado sin sesion. Una preferencia nueva que revele actividad del usuario
+  debe usar esa clave, no una global.
+- Una conversacion borrada deja una lapida durable por usuario
+  (`lia_deleted_conversations_<id>`, `src/services/chat/tombstones.ts`) que
+  sobrevive al sync. Los listados, la recuperacion de cache, el guardado de
+  mensajes y la migracion de identidad la respetan: un borrado no se revierte
+  porque el borrado remoto haya fallado en silencio.
 
 ## Estados visuales obligatorios
 

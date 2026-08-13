@@ -44,8 +44,8 @@ export class ClipboardAIAssistant extends EventEmitter {
   async start(): Promise<void> {
     if (this.isRunning) return;
     this.isRunning = true;
-    this.lastCopiedText = readClipboardText(clipboard);
-    this.intervalId = setInterval(() => this.pollClipboard(), this.config.pollingIntervalMs || 5000);
+    this.lastCopiedText = await readClipboardText(clipboard);
+    this.intervalId = setInterval(() => { void this.pollClipboard(); }, this.config.pollingIntervalMs || 5000);
     console.log('[ClipboardAIAssistant] Servicio de portapapeles iniciado silenciosamente.');
   }
 
@@ -80,8 +80,8 @@ export class ClipboardAIAssistant extends EventEmitter {
     return searchClipboardItems(this.history, this.genAI, query);
   }
 
-  private pollClipboard(): void {
-    const currentText = readClipboardText(clipboard);
+  private async pollClipboard(): Promise<void> {
+    const currentText = await readClipboardText(clipboard);
     if (currentText === this.lastCopiedText) return;
 
     const item = addClipboardText(this.history, currentText, this.config);

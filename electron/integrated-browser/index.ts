@@ -29,4 +29,4 @@ export type {
   IntegratedBrowserViewport,
   IntegratedBrowserViewMode,
 } from './types';
-export { isAllowedBrowserUrl, normalizeBrowserTarget, parseBrowserViewport } from './validation';
+export { describeBlockedUrl, isAllowedBrowserUrl, normalizeBrowserTarget, parseBrowserViewport } from './validation';

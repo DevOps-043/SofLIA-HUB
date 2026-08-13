@@ -1,6 +1,8 @@
 export async function loadMainServiceModules() {
   const { IntegratedBrowserService } = await import('../integrated-browser');
   const { registerIntegratedBrowserHandlers } = await import('../integrated-browser-handlers');
+  const { DesktopContextService } = await import('../desktop-context/service');
+  const { registerDesktopContextHandlers } = await import('../desktop-context-handlers');
   const { registerComputerUseHandlers } = await import('../computer-use-handlers');
   const { SkillWorkspaceService } = await import('../skill-workspace/service');
   const { registerSkillWorkspaceHandlers } = await import('../skill-workspace-handlers');
@@ -62,13 +64,11 @@ export async function loadMainServiceModules() {
   const { pythonToolsService } = await import('../python-tools-service');
   const { registerPythonToolsHandlers } = await import('../python-tools-handlers');
   const { generateDailySummary } = await import('../summary-generator');
-  const { SdoService } = await import('../sdo/sdo-service');
-  const { registerSdoHandlers } = await import('../sdo-handlers');
-  const { registrarAprobacionAsset, registrarAprobacionAcciones } = await import('../sdo/adapters/meeting-adapter');
   await import('../agent-task-queue');
 
   return {
     IntegratedBrowserService, registerIntegratedBrowserHandlers,
+    DesktopContextService, registerDesktopContextHandlers,
     SkillWorkspaceService, registerSkillWorkspaceHandlers, registerPresentationProtocolHandler,
     setSkillWorkspaceService,
     registerComputerUseHandlers, WhatsAppService, WhatsAppAgent, MonitoringService, registerMonitoringHandlers,
@@ -86,6 +86,5 @@ export async function loadMainServiceModules() {
     backgroundHostService, registerBackgroundHostHandlers, remoteNodeService, registerRemoteNodeHandlers,
     dynamicToolService, pythonRuntimeService, registerVoicePassiveHandlers, registerOrbIpcHandlers,
     pythonToolsService, registerPythonToolsHandlers, generateDailySummary,
-    SdoService, registerSdoHandlers, registrarAprobacionAsset, registrarAprobacionAcciones,
   };
 }

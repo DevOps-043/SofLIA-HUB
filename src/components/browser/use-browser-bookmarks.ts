@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { scopedPreferenceKey } from '../../services/user-scope';
 
 const FAVORITES_STORAGE_KEY = 'sofLia_integratedBrowserFavorites';
 const FAVORITES_LIMIT = 24;
@@ -23,7 +24,7 @@ export function useBrowserBookmarks(currentUrl: string, currentTitle: string) {
   const updateFavorites = (next: BrowserFavorite[]) => {
     const bounded = next.slice(0, FAVORITES_LIMIT);
     setFavorites(bounded);
-    try { localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(bounded)); } catch { /* preferencia no persistible */ }
+    try { localStorage.setItem(scopedPreferenceKey(FAVORITES_STORAGE_KEY), JSON.stringify(bounded)); } catch { /* preferencia no persistible */ }
   };
 
   return {
@@ -51,7 +52,7 @@ export type BrowserBookmarksState = ReturnType<typeof useBrowserBookmarks>;
 
 function readStoredFavorites(): BrowserFavorite[] {
   try {
-    const parsed = JSON.parse(localStorage.getItem(FAVORITES_STORAGE_KEY) ?? '[]') as unknown;
+    const parsed = JSON.parse(localStorage.getItem(scopedPreferenceKey(FAVORITES_STORAGE_KEY)) ?? '[]') as unknown;
     if (!Array.isArray(parsed)) return [];
     const unique = new Set<string>();
     const favorites: BrowserFavorite[] = [];

@@ -47,7 +47,6 @@ export interface ChatUIProps {
   readOnlyReason?: string | null;
   onOpenBrowser?: () => void;
   onOpenMeetings?: () => void;
-  onOpenSdo?: () => void;
 }
 
 export interface BrowserSelectionAttachment {

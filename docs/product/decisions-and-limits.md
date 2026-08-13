@@ -42,6 +42,9 @@ historica. `No documentada` evita inventar el porqué.
 <!-- define: LIM-016 -->
 <!-- define: LIM-017 -->
 <!-- define: LIM-018 -->
+<!-- define: LIM-019 -->
+<!-- define: LIM-020 -->
+<!-- define: LIM-021 -->
 
 ## Decisiones arquitectonicas vigentes
 
@@ -85,6 +88,8 @@ historica. `No documentada` evita inventar el porqué.
 | LIM-017 | Navegador integrado | URL 2048 caracteres; viewport minimo 160x120 DIP; espera agente 8 s; HTTP(S) | **Confirmada en OpenSpec:** acotar IPC/layout y no actuar sobre otra superficie si la vista no monta. | `electron/integrated-browser/types.ts`, `electron/integrated-browser/validation.ts` |
 | LIM-018 | Workspace y datos del navegador | chat 300-520 DIP (360 default), alineado bajo chrome, inset por lado, historial 2.000, extensión 2.000 archivos/20 MiB, credencial por origen | **Confirmada en OpenSpec:** conservar una vista nativa viva, permitir minimizar/mover, acotar disco y fallar cerrado para secretos/código local. | `src/components/browser/BrowserWorkspaceLayout.tsx`, `electron/integrated-browser/` |
 | LIM-019 | Automatización del navegador integrado | Gemini 3.6 Flash único; 90 pasos efectivos, tope 120; termina antes al completar | **Confirmada en OpenSpec:** evitar degradación de modelo y cortes prematuros en login/redirecciones manteniendo un límite observable. | `src/shared/soflia-runtime-model.ts`, `electron/desktop-agent/task-budget.ts` |
+| LIM-020 | Contexto de aplicaciones de escritorio | 40.000 caracteres por aplicacion, 120.000 por turno compartidos con las pestañas, 40 ventanas inventariadas; COM 2,5 s, UIA 4 s, captura 3 s, espera al enviar 25 s | **Inferida:** una hoja de calculo grande convertida a Markdown desborda el turno, y cada nivel de la cascada invoca PowerShell; los topes acotan el coste y obligan a declarar el recorte en vez de truncar en silencio. | `electron/desktop-context/types.ts`, `src/adapters/desktop_ui/chat-ui/app-attachments.ts` |
+| LIM-021 | Alcance temporal del borrado de datos de navegacion | solo el historial | **Verificada:** `ClearDataOptions` de Electron 43 admite `dataTypes`, `origins` y `excludeOrigins`, pero no un rango temporal, y el objeto `Cookie` no expone fecha de creacion. Chromium si sabe acotar por fecha; la limitacion es de la API expuesta. El historial se acota porque es un almacen propio con `visitedAt`. | `electron/integrated-browser/browsing-data.ts`, `node_modules/electron/electron.d.ts` |
 
 ## Parametros configurables
 

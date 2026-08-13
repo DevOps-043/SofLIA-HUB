@@ -1,16 +1,25 @@
-import { isSystemSkillId, systemSkillsForSurface } from '../../shared/skills/registry';
+import appPackage from '../../../package.json';
+import {
+  isSystemSkillDisabledByEnv,
+  isSystemSkillId,
+  systemSkillsForSurface,
+} from '../../shared/skills/registry';
+import { mergeSystemSkills } from '../../shared/skills/system-catalog';
 import { RENDERER_SKILL_FLAGS } from './skill-flags';
 import type { Skill, SkillSurface, SystemSkill, UserSkill } from '../../shared/skills/types';
+import { loadSystemSkillRows } from './system-skills-store';
 import { listUserSkills } from './user-skills-store';
 
 /**
- * Resolucion del catalogo efectivo de Skills: declaraciones del sistema mas
- * Skills del usuario autenticado, filtradas por superficie e identidad.
+ * Resolucion del catalogo efectivo de Skills: catalogo del sistema mas Skills
+ * del usuario autenticado, filtradas por superficie e identidad.
  *
- * Regla central: la clase se deriva de la FUENTE. Las Skills del sistema
- * salen del registro en codigo; las del usuario, de la base de datos, y se
- * marcan como 'usuario' al mapearlas. Una fila jamas puede presentarse como
- * Skill del sistema, ni siquiera suplantando su identificador.
+ * Regla central: la clase se deriva de la FUENTE, y las dos fuentes del sistema
+ * estan separadas de la del usuario. Las Skills del sistema salen del catalogo
+ * global `public.system_skills` —que nadie salvo `service_role` escribe— con
+ * respaldo en el registro en codigo; las del usuario, de `public.skills`, y se
+ * marcan como 'usuario' al mapearlas. Una fila de `public.skills` jamas puede
+ * presentarse como Skill del sistema, ni siquiera suplantando su identificador.
  */
 
 export interface SkillCatalog {
@@ -20,8 +29,16 @@ export interface SkillCatalog {
 }
 
 export async function resolveSkillCatalog(surface: SkillSurface = 'chat'): Promise<SkillCatalog> {
-  const system = systemSkillsForSurface(surface, RENDERER_SKILL_FLAGS);
-  const user = await loadUserSkills();
+  const [rows, user] = await Promise.all([loadSystemSkillRows(), loadUserSkills()]);
+  const system = mergeSystemSkills({
+    code: systemSkillsForSurface(surface, RENDERER_SKILL_FLAGS),
+    rows,
+    surface,
+    appVersion: appPackage.version,
+    // El apagado local manda sobre el catalogo remoto: un despliegue debe poder
+    // retirar una capacidad sin depender de que la base de datos responda.
+  }).filter((skill) => !isSystemSkillDisabledByEnv(skill.id, RENDERER_SKILL_FLAGS));
+
   return { system, user, all: [...system, ...user] };
 }
 

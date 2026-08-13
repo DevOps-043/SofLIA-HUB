@@ -35,7 +35,6 @@ metricas de negocio; esos temas no se presentan como hechos.
 | Project Hub | Chat y fuentes agrupados por carpeta/proyecto; navegacion IRIS | Vista `project` y sidebar | `src/app/AppProjectView.tsx`, `src/components/project-hub/`, `src/services/iris-data/` |
 | Productividad | Sesiones, actividad, aplicaciones, OCR opcional y resumen | Vista `productivity` | `src/components/ProductivityDashboard.tsx`, `electron/monitoring/` |
 | Reuniones | Ingesta manual/Drive/live, artefactos, aprobacion y sincronizacion | Vista `meetings` | `src/components/meetings/`, `electron/meetings/` |
-| SDO | Fuentes, evidencia, claims, decisiones, acciones, aprobaciones y auditoria | Vista `sdo` | `src/components/sdo/`, `electron/sdo/` |
 | Canales | WhatsApp y Telegram personales/organizacionales, historial y programacion | Ajustes y servicios main | `electron/communication-hub/`, `electron/whatsapp/`, `electron/telegram/` |
 | Workspace | Calendar, Gmail, Drive y Google Chat con autenticacion compartida | Chat, automatizaciones y ajustes | `electron/calendar/`, `electron/gmail/`, `electron/drive/`, `electron/gchat/` |
 | Automatizacion | Plantillas, workflows, escritorio, navegador, nodos remotos y procesos de fondo | Herramientas, ajustes y agentes | `electron/workspace-automation/`, `electron/desktop-agent/`, `electron/remote-node/` |

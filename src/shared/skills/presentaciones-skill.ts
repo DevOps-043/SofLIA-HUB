@@ -61,6 +61,11 @@ export const PRESENTACIONES_SKILL: SystemSkill = Object.freeze({
     ]) as readonly string[],
   }),
   featureFlag: 'VITE_SKILL_PRESENTACIONES_ENABLED',
+  // Capacidad publicada: la bandera es su interruptor de APAGADO, no el
+  // permiso para existir. Cuando exigia un `true` explicito, un instalador
+  // generado sin esa variable salia sin la Skill —ni comando, ni biblioteca—
+  // para todos sus usuarios, y el build terminaba en verde.
+  enabledByDefault: true,
   // En un grupo, entregar la propuesta la expondria a todos sus miembros.
   blockedInGroups: true,
 });

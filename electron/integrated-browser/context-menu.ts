@@ -16,7 +16,8 @@ export interface BrowserSelectionRequest {
 
 /** Recorte que evita mandar una pagina entera al chat por una seleccion amplia. */
 export const MAX_SELECTION_CHARS = 8_000;
-const MAX_READING_SELECTION_CHARS = 50_000;
+/** El lector admite mucho mas texto que el adjunto del chat. */
+export const MAX_READING_SELECTION_CHARS = 50_000;
 
 export function buildBrowserContextMenu(input: {
   contents: WebContents;

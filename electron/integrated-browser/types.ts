@@ -1,6 +1,12 @@
 import type { Rectangle } from 'electron';
 
-export const INTEGRATED_BROWSER_PARTITION = 'persist:soflia-integrated-browser';
+/**
+ * Particion global anterior al aislamiento por usuario. Ya no se usa para
+ * navegar: las vistas nacen en la particion del perfil del usuario con sesion
+ * activa (`integrated-browser/profile-scope.ts`). Se conserva documentada porque
+ * los datos de las instalaciones anteriores siguen ahi.
+ */
+export const LEGACY_INTEGRATED_BROWSER_PARTITION = 'persist:soflia-integrated-browser';
 export const INTEGRATED_BROWSER_HOME = 'https://www.google.com/';
 export const INTEGRATED_BROWSER_AGENT_VIEWPORT_TIMEOUT_MS = 8_000;
 export const INTEGRATED_BROWSER_MAX_TABS = 500;
@@ -284,6 +290,19 @@ export interface BrowserSitePermissionEntry {
   state: BrowserSitePermissionState;
   /** Verdadero cuando la pagina lo solicito durante esta sesion del navegador. */
   requested: boolean;
+}
+
+/**
+ * Aviso de permiso que el proceso main delega al renderer. Los permisos que la
+ * pagina pide a la vez viajan juntos: un navegador pregunta una sola vez por
+ * "camara y microfono", no una vez por cada uno.
+ */
+export interface BrowserPermissionPromptRequest {
+  id: string;
+  origin: string;
+  kinds: BrowserSitePermissionKind[];
+  /** Etiquetas legibles de `kinds`, en el mismo orden. */
+  labels: string[];
 }
 
 export interface BrowserSitePermissionSummary {

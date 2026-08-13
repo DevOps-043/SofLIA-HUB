@@ -207,7 +207,6 @@ export function AppContent() {
           onIrisProjectClick={handlers.handleIrisProjectClick}
           onNewChat={handlers.handleNewChat}
           onOpenProject={handlers.handleOpenProject}
-          onOpenSdo={() => setActiveView('sdo')}
           onOpenMeetings={() => setActiveView('meetings')}
           onOpenBrowser={() => setIsBrowserWorkspaceOpen(true)}
           onOpenSettings={() => { setActiveSettingsTab('ai'); setIsUnifiedSettingsOpen(true); }}
@@ -242,7 +241,6 @@ export function AppContent() {
           onSelectConversation={handlers.handleSelectConversation}
           onOpenBrowser={() => setIsBrowserWorkspaceOpen(true)}
           onOpenMeetings={() => { setIsBrowserWorkspaceOpen(false); setActiveView('meetings'); }}
-          onOpenSdo={() => { setIsBrowserWorkspaceOpen(false); setActiveView('sdo'); }}
           orgId={orgId}
           setShareTarget={setShareTarget}
           shareLinkNotice={shareLinkNotice}

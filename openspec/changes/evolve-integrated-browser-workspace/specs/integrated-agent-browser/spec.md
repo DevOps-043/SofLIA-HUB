@@ -29,7 +29,39 @@ El navegador SHALL conservar compatibilidad Chromium para aplicaciones web moder
 
 #### Scenario: Compatibilidad sin ampliar privilegios
 - **WHEN** una página adapta capacidades según User-Agent
-- **THEN** la vista anuncia Chromium sin el token de producto Electron y conserva `sandbox`, `contextIsolation`, `webSecurity`, bloqueo de contenido inseguro y throttling de fondo
+- **THEN** la vista y su sesión anuncian Chromium sin el nombre del producto ni el token Electron, incluidos subframes cruzados y workers, y conservan `sandbox`, `contextIsolation`, `webSecurity`, bloqueo de contenido inseguro y throttling de fondo
+
+#### Scenario: Google Meet abierto desde Gmail o Chat
+- **WHEN** una reunión estándar de Meet nace en una ventana `about:blank` y luego publica un destino distinto de `/call`
+- **THEN** main crea y registra la ventana hija antes de entregarla a Chromium y no concede captura sin origen HTTP(S), decisión por sitio, aprobación del usuario y permiso del sistema operativo
+
+#### Scenario: Llamada directa nativa desde Google Chat
+- **WHEN** Gmail o Chat abre, navega o crea un subframe con el destino HTTPS exacto `meet.google.com/call` como parte de una llamada directa
+- **THEN** main cancela esa apertura o navegación sin crear pestaña, ventana, reunión alternativa, navegador externo ni telemetría específica de invitación; la regla cubre un destino conocido, la transición `about:blank -> /call`, ventanas anidadas, redirecciones y subframes
+
+#### Scenario: Runtime Chromium compatible y verificable
+- **WHEN** la llamada directa inicia desde Gmail o Chat
+- **THEN** el runtime no aplica field trials, reescritura SDP, observación RPC ni lógica de compatibilidad de Meet; la identidad Chromium y los permisos generales del navegador permanecen como capacidades independientes
+
+#### Scenario: La aplicación no fabrica llamadas
+- **WHEN** Gmail o Chat emite una señal directa o automática de llamada
+- **THEN** SofLIA no crea una reunión, no navega a `meet.google.com/new` ni a `/call`, no ejecuta sondas sobre el control y no abre una pestaña o ventana por temporizador, restauración o heurística propia
+
+#### Scenario: Contenido externo a la ventana gobernada
+- **WHEN** otro `webContents` no registrado consulta o solicita cámara o micrófono
+- **THEN** el sistema lo rechaza aunque use un origen HTTP(S), sin mostrar un aviso ni ampliar la confianza a toda la sesión
+
+#### Scenario: Consulta desde iframe cruzado de Meet
+- **WHEN** Electron entrega `webContents = null` para una consulta de `media` desde un iframe HTTP(S) de Meet embebido en Gmail
+- **THEN** el sistema valida `embeddingOrigin` y el origen solicitante de la sesión aislada y permite únicamente la consulta; la solicitud real conserva `webContents` registrado, origen HTTP(S), decisión por sitio, HITL y permiso del sistema
+
+#### Scenario: Preflight de media sin identidad ni origen
+- **WHEN** Electron entrega una consulta previa de `media` con `webContents` nulo o ausente y sin `requestingOrigin`, `securityOrigin`, `requestingUrl` ni `embeddingOrigin` dentro de la sesión aislada del navegador
+- **THEN** el sistema permite únicamente esa consulta para que el sitio llegue a `getUserMedia`; cualquier solicitud real sigue exigiendo `webContents` registrado, origen HTTP(S), decisión por sitio, HITL y permiso del sistema, y un origen explícito no HTTP(S) continúa denegado
+
+#### Scenario: Sincronización de fondo de la llamada
+- **WHEN** Gmail, Chat o Meet consulta `background-sync` desde contenido gobernado o un iframe HTTP(S) embebido
+- **THEN** el navegador responde afirmativamente sin aviso porque no concede dispositivos ni APIs privilegiadas de Electron, conserva operativo el service worker y mantiene su tráfico sujeto al origen y a la sesión aislada
 
 ### Requirement: Vista de navegador integrada
 El sistema SHALL ofrecer a cada usuario autenticado un navegador dentro de un panel derecho del workspace de SofLIA con barra de dirección, atrás, adelante, recarga o detención, foco y estado de carga/error, sin reemplazar la única instancia del chat activo salvo cuando el usuario lo expanda a ancho completo.

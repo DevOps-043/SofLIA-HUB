@@ -26,7 +26,6 @@ export function setLoginItemEnabled(app: App, config: BackgroundHostConfig): voi
   const launch = buildLaunchSettings(config);
   app.setLoginItemSettings({
     openAtLogin: config.enabled,
-    openAsHidden: true,
     path: launch.path,
     args: launch.args,
   });

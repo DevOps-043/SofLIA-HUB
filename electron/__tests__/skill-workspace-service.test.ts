@@ -56,6 +56,69 @@ describe('servicio de espacio de trabajo de skills', () => {
       expect(await service.findByConversation('conv-2')).toBeNull();
     });
 
+    it('ata a la conversacion el workspace que nacio sin ella', async () => {
+      // En un chat nuevo la Skill se activa ANTES de que exista la
+      // conversacion: se crea al guardar el primer mensaje. Sin este enlace la
+      // presentacion quedaba en disco pero inalcanzable al reabrir el chat.
+      const workspace = await crearWorkspace(null);
+      expect(await service.findByConversation('conv-nueva')).toBeNull();
+
+      const atado = await service.attachConversation(workspace.id, 'conv-nueva');
+
+      expect(atado.ok).toBe(true);
+      expect((await service.findByConversation('conv-nueva'))?.id).toBe(workspace.id);
+    });
+
+    it('no le roba la presentacion a la conversacion que ya la tiene', async () => {
+      const workspace = await crearWorkspace('conv-duena');
+
+      const atado = await service.attachConversation(workspace.id, 'conv-intrusa');
+
+      expect(atado.ok).toBe(false);
+      expect((await service.findByConversation('conv-duena'))?.id).toBe(workspace.id);
+      expect(await service.findByConversation('conv-intrusa')).toBeNull();
+    });
+
+    it('atar dos veces a la misma conversacion no falla', async () => {
+      const workspace = await crearWorkspace(null);
+      await service.attachConversation(workspace.id, 'conv-nueva');
+
+      expect((await service.attachConversation(workspace.id, 'conv-nueva')).ok).toBe(true);
+    });
+
+    it('poner al dia el sistema de diseno no anuncia nada al panel', async () => {
+      // El panel se alimenta de los eventos de progreso: al anunciarlos,
+      // recargaba su listado, la recarga volvia a pedir la vista previa y esta
+      // refrescaba otra vez. Los archivos parpadeaban sin parar.
+      const workspace = await crearWorkspace();
+      progreso.length = 0;
+
+      const puesta = await service.refreshSystemFile(workspace.id, 'estilos/base.css', '.diapositiva{}');
+
+      expect(puesta).toEqual({ ok: true, data: true });
+      expect(progreso).toEqual([]);
+    });
+
+    it('no reescribe el sistema de diseno si no cambio', async () => {
+      const workspace = await crearWorkspace();
+      await service.refreshSystemFile(workspace.id, 'estilos/base.css', '.diapositiva{}');
+
+      const segunda = await service.refreshSystemFile(workspace.id, 'estilos/base.css', '.diapositiva{}');
+
+      expect(segunda).toEqual({ ok: true, data: false });
+    });
+
+    it('el enlace sobrevive al reinicio de la aplicacion', async () => {
+      const workspace = await crearWorkspace(null);
+      await service.attachConversation(workspace.id, 'conv-nueva');
+
+      // Un servicio nuevo sobre el mismo directorio: es lo que ocurre al abrir
+      // la aplicacion de nuevo y volver a esa conversacion.
+      const reabierto = new SkillWorkspaceService(baseDir);
+
+      expect((await reabierto.findByConversation('conv-nueva'))?.id).toBe(workspace.id);
+    });
+
     it('rechaza operar sobre un workspace inexistente', async () => {
       const result = await service.writeFile('no-existe', 'index.html', '<p>hola</p>');
 

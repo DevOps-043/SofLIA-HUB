@@ -18,8 +18,8 @@ import { workspaceApi } from '../../services/skills/workspace-bridge';
  */
 
 /** Lienzo de composicion: la proporcion de una pantalla de presentacion. */
-const CANVAS_WIDTH = 1440;
-const CANVAS_HEIGHT = 810;
+const CANVAS_WIDTH = 1920;
+const CANVAS_HEIGHT = 1080;
 export function PresentationPreview(props: {
   workspaceId: string;
   ready: boolean;

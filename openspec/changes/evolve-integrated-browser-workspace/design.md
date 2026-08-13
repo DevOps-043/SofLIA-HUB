@@ -2,7 +2,7 @@
 
 El cambio `add-integrated-agent-browser` incorporó un único `WebContentsView` persistente y seguro, pero lo presenta como `activeView='browser'`, reemplazando todo el chat. La nueva solicitud convierte esa superficie en un modo colaborativo: navegador a ancho completo con chat SofLIA flotante, más persistencia de historial, credenciales y extensiones.
 
-Electron 39 ofrece sesiones persistentes, `safeStorage` y carga de extensiones desempaquetadas por sesión. No incorpora el gestor de contraseñas de Chrome ni soporta Chrome Web Store o compatibilidad total con sus extensiones. El contenido remoto y las extensiones son fronteras no confiables; ninguna operación de credenciales o instalación se expone al agente runtime.
+Electron ofrece sesiones persistentes, `safeStorage` y carga de extensiones desempaquetadas por sesión. El cambio fija temporalmente Electron `44.0.0-beta.3` para validar llamadas directas sobre Chromium 152 con la identidad global ya saneada. La prueba anterior de esa beta no era concluyente porque la primera navegación, workers y RPC todavía enviaban `Electron/44.0.0-beta.3`. Electron no incorpora el gestor de contraseñas de Chrome ni soporta Chrome Web Store o compatibilidad total con sus extensiones. El contenido remoto y las extensiones son fronteras no confiables; ninguna operación de credenciales o instalación se expone al agente runtime.
 
 ## Goals / Non-Goals
 
@@ -36,7 +36,7 @@ vista nativa. Una revisión de contenido invalida la evidencia semántica anteri
 por lo que el siguiente turno forzado obtiene una imagen nueva aunque todavía no
 haya vencido la cadencia periódica.
 
-Cada `WebContentsView` deriva su User-Agent del Chromium incluido y elimina únicamente el token `Electron/<versión>`. No se fija una versión inventada ni se modifican cabeceras de red globales. Se conserva `backgroundThrottling: true`: la documentación de Electron indica que desactivarlo en un `WebContents` afecta a todos los contenidos de la ventana anfitriona, lo que rompería el presupuesto de recursos de pestañas ocultas y del propio chat.
+Antes de crear cualquier sesión o ventana, main deriva el User-Agent global de fallback del Chromium incluido y elimina el nombre/versión del producto y el token `Electron/<versión>`, incluidos sus sufijos de prerelease. Cada `WebContentsView` y su `Session` aislada reciben además esa misma identidad. El fallback temprano cubre la primera navegación de ventanas hijas y service workers; los overrides por contenido cubren el documento, workers y subframes posteriores. No se fija una versión inventada ni se inyectan Client Hints. Se conserva `backgroundThrottling: true`: la documentación de Electron indica que desactivarlo en un `WebContents` afecta a todos los contenidos de la ventana anfitriona, lo que rompería el presupuesto de recursos de pestañas ocultas y del propio chat.
 
 ### Geometría y apilado de las predicciones
 
@@ -126,6 +126,136 @@ La navegación principal mantiene allowlist HTTP(S)/`about:blank` y falla cerrad
 
 `IntegratedBrowserPanel` mide la distancia entre la raíz del navegador y el inicio de su viewport web y la comunica al layout. El chat y el grip usan ese offset más el margen ambiental; por ello empiezan junto a la página y nunca cubren atrás, adelante, dirección o gestores. Se descarta un valor CSS fijo porque el header puede cambiar de altura por ancho, errores o localización.
 
+### Compatibilidad de Google Meet iniciado desde Chat
+
+Gmail y Google Chat abren la superficie de llamada mediante `window.open()` sin
+destino. La ventana nace en `about:blank`, conserva la relación con su abridor y
+puede ejecutar una consulta síncrona de `media` antes de comprometer la URL de
+Meet. Electron no puede representar el estado "preguntar" en
+`setPermissionCheckHandler`: para contenido ya adoptado por el navegador, esa
+consulta provisional responde afirmativamente aun si todavía no hay origen. No
+concede el dispositivo. La solicitud posterior sigue exigiendo un origen HTTP(S)
+válido, la decisión persistida por sitio, el aviso HITL y el permiso nativo del
+sistema operativo. Cualquier permiso no reconocido o solicitud real sin origen
+continúa fallando de forma cerrada.
+
+La ventana hija se crea de forma controlada dentro de `setWindowOpenHandler`,
+se registra como contenido del navegador antes de devolver su `webContents` a
+Chromium y normaliza su User-Agent con la misma cadena Chromium de las
+pestañas. Esto cierra la carrera en la que la consulta inicial de `media`
+ocurría antes de `did-create-window`, sin confiar por extensión en cualquier
+contenido que comparta la sesión.
+
+Meet también ejecuta parte del arranque en un iframe de origen cruzado dentro
+de Gmail. Electron entrega `webContents = null` para esas consultas y expone la
+frontera mediante `embeddingOrigin`, `securityOrigin` y `requestingOrigin`. La
+gobernanza acepta la consulta solamente cuando esos orígenes HTTP(S) son
+válidos dentro de la sesión aislada; la solicitud real de dispositivos continúa
+exigiendo un `webContents` registrado, origen, decisión y HITL. `background-sync`
+se trata como capacidad automática de Chromium, sin aviso ni acceso a un
+dispositivo o API privilegiada de Electron, para no impedir el ciclo de vida
+del service worker de la llamada. El tráfico que origine permanece sujeto al
+origen y a la sesión aislada del navegador.
+
+Electron 43 presenta además un preflight de `media` de Meet con `webContents`
+ausente (`null` según el contrato y `undefined` observado en runtime) y sin
+ninguno de los orígenes opcionales. Como el handler pertenece a la
+partición aislada del navegador, esa combinación se responde afirmativamente
+solo para `media` y solo como consulta previa. Un origen explícito no HTTP(S),
+otro permiso o una solicitud real no registrada siguen fallando de forma
+cerrada. La respuesta no puede abrir cámara o micrófono: `getUserMedia` cruza
+después por el request handler, que conserva identidad concreta, origen HTTP(S),
+decisión por sitio, aviso HITL y permiso nativo.
+
+Google diferencia las reuniones Meet convencionales de las llamadas directas
+de Chat. Su [ayuda oficial](https://support.google.com/chat/answer/7653283)
+describe que la llamada directa registra el evento en la conversación, hace
+sonar al destinatario y abre una ventana pequeña que el usuario puede mover a
+una pestaña. Las pruebas del usuario en Brave y Comet demuestran que el soporte
+no depende del ejecutable de Google Chrome: ambos navegadores Chromium conservan
+el mismo flujo. La diferencia reproducible frente a SofLIA era el motor
+embebido —Chromium 150 en Electron 43 frente a Chromium 151 en esos clientes— y,
+sobre todo, la interceptación propia que cancelaba `meet.google.com/call` para
+fabricar `meet.google.com/new`.
+
+La aplicación deja de interpretar `/call` como una URL transferible o como una
+orden para crear otra reunión. Si Gmail o Chat pide una ventana con ese destino,
+`setWindowOpenHandler` devuelve `allow` y construye la `BrowserWindow` con las
+opciones que Electron heredó del abridor. Así se conservan la partición
+autenticada, `window.opener`, el contexto de Chat y el ciclo de vida que Google
+usa para registrar y controlar la llamada. Si Google monta `/call` en un
+subframe, `will-frame-navigate` y `will-redirect` no lo cancelan. Solo los
+protocolos fuera de la allowlist HTTP(S)/`about:blank` continúan bloqueados.
+
+Document Picture-in-Picture solicita primero una ventana vacía y después mueve
+su interfaz web a ella. El servicio adopta esa ventana real antes de devolver su
+`webContents`, normaliza el User-Agent, aplica la gobernanza de permisos y deja
+siempre encima únicamente las ventanas compactas. No inyecta una barra local,
+no sondea el botón de llamada, no deduplica señales de Google y no crea ventanas
+por restauración, temporizador o heurística. La acción de mover la llamada a una
+pestaña pertenece a la propia interfaz de Google.
+
+Electron `44.0.0-beta.3` se fija de forma exacta para repetir la prueba sobre
+Chromium 152 después de corregir el fallback global. El HAR del intento anterior
+con esa beta no aislaba el motor: la primera navegación, workers y RPC de Meet
+todavía anunciaban el producto y `Electron/44.0.0-beta.3`. No se habilita
+`SharedArrayBuffer` por flag: DevTools demostró que quedaba expuesto con
+`crossOriginIsolated=false` sin que Meet cargara NetEq.
+
+El smoke posterior con Electron `43.4.0` aisló finalmente la siguiente frontera:
+249 solicitudes usaron el User-Agent Chromium limpio, Meet cargó NetEq y
+`CreateMediaSession` respondió 200, pero el cliente no emitió
+`CreateMeetingDevice`. En ese intervalo Chromium registró la colisión del
+payload Opus 111 entre una sección con `stereo=1` y otra sin `stereo`, y devolvió
+`INVALID_PARAMETER` desde `set_remote_description`. La prueba antigua del modo
+permisivo no aislaba esta variable: todavía anunciaba Electron y habilitaba a la
+vez `WebRTC-PayloadTypesInTransport`.
+
+El smoke aislado de 2026-08-12 refutó esa inferencia. El trial
+`WebRTC-SdpBundlePayloadTypeCollisionCheck/Disabled/` estuvo activo —el arranque
+lo registró y desaparecieron por completo las líneas BUNDLE—, pero Meet volvió a
+terminar en `DisconnectedError` con `StartupCode 219`. El HAR cargó NetEq y
+`CreateMediaSession` respondió 200, sin emitir `CreateMeetingDevice` ni
+`CreateMeetingInvite`. Por ello main retira el trial y no modifica SDP, Client
+Hints ni la gobernanza de cámara/micrófono. La diferencia reproducible restante
+frente a Brave y Comet es el motor: Chromium 150 en el intento fallido frente a
+Chromium 151 en ambos navegadores funcionales; el siguiente smoke se ejecuta
+sobre Chromium 152 con el User-Agent global ya limpio.
+
+El smoke posterior sobre Electron `44.0.0-beta.3` / Chromium 152 también terminó
+en `DisconnectedError` con `StartupCode 219`; la ventana compacta volvió a
+detenerse después de `CreateMediaSession` sin `CreateMeetingDevice` ni
+`CreateMeetingInvite`. Por decisión explícita de producto, esa ruta queda
+sustituida por una pestaña interna. Main conserva literalmente la URL `/call`
+emitida por Chat y la abre como documento principal en la misma partición. La
+intercepción cubre `window.open` con destino, la navegación posterior de una
+ventana `about:blank` y el subframe de Chat. Las ventanas vacías de Document
+Picture-in-Picture y los popups ajenos a esa ruta conservan su política previa.
+La invitación y el timbrado siguen perteneciendo a Google: la aceptación exige
+observar `CreateMeetingInvite` y al destinatario real; SofLIA no inventa una
+notificación para ocultar un fallo del proveedor.
+
+#### Retirada definitiva de la llamada directa
+
+La experiencia anterior queda sustituida por una regla de seguridad más
+restrictiva. Se observaron reuniones creadas sin una acción inequívoca del
+usuario, por lo que SofLIA ya no interpreta, transfiere, deduplica ni abre la
+ruta directa `https://meet.google.com/call` emitida por Gmail o Google Chat.
+Tampoco observa RPC de Meet ni usa hitos de invitación para gobernar esa ruta.
+
+Cuando `mail.google.com` o `chat.google.com` intenta abrir o navegar a la ruta
+exacta `/call`, main cancela el evento. La regla cubre destino inicial de
+`window.open`, ventanas anidadas, transición `about:blank -> /call`, navegación,
+redirección y subframes. La cancelación no crea pestañas o ventanas, no abre un
+navegador externo, no sustituye el destino por `/new` y no fabrica avisos para
+el destinatario.
+
+Esta retirada no cambia la gobernanza general de popups, Document
+Picture-in-Picture, cámara, micrófono, pantalla o notificaciones. Los enlaces
+HTTP(S) normales que el usuario abre conscientemente continúan como navegación
+ordinaria. Esta decisión sustituye cualquier comportamiento activo descrito en
+los párrafos históricos anteriores sobre la llamada directa de Chat.
+
 ### Modelo fijo de Computer Use y catálogo conversacional
 
 `src/shared/soflia-runtime-model.ts` define `gemini-3.6-flash` como opción conversacional predeterminada y modelo fijo del actuador Computer Use. El selector conserva SofLIA, SofLIA Max, SofLIA Pro y SofLIA Lite. El ID elegido gobierna siempre el proveedor que orquesta el turno: SofLIA y Lite pasan por Gemini; Max y Pro pasan por OpenAI. Cuando ese orquestador invoca `use_computer`, la herramienta cruza a main y delega únicamente la percepción y actuación a Gemini 3.6 Flash. La selección y el nivel de razonamiento se persisten por modelo para evitar trasladar valores incompatibles entre proveedores.
@@ -160,6 +290,11 @@ El modelo conversacional elegido compone una secuencia de herramientas sin trans
 - [Historial crece o se corrompe] → límite de 2.000, consultas acotadas, saneamiento y compactación atómica.
 - [Una extensión desaparece o deja de ser compatible] → estado `error` visible y resto de extensiones continúa cargando.
 - [Autofill elige un campo incorrecto] → solo acción explícita, origen exacto y heurística limitada a campos visibles/editables; error controlado sin revelar el secreto.
+- [Una página intenta abrir un protocolo peligroso desde el popup] → la ventana real conserva la guarda de navegación y cancela cualquier destino fuera de HTTP(S)/`about:blank`.
+- [Permitir `/call` podía reabrir ventanas por una automatización propia] → se eliminan sondas, tokens, temporizadores y el fallback; SofLIA solo crea una hija cuando Chromium entrega una solicitud real de `window.open`.
+- [La versión beta de Electron introduce una regresión] → se fija `44.0.0-beta.3`, se conserva rollback exacto a `43.4.0` y el runtime solo se mantiene si pasa login, permisos, timbrado, finalización y cierre.
+- [La diferencia de motor tampoco resuelve `StartupCode 219`] → no se declara compatibilidad hasta observar `CreateMeetingDevice` y `CreateMeetingInvite` en el HAR y el timbrado real entre dos cuentas.
+- [La llamada aún depende de comportamiento web no contractual de Google] → SofLIA conserva el contrato estándar de ventana, sesión y permisos, no reimplementa la señalización y registra el runtime exacto usado en cada smoke.
 
 ## Migration Plan
 

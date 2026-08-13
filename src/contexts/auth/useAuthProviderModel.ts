@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { isSofiaConfigured } from '../../lib/sofia-client';
 import { isOrbWindowRenderer, publishAuthState } from '../../services/auth-state';
+import { setUserPreferenceScope } from '../../services/user-scope';
 import { useAuthLifecycle } from './useAuthLifecycle';
 import { useAuthState } from './useAuthState';
 import { useLiaSession } from './useLiaSession';
@@ -40,6 +41,12 @@ export function useAuthProviderModel(): AuthContextType {
   // usuario: login, cierre de sesion y restauracion al arrancar.
   const authenticatedUserId = state.user?.id ?? null;
   const authLoading = state.loading;
+
+  // Las preferencias locales (favoritos y ajustes del navegador, modelo elegido,
+  // perfil personal) se acotan al usuario activo. Se fija durante el render, no
+  // en un efecto: las vistas hijas leen `localStorage` en su primer render y no
+  // deben poder ver las preferencias de la sesion anterior ni por un instante.
+  setUserPreferenceScope(authenticatedUserId);
   useEffect(() => {
     // Solo la ventana principal publica: la orbe es consumidora del gate.
     if (isOrbWindowRenderer()) return;

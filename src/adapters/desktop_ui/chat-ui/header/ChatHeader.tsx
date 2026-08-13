@@ -71,7 +71,6 @@ export function ChatHeader({ controller }: { controller: ChatUIController }) {
           <ToolsDropdownButton
             onOpenBrowser={controller.props.onOpenBrowser}
             onOpenMeetings={controller.props.onOpenMeetings}
-            onOpenSdo={controller.props.onOpenSdo}
           />
           {controller.props.onShare && <ShareButton onShare={controller.props.onShare} />}
         </div>

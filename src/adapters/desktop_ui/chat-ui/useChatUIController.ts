@@ -9,10 +9,12 @@ import { useChatRuntime } from './useChatRuntime';
 import { useChatTools } from './useChatTools';
 import { useChatUIState } from './useChatUIState';
 import { useSkillCommands } from './useSkillCommands';
+import { useSkillWorkspaceLink } from './useSkillWorkspaceLink';
 import { useSkillWorkspaceResume } from './useSkillWorkspaceResume';
 import { resolveTurnSkill } from './resolve-turn-skill';
 import { useDictation } from './useDictation';
 import { integratedBrowserService } from '../../../services/integrated-browser-service';
+import { APP_CONTEXT_LIMITS, buildAppContextBlock, resolveAppAttachments } from './app-attachments';
 
 export function useChatUIController(props: ChatUIProps) {
   const canSendMessages = props.canSendMessages ?? true;
@@ -53,6 +55,13 @@ export function useChatUIController(props: ChatUIProps) {
     activeSkill: state.skillModals.activeSkill,
     setActiveSkill: state.skillModals.setActiveSkill,
     onWorkspaceResolved: presentation.restore,
+  });
+  // Y al reves: un chat nuevo no tiene conversacion cuando se activa la Skill,
+  // asi que el workspace nace suelto. Se ata en cuanto el chat se guarda; sin
+  // esto la presentacion no se podia reabrir al volver a la conversacion.
+  useSkillWorkspaceLink({
+    conversationId: props.conversationId ?? null,
+    workspaceId: presentation.workspaceId,
   });
   // Comandos `/skill`: al activarlos se limpia el compositor, porque el
   // comando no es un mensaje que deba viajar al modelo.
@@ -114,16 +123,34 @@ export function useChatUIController(props: ChatUIProps) {
       })
     );
 
+    // Aplicaciones de escritorio: la lectura arrancó al marcarlas, así que aquí
+    // solo se espera lo que siga en curso, con presupuesto acotado. Lo que no
+    // llegue se declara como no leído en lugar de retener el turno.
+    const attachedApps = state.apps?.attached ?? [];
+    const resolvedApps = await resolveAppAttachments(
+      attachedApps,
+      state.apps?.extractions.current ?? new Map(),
+    );
+
+    // El presupuesto del turno es compartido: lo que ya gastaron las pestañas no
+    // vuelve a estar disponible para las aplicaciones.
+    const tabsCharCount = tabContextParts.reduce((total, part) => total + part.length, 0);
+    const appBudget = Math.max(0, APP_CONTEXT_LIMITS.maxCharsPerTurn - tabsCharCount);
+    const appContext = buildAppContextBlock(resolvedApps, appBudget);
+
     const combinedContextParts = [
       selContext ? `Selección del usuario:\n${selContext}` : '',
       tabContextParts.length > 0 ? `Pestañas del navegador adjuntas para análisis multi-pestaña:\n${tabContextParts.join('\n\n')}` : '',
+      appContext.block ? `Aplicaciones abiertas del equipo adjuntas para análisis:\n${appContext.block}` : '',
     ].filter(Boolean);
 
     const contexto = combinedContextParts.length > 0 ? combinedContextParts.join('\n\n') : undefined;
-    const images = [...state.images.selected];
+    const images = [...state.images.selected, ...appContext.images];
     state.input.set('');
     state.selection.set(null);
     state.tabs?.setAttached([]);
+    state.apps?.setAttached([]);
+    state.apps?.extractions.current.clear();
     state.images.setSelected(() => []);
     await runtime.chat.handleSend(text, images, contexto);
   };

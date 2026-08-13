@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useModelSelector } from '../../hooks/useModelSelector';
+import { scopedPreferenceKey } from '../../services/user-scope';
 
 describe('useModelSelector', () => {
   beforeEach(() => localStorage.clear());
@@ -37,8 +38,8 @@ describe('useModelSelector', () => {
   });
 
   it('migra preferencias antiguas de razonamiento rápido al nivel visible por defecto', () => {
-    localStorage.setItem('soflia:selected-model', 'gpt-5.6-luna');
-    localStorage.setItem('soflia:thinking-by-model', JSON.stringify({
+    localStorage.setItem(scopedPreferenceKey('soflia:selected-model'), 'gpt-5.6-luna');
+    localStorage.setItem(scopedPreferenceKey('soflia:thinking-by-model'), JSON.stringify({
       'gpt-5.6-luna': 'none',
       'gemini-3.5-flash-lite': 'minimal',
     }));

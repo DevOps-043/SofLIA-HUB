@@ -34,15 +34,6 @@ existencia productiva verificada.
 | `meeting_sync_actions` | accion, target, approval/sync state e idempotency | run+asset; external_ref |
 | `meeting_approvals` | scope, solicitante, decisor, decision/comentario | cascade por run |
 | `meeting_detection_candidates` | dedupe y estado de candidatos calendar/gmail/drive | detection_key unico; run nullable |
-| `sdo_sources` | fuente federada y custodian | owner/org/trace; system+external_ref unico |
-| `sdo_evidence` | hash, storage URI, excerpt y confidencialidad | cascade por source; source+sha unico |
-| `sdo_claims` | afirmacion, refs y tres ejes de estado | supersedes, idempotency, owner/org |
-| `sdo_decisions` | decision, opciones, consecuencias, autoridad | supersedes, aprobador, vigencia |
-| `sdo_actions` | compromiso, responsable, due/status y external ref | decision opcional, idempotency |
-| `sdo_approvals` | acto humano sobre claim/decision/action/artifact | idempotency unico y actor obligatorio |
-| `sdo_audit_events` | before/after/reason por objeto | append-only por trigger |
-| `sdo_artifacts` | documentos/versiones generados y aprobacion | objeto SDO, owner, trace |
-| `sdo_generation_runs` | control de generacion/vigencia | estado, errores y correlacion |
 | `hub_service_state` | espejo JSON por nombre de servicio | PK `service_name`, updated_at |
 
 ## Lia: contratos en snapshot sin referencia `.from()` actual directa

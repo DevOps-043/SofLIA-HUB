@@ -19,6 +19,7 @@ import {
   readPendingChatState,
   writePendingChatState,
 } from './pending-state';
+import { getConversationTombstones } from './tombstones';
 import type { ChatMessage, PendingChatState } from './types';
 
 /**
@@ -31,6 +32,10 @@ export function recoverPendingConversationsFromCache(
 ): string[] {
   const recovered: string[] = [];
   const state = readPendingChatState(userId);
+  // Una conversacion ausente en remoto puede ser trabajo local sin subir o algo
+  // que el usuario borro (aqui o en otro equipo). Las lapidas distinguen los dos
+  // casos: sin ellas, "recuperar" volvia a subir lo borrado.
+  const tombstoned = getConversationTombstones(userId);
   const next: PendingChatState = {
     conversationUpserts: { ...state.conversationUpserts },
     messageSnapshots: { ...state.messageSnapshots },
@@ -42,6 +47,7 @@ export function recoverPendingConversationsFromCache(
 
     if (
       remoteConversationIds.has(cached.id) ||
+      tombstoned.has(cached.id) ||
       next.deletedConversationIds.includes(cached.id) ||
       next.conversationUpserts[cached.id]
     ) {

@@ -174,7 +174,7 @@ export function Sidebar(props: SidebarProps) {
                 </div>
 
                 {/* Panel de Herramientas (separado) */}
-                {(props.onOpenBrowser || props.onOpenMeetings || props.onOpenSdo) && (
+                {(props.onOpenBrowser || props.onOpenMeetings) && (
                   <div className="flex items-center gap-1 p-1 rounded-xl bg-gray-100/70 border border-gray-200/50 dark:bg-white/[0.03] dark:border-white/[0.06] shrink-0">
                     {props.onOpenBrowser && (
                       <button
@@ -205,23 +205,6 @@ export function Sidebar(props: SidebarProps) {
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
                         </svg>
                         <span className="hidden md:inline">Reuniones</span>
-                      </button>
-                    )}
-
-                    {props.onOpenSdo && (
-                      <button
-                        onClick={props.onOpenSdo}
-                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all duration-200 shrink-0 ${
-                          props.activeView === 'sdo'
-                            ? 'bg-white text-[#0A2540] shadow-sm font-bold dark:bg-accent/20 dark:text-accent'
-                            : 'text-gray-600 hover:text-gray-900 dark:text-white/70 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/[0.04]'
-                        }`}
-                        title="Registro de decisiones"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7 3h10a2 2 0 012 2v16l-2-1-2 1-2-1-2 1-2-1-2 1V5a2 2 0 012-2z" />
-                        </svg>
-                        <span className="hidden md:inline">Decisiones</span>
                       </button>
                     )}
                   </div>

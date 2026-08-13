@@ -5,6 +5,7 @@ import { useModelSelector } from '../../hooks/useModelSelector';
 import { ModelSelectorDropdown } from '../../adapters/desktop_ui/chat-ui/header/ModelSelectorDropdown';
 import { BrowserConversationMenu, type BrowserConversationItem } from './BrowserConversationMenu';
 import { integratedBrowserService, type BrowserSelectionActionRequest } from '../../services/integrated-browser-service';
+import { scopedPreferenceKey } from '../../services/user-scope';
 
 const CHAT_WIDTH_STORAGE_KEY = 'sofLia_integratedBrowserFloatingChatWidth';
 const CHAT_SIDE_STORAGE_KEY = 'sofLia_integratedBrowserFloatingChatSide';
@@ -74,7 +75,7 @@ export function BrowserWorkspaceLayout(props: BrowserWorkspaceLayoutProps) {
   const applyChatWidth = useCallback((next: number) => {
     const resolved = resolveChatWidth(next, containerWidth);
     setPreferredChatWidth(resolved);
-    localStorage.setItem(CHAT_WIDTH_STORAGE_KEY, String(resolved));
+    localStorage.setItem(scopedPreferenceKey(CHAT_WIDTH_STORAGE_KEY), String(resolved));
   }, [containerWidth]);
 
   const handleBrowserContentTopChange = useCallback((offset: number) => {
@@ -86,7 +87,7 @@ export function BrowserWorkspaceLayout(props: BrowserWorkspaceLayoutProps) {
   const movePanel = () => {
     const nextSide: PanelSide = panelSide === 'left' ? 'right' : 'left';
     setPanelSide(nextSide);
-    localStorage.setItem(CHAT_SIDE_STORAGE_KEY, nextSide);
+    localStorage.setItem(scopedPreferenceKey(CHAT_SIDE_STORAGE_KEY), nextSide);
   };
 
   const activateOrbMode = async () => {
@@ -276,12 +277,12 @@ function PanelButton(props: { label: string; onClick: () => void; children: Reac
 }
 
 function readStoredChatWidth(): number {
-  const value = Number(localStorage.getItem(CHAT_WIDTH_STORAGE_KEY));
+  const value = Number(localStorage.getItem(scopedPreferenceKey(CHAT_WIDTH_STORAGE_KEY)));
   return Number.isFinite(value) && value >= MIN_CHAT_WIDTH ? Math.round(value) : 388;
 }
 
 function readStoredPanelSide(): PanelSide {
-  return localStorage.getItem(CHAT_SIDE_STORAGE_KEY) === 'right' ? 'right' : 'left';
+  return localStorage.getItem(scopedPreferenceKey(CHAT_SIDE_STORAGE_KEY)) === 'right' ? 'right' : 'left';
 }
 
 function resolveChatWidth(preferred: number, container: number): number {

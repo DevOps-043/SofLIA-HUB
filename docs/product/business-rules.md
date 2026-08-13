@@ -9,7 +9,6 @@ regla se aplica en el proceso Electron; `DB` significa constraint/RLS/migracion;
 <!-- evidence: electron/main.ts -->
 <!-- evidence: electron/whatsapp/security.ts -->
 <!-- evidence: electron/mcp-manager/execution.ts -->
-<!-- evidence: database/lia/migrations/sdo-tables.sql -->
 
 <!-- define: BR-001 -->
 <!-- define: BR-002 -->
@@ -38,7 +37,6 @@ regla se aplica en el proceso Electron; `DB` significa constraint/RLS/migracion;
 <!-- define: BR-025 -->
 <!-- define: BR-026 -->
 <!-- define: BR-027 -->
-<!-- define: BR-028 -->
 
 | ID | Regla obligatoria | Aplicacion | Evidencia principal |
 |---|---|---|---|
@@ -54,22 +52,21 @@ regla se aplica en el proceso Electron; `DB` significa constraint/RLS/migracion;
 | BR-010 | Una herramienta dinamica ejecutable se rechaza si no declara schemas cerrados, owner, riesgo, agentes, HITL, grupos, timeout y auditoria. | Main | `electron/mcp-manager/tool-contract.ts`, `electron/mcp-manager/tool-loader.ts` |
 | BR-011 | La aprobacion de una herramienta dinamica se liga a la huella de su contrato; un hot reload invalida la aprobacion anterior. | Main | `electron/mcp-manager/execution.ts`, `electron/dynamic-tool/types.ts` |
 | BR-012 | Los assets y acciones de reuniones no se consideran aprobados ni se sincronizan hasta una decision humana persistida. | Main + DB | `electron/meetings/meeting-review-service.ts`, `database/lia/migrations/meeting-ops-tables.sql` |
-| BR-013 | Los eventos `sdo_audit_events` son append-only: update y delete deben fallar. | DB | `database/lia/migrations/sdo-tables.sql` |
-| BR-014 | Monitoreo clasifica una captura como idle cuando el tiempo inactivo alcanza el umbral configurado; por defecto son 120 segundos. | Main | `electron/monitoring/service-state.ts`, `electron/monitoring/capture-snapshot.ts` |
-| BR-015 | Si una captura solo se tomo para analisis semantico y el usuario no habilito guardar screenshots, el archivo transitorio se elimina. | Main | `electron/monitoring/capture-snapshot.ts`, `electron/monitoring/capture-loop.ts` |
-| BR-016 | Memoria y skills aprendidas se segmentan por `owner_key`/sesion; un grupo, telefono o usuario no debe heredar memoria de otro owner. | Main + SQLite | `electron/memory/schema.ts`, `electron/wa-agent/whatsapp-owner.ts` |
-| BR-017 | Credenciales y preferencias locales viven en variables de entorno o `userData`; no se versionan ni se documentan sus valores. | Build + Main | `.gitignore`, `electron/main/environment.ts` |
-| BR-018 | El backend visual de escritorio ejecuta una sola tarea activa porque comparte mouse, teclado, historial y layout; las demas esperan en cola. | Main | `electron/desktop-agent/agent-config.ts`, `electron/desktop-agent/service-tasks.ts` |
-| BR-019 | Toda tarea de Desktop Agent tiene presupuesto de pasos, tope total, abort y timeout de cola; agotar presupuesto devuelve resultado acotado. | Main | `electron/desktop-agent/task-budget.ts`, `electron/desktop-agent/task-execution-runtime.ts` |
-| BR-020 | Gmail, Drive y Google Chat reutilizan la autenticacion administrada por CalendarService en vez de mantener tokens independientes. | Main | `electron/main/service-factory.ts`, `electron/calendar/` |
-| BR-021 | El pipeline de release no crea un release si ya existe el tag de la version declarada en `package.json`. | CI | `.github/workflows/release.yml` |
-| BR-022 | El actualizador consulta en segundo plano cada cuatro horas y solo instala cuando el usuario/flujo invoca la operacion. | Main + UI | `electron/updater/constants.ts`, `electron/updater/` |
-| BR-023 | Cada SQL ejecutable pertenece a `database/<instancia>/migrations`; los snapshots son informativos y no se ejecutan como migracion. | Repositorio | `database/README.md`, `docs/standards/database.md` |
-| BR-024 | Las skills del arnes de desarrollo nunca se descubren como herramientas runtime. | Arnes + Main | `ai-specs/agents/registry.yaml`, `ai-specs/policies/runtime-exposure.md` |
-| BR-025 | Enviar o programar mensajes exige principal resuelto, scope y capability de canal; la UI no puede autoasignar permisos. | Main | `electron/communication-hub/authorization.ts`, `electron/communication-hub/types.ts` |
-| BR-026 | El estado local del Communication Hub conserva como maximo 500 eventos de auditoria para acotar crecimiento del JSON. | Main | `electron/communication-hub/state.ts` |
-| BR-027 | El bootstrap aisla servicios opcionales: un fallo se registra y no debe impedir que los subsistemas independientes sigan inicializando. | Main | `electron/main/bootstrap-steps.ts`, `electron/main/startup.ts` |
-| BR-028 | Errores y auditorias de herramientas no deben serializar argumentos, resultados, tokens, identidad personal ni rutas absolutas. | Main | `electron/mcp-manager/execution.ts`, `electron/mcp-manager/types.ts` |
+| BR-013 | Monitoreo clasifica una captura como idle cuando el tiempo inactivo alcanza el umbral configurado; por defecto son 120 segundos. | Main | `electron/monitoring/service-state.ts`, `electron/monitoring/capture-snapshot.ts` |
+| BR-014 | Si una captura solo se tomo para analisis semantico y el usuario no habilito guardar screenshots, el archivo transitorio se elimina. | Main | `electron/monitoring/capture-snapshot.ts`, `electron/monitoring/capture-loop.ts` |
+| BR-015 | Memoria y skills aprendidas se segmentan por `owner_key`/sesion; un grupo, telefono o usuario no debe heredar memoria de otro owner. | Main + SQLite | `electron/memory/schema.ts`, `electron/wa-agent/whatsapp-owner.ts` |
+| BR-016 | Credenciales y preferencias locales viven en variables de entorno o `userData`; no se versionan ni se documentan sus valores. | Build + Main | `.gitignore`, `electron/main/environment.ts` |
+| BR-017 | El backend visual de escritorio ejecuta una sola tarea activa porque comparte mouse, teclado, historial y layout; las demas esperan en cola. | Main | `electron/desktop-agent/agent-config.ts`, `electron/desktop-agent/service-tasks.ts` |
+| BR-018 | Toda tarea de Desktop Agent tiene presupuesto de pasos, tope total, abort y timeout de cola; agotar presupuesto devuelve resultado acotado. | Main | `electron/desktop-agent/task-budget.ts`, `electron/desktop-agent/task-execution-runtime.ts` |
+| BR-019 | Gmail, Drive y Google Chat reutilizan la autenticacion administrada por CalendarService en vez de mantener tokens independientes. | Main | `electron/main/service-factory.ts`, `electron/calendar/` |
+| BR-020 | El pipeline de release no crea un release si ya existe el tag de la version declarada en `package.json`. | CI | `.github/workflows/release.yml` |
+| BR-021 | El actualizador consulta en segundo plano cada cuatro horas y solo instala cuando el usuario/flujo invoca la operacion. | Main + UI | `electron/updater/constants.ts`, `electron/updater/` |
+| BR-022 | Cada SQL ejecutable pertenece a `database/<instancia>/migrations`; los snapshots son informativos y no se ejecutan como migracion. | Repositorio | `database/README.md`, `docs/standards/database.md` |
+| BR-023 | Las skills del arnes de desarrollo nunca se descubren como herramientas runtime. | Arnes + Main | `ai-specs/agents/registry.yaml`, `ai-specs/policies/runtime-exposure.md` |
+| BR-024 | Enviar o programar mensajes exige principal resuelto, scope y capability de canal; la UI no puede autoasignar permisos. | Main | `electron/communication-hub/authorization.ts`, `electron/communication-hub/types.ts` |
+| BR-025 | El estado local del Communication Hub conserva como maximo 500 eventos de auditoria para acotar crecimiento del JSON. | Main | `electron/communication-hub/state.ts` |
+| BR-026 | El bootstrap aisla servicios opcionales: un fallo se registra y no debe impedir que los subsistemas independientes sigan inicializando. | Main | `electron/main/bootstrap-steps.ts`, `electron/main/startup.ts` |
+| BR-027 | Errores y auditorias de herramientas no deben serializar argumentos, resultados, tokens, identidad personal ni rutas absolutas. | Main | `electron/mcp-manager/execution.ts`, `electron/mcp-manager/types.ts` |
 
 ## Precedencia
 

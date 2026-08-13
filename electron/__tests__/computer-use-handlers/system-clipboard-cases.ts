@@ -4,7 +4,7 @@ import { executeToolDirect } from './context';
 
 describe('Clipboard and system info', () => {
   it('CU-058: clipboard_read returns clipboard text', async () => {
-    vi.mocked(clipboard.readText).mockReturnValue('clipboard content');
+    vi.mocked(clipboard.readText).mockResolvedValue('clipboard content');
     const result = await executeToolDirect('clipboard_read', {});
     expect(result.success).toBe(true);
     expect(result.content).toBe('clipboard content');
@@ -17,7 +17,7 @@ describe('Clipboard and system info', () => {
   });
 
   it('CU-060: clipboard_read handles empty clipboard', async () => {
-    vi.mocked(clipboard.readText).mockReturnValue('');
+    vi.mocked(clipboard.readText).mockResolvedValue('');
     const result = await executeToolDirect('clipboard_read', {});
     expect(result.success).toBe(true);
     expect(result.content).toBe('');

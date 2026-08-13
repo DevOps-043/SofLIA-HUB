@@ -22,8 +22,23 @@ export type OpenLearningSsoResult =
   | { success: true }
   | { success: false; error: string };
 
-export function readLearningBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
-  return (env.VITE_LEARNING_BASE_URL || '').trim().replace(/\/+$/, '');
+/**
+ * Instantanea tomada al compilar, no al ejecutar.
+ *
+ * `config/vite/env-defines.mts` sustituye la expresion literal
+ * `process.env.VITE_LEARNING_BASE_URL` por su valor dentro del bundle main. La
+ * sustitucion es textual: leer la variable a traves de un objeto
+ * (`env.VITE_LEARNING_BASE_URL`) la esquiva, y en la aplicacion empaquetada eso
+ * devuelve vacio porque ahi `process.env` solo trae el entorno del sistema
+ * operativo: el `.env` del runner no viaja al equipo del usuario.
+ */
+const BUILD_TIME_BASE_URL = process.env.VITE_LEARNING_BASE_URL || '';
+
+export function readLearningBaseUrl(env?: NodeJS.ProcessEnv): string {
+  // Un `env` explicito manda tal cual: es como las pruebas describen un entorno
+  // sin configurar sin depender de con que se compilo.
+  const configured = env ? env.VITE_LEARNING_BASE_URL : BUILD_TIME_BASE_URL;
+  return (configured || '').trim().replace(/\/+$/, '');
 }
 
 function isValidChallenge(value: unknown): value is string {
@@ -45,7 +60,7 @@ function isValidState(value: unknown): value is string {
  */
 export function buildLearningSsoUrl(
   input: OpenLearningSsoInput,
-  env: NodeJS.ProcessEnv = process.env,
+  env?: NodeJS.ProcessEnv,
 ): string | null {
   if (!isValidState(input?.state) || !isValidChallenge(input?.codeChallenge)) {
     return null;
@@ -75,7 +90,7 @@ export function buildLearningSsoUrl(
 
 export async function openLearningSso(
   input: OpenLearningSsoInput,
-  env: NodeJS.ProcessEnv = process.env,
+  env?: NodeJS.ProcessEnv,
 ): Promise<OpenLearningSsoResult> {
   const url = buildLearningSsoUrl(input, env);
   if (!url) {

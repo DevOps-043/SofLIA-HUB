@@ -1,14 +1,22 @@
 import { EventEmitter } from 'node:events';
 import { vi } from 'vitest';
 
+// Los permisos de una ventana real adoptada se indexan por id de webContents:
+// con un id compartido, dos ventanas distintas se confundirian entre si.
+let nextWebContentsId = 1;
+
 export class BrowserWindow extends EventEmitter {
+  static instances: BrowserWindow[] = [];
+
   webContents = {
     send: vi.fn(),
     on: vi.fn(),
     once: vi.fn(),
     openDevTools: vi.fn(),
-    id: 1,
+    setWindowOpenHandler: vi.fn(),
+    id: nextWebContentsId++,
     session: {
+      setUserAgent: vi.fn(),
       setPermissionRequestHandler: vi.fn(),
       setPermissionCheckHandler: vi.fn(),
       extensions: {
@@ -18,6 +26,10 @@ export class BrowserWindow extends EventEmitter {
       },
     },
     executeJavaScript: vi.fn(),
+    getUserAgent: vi.fn(() => 'Mozilla/5.0 (KHTML, like Gecko) soflia-hub-desktop/0.9.6 Chrome/152.0.7977.30 Electron/44.0.0-beta.3 Safari/537.36'),
+    setUserAgent: vi.fn(),
+    getURL: vi.fn(() => 'about:blank'),
+    isDestroyed: vi.fn(() => false),
   };
   contentView = {
     addChildView: vi.fn(),
@@ -61,6 +73,7 @@ export class BrowserWindow extends EventEmitter {
 
   constructor(_options?: any) {
     super();
+    BrowserWindow.instances.push(this);
   }
 }
 
@@ -79,12 +92,15 @@ class MockWebContents extends EventEmitter {
   private title = '';
   private destroyed = false;
   session = {
+    getUserAgent: vi.fn(() => this.getUserAgent()),
+    setUserAgent: vi.fn(),
     setPermissionRequestHandler: vi.fn(),
     setPermissionCheckHandler: vi.fn(),
     setDisplayMediaRequestHandler: vi.fn(),
     webRequest: {
       onBeforeSendHeaders: vi.fn(),
       onHeadersReceived: vi.fn(),
+      onErrorOccurred: vi.fn(),
     },
     extensions: {
       loadExtension: vi.fn(async () => ({ id: 'extension-id', name: 'Extension', version: '1.0.0' })),
@@ -107,7 +123,7 @@ class MockWebContents extends EventEmitter {
   });
   getURL = vi.fn(() => this.currentUrl);
   getTitle = vi.fn(() => this.title);
-  getUserAgent = vi.fn(() => 'Mozilla/5.0 (KHTML, like Gecko) soflia-hub-desktop/1.0.0 Chrome/140.0.0.0 Electron/39.0.0 Safari/537.36');
+  getUserAgent = vi.fn(() => 'Mozilla/5.0 (KHTML, like Gecko) soflia-hub-desktop/0.9.6 Chrome/152.0.7977.30 Electron/44.0.0-beta.3 Safari/537.36');
   setUserAgent = vi.fn();
   setWindowOpenHandler = vi.fn();
   focus = vi.fn();
@@ -119,6 +135,7 @@ class MockWebContents extends EventEmitter {
   sendInputEvent = vi.fn();
   insertText = vi.fn(async () => {});
   executeJavaScript = vi.fn(async () => ({ username: true, password: true }));
+  executeJavaScriptInIsolatedWorld = vi.fn(async () => undefined);
 }
 
 class MockNativeImage {

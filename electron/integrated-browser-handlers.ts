@@ -99,6 +99,10 @@ export function registerIntegratedBrowserHandlers(
   handle('integrated-browser:reading-close', (_event, input) => service.closeReadingMode(readReadingIdInput(input)), (result) => result as Record<string, unknown>);
   handle('integrated-browser:history-list', (_event, input) => service.listHistory(readHistoryQuery(input)), (history) => ({ history }));
   handle('integrated-browser:history-clear', () => service.clearHistory(), (cleared) => ({ cleared }));
+  // Borrado de datos de navegacion. La confirmacion la da el usuario en el
+  // dialogo del renderer; main valida el payload y actua solo sobre el perfil
+  // activo.
+  handle('integrated-browser:clear-browsing-data', (_event, input) => service.clearBrowsingData(input), (summary) => ({ summary }));
   handle('integrated-browser:credentials-list', () => service.listCredentials(), (credentials) => ({ credentials }));
   handle('integrated-browser:credentials-save', (_event, input) => service.saveCredential(readCredentialInput(input)), (credential) => ({ credential }));
   handle('integrated-browser:credentials-fill', (_event, input) => service.fillCredential(readId(input, 'credencial')), (credential) => ({ credential }));
@@ -122,6 +126,10 @@ export function registerIntegratedBrowserHandlers(
   handle('integrated-browser:site-permissions-reset', (_event, input) => (
     service.resetSitePermissions(readSiteOriginInput(input))
   ), (site) => ({ site }));
+  handle('integrated-browser:permission-decide', (_event, input) => {
+    const { id, granted } = readPermissionDecision(input);
+    return service.resolvePermissionPrompt(id, granted);
+  }, (resolved) => ({ resolved }));
   handle('integrated-browser:tab-summaries', () => {
     const summaries = service.getTabSummaries();
     return { summaries, state: service.getState() };
@@ -131,6 +139,33 @@ export function registerIntegratedBrowserHandlers(
     const content = await service.getTabContent(tabId);
     return { content, state: service.getState() };
   }, (result) => result as Record<string, unknown>);
+  // El renderer devuelve aqui lo que respondio el modelo para el panel de
+  // redaccion de la pagina. Main no lo interpreta: solo lo acota y lo entrega.
+  handle('integrated-browser:writing-resolve', (_event, input) => (
+    service.resolveWritingRequest(readWritingResult(input))
+  ), (result) => result as Record<string, unknown>);
+}
+
+const MAX_WRITING_RESULT_CHARS = 12_000;
+
+function readWritingResult(input: unknown): { requestId: string; text?: string; error?: string } {
+  if (!input || typeof input !== 'object') throw new Error('La respuesta de redaccion es invalida.');
+  const value = input as { requestId?: unknown; text?: unknown; error?: unknown };
+  if (typeof value.requestId !== 'string' || !/^[A-Za-z0-9_-]{8,100}$/.test(value.requestId)) {
+    throw new Error('La respuesta de redaccion no identifica su peticion.');
+  }
+  const text = typeof value.text === 'string' ? value.text.slice(0, MAX_WRITING_RESULT_CHARS) : undefined;
+  const error = typeof value.error === 'string' ? value.error.slice(0, 300) : undefined;
+  if (!text && !error) throw new Error('La respuesta de redaccion viene vacia.');
+  return { requestId: value.requestId, text, error };
+}
+
+function readPermissionDecision(input: unknown): { id: string; granted: boolean } {
+  if (!input || typeof input !== 'object') throw new Error('Payload de decision invalido.');
+  const value = input as { id?: unknown; granted?: unknown };
+  if (typeof value.id !== 'string' || !value.id.trim()) throw new Error('El aviso de permiso no es valido.');
+  if (typeof value.granted !== 'boolean') throw new Error('La decision del permiso no es valida.');
+  return { id: value.id, granted: value.granted };
 }
 
 function readSitePermissionInput(input: unknown): { origin?: string; kind: string; state: string } {

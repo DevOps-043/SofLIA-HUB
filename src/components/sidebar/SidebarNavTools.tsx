@@ -6,7 +6,6 @@ interface SidebarNavToolsProps {
   browserOpen?: boolean;
   onOpenBrowser?: () => void;
   onOpenMeetings?: () => void;
-  onOpenSdo?: () => void;
 }
 
 export function SidebarNavTools({
@@ -15,9 +14,8 @@ export function SidebarNavTools({
   browserOpen,
   onOpenBrowser,
   onOpenMeetings,
-  onOpenSdo,
 }: SidebarNavToolsProps) {
-  if (!onOpenBrowser && !onOpenMeetings && !onOpenSdo) {
+  if (!onOpenBrowser && !onOpenMeetings) {
     return null;
   }
 
@@ -48,19 +46,6 @@ export function SidebarNavTools({
       isActive: activeView === 'meetings',
       onClick: onOpenMeetings,
       badge: 'Minutas',
-    },
-    onOpenSdo && {
-      id: 'sdo',
-      label: 'Registro de decisiones',
-      title: 'Registro de decisiones oficiales del SDO',
-      icon: (className: string) => (
-        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7 3h10a2 2 0 012 2v16l-2-1-2 1-2-1-2 1-2-1-2 1V5a2 2 0 012-2z" />
-        </svg>
-      ),
-      isActive: activeView === 'sdo',
-      onClick: onOpenSdo,
-      badge: 'SDO',
     },
   ].filter((item): item is NonNullable<typeof item> => Boolean(item));
 

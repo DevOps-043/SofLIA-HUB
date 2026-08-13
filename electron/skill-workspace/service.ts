@@ -88,6 +88,39 @@ export class SkillWorkspaceService extends EventEmitter {
     return { ok: true, data: toRecord(entry) };
   }
 
+  /**
+   * Ata un workspace a la conversacion que lo produjo.
+   *
+   * Un chat nuevo todavia no tiene conversacion cuando se activa la Skill: se
+   * crea al guardar el primer mensaje. El workspace nacia con `conversationId`
+   * nulo y nadie lo ataba despues, asi que al reabrir ese chat
+   * `findByConversation` no encontraba nada y la presentacion quedaba
+   * inalcanzable desde la interfaz.
+   *
+   * Nunca reasigna: un workspace que ya pertenece a otra conversacion se queda
+   * donde esta, para que un identificador equivocado no le robe la
+   * presentacion a otro chat.
+   */
+  async attachConversation(
+    workspaceId: string,
+    conversationId: string,
+  ): Promise<SkillWorkspaceResult<SkillWorkspaceRecord>> {
+    const entry = await this.requireEntry(workspaceId);
+    if (!entry.ok) return entry;
+
+    const target = String(conversationId ?? '').trim();
+    if (!target) return { ok: false, error: 'La conversacion indicada no es valida.' };
+    if (entry.data.conversationId === target) return { ok: true, data: toRecord(entry.data) };
+    if (entry.data.conversationId) {
+      return { ok: false, error: 'El espacio de trabajo ya pertenece a otra conversacion.' };
+    }
+
+    entry.data.conversationId = target;
+    entry.data.updatedAt = new Date().toISOString();
+    await this.persist();
+    return { ok: true, data: toRecord(entry.data) };
+  }
+
   /** Workspace mas reciente asociado a una conversacion, para retomarla. */
   async findByConversation(conversationId: string): Promise<SkillWorkspaceRecord | null> {
     await this.ensureLoaded();
@@ -154,6 +187,43 @@ export class SkillWorkspaceService extends EventEmitter {
     content: string,
   ): Promise<SkillWorkspaceResult<SkillWorkspaceFile>> {
     return this.writeFileInternal(workspaceId, relativePath, content, true);
+  }
+
+  /**
+   * Pone al dia un archivo del sistema SIN anunciarlo y solo si cambio.
+   *
+   * El panel se alimenta de los eventos de progreso: refrescar el sistema de
+   * diseno al mostrar una baraja los disparaba, el panel recargaba su listado,
+   * la recarga volvia a pedir la vista previa y esta refrescaba otra vez. El
+   * resultado era un bucle con los archivos parpadeando y la imagen cargando
+   * para siempre. Callar y no reescribir lo identico lo corta de raiz.
+   *
+   * Devuelve si hubo cambio. No toca `updatedAt` del workspace: poner al dia el
+   * sistema no es trabajo del usuario y no debe reordenar nada.
+   */
+  async refreshSystemFile(
+    workspaceId: string,
+    relativePath: string,
+    content: string,
+  ): Promise<SkillWorkspaceResult<boolean>> {
+    const entry = await this.requireEntry(workspaceId);
+    if (!entry.ok) return entry;
+
+    const resolved = await resolveInsideWorkspace(this.rootOf(entry.data), relativePath, { mustExist: false });
+    if (!resolved.ok) return { ok: false, error: resolved.message };
+
+    try {
+      const actual = await fs.readFile(resolved.absolutePath, 'utf-8').catch(() => null);
+      if (actual === content) return { ok: true, data: false };
+
+      await fs.mkdir(path.dirname(resolved.absolutePath), { recursive: true });
+      const temporal = `${resolved.absolutePath}.parcial`;
+      await fs.writeFile(temporal, content, 'utf-8');
+      await fs.rename(temporal, resolved.absolutePath);
+      return { ok: true, data: true };
+    } catch (error) {
+      return { ok: false, error: `No se pudo actualizar ${relativePath}: ${describeError(error)}` };
+    }
   }
 
   /**

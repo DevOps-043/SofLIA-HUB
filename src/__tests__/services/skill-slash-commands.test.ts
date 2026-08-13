@@ -122,6 +122,22 @@ describe('interpretacion del compositor', () => {
     expect(query?.matches[0].command).toBe('presentacion');
   });
 
+  it('el nombre de la skill tambien la encuentra, aunque su comando sea otro', () => {
+    // La Skill se llama "Presentaciones" y su comando es `/presentacion`, el
+    // mismo que en WhatsApp. Quien escribia el nombre no encontraba nada: la
+    // busqueda es por prefijo y el termino era mas largo que el comando.
+    const query = parseSlashInput('/presentaciones', commands);
+
+    expect(query?.matches.map((entry) => entry.skill.id)).toContain('sistema:presentaciones');
+    expect(query?.exact?.skill.id).toBe('sistema:presentaciones');
+  });
+
+  it('el comando declarado sigue siendo el que se muestra', () => {
+    const query = parseSlashInput('/presentaciones', commands);
+
+    expect(query?.matches[0].command).toBe('presentacion');
+  });
+
   it('no ofrece nada cuando el texto no coincide con ninguna skill', () => {
     const query = parseSlashInput('/inexistente', commands);
 

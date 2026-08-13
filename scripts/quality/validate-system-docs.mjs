@@ -76,7 +76,7 @@ for (const file of definitionDocs) {
   }
 }
 
-const expectedCounts = { BR: 28, RF: 41, RNF: 20, HU: 26, DEC: 14, LIM: 18 };
+const expectedCounts = { BR: 27, RF: 41, RNF: 20, HU: 27, DEC: 14, LIM: 21 };
 for (const [prefix, expected] of Object.entries(expectedCounts)) {
   const ids = [...definitions].filter(([id]) => id.startsWith(`${prefix}-`));
   if (ids.length !== expected) errors.push(`Cobertura ${prefix}: esperados ${expected}, encontrados ${ids.length}`);

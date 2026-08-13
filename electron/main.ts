@@ -2,8 +2,16 @@ import { app } from 'electron';
 import { logBootstrapError } from './main/bootstrap-steps';
 import { runBootstrap } from './main/bootstrap';
 import { registerPresentationScheme } from './skill-workspace/protocol';
+import { configureChromiumUserAgentFallback } from './integrated-browser/user-agent';
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+
+/**
+ * Debe configurarse antes de crear sesiones, workers o ventanas. Aplicarlo
+ * después en cada `WebContents` deja la primera navegación de un popup y los
+ * fetch de su service worker con la identidad Electron predeterminada.
+ */
+configureChromiumUserAgentFallback(app);
 
 // Electron exige declarar los esquemas privilegiados antes de que la app este
 // lista. Sin esto, el documento de la presentacion se serviria en un origen

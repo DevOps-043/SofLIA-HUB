@@ -1,7 +1,8 @@
-import { app, safeStorage } from 'electron';
+import { safeStorage } from 'electron';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { browserProfilePath, resolveStoreLocation } from './profile-scope';
 import type { BrowserCredentialMetadata, BrowserCredentialSaveInput } from './types';
 
 type StoredCredential = BrowserCredentialMetadata & { passwordEncrypted: string };
@@ -14,7 +15,12 @@ const MAX_CREDENTIALS = 500;
 export class BrowserCredentialVault {
   private writeQueue: Promise<void> = Promise.resolve();
 
-  constructor(private readonly filePath = path.join(app.getPath('userData'), 'integrated-browser', 'credentials.json')) {}
+  /** La boveda pertenece al perfil del usuario activo (ver `profile-scope`). */
+  constructor(private readonly location: string | (() => string) = () => browserProfilePath('credentials.json')) {}
+
+  private get filePath(): string {
+    return resolveStoreLocation(this.location);
+  }
 
   async list(origin?: string): Promise<BrowserCredentialMetadata[]> {
     await this.writeQueue;
@@ -78,6 +84,23 @@ export class BrowserCredentialVault {
       const next = vault.credentials.filter((item) => item.id !== id || item.origin !== origin);
       removed = next.length !== vault.credentials.length;
       if (removed) await this.write({ version: 1, credentials: next });
+    });
+    return removed;
+  }
+
+  /**
+   * Vacia la boveda del perfil activo y devuelve cuantas credenciales quito.
+   *
+   * A diferencia de `remove`, no exige origen: quien la invoca es el borrado de
+   * datos de navegacion, que actua sobre todo el perfil y no sobre el sitio
+   * abierto. No descifra nada: solo descarta el archivo.
+   */
+  async clearAll(): Promise<number> {
+    let removed = 0;
+    await this.enqueue(async () => {
+      const vault = await this.read();
+      removed = vault.credentials.length;
+      if (removed > 0) await this.write({ version: 1, credentials: [] });
     });
     return removed;
   }

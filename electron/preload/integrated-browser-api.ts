@@ -44,6 +44,8 @@ export function exposeIntegratedBrowserApi(bridge: PreloadBridge, ipc: SafeIpc):
     closeReadingMode: (input: { readingId: string }) => safeInvoke('integrated-browser:reading-close', input),
     listHistory: (query?: string, limit?: number) => safeInvoke('integrated-browser:history-list', { query, limit }),
     clearHistory: () => safeInvoke('integrated-browser:history-clear'),
+    clearBrowsingData: (input: { categories: string[]; range: string }) =>
+      safeInvoke('integrated-browser:clear-browsing-data', input),
     listCredentials: () => safeInvoke('integrated-browser:credentials-list'),
     saveCredential: (input: { id?: string; username: string; password: string }) => safeInvoke('integrated-browser:credentials-save', input),
     fillCredential: (id: string) => safeInvoke('integrated-browser:credentials-fill', { id }),
@@ -64,6 +66,12 @@ export function exposeIntegratedBrowserApi(bridge: PreloadBridge, ipc: SafeIpc):
     onOpenRequested: (callback: (request: unknown) => void) => safeOn('integrated-browser:open-requested', callback),
     onSelectionAction: (callback: (request: unknown) => void) => safeOn('integrated-browser:selection-action', callback),
     onReadingModeRequested: (callback: (request: unknown) => void) => safeOn('integrated-browser:reading-mode-requested', callback),
+    onWritingRequest: (callback: (request: unknown) => void) => safeOn('integrated-browser:writing-request', callback),
+    resolveWriting: (input: { requestId: string; text?: string; error?: string }) =>
+      safeInvoke('integrated-browser:writing-resolve', input),
     onSitePermissionsChanged: (callback: (payload: unknown) => void) => safeOn('integrated-browser:site-permissions-changed', callback),
+    decidePermissionPrompt: (input: { id: string; granted: boolean }) =>
+      safeInvoke('integrated-browser:permission-decide', input),
+    onPermissionPrompt: (callback: (request: unknown) => void) => safeOn('integrated-browser:permission-prompt', callback),
   });
 }

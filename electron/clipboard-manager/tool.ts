@@ -7,6 +7,7 @@ export const ClipboardToolSchema = z.object({
 });
 
 export type ClipboardToolInput = z.infer<typeof ClipboardToolSchema>;
+export type ClipboardToolResult = Record<string, unknown>;
 
 export const clipboardManagerTool = {
   name: 'clipboard_manager',
@@ -17,14 +18,15 @@ export const clipboardManagerTool = {
 export async function executeClipboardTool(
   actions: ClipboardToolActions,
   args: ClipboardToolInput,
-): Promise<any> {
+): Promise<ClipboardToolResult> {
   try {
     if (args.action === 'read') {
-      return { success: true, data: { text: actions.readText() || '(Portapapeles vacio)' } };
+      const text = await actions.readText();
+      return { success: true, data: { text: text || '(Portapapeles vacio)' } };
     }
     if (args.action === 'write') {
       if (!args.content) return { success: false, error: 'Se requiere el campo "content" para la accion "write".' };
-      actions.writeText(args.content);
+      await actions.writeText(args.content);
       return { success: true, message: 'Texto copiado exitosamente al portapapeles del sistema.' };
     }
     if (args.action === 'history') {

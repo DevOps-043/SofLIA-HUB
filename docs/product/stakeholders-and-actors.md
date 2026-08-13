@@ -10,7 +10,7 @@ Estado: vigente. Actualizado: 2026-07-21.
 
 | Actor | Identidad efectiva | Capacidades y limites implementados |
 |---|---|---|
-| Usuario autenticado | Usuario SOFIA resuelto a perfil Lia | Chat, carpetas, proyectos accesibles, ajustes personales, productividad, meetings y SDO cuando existe `userId` |
+| Usuario autenticado | Usuario SOFIA resuelto a perfil Lia | Chat, carpetas, proyectos accesibles, ajustes personales, productividad y meetings cuando existe `userId` |
 | Miembro de organizacion | `organization_users` con rol `owner`, `admin` o `member` | Datos segmentados por organizacion/equipos; selector de organizacion y miembro visible solo con organizacion activa |
 | Owner | Rol de canal/organizacion `owner` | Configuracion organizacional, canales, politicas y destinatario de alertas cuando esta configurado |
 | Admin | Rol `admin` | Administracion delegada segun politica del servicio; no equivale automaticamente a control total del host |
@@ -18,7 +18,7 @@ Estado: vigente. Actualizado: 2026-07-21.
 | Contacto WhatsApp permitido | Numero normalizado y, si aplica, incluido en allowlist | Conversa con el agente y usa solo las herramientas autorizadas para DM/grupo |
 | Participante de grupo WhatsApp | Sender + JID del grupo | Requiere politica de grupo y activacion; operaciones peligrosas permanecen bloqueadas |
 | Usuario Telegram vinculado | `chatId` enlazado a `userId` y organizacion opcional | Capacidades del Communication Hub segun principal resuelto |
-| Aprobador humano | Usuario identificado en flujo meeting/SDO/automation | Aprueba o rechaza artefactos y acciones; la identidad de la decision se persiste |
+| Aprobador humano | Usuario identificado en flujo meeting/automation | Aprueba o rechaza artefactos y acciones; la identidad de la decision se persiste |
 | Operador local | Persona con acceso al equipo y ajustes | Configura claves/conexiones, privacidad, voz, monitoreo, nodos y actualizaciones |
 
 ## Agentes runtime
@@ -49,7 +49,7 @@ La lista canonica y la separacion de skills de desarrollo se define en
 ## Responsabilidad de datos
 
 - SOFIA Learning es autoridad de identidad, organizaciones, membresias y equipos.
-- Lia es autoridad operativa del Hub: chat, settings, monitoreo, meetings y SDO.
+- Lia es autoridad operativa del Hub: chat, settings, monitoreo y meetings.
 - IRIS es autoridad de proyectos/issues y objetos del sistema IRIS.
 - SQLite local pertenece al perfil de aplicacion del host y no sustituye la
   autorizacion remota.

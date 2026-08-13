@@ -1,0 +1,24 @@
+/* Tema neutro de Pulse Hub: la organizacion no tiene identidad corporativa
+   habilitada. NO EDITAR: se reescribe en cada generacion. */
+:root {
+  --marca-color-primario: #10b981;
+  --marca-color-secundario: #0f766e;
+  --marca-color-acento: #38bdf8;
+  --marca-color-fondo: #ffffff;
+  --marca-color-texto: #10151c;
+  --marca-color-texto-tenue: #55606d;
+  --marca-tipografia: 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --marca-logo: none;
+  --marca-banner: none;
+  --marca-habilitada: 0;
+  /* Origen de los colores: logo | declarado | neutro. */
+  --marca-origen-color: 'neutro';
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --marca-color-fondo: #0d1117;
+    --marca-color-texto: #f2f5f8;
+    --marca-color-texto-tenue: #a8b3bf;
+  }
+}

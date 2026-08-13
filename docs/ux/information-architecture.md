@@ -21,14 +21,12 @@ Pulse Hub
    |  |- Carpetas / Project Hub
    |  |- Equipos -> proyectos -> issues IRIS
    |  |- Reuniones
-   |  |- SDO
    |  `- Usuario, organizacion, tema, settings, salir
    `- Area de trabajo
       |- Chat
       |- Project Hub
       |- Productividad
       |- Reuniones
-      |- Registro de decisiones SDO
       `- Modo navegador
          |- Chat activo compacto, movible y minimizable
          `- Navegador vivo en el espacio libre o a ancho completo
@@ -45,7 +43,6 @@ acciones del shell; no debe asumirse que cada union tiene un boton superior fijo
   conceptos relacionados por UI, no la misma tabla.
 - Conversacion: contiene mensajes y puede tener fuentes/shares.
 - Meeting run: contiene fuentes, assets, approvals y sync actions.
-- Decision SDO: enlaza claims/evidencia/acciones/aprobaciones y vigencia.
 
 ## Settings
 

@@ -4,7 +4,7 @@ export interface ClipboardConfig {
 }
 
 export interface ClipboardToolActions {
-  readText: () => string;
-  writeText: (text: string) => void;
+  readText: () => Promise<string>;
+  writeText: (text: string) => Promise<void>;
   getHistory: () => string[];
 }

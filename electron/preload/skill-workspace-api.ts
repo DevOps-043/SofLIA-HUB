@@ -27,6 +27,10 @@ export function exposeSkillWorkspaceApi(bridge: PreloadBridge, ipc: SafeIpc): vo
     findByConversation: (conversationId: string) =>
       safeInvoke('skill-workspace:find-by-conversation', { conversationId }),
 
+    /** Ata el workspace al chat cuando la conversacion se crea despues de el. */
+    attachConversation: (workspaceId: string, conversationId: string) =>
+      safeInvoke('skill-workspace:attach-conversation', { workspaceId, conversationId }),
+
     getState: (workspaceId: string) => safeInvoke('skill-workspace:get-state', { workspaceId }),
 
     readFile: (workspaceId: string, path: string) =>

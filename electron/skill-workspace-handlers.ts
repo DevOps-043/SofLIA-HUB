@@ -1,9 +1,13 @@
-import { BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
+import path from 'node:path';
 import { handleIPC } from './utils/ipc-helpers';
+import { DECK_BASE_CSS } from './organization-branding/deck-base-css';
+import { DECK_BASE_JS } from './organization-branding/deck-base-js';
 import { prepareBrandingForWorkspace } from './organization-branding/resolve-brand';
-import { exportPresentationToHtml } from './skill-workspace/export-html';
+import { exportPresentationDeckToHtml, exportPresentationToHtml } from './skill-workspace/export-html';
 import { fetchPresentationImage } from './skill-workspace/fetch-image';
 import { PresentationViewController } from './skill-workspace/presentation-view';
+import { PresentationRuntimeServer } from './skill-workspace/presentation-runtime-server';
 import { buildPresentationUrl } from './skill-workspace/protocol';
 import type { SkillWorkspaceService } from './skill-workspace/service';
 import type { SkillWorkspacePolicyInput, SkillWorkspaceProgressEvent, SkillWorkspaceResult } from './skill-workspace/types';
@@ -19,6 +23,12 @@ export function registerSkillWorkspaceHandlers(
   service: SkillWorkspaceService,
   getWindow: () => BrowserWindow | null,
 ): void {
+  const runtime = new PresentationRuntimeServer(service, {
+    rendererDist: path.join(process.env.APP_ROOT ?? process.cwd(), 'dist'),
+    devServerUrl: process.env.VITE_DEV_SERVER_URL,
+  });
+  app.once('before-quit', () => { void runtime.stop(); });
+
   ipcMain.handle('skill-workspace:create', (_event, input: {
     skillId: string;
     title: string;
@@ -28,6 +38,14 @@ export function registerSkillWorkspaceHandlers(
 
   ipcMain.handle('skill-workspace:find-by-conversation', (_event, input: { conversationId: string }) =>
     handleIPC(async () => ({ workspace: await service.findByConversation(String(input?.conversationId ?? '')) })));
+
+  ipcMain.handle('skill-workspace:attach-conversation', (_event, input: { workspaceId: string; conversationId: string }) =>
+    handleIPC(async () => ({
+      workspace: unwrap(await service.attachConversation(
+        String(input?.workspaceId ?? ''),
+        String(input?.conversationId ?? ''),
+      )),
+    })));
 
   ipcMain.handle('skill-workspace:get-state', (_event, input: { workspaceId: string }) =>
     handleIPC(async () => ({ state: unwrap(await service.getState(String(input?.workspaceId ?? ''))) })));
@@ -82,10 +100,17 @@ export function registerSkillWorkspaceHandlers(
       const workspace = await service.getWorkspace(String(input?.workspaceId ?? ''));
       if (!workspace) throw new Error('El espacio de trabajo no existe o ya se cerro.');
       const entryFile = String(input?.entryFile ?? '').trim() || workspace.entryFile;
+      if (workspace.skillId === 'sistema:presentaciones' && entryFile === 'deck.json') {
+        return { url: await runtime.getUrl(workspace.id) };
+      }
       // Solo se devuelve la URL si el documento existe: una vista previa que
       // apunta a un archivo inexistente muestra un 404 en vez de un aviso claro.
       const exists = await service.resolveAbsolutePath(workspace.id, entryFile);
       if (!exists) throw new Error('La presentacion todavia no esta lista.');
+      // Solo al pedir el documento de la baraja. Este canal sirve tambien para
+      // la URL de cada imagen del panel, y refrescar el sistema ahi no tiene
+      // sentido: es trabajo por cada miniatura que se mira.
+      if (entryFile === workspace.entryFile) await refrescarSistemaDeLaBaraja(service, workspace.id);
       return { url: buildPresentationUrl(workspace.id, entryFile) };
     }));
 
@@ -96,6 +121,22 @@ export function registerSkillWorkspaceHandlers(
    */
   ipcMain.handle('presentation:export-html', (_event, input: { workspaceId: string; entryFile?: string }) =>
     handleIPC(async () => {
+      const workspaceId = String(input?.workspaceId ?? '');
+      const workspace = await service.getWorkspace(workspaceId);
+      if (!workspace) throw new Error('El espacio de trabajo no existe o ya se cerro.');
+      const entryFile = String(input?.entryFile ?? '').trim() || workspace.entryFile;
+      if (workspace.skillId === 'sistema:presentaciones' && entryFile === 'deck.json') {
+        const result = await exportPresentationDeckToHtml(
+          service,
+          workspaceId,
+          path.join(process.env.APP_ROOT ?? process.cwd(), 'dist'),
+        );
+        if (!result.ok) throw new Error(result.error);
+        return { htmlPath: result.htmlPath };
+      }
+      // El HTML exportado incrusta los archivos del workspace: si se refrescan
+      // despues, el archivo compartido se queda con la version defectuosa.
+      await refrescarSistemaDeLaBaraja(service, String(input?.workspaceId ?? ''));
       const result = await exportPresentationToHtml(service, String(input?.workspaceId ?? ''), input?.entryFile);
       if (!result.ok) throw new Error(result.error);
       return { htmlPath: result.htmlPath };
@@ -132,20 +173,35 @@ export function registerSkillWorkspaceHandlers(
       };
     }));
 
-  registerPresentationViewHandlers(getWindow);
+  registerPresentationViewHandlers(service, runtime, getWindow);
 
   service.on('progreso', (event: SkillWorkspaceProgressEvent) => {
     getWindow()?.webContents.send('skill-workspace:progress', event);
   });
 }
 
-function registerPresentationViewHandlers(getWindow: () => BrowserWindow | null): void {
+function registerPresentationViewHandlers(
+  service: SkillWorkspaceService,
+  runtime: PresentationRuntimeServer,
+  getWindow: () => BrowserWindow | null,
+): void {
   const controller = new PresentationViewController(getWindow);
   controller.onClosed(() => getWindow()?.webContents.send('presentation-view:closed'));
 
   ipcMain.handle('presentation-view:open', (_event, input: { workspaceId: string; entryFile?: string }) =>
     handleIPC(async () => {
-      const result = controller.open(String(input?.workspaceId ?? ''), input?.entryFile);
+      const workspace = await service.getWorkspace(String(input?.workspaceId ?? ''));
+      if (!workspace) throw new Error('La presentacion no existe o ya se cerro.');
+      const entryFile = String(input?.entryFile ?? '').trim() || workspace.entryFile;
+      if (workspace.skillId === 'sistema:presentaciones' && entryFile === 'deck.json') {
+        const result = controller.openUrl(await runtime.getUrl(workspace.id));
+        if (!result.ok) throw new Error(result.error);
+        return { opened: true };
+      }
+      // La pantalla completa carga los mismos archivos del disco: si se llega
+      // aqui sin pasar por la vista previa, se refrescan igualmente.
+      await refrescarSistemaDeLaBaraja(service, String(input?.workspaceId ?? ''));
+      const result = controller.open(String(input?.workspaceId ?? ''), entryFile);
       if (!result.ok) throw new Error(result.error);
       return { opened: true };
     }));
@@ -155,6 +211,31 @@ function registerPresentationViewHandlers(getWindow: () => BrowserWindow | null)
       controller.close();
       return { closed: true };
     }));
+}
+
+/**
+ * Reescribe el sistema de diseno y el guion antes de mostrar una presentacion.
+ *
+ * Son archivos del sistema, no del modelo: la marca (`estilos/marca.css`) no se
+ * toca aqui porque depende de la organizacion y de descargas. Se refrescan para
+ * que una baraja generada con una version anterior reciba las correcciones de
+ * maquetacion al abrirla, en vez de arrastrar para siempre el defecto con el
+ * que nacio.
+ *
+ * Un fallo no impide abrirla: se mostraria con los archivos que ya tiene.
+ */
+async function refrescarSistemaDeLaBaraja(
+  service: SkillWorkspaceService,
+  workspaceId: string,
+): Promise<void> {
+  try {
+    // Silencioso y solo si cambio: anunciarlo hacia que el panel recargara, y
+    // la recarga volvia a pedir la vista previa, que refrescaba otra vez.
+    await service.refreshSystemFile(workspaceId, 'estilos/base.css', DECK_BASE_CSS);
+    await service.refreshSystemFile(workspaceId, 'guion-base.js', DECK_BASE_JS);
+  } catch (error) {
+    console.warn('[presentaciones] no se pudo refrescar el sistema de diseno de la baraja:', error);
+  }
 }
 
 /**

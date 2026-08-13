@@ -6,6 +6,7 @@ import type {
   IntegratedBrowserApi,
   IntegratedBrowserState,
 } from '../../services/integrated-browser-service';
+import { scopedPreferenceKey } from '../../services/user-scope';
 
 const state: IntegratedBrowserState = {
   url: 'https://example.com/',
@@ -70,6 +71,7 @@ describe('IntegratedBrowserPanel', () => {
       hide: vi.fn(async () => ({ success: true, state: { ...state, isVisible: false } })),
       listHistory: vi.fn(async () => ({ success: true, history: [] })),
       clearHistory: vi.fn(async () => ({ success: true, cleared: true })),
+      clearBrowsingData: vi.fn(async () => ({ success: true, summary: { range: 'todo' as const, results: [] } })),
       listCredentials: vi.fn(async () => ({ success: true, credentials: [] })),
       saveCredential: vi.fn(async () => ({ success: true })),
       fillCredential: vi.fn(async () => ({ success: true })),
@@ -89,6 +91,8 @@ describe('IntegratedBrowserPanel', () => {
       onSelectionAction: vi.fn(() => vi.fn()),
       onReadingModeRequested: vi.fn(() => vi.fn()),
       onSitePermissionsChanged: vi.fn(() => vi.fn()),
+      decidePermissionPrompt: vi.fn(async () => ({ success: true, resolved: true })),
+      onPermissionPrompt: vi.fn(() => vi.fn()),
       prepareReadingMode: vi.fn(async () => ({ success: true })),
       synthesizeReadingSegment: vi.fn(async () => ({ success: true })),
       cancelReadingSpeech: vi.fn(async () => ({ success: true })),
@@ -395,7 +399,7 @@ describe('IntegratedBrowserPanel', () => {
     const addBookmark = screen.getByRole('button', { name: 'Agregar página actual a marcadores' });
     await waitFor(() => expect(addBookmark).toBeEnabled());
     fireEvent.click(addBookmark);
-    expect(localStorage.getItem('sofLia_integratedBrowserFavorites')).toContain('https://example.com/');
+    expect(localStorage.getItem(scopedPreferenceKey('sofLia_integratedBrowserFavorites'))).toContain('https://example.com/');
 
     const bookmarks = await screen.findByLabelText('Marcadores');
     fireEvent.click(within(bookmarks).getByRole('button', { name: 'Ejemplo' }));

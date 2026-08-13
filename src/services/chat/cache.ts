@@ -1,6 +1,7 @@
 export {
   CACHE_KEYS,
   getConversationCacheKey,
+  getDeletedConversationsKey,
   getMessageCacheKey,
   getPendingChatStateKey,
 } from './cache/keys';

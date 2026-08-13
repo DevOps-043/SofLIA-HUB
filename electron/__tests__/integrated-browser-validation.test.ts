@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
+  describeBlockedUrl,
   isAllowedBrowserUrl,
   normalizeBrowserTarget,
   parseBrowserViewport,
 } from '../integrated-browser';
+
+// Los flujos de inicio de sesion de Google encadenan `continue` anidados y
+// tokens opacos: la direccion de la verificacion en dos pasos supera con
+// holgura los 2 KB que antes se consideraban el maximo aceptable.
+const URL_AUTENTICACION_LARGA = `https://accounts.google.com/v3/signin/challenge/dp?TL=${'A'.repeat(3_000)}&continue=https%3A%2F%2Fmail.google.com%2Fmail%2Fu%2F0%2F`;
 
 describe('validacion del navegador integrado', () => {
   it('normaliza dominios y busquedas a HTTPS', () => {
@@ -23,6 +29,25 @@ describe('validacion del navegador integrado', () => {
     expect(isAllowedBrowserUrl('https://soflia.ai')).toBe(true);
     expect(isAllowedBrowserUrl('http://localhost:5173')).toBe(true);
     expect(isAllowedBrowserUrl('about:blank')).toBe(true);
+  });
+
+  it('acepta direcciones de autenticacion largas y sigue acotando el tamaño', () => {
+    expect(URL_AUTENTICACION_LARGA.length).toBeGreaterThan(2_048);
+    expect(isAllowedBrowserUrl(URL_AUTENTICACION_LARGA)).toBe(true);
+    expect(normalizeBrowserTarget(URL_AUTENTICACION_LARGA)).toBe(URL_AUTENTICACION_LARGA);
+
+    const desmedida = `https://example.com/?q=${'a'.repeat(40_000)}`;
+    expect(isAllowedBrowserUrl(desmedida)).toBe(false);
+    expect(() => normalizeBrowserTarget(desmedida)).toThrow(/limite/i);
+  });
+
+  it('describe un destino bloqueado sin exponer sus parametros', () => {
+    const descripcion = describeBlockedUrl('https://accounts.google.com/CheckCookie?token=secreto-de-sesion');
+    expect(descripcion).toContain('accounts.google.com');
+    expect(descripcion).not.toContain('secreto-de-sesion');
+    expect(describeBlockedUrl('javascript:alert(1)')).toMatch(/javascript:/);
+    expect(describeBlockedUrl('no-es-una-url')).toMatch(/sin protocolo/i);
+    expect(describeBlockedUrl('   ')).toBe('destino vacio');
   });
 
   it('ajusta el viewport al contenido y rechaza coordenadas invalidas', () => {

@@ -6,7 +6,7 @@ varios segundos antes de que aparezca contenido visible. La causa está en el
 orden de arranque del proceso principal: en
 `electron/main/startup.ts` la ventana (`controls.createWindow`) se crea **después**
 de una cadena de ~30 pasos `await` secuenciales que inicializan servicios
-pesados (memoria, conocimiento, meetings, SDO, workspace, workflow, telegram,
+pesados (memoria, conocimiento, meetings, workspace, workflow, telegram,
 runtime de Python, etc.). La ventana no puede pintar hasta que toda esa cadena
 termina.
 

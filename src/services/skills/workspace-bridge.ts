@@ -48,6 +48,11 @@ interface WorkspaceApi {
     policy: SkillWorkspacePolicy;
   }) => Promise<{ success: boolean; error?: string; workspace?: WorkspaceRecord }>;
   findByConversation: (conversationId: string) => Promise<{ success: boolean; workspace?: WorkspaceRecord | null }>;
+  /** Ata el workspace al chat cuando la conversacion se crea despues de el. */
+  attachConversation: (
+    workspaceId: string,
+    conversationId: string,
+  ) => Promise<{ success: boolean; error?: string; workspace?: WorkspaceRecord }>;
   getState: (workspaceId: string) => Promise<{ success: boolean; error?: string; state?: WorkspaceState }>;
   readFile: (workspaceId: string, path: string) => Promise<{ success: boolean; error?: string; content?: string }>;
   /** Escritura manual desde el panel. Main aplica las mismas guardas que al modelo. */

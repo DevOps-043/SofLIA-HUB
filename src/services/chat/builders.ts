@@ -13,13 +13,25 @@ import {
   getPendingConversationUpserts,
   getPendingMessageSnapshot,
 } from './pending-state';
+import { getConversationTombstones } from './tombstones';
 import type { ChatMessage, Conversation } from './types';
+
+/**
+ * Lo borrado son dos cosas: la cola de borrados pendientes (se limpia al
+ * sincronizar) y las lapidas durables (no se limpian). Se listan ambas para que
+ * una conversacion que sobrevivio en Supabase no vuelva a la interfaz.
+ */
+function deletedConversationIds(userId: string): Set<string> {
+  const deleted = getConversationTombstones(userId);
+  for (const id of getDeletedConversationIds(userId)) deleted.add(id);
+  return deleted;
+}
 
 export function buildConversationList(
   userId: string,
   remoteConversations: Conversation[],
 ): Conversation[] {
-  const deleted = getDeletedConversationIds(userId);
+  const deleted = deletedConversationIds(userId);
   const merged = dedupeConversations([
     ...remoteConversations,
     ...getPendingConversationUpserts(userId),
@@ -31,7 +43,7 @@ export function buildConversationList(
 
 export function buildLocalConversationList(userId: string): Conversation[] {
   const cached = loadConversationsFromCache(userId);
-  const deleted = getDeletedConversationIds(userId);
+  const deleted = deletedConversationIds(userId);
 
   return dedupeConversations([
     ...cached,

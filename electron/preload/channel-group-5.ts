@@ -1,6 +1,8 @@
 export const CHANNEL_GROUP_5 = [
   'integrated-browser:history-list',
   'integrated-browser:history-clear',
+  // Borrado de datos de navegacion del perfil activo, equivalente al de Chrome.
+  'integrated-browser:clear-browsing-data',
   'integrated-browser:credentials-list',
   'integrated-browser:credentials-save',
   'integrated-browser:credentials-fill',
@@ -16,15 +18,26 @@ export const CHANNEL_GROUP_5 = [
   'integrated-browser:site-permissions-set',
   'integrated-browser:site-permissions-reset',
   'integrated-browser:site-permissions-changed',
+  // Aviso de permiso: main pide la decision y el renderer la responde. La
+  // concesion se sigue guardando y aplicando en main.
+  'integrated-browser:permission-prompt',
+  'integrated-browser:permission-decide',
   // Resúmenes de pestañas: el compositor del chat lee título, url y texto DOM
   // de cada pestaña para adjuntarlas como contexto a la conversación.
   'integrated-browser:tab-summaries',
   'integrated-browser:get-tab-content',
 
+  // Contexto de aplicaciones de escritorio: el chat lista las ventanas abiertas
+  // y extrae el contenido de las que el usuario marca. Ambas son de lectura y
+  // ninguna captura nada sin una seleccion explicita en el selector.
+  'desktop-context:list-apps',
+  'desktop-context:capture-app',
+
   // Espacio de trabajo de Skills: operaciones acotadas al workspace activo.
   // Ninguna de ellas acepta rutas absolutas ni devuelve rutas del disco.
   'skill-workspace:create',
   'skill-workspace:find-by-conversation',
+  'skill-workspace:attach-conversation',
   'skill-workspace:get-state',
   'skill-workspace:read-file',
   'skill-workspace:write-file',

@@ -21,7 +21,6 @@ interface AppSidebarProps {
   onIrisProjectClick: (project: any) => Promise<void>;
   onNewChat: () => Promise<void>;
   onOpenProject: (folderId: string) => void;
-  onOpenSdo?: () => void;
   onOpenMeetings?: () => void;
   onOpenBrowser?: () => void;
   onSelectConversation: (conversationId: string) => Promise<void>;
@@ -63,7 +62,6 @@ export function AppSidebar(props: AppSidebarProps) {
       onCreateFolderClick={() => folder.setIsFolderModalOpen(true)}
       onToggleFolder={folder.toggleFolder}
       onOpenProject={props.onOpenProject}
-      onOpenSdo={props.onOpenSdo}
       onOpenMeetings={props.onOpenMeetings}
       onOpenBrowser={props.onOpenBrowser}
       onDeleteFolder={props.onDeleteFolder}

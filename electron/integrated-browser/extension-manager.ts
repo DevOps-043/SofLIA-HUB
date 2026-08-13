@@ -1,7 +1,8 @@
-import { app, dialog, type BrowserWindow, type Session } from 'electron';
+import { dialog, type BrowserWindow, type Session } from 'electron';
 import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { browserProfilePath, resolveStoreLocation } from './profile-scope';
 import type { BrowserExtensionInstallPreview, BrowserExtensionMetadata } from './types';
 
 type StoredExtension = BrowserExtensionMetadata & { managedPath: string };
@@ -26,13 +27,22 @@ const BLOCKED_PERMISSIONS = new Set(['nativeMessaging', 'debugger', 'proxy', 'ma
 const PENDING_INSTALL_TTL_MS = 5 * 60_000;
 
 export class BrowserExtensionManager {
-  private readonly registryPath: string;
   private writeQueue: Promise<void> = Promise.resolve();
   private pendingInstall: PendingInstall | null = null;
   private pendingInstallTimer: ReturnType<typeof setTimeout> | null = null;
 
-  constructor(private readonly managedRoot = path.join(app.getPath('userData'), 'integrated-browser', 'extensions')) {
-    this.registryPath = path.join(this.managedRoot, 'registry.json');
+  /**
+   * Las extensiones pertenecen al perfil del usuario activo: una extension
+   * instalada por una cuenta no debe cargarse en la sesion de otra.
+   */
+  constructor(private readonly root: string | (() => string) = () => browserProfilePath('extensions')) {}
+
+  private get managedRoot(): string {
+    return resolveStoreLocation(this.root);
+  }
+
+  private get registryPath(): string {
+    return path.join(this.managedRoot, 'registry.json');
   }
 
   async list(): Promise<BrowserExtensionMetadata[]> {

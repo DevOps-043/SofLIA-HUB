@@ -25,7 +25,7 @@ consultando esas instancias, no un servidor de aplicación intermedio.
   `src/lib/supabase-factory.ts`), por lo que `auth.uid()` es válido y la RLS por
   usuario aplica en sus consultas.
 - El **proceso main** entra con la anon key **sin** sesión Auth para algunos
-  flujos (p. ej. meetings/SDO): ahí `auth.uid()` es null y las tablas usan
+  flujos (p. ej. meetings): ahí `auth.uid()` es null y las tablas usan
   políticas permisivas explícitas hasta que concluya la migración de auth (ver
   `database/lia/migrations/fix-meeting-ops-rls.sql`). El aislamiento de esas
   tablas es a nivel de aplicación, no de RLS.
@@ -112,7 +112,7 @@ preparada `database/lia/migrations/rls-initplan-optimization.sql` las recrea con
   `auth.uid()` aparece como `InitPlan` (una vez), no por fila.
 - Validar aislamiento: SELECT/INSERT/UPDATE/DELETE con el actor correcto y con un
   actor equivocado (debe denegar) antes de darla por buena.
-- No tocar las políticas permisivas de meetings/SDO: dependen de la migración de
+- No tocar las políticas permisivas de meetings: dependen de la migración de
   auth pendiente.
 
 ### 3. Ejecutar la prueba de carga

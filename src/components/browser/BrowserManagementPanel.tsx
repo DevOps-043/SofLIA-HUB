@@ -8,8 +8,9 @@ import {
   type IntegratedBrowserDataResponse,
 } from '../../services/integrated-browser-service';
 import { BrowserConfirmDialog, BrowserDialog } from './BrowserDialog';
+import { BrowserPrivacyPanel } from './BrowserPrivacyPanel';
 
-export type BrowserManagementTab = 'history' | 'credentials' | 'extensions';
+export type BrowserManagementTab = 'history' | 'credentials' | 'extensions' | 'privacy';
 
 const TAB_META: Record<BrowserManagementTab, { label: string; description: string; icon: ReactNode }> = {
   history: {
@@ -26,6 +27,11 @@ const TAB_META: Record<BrowserManagementTab, { label: string; description: strin
     label: 'Extensiones',
     description: 'Controla complementos compatibles y sus permisos.',
     icon: <svg viewBox="0 0 24 24"><path d="M8 3h5v5a2 2 0 104 0V3h4v7h-5a2 2 0 100 4h5v7h-7v-5a2 2 0 10-4 0v5H3v-7h5a2 2 0 100-4H3V3h5z" /></svg>,
+  },
+  privacy: {
+    label: 'Privacidad',
+    description: 'Borra historial, cookies, caché y credenciales de este perfil.',
+    icon: <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v5M14 11v5" /></svg>,
   },
 };
 
@@ -50,6 +56,7 @@ export function BrowserManagementPanel(props: {
         {props.tab === 'history' && <HistoryPanel onClose={props.onClose} />}
         {props.tab === 'credentials' && <CredentialsPanel onFillCredential={props.onFillCredential} />}
         {props.tab === 'extensions' && <ExtensionsPanel />}
+        {props.tab === 'privacy' && <BrowserPrivacyPanel />}
       </div>
     </BrowserDialog>
   );
@@ -57,7 +64,7 @@ export function BrowserManagementPanel(props: {
 
 function BrowserTabs(props: { active: BrowserManagementTab; onChange: (tab: BrowserManagementTab) => void }) {
   return (
-    <div className="mb-4 grid grid-cols-3 gap-1 rounded-2xl border border-border bg-surface-2 p-1" role="tablist" aria-label="Administración del navegador">
+    <div className="mb-4 grid grid-cols-4 gap-1 rounded-2xl border border-border bg-surface-2 p-1" role="tablist" aria-label="Administración del navegador">
       {(Object.keys(TAB_META) as BrowserManagementTab[]).map((tab) => (
         <button
           key={tab}

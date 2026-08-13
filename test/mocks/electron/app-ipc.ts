@@ -68,14 +68,26 @@ function createProtocolMock() {
 
 export const protocol = createProtocolMock();
 
-const partitionSessions = new Map<string, { protocol: ReturnType<typeof createProtocolMock> }>();
+type PartitionSessionMock = {
+  protocol: ReturnType<typeof createProtocolMock>;
+  clearStorageData: ReturnType<typeof vi.fn>;
+  clearCache: ReturnType<typeof vi.fn>;
+  clearAuthCache: ReturnType<typeof vi.fn>;
+};
+
+const partitionSessions = new Map<string, PartitionSessionMock>();
 export const session = {
   get defaultSession() {
     return { protocol };
   },
   fromPartition: vi.fn((partition: string) => {
     if (!partitionSessions.has(partition)) {
-      partitionSessions.set(partition, { protocol: createProtocolMock() });
+      partitionSessions.set(partition, {
+        protocol: createProtocolMock(),
+        clearStorageData: vi.fn(async () => undefined),
+        clearCache: vi.fn(async () => undefined),
+        clearAuthCache: vi.fn(async () => undefined),
+      });
     }
     return partitionSessions.get(partition)!;
   }),

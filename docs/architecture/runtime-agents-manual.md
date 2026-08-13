@@ -401,8 +401,23 @@ destinatario y origen de la información ofreciendo Drive, archivo local o
 investigación; **D** el usuario pide investigar, y entonces presenta un esquema
 de diapositivas y **espera validación explícita** antes de escribir. El documento se sirve por el protocolo local
 `pulse-presentacion://` con CSP restrictiva, de modo que renderiza sin conexión
-y no puede alcanzar IPC, `node` ni la red. Está detrás de la bandera
-`VITE_SKILL_PRESENTACIONES_ENABLED` y bloqueada en grupos de WhatsApp.
+y no puede alcanzar IPC, `node` ni la red. Está bloqueada en grupos de WhatsApp.
+
+**De dónde sale el catálogo del sistema.** Las Skills del sistema se resuelven
+desde `public.system_skills` (instancia Pulse Hub), legible por cualquier
+usuario autenticado y escribible solo con `service_role`. La fila declara
+nombre, comando, instrucciones, herramientas y política de espacio de trabajo;
+el cliente la **acota** antes de concederla en
+`src/shared/skills/system-catalog.ts`: las herramientas pasan por la allowlist
+por superficie —`use_computer`, `execute_command` y `delete_item` nunca se
+conceden desde una Skill— y la política de workspace se topa (raíz de un solo
+segmento, extensiones intersecadas, límites de bytes). Una fila que pida más
+recibe menos y se ofrece igualmente.
+
+El registro en código es el **respaldo**: la ausencia de filas o un fallo de
+lectura conservan las Skills de la versión instalada; solo `enabled = false`
+las retira. `VITE_SKILL_PRESENTACIONES_ENABLED` queda como apagado local de
+emergencia y manda sobre el catálogo remoto.
 
 ### 2.5 Catálogo del agente de chat
 
@@ -756,9 +771,9 @@ creación de documentos y envío de archivos.
 
 ### 3.12 Catálogo completo de herramientas de WhatsApp
 
-**135 herramientas** declaradas en 12 dominios. Orden de concatenación en
+**133 herramientas** declaradas en 11 dominios. Orden de concatenación en
 `WA_TOOL_DECLARATIONS`: filesystem, comunicación, memoria, perfil, computadora,
-nodos remotos, sistema, extensibilidad, IRIS, Google, automatización, SDO.
+nodos remotos, sistema, extensibilidad, IRIS, Google, automatización.
 El catálogo efectivo de una conversación es siempre un subconjunto: depende de
 los permisos del remitente y de si el canal es DM o grupo (§3.7).
 
@@ -905,13 +920,6 @@ Gmail: `gmail_send`, `gmail_get_messages`, `gmail_read_message`, `gmail_trash`,
 | `list_active_tasks` / `cancel_background_task` | Tareas en segundo plano activas y su cancelación. |
 | `neural_organizer_status` / `neural_organizer_toggle` | Organizador neuronal de descargas (IA + OCR). |
 
-#### SDO (Registro Operativo Gobernado)
-
-- `sdo_query`: consulta decisiones, riesgos y acciones; responde en cinco
-  bloques — confirmado, no confirmado, contradicciones, pendiente y
-  restricciones.
-- `sdo_propose`: crea un registro en estado **PROPUESTO**. Nunca queda oficial
-  sin aprobación humana desde el Hub.
 
 ### 3.13 Comandos slash
 
@@ -1154,7 +1162,10 @@ inventada. El DOM se marca como contenido no confiable y no autoriza acciones.
 El navegador puede mantener hasta 500 pestañas lógicas, con un máximo de ocho
 `WebContentsView` vivas y dos visibles en composición dividida o superpuesta.
 Hasta cuatro de esas ocho vistas pueden separarse en `BaseWindow` nativas sin
-recarga o sesión adicional; cerrar una ventana la reintegra al workspace.
+recarga o sesión adicional; cerrar una ventana separada ordinaria la reintegra
+al workspace. La llamada directa de Google Chat conserva su `BrowserWindow`
+hija real, la sesión y el abridor; Google controla la ventana compacta y su
+acción para moverla a una pestaña, y SofLIA no fabrica una reunión alternativa.
 `activeTabId` sigue el foco; captura, tamaño del viewport,
 eventos de entrada y credenciales se resuelven exclusivamente contra esa pestaña.
 Los popups HTTP(S) crean otra pestaña interna y nunca cambian al navegador externo.
@@ -1324,9 +1335,6 @@ asignación:
    `actionIds`), `rejectAction`. La aprobación es **estado de negocio
    persistido**, no una frase interpretada por el modelo.
 5. **Sincronización**: `syncApprovedActions` envía a destino solo lo aprobado.
-6. **SDO**: al aprobar asset o acciones se notifica al adaptador del Registro
-   Operativo Gobernado de forma **fire-and-forget** — si el SDO falla, la
-   reunión no falla; se registra un warning.
 
 ### 5.3 Detección pasiva
 

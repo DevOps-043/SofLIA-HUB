@@ -8,6 +8,7 @@ export function createMainServices(modules: any) {
   const driveService = new modules.DriveService(calendarService);
   const gchatService = new modules.GChatService(calendarService);
   const integratedBrowserService = new modules.IntegratedBrowserService();
+  const desktopContextService = new modules.DesktopContextService();
   const skillWorkspaceService = new modules.SkillWorkspaceService();
   const desktopAgentService = new modules.DesktopAgentService(integratedBrowserService);
   const updaterService = new modules.UpdaterService();
@@ -35,15 +36,6 @@ export function createMainServices(modules: any) {
     meetingReviewService,
     meetingSyncService,
   );
-  // SDO-AN: al aprobar minutas/acciones, el resultado aprobado se registra en
-  // el Registro Operativo Gobernado (no bloqueante para el flujo de meetings).
-  const sdoService = new modules.SdoService();
-  meetingWorkflowService.setSdoAdapter({
-    onAssetApproved: (detail: unknown, decidedByUserId: string) =>
-      modules.registrarAprobacionAsset(sdoService, detail, decidedByUserId),
-    onActionsApproved: (detail: unknown, decidedByUserId: string) =>
-      modules.registrarAprobacionAcciones(sdoService, detail, decidedByUserId),
-  });
   const meetingPassiveDetectionService = new modules.MeetingPassiveDetectionService(
     calendarService,
     gmailService,
@@ -64,23 +56,6 @@ export function createMainServices(modules: any) {
     ownerNumber: '',
     apiKey: '',
   }, waService);
-  // Alertas de vigencia del SDO por WhatsApp: reutiliza el ownerNumber del
-  // briefing diario (el duenio del Hub). Sin owner o sin conexion, solo log.
-  sdoService.on('alerta-vigencia', (payload: { mensaje: string }) => {
-    void (async () => {
-      try {
-        const ownerNumber = dailyBriefingService.getConfig?.()?.ownerNumber;
-        if (!ownerNumber || !waService.isConnected?.()) {
-          console.log('[SDO] Alerta de vigencia (sin canal WhatsApp configurado):\n' + payload.mensaje);
-          return;
-        }
-        const jid = ownerNumber.includes('@') ? ownerNumber : `${ownerNumber.replace(/\D/g, '')}@s.whatsapp.net`;
-        await waService.sendText(jid, payload.mensaje);
-      } catch (error) {
-        console.warn('[SDO] No pude enviar la alerta de vigencia por WhatsApp:', error);
-      }
-    })();
-  });
   const telegramService = new modules.TelegramService();
   const communicationHubService = new modules.CommunicationHubService({
     waService,
@@ -99,6 +74,7 @@ export function createMainServices(modules: any) {
     driveService,
     gchatService,
     integratedBrowserService,
+    desktopContextService,
     skillWorkspaceService,
     desktopAgentService,
     updaterService,
@@ -108,7 +84,6 @@ export function createMainServices(modules: any) {
     proactiveService,
     workspaceAutomationService,
     meetingWorkflowService,
-    sdoService,
     meetingPassiveDetectionService,
     workflowHubService,
     dailyBriefingService,

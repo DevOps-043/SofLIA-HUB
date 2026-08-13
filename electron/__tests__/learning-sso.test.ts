@@ -40,6 +40,25 @@ describe('learning-sso', () => {
     ).toBeNull();
   });
 
+  /**
+   * La direccion se incrusta al compilar el bundle main. Si el modulo la leyera
+   * del `process.env` vivo, la aplicacion empaquetada la veria vacia y apagaria
+   * la entrada federada aunque el build tuviera la variable.
+   */
+  it('resolves the base url from the build-time snapshot, not the live environment', () => {
+    const input = { codeChallenge: VALID_CHALLENGE, state: VALID_STATE };
+    const original = process.env.VITE_LEARNING_BASE_URL;
+    const fromSnapshot = buildLearningSsoUrl(input);
+
+    process.env.VITE_LEARNING_BASE_URL = 'https://intruso.ejemplo.com';
+    try {
+      expect(buildLearningSsoUrl(input)).toBe(fromSnapshot);
+    } finally {
+      if (original === undefined) delete process.env.VITE_LEARNING_BASE_URL;
+      else process.env.VITE_LEARNING_BASE_URL = original;
+    }
+  });
+
   it('rejects non https origins outside localhost', () => {
     expect(
       buildLearningSsoUrl(

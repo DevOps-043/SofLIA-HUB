@@ -8,8 +8,8 @@ Estado: vigente. Actualizado: 2026-08-06.
 
 ## Contrato IPC
 
-La allowlist actual contiene 354 canales derivados de cinco arrays: 80, 59, 65,
-115 y 35. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 344 canales derivados de cinco arrays: 80, 59, 65,
+99 y 41. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |
@@ -17,14 +17,14 @@ el catalogo y su validador deben actualizarse juntos.
 | `computer` | 33 | archivos, comandos, procesos, portapapeles, email, tema/sidebar |
 | `desktop-agent` | 23 | tareas, abort, config, UI input, ventanas, screenshot, calibracion |
 | `calendar` | 17 | OAuth, conexiones, eventos, polling y eventos de trabajo |
-| `sdo` | 16 | decisiones, claims, acciones, aprobacion, audit y artifacts |
 | `memory` | 14 | contexto, facts y skills |
 | `orb` | 15 | dictado, TTS, apertura y ventana flotante |
 | `monitoring`, `gmail`, `remote-node` | 13 cada uno | actividad; correo; host remoto |
 | `meeting`, `whatsapp` | 12 cada uno | runs/approvals/sync; conexion/config/status |
 | `meeting-live` | 11 | audio, segmentos, deteccion y estado live |
 | `channels`, `workflow-hub` | 10 cada uno | hub multicanal y casos de workflow |
-| `integrated-browser` | 46 | navegación, pestañas, composición, captura visible, percepción, modo lectura, controlador determinista, viewport, visibilidad, eventos, historial, credenciales y extensiones |
+| `integrated-browser` | 47 | navegación, pestañas, composición, captura visible, percepción, modo lectura, controlador determinista, viewport, visibilidad, eventos, historial, credenciales, extensiones y borrado de datos de navegación |
+| `desktop-context` | 2 | inventario de ventanas abiertas y extraccion en cascada del contenido de las que el usuario marca en el chat |
 | `skill-workspace` | 13 | espacio de trabajo de Skills: crear, estado, leer, escribir, editar, borrar, guardar y descargar imagenes, abrir carpeta, progreso y URL de vista previa |
 | `presentation`, `presentation-view` | 5 | vista a pantalla completa, exportacion a HTML autocontenido y preparacion de la identidad de marca |
 | otros | 60 | voice, updater, automation, drive, pytools, telegram, gchat, app, proactive, background-host, root y AI |
@@ -70,10 +70,22 @@ veintitrés de estado, navegación, pestañas, composición, viewport, captura,
 percepción, controlador determinista y herramientas de desarrollo; siete del
 modo lectura, dos de historial, cuatro de credenciales y cinco de extensiones.
 Dos canales adicionales entregan estado y solicitudes de
-apertura del agente al renderer, y otros dos entregan las acciones del menu
-contextual: la seleccion de texto convertida en peticion para el chat y la
+apertura del agente al renderer, y otros dos entregan las acciones sobre el
+texto seleccionado: la seleccion convertida en peticion para el chat y la
 apertura del modo lectura. `electron/preload/integrated-browser-api.ts` y
 `src/services/integrated-browser-service.ts` son las capas publicas.
+
+Esas acciones tienen dos entradas equivalentes: el menu contextual
+(`electron/integrated-browser/context-menu.ts`) y un menu flotante que aparece
+junto al texto al terminar la seleccion
+(`electron/integrated-browser/selection-menu.ts`). El menu flotante se inyecta
+en cada marco de la pagina —no en el renderer— porque la vista del navegador es
+una `WebContentsView` nativa que se pinta encima de la interfaz de React;
+dibujarlo en el renderer lo dejaria tapado y sin poder seguir a la seleccion al
+desplazar. Sus pulsaciones vuelven a main por `console-message`, el mismo canal
+que ya usa el vigia de seleccion, y main solo acepta las acciones publicadas por
+el propio menu: la pagina es contenido no confiable y ninguna accion envia el
+turno por su cuenta. El menu se apaga mientras el agente conduce el navegador.
 
 El modo lectura usa `integrated-browser:reading-prepare`,
 `integrated-browser:reading-synthesize`, `integrated-browser:reading-highlight`,
@@ -124,6 +136,14 @@ paneles asíncronos. Solo un turno clasificado como dependiente del navegador
 obtiene una revisión vigente y el
 DOM saneado bajo demanda. Solo el último snapshot queda en memoria, Computer Use
 no compite con el temporizador pasivo y el refresco nunca invoca al modelo.
+Los permisos de sitio se consultan y cambian con los canales
+`integrated-browser:site-permissions-*`. Cuando una solicitud necesita HITL,
+main publica `integrated-browser:permission-prompt` y espera la respuesta
+validada de `integrated-browser:permission-decide`; sin ventana o al vencer el
+timeout responde denegado. Permitir una consulta provisional de `media` en una
+ventana adoptada que sigue en `about:blank` no evita este contrato: la solicitud
+real debe aportar origen HTTP(S) y pasar por la decision guardada, el aviso y el
+permiso del sistema operativo.
 Los turnos contextuales solicitan un snapshot puntual reciente: referencias a
 personas, mensajes o recursos visibles se resuelven aunque no contengan un verbo
 de visión.
@@ -149,12 +169,19 @@ confirmación HITL.
 evidencia. El DOM omite valores de formularios, contenido editable, contraseñas
 y credenciales de URL, y se entrega como contenido de página no confiable.
 
-El navegador integrado normaliza el User-Agent de su vista al de un Chromium de
-escritorio. Electron le inserta el nombre y la versión de la aplicación y la
-ficha `Electron/`, que lo convierten en un cliente desconocido frente a lo que
+El navegador integrado normaliza primero `app.userAgentFallback`, antes de crear
+sesiones, workers o ventanas, y repite la misma identidad en la vista y la
+`Session` aislada. El fallback temprano cubre la primera navegación y los fetch
+del service worker; los overrides cubren el documento y subframes posteriores.
+Electron inserta el nombre y la
+versión de la aplicación y la ficha `Electron/`; además, una versión prerelease
+como `44.0.0-beta.3` debe retirarse completa para no pegar `-beta.3` a la versión
+de Chrome. Esas marcas lo convierten en un cliente desconocido frente a lo que
 anuncia `Sec-CH-UA`; los endpoints que validan esa coherencia devolvían
-`FAILED_PRECONDITION`, que es lo que impedía cargar la transcripción de YouTube.
-No se inyecta ninguna cabecera Client Hints: hacerlo introducía marcas que
+`FAILED_PRECONDITION`, lo que impedía cargar la transcripción de YouTube y
+afectaba otros sitios que validan la identidad declarada por el navegador.
+No se inyecta ninguna cabecera Client Hints ni se habilita `SharedArrayBuffer`
+por una bandera global: hacerlo introducía capacidades o marcas que
 contradecían las que el propio Chromium ya envía. Un `ERR_ABORTED` por
 navegación reemplazada tampoco se trata como fallo: es el curso normal de un
 sitio que reescribe su propia URL al cargar.
@@ -177,6 +204,67 @@ permanece viva. Solo los gestores flotantes toman una captura puntual y llaman a
 `hide`; al cerrarlos republican el viewport. Una tarea dirigida a esta vista
 falla cerrado y nunca cambia silenciosamente al backend desktop.
 
+### Borrado de datos de navegacion
+
+`integrated-browser:clear-browsing-data` es el equivalente al "Borrar datos de
+navegacion" de Chrome. Acepta categorias (`historial`, `cookies`, `cache`,
+`contrasenas`, `permisos`) y un intervalo, valida ambos antes de tocar nada y
+actua **solo sobre el perfil del usuario con sesion activa**: la particion se
+resuelve con `browserPartitionFor()` sin argumento, de modo que el perfil de
+otra cuenta no se ve afectado. No esta en el catalogo de herramientas de ningun
+agente runtime: es destructiva y la dirige el usuario.
+
+El intervalo tiene un alcance real desigual y el contrato lo declara. Chromium
+sabe acotar el borrado por fecha, pero Electron no lo expone: `ClearDataOptions`
+solo admite `dataTypes`, `origins` y `excludeOrigins`, y las cookies que
+devuelve no traen fecha de creacion. El historial SI se acota, porque es nuestro
+y cada visita guarda `visitedAt`. Las demas categorias se borran completas y su
+resultado viene marcado con `ignoredRange`, que la interfaz muestra antes y
+despues de borrar.
+
+`cache` se separa de `cookies` en la llamada a `clearData` porque son casillas
+distintas, y arrastra tambien `clearAuthCache()`: sin eso una sesion Basic o
+NTLM sobrevive al borrado de cookies. Cada categoria corre aislada, de modo que
+un fallo en cookies no impide borrar el historial, y el resumen por categoria
+dice que se quito, cuanto y que fallo.
+
+## Contexto de aplicaciones de escritorio
+
+`desktop-context:list-apps` y `desktop-context:capture-app` permiten al chat
+adjuntar el contenido de las aplicaciones que el usuario ya tiene abiertas, con
+la misma ergonomia del selector de pestañas. Ambos son de lectura y ambos
+verifican el emisor.
+
+Listar es barato por diseño: cruza `DesktopWindowControls.listWindows` con las
+miniaturas de `desktopCapturer` y **no** invoca COM ni recorre arboles de
+accesibilidad. El inventario excluye las ventanas del propio Pulse Hub y solo
+emite identificadores propios; `capture-app` rechaza cualquier identificador que
+no venga de un inventario previo antes de tocar PowerShell.
+
+La extraccion baja por la primera via que entregue contenido util:
+
+| Nivel | Via | Cubre | Fidelidad |
+|---|---|---|---|
+| A | COM resuelve la ruta del documento abierto y el sidecar la lee | Word, Excel, PowerPoint | documento completo con tablas |
+| B | UI Automation `TextPattern` sobre la ventana | apps con accesibilidad | texto plano |
+| C | captura de la ventana | cualquier ventana | solo lo visible |
+
+El nivel A usa COM **solo** para leer `FullName` y `Saved`: el contenido lo lee
+`python-tools-service.ts` desde el disco. Acotar COM a un metodo de solo lectura
+hace verificable que este flujo no puede modificar el documento del usuario. Si
+el documento tiene cambios sin guardar, el adjunto se marca como desactualizado
+en el chip y en el bloque de contexto en lugar de silenciarlo.
+
+El nivel B vive en `electron/desktop-context/uia-text.ts`, separado del
+extractor de `desktop-agent`: aquel parte de `GetForegroundWindow` y filtra a
+elementos interactivos para decidir donde hacer clic, y reutilizarlo obligaria a
+traer al frente cada ventana marcada.
+
+Fuera de Windows solo esta disponible el nivel C, y la respuesta del inventario
+lo declara para que la interfaz no prometa una fidelidad que la plataforma no
+puede dar. `SOFLIA_DISABLE_DESKTOP_CONTEXT=1` no registra los handlers: el
+renderer ve la API ausente y oculta la entrada del menu.
+
 ## Espacio de trabajo de Skills y presentaciones
 
 Los canales `skill-workspace:*` operan **solo dentro** del workspace que indica
@@ -189,6 +277,7 @@ ejecución en este espacio de nombres.
 |---|---|
 | `skill-workspace:create` | Crea el workspace de una Skill del sistema con su política. |
 | `skill-workspace:find-by-conversation` | Recupera el workspace asociado a una conversación. |
+| `skill-workspace:attach-conversation` | Ata el workspace a la conversación cuando esta se crea después que él (chat nuevo). Nunca reasigna: si ya pertenece a otra conversación, falla. |
 | `skill-workspace:get-state` | Archivos, tamaño total y si existe el documento de entrada. |
 | `skill-workspace:read-file` / `write-file` / `edit-file` / `delete-file` | Operaciones acotadas con validación de contención por `realpath`. |
 | `skill-workspace:write-image` | Guarda en `assets/` una imagen generada por el modelo; el nombre se sanea y la extensión debe ser PNG, JPEG o WebP. |

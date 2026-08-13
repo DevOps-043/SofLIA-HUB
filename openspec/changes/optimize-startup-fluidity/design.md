@@ -4,7 +4,7 @@
 estado y controles; espera `app.whenReady()` y luego llama
 `initializeMainServices`. En `electron/main/startup.ts`, esa función ejecuta en
 serie ~30 pasos `await runOptionalStep(...)` (memoria, conocimiento, meetings,
-SDO, workspace, workflow, detección pasiva, path memory, updater, scheduler,
+workspace, workflow, detección pasiva, path memory, updater, scheduler,
 clipboard, briefing, communication hub, background host, remote node, telegram,
 learning, dynamic tools, python runtime) **antes** de
 `controls.createWindow(...)` (línea ~96). La ventana, y por tanto el primer

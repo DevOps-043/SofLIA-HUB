@@ -10,7 +10,7 @@
 -- Precondiciones:
 --   - Ejecutar en el SQL Editor de la instancia Lia, con autorizacion (HITL).
 --   - Aplica solo a tablas cuyo acceso proviene del renderer autenticado
---     (auth.uid() valido). NO tocar meetings/SDO/hub-service-state: usan
+--     (auth.uid() valido). NO tocar meetings/hub-service-state: usan
 --     politicas permisivas por la migracion de auth pendiente.
 --   - Idempotente: recrea cada politica con la misma clausula FOR/TO/USING/CHECK,
 --     solo envolviendo auth.uid(). Se puede correr varias veces.

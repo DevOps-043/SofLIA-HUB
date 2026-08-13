@@ -11,12 +11,12 @@ Estado: vigente. Actualizado: 2026-08-04.
 | Instancia | Configuracion | Autoridad | Acceso desde renderer | Acceso desde main |
 |---|---|---|---|---|
 | SOFIA Learning | `VITE_SOFIA_SUPABASE_URL/ANON_KEY` | auth, usuarios, organizaciones, membresias, equipos y plataforma learning | `src/lib/sofia-client.ts`, contexto auth | servicios Learning especificos |
-| Lia / Hub | `VITE_SUPABASE_URL/ANON_KEY` | conversaciones, carpetas, settings, monitoreo, meetings, SDO, shares, fuentes y estado Hub | `src/lib/supabase.ts`, services | stores de meetings/SDO y servicios operativos |
+| Lia / Hub | `VITE_SUPABASE_URL/ANON_KEY` | conversaciones, carpetas, settings, monitoreo, meetings, shares, fuentes y estado Hub | `src/lib/supabase.ts`, services | stores de meetings y servicios operativos |
 | IRIS | `VITE_IRIS_SUPABASE_URL/ANON_KEY` | equipos/proyectos/issues, members, estados y prioridades | `src/lib/iris-client.ts`, `src/services/iris-data/` | `electron/iris/` para tools/sync |
 
 No se permiten joins SQL entre proyectos Supabase. Los enlaces cruzados son IDs
 de texto/UUID en la aplicacion: organizacion/equipo SOFIA delimitan consultas IRIS;
-meeting sync crea referencias externas; SDO guarda `origin_ref`/`external_ref`.
+meeting sync crea referencias externas mediante `external_ref`.
 
 ## Persistencia local
 
@@ -51,23 +51,21 @@ fuente remota Lia sigue siendo autoridad; recovery purga/replica pendientes y
 normaliza conversaciones/mensajes. Borrar una conversacion debe respetar shares y
 politicas RLS, no solo remover cache.
 
-### Meetings/SDO
+### Meetings
 
 - `meeting_runs.trace_id` es unico; owner+source_hash+version evita duplicados.
 - FKs de source/assets/sync/approvals usan cascade desde run; detection usa
   `SET NULL` para conservar candidato.
 - `meeting_sync_actions.idempotency_key` evita duplicar efectos externos.
-- SDO separa estado epistemico, de autoridad y temporal; `confidence` mide
-  extraccion, no verdad.
-- `sdo_approvals.decided_by_user_id` es obligatorio y humano por regla de servicio.
-- `sdo_audit_events` bloquea UPDATE/DELETE mediante trigger.
+- `meeting_assets.confidence` mide la extraccion, no la verdad del contenido.
+- `meeting_approvals` registra al decisor humano: la IA no aprueba.
 
 ## RLS y riesgo efectivo
 
 El estado no es uniforme:
 
 - tablas de monitoreo declaran `auth.uid() = user_id`;
-- meeting, SDO y `hub_service_state` tienen RLS habilitado pero politicas
+- meeting y `hub_service_state` tienen RLS habilitado pero politicas
   permisivas para `anon, authenticated` porque main usa anon key sin sesion;
 - por tanto el aislamiento de esas tablas depende hoy de filtros/validacion de
   aplicacion, no de una barrera tenant fuerte en Postgres.

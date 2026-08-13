@@ -170,3 +170,122 @@
 - [x] 24.2 Permitir que el orquestador combine DOM, Computer Use browser y Computer Use desktop con superficie explícita, outcome verificable y HITL para efectos externos.
 - [x] 24.3 Cubrir presupuesto multimedia, ruteo híbrido y confirmaciones con pruebas dirigidas.
 - [x] 24.4 Actualizar documentación, ejecutar verificación proporcional y revisión adversarial.
+
+## 25. Compatibilidad de Google Meet desde Chat
+
+- [x] 25.1 Adoptar la ventana real de Meet, normalizar su User-Agent y permitir consultas provisionales de `media` sin origen sin conceder la solicitud real.
+- [x] 25.2 Probar la hipótesis de colisión de payload Opus mediante un field trial documentado y cubrir permisos, ventana hija y `about:blank` con regresión; el trial se retiró al quedar refutado en 31.3.
+- [x] 25.3 Sincronizar especificación, documentación de seguridad, parámetros y changelog.
+- [x] 25.4 Ejecutar verificación proporcional, registrar evidencia y realizar revisión adversarial del alcance de permisos y del ajuste WebRTC.
+
+## 26. Carrera de permisos en la ventana de Meet
+
+- [x] 26.1 Crear y registrar la ventana hija dentro de `setWindowOpenHandler` antes de entregar su `webContents` a Chromium.
+- [x] 26.2 Cubrir la consulta y solicitud de `media` previa a `did-create-window`, además del rechazo de contenido externo no registrado.
+- [x] 26.3 Sincronizar documentación y ejecutar verificación proporcional más revisión adversarial.
+
+## 27. Iframe cruzado y service worker de Meet
+
+- [x] 27.1 Validar consultas con `webContents = null` mediante orígenes HTTP(S) de iframe y mantener cerrada la solicitud real de dispositivos.
+- [x] 27.2 Restaurar `background-sync` como capacidad automática no interactiva y cubrir contenido gobernado, iframe cruzado y entradas sin origen.
+- [x] 27.3 Corregir la interpretación operativa del diagnóstico SDP, sincronizar documentación y ejecutar verificación proporcional más revisión adversarial.
+
+## 28. Preflight anónimo de media en Electron 43
+
+- [x] 28.1 Permitir únicamente la consulta previa de `media` cuando Electron no entrega `webContents` ni origen, manteniendo cerrada la solicitud real de dispositivos.
+- [x] 28.2 Cubrir el preflight anónimo, los orígenes explícitos inválidos y la solicitud real no registrada con pruebas de regresión.
+- [x] 28.3 Sincronizar documentación, registrar el smoke real y ejecutar verificación proporcional más revisión adversarial.
+
+## 29. Divergencia nullish del callback de permisos
+
+- [x] 29.1 Normalizar `null` y `undefined` como identidad ausente solo para el preflight anónimo de `media`.
+- [x] 29.2 Cubrir la divergencia runtime con pruebas y mantener denegados contenido no registrado, origen inválido y solicitudes reales.
+- [x] 29.3 Actualizar evidencia y ejecutar verificación proporcional más revisión adversarial.
+
+## 30. Asignación de payloads por transporte en Chromium 150
+
+- [x] 30.1 Probar la asignación WebRTC de payload types por transporte junto al modo permisivo de validación BUNDLE; el smoke posterior la descartó como solución.
+- [x] 30.2 Cubrir la composición exacta de los trials y observar la adopción síncrona de la ventana hija sin ampliar permisos.
+- [x] 30.3 Registrar la evidencia que permitió refutar la hipótesis; los trials se retiran en 31.3.
+
+## 31. Fallback compatible para llamadas directas de Google Chat
+
+- [x] 31.1 Distinguir `meet.google.com/call` de una reunión Meet estándar y delegar únicamente la llamada directa al navegador del sistema.
+- [x] 31.2 Cubrir apertura directa, navegación posterior desde `about:blank`, deduplicación, fallo externo y permanencia de reuniones normales dentro del navegador.
+- [x] 31.3 Retirar los field trials experimentales sin efecto, sincronizar documentación y ejecutar verificación proporcional más revisión adversarial.
+
+## 32. Llamada directa cargada en un subframe
+
+- [x] 32.1 Interceptar la ruta exacta `/call` en `will-frame-navigate` y en redirecciones de subframes, tanto en la pestaña como en el popup adoptado.
+- [x] 32.2 Cubrir cancelación previa a WebRTC, deduplicación y continuidad de subframes/reuniones que no coinciden.
+- [x] 32.3 Sincronizar documentación y evidencia, ejecutar verificación proporcional y revisión adversarial.
+
+## 33. Traspaso válido de llamadas directas a Chrome
+
+- [x] 33.1 Sustituir la apertura externa de `/call` por la conversación HTTPS iniciadora y publicar una instrucción explícita para repetir allí la llamada.
+- [x] 33.2 Cubrir destino externo, deduplicación, fallo de apertura y rechazo de fuentes ajenas sin exponer parámetros de `/call`.
+- [x] 33.3 Sincronizar documentación y evidencia, ejecutar verificación proporcional y revisión adversarial.
+
+## 34. Reunión Meet estándar dentro del navegador integrado
+
+- [x] 34.1 Retirar la apertura externa de Chrome y sustituir `/call` por `https://meet.google.com/new` en una pestaña interna de la misma sesión.
+- [x] 34.2 Cubrir deduplicación, subframes, popups, fuentes ajenas y continuidad de reuniones estándar sin `shell.openExternal`.
+- [x] 34.3 Sincronizar documentación y evidencia, ejecutar verificación proporcional y revisión adversarial.
+
+## 35. Superficie compacta para la reunión alternativa
+
+- [x] 35.1 Crear la reunión alternativa en segundo plano y presentar su misma `WebContentsView` en una ventana compacta flotante, sin activar una pestaña ni abrir otro navegador.
+- [x] 35.2 Incorporar una barra arrastrable con acciones para mover la vista a una pestaña o cerrar la reunión, preservando sesión, URL y estado sin recarga.
+- [x] 35.3 Cubrir deduplicación, ciclo de vida, reintegración y regresiones; sincronizar documentación y ejecutar verificación proporcional más revisión adversarial.
+
+## 36. Apertura de Meet exclusivamente por gesto del usuario
+
+- [x] 36.1 Registrar en un mundo aislado el clic confiable y reciente sobre el control de llamada de Gmail o Chat, consumirlo una sola vez y cancelar sin abrir ventanas cualquier `/call` automático.
+- [x] 36.2 Cubrir aperturas automáticas, reintentos posteriores al cooldown, un gesto válido, consumo único y fallo cerrado de la sonda con pruebas de regresión.
+- [x] 36.3 Sincronizar documentación y evidencia, ejecutar verificación proporcional y revisión adversarial.
+
+## 37. Gesto de llamada originado dentro de iframe
+
+- [x] 37.1 Sustituir la sonda del documento superior por la correlación entre `before-mouse-event` del `WebContents` y una baliza confiable instalada en cada frame, consumida una sola vez al interceptar `/call`.
+- [x] 37.2 Cubrir el clic físico confirmado por el control dentro de cualquier frame, cada señal aislada, ausencia de gesto, clic genérico, botón distinto, vencimiento y consumo único con pruebas de regresión.
+- [x] 37.3 Sincronizar especificación y documentación con la limitación oficial de la llamada directa de Chat; ejecutar verificación proporcional y revisión adversarial.
+
+## 38. Llamada directa nativa sobre Chromium compatible
+
+- [x] 38.1 Corregir la conclusión de compatibilidad con la evidencia de Brave y Comet, comparar sus motores con Electron y documentar que la ventana compacta pertenece a la aplicación web de Google sobre Chromium.
+- [x] 38.2 Retirar la sustitución de `/call` por `meet.google.com/new`, las sondas de gesto y la barra compacta fabricada; conservar ruta, subframes, abridor, sesión y ventana hija real.
+- [x] 38.3 Validar Electron 44 beta con Chromium 152 y cubrir que `/call` no se cancela ni abre un navegador externo, mientras los protocolos peligrosos siguen bloqueados.
+- [x] 38.4 Instalar `44.0.0-beta.3` con la app detenida y verificar que el binario ejecuta Electron 44 / Chromium 152 con User-Agent global limpio.
+
+## 39. Identidad Chromium completa
+
+- [x] 39.1 Comparar el HAR de Brave con el HAR posterior a la actualización y localizar que los workers/subframes de Chat y Meet aún anunciaban el producto y `Electron/44.0.0-beta.3`.
+- [x] 39.2 Normalizar el User-Agent a nivel de vista, ventana hija y sesión, consumir completo el sufijo prerelease y cubrirlo con una regresión.
+- [x] 39.3 Evitar que capturas HAR bloqueadas derriben Vite, sincronizar documentación y ejecutar verificación proporcional más revisión adversarial.
+- [x] 39.4 Comparar el segundo HAR y DevTools, trasladar la normalización al fallback global anterior a sesiones/workers, retirar `SharedArrayBuffer` experimental y volver a Electron `43.4.0` estable.
+- [x] 39.5 Repetir el smoke sobre Electron 43.4.0: confirmó UA limpio y carga de NetEq, pero se detuvo sin `CreateMeetingDevice` ni `CreateMeetingInvite`; no cerrar la compatibilidad y trasladar la compuerta al runtime 44 limpio.
+
+## 40. Refutación aislada de la hipótesis BUNDLE
+
+- [x] 40.1 Configurar antes de `app.ready` únicamente `WebRTC-SdpBundlePayloadTypeCollisionCheck/Disabled/` y cubrir que no se habilita `WebRTC-PayloadTypesInTransport` ni se modifica SDP.
+- [x] 40.2 Repetir el smoke con Electron `43.4.0`: el trial elimina las líneas BUNDLE pero el HAR vuelve a detenerse después de `CreateMediaSession`, sin `CreateMeetingDevice` ni `CreateMeetingInvite`; retirar la hipótesis causal.
+- [x] 40.3 Retirar el trial refutado, sincronizar parámetros, evidencia y documentación operativa; ejecutar verificación proporcional y revisión adversarial.
+
+## 41. Chromium 152 con identidad global limpia
+
+- [x] 41.1 Reinstalar exactamente Electron `44.0.0-beta.3` con la aplicación detenida y comprobar el binario `44.0.0-beta.3` / Chromium `152.0.7977.30`.
+- [x] 41.2 Ejecutar el smoke sobre Chromium 152: volvió a fallar con `StartupCode 219` sin `CreateMeetingDevice` ni `CreateMeetingInvite`, por lo que se refuta la ventana compacta como ruta de producto.
+
+## 42. Fallback de llamada directa en pestaña interna
+
+- [x] 42.1 Transferir la URL `/call` completa a una pestaña interna activa cuando Chat la entregue directamente, mediante navegación/subframe o después de `about:blank`.
+- [x] 42.2 Reutilizar la pestaña para eventos repetidos, conservar Document Picture-in-Picture y protocolos gobernados, y cubrir las rutas con regresiones de servicio.
+- [x] 42.3 Sincronizar especificación, arquitectura y operación, y ejecutar verificación automatizada proporcional.
+- [x] 42.4 Cancelar la validación de timbrado: el usuario retiró la capacidad por aperturas aleatorias y no se ejecutarán más llamadas reales.
+
+## 43. Retirada definitiva de Google Meet directo
+
+- [x] 43.1 Eliminar creación, transferencia, deduplicación y activación de pestañas `/call`, además de la observación de RPC de Meet.
+- [x] 43.2 Bloquear la ruta directa automática originada por Gmail o Chat en popup, navegación, redirección, subframe y transición desde `about:blank`, sin tocar permisos generales.
+- [x] 43.3 Sustituir las regresiones de creación por pruebas negativas que exigen cero pestañas y cero reuniones nuevas.
+- [x] 43.4 Sincronizar arquitectura, operación y evidencia; ejecutar verificación proporcional y revisión adversarial.

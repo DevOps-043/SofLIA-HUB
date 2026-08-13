@@ -36,6 +36,11 @@ describe('handlers del navegador integrado', () => {
     goBack: vi.fn(), goForward: vi.fn(), reload: vi.fn(), stop: vi.fn(), focus: vi.fn(),
     setViewport: vi.fn(() => ({ isVisible: true })), hide: vi.fn(),
     listHistory: vi.fn(async () => []), clearHistory: vi.fn(async () => true),
+    clearBrowsingData: vi.fn(async (input: unknown) => {
+      const { categories, range } = (input ?? {}) as { categories?: string[]; range?: string };
+      if (!Array.isArray(categories) || categories.length === 0) throw new Error('Elige al menos un tipo de dato para borrar.');
+      return { range, results: categories.map((category) => ({ category, cleared: true, ignoredRange: false })) };
+    }),
     listCredentials: vi.fn(async () => []), saveCredential: vi.fn(async () => ({ id: 'credencial-id' })),
     fillCredential: vi.fn(async () => ({ id: 'credencial-id' })), removeCredential: vi.fn(async () => true),
     listExtensions: vi.fn(async () => []), prepareExtensionInstall: vi.fn(async () => ({ canceled: true })),
@@ -48,6 +53,7 @@ describe('handlers del navegador integrado', () => {
     syncReadingToolbar: vi.fn(async () => ({ toolbarVisible: true })),
     cancelReadingSpeech: vi.fn(() => ({ canceled: 1 })),
     closeReadingMode: vi.fn(async () => ({ closed: true })),
+    resolvePermissionPrompt: vi.fn(() => true),
   };
   let window: BrowserWindow;
 
@@ -60,8 +66,10 @@ describe('handlers del navegador integrado', () => {
 
   it('registra el contrato completo y enruta payloads validos', async () => {
     const handlers = ipcMainHarness._getHandlers();
-    expect(Array.from(handlers.keys()).filter((key: unknown) => String(key).startsWith('integrated-browser:'))).toHaveLength(49);
+    expect(Array.from(handlers.keys()).filter((key: unknown) => String(key).startsWith('integrated-browser:'))).toHaveLength(51);
+    expect(handlers.has('integrated-browser:clear-browsing-data')).toBe(true);
     expect(handlers.has('integrated-browser:reading-download')).toBe(false);
+    expect(handlers.has('integrated-browser:permission-decide')).toBe(true);
     expect(handlers.has('integrated-browser:tab-summaries')).toBe(true);
     expect(handlers.has('integrated-browser:get-tab-content')).toBe(true);
     const captureHandler = handlers.get('integrated-browser:capture-visible');
@@ -100,6 +108,13 @@ describe('handlers del navegador integrado', () => {
     expect(await detachHandler!({ sender: window.webContents }, { tabId: 'tab-1' }))
       .toMatchObject({ success: true, state: { detached: true } });
     expect(service.detachTab).toHaveBeenCalledWith('tab-1');
+
+    const clearDataHandler = handlers.get('integrated-browser:clear-browsing-data');
+    expect(await clearDataHandler!({ sender: window.webContents }, { categories: ['cookies'], range: 'todo' }))
+      .toMatchObject({ success: true, summary: { range: 'todo', results: [{ category: 'cookies', cleared: true }] } });
+    // Un payload sin categorias no borra nada y vuelve como error saneado.
+    expect(await clearDataHandler!({ sender: window.webContents }, { categories: [], range: 'todo' }))
+      .toMatchObject({ success: false });
 
     const saveHandler = handlers.get('integrated-browser:credentials-save');
     const saved = await saveHandler!(
@@ -143,6 +158,20 @@ describe('handlers del navegador integrado', () => {
     const closeHandler = handlers.get('integrated-browser:reading-close');
     expect(await closeHandler!({ sender: window.webContents }, { readingId: 'reading-id' }))
       .toMatchObject({ success: true, closed: true });
+  });
+
+  it('entrega la decision del aviso de permiso y rechaza payloads invalidos', async () => {
+    const decide = ipcMainHarness._getHandlers().get('integrated-browser:permission-decide');
+    expect(await decide!({ sender: window.webContents }, { id: 'aviso-1', granted: true }))
+      .toMatchObject({ success: true, resolved: true });
+    expect(service.resolvePermissionPrompt).toHaveBeenCalledWith('aviso-1', true);
+
+    // Un aviso sin identificador o con una decision que no es booleana nunca
+    // llega al servicio: concederia o denegaria un permiso a ciegas.
+    expect(await decide!({ sender: window.webContents }, { granted: true })).toMatchObject({ success: false });
+    expect(await decide!({ sender: window.webContents }, { id: 'aviso-1', granted: 'si' })).toMatchObject({ success: false });
+    expect(await decide!({ sender: window.webContents }, null)).toMatchObject({ success: false });
+    expect(service.resolvePermissionPrompt).toHaveBeenCalledTimes(1);
   });
 
   it('rechaza emisores distintos y payloads malformados', async () => {

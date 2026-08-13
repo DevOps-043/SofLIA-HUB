@@ -54,8 +54,8 @@ build app aprobados, revision adversarial y commit local.
 
 Cada punto requiere un OpenSpec independiente:
 
-1. Propagar identidad confiable a main y reemplazar RLS permisivo de meetings,
-   SDO y `hub_service_state`.
+1. Propagar identidad confiable a main y reemplazar RLS permisivo de meetings
+   y `hub_service_state`.
 2. Eliminar/renombrar referencias legacy AutoDev y datos aleatorios del digest.
 3. Activar deteccion de prompt injection de Computer Use tras validacion.
 4. Definir WCAG objetivo, axe/visual tests y reduced-motion global.

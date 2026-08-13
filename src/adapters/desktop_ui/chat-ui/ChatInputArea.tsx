@@ -7,6 +7,7 @@ import { StarterPrompts } from './input/StarterPrompts';
 import type { ChatUIController } from './useChatUIController';
 import { SelectionAttachmentChip } from './SelectionAttachmentChip';
 import { TabAttachmentChips } from './input/TabAttachmentChips';
+import { AppAttachmentChips } from './input/AppAttachmentChips';
 
 export function ChatInputArea({ controller }: { controller: ChatUIController }) {
   const input = controller.state.input;
@@ -43,6 +44,15 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
             controller.state.tabs?.setAttached(
               (controller.state.tabs?.attached ?? []).filter((t) => t.tabId !== tabId)
             );
+          }}
+        />
+        <AppAttachmentChips
+          attachedApps={controller.state.apps?.attached ?? []}
+          onRemoveApp={(appId) => {
+            controller.state.apps?.setAttached(
+              (controller.state.apps?.attached ?? []).filter((app) => app.appId !== appId)
+            );
+            controller.state.apps?.extractions.current.delete(appId);
           }}
         />
         <SelectionAttachmentChip

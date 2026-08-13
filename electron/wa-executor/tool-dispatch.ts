@@ -1,7 +1,6 @@
 import { executeToolDirect } from '../computer-use-handlers';
 import { executeGoogleTool, isGoogleTool } from '../whatsapp-executors/google-executors';
 import { executeIrisTool, isIrisTool } from '../whatsapp-executors/iris-executors';
-import { executeSdoTool, isSdoTool } from '../whatsapp-executors/sdo-executors';
 import { executeSystemTool, isSystemTool } from '../whatsapp-executors/system-executors';
 import { executeAppChatTool, isAppChatTool } from './handlers/app-chat';
 import { handleCreateDocument } from './handlers/create-document';
@@ -83,7 +82,6 @@ async function trySpecializedTool(
   senderNumber: string,
   isGroup: boolean,
 ): Promise<FunctionResponse | null> {
-  if (isSdoTool(toolName)) return executeSdoTool(toolName, toolArgs, senderNumber, isGroup);
   if (isDeliveryTool(toolName)) return executeDeliveryTool(toolName, toolArgs, ctx, jid);
   if (isProfileTool(toolName)) return executeProfileTool(toolName, toolArgs, ctx, jid, senderNumber, isGroup);
   if (isMiscTool(toolName)) return executeMiscTool(toolName, toolArgs, ctx, senderNumber);

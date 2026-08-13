@@ -201,6 +201,31 @@ CREATE TABLE public.skills (
   CONSTRAINT skills_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 );
 
+-- Catalogo de Skills del SISTEMA. Sin user_id: no tiene dueño y la lee
+-- cualquier usuario autenticado. Solo service_role escribe (RLS declara una
+-- unica politica, de SELECT). La fila declara instrucciones, herramientas y
+-- politica de workspace, y el cliente las acota antes de concederlas.
+CREATE TABLE public.system_skills (
+  id text NOT NULL CHECK (id ~~ 'sistema:%'::text),
+  name text NOT NULL CHECK (length(btrim(name)) > 0),
+  description text,
+  icon text NOT NULL DEFAULT 'herramienta'::text,
+  command text,
+  category text,
+  surfaces ARRAY NOT NULL DEFAULT '{}'::text[],
+  sort_order integer NOT NULL DEFAULT 100,
+  enabled boolean NOT NULL DEFAULT true,
+  blocked_in_groups boolean NOT NULL DEFAULT false,
+  starter_prompts jsonb NOT NULL DEFAULT '[]'::jsonb,
+  instructions text NOT NULL CHECK (length(btrim(instructions)) > 0),
+  tools jsonb NOT NULL DEFAULT '[]'::jsonb,
+  workspace jsonb,
+  min_app_version text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT system_skills_pkey PRIMARY KEY (id)
+);
+
 -- Vista de compatibilidad de solo lectura sobre public.skills. Permite
 -- revertir el renderer sin revertir datos; se elimina en una release
 -- posterior. La tabla original quedo como public.user_tools_legacy.

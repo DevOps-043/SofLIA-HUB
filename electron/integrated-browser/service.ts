@@ -1,16 +1,54 @@
 import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
-import { BaseWindow, WebContentsView, type BrowserWindow, type Rectangle, type WebContents } from 'electron';
+import fs from 'node:fs/promises';
+import {
+  BaseWindow,
+  BrowserWindow,
+  WebContentsView,
+  session as electronSession,
+  type BrowserWindowConstructorOptions,
+  type Rectangle,
+  type Session,
+  type WebContents,
+} from 'electron';
+import {
+  BROWSER_ANONYMOUS_SCOPE,
+  browserPartitionFor,
+  browserProfileRoot,
+  browserScopeIdFor,
+  getBrowserScopeId,
+  setBrowserScopeId,
+} from './profile-scope';
 import { BrowserHistoryStore } from './browser-history-store';
+import {
+  clearBrowsingData,
+  validateBrowsingDataRequest,
+  type BrowsingDataSummary,
+} from './browsing-data';
 import { BrowserCredentialVault } from './credential-vault';
 import { BrowserExtensionManager } from './extension-manager';
-import { buildBrowserContextMenu, buildSelectionInstruction, MAX_SELECTION_CHARS } from './context-menu';
+import { buildBrowserContextMenu, buildSelectionInstruction, MAX_READING_SELECTION_CHARS, MAX_SELECTION_CHARS } from './context-menu';
+import {
+  installBrowserSelectionMenu,
+  parseSelectionMenuBeacon,
+  setBrowserSelectionMenuEnabled,
+  type BrowserSelectionMenuAction,
+} from './selection-menu';
+import {
+  closeBrowserWritingPanel,
+  deliverBrowserWritingResult,
+  installBrowserWritingPanel,
+  takeBrowserWritingRequest,
+  WRITING_PANEL_BEACON,
+  type BrowserWritingResult,
+} from './writing-panel';
 import { collectIntegratedBrowserDom } from './page-observation';
 import { describeResolutionFailure, resolveBrowserElement, type BrowserElementTarget } from './page-interaction';
 import { IntegratedBrowserPermissionGovernance } from './permission-governance';
-import { BrowserSitePermissionStore } from './site-permissions';
+import { BrowserSitePermissionStore, normalizeOrigin } from './site-permissions';
 import { pickDisplayMediaSource } from './display-media-picker';
 import { BrowserReadingModeService, type BrowserReadingSpeechResult } from './reading-mode-service';
+import { toStandardChromiumUserAgent } from './user-agent';
 import type {
   BrowserReadingContent,
   BrowserReadingPrepareInput,
@@ -32,7 +70,6 @@ import {
   INTEGRATED_BROWSER_OBSERVATION_INTERVAL_MS,
   INTEGRATED_BROWSER_OBSERVATION_MAX_EDGE,
   INTEGRATED_BROWSER_OBSERVATION_QUALITY,
-  INTEGRATED_BROWSER_PARTITION,
   type BrowserCredentialMetadata,
   type BrowserCredentialSaveInput,
   type BrowserExtensionInstallPreview,
@@ -41,6 +78,7 @@ import {
   type BrowserInteractionOutcome,
   type BrowserObservationSnapshot,
   type BrowserObservationStatus,
+  type BrowserPermissionPromptRequest,
   type BrowserSitePermissionKind,
   type BrowserSitePermissionState,
   type BrowserSitePermissionSummary,
@@ -48,7 +86,7 @@ import {
   type IntegratedBrowserTabState,
   type IntegratedBrowserViewMode,
 } from './types';
-import { isAllowedBrowserUrl, normalizeBrowserTarget, parseBrowserViewport } from './validation';
+import { describeBlockedUrl, isAllowedBrowserUrl, normalizeBrowserTarget, parseBrowserViewport } from './validation';
 
 type ViewportWaiter = {
   resolve: () => void;
@@ -104,6 +142,18 @@ export class IntegratedBrowserService extends EventEmitter {
   /** Estado de la ventana anfitriona antes de entrar en pantalla completa. */
   private fullscreenRestore: { window: BaseWindow | BrowserWindow; wasFullScreen: boolean } | null = null;
   private pictureInPictureWindows = new Set<BrowserWindow>();
+  /** Avisos de permiso esperando la respuesta del renderer, por identificador. */
+  private permissionPrompts = new Map<string, (granted: boolean) => void>();
+  /**
+   * Origen del abridor de cada ventana real adoptada, por id de `webContents`.
+   *
+   * Un Document Picture-in-Picture y un popup que la pagina rellena por script
+   * son documentos `about:blank`: heredan el origen de quien los abrio, pero
+   * `getURL()` sigue devolviendo `about:blank`, que no es un origen. Sin este
+   * registro la gobernanza se quedaba sin origen con el que resolver el
+   * permiso, y `request` salia denegando sin llegar a preguntar.
+   */
+  private governedWindowOrigins = new Map<number, string>();
   private viewportWaiters = new Set<ViewportWaiter>();
   private extensionsRestored = false;
   private observationEnabled = true;
@@ -117,6 +167,8 @@ export class IntegratedBrowserService extends EventEmitter {
   private latestObservation: BrowserObservationSnapshot | null = null;
   private observationSequence = 0;
   private observationLastError: string | null = null;
+  /** Perfil (usuario) al que pertenece la sesion de navegacion en curso. */
+  private scopeId = getBrowserScopeId();
 
   constructor(
     private readonly historyStore = new BrowserHistoryStore(),
@@ -182,16 +234,58 @@ export class IntegratedBrowserService extends EventEmitter {
 
   detachWindow(expectedWindow?: BrowserWindow): void {
     if (expectedWindow && this.parentWindow !== expectedWindow) return;
-    this.rejectViewportWaiters(new Error('La ventana principal se cerro antes de mostrar el navegador.'));
+    if (this.parentWindow && this.mainWindowFocusHandler) {
+      this.parentWindow.removeListener('focus', this.mainWindowFocusHandler);
+    }
+    this.mainWindowFocusHandler = null;
+    this.teardownBrowsingSession('La ventana principal se cerro antes de mostrar el navegador.');
+    this.parentWindow = null;
+    this.stopObservationTimer();
+  }
+
+  /**
+   * Vincula el navegador al usuario con sesion activa. Se invoca en cada cambio
+   * de estado de autenticacion (login, cierre de sesion y cambio de cuenta).
+   *
+   * Cerrar sesion no puede dejar el navegador como estaba: las pestañas abiertas
+   * siguen autenticadas en los sitios del usuario anterior y sus vistas siguen
+   * leyendo la particion y los archivos de ese perfil. Por eso se derriba toda la
+   * navegacion en curso y se conmuta el perfil antes de que exista una nueva
+   * sesion.
+   */
+  async applyUserScope(userId: string | null | undefined): Promise<void> {
+    const nextScopeId = browserScopeIdFor(userId);
+    if (nextScopeId === this.scopeId) return;
+    const previousScopeId = this.scopeId;
+
+    this.teardownBrowsingSession();
+    this.scopeId = nextScopeId;
+    setBrowserScopeId(nextScopeId);
+    this.sitePermissionStore.invalidateCache();
+    console.log('[Navegador] Perfil conmutado por cambio de sesion.');
+
+    // El perfil sin sesion es de paso: lo que se navegue ahi no pertenece a
+    // ninguna cuenta y no debe sobrevivir al cambio.
+    if (previousScopeId === BROWSER_ANONYMOUS_SCOPE || nextScopeId === BROWSER_ANONYMOUS_SCOPE) {
+      await this.purgeAnonymousProfile();
+    }
+
+    this.emitState();
+  }
+
+  /**
+   * Cierra pestañas, ventanas separadas, permisos y observacion, conservando la
+   * ventana anfitriona: el renderer volvera a publicar su viewport cuando el
+   * nuevo usuario abra el navegador.
+   */
+  private teardownBrowsingSession(reason = 'La sesion del navegador se cerro.'): void {
+    this.rejectViewportWaiters(new Error(reason));
+    this.discardPermissionPrompts();
     this.permissions?.dispose();
     this.permissions = null;
     this.closePictureInPictureWindows();
     this.fullscreenTabId = null;
     this.fullscreenRestore = null;
-    if (this.parentWindow && this.mainWindowFocusHandler) {
-      this.parentWindow.removeListener('focus', this.mainWindowFocusHandler);
-    }
-    this.mainWindowFocusHandler = null;
     for (const [tabId, detached] of this.detachedWindows) {
       const tab = this.tabs.get(tabId);
       if (tab?.view) {
@@ -207,11 +301,10 @@ export class IntegratedBrowserService extends EventEmitter {
     this.secondaryTabId = null;
     this.viewMode = 'single';
     this.overlayTopTabId = null;
-    this.parentWindow = null;
+    this.customOverlayBounds = null;
     this.viewport = null;
     this.visible = false;
     this.agentControlling = false;
-    this.stopObservationTimer();
     if (this.selectionProbeTimer) {
       clearTimeout(this.selectionProbeTimer);
       this.selectionProbeTimer = null;
@@ -224,7 +317,28 @@ export class IntegratedBrowserService extends EventEmitter {
     this.visualCaptureInFlight = null;
     this.visualCaptureInFlightTarget = null;
     this.observationLastError = null;
+    // Las extensiones pertenecen al perfil: el proximo perfil restaura las suyas.
+    this.extensionsRestored = false;
     this.readingModeService.dispose();
+  }
+
+  /** Vacia la particion y los archivos del perfil sin sesion. */
+  private async purgeAnonymousProfile(): Promise<void> {
+    // Nota: los perfiles de usuarios reales NO se borran; se conservan aislados,
+    // igual que los perfiles de un navegador de escritorio.
+    try {
+      const anonymous = electronSession.fromPartition(browserPartitionFor(BROWSER_ANONYMOUS_SCOPE));
+      await anonymous.clearStorageData();
+      await anonymous.clearCache();
+      await anonymous.clearAuthCache();
+    } catch (error) {
+      console.warn('[Navegador] No se pudo vaciar la sesion sin usuario:', safeErrorMessage(error instanceof Error ? error.message : String(error)));
+    }
+    try {
+      await fs.rm(browserProfileRoot(BROWSER_ANONYMOUS_SCOPE), { recursive: true, force: true });
+    } catch (error) {
+      console.warn('[Navegador] No se pudo borrar el perfil sin usuario:', safeErrorMessage(error instanceof Error ? error.message : String(error)));
+    }
   }
 
   getState(): IntegratedBrowserState {
@@ -332,6 +446,10 @@ export class IntegratedBrowserService extends EventEmitter {
 
   detachTab(rawTabId: unknown): IntegratedBrowserState {
     const tabId = this.requireTabId(rawTabId);
+    return this.detachTabInternal(tabId);
+  }
+
+  private detachTabInternal(tabId: string): IntegratedBrowserState {
     const existing = this.detachedWindows.get(tabId);
     if (existing && !existing.isDestroyed()) {
       if (existing.isMinimized()) existing.restore();
@@ -664,6 +782,7 @@ export class IntegratedBrowserService extends EventEmitter {
 
   private setAgentControlling(value: boolean): void {
     this.agentControlling = value;
+    this.setSelectionMenuEnabled(!value);
     if (!value) {
       const active = this.getActiveTab();
       if (active) this.deferPassiveCapture(active);
@@ -913,6 +1032,31 @@ export class IntegratedBrowserService extends EventEmitter {
     return true;
   }
 
+  /**
+   * Borra datos de navegacion del perfil ACTIVO, nunca de otro perfil: la
+   * particion se resuelve con `browserPartitionFor()` sin argumento.
+   *
+   * No cierra ni recarga las pestañas abiertas, igual que Chrome. Una pagina ya
+   * cargada sigue en pantalla; su sesion desaparece en la siguiente peticion.
+   */
+  async clearBrowsingData(rawInput: unknown): Promise<BrowsingDataSummary> {
+    const request = validateBrowsingDataRequest(rawInput);
+    const profileSession = electronSession.fromPartition(browserPartitionFor());
+
+    return clearBrowsingData(request, {
+      clearHistorySince: (since) => this.historyStore.clearSince(since),
+      clearSiteData: () => profileSession.clearData({ dataTypes: [...SITE_DATA_TYPES] }),
+      clearCache: async () => {
+        await profileSession.clearCache();
+        // La cache de autenticacion HTTP es la que mantiene viva una sesion
+        // Basic/NTLM aunque las cookies ya no esten.
+        await profileSession.clearAuthCache();
+      },
+      clearPasswords: () => this.credentialVault.clearAll(),
+      clearSitePermissions: () => this.sitePermissionStore.clearAll(),
+    });
+  }
+
   listCredentials(): Promise<BrowserCredentialMetadata[]> {
     return this.credentialVault.list(this.getState().url);
   }
@@ -1013,7 +1157,9 @@ export class IntegratedBrowserService extends EventEmitter {
     const parent = this.requireParentWindow();
     const view = new WebContentsView({
       webPreferences: {
-        partition: INTEGRATED_BROWSER_PARTITION,
+        // Particion del perfil del usuario con sesion activa: cookies, sesiones
+        // de sitio y almacenamiento local no cruzan de una cuenta a otra.
+        partition: browserPartitionFor(),
         sandbox: true,
         contextIsolation: true,
         nodeIntegration: false,
@@ -1040,10 +1186,13 @@ export class IntegratedBrowserService extends EventEmitter {
         session: view.webContents.session,
         store: this.sitePermissionStore,
         isBrowserContents: (contents) => this.isBrowserContents(contents),
+        resolveGovernedOrigin: (contents) => this.governedOriginFor(contents),
         getParentWindow: () => this.parentWindow,
+        prompt: (request) => this.promptPermission(request),
         onChanged: () => this.sendToRenderer('integrated-browser:site-permissions-changed', {}),
       });
       this.configureDisplayMedia(view.webContents.session);
+      this.observeFailedRequests(view.webContents.session);
     }
     if (!this.extensionsRestored) {
       this.extensionsRestored = true;
@@ -1093,32 +1242,57 @@ export class IntegratedBrowserService extends EventEmitter {
     const { id: tabId } = tab;
     const view = this.requireTabView(tab);
     const contents = view.webContents;
-    contents.setUserAgent(toStandardChromiumUserAgent(contents.getUserAgent()));
+    normalizeBrowserUserAgent(contents);
     const isCurrentView = () => tab.view === view && !contents.isDestroyed();
     contents.setWindowOpenHandler((details) => {
       if (!isCurrentView()) return { action: 'deny' };
       const { url } = details;
+      if (isBlockedGoogleChatDirectCall(contents.getURL(), url)) {
+        console.warn('[Navegador][Seguridad] Llamada directa automática de Google Chat bloqueada.');
+        return { action: 'deny' };
+      }
       // Document Picture-in-Picture y los popups que la pagina rellena por
       // script piden `about:blank`. Convertirlos en pestañas dejaba pestañas
-      // vacias y a la pagina esperando una ventana que nunca existio: es lo
-      // que dejaba a Google Meet con el area de la llamada en negro.
+      // vacias y a la pagina esperando una ventana que nunca existio.
       if (isBlankPopupTarget(url)) {
-        console.info('[Navegador][Ventana] Apertura sin destino permitida como ventana real.');
-        // Sin `webPreferences` propias: la ventana hereda las del abridor y
-        // conserva su proceso y su relacion `window.opener`. Fijarlas la
-        // colocaba en otro SiteInstance y el abridor perdia el acceso al
-        // documento hijo antes de que terminara de inicializarse.
+        console.info('[Navegador][Ventana] Popup gobernado permitido como ventana real.');
+        const popupOptions = buildPopupWindowOptions(details);
         return {
           action: 'allow',
-          overrideBrowserWindowOptions: buildPopupWindowOptions(details),
+          // `did-create-window` se emite despues de entregar el webContents a
+          // Chromium. Prepararla aqui cierra la carrera de gobernanza sin
+          // confiar en todo contenido que comparta la sesion.
+          createWindow: (options: BrowserWindowConstructorOptions) => {
+            // Se conservan las opciones heredadas del abridor, en particular
+            // webPreferences/session y la relacion `window.opener`. Solo se
+            // acotan dimensiones y presentacion de la ventana.
+            const popup = new BrowserWindow({ ...options, ...popupOptions });
+            this.prepareBrowserPopupWindow(popup, normalizeOrigin(contents.getURL()));
+            console.info(`[Navegador][Ventana] Ventana real adoptada antes de entregarla: ${this.isBrowserContents(popup.webContents) ? 'sí' : 'no'}.`);
+            return popup.webContents;
+          },
         };
       }
-      if (isAllowedBrowserUrl(url)) void this.createTab(url, true).catch((error) => this.recordError(error));
-      else this.recordError(new Error('El sitio intento abrir un protocolo no permitido.'));
+      if (isAllowedBrowserUrl(url)) {
+        // `window.open` con destino se convierte en pestaña, asi que quien la
+        // abrio recibe `null` y pierde la relacion `opener`. Queda registrado
+        // porque hay flujos que dependen de ese vinculo.
+        console.info(`[Navegador][Ventana] Apertura con destino convertida en pestaña: ${describeBlockedUrl(url)}`);
+        void this.createTab(url, true).catch((error) => this.recordError(error));
+      } else this.recordError(new Error('El sitio intento abrir un protocolo no permitido.'));
       return { action: 'deny' };
     });
+    // Un marco que no carga deja a la pagina a medias sin decir por que. El
+    // codigo -3 es una cancelacion ordinaria y no se registra.
+    contents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      if (errorCode === -3) return;
+      const ambito = isMainFrame ? 'documento' : 'marco';
+      console.warn(`[Navegador][Carga] ${ambito} fallido (${errorCode} ${errorDescription}): ${describeBlockedUrl(validatedURL)}`);
+    });
     contents.on('did-create-window', (window) => {
-      this.adoptPictureInPictureWindow(window);
+      // Respaldo para cualquier ventana permitida por Electron fuera del
+      // creador controlado anterior.
+      this.prepareBrowserPopupWindow(window, normalizeOrigin(contents.getURL()));
     });
     // Pantalla completa de la pagina. Chromium solo cambia su propio estado
     // interno: la vista conserva los bounds del layout y la ventana su tamaño,
@@ -1154,16 +1328,34 @@ export class IntegratedBrowserService extends EventEmitter {
       if (!isCurrentView()) return;
       if ((event as typeof event & { isMainFrame?: boolean }).isMainFrame === false) return;
       const url = event.url;
+      if (isBlockedGoogleChatDirectCall(contents.getURL(), url)) {
+        event.preventDefault();
+        console.warn('[Navegador][Seguridad] Llamada directa automática de Google Chat bloqueada.');
+        return;
+      }
       if (isAllowedBrowserUrl(url)) return;
       event.preventDefault();
+      console.warn('[Navegador][Seguridad] Navegacion bloqueada:', describeBlockedUrl(url));
       this.recordError(new Error('La navegacion fue bloqueada por seguridad.'), tabId);
     });
     contents.on('will-redirect', (event) => {
       if (!isCurrentView()) return;
+      if (isBlockedGoogleChatDirectCall(contents.getURL(), event.url)) {
+        event.preventDefault();
+        console.warn('[Navegador][Seguridad] Llamada directa automática de Google Chat bloqueada.');
+        return;
+      }
       if ((event as typeof event & { isMainFrame?: boolean }).isMainFrame === false) return;
       if (isAllowedBrowserUrl(event.url)) return;
       event.preventDefault();
+      console.warn('[Navegador][Seguridad] Redireccion bloqueada:', describeBlockedUrl(event.url));
       this.recordError(new Error('La redireccion fue bloqueada por seguridad.'), tabId);
+    });
+    contents.on('will-frame-navigate', (event) => {
+      if (!isCurrentView() || event.isMainFrame) return;
+      if (!isBlockedGoogleChatDirectCall(contents.getURL(), event.url)) return;
+      event.preventDefault();
+      console.warn('[Navegador][Seguridad] Llamada directa automática de Google Chat bloqueada.');
     });
     contents.on('did-start-loading', () => {
       if (!isCurrentView()) return;
@@ -1214,8 +1406,16 @@ export class IntegratedBrowserService extends EventEmitter {
       if (!isCurrentView()) return;
       const detalle = args[0] as { message?: string } | undefined;
       const mensaje = typeof detalle?.message === 'string' ? detalle.message : String(args[2] ?? '');
-      if (!mensaje.includes(SELECTION_BEACON)) return;
-      this.deferSelectionProbe(tab);
+      if (mensaje.includes(WRITING_PANEL_BEACON)) {
+        void this.collectWritingRequest(tab);
+        return;
+      }
+      const accionMenu = parseSelectionMenuBeacon(mensaje);
+      if (accionMenu) {
+        void this.runSelectionMenuAction(tab, accionMenu);
+        return;
+      }
+      if (mensaje.includes(SELECTION_BEACON)) this.deferSelectionProbe(tab);
     });
     contents.on('input-event', (_event, input) => {
       if (!isCurrentView()) return;
@@ -1279,6 +1479,48 @@ export class IntegratedBrowserService extends EventEmitter {
     this.emitState();
   }
 
+  /**
+   * Pide al renderer que muestre el aviso de permiso y espera su decision.
+   *
+   * Nunca puede quedarse pendiente: la pagina esta bloqueada esperando la
+   * respuesta, y una promesa que no resuelve deja la llamada a medias para
+   * siempre. Sin renderer, o si el usuario ignora el aviso, se deniega.
+   */
+  private promptPermission(request: BrowserPermissionPromptRequest): Promise<boolean> {
+    const parent = this.parentWindow;
+    if (!parent || parent.isDestroyed()) {
+      console.warn('[Navegador][Permisos] Sin ventana donde mostrar el aviso: se deniega.');
+      return Promise.resolve(false);
+    }
+    return new Promise<boolean>((resolve) => {
+      const settle = (granted: boolean) => {
+        if (!this.permissionPrompts.delete(request.id)) return;
+        clearTimeout(timer);
+        resolve(granted);
+      };
+      const timer = setTimeout(() => {
+        console.warn(`[Navegador][Permisos] El aviso de ${request.origin} expiro sin respuesta.`);
+        settle(false);
+      }, PERMISSION_PROMPT_TIMEOUT_MS);
+      this.permissionPrompts.set(request.id, settle);
+      this.sendToRenderer('integrated-browser:permission-prompt', request);
+    });
+  }
+
+  /** Respuesta del usuario al aviso. Devuelve falso si el aviso ya no existe. */
+  resolvePermissionPrompt(id: string, granted: boolean): boolean {
+    const settle = this.permissionPrompts.get(id);
+    if (!settle) return false;
+    settle(granted);
+    return true;
+  }
+
+  /** Deniega los avisos vivos: quedarse esperando a un renderer que ya no esta cuelga la pagina. */
+  private discardPermissionPrompts(): void {
+    for (const settle of [...this.permissionPrompts.values()]) settle(false);
+    this.permissionPrompts.clear();
+  }
+
   private sendToRenderer(channel: string, payload: unknown): void {
     const parent = this.parentWindow;
     if (parent && !parent.isDestroyed()) parent.webContents.send(channel, payload);
@@ -1307,6 +1549,13 @@ export class IntegratedBrowserService extends EventEmitter {
     for (const tab of this.tabs.values()) {
       const candidate = tab.view?.webContents;
       if (candidate && !candidate.isDestroyed() && candidate === contents) return true;
+    }
+    // Las ventanas reales que abre un sitio comparten la particion pero no son
+    // pestañas. Dejarlas fuera hacia que la gobernanza las tratara como
+    // contenido ajeno y les negara camara y microfono sin preguntar: Google
+    // Meet abre asi su ventana de llamada desde Gmail y no llegaba a arrancar.
+    for (const window of this.pictureInPictureWindows) {
+      if (!window.isDestroyed() && window.webContents === contents) return true;
     }
     return false;
   }
@@ -1392,7 +1641,88 @@ export class IntegratedBrowserService extends EventEmitter {
    * de una ventana de aplicacion; se les quita el menu y se dejan siempre
    * encima para que se comporten como el PiP de un navegador.
    */
-  private adoptPictureInPictureWindow(window: BrowserWindow): void {
+  /**
+   * Registra el error de red exacto de cada peticion que falla.
+   *
+   * La pestaña Network trunca el codigo y un fallo dentro de un service worker
+   * solo llega a la pagina como "Failed to fetch", sin decir por que. Es
+   * observacion pura: `onErrorOccurred` no puede alterar ni bloquear nada.
+   */
+  private observeFailedRequests(session: Session): void {
+    session.webRequest.onErrorOccurred({ urls: ['<all_urls>'] }, (details) => {
+      // Una navegacion reemplazada aborta por diseño y no es un fallo.
+      if (details.error === 'net::ERR_ABORTED') return;
+      // El tipo de recurso distingue una navegacion de una precarga
+      // especulativa o de una peticion del service worker, que es lo que
+      // decide donde mirar. La ruta se conserva sin query: los tokens de sesion
+      // viajan ahi.
+      let ruta = '(ruta ilegible)';
+      try {
+        const url = new URL(details.url);
+        ruta = `${url.origin}${url.pathname}`;
+      } catch { /* se conserva el marcador */ }
+      console.warn(`[Navegador][Red] ${details.error} [${details.resourceType}] ${ruta}`);
+    });
+
+  }
+
+  private prepareBrowserPopupWindow(window: BrowserWindow, openerOrigin: string | null): void {
+    if (window.isDestroyed()) return;
+    // La ventana real no hereda necesariamente el User-Agent normalizado del
+    // abridor. Prepararla antes de devolver su webContents mantiene la misma
+    // identidad Chromium desde su primera consulta.
+    normalizeBrowserUserAgent(window.webContents);
+    if (openerOrigin) {
+      const contentsId = window.webContents.id;
+      this.governedWindowOrigins.set(contentsId, openerOrigin);
+      window.once('closed', () => this.governedWindowOrigins.delete(contentsId));
+    }
+    // Una ventana real puede abrir otras ventanas. La politica se hereda para
+    // que ninguna quede fuera del navegador o sin origen gobernado.
+    this.governePopupOpenings(window.webContents, openerOrigin);
+    this.adoptPictureInPictureWindow(window, openerOrigin);
+  }
+
+  /**
+   * Aplica a un `webContents` la misma politica de apertura de ventanas que a
+   * una pestaña, conservando el origen heredado a lo largo de la cadena.
+   */
+  private governePopupOpenings(contents: WebContents, inheritedOrigin: string | null): void {
+    contents.setWindowOpenHandler((details) => {
+      const openerOrigin = this.governedOriginFor(contents) ?? inheritedOrigin;
+      if (isBlockedGoogleChatDirectCall(openerOrigin, details.url)) {
+        console.warn('[Navegador][Seguridad] Llamada directa automática de Google Chat bloqueada.');
+        return { action: 'deny' };
+      }
+      if (isBlankPopupTarget(details.url)) {
+        console.info('[Navegador][Ventana] Popup anidado gobernado permitido como ventana real.');
+        const popupOptions = buildPopupWindowOptions(details);
+        return {
+          action: 'allow',
+          createWindow: (options: BrowserWindowConstructorOptions) => {
+            const popup = new BrowserWindow({ ...options, ...popupOptions });
+            this.prepareBrowserPopupWindow(popup, openerOrigin);
+            return popup.webContents;
+          },
+        };
+      }
+      if (isAllowedBrowserUrl(details.url)) {
+        void this.createTab(details.url, true).catch((error) => this.recordError(error));
+      } else this.recordError(new Error('El sitio intento abrir un protocolo no permitido.'));
+      return { action: 'deny' };
+    });
+  }
+
+  /**
+   * Origen heredado de una ventana real adoptada. Es el del abridor: un
+   * documento `about:blank` no tiene origen propio con el que decidir permisos.
+   */
+  governedOriginFor(contents: WebContents | null | undefined): string | null {
+    if (!contents || contents.isDestroyed()) return null;
+    return this.governedWindowOrigins.get(contents.id) ?? null;
+  }
+
+  private adoptPictureInPictureWindow(window: BrowserWindow, openerOrigin: string | null): void {
     if (window.isDestroyed()) return;
     this.pictureInPictureWindows.add(window);
     // `setMenu` solo existe en Windows y Linux; en macOS el menu es de
@@ -1404,10 +1734,19 @@ export class IntegratedBrowserService extends EventEmitter {
     const [width] = window.getSize();
     if (width <= POPUP_ALWAYS_ON_TOP_MAX_WIDTH) window.setAlwaysOnTop(true, 'floating');
     window.once('closed', () => this.pictureInPictureWindows.delete(window));
-    window.webContents.on('will-navigate', (event) => {
+    const guardPopupNavigation = (event: { url: string; preventDefault: () => void }) => {
+      if (isBlockedGoogleChatDirectCall(openerOrigin, event.url)) {
+        event.preventDefault();
+        console.warn('[Navegador][Seguridad] Llamada directa automática de Google Chat bloqueada.');
+        if (!window.isDestroyed()) window.close();
+        return;
+      }
       if (isAllowedBrowserUrl(event.url)) return;
       event.preventDefault();
-    });
+    };
+    window.webContents.on('will-navigate', guardPopupNavigation);
+    window.webContents.on('will-redirect', guardPopupNavigation);
+    window.webContents.on('will-frame-navigate', guardPopupNavigation);
   }
 
   private closePictureInPictureWindows(): void {
@@ -1593,7 +1932,12 @@ export class IntegratedBrowserService extends EventEmitter {
     const tab = this.tabs.get(tabId);
     if (!detached || detached.isDestroyed() || !tab?.view || tab.view.webContents.isDestroyed()) return;
     const bounds = detached.getContentBounds();
-    this.applyTabBounds(tab, tab.view, { x: 0, y: 0, width: Math.max(1, bounds.width), height: Math.max(1, bounds.height) });
+    this.applyTabBounds(tab, tab.view, {
+      x: 0,
+      y: 0,
+      width: Math.max(1, bounds.width),
+      height: Math.max(1, bounds.height),
+    });
     this.applyTabVisibility(tab, tab.view, true);
   }
 
@@ -1716,15 +2060,125 @@ export class IntegratedBrowserService extends EventEmitter {
 
   /**
    * Instala en cada marco un vigia que avisa por consola cuando cambia la
-   * seleccion. El aviso viaja por `console-message`, que el proceso principal
-   * siempre recibe, sin necesidad de preload ni de un canal IPC nuevo.
+   * seleccion, y el menu flotante que ofrece las acciones de SofLIA junto al
+   * texto marcado. El aviso viaja por `console-message`, que el proceso
+   * principal siempre recibe, sin necesidad de preload ni de un canal IPC
+   * nuevo.
    */
   private async installSelectionWatcher(contents: WebContents): Promise<void> {
     for (const marco of collectSelectableFrames(contents)) {
       await marco.executeJavaScript(SELECTION_WATCHER_SCRIPT, true).catch((error: unknown) => {
         selectionLog(`vigia no instalado en un marco: ${error instanceof Error ? error.message : String(error)}`);
       });
+      await installBrowserSelectionMenu(marco).catch((error: unknown) => {
+        selectionLog(`menu flotante no instalado en un marco: ${error instanceof Error ? error.message : String(error)}`);
+      });
+      await installBrowserWritingPanel(marco).catch((error: unknown) => {
+        selectionLog(`panel de redaccion no instalado en un marco: ${error instanceof Error ? error.message : String(error)}`);
+      });
     }
+    if (this.agentControlling) this.setSelectionMenuEnabled(false);
+  }
+
+  /**
+   * Recoge la peticion que dejo el panel de redaccion. Es una lectura por
+   * marco: el aviso de consola no dice cual la origino y el texto nunca viaja
+   * por la consola.
+   */
+  private async collectWritingRequest(tab: BrowserTabRuntime): Promise<void> {
+    if (this.agentControlling) return;
+    const contents = tab.view?.webContents;
+    if (!contents || contents.isDestroyed()) return;
+    for (const marco of collectSelectableFrames(contents)) {
+      const solicitud = await takeBrowserWritingRequest(marco).catch(() => null);
+      if (!solicitud) continue;
+      selectionLog(`redaccion pedida desde el panel (${solicitud.text.length} chars, instruccion ${solicitud.prompt.length ? 'propia' : 'vacia'})`);
+      this.sendToRenderer('integrated-browser:writing-request', {
+        requestId: solicitud.requestId,
+        prompt: solicitud.prompt,
+        text: solicitud.text,
+        title: tab.title,
+        url: contents.getURL(),
+      });
+      return;
+    }
+    selectionLog('aviso de redaccion sin peticion pendiente');
+  }
+
+  /**
+   * Entrega al panel lo que respondio el modelo. Se reparte por todos los
+   * marcos porque el panel vive en el que tenia la seleccion y una espera de
+   * red pudo cambiar el arbol; el que no reconoce el identificador lo ignora.
+   */
+  async resolveWritingRequest(result: BrowserWritingResult): Promise<{ delivered: boolean }> {
+    const tab = this.getActiveTab();
+    const contents = tab?.view?.webContents;
+    if (!contents || contents.isDestroyed()) return { delivered: false };
+    let delivered = false;
+    for (const marco of collectSelectableFrames(contents)) {
+      const entregado = await deliverBrowserWritingResult(marco, result).catch(() => false);
+      delivered = delivered || entregado;
+    }
+    selectionLog(`respuesta de redaccion ${delivered ? 'entregada' : 'sin panel que la reciba'}`);
+    return { delivered };
+  }
+
+  /**
+   * El menu solo tiene sentido cuando quien selecciona es una persona. Mientras
+   * el agente conduce el navegador se apaga: sus clics sintetizados no son una
+   * peticion y la burbuja ensuciaria las capturas de percepcion.
+   */
+  private setSelectionMenuEnabled(enabled: boolean): void {
+    const tab = this.getActiveTab();
+    const contents = tab?.view?.webContents;
+    if (!contents || contents.isDestroyed()) return;
+    for (const marco of collectSelectableFrames(contents)) {
+      void setBrowserSelectionMenuEnabled(marco, enabled).catch(() => undefined);
+      // Un panel abierto mientras el agente conduce estorbaria a sus capturas y
+      // escribiria sobre un campo que ya no controla el usuario.
+      if (!enabled) void closeBrowserWritingPanel(marco).catch(() => undefined);
+    }
+  }
+
+  /**
+   * Atiende una accion del menu flotante. El texto seleccionado sigue siendo
+   * contenido no confiable: viaja al compositor junto a su instruccion y es el
+   * usuario quien decide que pedir y cuando enviarlo. Ninguna accion manda el
+   * turno por su cuenta.
+   */
+  private async runSelectionMenuAction(tab: BrowserTabRuntime, action: BrowserSelectionMenuAction): Promise<void> {
+    if (this.agentControlling) {
+      selectionLog(`accion ${action} ignorada: el agente controla el navegador`);
+      return;
+    }
+    const contents = tab.view?.webContents;
+    if (!contents || contents.isDestroyed()) return;
+    const limite = action === 'read' ? MAX_READING_SELECTION_CHARS : MAX_SELECTION_CHARS;
+    const texto = await this.readSelectionText(contents, limite);
+    if (!texto) {
+      selectionLog(`accion ${action} sin seleccion viva`);
+      return;
+    }
+    if (action === 'read') {
+      selectionLog(`modo lectura pedido desde el menu flotante (${texto.length} chars)`);
+      this.sendToRenderer('integrated-browser:reading-mode-requested', {
+        url: contents.getURL(),
+        title: tab.title,
+        selection: texto,
+      });
+      return;
+    }
+    // El adjunto ya viajo solo al chat al asentarse la seleccion; aqui se
+    // reenvia con la instruccion elegida y se anota para que el sondeo
+    // posterior no lo pise con un adjunto sin instruccion.
+    this.lastReportedSelection = texto;
+    selectionLog(`accion ${action} enviada al chat (${texto.length} chars)`);
+    this.sendToRenderer('integrated-browser:selection-action', {
+      action,
+      text: texto,
+      title: tab.title,
+      instruction: buildSelectionInstruction(action),
+    });
   }
 
   private deferSelectionProbe(tab: BrowserTabRuntime): void {
@@ -1779,7 +2233,7 @@ export class IntegratedBrowserService extends EventEmitter {
    * cualquier app compuesta, el texto marcado casi nunca vive en el documento
    * principal. Devuelve la primera seleccion no vacia que encuentre.
    */
-  private async readSelectionText(contents: WebContents): Promise<string> {
+  private async readSelectionText(contents: WebContents, limit = MAX_SELECTION_CHARS): Promise<string> {
     const marcos = collectSelectableFrames(contents);
     let fallos = 0;
     for (const marco of marcos) {
@@ -1791,7 +2245,7 @@ export class IntegratedBrowserService extends EventEmitter {
       const texto = typeof crudo === 'string' ? crudo.trim() : '';
       if (texto) {
         selectionLog(`seleccion leida (${texto.length} chars) en ${marcos.length} marco(s)`);
-        return texto.slice(0, MAX_SELECTION_CHARS);
+        return texto.slice(0, limit);
       }
     }
     selectionLog(`sin seleccion en ${marcos.length} marco(s), ${fallos} ilegible(s)`);
@@ -2018,22 +2472,18 @@ function isMeaningfulBrowserInput(input: unknown): boolean {
 }
 
 /**
- * Deja el User-Agent identico al de un Chromium de escritorio.
+ * Aplica la identidad Chromium tanto al documento como a la sesion.
  *
- * Electron inserta dos fichas propias: el nombre y version de la aplicacion
- * (`soflia-hub-desktop/x.y.z`) y `Electron/x.y.z`. Ambas convierten la cadena
- * en la de un cliente desconocido, mientras `Sec-CH-UA` sigue anunciando
- * `"Chromium"`. Los endpoints que validan la coherencia del cliente rechazan
- * esa combinacion; es lo que devolvia `FAILED_PRECONDITION` al pedir la
- * transcripcion de YouTube. Sin esas fichas, la cadena y las Client Hints
- * describen al mismo Chromium.
+ * `webContents.setUserAgent` cubre la pagina principal, pero Chromium 152 usa
+ * el User-Agent de `Session` en workers y algunos subframes cruzados. Google
+ * Chat carga precisamente la llamada de Meet por esas superficies; si la
+ * sesion conserva `Electron/x.y.z`, la mayor parte del flujo vuelve a anunciar
+ * Electron aunque la pestaña principal ya parezca Chrome.
  */
-function toStandardChromiumUserAgent(userAgent: string): string {
-  return userAgent
-    .replace(/\s+Electron\/\d+(?:\.\d+)*/gi, '')
-    .replace(/\s+[\w.-]+\/\d+(?:\.\d+)*(?=\s+Chrome\/)/g, '')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
+function normalizeBrowserUserAgent(contents: WebContents): void {
+  const userAgent = toStandardChromiumUserAgent(contents.getUserAgent());
+  contents.session.setUserAgent(userAgent);
+  contents.setUserAgent(userAgent);
 }
 
 function detachedWindowTitle(tab: BrowserTabRuntime): string {
@@ -2049,6 +2499,56 @@ function detachedWindowTitle(tab: BrowserTabRuntime): string {
 function isBlankPopupTarget(url: unknown): boolean {
   return typeof url === 'string' && (url === '' || url === 'about:blank' || url === 'about:blank#blocked');
 }
+
+/** La ruta directa de Chat se reconoce de forma exacta para bloquearla. */
+function isGoogleMeetDirectCallUrl(raw: unknown): raw is string {
+  if (typeof raw !== 'string') return false;
+  try {
+    const url = new URL(raw);
+    return url.protocol === 'https:'
+      && url.hostname === 'meet.google.com'
+      && (url.pathname === '/call' || url.pathname === '/call/');
+  } catch {
+    return false;
+  }
+}
+
+/** La protección solo se aplica a aperturas originadas por Gmail o Chat. */
+function isGoogleChatCallSource(raw: unknown): boolean {
+  if (typeof raw !== 'string') return false;
+  try {
+    const url = new URL(raw);
+    return url.protocol === 'https:'
+      && (url.hostname === 'mail.google.com' || url.hostname === 'chat.google.com');
+  } catch {
+    return false;
+  }
+}
+
+function isBlockedGoogleChatDirectCall(source: unknown, target: unknown): boolean {
+  return isGoogleChatCallSource(source) && isGoogleMeetDirectCallUrl(target);
+}
+
+/**
+ * Margen antes de dar por abandonado un aviso de permiso. Es largo a proposito:
+ * el usuario puede estar leyendolo. Solo existe para que una pagina no quede
+ * bloqueada para siempre si el aviso nunca llega a responderse.
+ */
+const PERMISSION_PROMPT_TIMEOUT_MS = 120_000;
+
+/**
+ * Lo que Chrome llama "cookies y otros datos de sitios". `cache` queda fuera a
+ * proposito: es una categoria propia que el usuario marca por separado.
+ */
+const SITE_DATA_TYPES = [
+  'cookies',
+  'localStorage',
+  'indexedDB',
+  'serviceWorkers',
+  'fileSystems',
+  'webSQL',
+  'backgroundFetch',
+] as const;
 
 const POPUP_DEFAULT_WIDTH = 640;
 const POPUP_DEFAULT_HEIGHT = 480;

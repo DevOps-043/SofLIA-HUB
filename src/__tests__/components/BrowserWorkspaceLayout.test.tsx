@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { BrowserWorkspaceLayout } from '../../components/browser/BrowserWorkspaceLayout';
 import { orbService } from '../../services/orb-service';
+import { scopedPreferenceKey } from '../../services/user-scope';
 
 vi.mock('../../services/orb-service', () => ({
   orbService: { show: vi.fn(async () => ({ success: true, visible: true })) },
@@ -81,7 +82,7 @@ describe('BrowserWorkspaceLayout', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar modelo y razonamiento' }));
     fireEvent.click(screen.getByRole('menuitemradio', { name: /SofLIA Pro/ }));
 
-    expect(localStorage.getItem('soflia:selected-model')).toBe('gpt-5.6-luna');
+    expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe('gpt-5.6-luna');
     expect(screen.getByRole('button', { name: 'Cambiar modelo y razonamiento' })).toHaveTextContent('SofLIA Pro');
   });
 
@@ -93,7 +94,7 @@ describe('BrowserWorkspaceLayout', () => {
     expect(slider).toBeInTheDocument();
 
     fireEvent.keyDown(slider, { key: 'ArrowRight' });
-    expect(localStorage.getItem('soflia:thinking-by-model')).toBeDefined();
+    expect(localStorage.getItem(scopedPreferenceKey('soflia:thinking-by-model'))).toBeDefined();
   });
 
   it('mueve el panel al lado derecho y persiste el lado', () => {
@@ -103,7 +104,7 @@ describe('BrowserWorkspaceLayout', () => {
 
     expect(screen.getByRole('button', { name: 'Mover panel a la izquierda' })).toBeInTheDocument();
     expect(screen.getByTestId('viewport-insets')).toHaveTextContent('0:412');
-    expect(localStorage.getItem('sofLia_integratedBrowserFloatingChatSide')).toBe('right');
+    expect(localStorage.getItem(scopedPreferenceKey('sofLia_integratedBrowserFloatingChatSide'))).toBe('right');
   });
 
   it('ajusta y persiste el ancho del chat con teclado', () => {
@@ -113,7 +114,7 @@ describe('BrowserWorkspaceLayout', () => {
     fireEvent.keyDown(separator, { key: 'ArrowRight' });
 
     expect(separator).toHaveAttribute('aria-valuenow', '420');
-    expect(localStorage.getItem('sofLia_integratedBrowserFloatingChatWidth')).toBe('420');
+    expect(localStorage.getItem(scopedPreferenceKey('sofLia_integratedBrowserFloatingChatWidth'))).toBe('420');
     expect(screen.getByTestId('viewport-insets')).toHaveTextContent('444:0');
   });
 

@@ -1,7 +1,7 @@
-import { app } from 'electron';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { browserProfilePath, resolveStoreLocation } from './profile-scope';
 import type { BrowserHistoryEntry } from './types';
 
 const HISTORY_LIMIT = 2_000;
@@ -11,7 +11,15 @@ const DEFAULT_QUERY_LIMIT = 50;
 export class BrowserHistoryStore {
   private writeQueue: Promise<void> = Promise.resolve();
 
-  constructor(private readonly filePath = path.join(app.getPath('userData'), 'integrated-browser', 'history.jsonl')) {}
+  /**
+   * La ubicacion se resuelve en cada operacion: el historial pertenece al perfil
+   * del usuario con sesion activa, y ese perfil cambia sin reconstruir el store.
+   */
+  constructor(private readonly location: string | (() => string) = () => browserProfilePath('history.jsonl')) {}
+
+  private get filePath(): string {
+    return resolveStoreLocation(this.location);
+  }
 
   async record(input: { url: string; title?: string; visitedAt?: string }): Promise<BrowserHistoryEntry | null> {
     const url = sanitizeHistoryUrl(input.url);
@@ -47,6 +55,37 @@ export class BrowserHistoryStore {
 
   async clear(): Promise<void> {
     await this.enqueue(() => this.writeAll([]));
+  }
+
+  /**
+   * Borra las visitas posteriores a `sinceIso` y devuelve cuantas quito.
+   *
+   * El historial es el UNICO dato del navegador que puede acotarse por fecha,
+   * porque es nuestro y cada entrada guarda `visitedAt`. Cookies y cache viven
+   * en Chromium y Electron no expone su rango temporal. Con `sinceIso` nulo se
+   * borra todo.
+   */
+  async clearSince(sinceIso: string | null): Promise<number> {
+    if (sinceIso === null) {
+      let removed = 0;
+      await this.enqueue(async () => {
+        removed = (await this.readAllUnsafe()).length;
+        await this.writeAll([]);
+      });
+      return removed;
+    }
+
+    const since = Date.parse(sinceIso);
+    if (Number.isNaN(since)) throw new Error('El rango de borrado no es una fecha valida.');
+
+    let removed = 0;
+    await this.enqueue(async () => {
+      const entries = await this.readAllUnsafe();
+      const kept = entries.filter((entry) => Date.parse(entry.visitedAt) < since);
+      removed = entries.length - kept.length;
+      if (removed > 0) await this.writeAll(kept);
+    });
+    return removed;
   }
 
   private async enqueue(operation: () => Promise<void>): Promise<void> {

@@ -106,6 +106,22 @@ body {
   row-gap: calc(var(--ritmo) * 1.5);
 }
 
+/* Con el guion instalado la diapositiva NO crece: se queda en la ventana y lo
+   que no cabe lo reduce el ajuste. Sin este tope la diapositiva crecia con su
+   contenido, su altura medida era esa altura ya crecida, el ajuste comparaba
+   contra ella y concluia que todo cabia —y el texto se salia por abajo, que es
+   el fallo que se veia en cada baraja vertical—.
+
+   El respaldo es desplazamiento DENTRO de la diapositiva: si tras reducir al
+   minimo sigue sin caber, se puede leer. Nunca se recorta en silencio. Sin
+   guion la regla no aplica y la diapositiva crece como antes. */
+.deck-js .diapositiva {
+  max-height: 100vh;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.deck-js .diapositiva::-webkit-scrollbar { display: none; }
+
 /* Envoltorio que crea guion-base.js para escalar el contenido cuando no cabe.
    Se declara aqui para que herede la composicion de la diapositiva. */
 .diapositiva__ajuste {
@@ -115,7 +131,6 @@ body {
   position: relative;
   z-index: 1;
   width: 100%;
-  transform-origin: center center;
 }
 
 /* --- Tipografia --------------------------------------------------------- */
@@ -783,9 +798,10 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  /* El guion base ni siquiera se instala con movimiento reducido, asi que
-     deck-js no existe y todo queda visible y quieto. Se anulan ademas las
-     animaciones que pudiera escribir la propia baraja. */
+  /* El guion SI se instala con movimiento reducido, porque el ajuste a la
+     ventana es maquetacion y no movimiento: una diapositiva que no cabe deja
+     el texto fuera de la pantalla con animaciones y sin ellas. Lo que se anula
+     aqui es todo lo que se mueve, incluido lo que escriba la propia baraja. */
   .capa, .capa:hover { transform: none; }
   .orbita__satelite, .orbita__nucleo { opacity: 1 !important; animation: none !important; }
   .orbita::before { opacity: 1 !important; animation: none !important; transform: translate(-50%, -50%) !important; }
@@ -795,6 +811,12 @@ body {
     transform: none !important;
     filter: none !important;
     clip-path: none !important;
+  }
+  /* Un trazo sin su animacion se queda con el guion oculto por completo: hay
+     que devolverle la linea entera o el diagrama aparece vacio. */
+  .traza, .traza-auto {
+    stroke-dasharray: none !important;
+    stroke-dashoffset: 0 !important;
   }
   /* Lo que se mueve en bucle se detiene del todo: es la parte que molesta. */
   .halo { animation: none; }
@@ -807,7 +829,10 @@ body {
   .baraja { height: auto; overflow: visible; }
   .baraja--horizontal { display: block; height: auto; overflow: visible; }
   .baraja--horizontal > .diapositiva { flex-basis: auto; }
-  .diapositiva { min-height: auto; page-break-after: always; }
+  /* Al imprimir no hay ventana que respetar: se suelta el tope de la pantalla
+     para que la diapositiva se lleve entera al papel en vez de recortarse. */
+  .diapositiva,
+  .deck-js .diapositiva { min-height: auto; max-height: none; overflow: visible; page-break-after: always; }
   #pulse-salir { display: none; }
 }
 `;

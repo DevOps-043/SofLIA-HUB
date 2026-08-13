@@ -3,11 +3,16 @@ import type { ActiveSkillState } from '../../../services/skills/active-skill';
 import type { UserSkill } from '../../../shared/skills/types';
 import type { BrowserSelectionAttachment, ConfirmationModalState, OptimizerTarget } from './types';
 import type { TabContextAttachment } from '../../../services/integrated-browser-service';
+import type { AppContextAttachmentState } from './app-attachments';
 
 export function useChatUIState() {
   const [input, setInput] = useState('');
   const [selection, setSelection] = useState<BrowserSelectionAttachment | null>(null);
   const [attachedTabs, setAttachedTabs] = useState<TabContextAttachment[]>([]);
+  // Aplicaciones de escritorio adjuntas. Las lecturas en curso viven en un ref
+  // para que el envio pueda esperarlas sin provocar renders adicionales.
+  const [attachedApps, setAttachedApps] = useState<AppContextAttachmentState[]>([]);
+  const appExtractionsRef = useRef(new Map<string, Promise<AppContextAttachmentState>>());
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [isImageGenMode, setIsImageGenMode] = useState(false);
@@ -34,6 +39,7 @@ export function useChatUIState() {
     input: { value: input, set: setInput },
     selection: { value: selection, set: setSelection },
     tabs: { attached: attachedTabs, setAttached: setAttachedTabs },
+    apps: { attached: attachedApps, setAttached: setAttachedApps, extractions: appExtractionsRef },
     tools: { isOpen: isToolsOpen, setOpen: setIsToolsOpen },
     images: { selected: selectedImages, setSelected: setSelectedImages, zoomed: zoomedImage, setZoomed: setZoomedImage },
     modes: { imageGen: isImageGenMode, setImageGen: setIsImageGenMode, promptOptimizer: isPromptOptimizerMode, setPromptOptimizer: setIsPromptOptimizerMode, optimizerTarget, setOptimizerTarget },

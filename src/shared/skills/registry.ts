@@ -28,14 +28,36 @@ const SYSTEM_SKILL_IDS: ReadonlySet<string> = new Set(SYSTEM_SKILLS.map((skill) 
 export type SkillFlagEnv = Record<string, string | undefined>;
 
 /**
- * Una Skill del sistema esta habilitada si no declara bandera, o si su
- * bandera esta activa en el entorno recibido. Ausente significa apagada, de
- * modo que el valor por defecto nunca expone una capacidad sin declararla.
+ * Una Skill del sistema esta habilitada si no declara bandera, o segun lo que
+ * diga su bandera en el entorno recibido.
+ *
+ * La bandera SIN DEFINIR no significa lo mismo para todas: una capacidad en
+ * desarrollo se queda apagada, y una ya publicada se queda encendida. La
+ * diferencia importa porque el `.env` del instalador se genera en el runner:
+ * una variable que nadie declaro alli hacia desaparecer la Skill para todos
+ * los usuarios de esa version, sin que nada fallara en el build.
  */
 export function isSystemSkillEnabled(skill: SystemSkill, env: SkillFlagEnv = {}): boolean {
   if (!skill.featureFlag) return true;
-  const value = env[skill.featureFlag];
-  return value === 'true' || value === '1';
+  const value = (env[skill.featureFlag] ?? '').trim().toLowerCase();
+  if (value === 'true' || value === '1') return true;
+  if (value === 'false' || value === '0') return false;
+  return skill.enabledByDefault === true;
+}
+
+/**
+ * Skill apagada EXPLICITAMENTE por el entorno local.
+ *
+ * Es el interruptor de emergencia del equipo: manda sobre el catalogo remoto,
+ * de modo que un despliegue pueda retirar una capacidad sin depender de que la
+ * base de datos responda. Solo cuenta el apagado declarado; la variable
+ * ausente no apaga nada.
+ */
+export function isSystemSkillDisabledByEnv(id: string, env: SkillFlagEnv = {}): boolean {
+  const skill = findSystemSkill(id);
+  if (!skill?.featureFlag) return false;
+  const value = (env[skill.featureFlag] ?? '').trim().toLowerCase();
+  return value === 'false' || value === '0';
 }
 
 /** Skills del sistema disponibles en una superficie, ya filtradas por bandera. */

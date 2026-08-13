@@ -1,5 +1,6 @@
 import { registerScreenCaptureHandlers } from './screen-capture-handlers';
 import { logBootstrapError } from './bootstrap-steps';
+import { bindBrowserProfileToSession } from './browser-session-scope';
 import { recordDesktopTaskMemory } from '../memory/record-desktop-task';
 
 type StartupWindowControls = {
@@ -28,6 +29,13 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
   modules.registerDriveHandlers(services.driveService, () => state.win);
   modules.registerGChatHandlers(services.gchatService, () => state.win);
   modules.registerIntegratedBrowserHandlers(services.integratedBrowserService, () => state.win);
+  // El navegador integrado sigue al usuario con sesion: cada cuenta tiene su
+  // propio perfil (cookies, historial, contrasenas, permisos y extensiones) y al
+  // cerrar sesion se derriba la navegacion en curso.
+  bindBrowserProfileToSession(services.integratedBrowserService);
+  // Contexto de aplicaciones abiertas: el chat lee lo que el usuario ya tiene
+  // delante. Solo se registra si la capacidad esta activa.
+  modules.registerDesktopContextHandlers(services.desktopContextService, () => state.win);
   // Espacio de trabajo de Skills y protocolo local de presentaciones. El
   // protocolo se registra aqui (post `app.ready`); el ESQUEMA se declara
   // antes de ready en el bootstrap, que es donde Electron lo exige.
@@ -51,7 +59,6 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
     recordDesktopTaskMemory(services.memoryService, payload as { task?: string; message?: string }, true));
   modules.registerUpdaterHandlers(services.updaterService, () => state.win);
   modules.registerMeetingHandlers(services.meetingWorkflowService);
-  modules.registerSdoHandlers(services.sdoService);
   // Transcripcion de reuniones en vivo: audio del renderer -> sidecar Python
   // (faster-whisper) -> pipeline de meetings existente para la minuta.
   modules.registerMeetingLiveHandlers(
@@ -90,8 +97,6 @@ export async function initializeMainServices(input: {
   await runOptionalStep('memoryService.init', () => services.memoryService.init());
   await runOptionalStep('knowledgeService.init', () => services.knowledgeService.init());
   await runOptionalStep('meetingWorkflowService.init', () => Promise.resolve(services.meetingWorkflowService.init()));
-  await runOptionalStep('sdoService.init', () => services.sdoService.init());
-  await runOptionalStep('sdoService.start', () => Promise.resolve(services.sdoService.start()));
   await runOptionalStep('workspaceAutomationService.init', () => Promise.resolve(services.workspaceAutomationService.init()));
   await runOptionalStep('workflowHubService.init', () => Promise.resolve(services.workflowHubService.init()));
   await runOptionalStep('meetingPassiveDetectionService.init', () => services.meetingPassiveDetectionService.init());

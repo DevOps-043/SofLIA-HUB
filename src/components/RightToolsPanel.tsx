@@ -6,7 +6,6 @@ interface RightToolsPanelProps {
   browserOpen?: boolean;
   onOpenBrowser?: () => void;
   onOpenMeetings?: () => void;
-  onOpenSdo?: () => void;
   onOpenChat?: () => void;
 }
 
@@ -15,7 +14,6 @@ export function RightToolsPanel({
   browserOpen,
   onOpenBrowser,
   onOpenMeetings,
-  onOpenSdo,
   onOpenChat,
 }: RightToolsPanelProps) {
   const [isOpen, setIsOpen] = useState(true);
@@ -61,20 +59,6 @@ export function RightToolsPanel({
       icon: (className: string) => (
         <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
-        </svg>
-      ),
-    },
-    {
-      id: 'sdo',
-      label: 'Registro de decisiones',
-      shortcut: 'Ctrl+D',
-      description: 'Registro oficial de decisiones SDO',
-      badge: 'SDO',
-      isActive: activeView === 'sdo' && !browserOpen,
-      onClick: onOpenSdo,
-      icon: (className: string) => (
-        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7 3h10a2 2 0 012 2v16l-2-1-2 1-2-1-2 1-2-1-2 1V5a2 2 0 012-2z" />
         </svg>
       ),
     },

@@ -32,6 +32,7 @@ single-instance lock. `runBootstrap` despues:
 | `GmailService`, `DriveService`, `GChatService` | auth de CalendarService | proveedores externos |
 | `IntegratedBrowserService` | `BrowserWindow` + pestañas `WebContentsView`, doble vista, modo lectura, historial, boveda y extensiones | particion Chromium + archivos administrados en `userData/integrated-browser`; audio lector efímero en memoria |
 | `DesktopAgentService` | vision, UIA/OCR/ONNX, nut/Playwright | config JSON, tareas en memoria |
+| `DesktopContextService` | `listWindows`, desktopCapturer, COM de Office (solo lectura), UIA, `PythonToolsService` | inventario de la ultima consulta en memoria; sin persistencia |
 | `UpdaterService` | electron-updater | estado de descarga |
 | `ClipboardAIAssistant` | clipboard; max 100, poll 5 s | historial en memoria |
 
@@ -40,7 +41,6 @@ single-instance lock. `runBootstrap` despues:
 | `ProactiveService` | Calendar + WhatsApp | `proactive-config.json` |
 | `WorkspaceAutomationService` | Gmail, Calendar, Chat, Drive, Desktop | runs/config de automatizacion |
 | Servicios Meeting | Store, sources, AI, review, sync, detection | Lia Supabase |
-| `SdoService` | repositorio Lia, artifacts | Lia Supabase |
 | `WorkflowHubService` | Calendar, Chat, scheduler, automation, meetings | casos/variantes/reglas |
 | `DailyBriefingService` | WhatsApp | inicia `enabled: false`, cron `0 8 * * 1-5` |
 | `TelegramService` | Telegram API + servicios de workflow | config/identidades locales |
@@ -58,7 +58,7 @@ permisos nuevos.
 ## Orden de inicializacion
 
 El orden de `electron/main/startup.ts` es normativo porque refleja dependencias:
-memoria -> conocimiento -> meetings -> SDO -> automation/workflow -> deteccion ->
+memoria -> conocimiento -> meetings -> automation/workflow -> deteccion ->
 path memory -> updater -> scheduler -> clipboard -> daily briefing -> communication
 hub -> WhatsApp bridge -> background/remote/Telegram/Learning -> dynamic tools ->
 Python -> ventana/tray -> WhatsApp -> Calendar -> polling de deteccion.
@@ -88,6 +88,10 @@ canal permitido. Los servicios no deben importar componentes React.
   fallos y timeout.
 - UIA nativo: workers PowerShell/Windows administran accesibilidad/input cuando
   la plataforma lo soporta.
+- Contexto de escritorio: `electron/desktop-context/` lee lo que el usuario ya
+  tiene abierto para el chat. Inventaria ventanas sin leer contenido y extrae en
+  cascada (documento por COM + sidecar, texto por UIA, captura). Es de solo
+  lectura y no persiste nada; `SOFLIA_DISABLE_DESKTOP_CONTEXT=1` lo desactiva.
 - Navegador integrado: `electron/integrated-browser/` administra hasta 500
   pestañas lógicas con un presupuesto máximo global de ocho `WebContentsView`
   vivas, con una o dos
@@ -120,6 +124,14 @@ canal permitido. Los servicios no deben importar componentes React.
   activa, las dos superficies visibles y hasta cuatro pestañas trasladadas a
   `BaseWindow` quedan protegidas de la suspensión. Separar o reintegrar mueve la
   misma vista sin recargar, duplicar perfil ni crear un renderer de aplicación.
+  La llamada directa automática de Google Chat está deshabilitada. Cuando
+  Gmail o Chat intenta abrir o navegar a la ruta exacta
+  `meet.google.com/call`, main cancela el evento sin crear pestaña, ventana,
+  reunión alternativa, navegador externo ni telemetría RPC de Meet. La regla
+  cubre destinos iniciales, ventanas anidadas, transiciones desde `about:blank`,
+  redirecciones y subframes. Los `about:blank` de Document Picture-in-Picture
+  ajenos a esa ruta conservan una `BrowserWindow` hija real. La gobernanza de
+  cámara, micrófono, pantalla y notificaciones no cambia.
   `BrowserReadingModeService` extrae selección o estructura semántica bajo
   demanda, sintetiza segmentos explícitos con timestamps de ElevenLabs y
   conserva sesiones/audio únicamente en una caché acotada en memoria. El

@@ -18,6 +18,7 @@ import { BrowserAppGridMenu } from './BrowserAppGridMenu';
 import { useBrowserBookmarks } from './use-browser-bookmarks';
 import { BrowserReadingModePanel } from './BrowserReadingModePanel';
 import { BrowserTabStrip } from './BrowserTabStrip';
+import { scopedPreferenceKey } from '../../services/user-scope';
 
 const UTILITY_BAR_STORAGE_KEY = 'sofLia_integratedBrowserUtilityBarVisible';
 
@@ -426,7 +427,7 @@ export function IntegratedBrowserPanel(props: {
   const toggleUtilityBar = () => {
     setUtilityBarVisible((visible) => {
       const next = !visible;
-      try { localStorage.setItem(UTILITY_BAR_STORAGE_KEY, String(next)); } catch { /* preferencia no persistible */ }
+      try { localStorage.setItem(scopedPreferenceKey(UTILITY_BAR_STORAGE_KEY), String(next)); } catch { /* preferencia no persistible */ }
       return next;
     });
   };
@@ -531,6 +532,7 @@ export function IntegratedBrowserPanel(props: {
                 { id: 'history', label: 'Historial', active: managementTab === 'history', icon: <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" strokeWidth="1.8" /><path d="M12 7v5l3 2M5 5l-2 2" strokeWidth="1.8" strokeLinecap="round" /></svg>, onSelect: () => void toggleManagement('history') },
                 { id: 'credentials', label: 'Contraseñas', active: managementTab === 'credentials', icon: <svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4" strokeWidth="1.8" /><path d="M11 12l8-8M15 8l2 2M17 6l2 2" strokeWidth="1.8" strokeLinecap="round" /></svg>, onSelect: () => void toggleManagement('credentials') },
                 { id: 'extensions', label: 'Extensiones', active: managementTab === 'extensions', icon: <svg viewBox="0 0 24 24"><path d="M8 3h5v5a2 2 0 104 0V3h4v7h-5a2 2 0 100 4h5v7h-7v-5a2 2 0 10-4 0v5H3v-7h5a2 2 0 100-4H3V3h5z" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>, onSelect: () => void toggleManagement('extensions') },
+                { id: 'privacy', label: 'Borrar datos', active: managementTab === 'privacy', icon: <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v5M14 11v5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>, onSelect: () => void toggleManagement('privacy') },
                 { id: 'devtools', label: 'Inspeccionar', icon: <svg viewBox="0 0 24 24"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M13 6l-2 12" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>, onSelect: () => void run(integratedBrowserService.toggleDevTools) },
               ]}
             />
@@ -600,7 +602,7 @@ export function IntegratedBrowserPanel(props: {
 }
 
 function readStoredUtilityBarVisible(): boolean {
-  try { return localStorage.getItem(UTILITY_BAR_STORAGE_KEY) !== 'false'; } catch { return true; }
+  try { return localStorage.getItem(scopedPreferenceKey(UTILITY_BAR_STORAGE_KEY)) !== 'false'; } catch { return true; }
 }
 
 

@@ -1,6 +1,6 @@
 # Configuracion, secretos y estado local
 
-Estado: vigente. Actualizado: 2026-08-06.
+Estado: vigente. Actualizado: 2026-08-12.
 
 No se leen ni documentan valores de `.env`. Esta pagina registra solo nombres,
 consumidores y comportamiento cuando faltan.
@@ -32,7 +32,7 @@ consumidores y comportamiento cuando faltan.
 | `ELEVENLABS_VOICE_ID` | Orbe y modo lectura, solo Electron main | narración no disponible | identificador no secreto; la voz debe estar disponible en el mismo workspace de la clave |
 | `ELEVENLABS_MODEL_ID` | Orbe y modo lectura, solo Electron main | default `eleven_turbo_v2_5` | no secreta |
 | `ELEVENLABS_OUTPUT_FORMAT` | Orbe y modo lectura, solo Electron main | default `mp3_44100_128` | no secreta |
-| `VITE_SKILL_PRESENTACIONES_ENABLED` | habilita la Skill de presentaciones en chat y WhatsApp | la Skill no aparece en el catálogo y `/presentacion` responde que no está disponible; el resto de Skills sigue operativo | no secreta; es la bandera de rollback del cambio |
+| `VITE_SKILL_PRESENTACIONES_ENABLED` | **apagado local de emergencia** de la Skill de presentaciones | ausente o vacía, la Skill sigue disponible: es una capacidad publicada y no puede depender de que el runner declare la variable. Solo `false` o `0` la retiran, y ese apagado manda sobre el catálogo de la base de datos | no secreta; es el rollback que no depende de que Supabase responda |
 | `VITE_DEV_SERVER_URL` | bootstrap dev | usa renderer build si falta | no secreta, gestionada por Vite |
 | `VITE_PUBLIC` | paths de recursos | calculada por main | no configurar manualmente |
 
@@ -99,6 +99,36 @@ define en main y preload; el segundo solo en main y nunca queda disponible en
 relativo al bundle y establece `APP_ROOT`, `VITE_DEV_SERVER_URL` y `VITE_PUBLIC`.
 La app empaquetada no incluye `.env`; el workflow de release crea uno temporal
 desde GitHub Secrets antes del build.
+
+Main y preload no reciben `import.meta.env`: `config/vite/env-defines.mts`
+sustituye la expresión literal `process.env.VITE_*` por su valor al compilar. La
+sustitución es textual, así que el código de `electron/` debe **nombrar la
+variable como expresión literal** al menos una vez. Leerla a través de un objeto
+(`env.VITE_ALGO`, `env[nombre]`) esquiva la sustitución y en la aplicación
+instalada devuelve vacío, porque ahí `process.env` sólo trae el entorno del
+sistema operativo. `scripts/quality/check-release-env.mjs` verifica esa forma de
+lectura; la excepción declarada es `electron/soflia-learning/config.ts`, que
+carga su `.env` en ejecución con dotenv y admite configuración local cifrada.
+
+## Llamadas directas de Google Chat deshabilitadas
+
+No existe una variable de entorno ni una opción de runtime para activar la
+automatización de llamadas directas. Si Gmail o Google Chat intenta abrir o
+navegar a la ruta exacta `https://meet.google.com/call`, main cancela la acción
+sin crear pestañas, ventanas, reuniones alternativas ni procesos externos. La
+protección también alcanza ventanas anidadas, `about:blank -> /call`,
+redirecciones y subframes.
+
+El navegador no observa `CreateMediaSession`, `CreateMeetingDevice` o
+`CreateMeetingInvite`, no modifica SDP y no fuerza field trials para esa ruta.
+La gobernanza general de cámara, micrófono, pantalla y notificaciones permanece
+activa por sitio. Los enlaces HTTP(S) normales que el usuario abre de forma
+consciente siguen funcionando como navegación ordinaria.
+
+Después de actualizar esta lógica se debe reiniciar por completo Electron para
+recargar main. Una señal automática bloqueada produce únicamente el mensaje
+`[Navegador][Seguridad] Llamada directa automática de Google Chat bloqueada.`;
+no debe aparecer una pestaña o ventana nueva.
 
 ## Operacion segura
 

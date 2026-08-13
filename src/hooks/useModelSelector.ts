@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { DEFAULT_MODEL_ID, MODEL_OPTIONS } from './model-selector-options';
+import { scopedPreferenceKey } from '../services/user-scope';
 import type { ModelIconKey, ModelOption, ThinkingOption } from './model-selector-options';
 
 const MODEL_STORAGE_KEY = 'soflia:selected-model';
@@ -59,7 +60,7 @@ export function useModelSelector() {
     if (!currentModel.thinkingOptions.some((option) => option.id === mode)) return;
     const next = { ...thinkingByModel, [currentModel.id]: mode };
     setThinkingByModel(next);
-    writeStorage(THINKING_STORAGE_KEY, JSON.stringify(next));
+    writeStorage(scopedPreferenceKey(THINKING_STORAGE_KEY), JSON.stringify(next));
     notifyPreferencesChanged();
   };
 
@@ -67,7 +68,7 @@ export function useModelSelector() {
     const nextModel = MODEL_OPTIONS.find((model) => model.id === modelId);
     if (!nextModel) return;
     setPreferredPrimaryModel(nextModel.id);
-    writeStorage(MODEL_STORAGE_KEY, nextModel.id);
+    writeStorage(scopedPreferenceKey(MODEL_STORAGE_KEY), nextModel.id);
     notifyPreferencesChanged();
     setIsModelSelectorOpen(false);
   };
@@ -100,12 +101,12 @@ function resolveThinkingId(model: ModelOption, stored?: string): string {
 }
 
 function readStoredModel(): string {
-  const stored = readStorage(MODEL_STORAGE_KEY);
+  const stored = readStorage(scopedPreferenceKey(MODEL_STORAGE_KEY));
   return stored && MODEL_OPTIONS.some((model) => model.id === stored) ? stored : DEFAULT_MODEL_ID;
 }
 
 function readStoredThinking(): Record<string, string> {
-  const raw = readStorage(THINKING_STORAGE_KEY);
+  const raw = readStorage(scopedPreferenceKey(THINKING_STORAGE_KEY));
   if (!raw) return {};
   try {
     const parsed = JSON.parse(raw);

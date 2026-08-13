@@ -7,13 +7,11 @@ interface ToolsDropdownButtonProps {
   browserOpen?: boolean;
   onOpenBrowser?: () => void;
   onOpenMeetings?: () => void;
-  onOpenSdo?: () => void;
 }
 
 export function ToolsDropdownButton({
   onOpenBrowser,
   onOpenMeetings,
-  onOpenSdo,
 }: ToolsDropdownButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -30,7 +28,7 @@ export function ToolsDropdownButton({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  if (!onOpenBrowser && !onOpenMeetings && !onOpenSdo && !canReopenPresentation) {
+  if (!onOpenBrowser && !onOpenMeetings && !canReopenPresentation) {
     return null;
   }
 
@@ -47,7 +45,7 @@ export function ToolsDropdownButton({
             ? 'bg-accent/15 text-accent shadow-xs'
             : 'text-gray-500 hover:text-accent dark:text-white/70 dark:hover:text-accent hover:bg-gray-100/70 dark:hover:bg-white/[0.08]'
         }`}
-        title="Herramientas (Navegador, Reuniones, Registro de decisiones)"
+        title="Herramientas (Navegador, Reuniones)"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
           <circle cx="12" cy="12" r="9" />
@@ -140,33 +138,6 @@ export function ToolsDropdownButton({
                   </span>
                   <span>Presentación</span>
                 </div>
-              </button>
-            )}
-
-            {onOpenSdo && (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setIsOpen(false);
-                  onOpenSdo();
-                }}
-                className="flex items-center justify-between w-full px-3 py-2 rounded-xl text-xs font-semibold hover:bg-gray-100/80 dark:hover:bg-white/[0.06] text-gray-800 dark:text-white/90 transition-all duration-150 group"
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-500 dark:text-blue-400 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7 3h10a2 2 0 012 2v16l-2-1-2 1-2-1-2 1-2-1-2 1V5a2 2 0 012-2z" />
-                    </svg>
-                  </span>
-                  <span>Decisiones (SDO)</span>
-                </div>
-                <span
-                  className="text-[9.5px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/45"
-                  style={{ fontFamily: 'var(--font-system-label)' }}
-                >
-                  Ctrl+D
-                </span>
               </button>
             )}
           </div>

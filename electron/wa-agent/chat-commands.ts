@@ -66,13 +66,13 @@ export async function handleChatCommand(context: ChatCommandContext): Promise<st
       return handlePermissionsCommand(context, args);
 
     case '/skills':
-      return buildSkillsCommandText(context.isGroup);
+      return await buildSkillsCommandText(context.isGroup);
 
     case '/presentaci\u00f3n':
     case '/presentacion': {
       // El catalogo decide si la skill existe aqui; las guardas de WhatsApp
       // (superficie y grupo) se aplican encima, nunca al reves.
-      const disponibilidad = resolveWhatsAppSkill(PRESENTACIONES_SKILL_ID, context.isGroup);
+      const disponibilidad = await resolveWhatsAppSkill(PRESENTACIONES_SKILL_ID, context.isGroup);
       if (!disponibilidad.ok) return disponibilidad.message;
 
       await WorkflowManager.startWorkflow(

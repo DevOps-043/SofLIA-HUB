@@ -258,10 +258,9 @@ abortar o agotar presupuesto. La concurrencia visual es 1. Browser y nodos puede
 tener estado separado, pero `executeParallel` no autoriza dos tareas a compartir
 mouse y teclado sin cola.
 
-**Reuniones y SDO.** Los servicios de IA extraen propuestas y artefactos; review
+**Reuniones.** Los servicios de IA extraen propuestas y artefactos; review
 y sync son servicios separados. La aprobación humana es un estado de negocio
-persistido, no una frase interpretada por el modelo. Meetings envía resultados
-aprobados al adaptador SDO de forma no bloqueante.
+persistido, no una frase interpretada por el modelo.
 
 **Workspace Automation y Workflow Hub.** Automation administra templates, runs y
 sus aprobaciones. Workflow Hub compone Calendar, Google Chat, scheduler,
@@ -773,9 +772,9 @@ creación de documentos y envío de archivos.
 
 ### 3.12 Catálogo completo de herramientas de WhatsApp
 
-**135 herramientas** declaradas en 12 dominios. Orden de concatenación en
+**133 herramientas** declaradas en 11 dominios. Orden de concatenación en
 `WA_TOOL_DECLARATIONS`: filesystem, comunicación, memoria, perfil, computadora,
-nodos remotos, sistema, extensibilidad, IRIS, Google, automatización, SDO.
+nodos remotos, sistema, extensibilidad, IRIS, Google, automatización.
 El catálogo efectivo de una conversación es siempre un subconjunto: depende de
 los permisos del remitente y de si el canal es DM o grupo (§3.7).
 
@@ -922,13 +921,6 @@ Gmail: `gmail_send`, `gmail_get_messages`, `gmail_read_message`, `gmail_trash`,
 | `list_active_tasks` / `cancel_background_task` | Tareas en segundo plano activas y su cancelación. |
 | `neural_organizer_status` / `neural_organizer_toggle` | Organizador neuronal de descargas (IA + OCR). |
 
-#### SDO (Registro Operativo Gobernado)
-
-- `sdo_query`: consulta decisiones, riesgos y acciones; responde en cinco
-  bloques — confirmado, no confirmado, contradicciones, pendiente y
-  restricciones.
-- `sdo_propose`: crea un registro en estado **PROPUESTO**. Nunca queda oficial
-  sin aprobación humana desde el Hub.
 
 ### 3.13 Comandos slash
 
@@ -1283,9 +1275,6 @@ asignación:
    `actionIds`), `rejectAction`. La aprobación es **estado de negocio
    persistido**, no una frase interpretada por el modelo.
 5. **Sincronización**: `syncApprovedActions` envía a destino solo lo aprobado.
-6. **SDO**: al aprobar asset o acciones se notifica al adaptador del Registro
-   Operativo Gobernado de forma **fire-and-forget** — si el SDO falla, la
-   reunión no falla; se registra un warning.
 
 ### 5.3 Detección pasiva
 

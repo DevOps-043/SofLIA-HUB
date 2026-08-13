@@ -3,9 +3,8 @@ import type { ExtractMeetingAssetInput } from './internal-types';
 import { buildMeetingInput, buildPrudenceBlock, buildStrategyBlock } from './extraction-prompt-blocks';
 
 /**
- * Identidad y version del prompt de extraccion (trazabilidad SDO).
- * REGLA: cualquier cambio al contenido del prompt exige subir PROMPT_VERSION;
- * el hash persistido en sdo_generation_runs delata los olvidos.
+ * Identidad y version del prompt de extraccion.
+ * REGLA: cualquier cambio al contenido del prompt exige subir PROMPT_VERSION.
  */
 export const EXTRACTION_PROMPT_ID = 'meeting-extraction';
 export const EXTRACTION_PROMPT_VERSION = '1.1.0';

@@ -6,6 +6,7 @@ import {
   queueConversationUpsert,
 } from '../pending-state';
 import { syncPendingChatState } from '../sync';
+import { recordConversationTombstoneForAllIdentities } from '../tombstones';
 import type { Conversation } from '../types';
 
 export async function createConversation(userId: string, title: string, folderId?: string, orgId?: string): Promise<Conversation | null> {
@@ -30,6 +31,10 @@ export async function createConversation(userId: string, title: string, folderId
 }
 
 export async function deleteConversation(userId: string, conversationId: string): Promise<boolean> {
+  // La lapida se escribe ANTES de tocar remoto: si el borrado falla o la app se
+  // cierra a mitad, la conversacion queda oculta y en cola de reintento, nunca
+  // revivida por el cache ni por la migracion de identidad.
+  recordConversationTombstoneForAllIdentities(userId, conversationId);
   removeConversationFromAllCaches(conversationId);
   purgeConversationFromAllPendingStates(conversationId);
   if (userId) {

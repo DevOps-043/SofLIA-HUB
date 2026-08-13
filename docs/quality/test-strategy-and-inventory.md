@@ -1,8 +1,8 @@
 # Estrategia e inventario de pruebas
 
-Estado: vigente. Actualizado: 2026-08-06.
+Estado: vigente. Actualizado: 2026-08-12.
 
-El inventario del cambio contiene 358 archivos de prueba: 265 para main y 93
+El inventario del cambio contiene 367 archivos de prueba: 264 para main y 103
 para renderer. El validador documental recalcula estas cifras; el numero de casos
 ejecutados se registra en el reporte de evidencia de cada cambio, no aqui.
 
@@ -46,7 +46,9 @@ contrato en entorno autorizado.
 | `electron/__tests__/deck-base-css.test.ts` | El sistema de diseno y el guion base, que salen en TODAS las presentaciones: pie en flujo (no encimado), diapositiva que crece en vez de recortar, `align-content: safe center` para no empujar el contenido abajo, velo de imagen que oscurece sea cual sea la marca, pareja de contraste fija, hover y superficies de tarjeta, primitivas de diagrama y de grafica, entrada disparada al activarse la diapositiva —no por scroll, que el salto de snap consumia—, ajuste del contenido a la ventana (el fondo y el ambiente quedan fuera del escalado) y parada total con movimiento reducido. |
 | `electron/__tests__/presentation-export-html.test.ts` | La exportación produce un HTML autocontenido: incrusta las hojas enlazadas conservando su orden, convierte a `data:` las imágenes del HTML y del CSS, descarta orígenes remotos, no incrusta archivos de fuera del proyecto y conserva el JavaScript de navegación. |
 | `electron/__tests__/organization-branding.test.ts` | Tema neutro sin organización o sin branding habilitado; rechazo de colores que no son colores CSS; ausencia de columnas de suscripción o contacto en la consulta; caché con invalidación por cambio de organización y cierre de sesión; descarga acotada por host, tamaño, timeout y tipo declarado. |
-| `electron/__tests__/wa-skills-catalog.test.ts` | Skill no habilitada para la superficie, skill bloqueada en grupos y skill desconocida se rechazan con motivo explícito y sin filtrar la conversación individual. |
+| `electron/__tests__/wa-skills-catalog.test.ts` | Skill no habilitada para la superficie, skill bloqueada en grupos y skill desconocida se rechazan con motivo explícito y sin filtrar la conversación individual. Y desde que el catálogo vive en la base de datos: WhatsApp resuelve la misma fila que el chat con el mismo acotado, una fila deshabilitada la retira en las dos superficies, una fila que acota superficies retira la del código, y sin base de datos se resuelve el respaldo. |
+| `src/__tests__/services/system-skills-catalog.test.ts` | El acotado de lo que una fila del catálogo declara, que es lo único que hace segura la decisión de guardarlo todo en la base de datos: raíz absoluta o con `..` descartada, extensiones intersecadas con las admitidas, límites de bytes topados, archivos del sistema siempre protegidos, y `use_computer`/`execute_command`/`delete_item` descartadas aunque la fila las pida. Además la tabla de fusión completa (fila manda, `enabled:false` retira, ausencia respeta el código, fila ilegible no retira nada, versión insuficiente ignora la fila) y el viaje de ida y vuelta de la semilla, que debe volver idéntica. |
+| `src/__tests__/services/skills-catalog-remoto.test.ts` | El catálogo efectivo del chat: se resuelve desde las filas, un fallo de lectura conserva las Skills de la versión instalada, una fila deshabilitada las retira, y las guardas de identidad siguen en pie —una Skill de usuario con identificador `sistema:` se descarta y un comando en conflicto resuelve a la del sistema—. |
 | `electron/__tests__/whatsapp-workflow-presentacion.test.ts` | El flujo usa el motor propio, escribe la hoja de marca como sistema, entrega el PDF solo tras la aprobación y no llama a ningún generador externo. |
 | `src/__tests__/services/turn-skill-tools.test.ts` | La cadena completa desde "la conversacion tiene una presentacion" hasta "el modelo recibe `workspace_write_file`": deriva la Skill del espacio de trabajo cuando el compositor la perdio, declara las herramientas, corre el bucle, completa el workspace de una Skill recien activada y no declara nada sin presentacion. Cada eslabon estaba bien por separado; lo que fallaba era la union, y el usuario lo vio tres veces como "no puedo acceder a los archivos". |
 | `src/__tests__/services/skills-turn-catalog.test.ts` | Sin Skill activa el catálogo es idéntico al base; con workspace vivo se declaran las herramientas; sin workspace no; la allowlist de superficie descarta lo que una Skill no puede aportar. |
@@ -99,6 +101,31 @@ Autenticacion ausente, org/owner equivocado, input extra, canal no allowlisted,
 grupo bloqueado, HITL ausente/falsificado, contrato cambiado, timeout/abort,
 respuesta parcial, idempotency replay, DB no disponible, provider rate limit y
 rollback. No todos aplican a cada cambio; el Context Pack decide.
+
+### Contexto de aplicaciones de escritorio
+
+| Suite | Qué demuestra |
+|---|---|
+| `electron/__tests__/desktop-context-inventory.test.ts` | Que listar es barato y acotado: cruce de ventanas con miniaturas, exclusión de Pulse Hub por pid y por título, descarte de ventanas sin título, inventario vacío ante fallo de enumeración, identificador estable entre inventarios y degradación a solo captura fuera de Windows. |
+| `electron/__tests__/desktop-context-cascade.test.ts` | La degradación de la cascada, que es donde se decide la fidelidad: documento completo con tablas, marca de cambios sin guardar, caída a accesibilidad cuando el documento no está en disco o la ruta no corresponde a la ventana marcada, caída a captura sin texto accesible, fallo aislado con aviso cuando la ventana ya se cerró y truncado declarado. |
+| `electron/__tests__/desktop-context-handlers.test.ts` | Que el contrato IPC no deja rutas abiertas: solo dos canales, rechazo de emisor ajeno, rechazo de identificador no inventariado sin devolver contenido, ausencia de registro con la capacidad desactivada y saneamiento de rutas del disco en los errores. |
+| `src/__tests__/services/app-attachments.test.ts` | Que el bloque de contexto no engaña al modelo: procedencia por nivel, aviso de cambios sin guardar, acotado de la autoridad de una captura, prohibición de inferir cuando no hay contenido, recorte declarado por el límite del turno y fallo aislado de una aplicación sin descartar las demás. |
+| `src/__tests__/components/AppAttachmentPicker.test.tsx` | El selector y el chip: nivel previsto por aplicación, estado vacío explícito, reintento tras fallo, ausencia de la capacidad, y el chip declarando fidelidad real y avisos antes de enviar. |
+
+### Borrado de datos de navegacion
+
+| Suite | Qué demuestra |
+|---|---|
+| `electron/__tests__/integrated-browser-browsing-data.test.ts` | Lo que decide si el usuario entiende lo que borró: cada rango traducido a un inicio concreto, rechazo de categoría e intervalo desconocidos y de lista vacía, la marca `ignoredRange` en las categorías que no pueden acotarse por fecha y su ausencia cuando el intervalo ya era "desde siempre", que solo se tocan las categorías pedidas, y el fallo aislado de una categoría con error saneado sin impedir el resto. |
+| `electron/__tests__/browser-history-clear-range.test.ts` | El único borrado que sí respeta el intervalo, contra el sistema de archivos real: conserva lo anterior al inicio, quita lo posterior, incluye la visita justo en el límite, borra todo con rango nulo, devuelve cero sobre un historial vacío y rechaza una fecha inválida **antes** de escribir. |
+| `src/__tests__/components/BrowserPrivacyPanel.test.tsx` | Que la interfaz no miente sobre el alcance: selección inicial equivalente a Chrome, confirmación obligatoria antes de cualquier llamada, payload exacto de categorías e intervalo, aviso de alcance solo cuando hay discrepancia real, resumen distinguiendo conteo de "sin acotar al intervalo", fallo aislado visible y error del canal sin dejar el diálogo colgado. |
+
+### Acciones sobre el texto seleccionado
+
+| Suite | Qué demuestra |
+|---|---|
+| `electron/__tests__/integrated-browser-selection-menu.test.ts` | El menú flotante inyectado en la página, sobre jsdom: las cinco acciones publicadas, que aparece anclado sobre la selección al terminar el gesto —sin clic derecho—, que el clic conserva la selección viva para que main pueda leerla, que se retira al deseleccionar y con Escape, que se apaga mientras el agente conduce, que reinstalar no lo duplica y que el aviso de consola solo acepta las acciones publicadas. |
+| `electron/__tests__/integrated-browser-context-menu.test.ts` | La otra entrada a las mismas acciones: opciones según haya selección o no, recorte del adjunto de chat frente al límite mayor del lector, y que preguntar a SofLIA no precarga instrucción. |
 
 ## Cobertura y deuda
 

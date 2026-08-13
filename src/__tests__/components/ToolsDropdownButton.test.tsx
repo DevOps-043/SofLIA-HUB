@@ -7,17 +7,15 @@ describe('ToolsDropdownButton component', () => {
   it('UI-002: abre el menu desplegable Abrir en y llama los callbacks de herramientas', () => {
     const onOpenBrowser = vi.fn();
     const onOpenMeetings = vi.fn();
-    const onOpenSdo = vi.fn();
 
     render(
       <ToolsDropdownButton
         onOpenBrowser={onOpenBrowser}
         onOpenMeetings={onOpenMeetings}
-        onOpenSdo={onOpenSdo}
       />
     );
 
-    const button = screen.getByTitle('Herramientas (Navegador, Reuniones, Registro de decisiones)');
+    const button = screen.getByTitle('Herramientas (Navegador, Reuniones)');
     expect(button).toBeInTheDocument();
 
     fireEvent.click(button);

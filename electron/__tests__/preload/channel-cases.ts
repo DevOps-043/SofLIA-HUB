@@ -60,12 +60,15 @@ export function registerPreloadChannelTests() {
 
   it('SEC-035: el navegador integrado expone solo su contrato allowlisted', () => {
     const browserChannels = ALLOWED_IPC_CHANNELS.filter((channel) => channel.startsWith('integrated-browser:'));
-    expect(browserChannels).toHaveLength(54);
+    expect(browserChannels).toHaveLength(57);
     expect(browserChannels).toContain('integrated-browser:toggle-devtools');
+    expect(browserChannels).toContain('integrated-browser:clear-browsing-data');
     expect(browserChannels).toContain('integrated-browser:site-permissions-get');
     expect(browserChannels).toContain('integrated-browser:site-permissions-set');
     expect(browserChannels).toContain('integrated-browser:site-permissions-reset');
     expect(browserChannels).toContain('integrated-browser:site-permissions-changed');
+    expect(browserChannels).toContain('integrated-browser:permission-prompt');
+    expect(browserChannels).toContain('integrated-browser:permission-decide');
     expect(browserChannels).toContain('integrated-browser:tab-summaries');
     expect(browserChannels).toContain('integrated-browser:get-tab-content');
     expect(browserChannels).toContain('integrated-browser:selection-action');
@@ -102,8 +105,12 @@ export function registerPreloadChannelTests() {
 
   it('SEC-036: el espacio de trabajo de skills expone solo su contrato allowlisted', () => {
     const workspaceChannels = ALLOWED_IPC_CHANNELS.filter((channel) => channel.startsWith('skill-workspace:'));
-    expect(workspaceChannels).toHaveLength(13);
+    expect(workspaceChannels).toHaveLength(14);
     expect(workspaceChannels).toContain('skill-workspace:create');
+    expect(workspaceChannels).toContain('skill-workspace:find-by-conversation');
+    // Ata la presentacion al chat cuando la conversacion se crea despues que
+    // ella. Main se niega a reasignar la que ya tiene dueño.
+    expect(workspaceChannels).toContain('skill-workspace:attach-conversation');
     expect(workspaceChannels).toContain('skill-workspace:get-state');
     expect(workspaceChannels).toContain('skill-workspace:read-file');
     expect(workspaceChannels).toContain('skill-workspace:write-file');

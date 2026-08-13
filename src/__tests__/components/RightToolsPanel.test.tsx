@@ -11,15 +11,11 @@ describe('RightToolsPanel component', () => {
     expect(onOpenBrowser).toHaveBeenCalledTimes(1);
   });
 
-  it('UI-003: ejecuta las vistas de reuniones y decisiones', () => {
+  it('UI-003: ejecuta la vista de reuniones', () => {
     const onOpenMeetings = vi.fn();
-    const onOpenSdo = vi.fn();
-    render(<RightToolsPanel activeView="chat" onOpenMeetings={onOpenMeetings} onOpenSdo={onOpenSdo} />);
-    
+    render(<RightToolsPanel activeView="chat" onOpenMeetings={onOpenMeetings} />);
+
     fireEvent.click(screen.getByText('Reuniones'));
     expect(onOpenMeetings).toHaveBeenCalledTimes(1);
-
-    fireEvent.click(screen.getByText('Registro de decisiones'));
-    expect(onOpenSdo).toHaveBeenCalledTimes(1);
   });
 });

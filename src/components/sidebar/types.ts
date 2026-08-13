@@ -15,8 +15,6 @@ export interface SidebarProps {
   currentConversationId: string | null;
   loadingConversations: boolean;
   onNewChat: () => void;
-  /** Abre el Registro de decisiones del SDO (opcional). */
-  onOpenSdo?: () => void;
   /** Abre el panel de Reuniones (runs, transcripciones y minutas). */
   onOpenMeetings?: () => void;
   /** Abre el navegador persistente compartido con el agente. */

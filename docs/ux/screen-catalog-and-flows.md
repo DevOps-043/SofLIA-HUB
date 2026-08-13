@@ -18,7 +18,6 @@ Estado: vigente. Actualizado: 2026-08-04.
 | Project Hub | `project` + folder + user | sources/chats/folder/Drive | fuente, chat de proyecto, share | empty source/chat, picker, error |
 | Productividad | `productivity` + user | monitoring, summaries, calendar | rango, start/stop, auto config | sin datos, sesion activa, resumen, error |
 | Meetings | `meetings` + user | meeting runs/detail/live | crear, detectar, revisar, aprobar, sync | lista vacia, processing, pending, failed |
-| SDO | `sdo` + user | decisions/claims/actions/audit | crear, detalle, aprobar/rechazar, artifact | filtros, vacio, vigencia, error |
 | Settings | modal global | settings + APIs de cada dominio | navegar/editar/autosave/test | loading por tab, dirty/saving/error |
 | Share modal | target conversacion/folder | members, grants, links | grant, copy, revoke | tabs, loading, link, error |
 | Folder modal | crear/editar/mover | folder service | guardar/cancelar | validacion/error |
@@ -96,7 +95,6 @@ Manual/Drive/live/deteccion -> meeting_run + source hash
      -> rechazo/edicion: vuelve a pendiente
      -> aprobacion: registra meeting_approval
   -> sync actions idempotentes -> IRIS/Workspace
-  -> adapter SDO registra resultado aprobado
 ```
 
 ### Tool dinamica
@@ -120,7 +118,7 @@ timer/manual check -> release disponible
 
 ## Casos negativos comunes
 
-- Sin `userId`: no renderizar productividad/meetings/SDO.
+- Sin `userId`: no renderizar productividad/meetings.
 - Sin organizacion: ocultar Miembros y no ofrecer share organizacional.
 - Sin API key/provider: mostrar no configurado; no fingir resultado IA.
 - Denegacion/HITL: conservar tarea pendiente y explicar siguiente accion.

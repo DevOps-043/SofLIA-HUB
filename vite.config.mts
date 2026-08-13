@@ -36,7 +36,10 @@ export default defineConfig(({ mode }) => {
         clientFiles: ["./src/main.tsx", "./src/index.css"],
       },
       watch: {
-        ignored: ["**/dist/**", "**/dist-electron/**"],
+        // Las capturas HAR se escriben por streaming y Windows las mantiene
+        // bloqueadas. Chokidar intentaba observarlas y derribaba `npm run dev`
+        // con EBUSY justo despues de reproducir una llamada de Meet.
+        ignored: ["**/dist/**", "**/dist-electron/**", "**/*.har", "**/mailsoflia*.google.com"],
       },
     },
     optimizeDeps: {

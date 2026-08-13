@@ -1,0 +1,13 @@
+.runtime-pad { padding-left: 108px; padding-right: 108px; }
+.runtime-eyebrow { margin-bottom: 24px; color: var(--marca-color-primario); font-size: 22px; font-weight: 800; letter-spacing: .19em; text-transform: uppercase; }
+.runtime-title { max-width: 1500px; font-size: 76px; font-weight: 900; letter-spacing: -.055em; line-height: .98; text-wrap: balance; }
+.runtime-lead { max-width: 1050px; font-size: 29px; line-height: 1.42; opacity: .72; text-wrap: pretty; }
+.runtime-grid { background-image: linear-gradient(currentColor 1px,transparent 1px),linear-gradient(90deg,currentColor 1px,transparent 1px); background-size: 72px 72px; }
+.runtime-nav { display:grid; width:54px; height:54px; place-items:center; border:1px solid color-mix(in srgb,currentColor 22%,transparent); border-radius:999px; background:color-mix(in srgb,var(--marca-color-fondo) 82%,transparent); color:inherit; font-size:24px; font-weight:900; backdrop-filter:blur(14px); transition:transform .18s ease,opacity .18s ease; }
+.runtime-nav:not(:disabled):hover { transform:translateY(-3px); }
+.runtime-nav:disabled { opacity:.25; }
+.runtime-breathe { animation:runtime-breathe 7s ease-in-out infinite alternate; }
+@keyframes runtime-breathe { to { transform:translate3d(80px,42px,0) scale(1.12); } }
+@media (prefers-reduced-motion: reduce) { .runtime-breathe { animation:none; } }
+
+

@@ -2,7 +2,10 @@ import { useRef, useLayoutEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { ChatUIController } from '../useChatUIController';
 import { TabAttachmentPicker } from './TabAttachmentPicker';
+import { AppAttachmentPicker, type AppAttachmentSelection } from './AppAttachmentPicker';
 import type { TabContextAttachment } from '../../../../services/integrated-browser-service';
+import { desktopContextService } from '../../../../services/desktop-context-service';
+import { startAppExtraction, type AppContextAttachmentState } from '../app-attachments';
 import {
   ImageIcon,
   SparklesIcon,
@@ -26,6 +29,13 @@ function getToolIcon(id: string, active: boolean) {
           <line x1="3" y1="9" x2="21" y2="9" />
         </svg>
       );
+    case 'attach_apps':
+      return (
+        <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="4" width="18" height="14" rx="2" />
+          <path d="M8 20h8" />
+        </svg>
+      );
     case 'image_gen':
       return <ImageIcon size={size} className={className} />;
     case 'prompt_opt':
@@ -47,12 +57,20 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [menuPos, setMenuPos] = useState<{ left: number; bottom: number } | null>(null);
   const [isTabPickerOpen, setIsTabPickerOpen] = useState(false);
+  const [isAppPickerOpen, setIsAppPickerOpen] = useState(false);
 
   const attachedTabs = controller.state.tabs?.attached ?? [];
   const hasAttachedTabs = attachedTabs.length > 0;
+  const attachedApps = controller.state.apps?.attached ?? [];
+  const hasAttachedApps = attachedApps.length > 0;
+  // Con la capacidad desactivada en main la API no existe y la entrada no se ofrece.
+  const canAttachApps = desktopContextService.isAvailable();
 
   const options: ToolOption[] = [
     { id: 'attach_tabs', label: 'Añadir pestañas', sub: 'Análisis multi-pestaña', active: hasAttachedTabs },
+    ...(canAttachApps
+      ? [{ id: 'attach_apps', label: 'Añadir aplicaciones', sub: 'Word, Excel y más', active: hasAttachedApps }]
+      : []),
     { id: 'image_gen', label: 'Generar Imagen', sub: 'Crea imagenes con IA', active: modes.imageGen },
     { id: 'prompt_opt', label: 'Mejorar Prompt', sub: 'Optimiza para otra IA', active: modes.promptOptimizer },
     { id: 'create_prompt', label: 'Crear Skill', sub: 'Guarda para reusar' },
@@ -65,6 +83,7 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
     if (!controller.state.tools.isOpen || !buttonRef.current) {
       setMenuPos(null);
       setIsTabPickerOpen(false);
+      setIsAppPickerOpen(false);
       return;
     }
     const rect = buttonRef.current.getBoundingClientRect();
@@ -77,6 +96,7 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
   const handleClose = useCallback(() => {
     controller.state.tools.setOpen(false);
     setIsTabPickerOpen(false);
+    setIsAppPickerOpen(false);
   }, [controller.state.tools]);
 
   const handleToggleTab = (tab: TabContextAttachment) => {
@@ -89,6 +109,24 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
     }
   };
 
+  const handleToggleApp = (app: AppAttachmentSelection) => {
+    const store = controller.state.apps;
+    if (!store) return;
+    const current = store.attached;
+
+    if (current.some((item) => item.appId === app.appId)) {
+      store.setAttached(current.filter((item) => item.appId !== app.appId));
+      store.extractions.current.delete(app.appId);
+      return;
+    }
+
+    // Marcar dispara la lectura ya mismo: el chip debe mostrar la fidelidad real
+    // antes de que el usuario envie el mensaje.
+    const pending: AppContextAttachmentState = { ...app, status: 'pendiente' };
+    store.setAttached([...current, pending]);
+    startAppExtraction(pending, store);
+  };
+
   return (
     <div className="relative mb-0.5 ml-0.5">
       <button
@@ -96,7 +134,7 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
         onClick={() => controller.state.tools.setOpen(!controller.state.tools.isOpen)}
         disabled={!controller.props.canSendMessages}
         className={`${compact ? 'h-8 w-8' : 'h-9 w-9'} flex items-center justify-center rounded-full transition-all ${
-          controller.state.tools.isOpen || hasAttachedTabs
+          controller.state.tools.isOpen || hasAttachedTabs || hasAttachedApps
             ? 'bg-accent text-white shadow-md'
             : 'bg-white dark:bg-white/[0.04] text-gray-500 hover:text-gray-700 dark:hover:text-white/80 hover:shadow-sm border border-gray-200/60 dark:border-white/[0.06]'
         }`}
@@ -119,6 +157,8 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
                 onToggleTab={handleToggleTab}
                 onClose={handleClose}
               />
+            ) : isAppPickerOpen ? (
+              <AppAttachmentPicker attachedApps={attachedApps} onToggleApp={handleToggleApp} />
             ) : (
               <div className="w-64 bg-white/95 dark:bg-[#161B22]/95 border border-gray-200/50 dark:border-white/[0.08] rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_48px_rgba(0,0,0,0.5)] overflow-hidden p-1.5 backdrop-blur-xl">
                 {options.map((tool) => (
@@ -127,6 +167,8 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
                     onClick={() => {
                       if (tool.id === 'attach_tabs') {
                         setIsTabPickerOpen(true);
+                      } else if (tool.id === 'attach_apps') {
+                        setIsAppPickerOpen(true);
                       } else {
                         controller.tools.handleToolSelect(tool.id);
                         controller.state.tools.setOpen(false);
@@ -155,7 +197,7 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
                         {tool.sub}
                       </div>
                     </div>
-                    {tool.id === 'attach_tabs' && (
+                    {(tool.id === 'attach_tabs' || tool.id === 'attach_apps') && (
                       <svg className="h-4 w-4 text-gray-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M9 18l6-6-6-6" />
                       </svg>

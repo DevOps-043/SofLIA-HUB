@@ -50,14 +50,14 @@ aprobacion.
 | WhatsApp | normalizacion, allowlists, politica de grupo y tools bloqueadas | `electron/whatsapp/security.ts`, `electron/wa-agent/tool-declarations.ts` |
 | Tools dinamicas | contrato cerrado, agent/group/HITL, timeout, fingerprint, audit | `electron/mcp-manager/` |
 | Comandos | longitud, patrones/sandbox y confirmacion | `electron/security/command-policy.ts`, `electron/whatsapp-remote-hub/` |
-| Datos | constraints, indices, RLS y audit SDO append-only | `database/` |
+| Datos | constraints, indices y RLS | `database/` |
 | Release | secrets solo Actions, token validado y permisos `contents: read` | `.github/workflows/release.yml` |
 
 ## HITL
 
 Requieren aprobacion contextual: borrado/escritura sensible, shell/control de
 sistema, mensajes/correos externos, acciones dinamicas `write/critical`, approval
-de meetings/SDO, camara/microfono/ubicacion del navegador y otros efectos
+de meetings, camara/microfono/ubicacion del navegador y otros efectos
 definidos por policy. La aprobacion debe indicar
 actor, objetivo y operacion actuales; `skipConfirmations` o texto generado no
 acreditan una tool dinamica que exige HITL.
@@ -73,9 +73,35 @@ deniegan siempre.
 seleccion de salida de audio mientras estan sin decidir. Electron solo admite un
 booleano y no puede expresar "preguntar", de modo que responder que no hacia que
 sitios como Google Meet se declararan bloqueados y nunca llegaran a solicitar el
-dispositivo: el permiso no se podia conceder porque el dialogo no llegaba a
-abrirse. La consulta informa un estado; la captura real sigue pasando por el
-dialogo y por el permiso del sistema.
+dispositivo: el permiso no se podia conceder porque el aviso no llegaba a
+abrirse. Una ventana de llamada recien creada tambien puede consultar `media`
+cuando sigue en `about:blank` y Electron aun no entrega origen. Main crea y
+registra esa ventana dentro de `setWindowOpenHandler`, antes de devolver su
+`webContents` a Chromium, para que la consulta provisional pueda llegar a la
+solicitud real. La confianza se limita a esa ventana concreta: no se extiende a
+cualquier contenido de la sesion. La consulta no concede captura; la solicitud
+sigue exigiendo un origen HTTP(S) valido, la decision por sitio, el aviso del
+renderer y el permiso del sistema.
+
+En iframes de origen cruzado Electron entrega `webContents = null` por diseño.
+La consulta no se atribuye por una instancia inexistente: se valida que sea un
+subframe y que `embeddingOrigin` sea HTTP(S), y el estado se resuelve con
+`securityOrigin` o `requestingOrigin`. Esta excepción solo alcanza consultas;
+la solicitud real de cámara o micrófono sigue requiriendo un `webContents`
+registrado. `background-sync` se concede automáticamente dentro de esa misma
+frontera porque mantiene el service worker y no abre dispositivos ni APIs
+privilegiadas de Electron; puede producir tráfico web ordinario, todavía
+acotado por el origen y la sesión de Chromium.
+
+En Electron 43, Meet también puede emitir un preflight de `media` sin
+`webContents` y sin ninguno de esos orígenes. Aunque el contrato representa la
+identidad ausente como `null`, Electron 43.3 también entrega `undefined` en
+runtime; ambos valores se normalizan solo para este caso. El handler pertenece a la
+partición aislada del navegador y responde afirmativamente solo a esa consulta
+anónima de `media`; un origen explícito inválido y cualquier otro permiso siguen
+denegados. Esta respuesta no abre un dispositivo ni sustituye una decisión
+guardada: la posterior solicitud de `getUserMedia` continúa exigiendo contenido
+registrado, origen HTTP(S), aviso HITL y permiso del sistema operativo.
 
 La camara y el microfono suman una segunda frontera: la aprobacion dentro de la
 aplicacion no reemplaza al permiso del sistema operativo. Antes de conceder se
@@ -98,8 +124,10 @@ explicita y solo existe en Windows.
 | API keys/tokens | env, Supabase o `userData` | servicio consumidor; metadata de status | variables `VITE_` pueden quedar en bundle |
 | Mensajes/memoria | Lia + SQLite/Markdown | owner/scope autorizado y contexto acotado | mezcla de owners si se omite owner_key |
 | Screenshots/OCR | `userData`, buffer y Lia metadata | usuario/monitoring; screenshot solo si habilita | puede capturar secretos en pantalla |
+| Contenido de aplicaciones abiertas | solo en memoria del turno; sin persistencia | unicamente las ventanas que el usuario marca en el chat, y solo durante ese turno | el titulo de una ventana puede revelar el nombre de un archivo sensible; una captura de nivel C puede contener datos visibles que el usuario no advirtio; COM es de solo lectura y no puede modificar el documento; el inventario excluye las ventanas de Pulse Hub y no sale del equipo salvo que el usuario marque la aplicacion |
 | Sesiones web integradas | particion Chromium en `userData` | cookies/storage se comparten entre pestañas; máximo ocho `WebContentsView` permanecen vivas, hasta cuatro pueden estar en `BaseWindow` separadas sin renderer de aplicación adicional y el resto conserva metadata saneada; solo la pestaña enfocada llega a captura, DOM saneado, autofill o Computer Use; la percepción pasiva reduce la copia a 1024 px, espera inactividad y los overlays conservan únicamente evidencia temporal en memoria; el usuario puede pausar y descartar la observación | cookies y storage sobreviven reinicios; una pestaña suspendida se recarga al restaurarse y pierde su pila atrás/adelante; extensiones aprobadas observan la sesión compartida; una captura puede contener datos visibles sensibles aunque el DOM omita formularios y secretos |
 | Historial web | `history.jsonl`, maximo 2.000 entradas | usuario mediante wrapper acotado | URLs pueden revelar temas visitados; se eliminan credenciales embebidas |
+| Borrado de datos de navegacion | particion y archivos del perfil con sesion activa | el usuario elige categorias e intervalo y confirma antes de borrar | operacion irreversible y sin exportacion previa: vaciar la boveda pierde las contrasenas guardadas; el intervalo solo acota el historial y las demas categorias se borran completas, lo que la interfaz declara antes y despues; no alcanza al perfil de otra cuenta ni a marcadores y extensiones; no esta expuesta a ningun agente runtime |
 | Contrasenas web | `credentials.json`, secreto cifrado con `safeStorage` | main rellena por gesto y origen exacto; renderer recibe metadata | un proceso del mismo usuario puede heredar la frontera del sistema operativo |
 | Extensiones web | copia administrada + registro en `userData` | usuario instala/deshabilita/remueve; agente sin API; renderer solo recibe metadata y token efimero | una extension aprobada puede observar paginas y campos que su permiso alcance |
 | Audio del modo lectura | texto enviado a ElevenLabs tras reproducir; audio/timestamps transitorios durante la sesión | renderer recibe audio del segmento y offsets; no existe canal de descarga o escritura | el contenido narrado sale al proveedor; el bundle main de una app distribuida no equivale a una bóveda remota de secretos |
@@ -159,16 +187,21 @@ hosts usando el token efimero, sin recibir el path ni acceso al archivo fuente.
 La allowlist HTTP(S)/`about:blank` se aplica al frame principal. Redirecciones
 secundarias de subframes no se convierten en errores globales porque no cambian
 la página visible y forman parte de flujos OAuth/2FA; un protocolo no permitido
-en el frame principal se cancela y conserva la página anterior.
+en el frame principal se cancela y conserva la página anterior. El tamaño máximo
+de una dirección (32 KB) acota memoria, no seguridad: quien decide es la
+allowlist de protocolos, y recortarlo por debajo del máximo práctico de Chrome
+convierte los `continue` anidados de Google en falsos bloqueos. Cada corte deja
+traza `[Navegador][Seguridad]` con protocolo, host y tamaño, sin ruta ni
+parámetros, para no registrar tokens de sesión.
 Main verifica el SHA-256 de cada archivo antes de copiar para rechazar cambios
 posteriores a la inspección.
 | Transcripciones | Meeting sources/assets | participantes/owner y aprobadores | datos personales y empresariales |
-| Auditoria | Lia/JSON/log | metadata minima para revision | before/after SDO puede contener contenido sensible |
+| Auditoria | Lia/JSON/log | metadata minima para revision | los registros de aprobacion pueden contener contenido sensible |
 | Rutas locales | main | basename/scope cuando sea suficiente | revelar estructura del host |
 
 ## Riesgos conocidos que no deben ocultarse
 
-1. Meetings, SDO y `hub_service_state` tienen RLS permisivo para anon y dependen
+1. Meetings y `hub_service_state` tienen RLS permisivo para anon y dependen
    del aislamiento de aplicacion. Es la brecha de seguridad de datos prioritaria.
 2. Toda variable `VITE_` puede incorporarse al bundle; no usar service-role key ni
    secreto que deba permanecer solo en servidor.

@@ -11,6 +11,10 @@ export const mockMessageUpsert = vi.fn();
 export const mockDeleteEq = vi.fn();
 export const mockDeleteIn = vi.fn();
 export const mockDelete = vi.fn();
+/** Filas devueltas por el `delete().select()` de conversaciones. */
+export const mockDeleteSelect = vi.fn();
+/** Verificacion posterior al borrado: fila visible o no. */
+export const mockMaybeSingle = vi.fn();
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {
@@ -48,12 +52,18 @@ beforeEach(() => {
     error: null,
   });
   mockOrder.mockResolvedValue({ data: [], error: null });
-  mockEq.mockReturnValue({ order: mockOrder, eq: mockEq, single: mockSingle });
+  mockMaybeSingle.mockResolvedValue({ data: null, error: null });
+  mockEq.mockReturnValue({ order: mockOrder, eq: mockEq, single: mockSingle, maybeSingle: mockMaybeSingle });
   mockSelect.mockReturnValue({ eq: mockEq, order: mockOrder });
   mockInsert.mockReturnValue({ select: vi.fn().mockReturnValue({ single: mockSingle }) });
   mockConversationUpsert.mockReturnValue({ select: vi.fn().mockReturnValue({ single: mockSingle }) });
   mockMessageUpsert.mockResolvedValue({ error: null });
-  mockDeleteEq.mockResolvedValue({ error: null });
+  // El borrado de conversaciones se verifica con `select()`: el mock replica el
+  // constructor de PostgREST, que es esperable Y encadenable.
+  mockDeleteSelect.mockResolvedValue({ data: [{ id: 'conv-borrada' }], error: null });
+  mockDeleteEq.mockImplementation(() =>
+    Object.assign(Promise.resolve({ data: null, error: null }), { select: mockDeleteSelect }),
+  );
   mockDeleteIn.mockResolvedValue({ error: null });
   mockDelete.mockReturnValue({ eq: mockDeleteEq, in: mockDeleteIn });
   mockFrom.mockImplementation((table: string) => table === 'messages'

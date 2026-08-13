@@ -14,6 +14,7 @@ import {
 } from './cache';
 import { normalizeConversation } from './normalize';
 import { readPendingChatState, writePendingChatState } from './pending-state';
+import { getConversationTombstones, recordConversationTombstone } from './tombstones';
 import type { PendingChatState } from './types';
 
 export function migrateLegacyChatCache(sourceUserId: string, targetUserId: string): void {
@@ -21,9 +22,17 @@ export function migrateLegacyChatCache(sourceUserId: string, targetUserId: strin
     return;
   }
 
-  const sourceConversations = loadConversationsFromCache(sourceUserId).map((conversation) =>
-    normalizeConversation({ ...conversation, user_id: targetUserId }),
-  );
+  // Nunca se arrastra lo borrado: reetiquetar una conversacion con el id de la
+  // identidad activa la volvia a subir a Supabase como propia.
+  const tombstoned = new Set([
+    ...getConversationTombstones(sourceUserId),
+    ...getConversationTombstones(targetUserId),
+  ]);
+  const migrable = (conversationId: string) => !tombstoned.has(conversationId);
+
+  const sourceConversations = loadConversationsFromCache(sourceUserId)
+    .filter((conversation) => migrable(conversation.id))
+    .map((conversation) => normalizeConversation({ ...conversation, user_id: targetUserId }));
   const targetConversations = loadConversationsFromCache(targetUserId);
 
   if (sourceConversations.length > 0) {
@@ -39,15 +48,20 @@ export function migrateLegacyChatCache(sourceUserId: string, targetUserId: strin
   const targetPending = readPendingChatState(targetUserId);
 
   const migratedUpserts = Object.fromEntries(
-    Object.values(sourcePending.conversationUpserts).map((conversation) => [
-      conversation.id,
-      normalizeConversation({ ...conversation, user_id: targetUserId }),
-    ]),
+    Object.values(sourcePending.conversationUpserts)
+      .filter((conversation) => migrable(conversation.id))
+      .map((conversation) => [
+        conversation.id,
+        normalizeConversation({ ...conversation, user_id: targetUserId }),
+      ]),
+  );
+  const migratedSnapshots = Object.fromEntries(
+    Object.entries(sourcePending.messageSnapshots).filter(([conversationId]) => migrable(conversationId)),
   );
 
   const merged: PendingChatState = {
     conversationUpserts: { ...targetPending.conversationUpserts, ...migratedUpserts },
-    messageSnapshots: { ...targetPending.messageSnapshots, ...sourcePending.messageSnapshots },
+    messageSnapshots: { ...targetPending.messageSnapshots, ...migratedSnapshots },
     deletedConversationIds: Array.from(
       new Set([...targetPending.deletedConversationIds, ...sourcePending.deletedConversationIds]),
     ),
@@ -65,5 +79,11 @@ export function migrateLegacyChatCache(sourceUserId: string, targetUserId: strin
     } catch {
       /* mismo motivo */
     }
+  }
+
+  // La identidad destino hereda las lapidas: si el cache viaja, la prohibicion
+  // de revivir viaja con el.
+  for (const conversationId of tombstoned) {
+    recordConversationTombstone(targetUserId, conversationId);
   }
 }
