@@ -96,6 +96,43 @@ El branding **no se pasa como texto** para que el modelo lo interprete: main esc
 
 El registro nuevo usa el prefijo `skill-registry`/`skills` en canales IPC y módulos de producto; la memoria aprendida conserva `electron/memory/skills-*.ts` sin cambios funcionales y se documenta explícitamente como *memoria aprendida* en `docs/architecture/runtime-agents-manual.md`. No se renombran archivos de memoria en este cambio: el renombre tocaría rutas estables sin beneficio de comportamiento.
 
+### D10. Ajuste de maquetacion separado del movimiento
+
+`guion-base.js` se instala tambien con `prefers-reduced-motion`: la preferencia detiene animaciones, pero no puede desactivar el ajuste a la ventana ni dejar contadores vacios. La diapositiva se limita al alto visible y el contenido se reduce dentro de un marco cuya altura coincide con la altura visual escalada. Aplicar `transform: scale()` directamente conservaba la caja original y creaba espacio vacio; usar `zoom` en una baraja horizontal acumulaba desplazamiento vertical en Chromium. El marco explicito evita ambas patologias.
+
+El factor conserva un suelo del 50 % y usa el mayor valor que cabe. Si ni al 50 % cabe, el desplazamiento interno conserva acceso al contenido y el factor queda marcado para que la baraja deba recomponerse antes de entregarse.
+
+### D11. Calidad narrativa y auditoria observable
+
+El prompt deja de tratar calidad como una lista de adornos: primero fija audiencia, trabajo de comunicacion, conclusion y evidencia por diapositiva; despues elige una composicion editorial con una pieza visual dominante. Una rejilla de tarjetas deja de ser el patron base.
+
+El guion publica `window.__PULSE_DECK_REPORT__` y `data-pulse-calidad` con incidencias de geometria, recursos y visibilidad. Es diagnostico local: no bloquea la presentacion ni abre IPC o red. Permite que la vista previa, QA y soporte distingan una baraja correcta de una que solo llego a escribir archivos.
+
+### D12. Motor versionado y movimiento propiedad del sistema
+
+Los workspaces persisten una copia de `base.css` y `guion-base.js`; por tanto, corregir el repositorio no corrige por si solo una baraja creada antes. Vista previa, pantalla completa y exportacion refrescan esos dos archivos protegidos antes de consumirlos. La escritura es atomica, idempotente, no emite progreso y no altera la fecha del workspace. `marca.css` queda fuera: depende de la organizacion y de recursos descargados.
+
+La coreografia editorial usa `Element.animate()` (Web Animations API) desde el guion protegido. Los roles semanticos determinan gesto, orden y curva; el modelo solo puede anotar una excepcion con `data-movimiento`. El CSS anterior queda como degradacion si WAAPI no existe y `prefers-reduced-motion` sigue entregando el estado final.
+
+No se adopta Reveal.js ni GSAP en este cambio. Reveal aporta lienzo y transiciones, pero exige migrar el contrato HTML completo; GSAP aporta timelines, pero no corrige geometria. Tampoco se fuerza un modelo mas costoso: las capturas reproducidas fallaban con HTML e imagenes validos porque el motor persistido usaba `zoom`. Primero se hace determinista la capa propiedad del sistema; una comparacion de modelos queda como experimento posterior, con la misma fuente y rubrica.
+
+### D13. Contrato declarativo y runtime React con doctrina HyperFrames
+
+Las presentaciones nuevas sustituyen la autoría libre de HTML/CSS por un
+`deck.json` estricto. El modelo conserva decisiones de contenido y dirección
+visual, pero solo el runtime puede traducirlas a geometría. React monta uno de
+ocho arquetipos cerrados, Tailwind expresa el sistema espacial y Framer Motion
+ejecuta un vocabulario acotado. HyperFrames se integra como doctrina —una sola
+cámara narrativa, continuidad semántica y movimiento con propósito—, no como
+permiso para que el modelo genere timelines arbitrarios.
+
+El lienzo lógico siempre mide 1920×1080 y se escala como una unidad; el ancho
+del panel nunca dispara reflow. Un servidor HTTP en loopback con puerto dinámico
+y token opaco sirve el bundle y únicamente `deck.json`, `estilos/marca.css` y
+`assets/` del workspace. La exportación embebe bundle, datos, marca e imágenes
+en un HTML único. Los workspaces heredados conservan el motor HTML durante la
+migración.
+
 ## Risks / Trade-offs
 
 - **El modelo genera HTML que no renderiza o queda a medias** → El panel muestra los archivos reales y el control de reproducción solo se habilita cuando existe el documento de entrada; los errores de escritura se reportan por archivo en vez de fallar el turno completo.

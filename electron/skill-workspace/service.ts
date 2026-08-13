@@ -157,6 +157,44 @@ export class SkillWorkspaceService extends EventEmitter {
   }
 
   /**
+   * Actualiza un archivo protegido sin anunciar progreso ni alterar la fecha
+   * del workspace. Es para migrar el motor de una presentacion persistente al
+   * abrirla; si el contenido ya coincide no toca el disco.
+   */
+  async refreshSystemFile(
+    workspaceId: string,
+    relativePath: string,
+    content: string,
+  ): Promise<SkillWorkspaceResult<boolean>> {
+    const entry = await this.requireEntry(workspaceId);
+    if (!entry.ok) return entry;
+    if (!isProtected(entry.data, relativePath)) {
+      return { ok: false, error: 'Solo se pueden refrescar archivos protegidos del sistema.' };
+    }
+
+    const resolved = await resolveInsideWorkspace(this.rootOf(entry.data), relativePath, { mustExist: false });
+    if (!resolved.ok) return { ok: false, error: resolved.message };
+
+    let temporal: string | null = null;
+    try {
+      const actual = await fs.readFile(resolved.absolutePath, 'utf-8').catch(() => null);
+      if (actual === content) return { ok: true, data: false };
+      await fs.mkdir(path.dirname(resolved.absolutePath), { recursive: true });
+      // Vista previa, pantalla completa y exportacion pueden pedir el refresco
+      // a la vez. Un temporal unico evita que dos operaciones se pisen.
+      temporal = `${resolved.absolutePath}.${randomUUID()}.parcial`;
+      await fs.writeFile(temporal, content, 'utf-8');
+      await fs.rename(temporal, resolved.absolutePath);
+      temporal = null;
+      return { ok: true, data: true };
+    } catch (error) {
+      return { ok: false, error: `No se pudo actualizar ${relativePath}: ${describeError(error)}` };
+    } finally {
+      if (temporal) await fs.rm(temporal, { force: true }).catch(() => undefined);
+    }
+  }
+
+  /**
    * Escribe una imagen en `assets/`. Camino aparte del de texto porque las
    * imagenes no estan en la allowlist de extensiones de la Skill: el modelo
    * no puede escribir binarios arbitrarios, solo pedir que se guarde una
@@ -233,7 +271,10 @@ export class SkillWorkspaceService extends EventEmitter {
       );
     }
 
-    if (!hasAllowedExtension(resolved.relativePath, entry.data.allowedExtensions)) {
+    // Los archivos de sistema protegidos (marca y runtime heredado) no forman
+    // parte del contrato de autoria del modelo. Su extension puede quedar
+    // fuera de la allowlist sin abrir esa capacidad a la Skill.
+    if (!fromSystem && !hasAllowedExtension(resolved.relativePath, entry.data.allowedExtensions)) {
       return this.fail(
         workspaceId,
         'escritura',

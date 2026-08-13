@@ -2,6 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { DECK_BASE_CSS } from '../organization-branding/deck-base-css';
 import { DECK_BASE_JS } from '../organization-branding/deck-base-js';
 
+/** Devuelve el cuerpo de una regla por su selector exacto. */
+function regla(selector: string): string {
+  const inicio = DECK_BASE_CSS.indexOf(`\n${selector} {`);
+  if (inicio === -1) throw new Error(`No existe la regla "${selector}"`);
+  const desde = DECK_BASE_CSS.indexOf('{', inicio);
+  return DECK_BASE_CSS.slice(desde + 1, DECK_BASE_CSS.indexOf('}', desde));
+}
+
 /**
  * El sistema de diseno lo escribe el sistema y el modelo compone encima, asi
  * que un defecto aqui sale en TODAS las presentaciones. Estas comprobaciones
@@ -9,14 +17,6 @@ import { DECK_BASE_JS } from '../organization-branding/deck-base-js';
  * contenido recortado sin avisar y el texto ilegible sobre imagen.
  */
 describe('sistema de diseno de las presentaciones', () => {
-  /** Devuelve el cuerpo de una regla por su selector exacto. */
-  function regla(selector: string): string {
-    const inicio = DECK_BASE_CSS.indexOf(`\n${selector} {`);
-    if (inicio === -1) throw new Error(`No existe la regla "${selector}"`);
-    const desde = DECK_BASE_CSS.indexOf('{', inicio);
-    return DECK_BASE_CSS.slice(desde + 1, DECK_BASE_CSS.indexOf('}', desde));
-  }
-
   it('llega completa y con las llaves balanceadas', () => {
     expect(DECK_BASE_CSS.length).toBeGreaterThan(8_000);
     expect((DECK_BASE_CSS.match(/\{/g) ?? []).length).toBe((DECK_BASE_CSS.match(/\}/g) ?? []).length);
@@ -38,6 +38,13 @@ describe('sistema de diseno de las presentaciones', () => {
     const diapositiva = regla('.diapositiva');
     expect(diapositiva).toContain('min-height: 100vh');
     expect(diapositiva).not.toContain('overflow: hidden');
+  });
+
+  it('con el guion la diapositiva se mantiene dentro del lienzo visible', () => {
+    const conGuion = regla('.deck-js .diapositiva');
+    expect(conGuion).toContain('height: 100vh');
+    expect(conGuion).toContain('max-height: 100vh');
+    expect(conGuion).toContain('overflow-y: auto');
   });
 
   it('el velo sobre la imagen oscurece sea cual sea el color de la marca', () => {
@@ -130,6 +137,7 @@ describe('sistema de diseno de las presentaciones', () => {
     const reducido = DECK_BASE_CSS.slice(DECK_BASE_CSS.indexOf('@media (prefers-reduced-motion'));
     expect(reducido).toContain('.halo { animation: none; }');
     expect(reducido).toContain('.tarjeta:hover { transform: none; }');
+    expect(reducido).toContain('stroke-dashoffset: 0 !important');
   });
 
   it('no depende de ningun recurso remoto', () => {
@@ -146,26 +154,88 @@ describe('guion base de las presentaciones', () => {
     expect(DECK_BASE_JS).toContain("classList.remove('activa')");
   });
 
-  it('no se instala con movimiento reducido', () => {
-    const inicio = DECK_BASE_JS.indexOf('prefers-reduced-motion');
-    expect(inicio).toBeGreaterThan(-1);
-    expect(DECK_BASE_JS.slice(inicio, inicio + 120)).toContain('return');
+  it('confirma la diapositiva mas cercana durante el scroll-snap', () => {
+    // El observador puede pasar brevemente por debajo del umbral entre dos
+    // diapositivas y dejar una pantalla vacia. La baraja debe reactivar la que
+    // esta mas cerca del centro despues de cada desplazamiento.
+    expect(DECK_BASE_JS).toContain('activarMasCercana');
+    expect(DECK_BASE_JS).toContain("baraja.addEventListener('scroll'");
+    expect(DECK_BASE_JS).toContain("classList.contains('baraja--horizontal')");
+  });
+
+  it('mantiene la maquetacion con movimiento reducido', () => {
+    expect(DECK_BASE_JS).toContain('prefers-reduced-motion');
+    expect(DECK_BASE_JS).not.toMatch(/if \(reducido\) return;/);
+    expect(DECK_BASE_JS).toContain('destino.toFixed(decimales)');
   });
 
   it('degrada mostrando todo si no hay observador', () => {
     expect(DECK_BASE_JS).toContain("typeof IntersectionObserver !== 'function'");
   });
 
-  it('escala el contenido de una diapositiva que no cabe', () => {
+  it('reduce la caja de maquetacion de una diapositiva que no cabe', () => {
     // En la baraja horizontal no hay desplazamiento vertical: lo que no cabia
     // quedaba cortado por arriba o por abajo, sin forma de alcanzarlo.
     expect(DECK_BASE_JS).toContain('diapositiva__ajuste');
-    expect(DECK_BASE_JS).toContain('scale(');
+    expect(DECK_BASE_JS).toContain('diapositiva__marco');
+    expect(DECK_BASE_JS).toContain('marco.style.height');
+    expect(DECK_BASE_JS).toContain("'scale(' + factor.toFixed(3)");
+    expect(DECK_BASE_JS).not.toContain('caja.style.zoom');
     // El fondo, el halo y la retícula no son contenido y no deben encogerse.
     expect(DECK_BASE_JS).toContain("classList.contains('imagen-fondo')");
     expect(DECK_BASE_JS).toContain('paddingTop');
     // Y se rehace al cambiar el tamano de la ventana.
     expect(DECK_BASE_JS).toContain("addEventListener('resize'");
+  });
+
+  it('conserva la alineacion del lienzo al envolver su contenido', () => {
+    const marco = regla('.diapositiva__marco');
+    expect(marco).toContain('width: 100%');
+    expect(marco).toContain('justify-self: stretch');
+    expect(DECK_BASE_JS).toContain('caja.style.justifyItems = estiloSlide.justifyItems');
+    expect(DECK_BASE_JS).toContain('caja.style.alignContent = estiloSlide.alignContent');
+  });
+
+  it('orquesta movimiento editorial con la API nativa del navegador', () => {
+    expect(DECK_BASE_JS).toContain("raiz.classList.add('deck-waapi')");
+    expect(DECK_BASE_JS).toContain('Element.prototype.animate');
+    expect(DECK_BASE_JS).toContain('reproducirMovimiento');
+    expect(DECK_BASE_JS).toContain('movimientoDe');
+    expect(DECK_BASE_JS).toContain("data-movimiento");
+    expect(DECK_BASE_JS).toContain("slide.querySelector(':scope > .imagen-fondo')");
+    expect(DECK_BASE_JS).toContain("slide.classList.add('diapositiva--imagen')");
+    expect(DECK_BASE_JS).toContain("nodo.classList.add('superficie--clara-auto')");
+    expect(DECK_BASE_JS).toContain("color.indexOf('color(srgb') === 0");
+    expect(DECK_BASE_CSS).toContain('.diapositiva--imagen .superficie--clara-auto');
+    expect(DECK_BASE_JS).toContain('cubic-bezier(0.16, 1, 0.3, 1)');
+    expect(DECK_BASE_CSS).toContain('.deck-waapi .diapositiva.activa .aparece');
+  });
+
+  it('mide contra el lienzo visible y conserva el mayor factor que cabe', () => {
+    expect(DECK_BASE_JS).toContain('slide.parentElement');
+    expect(DECK_BASE_JS).toContain('Math.min(slide.clientHeight, visible)');
+    expect(DECK_BASE_JS).toContain('caja.scrollHeight');
+    expect(DECK_BASE_JS).toContain('disponible / natural');
+    expect(DECK_BASE_JS).toContain('Math.max(SUELO');
+  });
+
+  it('publica un informe local de calidad visual', () => {
+    expect(DECK_BASE_JS).toContain('__PULSE_DECK_REPORT__');
+    expect(DECK_BASE_JS).toContain('data-pulse-calidad');
+    expect(DECK_BASE_JS).toContain('contenido-fuera-del-lienzo');
+    expect(DECK_BASE_JS).toContain('imagen-rota');
+    expect(DECK_BASE_JS).toContain('titular-de-mas-de-tres-lineas');
+    expect(DECK_BASE_JS).toContain('ajuste-excesivo');
+    expect(DECK_BASE_JS).toContain('titular.clientHeight / interlineado');
+    expect(DECK_BASE_JS).toContain('diapositiva-activa-sin-contenido-visible');
+    expect(DECK_BASE_JS).toContain("postMessage({ tipo: 'pulse-presentacion-calidad'");
+    expect(DECK_BASE_JS).toContain('setTimeout(auditar, 900)');
+  });
+
+  it('restaura el flujo natural al imprimir o exportar PDF', () => {
+    const impresion = DECK_BASE_CSS.slice(DECK_BASE_CSS.indexOf('@media print'));
+    expect(impresion).toContain('.diapositiva__marco { position: static; height: auto !important; }');
+    expect(impresion).toContain('transform: none !important');
   });
 
   it('vuelve a medir cuando las ilustraciones terminan de cargar', () => {
@@ -175,7 +245,9 @@ describe('guion base de las presentaciones', () => {
     expect(DECK_BASE_JS).toContain('document.images');
     expect(DECK_BASE_JS).toContain("imagen.addEventListener('load'");
     expect(DECK_BASE_JS).toContain("window.addEventListener('load'");
-    expect(DECK_BASE_JS).toContain('ResizeObserver');
+    // No observa la propia caja: el ajuste cambiaría su medida y provocaría un
+    // bucle que alterna entre ajustar y borrar el ajuste.
+    expect(DECK_BASE_JS).not.toContain('new ResizeObserver');
   });
 
   it('reparte los satelites de la orbita por igual', () => {

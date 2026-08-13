@@ -75,7 +75,7 @@ export class PresentationViewController {
    * Abre la presentacion ocupando la ventana. Si ya habia una vista abierta
    * se destruye antes: nunca coexisten dos.
    */
-  open(workspaceId: string, entryFile = 'index.html'): { ok: true } | { ok: false; error: string } {
+  openUrl(runtimeUrl: string): { ok: true } | { ok: false; error: string } {
     const parent = this.getParentWindow();
     if (!parent || parent.isDestroyed()) {
       return { ok: false, error: 'No hay una ventana disponible para presentar.' };
@@ -113,7 +113,7 @@ export class PresentationViewController {
         this.close();
         return;
       }
-      if (!url.startsWith(`${PRESENTATION_SCHEME}://`)) event.preventDefault();
+      if (!isPresentationNavigation(url, runtimeUrl)) event.preventDefault();
     });
     // Escape cierra sin depender de que el usuario encuentre el boton.
     view.webContents.on('before-input-event', (event, input) => {
@@ -127,8 +127,13 @@ export class PresentationViewController {
       void view.webContents.executeJavaScript(EXIT_BUTTON_SCRIPT).catch(() => undefined);
     });
 
-    void view.webContents.loadURL(buildPresentationUrl(workspaceId, entryFile));
+    void view.webContents.loadURL(runtimeUrl);
     return { ok: true };
+  }
+
+  /** Fachada temporal para barajas HTML heredadas. */
+  open(workspaceId: string, entryFile = 'index.html'): { ok: true } | { ok: false; error: string } {
+    return this.openUrl(buildPresentationUrl(workspaceId, entryFile));
   }
 
   /** Ajusta la vista al tamano actual de la ventana. */
@@ -157,5 +162,17 @@ export class PresentationViewController {
   private handleClosed(): void {
     if (this.view) return;
     this.onClosedCallback?.();
+  }
+}
+
+function isPresentationNavigation(target: string, runtimeUrl: string): boolean {
+  if (target.startsWith(EXIT_URL) || target.startsWith(`${PRESENTATION_SCHEME}://`)) return true;
+  try {
+    const current = new URL(runtimeUrl);
+    const next = new URL(target);
+    const local = (value: URL) => value.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(value.hostname);
+    return local(current) && local(next);
+  } catch {
+    return false;
   }
 }

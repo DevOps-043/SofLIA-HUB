@@ -3,6 +3,79 @@
 Estado: automatizada completa; manual pendiente (12.3 y 12.4).
 Fecha: 2026-08-07.
 
+## Revalidación de calidad editorial y maquetación (2026-08-13)
+
+Se probó el motor actualizado sobre la carpeta real `Presentacion/` que
+reproducía los lienzos vacíos y el texto desplazado. El humo visual ejecutó
+Chrome en 1440×810, 1024×768 y 1440×810 con movimiento reducido. En los
+tres escenarios hubo **cero** incidencias de contenido fuera del lienzo; las
+diapositivas 2 y 5, antes vacías, quedaron completas y navegables. La auditoría
+sí rechazó la baraja antigua por titulares de más de tres líneas y por factores
+inferiores a 0.82: esa evidencia confirma que la nueva compuerta distingue un
+fallo de motor de una composición editorial que debe rehacerse.
+
+| Comando | Resultado |
+|---|---|
+| `npm run test -- --run electron/__tests__/deck-base-css.test.ts src/__tests__/services/presentaciones-prompt.test.ts src/__tests__/components/PresentationWorkspacePanel.test.tsx` | 3 archivos, **83 pruebas**, todas en verde. |
+| `npm run lint:changed` | Sin deuda nueva en los archivos TypeScript modificados. |
+| `npm run docs:check` | 174 documentos válidos. |
+| `npm run harness:validate` | Arnés válido. |
+| `npm run openspec:validate` | 14 cambios válidos en modo estricto. |
+| `npm run verify:pr` | Bloqueado en `typecheck` por errores preexistentes y ajenos de portapapeles e instaladores de Windows; no hay diagnósticos en los archivos de este cambio. |
+
+Reejecución final del alcance dirigido: 5 archivos, **122 pruebas** en verde.
+`docs:check` validó 174 documentos, `harness:validate` validó 25 rutas y 8
+skills, `openspec:validate` validó los 14 cambios y `lint:changed` revisó 12
+archivos sin deuda nueva. `typecheck` sigue bloqueado por los mismos errores
+ajenos en portapapeles e instaladores de Windows.
+
+### Segunda reproducción: baraja Okra y motor persistido
+
+Las nueve capturas de regresión pertenecían a una baraja de 14 diapositivas
+creada con una copia persistida de `guion-base.js` que aún contenía
+`caja.style.zoom`. Por eso el defecto seguía apareciendo aunque el código fuente
+del motor ya hubiera cambiado: los protegidos se copiaban al crear el workspace,
+pero nunca se actualizaban al volver a abrirlo.
+
+Se reemplazaron **solo en una copia temporal** los dos protegidos por la versión
+actual y se renderizaron todas las diapositivas con Chrome real:
+
+| Escenario | Diapositivas | Contenido fuera del lienzo | Animaciones activas a los 120 ms | Factor mínimo |
+|---|---:|---:|---:|---:|
+| 1920×1080 | 14 | **0** | 2–12 por diapositiva | 0.784 |
+| 1024×768 | 14 | **0** | 88 en total | 0.543 |
+| 1920×1080, movimiento reducido | 14 | **0** | **0** | 0.784 |
+
+La segunda diapositiva conservó un marco de 1728 px y dejó de colapsar a una
+columna estrecha; el marco copia la alineación calculada de la diapositiva y se
+estira al ancho completo. La diapositiva 14, cuyo HTML omitía
+`.diapositiva--imagen`, recibió contraste de fondo automáticamente. Las
+diapositivas 8, 9 y 14 siguen marcadas con `ajuste-excesivo`: ya no se recortan,
+pero su densidad editorial debe corregirse, por lo que la auditoría no las
+presenta como una entrega limpia.
+
+La corrección añade actualización idempotente del motor antes de vista previa,
+pantalla completa y exportación. También sustituye las variaciones arbitrarias
+del modelo por una coreografía semántica de Web Animations; el modelo declara
+roles y el sistema conserva curva, duración, orden y reducción de movimiento.
+
+La revisión adversarial detectó que tres aperturas concurrentes podían compartir
+el mismo nombre temporal durante el refresco. Se corrigió con un temporal UUID y
+limpieza en `finally`, y se añadió una prueba que dispara tres refrescos a la vez
+sin dejar `.parcial`. También se hizo estricto el fallo en vista previa: si el
+motor no puede actualizarse, se informa el error en vez de servir silenciosamente
+la versión defectuosa.
+
+**Decisión de librería/modelo.** Reveal.js resuelve un lienzo lógico fijo y
+escalado uniforme y dispone de transiciones/Auto-Animate, pero adoptarlo ahora
+exigiría migrar el contrato HTML completo y empaquetar sus recursos localmente.
+GSAP aporta líneas de tiempo avanzadas, no corrige maquetación. Para este cambio
+se usa la Web Animations API ya disponible en Chromium: preserva el HTML
+autocontenido y no añade CDN ni bundle. Tampoco se fuerza un modelo más costoso:
+la causa del desplazamiento era determinista y estaba en el motor. Un cambio de
+modelo queda para una comparación A/B posterior, con la misma fuente y la misma
+rúbrica, si persisten los avisos de densidad narrativa.
+
 ## Compuertas ejecutadas
 
 | Comando | Resultado |
@@ -116,6 +189,31 @@ prueba que la respalde.
 7. **`script-src 'unsafe-inline'`** es deliberado para la navegación entre diapositivas. La mitigación es el entorno (origen opaco, sin preload, sin red), no la revisión del script.
 8. **La Skill sale deshabilitada por defecto.** `VITE_SKILL_PRESENTACIONES_ENABLED` debe activarse explícitamente en cada entorno; sin ella, `/presentacion` responde que no está disponible.
 9. **`electron/presentation-pdf/`** conserva su tubería de markdown para otros flujos; la exportación de presentaciones no la reutiliza y podría divergir con el tiempo.
+
+## Runtime React + HyperFrames (2026-08-13)
+
+Se reemplazó la autoría libre de geometría por `deck.json` y se verificó el
+reproductor React a 1920×1080 con cinco capturas reales en Chrome: portada,
+comparación, proceso, métricas y cierre. Ninguna mostró texto fuera del lienzo,
+columnas colapsadas o desplazamiento vertical. La revisión adversarial intentó
+refutar aislamiento, contrato y portabilidad: rutas fuera de allowlist reciben
+404; un deck malformado se rechaza antes de abrir; la exportación falla si falta
+una imagen y, en el caso válido, embebe bundle, marca, contrato e imágenes.
+
+| Comando | Resultado |
+|---|---|
+| `npx vitest run …` (6 suites focalizadas) | **83 pruebas** en verde. |
+| `npx tsc --noEmit -p tsconfig.node.json` | Sin errores en main/preload. |
+| `npm run lint:changed` | 22 archivos sin deuda nueva. |
+| `npm run harness:validate` | 25 rutas y 9 skills canónicas. |
+| `npm run docs:check` | 175 Markdown activos, enlaces válidos. |
+| `npm run docs:system:check` | 28 documentos, 147 IDs, 354 canales y 361 archivos de prueba. |
+| `npx vite build --config vite.config.mts` | Renderer, main y preload construidos. |
+| `npm run typecheck` / `npm run verify:pr` | Bloqueados por errores preexistentes del contrato `clipboard.readText()` y `openAsHidden` en background host; no tocan presentaciones. |
+
+Riesgo residual específico: los workspaces heredados con `index.html` conservan
+su motor anterior durante la migración. El nuevo runtime no ejecuta HTML, CSS o
+JavaScript escrito por el modelo.
 
 ## Evidencia pendiente de la migración (tarea 12.6)
 

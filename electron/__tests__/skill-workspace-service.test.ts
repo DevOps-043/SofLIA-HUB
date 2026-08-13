@@ -11,7 +11,7 @@ const POLITICA: SkillWorkspacePolicyInput = {
   maxFileBytes: 1024,
   maxWorkspaceBytes: 4096,
   entryFile: 'index.html',
-  protectedFiles: ['estilos/marca.css'],
+  protectedFiles: ['estilos/marca.css', 'estilos/base.css'],
 };
 
 describe('servicio de espacio de trabajo de skills', () => {
@@ -61,6 +61,23 @@ describe('servicio de espacio de trabajo de skills', () => {
 
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.error).toContain('no existe');
+    });
+
+    it('refresca un archivo protegido sin anunciar progreso ni tocar uno editable', async () => {
+      const workspace = await crearWorkspace();
+      const eventos: SkillWorkspaceProgressEvent[] = [];
+      service.on('progreso', (evento: SkillWorkspaceProgressEvent) => eventos.push(evento));
+      await service.writeSystemFile(workspace.id, 'estilos/base.css', 'version-antigua');
+      eventos.length = 0;
+
+      const primera = await service.refreshSystemFile(workspace.id, 'estilos/base.css', 'version-nueva');
+      const segunda = await service.refreshSystemFile(workspace.id, 'estilos/base.css', 'version-nueva');
+      const editable = await service.refreshSystemFile(workspace.id, 'index.html', '<main></main>');
+
+      expect(primera).toEqual({ ok: true, data: true });
+      expect(segunda).toEqual({ ok: true, data: false });
+      expect(editable.ok).toBe(false);
+      expect(eventos).toEqual([]);
     });
 
     it('informa que no esta listo hasta que exista el documento de entrada', async () => {

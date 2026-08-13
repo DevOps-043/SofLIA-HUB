@@ -1,9 +1,12 @@
-import { BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
+import path from 'node:path';
 import { handleIPC } from './utils/ipc-helpers';
+import { refreshPresentationSystem } from './presentation-system-refresh';
 import { prepareBrandingForWorkspace } from './organization-branding/resolve-brand';
-import { exportPresentationToHtml } from './skill-workspace/export-html';
+import { exportPresentationDeckToHtml, exportPresentationToHtml } from './skill-workspace/export-html';
 import { fetchPresentationImage } from './skill-workspace/fetch-image';
 import { PresentationViewController } from './skill-workspace/presentation-view';
+import { PresentationRuntimeServer } from './skill-workspace/presentation-runtime-server';
 import { buildPresentationUrl } from './skill-workspace/protocol';
 import type { SkillWorkspaceService } from './skill-workspace/service';
 import type { SkillWorkspacePolicyInput, SkillWorkspaceProgressEvent, SkillWorkspaceResult } from './skill-workspace/types';
@@ -19,6 +22,11 @@ export function registerSkillWorkspaceHandlers(
   service: SkillWorkspaceService,
   getWindow: () => BrowserWindow | null,
 ): void {
+  const runtime = new PresentationRuntimeServer(service, {
+    rendererDist: path.join(process.env.APP_ROOT ?? process.cwd(), 'dist'),
+    devServerUrl: process.env.VITE_DEV_SERVER_URL,
+  });
+  app.once('before-quit', () => { void runtime.stop(); });
   ipcMain.handle('skill-workspace:create', (_event, input: {
     skillId: string;
     title: string;
@@ -82,10 +90,17 @@ export function registerSkillWorkspaceHandlers(
       const workspace = await service.getWorkspace(String(input?.workspaceId ?? ''));
       if (!workspace) throw new Error('El espacio de trabajo no existe o ya se cerro.');
       const entryFile = String(input?.entryFile ?? '').trim() || workspace.entryFile;
+      if (workspace.skillId === 'sistema:presentaciones' && entryFile === 'deck.json') {
+        return { url: await runtime.getUrl(workspace.id) };
+      }
       // Solo se devuelve la URL si el documento existe: una vista previa que
       // apunta a un archivo inexistente muestra un 404 en vez de un aviso claro.
       const exists = await service.resolveAbsolutePath(workspace.id, entryFile);
       if (!exists) throw new Error('La presentacion todavia no esta lista.');
+      if (workspace.skillId === 'sistema:presentaciones' && entryFile === workspace.entryFile) {
+        const refreshed = await refreshPresentationSystem(service, workspace.id);
+        if (!refreshed.ok) throw new Error(refreshed.error);
+      }
       return { url: buildPresentationUrl(workspace.id, entryFile) };
     }));
 
@@ -96,6 +111,21 @@ export function registerSkillWorkspaceHandlers(
    */
   ipcMain.handle('presentation:export-html', (_event, input: { workspaceId: string; entryFile?: string }) =>
     handleIPC(async () => {
+      const workspaceId = String(input?.workspaceId ?? '');
+      const workspace = await service.getWorkspace(workspaceId);
+      if (!workspace) throw new Error('El espacio de trabajo no existe o ya se cerro.');
+      const entryFile = String(input?.entryFile ?? '').trim() || workspace.entryFile;
+      if (workspace.skillId === 'sistema:presentaciones' && entryFile === 'deck.json') {
+        const result = await exportPresentationDeckToHtml(
+          service,
+          workspaceId,
+          path.join(process.env.APP_ROOT ?? process.cwd(), 'dist'),
+        );
+        if (!result.ok) throw new Error(result.error);
+        return { htmlPath: result.htmlPath };
+      }
+      const refreshed = await refreshPresentationSystem(service, String(input?.workspaceId ?? ''));
+      if (!refreshed.ok) throw new Error(refreshed.error);
       const result = await exportPresentationToHtml(service, String(input?.workspaceId ?? ''), input?.entryFile);
       if (!result.ok) throw new Error(result.error);
       return { htmlPath: result.htmlPath };
@@ -132,20 +162,34 @@ export function registerSkillWorkspaceHandlers(
       };
     }));
 
-  registerPresentationViewHandlers(getWindow);
+  registerPresentationViewHandlers(service, runtime, getWindow);
 
   service.on('progreso', (event: SkillWorkspaceProgressEvent) => {
     getWindow()?.webContents.send('skill-workspace:progress', event);
   });
 }
 
-function registerPresentationViewHandlers(getWindow: () => BrowserWindow | null): void {
+function registerPresentationViewHandlers(
+  service: SkillWorkspaceService,
+  runtime: PresentationRuntimeServer,
+  getWindow: () => BrowserWindow | null,
+): void {
   const controller = new PresentationViewController(getWindow);
   controller.onClosed(() => getWindow()?.webContents.send('presentation-view:closed'));
 
   ipcMain.handle('presentation-view:open', (_event, input: { workspaceId: string; entryFile?: string }) =>
     handleIPC(async () => {
-      const result = controller.open(String(input?.workspaceId ?? ''), input?.entryFile);
+      const workspace = await service.getWorkspace(String(input?.workspaceId ?? ''));
+      if (!workspace) throw new Error('La presentacion no existe o ya se cerro.');
+      const entryFile = String(input?.entryFile ?? '').trim() || workspace.entryFile;
+      if (entryFile === 'deck.json') {
+        const result = controller.openUrl(await runtime.getUrl(workspace.id));
+        if (!result.ok) throw new Error(result.error);
+        return { opened: true };
+      }
+      const refreshed = await refreshPresentationSystem(service, String(input?.workspaceId ?? ''));
+      if (!refreshed.ok) throw new Error(refreshed.error);
+      const result = controller.open(String(input?.workspaceId ?? ''), entryFile);
       if (!result.ok) throw new Error(result.error);
       return { opened: true };
     }));

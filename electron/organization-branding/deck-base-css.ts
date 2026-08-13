@@ -106,16 +106,34 @@ body {
   row-gap: calc(var(--ritmo) * 1.5);
 }
 
-/* Envoltorio que crea guion-base.js para escalar el contenido cuando no cabe.
-   Se declara aqui para que herede la composicion de la diapositiva. */
+/* Con el guion instalado, la diapositiva representa un lienzo y no puede
+   crecer mas que la ventana. El ajuste reduce el contenido; el scroll interno
+   es la red de seguridad cuando ni al 50 % cabe. */
+.deck-js .diapositiva {
+  height: 100vh;
+  max-height: 100vh;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.deck-js .diapositiva::-webkit-scrollbar { display: none; }
+
+/* Marco de altura explicita + contenido absoluto: el transform reduce los
+   pixeles y el marco reduce a la vez el espacio de maquetacion. */
+.diapositiva__marco {
+  position: absolute;
+  inset-inline: 0;
+  width: 100%;
+  justify-self: stretch;
+}
 .diapositiva__ajuste {
   display: grid;
   grid-auto-rows: min-content;
   row-gap: calc(var(--ritmo) * 1.5);
-  position: relative;
+  position: absolute;
+  inset: 0 auto auto 0;
   z-index: 1;
   width: 100%;
-  transform-origin: center center;
+  transform-origin: top center;
 }
 
 /* --- Tipografia --------------------------------------------------------- */
@@ -277,6 +295,11 @@ body {
   border-color: rgb(255 255 255 / 0.16);
   backdrop-filter: blur(6px);
 }
+/* Un componente local puede conservar deliberadamente una superficie clara
+   sobre la imagen. El guion la detecta por luminancia y restaura texto oscuro. */
+.diapositiva--imagen .superficie--clara-auto,
+.diapositiva--imagen .superficie--clara-auto .cuerpo,
+.diapositiva--imagen .superficie--clara-auto .subtitulo { color: var(--sobre-claro); }
 
 .figura { margin: 0; }
 .figura img {
@@ -783,9 +806,8 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  /* El guion base ni siquiera se instala con movimiento reducido, asi que
-     deck-js no existe y todo queda visible y quieto. Se anulan ademas las
-     animaciones que pudiera escribir la propia baraja. */
+  /* El guion sigue instalado porque tambien resuelve maquetacion. Aqui se
+     neutraliza solamente el movimiento y se conserva el estado final. */
   .capa, .capa:hover { transform: none; }
   .orbita__satelite, .orbita__nucleo { opacity: 1 !important; animation: none !important; }
   .orbita::before { opacity: 1 !important; animation: none !important; transform: translate(-50%, -50%) !important; }
@@ -795,6 +817,10 @@ body {
     transform: none !important;
     filter: none !important;
     clip-path: none !important;
+  }
+  .traza, .traza-auto {
+    stroke-dasharray: none !important;
+    stroke-dashoffset: 0 !important;
   }
   /* Lo que se mueve en bucle se detiene del todo: es la parte que molesta. */
   .halo { animation: none; }
@@ -807,7 +833,22 @@ body {
   .baraja { height: auto; overflow: visible; }
   .baraja--horizontal { display: block; height: auto; overflow: visible; }
   .baraja--horizontal > .diapositiva { flex-basis: auto; }
-  .diapositiva { min-height: auto; page-break-after: always; }
+  .diapositiva,
+  .deck-js .diapositiva { height: auto; min-height: auto; max-height: none; overflow: visible; page-break-after: always; }
+  .diapositiva__marco { position: static; height: auto !important; }
+  .diapositiva__ajuste { position: relative; inset: auto; transform: none !important; }
   #pulse-salir { display: none; }
+}
+/* Con WAAPI disponible, el guion posee la coreografia. Estas animaciones CSS
+   quedan como degradacion para navegadores antiguos y no deben competir con
+   dos transformaciones simultaneas sobre el mismo elemento. */
+.deck-waapi .diapositiva.activa .aparece,
+.deck-waapi .diapositiva.activa .palabras > *,
+.deck-waapi .diapositiva.activa .cascada > * {
+  animation: none;
+  opacity: 1;
+  transform: none;
+  filter: none;
+  clip-path: none;
 }
 `;

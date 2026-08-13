@@ -239,8 +239,16 @@ espacio de trabajo de la Skill activa, con rutas relativas que main resuelve:
   gráficas, iconos o cualquier cosa que contenga datos, que se dibujan en SVG.
 
 **Skill del sistema `sistema:presentaciones`.** Se invoca con `/presentacion`
-en el chat y en WhatsApp. Genera presentaciones ejecutivas en HTML y CSS con la
-identidad de la organización, leída de `organizations` en Supabase SOFIA. Main
+en el chat y en WhatsApp. Las presentaciones nuevas se describen mediante un
+`deck.json` validado; el modelo decide narrativa, evidencia, arquetipo y recursos,
+pero no escribe React, Tailwind, CSS de maquetación ni JavaScript. Un reproductor
+propiedad del sistema selecciona composiciones cerradas sobre un lienzo lógico
+1920×1080, usa React y Tailwind para la geometría y Framer Motion para el
+movimiento. La doctrina HyperFrames gobierna continuidad, entrada, énfasis y
+reducción de movimiento. Los workspaces heredados con `index.html` siguen
+abriéndose por el motor anterior durante la migración.
+
+La identidad de la organización se lee de `organizations` en Supabase SOFIA. Main
 escribe `estilos/marca.css` con las variables de marca **antes** de que el
 modelo empiece, y el prompt le prohíbe escribir colores literales: así la
 identidad no depende de que el modelo copie bien un hexadecimal.
@@ -255,19 +263,18 @@ color de texto. Un logo SVG o monocromo no aporta paleta y se conserva lo
 declarado. `--marca-origen-color` registra de dónde salieron: `logo`,
 `declarado` o `neutro`.
 
-*Entradas visibles.* Las animaciones de entrada estaban ligadas al scroll
+*Motor HTML heredado.* Las animaciones de entrada estaban ligadas al scroll
 (`animation-timeline: view()`). Con `scroll-snap`, el salto de una diapositiva a
-la siguiente **recorre entero el rango de entrada** en lo que dura el salto: la
-animación ocurría, pero era imperceptible, y los retardos escalonados ni
-siquiera se aplicaban —sobre una línea de tiempo de scroll `animation-delay` se
-ignora—. Ahora el sistema escribe también `guion-base.js`, un archivo protegido
-que marca con `.activa` la diapositiva en pantalla mediante `IntersectionObserver`
-y dispara animaciones **por tiempo**: se ven, duran y se escalonan. Ese guion
-además numera las palabras de `.palabras`, anima los `data-contador` y resuelve
-la rueda en la baraja horizontal. El estado inicial oculto depende de la clase
-`deck-js` que pone el propio guion, así que si no se ejecuta la presentación
-queda visible y estática, nunca en blanco; con `prefers-reduced-motion` ni
-siquiera se instala. El exportador incrusta el guion en el HTML autocontenido.
+la siguiente recorría entero el rango de entrada y el efecto resultaba
+imperceptible. Ahora `guion-base.js` observa cuál diapositiva está activa y usa
+la Web Animations API para una coreografía editorial por rol: antetítulo,
+titular, cuerpo y visual tienen movimiento, curva y duración consistentes. El
+modelo solo declara semántica opcional con `data-movimiento`; no inventa una
+línea de tiempo distinta en cada baraja. El guion también numera palabras y
+trazos, anima `data-contador` y resuelve la rueda en la baraja horizontal. Si la
+API nativa no está disponible queda el respaldo CSS. Con
+`prefers-reduced-motion` se muestra directamente el estado final. El exportador
+incrusta el guion en el HTML autocontenido, sin CDN ni dependencia remota.
 
 *Ediciones que enseñan.* Cuando una edición por reemplazo falla, el error
 **dice qué hay realmente en el archivo**: si el fragmento existe con otros
@@ -277,17 +284,37 @@ a ciegas: el modelo volvía a adivinar y volvía a fallar, quince veces seguidas
 sin aplicar un solo cambio. El prompt añade la regla que cierra el ciclo: dos
 fallos seguidos sobre el mismo archivo obligan a releerlo entero.
 
-*Ajuste a la ventana.* `guion-base.js` envuelve el contenido de cada diapositiva
+*Ajuste del motor heredado.* `guion-base.js` envuelve el contenido de cada diapositiva
 y lo **reduce hasta que quepa** (suelo del 50 %). La medida se repite cuando cada
-ilustración termina de cargar, al terminar la página y ante cualquier cambio de
-altura (`ResizeObserver`): medir solo en `DOMContentLoaded` daba una altura menor
-que la real —las imágenes aún no ocupan su alto—, no se escalaba nada y al
-aparecer la ilustración el texto quedaba fuera de la pantalla. El fondo, el halo y la retícula
+ilustración termina de cargar, al terminar la página y al redimensionar la
+ventana. No observa la altura de la propia caja: el ajuste modifica esa medida
+y observarla produciría un ciclo de realimentación. El fondo, el halo y la retícula
 quedan fuera del envoltorio: no son contenido. Sin esto, en la baraja horizontal
 —que no tiene desplazamiento vertical— lo que no cabía quedaba cortado por
 arriba o por abajo sin forma de alcanzarlo, y en la vertical aparecía empujado
 fuera de vista. El CSS deja además `overflow-y: auto` en esas diapositivas como
 respaldo por si el guion no se ejecuta.
+
+El ajuste fija el lienzo al alto visible y escala el contenido dentro de un
+marco cuya altura coincide con la altura visual resultante. Aplicar
+`transform: scale()` directamente reducía los píxeles pero conservaba la caja
+original; `zoom` acumulaba una deriva vertical en barajas horizontales de
+Chromium. El marco evita ambos huecos y conserva el mayor factor que cabe.
+
+*Actualización del motor.* Cada vista previa, apertura a pantalla completa y
+exportación refresca de forma idempotente los protegidos `estilos/base.css` y
+`guion-base.js` desde la versión incluida en la aplicación. La escritura de
+cada archivo es atómica y silenciosa: no altera el progreso, la fecha de la
+baraja ni los archivos editables del usuario. Así una presentación creada por
+una versión anterior deja de ejecutar el `zoom` defectuoso al volver a abrirse.
+
+*Auditoría visual local.* El guion publica `window.__PULSE_DECK_REPORT__` y
+`data-pulse-calidad` sin abrir red ni IPC. El informe identifica contenido fuera
+del lienzo, imágenes rotas, titulares de más de tres líneas y una diapositiva
+activa sin contenido visible. `data-pulse-ajuste` deja observable la reducción;
+un valor inferior a `0.82` se publica además como incidencia
+`ajuste-excesivo`, por lo que el panel no puede presentarlo como una entrega sin
+incidencias y obliga a recomponer o dividir.
 
 *Serie ilustrada.* La calidad percibida de una baraja depende menos de los
 efectos que de que **todo parezca de la misma mano**. Por eso la dirección de
@@ -310,11 +337,10 @@ marca producía texto negro sobre fondo oscuro. El pie va en flujo y la
 diapositiva usa `align-content: safe center`, de modo que ni se superpone al
 contenido ni lo empuja fuera de pantalla cuando no cabe. La baraja admite dos sentidos —vertical (`.baraja`) y horizontal
 (`.baraja--horizontal`)— y el modelo elige según el contenido; en la horizontal
-la rueda del ratón no desplaza sola, así que el prompt entrega el manejador que
-lo resuelve, y `base.css` liga las entradas al eje X, porque el vertical nunca se
-mueve y las animaciones no se dispararían. El escalonado de las entradas se
-expresa con `animation-range`, **no** con `animation-delay`: sobre una línea de
-tiempo de scroll el retardo temporal no se aplica y todo entraba a la vez.
+la rueda del ratón no desplaza sola y el guion protegido lo resuelve. La
+coreografía vive también en ese guion, no en el CSS generado ni en JavaScript
+arbitrario del modelo. Si una imagen se usa como fondo, el motor activa además
+la pareja de contraste aunque el HTML haya omitido la clase semántica.
 
 *Skill del turno.* La Skill que gobierna un turno **no sale solo del estado del
 compositor**: ese estado no sobrevive a un remonte del chat, y por eso pedir un
@@ -386,11 +412,12 @@ escribe un modelo. Al terminar la generación, el panel abre la vista previa una
 sola vez; si el usuario vuelve al código, una iteración posterior ya no se la
 arrebata.
 
-*Exportación.* Se produce **un solo archivo HTML autocontenido**: los estilos
-enlazados se incrustan conservando su orden (`marca.css` antes que los propios,
-o la identidad se rompe) y las imágenes locales pasan a `data:`. No se exporta a
-PDF: imprimir aplana las transiciones y animaciones, que son la razón de generar
-la presentación en HTML. Ese mismo archivo es el que se entrega por WhatsApp.
+*Exportación.* Se produce **un solo archivo HTML autocontenido**. Para
+`deck.json`, el exportador incrusta el bundle del reproductor React, el contrato,
+la hoja de marca y las imágenes como `data:`; para un workspace heredado,
+incrusta sus estilos y guiones conservando el orden. No se exporta a PDF:
+imprimir aplana las transiciones y animaciones. Ese mismo archivo es el que se
+entrega por canales externos tras la confirmación correspondiente.
 
 *Protocolo de recolección.* La Skill no genera nada al activarse. Según el
 contexto que le pasa el chat (`buildPresentacionesContextNote`) entra por una
@@ -399,9 +426,11 @@ de cuatro ramas: **A** hay contenido previo o adjuntos, lo resume y confirma;
 antes de preguntar; **C** la conversación está vacía, pregunta tema,
 destinatario y origen de la información ofreciendo Drive, archivo local o
 investigación; **D** el usuario pide investigar, y entonces presenta un esquema
-de diapositivas y **espera validación explícita** antes de escribir. El documento se sirve por el protocolo local
-`pulse-presentacion://` con CSP restrictiva, de modo que renderiza sin conexión
-y no puede alcanzar IPC, `node` ni la red. Está detrás de la bandera
+de diapositivas y **espera validación explícita** antes de escribir. El runtime
+nuevo se sirve desde un servidor HTTP de loopback en `127.0.0.1`, puerto
+dinámico y sesión opaca; solo expone el bundle, `deck.json`, la marca y
+`assets/`. La vista heredada conserva `pulse-presentacion://`. Ambas rutas se
+ejecutan sin preload, Node o acceso a IPC y con CSP restrictiva. Está detrás de la bandera
 `VITE_SKILL_PRESENTACIONES_ENABLED` y bloqueada en grupos de WhatsApp.
 
 ### 2.5 Catálogo del agente de chat

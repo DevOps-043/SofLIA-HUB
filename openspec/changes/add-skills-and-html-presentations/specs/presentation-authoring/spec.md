@@ -426,3 +426,116 @@ Ninguna diapositiva SHALL mostrar su contenido cortado ni fuera del área visibl
 
 - **WHEN** el usuario cambia el tamaño de la ventana durante la presentación
 - **THEN** el sistema recalcula el ajuste y el contenido sigue cabiendo
+
+#### Scenario: Movimiento reducido con contenido denso
+
+- **WHEN** el sistema operativo solicita movimiento reducido y una diapositiva excede el alto visible
+- **THEN** el sistema omite las animaciones, conserva todo el contenido visible en su estado final y ejecuta igualmente el ajuste de maquetacion
+
+#### Scenario: Ajuste sin espacio fantasma
+
+- **WHEN** el sistema reduce una diapositiva para que quepa
+- **THEN** reduce tambien la caja que participa en la maquetacion, no deja un hueco invisible con la altura anterior y conserva el mayor tamano que cabe
+
+### Requirement: Narrativa y composicion editorial verificables
+
+La Skill SHALL definir antes del HTML el trabajo de comunicacion, la audiencia, la conclusion central y un arco acumulativo. Cada diapositiva SHALL tener un mensaje principal, un titular de conclusion y evidencia concreta o una inferencia identificada. La composicion SHALL privilegiar una pieza visual dominante y MUST NOT degradar por defecto a una rejilla repetida de tarjetas o paneles de interfaz.
+
+#### Scenario: Esquema previo con evidencia
+
+- **WHEN** el sistema propone el esquema de una presentacion
+- **THEN** cada diapositiva declara su mensaje clave y el dato, caso o fuente que lo sostiene
+
+#### Scenario: Fuente insuficiente
+
+- **WHEN** la fuente no respalda una afirmacion o la profundidad solicitada
+- **THEN** el sistema la retira, la marca como hipotesis o solicita material adicional, y no la rellena con contenido generico
+
+#### Scenario: Variedad visual
+
+- **WHEN** el sistema compone dos diapositivas consecutivas
+- **THEN** evita repetir el mismo arquetipo y usa tarjetas solo cuando la informacion forma una serie real
+
+### Requirement: Auditoria local de calidad de la baraja
+
+El guion base SHALL publicar un informe local y determinista de calidad visual sin red ni permisos adicionales. El informe SHALL detectar como minimo contenido fuera del lienzo, imagenes rotas, titulares de mas de tres lineas, factores de ajuste inferiores a 0.82 y una diapositiva activa sin contenido visible. La Skill MUST NOT declarar terminada una baraja con incidencias observadas sin recomponerla o dividirla.
+
+#### Scenario: Presentacion correcta
+
+- **WHEN** todas las diapositivas caben, sus recursos cargan y su contenido activo es visible
+- **THEN** `window.__PULSE_DECK_REPORT__` indica exito y `data-pulse-calidad` vale `ok`
+
+#### Scenario: Recurso roto o contenido recortado
+
+- **WHEN** una imagen no carga o una caja sale del lienzo visible
+- **THEN** el informe identifica la diapositiva y el codigo de incidencia correspondiente
+
+#### Scenario: Verificacion responsive y accesible
+
+- **WHEN** se verifica la baraja antes de entregarla
+- **THEN** se comprueba en lienzo 16:9, ventana angosta y movimiento reducido, y no se afirma un resultado que no se haya observado
+
+### Requirement: Actualizacion compatible del motor de la baraja
+
+Los archivos protegidos de diseno y movimiento SHALL actualizarse a la version de la aplicacion antes de previsualizar, presentar o exportar una baraja persistente. La actualizacion MUST ser atomica e idempotente, MUST NOT reescribir archivos editables del usuario y MUST NOT provocar un ciclo de recarga del panel.
+
+#### Scenario: Baraja antigua con ajuste por zoom
+
+- **WHEN** el usuario vuelve a abrir una presentacion cuyo `guion-base.js` pertenece a una version anterior
+- **THEN** el sistema sustituye el guion y la hoja base protegidos antes de renderizar, y conserva `index.html`, `presentacion.css`, recursos y marca
+
+#### Scenario: Motor ya actualizado
+
+- **WHEN** el contenido protegido coincide con la version vigente
+- **THEN** el sistema no toca el disco ni emite un progreso que recargue la vista previa
+
+### Requirement: Coreografia editorial determinista
+
+El movimiento de entrada SHALL ser propiedad del guion base y SHALL derivarse del rol semantico del elemento, con secuencia, curva y duracion coherentes entre presentaciones. El HTML de una baraja MAY anotar excepciones con `data-movimiento`, pero MUST NOT depender de una libreria remota ni duplicar la coreografia general. Si WAAPI no esta disponible o se solicita movimiento reducido, el contenido SHALL conservar un estado final visible.
+
+#### Scenario: Navegador con Web Animations API
+
+- **WHEN** una diapositiva se activa
+- **THEN** antetitulo, titular, texto, visuales y piezas entran en una secuencia editorial segun su rol, sin dos animaciones compitiendo por el mismo `transform`
+
+#### Scenario: Navegador sin WAAPI o con movimiento reducido
+
+- **WHEN** la API nativa no existe o el usuario solicita menos movimiento
+- **THEN** el sistema usa la degradacion CSS o muestra el estado final, sin ocultar contenido ni desactivar el ajuste de maquetacion
+
+### Requirement: Autoría declarativa y render React
+
+El sistema SHALL generar las presentaciones nuevas como un `deck.json`
+validado y SHALL reservar el HTML, CSS, componentes React y líneas de tiempo al
+runtime de la aplicación. El contrato MUST limitar densidad, arquetipos, rutas
+de recursos y vocabulario de movimiento. La vista SHALL usar un lienzo lógico
+1920×1080 escalado uniformemente y MUST NOT recomponer columnas por el tamaño
+del panel.
+
+#### Scenario: Deck válido
+
+- **WHEN** el agente completa un `deck.json` que satisface el esquema
+- **THEN** el runtime React lo reproduce con identidad de marca y movimiento semántico sin ejecutar código escrito por el modelo
+
+#### Scenario: Deck inválido
+
+- **WHEN** el contrato contiene un tipo desconocido, exceso de densidad, ids repetidos o una ruta fuera de `assets/`
+- **THEN** el sistema rechaza la presentación antes de abrirla y explica los campos que deben corregirse
+
+### Requirement: Servidor local y exportación autocontenida del runtime
+
+El sistema SHALL servir el runtime nuevo únicamente en loopback, con puerto
+dinámico y una sesión opaca por workspace. Solo SHALL exponer el bundle del
+renderer y `deck.json`, `estilos/marca.css` y `assets/` del workspace. La
+exportación SHALL producir un HTML único que contenga el bundle React, el
+contrato, la marca y las imágenes, y MUST NOT requerir red para reproducirse.
+
+#### Scenario: Recurso fuera de la allowlist
+
+- **WHEN** una petición intenta leer otro archivo o atravesar la raíz del workspace
+- **THEN** el servidor responde que no existe sin revelar rutas absolutas
+
+#### Scenario: Exportación del deck React
+
+- **WHEN** el usuario exporta una presentación declarativa válida
+- **THEN** recibe un HTML autocontenido que conserva navegación y movimiento sin referencias externas

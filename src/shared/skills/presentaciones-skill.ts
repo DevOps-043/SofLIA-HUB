@@ -5,8 +5,8 @@ import { SKILL_WORKSPACE_TOOL_NAMES } from './workspace-tool-names';
 /** Identificador estable de la Skill; se usa en IPC, telemetria y UI. */
 export const PRESENTACIONES_SKILL_ID = 'sistema:presentaciones';
 
-/** Documento que abre la vista previa y la exportacion a PDF. */
-export const PRESENTACIONES_ENTRY_FILE = 'index.html';
+/** Manifiesto que consume el runtime React de presentaciones. */
+export const PRESENTACIONES_ENTRY_FILE = 'deck.json';
 
 /** Hoja de marca que escribe main antes de que el modelo empiece. */
 export const PRESENTACIONES_BRAND_CSS = 'estilos/marca.css';
@@ -22,8 +22,7 @@ export const PRESENTACIONES_BASE_CSS = 'estilos/base.css';
 export const PRESENTACIONES_BASE_JS = 'guion-base.js';
 
 /**
- * Skill del sistema que produce presentaciones ejecutivas en HTML y CSS.
- * Reemplaza la generacion via Gamma en el chat y en WhatsApp.
+ * Skill del sistema que produce contenido estructurado para el runtime React.
  */
 export const PRESENTACIONES_SKILL: SystemSkill = Object.freeze({
   skillClass: 'sistema',
@@ -32,7 +31,7 @@ export const PRESENTACIONES_SKILL: SystemSkill = Object.freeze({
   // Mismo comando que en WhatsApp: se escribe igual en las dos superficies.
   command: 'presentacion',
   description:
-    'Crea una presentacion ejecutiva en HTML con los colores y el logo de tu organizacion, a partir de un archivo, un documento de Drive, una pagina web o tus indicaciones.',
+    'Crea una presentacion ejecutiva animada con React, Tailwind y principios de HyperFrames, a partir de un archivo, Drive, una pagina web o tus indicaciones.',
   // Identificador del catalogo de iconos, no un emoji: se ve igual en todos
   // los equipos y hereda el color del tema.
   icon: 'presentacion',
@@ -47,7 +46,7 @@ export const PRESENTACIONES_SKILL: SystemSkill = Object.freeze({
   tools: Object.freeze([...SKILL_WORKSPACE_TOOL_NAMES]) as readonly string[],
   workspace: Object.freeze({
     rootFolder: 'presentaciones',
-    allowedExtensions: Object.freeze(['.html', '.css', '.md', '.js']) as readonly string[],
+    allowedExtensions: Object.freeze(['.json', '.md']) as readonly string[],
     maxFileBytes: 512 * 1024,
     maxWorkspaceBytes: 8 * 1024 * 1024,
     entryFile: PRESENTACIONES_ENTRY_FILE,

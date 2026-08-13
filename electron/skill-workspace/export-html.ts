@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { parsePresentationDeck } from '../../src/shared/presentations/deck-schema';
 import type { SkillWorkspaceService } from './service';
 
 /**
@@ -56,6 +57,50 @@ export async function exportPresentationToHtml(
   }
 }
 
+/** Empaqueta el runtime React, el contrato y los recursos en un solo HTML. */
+export async function exportPresentationDeckToHtml(
+  service: SkillWorkspaceService,
+  workspaceId: string,
+  rendererDist: string,
+): Promise<{ ok: true; htmlPath: string } | { ok: false; error: string }> {
+  const deckAbsolute = await service.resolveAbsolutePath(workspaceId, 'deck.json');
+  if (!deckAbsolute) return { ok: false, error: 'La presentacion todavia no tiene deck.json.' };
+
+  try {
+    const workspace = await service.getWorkspace(workspaceId);
+    const deck = parsePresentationDeck(JSON.parse(await fs.readFile(deckAbsolute, 'utf8')));
+    const brandAbsolute = await service.resolveAbsolutePath(workspaceId, 'estilos/marca.css');
+    const brandCss = brandAbsolute ? await fs.readFile(brandAbsolute, 'utf8') : '';
+    const assets: Record<string, string> = {};
+
+    for (const slide of deck.slides) {
+      if (!('imagen' in slide) || !slide.imagen) continue;
+      const absolute = await service.resolveAbsolutePath(workspaceId, slide.imagen.src);
+      if (!absolute) return { ok: false, error: `Falta el recurso requerido ${slide.imagen.src}.` };
+      const extension = path.extname(absolute).toLowerCase();
+      const mime = MIME_BY_EXTENSION[extension];
+      if (!mime) return { ok: false, error: `El recurso ${slide.imagen.src} no tiene un formato exportable.` };
+      assets[slide.imagen.src] = `data:${mime};base64,${(await fs.readFile(absolute)).toString('base64')}`;
+    }
+
+    const distRoot = path.resolve(rendererDist);
+    const original = await fs.readFile(path.join(distRoot, 'index.html'), 'utf8');
+    const styled = await inlineStylesheets(original, distRoot);
+    const bundled = await inlineImages(await inlineScripts(styled, distRoot), distRoot);
+    const payload = JSON.stringify({ deck, brandCss, assets }).replace(/</g, '\\u003c');
+    const standalone = bundled.replace('<head>', `<head>\n<script>window.__PULSE_PRESENTATION__=${payload};</script>`);
+    const bytes = Buffer.byteLength(standalone, 'utf8');
+    if (bytes > MAX_OUTPUT_BYTES) {
+      return { ok: false, error: `La presentacion pesa ${Math.round(bytes / (1024 * 1024))} MB y no se puede compartir como archivo unico.` };
+    }
+    const outputPath = path.join(path.dirname(deckAbsolute), `${slugify(workspace?.title) || 'presentacion'}.html`);
+    await fs.writeFile(outputPath, standalone, 'utf8');
+    return { ok: true, htmlPath: outputPath };
+  } catch (error) {
+    return { ok: false, error: `No se pudo exportar el runtime React: ${error instanceof Error ? error.message : String(error)}` };
+  }
+}
+
 /**
  * Sustituye cada `<link rel="stylesheet" href="...">` local por su contenido
  * dentro de un `<style>`. Conserva el ORDEN original, que es lo que decide
@@ -102,9 +147,10 @@ async function inlineScripts(html: string, root: string): Promise<string> {
       continue;
     }
     const contenido = await readLocalAsset(root, src, 'utf-8');
+    const moduleAttribute = /\btype=["']module["']/i.test(etiqueta) ? ' type="module"' : '';
     resultado = resultado.replace(
       etiqueta,
-      contenido === null ? '' : `<script>
+      contenido === null ? '' : `<script${moduleAttribute}>
 /* ${src} */
 ${contenido}
 </script>`,
@@ -147,7 +193,7 @@ async function inlineImages(html: string, root: string): Promise<string> {
  * carpeta: la exportacion no es una via para incrustar archivos del equipo.
  */
 async function readLocalAsset(root: string, reference: string, encoding: 'utf-8' | null): Promise<string | Buffer | null> {
-  const limpia = reference.split('?')[0].split('#')[0];
+  const limpia = reference.split('?')[0].split('#')[0].replace(/^[/\\]+/, '');
   if (path.isAbsolute(limpia)) return null;
 
   const destino = path.resolve(root, limpia);

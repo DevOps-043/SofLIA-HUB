@@ -186,6 +186,25 @@ describe('panel de trabajo de la presentacion', () => {
     expect(marco.getAttribute('sandbox')).not.toContain('allow-same-origin');
   });
 
+  it('muestra el informe visual emitido por la vista previa aislada', async () => {
+    archivos = [{ path: 'index.html', bytes: 120, updatedAt: '2026-08-06T10:00:00.000Z' }];
+    listo = true;
+
+    renderPanel();
+    fireEvent.click(await screen.findByLabelText('Reproducir la presentacion'));
+
+    const marco = await screen.findByTitle('Vista previa de la presentacion');
+    fireEvent(window, new MessageEvent('message', {
+      source: (marco as HTMLIFrameElement).contentWindow,
+      data: {
+        tipo: 'pulse-presentacion-calidad',
+        informe: { ok: false, incidencias: [{ diapositiva: 4, codigo: 'imagen-rota' }] },
+      },
+    }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('1 incidencias visuales');
+  });
+
   it('abre la presentacion a pantalla completa', async () => {
     archivos = [{ path: 'index.html', bytes: 120, updatedAt: '2026-08-06T10:00:00.000Z' }];
     listo = true;
