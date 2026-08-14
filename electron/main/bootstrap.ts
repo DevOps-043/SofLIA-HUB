@@ -18,6 +18,7 @@ import { initializeMainServices, registerPlatformHandlers } from './startup';
 import { markBoot } from './boot-timeline';
 import { registerAuthStateHandlers } from '../auth-state-handlers';
 import { registerWhatsAppAuthGate } from './whatsapp-auth-gate';
+import { startResourceDiagnostics } from '../resource-diagnostics';
 
 /**
  * Registra el esquema `soflia://` en el sistema operativo.
@@ -63,6 +64,11 @@ export async function runBootstrap(): Promise<void> {
   await app.whenReady();
   markBoot('app:ready');
   console.log('[BOOT] App ready. Initializing subsystems...');
+  const resourceDiagnostics = startResourceDiagnostics({
+    enabled: process.argv.includes('--resource-diagnostics'),
+    metricsProvider: () => app.getAppMetrics(),
+  });
+  app.once('before-quit', () => resourceDiagnostics.dispose());
   registerAppProtocolClient();
 
   modules.MenuManager.setup();

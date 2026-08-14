@@ -11,6 +11,14 @@ export const INTEGRATED_BROWSER_HOME = 'https://www.google.com/';
 export const INTEGRATED_BROWSER_AGENT_VIEWPORT_TIMEOUT_MS = 8_000;
 export const INTEGRATED_BROWSER_MAX_TABS = 500;
 export const INTEGRATED_BROWSER_MAX_LIVE_TABS = 8;
+/** Pestañas ocultas recientes que se conservan materializadas para volver sin recarga. */
+export const INTEGRATED_BROWSER_WARM_BACKGROUND_TABS = 1;
+/** Una pestaña fría conserva su renderer durante este margen antes de liberarlo. */
+export const INTEGRATED_BROWSER_COLD_TAB_GRACE_MS = 90_000;
+/** Con la ventana oculta se prioriza memoria, pero se conserva la pestaña más reciente. */
+export const INTEGRATED_BROWSER_HIDDEN_WINDOW_GRACE_MS = 30_000;
+/** Reintento acotado cuando una pestaña fría sigue protegida por trabajo transitorio. */
+export const INTEGRATED_BROWSER_RESOURCE_RETRY_MS = 30_000;
 export const INTEGRATED_BROWSER_MAX_DETACHED_WINDOWS = 4;
 export const INTEGRATED_BROWSER_OBSERVATION_INTERVAL_MS = 10_000;
 export const INTEGRATED_BROWSER_OBSERVATION_IDLE_MS = 4_000;

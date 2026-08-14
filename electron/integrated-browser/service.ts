@@ -57,10 +57,12 @@ import type {
 } from './reading-mode-content';
 import {
   INTEGRATED_BROWSER_AGENT_VIEWPORT_TIMEOUT_MS,
+  INTEGRATED_BROWSER_COLD_TAB_GRACE_MS,
   INTEGRATED_BROWSER_BACKDROP_QUALITY,
   INTEGRATED_BROWSER_DEFER_THROTTLE_MS,
   SELECTION_PROBE_DELAY_MS,
   INTEGRATED_BROWSER_HOME,
+  INTEGRATED_BROWSER_HIDDEN_WINDOW_GRACE_MS,
   INTEGRATED_BROWSER_MAX_DETACHED_WINDOWS,
   INTEGRATED_BROWSER_MAX_LIVE_TABS,
   INTEGRATED_BROWSER_MAX_TABS,
@@ -70,6 +72,8 @@ import {
   INTEGRATED_BROWSER_OBSERVATION_INTERVAL_MS,
   INTEGRATED_BROWSER_OBSERVATION_MAX_EDGE,
   INTEGRATED_BROWSER_OBSERVATION_QUALITY,
+  INTEGRATED_BROWSER_RESOURCE_RETRY_MS,
+  INTEGRATED_BROWSER_WARM_BACKGROUND_TABS,
   type BrowserCredentialMetadata,
   type BrowserCredentialSaveInput,
   type BrowserExtensionInstallPreview,
@@ -111,6 +115,8 @@ type BrowserTabRuntime = {
    *  la pagina en cada publicacion de viewport, que la obliga a descartar el
    *  cuadro compuesto y reiniciar temporizadores de carga. */
   appliedVisible: boolean | null;
+  /** Última prioridad aplicada a Chromium; evita repetir trabajo en cada estado. */
+  appliedBackgroundThrottling: boolean | null;
   appliedBounds: Rectangle | null;
 };
 
@@ -167,6 +173,8 @@ export class IntegratedBrowserService extends EventEmitter {
   private latestObservation: BrowserObservationSnapshot | null = null;
   private observationSequence = 0;
   private observationLastError: string | null = null;
+  private resourcePolicyTimer: ReturnType<typeof setTimeout> | null = null;
+  private resourcePolicyGeneration = 0;
   /** Perfil (usuario) al que pertenece la sesion de navegacion en curso. */
   private scopeId = getBrowserScopeId();
 
@@ -228,6 +236,11 @@ export class IntegratedBrowserService extends EventEmitter {
       this.emitState();
     };
     window.on('focus', this.mainWindowFocusHandler);
+    window.on('show', this.resourceWindowStateHandler);
+    window.on('hide', this.resourceWindowStateHandler);
+    window.on('minimize', this.resourceWindowStateHandler);
+    window.on('restore', this.resourceWindowStateHandler);
+    window.on('blur', this.resourceWindowStateHandler);
     window.once('closed', () => this.detachWindow(window));
     this.startObservationTimer();
   }
@@ -236,6 +249,13 @@ export class IntegratedBrowserService extends EventEmitter {
     if (expectedWindow && this.parentWindow !== expectedWindow) return;
     if (this.parentWindow && this.mainWindowFocusHandler) {
       this.parentWindow.removeListener('focus', this.mainWindowFocusHandler);
+    }
+    if (this.parentWindow) {
+      this.parentWindow.removeListener('show', this.resourceWindowStateHandler);
+      this.parentWindow.removeListener('hide', this.resourceWindowStateHandler);
+      this.parentWindow.removeListener('minimize', this.resourceWindowStateHandler);
+      this.parentWindow.removeListener('restore', this.resourceWindowStateHandler);
+      this.parentWindow.removeListener('blur', this.resourceWindowStateHandler);
     }
     this.mainWindowFocusHandler = null;
     this.teardownBrowsingSession('La ventana principal se cerro antes de mostrar el navegador.');
@@ -317,6 +337,7 @@ export class IntegratedBrowserService extends EventEmitter {
     this.visualCaptureInFlight = null;
     this.visualCaptureInFlightTarget = null;
     this.observationLastError = null;
+    this.stopResourcePolicyTimer();
     // Las extensiones pertenecen al perfil: el proximo perfil restaura las suyas.
     this.extensionsRestored = false;
     this.readingModeService.dispose();
@@ -486,6 +507,11 @@ export class IntegratedBrowserService extends EventEmitter {
     this.layoutDetachedTab(tabId);
 
     detached.on('resize', () => this.layoutDetachedTab(tabId));
+    detached.on('show', this.resourceWindowStateHandler);
+    detached.on('hide', this.resourceWindowStateHandler);
+    detached.on('minimize', this.resourceWindowStateHandler);
+    detached.on('restore', this.resourceWindowStateHandler);
+    detached.on('blur', this.resourceWindowStateHandler);
     detached.on('focus', () => {
       if (!this.tabs.has(tabId) || this.detachedWindows.get(tabId) !== detached) return;
       this.activeTabId = tabId;
@@ -1145,6 +1171,7 @@ export class IntegratedBrowserService extends EventEmitter {
       passiveCaptureNotBefore: 0,
       lastDeferAt: 0,
       appliedVisible: null,
+      appliedBackgroundThrottling: null,
       appliedBounds: null,
     };
     this.tabs.set(tab.id, tab);
@@ -1165,11 +1192,11 @@ export class IntegratedBrowserService extends EventEmitter {
         nodeIntegration: false,
         webSecurity: true,
         allowRunningInsecureContent: false,
-        // La vista se oculta cada vez que se abre un panel del navegador o las
-        // sugerencias de la barra. Con el throttling activo esa pausa congela
-        // temporizadores y carga diferida de la pagina (paneles de YouTube,
-        // listas de Gmail) y la reanudacion tarda segundos.
-        backgroundThrottling: false,
+        // Chromium puede abaratar pestañas ocultas desde el primer frame. El
+        // reconciliador desactiva el throttling solo para superficies realmente
+        // presentadas; ocultar brevemente la activa bajo un menú no cambia esa
+        // prioridad mientras su ventana anfitriona siga visible.
+        backgroundThrottling: true,
         spellcheck: true,
       },
     });
@@ -1179,6 +1206,7 @@ export class IntegratedBrowserService extends EventEmitter {
     this.overlayTopTabId = null;
     tab.view = view;
     tab.appliedVisible = false;
+    tab.appliedBackgroundThrottling = null;
     tab.appliedBounds = null;
     this.configureWebContents(tab);
     if (!this.permissions) {
@@ -1371,10 +1399,14 @@ export class IntegratedBrowserService extends EventEmitter {
       this.emitState();
       this.deferPassiveCapture(tab);
     });
+    contents.on('audio-state-changed', () => { if (isCurrentView()) this.emitState(); });
+    contents.on('media-started-playing', () => { if (isCurrentView()) this.emitState(); });
+    contents.on('media-paused', () => { if (isCurrentView()) this.emitState(); });
     contents.on('focus', () => {
       if (!isCurrentView()) return;
       if (!this.tabs.has(tabId) || this.activeTabId === tabId) return;
       this.activeTabId = tabId;
+      tab.lastActivatedAt = Date.now();
       this.emitState();
     });
     contents.on('did-navigate', () => {
@@ -1527,6 +1559,7 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   private emitState(): void {
+    this.reconcileResourcePolicy();
     const state = this.getState();
     this.emit('state-changed', state);
     const parent = this.parentWindow;
@@ -1927,6 +1960,94 @@ export class IntegratedBrowserService extends EventEmitter {
     }
   }
 
+  /**
+   * Prioriza las superficies que el usuario realmente puede ver y libera
+   * renderers fríos sin cerrar la pestaña lógica. Toda la política vive aquí
+   * para que layout, foco, ventanas separadas y Computer Use no diverjan.
+   */
+  private reconcileResourcePolicy(now = Date.now()): boolean {
+    this.stopResourcePolicyTimer();
+    const liveTabs = Array.from(this.tabs.values()).filter((tab) => tab.view && !tab.view.webContents.isDestroyed());
+    if (liveTabs.length === 0) return false;
+
+    const presentedIds = new Set(liveTabs.filter((tab) => this.isTabVisible(tab)).map((tab) => tab.id));
+    if (this.agentControlling && this.activeTabId) presentedIds.add(this.activeTabId);
+
+    const warmIds = new Set(
+      liveTabs
+        .filter((tab) => !presentedIds.has(tab.id))
+        .sort((left, right) => right.lastActivatedAt - left.lastActivatedAt)
+        .slice(0, INTEGRATED_BROWSER_WARM_BACKGROUND_TABS)
+        .map((tab) => tab.id),
+    );
+    const parentUsable = this.parentWindow ? this.isWindowUsable(this.parentWindow) : false;
+    const graceMs = parentUsable ? INTEGRATED_BROWSER_COLD_TAB_GRACE_MS : INTEGRATED_BROWSER_HIDDEN_WINDOW_GRACE_MS;
+    let nextDelay = Number.POSITIVE_INFINITY;
+    let changed = false;
+
+    for (const tab of liveTabs) {
+      const contents = tab.view!.webContents;
+      const presented = presentedIds.has(tab.id);
+      const allowBackgroundThrottling = !presented;
+      if (tab.appliedBackgroundThrottling !== allowBackgroundThrottling) {
+        contents.setBackgroundThrottling(allowBackgroundThrottling);
+        tab.appliedBackgroundThrottling = allowBackgroundThrottling;
+      }
+      if (presented || warmIds.has(tab.id)) continue;
+
+      const expiresAt = tab.lastActivatedAt + graceMs;
+      if (now < expiresAt) {
+        nextDelay = Math.min(nextDelay, expiresAt - now);
+        continue;
+      }
+      if (this.hasProtectedTabWork(tab)) {
+        nextDelay = Math.min(nextDelay, INTEGRATED_BROWSER_RESOURCE_RETRY_MS);
+        continue;
+      }
+
+      this.snapshotTab(tab);
+      this.destroyTab(tab);
+      tab.loading = false;
+      changed = true;
+    }
+
+    if (Number.isFinite(nextDelay)) this.scheduleResourcePolicy(nextDelay);
+    return changed;
+  }
+
+  private hasProtectedTabWork(tab: BrowserTabRuntime): boolean {
+    const contents = tab.view?.webContents;
+    if (!contents || contents.isDestroyed()) return false;
+    return tab.loading
+      || contents.isLoadingMainFrame()
+      || contents.isWaitingForResponse()
+      || contents.isCurrentlyAudible()
+      || contents.isBeingCaptured()
+      || contents.isDevToolsOpened();
+  }
+
+  private scheduleResourcePolicy(delayMs: number): void {
+    const generation = ++this.resourcePolicyGeneration;
+    this.resourcePolicyTimer = setTimeout(() => {
+      if (generation !== this.resourcePolicyGeneration) return;
+      this.resourcePolicyTimer = null;
+      const changed = this.reconcileResourcePolicy();
+      if (changed) this.emitState();
+    }, Math.max(1, delayMs));
+    this.resourcePolicyTimer.unref?.();
+  }
+
+  private stopResourcePolicyTimer(): void {
+    this.resourcePolicyGeneration += 1;
+    if (!this.resourcePolicyTimer) return;
+    clearTimeout(this.resourcePolicyTimer);
+    this.resourcePolicyTimer = null;
+  }
+
+  private readonly resourceWindowStateHandler = (): void => {
+    this.emitState();
+  };
+
   private layoutDetachedTab(tabId: string): void {
     const detached = this.detachedWindows.get(tabId);
     const tab = this.tabs.get(tabId);
@@ -1948,7 +2069,7 @@ export class IntegratedBrowserService extends EventEmitter {
   private isTabVisible(tab: BrowserTabRuntime): boolean {
     const detached = this.detachedWindows.get(tab.id);
     if (detached) return this.isWindowUsable(detached);
-    if (!this.visible || !this.viewport) return false;
+    if (!this.visible || !this.viewport || !this.parentWindow || !this.isWindowUsable(this.parentWindow)) return false;
     return tab.id === this.primaryTabId || (this.viewMode !== 'single' && tab.id === this.secondaryTabId);
   }
 
@@ -2008,7 +2129,8 @@ export class IntegratedBrowserService extends EventEmitter {
   private startObservationTimer(): void {
     if (!this.observationEnabled || this.observationTimer) return;
     const active = this.getActiveTab();
-    this.schedulePassiveCapture(passiveObservationIntervalMs(active?.view?.webContents.getURL() ?? active?.url ?? ''));
+    if (!active) return;
+    this.schedulePassiveCapture(passiveObservationIntervalMs(active.view?.webContents.getURL() ?? active.url));
   }
 
   private stopObservationTimer(): void {
@@ -2026,21 +2148,10 @@ export class IntegratedBrowserService extends EventEmitter {
     this.observationTimer = setTimeout(() => {
       if (generation !== this.observationTimerGeneration) return;
       this.observationTimer = null;
-      void this.refreshVisualCapture().finally(() => {
-        if (
-          generation !== this.observationTimerGeneration
-          || !this.observationEnabled
-          || !this.parentWindow
-        ) {
-          return;
-        }
-        // Si la ventana de calma sigue abierta (el usuario acaba de interactuar)
-        // se reintenta al cerrarla, no al siguiente intervalo completo.
-        const active = this.getActiveTab();
-        const remainingCalm = active ? active.passiveCaptureNotBefore - Date.now() : 0;
-        const activeUrl = active?.view?.webContents.getURL() ?? active?.url ?? '';
-        this.schedulePassiveCapture(remainingCalm > 0 ? remainingCalm : passiveObservationIntervalMs(activeUrl));
-      });
+      // La percepción pasiva es dirigida por eventos: carga, navegación o una
+      // nueva interacción vuelven a programarla. En reposo no hay polling del
+      // compositor; una herramienta del agente conserva la captura explícita.
+      void this.refreshVisualCapture();
     }, Math.max(0, delayMs));
     this.observationTimer.unref?.();
   }

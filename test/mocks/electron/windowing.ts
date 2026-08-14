@@ -126,10 +126,16 @@ class MockWebContents extends EventEmitter {
   getUserAgent = vi.fn(() => 'Mozilla/5.0 (KHTML, like Gecko) soflia-hub-desktop/0.9.6 Chrome/152.0.7977.30 Electron/44.0.0-beta.3 Safari/537.36');
   setUserAgent = vi.fn();
   setWindowOpenHandler = vi.fn();
+  setBackgroundThrottling = vi.fn();
   focus = vi.fn();
   reload = vi.fn();
   stop = vi.fn();
   isDestroyed = vi.fn(() => this.destroyed);
+  isCurrentlyAudible = vi.fn(() => false);
+  isBeingCaptured = vi.fn(() => false);
+  isDevToolsOpened = vi.fn(() => false);
+  isLoadingMainFrame = vi.fn(() => false);
+  isWaitingForResponse = vi.fn(() => false);
   close = vi.fn(() => { this.destroyed = true; });
   capturePage = vi.fn(async () => new MockNativeImage());
   sendInputEvent = vi.fn();

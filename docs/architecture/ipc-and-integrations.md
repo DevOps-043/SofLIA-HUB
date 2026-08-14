@@ -8,8 +8,8 @@ Estado: vigente. Actualizado: 2026-08-06.
 
 ## Contrato IPC
 
-La allowlist actual contiene 344 canales derivados de cinco arrays: 80, 59, 65,
-99 y 41. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 346 canales derivados de cinco arrays: 80, 59, 65,
+101 y 41. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |
@@ -143,10 +143,11 @@ main y no forman parte del catalogo de herramientas del agente. La instalacion
 separa inspeccion y confirmacion: main emite metadata y un token efimero, y solo
 copia o carga al recibir la confirmacion renderer. La captura de
 solo lectura exige un viewport visible. La percepción pasiva conserva una
-captura visual reducida a 1024 px en su lado mayor y codificada en JPEG, con
-cadencia base de diez segundos, y la difiere cuatro segundos después de
-interacción, navegación o resize sin ejecutar DOM. En YouTube la cadencia es de
-treinta segundos y la calma de doce para dejar terminar transcripciones y
+captura visual reducida a 1024 px en su lado mayor y codificada en JPEG. Una
+navegación o interacción programa una captura después de la ventana de calma,
+pero la captura terminada no vuelve a programarse por sí sola: en reposo no hay
+polling del compositor. La ventana mínima es de diez segundos y la calma de
+cuatro; en YouTube son treinta y doce para dejar terminar transcripciones y
 paneles asíncronos. Solo un turno clasificado como dependiente del navegador
 obtiene una revisión vigente y el
 DOM saneado bajo demanda. Solo el último snapshot queda en memoria, Computer Use
@@ -202,7 +203,12 @@ navegación reemplazada tampoco se trata como fallo: es el curso normal de un
 sitio que reescribe su propia URL al cargar.
 
 Main administra hasta 500 pestañas lógicas dentro de la misma partición
-persistente y conserva como máximo ocho `WebContentsView` vivas mediante LRU.
+persistente y conserva como máximo ocho `WebContentsView` vivas como defensa.
+Las superficies visibles ejecutan sin throttling; las ocultas lo permiten. Una
+pestaña oculta reciente queda caliente para cambios rápidos y las demás se
+suspenden por LRU después de 90 segundos, o 30 si la ventana está oculta. Audio,
+captura, carga, DevTools, ventana separada visible y control del agente protegen
+la vista; restaurarla conserva identidad y URL, pero recarga el documento.
 Los popups HTTP(S) se convierten en pestañas internas. Los canales
 `integrated-browser:tab-detach` y `integrated-browser:tab-reattach` permiten al
 renderer principal mover una pestaña validada a una de hasta cuatro

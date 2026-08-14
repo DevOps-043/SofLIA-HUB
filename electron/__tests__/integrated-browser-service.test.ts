@@ -15,6 +15,10 @@ import {
   browserScopeIdFor,
   resetBrowserScopeForTests,
 } from '../integrated-browser/profile-scope';
+import {
+  INTEGRATED_BROWSER_COLD_TAB_GRACE_MS,
+  INTEGRATED_BROWSER_HIDDEN_WINDOW_GRACE_MS,
+} from '../integrated-browser/types';
 
 // El servicio materializa su primera vista con el gestor de extensiones real,
 // que lee su registro en disco de forma asincrona. Esta suite no ejercita
@@ -55,6 +59,12 @@ type MockIntegratedBrowserView = {
       getURL: ReturnType<typeof vi.fn>;
       getUserAgent: ReturnType<typeof vi.fn>;
       setUserAgent: ReturnType<typeof vi.fn>;
+      setBackgroundThrottling: ReturnType<typeof vi.fn>;
+      isCurrentlyAudible: ReturnType<typeof vi.fn>;
+      isBeingCaptured: ReturnType<typeof vi.fn>;
+      isDevToolsOpened: ReturnType<typeof vi.fn>;
+      isLoadingMainFrame: ReturnType<typeof vi.fn>;
+      isWaitingForResponse: ReturnType<typeof vi.fn>;
       loadURL: ReturnType<typeof vi.fn>;
       setWindowOpenHandler: ReturnType<typeof vi.fn>;
       session: {
@@ -208,7 +218,7 @@ describe('IntegratedBrowserService', () => {
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
-      backgroundThrottling: false,
+      backgroundThrottling: true,
     });
     // El User-Agent queda identico al de un Chromium de escritorio: sin el
     // nombre de la aplicacion ni la ficha `Electron/`, que lo convertian en un
@@ -327,6 +337,8 @@ describe('IntegratedBrowserService', () => {
     });
     expect(contents.capturePage).toHaveBeenCalledTimes(1);
     expect(domExtractions(contents)).toBe(1);
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(contents.capturePage).toHaveBeenCalledTimes(1);
     service.detachWindow();
   });
 
@@ -783,6 +795,93 @@ describe('IntegratedBrowserService', () => {
     expect(browserViewHarness.instances[1].webContents.close).toHaveBeenCalled();
     expect(browserViewHarness.instances[0].webContents.close).not.toHaveBeenCalled();
     expect(service.getState()).toMatchObject({ viewMode: 'single', activeTabId: firstId });
+  });
+
+  it('prioriza solo las superficies visibles y abarata las pestañas ocultas', async () => {
+    const window = new BrowserWindow();
+    const service = new IntegratedBrowserService();
+    service.attachWindow(window);
+    await service.open('https://primaria.example');
+    service.setViewport({ x: 0, y: 0, width: 1_200, height: 800 });
+    const first = browserViewHarness.instances[0];
+    const firstId = service.getState().activeTabId!;
+    await service.createTab('https://secundaria.example', false);
+    const second = browserViewHarness.instances[1];
+    const secondId = service.getState().tabs[1].id;
+    await service.createTab('https://tercera.example', false);
+    const third = browserViewHarness.instances[2];
+
+    expect(first.webContents.setBackgroundThrottling).toHaveBeenLastCalledWith(false);
+    expect(second.webContents.setBackgroundThrottling).toHaveBeenLastCalledWith(true);
+    expect(third.webContents.setBackgroundThrottling).toHaveBeenLastCalledWith(true);
+
+    await service.setViewMode('split', secondId);
+    expect(first.webContents.setBackgroundThrottling).toHaveBeenLastCalledWith(false);
+    expect(second.webContents.setBackgroundThrottling).toHaveBeenLastCalledWith(false);
+    expect(service.getState()).toMatchObject({ primaryTabId: firstId, secondaryTabId: secondId });
+
+    service.hide();
+    expect(first.webContents.setBackgroundThrottling).toHaveBeenLastCalledWith(true);
+    expect(second.webContents.setBackgroundThrottling).toHaveBeenLastCalledWith(true);
+    service.detachWindow();
+  });
+
+  it('suspende una pestaña fría, protege audio y restaura la misma identidad', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-13T18:00:00.000Z'));
+    const service = new IntegratedBrowserService();
+    service.attachWindow(new BrowserWindow());
+    await service.open('https://primaria.example');
+    service.setViewport({ x: 0, y: 0, width: 1_200, height: 800 });
+
+    await vi.advanceTimersByTimeAsync(10);
+    await service.createTab('https://audio.example', false);
+    const audioId = service.getState().tabs[1].id;
+    const audioView = browserViewHarness.instances[1];
+    audioView.webContents.isCurrentlyAudible.mockReturnValue(true);
+
+    await vi.advanceTimersByTimeAsync(10);
+    await service.createTab('https://reciente.example', false);
+    const recentId = service.getState().tabs[2].id;
+
+    await vi.advanceTimersByTimeAsync(INTEGRATED_BROWSER_COLD_TAB_GRACE_MS);
+    expect(service.getState().tabs.find((tab) => tab.id === audioId)?.isSuspended).toBe(false);
+    expect(service.getState().tabs.find((tab) => tab.id === recentId)?.isSuspended).toBe(false);
+
+    audioView.webContents.isCurrentlyAudible.mockReturnValue(false);
+    audioView.webContents.emit('audio-state-changed', {}, { audible: false });
+    expect(service.getState().tabs.find((tab) => tab.id === audioId)?.isSuspended).toBe(true);
+    expect(audioView.webContents.close).toHaveBeenCalled();
+
+    service.activateTab(audioId);
+    const restored = browserViewHarness.instances[browserViewHarness.instances.length - 1];
+    expect(service.getState().tabs.find((tab) => tab.id === audioId)?.isSuspended).toBe(false);
+    expect(restored.webContents.loadURL).toHaveBeenCalledWith('https://audio.example/');
+    expect(service.getState().activeTabId).toBe(audioId);
+    service.detachWindow();
+  });
+
+  it('reduce el margen de pestañas frías cuando la ventana anfitriona queda oculta', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-13T18:00:00.000Z'));
+    const window = new BrowserWindow();
+    const service = new IntegratedBrowserService();
+    service.attachWindow(window);
+    await service.open('https://primaria.example');
+    service.setViewport({ x: 0, y: 0, width: 1_200, height: 800 });
+    await vi.advanceTimersByTimeAsync(10);
+    await service.createTab('https://fria.example', false);
+    const coldId = service.getState().tabs[1].id;
+    await vi.advanceTimersByTimeAsync(10);
+    await service.createTab('https://respaldo.example', false);
+
+    vi.mocked(window.isVisible).mockReturnValue(false);
+    window.emit('hide');
+    await vi.advanceTimersByTimeAsync(INTEGRATED_BROWSER_HIDDEN_WINDOW_GRACE_MS);
+
+    expect(service.getState().tabs.find((tab) => tab.id === coldId)?.isSuspended).toBe(true);
+    expect(service.getState().tabs.filter((tab) => !tab.isSuspended)).toHaveLength(1);
+    service.detachWindow();
   });
 
   it('separa y reintegra la misma vista sin recargar ni cambiar de sesión', async () => {

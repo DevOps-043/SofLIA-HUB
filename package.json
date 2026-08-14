@@ -39,6 +39,7 @@
     "test:fast": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "benchmark:resources": "node scripts/performance/run-resource-benchmark.mjs",
     "test:main": "vitest run --project main",
     "test:renderer": "vitest run --project renderer"
   },

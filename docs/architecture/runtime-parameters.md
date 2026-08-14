@@ -50,10 +50,11 @@ evidencia medida en el host de referencia.
 | perfil en disco (historial, contrasenas, permisos por sitio, extensiones) | `userData/integrated-browser/perfiles/<hash del usuario>/` | `electron/integrated-browser/profile-scope.ts` |
 | cambio de usuario | derriba pestañas, ventanas separadas, permisos y observacion; el perfil `sin-sesion` se vacia | `electron/integrated-browser/service.ts`, `electron/main/browser-session-scope.ts` |
 | espera de viewport para el agente | 8000 ms | mismo archivo |
-| pestañas del navegador integrado | máximo 500 lógicas; máximo 8 `WebContentsView` vivas globales; una principal y una secundaria visible | `electron/integrated-browser/types.ts` |
+| pestañas del navegador integrado | máximo 500 lógicas y 8 `WebContentsView` vivas como defensa; las visibles + 1 fondo reciente permanecen calientes; las frías se suspenden tras 90.000 ms, o 30.000 ms con la ventana oculta | `electron/integrated-browser/types.ts`, `electron/integrated-browser/service.ts` |
 | ventanas separadas | máximo 4 `BaseWindow`; mueven la misma vista y cuentan dentro de las 8 vivas | `electron/integrated-browser/types.ts`, `electron/integrated-browser/service.ts` |
 | composición de pestañas | `single`, `split` o `overlay`; foco = objetivo de Computer Use | `electron/integrated-browser/service.ts` |
-| percepción de pestaña activa | cadencia base 10.000 ms y calma 4.000 ms; YouTube: 30.000/12.000 ms; máximo 1024 px en captura pasiva; solo con ventana enfocada y fuera de Computer Use; DOM completo bajo demanda y solo para turnos dependientes del navegador; una captura por tipo en vuelo; solo último snapshot en memoria; pausada por usuario | `electron/integrated-browser/types.ts`, `electron/integrated-browser/service.ts`, `src/services/gemini-chat/send-message-stream.ts` |
+| percepción de pestaña activa | dirigida por navegación/interacción, sin reprogramación periódica en reposo; ventana base 10.000 ms y calma 4.000 ms; YouTube: 30.000/12.000 ms; máximo 1024 px; observación fresca y DOM bajo demanda; una captura por tipo en vuelo; solo último snapshot en memoria; pausada por usuario | `electron/integrated-browser/types.ts`, `electron/integrated-browser/service.ts`, `src/services/gemini-chat/send-message-stream.ts` |
+| diagnóstico de recursos Electron | apagado por defecto; `--resource-diagnostics` agrega cada 30.000 ms CPU, RAM y conteo por tipo de proceso, sin URL, contenido, PID ni nombres | `electron/resource-diagnostics.ts` |
 | límites del DOM observado | texto 24.000 caracteres; 100 encabezados; 60 landmarks; 240 controles; 30 frames; 1.800 nodos y margen de viewport 240 px; sin valores de formularios | `electron/integrated-browser/page-observation.ts` |
 | longitud de direccion/busqueda | 2048 caracteres | `electron/integrated-browser/validation.ts` |
 | viewport minimo | 160 x 120 DIP | mismo archivo |
@@ -82,10 +83,13 @@ evidencia medida en el host de referencia.
 | extension desempaquetada | Manifest V3; 2.000 archivos; 20 MiB | `electron/integrated-browser/extension-manager.ts` |
 | autorizacion de instalacion | token efimero en memoria; 5 minutos | `electron/integrated-browser/extension-manager.ts` |
 
-Las pestañas integradas y separadas comparten una sola partición. Las
-inactivas se suspenden por LRU al superar ocho vistas vivas y recuperan su última
-URL cuando vuelven a activarse; no se promete conservar su pila atrás/adelante.
-Las pestañas separadas nunca se eligen como víctimas LRU mientras exista su ventana.
+Las pestañas integradas y separadas comparten una sola partición. Chromium
+permite throttling en cualquier pestaña oculta; solo las superficies presentadas
+lo desactivan. Una pestaña visible y un fondo reciente permanecen calientes; las
+demás se suspenden por LRU al vencer la gracia y recuperan su última URL cuando
+vuelven a activarse. No se suspende una pestaña visible, cargando, audible,
+capturada, con DevTools, en una ventana separada visible o bajo control del
+agente. No se promete conservar su heap, DOM ni pila atrás/adelante.
 Perfiles explicitamente
 aislados o con identificador siguen usando `BrowserWebService`/Playwright. Las
 extensiones se recargan al iniciar porque Electron no las conserva cargadas; se
