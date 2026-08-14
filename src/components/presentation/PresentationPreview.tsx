@@ -20,6 +20,12 @@ import { workspaceApi } from '../../services/skills/workspace-bridge';
 /** Lienzo de composicion: la proporcion de una pantalla de presentacion. */
 const CANVAS_WIDTH = 1920;
 const CANVAS_HEIGHT = 1080;
+
+type QualityReport = {
+  ok: boolean;
+  incidencias: { diapositiva: number; codigo: string }[];
+};
+
 export function PresentationPreview(props: {
   workspaceId: string;
   ready: boolean;
@@ -28,6 +34,12 @@ export function PresentationPreview(props: {
 }) {
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [qualityState, setQualityState] = useState<{
+    revision: string;
+    url: string;
+    report: QualityReport;
+  } | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const { contenedor, escala } = useCanvasScale();
 
   useEffect(() => {
@@ -52,19 +64,47 @@ export function PresentationPreview(props: {
     };
   }, [props.ready, props.revision, props.workspaceId]);
 
-  if (!props.ready || !url) {
-    return (
-      <div className="flex h-full items-center justify-center px-6 text-center">
-        <p className="text-[13px] text-secondary">
-          {error ?? 'La presentacion todavia no esta lista. SofLIA la esta escribiendo.'}
-        </p>
-      </div>
-    );
-  }
+  useEffect(() => {
+    const receiveReport = (event: MessageEvent<unknown>) => {
+      if (event.source !== iframeRef.current?.contentWindow) return;
+      if (!isQualityMessage(event.data)) return;
+      if (!url) return;
+      setQualityState({ revision: props.revision, url, report: event.data.informe });
+    };
+    window.addEventListener('message', receiveReport);
+    return () => window.removeEventListener('message', receiveReport);
+  }, [props.revision, url]);
+
+  const qualityReport = qualityState?.revision === props.revision && qualityState.url === url
+    ? qualityState.report
+    : null;
 
   return (
-    <div ref={contenedor} className="grid h-full w-full place-items-center overflow-hidden">
-      <div
+    <div
+      ref={contenedor}
+      data-testid="presentation-preview-canvas"
+      className="relative grid h-full w-full place-items-center overflow-hidden"
+    >
+      {!props.ready || !url ? (
+        <p className="px-6 text-center text-[13px] text-secondary">
+          {error ?? 'La presentacion todavia no esta lista. SofLIA la esta escribiendo.'}
+        </p>
+      ) : null}
+      {props.ready && url && qualityReport ? (
+        <div
+          role="status"
+          className={`absolute right-2 top-2 z-10 rounded-full px-2.5 py-1 text-[11px] font-semibold shadow-sm ${
+            qualityReport.ok
+              ? 'bg-emerald-500/90 text-white'
+              : 'bg-amber-500/95 text-slate-950'
+          }`}
+        >
+          {qualityReport.ok
+            ? 'Calidad visual: sin incidencias'
+            : `${qualityReport.incidencias.length} incidencias visuales`}
+        </div>
+      ) : null}
+      {props.ready && url ? <div
         style={{
           width: CANVAS_WIDTH * escala,
           height: CANVAS_HEIGHT * escala,
@@ -72,6 +112,7 @@ export function PresentationPreview(props: {
         className="overflow-hidden"
       >
         <iframe
+          ref={iframeRef}
           // La clave fuerza un remonte cuando el contenido cambia: recargar el
           // mismo `src` no basta porque el navegador reutiliza el documento.
           key={`${url}#${props.revision}`}
@@ -89,9 +130,17 @@ export function PresentationPreview(props: {
           }}
           className="border-0 bg-white"
         />
-      </div>
+      </div> : null}
     </div>
   );
+}
+
+function isQualityMessage(value: unknown): value is { tipo: 'pulse-presentacion-calidad'; informe: QualityReport } {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as { tipo?: unknown; informe?: { ok?: unknown; incidencias?: unknown } };
+  return candidate.tipo === 'pulse-presentacion-calidad'
+    && typeof candidate.informe?.ok === 'boolean'
+    && Array.isArray(candidate.informe.incidencias);
 }
 
 /** Escala que hace caber el lienzo fijo dentro del espacio disponible. */
@@ -101,7 +150,7 @@ function useCanvasScale() {
 
   useEffect(() => {
     const nodo = contenedor.current;
-    if (!nodo || typeof ResizeObserver !== 'function') return undefined;
+    if (!nodo) return undefined;
 
     const medir = () => {
       const { width, height } = nodo.getBoundingClientRect();
@@ -109,9 +158,15 @@ function useCanvasScale() {
       setEscala(Math.min(width / CANVAS_WIDTH, height / CANVAS_HEIGHT, 1));
     };
 
-    const observador = new ResizeObserver(medir);
-    observador.observe(nodo);
-    return () => observador.disconnect();
+    medir();
+    if (typeof ResizeObserver === 'function') {
+      const observador = new ResizeObserver(medir);
+      observador.observe(nodo);
+      return () => observador.disconnect();
+    }
+
+    window.addEventListener('resize', medir);
+    return () => window.removeEventListener('resize', medir);
   }, []);
 
   return { contenedor, escala };

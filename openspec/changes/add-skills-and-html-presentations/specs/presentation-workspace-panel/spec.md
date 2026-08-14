@@ -46,6 +46,16 @@ El panel SHALL ofrecer un control de reproducción que renderiza la presentació
 - **WHEN** el usuario acciona el control de reproducción
 - **THEN** el sistema muestra la presentación renderizada dentro de la aplicación, sin abrir un navegador externo
 
+#### Scenario: Descargar el deck en vista previa y desarrollo
+
+- **WHEN** el iframe aislado o la ventana React servida por el origen Vite configurado solicita `deck.json`
+- **THEN** el servidor loopback autoriza exactamente ese origen y entrega el deck, la marca y sus recursos
+
+#### Scenario: Un sitio ajeno intenta leer el deck
+
+- **WHEN** un origen distinto del iframe opaco y del origen Vite configurado solicita un recurso de la sesión
+- **THEN** el servidor omite la autorización CORS y el navegador deniega la lectura
+
 #### Scenario: Aislamiento de la vista previa
 
 - **WHEN** la presentación renderizada intenta acceder a las APIs privilegiadas del producto o solicitar un recurso de un origen externo

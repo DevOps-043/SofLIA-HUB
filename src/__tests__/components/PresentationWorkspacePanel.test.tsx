@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { PresentationPreview } from '../../components/presentation/PresentationPreview';
 import { PresentationWorkspacePanel } from '../../components/presentation/PresentationWorkspacePanel';
 
 type ProgressEvent = {
@@ -75,6 +76,10 @@ beforeEach(() => {
     exportHtml,
     prepareBranding: vi.fn(async () => ({ success: true })),
   };
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 function renderPanel(onHide = vi.fn()) {
@@ -186,6 +191,25 @@ describe('panel de trabajo de la presentacion', () => {
     expect(marco.getAttribute('sandbox')).not.toContain('allow-same-origin');
   });
 
+  it('muestra el informe visual emitido por la vista previa aislada', async () => {
+    archivos = [{ path: 'index.html', bytes: 120, updatedAt: '2026-08-06T10:00:00.000Z' }];
+    listo = true;
+
+    renderPanel();
+    fireEvent.click(await screen.findByLabelText('Reproducir la presentacion'));
+
+    const marco = await screen.findByTitle('Vista previa de la presentacion');
+    fireEvent(window, new MessageEvent('message', {
+      source: (marco as HTMLIFrameElement).contentWindow,
+      data: {
+        tipo: 'pulse-presentacion-calidad',
+        informe: { ok: false, incidencias: [{ diapositiva: 4, codigo: 'imagen-rota' }] },
+      },
+    }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('1 incidencias visuales');
+  });
+
   it('abre la presentacion a pantalla completa', async () => {
     archivos = [{ path: 'index.html', bytes: 120, updatedAt: '2026-08-06T10:00:00.000Z' }];
     listo = true;
@@ -267,6 +291,26 @@ describe('panel redimensionable', () => {
 });
 
 describe('apertura automatica de la vista previa', () => {
+  it('conecta la medicion antes de pasar de no lista a lista', async () => {
+    const observe = vi.fn();
+    const disconnect = vi.fn();
+    vi.stubGlobal('ResizeObserver', class {
+      observe = observe;
+      disconnect = disconnect;
+    });
+
+    const { rerender } = render(
+      <PresentationPreview workspaceId={WORKSPACE_ID} ready={false} revision="inicial" />,
+    );
+
+    expect(screen.getByTestId('presentation-preview-canvas')).toBeInTheDocument();
+    expect(observe).toHaveBeenCalledTimes(1);
+
+    rerender(<PresentationPreview workspaceId={WORKSPACE_ID} ready revision="final" />);
+
+    expect(await screen.findByTitle('Vista previa de la presentacion')).toBeInTheDocument();
+  });
+
   it('muestra la presentacion al terminar de generarse', async () => {
     // Al quedar lista y sin archivos en curso, el usuario debe ver el
     // resultado sin tener que buscar el boton.

@@ -129,56 +129,74 @@ export function installWritingPanelInPage(input: WritingPanelConfig): boolean {
 
   const host = document.createElement('div');
   host.dataset.sofliaWritingPanel = 'v1';
-  host.style.cssText = 'position:fixed;left:0;top:0;z-index:2147483647;display:none;width:380px;max-width:calc(100vw - 24px);pointer-events:auto;contain:layout style;';
+  host.style.cssText = 'position:fixed;left:0;top:0;z-index:2147483647;display:none;width:400px;max-width:calc(100vw - 24px);pointer-events:auto;contain:layout style;';
   const shadow = host.attachShadow({ mode: 'open' });
   const style = document.createElement('style');
   style.textContent = `
     :host{color-scheme:light dark}
     *{box-sizing:border-box}
-    .panel{display:flex;flex-direction:column;gap:10px;padding:12px;border:1px solid color-mix(in srgb,#00cdb5 32%,transparent);border-radius:18px;background:color-mix(in srgb,#0d141b 96%,transparent);color:#f6fbfa;box-shadow:0 22px 54px rgba(2,8,16,.42),0 2px 10px rgba(2,8,16,.28);backdrop-filter:blur(20px) saturate(1.1);font-family:"Inter Tight",Inter,system-ui,sans-serif;animation:aparecer 140ms ease-out}
-    .cabecera{display:flex;align-items:center;gap:8px;font:650 13px/1 "Inter Tight",Inter,system-ui,sans-serif}
-    .cabecera svg{width:15px;height:15px;fill:none;stroke:#00d6be;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-    .cabecera .cerrar{margin-left:auto}
-    .cita{max-height:62px;overflow:hidden;padding:8px 10px;border-left:2px solid #00d6be;border-radius:0 8px 8px 0;background:rgba(255,255,255,.05);color:#c3d0d4;font:400 12px/1.45 "Inter Tight",Inter,system-ui,sans-serif;white-space:pre-wrap;overflow-wrap:anywhere}
-    textarea{width:100%;min-height:60px;max-height:150px;padding:9px 10px;border:1px solid rgba(255,255,255,.14);border-radius:11px;background:rgba(255,255,255,.05);color:inherit;font:400 13px/1.45 "Inter Tight",Inter,system-ui,sans-serif;resize:none}
-    textarea::placeholder{color:#7f8d97}
-    textarea:focus{outline:none;border-color:#00d6be}
-    .fila{display:flex;align-items:center;gap:8px}
-    .fila .pista{color:#7f8d97;font:400 11px/1.3 "Inter Tight",Inter,system-ui,sans-serif}
-    .fila .derecha{margin-left:auto;display:flex;gap:8px}
-    button{display:flex;align-items:center;gap:6px;height:30px;padding:0 12px;border:0;border-radius:10px;background:rgba(255,255,255,.08);color:inherit;cursor:pointer;white-space:nowrap;font:650 12px/1 "Inter Tight",Inter,system-ui,sans-serif;transition:background 140ms ease,color 140ms ease,transform 140ms ease}
-    button:hover{background:rgba(255,255,255,.14);color:#00e1c7}
-    button:active{transform:scale(.97)}
-    button:focus-visible{outline:2px solid #00d6be;outline-offset:2px}
-    button:disabled{cursor:not-allowed;opacity:.4}
-    button.primary{background:#00d6be;color:#06211e}
-    button.primary:hover{background:#22e3ca;color:#061b19}
-    button.icono{width:26px;height:26px;padding:0;justify-content:center;background:transparent;color:#8b98a2}
-    button.icono:hover{background:rgba(255,255,255,.1);color:#f6fbfa}
-    button svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-    .resultado{display:none;flex-direction:column;gap:9px;padding-top:10px;border-top:1px solid rgba(255,255,255,.1)}
-    .panel[data-fase="working"] .resultado,.panel[data-fase="done"] .resultado,.panel[data-fase="error"] .resultado{display:flex}
-    .propuesta{max-height:200px;overflow:auto;color:#e7f0ef;font:400 13px/1.5 "Inter Tight",Inter,system-ui,sans-serif;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text}
-    .estado{display:flex;align-items:center;gap:7px;color:#9fb0b6;font:500 12px/1.3 "Inter Tight",Inter,system-ui,sans-serif}
-    .punto{width:6px;height:6px;border-radius:999px;background:#00d6be;animation:latir 1s ease-in-out infinite}
+    .panel{--tipo:"Inter Tight",Inter,system-ui,sans-serif;--acento:#00d6be;--acento-alto:#2ae9cf;--tinta:#04231f;--texto:#f2f8f7;--suave:#c2d0d6;--tenue:#8093a0;--linea:rgba(255,255,255,.1);--superficie:rgba(255,255,255,.055);--sobre:rgba(255,255,255,.11);--fondo:linear-gradient(168deg,rgba(24,33,41,.97),rgba(10,15,20,.98));--sombra:0 28px 64px rgba(2,8,16,.5),0 2px 10px rgba(2,8,16,.32),inset 0 1px 0 rgba(255,255,255,.07);--globo:#05090d;display:flex;flex-direction:column;gap:12px;padding:14px;border:1px solid var(--linea);border-radius:20px;background:var(--fondo);color:var(--texto);box-shadow:var(--sombra);backdrop-filter:blur(22px) saturate(1.15);font-family:"Inter Tight",Inter,system-ui,sans-serif;animation:aparecer 170ms cubic-bezier(.2,.7,.3,1)}
+    .cabecera{display:flex;align-items:center;gap:9px}
+    .marca{display:flex;align-items:center;justify-content:center;flex:none;width:24px;height:24px;border-radius:8px;background:color-mix(in srgb,var(--acento) 15%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--acento) 28%,transparent)}
+    .marca svg{width:14px;height:14px;fill:none;stroke:var(--acento);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+    .titulo{font:600 13px/1.2 var(--tipo);letter-spacing:-.01em}
+    .cerrar{margin-left:auto}
+    .compositor{display:flex;flex-direction:column;gap:10px;animation:entrar 170ms ease-out}
+    .cita{max-height:61px;overflow:hidden;padding:9px 11px;border-left:2px solid color-mix(in srgb,var(--acento) 70%,transparent);border-radius:0 10px 10px 0;background:var(--superficie);color:var(--suave);font:400 12px/1.45 var(--tipo);white-space:pre-wrap;overflow-wrap:anywhere}
+    .cita.recortada{-webkit-mask-image:linear-gradient(#000 58%,transparent);mask-image:linear-gradient(#000 58%,transparent)}
+    textarea{width:100%;min-height:62px;max-height:150px;padding:10px 12px;border:1px solid var(--linea);border-radius:12px;background:var(--superficie);color:inherit;font:400 13px/1.5 var(--tipo);resize:none;transition:border-color 140ms ease,box-shadow 140ms ease}
+    textarea::placeholder{color:var(--tenue)}
+    textarea:focus{outline:none;border-color:color-mix(in srgb,var(--acento) 58%,transparent);box-shadow:0 0 0 3px color-mix(in srgb,var(--acento) 15%,transparent)}
+    .fila{display:flex;align-items:center;gap:10px}
+    .fila .pista{color:var(--tenue);font:400 11px/1.3 var(--tipo)}
+    .fila .derecha{margin-left:auto;display:flex;align-items:center;gap:6px}
+    button{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;background:none;color:inherit;cursor:pointer;white-space:nowrap;font:600 12px/1 var(--tipo);transition:background 140ms ease,color 140ms ease,box-shadow 140ms ease,transform 120ms ease}
+    button:active{transform:scale(.96)}
+    button:focus-visible{outline:2px solid var(--acento);outline-offset:2px}
+    button:disabled{cursor:not-allowed;opacity:.45}
+    button svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+    .primary{height:32px;padding:0 16px;border-radius:11px;background:linear-gradient(180deg,var(--acento-alto),var(--acento));color:var(--tinta);box-shadow:0 6px 16px color-mix(in srgb,var(--acento) 26%,transparent)}
+    .primary:hover{filter:brightness(1.06)}
+    .primary:disabled{box-shadow:none;filter:none}
+    .icono{width:28px;height:28px;border-radius:9px;color:var(--tenue)}
+    .icono:hover{background:var(--sobre);color:var(--texto)}
+    .accion{width:34px;height:34px;border-radius:12px;background:var(--superficie);box-shadow:inset 0 0 0 1px var(--linea);color:var(--suave)}
+    .accion:hover{background:var(--sobre);color:var(--texto)}
+    .accion svg{width:16px;height:16px}
+    .accion.destacada{width:36px;height:36px;background:linear-gradient(180deg,var(--acento-alto),var(--acento));color:var(--tinta);box-shadow:0 6px 18px color-mix(in srgb,var(--acento) 28%,transparent)}
+    .accion.destacada:hover{filter:brightness(1.06)}
+    .accion.destacada:disabled{box-shadow:inset 0 0 0 1px var(--linea);background:var(--superficie);color:var(--suave)}
+    .accion.hecho{color:var(--acento)}
+    .tip{position:relative}
+    .tip::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%) translateY(3px);padding:5px 8px;border-radius:8px;background:var(--globo);color:#eef5f4;font:500 11px/1 var(--tipo);white-space:nowrap;opacity:0;pointer-events:none;box-shadow:0 8px 20px rgba(2,8,16,.4);transition:opacity 120ms ease,transform 120ms ease}
+    .tip:hover::after,.tip:focus-visible::after{opacity:1;transform:translateX(-50%)}
+    .resultado{display:none;flex-direction:column;gap:10px}
+    .panel[data-fase="working"] .resultado,.panel[data-fase="done"] .resultado,.panel[data-fase="error"] .resultado{display:flex;animation:entrar 180ms ease-out}
+    .panel[data-fase="error"] .resultado{padding-top:11px;border-top:1px solid var(--linea)}
+    .propuesta{max-height:220px;overflow:auto;padding:12px 13px;border-radius:14px;background:linear-gradient(180deg,color-mix(in srgb,var(--acento) 8%,transparent),var(--superficie));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--acento) 14%,transparent);color:var(--texto);font:400 13.5px/1.6 var(--tipo);white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;-webkit-user-select:text}
+    .propuesta::-webkit-scrollbar{width:6px}
+    .propuesta::-webkit-scrollbar-thumb{border-radius:999px;background:color-mix(in srgb,var(--texto) 20%,transparent)}
+    .estado{display:flex;align-items:center;gap:9px;color:var(--tenue);font:500 12px/1.35 var(--tipo)}
+    .aro{flex:none;width:14px;height:14px;border-radius:999px;border:2px solid color-mix(in srgb,var(--acento) 26%,transparent);border-top-color:var(--acento);animation:girar 700ms linear infinite}
+    .alerta{display:none;flex:none;width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
     .panel[data-fase="error"] .estado{color:#fb7185}
-    .acciones{display:flex;gap:8px}
+    .panel[data-fase="error"] .aro{display:none}
+    .panel[data-fase="error"] .alerta{display:block}
+    .aviso{margin:0;color:#fb7185;font:500 11.5px/1.4 var(--tipo)}
+    .aviso:empty{display:none}
+    .acciones{display:flex;align-items:center;gap:8px}
+    .acciones .secundarias{margin-left:auto;display:flex;align-items:center;gap:8px}
     .panel:not([data-fase="done"]) .acciones{display:none}
+    .panel[data-fase="working"] .compositor,.panel[data-fase="done"] .compositor{display:none}
     .panel[data-fase="working"] .propuesta,.panel[data-fase="error"] .propuesta{display:none}
     .panel:not([data-fase="working"]):not([data-fase="error"]) .estado{display:none}
-    @keyframes aparecer{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-    @keyframes latir{50%{opacity:.3}}
+    @keyframes aparecer{from{opacity:0;transform:translateY(6px) scale(.985)}to{opacity:1;transform:none}}
+    @keyframes entrar{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+    @keyframes girar{to{transform:rotate(360deg)}}
     @media(prefers-color-scheme:light){
-      .panel{background:rgba(255,255,255,.97);color:#10283f;border-color:rgba(0,142,130,.26);box-shadow:0 22px 48px rgba(17,37,58,.2),0 2px 8px rgba(17,37,58,.12)}
-      .cita{background:rgba(10,47,73,.05);color:#40566b}
-      textarea{background:rgba(10,47,73,.04);border-color:rgba(10,47,73,.14)}
-      button{background:rgba(10,47,73,.07)}
-      button:hover{background:rgba(10,47,73,.12);color:#008f82}
-      button.icono{color:#5c6f80}
-      .propuesta{color:#16324a}
-      .resultado{border-top-color:rgba(10,47,73,.12)}
+      .panel{--texto:#102838;--suave:#44596b;--tenue:#7c8f9c;--linea:rgba(12,40,60,.12);--superficie:rgba(12,40,60,.045);--sobre:rgba(12,40,60,.09);--fondo:linear-gradient(168deg,rgba(255,255,255,.985),rgba(243,249,250,.985));--sombra:0 24px 54px rgba(17,37,58,.16),0 2px 8px rgba(17,37,58,.1),inset 0 1px 0 rgba(255,255,255,.9);--globo:#0e2331;border-color:rgba(0,142,130,.2)}
     }
-    @media(prefers-reduced-motion:reduce){.panel{animation:none}button{transition:none}.punto{animation:none}}
+    @media(prefers-reduced-motion:reduce){.panel,.compositor,.resultado{animation:none}button,textarea,.tip::after{transition:none}.aro{animation:none}}
   `;
 
   const svgNamespace = 'http://www.w3.org/2000/svg';
@@ -193,16 +211,24 @@ export function installWritingPanelInPage(input: WritingPanelConfig): boolean {
     }
     return svg;
   };
+  /** Los botones con globo propio no llevan `title`: seria un segundo aviso. */
   const boton = (clase: string, etiqueta: string, contenido: SVGElement | string) => {
     const elemento = document.createElement('button');
     elemento.type = 'button';
     if (clase) elemento.className = clase;
-    elemento.title = etiqueta;
+    elemento.dataset.tip = etiqueta;
     elemento.setAttribute('aria-label', etiqueta);
+    if (!clase.split(' ').includes('tip')) elemento.title = etiqueta;
     if (typeof contenido === 'string') elemento.textContent = contenido;
     else elemento.append(contenido);
     return elemento;
   };
+  const iconoVisto = () => icono('M4.8 12.6l4.9 4.9L19.2 6.7');
+  const iconoInsertar = () => icono('M12 4.5v9.6', 'M8.2 10.5l3.8 3.9 3.8-3.9', 'M5 19.5h14');
+  const iconoCopiar = () => icono(
+    'M10 8h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2z',
+    'M4.5 16A2.5 2.5 0 0 1 3 13.7V5.5A2.5 2.5 0 0 1 5.5 3h8.2A2.5 2.5 0 0 1 16 4.5',
+  );
 
   const panel = document.createElement('div');
   panel.className = 'panel';
@@ -212,10 +238,17 @@ export function installWritingPanelInPage(input: WritingPanelConfig): boolean {
 
   const cabecera = document.createElement('div');
   cabecera.className = 'cabecera';
+  const marca = document.createElement('span');
+  marca.className = 'marca';
+  marca.append(icono(
+    'M11.4 3.6l1.7 4.3 4.3 1.7-4.3 1.7-1.7 4.3-1.7-4.3L5.4 9.6l4.3-1.7z',
+    'M17.8 14.4l.9 2.2 2.2.9-2.2.9-.9 2.2-.9-2.2-2.2-.9 2.2-.9z',
+  ));
   const titulo = document.createElement('span');
+  titulo.className = 'titulo';
   titulo.textContent = 'Mejorar redacción';
   const cerrar = boton('icono cerrar', 'Cerrar', icono('M7 7l10 10M17 7L7 17'));
-  cabecera.append(icono('M5 19h3l9.3-9.3a2.1 2.1 0 0 0-3-3L5 16z', 'M13.3 7.4l3.3 3.3'), titulo, cerrar);
+  cabecera.append(marca, titulo, cerrar);
 
   const cita = document.createElement('div');
   cita.className = 'cita';
@@ -237,27 +270,40 @@ export function installWritingPanelInPage(input: WritingPanelConfig): boolean {
   derechaEnvio.append(mejorar);
   filaEnvio.append(pista, derechaEnvio);
 
+  // El compositor se oculta entero mientras se pide y cuando llega la propuesta:
+  // ahi lo unico que importa es el texto nuevo, no lo que se escribio para pedirlo.
+  const compositor = document.createElement('div');
+  compositor.className = 'compositor';
+  compositor.append(cita, peticion, filaEnvio);
+
   const resultado = document.createElement('div');
   resultado.className = 'resultado';
   const estado = document.createElement('div');
   estado.className = 'estado';
-  const punto = document.createElement('span');
-  punto.className = 'punto';
+  const aro = document.createElement('span');
+  aro.className = 'aro';
+  const alerta = icono('M12 9.2v4.4', 'M12 16.8h.01', 'M10.3 4.4L2.9 17.2a1.9 1.9 0 0 0 1.7 2.8h14.8a1.9 1.9 0 0 0 1.7-2.8L13.7 4.4a1.9 1.9 0 0 0-3.4 0z');
+  alerta.setAttribute('class', 'alerta');
   const estadoTexto = document.createElement('span');
   estadoTexto.textContent = 'Mejorando…';
-  estado.append(punto, estadoTexto);
+  estado.append(aro, alerta, estadoTexto);
   const propuesta = document.createElement('div');
   propuesta.className = 'propuesta';
   propuesta.setAttribute('aria-live', 'polite');
+  const aviso = document.createElement('p');
+  aviso.className = 'aviso';
   const acciones = document.createElement('div');
   acciones.className = 'acciones';
-  const aplicar = boton('primary', 'Reemplazar el texto seleccionado', 'Reemplazar');
-  const copiar = boton('', 'Copiar la propuesta', 'Copiar');
-  const reintentar = boton('', 'Pedirlo otra vez', 'Reintentar');
-  acciones.append(aplicar, copiar, reintentar);
-  resultado.append(estado, propuesta, acciones);
+  const aplicar = boton('accion destacada tip', 'Reemplazar', iconoVisto());
+  const copiar = boton('accion tip', 'Copiar', iconoCopiar());
+  const reintentar = boton('accion tip', 'Reintentar', icono('M20 11.5a8 8 0 1 1-2.6-5.9', 'M20.4 4v5.2h-5.2'));
+  const secundarias = document.createElement('div');
+  secundarias.className = 'secundarias';
+  secundarias.append(copiar, reintentar);
+  acciones.append(aplicar, secundarias);
+  resultado.append(estado, propuesta, aviso, acciones);
 
-  panel.append(cabecera, cita, peticion, filaEnvio, resultado);
+  panel.append(cabecera, compositor, resultado);
   shadow.append(style, panel);
   document.body.appendChild(host);
 
@@ -368,15 +414,18 @@ export function installWritingPanelInPage(input: WritingPanelConfig): boolean {
   const fase = (valor: 'idle' | 'working' | 'done' | 'error', mensaje = '') => {
     panel.dataset.fase = valor;
     mejorar.disabled = valor === 'working';
+    if (valor !== 'done') aviso.textContent = '';
     if (mensaje) estadoTexto.textContent = mensaje;
     if (valor === 'working') estadoTexto.textContent = 'Mejorando…';
+    titulo.textContent = valor === 'done' ? 'Redacción mejorada'
+      : valor === 'working' ? 'Mejorando redacción'
+        : 'Mejorar redacción';
     if (valor === 'done') {
       const enSitio = objetivo?.kind === 'field' || Boolean(objetivo?.kind === 'range' && objetivo.editable);
-      aplicar.textContent = enSitio ? 'Reemplazar' : 'Insertar en el campo';
-      aplicar.title = enSitio
-        ? 'Reemplazar el texto seleccionado'
-        : 'Escribir la propuesta en el campo de texto de la página';
-      aplicar.setAttribute('aria-label', aplicar.title);
+      const etiqueta = enSitio ? 'Reemplazar' : 'Insertar en el campo';
+      aplicar.replaceChildren(enSitio ? iconoVisto() : iconoInsertar());
+      aplicar.dataset.tip = etiqueta;
+      aplicar.setAttribute('aria-label', etiqueta);
       aplicar.disabled = !puedeReemplazar();
     }
     colocar();
@@ -397,11 +446,15 @@ export function installWritingPanelInPage(input: WritingPanelConfig): boolean {
     cita.textContent = textoOriginal.length > 320 ? `${textoOriginal.slice(0, 320)}…` : textoOriginal;
     peticion.value = '';
     propuesta.textContent = '';
+    aviso.textContent = '';
     ultimaPropuesta = '';
     pendiente = null;
     esperando = '';
     fase('idle');
     host.style.display = 'block';
+    // Con el panel ya pintado se sabe si la cita se corta: solo entonces se
+    // difumina el final, para que un texto corto no salga desvanecido.
+    cita.classList.toggle('recortada', cita.scrollHeight > cita.clientHeight + 1);
     colocar();
     peticion.focus();
     return true;
@@ -481,18 +534,34 @@ export function installWritingPanelInPage(input: WritingPanelConfig): boolean {
       cerrarPanel();
       return;
     }
-    fase('error', 'No se pudo escribir en la página. Copia la propuesta.');
+    // Sigue en `done`: el aviso no puede llevarse por delante la propuesta ni el
+    // boton de copiar, que es justo la salida que le queda al usuario.
+    aviso.textContent = 'No se pudo escribir en la página. Copia la propuesta.';
+    colocar();
+  };
+
+  /** Devuelve el panel a la vista de edicion conservando lo que se pidio antes. */
+  const volverAEditar = () => {
+    fase('idle');
+    peticion.focus();
+    peticion.select();
   };
 
   cerrar.addEventListener('click', cerrarPanel);
   mejorar.addEventListener('click', pedir);
-  reintentar.addEventListener('click', pedir);
+  reintentar.addEventListener('click', volverAEditar);
   aplicar.addEventListener('click', aplicarPropuesta);
   copiar.addEventListener('click', () => {
     if (!ultimaPropuesta) return;
     void navigator.clipboard?.writeText(ultimaPropuesta).catch(() => undefined);
-    copiar.textContent = 'Copiado';
-    window.setTimeout(() => { copiar.textContent = 'Copiar'; }, 1_400);
+    copiar.replaceChildren(iconoVisto());
+    copiar.classList.add('hecho');
+    copiar.dataset.tip = 'Copiado';
+    window.setTimeout(() => {
+      copiar.replaceChildren(iconoCopiar());
+      copiar.classList.remove('hecho');
+      copiar.dataset.tip = 'Copiar';
+    }, 1_400);
   });
   peticion.addEventListener('keydown', (evento) => {
     if (evento.key !== 'Enter' || evento.shiftKey) return;

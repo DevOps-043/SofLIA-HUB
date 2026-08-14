@@ -101,7 +101,7 @@ export async function resolveAppAttachments(
 
 export interface AppContextBlock {
   block: string;
-  /** Capturas del nivel C, que viajan como imagenes del turno. */
+  /** Visuales del documento y capturas de respaldo que viajan como imagenes. */
   images: string[];
   charsUsed: number;
 }
@@ -132,9 +132,15 @@ export function buildAppContextBlock(
     const avisos = attachment.warnings.map(warningLabel).filter(Boolean);
     if (avisos.length > 0) lines.push(`Avisos: ${avisos.join('; ')}.`);
 
+    if (attachment.image) {
+      images.push(attachment.image);
+      if (attachment.level === 'documento') {
+        lines.push('Visual de apoyo: vista actual del documento adjunta; reutiliza fotografias, diagramas o graficas pertinentes, sin tratarla como sustituto del contenido completo.');
+      }
+    }
+
     if (attachment.level === 'captura') {
       if (attachment.image) {
-        images.push(attachment.image);
         lines.push('Contenido: imagen adjunta a este turno; limita tus afirmaciones a lo visible en ella.');
       } else {
         lines.push('Contenido: no disponible. No infieras lo que muestra esta ventana.');

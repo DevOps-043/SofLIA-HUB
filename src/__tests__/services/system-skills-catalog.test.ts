@@ -67,12 +67,10 @@ describe('catalogo de skills del sistema', () => {
       expect(politica?.maxFileBytes).toBe(1024);
     });
 
-    it('protege siempre los archivos del sistema, los declare la fila o no', () => {
+    it('protege siempre la identidad, sin sembrar el runtime HTML heredado', () => {
       const politica = clampWorkspacePolicy({ protectedFiles: [] });
 
-      expect(politica?.protectedFiles).toEqual(
-        expect.arrayContaining(['estilos/marca.css', 'estilos/base.css', 'guion-base.js']),
-      );
+      expect(politica?.protectedFiles).toEqual(['estilos/marca.css']);
     });
 
     it('no admite un documento de entrada fuera del espacio de trabajo', () => {

@@ -145,7 +145,7 @@
 ## 17. Animaciones visibles, composición contenida y edición posterior
 
 - [x] 17.1 Diagnosticar por qué no se percibían las animaciones: ligadas al scroll, el salto de `scroll-snap` recorría entero el rango de entrada, y sobre esa línea de tiempo `animation-delay` se ignora.
-- [x] 17.2 Crear `guion-base.js` como archivo de sistema protegido: marca con `.activa` la diapositiva en pantalla, numera `.palabras`, anima `data-contador` y resuelve la rueda en la baraja horizontal; no se instala con movimiento reducido.
+- [x] 17.2 Crear `guion-base.js` como archivo de sistema protegido: marca con `.activa` la diapositiva en pantalla, numera `.palabras`, anima `data-contador` y resuelve la rueda en la baraja horizontal; con movimiento reducido conserva la maquetación y muestra el estado final sin animar.
 - [x] 17.3 Reescribir la capa de movimiento a animaciones por tiempo disparadas por `.activa`, con `.cascada`, `.aparece--difuso` y retardos reales; el estado oculto depende de la clase que pone el guion, de modo que sin él nada queda invisible.
 - [x] 17.4 Servir `.js` en el protocolo del visor e incrustar los guiones locales en el HTML exportado.
 - [x] 17.5 Corregir la composición: `align-content: safe center` para que el contenido no se empuje fuera de pantalla cuando no cabe.
@@ -222,3 +222,64 @@
 - [x] 24.5 Derivar el orden mostrado en vez de sincronizarlo por efecto, eliminando el desfase de un render.
 - [x] 24.6 Cubrir con pruebas el reordenamiento, el clic sin desplazamiento, el botón derecho y la resistencia a un fallo del puente.
 - [x] 24.7 Corregir la pestaña que se quedaba clavada al soltarla: el fin del arrastre se escucha en la ventana y no en el nodo, porque el contenido web es una vista NATIVA sobre el renderer y el `pointerup` no llegaba al DOM. Se añaden como red el `blur` de la ventana, la pérdida de captura del puntero y el regreso del puntero sin botón pulsado.
+
+## 25. Calidad editorial, ajuste correcto y auditoria visual
+
+- [x] 25.1 Diagnosticar las capturas y la carpeta `Presentacion/`: crecimiento vertical de la diapositiva, hueco de `transform: scale()`, retorno temprano con movimiento reducido, contradiccion del prompt y composiciones repetidas tipo interfaz.
+- [x] 25.2 Separar movimiento de maquetacion: mantener activo el ajuste con movimiento reducido y resolver cifras y trazos en su estado final.
+- [x] 25.3 Fijar la diapositiva al lienzo visible y escalar dentro de un marco con altura visual explicita, usando el mayor factor que cabe y conservando scroll como respaldo.
+- [x] 25.4 Publicar una auditoria local que detecte contenido fuera del lienzo, imagenes rotas, titulares demasiado largos y diapositivas activas sin contenido visible.
+- [x] 25.5 Reescribir el contrato de generacion con trabajo de comunicacion, arco narrativo, evidencia por diapositiva, composicion editorial dominante y verificacion responsive y accesible.
+- [x] 25.6 Cubrir el motor y el prompt con pruebas focalizadas.
+- [x] 25.7 Actualizar la documentacion canonica y registrar la evidencia completa de verificacion.
+
+## 26. Compatibilidad de decks persistentes y movimiento editorial
+
+- [x] 26.1 Reproducir el deck Okra de 14 diapositivas y confirmar que su copia de `guion-base.js` todavia usa `zoom`.
+- [x] 26.2 Corregir el marco para conservar ancho y alineacion cuando la diapositiva original centra sus hijos.
+- [x] 26.3 Actualizar de forma idempotente `base.css` y `guion-base.js` antes de previsualizar, presentar y exportar.
+- [x] 26.4 Sustituir la eleccion arbitraria de keyframes por una coreografia WAAPI basada en roles, con degradacion CSS y movimiento reducido.
+- [x] 26.5 Actualizar prompt, pruebas, especificacion y documentacion con la frontera entre modelo, renderer y motor de movimiento.
+- [x] 26.6 Renderizar y revisar visualmente las 14 diapositivas del deck reportado.
+
+## 27. Runtime React y doctrina HyperFrames
+
+- [x] 27.1 Sustituir la autoria libre de HTML/CSS por un contrato `deck.json` estricto, con limites de densidad, arquetipos cerrados, ids unicos y rutas de imagen contenidas.
+- [x] 27.2 Crear un reproductor React de lienzo fijo 1920x1080, estilizado con Tailwind y animado con Framer Motion, que nunca recomponga columnas por el ancho del panel.
+- [x] 27.3 Fusionar HyperFrames como doctrina de continuidad: movimiento maestro, transiciones semanticas y vocabulario seguro de entrada/enfasis con movimiento reducido.
+- [x] 27.4 Levantar un servidor HTTP loopback con puerto dinamico, sesiones opacas, allowlist de recursos y compatibilidad Vite en desarrollo/bundle estatico en produccion.
+- [x] 27.5 Conectar el runtime nuevo a vista previa y pantalla completa conservando la fachada del protocolo HTML para workspaces heredados.
+- [x] 27.6 Actualizar la Skill runtime y agregar la skill de desarrollo `presentaciones-hyperframes-react` para que el agente escriba datos, no codigo visual.
+- [x] 27.7 Cubrir esquema, servidor, renderer y regresion IPC con pruebas focalizadas y render visual real.
+- [x] 27.8 Actualizar arquitectura, inventario de pruebas y evidencia de verificacion.
+
+## 28. Cierre verificable y retiro de artefactos heredados
+
+- [x] 28.1 Comprobar el estado real del workspace antes de aceptar la respuesta final del modelo en OpenAI y Gemini.
+- [x] 28.2 Reinyectar una instruccion de reparacion cuando falte el documento de entrada y mostrar un fallo explicito si se agotan las iteraciones.
+- [x] 28.3 Validar `deck.json` durante la escritura atomica y considerar listo un workspace React solo cuando el contrato sea valido.
+- [x] 28.4 Dejar de proteger y sembrar `estilos/base.css` y `guion-base.js` en workspaces React nuevos, conservandolos para HTML heredado.
+- [x] 28.5 Cubrir la regresion con pruebas de contrato, servicio y bucle de herramientas; actualizar especificacion y documentacion.
+
+## 29. Visualizaciones, microinteracciones y vista previa confiable
+
+- [x] 29.1 Mantener montado el lienzo medible antes de que el workspace quede listo y habilitar los modulos Vite en el iframe sandbox de desarrollo.
+- [x] 29.2 Agregar el arquetipo declarativo `grafica` y renderizar barras, lineas, areas, radar y anillo con Recharts.
+- [x] 29.3 Admitir imagen en procesos y metricas, mostrar la imagen ya admitida en comparaciones y exigir cobertura visual equilibrada en el prompt.
+- [x] 29.4 Agregar microinteracciones con Framer Motion, continuidad vectorial en zoom, progreso animado y movimiento reducido sin bucles ambientales.
+- [x] 29.5 Cubrir la transicion no-lista a lista, el contrato de series y el prompt; actualizar arquitectura, especificacion e inventario de pruebas.
+
+## 30. CORS confiable entre preview, runtime y Vite
+
+- [x] 30.1 Reproducir el `Failed to fetch` causado por responder `Access-Control-Allow-Origin: null` tambien a la ventana React de desarrollo.
+- [x] 30.2 Permitir el origen opaco del iframe y reflejar exclusivamente el origen Vite configurado, con `Vary: Origin`.
+- [x] 30.3 Rechazar un origen web ajeno y cubrir los tres casos con una prueba del servidor loopback.
+- [x] 30.4 Actualizar contrato, arquitectura y evidencia de verificacion.
+
+## 31. Visuales de la fuente primero
+
+- [x] 31.1 Conservar la lista saneada de imágenes de contenido en el contexto pasivo del navegador.
+- [x] 31.2 Materializar adjuntos visuales e imágenes web seleccionadas en `assets/` antes de invocar al modelo, con límites, deduplicación y fallo aislado.
+- [x] 31.3 Entregar un manifiesto de rutas locales al agente y hacer complementaria, no sustitutiva, la generación de imágenes.
+- [x] 31.4 Adjuntar la vista visual actual de documentos Office sin perder su lectura estructurada, tablas ni procedencia.
+- [x] 31.5 Cubrir importación, degradación, contexto documental y prompt con pruebas; actualizar Skill, especificación y arquitectura.

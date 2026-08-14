@@ -1,8 +1,8 @@
+
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
 import { handleIPC } from './utils/ipc-helpers';
-import { DECK_BASE_CSS } from './organization-branding/deck-base-css';
-import { DECK_BASE_JS } from './organization-branding/deck-base-js';
+import { refreshPresentationSystem } from './presentation-system-refresh';
 import { prepareBrandingForWorkspace } from './organization-branding/resolve-brand';
 import { exportPresentationDeckToHtml, exportPresentationToHtml } from './skill-workspace/export-html';
 import { fetchPresentationImage } from './skill-workspace/fetch-image';
@@ -110,7 +110,10 @@ export function registerSkillWorkspaceHandlers(
       // Solo al pedir el documento de la baraja. Este canal sirve tambien para
       // la URL de cada imagen del panel, y refrescar el sistema ahi no tiene
       // sentido: es trabajo por cada miniatura que se mira.
-      if (entryFile === workspace.entryFile) await refrescarSistemaDeLaBaraja(service, workspace.id);
+      if (workspace.skillId === 'sistema:presentaciones' && entryFile === workspace.entryFile) {
+        const refreshed = await refreshPresentationSystem(service, workspace.id);
+        if (!refreshed.ok) throw new Error(refreshed.error);
+      }
       return { url: buildPresentationUrl(workspace.id, entryFile) };
     }));
 
@@ -136,7 +139,8 @@ export function registerSkillWorkspaceHandlers(
       }
       // El HTML exportado incrusta los archivos del workspace: si se refrescan
       // despues, el archivo compartido se queda con la version defectuosa.
-      await refrescarSistemaDeLaBaraja(service, String(input?.workspaceId ?? ''));
+      const refreshed = await refreshPresentationSystem(service, String(input?.workspaceId ?? ''));
+      if (!refreshed.ok) throw new Error(refreshed.error);
       const result = await exportPresentationToHtml(service, String(input?.workspaceId ?? ''), input?.entryFile);
       if (!result.ok) throw new Error(result.error);
       return { htmlPath: result.htmlPath };
@@ -150,6 +154,8 @@ export function registerSkillWorkspaceHandlers(
   ipcMain.handle('presentation:prepare-branding', (_event, input: { workspaceId: string; organizationId: string | null }) =>
     handleIPC(async () => {
       const workspaceId = String(input?.workspaceId ?? '');
+      const workspace = await service.getWorkspace(workspaceId);
+      if (!workspace) throw new Error('El espacio de trabajo no existe o ya se cerro.');
       const workspaceRoot = await service.resolveWorkspaceRoot(workspaceId);
       if (!workspaceRoot) throw new Error('El espacio de trabajo no existe o ya se cerro.');
 
@@ -157,10 +163,15 @@ export function registerSkillWorkspaceHandlers(
 
       const marca = await service.writeSystemFile(workspaceId, 'estilos/marca.css', prepared.css);
       if (!marca.ok) throw new Error(marca.error);
-      const base = await service.writeSystemFile(workspaceId, 'estilos/base.css', prepared.baseCss);
-      if (!base.ok) throw new Error(base.error);
-      const guion = await service.writeSystemFile(workspaceId, 'guion-base.js', prepared.baseJs);
-      if (!guion.ok) throw new Error(guion.error);
+      // El reproductor React consume deck.json + marca.css. base.css y
+      // guion-base.js pertenecen exclusivamente a presentaciones HTML
+      // heredadas; sembrarlos aqui confundia la UI y el contrato del modelo.
+      if (workspace.entryFile !== 'deck.json') {
+        const base = await service.writeSystemFile(workspaceId, 'estilos/base.css', prepared.baseCss);
+        if (!base.ok) throw new Error(base.error);
+        const guion = await service.writeSystemFile(workspaceId, 'guion-base.js', prepared.baseJs);
+        if (!guion.ok) throw new Error(guion.error);
+      }
 
       return {
         branding: {
@@ -200,7 +211,8 @@ function registerPresentationViewHandlers(
       }
       // La pantalla completa carga los mismos archivos del disco: si se llega
       // aqui sin pasar por la vista previa, se refrescan igualmente.
-      await refrescarSistemaDeLaBaraja(service, String(input?.workspaceId ?? ''));
+      const refreshed = await refreshPresentationSystem(service, String(input?.workspaceId ?? ''));
+      if (!refreshed.ok) throw new Error(refreshed.error);
       const result = controller.open(String(input?.workspaceId ?? ''), entryFile);
       if (!result.ok) throw new Error(result.error);
       return { opened: true };
@@ -211,31 +223,6 @@ function registerPresentationViewHandlers(
       controller.close();
       return { closed: true };
     }));
-}
-
-/**
- * Reescribe el sistema de diseno y el guion antes de mostrar una presentacion.
- *
- * Son archivos del sistema, no del modelo: la marca (`estilos/marca.css`) no se
- * toca aqui porque depende de la organizacion y de descargas. Se refrescan para
- * que una baraja generada con una version anterior reciba las correcciones de
- * maquetacion al abrirla, en vez de arrastrar para siempre el defecto con el
- * que nacio.
- *
- * Un fallo no impide abrirla: se mostraria con los archivos que ya tiene.
- */
-async function refrescarSistemaDeLaBaraja(
-  service: SkillWorkspaceService,
-  workspaceId: string,
-): Promise<void> {
-  try {
-    // Silencioso y solo si cambio: anunciarlo hacia que el panel recargara, y
-    // la recarga volvia a pedir la vista previa, que refrescaba otra vez.
-    await service.refreshSystemFile(workspaceId, 'estilos/base.css', DECK_BASE_CSS);
-    await service.refreshSystemFile(workspaceId, 'guion-base.js', DECK_BASE_JS);
-  } catch (error) {
-    console.warn('[presentaciones] no se pudo refrescar el sistema de diseno de la baraja:', error);
-  }
 }
 
 /**

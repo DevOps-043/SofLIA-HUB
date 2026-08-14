@@ -43,9 +43,33 @@ describe('servidor React de presentaciones', () => {
     const url = await server.getUrl(workspaceId);
     expect(url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/presentacion\/[a-f0-9-]+\/$/);
     expect(await (await fetch(url)).text()).toContain('root');
-    const deckResponse = await fetch(`${url}deck.json`);
+    const deckResponse = await fetch(`${url}deck.json`, { headers: { Origin: 'null' } });
     expect(deckResponse.status).toBe(200);
+    expect(deckResponse.headers.get('access-control-allow-origin')).toBe('null');
     expect((await deckResponse.json()).version).toBe(1);
+  });
+
+  it('permite el origen opaco del preview y solo el origen Vite configurado', async () => {
+    await server.stop();
+    server = new PresentationRuntimeServer(service, {
+      rendererDist: dist,
+      devServerUrl: 'http://localhost:5173',
+    });
+    const url = await server.getUrl(workspaceId);
+
+    const previewResponse = await fetch(`${url}deck.json`, { headers: { Origin: 'null' } });
+    expect(previewResponse.headers.get('access-control-allow-origin')).toBe('null');
+
+    const playbackResponse = await fetch(`${url}deck.json`, {
+      headers: { Origin: 'http://localhost:5173' },
+    });
+    expect(playbackResponse.headers.get('access-control-allow-origin')).toBe('http://localhost:5173');
+    expect(playbackResponse.headers.get('vary')).toBe('Origin');
+
+    const foreignResponse = await fetch(`${url}deck.json`, {
+      headers: { Origin: 'https://sitio-ajeno.example' },
+    });
+    expect(foreignResponse.headers.get('access-control-allow-origin')).toBeNull();
   });
 
   it('no publica archivos arbitrarios del workspace', async () => {
@@ -55,9 +79,10 @@ describe('servidor React de presentaciones', () => {
   });
 
   it('falla antes de abrir una presentacion malformada', async () => {
-    await service.writeFile(workspaceId, 'deck.json', '{"version":1}');
+    // Simula corrupcion externa: la API normal ya impide guardar un deck invalido.
+    const workspaceRoot = await service.resolveWorkspaceRoot(workspaceId);
+    if (!workspaceRoot) throw new Error('Workspace de prueba no encontrado');
+    await fs.writeFile(path.join(workspaceRoot, 'deck.json'), '{"version":1}');
     await expect(server.getUrl(workspaceId)).rejects.toThrow('no cumple el contrato');
   });
 });
-
-

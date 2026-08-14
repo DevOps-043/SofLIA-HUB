@@ -45,6 +45,7 @@ function installVisibleBrowserObservation(options?: { observation?: BrowserObser
       title: 'Correo de SofLIA', url: 'https://mail.google.com/mail/u/0/#chat/home', language: 'es',
       text: 'Ernesto Hernández Martínez compartió Tencent Cloud · GitHub', headings: [], landmarks: [],
       controls: [{ ref: 'dom-1', tag: 'a', role: 'link', name: 'Tencent Cloud · GitHub', text: 'https://github.com/TencentCloud', type: '', href: 'https://github.com/TencentCloud', disabled: false, checked: null, rect: { x: 1, y: 1, width: 20, height: 10 }, scope: 'document' }],
+      images: [{ url: 'https://github.com/hero.png', alt: 'Diagrama del repositorio', width: 1200, height: 700 }],
       frames: [], viewport: { width: 1200, height: 800, scrollX: 0, scrollY: 0, documentWidth: 1200, documentHeight: 800 }, truncated: false,
     },
   };
@@ -68,6 +69,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     vi.resetModules();
     vi.clearAllMocks();
     Reflect.deleteProperty(window, 'integratedBrowser');
+    Reflect.deleteProperty(window, 'skillWorkspace');
   });
 
   it('RT-001: una orden de accion con palabras de investigacion usa herramientas, no grounding', async () => {
@@ -144,6 +146,44 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     ]), undefined);
     expect(mockGetGenerativeModel.mock.calls[0]?.[0]?.systemInstruction).not.toContain('Contenido visible');
     expect(mockGetGenerativeModel.mock.calls[0]?.[0]?.tools).toBeUndefined();
+  });
+
+  it('RT-005B: una presentacion importa los visuales de la pagina y entrega sus rutas locales al modelo', async () => {
+    installVisibleBrowserObservation();
+    const downloadImage = vi.fn(async (_workspaceId: string, _url: string, fileName: string) => ({
+      success: true,
+      file: { path: `assets/${fileName}.png` },
+    }));
+    (window as unknown as { skillWorkspace: unknown }).skillWorkspace = {
+      writeImage: vi.fn(),
+      downloadImage,
+    };
+    const chat = createMockChat('Presentacion preparada.');
+    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => chat) });
+    const { PRESENTACIONES_SKILL_PROMPT } = await import('../../prompts/skills/presentaciones');
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    await sendMessageStream('Haz una presentacion de la pagina que tengo abierta', [], {
+      model: 'gemini-3.6-flash',
+      activeSkill: {
+        id: 'sistema:presentaciones',
+        name: 'Presentaciones',
+        instructions: PRESENTACIONES_SKILL_PROMPT,
+        tools: [],
+        workspaceId: 'deck-web',
+      },
+    });
+
+    expect(downloadImage).toHaveBeenCalledWith(
+      'deck-web',
+      'https://github.com/hero.png',
+      expect.stringMatching(/^fuente-web-[a-f0-9]{8}$/),
+    );
+    expect(chat.sendMessage).toHaveBeenCalledWith(expect.arrayContaining([
+      expect.stringContaining('INICIO_MANIFIESTO_VISUALES_FUENTE_NO_CONFIABLE'),
+      expect.stringMatching(/assets\/fuente-web-[a-f0-9]{8}\.png/),
+      expect.stringContaining('"images"'),
+    ]), undefined);
   });
 
   it('RT-006: no inventa una observacion si el navegador integrado no esta visible', async () => {

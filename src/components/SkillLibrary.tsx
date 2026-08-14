@@ -77,27 +77,34 @@ export function SkillLibrary({ isOpen, onClose, onUseSkill, onEditSkill }: Skill
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="flex max-h-[80vh] w-[90%] max-w-[550px] flex-col rounded-2xl border border-white/10 bg-[#1a1f2e] shadow-2xl"
+        className="flex max-h-[80vh] w-[90%] max-w-[550px] flex-col rounded-2xl border border-border bg-card shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-label="Skills"
       >
-        <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
-          <h2 className="text-lg font-semibold text-white">Skills</h2>
-          <button type="button" aria-label="Cerrar" onClick={onClose} className="text-xl text-gray-400 transition-colors hover:text-white">
-            x
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Skills</h2>
+          <button
+            type="button"
+            aria-label="Cerrar"
+            onClick={onClose}
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-secondary hover:bg-black/5 hover:text-gray-900 dark:hover:bg-white/10 dark:hover:text-white transition-colors"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
         {aviso && (
-          <p role="status" className="border-b border-white/10 px-6 py-2 text-xs text-gray-300">
+          <p role="status" className="border-b border-border px-6 py-2 text-xs text-secondary bg-surface-2/50">
             {aviso}
           </p>
         )}
 
-        <div className="flex-1 space-y-4 overflow-y-auto p-4">
+        <div className="flex-1 space-y-4 overflow-y-auto p-4 custom-scrollbar">
           {loading && <SkillLibraryLoading />}
           {error && <SkillLibraryError error={error} />}
 
@@ -105,7 +112,7 @@ export function SkillLibrary({ isOpen, onClose, onUseSkill, onEditSkill }: Skill
             <>
               {catalog.system.length > 0 && (
                 <section>
-                  <h3 className="px-1 pb-2 text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                  <h3 className="px-1 pb-2 text-[10px] font-bold uppercase tracking-wider text-secondary">
                     Skills del sistema
                   </h3>
                   <div className="space-y-2">
@@ -123,7 +130,7 @@ export function SkillLibrary({ isOpen, onClose, onUseSkill, onEditSkill }: Skill
               )}
 
               <section>
-                <h3 className="px-1 pb-2 text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                <h3 className="px-1 pb-2 text-[10px] font-bold uppercase tracking-wider text-secondary">
                   Mis skills
                 </h3>
                 {catalog.user.length === 0 ? (

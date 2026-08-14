@@ -47,9 +47,20 @@ describe('cascada de extraccion de contexto de escritorio', () => {
     expect(attachment.source).toBe('Presupuesto 2026.xlsx');
     expect(attachment.text).toContain('| Nómina | 1200 |');
     expect(attachment.warnings).toEqual([]);
-    // El nivel A no debe gastar ni accesibilidad ni captura.
+    // El nivel A conserva el documento completo y suma la vista visual actual.
     expect(deps.extractWindowText).not.toHaveBeenCalled();
-    expect(deps.captureWindow).not.toHaveBeenCalled();
+    expect(deps.captureWindow).toHaveBeenCalledWith('window:1:0');
+    expect(attachment.image).toBe('data:image/png;base64,captura');
+  });
+
+  it('nivel A conserva el documento aunque falle su visual de apoyo', async () => {
+    const deps = makeDeps({ captureWindow: vi.fn(async () => { throw new Error('ventana cerrada'); }) });
+
+    const attachment = await extractAppContext(excelWindow, deps);
+
+    expect(attachment.level).toBe('documento');
+    expect(attachment.text).toContain('| Nómina | 1200 |');
+    expect(attachment.image).toBeUndefined();
   });
 
   it('nivel A marca el adjunto cuando el archivo en disco esta desactualizado', async () => {

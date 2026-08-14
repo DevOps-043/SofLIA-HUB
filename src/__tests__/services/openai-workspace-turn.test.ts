@@ -79,6 +79,12 @@ describe('turno de OpenAI con espacio de trabajo', () => {
     openAiMocks.create.mockReset();
     dispatch.execute.mockReset();
     dispatch.execute.mockResolvedValue({ functionResponse: { name: 'x', response: { success: true } } });
+    (window as unknown as { skillWorkspace: unknown }).skillWorkspace = {
+      getState: vi.fn().mockResolvedValue({
+        success: true,
+        state: { ready: true, workspace: { entryFile: 'deck.json' } },
+      }),
+    };
   });
 
   it('reintenta un 429 al abrir el stream en vez de matar el turno', async () => {
@@ -264,4 +270,24 @@ describe('turno de OpenAI con espacio de trabajo', () => {
     expect(iteracionesConWorkspace).toBeGreaterThan(openAiMocks.create.mock.calls.length);
     expect(salidaConWorkspace).toBeGreaterThan(openAiMocks.create.mock.calls[0]?.[0]?.max_output_tokens);
   }, 20_000);
+
+  it('no acepta un listo si todavia falta deck.json y obliga a repararlo', async () => {
+    const getState = vi.fn()
+      .mockResolvedValueOnce({ success: true, state: { ready: false, workspace: { entryFile: 'deck.json' } } })
+      .mockResolvedValueOnce({ success: true, state: { ready: true, workspace: { entryFile: 'deck.json' } } });
+    (window as unknown as { skillWorkspace: unknown }).skillWorkspace = { getState };
+    openAiMocks.create
+      .mockReturnValueOnce(textStream('He terminado la presentacion.'))
+      .mockReturnValueOnce(toolCallStream('workspace_write_file', { path: 'deck.json', content: '{"version":1}' }))
+      .mockReturnValueOnce(textStream('Presentacion lista.'));
+
+    const result = await sendOpenAIMessageStream(params());
+    const text = await collect(result.stream);
+
+    expect(text).toBe('Presentacion lista.');
+    expect(text).not.toContain('He terminado');
+    expect(openAiMocks.create).toHaveBeenCalledTimes(3);
+    const repairInput = openAiMocks.create.mock.calls[1]?.[0]?.input as Array<{ role?: string; content?: unknown }>;
+    expect(JSON.stringify(repairInput)).toContain('Continua trabajando ahora');
+  });
 });

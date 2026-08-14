@@ -31,14 +31,13 @@ const MAX_WORKSPACE_BYTES = 32 * 1024 * 1024;
 const EXTENSIONES_POR_DEFECTO: readonly string[] = ['.html', '.css', '.md'];
 
 /**
- * Archivos que escribe el sistema y el modelo no puede tocar. Se anaden
- * SIEMPRE, los declare la fila o no: son la garantia de que una inyeccion en
- * una fuente no reescriba la identidad de la organizacion.
+ * Archivo de identidad que escribe el sistema y el modelo no puede tocar. Se
+ * anade SIEMPRE, lo declare la fila o no. La capa base y el guion pertenecen
+ * solo al runtime HTML heredado; protegerlos globalmente hacia que un workspace
+ * React nuevo pareciera seguir usando la arquitectura anterior.
  */
 const PROTEGIDOS_SIEMPRE: readonly string[] = [
   'estilos/marca.css',
-  'estilos/base.css',
-  'guion-base.js',
 ];
 
 function traza(mensaje: string, detalle?: unknown): void {

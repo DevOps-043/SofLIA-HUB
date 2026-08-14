@@ -44,6 +44,17 @@ describe('bloque de contexto de aplicaciones', () => {
     expect(images).toEqual([]);
   });
 
+  it('adjunta la vista visual de un documento sin perder su texto completo', () => {
+    const { block, images } = buildAppContextBlock([
+      listo({ image: 'data:image/png;base64,documento-visual' }),
+    ], APP_CONTEXT_LIMITS.maxCharsPerTurn);
+
+    expect(block).toContain('documento completo leído');
+    expect(block).toContain('Visual de apoyo: vista actual del documento adjunta');
+    expect(block).toContain('| Concepto | Importe |');
+    expect(images).toEqual(['data:image/png;base64,documento-visual']);
+  });
+
   it('declara los cambios sin guardar para que el modelo no de por vigentes las cifras', () => {
     const entry = listo({ warnings: ['cambios_sin_guardar'] });
     const { block } = buildAppContextBlock([entry], APP_CONTEXT_LIMITS.maxCharsPerTurn);

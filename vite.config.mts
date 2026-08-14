@@ -32,6 +32,20 @@ export default defineConfig(({ mode }) => {
     // `envPrefix`, import.meta.env ni el bundle preload.
     envPrefix: "VITE_",
     server: {
+      // La vista previa se ejecuta en un iframe sandbox sin same-origin. En
+      // desarrollo su origen es opaco (`null`). Los modulos de Vite tambien
+      // los consume el renderer en `localhost`; una cabecera fija se almacena
+      // en cache con el origen equivocado y deja el iframe en blanco. Estos
+      // son assets publicos de desarrollo, asi que `*` cubre ambos origenes
+      // sin habilitar credenciales ni alterar el runtime de produccion.
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        // Electron reutiliza la sesion entre reinicios. Sin esta cabecera
+        // puede conservar un modulo con una respuesta CORS antigua y dejar
+        // en blanco la vista previa incluso despues de corregir el servidor.
+        "Cache-Control": "no-store",
+      },
+      cors: true,
       warmup: {
         clientFiles: ["./src/main.tsx", "./src/index.css"],
       },
@@ -42,6 +56,13 @@ export default defineConfig(({ mode }) => {
         ignored: ["**/dist/**", "**/dist-electron/**", "**/*.har", "**/mailsoflia*.google.com"],
       },
     },
+    preview: {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "no-store",
+      },
+      cors: true,
+    },
     optimizeDeps: {
       exclude: OPTIMIZE_DEP_EXCLUDES,
     },
@@ -51,7 +72,11 @@ export default defineConfig(({ mode }) => {
         main: {
           entry: "electron/main.ts",
           onstart: async () => {
-            await startElectronDevProcess();
+            await startElectronDevProcess(['.', '--no-sandbox'], {
+              // vite-plugin-electron publica este valor antes de ejecutar
+              // `onstart`; lo pasamos de forma explicita al hijo Electron.
+              devServerUrl: process.env.VITE_DEV_SERVER_URL,
+            });
           },
           vite: {
             define: mainProcessEnvDefines,

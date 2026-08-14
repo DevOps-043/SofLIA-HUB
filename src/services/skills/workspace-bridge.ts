@@ -57,6 +57,18 @@ interface WorkspaceApi {
   readFile: (workspaceId: string, path: string) => Promise<{ success: boolean; error?: string; content?: string }>;
   /** Escritura manual desde el panel. Main aplica las mismas guardas que al modelo. */
   writeFile: (workspaceId: string, path: string, content: string) => Promise<{ success: boolean; error?: string }>;
+  /** Guarda bytes base64 como imagen saneada dentro de `assets/`. */
+  writeImage: (
+    workspaceId: string,
+    fileName: string,
+    base64: string,
+  ) => Promise<{ success: boolean; error?: string; file?: WorkspaceFile }>;
+  /** Descarga una imagen publica desde main, con guardas SSRF, a `assets/`. */
+  downloadImage: (
+    workspaceId: string,
+    url: string,
+    fileName: string,
+  ) => Promise<{ success: boolean; error?: string; file?: WorkspaceFile }>;
   openFolder: (workspaceId: string) => Promise<{ success: boolean; error?: string }>;
   previewUrl: (workspaceId: string, entryFile?: string) => Promise<{ success: boolean; error?: string; url?: string }>;
   onProgress: (callback: (event: WorkspaceProgressEvent) => void) => () => void;

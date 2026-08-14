@@ -1,0 +1,4 @@
+interface:
+  display_name: "Presentaciones HyperFrames + React"
+  short_description: "Crea decks estructurados con movimiento y geometria seguros"
+  default_prompt: "Crea una presentacion ejecutiva en deck.json aplicando HyperFrames sobre el runtime React de Pulse Hub."

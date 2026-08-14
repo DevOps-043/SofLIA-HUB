@@ -6,6 +6,11 @@ import { buildModelTools } from '../gemini-chat/model-config';
 import { getPublicAiErrorMessage } from '../gemini-chat/public-error';
 import { isTransientGeminiError, sleepWithSignal, withToolTimeout } from '../gemini-chat/resilience';
 import { isAbortError, STOP_MESSAGE } from '../gemini-chat/streams';
+import {
+  inspectWorkspaceCompletion,
+  WORKSPACE_INCOMPLETE_MESSAGE,
+  WORKSPACE_REPAIR_INSTRUCTION,
+} from '../gemini-chat/workspace-completion';
 import { executeGeminiToolCall, isKnownGeminiTool } from '../gemini-chat/tool-dispatch';
 import type {
   ConversationMessage,
@@ -124,6 +129,7 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
     try {
       for (let iteration = 0; iteration < maxIterations; iteration += 1) {
         if (signal?.aborted) return;
+        let iterationText = '';
 
         // Lo ya ejecutado se replica en cada peticion. Sin aligerarlo, escribir
         // un documento largo hace que su contenido viaje otra vez en cada
@@ -163,9 +169,18 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
               if (event.type === 'response.output_text.delta' && event.delta) {
                 const safeDelta = sanitizer.push(event.delta as string);
                 if (safeDelta) {
-                  emitidoEnIntento = true;
-                  emittedText = true;
-                  yield safeDelta;
+                  if (conWorkspace) {
+                    // Aunque se retenga hasta conocer si es una respuesta
+                    // final o una tanda de herramientas, ya no es seguro
+                    // reintentar la peticion: duplicaria ese mismo texto.
+                    emitidoEnIntento = true;
+                    iterationText += safeDelta;
+                  }
+                  else {
+                    emitidoEnIntento = true;
+                    emittedText = true;
+                    yield safeDelta;
+                  }
                 }
                 continue;
               }
@@ -183,13 +198,27 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
             }
             const safeTail = sanitizer.flush();
             if (safeTail) {
-              emitidoEnIntento = true;
-              emittedText = true;
-              yield safeTail;
+              if (conWorkspace) {
+                emitidoEnIntento = true;
+                iterationText += safeTail;
+              }
+              else {
+                emitidoEnIntento = true;
+                emittedText = true;
+                yield safeTail;
+              }
             }
             break;
           } catch (error) {
             const espera = retryDelayMs(error, intento);
+            if (emitidoEnIntento && conWorkspace && iterationText) {
+              // El texto se retiene solo para validar un cierre normal. Si la
+              // peticion falla despues de producirlo, se conserva como texto
+              // parcial antes de anexar el error publico.
+              emittedText = true;
+              yield iterationText;
+              iterationText = '';
+            }
             if (emitidoEnIntento || espera === null || signal?.aborted || !isTransientGeminiError(error)) throw error;
             console.warn(`[OpenAIChat] limite del proveedor → reintento ${intento + 1} en ${espera}ms`);
             await sleepWithSignal(espera, signal);
@@ -198,10 +227,33 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
 
         const functionCalls = outputItems.filter((item) => item.type === 'function_call');
         if (functionCalls.length === 0) {
+          const completion = await inspectWorkspaceCompletion(params.options?.activeSkill);
+          if (completion.required && !completion.ready) {
+            // No se muestra el "listo" de esta iteracion: el disco lo
+            // contradice. La comprobacion se reinyecta para que el modelo
+            // termine el entregable en las iteraciones restantes.
+            input.push({
+              role: 'user',
+              content: [{
+                type: 'input_text',
+                text: `${WORKSPACE_REPAIR_INSTRUCTION}\n\nComprobacion: ${completion.message}`,
+              }],
+            });
+            continue;
+          }
+          if (iterationText) {
+            emittedText = true;
+            yield iterationText;
+          }
           // Un turno cuyo canal visible solo traia andamiaje se queda sin texto
           // tras el saneado: es preferible decirlo a dejar la burbuja vacia.
           if (!emittedText) yield UNUSABLE_RESPONSE_MESSAGE;
           return;
+        }
+
+        if (iterationText) {
+          emittedText = true;
+          yield iterationText;
         }
 
         // Sin `previous_response_id` el modelo solo ve lo que va en `input`: se
@@ -218,7 +270,12 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
         }
       }
 
-      if (!emittedText) yield 'He ejecutado las acciones solicitadas. Si necesitas algo mas, no dudes en pedirlo.';
+      const completion = await inspectWorkspaceCompletion(params.options?.activeSkill);
+      if (completion.required && !completion.ready) {
+        yield WORKSPACE_INCOMPLETE_MESSAGE;
+      } else if (!emittedText) {
+        yield 'He ejecutado las acciones solicitadas. Si necesitas algo mas, no dudes en pedirlo.';
+      }
     } catch (error) {
       if (isAbortError(error, signal)) {
         if (!emittedText) yield STOP_MESSAGE;

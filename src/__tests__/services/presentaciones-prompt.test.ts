@@ -28,6 +28,15 @@ describe('contrato React de la Skill de presentaciones', () => {
     expect(PRESENTACIONES_SKILL_PROMPT).toContain('Nunca escribas rutas absolutas');
   });
 
+  it('pide cobertura visual y graficas declarativas', () => {
+    expect(PRESENTACIONES_SKILL_PROMPT).toContain('entre 40% y 60%');
+    expect(PRESENTACIONES_SKILL_PROMPT).toContain('tipoGrafica: barras|lineas|area|radar|anillo');
+    expect(PRESENTACIONES_SKILL_PROMPT).toContain('no conviertas cifras comparables en tarjetas o tablas');
+    expect(PRESENTACIONES_SKILL_PROMPT).toContain('INICIO_MANIFIESTO_VISUALES_FUENTE_NO_CONFIABLE');
+    expect(PRESENTACIONES_SKILL_PROMPT).toContain('nunca reemplaces una grafica o imagen documental real');
+    expect(PRESENTACIONES_SKILL_PROMPT).toContain('workspace_generate_image');
+  });
+
   it('no deja marcadores de plantilla sin resolver', () => {
     expect(PRESENTACIONES_SKILL_PROMPT).not.toContain('${');
     expect(PRESENTACIONES_SKILL_PROMPT).not.toContain('undefined');

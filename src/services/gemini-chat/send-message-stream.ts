@@ -19,6 +19,8 @@ import { shouldRunToolLoop } from './tool-loop-decision';
 import type { ConversationMessage, SendMessageStreamOptions, StreamResult, ToolCallInfo } from './types';
 import { sendGroundedMessage, shouldUseWebGrounding, WEB_GROUNDING_FAILURE } from './web-grounding';
 import { classifyBrowserGroundingIntent } from './browser-grounding-intent';
+import { preparePresentationSourceVisuals } from './presentation-source-visuals';
+import { PRESENTACIONES_SKILL_ID } from '../../shared/skills/presentaciones-skill';
 
 /**
  * El navegador integrado tiene controlador determinista propio. Sin este aviso
@@ -42,8 +44,11 @@ export async function sendMessageStream(
   const normalizedIntent = normalizeToolIntentText(message);
   const hasBrowserInteraction = hasBrowserInteractionCommand(normalizedIntent);
   const hybridSurfaceRequest = hasHybridSurfaceRequest(normalizedIntent);
+  const presentationUsesVisiblePage = options?.activeSkill?.id === PRESENTACIONES_SKILL_ID
+    && hasPresentationBrowserSource(normalizedIntent);
   const shouldInspectBrowser = browserGroundingIntent !== 'none'
     || hasLikelyBrowserContentRequest(normalizedIntent)
+    || presentationUsesVisiblePage
     || (hasBrowserInteraction && hasExplicitBrowserSurface(normalizedIntent));
   // Tener el navegador abierto no justifica recorrer el DOM ni capturar su
   // compositor en cada saludo, tarea local o pregunta general. La percepcion
@@ -52,6 +57,17 @@ export async function sendMessageStream(
   const browserObservation = shouldInspectBrowser
     ? await captureVisibleIntegratedBrowser(options)
     : null;
+  const sourceVisuals = await preparePresentationSourceVisuals({
+    activeSkill: options?.activeSkill,
+    inlineImages: options?.images,
+    browserImages: browserObservation?.sourceImages,
+    browserSource: browserObservation?.source ?? null,
+    signal: options?.signal,
+  });
+  if (sourceVisuals.context) {
+    systemInstruction = `${systemInstruction}\n\nEl sistema intento importar al workspace los recursos visuales observados en la fuente. Usa primero las rutas locales presentes en el manifiesto cuando sean pertinentes y genera imagenes nuevas solo para cubrir conceptos que la fuente no ilustra o recursos cuya importacion fallo. No vuelvas a descargar esas rutas ni enlaces recursos remotos.`;
+    finalMessage = `${finalMessage}\n\n${sourceVisuals.context}`;
+  }
   // Una pregunta puramente visual ya tiene la evidencia necesaria en la
   // captura adjunta. No debe convertirse en un comando de Computer Use ni
   // cambiar silenciosamente al modelo de comandos; las herramientas se
@@ -329,6 +345,12 @@ function hasExplicitBrowserSurface(text: string): boolean {
   return /\b(navegador|browser|pagina|pestana|sitio|enlace|link|youtube|google chat|gchat|gmail|correo abierto|chat abierto|transcripcion|video)\b/.test(text);
 }
 
+/** El prompt inicial de la Skill no usa un verbo de lectura, pero sí nombra la fuente visible. */
+function hasPresentationBrowserSource(text: string): boolean {
+  return /\b(pagina|pestana|sitio|navegador|browser)\b/.test(text)
+    && /\b(abierta|abierto|actual|viendo|visible)\b/.test(text);
+}
+
 function hasHybridSurfaceRequest(text: string): boolean {
   const externalSurface = /\b(codex|escritorio|desktop|otra ventana|aplicacion de escritorio|programa abierto)\b/.test(text);
   const browserDestination = /\b(google chat|gchat|navegador|browser|pagina|pestana|chat abierto|correo abierto)\b/.test(text);
@@ -369,6 +391,8 @@ type BrowserObservation = {
   screenshot: string;
   domContext: string;
   toolCall: ToolCallInfo;
+  sourceImages: BrowserDomSnapshot['images'];
+  source: { title: string; url: string };
 };
 
 async function captureVisibleIntegratedBrowser(
@@ -396,6 +420,8 @@ async function captureVisibleIntegratedBrowser(
       screenshot: observation.screenshot,
       domContext: buildBrowserDomContext(observation.dom, observation.capturedAt),
       toolCall,
+      sourceImages: observation.dom.images,
+      source: { title: observation.dom.title, url: observation.dom.url },
     };
   } catch (error) {
     console.warn('[GeminiChat] no fue posible capturar el navegador integrado visible:', error);
@@ -436,6 +462,7 @@ function buildBrowserDomContext(dom: BrowserDomSnapshot, capturedAt: string): st
     headings: dom.headings,
     landmarks: dom.landmarks,
     controls: dom.controls,
+    images: dom.images,
     frames: dom.frames,
     visibleText: dom.text,
     truncated: dom.truncated,

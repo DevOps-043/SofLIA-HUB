@@ -35,6 +35,52 @@ describe('contrato deck.json', () => {
     value.slides[1].titulo = 'x'.repeat(119);
     expect(presentationDeckSchema.safeParse(value).success).toBe(false);
   });
+
+  it('acepta la estructura editorial que produjo el agente runtime', () => {
+    const value = deck() as unknown as Record<string, unknown> & { meta: Record<string, unknown>; slides: Record<string, unknown>[] };
+    Object.assign(value.meta, {
+      fuentes: [{ nombre: 'Pagina observada', url: 'https://example.com/', observada: '13 de agosto de 2026' }],
+      notaFuente: 'Las cifras se atribuyen a la fuente observada.',
+    });
+    value.slides = [
+      { id: 'portada', tipo: 'portada', titulo: 'Una tesis concreta', texto: 'Contexto ejecutivo', movimiento: { continuidad: 'flujo', entrada: 'revelado', enfasis: 'recorrido' } },
+      { id: 'division', tipo: 'division', titulo: 'Cuatro señales', texto: 'Una lectura.', bloques: [{ titulo: 'Uno', texto: 'A' }, { titulo: 'Dos', texto: 'B' }], movimiento: { continuidad: 'empuje', entrada: 'trazo', enfasis: 'recorrido' } },
+      { id: 'proceso', tipo: 'proceso', titulo: 'Cuatro pasos', texto: 'Recorrido.', pasos: [{ numero: '01', titulo: 'Uno' }, { numero: '02', titulo: 'Dos' }, { numero: '03', titulo: 'Tres' }], movimiento: { continuidad: 'flujo', entrada: 'ascenso', enfasis: 'recorrido' } },
+      { id: 'cita', tipo: 'cita', titulo: 'Principios', citas: [{ texto: 'Claridad primero.', atribucion: 'Fuente A' }, { texto: 'Proposito siempre.', atribucion: 'Fuente B' }], movimiento: { continuidad: 'foco', entrada: 'revelado', enfasis: 'ninguno' } },
+      { id: 'cierre', tipo: 'cierre', titulo: 'Siguiente paso', accion: 'Validar', puntos: ['Uno', 'Dos'], movimiento: { continuidad: 'empuje', entrada: 'ascenso', enfasis: 'pulso' } },
+    ];
+    expect(presentationDeckSchema.safeParse(value).success).toBe(true);
+  });
+
+  it('acepta graficas declarativas sin entregar coordenadas al modelo', () => {
+    const value = deck();
+    value.slides.splice(1, 1, {
+      id: 'grafica',
+      tipo: 'grafica',
+      titulo: 'La adopcion reduce el tiempo de ejecucion',
+      tipoGrafica: 'lineas',
+      categorias: ['Enero', 'Febrero', 'Marzo'],
+      series: [{ nombre: 'Horas', valores: [42, 31, 18] }],
+      unidad: 'horas',
+      movimiento: { continuidad: 'flujo', entrada: 'trazo', enfasis: 'recorrido' },
+    } as never);
+
+    expect(presentationDeckSchema.safeParse(value).success).toBe(true);
+  });
+
+  it('rechaza una grafica con series desalineadas', () => {
+    const value = deck();
+    value.slides.splice(1, 1, {
+      id: 'grafica',
+      tipo: 'grafica',
+      titulo: 'La serie debe corresponder a sus categorias',
+      tipoGrafica: 'barras',
+      categorias: ['A', 'B', 'C'],
+      series: [{ nombre: 'Valor', valores: [10, 20] }],
+      movimiento: { continuidad: 'flujo', entrada: 'ascenso', enfasis: 'ninguno' },
+    } as never);
+
+    expect(presentationDeckSchema.safeParse(value).success).toBe(false);
+  });
+
 });
-
-

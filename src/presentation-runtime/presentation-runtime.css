@@ -6,8 +6,12 @@
 .runtime-nav { display:grid; width:54px; height:54px; place-items:center; border:1px solid color-mix(in srgb,currentColor 22%,transparent); border-radius:999px; background:color-mix(in srgb,var(--marca-color-fondo) 82%,transparent); color:inherit; font-size:24px; font-weight:900; backdrop-filter:blur(14px); transition:transform .18s ease,opacity .18s ease; }
 .runtime-nav:not(:disabled):hover { transform:translateY(-3px); }
 .runtime-nav:disabled { opacity:.25; }
-.runtime-breathe { animation:runtime-breathe 7s ease-in-out infinite alternate; }
-@keyframes runtime-breathe { to { transform:translate3d(80px,42px,0) scale(1.12); } }
-@media (prefers-reduced-motion: reduce) { .runtime-breathe { animation:none; } }
-
-
+.runtime-interactive { will-change:transform; transition:box-shadow .24s ease,border-color .24s ease,filter .24s ease; }
+.runtime-interactive:hover { box-shadow:0 26px 64px rgb(8 20 31 / .16); }
+.runtime-media img,.runtime-media svg { transition:transform .7s cubic-bezier(.22,1,.36,1),filter .35s ease; }
+.runtime-media:hover .runtime-image--cover,.runtime-media:hover svg { transform:scale(1.045); filter:saturate(1.06) contrast(1.02); }
+.runtime-chart { border-radius:36px; border:1px solid color-mix(in srgb,currentColor 12%,transparent); }
+@media (prefers-reduced-motion: reduce) {
+  .runtime-interactive,.runtime-media img,.runtime-media svg { transition:none; }
+  .runtime-media:hover .runtime-image--cover,.runtime-media:hover svg { transform:none; }
+}

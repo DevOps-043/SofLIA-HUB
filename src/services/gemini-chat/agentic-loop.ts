@@ -4,6 +4,11 @@ import { resolveEmptyGeminiText } from './empty-response';
 import { getPublicAiErrorMessage } from './public-error';
 import { withGeminiModelCall, withToolTimeout } from './resilience';
 import { executeGeminiToolCall, isKnownGeminiTool } from './tool-dispatch';
+import {
+  inspectWorkspaceCompletion,
+  WORKSPACE_INCOMPLETE_MESSAGE,
+  WORKSPACE_REPAIR_INSTRUCTION,
+} from './workspace-completion';
 import type { SendMessageStreamOptions, StreamResult, ToolCallInfo } from './types';
 
 export async function runAgenticLoop(params: {
@@ -43,7 +48,24 @@ export async function runAgenticLoop(params: {
     const parts = response.response.candidates?.[0]?.content?.parts || [];
     collectInlineImages(parts, params.allGeneratedImages);
     const functionCalls = parts.filter((part: any) => part.functionCall);
-    if (functionCalls.length === 0) return finalTextResult(parts, response.response, params);
+    if (functionCalls.length === 0) {
+      const completion = await inspectWorkspaceCompletion(params.options?.activeSkill);
+      if (completion.required && !completion.ready) {
+        try {
+          response = await withGeminiModelCall(
+            'Gemini incomplete workspace repair',
+            () => params.chatSession.sendMessage([{ text: `${WORKSPACE_REPAIR_INSTRUCTION}\n\nComprobacion: ${completion.message}` }], requestOptions),
+            { signal },
+          );
+          continue;
+        } catch (error: any) {
+          if (isAbortError(error, signal)) return stoppedStreamResult(params.allToolCalls, params.allGeneratedImages);
+          if (params.failFastOnModelError) throw error;
+          return safeFailureResult(error, params);
+        }
+      }
+      return finalTextResult(parts, response.response, params);
+    }
 
     const functionResponses = await executeFunctionCalls(functionCalls, params);
     if (signal?.aborted) return stoppedStreamResult(params.allToolCalls, params.allGeneratedImages);
@@ -61,7 +83,10 @@ export async function runAgenticLoop(params: {
     }
   }
 
-  const fallbackText = 'He ejecutado las acciones solicitadas. Si necesitas algo mas, no dudes en pedirlo.';
+  const completion = await inspectWorkspaceCompletion(params.options?.activeSkill);
+  const fallbackText = completion.required && !completion.ready
+    ? WORKSPACE_INCOMPLETE_MESSAGE
+    : 'He ejecutado las acciones solicitadas. Si necesitas algo mas, no dudes en pedirlo.';
   return {
     stream: singleChunkStream(fallbackText),
     sources: Promise.resolve(null),
@@ -162,7 +187,7 @@ function finalTextResult(
 }
 
 function safeFailureResult(
-  error: any,
+  error: unknown,
   params: { allToolCalls: ToolCallInfo[]; allGeneratedImages: string[] },
 ): StreamResult {
   console.warn('[GeminiChat] agentic loop failed:', error);

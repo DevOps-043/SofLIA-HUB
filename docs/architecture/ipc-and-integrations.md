@@ -8,8 +8,8 @@ Estado: vigente. Actualizado: 2026-08-06.
 
 ## Contrato IPC
 
-La allowlist actual contiene 344 canales derivados de cinco arrays: 80, 59, 65,
-99 y 41. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 346 canales derivados de cinco arrays: 80, 59, 65,
+101 y 41. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |
@@ -329,6 +329,13 @@ enlace-local, con `redirect: 'manual'` para revalidar cada salto —una URL púb
 que redirige a `169.254.169.254` es el caso que esto cierra—, límite de tamaño y
 de tiempo. Poner esas guardas en el renderer no serviría: una respuesta
 manipulada podría saltárselas.
+
+Para presentaciones, el renderer reutiliza esta misma frontera antes de llamar
+al proveedor: guarda los visuales adjuntos con `write-image` y descarga una
+selección saneada del DOM con `download-image`. El agente recibe únicamente las
+rutas relativas resultantes en un manifiesto; no recibe rutas absolutas, no
+enlaza URLs remotas en `deck.json` y un recurso fallido no revierte los que ya
+quedaron dentro de `assets/`.
 
 ## Integraciones y propietarios
 

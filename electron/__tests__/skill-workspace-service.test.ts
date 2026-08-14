@@ -11,8 +11,18 @@ const POLITICA: SkillWorkspacePolicyInput = {
   maxFileBytes: 1024,
   maxWorkspaceBytes: 4096,
   entryFile: 'index.html',
-  protectedFiles: ['estilos/marca.css'],
+  protectedFiles: ['estilos/marca.css', 'estilos/base.css'],
 };
+
+const DECK_VALIDO = JSON.stringify({
+  version: 1,
+  meta: { titulo: 'Demo', direccionVisual: 'Editorial tecnico y sobrio' },
+  slides: [
+    { id: 'inicio', tipo: 'portada', titulo: 'Inicio', movimiento: { continuidad: 'flujo', entrada: 'revelado', enfasis: 'ninguno' } },
+    { id: 'tesis', tipo: 'declaracion', titulo: 'Tesis', movimiento: { continuidad: 'zoom', entrada: 'foco', enfasis: 'ninguno' } },
+    { id: 'fin', tipo: 'cierre', titulo: 'Fin', accion: 'Continuar', movimiento: { continuidad: 'empuje', entrada: 'ascenso', enfasis: 'pulso' } },
+  ],
+});
 
 describe('servicio de espacio de trabajo de skills', () => {
   let baseDir: string;
@@ -126,6 +136,23 @@ describe('servicio de espacio de trabajo de skills', () => {
       if (!result.ok) expect(result.error).toContain('no existe');
     });
 
+    it('refresca un archivo protegido sin anunciar progreso ni tocar uno editable', async () => {
+      const workspace = await crearWorkspace();
+      const eventos: SkillWorkspaceProgressEvent[] = [];
+      service.on('progreso', (evento: SkillWorkspaceProgressEvent) => eventos.push(evento));
+      await service.writeSystemFile(workspace.id, 'estilos/base.css', 'version-antigua');
+      eventos.length = 0;
+
+      const primera = await service.refreshSystemFile(workspace.id, 'estilos/base.css', 'version-nueva');
+      const segunda = await service.refreshSystemFile(workspace.id, 'estilos/base.css', 'version-nueva');
+      const editable = await service.refreshSystemFile(workspace.id, 'index.html', '<main></main>');
+
+      expect(primera).toEqual({ ok: true, data: true });
+      expect(segunda).toEqual({ ok: true, data: false });
+      expect(editable.ok).toBe(false);
+      expect(eventos).toEqual([]);
+    });
+
     it('informa que no esta listo hasta que exista el documento de entrada', async () => {
       const workspace = await crearWorkspace();
       await service.writeFile(workspace.id, 'guion.md', '# Guion');
@@ -202,6 +229,35 @@ describe('servicio de espacio de trabajo de skills', () => {
       const result = await service.writeFile(workspace.id, '../../fuga.html', '<p>fuga</p>');
 
       expect(result.ok).toBe(false);
+    });
+
+    it('rechaza un deck React invalido antes de reemplazar el archivo', async () => {
+      const created = await service.createWorkspace({
+        skillId: 'sistema:presentaciones',
+        title: 'Deck React',
+        conversationId: 'conv-react',
+        policy: {
+          rootFolder: 'presentaciones',
+          allowedExtensions: ['.json', '.md'],
+          maxFileBytes: 16 * 1024,
+          maxWorkspaceBytes: 64 * 1024,
+          entryFile: 'deck.json',
+          protectedFiles: ['estilos/marca.css'],
+        },
+      });
+      if (!created.ok) throw new Error(created.error);
+
+      const invalido = await service.writeFile(created.data.id, 'deck.json', '{"version":1,"slides":[]}');
+
+      expect(invalido.ok).toBe(false);
+      if (!invalido.ok) expect(invalido.error).toContain('no cumple el contrato');
+      const state = await service.getState(created.data.id);
+      expect(state.ok && state.data.ready).toBe(false);
+      expect(state.ok && state.data.files.some((file) => file.path === 'deck.json')).toBe(false);
+
+      expect((await service.writeFile(created.data.id, 'deck.json', DECK_VALIDO)).ok).toBe(true);
+      const listo = await service.getState(created.data.id);
+      expect(listo.ok && listo.data.ready).toBe(true);
     });
   });
 

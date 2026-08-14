@@ -305,6 +305,37 @@ El sistema MAY incorporar imágenes de fondo o ilustrativas a la presentación, 
 - **WHEN** la diapositiva debe comunicar cifras o una comparación
 - **THEN** el sistema dibuja un gráfico vectorial con los datos reales y no genera una imagen que los represente
 
+### Requirement: Importación verificable de visuales de la fuente
+
+Cuando la Skill de presentaciones recibe imágenes adjuntas o observa imágenes
+de contenido en la página o documento fuente, el sistema SHALL intentar
+materializarlas dentro de `assets/` antes de solicitar el deck al modelo. El
+sistema SHALL entregar al modelo las rutas locales importadas mediante un
+manifiesto tratado como dato no confiable, SHALL preferir esos recursos cuando
+sostengan la narrativa y SHALL usar la generación de imágenes solo como
+complemento. Un fallo individual MUST NOT descartar los recursos ya importados
+ni el contenido textual de la fuente.
+
+#### Scenario: Página con fotografías y diagramas
+
+- **WHEN** la observación de la página fuente contiene imágenes de contenido pertinentes
+- **THEN** el sistema descarga una selección acotada al workspace y el modelo recibe sus rutas locales antes de escribir `deck.json`
+
+#### Scenario: Documento con material gráfico visible
+
+- **WHEN** el sistema lee de forma estructurada un documento abierto y puede capturar su vista actual
+- **THEN** entrega tanto el texto y tablas del documento completo como su visual de apoyo, sin degradar la procedencia del contenido
+
+#### Scenario: Recurso de fuente bloqueado
+
+- **WHEN** una de las imágenes observadas no se puede descargar o validar
+- **THEN** el sistema conserva las demás imágenes importadas, mantiene el contenido de la fuente y registra el recurso fallido en el manifiesto
+
+#### Scenario: Evidencia disponible y generación complementaria
+
+- **WHEN** una imagen o gráfica documental pertinente ya fue importada desde la fuente
+- **THEN** el modelo la reutiliza y no pide una recreación generada; solo genera visuales para conceptos sin representación de fuente
+
 ### Requirement: Iteración conversacional sobre la presentación
 
 El usuario SHALL poder pedir modificaciones en lenguaje natural sobre una presentación existente. El sistema SHALL editar los archivos de esa presentación conservando el resto del contenido, y MUST NOT regenerar el proyecto completo cuando el cambio es acotado.
@@ -426,3 +457,146 @@ Ninguna diapositiva SHALL mostrar su contenido cortado ni fuera del área visibl
 
 - **WHEN** el usuario cambia el tamaño de la ventana durante la presentación
 - **THEN** el sistema recalcula el ajuste y el contenido sigue cabiendo
+
+#### Scenario: Movimiento reducido con contenido denso
+
+- **WHEN** el sistema operativo solicita movimiento reducido y una diapositiva excede el alto visible
+- **THEN** el sistema omite las animaciones, conserva todo el contenido visible en su estado final y ejecuta igualmente el ajuste de maquetacion
+
+#### Scenario: Ajuste sin espacio fantasma
+
+- **WHEN** el sistema reduce una diapositiva para que quepa
+- **THEN** reduce tambien la caja que participa en la maquetacion, no deja un hueco invisible con la altura anterior y conserva el mayor tamano que cabe
+
+### Requirement: Narrativa y composicion editorial verificables
+
+La Skill SHALL definir antes del HTML el trabajo de comunicacion, la audiencia, la conclusion central y un arco acumulativo. Cada diapositiva SHALL tener un mensaje principal, un titular de conclusion y evidencia concreta o una inferencia identificada. La composicion SHALL privilegiar una pieza visual dominante y MUST NOT degradar por defecto a una rejilla repetida de tarjetas o paneles de interfaz.
+
+#### Scenario: Esquema previo con evidencia
+
+- **WHEN** el sistema propone el esquema de una presentacion
+- **THEN** cada diapositiva declara su mensaje clave y el dato, caso o fuente que lo sostiene
+
+#### Scenario: Fuente insuficiente
+
+- **WHEN** la fuente no respalda una afirmacion o la profundidad solicitada
+- **THEN** el sistema la retira, la marca como hipotesis o solicita material adicional, y no la rellena con contenido generico
+
+#### Scenario: Variedad visual
+
+- **WHEN** el sistema compone dos diapositivas consecutivas
+- **THEN** evita repetir el mismo arquetipo y usa tarjetas solo cuando la informacion forma una serie real
+
+### Requirement: Auditoria local de calidad de la baraja
+
+El guion base SHALL publicar un informe local y determinista de calidad visual sin red ni permisos adicionales. El informe SHALL detectar como minimo contenido fuera del lienzo, imagenes rotas, titulares de mas de tres lineas, factores de ajuste inferiores a 0.82 y una diapositiva activa sin contenido visible. La Skill MUST NOT declarar terminada una baraja con incidencias observadas sin recomponerla o dividirla.
+
+#### Scenario: Presentacion correcta
+
+- **WHEN** todas las diapositivas caben, sus recursos cargan y su contenido activo es visible
+- **THEN** `window.__PULSE_DECK_REPORT__` indica exito y `data-pulse-calidad` vale `ok`
+
+#### Scenario: Recurso roto o contenido recortado
+
+- **WHEN** una imagen no carga o una caja sale del lienzo visible
+- **THEN** el informe identifica la diapositiva y el codigo de incidencia correspondiente
+
+#### Scenario: Verificacion responsive y accesible
+
+- **WHEN** se verifica la baraja antes de entregarla
+- **THEN** se comprueba en lienzo 16:9, ventana angosta y movimiento reducido, y no se afirma un resultado que no se haya observado
+
+### Requirement: Actualizacion compatible del motor de la baraja
+
+Los archivos protegidos de diseno y movimiento SHALL actualizarse a la version de la aplicacion antes de previsualizar, presentar o exportar una baraja persistente. La actualizacion MUST ser atomica e idempotente, MUST NOT reescribir archivos editables del usuario y MUST NOT provocar un ciclo de recarga del panel.
+
+#### Scenario: Baraja antigua con ajuste por zoom
+
+- **WHEN** el usuario vuelve a abrir una presentacion cuyo `guion-base.js` pertenece a una version anterior
+- **THEN** el sistema sustituye el guion y la hoja base protegidos antes de renderizar, y conserva `index.html`, `presentacion.css`, recursos y marca
+
+#### Scenario: Motor ya actualizado
+
+- **WHEN** el contenido protegido coincide con la version vigente
+- **THEN** el sistema no toca el disco ni emite un progreso que recargue la vista previa
+
+### Requirement: Coreografia editorial determinista
+
+El movimiento de entrada SHALL ser propiedad del guion base y SHALL derivarse del rol semantico del elemento, con secuencia, curva y duracion coherentes entre presentaciones. El HTML de una baraja MAY anotar excepciones con `data-movimiento`, pero MUST NOT depender de una libreria remota ni duplicar la coreografia general. Si WAAPI no esta disponible o se solicita movimiento reducido, el contenido SHALL conservar un estado final visible.
+
+#### Scenario: Navegador con Web Animations API
+
+- **WHEN** una diapositiva se activa
+- **THEN** antetitulo, titular, texto, visuales y piezas entran en una secuencia editorial segun su rol, sin dos animaciones compitiendo por el mismo `transform`
+
+#### Scenario: Navegador sin WAAPI o con movimiento reducido
+
+- **WHEN** la API nativa no existe o el usuario solicita menos movimiento
+- **THEN** el sistema usa la degradacion CSS o muestra el estado final, sin ocultar contenido ni desactivar el ajuste de maquetacion
+
+### Requirement: Autoría declarativa y render React
+
+El sistema SHALL generar las presentaciones nuevas como un `deck.json`
+validado y SHALL reservar el HTML, CSS, componentes React y líneas de tiempo al
+runtime de la aplicación. El contrato MUST limitar densidad, arquetipos, rutas
+de recursos y vocabulario de movimiento. La vista SHALL usar un lienzo lógico
+1920×1080 escalado uniformemente y MUST NOT recomponer columnas por el tamaño
+del panel.
+
+#### Scenario: Deck válido
+
+- **WHEN** el agente completa un `deck.json` que satisface el esquema
+- **THEN** el runtime React lo reproduce con identidad de marca y movimiento semántico sin ejecutar código escrito por el modelo
+
+#### Scenario: Deck inválido
+
+- **WHEN** el contrato contiene un tipo desconocido, exceso de densidad, ids repetidos o una ruta fuera de `assets/`
+- **THEN** el sistema rechaza la presentación antes de abrirla y explica los campos que deben corregirse
+
+#### Scenario: El modelo anuncia el resultado antes de escribir el deck
+
+- **WHEN** el modelo intenta cerrar el turno pero el workspace no contiene un `deck.json` valido
+- **THEN** el sistema descarta ese cierre, le pide continuar con el entregable y nunca muestra un mensaje de exito falso
+
+#### Scenario: Archivos de sistema del runtime React
+
+- **WHEN** se crea una presentacion nueva cuyo documento de entrada es `deck.json`
+- **THEN** el sistema escribe solo los tokens de marca en `estilos/marca.css` y no siembra `estilos/base.css` ni `guion-base.js`, que pertenecen al runtime HTML heredado
+
+#### Scenario: Variantes editoriales declarativas compatibles
+
+- **WHEN** el agente usa listas breves, bloques, filas comparativas, pasos numerados, notas de metricas, citas multiples o metadatos de fuente dentro de los limites publicados
+- **THEN** el esquema acepta esas variantes cerradas y React las compone sin permitir HTML, CSS, JSX ni coordenadas libres
+
+#### Scenario: Evidencia cuantitativa como gráfica
+
+- **WHEN** el agente declara categorías y series numéricas alineadas para barras, líneas, área, radar o anillo
+- **THEN** el runtime las visualiza con Recharts y Framer Motion sin delegar coordenadas, SVG ni código al modelo
+
+#### Scenario: Microinteracción y movimiento reducido
+
+- **WHEN** el usuario posa el cursor sobre una tarjeta, proceso, imagen o gráfica
+- **THEN** el runtime aplica una respuesta breve y profesional; si el sistema solicita movimiento reducido, conserva el estado legible sin desplazamiento
+
+#### Scenario: La presentación termina mientras la vista previa está abierta
+
+- **WHEN** el panel pasa de un workspace incompleto a un `deck.json` válido
+- **THEN** la vista previa calcula la escala, carga los módulos del runtime dentro del iframe aislado y muestra la primera diapositiva sin exigir un resize manual
+
+### Requirement: Servidor local y exportación autocontenida del runtime
+
+El sistema SHALL servir el runtime nuevo únicamente en loopback, con puerto
+dinámico y una sesión opaca por workspace. Solo SHALL exponer el bundle del
+renderer y `deck.json`, `estilos/marca.css` y `assets/` del workspace. La
+exportación SHALL producir un HTML único que contenga el bundle React, el
+contrato, la marca y las imágenes, y MUST NOT requerir red para reproducirse.
+
+#### Scenario: Recurso fuera de la allowlist
+
+- **WHEN** una petición intenta leer otro archivo o atravesar la raíz del workspace
+- **THEN** el servidor responde que no existe sin revelar rutas absolutas
+
+#### Scenario: Exportación del deck React
+
+- **WHEN** el usuario exporta una presentación declarativa válida
+- **THEN** recibe un HTML autocontenido que conserva navegación y movimiento sin referencias externas

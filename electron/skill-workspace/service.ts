@@ -1,8 +1,10 @@
+
 import { app, shell } from 'electron';
 import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { formatDeckValidationError, parsePresentationDeck } from '../../src/shared/presentations/deck-schema';
 import { hasAllowedExtension, resolveInsideWorkspace } from './paths';
 import type {
   SkillWorkspaceFile,
@@ -43,6 +45,7 @@ export class SkillWorkspaceService extends EventEmitter {
   private entries = new Map<string, WorkspaceEntry>();
   private loaded = false;
   private writeQueue: Promise<void> = Promise.resolve();
+  private readonly systemRefreshQueues = new Map<string, Promise<SkillWorkspaceResult<boolean>>>();
 
   constructor(private readonly baseDir = path.join(app.getPath('userData'), WORKSPACES_DIRNAME)) {
     super();
@@ -88,39 +91,6 @@ export class SkillWorkspaceService extends EventEmitter {
     return { ok: true, data: toRecord(entry) };
   }
 
-  /**
-   * Ata un workspace a la conversacion que lo produjo.
-   *
-   * Un chat nuevo todavia no tiene conversacion cuando se activa la Skill: se
-   * crea al guardar el primer mensaje. El workspace nacia con `conversationId`
-   * nulo y nadie lo ataba despues, asi que al reabrir ese chat
-   * `findByConversation` no encontraba nada y la presentacion quedaba
-   * inalcanzable desde la interfaz.
-   *
-   * Nunca reasigna: un workspace que ya pertenece a otra conversacion se queda
-   * donde esta, para que un identificador equivocado no le robe la
-   * presentacion a otro chat.
-   */
-  async attachConversation(
-    workspaceId: string,
-    conversationId: string,
-  ): Promise<SkillWorkspaceResult<SkillWorkspaceRecord>> {
-    const entry = await this.requireEntry(workspaceId);
-    if (!entry.ok) return entry;
-
-    const target = String(conversationId ?? '').trim();
-    if (!target) return { ok: false, error: 'La conversacion indicada no es valida.' };
-    if (entry.data.conversationId === target) return { ok: true, data: toRecord(entry.data) };
-    if (entry.data.conversationId) {
-      return { ok: false, error: 'El espacio de trabajo ya pertenece a otra conversacion.' };
-    }
-
-    entry.data.conversationId = target;
-    entry.data.updatedAt = new Date().toISOString();
-    await this.persist();
-    return { ok: true, data: toRecord(entry.data) };
-  }
-
   /** Workspace mas reciente asociado a una conversacion, para retomarla. */
   async findByConversation(conversationId: string): Promise<SkillWorkspaceRecord | null> {
     await this.ensureLoaded();
@@ -142,7 +112,7 @@ export class SkillWorkspaceService extends EventEmitter {
         workspace: toRecord(entry.data),
         files,
         totalBytes,
-        ready: files.some((file) => file.path === entry.data.entryFile),
+        ready: await this.isEntryReady(entry.data, files),
       },
     };
   }
@@ -189,40 +159,81 @@ export class SkillWorkspaceService extends EventEmitter {
     return this.writeFileInternal(workspaceId, relativePath, content, true);
   }
 
+  /** Asocia un workspace existente a la conversacion que lo adopta. */
+  async attachConversation(
+    workspaceId: string,
+    conversationId: string,
+  ): Promise<SkillWorkspaceResult<SkillWorkspaceRecord>> {
+    const entry = await this.requireEntry(workspaceId);
+    if (!entry.ok) return entry;
+    const target = String(conversationId ?? '').trim();
+    if (!target) return { ok: false, error: 'La conversacion indicada no es valida.' };
+    if (entry.data.conversationId === target) return { ok: true, data: toRecord(entry.data) };
+    if (entry.data.conversationId) {
+      return { ok: false, error: 'El espacio de trabajo ya pertenece a otra conversacion.' };
+    }
+    entry.data.conversationId = target;
+    entry.data.updatedAt = new Date().toISOString();
+    await this.persist();
+    return { ok: true, data: toRecord(entry.data) };
+  }
+
   /**
-   * Pone al dia un archivo del sistema SIN anunciarlo y solo si cambio.
-   *
-   * El panel se alimenta de los eventos de progreso: refrescar el sistema de
-   * diseno al mostrar una baraja los disparaba, el panel recargaba su listado,
-   * la recarga volvia a pedir la vista previa y esta refrescaba otra vez. El
-   * resultado era un bucle con los archivos parpadeando y la imagen cargando
-   * para siempre. Callar y no reescribir lo identico lo corta de raiz.
-   *
-   * Devuelve si hubo cambio. No toca `updatedAt` del workspace: poner al dia el
-   * sistema no es trabajo del usuario y no debe reordenar nada.
+   * Actualiza un archivo protegido sin anunciar progreso ni alterar la fecha
+   * del workspace. Es para migrar el motor de una presentacion persistente al
+   * abrirla; si el contenido ya coincide no toca el disco.
    */
   async refreshSystemFile(
     workspaceId: string,
     relativePath: string,
     content: string,
   ): Promise<SkillWorkspaceResult<boolean>> {
+    const key = `${workspaceId}:${relativePath.replace(/\\/g, '/')}`;
+    const previous = this.systemRefreshQueues.get(key) ?? Promise.resolve({ ok: true, data: false } as const);
+    const current = previous.catch(() => ({ ok: false, error: 'Fallo previo al actualizar el archivo.' } as const))
+      .then(() => this.refreshSystemFileNow(workspaceId, relativePath, content));
+    this.systemRefreshQueues.set(key, current);
+    void current.finally(() => {
+      if (this.systemRefreshQueues.get(key) === current) this.systemRefreshQueues.delete(key);
+    });
+    return current;
+  }
+
+  private async refreshSystemFileNow(
+    workspaceId: string,
+    relativePath: string,
+    content: string,
+  ): Promise<SkillWorkspaceResult<boolean>> {
     const entry = await this.requireEntry(workspaceId);
     if (!entry.ok) return entry;
+    if (!isProtected(entry.data, relativePath)) {
+      return { ok: false, error: 'Solo se pueden refrescar archivos protegidos del sistema.' };
+    }
 
     const resolved = await resolveInsideWorkspace(this.rootOf(entry.data), relativePath, { mustExist: false });
     if (!resolved.ok) return { ok: false, error: resolved.message };
 
+    let temporal: string | null = null;
     try {
       const actual = await fs.readFile(resolved.absolutePath, 'utf-8').catch(() => null);
       if (actual === content) return { ok: true, data: false };
-
       await fs.mkdir(path.dirname(resolved.absolutePath), { recursive: true });
-      const temporal = `${resolved.absolutePath}.parcial`;
+      // Vista previa, pantalla completa y exportacion pueden pedir el refresco
+      // a la vez. Un temporal unico evita que dos operaciones se pisen.
+      temporal = `${resolved.absolutePath}.${randomUUID()}.parcial`;
       await fs.writeFile(temporal, content, 'utf-8');
       await fs.rename(temporal, resolved.absolutePath);
+      temporal = null;
       return { ok: true, data: true };
     } catch (error) {
+      // En Windows dos aperturas simultaneas pueden competir por el rename.
+      // Si la otra ya dejo exactamente el contenido esperado, la operacion es
+      // idempotente y se considera resuelta.
+      const actual = await fs.readFile(resolved.absolutePath, 'utf-8').catch(() => null);
+      if (actual === content) return { ok: true, data: false };
       return { ok: false, error: `No se pudo actualizar ${relativePath}: ${describeError(error)}` };
+    } finally {
+      if (temporal) await fs.rm(temporal, { force: true }).catch(() => undefined);
     }
   }
 
@@ -303,6 +314,9 @@ export class SkillWorkspaceService extends EventEmitter {
       );
     }
 
+    // Los archivos de sistema protegidos (marca y runtime heredado) no forman
+    // parte del contrato de autoria del modelo. Su extension puede quedar
+    // fuera de la allowlist sin abrir esa capacidad a la Skill.
     if (!fromSystem && !hasAllowedExtension(resolved.relativePath, entry.data.allowedExtensions)) {
       return this.fail(
         workspaceId,
@@ -310,6 +324,19 @@ export class SkillWorkspaceService extends EventEmitter {
         resolved.relativePath,
         `Esta skill solo puede escribir archivos ${entry.data.allowedExtensions.join(', ')}.`,
       );
+    }
+
+    if (!fromSystem && entry.data.skillId === 'sistema:presentaciones' && resolved.relativePath === 'deck.json') {
+      try {
+        parsePresentationDeck(JSON.parse(content));
+      } catch (error) {
+        return this.fail(
+          workspaceId,
+          'escritura',
+          resolved.relativePath,
+          `deck.json no cumple el contrato de presentacion: ${formatDeckValidationError(error)}`,
+        );
+      }
     }
 
     const bytes = Buffer.byteLength(content, 'utf-8');
@@ -520,6 +547,20 @@ export class SkillWorkspaceService extends EventEmitter {
 
     await walk(root, '');
     return files.sort((left, right) => left.path.localeCompare(right.path));
+  }
+
+  /** Existir no basta para el runtime React: un deck invalido sigue incompleto. */
+  private async isEntryReady(entry: WorkspaceEntry, files: SkillWorkspaceFile[]): Promise<boolean> {
+    if (!files.some((file) => file.path === entry.entryFile)) return false;
+    if (entry.skillId !== 'sistema:presentaciones' || entry.entryFile !== 'deck.json') return true;
+
+    try {
+      const content = await fs.readFile(path.join(this.rootOf(entry), entry.entryFile), 'utf-8');
+      parsePresentationDeck(JSON.parse(content));
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private async checkBudget(entry: WorkspaceEntry, relativePath: string, incomingBytes: number): Promise<string | null> {

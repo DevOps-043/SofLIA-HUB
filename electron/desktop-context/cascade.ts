@@ -69,12 +69,18 @@ async function tryDocumentLevel(
   // modelo no afirme como vigentes unas cifras recien cambiadas sin guardar.
   if (!match.saved) warnings.push('cambios_sin_guardar');
 
-  return buildAttachment(record, {
+  const attachment = buildAttachment(record, {
     level: 'documento',
     source: path.basename(match.path),
     text: markdown,
     warnings,
   });
+  // El sidecar conserva texto y tablas del documento completo. La captura de
+  // la vista actual aporta ademas fotografias, diagramas y graficas visibles,
+  // que no deben perderse al construir una presentacion. Si falla, el nivel A
+  // sigue siendo valido y entrega el documento sin imagen de apoyo.
+  const image = await deps.captureWindow(record.sourceId).catch(() => '');
+  return image ? { ...attachment, image } : attachment;
 }
 
 /** Nivel B. Cualquier aplicacion que exponga texto por accesibilidad. */

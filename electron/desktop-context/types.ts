@@ -51,7 +51,7 @@ export interface DesktopAppContextAttachment {
   /** Procedencia legible: nombre del archivo, o la ventana cuando no hay archivo. */
   source: string;
   text: string;
-  /** Captura en dataURL cuando el nivel es `captura`. */
+  /** Visual en dataURL: vista del documento en nivel A o evidencia del nivel C. */
   image?: string;
   warnings: DesktopContextWarning[];
   charCount: number;

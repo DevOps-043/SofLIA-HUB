@@ -34,9 +34,11 @@ function query<T extends HTMLElement>(shadow: ShadowRoot, selector: string): T {
   return element;
 }
 
+/** Las acciones del resultado son iconos: se buscan por su etiqueta accesible. */
 function boton(shadow: ShadowRoot, etiqueta: string): HTMLButtonElement {
   const encontrado = Array.from(shadow.querySelectorAll('button'))
-    .find((candidato) => candidato.textContent?.trim() === etiqueta);
+    .find((candidato) => candidato.textContent?.trim() === etiqueta
+      || candidato.getAttribute('aria-label') === etiqueta);
   if (!encontrado) throw new Error(`Falta el botón "${etiqueta}".`);
   return encontrado;
 }
@@ -170,6 +172,34 @@ describe('Panel de redacción de la página', () => {
 
     expect(execCommand).toHaveBeenCalledWith('insertText', false, 'Buenos días Fernando.');
     expect(document.activeElement?.id).toBe('compositor');
+  });
+
+  it('WP-008: con la propuesta a la vista el compositor se retira y reintentar lo devuelve', () => {
+    const { shadow } = installPanel();
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    log.mockClear();
+    selectComposer();
+    (globalThis as PanelScope).__sofliaWritingPanel?.open();
+    query<HTMLTextAreaElement>(shadow, 'textarea').value = 'mas formal';
+    boton(shadow, 'Mejorar').click();
+    const requestId = takeWritingRequestInPage()?.requestId ?? '';
+    // Mientras se pide tampoco se ve lo escrito: solo el estado de la peticion.
+    expect(query(shadow, '.panel').dataset.fase).toBe('working');
+
+    deliverWritingResultInPage({ requestId, text: 'Buenos días, ¿cómo estás?' });
+
+    expect(query(shadow, '.panel').dataset.fase).toBe('done');
+    // El compositor sigue montado; la fase es la que decide si se muestra.
+    expect(query(shadow, '.compositor').contains(query(shadow, 'textarea'))).toBe(true);
+
+    boton(shadow, 'Reintentar').click();
+
+    // Reintentar reabre la peticion con lo escrito antes; no vuelve a pedir solo.
+    expect(query(shadow, '.panel').dataset.fase).toBe('idle');
+    expect(query<HTMLTextAreaElement>(shadow, 'textarea').value).toBe('mas formal');
+    expect(log.mock.calls.filter(([aviso]) => aviso === WRITING_PANEL_BEACON)).toHaveLength(1);
+    expect(takeWritingRequestInPage()).toBeNull();
+    log.mockRestore();
   });
 
   it('WP-005: un fallo del modelo se muestra en el panel y deja reintentar', () => {

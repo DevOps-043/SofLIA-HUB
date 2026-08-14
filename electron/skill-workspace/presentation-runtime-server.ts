@@ -77,8 +77,9 @@ export class PresentationRuntimeServer {
     try {
       if (request.method !== 'GET' && request.method !== 'HEAD') return this.send(response, 405, 'Metodo no permitido');
       const url = new URL(request.url ?? '/', this.origin ?? 'http://127.0.0.1');
-      if (url.pathname.startsWith('/assets/')) return this.serveRendererFile(url.pathname.slice(1), response);
-      if (url.pathname === '/favicon.ico') return this.serveRendererFile('assets/icono.ico', response);
+      const requestOrigin = normalizeOriginHeader(request.headers.origin);
+      if (url.pathname.startsWith('/assets/')) return this.serveRendererFile(url.pathname.slice(1), response, requestOrigin);
+      if (url.pathname === '/favicon.ico') return this.serveRendererFile('assets/icono.ico', response, requestOrigin);
       const match = url.pathname.match(/^\/presentacion\/([a-f0-9-]+)\/(.*)$/i);
       if (!match) return this.send(response, 404, 'No encontrado');
       const workspaceId = this.workspacesByToken.get(match[1]);
@@ -95,30 +96,56 @@ export class PresentationRuntimeServer {
           response.end();
           return;
         }
-        return this.serveRendererFile('index.html', response);
+        return this.serveRendererFile('index.html', response, requestOrigin);
       }
       if (!isAllowedWorkspaceResource(relative)) return this.send(response, 404, 'No encontrado');
       const absolute = await this.service.resolveAbsolutePath(workspaceId, relative);
       if (!absolute) return this.send(response, 404, 'No encontrado');
-      return this.serveAbsolute(absolute, response);
+      return this.serveAbsolute(absolute, response, requestOrigin);
     } catch (error) {
       return this.send(response, 500, error instanceof Error ? error.message : 'Fallo del reproductor.');
     }
   }
 
-  private async serveRendererFile(relative: string, response: ServerResponse) {
+  private async serveRendererFile(relative: string, response: ServerResponse, requestOrigin?: string) {
     const root = path.resolve(this.options.rendererDist);
     const absolute = path.resolve(root, relative);
     if (absolute !== root && !absolute.startsWith(`${root}${path.sep}`)) return this.send(response, 404, 'No encontrado');
-    return this.serveAbsolute(absolute, response);
+    return this.serveAbsolute(absolute, response, requestOrigin);
   }
 
-  private async serveAbsolute(absolute: string, response: ServerResponse) {
+  private async serveAbsolute(absolute: string, response: ServerResponse, requestOrigin?: string) {
     try {
       const body = await fs.readFile(absolute);
-      response.writeHead(200, { 'Content-Type': MIME[path.extname(absolute).toLowerCase()] ?? 'application/octet-stream', 'Content-Security-Policy': CSP, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' });
+      const headers: Record<string, string> = {
+        'Content-Type': MIME[path.extname(absolute).toLowerCase()] ?? 'application/octet-stream',
+        'Content-Security-Policy': CSP,
+        'X-Content-Type-Options': 'nosniff',
+        'Cache-Control': 'no-store',
+      };
+      const allowedOrigin = this.resolveAllowedOrigin(requestOrigin);
+      if (allowedOrigin) {
+        headers['Access-Control-Allow-Origin'] = allowedOrigin;
+        headers.Vary = 'Origin';
+      }
+      response.writeHead(200, headers);
       response.end(body);
     } catch { this.send(response, 404, 'No encontrado'); }
+  }
+
+  /**
+   * El preview usa un iframe sandbox con origen opaco (`null`) y, en desarrollo,
+   * la ventana de reproduccion descarga el deck desde el origen exacto de Vite.
+   * Cualquier otro origen queda sin CORS, aunque conozca el endpoint loopback.
+   */
+  private resolveAllowedOrigin(requestOrigin?: string): string | undefined {
+    if (requestOrigin === 'null') return 'null';
+    if (!requestOrigin || !this.options.devServerUrl) return undefined;
+    try {
+      return requestOrigin === new URL(this.options.devServerUrl).origin ? requestOrigin : undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   private send(response: ServerResponse, status: number, body: string) {
@@ -135,4 +162,6 @@ function isAllowedWorkspaceResource(relative: string): boolean {
 
 export const PRESENTATION_RUNTIME_CSP = CSP;
 
-
+function normalizeOriginHeader(origin: string | string[] | undefined): string | undefined {
+  return Array.isArray(origin) ? origin[0] : origin;
+}

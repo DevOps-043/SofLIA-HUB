@@ -21,12 +21,10 @@ export function injectCSP(): void {
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
-    // Sin `frame-src` explicito, la directiva cae a `child-src` y de ahi a
-    // `default-src 'self'`: el origen de la aplicacion. La vista previa de una
-    // presentacion vive en `pulse-presentacion://`, asi que su iframe quedaba
-    // BLOQUEADO y se veia en blanco. Solo se permite ese esquema propio; no se
-    // abre a http(s), que seguiria sin poder embeberse.
-    "frame-src 'self' pulse-presentacion:",
+    // El runtime React se sirve desde un puerto efimero ligado exclusivamente
+    // a loopback. La CSP debe permitir ese iframe local ademas del protocolo
+    // legado; un host HTTP remoto continua bloqueado.
+    "frame-src 'self' pulse-presentacion: http://127.0.0.1:*",
   ].join('; ');
 
   if (document.readyState === 'loading') {

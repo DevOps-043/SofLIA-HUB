@@ -34,6 +34,7 @@ export interface DesktopAppContextAttachment {
   level: DesktopContextLevel;
   source: string;
   text: string;
+  /** Visual de apoyo del documento o captura cuando no hay lectura estructurada. */
   image?: string;
   warnings: DesktopContextWarning[];
   charCount: number;

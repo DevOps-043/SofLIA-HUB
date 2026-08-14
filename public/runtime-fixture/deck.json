@@ -54,10 +54,26 @@
       "titulo": "La legibilidad ya no depende de suerte.",
       "metricas": [
         { "valor": "1920×1080", "etiqueta": "Lienzo logico", "detalle": "Escala uniforme en cualquier ventana." },
-        { "valor": "8", "etiqueta": "Arquetipos", "detalle": "Composiciones cerradas y editables." },
+        { "valor": "9", "etiqueta": "Arquetipos", "detalle": "Composiciones cerradas y editables." },
         { "valor": "4", "etiqueta": "Continuidades", "detalle": "Un vocabulario expresivo y coherente." }
       ],
       "movimiento": { "continuidad": "flujo", "entrada": "foco", "enfasis": "conteo" }
+    },
+    {
+      "id": "grafica",
+      "tipo": "grafica",
+      "antetitulo": "Evidencia visual",
+      "titulo": "La señal cuantitativa se entiende de un vistazo.",
+      "introduccion": "Los datos siguen siendo declarativos; Recharts resuelve escala, ejes, interacción y animación.",
+      "tipoGrafica": "area",
+      "categorias": ["T1", "T2", "T3", "T4", "T5"],
+      "series": [
+        { "nombre": "Adopción", "valores": [18, 31, 47, 68, 86] },
+        { "nombre": "Objetivo", "valores": [22, 38, 54, 71, 90] }
+      ],
+      "unidad": "%",
+      "nota": "Serie demostrativa del runtime; no representa métricas de negocio.",
+      "movimiento": { "continuidad": "zoom", "entrada": "trazo", "enfasis": "recorrido" }
     },
     {
       "id": "cierre",
@@ -70,5 +86,4 @@
     }
   ]
 }
-
 

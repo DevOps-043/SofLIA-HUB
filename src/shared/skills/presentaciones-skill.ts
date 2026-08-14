@@ -11,13 +11,11 @@ export const PRESENTACIONES_ENTRY_FILE = 'deck.json';
 /** Hoja de marca que escribe main antes de que el modelo empiece. */
 export const PRESENTACIONES_BRAND_CSS = 'estilos/marca.css';
 
-/** Capa de diseno comun; tambien la escribe el sistema. */
+/** Capa de diseno del runtime HTML heredado; se conserva para workspaces antiguos. */
 export const PRESENTACIONES_BASE_CSS = 'estilos/base.css';
 
 /**
- * Guion base de la baraja. Lo escribe el sistema: dispara las entradas cuando
- * cada diapositiva llega a pantalla. Ligadas al scroll eran imperceptibles,
- * porque el salto de scroll-snap consumia el rango de entrada de golpe.
+ * Guion del runtime HTML heredado; se conserva para workspaces antiguos.
  */
 export const PRESENTACIONES_BASE_JS = 'guion-base.js';
 
@@ -53,11 +51,7 @@ export const PRESENTACIONES_SKILL: SystemSkill = Object.freeze({
     // La hoja de marca la escribe main. Que el modelo no pueda tocarla es lo
     // que garantiza que la identidad corporativa sea la real, aunque una
     // fuente intente convencerlo de usar otros colores.
-    protectedFiles: Object.freeze([
-      PRESENTACIONES_BRAND_CSS,
-      PRESENTACIONES_BASE_CSS,
-      PRESENTACIONES_BASE_JS,
-    ]) as readonly string[],
+    protectedFiles: Object.freeze([PRESENTACIONES_BRAND_CSS]) as readonly string[],
   }),
   featureFlag: 'VITE_SKILL_PRESENTACIONES_ENABLED',
   // Capacidad publicada: la bandera es su interruptor de APAGADO, no el
