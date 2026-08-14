@@ -29,6 +29,9 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
   modules.registerDriveHandlers(services.driveService, () => state.win);
   modules.registerGChatHandlers(services.gchatService, () => state.win);
   modules.registerIntegratedBrowserHandlers(services.integratedBrowserService, () => state.win);
+  // Subida de medios grandes al proveedor. Vive en main para no materializar
+  // un video de cientos de megabytes en la memoria del renderer.
+  modules.registerMediaInputHandlers(services.mediaInputService, () => state.win);
   // El navegador integrado sigue al usuario con sesion: cada cuenta tiene su
   // propio perfil (cookies, historial, contrasenas, permisos y extensiones) y al
   // cerrar sesion se derriba la navegacion en curso.

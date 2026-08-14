@@ -8,6 +8,7 @@ export function createMainServices(modules: any) {
   const driveService = new modules.DriveService(calendarService);
   const gchatService = new modules.GChatService(calendarService);
   const integratedBrowserService = new modules.IntegratedBrowserService();
+  const mediaInputService = new modules.MediaInputService();
   const desktopContextService = new modules.DesktopContextService();
   const skillWorkspaceService = new modules.SkillWorkspaceService();
   const desktopAgentService = new modules.DesktopAgentService(integratedBrowserService);
@@ -74,6 +75,7 @@ export function createMainServices(modules: any) {
     driveService,
     gchatService,
     integratedBrowserService,
+    mediaInputService,
     desktopContextService,
     skillWorkspaceService,
     desktopAgentService,

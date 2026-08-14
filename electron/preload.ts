@@ -15,6 +15,7 @@ import { exposeIntegratedBrowserApi } from './preload/integrated-browser-api';
 import { exposeRemoteApis } from './preload/remote-apis';
 import { runtimeConfig } from './preload/runtime-config';
 import { createSafeIpc } from './preload/safe-ipc';
+import { exposeMediaInputApi } from './preload/media-input-api';
 import { exposeSkillWorkspaceApi } from './preload/skill-workspace-api';
 import {
   assertContextIsolation,
@@ -39,6 +40,7 @@ exposeCalendarApi(contextBridge, safeIpc);
 exposeGoogleApis(contextBridge, safeIpc);
 exposeIntegratedBrowserApi(contextBridge, safeIpc);
 exposeSkillWorkspaceApi(contextBridge, safeIpc);
+exposeMediaInputApi(contextBridge, safeIpc);
 exposeDesktopApi(contextBridge, safeIpc);
 exposeDesktopContextApi(contextBridge, safeIpc);
 exposeUtilityApis(contextBridge, safeIpc);

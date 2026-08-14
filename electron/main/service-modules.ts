@@ -1,6 +1,8 @@
 export async function loadMainServiceModules() {
   const { IntegratedBrowserService } = await import('../integrated-browser');
   const { registerIntegratedBrowserHandlers } = await import('../integrated-browser-handlers');
+  const { MediaInputService } = await import('../media-input/service');
+  const { registerMediaInputHandlers } = await import('../media-input-handlers');
   const { DesktopContextService } = await import('../desktop-context/service');
   const { registerDesktopContextHandlers } = await import('../desktop-context-handlers');
   const { registerComputerUseHandlers } = await import('../computer-use-handlers');
@@ -68,6 +70,7 @@ export async function loadMainServiceModules() {
 
   return {
     IntegratedBrowserService, registerIntegratedBrowserHandlers,
+    MediaInputService, registerMediaInputHandlers,
     DesktopContextService, registerDesktopContextHandlers,
     SkillWorkspaceService, registerSkillWorkspaceHandlers, registerPresentationProtocolHandler,
     setSkillWorkspaceService,
