@@ -428,6 +428,8 @@ emergencia y manda sobre el catálogo remoto.
 | Herramienta | Qué hace |
 |---|---|
 | `read_browser_dom` | Lee el DOM saneado y acotado de la pestaña activa sin captura base64 ni Computer Use. Cada control expone un `ref` reutilizable por el controlador. |
+| `capturar_vista_navegador` | Toma un cuadro nuevo de la pestaña visible, a resolución del viewport, sin la cadencia ni el presupuesto reducido de la observación pasiva. Es la ruta de evidencia visual invocable por el modelo, independiente del heurístico de intención del renderer. Si la captura no es utilizable devuelve el motivo y prohíbe describir la escena. |
+| `analizar_video_pestana` | Analiza el video en reproducción sin depender de transcripción. Un video público direccionable viaja por su URI y el proveedor lo procesa con su pista de audio, acotado a una ventana alrededor de la posición de reproducción; cualquier otro reproductor degrada a un muestreo de cuadros con marcas de tiempo, declarado como muestreo. No reproduce, pausa ni navega. |
 | `navigate_integrated_browser` | Abre una URL HTTP(S) o consulta en la pestaña activa y devuelve su DOM saneado, conservando la sesión. |
 | `click_browser_element` | Hace clic real sobre el control identificado por su `ref` y devuelve el DOM posterior. Resuelve el elemento vivo y recalcula su punto de impacto, por lo que el scroll o un re-render no desvían la acción. Un control irreversible (enviar, pagar, borrar, cerrar sesión) exige confirmación explícita del usuario. |
 | `type_in_browser_element` | Reemplaza el contenido de un campo editable por su `ref`; enviar con Enter requiere confirmación explícita. Nunca se usa para credenciales. |
@@ -440,6 +442,36 @@ actuador visual. Las referencias `ref` caducan cuando la página cambia: el
 controlador falla con un error explícito que pide releer el DOM en vez de actuar
 sobre coordenadas obsoletas. El controlador se rechaza si la pestaña no está
 visible o si Computer Use ya está actuando sobre ella.
+
+**Evidencia visual y sonora: qué puede afirmarse**
+
+La regla que gobierna toda la entrada multimodal es una sola: SofLIA no
+describe lo que no llegó al turno. De ahí se derivan las guardas concretas.
+
+- Una captura de contenido protegido por DRM vuelve uniforme porque el
+  compositor no entrega esa superficie. Se detecta en main por desviación
+  típica del bitmap —antes de que la imagen salga del equipo— y el resultado
+  de la herramienta lleva `evidencia: "no-disponible"` con instrucción
+  explícita de no describir la escena.
+- Un muestreo de cuadros no es el video: no tiene audio ni lo ocurrido entre
+  cuadros. El resultado lo declara y el prompt exige reflejarlo en la
+  respuesta.
+- Un medio rechazado —formato no admitido, sobre el límite del proveedor,
+  fuera del presupuesto del turno— se comunica al modelo como medio ausente,
+  no se omite en silencio.
+- El costo de un turno con video es acotado y visible: la degradación es
+  ordenada —baja la resolución, luego acorta la ventana conservando el
+  instante actual, y solo entonces excluye un medio— y el sobre de envío
+  registra fuente, intervalo y resolución efectivos.
+
+**Escucha del entorno**
+
+La captura de audio para el chat solo arranca por petición explícita del
+usuario en el turno: si el modelo la invoca sin ella, la herramienta devuelve
+falta de autorización y no captura nada. Dura como máximo el límite
+configurado, muestra un indicador persistente con fuente y tiempo transcurrido
+mientras está activa, puede detenerse desde ese indicador, y el audio se
+descarta al resolverse o cancelarse el turno sin escribirse en disco.
 
 **Automatización de computadora** (`computer-automation-tools.ts`)
 

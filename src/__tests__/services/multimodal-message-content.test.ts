@@ -160,7 +160,7 @@ describe('constructor de partes multimodales', () => {
     expect(envelope.resolution).toBe('low');
     expect(envelope.estimatedTokens).toBeLessThanOrEqual(MEDIA_BUDGET.maxMediaTokensPerTurn);
     // La ventana se recorta desde el inicio: el final es lo que el usuario ve.
-    expect(content[2].videoMetadata.endOffset).toBe('190s');
+    expect((content[2] as { videoMetadata: { endOffset: string } }).videoMetadata.endOffset).toBe('190s');
     expect(envelope.sent).toHaveLength(2);
   });
 

@@ -3,7 +3,6 @@ import {
   MEDIA_BUDGET,
   buildPlaybackWindow,
   clampWindow,
-  windowDurationSeconds,
 } from '../../shared/multimodal-input';
 import type {
   BrowserDomSnapshot,
@@ -168,11 +167,13 @@ async function analyzeTabVideo(
   const posicionConocida = player.currentTimeSeconds !== null;
 
   if (player.publicVideoUrl) {
-    const window_ = buildPlaybackWindow(player.currentTimeSeconds, player.durationSeconds ?? undefined);
-    const acotada = clampWindow({
-      startSeconds: window_.startSeconds,
-      endSeconds: Math.min(window_.startSeconds + ventana, window_.endSeconds + ventana - windowDurationSeconds(window_)),
-    }, player.durationSeconds ?? undefined);
+    const base = buildPlaybackWindow(player.currentTimeSeconds, player.durationSeconds ?? undefined);
+    // La ventana pedida se cuenta desde el inicio ya alineado con la
+    // reproduccion; `clampWindow` la recorta al medio y al maximo del turno.
+    const acotada = clampWindow(
+      { startSeconds: base.startSeconds, endSeconds: base.startSeconds + ventana },
+      player.durationSeconds ?? undefined,
+    );
     return JSON.stringify({
       success: true,
       evidencia: 'video',

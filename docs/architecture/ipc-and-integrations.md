@@ -280,6 +280,38 @@ lo declara para que la interfaz no prometa una fidelidad que la plataforma no
 puede dar. `SOFLIA_DISABLE_DESKTOP_CONTEXT=1` no registra los handlers: el
 renderer ve la API ausente y oculta la entrada del menu.
 
+## Entrada multimodal
+
+Los canales `media-input:*` suben medios al proveedor del modelo. Viven en main
+por presupuesto de memoria: subir desde el renderer obligaría a leer el archivo
+entero como `ArrayBuffer`, y un video de cientos de megabytes no cabe ahí. El
+renderer entrega la **ruta** y recibe la referencia remota; el contenido nunca
+cruza la frontera IPC.
+
+La ruta del archivo se obtiene en el preload con `webUtils.getPathForFile`:
+desde Electron 32 `File.path` ya no existe y es la única forma de resolverla sin
+leer el archivo.
+
+| Canal | Efecto |
+|---|---|
+| `media-input:upload` | Sube el archivo por flujo desde disco y espera a que el proveedor lo declare procesado, con límite de tiempo para no bloquear el turno. Valida formato y tamaño antes de transferir. |
+| `media-input:status` | Estado de una subida: `processing`, `ready`, `failed` o `cancelled`. |
+| `media-input:cancel` | Aborta una subida en curso y suelta el archivo remoto si alcanzó a crearse. |
+| `media-input:release` | Borra el archivo remoto al terminar o cancelarse el turno que lo consumía. |
+
+Los errores del proveedor se sanean antes de volver al renderer: ni la clave de
+API ni la ruta local completa aparecen en el mensaje. La primera transferencia
+de la sesión requiere consentimiento explícito del usuario, porque el archivo
+deja el equipo y permanece temporalmente en la infraestructura del proveedor.
+
+Los canales de visión del navegador amplían el contrato existente:
+
+| Canal | Efecto |
+|---|---|
+| `integrated-browser:capture-frame` | Cuadro fresco de la pestaña visible a resolución del viewport, con evaluación de utilizabilidad en main. Devuelve el motivo cuando la captura no representa lo que el usuario ve. |
+| `integrated-browser:get-player-state` | Posición, duración y URI pública del reproductor activo. Solo observa: no reproduce, pausa ni navega. |
+| `integrated-browser:sample-frames` | Secuencia de cuadros con marcas de tiempo para un reproductor no direccionable. |
+
 ## Espacio de trabajo de Skills y presentaciones
 
 Los canales `skill-workspace:*` operan **solo dentro** del workspace que indica

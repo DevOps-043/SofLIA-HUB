@@ -66,7 +66,7 @@ describe('handlers del navegador integrado', () => {
 
   it('registra el contrato completo y enruta payloads validos', async () => {
     const handlers = ipcMainHarness._getHandlers();
-    expect(Array.from(handlers.keys()).filter((key: unknown) => String(key).startsWith('integrated-browser:'))).toHaveLength(52);
+    expect(Array.from(handlers.keys()).filter((key: unknown) => String(key).startsWith('integrated-browser:'))).toHaveLength(55);
     expect(handlers.has('integrated-browser:clear-browsing-data')).toBe(true);
     expect(handlers.has('integrated-browser:writing-resolve')).toBe(true);
     expect(handlers.has('integrated-browser:reading-download')).toBe(false);

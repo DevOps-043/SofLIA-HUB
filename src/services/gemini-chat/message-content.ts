@@ -16,6 +16,24 @@ import {
 } from '../../shared/multimodal-input';
 
 /**
+ * Parte del turno tal como la espera el proveedor. Se tipa aqui en vez de
+ * usar `any` para que el constructor no pueda emitir una forma que el SDK
+ * rechace en tiempo de ejecucion.
+ */
+export type ProviderPart =
+  | { inlineData: { mimeType: string; data: string } }
+  | {
+    fileData: { fileUri: string; mimeType: string };
+    videoMetadata?: { startOffset: string; endOffset: string; fps?: number };
+  };
+
+export interface BuiltMessageContent {
+  /** Texto solo, o el texto seguido de las partes de medio. */
+  content: string | Array<string | ProviderPart>;
+  envelope: MediaEnvelope;
+}
+
+/**
  * Construye el contenido multimodal del turno.
  *
  * Devuelve tambien un `MediaEnvelope` con lo que se envio de verdad: la fuente,
@@ -23,11 +41,6 @@ import {
  * visible para que el usuario —y el propio modelo— sepan sobre que evidencia se
  * esta respondiendo, en lugar de deducirlo.
  */
-export interface BuiltMessageContent {
-  content: any;
-  envelope: MediaEnvelope;
-}
-
 export function buildMultimodalContent(
   finalMessage: string,
   media: MediaRef[] = [],
@@ -121,7 +134,10 @@ export function normalizeImagesToMediaRefs(images?: string[]): MediaRef[] {
 }
 
 /** Firma anterior, conservada para los call sites que solo envian imagenes. */
-export function buildMessageContent(finalMessage: string, images?: string[]): any {
+export function buildMessageContent(
+  finalMessage: string,
+  images?: string[],
+): string | Array<string | ProviderPart> {
   return buildMultimodalContent(finalMessage, normalizeImagesToMediaRefs(images)).content;
 }
 
@@ -189,12 +205,12 @@ function resolveTurnResolution(media: MediaRef[], requested?: MediaResolutionLev
 }
 
 function buildParts(media: MediaRef[], resolution: MediaResolutionLevel): {
-  parts: any[];
+  parts: ProviderPart[];
   sent: MediaEnvelope['sent'];
   presupuestoExcedido: MediaRejection[];
   tokens: number;
 } {
-  const parts: any[] = [];
+  const parts: ProviderPart[] = [];
   const sent: MediaEnvelope['sent'] = [];
   const presupuestoExcedido: MediaRejection[] = [];
   let tokens = 0;
@@ -243,8 +259,8 @@ function buildParts(media: MediaRef[], resolution: MediaResolutionLevel): {
   return { parts, sent, presupuestoExcedido, tokens };
 }
 
-function buildFilePart(uri: string, mimeType: string, window?: MediaWindow, fps?: number): any {
-  const part: any = { fileData: { fileUri: uri, mimeType } };
+function buildFilePart(uri: string, mimeType: string, window?: MediaWindow, fps?: number): ProviderPart {
+  const part: Extract<ProviderPart, { fileData: unknown }> = { fileData: { fileUri: uri, mimeType } };
   if (window) {
     part.videoMetadata = {
       startOffset: toOffsetString(window.startSeconds),

@@ -55,6 +55,8 @@ evidencia medida en el host de referencia.
 | composición de pestañas | `single`, `split` o `overlay`; foco = objetivo de Computer Use | `electron/integrated-browser/service.ts` |
 | percepción de pestaña activa | cadencia base 10.000 ms y calma 4.000 ms; YouTube: 30.000/12.000 ms; máximo 1024 px en captura pasiva; solo con ventana enfocada y fuera de Computer Use; DOM completo bajo demanda y solo para turnos dependientes del navegador; una captura por tipo en vuelo; solo último snapshot en memoria; pausada por usuario | `electron/integrated-browser/types.ts`, `electron/integrated-browser/service.ts`, `src/services/gemini-chat/send-message-stream.ts` |
 | límites del DOM observado | texto 24.000 caracteres; 100 encabezados; 60 landmarks; 240 controles; 30 frames; 1.800 nodos y margen de viewport 240 px; sin valores de formularios | `electron/integrated-browser/page-observation.ts` |
+| captura explícita bajo demanda | resolución lógica del viewport (sin el tope de 1024 px de la pasiva); separación mínima de 350 ms entre invocaciones consecutivas | `electron/integrated-browser/types.ts`, `electron/integrated-browser/service.ts` |
+| evidencia visual no utilizable | desviación típica por canal < 3,5 sobre hasta 4.000 muestras del bitmap ⇒ `contenido-protegido`; imagen vacía ⇒ `captura-vacia` | `electron/integrated-browser/capture-quality.ts` |
 | longitud de direccion/busqueda | 2048 caracteres | `electron/integrated-browser/validation.ts` |
 | viewport minimo | 160 x 120 DIP | mismo archivo |
 | protocolos de pagina principal | HTTP(S) y `about:blank` | mismo archivo |
@@ -91,6 +93,34 @@ aislados o con identificador siguen usando `BrowserWebService`/Playwright. Las
 extensiones se recargan al iniciar porque Electron no las conserva cargadas; se
 rechazan `nativeMessaging`, `debugger`, `proxy` y `management`. Seleccionar otra
 carpeta o vencer el plazo invalida la autorizacion pendiente anterior.
+
+## Entrada multimodal
+
+El video cuesta del orden de cientos de tokens por segundo enviado. Sin límites
+explícitos, una pregunta casual sobre un video de una hora produce un turno de
+coste desproporcionado, así que la degradación es ordenada: primero baja la
+resolución de medios, luego acorta la ventana conservando el instante actual, y
+solo entonces excluye un medio declarándolo.
+
+<!-- evidence: src/shared/multimodal-input.ts -->
+<!-- evidence: electron/media-input/service.ts -->
+
+| Parametro | Default/tope | Fuente |
+|---|---:|---|
+| ventana máxima de video por turno | 90 s | `src/shared/multimodal-input.ts` |
+| ventana alrededor de la reproducción | 30 s antes y 10 s después de la posición actual | mismo archivo |
+| umbral de resolución reducida | > 20 s de video ⇒ `MEDIA_RESOLUTION_LOW` | mismo archivo |
+| costo estimado de video | 100 / 300 / 600 tokens por segundo (low / medium / high) | mismo archivo |
+| costo estimado de audio | 32 tokens por segundo | mismo archivo |
+| presupuesto de medios por turno | 30.000 tokens | mismo archivo |
+| muestreo de cuadros | 6 cuadros separados 2 s (máximo 12 por llamada) | mismo archivo, `electron/integrated-browser-handlers.ts` |
+| adjuntos de medio por turno | máximo 4; duración combinada máxima 600 s | `src/shared/multimodal-input.ts` |
+| umbral de subida remota | > 15 MB se sube por Files API; por debajo viaja incrustado; las imágenes siempre incrustadas | `src/shared/multimodal-input.ts`, `src/services/media-attachments.ts` |
+| tope de subida al proveedor | 2 GB | `src/shared/multimodal-input.ts` |
+| espera de procesamiento del archivo | sondeo cada 1.500 ms, límite 120.000 ms | `electron/media-input/service.ts` |
+| retención del archivo remoto | 48 h (o `expirationTime` del proveedor); referencia caducada no se reutiliza | mismo archivo |
+| escucha ambiental | máximo 60 s; WAV mono 16 kHz; sin persistencia en disco | `src/shared/multimodal-input.ts`, `src/services/ambient-audio-service.ts` |
+| interruptores de reversión | `VITE_MULTIMODAL_BROWSER_VISION`, `VITE_MULTIMODAL_MEDIA_ATTACHMENTS`, `VITE_MULTIMODAL_AMBIENT_AUDIO`; activas salvo valor `false` | `src/shared/multimodal-input.ts` |
 
 ## Red, archivos y correo
 

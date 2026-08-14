@@ -25,8 +25,8 @@ un host concreto. `package-lock.json` fija la resolucion reproducible.
 
 | Tecnologia | Version | Consumidores |
 |---|---:|---|
-| `@google/genai` | `^2.10.0` | APIs Gemini recientes, grounding/computer use |
-| `@google/generative-ai` | `^0.24.1` | servicios y loops heredados/compatibles |
+| `@google/genai` | `^2.15.0` | ruta conversacional del chat, entrada multimodal (`videoMetadata`, `mediaResolution`, Files API), grounding y Computer Use |
+| `@google/generative-ai` | `^0.24.1` | **descontinuado**; solo utilidades de un solo disparo (titulo de conversacion, flow, generacion de imagen, panel de escritura, optimizador de prompt). Pendiente de retirada en un cambio de limpieza; no debe recibir codigo nuevo |
 | Gemini REST/WebSocket | endpoints v1beta | chat, Live API, embeddings, vision, transcripcion, research |
 | Tesseract.js | `^5.0.5` | OCR de monitoreo/UI |
 | ONNX Runtime Node | `^1.27.0` | parser visual local/OmniParser |

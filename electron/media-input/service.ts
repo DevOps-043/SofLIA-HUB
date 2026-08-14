@@ -217,6 +217,10 @@ export class MediaInputService {
 
   private record(record: MediaUploadRecord): MediaUploadRecord {
     this.uploads.set(record.uploadId, record);
+    // Una subida que ya no puede avanzar no necesita seguir en el conjunto de
+    // canceladas: sin esto crecia indefinidamente durante toda la sesion, ya
+    // que solo `release` lo limpiaba y el renderer no siempre lo llama.
+    if (record.state === 'ready' || record.state === 'failed') this.cancelled.delete(record.uploadId);
     return record;
   }
 

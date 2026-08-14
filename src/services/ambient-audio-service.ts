@@ -43,6 +43,8 @@ const PCM_WORKLET_FILENAME = 'meeting-live-pcm-worklet.js';
 
 export class AmbientAudioCapture {
   private pipeline: Pipeline | null = null;
+  /** Activa desde antes de conectar los nodos hasta el cierre de la captura. */
+  private capturing = false;
   private samples: Float32Array[] = [];
   private totalSamples = 0;
   private source: AmbientSource | null = null;
@@ -163,8 +165,13 @@ export class AmbientAudioCapture {
   private async attach(stream: MediaStream): Promise<void> {
     const context = new AudioContext({ sampleRate: AMBIENT_SAMPLE_RATE });
     const sourceNode = context.createMediaStreamSource(stream);
+    // La bandera se activa ANTES de conectar los nodos: `this.pipeline` solo
+    // existe al final de este metodo, y el audio empieza a fluir en cuanto se
+    // conectan, asi que condicionar la acumulacion al pipeline perdia los
+    // primeros bloques de cada escucha.
+    this.capturing = true;
     const acumular = (bloque: Float32Array) => {
-      if (!this.pipeline) return;
+      if (!this.capturing) return;
       this.samples.push(new Float32Array(bloque));
       this.totalSamples += bloque.length;
     };
@@ -194,6 +201,7 @@ export class AmbientAudioCapture {
   }
 
   private teardown(): void {
+    this.capturing = false;
     const activo = this.pipeline;
     this.pipeline = null;
     this.source = null;
