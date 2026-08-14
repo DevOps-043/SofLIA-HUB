@@ -1,5 +1,4 @@
 import type { RemoteNodeService } from '../remote-node-service';
-import type { WorkflowHubService } from '../workflow-hub-service';
 import type { WorkspaceAutomationService } from '../workspace-automation-service';
 import type { CommunicationHubService } from '../communication-hub/service';
 
@@ -36,9 +35,21 @@ export interface TelegramState {
 
 export interface TelegramDeps {
   workspaceAutomationService: WorkspaceAutomationService;
-  workflowHubService: WorkflowHubService;
   remoteNodeService: RemoteNodeService;
   communicationHubService?: CommunicationHubService;
+  /**
+   * Ejecuta un turno del agente con las instrucciones de una Skill anexadas.
+   *
+   * Se inyecta en vez de importarse para que Telegram no dependa del agente de
+   * WhatsApp: el canal ofrece Skills, y quien las ejecuta es una decision del
+   * arranque. Ausente = el canal no puede ejecutar Skills todavia.
+   */
+  runSkillTurn?: (input: {
+    chatId: string;
+    userId: string | null;
+    prompt: string;
+    isGroup: boolean;
+  }) => Promise<string>;
 }
 
 export interface TelegramRuntimeContext {

@@ -1,5 +1,5 @@
 import { PRESENTACIONES_SKILL_PROMPT } from '../../prompts/skills/presentaciones';
-import type { SystemSkill } from './types';
+import type { SkillSurface, SystemSkill } from './types';
 import { SKILL_WORKSPACE_TOOL_NAMES } from './workspace-tool-names';
 
 /** Identificador estable de la Skill; se usa en IPC, telemetria y UI. */
@@ -40,7 +40,7 @@ export const PRESENTACIONES_SKILL: SystemSkill = Object.freeze({
     'Haz una presentacion de la pagina que tengo abierta en el navegador',
     'Prepara una propuesta comercial en diapositivas para un cliente',
   ]) as readonly string[],
-  surfaces: Object.freeze(['chat', 'whatsapp']) as readonly ('chat' | 'whatsapp')[],
+  surfaces: Object.freeze(['chat', 'whatsapp', 'telegram']) as readonly SkillSurface[],
   tools: Object.freeze([...SKILL_WORKSPACE_TOOL_NAMES]) as readonly string[],
   workspace: Object.freeze({
     rootFolder: 'presentaciones',

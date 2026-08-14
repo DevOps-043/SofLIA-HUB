@@ -1,6 +1,7 @@
 import { Notification } from 'electron';
 import { logBootstrapError } from './bootstrap-steps';
 import type { MainRuntimeState } from './runtime-state';
+import type { SkillChannel } from '../../src/shared/skills/types';
 
 export function registerServiceEvents(input: { modules: any; services: any; state: MainRuntimeState; controls: any }): void {
   const { modules, services, state } = input;
@@ -15,13 +16,7 @@ export function registerServiceEvents(input: { modules: any; services: any; stat
   });
 
   services.taskScheduler.on('task-triggered', (data: any) => {
-    if (data?.executionMode === 'workflow' && data?.workflowId) {
-      void executePassiveWorkflow(services, data);
-      return;
-    }
-    if (!state.waAgent || !services.waService.getStatus().connected) return;
-    const jid = `${String(data.phoneNumber || '').replace(/\D/g, '')}@s.whatsapp.net`;
-    void state.waAgent.handleScheduledTaskTrigger(jid, data.phoneNumber, data);
+    void runPassiveSkill({ modules, services, state, controls: input.controls, task: data });
   });
 
   registerCalendarEvents(services, state);
@@ -30,25 +25,79 @@ export function registerServiceEvents(input: { modules: any; services: any; stat
   services.waService.on('status', (status: any) => state.win?.webContents.send('whatsapp:status', status));
 }
 
-async function executePassiveWorkflow(services: any, data: any): Promise<void> {
+/**
+ * Disparo de una Skill pasiva.
+ *
+ * Antes de este cambio el destino estaba cableado a WhatsApp: si la sesion
+ * estaba desconectada, el resultado se perdia aunque el usuario estuviera
+ * delante de la computadora. Ahora la regla declara sus canales y la entrega se
+ * reparte entre ellos, aislando el fallo de cada uno.
+ */
+async function runPassiveSkill(input: {
+  modules: any;
+  services: any;
+  state: MainRuntimeState;
+  controls: any;
+  task: any;
+}): Promise<void> {
+  const { services, state, controls, task } = input;
+  const channels: SkillChannel[] = Array.isArray(task?.channels) && task.channels.length > 0
+    ? task.channels
+    : ['whatsapp'];
+  const title = String(task?.name || 'Skill pasiva');
+
   try {
-    const detail = await services.workflowHubService.executeWorkflow({
-      workflowId: data.workflowId,
-      requestedBy: data.requestedBy || 'scheduler',
-      input: data.workflowInput || {},
+    const text = await executePassiveSkillPrompt(state, task);
+    if (!text) return;
+
+    const { deliverToChannels } = await import('../passive-skills/delivery');
+    await deliverToChannels(text, { channels, phoneNumber: task?.phoneNumber, title }, {
+      sendWhatsApp: services.waService.getStatus().connected
+        ? async (phoneNumber: string, message: string) => {
+            const jid = `${phoneNumber}@s.whatsapp.net`;
+            await services.waService.sendText(jid, message);
+            // El resultado entra en el historial de esa conversacion solo
+            // cuando salio por ahi: es donde el usuario podria preguntar por el.
+            const { recordScheduledTaskDelivery } = await import('../wa-agent/scheduled-task-trigger');
+            recordScheduledTaskDelivery({
+              waService: services.waService,
+              jid,
+              senderNumber: String(task?.phoneNumber || ''),
+              task,
+              response: message,
+            });
+          }
+        : undefined,
+      sendTelegram: services.telegramService?.isConfigured?.()
+        ? (message: string) => services.telegramService.sendToPrincipalChat(message)
+        : undefined,
+      announceOnOrb: controls?.orbAnnouncements
+        ? (message: string, meta: { title: string }) => controls.orbAnnouncements.announce(message, meta)
+        : undefined,
     });
-    const phoneNumber = String(data.phoneNumber || '').replace(/\D/g, '');
-    if (!phoneNumber || !services.waService.getStatus().connected) return;
-    const message = [
-      `Workflow pasivo ejecutado: ${detail.workflowName}`,
-      `Caso: ${detail.title}`,
-      `Estado: ${detail.normalizedStatus}`,
-      detail.summary ? `Resumen: ${detail.summary}` : '',
-    ].filter(Boolean).join('\n');
-    await services.waService.sendText(`${phoneNumber}@s.whatsapp.net`, message);
   } catch (error) {
-    console.error('[Main] Passive workflow execution failed:', error);
+    // Un fallo no cancela la programacion: la Skill sigue activa para su
+    // siguiente disparo. Solo queda constancia.
+    console.error(`[SkillsPasivas] "${title}" fallo al ejecutarse:`, error);
   }
+}
+
+/**
+ * Ejecuta el prompt de la regla y devuelve el texto a entregar.
+ *
+ * Se apoya en el agente de WhatsApp porque es el unico bucle de agente que
+ * corre en main sin depender de que haya una ventana abierta, que es
+ * justamente la condicion de una rutina programada.
+ */
+async function executePassiveSkillPrompt(state: MainRuntimeState, task: any): Promise<string> {
+  if (!state.waAgent) {
+    console.warn('[SkillsPasivas] No hay agente disponible para ejecutar la rutina.');
+    return '';
+  }
+  const phoneNumber = String(task?.phoneNumber || '').replace(/\D/g, '');
+  const jid = phoneNumber ? `${phoneNumber}@s.whatsapp.net` : '';
+  const result = await state.waAgent.handleScheduledTaskTrigger(jid, task?.phoneNumber, task);
+  return typeof result === 'string' ? result : '';
 }
 
 function registerCalendarEvents(services: any, state: MainRuntimeState): void {

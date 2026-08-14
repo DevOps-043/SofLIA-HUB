@@ -52,10 +52,16 @@ export function registerPreloadChannelTests() {
     }
   });
 
-  it('SEC-030 to SEC-032: updater, memory and workflow-hub namespaces are present', () => {
+  it('SEC-030 to SEC-032: updater, memory and passive-skills namespaces are present', () => {
     expect(ALLOWED_IPC_CHANNELS.filter((channel) => channel.startsWith('updater:')).length).toBeGreaterThanOrEqual(4);
     expect(ALLOWED_IPC_CHANNELS.filter((channel) => channel.startsWith('memory:')).length).toBeGreaterThanOrEqual(3);
-    expect(ALLOWED_IPC_CHANNELS.filter((channel) => channel.startsWith('workflow-hub:')).length).toBeGreaterThanOrEqual(6);
+    expect(ALLOWED_IPC_CHANNELS.filter((channel) => channel.startsWith('passive-skills:')).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('SEC-032b: el Hub de Flujos ya no expone ningun canal', () => {
+    // Se retiro con el motor. Si un canal reapareciera, seria un handler
+    // resucitado sin panel que lo consuma ni servicio que lo atienda.
+    expect(ALLOWED_IPC_CHANNELS.filter((channel) => channel.startsWith('workflow-hub:'))).toEqual([]);
   });
 
   it('SEC-035: el navegador integrado expone solo su contrato allowlisted', () => {

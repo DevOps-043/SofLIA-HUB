@@ -56,6 +56,15 @@ export class MeetingPassiveDetectionService extends EventEmitter {
     console.log('[MeetingPassiveDetection] Polling stopped');
   }
 
+  /**
+   * Si la deteccion esta corriendo. Lo consulta la lista de Skills pasivas para
+   * mostrarla como capacidad activa del sistema o como bloqueada, ya que es una
+   * capacidad que el usuario ve pero no programa.
+   */
+  isPolling(): boolean {
+    return this.intervalId !== null;
+  }
+
   async runScanNow(): Promise<void> {
     // Negacion por defecto: sin sesion no se escanea Gmail/Calendar/Drive ni se
     // notifica al usuario. Cubre el tick inicial y el polling periodico.

@@ -56,7 +56,7 @@ El modal unificado expone once tabs:
 6. Conexiones
 7. Miembros (oculta sin organizacion)
 8. Productividad
-9. Flujos de Trabajo (`agents`)
+9. Skills pasivas (`passive-skills`, dentro de la tab de Skills)
 10. Actualizacion
 11. `meetings` existe en el tipo pero no aparece en `getSettingsTabs`; esta
     diferencia es una brecha de navegacion, no una tab visible.

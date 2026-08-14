@@ -10,10 +10,64 @@
  * APRENDIDA del usuario (preferencias, correcciones) y no es invocable.
  */
 
-/** Superficies del producto donde una Skill puede ofrecerse. */
-export type SkillSurface = 'chat' | 'whatsapp';
+/**
+ * Superficies del producto donde una Skill puede ofrecerse.
+ *
+ * La superficie es el eje TECNICO: de ella dependen el catalogo que se resuelve
+ * y la allowlist de herramientas que una Skill puede aportar. No confundir con
+ * el CANAL (`SkillChannel`), que es lo que el usuario elige.
+ */
+export type SkillSurface = 'chat' | 'whatsapp' | 'telegram';
 
-export const SKILL_SURFACES: readonly SkillSurface[] = ['chat', 'whatsapp'];
+export const SKILL_SURFACES: readonly SkillSurface[] = ['chat', 'whatsapp', 'telegram'];
+
+export function isSkillSurface(value: unknown): value is SkillSurface {
+  return value === 'chat' || value === 'whatsapp' || value === 'telegram';
+}
+
+/**
+ * Canales donde el usuario decide que una Skill este activa.
+ *
+ * Es el eje DE PRODUCTO, y por eso no coincide con las superficies: la orbe y
+ * el chat del Hub son un solo canal para el usuario ("mi computadora") y una
+ * sola superficie para el sistema (`chat`), porque comparten agente, catalogo y
+ * allowlist. Duplicar `chat` como superficie solo para nombrar el escritorio
+ * obligaria a mantener dos listas de herramientas que unicamente pueden
+ * divergir.
+ */
+export type SkillChannel = 'escritorio' | 'whatsapp' | 'telegram';
+
+export const SKILL_CHANNELS: { value: SkillChannel; label: string; description: string }[] = [
+  {
+    value: 'escritorio',
+    label: 'Computadora',
+    description: 'SofLIA aparece en modo orbe y te lo dice en voz alta.',
+  },
+  {
+    value: 'whatsapp',
+    label: 'WhatsApp',
+    description: 'SofLIA te lo manda por mensaje de WhatsApp.',
+  },
+  {
+    value: 'telegram',
+    label: 'Telegram',
+    description: 'SofLIA te lo manda por mensaje de Telegram.',
+  },
+];
+
+export function isSkillChannel(value: unknown): value is SkillChannel {
+  return value === 'escritorio' || value === 'whatsapp' || value === 'telegram';
+}
+
+/** Superficie sobre la que se resuelve un canal. */
+export function channelToSurface(channel: SkillChannel): SkillSurface {
+  return channel === 'escritorio' ? 'chat' : channel;
+}
+
+/** Canal que corresponde a una superficie. Inversa de `channelToSurface`. */
+export function surfaceToChannel(surface: SkillSurface): SkillChannel {
+  return surface === 'chat' ? 'escritorio' : surface;
+}
 
 /**
  * Clase de una Skill. SIEMPRE se deriva de la fuente de la declaracion,

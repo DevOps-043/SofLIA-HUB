@@ -3,7 +3,7 @@ import { registerBasicAgentTests } from './whatsapp-agent/basic-agent-tests';
 import { registerCommandTests } from './whatsapp-agent/command-tests';
 import { registerContextMemoryTests } from './whatsapp-agent/context-memory-tests';
 import { registerDependencySetterTests } from './whatsapp-agent/dependency-setter-tests';
-import { registerPassiveWorkflowTests } from './whatsapp-agent/passive-workflow-tests';
+import { registerPassiveSkillTests } from './whatsapp-agent/passive-skill-tests';
 import { registerResponseRetryTests } from './whatsapp-agent/response-retry-tests';
 import { registerSecurityPrefilterTests } from './whatsapp-agent/security-prefilter-tests';
 import {
@@ -40,7 +40,7 @@ describe('WhatsApp Agent', () => {
 
   registerBasicAgentTests(ctx);
   registerContextMemoryTests(ctx);
-  registerPassiveWorkflowTests(ctx);
+  registerPassiveSkillTests(ctx);
   registerCommandTests(ctx);
   registerSecurityPrefilterTests(ctx);
   registerDependencySetterTests(ctx);

@@ -11,7 +11,7 @@ import type { ClipboardAIAssistant } from './clipboard-ai-assistant';
 import type { ScheduledTaskInfo, TaskScheduler } from './task-scheduler';
 import type { NeuralOrganizerService } from './neural-organizer';
 import type { WorkspaceAutomationService } from './workspace-automation-service';
-import type { WorkflowHubService } from './workflow-hub-service';
+import type { PassiveSkillsService } from './passive-skills/service';
 import type { MeetingWorkflowService } from './meetings/meeting-workflow-service';
 import type { CommunicationHubService } from './communication-hub/service';
 import { SmartSearchTool } from './smart-search-tool';
@@ -41,7 +41,7 @@ export class WhatsAppAgent {
   neuralOrganizer: NeuralOrganizerService | null = null;
   smartSearch: SmartSearchTool | null = null;
   workspaceAutomationService: WorkspaceAutomationService | null = null;
-  workflowHubService: WorkflowHubService | null = null;
+  passiveSkillsService: PassiveSkillsService | null = null;
   communicationHubService: CommunicationHubService | null = null;
 
   constructor(
@@ -60,16 +60,17 @@ export class WhatsAppAgent {
   setTaskScheduler(service: TaskScheduler): void { this.taskScheduler = service; console.log('[WhatsApp Agent] Task Scheduler connected'); }
   setMeetingWorkflowService(service: MeetingWorkflowService): void { void service; console.log('[WhatsApp Agent] Meeting workflow service connected'); }
   setWorkspaceAutomationService(service: WorkspaceAutomationService): void { this.workspaceAutomationService = service; console.log('[WhatsApp Agent] Workspace automation service connected'); }
-  setWorkflowHubService(service: WorkflowHubService): void { this.workflowHubService = service; console.log('[WhatsApp Agent] Workflow hub service connected'); }
+  setPassiveSkillsService(service: PassiveSkillsService): void { this.passiveSkillsService = service; console.log('[WhatsApp Agent] Passive skills service connected'); }
   setCommunicationHubService(service: CommunicationHubService): void { this.communicationHubService = service; console.log('[WhatsApp Agent] Communication Hub connected'); }
   setNeuralOrganizer(service: NeuralOrganizerService): void { this.neuralOrganizer = service; console.log('[WhatsApp Agent] Neural Organizer connected'); }
   updateApiKey(key: string): void { this.apiKey = key; this.genAI = null; }
   getGenAI(): GoogleGenerativeAI { this.genAI ||= new GoogleGenerativeAI(this.apiKey); return this.genAI; }
 
   handleMessage(jid: string, senderNumber: string, text: string, isGroup = false, groupPassiveHistory = ''): Promise<void> {
-    return handleWhatsAppTextMessage({ waService: this.waService, workflowHubService: this.workflowHubService, conversations, pendingConfirmations, handleChatCommand: (...args) => this.handleChatCommand(...args), runAgentLoop: (...args) => this.runAgentLoop(...args), jid, senderNumber, text, isGroup, groupPassiveHistory });
+    return handleWhatsAppTextMessage({ waService: this.waService, passiveSkillsService: this.passiveSkillsService, conversations, pendingConfirmations, handleChatCommand: (...args) => this.handleChatCommand(...args), runAgentLoop: (...args) => this.runAgentLoop(...args), jid, senderNumber, text, isGroup, groupPassiveHistory });
   }
-  handleScheduledTaskTrigger(jid: string, senderNumber: string, task: ScheduledTaskInfo): Promise<void> {
+  /** Devuelve el texto del resultado; la entrega la decide quien llama. */
+  handleScheduledTaskTrigger(jid: string, senderNumber: string, task: ScheduledTaskInfo): Promise<string> {
     return handleScheduledWhatsAppTask({ waService: this.waService, runAgentLoop: (...args) => this.runAgentLoop(...args), jid, senderNumber, task });
   }
   handleMedia(jid: string, senderNumber: string, buffer: Buffer, fileName: string, mimetype: string, text: string, isGroup = false, groupPassiveHistory = ''): Promise<void> {
@@ -79,8 +80,19 @@ export class WhatsAppAgent {
     await handleWhatsAppAudioMessage({ waService: this.waService, getGenAI: () => this.getGenAI(), jid, senderNumber, audioBuffer, isGroup, groupPassiveHistory, handleTextMessage: (targetJid, sender, message, group, history) => this.handleMessage(targetJid, sender, message, group, history) });
   }
 
+  /**
+   * Ejecuta un turno con las instrucciones de una Skill ya anexadas.
+   *
+   * Publico porque lo invoca el dispatcher de comandos: es el punto por el que
+   * una Skill del catalogo pasa a ser un turno del agente, con el mismo bucle y
+   * las mismas guardas que cualquier otro mensaje.
+   */
+  runSkillTurn(jid: string, senderNumber: string, prompt: string, isGroup = false): Promise<string> {
+    return this.runAgentLoop(jid, senderNumber, prompt, isGroup);
+  }
+
   private handleChatCommand(jid: string, senderNumber: string, text: string, isGroup: boolean): Promise<string | null> {
-    return handleSlashChatCommand({ jid, senderNumber, text, isGroup, agent: this, conversations, memory: this.memory, waService: this.waService, workflowHubService: this.workflowHubService, workspaceAutomationService: this.workspaceAutomationService });
+    return handleSlashChatCommand({ jid, senderNumber, text, isGroup, agent: this, conversations, memory: this.memory, waService: this.waService, workspaceAutomationService: this.workspaceAutomationService });
   }
   private runAgentLoop(jid: string, senderNumber: string, userMessage: string, isGroup = false, groupPassiveHistory = '', inlineMediaParts: Array<{ inlineData: { mimeType: string; data: string } }> = [], options: AgentLoopOptions = {}): Promise<string> {
     return runWhatsAppAgentLoop({

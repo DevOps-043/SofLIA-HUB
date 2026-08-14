@@ -22,7 +22,8 @@ el catalogo y su validador deben actualizarse juntos.
 | `monitoring`, `gmail`, `remote-node` | 13 cada uno | actividad; correo; host remoto |
 | `meeting`, `whatsapp` | 12 cada uno | runs/approvals/sync; conexion/config/status |
 | `meeting-live` | 11 | audio, segmentos, deteccion y estado live |
-| `channels`, `workflow-hub` | 10 cada uno | hub multicanal y casos de workflow |
+| `channels` | 10 | hub multicanal (WhatsApp y Telegram) |
+| `passive-skills` | 3 | consulta, alta y baja de Skills pasivas |
 | `integrated-browser` | 47 | navegación, pestañas, composición, captura visible, percepción, modo lectura, controlador determinista, viewport, visibilidad, eventos, historial, credenciales, extensiones y borrado de datos de navegación |
 | `desktop-context` | 2 | inventario de ventanas abiertas y extraccion en cascada del contenido de las que el usuario marca en el chat |
 | `skill-workspace` | 13 | espacio de trabajo de Skills: crear, estado, leer, escribir, editar, borrar, guardar y descargar imagenes, abrir carpeta, progreso y URL de vista previa |

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MODELS } from '../../config';
 import { getPublicAiErrorMessage, sendMessageStream } from '../../services/gemini-chat';
 import type { ConversationMessage } from '../../services/gemini-chat/types';
-import { orbService } from '../../services/orb-service';
+import { orbService, type OrbAnnouncement } from '../../services/orb-service';
 import { synthesizeElevenLabsSpeech } from '../../services/orb/elevenlabs-tts';
 import { OrbTtsPlayback } from '../../services/orb/tts-playback';
 import type { OrbConversationState } from './orb-types';
@@ -62,6 +62,11 @@ export function useOrbConversation() {
   const piperSpeechIdRef = useRef<string | null>(null);
   const piperPlaybackStartedRef = useRef(false);
   const pendingWakeRequestRef = useRef<Promise<{ success: boolean; wake?: boolean }> | null>(null);
+  const pendingAnnouncementRequestRef = useRef<
+    Promise<{ success: boolean; announcement?: OrbAnnouncement | null }> | null
+  >(null);
+  /** Anuncio proactivo en curso, para acusarlo a main cuando termine. */
+  const announcementTurnRef = useRef<{ turnId: number; announcementId: string } | null>(null);
   /** Motivo del último fallo ElevenLabs para mantener visible un error accionable. */
   const elevenLabsTtsErrorRef = useRef<string | null>(null);
   infoVisibleRef.current = infoVisible;
@@ -124,8 +129,23 @@ export function useOrbConversation() {
     return operation;
   }, [playback, updateState]);
 
+  /**
+   * Acusa a main que el anuncio termino, para que libere el siguiente de la
+   * cola. Se llama en TODAS las salidas del turno —fin normal, fallo de voz,
+   * cierre y silenciado— porque un acuse que no llega deja la cola parada y el
+   * resto de anuncios no sonaria nunca.
+   */
+  const acknowledgeAnnouncement = useCallback((turnId?: number) => {
+    const pending = announcementTurnRef.current;
+    if (!pending) return;
+    if (typeof turnId === 'number' && pending.turnId !== turnId) return;
+    announcementTurnRef.current = null;
+    void orbService.announcementFinished(pending.announcementId).catch(() => undefined);
+  }, []);
+
   const finishTurnAndListen = useCallback((turnId: number) => {
     if (activeTurnRef.current !== turnId) return;
+    acknowledgeAnnouncement(turnId);
     console.log('[Orb] Turno terminado: volviendo a escuchar.');
     activeTurnRef.current = null;
     abortRef.current = null;
@@ -136,10 +156,11 @@ export function useOrbConversation() {
     setTtsPlaying(false);
     if (speechId) void orbService.stopSpeaking(speechId).catch(() => undefined);
     void startListening();
-  }, [startListening]);
+  }, [acknowledgeAnnouncement, startListening]);
 
   const windDown = useCallback((sessionId?: string | null) => {
     const endingSessionId = sessionId ?? latestDictationSessionRef.current;
+    acknowledgeAnnouncement();
     listeningGenerationRef.current += 1;
     activeDictationSessionRef.current = null;
     activeTurnRef.current = null;
@@ -157,9 +178,10 @@ export function useOrbConversation() {
     // reactivada, lista para volver a escuchar con la wake word. Solo el boton
     // de cerrar (o el comando de voz "cierra") la esconde.
     updateState('idle');
-  }, [playback, updateState]);
+  }, [acknowledgeAnnouncement, playback, updateState]);
 
   const closeOrb = useCallback(() => {
+    acknowledgeAnnouncement();
     listeningGenerationRef.current += 1;
     const sessionId = activeDictationSessionRef.current;
     activeDictationSessionRef.current = null;
@@ -177,7 +199,7 @@ export function useOrbConversation() {
     updateState('idle');
     setInfoVisible(false);
     orbService.hide();
-  }, [playback, updateState]);
+  }, [acknowledgeAnnouncement, playback, updateState]);
 
   /**
    * Ultimo recurso cuando el pipeline por bloques no llego a sonar: sintetiza el
@@ -261,6 +283,64 @@ export function useOrbConversation() {
 
     return { pipelineState, pushSentence };
   }, [finishTurnAndListen, playback, updateState]);
+
+  /**
+   * Anuncio proactivo: SofLIA habla sin que el usuario haya iniciado la
+   * conversacion, porque una Skill pasiva con el canal Computadora produjo un
+   * resultado.
+   *
+   * A diferencia de un turno normal no hay peticion del usuario, asi que el
+   * texto se PINTA antes de intentar la voz: si el TTS falla o el equipo no
+   * tiene salida de audio, el anuncio sigue siendo legible en vez de perderse
+   * en un silencio que el usuario no puede recuperar.
+   */
+  const playAnnouncement = useCallback(async (announcement: OrbAnnouncement) => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    const turnId = ++turnSequenceRef.current;
+    abortRef.current = controller;
+    activeTurnRef.current = turnId;
+    announcementTurnRef.current = { turnId, announcementId: announcement.id };
+    const isCurrent = () => activeTurnRef.current === turnId && !controller.signal.aborted;
+
+    setUserText('');
+    setSources([]);
+    setActiveTool(null);
+    setInfoVisible(false);
+    setErrorMessage(null);
+    setResponseText(announcement.text);
+    updateState('speaking');
+    elevenLabsTtsErrorRef.current = null;
+
+    // El anuncio entra en el historial como turno del modelo para que el
+    // usuario pueda preguntar por el ("cuentame mas de eso") sin repetir el
+    // tema: sin esto, la conversacion posterior empezaria sin contexto.
+    historyRef.current = [
+      ...historyRef.current,
+      { role: 'model' as const, text: announcement.text },
+    ].slice(-12);
+
+    const { pipelineState, pushSentence } = createSpeechPipeline(turnId, controller.signal);
+    controller.signal.addEventListener('abort', () => { pipelineState.ttsFailed = true; }, { once: true });
+
+    for (const block of splitIntoSpeechBlocks(announcement.text, SPEECH_BLOCK_CHARS)) {
+      pushSentence(block);
+    }
+
+    await pipelineState.chain;
+    if (!isCurrent()) return;
+    if (pipelineState.started) {
+      playback.markTtsFinished();
+      return;
+    }
+
+    // La voz nunca arranco. El turno termina igualmente: si no acusara el fin,
+    // la cola de main se quedaria parada y ningun anuncio posterior sonaria.
+    if (elevenLabsTtsErrorRef.current) {
+      setErrorMessage(`No pude leerlo en voz alta: ${elevenLabsTtsErrorRef.current}`);
+    }
+    finishTurnAndListen(turnId);
+  }, [createSpeechPipeline, finishTurnAndListen, playback, updateState]);
 
   const runAgent = useCallback(async (text: string, sourceSessionId: string) => {
     abortRef.current?.abort();
@@ -452,6 +532,10 @@ export function useOrbConversation() {
       if (!active) return;
       if (stateRef.current === 'idle' || stateRef.current === 'info') void startListening();
     });
+    orbService.onAnnounce((announcement) => {
+      if (!active || !announcement?.text) return;
+      void playAnnouncement(announcement);
+    });
 
     // StrictMode ejecuta setup -> cleanup -> setup. Compartir el mismo PULL evita
     // consumir el wake en el montaje obsoleto y perderlo antes del segundo.
@@ -460,6 +544,17 @@ export function useOrbConversation() {
     void pendingWakeRequest
       .then(({ wake }) => {
         if (active && wake) void startListening();
+      })
+      .catch(() => undefined);
+
+    // Mismo relevo para el anuncio: main lo emitio al crear la ventana, cuando
+    // React todavia no tenia listeners montados y el push se habria perdido.
+    const pendingAnnouncementRequest = pendingAnnouncementRequestRef.current
+      ?? orbService.getPendingAnnouncement();
+    pendingAnnouncementRequestRef.current = pendingAnnouncementRequest;
+    void pendingAnnouncementRequest
+      .then(({ announcement }) => {
+        if (active && announcement?.text) void playAnnouncement(announcement);
       })
       .catch(() => undefined);
 
@@ -480,7 +575,7 @@ export function useOrbConversation() {
       if (speechId) void orbService.stopSpeaking(speechId).catch(() => undefined);
       playback.dispose();
     };
-  }, [finishTurnAndListen, handleDictationFinal, playback, startListening, updateState, windDown]);
+  }, [finishTurnAndListen, handleDictationFinal, playAnnouncement, playback, startListening, updateState, windDown]);
 
   return {
     state,

@@ -37,8 +37,8 @@ export async function loadMainServiceModules() {
   const { createMeetingLiveService, registerMeetingLiveHandlers } = await import('../meeting-live-handlers');
   const { WorkspaceAutomationService } = await import('../workspace-automation-service');
   const { registerWorkspaceAutomationHandlers } = await import('../workspace-automation-handlers');
-  const { WorkflowHubService } = await import('../workflow-hub-service');
-  const { registerWorkflowHubHandlers } = await import('../workflow-hub-handlers');
+  const { PassiveSkillsService } = await import('../passive-skills/service');
+  const { registerPassiveSkillsHandlers } = await import('../passive-skills-handlers');
   const { TelegramService } = await import('../telegram-service');
   const { registerTelegramHandlers } = await import('../telegram-handlers');
   const { CommunicationHubService } = await import('../communication-hub/service');
@@ -78,7 +78,7 @@ export async function loadMainServiceModules() {
     ClipboardAIAssistant, TaskScheduler, NeuralOrganizerService, PathMemoryService, MenuManager,
     registerMeetingHandlers, createMeetingLiveService, registerMeetingLiveHandlers,
     WorkspaceAutomationService, registerWorkspaceAutomationHandlers,
-    WorkflowHubService, registerWorkflowHubHandlers, TelegramService, registerTelegramHandlers,
+    PassiveSkillsService, registerPassiveSkillsHandlers, TelegramService, registerTelegramHandlers,
     CommunicationHubService, registerCommunicationHubHandlers,
     SofliaLearningService,
     MeetingStore, MeetingSourceService, MeetingAIService, MeetingReviewService, MeetingSyncService,

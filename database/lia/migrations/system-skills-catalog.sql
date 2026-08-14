@@ -122,7 +122,7 @@ INSERT INTO public.system_skills (
   $semilla$presentacion$semilla$,
   $semilla$presentacion$semilla$,
   $semilla$documentos$semilla$,
-  ARRAY[$semilla$chat$semilla$, $semilla$whatsapp$semilla$]::text[],
+  ARRAY[$semilla$chat$semilla$, $semilla$whatsapp$semilla$, $semilla$telegram$semilla$]::text[],
   10,
   true,
   true,

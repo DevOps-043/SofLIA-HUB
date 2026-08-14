@@ -43,12 +43,11 @@ export function createMainServices(modules: any) {
     meetingWorkflowService,
     meetingDetectionStore,
   );
-  const workflowHubService = new modules.WorkflowHubService({
-    calendarService,
-    gchatService,
+  const passiveSkillsService = new modules.PassiveSkillsService({
     taskScheduler,
-    workspaceAutomationService,
-    meetingWorkflowService,
+    // La deteccion automatica de reuniones se lista como capacidad del sistema,
+    // no como una regla programable: corre en su propio servicio.
+    isMeetingDetectionAvailable: () => meetingPassiveDetectionService.isPolling(),
   });
   const dailyBriefingService = new modules.DailyBriefingService({
     enabled: false,
@@ -85,7 +84,7 @@ export function createMainServices(modules: any) {
     workspaceAutomationService,
     meetingWorkflowService,
     meetingPassiveDetectionService,
-    workflowHubService,
+    passiveSkillsService,
     dailyBriefingService,
     telegramService,
     communicationHubService,

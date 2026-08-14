@@ -75,6 +75,9 @@ export function exposeUtilityApis(bridge: PreloadBridge, ipc: SafeIpc): void {
   // Ventana de la Orbe de Voz: dictado local (Vosk) + habla local (Piper).
   bridge.exposeInMainWorld('orb', {
     getPendingWake: () => safeInvoke('orb:get-pending-wake'),
+    getPendingAnnouncement: () => safeInvoke('orb:get-pending-announcement'),
+    announcementFinished: (announcementId?: string | null) =>
+      safeInvoke('orb:announcement-finished', announcementId),
     show: () => safeInvoke('orb:show'),
     synthesize: (text: string) => safeInvoke('orb:synthesize', text),
     startDictation: () => safeInvoke('orb:start-dictation'),
@@ -84,14 +87,16 @@ export function exposeUtilityApis(bridge: PreloadBridge, ipc: SafeIpc): void {
     conversationEnded: (sessionId?: string | null) => safeInvoke('orb:conversation-ended', sessionId),
     hide: () => safeSend('orb:hide'),
     onWake: (cb: () => void) => safeOn('orb:wake', cb),
+    onAnnounce: (cb: (payload: { id: string; title: string; text: string; createdAt: string }) => void) =>
+      safeOn('orb:announce', cb),
     onDictationPartial: (cb: (payload: { sessionId: string; text: string }) => void) => safeOn('orb:dictation-partial', cb),
     onDictationFinal: (cb: (payload: { sessionId: string; text: string; reason: string }) => void) => safeOn('orb:dictation-final', cb),
     onDictationError: (cb: (payload: { sessionId: string; reason: string }) => void) => safeOn('orb:dictation-error', cb),
     onTtsChunk: (cb: (payload: { speechId: string; index: number; total: number; sampleRate: number; audioBase64: string }) => void) => safeOn('orb:tts-chunk', cb),
     onTtsEnd: (cb: (payload: { speechId: string; interrupted: boolean; error?: string }) => void) => safeOn('orb:tts-end', cb),
     removeListeners: () => [
-      'orb:wake', 'orb:dictation-partial', 'orb:dictation-final', 'orb:dictation-error',
-      'orb:tts-chunk', 'orb:tts-end',
+      'orb:wake', 'orb:announce', 'orb:dictation-partial', 'orb:dictation-final',
+      'orb:dictation-error', 'orb:tts-chunk', 'orb:tts-end',
     ].forEach(safeRemoveAllListeners),
   });
 }

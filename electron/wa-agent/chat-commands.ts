@@ -7,7 +7,6 @@
 import type { MemoryService } from '../memory-service';
 import type { WhatsAppAgent } from '../whatsapp-agent';
 import type { WhatsAppService } from '../whatsapp-service';
-import type { WorkflowHubService } from '../workflow-hub-service';
 import type { WorkspaceAutomationService } from '../workspace-automation-service';
 import { WorkflowManager } from '../whatsapp-workflow-presentacion';
 import { getSkillWorkspaceService } from '../skill-workspace/shared-instance';
@@ -17,8 +16,12 @@ import { handleActivationCommand } from './chat-commands/activation';
 import { buildHelpText } from './chat-commands/help';
 import { handlePermissionsCommand } from './chat-commands/permissions';
 import { handleProfileCommand } from './chat-commands/profile';
-import { buildSkillsCommandText, resolveWhatsAppSkill } from './chat-commands/skills';
-import { handleWorkflowBusinessCommand } from './chat-commands/workflow-router';
+import {
+  buildSkillsCommandText,
+  findWhatsAppSkillByCommand,
+  resolveWhatsAppSkill,
+} from './chat-commands/skills';
+import { RETIRED_COMMAND_REPLIES } from './chat-commands/retired-commands';
 
 type ConversationHistory = Map<string, Array<{ role: string; parts: Array<{ text: string }> }>>;
 
@@ -31,8 +34,9 @@ export interface ChatCommandContext {
   conversations: ConversationHistory;
   memory: Pick<MemoryService, 'clearSessionContext'>;
   waService: WhatsAppService;
-  workflowHubService: WorkflowHubService | null;
   workspaceAutomationService: WorkspaceAutomationService | null;
+  /** Usuario resuelto del remitente, para acotar por sus canales activos. */
+  userId?: string | null;
 }
 
 export async function handleChatCommand(context: ChatCommandContext): Promise<string | null> {
@@ -66,13 +70,13 @@ export async function handleChatCommand(context: ChatCommandContext): Promise<st
       return handlePermissionsCommand(context, args);
 
     case '/skills':
-      return await buildSkillsCommandText(context.isGroup);
+      return await buildSkillsCommandText(context.isGroup, context.userId);
 
     case '/presentaci\u00f3n':
     case '/presentacion': {
       // El catalogo decide si la skill existe aqui; las guardas de WhatsApp
       // (superficie y grupo) se aplican encima, nunca al reves.
-      const disponibilidad = await resolveWhatsAppSkill(PRESENTACIONES_SKILL_ID, context.isGroup);
+      const disponibilidad = await resolveWhatsAppSkill(PRESENTACIONES_SKILL_ID, context.isGroup, context.userId);
       if (!disponibilidad.ok) return disponibilidad.message;
 
       await WorkflowManager.startWorkflow(
@@ -90,6 +94,61 @@ export async function handleChatCommand(context: ChatCommandContext): Promise<st
       return buildHelpText(context.isGroup);
 
     default:
-      return (await handleWorkflowBusinessCommand(cmd, context, args)) ?? null;
+      return await handleSkillCommand(cmd, context, args);
+  }
+}
+
+/**
+ * Comandos que no son del dispatcher: o son una Skill del catalogo, o son uno
+ * de los comandos de flujos que se retiraron.
+ *
+ * El orden importa. Los retirados se responden ANTES de buscar en el catalogo
+ * porque algunos, como `/pendientes`, no tienen sustituto por chat y hay que
+ * decir donde esta ahora esa funcion en vez de contestar "no conozco eso".
+ */
+async function handleSkillCommand(
+  cmd: string,
+  context: ChatCommandContext,
+  args: string[],
+): Promise<string | null> {
+  const retirado = RETIRED_COMMAND_REPLIES[cmd];
+  if (retirado) return retirado;
+
+  const userId = context.userId ?? await resolveSenderUserId(context);
+  const skill = await findWhatsAppSkillByCommand(cmd, context.isGroup, userId);
+  if (!skill) return null;
+
+  const disponibilidad = await resolveWhatsAppSkill(skill.id, context.isGroup, userId);
+  if (!disponibilidad.ok) return disponibilidad.message;
+
+  // La Skill aporta sus instrucciones al turno; lo que el usuario escribio tras
+  // el comando es el encargo concreto. Sin encargo, se usan las instrucciones a
+  // secas y la Skill decide que preguntar.
+  const encargo = args.join(' ').trim();
+  const prompt = [
+    disponibilidad.skill.instructions,
+    '',
+    encargo
+      ? `Peticion del usuario: ${encargo}`
+      : 'El usuario invoco la skill sin dar detalles. Si necesitas una decision material para empezar, preguntala en una sola frase.',
+  ].join('\n');
+
+  return context.agent.runSkillTurn(context.jid, context.senderNumber, prompt, context.isGroup);
+}
+
+/**
+ * Usuario detras del remitente, para acotar por los canales que eligio.
+ *
+ * Devuelve `null` cuando no hay principal resuelto, y eso NO retira ninguna
+ * Skill: manda el catalogo. La autorizacion del remitente es una guarda
+ * distinta, que aplica el propio canal antes de llegar hasta aqui.
+ */
+async function resolveSenderUserId(context: ChatCommandContext): Promise<string | null> {
+  try {
+    const principal = await context.agent.communicationHubService
+      ?.resolvePrincipalFromWhatsApp(context.senderNumber);
+    return principal?.userId ?? null;
+  } catch {
+    return null;
   }
 }

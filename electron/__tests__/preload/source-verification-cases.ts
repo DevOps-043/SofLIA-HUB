@@ -52,7 +52,11 @@ describe('Preload source verification', () => {
     expect(ALLOWED_IPC_CHANNELS.filter(channel => channel.startsWith('memory:')).length).toBeGreaterThanOrEqual(3);
   });
 
-  it('SEC-032: workflow-hub namespace is present', () => {
-    expect(ALLOWED_IPC_CHANNELS.filter(channel => channel.startsWith('workflow-hub:')).length).toBeGreaterThanOrEqual(6);
+  it('SEC-032: passive-skills namespace is present', () => {
+    expect(ALLOWED_IPC_CHANNELS.filter(channel => channel.startsWith('passive-skills:')).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('SEC-032b: workflow-hub namespace is gone', () => {
+    expect(ALLOWED_IPC_CHANNELS.filter(channel => channel.startsWith('workflow-hub:'))).toEqual([]);
   });
 });

@@ -42,9 +42,23 @@ export interface OrbSynthesisResult {
   error?: string;
 }
 
+/**
+ * Anuncio proactivo: SofLIA se dirige al usuario sin que él haya iniciado la
+ * conversación, porque una Skill pasiva con el canal Computadora activo produjo
+ * un resultado.
+ */
+export interface OrbAnnouncement {
+  id: string;
+  title: string;
+  text: string;
+  createdAt: string;
+}
+
 interface OrbBridge {
   show: () => Promise<{ success: boolean; visible?: boolean; error?: string }>;
   getPendingWake: () => Promise<{ success: boolean; wake?: boolean }>;
+  getPendingAnnouncement: () => Promise<{ success: boolean; announcement?: OrbAnnouncement | null }>;
+  announcementFinished: (announcementId?: string | null) => Promise<{ success: boolean }>;
   synthesize: (text: string) => Promise<OrbSynthesisResult>;
   startDictation: () => Promise<{ success: boolean; sessionId?: string; error?: string }>;
   stopDictation: (sessionId?: string | null) => Promise<{ success: boolean }>;
@@ -53,6 +67,7 @@ interface OrbBridge {
   conversationEnded: (sessionId?: string | null) => Promise<{ success: boolean }>;
   hide: () => void;
   onWake: (cb: () => void) => void;
+  onAnnounce: (cb: (payload: OrbAnnouncement) => void) => void;
   onDictationPartial: (cb: (payload: OrbDictationPartial) => void) => void;
   onDictationFinal: (cb: (payload: OrbDictationFinal) => void) => void;
   onDictationError: (cb: (payload: OrbDictationError) => void) => void;
@@ -78,6 +93,8 @@ export const orbService = {
     return typeof window.orb !== 'undefined';
   },
   getPendingWake: () => api().getPendingWake(),
+  getPendingAnnouncement: () => api().getPendingAnnouncement(),
+  announcementFinished: (announcementId?: string | null) => api().announcementFinished(announcementId),
   show: () => api().show(),
   synthesize: (text: string) => api().synthesize(text),
   startDictation: () => api().startDictation(),
@@ -87,6 +104,7 @@ export const orbService = {
   conversationEnded: (sessionId?: string | null) => api().conversationEnded(sessionId),
   hide: () => api().hide(),
   onWake: (cb: () => void) => api().onWake(cb),
+  onAnnounce: (cb: (payload: OrbAnnouncement) => void) => api().onAnnounce(cb),
   onDictationPartial: (cb: (payload: OrbDictationPartial) => void) => api().onDictationPartial(cb),
   onDictationFinal: (cb: (payload: OrbDictationFinal) => void) => api().onDictationFinal(cb),
   onDictationError: (cb: (payload: OrbDictationError) => void) => api().onDictationError(cb),

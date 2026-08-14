@@ -4,7 +4,66 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
-## [Unreleased]
+## [0.9.7]
+
+### Added
+- Flujos de Trabajo y Skills se unifican en un solo modelo. Eran dos formas de
+  nombrar lo mismo —lo que SofLIA sabe hacer cuando se lo pides— y la
+  duplicacion ya se veia: la pestana "Flujos de Trabajo" listaba 17 casos
+  pendientes que eran todos de Reuniones, un dominio que desde hace versiones
+  tiene su propio panel con la misma bandeja de aprobacion.
+- Cada Skill declara ahora en que **canales** esta activa: Computadora, WhatsApp
+  y Telegram. La eleccion se guarda por usuario y la respetan por igual el chat
+  del Hub y los agentes de canal. Sin eleccion, la Skill esta activa en todos los
+  canales que su catalogo declara: la ausencia de configuracion no retira nada.
+- Los "workflows pasivos" pasan a llamarse **Skills pasivas** y dejan de entregar
+  solo por WhatsApp. Una rutina de "noticias de IA a las 8:00" puede llegar como
+  mensaje de WhatsApp, de Telegram, o hacer que SofLIA aparezca en modo orbe y
+  lo diga en voz alta, segun lo que elija el usuario. Se pueden pedir hablando:
+  "cada dia a las 8 dame las noticias de IA en la computadora".
+- **Anuncios proactivos en la orbe**: es la primera vez que el producto habla sin
+  que el usuario haya iniciado la conversacion, asi que llega con limites. No
+  aparece sin sesion iniciada, no roba el foco de lo que el usuario esta
+  escribiendo, se puede silenciar y cerrar, y dos rutinas programadas al mismo
+  minuto se locutan una tras otra en vez de superponer sus voces. El anuncio
+  queda en el contexto para poder preguntar por el.
+- **Telegram deja de ser un menu fijo** de comandos y pasa a ser una superficie
+  de Skills, resolviendo el mismo catalogo que el chat del Hub y WhatsApp, con
+  las mismas guardas. Pedir una presentacion por Telegram ya funciona.
+- Las capacidades de Correo, Agenda, Seguimiento, Drive, Actualizacion de equipo
+  y PC se conservan como Skills del sistema declaradas en la base de datos, de
+  modo que se administran editando una fila y llegan a todos los usuarios sin
+  publicar instalador.
+
+### Changed
+- **BREAKING** Se retiran los diez canales IPC `workflow-hub:*` y se anaden
+  `passive-skills:*`. El panel del Hub de Flujos, su servicio de main y su
+  servicio del renderer desaparecen.
+- **BREAKING** Se retiran de WhatsApp y Telegram los comandos `/flujos`,
+  `/misflujos`, `/crearflujo`, `/usarflujo`, `/ejecutarflujo`, `/pendientes`,
+  `/aprobar`, `/autorizar`, `/rechazar` y `/noautorizar`. No fallan en silencio:
+  cada uno responde donde esta ahora esa funcion. Las aprobaciones se deciden en
+  el panel de Reuniones, con el contenido del caso a la vista.
+- **Cambio de comportamiento**: la Skill de Correo revisa y propone, pero ya no
+  archiva ni aplica etiquetas por su cuenta. El workflow anterior aplicaba su
+  plan tras una aprobacion estructurada; ese HITL desaparecio con el motor, asi
+  que la accion vuelve al agente y a sus propias confirmaciones. Lo mismo para
+  Drive (propone la estructura, no la crea) y Actualizacion de equipo (redacta el
+  mensaje, no lo publica).
+- Las programaciones que ya existian siguen funcionando sin intervencion: se
+  traducen al cargar y, si no declaraban canal, se entregan por el canal desde el
+  que se crearon.
+
+### Security
+- `NEVER_FROM_SKILLS` se endurece con las herramientas de escritura de Google
+  Workspace (`gmail_send` ya estaba; se anaden papelera, etiquetas, planes de
+  organizacion, subida a Drive, creacion de carpetas y alta/baja de eventos).
+  Ninguna fila del catalogo puede concederselas. Es gratuito hoy —ninguna las
+  declara— y cierra la tentacion evidente de manana, ahora que hay Skills
+  cubriendo el dominio del correo.
+- La allowlist de herramientas concedibles NO se amplio: las seis Skills nuevas
+  aportan solo instrucciones, porque Gmail, Calendar, Drive y Chat ya estan en el
+  catalogo runtime de las tres superficies.
 
 ### Added
 - Menu flotante sobre el texto seleccionado en el navegador integrado. Preguntar

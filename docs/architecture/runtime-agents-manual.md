@@ -999,35 +999,74 @@ Dispatcher: `wa-agent/chat-commands.ts` + `chat-commands/workflow-router.ts`.
 | `/skills` | Lista las Skills disponibles por WhatsApp en ese contexto. |
 | `/presentacion`, `/presentación` | Inicia el workflow de presentaciones (Skill `sistema:presentaciones`). Genera HTML propio, exporta a PDF y lo entrega por el mismo chat tras la aprobación del usuario. Bloqueado en grupos. |
 | `/help` | Ayuda contextual (difiere en grupo). |
-| `/reunion`, `/reunión` | Workflow de reuniones. |
-| `/correo`, `/correos` | Revisión de correo. |
-| `/agenda` | Agenda del día. |
-| `/seguimiento`, `/correoseguimiento` | Seguimiento de correos. |
-| `/prepreunion`, `/reunionprep` | Preparación de reunión. |
-| `/driveproyecto` | Workflow de proyecto en Drive. |
-| `/chatdirectivo`, `/actualizacionchat` | Actualización al equipo por Google Chat. |
-| `/computadora`, `/pc`, `/escritorio` | Workflow de computadora. |
-| `/flujos`, `/misflujos` | Catálogo de workflows. |
-| `/pendientes` | Casos de workflow pendientes de decisión. |
-| `/aprobar`, `/autorizar` | Aprueba un caso pendiente. |
-| `/rechazar`, `/noautorizar` | Rechaza un caso pendiente. |
-| `/crearflujo` | Deshabilitado: responde que las variantes se guardan desde la app. |
-| `/usarflujo`, `/ejecutarflujo` | Deshabilitado: redirige a los comandos de negocio o a las variantes guardadas. |
+| `/skills` | Catálogo de Skills disponibles en este canal. |
+| `/correo` | Skill `sistema:correo`: triage de la bandeja. |
+| `/agenda` | Skill `sistema:agenda`: briefing del día. |
+| `/seguimiento` | Skill `sistema:seguimiento`: redacta un correo de seguimiento. |
+| `/drive` | Skill `sistema:drive`: busca material y propone estructura de proyecto. |
+| `/actualizacion` | Skill `sistema:actualizacion-equipo`: mensaje ejecutivo para el equipo. |
+| `/pc` | Skill `sistema:pc`: tarea operativa en la computadora. |
 
-### 3.14 Workflows pasivos y tareas programadas
+Cualquier comando que no esté en esta tabla se resuelve contra el catálogo de
+Skills: si coincide con el comando de una Skill activa en el canal, se ejecuta
+un turno con sus instrucciones anexadas (`chat-commands.ts` →
+`handleSkillCommand` → `agent.runSkillTurn`).
 
-**Workflows pasivos** (`wa-agent/passive-workflows/`): solo en DM. Una frase
-como "todos los lunes a las 8 revisa mi correo" se interpreta
-(`parsePassiveWorkflowIntent` con extracción de hora y cron), se guarda como
-regla en el Workflow Hub con `source: 'chat'` y `executionMode: 'agent_prompt'`,
-y se confirma al usuario. No vuelve a requerir el comando.
+**Comandos retirados** (`wa-agent/chat-commands/retired-commands.ts`): `/flujos`,
+`/misflujos`, `/crearflujo`, `/usarflujo`, `/ejecutarflujo`, `/pendientes`,
+`/aprobar`, `/autorizar`, `/rechazar` y `/noautorizar`. No se borran en
+silencio: cada uno responde dónde está ahora esa función. Las aprobaciones se
+decidieron dejar solo en el panel de Reuniones, con el contenido a la vista.
+
+### 3.14 Skills pasivas y tareas programadas
+
+**Skills pasivas** (`wa-agent/passive-skills/` + `electron/passive-skills/`):
+solo en DM. Una frase como "todos los lunes a las 8 revisa mi correo" se
+interpreta (`parsePassiveSkillIntent`, con extracción de hora, cron y canal), se
+guarda con `source: 'chat'` y se confirma al usuario. No vuelve a requerir el
+comando.
+
+Una Skill pasiva **no tiene almacén propio**: es la proyección de un
+`ScheduledTaskInfo` del `TaskScheduler`. `PassiveSkillsService` valida (nombre,
+programación, al menos un canal, y rechazo de las detecciones automáticas del
+sistema) y delega en `upsertTask`.
+
+**Canales de entrega.** La regla declara en qué canales entrega
+(`escritorio` | `whatsapp` | `telegram`). Una programación creada antes de que
+existieran los canales se normaliza al cargar: WhatsApp si tiene teléfono,
+Computadora si no. Los workflows antiguos se traducen a su Skill equivalente
+(`correo` → `sistema:correo`, …) y `workflowId` se conserva una versión más para
+que revertir no pierda la programación.
 
 **TaskScheduler** (`electron/task-scheduler.ts`): jobs `node-cron` persistidos en
 `userData/scheduler-state.json`. Valida la expresión cron antes de aceptarla,
 soporta `runOnce` con `scheduledFor` (verifica el minuto exacto y purga tareas
-vencidas más de 60 s), y emite `task-triggered`. El disparo entra al agente por
-`handleScheduledWhatsAppTask` con `skipConfirmations`, porque el usuario ya
-autorizó la tarea al programarla.
+vencidas más de 60 s), y emite `task-triggered`.
+
+**Ejecución y entrega.** `main/service-events.ts` ejecuta el prompt con
+`handleScheduledWhatsAppTask` (`skipConfirmations`, porque el usuario ya autorizó
+la tarea al programarla) y ese ejecutor **devuelve el texto en vez de enviarlo**:
+el destino lo decide `passive-skills/delivery.ts`, que reparte entre los canales
+declarados y aísla el fallo de cada uno. Un canal caído no impide los demás, y
+un fallo de ejecución no cancela la programación.
+
+### 3.15 Anuncios proactivos en la orbe
+
+Cuando una Skill pasiva tiene activo el canal Computadora, `main/orb-announcements.ts`
+muestra la orbe y le envía `orb:announce`. Es la única vía por la que el producto
+habla sin que el usuario haya iniciado la conversación, y por eso lleva tres
+guardas:
+
+- **Sesión**: sin sesión iniciada no se crea la ventana ni se locuta nada; al
+  cerrarse la sesión, la cola pendiente se descarta.
+- **Foco**: se muestra con `showInactive()`, nunca `focus()`.
+- **Cola serializada**: dos rutinas programadas al mismo minuto se locutan una
+  tras otra. El renderer acusa con `orb:announcement-finished` y ese acuse se
+  emite en todas las salidas del turno (fin normal, fallo de voz, cierre), porque
+  un acuse que no llega dejaría la cola parada.
+
+El relevo por `orb:get-pending-announcement` repite el patrón de `pendingWake`:
+un push a una ventana recién creada se pierde si React aún no montó listeners.
 
 **ProactiveService** (`electron/proactive-service.ts`): tick por intervalo
 configurable (`checkIntervalMinutes`), con horas de notificación permitidas y

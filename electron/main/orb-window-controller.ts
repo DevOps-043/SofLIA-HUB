@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { canUseProtectedFeature } from './require-auth';
 import { onAuthStateChange } from './auth-state';
+import { createOrbAnnouncements } from './orb-announcements';
 
 const ORB_WIDTH = 420;
 // La vista de voz necesita ~516 px (handle + orbe de 340 px + estado).
@@ -204,11 +205,22 @@ export function createOrbWindowController(options: OrbWindowControllerOptions) {
     });
   };
 
+  const announcements = createOrbAnnouncements({
+    getWindow: options.getWindow,
+    // El anuncio no roba el foco: `createOrbWindow(false)` muestra la ventana
+    // con `showInactive()`, de modo que lo que el usuario esta escribiendo sigue
+    // llegando a su aplicacion.
+    showWindow: () => createOrbWindow(false),
+  });
+
   // Revocacion: al pasar a "no autenticado" la orbe se cierra y deja de
   // responder a wake word/atajo hasta que exista una sesion nueva.
   onAuthStateChange((state) => {
     if (state.authenticated) return;
     options.setPendingWake(false);
+    // Los anuncios pendientes se descartan: son material del usuario y no
+    // pueden sonar despues de que cerrara la sesion.
+    announcements.clear();
     const orbWindow = options.getWindow();
     if (!orbWindow || orbWindow.isDestroyed()) return;
     console.warn('[AUTH] Sesion cerrada: se cierra la orbe.');
@@ -226,5 +238,5 @@ export function createOrbWindowController(options: OrbWindowControllerOptions) {
     console.log(`[BOOT] Atajo global registrado: ${accelerator} -> orbe de voz`);
   };
 
-  return { createOrbWindow, registerOrbShortcut };
+  return { createOrbWindow, registerOrbShortcut, announcements };
 }

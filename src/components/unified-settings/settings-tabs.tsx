@@ -11,7 +11,7 @@ export type SettingsTab =
   | 'connections'
   | 'productivity'
   | 'meetings'
-  | 'agents'
+  | 'passive-skills'
   | 'updates';
 
 import type { SofiaContext } from '../../services/sofia-auth';
@@ -41,7 +41,7 @@ export function resolveMasterTab(tab: SettingsTab): SettingsMasterTab {
     case 'whatsapp':
     case 'connections':
     case 'meetings':
-    case 'agents':
+    case 'passive-skills':
     case 'integrations':
       return 'integrations';
     case 'productivity':
@@ -87,7 +87,7 @@ export function getSettingsCategoryGroups(sofiaContext: SofiaContext | null): Se
         {
           id: 'integrations',
           label: 'Integraciones & Skills',
-          description: 'WhatsApp Agent, API conexiones, skills y flujos de trabajo',
+          description: 'WhatsApp Agent, conexiones API y skills activas y pasivas por canal',
           icon: (
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-2.54a4.5 4.5 0 00-6.364-6.364L4.757 8.188" />

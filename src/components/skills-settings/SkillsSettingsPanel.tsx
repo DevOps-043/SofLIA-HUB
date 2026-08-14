@@ -11,6 +11,9 @@ import type { CreateUserSkillInput, UserSkill } from '../../shared/skills/types'
 import { Button, SectionHeader } from '../ui';
 import { SkillIcon } from '../skill-library/skill-icons';
 import { SkillEditorForm } from './SkillEditorForm';
+import { SkillChannelsSelector } from './SkillChannelsSelector';
+import { PassiveSkillsSection } from './PassiveSkillsSection';
+import { resolveChannelsForSkill } from '../../shared/skills/channels';
 
 /**
  * Configuracion de Skills.
@@ -31,7 +34,7 @@ export function SkillsSettingsPanel() {
 
   useEffect(() => {
     let cancelled = false;
-    void resolveSkillCatalog('chat')
+    void resolveSkillCatalog('chat', { includeInactive: true })
       .then((resolved) => {
         if (!cancelled) {
           setCatalog(resolved);
@@ -84,7 +87,7 @@ export function SkillsSettingsPanel() {
     <div className="h-full overflow-y-auto p-6">
       <SectionHeader
         title="Skills"
-        subtitle="Capacidades que puedes invocar desde el chat escribiendo / y su nombre."
+        subtitle="Capacidades que puedes invocar escribiendo / y su nombre, y las que se ejecutan solas. Elige en qué canales quieres cada una."
       />
 
       {error && (
@@ -137,6 +140,11 @@ export function SkillsSettingsPanel() {
                     {skill.description && (
                       <p className="mt-1 line-clamp-2 text-xs text-secondary">{skill.description}</p>
                     )}
+                    <SkillChannelsSelector
+                      skill={skill}
+                      active={resolveChannelsForSkill(skill, catalog.channels)}
+                      onChanged={reload}
+                    />
                   </div>
                   <div className="flex shrink-0 gap-1.5">
                     <Button size="sm" variant="secondary" onClick={() => setEditing(skill)}>Editar</Button>
@@ -167,6 +175,11 @@ export function SkillsSettingsPanel() {
                     {skill.description && (
                       <p className="mt-1 text-xs text-secondary">{skill.description}</p>
                     )}
+                    <SkillChannelsSelector
+                      skill={skill}
+                      active={resolveChannelsForSkill(skill, catalog.channels)}
+                      onChanged={reload}
+                    />
                   </div>
                 </article>
               ))}
@@ -175,6 +188,8 @@ export function SkillsSettingsPanel() {
               )}
             </div>
           </section>
+
+          <PassiveSkillsSection />
         </>
       )}
     </div>

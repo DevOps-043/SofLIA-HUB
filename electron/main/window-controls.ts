@@ -26,6 +26,7 @@ export function createWindowControls(input: {
   const controls = {
     createOrbWindow: orbController.createOrbWindow,
     registerOrbShortcut: orbController.registerOrbShortcut,
+    orbAnnouncements: orbController.announcements,
     createWindow(showWindow = !state.startInBackground): void {
       state.win = createOrFocusMainWindow({
         currentWindow: state.win,

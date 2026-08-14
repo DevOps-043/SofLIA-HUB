@@ -2,20 +2,21 @@ import { useState } from 'react';
 import { WhatsAppSetup } from '../../WhatsAppSetup';
 import { ConnectionsPanel } from '../../ConnectionsPanel';
 import { SkillsSettingsPanel } from '../../skills-settings/SkillsSettingsPanel';
-import { WorkflowHubPanel } from '../../ops/WorkflowHubPanel';
 
+/**
+ * Ya no hay sub-pestaña de Flujos de Trabajo: los flujos y las Skills eran dos
+ * modelos para la misma idea y se unificaron en Skills. Las aprobaciones de
+ * reuniones que aquella pestaña listaba viven en Meeting Ops, que es donde
+ * siempre estuvo su vista canónica.
+ */
 export function IntegrationsSkillsSection({
   apiKey,
-  userId,
-  organizationId,
   onClose,
 }: {
   apiKey: string;
-  userId: string;
-  organizationId: string | null;
   onClose: () => void;
 }) {
-  const [subTab, setSubTab] = useState<'whatsapp' | 'connections' | 'skills' | 'workflows'>('whatsapp');
+  const [subTab, setSubTab] = useState<'whatsapp' | 'connections' | 'skills'>('whatsapp');
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -31,7 +32,7 @@ export function IntegrationsSkillsSection({
               Integraciones & Skills
             </h2>
             <p className="text-xs text-secondary mt-0.5 max-w-xl">
-              Conecta servicios externos, vincula WhatsApp Agent, habilita capacidades operativas y automatiza flujos de trabajo de equipo.
+              Conecta servicios externos, vincula WhatsApp Agent y decide qué skills están activas en cada canal, tanto las que invocas como las que se ejecutan solas.
             </p>
           </div>
 
@@ -82,20 +83,6 @@ export function IntegrationsSkillsSection({
               <span>Skills</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => setSubTab('workflows')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
-                subTab === 'workflows'
-                  ? 'bg-white dark:bg-[#1e2329] text-accent shadow-xs'
-                  : 'text-secondary hover:text-gray-900 dark:hover:text-white'
-              }`}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4.75 8.75h5.5v5.5h-5.5zm9 0h5.5v5.5h-5.5zm-4.5 9h5.5v1.5h-5.5zm1-10V5.25h3.5v2.5m0 6.5v2.5h-3.5v-2.5" />
-              </svg>
-              <span>Flujos de Trabajo</span>
-            </button>
           </div>
         </div>
       </div>
@@ -117,12 +104,6 @@ export function IntegrationsSkillsSection({
         {subTab === 'skills' && (
           <div className="animate-in fade-in duration-200">
             <SkillsSettingsPanel />
-          </div>
-        )}
-
-        {subTab === 'workflows' && (
-          <div className="animate-in fade-in duration-200">
-            <WorkflowHubPanel userId={userId} organizationId={organizationId} />
           </div>
         )}
       </div>

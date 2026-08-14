@@ -1,8 +1,8 @@
 import type { WhatsAppService } from '../whatsapp-service';
-import type { WorkflowHubService } from '../workflow-hub-service';
+import type { PassiveSkillsService } from '../passive-skills/service';
 import { MeetingWorkflowManager } from '../whatsapp-workflow-meetings';
 import { WorkflowManager } from '../whatsapp-workflow-presentacion';
-import { tryHandlePassiveWorkflowRequest } from './passive-workflows';
+import { tryHandlePassiveSkillRequest } from './passive-skills';
 import {
   getWhatsAppAgentUserErrorMessage,
   shouldResetConversationAfterAgentError,
@@ -26,7 +26,7 @@ type RunAgentLoop = (
 
 export async function handleWhatsAppTextMessage(input: {
   waService: WhatsAppService;
-  workflowHubService: WorkflowHubService | null;
+  passiveSkillsService: PassiveSkillsService | null;
   conversations: Map<string, unknown>;
   pendingConfirmations: Map<string, PendingConfirmation>;
   handleChatCommand: HandleChatCommand;
@@ -75,14 +75,15 @@ export async function handleWhatsAppTextMessage(input: {
     if (WorkflowManager.isActive(sessionKey) || MeetingWorkflowManager.isActive(sessionKey)) return;
   }
 
-  const passiveWorkflowReply = tryHandlePassiveWorkflowRequest({
-    workflowHubService: input.workflowHubService,
+  const passiveSkillReply = await tryHandlePassiveSkillRequest({
+    passiveSkillsService: input.passiveSkillsService,
     senderNumber: input.senderNumber,
     text,
     isGroup: input.isGroup,
+    channel: 'whatsapp',
   });
-  if (passiveWorkflowReply) {
-    await input.waService.sendText(input.jid, passiveWorkflowReply);
+  if (passiveSkillReply) {
+    await input.waService.sendText(input.jid, passiveSkillReply);
     return;
   }
 

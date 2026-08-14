@@ -1,5 +1,12 @@
 import { filterSkillTools } from './surface-tools';
-import { isSkillCategory, type SkillSurface, type SkillWorkspacePolicy, type SystemSkill, type SystemSkillRow } from './types';
+import {
+  isSkillCategory,
+  isSkillSurface,
+  type SkillSurface,
+  type SkillWorkspacePolicy,
+  type SystemSkill,
+  type SystemSkillRow,
+} from './types';
 
 /**
  * Conversion de una fila del catalogo remoto en una Skill del sistema
@@ -160,9 +167,7 @@ export function readSystemSkillRow(row: SystemSkillRow, surface: SkillSurface): 
     return { estado: 'invalida' };
   }
 
-  const surfaces = listaDeTextos(row.surfaces).filter(
-    (valor): valor is SkillSurface => valor === 'chat' || valor === 'whatsapp',
-  );
+  const surfaces = listaDeTextos(row.surfaces).filter(isSkillSurface);
   if (!surfaces.includes(surface)) return { estado: 'otra-superficie' };
 
   const skill = componer(row, surface, { id, name, instructions, surfaces });

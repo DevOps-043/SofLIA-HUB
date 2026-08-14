@@ -43,7 +43,8 @@ existencia productiva verificada.
 | Feedback/tools | `message_feedback`, `tools`, `user_favorite_tools` | schema disponible; consumo actual no demostrado por busqueda estatica |
 | Meetings legacy | `meeting_sessions`, `transcript_segments`, `meeting_action_items`, `meeting_exports` | no confundir con Meeting Ops nuevo |
 | CRM legacy | `crm_companies`, `crm_contacts`, `crm_opportunities`, `crm_interactions` | tests/servicios legacy pueden existir, pero bootstrap no construye CRM service |
-| Workflow legacy | `workflow_definitions`, `workflow_runs`, `workflow_step_runs`, `workflow_artifacts`, `workflow_approvals` | Workflow Hub actual usa su propio estado/servicios; verificar antes de migrar |
+| Workflow legacy | `workflow_definitions`, `workflow_runs`, `workflow_step_runs`, `workflow_artifacts`, `workflow_approvals` | El Workflow Hub se retiro del producto; estas tablas quedaron sin consumidor |
+| Canales por Skill | `user_skill_channels` | Una fila por Skill configurada. La AUSENCIA de fila no retira canales: la Skill queda activa en todos los que declara su catalogo |
 
 ## IRIS: tablas consumidas
 

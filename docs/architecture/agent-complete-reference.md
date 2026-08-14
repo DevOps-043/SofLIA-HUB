@@ -262,8 +262,11 @@ mouse y teclado sin cola.
 y sync son servicios separados. La aprobación humana es un estado de negocio
 persistido, no una frase interpretada por el modelo.
 
-**Workspace Automation y Workflow Hub.** Automation administra templates, runs y
-sus aprobaciones. Workflow Hub compone Calendar, Google Chat, scheduler,
+**Workspace Automation y Skills pasivas.** Automation administra templates, runs
+y sus aprobaciones. El Workflow Hub se retiro al unificarse con las Skills; lo
+que componia vive ahora en `electron/meetings/` (reuniones), `electron/passive-skills/`
+(programaciones) y el catalogo `public.system_skills` (capacidades de negocio).
+La descripcion siguiente se conserva como contexto historico: Calendar, Google Chat, scheduler,
 automation y meetings en casos y variantes. Las skills aprendidas ejecutables de
 memoria solo llaman templates registrados por este servicio.
 
@@ -955,7 +958,7 @@ Dispatcher: `wa-agent/chat-commands.ts` + `chat-commands/workflow-router.ts`.
 **Workflows pasivos** (`wa-agent/passive-workflows/`): solo en DM. Una frase
 como "todos los lunes a las 8 revisa mi correo" se interpreta
 (`parsePassiveWorkflowIntent` con extracción de hora y cron), se guarda como
-regla en el Workflow Hub con `source: 'chat'` y `executionMode: 'agent_prompt'`,
+regla de Skill pasiva con `source: 'chat'` y sus canales de entrega,
 y se confirma al usuario. No vuelve a requerir el comando.
 
 **TaskScheduler** (`electron/task-scheduler.ts`): jobs `node-cron` persistidos en

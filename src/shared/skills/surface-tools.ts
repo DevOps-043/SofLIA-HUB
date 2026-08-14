@@ -8,16 +8,32 @@ import { SKILL_WORKSPACE_TOOL_NAMES } from './workspace-tool-names';
  * ofrece por defecto; nunca amplia lo que la superficie prohibe. Sin esta
  * lista, declarar una herramienta en el registro de Skills bastaria para
  * saltarse las guardas de WhatsApp.
+ *
+ * Por que las Skills que sustituyen a los flujos de Correo, Agenda y Drive NO
+ * anaden nada aqui: las herramientas de Google Workspace YA estan en el
+ * catalogo runtime de las tres superficies. Una Skill que las declarara no
+ * concederia nada nuevo, y para lograrlo habria que abrir esta lista a un
+ * dominio entero. Esas Skills aportan instrucciones, que es exactamente lo que
+ * las distingue del flujo que sustituyen.
  */
 const ALLOWED_BY_SURFACE: Record<SkillSurface, ReadonlySet<string>> = {
   chat: new Set(SKILL_WORKSPACE_TOOL_NAMES),
   whatsapp: new Set(SKILL_WORKSPACE_TOOL_NAMES),
+  telegram: new Set(SKILL_WORKSPACE_TOOL_NAMES),
 };
 
 /**
  * Herramientas que NINGUNA Skill puede aportar en ninguna superficie, aunque
  * las declare. Son capacidades cuya activacion debe decidirla el producto y
  * no una declaracion de Skill.
+ *
+ * La lista crece con este cambio porque las Skills pasan a cubrir los dominios
+ * de correo, calendario y Drive que antes eran flujos. Todas las anadidas
+ * comparten un rasgo: su efecto no se deshace desde el chat. Enviar un correo o
+ * un mensaje a un espacio sale de la organizacion; vaciar etiquetas o mover a
+ * la papelera altera el buzon; crear o borrar un evento cambia la agenda de
+ * otras personas. Que el agente pueda ejecutarlas —con sus confirmaciones— no
+ * implica que una fila del catalogo pueda concederselas a si misma.
  */
 const NEVER_FROM_SKILLS: ReadonlySet<string> = new Set([
   'use_computer',
@@ -26,6 +42,22 @@ const NEVER_FROM_SKILLS: ReadonlySet<string> = new Set([
   'delete_item',
   'gmail_send',
   'whatsapp_send_file',
+  // Salida hacia fuera de la organizacion.
+  'gchat_send_message',
+  // Escritura sobre el buzon del usuario.
+  'gmail_trash',
+  'gmail_modify_labels',
+  'gmail_create_label',
+  'gmail_delete_label',
+  'gmail_batch_empty_label',
+  'gmail_empty_all_labels',
+  'gmail_apply_organization_plan',
+  'gmail_undo_organization_plan',
+  // Escritura sobre Drive y el calendario.
+  'drive_upload',
+  'drive_create_folder',
+  'google_calendar_create',
+  'google_calendar_delete',
 ]);
 
 /**

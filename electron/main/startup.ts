@@ -5,6 +5,7 @@ import { recordDesktopTaskMemory } from '../memory/record-desktop-task';
 
 type StartupWindowControls = {
   createOrbWindow: (wake?: boolean) => Promise<void>;
+  orbAnnouncements: import('./orb-announcements').OrbAnnouncements;
 };
 
 type OptionalStepRunner = <T>(name: string, fn: () => T | Promise<T>) => Promise<T>;
@@ -66,7 +67,7 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
     services.meetingWorkflowService,
   );
   modules.registerWorkspaceAutomationHandlers(services.workspaceAutomationService);
-  modules.registerWorkflowHubHandlers(services.workflowHubService);
+  modules.registerPassiveSkillsHandlers(services.passiveSkillsService);
   modules.registerTelegramHandlers(services.telegramService);
   modules.registerCommunicationHubHandlers(services.communicationHubService);
   modules.registerVoicePassiveHandlers(modules.pythonRuntimeService);
@@ -81,6 +82,7 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
       state.pendingOrbWake = false;
       return pending;
     },
+    announcements: controls.orbAnnouncements,
   });
 }
 
@@ -98,7 +100,6 @@ export async function initializeMainServices(input: {
   await runOptionalStep('knowledgeService.init', () => services.knowledgeService.init());
   await runOptionalStep('meetingWorkflowService.init', () => Promise.resolve(services.meetingWorkflowService.init()));
   await runOptionalStep('workspaceAutomationService.init', () => Promise.resolve(services.workspaceAutomationService.init()));
-  await runOptionalStep('workflowHubService.init', () => Promise.resolve(services.workflowHubService.init()));
   await runOptionalStep('meetingPassiveDetectionService.init', () => services.meetingPassiveDetectionService.init());
   await runOptionalStep('pathMemoryService.init', () => services.pathMemoryService.init());
   await runOptionalStep('pathMemoryService.start', () => services.pathMemoryService.start());
@@ -112,9 +113,16 @@ export async function initializeMainServices(input: {
   await runOptionalStep('remoteNodeService.init', () => modules.remoteNodeService.initialize({ desktopAgent: services.desktopAgentService }));
   await runOptionalStep('telegramService.init', () => services.telegramService.init({
     workspaceAutomationService: services.workspaceAutomationService,
-    workflowHubService: services.workflowHubService,
     remoteNodeService: modules.remoteNodeService,
     communicationHubService: services.communicationHubService,
+    // Telegram ofrece Skills; quien las ejecuta es el mismo bucle de agente que
+    // atiende WhatsApp, que es el unico que corre en main sin ventana abierta.
+    // El chat se identifica con un jid sintetico para que su historial quede
+    // separado del de cualquier conversacion de WhatsApp.
+    runSkillTurn: ({ chatId, prompt, isGroup }: { chatId: string; prompt: string; isGroup: boolean }) => {
+      if (!state.waAgent) return Promise.resolve('El agente todavia no esta listo. Intentalo en unos segundos.');
+      return state.waAgent.runSkillTurn(`telegram:${chatId}`, `telegram:${chatId}`, prompt, isGroup);
+    },
   }));
   await runOptionalStep('sofliaLearningService.init', () => Promise.resolve(services.sofliaLearningService.init()));
   await runOptionalStep('dynamicToolService.init', () => modules.dynamicToolService.initialize());

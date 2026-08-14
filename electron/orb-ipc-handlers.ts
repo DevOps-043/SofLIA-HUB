@@ -10,6 +10,7 @@ import { synthesizeOrbSpeech } from './orb-tts';
 import type { PythonRuntimeService } from './python-runtime-service';
 import { handleIPC, handleIPCVoid } from './utils/ipc-helpers';
 import { denyIfUnauthenticated } from './main/require-auth';
+import type { OrbAnnouncements } from './main/orb-announcements';
 
 interface OrbIpcOptions {
   pythonRuntimeService: PythonRuntimeService;
@@ -17,10 +18,12 @@ interface OrbIpcOptions {
   getMainWindow: () => BrowserWindow | null;
   showOrbWindow: () => Promise<void>;
   consumePendingWake: () => boolean;
+  /** Cola de anuncios proactivos. Ver `main/orb-announcements.ts`. */
+  announcements: OrbAnnouncements;
 }
 
 export function registerOrbIpcHandlers(options: OrbIpcOptions): void {
-  const { pythonRuntimeService, getOrbWindow, getMainWindow, showOrbWindow, consumePendingWake } = options;
+  const { pythonRuntimeService, getOrbWindow, getMainWindow, showOrbWindow, consumePendingWake, announcements } = options;
 
   const sendToOrb = (channel: string, payload?: unknown): void => {
     const win = getOrbWindow();
@@ -44,6 +47,15 @@ export function registerOrbIpcHandlers(options: OrbIpcOptions): void {
 
   ipcMain.handle('orb:get-pending-wake', () =>
     handleIPC(async () => ({ wake: consumePendingWake() })));
+
+  // Relevo del push: si la orbe acababa de crearse, `orb:announce` se emitio
+  // antes de que React montara sus listeners y se habria perdido.
+  ipcMain.handle('orb:get-pending-announcement', () =>
+    handleIPC(async () => ({ announcement: announcements.consumePending() })));
+
+  // Acuse de fin de locucion: libera el siguiente anuncio de la cola.
+  ipcMain.handle('orb:announcement-finished', (_event, announcementId?: string | null) =>
+    handleIPCVoid(async () => announcements.finish(announcementId ?? null)));
 
   ipcMain.handle('orb:show', (event) => handleIPC(async () => {
     const denied = denyIfUnauthenticated('orb:show');

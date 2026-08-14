@@ -58,12 +58,17 @@ Los servicios de IA extraen propuestas y artefactos; review y sync son servicios
 separados. Aprobacion humana es un estado de negocio persistido, no una frase
 interpretada por el modelo.
 
-### Workspace Automation y Workflow Hub
+### Workspace Automation y Skills pasivas
 
-Automation administra templates/runs y sus aprobaciones. Workflow Hub compone
-Calendar, Google Chat, scheduler, automation y meetings en casos y variantes. Las
-skills aprendidas ejecutables de memoria solo llaman templates registrados por
-este servicio.
+Automation administra templates/runs y sus aprobaciones. Las skills aprendidas
+ejecutables de memoria solo llaman templates registrados por este servicio.
+
+El Workflow Hub se retiro: Flujos de Trabajo y Skills eran dos modelos para la
+misma idea. Lo que componia sigue existiendo repartido en su dueno natural — las
+reuniones en `electron/meetings/` con su panel Meeting Ops, las programaciones en
+`electron/passive-skills/` sobre el `TaskScheduler`, y las capacidades de
+negocio (correo, agenda, seguimiento, drive, actualizacion de equipo, PC) como
+Skills del catalogo declaradas en `public.system_skills`.
 
 ## Herramientas estaticas y dinamicas
 

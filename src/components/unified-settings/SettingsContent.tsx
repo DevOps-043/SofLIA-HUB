@@ -39,8 +39,6 @@ export function SettingsContent({
       return (
         <IntegrationsSkillsSection
           apiKey={apiKey}
-          userId={userId}
-          organizationId={sofiaContext?.currentOrganization?.id || null}
           onClose={onClose}
         />
       );

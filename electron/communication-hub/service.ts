@@ -271,6 +271,18 @@ export class CommunicationHubService extends EventEmitter {
     return allowed;
   }
 
+  /**
+   * Usuario vinculado a un chat de Telegram, sin consultar la base.
+   *
+   * Lo usa la resolucion de Skills para acotar por los canales que ese usuario
+   * eligio. Devuelve `null` cuando el chat no esta vinculado, y eso NO es un
+   * rechazo: la autorizacion del canal la sigue decidiendo
+   * `isTelegramChatAuthorized`, que es la guarda real.
+   */
+  getTelegramUserId(chatId: string): string | null {
+    return this.ensureState().telegramIdentities[String(chatId || '').trim()]?.userId ?? null;
+  }
+
   async resolvePrincipalForActor(actor: ChannelActorInput | undefined, provider: ChannelProvider): Promise<ResolvedChannelPrincipal> {
     if (actor?.userId) {
       const profile = await this.fetchSofiaProfileByUserId(actor.userId, actor.organizationId || undefined);

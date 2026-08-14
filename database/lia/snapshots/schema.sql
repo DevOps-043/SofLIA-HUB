@@ -226,6 +226,21 @@ CREATE TABLE public.system_skills (
   CONSTRAINT system_skills_pkey PRIMARY KEY (id)
 );
 
+-- Canales en los que cada usuario tiene activa cada Skill. La AUSENCIA de fila
+-- no retira ningun canal: la Skill queda activa en todos los que declara su
+-- catalogo. Solo una fila con la lista recortada los retira. skill_id no tiene
+-- clave foranea porque apunta tanto a system_skills como a skills.
+CREATE TABLE public.user_skill_channels (
+  user_id uuid NOT NULL,
+  skill_id text NOT NULL CHECK (length(btrim(skill_id)) > 0),
+  channels ARRAY NOT NULL DEFAULT '{}'::text[],
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT user_skill_channels_pkey PRIMARY KEY (user_id, skill_id),
+  CONSTRAINT user_skill_channels_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT user_skill_channels_valores CHECK (channels <@ ARRAY['escritorio'::text, 'whatsapp'::text, 'telegram'::text])
+);
+
 -- Vista de compatibilidad de solo lectura sobre public.skills. Permite
 -- revertir el renderer sin revertir datos; se elimina en una release
 -- posterior. La tabla original quedo como public.user_tools_legacy.

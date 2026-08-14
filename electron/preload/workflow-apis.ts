@@ -14,17 +14,10 @@ export function exposeWorkflowApis(bridge: PreloadBridge, ipc: SafeIpc): void {
     approveRun: (input: any) => safeInvoke('automation:approve-run', input),
     rejectRun: (input: any) => safeInvoke('automation:reject-run', input),
   });
-  bridge.exposeInMainWorld('workflowHub', {
-    getOverview: (organizationId?: string) => safeInvoke('workflow-hub:get-overview', organizationId),
-    getCaseDetail: (caseId: string) => safeInvoke('workflow-hub:get-case-detail', caseId),
-    executeWorkflow: (input: any) => safeInvoke('workflow-hub:execute-workflow', input),
-    saveVariant: (input: any) => safeInvoke('workflow-hub:save-variant', input),
-    savePassiveRule: (input: any) => safeInvoke('workflow-hub:save-passive-rule', input),
-    deletePassiveRule: (ruleId: string) => safeInvoke('workflow-hub:delete-passive-rule', ruleId),
-    approveCase: (input: any) => safeInvoke('workflow-hub:approve-case', input),
-    rejectCase: (input: any) => safeInvoke('workflow-hub:reject-case', input),
-    updateCaseAction: (input: any) => safeInvoke('workflow-hub:update-case-action', input),
-    syncCase: (input: any) => safeInvoke('workflow-hub:sync-case', input),
+  bridge.exposeInMainWorld('passiveSkills', {
+    getOverview: () => safeInvoke('passive-skills:get-overview'),
+    saveRule: (input: any) => safeInvoke('passive-skills:save-rule', input),
+    deleteRule: (ruleId: string) => safeInvoke('passive-skills:delete-rule', ruleId),
   });
   bridge.exposeInMainWorld('meeting', {
     listRuns: (filters?: any) => safeInvoke('meeting:list-runs', filters),

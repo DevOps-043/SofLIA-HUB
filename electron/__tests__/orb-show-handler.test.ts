@@ -41,6 +41,13 @@ describe('handler de apertura de la Orbe', () => {
       getMainWindow: () => mainWindow,
       showOrbWindow,
       consumePendingWake: () => false,
+      announcements: {
+        announce: vi.fn(async () => undefined),
+        consumePending: () => null,
+        finish: vi.fn(async () => undefined),
+        clear: vi.fn(),
+        size: () => 0,
+      },
     });
   });
 
