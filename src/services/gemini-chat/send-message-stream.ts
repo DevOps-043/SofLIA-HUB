@@ -6,10 +6,10 @@ import { consumeSofliaMaxUse, SOFLIA_MAX_MONTHLY_LIMIT } from '../model-quota';
 import { resolveRoutedModel } from '../model-routing';
 import { sendOpenAIMessageStream } from '../openai-chat';
 import { runAgenticLoop } from './agentic-loop';
-import { getGenAI } from './client';
+import { getGenAiClient } from './client';
 import { resolveEmptyGeminiText } from './empty-response';
 import { buildGeminiHistory } from './history';
-import { buildMessageContent } from './message-content';
+import { buildMultimodalContent, normalizeImagesToMediaRefs } from './message-content';
 import { buildGenerationConfig, buildModelTools, resolveModelId } from './model-config';
 import { withGeminiModelCall } from './resilience';
 import { runResearchActionPhase } from './research-action';
@@ -93,7 +93,21 @@ export async function sendMessageStream(
   if (hybridSurfaceRequest) {
     systemInstruction = `${systemInstruction}\n\nEsta es una tarea hibrida por superficies. Conserva el modelo actual como orquestador: primero usa use_computer con backend desktop solo para observar la aplicacion externa; despues utiliza read_browser_dom y el controlador del navegador integrado (o backend browser si el DOM no basta) sobre la sesion visible. Verifica el resultado de cada fase. No incluyas el envio dentro de la observacion desktop y solicita confirmacion humana antes de enviar o publicar.`;
   }
-  const messageContent = buildMessageContent(finalMessage, effectiveOptions?.images);
+  // Las data URLs heredadas y los medios ya resueltos convergen en la misma
+  // lista: el constructor decide la ruta de transporte de cada uno y devuelve
+  // el sobre con lo que realmente viajo.
+  const turnMedia = [
+    ...normalizeImagesToMediaRefs(effectiveOptions?.images),
+    ...(effectiveOptions?.media ?? []),
+  ];
+  const built = buildMultimodalContent(finalMessage, turnMedia, effectiveOptions?.mediaResolution);
+  const messageContent = built.content;
+  if (turnMedia.length) options?.onMediaEnvelope?.(built.envelope);
+  // Un medio rechazado no puede quedar solo en el sobre: el modelo debe saber
+  // que esa evidencia no llego para no describirla.
+  if (built.envelope.rejected.length) {
+    systemInstruction = `${systemInstruction}\n\nMedios que NO llegaron a este turno: ${built.envelope.rejected.map((item) => item.detail).join(' ')} No describas su contenido; di que no pudiste analizarlos y por que.`;
+  }
 
   // Prioridad de rutas: una ORDEN de accion sobre la computadora ("abre X y
   // ejecutalo", "reproduce Y") se atiende con el loop de herramientas aunque
@@ -198,19 +212,21 @@ export async function sendMessageStream(
     }
   }
 
-  const ai = await getGenAI();
+  const ai = await getGenAiClient();
   const signal = options?.signal;
-  const requestOptions = signal ? { signal } : undefined;
 
   for (const modelId of candidateModelIds) {
     const allToolCalls: ToolCallInfo[] = browserObservation ? [browserObservation.toolCall] : [];
     const allGeneratedImages: string[] = [];
     if (signal?.aborted) return stoppedStreamResult(allToolCalls, allGeneratedImages);
     try {
-      const modelParams: { model: string; systemInstruction: string; tools?: any[] } = { model: modelId, systemInstruction };
-      if (useToolLoop) modelParams.tools = buildModelTools(computerUseEnabled, modelId, routedOptions?.activeSkill);
-      const model = ai.getGenerativeModel(modelParams);
-      const chatSession = model.startChat({ history, generationConfig });
+      // En `@google/genai` todo viaja dentro de `config`: herramientas,
+      // instruccion de sistema, presupuesto de tokens, razonamiento y la señal
+      // de cancelacion, que ahora aborta la peticion HTTP desde el propio SDK.
+      const config: Record<string, any> = { ...generationConfig, systemInstruction };
+      if (useToolLoop) config.tools = buildModelTools(computerUseEnabled, modelId, routedOptions?.activeSkill);
+      if (signal) config.abortSignal = signal;
+      const chatSession = ai.chats.create({ model: modelId, history, config });
 
       if (useToolLoop) {
         return await runAgenticLoop({
@@ -223,14 +239,14 @@ export async function sendMessageStream(
         });
       }
 
-      const result = await withGeminiModelCall(
+      const response = await withGeminiModelCall(
         'Gemini direct message',
-        () => chatSession.sendMessage(messageContent, requestOptions),
+        () => chatSession.sendMessage({ message: messageContent }),
         { signal },
       );
       return completedStreamResult(
-        resolveEmptyGeminiText(extractResponseText(result.response), result.response, allGeneratedImages),
-        result.response,
+        resolveEmptyGeminiText(extractResponseText(response), response, allGeneratedImages),
+        response,
         allToolCalls,
         allGeneratedImages,
       );
@@ -250,11 +266,9 @@ function resolveCandidateModelIds(options?: SendMessageStreamOptions): string[] 
 }
 
 function extractResponseText(response: any): string {
-  try {
-    if (typeof response?.text === 'function') return response.text();
-  } catch {
-    // Fall back to direct candidate extraction below.
-  }
+  // `text` es un descriptor de acceso en `@google/genai`, no un metodo:
+  // invocarlo lanzaria `TypeError` en cada turno directo.
+  if (typeof response?.text === 'string') return response.text;
   const parts = response?.candidates?.[0]?.content?.parts || [];
   return parts.filter((part: any) => part.text).map((part: any) => part.text).join('');
 }

@@ -18,7 +18,26 @@ export function buildGenerationConfig(options?: SendMessageStreamOptions): Recor
   const generationConfig: Record<string, any> = { maxOutputTokens: 16384 };
   const thinkingLevel = resolveGeminiThinkingLevel(options?.thinking?.level);
   if (thinkingLevel) generationConfig.thinkingConfig = { thinkingLevel };
+  // Resolucion de medios del turno. Sin medios no se declara: el proveedor
+  // aplica su valor por omision y el turno queda igual que antes del cambio.
+  const mediaResolution = resolveMediaResolution(options?.mediaResolution);
+  if (mediaResolution) generationConfig.mediaResolution = mediaResolution;
   return generationConfig;
+}
+
+/**
+ * Traduce la resolucion de medios del producto al enum del proveedor.
+ *
+ * `low` cuesta del orden de 100 tokens por segundo de video y `medium` unos
+ * 300; `high` se reserva para leer texto pequeño o cifras en una imagen. El
+ * valor efectivo se decide en el constructor de partes segun la duracion
+ * enviada, no en la interfaz.
+ */
+export function resolveMediaResolution(value: unknown): string | undefined {
+  if (value === 'low') return 'MEDIA_RESOLUTION_LOW';
+  if (value === 'medium') return 'MEDIA_RESOLUTION_MEDIUM';
+  if (value === 'high') return 'MEDIA_RESOLUTION_HIGH';
+  return undefined;
 }
 
 /**

@@ -115,12 +115,29 @@ export function withToolTimeout<T>(
 }
 
 /**
+ * Normaliza un error del proveedor a texto comparable.
+ *
+ * `@google/genai` lanza un error con `status` numerico ademas del mensaje, y
+ * ese mensaje no siempre repite el codigo. Clasificar solo por texto dejaba un
+ * 429 estructurado sin reintento y abriendo el circuit breaker, que es
+ * exactamente lo contrario de lo que corresponde a un throttling.
+ */
+export function normalizeProviderError(error: unknown): string {
+  const message = (error instanceof Error ? error.message : String(error || '')).toLowerCase();
+  const detalle = error && typeof error === 'object' ? (error as Record<string, unknown>) : null;
+  const codigos = [detalle?.status, detalle?.code, (detalle?.error as Record<string, unknown> | undefined)?.code]
+    .filter((valor) => typeof valor === 'number' || typeof valor === 'string')
+    .map((valor) => String(valor).toLowerCase());
+  return codigos.length ? `${message} ${codigos.join(' ')}` : message;
+}
+
+/**
  * ¿El error es transitorio y vale la pena reintentar con backoff? Cubre rate
  * limit y sobrecarga del proveedor (429/quota/503/500). Los timeouts NO se
  * reintentan: es mejor fallar al siguiente modelo que esperar al mismo colgado.
  */
 export function isTransientGeminiError(error: unknown): boolean {
-  const message = (error instanceof Error ? error.message : String(error || '')).toLowerCase();
+  const message = normalizeProviderError(error);
   // Un contexto que ya no cabe tambien dice "exceeded", pero no es transitorio:
   // reintentarlo con el mismo payload gasta el backoff para volver a fallar.
   if (isContextLengthError(message)) return false;
@@ -146,7 +163,7 @@ export function isTransientGeminiError(error: unknown): boolean {
  * circuit breaker (que existe para servicios caidos, no para throttling).
  */
 export function isRateLimitError(error: unknown): boolean {
-  const message = (error instanceof Error ? error.message : String(error || '')).toLowerCase();
+  const message = normalizeProviderError(error);
   return (
     message.includes('quota') ||
     message.includes('rate limit') ||

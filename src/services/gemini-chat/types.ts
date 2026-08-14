@@ -1,3 +1,5 @@
+import type { MediaEnvelope, MediaRef, MediaResolutionLevel } from '../../shared/multimodal-input';
+
 export interface ConversationMessage {
   role: 'user' | 'model';
   text: string;
@@ -27,7 +29,14 @@ export interface SendMessageStreamOptions {
   thinking?: { id: string; level?: string; budget?: number };
   personalization?: { nickname?: string; occupation?: string; tone?: string; instructions?: string };
   imageMetadata?: any;
+  /** Data URLs de imagen. Se normalizan a `MediaRef` de tipo `inline`. */
   images?: string[];
+  /** Medios del turno con su ruta de transporte ya resuelta. */
+  media?: MediaRef[];
+  /** Resolucion de medios pedida explicitamente; sin ella se decide por duracion. */
+  mediaResolution?: MediaResolutionLevel;
+  /** Sobre de lo efectivamente enviado; lo rellena el constructor de partes. */
+  onMediaEnvelope?: (envelope: MediaEnvelope) => void;
   /**
    * @deprecated Sustituido por `activeSkill`. Se conserva mientras quede
    * codigo que active una herramienta de usuario por su prompt suelto.

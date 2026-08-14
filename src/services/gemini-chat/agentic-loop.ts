@@ -15,8 +15,8 @@ export async function runAgenticLoop(params: {
   failFastOnModelError?: boolean;
 }): Promise<StreamResult> {
   const signal = params.options?.signal;
-  // El envío al SDK acepta { signal } para cancelar la petición HTTP en curso.
-  const requestOptions = signal ? { signal } : undefined;
+  // La cancelacion viaja en `config.abortSignal` de la sesion, que `@google/genai`
+  // propaga a la peticion HTTP de cada envio.
 
   if (signal?.aborted) return stoppedStreamResult(params.allToolCalls, params.allGeneratedImages);
 
@@ -24,7 +24,7 @@ export async function runAgenticLoop(params: {
   try {
     response = await withGeminiModelCall(
       'Gemini initial agentic message',
-      () => params.chatSession.sendMessage(params.messageContent, requestOptions),
+      () => params.chatSession.sendMessage({ message: params.messageContent }),
       { signal },
     );
   } catch (error: any) {
@@ -40,18 +40,20 @@ export async function runAgenticLoop(params: {
   while (maxIterations > 0) {
     maxIterations -= 1;
     if (signal?.aborted) return stoppedStreamResult(params.allToolCalls, params.allGeneratedImages);
-    const parts = response.response.candidates?.[0]?.content?.parts || [];
+    // `@google/genai` devuelve la respuesta directamente; el SDK anterior la
+    // envolvia en `.response`.
+    const parts = response.candidates?.[0]?.content?.parts || [];
     collectInlineImages(parts, params.allGeneratedImages);
     const functionCalls = parts.filter((part: any) => part.functionCall);
-    if (functionCalls.length === 0) return finalTextResult(parts, response.response, params);
+    if (functionCalls.length === 0) return finalTextResult(parts, response, params);
 
     const functionResponses = await executeFunctionCalls(functionCalls, params);
     if (signal?.aborted) return stoppedStreamResult(params.allToolCalls, params.allGeneratedImages);
-    if (functionResponses.length === 0) return finalTextResult(parts, response.response, params);
+    if (functionResponses.length === 0) return finalTextResult(parts, response, params);
     try {
       response = await withGeminiModelCall(
         'Gemini tool response message',
-        () => params.chatSession.sendMessage(functionResponses as any, requestOptions),
+        () => params.chatSession.sendMessage({ message: functionResponses }),
         { signal },
       );
     } catch (error: any) {

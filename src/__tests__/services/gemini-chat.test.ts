@@ -9,21 +9,21 @@ import {
 
 const {
   mockGetApiKeyWithCache,
-  mockGetGenerativeModel,
-  mockGoogleGenerativeAI,
+  mockChatsCreate,
+  mockGoogleGenAI,
 } = getGeminiChatMocks();
 
 describe('gemini-chat', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
-    mockGetGenerativeModel.mockReset();
+    mockChatsCreate.mockReset();
     mockGetApiKeyWithCache.mockResolvedValue(null);
   });
 
   it('RS-003: buildGeminiHistory truncates to last 50 messages', async () => {
     const { sendMessageStream } = await import('../../services/gemini-chat');
-    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => createMockChat('ok')) });
+    mockChatsCreate.mockReturnValue(createMockChat('ok'));
 
     const history = Array.from({ length: 100 }, (_, i) => ({
       role: i % 2 === 0 ? 'user' as const : 'model' as const,
@@ -32,14 +32,14 @@ describe('gemini-chat', () => {
 
     await sendMessageStream('Hola', history);
 
-    expect(mockGoogleGenerativeAI).toHaveBeenCalled();
-    expect(mockGetGenerativeModel).toHaveBeenCalled();
+    expect(mockGoogleGenAI).toHaveBeenCalled();
+    expect(mockChatsCreate).toHaveBeenCalled();
   });
 
   it('RS-004: uses API key from database when available', async () => {
     const { getApiKeyWithCache } = await import('../../services/api-keys');
     vi.mocked(getApiKeyWithCache).mockResolvedValue('db-api-key-123');
-    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => createMockChat('ok')) });
+    mockChatsCreate.mockReturnValue(createMockChat('ok'));
 
     const mod = await import('../../services/gemini-chat');
     try {
@@ -54,25 +54,25 @@ describe('gemini-chat', () => {
   it('RS-005: falls back to env GOOGLE_API_KEY when DB returns null', async () => {
     const { getApiKeyWithCache } = await import('../../services/api-keys');
     vi.mocked(getApiKeyWithCache).mockResolvedValue(null);
-    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => createMockChat('respuesta')) });
+    mockChatsCreate.mockReturnValue(createMockChat('respuesta'));
 
     const { sendMessageStream } = await import('../../services/gemini-chat');
     await sendMessageStream('test');
 
-    expect(mockGoogleGenerativeAI).toHaveBeenCalled();
+    expect(mockGoogleGenAI).toHaveBeenCalled();
   });
 
   it('RS-009: tool declarations are passed to the model', async () => {
-    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => createMockChat('ok')) });
+    mockChatsCreate.mockReturnValue(createMockChat('ok'));
 
     const { sendMessageStream } = await import('../../services/gemini-chat');
     await sendMessageStream('lista mis archivos');
 
-    expect(mockGetGenerativeModel.mock.calls[0]?.[0]).toHaveProperty('model');
+    expect(mockChatsCreate.mock.calls[0]?.[0]).toHaveProperty('model');
   });
 
   it('RS-010: sendMessageStream handles empty history gracefully', async () => {
-    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => createMockChat('hola')) });
+    mockChatsCreate.mockReturnValue(createMockChat('hola'));
 
     const { sendMessageStream } = await import('../../services/gemini-chat');
     const result = await sendMessageStream('Hola', []);
@@ -84,7 +84,7 @@ describe('gemini-chat', () => {
   it('RS-010A: simple chats avoid tool declarations and use direct message calls', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
     const chat = createMockChat('hola');
-    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => chat) });
+    mockChatsCreate.mockReturnValue(chat);
 
     try {
       const { sendMessageStream } = await import('../../services/gemini-chat');
@@ -92,7 +92,7 @@ describe('gemini-chat', () => {
       const text = await collectStream(result.stream);
 
       expect(text).toBe('hola');
-      expect(mockGetGenerativeModel.mock.calls[0]?.[0]).not.toHaveProperty('tools');
+      expect(mockChatsCreate.mock.calls[0]?.[0]?.config).not.toHaveProperty('tools');
       expect(chat.sendMessage).toHaveBeenCalled();
       expect(chat.sendMessageStream).not.toHaveBeenCalled();
       expect(fetchSpy).not.toHaveBeenCalled();
@@ -103,7 +103,7 @@ describe('gemini-chat', () => {
 
   it('RS-010H: Word document requests activate the computer tool loop', async () => {
     const chat = createMockChat('Documento creado en el escritorio.');
-    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => chat) });
+    mockChatsCreate.mockReturnValue(chat);
 
     const { sendMessageStream } = await import('../../services/gemini-chat');
     const result = await sendMessageStream(
@@ -111,7 +111,7 @@ describe('gemini-chat', () => {
       [{ role: 'model', text: 'Investigacion completa sobre Claude Fable Mythos.' }],
     );
     const text = await collectStream(result.stream);
-    const modelParams = mockGetGenerativeModel.mock.calls[0]?.[0];
+    const modelParams = mockChatsCreate.mock.calls[0]?.[0]?.config;
 
     expect(text).toBe('Documento creado en el escritorio.');
     expect(modelParams).toHaveProperty('tools');
@@ -127,15 +127,15 @@ describe('gemini-chat', () => {
       sendMessage: vi.fn(() => new Promise(() => undefined)),
       sendMessageStream: vi.fn(),
     };
-    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => hangingChat) });
+    mockChatsCreate.mockReturnValue(hangingChat);
 
     try {
       const { sendMessageStream } = await import('../../services/gemini-chat');
       const pending = expect(sendMessageStream('Hola', [])).rejects.toThrow('tiempo limite');
       await vi.advanceTimersByTimeAsync(45_000);
       await pending;
-      expect(mockGetGenerativeModel).toHaveBeenCalledTimes(1);
-      expect(mockGetGenerativeModel).toHaveBeenCalledWith(expect.objectContaining({ model: 'gemini-3.6-flash' }));
+      expect(mockChatsCreate).toHaveBeenCalledTimes(1);
+      expect(mockChatsCreate).toHaveBeenCalledWith(expect.objectContaining({ model: 'gemini-3.6-flash' }));
     } finally {
       warnSpy.mockRestore();
       vi.useRealTimers();
@@ -143,14 +143,15 @@ describe('gemini-chat', () => {
   });
 
   it('RS-010B: migra el thinkingLevel rápido heredado a low para Gemini', async () => {
-    const startChat = vi.fn(() => createMockChat('ok'));
-    mockGetGenerativeModel.mockReturnValue({ startChat });
+    mockChatsCreate.mockReturnValue(createMockChat('ok'));
 
     const { sendMessageStream } = await import('../../services/gemini-chat');
     await sendMessageStream('Hola', [], { thinking: { id: 'minimal', level: 'minimal' } });
 
-    const startChatOptions = (startChat.mock.calls as any)[0][0];
-    expect(startChatOptions.generationConfig).toEqual({
+    // El presupuesto de tokens y el razonamiento viajan ahora dentro de
+    // `config`, junto a la instruccion de sistema.
+    const config = (mockChatsCreate.mock.calls as any)[0][0].config;
+    expect(config).toMatchObject({
       maxOutputTokens: 16384,
       thinkingConfig: { thinkingLevel: 'low' },
     });
@@ -164,13 +165,13 @@ describe('gemini-chat', () => {
       }),
       sendMessageStream: vi.fn(),
     };
-    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => failingChat) });
+    mockChatsCreate.mockReturnValue(failingChat);
 
     try {
       const { sendMessageStream } = await import('../../services/gemini-chat');
       await expect(sendMessageStream('Hola', [])).rejects.toThrow('quota exceeded');
-      expect(mockGetGenerativeModel).toHaveBeenCalledTimes(1);
-      expect(mockGetGenerativeModel.mock.calls[0]?.[0]).toMatchObject({ model: 'gemini-3.6-flash' });
+      expect(mockChatsCreate).toHaveBeenCalledTimes(1);
+      expect(mockChatsCreate.mock.calls[0]?.[0]).toMatchObject({ model: 'gemini-3.6-flash' });
     } finally {
       warnSpy.mockRestore();
     }
@@ -201,7 +202,7 @@ describe('gemini-chat', () => {
       const body = JSON.parse(String(requestInit.body));
 
       expect(text).toBe('Respuesta verificada');
-      expect(mockGetGenerativeModel).not.toHaveBeenCalled();
+      expect(mockChatsCreate).not.toHaveBeenCalled();
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       expect(String(fetchSpy.mock.calls[0]?.[0])).toContain('/gemini-3.6-flash:generateContent');
       expect(String(fetchSpy.mock.calls[0]?.[0])).toContain('?key=');

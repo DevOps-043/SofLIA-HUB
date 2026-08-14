@@ -35,7 +35,7 @@ vi.mock('../../services/gemini-chat/web-grounding', async (importOriginal) => {
   return { ...actual, sendGroundedMessage: groundingMocks.sendGroundedMessage };
 });
 
-const { mockGetGenerativeModel } = getGeminiChatMocks();
+const { mockChatsCreate } = getGeminiChatMocks();
 
 function installVisibleBrowserObservation(options?: { observation?: BrowserObservationSnapshot | null }) {
   const observation = options && 'observation' in options ? options.observation : {
@@ -71,14 +71,14 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
   });
 
   it('RT-001: una orden de accion con palabras de investigacion usa herramientas, no grounding', async () => {
-    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => createMockChat('ok')) });
+    mockChatsCreate.mockReturnValue(createMockChat('ok'));
     const { sendMessageStream } = await import('../../services/gemini-chat');
 
     await sendMessageStream('abre minecraft y ejecutalo en su ultima version');
 
     expect(groundingMocks.sendGroundedMessage).not.toHaveBeenCalled();
-    expect(mockGetGenerativeModel).toHaveBeenCalled();
-    expect(mockGetGenerativeModel.mock.calls[0]?.[0]?.tools).toBeDefined();
+    expect(mockChatsCreate).toHaveBeenCalled();
+    expect(mockChatsCreate.mock.calls[0]?.[0]?.config?.tools).toBeDefined();
   });
 
   it('RT-002: una consulta informativa sobre versiones sigue usando grounding web', async () => {
@@ -87,32 +87,32 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     await sendMessageStream('cual es la ultima version de minecraft');
 
     expect(groundingMocks.sendGroundedMessage).toHaveBeenCalled();
-    expect(mockGetGenerativeModel).not.toHaveBeenCalled();
+    expect(mockChatsCreate).not.toHaveBeenCalled();
   });
 
   it('RT-003: "reproduce X" activa el loop de herramientas aunque no diga "abre"', async () => {
-    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => createMockChat('ok')) });
+    mockChatsCreate.mockReturnValue(createMockChat('ok'));
     const { sendMessageStream } = await import('../../services/gemini-chat');
 
     await sendMessageStream('reproduce without warning en youtube music');
 
     expect(groundingMocks.sendGroundedMessage).not.toHaveBeenCalled();
-    expect(mockGetGenerativeModel.mock.calls[0]?.[0]?.tools).toBeDefined();
+    expect(mockChatsCreate.mock.calls[0]?.[0]?.config?.tools).toBeDefined();
   });
 
   it('RT-004: "instala la actualizacion mas reciente de X" es accion, no investigacion', async () => {
-    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => createMockChat('ok')) });
+    mockChatsCreate.mockReturnValue(createMockChat('ok'));
     const { sendMessageStream } = await import('../../services/gemini-chat');
 
     await sendMessageStream('instala la actualizacion mas reciente de spotify');
 
     expect(groundingMocks.sendGroundedMessage).not.toHaveBeenCalled();
-    expect(mockGetGenerativeModel.mock.calls[0]?.[0]?.tools).toBeDefined();
+    expect(mockChatsCreate.mock.calls[0]?.[0]?.config?.tools).toBeDefined();
   });
 
   it('RT-005: una referencia a la vista actual inspecciona el navegador visible antes de responder', async () => {
     const chat = createMockChat('Veo la pagina actual.');
-    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => chat) });
+    mockChatsCreate.mockReturnValue(chat);
     Object.defineProperty(window, 'integratedBrowser', {
       configurable: true,
       value: {
@@ -138,16 +138,19 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
 
     expect(onToolCall).toHaveBeenCalledWith(expect.objectContaining({ name: 'inspect_browser_view' }));
     expect(result.toolCalls?.[0]).toEqual(expect.objectContaining({ name: 'inspect_browser_view' }));
-    expect(chat.sendMessage).toHaveBeenCalledWith(expect.arrayContaining([
-      expect.stringContaining('INICIO_CONTEXTO_DOM_NO_CONFIABLE'),
-      expect.objectContaining({ inlineData: { mimeType: 'image/png', data: 'Y2FwdHVyYQ==' } }),
-    ]), undefined);
-    expect(mockGetGenerativeModel.mock.calls[0]?.[0]?.systemInstruction).not.toContain('Contenido visible');
-    expect(mockGetGenerativeModel.mock.calls[0]?.[0]?.tools).toBeUndefined();
+    // `@google/genai` recibe el contenido del turno bajo `message`.
+    expect(chat.sendMessage).toHaveBeenCalledWith({
+      message: expect.arrayContaining([
+        expect.stringContaining('INICIO_CONTEXTO_DOM_NO_CONFIABLE'),
+        expect.objectContaining({ inlineData: { mimeType: 'image/png', data: 'Y2FwdHVyYQ==' } }),
+      ]),
+    });
+    expect(mockChatsCreate.mock.calls[0]?.[0]?.config?.systemInstruction).not.toContain('Contenido visible');
+    expect(mockChatsCreate.mock.calls[0]?.[0]?.config?.tools).toBeUndefined();
   });
 
   it('RT-006: no inventa una observacion si el navegador integrado no esta visible', async () => {
-    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => createMockChat('Necesito abrir la vista.')) });
+    mockChatsCreate.mockReturnValue(createMockChat('Necesito abrir la vista.'));
     Object.defineProperty(window, 'integratedBrowser', {
       configurable: true,
       value: {
@@ -164,7 +167,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     await sendMessageStream('ves lo que estoy viendo?');
 
     expect(window.integratedBrowser?.getObservation).not.toHaveBeenCalled();
-    expect(mockGetGenerativeModel.mock.calls[0]?.[0]?.tools).toBeDefined();
+    expect(mockChatsCreate.mock.calls[0]?.[0]?.config?.tools).toBeDefined();
   });
 
   it('RT-007: SofLIA Pro usa OpenAI y conserva el esfuerzo seleccionado', async () => {
@@ -182,12 +185,11 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
         thinking: { id: 'xhigh', level: 'xhigh' },
       }),
     }));
-    expect(mockGetGenerativeModel).not.toHaveBeenCalled();
+    expect(mockChatsCreate).not.toHaveBeenCalled();
   });
 
   it('RT-008: SofLIA Lite usa Gemini y envia su nivel de razonamiento', async () => {
-    const startChat = vi.fn(() => createMockChat('respuesta Gemini'));
-    mockGetGenerativeModel.mockReturnValue({ startChat });
+    mockChatsCreate.mockReturnValue(createMockChat('respuesta Gemini'));
     const { sendMessageStream } = await import('../../services/gemini-chat');
 
     await sendMessageStream('Hola', [], {
@@ -196,11 +198,11 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     });
 
     expect(providerMocks.sendOpenAIMessageStream).not.toHaveBeenCalled();
-    expect(mockGetGenerativeModel).toHaveBeenCalledWith(expect.objectContaining({
+    expect(mockChatsCreate).toHaveBeenCalledWith(expect.objectContaining({
       model: 'gemini-3.5-flash-lite',
     }));
-    expect(startChat).toHaveBeenCalledWith(expect.objectContaining({
-      generationConfig: expect.objectContaining({
+    expect(mockChatsCreate).toHaveBeenCalledWith(expect.objectContaining({
+      config: expect.objectContaining({
         thinkingConfig: { thinkingLevel: 'high' },
       }),
     }));
@@ -223,7 +225,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
         thinking: { id: 'max', level: 'max' },
       }),
     }));
-    expect(mockGetGenerativeModel).not.toHaveBeenCalled();
+    expect(mockChatsCreate).not.toHaveBeenCalled();
   });
 
   it('RT-013: leer una carpeta local no se degrada a investigación web aunque pida versiones recientes', async () => {
@@ -316,7 +318,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     const lastProviderCall = providerCalls[providerCalls.length - 1]?.[0];
     expect(lastProviderCall?.systemInstruction)
       .toContain('Reserva use_computer para lo que ese controlador no cubra');
-    expect(mockGetGenerativeModel).not.toHaveBeenCalled();
+    expect(mockChatsCreate).not.toHaveBeenCalled();
   });
 
   it('RT-012: SofLIA Pro recibe imagen y DOM para leer el chat visible sin abrir otra sesión', async () => {
@@ -350,7 +352,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
       useWebSearch: true,
       systemInstruction: expect.stringContaining('intenta read_browser_dom'),
     }));
-    expect(mockGetGenerativeModel).not.toHaveBeenCalled();
+    expect(mockChatsCreate).not.toHaveBeenCalled();
   });
 
   it('RT-014: SofLIA Gemini amplía un enlace visible con grounding sin iniciar el loop visual', async () => {
@@ -365,20 +367,19 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
       finalMessage: expect.stringContaining('https://github.com/TencentCloud'),
       systemInstruction: expect.stringContaining('búsqueda web o URL Context'),
     }));
-    expect(mockGetGenerativeModel).not.toHaveBeenCalled();
+    expect(mockChatsCreate).not.toHaveBeenCalled();
   });
 
   it('RT-015: una interacción explícita conserva Computer Use y no se convierte en búsqueda web', async () => {
-    const startChat = vi.fn(() => createMockChat('clic completado'));
-    mockGetGenerativeModel.mockReturnValue({ startChat });
+    mockChatsCreate.mockReturnValue(createMockChat('clic completado'));
     installVisibleBrowserObservation();
     const { sendMessageStream } = await import('../../services/gemini-chat');
 
     await sendMessageStream('haz clic en ese enlace', [], { model: 'gemini-3.6-flash' });
 
     expect(groundingMocks.sendGroundedMessage).not.toHaveBeenCalled();
-    expect(mockGetGenerativeModel).toHaveBeenCalledWith(expect.objectContaining({
-      tools: expect.any(Array),
+    expect(mockChatsCreate).toHaveBeenCalledWith(expect.objectContaining({
+      config: expect.objectContaining({ tools: expect.any(Array) }),
     }));
   });
 
@@ -404,8 +405,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
       toolCalls: [],
       generatedImages: [],
     });
-    const startChat = vi.fn(() => createMockChat('lectura por DOM'));
-    mockGetGenerativeModel.mockReturnValue({ startChat });
+    mockChatsCreate.mockReturnValue(createMockChat('lectura por DOM'));
     installVisibleBrowserObservation();
     const { sendMessageStream } = await import('../../services/gemini-chat');
 
@@ -413,7 +413,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
       model: 'gemini-3.6-flash',
     });
 
-    const modelTools = mockGetGenerativeModel.mock.calls[0]?.[0]?.tools ?? [];
+    const modelTools = mockChatsCreate.mock.calls[0]?.[0]?.config?.tools ?? [];
     const declarations = (modelTools as Array<{ functionDeclarations?: Array<{ name: string }> }>)
       .flatMap((group) => group.functionDeclarations || []);
     expect(declarations).toEqual(expect.arrayContaining([
@@ -438,7 +438,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
 
   it('RT-019: un turno ajeno al navegador no fuerza captura ni DOM aunque la vista este abierta', async () => {
     const browser = installVisibleBrowserObservation();
-    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => createMockChat('Hola')) });
+    mockChatsCreate.mockReturnValue(createMockChat('Hola'));
     const { sendMessageStream } = await import('../../services/gemini-chat');
 
     await sendMessageStream('Hola, ayudame a planear mi semana', [], { model: 'gemini-3.6-flash' });
@@ -449,7 +449,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
 
   it('RT-019B: crear un documento local no observa el navegador por el verbo escribir', async () => {
     const browser = installVisibleBrowserObservation();
-    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => createMockChat('documento creado')) });
+    mockChatsCreate.mockReturnValue(createMockChat('documento creado'));
     const { sendMessageStream } = await import('../../services/gemini-chat');
 
     await sendMessageStream('escribe un documento Word con el resumen', [], { model: 'gemini-3.6-flash' });
@@ -460,8 +460,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
 
   it('RT-020: un flujo Codex a Google Chat habilita herramientas sin confundir desktop con el DOM activo', async () => {
     const browser = installVisibleBrowserObservation();
-    const startChat = vi.fn(() => createMockChat('flujo preparado'));
-    mockGetGenerativeModel.mockReturnValue({ startChat });
+    mockChatsCreate.mockReturnValue(createMockChat('flujo preparado'));
     const { sendMessageStream } = await import('../../services/gemini-chat');
 
     await sendMessageStream(
@@ -471,7 +470,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     );
 
     expect(browser.getObservation).not.toHaveBeenCalled();
-    const modelConfig = mockGetGenerativeModel.mock.calls[0]?.[0];
+    const modelConfig = mockChatsCreate.mock.calls[0]?.[0]?.config;
     expect(modelConfig?.systemInstruction).toContain('backend desktop');
     const declarations = (modelConfig?.tools as Array<{ functionDeclarations?: Array<{ name: string }> }> | undefined)
       ?.flatMap((group) => group.functionDeclarations || []) ?? [];

@@ -2,7 +2,14 @@ import { vi } from 'vitest';
 
 const geminiChatMocks = vi.hoisted(() => {
   const mockGetGenerativeModel = vi.fn();
+  const mockChatsCreate = vi.fn();
   return {
+    // Ruta conversacional migrada a `@google/genai`.
+    mockChatsCreate,
+    mockGoogleGenAI: vi.fn().mockImplementation(function () {
+      return { chats: { create: mockChatsCreate } };
+    }),
+    // Utilidades de un solo disparo que siguen sobre el SDK anterior.
     mockGetGenerativeModel,
     mockGoogleGenerativeAI: vi.fn().mockImplementation(function () {
       return { getGenerativeModel: mockGetGenerativeModel };
@@ -10,6 +17,10 @@ const geminiChatMocks = vi.hoisted(() => {
     mockGetApiKeyWithCache: vi.fn(async () => null),
   };
 });
+
+vi.mock('@google/genai', () => ({
+  GoogleGenAI: geminiChatMocks.mockGoogleGenAI,
+}));
 
 vi.mock('@google/generative-ai', () => ({
   GoogleGenerativeAI: geminiChatMocks.mockGoogleGenerativeAI,
@@ -97,20 +108,21 @@ vi.mock('../../lib/supabase', () => ({
   isSupabaseConfigured: vi.fn(() => true),
 }));
 
+/**
+ * Sesion de chat con la forma de `@google/genai`: `sendMessage` resuelve la
+ * respuesta directamente (sin envoltorio `.response`) y `text` es un descriptor
+ * de acceso, no un metodo.
+ */
 export function createMockChat(text: string) {
   const response = {
+    get text() { return text; },
     candidates: [{ groundingMetadata: null, content: { parts: [{ text }] } }],
   };
   return {
-    sendMessage: vi.fn(async () => ({
-      response,
-    })),
-    sendMessageStream: vi.fn(async () => ({
-      stream: (async function* () {
-        yield { text: () => text };
-      })(),
-      response: Promise.resolve(response),
-    })),
+    sendMessage: vi.fn(async () => response),
+    sendMessageStream: vi.fn(async () => (async function* () {
+      yield response;
+    })()),
   };
 }
 

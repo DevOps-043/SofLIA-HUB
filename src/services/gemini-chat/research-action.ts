@@ -1,5 +1,5 @@
 import { runAgenticLoop } from './agentic-loop';
-import { getGenAI } from './client';
+import { getGenAiClient } from './client';
 import { buildModelTools } from './model-config';
 import { collectStreamText, isAbortError, singleChunkStream, stoppedStreamResult } from './streams';
 import type { SendMessageStreamOptions, StreamResult } from './types';
@@ -32,18 +32,19 @@ export async function runResearchActionPhase(input: {
   const signal = input.options?.signal;
   // Estado visible: la investigacion termino y ahora se generan los entregables.
   input.options?.onToolCall?.({ name: 'research_actions', args: {} });
-  const ai = await getGenAI();
+  const ai = await getGenAiClient();
   let lastError: unknown = null;
 
   for (const modelId of input.candidateModelIds) {
     if (signal?.aborted) return stoppedStreamResult([], [], researchText);
     try {
-      const model = ai.getGenerativeModel({
-        model: modelId,
+      const config: Record<string, any> = {
+        ...input.generationConfig,
         systemInstruction: input.systemInstruction,
         tools: buildModelTools(input.computerUseEnabled, modelId),
-      });
-      const chatSession = model.startChat({ history: input.history, generationConfig: input.generationConfig });
+      };
+      if (signal) config.abortSignal = signal;
+      const chatSession = ai.chats.create({ model: modelId, history: input.history, config });
       // Se siembran las graficas de la investigacion para que la fase de accion
       // las inyecte en el documento (chart_images de create_word_document).
       const actionResult = await runAgenticLoop({
