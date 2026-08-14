@@ -16,6 +16,22 @@ export const INTEGRATED_BROWSER_TOOLS: GeminiToolGroup = {
       }),
     },
     {
+      name: 'capturar_vista_navegador',
+      description: 'Toma una captura NUEVA de la pestaña activa en este instante y te la entrega como imagen. Úsala siempre que necesites ver de verdad lo que el usuario tiene delante: la apariencia de la página, una imagen, una gráfica, o el fotograma que está en pantalla en un video. A diferencia del DOM, esto te da píxeles, así que sirve para describir escenas, personas, colores, disposición visual y todo lo que el texto de la página no dice. No reutiliza capturas anteriores. Si la respuesta indica que la captura no es utilizable —por ejemplo reproducción protegida por DRM, que el sistema no puede capturar—, dilo con claridad y NO describas la escena: no tienes evidencia de ella.',
+      parameters: objectParams({
+        motivo: stringProp('Qué necesitas ver, en español y en pocas palabras. Se usa para trazabilidad.'),
+        detalle: booleanProp('True si necesitas leer texto pequeño, cifras o detalle fino de la imagen. Predeterminado: false.'),
+      }),
+    },
+    {
+      name: 'analizar_video_pestana',
+      description: 'Analiza el VIDEO que se está reproduciendo en la pestaña activa, sin necesidad de transcripción ni subtítulos. Si el video es público y direccionable, se envía el propio video con su audio acotado a una ventana alrededor del momento que el usuario está viendo. Si no lo es, se toma una secuencia de fotogramas con sus marcas de tiempo; en ese caso la evidencia es un MUESTREO, no el video completo, y debes decirlo al responder. Úsala cuando el usuario pregunte qué pasa, qué se ve, qué dicen o qué aparece en el video. Nunca le pidas al usuario que abra la transcripción: para eso existe esta herramienta.',
+      parameters: objectParams({
+        pregunta: stringProp('Qué quiere saber el usuario del video, en español.'),
+        ventana_segundos: numberProp('Duración de la ventana a analizar alrededor del momento actual. Máximo 90. Predeterminado: 40.'),
+      }),
+    },
+    {
       name: 'navigate_integrated_browser',
       description: 'Navega directamente la pestaña activa a una URL HTTP(S) o consulta de búsqueda y devuelve el DOM saneado después de cargar. Conserva cookies y sesión del navegador integrado y no usa Computer Use. Úsala cuando el usuario pidió abrir/navegar o cuando conoces la URL exacta del destino; si el destino solo existe como elemento de la página (una fila de la bandeja, una pestaña interna, un botón), usa click_browser_element.',
       parameters: objectParams({

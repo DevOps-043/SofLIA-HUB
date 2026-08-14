@@ -1,4 +1,10 @@
 import { requestUserConfirmation } from '../computer-use/confirmation';
+import {
+  MEDIA_BUDGET,
+  buildPlaybackWindow,
+  clampWindow,
+  windowDurationSeconds,
+} from '../../shared/multimodal-input';
 import type {
   BrowserDomSnapshot,
   BrowserElementTargetSummary,
@@ -32,6 +38,39 @@ export async function executeIntegratedBrowserTool(
     const visible = await requireVisibleBrowser('leer');
     if (visible) return visible;
     return serializeObservation(await api.getObservation(args.refresh !== false));
+  }
+
+  if (toolName === 'capturar_vista_navegador') {
+    const visible = await requireVisibleBrowser('ver');
+    if (visible) return visible;
+    const captura = await api.captureFrame();
+    if (!captura?.success || !captura.capture) {
+      return failure(captura?.error || 'No pude capturar la vista del navegador.');
+    }
+    if (!captura.capture.ok) {
+      // La degradacion se declara tal cual: describir una escena que no se
+      // capturo es exactamente lo que esta herramienta existe para evitar.
+      return JSON.stringify({
+        success: false,
+        evidencia: 'no-disponible',
+        motivo: captura.capture.reason,
+        detalle: captura.capture.detail,
+        instruccion: 'No describas la escena. Explica al usuario que no puedes verla y por que.',
+      });
+    }
+    return JSON.stringify({
+      success: true,
+      capturada_en: captura.capture.capturedAt,
+      url: captura.capture.url,
+      resolucion: args.detalle === true ? 'alta' : 'normal',
+      captura: captura.capture.screenshot,
+    });
+  }
+
+  if (toolName === 'analizar_video_pestana') {
+    const visible = await requireVisibleBrowser('analizar el video de');
+    if (visible) return visible;
+    return analyzeTabVideo(api, args);
   }
 
   if (toolName === 'navigate_integrated_browser') {
@@ -104,6 +143,91 @@ export async function executeIntegratedBrowserTool(
 }
 
 /** Devuelve un error serializado cuando no hay pestaña visible, o null si la hay. */
+/**
+ * Analiza el video de la pestaña activa.
+ *
+ * Dos rutas, en este orden. La primera es la buena: un video publico
+ * direccionable viaja al proveedor por su URI y se procesa del lado servidor
+ * con su pista de audio, sin que el equipo transfiera nada. La segunda es una
+ * degradacion honesta: un reproductor no direccionable —contenido autenticado,
+ * reproductor propietario— solo puede entregarse como muestreo de cuadros, sin
+ * audio y sin continuidad, y el resultado lo declara para que la respuesta no
+ * hable del video como si lo hubiera visto entero.
+ */
+async function analyzeTabVideo(
+  api: NonNullable<typeof window.integratedBrowser>,
+  args: Record<string, unknown>,
+): Promise<string> {
+  const estado = await api.getPlayerState();
+  const player = estado?.success ? estado.player : null;
+  if (!player?.hasVideo) {
+    return failure('No hay ningun video en reproduccion en la pestaña activa.');
+  }
+
+  const ventana = resolveRequestedWindow(args.ventana_segundos);
+  const posicionConocida = player.currentTimeSeconds !== null;
+
+  if (player.publicVideoUrl) {
+    const window_ = buildPlaybackWindow(player.currentTimeSeconds, player.durationSeconds ?? undefined);
+    const acotada = clampWindow({
+      startSeconds: window_.startSeconds,
+      endSeconds: Math.min(window_.startSeconds + ventana, window_.endSeconds + ventana - windowDurationSeconds(window_)),
+    }, player.durationSeconds ?? undefined);
+    return JSON.stringify({
+      success: true,
+      evidencia: 'video',
+      fuente: player.publicVideoUrl,
+      intervalo_segundos: { inicio: acotada.startSeconds, fin: acotada.endSeconds },
+      posicion_alineada: posicionConocida,
+      nota: posicionConocida
+        ? 'El video va adjunto acotado a ese intervalo, con su audio.'
+        : 'No pude leer la posicion de reproduccion: el intervalo arranca al inicio del medio. Dilo al responder.',
+      __media: [{
+        kind: 'public-video',
+        uri: player.publicVideoUrl,
+        durationSeconds: player.durationSeconds ?? undefined,
+        window: acotada,
+      }],
+    });
+  }
+
+  const muestreo = await api.sampleFrames(MEDIA_BUDGET.frameSampleCount, MEDIA_BUDGET.frameSampleIntervalSeconds * 1000);
+  if (!muestreo?.success) return failure(muestreo?.error || 'No pude muestrear el video de la pestaña.');
+  const cuadros = muestreo.frames ?? [];
+  if (!cuadros.length) {
+    const fallo = muestreo.failure;
+    return JSON.stringify({
+      success: false,
+      evidencia: 'no-disponible',
+      motivo: fallo && !fallo.ok ? fallo.reason : 'muestreo-vacio',
+      detalle: fallo && !fallo.ok ? fallo.detail : 'No pude obtener ningun cuadro del video.',
+      instruccion: 'No describas la escena. Explica al usuario que no puedes verla y por que.',
+    });
+  }
+
+  return JSON.stringify({
+    success: true,
+    evidencia: 'muestreo-de-cuadros',
+    cuadros: cuadros.length,
+    marcas_de_tiempo: cuadros.map((frame) => Math.round(frame.atSeconds)),
+    nota: 'Este video no es publicamente direccionable, asi que la evidencia es un MUESTREO de cuadros sin audio, no el video completo. Dilo explicitamente al responder.',
+    __media: [{
+      kind: 'frames',
+      frames: cuadros.map((frame) => ({
+        base64: frame.screenshot.slice(frame.screenshot.indexOf(',') + 1),
+        mimeType: 'image/jpeg',
+        atSeconds: frame.atSeconds,
+      })),
+    }],
+  });
+}
+
+function resolveRequestedWindow(value: unknown): number {
+  const segundos = Number(value);
+  if (!Number.isFinite(segundos) || segundos <= 0) return 40;
+  return Math.min(MEDIA_BUDGET.maxVideoWindowSeconds, Math.floor(segundos));
+}
+
 async function requireVisibleBrowser(action: string): Promise<string | null> {
   const state = await window.integratedBrowser!.getState();
   if (!state.success || !state.state?.isVisible) {

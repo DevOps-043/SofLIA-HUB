@@ -38,6 +38,20 @@ export function registerIntegratedBrowserHandlers(
       state: service.getState(),
     };
   }, (result) => result as Record<string, unknown>);
+  // Captura explicita bajo demanda: ruta paralela a la observacion pasiva,
+  // sin su cadencia ni su presupuesto visual reducido.
+  handle('integrated-browser:capture-frame', async () => ({
+    capture: await service.captureExplicitFrame(),
+    state: service.getState(),
+  }), (result) => result as Record<string, unknown>);
+  handle('integrated-browser:get-player-state', async () => ({
+    player: await service.getPlayerState(),
+    state: service.getState(),
+  }), (result) => result as Record<string, unknown>);
+  handle('integrated-browser:sample-frames', async (_event, input) => ({
+    ...(await service.sampleFrames(readFrameCount(input), readFrameIntervalMs(input))),
+    state: service.getState(),
+  }), (result) => result as Record<string, unknown>);
   handle('integrated-browser:get-observation', async (_event, input) => ({
     ...(await service.getObservation(readForceFresh(input))),
     state: service.getState(),
@@ -395,6 +409,16 @@ function readOverlayPositionInput(input: unknown): 'top-right' | 'top-left' | 'b
   const allowed = new Set(['top-right', 'top-left', 'bottom-right', 'bottom-left', 'center']);
   if (typeof pos !== 'string' || !allowed.has(pos)) throw new Error('La posición del panel superpuesto es inválida.');
   return pos as 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'center';
+}
+
+function readFrameCount(input: unknown): number {
+  const value = Number((input as { count?: unknown })?.count);
+  return Number.isFinite(value) && value > 0 ? Math.min(12, Math.floor(value)) : 6;
+}
+
+function readFrameIntervalMs(input: unknown): number {
+  const value = Number((input as { intervalMs?: unknown })?.intervalMs);
+  return Number.isFinite(value) && value >= 0 ? Math.min(10_000, Math.floor(value)) : 2_000;
 }
 
 function safeBrowserError(error: unknown): string {

@@ -28,6 +28,38 @@ export const INTEGRATED_BROWSER_OBSERVATION_MAX_EDGE = 1_024;
 export const INTEGRATED_BROWSER_OBSERVATION_QUALITY = 80;
 /** Calidad JPEG del respaldo visual mostrado mientras la vista esta oculta. */
 export const INTEGRATED_BROWSER_BACKDROP_QUALITY = 92;
+/**
+ * Separacion minima entre capturas explicitas consecutivas. `capturePage` a
+ * resolucion completa compite con el compositor de la pagina; sin este margen,
+ * un muestreo de cuadros seguidos degrada la reproduccion que se quiere mirar.
+ */
+export const INTEGRATED_BROWSER_EXPLICIT_CAPTURE_MIN_GAP_MS = 350;
+
+/**
+ * Estado del reproductor de la pestaña activa.
+ *
+ * Decide la ruta de evidencia del turno: un video publico direccionable viaja
+ * al proveedor por su URI —con su pista de audio y sin transferirlo desde el
+ * equipo—, y cualquier otro reproductor degrada a un muestreo de cuadros.
+ */
+export interface BrowserPlayerState {
+  hasVideo: boolean;
+  /** Posicion de reproduccion en segundos, o null si no pudo leerse. */
+  currentTimeSeconds: number | null;
+  durationSeconds: number | null;
+  paused: boolean;
+  /** URI publica del medio cuando el destino es direccionable. */
+  publicVideoUrl: string | null;
+}
+
+/** Resultado de la captura explicita: exito o degradacion declarada. */
+export type BrowserExplicitCapture =
+  | { ok: true; screenshot: string; capturedAt: string; url: string }
+  | {
+    ok: false;
+    reason: 'navegador-no-visible' | 'captura-vacia' | 'contenido-protegido' | 'captura-fallida';
+    detail: string;
+  };
 
 export type IntegratedBrowserViewMode = 'single' | 'split' | 'overlay';
 

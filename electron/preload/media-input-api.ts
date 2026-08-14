@@ -1,3 +1,4 @@
+import { webUtils } from 'electron';
 import type { PreloadBridge, SafeIpc } from './types';
 
 /**
@@ -11,6 +12,19 @@ export function exposeMediaInputApi(bridge: PreloadBridge, ipc: SafeIpc): void {
   const { safeInvoke } = ipc;
 
   bridge.exposeInMainWorld('mediaInput', {
+    /**
+     * Ruta en disco de un archivo elegido por el usuario. Es la unica forma de
+     * subir un video grande sin leerlo entero en el renderer: desde Electron 32
+     * `File.path` ya no existe y la ruta solo puede obtenerse aqui.
+     */
+    getFilePath: (file: File): string => {
+      try {
+        return webUtils.getPathForFile(file);
+      } catch {
+        return '';
+      }
+    },
+
     upload: (input: { path: string; mimeType: string; apiKey: string }) =>
       safeInvoke('media-input:upload', input),
 

@@ -10,6 +10,7 @@ import { executeNativeAiTool } from './native-ai-tools';
 import { executeProjectHubTool } from './project-hub-tools';
 import { executeSkillWorkspaceTool } from './skill-workspace-tools';
 import { prepareToolResult } from './tool-result-payload';
+import type { MediaRef } from '../../shared/multimodal-input';
 import type { SendMessageStreamOptions, ToolCallInfo } from './types';
 import { executeGoogleWorkspaceTool } from './workspace-tools';
 import { executeIntegratedBrowserTool } from './integrated-browser-tools';
@@ -29,7 +30,7 @@ export async function executeGeminiToolCall(
   options: SendMessageStreamOptions | undefined,
   allToolCalls: ToolCallInfo[],
   generatedImages: string[],
-): Promise<{ functionResponse: { name: string; response: any }; images?: string[] }> {
+): Promise<{ functionResponse: { name: string; response: any }; images?: string[]; media?: MediaRef[] }> {
   // toolInfo conserva los args originales (sin base64) para UI e historial;
   // el ejecutor recibe los args enriquecidos (p. ej. graficas para el Word).
   const toolInfo: ToolCallInfo = { name: toolName, args: toolArgs };
@@ -49,6 +50,7 @@ export async function executeGeminiToolCall(
     return {
       functionResponse: { name: toolName, response: JSON.parse(payload.text) },
       ...(payload.images.length > 0 ? { images: payload.images } : {}),
+      ...(payload.media.length > 0 ? { media: payload.media } : {}),
     };
   } catch (err: any) {
     const errorResult = { success: false, error: err.message };

@@ -2,6 +2,7 @@ import { sanitizeAssistantText } from './assistant-text-sanitizer';
 import { completedStreamResult, isAbortError, singleChunkStream, stoppedStreamResult } from './streams';
 import { resolveEmptyGeminiText } from './empty-response';
 import { getPublicAiErrorMessage } from './public-error';
+import { buildMultimodalContent } from './message-content';
 import { withGeminiModelCall, withToolTimeout } from './resilience';
 import { executeGeminiToolCall, isKnownGeminiTool } from './tool-dispatch';
 import type { SendMessageStreamOptions, StreamResult, ToolCallInfo } from './types';
@@ -109,6 +110,13 @@ async function executeFunctionCalls(
       for (const dataUrl of ejecutada.images ?? []) {
         const inline = toInlineData(dataUrl);
         if (inline) responses.push(inline);
+      }
+      // Un video no cabe como imagen: viaja como parte propia, con su ventana
+      // temporal, por el mismo constructor que usa el mensaje del usuario.
+      if (ejecutada.media?.length) {
+        const construido = buildMultimodalContent('', ejecutada.media);
+        if (Array.isArray(construido.content)) responses.push(...construido.content.slice(1));
+        params.options?.onMediaEnvelope?.(construido.envelope);
       }
     } catch (error: any) {
       // Si use_computer expiro, abortar la tarea en el main para no dejar un

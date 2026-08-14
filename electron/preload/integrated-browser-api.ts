@@ -5,6 +5,11 @@ export function exposeIntegratedBrowserApi(bridge: PreloadBridge, ipc: SafeIpc):
   bridge.exposeInMainWorld('integratedBrowser', {
     getState: () => safeInvoke('integrated-browser:get-state'),
     captureVisible: () => safeInvoke('integrated-browser:capture-visible'),
+    /** Cuadro fresco a resolucion del viewport, sin la cadencia pasiva. */
+    captureFrame: () => safeInvoke('integrated-browser:capture-frame'),
+    getPlayerState: () => safeInvoke('integrated-browser:get-player-state'),
+    sampleFrames: (count: number, intervalMs: number) =>
+      safeInvoke('integrated-browser:sample-frames', { count, intervalMs }),
     getObservation: (forceFresh = false) => safeInvoke('integrated-browser:get-observation', { forceFresh }),
     setObservationEnabled: (enabled: boolean) => safeInvoke('integrated-browser:set-observation-enabled', { enabled }),
     open: (url?: string) => safeInvoke('integrated-browser:open', url === undefined ? {} : { url }),

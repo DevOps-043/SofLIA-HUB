@@ -8,6 +8,9 @@ describe('wrapper renderer del navegador integrado', () => {
     api = {
       getState: vi.fn(async () => ({ success: true })),
       captureVisible: vi.fn(async () => ({ success: true, screenshot: 'data:image/png;base64,captura' })),
+    captureFrame: vi.fn(async () => ({ success: true, capture: { ok: true as const, screenshot: 'data:image/jpeg;base64,Y2Y=', capturedAt: '2026-08-13T00:00:00.000Z', url: 'https://example.com/' } })),
+    getPlayerState: vi.fn(async () => ({ success: true, player: { hasVideo: false, currentTimeSeconds: null, durationSeconds: null, paused: true, publicVideoUrl: null } })),
+    sampleFrames: vi.fn(async () => ({ success: true, frames: [], failure: null })),
       getObservation: vi.fn(async () => ({ success: true, observation: null, observationStatus: { enabled: true, capturing: false, intervalMs: 10_000, lastCapturedAt: null, lastError: null } })),
       setObservationEnabled: vi.fn(async (enabled) => ({ success: true, observation: null, observationStatus: { enabled, capturing: false, intervalMs: 10_000, lastCapturedAt: null, lastError: null } })),
       open: vi.fn(async () => ({ success: true })),

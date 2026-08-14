@@ -121,6 +121,29 @@ export const MEDIA_BUDGET = {
   maxUploadBytes: 2 * 1024 * 1024 * 1024,
 } as const;
 
+/**
+ * Interruptores de reversion por capacidad.
+ *
+ * Con las tres en `false`, el producto vuelve exactamente al comportamiento de
+ * captura fija anterior al cambio: sin herramientas de vision, sin adjuntos de
+ * video/audio y sin escucha. La migracion de SDK es el unico paso que no se
+ * revierte por parametro.
+ */
+export const MULTIMODAL_FEATURES = {
+  /** Captura explicita y analisis de video de la pestaña activa. */
+  browserVision: readFlag('VITE_MULTIMODAL_BROWSER_VISION'),
+  /** Adjuntos de video y audio en el compositor del chat. */
+  mediaAttachments: readFlag('VITE_MULTIMODAL_MEDIA_ATTACHMENTS'),
+  /** Escucha puntual del audio del equipo o del microfono. */
+  ambientAudio: readFlag('VITE_MULTIMODAL_AMBIENT_AUDIO'),
+} as const;
+
+/** Las capacidades vienen activas salvo que se apaguen explicitamente. */
+function readFlag(name: string): boolean {
+  const entorno = (import.meta as { env?: Record<string, string | undefined> }).env;
+  return entorno?.[name] !== 'false';
+}
+
 /** Costo aproximado en tokens por segundo de video, segun resolucion. */
 export const VIDEO_TOKENS_PER_SECOND: Record<MediaResolutionLevel, number> = {
   low: 100,

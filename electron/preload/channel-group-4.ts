@@ -1,6 +1,9 @@
 export const CHANNEL_GROUP_4 = [
   'integrated-browser:get-state',
   'integrated-browser:capture-visible',
+  'integrated-browser:capture-frame',
+  'integrated-browser:get-player-state',
+  'integrated-browser:sample-frames',
   'integrated-browser:get-observation',
   'integrated-browser:set-observation-enabled',
   'integrated-browser:open',

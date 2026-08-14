@@ -1,4 +1,5 @@
 import { MODELS } from '../../config';
+import { MULTIMODAL_FEATURES } from '../../shared/multimodal-input';
 import { supportsCodeExecutionCombo } from '../../shared/gemini-grounding-config';
 import {
   COMPUTER_USE_TOOLS,
@@ -23,6 +24,15 @@ export function buildGenerationConfig(options?: SendMessageStreamOptions): Recor
   const mediaResolution = resolveMediaResolution(options?.mediaResolution);
   if (mediaResolution) generationConfig.mediaResolution = mediaResolution;
   return generationConfig;
+}
+
+const VISION_TOOL_NAMES = new Set(['capturar_vista_navegador', 'analizar_video_pestana']);
+
+function withoutVisionTools(group: { functionDeclarations: Array<{ name: string }> }) {
+  return {
+    ...group,
+    functionDeclarations: group.functionDeclarations.filter((tool) => !VISION_TOOL_NAMES.has(tool.name)),
+  };
 }
 
 /**
@@ -63,7 +73,13 @@ export function buildModelTools(
     ? [COMPUTER_USE_TOOLS, PROJECT_HUB_TOOLS, NATIVE_AI_TOOLS]
     : [PROJECT_HUB_TOOLS, NATIVE_AI_TOOLS];
   if (hasGoogleWorkspace) tools.push(GOOGLE_WORKSPACE_TOOLS);
-  if (typeof window !== 'undefined' && !!window.integratedBrowser) tools.push(INTEGRATED_BROWSER_TOOLS);
+  if (typeof window !== 'undefined' && !!window.integratedBrowser) {
+    // Con la vision del navegador apagada, el catalogo queda exactamente como
+    // antes del cambio: solo las capacidades DOM y de navegacion.
+    tools.push(MULTIMODAL_FEATURES.browserVision
+      ? INTEGRATED_BROWSER_TOOLS
+      : withoutVisionTools(INTEGRATED_BROWSER_TOOLS));
+  }
   // Herramientas de la Skill activa. Sin Skill (o sin workspace vivo) el
   // catalogo queda exactamente igual que antes de este cambio.
   tools.push(...resolveSkillToolGroups(activeSkill));

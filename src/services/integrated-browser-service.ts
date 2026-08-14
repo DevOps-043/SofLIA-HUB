@@ -222,6 +222,36 @@ export interface IntegratedBrowserCaptureResponse extends IntegratedBrowserRespo
   captureBounds?: IntegratedBrowserViewport;
 }
 
+/** Captura explicita: exito, o degradacion con su motivo declarado. */
+export type BrowserExplicitCapture =
+  | { ok: true; screenshot: string; capturedAt: string; url: string }
+  | {
+    ok: false;
+    reason: 'navegador-no-visible' | 'captura-vacia' | 'contenido-protegido' | 'captura-fallida';
+    detail: string;
+  };
+
+export interface BrowserExplicitCaptureResponse extends IntegratedBrowserResponse {
+  capture?: BrowserExplicitCapture;
+}
+
+export interface BrowserPlayerState {
+  hasVideo: boolean;
+  currentTimeSeconds: number | null;
+  durationSeconds: number | null;
+  paused: boolean;
+  publicVideoUrl: string | null;
+}
+
+export interface BrowserPlayerStateResponse extends IntegratedBrowserResponse {
+  player?: BrowserPlayerState;
+}
+
+export interface BrowserFrameSampleResponse extends IntegratedBrowserResponse {
+  frames?: Array<{ screenshot: string; atSeconds: number }>;
+  failure?: BrowserExplicitCapture | null;
+}
+
 export interface BrowserDomControl {
   ref: string;
   tag: string;
@@ -408,6 +438,9 @@ export interface BrowserReadingResponse extends IntegratedBrowserResponse {
 export interface IntegratedBrowserApi {
   getState(): Promise<IntegratedBrowserResponse>;
   captureVisible(): Promise<IntegratedBrowserCaptureResponse>;
+  captureFrame(): Promise<BrowserExplicitCaptureResponse>;
+  getPlayerState(): Promise<BrowserPlayerStateResponse>;
+  sampleFrames(count: number, intervalMs: number): Promise<BrowserFrameSampleResponse>;
   getObservation(forceFresh?: boolean): Promise<IntegratedBrowserObservationResponse>;
   setObservationEnabled(enabled: boolean): Promise<IntegratedBrowserObservationResponse>;
   open(url?: string): Promise<IntegratedBrowserResponse>;
@@ -486,6 +519,10 @@ export const integratedBrowserService = {
   isAvailable: (): boolean => Boolean(window.integratedBrowser),
   getState: (): Promise<IntegratedBrowserResponse> => requireApi().getState(),
   captureVisible: (): Promise<IntegratedBrowserCaptureResponse> => requireApi().captureVisible(),
+  captureFrame: (): Promise<BrowserExplicitCaptureResponse> => requireApi().captureFrame(),
+  getPlayerState: (): Promise<BrowserPlayerStateResponse> => requireApi().getPlayerState(),
+  sampleFrames: (count: number, intervalMs: number): Promise<BrowserFrameSampleResponse> =>
+    requireApi().sampleFrames(count, intervalMs),
   getObservation: (forceFresh = false): Promise<IntegratedBrowserObservationResponse> => requireApi().getObservation(forceFresh),
   setObservationEnabled: (enabled: boolean): Promise<IntegratedBrowserObservationResponse> => requireApi().setObservationEnabled(enabled),
   open: (url?: string): Promise<IntegratedBrowserResponse> => requireApi().open(url),

@@ -14,7 +14,7 @@ export const ChatUI = (props: ChatUIProps) => {
       <input
         ref={controller.refs.fileInputRef}
         type="file"
-        accept="image/*,application/pdf,text/*,.doc,.docx,.xls,.xlsx,.csv,.json,.md"
+        accept="image/*,video/*,audio/*,application/pdf,text/*,.doc,.docx,.xls,.xlsx,.csv,.json,.md"
         multiple
         className="hidden"
         disabled={!controller.props.canSendMessages}
