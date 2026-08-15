@@ -33,6 +33,25 @@ import {
  */
 export type SkillChannelSelection = Readonly<Record<string, readonly SkillChannel[]>>;
 
+/** Ajustes de una Skill para un usuario: canales, herramientas y busqueda. */
+export interface SkillSettings {
+  readonly channels: readonly SkillChannel[];
+  /** `null` = sin eleccion (toda la superficie). Vacio = ninguna. */
+  readonly tools: readonly string[] | null;
+  readonly webSearch: 'auto' | 'siempre' | 'nunca';
+}
+
+/** Ajustes por identificador de Skill. `null` = no se pudieron resolver. */
+export type SkillSettingsMap = Readonly<Record<string, SkillSettings>>;
+
+/** Vista de solo canales, para lo que ya consumia `SkillChannelSelection`. */
+export function channelsFromSettings(settings: SkillSettingsMap | null | undefined): SkillChannelSelection | null {
+  if (!settings) return null;
+  const salida: Record<string, readonly SkillChannel[]> = {};
+  for (const [skillId, ajuste] of Object.entries(settings)) salida[skillId] = ajuste.channels;
+  return salida;
+}
+
 /** Canales que una Skill declara, derivados de sus superficies. */
 export function catalogChannelsForSkill(skill: Skill): SkillChannel[] {
   // Una Skill del usuario no declara superficies: vive en su sesion del Hub y

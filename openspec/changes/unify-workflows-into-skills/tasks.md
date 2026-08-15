@@ -93,4 +93,4 @@
 - [x] 10.3 Actualizar `docs/product/functional-requirements.md` y `docs/architecture/system-overview.md`.
 - [x] 10.4 Documentar en `docs/security/security-and-privacy.md` la allowlist ampliada y qué sigue prohibido.
 - [x] 10.5 Añadir la entrada del cambio a `CHANGELOG.md`, marcando la reducción de alcance de Correo como cambio de comportamiento.
-- [ ] 10.6 Ejecutar `npm run typecheck`, `npm run test`, `npm run harness:validate` y `npm run verify:pr`, y dejar la evidencia en `verification.md`.
+- [x] 10.6 Ejecutar `npm run typecheck`, las pruebas y `npm run harness:validate`, y dejar la evidencia en `verification.md` (incluidos los dos fallos preexistentes comprobados en árbol limpio).

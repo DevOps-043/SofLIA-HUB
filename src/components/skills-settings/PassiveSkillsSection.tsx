@@ -22,6 +22,7 @@ export function PassiveSkillsSection() {
   const [rules, setRules] = useState<PassiveSkillRule[]>([]);
   const [systemRules, setSystemRules] = useState<PassiveSkillRule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasSession, setHasSession] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,6 +36,7 @@ export function PassiveSkillsSection() {
       if (!result.success || !result.overview) throw new Error(result.error || 'No pude cargar las skills pasivas.');
       setRules(result.overview.rules);
       setSystemRules(result.overview.systemRules);
+      setHasSession(result.overview.hasSession !== false);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No pude cargar las skills pasivas.');
@@ -72,7 +74,16 @@ export function PassiveSkillsSection() {
 
       {loading && <p className="py-4 text-center text-sm text-secondary">Cargando...</p>}
 
-      {!loading && rules.length === 0 && (
+      {/* Sin sesión la lista viene vacía, y eso NO significa que no haya
+          rutinas: significa que todavía no se sabe de quién preguntar.
+          Afirmar lo primero llevaría al usuario a crearlas de nuevo. */}
+      {!loading && !hasSession && (
+        <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-center text-sm text-secondary">
+          Inicia sesión para ver tus skills pasivas. Están guardadas en tu cuenta, no en este equipo.
+        </p>
+      )}
+
+      {!loading && hasSession && rules.length === 0 && (
         <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-center text-sm text-secondary">
           No tienes ninguna skill pasiva programada.
         </p>

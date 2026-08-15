@@ -2,7 +2,9 @@ import { normalizeChannels } from '../../src/shared/skills/channels';
 import type { SkillChannel } from '../../src/shared/skills/types';
 import type { ScheduledTaskInfo, TaskScheduler } from '../task-scheduler';
 import { systemSkillsFor } from '../skill-catalog/system-skills-store';
+import { getHubSessionUserId } from '../main/hub-session';
 import { describeCron } from './cron-description';
+import { insertMigrated, listForUser, removeRule, upsertRule } from './repository';
 import { systemPassiveRules } from './system-rules';
 import type {
   PassiveSkillRule,
@@ -13,40 +15,62 @@ import type {
 /**
  * Skills pasivas: alta, baja y consulta.
  *
- * NO tiene almacen propio. Delega en el `TaskScheduler`, que ya persiste el
- * cron y lo levanta al arrancar; una `PassiveSkillRule` es la proyeccion de un
- * `ScheduledTaskInfo`. Crear un almacen nuevo habria obligado a migrar datos de
- * usuario con riesgo de perder programaciones, sin ganar nada: lo que cambio es
- * a que apunta la tarea y a donde entrega, no como se programa.
+ * Reparto de responsabilidades:
+ *  - `public.passive_skills` es la FUENTE DE VERDAD, con dueno y RLS.
+ *  - El `TaskScheduler` es el EJECUTOR y, de paso, la cache de arranque: su
+ *    JSON local permite levantar los cron sin red. Una rutina que no se ejecuta
+ *    no avisa de que no se ejecuto, asi que perder la red no puede apagarlas.
+ *
+ * Precedencia: cuando la base responde, manda; se reconcilia el planificador con
+ * lo que diga. Cuando no responde, se usa lo que ya hay levantado.
  */
 
 export interface PassiveSkillsDependencies {
   taskScheduler: TaskScheduler;
-  /**
-   * Si la deteccion automatica de reuniones esta operativa. Se inyecta porque
-   * depende de las capacidades de Google, que este modulo no resuelve.
-   */
   isMeetingDetectionAvailable?: () => boolean;
+  /** Usuario con el que main opera. Inyectable para pruebas. */
+  getUserId?: () => string | null;
 }
 
 export class PassiveSkillsService {
   constructor(private readonly deps: PassiveSkillsDependencies) {}
 
-  async getOverview(): Promise<PassiveSkillsOverview> {
+  private userId(): string | null {
+    return (this.deps.getUserId ?? getHubSessionUserId)();
+  }
+
+  async getOverview(profile?: string): Promise<PassiveSkillsOverview> {
+    const userId = this.userId();
     const nombres = await this.skillNames();
-    const rules = this.deps.taskScheduler
+    const systemRules = systemPassiveRules(this.deps.isMeetingDetectionAvailable?.() ?? false);
+
+    // Sin sesion no hay reglas que mostrar: son de un usuario, y main no sabe
+    // de cual. No es un error: es que todavia no se sabe de quien preguntar.
+    if (!userId) return { rules: [], systemRules, hasSession: false };
+
+    const remotas = await listForUser(userId, profile);
+    if (remotas) {
+      this.reconcileScheduler(remotas, profile);
+      return { rules: remotas.map((rule) => this.withSkillName(rule, nombres)), systemRules, hasSession: true };
+    }
+
+    // La base no respondio: se listan las que hay levantadas localmente, que es
+    // exactamente lo que se va a ejecutar.
+    const locales = this.deps.taskScheduler
       .getTasks()
       .filter(isPassiveTask)
       .map((task) => mapTaskToRule(task, nombres))
+      .filter((rule) => !profile || profileOf(rule) === profile)
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-
-    return {
-      rules,
-      systemRules: systemPassiveRules(this.deps.isMeetingDetectionAvailable?.() ?? false),
-    };
+    return { rules: locales, systemRules, hasSession: true };
   }
 
   async saveRule(input: SavePassiveSkillInput): Promise<PassiveSkillRule> {
+    const userId = this.userId();
+    if (!userId) {
+      throw new Error('Necesito una sesion iniciada para guardar una skill pasiva.');
+    }
+
     const name = String(input.name || '').trim();
     if (!name) throw new Error('Necesito un nombre para guardar la skill pasiva.');
 
@@ -67,9 +91,6 @@ export class PassiveSkillsService {
       throw new Error('Necesito la instruccion que quieres que ejecute la skill pasiva.');
     }
 
-    // Una regla sin destino se ejecutaria en silencio: el usuario no sabria
-    // nunca que corrio ni que produjo. Es un fallo de configuracion, no una
-    // eleccion util, asi que se rechaza en vez de guardarse inerte.
     const channels = normalizeChannels(input.channels);
     if (channels.length === 0) {
       throw new Error(
@@ -101,18 +122,116 @@ export class PassiveSkillsService {
       passiveRuleId: input.ruleId || undefined,
     });
 
-    return mapTaskToRule(task, await this.skillNames());
+    const rule = mapTaskToRule(task, await this.skillNames());
+    const guardada = await upsertRule(userId, rule);
+    if (!guardada) {
+      // Se deshace el alta local en vez de dejarla solo aqui. Sobreviviria al
+      // reinicio pero la borraria la primera lectura correcta de la base, y el
+      // usuario se habria quedado creyendo que estaba programada.
+      this.deps.taskScheduler.deleteTask(task.id);
+      throw new Error('No pude guardar la skill pasiva. Revisa tu conexion e intentalo de nuevo.');
+    }
+
+    return rule;
   }
 
-  deleteRule(ruleId: string): boolean {
-    return this.deps.taskScheduler.deleteTask(String(ruleId || '').trim());
+  async deleteRule(ruleId: string): Promise<boolean> {
+    const id = String(ruleId || '').trim();
+    if (!id) return false;
+
+    const userId = this.userId();
+    if (userId) {
+      const borrada = await removeRule(userId, id);
+      // Si la base no pudo borrarla, no se detiene el cron: volveria a aparecer
+      // en la siguiente lectura y el usuario veria reaparecer lo que elimino.
+      if (!borrada) {
+        throw new Error('No pude eliminar la skill pasiva. Revisa tu conexion e intentalo de nuevo.');
+      }
+    }
+    return this.deps.taskScheduler.deleteTask(id);
   }
 
   /**
-   * Nombres de las Skills del catalogo, para mostrar la regla con el nombre que
-   * el usuario reconoce. Un fallo de catalogo no puede dejar la lista sin
-   * cargar: se cae al identificador.
+   * Alinea el planificador con lo que dice la base: levanta lo que falte y
+   * retira lo que ya no exista. Es lo que hace que borrar una regla desde otro
+   * equipo la apague aqui.
    */
+  private reconcileScheduler(rules: PassiveSkillRule[], profile?: string): void {
+    const porId = new Map(rules.map((rule) => [rule.id, rule]));
+
+    for (const task of this.deps.taskScheduler.getTasks()) {
+      if (!isPassiveTask(task)) continue;
+      // Con un perfil concreto solo se reconcilia ese: las reglas de los demas
+      // no vinieron en la consulta y borrarlas seria apagarlas por error.
+      if (profile && profileOf(mapTaskToRule(task, new Map())) !== profile) continue;
+      if (!porId.has(task.id)) this.deps.taskScheduler.deleteTask(task.id);
+    }
+
+    for (const rule of rules) {
+      if (!rule.cronExpression) continue;
+      this.deps.taskScheduler.upsertTask({
+        id: rule.id,
+        cronExpression: rule.cronExpression,
+        prompt: rule.prompt,
+        phoneNumber: rule.phoneNumber || '',
+        name: rule.name,
+        description: rule.description,
+        scheduleLabel: rule.scheduleLabel,
+        runOnce: rule.runOnce,
+        scheduledFor: rule.scheduledFor,
+        source: rule.source === 'chat' || rule.source === 'app' ? rule.source : 'app',
+        kind: rule.skillId ? 'passive_skill' : 'passive_prompt',
+        executionMode: 'agent_prompt',
+        skillId: rule.skillId,
+        channels: rule.channels,
+        requestedBy: rule.requestedBy,
+        createdAt: rule.createdAt,
+        lastRun: rule.lastRunAt ?? undefined,
+      });
+    }
+  }
+
+  /**
+   * Migra al usuario en sesion las reglas que quedaron en el planificador local
+   * sin dueno. Se llama al restaurarse la sesion.
+   *
+   * Solo migra lo que puede atribuirle: reglas creadas desde este equipo por su
+   * telefono o su identificador. Lo que no se puede resolver se deja donde
+   * esta; atribuirlo a quien mire seria entregarle las rutinas de otro.
+   */
+  async migrateLocalRules(): Promise<number> {
+    const userId = this.userId();
+    if (!userId) return 0;
+
+    const nombres = await this.skillNames();
+    const candidatas = this.deps.taskScheduler
+      .getTasks()
+      .filter(isPassiveTask)
+      .map((task) => mapTaskToRule(task, nombres))
+      .filter((rule) => Boolean(rule.cronExpression));
+
+    if (candidatas.length === 0) return 0;
+
+    const migradas = await insertMigrated(userId, candidatas);
+    if (migradas > 0) {
+      console.log(`[SkillsPasivas] ${migradas} reglas locales quedaron registradas a nombre del usuario.`);
+    }
+    return migradas;
+  }
+
+  /** Detiene y olvida las reglas del usuario anterior. Se llama al cerrar sesion. */
+  clearLocalRules(): void {
+    for (const task of this.deps.taskScheduler.getTasks()) {
+      if (isPassiveTask(task)) this.deps.taskScheduler.deleteTask(task.id);
+    }
+    console.log('[SkillsPasivas] Cache local vaciada: no quedan rutinas del usuario anterior.');
+  }
+
+  private withSkillName(rule: PassiveSkillRule, nombres: Map<string, string>): PassiveSkillRule {
+    if (!rule.skillId) return { ...rule, skillName: 'Rutina libre' };
+    return { ...rule, skillName: nombres.get(rule.skillId) ?? rule.skillId };
+  }
+
   private async skillNames(): Promise<Map<string, string>> {
     try {
       const skills = await systemSkillsFor('chat');
@@ -124,11 +243,12 @@ export class PassiveSkillsService {
   }
 }
 
-/**
- * La deteccion automatica de reuniones no se programa: corre sola. Se rechaza
- * al guardar para que el usuario no cree una rutina que duplicaria el trabajo
- * del servicio que ya la ejecuta.
- */
+/** Perfil de una regla: 'global' o el telefono del contacto. */
+export function profileOf(rule: Pick<PassiveSkillRule, 'phoneNumber'>): string {
+  const telefono = String(rule.phoneNumber || '').replace(/\D/g, '');
+  return telefono || 'global';
+}
+
 function isSystemDetectionSkill(skillId: string): boolean {
   return skillId === 'sistema:reuniones';
 }

@@ -64,4 +64,12 @@ export interface PassiveSkillsOverview {
   rules: PassiveSkillRule[];
   /** Detecciones automaticas del sistema, que se listan pero no se programan. */
   systemRules: PassiveSkillRule[];
+  /**
+   * Si main pudo resolver la identidad del usuario.
+   *
+   * Sin ella la lista viene vacia, y eso NO significa "no tienes rutinas": las
+   * reglas son de un usuario y main no sabe de cual. La interfaz necesita
+   * distinguirlo para no afirmar que no hay nada programado.
+   */
+  hasSession: boolean;
 }

@@ -53,7 +53,9 @@ export function WhatsAppPassiveSkillsCard({ selectedTarget }: WhatsAppPassiveSki
     if (!isPassiveSkillsAvailable() || target.isGroup) return;
     setBusy('load');
     try {
-      const result = await getPassiveSkillsOverview();
+      // Se consulta el perfil concreto: filtrar en cliente obligaria a traer
+      // todas las reglas del usuario para descartar casi todas.
+      const result = await getPassiveSkillsOverview(target.phoneNumber || 'global');
       if (!result.success || !result.overview) throw new Error(result.error || 'Skills pasivas no disponibles');
       setRules(result.overview.rules.filter((rule) => matchesTarget(rule, target.phoneNumber)));
       setError(null);

@@ -1,10 +1,11 @@
 import { supabase } from '../../lib/supabase';
-import { normalizeChannels, type SkillChannelSelection } from '../../shared/skills/channels';
+import { normalizeChannels, type SkillSettings, type SkillSettingsMap } from '../../shared/skills/channels';
+import { normalizeToolSelection, normalizeWebSearch } from '../../shared/skills/tool-selection';
 import type { SkillChannel } from '../../shared/skills/types';
 
 /**
- * Canales activos de cada Skill para el usuario en sesion, sobre
- * `public.user_skill_channels`.
+ * Ajustes de cada Skill para el usuario en sesion, sobre
+ * `public.user_skill_settings`: canales, herramientas y busqueda web.
  *
  * Devuelve `null` —no un objeto vacio— cuando la consulta falla. La diferencia
  * decide el respaldo: sin eleccion resuelta, cada Skill queda activa en todos
@@ -15,11 +16,11 @@ import type { SkillChannel } from '../../shared/skills/types';
  * este modulo es una segunda barrera, no la principal.
  */
 
-const COLUMNAS = 'skill_id, channels';
+const COLUMNAS = 'skill_id, channels, tools, web_search';
 
-let cache: Promise<SkillChannelSelection | null> | null = null;
+let cache: Promise<SkillSettingsMap | null> | null = null;
 
-async function consultar(): Promise<SkillChannelSelection | null> {
+async function consultar(): Promise<SkillSettingsMap | null> {
   try {
     const { data: sesion } = await supabase.auth.getUser();
     const userId = sesion?.user?.id;
@@ -28,7 +29,7 @@ async function consultar(): Promise<SkillChannelSelection | null> {
     if (!userId) return {};
 
     const { data, error } = await supabase
-      .from('user_skill_channels')
+      .from('user_skill_settings')
       .select(COLUMNAS)
       .eq('user_id', userId);
 
@@ -37,20 +38,28 @@ async function consultar(): Promise<SkillChannelSelection | null> {
       return null;
     }
 
-    const seleccion: Record<string, SkillChannel[]> = {};
+    const ajustes: Record<string, SkillSettings> = {};
     for (const fila of data ?? []) {
-      const skillId = String((fila as { skill_id?: unknown }).skill_id ?? '').trim();
+      const registro = fila as { skill_id?: unknown; channels?: unknown; tools?: unknown; web_search?: unknown };
+      const skillId = String(registro.skill_id ?? '').trim();
       if (!skillId) continue;
-      seleccion[skillId] = normalizeChannels((fila as { channels?: unknown }).channels);
+      ajustes[skillId] = {
+        channels: normalizeChannels(registro.channels),
+        // `null` y array son distintos: sin eleccion vale toda la superficie.
+        tools: registro.tools === null || registro.tools === undefined
+          ? null
+          : normalizeToolSelection(registro.tools as string[]),
+        webSearch: normalizeWebSearch(registro.web_search),
+      };
     }
-    return seleccion;
+    return ajustes;
   } catch (error) {
     console.warn('[CanalesSkills] No se pudo leer la eleccion de canales:', error);
     return null;
   }
 }
 
-export function loadSkillChannels(): Promise<SkillChannelSelection | null> {
+export function loadSkillChannels(): Promise<SkillSettingsMap | null> {
   if (!cache) {
     cache = consultar().then((seleccion) => {
       // Un fallo no se cachea: la siguiente consulta reintenta y el usuario se
@@ -76,7 +85,7 @@ export async function saveSkillChannels(skillId: string, channels: readonly Skil
   if (!id) throw new Error('No reconozco esa skill.');
 
   const { error } = await supabase
-    .from('user_skill_channels')
+    .from('user_skill_settings')
     .upsert(
       {
         user_id: userId,
@@ -102,13 +111,66 @@ export async function clearSkillChannels(skillId: string): Promise<void> {
   if (!userId) throw new Error('Necesito una sesion iniciada para restablecer los canales.');
 
   const { error } = await supabase
-    .from('user_skill_channels')
+    .from('user_skill_settings')
     .delete()
     .eq('user_id', userId)
     .eq('skill_id', String(skillId || '').trim());
 
   if (error) throw new Error(`No se pudieron restablecer los canales: ${error.message}`);
   resetSkillChannelsCache();
+}
+
+/**
+ * Guarda la seleccion de herramientas. `null` la retira, devolviendo la Skill a
+ * "usa todo lo que ofrezca la superficie"; un array vacio significa "ninguna".
+ */
+export async function saveSkillTools(skillId: string, tools: readonly string[] | null): Promise<void> {
+  const userId = await requireUserId('guardar las herramientas de la skill');
+  const id = String(skillId || '').trim();
+  if (!id) throw new Error('No reconozco esa skill.');
+
+  const { error } = await supabase
+    .from('user_skill_settings')
+    .upsert(
+      {
+        user_id: userId,
+        skill_id: id,
+        tools: tools === null ? null : normalizeToolSelection(tools),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,skill_id' },
+    );
+
+  if (error) throw new Error(`No se pudieron guardar las herramientas: ${error.message}`);
+  resetSkillChannelsCache();
+}
+
+export async function saveSkillWebSearch(skillId: string, webSearch: string): Promise<void> {
+  const userId = await requireUserId('guardar la busqueda web de la skill');
+  const id = String(skillId || '').trim();
+  if (!id) throw new Error('No reconozco esa skill.');
+
+  const { error } = await supabase
+    .from('user_skill_settings')
+    .upsert(
+      {
+        user_id: userId,
+        skill_id: id,
+        web_search: normalizeWebSearch(webSearch),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id,skill_id' },
+    );
+
+  if (error) throw new Error(`No se pudo guardar la busqueda web: ${error.message}`);
+  resetSkillChannelsCache();
+}
+
+async function requireUserId(accion: string): Promise<string> {
+  const { data: sesion } = await supabase.auth.getUser();
+  const userId = sesion?.user?.id;
+  if (!userId) throw new Error(`Necesito una sesion iniciada para ${accion}.`);
+  return userId;
 }
 
 /** Fuerza una relectura. Uso previsto: tras escribir, y en pruebas. */

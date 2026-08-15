@@ -226,6 +226,34 @@ CREATE TABLE public.system_skills (
   CONSTRAINT system_skills_pkey PRIMARY KEY (id)
 );
 
+-- Skills pasivas (rutinas programadas) por usuario y perfil de canal. Fuente de
+-- verdad; el JSON local del planificador quedo como cache de arranque. Sustituye
+-- a la fila global 'task-scheduler' de hub_service_state, que no tenia dueno.
+CREATE TABLE public.passive_skills (
+  user_id uuid NOT NULL,
+  id text NOT NULL CHECK (length(btrim(id)) > 0),
+  profile text NOT NULL DEFAULT 'global'::text,
+  skill_id text,
+  name text NOT NULL CHECK (length(btrim(name)) > 0),
+  description text,
+  prompt text NOT NULL CHECK (length(btrim(prompt)) > 0),
+  cron_expression text NOT NULL CHECK (length(btrim(cron_expression)) > 0),
+  schedule_label text,
+  channels ARRAY NOT NULL DEFAULT '{}'::text[],
+  run_once boolean NOT NULL DEFAULT false,
+  scheduled_for timestamp with time zone,
+  phone_number text,
+  source text NOT NULL DEFAULT 'app'::text,
+  requested_by text,
+  last_run_at timestamp with time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT passive_skills_pkey PRIMARY KEY (user_id, id),
+  CONSTRAINT passive_skills_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT passive_skills_canales_validos CHECK (channels <@ ARRAY['escritorio'::text, 'whatsapp'::text, 'telegram'::text] AND array_length(channels, 1) >= 1),
+  CONSTRAINT passive_skills_source_valido CHECK (source = ANY (ARRAY['legacy'::text, 'chat'::text, 'app'::text]))
+);
+
 -- Canales en los que cada usuario tiene activa cada Skill. La AUSENCIA de fila
 -- no retira ningun canal: la Skill queda activa en todos los que declara su
 -- catalogo. Solo una fila con la lista recortada los retira. skill_id no tiene

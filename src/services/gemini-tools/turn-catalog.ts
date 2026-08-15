@@ -1,4 +1,6 @@
 import { filterSkillTools } from '../../shared/skills/surface-tools';
+import { normalizeToolSelection } from '../../shared/skills/tool-selection';
+import type { SkillWebSearch } from '../../shared/skills/tool-registry';
 import { isSkillWorkspaceToolName } from '../../shared/skills/workspace-tool-names';
 import { SKILL_WORKSPACE_TOOLS } from './skill-workspace-tools';
 import {
@@ -29,6 +31,34 @@ export interface ActiveSkillContext {
    * catalogo que ofrece escritura sin destino valido es un fallo permanente.
    */
   workspaceId: string | null;
+  /**
+   * Seleccion de herramientas que el USUARIO hizo para esta Skill.
+   *
+   * `null`/ausente = no configuro nada, y el catalogo queda como estaba. Cuando
+   * hay seleccion, ACOTA: el catalogo del turno se reduce a lo elegido. Nunca
+   * amplia, porque solo se interseca con lo que la superficie ya ofrecia.
+   */
+  allowedTools?: readonly string[] | null;
+  /** Ajuste de busqueda web de la Skill. Ver `tool-registry.ts`. */
+  webSearch?: SkillWebSearch;
+}
+
+/**
+ * Acota una lista de declaraciones a la seleccion del usuario.
+ *
+ * Se filtra al CONSTRUIR el catalogo y no al ejecutar: si se filtrara despues,
+ * el modelo seguiria viendo las herramientas, las llamaria y el usuario
+ * recibiria rechazos en lugar de una respuesta util —y no se ahorraria ni un
+ * token—. Acotar antes es lo que mejora fiabilidad y coste.
+ */
+export function filterDeclarationsBySelection<T extends { name: string }>(
+  declarations: readonly T[],
+  allowedTools?: readonly string[] | null,
+): T[] {
+  const permitidas = normalizeToolSelection(allowedTools);
+  if (permitidas === null) return [...declarations];
+  const set = new Set(permitidas);
+  return declarations.filter((declaration) => set.has(declaration.name));
 }
 
 const BASE_TOOL_NAMES: ReadonlySet<string>[] = [
@@ -44,7 +74,15 @@ export function resolveSkillToolNames(activeSkill?: ActiveSkillContext | null): 
   if (!activeSkill) return [];
   const permitted = filterSkillTools('chat', activeSkill.tools);
   // Las de workspace requieren workspace vivo; el resto pasa tal cual.
-  return permitted.filter((tool) => !isSkillWorkspaceToolName(tool) || Boolean(activeSkill.workspaceId));
+  const conWorkspace = permitted.filter(
+    (tool) => !isSkillWorkspaceToolName(tool) || Boolean(activeSkill.workspaceId),
+  );
+  // La seleccion del usuario acota tambien lo que aporta la Skill: si acoto a
+  // correo, el espacio de trabajo tampoco deberia aparecer.
+  const elegidas = normalizeToolSelection(activeSkill.allowedTools);
+  if (elegidas === null) return conWorkspace;
+  const set = new Set(elegidas);
+  return conWorkspace.filter((tool) => set.has(tool));
 }
 
 /** Grupos de declaraciones que la Skill activa anade a los del modelo. */

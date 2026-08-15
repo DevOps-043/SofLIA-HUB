@@ -34,6 +34,8 @@ export interface PassiveSkillRule {
 export interface PassiveSkillsOverview {
   rules: PassiveSkillRule[];
   systemRules: PassiveSkillRule[];
+  /** Sin sesión la lista viene vacía, que NO es lo mismo que no tener rutinas. */
+  hasSession?: boolean;
 }
 
 export interface SavePassiveSkillInput {
@@ -53,7 +55,7 @@ export interface SavePassiveSkillInput {
 }
 
 interface PassiveSkillsBridge {
-  getOverview: () => Promise<{ success: boolean; overview?: PassiveSkillsOverview; error?: string }>;
+  getOverview: (profile?: string) => Promise<{ success: boolean; overview?: PassiveSkillsOverview; error?: string }>;
   saveRule: (input: SavePassiveSkillInput) => Promise<{ success: boolean; rule?: PassiveSkillRule; error?: string }>;
   deleteRule: (ruleId: string) => Promise<{ success: boolean; deleted?: boolean; error?: string }>;
 }
@@ -75,8 +77,9 @@ function api(): PassiveSkillsBridge {
   return window.passiveSkills;
 }
 
-export function getPassiveSkillsOverview() {
-  return api().getOverview();
+/** `profile`: 'global' o el telefono del contacto. Sin el, todas las del usuario. */
+export function getPassiveSkillsOverview(profile?: string) {
+  return api().getOverview(profile);
 }
 
 export function savePassiveSkill(input: SavePassiveSkillInput) {

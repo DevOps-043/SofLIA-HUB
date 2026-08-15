@@ -44,7 +44,10 @@ existencia productiva verificada.
 | Meetings legacy | `meeting_sessions`, `transcript_segments`, `meeting_action_items`, `meeting_exports` | no confundir con Meeting Ops nuevo |
 | CRM legacy | `crm_companies`, `crm_contacts`, `crm_opportunities`, `crm_interactions` | tests/servicios legacy pueden existir, pero bootstrap no construye CRM service |
 | Workflow legacy | `workflow_definitions`, `workflow_runs`, `workflow_step_runs`, `workflow_artifacts`, `workflow_approvals` | El Workflow Hub se retiro del producto; estas tablas quedaron sin consumidor |
-| Canales por Skill | `user_skill_channels` | Una fila por Skill configurada. La AUSENCIA de fila no retira canales: la Skill queda activa en todos los que declara su catalogo |
+| Estado de servicios | `hub_service_state` | Espejo por servicio, fila global sin `user_id` y politica permisiva. Las Skills pasivas YA NO lo usan (viven en `passive_skills`); su fila `task-scheduler` se conserva una version como red de seguridad |
+| Skills pasivas | `passive_skills` | Una fila por rutina programada, con `user_id` y `profile`. Fuente de verdad; el JSON del planificador es cache de arranque. Requiere que main opere con sesion |
+| Ajustes por Skill | `user_skill_settings` | Canales, herramientas y busqueda web por usuario y Skill. `tools` a NULL = sin eleccion (toda la superficie); array vacio = ninguna. Sustituye a `user_skill_channels`, que se conserva una version |
+| Canales por Skill (retirada) | `user_skill_channels` | Una fila por Skill configurada. La AUSENCIA de fila no retira canales: la Skill queda activa en todos los que declara su catalogo |
 
 ## IRIS: tablas consumidas
 

@@ -9,6 +9,7 @@ interface OrbCallbackRegistry {
   error?: (payload: { sessionId: string; reason: string }) => void;
   ttsChunk?: (payload: { speechId: string; audioBase64: string; sampleRate: number }) => void;
   ttsEnd?: (payload: { speechId: string; interrupted: boolean; error?: string }) => void;
+  announce?: (payload: { id: string; title: string; text: string; createdAt: string }) => void;
 }
 
 const mocks = vi.hoisted(() => {
@@ -16,6 +17,8 @@ const mocks = vi.hoisted(() => {
   return {
     callbacks,
     getPendingWake: vi.fn(async () => ({ success: true, wake: false })),
+    getPendingAnnouncement: vi.fn(async () => ({ success: true, announcement: null })),
+    announcementFinished: vi.fn(async () => ({ success: true })),
     startDictation: vi.fn(async () => ({ success: true, sessionId: 'dictation-default' })),
     stopDictation: vi.fn(async () => ({ success: true })),
     stopSpeaking: vi.fn(async () => ({ success: true })),
@@ -31,6 +34,8 @@ vi.mock('../../services/orb-service', () => ({
   orbService: {
     isAvailable: () => true,
     getPendingWake: mocks.getPendingWake,
+    getPendingAnnouncement: mocks.getPendingAnnouncement,
+    announcementFinished: mocks.announcementFinished,
     startDictation: mocks.startDictation,
     stopDictation: mocks.stopDictation,
     speak: mocks.speak,
@@ -38,6 +43,7 @@ vi.mock('../../services/orb-service', () => ({
     conversationEnded: mocks.conversationEnded,
     hide: mocks.hide,
     onWake: (callback: () => void) => { mocks.callbacks.wake = callback; },
+    onAnnounce: (callback: OrbCallbackRegistry['announce']) => { mocks.callbacks.announce = callback; },
     onDictationPartial: (callback: OrbCallbackRegistry['partial']) => { mocks.callbacks.partial = callback; },
     onDictationFinal: (callback: OrbCallbackRegistry['final']) => { mocks.callbacks.final = callback; },
     onDictationError: (callback: OrbCallbackRegistry['error']) => { mocks.callbacks.error = callback; },
@@ -45,6 +51,7 @@ vi.mock('../../services/orb-service', () => ({
     onTtsEnd: (callback: OrbCallbackRegistry['ttsEnd']) => { mocks.callbacks.ttsEnd = callback; },
     removeListeners: () => {
       delete mocks.callbacks.wake;
+      delete mocks.callbacks.announce;
       delete mocks.callbacks.partial;
       delete mocks.callbacks.final;
       delete mocks.callbacks.error;
@@ -215,6 +222,49 @@ describe('useOrbConversation session lifecycle', () => {
     expect(mocks.speak).not.toHaveBeenCalled();
     // El texto de la respuesta sigue visible para el usuario.
     expect(result.current.responseText).toBe('Respuesta sin voz.');
+    unmount();
+  });
+
+  // Anuncio proactivo: SofLIA habla sin que el usuario haya iniciado el turno.
+  it('ORB-ANUNCIO-1: muestra el texto del anuncio y acusa su fin', async () => {
+    mocks.synthesizeElevenLabsSpeech.mockResolvedValue({ audioBase64: 'YXVkaW8=' });
+    const { result, unmount } = renderHook(() => useOrbConversation());
+
+    await act(async () => {
+      mocks.callbacks.announce?.({
+        id: 'anuncio-1',
+        title: 'Noticias de IA',
+        text: 'Hoy salieron tres modelos nuevos.',
+        createdAt: new Date().toISOString(),
+      });
+    });
+
+    await waitFor(() => expect(result.current.responseText).toBe('Hoy salieron tres modelos nuevos.'));
+    // No hubo peticion del usuario: el anuncio no inventa una.
+    expect(result.current.userText).toBe('');
+    await waitFor(() => expect(mocks.announcementFinished).toHaveBeenCalledWith('anuncio-1'));
+    unmount();
+  });
+
+  // Sin voz, el anuncio no puede perderse: el usuario no lo pidio y no puede
+  // volver a pedirlo.
+  it('ORB-ANUNCIO-2: si la voz falla, el texto del anuncio sigue visible y la cola avanza', async () => {
+    mocks.synthesizeElevenLabsSpeech.mockRejectedValue(new Error('sin permiso de texto a voz'));
+    const { result, unmount } = renderHook(() => useOrbConversation());
+
+    await act(async () => {
+      mocks.callbacks.announce?.({
+        id: 'anuncio-2',
+        title: 'Noticias de IA',
+        text: 'Resumen del dia.',
+        createdAt: new Date().toISOString(),
+      });
+    });
+
+    await waitFor(() => expect(result.current.responseText).toBe('Resumen del dia.'));
+    // El acuse llega igual: sin el, ningun anuncio posterior sonaria nunca.
+    await waitFor(() => expect(mocks.announcementFinished).toHaveBeenCalledWith('anuncio-2'));
+    expect(mocks.speak).not.toHaveBeenCalled();
     unmount();
   });
 });

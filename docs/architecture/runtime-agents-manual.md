@@ -1031,6 +1031,23 @@ Una Skill pasiva **no tiene almacén propio**: es la proyección de un
 programación, al menos un canal, y rechazo de las detecciones automáticas del
 sistema) y delega en `upsertTask`.
 
+**Dónde viven.** En `public.passive_skills`, una fila por regla con `user_id` y
+`profile` (el perfil de canal: `global` o el teléfono del contacto), con RLS por
+`auth.uid()`. Es la fuente de verdad. El JSON del planificador
+(`userData/scheduler-state.json`) quedó como **caché de arranque**: `node-cron`
+tiene que levantar las programaciones sin depender de la red, porque una rutina
+que no se ejecuta no avisa de que no se ejecutó. Cuando la base responde manda
+ella y `PassiveSkillsService` reconcilia el planificador; cuando no, se ejecuta
+lo que ya está levantado.
+
+Antes se espejaban en `hub_service_state` bajo una sola fila global sin `user_id`
+y con política permisiva: dos usuarios de la misma base compartían esa fila y la
+última escritura ganaba. Ese espejo se retiró para las Skills pasivas.
+
+**Requiere identidad.** Estas tablas tienen RLS por usuario, así que el proceso
+main debe operar CON SESIÓN (§ Identidad del proceso main). Sin ella su rol es
+`anon`, `auth.uid()` es `NULL` y las consultas devuelven cero filas sin error.
+
 **Canales de entrega.** La regla declara en qué canales entrega
 (`escritorio` | `whatsapp` | `telegram`). Una programación creada antes de que
 existieran los canales se normaliza al cargar: WhatsApp si tiene teléfono,
@@ -1050,7 +1067,72 @@ el destino lo decide `passive-skills/delivery.ts`, que reparte entre los canales
 declarados y aísla el fallo de cada uno. Un canal caído no impide los demás, y
 un fallo de ejecución no cancela la programación.
 
-### 3.15 Anuncios proactivos en la orbe
+### 3.15 Selección de herramientas por Skill
+
+El usuario decide qué puede tocar cada Skill suya. La selección se guarda en
+`public.user_skill_settings` (`tools`) y se resuelve en
+`src/shared/skills/tool-selection.ts`.
+
+**Acota, nunca amplía.** El catálogo efectivo es la intersección de lo que la
+superficie ofrece, lo que el canal autoriza y lo que el usuario seleccionó. Sin
+selección (`tools` a `NULL`) el catálogo queda exactamente como antes: la
+ausencia de configuración no retira nada.
+
+**Se filtra al construir, no al ejecutar** (`buildModelTools`). Filtrar después
+dejaría al modelo viendo herramientas que luego se le rechazan —peores respuestas
+y ningún ahorro de tokens—; filtrar antes es lo que mejora fiabilidad y coste.
+
+**Dos listas para dos preguntas distintas** (`surface-tools.ts`):
+
+| Lista | Responde a | Alcance |
+|---|---|---|
+| `NEVER_FROM_SKILLS` | ¿Qué puede declarar una **fila** del catálogo? | Restrictiva: nada que actúe hacia fuera |
+| `USER_SELECTABLE_TOOLS` | ¿Qué puede elegir el **dueño** de la Skill? | Amplia: correo, Drive, navegador, computadora |
+
+La segunda puede ser más amplia porque el actor es distinto —el dueño, en su
+configuración, con su sesión y sobre su equipo— y porque solo interseca. Quedan
+fuera de ambas `whatsapp_send_file` y los nodos remotos: no son una decisión por
+Skill.
+
+**Seleccionar no autoriza.** Las confirmaciones de las operaciones destructivas
+viven en el ejecutor y no dependen de esta selección.
+
+**Skills pasivas**: heredan la selección de su Skill y pueden acotar más
+(`passive_skills.tools`; `NULL` = hereda). Una rutina desatendida es donde más
+importa poder acotar por separado.
+
+**Búsqueda web** (`web_search`: `auto` | `siempre` | `nunca`) es un eje aparte y
+no una herramienta: en Gemini el grounding de Google Search **no se puede
+combinar** con function calling en la misma petición. `auto` mantiene la
+heurística sobre el texto del mensaje.
+
+### 3.16 Identidad del proceso main
+
+El proceso main opera ante la base del Hub **como el usuario que inició sesión**,
+no como cliente anónimo. Sin eso, `auth.uid()` es `NULL` y toda tabla con RLS por
+identidad le devuelve cero filas —sin error—, lo que dejaba sin efecto la
+elección de canales del usuario en WhatsApp y Telegram, y hacía invisibles allí
+las Skills que solo viven en la base.
+
+- **Origen de la sesión**: el renderer la publica por `auth:set-state`. Main NO
+  inicia sesión por su cuenta; duplicar el login implicaría duplicar también el
+  SSO federado.
+- **Qué se guarda**: solo el *refresh token*, cifrado con `safeStorage`
+  (`main/hub-session-store.ts`). El de acceso vive en memoria y lo renueva el
+  cliente; al renovarse se re-guarda. Si el sistema no ofrece cifrado **no se
+  persiste nada**: la sesión dura lo que dure el proceso.
+- **Arranque**: `restoreHubSession()` corre ANTES de inicializar los servicios,
+  porque el planificador levanta sus cron durante su init. Es lo que permite que
+  WhatsApp y Telegram funcionen sin ninguna ventana abierta.
+- **La credencial no sale**: no se registra, no vuelve al renderer
+  (`auth:get-state` devuelve solo `{authenticated, userId}`) y se borra al cerrar
+  sesión, momento en el que main vuelve a ser `anon`.
+- **Alternativa descartada**: clave `service_role` en main. Funcionaría sin
+  sesión, pero pondría una llave maestra en cada instalador y el aislamiento
+  pasaría a depender de que el código filtre bien por `user_id`, que es
+  exactamente lo que RLS existe para no tener que confiar.
+
+### 3.17 Anuncios proactivos en la orbe
 
 Cuando una Skill pasiva tiene activo el canal Computadora, `main/orb-announcements.ts`
 muestra la orbe y le envía `orb:announce`. Es la única vía por la que el producto

@@ -41,6 +41,8 @@ export function useAuthProviderModel(): AuthContextType {
   // usuario: login, cierre de sesion y restauracion al arrancar.
   const authenticatedUserId = state.user?.id ?? null;
   const authLoading = state.loading;
+  const accessToken = state.session?.access_token ?? null;
+  const refreshToken = state.session?.refresh_token ?? null;
 
   // Las preferencias locales (favoritos y ajustes del navegador, modelo elegido,
   // perfil personal) se acotan al usuario activo. Se fija durante el render, no
@@ -56,8 +58,16 @@ export function useAuthProviderModel(): AuthContextType {
     void publishAuthState({
       authenticated: Boolean(authenticatedUserId),
       userId: authenticatedUserId,
+      // El main necesita la sesión para operar ante la base como este usuario:
+      // sin ella su rol es anónimo y las tablas con RLS por identidad le
+      // devuelven cero filas, de modo que la configuración de canales y las
+      // Skills del catálogo no llegaban a WhatsApp ni a Telegram.
+      accessToken: accessToken ?? null,
+      refreshToken: refreshToken ?? null,
     });
-  }, [authenticatedUserId, authLoading]);
+    // Los tokens entran en las dependencias para republicar cuando la sesión se
+    // renueva: si no, el main se quedaría con el token viejo hasta reiniciar.
+  }, [accessToken, authLoading, authenticatedUserId, refreshToken]);
 
   return {
     session: state.session,

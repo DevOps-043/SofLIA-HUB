@@ -2,6 +2,7 @@ import { Notification } from 'electron';
 import { logBootstrapError } from './bootstrap-steps';
 import type { MainRuntimeState } from './runtime-state';
 import type { SkillChannel } from '../../src/shared/skills/types';
+import { onAuthStateChange } from './auth-state';
 
 export function registerServiceEvents(input: { modules: any; services: any; state: MainRuntimeState; controls: any }): void {
   const { modules, services, state } = input;
@@ -19,10 +20,31 @@ export function registerServiceEvents(input: { modules: any; services: any; stat
     void runPassiveSkill({ modules, services, state, controls: input.controls, task: data });
   });
 
+  registerPassiveSkillsSessionEvents(services);
   registerCalendarEvents(services, state);
   registerMonitoringEvents(modules, services, state);
   services.waService.on('qr', (qr: string) => state.win?.webContents.send('whatsapp:qr', qr));
   services.waService.on('status', (status: any) => state.win?.webContents.send('whatsapp:status', status));
+}
+
+/**
+ * Ciclo de vida de las Skills pasivas frente a la sesion.
+ *
+ * Al iniciar sesion se migran las reglas que quedaron sueltas en el
+ * planificador local, para que pasen a tener dueno. Al cerrarla se vacia la
+ * cache: si no, las rutinas del usuario anterior seguirian disparandose —y
+ * entregando su contenido— con el equipo ya en manos de otro.
+ */
+function registerPassiveSkillsSessionEvents(services: any): void {
+  onAuthStateChange((estado) => {
+    if (!estado.authenticated) {
+      services.passiveSkillsService?.clearLocalRules();
+      return;
+    }
+    void services.passiveSkillsService?.migrateLocalRules().catch((error: unknown) => {
+      console.error('[SkillsPasivas] No se pudieron migrar las reglas locales:', error);
+    });
+  });
 }
 
 /**

@@ -43,6 +43,10 @@ export function getHubDbClient(): SupabaseClient {
     url: hubUrl,
     key: hubKey,
     serviceName: 'HubDB',
+    // Este cliente lleva la sesion del usuario (ver `main/hub-session.ts`): sin
+    // ella su rol es `anon`, `auth.uid()` es NULL y las tablas con RLS por
+    // identidad le devuelven cero filas sin error.
+    withUserSession: true,
   });
   if (!result.client) {
     throw new Error(result.error || 'No pude crear el cliente de la base de Pulse Hub.');

@@ -5,7 +5,7 @@ import {
   systemSkillsForSurface,
 } from '../../shared/skills/registry';
 import { mergeSystemSkills } from '../../shared/skills/system-catalog';
-import { skillsActiveOnSurface, type SkillChannelSelection } from '../../shared/skills/channels';
+import { channelsFromSettings, skillsActiveOnSurface, type SkillSettingsMap } from '../../shared/skills/channels';
 import { RENDERER_SKILL_FLAGS } from './skill-flags';
 import type { Skill, SkillSurface, SystemSkill, UserSkill } from '../../shared/skills/types';
 import { loadSkillChannels } from './skill-channels-store';
@@ -38,7 +38,7 @@ export interface SkillCatalog {
    * resuelta— y en ese caso manda el catalogo. Un catalogo construido a mano
    * (estado inicial, pruebas) no tiene que declararla para ser correcto.
    */
-  channels?: SkillChannelSelection | null;
+  channels?: SkillSettingsMap | null;
 }
 
 /**
@@ -74,8 +74,9 @@ export async function resolveSkillCatalog(
     return { system, user, all: [...system, ...user], channels };
   }
 
-  const systemActivas = skillsActiveOnSurface(system, surface, channels);
-  const userActivas = skillsActiveOnSurface(user, surface, channels);
+  const porCanal = channelsFromSettings(channels);
+  const systemActivas = skillsActiveOnSurface(system, surface, porCanal);
+  const userActivas = skillsActiveOnSurface(user, surface, porCanal);
   return {
     system: systemActivas,
     user: userActivas,

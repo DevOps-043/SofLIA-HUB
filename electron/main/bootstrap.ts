@@ -17,6 +17,7 @@ import { registerSummaryIpcHandlers } from './summary-ipc';
 import { initializeMainServices, registerPlatformHandlers } from './startup';
 import { markBoot } from './boot-timeline';
 import { registerAuthStateHandlers } from '../auth-state-handlers';
+import { restoreHubSession } from './hub-session';
 import { registerWhatsAppAuthGate } from './whatsapp-auth-gate';
 
 /**
@@ -88,6 +89,18 @@ export async function runBootstrap(): Promise<void> {
     controls.createWindow(state.shouldShowInitialWindow);
     markBoot('ventana-temprana:fin');
   }
+
+  // La sesion guardada se restaura ANTES de los servicios: el planificador
+  // levanta sus cron durante su init, y sin identidad los cargaria como cliente
+  // anonimo, sin encontrar las reglas del usuario. Es tambien lo que permite que
+  // WhatsApp y Telegram funcionen sin ninguna ventana abierta.
+  markBoot('sesion-hub:restaurar:inicio');
+  const sesionHub = await restoreHubSession().catch((error) => {
+    logBootstrapError('restoreHubSession', error);
+    return 'no-disponible' as const;
+  });
+  console.log(`[BOOT] Sesion del Hub: ${sesionHub}`);
+  markBoot('sesion-hub:restaurar:fin');
 
   markBoot('servicios:init:inicio');
   await initializeMainServices({

@@ -9,8 +9,21 @@ export interface AuthStatePayload {
   userId: string | null;
 }
 
+/**
+ * Lo que se publica al main: el estado observable más los tokens de la sesión.
+ *
+ * Los tokens son de ida: el main los necesita para operar ante la base con la
+ * identidad del usuario —sin ellos su rol es anónimo y las políticas por usuario
+ * le devuelven cero filas—, pero nunca vuelven por ningún canal. `getState` sigue
+ * devolviendo solo `AuthStatePayload`.
+ */
+export interface AuthStatePublication extends AuthStatePayload {
+  accessToken?: string | null;
+  refreshToken?: string | null;
+}
+
 interface AuthStateBridge {
-  setState: (state: AuthStatePayload) => Promise<{ ok: boolean; state: AuthStatePayload }>;
+  setState: (state: AuthStatePublication) => Promise<{ ok: boolean; state: AuthStatePayload }>;
   getState: () => Promise<AuthStatePayload>;
 }
 
@@ -35,12 +48,14 @@ export function isOrbWindowRenderer(): boolean {
  * Publica el estado de sesion en el proceso main. No lanza: fuera de Electron o
  * si el puente no existe, simplemente no hay gate que actualizar.
  */
-export async function publishAuthState(state: AuthStatePayload): Promise<void> {
+export async function publishAuthState(state: AuthStatePublication): Promise<void> {
   const bridge = getBridge();
   if (!bridge) return;
   try {
     await bridge.setState(state);
   } catch (error) {
-    console.warn('[Auth] No se pudo publicar el estado de sesion al proceso main:', error);
+    // No se registra el estado publicado: llevaría los tokens al log del renderer.
+    console.warn('[Auth] No se pudo publicar el estado de sesion al proceso main.');
+    void error;
   }
 }

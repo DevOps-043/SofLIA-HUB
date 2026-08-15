@@ -1,6 +1,6 @@
 import { getHubDbClient } from '../hub-db-client';
-import { normalizeChannels, type SkillChannelSelection } from '../../src/shared/skills/channels';
-import type { SkillChannel } from '../../src/shared/skills/types';
+import { normalizeChannels, type SkillSettings, type SkillSettingsMap } from '../../src/shared/skills/channels';
+import { normalizeToolSelection, normalizeWebSearch } from '../../src/shared/skills/tool-selection';
 
 /**
  * Canales activos de cada Skill para un usuario, leidos desde MAIN.
@@ -16,7 +16,7 @@ import type { SkillChannel } from '../../src/shared/skills/types';
  * Skills en un canal.
  */
 
-const COLUMNAS = 'skill_id, channels';
+const COLUMNAS = 'skill_id, channels, tools, web_search';
 
 /**
  * Cache por usuario. La eleccion cambia con una accion del usuario, no durante
@@ -24,12 +24,12 @@ const COLUMNAS = 'skill_id, channels';
  * y con un TTL corto, porque main no se entera de que el renderer escribio.
  */
 const TTL_MS = 60_000;
-const cache = new Map<string, { at: number; value: Promise<SkillChannelSelection | null> }>();
+const cache = new Map<string, { at: number; value: Promise<SkillSettingsMap | null> }>();
 
-async function consultar(userId: string): Promise<SkillChannelSelection | null> {
+async function consultar(userId: string): Promise<SkillSettingsMap | null> {
   try {
     const { data, error } = await getHubDbClient()
-      .from('user_skill_channels')
+      .from('user_skill_settings')
       .select(COLUMNAS)
       .eq('user_id', userId);
 
@@ -38,13 +38,21 @@ async function consultar(userId: string): Promise<SkillChannelSelection | null> 
       return null;
     }
 
-    const seleccion: Record<string, SkillChannel[]> = {};
+    const ajustes: Record<string, SkillSettings> = {};
     for (const fila of data ?? []) {
-      const skillId = String((fila as { skill_id?: unknown }).skill_id ?? '').trim();
+      const registro = fila as { skill_id?: unknown; channels?: unknown; tools?: unknown; web_search?: unknown };
+      const skillId = String(registro.skill_id ?? '').trim();
       if (!skillId) continue;
-      seleccion[skillId] = normalizeChannels((fila as { channels?: unknown }).channels);
+      ajustes[skillId] = {
+        channels: normalizeChannels(registro.channels),
+        // `null` y array son distintos: sin eleccion vale toda la superficie.
+        tools: registro.tools === null || registro.tools === undefined
+          ? null
+          : normalizeToolSelection(registro.tools as string[]),
+        webSearch: normalizeWebSearch(registro.web_search),
+      };
     }
-    return seleccion;
+    return ajustes;
   } catch (error) {
     // Sin credenciales, sin red o con la tabla aun sin migrar: manda el catalogo.
     console.warn('[CanalesSkills] No se pudo leer la eleccion de canales:', error);
@@ -52,7 +60,7 @@ async function consultar(userId: string): Promise<SkillChannelSelection | null> 
   }
 }
 
-export function skillChannelsFor(userId: string | null | undefined): Promise<SkillChannelSelection | null> {
+export function skillChannelsFor(userId: string | null | undefined): Promise<SkillSettingsMap | null> {
   const id = String(userId || '').trim();
   // Sin usuario resuelto no hay eleccion que aplicar. Se devuelve ausencia, no
   // fallo: el canal seguira acotando por sus propias guardas de autorizacion.

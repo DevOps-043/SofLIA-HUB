@@ -1,4 +1,4 @@
-import { skillsActiveOnSurface } from '../../src/shared/skills/channels';
+import { channelsFromSettings, skillsActiveOnSurface } from '../../src/shared/skills/channels';
 import { toSkillCommand } from '../../src/services/skills/slash-commands';
 import type { SkillSurface, SystemSkill } from '../../src/shared/skills/types';
 import { skillChannelsFor } from './skill-channels-store';
@@ -37,7 +37,7 @@ export async function skillsForChannel(input: {
     systemSkillsFor(input.surface),
     skillChannelsFor(input.userId),
   ]);
-  return skillsActiveOnSurface(skills, input.surface, channels)
+  return skillsActiveOnSurface(skills, input.surface, channelsFromSettings(channels))
     .filter((skill) => !(input.isGroup && skill.blockedInGroups));
 }
 
@@ -78,7 +78,7 @@ export async function resolveChannelSkill(input: {
   // La eleccion del usuario se comprueba al final: es la unica que puede
   // retirarla estando disponible en la superficie, y su mensaje es distinto.
   const channels = await skillChannelsFor(input.userId);
-  const activas = skillsActiveOnSurface([skill], input.surface, channels);
+  const activas = skillsActiveOnSurface([skill], input.surface, channelsFromSettings(channels));
   if (activas.length === 0) {
     return {
       ok: false,

@@ -7,7 +7,11 @@
 //
 // Valor inicial: NO autenticado. Antes de recibir el primer `auth:set-state` el
 // main asume que no hay sesion, de modo que un arranque nunca expone funciones.
-// No se guardan tokens ni datos personales: solo el identificador de usuario.
+//
+// ESTE modulo sigue sin guardar tokens ni datos personales: solo el
+// identificador de usuario, y es lo unico que `auth:get-state` devuelve. La
+// credencial que el renderer publica desde esta version viaja por el mismo canal
+// pero NO llega aqui: la custodia `main/hub-session.ts`, cifrada en disco.
 
 export interface MainAuthState {
   authenticated: boolean;

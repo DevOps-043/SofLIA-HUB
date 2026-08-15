@@ -5,6 +5,15 @@ export interface MainSupabaseClientInput {
   url: string;
   key: string;
   serviceName: string;
+  /**
+   * El cliente va a llevar la sesion de un usuario, no solo la clave anonima.
+   *
+   * Activa la renovacion automatica del token de acceso, que dura minutos
+   * mientras los agentes de canal corren durante dias. `persistSession` sigue en
+   * falso a proposito: la persistencia la hace main con `safeStorage`, no el
+   * SDK, que en Electron escribiria en un almacenamiento sin cifrar.
+   */
+  withUserSession?: boolean;
 }
 
 export interface MainSupabaseClientResult {
@@ -35,7 +44,7 @@ export function createMainSupabaseClient(input: MainSupabaseClientInput): MainSu
       client: createClient(input.url, input.key, {
         auth: {
           persistSession: false,
-          autoRefreshToken: false,
+          autoRefreshToken: input.withUserSession === true,
           detectSessionInUrl: false,
         },
         global: {

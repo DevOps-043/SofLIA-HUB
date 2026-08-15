@@ -15,7 +15,7 @@ export function exposeWorkflowApis(bridge: PreloadBridge, ipc: SafeIpc): void {
     rejectRun: (input: any) => safeInvoke('automation:reject-run', input),
   });
   bridge.exposeInMainWorld('passiveSkills', {
-    getOverview: () => safeInvoke('passive-skills:get-overview'),
+    getOverview: (profile?: string) => safeInvoke('passive-skills:get-overview', profile),
     saveRule: (input: any) => safeInvoke('passive-skills:save-rule', input),
     deleteRule: (ruleId: string) => safeInvoke('passive-skills:delete-rule', ruleId),
   });

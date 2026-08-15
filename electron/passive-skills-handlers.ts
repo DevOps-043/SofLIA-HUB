@@ -4,9 +4,13 @@ import type { SavePassiveSkillInput } from './passive-skills/types';
 import { handleIPC } from './utils/ipc-helpers';
 
 export function registerPassiveSkillsHandlers(passiveSkillsService: PassiveSkillsService): void {
-  ipcMain.handle('passive-skills:get-overview', () =>
+  // `profile` acota a un perfil de canal ('global' o el telefono del contacto).
+  // Sin el se devuelven todas las reglas del usuario.
+  ipcMain.handle('passive-skills:get-overview', (_event, profile?: unknown) =>
     handleIPC(async () => ({
-      overview: await passiveSkillsService.getOverview(),
+      overview: await passiveSkillsService.getOverview(
+        typeof profile === 'string' && profile.trim() ? profile.trim() : undefined,
+      ),
     })));
 
   ipcMain.handle('passive-skills:save-rule', (_event, input: SavePassiveSkillInput) =>
@@ -16,7 +20,7 @@ export function registerPassiveSkillsHandlers(passiveSkillsService: PassiveSkill
 
   ipcMain.handle('passive-skills:delete-rule', (_event, ruleId: string) =>
     handleIPC(async () => ({
-      deleted: passiveSkillsService.deleteRule(String(ruleId || '').trim()),
+      deleted: await passiveSkillsService.deleteRule(String(ruleId || '').trim()),
     })));
 
   console.log('[PassiveSkillsHandlers] Registered successfully');

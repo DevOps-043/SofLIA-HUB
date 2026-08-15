@@ -13,7 +13,8 @@ import { SkillIcon } from '../skill-library/skill-icons';
 import { SkillEditorForm } from './SkillEditorForm';
 import { SkillChannelsSelector } from './SkillChannelsSelector';
 import { PassiveSkillsSection } from './PassiveSkillsSection';
-import { resolveChannelsForSkill } from '../../shared/skills/channels';
+import { channelsFromSettings, resolveChannelsForSkill } from '../../shared/skills/channels';
+import { SkillToolsSelector } from './SkillToolsSelector';
 
 /**
  * Configuracion de Skills.
@@ -53,6 +54,9 @@ export function SkillsSettingsPanel() {
   }, [reloadToken]);
 
   const commands = buildSkillCommands(catalog);
+  // El selector de canales consume solo la vista de canales; los ajustes
+  // completos (herramientas, busqueda) los usa el selector de herramientas.
+  const porCanal = channelsFromSettings(catalog.channels);
   const editorOpen = creating || editing !== null;
 
   // Comandos ocupados por OTRAS skills: la que se edita no choca consigo misma.
@@ -142,7 +146,13 @@ export function SkillsSettingsPanel() {
                     )}
                     <SkillChannelsSelector
                       skill={skill}
-                      active={resolveChannelsForSkill(skill, catalog.channels)}
+                      active={resolveChannelsForSkill(skill, porCanal)}
+                      onChanged={reload}
+                    />
+                    <SkillToolsSelector
+                      skill={skill}
+                      selection={catalog.channels?.[skill.id]?.tools ?? null}
+                      webSearch={catalog.channels?.[skill.id]?.webSearch ?? 'auto'}
                       onChanged={reload}
                     />
                   </div>
@@ -177,7 +187,13 @@ export function SkillsSettingsPanel() {
                     )}
                     <SkillChannelsSelector
                       skill={skill}
-                      active={resolveChannelsForSkill(skill, catalog.channels)}
+                      active={resolveChannelsForSkill(skill, porCanal)}
+                      onChanged={reload}
+                    />
+                    <SkillToolsSelector
+                      skill={skill}
+                      selection={catalog.channels?.[skill.id]?.tools ?? null}
+                      webSearch={catalog.channels?.[skill.id]?.webSearch ?? 'auto'}
                       onChanged={reload}
                     />
                   </div>

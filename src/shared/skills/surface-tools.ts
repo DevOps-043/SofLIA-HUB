@@ -84,3 +84,42 @@ export function isToolAllowedFromSkill(surface: SkillSurface, tool: string): boo
   if (NEVER_FROM_SKILLS.has(tool)) return false;
   return (ALLOWED_BY_SURFACE[surface] ?? new Set<string>()).has(tool);
 }
+
+/**
+ * Herramientas que el USUARIO puede seleccionar para su propia Skill.
+ *
+ * Es una lista distinta de `NEVER_FROM_SKILLS`, y mas amplia, porque responde a
+ * otra pregunta. Aquella responde "¿que puede declarar una FILA del catalogo?",
+ * escrita por un operador y potencialmente influida por una fuente externa; por
+ * eso le niega todo lo que actua hacia fuera. Esta responde "¿que puede elegir
+ * el DUENO de la Skill, en su configuracion, con su sesion y sobre su propio
+ * equipo?", y ahi negarle el correo o su computadora seria absurdo.
+ *
+ * Que sea mas amplia NO la hace peligrosa, y el motivo es que la seleccion solo
+ * INTERSECA (ver `tool-selection.ts`): nunca concede nada que la superficie no
+ * ofreciera ya, nunca salta la autorizacion del canal y nunca retira una
+ * confirmacion.
+ *
+ * Queda fuera lo que no es una decision "por Skill":
+ *  - `whatsapp_send_file`: pertenece a la superficie, no a la Skill.
+ *  - Nodos remotos: dependen del inventario de nodos, no de esta pantalla.
+ */
+const NOT_SELECTABLE_BY_USER: ReadonlySet<string> = new Set([
+  'whatsapp_send_file',
+  'use_computer_on_node',
+  'open_application_on_node',
+  'run_background_command_on_node',
+  'take_screenshot_on_node',
+  'list_remote_nodes',
+  'register_remote_node',
+  'remove_remote_node',
+  'test_remote_node',
+  'configure_remote_node_host',
+  'get_remote_node_host_status',
+  'list_remote_node_process_sessions',
+  'poll_remote_node_process_session',
+]);
+
+export function isToolSelectableByUser(tool: string): boolean {
+  return !NOT_SELECTABLE_BY_USER.has(tool);
+}
