@@ -21,7 +21,7 @@ function newContents(options: { attachFails?: boolean } = {}) {
     state.attached = true;
   });
   const detach = vi.fn(() => { state.attached = false; });
-  const sendCommand = vi.fn(async () => ({ ok: true }));
+  const sendCommand = vi.fn<WebContents['debugger']['sendCommand']>(async () => ({ ok: true }));
   const contents = {
     isDestroyed: () => state.destroyed,
     debugger: {

@@ -4,8 +4,8 @@ import { resetCdpSessionState } from '../integrated-browser/cdp-session';
 import { describeResolutionFailure, resolveBrowserElement } from '../integrated-browser/page-interaction';
 
 function newContents(sendCommand: (method: string, params?: Record<string, unknown>) => Promise<unknown>) {
-  const executeJavaScript = vi.fn(async () => null);
-  const executeJavaScriptInIsolatedWorld = vi.fn(async () => null);
+  const executeJavaScript = vi.fn<WebContents['executeJavaScript']>(async () => null);
+  const executeJavaScriptInIsolatedWorld = vi.fn<WebContents['executeJavaScriptInIsolatedWorld']>(async () => null);
   const contents = {
     isDestroyed: () => false,
     executeJavaScript,

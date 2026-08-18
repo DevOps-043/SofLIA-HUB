@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BrowserDomControl, BrowserDomSnapshot } from '../integrated-browser/types';
 
-const applySoMOverlay = vi.fn(async () => 'IMAGEN-MARCADA');
+const applySoMOverlay = vi.fn<typeof import('../desktop-agent/screenshot-overlays').applySoMOverlay>(async () => 'IMAGEN-MARCADA');
 vi.mock('../desktop-agent/screenshot-overlays', () => ({ applySoMOverlay }));
 vi.mock('../desktop-agent/sharp', () => ({ loadSharp: () => ({}) }));
 

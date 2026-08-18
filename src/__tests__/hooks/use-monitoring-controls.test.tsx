@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const getMonitoringStatus = vi.fn();
 const startMonitoringSession = vi.fn();
 const stopMonitoringSession = vi.fn();
-const persistSnapshots = vi.fn(async () => undefined);
+const persistSnapshots = vi.fn<(...args: unknown[]) => Promise<void>>(async () => undefined);
 
 vi.mock('../../services/monitoring-service', () => ({
   getMonitoringStatus: (...args: unknown[]) => getMonitoringStatus(...args),
