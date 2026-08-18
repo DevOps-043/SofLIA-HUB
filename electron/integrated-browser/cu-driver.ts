@@ -1,5 +1,14 @@
 import type { InputEvent } from 'electron';
 import type { CuDriver, CuPoint } from '../desktop-agent/gemini-cu/types';
+import { applySoMOverlay } from '../desktop-agent/screenshot-overlays';
+import { loadSharp, type SharpFactory } from '../desktop-agent/sharp';
+import {
+  MAX_BROWSER_MARKS,
+  buildBrowserMarks,
+  scaleRectToImage,
+  type BrowserMark,
+} from './dom-element-source';
+import type { BrowserDomSnapshot } from './types';
 import type { IntegratedBrowserService } from './service';
 
 export function createIntegratedBrowserCuDriver(service: IntegratedBrowserService): CuDriver {
@@ -13,14 +22,19 @@ export function createIntegratedBrowserCuDriver(service: IntegratedBrowserServic
       const observation = observed.observation;
       const encoded = readDataUrlPayload(observation?.screenshot);
       if (encoded) {
+        // `captureSize` sigue siendo el viewport: es el espacio en el que se
+        // denormalizan las coordenadas del modelo. Marcar la imagen no puede
+        // tocarlo o cada clic saldria desplazado por el factor de reduccion.
         captureSize = viewportSize;
+        const marcado = await markCapture(encoded, observation!.dom, viewportSize);
         latestContext = {
           observedAt: observation!.capturedAt,
           page: observation!.dom,
           trust: 'untrusted_page_content',
+          ...(marcado.marks.length ? { marks: describeMarks(marcado.marks) } : {}),
         };
         return {
-          base64: encoded,
+          base64: marcado.base64,
           width: captureSize.width,
           height: captureSize.height,
           context: latestContext,
@@ -115,6 +129,71 @@ export function createIntegratedBrowserCuDriver(service: IntegratedBrowserServic
 
 type BrowserContents = ReturnType<IntegratedBrowserService['getWebContentsForAgent']>;
 type ViewportSize = { width: number; height: number };
+
+/**
+ * Set-of-Marks del navegador. Apagado por omision: enciende con
+ * `SOFLIA_BROWSER_SOM=1`. Se deja opt-in a proposito para poder medir con el
+ * mismo binario si las marcas reducen pasos y clics fallidos antes de darlas
+ * por buenas.
+ */
+export function browserMarksEnabled(): boolean {
+  return process.env.SOFLIA_BROWSER_SOM === '1';
+}
+
+let sharpModule: SharpFactory | null | undefined;
+
+function resolveSharp(): SharpFactory | null {
+  if (sharpModule === undefined) sharpModule = loadSharp();
+  return sharpModule;
+}
+
+/**
+ * Dibuja las marcas sobre una COPIA de la captura. La observacion almacenada
+ * queda intacta: esa misma imagen alimenta el respaldo visual del renderer y
+ * los adjuntos del chat, y ahi las cajas numeradas serian ruido para la persona.
+ *
+ * Cualquier fallo devuelve la captura limpia. Una imagen sin marcar es peor que
+ * una marcada, pero mucho mejor que un paso de Computer Use perdido.
+ */
+export async function markCapture(
+  base64: string,
+  dom: BrowserDomSnapshot,
+  viewport: ViewportSize,
+): Promise<{ base64: string; marks: BrowserMark[] }> {
+  if (!browserMarksEnabled()) return { base64, marks: [] };
+  const marks = buildBrowserMarks(dom, viewport, MAX_BROWSER_MARKS);
+  // Con dos o tres controles el numero no desambigua nada y solo tapa contenido.
+  if (marks.length < 3) return { base64, marks: [] };
+  const sharp = resolveSharp();
+  if (!sharp) return { base64, marks: [] };
+  try {
+    const marcada = await applySoMOverlay({
+      sharp,
+      base64,
+      fallbackWidth: viewport.width,
+      fallbackHeight: viewport.height,
+      elements: marks,
+      mapRect: (rect, imagen) => scaleRectToImage(rect, viewport, imagen),
+    });
+    return { base64: marcada, marks };
+  } catch (error: unknown) {
+    console.warn('[Navegador][SoM] No se pudieron dibujar las marcas:', error instanceof Error ? error.message : String(error));
+    return { base64, marks: [] };
+  }
+}
+
+/**
+ * Leyenda textual de las marcas. El numero pintado dice donde esta el control;
+ * esta lista dice que es, para que el modelo no tenga que inferirlo del pixel.
+ */
+function describeMarks(marks: BrowserMark[]): Array<Record<string, string | number>> {
+  return marks.map((mark) => ({
+    id: mark.id,
+    nombre: mark.name.slice(0, 120),
+    tipo: mark.controlType,
+    ref: mark.ref,
+  }));
+}
 
 /** La percepcion pasiva se codifica en JPEG; PNG sigue aceptandose por compatibilidad. */
 function readDataUrlPayload(value: string | undefined): string | null {

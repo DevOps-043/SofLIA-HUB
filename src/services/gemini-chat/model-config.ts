@@ -14,6 +14,24 @@ export function resolveModelId(options?: SendMessageStreamOptions): string {
   return options?.model || MODELS.PRIMARY;
 }
 
+/**
+ * Config de una peticion concreta del chat.
+ *
+ * En `@google/genai` el `config` por peticion NO hereda del de la sesion: si se
+ * manda solo `abortSignal`, esa peticion pierde `tools` y `systemInstruction` y
+ * el modelo deja de poder llamar herramientas a media conversacion. Por eso hay
+ * que reenviar el config completo en cada envio.
+ */
+export function withAbortSignal(
+  chatConfig: GeminiChatConfig,
+  signal?: AbortSignal | null,
+): GeminiChatConfig {
+  return signal ? { ...chatConfig, abortSignal: signal } : chatConfig;
+}
+
+/** Config de sesion/peticion del chat, tal como la consume `@google/genai`. */
+export type GeminiChatConfig = Record<string, unknown>;
+
 export function buildGenerationConfig(options?: SendMessageStreamOptions): Record<string, any> {
   const generationConfig: Record<string, any> = { maxOutputTokens: 16384 };
   const thinkingLevel = resolveGeminiThinkingLevel(options?.thinking?.level);

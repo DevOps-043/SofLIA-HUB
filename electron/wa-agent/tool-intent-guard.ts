@@ -96,12 +96,14 @@ export async function guardUnrequestedOperationalTools(
     };
   }
 
-  state.response = await state.chatSession.sendMessage([
-    'ERROR DE INTENCION:',
-    `El mensaje actual del usuario no pide ejecutar acciones. Herramientas bloqueadas: ${Array.from(new Set(blockedTools)).join(', ')}.`,
-    'No uses computadora, navegador, chats internos de SofLIA, archivos, Google Workspace, IRIS ni procesos del sistema sin solicitud explicita.',
-    'Si el mensaje fue saludo, sticker, reaccion o acompanamiento social, conserva la personalizacion del usuario y responde solo con texto, sin herramientas.',
-  ].join('\n'));
+  state.response = await state.chatSession.sendMessage({
+    message: [
+      'ERROR DE INTENCION:',
+      `El mensaje actual del usuario no pide ejecutar acciones. Herramientas bloqueadas: ${Array.from(new Set(blockedTools)).join(', ')}.`,
+      'No uses computadora, navegador, chats internos de SofLIA, archivos, Google Workspace, IRIS ni procesos del sistema sin solicitud explicita.',
+      'Si el mensaje fue saludo, sticker, reaccion o acompanamiento social, conserva la personalizacion del usuario y responde solo con texto, sin herramientas.',
+    ].join('\n'),
+  });
   return { done: false };
 }
 

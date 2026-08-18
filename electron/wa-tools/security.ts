@@ -95,4 +95,7 @@ export const GROUP_BLOCKED_TOOLS = new Set([
   'app_chat_append_note',
   'app_chat_list_assets',
   'app_chat_send_asset',
+  // Una respuesta hablada queda audible para todo el grupo sin que ninguno de
+  // sus miembros la haya pedido.
+  'send_voice_note',
 ]);

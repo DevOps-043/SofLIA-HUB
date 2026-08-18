@@ -1,29 +1,47 @@
 import type { WebContents } from 'electron';
+import { runInAgentWorld, type AgentWorldTarget } from './agent-world';
+import { captureCdpDomSnapshot } from './cdp-dom-snapshot';
+import {
+  MAX_CONTROLS,
+  MAX_FIELD_TEXT,
+  MAX_FRAMES,
+  MAX_HEADINGS,
+  MAX_IMAGES,
+  MAX_LANDMARKS,
+  MAX_SCANNED_NODES,
+  MAX_TEXT,
+  MIN_IMAGE_BOX_PX,
+  MIN_IMAGE_SIDE_PX,
+  SNAPSHOT_BUDGET_MS,
+  VIEWPORT_MARGIN_PX,
+} from './dom-limits';
 import type { BrowserDomControl, BrowserDomImage, BrowserDomSnapshot } from './types';
 
-const MAX_TEXT = 24_000;
-const MAX_HEADINGS = 100;
-const MAX_LANDMARKS = 60;
-const MAX_CONTROLS = 240;
-const MAX_FRAMES = 30;
-const MAX_IMAGES = 24;
 /**
- * Lado minimo para considerar que una imagen es contenido. Por debajo son
- * iconos, avatares, separadores y pixeles de seguimiento: reutilizarlos en una
- * presentacion no aporta nada y llenaria la observacion de ruido.
+ * Registro de elementos interactivos que el controlador determinista reutiliza.
+ * Vive en el mundo aislado del agente (`agent-world.ts`), no en el global del
+ * sitio, asi que la pagina no puede leerlo ni sustituirlo.
  */
-const MIN_IMAGE_SIDE_PX = 200;
-const MAX_FIELD_TEXT = 180;
-const MAX_SCANNED_NODES = 1_800;
-const VIEWPORT_MARGIN_PX = 240;
-/**
- * Presupuesto duro del recorrido dentro de la pagina. Sin el, un documento
- * grande (YouTube, Gmail) bloqueaba el hilo principal del renderer durante
- * segundos y el usuario lo percibia como una carga lenta del sitio.
- */
-const SNAPSHOT_BUDGET_MS = 400;
-/** Registro de elementos interactivos que el controlador determinista reutiliza. */
 export const BROWSER_REF_REGISTRY_KEY = '__sofliaBrowserRefs';
+
+/**
+ * Backend de lectura del DOM.
+ *
+ * - `script`: recorrido en JavaScript dentro de la pagina. Es el historico y
+ *   sigue siendo el predeterminado. Corre en el hilo principal del renderer, lo
+ *   que obliga al presupuesto de {@link SNAPSHOT_BUDGET_MS} y al tope de nodos.
+ * - `cdp`: `DOMSnapshot.captureSnapshot`, resuelto por Blink en C++. No compite
+ *   con el hilo del renderer, por lo que no necesita presupuesto ni tope, y
+ *   devuelve los marcos del mismo proceso en la misma llamada.
+ *
+ * El backend CDP se habilita con `SOFLIA_BROWSER_CDP_DOM=1`. Ante cualquier
+ * fallo se cae al recorrido en script: una lectura acotada es mejor que ninguna.
+ */
+export type BrowserDomBackend = 'script' | 'cdp';
+
+export function preferredDomBackend(): BrowserDomBackend {
+  return process.env.SOFLIA_BROWSER_CDP_DOM === '1' ? 'cdp' : 'script';
+}
 
 type RawSnapshot = {
   title?: unknown;
@@ -39,8 +57,32 @@ type RawSnapshot = {
   truncated?: unknown;
 };
 
-export async function collectIntegratedBrowserDom(contents: WebContents): Promise<BrowserDomSnapshot> {
-  const raw = await contents.executeJavaScript(DOM_SNAPSHOT_SCRIPT, true) as RawSnapshot;
+export interface CollectDomOptions {
+  /** Fuerza un backend concreto. Sin valor se usa {@link preferredDomBackend}. */
+  backend?: BrowserDomBackend;
+}
+
+export async function collectIntegratedBrowserDom(
+  contents: WebContents,
+  options: CollectDomOptions = {},
+): Promise<BrowserDomSnapshot> {
+  const backend = options.backend ?? preferredDomBackend();
+  if (backend === 'cdp') {
+    const viaCdp = await captureCdpDomSnapshot(contents).catch(() => null);
+    if (viaCdp) return viaCdp;
+  }
+  return collectDomViaScript(contents);
+}
+
+/**
+ * Recorrido historico dentro de la pagina. Se mantiene expuesto porque es el
+ * respaldo del backend CDP y el punto de comparacion de las pruebas.
+ */
+export async function collectDomViaScript(contents: WebContents): Promise<BrowserDomSnapshot> {
+  const raw = await runInAgentWorld(
+    contents as unknown as AgentWorldTarget,
+    DOM_SNAPSHOT_SCRIPT,
+  ) as RawSnapshot;
   return normalizeSnapshot(raw);
 }
 
@@ -169,7 +211,7 @@ function finiteInt(value: unknown): number {
 }
 
 const DOM_SNAPSHOT_SCRIPT = `(() => {
-  const LIMITS = { text: ${MAX_TEXT}, headings: ${MAX_HEADINGS}, landmarks: ${MAX_LANDMARKS}, controls: ${MAX_CONTROLS}, images: ${MAX_IMAGES}, minImage: ${MIN_IMAGE_SIDE_PX}, frames: ${MAX_FRAMES}, scanned: ${MAX_SCANNED_NODES}, viewportMargin: ${VIEWPORT_MARGIN_PX} };
+  const LIMITS = { text: ${MAX_TEXT}, headings: ${MAX_HEADINGS}, landmarks: ${MAX_LANDMARKS}, controls: ${MAX_CONTROLS}, images: ${MAX_IMAGES}, minImage: ${MIN_IMAGE_SIDE_PX}, minImageBox: ${MIN_IMAGE_BOX_PX}, frames: ${MAX_FRAMES}, scanned: ${MAX_SCANNED_NODES}, viewportMargin: ${VIEWPORT_MARGIN_PX} };
   const deadline = Date.now() + ${SNAPSHOT_BUDGET_MS};
   const registry = new Map();
   const clean = (value, max = ${MAX_FIELD_TEXT}) => String(value || '').replace(/[\\u0000-\\u001f\\u007f]+/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, max);
@@ -268,7 +310,7 @@ const DOM_SNAPSHOT_SCRIPT = `(() => {
         const ancho = Math.round(el.naturalWidth || el.width || 0);
         const alto = Math.round(el.naturalHeight || el.height || 0);
         const caja = el.getBoundingClientRect();
-        const util = Math.min(ancho, alto) >= LIMITS.minImage && Math.min(caja.width, caja.height) >= 80;
+        const util = Math.min(ancho, alto) >= LIMITS.minImage && Math.min(caja.width, caja.height) >= LIMITS.minImageBox;
         const origen = el.currentSrc || el.src || '';
         if (util && origen) result.images.push({ url: origen, alt: clean(el.alt, 180), width: ancho, height: alto });
       }

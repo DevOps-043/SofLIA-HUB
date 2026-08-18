@@ -92,6 +92,7 @@ const TOOL_PERMISSION_MAP: Record<string, WhatsAppAccessPermission> = {
   gchat_add_reaction: 'google_workspace',
   whatsapp_send_file: 'messaging',
   whatsapp_send_to_contact: 'messaging',
+  send_voice_note: 'messaging',
   task_scheduler: 'automation',
   list_scheduled_tasks: 'automation',
   delete_scheduled_task: 'automation',

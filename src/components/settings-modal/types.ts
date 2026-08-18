@@ -29,21 +29,3 @@ export interface SettingsFormState extends IdentitySettingsState {
   setCustomInstructions: Dispatch<SetStateAction<string>>;
   toUserSettings: (userId: string) => UserAISettings;
 }
-
-export interface ProactiveConfigState {
-  available: boolean;
-  proactiveEnabled: boolean;
-  notifHours: number[];
-  calendarReminders: boolean;
-  taskReminders: boolean;
-  systemAlerts: boolean;
-  proactiveTesting: boolean;
-  proactiveTestResult: string;
-  setProactiveEnabled: Dispatch<SetStateAction<boolean>>;
-  setCalendarReminders: Dispatch<SetStateAction<boolean>>;
-  setTaskReminders: Dispatch<SetStateAction<boolean>>;
-  setSystemAlerts: Dispatch<SetStateAction<boolean>>;
-  toggleHour: (hour: number) => void;
-  testNotification: () => Promise<void>;
-  saveConfig: () => Promise<void>;
-}

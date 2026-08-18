@@ -1,7 +1,7 @@
 import { app } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
-import { DB_PATH } from './constants';
+import { DB_PATH, MIN_SUMMARY_CHARS } from './constants';
 import { getDatabaseConstructor } from './database';
 import { SCHEMA_SQL } from './schema';
 
@@ -59,10 +59,42 @@ function runMigrations(db: any): void {
       WHERE owner_key IS NULL AND phone_number IS NOT NULL AND phone_number <> '';
       CREATE INDEX IF NOT EXISTS idx_messages_owner ON messages(owner_key);
     `);
+    purgeTruncatedSummaries(db);
     console.log('[MemoryService] Migraciones aplicadas correctamente');
   } catch (err: any) {
     console.warn('[MemoryService] Migration warning (no bloqueante):', err.message);
   }
+}
+
+/**
+ * Repara la memoria envenenada por resumenes truncados.
+ *
+ * Con el tope de tokens anterior el pensamiento del modelo se comia el
+ * presupuesto y el resumen se guardaba cortado a un encabezado. Esos fragmentos
+ * se inyectan como "memoria" en cada turno y no dan material a los extractores
+ * de hechos y skills. Se borran ellos y sus chunks derivados; los mensajes NO se
+ * tocan, asi que la sesion se vuelve a resumir sola con la configuracion
+ * corregida. Idempotente: tras la reparacion no queda ninguno.
+ */
+export function purgeTruncatedSummaries(db: any): void {
+  const truncated = db.prepare(
+    'SELECT COUNT(*) AS total FROM summaries WHERE length(trim(summary_text)) < ?',
+  ).get(MIN_SUMMARY_CHARS) as { total: number };
+  if (!truncated?.total) return;
+  // Primero los chunks: se identifican por la sesion y el periodo del resumen
+  // que los origino, asi que necesitan que el resumen todavia exista.
+  db.prepare(`
+    DELETE FROM memory_chunks WHERE id IN (
+      SELECT chunk.id FROM memory_chunks chunk
+      JOIN summaries summary
+        ON chunk.session_key = summary.session_key
+       AND chunk.source_start_time = summary.period_start
+       AND chunk.source_end_time = summary.period_end
+      WHERE chunk.source_type = 'summary' AND length(trim(summary.summary_text)) < ?
+    )
+  `).run(MIN_SUMMARY_CHARS);
+  db.prepare('DELETE FROM summaries WHERE length(trim(summary_text)) < ?').run(MIN_SUMMARY_CHARS);
+  console.log(`[MemoryService] Reparacion: ${truncated.total} resumenes truncados eliminados (se volveran a generar)`);
 }
 
 export function initializeMemoryDatabase(): { db: any | null; initError: string | null } {

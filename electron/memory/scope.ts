@@ -40,6 +40,21 @@ export function isValidOwnerKey(value: unknown): value is string {
 }
 
 /**
+ * Clave con la que se guardan y leen los HECHOS (tabla `facts`, columna
+ * `phone_number`, heredada de WhatsApp).
+ *
+ * `assembleContext` lee los hechos con el mismo valor que recibe como
+ * `phoneNumber`: el telefono en WhatsApp y el `ownerKey` en el chat de la app y
+ * en las tareas de escritorio. Escribirlos con otra clave (por ejemplo el id
+ * suelto que queda al partir `chat:user:<id>`) los deja huerfanos: se guardan y
+ * nunca se vuelven a leer. Esta funcion define esa clave en un solo lugar.
+ */
+export function factsScopeKey(ownerKey: string): string {
+  if (ownerKind(ownerKey) === 'phone') return ownerKey.slice('phone:'.length);
+  return ownerKey;
+}
+
+/**
  * Resuelve el ownerKey para una interaccion de WhatsApp: intenta mapear el
  * telefono a un userId de SOFIA (unifica con el chat de la app); si falla, usa
  * el scope por telefono. El resolver de userId se inyecta para no acoplar este

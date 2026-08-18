@@ -4,6 +4,8 @@ import { vi } from 'vitest';
 export const mockSockEvents = new EventEmitter();
 export const mockSendMessage = vi.fn().mockResolvedValue(undefined);
 export const mockLogout = vi.fn().mockResolvedValue(undefined);
+export const mockRejectCall = vi.fn().mockResolvedValue(undefined);
+export const mockGetPNForLID = vi.fn();
 export const mockUpdateMediaMessage = vi.fn();
 export const mockFsMkdir = vi.fn().mockResolvedValue(undefined);
 export const mockFsReadFile = vi.fn().mockRejectedValue(new Error('ENOENT'));
@@ -16,9 +18,10 @@ const mockSock = {
   ev: mockSockEvents,
   sendMessage: mockSendMessage,
   logout: mockLogout,
+  rejectCall: mockRejectCall,
   user: { id: '5215512345678:0@s.whatsapp.net' },
   updateMediaMessage: mockUpdateMediaMessage,
-  signalRepository: { lidMapping: { getPNForLID: vi.fn() } },
+  signalRepository: { lidMapping: { getPNForLID: mockGetPNForLID } },
 };
 
 const mockSaveCreds = vi.fn();

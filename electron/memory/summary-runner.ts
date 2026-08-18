@@ -4,7 +4,8 @@ import {
   SUMMARIZE_THRESHOLD,
 } from './constants';
 import { truncateToTokens } from './math';
-import { phoneOwnerKey } from './scope';
+import { buildExtractionGenerationConfig, buildSummaryGenerationConfig, isUsableSummary } from './model-config';
+import { factsScopeKey, phoneOwnerKey } from './scope';
 import { extractAndSaveSkills } from './skills-extractor';
 
 const FACT_CATEGORIES = ['preferencia', 'contexto', 'persona', 'compromiso'] as const;
@@ -34,15 +35,16 @@ export async function summarizeMemorySession(service: any, sessionKey: string): 
     service.appendMemoryCard(sessionKey, summary);
     await service.embedAndStoreChunks(sessionKey, summary, 'summary', periodStart, periodEnd);
     await service.embedConversationChunks(sessionKey, messages);
-    // Extraer hechos estructurados del resumen para memoria de largo plazo
+    // El ownerKey REAL viaja en los mensajes (columna owner_key), correcto para
+    // cualquier superficie (chat/WhatsApp/desktop); si falta, se deriva del
+    // telefono. De ahi sale tambien el scope con el que se leeran los hechos.
     const phoneNumber = sessionKey.includes(':') ? sessionKey.split(':').pop()! : sessionKey;
-    extractAndSaveFacts(service, phoneNumber, summary).catch((err: any) =>
+    const ownerKey = resolveSessionOwnerKey(service, sessionKey, phoneNumber);
+    // Extraer hechos estructurados del resumen para memoria de largo plazo
+    extractAndSaveFacts(service, factsScopeKey(ownerKey), summary).catch((err: any) =>
       console.warn('[MemoryService] Auto-fact extraction failed (no bloqueante):', err.message),
     );
-    // Aprendizaje autónomo de skills (conocimiento que personaliza). El ownerKey
-    // REAL viaja en los mensajes (columna owner_key), correcto para cualquier
-    // superficie (chat/WhatsApp/desktop); si falta, se deriva del telefono.
-    const ownerKey = resolveSessionOwnerKey(service, sessionKey, phoneNumber);
+    // Aprendizaje autónomo de skills (conocimiento que personaliza).
     extractAndSaveSkills(service, ownerKey, summary, ownerKindLabel(ownerKey)).catch((err: any) =>
       console.warn('[MemoryService] Auto-skill extraction failed (no bloqueante):', err.message),
     );
@@ -55,7 +57,7 @@ export async function summarizeMemorySession(service: any, sessionKey: string): 
 export async function callGeminiMemorySummarizer(apiKey: string, conversationText: string): Promise<string | null> {
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: SUMMARIZE_MODEL, generationConfig: { maxOutputTokens: 350 } });
+    const model = genAI.getGenerativeModel({ model: SUMMARIZE_MODEL, generationConfig: buildSummaryGenerationConfig() });
     const prompt = `Actúa como un agente que extrae los hechos clave de la sesión actual para guardarlos en la memoria a largo plazo.
 Crea un resumen en formato 'Memory Card' (estrictamente menor a 350 tokens).
 Captura temas, decisiones, archivos, fechas, preferencias, compromisos y resultados.
@@ -66,7 +68,16 @@ ${truncateToTokens(conversationText, 6000)}
 
 MEMORY CARD:`;
     const result = await model.generateContent(prompt);
-    return result.response.text().trim() || null;
+    const finishReason = result.response?.candidates?.[0]?.finishReason;
+    const summary = result.response.text().trim();
+    // Una Memory Card cortada a medias no se guarda: quedaria fija en el
+    // contexto de todos los turnos siguientes y dejaria sin material a los
+    // extractores de hechos y skills.
+    if (!isUsableSummary(summary, finishReason)) {
+      console.warn(`[MemoryService] Resumen descartado por incompleto (finishReason=${finishReason}, chars=${summary.length})`);
+      return null;
+    }
+    return summary;
   } catch (err: any) {
     console.error('[MemoryService] Gemini summarize error:', err.message);
     return null;
@@ -105,7 +116,7 @@ async function extractAndSaveFacts(service: any, phoneNumber: string, summaryTex
   const genAI = new GoogleGenerativeAI(service.apiKey);
   const model = genAI.getGenerativeModel({
     model: SUMMARIZE_MODEL,
-    generationConfig: { maxOutputTokens: 400, responseMimeType: 'application/json' },
+    generationConfig: buildExtractionGenerationConfig(),
   });
   const prompt = `Analiza este resumen de conversacion y extrae hechos CONCRETOS Y DURABLES sobre el usuario.
 Solo extrae hechos que sirvan para futuras conversaciones (preferencias, contexto de trabajo, decisiones, personas clave).

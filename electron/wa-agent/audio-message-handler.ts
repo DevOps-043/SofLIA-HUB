@@ -1,5 +1,7 @@
 import type { GoogleGenerativeAI } from '@google/generative-ai';
 import type { WhatsAppService } from '../whatsapp-service';
+import { voiceCallSessions } from '../voice-call/session-store';
+import { whatsAppVoiceSessionId } from './voice-delivery';
 import { transcribeWhatsAppAudio } from './audio-transcription';
 
 export async function handleWhatsAppAudioMessage(params: {
@@ -16,6 +18,7 @@ export async function handleWhatsAppAudioMessage(params: {
     text: string,
     isGroup: boolean,
     groupPassiveHistory: string,
+    forceVoice: boolean,
   ) => Promise<void>;
 }): Promise<void> {
   try {
@@ -37,12 +40,24 @@ export async function handleWhatsAppAudioMessage(params: {
       source: 'whatsapp-agent',
       metadata: { derivedFrom: 'audio' },
     });
+
+    // Hablarle abre la llamada. En grupo no: una respuesta hablada quedaria
+    // audible para todos los participantes sin que ninguno la pidiera.
+    if (!params.isGroup) {
+      voiceCallSessions.open(
+        'whatsapp',
+        whatsAppVoiceSessionId(params.jid, params.senderNumber),
+        'voice-message',
+      );
+    }
+
     await params.handleTextMessage(
       params.jid,
       params.senderNumber,
       transcription,
       params.isGroup,
       params.groupPassiveHistory,
+      !params.isGroup,
     );
   } catch (err: any) {
     console.error('[WhatsApp Agent] Audio error:', err);

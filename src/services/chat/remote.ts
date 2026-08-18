@@ -2,3 +2,4 @@ export { fetchAccessibleConversations } from './remote/fetch-accessible-conversa
 export { upsertConversationRemote } from './remote/conversation-mutations';
 export { syncMessagesRemote } from './remote/message-sync';
 export { deleteConversationRemote } from './remote/delete-conversation';
+export { fetchDeletedConversationIds } from './remote/deleted-conversations';

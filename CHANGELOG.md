@@ -4,6 +4,173 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [0.9.8] - 2026-08-17
+
+### Added
+- **Modo llamada**: ahora se puede sostener una conversacion hablada con SofLIA
+  por WhatsApp y por Telegram. Le mandas una nota de voz y te contesta hablando,
+  con el contexto de la charla y **todo su catalogo de herramientas disponible**:
+  puede buscar en internet, ejecutar skills, operar la computadora y contarte el
+  resultado con la voz. Se abre con `/llamar`, hablandole, o apretando el boton
+  de llamar de WhatsApp; se cierra con `/colgar` o solo por inactividad.
+- Si llamas a SofLIA por WhatsApp, ahora **te responde**. No puede contestar la
+  llamada con audio —el protocolo de WhatsApp Web no expone el canal de voz a
+  una integracion— asi que la rechaza al instante y abre el modo llamada
+  explicandotelo hablando, en vez de dejar el telefono sonando sin respuesta.
+- Telegram gana **audio en ambos sentidos**: antes descartaba cualquier mensaje
+  que no fuera texto; ahora escucha notas de voz y responde con voz.
+- Nueva herramienta `send_voice_note`: SofLIA puede decidir contestar hablando
+  dentro de un turno, cuando la respuesta se entiende mejor dicha que escrita.
+  Bloqueada en grupos, donde una respuesta hablada quedaria audible para todos.
+- **Borrar un chat ahora se entera el resto de tus equipos.** El borrado pasa a
+  ser logico (`conversations.deleted_at`): la conversacion desaparece de todos
+  los dispositivos de la cuenta en vez de reaparecer en el segundo equipo, que
+  antes volvia a listarla y se la devolvia al primero al sincronizar. Requiere
+  ejecutar `database/lia/migrations/conversations-soft-delete.sql` en la
+  instancia del Hub; hasta entonces el cliente degrada al comportamiento
+  anterior y lo avisa, no falla.
+- El proceso de escritorio tampoco ofrece al agente una conversacion que el
+  usuario ya borro: la lectura filtra por la misma marca.
+- **Lectura del DOM por el motor** en el navegador integrado, opcional con
+  `SOFLIA_BROWSER_CDP_DOM=1`. El recorrido de siempre es JavaScript dentro de la
+  pagina y por eso lleva un presupuesto de 400 ms y un tope de 1800 nodos: sin
+  ellos un documento grande congelaba el sitio, y con ellos la lectura de Gmail,
+  Drive o un ERP salia recortada casi siempre y el agente gastaba pasos en
+  desplazar y releer. `DOMSnapshot.captureSnapshot` resuelve el mismo recorrido
+  dentro de Chromium, sin competir con la pagina y sin esos topes, y devuelve de
+  una sola vez los iframes del mismo proceso. Ante cualquier fallo cae al
+  recorrido de siempre: quitar la variable es el rollback.
+- **Arranque del agente en cada documento**: lo que el producto inyecta en la
+  pagina se registra una vez y Chromium lo ejecuta en cada marco y cada
+  navegacion, **antes** del script del sitio. Reinstalarlo tras cada carga
+  llegaba tarde en una aplicacion de pagina unica y a los marcos secundarios no
+  llegaba nunca.
+- **Cajas numeradas sobre los controles** para Computer Use en el navegador,
+  opcional con `SOFLIA_BROWSER_SOM=1`, para que el modelo pueda decir `[7]` en
+  vez de estimar pixeles sobre una captura reducida. En el escritorio esa lista
+  hay que deducirla componiendo accesibilidad, OCR y un detector visual; en el
+  navegador ya existe y es exacta, porque cada control trae su rectangulo, su rol
+  y su nombre. Queda opt-in a proposito: permite medir con el mismo binario si
+  las marcas reducen pasos y clics fallidos antes de darlas por buenas.
+- Las presentaciones ganan **variante compositiva** por diapositiva
+  (`editorial`, `visual-dominante`, `compacta`, `inmersiva`, `secuencial`). La
+  variante cambia la geometria real de la escena, no es una etiqueta: el esquema
+  prohibe repetir la misma firma de arquetipo y variante y exige variedad minima
+  en barajas largas, que es lo que evitaba que ocho ideas distintas terminaran
+  resueltas con las mismas dos tarjetas enfrentadas.
+- Una presentacion puede **adoptar los colores de la fuente** que el usuario
+  senalo —una pagina, un documento, un video— cuando el usuario lo pide. La
+  prioridad es `usuario > fuente > organizacion > neutro`, los seis colores se
+  validan por contraste y el logo y la tipografia de la organizacion siguen
+  protegidos. Una instruccion incrustada en la fuente no puede activar el cambio:
+  solo la peticion del usuario.
+- Las imagenes con ajuste `contener` completan el marco con una capa desenfocada
+  de la propia imagen en vez de dejar bandas grises.
+- El chat del Hub puede **ejecutar codigo** junto a sus herramientas cuando el
+  modelo lo soporta (Gemini 3 en adelante): calculos y analisis de datos salen de
+  Python real y no de memoria.
+- Los ajustes de voz pasiva se reorganizan en tres tarjetas —estado del pipeline
+  local, modelo de voz y escucha—. La primera es lo que se lee cuando "la voz no
+  funciona", asi que cada fila dice estado y siguiente paso, con icono **y**
+  texto, en vez de un punto de color.
+- Los desplegables del producto pasan a un selector propio con descripcion por
+  opcion, navegacion completa por teclado y patron ARIA de combobox: el menu
+  nativo no admite descripciones y se recortaba al abrirse cerca del borde
+  inferior de un modal.
+- El selector de herramientas de una Skill gana busqueda, agrupacion por dominio
+  con seleccion rapida por grupo y aviso explicito en las acciones irreversibles.
+
+### Changed
+- Las guardas, permisos y confirmaciones no cambian por hablar: un turno de voz
+  recorre el mismo camino que uno escrito. Las acciones criticas siguen pidiendo
+  confirmacion, y esa confirmacion se manda **tambien por escrito**, que es donde
+  se lee sin ambiguedad.
+- Si falta la credencial de voz o el proveedor falla, la respuesta llega
+  **escrita** con un aviso una sola vez por llamada. Quedarse sin voz es
+  aceptable; quedarse sin respuesta no.
+- El modo llamada pide el audio ya en Opus/OGG, el unico formato que WhatsApp
+  presenta como nota de voz y Telegram como `voice`. El repositorio no empaqueta
+  ffmpeg, asi que pedirlo listo evita arrastrar un codificador por plataforma. La
+  configuracion global de voz sigue siendo MP3, que es lo que reproduce la orbe.
+- El tool loop del chat pasa al SDK `@google/genai`. El anterior manda las
+  respuestas de herramienta con un rol que Gemini 3 rechaza, asi que ningun turno
+  con herramientas sobrevivia al segundo salto.
+- La memoria se mantiene con topes de tokens propios y razonamiento bajo. El
+  modelo que resume y extrae piensa antes de responder y ese pensamiento se cobra
+  del mismo presupuesto: con el tope anterior se lo comia entero y la respuesta
+  llegaba cortada.
+- Un resumen de sesion mas corto que 150 caracteres o cortado por tope ya no se
+  guarda. Una Memory Card a medias queda fija en el contexto de todos los turnos
+  siguientes; se descarta y la sesion se resume mas adelante.
+
+### Fixed
+- **La memoria envenenada se repara sola al arrancar**: los resumenes truncados
+  que quedaron guardados —y los fragmentos derivados de ellos— se borran, y como
+  los mensajes no se tocan, cada sesion se vuelve a resumir con la configuracion
+  corregida.
+- Los hechos aprendidos en el chat de la aplicacion y en las tareas de escritorio
+  se guardaban con una clave distinta de la que se usa para leerlos: se escribian
+  y no se volvian a leer nunca. La clave se define ahora en un solo lugar.
+- Abrir Ajustes → Voz sin el runtime Python instalado tumbaba la aplicacion con
+  el dialogo "A JavaScript error occurred in the main process". El arranque del
+  sidecar ahora valida el ejecutable **antes** de lanzarlo y falla con un mensaje
+  accionable; un fallo asincrono se degrada a estado consultable en vez de matar
+  el proceso principal, y quien esperaba deja de aguardar el timeout completo.
+- `npm run python:setup` fallaba en Windows por dos motivos distintos: desde Git
+  Bash el `tar` de MSYS interpretaba `C:\ruta` como un host remoto y abortaba, y
+  la extraccion a un temporal seguida de renombrado chocaba con OneDrive y el
+  antivirus. Ahora se ancla el `tar` del sistema con rutas relativas y se extrae
+  directo sobre el destino.
+- Cualquier fallo de Gemini cuyo texto mencionara "not found" o "not supported"
+  se reportaba como "Gemini no esta disponible para esta key" con el modelo
+  perfectamente vivo: la URL del endpoint que arrastra todo error contiene
+  `models/...`, asi que la clasificacion acertaba por accidente. Ahora se
+  clasifica sin la URL y solo se culpa al modelo cuando la API lo nombra como
+  recurso ausente. Los errores que no se saben clasificar llevan un resumen corto
+  y sin secretos, porque en un build empaquetado no hay consola donde leerlos.
+- Una herramienta que lanzaba excepcion tumbaba el turno entero de WhatsApp y el
+  usuario recibia un error tecnico generico. Ahora el fallo vuelve al modelo como
+  resultado fallido de esa herramienta, que puede explicarlo o intentar otra via.
+- El principal del Communication Hub se resolvia una vez **por herramienta**:
+  unas 130 consultas a Supabase antes de que el turno llegara siquiera al modelo.
+  Pasa a resolverse una sola vez por turno.
+- "Activa el modo orbe" o "reinicia el servicio" no contaban como peticion de
+  ejecutar algo, asi que el agente respondia explicando como hacerlo a mano en
+  vez de hacerlo. Se agregan los verbos de control de la aplicacion y del
+  sistema, las formulas corteses que no llevan el verbo pegado y los pronombres
+  encliticos ("activarlo", "reinicialo").
+- Una llamada entrante de WhatsApp llega identificada por LID, que no es un
+  telefono: tomarlo como numero dejaba al llamante fuera de la allowlist y la
+  llamada se descartaba como no autorizada. Se resuelve el telefono real y, si no
+  se puede, no se abre sesion.
+- Dos capturas simultaneas en el navegador integrado se pisaban: la sesion de
+  inspeccion admite un solo cliente por pestana y la primera en terminar
+  desconectaba a la otra. Ahora el ciclo de vida se comparte con contadores por
+  sesion y por dominio, y con DevTools abierto cada consumidor degrada a su
+  camino en JavaScript en vez de romperse.
+- Un elemento dentro de un iframe de otro origen ya no se resuelve a una
+  coordenada equivocada: se declara el fallo con un mensaje accionable, porque
+  actuar significaria hacer clic sobre algo que el usuario no pidio.
+- Una sesion de monitoreo adoptada desde el calendario ya no detiene la que el
+  usuario habia iniciado a mano.
+
+### Security
+- Todo lo que el agente ejecuta dentro de una pagina corre en un **mundo
+  aislado**: comparte el DOM pero no el objeto global del sitio. El registro de
+  elementos que respalda las referencias deja de ser legible y modificable por la
+  pagina, que antes podia sustituirlo para desviar un clic del agente. La sonda
+  que localiza el campo de contrasena al rellenar una credencial tambien se muda
+  ahi.
+- El aviso de seleccion de texto viajaba por la consola de la pagina, un canal
+  que la propia pagina puede inundar o imitar. Pasa a un puente del protocolo
+  publicado solo dentro del mundo del agente, y lo que llega por el se sigue
+  tratando como contenido no confiable: nombre validado, carga util acotada y un
+  mensaje malformado no interrumpe el reparto del resto.
+- Cuando el usuario abre DevTools no se disputa la sesion de inspeccion: se cede,
+  el arranque se marca degradado y se reinstala solo al cerrarla.
+- El formato de audio y el identificador de voz que un canal puede pedir por
+  solicitud se validan antes de llegar a la URL del proveedor.
+
 ## [0.9.7]
 
 ### Added
@@ -34,6 +201,19 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
   y PC se conservan como Skills del sistema declaradas en la base de datos, de
   modo que se administran editando una fila y llegan a todos los usuarios sin
   publicar instalador.
+
+### Removed
+- **BREAKING** Se retira **SofLIA Proactiva** (el "WhatsApp Autonomo" que
+  consultaba calendario y pendientes y escribia por su cuenta en las horas
+  marcadas). Era la version anterior de una idea que hoy cubren las Skills
+  pasivas: una rutina programada, con canal elegido y guardas explicitas, en vez
+  de un tick cada cinco minutos configurado en una pantalla aparte. Desaparecen
+  el bloque de ajustes en Apariencia & Voz, los cuatro canales IPC
+  `proactive:get-config`, `proactive:update-config`, `proactive:trigger-now` y
+  `proactive:get-status`, el `ProactiveService` de main y su cableado de
+  arranque. El archivo `userData/proactive-config.json` queda huerfano y ya no
+  se lee; puede borrarse. Quien dependia de esos avisos los reprograma como
+  Skill pasiva.
 
 ### Changed
 - **BREAKING** Se retiran los diez canales IPC `workflow-hub:*` y se anaden

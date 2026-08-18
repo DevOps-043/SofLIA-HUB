@@ -15,6 +15,13 @@ const MARKER_COLOR_BY_CONTROL: Record<string, string> = {
   RadioButton: '#eab308',
 };
 
+/**
+ * Tamano real de la imagen sobre la que se dibuja. Se entrega a `mapRect`
+ * porque quien traduce coordenadas suele necesitar la escala y solo aqui se
+ * conoce: la captura puede venir reducida respecto del origen que la produjo.
+ */
+export type OverlayImageSize = { width: number; height: number };
+
 export async function applyGridOverlay(
   sharp: SharpFactory | null,
   base64: string,
@@ -48,7 +55,7 @@ export async function applySoMOverlay(input: {
   fallbackWidth: number;
   fallbackHeight: number;
   elements: UIElement[];
-  mapRect: (rect: UIElement['boundingRect']) => ScreenshotRect | null;
+  mapRect: (rect: UIElement['boundingRect'], imagen: OverlayImageSize) => ScreenshotRect | null;
 }): Promise<string> {
   const { sharp, base64, fallbackWidth, fallbackHeight, elements, mapRect } = input;
   if (!sharp) return base64;
@@ -59,7 +66,7 @@ export async function applySoMOverlay(input: {
   let svgElements = '';
 
   for (const element of elements.slice(0, 30)) {
-    const mappedRect = mapRect(element.boundingRect);
+    const mappedRect = mapRect(element.boundingRect, { width, height });
     if (!mappedRect) continue;
     const bx = Math.round(mappedRect.x);
     const by = Math.round(mappedRect.y);

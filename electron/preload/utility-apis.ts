@@ -5,12 +5,6 @@ import type {
 
 export function exposeUtilityApis(bridge: PreloadBridge, ipc: SafeIpc): void {
   const { safeInvoke, safeOn, safeRemoveAllListeners, safeSend } = ipc;
-  bridge.exposeInMainWorld('proactive', {
-    getConfig: () => safeInvoke('proactive:get-config'),
-    updateConfig: (updates: any) => safeInvoke('proactive:update-config', updates),
-    triggerNow: (phoneNumber?: string) => safeInvoke('proactive:trigger-now', phoneNumber),
-    getStatus: () => safeInvoke('proactive:get-status'),
-  });
   bridge.exposeInMainWorld('memory', {
     getStats: (sessionKey?: string) => safeInvoke('memory:get-stats', sessionKey),
     compact: (daysToKeep?: number) => safeInvoke('memory:compact', daysToKeep),

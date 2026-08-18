@@ -20,7 +20,6 @@ export async function loadMainServiceModules() {
   const { registerDriveHandlers } = await import('../drive-handlers');
   const { GChatService } = await import('../gchat-service');
   const { registerGChatHandlers } = await import('../gchat-handlers');
-  const { ProactiveService } = await import('../proactive-service');
   const { DesktopAgentService } = await import('../desktop-agent-service');
   const { registerDesktopAgentHandlers } = await import('../desktop-agent-handlers');
   const { MemoryService } = await import('../memory-service');
@@ -73,7 +72,7 @@ export async function loadMainServiceModules() {
     setSkillWorkspaceService,
     registerComputerUseHandlers, WhatsAppService, WhatsAppAgent, MonitoringService, registerMonitoringHandlers,
     CalendarService, registerCalendarHandlers, GmailService, registerGmailHandlers, DriveService, registerDriveHandlers,
-    GChatService, registerGChatHandlers, ProactiveService, DesktopAgentService, registerDesktopAgentHandlers,
+    GChatService, registerGChatHandlers, DesktopAgentService, registerDesktopAgentHandlers,
     MemoryService, registerMemoryHandlers, KnowledgeService, UpdaterService, registerUpdaterHandlers,
     ClipboardAIAssistant, TaskScheduler, NeuralOrganizerService, PathMemoryService, MenuManager,
     registerMeetingHandlers, createMeetingLiveService, registerMeetingLiveHandlers,

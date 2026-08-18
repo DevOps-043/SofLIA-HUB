@@ -649,6 +649,25 @@ export class PythonRuntimeService extends EventEmitter {
       && fs.existsSync(this.getSidecarPath());
   }
 
+  /**
+   * Falla con un mensaje accionable ANTES de spawnear. Sin esta guarda, spawn()
+   * emitia ENOENT de forma asincrona y el 'error' del EventEmitter (sin listener)
+   * se convertia en excepcion no capturada: el dialogo "A JavaScript error
+   * occurred in the main process" que aparecia al abrir Ajustes → Voz.
+   */
+  private assertRuntimeAvailable(): void {
+    const pythonPath = this.getPythonPath();
+    if (!fs.existsSync(pythonPath)) {
+      throw new Error(app.isPackaged
+        ? `El runtime Python no viene con esta instalacion (${pythonPath}). Reinstala la app.`
+        : `Runtime Python no instalado. Ejecuta "npm run python:setup" (esperado en ${pythonPath}).`);
+    }
+    const sidecarPath = this.getSidecarPath();
+    if (!fs.existsSync(sidecarPath)) {
+      throw new Error(`El sidecar de voz no esta presente (${sidecarPath}). Reinstala la app.`);
+    }
+  }
+
   private resolveModelPathFor(size: VoskModelSize): string | null {
     const dir = VOSK_MODELS[size].dir;
     const candidates = [
@@ -686,6 +705,12 @@ export class PythonRuntimeService extends EventEmitter {
 
   private async ensureSidecar(): Promise<void> {
     if (this.proc) return;
+    try {
+      this.assertRuntimeAvailable();
+    } catch (error) {
+      this.lastError = error instanceof Error ? error.message : String(error);
+      throw error;
+    }
     const pythonPath = this.getPythonPath();
     const sidecarPath = this.getSidecarPath();
     const runtimeLib = path.join(path.dirname(path.dirname(pythonPath)), 'lib');
@@ -711,8 +736,17 @@ export class PythonRuntimeService extends EventEmitter {
     });
     proc.on('exit', (code) => this.handleExit(code));
     proc.on('error', (err) => {
-      this.lastError = err.message;
-      this.emit('error', err);
+      // spawn() reporta sus fallos (ENOENT, EACCES) de forma asincrona por aqui.
+      // 'error' en un EventEmitter SIN listener es una excepcion no capturada que
+      // mata el proceso main, asi que el fallo se degrada a estado consultable +
+      // rechazo de quien espera, y solo se re-emite si alguien escucha.
+      const message = `No se pudo lanzar el sidecar Python: ${err.message}`;
+      console.error(`[PythonRuntime] ${message}`);
+      this.lastError = message;
+      if (this.proc === proc) this.proc = null;
+      this.rejectPending(new Error(message));
+      this.emit('sidecar-failed', new Error(message));
+      if (this.listenerCount('error') > 0) this.emit('error', err);
     });
 
     await this.waitForReady();
@@ -720,13 +754,29 @@ export class PythonRuntimeService extends EventEmitter {
 
   private waitForReady(timeoutMs = COMMAND_TIMEOUT_MS): Promise<void> {
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
+      const cleanup = () => {
+        clearTimeout(timer);
         this.removeListener('sidecar-ready', onReady);
+        this.removeListener('sidecar-failed', onFailed);
+      };
+      const timer = setTimeout(() => {
+        cleanup();
         reject(new Error('Timeout esperando el evento ready del sidecar.'));
       }, timeoutMs);
-      const onReady = () => { clearTimeout(timer); resolve(); };
+      const onReady = () => { cleanup(); resolve(); };
+      // Sin esto, un spawn fallido dejaba al llamador esperando el timeout completo.
+      const onFailed = (error: Error) => { cleanup(); reject(error); };
       this.once('sidecar-ready', onReady);
+      this.once('sidecar-failed', onFailed);
     });
+  }
+
+  private rejectPending(error: Error): void {
+    for (const [, pending] of this.pending) {
+      clearTimeout(pending.timer);
+      pending.reject(error);
+    }
+    this.pending.clear();
   }
 
   private handleStdout(chunk: string): void {
@@ -885,11 +935,7 @@ export class PythonRuntimeService extends EventEmitter {
     this.activeDictationSessionId = null;
     this.activeSpeechId = null;
     this.dictating = false;
-    for (const [, pending] of this.pending) {
-      clearTimeout(pending.timer);
-      pending.reject(new Error('El sidecar Python finalizo inesperadamente.'));
-    }
-    this.pending.clear();
+    this.rejectPending(new Error('El sidecar Python finalizo inesperadamente.'));
     if (interruptedDictationSessionId) {
       this.emit('dictation-timeout', {
         sessionId: interruptedDictationSessionId,

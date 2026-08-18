@@ -34,6 +34,17 @@ export const FILE_DELIVERY_TOOLS = [
     },
   },
   {
+    name: 'send_voice_note',
+    description: 'Responde al usuario con una nota de voz hablada en lugar de texto. Usala cuando el usuario pida que le hables, que le respondas con audio, o cuando estes en modo llamada y la respuesta se entienda mejor dicha. No la uses para textos largos, listas ni codigo: eso se lee mejor escrito.',
+    parameters: {
+      type: 'OBJECT' as const,
+      properties: {
+        text: { type: 'STRING' as const, description: 'Lo que vas a decir, en lenguaje hablado natural y sin formato Markdown.' },
+      },
+      required: ['text'],
+    },
+  },
+  {
     name: 'whatsapp_send_to_contact',
     description: 'Envia un mensaje de texto y/o archivo a otro numero de WhatsApp. REQUIERE confirmacion.',
     parameters: {

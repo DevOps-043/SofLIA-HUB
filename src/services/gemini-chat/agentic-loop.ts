@@ -2,6 +2,7 @@ import { sanitizeAssistantText } from './assistant-text-sanitizer';
 import { completedStreamResult, isAbortError, singleChunkStream, stoppedStreamResult } from './streams';
 import { resolveEmptyGeminiText } from './empty-response';
 import { getPublicAiErrorMessage } from './public-error';
+import { withAbortSignal, type GeminiChatConfig } from './model-config';
 import { withGeminiModelCall, withToolTimeout } from './resilience';
 import { executeGeminiToolCall, isKnownGeminiTool } from './tool-dispatch';
 import {
@@ -13,6 +14,8 @@ import type { SendMessageStreamOptions, StreamResult, ToolCallInfo } from './typ
 
 export async function runAgenticLoop(params: {
   chatSession: any;
+  /** Config de la sesion; se reenvia en cada peticion (no se hereda). */
+  chatConfig: GeminiChatConfig;
   messageContent: any;
   options?: SendMessageStreamOptions;
   allToolCalls: ToolCallInfo[];
@@ -20,8 +23,10 @@ export async function runAgenticLoop(params: {
   failFastOnModelError?: boolean;
 }): Promise<StreamResult> {
   const signal = params.options?.signal;
-  // El envío al SDK acepta { signal } para cancelar la petición HTTP en curso.
-  const requestOptions = signal ? { signal } : undefined;
+  // `abortSignal` viaja DENTRO del config, y el config por peticion no hereda
+  // del de la sesion: mandarlo solo con la señal dejaria al turno sin tools ni
+  // systemInstruction a media conversacion.
+  const requestConfig = withAbortSignal(params.chatConfig, signal);
 
   if (signal?.aborted) return stoppedStreamResult(params.allToolCalls, params.allGeneratedImages);
 
@@ -29,7 +34,7 @@ export async function runAgenticLoop(params: {
   try {
     response = await withGeminiModelCall(
       'Gemini initial agentic message',
-      () => params.chatSession.sendMessage(params.messageContent, requestOptions),
+      () => params.chatSession.sendMessage({ message: params.messageContent, config: requestConfig }),
       { signal },
     );
   } catch (error: any) {
@@ -45,7 +50,8 @@ export async function runAgenticLoop(params: {
   while (maxIterations > 0) {
     maxIterations -= 1;
     if (signal?.aborted) return stoppedStreamResult(params.allToolCalls, params.allGeneratedImages);
-    const parts = response.response.candidates?.[0]?.content?.parts || [];
+    // `@google/genai` devuelve la respuesta directa, sin envoltorio `{ response }`.
+    const parts = response.candidates?.[0]?.content?.parts || [];
     collectInlineImages(parts, params.allGeneratedImages);
     const functionCalls = parts.filter((part: any) => part.functionCall);
     if (functionCalls.length === 0) {
@@ -54,7 +60,10 @@ export async function runAgenticLoop(params: {
         try {
           response = await withGeminiModelCall(
             'Gemini incomplete workspace repair',
-            () => params.chatSession.sendMessage([{ text: `${WORKSPACE_REPAIR_INSTRUCTION}\n\nComprobacion: ${completion.message}` }], requestOptions),
+            () => params.chatSession.sendMessage({
+              message: [{ text: `${WORKSPACE_REPAIR_INSTRUCTION}\n\nComprobacion: ${completion.message}` }],
+              config: requestConfig,
+            }),
             { signal },
           );
           continue;
@@ -64,7 +73,7 @@ export async function runAgenticLoop(params: {
           return safeFailureResult(error, params);
         }
       }
-      return finalTextResult(parts, response.response, params);
+      return finalTextResult(parts, response, params);
     }
 
     const functionResponses = await executeFunctionCalls(functionCalls, params);
@@ -73,7 +82,9 @@ export async function runAgenticLoop(params: {
     try {
       response = await withGeminiModelCall(
         'Gemini tool response message',
-        () => params.chatSession.sendMessage(functionResponses as any, requestOptions),
+        // El SDK las empaqueta como `role: "user"`, que es lo que Gemini 3
+        // acepta; el SDK legado usaba `role: "function"` y devolvia 400.
+        () => params.chatSession.sendMessage({ message: functionResponses as any, config: requestConfig }),
         { signal },
       );
     } catch (error: any) {

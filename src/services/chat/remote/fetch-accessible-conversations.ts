@@ -12,18 +12,34 @@ import {
 import { MAX_CONVERSATIONS, type Conversation } from '../types';
 import { buildFolderConversations } from './folder-conversations';
 import { buildOutgoingShareMap } from './outgoing-share-map';
+import { isMissingSoftDeleteColumn, warnMissingSoftDeleteColumn } from './soft-delete';
+
+function buildOwnConversationsQuery(userId: string, orgId: string | undefined, excludeDeleted: boolean) {
+  let query = supabase.from('conversations').select('*').eq('user_id', userId);
+  if (orgId) query = query.eq('org_id', orgId);
+  if (excludeDeleted) query = query.is('deleted_at', null);
+  return query.order('updated_at', { ascending: false }).limit(MAX_CONVERSATIONS);
+}
+
+/**
+ * Pide solo las activas. Si la migracion del borrado logico aun no se aplico,
+ * repite sin el filtro en vez de dejar el listado sin datos.
+ */
+async function selectOwnConversations(userId: string, orgId?: string) {
+  const filtered = await buildOwnConversationsQuery(userId, orgId, true);
+  if (!isMissingSoftDeleteColumn(filtered.error)) return filtered;
+
+  warnMissingSoftDeleteColumn('fetchAccessibleConversations');
+  return buildOwnConversationsQuery(userId, orgId, false);
+}
 
 export async function fetchAccessibleConversations(
   userId: string,
   accessUserIds: string[],
   orgId?: string,
 ): Promise<Conversation[]> {
-  const ownConversationsQuery = supabase.from('conversations').select('*').eq('user_id', userId);
   const ownedFoldersQuery = supabase.from('folders').select('id').eq('user_id', userId);
-  if (orgId) {
-    ownConversationsQuery.eq('org_id', orgId);
-    ownedFoldersQuery.eq('org_id', orgId);
-  }
+  if (orgId) ownedFoldersQuery.eq('org_id', orgId);
 
   const [
     ownConversationsResult,
@@ -32,7 +48,7 @@ export async function fetchAccessibleConversations(
     sharedFolderShares,
     outgoingConversationShares,
   ] = await Promise.all([
-    ownConversationsQuery.order('updated_at', { ascending: false }).limit(MAX_CONVERSATIONS),
+    selectOwnConversations(userId, orgId),
     ownedFoldersQuery,
     loadAccessibleConversationShares(accessUserIds, orgId),
     loadAccessibleFolderShares(accessUserIds, orgId),
@@ -59,5 +75,11 @@ export async function fetchAccessibleConversations(
         : decorateSharedConversation(share.conversation as unknown as Record<string, unknown>, share),
     );
 
-  return dedupeConversations([...ownedConversations, ...folderConversations, ...directSharedConversations]);
+  // Un chat borrado tampoco se muestra a quien lo tenia compartido: los shares
+  // traen la conversacion incrustada y ahi el filtro no viaja en la consulta.
+  return dedupeConversations(
+    [...ownedConversations, ...folderConversations, ...directSharedConversations].filter(
+      (conversation) => !conversation.deleted_at,
+    ),
+  );
 }

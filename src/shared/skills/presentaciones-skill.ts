@@ -48,9 +48,9 @@ export const PRESENTACIONES_SKILL: SystemSkill = Object.freeze({
     maxFileBytes: 512 * 1024,
     maxWorkspaceBytes: 8 * 1024 * 1024,
     entryFile: PRESENTACIONES_ENTRY_FILE,
-    // La hoja de marca la escribe main. Que el modelo no pueda tocarla es lo
-    // que garantiza que la identidad corporativa sea la real, aunque una
-    // fuente intente convencerlo de usar otros colores.
+    // La hoja de marca la escribe main y ninguna fuente puede modificarla. Una
+    // peticion explicita del usuario puede seleccionar otra paleta mediante el
+    // contrato estricto `meta.tema`; el runtime la aplica solo dentro del deck.
     protectedFiles: Object.freeze([PRESENTACIONES_BRAND_CSS]) as readonly string[],
   }),
   featureFlag: 'VITE_SKILL_PRESENTACIONES_ENABLED',

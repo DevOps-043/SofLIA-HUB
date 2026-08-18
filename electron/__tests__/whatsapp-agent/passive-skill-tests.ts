@@ -62,13 +62,13 @@ export function registerPassiveSkillTests(ctx: WhatsAppAgentTestContext): void {
       });
 
       ctx.mockSendMessage.mockResolvedValueOnce({
-        response: {
-          text: () => '',
-          candidates: [{ content: { parts: [{ functionCall: { name: 'gmail_send', args: { to: 'a@b.com', subject: 'Hola', body: 'Texto' } } }] } }],
-          functionCalls: () => null,
-        },
+        text: '',
+        candidates: [{ content: { parts: [{ functionCall: { name: 'gmail_send', args: { to: 'a@b.com', subject: 'Hola', body: 'Texto' } } }] } }],
+        functionCalls: undefined,
       }).mockResolvedValueOnce({
-        response: { text: () => 'Enviado', candidates: [{ content: { parts: [{ text: 'Enviado' }] } }], functionCalls: () => null },
+        text: 'Enviado',
+        candidates: [{ content: { parts: [{ text: 'Enviado' }] } }],
+        functionCalls: undefined,
       });
 
       const resultado = await agent.handleScheduledTaskTrigger('123@s.whatsapp.net', '5215500000000', {
@@ -104,9 +104,10 @@ export function registerPassiveSkillTests(ctx: WhatsAppAgentTestContext): void {
         createdAt: new Date().toISOString(),
       } as any);
 
-      expect(ctx.mockSendMessage).toHaveBeenCalledWith(expect.stringContaining('FRESCURA OBLIGATORIA'));
-      expect(ctx.mockSendMessage).toHaveBeenCalledWith(expect.stringContaining('Ayer mande una noticia sobre modelos multimodales'));
-      expect(ctx.mockSendMessage).toHaveBeenCalledWith(expect.stringContaining('Solicitud original: Mandame noticias relevantes de IA'));
+      // `@google/genai` recibe la peticion como `{ message }`.
+      expect(ctx.mockSendMessage).toHaveBeenCalledWith({ message: expect.stringContaining('FRESCURA OBLIGATORIA') });
+      expect(ctx.mockSendMessage).toHaveBeenCalledWith({ message: expect.stringContaining('Ayer mande una noticia sobre modelos multimodales') });
+      expect(ctx.mockSendMessage).toHaveBeenCalledWith({ message: expect.stringContaining('Solicitud original: Mandame noticias relevantes de IA') });
       expect(resultado).toBe('Noticias frescas');
     });
   });

@@ -51,8 +51,6 @@ export async function runBootstrap(): Promise<void> {
   const initWhatsAppAgent = createWhatsAppAgentInitializer({ modules, services, state });
 
   services.workspaceAutomationService.setApiKey(state.currentGeminiApiKey);
-  services.proactiveService.setCalendarService(services.calendarService);
-  services.proactiveService.setWhatsAppService(services.waService);
   services.meetingPassiveDetectionService.setWhatsAppService(services.waService);
 
   registerServiceEvents({ modules, services, state, controls });

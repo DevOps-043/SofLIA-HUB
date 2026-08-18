@@ -1,15 +1,9 @@
 import { useState } from 'react';
 import { InterfaceSettingsBlock } from '../../SettingsModal';
 import { VoicePassiveSettings } from '../../VoicePassiveSettings';
-import { ProactiveBlock } from '../../settings-modal/ProactiveBlock';
-import { useProactiveConfig } from '../../settings-modal/useProactiveConfig';
 
-export function AppearanceVoiceSection({
-  proactive,
-}: {
-  proactive: ReturnType<typeof useProactiveConfig>;
-}) {
-  const [subTab, setSubTab] = useState<'interface' | 'voice' | 'proactive'>('interface');
+export function AppearanceVoiceSection() {
+  const [subTab, setSubTab] = useState<'interface' | 'voice'>('interface');
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -25,7 +19,7 @@ export function AppearanceVoiceSection({
               Apariencia & Voz
             </h2>
             <p className="text-xs text-secondary mt-0.5 max-w-xl">
-              Ajusta la posición de la barra de tareas, la interacción por voz pasiva y las sugerencias automatizadas del agente proactivo.
+              Ajusta la posición de la barra de tareas y la interacción por voz pasiva.
             </p>
           </div>
 
@@ -61,23 +55,6 @@ export function AppearanceVoiceSection({
               </svg>
               <span>Voz & Audio</span>
             </button>
-
-            {proactive.available && (
-              <button
-                type="button"
-                onClick={() => setSubTab('proactive')}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
-                  subTab === 'proactive'
-                    ? 'bg-white dark:bg-[#1e2329] text-accent shadow-xs'
-                    : 'text-secondary hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-                <span>Agente Proactivo</span>
-              </button>
-            )}
           </div>
         </div>
       </div>
@@ -93,12 +70,6 @@ export function AppearanceVoiceSection({
         {subTab === 'voice' && (
           <div className="animate-in fade-in duration-200">
             <VoicePassiveSettings />
-          </div>
-        )}
-
-        {subTab === 'proactive' && proactive.available && (
-          <div className="animate-in fade-in duration-200">
-            <ProactiveBlock proactive={proactive} />
           </div>
         )}
       </div>

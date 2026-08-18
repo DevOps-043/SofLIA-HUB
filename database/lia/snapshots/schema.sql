@@ -29,6 +29,7 @@ CREATE TABLE public.conversations (
   updated_at timestamp with time zone DEFAULT now(),
   folder_id uuid,
   org_id uuid,
+  deleted_at timestamp with time zone,
   CONSTRAINT conversations_pkey PRIMARY KEY (id),
   CONSTRAINT conversations_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
   CONSTRAINT conversations_folder_id_fkey FOREIGN KEY (folder_id) REFERENCES public.folders(id)

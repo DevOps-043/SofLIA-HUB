@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
-import { collectIntegratedBrowserDom } from '../integrated-browser/page-observation';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { AGENT_WORLD_ID } from '../integrated-browser/agent-world';
+import { collectIntegratedBrowserDom, preferredDomBackend } from '../integrated-browser/page-observation';
 
 describe('percepción DOM del navegador integrado', () => {
   it('acota el payload, elimina credenciales de URLs y nunca conserva valores de formularios', async () => {
@@ -65,5 +66,59 @@ describe('percepción DOM del navegador integrado', () => {
     expect(JSON.stringify(snapshot)).not.toContain('secreto');
     // Los iconos y pixeles de seguimiento se descartan dentro de la pagina.
     expect(script).toContain('minImage: 200');
+  });
+
+  describe('eleccion de backend', () => {
+    const original = process.env.SOFLIA_BROWSER_CDP_DOM;
+    afterEach(() => {
+      if (original === undefined) delete process.env.SOFLIA_BROWSER_CDP_DOM;
+      else process.env.SOFLIA_BROWSER_CDP_DOM = original;
+    });
+
+    it('usa el recorrido en script mientras el flag este apagado', () => {
+      delete process.env.SOFLIA_BROWSER_CDP_DOM;
+      expect(preferredDomBackend()).toBe('script');
+      process.env.SOFLIA_BROWSER_CDP_DOM = '1';
+      expect(preferredDomBackend()).toBe('cdp');
+    });
+
+    it('lee dentro del mundo aislado del agente, no en el de la pagina', async () => {
+      const executeJavaScript = vi.fn(async () => ({ url: 'https://example.com', text: 'hola' }));
+      const executeJavaScriptInIsolatedWorld = vi.fn(async () => ({ url: 'https://example.com', text: 'hola' }));
+      const contents = { executeJavaScript, executeJavaScriptInIsolatedWorld } as unknown as
+        Parameters<typeof collectIntegratedBrowserDom>[0];
+
+      await collectIntegratedBrowserDom(contents, { backend: 'script' });
+
+      expect(executeJavaScript).not.toHaveBeenCalled();
+      expect(executeJavaScriptInIsolatedWorld).toHaveBeenCalledWith(
+        AGENT_WORLD_ID,
+        [{ code: expect.stringContaining('const LIMITS = { text:') }],
+        true,
+      );
+    });
+
+    it('cae al recorrido en script cuando la captura por CDP falla', async () => {
+      const executeJavaScript = vi.fn(async () => ({ url: 'https://example.com/respaldo', text: 'respaldo' }));
+      const contents = {
+        executeJavaScript,
+        isDestroyed: () => false,
+        getURL: () => 'https://example.com/respaldo',
+        debugger: {
+          isAttached: () => false,
+          // Con DevTools abierto la sesion no se puede tomar. Dejar al agente
+          // sin lectura seria peor que devolver la observacion acotada.
+          attach: () => { throw new Error('Another debugger is already attached'); },
+          detach: vi.fn(),
+          once: vi.fn(),
+          sendCommand: vi.fn(async () => ({})),
+        },
+      } as unknown as Parameters<typeof collectIntegratedBrowserDom>[0];
+
+      const snapshot = await collectIntegratedBrowserDom(contents, { backend: 'cdp' });
+
+      expect(snapshot.url).toBe('https://example.com/respaldo');
+      expect(executeJavaScript).toHaveBeenCalledOnce();
+    });
   });
 });

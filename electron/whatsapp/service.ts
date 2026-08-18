@@ -10,7 +10,9 @@ import { AUTH_DIR, loadConfig, saveConfig } from './config';
 import { registerConnectionEvents } from './connection-events';
 import { logger } from './logger';
 import { registerMessageEvents } from './message-events';
-import { sendFile as sendWhatsAppFile, sendText as sendWhatsAppText } from './send';
+import { sendFile as sendWhatsAppFile, sendText as sendWhatsAppText, sendVoiceNote as sendWhatsAppVoiceNote } from './send';
+import { registerCallEvents } from './call-events';
+import { voiceCallSessions } from '../voice-call/session-store';
 import { DEFAULT_CONFIG, type WhatsAppConfig, type WhatsAppServiceCore } from './types';
 import { isAllowedNumber } from './security';
 import {
@@ -68,10 +70,14 @@ export class WhatsAppService extends EventEmitter implements WhatsAppServiceCore
     });
     registerConnectionEvents(this, saveCreds);
     registerMessageEvents(this);
+    registerCallEvents(this);
   }
 
   async disconnect(): Promise<void> {
     if (!this.sock) return;
+    // Una sesion de modo llamada sobre un canal caido solo serviria para
+    // intentar hablar por un transporte que ya no existe.
+    voiceCallSessions.closeChannel('whatsapp');
     await this.sock.logout();
     this.sock = null;
     this.connected = false;
@@ -84,6 +90,7 @@ export class WhatsAppService extends EventEmitter implements WhatsAppServiceCore
 
   sendText(jid: string, text: string): Promise<void> { return sendWhatsAppText(this, jid, text); }
   sendFile(jid: string, filePath: string, caption?: string): Promise<void> { return sendWhatsAppFile(this, jid, filePath, caption); }
+  sendVoiceNote(jid: string, audio: Buffer, seconds: number): Promise<void> { return sendWhatsAppVoiceNote(this, jid, audio, seconds); }
   recordHistory(event: WhatsAppConversationHistoryInput): void {
     void this.history.append(event);
   }

@@ -2,6 +2,21 @@ export const ELEVENLABS_DEFAULT_MODEL_ID = 'eleven_turbo_v2_5';
 export const ELEVENLABS_DEFAULT_OUTPUT_FORMAT = 'mp3_44100_128';
 export const ELEVENLABS_TTS_MAX_CHARS = 5_000;
 
+/**
+ * Opus en contenedor OGG: el formato que WhatsApp acepta como nota de voz
+ * (`ptt`) y Telegram como `sendVoice`, sin transcodificar. El repositorio no
+ * empaqueta ffmpeg, asi que pedirselo ya listo al proveedor es lo que evita
+ * arrastrar un codificador nativo por plataforma.
+ */
+export const ELEVENLABS_VOICE_NOTE_OUTPUT_FORMAT = 'opus_48000_64';
+
+/**
+ * Formatos que un llamador puede pedir por solicitud. La configuracion global
+ * sigue restringida a MP3 porque es lo que la orbe reproduce con Web Audio; el
+ * override existe para los canales que necesitan otro contenedor.
+ */
+const SUPPORTED_OUTPUT_FORMAT = /^(?:mp3_\d+_\d+|opus_\d+_\d+|pcm_\d+|ulaw_\d+)$/;
+
 export interface ElevenLabsTtsConfig {
   apiKey: string;
   voiceId: string;
@@ -33,13 +48,17 @@ export async function requestElevenLabsSpeech(input: {
   languageCode?: string;
   previousText?: string;
   nextText?: string;
+  /** Sobrescribe el formato configurado para esta solicitud (p. ej. Opus para notas de voz). */
+  outputFormat?: string;
+  /** Sobrescribe la voz configurada, para dar al modo llamada una voz propia. */
+  voiceId?: string;
 }): Promise<{ response: Response; config: ElevenLabsTtsConfig }> {
   const text = input.text.trim();
   if (!text) throw new Error('No hay texto que sintetizar.');
   if (text.length > ELEVENLABS_TTS_MAX_CHARS) {
     throw new Error(`Cada solicitud de voz admite hasta ${ELEVENLABS_TTS_MAX_CHARS} caracteres.`);
   }
-  const config = readElevenLabsTtsConfig();
+  const config = applyRequestOverrides(readElevenLabsTtsConfig(), input.outputFormat, input.voiceId);
   const languageCode = normalizeLanguageCode(input.languageCode);
   const previousText = normalizeContext(input.previousText);
   const nextText = normalizeContext(input.nextText);
@@ -65,6 +84,33 @@ export async function requestElevenLabsSpeech(input: {
     },
   );
   return { response, config };
+}
+
+/**
+ * El override es opcional: sin el, la configuracion global manda. Validarlo aqui
+ * evita que un formato invalido llegue a la URL del proveedor.
+ */
+function applyRequestOverrides(
+  config: ElevenLabsTtsConfig,
+  outputFormat: string | undefined,
+  voiceId: string | undefined,
+): ElevenLabsTtsConfig {
+  const result = { ...config };
+  const requestedFormat = outputFormat?.trim();
+  if (requestedFormat) {
+    if (!SUPPORTED_OUTPUT_FORMAT.test(requestedFormat)) {
+      throw new Error('El formato de audio solicitado no es válido.');
+    }
+    result.outputFormat = requestedFormat;
+  }
+  const requestedVoice = voiceId?.trim();
+  if (requestedVoice) {
+    if (!/^[A-Za-z0-9_-]{8,80}$/.test(requestedVoice)) {
+      throw new Error('El identificador de voz solicitado no tiene un formato válido.');
+    }
+    result.voiceId = requestedVoice;
+  }
+  return result;
 }
 
 function normalizeLanguageCode(value: string | undefined): string {

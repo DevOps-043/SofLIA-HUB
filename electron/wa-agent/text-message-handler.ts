@@ -36,6 +36,11 @@ export async function handleWhatsAppTextMessage(input: {
   text: string;
   isGroup: boolean;
   groupPassiveHistory: string;
+  /**
+   * Entrega de la respuesta final del agente. Se inyecta para que el modo
+   * llamada pueda hablarla sin que este manejador conozca la voz.
+   */
+  deliverReply?: (text: string) => Promise<void>;
 }): Promise<void> {
   const text = input.text.trim();
   if (!text) return;
@@ -95,7 +100,10 @@ export async function handleWhatsAppTextMessage(input: {
       input.isGroup,
       input.groupPassiveHistory,
     );
-    if (response) await input.waService.sendText(input.jid, response);
+    if (response) {
+      const deliver = input.deliverReply ?? ((text: string) => input.waService.sendText(input.jid, text));
+      await deliver(response);
+    }
   } catch (err: any) {
     console.error('[WhatsApp Agent] Error:', err);
     if (!shouldResetConversationAfterAgentError(err)) {

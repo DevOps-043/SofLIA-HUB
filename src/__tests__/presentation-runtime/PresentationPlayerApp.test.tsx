@@ -54,6 +54,46 @@ describe('reproductor declarativo de presentaciones', () => {
     expect(screen.queryByText('Tercera escena')).not.toBeInTheDocument();
     vi.useRealTimers();
   });
+
+  it('aplica la paleta de fuente y evita bandas planas al contener una imagen', () => {
+    (window as RuntimeWindow).__PULSE_PRESENTATION__ = {
+      deck: {
+        version: 1,
+        meta: {
+          titulo: 'Paleta fuente',
+          direccionVisual: 'Editorial de la pagina observada',
+          tema: {
+            origen: 'fuente',
+            fondo: '#08131f',
+            texto: '#f7fbff',
+            primario: '#5bd6ff',
+            secundario: '#7a63ff',
+            acento: '#ffb547',
+            superficie: '#132538',
+          },
+        },
+        slides: [
+          {
+            id: 'inicio', tipo: 'portada', variante: 'visual-dominante', titulo: 'Una fuente visual',
+            imagen: { src: 'assets/diagrama.png', alt: 'Diagrama original', ajuste: 'contener', posicion: 'centro' },
+            movimiento: { continuidad: 'flujo', entrada: 'revelado', enfasis: 'recorrido' },
+          },
+          { id: 'tesis', tipo: 'declaracion', variante: 'inmersiva', titulo: 'Una tesis', movimiento: { continuidad: 'zoom', entrada: 'foco', enfasis: 'ninguno' } },
+          { id: 'cierre', tipo: 'cierre', variante: 'editorial', titulo: 'Decidir', accion: 'Continuar', movimiento: { continuidad: 'empuje', entrada: 'ascenso', enfasis: 'pulso' } },
+        ],
+      },
+      assets: { 'assets/diagrama.png': 'data:image/png;base64,AAAA' },
+    };
+
+    render(<PresentationPlayerApp />);
+
+    const stage = screen.getByLabelText('Paleta fuente').firstElementChild as HTMLElement;
+    expect(stage.style.getPropertyValue('--marca-color-primario')).toBe('#5bd6ff');
+    expect(stage.style.getPropertyValue('--deck-color-superficie')).toBe('#132538');
+    const foreground = screen.getByAltText('Diagrama original');
+    expect(foreground.parentElement).toHaveClass('runtime-image-stack');
+    expect(foreground.parentElement?.querySelectorAll('img')).toHaveLength(2);
+  });
 });
 
 function deckDeTresSlides() {

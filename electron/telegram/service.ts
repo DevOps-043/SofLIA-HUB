@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { callTelegramApi, ensureTelegramConfigured } from './api';
+import { callTelegramApi, downloadTelegramFile, ensureTelegramConfigured, sendTelegramVoice } from './api';
 import { syncTelegramPolling } from './polling';
 import { applyTelegramConfigUpdates, DEFAULT_TELEGRAM_STATE, loadTelegramState, saveTelegramState } from './state';
 import { buildTelegramStatus } from './status';
@@ -47,6 +47,15 @@ export class TelegramService extends EventEmitter {
     return { success: true, message: response.result };
   }
 
+  async sendVoice(chatId: string, audio: Buffer, seconds: number): Promise<Record<string, any>> {
+    const response = await sendTelegramVoice(this.state, chatId, audio, seconds);
+    return { success: true, message: response.result };
+  }
+
+  downloadFile(fileId: string): Promise<Buffer> {
+    return downloadTelegramFile(this.state, fileId);
+  }
+
   async listRecentChats(): Promise<Record<string, any>> {
     return { success: true, chats: this.state.recentChats.slice(0, 50) };
   }
@@ -69,6 +78,8 @@ export class TelegramService extends EventEmitter {
       deps: this.deps,
       callTelegram: (method, payload) => this.callTelegram(method, payload),
       sendMessage: (chatId, text) => this.sendMessage(chatId, text),
+      sendVoice: (chatId, audio, seconds) => this.sendVoice(chatId, audio, seconds),
+      downloadFile: (fileId) => this.downloadFile(fileId),
       saveState: () => this.saveState(),
       isPolling: () => this.polling,
       setPolling: (polling) => { this.polling = polling; },

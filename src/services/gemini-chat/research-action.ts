@@ -1,6 +1,7 @@
+import { buildServerSideToolInvocationsConfig } from '../../shared/gemini-grounding-config';
 import { runAgenticLoop } from './agentic-loop';
-import { getGenAI } from './client';
-import { buildModelTools } from './model-config';
+import { getGenAiClient } from './client';
+import { buildModelTools, type GeminiChatConfig } from './model-config';
 import { collectStreamText, isAbortError, singleChunkStream, stoppedStreamResult } from './streams';
 import type { SendMessageStreamOptions, StreamResult } from './types';
 import { WEB_GROUNDING_FAILURE } from './web-grounding';
@@ -32,22 +33,27 @@ export async function runResearchActionPhase(input: {
   const signal = input.options?.signal;
   // Estado visible: la investigacion termino y ahora se generan los entregables.
   input.options?.onToolCall?.({ name: 'research_actions', args: {} });
-  const ai = await getGenAI();
+  const ai = await getGenAiClient();
   let lastError: unknown = null;
 
   for (const modelId of input.candidateModelIds) {
     if (signal?.aborted) return stoppedStreamResult([], [], researchText);
     try {
-      const model = ai.getGenerativeModel({
-        model: modelId,
+      const modelTools = buildModelTools(input.computerUseEnabled, modelId);
+      const chatConfig: GeminiChatConfig = {
         systemInstruction: input.systemInstruction,
-        tools: buildModelTools(input.computerUseEnabled, modelId),
-      });
-      const chatSession = model.startChat({ history: input.history, generationConfig: input.generationConfig });
+        ...input.generationConfig,
+        tools: modelTools,
+        // Obligatoria al mezclar tools integradas con function calling; sin
+        // ella la API rechaza el turno con 400.
+        toolConfig: buildServerSideToolInvocationsConfig(modelTools),
+      };
+      const chatSession = ai.chats.create({ model: modelId, config: chatConfig, history: input.history });
       // Se siembran las graficas de la investigacion para que la fase de accion
       // las inyecte en el documento (chart_images de create_word_document).
       const actionResult = await runAgenticLoop({
         chatSession,
+        chatConfig,
         messageContent: buildActionMessage(input.originalMessage, researchText),
         options: input.options,
         allToolCalls: [],

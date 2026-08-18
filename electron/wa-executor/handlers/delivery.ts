@@ -4,6 +4,10 @@ import path from 'node:path';
 import { buildResponse, errorResponse, type FunctionResponse, type ToolExecutorContext } from '../types';
 import { normalizePhoneToJid } from './delivery/phone';
 import { captureAndSendScreenshots } from './delivery/screenshots';
+import { readVoiceCallConfig } from '../../voice-call/config';
+import { voiceCallSessions } from '../../voice-call/session-store';
+import { synthesizeVoiceNote } from '../../voice-call/speech';
+import { whatsAppVoiceSessionId } from '../../wa-agent/voice-delivery';
 
 const DELIVERY_TOOLS = new Set([
   'whatsapp_send_file',
@@ -11,6 +15,7 @@ const DELIVERY_TOOLS = new Set([
   'open_file_on_computer',
   'take_screenshot_and_send',
   'whatsapp_send_to_contact',
+  'send_voice_note',
 ]);
 
 export function isDeliveryTool(name: string): boolean {
@@ -22,6 +27,7 @@ export async function executeDeliveryTool(
   toolArgs: Record<string, any>,
   ctx: ToolExecutorContext,
   jid: string,
+  senderNumber = '',
 ): Promise<FunctionResponse | null> {
   if (!DELIVERY_TOOLS.has(toolName)) return null;
 
@@ -54,10 +60,51 @@ export async function executeDeliveryTool(
     if (toolName === 'whatsapp_send_to_contact') {
       return sendToContact(toolName, toolArgs, ctx);
     }
+    if (toolName === 'send_voice_note') {
+      return sendVoiceNote(toolName, toolArgs, ctx, jid, senderNumber);
+    }
 
     return null;
   } catch (err: any) {
     return errorResponse(toolName, err.message);
+  }
+}
+
+/**
+ * Habla dentro del turno, sin esperar a la respuesta final.
+ *
+ * Abre el modo llamada al hacerlo: si el agente decidio hablar, lo natural es
+ * que la conversacion siga hablada hasta que el usuario cuelgue. El fallo se
+ * devuelve al modelo como resultado, no como excepcion, para que pueda seguir
+ * por escrito en el mismo turno.
+ */
+async function sendVoiceNote(
+  toolName: string,
+  toolArgs: Record<string, any>,
+  ctx: ToolExecutorContext,
+  jid: string,
+  senderNumber: string,
+): Promise<FunctionResponse> {
+  const text = String(toolArgs.text ?? '').trim();
+  if (!text) return errorResponse(toolName, 'No hay texto que decir.');
+  if (!readVoiceCallConfig().enabled) {
+    return errorResponse(toolName, 'El modo de voz esta desactivado en esta instalacion. Responde por escrito.');
+  }
+
+  try {
+    const note = await synthesizeVoiceNote(text);
+    await ctx.waService.sendVoiceNote(jid, note.buffer, note.seconds);
+    const sessionId = whatsAppVoiceSessionId(jid, senderNumber);
+    voiceCallSessions.open('whatsapp', sessionId, 'agent');
+    voiceCallSessions.recordSpokenTurn('whatsapp', sessionId);
+    return buildResponse(toolName, {
+      success: true,
+      message: 'Nota de voz enviada al usuario.',
+      spoken_chars: note.spokenText.length,
+      not_spoken: note.remainderText || undefined,
+    });
+  } catch (error: any) {
+    return errorResponse(toolName, `No pude generar la nota de voz: ${error.message}. Responde por escrito.`);
   }
 }
 

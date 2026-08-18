@@ -5,10 +5,12 @@ export function buildTelegramHelpMessage(): string {
   return [
     'Comandos disponibles:',
     '/skills — que se hacer por aqui',
+    '/llamar — hablamos por nota de voz y te contesto hablando',
+    '/colgar — termina la llamada',
     '/nodes',
     '/node test NODE_ID',
     '',
-    'Tambien puedes pedirme las cosas escribiendo, sin comando.',
+    'Tambien puedes mandarme una nota de voz: la escucho y te respondo con voz.',
   ].join('\n');
 }
 

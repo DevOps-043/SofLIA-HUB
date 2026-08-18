@@ -1,12 +1,13 @@
 # Parametros runtime
 
-Estado: vigente. Actualizado: 2026-08-06.
+Estado: vigente. Actualizado: 2026-08-16.
 
 Inventario de defaults y topes con impacto operativo. Los overrides guardados en
 `userData` pueden cambiar el valor efectivo de un host.
 
 <!-- evidence: electron/desktop-agent/agent-config.ts -->
 <!-- evidence: electron/memory/constants.ts -->
+<!-- evidence: electron/memory/model-config.ts -->
 <!-- evidence: electron/monitoring/service-state.ts -->
 <!-- evidence: electron/main/boot-timeline.ts -->
 <!-- evidence: electron/main/window-controller.ts -->
@@ -113,17 +114,17 @@ carpeta o vencer el plazo invalida la autorizacion pendiente anterior.
 | budgets summary / semantic / facts / skills | 3000 / 2500 / 1800 / 1500 tokens | mismo archivo |
 | skills / summaries en contexto | 8 / 5 | mismo archivo |
 | umbral de resumen | 15 mensajes | mismo archivo |
+| `maxOutputTokens` resumen / extractores | 4000 / 3000 | mismo archivo |
+| nivel de pensamiento de memoria | `low` | `electron/memory/model-config.ts` |
+| minimo para guardar un resumen | 150 caracteres y sin `MAX_TOKENS` | mismo archivo |
 | knowledge bootstrap por archivo / total | 15000 / 25000 caracteres | `electron/knowledge/constants.ts` |
 
-## Monitoreo y proactive
+## Monitoreo y entrega programada
 
 | Parametro | Default | Fuente |
 |---|---:|---|
 | captura / idle | 30 / 120 s | `electron/monitoring/service-state.ts` |
 | screenshot / OCR / semantic | on / off / off | mismo archivo |
-| proactive enabled / intervalo | true / 5 min | `electron/proactive/config.ts` |
-| horas de notificacion | 08:00 a 20:00 | mismo archivo |
-| calendario / tareas / sistema | true / true / true | mismo archivo |
 | briefing | disabled; `0 8 * * 1-5` | `electron/main/service-factory.ts` |
 | campaign daily limit / preview | 250 / requerido | `electron/communication-hub/state.ts` |
 | eventos audit local | 500 | mismo archivo |

@@ -22,6 +22,7 @@ import {
   resolveWhatsAppSkill,
 } from './chat-commands/skills';
 import { RETIRED_COMMAND_REPLIES } from './chat-commands/retired-commands';
+import { handleVoiceCallCommand } from './chat-commands/voice-call';
 
 type ConversationHistory = Map<string, Array<{ role: string; parts: Array<{ text: string }> }>>;
 
@@ -89,6 +90,17 @@ export async function handleChatCommand(context: ChatCommandContext): Promise<st
       );
       return null;
     }
+
+    case '/llamar':
+    case '/llamada':
+    case '/colgar':
+      return handleVoiceCallCommand({
+        command: cmd === '/llamada' ? '/llamar' : cmd,
+        jid: context.jid,
+        senderNumber: context.senderNumber,
+        isGroup: context.isGroup,
+        waService: context.waService,
+      });
 
     case '/help':
       return buildHelpText(context.isGroup);

@@ -1,4 +1,5 @@
 import { BrowserWindow, desktopCapturer, screen } from 'electron';
+import { withCdpSession } from '../integrated-browser/cdp-session';
 
 /**
  * Captura de pantalla con soporte MULTI-MONITOR.
@@ -162,10 +163,9 @@ async function readAccessibilityTree(onProgress?: (message: string) => void): Pr
     if (windows.length === 0) return undefined;
     const webContents = (BrowserWindow.getFocusedWindow() || windows[0]).webContents;
     if (!webContents) return undefined;
-    if (!webContents.debugger.isAttached()) {
-      try { webContents.debugger.attach('1.3'); } catch { /* might be attached already */ }
-    }
-    return webContents.debugger.sendCommand('Accessibility.getFullAXTree');
+    // Antes esta lectura se adjuntaba al depurador y no lo soltaba nunca: la
+    // ventana quedaba con la sesion tomada y DevTools ya no podia abrirse.
+    return await withCdpSession(webContents, ['Accessibility'], (send) => send('Accessibility.getFullAXTree'));
   } catch (err: any) {
     console.error('Error fetching AXTree:', err);
     return undefined;

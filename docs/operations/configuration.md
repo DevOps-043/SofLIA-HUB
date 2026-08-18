@@ -32,13 +32,20 @@ consumidores y comportamiento cuando faltan.
 | `ELEVENLABS_VOICE_ID` | Orbe y modo lectura, solo Electron main | narración no disponible | identificador no secreto; la voz debe estar disponible en el mismo workspace de la clave |
 | `ELEVENLABS_MODEL_ID` | Orbe y modo lectura, solo Electron main | default `eleven_turbo_v2_5` | no secreta |
 | `ELEVENLABS_OUTPUT_FORMAT` | Orbe y modo lectura, solo Electron main | default `mp3_44100_128` | no secreta |
+| `VOICE_CALL_ENABLED` | modo llamada en WhatsApp y Telegram | ausente o vacía, el modo llamada sigue habilitado: es una capacidad del producto, no una prueba que haya que encender. Solo `false`, `0`, `no` u `off` lo apagan, y ese apagado es el rollback | no secreta |
+| `VOICE_CALL_IDLE_TIMEOUT_MS` | vencimiento por inactividad de una llamada | default 10 min; se acota al rango 1–60 min | no secreta |
+| `VOICE_CALL_VOICE_ID` | voz propia del modo llamada | vacía o con formato inválido, usa `ELEVENLABS_VOICE_ID` | identificador no secreto; misma restricción de workspace |
 | `VITE_SKILL_PRESENTACIONES_ENABLED` | **apagado local de emergencia** de la Skill de presentaciones | ausente o vacía, la Skill sigue disponible: es una capacidad publicada y no puede depender de que el runner declare la variable. Solo `false` o `0` la retiran, y ese apagado manda sobre el catálogo de la base de datos | no secreta; es el rollback que no depende de que Supabase responda |
+| `SOFLIA_BROWSER_CDP_DOM` | backend de `read_browser_dom` en el navegador integrado | ausente o distinta de `1`, el agente lee el DOM recorriendo la página en JavaScript, con presupuesto de 400 ms y tope de 1800 nodos. Con `1` usa `DOMSnapshot.captureSnapshot`, que Blink resuelve fuera del hilo del renderer y sin esos topes; si la sesión de inspección no está disponible cae al recorrido en script, así que quitar la variable es el rollback | no secreta |
+| `SOFLIA_BROWSER_SOM` | Set-of-Marks del navegador para Computer Use | ausente o distinta de `1`, la captura llega limpia y el modelo estima píxeles. Con `1` se dibujan cajas numeradas sobre los controles que ya devuelve `read_browser_dom`. Es opt-in a propósito: permite medir con el mismo binario si las marcas reducen pasos y clics fallidos. Ante cualquier fallo del dibujado se entrega la captura limpia, y quitar la variable es el rollback | no secreta |
 | `VITE_DEV_SERVER_URL` | bootstrap dev | usa renderer build si falta | no secreta, gestionada por Vite |
 | `VITE_PUBLIC` | paths de recursos | calculada por main | no configurar manualmente |
 
 `ELEVENLABS_OUTPUT_FORMAT` define el transporte que el reproductor decodifica;
 no habilita una descarga de archivo. El modo lectura no expone canal ni botón de
-guardado. Una voz encontrada en el catálogo público debe agregarse primero al
+guardado. El modo llamada ignora esa variable y pide siempre `opus_48000_64`
+(OGG): es el único formato que WhatsApp presenta como nota de voz y Telegram
+como `voice`, y pedirlo ya codificado evita empaquetar ffmpeg. Una voz encontrada en el catálogo público debe agregarse primero al
 workspace asociado con `ELEVENLABS_API_KEY`; una búsqueda en “Explorar” no
 garantiza acceso mediante API.
 
@@ -50,7 +57,6 @@ garantiza acceso mediante API.
 | `thoughts.db` | ThoughtLogger | eventos por task/agent |
 | `knowledge/` | Knowledge/PathMemory | MEMORY, users, daily y PATHS |
 | `desktop-agent-config.json` | Desktop Agent | engine, modelos, captura, limites, UIA/OCR |
-| `proactive-config.json` | Proactive | enabled, hours, interval, categories |
 | `scheduler-state.json` | TaskScheduler | cron, prompt, owner/telefono, last run |
 | `communication-hub-state.json` | Communication Hub | policy, identity bindings, prefs, audit, scheduled |
 | estados de workflow/automation | services respectivos | templates, runs, cases y reglas |

@@ -23,15 +23,32 @@ export async function executeWhatsAppTools(
       continue;
     }
 
-    const result = await dispatchTool(
-      toolName,
-      toolArgs,
-      ctx,
-      jid,
-      senderNumber,
-      isGroup,
-      bulkLabelsToVerify,
-    );
+    // El fallo de UNA herramienta es un resultado del turno, no el final del
+    // turno: se le devuelve al modelo como respuesta fallida para que lo
+    // explique o intente otra via. Sin esto, cualquier handler que lanzara
+    // (solo el fallback capturaba) tumbaba la conversacion entera y el usuario
+    // recibia un error tecnico generico en vez de una respuesta.
+    let result: Awaited<ReturnType<typeof dispatchTool>>;
+    try {
+      result = await dispatchTool(
+        toolName,
+        toolArgs,
+        ctx,
+        jid,
+        senderNumber,
+        isGroup,
+        bulkLabelsToVerify,
+      );
+    } catch (error: unknown) {
+      console.error(`[WhatsApp Tools] "${toolName}" lanzo una excepcion:`, error);
+      responses.push({
+        functionResponse: {
+          name: toolName,
+          response: { success: false, error: error instanceof Error ? error.message : String(error) },
+        },
+      });
+      continue;
+    }
 
     responses.push(result.response);
     bulkLabelsToVerify = result.bulkLabelsToVerify;

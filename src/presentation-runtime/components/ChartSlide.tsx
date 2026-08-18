@@ -50,16 +50,16 @@ export function ChartSlide(props: {
       variants={props.group}
       initial="hidden"
       animate="visible"
-      className="runtime-pad h-full pb-36 pt-24"
+      className={`runtime-composition runtime-composition--${slide.variante ?? 'editorial'} runtime-pad h-full pb-36 pt-24`}
     >
       {props.header}
       {slide.introduccion ? (
         <motion.p {...props.common} className="runtime-lead mt-5">{slide.introduccion}</motion.p>
       ) : null}
-      <div className={`mt-10 grid items-stretch gap-7 ${props.visual ? 'grid-cols-[1.42fr_.58fr]' : 'grid-cols-1'}`}>
+      <div className={`mt-10 grid items-stretch gap-7 ${props.visual ? (slide.variante === 'visual-dominante' ? 'grid-cols-[.78fr_1.22fr]' : 'grid-cols-[1.42fr_.58fr]') : 'grid-cols-1'}`}>
         <motion.section
           {...props.common}
-          className="runtime-chart runtime-interactive h-[550px] min-w-0 bg-white/50 p-7 shadow-[0_22px_70px_rgba(8,20,31,.10)]"
+          className="runtime-chart runtime-surface runtime-interactive h-[550px] min-w-0 p-7 shadow-[0_22px_70px_rgba(8,20,31,.10)]"
           whileHover={props.reducedMotion ? undefined : { y: -8, scale: 1.008 }}
           transition={{ type: 'spring', stiffness: 280, damping: 25 }}
           aria-label={`Grafica de ${slide.titulo}`}
@@ -71,7 +71,7 @@ export function ChartSlide(props: {
         {props.visual ? (
           <motion.aside
             {...props.common}
-            className="runtime-media runtime-interactive h-[550px] overflow-hidden rounded-[36px] bg-white/40"
+            className="runtime-media runtime-surface runtime-interactive h-[550px] overflow-hidden rounded-[36px]"
             whileHover={props.reducedMotion ? undefined : { y: -8 }}
             transition={{ type: 'spring', stiffness: 280, damping: 25 }}
           >
@@ -144,7 +144,9 @@ function renderChart(slide: ChartSlideData, data: Record<string, string | number
 
 const axisTick = { fill: 'currentColor', fillOpacity: 0.68, fontSize: 16, fontWeight: 650 };
 const tooltipStyle = {
-  border: '1px solid rgba(15, 23, 42, .12)',
+  background: 'var(--deck-color-superficie)',
+  color: 'var(--marca-color-texto)',
+  border: '1px solid color-mix(in srgb,var(--marca-color-texto) 12%,transparent)',
   borderRadius: 16,
   boxShadow: '0 14px 38px rgba(15, 23, 42, .14)',
   fontSize: 16,

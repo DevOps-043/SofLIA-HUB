@@ -42,6 +42,8 @@ import {
   WRITING_PANEL_BEACON,
   type BrowserWritingResult,
 } from './writing-panel';
+import { runInAgentWorldOn } from './agent-world';
+import { IntegratedBrowserBootstrap } from './browser-bootstrap';
 import { collectIntegratedBrowserDom } from './page-observation';
 import { describeResolutionFailure, resolveBrowserElement, type BrowserElementTarget } from './page-interaction';
 import { IntegratedBrowserPermissionGovernance } from './permission-governance';
@@ -112,6 +114,8 @@ type BrowserTabRuntime = {
    *  cuadro compuesto y reiniciar temporizadores de carga. */
   appliedVisible: boolean | null;
   appliedBounds: Rectangle | null;
+  /** Arranque del mundo del agente por CDP. Nulo cuando no se pudo instalar. */
+  bootstrap: IntegratedBrowserBootstrap | null;
 };
 
 type BrowserVisualCapture = {
@@ -1069,7 +1073,9 @@ export class IntegratedBrowserService extends EventEmitter {
     const contents = this.getWebContentsForAgent();
     if (!this.visible) throw new Error('El navegador debe estar visible para rellenar una credencial.');
     const resolved = await this.credentialVault.resolveSecret(id, contents.getURL());
-    const fields = await contents.executeJavaScript(FIND_LOGIN_FIELDS_SCRIPT, true) as CredentialFieldTargets | null;
+    // En el mundo aislado: localizar el campo de contrasena es una herramienta
+    // del agente y la pagina no tiene por que ver la sonda que la busca.
+    const fields = await runInAgentWorldOn(contents, FIND_LOGIN_FIELDS_SCRIPT) as CredentialFieldTargets | null;
     if (!fields?.password || !isPoint(fields.password)) {
       throw new Error('No se encontro un campo de contrasena visible en esta pagina.');
     }
@@ -1146,6 +1152,7 @@ export class IntegratedBrowserService extends EventEmitter {
       lastDeferAt: 0,
       appliedVisible: null,
       appliedBounds: null,
+      bootstrap: null,
     };
     this.tabs.set(tab.id, tab);
     this.materializeTab(tab, false);
@@ -1181,6 +1188,7 @@ export class IntegratedBrowserService extends EventEmitter {
     tab.appliedVisible = false;
     tab.appliedBounds = null;
     this.configureWebContents(tab);
+    this.installAgentBootstrap(tab);
     if (!this.permissions) {
       this.permissions = new IntegratedBrowserPermissionGovernance({
         session: view.webContents.session,
@@ -1875,8 +1883,43 @@ export class IntegratedBrowserService extends EventEmitter {
     };
   }
 
+  /**
+   * Instala el arranque del mundo del agente por CDP. Nunca puede impedir que
+   * la pestana nazca: si la sesion no esta disponible —lo normal con DevTools
+   * abierto— el navegador sigue funcionando con la inyeccion por carga de
+   * siempre, y al cerrar DevTools se reintenta.
+   */
+  private installAgentBootstrap(tab: BrowserTabRuntime): void {
+    const contents = tab.view?.webContents;
+    if (!contents || tab.bootstrap) return;
+    const bootstrap = new IntegratedBrowserBootstrap(contents, {
+      onMessage: (mensaje) => {
+        if (mensaje.type !== 'documento-listo') return;
+        // Llega antes que el script del sitio y en cada marco, incluidos los
+        // que `did-finish-load` nunca reporta por separado.
+        selectionLog(`mundo del agente listo en ${mensaje.url || 'un marco'}`);
+      },
+      onDegraded: (motivo) => selectionLog(`arranque por CDP no disponible: ${safeErrorMessage(motivo)}`),
+      onRestored: () => selectionLog('arranque por CDP instalado en cada documento'),
+    });
+    tab.bootstrap = bootstrap;
+    // DevTools exige ser el unico cliente del protocolo. No se le disputa la
+    // sesion: se cede al abrirlo y se recupera cuando el usuario lo cierra.
+    contents.on('devtools-closed', () => { void bootstrap.install(); });
+    // Diferido a la siguiente vuelta del bucle, no a una microtarea: adjuntar
+    // el depurador durante la construccion de la vista se entrelazaba con la
+    // negociacion de permisos de la pagina y con su navegacion inicial.
+    const pendiente = setImmediate(() => {
+      if (tab.bootstrap !== bootstrap || contents.isDestroyed()) return;
+      void bootstrap.install();
+    });
+    pendiente.unref?.();
+  }
+
   private destroyTab(tab: BrowserTabRuntime): void {
     this.invalidateObservation(tab.id);
+    void tab.bootstrap?.dispose();
+    tab.bootstrap = null;
     const view = tab.view;
     tab.view = null;
     if (!view) return;

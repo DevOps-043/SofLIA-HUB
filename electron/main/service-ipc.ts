@@ -62,17 +62,6 @@ export function registerMainServiceIpcHandlers(input: {
     return { success: true };
   });
 
-  ipcMain.handle('proactive:get-config', async () => services.proactiveService.getConfig());
-  ipcMain.handle('proactive:update-config', async (_event, updates: any) => {
-    const result = await safeSync(() => services.proactiveService.updateConfig(updates));
-    if (result.success && updates.notifyPhone) services.dailyBriefingService.updateConfig({ ownerNumber: updates.notifyPhone });
-    return result;
-  });
-  ipcMain.handle('proactive:trigger-now', async (_event, phoneNumber?: string) => services.proactiveService.triggerNow(phoneNumber));
-  ipcMain.handle('proactive:get-status', async () => ({
-    running: services.proactiveService.isRunning(),
-    config: services.proactiveService.getConfig(),
-  }));
   ipcMain.handle('app:get-pending-share-link', async () => {
     const nextShareLink = state.pendingShareLink;
     state.pendingShareLink = null;
@@ -217,15 +206,6 @@ export function registerMainServiceIpcHandlers(input: {
 async function safeAsync(action: () => Promise<void>): Promise<{ success: boolean; error?: string }> {
   try {
     await action();
-    return { success: true };
-  } catch (error) {
-    return { success: false, error: error instanceof Error ? error.message : String(error) };
-  }
-}
-
-async function safeSync(action: () => void): Promise<{ success: boolean; error?: string }> {
-  try {
-    action();
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) };

@@ -82,7 +82,7 @@ async function trySpecializedTool(
   senderNumber: string,
   isGroup: boolean,
 ): Promise<FunctionResponse | null> {
-  if (isDeliveryTool(toolName)) return executeDeliveryTool(toolName, toolArgs, ctx, jid);
+  if (isDeliveryTool(toolName)) return executeDeliveryTool(toolName, toolArgs, ctx, jid, senderNumber);
   if (isProfileTool(toolName)) return executeProfileTool(toolName, toolArgs, ctx, jid, senderNumber, isGroup);
   if (isMiscTool(toolName)) return executeMiscTool(toolName, toolArgs, ctx, senderNumber);
   if (isRemoteNodeTool(toolName)) return executeRemoteNodeTool(toolName, toolArgs);

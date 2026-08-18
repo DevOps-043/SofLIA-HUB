@@ -2,8 +2,14 @@ import { vi } from 'vitest';
 
 const geminiChatMocks = vi.hoisted(() => {
   const mockGetGenerativeModel = vi.fn();
+  const mockChatsCreate = vi.fn();
   return {
     mockGetGenerativeModel,
+    // El chat crea la sesion con `chats.create` de @google/genai.
+    mockChatsCreate,
+    mockGoogleGenAI: vi.fn().mockImplementation(function () {
+      return { chats: { create: mockChatsCreate } };
+    }),
     mockGoogleGenerativeAI: vi.fn().mockImplementation(function () {
       return { getGenerativeModel: mockGetGenerativeModel };
     }),
@@ -11,6 +17,12 @@ const geminiChatMocks = vi.hoisted(() => {
   };
 });
 
+vi.mock('@google/genai', () => ({
+  GoogleGenAI: geminiChatMocks.mockGoogleGenAI,
+}));
+
+// El SDK legado sigue en uso para los turnos de un solo disparo (optimizador de
+// prompts); se mockea para que ninguna prueba construya el cliente real.
 vi.mock('@google/generative-ai', () => ({
   GoogleGenerativeAI: geminiChatMocks.mockGoogleGenerativeAI,
   HarmBlockThreshold: { BLOCK_NONE: 'BLOCK_NONE' },
@@ -97,20 +109,17 @@ vi.mock('../../lib/supabase', () => ({
   isSupabaseConfigured: vi.fn(() => true),
 }));
 
+/**
+ * `@google/genai` devuelve la respuesta directa, sin el envoltorio `{ response }`
+ * que usaba el SDK legado.
+ */
 export function createMockChat(text: string) {
   const response = {
+    text,
     candidates: [{ groundingMetadata: null, content: { parts: [{ text }] } }],
   };
   return {
-    sendMessage: vi.fn(async () => ({
-      response,
-    })),
-    sendMessageStream: vi.fn(async () => ({
-      stream: (async function* () {
-        yield { text: () => text };
-      })(),
-      response: Promise.resolve(response),
-    })),
+    sendMessage: vi.fn(async () => response),
   };
 }
 

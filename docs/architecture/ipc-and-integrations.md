@@ -8,8 +8,8 @@ Estado: vigente. Actualizado: 2026-08-06.
 
 ## Contrato IPC
 
-La allowlist actual contiene 346 canales derivados de cinco arrays: 80, 59, 65,
-101 y 41. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 338 canales derivados de cinco arrays: 80, 52, 61,
+104 y 41. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |
@@ -28,7 +28,7 @@ el catalogo y su validador deben actualizarse juntos.
 | `desktop-context` | 2 | inventario de ventanas abiertas y extraccion en cascada del contenido de las que el usuario marca en el chat |
 | `skill-workspace` | 13 | espacio de trabajo de Skills: crear, estado, leer, escribir, editar, borrar, guardar y descargar imagenes, abrir carpeta, progreso y URL de vista previa |
 | `presentation`, `presentation-view` | 5 | vista a pantalla completa, exportacion a HTML autocontenido y preparacion de la identidad de marca |
-| otros | 60 | voice, updater, automation, drive, pytools, telegram, gchat, app, proactive, background-host, root y AI |
+| otros | 56 | voice, updater, automation, drive, pytools, telegram, gchat, app, background-host, root y AI |
 
 ### Recorrido obligatorio
 

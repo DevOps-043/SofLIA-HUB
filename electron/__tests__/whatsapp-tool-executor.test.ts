@@ -4,3 +4,4 @@ import './whatsapp-tool-executor/confirmation-suite';
 import './whatsapp-tool-executor/dynamic-policy-suite';
 import './whatsapp-tool-executor/delegated-suite';
 import './whatsapp-tool-executor/path-integration-suite';
+import './whatsapp-tool-executor/resilience-suite';

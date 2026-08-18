@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { SUMMARIZE_MODEL } from './constants';
 import { truncateToTokens } from './math';
+import { buildExtractionGenerationConfig } from './model-config';
 import { AUTO_LEARNABLE_SKILL_TYPES, type SkillType } from './skills-types';
 
 /**
@@ -79,7 +80,7 @@ export async function extractAndSaveSkills(
     const genAI = new GoogleGenerativeAI(service.apiKey);
     const model = genAI.getGenerativeModel({
       model: SUMMARIZE_MODEL,
-      generationConfig: { maxOutputTokens: 500, responseMimeType: 'application/json' },
+      generationConfig: buildExtractionGenerationConfig(),
     });
     const result = await model.generateContent(buildSkillsExtractionPrompt(summaryText));
     const skills = parseSkillsResponse(result.response.text().trim());

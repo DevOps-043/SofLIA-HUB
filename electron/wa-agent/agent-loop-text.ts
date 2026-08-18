@@ -18,9 +18,9 @@ export async function handleTextOnlyAgentResponse(
   const finalText = normalizeOutgoingWhatsAppText(parts.filter((part) => part.text).map((part) => part.text).join('')).trim();
   const missingEvidence = getMissingEvidence(state);
   if (missingEvidence.length > 0) {
-    state.response = await state.chatSession.sendMessage(
-      `ERROR: Aun no reuniste ${missingEvidence.join(' y ')}. Usa herramientas para obtener la evidencia faltante antes de responder.`,
-    );
+    state.response = await state.chatSession.sendMessage({
+      message: `ERROR: Aun no reuniste ${missingEvidence.join(' y ')}. Usa herramientas para obtener la evidencia faltante antes de responder.`,
+    });
     return { done: false };
   }
 
@@ -54,17 +54,17 @@ async function retryActionOrGenericResponse(state: AgentLoopState, finalText: st
   const shouldRetryGenericHelp = generic && !isGreetingOrHelpRequest(state.userMessage);
   if ((shouldForceToolRetry || shouldRetryGenericHelp) && iterations >= 2) return false;
   if (shouldForceToolRetry) {
-    state.response = await state.chatSession.sendMessage(
-      !finalText
+    state.response = await state.chatSession.sendMessage({
+      message: !finalText
         ? 'ERROR: Devolviste una respuesta vacia y no ejecutaste herramientas. Usa function calls ahora.'
         : 'ERROR: No anuncies acciones futuras. Ejecuta herramientas ahora y responde con resultado real.',
-    );
+    });
     return true;
   }
   if (shouldRetryGenericHelp) {
-    state.response = await state.chatSession.sendMessage(
-      'ERROR: La ultima respuesta fue generica. Responde directamente a la solicitud actual.',
-    );
+    state.response = await state.chatSession.sendMessage({
+      message: 'ERROR: La ultima respuesta fue generica. Responde directamente a la solicitud actual.',
+    });
     return true;
   }
   return false;

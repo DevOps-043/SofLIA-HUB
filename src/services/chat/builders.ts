@@ -17,9 +17,10 @@ import { getConversationTombstones } from './tombstones';
 import type { ChatMessage, Conversation } from './types';
 
 /**
- * Lo borrado son dos cosas: la cola de borrados pendientes (se limpia al
- * sincronizar) y las lapidas durables (no se limpian). Se listan ambas para que
- * una conversacion que sobrevivio en Supabase no vuelva a la interfaz.
+ * Lo borrado son tres cosas: la marca `deleted_at` que llega de Supabase (la
+ * unica que viaja entre equipos), la cola de borrados pendientes (se limpia al
+ * sincronizar) y las lapidas durables (no se limpian). Se cruzan las tres para
+ * que una conversacion que sobrevivio en Supabase no vuelva a la interfaz.
  */
 function deletedConversationIds(userId: string): Set<string> {
   const deleted = getConversationTombstones(userId);
@@ -35,7 +36,7 @@ export function buildConversationList(
   const merged = dedupeConversations([
     ...remoteConversations,
     ...getPendingConversationUpserts(userId),
-  ]).filter((conversation) => !deleted.has(conversation.id));
+  ]).filter((conversation) => !deleted.has(conversation.id) && !conversation.deleted_at);
 
   saveConversationsToCache(userId, merged);
   return merged;
@@ -48,7 +49,7 @@ export function buildLocalConversationList(userId: string): Conversation[] {
   return dedupeConversations([
     ...cached,
     ...getPendingConversationUpserts(userId),
-  ]).filter((conversation) => !deleted.has(conversation.id));
+  ]).filter((conversation) => !deleted.has(conversation.id) && !conversation.deleted_at);
 }
 
 export function buildMessageList(

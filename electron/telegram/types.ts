@@ -50,6 +50,12 @@ export interface TelegramDeps {
     prompt: string;
     isGroup: boolean;
   }) => Promise<string>;
+  /**
+   * Transcribe una nota de voz entrante. Se inyecta por el mismo motivo que
+   * `runSkillTurn`: el canal transporta audio, no decide con que se transcribe.
+   * Ausente = el canal no atiende notas de voz.
+   */
+  transcribeAudio?: (audio: Buffer, mimetype: string) => Promise<string>;
 }
 
 export interface TelegramRuntimeContext {
@@ -57,6 +63,10 @@ export interface TelegramRuntimeContext {
   deps: TelegramDeps | null;
   callTelegram: (method: string, payload: Record<string, any>) => Promise<any>;
   sendMessage: (chatId: string, text: string) => Promise<Record<string, any>>;
+  /** Entrega una nota de voz ya sintetizada. */
+  sendVoice: (chatId: string, audio: Buffer, seconds: number) => Promise<Record<string, any>>;
+  /** Descarga un archivo entrante por `file_id`. */
+  downloadFile: (fileId: string) => Promise<Buffer>;
   saveState: () => void;
   isPolling: () => boolean;
   setPolling: (polling: boolean) => void;

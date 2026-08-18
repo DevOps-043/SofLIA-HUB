@@ -7,6 +7,7 @@ import {
 } from './messages';
 import { findSkillByCommand, skillsForChannel } from '../skill-catalog/channel-skills';
 import { RETIRED_COMMAND_REPLIES } from '../wa-agent/chat-commands/retired-commands';
+import { handleTelegramVoiceCallCommand } from './voice';
 import type { TelegramRuntimeContext } from './types';
 
 /**
@@ -31,6 +32,18 @@ export async function handleIncomingTelegramCommand(
   if (cmd === '/start' || cmd === '/help') return void await send(buildTelegramHelpMessage());
   if (cmd === '/skills' || cmd === '/agentes') {
     return void await send(await buildSkillsMessage(context, chatId, isGroup));
+  }
+  if (cmd === '/llamar' || cmd === '/llamada' || cmd === '/colgar') {
+    const reply = await handleTelegramVoiceCallCommand({
+      context,
+      chatId,
+      isGroup,
+      command: cmd === '/colgar' ? '/colgar' : '/llamar',
+    });
+    // `null` significa que el comando ya respondio por su cuenta: el saludo sale
+    // hablado y repetirlo escrito lo duplicaria.
+    if (reply) await send(reply);
+    return;
   }
   if (cmd === '/status' || lowered === '/ops status') return void await send(await buildOpsStatusMessage(context));
   if (cmd === '/nodes') return void await send(await buildNodesMessage(context));

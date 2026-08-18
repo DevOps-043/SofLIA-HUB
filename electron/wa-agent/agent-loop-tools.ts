@@ -33,11 +33,11 @@ export async function handleToolCallAgentResponse(
     (entry) => entry.toolSignature === toolSignature && entry.responseSignature === responseSignature && entry.hadFailure,
   ).length;
   if (repeatedFailure >= 2) {
-    const failureDecision = handleRepeatedFailure(state, toolNames, responseSummary, repeatedFailure);
+    const failureDecision = await handleRepeatedFailure(state, toolNames, responseSummary, repeatedFailure);
     return 'text' in failureDecision ? { done: true, text: failureDecision.text } : { done: false };
   }
   if (isPollLikeNoProgress(state, toolSignature, responseSignature, toolNames)) {
-    const pollDecision = handlePollNoProgress(state, toolNames);
+    const pollDecision = await handlePollNoProgress(state, toolNames);
     return 'text' in pollDecision ? { done: true, text: pollDecision.text } : { done: false };
   }
 
@@ -46,6 +46,9 @@ export async function handleToolCallAgentResponse(
     gmailService: state.agent.gmailService,
     functionResponses: functionResponses.responses,
   });
-  state.response = await state.chatSession.sendMessage(functionResponses.responses as any);
+  // `@google/genai` empaqueta estas partes como `role: "user"`, que es lo que
+  // Gemini 3 acepta. El SDK legado las mandaba con `role: "function"` y la API
+  // rechazaba el turno entero con 400.
+  state.response = await state.chatSession.sendMessage({ message: functionResponses.responses as any });
   return { done: false };
 }

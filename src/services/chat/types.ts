@@ -15,6 +15,8 @@ export interface Conversation {
   is_pinned?: boolean;
   created_at: string;
   updated_at: string;
+  /** Marca de borrado logico: con valor, la conversacion no se muestra. */
+  deleted_at?: string | null;
   is_shared?: boolean;
   share_permission?: ShareAccessLevel;
   can_edit?: boolean;

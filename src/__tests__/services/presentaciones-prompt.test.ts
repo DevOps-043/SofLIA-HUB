@@ -37,6 +37,14 @@ describe('contrato React de la Skill de presentaciones', () => {
     expect(PRESENTACIONES_SKILL_PROMPT).toContain('workspace_generate_image');
   });
 
+  it('respeta la paleta solicitada y evita repetir firmas visuales', () => {
+    expect(PRESENTACIONES_SKILL_PROMPT).toContain('instruccion explicita del usuario > colores observados');
+    expect(PRESENTACIONES_SKILL_PROMPT).toContain('meta.tema');
+    expect(PRESENTACIONES_SKILL_PROMPT).toContain('tipo:variante');
+    expect(PRESENTACIONES_SKILL_PROMPT).toContain('al menos cuatro variantes');
+    expect(PRESENTACIONES_SKILL_PROMPT).toContain('no autoriza barras grises');
+  });
+
   it('no deja marcadores de plantilla sin resolver', () => {
     expect(PRESENTACIONES_SKILL_PROMPT).not.toContain('${');
     expect(PRESENTACIONES_SKILL_PROMPT).not.toContain('undefined');

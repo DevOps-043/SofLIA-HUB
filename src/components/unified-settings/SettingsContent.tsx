@@ -3,7 +3,6 @@ import type { SofiaContext } from '../../services/sofia-auth';
 import type { SettingsTab } from './settings-tabs';
 import { resolveMasterTab } from './settings-tabs';
 import { useSettingsForm } from '../settings-modal/useSettingsForm';
-import { useProactiveConfig } from '../settings-modal/useProactiveConfig';
 import { IdentityPrivacySection } from './sections/IdentityPrivacySection';
 import { AppearanceVoiceSection } from './sections/AppearanceVoiceSection';
 import { IntegrationsSkillsSection } from './sections/IntegrationsSkillsSection';
@@ -26,7 +25,6 @@ export function SettingsContent({
   apiKey: string;
 }) {
   const form = useSettingsForm({ isOpen: true, userId });
-  const proactive = useProactiveConfig(true);
 
   const masterTab = resolveMasterTab(activeTab);
 
@@ -34,7 +32,7 @@ export function SettingsContent({
     case 'identity':
       return <IdentityPrivacySection userId={userId} form={form} />;
     case 'appearance':
-      return <AppearanceVoiceSection proactive={proactive} />;
+      return <AppearanceVoiceSection />;
     case 'integrations':
       return (
         <IntegrationsSkillsSection

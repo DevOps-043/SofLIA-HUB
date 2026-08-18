@@ -72,7 +72,7 @@ export function getSettingsCategoryGroups(sofiaContext: SofiaContext | null): Se
         {
           id: 'appearance',
           label: 'Apariencia & Voz',
-          description: 'Diseño de interfaz, entrada de voz y agente proactivo',
+          description: 'Diseño de interfaz y entrada de voz',
           icon: (
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.098 19.902a3.75 3.75 0 005.304 0l6.401-6.402M6.75 21A3.75 3.75 0 013 17.25V4.125C3 3.504 3.504 3 4.125 3h5.25c.621 0 1.125.504 1.125 1.125v4.072M6.75 21a3.75 3.75 0 003.75-3.75V8.197" />

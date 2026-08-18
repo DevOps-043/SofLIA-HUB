@@ -1,4 +1,5 @@
 import { buildPrimaryChatPrompt } from '../../prompts/chat';
+import { buildServerSideToolInvocationsConfig } from '../../shared/gemini-grounding-config';
 import { isOpenAIModel } from '../../shared/model-providers';
 import { isComputerUseAvailable } from '../computer-use-service';
 import type { BrowserDomSnapshot } from '../integrated-browser-service';
@@ -6,11 +7,11 @@ import { consumeSofliaMaxUse, SOFLIA_MAX_MONTHLY_LIMIT } from '../model-quota';
 import { resolveRoutedModel } from '../model-routing';
 import { sendOpenAIMessageStream } from '../openai-chat';
 import { runAgenticLoop } from './agentic-loop';
-import { getGenAI } from './client';
+import { getGenAiClient } from './client';
 import { resolveEmptyGeminiText } from './empty-response';
 import { buildGeminiHistory } from './history';
 import { buildMessageContent } from './message-content';
-import { buildGenerationConfig, buildModelTools, resolveModelId } from './model-config';
+import { buildGenerationConfig, buildModelTools, resolveModelId, withAbortSignal, type GeminiChatConfig } from './model-config';
 import { withGeminiModelCall } from './resilience';
 import { runResearchActionPhase } from './research-action';
 import { collectStreamText, completedStreamResult, isAbortError, singleChunkStream, stoppedStreamResult } from './streams';
@@ -214,23 +215,28 @@ export async function sendMessageStream(
     }
   }
 
-  const ai = await getGenAI();
+  const ai = await getGenAiClient();
   const signal = options?.signal;
-  const requestOptions = signal ? { signal } : undefined;
 
   for (const modelId of candidateModelIds) {
     const allToolCalls: ToolCallInfo[] = browserObservation ? [browserObservation.toolCall] : [];
     const allGeneratedImages: string[] = [];
     if (signal?.aborted) return stoppedStreamResult(allToolCalls, allGeneratedImages);
     try {
-      const modelParams: { model: string; systemInstruction: string; tools?: any[] } = { model: modelId, systemInstruction };
-      if (useToolLoop) modelParams.tools = buildModelTools(computerUseEnabled, modelId, routedOptions?.activeSkill);
-      const model = ai.getGenerativeModel(modelParams);
-      const chatSession = model.startChat({ history, generationConfig });
+      const chatConfig: GeminiChatConfig = { systemInstruction, ...generationConfig };
+      if (useToolLoop) {
+        const modelTools = buildModelTools(computerUseEnabled, modelId, routedOptions?.activeSkill);
+        chatConfig.tools = modelTools;
+        // Obligatoria al mezclar tools integradas con function calling; sin
+        // ella la API rechaza el turno con 400.
+        chatConfig.toolConfig = buildServerSideToolInvocationsConfig(modelTools);
+      }
+      const chatSession = ai.chats.create({ model: modelId, config: chatConfig, history });
 
       if (useToolLoop) {
         return await runAgenticLoop({
           chatSession,
+          chatConfig,
           messageContent,
           options: routedOptions,
           allToolCalls,
@@ -241,12 +247,12 @@ export async function sendMessageStream(
 
       const result = await withGeminiModelCall(
         'Gemini direct message',
-        () => chatSession.sendMessage(messageContent, requestOptions),
+        () => chatSession.sendMessage({ message: messageContent, config: withAbortSignal(chatConfig, signal) }),
         { signal },
       );
       return completedStreamResult(
-        resolveEmptyGeminiText(extractResponseText(result.response), result.response, allGeneratedImages),
-        result.response,
+        resolveEmptyGeminiText(extractResponseText(result), result, allGeneratedImages),
+        result,
         allToolCalls,
         allGeneratedImages,
       );

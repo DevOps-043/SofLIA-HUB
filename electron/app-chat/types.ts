@@ -7,6 +7,8 @@ export interface AppChatConversationRow {
   is_pinned?: boolean | null;
   created_at: string;
   updated_at: string;
+  /** Borrado logico: con valor, el usuario ya la borro y no debe listarse. */
+  deleted_at?: string | null;
 }
 
 export interface AppChatConversationSummary {

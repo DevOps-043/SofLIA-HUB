@@ -10,11 +10,11 @@ export async function enforceEvidenceOrder(state: AgentLoopState, functionCalls:
   const hasVisualAttempt = modes.some((mode) => mode === 'local_visual');
   const hasNonVisualAttempt = modes.some((mode) => mode === 'local' || mode === 'remote');
   if (state.requirements.local && !state.evidence.local && remoteOnly) {
-    state.response = await state.chatSession.sendMessage('ERROR: El usuario pidio validacion local. Primero inspecciona la app o computadora local.');
+    state.response = await state.chatSession.sendMessage({ message: 'ERROR: El usuario pidio validacion local. Primero inspecciona la app o computadora local.' });
     return true;
   }
   if (state.requirements.visual && !state.evidence.visual && !hasVisualAttempt && hasNonVisualAttempt) {
-    state.response = await state.chatSession.sendMessage('ERROR: El usuario pidio revisar visualmente la app o ventana correcta. Usa use_computer o captura de pantalla.');
+    state.response = await state.chatSession.sendMessage({ message: 'ERROR: El usuario pidio revisar visualmente la app o ventana correcta. Usa use_computer o captura de pantalla.' });
     return true;
   }
   return false;

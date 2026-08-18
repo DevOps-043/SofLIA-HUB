@@ -134,8 +134,33 @@ class MockWebContents extends EventEmitter {
   capturePage = vi.fn(async () => new MockNativeImage());
   sendInputEvent = vi.fn();
   insertText = vi.fn(async () => {});
-  executeJavaScript = vi.fn(async () => ({ username: true, password: true }));
-  executeJavaScriptInIsolatedWorld = vi.fn(async () => undefined);
+  executeJavaScript = vi.fn(async (_code?: string, _userGesture?: boolean): Promise<unknown> => (
+    { username: true, password: true }
+  ));
+  /**
+   * Un mundo aislado comparte el DOM con el principal: solo cambia el contexto
+   * de JavaScript en que corre el codigo. El doble delega en `executeJavaScript`
+   * para reproducir eso, de modo que una prueba que fija el resultado de la
+   * pagina obtenga el mismo valor por los dos caminos.
+   */
+  executeJavaScriptInIsolatedWorld = vi.fn(
+    async (_worldId: number, scripts: Array<{ code: string }>, userGesture?: boolean) =>
+      this.executeJavaScript(scripts?.[0]?.code ?? '', userGesture),
+  );
+  debugger = new MockWebContentsDebugger();
+}
+
+/**
+ * La sesion CDP no esta disponible en pruebas: `attach` falla igual que cuando
+ * DevTools ya la tiene tomada, y el codigo bajo prueba debe degradar a su camino
+ * en JavaScript en vez de romperse.
+ */
+class MockWebContentsDebugger {
+  isAttached = vi.fn(() => false);
+  attach = vi.fn(() => { throw new Error('depurador no disponible en pruebas'); });
+  detach = vi.fn();
+  once = vi.fn();
+  sendCommand = vi.fn(async () => ({}));
 }
 
 class MockNativeImage {

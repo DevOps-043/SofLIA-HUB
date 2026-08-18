@@ -128,6 +128,26 @@ la imposibilidad de leer un PDF en local y la ausencia total de redacción de PI
 Regla de oro: **si Python no está, la app sigue funcionando.** Cada llamada comprueba `isAvailable()`
 y el camino de TypeScript existente debe seguir siendo válido.
 
+## Instalación del runtime
+
+`npm run python:setup` (`scripts/setup-python-runtime.js`) descarga CPython autónomo, lo extrae en
+`python-runtime/` e instala las dependencias fijadas de ambos sidecars. **No se ejecuta en
+`npm install`**: en un checkout limpio hay que lanzarlo a mano; en el producto empaquetado viaja
+dentro del instalador (`extraResources`).
+
+Dos detalles de Windows que el script resuelve y conviene no revertir:
+
+- **`tar`**: se ancla el bsdtar de `System32` y se pasan rutas relativas al `cwd`. El GNU tar de Git
+  Bash/MSYS lee `C:\ruta` como host remoto y aborta con `Cannot connect to C: resolve failed`.
+- **Extracción en destino**: se extrae directamente sobre `python-runtime/` con `--strip-components=1`
+  en vez de extraer a un temporal y renombrar; el `rename` de un árbol recién escrito falla con
+  `EPERM` en carpetas sincronizadas (OneDrive) o con antivirus activo.
+
+Ninguna ausencia del runtime puede tumbar el proceso main: `ensureSidecar()` valida el ejecutable y
+el script del sidecar **antes** de `spawn`, y un fallo asíncrono de `spawn` se degrada a
+`status.lastError` en lugar de emitir `'error'` sin listener (lo que se convertía en excepción no
+capturada). Cobertura: `electron/__tests__/python-runtime-startup-guards.test.ts`.
+
 ## Comandos
 
 ```bash

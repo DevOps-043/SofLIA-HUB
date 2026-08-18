@@ -29,6 +29,11 @@ export function createWhatsAppAgentInitializer(input: {
       services.waService.on('media', ({ jid, senderNumber, buffer, fileName, mimetype, text, isGroup, history }: any) => {
         void state.waAgent?.handleMedia(jid, senderNumber, buffer, fileName, mimetype, text, isGroup, history);
       });
+      // Baileys entrega la senalizacion de la llamada pero no su audio, asi que
+      // el transporte ya la rechazo: aqui solo se reconduce al modo llamada.
+      services.waService.on('call-offer', ({ jid, senderNumber }: any) => {
+        void state.waAgent?.handleIncomingCall(jid, senderNumber);
+      });
     }
 
     state.waAgent.setGoogleServices(services.calendarService, services.gmailService, services.driveService, services.gchatService);
@@ -47,8 +52,6 @@ export function createWhatsAppAgentInitializer(input: {
 }
 
 function startApiKeyBoundServices(apiKey: string, services: any, state: MainRuntimeState, modules: any): void {
-  services.proactiveService.setApiKey(apiKey);
-  if (!services.proactiveService.isRunning()) services.proactiveService.start();
   const status = services.waService.getStatus() as { masterNumber?: string; allowedNumbers?: string[] };
   services.dailyBriefingService.updateConfig({
     apiKey,

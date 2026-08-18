@@ -16,7 +16,7 @@ existencia productiva verificada.
 | Tabla | Funcion y claves relevantes | Ownership/relaciones |
 |---|---|---|
 | `profiles` | perfil operativo Lia | enlaza usuario resuelto; no es auth principal |
-| `conversations` | chat, title, owner/org, pin/share flags | padre de messages; acceso por user/org/shares |
+| `conversations` | chat, title, owner/org, pin/share flags, `deleted_at` | padre de messages; acceso por user/org/shares; borrado logico: `deleted_at IS NULL` es lo unico que se lista |
 | `messages` | roles, contenido, metadata/tool data | pertenece a conversation; politicas update/delete dedicadas |
 | `folders` | agrupacion/Project Hub | owner/org; relacion con conversaciones |
 | `user_ai_settings` | personalidad/modelo/preferencias | por user_id |

@@ -1,4 +1,4 @@
-import { supportsCodeExecutionCombo } from '../../src/shared/gemini-grounding-config';
+import { buildServerSideToolInvocationsConfig, supportsCodeExecutionCombo } from '../../src/shared/gemini-grounding-config';
 import { WA_MODEL } from './constants';
 import { prepareWhatsAppConversationHistory } from './conversation-history';
 import { buildWhatsAppAgentPromptContext } from './system-prompt-context';
@@ -76,13 +76,20 @@ async function createModelConversation(input: {
       const modelTools = supportsCodeExecutionCombo(modelName)
         ? [...input.tools, { codeExecution: {} }]
         : input.tools;
-      const model = input.request.agent.getGenAI().getGenerativeModel({
+      const createSession = (history: any[]) => input.request.agent.getGenAiClient().chats.create({
         model: modelName,
-        systemInstruction: input.systemPrompt,
-        tools: modelTools,
+        config: {
+          systemInstruction: input.systemPrompt,
+          tools: modelTools,
+          // Obligatoria al mezclar la tool integrada con las declaraciones de
+          // funcion; sin ella la API rechaza el turno completo con 400.
+          toolConfig: buildServerSideToolInvocationsConfig(modelTools),
+          maxOutputTokens: 4096,
+        },
+        history,
       });
-      const chatSession = startChatSafely(model, input.historyCopy, input.request.conversations, input.sessionKey);
-      const initial = await sendInitialMessage(model, chatSession, input.request, input.request.conversations, input.sessionKey);
+      const chatSession = startChatSafely(createSession, input.historyCopy, input.request.conversations, input.sessionKey);
+      const initial = await sendInitialMessage(createSession, chatSession, input.request, input.request.conversations, input.sessionKey);
       if (modelName !== WA_MODEL) {
         console.warn(`[WhatsApp Agent] Using Gemini fallback model "${modelName}" for WhatsApp.`);
       }
@@ -96,18 +103,25 @@ async function createModelConversation(input: {
   throw lastModelError || new Error('No hay modelos Gemini disponibles para WhatsApp.');
 }
 
-function startChatSafely(model: any, history: any[], conversations: Map<string, any[]>, sessionKey: string) {
+type CreateSession = (history: any[]) => any;
+
+function startChatSafely(
+  createSession: CreateSession,
+  history: any[],
+  conversations: Map<string, any[]>,
+  sessionKey: string,
+) {
   try {
-    return model.startChat({ history, generationConfig: { maxOutputTokens: 4096 } });
+    return createSession(history);
   } catch (error: any) {
     console.warn(`[WhatsApp Agent] Corrupted history for ${sessionKey}, resetting:`, error.message);
     conversations.set(sessionKey, []);
-    return model.startChat({ history: [], generationConfig: { maxOutputTokens: 4096 } });
+    return createSession([]);
   }
 }
 
 async function sendInitialMessage(
-  model: any,
+  createSession: CreateSession,
   chatSession: any,
   request: AgentLoopRequest,
   conversations: Map<string, any[]>,
@@ -118,16 +132,16 @@ async function sendInitialMessage(
     : '';
   const effectiveMessage = prefix + request.userMessage;
   const message = request.inlineMediaParts.length > 0
-    ? [...request.inlineMediaParts, effectiveMessage]
+    ? [...request.inlineMediaParts, { text: effectiveMessage }]
     : effectiveMessage;
   try {
-    return { chatSession, response: await chatSession.sendMessage(message) };
+    return { chatSession, response: await chatSession.sendMessage({ message }) };
   } catch (error: any) {
     if (!isRecoverableHistoryError(error)) throw error;
     console.warn('[WhatsApp Agent] Retrying sendMessage with empty history');
     conversations.set(sessionKey, []);
-    const freshSession = model.startChat({ history: [], generationConfig: { maxOutputTokens: 4096 } });
-    return { chatSession: freshSession, response: await freshSession.sendMessage(message) };
+    const freshSession = createSession([]);
+    return { chatSession: freshSession, response: await freshSession.sendMessage({ message }) };
   }
 }
 

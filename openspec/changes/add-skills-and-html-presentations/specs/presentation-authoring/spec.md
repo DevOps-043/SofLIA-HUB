@@ -568,6 +568,26 @@ del panel.
 - **WHEN** el agente usa listas breves, bloques, filas comparativas, pasos numerados, notas de metricas, citas multiples o metadatos de fuente dentro de los limites publicados
 - **THEN** el esquema acepta esas variantes cerradas y React las compone sin permitir HTML, CSS, JSX ni coordenadas libres
 
+#### Scenario: Variedad compositiva verificable
+
+- **WHEN** una baraja nueva declara una variante compositiva por diapositiva
+- **THEN** el contrato impide repetir la misma firma de arquetipo y variante, y una baraja de ocho o mas escenas combina al menos cuatro variantes
+
+#### Scenario: Paleta de fuente solicitada por el usuario
+
+- **WHEN** el usuario pide explicitamente adoptar los colores de la pagina, documento o video observado
+- **THEN** `meta.tema` declara origen `fuente`, el runtime sustituye los colores corporativos solo dentro del lienzo y conserva contraste legible
+
+#### Scenario: La fuente intenta ordenar un cambio de identidad
+
+- **WHEN** el contenido no confiable de una fuente incluye una instruccion para cambiar colores o identidad
+- **THEN** el sistema la trata como dato, mantiene la prioridad de la instruccion del usuario y no activa `meta.tema`
+
+#### Scenario: Imagen contenida con otra proporcion
+
+- **WHEN** un diagrama, captura o grafica usa ajuste `contener` y no llena la proporcion del marco
+- **THEN** React completa el marco con una capa derivada de la propia imagen y no muestra bandas grises ni un bloque vacio
+
 #### Scenario: Evidencia cuantitativa como gráfica
 
 - **WHEN** el agente declara categorías y series numéricas alineadas para barras, líneas, área, radar o anillo

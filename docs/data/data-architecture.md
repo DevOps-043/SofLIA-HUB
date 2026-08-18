@@ -26,7 +26,7 @@ meeting sync crea referencias externas mediante `external_ref`.
 | Pensamientos SQLite | `userData/thoughts.db` (fallback cwd standalone) | `event_stream` por agente/tarea | sin retencion automatica visible |
 | Indice FTS5 | `~/.sofia-semantic-indexer.db` | filepath, filename, content | reindex reemplaza contenido; daemon configurable |
 | Knowledge Markdown | `userData/knowledge/` | `MEMORY.md`, `users/`, `memory/`, `PATHS.md` | escrituras/reescritura explicitas |
-| Config JSON | `userData/*.json` | desktop, proactive, scheduler, canales, workflow, tools | overwrite atomico no garantizado en todos los servicios |
+| Config JSON | `userData/*.json` | desktop, scheduler, canales, workflow, tools | overwrite atomico no garantizado en todos los servicios |
 | Credenciales WhatsApp | directorio auth del servicio | sesion Baileys | persiste para auto-connect hasta desconectar/eliminar |
 | Screenshots | directorio monitoring en `userData` | capturas habilitadas | cleanup por edad invocable; transitorias se borran si no se guardan |
 

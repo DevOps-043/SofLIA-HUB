@@ -8,7 +8,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMockChat, getGeminiChatMocks } from './gemini-chat.setup';
 
-const { mockGetApiKeyWithCache, mockGetGenerativeModel } = getGeminiChatMocks();
+const { mockGetApiKeyWithCache, mockChatsCreate } = getGeminiChatMocks();
 
 const STOP_MESSAGE = '⏹️ Detenido.';
 
@@ -21,7 +21,7 @@ describe('gemini-chat abort', () => {
 
   it('ABORT-1: una señal pre-abortada detiene sin llamar al modelo', async () => {
     const chat = createMockChat('no deberia usarse');
-    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => chat) });
+    mockChatsCreate.mockReturnValue(chat);
     const controller = new AbortController();
     controller.abort();
 
@@ -42,7 +42,7 @@ describe('gemini-chat abort', () => {
       }),
       sendMessageStream: vi.fn(),
     };
-    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => abortingChat) });
+    mockChatsCreate.mockReturnValue(abortingChat);
 
     const { sendMessageStream } = await import('../../services/gemini-chat');
     const result = await sendMessageStream('lista mis archivos', [], { signal: new AbortController().signal });
@@ -50,12 +50,12 @@ describe('gemini-chat abort', () => {
 
     expect(text).toBe(STOP_MESSAGE);
     // No debe caer al siguiente modelo de respaldo: se respeta la cancelación.
-    expect(mockGetGenerativeModel).toHaveBeenCalledTimes(1);
+    expect(mockChatsCreate).toHaveBeenCalledTimes(1);
   });
 
   it('ABORT-3: sin señal, el flujo normal sigue funcionando', async () => {
     const chat = createMockChat('respuesta normal');
-    mockGetGenerativeModel.mockReturnValue({ startChat: vi.fn(() => chat) });
+    mockChatsCreate.mockReturnValue(chat);
 
     const { sendMessageStream } = await import('../../services/gemini-chat');
     const result = await sendMessageStream('lista mis archivos', []);

@@ -283,3 +283,11 @@
 - [x] 31.3 Entregar un manifiesto de rutas locales al agente y hacer complementaria, no sustitutiva, la generación de imágenes.
 - [x] 31.4 Adjuntar la vista visual actual de documentos Office sin perder su lectura estructurada, tablas ni procedencia.
 - [x] 31.5 Cubrir importación, degradación, contexto documental y prompt con pruebas; actualizar Skill, especificación y arquitectura.
+
+## 32. Paleta solicitada, variedad compositiva y marcos de medios
+
+- [x] 32.1 Añadir al contrato una paleta de fuente o usuario con colores estrictos, contraste verificable y respaldo de organización.
+- [x] 32.2 Añadir variantes compositivas cerradas y rechazar firmas visuales repetidas en barajas nuevas que las declaran.
+- [x] 32.3 Aplicar las variantes en el runtime React y sustituir superficies grises por superficies semánticas de la paleta.
+- [x] 32.4 Rellenar imágenes con ajuste `contener` mediante una capa derivada de la propia imagen, sin bandas grises.
+- [x] 32.5 Actualizar prompt, Skill, especificación y pruebas con la prioridad usuario > fuente > organización > neutro.

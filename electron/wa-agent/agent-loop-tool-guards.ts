@@ -2,12 +2,12 @@ import { formatForWhatsApp } from '../whatsapp-prompts';
 import { LOOP_GUARD_REPEAT_THRESHOLD } from './constants';
 import type { AgentLoopState } from './agent-loop-types';
 
-export function handleRepeatedFailure(
+export async function handleRepeatedFailure(
   state: AgentLoopState,
   toolNames: string[],
   summary: any[],
   count: number,
-): { done: true; text: string } | { done: false } {
+): Promise<{ done: true; text: string } | { done: false }> {
   state.loopGuardInterventions++;
   if (state.loopGuardInterventions >= 2 || count >= LOOP_GUARD_REPEAT_THRESHOLD) {
     const lastError = summary.find((item) => typeof item.error === 'string')?.error;
@@ -19,13 +19,18 @@ export function handleRepeatedFailure(
       ),
     };
   }
-  state.response = state.chatSession.sendMessage(
-    `ALERTA DEL SISTEMA: Repetiste el mismo fallo con ${toolNames.join(', ')}. Cambia de estrategia.`,
-  );
+  // Sin `await` esto dejaba una Promise en `state.response` y el loop leia
+  // candidatos de un objeto que no era la respuesta.
+  state.response = await state.chatSession.sendMessage({
+    message: `ALERTA DEL SISTEMA: Repetiste el mismo fallo con ${toolNames.join(', ')}. Cambia de estrategia.`,
+  });
   return { done: false };
 }
 
-export function handlePollNoProgress(state: AgentLoopState, toolNames: string[]): { done: true; text: string } | { done: false } {
+export async function handlePollNoProgress(
+  state: AgentLoopState,
+  toolNames: string[],
+): Promise<{ done: true; text: string } | { done: false }> {
   state.loopGuardInterventions++;
   if (state.loopGuardInterventions >= 2) {
     return {
@@ -36,8 +41,8 @@ export function handlePollNoProgress(state: AgentLoopState, toolNames: string[])
       ),
     };
   }
-  state.response = state.chatSession.sendMessage(
-    `ALERTA DEL SISTEMA: Estas haciendo polling sin cambios reales con ${toolNames.join(', ')}. Cambia de estrategia o informa el estado.`,
-  );
+  state.response = await state.chatSession.sendMessage({
+    message: `ALERTA DEL SISTEMA: Estas haciendo polling sin cambios reales con ${toolNames.join(', ')}. Cambia de estrategia o informa el estado.`,
+  });
   return { done: false };
 }

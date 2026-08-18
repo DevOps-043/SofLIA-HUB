@@ -21,7 +21,7 @@ export async function guardRepeatedToolSignature(
       text: formatForWhatsApp(`La tarea entro en un ciclo sin avance. Detecte que ${toolNames.join(', ')} se repite sin progreso.`, state.isGroup),
     };
   }
-  state.response = await state.chatSession.sendMessage(`ALERTA DEL SISTEMA: Estas repitiendo exactamente las mismas herramientas (${toolNames.join(', ')}). Cambia de estrategia.`);
+  state.response = await state.chatSession.sendMessage({ message: `ALERTA DEL SISTEMA: Estas repitiendo exactamente las mismas herramientas (${toolNames.join(', ')}). Cambia de estrategia.` });
   return { status: 'retry' };
 }
 

@@ -55,12 +55,13 @@ export function registerContextMemoryTests(ctx: WhatsAppAgentTestContext): void 
       const { agent, waService } = createAgentWithService(ctx);
       const primarySendMessage = vi.fn().mockRejectedValue(new Error('models/gemini-3.6-flash is not found for API version v1beta'));
 
-      ctx.mockGetGenerativeModel.mockImplementationOnce(() => ({ startChat: () => ({ sendMessage: primarySendMessage }) }));
+      // `chats.create` devuelve la sesion directamente; ya no hay `startChat`.
+      ctx.mockChatsCreate.mockImplementationOnce(() => ({ sendMessage: primarySendMessage }));
 
       await agent.handleMessage('123@s.whatsapp.net', '5215500000000', 'Hola');
 
-      expect(ctx.mockGetGenerativeModel).toHaveBeenCalledTimes(1);
-      expect(ctx.mockGetGenerativeModel).toHaveBeenCalledWith(expect.objectContaining({ model: 'gemini-3.6-flash' }));
+      expect(ctx.mockChatsCreate).toHaveBeenCalledTimes(1);
+      expect(ctx.mockChatsCreate).toHaveBeenCalledWith(expect.objectContaining({ model: 'gemini-3.6-flash' }));
       expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', expect.stringContaining('No cambie a otro modelo'));
     });
   });

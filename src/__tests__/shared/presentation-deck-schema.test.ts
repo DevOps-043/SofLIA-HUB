@@ -83,4 +83,50 @@ describe('contrato deck.json', () => {
     expect(presentationDeckSchema.safeParse(value).success).toBe(false);
   });
 
+  it('acepta una paleta de fuente explicita con contraste accesible', () => {
+    const value = deck();
+    Object.assign(value.meta, {
+      tema: {
+        origen: 'fuente',
+        fondo: '#08131f',
+        texto: '#f7fbff',
+        primario: '#5bd6ff',
+        secundario: '#7a63ff',
+        acento: '#ffb547',
+        superficie: '#132538',
+      },
+    });
+
+    expect(presentationDeckSchema.safeParse(value).success).toBe(true);
+  });
+
+  it('rechaza una paleta de fuente que haria ilegible el texto', () => {
+    const value = deck();
+    Object.assign(value.meta, {
+      tema: {
+        origen: 'fuente',
+        fondo: '#ffffff',
+        texto: '#eeeeee',
+        primario: '#f5f5f5',
+        secundario: '#dddddd',
+        acento: '#fafafa',
+        superficie: '#ffffff',
+      },
+    });
+
+    expect(presentationDeckSchema.safeParse(value).success).toBe(false);
+  });
+
+  it('rechaza firmas visuales repetidas cuando una baraja nueva declara variantes', () => {
+    const value = deck();
+    Object.assign(value.slides[0], { variante: 'editorial' });
+    Object.assign(value.slides[1], { variante: 'inmersiva' });
+    Object.assign(value.slides[2], { variante: 'editorial', tipo: 'portada' });
+    delete (value.slides[2] as Record<string, unknown>).accion;
+
+    const result = presentationDeckSchema.safeParse(value);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.issues.some((issue) => issue.message.includes('firma visual'))).toBe(true);
+  });
+
 });

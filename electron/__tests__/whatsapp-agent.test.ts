@@ -10,7 +10,7 @@ import {
   createMockKnowledgeService,
   createMockMemoryService,
   createMockWaService,
-  getMockGetGenerativeModel,
+  getMockChatsCreate,
   getMockSendMessage,
   mockTextResponse,
 } from './whatsapp-agent.fixtures';
@@ -33,7 +33,7 @@ describe('WhatsApp Agent', () => {
     createMockMemoryService,
     createMockWaService,
     getWhatsAppAgent: () => WhatsAppAgent,
-    mockGetGenerativeModel: getMockGetGenerativeModel(),
+    mockChatsCreate: getMockChatsCreate(),
     mockSendMessage: getMockSendMessage(),
     mockTextResponse,
   };

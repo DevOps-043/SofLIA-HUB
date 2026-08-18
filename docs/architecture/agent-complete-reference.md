@@ -968,11 +968,6 @@ vencidas más de 60 s), y emite `task-triggered`. El disparo entra al agente por
 `handleScheduledWhatsAppTask` con `skipConfirmations`, porque el usuario ya
 autorizó la tarea al programarla.
 
-**ProactiveService** (`electron/proactive-service.ts`): tick por intervalo
-configurable (`checkIntervalMinutes`), con horas de notificación permitidas y
-control de duplicados por hora y por día. Primer tick a los 5 s del arranque.
-Se puede disparar manualmente con `triggerNow`.
-
 ---
 
 ## 4. Agente de escritorio

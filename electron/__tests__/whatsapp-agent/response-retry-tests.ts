@@ -46,9 +46,9 @@ export function registerResponseRetryTests(ctx: ResponseRetryContext): void {
       });
 
       ctx.mockSendMessage
-        .mockResolvedValueOnce({ response: { text: () => 'Voy a investigar en la web y te comparto el resultado.', candidates: [{ content: { parts: [{ text: 'Voy a investigar en la web y te comparto el resultado.' }] } }], functionCalls: () => null } })
-        .mockResolvedValueOnce({ response: { text: () => '', candidates: [{ content: { parts: [{ functionCall: { name: 'web_search', args: { query: 'capitulo 5 cisco ccna titulo' } } }] } }], functionCalls: () => null } })
-        .mockResolvedValueOnce({ response: { text: () => 'El capitulo 5 cubre conceptos de switching.', candidates: [{ content: { parts: [{ text: 'El capitulo 5 cubre conceptos de switching.' }] } }], functionCalls: () => null } });
+        .mockResolvedValueOnce({ text: 'Voy a investigar en la web y te comparto el resultado.', candidates: [{ content: { parts: [{ text: 'Voy a investigar en la web y te comparto el resultado.' }] } }], functionCalls: undefined })
+        .mockResolvedValueOnce({ text: '', candidates: [{ content: { parts: [{ functionCall: { name: 'web_search', args: { query: 'capitulo 5 cisco ccna titulo' } } }] } }], functionCalls: undefined })
+        .mockResolvedValueOnce({ text: 'El capitulo 5 cubre conceptos de switching.', candidates: [{ content: { parts: [{ text: 'El capitulo 5 cubre conceptos de switching.' }] } }], functionCalls: undefined });
 
       await agent.handleMessage('123@s.whatsapp.net', '5215500000000', 'Ayudame a investigar de que trata el capitulo 5 del CCNA');
 
@@ -63,8 +63,8 @@ export function registerResponseRetryTests(ctx: ResponseRetryContext): void {
       const { detectActionRequest } = await import('../../whatsapp-prompts');
       vi.mocked(detectActionRequest).mockReturnValue(false);
       ctx.mockSendMessage
-        .mockResolvedValueOnce({ response: { text: () => 'Â¿En quÃ© puedo ayudarte?', candidates: [{ content: { parts: [{ text: 'Â¿En quÃ© puedo ayudarte?' }] } }], functionCalls: () => null } })
-        .mockResolvedValueOnce({ response: { text: () => 'Dime cuales errores viste y los reviso contigo.', candidates: [{ content: { parts: [{ text: 'Dime cuales errores viste y los reviso contigo.' }] } }], functionCalls: () => null } });
+        .mockResolvedValueOnce({ text: 'Â¿En quÃ© puedo ayudarte?', candidates: [{ content: { parts: [{ text: 'Â¿En quÃ© puedo ayudarte?' }] } }], functionCalls: undefined })
+        .mockResolvedValueOnce({ text: 'Dime cuales errores viste y los reviso contigo.', candidates: [{ content: { parts: [{ text: 'Dime cuales errores viste y los reviso contigo.' }] } }], functionCalls: undefined });
 
       await agent.handleMessage('123@s.whatsapp.net', '5215500000000', 'Tienes errores');
       expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', 'Dime cuales errores viste y los reviso contigo.');
@@ -80,18 +80,14 @@ export function registerResponseRetryTests(ctx: ResponseRetryContext): void {
       vi.mocked(detectActionRequest).mockReturnValue(false);
       ctx.mockSendMessage
         .mockResolvedValueOnce({
-          response: {
-            text: () => '',
-            candidates: [{ content: { parts: [{ functionCall: { name: 'execute_command', args: { command: 'mysql --version' } } }] } }],
-            functionCalls: () => null,
-          },
+          text: '',
+          candidates: [{ content: { parts: [{ functionCall: { name: 'execute_command', args: { command: 'mysql --version' } } }] } }],
+          functionCalls: undefined,
         })
         .mockResolvedValueOnce({
-          response: {
-            text: () => 'Te leo. No inicio procesos si no me lo pides.',
-            candidates: [{ content: { parts: [{ text: 'Te leo. No inicio procesos si no me lo pides.' }] } }],
-            functionCalls: () => null,
-          },
+          text: 'Te leo. No inicio procesos si no me lo pides.',
+          candidates: [{ content: { parts: [{ text: 'Te leo. No inicio procesos si no me lo pides.' }] } }],
+          functionCalls: undefined,
         });
 
       await agent.handleMessage('123@s.whatsapp.net', '5215500000000', 'Hola');
@@ -108,18 +104,14 @@ export function registerResponseRetryTests(ctx: ResponseRetryContext): void {
       vi.mocked(detectActionRequest).mockReturnValue(false);
       ctx.mockSendMessage
         .mockResolvedValueOnce({
-          response: {
-            text: () => '',
-            candidates: [{ content: { parts: [{ functionCall: { name: 'app_chat_get_context', args: { conversationRef: 'Codex' } } }] } }],
-            functionCalls: () => null,
-          },
+          text: '',
+          candidates: [{ content: { parts: [{ functionCall: { name: 'app_chat_get_context', args: { conversationRef: 'Codex' } } }] } }],
+          functionCalls: undefined,
         })
         .mockResolvedValueOnce({
-          response: {
-            text: () => 'Aqui estoy contigo, sin abrir SofLIA ni revisar chats internos.',
-            candidates: [{ content: { parts: [{ text: 'Aqui estoy contigo, sin abrir SofLIA ni revisar chats internos.' }] } }],
-            functionCalls: () => null,
-          },
+          text: 'Aqui estoy contigo, sin abrir SofLIA ni revisar chats internos.',
+          candidates: [{ content: { parts: [{ text: 'Aqui estoy contigo, sin abrir SofLIA ni revisar chats internos.' }] } }],
+          functionCalls: undefined,
         });
 
       await agent.handleMessage('123@s.whatsapp.net', '5215500000000', 'Hola');
@@ -132,29 +124,27 @@ export function registerResponseRetryTests(ctx: ResponseRetryContext): void {
       const { agent, waService } = createAgent(ctx);
 
       ctx.mockSendMessage.mockResolvedValueOnce({
-        response: {
-          text: () => [
-            'Hola, Teffy. Aqui estoy contigo.',
-            '',
-            'custom_theme: {"colors":{"bg":"FAF6F0"}}',
-            '* include_images: true',
-            'Wait, should I call create_document now? Yes!',
-          ].join('\n'),
-          candidates: [{
-            content: {
-              parts: [{
-                text: [
-                  'Hola, Teffy. Aqui estoy contigo.',
-                  '',
-                  'custom_theme: {"colors":{"bg":"FAF6F0"}}',
-                  '* include_images: true',
-                  'Wait, should I call create_document now? Yes!',
-                ].join('\n'),
-              }],
-            },
-          }],
-          functionCalls: () => null,
-        },
+        text: [
+          'Hola, Teffy. Aqui estoy contigo.',
+          '',
+          'custom_theme: {"colors":{"bg":"FAF6F0"}}',
+          '* include_images: true',
+          'Wait, should I call create_document now? Yes!',
+        ].join('\n'),
+        candidates: [{
+          content: {
+            parts: [{
+              text: [
+                'Hola, Teffy. Aqui estoy contigo.',
+                '',
+                'custom_theme: {"colors":{"bg":"FAF6F0"}}',
+                '* include_images: true',
+                'Wait, should I call create_document now? Yes!',
+              ].join('\n'),
+            }],
+          },
+        }],
+        functionCalls: undefined,
       });
 
       await agent.handleMessage('123@s.whatsapp.net', '5215500000000', 'Hola');

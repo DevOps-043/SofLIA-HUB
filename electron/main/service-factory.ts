@@ -15,7 +15,6 @@ export function createMainServices(modules: any) {
   const clipboardAssistant = new modules.ClipboardAIAssistant({ maxHistorySize: 100, pollingIntervalMs: 5000 });
   const taskScheduler = new modules.TaskScheduler();
   const pathMemoryService = new modules.PathMemoryService();
-  const proactiveService = new modules.ProactiveService();
   const workspaceAutomationService = new modules.WorkspaceAutomationService({
     gmailService,
     calendarService,
@@ -80,7 +79,6 @@ export function createMainServices(modules: any) {
     clipboardAssistant,
     taskScheduler,
     pathMemoryService,
-    proactiveService,
     workspaceAutomationService,
     meetingWorkflowService,
     meetingPassiveDetectionService,

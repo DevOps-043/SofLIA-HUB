@@ -38,7 +38,6 @@ single-instance lock. `runBootstrap` despues:
 
 | `TaskScheduler` | node-cron | `scheduler-state.json` |
 | `PathMemoryService` | filesystem/watch | indice/rutas en `userData` |
-| `ProactiveService` | Calendar + WhatsApp | `proactive-config.json` |
 | `WorkspaceAutomationService` | Gmail, Calendar, Chat, Drive, Desktop | runs/config de automatizacion |
 | Servicios Meeting | Store, sources, AI, review, sync, detection | Lia Supabase |
 | `WorkflowHubService` | Calendar, Chat, scheduler, automation, meetings | casos/variantes/reglas |

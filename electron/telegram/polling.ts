@@ -1,6 +1,13 @@
 import { ensureTelegramConfigured } from './api';
 import { handleIncomingTelegramCommand } from './commands';
+import { resolveUserId } from './messages';
 import { isTelegramChatAllowed, recordRecentTelegramChat } from './recent-chats';
+import {
+  extractTelegramAudio,
+  handleTelegramVoiceMessage,
+  type TelegramIncomingAudio,
+} from './voice';
+import { voiceCallSessions } from '../voice-call/session-store';
 import type { TelegramRuntimeContext } from './types';
 
 export async function syncTelegramPolling(context: TelegramRuntimeContext): Promise<void> {
@@ -15,6 +22,9 @@ export async function syncTelegramPolling(context: TelegramRuntimeContext): Prom
 export function stopTelegramPolling(context: TelegramRuntimeContext): void {
   context.setStopRequested(true);
   context.setPolling(false);
+  // Sin polling no hay turnos que atender: dejar sesiones de voz abiertas solo
+  // serviria para hablar por un canal que ya no escucha.
+  voiceCallSessions.closeChannel('telegram');
 }
 
 async function refreshTelegramBotInfo(context: TelegramRuntimeContext): Promise<void> {
@@ -69,12 +79,49 @@ async function processTelegramUpdate(context: TelegramRuntimeContext, update: an
   const message = update.message;
   const chat = message?.chat;
   const text = typeof message?.text === 'string' ? message.text.trim() : '';
+  const audio = extractTelegramAudio(message);
   const chatId = String(chat?.id || '');
-  if (!chatId || !text) return;
-  recordRecentTelegramChat(context.state, chat, text, message.date);
-  if (isTelegramChatAllowed(context.state, chatId) && await isTelegramPrincipalAllowed(context, chatId)) {
-    await handleIncomingTelegramCommand(context, chatId, text);
+  if (!chatId || (!text && !audio)) return;
+
+  const isGroup = String(chat?.type || '').endsWith('group');
+  recordRecentTelegramChat(context.state, chat, text || '[nota de voz]', message.date);
+  if (!isTelegramChatAllowed(context.state, chatId) || !await isTelegramPrincipalAllowed(context, chatId)) return;
+
+  if (audio) {
+    await handleIncomingTelegramVoice(context, chatId, isGroup, audio);
+    return;
   }
+  await handleIncomingTelegramCommand(context, chatId, text, isGroup);
+}
+
+/**
+ * La transcripcion entra por el loop del agente, no por el dispatcher de
+ * comandos: hablarle es pedirle algo, y el catalogo completo de herramientas
+ * vive detras de ese loop.
+ */
+async function handleIncomingTelegramVoice(
+  context: TelegramRuntimeContext,
+  chatId: string,
+  isGroup: boolean,
+  audio: TelegramIncomingAudio,
+): Promise<void> {
+  const runSkillTurn = context.deps?.runSkillTurn;
+  if (!runSkillTurn) {
+    await context.sendMessage(chatId, 'El agente todavia no esta listo. Intentalo en unos segundos.');
+    return;
+  }
+  await handleTelegramVoiceMessage({
+    context,
+    chatId,
+    isGroup,
+    audio,
+    runTurn: (transcription) => runSkillTurn({
+      chatId,
+      userId: resolveUserId(context, chatId),
+      prompt: transcription,
+      isGroup,
+    }),
+  });
 }
 
 function delay(ms: number): Promise<void> {

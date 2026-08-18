@@ -3,10 +3,8 @@ import { saveSettings } from '../services/settings-service';
 import { IdentityCard } from './settings-modal/IdentityCard';
 import { LoadingState } from './settings-modal/LoadingState';
 import { PersonalityCards } from './settings-modal/PersonalityCards';
-import { ProactiveBlock } from './settings-modal/ProactiveBlock';
 import { SettingsFooter } from './settings-modal/SettingsFooter';
 import { SettingsHeader } from './settings-modal/SettingsHeader';
-import { useProactiveConfig } from './settings-modal/useProactiveConfig';
 import { useSettingsAutosave } from './settings-modal/useSettingsAutosave';
 import { useSettingsForm } from './settings-modal/useSettingsForm';
 import type { SettingsModalProps } from './settings-modal/types';
@@ -17,18 +15,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
   const [saving, setSaving] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const form = useSettingsForm({ isOpen, userId });
-  const proactive = useProactiveConfig(isOpen);
 
   useSettingsAutosave({
     enabled: form.isInitialized && isOpen,
     form,
-    proactive,
     userId,
     onSave,
     setSaving,
   });
 
-  const [activeSubTab, setActiveSubTab] = useState<'personality' | 'interface' | 'proactive'>('personality');
+  const [activeSubTab, setActiveSubTab] = useState<'personality' | 'interface'>('personality');
 
   useEffect(() => {
     if (!isOpen || embedded) return undefined;
@@ -68,7 +64,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
     setSaving(true);
     const settings = form.toUserSettings(userId);
     const success = await saveSettings(settings);
-    await proactive.saveConfig();
     setSaving(false);
     if (success) {
       onSave?.(settings);
@@ -126,22 +121,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
           </svg>
           Diseño de Interfaz
         </button>
-
-        {proactive.available && (
-          <button
-            onClick={() => setActiveSubTab('proactive')}
-            className={`flex items-center gap-2 border-b-2 px-3 py-2.5 text-xs font-semibold transition-colors duration-150 cursor-pointer select-none ${
-              activeSubTab === 'proactive'
-                ? 'border-accent text-accent'
-                : 'border-transparent text-secondary hover:text-primary'
-            }`}
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-            Agente Proactivo
-          </button>
-        )}
       </div>
 
       {/* Scrollable content area */}
@@ -159,11 +138,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, u
             {activeSubTab === 'interface' && (
               <div className="space-y-6">
                 <InterfaceSettingsBlock />
-              </div>
-            )}
-            {activeSubTab === 'proactive' && proactive.available && (
-              <div className="space-y-6">
-                <ProactiveBlock proactive={proactive} />
               </div>
             )}
           </div>

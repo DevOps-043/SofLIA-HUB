@@ -5,6 +5,13 @@ import {
   normalizeConversation,
 } from '../normalize';
 import { MAX_CONVERSATIONS, type Conversation } from '../types';
+import { isMissingSoftDeleteColumn, warnMissingSoftDeleteColumn } from './soft-delete';
+
+function buildQuery(accessibleFolderIds: string[], excludeDeleted: boolean) {
+  let query = supabase.from('conversations').select('*').in('folder_id', accessibleFolderIds);
+  if (excludeDeleted) query = query.is('deleted_at', null);
+  return query.order('updated_at', { ascending: false }).limit(MAX_CONVERSATIONS);
+}
 
 export async function buildFolderConversations(
   userId: string,
@@ -15,12 +22,11 @@ export async function buildFolderConversations(
   const accessibleFolderIds = Array.from(new Set([...ownedFolderIds, ...sharedFolderShares.map((share) => share.folder_id)]));
   if (accessibleFolderIds.length === 0) return [];
 
-  const { data, error } = await supabase
-    .from('conversations')
-    .select('*')
-    .in('folder_id', accessibleFolderIds)
-    .order('updated_at', { ascending: false })
-    .limit(MAX_CONVERSATIONS);
+  let { data, error } = await buildQuery(accessibleFolderIds, true);
+  if (isMissingSoftDeleteColumn(error)) {
+    warnMissingSoftDeleteColumn('buildFolderConversations');
+    ({ data, error } = await buildQuery(accessibleFolderIds, false));
+  }
 
   if (error) throw error;
 

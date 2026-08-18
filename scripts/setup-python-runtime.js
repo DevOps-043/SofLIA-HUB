@@ -62,7 +62,11 @@ async function main() {
   }
 
   console.log(`[PythonRuntime] Preparando Python embebido ${PYTHON_VERSION} en: ${RUNTIME_DIR}`);
-  if (fs.existsSync(RUNTIME_DIR)) fs.rmSync(RUNTIME_DIR, { recursive: true, force: true });
+  // maxRetries: en Windows el borrado del arbol anterior compite con OneDrive,
+  // el indexador y el antivirus (EPERM/EBUSY transitorios).
+  if (fs.existsSync(RUNTIME_DIR)) {
+    fs.rmSync(RUNTIME_DIR, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  }
   const { archiveHash, archiveUrl } = await prepareStandaloneRuntime(compatibleLock);
 
   console.log('[PythonRuntime] Instalando dependencias de los sidecars (voz + herramientas)...');
@@ -122,26 +126,48 @@ async function prepareStandaloneRuntime(lock) {
   const url = process.env.PYTHON_RUNTIME_URL
     || `https://github.com/astral-sh/python-build-standalone/releases/download/${STANDALONE_RELEASE}/${fileName}`;
   const archivePath = path.join(ROOT, `.python-runtime-${process.platform}-${process.arch}.tar.gz`);
-  const extractDir = path.join(ROOT, `.python-runtime-extract-${process.pid}`);
   console.log(`[PythonRuntime] Descargando distribucion autonoma: ${url}`);
   await downloadFile(url, archivePath, 0);
   const archiveHash = verifyArchive(archivePath, url, lock);
 
   try {
-    fs.mkdirSync(extractDir, { recursive: true });
-    // `tar` existe nativo en Windows 10+ (bsdtar), macOS y Linux.
-    execFileSync('tar', ['-xzf', archivePath, '-C', extractDir], { stdio: 'inherit' });
-    const extractedPython = path.join(extractDir, 'python');
+    // Se extrae DIRECTO sobre python-runtime/ quitando el prefijo "python/" del
+    // archivo. La version anterior extraia a un temporal y renombraba el arbol,
+    // pero en carpetas sincronizadas (OneDrive) o con antivirus activo ese
+    // rename falla con EPERM sobre miles de ficheros recien escritos.
+    fs.mkdirSync(RUNTIME_DIR, { recursive: true });
+    extractArchive(archivePath, RUNTIME_DIR, 1);
     const exeRelative = process.platform === 'win32' ? ['python.exe'] : ['bin', 'python3'];
-    if (!fs.existsSync(path.join(extractedPython, ...exeRelative))) {
+    if (!fs.existsSync(path.join(RUNTIME_DIR, ...exeRelative))) {
       throw new Error(`El archivo autonomo no contiene python/${exeRelative.join('/')}.`);
     }
-    fs.renameSync(extractedPython, RUNTIME_DIR);
   } finally {
     fs.rmSync(archivePath, { force: true });
-    fs.rmSync(extractDir, { recursive: true, force: true });
   }
   return { archiveHash, archiveUrl: url };
+}
+
+/**
+ * Extrae el tar.gz sin depender de QUE tar este primero en el PATH.
+ *
+ * En Windows conviven dos: el bsdtar nativo de System32 y el GNU tar que traen
+ * Git Bash / MSYS2. GNU tar lee "C:\ruta" como especificacion de host remoto
+ * (`host:path`) y aborta con "tar (child): Cannot connect to C: resolve failed",
+ * que es exactamente lo que rompia `npm run python:setup` desde Git Bash.
+ * Se ancla el bsdtar del sistema cuando existe y se pasan rutas relativas al
+ * cwd, sin letra de unidad, para que ambos binarios funcionen igual.
+ */
+function extractArchive(archivePath, destDir, stripComponents = 0) {
+  const relativeArchive = path.relative(destDir, archivePath).split(path.sep).join('/');
+  const args = ['-xzf', relativeArchive];
+  if (stripComponents > 0) args.push(`--strip-components=${stripComponents}`);
+  execFileSync(resolveTarBinary(), args, { cwd: destDir, stdio: 'inherit' });
+}
+
+function resolveTarBinary() {
+  if (process.platform !== 'win32') return 'tar';
+  const systemTar = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe');
+  return fs.existsSync(systemTar) ? systemTar : 'tar';
 }
 
 function verifyArchive(archivePath, url, lock) {

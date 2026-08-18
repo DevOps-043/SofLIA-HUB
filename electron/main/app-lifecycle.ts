@@ -42,7 +42,6 @@ export function registerAppLifecycle(input: { services: any; state: MainRuntimeS
     globalShortcut.unregisterAll();
     services.pathMemoryService.stop();
     void services.clipboardAssistant.stop();
-    services.proactiveService.stop();
     services.meetingPassiveDetectionService.stopPolling();
     void import('../python-runtime-service').then((m) => m.pythonRuntimeService.stop());
     void import('../python-tools-service').then((m) => m.pythonToolsService.stop());

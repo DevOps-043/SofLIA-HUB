@@ -1,15 +1,16 @@
 /**
- * Un chat borrado no vuelve.
+ * Un chat borrado no vuelve, aqui ni en otro equipo.
  *
- * Regresion cubierta: PostgREST no devuelve error cuando la politica RLS deja el
- * DELETE en cero filas, y el codigo trataba ese exito aparente como borrado
- * hecho. Se limpiaba la cola pendiente, la conversacion seguia viva en Supabase
- * y reaparecia en la siguiente carga.
+ * Regresion cubierta: el borrado era un DELETE fisico y PostgREST no devuelve
+ * error cuando la politica RLS lo deja en cero filas, asi que el codigo trataba
+ * ese exito aparente como borrado hecho. Ahora el borrado es una marca
+ * `deleted_at` —que viaja con el dato y conserva los mensajes— y se verifica
+ * antes de darla por buena.
  */
 
 import { describe, it, expect } from 'vitest';
 import './chat-service.setup';
-import { mockDeleteSelect, mockMaybeSingle, mockOrder } from './chat-service.setup';
+import { mockDelete, mockOrder, mockMaybeSingle, mockSoftDeleteSelect, mockUpdate } from './chat-service.setup';
 
 const USER = 'lia-user-1';
 const CONV = 'conv-borrada';
@@ -25,26 +26,55 @@ function conversacionRemota() {
 }
 
 describe('durabilidad del borrado de conversaciones', () => {
-  it('no declara borrada una conversacion que la politica no dejo borrar', async () => {
-    // Cero filas borradas y la conversacion sigue visible: permiso denegado.
-    mockDeleteSelect.mockResolvedValue({ data: [], error: null });
-    mockMaybeSingle.mockResolvedValue({ data: { id: CONV }, error: null });
+  it('marca deleted_at en vez de borrar la fila y sus mensajes', async () => {
+    const { deleteConversationRemote } = await import('../../services/chat/remote');
+    await expect(deleteConversationRemote(CONV)).resolves.toBe(true);
+
+    expect(mockUpdate).toHaveBeenCalledWith({ deleted_at: expect.any(String) });
+    // Nada se borra fisicamente: ni la conversacion ni sus mensajes.
+    expect(mockDelete).not.toHaveBeenCalled();
+  });
+
+  it('no declara borrada una conversacion que la politica no dejo marcar', async () => {
+    // Cero filas marcadas y la conversacion sigue activa: permiso denegado.
+    mockSoftDeleteSelect.mockResolvedValue({ data: [], error: null });
+    mockMaybeSingle.mockResolvedValue({ data: { id: CONV, deleted_at: null }, error: null });
 
     const { deleteConversationRemote } = await import('../../services/chat/remote');
     await expect(deleteConversationRemote(CONV)).resolves.toBe(false);
   });
 
-  it('acepta el borrado idempotente cuando la conversacion ya no existe', async () => {
-    mockDeleteSelect.mockResolvedValue({ data: [], error: null });
+  it('acepta el borrado idempotente cuando la conversacion ya estaba marcada', async () => {
+    mockSoftDeleteSelect.mockResolvedValue({ data: [], error: null });
+    mockMaybeSingle.mockResolvedValue({ data: { id: CONV, deleted_at: '2026-01-02T00:00:00.000Z' }, error: null });
+
+    const { deleteConversationRemote } = await import('../../services/chat/remote');
+    await expect(deleteConversationRemote(CONV)).resolves.toBe(true);
+  });
+
+  it('acepta el borrado idempotente cuando la fila ya no existe', async () => {
+    // Conversacion borrada fisicamente antes de este cambio.
+    mockSoftDeleteSelect.mockResolvedValue({ data: [], error: null });
     mockMaybeSingle.mockResolvedValue({ data: null, error: null });
 
     const { deleteConversationRemote } = await import('../../services/chat/remote');
     await expect(deleteConversationRemote(CONV)).resolves.toBe(true);
   });
 
+  it('no da por hecho el borrado si la migracion de deleted_at no esta aplicada', async () => {
+    mockSoftDeleteSelect.mockResolvedValue({
+      data: null,
+      error: { code: 'PGRST204', message: "Could not find the 'deleted_at' column of 'conversations'" },
+    });
+
+    const { deleteConversationRemote } = await import('../../services/chat/remote');
+    // Falso: la entrada sigue en la cola y se reintenta cuando exista la columna.
+    await expect(deleteConversationRemote(CONV)).resolves.toBe(false);
+  });
+
   it('mantiene oculta la conversacion aunque el borrado remoto falle y siga llegando desde Supabase', async () => {
-    mockDeleteSelect.mockResolvedValue({ data: [], error: null });
-    mockMaybeSingle.mockResolvedValue({ data: { id: CONV }, error: null });
+    mockSoftDeleteSelect.mockResolvedValue({ data: [], error: null });
+    mockMaybeSingle.mockResolvedValue({ data: { id: CONV, deleted_at: null }, error: null });
 
     const { deleteConversation, loadConversations } = await import('../../services/chat-service');
     await deleteConversation(USER, CONV);

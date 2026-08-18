@@ -88,11 +88,22 @@ fetch con timeout/retry controlados.
   `useAuthProviderModel` durante el render, y al iniciar sesion se descarta lo
   guardado sin sesion. Una preferencia nueva que revele actividad del usuario
   debe usar esa clave, no una global.
-- Una conversacion borrada deja una lapida durable por usuario
+- Borrar una conversacion es un borrado logico: se marca
+  `conversations.deleted_at` en Supabase y ni la fila ni sus mensajes se
+  destruyen. Esa marca es lo unico que viaja entre equipos; al cargar,
+  `reconcileRemoteConversationDeletions`
+  (`src/services/chat/operations/reconcile-deletions.ts`) la traduce a lapida
+  local. Sin eso, el equipo que no ejecuto el borrado volvia a listar el chat y
+  a subirlo desde su cache.
+- Ademas queda una lapida durable por usuario
   (`lia_deleted_conversations_<id>`, `src/services/chat/tombstones.ts`) que
   sobrevive al sync. Los listados, la recuperacion de cache, el guardado de
   mensajes y la migracion de identidad la respetan: un borrado no se revierte
   porque el borrado remoto haya fallado en silencio.
+- El cliente tolera que la migracion
+  `database/lia/migrations/conversations-soft-delete.sql` no este aplicada:
+  reintenta las lecturas sin el filtro y avisa una vez en consola, pero hasta
+  ejecutarla los borrados solo valen en el equipo que los hizo.
 
 ## Estados visuales obligatorios
 

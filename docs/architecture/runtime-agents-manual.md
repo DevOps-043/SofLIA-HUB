@@ -249,8 +249,10 @@ transiciones y microinteracciones de cursor, y Recharts para gráficas
 declarativas. La doctrina HyperFrames gobierna continuidad, entrada, énfasis y
 reducción de movimiento. El contrato admite imagen en comparaciones, procesos,
 métricas y gráficas; el prompt exige cobertura visual sin convertir imágenes
-generadas en evidencia numérica. Los workspaces heredados con `index.html` siguen
-abriéndose por el motor anterior durante la migración.
+generadas en evidencia numérica. Cada escena nueva declara además una variante
+compositiva cerrada; el esquema evita repetir la misma firma de arquetipo y
+variante y exige variedad mínima en barajas largas. Los workspaces heredados con
+`index.html` siguen abriéndose por el motor anterior durante la migración.
 
 Antes de llamar al proveedor, `presentation-source-visuals.ts` materializa en
 `assets/` una selección acotada de visuales observados: imágenes adjuntas del
@@ -285,8 +287,16 @@ motor HTML heredado y no aparecen en una presentacion declarativa nueva.
 
 La identidad de la organización se lee de `organizations` en Supabase SOFIA. Main
 escribe `estilos/marca.css` con las variables de marca **antes** de que el
-modelo empiece, y el prompt le prohíbe escribir colores literales: así la
-identidad no depende de que el modelo copie bien un hexadecimal.
+modelo empiece, y el prompt le prohíbe escribir colores literales fuera del
+campo estricto `meta.tema`: así la identidad predeterminada no depende de que el
+modelo copie bien un hexadecimal. Esa hoja sigue protegida. Cuando el usuario
+pide explícitamente adoptar la identidad cromática
+de una página, documento o video observado, `deck.json` puede declarar
+`meta.tema` con origen `fuente` y seis colores hexadecimales validados. React
+aplica esa paleta solo al lienzo, con prioridad
+`usuario > fuente > organización > neutro`; una orden incrustada en la fuente
+no puede activar la sustitución. Las imágenes con ajuste `contener` completan el
+marco mediante una capa desenfocada de la propia imagen, no con bandas grises.
 
 *Paleta desde el logo.* En la práctica `brand_color_*` suele quedarse con los
 valores por defecto del esquema mientras el logo sí es el real. Cuando la
@@ -505,6 +515,134 @@ controlador falla con un error explícito que pide releer el DOM en vez de actua
 sobre coordenadas obsoletas. El controlador se rechaza si la pestaña no está
 visible o si Computer Use ya está actuando sobre ella.
 
+**Acceso al motor: mundo aislado y sesión CDP**
+
+El navegador integrado es Chromium, así que la observación y la interacción se
+apoyan en cuatro superficies del motor, cada una con su regla:
+
+| Superficie | Uso | Módulo |
+|---|---|---|
+| V8, mundo aislado | Recorrido del DOM, resolución de `ref`, sonda de campos de credenciales | `integrated-browser/agent-world.ts` |
+| Blink, pipeline de entrada | `sendInputEvent` para clic y teclado; los eventos llegan a la página como `isTrusted` | `integrated-browser/cu-driver.ts` |
+| Blink, compositor | `capturePage` para la percepción visual | `integrated-browser/service.ts` |
+| CDP (`webContents.debugger`) | Árbol de accesibilidad del modo lectura, `DOMSnapshot`, resolución por `backendNodeId` | `integrated-browser/cdp-session.ts` |
+
+Todo lo que el agente ejecuta dentro de la página corre en un **mundo aislado**
+(`AGENT_WORLD_ID`), no en el contexto de JavaScript del sitio. Comparte el DOM
+pero no el objeto global: el registro de elementos que respalda los `ref` deja
+de ser legible y modificable por la página, que antes podía sustituirlo para
+desviar un clic. El vigía de selección y el panel de redacción siguen en el
+mundo principal porque se instalan marco por marco y `WebFrameMain` no expone la
+API de mundos aislados en Electron 44; inyectan interfaz para la persona, no
+herramientas del agente.
+
+`webContents.debugger` admite **un solo cliente por pestaña**. `cdp-session.ts`
+centraliza el ciclo de vida con contadores por sesión y por dominio: la sesión
+se abre en el primer uso y se cierra con el último, y cada dominio se habilita
+una vez. Los dominios nunca quedan activos fuera de la captura porque
+`Accessibility` y `DOMSnapshot` cuestan CPU y memoria reales en páginas grandes.
+Cuando el usuario tiene DevTools abierto la sesión no se puede tomar: el fallo
+llega como `CdpUnavailableError` y cada consumidor **degrada a su camino en
+JavaScript** en vez de romperse.
+
+El módulo ofrece dos formas de uso. `withCdpSession` acota la sesión a una
+operación y suelta todo al terminar; es lo que usan la lectura del árbol de
+accesibilidad, `DOMSnapshot` y la resolución de un `ref`. `acquireCdpLease`
+la retiene en el tiempo, porque hay dos capacidades del protocolo que solo
+existen mientras la sesión sigue adjunta: el registro de
+`Page.addScriptToEvaluateOnNewDocument` se borra al desconectar y los eventos de
+`Runtime.addBinding` dejan de llegar. Ambas formas comparten el mismo contador,
+así que una captura puntual que ocurra durante un arrendamiento reutiliza la
+conexión en vez de abrir otra.
+
+**Arranque por documento** (`browser-bootstrap.ts`)
+
+`executeJavaScriptInIsolatedWorld` solo alcanza el marco principal y solo corre
+cuando alguien lo pide, así que todo lo que el producto inyectaba había que
+reinstalarlo tras cada `did-finish-load`: en una aplicación de página única eso
+llega tarde —el sitio ya ejecutó su código— y en los marcos secundarios no
+llegaba nunca. `Page.addScriptToEvaluateOnNewDocument` registra el arranque una
+sola vez y Chromium lo ejecuta **en cada marco y cada navegación, antes del
+script del sitio**; con `worldName` el código nace ya aislado y `runImmediately`
+lo aplica también a la página que el usuario ya tiene abierta.
+
+`Runtime.addBinding` abre un canal real de la página al proceso principal. El
+aviso de selección seguía viajando por `console-message`, que es un canal que la
+propia página puede inundar o imitar. El puente publica `AGENT_BRIDGE_BINDING`
+solo dentro del mundo del agente, y lo que llega por él **es contenido no
+confiable igual que el DOM**: se valida el nombre del puente, se acota la carga
+útil a 4000 caracteres, se rechaza lo que no sea un mensaje conocido y un
+mensaje malformado no interrumpe el reparto del resto.
+
+Política frente a DevTools: **no se disputa la sesión**. Cuando el usuario abre
+DevTools, Chromium expulsa al arrendamiento; el arranque se marca degradado, el
+navegador sigue funcionando con la inyección por carga de siempre y al cerrar
+DevTools (`devtools-closed`) se reinstala solo. Un arranque que no se puede
+instalar nunca impide que la pestaña nazca.
+
+Limitación vigente del arranque: el mundo con nombre que crea CDP y el mundo
+numérico de `executeJavaScriptInIsolatedWorld` son contextos distintos. El
+bootstrap rastrea el `executionContextId` del mundo con nombre por marco
+(`executionContextFor`) para poder unificar la observación sobre él más adelante;
+hoy el registro de referencias sigue viviendo en el mundo numérico del marco
+principal.
+
+`read_browser_dom` tiene dos backends con el mismo contrato de salida. El
+predeterminado recorre el DOM en JavaScript dentro de la página, con presupuesto
+de 400 ms y tope de 1800 nodos para no congelar el hilo del renderer; por eso
+marca `truncated` con frecuencia en aplicaciones grandes. El alterno usa
+`DOMSnapshot.captureSnapshot`, que Blink resuelve en C++ sin competir con el
+renderer y que cubre en una sola llamada los iframes del mismo proceso. Se
+habilita con `SOFLIA_BROWSER_CDP_DOM=1` y ante cualquier fallo cae al primero.
+
+Los `ref` que emite cada backend se resuelven distinto: `dom-N` vive en el
+registro del mundo aislado y muere con el re-render; `cdp-N` es un
+`backendNodeId` de Chromium, que sobrevive mientras el nodo siga en el árbol.
+Ambos recalculan el punto de impacto en el momento del clic. Un elemento dentro
+de un iframe de otro origen falla con `marco-aislado` en lugar de señalar una
+coordenada equivocada: sin poder leer el desplazamiento del marco padre, actuar
+significaría hacer clic sobre algo que el usuario no pidió.
+
+Limitación vigente: los iframes aislados por proceso (OOPIF, el caso típico de
+un checkout o un SSO de otro origen) son objetivos CDP distintos y no entran en
+la captura. Se enumeran como marcos inaccesibles. Cubrirlos exige adjuntarse a
+cada objetivo con `Target` en modo plano y componer coordenadas entre procesos.
+
+**Set-of-Marks del navegador** (`integrated-browser/dom-element-source.ts`)
+
+El driver de Computer Use del navegador integrado ya inyectaba el DOM saneado en
+el contexto de cada captura, junto a la imagen y marcado como contenido no
+confiable. Sobre esa base, `SOFLIA_BROWSER_SOM=1` dibuja además cajas numeradas
+sobre los controles, de modo que el modelo pueda referirse a `[7]` en vez de
+estimar píxeles sobre una captura reducida a 1024 px.
+
+La diferencia con el escritorio es la fuente. Allí la lista de elementos hay que
+deducirla componiendo accesibilidad UIA, lectura OCR y un detector visual ONNX,
+fusionando por solape porque las tres se contradicen; cuesta uno o dos segundos
+por paso y sigue siendo una estimación. En el navegador la lista ya existe y es
+exacta: cada control de `read_browser_dom` trae su rectángulo, su rol y su nombre
+accesible. No hay OCR, no hay modelo y no hay fusión entre fuentes.
+
+Reglas del marcado: se descartan los controles deshabilitados, los de lado menor
+a 8 px y los que quedaron fuera del área visible; se fusionan los que se solapan
+por encima de 0,8 de IoU —un enlace que envuelve a un botón produce dos cajas
+casi idénticas—; el tope es de 30 marcas, porque una pantalla con más números
+deja de desambiguar y compite con el contenido; y se numeran en orden de lectura
+agrupando por filas con tolerancia vertical, no contra una cuadrícula fija.
+
+Dos garantías del cableado. El marcado **no toca la observación almacenada**:
+esa misma imagen alimenta el respaldo visual del renderer y los adjuntos del
+chat, donde las cajas numeradas serían ruido para la persona. Y **no altera el
+espacio de coordenadas**: `captureSize` sigue siendo el viewport, que es donde se
+denormaliza lo que responde el modelo; el rectángulo se traslada a píxeles de
+imagen solo para dibujar. Cualquier fallo del dibujado entrega la captura limpia.
+
+Cada marca conserva el `ref` de su control, de modo que la fase siguiente pueda
+resolver el clic por el camino determinista —recalculando el punto de impacto en
+vivo— en vez de por coordenada. Hoy esa acción todavía no existe en el contrato
+de Computer Use: el modelo sigue respondiendo con coordenadas y las marcas solo
+mejoran su anclaje visual.
+
 **Automatización de computadora** (`computer-automation-tools.ts`)
 
 | Herramienta | Qué hace |
@@ -624,9 +762,20 @@ grupos cada participante tiene su propio hilo.
 ### 3.3 Audio y media
 
 - **Audio**: `handleWhatsAppAudioMessage` transcribe con Gemini y reinyecta el
-  texto por la ruta normal.
+  texto por la ruta normal. En DM además **abre el modo llamada** (§3.18) y
+  marca el turno para que la respuesta salga hablada.
 - **Media**: `handleWhatsAppMediaMessage` prepara partes `inlineData` (tope de
   15 MiB, `wa-agent/media-preparation.ts`) y las antepone al mensaje.
+- **Llamadas**: `whatsapp/call-events.ts` observa `ev.on('call')`. Baileys
+  entrega la señalización (`offer`, `ringing`, `terminate`) y `rejectCall`, pero
+  **no** el plano de medios WebRTC: no es posible contestar con audio. El `offer`
+  se rechaza y se reconduce al modo llamada.
+  El `offer` llega identificado por **LID** (`<id>@lid`), que no es un teléfono:
+  el llamante se resuelve por `callerPn` y, si falta, por
+  `signalRepository.lidMapping.getPNForLID`, igual que la ruta de mensajes. Sin
+  ninguno de los dos no se sabe quién llama y no se abre sesión. Tomar el LID
+  como número lo deja fuera de la allowlist y descarta la llamada como no
+  autorizada.
 
 ### 3.4 Prefiltro de seguridad
 
@@ -835,7 +984,7 @@ creación de documentos y envío de archivos.
 
 ### 3.12 Catálogo completo de herramientas de WhatsApp
 
-**133 herramientas** declaradas en 11 dominios. Orden de concatenación en
+**134 herramientas** declaradas en 11 dominios. Orden de concatenación en
 `WA_TOOL_DECLARATIONS`: filesystem, comunicación, memoria, perfil, computadora,
 nodos remotos, sistema, extensibilidad, IRIS, Google, automatización.
 El catálogo efectivo de una conversación es siempre un subconjunto: depende de
@@ -873,6 +1022,7 @@ los permisos del remitente y de si el canal es DM o grupo (§3.7).
 | `get_email_config` / `configure_email` | Verifica y configura SMTP (detecta el servidor automáticamente). |
 | `send_email` | Envía correo con adjuntos. Requiere confirmación. |
 | `whatsapp_send_file` | Envía un archivo local al usuario por WhatsApp. |
+| `send_voice_note` | Responde con una nota de voz hablada en vez de texto. Abre el modo llamada (§3.18). Bloqueada en grupos. |
 | `save_whatsapp_file` | Guarda en disco un archivo recibido por WhatsApp. |
 | `take_screenshot_and_send` | Captura todos los monitores y los envía por WhatsApp. |
 | `whatsapp_send_to_contact` | Envía mensaje o archivo a otro número. Requiere confirmación. |
@@ -998,6 +1148,8 @@ Dispatcher: `wa-agent/chat-commands.ts` + `chat-commands/workflow-router.ts`.
 | `/permisos`, `/permisoswa` | Consulta y gestión de permisos por número. |
 | `/skills` | Lista las Skills disponibles por WhatsApp en ese contexto. |
 | `/presentacion`, `/presentación` | Inicia el workflow de presentaciones (Skill `sistema:presentaciones`). Genera HTML propio, exporta a PDF y lo entrega por el mismo chat tras la aprobación del usuario. Bloqueado en grupos. |
+| `/llamar`, `/llamada` | Abre el modo llamada (§3.18). Solo en DM. |
+| `/colgar` | Cierra el modo llamada. |
 | `/help` | Ayuda contextual (difiere en grupo). |
 | `/skills` | Catálogo de Skills disponibles en este canal. |
 | `/correo` | Skill `sistema:correo`: triage de la bandeja. |
@@ -1150,10 +1302,45 @@ guardas:
 El relevo por `orb:get-pending-announcement` repite el patrón de `pendingWake`:
 un push a una ventana recién creada se pierde si React aún no montó listeners.
 
-**ProactiveService** (`electron/proactive-service.ts`): tick por intervalo
-configurable (`checkIntervalMinutes`), con horas de notificación permitidas y
-control de duplicados por hora y por día. Primer tick a los 5 s del arranque.
-Se puede disparar manualmente con `triggerNow`.
+### 3.18 Modo llamada (conversación hablada)
+
+Fuente: `electron/voice-call/`. Permite sostener una conversación hablada por
+WhatsApp y Telegram con el catálogo completo de herramientas disponible.
+
+**No es un segundo agente.** Es una política de entrega: decide si la respuesta
+del loop Gemini sale hablada o escrita. El razonamiento, el catálogo, las
+guardas duras, los bloqueos de grupo y las confirmaciones HITL siguen siendo los
+mismos de un turno escrito, sin ampliar ni reducir permisos por hablar.
+
+**Transporte.** Es semi-dúplex, por turnos de nota de voz. No existe llamada
+nativa porque Baileys no implementa el plano de medios de WhatsApp (§3.3); la
+única vía a una llamada real sería la WhatsApp Business Calling API sobre Cloud
+API, que exige sacar el número de la app de WhatsApp y dejaría a Baileys sin
+sesión. La voz se pide a ElevenLabs ya en `opus_48000_64` (OGG), el único
+formato que WhatsApp presenta como `ptt` y Telegram como `voice`, porque el
+repositorio no empaqueta ffmpeg con el que transcodificar.
+
+**Identidad de la sesión.** En WhatsApp el `chatId` de la sesión es el **teléfono
+normalizado**, no el JID: el mismo interlocutor llega unas veces como
+`<lid>@lid` y otras como `<teléfono>@s.whatsapp.net`, así que indexar por JID
+abría la llamada con una clave y la buscaba con otra. El JID se conserva solo
+como dirección de envío.
+
+**Ciclo de vida.** `VoiceCallSessionStore` indexa por `(canal, chatId)` y caduca
+por inactividad al consultarse, sin temporizadores. Se abre con `/llamar`, al
+recibir una nota de voz, al detectar una llamada entrante o cuando el agente usa
+`send_voice_note`; se cierra con `/colgar`, por inactividad o al caerse el canal.
+Solo opera en DM: una respuesta hablada en grupo quedaría audible para todos sin
+que ninguno la pidiera.
+
+**Degradación.** Sin credencial o con el proveedor caído, la respuesta se entrega
+**escrita** y el aviso se manda una sola vez por sesión. Perder la voz es
+aceptable; perder la respuesta no.
+
+**Configuración.** `VOICE_CALL_ENABLED` (por omisión habilitado; `false` es el
+rollback), `VOICE_CALL_IDLE_TIMEOUT_MS` (1–60 min, por omisión 10) y
+`VOICE_CALL_VOICE_ID` (voz propia; si falta o es inválida se usa
+`ELEVENLABS_VOICE_ID`).
 
 ---
 

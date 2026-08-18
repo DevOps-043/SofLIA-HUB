@@ -102,6 +102,7 @@ const TOOL_CAPABILITY_MAP: Record<string, ChannelCapability> = {
   reset_browser_profile: 'system_control',
   whatsapp_send_file: 'messaging',
   whatsapp_send_to_contact: 'messaging',
+  send_voice_note: 'messaging',
   task_scheduler: 'automation',
   list_scheduled_tasks: 'automation',
   delete_scheduled_task: 'automation',

@@ -12,14 +12,16 @@ export async function runWhatsAppAgentLoop(request: AgentLoopRequest): Promise<s
   const state = stateOrBlock;
 
   for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
-    const candidate = state.response.response.candidates?.[0];
+    // `@google/genai` devuelve la respuesta directa; el SDK legado la envolvia
+    // en `{ response }`.
+    const candidate = state.response.candidates?.[0];
     const finishReason = candidate?.finishReason;
     const parts = candidate?.content?.parts || [];
     const functionCalls = parts.filter((part: any) => part.functionCall);
 
     if (!candidate || parts.length === 0) {
       console.warn(`[WhatsApp Agent] Empty response from model. finishReason: ${finishReason}`);
-      const feedback = (state.response.response as any).promptFeedback;
+      const feedback = state.response.promptFeedback;
       if (feedback) console.warn('[WhatsApp Agent] Prompt feedback:', JSON.stringify(feedback));
     }
 
@@ -46,9 +48,9 @@ async function retryMalformedFunctionCall(state: any, iteration: number): Promis
   console.warn(`[WhatsApp Agent] MALFORMED_FUNCTION_CALL detected (iteration ${iteration}).`);
   if (iteration >= 3) {
     try {
-      state.response = await state.chatSession.sendMessage(
-        'Tu ultima llamada a funcion fue malformada. NO uses herramientas en esta respuesta. Responde al usuario con texto y pide que repita la solicitud.',
-      );
+      state.response = await state.chatSession.sendMessage({
+        message: 'Tu ultima llamada a funcion fue malformada. NO uses herramientas en esta respuesta. Responde al usuario con texto y pide que repita la solicitud.',
+      });
       return null;
     } catch (error: any) {
       console.error('[WhatsApp Agent] Text-only fallback failed:', error.message);
@@ -56,9 +58,9 @@ async function retryMalformedFunctionCall(state: any, iteration: number): Promis
     }
   }
   try {
-    state.response = await state.chatSession.sendMessage(
-      'ERROR: Tu llamada a funcion fue malformada. Intenta de nuevo usando el nombre exacto de la herramienta y parametros validos.',
-    );
+    state.response = await state.chatSession.sendMessage({
+      message: 'ERROR: Tu llamada a funcion fue malformada. Intenta de nuevo usando el nombre exacto de la herramienta y parametros validos.',
+    });
     return null;
   } catch (error: any) {
     console.error('[WhatsApp Agent] Retry after MALFORMED_FUNCTION_CALL failed:', error.message);

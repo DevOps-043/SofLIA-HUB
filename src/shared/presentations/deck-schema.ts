@@ -7,6 +7,34 @@ import { z } from 'zod';
  */
 
 const textoCorto = (maximo: number) => z.string().trim().min(1).max(maximo);
+const colorHex = z.string().trim().regex(/^#[0-9a-f]{6}$/i, 'Usa un color hexadecimal de seis digitos.');
+
+const temaFuente = z.object({
+  origen: z.enum(['fuente', 'usuario']),
+  fondo: colorHex,
+  texto: colorHex,
+  primario: colorHex,
+  secundario: colorHex,
+  acento: colorHex,
+  superficie: colorHex,
+}).strict().superRefine((tema, context) => {
+  const comprobaciones = [
+    ['texto', tema.texto, tema.fondo, 4.5, 'El texto y el fondo deben tener contraste accesible.'],
+    ['superficie', tema.texto, tema.superficie, 4.5, 'El texto y la superficie deben tener contraste accesible.'],
+    ['primario', tema.primario, tema.fondo, 3, 'El color primario debe distinguirse del fondo.'],
+    ['acento', tema.acento, tema.fondo, 3, 'El acento debe distinguirse del fondo.'],
+  ] as const;
+  comprobaciones.forEach(([campo, frente, fondo, minimo, mensaje]) => {
+    if (contrastRatio(frente, fondo) < minimo) {
+      context.addIssue({ code: 'custom', path: [campo], message: mensaje });
+    }
+  });
+});
+
+const temaPresentacion = z.union([
+  z.object({ origen: z.literal('organizacion') }).strict(),
+  temaFuente,
+]);
 
 const fuenteMeta = z.object({
   nombre: textoCorto(120),
@@ -37,6 +65,7 @@ const base = z.object({
   antetitulo: textoCorto(48).optional(),
   titulo: textoCorto(118),
   fuente: textoCorto(140).optional(),
+  variante: z.enum(['editorial', 'visual-dominante', 'compacta', 'inmersiva', 'secuencial']).optional(),
   movimiento,
 });
 
@@ -201,21 +230,46 @@ export const presentationDeckSchema = z.object({
     subtitulo: textoCorto(160).optional(),
     audiencia: textoCorto(100).optional(),
     direccionVisual: textoCorto(220),
+    tema: temaPresentacion.optional(),
     fuentes: z.array(fuenteMeta).max(12).optional(),
     notaFuente: textoCorto(500).optional(),
   }).strict(),
   slides: z.array(slideSchema).min(3).max(30),
 }).strict().superRefine((deck, context) => {
   const ids = new Set<string>();
+  const firmasVisuales = new Map<string, number>();
   deck.slides.forEach((slide, index) => {
     if (ids.has(slide.id)) {
       context.addIssue({ code: 'custom', path: ['slides', index, 'id'], message: 'El id de la diapositiva debe ser unico.' });
     }
     ids.add(slide.id);
+    if (slide.variante) {
+      const firma = `${slide.tipo}:${slide.variante}`;
+      const anterior = firmasVisuales.get(firma);
+      if (anterior !== undefined && deck.slides.every((item) => item.variante)) {
+        context.addIssue({
+          code: 'custom',
+          path: ['slides', index, 'variante'],
+          message: `La firma visual ${firma} ya se uso en la diapositiva ${anterior + 1}; elige otra variante o arquetipo.`,
+        });
+      } else {
+        firmasVisuales.set(firma, index);
+      }
+    }
     if (index > 0 && slide.tipo === deck.slides[index - 1]?.tipo && !['division', 'declaracion'].includes(slide.tipo)) {
       context.addIssue({ code: 'custom', path: ['slides', index, 'tipo'], message: 'No repitas el mismo arquetipo en diapositivas consecutivas.' });
     }
   });
+  if (deck.slides.length >= 8 && deck.slides.every((slide) => slide.variante)) {
+    const variantes = new Set(deck.slides.map((slide) => slide.variante));
+    if (variantes.size < 4) {
+      context.addIssue({
+        code: 'custom',
+        path: ['slides'],
+        message: 'Una baraja de ocho o mas diapositivas debe combinar al menos cuatro variantes compositivas.',
+      });
+    }
+  }
 });
 
 export type PresentationDeck = z.infer<typeof presentationDeckSchema>;
@@ -232,4 +286,15 @@ export function formatDeckValidationError(error: unknown): string {
     .slice(0, 8)
     .map((issue) => `${issue.path.join('.') || 'deck'}: ${issue.message}`)
     .join('\n');
+}
+
+function contrastRatio(a: string, b: string): number {
+  const [claro, oscuro] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
+  return (claro + 0.05) / (oscuro + 0.05);
+}
+
+function relativeLuminance(hex: string): number {
+  const channels = [1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16) / 255);
+  const [r, g, b] = channels.map((channel) => channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4);
+  return (0.2126 * r) + (0.7152 * g) + (0.0722 * b);
 }

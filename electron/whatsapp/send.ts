@@ -25,6 +25,45 @@ export async function sendText(service: WhatsAppServiceCore, jid: string, text: 
   }
 }
 
+/**
+ * Envia una nota de voz (`ptt`), no un archivo de audio adjunto.
+ *
+ * El buffer ya viene en OGG/Opus desde el proveedor: WhatsApp solo presenta como
+ * nota de voz ese contenedor. `seconds` se manda explicito para no depender de
+ * que Baileys logre leer la duracion de los metadatos.
+ */
+export async function sendVoiceNote(
+  service: WhatsAppServiceCore,
+  jid: string,
+  audio: Buffer,
+  seconds: number,
+): Promise<void> {
+  ensureConnected(service);
+  if (!audio.length) throw new Error('La nota de voz esta vacia.');
+  await service.sock!.sendMessage(jid, {
+    audio,
+    mimetype: 'audio/ogg; codecs=opus',
+    ptt: true,
+    seconds,
+  });
+  const isGroup = jid.endsWith('@g.us');
+  service.recordHistory({
+    direction: 'outgoing',
+    kind: 'audio',
+    jid,
+    senderNumber: isGroup ? null : directNumberFromJid(jid),
+    groupJid: isGroup ? jid : null,
+    isGroup,
+    media: {
+      fileName: 'nota-de-voz.ogg',
+      mimetype: 'audio/ogg; codecs=opus',
+      sizeBytes: audio.length,
+    },
+    source: 'whatsapp-service',
+    metadata: { ptt: true, seconds },
+  });
+}
+
 export async function sendFile(service: WhatsAppServiceCore, jid: string, filePath: string, caption?: string): Promise<void> {
   ensureConnected(service);
   const resolvedPath = path.resolve(filePath);

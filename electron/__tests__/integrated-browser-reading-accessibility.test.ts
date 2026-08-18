@@ -47,6 +47,9 @@ describe('extracción accesible del modo lectura', () => {
         attach,
         detach,
         sendCommand,
+        // `cdp-session.ts` se suscribe al cierre que hace Chromium por su cuenta
+        // para no dar por viva una sesion que ya no existe.
+        once: vi.fn(),
       },
     } as unknown as Electron.WebContents;
 

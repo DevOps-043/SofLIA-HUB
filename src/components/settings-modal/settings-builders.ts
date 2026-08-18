@@ -12,19 +12,3 @@ export function toUserSettings(userId: string, state: IdentitySettingsState): Us
     custom_instructions: state.customInstructions,
   };
 }
-
-export function toProactiveUpdates(input: {
-  proactiveEnabled: boolean;
-  notifHours: number[];
-  calendarReminders: boolean;
-  taskReminders: boolean;
-  systemAlerts: boolean;
-}): Record<string, any> {
-  return {
-    enabled: input.proactiveEnabled,
-    notificationHours: input.notifHours,
-    calendarReminders: input.calendarReminders,
-    taskReminders: input.taskReminders,
-    systemAlerts: input.systemAlerts,
-  };
-}

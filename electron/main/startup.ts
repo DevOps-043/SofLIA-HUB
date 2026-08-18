@@ -2,6 +2,7 @@ import { registerScreenCaptureHandlers } from './screen-capture-handlers';
 import { logBootstrapError } from './bootstrap-steps';
 import { bindBrowserProfileToSession } from './browser-session-scope';
 import { recordDesktopTaskMemory } from '../memory/record-desktop-task';
+import { transcribeChannelAudio } from '../wa-agent/audio-transcription';
 
 type StartupWindowControls = {
   createOrbWindow: (wake?: boolean) => Promise<void>;
@@ -122,6 +123,12 @@ export async function initializeMainServices(input: {
     runSkillTurn: ({ chatId, prompt, isGroup }: { chatId: string; prompt: string; isGroup: boolean }) => {
       if (!state.waAgent) return Promise.resolve('El agente todavia no esta listo. Intentalo en unos segundos.');
       return state.waAgent.runSkillTurn(`telegram:${chatId}`, `telegram:${chatId}`, prompt, isGroup);
+    },
+    // Telegram transporta el audio; con que se transcribe lo decide el arranque,
+    // igual que quien ejecuta las Skills.
+    transcribeAudio: (audio: Buffer, mimetype: string) => {
+      if (!state.waAgent) return Promise.resolve('');
+      return transcribeChannelAudio(state.waAgent.getGenAI(), audio, mimetype);
     },
   }));
   await runOptionalStep('sofliaLearningService.init', () => Promise.resolve(services.sofliaLearningService.init()));

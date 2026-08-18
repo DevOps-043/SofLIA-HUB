@@ -1,4 +1,5 @@
 import type { WebContents } from 'electron';
+import { withCdpSession } from './cdp-session';
 import type { BrowserReadingBlockKind, ExtractedReadingDocument } from './reading-mode-content';
 
 const AX_MAX_NODES = 20_000;
@@ -27,35 +28,25 @@ export interface ChromiumAxNode {
 /**
  * Lee contenido semántico que una aplicación virtualizada expone a lectores
  * de pantalla. El dominio se habilita solo durante la captura para no mantener
- * el coste de accesibilidad activo mientras el usuario navega.
+ * el coste de accesibilidad activo mientras el usuario navega; de eso se ocupa
+ * `cdp-session.ts`, que además evita que dos capturas simultáneas se cierren la
+ * sesión la una a la otra.
  */
 export async function extractAccessibleReadingDocument(
   contents: WebContents,
   maxChars: number,
 ): Promise<ExtractedReadingDocument | null> {
   if (contents.isDestroyed()) return null;
-  const client = contents.debugger;
-  let alreadyAttached = false;
   try {
-    alreadyAttached = client.isAttached();
-    if (!alreadyAttached) client.attach('1.3');
-    if (!alreadyAttached) await client.sendCommand('Accessibility.enable');
-    const response = await withTimeout(
-      client.sendCommand('Accessibility.getFullAXTree'),
-      AX_CAPTURE_TIMEOUT_MS,
-    ) as { nodes?: unknown };
-    return extractReadingDocumentFromAxNodes(response.nodes, contents.getTitle(), maxChars);
+    return await withCdpSession(contents, ['Accessibility'], async (send) => {
+      const response = await withTimeout(
+        send('Accessibility.getFullAXTree'),
+        AX_CAPTURE_TIMEOUT_MS,
+      ) as { nodes?: unknown };
+      return extractReadingDocumentFromAxNodes(response.nodes, contents.getTitle(), maxChars);
+    });
   } catch {
     return null;
-  } finally {
-    if (!alreadyAttached && client.isAttached()) {
-      await client.sendCommand('Accessibility.disable').catch(() => undefined);
-      try {
-        client.detach();
-      } catch {
-        // La pestaña puede cerrarse entre la captura y la liberación.
-      }
-    }
   }
 }
 

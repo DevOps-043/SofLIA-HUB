@@ -19,6 +19,9 @@ export function normalizeConversation(raw: Record<string, unknown> | Conversatio
     is_pinned: (r.is_pinned as boolean | null) ?? undefined,
     created_at: r.created_at as string,
     updated_at: r.updated_at as string,
+    // Se conserva para que cualquier lista pueda descartar lo borrado sin
+    // volver a consultar, venga de remoto, del cache o de un share.
+    deleted_at: (r.deleted_at as string | null) ?? undefined,
     is_shared: isShared,
     share_permission: (r.share_permission as ShareAccessLevel) ?? (isShared ? 'view' : 'owner'),
     can_edit: (r.can_edit as boolean) ?? (!isShared || r.share_permission === 'edit'),
