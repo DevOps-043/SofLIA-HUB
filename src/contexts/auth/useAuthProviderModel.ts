@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { isSofiaConfigured } from '../../lib/sofia-client';
+import { sofiaAuth } from '../../services/sofia-auth';
 import { isOrbWindowRenderer, publishAuthState } from '../../services/auth-state';
 import { setUserPreferenceScope } from '../../services/user-scope';
 import { useAuthLifecycle } from './useAuthLifecycle';
@@ -55,19 +56,20 @@ export function useAuthProviderModel(): AuthContextType {
     // Mientras se restaura la sesion no se publica: un `false` transitorio
     // revocaria el acceso y cerraria la orbe recien abierta.
     if (authLoading) return;
-    void publishAuthState({
-      authenticated: Boolean(authenticatedUserId),
-      userId: authenticatedUserId,
-      // El main necesita la sesión para operar ante la base como este usuario:
-      // sin ella su rol es anónimo y las tablas con RLS por identidad le
-      // devuelven cero filas, de modo que la configuración de canales y las
-      // Skills del catálogo no llegaban a WhatsApp ni a Telegram.
-      accessToken: accessToken ?? null,
-      refreshToken: refreshToken ?? null,
-    });
+    void (async () => {
+      const sofiaSession = usingSofia ? await sofiaAuth.getSession() : null;
+      await publishAuthState({
+        authenticated: Boolean(authenticatedUserId),
+        userId: authenticatedUserId,
+        accessToken: accessToken ?? null,
+        refreshToken: refreshToken ?? null,
+        // Este token solo se canjea en main; nunca se persiste ni vuelve al renderer.
+        sofiaAccessToken: sofiaSession?.access_token ?? null,
+      });
+    })();
     // Los tokens entran en las dependencias para republicar cuando la sesión se
     // renueva: si no, el main se quedaría con el token viejo hasta reiniciar.
-  }, [accessToken, authLoading, authenticatedUserId, refreshToken]);
+  }, [accessToken, authLoading, authenticatedUserId, refreshToken, usingSofia]);
 
   return {
     session: state.session,

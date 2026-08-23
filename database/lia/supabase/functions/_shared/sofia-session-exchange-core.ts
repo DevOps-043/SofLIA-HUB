@@ -7,6 +7,7 @@ export type SofiaIdentity = {
 export type OperationalAccess = {
   tokenHash: string;
   email: string | null;
+  liaUserId: string;
 };
 
 export type LegacyEmailVerification = {
@@ -21,6 +22,7 @@ export type SessionExchangeDependencies = {
   getLegacyEmailVerification: (accessToken: string, userId: string) => Promise<LegacyEmailVerification | null>;
   hasActiveMembership: (accessToken: string, userId: string) => Promise<boolean>;
   generateOperationalAccess: (email: string) => Promise<OperationalAccess>;
+  recordFederatedIdentity: (sofiaUserId: string, liaUserId: string) => Promise<void>;
 };
 
 export type SessionExchangeResult = {
@@ -63,10 +65,13 @@ export async function exchangeSofiaSession(
     const operationalAccess = await dependencies.generateOperationalAccess(email);
     if (
       !operationalAccess.tokenHash ||
+      !operationalAccess.liaUserId ||
       normalizeEmail(operationalAccess.email) !== email
     ) {
       return failure(503, 'exchange_unavailable');
     }
+
+    await dependencies.recordFederatedIdentity(identity.id, operationalAccess.liaUserId);
 
     return { status: 200, body: { tokenHash: operationalAccess.tokenHash } };
   } catch {

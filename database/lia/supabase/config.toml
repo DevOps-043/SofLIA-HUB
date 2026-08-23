@@ -1,2 +1,5 @@
 [functions.sofia-session-exchange]
 verify_jwt = false
+
+[functions.project-hub-outbox]
+verify_jwt = false

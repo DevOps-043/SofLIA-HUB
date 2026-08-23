@@ -66,7 +66,7 @@ export function registerPreloadChannelTests() {
 
   it('SEC-035: el navegador integrado expone solo su contrato allowlisted', () => {
     const browserChannels = ALLOWED_IPC_CHANNELS.filter((channel) => channel.startsWith('integrated-browser:'));
-    expect(browserChannels).toHaveLength(59);
+    expect(browserChannels).toHaveLength(60);
     expect(browserChannels).toContain('integrated-browser:toggle-devtools');
     expect(browserChannels).toContain('integrated-browser:clear-browsing-data');
     expect(browserChannels).toContain('integrated-browser:site-permissions-get');
@@ -77,6 +77,7 @@ export function registerPreloadChannelTests() {
     expect(browserChannels).toContain('integrated-browser:permission-decide');
     expect(browserChannels).toContain('integrated-browser:tab-summaries');
     expect(browserChannels).toContain('integrated-browser:get-tab-content');
+    expect(browserChannels).toContain('integrated-browser:document-read');
     expect(browserChannels).toContain('integrated-browser:selection-action');
     expect(browserChannels).toContain('integrated-browser:reading-mode-requested');
     expect(browserChannels).toContain('integrated-browser:reading-prepare');

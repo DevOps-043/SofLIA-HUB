@@ -11,6 +11,7 @@ import {
   WORKSPACE_REPAIR_INSTRUCTION,
 } from './workspace-completion';
 import type { SendMessageStreamOptions, StreamResult, ToolCallInfo } from './types';
+import { toolBudgetExhaustedMessage } from './tool-budget';
 
 export async function runAgenticLoop(params: {
   chatSession: any;
@@ -97,7 +98,7 @@ export async function runAgenticLoop(params: {
   const completion = await inspectWorkspaceCompletion(params.options?.activeSkill);
   const fallbackText = completion.required && !completion.ready
     ? WORKSPACE_INCOMPLETE_MESSAGE
-    : 'He ejecutado las acciones solicitadas. Si necesitas algo mas, no dudes en pedirlo.';
+    : toolBudgetExhaustedMessage(params.allToolCalls);
   return {
     stream: singleChunkStream(fallbackText),
     sources: Promise.resolve(null),

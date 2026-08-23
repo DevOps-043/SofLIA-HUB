@@ -7,6 +7,7 @@ import type { MouseEvent } from 'react';
 import { LiaDegradedNotice, ShareLinkNoticeBanner } from './AppNotices';
 import { AppChatView } from './AppChatView';
 import { AppProjectView } from './AppProjectView';
+import { UnifiedProjectHub } from '../components/project-hub/UnifiedProjectHub';
 import type { ActiveView, ChatState, FolderState, ShareLinkNotice, ShareTarget } from './app-types';
 import type { UserAISettings } from '../services/settings-service';
 import type { BrowserSelectionActionRequest } from '../services/integrated-browser-service';
@@ -20,6 +21,7 @@ interface AppWorkspaceProps {
   chat: ChatState;
   currentConversation: ChatState['conversations'][number] | null;
   currentFolder?: FolderState['folders'][number];
+  unifiedProject?: { workspaceId: string; projectId: string } | null;
   externalPrompt: string | null;
   externalSelection: BrowserSelectionActionRequest | null;
   onExternalSelectionProcessed: () => void;
@@ -130,6 +132,9 @@ export function AppWorkspace(props: AppWorkspaceProps) {
           setShareTarget={props.setShareTarget}
           userId={props.userId}
         />
+      )}
+      {props.activeView === 'project-hub' && props.unifiedProject && (
+        <UnifiedProjectHub workspaceId={props.unifiedProject.workspaceId} projectId={props.unifiedProject.projectId} />
       )}
     </main>
   );

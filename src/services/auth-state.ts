@@ -20,6 +20,7 @@ export interface AuthStatePayload {
 export interface AuthStatePublication extends AuthStatePayload {
   accessToken?: string | null;
   refreshToken?: string | null;
+  sofiaAccessToken?: string | null;
 }
 
 interface AuthStateBridge {

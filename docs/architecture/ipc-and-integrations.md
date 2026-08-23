@@ -1,6 +1,6 @@
 # IPC e integraciones externas
 
-Estado: vigente. Actualizado: 2026-08-06.
+Estado: vigente. Actualizado: 2026-08-21.
 
 <!-- evidence: electron/preload/channels.ts -->
 <!-- evidence: electron/preload/safe-ipc.ts -->
@@ -8,8 +8,8 @@ Estado: vigente. Actualizado: 2026-08-06.
 
 ## Contrato IPC
 
-La allowlist actual contiene 338 canales derivados de cinco arrays: 80, 52, 61,
-104 y 41. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 362 canales derivados de cinco arrays: 81, 52, 62,
+105 y 62. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |
@@ -66,8 +66,8 @@ render y dejaba la aplicación en blanco. El arrastre usa Pointer Events con
 captura —el gesto no se pierde al salir de la pestaña ni compite con la región
 de arrastre de la ventana— y el reordenamiento se calcula fuera del updater.
 
-`electron/integrated-browser-handlers.ts` registra cuarenta y dos operaciones invocables:
-veintitrés de estado, navegación, pestañas, composición, viewport, captura,
+`electron/integrated-browser-handlers.ts` registra cuarenta y tres operaciones invocables:
+veinticuatro de estado, navegación, pestañas, composición, viewport, captura,
 percepción, controlador determinista y herramientas de desarrollo; siete del
 modo lectura, dos de historial, cuatro de credenciales, cinco de extensiones y
 una del panel de redacción.
@@ -76,6 +76,15 @@ apertura del agente al renderer, y otros dos entregan las acciones sobre el
 texto seleccionado: la seleccion convertida en peticion para el chat y la
 apertura del modo lectura. `electron/preload/integrated-browser-api.ts` y
 `src/services/integrated-browser-service.ts` son las capas publicas.
+
+`integrated-browser:document-read` agrega una lectura de solo consulta para el
+chat. El servicio toma la pestaña activa visible, reutiliza la extracción
+semántica del modo lectura y vuelve a comprobar pestaña, `WebContents` y URL al
+terminar; si cualquiera cambió, descarta el resultado. El preload solo expone
+`readActiveDocument()` al renderer principal y la herramienta
+`read_active_document` pagina el texto en fragmentos acotados, marcados como
+contenido no confiable. Este canal no navega, no escribe y no activa la síntesis
+de voz ni la cápsula del modo lectura.
 
 Esas acciones tienen dos entradas equivalentes: el menu contextual
 (`electron/integrated-browser/context-menu.ts`) y un menu flotante que aparece
@@ -346,7 +355,7 @@ quedaron dentro de `assets/`.
 | Supabase Lia | renderer + main por dominio | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | diagnostico/degradado Lia |
 | Supabase SOFIA | renderer auth/org | `VITE_SOFIA_SUPABASE_*` | bloquea auth principal si no configura |
 | SSO SofLIA Learning | navegador del sistema + deep link `soflia://auth/callback` | `VITE_LEARNING_BASE_URL`, `VITE_LEARNING_SSO_ENABLED` | entrada no se ofrece con el interruptor apagado; el inicio por contrasena no depende de ella |
-| Supabase IRIS | renderer/main proyecto | `VITE_IRIS_SUPABASE_*` | Project Hub degradado |
+| Project Hub/IRIS | API REST desde Electron main | `PROJECT_HUB_API_URL` | UI degradada con reintento; carpetas heredadas intactas |
 | Google OAuth/APIs | Calendar auth compartido | `VITE_GOOGLE_OAUTH_CLIENT_ID/SECRET` | conexion por usuario, refresh y desconexion |
 | Microsoft Calendar | MSAL/Graph | `VITE_MICROSOFT_CLIENT_ID` | conexion separada por provider |
 | ElevenLabs | REST binario y `with-timestamps` desde main | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`; default `eleven_turbo_v2_5`, formato opcional | Orbe conserva texto sin voz; lector visual disponible; errores saneados de permiso, cuota o timeout |
@@ -380,6 +389,15 @@ Dos limites que no deben relajarse:
   interceptado por otra aplicacion que haya registrado el mismo esquema.
 
 ## Limites de contrato
+
+Project Hub usa canales `project-hub:*` con métodos de dominio. El token SOFIA
+solo entra por `auth:set-state` para el canje verificado; los tokens Project Hub
+no cruzan preload. Main conserva el access token en memoria y cifra el refresh
+token con `safeStorage`. El renderer puede recibir una URL de upload o descarga
+firmada y efímera, pero nunca una clave Supabase o un token OAuth de Drive. El
+contrato completo y los estados de degradación se documentan en
+[Project Hub unificado](project-hub-unified.md).
+
 
 - Variables `VITE_` quedan incrustadas por Vite incluso para main; no deben
   considerarse secretos de backend. Las claves anon publicas de Supabase dependen

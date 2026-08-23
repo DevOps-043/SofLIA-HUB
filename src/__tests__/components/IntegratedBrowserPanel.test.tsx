@@ -69,6 +69,7 @@ describe('IntegratedBrowserPanel', () => {
       toggleDevTools: vi.fn(async () => ({ success: true, state })),
       setViewport: vi.fn(async () => ({ success: true, state })),
       hide: vi.fn(async () => ({ success: true, state: { ...state, isVisible: false } })),
+      readActiveDocument: vi.fn(async () => ({ success: true, document: { tabId: 'tab-1', url: state.url, title: state.title, language: 'es', text: 'Contenido', truncated: false } })),
       listHistory: vi.fn(async () => ({ success: true, history: [] })),
       clearHistory: vi.fn(async () => ({ success: true, cleared: true })),
       clearBrowsingData: vi.fn(async () => ({ success: true, summary: { range: 'todo' as const, results: [] } })),

@@ -1,4 +1,5 @@
 import type { FormClassNames, MeetingOpsState, RunDetail } from './run-detail-types';
+import { projectHubApi } from '../../../services/project-hub-api';
 
 interface SyncActionEditorProps extends FormClassNames {
   action: RunDetail['sync_actions'][number];
@@ -7,6 +8,20 @@ interface SyncActionEditorProps extends FormClassNames {
 
 export function SyncActionEditor({ action, inputClass, selectClass, state }: SyncActionEditorProps) {
   const draft = state.actionDrafts[action.id] || {};
+
+  const createProject = async () => {
+    const status = await projectHubApi.status();
+    const workspace = status.data?.workspaces[0];
+    if (!status.success || !workspace) return state.setError(status.error || 'No hay workspace de Project Hub.');
+    const suggested = state.currentAnalysis?.detectedContext.project || '';
+    const name = window.prompt('Nombre del proyecto nuevo', suggested)?.trim();
+    if (!name) return;
+    const result = await projectHubApi.createProject(workspace.id, { name, team_id: draft.teamId || undefined, priority: 'medium', tags: [] });
+    if (!result.success || !result.data) return state.setError(result.error || 'No se pudo crear el proyecto.');
+    await state.loadInitialData();
+    state.updateActionDraft(action.id, { projectId: result.data.project_id });
+    state.setNotice(`Proyecto “${result.data.project_name}” creado. Guarda y aprueba la acción para anexar la reunión.`);
+  };
 
   return (
     <div className="px-3 pb-3 space-y-2 border-t border-gray-100 dark:border-white/[0.04] pt-3">
@@ -23,6 +38,10 @@ export function SyncActionEditor({ action, inputClass, selectClass, state }: Syn
           ))}
         </select>
       </div>
+      <button type="button" onClick={() => void createProject()} className="w-full rounded-lg border border-dashed border-accent/40 py-1.5 text-[11px] font-medium text-accent hover:bg-accent/[0.06]">Crear proyecto para esta reunión</button>
+      {action.action_type === 'create_task' && (
+        <input className={inputClass} value={draft.existingIssueId || ''} onChange={(event) => state.updateActionDraft(action.id, { existingIssueId: event.target.value })} placeholder="UUID de tarea existente para vincular (opcional)" />
+      )}
       <select className={selectClass} value={draft.assigneeId || ''} onChange={(event) => state.updateActionDraft(action.id, { assigneeId: event.target.value })}>
         <option value="">Sin responsable</option>
         {state.getMembersForTeam(draft.teamId || '').map((member) => (

@@ -124,6 +124,16 @@ class SofiaAuthService {
   }
 
   async getSession(): Promise<Session | null> {
+    // La sesión de Supabase es la única que contiene credenciales verificables.
+    // El snapshot `sofia-session` sirve para pintar el perfil, pero reconstruir
+    // un `Session` desde él descartaba access_token/refresh_token: la UI quedaba
+    // autenticada mientras Project Hub y Lia no podían hacer el canje federado.
+    if (sofiaSupa) {
+      const { data, error } = await sofiaSupa.auth.getSession();
+      if (!error && data.session) return data.session;
+      if (error) console.warn('[SOFIA] No se pudo restaurar la sesión verificable:', error.message);
+    }
+
     const storedUser = getSofiaStoredSession();
     if (!storedUser) return null;
     return {
@@ -154,6 +164,10 @@ class SofiaAuthService {
   }
 
   onAuthStateChange(callback: (event: string, session: Session | null) => void) {
+    if (sofiaSupa) {
+      return sofiaSupa.auth.onAuthStateChange((event, session) => callback(event, session));
+    }
+
     this.getSession()
       .then((session) => session && callback('INITIAL_SESSION', session))
       .catch((err) => console.error('Error en onAuthStateChange:', err));

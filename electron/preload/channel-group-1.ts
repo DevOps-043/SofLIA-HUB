@@ -1,4 +1,7 @@
 export const CHANNEL_GROUP_1 = [
+  // Mensaje informativo main -> renderer usado durante el arranque. No acepta
+  // payloads del renderer ni ejecuta acciones privilegiadas.
+  'main-process-message',
   'capture-screen',
   'get-screen-sources',
   'app:get-pending-share-link',

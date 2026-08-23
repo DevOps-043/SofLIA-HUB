@@ -33,6 +33,7 @@ export const CHANNEL_GROUP_4 = [
   'integrated-browser:open-requested',
   'integrated-browser:selection-action',
   'integrated-browser:reading-mode-requested',
+  'integrated-browser:document-read',
   'integrated-browser:reading-prepare',
   'integrated-browser:reading-synthesize',
   'integrated-browser:reading-highlight',

@@ -1531,6 +1531,19 @@ visual, autenticación o contenido que no expone estructura accesible. Si la
 vista no está visible o la captura falla, el chat no presenta una observación
 inventada. El DOM se marca como contenido no confiable y no autoriza acciones.
 
+Las solicitudes que nombran **el documento abierto, visible o actual** siguen
+una ruta documental separada. El renderer solicita
+`integrated-browser:document-read`; main extrae semánticamente la pestaña activa
+y comprueba que su identificador y URL no cambien antes de devolverla. En Google
+Docs reutiliza la exportación autenticada y el árbol de accesibilidad del modo
+lectura, sin resumir la interfaz del editor. El bloque extraído tiene precedencia
+sobre memoria, historial y observaciones de otras páginas; si no está disponible,
+el agente usa `read_active_document` o informa el fallo sin sustituir la fuente.
+La memoria de mensajes recientes se separa por conversación, aunque hechos y
+skills aprendidas continúan bajo el owner. Si un loop agota su presupuesto, tanto
+Gemini como OpenAI informan que no obtuvieron un cierre verificable y nunca
+responden con una confirmación genérica de éxito.
+
 El navegador puede mantener hasta 500 pestañas lógicas, con un máximo de ocho
 `WebContentsView` vivas y dos visibles en composición dividida o superpuesta.
 Hasta cuatro de esas ocho vistas pueden separarse en `BaseWindow` nativas sin

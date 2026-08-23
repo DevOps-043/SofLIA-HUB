@@ -55,6 +55,7 @@ export function AppContent() {
     retryConversations,
   } = auth;
   const [activeView, setActiveView] = useState<ActiveView>('chat');
+  const [unifiedProject, setUnifiedProject] = useState<{ workspaceId: string; projectId: string } | null>(null);
   const [isBrowserWorkspaceOpen, setIsBrowserWorkspaceOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [externalPrompt, setExternalPrompt] = useState<string | null>(null);
@@ -93,7 +94,7 @@ export function AppContent() {
 
   useLegacyUserMigration(user?.id, userId);
   useCloseActiveChatMenu(chat.activeMenuChatId, chat.setActiveMenuChatId);
-  useAppBootstrap({ chat, folder, iris, orgId, setUserSettings, userId });
+  useAppBootstrap({ chat, folder, orgId, setUserSettings, userId });
   useShareLinkRouting({ chat: { loadInitialConversations: chat.loadInitialConversations }, folder: { loadInitialFolders: folder.loadInitialFolders }, handleOpenProject: handlers.handleOpenProject, handleSelectConversation: handlers.handleSelectConversation, orgId, pendingShareLink: ipc.pendingShareLink, setPendingShareLink: ipc.setPendingShareLink, setShareLinkNotice, userId });
   useMeetingTriggerNotice({ pendingMeetingTrigger: ipc.pendingMeetingTrigger, setPendingMeetingTrigger: ipc.setPendingMeetingTrigger, setShareLinkNotice, userId });
   useAutoDismissNotice(shareLinkNotice, dismissShareLinkNotice);
@@ -220,6 +221,11 @@ export function AppContent() {
           onIrisProjectClick={handlers.handleIrisProjectClick}
           onNewChat={handlers.handleNewChat}
           onOpenProject={handlers.handleOpenProject}
+          activeUnifiedProjectId={unifiedProject?.projectId ?? null}
+          onOpenUnifiedProject={(workspaceId, projectId) => {
+            setUnifiedProject({ workspaceId, projectId });
+            setActiveView('project-hub');
+          }}
           onOpenMeetings={() => setActiveView('meetings')}
           onOpenBrowser={() => setIsBrowserWorkspaceOpen(true)}
           onOpenSettings={() => { setActiveSettingsTab('ai'); setIsUnifiedSettingsOpen(true); }}
@@ -238,6 +244,7 @@ export function AppContent() {
           chat={chat}
           currentConversation={derived.currentConversation}
           currentFolder={derived.currentFolder}
+          unifiedProject={unifiedProject}
           externalPrompt={externalPrompt}
           externalSelection={externalSelection}
           onExternalSelectionProcessed={() => setExternalSelection(null)}

@@ -1,6 +1,7 @@
 import { Sidebar } from '../components/Sidebar';
 import type { MouseEvent } from 'react';
 import type { ThemeMode } from '../hooks/useTheme';
+import type { IrisIssue, IrisProject } from '../lib/iris-client';
 import type { ActiveView, AuthState, ChatState, FolderState, IrisState } from './app-types';
 
 interface AppSidebarProps {
@@ -17,10 +18,12 @@ interface AppSidebarProps {
   position?: 'left' | 'right' | 'bottom';
   onDeleteConversation: (conversationId: string, event: MouseEvent) => Promise<void>;
   onDeleteFolder: (folderId: string, event: MouseEvent) => Promise<void>;
-  onIrisIssueClick: (issue: any) => Promise<void>;
-  onIrisProjectClick: (project: any) => Promise<void>;
+  onIrisIssueClick: (issue: IrisIssue) => Promise<void>;
+  onIrisProjectClick: (project: IrisProject) => Promise<void>;
   onNewChat: () => Promise<void>;
   onOpenProject: (folderId: string) => void;
+  onOpenUnifiedProject: (workspaceId: string, projectId: string) => void;
+  activeUnifiedProjectId?: string | null;
   onOpenMeetings?: () => void;
   onOpenBrowser?: () => void;
   onSelectConversation: (conversationId: string) => Promise<void>;
@@ -44,6 +47,8 @@ export function AppSidebar(props: AppSidebarProps) {
       conversations={chat.conversations}
       currentConversationId={chat.currentConversationId}
       loadingConversations={chat.loadingConversations}
+      conversationsUnavailableMessage={auth.liaDegraded ? auth.liaStatusMessage : null}
+      onRetryConversations={auth.retryConversations}
       onNewChat={props.onNewChat}
       onSelectConversation={props.onSelectConversation}
       onDeleteConversation={props.onDeleteConversation}
@@ -62,6 +67,8 @@ export function AppSidebar(props: AppSidebarProps) {
       onCreateFolderClick={() => folder.setIsFolderModalOpen(true)}
       onToggleFolder={folder.toggleFolder}
       onOpenProject={props.onOpenProject}
+      onOpenUnifiedProject={props.onOpenUnifiedProject}
+      activeUnifiedProjectId={props.activeUnifiedProjectId}
       onOpenMeetings={props.onOpenMeetings}
       onOpenBrowser={props.onOpenBrowser}
       onDeleteFolder={props.onDeleteFolder}

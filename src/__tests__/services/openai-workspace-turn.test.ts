@@ -290,4 +290,22 @@ describe('turno de OpenAI con espacio de trabajo', () => {
     const repairInput = openAiMocks.create.mock.calls[1]?.[0]?.input as Array<{ role?: string; content?: unknown }>;
     expect(JSON.stringify(repairInput)).toContain('Continua trabajando ahora');
   });
+
+  it('informa un cierre no verificable al agotar el presupuesto aunque haya emitido texto intermedio', async () => {
+    openAiMocks.create.mockImplementation(() => (async function* () {
+      yield { type: 'response.output_text.delta', delta: 'Sigo revisando. ' };
+      yield {
+        type: 'response.output_item.done',
+        item: { type: 'function_call', name: 'read_active_document', call_id: `call-${openAiMocks.create.mock.calls.length}`, arguments: '{}' },
+      };
+      yield { type: 'response.completed', response: { usage: { total_tokens: 10 } } };
+    })());
+
+    const result = await sendOpenAIMessageStream(params({ options: undefined }));
+    const texto = await collect(result.stream);
+
+    expect(openAiMocks.create).toHaveBeenCalledTimes(10);
+    expect(texto).toContain('No pude completar la respuesta dentro del presupuesto de herramientas');
+    expect(texto).not.toContain('He ejecutado las acciones solicitadas');
+  });
 });

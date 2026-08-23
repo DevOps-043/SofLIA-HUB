@@ -20,6 +20,17 @@ function renderUngroupedBody(props: SidebarProps, ungroupedChats: ReturnType<typ
   if (props.loadingConversations) {
     return props.isOpen ? <LoadingDots /> : null;
   }
+  if (props.conversationsUnavailableMessage) {
+    return props.isOpen ? (
+      <button
+        type="button"
+        onClick={() => { void props.onRetryConversations?.(); }}
+        className="mx-2 my-2 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-left text-[10px] text-amber-800"
+      >
+        {props.conversationsUnavailableMessage} Reintentar
+      </button>
+    ) : null;
+  }
   if (ungroupedChats.length === 0) {
     return props.isOpen ? (
       <div className="px-2 py-3 text-center">

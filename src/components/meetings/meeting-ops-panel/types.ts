@@ -13,6 +13,7 @@ export type ActionDraft = {
   teamId: string;
   projectId: string;
   assigneeId: string;
+  existingIssueId: string;
 };
 
 export interface MeetingOpsForm {

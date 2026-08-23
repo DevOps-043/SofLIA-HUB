@@ -12,6 +12,7 @@ const MAX_TOOL_LANDMARKS = 40;
 const MAX_TOOL_CONTROLS = 120;
 const MAX_TOOL_FRAMES = 20;
 const MAX_TOOL_IMAGES = 16;
+const MAX_DOCUMENT_CHUNK = 16_000;
 
 /**
  * Controles cuyo efecto no es reversible desde la propia pagina. El agente
@@ -27,6 +28,39 @@ export async function executeIntegratedBrowserTool(
 ): Promise<string> {
   const api = window.integratedBrowser;
   if (!api) return failure('El navegador integrado no está disponible.');
+
+  if (toolName === 'read_active_document') {
+    const visible = await requireVisibleBrowser('leer el documento');
+    if (visible) return visible;
+    const offset = readDocumentOffset(args.offset);
+    if (offset === null) return failure('El offset del documento debe ser un entero no negativo.');
+    const result = await api.readActiveDocument();
+    const document = result.document;
+    if (!result.success || !document) return failure(result.error || 'No fue posible leer el documento activo.');
+    if (offset >= document.text.length && document.text.length > 0) {
+      return failure(`El offset ${offset} queda fuera del documento de ${document.text.length} caracteres.`);
+    }
+    const text = document.text.slice(offset, offset + MAX_DOCUMENT_CHUNK);
+    const nextOffset = offset + text.length;
+    const hasMore = nextOffset < document.text.length;
+    return JSON.stringify({
+      success: true,
+      source: 'integrated-browser-document',
+      document: {
+        tabId: document.tabId,
+        url: document.url,
+        title: document.title,
+        language: document.language,
+        text,
+        offset,
+        nextOffset: hasMore ? nextOffset : null,
+        totalChars: document.text.length,
+        hasMore,
+        sourceTruncated: document.truncated,
+      },
+      untrustedContent: true,
+    });
+  }
 
   if (toolName === 'read_browser_dom') {
     const visible = await requireVisibleBrowser('leer');
@@ -130,6 +164,11 @@ function readRef(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const ref = value.trim();
   return ref && ref.length <= 60 ? ref : null;
+}
+
+function readDocumentOffset(value: unknown): number | null {
+  if (value === undefined) return 0;
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null;
 }
 
 function serializeInteraction(

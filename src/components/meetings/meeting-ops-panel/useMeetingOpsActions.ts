@@ -81,7 +81,7 @@ async function approveActions(config: ActionConfig, actionId?: string) {
 async function saveAction(config: ActionConfig, actionId: string) {
   const draft = config.actionDrafts[actionId];
   if (!draft) return;
-  const r = await updateMeetingAction({ actionId, updates: { title: draft.title, due_date: draft.dueDate || null, team_id: draft.teamId || null, project_id: draft.projectId || null, assignee_id: draft.assigneeId || null } });
+  const r = await updateMeetingAction({ actionId, updates: { title: draft.title, due_date: draft.dueDate || null, team_id: draft.teamId || null, project_id: draft.projectId || null, assignee_id: draft.assigneeId || null, issue_id: draft.existingIssueId || null } });
   if (!r.success || !r.detail) { config.setError(r.error || 'Error al guardar.'); return; }
   config.setDetail(r.detail); config.setNotice('Accion actualizada.'); await config.loadInitialData();
 }

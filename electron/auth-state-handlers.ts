@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import { getAuthState, setAuthState, type MainAuthState } from './main/auth-state';
 import { applyHubSession, revokeHubSession } from './main/hub-session';
+import { getProjectHubApiService } from './project-hub';
 
 /**
  * Contrato del canal: el renderer publica su estado de sesion tras iniciarla,
@@ -25,6 +26,7 @@ import { applyHubSession, revokeHubSession } from './main/hub-session';
 interface AuthStatePayload extends MainAuthState {
   accessToken: string | null;
   refreshToken: string | null;
+  sofiaAccessToken: string | null;
 }
 
 function optionalToken(value: unknown): string | null {
@@ -38,6 +40,7 @@ function parseAuthStatePayload(payload: unknown): AuthStatePayload | null {
     userId?: unknown;
     accessToken?: unknown;
     refreshToken?: unknown;
+    sofiaAccessToken?: unknown;
   };
   if (typeof candidate.authenticated !== 'boolean') return null;
   if (candidate.userId !== undefined && candidate.userId !== null && typeof candidate.userId !== 'string') {
@@ -48,6 +51,7 @@ function parseAuthStatePayload(payload: unknown): AuthStatePayload | null {
     userId: typeof candidate.userId === 'string' ? candidate.userId : null,
     accessToken: optionalToken(candidate.accessToken),
     refreshToken: optionalToken(candidate.refreshToken),
+    sofiaAccessToken: optionalToken(candidate.sofiaAccessToken),
   };
 }
 
@@ -64,7 +68,7 @@ export function registerAuthStateHandlers(): void {
     const state = setAuthState({ authenticated: parsed.authenticated, userId: parsed.userId });
 
     if (!parsed.authenticated) {
-      await revokeHubSession();
+      await Promise.all([revokeHubSession(), getProjectHubApiService().logout()]);
     } else if (parsed.accessToken && parsed.refreshToken) {
       // Sin tokens no se falla: una version anterior del renderer o un flujo que
       // aun no los publique deja a main como `anon`, que es el estado seguro.
@@ -72,6 +76,13 @@ export function registerAuthStateHandlers(): void {
         { accessToken: parsed.accessToken, refreshToken: parsed.refreshToken },
         parsed.userId,
       );
+    }
+
+    if (parsed.authenticated && parsed.sofiaAccessToken) {
+      const projectHubExchange = await getProjectHubApiService().exchangeSofiaToken(parsed.sofiaAccessToken);
+      if (!projectHubExchange.success) {
+        console.warn(`[ProjectHub] Canje SOFIA rechazado (${projectHubExchange.code || 'UNKNOWN'}): ${projectHubExchange.error || 'sin detalle'}`);
+      }
     }
 
     return { ok: true, state };

@@ -47,6 +47,7 @@ export const TOOL_DISPLAY_NAMES: Record<string, string> = {
   // Navegador
   open_url: 'Abriendo URL...',
   inspect_browser_view: 'Revisando la pestaña...',
+  read_active_document: 'Leyendo el documento activo...',
   read_browser_dom: 'Leyendo la página...',
   navigate_integrated_browser: 'Navegando a la página...',
   click_browser_element: 'Abriendo el elemento...',

@@ -35,18 +35,23 @@ export function ownerKeyForUser(sofiaUserId?: string | null): string {
   return clean ? `user:${clean}` : 'local:owner';
 }
 
-/** Sesión de memoria estable del chat de la app por usuario. */
-export function chatSessionKey(ownerKey: string): string {
-  return `chat:${ownerKey}`;
+/** Sesión reciente aislada por conversación; hechos y skills siguen por owner. */
+export function chatSessionKey(ownerKey: string, conversationScope?: string | null): string {
+  const scope = String(conversationScope ?? '').trim().replace(/[^A-Za-z0-9:_-]/g, '_').slice(0, 180);
+  return `chat:${ownerKey}:conversation:${scope || 'sin-alcance'}`;
 }
 
 /** Obtiene el contexto de memoria formateado para inyectar en el prompt del chat. */
-export async function fetchChatMemoryContext(sofiaUserId: string | undefined, currentMessage: string): Promise<string> {
+export async function fetchChatMemoryContext(
+  sofiaUserId: string | undefined,
+  currentMessage: string,
+  conversationScope?: string | null,
+): Promise<string> {
   const api = bridge();
   if (!api?.getContext) return '';
   try {
     const ownerKey = ownerKeyForUser(sofiaUserId);
-    const result = await api.getContext(ownerKey, chatSessionKey(ownerKey), currentMessage);
+    const result = await api.getContext(ownerKey, chatSessionKey(ownerKey, conversationScope), currentMessage);
     return result?.context || '';
   } catch {
     return '';
@@ -85,9 +90,14 @@ export async function deleteUserSkill(skillId: number): Promise<boolean> {
 }
 
 /** Registra un turno del chat (usuario + asistente) en la memoria del usuario. */
-export function recordChatTurn(sofiaUserId: string | undefined, userText: string, assistantText: string): void {
+export function recordChatTurn(
+  sofiaUserId: string | undefined,
+  userText: string,
+  assistantText: string,
+  conversationScope?: string | null,
+): void {
   const api = bridge();
   if (!api?.recordTurn || !userText.trim()) return;
   const ownerKey = ownerKeyForUser(sofiaUserId);
-  api.recordTurn(ownerKey, chatSessionKey(ownerKey), userText, assistantText).catch(() => { /* no bloqueante */ });
+  api.recordTurn(ownerKey, chatSessionKey(ownerKey, conversationScope), userText, assistantText).catch(() => { /* no bloqueante */ });
 }

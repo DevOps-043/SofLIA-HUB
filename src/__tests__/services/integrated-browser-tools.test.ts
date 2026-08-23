@@ -33,6 +33,7 @@ function installBrowserApi() {
   const api = {
     getState: vi.fn(async () => ({ success: true, state: { isVisible: true } })),
     getObservation: vi.fn(async (): Promise<Record<string, unknown>> => observation()),
+    readActiveDocument: vi.fn(async () => ({ success: true, document: { tabId: 'tab-1', url: 'https://docs.google.com/document/d/1/edit', title: 'SofLIA Speakers', language: 'es', text: 'Contenido documental verificado', truncated: false } })),
     navigate: vi.fn(async () => ({ success: true, state: { isVisible: true } })),
     clickElement: vi.fn(async () => ({
       success: true,
@@ -75,6 +76,27 @@ describe('herramientas deterministas del navegador integrado', () => {
     expect(JSON.stringify(result)).not.toContain('c2VjcmV0by12aXN1YWw');
   });
 
+  it('IBT-012: read_active_document devuelve el documento activo con identidad y paginación', async () => {
+    const api = installBrowserApi();
+
+    const result = JSON.parse(await executeIntegratedBrowserTool('read_active_document', { offset: 0 }));
+
+    expect(api.readActiveDocument).toHaveBeenCalled();
+    expect(result).toMatchObject({
+      success: true,
+      source: 'integrated-browser-document',
+      document: {
+        tabId: 'tab-1',
+        title: 'SofLIA Speakers',
+        text: 'Contenido documental verificado',
+        offset: 0,
+        nextOffset: null,
+        hasMore: false,
+      },
+      untrustedContent: true,
+    });
+  });
+
   it('IBT-002: navegación directa conserva la sesión y relee el DOM sin desktopAgent', async () => {
     const api = installBrowserApi();
     const desktopSpy = vi.fn();
@@ -109,6 +131,7 @@ describe('herramientas deterministas del navegador integrado', () => {
 
     expect(declarations).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: 'read_browser_dom' }),
+      expect.objectContaining({ name: 'read_active_document' }),
       expect.objectContaining({ name: 'navigate_integrated_browser' }),
     ]));
     expect(declarations.some((tool) => tool.name === 'use_computer')).toBe(false);

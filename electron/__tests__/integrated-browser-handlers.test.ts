@@ -35,6 +35,7 @@ describe('handlers del navegador integrado', () => {
     setViewMode: vi.fn(async () => ({ viewMode: 'split' })),
     goBack: vi.fn(), goForward: vi.fn(), reload: vi.fn(), stop: vi.fn(), focus: vi.fn(),
     setViewport: vi.fn(() => ({ isVisible: true })), hide: vi.fn(),
+    readActiveDocument: vi.fn(async () => ({ tabId: 'tab-1', url: 'https://docs.google.com/document/d/1/edit', title: 'Documento', language: 'es', text: 'Contenido documental', truncated: false })),
     listHistory: vi.fn(async () => []), clearHistory: vi.fn(async () => true),
     clearBrowsingData: vi.fn(async (input: unknown) => {
       const { categories, range } = (input ?? {}) as { categories?: string[]; range?: string };
@@ -66,13 +67,16 @@ describe('handlers del navegador integrado', () => {
 
   it('registra el contrato completo y enruta payloads validos', async () => {
     const handlers = ipcMainHarness._getHandlers();
-    expect(Array.from(handlers.keys()).filter((key: unknown) => String(key).startsWith('integrated-browser:'))).toHaveLength(52);
+    expect(Array.from(handlers.keys()).filter((key: unknown) => String(key).startsWith('integrated-browser:'))).toHaveLength(53);
     expect(handlers.has('integrated-browser:clear-browsing-data')).toBe(true);
     expect(handlers.has('integrated-browser:writing-resolve')).toBe(true);
     expect(handlers.has('integrated-browser:reading-download')).toBe(false);
     expect(handlers.has('integrated-browser:permission-decide')).toBe(true);
     expect(handlers.has('integrated-browser:tab-summaries')).toBe(true);
     expect(handlers.has('integrated-browser:get-tab-content')).toBe(true);
+    expect(handlers.has('integrated-browser:document-read')).toBe(true);
+    expect(await handlers.get('integrated-browser:document-read')!({ sender: window.webContents }))
+      .toMatchObject({ success: true, document: { tabId: 'tab-1', text: 'Contenido documental' } });
     const captureHandler = handlers.get('integrated-browser:capture-visible');
     expect(await captureHandler!({ sender: window.webContents })).toMatchObject({
       success: true,

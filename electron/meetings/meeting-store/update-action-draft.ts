@@ -21,6 +21,7 @@ export async function updateActionDraft(this: MeetingStore, actionId: string, up
       ...(updates.due_date !== undefined ? { due_date: updates.due_date || null } : {}),
       ...(updates.owner_candidate !== undefined ? { owner_candidate: updates.owner_candidate || null } : {}),
       ...(updates.assignee_id !== undefined ? { assignee_id: updates.assignee_id || null } : {}),
+      ...(updates.issue_id !== undefined ? { issue_id: updates.issue_id || undefined } : {}),
     };
 
     const summary = updates.summary?.trim() || updates.title?.trim() || current.summary;

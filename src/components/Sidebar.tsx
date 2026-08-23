@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { UserMenu } from './sidebar/UserMenu';
 import { SidebarHeader } from './sidebar/SidebarHeader';
 import { SidebarTopActions } from './sidebar/SidebarTopActions';
-import { IrisSection } from './sidebar/IrisSection';
+import { UnifiedProjectsSection } from './sidebar/UnifiedProjectsSection';
 import { FolderSection } from './sidebar/FolderSection';
 import { UngroupedChats } from './sidebar/UngroupedChats';
 import { PinnedChats } from './sidebar/PinnedChats';
@@ -167,7 +167,7 @@ export function Sidebar(props: SidebarProps) {
                   {projectsOpen && (
                     <div className="absolute bottom-full left-0 mb-2.5 z-50 w-72 bg-white/95 dark:bg-[#161B22]/95 border border-gray-200/60 dark:border-white/[0.08] rounded-2xl shadow-2xl p-3 max-h-[70vh] overflow-y-auto sidebar-scrollbar backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-150">
                       <div className="flex flex-col gap-1">
-                        <IrisSection props={{ ...props, isOpen: true }} />
+                        <UnifiedProjectsSection props={{ ...props, isOpen: true }} />
                       </div>
                     </div>
                   )}
@@ -300,7 +300,7 @@ export function Sidebar(props: SidebarProps) {
                 </div>
                 <nav className="flex-1 overflow-y-auto sidebar-scrollbar px-2 pb-2">
                   <PinnedChats props={props} />
-                  <IrisSection props={props} />
+                  <UnifiedProjectsSection props={props} />
                   <FolderSection props={props} />
                   <UngroupedChats props={props} />
                 </nav>

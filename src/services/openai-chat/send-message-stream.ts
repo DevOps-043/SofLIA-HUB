@@ -18,6 +18,7 @@ import type {
   StreamResult,
   ToolCallInfo,
 } from '../gemini-chat/types';
+import { toolBudgetExhaustedMessage } from '../gemini-chat/tool-budget';
 import { SOFLIA_MAX_MODEL_ID, recordSofliaMaxTokens } from '../model-quota';
 import { getOpenAI } from './client';
 import { buildHostedTools } from './hosted-tools';
@@ -273,8 +274,9 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
       const completion = await inspectWorkspaceCompletion(params.options?.activeSkill);
       if (completion.required && !completion.ready) {
         yield WORKSPACE_INCOMPLETE_MESSAGE;
-      } else if (!emittedText) {
-        yield 'He ejecutado las acciones solicitadas. Si necesitas algo mas, no dudes en pedirlo.';
+      } else {
+        const separator = emittedText ? '\n\n' : '';
+        yield `${separator}${toolBudgetExhaustedMessage(toolCalls)}`;
       }
     } catch (error) {
       if (isAbortError(error, signal)) {

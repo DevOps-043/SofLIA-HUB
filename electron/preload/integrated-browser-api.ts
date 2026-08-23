@@ -35,6 +35,7 @@ export function exposeIntegratedBrowserApi(bridge: PreloadBridge, ipc: SafeIpc):
     setOverlayPosition: (pos: string) =>
       safeInvoke('integrated-browser:set-overlay-position', { pos }),
     hide: () => safeInvoke('integrated-browser:hide'),
+    readActiveDocument: () => safeInvoke('integrated-browser:document-read'),
     prepareReadingMode: (input?: { sourceUrl?: string; selection?: string }) => safeInvoke('integrated-browser:reading-prepare', input ?? {}),
     synthesizeReadingSegment: (input: { readingId: string; requestId: string; start: number; end: number }) => safeInvoke('integrated-browser:reading-synthesize', input),
     highlightReadingRange: (input: { readingId: string; start?: number; end?: number }) => safeInvoke('integrated-browser:reading-highlight', input),

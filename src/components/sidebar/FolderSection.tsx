@@ -9,7 +9,7 @@ export function FolderSection({ props }: { props: SidebarProps }) {
 
   return (
     <>
-      {props.isOpen && <SidebarSectionLabel label="Carpetas" />}
+      {props.isOpen && <SidebarSectionLabel label="Carpetas heredadas" />}
       {props.folders.map((folder) => (
         <FolderRow
           key={folder.id}

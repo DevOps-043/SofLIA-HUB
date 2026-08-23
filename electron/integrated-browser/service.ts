@@ -51,11 +51,13 @@ import { BrowserSitePermissionStore, normalizeOrigin } from './site-permissions'
 import { pickDisplayMediaSource } from './display-media-picker';
 import { BrowserReadingModeService, type BrowserReadingSpeechResult } from './reading-mode-service';
 import { toStandardChromiumUserAgent } from './user-agent';
-import type {
-  BrowserReadingContent,
-  BrowserReadingPrepareInput,
-  BrowserReadingToolbarAction,
-  BrowserReadingToolbarState,
+import {
+  collectBrowserReadingContent,
+  type BrowserDocumentContent,
+  type BrowserReadingContent,
+  type BrowserReadingPrepareInput,
+  type BrowserReadingToolbarAction,
+  type BrowserReadingToolbarState,
 } from './reading-mode-content';
 import {
   INTEGRATED_BROWSER_AGENT_VIEWPORT_TIMEOUT_MS,
@@ -679,6 +681,35 @@ export class IntegratedBrowserService extends EventEmitter {
       : { ...request, selection: await this.readSelectionText(contents) };
     if (solicitud.selection) selectionLog(`modo lectura sobre la seleccion (${solicitud.selection.length} chars)`);
     return this.readingModeService.prepare({ contents, tabId: active.id, request: solicitud });
+  }
+
+  /**
+   * Extrae el documento completo de la pestaña activa sin crear la cápsula ni
+   * una sesión de audio. La identidad se comprueba otra vez al terminar para
+   * que una navegación concurrente nunca entregue texto de otra pestaña.
+   */
+  async readActiveDocument(): Promise<BrowserDocumentContent> {
+    const active = this.getActiveTab();
+    const contents = active?.view?.webContents;
+    if (!active || !contents || contents.isDestroyed() || !this.visible || !this.isTabVisible(active)) {
+      throw new Error('La pestaña activa no está disponible para lectura documental.');
+    }
+    const tabId = active.id;
+    const startedUrl = contents.getURL();
+    const reading = await collectBrowserReadingContent({ contents, tabId, request: {} });
+    const current = this.getActiveTab();
+    if (!current || current.id !== tabId || current.view?.webContents !== contents
+      || contents.isDestroyed() || contents.getURL() !== startedUrl || reading.url !== startedUrl) {
+      throw new Error('El documento activo cambió durante la lectura. Vuelve a intentarlo.');
+    }
+    return {
+      tabId,
+      url: reading.url,
+      title: reading.title,
+      language: reading.language,
+      text: reading.text,
+      truncated: reading.truncated,
+    };
   }
 
   synthesizeReadingSegment(input: { readingId: string; requestId: string; start: number; end: number }): Promise<BrowserReadingSpeechResult> {

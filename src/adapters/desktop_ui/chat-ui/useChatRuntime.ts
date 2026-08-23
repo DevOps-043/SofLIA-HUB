@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useChatProcessor } from '../../../hooks/useChatProcessor';
 import { useModelSelector } from '../../../hooks/useModelSelector';
@@ -18,10 +18,12 @@ export function useChatRuntime(
   const externalPromptProcessedRef = useRef<(() => void) | undefined>(props.onExternalPromptProcessed);
   const lastProcessedExternalPromptRef = useRef<string | null>(null);
   const externalSelectionProcessedRef = useRef<(() => void) | undefined>(props.onExternalSelectionProcessed);
-  messagesRef.current = props.messages;
+  useEffect(() => { messagesRef.current = props.messages; }, [props.messages]);
 
   const model = useModelSelector();
   const { dataUserId } = useAuth();
+  const [draftMemoryScope] = useState(() => `borrador:${crypto.randomUUID()}`);
+  const memorySessionScope = props.conversationId?.trim() || draftMemoryScope;
   // Informa al main quién es el usuario activo (memoria unificada cross-superficie).
   useEffect(() => { syncCurrentOwner(dataUserId ?? null); }, [dataUserId]);
   const chat = useChatProcessor({
@@ -35,8 +37,9 @@ export function useChatRuntime(
     isPromptOptimizerMode: state.modes.promptOptimizer,
     optimizerTarget: state.modes.optimizerTarget,
     activeSkill,
+    memorySessionScope,
   });
-  processMessageRef.current = chat.processMessage;
+  useEffect(() => { processMessageRef.current = chat.processMessage; }, [chat.processMessage]);
   // Los avisos de "ya procesado" viajan por ref para que un callback recreado en
   // cada render no vuelva a disparar los efectos de abajo.
   useEffect(() => {

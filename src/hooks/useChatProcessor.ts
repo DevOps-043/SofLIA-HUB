@@ -18,6 +18,7 @@ export function useChatProcessor({
   isPromptOptimizerMode,
   optimizerTarget,
   activeSkill,
+  memorySessionScope,
   sofiaUserId,
 }: UseChatProcessorParams) {
   const [isLoading, setIsLoading] = useState(false);
@@ -46,6 +47,7 @@ export function useChatProcessor({
     optimizerTarget,
     isImageGenMode,
     activeSkill,
+    memorySessionScope,
     sofiaUserId,
   });
 

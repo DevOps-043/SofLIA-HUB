@@ -14,6 +14,8 @@ export interface SidebarProps {
   conversations: Conversation[];
   currentConversationId: string | null;
   loadingConversations: boolean;
+  conversationsUnavailableMessage?: string | null;
+  onRetryConversations?: () => Promise<boolean>;
   onNewChat: () => void;
   /** Abre el panel de Reuniones (runs, transcripciones y minutas). */
   onOpenMeetings?: () => void;
@@ -36,6 +38,8 @@ export interface SidebarProps {
   onCreateFolderClick: () => void;
   onToggleFolder: (id: string) => void;
   onOpenProject: (id: string) => void;
+  onOpenUnifiedProject?: (workspaceId: string, projectId: string) => void;
+  activeUnifiedProjectId?: string | null;
   onDeleteFolder: (id: string, e: MouseEvent) => void;
   /** Edicion inline del nombre de carpeta (mismo patron que los chats). */
   renamingFolderId: string | null;

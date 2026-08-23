@@ -21,7 +21,9 @@ describe('Nucleo del intercambio federado SOFIA', () => {
       generateOperationalAccess: vi.fn().mockResolvedValue({
         tokenHash: 'token-un-solo-uso',
         email: 'test@soflia.com',
+        liaUserId: 'lia-user-1',
       }),
+      recordFederatedIdentity: vi.fn().mockResolvedValue(undefined),
     };
   });
 
@@ -79,6 +81,7 @@ describe('Nucleo del intercambio federado SOFIA', () => {
     vi.mocked(dependencies.generateOperationalAccess).mockResolvedValue({
       tokenHash: 'token-migrado',
       email: 'migrada@soflia.com',
+      liaUserId: 'lia-user-migrated',
     });
 
     const result = await exchangeSofiaSession('Bearer token-sofia', dependencies);
@@ -128,6 +131,7 @@ describe('Nucleo del intercambio federado SOFIA', () => {
 
     expect(dependencies.getLegacyEmailVerification).not.toHaveBeenCalled();
     expect(dependencies.generateOperationalAccess).toHaveBeenCalledWith('test@soflia.com');
+    expect(dependencies.recordFederatedIdentity).toHaveBeenCalledWith('sofia-user-1', 'lia-user-1');
     expect(result).toEqual({ status: 200, body: { tokenHash: 'token-un-solo-uso' } });
     expect(result.body).not.toHaveProperty('email');
     expect(result.body).not.toHaveProperty('userId');
@@ -137,6 +141,7 @@ describe('Nucleo del intercambio federado SOFIA', () => {
     vi.mocked(dependencies.generateOperationalAccess).mockResolvedValue({
       tokenHash: 'token-ajeno',
       email: 'otra@soflia.com',
+      liaUserId: 'lia-user-1',
     });
 
     const result = await exchangeSofiaSession('Bearer token-sofia', dependencies);

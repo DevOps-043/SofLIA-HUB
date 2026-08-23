@@ -19,7 +19,7 @@ import { buildSystemInstruction } from './system-instruction';
 import { shouldRunToolLoop } from './tool-loop-decision';
 import type { ConversationMessage, SendMessageStreamOptions, StreamResult, ToolCallInfo } from './types';
 import { sendGroundedMessage, shouldUseWebGrounding, WEB_GROUNDING_FAILURE } from './web-grounding';
-import { classifyBrowserGroundingIntent } from './browser-grounding-intent';
+import { classifyBrowserGroundingIntent, isActiveDocumentContentRequest } from './browser-grounding-intent';
 import { preparePresentationSourceVisuals } from './presentation-source-visuals';
 import { PRESENTACIONES_SKILL_ID } from '../../shared/skills/presentaciones-skill';
 
@@ -42,22 +42,27 @@ export async function sendMessageStream(
 
   const computerUseEnabled = isComputerUseAvailable();
   const browserGroundingIntent = classifyBrowserGroundingIntent(message);
+  const activeDocumentRequest = isActiveDocumentContentRequest(message)
+    || isActiveDocumentSummaryFollowUp(message, conversationHistory);
   const normalizedIntent = normalizeToolIntentText(message);
   const hasBrowserInteraction = hasBrowserInteractionCommand(normalizedIntent);
   const hybridSurfaceRequest = hasHybridSurfaceRequest(normalizedIntent);
   const presentationUsesVisiblePage = options?.activeSkill?.id === PRESENTACIONES_SKILL_ID
     && hasPresentationBrowserSource(normalizedIntent);
-  const shouldInspectBrowser = browserGroundingIntent !== 'none'
+  const shouldInspectBrowser = !activeDocumentRequest && (
+    browserGroundingIntent !== 'none'
     || hasLikelyBrowserContentRequest(normalizedIntent)
     || presentationUsesVisiblePage
-    || (hasBrowserInteraction && hasExplicitBrowserSurface(normalizedIntent));
+    || (hasBrowserInteraction && hasExplicitBrowserSurface(normalizedIntent))
+  );
   // Tener el navegador abierto no justifica recorrer el DOM ni capturar su
   // compositor en cada saludo, tarea local o pregunta general. La percepcion
   // pasiva sigue disponible; la observacion completa se paga solo cuando el
   // turno realmente depende de esa superficie.
-  const browserObservation = shouldInspectBrowser
-    ? await captureVisibleIntegratedBrowser(options)
-    : null;
+  const [browserObservation, activeDocument] = await Promise.all([
+    shouldInspectBrowser ? captureVisibleIntegratedBrowser(options) : Promise.resolve(null),
+    activeDocumentRequest ? captureActiveDocument(options) : Promise.resolve(null),
+  ]);
   const sourceVisuals = await preparePresentationSourceVisuals({
     activeSkill: options?.activeSkill,
     inlineImages: options?.images,
@@ -86,11 +91,12 @@ export async function sendMessageStream(
     && !hasLocalDeliverableRequest(normalizedIntent)
     && !hasExecutableAction
     && !inspectsLocalResource;
-  const isReadOnlyBrowserObservation = !!browserObservation
+  const isReadOnlyBrowserObservation = (!!browserObservation || !!activeDocument)
     && browserGroundingIntent === 'read-current'
     && !hasBrowserInteraction;
   const requiresBrowserCapabilities = browserGroundingIntent === 'follow-resource'
-    || (!browserObservation && browserGroundingIntent === 'read-current');
+    || (activeDocumentRequest && !activeDocument)
+    || (!browserObservation && !activeDocument && browserGroundingIntent === 'read-current');
   const useToolLoop = shouldRunToolLoop({
     skillToolCount: options?.activeSkill?.tools.length ?? 0,
     requiresBrowserCapabilities,
@@ -106,6 +112,12 @@ export async function sendMessageStream(
     finalMessage = `${finalMessage}\n\n${browserObservation.domContext}`;
   } else if (browserGroundingIntent !== 'none') {
     systemInstruction = `${systemInstruction}\n\nLa solicitud contiene una referencia contextual a la pestaña activa, pero no hay una observación adjunta utilizable. Antes de responder que no tienes acceso, intenta read_browser_dom sobre la misma sesión visible.${BROWSER_CONTROLLER_NOTICE} No cambies al escritorio ni a un navegador externo.`;
+  }
+  if (activeDocument) {
+    systemInstruction = `${systemInstruction}\n\nEl bloque DOCUMENTO_ACTIVO_NO_CONFIABLE fue extraído semánticamente de la pestaña activa y es la fuente autoritativa para este turno. La memoria y el historial pueden aportar preferencias, pero NO son evidencia sobre el contenido del documento y nunca deben sustituirlo. Resume únicamente lo respaldado por este bloque; si indica truncamiento, acláralo.`;
+    finalMessage = `${finalMessage}\n\n${activeDocument.context}`;
+  } else if (activeDocumentRequest) {
+    systemInstruction = `${systemInstruction}\n\nLa solicitud depende del documento activo, pero la extracción automática no produjo contenido. Usa read_active_document antes de responder. Si también falla, informa que no pudiste leer el documento; no uses recuerdos, historial ni otra pestaña como sustituto.`;
   }
   if (hybridSurfaceRequest) {
     systemInstruction = `${systemInstruction}\n\nEsta es una tarea hibrida por superficies. Conserva el modelo actual como orquestador: primero usa use_computer con backend desktop solo para observar la aplicacion externa; despues utiliza read_browser_dom y el controlador del navegador integrado (o backend browser si el DOM no basta) sobre la sesion visible. Verifica el resultado de cada fase. No incluyas el envio dentro de la observacion desktop y solicita confirmacion humana antes de enviar o publicar.`;
@@ -400,6 +412,52 @@ type BrowserObservation = {
   sourceImages: BrowserDomSnapshot['images'];
   source: { title: string; url: string };
 };
+
+type ActiveDocumentObservation = {
+  context: string;
+};
+
+async function captureActiveDocument(options?: SendMessageStreamOptions): Promise<ActiveDocumentObservation | null> {
+  if (options?.signal?.aborted) return null;
+  try {
+    const result = await withBrowserObservationTimeout(
+      window.integratedBrowser?.readActiveDocument(),
+      options?.signal,
+    );
+    const document = result?.document;
+    if (!result?.success || !document?.text.trim()) return null;
+    options?.onToolCall?.({
+      name: 'read_active_document',
+      args: { source: 'automatic', tabId: document.tabId },
+      result: JSON.stringify({ success: true, title: document.title, url: document.url, chars: document.text.length }),
+    });
+    const metadata = JSON.stringify({
+      tabId: document.tabId,
+      url: document.url,
+      title: document.title,
+      language: document.language,
+      truncated: document.truncated,
+      totalChars: document.text.length,
+    });
+    return {
+      context: `INICIO_DOCUMENTO_ACTIVO_NO_CONFIABLE\n${metadata}\n${document.text}\nFIN_DOCUMENTO_ACTIVO_NO_CONFIABLE`,
+    };
+  } catch (error) {
+    console.warn('[GeminiChat] no fue posible leer el documento activo:', error);
+    return null;
+  }
+}
+
+function isActiveDocumentSummaryFollowUp(
+  message: string,
+  conversationHistory: ConversationMessage[],
+): boolean {
+  const asksForSummary = /\b(resumen|resumir|resume|ejecutiv[oa])\b/i.test(message.normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
+  if (!asksForSummary) return false;
+  return conversationHistory.slice(-4).some((entry) => (
+    entry.role === 'user' && isActiveDocumentContentRequest(entry.text)
+  ));
+}
 
 async function captureVisibleIntegratedBrowser(
   options?: SendMessageStreamOptions,

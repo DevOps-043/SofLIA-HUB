@@ -17,6 +17,7 @@ interface CreateProcessMessageInput {
   optimizerTarget: 'chatgpt' | 'claude' | 'gemini';
   isImageGenMode: boolean;
   activeSkill: ActiveSkillState | null;
+  memorySessionScope: string;
   sofiaUserId?: string;
 }
 

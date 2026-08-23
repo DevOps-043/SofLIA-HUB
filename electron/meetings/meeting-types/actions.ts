@@ -35,6 +35,7 @@ export interface UpdateMeetingActionInput {
   due_date?: string | null;
   owner_candidate?: string | null;
   assignee_id?: string | null;
+  issue_id?: string | null;
 }
 
 export interface ProposedMeetingAction {

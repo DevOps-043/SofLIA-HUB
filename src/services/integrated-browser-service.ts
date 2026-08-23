@@ -320,6 +320,19 @@ export interface BrowserReadingModeRequest {
   selection: string;
 }
 
+export interface BrowserDocumentContent {
+  tabId: string;
+  url: string;
+  title: string;
+  language: string;
+  text: string;
+  truncated: boolean;
+}
+
+export interface BrowserDocumentResponse extends IntegratedBrowserResponse {
+  document?: BrowserDocumentContent;
+}
+
 /**
  * Peticion del panel de redaccion que vive en la pagina. A diferencia de las
  * demas acciones no pasa por el chat: el renderer resuelve y devuelve el texto
@@ -432,6 +445,7 @@ export interface IntegratedBrowserApi {
   setOverlayBounds?: (bounds: { x: number; y: number; width: number; height: number }) => Promise<IntegratedBrowserResponse>;
   setOverlayPosition?: (pos: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'center') => Promise<IntegratedBrowserResponse>;
   hide(): Promise<IntegratedBrowserResponse>;
+  readActiveDocument(): Promise<BrowserDocumentResponse>;
   prepareReadingMode(input?: { sourceUrl?: string; selection?: string }): Promise<BrowserReadingResponse>;
   synthesizeReadingSegment(input: { readingId: string; requestId: string; start: number; end: number }): Promise<BrowserReadingResponse>;
   highlightReadingRange(input: { readingId: string; start?: number; end?: number }): Promise<BrowserReadingResponse>;
@@ -515,6 +529,7 @@ export const integratedBrowserService = {
   setOverlayPosition: (pos: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'center'): Promise<IntegratedBrowserResponse> =>
     requireApi().setOverlayPosition?.(pos) ?? Promise.resolve({ success: false }),
   hide: (): Promise<IntegratedBrowserResponse> => requireApi().hide(),
+  readActiveDocument: (): Promise<BrowserDocumentResponse> => requireApi().readActiveDocument(),
   prepareReadingMode: (input?: { sourceUrl?: string; selection?: string }): Promise<BrowserReadingResponse> => requireApi().prepareReadingMode(input),
   synthesizeReadingSegment: (input: { readingId: string; requestId: string; start: number; end: number }): Promise<BrowserReadingResponse> => requireApi().synthesizeReadingSegment(input),
   highlightReadingRange: (input: { readingId: string; start?: number; end?: number }): Promise<BrowserReadingResponse> => requireApi().highlightReadingRange(input),

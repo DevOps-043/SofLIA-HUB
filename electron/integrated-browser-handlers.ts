@@ -90,6 +90,7 @@ export function registerIntegratedBrowserHandlers(
   handle('integrated-browser:set-overlay-bounds', (_event, input) => service.setOverlayBounds(readOverlayBoundsInput(input)));
   handle('integrated-browser:set-overlay-position', (_event, input) => service.setOverlayPosition(readOverlayPositionInput(input)));
   handle('integrated-browser:hide', () => service.hide());
+  handle('integrated-browser:document-read', () => service.readActiveDocument(), (document) => ({ document }));
   handle('integrated-browser:reading-prepare', (_event, input) => service.prepareReadingMode(readReadingPrepareInput(input)), (reading) => ({ reading }));
   handle('integrated-browser:reading-synthesize', (_event, input) => service.synthesizeReadingSegment(readReadingSynthesisInput(input)), (speech) => ({ speech }));
   handle('integrated-browser:reading-highlight', (_event, input) => service.highlightReadingRange(readReadingHighlightInput(input)), (result) => result as Record<string, unknown>);

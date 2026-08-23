@@ -31,6 +31,8 @@ interface ProcessChatMessageInput {
   optimizerTarget: 'chatgpt' | 'claude' | 'gemini';
   isImageGenMode: boolean;
   activeSkill: ActiveSkillState | null;
+  /** Conversación persistida o borrador estable durante el montaje del chat. */
+  memorySessionScope: string;
   /** Usuario SOFIA para la memoria unificada (owner de la memoria del chat). */
   sofiaUserId?: string;
   /** Señal para cancelar la generación con el botón Stop. */
@@ -93,7 +95,11 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
       ? await withTimeoutFallback(buildIrisContext(), CONTEXT_TIMEOUT_MS, undefined)
       : undefined;
     // Memoria unificada: inyecta lo que SofLIA sabe/aprendio del usuario.
-    const memoryContext = await withTimeoutFallback(fetchChatMemoryContext(input.sofiaUserId, text), CONTEXT_TIMEOUT_MS, '');
+    const memoryContext = await withTimeoutFallback(
+      fetchChatMemoryContext(input.sofiaUserId, text, input.memorySessionScope),
+      CONTEXT_TIMEOUT_MS,
+      '',
+    );
     log('contexto listo → llamando al modelo');
     const result = await sendMessageStream(withSelectionContext(text, input.selectionContext), cleanHistory, {
       model: input.preferredPrimaryModel,
@@ -126,7 +132,7 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
     }
 
     // Registra el turno para que SofLIA aprenda (resumen + skills autonomos).
-    recordChatTurn(input.sofiaUserId, text, fullText);
+    recordChatTurn(input.sofiaUserId, text, fullText, input.memorySessionScope);
 
     const sources = await result.sources;
     const genImages = result.generatedImages;

@@ -77,11 +77,12 @@ vi.mock('../../services/gemini-tools', () => ({
   GOOGLE_WORKSPACE_TOOL_NAMES: new Set(),
   INTEGRATED_BROWSER_TOOLS: {
     functionDeclarations: [
+      { name: 'read_active_document', description: 'test', parameters: {} },
       { name: 'read_browser_dom', description: 'test', parameters: {} },
       { name: 'navigate_integrated_browser', description: 'test', parameters: {} },
     ],
   },
-  INTEGRATED_BROWSER_TOOL_NAMES: new Set(['read_browser_dom', 'navigate_integrated_browser']),
+  INTEGRATED_BROWSER_TOOL_NAMES: new Set(['read_active_document', 'read_browser_dom', 'navigate_integrated_browser']),
   NATIVE_AI_TOOLS: { functionDeclarations: [] },
   NATIVE_AI_TOOL_NAMES: new Set(),
 }));

@@ -31,6 +31,16 @@ export interface BrowserReadingContent {
   truncated: boolean;
 }
 
+/** Documento semántico de solo lectura, sin estado de reproducción asociado. */
+export interface BrowserDocumentContent {
+  tabId: string;
+  url: string;
+  title: string;
+  language: string;
+  text: string;
+  truncated: boolean;
+}
+
 export interface BrowserReadingPrepareInput {
   sourceUrl?: string;
   selection?: string;

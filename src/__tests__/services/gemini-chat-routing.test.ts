@@ -59,6 +59,17 @@ function installVisibleBrowserObservation(options?: { observation?: BrowserObser
       observation,
       state: { isVisible: true, url: 'https://mail.google.com/mail/u/0/#chat/home', title: 'Correo de SofLIA' },
     })),
+    readActiveDocument: vi.fn(async () => ({
+      success: true,
+      document: {
+        tabId: 'tab-doc',
+        url: 'https://docs.google.com/document/d/1/edit',
+        title: 'SofLIA Speakers V1.0',
+        language: 'es',
+        text: 'SofLIA Speakers conecta especialistas en transformación empresarial mediante inteligencia artificial.',
+        truncated: false,
+      },
+    })),
   };
   Object.defineProperty(window, 'integratedBrowser', { configurable: true, value: api });
   return api;
@@ -372,6 +383,42 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
       options: expect.objectContaining({
         images: ['data:image/png;base64,Y2hhdC12aXNpYmxl'],
       }),
+    }));
+  });
+
+  it('RT-012A: resume el documento activo y no sustituye su contenido por otra página', async () => {
+    const browser = installVisibleBrowserObservation();
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    await sendMessageStream('Dame un resumen del Documento', [], { model: 'gpt-5.6-luna' });
+
+    expect(browser.readActiveDocument).toHaveBeenCalled();
+    expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({
+      useToolLoop: false,
+      useWebSearch: false,
+      finalMessage: expect.stringContaining('SofLIA Speakers conecta especialistas'),
+      systemInstruction: expect.stringContaining('fuente autoritativa'),
+    }));
+    const calls = providerMocks.sendOpenAIMessageStream.mock.calls as unknown as Array<[{ finalMessage: string }]>;
+    const call = calls[calls.length - 1][0];
+    expect(call.finalMessage).not.toContain('Ernesto Hernández Martínez');
+  });
+
+  it('RT-012B: el seguimiento "resumen ejecutivo" vuelve a leer el documento citado en el turno anterior', async () => {
+    const browser = installVisibleBrowserObservation();
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    await sendMessageStream('dame un resumen ejecutivo', [
+      { role: 'user', text: 'Dame un resumen del Documento' },
+      { role: 'model', text: 'No pude completar la lectura.' },
+    ], { model: 'gpt-5.6-luna' });
+
+    expect(browser.readActiveDocument).toHaveBeenCalled();
+    expect(browser.getObservation).not.toHaveBeenCalled();
+    expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({
+      useToolLoop: false,
+      finalMessage: expect.stringContaining('SofLIA Speakers conecta especialistas'),
+      systemInstruction: expect.stringContaining('fuente autoritativa'),
     }));
   });
 

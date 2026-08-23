@@ -29,6 +29,7 @@ describe('wrapper renderer del navegador integrado', () => {
       toggleDevTools: vi.fn(async () => ({ success: true })),
       setViewport: vi.fn(async () => ({ success: true })),
       hide: vi.fn(async () => ({ success: true })),
+      readActiveDocument: vi.fn(async () => ({ success: true, document: { tabId: 'tab-1', url: 'https://docs.google.com/document/d/1/edit', title: 'Documento', language: 'es', text: 'Contenido', truncated: false } })),
       listHistory: vi.fn(async () => ({ success: true, history: [] })),
       clearHistory: vi.fn(async () => ({ success: true, cleared: true })),
       clearBrowsingData: vi.fn(async () => ({ success: true, summary: { range: 'todo' as const, results: [] } })),
@@ -77,6 +78,7 @@ describe('wrapper renderer del navegador integrado', () => {
     await integratedBrowserService.reattachTab('tab-1');
     await integratedBrowserService.setViewMode('split', 'tab-2');
     await integratedBrowserService.closeTab('tab-2');
+    await integratedBrowserService.readActiveDocument();
     await integratedBrowserService.prepareReadingMode({ sourceUrl: 'https://example.com', selection: 'Texto' });
     await integratedBrowserService.synthesizeReadingSegment({ readingId: 'reading-id', requestId: 'request-id', start: 0, end: 5 });
     await integratedBrowserService.highlightReadingRange({ readingId: 'reading-id', start: 0, end: 5 });
@@ -92,6 +94,7 @@ describe('wrapper renderer del navegador integrado', () => {
     expect(api.reattachTab).toHaveBeenCalledWith('tab-1');
     expect(api.setViewMode).toHaveBeenCalledWith('split', 'tab-2');
     expect(api.closeTab).toHaveBeenCalledWith('tab-2');
+    expect(api.readActiveDocument).toHaveBeenCalled();
     expect(api.captureVisible).toHaveBeenCalled();
     expect(api.getObservation).toHaveBeenCalledWith(true);
     expect(api.setObservationEnabled).toHaveBeenCalledWith(false);

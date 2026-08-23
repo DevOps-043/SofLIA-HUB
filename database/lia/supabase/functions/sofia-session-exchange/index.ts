@@ -99,7 +99,19 @@ async function handleRequest(request: Request): Promise<Response> {
       return {
         tokenHash: data.properties.hashed_token,
         email: data.user.email || null,
+        liaUserId: data.user.id,
       };
+    },
+    recordFederatedIdentity: async (sofiaUserId, liaUserId) => {
+      const { error } = await liaAdmin
+        .from('federated_identities')
+        .upsert({
+          sofia_user_id: sofiaUserId,
+          lia_user_id: liaUserId,
+          verified_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'sofia_user_id' });
+      if (error) throw new Error('federated_identity_write_failed');
     },
   });
 

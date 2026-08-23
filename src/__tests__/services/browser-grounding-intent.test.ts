@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { classifyBrowserGroundingIntent } from '../../services/gemini-chat/browser-grounding-intent';
+import { classifyBrowserGroundingIntent, isActiveDocumentContentRequest } from '../../services/gemini-chat/browser-grounding-intent';
 
 describe('clasificación contextual del navegador', () => {
   it('BGI-001: reconoce un recurso compartido por una persona sin verbo visual', () => {
@@ -30,5 +30,10 @@ describe('clasificación contextual del navegador', () => {
   it('BGI-006: una referencia visual a Codex se conserva como superficie desktop', () => {
     expect(classifyBrowserGroundingIntent('mira lo que hace Codex y prepara un resumen ejecutivo'))
       .toBe('none');
+  });
+
+  it('BGI-007: la frase exacta de la incidencia exige leer el documento activo', () => {
+    expect(classifyBrowserGroundingIntent('Dame un resumen del Documento')).toBe('read-current');
+    expect(isActiveDocumentContentRequest('Dame un resumen del Documento')).toBe(true);
   });
 });

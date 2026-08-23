@@ -16,6 +16,8 @@ export interface UseChatProcessorParams {
   isPromptOptimizerMode: boolean;
   optimizerTarget: 'chatgpt' | 'claude' | 'gemini';
   activeSkill: ActiveSkillState | null;
+  /** Alcance estable de la memoria reciente para esta conversación. */
+  memorySessionScope: string;
   /** Usuario SOFIA para la memoria unificada del chat (owner). */
   sofiaUserId?: string;
 }

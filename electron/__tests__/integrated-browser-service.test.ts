@@ -1414,4 +1414,29 @@ describe('IntegratedBrowserService', () => {
     await expect(service.openForAgent(undefined, 1)).rejects.toThrow(/viewport visible/i);
     expect(service.getState().agentControlling).toBe(false);
   });
+
+  it('DOC-READ-001: rechaza el contenido si cambia la pestaña activa durante la extracción', async () => {
+    const service = new IntegratedBrowserService();
+    const window = new BrowserWindow();
+    service.attachWindow(window);
+    await service.open('https://example.com/documento');
+    service.setViewport({ x: 100, y: 100, width: 800, height: 600 });
+    const firstContents = browserViewHarness.instances[0].webContents;
+    let finishExtraction!: (value: unknown) => void;
+    firstContents.executeJavaScript.mockImplementationOnce(() => new Promise((resolve) => {
+      finishExtraction = resolve;
+    }));
+
+    const pendingRead = service.readActiveDocument();
+    await Promise.resolve();
+    await service.createTab('https://example.com/otro');
+    finishExtraction({
+      title: 'Documento anterior',
+      language: 'es',
+      truncated: false,
+      blocks: [{ kind: 'paragraph', text: 'Contenido que ya no es activo.', level: null }],
+    });
+
+    await expect(pendingRead).rejects.toThrow(/cambió durante la lectura/i);
+  });
 });

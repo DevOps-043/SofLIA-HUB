@@ -3,6 +3,9 @@ import type { PreloadBridge, SafeIpc } from './types';
 export interface RendererAuthState {
   authenticated: boolean;
   userId: string | null;
+  accessToken?: string | null;
+  refreshToken?: string | null;
+  sofiaAccessToken?: string | null;
 }
 
 // Superficie minima: el renderer publica su estado de sesion para que el main

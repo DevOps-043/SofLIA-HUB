@@ -11,6 +11,7 @@ const EMPTY_ACTION_DRAFT: ActionDraft = {
   teamId: '',
   projectId: '',
   assigneeId: '',
+  existingIssueId: '',
 };
 
 export function buildActionDrafts(detail: MeetingRunDetail | null): Record<string, ActionDraft> {
@@ -24,6 +25,7 @@ export function buildActionDrafts(detail: MeetingRunDetail | null): Record<strin
       teamId: action.payload.team_id || '',
       projectId: action.payload.project_id || '',
       assigneeId: action.payload.assignee_id || '',
+      existingIssueId: action.payload.issue_id || '',
     };
   }
   return nextDrafts;

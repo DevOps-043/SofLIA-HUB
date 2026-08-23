@@ -5,7 +5,7 @@ export { BrowserCredentialVault } from './credential-vault';
 export { BrowserExtensionManager } from './extension-manager';
 export { BrowserReadingModeService } from './reading-mode-service';
 export type { BrowserReadingSpeechResult, BrowserReadingWordTiming } from './reading-mode-service';
-export type { BrowserReadingBlock, BrowserReadingContent, BrowserReadingPrepareInput } from './reading-mode-content';
+export type { BrowserDocumentContent, BrowserReadingBlock, BrowserReadingContent, BrowserReadingPrepareInput } from './reading-mode-content';
 export type {
   BrowserCredentialMetadata,
   BrowserCredentialSaveInput,
