@@ -49,6 +49,9 @@ export class ProjectHubApiService {
       return { success: true, data: { workspaces: this.session.workspaces } };
     } catch (error) {
       const result = failure(error);
+      if (result.code === 'UNAVAILABLE') {
+        result.error = `No se puede conectar con Project Hub en ${safeOrigin(this.baseUrl)}.`;
+      }
       this.lastAuthFailure = { code: result.code, error: result.error };
       return result;
     }
@@ -222,6 +225,14 @@ function failure(error: unknown): ProjectHubResult<never> {
   if (error instanceof ProjectHubHttpError) return { success: false, code: error.code, error: error.message };
   if (error instanceof Error && error.name === 'AbortError') return { success: false, code: 'TIMEOUT', error: 'Project Hub tardó demasiado en responder.' };
   return { success: false, code: 'UNAVAILABLE', error: 'Project Hub no está disponible.' };
+}
+
+function safeOrigin(value: string): string {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return 'el servidor configurado';
+  }
 }
 
 let singleton: ProjectHubApiService | null = null;

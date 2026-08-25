@@ -359,6 +359,12 @@ quedaron dentro de `assets/`.
 | Google OAuth/APIs | Calendar auth compartido | `VITE_GOOGLE_OAUTH_CLIENT_ID/SECRET` | conexion por usuario, refresh y desconexion |
 | Microsoft Calendar | MSAL/Graph | `VITE_MICROSOFT_CLIENT_ID` | conexion separada por provider |
 | ElevenLabs | REST binario y `with-timestamps` desde main | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`; default `eleven_turbo_v2_5`, formato opcional | Orbe conserva texto sin voz; lector visual disponible; errores saneados de permiso, cuota o timeout |
+
+En desarrollo, `npm run dev` ejecuta `scripts/dev-with-project-hub.mjs`: comprueba
+`PROJECT_HUB_API_URL` y, cuando apunta a localhost y no responde, inicia
+automáticamente el workspace hermano Project Hub antes de Vite/Electron. La ruta
+puede sobrescribirse con `PROJECT_HUB_DEV_ROOT`. Una URL remota nunca provoca el
+arranque de procesos locales.
 | WhatsApp | Baileys WebSocket | QR + config en `userData` | reconnect/status; allowlists |
 | Telegram | Bot API | config cifrada/estado local del servicio | test de conexion y status |
 | SMTP | Nodemailer | configurado via handlers computer | confirmacion de envio y error seguro |

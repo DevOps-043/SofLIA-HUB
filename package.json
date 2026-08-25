@@ -8,7 +8,8 @@
     "email": "devops@soflia.ai"
   },
   "scripts": {
-    "dev": "vite --config vite.config.mts",
+    "dev": "node scripts/dev-with-project-hub.mjs",
+    "dev:app": "vite --config vite.config.mts",
     "dev:clean": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-clean.ps1",
     "dev:fresh": "npm run dev:clean && npm run dev",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
