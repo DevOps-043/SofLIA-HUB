@@ -3,7 +3,6 @@ import type { ProjectHubEnvelope, ProjectHubProject, ProjectHubRequestOptions, P
 
 const REQUEST_TIMEOUT_MS = 15_000;
 const IDEMPOTENT_RETRIES = 2;
-const LOCAL_PROJECT_HUB_URL = 'http://127.0.0.1:3000';
 const PUBLIC_PROJECT_HUB_URL = 'https://sofliahub.netlify.app';
 
 class ProjectHubHttpError extends Error {
@@ -244,10 +243,9 @@ export function resolveProjectHubBaseUrl(): string {
   const bundledUrl = process.env.VITE_PROJECT_HUB_API_URL?.trim();
   if (bundledUrl) return bundledUrl;
 
-  // El servidor local es exclusivamente una comodidad de `npm run dev`.
-  // Los instaladores usan el dominio oficial aunque el pipeline antiguo no
-  // haya incorporado todavía la variable de build.
-  return process.env.VITE_DEV_SERVER_URL ? LOCAL_PROJECT_HUB_URL : PUBLIC_PROJECT_HUB_URL;
+  // La URL oficial es segura como valor por defecto porque no contiene
+  // credenciales. Localhost sólo se usa mediante PROJECT_HUB_API_URL explícita.
+  return PUBLIC_PROJECT_HUB_URL;
 }
 
 function failure(error: unknown): ProjectHubResult<never> {

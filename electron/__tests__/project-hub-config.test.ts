@@ -26,14 +26,10 @@ describe('resolveProjectHubBaseUrl', () => {
     expect(resolveProjectHubBaseUrl()).toBe('https://project-hub.example.com');
   });
 
-  it('usa el dominio oficial en producción y localhost sólo en desarrollo', () => {
+  it('usa el dominio oficial cuando no hay una sobrescritura explícita', () => {
     setEnv('PROJECT_HUB_API_URL');
     setEnv('VITE_PROJECT_HUB_API_URL');
-    setEnv('VITE_DEV_SERVER_URL');
     expect(resolveProjectHubBaseUrl()).toBe('https://sofliahub.netlify.app');
-
-    setEnv('VITE_DEV_SERVER_URL', 'http://127.0.0.1:5173');
-    expect(resolveProjectHubBaseUrl()).toBe('http://127.0.0.1:3000');
   });
 });
 
