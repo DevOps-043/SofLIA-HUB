@@ -361,10 +361,17 @@ quedaron dentro de `assets/`.
 | ElevenLabs | REST binario y `with-timestamps` desde main | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`; default `eleven_turbo_v2_5`, formato opcional | Orbe conserva texto sin voz; lector visual disponible; errores saneados de permiso, cuota o timeout |
 
 En desarrollo, `npm run dev` ejecuta `scripts/dev-with-project-hub.mjs`: comprueba
-`PROJECT_HUB_API_URL` y, cuando apunta a localhost y no responde, inicia
+`PROJECT_HUB_API_URL` (por defecto `http://127.0.0.1:3000`) y, cuando apunta al equipo local y no responde, inicia
 automáticamente el workspace hermano Project Hub antes de Vite/Electron. La ruta
 puede sobrescribirse con `PROJECT_HUB_DEV_ROOT`. Una URL remota nunca provoca el
 arranque de procesos locales.
+
+Los instaladores reciben el endpoint público mediante
+`VITE_PROJECT_HUB_API_URL` durante el build. `PROJECT_HUB_API_URL` puede
+sobrescribirlo en runtime para diagnóstico o despliegues administrados. Como
+compatibilidad con instaladores construidos por pipelines anteriores, producción
+usa `https://sofliahub.netlify.app`; `127.0.0.1` sólo se utiliza cuando existe
+`VITE_DEV_SERVER_URL`.
 | WhatsApp | Baileys WebSocket | QR + config en `userData` | reconnect/status; allowlists |
 | Telegram | Bot API | config cifrada/estado local del servicio | test de conexion y status |
 | SMTP | Nodemailer | configurado via handlers computer | confirmacion de envio y error seguro |

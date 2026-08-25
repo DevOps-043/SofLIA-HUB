@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { UnifiedProjectsSection } from '../../components/sidebar/UnifiedProjectsSection';
 import { createDefaultProps } from './Sidebar.fixture';
 
@@ -9,7 +9,33 @@ const workspaceB = { id: 'c66c432f-1e7b-427c-8124-bef8f5ed053d', name: 'SofLIA',
 
 describe('UnifiedProjectsSection', () => {
   afterEach(() => {
+    vi.useRealTimers();
     delete (window as Window & { projectHubApi?: unknown }).projectHubApi;
+  });
+
+  it('se reconecta automáticamente cuando Project Hub vuelve a responder', async () => {
+    vi.useFakeTimers();
+    const listProjects = vi.fn()
+      .mockResolvedValueOnce({ success: false, code: 'UNAVAILABLE', error: 'No se puede conectar con Project Hub.' })
+      .mockResolvedValue({ success: true, data: [] });
+    (window as Window & { projectHubApi?: unknown }).projectHubApi = {
+      getStatus: vi.fn().mockResolvedValue({
+        success: true,
+        data: { enabled: true, authenticated: true, workspaces: [workspaceA] },
+      }),
+      retryAuthentication: vi.fn(),
+      listProjects,
+      createProject: vi.fn(),
+    };
+
+    render(<UnifiedProjectsSection props={createDefaultProps()} />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(screen.getByText(/No se puede conectar con Project Hub/)).toBeInTheDocument();
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(3_000); });
+    expect(listProjects).toHaveBeenCalledTimes(2);
+    expect(screen.queryByText(/No se puede conectar con Project Hub/)).not.toBeInTheDocument();
+    expect(screen.getByText('Aún no hay proyectos.')).toBeInTheDocument();
   });
 
   it('crea desde un formulario compatible con Electron, sin window.prompt', async () => {

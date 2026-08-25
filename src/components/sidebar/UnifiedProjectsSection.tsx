@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { projectHubApi, type ProjectHubProject } from '../../services/project-hub-api';
 import type { SidebarProps } from './types';
 import { SidebarSectionLabel } from './SidebarSectionLabel';
 
 interface ListedProject extends ProjectHubProject { workspaceName: string }
+
+const AUTO_RETRY_DELAY_MS = 3_000;
+const RECOVERABLE_CODES = new Set(['UNAVAILABLE', 'TIMEOUT', 'NOT_AUTHENTICATED', 'SOFIA_SESSION_PENDING']);
 
 export function UnifiedProjectsSection({ props }: { props: SidebarProps }) {
   const [projects, setProjects] = useState<ListedProject[]>([]);
@@ -14,8 +17,11 @@ export function UnifiedProjectsSection({ props }: { props: SidebarProps }) {
   const [projectName, setProjectName] = useState('');
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
   const [creating, setCreating] = useState(false);
+  const [autoRetry, setAutoRetry] = useState(false);
+  const loadSequence = useRef(0);
 
   const load = useCallback(async (retryAuthentication = false) => {
+    const sequence = ++loadSequence.current;
     setLoading(true);
     setError(null);
     let status = await projectHubApi.status();
@@ -23,27 +29,36 @@ export function UnifiedProjectsSection({ props }: { props: SidebarProps }) {
       await projectHubApi.retryAuthentication();
       status = await projectHubApi.status();
     }
-    if (!status.success || status.data?.enabled === false || !status.data?.authenticated) {
-      setError(status.error || status.data?.authError?.error || 'Project Hub no está conectado.');
+    if (sequence !== loadSequence.current) return;
+    if (!status.success || status.data?.configured === false || status.data?.enabled === false || !status.data?.authenticated) {
+      setError(status.error || status.data?.authError?.error || (status.data?.configured === false
+        ? 'Project Hub no está configurado en esta versión de Pulse Hub.'
+        : 'Project Hub no está conectado.'));
+      setAutoRetry(RECOVERABLE_CODES.has(status.code || status.data?.authError?.code || ''));
       setLoading(false);
       return;
     }
     setWorkspaces(status.data.workspaces);
     setSelectedWorkspaceId((current) => current || status.data!.workspaces[0]?.id || '');
     const results = await Promise.all(status.data.workspaces.map(async (workspace) => ({ workspace, result: await projectHubApi.listProjects(workspace.id) })));
+    if (sequence !== loadSequence.current) return;
     setProjects(results.flatMap(({ workspace, result }) => (result.data || []).map((project) => ({ ...project, workspaceName: workspace.name }))));
-    setError(results.find(({ result }) => !result.success)?.result.error || null);
+    const failed = results.find(({ result }) => !result.success)?.result;
+    setError(failed?.error || null);
+    setAutoRetry(Boolean(failed && RECOVERABLE_CODES.has(failed.code || '')));
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    // El estado de autenticacion se publica desde otro efecto. El segundo
-    // intento resuelve la carrera normal del arranque sin obligar al usuario a
-    // pulsar Reintentar.
-    const firstTimer = window.setTimeout(() => { void load(true); }, 0);
-    const recoveryTimer = window.setTimeout(() => { void load(true); }, 1_500);
-    return () => { window.clearTimeout(firstTimer); window.clearTimeout(recoveryTimer); };
+    const timer = window.setTimeout(() => { void load(true); }, 0);
+    return () => { window.clearTimeout(timer); };
   }, [load]);
+
+  useEffect(() => {
+    if (!autoRetry) return;
+    const timer = window.setTimeout(() => { void load(true); }, AUTO_RETRY_DELAY_MS);
+    return () => { window.clearTimeout(timer); };
+  }, [autoRetry, error, load]);
 
   const openCreator = () => {
     if (!workspaces.length) return setError('No hay un workspace disponible.');

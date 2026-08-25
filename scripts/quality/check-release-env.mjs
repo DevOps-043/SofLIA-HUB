@@ -1,3 +1,5 @@
+/* global console, process */
+
 /**
  * Compuerta de variables de build.
  *
@@ -38,6 +40,7 @@ const RUNTIME_INJECTED = new Set(['VITE_PUBLIC', 'VITE_DEV_SERVER_URL']);
 const REQUIRED_NON_EMPTY = [
   'VITE_GEMINI_API_KEY',
   'VITE_OPENAI_API_KEY',
+  'VITE_PROJECT_HUB_API_URL',
   'VITE_SUPABASE_URL',
   'VITE_SUPABASE_ANON_KEY',
   'VITE_SOFIA_SUPABASE_URL',

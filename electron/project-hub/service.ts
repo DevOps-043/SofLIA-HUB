@@ -3,6 +3,8 @@ import type { ProjectHubEnvelope, ProjectHubProject, ProjectHubRequestOptions, P
 
 const REQUEST_TIMEOUT_MS = 15_000;
 const IDEMPOTENT_RETRIES = 2;
+const LOCAL_PROJECT_HUB_URL = 'http://127.0.0.1:3000';
+const PUBLIC_PROJECT_HUB_URL = 'https://sofliahub.netlify.app';
 
 class ProjectHubHttpError extends Error {
   constructor(public status: number, public code: string, message: string) { super(message); }
@@ -15,7 +17,7 @@ export class ProjectHubApiService {
   private sofiaAccessToken: string | null = null;
   private lastAuthFailure: Pick<ProjectHubResult, 'code' | 'error'> | null = null;
 
-  constructor(baseUrl = process.env.PROJECT_HUB_API_URL || 'http://localhost:3000') {
+  constructor(baseUrl = resolveProjectHubBaseUrl()) {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
   }
 
@@ -36,6 +38,15 @@ export class ProjectHubApiService {
     // Se conserva solo en memoria para permitir que el boton Reintentar repita
     // el canje. Nunca se persiste ni se expone de vuelta al renderer.
     this.sofiaAccessToken = sofiaAccessToken;
+    if (!this.baseUrl) {
+      const result = {
+        success: false,
+        code: 'NOT_CONFIGURED',
+        error: 'Project Hub no está configurado en esta versión de Pulse Hub.',
+      };
+      this.lastAuthFailure = { code: result.code, error: result.error };
+      return result;
+    }
     try {
       const response = await this.fetchEnvelope<{
         access_token: string; refresh_token: string; expires_in: number; workspaces: ProjectHubSession['workspaces'];
@@ -166,6 +177,9 @@ export class ProjectHubApiService {
   }
 
   private async fetchEnvelope<T>(path: string, options: ProjectHubRequestOptions, allowRefresh = true): Promise<ProjectHubEnvelope<T>> {
+    if (!this.baseUrl) {
+      throw new ProjectHubHttpError(503, 'NOT_CONFIGURED', 'Project Hub no está configurado en esta versión de Pulse Hub.');
+    }
     const method = options.method || 'GET';
     const retries = options.retry !== false && ['GET'].includes(method) ? IDEMPOTENT_RETRIES : 0;
     for (let attempt = 0; ; attempt += 1) {
@@ -219,6 +233,21 @@ export class ProjectHubApiService {
     })().finally(() => { this.refreshFlight = null; });
     return this.refreshFlight;
   }
+}
+
+export function resolveProjectHubBaseUrl(): string {
+  const runtimeUrl = process.env.PROJECT_HUB_API_URL?.trim();
+  if (runtimeUrl) return runtimeUrl;
+
+  // Vite sustituye esta expresión literal durante el build del proceso main.
+  // Es una URL pública, nunca una credencial.
+  const bundledUrl = process.env.VITE_PROJECT_HUB_API_URL?.trim();
+  if (bundledUrl) return bundledUrl;
+
+  // El servidor local es exclusivamente una comodidad de `npm run dev`.
+  // Los instaladores usan el dominio oficial aunque el pipeline antiguo no
+  // haya incorporado todavía la variable de build.
+  return process.env.VITE_DEV_SERVER_URL ? LOCAL_PROJECT_HUB_URL : PUBLIC_PROJECT_HUB_URL;
 }
 
 function failure(error: unknown): ProjectHubResult<never> {

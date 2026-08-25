@@ -98,6 +98,7 @@ jobs:
           echo "VITE_GOOGLE_OAUTH_CLIENT_ID=${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_ID }}" >> .env
           echo "VITE_GOOGLE_OAUTH_CLIENT_SECRET=${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_SECRET }}" >> .env
           echo "VITE_OPENAI_API_KEY=${{ secrets.VITE_OPENAI_API_KEY }}" >> .env
+          echo "VITE_PROJECT_HUB_API_URL=https://sofliahub.netlify.app" >> .env
           echo "VITE_OPENAI_VECTOR_STORE_IDS=${{ secrets.VITE_OPENAI_VECTOR_STORE_IDS }}" >> .env
           echo "VITE_MICROSOFT_CLIENT_ID=${{ secrets.VITE_MICROSOFT_CLIENT_ID }}" >> .env
           echo "VITE_SOFLIA_LEARNING_SUPABASE_URL=${{ secrets.VITE_SOFLIA_LEARNING_SUPABASE_URL }}" >> .env
@@ -158,6 +159,7 @@ jobs:
           echo "VITE_GOOGLE_OAUTH_CLIENT_ID=${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_ID }}" >> .env
           echo "VITE_GOOGLE_OAUTH_CLIENT_SECRET=${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_SECRET }}" >> .env
           echo "VITE_OPENAI_API_KEY=${{ secrets.VITE_OPENAI_API_KEY }}" >> .env
+          echo "VITE_PROJECT_HUB_API_URL=https://sofliahub.netlify.app" >> .env
           echo "VITE_OPENAI_VECTOR_STORE_IDS=${{ secrets.VITE_OPENAI_VECTOR_STORE_IDS }}" >> .env
           echo "VITE_MICROSOFT_CLIENT_ID=${{ secrets.VITE_MICROSOFT_CLIENT_ID }}" >> .env
           echo "VITE_SOFLIA_LEARNING_SUPABASE_URL=${{ secrets.VITE_SOFLIA_LEARNING_SUPABASE_URL }}" >> .env
@@ -231,6 +233,7 @@ jobs:
           echo "VITE_GOOGLE_OAUTH_CLIENT_ID=${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_ID }}" >> .env
           echo "VITE_GOOGLE_OAUTH_CLIENT_SECRET=${{ secrets.VITE_GOOGLE_OAUTH_CLIENT_SECRET }}" >> .env
           echo "VITE_OPENAI_API_KEY=${{ secrets.VITE_OPENAI_API_KEY }}" >> .env
+          echo "VITE_PROJECT_HUB_API_URL=https://sofliahub.netlify.app" >> .env
           echo "VITE_OPENAI_VECTOR_STORE_IDS=${{ secrets.VITE_OPENAI_VECTOR_STORE_IDS }}" >> .env
           echo "VITE_MICROSOFT_CLIENT_ID=${{ secrets.VITE_MICROSOFT_CLIENT_ID }}" >> .env
           echo "VITE_SOFLIA_LEARNING_SUPABASE_URL=${{ secrets.VITE_SOFLIA_LEARNING_SUPABASE_URL }}" >> .env

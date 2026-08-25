@@ -10,7 +10,7 @@ const appRoot = path.resolve(scriptDirectory, '..');
 const projectHubRoot = path.resolve(
   process.env.PROJECT_HUB_DEV_ROOT || path.join(appRoot, '..', '..', 'Project-Hub', 'Project-Hub'),
 );
-const projectHubUrl = (process.env.PROJECT_HUB_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
+const projectHubUrl = (process.env.PROJECT_HUB_API_URL || 'http://127.0.0.1:3000').replace(/\/+$/, '');
 const children = new Set();
 let shuttingDown = false;
 
