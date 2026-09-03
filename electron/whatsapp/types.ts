@@ -50,6 +50,14 @@ export interface WhatsAppAgentPersonalization {
   flowInstructions: string;
 }
 
+/** Ultimo rechazo de envio reportado por el servidor de WhatsApp. */
+export interface WhatsAppDeliveryError {
+  jid: string;
+  code: string;
+  reason: string;
+  at: string;
+}
+
 export interface WhatsAppServiceCore {
   sock: WASocket | null;
   config: WhatsAppConfig;
@@ -58,6 +66,7 @@ export interface WhatsAppServiceCore {
   phoneNumber: string | null;
   reconnectAttempts: number;
   maxReconnectAttempts: number;
+  lastDeliveryError: WhatsAppDeliveryError | null;
   groupContext: Map<string, Array<{ sender: string; text: string; timestamp: number }>>;
   communicationHubService?: CommunicationHubService | null;
   emit(eventName: string, ...args: any[]): boolean;

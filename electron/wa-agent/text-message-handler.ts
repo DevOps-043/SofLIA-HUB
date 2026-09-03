@@ -45,6 +45,24 @@ export async function handleWhatsAppTextMessage(input: {
   const text = input.text.trim();
   if (!text) return;
 
+  /**
+   * Envio que nunca vuelve a lanzar.
+   *
+   * La ruta de error de este manejador tambien responde por WhatsApp: cuando el
+   * fallo original era el propio transporte, ese segundo envio lanzaba otra vez
+   * y la promesa terminaba rechazada sin dueno, porque quien escucha el evento
+   * la descarta con `void`. El resultado era silencio absoluto y ningun rastro.
+   */
+  const trySend = async (message: string, stage: string): Promise<boolean> => {
+    try {
+      await input.waService.sendText(input.jid, message);
+      return true;
+    } catch (error) {
+      console.error(`[WhatsApp Agent] No se pudo enviar la respuesta (${stage}) a ${input.jid}:`, error);
+      return false;
+    }
+  };
+
   const sessionKey = input.isGroup ? `group:${input.jid}:${input.senderNumber}` : input.senderNumber;
   if (MeetingWorkflowManager.isActive(sessionKey)) {
     await MeetingWorkflowManager.handleMessage(sessionKey, text);
@@ -69,12 +87,12 @@ export async function handleWhatsAppTextMessage(input: {
     try {
       const commandResult = await input.handleChatCommand(input.jid, input.senderNumber, text, input.isGroup);
       if (commandResult) {
-        await input.waService.sendText(input.jid, commandResult);
+        await trySend(commandResult, 'comando');
         return;
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'No pude ejecutar ese comando.';
-      await input.waService.sendText(input.jid, `No pude completar ese comando.\n${message}`);
+      await trySend(`No pude completar ese comando.\n${message}`, 'error de comando');
       return;
     }
     if (WorkflowManager.isActive(sessionKey) || MeetingWorkflowManager.isActive(sessionKey)) return;
@@ -88,7 +106,7 @@ export async function handleWhatsAppTextMessage(input: {
     channel: 'whatsapp',
   });
   if (passiveSkillReply) {
-    await input.waService.sendText(input.jid, passiveSkillReply);
+    await trySend(passiveSkillReply, 'skill pasiva');
     return;
   }
 
@@ -101,17 +119,24 @@ export async function handleWhatsAppTextMessage(input: {
       input.groupPassiveHistory,
     );
     if (response) {
-      const deliver = input.deliverReply ?? ((text: string) => input.waService.sendText(input.jid, text));
-      await deliver(response);
+      const deliver = input.deliverReply ?? ((reply: string) => input.waService.sendText(input.jid, reply));
+      try {
+        await deliver(response);
+      } catch (deliveryError) {
+        console.error(`[WhatsApp Agent] Fallo la entrega de la respuesta a ${input.jid}:`, deliveryError);
+        // La entrega inyectada puede ser por voz: si esa falla, el texto plano
+        // sigue siendo una respuesta valida y es el ultimo intento util.
+        await trySend(response, 'reintento en texto');
+      }
     }
   } catch (err: any) {
     console.error('[WhatsApp Agent] Error:', err);
     if (!shouldResetConversationAfterAgentError(err)) {
-      await input.waService.sendText(input.jid, getWhatsAppAgentUserErrorMessage(err));
+      await trySend(getWhatsAppAgentUserErrorMessage(err), 'error del agente');
       return;
     }
     input.conversations.delete(sessionKey);
     console.warn(`[WhatsApp Agent] Auto-reset conversation for ${sessionKey} after error`);
-    await input.waService.sendText(input.jid, 'Ocurrió un error. He reiniciado la conversación. Intenta de nuevo.');
+    await trySend('Ocurrió un error. He reiniciado la conversación. Intenta de nuevo.', 'reinicio de conversacion');
   }
 }

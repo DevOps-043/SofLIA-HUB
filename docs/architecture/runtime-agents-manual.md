@@ -731,11 +731,33 @@ canal externo, así que también es el que más capas de contención tiene.
 
 En **DM** responde siempre. En **grupo** solo si (`shouldRespondInGroup`):
 
-- se le menciona (`mentionedJid` contiene el número del bot), o
+- se le menciona (`mentionedJid` contiene **cualquiera** de los identificadores
+  del bot: su teléfono o su LID, `botIdentifiers`), o
 - el texto empieza con el prefijo configurado (`groupPrefix`, por defecto
   `/soflia`), o
 - el texto contiene la palabra `soflia` (patrón `\bsoflia\b`), o
 - el mensaje es *reply* a un mensaje del bot (también para media).
+
+#### Identidad del remitente y direccionamiento oculto (LID)
+
+WhatsApp entrega al remitente en dos formas. Con direccionamiento por teléfono
+llega `<telefono>@s.whatsapp.net`; con **direccionamiento oculto** llega
+`<id>@lid`, que **no es un teléfono**. Un LID tomado como número queda fuera de
+la allowlist, del número maestro, de `contactPermissions` y de la identidad
+SOFIA, así que el mensaje se descarta antes de llegar al agente y el canal
+aparenta estar conectado y mudo.
+
+`resolveSenderIdentity` (`whatsapp/message-utils.ts`) resuelve en este orden:
+
+1. El teléfono que Baileys ya trae en el sobre: `key.remoteJidAlt` en directos y
+   `key.participantAlt` en grupos. Es la fuente primaria.
+2. `signalRepository.lidMapping.getPNForLID`, que **solo** lee caché y claves
+   guardadas y no consulta al servidor: en modo LID ese mapa inverso suele estar
+   vacío, por eso no puede ser la fuente principal.
+
+Devuelve teléfono y LID por separado. La identidad SOFIA se resuelve **siempre**
+con el teléfono; si no hay teléfono, el mensaje se descarta con el motivo
+explícito en lugar de consultar el Hub con dígitos que no son un número.
 
 ### 3.2 Ruta de un mensaje de texto
 
@@ -756,8 +778,37 @@ Ante error del loop, si `shouldResetConversationAfterAgentError` lo indica se
 borra el historial de esa sesión y se avisa; si no, se responde con un mensaje
 de error legible.
 
+Todo envío de esta ruta pasa por un ayudante que **captura y registra** en vez
+de volver a lanzar. El aviso de error también sale por WhatsApp: si el fallo
+original era el propio transporte, ese segundo envío volvía a lanzar y la
+promesa terminaba rechazada sin dueño, porque el listener la descarta. El
+resultado era silencio absoluto y ningún rastro. Los listeners de
+`whatsapp-agent-init.ts` registran igualmente el rechazo de cada turno.
+
 `sessionKey` = `senderNumber` en DM y `group:<jid>:<senderNumber>` en grupo: en
 grupos cada participante tiene su propio hilo.
+
+#### Rastro de lo que no se responde
+
+Un descarte silencioso es indistinguible de una caída del canal. Cada mensaje
+detenido por una guarda deja una entrada `system` en el historial con
+`droppedReason`, el LID y el teléfono, además del aviso en consola.
+
+Del lado de salida, `sock.sendMessage` resuelve en cuanto la stanza sale: si
+WhatsApp la rechaza después, el fallo llega como un **ack de error** y el envío
+ya se dio por bueno. `whatsapp/delivery-events.ts` observa `messages.update` con
+`status` de error, traduce el código (463 cuenta restringida o token de
+privacidad ausente en un chat directo, 479 stanza rechazada por sesión obsoleta
+o direccionamiento inválido, entre otros), lo guarda en `lastDeliveryError`
+—expuesto en `getStatus`— y lo registra en el historial.
+
+El logger del transporte ya no es `silent`: `WHATSAPP_LOG_LEVEL` fija el nivel
+(`warn` por defecto) para que esos rechazos sean visibles.
+
+En la reconexión, `connection-events.ts` ignora los eventos de un socket ya
+reemplazado y cierra el saliente. Sin esa guarda el cierre tardío del socket
+viejo marcaba `connected = false` sobre la conexión nueva y sana, y a partir de
+ahí todo envío fallaba con «WhatsApp no está conectado».
 
 ### 3.3 Audio y media
 
@@ -772,10 +823,11 @@ grupos cada participante tiene su propio hilo.
   se rechaza y se reconduce al modo llamada.
   El `offer` llega identificado por **LID** (`<id>@lid`), que no es un teléfono:
   el llamante se resuelve por `callerPn` y, si falta, por
-  `signalRepository.lidMapping.getPNForLID`, igual que la ruta de mensajes. Sin
-  ninguno de los dos no se sabe quién llama y no se abre sesión. Tomar el LID
-  como número lo deja fuera de la allowlist y descarta la llamada como no
-  autorizada.
+  `signalRepository.lidMapping.getPNForLID`. Es el mismo criterio que la ruta de
+  mensajes, donde el equivalente de `callerPn` son `remoteJidAlt` y
+  `participantAlt` (§3.1). Sin ninguno de los dos no se sabe quién llama y no se
+  abre sesión. Tomar el LID como número lo deja fuera de la allowlist y descarta
+  la llamada como no autorizada.
 
 ### 3.4 Prefiltro de seguridad
 

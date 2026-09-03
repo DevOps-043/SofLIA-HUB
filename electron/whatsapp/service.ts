@@ -8,12 +8,13 @@ import makeWASocket, {
 } from '@whiskeysockets/baileys';
 import { AUTH_DIR, loadConfig, saveConfig } from './config';
 import { registerConnectionEvents } from './connection-events';
+import { registerDeliveryEvents } from './delivery-events';
 import { logger } from './logger';
 import { registerMessageEvents } from './message-events';
 import { sendFile as sendWhatsAppFile, sendText as sendWhatsAppText, sendVoiceNote as sendWhatsAppVoiceNote } from './send';
 import { registerCallEvents } from './call-events';
 import { voiceCallSessions } from '../voice-call/session-store';
-import { DEFAULT_CONFIG, type WhatsAppConfig, type WhatsAppServiceCore } from './types';
+import { DEFAULT_CONFIG, type WhatsAppConfig, type WhatsAppDeliveryError, type WhatsAppServiceCore } from './types';
 import { isAllowedNumber } from './security';
 import {
   applyWhatsAppAccessConfigUpdate,
@@ -39,6 +40,7 @@ export class WhatsAppService extends EventEmitter implements WhatsAppServiceCore
   phoneNumber: string | null = null;
   reconnectAttempts = 0;
   maxReconnectAttempts = 5;
+  lastDeliveryError: WhatsAppDeliveryError | null = null;
   groupContext = new Map<string, Array<{ sender: string; text: string; timestamp: number }>>();
   history = new WhatsAppConversationHistoryStore();
   communicationHubService: CommunicationHubService | null = null;
@@ -71,6 +73,7 @@ export class WhatsAppService extends EventEmitter implements WhatsAppServiceCore
     registerConnectionEvents(this, saveCreds);
     registerMessageEvents(this);
     registerCallEvents(this);
+    registerDeliveryEvents(this);
   }
 
   async disconnect(): Promise<void> {
@@ -127,6 +130,7 @@ export class WhatsAppService extends EventEmitter implements WhatsAppServiceCore
     return {
       connected: this.connected,
       phoneNumber: this.phoneNumber,
+      lastDeliveryError: this.lastDeliveryError,
       qr: this.qrDataUrl,
       allowedNumbers: this.config.allowedNumbers,
       whitelistEnabled: this.config.whitelistEnabled,

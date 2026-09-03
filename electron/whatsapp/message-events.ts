@@ -1,13 +1,14 @@
 import { addToGroupContext, getGroupHistory } from './group-context';
-import { shouldRespondInGroup } from './group-activation';
+import { botIdentifiers, shouldRespondInGroup } from './group-activation';
 import { emitMediaIfPresent } from './media-events';
 import {
   cleanGroupText,
   extractRawText,
   getPassiveInteraction,
-  resolveSenderNumber,
+  resolveSenderIdentity,
   unwrapMessageContainers,
   type PassiveWhatsAppInteraction,
+  type WhatsAppSenderIdentity,
 } from './message-utils';
 import { detectJailbreak, isAllowedGroupSender, isAllowedNumber } from './security';
 import type { WhatsAppServiceCore } from './types';
@@ -27,14 +28,15 @@ async function processIncomingMessage(service: WhatsAppServiceCore, msg: any): P
   const isGroup = jid.endsWith('@g.us');
   unwrapMessageContainers(msg);
 
-  const senderNumber = await resolveSenderNumber(service.sock, msg, jid, isGroup);
-  if (!await passesAccessChecks(service, msg, jid, isGroup, senderNumber)) return;
+  const identity = await resolveSenderIdentity(service.sock, msg, jid, isGroup);
+  const senderNumber = identity.senderNumber;
+  if (!await passesAccessChecks(service, msg, jid, isGroup, identity)) return;
 
   const passiveInteraction = getPassiveInteraction(msg);
   const wasInvoked = isGroup ? shouldRespondInGroup(service.sock, service.config, msg) : true;
   const rawText = extractRawText(msg).trim();
   let cleanText = rawText;
-  if (isGroup) cleanText = cleanGroupText(cleanText, service.config.groupPrefix || '/soflia', service.sock?.user?.id?.split(':')[0] || '');
+  if (isGroup) cleanText = cleanGroupText(cleanText, service.config.groupPrefix || '/soflia', botIdentifiers(service.sock));
   const hasMedia = Boolean(
     msg.message.imageMessage ||
     msg.message.documentMessage ||
@@ -131,16 +133,66 @@ function recordIncomingText(
   });
 }
 
-async function passesAccessChecks(service: WhatsAppServiceCore, msg: any, jid: string, isGroup: boolean, senderNumber: string): Promise<boolean> {
+/**
+ * Deja rastro de cada mensaje descartado por una guarda.
+ *
+ * Un descarte silencioso es indistinguible de una caida del canal: el contacto
+ * escribe, el agente no contesta y no queda nada que revisar. El motivo queda
+ * en el historial para que el diagnostico no dependa de la consola.
+ */
+function recordDroppedMessage(
+  service: WhatsAppServiceCore,
+  msg: any,
+  jid: string,
+  identity: WhatsAppSenderIdentity,
+  isGroup: boolean,
+  reason: string,
+): void {
+  const lidNote = identity.isLidOnly ? ' [LID sin telefono resuelto]' : '';
+  console.warn(`[WhatsApp] Mensaje descartado (${reason}) de ${identity.senderNumber || jid}${lidNote}`);
+  service.recordHistory({
+    direction: 'system',
+    kind: 'text',
+    jid,
+    senderNumber: identity.senderNumber || null,
+    groupJid: isGroup ? jid : null,
+    isGroup,
+    text: `Mensaje entrante descartado: ${reason}`,
+    source: 'whatsapp-service',
+    metadata: {
+      messageId: msg?.key?.id,
+      droppedReason: reason,
+      senderLid: identity.lid || undefined,
+      senderPhone: identity.phoneNumber || undefined,
+      lidUnresolved: identity.isLidOnly || undefined,
+      ignoredByAgent: true,
+    },
+  });
+}
+
+async function passesAccessChecks(
+  service: WhatsAppServiceCore,
+  msg: any,
+  jid: string,
+  isGroup: boolean,
+  identity: WhatsAppSenderIdentity,
+): Promise<boolean> {
+  const senderNumber = identity.senderNumber;
   if (!isGroup) {
     if (!isAllowedNumber(service.config, senderNumber)) {
-      console.log(`[WhatsApp] Ignoring message from unauthorized number: ${senderNumber} (JID: ${jid})`);
+      recordDroppedMessage(service, msg, jid, identity, isGroup, 'numero fuera de la lista permitida');
       return false;
     }
     if (service.communicationHubService) {
-      const principal = await service.communicationHubService.resolvePrincipalFromWhatsApp(senderNumber);
+      // Sin telefono no hay identidad que resolver: WhatsApp entrego solo el
+      // LID y el mapa inverso todavia no lo conoce.
+      if (identity.isLidOnly) {
+        recordDroppedMessage(service, msg, jid, identity, isGroup, 'no se pudo resolver el telefono detras del LID');
+        return false;
+      }
+      const principal = await service.communicationHubService.resolvePrincipalFromWhatsApp(identity.phoneNumber);
       if (!principal.active || !principal.capabilities.includes('personal_agent')) {
-        console.log(`[WhatsApp] Ignoring message without active SOFIA channel principal: ${senderNumber} (JID: ${jid})`);
+        recordDroppedMessage(service, msg, jid, identity, isGroup, 'sin identidad SOFIA activa con capacidad personal_agent');
         return false;
       }
     }
@@ -150,10 +202,20 @@ async function passesAccessChecks(service: WhatsAppServiceCore, msg: any, jid: s
   if (service.config.groupPolicy === 'disabled') return false;
   const allowedGroups = service.config.allowedGroups || [];
   if (allowedGroups.length > 0 && !allowedGroups.includes(jid)) return false;
-  if (!isAllowedGroupSender(service.config, senderNumber)) return false;
+  if (!isAllowedGroupSender(service.config, senderNumber)) {
+    recordDroppedMessage(service, msg, jid, identity, isGroup, 'remitente de grupo no autorizado');
+    return false;
+  }
   if (service.communicationHubService) {
-    const principal = await service.communicationHubService.resolvePrincipalFromWhatsApp(senderNumber);
-    if (!principal.active || !isOrgAdminRole(principal.role)) return false;
+    if (identity.isLidOnly) {
+      recordDroppedMessage(service, msg, jid, identity, isGroup, 'no se pudo resolver el telefono detras del LID');
+      return false;
+    }
+    const principal = await service.communicationHubService.resolvePrincipalFromWhatsApp(identity.phoneNumber);
+    if (!principal.active || !isOrgAdminRole(principal.role)) {
+      recordDroppedMessage(service, msg, jid, identity, isGroup, 'sin rol de administrador de organizacion');
+      return false;
+    }
   }
   return shouldRespondInGroup(service.sock, service.config, msg);
 }

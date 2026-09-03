@@ -1,5 +1,18 @@
 import type { MainRuntimeState } from './runtime-state';
 
+/**
+ * Registra el fallo de un turno del agente en lugar de descartarlo.
+ *
+ * Estos manejadores se disparan desde un listener de eventos: una promesa
+ * rechazada aqui no tiene dueno y desaparecia sin dejar rastro, que es como
+ * un error de envio terminaba viendose como silencio del agente.
+ */
+function reportUnhandled(result: Promise<unknown> | undefined, stage: string): void {
+  void Promise.resolve(result).catch((error) => {
+    console.error(`[WhatsApp Agent] Turno fallido (${stage}):`, error);
+  });
+}
+
 export function createWhatsAppAgentInitializer(input: {
   modules: any;
   services: any;
@@ -21,18 +34,18 @@ export function createWhatsAppAgentInitializer(input: {
         services.knowledgeService,
       );
       services.waService.on('message', ({ jid, senderNumber, text, isGroup, history }: any) => {
-        void state.waAgent?.handleMessage(jid, senderNumber, text, isGroup, history);
+        reportUnhandled(state.waAgent?.handleMessage(jid, senderNumber, text, isGroup, history), 'mensaje de texto');
       });
       services.waService.on('audio', ({ jid, senderNumber, buffer, isGroup, history }: any) => {
-        void state.waAgent?.handleAudio(jid, senderNumber, buffer, isGroup, history);
+        reportUnhandled(state.waAgent?.handleAudio(jid, senderNumber, buffer, isGroup, history), 'nota de voz');
       });
       services.waService.on('media', ({ jid, senderNumber, buffer, fileName, mimetype, text, isGroup, history }: any) => {
-        void state.waAgent?.handleMedia(jid, senderNumber, buffer, fileName, mimetype, text, isGroup, history);
+        reportUnhandled(state.waAgent?.handleMedia(jid, senderNumber, buffer, fileName, mimetype, text, isGroup, history), 'archivo');
       });
       // Baileys entrega la senalizacion de la llamada pero no su audio, asi que
       // el transporte ya la rechazo: aqui solo se reconduce al modo llamada.
       services.waService.on('call-offer', ({ jid, senderNumber }: any) => {
-        void state.waAgent?.handleIncomingCall(jid, senderNumber);
+        reportUnhandled(state.waAgent?.handleIncomingCall(jid, senderNumber), 'llamada entrante');
       });
     }
 

@@ -14,12 +14,15 @@ export const mockFsAppendFile = vi.fn().mockResolvedValue(undefined);
 export const mockFsRm = vi.fn().mockResolvedValue(undefined);
 export const mockFsStat = vi.fn().mockResolvedValue({ size: 1024 });
 
+/** LID del bot: en un grupo con identidad oculta las menciones llegan asi. */
+export const BOT_LID_USER = '778899001122';
+
 const mockSock = {
   ev: mockSockEvents,
   sendMessage: mockSendMessage,
   logout: mockLogout,
   rejectCall: mockRejectCall,
-  user: { id: '5215512345678:0@s.whatsapp.net' },
+  user: { id: '5215512345678:0@s.whatsapp.net', lid: `${BOT_LID_USER}:0@lid` },
   updateMediaMessage: mockUpdateMediaMessage,
   signalRepository: { lidMapping: { getPNForLID: mockGetPNForLID } },
 };
