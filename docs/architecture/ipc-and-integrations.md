@@ -404,10 +404,12 @@ Dos limites que no deben relajarse:
 
 ## Limites de contrato
 
-Project Hub usa canales `project-hub:*` con métodos de dominio. El token SOFIA
-solo entra por `auth:set-state` para el canje verificado; los tokens Project Hub
-no cruzan preload. Main conserva el access token en memoria y cifra el refresh
-token con `safeStorage`. El renderer puede recibir una URL de upload o descarga
+Project Hub usa canales `project-hub:*` con métodos de dominio. El par de tokens
+SOFIA entra por `auth:set-state` para autenticar el cliente SOFIA de main; el
+access token también alimenta el canje verificado de Project Hub. Los tokens
+Project Hub no cruzan preload. Main conserva access tokens en memoria y cifra
+cada refresh token por separado con `safeStorage`. `auth:get-state` nunca
+devuelve credenciales. El renderer puede recibir una URL de upload o descarga
 firmada y efímera, pero nunca una clave Supabase o un token OAuth de Drive. El
 contrato completo y los estados de degradación se documentan en
 [Project Hub unificado](project-hub-unified.md).

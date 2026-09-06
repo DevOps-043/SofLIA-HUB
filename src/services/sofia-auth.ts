@@ -6,7 +6,7 @@ import { buildActiveSofiaContext, createPseudoAuthUser } from './sofia-auth/cont
 import { findLoginUserRow, INVALID_CREDENTIALS_MESSAGE, mapSupabaseAuthError } from './sofia-auth/login';
 import type { SofiaLoginUserRow } from './sofia-auth/login';
 import { fetchSofiaUserProfile } from './sofia-auth/profile';
-import { getSofiaStoredSession, saveSofiaSession } from './sofia-auth/session-storage';
+import { saveSofiaSession } from './sofia-auth/session-storage';
 import type { SofiaAuthResult, SofiaContext } from './sofia-auth/types';
 
 export type { SofiaAuthResult, SofiaAuthUser, SofiaContext } from './sofia-auth/types';
@@ -134,19 +134,12 @@ class SofiaAuthService {
       if (error) console.warn('[SOFIA] No se pudo restaurar la sesión verificable:', error.message);
     }
 
-    const storedUser = getSofiaStoredSession();
-    if (!storedUser) return null;
-    return {
-      user: {
-        id: storedUser.id,
-        email: storedUser.email,
-        user_metadata: {
-          first_name: storedUser.first_name,
-          last_name: storedUser.last_name,
-          avatar_url: storedUser.profile_picture_url,
-        },
-      },
-    } as unknown as Session;
+    // `sofia-session` es una caché de perfil para pintar superficies auxiliares,
+    // no una credencial. Fabricar un objeto `Session` desde ese snapshot dejaba
+    // la UI autenticada sin JWT: todas las consultas salían como `anon` y la
+    // organización nunca podía recuperarse. Sin sesión verificable se vuelve al
+    // login; una caída de red con sesión real se maneja después como degradación.
+    return null;
   }
 
   getSofiaContext(): SofiaContext | null {

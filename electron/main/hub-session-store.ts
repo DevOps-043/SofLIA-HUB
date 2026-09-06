@@ -1,6 +1,4 @@
-import { app, safeStorage } from 'electron';
-import fs from 'node:fs';
-import path from 'node:path';
+import { createEncryptedRefreshTokenStore } from './encrypted-refresh-token-store';
 
 /**
  * Custodia del token de refresco de la sesion del Hub en el proceso main.
@@ -18,11 +16,10 @@ import path from 'node:path';
  * El valor NUNCA se registra. Las trazas dicen que ocurrio, no con que token.
  */
 
-const FILE_NAME = 'hub-session.enc';
-
-function getTokenPath(): string {
-  return path.join(app.getPath('userData'), FILE_NAME);
-}
+const store = createEncryptedRefreshTokenStore({
+  fileName: 'hub-session.enc',
+  logScope: 'HubSession',
+});
 
 /**
  * Guarda el token de refresco cifrado.
@@ -35,61 +32,19 @@ function getTokenPath(): string {
  * degradar el secreto en silencio.
  */
 export function saveHubRefreshToken(refreshToken: string): boolean {
-  const token = String(refreshToken || '').trim();
-  if (!token) return false;
-
-  if (!safeStorage.isEncryptionAvailable()) {
-    console.warn('[HubSession] El sistema no ofrece cifrado seguro: la sesion no se persistira.');
-    return false;
-  }
-
-  try {
-    fs.writeFileSync(getTokenPath(), safeStorage.encryptString(token), { mode: 0o600 });
-    console.log('[HubSession] Sesion del Hub guardada de forma cifrada.');
-    return true;
-  } catch (error) {
-    console.error('[HubSession] No se pudo guardar la sesion:', error instanceof Error ? error.message : error);
-    return false;
-  }
+  return store.save(refreshToken);
 }
 
 /** Token guardado, o `null` si no hay, no se puede descifrar o esta corrupto. */
 export function readHubRefreshToken(): string | null {
-  const tokenPath = getTokenPath();
-  if (!fs.existsSync(tokenPath)) return null;
-
-  try {
-    const data = fs.readFileSync(tokenPath);
-    if (!safeStorage.isEncryptionAvailable()) {
-      // El archivo se escribio cifrado; sin cifrado disponible no es legible.
-      // No se intenta interpretarlo como texto plano: nunca se guardo asi.
-      console.warn('[HubSession] Hay sesion guardada pero el sistema ya no ofrece descifrado.');
-      return null;
-    }
-    const token = safeStorage.decryptString(data).trim();
-    return token || null;
-  } catch (error) {
-    // Perfil migrado de otro equipo o archivo danado: se descarta en silencio
-    // operativo (una traza, sin valor) y se pedira iniciar sesion de nuevo.
-    console.warn('[HubSession] La sesion guardada no se pudo leer; se descarta.');
-    void error;
-    return null;
-  }
+  return store.read();
 }
 
 /** Borra el token. Se llama al cerrar sesion y al rechazarlo el servidor. */
 export function clearHubRefreshToken(): void {
-  const tokenPath = getTokenPath();
-  try {
-    if (fs.existsSync(tokenPath)) {
-      fs.unlinkSync(tokenPath);
-      console.log('[HubSession] Sesion del Hub borrada del disco.');
-    }
-  } catch (error) {
-    console.error('[HubSession] No se pudo borrar la sesion:', error instanceof Error ? error.message : error);
-  }
+  store.clear();
 }
 
 export function hasStoredHubSession(): boolean {
-  return fs.existsSync(getTokenPath());
+  return store.hasStored();
 }

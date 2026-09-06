@@ -1312,25 +1312,31 @@ heurística sobre el texto del mensaje.
 
 ### 3.16 Identidad del proceso main
 
-El proceso main opera ante la base del Hub **como el usuario que inició sesión**,
-no como cliente anónimo. Sin eso, `auth.uid()` es `NULL` y toda tabla con RLS por
-identidad le devuelve cero filas —sin error—, lo que dejaba sin efecto la
-elección de canales del usuario en WhatsApp y Telegram, y hacía invisibles allí
-las Skills que solo viven en la base.
+El proceso main opera ante las bases de Lia y SOFIA **como el usuario que inició
+sesión**, no como cliente anónimo. Sin eso, `auth.uid()` es `NULL`: Lia deja de
+entregar preferencias y Skills; SOFIA rechaza o vacía usuarios, organizaciones y
+membresías. Esta segunda ausencia hacía que WhatsApp recibiera el mensaje pero lo
+descartara antes del agente por no poder acreditar `personal_agent`.
 
-- **Origen de la sesión**: el renderer la publica por `auth:set-state`. Main NO
+- **Origen de las sesiones**: el renderer publica por `auth:set-state` los pares
+  Lia y SOFIA ya emitidos. Main NO
   inicia sesión por su cuenta; duplicar el login implicaría duplicar también el
   SSO federado.
-- **Qué se guarda**: solo el *refresh token*, cifrado con `safeStorage`
-  (`main/hub-session-store.ts`). El de acceso vive en memoria y lo renueva el
-  cliente; al renovarse se re-guarda. Si el sistema no ofrece cifrado **no se
-  persiste nada**: la sesión dura lo que dure el proceso.
-- **Arranque**: `restoreHubSession()` corre ANTES de inicializar los servicios,
-  porque el planificador levanta sus cron durante su init. Es lo que permite que
-  WhatsApp y Telegram funcionen sin ninguna ventana abierta.
+- **Qué se guarda**: solo cada *refresh token*, en archivos separados y cifrados
+  con `safeStorage` (`main/hub-session-store.ts` y
+  `main/sofia-session-store.ts`). Los access tokens viven en memoria; al rotar
+  un refresh token se re-guarda. Si el sistema no ofrece cifrado **no se persiste
+  nada**: la sesión dura lo que dure el proceso.
+- **Arranque**: `restoreSofiaSession()` fija primero la identidad que gobierna el
+  gate y las membresías; `restoreHubSession()` restaura después los datos Lia.
+  Ambos corren ANTES de inicializar servicios, de modo que el planificador y la
+  autoconexión de WhatsApp no arranquen como clientes anónimos.
+- **Snapshot local**: `sofia-session` conserva perfil para presentación, pero no
+  se convierte en un objeto `Session`. Sin tokens verificables se vuelve al
+  login; no se muestra una sesión activa incapaz de cargar organizaciones.
 - **La credencial no sale**: no se registra, no vuelve al renderer
   (`auth:get-state` devuelve solo `{authenticated, userId}`) y se borra al cerrar
-  sesión, momento en el que main vuelve a ser `anon`.
+  sesión, momento en el que ambos clientes vuelven a ser anónimos.
 - **Alternativa descartada**: clave `service_role` en main. Funcionaría sin
   sesión, pero pondría una llave maestra en cada instalador y el aislamiento
   pasaría a depender de que el código filtre bien por `user_id`, que es

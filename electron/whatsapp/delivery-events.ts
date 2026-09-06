@@ -24,7 +24,7 @@ export function describeDeliveryError(code: string): string {
 
 type MessageUpdateEntry = {
   key?: { remoteJid?: string | null; id?: string | null };
-  update?: { status?: number; messageStubParameters?: (string | null)[] | null };
+  update?: { status?: number | null; messageStubParameters?: (string | null)[] | null };
 };
 
 export function registerDeliveryEvents(service: WhatsAppServiceCore): void {
@@ -41,7 +41,7 @@ export function registerDeliveryEvents(service: WhatsAppServiceCore): void {
   });
 }
 
-function reportDeliveryFailure(service: WhatsAppServiceCore, jid: string, code: string, messageId?: string): void {
+function reportDeliveryFailure(service: WhatsAppServiceCore, jid: string, code: string, messageId?: string | null): void {
   const reason = describeDeliveryError(code);
   service.lastDeliveryError = { jid, code, reason, at: new Date().toISOString() };
   console.error(`[WhatsApp] El servidor rechazo un mensaje para ${jid || 'destinatario desconocido'}: ${reason}.`);

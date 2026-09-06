@@ -65,6 +65,9 @@ export function useAuthProviderModel(): AuthContextType {
         refreshToken: refreshToken ?? null,
         // Este token solo se canjea en main; nunca se persiste ni vuelve al renderer.
         sofiaAccessToken: sofiaSession?.access_token ?? null,
+        // Main custodia únicamente el refresh token cifrado para que WhatsApp
+        // conserve identidad SOFIA después de cerrar la ventana o reiniciar.
+        sofiaRefreshToken: sofiaSession?.refresh_token ?? null,
       });
     })();
     // Los tokens entran en las dependencias para republicar cuando la sesión se

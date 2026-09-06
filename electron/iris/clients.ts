@@ -55,6 +55,10 @@ export function getSofiaClient(): SupabaseClient | null {
     url: SOFIA_URL,
     key: SOFIA_KEY,
     serviceName: 'SOFIA-Main',
+    // Las consultas de organizaciones, reuniones y WhatsApp se ejecutan con la
+    // identidad SOFIA publicada por el renderer. La persistencia sigue fuera
+    // del SDK y cifrada en `main/sofia-session-store.ts`.
+    withUserSession: true,
   });
   if (!result.client) {
     console.error(`[SOFIA-Main] ${result.error || 'No se pudo crear el cliente.'}`);

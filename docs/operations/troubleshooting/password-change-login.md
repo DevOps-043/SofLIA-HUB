@@ -61,6 +61,29 @@ No se ejecutó despliegue remoto ni se modificaron secretos durante la implement
 | `503 exchange_unavailable` | configuración o dependencia temporalmente indisponible | revisar secretos, función, SOFIA/Lia y reintentar |
 | `200` pero falla `verifyOtp` | token vencido/consumido o Auth Lia indisponible | reintentar intercambio y revisar límites Auth |
 
+### Organización ausente y WhatsApp en silencio (`42501`)
+
+Si la UI conserva el nombre del usuario pero muestra “No se pudo cargar tu
+organización” y main registra `permission denied for table users`, comprobar si
+existe una sesión Supabase SOFIA real. Un snapshot `sofia-session` sin JWT no es
+autenticación y, desde la corrección de septiembre de 2026, obliga a volver al
+login en vez de mantener una sesión fantasma.
+
+`CommunicationHubService` resuelve el teléfono y la membresía con el cliente
+SOFIA autenticado de main. Sin esa sesión, WhatsApp puede verse “en línea” pero
+descarta el mensaje antes de invocar al agente; cambiar confirmaciones de lectura
+o visibilidad de última conexión no afecta ese flujo. Tras actualizar:
+
+1. cerrar y abrir Pulse Hub;
+2. si aparece el login, iniciar sesión una vez para reemplazar el snapshot
+   huérfano y custodiar el refresh token cifrado;
+3. comprobar que carga la organización;
+4. enviar un mensaje desde el número permitido y revisar que ya no aparezca el
+   descarte `sin identidad SOFIA activa con capacidad personal_agent`.
+
+No resolver `42501` instalando `service_role` en Electron ni concediendo lectura
+global a `public.users`: el JWT del usuario y RLS deben seguir siendo la frontera.
+
 ### Cuenta migrada desde el Auth legado
 
 La hipótesis principal para una cuenta antigua es que el login por contraseña sí

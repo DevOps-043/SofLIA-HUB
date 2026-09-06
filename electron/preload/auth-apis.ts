@@ -6,10 +6,12 @@ export interface RendererAuthState {
   accessToken?: string | null;
   refreshToken?: string | null;
   sofiaAccessToken?: string | null;
+  sofiaRefreshToken?: string | null;
 }
 
 // Superficie minima: el renderer publica su estado de sesion para que el main
-// pueda negar por defecto las funciones sensibles. No viajan tokens ni PII.
+// pueda negar por defecto las funciones sensibles. Los tokens solo viajan de
+// renderer a main y nunca forman parte de la respuesta observable.
 export function exposeAuthApis(bridge: PreloadBridge, safeIpc: SafeIpc): void {
   const { safeInvoke } = safeIpc;
   bridge.exposeInMainWorld('authState', {

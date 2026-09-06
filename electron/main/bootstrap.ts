@@ -18,6 +18,8 @@ import { initializeMainServices, registerPlatformHandlers } from './startup';
 import { markBoot } from './boot-timeline';
 import { registerAuthStateHandlers } from '../auth-state-handlers';
 import { restoreHubSession } from './hub-session';
+import { restoreSofiaSession } from './sofia-session';
+import { setAuthState } from './auth-state';
 import { registerWhatsAppAuthGate } from './whatsapp-auth-gate';
 
 /**
@@ -69,9 +71,6 @@ export async function runBootstrap(): Promise<void> {
   // Debe registrarse antes de crear la ventana: el renderer publica su estado de
   // sesion apenas monta y el gate del main depende de ese canal.
   registerAuthStateHandlers();
-  // La autoconexion de WhatsApp del arranque queda denegada por el gate; se
-  // reintenta al iniciar sesion y se desconecta al cerrarla.
-  registerWhatsAppAuthGate({ waService: services.waService, initWhatsAppAgent });
   registerPlatformHandlers({ modules, services, state, controls });
 
   // Ventana temprana: crear la ventana antes de la cadena de servicios no
@@ -88,7 +87,21 @@ export async function runBootstrap(): Promise<void> {
     markBoot('ventana-temprana:fin');
   }
 
-  // La sesion guardada se restaura ANTES de los servicios: el planificador
+  // La identidad SOFIA se restaura primero. Es la que gobierna el gate de
+  // WhatsApp y las consultas de usuarios/membresias del proceso main.
+  markBoot('sesion-sofia:restaurar:inicio');
+  const sesionSofia = await restoreSofiaSession().catch((error) => {
+    logBootstrapError('restoreSofiaSession', error);
+    return { status: 'no-disponible', userId: null } as const;
+  });
+  setAuthState({
+    authenticated: sesionSofia.status === 'aplicada' && Boolean(sesionSofia.userId),
+    userId: sesionSofia.userId,
+  });
+  console.log(`[BOOT] Sesion SOFIA: ${sesionSofia.status}`);
+  markBoot('sesion-sofia:restaurar:fin');
+
+  // La sesion guardada de Lia se restaura ANTES de los servicios: el planificador
   // levanta sus cron durante su init, y sin identidad los cargaria como cliente
   // anonimo, sin encontrar las reglas del usuario. Es tambien lo que permite que
   // WhatsApp y Telegram funcionen sin ninguna ventana abierta.
@@ -99,6 +112,11 @@ export async function runBootstrap(): Promise<void> {
   });
   console.log(`[BOOT] Sesion del Hub: ${sesionHub}`);
   markBoot('sesion-hub:restaurar:fin');
+
+  // La autoconexion inicial ocurre en `initializeMainServices`; este listener
+  // queda para login/logout posteriores y se registra después de restaurar para
+  // evitar conectar con servicios todavía no inicializados.
+  registerWhatsAppAuthGate({ waService: services.waService, initWhatsAppAgent });
 
   markBoot('servicios:init:inicio');
   await initializeMainServices({

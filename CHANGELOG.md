@@ -4,6 +4,18 @@ Todos los cambios notables de SofLIA Hub se documentan aqui.
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
+## [Sin publicar]
+
+### Fixed
+- **Organizaciones y WhatsApp recuperan la identidad SOFIA:** un perfil local
+  podía mantener la aplicación aparentemente conectada aunque ya no existiera un
+  JWT verificable. Las consultas salían como anónimas (`42501 permission denied
+  for table users`) y WhatsApp recibía pero descartaba los mensajes por no poder
+  comprobar la membresía. El Hub vuelve al login cuando solo queda ese snapshot
+  y el proceso main aplica/restaura la sesión SOFIA cifrada antes de iniciar los
+  servicios. Las preferencias de última conexión y confirmación de lectura de
+  WhatsApp no intervienen en esta autorización.
+
 ## [0.9.8] - 2026-08-17
 
 ### Added
