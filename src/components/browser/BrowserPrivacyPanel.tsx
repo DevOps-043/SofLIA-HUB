@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   integratedBrowserService,
   type BrowsingDataCategory,
   type BrowsingDataRange,
   type BrowsingDataSummary,
+  type BrowserPrivacyCategory,
+  type BrowserPrivacySiteState,
 } from '../../services/integrated-browser-service';
 import { BrowserConfirmDialog } from './BrowserDialog';
 
@@ -42,7 +44,7 @@ const CATEGORIES: CategoryMeta[] = [
   {
     id: 'contrasenas',
     label: 'Contraseñas guardadas',
-    description: 'Se vacía la bóveda cifrada de este perfil.',
+    description: 'Se vacía la bóveda cifrada de este perfil y se eliminan sus copias de recuperación de archivos dañados.',
     rangeUnaware: true,
   },
   {
@@ -65,6 +67,13 @@ const CATEGORY_LABELS: Record<BrowsingDataCategory, string> = Object.fromEntries
   CATEGORIES.map((category) => [category.id, category.label]),
 ) as Record<BrowsingDataCategory, string>;
 
+const PRIVACY_EXCEPTIONS: Array<{ id: Exclude<BrowserPrivacyCategory, 'malware'>; label: string }> = [
+  { id: 'tracker', label: 'Rastreadores' },
+  { id: 'advertising', label: 'Publicidad' },
+  { id: 'third-party-cookie', label: 'Cookies de terceros' },
+  { id: 'tracking-parameter', label: 'Parámetros de seguimiento' },
+];
+
 export function BrowserPrivacyPanel() {
   const [selected, setSelected] = useState<BrowsingDataCategory[]>(['historial', 'cookies', 'cache']);
   const [range, setRange] = useState<BrowsingDataRange>('todo');
@@ -72,6 +81,20 @@ export function BrowserPrivacyPanel() {
   const [busy, setBusy] = useState(false);
   const [summary, setSummary] = useState<BrowsingDataSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [site, setSite] = useState<BrowserPrivacySiteState | null>(null);
+
+  useEffect(() => {
+    void integratedBrowserService.getPrivacySite().then((response) => {
+      if (response.success && response.privacySite) setSite(response.privacySite);
+    }).catch(() => undefined);
+  }, []);
+
+  const updateProtection = async (next: Pick<BrowserPrivacySiteState, 'level' | 'exceptionCategories'>) => {
+    if (!site) return;
+    const response = await integratedBrowserService.setPrivacySite({ origin: site.origin, ...next });
+    if (response.success && response.privacySite) setSite(response.privacySite);
+    else setError(response.error || 'No se pudo actualizar la protección.');
+  };
 
   const toggle = (id: BrowsingDataCategory) => {
     setSummary(null);
@@ -102,6 +125,28 @@ export function BrowserPrivacyPanel() {
 
   return (
     <div className="space-y-4">
+      {site && <div className="rounded-2xl border border-accent/20 bg-accent/[0.04] p-3">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-secondary">Protección del sitio</p>
+        <p className="mt-1 truncate text-xs text-primary dark:text-white/80" title={site.origin}>{site.origin}</p>
+        {site.enabled === false && <p role="status" className="mt-2 text-xs text-secondary">La protección experimental está desactivada en esta instalación.</p>}
+        {site.managed && <p role="status" className="mt-2 text-xs text-secondary">Administrado por tu organización.</p>}
+        <select aria-label="Nivel de protección" disabled={site.enabled === false || site.managed} value={site.level} onChange={(event) => void updateProtection({ level: event.target.value as BrowserPrivacySiteState['level'], exceptionCategories: site.exceptionCategories })} className="soflia-browser-button mt-3 min-h-10 w-full px-3 text-[13px]">
+          <option value="off">Desactivada</option><option value="balanced">Equilibrada</option><option value="strict">Estricta</option>
+        </select>
+        <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
+          {PRIVACY_EXCEPTIONS.map((category) => {
+            const excepted = site.exceptionCategories.includes(category.id);
+            return <label key={category.id} className="flex items-center gap-2 rounded-xl border border-border bg-card/70 px-2.5 py-2 text-[11px]">
+              <input type="checkbox" disabled={site.enabled === false || site.managed} checked={!excepted} onChange={() => void updateProtection({
+                level: site.level,
+                exceptionCategories: excepted ? site.exceptionCategories.filter((item) => item !== category.id) : [...site.exceptionCategories, category.id],
+              })} />
+              <span className="min-w-0 flex-1">{category.label}</span><span className="tabular-nums text-secondary">{site.blocked[category.id] ?? 0}</span>
+            </label>;
+          })}
+        </div>
+        <p className="mt-2 text-[10px] text-secondary">Contadores locales de esta sesión. Las protecciones avanzadas contra malware y fingerprinting aún no están disponibles.</p>
+      </div>}
       <div>
         <label
           htmlFor="browser-privacy-range"
@@ -169,6 +214,9 @@ export function BrowserPrivacyPanel() {
         Solo se borra el perfil de tu sesión. Marcadores y extensiones no se tocan, y los perfiles de
         otras cuentas quedan intactos.
       </p>
+      {selected.includes('historial') && <p className="text-[11.5px] leading-relaxed text-secondary">
+        También se elimina por completo el respaldo del historial antiguo, si existe, aunque elijas un intervalo.
+      </p>}
 
       {error && (
         <p role="alert" className="rounded-2xl border border-danger/25 bg-danger/[0.06] px-3.5 py-2.5 text-[12px] text-danger">
@@ -193,7 +241,7 @@ export function BrowserPrivacyPanel() {
         <BrowserConfirmDialog
           title="Borrar datos de navegación"
           description={describeConfirmation(selected, range)}
-          detail="No se puede deshacer. Marcadores, extensiones y los perfiles de otras cuentas no se tocan."
+          detail={`No se puede deshacer. Marcadores, extensiones y los perfiles de otras cuentas no se tocan.${selected.includes('historial') ? ' El respaldo del historial antiguo se elimina completo, sin acotar al intervalo.' : ''}`}
           confirmLabel="Borrar datos"
           busy={busy}
           onCancel={() => setConfirming(false)}

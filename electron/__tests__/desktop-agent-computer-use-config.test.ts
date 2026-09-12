@@ -6,30 +6,31 @@ import {
   resolveComputerUseModel,
 } from '../desktop-agent/gemini-cu/model-registry';
 import { splitKeyCombination } from '../desktop-agent/keyboard-controls';
+import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
 
 describe('Registro de modelos de Computer Use', () => {
   it('CUM-001: el perfil recomendado es el modelo de Computer Use de Google', () => {
-    expect(COMPUTER_USE_MODEL_DEFAULTS.recommended).toBe('gemini-3.6-flash');
-    expect(resolveComputerUseModel(DEFAULT_CONFIG).model).toBe('gemini-3.6-flash');
+    expect(COMPUTER_USE_MODEL_DEFAULTS.recommended).toBe(SOFLIA_RUNTIME_MODEL);
+    expect(resolveComputerUseModel(DEFAULT_CONFIG).model).toBe(SOFLIA_RUNTIME_MODEL);
     expect(resolveComputerUseModel(DEFAULT_CONFIG).provider).toBe('google');
   });
 
   it('CUM-002: los perfiles heredados permanecen en el modelo único', () => {
-    expect(resolveComputerUseModel(DEFAULT_CONFIG, 'compatibility').model).toBe('gemini-3.6-flash');
-    expect(resolveComputerUseModel(DEFAULT_CONFIG, 'economy').model).toBe('gemini-3.6-flash');
+    expect(resolveComputerUseModel(DEFAULT_CONFIG, 'compatibility').model).toBe(SOFLIA_RUNTIME_MODEL);
+    expect(resolveComputerUseModel(DEFAULT_CONFIG, 'economy').model).toBe(SOFLIA_RUNTIME_MODEL);
   });
 
   it('CUM-003: una configuracion heredada no puede reactivar otro modelo', () => {
     const config = { ...DEFAULT_CONFIG, computerUseModel: 'gemini-4.0-flash' };
 
-    expect(resolveComputerUseModel(config).model).toBe('gemini-3.6-flash');
+    expect(resolveComputerUseModel(config).model).toBe(SOFLIA_RUNTIME_MODEL);
   });
 
   it('CUM-004: un modelo en blanco cae al default en vez de llamar a la API sin modelo', () => {
     const config = { ...DEFAULT_CONFIG, computerUseModel: '   ', computerUseFallbackModel: '  ' };
 
-    expect(resolveComputerUseModel(config).model).toBe('gemini-3.6-flash');
-    expect(resolveComputerUseModel(config, 'compatibility').model).toBe('gemini-3.6-flash');
+    expect(resolveComputerUseModel(config).model).toBe(SOFLIA_RUNTIME_MODEL);
+    expect(resolveComputerUseModel(config, 'compatibility').model).toBe(SOFLIA_RUNTIME_MODEL);
   });
 
   it('CUM-005: no existe degradacion silenciosa de perfil', () => {

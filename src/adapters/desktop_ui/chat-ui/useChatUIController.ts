@@ -1,4 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { assertBrowserShortcutTurn, type PreparedBrowserShortcut } from './browser-shortcut-turn';
+import type { BrowserAgentShortcut } from '../../../shared/browser-agent-shortcuts';
 import type { UIEvent } from 'react';
 import { setConfirmationHandler } from '../../../services/computer-use-service';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -13,7 +15,9 @@ import { useSkillWorkspaceLink } from './useSkillWorkspaceLink';
 import { useSkillWorkspaceResume } from './useSkillWorkspaceResume';
 import { resolveTurnSkill } from './resolve-turn-skill';
 import { useDictation } from './useDictation';
-import { integratedBrowserService } from '../../../services/integrated-browser-service';
+import { captureBrowserTabSources } from '../../../services/browser-tab-sources';
+import { browserSourcesContext } from '../../../shared/browser-tab-context';
+import { useAttachmentPreparation } from './useAttachmentPreparation';
 import { APP_CONTEXT_LIMITS, buildAppContextBlock, resolveAppAttachments } from './app-attachments';
 
 export function useChatUIController(props: ChatUIProps) {
@@ -22,7 +26,10 @@ export function useChatUIController(props: ChatUIProps) {
   const state = useChatUIState();
   const files = useChatFileHandlers(canSendMessages, state.images.setSelected);
   const dictation = useDictation(state.input.set);
-  const { sofiaContext } = useAuth();
+  const { sofiaContext, dataUserId } = useAuth();
+  const contextKey = JSON.stringify([props.conversationId, dataUserId, sofiaContext?.currentOrganization?.id, canSendMessages]);
+  const preparation = useAttachmentPreparation(contextKey);
+  const [preparedShortcut, setPreparedShortcut] = useState<PreparedBrowserShortcut | null>(null);
   const presentation = usePresentationWorkspaceContext();
   // La Skill del turno se deriva del espacio de trabajo resuelto por la
   // conversacion, no solo del estado del compositor: ese estado no sobrevive a
@@ -98,65 +105,59 @@ export function useChatUIController(props: ChatUIProps) {
 
   const onSendClick = async () => {
     if (!canSendMessages || !state.input.value.trim() || runtime.chat.showLoadingUI) return;
-    // La burbuja lleva solo lo que escribio el usuario. La seleccion y las pestañas
-    // adjuntas acompanan al turno como contexto para el modelo.
-    const text = state.input.value.trim();
-    const selContext = state.selection.value?.text.trim();
+    await preparation.run(async (signal) => {
+      // La burbuja lleva solo lo que escribio el usuario. La seleccion y las pestañas
+      // adjuntas acompanan al turno como contexto para el modelo.
+      const text = state.input.value.trim();
+      const selContext = state.selection.value?.text.trim().slice(0, 20_000);
 
-    const attached = state.tabs?.attached ?? [];
-    const tabContextParts = await Promise.all(
-      attached.map(async (tab, idx) => {
-        let contentText = tab.text;
-        if (!contentText && integratedBrowserService.isAvailable()) {
-          try {
-            const res = await integratedBrowserService.getTabContent(tab.tabId);
-            if (res.success && res.content?.text) {
-              contentText = res.content.text;
-            }
-          } catch {
-            // fallback si no se puede leer la pestaña
-          }
-        }
-        const header = `--- Pestaña ${idx + 1}: ${tab.title} (${tab.url}) ---`;
-        const body = contentText ? contentText.slice(0, 4000) : '[Información de la pestaña cargada]';
-        return `${header}\n${body}`;
-      })
-    );
+      const attached = state.tabs?.attached ?? [];
+      if (preparedShortcut) assertBrowserShortcutTurn(preparedShortcut, {
+        contextKey, tabs: attached, hasSkill: Boolean(turnSkill), specialMode: state.modes.imageGen || state.modes.promptOptimizer,
+        hasOtherSources: Boolean(state.images.selected.length || state.selection.value || state.apps.attached.length),
+      });
+      if (attached.length && (state.modes.imageGen || state.modes.promptOptimizer)) {
+        throw new Error('Desactiva el modo de imagen o de optimización para analizar pestañas con fuentes.');
+      }
 
-    // Aplicaciones de escritorio: la lectura arrancó al marcarlas, así que aquí
-    // solo se espera lo que siga en curso, con presupuesto acotado. Lo que no
-    // llegue se declara como no leído en lugar de retener el turno.
-    const attachedApps = state.apps?.attached ?? [];
-    const resolvedApps = await resolveAppAttachments(
-      attachedApps,
-      state.apps?.extractions.current ?? new Map(),
-    );
+      // Aplicaciones de escritorio: la lectura arrancó al marcarlas, así que aquí
+      // solo se espera lo que siga en curso, con presupuesto acotado. Lo que no
+      // llegue se declara como no leído en lugar de retener el turno.
+      const attachedApps = state.apps?.attached ?? [];
+      const resolvedApps = await resolveAppAttachments(
+        attachedApps,
+        state.apps?.extractions.current ?? new Map(),
+      );
+      if (signal.aborted) return;
+      const browserSources = await captureBrowserTabSources(attached, signal);
+      if (signal.aborted) return;
 
-    // El presupuesto del turno es compartido: lo que ya gastaron las pestañas no
-    // vuelve a estar disponible para las aplicaciones.
-    const tabsCharCount = tabContextParts.reduce((total, part) => total + part.length, 0);
-    const appBudget = Math.max(0, APP_CONTEXT_LIMITS.maxCharsPerTurn - tabsCharCount);
-    const appContext = buildAppContextBlock(resolvedApps, appBudget);
+      // El presupuesto del turno es compartido: lo que ya gastaron las pestañas no
+      // vuelve a estar disponible para las aplicaciones.
+      const tabsCharCount = browserSourcesContext(browserSources).length;
+      const appBudget = Math.max(0, APP_CONTEXT_LIMITS.maxCharsPerTurn - tabsCharCount - (selContext?.length ?? 0) - 1000);
+      const appContext = buildAppContextBlock(resolvedApps, appBudget);
 
-    const combinedContextParts = [
-      selContext ? `Selección del usuario:\n${selContext}` : '',
-      tabContextParts.length > 0 ? `Pestañas del navegador adjuntas para análisis multi-pestaña:\n${tabContextParts.join('\n\n')}` : '',
-      appContext.block ? `Aplicaciones abiertas del equipo adjuntas para análisis:\n${appContext.block}` : '',
-    ].filter(Boolean);
+      const combinedContextParts = [
+        selContext ? `Selección del usuario:\n${selContext}` : '',
+        appContext.block ? `Aplicaciones abiertas del equipo adjuntas para análisis:\n${appContext.block}` : '',
+      ].filter(Boolean);
 
-    const contexto = combinedContextParts.length > 0 ? combinedContextParts.join('\n\n') : undefined;
-    const images = [...state.images.selected, ...appContext.images];
-    state.input.set('');
-    state.selection.set(null);
-    state.tabs?.setAttached([]);
-    state.apps?.setAttached([]);
-    state.apps?.extractions.current.clear();
-    state.images.setSelected(() => []);
-    await runtime.chat.handleSend(text, images, contexto);
+      const contexto = combinedContextParts.length > 0 ? combinedContextParts.join('\n\n') : undefined;
+      const images = [...state.images.selected, ...appContext.images];
+      state.input.set('');
+      setPreparedShortcut(null);
+      state.selection.set(null);
+      state.tabs?.setAttached([]);
+      state.apps?.setAttached([]);
+      state.apps?.extractions.current.clear();
+      state.images.setSelected(() => []);
+      await runtime.chat.handleSend(text, images, contexto, browserSources);
+    });
   };
 
   // Detiene la generación de texto y cualquier proceso de Computer Use en curso.
-  const onStopClick = () => runtime.chat.stopGeneration();
+  const onStopClick = () => { preparation.cancel(); runtime.chat.stopGeneration(); };
 
   return {
     props: normalizedProps,
@@ -166,6 +167,15 @@ export function useChatUIController(props: ChatUIProps) {
     dictation,
     tools,
     skillCommands,
+    preparation,
+    shortcuts: {
+      contextKey, active: preparedShortcut !== null, clear: () => setPreparedShortcut(null),
+      use: (entry: BrowserAgentShortcut, profileRevision: number) => {
+        if (state.input.value.trim()) throw new Error('Vacía el borrador antes de usar un atajo; no se sobrescribió tu mensaje.');
+        if (runtime.chat.showLoadingUI || preparation.busy || !canSendMessages) throw new Error('Espera a que termine el turno actual.');
+        setPreparedShortcut({ entry, contextKey, profileRevision }); state.input.set(entry.instruction);
+      },
+    },
     refs: state.refs,
     handleScroll,
     onSendClick,

@@ -25,6 +25,11 @@ export function buildBrowserContextMenu(input: {
   pageTitle: string;
   onSelectionAction: (request: BrowserSelectionRequest) => void;
   onOpenReadingMode: (selection: string) => void;
+  onFind?: () => void;
+  onPrint?: () => void;
+  onSavePdf?: () => void;
+  onToggleMute?: () => void;
+  muted?: boolean;
 }): Menu {
   const { contents, params } = input;
   const readingSelection = params.selectionText.trim().slice(0, MAX_READING_SELECTION_CHARS);
@@ -69,6 +74,14 @@ export function buildBrowserContextMenu(input: {
       { label: 'Seleccionar todo', role: 'selectAll' },
     );
   }
+
+  template.push(
+    { type: 'separator' },
+    { label: 'Buscar en la página', accelerator: 'CmdOrCtrl+F', click: input.onFind },
+    { label: input.muted ? 'Activar audio de pestaña' : 'Silenciar pestaña', click: input.onToggleMute },
+    { label: 'Imprimir…', accelerator: 'CmdOrCtrl+P', click: input.onPrint },
+    { label: 'Guardar como PDF…', click: input.onSavePdf },
+  );
 
   template.push(
     { type: 'separator' },

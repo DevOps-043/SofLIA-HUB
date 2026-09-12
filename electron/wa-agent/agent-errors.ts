@@ -1,3 +1,5 @@
+import { WA_MODEL } from './constants';
+
 export type WhatsAppAgentErrorCategory =
   | 'missing-api-key'
   | 'invalid-api-key'
@@ -90,7 +92,7 @@ export function getWhatsAppAgentUserErrorMessage(error: unknown): string {
     case 'quota':
       return 'Gemini rechazo la solicitud por cuota o limite temporal. Intenta de nuevo en unos minutos o revisa la cuota de la key.';
     case 'model-unavailable':
-      return `Gemini 3.6 Flash no esta disponible para esta key. No cambie a otro modelo; revisa el acceso de la API y vuelve a intentar.\n\nDetalle: ${describeTechnicalDetail(error)}`;
+      return `${WA_MODEL} no esta disponible para esta key. No cambie a otro modelo; revisa el acceso de la API y vuelve a intentar.\n\nDetalle: ${describeTechnicalDetail(error)}`;
     case 'network':
       return 'No pude conectarme con Gemini en este momento. La conversacion sigue intacta; intenta de nuevo cuando haya conexion.';
     case 'safety':
@@ -131,7 +133,7 @@ export function shouldResetConversationAfterAgentError(error: unknown): boolean 
  * Mensaje del error en minusculas y SIN URLs.
  *
  * Todo error del SDK de Gemini arrastra el endpoint
- * (`.../models/gemini-3.6-flash:generateContent`), asi que clasificar sobre el
+ * (`.../models/gemini-3.8-flash:generateContent`), asi que clasificar sobre el
  * texto crudo hacia que `includes('model')` fuera siempre cierto: cualquier
  * fallo cuyo cuerpo mencionara "not found", "404" o "not supported" —por
  * ejemplo una herramienta inexistente— se le atribuia al modelo y devolvia

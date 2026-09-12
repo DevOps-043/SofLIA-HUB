@@ -77,6 +77,31 @@ bloquear el Hub.
 
 ## Migraciones y snapshots
 
+### Sync cifrado del navegador: esquema preparado, no desplegado
+
+`database/lia/migrations/browser-encrypted-sync.sql` es aditivo. El propietario
+es `auth.uid()` de Lia, no el ID SOFIA enviado como argumento. Dispositivos
+ligados a `session_id` firmado y a `auth.sessions` permiten revocar una sesión
+sin aceptar que se registre otra vez con otro ID. Se exige `is_anonymous: false`
+firmado: usuarios Auth anónimos también usan el rol authenticated y no deben
+confundirse con titulares permanentes. No hay datos compartidos por
+organización: una membresía no concede acceso al navegador personal ajeno.
+
+RLS sólo permite SELECT propio a sesiones registradas activas; no hay políticas
+de escritura directa ni acceso anónimo. RPC con `search_path` vacío serializan
+registro, escritura y revocación por propietario. Los envelopes opacos conservan
+última revisión por categoría y los recibos guardan SHA-256 del pedido cifrado,
+idempotency_key y trace_id; ni claves, hostname, MAC ni correo se almacenan.
+Categorías: marcadores, grupos, pestañas y ajustes, nunca contraseñas/passkeys.
+El servidor valida formato y cuotas, no puede inspeccionar el plaintext cifrado.
+
+Se verificó con PostgreSQL en memoria; aún no existe cliente remoto conectado
+ni evidencia de aplicación en Lia. El rollout requiere sesión federada en main,
+prueba de JWT/PostgREST real y aprobación de migración. El rollback operativo
+`database/lia/rollbacks/browser-encrypted-sync-disable.sql` retira permisos sin eliminar datos.
+
+### Convenciones de migraciones
+
 - `database/<instancia>/migrations/`: SQL ejecutable revisable.
 - `database/<instancia>/snapshots/schema.sql`: inventario informativo; no ejecutar.
 - `database/shared/`: auditorias o cambios que abarcan varias instancias.

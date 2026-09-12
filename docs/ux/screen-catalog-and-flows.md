@@ -8,6 +8,16 @@ Estado: vigente. Actualizado: 2026-08-04.
 
 ## Pantallas y superficies
 
+Soporte del navegador incluye «Recuperar ajustes dañados» con cuatro acciones:
+permisos por sitio, privacidad, políticas del agente y atajos. Sólo admite perfil
+autenticado; durante revisión deshabilita botones y muestra estado. La aprobación
+ocurre en diálogo nativo de main con cancelar por omisión; cancelación, fallo y
+conteo recuperado son distintos. No muestra rutas ni contenido de respaldos.
+El panel de permisos advierte que restablecer retira todas sus copias locales.
+Datos sincronizados añade «Recuperar configuración dañada», disponible aunque
+la lectura de configuración falle; muestra confirmación/cancelación/error y
+éxito con transferencia desactivada. No confundir con importar código de clave.
+
 | Superficie | Entrada/condicion | Datos/servicios | Acciones principales | Estados requeridos |
 |---|---|---|---|---|
 | Startup | ventana principal | theme + auth lifecycle | ninguna durante intro | animando, gracia auth, salida |
@@ -80,7 +90,7 @@ Usuario abre Navegador o solicita una tarea web en Chat
   -> navegacion manual o use_computer captura la misma pagina visible
   -> cada turno con el navegador visible puede adjuntar la observación reciente; el DOM se marca como página no confiable
   -> acciones del agente reciben captura y DOM de esa vista; si falla, no saltan al navegador externo
-  -> Computer Use usa Gemini 3.6 Flash y un presupuesto web de 90 pasos, con tope 120 y salida anticipada al completar
+  -> Computer Use usa Gemini 3.8 Flash y un presupuesto web de 90 pasos, con tope 120 y salida anticipada al completar
   -> usuario observa, interrumpe o retoma sobre la misma sesion
   -> historial se registra; favoritos HTTP(S) se sanean y guardan localmente con límite; bóveda/extensiones solo responden a gesto humano; extensiones muestran permisos opcionales y permiten reintentar una carga fallida
   -> al cerrar, la vista se oculta y Sidebar/vista anterior se restauran

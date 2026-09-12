@@ -1,4 +1,4 @@
-import { SOFLIA_RUNTIME_MODEL } from '../shared/soflia-runtime-model';
+import { SOFLIA_LITE_MODEL, SOFLIA_RUNTIME_MODEL } from '../shared/soflia-runtime-model';
 
 export interface ThinkingOption {
   id: string;
@@ -76,7 +76,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     thinkingOptions: THINKING_OPTIONS_GPT56,
   },
   {
-    id: 'gemini-3.5-flash-lite',
+    id: SOFLIA_LITE_MODEL,
     name: 'SofLIA Lite',
     desc: 'Ultra ligero para tareas simples.',
     icon: 'feather',

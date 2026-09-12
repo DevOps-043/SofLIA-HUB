@@ -4,7 +4,7 @@ import {
   NATIVE_AI_TOOL_NAMES,
   PROJECT_HUB_TOOL_NAMES,
 } from '../gemini-tools';
-import { isKnownTurnTool, resolveSkillToolNames, type ActiveSkillContext } from '../gemini-tools/turn-catalog';
+import { isKnownTurnTool, resolveSkillToolNames, resolveAttachedSourceToolGroups, type ActiveSkillContext } from '../gemini-tools/turn-catalog';
 import { executeComputerToolAsJson } from './computer-tool-result';
 import { executeNativeAiTool } from './native-ai-tools';
 import { executeProjectHubTool } from './project-hub-tools';
@@ -35,6 +35,10 @@ export async function executeGeminiToolCall(
   const toolInfo: ToolCallInfo = { name: toolName, args: toolArgs };
   options?.onToolCall?.(toolInfo);
   try {
+    if (options?.browserSourceMode === 'attached-fragments' && !resolveAttachedSourceToolGroups(options.activeSkill)
+      .some((group) => group.functionDeclarations.some((tool) => tool.name === toolName))) {
+      throw new Error('Este turno sólo usa los extractos adjuntos y el workspace de la Skill elegida. No autoriza nuevas fuentes ni acciones externas.');
+    }
     const resultStr = await executeKnownTool(
       toolName,
       enrichToolArgs(toolName, toolArgs, generatedImages),

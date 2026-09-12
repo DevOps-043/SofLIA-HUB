@@ -1,4 +1,8 @@
 import { createComputerUseClient, type CuClient } from './gemini-cu/client';
+import { assertCuNotAborted } from './gemini-cu/execution-guard';
+import { beginBrowserCuTask, updateBrowserCuStep } from './browser-cu-task';
+import type { BrowserCuSupervisor } from './browser-cu-supervisor';
+import { runSupervisedCuLoop } from './gemini-cu/supervised-loop';
 import { createDesktopCuDriver } from './gemini-cu/desktop-driver';
 import { createBrowserCuDriver, type PlaywrightPage } from './gemini-cu/browser-driver';
 import { runComputerUseLoop, type CuLoopEstado } from './gemini-cu/loop';
@@ -10,6 +14,7 @@ import { ensureBrowserPage } from '../browser-web/service-page';
 import { createIntegratedBrowserCuDriver } from '../integrated-browser';
 import type { DesktopAgentConfig } from '../desktop-agent-types';
 import type { DesktopTaskExecutionOptions } from './types';
+import type { DesktopAgentService } from '../desktop-agent-service';
 
 /**
  * Wiring del cerebro Gemini Computer Use como backend. Reutiliza los ejecutores
@@ -78,32 +83,59 @@ export async function runComputerUseBrowserTask(
 ): Promise<DesktopTaskOutcome | null> {
   const client = nuevoCliente(service, 'ENVIRONMENT_BROWSER');
   if (!client.disponible()) return null;
+  const integrated = service.integratedBrowser && !options?.browserIsolated && !options?.browserProfile && !options?.resetBrowserProfile;
+  const startedAt = Date.now();
+  const taskControl = beginBrowserCuTask(service, task, resolveTaskStepBudget({
+    task, config: service.config, requestedMaxSteps: options?.maxSteps, surface: integrated ? 'integrated-browser' : 'other',
+  }), options?.signal);
+  try {
+    assertCuNotAborted(taskControl.signal);
+    return await runBrowserCuWithControl(service, task, { ...options, signal: taskControl.signal }, client, taskControl.taskId, taskControl.supervisor);
+  } catch (error) {
+    if (!taskControl.signal.aborted) throw error;
+    return buildTaskOutcome({ taskId: taskControl.taskId, estado: 'cancelada', mensaje: 'Tarea cancelada.', startedAt });
+  } finally {
+    taskControl.finish();
+  }
+}
+
+async function runBrowserCuWithControl(
+  service: DesktopAgentService, task: string, options: DesktopTaskExecutionOptions, client: CuClient, taskId: string, supervisor: BrowserCuSupervisor,
+): Promise<DesktopTaskOutcome | null> {
   if (service.integratedBrowser && !options?.browserIsolated && !options?.browserProfile && !options?.resetBrowserProfile) {
+    const browser = service.integratedBrowser;
     let acquiredControl = false;
+    const detach = browser.bindAgentTask(supervisor);
     try {
-      await service.integratedBrowser.openForAgent(options?.startUrl);
+      await browser.openForAgent(options?.startUrl, undefined, options.signal);
       acquiredControl = true;
+      assertCuNotAborted(options.signal);
       return await runCuTaskCommon(
         service,
         task,
         options,
         client,
-        createIntegratedBrowserCuDriver(service.integratedBrowser),
+        createIntegratedBrowserCuDriver(browser),
         'navegador_integrado',
+        taskId,
+        supervisor,
       );
     } finally {
-      if (acquiredControl) service.integratedBrowser.releaseAgentControl();
+      detach();
+      if (acquiredControl) browser.releaseAgentControl();
     }
   }
   try {
     await ensureBrowserPage(service.browserWeb);
   } catch (error: unknown) {
+    assertCuNotAborted(options.signal);
     console.warn('[DesktopAgent][CU] No se pudo abrir el navegador para Computer Use:', error instanceof Error ? error.message : String(error));
     return null;
   }
+  assertCuNotAborted(options.signal);
   const page = service.browserWeb.page as PlaywrightPage | null;
   if (!page) return null;
-  return runCuTaskCommon(service, task, options, client, createBrowserCuDriver(page), 'browser');
+  return runCuTaskCommon(service, task, options, client, createBrowserCuDriver(page), 'browser', taskId);
 }
 
 /** Loop comun: presupuesto, estado, eventos, cancelacion y outcome. */
@@ -114,6 +146,8 @@ async function runCuTaskCommon(
   client: CuClient,
   driver: CuDriver,
   etiqueta: string,
+  taskId: string | null = null,
+  supervisor?: BrowserCuSupervisor,
 ): Promise<DesktopTaskOutcome> {
   const config: DesktopAgentConfig = service.config;
   const startedAt = Date.now();
@@ -125,13 +159,16 @@ async function runCuTaskCommon(
     config,
   });
 
-  service.status = 'executing';
-  service.currentTask = task;
-  service.currentStep = 0;
+  // El navegador publica su propio registro; no pisa el estado de una tarea de escritorio.
+  if (!taskId) {
+    service.status = 'executing';
+    service.currentTask = task;
+    service.currentStep = 0;
+  }
   console.log(`[DesktopAgent][CU] Iniciando tarea (${etiqueta}, ${resolveComputerUseModel(config).model}, ${maxSteps} pasos): "${task.slice(0, 80)}"`);
 
   try {
-    const result = await runComputerUseLoop({
+    const loopOptions: Parameters<typeof runComputerUseLoop>[0] = {
       client,
       driver,
       task,
@@ -139,30 +176,32 @@ async function runCuTaskCommon(
       abortSignal: options?.signal ?? null,
       delay: (ms: number) => service.delay(ms),
       onStep: ({ step, nombre, action, intent }) => {
-        service.currentStep = step;
+        if (taskId) updateBrowserCuStep(service, taskId, step);
+        else service.currentStep = step;
         console.log(`[DesktopAgent][CU] Paso ${step}: ${nombre} (${action.tipo}) — ${intent}`);
-        service.emit('step', { step, maxSteps, action: { action: action.tipo, message: intent } });
+        service.emit('step', { taskId, step, maxSteps, action: { action: action.tipo, message: intent } });
       },
-    });
+    };
+    const result = supervisor ? await runSupervisedCuLoop(loopOptions, supervisor) : await runComputerUseLoop(loopOptions);
 
     const resultMessage = result.estado === 'presupuesto_agotado' && integratedBrowserTask
       ? `Se alcanzó el límite de ${maxSteps} pasos sin confirmar la meta. La página, cookies y sesión del navegador integrado permanecen abiertas para continuar desde este punto.`
       : result.mensaje;
     console.log(`[DesktopAgent][CU] Fin (${etiqueta}): ${result.estado} en ${result.pasos} pasos.`);
     if (result.estado === 'completada') {
-      service.emit('task-completed', { task, message: resultMessage, steps: result.pasos, taskId: null });
+      service.emit('task-completed', { task, message: resultMessage, steps: result.pasos, taskId });
     } else if (result.estado === 'presupuesto_agotado') {
-      service.emit('task-budget-exhausted', { taskId: null, maxSteps, message: resultMessage });
+      service.emit('task-budget-exhausted', { taskId, maxSteps, message: resultMessage });
     }
     return buildTaskOutcome({
-      taskId: null,
+      taskId,
       estado: mapEstado(result.estado),
       mensaje: resultMessage,
       pasosEjecutados: result.pasos,
       startedAt,
     });
   } finally {
-    if (service.currentTask === task) {
+    if (!taskId && service.currentTask === task) {
       service.status = 'idle';
       service.currentTask = null;
       service.currentStep = 0;

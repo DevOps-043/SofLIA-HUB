@@ -96,6 +96,13 @@ export function resolveSkillToolGroups(activeSkill?: ActiveSkillContext | null):
   return groups;
 }
 
+/** Los extractos no autorizan ampliar fuentes. Conservar únicamente trabajo local de la Skill elegida. */
+export function resolveAttachedSourceToolGroups(activeSkill?: ActiveSkillContext | null): GeminiToolGroup[] {
+  return resolveSkillToolGroups(activeSkill).map((group) => ({ ...group,
+    functionDeclarations: group.functionDeclarations.filter((tool) => tool.name !== 'workspace_download_image'),
+  })).filter((group) => group.functionDeclarations.length > 0);
+}
+
 /** Una herramienta es conocida si esta en el catalogo base o la aporta la Skill. */
 export function isKnownTurnTool(toolName: string, activeSkill?: ActiveSkillContext | null): boolean {
   if (BASE_TOOL_NAMES.some((names) => names.has(toolName))) return true;

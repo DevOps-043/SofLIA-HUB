@@ -1,6 +1,6 @@
 # IPC e integraciones externas
 
-Estado: vigente. Actualizado: 2026-08-21.
+Estado: vigente. Actualizado: 2026-09-11.
 
 <!-- evidence: electron/preload/channels.ts -->
 <!-- evidence: electron/preload/safe-ipc.ts -->
@@ -8,8 +8,32 @@ Estado: vigente. Actualizado: 2026-08-21.
 
 ## Contrato IPC
 
-La allowlist actual contiene 362 canales derivados de cinco arrays: 81, 52, 62,
-105 y 62. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+Tres operaciones cerradas añadidas:
+
+- `orb:browser-command`: una acción literal para cambiar pestaña o supervisar
+  tarea. Exige la Orbe actual autenticada, visible y su marco principal;
+  reanudar requiere confirmación nativa y recibo de tarea previo al diálogo.
+  No devuelve URL, títulos ni DOM y no crea otro agente.
+- `integrated-browser:semantic-memory`: status/enable/disable/rebuild/search/
+  cancel y recibo de perfil. Main confirma opt-in/borrado, no acepta vectores,
+  rutas, claves ni aprobaciones renderer. Devuelve estado y fuentes, no secretos.
+- `integrated-browser:credential-session`: status/unlock/lock y recibo de
+  perfil. Windows verifica; sólo devuelve éxito/estado de bloqueo/error saneado.
+  No acepta PIN, `approved`, identificadores del SO ni rutas.
+
+Los tres revalidan emisor/contexto tras esperas y detectan logout/login del mismo
+titular. `credentialUnlocked` y `sensitiveHandoff` viajan en estado ya existente;
+no añaden canales para leer secretos ni para ignorar la barrera sensible.
+
+`integrated-browser:agent-shortcuts` acepta únicamente `list`, `save` o `remove`
+con `profileRevision`; las mutaciones incluyen revisión de biblioteca, y datos
+de entrada cerrados. Exige sesión y marco principal, no recibe rutas ni una
+aprobación fabricada del renderer. El servicio comprueba capacidad, política,
+perfil y control humano; el borrado pregunta en main. Responde con biblioteca
+versionada, cancelación o error saneado. No existe IPC de ejecución de atajos.
+
+La allowlist actual contiene 427 canales derivados de cinco arrays: 81, 52, 61,
+135 y 98. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |
@@ -18,19 +42,27 @@ el catalogo y su validador deben actualizarse juntos.
 | `desktop-agent` | 23 | tareas, abort, config, UI input, ventanas, screenshot, calibracion |
 | `calendar` | 17 | OAuth, conexiones, eventos, polling y eventos de trabajo |
 | `memory` | 14 | contexto, facts y skills |
-| `orb` | 15 | dictado, TTS, apertura y ventana flotante |
+| `orb` | 19 | dictado, TTS, apertura, comandos humanos del navegador y ventana flotante |
 | `monitoring`, `gmail`, `remote-node` | 13 cada uno | actividad; correo; host remoto |
 | `meeting`, `whatsapp` | 12 cada uno | runs/approvals/sync; conexion/config/status |
 | `meeting-live` | 11 | audio, segmentos, deteccion y estado live |
 | `channels` | 10 | hub multicanal (WhatsApp y Telegram) |
 | `passive-skills` | 3 | consulta, alta y baja de Skills pasivas |
-| `integrated-browser` | 47 | navegación, pestañas, composición, captura visible, percepción, modo lectura, controlador determinista, viewport, visibilidad, eventos, historial, credenciales, extensiones y borrado de datos de navegación |
+| `integrated-browser` | 124 | navegación, pestañas, grupos, sesión, perfiles, descargas, herramientas de página, marcadores, historial, credenciales, privacidad, política, supervisión, memoria semántica, atajos y bitácora del agente, sync, recuperación, diagnóstico, catálogo/extensiones por sitio y eventos |
 | `desktop-context` | 2 | inventario de ventanas abiertas y extraccion en cascada del contenido de las que el usuario marca en el chat |
-| `skill-workspace` | 13 | espacio de trabajo de Skills: crear, estado, leer, escribir, editar, borrar, guardar y descargar imagenes, abrir carpeta, progreso y URL de vista previa |
+| `skill-workspace` | 14 | espacio de trabajo de Skills: crear, estado, leer, escribir, editar, borrar, guardar y descargar imagenes, abrir carpeta, progreso y URL de vista previa |
 | `presentation`, `presentation-view` | 5 | vista a pantalla completa, exportacion a HTML autocontenido y preparacion de la identidad de marca |
-| otros | 56 | voice, updater, automation, drive, pytools, telegram, gchat, app, background-host, root y AI |
+| `project-hub` | 22 | proyectos, tareas y seguimiento |
+| otros | 67 | voice, updater, automation, drive, pytools, telegram, gchat, app, auth, background-host, root y AI |
 
 ### Recorrido obligatorio
+
+`updater:install-update` conserva su canal y contrato `{ success, error? }`.
+Ahora exige `WebContents` y frame principal de la ventana main, espera el
+preflight de guardado y sólo entonces acepta la solicitud de instalación.
+Errores/cancelaciones se devuelven saneados; el wrapper renderer los convierte
+en error visible. El permiso de omitir guardado sólo existe en el diálogo
+nativo: no se expone un canal de bypass ni control de `commitShutdown`.
 
 1. El renderer llama un wrapper de `src/services` o una API `window.*` tipada.
 2. `electron/preload/*-apis.ts` usa `safeInvoke`, `safeSend` o `safeOn`.
@@ -58,6 +90,40 @@ actualizar las cuatro capas, tipos y pruebas segun
 
 ### Contrato del navegador integrado
 
+El evento existente `integrated-browser:state-changed` y las respuestas de
+estado incluyen `tabs[].navigationSafety` opcional: acción `allow/warn/block`,
+fuente `local/remote/degraded`, motivo controlado y fecha de revisión. No incluye
+URLs adicionales, contenido remoto ni aprobación de bypass. Main conserva la
+asociación interna con el documento; renderer muestra sólo el aviso de la
+pestaña activa. No hay canales nuevos ni cambios de allowlist para esta capacidad.
+
+`integrated-browser:runtime-diagnostic-export` no acepta argumentos ni permite
+elegir rutas, datos o aprobación desde renderer. Exige el emisor/frame principal
+y sesión; el servicio rechaza además perfil anónimo, transiciones y cierre.
+`BrowserDiagnosticExporter` en `electron/integrated-browser/diagnostic-report.ts`
+proyecta una instantánea sin datos navegados, obtiene confirmación y destino con
+diálogos nativos y publica un JSON nuevo sin sobrescribir. Devuelve solamente
+`diagnosticExport: { cancelled, exported }`; errores de E/S y diálogos tienen
+mensajes controlados. No hay API runtime de agente, subida ni selector de otro
+perfil. El guard central conserva su política de autenticación del producto.
+
+`integrated-browser:bookmarks-import-html` conserva su canal sin argumentos.
+Exige sesión autenticada, emisor autorizado y frame principal de la ventana
+main; rechaza rutas u opciones enviadas por el renderer. Selección, lectura
+acotada, revisión de conflictos y confirmación ocurren en main mediante
+`electron/integrated-browser/bookmark-importer.ts`. No se expone un canal de
+commit ni el plan de importación. La respuesta `bookmarkTransfer` sólo añade
+conteos de actualizados, duplicados e inválidos a cancelación/importados/omitidos;
+el wrapper tipado y la UI muestran ese resumen. Los errores imprevistos del
+importador se sustituyen por mensajes públicos sin contenido ni rutas.
+
+`integrated-browser:credentials-import/export` tampoco acepta argumentos.
+Exigen sesión autenticada, emisor y frame principal; los diálogos de selección,
+advertencia y destino se ejecutan en main. La exportación usa un archivo nuevo
+de hasta 5 MiB y la importación prepara conflictos antes de escribir. El
+renderer recibe sólo `{ cancelled, imported, updated, skipped, exported }`;
+ninguna contraseña, ruta seleccionada o contenido del archivo cruza IPC.
+
 `integrated-browser:tab-reorder` reordena las pestañas al arrastrarlas. El
 handler y el método de preload ya existían, pero el canal **faltaba en la
 allowlist**: `validateChannel` lanza de forma síncrona, y como la llamada vivía
@@ -66,16 +132,64 @@ render y dejaba la aplicación en blanco. El arrastre usa Pointer Events con
 captura —el gesto no se pierde al salir de la pestaña ni compite con la región
 de arrastre de la ventana— y el reordenamiento se calcula fuera del updater.
 
-`electron/integrated-browser-handlers.ts` registra cuarenta y tres operaciones invocables:
-veinticuatro de estado, navegación, pestañas, composición, viewport, captura,
-percepción, controlador determinista y herramientas de desarrollo; siete del
-modo lectura, dos de historial, cuatro de credenciales, cinco de extensiones y
-una del panel de redacción.
-Dos canales adicionales entregan estado y solicitudes de
-apertura del agente al renderer, y otros dos entregan las acciones sobre el
-texto seleccionado: la seleccion convertida en peticion para el chat y la
-apertura del modo lectura. `electron/preload/integrated-browser-api.ts` y
-`src/services/integrated-browser-service.ts` son las capas publicas.
+`electron/integrated-browser-handlers.ts` registra 114 operaciones invocables.
+
+`integrated-browser:policy-recover` recibe sólo `store` (permissions/privacy/agent/shortcuts/semantic)
+y `profileRevision` entero no negativo. Handler y servicio verifican emisor,
+marco principal, titular autenticado, perfil, ventana y control humano, también
+tras esperas. Main prepara una recuperación restrictiva con confirmación nativa,
+cancelar por omisión y revisión de cinco minutos. Devuelve sólo éxito/cancelación,
+conteo restaurado o error saneado. No admite paths, claves, sync, otro perfil ni
+un canal de commit separado; no es herramienta del agente runtime.
+Contrato: `src/shared/browser-policy-recovery.ts`.
+
+`shortcuts` exige además gobierno del agente permitido y devuelve conteo de
+instrucciones, nunca las ejecuta. `integrated-browser:sync-control` añade
+`{ action: 'recover-settings' }` sin argumentos extra, aprobación ni paths.
+Usa la misma exclusión/cancelación del controlador y una confirmación nativa;
+el resultado queda sin categorías activas. Los literales de acción/elección
+deben ser strings, no arrays que se conviertan implícitamente a strings.
+No añade canales ni primitivas accesibles al runtime.
+
+`integrated-browser:extensions-catalog` admite sólo `list` o `prepare` con
+`catalogId` y `updateInstallId` opcional. Devuelve catálogo público o revisión
+con token, nunca rutas de carpetas ni aprobación. Selección de carpeta nativa;
+confirmación por el canal de instalación existente. Valida marco principal,
+titular del perfil, sesión/ventana/control y política empresarial. Una actualización
+exige extensión deshabilitada y páginas en blanco; mantiene esas guardas hasta
+publicar. Contrato en `src/shared/browser-extension-catalog.ts`.
+
+`integrated-browser:extensions-restrict-sites` recibe únicamente
+`{ installId, sites }`, hasta 50 sitios de 300 caracteres. Valida emisor main,
+sesión sin cambios y marco principal; main exige perfil persistente autenticado,
+control humano, extensión deshabilitada y ausencia de páginas vivas no blancas.
+Devuelve metadata actualizada, sin ruta ni hash interno; fallos no filtran E/S.
+Preload y wrapper tipado exponen `restrictExtensionSites`. Sólo reduce
+permisos y no reinstala ni actualiza código.
+Passkeys no añaden IPC: su selector devuelve la elección al callback nativo.
+
+`integrated-browser:agent-control` recibe un DTO cerrado con acción
+`pause/resume/stop/take-control`, ID CU y revisiones de perfil/ejecución. Exige
+sesión y marco principal. Main rechaza reanudación/pausa obsoletas; detener sólo
+reduce autoridad sobre la misma tarea/perfil y no necesita revisión de ejecución
+vigente. `state-changed` publica `agentTask` efímero e IDs de avisos de política
+vigentes; un acuse no significa que terminó una operación nativa. El renderer
+retira avisos cancelados y descarta acuses de otro contexto. No hay primitivas
+de entrada ni funciones del supervisor disponibles para páginas o runtime.
+Los otros diez canales entregan eventos, incluidos cambios de estado,
+descargas y solicitudes de permiso. `electron/preload/integrated-browser-api.ts`
+y `src/services/integrated-browser-service.ts` son las capas públicas.
+`history-retention-get/set` leen y configuran retención del perfil; `set` sólo
+admite `days: null | 30 | 90 | 180 | 365`, después de confirmación explícita en
+renderer. Las políticas administradas prevalecen. `tabs-recently-closed`
+devuelve hasta 25 entradas de sesión; `tab-reopen-closed` acepta opcionalmente
+`tabId` para reabrir una entrada elegida. Sin argumento conserva el atajo de
+reabrir la última. Ninguna ruta acepta un emisor distinto del renderer principal.
+Las capacidades y sus límites están en
+[la plataforma del navegador](integrated-browser-platform.md).
+La operación de scroll espera la autorización antes de responder; una
+denegación retorna error y no se convierte en éxito anticipado.
+La captura local de respaldo para menús no es una captura para el agente.
 
 `integrated-browser:document-read` agrega una lectura de solo consulta para el
 chat. El servicio toma la pestaña activa visible, reutiliza la extracción
@@ -190,6 +304,14 @@ Una secuencia híbrida puede usar Computer Use desktop para una aplicación
 externa y volver a estos canales para la pestaña integrada; la superficie se
 declara por paso, no existe fallback silencioso y los efectos externos conservan
 confirmación HITL.
+
+`desktop-agent:get-status` y `get-active-tasks` incluyen el ID propio de una
+tarea visual de navegador desde su apertura. Los canales existentes `abort-task`
+y `abort` alcanzan su controlador main; el segundo retira también la cola.
+La señal nativa no cruza IPC: se crea en main y se enlaza a apertura, loop y SDK.
+El acuse de abortar no acredita haber deshecho una navegación o entrada emitida;
+la reserva permanece hasta terminar esa operación. No añade canales ni ofrece
+pausa/reanudación del navegador.
 `integrated-browser:set-observation-enabled` permite pausar y descartar esa
 evidencia. El DOM omite valores de formularios, contenido editable, contraseñas
 y credenciales de URL, y se entrega como contenido de página no confiable.
@@ -228,6 +350,92 @@ mediante polling de capturas. El renderer publica bounds con inset izquierdo o d
 permanece viva. Solo los gestores flotantes toman una captura puntual y llaman a
 `hide`; al cerrarlos republican el viewport. Una tarea dirigida a esta vista
 falla cerrado y nunca cambia silenciosamente al backend desktop.
+
+### Fuentes de pestañas elegidas
+
+Los canales existentes `integrated-browser:tab-summaries` y
+`integrated-browser:get-tab-content` exigen el marco principal del renderer
+autenticado. El primero no acepta argumentos: devuelve metadata sin DOM y el
+estado con `profileRevision`. Cada resumen añade `documentToken`, aleatorio y
+no persistente. El segundo admite únicamente `{ tabId, expected? }`; el recibo
+opcional contiene `profileRevision` y `documentToken`, sin permisos declarados
+por renderer. Se conserva la llamada legacy sin recibo, pero los adjuntos lo
+exigen y validan. No se añaden canales ni acceso genérico.
+
+Main rechaza documentos/perfiles obsoletos antes de leer y después de autorizar,
+y limita lecturas con recibo a 3000 caracteres antes de IPC. No expone query,
+fragmento ni credenciales de URL. El token cambia con nueva vista o navegación,
+incluida navegación interna; no certifica todas las mutaciones autónomas del DOM.
+La preparación revalida el lote y aplica plazo de quince segundos; cancelación
+renderer descarta resultados, no cancela físicamente una llamada nativa emitida.
+La [arquitectura del navegador](integrated-browser-platform.md#adjuntos-de-pestañas-y-citas)
+documenta persistencia, citas y restricciones del turno.
+
+### Guardado de contraseñas
+
+Los ocho canales `integrated-browser:credentials-*` sólo aceptan el frame
+principal del renderer autenticado. `credentials-list` no recibe argumentos y
+devuelve metadata, `credentialAutosaveEnabled` y `credentialOrigin`, obtenido de la página activa en main.
+`credentials-save` recibe un único objeto cerrado con `username`, `password`,
+`expectedOrigin` obligatorio e `id` opcional. Main rechaza un origen distinto,
+IDs ajenos o eliminados y cambios de contexto durante la revisión. El secreto
+introducido manualmente sólo viaja hacia main; nunca se devuelve por IPC.
+
+Guardar una cuenta existente solicita confirmación nativa del reemplazo.
+La respuesta distingue `{ canceled: true }` de
+`{ canceled: false, credential }`; no hay token ni aprobación enviados desde
+el renderer. `credentials-fill` y `credentials-remove` reciben sólo `{ id }`;
+`credentials-health` no recibe argumentos. Todos rechazan argumentos extra,
+frames ajenos y errores inesperados sin propagar causas con secretos o rutas.
+El diálogo no es autenticación del SO y no implementa Windows Hello.
+
+`credentials-autosave-set` recibe exclusivamente `{ enabled: boolean }` y devuelve
+`{ canceled, credentialAutosaveEnabled }`. Activar exige confirmación nativa;
+desactivar desmonta el observador y ambas acciones invalidan revisiones previas.
+La preferencia vive cifrada por perfil. La oferta posterior a submit viaja por
+un binding CDP privado en un mundo aislado propio con ID único; no existe un
+canal de oferta/aprobación en la allowlist ni en el catálogo runtime. Main valida
+marco principal, origen, pestaña visible, foco y control humano antes de preparar
+el candidato. No hay fallback al contexto JavaScript del sitio o del agente.
+
+### Dispositivos de sincronización
+
+Los cuatro canales `integrated-browser:sync-devices-get/register/revoke/cancel`
+exigen emisor y frame principal autenticados. `get`, `register` y `cancel` no
+aceptan argumentos; `revoke` admite exclusivamente `{ id: UUID }`. Main valida
+la pertenencia en el inventario autorizado y obtiene consentimiento nativo antes
+de registrar o revocar. La aprobación nunca se recibe por IPC.
+
+La respuesta `syncDevices` contiene capacidad, estado, mensaje controlado e IDs
+aleatorios con etiquetas/fechas; no incluye owner, session_id, tokens, rutas ni
+claves. `cancel` devuelve `{ canceled: true }` como acuse de cancelación local,
+no como rollback remoto. La UI descarta respuestas al desmontar y se remonta
+con `profileRevision`, un contador no identificador del estado del navegador.
+No hay canales de lectura/escritura arbitraria de envelopes ni herramientas de
+agente para estas operaciones. `integrated-browser:sync-control` ofrece una unión
+cerrada de acciones para estado, categorías, ejecución/cancelación, pausa,
+resolución y recuperación. Exportar/importar clave usa selector y confirmación
+nativos; ni código, ni ruta, ni clave E2EE cruzan IPC. Los adaptadores y el
+controlador main aplican los datos; el renderer no decide rutas ni escribe stores.
+
+### Bitácora y recuperación explícita
+
+`integrated-browser:agent-audit` sólo acepta `{ action: 'list', offset }`,
+`{ action: 'clear' }` o `{ action: 'retention', days }`. Offset entero 0–5000,
+retención 7/30/90 y sin campos adicionales. Devuelve `audit` paginado o
+`auditChange.cancelled`; no existe IPC para fabricar eventos. Borrado/retención
+exigen HITL en main, TTL de cinco minutos, perfil/ventana/control vigentes y
+exclusión de diálogos concurrentes. Sólo el frame principal autenticado accede.
+
+`integrated-browser:bookmarks-recover` y `integrated-browser:credentials-recover`
+no aceptan rutas, contenido ni aprobaciones del renderer. Main valida el respaldo,
+prepara conteos y solicita confirmación nativa de un solo uso. Bóveda y marcadores
+admiten ausencia/corrupción reconocida, no versiones futuras ni errores de permisos.
+La bóveda conserva los bytes dañados en copia protegida por el SO antes del
+reemplazo; su resultado sigue siendo sólo cancelación y conteo. Ambos invalidan
+revisiones obsoletas y mantienen secretos fuera de IPC. No se agrega canal para
+leer archivos de cuarentena. El borrado confirmado de contraseñas retira también
+las copias completas de recuperación de bóvedas dañadas, con advertencia visible.
 
 ### Borrado de datos de navegacion
 

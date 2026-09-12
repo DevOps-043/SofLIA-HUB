@@ -1,9 +1,9 @@
 # Estrategia e inventario de pruebas
 
-Estado: vigente. Actualizado: 2026-08-21.
+Estado: vigente. Actualizado: 2026-09-11.
 
-El inventario del cambio contiene 394 archivos de prueba: 276 para main y 118
-para renderer. El validador documental recalcula estas cifras; el numero de casos
+El inventario del cambio contiene 473 archivos de prueba: 329 para main y 143
+para renderer, además de uno de scripts. El validador documental recalcula estas cifras; el numero de casos
 ejecutados se registra en el reporte de evidencia de cada cambio, no aqui.
 
 <!-- evidence: vitest.config.ts -->
@@ -12,6 +12,78 @@ ejecutados se registra en el reporte de evidencia de cada cambio, no aqui.
 <!-- evidence: electron/sqlite/database.ts -->
 
 ## Proyectos Vitest
+
+Atajos/configuración sync: biblioteca asíncrona, codec compatible, copia previa,
+guardas, flush, revisiones/IDs nuevos, pausa sin red y limpieza de copias.
+Negativos distinguen versión futura interior/exterior, ámbito ajeno, cuotas,
+ausencia con copia y confirmación cancelada/tardía. La fase nativa `policies`
+cubre ahora cinco stores y diez comprobaciones DPAPI; no acredita producto
+completo ni despliegue remoto.
+
+Passkeys y sitios de extensiones: suites de selección nativa, compilación del
+manifiesto, huella/estado parcial, guardas del servicio, IPC y panel.
+El runner nativo añade `--passkeys-only` (disponibilidad Windows, autenticador
+virtual) y `--extensions-only` (Chromium real y sitios locales), sin instalar
+extensiones de terceros ni utilizar credenciales reales. No acredita interacción
+humana con el proveedor ni smoke del instalador.
+
+Catálogo: huellas oficiales, actualización fallida/concurrente, permisos
+conservados, sesión A→B→A, titular ajeno, cuatro capas IPC y panel con cancelación.
+`--catalog-only` es una prueba opt-in con red: descarga siete archivos del ejemplo
+oficial fijado, verifica SHA-256 y prueba carga/reinstalación en Electron aislado.
+No instala en el perfil real ni es parte de la matriz sin red externa.
+SQLite: fallos de creación/validación revierten DDL y versión; los tres stores
+rechazan bases futuras, ajenas o incompletas preservando bytes. Permisos conserva
+archivos ilegibles y bloquea escrituras, sin resucitar concesiones desde respaldos.
+
+Recuperación de ajustes: corrupción/ausencia, versiones futuras, cuota, errores
+de E/S, ámbito ajeno, revisión vencida, bytes cambiados, escritura/limpieza
+fallida, carreras y barrera de flush. Las proyecciones retiran autoridad y
+preservan bloqueos administrados. Servicio/IPC/panel verifican confirmación,
+cancelación y sesión/perfil/control obsoletos. `--policies-only` ejecuta los tres
+stores en Electron real con DPAPI; no simula la protección del SO ni utiliza
+perfiles reales. El diálogo de producto sigue cubierto con dobles, no humano.
+
+Voz, memoria semántica, formularios sensibles, sesión SO y zoom tienen suites
+dirigidas main/renderer, contrato IPC, rechazo de entradas, cancelación y cambios
+de contexto. Las sondas DOM se prueban con JSDOM (sin layout real); proveedor de
+embeddings y autenticación interactiva usan dobles. El runner nativo
+`scripts/quality/smoke-browser-native.mjs` añade `--zoom-only` y amplía
+`--autosave-only`: ejecuta el código real en Electron con páginas y cuentas
+ficticias, sin bootstrap, perfiles reales ni secretos. No reemplaza smoke de
+producto/instalador ni verificación interactiva de Windows Hello.
+
+Supervisión visual: `browser-cu-supervision.test.ts` ejecuta el loop real con
+dobles de modelo/driver para pausa, drenaje, captura fresca, presupuesto y cierre.
+`BrowserAgentTaskControls.test.tsx` y `BrowserAgentPolicyPrompt.test.tsx` verifican
+estados autoritativos, escalada a detención, acuses obsoletos y retiro de avisos.
+Servicio, handler, preload y wrapper cubren aislamiento y contrato. No sustituyen
+el smoke Windows de 9.5 ni prueban una petición real al proveedor.
+
+Atajos de lectura: `integrated-browser-agent-shortcuts.test.ts` verifica store
+protegido, cuota, revisión, corrupción, versión futura, commit y consentimiento.
+`BrowserAgentShortcutsPanel.test.tsx` cubre creación/edición, elección sin envío,
+cancelación, error y descarte tras cambio de perfil; `browser-shortcut-turn.test.ts`
+rechaza ampliar permisos, fuentes o contexto. Handler, preload y wrapper cubren
+el contrato. El doble global de safeStorage no cifra: esta evidencia demuestra
+cableado, no una prueba criptográfica ni smoke nativo de la biblioteca.
+
+Cancelación visual: `desktop-agent-computer-use-lifecycle.test.ts` comprueba
+registro durante apertura, estado/ID, aborto general/específico, exclusión,
+limpieza y cola. `gemini-cu-loop.test.ts` y `gemini-cu-client.test.ts` cubren
+esperas que no responden, señal del SDK y respuestas/errores tardíos.
+`integrated-browser-service.test.ts` verifica viewport cancelado, navegación
+evaluada tardíamente y reserva hasta drenar navegación nativa. Usa dobles;
+no sustituye pruebas del producto instalado ni del servicio remoto del modelo.
+
+Fuentes de pestañas: `browser-tab-sources.test.ts` verifica lectura fresca,
+cuotas, perfiles, documento, plazo, cancelación y redacción de URL;
+`attachment-preparation.test.tsx` cubre exclusión/cambio de contexto;
+`BrowserTabSources.test.tsx` y `ChatInputArea.test.tsx` cubren selección `@`,
+teclado y evidencia. Los casos de procesamiento/rutas del chat verifican
+metadata al reabrir/regenerar, ausencia de lecturas implícitas y herramientas
+limitadas a la Skill. Servicio, handler, preload y wrapper conservan regresión
+propia. Son pruebas automatizadas con dobles, no smoke del producto instalado.
 
 | Proyecto | Entorno | Include | Setup |
 |---|---|---|---|
@@ -144,12 +216,27 @@ rollback. No todos aplican a cada cambio; el Context Pack decide.
 | `src/__tests__/services/app-attachments.test.ts` | Que el bloque de contexto no engaña al modelo: procedencia por nivel, documento completo acompañado por su visual actual, aviso de cambios sin guardar, acotado de la autoridad de una captura, prohibición de inferir cuando no hay contenido, recorte declarado y fallo aislado. |
 | `src/__tests__/components/AppAttachmentPicker.test.tsx` | El selector y el chip: nivel previsto por aplicación, estado vacío explícito, reintento tras fallo, ausencia de la capacidad, y el chip declarando fidelidad real y avisos antes de enviar. |
 
+### Sincronización y dispositivos del navegador
+
+| Suite | Qué demuestra |
+|---|---|
+| `electron/__tests__/integrated-browser-sync-conflicts.test.ts` | Tres vías por tipo, diferencias por campo/ID/borrado, cuotas sin truncar, orden estable, URLs saneadas y decisiones ligadas a una revisión. |
+| `electron/__tests__/integrated-browser-sync-conflict-store.test.ts` | Reapertura con decisiones, cola compartida, aislamiento de perfil, corrupción, error de E/S, contexto obsoleto, rebase tras CAS y conservación hasta commit. Usa disco temporal y doble del almacén del SO, no Auth/UI/servidor reales. |
+| `electron/__tests__/integrated-browser-sync-devices.test.ts` | Endpoints cerrados, verificación Auth, cuerpos y plazos acotados, backoff, idempotencia, cancelación, identidad protegida, corrupción conservada, consentimiento y revocación. HTTP/safeStorage simulados y disco temporal real; no demuestra PostgREST desplegado. |
+| `electron/__tests__/integrated-browser-sync-auth.test.ts` | Factory aislado: sesión no anónima vigente, correspondencia del titular, verificación Auth, logout/cambio de session_id, refresh del mismo contexto, cancelación y liberación del listener. No carga configuración real ni llama servicios externos. |
+| `src/__tests__/components/BrowserSyncPanel.test.tsx` | Estado deshabilitado, cancelación, registro/listado/revocación, reintento tras error y descarte de respuestas al desmontar. El texto distingue dispositivos de transferencia de datos aún pendiente. |
+
+Las suites de servicio, handlers, preload y wrapper comprueban además marco
+principal, payload cerrado, errores saneados y separación de secretos. La
+verificación con dobles no acredita diálogos nativos ni dos equipos reales.
+
 ### Borrado de datos de navegacion
 
 | Suite | Qué demuestra |
 |---|---|
 | `electron/__tests__/integrated-browser-browsing-data.test.ts` | Lo que decide si el usuario entiende lo que borró: cada rango traducido a un inicio concreto, rechazo de categoría e intervalo desconocidos y de lista vacía, la marca `ignoredRange` en las categorías que no pueden acotarse por fecha y su ausencia cuando el intervalo ya era "desde siempre", que solo se tocan las categorías pedidas, y el fallo aislado de una categoría con error saneado sin impedir el resto. |
 | `electron/__tests__/browser-history-clear-range.test.ts` | El único borrado que sí respeta el intervalo, contra el sistema de archivos real: conserva lo anterior al inicio, quita lo posterior, incluye la visita justo en el límite, borra todo con rango nulo, devuelve cero sobre un historial vacío y rechaza una fecha inválida **antes** de escribir. |
+| `electron/__tests__/integrated-browser-history-importer.test.ts` | Selección y cancelación sin escritura, resumen sin URLs ni rutas, deduplicación, visitas existentes, JSONL y `last_visit_time` de Chromium, límites de tamaño/entradas, contexto obsoleto y guardia contra importaciones simultáneas. |
 | `src/__tests__/components/BrowserPrivacyPanel.test.tsx` | Que la interfaz no miente sobre el alcance: selección inicial equivalente a Chrome, confirmación obligatoria antes de cualquier llamada, payload exacto de categorías e intervalo, aviso de alcance solo cuando hay discrepancia real, resumen distinguiendo conteo de "sin acotar al intervalo", fallo aislado visible y error del canal sin dejar el diálogo colgado. |
 
 ### Acciones sobre el texto seleccionado
@@ -161,7 +248,23 @@ rollback. No todos aplican a cada cambio; el Context Pack decide.
 | `electron/__tests__/integrated-browser-writing-panel.test.ts` | El panel de redacción sobre jsdom: que el menú lo abre sin mandar nada al chat, que la petición se entrega una sola vez, que la propuesta se escribe con `insertText` en el campo editable y, cuando el origen no lo era, en el compositor de la página, que un fallo del modelo se ve sin cerrar el panel, que con la propuesta a la vista el compositor se retira y reintentar lo devuelve con lo escrito antes sin volver a pedir solo, que una respuesta tardía ya no encuentra destinatario, y que el control del agente lo cierra. |
 | `src/__tests__/services/browser-writing.test.ts` | El único punto donde el texto de una página entra a un modelo: que el fragmento y la instrucción del usuario van etiquetados como datos —una selección que dice "ignora todo lo anterior" sigue siendo material a reescribir—, que sin instrucción se pide una mejora conservadora, que se retira el andamiaje del modelo y que una respuesta vacía se declara como fallo. |
 
+### Guardado manual de credenciales
+
+Las suites `integrated-browser-storage`, `integrated-browser-service`,
+`integrated-browser-handlers`, `preload` e `IntegratedBrowserPanel` verifican
+revisión sin escritura, reemplazo/cancelación, vencimiento, concurrencia,
+IDs ajenos, Unicode al límite, JSON dañado, fallos de rename, contexto obsoleto,
+control del agente, frame principal, contratos cerrados, redacción de errores,
+limpieza del campo y ausencia de éxito falso. Disco real temporal y dobles de
+Electron no demuestran Windows Hello ni funcionamiento en el instalador.
+Evidencia en el [reporte de guardado manual](../../openspec/changes/complete-integrated-browser-platform/reports/verification-credential-save-2026-09-05.md).
+
 ## Cobertura y deuda
+
+La continuación de [limpieza efímera y avisos de navegación](../../openspec/changes/complete-integrated-browser-platform/reports/verification-profile-cleanup-and-safety-ui-2026-09-06.md)
+registra pruebas de cierre cancelado, colas tardías, reapertura, limpieza fallida
+y avisos por pestaña sin dictámenes obsoletos. El smoke nativo de lifecycle usa
+Electron estable real, pero no equivale a ejecutar todo el producto empaquetado.
 
 - La configuracion tiene comando de coverage, pero no umbral global ni por modulo.
 - No hay mutation testing, axe, visual regression ni performance budget en CI.

@@ -23,6 +23,8 @@ export interface StreamResult {
 }
 
 export interface SendMessageStreamOptions {
+  /** Analizar sólo los extractos adjuntos; sin observación, búsquedas ni acciones externas implícitas. */
+  browserSourceMode?: 'attached-fragments';
   model?: string;
   thinking?: { id: string; level?: string; budget?: number };
   personalization?: { nickname?: string; occupation?: string; tone?: string; instructions?: string };

@@ -13,7 +13,7 @@ un host concreto. `package-lock.json` fija la resolucion reproducible.
 
 | Capa | Tecnologia | Restriccion versionada | Uso real |
 |---|---|---:|---|
-| Desktop | Electron | `44.0.0-beta.3` | main, preload, BrowserWindow, tray, desktopCapturer, powerMonitor, updater; beta fijada exactamente para validar llamadas directas sobre Chromium 152 con identidad global limpia; rollback exacto a `43.4.0` |
+| Desktop | Electron | `43.4.0` | runtime estable fijado; diagnóstico de la versión efectiva y compuerta de prereleases. La compatibilidad de videollamadas tras el cambio requiere smoke en Windows |
 | UI | React / React DOM | `^18.2.0` | renderer y componentes funcionales |
 | Lenguaje | TypeScript | `^5.7.3` | renderer, main, preload y config estrictos |
 | Build | Vite / vite-plugin-electron | `^7.0.0` / `^0.29.0` | bundles renderer, main CJS y preload |
@@ -42,7 +42,8 @@ los servicios lo invocan; cambiarlo exige un cambio funcional propio.
 | Tecnologia | Version | Uso |
 |---|---:|---|
 | Supabase JS | `^2.95.3` | SOFIA, Lia e IRIS con clientes separados |
-| `node:sqlite` | Node de Electron | memoria, pensamientos e indice local; sin modulo nativo que compilar |
+| `node:sqlite` | Node de Electron | memoria, pensamientos, índice local e historial del navegador con FTS5; sin módulo nativo que compilar |
+| `tldts` | `7.4.10` | dominio registrable y sufijos privados para clasificar cookies de terceros |
 | Google APIs | `^171.4.0` | Calendar, Gmail, Drive y Chat |
 | Microsoft Graph/MSAL | `^3.0.7` / `^5.0.4` | calendario Microsoft/OAuth |
 | Baileys | `^7.0.0-rc13` | WebSocket WhatsApp/QR/media |

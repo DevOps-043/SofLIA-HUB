@@ -3,7 +3,11 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { BrowserPrivacyPanel } from '../../components/browser/BrowserPrivacyPanel';
 
 function mockApi(clearBrowsingData: ReturnType<typeof vi.fn>) {
-  window.integratedBrowser = { clearBrowsingData } as never;
+  window.integratedBrowser = {
+    clearBrowsingData,
+    getPrivacySite: vi.fn(async () => ({ success: true, privacySite: { origin: 'https://example.com', level: 'balanced', blocked: {}, exceptionCategories: [], degraded: false } })),
+    setPrivacySite: vi.fn(async (input: { origin?: string; level: string; exceptionCategories: string[] }) => ({ success: true, privacySite: { origin: input.origin ?? 'https://example.com', level: input.level, blocked: {}, exceptionCategories: input.exceptionCategories, degraded: false } })),
+  } as never;
 }
 
 function okSummary(results: unknown[] = []) {

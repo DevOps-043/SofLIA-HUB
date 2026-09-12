@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SOFLIA_RUNTIME_MODEL } from '../../../src/shared/soflia-runtime-model';
 import { DEFAULT_CONFIG, loadConfig, mockExistsSync, mockReadFileSync, mockWriteFileSync, saveConfig } from './fixture';
 
 describe('Config Persistence', () => {
@@ -23,9 +24,9 @@ describe('Config Persistence', () => {
       computerUseModel: 'gemini-3.5-flash-lite',
     }));
     const config = loadConfig();
-    expect(config.model).toBe('gemini-3.6-flash');
-    expect(config.fallbackModel).toBe('gemini-3.6-flash');
-    expect(config.computerUseModel).toBe('gemini-3.6-flash');
+    expect(config.model).toBe(SOFLIA_RUNTIME_MODEL);
+    expect(config.fallbackModel).toBe(SOFLIA_RUNTIME_MODEL);
+    expect(config.computerUseModel).toBe(SOFLIA_RUNTIME_MODEL);
   });
 
   it('CU-133: loadConfig returns defaults on JSON parse error', () => {

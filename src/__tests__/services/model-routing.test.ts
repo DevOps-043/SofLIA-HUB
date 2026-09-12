@@ -5,7 +5,7 @@ const estado = vi.hoisted(() => ({ openaiConfigurado: true }));
 vi.mock('../../config', () => ({
   OPENAI_API_KEY: 'test-openai-key',
   OPENAI_VECTOR_STORE_IDS: [],
-  MODELS: { PRIMARY: 'gemini-3.6-flash', FALLBACK: 'gemini-3.6-flash', PRO: 'gemini-3.6-flash' },
+  MODELS: { PRIMARY: 'gemini-3.8-flash', FALLBACK: 'gemini-3.8-flash', PRO: 'gemini-3.8-flash' },
   OPENAI_MODELS: { COMPUTER_USE: 'gpt-5.6-terra', COMMANDS: 'gpt-5.6-luna' },
   isOpenAIConfigured: () => estado.openaiConfigurado,
 }));
@@ -31,22 +31,22 @@ describe('Ruteo de modelos', () => {
 
   it('MR-002: los comandos sin Computer Use respetan el modelo seleccionado', () => {
     const routed = resolveRoutedModel({
-      options: { model: 'gemini-3.6-flash' },
+      options: { model: 'gemini-3.8-flash' },
       isComputerActionTurn: false,
       isCommandTurn: true,
     });
 
-    expect(routed.modelId).toBe('gemini-3.6-flash');
+    expect(routed.modelId).toBe('gemini-3.8-flash');
   });
 
   it('MR-003: un turno de la Orbe sin Computer Use respeta el modelo seleccionado', () => {
     const routed = resolveRoutedModel({
-      options: { model: 'gemini-3.6-flash', task: 'orb' },
+      options: { model: 'gemini-3.8-flash', task: 'orb' },
       isComputerActionTurn: false,
       isCommandTurn: false,
     });
 
-    expect(routed.modelId).toBe('gemini-3.6-flash');
+    expect(routed.modelId).toBe('gemini-3.8-flash');
   });
 
   it('MR-004: el chat normal respeta SofLIA Lite', () => {
@@ -98,6 +98,6 @@ describe('Ruteo de modelos', () => {
   });
 
   it('MR-008: sin modelo elegido cae al primario', () => {
-    expect(resolveRoutedModel({ isComputerActionTurn: false, isCommandTurn: false }).modelId).toBe('gemini-3.6-flash');
+    expect(resolveRoutedModel({ isComputerActionTurn: false, isCommandTurn: false }).modelId).toBe('gemini-3.8-flash');
   });
 });

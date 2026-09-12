@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -14,10 +14,51 @@ function newStore(): BrowserSitePermissionStore {
 }
 
 afterEach(async () => {
-  await Promise.all(created.splice(0).map((filePath) => fs.rm(filePath, { force: true })));
+  await Promise.all(created.splice(0).flatMap(filePath => [filePath, `${filePath}.recovery.bin`]).map(filePath => fs.rm(filePath, { force: true })));
 });
 
 describe('BrowserSitePermissionStore', () => {
+  it.each(['{ dañado', JSON.stringify({ version: 2, origins: { 'https://example.com': { camera: { state: 'granted' } } } })])('no sobrescribe archivos corruptos o futuros: %s', async content => {
+    const store = newStore(); const file = created[created.length - 1];
+    await store.set('https://example.com', 'camera', 'granted');
+    await fs.writeFile(file, content);
+    await expect(store.set('https://example.com', 'camera', 'denied')).rejects.toThrow('conserva');
+    expect(await fs.readFile(file, 'utf8')).toBe(content);
+    expect(store.resolveSync('https://example.com', 'camera')).toBe('ask');
+    await expect(store.clear()).rejects.toThrow('conserva');
+    await expect(store.resolve('https://example.com', 'camera')).resolves.toBe('ask');
+  });
+  it('distingue archivo ausente de acceso denegado y permite reintento sin sobrescribir', async () => {
+    const store = newStore(); const file = created[created.length - 1];
+    await store.set('https://example.com', 'camera', 'denied'); const original = await fs.readFile(file);
+    const read = vi.spyOn(fs, 'lstat').mockRejectedValueOnce(Object.assign(new Error('privado'), { code: 'EACCES' }));
+    try { await expect(store.set('https://example.com', 'camera', 'granted')).rejects.toThrow('conserva'); }
+    finally { read.mockRestore(); }
+    expect(await fs.readFile(file)).toEqual(original);
+    await store.set('https://example.com', 'camera', 'ask');
+    expect(await store.resolve('https://example.com', 'camera')).toBe('ask');
+  });
+  it('no traslada escrituras ni caché de permisos cuando cambia el perfil', async () => {
+    const a = path.join(os.tmpdir(), `soflia-permission-a-${randomUUID()}.json`);
+    const b = path.join(os.tmpdir(), `soflia-permission-b-${randomUUID()}.json`);
+    created.push(a, b);
+    let location = a;
+    const store = new BrowserSitePermissionStore(() => location);
+    const granting = store.set('https://example.com', 'camera', 'granted');
+    location = b;
+    store.invalidateCache();
+    await granting;
+    expect(store.resolveSync('https://example.com', 'camera')).toBe('ask');
+    expect(await store.resolve('https://example.com', 'camera')).toBe('ask');
+    location = a;
+    expect(await store.resolve('https://example.com', 'camera')).toBe('granted');
+    location = b;
+    expect(store.resolveSync('https://example.com', 'camera')).toBe('ask');
+    await store.set('https://example.com', 'camera', 'denied');
+    location = a;
+    expect(await store.resolve('https://example.com', 'camera')).toBe('granted');
+  });
+
   it('aplica los valores por omision de cada permiso', async () => {
     const store = newStore();
 

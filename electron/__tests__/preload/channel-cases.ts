@@ -2,6 +2,18 @@ import { expect, it } from 'vitest';
 import { ALLOWED_IPC_CHANNELS, validateChannel } from './helpers';
 
 export function registerPreloadChannelTests() {
+  it('permite órdenes de voz cerradas, no ejecución arbitraria', () => {
+    expect(() => validateChannel('orb:browser-command')).not.toThrow();
+    expect(() => validateChannel('orb:browser-execute')).toThrow();
+  });
+  it('permite supervisión cerrada, no primitivas de ejecución', () => {
+    expect(() => validateChannel('integrated-browser:agent-control')).not.toThrow();
+    expect(() => validateChannel('integrated-browser:execute-action')).toThrow();
+  });
+  it('permite gestionar atajos, no ejecutarlos mediante canales inventados', () => {
+    expect(() => validateChannel('integrated-browser:agent-shortcuts')).not.toThrow();
+    expect(() => validateChannel('integrated-browser:execute-shortcut')).toThrow();
+  });
   it('SEC-016: allowed channel passes without error', () => {
     expect(() => validateChannel('whatsapp:connect')).not.toThrow();
   });
@@ -66,7 +78,22 @@ export function registerPreloadChannelTests() {
 
   it('SEC-035: el navegador integrado expone solo su contrato allowlisted', () => {
     const browserChannels = ALLOWED_IPC_CHANNELS.filter((channel) => channel.startsWith('integrated-browser:'));
-    expect(browserChannels).toHaveLength(60);
+    expect(browserChannels).toHaveLength(124);
+    expect(new Set(browserChannels).size).toBe(124);
+    expect(browserChannels).toContain('integrated-browser:extensions-catalog');
+    expect(browserChannels).toContain('integrated-browser:extensions-restrict-sites');
+    expect(browserChannels).toContain('integrated-browser:credential-session');
+    expect(browserChannels).toContain('integrated-browser:semantic-memory');
+    expect(browserChannels).toContain('integrated-browser:credentials-recover');
+    for (const suffix of [
+      'history-retention-get', 'history-retention-set', 'tabs-recently-closed', 'profile-get', 'profile-set',
+      'page-find', 'page-find-stop', 'page-zoom', 'page-mute', 'page-fullscreen', 'page-print', 'page-save-pdf',
+      'downloads-list', 'downloads-cancel', 'downloads-resume', 'downloads-retry', 'downloads-open', 'downloads-reveal',
+      'bookmarks-list', 'bookmarks-save', 'bookmarks-remove', 'bookmarks-migrate', 'bookmarks-import-html', 'bookmarks-export-html', 'bookmarks-recover',
+      'agent-policy-get', 'agent-policy-set', 'agent-policy-decide', 'agent-policy-prompt', 'privacy-site-get', 'privacy-site-set',
+      'credentials-health', 'runtime-diagnostic', 'runtime-diagnostic-export', 'session-restore', 'session-discard',
+      'tab-duplicate', 'tab-reopen-closed', 'tab-close-others', 'tab-close-right', 'tab-pin', 'tab-layout', 'tab-group-create', 'tab-group-assign',
+    ]) expect(browserChannels).toContain(`integrated-browser:${suffix}`);
     expect(browserChannels).toContain('integrated-browser:toggle-devtools');
     expect(browserChannels).toContain('integrated-browser:clear-browsing-data');
     expect(browserChannels).toContain('integrated-browser:site-permissions-get');
@@ -100,6 +127,9 @@ export function registerPreloadChannelTests() {
     expect(browserChannels).toContain('integrated-browser:set-observation-enabled');
     expect(browserChannels).toContain('integrated-browser:set-viewport');
     expect(browserChannels).toContain('integrated-browser:tab-create');
+    expect(browserChannels).toContain('integrated-browser:tab-summaries');
+    expect(browserChannels).toContain('integrated-browser:get-tab-content');
+    expect(ALLOWED_IPC_CHANNELS).not.toContain('integrated-browser:read-all-tab-secrets');
     expect(browserChannels).toContain('integrated-browser:tab-detach');
     expect(browserChannels).toContain('integrated-browser:tab-reattach');
     // Sin este canal en la allowlist, `validateChannel` lanzaba de forma
@@ -109,6 +139,9 @@ export function registerPreloadChannelTests() {
     expect(browserChannels).toContain('integrated-browser:view-mode');
     expect(browserChannels).toContain('integrated-browser:open-requested');
     expect(browserChannels).toContain('integrated-browser:credentials-save');
+    expect(browserChannels).toContain('integrated-browser:credentials-autosave-set');
+    expect(ALLOWED_IPC_CHANNELS).not.toContain('integrated-browser:credentials-offer');
+    expect(ALLOWED_IPC_CHANNELS).not.toContain('__sofliaCredentialCandidate');
     expect(browserChannels).toContain('integrated-browser:extensions-install');
     expect(browserChannels).toContain('integrated-browser:extensions-confirm-install');
     expect(ALLOWED_IPC_CHANNELS).toContain('orb:show');

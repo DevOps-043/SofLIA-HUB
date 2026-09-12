@@ -1,10 +1,30 @@
 import { EventEmitter } from 'node:events';
+import { applyBrowserTabZoom, browserDomPoint, supportsIsolatedBrowserZoom } from './tab-zoom';
+import { BrowserCredentialUnlock } from './credential-unlock';
+import { BrowserPasskeySelection } from './passkey-selection';
+import { listExtensionCatalog } from './extension-catalog';
+import { validateExtensionCatalogRequest, type BrowserExtensionCatalogEntry } from '../../src/shared/browser-extension-catalog';
+import { getAuthState, onAuthStateChange } from '../main/auth-state';
+import { validateCredentialSessionRequest } from '../../src/shared/browser-credential-session';
+import { BrowserSemanticMemory } from './semantic-memory';
+import { inspectBrowserSensitivePage } from './sensitive-page';
+import { BROWSER_HANDOFF_MESSAGES, type BrowserSensitiveReason } from '../../src/shared/browser-sensitive-handoff';
+import { validateBrowserSemanticRequest, type BrowserSemanticRequest, type BrowserSemanticResponse } from '../../src/shared/browser-semantic-memory';
+import { validateBrowserAgentControlRequest, type BrowserAgentControlRequest, type BrowserAgentControlResponse } from '../../src/shared/browser-agent-control';
+import type { BrowserCuControlPort } from '../desktop-agent/browser-cu-supervisor';
 import { randomUUID } from 'node:crypto';
+import { BROWSER_SOURCE_LIMITS } from '../../src/shared/browser-tab-context';
+import { validateBrowserShortcutRequest, type BrowserShortcutRequest, type BrowserShortcutResponse } from '../../src/shared/browser-agent-shortcuts';
+import { BrowserAgentShortcutStore } from './agent-shortcut-store';
 import fs from 'node:fs/promises';
+import path from 'node:path';
+import { getDomain } from 'tldts';
 import {
   BaseWindow,
   BrowserWindow,
   WebContentsView,
+  app,
+  dialog,
   session as electronSession,
   type BrowserWindowConstructorOptions,
   type Rectangle,
@@ -15,17 +35,28 @@ import {
   BROWSER_ANONYMOUS_SCOPE,
   browserPartitionFor,
   browserProfileRoot,
+  browserProfilePath,
   browserScopeIdFor,
+  browserPrivateScopeId,
   getBrowserScopeId,
+  getBrowserProfileKind,
+  isEphemeralBrowserScope,
+  setBrowserProfileKind,
   setBrowserScopeId,
 } from './profile-scope';
 import { BrowserHistoryStore } from './browser-history-store';
+import { BrowserHistoryImporter } from './history-importer';
 import {
   clearBrowsingData,
   validateBrowsingDataRequest,
   type BrowsingDataSummary,
 } from './browsing-data';
-import { BrowserCredentialVault } from './credential-vault';
+import { BrowserCredentialVault, normalizeCredentialOrigin } from './credential-vault';
+import { BrowserCredentialSaver } from './credential-saver';
+import { BrowserCredentialError } from './credential-errors';
+import { BrowserCredentialTransfer } from './credential-transfer';
+import { BrowserCredentialAutosave } from './credential-autosave';
+import type { BrowserCredentialTransferEntry } from './credential-vault';
 import { BrowserExtensionManager } from './extension-manager';
 import { buildBrowserContextMenu, buildSelectionInstruction, MAX_READING_SELECTION_CHARS, MAX_SELECTION_CHARS } from './context-menu';
 import {
@@ -48,8 +79,28 @@ import { collectIntegratedBrowserDom } from './page-observation';
 import { describeResolutionFailure, resolveBrowserElement, type BrowserElementTarget } from './page-interaction';
 import { IntegratedBrowserPermissionGovernance } from './permission-governance';
 import { BrowserSitePermissionStore, normalizeOrigin } from './site-permissions';
+import { POLICY_RECOVERY_LABELS, validatePolicyRecoveryRequest } from '../../src/shared/browser-policy-recovery';
 import { pickDisplayMediaSource } from './display-media-picker';
 import { BrowserReadingModeService, type BrowserReadingSpeechResult } from './reading-mode-service';
+import { BrowserDownloadManager } from './download-manager';
+import { BrowserSessionStore } from './session-store';
+import type { BrowserSessionSnapshot, BrowserRecentlyClosedTab, BrowserHistoryRetention, BrowserProfileDescriptor, BrowserProfileKind } from './platform-types';
+import { readBrowserCapabilityFlags } from './feature-flags';
+import { BookmarkImportRejected, BrowserBookmarkStore } from './bookmark-store';
+import { BrowserBookmarkImporter } from './bookmark-importer';
+import { BrowserDiagnosticExporter } from './diagnostic-report';
+import { BrowserSyncDevices, type BrowserSyncDeviceContext } from './sync-devices';
+import { BrowserSyncController, type BrowserSyncControlContext } from './sync-controller';
+import { createBrowserSyncLocalAdapter } from './sync-local-adapter';
+import type { BrowserSyncControlRequest } from './platform-types';
+import { BrowserAgentPolicyStore, normalizeAgentOrigin } from './agent-policy-store';
+import { BrowserAgentAuditStore, BrowserAuditError, type BrowserAuditOperation } from './agent-audit-store';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { browserCertificateDecision } from './certificate-policy';
+import { assertCuNotAborted, CuContextChangedError } from '../desktop-agent/gemini-cu/execution-guard';
+import { BrowserPrivacyStore, normalizePrivacyOrigin } from './privacy-store';
+import { BrowserTrackingRuleEngine, createTrackingRuleList, mitigateFingerprintingRequestHeaders, mitigateFingerprintingResponseHeaders, stripTrackingParameters } from './tracking-protection';
+import { BrowserEnterprisePolicyStore } from './enterprise-policy-store';
 import { toStandardChromiumUserAgent } from './user-agent';
 import {
   collectBrowserReadingContent,
@@ -90,7 +141,18 @@ import {
   type IntegratedBrowserTabState,
   type IntegratedBrowserViewMode,
 } from './types';
+import type { BrowserAgentCapability, BrowserAgentPolicyPromptRequest, BrowserAgentPolicyMode, BrowserAgentSiteDecision, BrowserEnterprisePolicy, BrowserPrivacyCategory, BrowserPrivacyLevel, BrowserRuntimeDiagnostic, BrowserSessionTab, BrowserTabGroup, BrowserTabGroupColor } from './platform-types';
 import { describeBlockedUrl, isAllowedBrowserUrl, normalizeBrowserTarget, parseBrowserViewport } from './validation';
+import { canCheckBrowserNavigationRemotely, checkBrowserNavigation, checkBrowserNavigationLocal, type BrowserNavigationSafetyVerdict } from './safe-navigation';
+import { BrowserRequestSafety } from './request-safety';
+import { BrowserSafetyInterstitials } from './safety-interstitial';
+import {
+  nextBrowserZoomFactor,
+  printBrowserPage,
+  saveBrowserPageAsPdf,
+  validateFindQuery,
+  type BrowserZoomAction,
+} from './page-tools';
 
 type ViewportWaiter = {
   resolve: () => void;
@@ -107,8 +169,12 @@ type BrowserTabRuntime = {
   canGoForward: boolean;
   loading: boolean;
   error: string | null;
+  navigationSafety: BrowserNavigationSafetyVerdict | null;
+  /** Asociación interna: no exponer otro destino ni persistir reputación. */
+  navigationSafetyUrl: string | null;
   lastActivatedAt: number;
   visualRevision: number;
+  documentToken: string;
   passiveCaptureNotBefore: number;
   lastDeferAt: number;
   /** Ultimo estado aplicado a la vista nativa: evita ocultar y volver a mostrar
@@ -118,6 +184,17 @@ type BrowserTabRuntime = {
   appliedBounds: Rectangle | null;
   /** Arranque del mundo del agente por CDP. Nulo cuando no se pudo instalar. */
   bootstrap: IntegratedBrowserBootstrap | null;
+  credentialObserver: BrowserCredentialAutosave | null;
+  muted: boolean;
+  zoomFactor: number;
+  find: {
+    query: string;
+    activeMatchOrdinal: number;
+    matches: number;
+    finalUpdate: boolean;
+  } | null;
+  pinned: boolean;
+  groupId: string | null;
 };
 
 type BrowserVisualCapture = {
@@ -129,11 +206,169 @@ type BrowserVisualCapture = {
 };
 
 export class IntegratedBrowserService extends EventEmitter {
+  private extensionAuthRevision = 0;
+  private extensionAuthCleanup: (() => void) | null = null;
+  private readonly sensitiveDocuments = new WeakMap<WebContents, BrowserSensitiveReason>();
+  private markSensitiveDocument(tab: BrowserTabRuntime, reason: BrowserSensitiveReason): void {
+    const contents = tab.view?.webContents;
+    if (!contents || this.sensitiveDocuments.has(contents)) return;
+    this.sensitiveDocuments.set(contents, reason);
+    this.agentPolicyRevision++;
+    this.invalidateObservation(tab.id);
+    this.agentTaskBinding?.control.command('stop');
+    this.emitState();
+  }
+  private assertKnownDocumentNotSensitive(tabId?: string): void {
+    const tab = tabId ? this.tabs.get(tabId) : this.getActiveTab();
+    const contents = tab?.view?.webContents;
+    if (contents && this.sensitiveDocuments.has(contents)) throw new Error(`Continúa manualmente. ${BROWSER_HANDOFF_MESSAGES[this.sensitiveDocuments.get(contents)!]}`);
+  }
+  private async assertDocumentNotSensitive(tabId?: string): Promise<void> {
+    this.assertKnownDocumentNotSensitive(tabId);
+    if (!this.capabilities.agentGovernance) return;
+    const tab = tabId ? this.tabs.get(tabId) : this.getActiveTab();
+    const contents = tab?.view?.webContents;
+    if (!tab || !contents) throw new Error('La página no está disponible para revisión de seguridad.');
+    const guard = this.createAgentAccessGuard(tabId);
+    const reason = await inspectBrowserSensitivePage(contents);
+    guard();
+    if (reason) {
+      this.markSensitiveDocument(tab, reason);
+      throw new Error(`Continúa manualmente. ${BROWSER_HANDOFF_MESSAGES[reason]}`);
+    }
+  }
+  private readonly semanticMemory = new BrowserSemanticMemory();
+  configureSemanticMemoryKey(provider: () => string | null): void { this.semanticMemory.configureKey(provider); }
+  async semanticMemoryCommand(raw: BrowserSemanticRequest, assertCaller: () => void = () => {}): Promise<BrowserSemanticResponse> {
+    const input = validateBrowserSemanticRequest(raw);
+    this.assertCapability('agentGovernance');
+    const profile = this.captureProfileGuard(); const control = this.agentControlRevision; const scope = this.scopeId;
+    const guard = () => {
+      assertCaller();
+      profile();
+      if (input.profileRevision !== this.scopeTransition || getBrowserScopeId() !== scope || this.agentControlling || control !== this.agentControlRevision
+        || getBrowserProfileKind() !== 'authenticated' || isEphemeralBrowserScope(scope)) throw new Error('La memoria requiere el perfil persistente y control humano vigentes.');
+    };
+    guard(); await this.ensureEnterprisePolicy(); guard();
+    if (this.enterprisePolicy?.agentAllowed === false && !['disable', 'cancel', 'status'].includes(input.action)) throw new Error('La memoria está bloqueada por tu organización.');
+    return this.semanticMemory.run(input, { guard,
+      sources: async () => {
+        const [history, bookmarks] = await Promise.all([this.historyStore.list({ limit: 200 }), this.bookmarkStore.list()]); guard();
+        return [...history.map(entry => ({ ...entry, source: 'history' as const })),
+          ...bookmarks.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 200).map(entry => ({ ...entry, source: 'bookmark' as const }))];
+      },
+      confirm: async action => {
+        const result = await dialog.showMessageBox(this.requireParentWindow(), {
+          type: 'warning', title: 'Memoria semántica del navegador',
+          message: action === 'enable' ? '¿Permitir búsquedas semánticas con Google Gemini?' : '¿Desactivar y borrar el índice semántico local?',
+          detail: action === 'enable'
+            ? 'Sólo al reconstruir se enviarán a Google títulos y rutas URL (sin parámetros ni fragmentos) de hasta 200 visitas recientes y 200 marcadores. Las consultas también se envían. Títulos y rutas pueden contener datos personales. Puede generar costes de API. No se envían páginas ni formularios. El índice local se cifra por el SO, vence a los 30 días y no se sincroniza. Cancelar no retira datos ya enviados al proveedor.'
+            : 'No elimina historial ni marcadores originales. El borrado local no garantiza eliminación forense ni retira información ya enviada a Google.',
+          buttons: ['Cancelar', action === 'enable' ? 'Permitir' : 'Desactivar y borrar'], defaultId: 0, cancelId: 0, noLink: true,
+        }); guard(); return result.response === 1;
+      },
+    });
+  }
+  private readonly shortcutStore = new BrowserAgentShortcutStore();
+  private shortcutReviewPending = false;
+
+  async agentShortcuts(raw: BrowserShortcutRequest): Promise<BrowserShortcutResponse> {
+    const input = validateBrowserShortcutRequest(raw);
+    this.assertCapability('agentGovernance');
+    const profile = this.captureProfileGuard(); const control = this.agentControlRevision; const scope = this.scopeId;
+    const expires = Date.now() + 5 * 60_000;
+    const guard = () => {
+      profile();
+      if (getBrowserScopeId() !== scope || input.profileRevision !== this.scopeTransition || this.agentControlling || control !== this.agentControlRevision || Date.now() >= expires) throw new Error('El contexto cambió. Abre de nuevo los atajos.');
+      if (getBrowserProfileKind() !== 'authenticated' || isEphemeralBrowserScope(getBrowserScopeId()) || getBrowserScopeId() === BROWSER_ANONYMOUS_SCOPE) throw new Error('Los atajos requieren un perfil autenticado persistente.');
+    };
+    guard(); await this.ensureEnterprisePolicy(); guard();
+    if (this.enterprisePolicy?.agentAllowed === false) throw new Error('El agente está bloqueado por tu organización.');
+    if (input.action === 'remove') {
+      if (this.shortcutReviewPending) throw new Error('Ya hay una eliminación de atajo pendiente.');
+      this.shortcutReviewPending = true;
+      try {
+        const result = await dialog.showMessageBox(this.requireParentWindow(), {
+          type: 'warning', title: 'Eliminar atajo', message: '¿Eliminar este atajo del perfil?',
+          detail: 'También elimina todas las copias locales de recuperación de atajos de este perfil. No elimina conversaciones ni datos de las páginas. La eliminación local no garantiza borrado forense.',
+          buttons: ['Cancelar', 'Eliminar'], defaultId: 0, cancelId: 0, noLink: true,
+        });
+        guard(); if (result.response !== 1) return { success: true, canceled: true };
+        const library = await this.shortcutStore.run(input, guard); guard();
+        return { success: true, library };
+      } finally { this.shortcutReviewPending = false; }
+    }
+    const library = await this.shortcutStore.run(input, guard); guard();
+    return { success: true, library };
+  }
+  private readonly auditStore = new BrowserAgentAuditStore();
+  private readonly auditTrace = new AsyncLocalStorage<string>();
+  private auditReviewPending = false;
+
+  /** Sólo main registra operaciones, sin argumentos ni contenido del resultado. */
+  async auditAgentOperation<T>(operation: BrowserAuditOperation, action: () => Promise<T>, traceId: string = randomUUID(), tabId?: string): Promise<T> {
+    if (!this.capabilities.agentGovernance) return action();
+    const guard = this.captureProfileGuard();
+    const tab = tabId ? this.tabs.get(tabId) : this.getActiveTab();
+    traceId = this.auditTrace.getStore() ?? traceId;
+    const context = { traceId, tabId: tab?.id ?? '', url: tab?.view?.webContents.getURL() ?? tab?.url ?? '', operation };
+    guard(); this.auditStore.record({ ...context, result: 'started' });
+    try {
+      const value = await this.auditTrace.run(traceId, action); guard();
+      this.auditStore.record({ ...context, result: 'completed' });
+      return value;
+    } catch (error) {
+      // Un inicio sin cierre indica interrupción; no recrear un perfil ya purgado.
+      try { guard(); this.auditStore.record({ ...context, result: error instanceof Error && error.name === 'AbortError' ? 'cancelled' : 'failed' }); }
+      catch { /* Se conserva el error original, nunca se anuncia éxito. */ }
+      throw error;
+    }
+  }
+
+  listAgentAudit(offset = 0) {
+    this.captureProfileGuard()();
+    return this.auditStore.list(offset);
+  }
+
+  async changeAgentAudit(action: 'clear' | 'retention', days?: number) {
+    if (this.auditReviewPending) throw new BrowserAuditError('Ya hay una revisión de bitácora pendiente.');
+    if (action !== 'clear' && action !== 'retention' || action === 'retention' && ![7, 30, 90].includes(days ?? 0)) throw new BrowserAuditError('Solicitud de bitácora inválida.');
+    const profile = this.captureProfileGuard(); const control = this.agentControlRevision;
+    const expires = Date.now() + 5 * 60_000;
+    const guard = () => { profile(); if (this.agentControlling || control !== this.agentControlRevision || Date.now() >= expires) throw new BrowserAuditError('Toma el control y revisa la bitácora de nuevo.'); };
+    guard(); this.auditReviewPending = true;
+    try {
+      const result = await dialog.showMessageBox(this.requireParentWindow(), {
+        type: 'warning', title: 'Bitácora del agente', message: action === 'clear' ? '¿Borrar la bitácora de este perfil?' : `¿Conservar la bitácora durante ${days} días?`,
+        detail: 'Se eliminará evidencia local y se retirarán sus copias de recuperación anteriores. Esto no deshace las acciones del agente ni elimina datos de los sitios.',
+        buttons: ['Cancelar', 'Confirmar'], defaultId: 0, cancelId: 0, noLink: true,
+      });
+      guard();
+      if (result.response !== 1) return { cancelled: true };
+      if (action === 'clear') this.auditStore.clear(); else this.auditStore.setRetention(days!);
+      return { cancelled: false };
+    } catch (error) {
+      if (error instanceof BrowserAuditError) throw error;
+      throw new BrowserAuditError('No se pudo modificar la bitácora. Revisa el perfil y vuelve a intentarlo.');
+    } finally { this.auditReviewPending = false; }
+  }
   private parentWindow: BrowserWindow | null = null;
   private detachedWindows = new Map<string, BaseWindow>();
   private mainWindowFocusHandler: (() => void) | null = null;
   private tabs = new Map<string, BrowserTabRuntime>();
-  private activeTabId: string | null = null;
+  private activeTabValue: string | null = null;
+  private activeTabRevision = 0;
+  private navigationRequestRevision = 0;
+  private readonly requestSafety = new BrowserRequestSafety();
+  private readonly safetyInterstitials = new BrowserSafetyInterstitials();
+  private profileSelectionPending = false;
+  private agentPolicyRevision = 0;
+  private agentControlRevision = 0;
+  private get activeTabId(): string | null { return this.activeTabValue; }
+  private set activeTabId(value: string | null) {
+    if (value !== this.activeTabValue) this.activeTabRevision += 1;
+    this.activeTabValue = value;
+  }
   private primaryTabId: string | null = null;
   private secondaryTabId: string | null = null;
   private viewMode: IntegratedBrowserViewMode = 'single';
@@ -142,7 +377,46 @@ export class IntegratedBrowserService extends EventEmitter {
   private viewport: Rectangle | null = null;
   private visible = false;
   private agentControlling = false;
+  private agentTaskBinding: { control: BrowserCuControlPort; profileRevision: number; scope: string; assertCurrent: () => void } | null = null;
+
+  /** Enlace main efímero: conserva la reserva hasta que el ejecutor termina su limpieza. */
+  bindAgentTask(control: BrowserCuControlPort): () => void {
+    if (this.agentTaskBinding) throw new Error('Otra tarea aún conserva el control.');
+    const profile = this.captureProfileGuard();
+    const scope = this.scopeId;
+    let target: (() => void) | null = null;
+    const binding = { control, profileRevision: this.scopeTransition, scope, assertCurrent: () => {
+      profile();
+      if (getBrowserScopeId() !== scope) throw new Error('El perfil cambió.');
+      const status = control.snapshot().status;
+      if (this.activeTabId && this.detachedWindows.has(this.activeTabId)) throw new Error('Acopla la pestaña para supervisar la tarea.');
+      if (!target && status !== 'starting' && status !== 'stopping') target = this.createAgentTargetGuard();
+      target?.();
+    } };
+    binding.assertCurrent();
+    this.agentTaskBinding = binding;
+    const unsubscribe = control.subscribe(() => this.emitState());
+    this.emitState();
+    return () => {
+      unsubscribe();
+      if (this.agentTaskBinding === binding) { this.agentTaskBinding = null; this.emitState(); }
+    };
+  }
+
+  controlAgentTask(raw: BrowserAgentControlRequest): BrowserAgentControlResponse {
+    const input = validateBrowserAgentControlRequest(raw);
+    const binding = this.agentTaskBinding;
+    if (!binding || input.profileRevision !== this.scopeTransition || input.profileRevision !== binding.profileRevision || binding.scope !== getBrowserScopeId() || binding.control.snapshot().taskId !== input.taskId) throw new Error('La tarea o el perfil cambió.');
+    // Detener reduce autoridad y debe seguir disponible aunque se invalide el destino.
+    if (input.action === 'resume' || input.action === 'pause') {
+      if (input.taskRevision !== binding.control.snapshot().revision) throw new Error('La ejecución cambió.');
+      binding.assertCurrent();
+    }
+    binding.control.command(input.action);
+    return { success: true, agentTask: binding.control.snapshot() };
+  }
   private permissions: IntegratedBrowserPermissionGovernance | null = null;
+  private passkeySelection: BrowserPasskeySelection | null = null;
   /** Pestaña que pidio pantalla completa a la pagina, si hay alguna. */
   private fullscreenTabId: string | null = null;
   /** Estado de la ventana anfitriona antes de entrar en pantalla completa. */
@@ -150,6 +424,7 @@ export class IntegratedBrowserService extends EventEmitter {
   private pictureInPictureWindows = new Set<BrowserWindow>();
   /** Avisos de permiso esperando la respuesta del renderer, por identificador. */
   private permissionPrompts = new Map<string, (granted: boolean) => void>();
+  private agentPolicyPrompts = new Map<string, (decision: BrowserAgentSiteDecision) => void>();
   /**
    * Origen del abridor de cada ventana real adoptada, por id de `webContents`.
    *
@@ -175,6 +450,64 @@ export class IntegratedBrowserService extends EventEmitter {
   private observationLastError: string | null = null;
   /** Perfil (usuario) al que pertenece la sesion de navegacion en curso. */
   private scopeId = getBrowserScopeId();
+  private profileKind: BrowserProfileKind = getBrowserProfileKind();
+  private authenticatedScopeId: string | null = this.profileKind === 'authenticated' ? this.scopeId : null;
+  private profileStartedAt = Date.now();
+  private readonly diagnosticExporter: BrowserDiagnosticExporter;
+  private readonly syncDevices = new BrowserSyncDevices();
+  private readonly syncController = new BrowserSyncController();
+  private syncDialogPending = false;
+  private readonly credentialSaver: BrowserCredentialSaver;
+  private readonly credentialTransfer: BrowserCredentialTransfer;
+  private readonly downloadManager: BrowserDownloadManager;
+  private readonly certificateSessions = new WeakSet<Session>();
+  private closedTabs: Array<BrowserSessionTab & { closedAt: string }> = [];
+  private readonly reopeningTabs = new Set<string>();
+  private groups = new Map<string, BrowserTabGroup>();
+  private tabLayout: 'horizontal' | 'vertical' = 'horizontal';
+  private readonly sessionStore: BrowserSessionStore;
+  private readonly bookmarkStore: BrowserBookmarkStore;
+  private readonly bookmarkImporter: BrowserBookmarkImporter;
+  private bookmarkRecoveryPending = false;
+  private readonly historyImporter: BrowserHistoryImporter;
+  private readonly agentPolicyStore: BrowserAgentPolicyStore;
+  private readonly privacyStore: BrowserPrivacyStore;
+  private readonly trackingEngine = new BrowserTrackingRuleEngine();
+  private readonly enterprisePolicyStore: BrowserEnterprisePolicyStore;
+  private enterprisePolicy: BrowserEnterprisePolicy | null = null;
+  private enterprisePolicyLoad: Promise<void> | null = null;
+  private enterprisePolicyReady = false;
+  private enterprisePolicyFailed = false;
+  private restorableSession: BrowserSessionSnapshot | null = null;
+  private sessionLoadedScope: string | null = null;
+  private sessionLoad: Promise<void> | null = null;
+  private sessionGeneration = 0;
+  private scopeTransition = 0;
+  private scopeChanging = false;
+  private credentialAutosaveEnabled = false;
+  private credentialAutosaveRevision = 0;
+  private credentialAutosaveSetting = false;
+  private credentialRecoveryPending = false;
+  private readonly credentialUnlock = new BrowserCredentialUnlock(() => {
+    if (!this.credentialUnlock.isUnlocked()) {
+      this.credentialAutosaveEnabled = false; ++this.credentialAutosaveRevision;
+      void this.syncCredentialObservers().catch(() => undefined);
+    }
+    this.emitState();
+  });
+  private shutdownCommitted = false;
+  private shutdownFlushing = false;
+  private shutdownRevision = 0;
+  private lastSessionSave: Promise<void> = Promise.resolve();
+  private lastSessionSaveFailed = false;
+  private lastSessionSnapshot: { scopeId: string; snapshot: BrowserSessionSnapshot } | null = null;
+  private sessionSaveTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Cola de E/S antes de purgar perfiles efímeros al cerrar la ventana. */
+  private ephemeralCleanup: Promise<void> = Promise.resolve();
+  private ephemeralCleanupPending = false;
+  private ephemeralCleanupFailed = false;
+  private ephemeralCleanupScope: string | null = null;
+  private readonly capabilities = readBrowserCapabilityFlags();
 
   constructor(
     private readonly historyStore = new BrowserHistoryStore(),
@@ -182,8 +515,50 @@ export class IntegratedBrowserService extends EventEmitter {
     private readonly extensionManager = new BrowserExtensionManager(),
     private readonly readingModeService = new BrowserReadingModeService(),
     private readonly sitePermissionStore = new BrowserSitePermissionStore(),
+    downloadManager?: BrowserDownloadManager,
+    sessionStore?: BrowserSessionStore,
+    bookmarkStore?: BrowserBookmarkStore,
+    agentPolicyStore?: BrowserAgentPolicyStore,
+    privacyStore?: BrowserPrivacyStore,
+    enterprisePolicyStore?: BrowserEnterprisePolicyStore,
   ) {
     super();
+    this.credentialSaver = new BrowserCredentialSaver(this.credentialVault);
+    this.credentialTransfer = new BrowserCredentialTransfer(this.credentialVault);
+    this.downloadManager = downloadManager ?? new BrowserDownloadManager(
+      (downloads) => this.sendToRenderer('integrated-browser:downloads-changed', downloads),
+      undefined,
+      (sourceUrl) => {
+        this.assertCapability('downloads');
+        if (this.scopeChanging || !this.enterpriseUrlAllowed(sourceUrl)) throw new Error('La descarga está bloqueada por la política del perfil.');
+        const safety = checkBrowserNavigationLocal(sourceUrl);
+        if (safety.action === 'block') throw new Error(safety.reason ?? 'La descarga está bloqueada por la protección local.');
+      },
+    );
+    this.sessionStore = sessionStore ?? new BrowserSessionStore(() => browserProfilePath('session.json'));
+    this.bookmarkStore = bookmarkStore ?? new BrowserBookmarkStore();
+    this.diagnosticExporter = new BrowserDiagnosticExporter(() => ({
+      scopeId: this.scopeId, generation: this.sessionGeneration, parent: this.parentWindow,
+      authenticated: this.profileKind === 'authenticated',
+      changing: this.scopeChanging || this.shutdownCommitted || this.shutdownFlushing,
+    }), () => ({
+      startedAt: this.profileStartedAt, runtime: this.getRuntimeDiagnostic(),
+      tabs: this.tabs.size, liveViews: [...this.tabs.values()].filter((tab) => tab.view && !tab.view.webContents.isDestroyed()).length,
+      detachedWindows: this.detachedWindows.size, groups: this.groups.size,
+      downloadStates: this.downloadManager.list().map((download) => download.state),
+    }));
+    this.bookmarkImporter = new BrowserBookmarkImporter(this.bookmarkStore, () => ({
+      scopeId: this.scopeId, generation: this.sessionGeneration,
+      changing: this.scopeChanging || this.shutdownCommitted || this.ephemeralCleanupPending || this.ephemeralCleanupFailed, parent: this.parentWindow,
+    }));
+    this.historyImporter = new BrowserHistoryImporter(this.historyStore, () => ({
+      scopeId: this.scopeId, generation: this.sessionGeneration,
+      changing: this.scopeChanging || this.shutdownCommitted || this.ephemeralCleanupPending || this.ephemeralCleanupFailed, parent: this.parentWindow,
+    }));
+    this.agentPolicyStore = agentPolicyStore ?? new BrowserAgentPolicyStore();
+    this.privacyStore = privacyStore ?? new BrowserPrivacyStore();
+    this.enterprisePolicyStore = enterprisePolicyStore ?? new BrowserEnterprisePolicyStore();
+    this.trackingEngine.install(createTrackingRuleList(1, BUILTIN_TRACKING_RULES));
   }
 
   /** Permisos del origen que ocupa la pestaña activa, para el panel del sitio. */
@@ -201,30 +576,43 @@ export class IntegratedBrowserService extends EventEmitter {
     state?: unknown;
   }): Promise<BrowserSitePermissionSummary> {
     if (!this.permissions) throw new Error('El navegador no esta iniciado.');
+    const assertCurrent = this.captureProfileGuard();
+    const permissions = this.permissions;
     const origin = typeof input.origin === 'string' && input.origin
       ? input.origin
       : this.getActiveTab()?.url ?? '';
-    await this.permissions.setPermission(
+    await permissions.setPermission(
       origin,
       input.kind as BrowserSitePermissionKind,
       input.state as BrowserSitePermissionState,
     );
-    return this.permissions.getSummary(origin);
+    assertCurrent();
+    return permissions.getSummary(origin);
   }
 
   async resetSitePermissions(input: { origin?: unknown } = {}): Promise<BrowserSitePermissionSummary> {
     if (!this.permissions) throw new Error('El navegador no esta iniciado.');
+    const assertCurrent = this.captureProfileGuard();
+    const permissions = this.permissions;
     const origin = typeof input.origin === 'string' && input.origin
       ? input.origin
       : this.getActiveTab()?.url ?? '';
-    await this.permissions.resetOrigin(origin);
-    return this.permissions.getSummary(origin);
+    await permissions.resetOrigin(origin);
+    assertCurrent();
+    return permissions.getSummary(origin);
   }
 
   attachWindow(window: BrowserWindow): void {
     if (this.parentWindow === window) return;
     this.detachWindow();
     this.parentWindow = window;
+    this.extensionAuthCleanup = onAuthStateChange(() => {
+      this.extensionAuthRevision++;
+      this.extensionManager.resetForProfileChange();
+    });
+    this.shutdownCommitted = false;
+    this.credentialAutosaveEnabled = false;
+    this.credentialAutosaveRevision++;
     this.mainWindowFocusHandler = () => {
       const primary = this.primaryTabId ? this.tabs.get(this.primaryTabId) : null;
       if (!primary || this.detachedWindows.has(primary.id) || this.activeTabId === primary.id) return;
@@ -236,17 +624,108 @@ export class IntegratedBrowserService extends EventEmitter {
     window.on('focus', this.mainWindowFocusHandler);
     window.once('closed', () => this.detachWindow(window));
     this.startObservationTimer();
+    const profileReady = this.flushClosedProfileForShutdown();
+    void profileReady.then(() => {
+      if (this.parentWindow === window && !this.scopeChanging) return this.loadCredentialAutosave();
+    }).catch(() => undefined);
+    const loadSession = () => this.loadRestorableSession().catch(() => {
+      console.warn('[Navegador][Sesión] No se pudo leer la sesión anterior; se conserva sin modificar.');
+    });
+    if (this.capabilities.sessionRestore && !this.scopeChanging) {
+      if (!this.ephemeralCleanupPending) void loadSession();
+      else void profileReady.then(() => {
+        if (this.parentWindow !== window || this.scopeChanging) return;
+        return loadSession();
+      }).catch(() => undefined);
+    }
+    const loadEnterprise = () => this.ensureEnterprisePolicy().catch(() => undefined);
+    if (this.capabilities.enterpriseControls) void (this.ephemeralCleanupPending ? profileReady.then(() => {
+      if (this.parentWindow !== window || this.scopeChanging) return;
+      return loadEnterprise();
+    }) : loadEnterprise()).catch(() => undefined);
+    void profileReady.catch(() => undefined);
   }
 
   detachWindow(expectedWindow?: BrowserWindow): void {
     if (expectedWindow && this.parentWindow !== expectedWindow) return;
+    if (!this.parentWindow) return;
+    this.extensionAuthCleanup?.(); this.extensionAuthCleanup = null; this.extensionAuthRevision++;
+    this.cancelSyncOperation();
+    this.requestSafety.cancelAll();
+    const detachedScopeId = this.scopeId;
     if (this.parentWindow && this.mainWindowFocusHandler) {
       this.parentWindow.removeListener('focus', this.mainWindowFocusHandler);
     }
     this.mainWindowFocusHandler = null;
+    const pendingSave = this.persistSession(true).catch(() => {
+      console.warn('[Navegador][Sesión] No se pudo guardar al cerrar; se conserva el último respaldo válido.');
+    });
     this.teardownBrowsingSession('La ventana principal se cerro antes de mostrar el navegador.');
+    this.downloadManager.resetForProfileChange();
     this.parentWindow = null;
     this.stopObservationTimer();
+    if (isEphemeralBrowserScope(detachedScopeId)) void this.startEphemeralCleanup(detachedScopeId, pendingSave);
+  }
+
+  /** Barrera main: no destruye vistas ni consume la sesión ofrecida. */
+  async flushSessionForShutdown(): Promise<void> {
+    if (!this.capabilities.sessionRestore) {
+      await this.flushClosedProfileForShutdown();
+      return;
+    }
+    const generation = this.sessionGeneration;
+    const shutdownRevision = this.shutdownRevision;
+    if (this.scopeChanging) throw new Error('El perfil está cambiando durante el cierre.');
+    this.shutdownFlushing = true;
+    if (this.sessionSaveTimer) { clearTimeout(this.sessionSaveTimer); this.sessionSaveTimer = null; }
+    if (this.parentWindow) await this.loadRestorableSession();
+    if (generation !== this.sessionGeneration || shutdownRevision !== this.shutdownRevision || this.scopeChanging) throw new Error('La sesión cambió durante el cierre.');
+    const previous = this.lastSessionSnapshot;
+    if (this.tabs.size === 0 && !this.restorableSession && this.lastSessionSaveFailed && previous?.scopeId === this.scopeId) {
+      await this.saveSessionSnapshot(previous.snapshot);
+    } else await this.persistSession(true);
+    // Incluye un guardado iniciado en detachWindow cuando ya no quedan vistas.
+    await this.lastSessionSave;
+    if (generation !== this.sessionGeneration || shutdownRevision !== this.shutdownRevision || this.scopeChanging) throw new Error('La sesión cambió durante el cierre.');
+    // Navegaciones y gestos que llegaron durante la E/S deben entrar en el
+    // checkpoint. No comparar savedAt: cambia aunque las pestañas sean iguales.
+    while (true) {
+      const current = this.buildSessionSnapshot(true);
+      const saved = this.lastSessionSnapshot?.snapshot;
+      if (!current || !saved || JSON.stringify({ ...current, savedAt: '' }) === JSON.stringify({ ...saved, savedAt: '' })) break;
+      await this.saveSessionSnapshot(current);
+      if (generation !== this.sessionGeneration || shutdownRevision !== this.shutdownRevision || this.scopeChanging) throw new Error('La sesión cambió durante el cierre.');
+    }
+    // detachWindow puede haber iniciado la limpieza de un perfil efímero;
+    // la barrera de cierre no termina hasta que esa cola queda estable.
+    await this.flushClosedProfileForShutdown();
+  }
+
+  commitShutdown(): void {
+    this.lockCredentials();
+    this.semanticMemory.cancel();
+    this.agentTaskBinding?.control.command('stop');
+    this.cancelSyncOperation();
+    this.requestSafety.cancelAll();
+    this.shutdownCommitted = true;
+    if (this.sessionSaveTimer) { clearTimeout(this.sessionSaveTimer); this.sessionSaveTimer = null; }
+    // beforeunload todavía puede cancelar la salida: aquí no se purga.
+  }
+
+  /** Se espera también en will-quit, después del cierre efectivo de vistas. */
+  async flushClosedProfileForShutdown(): Promise<void> {
+    const generation = this.sessionGeneration;
+    if (this.ephemeralCleanupFailed && this.ephemeralCleanupScope) {
+      await this.startEphemeralCleanup(this.ephemeralCleanupScope);
+    } else await this.ephemeralCleanup;
+    if (generation !== this.sessionGeneration) throw new Error('La ventana cambió durante la limpieza del perfil.');
+  }
+
+  resumeAfterShutdown(): void {
+    this.shutdownRevision += 1;
+    this.shutdownFlushing = false;
+    this.shutdownCommitted = false;
+    this.queueSessionSave();
   }
 
   /**
@@ -261,22 +740,107 @@ export class IntegratedBrowserService extends EventEmitter {
    */
   async applyUserScope(userId: string | null | undefined): Promise<void> {
     const nextScopeId = browserScopeIdFor(userId);
-    if (nextScopeId === this.scopeId) return;
-    const previousScopeId = this.scopeId;
+    // Salir a invitado desde el selector no equivale a cerrar la sesión real.
+    // Sólo la autenticación puede conservar o revocar el perfil al que volver.
+    this.authenticatedScopeId = userId ? nextScopeId : null;
+    await this.transitionProfile(nextScopeId, userId ? 'authenticated' : 'guest');
+  }
 
+  getProfile(): BrowserProfileDescriptor {
+    const kind = this.profileKind;
+    return {
+      id: kind === 'authenticated' || kind === 'private' ? this.scopeId : BROWSER_ANONYMOUS_SCOPE,
+      kind,
+      label: kind === 'authenticated' ? 'Perfil autenticado' : kind === 'private' ? 'Ventana privada' : 'Invitado',
+      persistent: kind === 'authenticated',
+      managed: false,
+    };
+  }
+
+  async setProfileKind(kind: BrowserProfileKind): Promise<BrowserProfileDescriptor> {
+    this.assertCapability('profiles');
+    if (!['authenticated', 'guest', 'private'].includes(kind)) throw new Error('El perfil indicado no es válido.');
+    const assertCurrent = this.captureProfileGuard();
+    if (kind === this.profileKind) return this.getProfile();
+    if (this.agentControlling) throw new Error('Toma el control antes de cambiar el perfil.');
+    if (this.profileSelectionPending) throw new Error('Ya hay una confirmación de cambio de perfil pendiente.');
+    const target = kind === 'authenticated'
+      ? this.authenticatedScopeId
+      : kind === 'guest' ? BROWSER_ANONYMOUS_SCOPE : browserPrivateScopeId();
+    if (!target) throw new Error('No hay una sesión autenticada disponible para volver al perfil persistente.');
+    this.profileSelectionPending = true;
+    const expiresAt = Date.now() + 5 * 60_000;
+    try {
+      const confirmation = await dialog.showMessageBox(this.requireParentWindow(), {
+        type: 'warning', title: 'Cambiar perfil de navegación',
+        message: 'Se cerrarán las pestañas del perfil actual.',
+        detail: this.profileKind === 'authenticated'
+          ? 'Los datos persistentes de tu cuenta se conservarán. El nuevo perfil tendrá una sesión separada.'
+          : 'Se eliminarán los datos temporales de este perfil. Los archivos que descargaste fuera del perfil no se borrarán.',
+        buttons: ['Cancelar', 'Cambiar perfil'], defaultId: 0, cancelId: 0, noLink: true,
+      });
+      assertCurrent();
+      if (this.agentControlling || Date.now() > expiresAt) throw new Error('La confirmación del perfil ya no está vigente.');
+      if (confirmation.response !== 1) return this.getProfile();
+      await this.transitionProfile(target, kind);
+      return this.getProfile();
+    } finally { this.profileSelectionPending = false; }
+  }
+
+  private async transitionProfile(nextScopeId: string, nextKind: BrowserProfileKind): Promise<void> {
+    this.semanticMemory.cancel();
+    this.cancelSyncOperation();
+    this.requestSafety.cancelAll();
+    if (nextScopeId === this.scopeId && nextKind === this.profileKind && !this.scopeChanging) return;
+    const previousScopeId = this.scopeId;
+    const transition = ++this.scopeTransition;
+    this.scopeChanging = true;
+    this.credentialAutosaveEnabled = false;
+    this.credentialAutosaveRevision++;
+
+    const pendingSave = this.persistSession(true).catch(() => {
+      console.warn('[Navegador][Sesión] No se pudo guardar antes del cambio de cuenta.');
+    });
     this.teardownBrowsingSession();
+    this.downloadManager.resetForProfileChange();
+    if (isEphemeralBrowserScope(previousScopeId)) {
+      await this.startEphemeralCleanup(previousScopeId, pendingSave);
+    } else {
+      await this.historyStore.flushAndClose();
+      await pendingSave;
+    }
+    if (transition !== this.scopeTransition) return;
+    // No cambiar el scope global antes de drenar los stores del perfil saliente.
+    if (nextScopeId === BROWSER_ANONYMOUS_SCOPE && nextScopeId !== previousScopeId) {
+      await this.purgeEphemeralProfile(nextScopeId);
+      if (transition !== this.scopeTransition) return;
+    }
     this.scopeId = nextScopeId;
+    this.profileKind = nextKind;
+    if (nextKind === 'authenticated') this.authenticatedScopeId = nextScopeId;
+    this.profileStartedAt = Date.now();
+    this.lastSessionSave = Promise.resolve();
+    this.lastSessionSaveFailed = false;
+    this.lastSessionSnapshot = null;
     setBrowserScopeId(nextScopeId);
+    setBrowserProfileKind(nextKind);
+    this.enterprisePolicy = null;
+    this.enterprisePolicyReady = false;
+    this.enterprisePolicyLoad = null;
     this.sitePermissionStore.invalidateCache();
+    this.sessionLoadedScope = null;
+    this.restorableSession = null;
     console.log('[Navegador] Perfil conmutado por cambio de sesion.');
 
-    // El perfil sin sesion es de paso: lo que se navegue ahi no pertenece a
-    // ninguna cuenta y no debe sobrevivir al cambio.
-    if (previousScopeId === BROWSER_ANONYMOUS_SCOPE || nextScopeId === BROWSER_ANONYMOUS_SCOPE) {
-      await this.purgeAnonymousProfile();
-    }
-
+    if (transition !== this.scopeTransition) return;
+    this.scopeChanging = false;
+    if (this.parentWindow) void this.loadCredentialAutosave();
     this.emitState();
+    if (this.parentWindow && this.capabilities.sessionRestore) {
+      await this.loadRestorableSession().catch(() => {
+        console.warn('[Navegador][Sesión] No se pudo cargar la sesión de este perfil.');
+      });
+    }
   }
 
   /**
@@ -285,11 +849,27 @@ export class IntegratedBrowserService extends EventEmitter {
    * nuevo usuario abra el navegador.
    */
   private teardownBrowsingSession(reason = 'La sesion del navegador se cerro.'): void {
+    this.lockCredentials();
+    this.semanticMemory.cancel();
+    this.agentTaskBinding?.control.command('stop');
+    this.requestSafety.cancelAll();
+    this.safetyInterstitials.clear();
+    this.sessionGeneration += 1;
+    this.enterprisePolicy = null;
+    this.enterprisePolicyReady = false;
+    this.enterprisePolicyFailed = false;
+    this.enterprisePolicyLoad = null;
+    this.sessionLoadedScope = null;
+    this.sessionLoad = null;
+    this.restorableSession = null;
     this.rejectViewportWaiters(new Error(reason));
     this.discardPermissionPrompts();
     this.permissions?.dispose();
     this.permissions = null;
+    this.passkeySelection?.dispose();
+    this.passkeySelection = null;
     this.closePictureInPictureWindows();
+    if (this.fullscreenTabId) this.leaveHtmlFullScreen(this.fullscreenTabId);
     this.fullscreenTabId = null;
     this.fullscreenRestore = null;
     for (const [tabId, detached] of this.detachedWindows) {
@@ -302,6 +882,9 @@ export class IntegratedBrowserService extends EventEmitter {
     this.detachedWindows.clear();
     for (const tab of this.tabs.values()) this.destroyTab(tab);
     this.tabs.clear();
+    this.closedTabs = [];
+    this.groups.clear();
+    this.tabLayout = 'horizontal';
     this.activeTabId = null;
     this.primaryTabId = null;
     this.secondaryTabId = null;
@@ -324,27 +907,80 @@ export class IntegratedBrowserService extends EventEmitter {
     this.visualCaptureInFlightTarget = null;
     this.observationLastError = null;
     // Las extensiones pertenecen al perfil: el proximo perfil restaura las suyas.
+    this.extensionManager.resetForProfileChange();
     this.extensionsRestored = false;
     this.readingModeService.dispose();
+    if (this.sessionSaveTimer) {
+      clearTimeout(this.sessionSaveTimer);
+      this.sessionSaveTimer = null;
+    }
   }
 
-  /** Vacia la particion y los archivos del perfil sin sesion. */
-  private async purgeAnonymousProfile(): Promise<void> {
-    // Nota: los perfiles de usuarios reales NO se borran; se conservan aislados,
-    // igual que los perfiles de un navegador de escritorio.
-    try {
-      const anonymous = electronSession.fromPartition(browserPartitionFor(BROWSER_ANONYMOUS_SCOPE));
-      await anonymous.clearStorageData();
-      await anonymous.clearCache();
-      await anonymous.clearAuthCache();
-    } catch (error) {
-      console.warn('[Navegador] No se pudo vaciar la sesion sin usuario:', safeErrorMessage(error instanceof Error ? error.message : String(error)));
+  /** Vacía la partición y archivos de un perfil efímero (invitado o privado). */
+  private async purgeEphemeralProfile(scopeId: string): Promise<void> {
+    if (!isEphemeralBrowserScope(scopeId)) return;
+    if (scopeId !== BROWSER_ANONYMOUS_SCOPE && !/^privado-[a-f0-9]{24}$/.test(scopeId)) {
+      throw new Error('El identificador del perfil temporal no es válido.');
     }
-    try {
-      await fs.rm(browserProfileRoot(BROWSER_ANONYMOUS_SCOPE), { recursive: true, force: true });
-    } catch (error) {
-      console.warn('[Navegador] No se pudo borrar el perfil sin usuario:', safeErrorMessage(error instanceof Error ? error.message : String(error)));
+    const ephemeral = electronSession.fromPartition(browserPartitionFor(scopeId));
+    // Intentar todas las categorías, pero nunca informar éxito parcial.
+    const results = await Promise.allSettled([
+      ephemeral.clearStorageData(), ephemeral.clearCache(), ephemeral.clearAuthCache(),
+      fs.rm(browserProfileRoot(scopeId), { recursive: true, force: true }),
+    ]);
+    if (results.some((result) => result.status === 'rejected')) {
+      throw new Error('No se pudo completar la limpieza del perfil temporal. Vuelve a intentarlo.');
     }
+  }
+
+  private startEphemeralCleanup(scopeId: string, pendingSave: Promise<void> = Promise.resolve()): Promise<void> {
+    if (this.ephemeralCleanupPending) return this.ephemeralCleanup;
+    this.ephemeralCleanupPending = true;
+    this.ephemeralCleanupFailed = false;
+    this.ephemeralCleanupScope = scopeId;
+    // Capturar ahora las colas y rutas: la próxima cuenta aún no está activa.
+    const stores = this.flushEphemeralStores();
+    const cleanup = Promise.allSettled([pendingSave, stores]).then(async (results) => {
+      const failed = results.find((result) => result.status === 'rejected');
+      if (failed?.status === 'rejected') throw failed.reason;
+      await this.purgeEphemeralProfile(scopeId);
+      this.sitePermissionStore.invalidateCache();
+      this.privacyStore.invalidateCache();
+      this.enterprisePolicyStore.invalidateCache();
+      this.lastSessionSave = Promise.resolve();
+      this.lastSessionSaveFailed = false;
+      this.lastSessionSnapshot = null;
+    });
+    this.ephemeralCleanup = cleanup;
+    void cleanup.then(() => {
+      if (this.ephemeralCleanup !== cleanup) return;
+      this.ephemeralCleanupPending = false;
+      this.ephemeralCleanupScope = null;
+    }, () => {
+      if (this.ephemeralCleanup !== cleanup) return;
+      this.ephemeralCleanupPending = false;
+      this.ephemeralCleanupFailed = true;
+      console.warn('[Navegador] La limpieza del perfil temporal no terminó; se requiere reintentar.');
+    });
+    return cleanup;
+  }
+
+  /** Espera las colas de todos los stores que escriben bajo el perfil actual. */
+  private async flushEphemeralStores(): Promise<void> {
+    const results = await Promise.allSettled([
+      this.historyStore.flushAndClose(),
+      this.sessionStore.flush(),
+      this.bookmarkStore.flush(),
+      this.credentialVault.flush(),
+      this.agentPolicyStore.flush(),
+      this.shortcutStore.flush(),
+      this.privacyStore.flush(),
+      this.enterprisePolicyStore.flush(),
+      this.sitePermissionStore.flush(),
+      this.extensionManager.flush(),
+    ]);
+    const failed = results.find((result) => result.status === 'rejected');
+    if (failed?.status === 'rejected') throw failed.reason;
   }
 
   getState(): IntegratedBrowserState {
@@ -353,12 +989,16 @@ export class IntegratedBrowserService extends EventEmitter {
     const contents = active?.view?.webContents ?? null;
     return {
       url: active?.url || 'about:blank',
+      profileRevision: this.scopeTransition,
+      credentialUnlocked: this.credentialUnlock.isUnlocked(),
       title: active?.title || 'Navegador',
       canGoBack: contents?.navigationHistory.canGoBack() ?? active?.canGoBack ?? false,
       canGoForward: contents?.navigationHistory.canGoForward() ?? active?.canGoForward ?? false,
       isLoading: active?.loading ?? false,
       isVisible: this.visible || Array.from(this.detachedWindows.values()).some((window) => this.isWindowUsable(window)),
       agentControlling: this.agentControlling,
+      agentTask: this.agentTaskBinding?.profileRevision === this.scopeTransition && this.agentTaskBinding.scope === getBrowserScopeId() ? this.agentTaskBinding.control.snapshot() : null,
+      agentPolicyPromptIds: Array.from(this.agentPolicyPrompts.keys()),
       error: active?.error ?? null,
       tabs: Array.from(this.tabs.values()).map((tab) => this.toTabState(tab)),
       activeTabId: this.activeTabId,
@@ -369,38 +1009,383 @@ export class IntegratedBrowserService extends EventEmitter {
       // pantalla completa la vista nativa los cubre y quedarian pintados
       // debajo, capturando clics que el usuario ya no ve.
       isFullscreen: this.fullscreenTabId !== null,
+      tabLayout: this.tabLayout,
+      groups: Array.from(this.groups.values()).map((group) => ({ ...group })),
+      canReopenClosedTab: this.closedTabs.length > 0,
+      restoreAvailable: this.restorableSession ? {
+        tabCount: this.restorableSession.tabs.length,
+        savedAt: this.restorableSession.savedAt,
+        cleanExit: this.restorableSession.cleanExit,
+      } : null,
     };
   }
 
+  async restorePreviousSession(): Promise<IntegratedBrowserState> {
+    if (!this.capabilities.sessionRestore) throw new Error('La restauración de sesión no está habilitada.');
+    const generation = this.sessionGeneration;
+    const parent = this.requireParentWindow();
+    await this.loadRestorableSession();
+    await this.ensureEnterprisePolicy();
+    if (generation !== this.sessionGeneration || parent !== this.parentWindow) throw new Error('La sesión cambió durante la restauración.');
+    if (this.agentControlling) throw new Error('Detén la tarea del agente antes de restaurar la sesión.');
+    const snapshot = this.restorableSession;
+    if (!snapshot) throw new Error('No hay una sesión anterior disponible.');
+    if (snapshot.tabs.some((tab) => !this.enterpriseUrlAllowed(tab.url))) throw new Error('La sesión contiene sitios bloqueados por tu organización.');
+    if (this.fullscreenTabId) this.leaveHtmlFullScreen(this.fullscreenTabId);
+    this.closePictureInPictureWindows();
+    this.discardPermissionPrompts();
+    for (const tab of this.tabs.values()) this.destroyTab(tab);
+    this.tabs.clear();
+    this.groups = new Map(snapshot.groups.map((group) => [group.id, { ...group }]));
+    this.tabLayout = snapshot.tabLayout;
+    this.activeTabId = null;
+    this.primaryTabId = null;
+    this.secondaryTabId = null;
+    const idMap = new Map<string, string>();
+    for (const saved of snapshot.tabs) {
+      const tab = this.createTabRuntime(false);
+      idMap.set(saved.id, tab.id);
+      tab.url = saved.url;
+      tab.title = saved.title;
+      tab.pinned = saved.pinned;
+      tab.muted = saved.muted;
+      tab.groupId = saved.groupId;
+    }
+    this.activeTabId = idMap.get(snapshot.activeTabId ?? '') ?? this.tabs.keys().next().value ?? null;
+    this.primaryTabId = idMap.get(snapshot.primaryTabId ?? '') ?? this.activeTabId;
+    this.secondaryTabId = idMap.get(snapshot.secondaryTabId ?? '') ?? null;
+    this.viewMode = this.secondaryTabId ? snapshot.viewMode : 'single';
+    this.overlayTopTabId = null;
+    this.customOverlayBounds = null;
+    this.closedTabs = [];
+    // Las pestañas de fondo permanecen lógicas hasta activarlas: restaurar
+    // cientos no debe navegar cientos de sitios ni sobrepasar ocho vistas.
+    const activeTabId = this.activeTabId;
+    for (const savedId of snapshot.detachedTabIds) this.detachTabInternal(idMap.get(savedId)!);
+    if (activeTabId) this.activateTabInternal(activeTabId);
+    this.restorableSession = null;
+    this.applyViewLayout();
+    this.emitState();
+    return this.getState();
+  }
+
+  async discardPreviousSession(): Promise<IntegratedBrowserState> {
+    if (!this.capabilities.sessionRestore) throw new Error('La restauración de sesión no está habilitada.');
+    const generation = this.sessionGeneration;
+    await this.loadRestorableSession();
+    if (generation !== this.sessionGeneration) throw new Error('La sesión cambió antes del descarte.');
+    await this.sessionStore.clear();
+    if (generation !== this.sessionGeneration) throw new Error('La sesión cambió durante el descarte.');
+    this.restorableSession = null;
+    this.emitState();
+    return this.getState();
+  }
+
   async open(rawUrl?: unknown): Promise<IntegratedBrowserState> {
+    const assertCurrent = this.captureNavigationGuard(true);
+    await this.ephemeralCleanup;
+    assertCurrent();
+    await this.ensureEnterprisePolicy();
+    assertCurrent();
     const contents = this.ensureView().webContents;
     const currentUrl = contents.getURL();
     if (rawUrl !== undefined) {
       await this.loadTarget(rawUrl);
     } else if (!currentUrl || currentUrl === 'about:blank') {
-      await contents.loadURL(INTEGRATED_BROWSER_HOME);
+      if (!this.enterpriseUrlAllowed(INTEGRATED_BROWSER_HOME)) throw new Error('El sitio está bloqueado por tu organización.');
+      await this.loadTarget(INTEGRATED_BROWSER_HOME);
     }
     return this.getState();
   }
 
-  async navigate(rawTarget: unknown): Promise<IntegratedBrowserState> {
+  async navigate(rawTarget: unknown, assertCurrent?: () => void): Promise<IntegratedBrowserState> {
+    const assertNavigationCurrent = this.captureNavigationGuard(true);
+    await this.ephemeralCleanup;
+    assertNavigationCurrent();
+    await this.ensureEnterprisePolicy();
+    assertNavigationCurrent();
+    assertCurrent?.();
     this.ensureView();
-    await this.loadTarget(rawTarget);
+    await this.loadTarget(rawTarget, assertCurrent);
     return this.getState();
   }
 
-  async createTab(rawUrl?: unknown, activate = true): Promise<IntegratedBrowserState> {
+  listDownloads() { this.assertCapability('downloads'); return this.downloadManager.list(); }
+  cancelDownload(id: string) { this.assertCapability('downloads'); return this.downloadManager.cancel(id); }
+  resumeDownload(id: string) { this.assertCapability('downloads'); return this.downloadManager.resume(id); }
+  async retryDownload(id: string) {
+    this.assertCapability('downloads');
+    await this.ensureEnterprisePolicy();
+    return this.downloadManager.retry(id, this.ensureView().webContents, (sourceUrl) => {
+      if (!this.enterpriseUrlAllowed(sourceUrl)) throw new Error('La descarga está bloqueada por tu organización.');
+      const safety = checkBrowserNavigationLocal(sourceUrl);
+      if (safety.action === 'block') throw new Error(safety.reason ?? 'La descarga está bloqueada por la protección local.');
+    });
+  }
+  async openDownload(id: string): Promise<boolean> { this.assertCapability('downloads'); await this.downloadManager.open(id); return true; }
+  revealDownload(id: string): boolean { this.assertCapability('downloads'); this.downloadManager.reveal(id); return true; }
+
+  getRuntimeDiagnostic(): BrowserRuntimeDiagnostic {
+    return {
+      appVersion: app.getVersion(),
+      electronVersion: process.versions.electron ?? 'desconocida',
+      chromiumVersion: process.versions.chrome ?? 'desconocida',
+      nodeVersion: process.versions.node,
+      profileKind: this.profileKind,
+      protectionLevel: this.enterprisePolicy?.forcedPrivacyLevel ?? (this.capabilities.privacyProtection ? 'balanced' : 'off'),
+      managed: this.enterprisePolicy !== null,
+      enterprisePolicyStatus: !this.capabilities.enterpriseControls ? 'disabled' : this.enterprisePolicyReady ? 'ready' : this.enterprisePolicyFailed ? 'error' : 'loading',
+      checkedAt: new Date().toISOString(),
+    };
+  }
+
+  exportRuntimeDiagnostic() { return this.diagnosticExporter.exportFromDialog(); }
+
+  listBookmarks(query?: string) { this.assertCapability('mainBookmarks'); this.captureProfileGuard()(); return this.bookmarkStore.list(query); }
+  saveBookmark(input: { id?: string; url: string; title: string; folderId?: string | null; tags?: string[]; position?: number }) { this.assertCapability('mainBookmarks'); this.captureProfileGuard()(); return this.bookmarkStore.save(input); }
+  removeBookmark(id: string) { this.assertCapability('mainBookmarks'); this.captureProfileGuard()(); return this.bookmarkStore.remove(id); }
+  migrateLegacyBookmarks(entries: unknown) { this.assertCapability('mainBookmarks'); this.captureProfileGuard()(); return this.bookmarkStore.migrateLegacy(entries); }
+  async getAgentPolicy(origin?: string) {
+    const assertCurrent = this.captureProfileGuard();
+    const target = origin ?? this.getState().url;
+    await this.ensureEnterprisePolicy(); assertCurrent();
+    const policy = await this.agentPolicyStore.get(target); assertCurrent();
+    return { ...policy, decision: this.enterprisePolicy?.agentAllowed === false ? 'block' as const : policy.decision, enabled: this.capabilities.agentGovernance, managed: policy.managed || this.enterprisePolicy?.agentAllowed === false };
+  }
+  async setAgentPolicy(input: { origin?: string; mode: BrowserAgentPolicyMode; decision: BrowserAgentSiteDecision }) {
+    const assertCurrent = this.captureProfileGuard();
+    const target = input.origin ?? this.getState().url;
+    await this.ensureEnterprisePolicy(); assertCurrent();
+    if (this.enterprisePolicy?.agentAllowed === false) throw new Error('El agente está administrado por tu organización.');
+    // Invalidar antes de esperar evita que una tarea use una autorización anterior.
+    this.agentPolicyRevision += 1;
+    const policy = await this.agentPolicyStore.set({ ...input, origin: target }); assertCurrent();
+    return { ...policy, enabled: this.capabilities.agentGovernance };
+  }
+  async getPrivacySite(origin?: string) {
+    const assertCurrent = this.captureProfileGuard();
+    const target = origin ?? this.getState().url;
+    await this.ensureEnterprisePolicy(); assertCurrent();
+    const site = await this.privacyStore.get(target); assertCurrent();
+    return { ...this.effectivePrivacyState(site), enabled: this.privacyProtectionEnabled(), managed: Boolean(this.enterprisePolicy?.forcedPrivacyLevel) };
+  }
+  async setPrivacySite(input: { origin?: string; level: BrowserPrivacyLevel; exceptionCategories: BrowserPrivacyCategory[] }) {
+    const assertCurrent = this.captureProfileGuard();
+    const target = input.origin ?? this.getState().url;
+    await this.ensureEnterprisePolicy(); assertCurrent();
+    if (this.enterprisePolicy?.forcedPrivacyLevel) throw new Error('La privacidad está administrada por tu organización.');
+    const site = await this.privacyStore.set({ ...input, origin: target }); assertCurrent();
+    return { ...site, enabled: this.capabilities.privacyProtection, managed: false };
+  }
+  importBookmarksHtml() { this.assertCapability('mainBookmarks'); this.captureProfileGuard()(); return this.bookmarkImporter.importFromDialog(); }
+
+  private policyRecoveryPending = false;
+  async recoverPolicyStore(raw: unknown, assertCaller: () => void): Promise<{ cancelled: boolean; restored: number }> {
+    const input = validatePolicyRecoveryRequest(raw);
+    if (this.policyRecoveryPending) throw new Error('Ya hay una recuperación en revisión.');
+    const profile = this.captureProfileGuard(); const parent = this.requireParentWindow();
+    const control = this.agentControlRevision; let sessionChanged = false;
+    const off = onAuthStateChange(() => { sessionChanged = true; });
+    const guard = () => {
+      assertCaller(); profile(); const auth = getAuthState();
+      if (sessionChanged || !auth.authenticated || !auth.userId || this.profileKind !== 'authenticated'
+        || browserScopeIdFor(auth.userId) !== this.scopeId || input.profileRevision !== this.getState().profileRevision
+        || this.agentControlling || control !== this.agentControlRevision || parent.isDestroyed() || !parent.isVisible()) throw new Error('La recuperación quedó fuera de contexto.');
+    };
+    this.policyRecoveryPending = true;
+    try {
+      guard(); await this.ensureEnterprisePolicy(); guard();
+      if (input.store === 'semantic' || input.store === 'audit') this.assertCapability('agentGovernance');
+      if (input.store === 'history') this.assertCapability('advancedHistory');
+      if (input.store === 'shortcuts') {
+        this.assertCapability('agentGovernance');
+        if (this.enterprisePolicy?.agentAllowed === false) throw new Error('Los atajos están bloqueados por tu organización.');
+      }
+      const store = input.store === 'permissions' ? this.sitePermissionStore : input.store === 'privacy' ? this.privacyStore
+        : input.store === 'shortcuts' ? this.shortcutStore : input.store === 'semantic' ? this.semanticMemory
+        : input.store === 'history' ? this.historyStore : input.store === 'audit' ? this.auditStore : this.agentPolicyStore;
+      const review = await store.prepareRecovery(guard); guard();
+      const decision = await dialog.showMessageBox(parent, {
+        type: 'warning', title: 'Recuperación de ajustes del navegador',
+        message: input.store === 'semantic' ? '¿Recuperar el almacén de memoria semántica vacío y desactivado?' : `¿Recuperar ${review.count} ${['shortcuts', 'history', 'audit'].includes(input.store) ? 'entradas' : 'sitios'} de ${POLICY_RECOVERY_LABELS[input.store]}?`,
+        detail: input.store === 'history' || input.store === 'audit'
+          ? 'Se recupera la última instantánea SQLite compatible; puede no incluir cambios recientes. Se aplica la retención vigente y se conserva cifrado el original dañado. Borrar, recortar datos o cambiar retención retira las copias locales anteriores. No cambia páginas abiertas, permisos, credenciales ni sincronización.'
+          : input.store === 'semantic'
+          ? 'Se conserva una copia cifrada del índice dañado hasta la siguiente modificación de memoria. No se recuperan fuentes ni vectores antiguos y no se contacta al proveedor. Para reconstruir el índice debes volver a activarlo con consentimiento. No cambia historial, marcadores, contraseñas ni sincronización.'
+          : input.store === 'shortcuts'
+          ? 'El principal falta o está dañado. La copia puede no incluir cambios recientes. Se conservarán el respaldo y una copia cifrada del principal dañado. Revisa las instrucciones recuperadas antes de usarlas: reciben identificadores nuevos, no se ejecutan ni conceden permisos. No cambia políticas empresariales, credenciales ni sincronización.'
+          : 'El principal falta o está dañado. La copia puede no incluir cambios recientes. Se conservarán el respaldo y una copia cifrada del principal dañado. Se retiran permisos concedidos, permitir siempre y excepciones de privacidad: el agente vuelve a preguntar y la privacidad queda estricta. No cambia políticas empresariales, credenciales ni sincronización.',
+        buttons: ['Cancelar', 'Recuperar con restricciones'], defaultId: 0, cancelId: 0, noLink: true,
+      });
+      guard(); if (decision.response !== 1) return { cancelled: true, restored: 0 };
+      this.agentPolicyRevision++;
+      await review.commit(); guard();
+      if (input.store === 'permissions') await this.sitePermissionStore.warmUp();
+      if (input.store === 'privacy') await this.privacyStore.hydrate();
+      guard(); this.emitState(); return { cancelled: false, restored: review.count };
+    } finally { this.policyRecoveryPending = false; off(); }
+  }
+
+  async recoverBookmarks(): Promise<{ cancelled: boolean; restored: number }> {
+    this.assertCapability('mainBookmarks');
+    if (this.bookmarkRecoveryPending) throw new BookmarkImportRejected('Ya hay una recuperación de marcadores pendiente.');
+    const profileGuard = this.captureProfileGuard();
+    const controlRevision = this.agentControlRevision;
+    const guard = () => {
+      profileGuard();
+      if (this.agentControlling || this.agentControlRevision !== controlRevision) throw new BookmarkImportRejected('Toma el control del navegador y vuelve a revisar la recuperación.');
+    };
+    guard();
+    const parent = this.parentWindow!;
+    this.bookmarkRecoveryPending = true;
+    try {
+      const prepared = await this.bookmarkStore.prepareRecovery(); guard();
+      const decision = await dialog.showMessageBox(parent, {
+        type: 'warning', title: 'Recuperar marcadores', message: `¿Restaurar ${prepared.count} marcadores del respaldo local?`,
+        detail: 'El archivo principal falta o está dañado. El respaldo puede no incluir tus últimos cambios. Se conservarán el respaldo y una copia del principal dañado, si existe. No se recuperan contraseñas ni historial.',
+        buttons: ['Cancelar', 'Restaurar respaldo'], defaultId: 0, cancelId: 0, noLink: true,
+      });
+      guard();
+      if (decision.response !== 1) return { cancelled: true, restored: 0 };
+      const restored = await prepared.commit(guard); guard();
+      return { cancelled: false, restored };
+    } catch (error) {
+      if (error instanceof BookmarkImportRejected) throw error;
+      throw new BookmarkImportRejected('No se pudo recuperar el respaldo de marcadores. Los archivos existentes se conservaron.');
+    } finally { this.bookmarkRecoveryPending = false; }
+  }
+
+  async exportBookmarksHtml() {
+    this.assertCapability('mainBookmarks');
+    const assertCurrent = this.captureProfileGuard();
+    const scopeId = this.scopeId;
+    if (!this.parentWindow) throw new Error('El navegador no está iniciado.');
+    const selection = await dialog.showSaveDialog(this.parentWindow, {
+      title: 'Exportar marcadores',
+      defaultPath: path.join(app.getPath('documents'), 'marcadores-soflia.html'),
+      filters: [{ name: 'Marcadores HTML', extensions: ['html'] }],
+    });
+    if (selection.canceled || !selection.filePath) return { cancelled: true, exported: 0 };
+    assertCurrent();
+    if (this.scopeId !== scopeId) throw new Error('El perfil cambió durante la exportación.');
+    const destination = selection.filePath.toLocaleLowerCase('es').endsWith('.html') ? selection.filePath : `${selection.filePath}.html`;
+    const html = await this.bookmarkStore.exportHtml();
+    assertCurrent();
+    if (this.scopeId !== scopeId) throw new Error('El perfil cambió durante la exportación.');
+    await fs.writeFile(destination, html, { encoding: 'utf8', mode: 0o600, flag: 'wx' });
+    return { cancelled: false, exported: (await this.bookmarkStore.list()).length };
+  }
+
+  findInPage(rawQuery: unknown, forward = true): IntegratedBrowserState {
+    this.assertCapability('pageTools');
+    const query = validateFindQuery(rawQuery);
+    const tab = this.getActiveTab();
+    if (!tab) throw new Error('No hay una pestaña activa.');
+    const contents = this.requireTabView(tab).webContents;
+    if (!query) {
+      contents.stopFindInPage('clearSelection');
+      tab.find = null;
+    } else {
+      const sameQuery = tab.find?.query === query;
+      tab.find = {
+        query,
+        activeMatchOrdinal: tab.find?.activeMatchOrdinal ?? 0,
+        matches: tab.find?.matches ?? 0,
+        finalUpdate: false,
+      };
+      contents.findInPage(query, { forward, findNext: sameQuery });
+    }
+    this.emitState();
+    return this.getState();
+  }
+
+  stopFindInPage(): IntegratedBrowserState {
+    this.assertCapability('pageTools');
+    const tab = this.getActiveTab();
+    if (!tab) return this.getState();
+    this.requireTabView(tab).webContents.stopFindInPage('clearSelection');
+    tab.find = null;
+    this.emitState();
+    return this.getState();
+  }
+
+  setZoom(action: BrowserZoomAction): IntegratedBrowserState {
+    this.assertCapability('pageTools');
+    const tab = this.getActiveTab();
+    if (!tab) throw new Error('No hay una pestaña activa.');
+    const contents = this.requireTabView(tab).webContents;
+    const factor = nextBrowserZoomFactor(supportsIsolatedBrowserZoom(contents) ? contents.getZoomFactor() : tab.zoomFactor, action);
+    applyBrowserTabZoom(contents, factor, tab.appliedBounds);
+    tab.zoomFactor = factor;
+    tab.visualRevision++; this.invalidateObservation(tab.id);
+    this.agentTaskBinding?.control.command('stop');
+    this.emitState();
+    return this.getState();
+  }
+
+  setMuted(muted: boolean): IntegratedBrowserState {
+    this.assertCapability('pageTools');
+    const tab = this.getActiveTab();
+    if (!tab) throw new Error('No hay una pestaña activa.');
+    tab.muted = muted;
+    this.requireTabView(tab).webContents.setAudioMuted(muted);
+    this.emitState();
+    return this.getState();
+  }
+
+  toggleFullscreen(): IntegratedBrowserState {
+    this.assertCapability('pageTools');
+    const tab = this.getActiveTab();
+    if (!tab) throw new Error('No hay una pestaña activa.');
+    if (this.fullscreenTabId === tab.id) this.leaveHtmlFullScreen(tab.id);
+    else this.enterHtmlFullScreen(tab.id);
+    return this.getState();
+  }
+
+  async printPage(): Promise<IntegratedBrowserState> {
+    this.assertCapability('pageTools');
+    await printBrowserPage(this.ensureView().webContents);
+    return this.getState();
+  }
+
+  async savePageAsPdf(): Promise<{ state: IntegratedBrowserState; canceled: boolean; filename?: string }> {
+    this.assertCapability('pageTools');
+    const tab = this.getActiveTab();
+    if (!tab) throw new Error('No hay una pestaña activa.');
+    const result = await saveBrowserPageAsPdf(this.requireParentWindow(), this.requireTabView(tab).webContents, tab.title);
+    return { state: this.getState(), ...result };
+  }
+
+  async createTab(rawUrl?: unknown, activate = true, restored?: BrowserSessionTab): Promise<IntegratedBrowserState> {
+    const assertCurrent = this.captureProfileGuard(true);
+    await this.ephemeralCleanup;
+    assertCurrent();
+    await this.ensureEnterprisePolicy();
+    assertCurrent();
     const target = rawUrl === undefined ? INTEGRATED_BROWSER_HOME : normalizeBrowserTarget(rawUrl);
+    const safety = await checkBrowserNavigation(target, { allowRemote: this.profileKind === 'authenticated' });
+    assertCurrent();
+    this.assertNavigationAllowed(safety);
+    if (!this.enterpriseUrlAllowed(target)) throw new Error('El sitio está bloqueado por tu organización.');
     if (this.tabs.size >= INTEGRATED_BROWSER_MAX_TABS) {
       throw new Error(`El navegador admite hasta ${INTEGRATED_BROWSER_MAX_TABS} pestañas abiertas.`);
     }
     const tab = this.createTabRuntime();
     tab.url = target;
+    this.setNavigationSafety(tab, target, safety);
+    if (restored) {
+      tab.pinned = restored.pinned;
+      tab.muted = restored.muted;
+      tab.groupId = this.groups.has(restored.groupId ?? '') ? restored.groupId : null;
+      this.requireTabView(tab).webContents.setAudioMuted(tab.muted);
+      this.moveTabToIndex(tab.id, restored.position);
+    }
     if (!this.primaryTabId) this.primaryTabId = tab.id;
     if (activate) this.activateTabInternal(tab.id);
     this.applyViewLayout();
     try {
       await this.requireTabView(tab).webContents.loadURL(target);
+      assertCurrent();
       this.enforceLiveTabBudget();
     } catch (error) {
       this.recordError(error, tab.id);
@@ -415,6 +1400,8 @@ export class IntegratedBrowserService extends EventEmitter {
     const tab = this.tabs.get(tabId);
     if (!tab) throw new Error('La pestaña indicada no existe.');
     const wasVisible = tabId === this.primaryTabId || (this.viewMode !== 'single' && tabId === this.secondaryTabId);
+    this.closedTabs.push({ ...this.toSessionTab(tab, Array.from(this.tabs.keys()).indexOf(tabId)), closedAt: new Date().toISOString() });
+    if (this.closedTabs.length > 25) this.closedTabs.shift();
     const remainingIds = Array.from(this.tabs.keys()).filter((id) => id !== tabId);
     this.tabs.delete(tabId);
     this.destroyTab(tab);
@@ -442,6 +1429,95 @@ export class IntegratedBrowserService extends EventEmitter {
     return this.getState();
   }
 
+  async duplicateTab(rawTabId: unknown): Promise<IntegratedBrowserState> {
+    this.assertCapability('advancedTabs');
+    const sourceId = this.requireTabId(rawTabId);
+    const source = this.tabs.get(sourceId)!;
+    this.snapshotTab(source);
+    const sourceZoom = source.zoomFactor;
+    await this.createTab(source.url, true);
+    const created = this.getActiveTab();
+    if (created) {
+      created.groupId = source.groupId;
+      created.muted = source.muted;
+      created.zoomFactor = sourceZoom;
+      this.requireTabView(created).webContents.setAudioMuted(created.muted);
+      this.configureTabZoom(created);
+    }
+    this.emitState();
+    return this.getState();
+  }
+
+  listRecentlyClosedTabs(): BrowserRecentlyClosedTab[] {
+    return this.closedTabs.slice().reverse().map(({ id, url, title, closedAt }) => ({ id, url, title, closedAt }));
+  }
+
+  async reopenClosedTab(id?: string): Promise<IntegratedBrowserState> {
+    this.assertCapability('advancedTabs');
+    const scopeId = this.scopeId;
+    const closed = id === undefined ? this.closedTabs[this.closedTabs.length - 1] : this.closedTabs.find((tab) => tab.id === id);
+    if (!closed) throw new Error('No hay pestañas cerradas para reabrir.');
+    if (this.reopeningTabs.has(closed.id)) throw new Error('La pestaña ya se está reabriendo.');
+    this.reopeningTabs.add(closed.id);
+    try {
+      await this.createTab(closed.url, true, closed);
+      if (this.scopeId !== scopeId) throw new Error('El perfil cambió al reabrir la pestaña.');
+      this.closedTabs = this.closedTabs.filter((tab) => tab.id !== closed.id);
+    } finally { this.reopeningTabs.delete(closed.id); }
+    this.emitState();
+    return this.getState();
+  }
+
+  closeOtherTabs(rawTabId: unknown): IntegratedBrowserState {
+    this.assertCapability('advancedTabs');
+    const keepId = this.requireTabId(rawTabId);
+    for (const id of Array.from(this.tabs.keys())) if (id !== keepId) this.closeTab(id);
+    return this.activateTab(keepId);
+  }
+
+  closeTabsToRight(rawTabId: unknown): IntegratedBrowserState {
+    this.assertCapability('advancedTabs');
+    const keepId = this.requireTabId(rawTabId);
+    const ids = Array.from(this.tabs.keys());
+    const index = ids.indexOf(keepId);
+    for (const id of ids.slice(index + 1)) this.closeTab(id);
+    return this.getState();
+  }
+
+  setTabPinned(rawTabId: unknown, pinned: boolean): IntegratedBrowserState {
+    this.assertCapability('advancedTabs');
+    const tabId = this.requireTabId(rawTabId);
+    this.tabs.get(tabId)!.pinned = pinned;
+    this.tabs = new Map([...this.tabs.entries()].sort((left, right) => Number(right[1].pinned) - Number(left[1].pinned)));
+    this.emitState();
+    return this.getState();
+  }
+
+  setTabLayout(layout: 'horizontal' | 'vertical'): IntegratedBrowserState {
+    this.assertCapability('advancedTabs');
+    this.tabLayout = layout;
+    this.emitState();
+    return this.getState();
+  }
+
+  createTabGroup(rawName: unknown, color: BrowserTabGroupColor): BrowserTabGroup {
+    this.assertCapability('advancedTabs');
+    if (typeof rawName !== 'string' || !rawName.trim() || rawName.trim().length > 80) throw new Error('El nombre del grupo es inválido.');
+    const group = { id: randomUUID(), name: rawName.trim(), color, collapsed: false } satisfies BrowserTabGroup;
+    this.groups.set(group.id, group);
+    this.emitState();
+    return { ...group };
+  }
+
+  assignTabGroup(rawTabId: unknown, rawGroupId: unknown): IntegratedBrowserState {
+    this.assertCapability('advancedTabs');
+    const tabId = this.requireTabId(rawTabId);
+    if (rawGroupId !== null && (typeof rawGroupId !== 'string' || !this.groups.has(rawGroupId))) throw new Error('El grupo indicado no existe.');
+    this.tabs.get(tabId)!.groupId = rawGroupId as string | null;
+    this.emitState();
+    return this.getState();
+  }
+
   activateTab(rawTabId: unknown): IntegratedBrowserState {
     const tabId = this.requireTabId(rawTabId);
     this.activateTabInternal(tabId);
@@ -451,6 +1527,7 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   detachTab(rawTabId: unknown): IntegratedBrowserState {
+    this.assertCapability('advancedTabs');
     const tabId = this.requireTabId(rawTabId);
     return this.detachTabInternal(tabId);
   }
@@ -501,6 +1578,7 @@ export class IntegratedBrowserService extends EventEmitter {
     });
     detached.on('close', (event) => {
       if (this.detachedWindows.get(tabId) !== detached) return;
+      if (this.shutdownCommitted) return;
       event.preventDefault();
       this.reattachTab(tabId);
     });
@@ -522,6 +1600,7 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   reattachTab(rawTabId: unknown): IntegratedBrowserState {
+    this.assertCapability('advancedTabs');
     const tabId = this.requireTabId(rawTabId);
     const detached = this.detachedWindows.get(tabId);
     if (!detached) return this.getState();
@@ -565,6 +1644,7 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   async setViewMode(rawMode: unknown, rawSecondaryTabId?: unknown): Promise<IntegratedBrowserState> {
+    this.assertCapability('advancedTabs');
     const mode = this.parseViewMode(rawMode);
     this.ensureView();
     if (this.activeTabId && this.detachedWindows.has(this.activeTabId)) {
@@ -578,10 +1658,10 @@ export class IntegratedBrowserService extends EventEmitter {
       let secondaryTabId = rawSecondaryTabId === undefined ? null : this.requireTabId(rawSecondaryTabId);
       if (secondaryTabId && this.detachedWindows.has(secondaryTabId)) throw new Error('La pestaña secundaria está en una ventana separada.');
       if (secondaryTabId === this.activeTabId) secondaryTabId = null;
-      secondaryTabId ??= Array.from(this.tabs.keys()).find((id) => id !== this.activeTabId) ?? null;
+      secondaryTabId ??= Array.from(this.tabs.keys()).find((id) => id !== this.activeTabId && !this.detachedWindows.has(id)) ?? null;
       if (!secondaryTabId) {
         await this.createTab(undefined, false);
-        secondaryTabId = Array.from(this.tabs.keys()).find((id) => id !== this.activeTabId) ?? null;
+        secondaryTabId = Array.from(this.tabs.keys()).find((id) => id !== this.activeTabId && !this.detachedWindows.has(id)) ?? null;
       }
       if (!secondaryTabId) throw new Error('No se pudo preparar la segunda pestaña.');
       this.primaryTabId = this.activeTabId;
@@ -669,6 +1749,11 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   async prepareReadingMode(request: BrowserReadingPrepareInput): Promise<BrowserReadingContent> {
+    return this.auditAgentOperation('document', () => this.prepareReadingModeInternal(request));
+  }
+  private async prepareReadingModeInternal(request: BrowserReadingPrepareInput): Promise<BrowserReadingContent> {
+    const assertTarget = await this.authorizeAgentAccess('read-document');
+    assertTarget();
     const active = this.getActiveTab();
     const contents = active?.view?.webContents;
     if (!active || !contents || contents.isDestroyed()) {
@@ -679,8 +1764,12 @@ export class IntegratedBrowserService extends EventEmitter {
     const solicitud = request.selection?.trim()
       ? request
       : { ...request, selection: await this.readSelectionText(contents) };
+    assertTarget();
     if (solicitud.selection) selectionLog(`modo lectura sobre la seleccion (${solicitud.selection.length} chars)`);
-    return this.readingModeService.prepare({ contents, tabId: active.id, request: solicitud });
+    const prepared = await this.readingModeService.prepare({ contents, tabId: active.id, request: solicitud });
+    await this.assertDocumentNotSensitive(active.id);
+    assertTarget();
+    return prepared;
   }
 
   /**
@@ -689,6 +1778,11 @@ export class IntegratedBrowserService extends EventEmitter {
    * que una navegación concurrente nunca entregue texto de otra pestaña.
    */
   async readActiveDocument(): Promise<BrowserDocumentContent> {
+    return this.auditAgentOperation('document', () => this.readActiveDocumentInternal());
+  }
+  private async readActiveDocumentInternal(): Promise<BrowserDocumentContent> {
+    const assertTarget = await this.authorizeAgentAccess('read-document');
+    assertTarget();
     const active = this.getActiveTab();
     const contents = active?.view?.webContents;
     if (!active || !contents || contents.isDestroyed() || !this.visible || !this.isTabVisible(active)) {
@@ -697,11 +1791,13 @@ export class IntegratedBrowserService extends EventEmitter {
     const tabId = active.id;
     const startedUrl = contents.getURL();
     const reading = await collectBrowserReadingContent({ contents, tabId, request: {} });
+    await this.assertDocumentNotSensitive(tabId);
     const current = this.getActiveTab();
     if (!current || current.id !== tabId || current.view?.webContents !== contents
       || contents.isDestroyed() || contents.getURL() !== startedUrl || reading.url !== startedUrl) {
       throw new Error('El documento activo cambió durante la lectura. Vuelve a intentarlo.');
     }
+    assertTarget();
     return {
       tabId,
       url: reading.url,
@@ -781,7 +1877,13 @@ export class IntegratedBrowserService extends EventEmitter {
     return this.getState();
   }
 
-  async openForAgent(rawUrl?: unknown, timeoutMs = INTEGRATED_BROWSER_AGENT_VIEWPORT_TIMEOUT_MS): Promise<void> {
+  async openForAgent(rawUrl?: unknown, timeoutMs = INTEGRATED_BROWSER_AGENT_VIEWPORT_TIMEOUT_MS, signal?: AbortSignal): Promise<void> {
+    assertCuNotAborted(signal);
+    const assertProfile = this.captureProfileGuard();
+    await this.ensureEnterprisePolicy();
+    assertCuNotAborted(signal);
+    assertProfile();
+    if (this.enterprisePolicy?.agentAllowed === false) throw new Error('SofLIA está bloqueada por tu organización en el navegador.');
     if (this.agentControlling) {
       throw new Error('El navegador integrado ya esta siendo controlado por otra tarea.');
     }
@@ -789,24 +1891,42 @@ export class IntegratedBrowserService extends EventEmitter {
     const contents = this.ensureView().webContents;
     const active = this.getActiveTab();
     const detached = active ? this.detachedWindows.get(active.id) : null;
+    if (this.agentTaskBinding && detached) throw new Error('Acopla la pestaña a la ventana principal antes de iniciar una tarea supervisada.');
+    if (this.agentTaskBinding && this.fullscreenTabId) this.leaveHtmlFullScreen(this.fullscreenTabId);
     const host = detached ?? parent;
     if (host.isMinimized()) host.restore();
     if (!host.isVisible()) host.show();
     host.focus();
     this.setAgentControlling(true);
-    parent.webContents.send('integrated-browser:open-requested', { url: typeof rawUrl === 'string' ? rawUrl : this.getState().url });
-    const viewportReady = detached || (this.visible && this.viewport) ? Promise.resolve() : this.waitForViewport(timeoutMs);
-    const navigationReady = rawUrl !== undefined
-      ? this.loadTarget(rawUrl)
-      : (!contents.getURL() || contents.getURL() === 'about:blank')
-        ? contents.loadURL(INTEGRATED_BROWSER_HOME)
-        : Promise.resolve();
+    const controlRevision = this.agentControlRevision;
+    const viewportAbort = new AbortController();
+    const abortViewport = () => viewportAbort.abort();
+    signal?.addEventListener('abort', abortViewport, { once: true });
+    const assertOpening = () => {
+      assertCuNotAborted(signal);
+      assertProfile();
+      if (this.agentControlRevision !== controlRevision || this.getActiveTab() !== active) throw new CuContextChangedError();
+    };
     try {
-      await Promise.all([viewportReady, navigationReady]);
+      assertOpening();
+      parent.webContents.send('integrated-browser:open-requested', { url: typeof rawUrl === 'string' ? rawUrl : this.getState().url });
+      const viewportReady = detached || (this.visible && this.viewport) ? Promise.resolve() : this.waitForViewport(timeoutMs, viewportAbort.signal);
+      const navigationReady = (rawUrl !== undefined
+        ? this.loadTarget(rawUrl, assertOpening)
+        : (!contents.getURL() || contents.getURL() === 'about:blank')
+          ? this.loadTarget(INTEGRATED_BROWSER_HOME, assertOpening)
+          : Promise.resolve()).catch(error => { abortViewport(); throw error; });
+      // No liberar control mientras una navegación nativa ya emitida sigue pendiente.
+      const results = await Promise.allSettled([navigationReady, viewportReady]);
+      assertOpening();
+      for (const result of results) if (result.status === 'rejected') throw result.reason;
       contents.focus();
     } catch (error) {
-      this.setAgentControlling(false);
+      if (this.agentControlRevision === controlRevision) this.setAgentControlling(false);
       throw error;
+    } finally {
+      signal?.removeEventListener('abort', abortViewport);
+      abortViewport();
     }
   }
 
@@ -816,6 +1936,8 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   private setAgentControlling(value: boolean): void {
+    if (value) this.passkeySelection?.cancel();
+    if (this.agentControlling !== value) this.agentControlRevision += 1;
     this.agentControlling = value;
     this.setSelectionMenuEnabled(!value);
     if (!value) {
@@ -839,6 +1961,23 @@ export class IntegratedBrowserService extends EventEmitter {
     return contents;
   }
 
+  /** Única entrada del driver de acciones; enlaza la decisión a la página actual. */
+  async authorizeAgentTarget(capability: BrowserAgentCapability, signal?: AbortSignal): Promise<{ contents: WebContents; assertCurrent: () => void }> {
+    const assertTarget = await this.authorizeAgentAccess(capability, undefined, signal);
+    assertTarget();
+    return { contents: this.getWebContentsForAgent(), assertCurrent: assertTarget };
+  }
+  /** Comprobación posterior para capturas nativas del driver; no concede permisos. */
+  async assertAgentDocumentSafe(signal?: AbortSignal): Promise<void> {
+    const guard = this.createAgentTargetGuard(signal, true);
+    await this.assertDocumentNotSensitive(); guard();
+  }
+
+  /** Sólo comprueba identidad; no concede permisos ni expone una capacidad por IPC. */
+  createAgentTargetGuard(signal?: AbortSignal, document = false): () => void {
+    return this.createAgentAccessGuard(undefined, signal, document);
+  }
+
   /**
    * Respaldo visual que el renderer muestra mientras la vista nativa esta
    * oculta. Se codifica en JPEG y a la escala logica del viewport: el PNG a
@@ -846,7 +1985,15 @@ export class IntegratedBrowserService extends EventEmitter {
    * viajaba por IPC como varios megabytes en cada apertura de la barra.
    */
   async captureVisiblePage(): Promise<string> {
-    return (await this.captureVisibleBackdrop()).screenshot;
+    return this.auditAgentOperation('capture', () => this.captureVisiblePageInternal());
+  }
+  private async captureVisiblePageInternal(): Promise<string> {
+    const assertTarget = await this.authorizeAgentAccess('capture');
+    assertTarget();
+    const capture = await this.captureVisibleBackdrop();
+    await this.assertDocumentNotSensitive();
+    assertTarget();
+    return capture.screenshot;
   }
 
   /**
@@ -856,6 +2003,7 @@ export class IntegratedBrowserService extends EventEmitter {
    * pagina aparecia ampliada durante ese instante.
    */
   async captureVisibleBackdrop(): Promise<{ screenshot: string; bounds: Rectangle }> {
+    // Respaldo local de UI: no es percepción del agente ni genera permisos.
     const active = this.getActiveTab();
     if (!active || !this.isTabVisible(active)) throw new Error('El navegador integrado no esta visible.');
     const contents = this.getWebContentsForAgent();
@@ -874,6 +2022,7 @@ export class IntegratedBrowserService extends EventEmitter {
    * No recorre el DOM de forma síncrona para no ralentizar la apertura del menú flotante.
    */
   getTabSummaries(): Array<{
+    documentToken: string;
     tabId: string;
     url: string;
     title: string;
@@ -881,6 +2030,7 @@ export class IntegratedBrowserService extends EventEmitter {
     text: string;
   }> {
     const summaries: Array<{
+      documentToken: string;
       tabId: string;
       url: string;
       title: string;
@@ -891,6 +2041,7 @@ export class IntegratedBrowserService extends EventEmitter {
     for (const tab of this.tabs.values()) {
       const isCurrent = tab.id === this.activeTabId;
       summaries.push({
+        documentToken: tab.documentToken,
         tabId: tab.id,
         url: sanitizeStateUrl(tab.view?.webContents.getURL() ?? tab.url ?? 'about:blank'),
         title: tab.title || 'Nueva pestaña',
@@ -904,29 +2055,47 @@ export class IntegratedBrowserService extends EventEmitter {
   /**
    * Obtiene el contenido DOM completo de una pestaña específica bajo demanda cuando es seleccionada.
    */
-  async getTabContent(tabId: string): Promise<{
+  async getTabContent(tabId: string, expected?: import('../../src/shared/browser-tab-context').BrowserTabExpectation): Promise<{
     tabId: string;
     url: string;
     title: string;
     text: string;
   }> {
+    return this.auditAgentOperation('dom', () => this.getTabContentInternal(tabId, expected), undefined, tabId);
+  }
+  private async getTabContentInternal(tabId: string, expected?: import('../../src/shared/browser-tab-context').BrowserTabExpectation): Promise<{ tabId: string; url: string; title: string; text: string }> {
     const tab = this.tabs.get(tabId);
+    const assertSelection = () => {
+      if (expected && (!tab || this.scopeChanging || expected.profileRevision !== this.scopeTransition
+        || expected.documentToken !== tab.documentToken || this.tabs.get(tabId) !== tab)) {
+        throw new Error('La página o el perfil cambió. Selecciona de nuevo la pestaña.');
+      }
+    };
+    assertSelection();
     if (!tab) {
       return { tabId, url: '', title: '', text: '' };
     }
+    const assertTarget = await this.authorizeAgentAccess('observe-dom', tabId);
+    assertSelection();
     let text = '';
+    let title = tab.title || 'Nueva pestaña';
     if (tab.view && !tab.view.webContents.isDestroyed()) {
       try {
         const dom = await collectIntegratedBrowserDom(tab.view.webContents);
-        text = dom.text;
+        await this.assertDocumentNotSensitive(tabId);
+        assertTarget();
+        text = expected ? dom.text.slice(0, BROWSER_SOURCE_LIMITS.fragmentsPerTab * BROWSER_SOURCE_LIMITS.fragmentChars) : dom.text;
+        title = dom.title || title;
       } catch {
         // Fallback si la pestaña está inaccesible o cargando
       }
     }
+    assertTarget();
+    assertSelection();
     return {
       tabId: tab.id,
       url: sanitizeStateUrl(tab.view?.webContents.getURL() ?? tab.url ?? 'about:blank'),
-      title: tab.title || 'Nueva pestaña',
+      title,
       text,
     };
   }
@@ -942,13 +2111,19 @@ export class IntegratedBrowserService extends EventEmitter {
     };
   }
 
-  async getObservation(forceFresh = false): Promise<{ observation: BrowserObservationSnapshot | null; observationStatus: BrowserObservationStatus }> {
+  async getObservation(forceFresh = false, signal?: AbortSignal): Promise<{ observation: BrowserObservationSnapshot | null; observationStatus: BrowserObservationStatus }> {
+    return this.auditAgentOperation('dom', () => this.getObservationInternal(forceFresh, signal));
+  }
+  private async getObservationInternal(forceFresh = false, signal?: AbortSignal): Promise<{ observation: BrowserObservationSnapshot | null; observationStatus: BrowserObservationStatus }> {
+    assertCuNotAborted(signal);
     if (!this.observationEnabled) return { observation: null, observationStatus: this.getObservationStatus() };
+    const assertTarget = await this.authorizeAgentAccess('observe-dom', undefined, signal);
     const active = this.getActiveTab();
     const currentUrl = active?.view?.webContents.getURL() ?? active?.url ?? '';
     const latest = this.latestObservation;
     const latestMatches = latest !== null && latest.tabId === active?.id && latest.dom.url === sanitizeStateUrl(currentUrl);
-    const observation = forceFresh ? await this.refreshObservation(true) : latestMatches ? latest : null;
+    const observation = forceFresh ? await this.refreshObservation(true, assertTarget) : latestMatches ? latest : null;
+    assertTarget();
     return { observation, observationStatus: this.getObservationStatus() };
   }
 
@@ -973,9 +2148,15 @@ export class IntegratedBrowserService extends EventEmitter {
    * guardadas, para que el scroll o un re-render no desvien el clic.
    */
   async clickElement(rawRef: unknown): Promise<BrowserInteractionOutcome> {
+    return this.auditAgentOperation('click', () => this.clickElementInternal(rawRef));
+  }
+  private async clickElementInternal(rawRef: unknown): Promise<BrowserInteractionOutcome> {
+    const assertTarget = await this.authorizeAgentAccess('act');
     const { contents, target } = await this.requireInteractiveTarget(rawRef);
+    assertTarget();
     if (target.disabled) throw new Error(`El control "${target.name || target.tag}" esta deshabilitado.`);
-    sendBrowserClick(contents, target.x, target.y);
+    const point = browserDomPoint(contents, target, this.getActiveTab()?.zoomFactor ?? 1);
+    sendBrowserClick(contents, point.x, point.y);
     this.noteInteraction();
     return { target, warning: target.occluded ? 'Otro elemento cubria el punto de impacto; verifica el resultado antes de continuar.' : null };
   }
@@ -986,16 +2167,23 @@ export class IntegratedBrowserService extends EventEmitter {
    * usuario, limpia el valor previo y opcionalmente envia el formulario.
    */
   async typeInElement(rawRef: unknown, rawText: unknown, rawSubmit: unknown): Promise<BrowserInteractionOutcome> {
+    return this.auditAgentOperation('type', () => this.typeInElementInternal(rawRef, rawText, rawSubmit));
+  }
+  private async typeInElementInternal(rawRef: unknown, rawText: unknown, rawSubmit: unknown): Promise<BrowserInteractionOutcome> {
+    const assertTarget = await this.authorizeAgentAccess('act');
     if (typeof rawText !== 'string') throw new Error('El texto a escribir debe ser una cadena.');
     if (rawText.length > 5_000) throw new Error('El texto a escribir excede el limite de 5000 caracteres.');
     const { contents, target } = await this.requireInteractiveTarget(rawRef);
+    assertTarget();
     if (!target.editable) throw new Error(`El elemento "${target.name || target.tag}" no es un campo editable.`);
     if (target.disabled) throw new Error(`El campo "${target.name || target.tag}" esta deshabilitado.`);
-    sendBrowserClick(contents, target.x, target.y);
+    const point = browserDomPoint(contents, target, this.getActiveTab()?.zoomFactor ?? 1);
+    sendBrowserClick(contents, point.x, point.y);
     const selectionModifier = process.platform === 'darwin' ? 'meta' : 'control';
     contents.sendInputEvent({ type: 'keyDown', keyCode: 'A', modifiers: [selectionModifier] });
     contents.sendInputEvent({ type: 'keyUp', keyCode: 'A', modifiers: [selectionModifier] });
     await contents.insertText(rawText);
+    assertTarget();
     if (rawSubmit === true) {
       contents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
       contents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
@@ -1005,7 +2193,12 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   /** Desplaza la pestaña activa con la rueda real del navegador. */
-  scrollView(rawDirection: unknown, rawAmount: unknown): void {
+  async scrollView(rawDirection: unknown, rawAmount: unknown): Promise<void> {
+    return this.auditAgentOperation('scroll', () => this.scrollViewInternal(rawDirection, rawAmount));
+  }
+  private async scrollViewInternal(rawDirection: unknown, rawAmount: unknown): Promise<void> {
+    const assertTarget = await this.authorizeAgentAccess('act');
+    assertTarget();
     const direction = rawDirection === undefined ? 'down' : rawDirection;
     if (direction !== 'up' && direction !== 'down' && direction !== 'left' && direction !== 'right') {
       throw new Error('La direccion de desplazamiento debe ser up, down, left o right.');
@@ -1058,13 +2251,55 @@ export class IntegratedBrowserService extends EventEmitter {
     this.deferPassiveCapture(active);
   }
 
-  listHistory(input?: { query?: unknown; limit?: unknown }): Promise<BrowserHistoryEntry[]> {
-    return this.historyStore.list(input);
+  async listHistory(input?: { query?: unknown; limit?: unknown; offset?: unknown; from?: unknown; to?: unknown; domain?: unknown }): Promise<BrowserHistoryEntry[]> {
+    const assertCurrent = this.captureProfileGuard();
+    await this.ensureEnterprisePolicy(); assertCurrent();
+    const entries = await this.historyStore.list(input); assertCurrent();
+    return entries;
+  }
+
+  async importHistory() {
+    this.assertCapability('advancedHistory');
+    const assertCurrent = this.captureProfileGuard();
+    await this.ensureEnterprisePolicy();
+    assertCurrent();
+    return this.historyImporter.importFromDialog();
   }
 
   async clearHistory(): Promise<boolean> {
+    const assertCurrent = this.captureProfileGuard();
+    const scopeId = this.scopeId;
     await this.historyStore.clear();
+    assertCurrent();
+    if (this.scopeId === scopeId) { this.closedTabs = []; this.emitState(); }
     return true;
+  }
+
+  async getHistoryRetention(): Promise<BrowserHistoryRetention> {
+    const assertCurrent = this.captureProfileGuard();
+    const scopeId = this.scopeId;
+    await this.ensureEnterprisePolicy();
+    assertCurrent();
+    if (this.scopeId !== scopeId) throw new Error('El perfil cambió al consultar la retención.');
+    const days = await this.historyStore.getRetention();
+    assertCurrent();
+    if (this.scopeId !== scopeId) throw new Error('El perfil cambió al consultar la retención.');
+    return { days, managed: this.enterprisePolicy?.historyRetentionDays != null };
+  }
+
+  async setHistoryRetention(days: number | null): Promise<BrowserHistoryRetention & { removed: number }> {
+    const assertCurrent = this.captureProfileGuard();
+    const scopeId = this.scopeId;
+    await this.ensureEnterprisePolicy();
+    assertCurrent();
+    if (this.scopeId !== scopeId) throw new Error('El perfil cambió al configurar la retención.');
+    if (this.enterprisePolicy?.historyRetentionDays != null) throw new Error('La retención está administrada por tu organización.');
+    const result = await this.historyStore.setRetention(days);
+    assertCurrent();
+    if (this.scopeId !== scopeId) throw new Error('El perfil cambió al configurar la retención.');
+    if (days !== null) this.closedTabs = this.closedTabs.filter((tab) => Date.parse(tab.closedAt) >= Date.now() - days * 86_400_000);
+    this.emitState();
+    return { ...result, managed: false };
   }
 
   /**
@@ -1075,73 +2310,381 @@ export class IntegratedBrowserService extends EventEmitter {
    * cargada sigue en pantalla; su sesion desaparece en la siguiente peticion.
    */
   async clearBrowsingData(rawInput: unknown): Promise<BrowsingDataSummary> {
+    const assertCurrent = this.captureProfileGuard();
+    assertCurrent();
     const request = validateBrowsingDataRequest(rawInput);
+    const credentialGuard = request.categories.includes('contrasenas') ? this.credentialUnlock.capture() : () => undefined;
+    const scopeId = this.scopeId;
     const profileSession = electronSession.fromPartition(browserPartitionFor());
 
-    return clearBrowsingData(request, {
-      clearHistorySince: (since) => this.historyStore.clearSince(since),
-      clearSiteData: () => profileSession.clearData({ dataTypes: [...SITE_DATA_TYPES] }),
+    const summary = await clearBrowsingData(request, {
+      clearHistorySince: async (since) => {
+        assertCurrent();
+        if (this.scopeId !== scopeId) throw new Error('El perfil cambió durante el borrado.');
+        const removed = await this.historyStore.clearSince(since);
+        if (this.scopeId === scopeId) {
+          this.closedTabs = since === null ? [] : this.closedTabs.filter((tab) => Date.parse(tab.closedAt) < Date.parse(since));
+          this.emitState();
+        }
+        return removed;
+      },
+      clearSiteData: () => { assertCurrent(); return profileSession.clearData({ dataTypes: [...SITE_DATA_TYPES] }); },
       clearCache: async () => {
+        assertCurrent();
         await profileSession.clearCache();
         // La cache de autenticacion HTTP es la que mantiene viva una sesion
         // Basic/NTLM aunque las cookies ya no esten.
+        assertCurrent();
         await profileSession.clearAuthCache();
       },
-      clearPasswords: () => this.credentialVault.clearAll(),
-      clearSitePermissions: () => this.sitePermissionStore.clearAll(),
+      clearPasswords: () => {
+        credentialGuard();
+        assertCurrent();
+        if (this.scopeId !== scopeId) throw new Error('El perfil cambió durante el borrado.');
+        return this.credentialVault.clearAll(() => { assertCurrent(); credentialGuard(); });
+      },
+      clearSitePermissions: () => {
+        assertCurrent();
+        if (this.scopeId !== scopeId) throw new Error('El perfil cambió durante el borrado.');
+        return this.sitePermissionStore.clearAll();
+      },
     });
+    assertCurrent();
+    return summary;
   }
 
-  listCredentials(): Promise<BrowserCredentialMetadata[]> {
-    return this.credentialVault.list(this.getState().url);
+  lockCredentials(): void { this.credentialUnlock.lock(); }
+
+  async credentialSessionCommand(raw: unknown, assertCaller: () => void = () => undefined) {
+    const request = validateCredentialSessionRequest(raw);
+    const guard = this.captureProfileGuard();
+    const parent = this.requireParentWindow();
+    const assertCurrent = () => {
+      assertCaller(); guard();
+      if (request.profileRevision !== this.scopeTransition || this.agentControlling || !parent.isVisible()) throw new BrowserCredentialError('El perfil o la ventana no está disponible para desbloquear.');
+    };
+    assertCurrent();
+    if (request.action === 'lock') this.lockCredentials();
+    if (request.action === 'unlock') {
+      const unlocked = await this.credentialUnlock.unlock(parent, assertCurrent);
+      assertCurrent();
+      if (!unlocked) return { success: false, unlocked: false, error: 'Windows no verificó tu identidad. Configura Windows Hello/PIN y vuelve a intentarlo; cancelar conserva el bloqueo.' };
+      await this.loadCredentialAutosave(); assertCurrent();
+    }
+    return { success: true, unlocked: this.credentialUnlock.isUnlocked() };
   }
 
-  saveCredential(input: BrowserCredentialSaveInput): Promise<BrowserCredentialMetadata> {
-    return this.credentialVault.save(this.getState().url, input);
+  private credentialContext() {
+    const assertUnlocked = this.credentialUnlock.capture();
+    const guard = this.createAgentAccessGuard();
+    const parent = this.requireParentWindow();
+    const origin = normalizeCredentialOrigin(this.getWebContentsForAgent().getURL());
+    const assertCurrent = () => {
+      assertUnlocked();
+      try { guard(); } catch { throw new BrowserCredentialError('La página o el perfil cambió. Abre de nuevo el gestor de contraseñas.'); }
+      if (this.agentControlling) throw new BrowserCredentialError('Toma el control del navegador antes de gestionar contraseñas.');
+      if (this.scopeChanging || this.shutdownCommitted) throw new BrowserCredentialError('El perfil no está disponible.');
+    };
+    assertCurrent();
+    return { origin, parent, assertCurrent };
+  }
+
+  async listCredentials() {
+    const context = this.credentialContext();
+    const credentials = await this.credentialVault.list(context.origin);
+    context.assertCurrent();
+    return { credentials, credentialOrigin: context.origin, credentialAutosaveEnabled: this.credentialAutosaveEnabled };
+  }
+
+  async setCredentialAutosave(enabled: boolean) {
+    const context = this.credentialContext();
+    if (this.credentialAutosaveSetting) throw new BrowserCredentialError('La preferencia de guardado está cambiando.');
+    this.credentialAutosaveSetting = true;
+    ++this.credentialAutosaveRevision;
+    try {
+      const existing = await this.credentialVault.getAutosaveEnabled();
+      context.assertCurrent();
+      this.credentialAutosaveEnabled = existing;
+      await this.syncCredentialObservers();
+      context.assertCurrent();
+      if (enabled) {
+        const result = await dialog.showMessageBox(context.parent, {
+          type: 'question', title: 'Activar sugerencias de guardado',
+          message: '¿Sugerir guardar las cuentas que envíes desde formularios?',
+          detail: 'Se leerán usuario y contraseña sólo al enviar un formulario compatible. Cada guardado requiere tu confirmación. No se envían al agente ni se sincronizan.',
+          buttons: ['Cancelar', 'Activar'], defaultId: 0, cancelId: 0, noLink: true,
+        });
+        if (result.response !== 1) return { canceled: true, credentialAutosaveEnabled: this.credentialAutosaveEnabled };
+      }
+      context.assertCurrent();
+      await this.credentialVault.setAutosaveEnabled(enabled, context.assertCurrent);
+      context.assertCurrent();
+      this.credentialAutosaveEnabled = enabled;
+      await this.syncCredentialObservers();
+      context.assertCurrent();
+      return { canceled: false, credentialAutosaveEnabled: enabled };
+    } finally { this.credentialAutosaveSetting = false; }
+  }
+
+  private async loadCredentialAutosave(): Promise<void> {
+    if (!this.credentialUnlock.isUnlocked()) return;
+    const assertUnlocked = this.credentialUnlock.capture();
+    const revision = ++this.credentialAutosaveRevision;
+    const scope = this.scopeId;
+    const generation = this.sessionGeneration;
+    try {
+      const enabled = await this.credentialVault.getAutosaveEnabled();
+      assertUnlocked();
+      if (revision !== this.credentialAutosaveRevision || scope !== this.scopeId || generation !== this.sessionGeneration
+        || this.scopeChanging || this.shutdownCommitted || !this.parentWindow) return;
+      this.credentialAutosaveEnabled = enabled;
+      await this.syncCredentialObservers();
+    } catch { /* Si la bóveda no está disponible, el guardado manual mostrará el error. */ }
+  }
+
+  private async syncCredentialObservers(): Promise<void> {
+    await Promise.all([...this.tabs.values()].map(async (tab) => {
+      if (!this.credentialAutosaveEnabled) {
+        const observer = tab.credentialObserver;
+        await observer?.dispose();
+        if (tab.credentialObserver === observer) tab.credentialObserver = null;
+      } else this.installCredentialObserver(tab);
+    }));
+  }
+
+  private installCredentialObserver(tab: BrowserTabRuntime): void {
+    const contents = tab.view?.webContents;
+    if (!this.credentialUnlock.isUnlocked() || !this.credentialAutosaveEnabled || !contents || contents.isDestroyed() || tab.credentialObserver) return;
+    const observer = new BrowserCredentialAutosave(contents, (candidate) => {
+      if (tab.credentialObserver === observer) void this.offerCredential(tab, candidate);
+    });
+    tab.credentialObserver = observer;
+    const pending = setImmediate(() => {
+      if (tab.credentialObserver === observer && this.credentialAutosaveEnabled) void observer.install();
+    });
+    pending.unref?.();
+  }
+
+  private async offerCredential(tab: BrowserTabRuntime, candidate: BrowserCredentialTransferEntry): Promise<void> {
+    let stopWatching: (() => void) | undefined;
+    try {
+      const assertUnlocked = this.credentialUnlock.capture();
+      const contents = tab.view?.webContents;
+      if (!this.credentialAutosaveEnabled || this.credentialAutosaveSetting || this.agentControlling || this.activeTabId !== tab.id
+        || !this.isTabVisible(tab) || !contents?.isFocused()) return;
+      // El puente privado ya verificó marco/origen; comprobar de nuevo antes de cifrar.
+      if (candidate.origin !== normalizeCredentialOrigin(contents.getURL())) return;
+      const guard = this.createAgentAccessGuard(undefined, undefined, false);
+      const revision = this.credentialAutosaveRevision;
+      const expiresAt = Date.now() + 60_000;
+      let reviewGuard: (() => void) | null = null;
+      let changedDuringReview = false;
+      const beginReview = () => {
+        reviewGuard = this.createAgentAccessGuard();
+        const onNavigation = (_event: unknown, _url: string, _inPlace: boolean, isMainFrame: boolean) => {
+          if (isMainFrame) changedDuringReview = true;
+        };
+        contents.on('did-start-navigation', onNavigation);
+        stopWatching = () => contents.removeListener('did-start-navigation', onNavigation);
+      };
+      const assertCurrent = () => {
+        assertUnlocked();
+        guard();
+        reviewGuard?.();
+        if (!this.credentialAutosaveEnabled || this.credentialAutosaveSetting || revision !== this.credentialAutosaveRevision || this.agentControlling
+          || !this.isTabVisible(tab) || changedDuringReview || Date.now() >= expiresAt) {
+          throw new BrowserCredentialError('La sugerencia ya no pertenece al sitio activo.');
+        }
+      };
+      assertCurrent();
+      await this.credentialSaver.save(candidate, { origin: candidate.origin, parent: this.requireParentWindow(), assertCurrent, beginReview }, true);
+    } catch { /* Cancelación, navegación o bóveda no disponible: nunca registrar el formulario. */ }
+    finally { stopWatching?.(); }
+  }
+
+  async analyzeCredentialHealth() {
+    const context = this.credentialContext();
+    const health = await this.credentialVault.analyzeHealth();
+    context.assertCurrent();
+    return health;
+  }
+
+  importCredentials() {
+    const context = this.credentialContext();
+    return this.credentialTransfer.importFromDialog(context);
+  }
+
+  exportCredentials() {
+    const context = this.credentialContext();
+    return this.credentialTransfer.exportToDialog(context);
+  }
+
+  async recoverCredentials(): Promise<{ cancelled: boolean; restored: number }> {
+    const assertUnlocked = this.credentialUnlock.capture();
+    if (this.credentialRecoveryPending) throw new BrowserCredentialError('Ya hay una recuperación de contraseñas en revisión.');
+    const profileGuard = this.captureProfileGuard();
+    const controlRevision = this.agentControlRevision;
+    const assertCurrent = () => {
+      assertUnlocked();
+      try { profileGuard(); } catch { throw new BrowserCredentialError('El perfil o la ventana cambió durante la recuperación.'); }
+      if (this.agentControlling || this.agentControlRevision !== controlRevision) throw new BrowserCredentialError('Toma el control y revisa de nuevo la recuperación de contraseñas.');
+    };
+    assertCurrent();
+    const parent = this.requireParentWindow();
+    this.credentialRecoveryPending = true;
+    try {
+      const prepared = await this.credentialVault.prepareRecovery(); assertCurrent();
+      const decision = await dialog.showMessageBox(parent, {
+        type: 'warning', title: 'Restaurar bóveda desde respaldo', message: `¿Recuperar ${prepared.count} credenciales del respaldo local cifrado?`,
+        detail: 'Sólo se recupera si el principal falta o está dañado; una bóveda válida o de versión futura no se reemplaza. El respaldo puede contener contraseñas anteriores; verifica cada cuenta. Se conservarán el respaldo y una copia cifrada del principal dañado. El guardado sugerido quedará desactivado. No se mostrarán ni enviarán contraseñas.',
+        buttons: ['Cancelar', 'Restaurar bóveda'], defaultId: 0, cancelId: 0, noLink: true,
+      });
+      assertCurrent();
+      if (decision.response !== 1) return { cancelled: true, restored: 0 };
+      const restored = await prepared.commit(assertCurrent); assertCurrent();
+      this.credentialAutosaveEnabled = false; this.credentialAutosaveRevision++;
+      await this.syncCredentialObservers(); assertCurrent();
+      return { cancelled: false, restored };
+    } catch (error) {
+      if (error instanceof BrowserCredentialError) throw error;
+      throw new BrowserCredentialError('No se pudo completar la recuperación de contraseñas. El respaldo se conservó.');
+    } finally { this.credentialRecoveryPending = false; }
+  }
+
+  saveCredential(input: BrowserCredentialSaveInput & { expectedOrigin: string }) {
+    const context = this.credentialContext();
+    if (input.expectedOrigin !== context.origin) throw new BrowserCredentialError('El sitio cambió. Abre de nuevo el gestor de contraseñas.');
+    return this.credentialSaver.save(input, context);
   }
 
   async fillCredential(id: string): Promise<BrowserCredentialMetadata> {
+    const target = this.getActiveTab();
+    if (target && this.capabilities.agentGovernance) this.markSensitiveDocument(target, 'autofill');
+    const context = this.credentialContext();
     const contents = this.getWebContentsForAgent();
+    const tab = this.getActiveTab();
+    const url = contents.getURL();
+    const scopeId = this.scopeId;
+    const revision = tab?.visualRevision;
+    const assertTarget = () => {
+      context.assertCurrent();
+      if (!this.visible || this.scopeId !== scopeId || !tab || this.getActiveTab() !== tab || tab.view?.webContents !== contents
+        || contents.isDestroyed() || contents.getURL() !== url || tab.visualRevision !== revision) throw new Error('La página o el perfil cambió. Selecciona de nuevo la credencial.');
+    };
     if (!this.visible) throw new Error('El navegador debe estar visible para rellenar una credencial.');
-    const resolved = await this.credentialVault.resolveSecret(id, contents.getURL());
+    const resolved = await this.credentialVault.resolveSecret(id, url);
+    assertTarget();
     // En el mundo aislado: localizar el campo de contrasena es una herramienta
     // del agente y la pagina no tiene por que ver la sonda que la busca.
     const fields = await runInAgentWorldOn(contents, FIND_LOGIN_FIELDS_SCRIPT) as CredentialFieldTargets | null;
+    assertTarget();
     if (!fields?.password || !isPoint(fields.password)) {
       throw new Error('No se encontro un campo de contrasena visible en esta pagina.');
     }
     if (fields.username && isPoint(fields.username)) {
-      await replaceFocusedField(contents, fields.username, resolved.metadata.username);
+      await replaceFocusedField(contents, browserDomPoint(contents, fields.username, tab!.zoomFactor), resolved.metadata.username);
+      assertTarget();
     }
-    await replaceFocusedField(contents, fields.password, resolved.password);
+    await replaceFocusedField(contents, browserDomPoint(contents, fields.password, tab!.zoomFactor), resolved.password);
+    assertTarget();
     return resolved.metadata;
   }
 
   async removeCredential(id: string): Promise<boolean> {
+    const context = this.credentialContext();
+    const scopeId = this.scopeId;
     const currentUrl = this.getState().url;
     const credential = (await this.credentialVault.list(currentUrl)).find((item) => item.id === id);
+    context.assertCurrent();
     if (!credential) throw new Error('La credencial no pertenece al sitio actual.');
-    return this.credentialVault.remove(id, currentUrl);
+    if (this.scopeId !== scopeId) throw new Error('El perfil cambió antes de eliminar la credencial.');
+    const removed = await this.credentialVault.remove(id, currentUrl, context.assertCurrent);
+    context.assertCurrent();
+    return removed;
   }
 
-  listExtensions(): Promise<BrowserExtensionMetadata[]> {
-    return this.extensionManager.list();
+  async listExtensions(): Promise<BrowserExtensionMetadata[]> {
+    const assertCurrent = this.captureProfileGuard();
+    await this.ensureEnterprisePolicy();
+    assertCurrent();
+    if (this.profileKind !== 'authenticated') return [];
+    return this.extensionManager.list(assertCurrent);
   }
 
-  prepareExtensionInstall(): Promise<{ canceled: boolean; preview?: BrowserExtensionInstallPreview }> {
-    return this.extensionManager.prepareFromDialog(this.requireParentWindow());
+  async extensionCatalog(raw: unknown, assertCaller: () => void): Promise<{ catalog?: BrowserExtensionCatalogEntry[]; canceled?: boolean; preview?: BrowserExtensionInstallPreview }> {
+    const request = validateExtensionCatalogRequest(raw);
+    const profile = this.captureProfileGuard(); const control = this.agentControlRevision; const auth = this.extensionAuthRevision;
+    const parent = this.requireParentWindow();
+    const guard = () => {
+      assertCaller(); profile(); this.assertExtensionsProfile();
+      const session = getAuthState();
+      if (!session.authenticated || !session.userId || browserScopeIdFor(session.userId) !== this.scopeId
+        || auth !== this.extensionAuthRevision || this.agentControlling || control !== this.agentControlRevision
+        || parent.isDestroyed() || this.parentWindow !== parent || !parent.isVisible()) throw new Error('Catálogo fuera de contexto.');
+      if (request.action === 'prepare' && request.updateInstallId) this.assertNoPagesForExtensionChange();
+    };
+    guard(); await this.ensureEnterprisePolicy(); guard();
+    if (this.enterprisePolicy?.extensionsAllowed === false) throw new Error('Extensiones bloqueadas por la organización.');
+    if (request.action === 'list') return { catalog: listExtensionCatalog() };
+    return this.extensionManager.prepareFromDialog(parent, guard, { id: request.catalogId, updateInstallId: request.updateInstallId });
   }
 
-  confirmExtensionInstall(token: string): Promise<BrowserExtensionMetadata> {
-    return this.extensionManager.confirmInstall(token, this.ensureView().webContents.session);
+  private assertNoPagesForExtensionChange(): void {
+    if (this.pictureInPictureWindows.size || [...this.tabs.values()].some(tab => tab.url !== 'about:blank'
+      || tab.view && !['', 'about:blank'].includes(tab.view.webContents.getURL()))) throw new Error('Cierra otras páginas y deja la última pestaña en about:blank.');
   }
 
-  setExtensionEnabled(installId: string, enabled: boolean): Promise<BrowserExtensionMetadata> {
-    return this.extensionManager.setEnabled(installId, enabled, this.ensureView().webContents.session);
+  async prepareExtensionInstall(): Promise<{ canceled: boolean; preview?: BrowserExtensionInstallPreview }> {
+    const assertCurrent = this.captureProfileGuard();
+    await this.ensureEnterprisePolicy();
+    assertCurrent();
+    if (this.enterprisePolicy?.extensionsAllowed === false) throw new Error('Las extensiones están bloqueadas por tu organización.');
+    this.assertExtensionsProfile();
+    return this.extensionManager.prepareFromDialog(this.requireParentWindow(), assertCurrent);
   }
 
-  removeExtension(installId: string): Promise<boolean> {
-    return this.extensionManager.remove(installId, this.ensureView().webContents.session);
+  async confirmExtensionInstall(token: string): Promise<BrowserExtensionMetadata> {
+    const assertCurrent = this.captureProfileGuard();
+    await this.ensureEnterprisePolicy();
+    assertCurrent();
+    if (this.enterprisePolicy?.extensionsAllowed === false) throw new Error('Las extensiones están bloqueadas por tu organización.');
+    this.assertExtensionsProfile();
+    return this.extensionManager.confirmInstall(token, this.ensureView().webContents.session, assertCurrent);
+  }
+
+  async setExtensionEnabled(installId: string, enabled: boolean): Promise<BrowserExtensionMetadata> {
+    const assertCurrent = this.captureProfileGuard();
+    await this.ensureEnterprisePolicy();
+    assertCurrent();
+    this.assertExtensionsProfile();
+    if (enabled && this.enterprisePolicy?.extensionsAllowed === false) throw new Error('Las extensiones están bloqueadas por tu organización.');
+    return this.extensionManager.setEnabled(installId, enabled, this.ensureView().webContents.session, assertCurrent);
+  }
+
+  async removeExtension(installId: string): Promise<boolean> {
+    const assertCurrent = this.captureProfileGuard();
+    await this.ensureEnterprisePolicy();
+    assertCurrent();
+    this.assertExtensionsProfile();
+    return this.extensionManager.remove(installId, this.ensureView().webContents.session, assertCurrent);
+  }
+
+  async restrictExtensionSites(installId: string, sites: string[], assertCaller: () => void): Promise<BrowserExtensionMetadata> {
+    const profile = this.captureProfileGuard();
+    const revision = this.agentControlRevision;
+    const assertCurrent = () => {
+      assertCaller(); profile(); this.assertExtensionsProfile();
+      if (this.agentControlling || revision !== this.agentControlRevision || this.pictureInPictureWindows.size
+        || [...this.tabs.values()].some(tab => tab.url !== 'about:blank' || tab.view && tab.view.webContents.getURL() !== 'about:blank')) {
+        throw new Error('Cierra las páginas abiertas y deshabilita la extensión antes de restringir sitios; esto evita conservar scripts ya inyectados.');
+      }
+    };
+    assertCurrent(); await this.ensureEnterprisePolicy(); assertCurrent();
+    return this.extensionManager.restrictSites(installId, sites, assertCurrent);
+  }
+
+  private assertExtensionsProfile(): void {
+    if (this.profileKind !== 'authenticated') throw new Error('Las extensiones no están disponibles en perfiles privados o de invitado.');
   }
 
   private ensureView(): WebContentsView {
@@ -1167,7 +2710,9 @@ export class IntegratedBrowserService extends EventEmitter {
     return this.requireTabView(tab);
   }
 
-  private createTabRuntime(): BrowserTabRuntime {
+  private createTabRuntime(materialize = true): BrowserTabRuntime {
+    if (this.scopeChanging) throw new Error('El perfil está cambiando; espera antes de abrir pestañas.');
+    this.captureProfileGuard()();
     const tab: BrowserTabRuntime = {
       id: randomUUID(),
       view: null,
@@ -1177,16 +2722,25 @@ export class IntegratedBrowserService extends EventEmitter {
       canGoForward: false,
       loading: false,
       error: null,
+      navigationSafety: null,
+      navigationSafetyUrl: null,
       lastActivatedAt: Date.now(),
       visualRevision: 0,
+      documentToken: randomUUID(),
       passiveCaptureNotBefore: 0,
       lastDeferAt: 0,
       appliedVisible: null,
       appliedBounds: null,
       bootstrap: null,
+      credentialObserver: null,
+      muted: false,
+      zoomFactor: 1,
+      find: null,
+      pinned: false,
+      groupId: null,
     };
     this.tabs.set(tab.id, tab);
-    this.materializeTab(tab, false);
+    if (materialize) this.materializeTab(tab, false);
     return tab;
   }
 
@@ -1216,11 +2770,35 @@ export class IntegratedBrowserService extends EventEmitter {
     parent.contentView.addChildView(view);
     this.overlayTopTabId = null;
     tab.view = view;
+    tab.documentToken = randomUUID();
     tab.appliedVisible = false;
     tab.appliedBounds = null;
     this.configureWebContents(tab);
+    this.downloadManager.attach(view.webContents.session);
+    this.configureCertificateVerification(view.webContents.session);
+    view.webContents.setAudioMuted(tab.muted);
+    this.configureTabZoom(tab);
     this.installAgentBootstrap(tab);
+    this.installCredentialObserver(tab);
     if (!this.permissions) {
+      this.passkeySelection = new BrowserPasskeySelection(view.webContents.session, details => {
+        const profile = this.captureProfileGuard();
+        const target = this.getActiveTab();
+        const contents = target?.view?.webContents;
+        const parent = this.requireParentWindow();
+        if (!target || !contents || !details.frame || details.frame !== contents.mainFrame
+          || !getAuthState().authenticated || this.profileKind !== 'authenticated' || this.agentControlling || !this.isTabVisible(target)
+          || !this.enterpriseUrlAllowed(contents.getURL()) || target.navigationSafety?.action === 'block') {
+          throw new Error('Toma el control de la pestaña autenticada para elegir una passkey.');
+        }
+        this.markSensitiveDocument(target, 'identity');
+        // Sin id fija también la revisión de foco: A→B→A no revive el diálogo.
+        const document = this.createAgentAccessGuard();
+        return { parent, contents, assertCurrent: () => {
+          profile(); document();
+          if (!getAuthState().authenticated || this.agentControlling || this.getActiveTab() !== target || !this.isTabVisible(target)) throw new Error('La selección de passkey cambió de contexto.');
+        } };
+      }, cancel => onAuthStateChange(cancel));
       this.permissions = new IntegratedBrowserPermissionGovernance({
         session: view.webContents.session,
         store: this.sitePermissionStore,
@@ -1232,14 +2810,21 @@ export class IntegratedBrowserService extends EventEmitter {
       });
       this.configureDisplayMedia(view.webContents.session);
       this.observeFailedRequests(view.webContents.session);
+      this.configureRequestGovernance(view.webContents.session);
     }
-    if (!this.extensionsRestored) {
+    if (this.profileKind === 'authenticated' && !this.extensionsRestored && (!this.capabilities.enterpriseControls || this.enterprisePolicyReady) && this.enterprisePolicy?.extensionsAllowed !== false) {
       this.extensionsRestored = true;
-      void this.extensionManager.restore(view.webContents.session).catch((error) => {
+      void this.extensionManager.restore(view.webContents.session, this.captureProfileGuard()).catch((error) => {
         console.warn('[Navegador][Extensiones] No se pudieron restaurar todas las extensiones:', safeErrorMessage(error instanceof Error ? error.message : String(error)));
       });
     }
-    if (restoreUrl && tab.url && tab.url !== 'about:blank') {
+    if (restoreUrl && tab.url && tab.url !== 'about:blank' && this.enterpriseUrlAllowed(tab.url)) {
+      const safety = checkBrowserNavigationLocal(tab.url);
+      this.setNavigationSafety(tab, tab.url, safety);
+      if (safety.action === 'block') {
+        this.recordError(new Error(safety.reason ?? 'La restauración fue bloqueada por seguridad.'), tab.id);
+        return view;
+      }
       tab.loading = true;
       void view.webContents.loadURL(tab.url).catch((error) => this.recordError(error, tab.id));
     }
@@ -1283,6 +2868,22 @@ export class IntegratedBrowserService extends EventEmitter {
     const contents = view.webContents;
     normalizeBrowserUserAgent(contents);
     const isCurrentView = () => tab.view === view && !contents.isDestroyed();
+    contents.on('before-input-event', (event, input) => {
+      if (!isCurrentView() || !this.capabilities.pageTools || this.activeTabId !== tab.id || input.type !== 'keyDown'
+        || input.alt || !(process.platform === 'darwin' ? input.meta : input.control)) return;
+      const action = input.key === '0' ? 'reset' : ['+', '='].includes(input.key) ? 'in' : input.key === '-' ? 'out' : null;
+      if (!action) return;
+      event.preventDefault(); this.setZoom(action);
+    });
+    contents.on('zoom-changed', (event, direction) => {
+      if (!isCurrentView() || !this.capabilities.pageTools || this.activeTabId !== tab.id || supportsIsolatedBrowserZoom(contents)
+        || (direction !== 'in' && direction !== 'out')) return;
+      event.preventDefault(); this.setZoom(direction);
+    });
+    contents.on('did-navigate', () => { if (isCurrentView()) this.sensitiveDocuments.delete(contents); });
+    contents.on('did-start-navigation', (_event, _url, _inPlace, isMainFrame) => {
+      if (isCurrentView() && isMainFrame) tab.documentToken = randomUUID();
+    });
     contents.setWindowOpenHandler((details) => {
       if (!isCurrentView()) return { action: 'deny' };
       const { url } = details;
@@ -1312,7 +2913,12 @@ export class IntegratedBrowserService extends EventEmitter {
           },
         };
       }
-      if (isAllowedBrowserUrl(url)) {
+      if (isAllowedBrowserUrl(url) && this.enterpriseUrlAllowed(url)) {
+        const safety = checkBrowserNavigationLocal(url);
+        if (safety.action === 'block') {
+          this.recordError(new Error(safety.reason ?? 'La navegación fue bloqueada por la revisión local.'));
+          return { action: 'deny' };
+        }
         // `window.open` con destino se convierte en pestaña, asi que quien la
         // abrio recibe `null` y pierde la relacion `opener`. Queda registrado
         // porque hay flujos que dependen de ese vinculo.
@@ -1361,6 +2967,11 @@ export class IntegratedBrowserService extends EventEmitter {
           title: tab.title,
           selection,
         }),
+        onFind: () => this.sendToRenderer('integrated-browser:find-requested', {}),
+        onPrint: () => { void this.printPage().catch((error) => this.recordError(error, tabId)); },
+        onSavePdf: () => { void this.savePageAsPdf().catch((error) => this.recordError(error, tabId)); },
+        onToggleMute: () => { this.setMuted(!tab.muted); },
+        muted: tab.muted,
       }).popup({ window: this.requireParentWindow() });
     });
     contents.on('will-navigate', (event) => {
@@ -1372,7 +2983,12 @@ export class IntegratedBrowserService extends EventEmitter {
         console.warn('[Navegador][Seguridad] Llamada directa automática de Google Chat bloqueada.');
         return;
       }
-      if (isAllowedBrowserUrl(url)) return;
+      const safety = this.localNavigationVerdict(url);
+      this.setNavigationSafety(tab, url, safety);
+      if (isAllowedBrowserUrl(url) && this.enterpriseUrlAllowed(url) && safety.action !== 'block') {
+        this.emitState();
+        return;
+      }
       event.preventDefault();
       console.warn('[Navegador][Seguridad] Navegacion bloqueada:', describeBlockedUrl(url));
       this.recordError(new Error('La navegacion fue bloqueada por seguridad.'), tabId);
@@ -1385,7 +3001,12 @@ export class IntegratedBrowserService extends EventEmitter {
         return;
       }
       if ((event as typeof event & { isMainFrame?: boolean }).isMainFrame === false) return;
-      if (isAllowedBrowserUrl(event.url)) return;
+      const safety = this.localNavigationVerdict(event.url);
+      this.setNavigationSafety(tab, event.url, safety);
+      if (isAllowedBrowserUrl(event.url) && this.enterpriseUrlAllowed(event.url) && safety.action !== 'block') {
+        this.emitState();
+        return;
+      }
       event.preventDefault();
       console.warn('[Navegador][Seguridad] Redireccion bloqueada:', describeBlockedUrl(event.url));
       this.recordError(new Error('La redireccion fue bloqueada por seguridad.'), tabId);
@@ -1418,13 +3039,28 @@ export class IntegratedBrowserService extends EventEmitter {
     });
     contents.on('did-navigate', () => {
       if (!isCurrentView()) return;
+      this.configureTabZoom(tab);
+      tab.documentToken = randomUUID();
+      tab.visualRevision += 1;
       this.snapshotTab(tab);
+      this.refreshNavigationSafety(tab);
       this.invalidateObservation(tabId);
       this.deferPassiveCapture(tab);
       this.emitState();
     });
+    contents.on('found-in-page', (_event, result) => {
+      if (!isCurrentView() || !tab.find || result.requestId === undefined) return;
+      tab.find = {
+        ...tab.find,
+        activeMatchOrdinal: result.activeMatchOrdinal,
+        matches: result.matches,
+        finalUpdate: result.finalUpdate,
+      };
+      this.emitState();
+    });
     contents.on('did-finish-load', () => {
       if (!isCurrentView()) return;
+      this.configureTabZoom(tab);
       void this.installSelectionWatcher(contents);
       this.snapshotTab(tab);
       if (isAllowedBrowserUrl(tab.url)) tab.error = null;
@@ -1434,6 +3070,9 @@ export class IntegratedBrowserService extends EventEmitter {
     });
     contents.on('did-navigate-in-page', () => {
       if (!isCurrentView()) return;
+      tab.documentToken = randomUUID();
+      tab.visualRevision += 1;
+      this.refreshNavigationSafety(tab);
       this.invalidateObservation(tabId);
       this.deferPassiveCapture(tab);
       this.emitState();
@@ -1474,6 +3113,12 @@ export class IntegratedBrowserService extends EventEmitter {
       if (detached && !detached.isDestroyed()) detached.setTitle(detachedWindowTitle(tab));
       this.emitState();
     });
+    contents.on('certificate-error', (_event, url, _error, _certificate, callback) => {
+      callback(false);
+      if (!isCurrentView()) return;
+      this.setNavigationSafety(tab, url, this.certificateBlockVerdict());
+      this.emitState();
+    });
     contents.on('did-fail-load', (_event, errorCode, errorDescription, _url, isMainFrame) => {
       if (!isCurrentView()) return;
       if (!isMainFrame || errorCode === -3) return;
@@ -1483,26 +3128,107 @@ export class IntegratedBrowserService extends EventEmitter {
     });
   }
 
-  private async loadTarget(rawTarget: unknown): Promise<void> {
+  private async loadTarget(rawTarget: unknown, assertCallerCurrent?: () => void): Promise<void> {
     const target = normalizeBrowserTarget(rawTarget);
-    const tab = this.getActiveTab();
-    if (tab) {
-      tab.error = null;
-      tab.url = target;
+    const view = this.ensureView();
+    const tab = this.getActiveTab()!;
+    const assertCurrent = this.captureNavigationGuard();
+    const requestRevision = ++this.navigationRequestRevision;
+    const documentRevision = tab.visualRevision;
+    const previousUrl = view.webContents.getURL();
+    const safety = await checkBrowserNavigation(target, { allowRemote: this.profileKind === 'authenticated' });
+    assertCurrent();
+    assertCallerCurrent?.();
+    if (requestRevision !== this.navigationRequestRevision || tab.view !== view || view.webContents.isDestroyed()
+      || tab.visualRevision !== documentRevision || view.webContents.getURL() !== previousUrl) {
+      throw new Error('La navegación fue reemplazada durante la revisión de seguridad.');
     }
+    if (!this.enterpriseUrlAllowed(target)) {
+      this.setNavigationSafety(tab, target, this.localNavigationVerdict(target));
+      this.emitState();
+      throw new Error('El sitio está bloqueado por tu organización.');
+    }
+    this.setNavigationSafety(tab, target, safety);
+    this.emitState();
+    this.assertNavigationAllowed(safety);
+    tab.error = null;
+    tab.url = target;
     try {
-      await this.ensureView().webContents.loadURL(target);
+      await view.webContents.loadURL(target);
     } catch (error) {
+      assertCurrent();
       // Una navegacion abortada no es un fallo: ocurre cada vez que el propio
       // sitio navega por su cuenta (las aplicaciones de una sola pagina lo
       // hacen al arrancar) o el usuario pide otro destino antes de terminar.
       if (isSupersededNavigation(error)) {
-        this.recordError(error, this.activeTabId ?? undefined);
+        this.recordError(error, tab.id);
         return;
       }
-      this.recordError(error, this.activeTabId ?? undefined);
+      this.recordError(error, tab.id);
       throw error;
     }
+  }
+
+  private assertNavigationAllowed(verdict: BrowserNavigationSafetyVerdict): void {
+    if (verdict.action === 'block') throw new Error(verdict.reason ?? 'La navegación fue bloqueada por la protección local.');
+  }
+
+  private localNavigationVerdict(target: string): BrowserNavigationSafetyVerdict {
+    const local = checkBrowserNavigationLocal(target);
+    if (local.action === 'block' || this.enterpriseUrlAllowed(target)) return local;
+    return { ...local, action: 'block', reason: 'La política de tu organización no permite esta solicitud.' };
+  }
+
+  private certificateBlockVerdict(): BrowserNavigationSafetyVerdict {
+    return { action: 'block', source: 'local', reason: 'No se pudo verificar el certificado del sitio. La conexión fue rechazada.', checkedAt: new Date().toISOString() };
+  }
+
+  private setNavigationSafety(tab: BrowserTabRuntime, target: string, verdict: BrowserNavigationSafetyVerdict): void {
+    const wasBlocked = tab.navigationSafety?.action === 'block';
+    tab.navigationSafetyUrl = target;
+    tab.navigationSafety = { ...verdict };
+    if (tab.view && tab.appliedVisible !== null && wasBlocked !== (verdict.action === 'block')) tab.view.setVisible(tab.appliedVisible && verdict.action !== 'block');
+    this.updateTabSafetyInterstitial(tab);
+  }
+
+  private updateTabSafetyInterstitial(tab: BrowserTabRuntime): void {
+    const key = `tab:${tab.id}`;
+    const parent = this.detachedWindows.get(tab.id) ?? this.parentWindow;
+    const verdict = tab.navigationSafety;
+    const view = tab.view;
+    if (!parent || !view || !tab.appliedVisible || !tab.appliedBounds || verdict?.action !== 'block') { this.safetyInterstitials.remove(key); return; }
+    this.safetyInterstitials.show(key, { parent, bounds: tab.appliedBounds, verdict,
+      isCurrent: () => this.tabs.get(tab.id) === tab && tab.view === view && tab.navigationSafety === verdict && !view.webContents.isDestroyed(),
+      openBlank: async () => {
+        await view.webContents.loadURL('about:blank');
+        if (this.tabs.get(tab.id) !== tab || tab.view !== view) return;
+        tab.url = 'about:blank'; tab.error = null;
+        this.setNavigationSafety(tab, 'about:blank', checkBrowserNavigationLocal('about:blank'));
+        this.emitState();
+      },
+      close: () => { this.closeTab(tab.id); },
+    });
+  }
+
+  private refreshNavigationSafety(tab: BrowserTabRuntime): void {
+    // El documento rechazado no puede retirar el aviso mediante cambios de hash
+    // ni eventos tardíos. Una nueva navegación revisada establece otro dictamen.
+    if (tab.navigationSafety?.action === 'block') return;
+    const target = tab.view?.webContents.getURL();
+    if (target && target !== tab.navigationSafetyUrl) {
+      // Enlaces, historial, redirecciones y restauración no heredan un dictamen
+      // remoto anterior. Esta ruta sólo acredita una revisión local.
+      this.setNavigationSafety(tab, target, checkBrowserNavigationLocal(target));
+    }
+  }
+
+  private captureNavigationGuard(allowPendingCleanup = false): () => void {
+    const assertProfileCurrent = this.captureProfileGuard(allowPendingCleanup);
+    const activeRevision = this.activeTabRevision;
+    return () => {
+      assertProfileCurrent();
+      if (activeRevision !== this.activeTabRevision) throw new Error('La pestaña cambió durante la operación de navegación.');
+    };
   }
 
   private recordError(error: unknown, tabId?: string): void {
@@ -1546,6 +3272,107 @@ export class IntegratedBrowserService extends EventEmitter {
     });
   }
 
+  private createAgentAccessGuard(tabId?: string, signal?: AbortSignal, document = true): () => void {
+    const tab = tabId ? this.tabs.get(tabId) : this.getActiveTab();
+    const contents = tab?.view?.webContents;
+    const startedUrl = contents?.getURL() ?? tab?.url;
+    const scopeId = this.scopeId;
+    const revision = tab?.visualRevision;
+    const generation = this.sessionGeneration;
+    const parent = this.parentWindow;
+    const activeRevision = this.activeTabRevision;
+    const policyRevision = this.agentPolicyRevision;
+    const controlRevision = this.agentControlRevision;
+    const assertTarget = () => {
+      assertCuNotAborted(signal);
+      if (this.scopeChanging || this.shutdownCommitted || this.ephemeralCleanupPending || this.ephemeralCleanupFailed
+        || this.sessionGeneration !== generation || this.scopeId !== scopeId
+        || !parent || parent.isDestroyed() || this.parentWindow !== parent
+        || !tab || !contents || this.tabs.get(tab.id) !== tab || tab.view?.webContents !== contents
+        || contents.isDestroyed() || this.agentPolicyRevision !== policyRevision || this.agentControlRevision !== controlRevision
+        || (document && ((contents.getURL() ?? tab.url) !== startedUrl || tab.visualRevision !== revision))
+        || (!tabId && (this.activeTabId !== tab.id || this.activeTabRevision !== activeRevision))) throw new CuContextChangedError();
+    };
+    assertTarget();
+    return assertTarget;
+  }
+
+  private async authorizeAgentAccess(capability: BrowserAgentCapability, tabId?: string, signal?: AbortSignal): Promise<() => void> {
+    const assertTarget = this.createAgentAccessGuard(tabId, signal);
+    const tab = tabId ? this.tabs.get(tabId) : this.getActiveTab();
+    const startedUrl = tab?.view?.webContents.getURL() ?? tab?.url;
+    const policyAudit = (allowed: boolean, confirmation: 'none' | 'accepted' | 'rejected' = 'none') => {
+      if (this.capabilities.agentGovernance) this.auditStore.record({ traceId: this.auditTrace.getStore() ?? randomUUID(),
+        tabId: tab?.id ?? '', url: startedUrl ?? '', operation: 'policy', result: allowed ? 'allowed' : 'blocked', confirmation });
+    };
+    if (this.capabilities.enterpriseControls) await this.ensureEnterprisePolicy();
+    assertTarget();
+    if (this.enterprisePolicy?.agentAllowed === false) { policyAudit(false); throw new Error('SofLIA está bloqueada por tu organización en el navegador.'); }
+    if (!this.capabilities.agentGovernance) { this.assertKnownDocumentNotSensitive(tabId); return assertTarget; }
+    await this.assertDocumentNotSensitive(tabId); assertTarget();
+    let origin: string;
+    try { origin = normalizeAgentOrigin(startedUrl ?? ''); }
+    catch { throw new Error('SofLIA sólo puede acceder a páginas web seguras del navegador.'); }
+    const evaluation = await this.agentPolicyStore.evaluate(origin, capability);
+    assertTarget();
+    if (evaluation === 'block') { policyAudit(false); throw new Error('SofLIA no tiene permiso para acceder a este sitio.'); }
+    if (evaluation === 'allow') { await this.assertDocumentNotSensitive(tabId); assertTarget(); policyAudit(true); return assertTarget; }
+    const decision = await this.promptAgentPolicy({
+      id: randomUUID(),
+      origin,
+      capability,
+      label: capability === 'act' ? 'interactuar con la página' : capability === 'capture' ? 'capturar la página' : capability === 'read-document' ? 'leer el documento' : 'leer y capturar el contenido',
+    }, signal);
+    assertTarget();
+    policyAudit(decision === 'allow-once' || decision === 'allow-always', decision === 'allow-once' || decision === 'allow-always' ? 'accepted' : 'rejected');
+    if (decision === 'allow-always' || decision === 'block') {
+      const current = await this.agentPolicyStore.get(origin);
+      assertTarget();
+      await this.agentPolicyStore.set({ origin, mode: current.mode, decision });
+      if (decision === 'block') this.agentPolicyRevision += 1;
+    }
+    if (decision !== 'allow-once' && decision !== 'allow-always') throw new Error('El acceso del agente fue bloqueado por el usuario.');
+    await this.assertDocumentNotSensitive(tabId);
+    assertTarget();
+    return assertTarget;
+  }
+
+  private async canAgentAccessWithoutPrompt(rawUrl: string, capability: BrowserAgentCapability): Promise<boolean> {
+    if (this.capabilities.enterpriseControls && !this.enterprisePolicyReady) return false;
+    if (this.enterprisePolicy?.agentAllowed === false) return false;
+    if (!this.capabilities.agentGovernance) return true;
+    try { return await this.agentPolicyStore.evaluate(rawUrl, capability) === 'allow'; }
+    catch { return false; }
+  }
+
+  private promptAgentPolicy(request: BrowserAgentPolicyPromptRequest, signal?: AbortSignal): Promise<BrowserAgentSiteDecision> {
+    assertCuNotAborted(signal);
+    const parent = this.parentWindow;
+    if (!parent || parent.isDestroyed() || this.agentPolicyPrompts.size >= 5) return Promise.resolve('ask');
+    return new Promise((resolve) => {
+      const settle = (decision: BrowserAgentSiteDecision) => {
+        if (!this.agentPolicyPrompts.delete(request.id)) return;
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', onAbort);
+        resolve(decision);
+        this.emitState();
+      };
+      const onAbort = () => settle('ask');
+      const timer = setTimeout(() => settle('ask'), PERMISSION_PROMPT_TIMEOUT_MS);
+      this.agentPolicyPrompts.set(request.id, settle);
+      signal?.addEventListener('abort', onAbort, { once: true });
+      this.sendToRenderer('integrated-browser:agent-policy-prompt', request);
+    });
+  }
+
+  resolveAgentPolicyPrompt(id: string, decision: BrowserAgentSiteDecision): boolean {
+    if (decision !== 'allow-once' && decision !== 'allow-always' && decision !== 'block') throw new Error('La decisión del agente es inválida.');
+    const settle = this.agentPolicyPrompts.get(id);
+    if (!settle) return false;
+    settle(decision);
+    return true;
+  }
+
   /** Respuesta del usuario al aviso. Devuelve falso si el aviso ya no existe. */
   resolvePermissionPrompt(id: string, granted: boolean): boolean {
     const settle = this.permissionPrompts.get(id);
@@ -1558,6 +3385,8 @@ export class IntegratedBrowserService extends EventEmitter {
   private discardPermissionPrompts(): void {
     for (const settle of [...this.permissionPrompts.values()]) settle(false);
     this.permissionPrompts.clear();
+    for (const settle of [...this.agentPolicyPrompts.values()]) settle('ask');
+    this.agentPolicyPrompts.clear();
   }
 
   private sendToRenderer(channel: string, payload: unknown): void {
@@ -1566,15 +3395,283 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   private emitState(): void {
+    if (this.agentTaskBinding) {
+      try { this.agentTaskBinding.assertCurrent(); }
+      catch { this.agentTaskBinding.control.command('stop'); }
+    }
     const state = this.getState();
     this.emit('state-changed', state);
     const parent = this.parentWindow;
     if (parent && !parent.isDestroyed()) parent.webContents.send('integrated-browser:state-changed', state);
+    this.queueSessionSave();
+  }
+
+  private captureProfileGuard(allowPendingCleanup = false): () => void {
+    const scopeId = this.scopeId;
+    const generation = this.sessionGeneration;
+    const transition = this.scopeTransition;
+    const parent = this.parentWindow;
+    const assertCurrent = () => {
+      if (this.scopeChanging) throw new Error('El perfil está cambiando; espera antes de usar el navegador.');
+      if (this.shutdownCommitted) throw new Error('El navegador está cerrándose.');
+      if (this.ephemeralCleanupFailed || (!allowPendingCleanup && this.ephemeralCleanupPending)) {
+        throw new Error('El perfil temporal está limpiándose; espera o vuelve a abrir el navegador.');
+      }
+      if (!parent || parent.isDestroyed()) throw new Error('El navegador no está iniciado.');
+      if (this.scopeId !== scopeId || this.sessionGeneration !== generation
+        || this.scopeTransition !== transition || this.parentWindow !== parent) {
+        throw new Error('El perfil o la ventana cambió durante la operación del navegador.');
+      }
+    };
+    assertCurrent();
+    return assertCurrent;
+  }
+
+  getSyncDevices() { return this.syncDevices.status(this.syncDeviceContext()); }
+  registerSyncDevice() { return this.syncDevices.register(this.syncDeviceContext()); }
+  revokeSyncDevice(id: string) { return this.syncDevices.revoke(id, this.syncDeviceContext()); }
+  cancelSyncOperation(): void { this.syncDevices.cancel(); this.syncController.cancel(); }
+
+  controlSync(input: BrowserSyncControlRequest) {
+    const context = this.syncControlContext();
+    switch (input.action) {
+      case 'status': return this.syncController.status(context);
+      case 'configure': return this.syncController.configure(input.categories, context);
+      case 'pause': return this.syncController.configure([], context);
+      case 'recover-settings': return this.syncController.recoverSettings(context);
+      case 'recover-state': case 'rollback-state': return this.syncController.recoverState(input.action, context);
+      case 'export-key': return this.syncController.keys('export', context);
+      case 'import-key': return this.syncController.keys('import', context);
+      case 'resolve': return this.syncController.synchronize(context, input);
+      case 'run': return this.syncController.synchronize(context);
+    }
+  }
+
+  private syncControlContext(): BrowserSyncControlContext {
+    const context = this.syncDeviceContext();
+    const parent = this.parentWindow!;
+    return { ...context,
+      local: createBrowserSyncLocalAdapter({ bookmarks: this.bookmarkStore,
+        readSession: async () => {
+          context.guard();
+          if (!this.capabilities.sessionRestore) throw new Error('Habilita la restauración de sesión antes de sincronizar pestañas, grupos o disposición.');
+          if (this.restorableSession) throw new Error('Restaura o descarta la sesión anterior antes de sincronizar.');
+          return this.syncSessionSnapshot();
+        },
+        compareAndApplySession: async (expected, next, guard) => this.applySyncSession(expected, next, guard) }),
+      confirm: async (action, detail) => {
+        context.guard();
+        const descriptions = {
+          configure: 'Se habilitarán las categorías seleccionadas para ejecutar sincronización bajo demanda. No se incluyen contraseñas, cookies ni passkeys.',
+          run: 'Se combinarán datos locales y remotos. Las pestañas reemplazadas o retiradas pueden perder formularios no guardados. Guarda tu trabajo antes de continuar.',
+          pause: 'Se desactivarán las categorías locales. Se conservan claves, archivos y copias remotas. Para revocar el acceso de la sesión usa Revocar dispositivo.',
+          'keys-export': 'El archivo contiene la clave que permite descifrar tus datos sincronizados. Guárdalo en un lugar seguro y no lo compartas. Se elegirá un archivo nuevo; no se envía al servidor.',
+          'keys-import': 'Se leerá el código de un archivo elegido por ti. No se reemplazará una clave local distinta ni se subirá el archivo al servidor.',
+          'recover-settings': 'Se recuperará la configuración local ausente o dañada desde su respaldo. La transferencia quedará desactivada y tendrás que elegir categorías de nuevo. Se conservan respaldo y original dañado cifrado. No se restauran claves, dispositivos, checkpoints ni decisiones pendientes y no se contacta al servidor.',
+          'recover-state': 'Se archivarán cifrados los checkpoints y conflictos locales dañados o incoherentes y se reiniciará su seguimiento, con transferencia desactivada. No se repiten envíos ni aprobaciones antiguas. Tus marcadores, pestañas y datos remotos no se modifican. Al reactivar, compara nuevamente las versiones. Si se interrumpe, revierte la recuperación incompleta antes de sincronizar. No restaura claves ni dispositivos revocados.',
+          'rollback-state': 'Se restaurarán exactamente los tres archivos locales anteriores a una recuperación incompleta: configuración, checkpoints y conflictos. El daño original puede seguir presente. Se conserva un archivo cifrado de la operación y no se contacta al servidor ni se modifican claves o dispositivos. No deshace cambios remotos.',
+          resolve: 'La elección puede sustituir datos locales o remotos de la categoría indicada. Se comprobará que las versiones revisadas no cambiaron. Guarda tu trabajo antes de continuar.',
+        };
+        const result = await this.withSyncDialog(() => dialog.showMessageBox(parent, { type: 'warning', title: 'Sincronización del navegador', message: '¿Confirmas esta operación?',
+          detail: `${descriptions[action]}${detail ? `\n\n${detail}` : ''}`, buttons: ['Cancelar', 'Continuar'], defaultId: 0, cancelId: 0, noLink: true }));
+        context.guard(); return result.response === 1;
+      },
+      recoveryPath: async (action) => {
+        context.guard();
+        if (action === 'export') {
+          const result = await this.withSyncDialog(() => dialog.showSaveDialog(parent, { title: 'Guardar código de recuperación', defaultPath: 'recuperacion-sync.txt', filters: [{ name: 'Texto', extensions: ['txt'] }] }));
+          context.guard(); return result.canceled ? null : result.filePath ?? null;
+        }
+        const result = await this.withSyncDialog(() => dialog.showOpenDialog(parent, { title: 'Importar código de recuperación', properties: ['openFile'], filters: [{ name: 'Texto', extensions: ['txt'] }] }));
+        context.guard(); return result.canceled ? null : result.filePaths[0] ?? null;
+      },
+    };
+  }
+
+  private syncSessionSnapshot(): BrowserSessionSnapshot {
+    return { version: 2, savedAt: '', cleanExit: false, activeTabId: this.activeTabId, primaryTabId: this.primaryTabId,
+      secondaryTabId: this.secondaryTabId, detachedTabIds: [...this.detachedWindows.keys()], viewMode: this.viewMode, tabLayout: this.tabLayout,
+      tabs: Array.from(this.tabs.values()).map((tab, position) => { this.snapshotTab(tab); return this.toSessionTab(tab, position); }),
+      groups: Array.from(this.groups.values()).map((group) => ({ ...group })) };
+  }
+
+  private async withSyncDialog<T>(action: () => Promise<T>): Promise<T> {
+    if (this.syncDialogPending) throw new Error('Hay una confirmación de sincronización pendiente.');
+    this.syncDialogPending = true;
+    try { return await action(); } finally { this.syncDialogPending = false; }
+  }
+
+  private async applySyncSession(expected: BrowserSessionSnapshot, next: BrowserSessionSnapshot, guard: () => void): Promise<boolean> {
+    await this.ensureEnterprisePolicy(); guard();
+    if (this.restorableSession) throw new Error('Restaura o descarta la sesión anterior antes de sincronizar pestañas.');
+    if (JSON.stringify(this.syncSessionSnapshot()) !== JSON.stringify(expected)) return false;
+    if (next.tabs.length > INTEGRATED_BROWSER_MAX_TABS || next.tabs.some((tab) => !this.enterpriseUrlAllowed(tab.url))) throw new Error('La sesión sincronizada excede límites o contiene sitios bloqueados.');
+    guard();
+    const current = new Map(this.tabs);
+    for (const tab of current.values()) {
+      const saved = next.tabs.find((value) => value.id === tab.id);
+      if (!saved || saved.url !== tab.url) { this.destroyTab(tab); this.tabs.delete(tab.id); }
+    }
+    const ordered = new Map<string, BrowserTabRuntime>();
+    for (const saved of next.tabs) {
+      let tab = this.tabs.get(saved.id);
+      if (!tab) { tab = this.createTabRuntime(false); this.tabs.delete(tab.id); tab.id = saved.id; }
+      tab.url = saved.url; tab.title = saved.title; tab.pinned = saved.pinned; tab.muted = saved.muted; tab.groupId = saved.groupId;
+      ordered.set(tab.id, tab);
+    }
+    this.tabs = ordered;
+    this.groups = new Map(next.groups.map((group) => [group.id, { ...group }]));
+    this.tabLayout = next.tabLayout;
+    this.activeTabId = next.activeTabId && ordered.has(next.activeTabId) ? next.activeTabId : ordered.keys().next().value ?? null;
+    this.primaryTabId = next.primaryTabId && ordered.has(next.primaryTabId) ? next.primaryTabId : this.activeTabId;
+    this.secondaryTabId = next.secondaryTabId && ordered.has(next.secondaryTabId) && next.secondaryTabId !== this.primaryTabId ? next.secondaryTabId : null;
+    this.viewMode = next.viewMode === 'split' && !this.secondaryTabId ? 'single' : next.viewMode;
+    if (this.visible && this.activeTabId) this.activateTabInternal(this.activeTabId);
+    this.applyViewLayout();
+    this.emitState();
+    await this.saveSessionSnapshot({ ...this.syncSessionSnapshot(), savedAt: new Date().toISOString() }); guard();
+    return true;
+  }
+
+  private syncDeviceContext(): BrowserSyncDeviceContext {
+    const profileGuard = this.captureProfileGuard();
+    const controlRevision = this.agentControlRevision;
+    const guard = () => {
+      profileGuard();
+      if (this.agentControlling || this.agentControlRevision !== controlRevision) {
+        throw new Error('El control cambió durante la operación de sincronización. Toma el control y vuelve a intentarlo.');
+      }
+    };
+    guard();
+    const parent = this.parentWindow!;
+    return {
+      enabled: this.capabilities.encryptedSync, authenticated: this.profileKind === 'authenticated',
+      profileRoot: browserProfileRoot(this.scopeId), guard,
+      confirm: async (action, label) => {
+        guard();
+        const result = await this.withSyncDialog(() => dialog.showMessageBox(parent, {
+          type: 'warning', title: action === 'register' ? 'Registrar dispositivo' : 'Revocar dispositivo',
+          message: action === 'register' ? '¿Registrar este dispositivo en tu cuenta Lia?' : `¿Revocar ${label}?`,
+          detail: action === 'register' ? 'Se enviará un identificador aleatorio, sin nombre del equipo, MAC ni contenido navegado. Esto todavía no activa la sincronización de marcadores o pestañas.'
+            : 'Impedirá nuevas lecturas y escrituras de esta sesión de dispositivo. No elimina copias ya descargadas. Revocar este dispositivo requiere autenticarse de nuevo para registrarlo.',
+          buttons: ['Cancelar', action === 'register' ? 'Registrar' : 'Revocar'], defaultId: 0, cancelId: 0, noLink: true,
+        }));
+        guard();
+        return result.response === 1;
+      },
+    };
+  }
+
+  private async ensureEnterprisePolicy(): Promise<void> {
+    const assertCurrent = this.captureProfileGuard();
+    if (!this.capabilities.enterpriseControls) return;
+    if (!this.enterprisePolicyLoad) {
+      const pending = this.refreshEnterprisePolicy();
+      this.enterprisePolicyLoad = pending;
+      void pending.catch(() => {
+        if (this.enterprisePolicyLoad !== pending) return;
+        this.enterprisePolicyFailed = true;
+        this.enterprisePolicyLoad = null;
+      });
+    }
+    await this.enterprisePolicyLoad;
+    assertCurrent();
+  }
+
+  private async refreshEnterprisePolicy(): Promise<void> {
+    const assertCurrent = this.captureProfileGuard();
+    const status = await this.enterprisePolicyStore.getStatus();
+    assertCurrent();
+    await this.historyStore.setManagedRetention(status.policy?.historyRetentionDays ?? null);
+    assertCurrent();
+    if (this.capabilities.privacyProtection || status.policy?.forcedPrivacyLevel) {
+      await this.privacyStore.hydrate();
+      assertCurrent();
+    }
+    this.enterprisePolicy = status.policy;
+    this.enterprisePolicyReady = true;
+    this.enterprisePolicyFailed = false;
+    this.emitState();
+  }
+
+  private enterpriseUrlAllowed(rawUrl: string): boolean {
+    if (this.capabilities.enterpriseControls && !this.enterprisePolicyReady) return false;
+    const blocked = this.enterprisePolicy?.blockedOrigins;
+    if (!blocked?.length) return true;
+    try { return !blocked.includes(new URL(rawUrl).origin); }
+    catch { return false; }
+  }
+
+  private loadRestorableSession(): Promise<void> {
+    if (this.scopeChanging) return Promise.reject(new Error('El perfil está cambiando; espera antes de recuperar la sesión.'));
+    if (this.sessionLoadedScope === this.scopeId) return Promise.resolve();
+    if (this.sessionLoad) return this.sessionLoad;
+    const scopeId = this.scopeId;
+    const generation = this.sessionGeneration;
+    const pending = this.sessionStore.load().then((snapshot) => {
+      if (generation !== this.sessionGeneration || scopeId !== this.scopeId) return;
+      this.sessionLoadedScope = scopeId;
+      this.restorableSession = snapshot?.tabs.length ? snapshot : null;
+      this.emitState();
+    });
+    this.sessionLoad = pending;
+    void pending.finally(() => { if (this.sessionLoad === pending) this.sessionLoad = null; }).catch(() => undefined);
+    return pending;
+  }
+
+  private queueSessionSave(): void {
+    if (this.shutdownCommitted || this.shutdownFlushing) return;
+    if (!this.capabilities.sessionRestore) return;
+    if (this.sessionLoadedScope !== this.scopeId) return;
+    if (this.restorableSession || this.tabs.size === 0) return;
+    if (this.sessionSaveTimer) clearTimeout(this.sessionSaveTimer);
+    this.sessionSaveTimer = setTimeout(() => {
+      this.sessionSaveTimer = null;
+      void this.persistSession(false).catch((error) => console.warn('[Navegador][Sesión] No se pudo guardar:', safeErrorMessage(error instanceof Error ? error.message : String(error))));
+    }, 250);
+    this.sessionSaveTimer.unref?.();
+  }
+
+  private persistSession(cleanExit: boolean): Promise<void> {
+    if (this.shutdownCommitted) return Promise.resolve();
+    const snapshot = this.buildSessionSnapshot(cleanExit);
+    return snapshot ? this.saveSessionSnapshot(snapshot) : Promise.resolve();
+  }
+
+  private buildSessionSnapshot(cleanExit: boolean): BrowserSessionSnapshot | null {
+    if (!this.capabilities.sessionRestore || this.tabs.size === 0 || this.restorableSession || this.sessionLoadedScope !== this.scopeId) return null;
+    const tabs = Array.from(this.tabs.values()).map((tab, position) => {
+      this.snapshotTab(tab);
+      return this.toSessionTab(tab, position);
+    });
+    return {
+      version: 2,
+      savedAt: new Date().toISOString(),
+      cleanExit,
+      activeTabId: this.activeTabId,
+      primaryTabId: this.primaryTabId,
+      secondaryTabId: this.viewMode === 'single' ? null : this.secondaryTabId,
+      detachedTabIds: [...this.detachedWindows.keys()],
+      viewMode: this.viewMode,
+      tabLayout: this.tabLayout,
+      tabs,
+      groups: Array.from(this.groups.values()).map((group) => ({ ...group })),
+    };
+  }
+
+  private saveSessionSnapshot(snapshot: BrowserSessionSnapshot): Promise<void> {
+    const saving = this.sessionStore.save(snapshot);
+    this.lastSessionSnapshot = { scopeId: this.scopeId, snapshot };
+    this.lastSessionSaveFailed = false;
+    this.lastSessionSave = saving;
+    // Se conserva el rechazo para la barrera, sin dejar una promesa huérfana.
+    void saving.catch(() => { if (this.lastSessionSave === saving) this.lastSessionSaveFailed = true; });
+    return saving;
   }
 
   private getWebContents(): WebContents | null {
     const tab = this.getActiveTab();
-    if (!tab) return null;
+    if (!tab || tab.navigationSafety?.action === 'block') return null;
     const view = this.requireTabView(tab);
     return view.webContents.isDestroyed() ? null : view.webContents;
   }
@@ -1613,6 +3710,7 @@ export class IntegratedBrowserService extends EventEmitter {
     if (!detached && this.viewMode === 'single') this.primaryTabId = tabId;
     else if (!detached && tabId !== this.primaryTabId && tabId !== this.secondaryTabId) this.primaryTabId = tabId;
     const view = this.materializeTab(tab, true);
+    this.configureTabZoom(tab);
     if (detached && this.isWindowUsable(detached)) {
       if (detached.isMinimized()) detached.restore();
       detached.show();
@@ -1635,6 +3733,7 @@ export class IntegratedBrowserService extends EventEmitter {
    * completa por decision del usuario.
    */
   private enterHtmlFullScreen(tabId: string): void {
+    if (this.agentTaskBinding) return;
     const tab = this.tabs.get(tabId);
     if (!tab || this.fullscreenTabId === tabId) return;
     const host = this.getTabHost(tab);
@@ -1705,6 +3804,161 @@ export class IntegratedBrowserService extends EventEmitter {
 
   }
 
+  private configureRequestGovernance(session: Session): void {
+    const scopeId = this.scopeId;
+    const generation = this.sessionGeneration;
+    if (this.privacyProtectionEnabled()) void this.privacyStore.hydrate().catch((error) => {
+      console.warn('[Navegador][Privacidad] No se pudo cargar la configuración:', safeErrorMessage(error instanceof Error ? error.message : String(error)));
+    });
+    const filters = { urls: ['http://*/*', 'https://*/*'] };
+    // Electron conserva un solo listener por fase. Unificar evita que privacidad
+    // sustituya el bloqueo empresarial (o viceversa), incluso en subframes.
+    const requestAllowed = (url: string) => !this.scopeChanging && this.scopeId === scopeId
+      && this.sessionGeneration === generation && this.enterpriseUrlAllowed(url)
+      && checkBrowserNavigationLocal(url).action !== 'block';
+    session.webRequest.onBeforeRequest(filters, (details, callback) => {
+      const contents = details.webContents;
+      const frame = details.resourceType === 'mainFrame' ? 'main' : details.frame
+        ? `frame:${details.frame.processId}:${details.frame.routingId}` : `request:${details.id}`;
+      if (contents && (details.resourceType === 'mainFrame' || details.resourceType === 'subFrame')) this.requestSafety.invalidate(contents, frame);
+      if (!requestAllowed(details.url)) {
+        if (!this.scopeChanging && this.scopeId === scopeId && this.sessionGeneration === generation
+          && ['mainFrame', 'subFrame', 'other'].includes(details.resourceType)) {
+          this.publishBlockedRequest(contents, details.url, this.localNavigationVerdict(details.url));
+        }
+        callback({ cancel: true }); return;
+      }
+      const proceed = () => {
+        // `other` incluye descargas iniciadas sin navegar el documento.
+        if (['mainFrame', 'subFrame', 'other'].includes(details.resourceType)) this.reviewNetworkRequest(details, frame, requestAllowed, callback);
+        else callback({});
+      };
+      if (!this.privacyProtectionEnabled()) { proceed(); return; }
+      const siteOrigin = privacyRequestOrigin(details);
+      const state = this.effectivePrivacyState(this.privacyStore.peek(siteOrigin));
+      const tracking = this.trackingEngine.evaluate(details.url);
+      if (details.resourceType !== 'mainFrame' && tracking.blocked && privacyCategoryEnabled(state.level, state.exceptionCategories, tracking.category)) {
+        void this.privacyStore.increment(siteOrigin, tracking.category).catch(() => undefined);
+        callback({ cancel: true });
+        return;
+      }
+      if (details.method === 'GET' && details.resourceType === 'mainFrame' && privacyCategoryEnabled(state.level, state.exceptionCategories, 'tracking-parameter')) {
+        const stripped = stripTrackingParameters(details.url);
+        if (stripped.removed.length > 0 && stripped.url !== details.url) {
+          void this.privacyStore.increment(siteOrigin, 'tracking-parameter').catch(() => undefined);
+          callback({ redirectURL: stripped.url });
+          return;
+        }
+      }
+      proceed();
+    });
+    session.webRequest.onBeforeSendHeaders(filters, (details, callback) => {
+      if (!requestAllowed(details.url)) { callback({ cancel: true }); return; }
+      if (!this.privacyProtectionEnabled()) { callback({ requestHeaders: details.requestHeaders }); return; }
+      const siteOrigin = privacyRequestOrigin(details);
+      const state = this.effectivePrivacyState(this.privacyStore.peek(siteOrigin));
+      const headers: Record<string, string> = { ...details.requestHeaders };
+      if (state.level !== 'off') { headers.DNT = '1'; headers['Sec-GPC'] = '1'; }
+      if (state.level === 'strict' && privacyCategoryEnabled(state.level, state.exceptionCategories, 'fingerprinting')) {
+        if (mitigateFingerprintingRequestHeaders(headers).length > 0) void this.privacyStore.increment(siteOrigin, 'fingerprinting').catch(() => undefined);
+      }
+      if (details.resourceType !== 'mainFrame' && isThirdPartyRequest(details.url, siteOrigin)
+        && privacyCategoryEnabled(state.level, state.exceptionCategories, 'third-party-cookie')) {
+        removeHeader(headers, 'cookie');
+        if (state.level === 'strict') removeHeader(headers, 'referer');
+        void this.privacyStore.increment(siteOrigin, 'third-party-cookie').catch(() => undefined);
+      }
+      callback({ requestHeaders: headers });
+    });
+    session.webRequest.onHeadersReceived(filters, (details, callback) => {
+      if (!requestAllowed(details.url)) { callback({ cancel: true }); return; }
+      const finish = (headers: Record<string, string[]>) => {
+        const attachment = Object.entries(headers).some(([name, values]) => name.toLowerCase() === 'content-disposition' && values.some((value) => /^\s*attachment(?:\s*;|\s*$)/i.test(value)))
+          || Object.entries(headers).some(([name, values]) => name.toLowerCase() === 'content-type' && values.some((value) => /^\s*application\/octet-stream(?:\s*;|\s*$)/i.test(value)));
+        if (attachment) this.reviewNetworkRequest(details, `download:${details.id}`, requestAllowed, (result) => callback(result.cancel ? { cancel: true } : { responseHeaders: headers }));
+        else callback({ responseHeaders: headers });
+      };
+      if (!this.privacyProtectionEnabled()) { finish(details.responseHeaders ?? {}); return; }
+      const siteOrigin = privacyRequestOrigin(details);
+      const state = this.effectivePrivacyState(this.privacyStore.peek(siteOrigin));
+      const headers = { ...(details.responseHeaders ?? {}) };
+      if (state.level === 'strict' && privacyCategoryEnabled(state.level, state.exceptionCategories, 'fingerprinting')) {
+        mitigateFingerprintingResponseHeaders(headers);
+      }
+      if (details.resourceType !== 'mainFrame' && isThirdPartyRequest(details.url, siteOrigin)
+        && privacyCategoryEnabled(state.level, state.exceptionCategories, 'third-party-cookie')) {
+        removeHeader(headers, 'set-cookie');
+      }
+      finish(headers);
+    });
+  }
+
+  private reviewNetworkRequest(details: { url: string; webContents?: WebContents; resourceType: string }, frame: string,
+    allowed: (url: string) => boolean, callback: (result: { cancel?: boolean }) => void): void {
+    let completed = false;
+    const finish = (result: { cancel?: boolean }) => { if (!completed) { completed = true; callback(result); } };
+    const contents = details.webContents;
+    if (!contents || !this.isBrowserContents(contents) || !canCheckBrowserNavigationRemotely(details.url, { allowRemote: this.profileKind === 'authenticated' })) { finish({}); return; }
+    const parent = this.parentWindow;
+    const previousUrl = contents.getURL();
+    const tab = Array.from(this.tabs.values()).find((value) => value.view?.webContents === contents);
+    const visualRevision = tab?.visualRevision;
+    const current = () => allowed(details.url) && this.parentWindow === parent && !!parent && !parent.isDestroyed()
+      && !contents.isDestroyed() && this.isBrowserContents(contents) && contents.getURL() === previousUrl
+      && (!tab || (tab.view?.webContents === contents && tab.visualRevision === visualRevision));
+    void this.requestSafety.review(details.url, contents, frame, current).then((verdict) => {
+      if (!verdict || !current()) { finish({ cancel: true }); return; }
+      if (tab && (frame === 'main' || verdict.action === 'block' || (verdict.source === 'degraded' && tab.navigationSafety?.action !== 'block'))) {
+        this.setNavigationSafety(tab, frame === 'main' ? details.url : previousUrl, verdict);
+        this.emitState();
+      }
+      if (!tab && verdict.action === 'block') {
+        const popup = Array.from(this.pictureInPictureWindows).find((window) => window.webContents === contents);
+        if (popup) this.showPopupSafetyInterstitial(popup, verdict);
+      }
+      finish({ cancel: verdict.action === 'block' });
+    }).catch(() => finish({ cancel: true }));
+  }
+
+  private publishBlockedRequest(contents: WebContents | undefined, target: string, verdict: BrowserNavigationSafetyVerdict): void {
+    if (!contents || contents.isDestroyed() || !this.isBrowserContents(contents) || verdict.action !== 'block') return;
+    const tab = Array.from(this.tabs.values()).find((value) => value.view?.webContents === contents);
+    if (tab) { this.setNavigationSafety(tab, target, verdict); this.emitState(); return; }
+    const popup = Array.from(this.pictureInPictureWindows).find((window) => window.webContents === contents);
+    if (popup) this.showPopupSafetyInterstitial(popup, verdict);
+  }
+
+  /**
+   * Mantiene la política de certificados de Chromium: sólo se acepta la
+   * verificación que el sistema marcó como `OK`. No hay excepciones silenciosas
+   * ni bypass desde el renderer; un certificado inválido termina la carga y
+   * queda visible como error de navegación.
+   */
+  private configureCertificateVerification(session: Session): void {
+    if (this.certificateSessions.has(session)) return;
+    const setCertificateVerifyProc = (session as Session & {
+      setCertificateVerifyProc?: (callback: (request: { verificationResult?: string }, callback: (result: number) => void) => void) => void;
+    }).setCertificateVerifyProc;
+    if (typeof setCertificateVerifyProc !== 'function') return;
+    this.certificateSessions.add(session);
+    setCertificateVerifyProc.call(session, (request, callback) => {
+      const valid = request?.verificationResult === 'OK';
+      if (!valid) console.warn('[Navegador][Certificado] Se rechazó un certificado no válido.');
+      // -3 conserva la verificación de Chromium; 0 desactivaría Certificate Transparency.
+      callback(browserCertificateDecision(request?.verificationResult));
+    });
+  }
+
+  private privacyProtectionEnabled(): boolean {
+    return this.capabilities.privacyProtection || Boolean(this.enterprisePolicy?.forcedPrivacyLevel);
+  }
+
+  private effectivePrivacyState<T extends { level: BrowserPrivacyLevel }>(state: T): T {
+    const forced = this.enterprisePolicy?.forcedPrivacyLevel;
+    if (!forced) return state;
+    return { ...state, level: state.level === 'strict' || forced === 'strict' ? 'strict' : 'balanced', exceptionCategories: [] };
+  }
+
   private prepareBrowserPopupWindow(window: BrowserWindow, openerOrigin: string | null): void {
     if (window.isDestroyed()) return;
     // La ventana real no hereda necesariamente el User-Agent normalizado del
@@ -1745,7 +3999,7 @@ export class IntegratedBrowserService extends EventEmitter {
           },
         };
       }
-      if (isAllowedBrowserUrl(details.url)) {
+      if (isAllowedBrowserUrl(details.url) && this.enterpriseUrlAllowed(details.url)) {
         void this.createTab(details.url, true).catch((error) => this.recordError(error));
       } else this.recordError(new Error('El sitio intento abrir un protocolo no permitido.'));
       return { action: 'deny' };
@@ -1772,7 +4026,12 @@ export class IntegratedBrowserService extends EventEmitter {
     // dejarla flotando sobre todo lo demas estorba al usuario.
     const [width] = window.getSize();
     if (width <= POPUP_ALWAYS_ON_TOP_MAX_WIDTH) window.setAlwaysOnTop(true, 'floating');
-    window.once('closed', () => this.pictureInPictureWindows.delete(window));
+    const popupKey = `popup:${window.webContents.id}`;
+    window.once('closed', () => { this.pictureInPictureWindows.delete(window); this.safetyInterstitials.remove(popupKey); });
+    window.webContents.on('certificate-error', (_event, _url, _error, _certificate, callback) => {
+      callback(false);
+      if (!window.isDestroyed() && this.pictureInPictureWindows.has(window)) this.showPopupSafetyInterstitial(window, this.certificateBlockVerdict());
+    });
     const guardPopupNavigation = (event: { url: string; preventDefault: () => void }) => {
       if (isBlockedGoogleChatDirectCall(openerOrigin, event.url)) {
         event.preventDefault();
@@ -1780,12 +4039,24 @@ export class IntegratedBrowserService extends EventEmitter {
         if (!window.isDestroyed()) window.close();
         return;
       }
-      if (isAllowedBrowserUrl(event.url)) return;
+      if (isAllowedBrowserUrl(event.url) && this.enterpriseUrlAllowed(event.url) && checkBrowserNavigationLocal(event.url).action !== 'block') return;
       event.preventDefault();
+      this.showPopupSafetyInterstitial(window, { ...checkBrowserNavigationLocal(event.url), action: 'block', reason: 'La solicitud no cumple la política de navegación.' });
     };
     window.webContents.on('will-navigate', guardPopupNavigation);
     window.webContents.on('will-redirect', guardPopupNavigation);
     window.webContents.on('will-frame-navigate', guardPopupNavigation);
+  }
+
+  private showPopupSafetyInterstitial(window: BrowserWindow, verdict: BrowserNavigationSafetyVerdict): void {
+    if (window.isDestroyed()) return;
+    const key = `popup:${window.webContents.id}`;
+    const bounds = window.getContentBounds();
+    this.safetyInterstitials.show(key, { parent: window, fillWindow: true, bounds: { x: 0, y: 0, width: bounds.width, height: bounds.height }, verdict,
+      isCurrent: () => !window.isDestroyed() && this.pictureInPictureWindows.has(window),
+      openBlank: async () => { await window.webContents.loadURL('about:blank'); this.safetyInterstitials.remove(key); },
+      close: () => window.close(),
+    });
   }
 
   private closePictureInPictureWindows(): void {
@@ -1887,9 +4158,10 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   private applyTabVisibility(tab: BrowserTabRuntime, view: WebContentsView, visible: boolean): void {
-    if (tab.appliedVisible === visible) return;
+    if (tab.appliedVisible === visible) { this.updateTabSafetyInterstitial(tab); return; }
     tab.appliedVisible = visible;
-    view.setVisible(visible);
+    view.setVisible(visible && tab.navigationSafety?.action !== 'block');
+    this.updateTabSafetyInterstitial(tab);
   }
 
   private applyTabBounds(tab: BrowserTabRuntime, view: WebContentsView, bounds: Rectangle): void {
@@ -1899,6 +4171,8 @@ export class IntegratedBrowserService extends EventEmitter {
     }
     tab.appliedBounds = { ...bounds };
     view.setBounds(bounds);
+    this.configureTabZoom(tab);
+    this.updateTabSafetyInterstitial(tab);
   }
 
   private toTabState(tab: BrowserTabRuntime): IntegratedBrowserTabState {
@@ -1909,9 +4183,30 @@ export class IntegratedBrowserService extends EventEmitter {
       title: tab.title || 'Nueva pestaña',
       isLoading: tab.loading,
       error: tab.error,
+      navigationSafety: tab.navigationSafety ? { ...tab.navigationSafety } : null,
+      sensitiveHandoff: tab.view && this.sensitiveDocuments.has(tab.view.webContents) ? { reason: this.sensitiveDocuments.get(tab.view.webContents)! } : null,
       isSuspended: tab.view === null,
       isDetached: this.detachedWindows.has(tab.id),
+      muted: tab.muted,
+      zoomFactor: tab.zoomFactor,
+      find: tab.find ? { ...tab.find } : null,
+      pinned: tab.pinned,
+      groupId: tab.groupId,
+      position: Array.from(this.tabs.keys()).indexOf(tab.id),
     };
+  }
+
+  private toSessionTab(tab: BrowserTabRuntime, position: number): BrowserSessionTab {
+    return { id: tab.id, url: tab.url, title: tab.title, pinned: tab.pinned, muted: tab.muted, groupId: tab.groupId, position };
+  }
+
+  private moveTabToIndex(tabId: string, rawPosition: number): void {
+    const entries = Array.from(this.tabs.entries());
+    const current = entries.findIndex(([id]) => id === tabId);
+    if (current < 0) return;
+    const [entry] = entries.splice(current, 1);
+    entries.splice(Math.max(0, Math.min(entries.length, rawPosition)), 0, entry);
+    this.tabs = new Map(entries);
   }
 
   /**
@@ -1936,7 +4231,10 @@ export class IntegratedBrowserService extends EventEmitter {
     tab.bootstrap = bootstrap;
     // DevTools exige ser el unico cliente del protocolo. No se le disputa la
     // sesion: se cede al abrirlo y se recupera cuando el usuario lo cierra.
-    contents.on('devtools-closed', () => { void bootstrap.install(); });
+    contents.on('devtools-closed', () => {
+      void bootstrap.install();
+      if (this.credentialAutosaveEnabled) void tab.credentialObserver?.install();
+    });
     // Diferido a la siguiente vuelta del bucle, no a una microtarea: adjuntar
     // el depurador durante la construccion de la vista se entrelazaba con la
     // negociacion de permisos de la pagina y con su navegacion inicial.
@@ -1948,7 +4246,10 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   private destroyTab(tab: BrowserTabRuntime): void {
+    this.safetyInterstitials.remove(`tab:${tab.id}`);
     this.invalidateObservation(tab.id);
+    void tab.credentialObserver?.dispose();
+    tab.credentialObserver = null;
     void tab.bootstrap?.dispose();
     tab.bootstrap = null;
     const view = tab.view;
@@ -1972,6 +4273,7 @@ export class IntegratedBrowserService extends EventEmitter {
     if (!contents || contents.isDestroyed()) return;
     tab.url = contents.getURL() || tab.url || 'about:blank';
     tab.title = contents.getTitle() || tab.title || 'Nueva pestaña';
+    if (supportsIsolatedBrowserZoom(contents)) tab.zoomFactor = contents.getZoomFactor();
     tab.canGoBack = contents.navigationHistory.canGoBack();
     tab.canGoForward = contents.navigationHistory.canGoForward();
   }
@@ -2044,22 +4346,31 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   private requireParentWindow(): BrowserWindow {
+    if (this.scopeChanging) throw new Error('El perfil está cambiando; espera antes de usar el navegador.');
+    if (this.ephemeralCleanupPending || this.ephemeralCleanupFailed || this.shutdownCommitted) {
+      throw new Error('El perfil temporal no está disponible durante el cierre o la limpieza.');
+    }
     if (!this.parentWindow || this.parentWindow.isDestroyed()) {
       throw new Error('La ventana principal no esta disponible para mostrar el navegador.');
     }
     return this.parentWindow;
   }
 
-  private waitForViewport(timeoutMs: number): Promise<void> {
+  private waitForViewport(timeoutMs: number, signal?: AbortSignal): Promise<void> {
+    assertCuNotAborted(signal);
     return new Promise((resolve, reject) => {
       const waiter = {} as ViewportWaiter;
-      waiter.resolve = resolve;
-      waiter.reject = reject;
-      waiter.timer = setTimeout(() => {
+      const abort = () => waiter.reject(new Error('Tarea cancelada.'));
+      const cleanup = () => {
+        clearTimeout(waiter.timer);
+        signal?.removeEventListener('abort', abort);
         this.viewportWaiters.delete(waiter);
-        reject(new Error('El navegador integrado no recibio un viewport visible a tiempo.'));
-      }, timeoutMs);
+      };
+      waiter.resolve = () => { cleanup(); resolve(); };
+      waiter.reject = error => { cleanup(); reject(error); };
+      waiter.timer = setTimeout(() => waiter.reject(new Error('El navegador integrado no recibio un viewport visible a tiempo.')), timeoutMs);
       this.viewportWaiters.add(waiter);
+      signal?.addEventListener('abort', abort, { once: true });
     });
   }
 
@@ -2343,10 +4654,18 @@ export class IntegratedBrowserService extends EventEmitter {
     if (!tabId || this.latestVisualCapture?.tabId === tabId) this.latestVisualCapture = null;
   }
 
-  private refreshVisualCapture(force = false): Promise<BrowserVisualCapture | null> {
-    if (!this.observationEnabled) return Promise.resolve(null);
+  private async refreshVisualCapture(force = false, authorization?: () => void): Promise<BrowserVisualCapture | null> {
+    if (!this.observationEnabled) return null;
     const tab = this.getActiveTab();
-    if (!tab || !this.isTabVisible(tab) || !tab.view || tab.view.webContents.isDestroyed()) return Promise.resolve(null);
+    if (!tab || !this.isTabVisible(tab) || !tab.view || tab.view.webContents.isDestroyed()) return null;
+    const authorizedUrl = tab.view.webContents.getURL();
+    if (!authorization && !await this.canAgentAccessWithoutPrompt(authorizedUrl, 'capture')) {
+      this.latestVisualCapture = null;
+      return null;
+    }
+    try { await this.assertDocumentNotSensitive(tab.id); } catch { this.invalidateObservation(tab.id); return null; }
+    authorization?.();
+    if (this.getActiveTab() !== tab || tab.view.webContents.isDestroyed() || tab.view.webContents.getURL() !== authorizedUrl) return null;
     const host = this.getTabHost(tab);
     if (!host || !this.isWindowUsable(host)) {
       return Promise.resolve(this.compatibleLatestVisualCapture(tab.id, tab.view.webContents.getURL(), tab.visualRevision));
@@ -2374,11 +4693,13 @@ export class IntegratedBrowserService extends EventEmitter {
     if (this.visualCaptureInFlight) {
       const sameTarget = this.visualCaptureInFlightTarget?.tabId === tabId && this.visualCaptureInFlightTarget.url === startedUrl;
       if (sameTarget) return this.visualCaptureInFlight;
-      return this.visualCaptureInFlight.then(() => this.refreshVisualCapture(force));
+      return this.visualCaptureInFlight.then(() => this.refreshVisualCapture(force, authorization));
     }
     const capture = (async (): Promise<BrowserVisualCapture | null> => {
       try {
         const image = await contents.capturePage();
+        await this.assertDocumentNotSensitive(tabId);
+        authorization?.();
         if (image.isEmpty()) throw new Error('La captura de percepción está vacía.');
         if (!this.observationEnabled || !this.isTabVisible(tab) || this.activeTabId !== tabId || contents.isDestroyed() || contents.getURL() !== startedUrl || tab.visualRevision !== startedRevision) {
           return this.compatibleLatestVisualCapture(tabId, startedUrl, tab.visualRevision);
@@ -2405,10 +4726,18 @@ export class IntegratedBrowserService extends EventEmitter {
     return capture;
   }
 
-  private refreshObservation(force = false): Promise<BrowserObservationSnapshot | null> {
-    if (!this.observationEnabled) return Promise.resolve(null);
+  private async refreshObservation(force = false, authorization?: () => void): Promise<BrowserObservationSnapshot | null> {
+    if (!this.observationEnabled) return null;
     const tab = this.getActiveTab();
-    if (!tab || !this.isTabVisible(tab) || !tab.view || tab.view.webContents.isDestroyed()) return Promise.resolve(null);
+    if (!tab || !this.isTabVisible(tab) || !tab.view || tab.view.webContents.isDestroyed()) return null;
+    const authorizedUrl = tab.view.webContents.getURL();
+    if (!authorization && !await this.canAgentAccessWithoutPrompt(authorizedUrl, 'observe-dom')) {
+      this.latestObservation = null;
+      return null;
+    }
+    try { await this.assertDocumentNotSensitive(tab.id); } catch { this.invalidateObservation(tab.id); return null; }
+    authorization?.();
+    if (this.getActiveTab() !== tab || tab.view.webContents.isDestroyed() || tab.view.webContents.getURL() !== authorizedUrl) return null;
     const host = this.getTabHost(tab);
     if (!host || !this.isWindowUsable(host)) {
       return Promise.resolve(this.compatibleLatestObservation(tab.id, tab.view.webContents.getURL()));
@@ -2420,14 +4749,16 @@ export class IntegratedBrowserService extends EventEmitter {
     if (this.observationInFlight) {
       const sameTarget = this.observationInFlightTarget?.tabId === tabId && this.observationInFlightTarget.url === startedUrl;
       if (sameTarget) return this.observationInFlight;
-      return this.observationInFlight.then(() => this.refreshObservation(force));
+      return this.observationInFlight.then(() => this.refreshObservation(force, authorization));
     }
     const capture = (async (): Promise<BrowserObservationSnapshot | null> => {
       try {
         const [visualCapture, dom] = await Promise.all([
-          this.getFreshVisualCapture(tabId, startedUrl),
+          this.getFreshVisualCapture(tabId, startedUrl, authorization),
           collectIntegratedBrowserDom(contents),
         ]);
+        await this.assertDocumentNotSensitive(tabId);
+        authorization?.();
         if (!visualCapture) throw new Error('La captura de percepción está vacía.');
         if (!this.observationEnabled || !this.isTabVisible(tab) || this.activeTabId !== tabId || contents.isDestroyed() || contents.getURL() !== startedUrl) {
           return this.compatibleLatestObservation(tabId, startedUrl);
@@ -2466,14 +4797,24 @@ export class IntegratedBrowserService extends EventEmitter {
     return latest?.tabId === tabId && latest.url === url && (revision === undefined || latest.revision === revision) ? latest : null;
   }
 
-  private getFreshVisualCapture(tabId: string, url: string): Promise<BrowserVisualCapture | null> {
+  private getFreshVisualCapture(tabId: string, url: string, authorization?: () => void): Promise<BrowserVisualCapture | null> {
     const tab = this.tabs.get(tabId);
     const latest = this.compatibleLatestVisualCapture(tabId, url, tab?.visualRevision);
     const age = latest ? Date.now() - Date.parse(latest.capturedAt) : Number.POSITIVE_INFINITY;
     // La cadencia multimedia solo limita el muestreo pasivo. Un turno
     // explicito no debe reutilizar durante 30 s una imagen que pudo cambiar por
     // XHR sin producir un evento de entrada.
-    return age < INTEGRATED_BROWSER_OBSERVATION_INTERVAL_MS ? Promise.resolve(latest) : this.refreshVisualCapture(true);
+    return age < INTEGRATED_BROWSER_OBSERVATION_INTERVAL_MS ? Promise.resolve(latest) : this.refreshVisualCapture(true, authorization);
+  }
+
+  private configureTabZoom(tab: BrowserTabRuntime): void {
+    const contents = tab.view?.webContents;
+    if (!contents || contents.isDestroyed()) return;
+    applyBrowserTabZoom(contents, tab.zoomFactor, tab.appliedBounds);
+  }
+
+  private assertCapability(capability: keyof typeof this.capabilities): void {
+    if (!this.capabilities[capability]) throw new Error(`La capacidad del navegador está deshabilitada: ${capability}.`);
   }
 }
 
@@ -2608,6 +4949,43 @@ function isBlockedGoogleChatDirectCall(source: unknown, target: unknown): boolea
  * el usuario puede estar leyendolo. Solo existe para que una pagina no quede
  * bloqueada para siempre si el aviso nunca llega a responderse.
  */
+const BUILTIN_TRACKING_RULES: Array<{ host: string; category: BrowserPrivacyCategory }> = [
+  { host: 'doubleclick.net', category: 'advertising' },
+  { host: 'google-analytics.com', category: 'tracker' },
+  { host: 'googlesyndication.com', category: 'advertising' },
+  { host: 'scorecardresearch.com', category: 'tracker' },
+  { host: 'hotjar.com', category: 'tracker' },
+  { host: 'clarity.ms', category: 'tracker' },
+  { host: 'criteo.com', category: 'advertising' },
+];
+
+function privacyRequestOrigin(details: { url: string; resourceType: string; webContents?: WebContents; frame?: Electron.WebFrameMain | null }): string {
+  // Electron no expone `initiator`; la política pertenece al documento superior.
+  if (details.resourceType === 'mainFrame') return normalizePrivacyOrigin(details.url);
+  try { return normalizePrivacyOrigin(details.webContents?.getURL() || details.frame?.top?.url || details.url); }
+  catch { return normalizePrivacyOrigin(details.url); }
+}
+
+function privacyCategoryEnabled(level: BrowserPrivacyLevel, exceptions: BrowserPrivacyCategory[], category: BrowserPrivacyCategory): boolean {
+  if (category === 'malware') return true;
+  return level !== 'off' && !exceptions.includes(category);
+}
+
+function isThirdPartyRequest(requestUrl: string, initiator?: string): boolean {
+  if (!initiator) return false;
+  try {
+    const requestHost = new URL(requestUrl).hostname.toLowerCase();
+    const initiatorHost = new URL(initiator).hostname.toLowerCase();
+    const site = (host: string) => getDomain(host, { allowPrivateDomains: true }) ?? host;
+    return site(requestHost) !== site(initiatorHost);
+  } catch { return false; }
+}
+
+function removeHeader(headers: Record<string, unknown>, name: string): void {
+  const key = Object.keys(headers).find((candidate) => candidate.toLowerCase() === name);
+  if (key) delete headers[key];
+}
+
 const PERMISSION_PROMPT_TIMEOUT_MS = 120_000;
 
 /**

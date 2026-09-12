@@ -27,7 +27,7 @@ export function registerSkillWorkspaceHandlers(
     rendererDist: path.join(process.env.APP_ROOT ?? process.cwd(), 'dist'),
     devServerUrl: process.env.VITE_DEV_SERVER_URL,
   });
-  app.once('before-quit', () => { void runtime.stop(); });
+  app.once('will-quit', () => { void runtime.stop(); });
 
   ipcMain.handle('skill-workspace:create', (_event, input: {
     skillId: string;

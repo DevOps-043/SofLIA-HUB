@@ -31,7 +31,7 @@ export interface ChatMessage {
   role: 'user' | 'model';
   text: string;
   timestamp: number;
-  sources?: Array<{ uri: string; title: string; snippet?: string }>;
+  sources?: Array<{ uri: string; title: string; snippet?: string; kind?: 'browser'; citationId?: string; capturedAt?: string }>;
   images?: string[];
   feedback?: 'like' | 'dislike';
 }

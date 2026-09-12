@@ -6,6 +6,7 @@ import { setUserPreferenceScope } from '../../services/user-scope';
 import { useAuthLifecycle } from './useAuthLifecycle';
 import { useAuthState } from './useAuthState';
 import { useLiaSession } from './useLiaSession';
+import { useSofiaContextRetry } from './useSofiaContextRetry';
 import { useSofiaResolver } from './useSofiaResolver';
 import { useSofiaSelection } from './useSofiaSelection';
 import { useSofiaSignIn } from './useSofiaSignIn';
@@ -24,10 +25,27 @@ export function useAuthProviderModel(): AuthContextType {
   const signInWithSofia = useSofiaSignIn({ ...state, ensureLiaSession, signOut });
   const learningSso = useLearningSso({ ...state, ensureLiaSession, signOut });
   const selection = useSofiaSelection(state);
-  const retryConversations = useCallback(
-    async () => Boolean(await ensureLiaSession(state.user?.email)),
-    [ensureLiaSession, state.user?.email],
-  );
+  const retrySofiaContext = useSofiaContextRetry({
+    issue: state.sofiaContextIssue,
+    usingSofia,
+    userId: state.user?.id ?? null,
+    resolveSofiaContext,
+    setSofiaContext: state.setSofiaContext,
+    setSofiaContextIssue: state.setSofiaContextIssue,
+  });
+
+  // El boton "Reintentar" del panel lateral cubre las dos caidas posibles: la
+  // sesion de conversaciones y el directorio de organizaciones. El canje de Lia
+  // necesita el token de SOFIA; sin el responde `not_authenticated` y el
+  // reintento manual nunca podia recuperarse.
+  const retryConversations = useCallback(async () => {
+    const sofiaSession = usingSofia ? await sofiaAuth.getSession() : null;
+    const [liaSession] = await Promise.all([
+      ensureLiaSession(state.user?.email, sofiaSession?.access_token ?? null),
+      state.sofiaContextIssue ? retrySofiaContext() : Promise.resolve(true),
+    ]);
+    return Boolean(liaSession);
+  }, [ensureLiaSession, retrySofiaContext, state.sofiaContextIssue, state.user?.email, usingSofia]);
 
   useAuthLifecycle({
     ...state,
@@ -82,6 +100,10 @@ export function useAuthProviderModel(): AuthContextType {
     liaDegraded: state.liaDegraded,
     liaStatusMessage: state.liaStatusMessage,
     retryConversations,
+    sofiaContextDegraded: state.sofiaContextIssue !== null,
+    sofiaStatusMessage: state.sofiaContextIssue?.message ?? null,
+    sofiaContextRetryable: state.sofiaContextIssue?.retryable ?? false,
+    retrySofiaContext,
     signInWithSofia,
     learningSsoAvailable: learningSso.learningSsoAvailable,
     signInWithLearningSso: learningSso.signInWithLearningSso,

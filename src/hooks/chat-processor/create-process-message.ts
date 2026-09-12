@@ -30,5 +30,6 @@ export function createProcessMessage(input: CreateProcessMessageInput) {
     signal?: AbortSignal,
     isCurrent?: () => boolean,
     selectionContext?: string,
-  ) => processChatMessage({ ...input, text, images, currentHistory, isRegeneration, signal, isCurrent, selectionContext });
+    browserSources?: ChatMessage['sources'],
+  ) => processChatMessage({ ...input, text, images, currentHistory, isRegeneration, signal, isCurrent, selectionContext, browserSources });
 }

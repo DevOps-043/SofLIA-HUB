@@ -29,6 +29,7 @@ vi.mock('../../services/iris-data', () => ({ needsIrisData: mocks.needsIrisData,
 vi.mock('../../services/memory-bridge', () => ({ fetchChatMemoryContext: mocks.fetchChatMemoryContext, recordChatTurn: mocks.recordChatTurn }));
 
 import { processChatMessage } from '../../hooks/chat-processor/process-message';
+import { normalizeMessage } from '../../services/chat/normalize/messages';
 
 function singleChunk(text: string): AsyncIterable<string> {
   return (async function* () { if (text) yield text; })();
@@ -59,6 +60,23 @@ function lastAiText(messages: ChatMessage[]): string | undefined {
 }
 
 describe('process-message settle guarantee', () => {
+  it('conserva fragmentos reales en el turno, respuesta y reapertura, también al regenerar', async () => {
+    const source = { kind: 'browser' as const, citationId: 'P1:F1', title: 'Documento', uri: 'https://example.com/p', snippet: 'Evidencia textual', capturedAt: '2026-09-09T12:00:00.000Z' };
+    mocks.sendMessageStream.mockResolvedValue({ stream: singleChunk('Conclusión [P1:F1]'), sources: Promise.resolve([{ title: 'Fuente web', uri: 'https://web.example/' }]) });
+    const { input, lastMessages } = baseInput({ browserSources: [source] });
+    await processChatMessage(input as never);
+    expect(mocks.sendMessageStream.mock.calls[0][0]).toContain('Evidencia textual');
+    expect(mocks.sendMessageStream.mock.calls[0][0]).toContain('P1:F1');
+    const reopened = lastMessages().map((message) => normalizeMessage(JSON.parse(JSON.stringify(message)))!);
+    expect(reopened[0].sources).toEqual([source]);
+    expect(reopened[1].sources).toContainEqual(source);
+    expect(reopened[1].sources).toContainEqual({ title: 'Fuente web', uri: 'https://web.example/' });
+    mocks.sendMessageStream.mockResolvedValue({ stream: singleChunk('Nueva conclusión [P1:F1]'), sources: Promise.resolve(null) });
+    const regenerated = baseInput({ isRegeneration: true, currentHistory: [reopened[0]], browserSources: reopened[0].sources });
+    await processChatMessage(regenerated.input as never);
+    expect(regenerated.lastMessages()).toHaveLength(2);
+    expect(regenerated.lastMessages()[1].sources).toEqual([source]);
+  });
   beforeEach(() => vi.clearAllMocks());
 
   it('SETTLE-1: un resultado sin texto resuelve el placeholder con un respaldo (no "...")', async () => {

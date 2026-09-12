@@ -1,4 +1,8 @@
 import type { Rectangle } from 'electron';
+import type { BrowserSensitiveHandoff } from '../../src/shared/browser-sensitive-handoff';
+import type { BrowserAgentTaskState } from '../../src/shared/browser-agent-control';
+import type { BrowserTabGroup } from './platform-types';
+import type { BrowserNavigationSafetyVerdict } from './safe-navigation';
 
 /**
  * Particion global anterior al aislamiento por usuario. Ya no se usa para
@@ -37,11 +41,28 @@ export interface IntegratedBrowserTabState {
   title: string;
   isLoading: boolean;
   error: string | null;
+  /** Revisión del destino actual o del último intento bloqueado; no se persiste. */
+  navigationSafety?: BrowserNavigationSafetyVerdict | null;
+  sensitiveHandoff?: BrowserSensitiveHandoff | null;
   isSuspended: boolean;
   isDetached: boolean;
+  muted: boolean;
+  zoomFactor: number;
+  find: {
+    query: string;
+    activeMatchOrdinal: number;
+    matches: number;
+    finalUpdate: boolean;
+  } | null;
+  pinned: boolean;
+  groupId: string | null;
+  position: number;
 }
 
 export interface IntegratedBrowserState {
+  /** Invalida paneles locales sin revelar la identidad del perfil. */
+  profileRevision?: number;
+  credentialUnlocked?: boolean;
   url: string;
   title: string;
   canGoBack: boolean;
@@ -49,6 +70,8 @@ export interface IntegratedBrowserState {
   isLoading: boolean;
   isVisible: boolean;
   agentControlling: boolean;
+  agentTask?: BrowserAgentTaskState | null;
+  agentPolicyPromptIds?: string[];
   error: string | null;
   tabs: IntegratedBrowserTabState[];
   activeTabId: string | null;
@@ -57,6 +80,10 @@ export interface IntegratedBrowserState {
   viewMode: IntegratedBrowserViewMode;
   /** La pagina pidio pantalla completa y la vista cubre la ventana. */
   isFullscreen: boolean;
+  tabLayout: 'horizontal' | 'vertical';
+  groups: BrowserTabGroup[];
+  canReopenClosedTab: boolean;
+  restoreAvailable: { tabCount: number; savedAt: string; cleanExit: boolean } | null;
 }
 
 export interface IntegratedBrowserViewport extends Rectangle {}
@@ -191,9 +218,19 @@ export interface BrowserCredentialSaveInput {
   password: string;
 }
 
+export interface BrowserCredentialHealth {
+  id: string;
+  weak: boolean;
+  reused: boolean;
+  reasons: string[];
+}
+
 export type BrowserExtensionStatus = 'loaded' | 'disabled' | 'error';
 
 export interface BrowserExtensionMetadata {
+  catalogId?: string;
+  catalogRevision?: string;
+  siteAccess?: string[];
   installId: string;
   extensionId: string | null;
   name: string;
@@ -206,6 +243,8 @@ export interface BrowserExtensionMetadata {
 }
 
 export interface BrowserExtensionInstallPreview {
+  catalogName?: string;
+  updateName?: string;
   token: string;
   name: string;
   version: string;

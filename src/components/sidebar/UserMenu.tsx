@@ -15,6 +15,8 @@ interface UserMenuProps {
   organizations?: SofiaOrganization[];
   currentOrgId?: string;
   onSelectOrganization?: (orgId: string) => void;
+  organizationsUnavailableMessage?: string | null;
+  onRetryOrganizations?: () => Promise<boolean>;
   theme: ThemeMode;
   onSetTheme: (t: ThemeMode) => void;
   onOpenSettings: () => void;
@@ -39,6 +41,8 @@ export function UserMenu({
   organizations = [],
   currentOrgId,
   onSelectOrganization,
+  organizationsUnavailableMessage,
+  onRetryOrganizations,
   theme,
   onSetTheme,
   onOpenSettings,
@@ -47,6 +51,7 @@ export function UserMenu({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [themeDropdownOpen, setThemeDropdownOpen] = useState(false);
   const [orgDropdownOpen, setOrgDropdownOpen] = useState(false);
+  const [retryingOrgs, setRetryingOrgs] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close sub-dropdowns when main menu closes
@@ -109,6 +114,35 @@ export function UserMenu({
                 : 'left-2 w-[220px]'
             }`}
           >
+            {/* SOFIA no respondio: sin directorio no hay a que cambiar, asi que se
+                dice por que falta el selector en vez de dejar el menu mudo. */}
+            {organizations.length === 0 && organizationsUnavailableMessage && (
+              <div className="relative">
+                {onRetryOrganizations ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (retryingOrgs) return;
+                      setRetryingOrgs(true);
+                      void onRetryOrganizations().finally(() => setRetryingOrgs(false));
+                    }}
+                    disabled={retryingOrgs}
+                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[11.5px] font-medium text-amber-700 transition-colors hover:bg-amber-50 disabled:opacity-60 dark:text-amber-300/90 dark:hover:bg-amber-400/10"
+                  >
+                    <span className="min-w-0 flex-1">
+                      {organizationsUnavailableMessage}{' '}
+                      <span className="underline">{retryingOrgs ? 'Reintentando…' : 'Reintentar'}</span>
+                    </span>
+                  </button>
+                ) : (
+                  <p className="px-3 py-2 text-[11.5px] font-medium text-amber-700 dark:text-amber-300/90">
+                    {organizationsUnavailableMessage}
+                  </p>
+                )}
+                <div className="mx-2 my-1 h-px bg-gray-200/80 dark:bg-white/[0.06]" />
+              </div>
+            )}
+
             {/* Organizations dropdown */}
             {organizations.length > 1 && onSelectOrganization && (
               <div className="relative">

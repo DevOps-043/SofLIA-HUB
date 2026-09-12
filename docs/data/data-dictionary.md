@@ -1,6 +1,6 @@
 # Diccionario de datos
 
-Estado: vigente. Actualizado: 2026-07-21.
+Estado: vigente. Actualizado: 2026-09-11.
 
 `Usada` significa que existe una referencia `.from('<tabla>')` en codigo de
 producto. `Snapshot` significa contrato disponible en el dump, no consumo ni
@@ -10,6 +10,16 @@ existencia productiva verificada.
 <!-- evidence: database/iris/snapshots/schema.sql -->
 <!-- evidence: database/sofia-learning/snapshots/schema.sql -->
 <!-- evidence: electron/memory/schema.ts -->
+
+## Memoria semántica local del navegador
+
+La memoria semántica del navegador no añade tablas Supabase. Usa
+`semantic-memory.sqlite` por perfil autenticado, versión SQLite 1 y una tabla
+`snapshot`: `id=1`, `payload BLOB NOT NULL`. El payload protege con safeStorage
+el ámbito absoluto, opt-in, fecha de indexación, fuentes y vectores; no almacena
+cuerpo de páginas. Rechaza formato desconocido/futuro, corrupción y ámbito
+distinto. Escritura transaccional y borrado explícito; sin respaldo ni sync.
+Evidencia: [store local](../../electron/integrated-browser/semantic-memory-store.ts).
 
 ## Lia: tablas usadas por el Hub
 
@@ -48,6 +58,22 @@ existencia productiva verificada.
 | Skills pasivas | `passive_skills` | Una fila por rutina programada, con `user_id` y `profile`. Fuente de verdad; el JSON del planificador es cache de arranque. Requiere que main opere con sesion |
 | Ajustes por Skill | `user_skill_settings` | Canales, herramientas y busqueda web por usuario y Skill. `tools` a NULL = sin eleccion (toda la superficie); array vacio = ninguna. Sustituye a `user_skill_channels`, que se conserva una version |
 | Canales por Skill (retirada) | `user_skill_channels` | Una fila por Skill configurada. La AUSENCIA de fila no retira canales: la Skill queda activa en todos los que declara su catalogo |
+
+## Lia: sync del navegador preparado sin consumidor remoto
+
+Fuente: [migración aditiva](../../database/lia/migrations/browser-encrypted-sync.sql).
+No se afirma que estas tablas existan en producción; no se modificó el snapshot.
+
+| Tabla | Contrato | Aislamiento y límites |
+|---|---|---|
+| `browser_sync_devices` | UUID aleatorio y sesión Auth ligada; creación/revocación trazables | propietario Lia; máximo 100 filas por titular, incluidas revocadas; cliente sólo lee metadata propia sin auth_session_id |
+| `browser_sync_envelopes` | última instantánea v1 AES-256-GCM por categoría; revisión y emisor | cuatro categorías permitidas; ciphertext de hasta 2 MiB; SELECT propio y RPC con revisión base |
+| `browser_sync_mutations` | recibo por idempotency_key; SHA-256 del pedido cifrado, trace_id y revisión | sin lectura directa del cliente; máximo 10.000 por titular; no purga automática |
+
+Las PK por propietario/categoría e idempotencia y el índice por propietario/fecha
+acotan consultas. Cambiar de organización no comparte estas filas. Dispositivos
+revocados no leen ni escriben aun si su JWT no ha expirado. No se revocan copias
+ya descargadas ni se implementa aquí el flujo UI de dispositivos.
 
 ## IRIS: tablas consumidas
 
@@ -100,6 +126,27 @@ verificarse contra la instancia antes de cambiar consultas.
 | Analitica/UX | `dashboard_layouts`, `user_activity_log`, `user_tour_progress`, `business_user_analytics_insight_cache`, `organization_course_intro_videos`, `activity_logs`, `daily_summaries`, `calendar_connections`, `user_favorite_tools` |
 
 ## SQLite local
+
+Atajos y configuración sync conservan sus formatos cifrados v1. Sus copias de
+recuperación añaden el mismo sobre safeStorage ligado al archivo absoluto que
+permisos/privacidad/agente; no hay nuevas tablas ni sincronización de copias.
+La biblioteca recuperada renueva IDs/revisión; configuración conserva binding
+pero vacía categorías y fecha de última ejecución. [Persistencia](../architecture/integrated-browser-platform.md#persistencia-y-recuperación).
+
+El registro v1 de extensiones del navegador conserva `catalogId` y
+`catalogRevision` opcionales además de integridad e instalaciones. Identifican
+el catálogo distribuido con la app, no credenciales ni rutas; `siteAccess`
+permanece al actualizar. Fuente, formato y reglas de persistencia:
+[plataforma del navegador](../architecture/integrated-browser-platform.md).
+
+Historial, bitácora y memoria semántica inicializan esquema/versionado SQLite
+en una transacción común. El archivo de permisos por sitio conserva versión 1;
+una versión distinta o lectura fallida bloquea guardados, sin convertirla a vacía.
+Permisos, privacidad y políticas del agente mantienen su esquema principal v1.
+Sus copias `.recovery.bin` y `.damaged-UUID.bin` contienen un sobre cifrado por
+safeStorage de versión 1, ámbito absoluto de archivo y bytes base64; sólo main
+lo descifra. No añaden tablas Supabase ni se sincronizan. Recuperación restrictiva,
+cuotas y borrado de copias: [persistencia del navegador](../architecture/integrated-browser-platform.md#persistencia-y-recuperación).
 
 | Tabla | Campos clave | Regla |
 |---|---|---|

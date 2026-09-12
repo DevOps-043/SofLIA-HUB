@@ -134,7 +134,7 @@ describe('gemini-chat', () => {
       await vi.advanceTimersByTimeAsync(45_000);
       await pending;
       expect(mockChatsCreate).toHaveBeenCalledTimes(1);
-      expect(mockChatsCreate).toHaveBeenCalledWith(expect.objectContaining({ model: 'gemini-3.6-flash' }));
+      expect(mockChatsCreate).toHaveBeenCalledWith(expect.objectContaining({ model: 'gemini-3.8-flash' }));
     } finally {
       warnSpy.mockRestore();
       vi.useRealTimers();
@@ -169,7 +169,7 @@ describe('gemini-chat', () => {
       const { sendMessageStream } = await import('../../services/gemini-chat');
       await expect(sendMessageStream('Hola', [])).rejects.toThrow('quota exceeded');
       expect(mockChatsCreate).toHaveBeenCalledTimes(1);
-      expect(mockChatsCreate.mock.calls[0]?.[0]).toMatchObject({ model: 'gemini-3.6-flash' });
+      expect(mockChatsCreate.mock.calls[0]?.[0]).toMatchObject({ model: 'gemini-3.8-flash' });
     } finally {
       warnSpy.mockRestore();
     }
@@ -202,7 +202,7 @@ describe('gemini-chat', () => {
       expect(text).toBe('Respuesta verificada');
       expect(mockChatsCreate).not.toHaveBeenCalled();
       expect(fetchSpy).toHaveBeenCalledTimes(1);
-      expect(String(fetchSpy.mock.calls[0]?.[0])).toContain('/gemini-3.6-flash:generateContent');
+      expect(String(fetchSpy.mock.calls[0]?.[0])).toContain('/gemini-3.8-flash:generateContent');
       expect(String(fetchSpy.mock.calls[0]?.[0])).toContain('?key=');
       expect(requestInit.headers).toEqual({ 'Content-Type': 'application/json' });
       expect(body.tools).toEqual([{ google_search: {} }, { code_execution: {} }]);
@@ -274,7 +274,7 @@ describe('gemini-chat', () => {
       expect(text).toBe('Respuesta desde main');
       expect(fetchSpy).not.toHaveBeenCalled();
       expect(invoke).toHaveBeenCalledWith('ai:generate-grounded', expect.any(Object));
-      expect(payload).toMatchObject({ modelName: 'gemini-3.6-flash', apiKey: 'env-test-key' });
+      expect(payload).toMatchObject({ modelName: 'gemini-3.8-flash', apiKey: 'env-test-key' });
       expect(payload.body.tools).toEqual([{ google_search: {} }, { code_execution: {} }]);
       expect(sources?.[0]).toMatchObject({ uri: 'https://example.com/main-source', title: 'Fuente main' });
     } finally {

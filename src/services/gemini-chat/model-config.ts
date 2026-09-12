@@ -7,7 +7,7 @@ import {
   NATIVE_AI_TOOLS,
   PROJECT_HUB_TOOLS,
 } from '../gemini-tools';
-import { filterDeclarationsBySelection, resolveSkillToolGroups, type ActiveSkillContext } from '../gemini-tools/turn-catalog';
+import { filterDeclarationsBySelection, resolveSkillToolGroups, resolveAttachedSourceToolGroups, type ActiveSkillContext } from '../gemini-tools/turn-catalog';
 import type { SendMessageStreamOptions } from './types';
 
 export function resolveModelId(options?: SendMessageStreamOptions): string {
@@ -56,7 +56,9 @@ export function buildModelTools(
   computerUseEnabled: boolean,
   modelId?: string,
   activeSkill?: ActiveSkillContext | null,
+  attachedSourcesOnly = false,
 ): any[] {
+  if (attachedSourcesOnly) return resolveAttachedSourceToolGroups(activeSkill);
   const hasGoogleWorkspace = typeof window !== 'undefined' && !!(window as any).calendar;
   const base: any[] = computerUseEnabled
     ? [COMPUTER_USE_TOOLS, PROJECT_HUB_TOOLS, NATIVE_AI_TOOLS]

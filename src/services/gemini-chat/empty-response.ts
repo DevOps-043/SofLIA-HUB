@@ -49,6 +49,19 @@ export function resolveEmptyGeminiText(
   return text;
 }
 
+/**
+ * `MALFORMED_FUNCTION_CALL` es un fallo de GENERACION, no de la peticion: el
+ * modelo intento llamar una herramienta y emitio la llamada mal formada, asi
+ * que la respuesta llega sin `functionCall` utilizable y sin texto.
+ *
+ * Se distingue del resto de motivos vacios porque es el unico que se corrige
+ * solo al reintentar; los demas (seguridad, tokens, recitacion) volverian a
+ * fallar igual y necesitan que el usuario cambie algo.
+ */
+export function isMalformedFunctionCall(response: unknown): boolean {
+  return readFinishReason(response) === 'MALFORMED_FUNCTION_CALL';
+}
+
 function readFinishReason(response: unknown): string {
   const candidates = (response as { candidates?: Array<{ finishReason?: unknown }> } | null)?.candidates;
   return String(candidates?.[0]?.finishReason ?? '').toUpperCase();

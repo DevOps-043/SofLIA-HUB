@@ -1,12 +1,30 @@
 # Seguridad y privacidad
 
-Estado: vigente. Actualizado: 2026-08-06.
+Estado: vigente. Actualizado: 2026-09-11.
 
 <!-- evidence: electron/preload/safe-ipc.ts -->
 <!-- evidence: electron/main/window-controller.ts -->
 <!-- evidence: ai-specs/policies/tool-boundaries.md -->
 
 ## Activos protegidos
+
+En el navegador, voz sólo acepta comandos cerrados desde la Orbe autenticada,
+visible y su marco principal. Memoria semántica exige opt-in nativo: Google
+recibe títulos, URL sin parámetros/fragmento y consultas, potencialmente
+personales y con coste; no páginas ni formularios. El índice local usa cifrado
+del SO, no E2EE ni sincronización; cancelar no retira datos enviados.
+
+La bóveda inicia bloqueada; sólo Windows Hello/PIN verificado por el SO abre
+una sesión temporal. No recibe PIN, biometría ni contraseña de Windows. No hay
+fallback a confirmar por IPC, ni a guardar sin cifrado. Esta barrera es de la
+aplicación: no convierte DPAPI en una clave ligada criptográficamente a cada
+verificación, ni protege contra malware con control de la cuenta local.
+
+La sonda sensible local no envía datos: devuelve sólo categoría y bloquea
+lectura/captura/actuación integrada del documento detectado hasta navegación
+nueva. No es un clasificador infalible de imágenes/texto arbitrario ni una
+política global de capturas de escritorio. Alcance y rutas en
+[plataforma del navegador](../architecture/integrated-browser-platform.md).
 
 - sesiones SOFIA/Supabase y tokens OAuth;
 - credenciales WhatsApp/Telegram/SMTP y API keys;
@@ -50,6 +68,7 @@ aprobacion.
 | Anuncio proactivo de la orbe | sin sesion iniciada no se muestra la orbe ni se locuta nada, y al cerrar sesion la cola pendiente se descarta; se muestra sin robar el foco | `electron/main/orb-announcements.ts` |
 | Workspace de Skills | contencion por `realpath` (cierra el escape por enlace simbolico), rechazo de rutas absolutas y `..`, allowlist de extensiones, limites de tamano y archivos protegidos que el modelo no puede reescribir | `electron/skill-workspace/paths.ts`, `electron/skill-workspace/service.ts` |
 | Render de presentaciones | protocolo local que solo sirve el workspace indicado, CSP sin `connect-src`, `iframe` con `sandbox="allow-scripts"` sin `allow-same-origin` y vista nativa sin preload en particion propia | `electron/skill-workspace/protocol.ts`, `electron/skill-workspace/presentation-view.ts` |
+| Directorio de usuarios SOFIA | `public.users` NO es legible con la clave anon ni por tabla: el escritorio la alcanza solo por dos funciones `SECURITY DEFINER`. Antes de autenticar solo se puede traducir un identificador a su correo (nada mas); ya autenticado solo se obtiene la fila propia (`auth.uid()`). La clave anon viaja dentro del ejecutable, asi que un GRANT sobre esa tabla equivaldria a publicar el directorio | `database/sofia-learning/migrations/desktop-users-read-access.sql`, `src/services/sofia-auth/login.ts`, `src/services/sofia-auth/profile.ts` |
 | Branding | solo columnas de presentacion, descarga restringida al host de Supabase SOFIA con limite de tamano y timeout, colores validados antes de entrar al CSS | `electron/organization-branding/` |
 | Handlers | payloads serializables y servicios por dominio | `electron/*-handlers.ts` |
 | Canales | principal, rol, scope y capabilities | `electron/communication-hub/authorization.ts` |
@@ -134,10 +153,42 @@ explicita y solo existe en Windows.
 | Sesiones web integradas | particion Chromium en `userData` | cookies/storage se comparten entre pestañas; máximo ocho `WebContentsView` permanecen vivas, hasta cuatro pueden estar en `BaseWindow` separadas sin renderer de aplicación adicional y el resto conserva metadata saneada; solo la pestaña enfocada llega a captura, DOM saneado, autofill o Computer Use; la percepción pasiva reduce la copia a 1024 px, espera inactividad y los overlays conservan únicamente evidencia temporal en memoria; el usuario puede pausar y descartar la observación | cookies y storage sobreviven reinicios; una pestaña suspendida se recarga al restaurarse y pierde su pila atrás/adelante; extensiones aprobadas observan la sesión compartida; una captura puede contener datos visibles sensibles aunque el DOM omita formularios y secretos |
 | Historial web | `history.jsonl`, maximo 2.000 entradas | usuario mediante wrapper acotado | URLs pueden revelar temas visitados; se eliminan credenciales embebidas |
 | Borrado de datos de navegacion | particion y archivos del perfil con sesion activa | el usuario elige categorias e intervalo y confirma antes de borrar | operacion irreversible y sin exportacion previa: vaciar la boveda pierde las contrasenas guardadas; el intervalo solo acota el historial y las demas categorias se borran completas, lo que la interfaz declara antes y despues; no alcanza al perfil de otra cuenta ni a marcadores y extensiones; no esta expuesta a ningun agente runtime |
-| Contrasenas web | `credentials.json`, secreto cifrado con `safeStorage` | main rellena por gesto y origen exacto; renderer recibe metadata | un proceso del mismo usuario puede heredar la frontera del sistema operativo |
+| Contrasenas web | `credentials.json` y `.bak` v2: metadata y secretos dentro de AES-256-GCM, clave protegida con `safeStorage` | main rellena por gesto y origen exacto; renderer recibe metadata. Sugerencias opt-in mediante mundo CDP privado y confirmación nativa; el agente no aprueba ni recibe secretos | DPAPI no protege frente a procesos del mismo usuario del SO; no hay bloqueo por inactividad, Windows Hello ni sincronización E2EE. El borrado retira la cuenta de ambas copias sin prometer eliminación física |
 | Extensiones web | copia administrada + registro en `userData` | usuario instala/deshabilita/remueve; agente sin API; renderer solo recibe metadata y token efimero | una extension aprobada puede observar paginas y campos que su permiso alcance |
 | Audio del modo lectura | texto enviado a ElevenLabs tras reproducir; audio/timestamps transitorios durante la sesión | renderer recibe audio del segmento y offsets; no existe canal de descarga o escritura | el contenido narrado sale al proveedor; el bundle main de una app distribuida no equivale a una bóveda remota de secretos |
 | Voz de la Orbe | respuesta del asistente enviada por segmentos a ElevenLabs durante un turno de voz | key sólo en main; renderer recibe MP3 y metadatos no secretos; sender autenticado y texto acotado | el texto hablado sale al proveedor; solicitudes anticipadas pueden consumir cuota aunque el usuario cancele después |
+
+El registro de dispositivos de sync sólo opera con perfil autenticado y flag
+habilitado. Main contrasta el token con Auth y vincula el usuario Lia verificado
+con su sesión actual; decodificar el JWT por sí solo no autentica. No utiliza
+service_role. El ID aleatorio y su vinculación se guardan protegidos por el SO,
+sin hostname ni MAC. El servidor conoce un ID seudónimo; no recibe claves E2EE.
+Registro/revocación requieren consentimiento nativo del titular y guardas de
+perfil, ventana y control humano. Los cuatro IPC rechazan subframes y payloads
+extra, y no publican causas remotas, tokens, owner ni session_id. Sin capacidad
+o en perfil efímero no se abre conexión ni se consulta la identidad local.
+Cancelar aborta la espera/solicitud local, no deshace operaciones recibidas por
+el servidor ni borra copias descargadas. La revocación del contrato Lia impide
+reutilizar la misma sesión para registrar otro ID; requiere nueva autenticación.
+
+El diario local de conflictos de sync protege instantáneas y decisiones con
+safeStorage, ligado al perfil y separado del envelope remoto E2EE. No tiene
+IPC de acceso arbitrario ni consumidor runtime; el controlador de sync conecta
+su revisión nativa mediante `sync-control`. Conserva diferencias hasta decisión
+completa y commit confirmado; ni el motor ni un reloj deciden sobrescribir un
+campo concurrente. DPAPI no autentica presencia ni aísla de otros procesos del
+mismo usuario. URLs pierden query/fragmento; títulos/etiquetas pueden contener
+información que una persona haya escrito voluntariamente. No sincroniza
+contraseñas, cookies ni passkeys, y no borra pendientes por caducidad.
+
+La bitácora del navegador cifra detalles por perfil mediante safeStorage; deja
+sólo fecha e ID aleatorio indexables en SQLite. Registra origen y pestaña
+seudónima, nunca capturas, argumentos, formularios o errores crudos. La consulta
+no es una herramienta runtime; modificar retención o borrar exige HITL nativo
+vigente. Una operación sin cierre no se presenta como éxito. El borrado usa
+secure_delete y VACUUM, sin prometer eliminación forense en SSD. DPAPI no
+sustituye autenticación de presencia ni protege frente a otro proceso del mismo
+usuario. El contrato completo vive en [la plataforma del navegador](../architecture/integrated-browser-platform.md).
 
 El modo lectura es explícito: seleccionar texto solo habilita la acción y no
 envía contenido al proveedor. La extracción local excluye formularios,
@@ -190,6 +241,21 @@ main inspecciona primero la carpeta y conserva su ruta solo en memoria durante
 cinco minutos; el renderer confirma identidad, permisos, permisos opcionales y
 hosts usando el token efimero, sin recibir el path ni acceso al archivo fuente.
 
+Restringir sitios de una extensión sólo reduce el manifiesto ya revisado y
+requiere acción humana en el panel, sesión autenticada, extensión deshabilitada
+y páginas cerradas/blancas para retirar scripts antiguos. No concede permisos
+globales ni a sitios adicionales; recuperar permisos requiere reinstalación.
+Se cubren hosts exactos por protocolo, incluidos todos sus puertos, no sólo el
+puerto estándar escrito. No es un cortafuegos para conexiones de la extensión.
+Una publicación parcial mantiene bloqueo por huella. La integridad local no
+autentica al editor; catálogo y actualización autenticada permanecen pendientes.
+
+La selección de cuenta passkey usa el evento nativo de Chromium, documento
+principal seguro y control humano. IDs vuelven sólo a su callback, no al agente
+ni al renderer; claves privadas quedan en el autenticador. El documento se marca
+sensible hasta navegación nueva. Este selector no reemplaza la UI de todas las
+peticiones WebAuthn del sistema ni acredita su aceptación interactiva.
+
 La allowlist HTTP(S)/`about:blank` se aplica al frame principal. Redirecciones
 secundarias de subframes no se convierten en errores globales porque no cambian
 la página visible y forman parte de flujos OAuth/2FA; un protocolo no permitido
@@ -221,6 +287,10 @@ posteriores a la inspección.
    Chrome Web Store, `.crx`, compatibilidad total con Chrome ni aislamiento entre
    una extension aprobada y las paginas para las que obtuvo permiso. Los errores
    de carga que recibe el renderer son genéricos y no incluyen rutas locales.
+   El catálogo inicial fija un ejemplo oficial GoogleChrome y compara todos sus
+   archivos con SHA-256 distribuidos en la aplicación. No es firma PGP en runtime
+   ni aprobación de cualquier editor. Actualizar exige revisión y mantiene los
+   sitios revocados; fallos de carga/publicación conservan la instalación anterior.
 6. Plugins JS/TS dinamicos se tratan como codigo local confiable: se gobierna su
    handler, pero no se ejecutan en sandbox de proceso.
 7. Config JSON y knowledge local no tienen cifrado en reposo demostrado por el
@@ -254,6 +324,21 @@ posteriores a la inspección.
     mejora posterior.
 
 ## Respuesta a incidentes
+
+Recuperar atajos renueva IDs/revisión, no ejecuta instrucciones ni concede
+permisos. Recuperar configuración sync deja categorías vacías, conserva binding
+local y no contacta Auth/servidor. No se aplica este respaldo a claves, sesiones,
+dispositivos revocados, checkpoints o decisiones ya enviadas. Eliminar atajos
+o guardar pausa retira las copias del almacén respectivo antes de escribir.
+
+La recuperación de permisos, privacidad y política del agente no restaura
+autoridad: elimina concesiones y excepciones, conserva denegaciones y bloquea
+entradas administradas. Exige titular, control humano y HITL nativo vigente;
+no modifica reglas empresariales, claves o dispositivos sync. Copias locales
+protegidas por el SO no equivalen a cifrado E2EE ni respaldos portables, y los
+JSON principales siguen conteniendo metadata legible. Al restablecer permisos
+se retiran todas sus copias locales para no retener orígenes borrados; no hay
+garantía de borrado forense. [Contrato y retención](../architecture/integrated-browser-platform.md#persistencia-y-recuperación).
 
 1. Detener servicio/canal afectado y revocar token desde proveedor.
 2. Conservar audit/log minimizado, trace IDs y ventana temporal; no copiar secretos.

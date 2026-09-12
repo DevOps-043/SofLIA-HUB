@@ -81,6 +81,10 @@ export interface SofiaUserProfile {
   username: string;
   email: string;
   full_name: string;
+  // Se conservan por separado ademas de `full_name`: partirlo por espacios
+  // rompe los apellidos compuestos, y el metadato de sesion los necesita.
+  first_name?: string | null;
+  last_name?: string | null;
   avatar_url?: string;
   platform_role?: string;
   organizations: SofiaOrganization[];

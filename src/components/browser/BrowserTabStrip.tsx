@@ -3,10 +3,14 @@ import {
   integratedBrowserService,
   type IntegratedBrowserTabState,
   type IntegratedBrowserViewMode,
+  type BrowserTabGroup,
 } from '../../services/integrated-browser-service';
 import { WindowControls } from '../ui/WindowControls';
+import { GROUP_COLORS } from './tab-group-colors';
 
 interface BrowserTabStripProps {
+  hideTabs?: boolean;
+  groups?: BrowserTabGroup[];
   tabs: IntegratedBrowserTabState[];
   activeTabId: string | null;
   secondaryTabId: string | null;
@@ -250,10 +254,13 @@ export function BrowserTabStrip(props: BrowserTabStripProps) {
       {/* Tira de pestañas responsive con reajuste perfecto continuo estilo Chrome */}
       <div
         className="flex min-w-0 flex-1 items-end gap-1 overflow-x-auto pr-2 [scrollbar-width:none] [app-region:drag] [-webkit-app-region:drag]"
+        role={props.hideTabs ? undefined : 'tablist'}
+        aria-orientation={props.hideTabs ? undefined : 'horizontal'}
         aria-label="Pestañas del navegador"
       >
-        {displayTabs.map((tab) => {
+        {(props.hideTabs ? [] : displayTabs).map((tab, index) => {
           const active = tab.id === activeTabId;
+          const group = props.groups?.find((item) => item.id === tab.groupId);
           const secondary = tab.id === secondaryTabId && viewMode === 'split';
           const isDragged = dragState?.tabId === tab.id;
           const deltaX = isDragged && dragState ? dragState.currentX - dragState.startX : 0;
@@ -287,6 +294,21 @@ export function BrowserTabStrip(props: BrowserTabStripProps) {
                 type="button"
                 role="tab"
                 aria-selected={active}
+                tabIndex={active ? 0 : -1}
+                onKeyDown={(event) => {
+                  if (event.key === 'Delete') { event.preventDefault(); onCloseTab(tab.id); return; }
+                  const delta = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+                  const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? displayTabs.length - 1 : delta ? (index + delta + displayTabs.length) % displayTabs.length : -1;
+                  if (nextIndex < 0) return;
+                  event.preventDefault();
+                  const next = displayTabs[nextIndex];
+                  if (event.ctrlKey && event.shiftKey && delta) {
+                    void integratedBrowserService.reorderTabs(tab.id, next.id).catch(() => undefined);
+                  } else {
+                    tabRefs.current.get(next.id)?.querySelector<HTMLButtonElement>('[role="tab"]')?.focus();
+                    onActivateTab(next.id);
+                  }
+                }}
                 aria-label={`${tab.title || 'Nueva pestaña'}${tab.isDetached ? ', ventana separada' : tab.isSuspended ? ', suspendida' : ''}`}
                 title={`${tab.title || tab.url}${tab.isDetached ? ' · Ventana separada' : tab.isSuspended ? ' · Se restaurará al abrir' : ''}`}
                 onClick={() => {
@@ -302,7 +324,8 @@ export function BrowserTabStrip(props: BrowserTabStripProps) {
                   active={active}
                   isSuspended={tab.isSuspended}
                 />
-                <span className="truncate min-w-0 flex-1">{tab.title || 'Nueva pestaña'}</span>
+                {group && <span aria-label={`Grupo ${group.name}`} title={group.name} className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: GROUP_COLORS[group.color].hex }} />}
+                <span className="truncate min-w-0 flex-1">{tab.pinned ? '📌 ' : ''}{tab.title || 'Nueva pestaña'}</span>
               </button>
 
               {!active && (

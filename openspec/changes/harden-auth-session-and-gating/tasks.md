@@ -4,6 +4,15 @@
 - [x] 1.2 No ejecutar `signOut()` ante error recuperable: conservar sesión, degradar y reintentar con backoff. — `useSofiaResolver.ts` (3 intentos, backoff 400/800 ms) y `useAuthLifecycle.ts` (`applySofiaSession` con los 3 casos).
 - [x] 1.3 Pruebas del lifecycle. — `src/__tests__/contexts/auth-context/session-persistence-cases.tsx`: AUTH-010 fallo transitorio mantiene sesión (no `signOut`, degradado, reintenta), AUTH-011 sin membresía cierra sesión (sin reintento), AUTH-012 restauración válida. 9/9 verdes.
 
+- [x] 1.4 Aislar la degradación del directorio SOFIA de la sesión de conversaciones. — `useAuthState.ts` guarda `sofiaContextIssue` (mensaje + `retryable`) en vez de reusar `liaDegraded`; `applySofiaSession` deja de cortar antes de `ensureLiaSession`, que era lo que hacía desaparecer los chats cuando solo fallaba el directorio.
+- [x] 1.5 Reintento automático real del contexto degradado. — `useSofiaContextRetry.ts` (backoff 5/15/30/60 s, más disparo en `online` y `focus`); el aviso prometía reintentos que nadie ejecutaba y la única salida era reiniciar la app. `retryConversations` pasa el token de SOFIA y reintenta también el directorio.
+- [x] 1.6 Sesión sin token verificable. — `applySofiaSession` la marca `retryable: false` con mensaje propio: reintentar contra SOFIA no puede recuperarla y el selector de organización explica que hay que volver a entrar.
+- [x] 1.7 Pruebas añadidas. — AUTH-013 (los chats sobreviven al directorio caído), AUTH-014 (reintento manual), AUTH-015 (sesión caducada, sin reintento), AUTH-016 (recuperación automática al volver el foco).
+
+- [x] 1.8 Quitar la dependencia del escritorio sobre `public.users`. — Causa raíz del bloqueo: la instancia SOFIA retiró el permiso de lectura sobre esa tabla, y el cliente la leía dos veces (antes de autenticar con la clave anon para traducir usuario→correo, y ya autenticado para el perfil). Se sustituye por `resolve_desktop_login_email` y `get_desktop_user_profile` en `database/sofia-learning/migrations/desktop-users-read-access.sql`; migración aditiva porque la instancia la comparte SofLIA Learning. Cliente: `src/services/sofia-auth/login.ts`, `profile.ts`, `sofia-auth.ts` y el login de WhatsApp en `electron/iris/auth/`.
+- [x] 1.9 Diagnóstico de las consultas a SOFIA. — `profile.ts` registraba cualquier fallo como `null`, indistinguible entre red, permisos y fila ausente; ahora conserva paso y código de PostgREST en el log (nunca en la interfaz). Fue lo que identificó `permission denied for table users`.
+- [ ] 1.10 Pendiente de decisión: lectura de perfiles ajenos. — `src/services/iris-data/user-sync.ts` (sincroniza al asignado de una incidencia), `src/services/org/operations.ts` (lista de miembros e invitación por identificador) y `electron/iris/user-sync/` siguen necesitando leer filas de OTROS usuarios. Requiere decidir quién puede ver a quién antes de exponer nada; no se resuelve con las dos funciones anteriores.
+
 ## 2. Estado de auth conocido por el main (IPC gobernado)
 
 - [x] 2.1 Contrato tipado `{ authenticated, userId }` sin tokens ni PII. — `electron/main/auth-state.ts`.

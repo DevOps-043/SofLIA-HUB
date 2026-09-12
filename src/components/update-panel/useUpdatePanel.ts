@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { DownloadProgress, UpdateAvailableInfo, UpdaterStatus } from '../../services/updater-service';
+import { installUpdate } from '../../services/updater-service';
 
 export function useUpdatePanel() {
   const [status, setStatus] = useState<UpdaterStatus | null>(null);
@@ -57,8 +58,10 @@ export function useUpdatePanel() {
     await window.updater.downloadUpdate();
   }, []);
 
-  const handleInstall = useCallback(() => {
-    if (typeof window.updater !== 'undefined') window.updater.installUpdate();
+  const handleInstall = useCallback(async () => {
+    setError(null);
+    try { await installUpdate(); }
+    catch (error) { setError(error instanceof Error ? error.message : 'No se pudo instalar la actualización.'); }
   }, []);
 
   return {

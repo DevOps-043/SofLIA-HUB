@@ -68,6 +68,7 @@ export function exposeUtilityApis(bridge: PreloadBridge, ipc: SafeIpc): void {
   });
   // Ventana de la Orbe de Voz: dictado local (Vosk) + habla local (Piper).
   bridge.exposeInMainWorld('orb', {
+    browserCommand: (action: string) => safeInvoke('orb:browser-command', action),
     getPendingWake: () => safeInvoke('orb:get-pending-wake'),
     getPendingAnnouncement: () => safeInvoke('orb:get-pending-announcement'),
     announcementFinished: (announcementId?: string | null) =>

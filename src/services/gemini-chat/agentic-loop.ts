@@ -1,6 +1,6 @@
 import { sanitizeAssistantText } from './assistant-text-sanitizer';
 import { completedStreamResult, isAbortError, singleChunkStream, stoppedStreamResult } from './streams';
-import { resolveEmptyGeminiText } from './empty-response';
+import { isMalformedFunctionCall, resolveEmptyGeminiText } from './empty-response';
 import { getPublicAiErrorMessage } from './public-error';
 import { withAbortSignal, type GeminiChatConfig } from './model-config';
 import { withGeminiModelCall, withToolTimeout } from './resilience';
@@ -12,6 +12,21 @@ import {
 } from './workspace-completion';
 import type { SendMessageStreamOptions, StreamResult, ToolCallInfo } from './types';
 import { toolBudgetExhaustedMessage } from './tool-budget';
+
+/**
+ * Recuperacion ante una llamada de herramienta mal formada, con la misma
+ * escalada que ya usaba el agente de WhatsApp (`electron/wa-agent/agent-loop.ts`):
+ * primero se pide reemitir la llamada y, si vuelve a fallar, se pide responder
+ * SIN herramientas. Insistir una tercera vez no aporta; bajar a texto si deja
+ * al usuario con una respuesta util en vez de un callejon sin salida.
+ *
+ * Ninguna repite la peticion del usuario: la sesion ya la tiene en su
+ * historial, y duplicarla haria que el modelo la tratara como otra solicitud.
+ */
+const MALFORMED_CALL_INSTRUCTIONS = [
+  'Tu ultima llamada a una herramienta llego mal formada y no se pudo ejecutar. Vuelve a emitirla ahora con el nombre exacto de la herramienta y sus argumentos en JSON valido, sin texto adicional.',
+  'Tu llamada volvio a llegar mal formada. NO uses herramientas en esta respuesta: contesta al usuario con texto, di que no pudiste completar la accion y pide que reformule la solicitud.',
+] as const;
 
 export async function runAgenticLoop(params: {
   chatSession: any;
@@ -47,6 +62,7 @@ export async function runAgenticLoop(params: {
   // con el tope de 10 el turno se quedaba a medias sobre una carpeta a medio
   // escribir y respondia como si hubiera terminado.
   let maxIterations = params.options?.activeSkill?.workspaceId ? 20 : 10;
+  let malformedRetries = 0;
 
   while (maxIterations > 0) {
     maxIterations -= 1;
@@ -56,6 +72,28 @@ export async function runAgenticLoop(params: {
     collectInlineImages(parts, params.allGeneratedImages);
     const functionCalls = parts.filter((part: any) => part.functionCall);
     if (functionCalls.length === 0) {
+      // El turno acabo sin llamada utilizable porque el modelo la genero mal.
+      // Antes esto terminaba el turno y obligaba al usuario a reescribir su
+      // peticion; es un fallo transitorio y se reintenta solo.
+      if (malformedRetries < MALFORMED_CALL_INSTRUCTIONS.length && isMalformedFunctionCall(response)) {
+        const instruccion = MALFORMED_CALL_INSTRUCTIONS[malformedRetries];
+        malformedRetries += 1;
+        try {
+          response = await withGeminiModelCall(
+            'Gemini malformed function call retry',
+            () => params.chatSession.sendMessage({
+              message: [{ text: instruccion }],
+              config: requestConfig,
+            }),
+            { signal },
+          );
+          continue;
+        } catch (error) {
+          if (isAbortError(error, signal)) return stoppedStreamResult(params.allToolCalls, params.allGeneratedImages);
+          if (params.failFastOnModelError) throw error;
+          return safeFailureResult(error, params);
+        }
+      }
       const completion = await inspectWorkspaceCompletion(params.options?.activeSkill);
       if (completion.required && !completion.ready) {
         try {

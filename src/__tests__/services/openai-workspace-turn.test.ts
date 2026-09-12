@@ -75,6 +75,17 @@ function params(overrides: Record<string, unknown> = {}) {
 }
 
 describe('turno de OpenAI con espacio de trabajo', () => {
+  it('el alcance de extractos omite herramientas hospedadas y conserva sólo archivos del workspace', async () => {
+    openAiMocks.create.mockReturnValueOnce(textStream('Comparación [P1:F1]'));
+    const input = params();
+    input.options = { ...input.options, browserSourceMode: 'attached-fragments' };
+    input.useWebSearch = true;
+    const result = await sendOpenAIMessageStream(input);
+    await collect(result.stream);
+    const names = openAiMocks.create.mock.calls[0][0].tools.map((tool: { type: string; name?: string }) => tool.name ?? tool.type);
+    expect(names).toEqual(['workspace_read_file', 'workspace_write_file']);
+    expect(dispatch.execute).not.toHaveBeenCalled();
+  });
   beforeEach(() => {
     openAiMocks.create.mockReset();
     dispatch.execute.mockReset();

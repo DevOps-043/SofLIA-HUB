@@ -56,7 +56,10 @@ interface BrowserAppGridMenuProps {
   favorites?: BrowserFavorite[];
 }
 
-export function BrowserAppGridMenu({ open, onOpenChange, onNavigate, favorites = [] }: BrowserAppGridMenuProps) {
+// Identidad estable: un arreglo nuevo por render reiniciaría el efecto de historial.
+const EMPTY_FAVORITES: BrowserFavorite[] = [];
+
+export function BrowserAppGridMenu({ open, onOpenChange, onNavigate, favorites = EMPTY_FAVORITES }: BrowserAppGridMenuProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [recurrentSites, setRecurrentSites] = useState<RecurrentSite[]>(() =>
     computeRecurrentSites([], favorites)
@@ -64,6 +67,7 @@ export function BrowserAppGridMenu({ open, onOpenChange, onNavigate, favorites =
 
   useEffect(() => {
     if (!open) return undefined;
+    let canceled = false;
 
     const handleOutsideClick = (e: MouseEvent) => {
       if (!containerRef.current?.contains(e.target as Node)) {
@@ -83,7 +87,7 @@ export function BrowserAppGridMenu({ open, onOpenChange, onNavigate, favorites =
     // Calcular analítica de sitios recurrentes a partir del historial real del usuario
     if (integratedBrowserService.isAvailable()) {
       integratedBrowserService.listHistory('', 200).then((res) => {
-        if (res.success && Array.isArray(res.history)) {
+        if (!canceled && res.success && Array.isArray(res.history)) {
           const computed = computeRecurrentSites(res.history, favorites);
           setRecurrentSites(computed);
         }
@@ -93,6 +97,7 @@ export function BrowserAppGridMenu({ open, onOpenChange, onNavigate, favorites =
     }
 
     return () => {
+      canceled = true;
       document.removeEventListener('mousedown', handleOutsideClick);
       document.removeEventListener('keydown', handleEscape);
     };

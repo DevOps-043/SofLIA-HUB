@@ -3,6 +3,7 @@ import { runComputerUseLoop } from '../desktop-agent/gemini-cu/loop';
 import { traducirTeclasPlaywright } from '../desktop-agent/gemini-cu/browser-driver';
 import type { CuAction, CuDriver, CuFunctionCall } from '../desktop-agent/gemini-cu/types';
 import type { CuClient } from '../desktop-agent/gemini-cu/client';
+import { CuContextChangedError } from '../desktop-agent/gemini-cu/execution-guard';
 
 /** Cliente CU falso: devuelve una secuencia guionada de function_calls. */
 function fakeClient(fcs: (CuFunctionCall | null)[], texts: string[] = []): CuClient & { continuar: any } {
@@ -33,6 +34,26 @@ const base = (client: CuClient, driver: CuDriver, over: Partial<Parameters<typeo
 });
 
 describe('runComputerUseLoop', () => {
+  it.each(['inicio', 'continuación', 'confirmación'] as const)('deja de esperar %s aunque nunca responda y descarta su respuesta tardía', async (phase) => {
+    const abort = new AbortController(); const driver = fakeDriver();
+    const client = fakeClient([click(50, 50, phase === 'confirmación' ? { decision: 'require_confirmation' } : undefined)]);
+    let entered!: () => void; const ready = new Promise<void>(done => { entered = done; });
+    let finish!: () => void;
+    const pending = () => { entered(); return new Promise<void>(done => { finish = done; }); };
+    const response = async () => { await pending(); return { functionCall: click(), text: '' }; };
+    if (phase === 'inicio') vi.mocked(client.iniciar).mockImplementationOnce(response);
+    if (phase === 'continuación') client.continuar.mockImplementationOnce(response);
+    const result = runComputerUseLoop(base(client, driver, { abortSignal: abort.signal, confirmSafety: async () => { await pending(); return true; } }));
+    await ready; abort.abort('motivo privado');
+    expect(await result).toMatchObject({ estado: 'cancelada', mensaje: 'Tarea cancelada.' });
+    const count = phase === 'continuación' ? 1 : 0;
+    expect(driver.acciones).toHaveLength(count);
+    finish();
+    await Promise.resolve();
+    expect(driver.acciones).toHaveLength(count);
+    expect(client.iniciar).toHaveBeenCalledWith('tarea', 'x', undefined, abort.signal);
+  });
+
   it('CU-L-001: ejecuta acciones y termina (completada) al llegar function_call null', async () => {
     const client = fakeClient([click(), click(), null], ['', '', 'Listo']);
     const driver = fakeDriver();
@@ -60,6 +81,8 @@ describe('runComputerUseLoop', () => {
     const r = await runComputerUseLoop(base(client, driver, { abortSignal: controller.signal }));
     expect(r.estado).toBe('cancelada');
     expect(driver.acciones).toHaveLength(0);
+    expect(driver.capturar).not.toHaveBeenCalled();
+    expect(client.iniciar).not.toHaveBeenCalled();
   });
 
   it('CU-L-004: safety "blocked" no ejecuta y reporta bloqueada', async () => {
@@ -95,6 +118,63 @@ describe('runComputerUseLoop', () => {
     const r = await runComputerUseLoop(base(client, driver));
     expect(r.estado).toBe('fallida');
     expect(driver.capturar).not.toHaveBeenCalled();
+  });
+
+  it('cancela después de capturar sin enviar la imagen al proveedor', async () => {
+    const abort = new AbortController(); const driver = fakeDriver(); const client = fakeClient([click()]);
+    vi.mocked(driver.capturar).mockImplementationOnce(async () => { abort.abort(); return { base64: 'x', width: 10, height: 10 }; });
+    expect(await runComputerUseLoop(base(client, driver, { abortSignal: abort.signal }))).toMatchObject({ estado: 'cancelada' });
+    expect(client.iniciar).not.toHaveBeenCalled();
+    expect(driver.capturar).toHaveBeenCalledWith(abort.signal);
+  });
+
+  it('una aprobación tardía después de cancelar no ejecuta la acción', async () => {
+    const abort = new AbortController(); const driver = fakeDriver();
+    const client = fakeClient([click(50, 50, { decision: 'require_confirmation' })]);
+    const result = await runComputerUseLoop(base(client, driver, {
+      abortSignal: abort.signal, confirmSafety: async () => { abort.abort(); return true; },
+    }));
+    expect(result.estado).toBe('cancelada');
+    expect(driver.ejecutar).not.toHaveBeenCalled();
+    expect(client.continuar).not.toHaveBeenCalled();
+  });
+
+  it('un contexto invalidado termina la tarea sin recapturar ni reintentar en otro destino', async () => {
+    const driver = fakeDriver(); const client = fakeClient([click()]);
+    vi.mocked(driver.ejecutar).mockRejectedValueOnce(new CuContextChangedError());
+    expect(await runComputerUseLoop(base(client, driver))).toMatchObject({ estado: 'bloqueada', pasos: 1 });
+    expect(driver.capturar).toHaveBeenCalledTimes(1);
+    expect(client.continuar).not.toHaveBeenCalled();
+  });
+
+  it.each(['respuesta', 'error'] as const)('normaliza cancelación durante una %s tardía del proveedor', async (mode) => {
+    const abort = new AbortController(); const driver = fakeDriver(); const client = fakeClient([click()]);
+    vi.mocked(client.iniciar).mockImplementationOnce(async () => {
+      abort.abort();
+      if (mode === 'error') throw new Error('error no publicable');
+      return { functionCall: click(), text: '' };
+    });
+    expect(await runComputerUseLoop(base(client, driver, { abortSignal: abort.signal }))).toMatchObject({ estado: 'cancelada', mensaje: 'Tarea cancelada.' });
+    expect(driver.ejecutar).not.toHaveBeenCalled();
+    expect(client.continuar).not.toHaveBeenCalled();
+  });
+
+  it('una captura posterior cancelada no produce otra solicitud al modelo', async () => {
+    const abort = new AbortController(); const driver = fakeDriver(); const client = fakeClient([click()]);
+    vi.mocked(driver.capturar).mockResolvedValueOnce({ base64: 'x', width: 10, height: 10 })
+      .mockImplementationOnce(async () => { abort.abort(); throw new Error('cancelada'); });
+    expect(await runComputerUseLoop(base(client, driver, { abortSignal: abort.signal }))).toMatchObject({ estado: 'cancelada', pasos: 1 });
+    expect(driver.ejecutar).toHaveBeenCalledWith(expect.any(Object), expect.any(String), abort.signal);
+    expect(client.continuar).not.toHaveBeenCalled();
+  });
+
+  it('no acepta un cierre exitoso si el contexto cambió mientras el modelo respondía', async () => {
+    const driver = fakeDriver(); const client = fakeClient([null], ['Listo']);
+    let changed = false;
+    driver.contexto = () => { if (changed) throw new CuContextChangedError(); return {}; };
+    vi.mocked(client.iniciar).mockImplementationOnce(async () => { changed = true; return { functionCall: null, text: 'Listo' }; });
+    expect(await runComputerUseLoop(base(client, driver))).toMatchObject({ estado: 'bloqueada', pasos: 0 });
+    expect(client.iniciar).toHaveBeenCalledOnce();
   });
 });
 

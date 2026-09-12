@@ -11,10 +11,13 @@
  */
 import { createClient } from '@supabase/supabase-js';
 import { getSofiaCredentials } from '../clients';
+import type { SofiaUser } from './types';
 
 export interface PasswordVerificationResult {
   success: boolean;
   error?: string;
+  /** Perfil de quien acaba de autenticarse; null si la verificacion fallo. */
+  user?: SofiaUser | null;
 }
 
 export async function verifySofiaPassword(email: string, password: string): Promise<PasswordVerificationResult> {
@@ -32,9 +35,18 @@ export async function verifySofiaPassword(email: string, password: string): Prom
     return { success: false, error: mapAuthErrorMessage(error?.message) };
   }
 
+  // El perfil se lee aqui y no despues: public.users esta cerrada a lectura
+  // directa, y `get_desktop_user_profile` solo devuelve la fila de auth.uid().
+  // Este cliente efimero es el unico momento del proceso main con una sesion.
+  const { data: perfil, error: perfilError } = await ephemeralClient.rpc('get_desktop_user_profile');
+  const user = (Array.isArray(perfil) ? perfil[0] : perfil) as SofiaUser | null;
+  if (perfilError) {
+    console.error('[SOFIA-Main] No se pudo leer el perfil tras autenticar:', perfilError.message);
+  }
+
   // Cierre local defensivo; el cliente efimero se descarta al salir del scope.
   await ephemeralClient.auth.signOut({ scope: 'local' }).catch(() => undefined);
-  return { success: true };
+  return { success: true, user: user ?? null };
 }
 
 function mapAuthErrorMessage(message: string | undefined): string {

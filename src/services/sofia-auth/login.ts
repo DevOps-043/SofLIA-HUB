@@ -5,9 +5,13 @@
  * que quedo obsoleto cuando SofLIA Learning migro las contraseñas a Supabase Auth.
  * Ver docs/MIGRACION-AUTH-SUPABASE-HUB.md para el contexto completo.
  *
- * El identificador de login puede ser email o username: el perfil sigue viviendo
- * en public.users (mismo UUID que auth.users), por eso primero se resuelve la fila
- * del usuario y despues se valida la contraseña contra Supabase Auth.
+ * El identificador de login puede ser correo o nombre de usuario, y
+ * signInWithPassword exige el correo. Esa traduccion ocurre ANTES de tener
+ * sesion, asi que no puede leer public.users: la instancia cerro esa tabla al
+ * endurecerse, y reabrirla a la clave anon (que viaja dentro del ejecutable de
+ * escritorio) expondria el directorio completo de usuarios. Se resuelve con la
+ * funcion acotada `resolve_desktop_login_email`, que solo devuelve el correo.
+ * Ver database/sofia-learning/migrations/desktop-users-read-access.sql.
  */
 import { sofiaSupa } from '../../lib/sofia-client';
 
@@ -22,35 +26,25 @@ export interface SofiaLoginUserRow {
   platform_role?: string | null;
 }
 
-const LOGIN_USER_COLUMNS = 'id, username, email, first_name, last_name, display_name, profile_picture_url, platform_role';
-
 /** Mensaje unico para credenciales/usuario invalido: evita enumeracion de cuentas. */
 export const INVALID_CREDENTIALS_MESSAGE = 'Credenciales invalidas';
 
-/** Escapa comodines de ilike para tratar el identificador como literal. */
-export function escapeIlikePattern(value: string): string {
-  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
-}
-
 /**
- * Busca la fila de public.users por email o username (case-insensitive).
- * Devuelve null si no existe; lanza solo ante errores de conexion/consulta.
+ * Traduce un identificador de login (correo o nombre de usuario) al correo con
+ * el que se autentica.
+ *
+ * Devuelve null si no corresponde a ninguna cuenta; lanza solo ante errores de
+ * conexion o de la consulta. Quien llama trata ambos casos con el mismo mensaje
+ * generico para no revelar si la cuenta existe.
  */
-export async function findLoginUserRow(identifier: string): Promise<SofiaLoginUserRow | null> {
+export async function resolveLoginEmail(identifier: string): Promise<string | null> {
   if (!sofiaSupa) return null;
   const value = identifier.trim();
   if (!value) return null;
 
-  const column = value.includes('@') ? 'email' : 'username';
-  const { data, error } = await sofiaSupa
-    .from('users')
-    .select(LOGIN_USER_COLUMNS)
-    .ilike(column, escapeIlikePattern(value))
-    .limit(1)
-    .maybeSingle();
-
+  const { data, error } = await sofiaSupa.rpc('resolve_desktop_login_email', { identifier: value });
   if (error) throw new Error(`No se pudo consultar el usuario: ${error.message}`);
-  return (data as SofiaLoginUserRow | null) ?? null;
+  return typeof data === 'string' && data.trim() ? data : null;
 }
 
 /**

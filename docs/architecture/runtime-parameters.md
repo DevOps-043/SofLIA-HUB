@@ -1,6 +1,6 @@
 # Parametros runtime
 
-Estado: vigente. Actualizado: 2026-08-16.
+Estado: vigente. Actualizado: 2026-09-11.
 
 Inventario de defaults y topes con impacto operativo. Los overrides guardados en
 `userData` pueden cambiar el valor efectivo de un host.
@@ -14,6 +14,7 @@ Inventario de defaults y topes con impacto operativo. Los overrides guardados en
 <!-- evidence: electron/main/bootstrap.ts -->
 <!-- evidence: electron/integrated-browser/types.ts -->
 <!-- evidence: electron/integrated-browser/validation.ts -->
+<!-- evidence: electron/integrated-browser/safe-navigation.ts -->
 
 ## Arranque
 
@@ -42,11 +43,17 @@ evidencia medida en el host de referencia.
 | profundidad / array / claves IPC | 20 / 1000 / 200 | `electron/preload/safe-ipc.ts` |
 | notas de release | 8000 caracteres | `src/components/update-notes/SafeReleaseNotes.tsx` |
 | updater polling | 4 h | `electron/updater/constants.ts` |
+| espera del guardado de sesión antes de salir/instalar | 5000 ms por espera; timeout ofrece reintentar/cancelar/salir sin guardar, nunca concede salida por sí solo | `electron/main/shutdown-guard.ts` |
 
 ## Navegador integrado
 
 | Parametro | Default/tope | Fuente |
 |---|---:|---|
+| importación HTML de marcadores | 5 MiB por archivo; 5.000 entradas y 20 niveles de carpetas; biblioteca hasta 5.000 marcadores | `electron/integrated-browser/bookmark-store.ts`, `electron/integrated-browser/bookmark-importer.ts` |
+| revisión de importación de marcadores | 5 minutos, un solo uso, una importación pendiente; cancelar por omisión; invalidación por perfil, ventana o revisión de biblioteca | mismos archivos |
+| transferencia de credenciales | JSON de hasta 5 MiB y 500 entradas; exportación con advertencia nativa, destino nuevo (`wx`) y permisos 0600; importación con revisión de conflictos, un solo commit y TTL de 5 minutos | `electron/integrated-browser/credential-vault.ts`, `electron/integrated-browser/credential-transfer.ts` |
+| diagnóstico exportable | JSON v1 hasta 64 KiB; 12 métricas instantáneas; hasta 200 registros de descargas retenidos; sin histórico de actividad ni contenido | `electron/integrated-browser/diagnostic-report.ts` |
+| confirmación de exportación de diagnóstico | 5 minutos desde preparación; una pendiente; archivo JSON nuevo con publicación por enlace exclusivo, sin sobrescritura; requiere filesystem compatible | mismo archivo |
 | particion persistente | `persist:pulse-navegador-<hash del usuario>`; una por usuario con sesion, `sin-sesion` mientras no hay | `electron/integrated-browser/profile-scope.ts` |
 | perfil en disco (historial, contrasenas, permisos por sitio, extensiones) | `userData/integrated-browser/perfiles/<hash del usuario>/` | `electron/integrated-browser/profile-scope.ts` |
 | cambio de usuario | derriba pestañas, ventanas separadas, permisos y observacion; el perfil `sin-sesion` se vacia | `electron/integrated-browser/service.ts`, `electron/main/browser-session-scope.ts` |
@@ -59,6 +66,8 @@ evidencia medida en el host de referencia.
 | longitud de direccion/busqueda | 2048 caracteres | `electron/integrated-browser/validation.ts` |
 | viewport minimo | 160 x 120 DIP | mismo archivo |
 | protocolos de pagina principal | HTTP(S) y `about:blank` | mismo archivo |
+| navegación segura | revisión local siempre activa en HTTP(S), incluidos redirecciones y marcos; proveedor opcional `BROWSER_SAFE_BROWSING_ENDPOINT` sólo en navegación explícita autenticada, sin destinos locales conocidos/IPs; plazo total 1 s, cuerpo 4 KiB, sin redirecciones ni credenciales en endpoint; avisos controlados por pestaña en la barra, con degradación distinguida del bloqueo y sin persistir reputación | `electron/integrated-browser/safe-navigation.ts`, `src/components/browser/BrowserNavigationSafetyNotice.tsx` |
+| certificados de navegación | la sesión rechaza verificaciones distintas de `OK` (`-2`); no existe bypass desde renderer | `electron/integrated-browser/service.ts` |
 | permisos administrados por sitio | `camera`, `microphone`, `geolocation`, `notifications`, `display-capture`, `clipboard-read`, `idle-detection`, `window-management` preguntan; `fullscreen`, `pointer-lock`, `keyboard-lock`, `speaker-selection`, `protected-media` se conceden sin interrumpir; alcanzan a cualquier pestaña viva de la partición | `electron/integrated-browser/permission-governance.ts`, `electron/integrated-browser/types.ts` |
 | permisos concedidos sin panel | `background-sync`, `clipboard-sanitized-write`, `storage-access`, `top-level-storage-access`; solo contenido gobernado o subframe HTTP(S) con `embeddingOrigin` válido | `electron/integrated-browser/permission-governance.ts` |
 | permisos siempre denegados | `usb`, `serial`, `hid`, `midi`, `midiSysex`, `openExternal`, `fileSystem` y cualquier nombre desconocido | mismo archivo |
@@ -78,10 +87,26 @@ evidencia medida en el host de referencia.
 | overlay de gestores | captura puntual + `hide`; no usa polling para componer la página | `src/components/browser/IntegratedBrowserPanel.tsx` |
 | contenido del modo lectura | selección hasta 50.000 caracteres; documento hasta 60.000; solo HTTP(S); excluye formularios, controles y contenido editable; Google Docs usa exportación autenticada de hasta 2 MiB con timeout 8 s y árbol AX de hasta 20.000 nodos como respaldo | `electron/integrated-browser/reading-mode-content.ts`, `electron/integrated-browser/reading-accessibility.ts` |
 | voz ElevenLabs (Orbe y lectura) | Orbe: máximo 5.000 caracteres por solicitud, timeout 30 s, MP3 hasta 16 MiB; lectura: microlote inicial de hasta 180 caracteres, posteriores de hasta 480, anticipación máxima de dos lotes, contexto anterior/posterior de hasta 600 caracteres, límite defensivo de 3.500 por solicitud, timeout 20 s sin reintento automático y audio transitorio hasta 64 MiB por respuesta; `eleven_turbo_v2_5` + `mp3_44100_128` por defecto; el idioma ISO 639-1 procede del contenido y los aliases españoles conservan un mapa a offsets originales | `electron/elevenlabs-tts.ts`, `electron/speech-text-normalizer.ts`, `electron/orb-tts.ts`, `electron/integrated-browser/reading-mode-service.ts`, `src/components/browser/browser-reading-utils.ts` |
-| historial | 2.000 entradas; consulta maxima 200 | `electron/integrated-browser/browser-history-store.ts` |
+| historial | 50.000 visitas; consulta máxima 200, 50 por omisión | `electron/integrated-browser/browser-history-store.ts` |
+| importación de historial | JSON/JSONL de 5 MiB; máximo 50.000 visitas; revisión nativa antes de escribir | `electron/integrated-browser/history-importer.ts` |
+| perfiles del navegador | autenticado persistente; invitado/privado con particiones no persistentes y stores temporales en disco; confirmación nativa al cambiar (vigencia 5 minutos), purga al conmutar o cerrar realmente la ventana tras barrera de colas; `will-quit` espera limpieza, cancelar `beforeunload` conserva la sesión; cierre forzado puede dejar temporales | `electron/integrated-browser/profile-scope.ts`, `electron/integrated-browser/service.ts`, `electron/main/app-lifecycle.ts` |
 | credenciales | usuario 320; secreto 4.096 caracteres; maximo almacenado 500 | `electron/integrated-browser/credential-vault.ts` |
-| extension desempaquetada | Manifest V3; 2.000 archivos; 20 MiB | `electron/integrated-browser/extension-manager.ts` |
+| revisión manual de credenciales | 5 minutos; un solo uso; una confirmación pendiente por servicio; cancelar por omisión | `electron/integrated-browser/credential-saver.ts`, `electron/integrated-browser/credential-vault.ts` |
+| mitigación de fingerprinting | privacidad estricta retira client hints de alta entropía y `Accept-CH`/`Critical-CH`; conserva hints básicos y User-Agent compatible | `electron/integrated-browser/tracking-protection.ts`, `electron/integrated-browser/service.ts` |
+| archivo de bóveda | v2 AES-256-GCM; 12 MiB antes de cifrar, 17 MiB de archivo máximo; clave 32 bytes protegida por el SO, nonce 12 bytes, tag 16 bytes; cola por archivo y respaldo cifrado | `electron/integrated-browser/credential-vault.ts`, `electron/integrated-browser/credential-vault-format.ts` |
+| guardado sugerido | opt-in por perfil y bóveda desbloqueada; submit tras gesto confiable de hasta 1 s o botón SPA/Enter confiable; espera de 350 ms con candidato cifrado; TTL 60 segundos desde captura; 30.000 caracteres máximos del puente privado; SSO sólo en la misma pestaña antes de revisar, conservando origen inicial; no iframes | `electron/integrated-browser/credential-autosave.ts`, `electron/integrated-browser/credential-autosave-script.ts`, `electron/integrated-browser/credential-saver.ts`, `electron/integrated-browser/service.ts` |
+| extension desempaquetada | Manifest V3; 2.000 archivos; 2.000 directorios incluida raíz; profundidad 32; 20 MiB; 100 instalaciones; huella SHA-256 comprobada antes de cargar | `electron/integrated-browser/extension-manager.ts` |
+| recuperación de bóveda dañada | principal regular hasta 17 MiB; máximo cinco copias cifradas `.corrupt-UUID`; TTL cinco minutos; una revisión consumible; borrar credenciales retira todas las copias de ese principal | `electron/integrated-browser/credential-vault.ts` |
+| reconciliación de sync | 2 MiB por instantánea; 10.000 registros por categoría; 20 etiquetas; orden posición/ID; sin payload parcial ni ganador por reloj | `electron/integrated-browser/sync-crypto.ts`, `electron/integrated-browser/sync-conflicts.ts` |
+| diario de conflictos | una revisión por categoría (máximo cuatro); 28 MiB de documento en memoria, 40 MiB de archivo cifrado; sin caducidad/borrado automático; elecciones ligadas a revisión, hasta 100.000 | `electron/integrated-browser/sync-conflict-store.ts` |
+| transporte de sync | sólo HTTPS del proyecto `*.supabase.co` configurado, sin redirecciones; 20 s por solicitud incluidos cuerpo/reintentos; 45 s por operación; máximo tres intentos, backoff 250/750 ms sólo red/429/5xx; JWT máximo 16 KiB | `electron/integrated-browser/sync-remote.ts`, `electron/integrated-browser/sync-auth.ts`, `electron/integrated-browser/sync-devices.ts` |
+| respuestas de sync | RPC 4 KiB, Auth/dispositivos 64 KiB, envelopes 3 MiB; máximo 100 dispositivos, lectura pide 101 para detectar exceso; DTOs cerrados | `electron/integrated-browser/sync-remote.ts` |
+| identidad de sync | `sync-device.json` protegido por el SO, límite 16 KiB (lectura de un byte adicional para detectar exceso); ID aleatorio ligado a perfil, usuario Lia, session_id y backend; una operación y un diálogo pendientes como máximo | `electron/integrated-browser/sync-device-identity.ts`, `electron/integrated-browser/sync-devices.ts` |
 | autorizacion de instalacion | token efimero en memoria; 5 minutos | `electron/integrated-browser/extension-manager.ts` |
+| restricción de extensiones | 50 sitios de 300 caracteres; 100 patrones por campo y 300 agregados al cargar; manifiesto 256 KiB/paquete 20 MiB tras compilar; MV3 storage/scripting; sólo reducción; dominio/protocolo exactos, todos sus puertos | `electron/integrated-browser/extension-site-access.ts`, `electron/integrated-browser/extension-manager.ts` |
+| selección nativa passkey | 60 s; un diálogo pendiente; 10 cuentas máximo; ID base64url hasta 2.048 caracteres; etiqueta visible hasta 80 | `electron/integrated-browser/passkey-selection.ts` |
+| bitácora del agente | opt-in `agentGovernance`; SQLite v1; 7/30/90 días (30 por defecto); 5.000 eventos, páginas de 50; 16 MiB por archivo, 16 KiB por fila leída; HITL de 5 minutos | `electron/integrated-browser/agent-audit-store.ts`, `electron/integrated-browser/service.ts` |
+| revisión de solicitudes | máximo 32 revisiones remotas pendientes; sin caché persistente; contexto obsoleto cancela | `electron/integrated-browser/request-safety.ts` |
 
 Las pestañas integradas y separadas comparten una sola partición. Las
 inactivas se suspenden por LRU al superar ocho vistas vivas y recuperan su última
@@ -134,7 +159,8 @@ carpeta o vencer el plazo invalida la autorizacion pendiente anterior.
 | Grupo | Valores default | Fuente |
 |---|---|---|
 | pasos | `maxSteps=120`, `defaultStepBudget=60`, mínimo integrado `90`, `maxTotalSteps=500` | `electron/desktop-agent/agent-config.ts`, `electron/desktop-agent/task-budget.ts` |
-| modelo conversacional/CU | `gemini-3.6-flash`, sin degradación de modelo | `src/shared/soflia-runtime-model.ts`, `electron/desktop-agent/gemini-cu/model-registry.ts` |
+| reintentos por llamada mal formada (chat) | 2: reemitir, luego responder sin herramientas | `src/services/gemini-chat/agentic-loop.ts` |
+| modelo conversacional/CU | `gemini-3.8-flash`, sin degradación de modelo | `src/shared/soflia-runtime-model.ts`, `electron/desktop-agent/gemini-cu/model-registry.ts` |
 | selector conversacional | SofLIA y Lite: Google; Max y Pro: OpenAI; elección y razonamiento persistidos por modelo | `src/hooks/model-selector-options.ts`, `src/hooks/useModelSelector.ts`, `src/services/model-routing.ts` |
 | razonamiento Gemini / OpenAI | `low/medium/high` / `low/medium/high/xhigh/max`; `minimal` y `none` heredados migran a `low` | `src/services/gemini-chat/model-config.ts`, `src/services/openai-chat/reasoning.ts` |
 | captura | 1024x768, active monitor, max edge 1568, min scale .5 | mismo archivo |
@@ -158,7 +184,44 @@ carpeta o vencer el plazo invalida la autorizacion pendiente anterior.
 | Python tools document/quick/restart | 60 s / 10 s / 3 | `electron/python-tools-service.ts` |
 | speech orbe | 4000 caracteres | `src/components/orb/useOrbConversation.ts` |
 
+## Atajos del navegador
+
+Atajos del navegador: hasta 50 entradas, nombre de 80 caracteres, instrucciones
+de 5000 y archivo protegido de 2 MiB; eliminación con revisión de cinco minutos.
+Recuperación de un solo uso y cinco minutos, una generación de respaldo y cinco
+originales dañados como máximo; IDs nuevos y revisión renovada al recuperar.
+Configuración sync: principal cifrado máximo 8 KiB, recuperación con categorías
+vacías y sin fecha de última ejecución; mantiene la exclusión de dos minutos
+del controlador. Guardar pausa retira las copias locales de configuración.
+Fuentes y permisos fijos: `selected-tabs` / `read-fragments`, una a ocho pestañas
+frescas por envío. Fuentes: `src/shared/browser-agent-shortcuts.ts`,
+`electron/integrated-browser/agent-shortcut-store.ts` y el servicio del navegador.
+
+## Memoria y sesión SO del navegador
+
+Memoria semántica del navegador: 200 visitas y 200 marcadores, 768 dimensiones,
+lotes de 32 documentos, consulta de 500 caracteres, títulos de 200 y URL saneada
+de 1024; máximo 10 resultados. Retención de 30 días con limpieza al acceder,
+operación local de dos minutos y timeout SDK de 30 segundos.
+Fuentes: `src/shared/browser-semantic-memory.ts` y
+`electron/integrated-browser/semantic-memory.ts`.
+
+Bóveda: autorización local de cinco minutos desde verificar (no se prolonga al
+leer); helper Windows limitado a 60 segundos y 1024 bytes de salida, sin shell.
+Candidato de login: máximo 200 controles, deduplicación de un segundo y revisión
+de 60 segundos desde captura. Voz: reanudación confirmada válida 30 segundos.
+Sonda sensible: 4000 nodos, 50 000 caracteres y 50 ms; espera main de tres
+segundos, agotamiento rechaza. Fuentes: `credential-unlock.ts`,
+`credential-autosave-script.ts`, `voice-commands.ts` y `sensitive-page.ts`
+dentro de `electron/integrated-browser/`.
+
 ## Politica de cambio
+
+Recuperación de permisos/privacidad/políticas del agente: principal máximo
+8 MiB, copia protegida máximo 16 MiB, una generación de respaldo y hasta cinco
+principales dañados cifrados sin purga automática. Revisión de un solo uso,
+cinco minutos, una confirmación pendiente por servicio. Los topes y la cola
+por archivo están en `electron/integrated-browser/policy-file-recovery.ts`.
 
 Cambiar un limite requiere: identificar actor y amenaza/costo, escenario positivo
 y negativo, prueba de borde, observabilidad y rollback. Si altera comportamiento

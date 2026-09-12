@@ -1,13 +1,14 @@
 import { EventEmitter } from 'node:events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { BrowserWindow, ipcMain } from 'electron';
+import { BrowserWindow, ipcMain, dialog, type MessageBoxReturnValue } from 'electron';
 import { registerOrbIpcHandlers } from '../orb-ipc-handlers';
+import type { IntegratedBrowserService } from '../integrated-browser';
 import { resetAuthStateForTests, setAuthState } from '../main/auth-state';
 import type { PythonRuntimeService } from '../python-runtime-service';
 
 const ipcMainHarness = ipcMain as unknown as {
   _clearHandlers: () => void;
-  _getHandler: (channel: string) => (event: { sender: { id: number } }, ...args: unknown[]) => Promise<Record<string, unknown>>;
+  _getHandler: (channel: string) => (event: { sender: { id: number }; senderFrame?: unknown }, ...args: unknown[]) => Promise<Record<string, unknown>>;
 };
 
 const originalFetch = globalThis.fetch;
@@ -29,15 +30,19 @@ function createPythonRuntime(): PythonRuntimeService {
 
 describe('handler de apertura de la Orbe', () => {
   const mainWindow = new BrowserWindow();
+  const orbWindow = new BrowserWindow();
+  const browser = { getState: vi.fn<IntegratedBrowserService['getState']>(), controlAgentTask: vi.fn() };
   const showOrbWindow = vi.fn(async () => undefined);
 
   beforeEach(() => {
     vi.clearAllMocks();
+    browser.getState.mockReturnValue({ agentTask: null } as ReturnType<IntegratedBrowserService['getState']>);
     ipcMainHarness._clearHandlers();
     resetAuthStateForTests();
     registerOrbIpcHandlers({
       pythonRuntimeService: createPythonRuntime(),
-      getOrbWindow: () => null,
+      getOrbWindow: () => orbWindow,
+      integratedBrowser: browser as unknown as IntegratedBrowserService,
       getMainWindow: () => mainWindow,
       showOrbWindow,
       consumePendingWake: () => false,
@@ -52,6 +57,36 @@ describe('handler de apertura de la Orbe', () => {
   });
 
   afterEach(() => resetAuthStateForTests());
+  it('la voz del navegador sólo acepta marco principal de Orbe con sesión y contrato cerrado', async () => {
+    const handler = ipcMainHarness._getHandler('orb:browser-command');
+    Object.defineProperty(orbWindow.webContents, 'mainFrame', { configurable: true, value: {} });
+    vi.mocked(orbWindow.isVisible).mockReturnValue(true);
+    const event = { sender: orbWindow.webContents, senderFrame: orbWindow.webContents.mainFrame };
+    expect(await handler(event, 'task-status')).toMatchObject({ success: false });
+    setAuthState({ authenticated: true, userId: 'usuario-1' });
+    expect(await handler(event, 'task-status')).toMatchObject({ success: true });
+    for (const input of [[{ ...event, senderFrame: {} }, 'stop'], [{ ...event, sender: mainWindow.webContents }, 'stop'], [event, {}], [event, 'task-status', 'extra']] as const) expect(await handler(input[0], ...input.slice(1))).toMatchObject({ success: false });
+  });
+  it.each(['sesión', 'marco', 'oculta'] as const)('detener sigue disponible y una reanudación obsoleta no actúa: %s', async mode => {
+    const handler = ipcMainHarness._getHandler('orb:browser-command');
+    Object.defineProperty(orbWindow.webContents, 'mainFrame', { configurable: true, value: {} });
+    vi.mocked(orbWindow.isVisible).mockReturnValue(true);
+    setAuthState({ authenticated: true, userId: 'usuario-1' });
+    browser.getState.mockReturnValue({ profileRevision: 2, agentTask: { taskId: 'cu-id', revision: 1, status: 'paused', currentStep: 2, maxSteps: 5 } } as ReturnType<IntegratedBrowserService['getState']>);
+    let resolve!: (result: MessageBoxReturnValue) => void;
+    vi.mocked(dialog.showMessageBox).mockImplementationOnce(() => new Promise(done => { resolve = done; }));
+    const event = { sender: orbWindow.webContents, senderFrame: orbWindow.webContents.mainFrame };
+    const pending = handler(event, 'resume'); await vi.waitFor(() => expect(resolve).toBeDefined());
+    expect(await handler(event, 'resume')).toMatchObject({ success: false });
+    expect(await handler(event, 'stop')).toMatchObject({ success: true });
+    if (mode === 'sesión') { setAuthState({ authenticated: false, userId: null }); setAuthState({ authenticated: true, userId: 'usuario-1' }); }
+    if (mode === 'marco') Object.defineProperty(orbWindow.webContents, 'mainFrame', { configurable: true, value: {} });
+    if (mode === 'oculta') vi.mocked(orbWindow.isVisible).mockReturnValue(false);
+    resolve({ response: 1, checkboxChecked: false });
+    expect(await pending).toMatchObject({ success: false });
+    expect(browser.controlAgentTask).toHaveBeenCalledTimes(1);
+    expect(browser.controlAgentTask).toHaveBeenCalledWith(expect.objectContaining({ action: 'stop' }));
+  });
 
   it('abre la Orbe solo para el renderer principal autenticado', async () => {
     setAuthState({ authenticated: true, userId: 'usuario-1' });

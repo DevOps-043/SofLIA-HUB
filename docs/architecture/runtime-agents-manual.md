@@ -77,6 +77,15 @@ Fuente: `src/services/gemini-chat/`, `src/services/gemini-tools/`,
 
 ### 2.1 Loop agéntico
 
+Excepción de alcance del turno: al adjuntar pestañas explícitamente, el modo
+`attached-fragments` no hace captura automática ni consulta el documento activo
+o herramientas de búsqueda/recuperación hospedadas. El modelo sólo puede trabajar
+con los extractos y, si la persona eligió una Skill, sus herramientas de workspace
+sin descarga de imágenes. El dispatcher verifica el mismo alcance, no sólo el
+catálogo. Las citas conservan extracto y fecha en el chat; regenerar no relee
+páginas. No confundir esos datos proporcionados con evidencia de que una
+conclusión sea correcta. Ver [contrato y límites de adjuntos](integrated-browser-platform.md#adjuntos-de-pestañas-y-citas).
+
 `runAgenticLoop` (`src/services/gemini-chat/agentic-loop.ts`):
 
 1. Envía el mensaje inicial con `withGeminiModelCall` (timeout, reintento y
@@ -85,6 +94,12 @@ Fuente: `src/services/gemini-chat/`, `src/services/gemini-tools/`,
    - acumula imágenes `inlineData` que emite la ejecución de código
      (gráficas de matplotlib) para adjuntarlas al mensaje final;
    - filtra las `functionCall` del candidato;
+   - si no hay ninguna y el cierre fue `MALFORMED_FUNCTION_CALL`, reintenta: la
+     primera vez pide reemitir la llamada, la segunda pide responder SIN
+     herramientas. Es un fallo de generación, no de la petición, y llega como
+     HTTP 200, así que el reintento de `resilience.ts` —que solo cubre errores
+     lanzados— nunca lo alcanzaba y el turno moría pidiendo al usuario que
+     reescribiera. Misma escalada que el agente de WhatsApp (§3.8);
    - si no hay ninguna, devuelve el texto final con sus fuentes;
    - si hay, ejecuta cada una y reenvía las respuestas al modelo.
 3. Si se agotan las 10 iteraciones responde
@@ -107,18 +122,18 @@ ejecutando acciones a espaldas del usuario.
 
 | Nombre en la UI | Modelo | Modos de razonamiento |
 |---|---|---|
-| SofLIA | `gemini-3.6-flash` | Bajo / Medio / Alto |
+| SofLIA | `gemini-3.8-flash` | Bajo / Medio / Alto |
 | SofLIA Max | `gpt-5.6-terra` | Bajo / Medio / Alto / Muy alto / Maximo |
 | SofLIA Pro | `gpt-5.6-luna` | Bajo / Medio / Alto / Muy alto / Maximo |
 | SofLIA Lite | `gemini-3.5-flash-lite` | Bajo / Medio / Alto |
 
-SofLIA usa `gemini-3.6-flash` por defecto. El modelo elegido determina el
+SofLIA usa `gemini-3.8-flash` por defecto. El modelo elegido determina el
 proveedor del turno: SofLIA y Lite usan Google; Max y Pro usan OpenAI. La
 selección y el nivel se conservan por modelo en preferencias locales. El modo
 “Rápido” no se expone; preferencias antiguas `minimal` o `none` se migran a
 `low`. Una solicitud que necesita Computer Use conserva el modelo y esfuerzo
 seleccionados como orquestador del turno. La herramienta `use_computer` delega
-solo la percepción y actuación al `gemini-3.6-flash` fijo de main, sin degradar
+solo la percepción y actuación al `gemini-3.8-flash` fijo de main, sin degradar
 ese actuador ni sustituir silenciosamente el proveedor conversacional.
 
 `buildGenerationConfig` fija `maxOutputTokens: 16384` y envía
@@ -608,6 +623,14 @@ un checkout o un SSO de otro origen) son objetivos CDP distintos y no entran en
 la captura. Se enumeran como marcos inaccesibles. Cubrirlos exige adjuntarse a
 cada objetivo con `Target` en modo plano y componer coordenadas entre procesos.
 
+**Atajos de lectura del navegador**
+
+Los [atajos de lectura](integrated-browser-platform.md#atajos-reutilizables-de-lectura)
+reutilizan el chat con fragmentos explícitos: sólo preparan instrucciones, no
+crean otro runtime ni conceden herramientas o permisos persistentes. Se eligen
+desde el compositor, requieren pestañas frescas y envío manual; no se exponen
+la biblioteca ni sus operaciones como herramientas para páginas o agentes.
+
 **Set-of-Marks del navegador** (`integrated-browser/dom-element-source.ts`)
 
 El driver de Computer Use del navegador integrado ya inyectaba el DOM saneado en
@@ -642,6 +665,25 @@ resolver el clic por el camino determinista —recalculando el punto de impacto 
 vivo— en vez de por coordenada. Hoy esa acción todavía no existe en el contrato
 de Computer Use: el modelo sigue respondiendo con coordenadas y las marcas solo
 mejoran su anclaje visual.
+
+El driver mantiene la identidad de la tarea y la revisión de la captura al
+autorizar y ejecutar. Un cambio de pestaña (incluso salir y volver), perfil o
+política bloquea el loop; una captura obsoleta no aporta coordenadas ni contexto
+para otra página. La señal de cancelación llega a permisos y esperas y se revisa
+tras capturas, marcado y escritura, antes de enviar Enter o pedir otra respuesta.
+No deshace entrada ya emitida. Interrumpe la espera local y transmite abort al
+SDK, sin garantizar cancelar cómputo/cargos remotos. La pausa cancela la fase y
+espera drenaje; reanudar usa captura nueva con el mismo destino y presupuesto
+restante. Tomar control cancela la tarea y mantiene la reserva hasta limpieza.
+Estos controles pertenecen a la UI humana, no a herramientas del agente. El alcance
+y los límites de la toma de control se mantienen en
+[Plataforma del navegador integrado](integrated-browser-platform.md).
+
+Con gobierno avanzado habilitado, la bitácora main agrupa operaciones DOM y
+Computer Use por traza, con origen y pestaña seudónima cifrados por perfil. No
+guarda capturas, valores de formulario ni resultados textuales. Inicio sin cierre
+indica interrupción, no éxito de la tarea. Consulta, retención y borrado pertenecen
+a la UI humana; no agregan herramientas ni permisos al agente runtime.
 
 **Automatización de computadora** (`computer-automation-tools.ts`)
 
@@ -871,7 +913,7 @@ con el objetivo real.
 
 ### 3.6 Selección de modelo
 
-`WA_MODEL` es `gemini-3.6-flash`. No se aceptan overrides ni fallbacks de
+`WA_MODEL` es `gemini-3.8-flash`. No se aceptan overrides ni fallbacks de
 modelo: un error de disponibilidad se reporta sin degradar silenciosamente.
 
 `generationConfig`: `maxOutputTokens: 4096`. El historial persistido se limita a
@@ -1338,6 +1380,16 @@ las Skills que solo viven en la base.
 
 ### 3.17 Anuncios proactivos en la orbe
 
+La voz iniciada por la persona puede dirigir el navegador con el prefijo literal
+`navegador`: cambiar pestaña o consultar/pausar/reanudar/detener/tomar control
+de su tarea actual. Es un adaptador humano, no un runtime nuevo; no convierte
+texto libre en ejecución, no locuta títulos/URL y no expone credenciales.
+Reanudar requiere diálogo nativo y recibo vigente. La memoria semántica se
+activa desde herramientas mediante consentimiento separado, nunca por el agente.
+Las rutas de observación/actuación integrada respetan la barrera local de
+documentos sensibles y esperan drenaje antes del control manual. Límites en
+[plataforma del navegador](integrated-browser-platform.md).
+
 Cuando una Skill pasiva tiene activo el canal Computadora, `main/orb-announcements.ts`
 muestra la orbe y le envía `orb:announce`. Es la única vía por la que el producto
 habla sin que el usuario haya iniciado la conversación, y por eso lleva tres
@@ -1647,7 +1699,7 @@ opcionales antes de instalarse. Una extensión con error puede reintentarse sin
 reinstalarla; el renderer recibe un diagnóstico genérico y nunca una ruta local.
 
 - `computerUseEngine`: `'gemini'` o `'legacy'` (default `'gemini'`);
-- `computerUseModel`: `gemini-3.6-flash` (único; sin fallback de modelo);
+- `computerUseModel`: `gemini-3.8-flash` (único; sin fallback de modelo);
 - `computerUseDesktopEnabled` / `computerUseBrowserEnabled`: `true`;
 - `computerUsePromptInjectionDetection`: `true` (detección de inyección en la
   captura).
@@ -1693,8 +1745,8 @@ reinstalarla; el renderer recibe un diagnóstico genérico y nunca una ruta loca
 | `planningEnabled` | true | Planeación estratégica |
 | `hierarchicalPlanningEnabled` | true | Plan por fases |
 | `memoryWindowSize` | 10 | Ventana de memoria del paso |
-| `model` / `fallbackModel` | `gemini-3.6-flash` / `gemini-3.6-flash` | Modelo único de visión; el campo fallback se conserva por compatibilidad |
-| `proactiveModel` | `gemini-3.6-flash` | Modelo proactivo |
+| `model` / `fallbackModel` | `gemini-3.8-flash` / `gemini-3.8-flash` | Modelo único de visión; el campo fallback se conserva por compatibilidad |
+| `proactiveModel` | `gemini-3.8-flash` | Modelo proactivo |
 | `maxConsecutiveFailures` | 3 | Fallos seguidos tolerados |
 | `stuckDetectionThreshold` | 4 | Detección de atasco |
 | `autoRecoverFromDialogs` | true | Recuperación ante diálogos |

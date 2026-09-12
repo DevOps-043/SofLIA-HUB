@@ -60,7 +60,7 @@
 ## 9. Alineación, modelo de Computer Use y continuidad
 
 - [x] 9.1 Medir el inicio del viewport web y alinear debajo de la barra superior el chat flotante y su divisor.
-- [x] 9.2 Fijar visión legacy y Computer Use en `gemini-3.6-flash`, conservando el catálogo y ruteo conversacional del usuario.
+- [x] 9.2 Fijar visión legacy y Computer Use en `gemini-3.8-flash`, conservando el catálogo y ruteo conversacional del usuario.
 - [x] 9.3 Ampliar de forma acotada el presupuesto de Computer Use para el navegador integrado y mejorar el outcome al agotarse.
 - [x] 9.4 Cubrir alineación, modelo fijo de Computer Use, catálogo conversacional y presupuesto con pruebas; actualizar documentación y ejecutar revisión adversarial.
 

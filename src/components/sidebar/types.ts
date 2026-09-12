@@ -67,6 +67,10 @@ export interface SidebarProps {
   organizations?: SofiaOrganization[];
   currentOrgId?: string;
   onSelectOrganization?: (orgId: string) => void;
+  /** Motivo por el que no hay lista de organizaciones que mostrar. */
+  organizationsUnavailableMessage?: string | null;
+  /** Ausente cuando reintentar no puede recuperar nada (sesion caducada). */
+  onRetryOrganizations?: () => Promise<boolean>;
   theme: ThemeMode;
   onSetTheme: (t: ThemeMode) => void;
   onOpenSettings: () => void;

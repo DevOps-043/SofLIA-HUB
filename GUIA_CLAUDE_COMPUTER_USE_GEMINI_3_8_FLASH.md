@@ -1,9 +1,9 @@
-# Guía de implementación para Claude Code: Computer Use de escritorio con Gemini 3.6 Flash
+# Guía de implementación para Claude Code: Computer Use de escritorio con Gemini 3.8 Flash
 
 > **Proyecto objetivo:** aplicación de escritorio basada en Electron, React y TypeScript.  
 > **Caso principal:** controlar aplicaciones de Windows mediante capturas de pantalla, movimiento del cursor, clics, escritura, atajos, desplazamiento y arrastre.  
 > **Entorno especial:** uno o varios monitores con resoluciones, posiciones y escalas DPI diferentes.  
-> **Modelo principal:** `gemini-3.6-flash`.  
+> **Modelo principal:** `gemini-3.8-flash`.  
 > **Actualizado:** 2 de agosto de 2026.
 
 ---
@@ -33,7 +33,7 @@ La precisión de Computer Use depende tanto del modelo como de esta conversión.
 ### Modelo recomendado
 
 ```text
-gemini-3.6-flash
+gemini-3.8-flash
 ```
 
 Usarlo como **modelo actuador principal** para:
@@ -62,7 +62,7 @@ Política recomendada:
 
 | Perfil | Modelo | Uso |
 |---|---|---|
-| Recomendado | `gemini-3.6-flash` | Operación normal de escritorio |
+| Recomendado | `gemini-3.8-flash` | Operación normal de escritorio |
 | Compatibilidad | `gemini-3.5-flash` | Respaldo temporal si falla el modelo principal |
 | Económico | `gemini-3.5-flash-lite` | Flujos sencillos, repetitivos y de bajo riesgo |
 
@@ -70,13 +70,41 @@ No usar nombres de modelos no verificados como identificadores predeterminados. 
 
 ---
 
-## 3. Por qué Gemini 3.6 Flash es la mejor opción
+## 3. Por qué Gemini 3.8 Flash es la mejor opción
 
-Google identifica oficialmente `gemini-3.6-flash` como el modelo recomendado para Computer Use. La recomendación no se basa solamente en que sea rápido.
+Google identifica oficialmente `gemini-3.8-flash` como el modelo recomendado para Computer Use. La recomendación no se basa solamente en que sea rápido.
+
+### 3.0 Evidencia externa: OSWorld 2.0
+
+`OSWorld 2.0` (XLANG Lab, junio de 2026) es el banco de referencia para agentes de
+Computer Use: 108 flujos largos sobre sistemas operativos reales en contenedores
+fijados por versión, con una mediana de ~1,6 h de trabajo humano por tarea y
+decenas de puntos de control ponderados en lugar de un único aprobado/suspenso.
+Sustituye a `OSWorld-Verified`, donde los modelos ya se acercaban al techo.
+
+Posición publicada de la familia Flash en ese banco:
+
+| Modelo | OSWorld 2.0 |
+|---|---|
+| GPT-6 Astra | 72,6 % |
+| Claude Opus 5 | 70,6 % |
+| GPT-5.6 Sol | 62,6 % |
+| **Gemini 3.8 Flash** | **59,0 %** |
+| Gemini 3.7 Flash | 47,9 % |
+
+Dos cautelas al citar estas cifras: las tiradas que publicó Google se ejecutaron
+antes del parche `08.08` del banco, y las fuentes discrepan entre puntuación
+binaria y parcial, así que el orden es más fiable que el valor absoluto.
+
+No existe una comparación publicada de `gemini-3.6-flash` frente a
+`gemini-3.8-flash` sobre el mismo banco: 3.6 se midió en `OSWorld-Verified`
+(83,0 %) y 3.8 en `OSWorld 2.0`. La elección de 3.8 se sostiene en que es el
+modelo recomendado por el proveedor y el único de la familia con resultado en el
+banco vigente, no en un delta medido contra 3.6.
 
 ### 3.1 Computer Use integrado
 
-Gemini 3.6 Flash acepta la herramienta:
+Gemini 3.8 Flash acepta la herramienta:
 
 ```ts
 {
@@ -158,7 +186,7 @@ Esto facilita:
 
 ### 3.5 Entorno de escritorio explícito
 
-Gemini 3.6 Flash distingue entre:
+Gemini 3.8 Flash distingue entre:
 
 - `browser`;
 - `mobile`;
@@ -200,7 +228,7 @@ captura → análisis → acción → nueva captura → análisis
 
 Un modelo demasiado lento produce una interfaz frustrante. Un modelo excesivamente pequeño puede cometer más errores visuales y necesitar más pasos.
 
-Gemini 3.6 Flash está diseñado para equilibrar rapidez, visión, tareas multimodales y comportamiento agente. Por eso debe ser la opción predeterminada.
+Gemini 3.8 Flash está diseñado para equilibrar rapidez, visión, tareas multimodales y comportamiento agente. Por eso debe ser la opción predeterminada.
 
 ---
 
@@ -219,7 +247,7 @@ Claude debe:
 - mantener el código;
 - documentar decisiones.
 
-### Gemini 3.6 Flash
+### Gemini 3.8 Flash
 
 Gemini debe actuar en tiempo de ejecución como:
 
@@ -281,7 +309,7 @@ Crear `.env.example`:
 ```dotenv
 GEMINI_API_KEY=
 
-COMPUTER_USE_MODEL=gemini-3.6-flash
+COMPUTER_USE_MODEL=gemini-3.8-flash
 COMPUTER_USE_FALLBACK_MODEL=gemini-3.5-flash
 COMPUTER_USE_ECONOMY_MODEL=gemini-3.5-flash-lite
 
@@ -314,7 +342,7 @@ export const COMPUTER_USE_MODELS: Record<
 > = {
   recommended: {
     provider: "google",
-    model: process.env.COMPUTER_USE_MODEL ?? "gemini-3.6-flash",
+    model: process.env.COMPUTER_USE_MODEL ?? "gemini-3.8-flash",
     environment: "desktop",
   },
   compatibility: {
@@ -997,7 +1025,7 @@ Cambiar de modelo no debe ser el primer mecanismo de recuperación.
 
 ## 19. Política de fallback
 
-Usar `gemini-3.6-flash` como valor predeterminado.
+Usar `gemini-3.8-flash` como valor predeterminado.
 
 Cambiar a `gemini-3.5-flash` únicamente si:
 
@@ -1052,7 +1080,7 @@ Mostrar perfiles, no nombres técnicos aislados:
 
 ```text
 Recomendado
-Gemini 3.6 Flash
+Gemini 3.8 Flash
 Mejor equilibrio para controlar aplicaciones y trabajar con varias pantallas.
 
 Económico
@@ -1061,7 +1089,7 @@ Para tareas sencillas y repetitivas.
 
 Compatibilidad
 Gemini 3.5 Flash
-Modelo alternativo para entornos que todavía no puedan usar 3.6 Flash.
+Modelo alternativo para entornos que todavía no puedan usar 3.8 Flash.
 ```
 
 El perfil predeterminado debe ser **Recomendado**.
@@ -1157,7 +1185,7 @@ Agregar una prueba con un monitor vertical.
 
 La implementación se considera lista cuando:
 
-- `gemini-3.6-flash` es el modelo predeterminado;
+- `gemini-3.8-flash` es el modelo predeterminado;
 - los modelos se configuran desde un registro central;
 - el renderer no recibe la clave API;
 - se puede seleccionar correctamente uno de tres monitores;
@@ -1209,7 +1237,7 @@ No empezar integrando la API antes de validar el mapeo de coordenadas. Primero d
 La selección recomendada es:
 
 ```text
-Modelo actuador principal: gemini-3.6-flash
+Modelo actuador principal: gemini-3.8-flash
 Entorno: desktop
 API: Gemini Interactions API
 Captura: un monitor por interacción operativa
@@ -1220,7 +1248,7 @@ Fallback: gemini-3.5-flash
 Perfil económico: gemini-3.5-flash-lite
 ```
 
-Gemini 3.6 Flash es la mejor opción predeterminada porque Google lo recomienda específicamente para Computer Use, ofrece acciones nativas de escritorio, coordenadas normalizadas, intención por acción, soporte de seguridad y un equilibrio adecuado entre velocidad e inteligencia.
+Gemini 3.8 Flash es la mejor opción predeterminada porque Google lo recomienda específicamente para Computer Use, ofrece acciones nativas de escritorio, coordenadas normalizadas, intención por acción, soporte de seguridad y un equilibrio adecuado entre velocidad e inteligencia.
 
 Sin embargo, el soporte real de tres monitores depende de la aplicación. El modelo no debe resolver por sí solo DPI, monitores con origen negativo ni transformaciones entre píxeles físicos y DIP.
 
