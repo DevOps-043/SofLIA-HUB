@@ -3,6 +3,7 @@ import { shouldRunToolLoop, type ToolLoopSignals } from '../../services/gemini-c
 import { buildModelTools } from '../../services/gemini-chat/model-config';
 import { PRESENTACIONES_SKILL } from '../../shared/skills/presentaciones-skill';
 import type { ActiveSkillContext } from '../../services/gemini-tools/turn-catalog';
+import { executeGeminiToolCall } from '../../services/gemini-chat/tool-dispatch';
 
 /**
  * Regresion del fallo observado en el chat flotante del navegador: al pedir
@@ -24,6 +25,17 @@ const OBSERVACION_NAVEGADOR: ToolLoopSignals = {
 };
 
 describe('decision del bucle de herramientas', () => {
+  it('analizar extractos conserva archivos de la Skill pero no amplía fuentes ni habilita el equipo', async () => {
+    const skill = { id: 'sistema:presentaciones', tools: ['workspace_read_file', 'workspace_write_file', 'workspace_download_image'], workspaceId: 'workspace' };
+    const groups = buildModelTools(true, 'gemini-3.8-flash', skill, true);
+    const names = groups.flatMap((group) => group.functionDeclarations.map((tool: { name: string }) => tool.name));
+    expect(names).toEqual(['workspace_read_file', 'workspace_write_file']);
+    expect(buildModelTools(true, 'gemini-3.8-flash', undefined, true)).toEqual([]);
+    for (const name of ['read_browser_dom', 'navigate_integrated_browser', 'use_computer', 'workspace_download_image']) {
+      const result = await executeGeminiToolCall(name, {}, { browserSourceMode: 'attached-fragments', activeSkill: { ...skill, name: 'Presentaciones', instructions: '' } }, [], []);
+      expect(result.functionResponse.response).toMatchObject({ success: false, error: expect.stringContaining('No autoriza') });
+    }
+  });
   it('una Skill con herramientas lo activa pese a la observacion del navegador', () => {
     // Este es exactamente el caso que fallaba.
     expect(shouldRunToolLoop({ ...OBSERVACION_NAVEGADOR, skillToolCount: 4 })).toBe(true);
@@ -101,14 +113,14 @@ describe('herramientas declaradas al modelo', () => {
   }
 
   it('con workspace vivo el modelo recibe las de escritura', () => {
-    const declaradas = nombres(buildModelTools(false, 'gemini-3.6-flash', SKILL));
+    const declaradas = nombres(buildModelTools(false, 'gemini-3.8-flash', SKILL));
 
     expect(declaradas).toContain('workspace_write_file');
     expect(declaradas).toContain('workspace_edit_file');
   });
 
   it('sin workspace vivo no se declara ninguna de escritura', () => {
-    const declaradas = nombres(buildModelTools(false, 'gemini-3.6-flash', { ...SKILL, workspaceId: null }));
+    const declaradas = nombres(buildModelTools(false, 'gemini-3.8-flash', { ...SKILL, workspaceId: null }));
 
     expect(declaradas.some((name) => name.startsWith('workspace_'))).toBe(false);
   });

@@ -366,6 +366,12 @@ Fuente: `src/services/gemini-chat/`, `src/services/gemini-tools/`,
    - acumula imágenes `inlineData` que emite la ejecución de código
      (gráficas de matplotlib) para adjuntarlas al mensaje final;
    - filtra las `functionCall` del candidato;
+   - si no hay ninguna y el cierre fue `MALFORMED_FUNCTION_CALL`, reintenta: la
+     primera vez pide reemitir la llamada, la segunda pide responder SIN
+     herramientas. Es un fallo de generación, no de la petición, y llega como
+     HTTP 200, así que el reintento de `resilience.ts` —que solo cubre errores
+     lanzados— nunca lo alcanzaba y el turno moría pidiendo al usuario que
+     reescribiera. Misma escalada que el agente de WhatsApp (§3.8);
    - si no hay ninguna, devuelve el texto final con sus fuentes;
    - si hay, ejecuta cada una y reenvía las respuestas al modelo.
 3. Si se agotan las 10 iteraciones responde
@@ -388,18 +394,18 @@ ejecutando acciones a espaldas del usuario.
 
 | Nombre en la UI | Modelo | Modos de razonamiento |
 |---|---|---|
-| SofLIA | `gemini-3.6-flash` | Bajo / Medio / Alto |
+| SofLIA | `gemini-3.8-flash` | Bajo / Medio / Alto |
 | SofLIA Max | `gpt-5.6-terra` | Bajo / Medio / Alto / Muy alto / Maximo |
 | SofLIA Pro | `gpt-5.6-luna` | Bajo / Medio / Alto / Muy alto / Maximo |
 | SofLIA Lite | `gemini-3.5-flash-lite` | Bajo / Medio / Alto |
 
-SofLIA usa `gemini-3.6-flash` por defecto. El modelo elegido determina el
+SofLIA usa `gemini-3.8-flash` por defecto. El modelo elegido determina el
 proveedor del turno: SofLIA y Lite usan Google; Max y Pro usan OpenAI. La
 selección y el nivel se conservan por modelo en preferencias locales. El modo
 “Rápido” no se expone; preferencias antiguas `minimal` o `none` se migran a
 `low`. Una solicitud que necesita Computer Use conserva el modelo y esfuerzo
 seleccionados como orquestador. `use_computer` delega únicamente la percepción
-y actuación al `gemini-3.6-flash` fijo de main; los fallos se reportan sin
+y actuación al `gemini-3.8-flash` fijo de main; los fallos se reportan sin
 sustituir silenciosamente ninguno de los dos proveedores.
 
 `buildGenerationConfig` fija `maxOutputTokens: 16384` y envía
@@ -610,7 +616,7 @@ con el objetivo real.
 
 ### 3.6 Selección de modelo
 
-`WA_MODEL` es `gemini-3.6-flash`. No se aceptan overrides ni fallbacks de
+`WA_MODEL` es `gemini-3.8-flash`. No se aceptan overrides ni fallbacks de
 modelo: un error de disponibilidad se reporta sin degradar silenciosamente.
 
 `generationConfig`: `maxOutputTokens: 4096`. El historial persistido se limita a
@@ -1148,7 +1154,7 @@ Computer Use no puede iniciar o capturar esa vista, la tarea termina como
 El panel mide el inicio del contenido y comienza debajo de la barra superior.
 
 - `computerUseEngine`: `'gemini'` o `'legacy'` (default `'gemini'`);
-- `computerUseModel`: `gemini-3.6-flash` (único; sin fallback de modelo);
+- `computerUseModel`: `gemini-3.8-flash` (único; sin fallback de modelo);
 - `computerUseDesktopEnabled` / `computerUseBrowserEnabled`: `true`;
 - `computerUsePromptInjectionDetection`: `true` (detección de inyección en la
   captura).
@@ -1194,8 +1200,8 @@ El panel mide el inicio del contenido y comienza debajo de la barra superior.
 | `planningEnabled` | true | Planeación estratégica |
 | `hierarchicalPlanningEnabled` | true | Plan por fases |
 | `memoryWindowSize` | 10 | Ventana de memoria del paso |
-| `model` / `fallbackModel` | `gemini-3.6-flash` / `gemini-3.6-flash` | Modelo único de visión |
-| `proactiveModel` | `gemini-3.6-flash` | Modelo proactivo |
+| `model` / `fallbackModel` | `gemini-3.8-flash` / `gemini-3.8-flash` | Modelo único de visión |
+| `proactiveModel` | `gemini-3.8-flash` | Modelo proactivo |
 | `maxConsecutiveFailures` | 3 | Fallos seguidos tolerados |
 | `stuckDetectionThreshold` | 4 | Detección de atasco |
 | `autoRecoverFromDialogs` | true | Recuperación ante diálogos |

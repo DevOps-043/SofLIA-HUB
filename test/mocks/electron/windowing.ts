@@ -16,6 +16,7 @@ export class BrowserWindow extends EventEmitter {
     setWindowOpenHandler: vi.fn(),
     id: nextWebContentsId++,
     session: {
+      isPersistent: vi.fn(() => true),
       setUserAgent: vi.fn(),
       setPermissionRequestHandler: vi.fn(),
       setPermissionCheckHandler: vi.fn(),
@@ -92,12 +93,17 @@ class MockWebContents extends EventEmitter {
   private title = '';
   private destroyed = false;
   session = {
+    isPersistent: vi.fn(() => true),
+    on: vi.fn(),
+    removeListener: vi.fn(),
     getUserAgent: vi.fn(() => this.getUserAgent()),
     setUserAgent: vi.fn(),
     setPermissionRequestHandler: vi.fn(),
     setPermissionCheckHandler: vi.fn(),
     setDisplayMediaRequestHandler: vi.fn(),
+    setCertificateVerifyProc: vi.fn(),
     webRequest: {
+      onBeforeRequest: vi.fn(),
       onBeforeSendHeaders: vi.fn(),
       onHeadersReceived: vi.fn(),
       onErrorOccurred: vi.fn(),
@@ -122,6 +128,7 @@ class MockWebContents extends EventEmitter {
     this.emit('did-stop-loading');
   });
   getURL = vi.fn(() => this.currentUrl);
+  isFocused = vi.fn(() => true);
   getTitle = vi.fn(() => this.title);
   getUserAgent = vi.fn(() => 'Mozilla/5.0 (KHTML, like Gecko) soflia-hub-desktop/0.9.6 Chrome/152.0.7977.30 Electron/44.0.0-beta.3 Safari/537.36');
   setUserAgent = vi.fn();
@@ -129,14 +136,28 @@ class MockWebContents extends EventEmitter {
   focus = vi.fn();
   reload = vi.fn();
   stop = vi.fn();
+  findInPage = vi.fn(() => 1);
+  stopFindInPage = vi.fn();
+  private currentZoomFactor = 1;
+  setZoomMode = vi.fn((_mode: 'default' | 'isolated' | 'manual' | 'disabled') => {});
+  setZoomFactor = vi.fn((factor: number) => { this.currentZoomFactor = factor; });
+  getZoomFactor = vi.fn(() => this.currentZoomFactor);
+  enableDeviceEmulation = vi.fn();
+  disableDeviceEmulation = vi.fn();
+  setAudioMuted = vi.fn();
+  print = vi.fn((_options: unknown, callback: (success: boolean, failureReason: string) => void) => callback(true, ''));
+  printToPDF = vi.fn(async () => Buffer.from('pdf'));
+  downloadURL = vi.fn();
   isDestroyed = vi.fn(() => this.destroyed);
   close = vi.fn(() => { this.destroyed = true; });
   capturePage = vi.fn(async () => new MockNativeImage());
   sendInputEvent = vi.fn();
   insertText = vi.fn(async () => {});
-  executeJavaScript = vi.fn(async (_code?: string, _userGesture?: boolean): Promise<unknown> => (
-    { username: true, password: true }
-  ));
+  executeJavaScript = vi.fn(async (code?: string, userGesture?: boolean): Promise<unknown> => {
+    void code;
+    void userGesture;
+    return { username: true, password: true };
+  });
   /**
    * Un mundo aislado comparte el DOM con el principal: solo cambia el contexto
    * de JavaScript en que corre el codigo. El doble delega en `executeJavaScript`
@@ -144,8 +165,9 @@ class MockWebContents extends EventEmitter {
    * pagina obtenga el mismo valor por los dos caminos.
    */
   executeJavaScriptInIsolatedWorld = vi.fn(
-    async (_worldId: number, scripts: Array<{ code: string }>, userGesture?: boolean) =>
-      this.executeJavaScript(scripts?.[0]?.code ?? '', userGesture),
+    async (_worldId: number, scripts: Array<{ code: string }>) => {
+      return this.executeJavaScript(scripts?.[0]?.code ?? '', false);
+    },
   );
   debugger = new MockWebContentsDebugger();
 }

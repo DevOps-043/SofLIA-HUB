@@ -1,5 +1,7 @@
 import { createRequire } from 'node:module';
 import type { CuEnvironment, CuFunctionCall } from './types';
+import { assertCuNotAborted } from './execution-guard';
+import { waitForCuResponse } from './cancellable-wait';
 
 /**
  * Cliente de la Computer Use API (@google/genai). Mantiene la conversacion con
@@ -51,12 +53,13 @@ export type CuTurn = {
 
 export interface CuClient {
   disponible(): boolean;
-  iniciar(task: string, screenshotBase64: string, context?: Record<string, unknown>): Promise<CuTurn>;
+  iniciar(task: string, screenshotBase64: string, context?: Record<string, unknown>, signal?: AbortSignal): Promise<CuTurn>;
   continuar(
     callId: string | null,
     name: string,
     screenshotBase64: string,
     extraResponse?: Record<string, unknown>,
+    signal?: AbortSignal,
   ): Promise<CuTurn>;
 }
 
@@ -95,10 +98,14 @@ export function createComputerUseClient(options: CuClientOptions): CuClient {
     return client;
   }
 
-  async function generar(): Promise<CuTurn> {
+  async function generar(signal?: AbortSignal): Promise<CuTurn> {
+    assertCuNotAborted(signal);
     const active = ensureClient();
     if (!active) throw new Error('Computer Use no disponible (SDK/API key).');
-    const resp = await active.models.generateContent({ model: options.model, contents, config: toolConfig() });
+    const resp = await waitForCuResponse(() => active.models.generateContent({
+      model: options.model, contents: [...contents], config: { ...toolConfig(), ...(signal ? { abortSignal: signal } : {}) },
+    }), signal);
+    assertCuNotAborted(signal);
     const modelContent = resp.candidates?.[0]?.content;
     if (modelContent) contents.push(modelContent);
     const functionCall = resp.functionCalls?.[0] ?? null;
@@ -107,7 +114,8 @@ export function createComputerUseClient(options: CuClientOptions): CuClient {
 
   return {
     disponible: () => Boolean(getSdk() && options.apiKey),
-    async iniciar(task: string, screenshotBase64: string, context?: Record<string, unknown>): Promise<CuTurn> {
+    async iniciar(task: string, screenshotBase64: string, context?: Record<string, unknown>, signal?: AbortSignal): Promise<CuTurn> {
+      assertCuNotAborted(signal);
       contents.length = 0;
       contents.push({
         role: 'user',
@@ -117,9 +125,10 @@ export function createComputerUseClient(options: CuClientOptions): CuClient {
           { inlineData: { mimeType: 'image/png', data: screenshotBase64 } },
         ],
       });
-      return generar();
+      return generar(signal);
     },
-    async continuar(callId, name, screenshotBase64, extraResponse): Promise<CuTurn> {
+    async continuar(callId, name, screenshotBase64, extraResponse, signal): Promise<CuTurn> {
+      assertCuNotAborted(signal);
       const mod = getSdk();
       if (!mod) throw new Error('Computer Use SDK no disponible.');
       const part = mod.createPartFromFunctionResponse(
@@ -129,7 +138,7 @@ export function createComputerUseClient(options: CuClientOptions): CuClient {
         [{ inlineData: { mimeType: 'image/png', data: screenshotBase64 } }],
       );
       contents.push({ role: 'user', parts: [part] });
-      return generar();
+      return generar(signal);
     },
   };
 }

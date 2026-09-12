@@ -42,12 +42,12 @@ vi.mock('../../config', () => ({
   GOOGLE_API_KEY: 'env-test-key',
   OPENAI_API_KEY: '',
   MODELS: {
-    PRIMARY: 'gemini-3.6-flash',
-    FALLBACK: 'gemini-3.6-flash',
-    PRO: 'gemini-3.6-flash',
-    WEB_AGENT: 'gemini-3.6-flash',
-    VISION: 'gemini-3.6-flash',
-    THINKING: 'gemini-3.6-flash',
+    PRIMARY: 'gemini-3.8-flash',
+    FALLBACK: 'gemini-3.8-flash',
+    PRO: 'gemini-3.8-flash',
+    WEB_AGENT: 'gemini-3.8-flash',
+    VISION: 'gemini-3.8-flash',
+    THINKING: 'gemini-3.8-flash',
   },
   OPENAI_MODELS: {
     COMPUTER_USE: 'gpt-5.6-terra',

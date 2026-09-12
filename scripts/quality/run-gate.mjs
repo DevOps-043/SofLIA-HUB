@@ -18,7 +18,7 @@ const scripts = [
   'lint:changed',
   'test',
 ];
-if (release) scripts.push('build');
+if (release) scripts.push('runtime:stable', 'build');
 
 for (const script of scripts) {
   console.log(`\n=== npm run ${script} ===`);

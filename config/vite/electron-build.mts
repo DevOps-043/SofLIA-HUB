@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { builtinModules } from 'node:module';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 type RollupWarning = { code?: string; message: string };
@@ -30,7 +30,7 @@ export function createElectronExternals(dependencies: Record<string, string> = {
     ...COMMONJS_NATIVE_OPTIONALS,
   ]);
   const directDependencies = new Set(Object.keys(dependencies));
-  const nodeModulesRoot = fileURLToPath(new URL('../../node_modules/', import.meta.url));
+  const nodeModulesRoots = collectNodeModulesRoots(fileURLToPath(new URL('.', import.meta.url)));
 
   return (id: string): boolean => {
     if (builtins.has(id) || id.startsWith('node:')) return true;
@@ -45,8 +45,35 @@ export function createElectronExternals(dependencies: Record<string, string> = {
     // externo rompe a las que solo publican punto de entrada ESM. Solo se
     // externaliza la que ni siquiera esta instalada, que es un `require`
     // opcional que el empaquetador no debe intentar resolver.
-    return !existsSync(join(nodeModulesRoot, ...packageName.split('/')));
+    return !isPackageInstalled(packageName, nodeModulesRoots);
   };
+}
+
+/**
+ * Directorios `node_modules` que Node consultaria al resolver desde este
+ * archivo, del mas cercano al mas lejano. Un worktree de Git tiene su propio
+ * `node_modules` vacio y hereda la instalacion real del checkout principal:
+ * mirar solo la raiz del proyecto daba por no instalada a cualquier transitiva
+ * y la externalizaba, emitiendo un `require` de un paquete que solo publica
+ * ESM (`whatsapp-rust-bridge`, via Baileys) y abortando el arranque.
+ */
+function collectNodeModulesRoots(startDirectory: string): string[] {
+  const roots: string[] = [];
+  let current = startDirectory;
+
+  while (true) {
+    roots.push(join(current, 'node_modules'));
+    const parent = dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+
+  return roots;
+}
+
+function isPackageInstalled(packageName: string, nodeModulesRoots: readonly string[]): boolean {
+  const segments = packageName.split('/');
+  return nodeModulesRoots.some((root) => existsSync(join(root, ...segments)));
 }
 
 /** Nombre del paquete de un especificador, respetando el ambito `@scope/name`. */

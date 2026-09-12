@@ -5,7 +5,7 @@ const estado = vi.hoisted(() => ({ vectorStores: [] as string[] }));
 vi.mock('../../config', () => ({
   OPENAI_API_KEY: 'test-openai-key',
   get OPENAI_VECTOR_STORE_IDS() { return estado.vectorStores; },
-  MODELS: { PRIMARY: 'gemini-3.6-flash' },
+  MODELS: { PRIMARY: 'gemini-3.8-flash' },
   OPENAI_MODELS: { COMPUTER_USE: 'gpt-5.6-terra', COMMANDS: 'gpt-5.6-luna' },
   isOpenAIConfigured: () => true,
 }));
@@ -42,7 +42,7 @@ describe('Herramientas hospedadas de OpenAI', () => {
   it('HT-004: nunca se ofrece la herramienta computer de OpenAI', () => {
     estado.vectorStores = ['vs_123'];
 
-    // El actuador visual del producto es Gemini 3.6 Flash en el proceso main.
+    // El actuador visual del producto es Gemini 3.8 Flash en el proceso main.
     // Ofrecer tambien la herramienta nativa haria que dos agentes condujeran
     // la pantalla a la vez.
     const tools = buildHostedTools({ useWebSearch: true, reasoningEffort: 'high' });

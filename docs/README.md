@@ -41,6 +41,7 @@ Este indice separa documentacion vigente de material historico.
 - [Stack tecnologico](architecture/technology-stack.md)
 - [Frontend React](architecture/frontend.md)
 - [Backend Electron](architecture/backend-electron.md)
+- [Plataforma del navegador integrado](architecture/integrated-browser-platform.md)
 - [IPC e integraciones](architecture/ipc-and-integrations.md)
 - [Project Hub unificado](architecture/project-hub-unified.md)
 - [Agentes y automatizacion](architecture/agents-and-automation.md)

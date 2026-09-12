@@ -11,6 +11,12 @@ export const LIA_RESTORE_MESSAGE =
 export const SOFIA_CONTEXT_DEGRADED_MESSAGE =
   'No se pudo cargar tu organizacion en este momento. Tu sesion sigue activa; se reintentara automaticamente.';
 
+// Se usa cuando la sesion restaurada no trae token verificable: sin el, SOFIA
+// rechaza toda lectura y reintentar no cambia nada. La unica salida es volver a
+// iniciar sesion, y hay que decirlo en vez de prometer un reintento eterno.
+export const SOFIA_SESSION_EXPIRED_MESSAGE =
+  'Tu sesion con SOFIA caduco. Cierra sesion e inicia de nuevo para recuperar tus organizaciones y conversaciones.';
+
 export function toAuthUser(user: User, userMetadata?: SofiaAuthUser['user_metadata']): SofiaAuthUser {
   return {
     id: user.id,

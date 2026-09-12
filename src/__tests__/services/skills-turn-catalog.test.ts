@@ -36,8 +36,8 @@ describe('catalogo de herramientas por turno', () => {
 
   describe('sin skill activa', () => {
     it('el catalogo es identico al catalogo base', () => {
-      const base = contarDeclaraciones(buildModelTools(false, 'gemini-3.6-flash'));
-      const conSkillNula = contarDeclaraciones(buildModelTools(false, 'gemini-3.6-flash', null));
+      const base = contarDeclaraciones(buildModelTools(false, 'gemini-3.8-flash'));
+      const conSkillNula = contarDeclaraciones(buildModelTools(false, 'gemini-3.8-flash', null));
 
       expect(conSkillNula).toEqual(base);
       expect(base.some((name) => name.startsWith('workspace_'))).toBe(false);
@@ -56,7 +56,7 @@ describe('catalogo de herramientas por turno', () => {
 
   describe('con skill activa y workspace vivo', () => {
     it('declara las herramientas de workspace', () => {
-      const nombres = contarDeclaraciones(buildModelTools(false, 'gemini-3.6-flash', SKILL_CON_WORKSPACE));
+      const nombres = contarDeclaraciones(buildModelTools(false, 'gemini-3.8-flash', SKILL_CON_WORKSPACE));
 
       expect(nombres).toContain('workspace_write_file');
       expect(nombres).toContain('workspace_edit_file');
@@ -70,8 +70,8 @@ describe('catalogo de herramientas por turno', () => {
     });
 
     it('no altera las herramientas base', () => {
-      const base = contarDeclaraciones(buildModelTools(false, 'gemini-3.6-flash'));
-      const conSkill = contarDeclaraciones(buildModelTools(false, 'gemini-3.6-flash', SKILL_CON_WORKSPACE));
+      const base = contarDeclaraciones(buildModelTools(false, 'gemini-3.8-flash'));
+      const conSkill = contarDeclaraciones(buildModelTools(false, 'gemini-3.8-flash', SKILL_CON_WORKSPACE));
 
       expect(base.every((name) => conSkill.includes(name))).toBe(true);
     });
@@ -79,7 +79,7 @@ describe('catalogo de herramientas por turno', () => {
 
   describe('con skill activa pero sin workspace', () => {
     it('no declara las herramientas de workspace', () => {
-      const nombres = contarDeclaraciones(buildModelTools(false, 'gemini-3.6-flash', SKILL_SIN_WORKSPACE));
+      const nombres = contarDeclaraciones(buildModelTools(false, 'gemini-3.8-flash', SKILL_SIN_WORKSPACE));
 
       expect(nombres.some((name) => name.startsWith('workspace_'))).toBe(false);
       expect(resolveSkillToolGroups(SKILL_SIN_WORKSPACE)).toHaveLength(0);

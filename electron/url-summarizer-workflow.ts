@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { SOFLIA_LITE_MODEL } from '../src/shared/soflia-runtime-model';
 import {
   buildSummaryPrompt,
   extractFirstSummarizableUrl,
@@ -21,7 +22,7 @@ export class URLSummarizerWorkflow {
       throw new Error('API Key es requerida para iniciar URLSummarizerWorkflow');
     }
     this.genAI = new GoogleGenerativeAI(config.apiKey);
-    this.modelName = config.modelName || 'gemini-3.1-flash-lite';
+    this.modelName = config.modelName || SOFLIA_LITE_MODEL;
   }
 
   public async processMessage(text: string): Promise<string | null> {
@@ -56,8 +57,8 @@ export class URLSummarizerWorkflow {
       const summaryText = result.response.text().trim();
 
       return summaryText ? `\u{1F4DD} Resumen automatico:\n${summaryText}` : null;
-    } catch (error: any) {
-      console.error(`[URLSummarizerWorkflow] Error procesando enlace: ${error.message}`);
+    } catch (error) {
+      console.error(`[URLSummarizerWorkflow] Error procesando enlace: ${error instanceof Error ? error.message : error}`);
       return null;
     }
   }

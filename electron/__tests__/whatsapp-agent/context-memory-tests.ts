@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { SOFLIA_RUNTIME_MODEL } from '../../../src/shared/soflia-runtime-model';
 import { createAgentWithService } from './create-agent';
 import type { WhatsAppAgentTestContext } from './types';
 
@@ -53,7 +54,7 @@ export function registerContextMemoryTests(ctx: WhatsAppAgentTestContext): void 
   describe('WA-039B: modelo único', () => {
     it('should report an unavailable model without silently falling back', async () => {
       const { agent, waService } = createAgentWithService(ctx);
-      const primarySendMessage = vi.fn().mockRejectedValue(new Error('models/gemini-3.6-flash is not found for API version v1beta'));
+      const primarySendMessage = vi.fn().mockRejectedValue(new Error(`models/${SOFLIA_RUNTIME_MODEL} is not found for API version v1beta`));
 
       // `chats.create` devuelve la sesion directamente; ya no hay `startChat`.
       ctx.mockChatsCreate.mockImplementationOnce(() => ({ sendMessage: primarySendMessage }));
@@ -61,7 +62,7 @@ export function registerContextMemoryTests(ctx: WhatsAppAgentTestContext): void 
       await agent.handleMessage('123@s.whatsapp.net', '5215500000000', 'Hola');
 
       expect(ctx.mockChatsCreate).toHaveBeenCalledTimes(1);
-      expect(ctx.mockChatsCreate).toHaveBeenCalledWith(expect.objectContaining({ model: 'gemini-3.6-flash' }));
+      expect(ctx.mockChatsCreate).toHaveBeenCalledWith(expect.objectContaining({ model: SOFLIA_RUNTIME_MODEL }));
       expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', expect.stringContaining('No cambie a otro modelo'));
     });
   });

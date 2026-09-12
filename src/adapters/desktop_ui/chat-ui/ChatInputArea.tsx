@@ -8,6 +8,8 @@ import type { ChatUIController } from './useChatUIController';
 import { SelectionAttachmentChip } from './SelectionAttachmentChip';
 import { TabAttachmentChips } from './input/TabAttachmentChips';
 import { AppAttachmentChips } from './input/AppAttachmentChips';
+import { TabAttachmentPicker } from './input/TabAttachmentPicker';
+import { BROWSER_SOURCE_LIMITS } from '../../../shared/browser-tab-context';
 
 export function ChatInputArea({ controller }: { controller: ChatUIController }) {
   const input = controller.state.input;
@@ -16,6 +18,11 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
   const modes = controller.state.modes;
   const compact = controller.props.compact === true;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const tabMenuRef = useRef<HTMLDivElement>(null);
+  const preparing = controller.preparation?.busy ?? false;
+  const tabMention = /(?:^|\s)@([^\s@]*)$/.exec(input.value);
+  const showTabPicker = Boolean(tabMention && canSend && !chat.showLoadingUI && !preparing);
+  const closeTabPicker = () => { input.set(input.value.replace(/@[^\s@]*$/, '')); textareaRef.current?.focus(); };
 
   const placeholder = !canSend
     ? controller.props.readOnlyReason || 'Conversacion en solo lectura'
@@ -36,6 +43,7 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
   return (
     <div className={`min-w-0 flex-shrink-0 overflow-hidden bg-background dark:bg-background-dark ${compact ? 'px-2 pb-2 pt-1' : 'px-4 pb-3 pt-1.5'}`}>
       <div className="mx-auto min-w-0 max-w-5xl">
+        <fieldset disabled={preparing} className="min-w-0">
         <ModeBadges controller={controller} />
         <AttachmentPreviewStrip controller={controller} />
         <TabAttachmentChips
@@ -60,6 +68,19 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
           onDismiss={() => controller.state.selection.set(null)}
         />
         <StarterPrompts controller={controller} />
+        {controller.shortcuts?.active && <p className="my-2 text-xs text-secondary">Atajo: sólo pestañas seleccionadas. <button type="button" onClick={controller.shortcuts.clear}>Quitar modo de atajo</button></p>}
+        </fieldset>
+        {controller.preparation?.error && <p role="alert" className="my-2 text-sm text-danger">{controller.preparation.error}</p>}
+        {preparing && !chat.showLoadingUI && <p role="status" className="my-1 text-xs text-secondary">Preparando adjuntos… Puedes detener sin perder tu mensaje.</p>}
+        {showTabPicker && <div ref={tabMenuRef}>
+          <TabAttachmentPicker initialQuery={tabMention?.[1]} attachedTabs={controller.state.tabs?.attached ?? []} onClose={closeTabPicker}
+            onToggleTab={(tab) => {
+              controller.state.tabs?.setAttached((current) => current.some((item) => item.tabId === tab.tabId)
+                ? current.filter((item) => item.tabId !== tab.tabId)
+                : current.length < BROWSER_SOURCE_LIMITS.tabs ? [...current, tab] : current);
+              closeTabPicker();
+            }} />
+        </div>}
         {controller.skillCommands.visible && (
           <SkillCommandMenu
             matches={controller.skillCommands.matches}
@@ -69,7 +90,7 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
           />
         )}
         <div className={`relative mt-1 flex w-full items-center border border-border/70 bg-surface-2 transition-all focus-within:border-accent/40 focus-within:ring-2 focus-within:ring-accent/12 ${compact ? 'gap-1 rounded-[18px] px-1 py-1' : 'gap-1.5 rounded-[24px] px-1.5 py-1'}`} style={{ fontFamily: 'var(--font-system-ui)' }}>
-          <ToolMenu controller={controller} />
+          {!preparing && <ToolMenu controller={controller} />}
           <div className="relative min-w-0 flex-1">
             {compact && !input.value && (
               <span aria-hidden="true" className="pointer-events-none absolute inset-x-1 top-1/2 -translate-y-1/2 truncate text-[12px] leading-[18px] text-secondary">
@@ -84,6 +105,12 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
                 // El menu de skills tiene prioridad: si consume la tecla, el
                 // compositor no debe enviar el mensaje.
                 if (controller.skillCommands.handleKeyDown(event)) return;
+                if (showTabPicker) {
+                  if (event.key === 'Escape') { event.preventDefault(); closeTabPicker(); return; }
+                  if (event.key === 'ArrowDown' || event.key === 'Enter') {
+                    event.preventDefault(); tabMenuRef.current?.querySelector<HTMLButtonElement>('button[data-tab-choice]:not(:disabled)')?.focus(); return;
+                  }
+                }
                 if (event.key === 'Enter' && !event.shiftKey) {
                   event.preventDefault();
                   controller.onSendClick();
@@ -94,12 +121,12 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
               aria-label={placeholder}
               className={`!no-scrollbar min-w-0 w-full resize-none overflow-y-auto bg-transparent text-gray-900 placeholder:text-secondary focus:outline-none dark:text-gray-100 ${compact ? 'px-1 py-[6px] text-[12px] leading-[18px]' : 'px-2 py-[7px] text-[14px] leading-[22px]'}`}
               rows={1}
-              disabled={chat.showLoadingUI || !canSend}
+              disabled={chat.showLoadingUI || preparing || !canSend}
               style={{ height: compact ? '30px' : '36px', scrollbarWidth: 'none', msOverflowStyle: 'none', fontFamily: 'var(--font-system-ui)' }}
             />
           </div>
           <div className="flex items-center gap-1 pr-0.5">
-            {chat.showLoadingUI ? (
+            {chat.showLoadingUI || preparing ? (
               <button
                 onClick={controller.onStopClick}
                 className={`${compact ? 'h-[30px] w-[30px]' : 'h-[34px] w-[34px]'} flex items-center justify-center rounded-full bg-red-500 hover:bg-red-600 text-white shadow-sm transition-all animate-pulse`}
@@ -111,7 +138,7 @@ export function ChatInputArea({ controller }: { controller: ChatUIController }) 
             ) : input.value.trim() || controller.dictation.isRecording ? (
               <button
                 onClick={controller.dictation.isRecording ? () => controller.dictation.stopDictation(true) : controller.onSendClick}
-                disabled={!controller.dictation.isRecording && (chat.showLoadingUI || !canSend || controller.dictation.isTranscribing)}
+                disabled={!controller.dictation.isRecording && (showTabPicker || chat.showLoadingUI || !canSend || controller.dictation.isTranscribing)}
                 className={`${compact ? 'h-[30px] w-[30px]' : 'h-[34px] w-[34px]'} flex items-center justify-center rounded-full bg-accent hover:bg-accent/80 text-on-accent shadow-sm transition-all disabled:opacity-50`}
                 title={controller.dictation.isRecording ? 'Detener dictado' : controller.dictation.isTranscribing ? 'Transcribiendo audio' : 'Enviar mensaje'}
               >

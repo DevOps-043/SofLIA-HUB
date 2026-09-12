@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
 import {
   getAudioProcessorMocks,
   mockTranscription,
@@ -19,7 +20,7 @@ describe('WhatsApp Audio Processor', () => {
     const result = await processAudioMessage(buffer, 'audio/ogg');
 
     expect(result).toBe('Crea un evento para manana');
-    expect(mockGetGenerativeModel).toHaveBeenCalledWith(expect.objectContaining({ model: 'gemini-1.5-flash' }));
+    expect(mockGetGenerativeModel).toHaveBeenCalledWith(expect.objectContaining({ model: SOFLIA_RUNTIME_MODEL }));
     expect(mockGenerateContent).toHaveBeenCalledWith([
       { inlineData: { mimeType: 'audio/ogg', data: buffer.toString('base64') } },
     ]);
@@ -55,7 +56,7 @@ describe('WhatsApp Audio Processor', () => {
     await processAudioMessage(Buffer.from('test-audio'), 'audio/ogg');
     expect(mockGetGenerativeModel).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: 'gemini-1.5-flash',
+        model: SOFLIA_RUNTIME_MODEL,
         systemInstruction: expect.stringContaining('Transcribe'),
       })
     );

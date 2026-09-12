@@ -13,7 +13,7 @@ export interface HostedToolParams {
  * ejecutarlas ni devolver resultados.
  *
  * A proposito NO se ofrece la herramienta `computer` de OpenAI. El actuador
- * visual del producto es Gemini 3.6 Flash en el proceso main (`use_computer` ->
+ * visual del producto es Gemini 3.8 Flash en el proceso main (`use_computer` ->
  * `electron/desktop-agent/gemini-cu`), que es quien resuelve DPI, monitores con
  * origen negativo y coordenadas globales. Exponer las dos haria que el modelo
  * condujera la pantalla en paralelo con el agente.

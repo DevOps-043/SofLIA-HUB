@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { integratedBrowserService, type TabContextAttachment } from '../../services/integrated-browser-service';
 import { ChatInputArea } from '../../adapters/desktop_ui/chat-ui/ChatInputArea';
 import type { ChatUIController } from '../../adapters/desktop_ui/chat-ui/useChatUIController';
 
@@ -44,6 +45,39 @@ function createController(compact: boolean, overrides: Overrides = {}): ChatUICo
 }
 
 describe('ChatInputArea compacto', () => {
+  it('abre @, permite elegir con teclado y adjunta sin enviar la mención', async () => {
+    const available = vi.spyOn(integratedBrowserService, 'isAvailable').mockReturnValue(true);
+    const tab = { tabId: '1', title: 'Contrato', url: 'https://example.com/', text: '', isCurrent: true, documentToken: 'a'.repeat(36) };
+    const summaries = vi.spyOn(integratedBrowserService, 'getTabSummaries').mockResolvedValue({ success: true, summaries: [tab], state: { profileRevision: 2 } } as Awaited<ReturnType<typeof integratedBrowserService.getTabSummaries>>);
+    try {
+      const controller = createController(true);
+      controller.state.input.value = 'Compara @';
+      controller.state.tabs = { attached: [], setAttached: vi.fn() };
+      render(<ChatInputArea controller={controller} />);
+      const choice = await screen.findByRole('button', { name: /Contrato/ });
+      fireEvent.keyDown(screen.getByRole('textbox'), { key: 'ArrowDown' });
+      expect(choice).toHaveFocus();
+      fireEvent.click(choice);
+      const update = vi.mocked(controller.state.tabs.setAttached).mock.calls[0][0] as (current: TabContextAttachment[]) => TabContextAttachment[];
+      expect(update([])[0]).toMatchObject({ tabId: '1', expected: { profileRevision: 2, documentToken: tab.documentToken } });
+      expect(controller.state.input.set).toHaveBeenCalledWith('Compara ');
+      expect(controller.onSendClick).not.toHaveBeenCalled();
+    } finally { available.mockRestore(); summaries.mockRestore(); }
+  });
+  it('no interpreta direcciones de correo como selectores', () => {
+    const controller = createController(true); controller.state.input.value = 'Envía a cuenta@example.com';
+    render(<ChatInputArea controller={controller} />);
+    expect(screen.queryByRole('dialog', { name: 'Añadir pestañas al chat' })).toBeNull();
+  });
+  it('muestra cancelación y conserva el borrador durante la preparación', () => {
+    const controller = createController(true); controller.state.input.value = 'Compara documentos';
+    controller.preparation = { busy: true, error: null, cancel: vi.fn(), run: vi.fn() };
+    render(<ChatInputArea controller={controller} />);
+    expect(screen.getByRole('textbox')).toBeDisabled();
+    expect(screen.getByRole('textbox')).toHaveValue('Compara documentos');
+    fireEvent.click(screen.getByRole('button', { name: 'Detener' }));
+    expect(controller.onStopClick).toHaveBeenCalled();
+  });
   it('muestra un placeholder de una línea sin recorte vertical', () => {
     render(<ChatInputArea controller={createController(true)} />);
 

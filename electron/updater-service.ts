@@ -16,13 +16,30 @@ export class UpdaterService extends EventEmitter {
     () => app.getVersion(),
   );
   private pollInterval: NodeJS.Timeout | null = null;
+  private startupTimer: NodeJS.Timeout | null = null;
+  private installRequested = false;
+  private installGuard: ((install: () => void) => Promise<boolean>) | null = null;
+  private pendingInstall: Promise<void> | null = null;
+  private onInstallFailure: (() => void) | null = null;
+
+  setInstallGuard(guard: (install: () => void) => Promise<boolean>, onFailure?: () => void): void {
+    this.installGuard = guard;
+    this.onInstallFailure = onFailure ?? null;
+  }
 
   init(): void {
     autoUpdater.autoDownload = true;
     autoUpdater.autoInstallOnAppQuit = true;
     autoUpdater.allowDowngrade = false;
-    registerUpdaterEvents(autoUpdater, this.runtime.createEventHandlers());
-    setTimeout(() => this.checkForUpdates().catch(() => {}), STARTUP_DELAY_MS);
+    const handlers = this.runtime.createEventHandlers();
+    registerUpdaterEvents(autoUpdater, {
+      ...handlers,
+      error: (error) => {
+        if (this.installRequested) { this.installRequested = false; this.onInstallFailure?.(); }
+        handlers.error(error);
+      },
+    });
+    this.startupTimer = setTimeout(() => { this.startupTimer = null; void this.checkForUpdates().catch(() => {}); }, STARTUP_DELAY_MS);
     this.pollInterval = setInterval(() => this.checkForUpdates().catch(() => {}), CHECK_INTERVAL_MS);
     console.log('[Updater] Inicializado - polling cada 4h');
   }
@@ -41,8 +58,27 @@ export class UpdaterService extends EventEmitter {
     await autoUpdater.downloadUpdate();
   }
 
-  installUpdate(): void {
-    autoUpdater.quitAndInstall(true, true);
+  installUpdate(): Promise<void> {
+    if (this.pendingInstall) return this.pendingInstall;
+    if (this.installRequested) return Promise.resolve();
+    const pending = this.installAfterSaving();
+    this.pendingInstall = pending;
+    void pending.finally(() => { if (this.pendingInstall === pending) this.pendingInstall = null; }).catch(() => undefined);
+    return pending;
+  }
+
+  private async installAfterSaving(): Promise<void> {
+    if (this.getStatus().state !== 'downloaded') throw new Error('No hay una actualización descargada lista para instalar.');
+    if (!this.installGuard) throw new Error('La protección de cierre todavía no está disponible.');
+    const accepted = await this.installGuard(() => {
+      this.installRequested = true;
+      try {
+        autoUpdater.quitAndInstall(true, true);
+        if (this.getStatus().state === 'error') throw new Error('El instalador informó un error.');
+      }
+      catch (error) { this.installRequested = false; throw error; }
+    });
+    if (!accepted) throw new Error('La instalación se canceló o hay otra salida en curso.');
   }
 
   getStatus(): UpdaterStatus {
@@ -50,6 +86,7 @@ export class UpdaterService extends EventEmitter {
   }
 
   stop(): void {
+    if (this.startupTimer) { clearTimeout(this.startupTimer); this.startupTimer = null; }
     if (!this.pollInterval) return;
     clearInterval(this.pollInterval);
     this.pollInterval = null;

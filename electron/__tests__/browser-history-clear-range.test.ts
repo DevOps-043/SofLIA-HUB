@@ -6,14 +6,18 @@ import { randomUUID } from 'node:crypto';
 import { BrowserHistoryStore } from '../integrated-browser/browser-history-store';
 
 const created: string[] = [];
+const stores: BrowserHistoryStore[] = [];
 
 function newStore(): BrowserHistoryStore {
-  const filePath = path.join(os.tmpdir(), `soflia-history-${randomUUID()}.jsonl`);
+  const filePath = path.join(os.tmpdir(), `soflia-history-${randomUUID()}.sqlite`);
   created.push(filePath);
-  return new BrowserHistoryStore(filePath);
+  const store = new BrowserHistoryStore(filePath, null);
+  stores.push(store);
+  return store;
 }
 
 afterEach(async () => {
+  stores.splice(0).forEach((store) => store.close());
   await Promise.all(created.splice(0).map((filePath) => fs.rm(filePath, { force: true })));
 });
 

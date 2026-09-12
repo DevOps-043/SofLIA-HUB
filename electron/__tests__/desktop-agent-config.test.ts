@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
 import { DEFAULT_CONFIG } from '../desktop-agent-types';
 
 // ============================================================================
@@ -115,6 +116,6 @@ describe('Desktop Agent Types & Config', () => {
       DEFAULT_CONFIG.computerUseModel,
       DEFAULT_CONFIG.computerUseFallbackModel,
       DEFAULT_CONFIG.computerUseEconomyModel,
-    ])).toEqual(new Set(['gemini-3.6-flash']));
+    ])).toEqual(new Set([SOFLIA_RUNTIME_MODEL]));
   });
 });

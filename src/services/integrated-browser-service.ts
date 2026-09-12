@@ -1,4 +1,36 @@
+import type { BrowserShortcutRequest, BrowserShortcutResponse } from '../shared/browser-agent-shortcuts';
+import type { BrowserPolicyRecoveryRequest, BrowserPolicyRecoveryResponse } from '../shared/browser-policy-recovery';
+import type { BrowserExtensionCatalogRequest, BrowserExtensionCatalogEntry } from '../shared/browser-extension-catalog';
+import type { BrowserSemanticRequest, BrowserSemanticResponse } from '../shared/browser-semantic-memory';
+import type { BrowserCredentialSessionRequest, BrowserCredentialSessionResponse } from '../shared/browser-credential-session';
+import type { BrowserSensitiveHandoff } from '../shared/browser-sensitive-handoff';
+import type { BrowserAgentTaskState, BrowserAgentControlRequest, BrowserAgentControlResponse } from '../shared/browser-agent-control';
 export type IntegratedBrowserViewMode = 'single' | 'split' | 'overlay';
+export type BrowserAuditRequest = { action: 'list'; offset: number } | { action: 'clear' } | { action: 'retention'; days: 7 | 30 | 90 };
+export interface BrowserAuditPage {
+  entries: Array<{ id: string; traceId: string; tab: string; origin: string | null; at: number; operation: string; result: string; confirmation: 'none' | 'accepted' | 'rejected' }>;
+  total: number; offset: number; retentionDays: number;
+}
+export interface BrowserSyncDeviceStatus {
+  enabled: boolean;
+  state: 'disabled' | 'inactive' | 'registered';
+  message: string;
+  canceled?: boolean;
+  devices: Array<{ id: string; label: string; current: boolean; createdAt: string; revokedAt: string | null }>;
+}
+export interface BrowserSyncDevicesResponse { success: boolean; error?: string; syncDevices?: BrowserSyncDeviceStatus; canceled?: boolean }
+
+export interface BrowserRecentlyClosedTab { id: string; url: string; title: string; closedAt: string }
+export interface BrowserHistoryRetention { days: number | null; managed: boolean; removed?: number }
+export type BrowserProfileKind = 'authenticated' | 'guest' | 'private';
+export interface BrowserProfileDescriptor { id: string; kind: BrowserProfileKind; label: string; persistent: boolean; managed: boolean }
+
+export interface BrowserNavigationSafetyVerdict {
+  action: 'allow' | 'warn' | 'block';
+  source: 'local' | 'remote' | 'degraded';
+  reason: string | null;
+  checkedAt: string;
+}
 
 export interface IntegratedBrowserTabState {
   id: string;
@@ -6,11 +38,33 @@ export interface IntegratedBrowserTabState {
   title: string;
   isLoading: boolean;
   error: string | null;
+  /** Opcional para compatibilidad con versiones anteriores de main. */
+  navigationSafety?: BrowserNavigationSafetyVerdict | null;
+  sensitiveHandoff?: BrowserSensitiveHandoff | null;
   isSuspended: boolean;
   isDetached: boolean;
+  /** Opcionales durante la transición desde builds anteriores del proceso main. */
+  muted?: boolean;
+  zoomFactor?: number;
+  find?: BrowserFindState | null;
+  pinned?: boolean;
+  groupId?: string | null;
+  position?: number;
+}
+
+export type BrowserTabGroupColor = 'grey' | 'blue' | 'red' | 'yellow' | 'green' | 'pink' | 'purple' | 'cyan';
+export interface BrowserTabGroup { id: string; name: string; color: BrowserTabGroupColor; collapsed: boolean }
+
+export interface BrowserFindState {
+  query: string;
+  activeMatchOrdinal: number;
+  matches: number;
+  finalUpdate: boolean;
 }
 
 export interface IntegratedBrowserState {
+  profileRevision?: number;
+  credentialUnlocked?: boolean;
   url: string;
   title: string;
   canGoBack: boolean;
@@ -18,6 +72,8 @@ export interface IntegratedBrowserState {
   isLoading: boolean;
   isVisible: boolean;
   agentControlling: boolean;
+  agentTask?: BrowserAgentTaskState | null;
+  agentPolicyPromptIds?: string[];
   error: string | null;
   tabs: IntegratedBrowserTabState[];
   activeTabId: string | null;
@@ -26,6 +82,10 @@ export interface IntegratedBrowserState {
   viewMode: IntegratedBrowserViewMode;
   /** La pagina pidio pantalla completa y la vista nativa cubre la ventana. */
   isFullscreen: boolean;
+  tabLayout?: 'horizontal' | 'vertical';
+  groups?: BrowserTabGroup[];
+  canReopenClosedTab?: boolean;
+  restoreAvailable?: { tabCount: number; savedAt: string; cleanExit: boolean } | null;
 }
 
 export const BROWSER_SITE_PERMISSION_KINDS = [
@@ -86,6 +146,7 @@ export interface BrowserPermissionDecisionResponse {
 }
 
 export interface BrowserTabSummary {
+  documentToken?: string;
   tabId: string;
   url: string;
   title: string;
@@ -94,6 +155,7 @@ export interface BrowserTabSummary {
 }
 
 export interface IntegratedBrowserTabSummariesResponse {
+  state?: IntegratedBrowserState;
   success: boolean;
   summaries?: BrowserTabSummary[];
   error?: string;
@@ -111,6 +173,7 @@ export interface BrowserTabContentResponse {
 }
 
 export interface TabContextAttachment {
+  expected?: import('../shared/browser-tab-context').BrowserTabExpectation;
   tabId: string;
   url: string;
   title: string;
@@ -131,11 +194,109 @@ export interface IntegratedBrowserResponse {
   error?: string;
 }
 
+export type BrowserAgentPolicyMode = 'strict' | 'balanced';
+export type BrowserAgentSiteDecision = 'ask' | 'allow-once' | 'allow-always' | 'block';
+export type BrowserAgentCapability = 'observe-dom' | 'capture' | 'read-document' | 'act';
+export interface BrowserAgentSitePolicy {
+  enabled?: boolean;
+  origin: string;
+  mode: BrowserAgentPolicyMode;
+  decision: BrowserAgentSiteDecision;
+  managed: boolean;
+  updatedAt: string;
+}
+export interface BrowserAgentPolicyPromptRequest {
+  id: string;
+  origin: string;
+  capability: BrowserAgentCapability;
+  label: string;
+}
+export type BrowserPrivacyLevel = 'off' | 'balanced' | 'strict';
+export type BrowserPrivacyCategory = 'tracker' | 'advertising' | 'third-party-cookie' | 'tracking-parameter' | 'fingerprinting' | 'malware';
+export interface BrowserPrivacySiteState {
+  enabled?: boolean;
+  managed?: boolean;
+  origin: string;
+  level: BrowserPrivacyLevel;
+  blocked: Partial<Record<BrowserPrivacyCategory, number>>;
+  exceptionCategories: BrowserPrivacyCategory[];
+  degraded: boolean;
+}
+
+export interface BrowserRuntimeDiagnostic {
+  appVersion: string;
+  electronVersion: string;
+  chromiumVersion: string;
+  nodeVersion: string;
+  profileKind: 'authenticated' | 'guest' | 'private';
+  protectionLevel: 'off' | 'balanced' | 'strict';
+  managed: boolean;
+  enterprisePolicyStatus?: 'disabled' | 'loading' | 'ready' | 'error';
+  checkedAt: string;
+}
+
+export interface BrowserRuntimeDiagnosticResponse extends IntegratedBrowserResponse {
+  diagnostic?: BrowserRuntimeDiagnostic;
+}
+
+export interface BrowserDiagnosticExportResponse extends IntegratedBrowserResponse {
+  diagnosticExport?: { cancelled: boolean; exported: boolean };
+}
+
+export interface BrowserPageToolResponse extends IntegratedBrowserResponse {
+  canceled?: boolean;
+  filename?: string;
+}
+
 export interface BrowserHistoryEntry {
   id: string;
   url: string;
   title: string;
   visitedAt: string;
+}
+
+export interface BrowserBookmark {
+  id: string;
+  url: string;
+  title: string;
+  folderId: string | null;
+  tags: string[];
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BrowserBookmarkTransfer {
+  cancelled: boolean;
+  imported?: number;
+  updated?: number;
+  duplicates?: number;
+  invalid?: number;
+  skipped?: number;
+  exported?: number;
+}
+
+export interface BrowserHistoryTransfer {
+  cancelled: boolean;
+  imported?: number;
+  skipped?: number;
+  duplicates?: number;
+  invalid?: number;
+}
+
+export type BrowserDownloadState = 'pending' | 'progressing' | 'paused' | 'completed' | 'cancelled' | 'interrupted' | 'blocked';
+export interface BrowserDownloadRecord {
+  id: string;
+  filename: string;
+  origin: string;
+  receivedBytes: number;
+  totalBytes: number;
+  progress: number | null;
+  state: BrowserDownloadState;
+  canResume: boolean;
+  startedAt: string;
+  completedAt: string | null;
+  error: string | null;
 }
 
 export interface BrowserCredentialMetadata {
@@ -146,7 +307,17 @@ export interface BrowserCredentialMetadata {
   updatedAt: string;
 }
 
+export interface BrowserCredentialHealth {
+  id: string;
+  weak: boolean;
+  reused: boolean;
+  reasons: string[];
+}
+
 export interface BrowserExtensionMetadata {
+  catalogId?: string;
+  catalogRevision?: string;
+  siteAccess?: string[];
   installId: string;
   extensionId: string | null;
   name: string;
@@ -159,6 +330,8 @@ export interface BrowserExtensionMetadata {
 }
 
 export interface BrowserExtensionInstallPreview {
+  catalogName?: string;
+  updateName?: string;
   token: string;
   name: string;
   version: string;
@@ -167,15 +340,43 @@ export interface BrowserExtensionInstallPreview {
 }
 
 export interface IntegratedBrowserDataResponse extends IntegratedBrowserResponse {
+  catalog?: BrowserExtensionCatalogEntry[];
+  recentlyClosedTabs?: BrowserRecentlyClosedTab[];
+  historyRetention?: BrowserHistoryRetention;
   history?: BrowserHistoryEntry[];
+  historyTransfer?: BrowserHistoryTransfer;
+  profile?: BrowserProfileDescriptor;
+  bookmarks?: BrowserBookmark[];
+  bookmark?: BrowserBookmark;
+  bookmarkTransfer?: BrowserBookmarkTransfer;
+  bookmarkRecovery?: { cancelled: boolean; restored: number };
+  agentPolicy?: BrowserAgentSitePolicy;
+  audit?: BrowserAuditPage;
+  auditChange?: { cancelled: boolean };
+  privacySite?: BrowserPrivacySiteState;
+  migration?: { imported: number; skipped: number };
   credentials?: BrowserCredentialMetadata[];
+  credentialAutosaveEnabled?: boolean;
+  credentialRecovery?: { cancelled: boolean; restored: number };
+  credentialOrigin?: string;
   credential?: BrowserCredentialMetadata;
+  credentialHealth?: BrowserCredentialHealth[];
+  imported?: number;
+  updated?: number;
+  skipped?: number;
+  exported?: number;
+  cancelled?: boolean;
   extensions?: BrowserExtensionMetadata[];
   extension?: BrowserExtensionMetadata;
   preview?: BrowserExtensionInstallPreview;
   canceled?: boolean;
   cleared?: boolean;
   removed?: boolean;
+  downloads?: BrowserDownloadRecord[];
+  download?: BrowserDownloadRecord;
+  opened?: boolean;
+  revealed?: boolean;
+  group?: BrowserTabGroup;
 }
 
 export const BROWSING_DATA_CATEGORIES = [
@@ -418,18 +619,55 @@ export interface BrowserReadingResponse extends IntegratedBrowserResponse {
   closed?: boolean;
 }
 
+export type { BrowserSyncControlStatus, BrowserSyncControlRequest, BrowserSyncCategory } from '../../electron/integrated-browser/platform-types';
+import type { BrowserSyncControlStatus, BrowserSyncControlRequest } from '../../electron/integrated-browser/platform-types';
+export interface BrowserSyncControlResponse extends IntegratedBrowserResponse { sync?: BrowserSyncControlStatus }
+
 export interface IntegratedBrowserApi {
   getState(): Promise<IntegratedBrowserResponse>;
+  getRuntimeDiagnostic(): Promise<BrowserRuntimeDiagnosticResponse>;
+  getSyncDevices(): Promise<BrowserSyncDevicesResponse>;
+  registerSyncDevice(): Promise<BrowserSyncDevicesResponse>;
+  revokeSyncDevice(id: string): Promise<BrowserSyncDevicesResponse>;
+  cancelSyncOperation(): Promise<BrowserSyncDevicesResponse>;
+  controlSync(input: BrowserSyncControlRequest): Promise<BrowserSyncControlResponse>;
+  exportRuntimeDiagnostic(): Promise<BrowserDiagnosticExportResponse>;
+  restorePreviousSession(): Promise<IntegratedBrowserResponse>;
+  discardPreviousSession(): Promise<IntegratedBrowserResponse>;
   captureVisible(): Promise<IntegratedBrowserCaptureResponse>;
   getObservation(forceFresh?: boolean): Promise<IntegratedBrowserObservationResponse>;
   setObservationEnabled(enabled: boolean): Promise<IntegratedBrowserObservationResponse>;
   open(url?: string): Promise<IntegratedBrowserResponse>;
   navigate(target: string): Promise<IntegratedBrowserResponse>;
+  findInPage(query: string, forward?: boolean): Promise<IntegratedBrowserResponse>;
+  stopFindInPage(): Promise<IntegratedBrowserResponse>;
+  setZoom(action: 'in' | 'out' | 'reset'): Promise<IntegratedBrowserResponse>;
+  setMuted(muted: boolean): Promise<IntegratedBrowserResponse>;
+  toggleFullscreen(): Promise<IntegratedBrowserResponse>;
+  printPage(): Promise<IntegratedBrowserResponse>;
+  savePageAsPdf(): Promise<BrowserPageToolResponse>;
+  listDownloads(): Promise<IntegratedBrowserDataResponse>;
+  cancelDownload(id: string): Promise<IntegratedBrowserDataResponse>;
+  resumeDownload(id: string): Promise<IntegratedBrowserDataResponse>;
+  retryDownload(id: string): Promise<IntegratedBrowserDataResponse>;
+  openDownload(id: string): Promise<IntegratedBrowserDataResponse>;
+  revealDownload(id: string): Promise<IntegratedBrowserDataResponse>;
   clickElement(ref: string): Promise<IntegratedBrowserInteractionResponse>;
   typeInElement(ref: string, text: string, submit?: boolean): Promise<IntegratedBrowserInteractionResponse>;
   scrollView(direction: 'up' | 'down' | 'left' | 'right', amount?: number): Promise<IntegratedBrowserResponse>;
   createTab(url?: string): Promise<IntegratedBrowserResponse>;
   closeTab(tabId: string): Promise<IntegratedBrowserResponse>;
+  duplicateTab(tabId: string): Promise<IntegratedBrowserResponse>;
+  reopenClosedTab(tabId?: string): Promise<IntegratedBrowserResponse>;
+  listRecentlyClosedTabs(): Promise<IntegratedBrowserDataResponse>;
+  getHistoryRetention(): Promise<IntegratedBrowserDataResponse>;
+  setHistoryRetention(days: number | null): Promise<IntegratedBrowserDataResponse>;
+  closeOtherTabs(tabId: string): Promise<IntegratedBrowserResponse>;
+  closeTabsToRight(tabId: string): Promise<IntegratedBrowserResponse>;
+  setTabPinned(tabId: string, pinned: boolean): Promise<IntegratedBrowserResponse>;
+  setTabLayout(layout: 'horizontal' | 'vertical'): Promise<IntegratedBrowserResponse>;
+  createTabGroup(name: string, color: BrowserTabGroupColor): Promise<IntegratedBrowserDataResponse>;
+  assignTabGroup(tabId: string, groupId: string | null): Promise<IntegratedBrowserResponse>;
   activateTab(tabId: string): Promise<IntegratedBrowserResponse>;
   detachTab(tabId: string): Promise<IntegratedBrowserResponse>;
   reattachTab(tabId: string): Promise<IntegratedBrowserResponse>;
@@ -453,17 +691,45 @@ export interface IntegratedBrowserApi {
   syncReadingToolbar(input: BrowserReadingToolbarState): Promise<BrowserReadingResponse>;
   cancelReadingSpeech(input: { readingId: string; requestId?: string }): Promise<BrowserReadingResponse>;
   closeReadingMode(input: { readingId: string }): Promise<BrowserReadingResponse>;
-  listHistory(query?: string, limit?: number): Promise<IntegratedBrowserDataResponse>;
+  listHistory(query?: string, limit?: number, filters?: { offset?: number; from?: string; to?: string; domain?: string }): Promise<IntegratedBrowserDataResponse>;
+  importHistory(): Promise<IntegratedBrowserDataResponse>;
+  getProfile(): Promise<IntegratedBrowserDataResponse>;
+  setProfile(kind: BrowserProfileKind): Promise<IntegratedBrowserDataResponse>;
+  listBookmarks(query?: string): Promise<IntegratedBrowserDataResponse>;
+  saveBookmark(input: { id?: string; url: string; title: string; folderId?: string | null; tags?: string[]; position?: number }): Promise<IntegratedBrowserDataResponse>;
+  removeBookmark(id: string): Promise<IntegratedBrowserDataResponse>;
+  migrateLegacyBookmarks(entries: unknown[]): Promise<IntegratedBrowserDataResponse>;
+  importBookmarksHtml(): Promise<IntegratedBrowserDataResponse>;
+  exportBookmarksHtml(): Promise<IntegratedBrowserDataResponse>;
+  recoverBookmarks(): Promise<IntegratedBrowserDataResponse>;
+  recoverPolicyStore(input: BrowserPolicyRecoveryRequest): Promise<BrowserPolicyRecoveryResponse>;
+  getAgentPolicy(origin?: string): Promise<IntegratedBrowserDataResponse>;
+  agentAudit(input: BrowserAuditRequest): Promise<IntegratedBrowserDataResponse>;
+  agentShortcuts(input: BrowserShortcutRequest): Promise<BrowserShortcutResponse>;
+  semanticMemoryCommand(input: BrowserSemanticRequest): Promise<BrowserSemanticResponse>;
+  credentialSessionCommand(input: BrowserCredentialSessionRequest): Promise<BrowserCredentialSessionResponse>;
+  controlAgentTask(input: BrowserAgentControlRequest): Promise<BrowserAgentControlResponse>;
+  setAgentPolicy(input: { origin?: string; mode: BrowserAgentPolicyMode; decision: 'ask' | 'allow-always' | 'block' }): Promise<IntegratedBrowserDataResponse>;
+  decideAgentPolicy(input: { id: string; decision: 'allow-once' | 'allow-always' | 'block' }): Promise<BrowserPermissionDecisionResponse>;
+  getPrivacySite(origin?: string): Promise<IntegratedBrowserDataResponse>;
+  setPrivacySite(input: { origin?: string; level: BrowserPrivacyLevel; exceptionCategories: BrowserPrivacyCategory[] }): Promise<IntegratedBrowserDataResponse>;
   clearHistory(): Promise<IntegratedBrowserDataResponse>;
   clearBrowsingData(input: { categories: BrowsingDataCategory[]; range: BrowsingDataRange }): Promise<BrowsingDataResponse>;
   listCredentials(): Promise<IntegratedBrowserDataResponse>;
-  saveCredential(input: { id?: string; username: string; password: string }): Promise<IntegratedBrowserDataResponse>;
+  setCredentialAutosave(enabled: boolean): Promise<IntegratedBrowserDataResponse>;
+  analyzeCredentialHealth(): Promise<IntegratedBrowserDataResponse>;
+  importCredentials(): Promise<IntegratedBrowserDataResponse>;
+  exportCredentials(): Promise<IntegratedBrowserDataResponse>;
+  recoverCredentials(): Promise<IntegratedBrowserDataResponse>;
+  saveCredential(input: { id?: string; username: string; password: string; expectedOrigin: string }): Promise<IntegratedBrowserDataResponse>;
   fillCredential(id: string): Promise<IntegratedBrowserDataResponse>;
   removeCredential(id: string): Promise<IntegratedBrowserDataResponse>;
   listExtensions(): Promise<IntegratedBrowserDataResponse>;
+  extensionCatalog(input: BrowserExtensionCatalogRequest): Promise<IntegratedBrowserDataResponse>;
   installExtension(): Promise<IntegratedBrowserDataResponse>;
   confirmExtensionInstall(token: string): Promise<IntegratedBrowserDataResponse>;
   setExtensionEnabled(installId: string, enabled: boolean): Promise<IntegratedBrowserDataResponse>;
+  restrictExtensionSites(installId: string, sites: string[]): Promise<IntegratedBrowserDataResponse>;
   removeExtension(installId: string): Promise<IntegratedBrowserDataResponse>;
   getSitePermissions(): Promise<BrowserSitePermissionResponse>;
   setSitePermission(input: {
@@ -473,8 +739,10 @@ export interface IntegratedBrowserApi {
   }): Promise<BrowserSitePermissionResponse>;
   resetSitePermissions(input?: { origin?: string }): Promise<BrowserSitePermissionResponse>;
   getTabSummaries(): Promise<IntegratedBrowserTabSummariesResponse>;
-  getTabContent(tabId: string): Promise<BrowserTabContentResponse>;
+  getTabContent(tabId: string, expected?: import('../shared/browser-tab-context').BrowserTabExpectation): Promise<BrowserTabContentResponse>;
   onStateChanged(callback: (state: IntegratedBrowserState) => void): () => void;
+  onDownloadsChanged(callback: (downloads: BrowserDownloadRecord[]) => void): () => void;
+  onFindRequested(callback: () => void): () => void;
   onOpenRequested(callback: (request: { url?: string }) => void): () => void;
   onSelectionAction(callback: (request: BrowserSelectionActionRequest) => void): () => void;
   onReadingModeRequested(callback: (request: BrowserReadingModeRequest) => void): () => void;
@@ -483,6 +751,7 @@ export interface IntegratedBrowserApi {
   onSitePermissionsChanged(callback: () => void): () => void;
   decidePermissionPrompt(input: { id: string; granted: boolean }): Promise<BrowserPermissionDecisionResponse>;
   onPermissionPrompt(callback: (request: BrowserPermissionPromptRequest) => void): () => void;
+  onAgentPolicyPrompt(callback: (request: BrowserAgentPolicyPromptRequest) => void): () => void;
 }
 
 declare global {
@@ -499,11 +768,33 @@ function requireApi(): IntegratedBrowserApi {
 export const integratedBrowserService = {
   isAvailable: (): boolean => Boolean(window.integratedBrowser),
   getState: (): Promise<IntegratedBrowserResponse> => requireApi().getState(),
+  getRuntimeDiagnostic: (): Promise<BrowserRuntimeDiagnosticResponse> => requireApi().getRuntimeDiagnostic(),
+  getSyncDevices: (): Promise<BrowserSyncDevicesResponse> => requireApi().getSyncDevices(),
+  registerSyncDevice: (): Promise<BrowserSyncDevicesResponse> => requireApi().registerSyncDevice(),
+  revokeSyncDevice: (id: string): Promise<BrowserSyncDevicesResponse> => requireApi().revokeSyncDevice(id),
+  cancelSyncOperation: (): Promise<BrowserSyncDevicesResponse> => requireApi().cancelSyncOperation(),
+  controlSync: (input: BrowserSyncControlRequest): Promise<BrowserSyncControlResponse> => requireApi().controlSync(input),
+  exportRuntimeDiagnostic: (): Promise<BrowserDiagnosticExportResponse> => requireApi().exportRuntimeDiagnostic(),
+  restorePreviousSession: (): Promise<IntegratedBrowserResponse> => requireApi().restorePreviousSession(),
+  discardPreviousSession: (): Promise<IntegratedBrowserResponse> => requireApi().discardPreviousSession(),
   captureVisible: (): Promise<IntegratedBrowserCaptureResponse> => requireApi().captureVisible(),
   getObservation: (forceFresh = false): Promise<IntegratedBrowserObservationResponse> => requireApi().getObservation(forceFresh),
   setObservationEnabled: (enabled: boolean): Promise<IntegratedBrowserObservationResponse> => requireApi().setObservationEnabled(enabled),
   open: (url?: string): Promise<IntegratedBrowserResponse> => requireApi().open(url),
   navigate: (target: string): Promise<IntegratedBrowserResponse> => requireApi().navigate(target),
+  findInPage: (query: string, forward = true): Promise<IntegratedBrowserResponse> => requireApi().findInPage(query, forward),
+  stopFindInPage: (): Promise<IntegratedBrowserResponse> => requireApi().stopFindInPage(),
+  setZoom: (action: 'in' | 'out' | 'reset'): Promise<IntegratedBrowserResponse> => requireApi().setZoom(action),
+  setMuted: (muted: boolean): Promise<IntegratedBrowserResponse> => requireApi().setMuted(muted),
+  toggleFullscreen: (): Promise<IntegratedBrowserResponse> => requireApi().toggleFullscreen(),
+  printPage: (): Promise<IntegratedBrowserResponse> => requireApi().printPage(),
+  savePageAsPdf: (): Promise<BrowserPageToolResponse> => requireApi().savePageAsPdf(),
+  listDownloads: (): Promise<IntegratedBrowserDataResponse> => requireApi().listDownloads(),
+  cancelDownload: (id: string): Promise<IntegratedBrowserDataResponse> => requireApi().cancelDownload(id),
+  resumeDownload: (id: string): Promise<IntegratedBrowserDataResponse> => requireApi().resumeDownload(id),
+  retryDownload: (id: string): Promise<IntegratedBrowserDataResponse> => requireApi().retryDownload(id),
+  openDownload: (id: string): Promise<IntegratedBrowserDataResponse> => requireApi().openDownload(id),
+  revealDownload: (id: string): Promise<IntegratedBrowserDataResponse> => requireApi().revealDownload(id),
   clickElement: (ref: string): Promise<IntegratedBrowserInteractionResponse> => requireApi().clickElement(ref),
   typeInElement: (ref: string, text: string, submit?: boolean): Promise<IntegratedBrowserInteractionResponse> =>
     requireApi().typeInElement(ref, text, submit),
@@ -511,6 +802,17 @@ export const integratedBrowserService = {
     requireApi().scrollView(direction, amount),
   createTab: (url?: string): Promise<IntegratedBrowserResponse> => requireApi().createTab(url),
   closeTab: (tabId: string): Promise<IntegratedBrowserResponse> => requireApi().closeTab(tabId),
+  duplicateTab: (tabId: string): Promise<IntegratedBrowserResponse> => requireApi().duplicateTab(tabId),
+  reopenClosedTab: (tabId?: string): Promise<IntegratedBrowserResponse> => tabId === undefined ? requireApi().reopenClosedTab() : requireApi().reopenClosedTab(tabId),
+  listRecentlyClosedTabs: (): Promise<IntegratedBrowserDataResponse> => requireApi().listRecentlyClosedTabs(),
+  getHistoryRetention: (): Promise<IntegratedBrowserDataResponse> => requireApi().getHistoryRetention(),
+  setHistoryRetention: (days: number | null): Promise<IntegratedBrowserDataResponse> => requireApi().setHistoryRetention(days),
+  closeOtherTabs: (tabId: string): Promise<IntegratedBrowserResponse> => requireApi().closeOtherTabs(tabId),
+  closeTabsToRight: (tabId: string): Promise<IntegratedBrowserResponse> => requireApi().closeTabsToRight(tabId),
+  setTabPinned: (tabId: string, pinned: boolean): Promise<IntegratedBrowserResponse> => requireApi().setTabPinned(tabId, pinned),
+  setTabLayout: (layout: 'horizontal' | 'vertical'): Promise<IntegratedBrowserResponse> => requireApi().setTabLayout(layout),
+  createTabGroup: (name: string, color: BrowserTabGroupColor): Promise<IntegratedBrowserDataResponse> => requireApi().createTabGroup(name, color),
+  assignTabGroup: (tabId: string, groupId: string | null): Promise<IntegratedBrowserResponse> => requireApi().assignTabGroup(tabId, groupId),
   activateTab: (tabId: string): Promise<IntegratedBrowserResponse> => requireApi().activateTab(tabId),
   detachTab: (tabId: string): Promise<IntegratedBrowserResponse> => requireApi().detachTab(tabId),
   reattachTab: (tabId: string): Promise<IntegratedBrowserResponse> => requireApi().reattachTab(tabId),
@@ -537,20 +839,50 @@ export const integratedBrowserService = {
   syncReadingToolbar: (input: BrowserReadingToolbarState): Promise<BrowserReadingResponse> => requireApi().syncReadingToolbar(input),
   cancelReadingSpeech: (input: { readingId: string; requestId?: string }): Promise<BrowserReadingResponse> => requireApi().cancelReadingSpeech(input),
   closeReadingMode: (input: { readingId: string }): Promise<BrowserReadingResponse> => requireApi().closeReadingMode(input),
-  listHistory: (query?: string, limit?: number): Promise<IntegratedBrowserDataResponse> => requireApi().listHistory(query, limit),
+  listHistory: (query?: string, limit?: number, filters?: { offset?: number; from?: string; to?: string; domain?: string }): Promise<IntegratedBrowserDataResponse> => (
+    filters === undefined ? requireApi().listHistory(query, limit) : requireApi().listHistory(query, limit, filters)
+  ),
+  importHistory: (): Promise<IntegratedBrowserDataResponse> => requireApi().importHistory(),
+  getProfile: (): Promise<IntegratedBrowserDataResponse> => requireApi().getProfile(),
+  setProfile: (kind: BrowserProfileKind): Promise<IntegratedBrowserDataResponse> => requireApi().setProfile(kind),
+  listBookmarks: (query?: string): Promise<IntegratedBrowserDataResponse> => requireApi().listBookmarks(query),
+  saveBookmark: (input: { id?: string; url: string; title: string; folderId?: string | null; tags?: string[]; position?: number }): Promise<IntegratedBrowserDataResponse> => requireApi().saveBookmark(input),
+  removeBookmark: (id: string): Promise<IntegratedBrowserDataResponse> => requireApi().removeBookmark(id),
+  migrateLegacyBookmarks: (entries: unknown[]): Promise<IntegratedBrowserDataResponse> => requireApi().migrateLegacyBookmarks(entries),
+  importBookmarksHtml: (): Promise<IntegratedBrowserDataResponse> => requireApi().importBookmarksHtml(),
+  exportBookmarksHtml: (): Promise<IntegratedBrowserDataResponse> => requireApi().exportBookmarksHtml(),
+  recoverBookmarks: (): Promise<IntegratedBrowserDataResponse> => requireApi().recoverBookmarks(),
+  recoverPolicyStore: (input: BrowserPolicyRecoveryRequest): Promise<BrowserPolicyRecoveryResponse> => requireApi().recoverPolicyStore(input),
+  getAgentPolicy: (origin?: string): Promise<IntegratedBrowserDataResponse> => requireApi().getAgentPolicy(origin),
+  agentAudit: (input: BrowserAuditRequest): Promise<IntegratedBrowserDataResponse> => requireApi().agentAudit(input),
+  agentShortcuts: (input: BrowserShortcutRequest): Promise<BrowserShortcutResponse> => requireApi().agentShortcuts(input),
+  semanticMemoryCommand: (input: BrowserSemanticRequest): Promise<BrowserSemanticResponse> => requireApi().semanticMemoryCommand(input),
+  credentialSessionCommand: (input: BrowserCredentialSessionRequest): Promise<BrowserCredentialSessionResponse> => requireApi().credentialSessionCommand(input),
+  controlAgentTask: (input: BrowserAgentControlRequest): Promise<BrowserAgentControlResponse> => requireApi().controlAgentTask(input),
+  setAgentPolicy: (input: { origin?: string; mode: BrowserAgentPolicyMode; decision: 'ask' | 'allow-always' | 'block' }): Promise<IntegratedBrowserDataResponse> => requireApi().setAgentPolicy(input),
+  decideAgentPolicy: (input: { id: string; decision: 'allow-once' | 'allow-always' | 'block' }): Promise<BrowserPermissionDecisionResponse> => requireApi().decideAgentPolicy(input),
+  getPrivacySite: (origin?: string): Promise<IntegratedBrowserDataResponse> => requireApi().getPrivacySite(origin),
+  setPrivacySite: (input: { origin?: string; level: BrowserPrivacyLevel; exceptionCategories: BrowserPrivacyCategory[] }): Promise<IntegratedBrowserDataResponse> => requireApi().setPrivacySite(input),
   clearHistory: (): Promise<IntegratedBrowserDataResponse> => requireApi().clearHistory(),
   clearBrowsingData: (input: {
     categories: BrowsingDataCategory[];
     range: BrowsingDataRange;
   }): Promise<BrowsingDataResponse> => requireApi().clearBrowsingData(input),
   listCredentials: (): Promise<IntegratedBrowserDataResponse> => requireApi().listCredentials(),
-  saveCredential: (input: { id?: string; username: string; password: string }): Promise<IntegratedBrowserDataResponse> => requireApi().saveCredential(input),
+  setCredentialAutosave: (enabled: boolean): Promise<IntegratedBrowserDataResponse> => requireApi().setCredentialAutosave(enabled),
+  analyzeCredentialHealth: (): Promise<IntegratedBrowserDataResponse> => requireApi().analyzeCredentialHealth(),
+  importCredentials: (): Promise<IntegratedBrowserDataResponse> => requireApi().importCredentials(),
+  exportCredentials: (): Promise<IntegratedBrowserDataResponse> => requireApi().exportCredentials(),
+  recoverCredentials: (): Promise<IntegratedBrowserDataResponse> => requireApi().recoverCredentials(),
+  saveCredential: (input: { id?: string; username: string; password: string; expectedOrigin: string }): Promise<IntegratedBrowserDataResponse> => requireApi().saveCredential(input),
   fillCredential: (id: string): Promise<IntegratedBrowserDataResponse> => requireApi().fillCredential(id),
   removeCredential: (id: string): Promise<IntegratedBrowserDataResponse> => requireApi().removeCredential(id),
   listExtensions: (): Promise<IntegratedBrowserDataResponse> => requireApi().listExtensions(),
+  extensionCatalog: (input: BrowserExtensionCatalogRequest): Promise<IntegratedBrowserDataResponse> => requireApi().extensionCatalog(input),
   installExtension: (): Promise<IntegratedBrowserDataResponse> => requireApi().installExtension(),
   confirmExtensionInstall: (token: string): Promise<IntegratedBrowserDataResponse> => requireApi().confirmExtensionInstall(token),
   setExtensionEnabled: (installId: string, enabled: boolean): Promise<IntegratedBrowserDataResponse> => requireApi().setExtensionEnabled(installId, enabled),
+  restrictExtensionSites: (installId: string, sites: string[]): Promise<IntegratedBrowserDataResponse> => requireApi().restrictExtensionSites(installId, sites),
   removeExtension: (installId: string): Promise<IntegratedBrowserDataResponse> => requireApi().removeExtension(installId),
   getSitePermissions: (): Promise<BrowserSitePermissionResponse> => requireApi().getSitePermissions(),
   setSitePermission: (input: {
@@ -560,29 +892,35 @@ export const integratedBrowserService = {
   }): Promise<BrowserSitePermissionResponse> => requireApi().setSitePermission(input),
   resetSitePermissions: (input?: { origin?: string }): Promise<BrowserSitePermissionResponse> => requireApi().resetSitePermissions(input),
   getTabSummaries: (): Promise<IntegratedBrowserTabSummariesResponse> => requireApi().getTabSummaries(),
-  getTabContent: (tabId: string): Promise<BrowserTabContentResponse> => requireApi().getTabContent(tabId),
+  getTabContent: (tabId: string, expected?: import('../shared/browser-tab-context').BrowserTabExpectation): Promise<BrowserTabContentResponse> => expected ? requireApi().getTabContent(tabId, expected) : requireApi().getTabContent(tabId),
   decidePermissionPrompt: (input: { id: string; granted: boolean }): Promise<BrowserPermissionDecisionResponse> => (
     requireApi().decidePermissionPrompt(input)
   ),
   resolveWriting: (input: BrowserWritingResolution): Promise<IntegratedBrowserResponse> => requireApi().resolveWriting(input),
   subscribe: (callbacks: {
     onStateChanged?: (state: IntegratedBrowserState) => void;
+    onDownloadsChanged?: (downloads: BrowserDownloadRecord[]) => void;
+    onFindRequested?: () => void;
     onOpenRequested?: (request: { url?: string }) => void;
     onSelectionAction?: (request: BrowserSelectionActionRequest) => void;
     onReadingModeRequested?: (request: BrowserReadingModeRequest) => void;
     onWritingRequest?: (request: BrowserWritingRequest) => void;
     onSitePermissionsChanged?: () => void;
     onPermissionPrompt?: (request: BrowserPermissionPromptRequest) => void;
+    onAgentPolicyPrompt?: (request: BrowserAgentPolicyPromptRequest) => void;
   }): (() => void) => {
     const api = requireApi();
     const cleanups: Array<() => void> = [];
     if (callbacks.onStateChanged) cleanups.push(api.onStateChanged(callbacks.onStateChanged));
+    if (callbacks.onDownloadsChanged) cleanups.push(api.onDownloadsChanged(callbacks.onDownloadsChanged));
+    if (callbacks.onFindRequested) cleanups.push(api.onFindRequested(callbacks.onFindRequested));
     if (callbacks.onOpenRequested) cleanups.push(api.onOpenRequested(callbacks.onOpenRequested));
     if (callbacks.onSelectionAction) cleanups.push(api.onSelectionAction(callbacks.onSelectionAction));
     if (callbacks.onReadingModeRequested) cleanups.push(api.onReadingModeRequested(callbacks.onReadingModeRequested));
     if (callbacks.onWritingRequest) cleanups.push(api.onWritingRequest(callbacks.onWritingRequest));
     if (callbacks.onSitePermissionsChanged) cleanups.push(api.onSitePermissionsChanged(callbacks.onSitePermissionsChanged));
     if (callbacks.onPermissionPrompt) cleanups.push(api.onPermissionPrompt(callbacks.onPermissionPrompt));
+    if (callbacks.onAgentPolicyPrompt) cleanups.push(api.onAgentPolicyPrompt(callbacks.onAgentPolicyPrompt));
     return () => cleanups.forEach((cleanup) => cleanup());
   },
 };
@@ -602,6 +940,10 @@ export const EMPTY_INTEGRATED_BROWSER_STATE: IntegratedBrowserState = {
   secondaryTabId: null,
   viewMode: 'single',
   isFullscreen: false,
+  tabLayout: 'horizontal',
+  groups: [],
+  canReopenClosedTab: false,
+  restoreAvailable: null,
 };
 
 export {};

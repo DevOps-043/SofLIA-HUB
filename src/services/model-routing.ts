@@ -14,7 +14,7 @@ export interface RoutedModel {
  * Decide con que modelo se atiende el turno.
  *
  * El modelo visible siempre orquesta el turno. Si necesita Computer Use, la
- * herramienta delega la percepcion y la actuacion al Gemini 3.6 Flash fijo de
+ * herramienta delega la percepcion y la actuacion al Gemini 3.8 Flash fijo de
  * main sin reemplazar este proveedor conversacional.
  */
 export function resolveRoutedModel(params: {

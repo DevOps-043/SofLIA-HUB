@@ -60,7 +60,7 @@ export const MODELS = {
 
 // Familia GPT-5.6 de OpenAI. Terra corresponde a SofLIA Max y conserva la clave
 // histórica `COMPUTER_USE` por compatibilidad, aunque el actuador Computer Use
-// usa exclusivamente Gemini 3.6 Flash. Luna corresponde a SofLIA Pro. El
+// usa exclusivamente Gemini 3.8 Flash. Luna corresponde a SofLIA Pro. El
 // proveedor efectivo se decide por el modelo seleccionado; la llave puede
 // provenir de la configuración guardada del usuario o del entorno.
 export const OPENAI_MODELS = {

@@ -475,8 +475,11 @@ async function runFunctionCalls(
 }
 
 function buildTools(params: OpenAIStreamParams, effort: ReasoningEffort | undefined): any[] {
+  if (params.options?.browserSourceMode === 'attached-fragments') {
+    return toOpenAITools(buildModelTools(false, params.modelId, params.options.activeSkill, true));
+  }
   // `use_computer` se mantiene: delega la conduccion de la pantalla al actuador
-  // Gemini 3.6 Flash del proceso main, que resuelve DPI y multi-monitor.
+  // Gemini 3.8 Flash del proceso main, que resuelve DPI y multi-monitor.
   const functionTools = params.useToolLoop
     ? toOpenAITools(buildModelTools(params.computerUseEnabled, params.modelId, params.options?.activeSkill))
     : [];

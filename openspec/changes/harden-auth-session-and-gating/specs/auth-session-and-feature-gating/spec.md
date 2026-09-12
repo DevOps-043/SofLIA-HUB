@@ -13,6 +13,26 @@ denegación real (sin membresía activa o credenciales inválidas) cierra la ses
 - **THEN** la sesión se mantiene, el sistema marca estado degradado y reintenta,
   sin borrar la sesión persistida
 
+#### Scenario: El directorio caído no arrastra a las conversaciones
+
+- **WHEN** la resolución del contexto SOFIA (organizaciones y equipos) falla pero
+  la sesión sigue siendo verificable
+- **THEN** el sistema degrada únicamente el selector de organización y establece
+  igualmente la sesión de conversaciones, que no depende de ese directorio
+
+#### Scenario: Reintento automático del directorio
+
+- **WHEN** el contexto SOFIA quedó degradado por un fallo recuperable
+- **THEN** el sistema lo reintenta solo, con espera creciente y también al
+  recuperar red o foco, y lo restaura sin reiniciar la app en cuanto responde
+
+#### Scenario: Sesión restaurada sin token verificable
+
+- **WHEN** la sesión se restaura desde el snapshot local porque el proveedor de
+  autenticación ya no tiene una sesión válida
+- **THEN** el sistema no promete un reintento automático: informa que la sesión
+  caducó y pide volver a iniciar sesión, sin cerrarla por su cuenta
+
 #### Scenario: Usuario sin membresía activa
 
 - **WHEN** el perfil se resuelve correctamente pero el usuario no tiene membresía
@@ -23,6 +43,31 @@ denegación real (sin membresía activa o credenciales inválidas) cierra la ses
 
 - **WHEN** existe una sesión persistida válida y el contexto resuelve
 - **THEN** el usuario continúa autenticado sin volver a iniciar sesión
+
+### Requirement: El escritorio no depende de leer el directorio de usuarios
+
+El cliente de escritorio MUST NOT requerir permiso de lectura sobre la tabla de
+usuarios de SOFIA. La clave anónima viaja dentro del ejecutable, así que ese
+permiso equivaldría a publicar el directorio completo. El acceso SHALL limitarse
+a funciones acotadas que devuelvan el mínimo necesario.
+
+#### Scenario: Traducción de identificador antes de autenticar
+
+- **WHEN** el usuario inicia sesión con su nombre de usuario en vez de su correo
+- **THEN** el sistema obtiene únicamente el correo con el que autenticar, sin
+  leer ningún otro dato de esa cuenta ni de ninguna otra
+
+#### Scenario: Perfil propio ya autenticado
+
+- **WHEN** la sesión está establecida y se resuelve el perfil
+- **THEN** el sistema obtiene solo la fila del usuario autenticado, y no puede
+  obtener la de otro aunque conozca su identificador
+
+#### Scenario: Identificador inexistente
+
+- **WHEN** el identificador no corresponde a ninguna cuenta
+- **THEN** el mensaje es el mismo que ante credenciales inválidas, sin revelar
+  si la cuenta existe
 
 ### Requirement: Estado de autenticación conocido por el proceso main
 

@@ -1,75 +1,71 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock del cliente SOFIA: cadena users.select().ilike().limit().maybeSingle()
-const supabaseMocks = vi.hoisted(() => {
-  const maybeSingle = vi.fn();
-  const limit = vi.fn(() => ({ maybeSingle }));
-  const ilike = vi.fn(() => ({ limit }));
-  const select = vi.fn(() => ({ ilike }));
-  const from = vi.fn(() => ({ select }));
-  return { maybeSingle, limit, ilike, select, from };
-});
+// El login ya no lee public.users: la instancia la cerro y la traduccion de
+// identificador a correo pasa por una funcion acotada.
+const supabaseMocks = vi.hoisted(() => ({ rpc: vi.fn(), from: vi.fn() }));
 
 vi.mock('../../lib/sofia-client', () => ({
-  sofiaSupa: { from: supabaseMocks.from },
+  sofiaSupa: { rpc: supabaseMocks.rpc, from: supabaseMocks.from },
   isSofiaConfigured: () => true,
 }));
 
 import {
-  escapeIlikePattern,
-  findLoginUserRow,
   INVALID_CREDENTIALS_MESSAGE,
   mapSupabaseAuthError,
+  resolveLoginEmail,
 } from '../../services/sofia-auth/login';
 
 describe('sofia-auth/login', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    supabaseMocks.maybeSingle.mockResolvedValue({ data: null, error: null });
+    supabaseMocks.rpc.mockResolvedValue({ data: null, error: null });
   });
 
-  describe('findLoginUserRow', () => {
-    it('busca por email (case-insensitive) cuando el identificador contiene @', async () => {
-      const row = { id: 'u1', username: 'fer', email: 'fer@pulsehub.mx' };
-      supabaseMocks.maybeSingle.mockResolvedValue({ data: row, error: null });
+  describe('resolveLoginEmail', () => {
+    it('resuelve el correo pasando el identificador tal cual a la funcion', async () => {
+      supabaseMocks.rpc.mockResolvedValue({ data: 'fer@pulsehub.mx', error: null });
 
-      const result = await findLoginUserRow('Fer@PulseHub.mx');
+      const result = await resolveLoginEmail('Fer@PulseHub.mx');
 
-      expect(supabaseMocks.from).toHaveBeenCalledWith('users');
-      expect(supabaseMocks.ilike).toHaveBeenCalledWith('email', 'Fer@PulseHub.mx');
-      expect(result).toEqual(row);
+      expect(supabaseMocks.rpc).toHaveBeenCalledWith('resolve_desktop_login_email', {
+        identifier: 'Fer@PulseHub.mx',
+      });
+      expect(result).toBe('fer@pulsehub.mx');
     });
 
-    it('busca por username cuando el identificador no es un email', async () => {
-      await findLoginUserRow('FerSG');
-      expect(supabaseMocks.ilike).toHaveBeenCalledWith('username', 'FerSG');
+    it('acepta un nombre de usuario, no solo un correo', async () => {
+      supabaseMocks.rpc.mockResolvedValue({ data: 'fer@pulsehub.mx', error: null });
+
+      const result = await resolveLoginEmail('FerSG');
+
+      expect(supabaseMocks.rpc).toHaveBeenCalledWith('resolve_desktop_login_email', { identifier: 'FerSG' });
+      expect(result).toBe('fer@pulsehub.mx');
     });
 
-    it('escapa comodines de ilike para tratar el identificador como literal', async () => {
-      await findLoginUserRow('user%_raro');
-      expect(supabaseMocks.ilike).toHaveBeenCalledWith('username', 'user\\%\\_raro');
-    });
-
-    it('devuelve null sin consultar cuando el identificador esta vacio', async () => {
-      const result = await findLoginUserRow('   ');
-      expect(result).toBeNull();
+    it('nunca consulta la tabla de usuarios', async () => {
+      await resolveLoginEmail('FerSG');
       expect(supabaseMocks.from).not.toHaveBeenCalled();
     });
 
+    it('devuelve null sin consultar cuando el identificador esta vacio', async () => {
+      const result = await resolveLoginEmail('   ');
+      expect(result).toBeNull();
+      expect(supabaseMocks.rpc).not.toHaveBeenCalled();
+    });
+
     it('devuelve null cuando el usuario no existe', async () => {
-      const result = await findLoginUserRow('noexiste@x.com');
+      const result = await resolveLoginEmail('noexiste@x.com');
       expect(result).toBeNull();
     });
 
-    it('lanza error ante fallos de consulta (conexion/BD)', async () => {
-      supabaseMocks.maybeSingle.mockResolvedValue({ data: null, error: { message: 'timeout' } });
-      await expect(findLoginUserRow('fer@pulsehub.mx')).rejects.toThrow('No se pudo consultar el usuario');
+    it('trata una cadena vacia devuelta por la funcion como usuario inexistente', async () => {
+      supabaseMocks.rpc.mockResolvedValue({ data: '   ', error: null });
+      await expect(resolveLoginEmail('fer@pulsehub.mx')).resolves.toBeNull();
     });
-  });
 
-  describe('escapeIlikePattern', () => {
-    it('escapa %, _ y backslash', () => {
-      expect(escapeIlikePattern('a%b_c\\d')).toBe('a\\%b\\_c\\\\d');
+    it('lanza error ante fallos de consulta (conexion/BD/permisos)', async () => {
+      supabaseMocks.rpc.mockResolvedValue({ data: null, error: { message: 'permission denied' } });
+      await expect(resolveLoginEmail('fer@pulsehub.mx')).rejects.toThrow('No se pudo consultar el usuario');
     });
   });
 

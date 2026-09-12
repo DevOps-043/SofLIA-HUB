@@ -26,12 +26,14 @@ const mocks = vi.hoisted(() => {
     conversationEnded: vi.fn(async () => ({ success: true })),
     hide: vi.fn(),
     sendMessageStream: vi.fn(),
+    browserCommand: vi.fn(async () => ({ success: true, message: 'Pausa solicitada.' })),
     synthesizeElevenLabsSpeech: vi.fn(),
   };
 });
 
 vi.mock('../../services/orb-service', () => ({
   orbService: {
+    browserCommand: mocks.browserCommand,
     isAvailable: () => true,
     getPendingWake: mocks.getPendingWake,
     getPendingAnnouncement: mocks.getPendingAnnouncement,
@@ -95,6 +97,21 @@ function deferred<T>() {
 }
 
 describe('useOrbConversation session lifecycle', () => {
+  it('la orden humana de navegador usa el supervisor existente sin otro turno de modelo', async () => {
+    mocks.synthesizeElevenLabsSpeech.mockResolvedValue({ audioBase64: 'voz' });
+    const { result, unmount } = renderHook(() => useOrbConversation());
+    await act(async () => { await result.current.startListening(); });
+    await act(async () => { mocks.callbacks.final?.({ sessionId: 'dictation-default', text: 'Navegador pausa', reason: 'silence' }); });
+    expect(mocks.browserCommand).toHaveBeenCalledWith('pause'); expect(mocks.sendMessageStream).not.toHaveBeenCalled();
+    expect(result.current.responseText).toBe('Pausa solicitada.'); unmount();
+  });
+  it('no reinterpreta órdenes desconocidas mediante IA', async () => {
+    mocks.synthesizeElevenLabsSpeech.mockResolvedValue({ audioBase64: 'voz' });
+    const { result, unmount } = renderHook(() => useOrbConversation());
+    await act(async () => { await result.current.startListening(); });
+    await act(async () => { mocks.callbacks.final?.({ sessionId: 'dictation-default', text: 'Navegador paga y borra', reason: 'silence' }); });
+    expect(mocks.browserCommand).not.toHaveBeenCalled(); expect(mocks.sendMessageStream).not.toHaveBeenCalled(); unmount();
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     delete mocks.callbacks.wake;

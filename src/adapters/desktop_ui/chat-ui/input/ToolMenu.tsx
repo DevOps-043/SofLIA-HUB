@@ -6,6 +6,8 @@ import { AppAttachmentPicker, type AppAttachmentSelection } from './AppAttachmen
 import type { TabContextAttachment } from '../../../../services/integrated-browser-service';
 import { desktopContextService } from '../../../../services/desktop-context-service';
 import { startAppExtraction, type AppContextAttachmentState } from '../app-attachments';
+import { BROWSER_SOURCE_LIMITS } from '../../../../shared/browser-tab-context';
+import { BrowserAgentShortcutsPanel } from '../../../../components/browser/BrowserAgentShortcutsPanel';
 import {
   ImageIcon,
   SparklesIcon,
@@ -58,6 +60,7 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
   const [menuPos, setMenuPos] = useState<{ left: number; bottom: number } | null>(null);
   const [isTabPickerOpen, setIsTabPickerOpen] = useState(false);
   const [isAppPickerOpen, setIsAppPickerOpen] = useState(false);
+  const [isShortcutPickerOpen, setIsShortcutPickerOpen] = useState(false);
 
   const attachedTabs = controller.state.tabs?.attached ?? [];
   const hasAttachedTabs = attachedTabs.length > 0;
@@ -67,6 +70,7 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
   const canAttachApps = desktopContextService.isAvailable();
 
   const options: ToolOption[] = [
+    { id: 'browser_shortcuts', label: 'Atajos del navegador', sub: 'Instrucciones de lectura reutilizables' },
     { id: 'attach_tabs', label: 'Añadir pestañas', sub: 'Análisis multi-pestaña', active: hasAttachedTabs },
     ...(canAttachApps
       ? [{ id: 'attach_apps', label: 'Añadir aplicaciones', sub: 'Word, Excel y más', active: hasAttachedApps }]
@@ -84,6 +88,7 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
       setMenuPos(null);
       setIsTabPickerOpen(false);
       setIsAppPickerOpen(false);
+      setIsShortcutPickerOpen(false);
       return;
     }
     const rect = buttonRef.current.getBoundingClientRect();
@@ -94,9 +99,11 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
   }, [controller.state.tools.isOpen]);
 
   const handleClose = useCallback(() => {
+    buttonRef.current?.focus();
     controller.state.tools.setOpen(false);
     setIsTabPickerOpen(false);
     setIsAppPickerOpen(false);
+    setIsShortcutPickerOpen(false);
   }, [controller.state.tools]);
 
   const handleToggleTab = (tab: TabContextAttachment) => {
@@ -104,7 +111,7 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
     const exists = current.some((t) => t.tabId === tab.tabId);
     if (exists) {
       controller.state.tabs?.setAttached(current.filter((t) => t.tabId !== tab.tabId));
-    } else {
+    } else if (current.length < BROWSER_SOURCE_LIMITS.tabs) {
       controller.state.tabs?.setAttached([...current, tab]);
     }
   };
@@ -151,7 +158,7 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
             className="fixed z-[9999] overflow-hidden animate-in fade-in zoom-in-95 duration-150"
             style={{ left: menuPos.left, bottom: menuPos.bottom }}
           >
-            {isTabPickerOpen ? (
+            {isShortcutPickerOpen ? <BrowserAgentShortcutsPanel key={controller.shortcuts.contextKey} onClose={handleClose} onUse={(entry, profile) => { controller.shortcuts.use(entry, profile); handleClose(); }} /> : isTabPickerOpen ? (
               <TabAttachmentPicker
                 attachedTabs={attachedTabs}
                 onToggleTab={handleToggleTab}
@@ -165,7 +172,9 @@ export function ToolMenu({ controller }: { controller: ChatUIController }) {
                   <button
                     key={tool.id}
                     onClick={() => {
-                      if (tool.id === 'attach_tabs') {
+                      if (tool.id === 'browser_shortcuts') {
+                        setIsShortcutPickerOpen(true);
+                      } else if (tool.id === 'attach_tabs') {
                         setIsTabPickerOpen(true);
                       } else if (tool.id === 'attach_apps') {
                         setIsAppPickerOpen(true);

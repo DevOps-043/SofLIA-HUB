@@ -1,5 +1,8 @@
 import type { InputEvent } from 'electron';
+import { randomUUID } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 import type { CuDriver, CuPoint } from '../desktop-agent/gemini-cu/types';
+import { assertCuNotAborted, CuContextChangedError } from '../desktop-agent/gemini-cu/execution-guard';
 import { applySoMOverlay } from '../desktop-agent/screenshot-overlays';
 import { loadSharp, type SharpFactory } from '../desktop-agent/sharp';
 import {
@@ -12,13 +15,22 @@ import type { BrowserDomSnapshot } from './types';
 import type { IntegratedBrowserService } from './service';
 
 export function createIntegratedBrowserCuDriver(service: IntegratedBrowserService): CuDriver {
+  const assertTask = service.createAgentTargetGuard();
   let captureSize = service.getViewportSize();
   let latestContext: Record<string, unknown> = {};
-  return {
+  let assertCapture: (() => void) | null = null;
+  const driver: CuDriver = {
     entorno: 'ENVIRONMENT_BROWSER',
-    async capturar() {
+    async capturar(signal) {
+      assertCuNotAborted(signal);
+      assertTask();
+      assertCapture = null;
+      latestContext = {};
+      const assertDocument = service.createAgentTargetGuard(signal, true);
       const viewportSize = service.getViewportSize();
-      const observed = await service.getObservation(true);
+      const observed = await service.getObservation(true, signal);
+      assertTask();
+      assertDocument();
       const observation = observed.observation;
       const encoded = readDataUrlPayload(observation?.screenshot);
       if (encoded) {
@@ -27,12 +39,18 @@ export function createIntegratedBrowserCuDriver(service: IntegratedBrowserServic
         // tocarlo o cada clic saldria desplazado por el factor de reduccion.
         captureSize = viewportSize;
         const marcado = await markCapture(encoded, observation!.dom, viewportSize);
+        await service.assertAgentDocumentSafe(signal);
+        assertTask();
+        assertDocument();
         latestContext = {
+          url: observation!.dom.url,
+          superficie: 'navegador_integrado',
           observedAt: observation!.capturedAt,
           page: observation!.dom,
           trust: 'untrusted_page_content',
           ...(marcado.marks.length ? { marks: describeMarks(marcado.marks) } : {}),
         };
+        assertCapture = assertDocument;
         return {
           base64: marcado.base64,
           width: captureSize.width,
@@ -40,16 +58,39 @@ export function createIntegratedBrowserCuDriver(service: IntegratedBrowserServic
           context: latestContext,
         };
       }
-      const contents = service.getWebContentsForAgent();
+      const { contents, assertCurrent } = await service.authorizeAgentTarget('capture', signal);
+      assertTask();
+      assertDocument();
+      assertCurrent();
       const image = await contents.capturePage();
+      await service.assertAgentDocumentSafe(signal);
+      assertTask();
+      assertDocument();
+      assertCurrent();
       const imageWithSize = image as typeof image & { getSize?: () => ViewportSize };
       captureSize = normalizeCaptureSize(imageWithSize.getSize?.(), viewportSize);
       latestContext = { url: service.getState().url, superficie: 'navegador_integrado' };
+      assertCapture = assertDocument;
       return { base64: image.toPNG().toString('base64'), width: captureSize.width, height: captureSize.height, context: latestContext };
     },
-    contexto: () => ({ ...latestContext, url: service.getState().url, superficie: 'navegador_integrado' }),
-    async ejecutar(action) {
-      const contents = service.getWebContentsForAgent();
+    contexto: () => {
+      assertTask();
+      if (!assertCapture) throw new CuContextChangedError();
+      assertCapture();
+      return { ...latestContext };
+    },
+    async ejecutar(action, _intent, signal) {
+      const assertObserved = () => {
+        assertCuNotAborted(signal);
+        assertTask();
+        service.getViewportSize();
+        if (!assertCapture) throw new CuContextChangedError();
+        assertCapture();
+      };
+      assertObserved();
+      const { contents, assertCurrent: assertAuthorized } = await service.authorizeAgentTarget('act', signal);
+      const assertCurrent = () => { assertObserved(); assertAuthorized(); };
+      assertCurrent();
       const size = service.getViewportSize();
       switch (action.tipo) {
         case 'click':
@@ -81,6 +122,7 @@ export function createIntegratedBrowserCuDriver(service: IntegratedBrowserServic
         }
         case 'type':
           await contents.insertText(action.texto.slice(0, 20_000));
+          assertCurrent();
           if (action.enter) sendKey(contents, 'enter');
           return;
         case 'key':
@@ -108,10 +150,13 @@ export function createIntegratedBrowserCuDriver(service: IntegratedBrowserServic
           );
           return;
         case 'wait':
-          await delay(Math.min(Math.max(action.ms, 0), 15_000));
+          await delay(Math.min(Math.max(action.ms, 0), 15_000), undefined, { signal });
+          assertCurrent();
           return;
         case 'navigate':
-          await service.navigate(action.url);
+          await service.navigate(action.url, assertCurrent);
+          assertCuNotAborted(signal);
+          assertTask();
           return;
         case 'go_back':
           service.goBack();
@@ -125,9 +170,15 @@ export function createIntegratedBrowserCuDriver(service: IntegratedBrowserServic
       }
     },
   };
+  const traceId = randomUUID();
+  return {
+    ...driver,
+    capturar: (signal) => service.auditAgentOperation('cu-capture', () => driver.capturar(signal), traceId),
+    ejecutar: (action, intent, signal) => service.auditAgentOperation(`cu-${action.tipo}`, () => driver.ejecutar(action, intent, signal), traceId),
+  };
 }
 
-type BrowserContents = ReturnType<IntegratedBrowserService['getWebContentsForAgent']>;
+type BrowserContents = Awaited<ReturnType<IntegratedBrowserService['authorizeAgentTarget']>>['contents'];
 type ViewportSize = { width: number; height: number };
 
 /**
@@ -249,8 +300,4 @@ function sendKey(contents: BrowserContents, rawCombination: string): void {
   const keyCode = keyMap[rawKey] ?? (rawKey.length === 1 ? rawKey.toUpperCase() : rawKey);
   contents.sendInputEvent({ type: 'keyDown', keyCode, modifiers });
   contents.sendInputEvent({ type: 'keyUp', keyCode, modifiers });
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

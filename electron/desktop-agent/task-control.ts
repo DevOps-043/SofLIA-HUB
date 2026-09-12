@@ -16,6 +16,7 @@ type TaskEventEmitter = (eventName: string, payload?: unknown) => void;
 
 export function abortDesktopAgentTask(input: {
   taskId?: string;
+  queue?: DesktopTaskQueueItem[];
   activeTasks: Map<string, AgentTask>;
   abortController: AbortController | null;
   abortBrowserTasks: () => void;
@@ -27,6 +28,15 @@ export function abortDesktopAgentTask(input: {
   if (input.taskId) {
     abortSpecificTask(input);
     return;
+  }
+
+  // Retirar toda la cola antes de notificar: una resolución puede reentrar al servicio.
+  const queuedTasks = input.queue?.splice(0) ?? [];
+  for (const queued of queuedTasks) {
+    queued.onDequeue?.();
+    queued.resolve(buildTaskOutcome({
+      taskId: null, estado: 'cancelada', mensaje: 'Tarea cancelada mientras esperaba en cola.', startedAt: queued.enqueuedAt,
+    }));
   }
 
   for (const [id, task] of input.activeTasks) {

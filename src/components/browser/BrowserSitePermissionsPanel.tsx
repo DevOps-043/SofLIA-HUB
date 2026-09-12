@@ -156,6 +156,7 @@ export function BrowserSitePermissionsPanel(props: {
             >
               Restablecer permisos
             </button>
+            <p className="mt-2 text-[11px] text-secondary">Restablecer también elimina las copias locales de recuperación de permisos del perfil para no conservar sitios retirados.</p>
           </div>
         </>
       )}

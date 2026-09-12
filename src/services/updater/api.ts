@@ -13,8 +13,9 @@ export async function downloadUpdate(): Promise<void> {
 }
 
 export async function installUpdate(): Promise<void> {
-  if (typeof window.updater === 'undefined') return;
-  await window.updater.installUpdate();
+  if (typeof window.updater === 'undefined') throw new Error('La instalación de actualizaciones requiere la aplicación de escritorio.');
+  const result = await window.updater.installUpdate();
+  if (!result.success) throw new Error(result.error || 'No se pudo instalar la actualización.');
 }
 
 export async function getUpdaterStatus(): Promise<UpdaterStatus | null> {

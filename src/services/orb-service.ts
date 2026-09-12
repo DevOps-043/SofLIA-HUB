@@ -1,3 +1,4 @@
+import type { BrowserVoiceAction, BrowserVoiceResult } from '../shared/browser-voice';
 // Wrapper del renderer para la ventana de la Orbe de Voz (canales orb:*).
 // El dictado corre en el sidecar local; la voz conversacional se sintetiza en
 // Electron main con ElevenLabs para mantener la credencial fuera del renderer.
@@ -55,6 +56,7 @@ export interface OrbAnnouncement {
 }
 
 interface OrbBridge {
+  browserCommand: (action: BrowserVoiceAction) => Promise<BrowserVoiceResult>;
   show: () => Promise<{ success: boolean; visible?: boolean; error?: string }>;
   getPendingWake: () => Promise<{ success: boolean; wake?: boolean }>;
   getPendingAnnouncement: () => Promise<{ success: boolean; announcement?: OrbAnnouncement | null }>;
@@ -89,6 +91,7 @@ function api(): OrbBridge {
 }
 
 export const orbService = {
+  browserCommand: (action: BrowserVoiceAction) => api().browserCommand(action),
   isAvailable(): boolean {
     return typeof window.orb !== 'undefined';
   },

@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { SOFLIA_LITE_MODEL } from '../../src/shared/soflia-runtime-model';
 import { buildDailyBriefingPrompt, buildFallbackBriefing } from './prompt';
 import type { DailyBriefingSystemData } from './types';
 
@@ -7,7 +8,7 @@ export async function generateBriefingSummary(
   systemData: DailyBriefingSystemData,
 ): Promise<string> {
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite' });
+  const model = genAI.getGenerativeModel({ model: SOFLIA_LITE_MODEL });
   const prompt = buildDailyBriefingPrompt(systemData);
   const maxAttempts = 3;
 
@@ -15,8 +16,8 @@ export async function generateBriefingSummary(
     try {
       const result = await model.generateContent(prompt);
       return result.response.text().trim();
-    } catch (err: any) {
-      console.error(`[DailyBriefing] Error con Gemini (intento ${attempt}):`, err.message);
+    } catch (err) {
+      console.error(`[DailyBriefing] Error con Gemini (intento ${attempt}):`, err instanceof Error ? err.message : err);
       if (attempt >= maxAttempts) return buildFallbackBriefing(systemData);
       await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000));
     }

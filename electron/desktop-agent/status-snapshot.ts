@@ -2,6 +2,7 @@ import type { ActionHistoryEntry, AgentStatus, AgentTask, DesktopAgentConfig, De
 import type { PlatformCapabilities } from '../platform-capabilities';
 
 type BackendRuntimeStatus = {
+  taskId?: string;
   status: string;
   currentTask?: string | null;
   currentStep: number;
@@ -52,9 +53,9 @@ export function buildDesktopAgentStatus(context: DesktopAgentStatusSnapshotConte
 
   if (browserActive) {
     activeTasksList.push({
-      id: 'browser-web',
+      id: context.browserStatus.taskId ?? 'browser-web',
       task: context.browserStatus.currentTask || 'Tarea web',
-      status: 'executing',
+      status: context.browserStatus.status === 'waiting' ? 'waiting' : 'executing',
       step: context.browserStatus.currentStep,
       maxSteps: context.browserStatus.maxSteps || context.config.maxSteps,
       backend: 'browser_web',
@@ -80,7 +81,7 @@ export function buildDesktopAgentStatus(context: DesktopAgentStatusSnapshotConte
   const currentTask = backendValue(context.browserStatus, context.windowsUIAStatus, 'currentTask', context.currentTask);
 
   return {
-    status: browserActive || windowsUIAActive ? 'executing' : context.status,
+    status: activeTasksList.length === 1 && activeTasksList[0].status === 'waiting' ? 'waiting' : browserActive || windowsUIAActive ? 'executing' : context.status,
     currentTask: currentTask || null,
     currentStep: backendValue(context.browserStatus, context.windowsUIAStatus, 'currentStep', context.currentStep),
     maxSteps: backendValue(context.browserStatus, context.windowsUIAStatus, 'maxSteps', context.config.maxSteps),

@@ -1,7 +1,7 @@
 /**
  * Contratos del backend Gemini Computer Use (CU).
  *
- * El modelo (`gemini-3.6-flash`) devuelve, por la vía entrenada `computer_use`,
+ * El modelo (`gemini-3.8-flash`) devuelve, por la vía entrenada `computer_use`,
  * una `function_call` con una accion de UI y coordenadas NORMALIZADAS 0-999
  * sobre la captura enviada. Aqui se normaliza a una accion interna (`CuAction`)
  * con coordenadas ya en PIXELES de la captura; cada driver (desktop/browser) la
@@ -58,8 +58,8 @@ export type CuCapture = { base64: string; width: number; height: number; context
  */
 export interface CuDriver {
   readonly entorno: CuEnvironment;
-  capturar(): Promise<CuCapture>;
-  ejecutar(action: CuAction, intent: string): Promise<void>;
+  capturar(signal?: AbortSignal): Promise<CuCapture>;
+  ejecutar(action: CuAction, intent: string, signal?: AbortSignal): Promise<void>;
   /** Contexto extra para el function_response (p.ej. url actual del navegador). */
   contexto?(): Record<string, unknown>;
 }

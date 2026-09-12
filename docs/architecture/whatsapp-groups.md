@@ -349,7 +349,7 @@ if (text.startsWith("/")) {
   const [cmd, ...args] = text.slice(1).split(" ");
   switch (cmd.toLowerCase()) {
     case "status":
-      return "🤖 SofLIA activa. Modelo: Gemini 2.5 Flash";
+      return `🤖 SofLIA activa. Modelo: ${WA_MODEL}`;
     case "reset":
     case "new":
       conversations.delete(sessionKey);
@@ -458,7 +458,7 @@ Agregar nueva sección al modal:
 | -------------------------- | ---------------------------- | ---------------------------------- |
 | **Librería WhatsApp**      | Baileys                      | Baileys ✅ (igual)                 |
 | **Arquitectura**           | Gateway daemon (Node.js)     | Electron main process              |
-| **AI Model**               | Claude/GPT (configurable)    | Gemini 2.5 Flash                   |
+| **AI Model**               | Claude/GPT (configurable)    | `WA_MODEL` (`gemini-3.8-flash`)    |
 | **Tools/Function Calling** | Herramientas vía tool system | Function Calling de Gemini ✅      |
 | **Memoria**                | Markdown files (MEMORY.md)   | JSON file (whatsapp-memories.json) |
 | **Grupos**                 | Soporte completo + config    | **FALTA** — a implementar          |

@@ -126,7 +126,7 @@ describe('herramientas deterministas del navegador integrado', () => {
   it('IBT-004: el catálogo expone lectura/navegación aunque Computer Use esté deshabilitado', () => {
     installBrowserApi();
 
-    const tools = buildModelTools(false, 'gemini-3.6-flash');
+    const tools = buildModelTools(false, 'gemini-3.8-flash');
     const declarations = tools.flatMap((group) => group.functionDeclarations || []);
 
     expect(declarations).toEqual(expect.arrayContaining([

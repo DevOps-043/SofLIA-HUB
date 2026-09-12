@@ -3,7 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { isSofiaConfigured, sofiaSupa } from '../lib/sofia-client';
 import type { SofiaOrganization, SofiaTeam } from '../lib/sofia-client';
 import { buildActiveSofiaContext, createPseudoAuthUser } from './sofia-auth/context';
-import { findLoginUserRow, INVALID_CREDENTIALS_MESSAGE, mapSupabaseAuthError } from './sofia-auth/login';
+import { INVALID_CREDENTIALS_MESSAGE, mapSupabaseAuthError, resolveLoginEmail } from './sofia-auth/login';
 import type { SofiaLoginUserRow } from './sofia-auth/login';
 import { fetchSofiaUserProfile } from './sofia-auth/profile';
 import { saveSofiaSession } from './sofia-auth/session-storage';
@@ -22,14 +22,15 @@ class SofiaAuthService {
     try {
       console.log('[SOFIA] Iniciando sesion via Supabase Auth');
 
-      // 1. Resolver email/username a la fila de public.users (perfil + username).
-      const userRow = await findLoginUserRow(emailOrUsername);
-      if (!userRow) throw new Error(INVALID_CREDENTIALS_MESSAGE);
+      // 1. Traducir email/username al correo con el que se autentica. El perfil
+      //    ya no se lee aqui: sin sesion no hay acceso a public.users.
+      const email = await resolveLoginEmail(emailOrUsername);
+      if (!email) throw new Error(INVALID_CREDENTIALS_MESSAGE);
 
       // 2. Validar la contraseña contra Supabase Auth (auth.users), la unica
       //    fuente de verdad desde la migracion de SofLIA Learning.
       const { data: authData, error: authError } = await sofiaSupa.auth.signInWithPassword({
-        email: userRow.email,
+        email,
         password,
       });
       if (authError || !authData?.user) {
@@ -37,8 +38,8 @@ class SofiaAuthService {
         throw new Error(mapSupabaseAuthError(authError?.message));
       }
 
-      // 3. Perfil y membresias siguen en public.users (mismo UUID que auth.users).
-      return await this.completeAuthenticatedSession(userRow, authData.session);
+      // 3. Ya con sesion, el perfil y las membresias salen de public.users.
+      return await this.completeAuthenticatedSession(authData.user.id, authData.session);
     } catch (err) {
       console.error('Error en signInWithSofia:', err);
       const message = err instanceof Error ? err.message : 'Error desconocido al iniciar sesion';
@@ -59,21 +60,12 @@ class SofiaAuthService {
     }
 
     try {
-      const email = session.user?.email;
-      if (!email) throw new Error('Acceso denegado: la sesion no tiene un correo asociado.');
+      if (!session.user?.email) throw new Error('Acceso denegado: la sesion no tiene un correo asociado.');
 
-      const userRow = await findLoginUserRow(email);
-      if (!userRow) {
-        throw new Error('Acceso denegado: tu cuenta no esta habilitada en el Hub.');
-      }
-
-      // El perfil se resuelve por correo; si su UUID no es el de la sesion
-      // autenticada, la identidad no es la misma y no se continua.
-      if (userRow.id !== session.user.id) {
-        throw new Error('Acceso denegado: la identidad no coincide con tu perfil.');
-      }
-
-      return await this.completeAuthenticatedSession(userRow, session);
+      // El perfil se resuelve contra la sesion ya autenticada, no por correo:
+      // `get_desktop_user_profile` solo devuelve la fila de auth.uid(), asi que
+      // la identidad no puede diferir de la que se acaba de canjear.
+      return await this.completeAuthenticatedSession(session.user.id, session);
     } catch (err) {
       console.error('Error en completeSofiaSsoSession:', err);
       // Nunca dejar una sesion de Supabase Auth abierta tras un fallo.
@@ -89,10 +81,17 @@ class SofiaAuthService {
    * ambos apliquen las mismas guardas de membresia.
    */
   private async completeAuthenticatedSession(
-    userRow: SofiaLoginUserRow,
+    userId: string,
     session: Session | null,
   ): Promise<SofiaAuthResult> {
-    const sofiaProfile = await this.fetchSofiaUserProfile(userRow.id);
+    const sofiaProfile = await this.fetchSofiaUserProfile(userId);
+    if (!sofiaProfile) {
+      // Sin perfil no se puede decidir la membresia. Cerrar la sesion recien
+      // abierta evita dejar al usuario "dentro" sin contexto ni permisos.
+      await sofiaSupa!.auth.signOut().catch(() => undefined);
+      throw new Error('No se pudo cargar tu perfil. Intenta de nuevo en unos momentos.');
+    }
+
     try {
       this.sofiaContext = buildActiveSofiaContext(sofiaProfile);
     } catch (contextError) {
@@ -101,12 +100,21 @@ class SofiaAuthService {
       throw contextError;
     }
 
-    const resolvedAvatar = sofiaProfile?.avatar_url || userRow.profile_picture_url || null;
-    await saveSofiaSession({ ...userRow, profile_picture_url: resolvedAvatar });
+    const userRow: SofiaLoginUserRow = {
+      id: sofiaProfile.id,
+      username: sofiaProfile.username,
+      email: sofiaProfile.email,
+      first_name: sofiaProfile.first_name ?? null,
+      last_name: sofiaProfile.last_name ?? null,
+      display_name: sofiaProfile.full_name || null,
+      profile_picture_url: sofiaProfile.avatar_url || null,
+      platform_role: sofiaProfile.platform_role || null,
+    };
+    await saveSofiaSession(userRow);
 
     return {
       success: true,
-      user: createPseudoAuthUser(userRow, resolvedAvatar),
+      user: createPseudoAuthUser(userRow, userRow.profile_picture_url ?? null),
       session,
       sofiaProfile,
     };

@@ -3,8 +3,8 @@ import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { supabase } from '../../lib/supabase';
 import { sofiaAuth, type SofiaContext } from '../../services/sofia-auth';
 import { syncLiaProfile } from './lia-profile';
-import { SOFIA_CONTEXT_DEGRADED_MESSAGE, toAuthUser } from './helpers';
-import type { AuthUser, SofiaContextResolution } from './types';
+import { SOFIA_CONTEXT_DEGRADED_MESSAGE, SOFIA_SESSION_EXPIRED_MESSAGE, toAuthUser } from './helpers';
+import type { AuthUser, SofiaContextIssue, SofiaContextResolution } from './types';
 
 type AuthLifecycleDeps = {
   usingSofia: boolean;
@@ -12,9 +12,8 @@ type AuthLifecycleDeps = {
   ensureLiaSession: (email?: string | null, sofiaAccessToken?: string | null) => Promise<Session | null>;
   resolveSofiaContext: (sofiaUserId: string) => Promise<SofiaContextResolution>;
   signOut: () => Promise<void>;
-  setLiaDegraded: (value: boolean) => void;
-  setLiaStatusMessage: (value: string | null) => void;
   setLoading: (value: boolean) => void;
+  setSofiaContextIssue: (value: SofiaContextIssue | null) => void;
   setSession: (value: Session | null) => void;
   setSofiaContext: (value: SofiaContext | null) => void;
   setUser: (value: AuthUser) => void;
@@ -90,18 +89,25 @@ async function applySofiaSession(sofiaSession: Session, deps: AuthLifecycleDeps,
     return;
   }
 
-  // Fallo transitorio de SOFIA: conservar la sesion persistida y degradar en vez
-  // de cerrar sesion. Reiniciar la computadora no debe desloguear al usuario.
-  if (resolution.status === 'error') {
-    deps.setUser(toAuthUser(sofiaSession.user, sofiaSession.user.user_metadata));
-    deps.setLiaDegraded(true);
-    deps.setLiaStatusMessage(SOFIA_CONTEXT_DEGRADED_MESSAGE);
-    if (finishLoading) deps.setLoading(false);
-    return;
+  deps.setUser(toAuthUser(sofiaSession.user, sofiaSession.user.user_metadata));
+
+  if (resolution.status === 'ok') {
+    deps.setSofiaContext(resolution.context);
+    deps.setSofiaContextIssue(null);
+  } else {
+    // Fallo de SOFIA: conservar la sesion persistida y degradar en vez de
+    // cerrar sesion. Reiniciar la computadora no debe desloguear. Y solo se
+    // marca el directorio de organizaciones: las conversaciones de Lia no
+    // dependen de el, asi que se restauran igual mas abajo.
+    //
+    // Sin token verificable (la sesion viene del snapshot local porque Supabase
+    // Auth ya no tiene una), SOFIA rechaza cualquier lectura y reintentar no
+    // sirve: se pide volver a iniciar sesion en vez de prometer un reintento.
+    deps.setSofiaContextIssue(sofiaSession.access_token
+      ? { message: SOFIA_CONTEXT_DEGRADED_MESSAGE, retryable: true }
+      : { message: SOFIA_SESSION_EXPIRED_MESSAGE, retryable: false });
   }
 
-  deps.setUser(toAuthUser(sofiaSession.user, sofiaSession.user.user_metadata));
-  deps.setSofiaContext(resolution.context);
   const recovered = Boolean(await deps.ensureLiaSession(sofiaSession.user.email, sofiaSession.access_token));
   if (finishLoading || recovered) deps.setLoading(false);
 }

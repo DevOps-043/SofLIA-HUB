@@ -32,6 +32,8 @@
     "openspec:validate": "openspec validate --all --strict --no-interactive",
     "verify:pr": "node scripts/quality/run-gate.mjs",
     "verify:release": "node scripts/quality/run-gate.mjs --release",
+    "runtime:stable": "node scripts/quality/check-electron-stability.mjs",
+    "browser:smoke:native": "node scripts/quality/smoke-browser-native.mjs",
     "preview": "vite preview",
     "desktop-agent:install-omniparser": "node scripts/install-omniparser-model.js",
     "python:setup": "node scripts/setup-python-runtime.js",
@@ -44,6 +46,7 @@
     "test:renderer": "vitest run --project renderer"
   },
   "dependencies": {
+    "tldts": "7.4.10",
     "@azure/msal-node": "^5.0.4",
     "@google/genai": "^2.15.0",
     "@google/generative-ai": "^0.24.1",
@@ -100,7 +103,7 @@
     "@vitejs/plugin-react": "^6.0.5",
     "@vitest/coverage-v8": "^4.1.0",
     "autoprefixer": "^10.4.24",
-    "electron": "44.0.0-beta.3",
+    "electron": "43.4.0",
     "electron-builder": "^26.8.1",
     "eslint": "^10.8.0",
     "eslint-plugin-react-hooks": "^7.1.1",

@@ -1,4 +1,5 @@
 import { registerScreenCaptureHandlers } from './screen-capture-handlers';
+import { powerMonitor } from 'electron';
 import { logBootstrapError } from './bootstrap-steps';
 import { bindBrowserProfileToSession } from './browser-session-scope';
 import { recordDesktopTaskMemory } from '../memory/record-desktop-task';
@@ -33,6 +34,8 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
   modules.registerDriveHandlers(services.driveService, () => state.win);
   modules.registerGChatHandlers(services.gchatService, () => state.win);
   modules.registerIntegratedBrowserHandlers(services.integratedBrowserService, () => state.win);
+  powerMonitor.on('lock-screen', () => services.integratedBrowserService.lockCredentials());
+  powerMonitor.on('suspend', () => services.integratedBrowserService.lockCredentials());
   registerProjectHubHandlers(getProjectHubApiService(), () => state.win);
   // El navegador integrado sigue al usuario con sesion: cada cuenta tiene su
   // propio perfil (cookies, historial, contrasenas, permisos y extensiones) y al
@@ -76,7 +79,10 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
   modules.registerCommunicationHubHandlers(services.communicationHubService);
   modules.registerVoicePassiveHandlers(modules.pythonRuntimeService);
   modules.registerPythonToolsHandlers(modules.pythonToolsService);
+  // La clave se resuelve en main al usar la memoria; nunca cruza IPC.
+  services.integratedBrowserService.configureSemanticMemoryKey(() => state.currentGeminiApiKey);
   modules.registerOrbIpcHandlers({
+    integratedBrowser: services.integratedBrowserService,
     pythonRuntimeService: modules.pythonRuntimeService,
     getOrbWindow: () => state.orbWin,
     getMainWindow: () => state.win,

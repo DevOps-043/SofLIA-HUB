@@ -5,7 +5,9 @@
 // PythonRuntimeService): dictado libre, TTS local y ciclo de vida de la
 // conversacion (suspension/reanudacion del wake listener).
 // =============================================================================
-import { BrowserWindow, ipcMain } from 'electron';
+import { BrowserWindow, dialog, ipcMain } from 'electron';
+import { executeBrowserVoiceCommand, type IntegratedBrowserService } from './integrated-browser';
+import { getAuthState, onAuthStateChange } from './main/auth-state';
 import { synthesizeOrbSpeech } from './orb-tts';
 import type { PythonRuntimeService } from './python-runtime-service';
 import { handleIPC, handleIPCVoid } from './utils/ipc-helpers';
@@ -13,6 +15,7 @@ import { denyIfUnauthenticated } from './main/require-auth';
 import type { OrbAnnouncements } from './main/orb-announcements';
 
 interface OrbIpcOptions {
+  integratedBrowser?: IntegratedBrowserService;
   pythonRuntimeService: PythonRuntimeService;
   getOrbWindow: () => BrowserWindow | null;
   getMainWindow: () => BrowserWindow | null;
@@ -24,6 +27,33 @@ interface OrbIpcOptions {
 
 export function registerOrbIpcHandlers(options: OrbIpcOptions): void {
   const { pythonRuntimeService, getOrbWindow, getMainWindow, showOrbWindow, consumePendingWake, announcements } = options;
+  let browserVoicePending = false;
+  ipcMain.handle('orb:browser-command', async (event, ...args: unknown[]) => {
+    const orb = getOrbWindow(); const parent = getMainWindow(); const auth = getAuthState();
+    let sessionChanged = false;
+    const unsubscribe = onAuthStateChange(() => { sessionChanged = true; });
+    const assertCaller = () => {
+      const now = getAuthState();
+      if (sessionChanged || !auth.authenticated || !now.authenticated || now.userId !== auth.userId
+        || !orb || orb.isDestroyed() || !orb.isVisible() || getOrbWindow() !== orb
+        || !parent || parent.isDestroyed() || getMainWindow() !== parent
+        || event.sender.id !== orb.webContents.id || !event.senderFrame || event.senderFrame !== orb.webContents.mainFrame) throw new Error('Emisor inválido.');
+    };
+    try {
+      assertCaller();
+      if (args.length !== 1 || !options.integratedBrowser) throw new Error('Solicitud inválida.');
+      // Detener no queda bloqueado por una confirmación de reanudación pendiente.
+      if (browserVoicePending && args[0] !== 'stop' && args[0] !== 'take-control' && args[0] !== 'pause') throw new Error('Revisión pendiente.');
+      return await executeBrowserVoiceCommand(options.integratedBrowser, args[0], async () => {
+        browserVoicePending = true;
+        try {
+          const result = await dialog.showMessageBox(parent!, { type: 'question', title: 'Reanudar tarea del navegador', message: '¿Permitir que SofLIA vuelva a controlar la pestaña?', detail: 'La orden provino de Orbe. Revisa el navegador antes de continuar.', buttons: ['Cancelar', 'Reanudar'], defaultId: 0, cancelId: 0 });
+          return result.response === 1;
+        } finally { browserVoicePending = false; }
+      }, assertCaller);
+    } catch { return { success: false, error: 'No se pudo aplicar la orden. Revisa la pestaña, la tarea y la sesión; puedes usar los controles del navegador.' }; }
+    finally { unsubscribe(); }
+  });
 
   const sendToOrb = (channel: string, payload?: unknown): void => {
     const win = getOrbWindow();

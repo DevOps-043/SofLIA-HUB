@@ -1,0 +1,20 @@
+import { act, render, screen } from '@testing-library/react';
+import { afterEach, expect, it, vi } from 'vitest';
+import { BrowserAgentPolicyPrompt } from '../../components/browser/BrowserAgentPolicyPrompt';
+import { EMPTY_INTEGRATED_BROWSER_STATE, integratedBrowserService } from '../../services/integrated-browser-service';
+afterEach(() => vi.restoreAllMocks());
+it('retira permisos cancelados sin aprobar ni bloquear el origen y conserva otros avisos', async () => {
+  let callbacks!: Parameters<typeof integratedBrowserService.subscribe>[0];
+  vi.spyOn(integratedBrowserService, 'subscribe').mockImplementation(input => { callbacks = input; return vi.fn(); });
+  const decide = vi.spyOn(integratedBrowserService, 'decideAgentPolicy');
+  const open = vi.fn(); render(<BrowserAgentPolicyPrompt onOpenChange={open} />);
+  const request = { id: 'primero', origin: 'https://example.com', capability: 'capture' as const, label: 'observar' };
+  await act(async () => { callbacks.onAgentPolicyPrompt?.(request); callbacks.onAgentPolicyPrompt?.({ ...request, id: 'segundo', origin: 'https://otro.example' }); });
+  expect(screen.getByText('https://example.com')).toBeInTheDocument();
+  await act(async () => callbacks.onStateChanged?.({ ...EMPTY_INTEGRATED_BROWSER_STATE, agentPolicyPromptIds: ['segundo'] }));
+  expect(screen.queryByText('https://example.com')).not.toBeInTheDocument();
+  expect(screen.getByText('https://otro.example')).toBeInTheDocument();
+  await act(async () => callbacks.onStateChanged?.({ ...EMPTY_INTEGRATED_BROWSER_STATE, agentPolicyPromptIds: [] }));
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument(); expect(open).toHaveBeenLastCalledWith(false);
+  expect(decide).not.toHaveBeenCalled();
+});

@@ -18,7 +18,7 @@ export function ModelMessageContent({
         <MarkdownRenderer text={message.text} />
       </div>
       <GeneratedImages images={message.images} onZoom={controller.state.images.setZoomed} />
-      <SourceLinks sources={message.sources} />
+      <SourceLinks sources={message.sources} responseText={message.text} />
       <ModelMessageActions controller={controller} message={message} />
     </>
   );

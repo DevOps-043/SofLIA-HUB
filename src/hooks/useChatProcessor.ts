@@ -60,13 +60,14 @@ export function useChatProcessor({
     history: ChatMessage[],
     isRegeneration: boolean,
     selectionContext?: string,
+    browserSources?: ChatMessage['sources'],
   ) => {
     abortRef.current?.abort();
     const token = ++genTokenRef.current;
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      await processMessage(text, images, history, isRegeneration, controller.signal, () => genTokenRef.current === token, selectionContext);
+      await processMessage(text, images, history, isRegeneration, controller.signal, () => genTokenRef.current === token, selectionContext, browserSources);
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
     }
@@ -80,13 +81,13 @@ export function useChatProcessor({
     void desktopAgent?.abort?.();
   }, []);
 
-  const handleSend = useCallback(async (input: string, selectedImages: string[], selectionContext?: string) => {
+  const handleSend = useCallback(async (input: string, selectedImages: string[], selectionContext?: string, browserSources?: ChatMessage['sources']) => {
     if (!input.trim() || showLoadingUI) return;
 
     const text = input.trim();
     const autodev = (window as unknown as { autodev?: { logFeedback?: (text: string) => Promise<void> } }).autodev;
     autodev?.logFeedback?.(text)?.catch(console.error);
-    await runWithAbort(text, [...selectedImages], [...messages], false, selectionContext);
+    await runWithAbort(text, [...selectedImages], [...messages], false, selectionContext, browserSources);
   }, [showLoadingUI, messages, runWithAbort]);
 
   const handleRegenerate = async (messageId: string) => {
@@ -101,7 +102,7 @@ export function useChatProcessor({
     const userMsg = historyUpToNow[lastUserMsgIndex];
     const dedupedHistory = dedupeMessageList(messages.slice(0, lastUserMsgIndex + 1));
     onMessagesChange(dedupedHistory);
-    await runWithAbort(userMsg.text, userMsg.images || [], dedupedHistory, true);
+    await runWithAbort(userMsg.text, userMsg.images || [], dedupedHistory, true, undefined, userMsg.sources);
   };
 
   const handleEditMessage = async (messageId: string, nextText: string, nextImages: string[] = []) => {

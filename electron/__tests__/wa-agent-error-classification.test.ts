@@ -5,7 +5,7 @@ import {
   isModelAvailabilityError,
 } from '../wa-agent/agent-errors';
 
-const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent';
+const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
 
 /** Formato real de un error del SDK legado: el endpoint viaja SIEMPRE. */
 function sdkError(status: string, body: string): Error {
@@ -14,7 +14,7 @@ function sdkError(status: string, body: string): Error {
 
 describe('classifyWhatsAppAgentError: la URL del endpoint no debe clasificar', () => {
   it('no culpa al modelo cuando el cuerpo habla de una herramienta inexistente', () => {
-    // La URL contiene "models/gemini-3.6-flash", asi que antes cualquier
+    // La URL contiene "models/gemini-3.8-flash", asi que antes cualquier
     // "not found" en el cuerpo se atribuia al modelo.
     const error = sdkError('400 Bad Request', 'Function orb_mode is not found in the tool declarations.');
 
@@ -47,7 +47,7 @@ describe('classifyWhatsAppAgentError: la URL del endpoint no debe clasificar', (
   it('sigue detectando un modelo realmente ausente', () => {
     const error = sdkError(
       '404 Not Found',
-      'models/gemini-3.6-flash is not found for API version v1beta, or is not supported for generateContent.',
+      'models/gemini-3.8-flash is not found for API version v1beta, or is not supported for generateContent.',
     );
 
     expect(isModelAvailabilityError(error)).toBe(true);

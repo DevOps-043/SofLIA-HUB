@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { parseBrowserVoiceCommand } from '../../shared/browser-voice';
 import { MODELS } from '../../config';
 import { getPublicAiErrorMessage, sendMessageStream } from '../../services/gemini-chat';
 import type { ConversationMessage } from '../../services/gemini-chat/types';
@@ -361,9 +362,18 @@ export function useOrbConversation() {
     controller.signal.addEventListener('abort', () => { pipelineState.ttsFailed = true; }, { once: true });
 
     try {
+      if (/^navegador\b/i.test(text.trim())) {
+        const action = parseBrowserVoiceCommand(text);
+        const result = action ? await orbService.browserCommand(action) : { success: false, error: 'Di: navegador siguiente pestaña, pestaña anterior, estado, pausa, reanuda, detén o toma el control.' };
+        if (!isCurrent()) return;
+        const message = result.success ? result.message ?? 'Orden procesada.' : result.error ?? 'No se pudo aplicar la orden.';
+        setResponseText(message);
+        await speakEntireResponse(message, turnId);
+        return;
+      }
       const result = await sendMessageStream(text, historyRef.current, {
         model: MODELS.ORB,
-        // La Orbe usa Gemini 3.6 Flash para Computer Use y SofLIA Pro para los
+        // La Orbe usa Gemini 3.8 Flash para Computer Use y SofLIA Pro para los
         // demás comandos cuando OpenAI está configurado.
         task: 'orb',
         signal: controller.signal,
@@ -472,7 +482,7 @@ export function useOrbConversation() {
       windDown(sessionId);
       return;
     }
-    console.log('[Orb] Peticion reconocida:', { sessionId, text });
+    console.log('[Orb] Petición reconocida; transcripción omitida del registro.');
     if (CLOSE_COMMAND_REGEX.test(normalizeSpokenText(text))) {
       closeOrb();
       return;

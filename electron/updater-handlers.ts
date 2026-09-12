@@ -27,12 +27,17 @@ export function registerUpdaterHandlers(
     }
   })
 
-  ipcMain.handle('updater:install-update', async () => {
+  ipcMain.handle('updater:install-update', async (event) => {
+    const mainWindow = getMainWindow();
+    if (!mainWindow || mainWindow.isDestroyed() || event.sender !== mainWindow.webContents
+      || !event.senderFrame || event.senderFrame !== mainWindow.webContents.mainFrame) {
+      return { success: false, error: 'sender_denied' };
+    }
     try {
-      updaterService.installUpdate()
+      await updaterService.installUpdate()
       return { success: true }
-    } catch (err: any) {
-      return { success: false, error: err.message }
+    } catch {
+      return { success: false, error: 'No se instaló la actualización. Revisa que esté descargada y confirma el guardado antes de salir.' }
     }
   })
 

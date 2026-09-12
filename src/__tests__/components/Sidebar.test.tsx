@@ -86,4 +86,39 @@ describe('Sidebar component', () => {
     expect(onSelectConversation).not.toHaveBeenCalled();
     expect(onSetActiveMenuChatId).toHaveBeenCalledWith(null);
   });
+
+  it('UI-015: el menu explica por que falta el selector de organizacion y deja reintentar', () => {
+    const onRetryOrganizations = vi.fn().mockResolvedValue(true);
+    render(
+      <Sidebar
+        {...createDefaultProps({
+          organizations: [],
+          organizationsUnavailableMessage: 'No se pudo cargar tu organizacion en este momento.',
+          onRetryOrganizations,
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Test User'));
+    fireEvent.click(screen.getByText('Reintentar'));
+
+    expect(onRetryOrganizations).toHaveBeenCalledTimes(1);
+  });
+
+  it('UI-016: con la sesion caducada el aviso no ofrece reintentar', () => {
+    render(
+      <Sidebar
+        {...createDefaultProps({
+          organizations: [],
+          organizationsUnavailableMessage: 'Tu sesion con SOFIA caduco.',
+          onRetryOrganizations: undefined,
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Test User'));
+
+    expect(screen.getByText('Tu sesion con SOFIA caduco.')).toBeInTheDocument();
+    expect(screen.queryByText('Reintentar')).not.toBeInTheDocument();
+  });
 });

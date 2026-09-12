@@ -28,7 +28,7 @@ type MessageUpdateEntry = {
 };
 
 export function registerDeliveryEvents(service: WhatsAppServiceCore): void {
-  service.sock!.ev.on('messages.update', (updates: MessageUpdateEntry[]) => {
+  service.sock!.ev.on('messages.update', (updates) => {
     for (const entry of updates || []) {
       const update = entry?.update;
       // `status: 0` es ERROR en el protocolo; el resto son estados normales de
@@ -36,7 +36,7 @@ export function registerDeliveryEvents(service: WhatsAppServiceCore): void {
       if (!update || update.status !== 0) continue;
       const code = String(update.messageStubParameters?.[0] || '');
       const jid = String(entry?.key?.remoteJid || '');
-      reportDeliveryFailure(service, jid, code, entry?.key?.id);
+      reportDeliveryFailure(service, jid, code, entry?.key?.id ?? undefined);
     }
   });
 }

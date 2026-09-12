@@ -11,8 +11,6 @@ export function TabAttachmentChips({ attachedTabs, onRemoveTab }: TabAttachmentC
   return (
     <div className="mb-1.5 flex flex-wrap gap-1.5 min-w-0">
       {attachedTabs.map((tab) => {
-        const domain = getDomain(tab.url);
-        const faviconUrl = domain ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=32` : null;
 
         return (
           <div
@@ -24,16 +22,6 @@ export function TabAttachmentChips({ attachedTabs, onRemoveTab }: TabAttachmentC
               <line x1="3" y1="9" x2="21" y2="9" />
             </svg>
 
-            {faviconUrl && (
-              <img
-                src={faviconUrl}
-                alt=""
-                className="h-3 w-3 shrink-0 rounded-xs object-contain"
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
-              />
-            )}
 
             <span className="truncate max-w-[140px]" title={tab.title || tab.url}>
               {tab.title || tab.url}
@@ -61,14 +49,4 @@ export function TabAttachmentChips({ attachedTabs, onRemoveTab }: TabAttachmentC
       })}
     </div>
   );
-}
-
-function getDomain(url: string): string {
-  try {
-    if (!url || url === 'about:blank') return '';
-    const parsed = new URL(url.startsWith('http') ? url : `https://${url}`);
-    return parsed.hostname;
-  } catch {
-    return '';
-  }
 }

@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { SOFLIA_RUNTIME_MODEL } from '../src/shared/soflia-runtime-model';
 
 /**
  * Valida si un tipo MIME está soportado por la API de Gemini Multimodal.
@@ -52,7 +53,7 @@ export async function processAudioMessage(buffer: Buffer, mimeType: string = 'au
   
   // Inicializar el modelo con las instrucciones del sistema requeridas
   const model = genAI.getGenerativeModel({
-    model: 'gemini-1.5-flash',
+    model: SOFLIA_RUNTIME_MODEL,
     systemInstruction: 'Transcribe el audio y extrae la intención del comando como si el usuario lo hubiera escrito textualmente. Responde SOLO con el comando extraído.'
   });
 

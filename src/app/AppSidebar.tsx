@@ -96,6 +96,8 @@ export function AppSidebar(props: AppSidebarProps) {
       orgLogoUrl={auth.sofiaContext?.currentOrganization?.brand_favicon_url}
       organizations={auth.sofiaContext?.organizations}
       currentOrgId={auth.sofiaContext?.currentOrganization?.id}
+      organizationsUnavailableMessage={auth.sofiaContextDegraded ? auth.sofiaStatusMessage : null}
+      onRetryOrganizations={auth.sofiaContextRetryable ? auth.retrySofiaContext : undefined}
       onSelectOrganization={auth.setCurrentOrganization}
       theme={props.theme}
       onSetTheme={props.setTheme}

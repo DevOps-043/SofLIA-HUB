@@ -56,6 +56,7 @@ describe('Menú contextual del navegador integrado', () => {
     expect(labels).not.toContain('Mejorar la redacción');
     expect(labels).not.toContain('Traducir');
     expect(labels).toEqual(expect.arrayContaining(['Abrir en modo lectura', 'Recargar', 'Inspeccionar']));
+    expect(labels).toEqual(expect.arrayContaining(['Buscar en la página', 'Silenciar pestaña', 'Imprimir…', 'Guardar como PDF…']));
   });
 
   it('CM-003: la acción entrega la selección recortada y su procedencia', () => {

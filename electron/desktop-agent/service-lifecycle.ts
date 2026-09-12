@@ -5,6 +5,7 @@ import type { BrowserProfileDescriptor } from '../browser-web/types';
 import type { DesktopAgentService } from '../desktop-agent-service';
 import { buildDesktopAgentStatus } from './status-snapshot';
 import { abortDesktopAgentTask } from './task-control';
+import { abortBrowserCuTask, getBrowserCuTask } from './browser-cu-task';
 import type { DesktopAgentServiceConstructor } from './service-types';
 
 type BrowserProfileResetResult = { success: boolean; profileId: string; path: string; removed: boolean };
@@ -51,7 +52,7 @@ export function attachDesktopAgentLifecycle(Service: DesktopAgentServiceConstruc
     getStatus() {
       return buildDesktopAgentStatus({
         activeTasks: this.activeTasks.values(),
-        browserStatus: this.browserWeb.getStatus(),
+        browserStatus: getBrowserCuTask(this) ?? this.browserWeb.getStatus(),
         windowsUIAStatus: this.windowsUIA.getStatus(),
         actionHistory: this.actionHistory,
         status: this.status,
@@ -63,8 +64,11 @@ export function attachDesktopAgentLifecycle(Service: DesktopAgentServiceConstruc
       });
     },
     abort(taskId?: string) {
+      const cancelledCu = abortBrowserCuTask(this, taskId);
+      if (taskId && cancelledCu) return;
       abortDesktopAgentTask({
         taskId,
+        queue: this.taskQueue,
         activeTasks: this.activeTasks,
         abortController: this.abortController,
         abortBrowserTasks: () => this.browserWeb.abortAll(),
@@ -78,10 +82,10 @@ export function attachDesktopAgentLifecycle(Service: DesktopAgentServiceConstruc
       this.abort();
     },
     isRunning() {
-      return this.status !== 'idle' || this.activeTasks.size > 0 || this.browserWeb.isRunning() || this.windowsUIA.isRunning();
+      return this.status !== 'idle' || this.activeTasks.size > 0 || Boolean(getBrowserCuTask(this)) || this.browserWeb.isRunning() || this.windowsUIA.isRunning();
     },
     getActiveTaskCount() {
-      return this.activeTasks.size + (this.browserWeb.isRunning() ? 1 : 0) + (this.windowsUIA.isRunning() ? 1 : 0);
+      return this.activeTasks.size + (getBrowserCuTask(this) ? 1 : 0) + (this.browserWeb.isRunning() ? 1 : 0) + (this.windowsUIA.isRunning() ? 1 : 0);
     },
     listBrowserProfiles() {
       return this.browserWeb.listProfiles();

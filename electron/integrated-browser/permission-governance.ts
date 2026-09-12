@@ -136,25 +136,30 @@ export class IntegratedBrowserPermissionGovernance {
   }
 
   async setPermission(origin: string, kind: BrowserSitePermissionKind, state: BrowserSitePermissionState): Promise<void> {
+    if (this.disposed) throw new Error('El perfil de permisos ya se cerró.');
     const normalized = normalizeOrigin(origin);
     if (!normalized) throw new Error('El origen del permiso no es valido.');
     // Conceder camara o microfono desde el panel no sirve de nada si el sistema
     // los tiene bloqueados: se avisa aqui en vez de dejar que la pagina falle.
     if (state === 'granted') {
       const blocked = await this.requestOsMediaAccess([kind]);
+      if (this.disposed) throw new Error('El perfil de permisos ya se cerró.');
       if (blocked.length) {
         this.showOsBlockedDialog(blocked);
         throw new Error(`El sistema tiene bloqueado el acceso a ${describeKinds(blocked)}.`);
       }
     }
     await this.input.store.set(normalized, kind, state);
+    if (this.disposed) return;
     this.input.onChanged?.();
   }
 
   async resetOrigin(origin: string): Promise<void> {
+    if (this.disposed) throw new Error('El perfil de permisos ya se cerró.');
     const normalized = normalizeOrigin(origin);
     if (!normalized) throw new Error('El origen del permiso no es valido.');
     await this.input.store.reset(normalized);
+    if (this.disposed) return;
     this.requested.delete(normalized);
     this.input.onChanged?.();
   }
@@ -276,10 +281,15 @@ export class IntegratedBrowserPermissionGovernance {
     // Meet pide los mismos permisos desde varios marcos a la vez; sin esta cola
     // el usuario recibia un aviso por cada uno.
     if (existing) return existing;
-    const resolution = this.resolveKindsUncached(origin, kinds).finally(() => this.pending.delete(key));
+    // Conservar el orden de llegada antes de leer disco: un subframe rápido
+    // no debe adelantar a la solicitud conjunta de cámara y micrófono.
+    const resolution = this.resolutionQueue.catch(() => false).then(() => this.resolveKindsUncached(origin, kinds)).finally(() => this.pending.delete(key));
+    this.resolutionQueue = resolution;
     this.pending.set(key, resolution);
     return resolution;
   }
+
+  private resolutionQueue: Promise<boolean> = Promise.resolve(false);
 
   private async resolveKindsUncached(origin: string, kinds: BrowserSitePermissionKind[]): Promise<boolean> {
     const stored = await Promise.all(kinds.map((kind) => this.input.store.resolve(origin, kind)));
@@ -328,8 +338,10 @@ export class IntegratedBrowserPermissionGovernance {
         labels: pendientes.map((kind) => BROWSER_SITE_PERMISSION_LABELS[kind]),
       });
       for (const kind of pendientes) {
+        if (this.disposed) return false;
         await this.input.store.set(origin, kind, concedido ? 'granted' : 'denied');
       }
+      if (this.disposed) return false;
       this.input.onChanged?.();
       console.info(`[Navegador][Permisos] ${describeKinds(pendientes)} en ${origin}: ${concedido ? 'permitido' : 'denegado'}.`);
       return concedido;

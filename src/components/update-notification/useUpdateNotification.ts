@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { DownloadProgress, UpdateAvailableInfo } from '../../services/updater-service';
+import { installUpdate } from '../../services/updater-service';
 import type { UpdateNotificationState, UpdatePhase } from './types';
 
 export function useUpdateNotification() {
@@ -44,7 +45,11 @@ export function useUpdateNotification() {
     state,
     setPhase,
     handleDownload,
-    handleInstall: () => window.updater.installUpdate(),
+    handleInstall: async () => {
+      patch({ error: null });
+      try { await installUpdate(); }
+      catch (error) { patch({ error: error instanceof Error ? error.message : 'No se pudo instalar la actualización.', phase: 'error' }); }
+    },
     handleDismiss: () => patch({ dismissed: true }),
     toggleNotes: () => patch({ showNotes: !state.showNotes }),
     retry: () => {

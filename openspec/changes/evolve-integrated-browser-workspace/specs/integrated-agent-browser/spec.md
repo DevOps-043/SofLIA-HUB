@@ -149,11 +149,11 @@ El sistema SHALL mantener en memoria una observación reciente de la pestaña ac
 - **THEN** el sistema los marca como datos no confiables de la página y no los trata como instrucciones de sistema ni autorización de acciones
 
 ### Requirement: Modelo fijo de Computer Use y catálogo conversacional
-El sistema SHALL usar `gemini-3.6-flash` como modelo fijo de Computer Use de SofLIA y MUST conservar el catálogo conversacional disponible para selección del usuario. Computer Use MUST NOT degradar silenciosamente a `gemini-2.5-pro`, modelos Flash anteriores ni modelos de otro proveedor.
+El sistema SHALL usar `gemini-3.8-flash` —el modelo que Google documenta como recomendado para la herramienta `computer_use`— como modelo fijo de Computer Use de SofLIA, y MUST conservar el catálogo conversacional disponible para selección del usuario. Computer Use MUST NOT degradar silenciosamente a modelos Flash anteriores, a la familia `gemini-2.5` (marcada como vista previa heredada) ni a modelos de otro proveedor.
 
 #### Scenario: Acción de computadora con otro modelo seleccionado
 - **WHEN** el usuario seleccionó SofLIA Max, SofLIA Pro o SofLIA Lite y solicita una acción de Computer Use
-- **THEN** el modelo seleccionado conserva la orquestación y su razonamiento, mientras la llamada interna a `use_computer` delega exclusivamente la percepción y actuación a `gemini-3.6-flash`
+- **THEN** el modelo seleccionado conserva la orquestación y su razonamiento, mientras la llamada interna a `use_computer` delega exclusivamente la percepción y actuación a `gemini-3.8-flash`
 
 #### Scenario: Selección conversacional
 - **WHEN** el usuario abre el selector o envía un turno normal sin Computer Use
@@ -173,7 +173,7 @@ El sistema SHALL usar `gemini-3.6-flash` como modelo fijo de Computer Use de Sof
 
 #### Scenario: Herramientas de lectura independientes del actuador
 - **WHEN** el modelo seleccionado solo necesita buscar en la web, inspeccionar el DOM o navegar a un destino directo
-- **THEN** esas herramientas se ejecutan en el proveedor orquestador o mediante el wrapper tipado existente y `gemini-3.6-flash` no recibe una tarea de Computer Use
+- **THEN** esas herramientas se ejecutan en el proveedor orquestador o mediante el wrapper tipado existente y `gemini-3.8-flash` no recibe una tarea de Computer Use
 
 #### Scenario: Tarea de Computer Use con efecto externo
 - **WHEN** una instrucción de Computer Use pretende enviar, publicar, pagar, borrar o confirmar una acción irreversible

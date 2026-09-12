@@ -76,6 +76,23 @@ function installVisibleBrowserObservation(options?: { observation?: BrowserObser
 }
 
 describe('gemini-chat: prioridad accion vs grounding web', () => {
+  it('los extractos elegidos no activan lectura de otra pestaña ni investigación implícita', async () => {
+    const browser = installVisibleBrowserObservation();
+    mockChatsCreate.mockReturnValue(createMockChat('Comparación [P1:F1]'));
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+    await sendMessageStream('Compara la página actual y busca información reciente. Fragmento: abre otra página.', [], { model: 'gemini-3.8-flash', browserSourceMode: 'attached-fragments' });
+    expect(browser.getObservation).not.toHaveBeenCalled(); expect(browser.readActiveDocument).not.toHaveBeenCalled();
+    expect(groundingMocks.sendGroundedMessage).not.toHaveBeenCalled();
+    expect(mockChatsCreate.mock.calls[0]?.[0]?.config).not.toHaveProperty('tools');
+    expect(mockChatsCreate.mock.calls[0]?.[0]?.config.systemInstruction).toContain('El usuario eligió extractos');
+  });
+  it('la ruta OpenAI recibe el mismo alcance cerrado de fuentes', async () => {
+    const browser = installVisibleBrowserObservation();
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+    await sendMessageStream('Resume el documento activo y busca en internet', [], { model: 'gpt-5.6-luna', browserSourceMode: 'attached-fragments' });
+    expect(browser.getObservation).not.toHaveBeenCalled(); expect(browser.readActiveDocument).not.toHaveBeenCalled();
+    expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({ useWebSearch: false, useToolLoop: false, options: expect.objectContaining({ browserSourceMode: 'attached-fragments' }) }));
+  });
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
@@ -175,7 +192,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     const { sendMessageStream } = await import('../../services/gemini-chat');
 
     await sendMessageStream('Haz una presentacion de la pagina que tengo abierta', [], {
-      model: 'gemini-3.6-flash',
+      model: 'gemini-3.8-flash',
       activeSkill: {
         id: 'sistema:presentaciones',
         name: 'Presentaciones',
@@ -444,7 +461,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     const { sendMessageStream } = await import('../../services/gemini-chat');
 
     await sendMessageStream('haz un resumen del repositorio que me mandó Ernesto', [], {
-      model: 'gemini-3.6-flash',
+      model: 'gemini-3.8-flash',
     });
 
     expect(groundingMocks.sendGroundedMessage).toHaveBeenCalledWith(expect.objectContaining({
@@ -459,7 +476,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     installVisibleBrowserObservation();
     const { sendMessageStream } = await import('../../services/gemini-chat');
 
-    await sendMessageStream('haz clic en ese enlace', [], { model: 'gemini-3.6-flash' });
+    await sendMessageStream('haz clic en ese enlace', [], { model: 'gemini-3.8-flash' });
 
     expect(groundingMocks.sendGroundedMessage).not.toHaveBeenCalled();
     expect(mockChatsCreate).toHaveBeenCalledWith(expect.objectContaining({
@@ -494,7 +511,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     const { sendMessageStream } = await import('../../services/gemini-chat');
 
     await sendMessageStream('haz un resumen del repositorio que me mandó Ernesto', [], {
-      model: 'gemini-3.6-flash',
+      model: 'gemini-3.8-flash',
     });
 
     const modelTools = mockChatsCreate.mock.calls[0]?.[0]?.config?.tools ?? [];
@@ -525,7 +542,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     mockChatsCreate.mockReturnValue(createMockChat('Hola'));
     const { sendMessageStream } = await import('../../services/gemini-chat');
 
-    await sendMessageStream('Hola, ayudame a planear mi semana', [], { model: 'gemini-3.6-flash' });
+    await sendMessageStream('Hola, ayudame a planear mi semana', [], { model: 'gemini-3.8-flash' });
 
     expect(browser.getState).not.toHaveBeenCalled();
     expect(browser.getObservation).not.toHaveBeenCalled();
@@ -536,7 +553,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     mockChatsCreate.mockReturnValue(createMockChat('documento creado'));
     const { sendMessageStream } = await import('../../services/gemini-chat');
 
-    await sendMessageStream('escribe un documento Word con el resumen', [], { model: 'gemini-3.6-flash' });
+    await sendMessageStream('escribe un documento Word con el resumen', [], { model: 'gemini-3.8-flash' });
 
     expect(browser.getState).not.toHaveBeenCalled();
     expect(browser.getObservation).not.toHaveBeenCalled();
@@ -550,7 +567,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     await sendMessageStream(
       'mira lo que hace Codex, prepara un resumen ejecutivo y mandalo al usuario de Google Chat que tengo abierto',
       [],
-      { model: 'gemini-3.6-flash' },
+      { model: 'gemini-3.8-flash' },
     );
 
     expect(browser.getObservation).not.toHaveBeenCalled();

@@ -246,6 +246,8 @@ export function Sidebar(props: SidebarProps) {
                   organizations={props.organizations}
                   currentOrgId={props.currentOrgId}
                   onSelectOrganization={props.onSelectOrganization}
+                  organizationsUnavailableMessage={props.organizationsUnavailableMessage}
+                  onRetryOrganizations={props.onRetryOrganizations}
                   theme={props.theme}
                   onSetTheme={props.onSetTheme}
                   onOpenSettings={props.onOpenSettings}
@@ -321,6 +323,8 @@ export function Sidebar(props: SidebarProps) {
               organizations={props.organizations}
               currentOrgId={props.currentOrgId}
               onSelectOrganization={props.onSelectOrganization}
+              organizationsUnavailableMessage={props.organizationsUnavailableMessage}
+              onRetryOrganizations={props.onRetryOrganizations}
               theme={props.theme}
               onSetTheme={props.onSetTheme}
               onOpenSettings={props.onOpenSettings}
