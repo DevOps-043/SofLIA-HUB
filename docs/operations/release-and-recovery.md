@@ -10,7 +10,7 @@ Estado: vigente. Actualizado: 2026-09-05.
 
 | Plataforma | Target | Nombre |
 |---|---|---|
-| Windows x64 | NSIS, instalacion por usuario, directorio elegible | `Pulse-Hub-Windows-<version>-Setup.exe` + blockmap/latest.yml |
+| Windows x64 | Entrada visual propia; NSIS como motor silencioso por usuario | `Pulse-Hub-Windows-<version>-Install.exe`; actualizador: `Setup.exe` + blockmap/latest.yml |
 | macOS | DMG | `Pulse-Hub-Mac-<version>-Installer.dmg` + latest-mac.yml |
 | Linux x64 | AppImage y DEB | `Pulse-Hub-Linux-<version>-x64.<ext>` + latest-linux.yml |
 
@@ -24,6 +24,83 @@ shortcuts y permite elevacion/directorio. Linux DEB depende de `libportaudio2`.
 - runtime Python y dos sidecars como recursos.
 - Context Pack meetings v1 como recurso, separado de skills de desarrollo.
 - `afterPack` valida Python empaquetado.
+
+## Preparar y comprobar el instalador Windows
+
+```powershell
+npm run python:setup
+node scripts/quality/smoke-python-sidecars.mjs
+npm run installer:smoke:win
+```
+
+El preparador usa CPython standalone 3.12.11, release Astral 20250612, con
+SHA256 oficial fijado por plataforma en `scripts/python-runtime-support.cjs`.
+Una fuente alternativa exige HTTPS y hash explícito. Es una versión fijada,
+no una afirmación de que sea el parche más reciente ni una auditoría de CVE.
+Las dependencias directas están fijadas; las transitivas de pip aún no tienen
+un lock completo con hashes. Revisarlas antes de una distribución pública.
+
+La preparación se hace en `tmp/python-runtime-build-*` y valida `pip check`,
+versión e imports de voz, reuniones y documentos antes de escribir el lock y
+promover a `python-runtime/`. La copia anterior queda en `previous-runtime`
+dentro del staging. Si falla la promoción se intenta restaurarla; los temporales
+y respaldos no se borran automáticamente. `--force` vuelve a preparar sin borrar
+la copia anterior. El lock exclusivo `tmp/python-runtime-setup.lock` evita dos
+preparaciones simultáneas; después de una interrupción, comprobar que no queda
+un preparador activo antes de retirarlo. Una caché coincidente se vuelve a
+validar con imports y `pip check`, no sólo por presencia de `python.exe`.
+
+Python y pip se ejecutan aislados de `PYTHONPATH`, user-site y configuración
+pip del usuario. No se modifica Python del sistema ni el PATH. Las herramientas
+inicializan NumPy en el hilo principal de Windows antes de emitir `ready`: la
+primera lectura de Excel podía bloquear su importación nativa desde un worker.
+El trabajo de documentos sigue ejecutándose fuera del lector de comandos.
+
+El smoke Windows crea un temporal con fuentes sin `.env`, una **copia física**
+de las dependencias y una copia validada del runtime. La junction usada por el
+smoke de compilación no sirve aquí: npm puede considerarla un árbol externo y
+electron-builder omitir transitivas. Se verifica `npm ls`, los recursos de ambos
+sidecars, el ASAR y el EXE con SHA256. `installer-report.json` conserva la fase
+y resultado. No inicia el instalador ni Pulse Hub; no firma ni publica. Es un
+artefacto de prueba sin configuración de cuentas, no un release para usuarios.
+
+La entrada manual es ahora `Install.exe`, una ventana WPF sin marco NSIS, con
+el logo original `public/assets/Icono.png`. [El generador](../../scripts/build-installer-shell.mjs)
+embebe el motor `Setup.exe` y verifica su SHA-256 antes de ejecutarlo tras el clic
+Instalar. **No renombrar Install.exe a Setup.exe ni sustituir latest.yml**:
+el actualizador conserva su artefacto original. El shell tampoco firma ni publica.
+`npm run build:win` construye ambos; el smoke hace lo mismo sin configuraciones locales.
+
+La escena importa directamente [OrbCanvas](../../src/components/orb/OrbCanvas.tsx),
+la geometría y los shaders de SofLIA: no es una reproducción WPF. Permite arrastre
+con inercia, flechas, doble clic/Inicio/Enter para centrar y pausa de movimiento.
+La web local no recibe herramientas ni acceso al motor; no solicita micrófono.
+WebView2 usa perfil temporal privado, permisos denegados, navegación externa y
+descargas bloqueadas, CSP restrictiva y mensajes de estado únicamente hacia la orbe.
+El SDK Microsoft 1.0.4191.47 se descarga en build con hash fijado, se cachea con
+reverificación y se embebe junto con su licencia. La orbe requiere WebView2
+Evergreen instalado y WebGL; si faltan muestra aviso sin inventar otra orbe.
+La ventana/motor requieren .NET Framework 4.8. No se instala WebView2 automáticamente.
+Los temporales `PulseHub-orb-*` conservan recursos/licencias y perfil gráfico de
+la vista; no contienen un perfil del navegador del usuario. Se cierran los
+controles WebView al salir, pero no se borra recursivamente su perfil en uso.
+
+El progreso de preparación mide bytes; la fase NSIS es indeterminada porque no
+expone un porcentaje global. No se mata el motor durante escritura. El destino
+debe ser local, sin enlaces y dedicado al producto. Pulse Hub abierto provoca
+rechazo, no cierre forzado, cuando se usa la nueva entrada. Abrir al finalizar
+requiere otro clic. Se conservan Python privado y datos del usuario.
+
+`npm run installer:preview` genera una previsualización **sin motor** con estados
+de demostración identificados; `npm run installer:test:native` compila y ejecuta
+pruebas del servicio con un motor inocuo que no instala. La previsualización
+NSIS anterior queda sólo como diagnóstico del motor de compatibilidad, no como
+el diseño visible de la nueva entrada.
+
+Antes de publicar: configurar el build autorizado, firma Authenticode y probar
+instalación, actualización, cancelación, desinstalación, DPI/accesibilidad y
+arranque con cuentas de prueba en Windows. La comprobación del paquete no
+sustituye esa aceptación ni garantiza ausencia de avisos SmartScreen.
 
 ## Publicacion y update
 
@@ -76,6 +153,20 @@ no elimina el archivo exportado. La selección explícita de una carpeta
 sincronizada queda sujeta al proveedor de esa carpeta.
 
 ## Smoke nativo aislado del navegador (Windows)
+
+Antes de empaquetar puede ejecutarse `npm run app:smoke:build`. Copia las fuentes
+del build registradas en Git (incluidos cambios locales y fuentes nuevas no
+ignoradas) a un temporal, excluye archivos ocultos como `.env` y salidas previas,
+y enlaza las dependencias instaladas. Ejecuta `build:app` con un entorno mínimo
+sin claves, flags del producto ni hooks Node heredados. Comprueba que renderer,
+main y preload existan y conserva `build-report.json` y artefactos. No carga
+cuentas, arranca Electron, instala Python ni publica un instalador. No usar ese
+bundle sin configuración como un release para usuarios.
+
+El directorio temporal incluye una junction/enlace a `node_modules` del
+worktree; no se elimina automáticamente. No recorrer ese enlace al retirar
+manualmente los artefactos. La comprobación confía en el código y dependencias
+locales revisados; no ejecutarla sobre un proyecto ajeno no confiable.
 
 ```powershell
 npm run browser:smoke:native -- --download-runtime
@@ -294,8 +385,18 @@ cifrada del original dañado (hasta cinco, sin purga automática). Alcanzar la
 cuota requiere revisión manual con la aplicación detenida; no borrar evidencia
 automáticamente. Restablecer permisos retira todas sus copias locales y lo
 advierte en pantalla. No hay restauración de dispositivos revocados ni downgrade
-de esquemas. Recuperación SQLite, checkpoints/diario de conflictos sync y rollback
-integral permanecen en 8.7.
+de esquemas.
+
+Historial y bitácora también ofrecen recuperación desde soporte con confirmación
+nativa. Requieren una copia SQLite compatible protegida por el SO; rechazan
+principales sanos, futuros o con transacciones pendientes. La copia se genera
+tras una escritura válida y rota como máximo cada 30 segundos; un fallo del
+respaldo se advierte sin anunciar falsamente que falló guardar los datos.
+Revisar el número de entradas y la posible pérdida de cambios recientes.
+Se vuelve a aplicar la retención vigente antes de publicar; el historial
+reconstruye su índice de búsqueda sin reimportar el legado. Borrar datos o
+reducir retención retira antes las copias anteriores para evitar recuperarlos
+después. El historial principal sigue siendo SQLite sin cifrado completo.
 
 También puede recuperarse la biblioteca de atajos desde soporte: requiere
 gobierno del agente habilitado y permitido por la organización. Actualizar su
@@ -306,12 +407,26 @@ En Datos sincronizados, «Recuperar configuración dañada» restaura únicament
 preferencias locales desde copia compatible, con transferencia desactivada.
 Consultar de nuevo la configuración antes de elegir categorías. No restaura
 claves, dispositivos revocados, checkpoints o decisiones pendientes.
-Los pendientes de 8.7 se reducen a SQLite, checkpoints/diario de conflictos sync
-y rollback integral; las claves conservan su recuperación explícita existente.
+Las claves conservan su recuperación explícita existente.
+
+«Recuperar checkpoints y conflictos» requiere configuración válida y metadata
+dañada/incoherente: conserva los originales cifrados, pausa categorías y vacía
+los puntos de avance y decisiones. No contacta al servidor ni cambia claves,
+dispositivos o los datos del navegador. Al reactivar, revisar de nuevo la
+primera sincronización; no se reutilizan aprobaciones antiguas.
+Si el reemplazo se interrumpe, el marcador protegido bloquea todas las
+operaciones ordinarias. Usar «Revertir recuperación incompleta» y confirmar
+para restaurar los tres archivos originales, incluida su ausencia cuando
+corresponda. Esto puede devolver la corrupción original y no deshace escrituras
+remotas. No borrar manualmente el marcador para habilitar sync ni mezclar copias
+antiguas. Un marcador ilegible, cambios externos o cinco archivos de evidencia
+requieren revisión con la app detenida. No hay rollback atómico de todo el
+perfil, downgrade automático ni garantía frente a pérdida del disco.
 
 `npm run browser:smoke:native -- --electron RUTA_ABSOLUTA --policies-only`
-verifica los tres stores reales con safeStorage/DPAPI, restauración restrictiva,
-reapertura y rechazo de copia alterada. Sólo usa archivos de prueba en un
+verifica 19 casos de políticas, atajos, memoria, historial, bitácora y estado
+sync con safeStorage/DPAPI: recuperación, borrado de copias, reapertura,
+rechazo de alteración y reversión tras fallo parcial. Sólo usa archivos de prueba en un
 directorio temporal nuevo; no acredita el recorrido humano UI/IPC ni el
 instalador. La fase también forma parte de la matriz nativa sin red externa.
 

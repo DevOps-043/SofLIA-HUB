@@ -16,10 +16,12 @@
  *   node scripts/quality/system-skills-seed.mjs           (comprobar)
  */
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
+import process from 'node:process';
+import console from 'node:console';
 
 const root = process.cwd();
 const MIGRACION = join(root, 'database', 'lia', 'migrations', 'system-skills-catalog.sql');
@@ -124,20 +126,30 @@ function bloqueActual(contenido) {
   return contenido.slice(desde, hasta + FIN.length);
 }
 
-const escribir = process.argv.includes('--write');
-const contenido = readFileSync(MIGRACION, 'utf8');
-const esperado = await generarSemilla();
-
-if (escribir) {
-  writeFileSync(MIGRACION, reemplazarBloque(contenido, esperado), 'utf8');
-  console.log(`[system-skills-seed] Semilla regenerada en ${MIGRACION.slice(root.length + 1)}.`);
-} else if (bloqueActual(contenido) !== esperado) {
-  console.error(
-    '::error::La semilla de database/lia/migrations/system-skills-catalog.sql no coincide con ' +
-    'src/shared/skills/registry.ts. El respaldo en codigo y lo que se siembra en la base de datos ' +
-    'divergirian. Regenera con: node scripts/quality/system-skills-seed.mjs --write',
-  );
-  process.exit(1);
-} else {
-  console.log('[system-skills-seed] OK: la semilla coincide con el registro en codigo.');
+/** Git puede convertir LF a CRLF; no ignorar espacios, contenido ni un CR suelto. */
+export function semillaCoincide(contenido, esperado) {
+  const actual = bloqueActual(contenido);
+  return actual !== null && actual.replace(/\r\n/g, '\n') === esperado.replace(/\r\n/g, '\n');
 }
+
+async function main() {
+  const escribir = process.argv.includes('--write');
+  const contenido = readFileSync(MIGRACION, 'utf8');
+  const esperado = await generarSemilla();
+
+  if (escribir) {
+    writeFileSync(MIGRACION, reemplazarBloque(contenido, esperado), 'utf8');
+    console.log(`[system-skills-seed] Semilla regenerada en ${MIGRACION.slice(root.length + 1)}.`);
+  } else if (!semillaCoincide(contenido, esperado)) {
+    console.error(
+      '::error::La semilla de database/lia/migrations/system-skills-catalog.sql no coincide con ' +
+      'src/shared/skills/registry.ts. El respaldo en codigo y lo que se siembra en la base de datos ' +
+      'divergirian. Regenera con: node scripts/quality/system-skills-seed.mjs --write',
+    );
+    process.exitCode = 1;
+  } else {
+    console.log('[system-skills-seed] OK: la semilla coincide con el registro en codigo.');
+  }
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

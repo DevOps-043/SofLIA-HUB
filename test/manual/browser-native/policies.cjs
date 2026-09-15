@@ -103,6 +103,37 @@ void app.whenReady().then(async () => {
     if (kind === 'history') { assert.equal((await store.list()).length, 0); await store.flushAndClose(); } else assert.equal(store.list().total, 0);
     check(kind + ': borrar invalida copias anteriores; otra recuperación no resucita datos');
   }
+  const { BrowserSyncCheckpointStore } = load('sync-checkpoint-store'); const { BrowserSyncConflictStore } = load('sync-conflict-store');
+  const { BrowserSyncCrypto } = load('sync-crypto'); const { prepareSyncStateRecovery } = load('sync-state-recovery'); const { syncRecoveryMarker } = load('sync-recovery-guard');
+  const syncRoot = path.join(sandbox, phase, 'sync-recovery'); fs.mkdirSync(syncRoot);
+  const settingsPath = path.join(syncRoot, 'sync-settings.json'); const checkpointPath = path.join(syncRoot, 'sync-checkpoints.json'); const conflictsPath = path.join(syncRoot, 'sync-conflicts.json');
+  const localSettings = new BrowserSyncSettingsStore(settingsPath); const checkpoints = new BrowserSyncCheckpointStore(checkpointPath); const conflicts = new BrowserSyncConflictStore(conflictsPath);
+  const binding = { ownerId: settings.ownerId, origin: settings.origin };
+  await localSettings.write({ ...settings, categories: ['settings'] }, () => {});
+  const pendingReview = await conflicts.prepare({ category: 'settings', baseRevision: 1, remoteRevision: 2, base: { theme: 'system' }, local: { theme: 'light' }, remote: { theme: 'dark' } }, () => {});
+  await checkpoints.write({ version: 1, ...binding, categories: { settings: { revision: 1, base: { theme: 'system' }, review: { id: pendingReview.reviewId, local: { theme: 'light' } } } } }, () => {});
+  const keyFile = path.join(syncRoot, 'sync-key.json'); await new BrowserSyncCrypto(keyFile).initialize(); const keyBytes = fs.readFileSync(keyFile);
+  const deviceFile = path.join(syncRoot, 'sync-device.json'); fs.writeFileSync(deviceFile, 'identidad ficticia intacta');
+  fs.writeFileSync(checkpointPath, 'checkpoint dañado'); const original = [settingsPath, checkpointPath, conflictsPath].map(file => fs.readFileSync(file).toString('base64'));
+  const rename = fs.renameSync;
+  fs.renameSync = (source, destination) => { if (String(destination) === checkpointPath) throw new Error('Fallo de disco simulado'); return rename(source, destination); };
+  try { assert.throws(() => prepareSyncStateRecovery(syncRoot, 'recover-state', () => {}).commit()); } finally { fs.renameSync = rename; }
+  assert.ok(fs.existsSync(syncRecoveryMarker(syncRoot))); await assert.rejects(localSettings.read()); await assert.rejects(checkpoints.read(binding)); await assert.rejects(conflicts.list());
+  check('sync: interrupción local deja marcador protegido y bloquea los tres stores');
+  prepareSyncStateRecovery(syncRoot, 'rollback-state', () => {}).commit();
+  assert.deepEqual([settingsPath, checkpointPath, conflictsPath].map(file => fs.readFileSync(file).toString('base64')), original);
+  assert.equal(fs.existsSync(syncRecoveryMarker(syncRoot)), false);
+  check('sync: rollback coordinado restaura bytes originales sin contactar al servidor');
+  prepareSyncStateRecovery(syncRoot, 'recover-state', () => {}).commit();
+  assert.deepEqual((await new BrowserSyncSettingsStore(settingsPath).read()).categories, []);
+  assert.deepEqual((await new BrowserSyncCheckpointStore(checkpointPath).read(binding)).categories, {});
+  assert.deepEqual(await new BrowserSyncConflictStore(conflictsPath).list(), []);
+  assert.deepEqual(fs.readFileSync(keyFile), keyBytes); assert.equal(fs.readFileSync(deviceFile, 'utf8'), 'identidad ficticia intacta');
+  for (const archive of fs.readdirSync(syncRoot).filter(name => /^sync-recovery-.*\.bin$/.test(name))) {
+    const archived = fs.readFileSync(path.join(syncRoot, archive)); assert.equal(archived.includes(Buffer.from('checkpoint dañado')), false);
+    assert.equal(JSON.parse(safeStorage.decryptString(archived)).scope, syncRoot);
+  }
+  check('sync: recuperación DPAPI archiva originales, pausa categorías y retira decisiones sin alterar clave/dispositivo');
   report.status = 'passed'; await fsp.writeFile(path.join(sandbox, phase + '.json'), JSON.stringify(report, null, 2)); app.exit(0);
 }).catch(async () => {
   report.status = 'failed'; await fsp.writeFile(path.join(sandbox, phase + '.json'), JSON.stringify(report, null, 2));

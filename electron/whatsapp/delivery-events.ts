@@ -22,11 +22,6 @@ export function describeDeliveryError(code: string): string {
   return DELIVERY_ERROR_REASONS[code] || `rechazo del servidor (codigo ${code || 'desconocido'})`;
 }
 
-type MessageUpdateEntry = {
-  key?: { remoteJid?: string | null; id?: string | null };
-  update?: { status?: number | null; messageStubParameters?: (string | null)[] | null };
-};
-
 export function registerDeliveryEvents(service: WhatsAppServiceCore): void {
   service.sock!.ev.on('messages.update', (updates) => {
     for (const entry of updates || []) {

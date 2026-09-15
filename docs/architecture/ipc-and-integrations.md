@@ -134,7 +134,7 @@ de arrastre de la ventana— y el reordenamiento se calcula fuera del updater.
 
 `electron/integrated-browser-handlers.ts` registra 114 operaciones invocables.
 
-`integrated-browser:policy-recover` recibe sólo `store` (permissions/privacy/agent/shortcuts/semantic)
+`integrated-browser:policy-recover` recibe sólo `store` (permissions/privacy/agent/shortcuts/semantic/history/audit)
 y `profileRevision` entero no negativo. Handler y servicio verifican emisor,
 marco principal, titular autenticado, perfil, ventana y control humano, también
 tras esperas. Main prepara una recuperación restrictiva con confirmación nativa,
@@ -150,6 +150,21 @@ Usa la misma exclusión/cancelación del controlador y una confirmación nativa;
 el resultado queda sin categorías activas. Los literales de acción/elección
 deben ser strings, no arrays que se conviertan implícitamente a strings.
 No añade canales ni primitivas accesibles al runtime.
+
+`history` requiere `advancedHistory` y recupera registros/FTS bajo la retención
+vigente; `audit` requiere `agentGovernance` y recupera eventos cifrados sin
+ejecutar acciones. El conteo de SQLite se recalcula al confirmar, por si venció
+retención durante el diálogo. Borrados y cambios de retención invalidan las
+copias anteriores antes de modificar datos.
+
+`sync-control` también admite `{ action: 'recover-state' }` y
+`{ action: 'rollback-state' }`, sin payload adicional. La primera archiva
+checkpoints/conflictos dañados o incoherentes y pausa transferencia para volver
+a comparar datos actuales. La segunda revierte los tres archivos locales de
+una recuperación incompleta; puede devolver el daño original. Ambas requieren
+HITL nativo y guardas del controlador. Un marcador pendiente impide nuevas
+operaciones, incluso después de reiniciar. No contactan Auth/servidor ni
+restauran claves, identidades de dispositivos o aprobaciones antiguas.
 
 `integrated-browser:extensions-catalog` admite sólo `list` o `prepare` con
 `catalogId` y `updateInstallId` opcional. Devuelve catálogo público o revisión

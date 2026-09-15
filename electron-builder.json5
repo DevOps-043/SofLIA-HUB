@@ -103,6 +103,8 @@
     uninstallerSidebar: "build/installer/uninstallerSidebar.bmp",
     include: "build/installer.nsh",
     unicode: true,
+    installerLanguages: ["es_ES"],
+    language: "3082",
     runAfterFinish: true,
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
