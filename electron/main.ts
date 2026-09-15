@@ -7,6 +7,17 @@ import { configureChromiumUserAgentFallback } from './integrated-browser/user-ag
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 /**
+ * El registro `ssl_client_socket_impl.cc handshake failed; SSL error code 1,
+ * net_error -2` contra dominios como google.com no es un certificado invalido:
+ * es el ClientHello con intercambio de claves post-cuantico (Kyber/ML-KEM) que
+ * Chromium activa por defecto desde la version 124 y que routers, antivirus o
+ * proxies con inspeccion TLS todavia no saben fragmentar. Desactivar el
+ * feature evita el fallo de handshake sin tocar la verificacion de
+ * certificados de `certificate-policy.ts`.
+ */
+app.commandLine.appendSwitch('disable-features', 'PostQuantumKyber');
+
+/**
  * Debe configurarse antes de crear sesiones, workers o ventanas. Aplicarlo
  * después en cada `WebContents` deja la primera navegación de un popup y los
  * fetch de su service worker con la identidad Electron predeterminada.
