@@ -22,6 +22,13 @@ El zoom en Electron 43 usa emulación de viewport desktop por WebContents
 con base Chromium uno, adaptación al resize y transformación de puntos DOM,
 sin separar cookies ni alterar UA. Estas decisiones no añaden tablas remotas.
 
+La revisión del cierre al abrir (2026-09-14) reprodujo una terminación nativa
+al desactivar emulación antes de la primera carga. El zoom espera una URL
+cargada, renderer operativo y `isLoadingMainFrame() === false`; la aplicación
+lo reaplica al recibir `did-stop-loading`. Un WeakSet recuerda si la emulación
+se activó para evitar desactivaciones innecesarias al 100%. La mitigación GPU
+anterior se retiró porque la reproducción falla también con `disable-gpu`.
+
 **Goals:**
 
 - Entregar capacidades en fases activables y reversibles sin dejar IPC o stores parciales.

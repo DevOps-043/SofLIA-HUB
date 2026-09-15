@@ -695,6 +695,26 @@ Evidencia de implementación: [captura acotada](../../src/services/browser-tab-s
 [contrato de fragmentos](../../src/shared/browser-tab-context.ts) y
 [procesamiento del turno](../../src/hooks/chat-processor/process-message.ts).
 
+## Arranque de pestañas y zoom nativo
+
+Electron 43.4.0 puede terminar el proceso main si se llama a
+`disableDeviceEmulation()` antes de cargar la primera página de una
+`WebContentsView`. La reproducción también falla con GPU desactivada; el error
+`SharedImageManager::ProduceSkia` del log original no acreditaba un fallo del driver.
+Se retiró el ajuste global `disable-gpu` y la variable experimental
+`SOFLIA_ENABLE_GPU` ya no controla el arranque.
+
+[tab-zoom.ts](../../electron/integrated-browser/tab-zoom.ts) omite emulación en
+vistas sin URL cargada, destruidas, con renderer caído o en carga principal. Solo
+desactiva emulación si antes la activó. El servicio conserva factor y geometría,
+y los reaplica en `did-stop-loading`: `loadURL()` y `did-finish-load` pueden
+resolverse cuando `isLoadingMainFrame()` todavía es verdadero.
+
+La fase `--zoom-startup-only` de `npm run browser:smoke:native` reproduce creación,
+carga, recarga y crash/recuperación con Electron real y servidor local; no necesita
+captura de pantalla. Los eventos de pestañas caídas publican un error recuperable,
+pero un listener JS no puede rescatar una terminación nativa del proceso main.
+
 ## Prueba visual aislada
 
 `test/manual/browser-workspace/vite.config.mts` sirve controles reales con datos

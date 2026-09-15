@@ -19,12 +19,13 @@ const onlyVault = process.argv.includes('--vault-only');
 const onlyAutosave = process.argv.includes('--autosave-only');
 const onlySafety = process.argv.includes('--safety-only');
 const onlyZoom = process.argv.includes('--zoom-only');
+const onlyZoomStartup = process.argv.includes('--zoom-startup-only');
 const onlyPasskeys = process.argv.includes('--passkeys-only');
 const onlyExtensions = process.argv.includes('--extensions-only');
 const onlyCatalog = process.argv.includes('--catalog-only');
 const onlyPolicies = process.argv.includes('--policies-only');
-assert.ok([onlyLifecycle, onlyVault, onlyAutosave, onlySafety, onlyZoom, onlyPasskeys, onlyExtensions, onlyCatalog, onlyPolicies].filter(Boolean).length <= 1, 'Selecciona una sola fase focalizada.');
-const args = process.argv.slice(2).filter((arg) => !['--lifecycle-only', '--vault-only', '--autosave-only', '--safety-only', '--zoom-only', '--passkeys-only', '--extensions-only', '--catalog-only', '--policies-only'].includes(arg));
+assert.ok([onlyLifecycle, onlyVault, onlyAutosave, onlySafety, onlyZoom, onlyZoomStartup, onlyPasskeys, onlyExtensions, onlyCatalog, onlyPolicies].filter(Boolean).length <= 1, 'Selecciona una sola fase focalizada.');
+const args = process.argv.slice(2).filter((arg) => !['--lifecycle-only', '--vault-only', '--autosave-only', '--safety-only', '--zoom-only', '--zoom-startup-only', '--passkeys-only', '--extensions-only', '--catalog-only', '--policies-only'].includes(arg));
 assert.equal(process.platform, 'win32', 'Este smoke nativo sólo está preparado para Windows.');
 assert.ok(args.length === 1 && args[0] === '--download-runtime'
   || args.length === 2 && args[0] === '--electron' && path.isAbsolute(args[1]),
@@ -135,8 +136,8 @@ try {
   await fs.writeFile(path.join(sandbox, 'src/shared/browser-semantic-memory.js'), ts.transpileModule(semanticSource, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText, { flag: 'wx' });
-  for (const phase of onlyPolicies ? ['policies'] : onlyCatalog ? ['catalog'] : onlyExtensions ? ['extensions'] : onlyPasskeys ? ['passkeys'] : onlyZoom ? ['zoom'] : onlyLifecycle ? ['lifecycle'] : onlyVault ? ['vault'] : onlyAutosave ? ['autosave'] : onlySafety ? ['safety'] : ['exercise', 'restore', 'lifecycle', 'vault', 'autosave', 'zoom', 'safety', 'passkeys', 'extensions', 'policies']) {
-    const harness = path.join(root, phase === 'safety' ? 'test/manual/browser-native/safety.mjs' : ['lifecycle', 'vault', 'autosave', 'zoom', 'passkeys', 'extensions', 'catalog', 'policies'].includes(phase) ? `test/manual/browser-native/${phase}.cjs` : 'test/manual/browser-native/main.cjs');
+  for (const phase of onlyZoomStartup ? ['zoom-startup'] : onlyPolicies ? ['policies'] : onlyCatalog ? ['catalog'] : onlyExtensions ? ['extensions'] : onlyPasskeys ? ['passkeys'] : onlyZoom ? ['zoom'] : onlyLifecycle ? ['lifecycle'] : onlyVault ? ['vault'] : onlyAutosave ? ['autosave'] : onlySafety ? ['safety'] : ['exercise', 'restore', 'lifecycle', 'vault', 'autosave', 'zoom-startup', 'zoom', 'safety', 'passkeys', 'extensions', 'policies']) {
+    const harness = path.join(root, phase === 'safety' ? 'test/manual/browser-native/safety.mjs' : ['lifecycle', 'vault', 'autosave', 'zoom-startup', 'zoom', 'passkeys', 'extensions', 'catalog', 'policies'].includes(phase) ? `test/manual/browser-native/${phase}.cjs` : 'test/manual/browser-native/main.cjs');
     await run(executable, [harness, sandbox, version, phase]);
     const report = JSON.parse(await fs.readFile(path.join(sandbox, `${phase}.json`), 'utf8'));
     assert.equal(report.status, 'passed');

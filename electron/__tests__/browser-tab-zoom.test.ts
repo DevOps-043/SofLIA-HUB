@@ -9,6 +9,47 @@ const plain = () => {
   return contents;
 };
 describe('zoom aislado compatible con Electron 43', () => {
+  it.each(['nueva', 'cargando', 'caída', 'destruida'] as const)('evita emulación nativa con una vista %s', state => {
+    const contents = plain();
+    if (state === 'nueva') vi.mocked(contents.getURL).mockReturnValue('');
+    if (state === 'cargando') vi.mocked(contents.isLoadingMainFrame).mockReturnValue(true);
+    if (state === 'caída') vi.mocked(contents.isCrashed).mockReturnValue(true);
+    if (state === 'destruida') vi.mocked(contents.isDestroyed).mockReturnValue(true);
+    for (const factor of [1, 2]) applyBrowserTabZoom(contents, factor, { width: 800, height: 600 });
+    expect(contents.enableDeviceEmulation).not.toHaveBeenCalled();
+    expect(contents.disableDeviceEmulation).not.toHaveBeenCalled();
+    expect(contents.setZoomFactor).not.toHaveBeenCalled();
+  });
+  it('restablecer al 100% solo desactiva una emulación previamente aplicada', () => {
+    const contents = plain();
+    applyBrowserTabZoom(contents, 1, { width: 800, height: 600 });
+    expect(contents.disableDeviceEmulation).not.toHaveBeenCalled();
+    applyBrowserTabZoom(contents, 2, { width: 800, height: 600 });
+    applyBrowserTabZoom(contents, 1, { width: 800, height: 600 });
+    applyBrowserTabZoom(contents, 1, { width: 800, height: 600 });
+    expect(contents.disableDeviceEmulation).toHaveBeenCalledTimes(1);
+  });
+  it('aplica el último zoom pendiente al terminar la navegación', async () => {
+    vi.stubEnv('BROWSER_PAGE_TOOLS_ENABLED', 'true');
+    const browser = new IntegratedBrowserService(); browser.attachWindow(new BrowserWindow());
+    try {
+      await browser.open('https://example.com/a');
+      const contents = browser.getWebContentsForAgent();
+      Object.defineProperty(contents, 'setZoomMode', { value: undefined, configurable: true });
+      browser.setViewport({ x: 0, y: 0, width: 800, height: 600 });
+      vi.mocked(contents.isLoadingMainFrame).mockReturnValue(true);
+      browser.setZoom('in'); browser.setZoom('in');
+      browser.setViewport({ x: 0, y: 0, width: 960, height: 600 });
+      expect(contents.enableDeviceEmulation).not.toHaveBeenCalled();
+      (contents as WebContents & { emit: (name: string) => void }).emit('did-finish-load');
+      expect(contents.enableDeviceEmulation).not.toHaveBeenCalled();
+      vi.mocked(contents.isLoadingMainFrame).mockReturnValue(false);
+      (contents as WebContents & { emit: (name: string) => void }).emit('did-stop-loading');
+      expect(contents.enableDeviceEmulation).toHaveBeenLastCalledWith(expect.objectContaining({
+        scale: 1.2, viewSize: { width: 800, height: 500 },
+      }));
+    } finally { browser.detachWindow(); }
+  });
   it('nunca instala un zoom Chromium distinto de uno en el fallback', () => {
     const contents = plain(); contents.setZoomFactor(1.4);
     applyBrowserTabZoom(contents, 2, { width: 800, height: 600 });

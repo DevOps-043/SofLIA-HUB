@@ -747,6 +747,22 @@ describe('IntegratedBrowserService', () => {
     expect(window.contentView.addChildView).toHaveBeenCalledTimes(1);
   });
 
+  it('convierte la terminacion del renderer en un error recuperable de pestaña', async () => {
+    const window = new BrowserWindow();
+    const service = new IntegratedBrowserService();
+    service.attachWindow(window);
+
+    await service.open('https://example.com');
+    const contents = browserViewHarness.instances[0].webContents;
+    contents.emit('render-process-gone', {}, { reason: 'crashed', exitCode: -1073741819 });
+
+    const tab = service.getState().tabs[0];
+    expect(tab.isLoading).toBeFalsy();
+    expect(tab.error).toBe('La página se cerró inesperadamente. Vuelve a cargarla para continuar.');
+    expect(window.isDestroyed()).toBe(false);
+    service.detachWindow();
+  });
+
   it('normaliza tambien el User-Agent de las ventanas reales que abre un sitio', async () => {
     const window = new BrowserWindow();
     const service = new IntegratedBrowserService();

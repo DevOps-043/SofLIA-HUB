@@ -33,6 +33,22 @@ El navegador SHALL exponer versión de aplicación, Electron, Chromium, Node, pa
 - **WHEN** el usuario genera un diagnóstico
 - **THEN** obtiene un reporte reproducible y saneado
 
+### Requirement: Zoom seguro durante el arranque de pestañas
+El navegador SHALL diferir la emulación de zoom hasta que exista un documento
+cargado y un renderer operativo. El zoom normal SHALL evitar desactivar una
+emulación que nunca fue activada. La corrección SHALL conservar la aceleración
+gráfica predeterminada y verificarse con Electron real.
+
+#### Scenario: Primera pestaña o restauración con zoom
+- **WHEN** se crea una WebContentsView y se configura su geometría antes de cargar
+- **THEN** no invoca emulación nativa todavía y aplica el último zoom solicitado
+  al terminar la carga, sin cerrar la aplicación
+
+#### Scenario: Navegación o renderer caído
+- **WHEN** se solicita zoom durante una carga principal o después de un crash
+- **THEN** difiere la emulación hasta finalizar una carga válida y no opera sobre
+  una vista destruida
+
 ### Requirement: Recuperación ante actualización
 Las migraciones de stores y sesión SHALL ser versionadas, idempotentes y recuperables; un fallo SHALL conservar el archivo anterior y permitir iniciar con funciones degradadas.
 

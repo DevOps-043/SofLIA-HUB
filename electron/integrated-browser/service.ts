@@ -2934,6 +2934,23 @@ export class IntegratedBrowserService extends EventEmitter {
       const ambito = isMainFrame ? 'documento' : 'marco';
       console.warn(`[Navegador][Carga] ${ambito} fallido (${errorCode} ${errorDescription}): ${describeBlockedUrl(validatedURL)}`);
     });
+    // Publicar el cierre de una pestaña permite recargarla sin reiniciar la
+    // aplicación. Este listener no puede interceptar un fallo nativo de main.
+    contents.on('render-process-gone', (_event, details) => {
+      // No dependemos de `isCurrentView()`: en algunas versiones el evento se
+      // emite cuando `webContents.isDestroyed()` ya cambió a true.
+      if (tab.view !== view) return;
+      tab.loading = false;
+      tab.error = 'La página se cerró inesperadamente. Vuelve a cargarla para continuar.';
+      this.invalidateObservation(tabId);
+      console.error(`[Navegador][Proceso] La pestaña terminó (${details.reason}, código ${details.exitCode}).`);
+      this.emitState();
+    });
+    contents.on('unresponsive', () => {
+      if (!isCurrentView()) return;
+      console.warn(`[Navegador][Proceso] La pestaña dejó de responder: ${describeBlockedUrl(tab.url)}.`);
+      this.emitState();
+    });
     contents.on('did-create-window', (window) => {
       // Respaldo para cualquier ventana permitida por Electron fuera del
       // creador controlado anterior.
@@ -3027,6 +3044,9 @@ export class IntegratedBrowserService extends EventEmitter {
     contents.on('did-stop-loading', () => {
       if (!isCurrentView()) return;
       tab.loading = false;
+      // loadURL/did-finish-load pueden terminar antes de que Chromium retire
+      // isLoadingMainFrame. Reaplicar aquí el zoom diferido por esa barrera.
+      this.configureTabZoom(tab);
       this.snapshotTab(tab);
       this.emitState();
       this.deferPassiveCapture(tab);
