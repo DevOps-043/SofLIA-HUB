@@ -102,6 +102,7 @@ try {
     'integrated-browser/policy-file-recovery', 'integrated-browser/site-permissions', 'integrated-browser/types',
     'integrated-browser/privacy-store', 'integrated-browser/agent-policy-store',
     'integrated-browser/agent-shortcut-store', 'integrated-browser/sync-settings-store', 'integrated-browser/sync-remote',
+    'integrated-browser/sync-checkpoint-store', 'integrated-browser/sync-recovery-guard', 'integrated-browser/sync-state-recovery',
     'integrated-browser/certificate-policy',
     'integrated-browser/sync-crypto', 'integrated-browser/sync-conflicts', 'integrated-browser/sync-conflict-store',
     'integrated-browser/credential-autosave', 'integrated-browser/credential-autosave-script',

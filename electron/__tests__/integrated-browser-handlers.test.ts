@@ -119,6 +119,12 @@ describe('handlers del navegador integrado', () => {
     const handler = ipcMainHarness._getHandler('integrated-browser:sync-control');
     expect(await handler(event, { action: 'run' })).toMatchObject({ success: true, sync: { enabled: false } });
     expect(service.controlSync).toHaveBeenCalledWith({ action: 'run' }); service.controlSync.mockClear();
+    for (const action of ['recover-state', 'rollback-state']) {
+      expect(await handler(event, { action })).toMatchObject({ success: true });
+      expect(service.controlSync).toHaveBeenCalledWith({ action });
+      expect(await handler(event, { action, approved: true })).toMatchObject({ success: false });
+    }
+    service.controlSync.mockClear();
     for (const input of [{ action: 'run', approved: true }, { action: 'import-key', path: 'no' }, { action: 'configure', categories: ['passwords'] }, { action: ['recover-settings'] }, { action: 'recover-settings', approved: true }]) expect(await handler(event, input)).toMatchObject({ success: false });
     expect(await handler(event, { action: 'run' }, 'extra')).toMatchObject({ success: false });
     expect(await handler({ ...event, senderFrame: {} }, { action: 'run' })).toMatchObject({ success: false });

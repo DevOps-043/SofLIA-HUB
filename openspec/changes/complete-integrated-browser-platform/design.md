@@ -37,6 +37,17 @@ sin separar cookies ni alterar UA. Estas decisiones no añaden tablas remotas.
 
 ## Decisions
 
+### Instalador Windows y Python privado
+
+La ampliación solicitada usa una bienvenida propia NSIS con arte Pulse Hub y
+controles nativos accesibles; conserva las páginas de ubicación, progreso real,
+elevación, actualización y desinstalación de electron-builder. No modifica
+Python del sistema ni cambia el navegador predeterminado. Python se prepara en
+staging con digest oficial fijado, lock exclusivo y validación de las librerías
+de ambos sidecars antes de promoverlo. Se conserva el runtime previo como respaldo.
+El smoke de empaquetado usa fuentes sin .env y publicación deshabilitada; no
+ejecuta el instalador. Véase [contexto del instalador](context-installer.md).
+
 ### Entrega por fases dentro de un contrato común
 
 El cambio se implementa en cuatro fases: fundamentos P0, datos P1, privacidad/agente P2 y sincronización/empresa P3. Cada fase termina con pruebas, documentación y feature flags; no se cablea una UI hasta completar servicio, handler, allowlist, preload y wrapper.
@@ -466,9 +477,21 @@ no restaura vectores ni fuentes retiradas, ni habilita Gemini. Soporte y HITL
 main exigen perfil, control, sesión y gate vigentes; rechazan bases válidas,
 futuras, ajenas, excesivas o con sidecars de transacciones pendientes. El original
 dañado se conserva cifrado hasta la siguiente escritura válida de memoria.
-Historial/bitácora SQLite, checkpoints/diario de conflictos sync y rollback
-integral permanecen en 8.7. El titular se encarga del despliegue y las migraciones
-remotas; no se ejecutan en este worktree ni se acreditan con fixtures.
+Historial y bitácora conservan snapshots SQLite consistentes protegidos por el
+SO, con rotación acotada. Su recuperación HITL valida esquema y ámbito, vuelve
+a aplicar retención al confirmar y reconstruye FTS; borrar o reducir retención
+retira copias antiguas antes de eliminar filas. No convierte el principal del
+historial en una base cifrada ni garantiza un respaldo tras cada escritura.
+Checkpoints y diario dañados/incoherentes se reconstruyen vacíos con sync
+pausado, sin reutilizar decisiones o envíos aprobados. Un marcador protegido
+con originales y proyección precede los reemplazos de los tres archivos y
+bloquea operaciones ordinarias hasta completar o revertir con HITL. La reversión
+local conserva bytes/ausencias originales y rechaza cambios externos; puede
+devolver el daño original. No hay rollback atómico entre todos los stores,
+undo remoto ni restauración de dispositivos revocados. La ruta de aplicación
+continúa siendo flags y copia compatible con la app detenida.
+El titular se encarga del despliegue y las migraciones remotas; no se ejecutan
+en este worktree ni se acreditan con fixtures.
 
 1. Introducir servicios y contratos P0 detrás de flags, migrar sólo metadata de sesión.
 2. Migrar marcadores e historial con respaldos; conservar lectura legacy durante una versión.

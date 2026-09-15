@@ -475,8 +475,31 @@ alcance. Una limpieza parcial puede retirar copias aunque falle el guardado.
 Fuente: [recuperación de políticas](../../electron/integrated-browser/policy-file-recovery.ts).
 El mismo mecanismo soporta codecs que conservan el formato cifrado original de
 atajos y configuración sync; versiones, ámbito ajeno y cuotas son incompatibilidad,
-no corrupción recuperable. Respaldos/recuperación SQLite de historial y bitácora,
-checkpoints/diario de conflictos sync y rollback integral siguen en 8.7.
+no corrupción recuperable. Historial y bitácora también tienen recuperación
+SQLite con los límites descritos a continuación.
+
+Después de una operación válida, historial y bitácora generan una instantánea
+consistente mediante `VACUUM INTO`, incluyendo el WAL a través de SQLite, y
+guardan una generación protegida por el SO, ligada a la ruta absoluta. Rotan
+bajo demanda como máximo cada 30 segundos; no hay temporizador de transferencia
+ni una copia por evento. Un fallo del respaldo posterior al commit informa una
+advertencia sin presentar el guardado principal como fallido. La recuperación
+requiere que exista una copia compatible; no se garantiza copia si falló disco,
+cifrado o cuota. Límites de lectura: 128 MiB SQLite y 256 MiB protegido; bitácora
+mantiene su cuota principal de 16 MiB. El historial principal sigue siendo
+metadata SQLite sin cifrar; sólo su respaldo y cuarentena se protegen por el SO.
+
+La revisión cierra primero la conexión del historial y rechaza bases sanas,
+futuras, esquemas ajenos, enlaces, excesos y WAL/SHM/journal pendientes. Valida
+integridad, registros y formato; prepara otra SQLite sin escribir el principal.
+Antes de publicar revalida los bytes, reevalúa retención y reconstruye el FTS
+del historial sin reimportar JSONL. Bitácora conserva los eventos y su cifrado,
+no acciones ejecutables. Los originales dañados se cifran (máximo cinco).
+Borrado, recorte por cuota y retención invalidan las copias anteriores **antes**
+de borrar filas; después puede generarse una nueva copia depurada. Un fallo
+parcial puede retirar copias sin terminar el borrado. No hay borrado forense,
+bloqueo multiproceso ni promesa de recuperar escrituras posteriores a la copia.
+Fuente: [recuperación SQLite](../../electron/integrated-browser/sqlite-store-recovery.ts).
 
 La memoria semántica tiene recuperación local distinta: al escribir valida la
 instantánea anterior y crea un respaldo SQLite de esquema vacío protegido por
@@ -536,6 +559,22 @@ admite cancelar y no consulta Auth ni red; la disponibilidad local de clave se
 comprueba antes del commit sin leerla hacia IPC. Guardar pausa elimina todas
 sus copias locales. No recupera claves, dispositivos, checkpoints o decisiones
 de conflictos ni sustituye la revisión de primera sincronización.
+
+Para checkpoints y diario dañados o incoherentes, `recover-state` conserva los
+tres originales cifrados, pausa categorías y reconstruye metadata vacía. No
+restaura decisiones ni envíos aprobados: reactivar exige una revisión nueva.
+No lee datos del servidor ni modifica claves, dispositivos o datos del navegador.
+El controlador exclusivo solicita HITL nativo y verifica perfil/sesión/control.
+Antes del primer reemplazo publica `sync-recovery.pending.bin` protegido y ligado
+al directorio absoluto; mientras exista, los stores y operaciones ordinarias
+quedan bloqueados, incluso tras reiniciar. `rollback-state` permite revertir una
+recuperación incompleta con otra confirmación, sólo si cada archivo coincide
+con el original o la proyección de esa operación; conserva ausencias originales.
+Una reversión puede devolver la corrupción original. No es undo remoto ni
+rollback atómico de todo el perfil. Al terminar conserva un archivo protegido
+de evidencia, hasta cinco; nunca purga evidencia automáticamente ni restaura
+identidades revocadas. Un marcador ilegible o archivos cambiados externamente
+exigen revisión operativa, no eliminación automática del bloqueo.
 
 El atajo sólo prepara un borrador si está vacío. No envía el mensaje ni guarda
 URLs, recibos de pestañas, páginas o concesiones de sitio. Cada envío exige de

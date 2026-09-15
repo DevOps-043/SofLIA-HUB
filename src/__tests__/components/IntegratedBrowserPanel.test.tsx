@@ -865,7 +865,7 @@ describe('IntegratedBrowserPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar retención' }));
     expect(api.setHistoryRetention).not.toHaveBeenCalled();
     const dialog = screen.getByRole('dialog', { name: 'Cambiar retención del historial' });
-    expect(dialog).toHaveTextContent('respaldo del historial antiguo se elimina completo');
+    expect(dialog).toHaveTextContent('respaldo del historial antiguo y las copias locales de recuperación se eliminan completos');
     fireEvent.click(within(dialog).getByRole('button', { name: 'Confirmar retención' }));
     await waitFor(() => expect(api.setHistoryRetention).toHaveBeenCalledWith(30));
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Cambiar retención del historial' })).not.toBeInTheDocument());

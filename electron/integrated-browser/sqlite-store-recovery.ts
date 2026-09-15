@@ -76,7 +76,8 @@ export function backupSqlite(file: string, db: DatabaseSync, guard: () => void =
   try { stat = fs.lstatSync(backup); } catch (cause) { if ((cause as NodeJS.ErrnoException).code !== 'ENOENT') throw cause; }
   if (stat) {
     if (!stat.isFile() || stat.isSymbolicLink() || stat.size > MAX * 2) throw error();
-    if (Date.now() - stat.mtimeMs < 30_000) return;
+    const age = Date.now() - stat.mtimeMs;
+    if (age >= 0 && age < 30_000) return;
   }
   const previous = read(backup, MAX * 2);
   if (previous !== null) {

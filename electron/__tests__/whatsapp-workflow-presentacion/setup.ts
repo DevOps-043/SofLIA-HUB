@@ -1,9 +1,19 @@
 import './mocks';
 import { vi } from 'vitest';
+import { parsePresentationDeck } from '../../../src/shared/presentations/deck-schema';
 import { PresentacionWorkflow, WorkflowManager } from '../../whatsapp-workflow-presentacion';
 import { mockAgent, mockFetch, mockGenAI, mockGenerateContent, mockWaService, mockWorkspaceService } from './mocks';
 
 export { PresentacionWorkflow, WorkflowManager };
+export const DECK_GENERADO = JSON.stringify(parsePresentationDeck({
+  version: 1,
+  meta: { titulo: 'Propuesta de prueba', direccionVisual: 'Editorial' },
+  slides: [
+    { id: 'inicio', tipo: 'portada', titulo: 'Propuesta' },
+    { id: 'tesis', tipo: 'declaracion', titulo: 'Revisar el alcance' },
+    { id: 'cierre', tipo: 'cierre', titulo: 'Siguiente paso', accion: 'Revisar' },
+  ],
+}));
 export {
   mockAgent, mockFetch, mockGenerateContent, mockSendText, mockSendFile, mockWaService,
   mockWorkspaceService, mockWriteFile, mockWriteSystemFile, mockExportHtml, mockResolveBranding,

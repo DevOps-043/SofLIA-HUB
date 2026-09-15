@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createPresentationWorkflow,
+  DECK_GENERADO,
   mockFetch,
   mockGenerateContent,
   mockSendText,
@@ -77,9 +78,9 @@ describe('PresentacionWorkflow lifecycle', () => {
   it('WA-156: finishPresentation llega a COMPLETED', async () => {
     (workflow as any).state = 'GENERATING_PRESENTATION';
     (workflow as any).data = { clientCompanyName: 'MiEmpresa', clientEmail: 'info@miempresa.com', proposalContent: 'Propuesta de valor' };
-    // El motor propio espera un documento HTML, no markdown para un tercero.
+    // El motor propio espera un deck declarativo y después exporta su HTML.
     mockGenerateContent.mockResolvedValue({
-      response: { text: () => '<!doctype html><html><body><section class="diapositiva">Portada</section></body></html>' },
+      response: { text: () => DECK_GENERADO },
     });
 
     await (workflow as any).finishPresentation();

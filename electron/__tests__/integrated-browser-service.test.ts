@@ -54,6 +54,7 @@ vi.mock('../integrated-browser/browser-history-store', () => ({
     getRetention = vi.fn(async () => null);
     setRetention = vi.fn(async (days: number | null) => ({ days, removed: 0 }));
     clearSince = vi.fn(async () => 0);
+    prepareRecovery = vi.fn(async (guard: () => void) => ({ count: 1, commit: async () => { guard(); } }));
     flush = vi.fn(async () => {});
   },
 }));
@@ -365,6 +366,27 @@ describe('IntegratedBrowserService', () => {
       else { expect(commit).not.toHaveBeenCalled(); if (mode === 'cancelar') expect(result).toEqual({ cancelled: true, restored: 0 }); else expect(result).toBeInstanceOf(Error); }
       expect(dialog.showMessageBox).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ defaultId: 0, cancelId: 0, detail: expect.stringContaining('No se recuperan fuentes ni vectores') }));
     } finally { service.detachWindow(); }
+  });
+  it.each(['history', 'audit'] as const)('recuperación %s exige gate y confirmación nativa', async kind => {
+    vi.stubEnv('BROWSER_AGENT_GOVERNANCE_ENABLED', 'true'); vi.stubEnv('BROWSER_ADVANCED_HISTORY_ENABLED', 'true');
+    setAuthState({ authenticated: true, userId: 'prueba' }); setBrowserScopeId(browserScopeIdFor('prueba'));
+    const service = newService(); service.attachWindow(new BrowserWindow());
+    type Recovery = { prepareRecovery: (guard: () => void) => Promise<{ count: number; commit: () => Promise<void> }> };
+    const internal = service as unknown as { historyStore: Recovery; auditStore: Recovery };
+    const commit = vi.fn(async () => {}); const prepare = vi.spyOn(kind === 'history' ? internal.historyStore : internal.auditStore, 'prepareRecovery').mockResolvedValue({ count: 2, commit });
+    try {
+      const input = { store: kind, profileRevision: service.getState().profileRevision };
+      vi.mocked(dialog.showMessageBox).mockResolvedValueOnce({ response: 0, checkboxChecked: false });
+      expect(await service.recoverPolicyStore(input, () => {})).toEqual({ cancelled: true, restored: 0 }); expect(commit).not.toHaveBeenCalled();
+      vi.mocked(dialog.showMessageBox).mockResolvedValueOnce({ response: 1, checkboxChecked: false });
+      expect(await service.recoverPolicyStore(input, () => {})).toEqual({ cancelled: false, restored: 2 }); expect(commit).toHaveBeenCalledOnce();
+      expect(prepare).toHaveBeenCalledTimes(2);
+      expect(dialog.showMessageBox).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ defaultId: 0, detail: expect.stringContaining('retención vigente') }));
+    } finally { service.detachWindow(); }
+    vi.stubEnv(kind === 'history' ? 'BROWSER_ADVANCED_HISTORY_ENABLED' : 'BROWSER_AGENT_GOVERNANCE_ENABLED', 'false');
+    const disabled = newService(); disabled.attachWindow(new BrowserWindow());
+    try { await expect(disabled.recoverPolicyStore({ store: kind, profileRevision: disabled.getState().profileRevision }, () => {})).rejects.toThrow(); }
+    finally { disabled.detachWindow(); }
   });
   it('catálogo no opera en el perfil anterior mientras se propaga una nueva sesión', async () => {
     setBrowserScopeId(browserScopeIdFor('anterior'));

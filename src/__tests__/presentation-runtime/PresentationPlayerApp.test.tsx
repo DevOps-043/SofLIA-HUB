@@ -8,12 +8,16 @@ type RuntimeWindow = Window & {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   delete (window as RuntimeWindow).__PULSE_PRESENTATION__;
   document.head.querySelectorAll('[data-pulse-brand="embedded"]').forEach((node) => node.remove());
 });
 
 describe('reproductor declarativo de presentaciones', () => {
   it('renderiza una grafica con semantica accesible', async () => {
+    // Medir semántica, no el tiempo de transformación/carga de Recharts en la suite completa.
+    // Precargar el módulo real conserva el render y evita depender del timeout DOM de un segundo.
+    await import('../../presentation-runtime/components/ChartSlide');
     (window as RuntimeWindow).__PULSE_PRESENTATION__ = {
       deck: {
         version: 1,

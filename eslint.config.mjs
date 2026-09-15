@@ -29,6 +29,12 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    // Entradas Node CommonJS: el hook afterPack y el preparador se cargan con require.
+    files: ['scripts/setup-python-runtime.js', 'scripts/python-runtime-support.cjs', 'scripts/verify-packaged-python.cjs'],
+    languageOptions: { sourceType: 'commonjs', globals: globals.node },
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
+  },
+  {
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
       ecmaVersion: 2020,

@@ -4,6 +4,17 @@ Mantiene el motor web actualizado, diagnosticable y apto para release sin depend
 
 ## ADDED Requirements
 
+### Requirement: Instalador con runtime privado verificable
+El instalador Windows SHALL mostrar identidad Pulse Hub, explicar Python privado y conservar ubicación, cancelación y progreso real. La preparación SHALL comprobar integridad del archivo Python y dependencias de voz/documentos antes de promover el runtime; el paquete SHALL verificar ambos sidecars sin modificar Python del sistema.
+
+#### Scenario: Fuente o preparación fallida
+- **WHEN** falla el digest, la descarga, los imports o la promoción del nuevo runtime
+- **THEN** no se marca válido un runtime incompleto y se conserva la copia anterior o su respaldo recuperable
+
+#### Scenario: Paquete de prueba
+- **WHEN** se ejecuta el smoke local del instalador
+- **THEN** compila sin .env ni claves heredadas, no publica ni inicia la aplicación y registra el resultado del paquete
+
 ### Requirement: Motor estable para release
 Un build de release SHALL usar una versión estable y soportada de Electron/Chromium, salvo excepción temporal documentada con fecha de retiro, riesgos y pruebas específicas.
 

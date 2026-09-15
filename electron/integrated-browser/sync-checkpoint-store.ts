@@ -54,12 +54,16 @@ export class BrowserSyncCheckpointStore {
     return result;
   }
   read(binding: { ownerId: string; origin: string }): Promise<SyncCheckpoints> {
-    return this.lock(async () => {
+    return this.lock(() => this.readData(binding));
+  }
+  private async readData(binding: { ownerId: string; origin: string }): Promise<SyncCheckpoints> {
       assertSyncRecoveryAvailable(path.dirname(this.destination));
       secure(); let file;
       try {
+        const expected = await fs.lstat(this.destination);
+        if (!expected.isFile() || expected.isSymbolicLink() || expected.size > maxBytes) throw fail();
         file = await fs.open(this.destination, 'r');
-        const stat = await file.stat(); if (!stat.isFile() || stat.size > maxBytes) throw fail();
+        const stat = await file.stat(); if (!stat.isFile() || stat.ino !== expected.ino || stat.size > maxBytes) throw fail();
         const buffer = Buffer.alloc(stat.size + 1); let size = 0;
         while (size < buffer.length) { const part = await file.read(buffer, size, buffer.length - size, null); if (!part.bytesRead) break; size += part.bytesRead; }
         if (size > stat.size) throw fail();
@@ -75,12 +79,13 @@ export class BrowserSyncCheckpointStore {
         if (!file && (error as NodeJS.ErrnoException).code === 'ENOENT') { assertSyncRecoveryAvailable(path.dirname(this.destination)); return validateSyncCheckpoints({ version: 1, ownerId: binding.ownerId, origin: binding.origin, categories: {} }); }
         throw fail();
       } finally { await file?.close(); }
-    });
   }
   write(raw: SyncCheckpoints, guard: () => void): Promise<void> {
     const data = validateSyncCheckpoints(raw);
     return this.lock(async () => {
       secure(); guard(); assertSyncRecoveryAvailable(path.dirname(this.destination));
+      // No encubrir corrupción o una versión futura con una escritura normal.
+      await this.readData(data); guard(); assertSyncRecoveryAvailable(path.dirname(this.destination));
       const protectedData = safeStorage.encryptString(JSON.stringify({ scope: path.basename(path.dirname(this.destination)), data })).toString('base64');
       const output = JSON.stringify({ version: 1, protectedData }); if (Buffer.byteLength(output) > maxBytes) throw fail();
       const temporary = `${this.destination}.${randomUUID()}.tmp`;

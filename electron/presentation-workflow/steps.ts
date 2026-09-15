@@ -14,7 +14,7 @@ export async function requestProposal(agent: WhatsAppAgent, companyName: string,
 }
 
 /**
- * Genera la presentacion con el motor propio de HTML y entrega el PDF por el
+ * Genera el deck con el motor propio y entrega el HTML exportado por el
  * mismo canal. Sustituye a la generacion via Gamma: el contenido del usuario
  * ya no sale hacia un tercero y el resultado es un archivo suyo.
  *

@@ -89,3 +89,22 @@ La primera versión MUST NOT sincronizar contraseñas, passkeys, cookies, tokens
 #### Scenario: Payload contiene categoría prohibida
 - **WHEN** un cliente intenta sincronizar un tipo secreto
 - **THEN** el contrato lo rechaza antes de cifrar o transmitir
+
+### Requirement: Recuperación coordinada del estado local
+El controlador SHALL recuperar checkpoints y diario dañados o incoherentes con confirmación nativa, contexto humano vigente y exclusión de operaciones. MUST conservar los originales protegidos, pausar categorías y descartar decisiones/envíos antiguos, sin contactar al servidor ni modificar claves o dispositivos.
+
+#### Scenario: Reconstrucción confirmada
+- **WHEN** la configuración identifica al titular y el estado derivado está dañado o es incoherente
+- **THEN** una confirmación vigente reconstruye checkpoints y diario vacíos; reactivar exige revisión inicial nueva y no reproduce envíos anteriores
+
+#### Scenario: Fallo entre reemplazos
+- **WHEN** falla la recuperación después de publicar el marcador protegido y antes de completar los tres archivos
+- **THEN** el marcador persiste y bloquea las operaciones ordinarias, incluso tras reiniciar; el usuario puede confirmar la reversión local
+
+#### Scenario: Reversión segura
+- **WHEN** se confirma revertir y cada archivo coincide con su original o con la proyección de esa operación
+- **THEN** se restauran bytes y ausencias originales antes de retirar el bloqueo; se advierte que puede regresar la corrupción original y que no se deshacen cambios remotos
+
+#### Scenario: Contexto o evidencia incompatible
+- **WHEN** cambian sesión, perfil, control, bytes, esquema, ámbito o vence la revisión, o el marcador es ilegible
+- **THEN** se rechaza la operación sin sobreescribir evidencia ni eliminar automáticamente el bloqueo

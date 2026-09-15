@@ -512,7 +512,7 @@ function HistoryPanel({ onClose }: { onClose: () => void }) {
         <BrowserConfirmDialog
           title="Borrar todo el historial"
           description="Esta acción elimina las visitas guardadas en este equipo."
-          detail="Tus cookies, sesiones, contraseñas y extensiones permanecerán intactas."
+          detail="Se retiran también las copias locales anteriores del historial, incluidas las de recuperación. Tus cookies, sesiones, contraseñas y extensiones permanecerán intactas."
           confirmLabel="Borrar historial"
           busy={busy}
           onCancel={() => setConfirmClear(false)}
