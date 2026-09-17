@@ -3957,15 +3957,22 @@ export class IntegratedBrowserService extends EventEmitter {
   private configureCertificateVerification(session: Session): void {
     if (this.certificateSessions.has(session)) return;
     const setCertificateVerifyProc = (session as Session & {
-      setCertificateVerifyProc?: (callback: (request: { verificationResult?: string }, callback: (result: number) => void) => void) => void;
+      setCertificateVerifyProc?: (callback: (request: { verificationResult?: string; hostname?: string }, callback: (result: number) => void) => void) => void;
     }).setCertificateVerifyProc;
     if (typeof setCertificateVerifyProc !== 'function') return;
     this.certificateSessions.add(session);
     setCertificateVerifyProc.call(session, (request, callback) => {
-      const valid = request?.verificationResult === 'OK';
-      if (!valid) console.warn('[Navegador][Certificado] Se rechazó un certificado no válido.');
       // -3 conserva la verificación de Chromium; 0 desactivaría Certificate Transparency.
-      callback(browserCertificateDecision(request?.verificationResult));
+      const decision = browserCertificateDecision(request?.verificationResult);
+      // El aviso se deriva de la decisión, nunca de una comparación paralela:
+      // al duplicarla, el registro anunciaba rechazos de cadenas que sí se
+      // estaban aceptando. Se nombra el host y el veredicto porque un rechazo
+      // sin rastro no deja forma de saber qué se cortó; el host no lleva ruta
+      // ni parámetros, que es donde viajan los tokens de sesión.
+      if (decision === -2) {
+        console.warn(`[Navegador][Certificado] Se rechazó un certificado no válido en ${request?.hostname || '(host desconocido)'} (${request?.verificationResult || 'sin veredicto'}).`);
+      }
+      callback(decision);
     });
   }
 
