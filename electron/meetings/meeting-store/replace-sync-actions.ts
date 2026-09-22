@@ -4,7 +4,8 @@ import { getMeetingHubClient } from '../meeting-hub-client';
 import type { MeetingSyncActionRecord, ProposedMeetingAction } from '../meeting-types';
 import { nowIso, makeId, throwOnError } from './shared';
 
-export async function replaceSyncActions(this: MeetingStore, runId: string, assetId: string, actions: ProposedMeetingAction[]): Promise<MeetingSyncActionRecord[]> {
+export async function replaceSyncActions(this: MeetingStore, runId: string, assetId: string, actions: ProposedMeetingAction[], executionGuard?: () => void): Promise<MeetingSyncActionRecord[]> {
+    executionGuard?.();
     const supabase = getMeetingHubClient();
 
     const { error: deleteError } = await supabase
@@ -14,6 +15,7 @@ export async function replaceSyncActions(this: MeetingStore, runId: string, asse
       .eq('approval_state', 'draft');
 
     throwOnError(deleteError, 'replaceSyncActions.deleteDrafts');
+    executionGuard?.();
 
     const records = actions.map((action) => {
       const createdAt = nowIso();

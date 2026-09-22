@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import { exposeAgentRuntimeApi } from './preload/agent-runtime-api';
 import { exposeAuthApis } from './preload/auth-apis';
 import { exposeCalendarApi } from './preload/calendar-api';
 import { exposeComputerApis } from './preload/computer-apis';
@@ -28,6 +29,7 @@ assertContextIsolation();
 injectCSP();
 
 const safeIpc = createSafeIpc(ipcRenderer);
+exposeAgentRuntimeApi(contextBridge, safeIpc);
 
 exposeCoreApis(contextBridge, ipcRenderer, safeIpc, runtimeConfig);
 exposeComputerApis(contextBridge, safeIpc);

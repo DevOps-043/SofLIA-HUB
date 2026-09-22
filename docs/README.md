@@ -46,6 +46,7 @@ Este indice separa documentacion vigente de material historico.
 - [Project Hub unificado](architecture/project-hub-unified.md)
 - [Agentes y automatizacion](architecture/agents-and-automation.md)
 - [Manual del agente runtime](architecture/runtime-agents-manual.md)
+- [Arnés multiagente de reuniones](architecture/runtime-multiagent-harness.md)
 - [Inicio de sesión federado con SofLIA Learning (SSO) y guía de portabilidad a Project Hub](architecture/learning-sso-federated-login.md)
 - [Referencia completa del agente (consolidada)](architecture/agent-complete-reference.md)
 - [Parametros runtime](architecture/runtime-parameters.md)
