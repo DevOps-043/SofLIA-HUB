@@ -105,7 +105,7 @@ describe('recuperación coordinada de estado sync', () => {
   it.each(['confirmar', 'cancelar', 'cancelación tardía'])('controlador exige HITL, exclusión y ninguna red: %s', async mode => {
     await fixture(); const before = snapshot(); const connect = vi.fn(); const controller = new BrowserSyncController(connect);
     let release!: (value: boolean) => void;
-    const context: BrowserSyncControlContext = { enabled: true, authenticated: true, profileRoot: root, guard: vi.fn(), local: { read: vi.fn(), compareAndApply: vi.fn() }, recoveryPath: vi.fn(), confirm: vi.fn(() => new Promise(resolve => { release = resolve; })) };
+    const context: BrowserSyncControlContext = { enabled: true, authenticated: true, profileRoot: root, guard: vi.fn(), local: { read: vi.fn(), compareAndApply: vi.fn() }, recoveryPath: vi.fn(), confirm: vi.fn(() => new Promise<boolean>(resolve => { release = resolve; })) };
     const pending = controller.recoverState('recover-state', context).catch((error: Error) => error);
     await vi.waitFor(() => expect(release).toBeTypeOf('function')); await expect(controller.recoverState('recover-state', context)).rejects.toThrow('pendiente');
     if (mode === 'cancelación tardía') controller.cancel(); release(mode !== 'cancelar'); const result = await pending;
