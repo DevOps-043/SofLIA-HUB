@@ -18,6 +18,15 @@ Inventario de defaults y topes con impacto operativo. Los overrides guardados en
 
 ## Arranque
 
+El [arnés multiagente](runtime-multiagent-harness.md) define sus límites en
+[`AGENT_LIMITS`](../../src/shared/agent-runtime.ts): fuente de 80000 caracteres,
+salida de 24000 por etapa, doce herramientas por etapa, seis llamadas Gemini
+por etapa, 3000 tokens solicitados por llamada Gemini, tres minutos por análisis,
+treinta segundos por RPC, aprobación de diez minutos y veinte runs por ámbito.
+El presupuesto observado de Codex no equivale a un límite de facturación.
+
+<!-- evidence: src/shared/agent-runtime.ts -->
+
 La ventana principal se crea antes de la cadena de servicios no esenciales y se
 revela en `ready-to-show` para evitar el destello en blanco. El intro de audio
 solo suena con la ventana visible (`visibilityState`), no en modo background.

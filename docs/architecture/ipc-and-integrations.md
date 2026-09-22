@@ -8,6 +8,14 @@ Estado: vigente. Actualizado: 2026-09-11.
 
 ## Contrato IPC
 
+El namespace `agent-runtime` incorpora context, release, state, start, cancel,
+recover, publish, configure-codex, codex-key y el evento changed. Son operaciones
+cerradas de la ventana y frame principal; no existe proxy RPC, shell o filesystem.
+Contratos en [tipos compartidos](../../src/shared/agent-runtime.ts), handlers en
+[main](../../electron/agent-runtime/handlers.ts) y [guía](runtime-multiagent-harness.md).
+
+<!-- evidence: electron/agent-runtime/handlers.ts -->
+
 Tres operaciones cerradas añadidas:
 
 - `orb:browser-command`: una acción literal para cambiar pestaña o supervisar
@@ -32,7 +40,7 @@ aprobación fabricada del renderer. El servicio comprueba capacidad, política,
 perfil y control humano; el borrado pregunta en main. Responde con biblioteca
 versionada, cancelación o error saneado. No existe IPC de ejecución de atajos.
 
-La allowlist actual contiene 427 canales derivados de cinco arrays: 81, 52, 61,
+La allowlist actual contiene 437 canales derivados de cinco arrays: 81, 52, 61,
 135 y 98. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 

@@ -4,6 +4,7 @@ import { RunDetailPanel } from './meeting-ops-panel/RunDetailPanel';
 import { RunsList } from './meeting-ops-panel/RunsList';
 import type { MeetingOpsPanelProps } from './meeting-ops-panel/types';
 import { useMeetingOpsState } from './meeting-ops-panel/useMeetingOpsState';
+import { MultiAgentPanel } from './MultiAgentPanel';
 
 export function MeetingOpsPanel({ userId, organizationId, accessUserIds }: MeetingOpsPanelProps) {
   const state = useMeetingOpsState({ userId, organizationId: organizationId ?? undefined, accessUserIds });
@@ -33,6 +34,9 @@ export function MeetingOpsPanel({ userId, organizationId, accessUserIds }: Meeti
           teams={state.teams}
           visibleProjects={state.visibleProjects}
         />
+        <MultiAgentPanel key={userId + ':' + (organizationId ?? '')} userId={userId} organizationId={organizationId ?? null}
+          title={state.form.meetingTitle} source={state.form.manualText}
+          onPublished={() => { void state.loadInitialData(); }} />
         <section className="px-6 pb-6 border-t border-gray-200 dark:border-white/[0.05] pt-5">
           <RunsList
             runs={state.runs}

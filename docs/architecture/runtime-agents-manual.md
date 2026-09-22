@@ -2,6 +2,11 @@
 
 Estado: vigente. Actualizado: 2026-08-04.
 
+Meeting Ops incorpora [análisis en equipo](runtime-multiagent-harness.md):
+dos especialistas y un coordinador, proveedores Gemini/Codex y herramientas
+de lectura cerradas. Es una estrategia del agente de reuniones; no expone
+capacidades del plano de desarrollo ni concede permisos de escritura a workers.
+
 Este documento es la referencia extendida de **el agente**: qué es, cómo razona,
 qué puede hacer, qué tiene prohibido, con qué límites numéricos opera y cómo se
 extiende. El resumen normativo corto vive en
