@@ -147,9 +147,11 @@ export class BrowserSyncConflictStore {
     const scope = scopeFor(destination);
     let file;
     try {
+      const expected = await fs.lstat(destination);
+      if (!expected.isFile() || expected.isSymbolicLink() || expected.size > MAX_FILE_BYTES) throw failure();
       file = await fs.open(destination, 'r');
       const stat = await file.stat();
-      if (!stat.isFile() || stat.size > MAX_FILE_BYTES) throw failure();
+      if (!stat.isFile() || stat.ino !== expected.ino || stat.size > MAX_FILE_BYTES) throw failure();
       // Acotar también si un proceso externo hace crecer el archivo tras stat.
       const buffer = Buffer.alloc(stat.size + 1);
       let length = 0;

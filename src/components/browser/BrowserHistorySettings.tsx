@@ -89,7 +89,7 @@ export function BrowserHistorySettings({ onChanged, onClose }: { onChanged: () =
     {notice && <p role="status" className="text-xs text-secondary">{notice}</p>}
     {confirming && <BrowserConfirmDialog title="Cambiar retención del historial"
       description={selected === 'all' ? 'Se dejará de borrar por antigüedad; se conserva el límite de 50 000 visitas.' : `Se eliminarán ahora y en futuras limpiezas las visitas de más de ${selected} días.`}
-      detail={selected === 'all' ? 'Las visitas eliminadas anteriormente no se recuperarán.' : 'No se puede deshacer. El respaldo del historial antiguo se elimina completo. Marcadores, contraseñas y pestañas abiertas no se modifican.'}
+      detail={selected === 'all' ? 'Las visitas eliminadas anteriormente no se recuperarán. Se retiran las copias locales anteriores de recuperación.' : 'No se puede deshacer. El respaldo del historial antiguo y las copias locales de recuperación se eliminan completos. Marcadores, contraseñas y pestañas abiertas no se modifican.'}
       confirmLabel="Confirmar retención" busy={busy} onCancel={() => setConfirming(false)} onConfirm={() => void apply()} />}
   </section>;
 }

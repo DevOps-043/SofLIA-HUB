@@ -1,243 +1,104 @@
-// =============================================================================
-// Pulse Hub - Setup del runtime Python privado (Windows, macOS y Linux)
-// =============================================================================
-// Descarga una distribucion autonoma de CPython (python-build-standalone, del
-// proyecto Astral; PSF License, redistribuible), la extrae en python-runtime/
-// e instala las dependencias fijadas de ambos sidecars.
-//
-// Se usa python-build-standalone en las TRES plataformas: python.org dejo de
-// publicar binarios (incluido el "embeddable") para 3.12.x al entrar la rama
-// en fase security-only (las 3.12.11+ son solo codigo fuente), por lo que el
-// zip embeddable de Windows ya no existe para versiones con los ultimos CVEs.
-// Ademas estos builds incluyen pip, asi que no se necesita get-pip.py.
-//
-// El resultado (python-runtime/) se empaqueta en el instalador via
-// extraResources de electron-builder (ver electron-builder.json5).
-//
-// Idempotente: guarda un lockfile con hashes; si nada cambio, no hace nada.
-// Uso: node scripts/setup-python-runtime.js [--force]
-// =============================================================================
+// Prepara Python privado sin tocar Python del sistema ni borrar el runtime anterior.
 const fs = require('node:fs');
 const https = require('node:https');
 const path = require('node:path');
-const crypto = require('node:crypto');
+const { pipeline } = require('node:stream/promises');
+const { Transform } = require('node:stream');
 const { execFileSync } = require('node:child_process');
-
-const PYTHON_VERSION = '3.12.11';
-const STANDALONE_RELEASE = '20250612';
-// Verificacion de integridad: si se define PYTHON_RUNTIME_SHA256 se exige que
-// coincida; si no, se ancla el hash calculado en el lockfile (trust-on-first-use).
-const EXPECTED_SHA256 = (process.env.PYTHON_RUNTIME_SHA256 || '').toLowerCase();
+const {
+  PYTHON_VERSION, RELEASE, archiveSpec, sha256File, pythonExecutable,
+  runtimeEnvironment, validateRuntime, isCurrentLock, promoteRuntime,
+} = require('./python-runtime-support.cjs');
 
 const ROOT = path.resolve(__dirname, '..');
-const RUNTIME_DIR = path.join(ROOT, 'python-runtime');
-// Dos sidecars, dos listas de dependencias: voz (vosk/sounddevice) y
-// herramientas (documentos: pdfplumber/openpyxl/python-pptx/python-docx).
-const REQUIREMENTS = path.join(ROOT, 'python', 'requirements.txt');
-const TOOLS_REQUIREMENTS = path.join(ROOT, 'python', 'tools_sidecar', 'requirements.txt');
-const LOCK_FILE = path.join(RUNTIME_DIR, '.setup-lock.json');
+const RUNTIME = path.join(ROOT, 'python-runtime');
+
+async function download(url, destination, redirects = 0) {
+  if (redirects > 5 || new URL(url).protocol !== 'https:') throw new Error('Redirección Python no permitida.');
+  const response = await new Promise((resolve, reject) => {
+    const request = https.get(url, resolve);
+    request.setTimeout(60000, () => request.destroy(new Error('Descarga Python sin respuesta.')));
+    request.on('error', reject);
+  });
+  if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+    response.resume();
+    return download(new URL(response.headers.location, url).href, destination, redirects + 1);
+  }
+  if (response.statusCode !== 200) {
+    response.resume();
+    throw new Error(`Descarga Python: HTTP ${response.statusCode}.`);
+  }
+  let received = 0;
+  const quota = new Transform({ transform(chunk, _encoding, done) {
+    received += chunk.length;
+    done(received > 512 * 1024 * 1024 ? new Error('El archivo Python supera 512 MiB.') : null, chunk);
+  } });
+  await pipeline(response, quota, fs.createWriteStream(destination, { flags: 'wx' }), { signal: AbortSignal.timeout(15 * 60 * 1000) });
+}
 
 async function main() {
-  const force = process.argv.includes('--force');
-  // El hash cubre AMBAS listas: si cambian las deps de cualquier sidecar, el
-  // setup deja de considerarse valido y se reinstala.
-  const requirementsHash = sha256File(REQUIREMENTS) + sha256File(TOOLS_REQUIREMENTS);
-  const lock = readLock();
-  const compatibleLock = lock
-    && lock.pythonVersion === PYTHON_VERSION
-    && (!lock.platform || lock.platform === process.platform)
-    && (!lock.arch || lock.arch === process.arch)
-    ? lock
-    : null;
-  const pythonExe = getRuntimeExecutable();
-
-  if (!force && lock
-    && lock.pythonVersion === PYTHON_VERSION
-    && lock.platform === process.platform
-    && lock.arch === process.arch
-    && lock.requirementsSha256 === requirementsHash
-    && fs.existsSync(pythonExe)) {
-    console.log(`[PythonRuntime] Runtime ${PYTHON_VERSION} ya instalado y actualizado. Nada que hacer.`);
-    return;
-  }
-
-  console.log(`[PythonRuntime] Preparando Python embebido ${PYTHON_VERSION} en: ${RUNTIME_DIR}`);
-  // maxRetries: en Windows el borrado del arbol anterior compite con OneDrive,
-  // el indexador y el antivirus (EPERM/EBUSY transitorios).
-  if (fs.existsSync(RUNTIME_DIR)) {
-    fs.rmSync(RUNTIME_DIR, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
-  }
-  const { archiveHash, archiveUrl } = await prepareStandaloneRuntime(compatibleLock);
-
-  console.log('[PythonRuntime] Instalando dependencias de los sidecars (voz + herramientas)...');
-  execFileSync(pythonExe, ['-m', 'pip', 'install', '--no-warn-script-location',
-    'setuptools', 'wheel'], { stdio: 'inherit' });
-  execFileSync(pythonExe, ['-m', 'pip', 'install', '--no-warn-script-location',
-    '--no-build-isolation', '-r', REQUIREMENTS], { stdio: 'inherit' });
-  execFileSync(pythonExe, ['-m', 'pip', 'install', '--no-warn-script-location',
-    '-r', TOOLS_REQUIREMENTS], { stdio: 'inherit' });
-  if (process.platform === 'linux') bundleLinuxPortAudio();
-
-  // 6. Guardar lockfile para que el setup sea idempotente
-  fs.writeFileSync(LOCK_FILE, JSON.stringify({
-    pythonVersion: PYTHON_VERSION,
-    platform: process.platform,
-    arch: process.arch,
-    archiveUrl,
-    archiveSha256: archiveHash,
-    requirementsSha256: requirementsHash,
-    createdAt: new Date().toISOString(),
-  }, null, 2), 'utf8');
-
-  // Verificacion final: el runtime importa las dependencias criticas de ambos sidecars
-  execFileSync(pythonExe, ['-c',
-    'import vosk, sounddevice, pdfplumber, openpyxl, pptx, docx; '
-    + 'print("[PythonRuntime] OK: voz (vosk, sounddevice) + herramientas (pdfplumber, openpyxl, pptx, docx)")'], {
-    stdio: 'inherit',
-    env: runtimeLibraryEnv(),
-  });
-  console.log('[PythonRuntime] Runtime listo.');
-}
-
-function getRuntimeExecutable() {
-  return process.platform === 'win32'
-    ? path.join(RUNTIME_DIR, 'python.exe')
-    : path.join(RUNTIME_DIR, 'bin', 'python3');
-}
-
-async function prepareStandaloneRuntime(lock) {
-  const targets = {
-    win32: {
-      x64: 'x86_64-pc-windows-msvc',
-    },
-    darwin: {
-      x64: 'x86_64-apple-darwin',
-      arm64: 'aarch64-apple-darwin',
-    },
-    linux: {
-      x64: 'x86_64-unknown-linux-gnu',
-      arm64: 'aarch64-unknown-linux-gnu',
-    },
-  };
-  const target = targets[process.platform] && targets[process.platform][process.arch];
-  if (!target) throw new Error(`Plataforma Python no soportada: ${process.platform}/${process.arch}`);
-
-  const fileName = `cpython-${PYTHON_VERSION}+${STANDALONE_RELEASE}-${target}-install_only_stripped.tar.gz`;
-  const url = process.env.PYTHON_RUNTIME_URL
-    || `https://github.com/astral-sh/python-build-standalone/releases/download/${STANDALONE_RELEASE}/${fileName}`;
-  const archivePath = path.join(ROOT, `.python-runtime-${process.platform}-${process.arch}.tar.gz`);
-  console.log(`[PythonRuntime] Descargando distribucion autonoma: ${url}`);
-  await downloadFile(url, archivePath, 0);
-  const archiveHash = verifyArchive(archivePath, url, lock);
-
+  if (process.argv.slice(2).some(arg => arg !== '--force')) throw new Error('Uso: node scripts/setup-python-runtime.js [--force]');
+  const spec = archiveSpec(process.platform, process.arch, process.env);
+  const requirements = ['python/requirements.txt', 'python/tools_sidecar/requirements.txt'].map(file => path.join(ROOT, file));
+  const requirementsSha256 = requirements.map(sha256File).join('');
+  const tempRoot = path.join(ROOT, 'tmp');
+  fs.mkdirSync(tempRoot, { recursive: true });
+  if (fs.lstatSync(tempRoot).isSymbolicLink()) throw new Error('El directorio temporal no puede ser un enlace.');
+  const mutex = path.join(tempRoot, 'python-runtime-setup.lock');
+  let handle;
+  try { handle = fs.openSync(mutex, 'wx'); }
+  catch { throw new Error('Ya existe un bloqueo de preparación Python en tmp/python-runtime-setup.lock. Verifica que no haya otro proceso antes de retirarlo.'); }
   try {
-    // Se extrae DIRECTO sobre python-runtime/ quitando el prefijo "python/" del
-    // archivo. La version anterior extraia a un temporal y renombraba el arbol,
-    // pero en carpetas sincronizadas (OneDrive) o con antivirus activo ese
-    // rename falla con EPERM sobre miles de ficheros recien escritos.
-    fs.mkdirSync(RUNTIME_DIR, { recursive: true });
-    extractArchive(archivePath, RUNTIME_DIR, 1);
-    const exeRelative = process.platform === 'win32' ? ['python.exe'] : ['bin', 'python3'];
-    if (!fs.existsSync(path.join(RUNTIME_DIR, ...exeRelative))) {
-      throw new Error(`El archivo autonomo no contiene python/${exeRelative.join('/')}.`);
+    fs.writeFileSync(handle, JSON.stringify({ pid: process.pid, at: new Date().toISOString() }));
+    if (fs.existsSync(RUNTIME) && fs.lstatSync(RUNTIME).isSymbolicLink()) throw new Error('El runtime no puede ser un enlace.');
+    let lock;
+    try { lock = JSON.parse(fs.readFileSync(path.join(RUNTIME, '.setup-lock.json'), 'utf8')); } catch { /* Sin caché válida. */ }
+    if (!process.argv.includes('--force') && isCurrentLock(lock, spec, requirementsSha256, process.platform, process.arch)) {
+      validateRuntime(RUNTIME);
+      console.log(`[PythonRuntime] Python ${PYTHON_VERSION} y ambos sidecars verificados; sin descargas.`);
+      return;
     }
+
+    const staging = fs.mkdtempSync(path.join(tempRoot, 'python-runtime-build-'));
+    const archive = path.join(staging, 'runtime.tar.gz');
+    const staged = path.join(staging, 'python');
+    console.log(`[PythonRuntime] Preparación recuperable: ${staging}`);
+    console.log(`[PythonRuntime] Descargando Python ${PYTHON_VERSION} con SHA256 fijado.`);
+    await download(spec.url, archive);
+    if (sha256File(archive) !== spec.sha256) throw new Error('SHA256 Python no coincide; no se extrae ni ejecuta el archivo.');
+    fs.mkdirSync(staged);
+    const systemTar = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe');
+    const tar = process.platform === 'win32' && fs.existsSync(systemTar) ? systemTar : 'tar';
+    execFileSync(tar, ['-xzf', '../runtime.tar.gz', '--strip-components=1'], { cwd: staged, windowsHide: true, stdio: 'inherit', timeout: 180000 });
+    const executable = pythonExecutable(staged);
+    const options = { stdio: 'inherit', env: runtimeEnvironment(staged), windowsHide: true, timeout: 1800000 };
+    // Sin configuraciones pip del usuario, paquetes user-site ni PYTHONPATH externos.
+    execFileSync(executable, ['-I', '-m', 'pip', '--isolated', 'install', '--no-warn-script-location', 'setuptools==80.9.0', 'wheel==0.45.1'], options);
+    execFileSync(executable, ['-I', '-m', 'pip', '--isolated', 'install', '--no-warn-script-location', '--no-build-isolation', ...requirements.flatMap(file => ['-r', file])], options);
+    if (process.platform === 'linux') {
+      const output = execFileSync('ldconfig', ['-p'], { encoding: 'utf8' });
+      const match = output.match(/libportaudio\.so\.2[^\n]*=>\s*(\S+)/);
+      if (!match || !fs.existsSync(match[1])) throw new Error('Instala libportaudio2 en el runner antes de preparar Python.');
+      fs.mkdirSync(path.join(staged, 'lib'), { recursive: true });
+      fs.copyFileSync(match[1], path.join(staged, 'lib', 'libportaudio.so.2'));
+    }
+    validateRuntime(staged);
+    // El lock sólo se emite después de pip check e imports completos.
+    fs.writeFileSync(path.join(staged, '.setup-lock.json'), JSON.stringify({
+      schema: 2, pythonVersion: PYTHON_VERSION, release: RELEASE,
+      platform: process.platform, arch: process.arch, archiveUrl: spec.url,
+      archiveSha256: spec.sha256, requirementsSha256, createdAt: new Date().toISOString(),
+    }, null, 2), { flag: 'wx' });
+    const backup = promoteRuntime(staged, RUNTIME, path.join(staging, 'previous-runtime'));
+    if (backup) console.log(`[PythonRuntime] Copia anterior conservada: ${backup}`);
+    console.log(`[PythonRuntime] Runtime listo y comprobado: ${RUNTIME}`);
   } finally {
-    fs.rmSync(archivePath, { force: true });
+    fs.closeSync(handle);
+    fs.unlinkSync(mutex);
   }
-  return { archiveHash, archiveUrl: url };
 }
 
-/**
- * Extrae el tar.gz sin depender de QUE tar este primero en el PATH.
- *
- * En Windows conviven dos: el bsdtar nativo de System32 y el GNU tar que traen
- * Git Bash / MSYS2. GNU tar lee "C:\ruta" como especificacion de host remoto
- * (`host:path`) y aborta con "tar (child): Cannot connect to C: resolve failed",
- * que es exactamente lo que rompia `npm run python:setup` desde Git Bash.
- * Se ancla el bsdtar del sistema cuando existe y se pasan rutas relativas al
- * cwd, sin letra de unidad, para que ambos binarios funcionen igual.
- */
-function extractArchive(archivePath, destDir, stripComponents = 0) {
-  const relativeArchive = path.relative(destDir, archivePath).split(path.sep).join('/');
-  const args = ['-xzf', relativeArchive];
-  if (stripComponents > 0) args.push(`--strip-components=${stripComponents}`);
-  execFileSync(resolveTarBinary(), args, { cwd: destDir, stdio: 'inherit' });
-}
-
-function resolveTarBinary() {
-  if (process.platform !== 'win32') return 'tar';
-  const systemTar = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe');
-  return fs.existsSync(systemTar) ? systemTar : 'tar';
-}
-
-function verifyArchive(archivePath, url, lock) {
-  const archiveHash = sha256File(archivePath);
-  console.log(`[PythonRuntime] SHA256: ${archiveHash}`);
-  // El hash del lockfile solo sirve de ancla si proviene de la MISMA URL:
-  // al cambiar de fuente/version el hash anterior dejaria de aplicar.
-  const lockAnchor = lock && lock.archiveUrl === url ? lock.archiveSha256 : '';
-  const anchor = EXPECTED_SHA256 || lockAnchor || '';
-  if (anchor && anchor !== archiveHash) {
-    throw new Error(`SHA256 no coincide. Esperado ${anchor}, obtenido ${archiveHash}.`);
-  }
-  return archiveHash;
-}
-
-function bundleLinuxPortAudio() {
-  const output = execFileSync('ldconfig', ['-p'], { encoding: 'utf8' });
-  const match = output.match(/libportaudio\.so\.2[^\n]*=>\s*(\S+)/);
-  if (!match || !fs.existsSync(match[1])) {
-    throw new Error('No se encontro libportaudio.so.2. Instala libportaudio2 en el runner de build.');
-  }
-  const libDir = path.join(RUNTIME_DIR, 'lib');
-  fs.mkdirSync(libDir, { recursive: true });
-  fs.copyFileSync(match[1], path.join(libDir, 'libportaudio.so.2'));
-  console.log(`[PythonRuntime] PortAudio incluido desde: ${match[1]}`);
-}
-
-function runtimeLibraryEnv() {
-  if (process.platform !== 'linux') return process.env;
-  const libDir = path.join(RUNTIME_DIR, 'lib');
-  return {
-    ...process.env,
-    LD_LIBRARY_PATH: [libDir, process.env.LD_LIBRARY_PATH].filter(Boolean).join(path.delimiter),
-  };
-}
-
-function readLock() {
-  try { return JSON.parse(fs.readFileSync(LOCK_FILE, 'utf8')); } catch { return null; }
-}
-
-function sha256File(filePath) {
-  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
-}
-
-function downloadFile(url, dest, redirects) {
-  return new Promise((resolve, reject) => {
-    if (redirects > 5) return reject(new Error(`Demasiadas redirecciones para ${url}`));
-    const file = fs.createWriteStream(dest);
-    https.get(url, (res) => {
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        file.close();
-        fs.rmSync(dest, { force: true });
-        return resolve(downloadFile(res.headers.location, dest, redirects + 1));
-      }
-      if (res.statusCode !== 200) {
-        file.close();
-        fs.rmSync(dest, { force: true });
-        return reject(new Error(`HTTP ${res.statusCode} al descargar ${url}`));
-      }
-      res.pipe(file);
-      file.on('finish', () => file.close(resolve));
-    }).on('error', (err) => {
-      file.close();
-      fs.rmSync(dest, { force: true });
-      reject(err);
-    });
-  });
-}
-
-main().catch((err) => {
-  console.error(`[PythonRuntime] Error: ${err.message}`);
-  process.exit(1);
+if (require.main === module) main().catch(error => {
+  console.error(`[PythonRuntime] ${error.message}`);
+  process.exitCode = 1;
 });

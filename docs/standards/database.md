@@ -39,3 +39,6 @@ que su modelo de permisos es explicito:
 - El respaldo vive en codigo: la ausencia de filas no retira una capacidad. Solo
   `enabled = false` lo hace. La semilla se genera con `npm run skills:seed` y
   `npm run verify:pr` falla si diverge del registro en codigo.
+  La comparación normaliza únicamente CRLF a LF para admitir checkouts Windows;
+  no ignora espacios, cambios de instrucciones/herramientas ni marcas ausentes.
+  Esta comprobación no ejecuta SQL ni altera la semilla.

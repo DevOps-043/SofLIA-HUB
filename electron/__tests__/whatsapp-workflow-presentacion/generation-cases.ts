@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   WorkflowManager,
   createPresentationWorkflow,
+  DECK_GENERADO,
   mockAgent,
   mockExportHtml,
   mockGenerateContent,
@@ -30,11 +31,9 @@ function internals(workflow: PresentacionWorkflow): WorkflowInternals {
   return workflow as unknown as WorkflowInternals;
 }
 
-const HTML_GENERADO = '<!doctype html><html><head><link rel="stylesheet" href="estilos/marca.css"></head><body><section class="diapositiva">Portada</section></body></html>';
-
 /**
- * El flujo de presentaciones de WhatsApp usa el motor propio de HTML: escribe
- * los archivos en su espacio de trabajo, exporta el PDF y lo envia por el
+ * El flujo de presentaciones de WhatsApp escribe un deck declarativo válido
+ * en su espacio de trabajo, exporta el HTML con el motor propio y lo envia por el
  * mismo canal. Ya no existe ninguna llamada a un generador de terceros.
  */
 describe('PresentacionWorkflow: extraccion de datos y generacion HTML', () => {
@@ -71,12 +70,12 @@ describe('PresentacionWorkflow: extraccion de datos y generacion HTML', () => {
   it('WA-160: genera la presentacion con el motor propio y entrega el HTML', async () => {
     internals(workflow).state = 'GENERATING_PRESENTATION';
     internals(workflow).data = { clientCompanyName: 'TestCo', clientEmail: 'test@testco.com', proposalContent: 'Propuesta de prueba' };
-    mockGenerateContent.mockResolvedValue({ response: { text: () => HTML_GENERADO } });
+    mockGenerateContent.mockResolvedValue({ response: { text: () => DECK_GENERADO } });
 
     await internals(workflow).finishPresentation();
 
     expect(mockWorkspaceService.createWorkspace).toHaveBeenCalled();
-    expect(mockWriteFile).toHaveBeenCalledWith('ws-test', 'index.html', expect.stringContaining('<!doctype html'));
+    expect(mockWriteFile).toHaveBeenCalledWith('ws-test', 'deck.json', DECK_GENERADO);
     expect(mockExportHtml).toHaveBeenCalled();
     expect(mockSendFile).toHaveBeenCalledWith(expect.any(String), '/tmp/ws-test/demo.html', expect.any(String));
     expect(internals(workflow).state).toBe('COMPLETED');
@@ -85,7 +84,7 @@ describe('PresentacionWorkflow: extraccion de datos y generacion HTML', () => {
   it('WA-163: escribe la hoja de marca antes de generar y el modelo no la toca', async () => {
     internals(workflow).state = 'GENERATING_PRESENTATION';
     internals(workflow).data = { clientCompanyName: 'TestCo', clientEmail: 'test@testco.com', proposalContent: 'Propuesta' };
-    mockGenerateContent.mockResolvedValue({ response: { text: () => HTML_GENERADO } });
+    mockGenerateContent.mockResolvedValue({ response: { text: () => DECK_GENERADO } });
 
     await internals(workflow).finishPresentation();
 
@@ -99,7 +98,7 @@ describe('PresentacionWorkflow: extraccion de datos y generacion HTML', () => {
     vi.stubGlobal('fetch', fetchSpy);
     internals(workflow).state = 'GENERATING_PRESENTATION';
     internals(workflow).data = { clientCompanyName: 'TestCo', clientEmail: 'test@testco.com', proposalContent: 'Propuesta' };
-    mockGenerateContent.mockResolvedValue({ response: { text: () => HTML_GENERADO } });
+    mockGenerateContent.mockResolvedValue({ response: { text: () => DECK_GENERADO } });
 
     await internals(workflow).finishPresentation();
 
@@ -116,6 +115,30 @@ describe('PresentacionWorkflow: extraccion de datos y generacion HTML', () => {
 
     expect(mockSendFile).not.toHaveBeenCalled();
     expect(mockSendText).toHaveBeenCalledWith(expect.any(String), expect.stringContaining('No pude completar'));
+  });
+
+  it.each([
+    '<!doctype html><html><body>Presentacion antigua</body></html>',
+    '{"version":2,"slides":[]}',
+    '{"version":1,"meta":{},"slides":[]}',
+    `Texto externo\n\`\`\`json\n${DECK_GENERADO}\n\`\`\``,
+    'x'.repeat(2 * 1024 * 1024 + 1),
+  ])('rechaza salida incompatible sin escribir ni exportar (%#)', async output => {
+    internals(workflow).state = 'GENERATING_PRESENTATION';
+    mockGenerateContent.mockResolvedValue({ response: { text: () => output } });
+    await internals(workflow).finishPresentation();
+    expect(mockWriteFile).not.toHaveBeenCalled();
+    expect(mockExportHtml).not.toHaveBeenCalled();
+    expect(mockSendFile).not.toHaveBeenCalled();
+    expect(mockSendText).toHaveBeenCalledWith(expect.any(String), expect.stringContaining('deck.json valido'));
+  });
+
+  it('acepta una valla JSON completa y guarda sólo el deck validado', async () => {
+    internals(workflow).state = 'GENERATING_PRESENTATION';
+    mockGenerateContent.mockResolvedValue({ response: { text: () => `\`\`\`json\n${DECK_GENERADO}\n\`\`\`` } });
+    await internals(workflow).finishPresentation();
+    expect(mockWriteFile).toHaveBeenCalledWith('ws-test', 'deck.json', DECK_GENERADO);
+    expect(mockSendFile).toHaveBeenCalledOnce();
   });
 
   it('WA-161: permite cancelar en lenguaje natural desde AWAITING_DATA', async () => {

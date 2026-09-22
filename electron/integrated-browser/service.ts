@@ -2934,6 +2934,23 @@ export class IntegratedBrowserService extends EventEmitter {
       const ambito = isMainFrame ? 'documento' : 'marco';
       console.warn(`[Navegador][Carga] ${ambito} fallido (${errorCode} ${errorDescription}): ${describeBlockedUrl(validatedURL)}`);
     });
+    // Publicar el cierre de una pestaña permite recargarla sin reiniciar la
+    // aplicación. Este listener no puede interceptar un fallo nativo de main.
+    contents.on('render-process-gone', (_event, details) => {
+      // No dependemos de `isCurrentView()`: en algunas versiones el evento se
+      // emite cuando `webContents.isDestroyed()` ya cambió a true.
+      if (tab.view !== view) return;
+      tab.loading = false;
+      tab.error = 'La página se cerró inesperadamente. Vuelve a cargarla para continuar.';
+      this.invalidateObservation(tabId);
+      console.error(`[Navegador][Proceso] La pestaña terminó (${details.reason}, código ${details.exitCode}).`);
+      this.emitState();
+    });
+    contents.on('unresponsive', () => {
+      if (!isCurrentView()) return;
+      console.warn(`[Navegador][Proceso] La pestaña dejó de responder: ${describeBlockedUrl(tab.url)}.`);
+      this.emitState();
+    });
     contents.on('did-create-window', (window) => {
       // Respaldo para cualquier ventana permitida por Electron fuera del
       // creador controlado anterior.
@@ -3027,6 +3044,9 @@ export class IntegratedBrowserService extends EventEmitter {
     contents.on('did-stop-loading', () => {
       if (!isCurrentView()) return;
       tab.loading = false;
+      // loadURL/did-finish-load pueden terminar antes de que Chromium retire
+      // isLoadingMainFrame. Reaplicar aquí el zoom diferido por esa barrera.
+      this.configureTabZoom(tab);
       this.snapshotTab(tab);
       this.emitState();
       this.deferPassiveCapture(tab);
@@ -3937,15 +3957,22 @@ export class IntegratedBrowserService extends EventEmitter {
   private configureCertificateVerification(session: Session): void {
     if (this.certificateSessions.has(session)) return;
     const setCertificateVerifyProc = (session as Session & {
-      setCertificateVerifyProc?: (callback: (request: { verificationResult?: string }, callback: (result: number) => void) => void) => void;
+      setCertificateVerifyProc?: (callback: (request: { verificationResult?: string; hostname?: string }, callback: (result: number) => void) => void) => void;
     }).setCertificateVerifyProc;
     if (typeof setCertificateVerifyProc !== 'function') return;
     this.certificateSessions.add(session);
     setCertificateVerifyProc.call(session, (request, callback) => {
-      const valid = request?.verificationResult === 'OK';
-      if (!valid) console.warn('[Navegador][Certificado] Se rechazó un certificado no válido.');
       // -3 conserva la verificación de Chromium; 0 desactivaría Certificate Transparency.
-      callback(browserCertificateDecision(request?.verificationResult));
+      const decision = browserCertificateDecision(request?.verificationResult);
+      // El aviso se deriva de la decisión, nunca de una comparación paralela:
+      // al duplicarla, el registro anunciaba rechazos de cadenas que sí se
+      // estaban aceptando. Se nombra el host y el veredicto porque un rechazo
+      // sin rastro no deja forma de saber qué se cortó; el host no lleva ruta
+      // ni parámetros, que es donde viajan los tokens de sesión.
+      if (decision === -2) {
+        console.warn(`[Navegador][Certificado] Se rechazó un certificado no válido en ${request?.hostname || '(host desconocido)'} (${request?.verificationResult || 'sin veredicto'}).`);
+      }
+      callback(decision);
     });
   }
 

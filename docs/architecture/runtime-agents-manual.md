@@ -269,6 +269,13 @@ compositiva cerrada; el esquema evita repetir la misma firma de arquetipo y
 variante y exige variedad mínima en barajas largas. Los workspaces heredados con
 `index.html` siguen abriéndose por el motor anterior durante la migración.
 
+El flujo de propuesta de WhatsApp también solicita `deck.json`, valida cuota y
+esquema antes de escribir y sólo después exporta el HTML autocontenido. Acepta
+JSON directo o una única valla JSON que abarque toda la respuesta; HTML legado,
+versiones futuras, esquemas inválidos o texto externo se rechazan sin escribir
+el deck, exportar ni enviar un archivo. No realiza verificación visual humana
+ni convierte una respuesta inválida en HTML arbitrario ejecutable.
+
 Antes de llamar al proveedor, `presentation-source-visuals.ts` materializa en
 `assets/` una selección acotada de visuales observados: imágenes adjuntas del
 turno y contenido gráfico saneado de la página activa. Deduplica, prioriza por

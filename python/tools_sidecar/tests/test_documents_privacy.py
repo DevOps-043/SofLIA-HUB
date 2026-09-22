@@ -168,6 +168,7 @@ def test_una_tarea_larga_no_bloquea_los_demas_comandos(tmp_path):
         text=True, encoding="utf-8", cwd=SIDECAR_DIR,
     )
     respuestas: dict = {}
+    errores = []
     listo = threading.Event()
 
     def leer():
@@ -178,6 +179,8 @@ def test_una_tarea_larga_no_bloquea_los_demas_comandos(tmp_path):
                 continue
             if mensaje.get("event") == "ready":
                 listo.set()
+            elif mensaje.get("event") == "error":
+                errores.append(mensaje.get("message"))
             elif mensaje.get("id") is not None:
                 respuestas[mensaje["id"]] = (mensaje, time.monotonic())
 
@@ -202,6 +205,10 @@ def test_una_tarea_larga_no_bloquea_los_demas_comandos(tmp_path):
 
     while 1 not in respuestas and time.monotonic() < limite:
         time.sleep(0.05)
+    if 1 not in respuestas:
+        proceso.kill()
+        proceso.wait(timeout=5)
+    assert 1 in respuestas, f"la lectura del documento no respondió: {errores}"
     assert respuestas[1][0]["ok"] is True
     assert respuestas[1][0]["data"]["metadata"]["format"] == "xlsx"
 

@@ -1,8 +1,8 @@
 # Estrategia e inventario de pruebas
 
-Estado: vigente. Actualizado: 2026-09-11.
+Estado: vigente. Actualizado: 2026-09-14.
 
-El inventario del cambio contiene 473 archivos de prueba: 329 para main y 143
+El inventario del cambio contiene 485 archivos de prueba: 338 para main y 146
 para renderer, además de uno de scripts. El validador documental recalcula estas cifras; el numero de casos
 ejecutados se registra en el reporte de evidencia de cada cambio, no aqui.
 
@@ -12,6 +12,14 @@ ejecutados se registra en el reporte de evidencia de cada cambio, no aqui.
 <!-- evidence: electron/sqlite/database.ts -->
 
 ## Proyectos Vitest
+
+Instalador: fuentes/entorno aislados, PE y SHA256, política NSIS, integridad de
+BMP, pins Python, locks, promoción recuperable y hook de ambos sidecars tienen
+pruebas focalizadas. `installer:smoke:win` genera y comprueba el paquete sin
+iniciarlo; `scripts/quality/smoke-python-sidecars.mjs` prueba NDJSON real sin
+audio/modelos. Las suites bajo `python/*/tests` usan un venv de QA separado;
+pytest no se agrega al runtime distribuible. El caso XLSX concurrente verifica
+que ping y lectura responden sin bloquear la inicialización nativa en Windows.
 
 Atajos/configuración sync: biblioteca asíncrona, codec compatible, copia previa,
 guardas, flush, revisiones/IDs nuevos, pausa sin red y limpieza de copias.

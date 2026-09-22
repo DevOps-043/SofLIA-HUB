@@ -6,6 +6,12 @@ vi.mock('../../services/integrated-browser-service', () => ({ integratedBrowserS
 const status: BrowserSyncControlStatus = { enabled: true, keyAvailable: true, categories: [], lastSyncedAt: null, state: 'disabled', completed: [], initialCategories: [], conflicts: [] };
 beforeEach(() => { vi.clearAllMocks(); vi.mocked(integratedBrowserService.controlSync).mockResolvedValue({ success: true, sync: status }); });
 describe('Configuración selectiva de sync', () => {
+  it.each([['recover-state', 'Recuperar checkpoints y conflictos', 'Seguimiento recuperado'], ['rollback-state', 'Revertir recuperación incompleta', 'Archivos anteriores restaurados']])('ofrece %s con el estado ilegible sin aprobar desde renderer', async (action, label, notice) => {
+    vi.mocked(integratedBrowserService.controlSync).mockResolvedValueOnce({ success: false, error: 'Estado ilegible' });
+    render(<BrowserSyncControls />); await screen.findByText('Estado ilegible');
+    fireEvent.click(screen.getByText(label)); expect(integratedBrowserService.controlSync).toHaveBeenLastCalledWith({ action });
+    expect(await screen.findByText(new RegExp(notice))).toBeInTheDocument();
+  });
   it.each(['confirmar', 'cancelar', 'fallar'] as const)('ofrece recuperar configuración aunque no pueda cargarla: %s', async mode => {
     vi.mocked(integratedBrowserService.controlSync).mockResolvedValueOnce({ success: false, error: 'Configuración dañada' });
     render(<BrowserSyncControls />); await screen.findByText('Configuración dañada');

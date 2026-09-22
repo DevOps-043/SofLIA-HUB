@@ -124,6 +124,7 @@ jobs:
         with:
           name: windows-artifacts
           path: |
+            release/${{ needs.check.outputs.version }}/Pulse-Hub-Windows-${{ needs.check.outputs.version }}-Install.exe
             release/${{ needs.check.outputs.version }}/Pulse-Hub-Windows-${{ needs.check.outputs.version }}-Setup.exe
             release/${{ needs.check.outputs.version }}/Pulse-Hub-Windows-${{ needs.check.outputs.version }}-Setup.exe.blockmap
             release/${{ needs.check.outputs.version }}/latest.yml

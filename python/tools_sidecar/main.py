@@ -152,6 +152,14 @@ def _report_worker_crash(future) -> None:
 
 
 def main() -> None:
+    # En CPython standalone Windows, la primera carga nativa de NumPy desde
+    # un worker puede quedar bloqueada. Openpyxl lo importa indirectamente.
+    # Inicializar antes de aceptar comandos mantiene el parseo en los workers.
+    if sys.platform == "win32":
+        try:
+            import numpy  # noqa: F401
+        except ImportError:
+            pass  # Es opcional para openpyxl; cada comando conserva su error.
     emit({"event": "ready", "protocol": PROTOCOL_VERSION, "service": SERVICE_NAME})
     # readline() explicito: iterar `for line in sys.stdin` usa un buffer de
     # lectura anticipada que puede retener lineas hasta llenarlo.

@@ -6,13 +6,14 @@ import type { SkillWorkspaceService } from '../skill-workspace/service';
 import { PRESENTACIONES_SKILL } from '../../src/shared/skills/presentaciones-skill';
 import { PRESENTACIONES_SKILL_PROMPT } from '../../src/prompts/skills/presentaciones';
 import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
+import { parsePresentationDeck } from '../../src/shared/presentations/deck-schema';
 import type { WhatsAppAgent } from '../whatsapp-agent';
 
 /**
- * Generacion de una presentacion HTML para superficies SIN panel, como
+ * Generacion de un deck declarativo para superficies SIN panel, como
  * WhatsApp. Comparte prompt, politica de workspace y hoja de marca con la
  * Skill del chat; lo que cambia es la entrega: aqui no hay vista previa, asi
- * que el resultado se exporta a PDF y se envia como archivo.
+ * que el resultado se exporta a HTML y se envia como archivo.
  *
  * A diferencia del chat, no hay bucle de herramientas: el modelo devuelve el
  * documento completo en una llamada y main lo escribe. En un canal donde el
@@ -52,10 +53,10 @@ export async function generatePresentationForWhatsApp(input: {
   const brandingNotice = await prepareBranding(input.workspaceService, workspaceId);
 
   await input.onProgress?.('Escribiendo las diapositivas...');
-  const html = await generateHtml(input.agent, input.title, input.contenido);
-  if (!html) return { ok: false, error: 'El modelo no devolvio un documento valido.' };
+  const deck = await generateDeck(input.agent, input.title, input.contenido, policy.maxFileBytes);
+  if (!deck) return { ok: false, error: 'El modelo no devolvio un deck.json valido.' };
 
-  const written = await input.workspaceService.writeFile(workspaceId, policy.entryFile, html);
+  const written = await input.workspaceService.writeFile(workspaceId, policy.entryFile, deck);
   if (!written.ok) return { ok: false, error: written.error };
 
   await input.onProgress?.('Empaquetando la presentacion...');
@@ -84,12 +85,12 @@ async function prepareBranding(service: SkillWorkspaceService, workspaceId: stri
  * Pide el documento completo al modelo. Se reutiliza el contrato de salida de
  * la Skill para que la presentacion de WhatsApp sea la misma que la del chat.
  */
-async function generateHtml(agent: WhatsAppAgent, titulo: string, contenido: string): Promise<string | null> {
+async function generateDeck(agent: WhatsAppAgent, titulo: string, contenido: string, maxBytes: number): Promise<string | null> {
   const model = agent.getGenAI().getGenerativeModel({ model: SOFLIA_RUNTIME_MODEL });
   const prompt = [
     PRESENTACIONES_SKILL_PROMPT,
     '',
-    'Estas en WhatsApp: no hay panel ni herramientas de archivo. Devuelve UNICAMENTE el contenido completo de index.html, sin explicaciones, sin texto antes o despues y sin vallas de codigo. Incrusta los estilos propios en una etiqueta <style> del propio documento, pero enlaza igualmente estilos/marca.css antes de ellos.',
+    'Estas en WhatsApp: no hay panel ni herramientas de archivo. Devuelve UNICAMENTE el JSON completo de deck.json version 1, sin explicaciones, sin texto antes o despues y sin vallas de codigo. Usa el contrato declarativo de la Skill. No devuelvas HTML, CSS ni JavaScript. El reproductor aplica los estilos de marca y exporta el HTML. No declares assets que no existen en el espacio de trabajo.',
     '',
     `Titulo de la presentacion: ${titulo}`,
     '',
@@ -98,21 +99,21 @@ async function generateHtml(agent: WhatsAppAgent, titulo: string, contenido: str
   ].join('\n');
 
   const text = (await model.generateContent(prompt)).response.text();
-  return extractHtml(text);
+  return extractDeck(text, maxBytes);
 }
 
 /**
  * El modelo a veces envuelve la respuesta en vallas de codigo pese a la
- * instruccion. Se extrae el documento y se descarta lo que no lo sea.
+ * instruccion. Sólo se admite una valla JSON que contenga toda la respuesta,
+ * con cuota y esquema validado antes de cualquier escritura o exportacion.
  */
-function extractHtml(raw: string): string | null {
+function extractDeck(raw: string, maxBytes: number): string | null {
   const text = String(raw ?? '').trim();
-  if (!text) return null;
-
-  const fenced = text.match(/```(?:html)?\s*([\s\S]*?)```/i);
+  if (!text || Buffer.byteLength(text, 'utf8') > maxBytes) return null;
+  const fenced = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
   const candidate = (fenced?.[1] ?? text).trim();
-
-  const start = candidate.search(/<!doctype html|<html[\s>]/i);
-  if (start === -1) return null;
-  return candidate.slice(start);
+  try {
+    const output = JSON.stringify(parsePresentationDeck(JSON.parse(candidate)));
+    return Buffer.byteLength(output, 'utf8') <= maxBytes ? output : null;
+  } catch { return null; }
 }

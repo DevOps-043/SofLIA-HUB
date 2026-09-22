@@ -187,7 +187,9 @@ export class IntegratedBrowserPermissionGovernance {
       return this.denyCheck((scope ?? origin) || '(sin origen)', permission, 'contenido ajeno al navegador');
     }
     if (AUTO_GRANTED_PERMISSIONS.has(permission)) return true;
-    if (!kinds.length) return this.denyCheck(origin, permission, 'permiso no reconocido');
+    // Mismo respaldo que las demás negativas: Chromium consulta con el origen
+    // vacío desde algunos marcos y el registro quedaba sin decir de quién era.
+    if (!kinds.length) return this.denyCheck((scope ?? origin) || '(sin origen)', permission, 'permiso no reconocido');
     // Chromium consulta con el origen vacio desde algunos marcos. Sin este
     // respaldo el almacen no encontraba el origen y devolvia "denegado", que
     // el sitio lee igual que una negativa del usuario.

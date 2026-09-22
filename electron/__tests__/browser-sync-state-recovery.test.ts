@@ -105,7 +105,7 @@ describe('recuperación coordinada de estado sync', () => {
   it.each(['confirmar', 'cancelar', 'cancelación tardía'])('controlador exige HITL, exclusión y ninguna red: %s', async mode => {
     await fixture(); const before = snapshot(); const connect = vi.fn(); const controller = new BrowserSyncController(connect);
     let release!: (value: boolean) => void;
-    const context: BrowserSyncControlContext = { enabled: true, authenticated: true, profileRoot: root, guard: vi.fn(), local: { read: vi.fn(), compareAndApply: vi.fn() }, recoveryPath: vi.fn(), confirm: vi.fn(() => new Promise(resolve => { release = resolve; })) };
+    const context: BrowserSyncControlContext = { enabled: true, authenticated: true, profileRoot: root, guard: vi.fn(), local: { read: vi.fn(), compareAndApply: vi.fn() }, recoveryPath: vi.fn(), confirm: vi.fn(() => new Promise<boolean>(resolve => { release = resolve; })) };
     const pending = controller.recoverState('recover-state', context).catch((error: Error) => error);
     await vi.waitFor(() => expect(release).toBeTypeOf('function')); await expect(controller.recoverState('recover-state', context)).rejects.toThrow('pendiente');
     if (mode === 'cancelación tardía') controller.cancel(); release(mode !== 'cancelar'); const result = await pending;
@@ -115,5 +115,25 @@ describe('recuperación coordinada de estado sync', () => {
   });
   it('rechaza parámetros que intentan autorizar, elegir archivos o falsificar acciones', () => {
     for (const raw of [{ action: 'recover-state', approved: true }, { action: 'rollback-state', path: 'archivo' }, { action: ['recover-state'] }]) expect(() => validateSyncControlRequest(raw)).toThrow();
+  });
+  it('una escritura normal de checkpoint no encubre versión futura ni corrupción', async () => {
+    const f = await fixture(); const raw = { version: 1 as const, ...binding, categories: {} };
+    await expect(f.checkpoints.write(raw, guard)).rejects.toThrow(); expect(fs.readFileSync(path.join(root, names[1]), 'utf8')).toBe('checkpoint dañado');
+    const future = JSON.stringify({ version: 2, protectedData: 'AA==' }); fs.writeFileSync(path.join(root, names[1]), future);
+    await expect(f.checkpoints.write(raw, guard)).rejects.toThrow(); expect(fs.readFileSync(path.join(root, names[1]), 'utf8')).toBe(future);
+  });
+  it('marcador pendiente bloquea nuevas operaciones antes de abrir diálogos o conectar', async () => {
+    await fixture(); fs.writeFileSync(syncRecoveryMarker(root), 'marcador ilegible');
+    const connect = vi.fn(); const controller = new BrowserSyncController(connect);
+    const context: BrowserSyncControlContext = { enabled: true, authenticated: true, profileRoot: root, guard, local: { read: vi.fn(), compareAndApply: vi.fn() }, recoveryPath: vi.fn(), confirm: vi.fn() };
+    await expect(controller.configure(['settings'], context)).rejects.toThrow(); await expect(controller.keys('export', context)).rejects.toThrow();
+    expect(context.confirm).not.toHaveBeenCalled(); expect(context.recoveryPath).not.toHaveBeenCalled(); expect(connect).not.toHaveBeenCalled();
+  });
+  it('revertir devuelve ausencia original de checkpoint sin borrar otro archivo', async () => {
+    await fixture(false); fs.unlinkSync(path.join(root, names[1])); const before = snapshot(); const rename = fs.renameSync;
+    const unrelated = path.join(root, 'otro.json'); fs.writeFileSync(unrelated, 'conservar');
+    vi.spyOn(fs, 'renameSync').mockImplementation((source, destination) => { if (String(destination) === path.join(root, names[2])) throw new Error('disco'); rename(source, destination); });
+    expect(() => prepareSyncStateRecovery(root, 'recover-state', guard).commit()).toThrow(); vi.restoreAllMocks();
+    prepareSyncStateRecovery(root, 'rollback-state', guard).commit(); expect(snapshot()).toEqual(before); expect(fs.readFileSync(unrelated, 'utf8')).toBe('conservar');
   });
 });

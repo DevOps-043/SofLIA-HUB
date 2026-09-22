@@ -4,6 +4,21 @@ Administra perfiles, marcadores, historial e identidad de forma aislada, portabl
 
 ## ADDED Requirements
 
+### Requirement: Recuperación local de historial y bitácora
+Historial y bitácora SHALL conservar copias SQLite consistentes protegidas por el SO y ligadas al archivo. Su recuperación MUST exigir confirmación nativa, perfil/sesión/control vigentes y respaldo compatible; MUST NOT sustituir bases sanas, futuras, ajenas o con transacciones pendientes.
+
+#### Scenario: Recuperar una base dañada
+- **WHEN** el titular confirma una revisión no caducada y los archivos revisados no han cambiado
+- **THEN** se conserva el original dañado protegido, se aplica de nuevo la retención vigente y se publica una base validada; el historial reconstruye FTS sin reimportar el legado
+
+#### Scenario: Borrado o reducción de retención
+- **WHEN** se eliminan visitas o eventos, o se aplica una retención menor
+- **THEN** se retiran las copias antiguas antes de borrar filas, y una recuperación posterior no repone las entradas retiradas
+
+#### Scenario: Respaldo no disponible
+- **WHEN** falla generar la copia después de guardar correctamente datos
+- **THEN** se advierte del fallo de respaldo sin presentar el guardado como fallido ni prometer recuperación sin una copia válida
+
 ### Requirement: Recuperación conservadora de memoria derivada
 La memoria semántica SHALL conservar un respaldo SQLite vacío protegido por el SO y ligado al archivo del perfil antes de modificar una instantánea válida. MUST NOT recuperar fuentes, vectores ni consentimiento antiguos.
 

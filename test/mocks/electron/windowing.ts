@@ -149,6 +149,8 @@ class MockWebContents extends EventEmitter {
   printToPDF = vi.fn(async () => Buffer.from('pdf'));
   downloadURL = vi.fn();
   isDestroyed = vi.fn(() => this.destroyed);
+  isCrashed = vi.fn(() => false);
+  isLoadingMainFrame = vi.fn(() => false);
   close = vi.fn(() => { this.destroyed = true; });
   capturePage = vi.fn(async () => new MockNativeImage());
   sendInputEvent = vi.fn();
