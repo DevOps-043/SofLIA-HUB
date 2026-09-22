@@ -6,7 +6,7 @@ vi.mock('../../config', () => ({
   OPENAI_API_KEY: 'test-openai-key',
   OPENAI_VECTOR_STORE_IDS: [],
   MODELS: { PRIMARY: 'gemini-3.8-flash', FALLBACK: 'gemini-3.8-flash', PRO: 'gemini-3.8-flash' },
-  OPENAI_MODELS: { COMPUTER_USE: 'gpt-5.6-terra', COMMANDS: 'gpt-5.6-luna' },
+  OPENAI_MODELS: { COMPUTER_USE: 'gpt-6-sol', COMMANDS: 'gpt-6-luna' },
   isOpenAIConfigured: () => estado.openaiConfigurado,
 }));
 
@@ -21,12 +21,12 @@ describe('Ruteo de modelos', () => {
 
   it('MR-001: Computer Use conserva el orquestador seleccionado y delega el actuador en main', () => {
     const routed = resolveRoutedModel({
-      options: { model: 'gpt-5.6-terra', thinking: { id: 'high', level: 'high' } },
+      options: { model: 'gpt-6-sol', thinking: { id: 'high', level: 'high' } },
       isComputerActionTurn: true,
       isCommandTurn: true,
     });
 
-    expect(routed).toEqual({ modelId: 'gpt-5.6-terra', consumesSofliaMaxQuota: true });
+    expect(routed).toEqual({ modelId: 'gpt-6-sol', consumesSofliaMaxQuota: true });
   });
 
   it('MR-002: los comandos sin Computer Use respetan el modelo seleccionado', () => {
@@ -61,12 +61,12 @@ describe('Ruteo de modelos', () => {
 
   it('MR-005: elegir SofLIA Max manualmente consume cuota', () => {
     const routed = resolveRoutedModel({
-      options: { model: 'gpt-5.6-terra', userId: 'user-1' },
+      options: { model: 'gpt-6-sol', userId: 'user-1' },
       isComputerActionTurn: false,
       isCommandTurn: false,
     });
 
-    expect(routed.modelId).toBe('gpt-5.6-terra');
+    expect(routed.modelId).toBe('gpt-6-sol');
     expect(routed.consumesSofliaMaxQuota).toBe(true);
   });
 
@@ -76,12 +76,12 @@ describe('Ruteo de modelos', () => {
     consumeSofliaMaxUse('user-1');
 
     const routed = resolveRoutedModel({
-      options: { model: 'gpt-5.6-terra', userId: 'user-1' },
+      options: { model: 'gpt-6-sol', userId: 'user-1' },
       isComputerActionTurn: false,
       isCommandTurn: false,
     });
 
-    expect(routed.modelId).toBe('gpt-5.6-luna');
+    expect(routed.modelId).toBe('gpt-6-luna');
     expect(routed.quotaExhausted).toBe(true);
   });
 
@@ -89,12 +89,12 @@ describe('Ruteo de modelos', () => {
     estado.openaiConfigurado = false;
 
     const routed = resolveRoutedModel({
-      options: { model: 'gpt-5.6-luna', task: 'orb' },
+      options: { model: 'gpt-6-luna', task: 'orb' },
       isComputerActionTurn: false,
       isCommandTurn: false,
     });
 
-    expect(routed.modelId).toBe('gpt-5.6-luna');
+    expect(routed.modelId).toBe('gpt-6-luna');
   });
 
   it('MR-008: sin modelo elegido cae al primario', () => {

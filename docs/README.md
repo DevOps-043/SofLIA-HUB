@@ -65,6 +65,7 @@ Este indice separa documentacion vigente de material historico.
 - [Conversaciones no disponibles después del login](operations/troubleshooting/password-change-login.md)
 - [Estrategia e inventario de pruebas](quality/test-strategy-and-inventory.md)
 - [Fuentes del Arnes y Antigravity](references/harness-sources.md)
+- [Investigación del repositorio Codex para SofLIA Hub](reports/codex-repository-research-2026-09-21.md)
 
 ## Historico
 

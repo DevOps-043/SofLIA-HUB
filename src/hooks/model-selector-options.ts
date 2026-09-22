@@ -1,4 +1,4 @@
-import { SOFLIA_LITE_MODEL, SOFLIA_RUNTIME_MODEL } from '../shared/soflia-runtime-model';
+import { SOFLIA_RUNTIME_MODEL } from '../shared/soflia-runtime-model';
 
 export interface ThinkingOption {
   id: string;
@@ -32,7 +32,7 @@ const THINKING_OPTIONS_GEMINI3_FLASH: ThinkingOption[] = [
 
 // El producto no expone un modo sin razonamiento. `xhigh` y `max` son
 // exclusivos de la familia OpenAI.
-const THINKING_OPTIONS_GPT56: ThinkingOption[] = [
+const THINKING_OPTIONS_GPT6: ThinkingOption[] = [
   { id: 'low', name: 'Bajo', desc: 'Razonamiento ligero', level: 'low' },
   { id: 'medium', name: 'Medio', desc: 'Razonamiento balanceado', level: 'medium' },
   { id: 'high', name: 'Alto', desc: 'Razonamiento profundo', level: 'high' },
@@ -41,7 +41,7 @@ const THINKING_OPTIONS_GPT56: ThinkingOption[] = [
 ];
 
 /** Modelo por defecto del chat. */
-export const DEFAULT_MODEL_ID = SOFLIA_RUNTIME_MODEL;
+export const DEFAULT_MODEL_ID = 'gpt-6-luna';
 
 export const MODEL_OPTIONS: ModelOption[] = [
   {
@@ -49,13 +49,13 @@ export const MODEL_OPTIONS: ModelOption[] = [
     name: 'SofLIA',
     desc: 'Equilibrio ideal para el dia a dia.',
     icon: 'spark',
-    provider: 'google',
+    provider: 'openai',
     thinkingType: 'level',
     defaultThinkingId: 'medium',
-    thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH,
+    thinkingOptions: THINKING_OPTIONS_GPT6,
   },
   {
-    id: 'gpt-5.6-terra',
+    id: 'gpt-6-sol',
     name: 'SofLIA Max',
     desc: 'Maxima potencia para tareas exigentes.',
     icon: 'globe',
@@ -63,26 +63,16 @@ export const MODEL_OPTIONS: ModelOption[] = [
     badge: '3/mes',
     thinkingType: 'level',
     defaultThinkingId: 'medium',
-    thinkingOptions: THINKING_OPTIONS_GPT56,
+    thinkingOptions: THINKING_OPTIONS_GPT6,
   },
   {
-    id: 'gpt-5.6-luna',
+    id: SOFLIA_RUNTIME_MODEL,
     name: 'SofLIA Pro',
     desc: 'Capaz para comandos y acciones.',
-    icon: 'moon',
-    provider: 'openai',
-    thinkingType: 'level',
-    defaultThinkingId: 'medium',
-    thinkingOptions: THINKING_OPTIONS_GPT56,
-  },
-  {
-    id: SOFLIA_LITE_MODEL,
-    name: 'SofLIA Lite',
-    desc: 'Ultra ligero para tareas simples.',
-    icon: 'feather',
+    icon: 'nodes',
     provider: 'google',
     thinkingType: 'level',
-    defaultThinkingId: 'low',
+    defaultThinkingId: 'medium',
     thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH,
   },
 ];

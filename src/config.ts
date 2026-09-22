@@ -58,14 +58,15 @@ export const MODELS = {
   MAPS: SOFLIA_RUNTIME_MODEL,
 };
 
-// Familia GPT-5.6 de OpenAI. Terra corresponde a SofLIA Max y conserva la clave
-// histórica `COMPUTER_USE` por compatibilidad, aunque el actuador Computer Use
-// usa exclusivamente Gemini 3.8 Flash. Luna corresponde a SofLIA Pro. El
-// proveedor efectivo se decide por el modelo seleccionado; la llave puede
-// provenir de la configuración guardada del usuario o del entorno.
+// Familia GPT-6 de OpenAI. Sol corresponde a SofLIA Max y conserva la clave
+// histórica `COMPUTER_USE` por compatibilidad de cuota mensual, aunque el
+// actuador Computer Use usa exclusivamente Gemini 3.8 Flash. Luna corresponde a
+// SofLIA (predeterminado). El proveedor efectivo se decide por el modelo
+// seleccionado; la llave puede provenir de la configuración guardada del usuario
+// o del entorno.
 export const OPENAI_MODELS = {
-  COMPUTER_USE: 'gpt-5.6-terra',
-  COMMANDS: 'gpt-5.6-luna',
+  COMPUTER_USE: 'gpt-6-sol',
+  COMMANDS: 'gpt-6-luna',
 };
 
 /**
