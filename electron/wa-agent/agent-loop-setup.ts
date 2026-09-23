@@ -6,6 +6,8 @@ import { buildWhatsAppToolDeclarations } from './tool-declarations';
 import { isModelAvailabilityError } from './agent-errors';
 import { classifyEvidenceRequirement, detectActionRequest } from '../whatsapp-prompts';
 import type { AgentLoopRequest, AgentLoopState } from './agent-loop-types';
+import { prepareWhatsAppTeam, TEAM_COORDINATOR_INSTRUCTION } from './agent-team';
+import { assertTeamActive } from '../../src/shared/agent-teams/runner';
 
 export async function createAgentLoopState(request: AgentLoopRequest): Promise<AgentLoopState | string> {
   if (!String(request.agent.apiKey || '').trim()) {
@@ -26,7 +28,7 @@ export async function createAgentLoopState(request: AgentLoopRequest): Promise<A
   if (promptContext.sensitiveBlockResponse) return promptContext.sensitiveBlockResponse;
 
   const evidenceRequirement = classifyEvidenceRequirement(request.userMessage);
-  const systemPrompt = appendEvidenceDirective(promptContext.systemPrompt, evidenceRequirement);
+  let systemPrompt = appendEvidenceDirective(promptContext.systemPrompt, evidenceRequirement);
   const tools = [await buildWhatsAppToolDeclarations({
     isGroup: request.isGroup,
     senderNumber: request.senderNumber,
@@ -39,8 +41,12 @@ export async function createAgentLoopState(request: AgentLoopRequest): Promise<A
     userMessage: request.userMessage,
     loadPersistedHistory: () => request.agent.memory.getConversationHistory(promptContext.sessionKey, 30),
   });
+  const teamContext = await prepareWhatsAppTeam(request);
+  assertTeamActive(request.options.signal);
+  if (teamContext) systemPrompt += `\n\n${TEAM_COORDINATOR_INSTRUCTION}`;
   const modelConversation = await createModelConversation({
     request,
+    teamContext,
     systemPrompt,
     tools,
     historyCopy,
@@ -62,6 +68,7 @@ export async function createAgentLoopState(request: AgentLoopRequest): Promise<A
 }
 
 async function createModelConversation(input: {
+  teamContext: string;
   request: AgentLoopRequest;
   systemPrompt: string;
   tools: any[];
@@ -89,7 +96,7 @@ async function createModelConversation(input: {
         history,
       });
       const chatSession = startChatSafely(createSession, input.historyCopy, input.request.conversations, input.sessionKey);
-      const initial = await sendInitialMessage(createSession, chatSession, input.request, input.request.conversations, input.sessionKey);
+      const initial = await sendInitialMessage(createSession, chatSession, input.request, input.request.conversations, input.sessionKey, input.teamContext);
       if (modelName !== WA_MODEL) {
         console.warn(`[WhatsApp Agent] Using Gemini fallback model "${modelName}" for WhatsApp.`);
       }
@@ -126,11 +133,12 @@ async function sendInitialMessage(
   request: AgentLoopRequest,
   conversations: Map<string, any[]>,
   sessionKey: string,
+  teamContext: string,
 ) {
   const prefix = request.inlineMediaParts.length === 0 && detectActionRequest(request.userMessage)
     ? '[INSTRUCCION DEL SISTEMA: El usuario solicita una ACCION NUEVA. DEBES usar herramientas para ejecutarla AHORA.]\n\n'
     : '';
-  const effectiveMessage = prefix + request.userMessage;
+  const effectiveMessage = prefix + request.userMessage + (teamContext ? `\n\n${teamContext}` : '');
   const message = request.inlineMediaParts.length > 0
     ? [...request.inlineMediaParts, { text: effectiveMessage }]
     : effectiveMessage;

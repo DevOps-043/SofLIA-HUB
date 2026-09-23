@@ -18,6 +18,7 @@ const groundingMocks = vi.hoisted(() => ({
 }));
 
 const providerMocks = vi.hoisted(() => ({
+  workerCall: vi.fn(),
   sendOpenAIMessageStream: vi.fn(async () => ({
     stream: (async function* () { yield 'respuesta OpenAI'; })(),
     sources: Promise.resolve(null),
@@ -25,6 +26,7 @@ const providerMocks = vi.hoisted(() => ({
     generatedImages: [],
   })),
 }));
+vi.mock('../../services/openai-chat/client', () => ({ getOpenAI: async () => ({ responses: { create: providerMocks.workerCall } }) }));
 
 vi.mock('../../services/openai-chat', () => ({
   sendOpenAIMessageStream: providerMocks.sendOpenAIMessageStream,
@@ -76,6 +78,16 @@ function installVisibleBrowserObservation(options?: { observation?: BrowserObser
 }
 
 describe('gemini-chat: prioridad accion vs grounding web', () => {
+  it('reserva una sola cuota Max al iniciar workers aunque el usuario cancele antes del coordinador', async () => {
+    const controller = new AbortController();
+    providerMocks.workerCall.mockImplementation(async () => { controller.abort(); throw new DOMException('Cancelado', 'AbortError'); });
+    const { resetSofliaMaxQuota, readSofliaMaxQuota, SOFLIA_MAX_MODEL_ID } = await import('../../services/model-quota');
+    resetSofliaMaxQuota('equipo-prueba');
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+    await sendMessageStream('Crea un informe', [], { model: SOFLIA_MAX_MODEL_ID, userId: 'equipo-prueba', signal: controller.signal });
+    expect(readSofliaMaxQuota('equipo-prueba').usos).toBe(1);
+    expect(providerMocks.sendOpenAIMessageStream).not.toHaveBeenCalled();
+  });
   it('los extractos elegidos no activan lectura de otra pestaña ni investigación implícita', async () => {
     const browser = installVisibleBrowserObservation();
     mockChatsCreate.mockReturnValue(createMockChat('Comparación [P1:F1]'));

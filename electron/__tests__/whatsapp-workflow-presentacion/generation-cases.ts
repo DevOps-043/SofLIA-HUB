@@ -48,6 +48,31 @@ describe('PresentacionWorkflow: extraccion de datos y generacion HTML', () => {
     vi.useRealTimers();
   });
 
+  it('modo directo recibido durante el flujo omite especialistas al generar el deck', async () => {
+    await workflow.handleInput('modo directo:');
+    Object.assign(internals(workflow).data, { clientCompanyName: 'TestCo', proposalContent: 'Datos' });
+    mockGenerateContent.mockResolvedValue({ response: { text: () => DECK_GENERADO } });
+    await internals(workflow).finishPresentation();
+    expect(mockGenerateContent).toHaveBeenCalledTimes(1);
+    expect(mockSendFile).toHaveBeenCalledOnce();
+  });
+
+  it('cancelar durante los especialistas impide escribir el deck y enviar el archivo', async () => {
+    let finish!: (value: { response: { text: () => string } }) => void;
+    const pending = new Promise<{ response: { text: () => string } }>(resolve => { finish = resolve; });
+    let workersStarted!: () => void;
+    const started = new Promise<void>(resolve => { workersStarted = resolve; });
+    mockGenerateContent.mockImplementation(() => { workersStarted(); return pending; });
+    const generation = internals(workflow).finishPresentation();
+    await started;
+    await workflow.handleInput('cancelar');
+    await expect(generation).rejects.toMatchObject({ name: 'AbortError' });
+    finish({ response: { text: () => DECK_GENERADO } });
+    await Promise.resolve(); await Promise.resolve();
+    expect(mockWriteFile).not.toHaveBeenCalled();
+    expect(mockSendFile).not.toHaveBeenCalled();
+  });
+
   it('WA-157: extractData lee el nombre de la empresa con Gemini', async () => {
     mockGenerateContent.mockResolvedValue({ response: { text: () => '{"company": "DevOps Corp", "email": null}' } });
     await internals(workflow).extractData('La empresa es DevOps Corp');

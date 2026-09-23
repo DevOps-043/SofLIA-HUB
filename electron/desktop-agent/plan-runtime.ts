@@ -2,12 +2,15 @@ import type { GoogleGenerativeAI } from '@google/generative-ai';
 import type { DesktopAgentConfig, StrategicPlan, TaskPlan } from '../desktop-agent-types';
 import { parseVisionResponse } from './parsers';
 import { buildFlatPlanPrompt, buildStrategicPlanPrompt } from './planning-prompts';
+import { selectTeam, TEAM_COORDINATOR_INSTRUCTION } from '../../src/shared/agent-teams/policy';
+import { assertTeamActive, runAgentTeam } from '../../src/shared/agent-teams/runner';
 interface CreateDesktopTaskPlanInput {
   ai: GoogleGenerativeAI;
   config: DesktopAgentConfig;
   task: string;
   screenshotBase64: string;
   contextoEntorno?: string;
+  signal?: AbortSignal;
 }
 type ParsedPhase = {
   name?: string;
@@ -35,7 +38,22 @@ export async function createDesktopTaskPlan(input: CreateDesktopTaskPlanInput): 
   taskPlan: TaskPlan;
   strategicPlan: StrategicPlan | null;
 }> {
-  const { ai, config, task, screenshotBase64 } = input;
+  const { ai, config, screenshotBase64 } = input;
+  assertTeamActive(input.signal);
+  const task = input.task;
+  let planningTask = task;
+  const teamPlan = selectTeam({ task, surface: 'computer' });
+  if (teamPlan) {
+    const team = await runAgentTeam({
+      plan: teamPlan, surface: 'computer', source: input.contextoEntorno, signal: input.signal,
+      generate: async worker => {
+        const model = ai.getGenerativeModel({ model: config.model, systemInstruction: worker.instruction, generationConfig: { maxOutputTokens: worker.maxOutputTokens } });
+        return (await model.generateContent(worker.input, { signal: worker.signal })).response.text();
+      },
+      onEvent: event => console.info('[Equipo planificación]', JSON.stringify(event)),
+    });
+    if (team.context) planningTask += `\n\n${TEAM_COORDINATOR_INSTRUCTION}\n${team.context}`;
+  }
   const promptOptions = {
     contextoEntorno: input.contextoEntorno,
     deterministaPrimero: config.deterministicFirstEnabled,
@@ -46,8 +64,9 @@ export async function createDesktopTaskPlan(input: CreateDesktopTaskPlanInput): 
       const proModel = ai.getGenerativeModel({ model: config.proactiveModel });
       const result = await proModel.generateContent([
         { inlineData: { mimeType: 'image/png', data: screenshotBase64 } },
-        { text: buildStrategicPlanPrompt(task, promptOptions) },
-      ]);
+        { text: buildStrategicPlanPrompt(planningTask, promptOptions) },
+      ], { signal: input.signal });
+      assertTeamActive(input.signal);
       const parsed = parseVisionResponse(result.response.text()) as ParsedPlan;
 
       if (parsed.phases && parsed.phases.length > 0) {
@@ -82,6 +101,7 @@ export async function createDesktopTaskPlan(input: CreateDesktopTaskPlanInput): 
         };
       }
     } catch (error: unknown) {
+      assertTeamActive(input.signal);
       const message = error instanceof Error ? error.message : String(error);
       console.warn(`[DesktopAgent] Hierarchical planning failed, falling back to flat: ${message}`);
     }
@@ -91,8 +111,9 @@ export async function createDesktopTaskPlan(input: CreateDesktopTaskPlanInput): 
   try {
     const result = await model.generateContent([
       { inlineData: { mimeType: 'image/png', data: screenshotBase64 } },
-      { text: buildFlatPlanPrompt(task, promptOptions) },
-    ]);
+      { text: buildFlatPlanPrompt(planningTask, promptOptions) },
+    ], { signal: input.signal });
+    assertTeamActive(input.signal);
     const parsed = parseVisionResponse(result.response.text()) as ParsedPlan;
     return {
       strategicPlan: null,
@@ -105,6 +126,7 @@ export async function createDesktopTaskPlan(input: CreateDesktopTaskPlanInput): 
       },
     };
   } catch {
+    assertTeamActive(input.signal);
     return {
       strategicPlan: null,
       taskPlan: { goal: task, subGoals: [task], currentSubGoalIndex: 0, estimatedSteps: 30, replannedCount: 0 },

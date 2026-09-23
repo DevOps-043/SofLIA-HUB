@@ -1,14 +1,114 @@
-# Arnés multiagente de reuniones
+# Arnés multiagente de SofLIA
 
-Estado: vigente. Actualizado: 2026-09-22.
+Estado: vigente. Actualizado: 2026-09-23.
 
 <!-- evidence: electron/agent-runtime/service.ts -->
 <!-- evidence: electron/agent-runtime/runtime.ts -->
 <!-- evidence: electron/codex-runtime/provider.ts -->
 <!-- evidence: src/components/meetings/MultiAgentPanel.tsx -->
 <!-- evidence: src/shared/agent-runtime.ts -->
+<!-- evidence: src/shared/agent-teams/runner.ts -->
+<!-- evidence: src/shared/agent-teams/policy.ts -->
+<!-- evidence: src/services/gemini-chat/agent-team.ts -->
+<!-- evidence: electron/wa-agent/agent-team.ts -->
+<!-- evidence: electron/desktop-agent/gemini-cu/client.ts -->
+<!-- evidence: electron/presentation-workflow/html-generator.ts -->
 
-## Uso
+## Equipos en chat, WhatsApp, navegador y entregables
+
+Las solicitudes de documentos, presentaciones y análisis complejos activan dos
+especialistas en paralelo. Sus aportes se entregan al coordinador existente,
+que conserva las herramientas y realiza las acciones con las guardas de la
+superficie. Un saludo o un clic aislado no añade especialistas.
+
+```mermaid
+flowchart TD
+  A[Solicitud del canal] --> B[Selección y presupuesto del harness]
+  B --> C[Especialista de contenido o análisis]
+  B --> D[Especialista de estructura o evidencia]
+  C --> E[Coordinador existente]
+  D --> E
+  E --> F[Herramientas del canal y guardas HITL]
+  F --> G[Verificación y respuesta o archivo]
+  B -->|Modo directo o sin capacidad| E
+```
+
+El arnés decide el equipo y gobierna su ejecución; los especialistas aportan
+trabajo; el coordinador integra esos aportes. Las guardas de herramientas de
+cada canal siguen siendo la autoridad sobre efectos reales. El arnés no les
+otorga permisos adicionales a los modelos.
+
+| Solicitud | Especialistas | Quién termina el trabajo |
+|---|---|---|
+| Crear Word, PDF o informe desde chat o WhatsApp | Contenido y estructura | El agente del canal usa sus herramientas de archivos |
+| Crear presentación desde chat o flujo WhatsApp | Contenido y diseño | La Skill/generador existente valida y materializa deck.json |
+| Revisar una página desde chat/navegador | Análisis de página y evidencia | El chat integra el DOM o extractos ya autorizados |
+| Computer Use con varios pasos | Plan y verificación | Un solo controlador conserva capturas, acciones y aprobaciones |
+| Análisis complejo general | Análisis y evidencia | El modelo conversacional seleccionado |
+
+El chat completo, orbe y chat del navegador comparten el pipeline. Los equipos
+usan el mismo proveedor/modelo resuelto para ese turno: Gemini u OpenAI en chat,
+Gemini en WhatsApp y Computer Use. El adaptador Codex sigue siendo exclusivo
+del panel de reuniones. No se transfieren las sesiones personales de Codex.
+
+Ejemplos que se pueden escribir directamente:
+
+- `Revisa esta página y señala problemas de claridad y datos sin respaldo.`
+- `Crea un informe ejecutivo con estos resultados: ...`
+- `Crea una presentación de seis diapositivas con esta información: ...`
+- `modo equipo: compara estas dos propuestas y señala sus supuestos: ...`
+- `modo directo: redacta un informe breve con estos datos: ...`
+
+Los prefijos `modo equipo:` y `modo directo:` se reconocen al inicio del pedido.
+En el flujo dedicado de presentaciones de WhatsApp se pueden indicar al aportar
+los datos o al aprobar: `modo directo: si`. La selección permanece para esa
+presentación. Son controles por solicitud, no una preferencia persistente de
+cuenta. Un Computer Use delegado tiene su propia fase y selección; el prefijo
+del chat no se propaga como un permiso o ajuste global a otras herramientas.
+
+Los especialistas de página sólo reciben el texto del turno, DOM, documento
+activo o extractos que el chat ya obtuvo bajo sus reglas. En modo de extractos
+no adquieren búsqueda, navegación ni acceso a otras pestañas. Los especialistas
+de Computer Use reciben contexto semántico cuando existe; la captura visual
+permanece en el controlador. No afirman haber inspeccionado imágenes no recibidas.
+
+Los especialistas no disponen de herramientas, memoria compartida ni historial
+de otros chats. Preparan aportes; no abren páginas por su cuenta, no escriben
+archivos en paralelo y no ejecutan acciones. El coordinador debe obtener las
+fuentes faltantes y verificar el resultado real. Un borrador de especialista
+no demuestra que un documento exista ni autoriza enviar, pagar o borrar.
+
+El chat muestra `Especialistas trabajando en equipo...` mediante el canal de
+actividad existente; los eventos incluyen tipo, estado, duración y número de
+aportes completos, sin contenido. Main registra los mismos metadatos. No hay
+un panel persistente ni reanudación de estos equipos: los aportes son efímeros.
+
+### Límites y rendimiento de equipos generales
+
+La fuente es [TEAM_LIMITS](../../src/shared/agent-teams/policy.ts): dos workers
+por equipo, cuatro peticiones de especialistas pendientes por proceso, quince segundos por
+equipo, 4000 caracteres de solicitud, 24000 de fuente, 1500 tokens solicitados
+y 6000 caracteres conservados por aporte. El límite de concurrencia no es
+global entre main y renderer. Los datos truncados se etiquetan para el worker;
+el coordinador conserva el contexto original de su ruta.
+
+Si no hay cupo se continúa con un coordinador, sin cola. Si falla un especialista,
+se aprovecha el otro; si fallan ambos, se mantiene el flujo normal. Cancelar
+descarta resultados tardíos. Si un proveedor ignora abort, su cupo permanece
+ocupado hasta que termine realmente; no se lanza otra petición para sustituirlo.
+
+Los workers añaden hasta dos llamadas por fase. El consumo Max se reserva una
+vez antes de su primera llamada y sus tokens reportados se contabilizan. No
+se promete ahorro monetario. Una tarea de chat que después delega a Computer Use
+puede preparar otro equipo en esa segunda fase. El paralelismo de los workers
+está probado; una mejora real de rapidez o calidad frente al flujo directo
+requiere evaluación con los modelos y documentos del usuario.
+
+Las presentaciones dedicadas conservan su aprobación y exportación existentes.
+Cancelar detiene etapas posteriores y evita iniciar el envío; una operación
+local o envío ya iniciado no se revierte automáticamente.
+
+## Uso en Meeting Ops
 
 En Meeting Ops, escribe título y transcripción en el formulario y usa **Análisis en equipo**.
 El especialista de acuerdos y el de evidencia trabajan en paralelo; después,

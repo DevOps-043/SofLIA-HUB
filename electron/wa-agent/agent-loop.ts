@@ -3,6 +3,7 @@ import { createAgentLoopState } from './agent-loop-setup';
 import { handleTextOnlyAgentResponse } from './agent-loop-text';
 import { handleToolCallAgentResponse } from './agent-loop-tools';
 import type { AgentLoopRequest } from './agent-loop-types';
+import { assertTeamActive } from '../../src/shared/agent-teams/runner';
 
 const MAX_ITERATIONS = 25;
 
@@ -12,6 +13,7 @@ export async function runWhatsAppAgentLoop(request: AgentLoopRequest): Promise<s
   const state = stateOrBlock;
 
   for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
+    assertTeamActive(request.options.signal);
     // `@google/genai` devuelve la respuesta directa; el SDK legado la envolvia
     // en `{ response }`.
     const candidate = state.response.candidates?.[0];

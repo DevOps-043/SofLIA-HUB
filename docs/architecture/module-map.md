@@ -18,6 +18,9 @@
 - Reuniones: `electron/meetings/` y `electron/meeting-live/`.
 - Arnés multiagente: `electron/agent-runtime/`, proveedor local
   `electron/codex-runtime/` y [operación](runtime-multiagent-harness.md).
+  Los equipos transversales usan `src/shared/agent-teams/` con adaptadores de
+  chat, WhatsApp, planificación visual y generación de presentaciones; sus
+  especialistas no ejecutan herramientas.
 - Google Workspace: `electron/calendar/`, `gmail/`, `drive/`, `gchat/`.
 - Memoria: `electron/memory/`, `knowledge/`, `semantic-indexer/`.
 - Herramientas runtime gobernadas: `electron/mcp-manager/`,

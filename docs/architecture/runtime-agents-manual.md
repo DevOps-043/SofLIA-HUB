@@ -7,6 +7,12 @@ dos especialistas y un coordinador, proveedores Gemini/Codex y herramientas
 de lectura cerradas. Es una estrategia del agente de reuniones; no expone
 capacidades del plano de desarrollo ni concede permisos de escritura a workers.
 
+Chat, WhatsApp, revisión de páginas, creación de documentos/presentaciones y
+planificación Computer Use también incorporan [equipos por solicitud](runtime-multiagent-harness.md#equipos-en-chat-whatsapp-navegador-y-entregables).
+Dos especialistas sin herramientas preparan aportes en paralelo; el agente
+existente conserva la ejecución y sus guardas. Los modos equipo/directo,
+presupuestos y límites están definidos en esa guía canónica.
+
 Este documento es la referencia extendida de **el agente**: qué es, cómo razona,
 qué puede hacer, qué tiene prohibido, con qué límites numéricos opera y cómo se
 extiende. El resumen normativo corto vive en

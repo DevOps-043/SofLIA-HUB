@@ -45,6 +45,14 @@ evidencia medida en el host de referencia.
 
 ## Aplicacion e IPC
 
+Los equipos transversales usan `TEAM_LIMITS` en
+[`src/shared/agent-teams/policy.ts`](../../src/shared/agent-teams/policy.ts):
+dos especialistas, cuatro llamadas de especialistas pendientes por proceso, 15 segundos por
+equipo, 4000 caracteres de solicitud, 24000 de fuente, 1500 tokens de salida
+solicitados y 6000 caracteres conservados por aporte. No incluyen el tiempo
+del coordinador ni constituyen un límite monetario. Ver
+[comportamiento y degradación](runtime-multiagent-harness.md#límites-y-rendimiento-de-equipos-generales).
+
 | Parametro | Default/tope | Fuente |
 |---|---:|---|
 | intro / gracia auth / salida overlay | 4200 / 700 / 1250 ms | `src/app/AppContent.tsx` |
