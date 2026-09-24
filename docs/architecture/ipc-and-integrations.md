@@ -8,6 +8,12 @@ Estado: vigente. Actualizado: 2026-09-11.
 
 ## Contrato IPC
 
+El namespace `agent-activity` añade `snapshot`, `publish`, `control` y el evento
+`changed`. Sólo el frame principal autenticado del Hub publica metadatos;
+el monitor auxiliar puede leerlos y controlar su propia ventana. Main comprueba
+identidad, secuencia y un esquema cerrado de roles/estados, sin texto privado.
+Ver [monitor de equipos](runtime-multiagent-harness.md#monitor-de-equipos).
+
 El namespace `agent-runtime` incorpora context, release, state, start, cancel,
 recover, publish, configure-codex, codex-key y el evento changed. Son operaciones
 cerradas de la ventana y frame principal; no existe proxy RPC, shell o filesystem.
@@ -40,8 +46,8 @@ aprobación fabricada del renderer. El servicio comprueba capacidad, política,
 perfil y control humano; el borrado pregunta en main. Responde con biblioteca
 versionada, cancelación o error saneado. No existe IPC de ejecución de atajos.
 
-La allowlist actual contiene 437 canales derivados de cinco arrays: 81, 52, 61,
-135 y 98. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 441 canales derivados de cinco arrays: 81, 52, 61,
+135 y 102. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |

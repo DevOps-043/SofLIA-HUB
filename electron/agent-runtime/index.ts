@@ -5,6 +5,7 @@ import { AgentRuntime } from './runtime';
 import { registerAgentRuntimeHandlers } from './handlers';
 import { getAuthState, onAuthStateChange } from '../main/auth-state';
 import type { AgentScope } from '../../src/shared/agent-runtime';
+import { initializeAgentActivity } from '../agent-activity';
 
 export async function initializeAgentRuntime(input: {
   getWindow(): BrowserWindow | null;
@@ -39,8 +40,9 @@ export async function initializeAgentRuntime(input: {
     },
   });
   const unregister = registerAgentRuntimeHandlers(runtime, input.getWindow);
+  const closeActivity = initializeAgentActivity({ getWindow: input.getWindow, getUserId, onAuthChange: onAuthStateChange, harness: runtime.harness });
   const unsubscribe = onAuthStateChange(() => runtime.invalidate());
-  const close = () => { unsubscribe(); unregister(); runtime.harness.close(); };
+  const close = () => { closeActivity(); unsubscribe(); unregister(); runtime.harness.close(); };
   app.once('before-quit', close);
   return () => { app.off('before-quit', close); close(); };
 }

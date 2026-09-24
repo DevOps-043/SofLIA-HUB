@@ -130,4 +130,8 @@ export const CHANNEL_GROUP_5 = [
   'project-hub:create-upload-intent',
   'project-hub:complete-upload',
   'project-hub:get-download',
+  'agent-activity:snapshot',
+  'agent-activity:publish',
+  'agent-activity:control',
+  'agent-activity:changed',
 ] as const;

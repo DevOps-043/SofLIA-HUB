@@ -218,6 +218,39 @@ El test codex-runtime-native es opt-in mediante SOFLIA_CODEX_TEST_EXECUTABLE y
 comprueba el handshake sin inferencia. Las pruebas de proveedores usan procesos
 simulados para comprobar fallos, herramientas prohibidas y cancelación.
 
+## Monitor de equipos
+
+Cuando comienza un equipo, el Hub abre una ventana nativa «Equipo de SofLIA»
+sin solicitar el foco. El botón «Ver equipos de agentes» de la parte superior
+permite recuperarla. Se puede minimizar, ocultar y plegar cada equipo; ninguna
+de estas acciones cancela la tarea. Al terminar conserva los últimos doce
+equipos en memoria; cerrar sesión o cambiar de usuario borra este estado.
+
+La ventana muestra canal, categoría, roles, estado individual, tiempo observado
+y número de aportes completados. «Aportes listos» indica que terminaron los
+especialistas; el coordinador todavía puede estar redactando o ejecutando la
+tarea principal. No presenta porcentajes estimados, prompts, fuentes, mensajes,
+salidas del modelo ni credenciales.
+
+Los eventos de [runner](../../src/shared/agent-teams/runner.ts) cubren Chat del
+Hub, WhatsApp, preparación del navegador, Computer Use, documentos y
+presentaciones cuando esas rutas activan equipos. Meeting Ops proyecta sus
+etapas desde el arnés existente. El publicador renderer se limita a la ventana
+principal y a su frame principal autenticado; el chat de la Orbe no publica
+actividad en este monitor. El modo directo no abre un equipo.
+
+[Main](../../electron/agent-activity/index.ts) valida esquemas cerrados,
+identidad y secuencias; ignora eventos atrasados y cierra los equipos de reuniones
+que desaparecen al cambiar de contexto. Los errores de observación no deben
+interrumpir el trabajo. La ventana auxiliar carga exclusivamente la vista del
+monitor y recibe un preload limitado al puente `agentActivity`. No puede
+ejecutar herramientas. Además de pruebas unitarias, el smoke nativo se ejecuta
+con `node scripts/quality/smoke-agent-activity.mjs` después de `npm run build:app`.
+Carga el renderer y preload compilados con datos sintéticos, sin bootstrap ni
+proveedores. Comprueba ocultar/reabrir/minimizar/cerrar y genera una captura en
+un directorio temporal aislado. No valida inferencias ni el foco frente a otras
+aplicaciones; esas comprobaciones permanecen separadas.
+
 ## Retirada
 
 Retirar el panel y initializeAgentRuntime desactiva esta capacidad. No requiere

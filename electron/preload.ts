@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import { exposeAgentActivityApi } from './preload/agent-activity-api';
 import { exposeAgentRuntimeApi } from './preload/agent-runtime-api';
 import { exposeAuthApis } from './preload/auth-apis';
 import { exposeCalendarApi } from './preload/calendar-api';
@@ -29,6 +30,9 @@ assertContextIsolation();
 injectCSP();
 
 const safeIpc = createSafeIpc(ipcRenderer);
+exposeAgentActivityApi(contextBridge, safeIpc);
+// La ventana auxiliar sólo recibe el puente de metadatos de actividad.
+if (!process.argv.includes('--agent-activity-window')) {
 exposeAgentRuntimeApi(contextBridge, safeIpc);
 
 exposeCoreApis(contextBridge, ipcRenderer, safeIpc, runtimeConfig);
@@ -47,3 +51,4 @@ exposeDesktopApi(contextBridge, safeIpc);
 exposeDesktopContextApi(contextBridge, safeIpc);
 exposeUtilityApis(contextBridge, safeIpc);
 exposeAuthApis(contextBridge, safeIpc);
+}

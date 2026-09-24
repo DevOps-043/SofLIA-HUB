@@ -6,6 +6,7 @@ import { getOpenAI } from '../openai-chat/client';
 import { SOFLIA_MAX_MODEL_ID, recordSofliaMaxTokens } from '../model-quota';
 import { resolveOpenAIReasoningEffort } from '../openai-chat/reasoning';
 import type { SendMessageStreamOptions } from './types';
+import { publishTeamActivity } from '../agent-activity';
 
 /** Los workers no reciben el catálogo de herramientas, memoria ni historial. */
 export async function prepareChatTeam(input: {
@@ -37,7 +38,10 @@ export async function prepareChatTeam(input: {
   };
   const result = await runAgentTeam({
     plan, surface: 'chat', source: input.source, generate, signal: input.options?.signal,
-    onEvent: event => input.options?.onToolCall?.({ name: 'analisis_en_equipo', args: { tipo: event.kind }, result: JSON.stringify(event) }),
+    onEvent: event => {
+      publishTeamActivity(event, input.options?.userId);
+      input.options?.onToolCall?.({ name: 'analisis_en_equipo', args: { tipo: event.kind }, result: JSON.stringify(event) });
+    },
   });
   return { context: result.context, instruction: result.context ? TEAM_COORDINATOR_INSTRUCTION : '' };
 }

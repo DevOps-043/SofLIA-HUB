@@ -25,6 +25,7 @@ import { useIrisData } from '../hooks/useIrisData';
 import { useTheme } from '../hooks/useTheme';
 import { integratedBrowserService, type BrowserSelectionActionRequest } from '../services/integrated-browser-service';
 import { improveBrowserSelection } from '../services/browser-writing';
+import { AgentActivityButton } from '../components/agents/AgentActivityButton';
 
 const STARTUP_INTRO_DURATION_MS = 4200;
 const STARTUP_AUTH_GRACE_MS = 700;
@@ -276,6 +277,7 @@ export function AppContent() {
     <div className={`h-screen w-screen overflow-hidden ${isOrbWindow ? 'bg-transparent' : 'bg-[#f4faf9] dark:bg-[#080b11]'}`}>
       <div className="h-full w-full" aria-hidden={shouldShowStartupIntro}>
         {appShell}
+        {user && !isOrbWindow && <AgentActivityButton />}
       </div>
       {renderStartupOverlay && (
         <AppLoadingScreen
