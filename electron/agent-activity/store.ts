@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { AgentActivity } from '../../src/shared/agent-activity';
 export const activitySchema = z.object({
   id: z.string().uuid(), sequence: z.number().int().min(1).max(1_000_000),
-  surface: z.enum(['chat', 'whatsapp', 'browser', 'computer', 'meetings']),
+  surface: z.enum(['chat', 'orb', 'whatsapp', 'browser', 'computer', 'meetings']),
   kind: z.enum(['analysis', 'document', 'presentation', 'browser', 'computer', 'meeting']),
   status: z.enum(['running', 'completed', 'partial', 'unavailable', 'cancelled']),
   durationMs: z.number().int().min(0).max(86_400_000),
@@ -16,7 +16,7 @@ export class ActivityStore {
   private items = new Map<string, AgentActivity>();
   clear(): void { this.items.clear(); }
   snapshot(): AgentActivity[] { return structuredClone([...this.items.values()].reverse()); }
-  accept(origin: 'main' | 'renderer' | 'meeting', value: AgentActivity): boolean {
+  accept(origin: 'main' | 'renderer' | 'orb' | 'meeting', value: AgentActivity): boolean {
     const parsed = activitySchema.safeParse(value);
     if (!parsed.success) return false;
     const item = parsed.data; const key = `${origin}:${item.id}`; const previous = this.items.get(key);

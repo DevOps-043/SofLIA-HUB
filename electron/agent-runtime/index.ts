@@ -9,6 +9,7 @@ import { initializeAgentActivity } from '../agent-activity';
 
 export async function initializeAgentRuntime(input: {
   getWindow(): BrowserWindow | null;
+  getOrbWindow?(): BrowserWindow | null;
   geminiKey(): string | null;
   meetings: MeetingWorkflowService;
 }): Promise<() => void> {
@@ -40,7 +41,7 @@ export async function initializeAgentRuntime(input: {
     },
   });
   const unregister = registerAgentRuntimeHandlers(runtime, input.getWindow);
-  const closeActivity = initializeAgentActivity({ getWindow: input.getWindow, getUserId, onAuthChange: onAuthStateChange, harness: runtime.harness });
+  const closeActivity = initializeAgentActivity({ getWindow: input.getWindow, getOrbWindow: input.getOrbWindow, getUserId, onAuthChange: onAuthStateChange, harness: runtime.harness });
   const unsubscribe = onAuthStateChange(() => runtime.invalidate());
   const close = () => { closeActivity(); unsubscribe(); unregister(); runtime.harness.close(); };
   app.once('before-quit', close);

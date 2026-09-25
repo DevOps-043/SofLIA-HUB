@@ -2,7 +2,7 @@ import type { TeamEvent } from './agent-teams/runner';
 export type ActivityAgentState = 'pending' | 'running' | 'completed' | 'failed' | 'timed_out' | 'cancelled' | 'skipped';
 export interface AgentActivity {
   id: string; sequence: number;
-  surface: 'chat' | 'whatsapp' | 'browser' | 'computer' | 'meetings';
+  surface: 'chat' | 'orb' | 'whatsapp' | 'browser' | 'computer' | 'meetings';
   kind: 'analysis' | 'document' | 'presentation' | 'browser' | 'computer' | 'meeting';
   status: 'running' | 'completed' | 'partial' | 'unavailable' | 'cancelled';
   agents: Array<{ role: string; status: ActivityAgentState }>;

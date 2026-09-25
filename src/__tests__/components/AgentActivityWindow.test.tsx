@@ -13,6 +13,8 @@ it('muestra progreso, permite plegar y ocultar y retira la suscripción', async 
   await screen.findByText('Sin equipos activos');
   act(() => change([{ id: 'uno', sequence: 1, surface: 'whatsapp', kind: 'presentation', status: 'running', durationMs: 300, agents: [{ role: 'contenido', status: 'completed' }, { role: 'diseno', status: 'running' }] }]));
   expect(screen.getByText('WhatsApp')).toBeInTheDocument();
+  act(() => change([{ id: 'orbe', sequence: 1, surface: 'orb', kind: 'presentation', status: 'running', durationMs: 300, agents: [{ role: 'contenido', status: 'completed' }, { role: 'diseno', status: 'running' }] }]));
+  expect(screen.getByText('Orbe')).toBeInTheDocument();
   expect(screen.getByText('Trabajando')).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { expanded: true }));
   expect(screen.queryByText('Diseño')).not.toBeInTheDocument();

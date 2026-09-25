@@ -70,6 +70,7 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
   modules.registerMeetingHandlers(services.meetingWorkflowService);
   void initializeAgentRuntime({
     getWindow: () => state.win,
+    getOrbWindow: () => state.orbWin,
     geminiKey: () => state.currentGeminiApiKey,
     meetings: services.meetingWorkflowService,
   }).catch(() => logBootstrapError('agent-runtime', new Error('No se pudo iniciar el arnés multiagente.')));

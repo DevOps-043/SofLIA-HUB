@@ -1,8 +1,9 @@
 # Investigación del código de Codex para SofLIA Hub
 
-Estado: investigación completada por inspección estática; propuesta no implementada.
+Estado: investigación estática ampliada; integración parcial implementada en SofLIA.
 Fecha: 2026-09-21.
 Ampliación: 2026-09-22; fronteras de integración, autorización y cancelación.
+Ampliación: 2026-09-25; coordinación V1/V2, presupuestos, recuperación y estado real de adopción (secciones 22–26).
 Repositorio: openai/codex.
 Commit analizado: [3fd5160cd6c78f2051bb54359d53f09207171733](https://github.com/openai/codex/commit/3fd5160cd6c78f2051bb54359d53f09207171733).
 Fecha del commit: 2026-09-21T22:30:43Z.
@@ -630,3 +631,155 @@ El primer caso de uso sigue siendo una reunión: extracción de acuerdos y revis
 de evidencia en paralelo, composición de un borrador y confirmación centralizada
 antes de enviar o crear elementos externos. La paralelización aporta valor en
 análisis; las escrituras pasan por los servicios y guardas actuales de SofLIA.
+
+## 22. Segunda inspección: coordinación V1 y V2
+
+El 2026-09-25 se consultó HEAD remoto y se descargó el objeto del commit
+[c7e80f873f67dbef58206b9d4f3c60e9d556eb16](https://github.com/openai/codex/commit/c7e80f873f67dbef58206b9d4f3c60e9d556eb16),
+fechado 2026-09-25T17:15:29Z. La lectura se hizo mediante `git show` en el clon
+temporal, sin cambiar el checkout inicial ni ejecutar código upstream. Lo que
+sigue describe ese snapshot, no una garantía de compatibilidad con cada release.
+
+**Confirmado:** hay dos familias de handlers. No deben mezclarse sus contratos:
+
+| Operación | Comportamiento observado | Aplicación propuesta en SofLIA |
+|---|---|---|
+| [wait V1](https://github.com/openai/codex/blob/c7e80f873f67dbef58206b9d4f3c60e9d556eb16/codex-rs/core/src/tools/handlers/multi_agents/wait.rs) | Suscribe estados de objetivos concretos, devuelve finales disponibles o timeout | Esperar un subconjunto de especialistas cuando la dependencia es explícita |
+| [wait V2](https://github.com/openai/codex/blob/c7e80f873f67dbef58206b9d4f3c60e9d556eb16/codex-rs/core/src/tools/handlers/multi_agents_v2/wait.rs) | Se despierta por buzón, nueva entrada o plazo; no recibe una lista de objetivos | Coordinador atento a mensajes y correcciones del usuario |
+| [send_message V2](https://github.com/openai/codex/blob/c7e80f873f67dbef58206b9d4f3c60e9d556eb16/codex-rs/core/src/tools/handlers/multi_agents_v2/send_message.rs) | Entrega mediante QueueOnly | Aportar contexto sin iniciar por sí solo otra ejecución |
+| [followup_task V2](https://github.com/openai/codex/blob/c7e80f873f67dbef58206b9d4f3c60e9d556eb16/codex-rs/core/src/tools/handlers/multi_agents_v2/followup_task.rs) | Entrega mediante TriggerTurn | Reencargar trabajo a un agente ya creado |
+| [spawn V2](https://github.com/openai/codex/blob/c7e80f873f67dbef58206b9d4f3c60e9d556eb16/codex-rs/core/src/tools/handlers/multi_agents_v2/spawn.rs) | Prepara configuración, ruta canónica, relación con turno padre y modo de contexto | Registrar trazabilidad antes de admitir delegación recursiva |
+
+El timeout de espera no cancela automáticamente al especialista. En V2 la llamada
+de espera puede concluir correctamente por actividad sin que una tarea de negocio
+haya terminado. La UI debe separar estado de la llamada, del agente y del artefacto.
+Esto justifica que nuestro monitor diga «Aportes listos» al terminar los workers.
+
+El [mapeo de estado](https://github.com/openai/codex/blob/c7e80f873f67dbef58206b9d4f3c60e9d556eb16/codex-rs/core/src/agent/status.rs)
+deriva ejecución, finalización y error de eventos; `Interrupted` no es final para
+su función `is_final`. No conviene mapearlo ciegamente a «tarea terminada».
+Los [estados de agente](https://github.com/openai/codex/blob/c7e80f873f67dbef58206b9d4f3c60e9d556eb16/codex-rs/app-server-protocol/schema/typescript/v2/CollabAgentStatus.ts)
+y [estados de llamada](https://github.com/openai/codex/blob/c7e80f873f67dbef58206b9d4f3c60e9d556eb16/codex-rs/app-server-protocol/schema/typescript/v2/CollabAgentToolCallStatus.ts)
+son contratos diferentes.
+
+## 23. Presupuestos, capacidad y limpieza de agentes
+
+**Confirmado:** [execution.rs](https://github.com/openai/codex/blob/c7e80f873f67dbef58206b9d4f3c60e9d556eb16/codex-rs/core/src/agent/control/execution.rs)
+cuenta turnos activos con permisos de ejecución liberados al destruir su guard.
+Esta limitación concreta aplica a subagentes V2, no al root ni a V1. No constituye
+una cuota universal de todos los procesos o todas las organizaciones.
+
+La [residencia](https://github.com/openai/codex/blob/c7e80f873f67dbef58206b9d4f3c60e9d556eb16/codex-rs/core/src/agent/control/residency.rs)
+es otra dimensión: reserva slots, puede descargar residentes elegibles y mantiene
+ocupada la capacidad durante la retirada. La identidad registrada y un runtime
+cargado no son equivalentes. Antes de copiar este mecanismo se deben definir qué
+tareas de SofLIA son reanudables y qué efectos externos deben reconciliarse.
+
+[RolloutBudget](https://github.com/openai/codex/blob/c7e80f873f67dbef58206b9d4f3c60e9d556eb16/codex-rs/core/src/rollout_budget.rs)
+acumula consumo del árbol de una sesión raíz. Usa unidades de presupuesto del
+backend cuando existen y, como alternativa, pondera salida y entrada no cacheada.
+Valida unidades finitas y no negativas; confirma avisos después de incorporarlos
+al historial. Es un patrón útil para presupuestos compartidos, pero esas unidades
+no deben convertirse directamente a pesos, dólares o facturación de Gemini.
+
+[PendingSpawn](https://github.com/openai/codex/blob/c7e80f873f67dbef58206b9d4f3c60e9d556eb16/codex-rs/core/src/agent/control/spawn_guard.rs)
+retiene responsabilidad sobre un hijo hasta admitir su entrada inicial. Si se
+abandona, programa retirada, cierre y actualización de la relación persistida;
+espera la escritura de apertura antes de escribir cierre. Esta compensación es
+reutilizable como diseño para evitar trabajos huérfanos. Al ser limpieza asíncrona,
+no prueba recuperación después de terminar abruptamente el proceso.
+
+En SofLIA ya conservamos el cupo de una llamada que ignora abort hasta que su
+promesa termina. Falta un presupuesto agregado entre main, Hub y Orbe; hoy cada
+proceso tiene su propio límite. Más ventanas pueden aumentar el total de llamadas.
+El monitor centraliza visibilidad, no convierte esa cuota en global.
+
+## 24. Contexto, permisos y recuperación
+
+La [configuración del hijo](https://github.com/openai/codex/blob/c7e80f873f67dbef58206b9d4f3c60e9d556eb16/codex-rs/core/src/agent/child_config.rs)
+parte del contexto efectivo del paso, aplica selección de modelo y rol y vuelve
+a aplicar política runtime, cwd y perfil de permisos. Hay validación de modelo
+y razonamiento; no basta pasar cualquier cadena. Nuestra configuración de modelos
+debe seguir su catálogo y disponibilidad del proveedor, no deducirse de nombres
+en los prompts.
+
+En [spawn.rs](https://github.com/openai/codex/blob/c7e80f873f67dbef58206b9d4f3c60e9d556eb16/codex-rs/core/src/agent/control/spawn.rs)
+el contexto heredado filtra mensajes y elimina fragmentos de aprobaciones previas
+y de rol/orquestación. No es una copia indiferenciada de todo el historial. Para
+SofLIA sigue siendo preferible pasar al especialista solo solicitud, evidencia
+pertinente y restricciones. Una página o transcripción nunca concede autoridad.
+
+[user_authorization.rs](https://github.com/openai/codex/blob/c7e80f873f67dbef58206b9d4f3c60e9d556eb16/codex-rs/core/src/agent/control/user_authorization.rs)
+construye evidencia acotada del usuario raíz para revisión y conserva indicadores
+de instrucciones o contexto ausentes. La lección propuesta es representar la
+falta de evidencia explícitamente; un resumen generado no sustituye la aprobación
+original de enviar WhatsApp, modificar un documento compartido o pagar.
+
+El contrato [AgentGraphStore](https://github.com/openai/codex/blob/c7e80f873f67dbef58206b9d4f3c60e9d556eb16/codex-rs/agent-graph-store/src/store.rs)
+persiste relaciones padre/hijo y exige orden estable de listados. Cada hijo tiene
+a lo sumo un padre persistido; al recorrer descendientes el filtro se aplica a
+cada arista. El [estado Open/Closed](https://github.com/openai/codex/blob/c7e80f873f67dbef58206b9d4f3c60e9d556eb16/codex-rs/agent-graph-store/src/types.rs)
+describe la relación, no el éxito del documento o de una operación externa.
+
+Se inspeccionaron también pruebas de
+[capacidad](https://github.com/openai/codex/blob/c7e80f873f67dbef58206b9d4f3c60e9d556eb16/codex-rs/core/src/agent/control/execution_tests.rs)
+y [residencia](https://github.com/openai/codex/blob/c7e80f873f67dbef58206b9d4f3c60e9d556eb16/codex-rs/core/src/agent/control/residency_tests.rs).
+No se ejecutaron; su presencia aporta escenarios de diseño, no evidencia de que
+el binario instalado en SofLIA pase esos casos.
+
+## 25. Qué reutilizamos y qué falta realmente
+
+El estado implementado se documenta en el
+[manual del arnés](../architecture/runtime-multiagent-harness.md). Esta tabla
+actualiza las propuestas históricas anteriores sin atribuirles implementación:
+
+| Área | Disponible en SofLIA | Límite o siguiente entrega |
+|---|---|---|
+| Chat, Orbe y análisis de páginas | Dos especialistas sin herramientas y coordinador del canal | Los workers reciben extractos; no navegan de forma autónoma |
+| Documentos y presentaciones | Especialistas de contenido/estructura o diseño, generación por herramientas existentes | Falta medir calidad y tiempo con casos reales y comparación contra modo directo |
+| WhatsApp | Coordinador y especialistas con gpt-6-luna; guardas del canal | No se verificaron envíos reales en esta investigación |
+| Computer Use | Equipo de preparación y un controlador de acciones | No hay control simultáneo de ratón/teclado por varios workers |
+| Meeting Ops | Arnés, historial cifrado y adaptadores Gemini/Codex app-server | El adaptador Codex no está extendido a todos los canales |
+| Ventana de equipos | Roles, estados y origen; Hub, Orbe y servicios main | Estado efímero; ocultar no cancela la tarea |
+| Presupuestos | Límites de tiempo, salida y concurrencia por proceso | Falta un administrador común de cuotas por usuario/organización |
+| Coordinación prolongada | Especialistas delimitados por solicitud | Sin buzón general, delegación recursiva o reanudación durable en equipos generales |
+
+**Reutilización recomendada:** conservar nuestro adaptador
+[app-server](../../electron/codex-runtime/provider.ts), el transporte y catálogo
+cerrado de herramientas; fijar binario y validar capacidades antes de ampliar
+canales. Usar los patrones de identidad, estados y presupuesto en servicios
+propios. No copiar handlers Rust aislados esperando que funcionen como librería
+TypeScript: dependen del runtime, historial, política y contratos de Codex.
+
+La licencia raíz sigue siendo
+[Apache-2.0](https://github.com/openai/codex/blob/c7e80f873f67dbef58206b9d4f3c60e9d556eb16/LICENSE).
+El [NOTICE](https://github.com/openai/codex/blob/c7e80f873f67dbef58206b9d4f3c60e9d556eb16/NOTICE)
+incluye atribuciones a código de Ratatui bajo MIT. Una redistribución debe conservar
+los avisos aplicables y revisar sus dependencias. Esta entrega adapta patrones;
+no incorpora código Rust upstream al producto. La licencia del código no concede
+acceso gratuito a modelos, cuentas, servicios ni a la interfaz propietaria de la
+aplicación Codex.
+
+## 26. Próximas entregas propuestas y criterios de aceptación
+
+Estas entregas son propuestas pendientes, no capacidades que el usuario ya tenga:
+
+1. **Presupuesto común en main.** Reservas por ejecución y propietario, límites
+   conjuntos para Hub/Orbe/WhatsApp, expiración controlada y consumo real separado
+   de estimaciones. Probar dos ventanas concurrentes, logout, caída de renderer y
+   proveedor que ignora cancelación sin liberar capacidad prematuramente.
+2. **Cancelar desde el monitor.** Vincular cada tarjeta a un controlador de su
+   propietario; diferenciar detener la preparación de detener el coordinador.
+   Probar cancelación tras terminar, durante herramienta y cambio de sesión;
+   no prometer revertir un mensaje ya enviado o un archivo ya guardado.
+3. **Recuperación durable.** Persistir tarea, padre, ámbito y estado con política
+   de retención; recuperar primero como pendiente de reconciliación. Verificar
+   reinicio en mitad de un envío y caducidad de las aprobaciones sin duplicar efectos.
+4. **Evaluación de eficacia.** Comparar directo/equipo con los mismos casos de
+   presentación, documento, revisión de página y tarea de escritorio. Medir
+   latencia p50/p95, uso reportado, éxito del artefacto, correcciones humanas y
+   violaciones de política. Mantener el equipo solo donde aporte valor medido.
+
+Para la siguiente iteración priorizaría presupuesto común antes de aumentar el
+número de workers: es una inferencia de diseño a partir de la separación actual
+de procesos y los límites observados, no un resultado de benchmark.

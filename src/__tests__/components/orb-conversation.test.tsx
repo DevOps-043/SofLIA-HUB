@@ -15,6 +15,7 @@ interface OrbCallbackRegistry {
 const mocks = vi.hoisted(() => {
   const callbacks: OrbCallbackRegistry = {};
   return {
+    user: { id: 'usuario-orbe' } as { id: string } | null,
     callbacks,
     getPendingWake: vi.fn(async () => ({ success: true, wake: false })),
     getPendingAnnouncement: vi.fn(async () => ({ success: true, announcement: null })),
@@ -30,6 +31,8 @@ const mocks = vi.hoisted(() => {
     synthesizeElevenLabsSpeech: vi.fn(),
   };
 });
+
+vi.mock('../../contexts/AuthContext', () => ({ useAuth: () => ({ user: mocks.user }) }));
 
 vi.mock('../../services/orb-service', () => ({
   orbService: {
@@ -114,6 +117,7 @@ describe('useOrbConversation session lifecycle', () => {
   });
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.user = { id: 'usuario-orbe' };
     delete mocks.callbacks.wake;
     delete mocks.callbacks.partial;
     delete mocks.callbacks.final;
@@ -126,6 +130,28 @@ describe('useOrbConversation session lifecycle', () => {
     mocks.synthesizeElevenLabsSpeech.mockReset();
     // Mantiene el agente pendiente para observar que ningun evento ajeno lo aborte.
     mocks.sendMessageStream.mockImplementation(() => new Promise(() => undefined));
+  });
+
+  it('captura el propietario del turno y descarta su actividad al cambiar de usuario', async () => {
+    mocks.getPendingWake.mockResolvedValueOnce({ success: true, wake: true });
+    const { result, rerender, unmount } = renderHook(() => useOrbConversation());
+    await act(async () => { await result.current.startListening(); });
+    act(() => { mocks.callbacks.final?.({ sessionId: 'dictation-default', text: 'Crea una presentación', reason: 'silence' }); });
+    const firstOptions = mocks.sendMessageStream.mock.calls[0][2];
+    expect(firstOptions.userId).toBe('usuario-orbe');
+    expect(firstOptions.signal.aborted).toBe(false);
+    mocks.user = { id: 'otro-usuario' }; rerender();
+    await waitFor(() => expect(mocks.getPendingWake).toHaveBeenCalledTimes(2));
+    expect(firstOptions.signal.aborted).toBe(true);
+    expect(firstOptions.userId).toBe('usuario-orbe');
+    expect(result.current.state).toBe('idle');
+    expect(result.current.userText).toBe('');
+    await act(async () => { await result.current.startListening(); });
+    act(() => { mocks.callbacks.final?.({ sessionId: 'dictation-default', text: 'Analiza este documento', reason: 'silence' }); });
+    expect(mocks.sendMessageStream.mock.calls[1][2].userId).toBe('otro-usuario');
+    mocks.user = null; rerender();
+    expect(mocks.sendMessageStream.mock.calls[1][2].signal.aborted).toBe(true);
+    unmount();
   });
 
   it('ORB-VOICE-1: simultaneous listen triggers create only one dictation session', async () => {

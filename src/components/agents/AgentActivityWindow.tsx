@@ -3,7 +3,7 @@ import { Activity, Check, ChevronDown, ChevronUp, Circle, Clock3, Minimize2, Use
 import type { AgentActivity } from '../../shared/agent-activity';
 import { agentActivityService } from '../../services/agent-activity';
 
-const surfaces = { chat: 'Chat', whatsapp: 'WhatsApp', browser: 'Navegador', computer: 'Computer Use', meetings: 'Reuniones' };
+const surfaces = { chat: 'Chat', orb: 'Orbe', whatsapp: 'WhatsApp', browser: 'Navegador', computer: 'Computer Use', meetings: 'Reuniones' };
 const kinds = { analysis: 'Análisis', document: 'Documento', presentation: 'Presentación', browser: 'Revisión de página', computer: 'Plan de ejecución', meeting: 'Minuta' };
 const roles: Record<string, string> = { analisis: 'Análisis', evidencia: 'Evidencia', 'analisis-pagina': 'Análisis de página', contenido: 'Contenido', estructura: 'Estructura', diseno: 'Diseño', plan: 'Planificación', verificacion: 'Verificación', acuerdos: 'Acuerdos', coordinador: 'Coordinador' };
 const states = { pending: 'Pendiente', running: 'Trabajando', completed: 'Completado', failed: 'Falló', timed_out: 'Tiempo agotado', cancelled: 'Cancelado', skipped: 'Sin iniciar' };

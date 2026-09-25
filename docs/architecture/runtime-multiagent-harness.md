@@ -1,6 +1,6 @@
 # Arnés multiagente de SofLIA
 
-Estado: vigente. Actualizado: 2026-09-23.
+Estado: vigente. Actualizado: 2026-09-25.
 
 <!-- evidence: electron/agent-runtime/service.ts -->
 <!-- evidence: electron/agent-runtime/runtime.ts -->
@@ -234,11 +234,15 @@ tarea principal. No presenta porcentajes estimados, prompts, fuentes, mensajes,
 salidas del modelo ni credenciales.
 
 Los eventos de [runner](../../src/shared/agent-teams/runner.ts) cubren Chat del
-Hub, WhatsApp, preparación del navegador, Computer Use, documentos y
+Hub, Orbe, WhatsApp, preparación del navegador, Computer Use, documentos y
 presentaciones cuando esas rutas activan equipos. Meeting Ops proyecta sus
-etapas desde el arnés existente. El publicador renderer se limita a la ventana
-principal y a su frame principal autenticado; el chat de la Orbe no publica
-actividad en este monitor. El modo directo no abre un equipo.
+etapas desde el arnés existente. El publicador renderer se limita a los frames
+principales de las ventanas actuales de Hub y Orbe, comprobados en main. La Orbe
+captura el usuario al iniciar el turno y cancela/limpia su conversación cuando
+cambia de propietario. Main determina la etiqueta Chat/Orbe y separa sus IDs;
+una superficie no puede sobrescribir el equipo de otra aunque repita el UUID.
+El modo directo no abre un equipo. Para recuperar el monitor oculto se conserva
+el botón del Hub.
 
 [Main](../../electron/agent-activity/index.ts) valida esquemas cerrados,
 identidad y secuencias; ignora eventos atrasados y cierra los equipos de reuniones
