@@ -67,6 +67,7 @@ Este indice separa documentacion vigente de material historico.
 - [Estrategia e inventario de pruebas](quality/test-strategy-and-inventory.md)
 - [Fuentes del Arnes y Antigravity](references/harness-sources.md)
 - [Investigación del repositorio Codex para SofLIA Hub](reports/codex-repository-research-2026-09-21.md)
+- [Codex: mejoras con valor directo para usuarios de SofLIA](reports/codex-user-value-research-2026-09-25.md)
 
 ## Historico
 
