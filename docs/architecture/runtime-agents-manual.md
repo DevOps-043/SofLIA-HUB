@@ -780,6 +780,28 @@ La personalización (`nickname`, `occupation`, `tone`, `instructions`) y el
 
 ## 3. Agente de WhatsApp
 
+**Proveedor vigente:** el coordinador de conversación, los especialistas y el
+flujo de presentaciones usan `gpt-6-luna` mediante Responses API. El cliente de
+main obtiene OpenAI del RPC `get_api_key` del Hub autenticado (proveedor
+`openai`), con respaldo en configuración OpenAI del entorno. No reutiliza la
+clave Gemini ni cambia de modelo si OpenAI falla. El agente puede iniciar sin
+clave Gemini; transcripción, memoria y herramientas especializadas que usan
+Gemini conservan su configuración independiente.
+
+El [adaptador Responses](../../electron/wa-agent/openai-session.ts) conserva
+historial textual, imágenes, PDF, resultados por `call_id` y razonamiento cifrado
+con `store:false`. No habilita herramientas hospedadas: aplica el catálogo
+local y sus guardas/HITL existentes. El código integrado de Gemini deja de
+adjuntarse; las herramientas locales siguen disponibles. Rechaza respuestas
+incompletas y tipos de adjunto no compatibles; las notas de voz siguen la ruta
+de transcripción antes del turno de Luna. La credencial queda vinculada a la
+sesión que abrió el turno, incluida la recepción completa de la respuesta HTTP.
+
+En presentaciones, extracción de datos, propuesta, especialistas y deck final
+usan Luna; se mantiene validación de `deck.json`, aprobación y exportación.
+Las presentaciones creadas desde el chat conservan el modelo elegido en el
+selector de ese chat.
+
 Fuente: `electron/whatsapp-agent.ts` (orquestador), `electron/wa-agent/` (loop y
 contexto), `electron/wa-tools/` (declaraciones), `electron/wa-executor/`
 (guardas y despacho), `electron/whatsapp/` (transporte y permisos).
@@ -974,9 +996,10 @@ permisos no aplica (modo abierto de instalación inicial).
 
 `runWhatsAppAgentLoop` itera **hasta 25 veces**. Por iteración:
 
-**a) Respuesta vacía o malformada.** Con `MALFORMED_FUNCTION_CALL` se reintenta
-pidiendo el nombre exacto de la herramienta; a partir de la iteración 3 se
-fuerza una respuesta solo-texto y se pide al usuario reformular.
+**a) Respuesta vacía o malformada.** El adaptador OpenAI rechaza turnos
+incompletos, argumentos JSON inválidos y herramientas fuera del catálogo antes
+de ejecutar. La rama histórica `MALFORMED_FUNCTION_CALL` permanece en el
+contrato interno, pero el adaptador Responses no genera ese estado.
 
 **b) Sin function calls** → `handleTextOnlyAgentResponse` decide si el turno
 terminó o si debe insistir.

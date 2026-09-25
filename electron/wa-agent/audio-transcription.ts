@@ -1,5 +1,5 @@
 import type { GoogleGenerativeAI } from '@google/generative-ai';
-import { WA_MODEL } from './constants';
+import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
 
 const TRANSCRIPTION_PROMPT =
   'Transcribe este audio a texto. Solo devuelve la transcripcion exacta de lo que dice la persona, sin agregar nada mas. Si no puedes entenderlo, responde con una cadena vacia.';
@@ -18,7 +18,7 @@ export async function transcribeChannelAudio(
   audioBuffer: Buffer,
   mimetype = 'audio/ogg',
 ): Promise<string> {
-  const model = ai.getGenerativeModel({ model: WA_MODEL });
+  const model = ai.getGenerativeModel({ model: SOFLIA_RUNTIME_MODEL });
   const result = await model.generateContent([
     {
       inlineData: {

@@ -156,7 +156,7 @@ export async function initializeMainServices(input: {
   await runOptionalStep('pythonRuntimeService.init', () => modules.pythonRuntimeService.init());
   await runOptionalStep('createWindow', () => controls.createWindow(state.shouldShowInitialWindow));
   await runOptionalStep('createTray', () => controls.createTray());
-  if (state.currentGeminiApiKey) await runOptionalStep('initWhatsAppAgent(.env)', () => initWhatsAppAgent(state.currentGeminiApiKey));
+  await runOptionalStep('initWhatsAppAgent', () => initWhatsAppAgent(state.currentGeminiApiKey || ''));
   await runOptionalStep('waService.init', () => services.waService.init());
   await runOptionalStep('calendarService.init', () => services.calendarService.init());
   await runOptionalStep('meetingPassiveDetectionService.startPolling', () => Promise.resolve(services.meetingPassiveDetectionService.startPolling()));

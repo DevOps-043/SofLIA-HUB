@@ -46,9 +46,7 @@ export async function handleToolCallAgentResponse(
     gmailService: state.agent.gmailService,
     functionResponses: functionResponses.responses,
   });
-  // `@google/genai` empaqueta estas partes como `role: "user"`, que es lo que
-  // Gemini 3 acepta. El SDK legado las mandaba con `role: "function"` y la API
-  // rechazaba el turno entero con 400.
+  // El adaptador Responses enlaza estos resultados con los call_id pendientes.
   state.response = await state.chatSession.sendMessage({ message: functionResponses.responses as any });
   return { done: false };
 }

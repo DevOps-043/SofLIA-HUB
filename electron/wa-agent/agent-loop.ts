@@ -14,8 +14,7 @@ export async function runWhatsAppAgentLoop(request: AgentLoopRequest): Promise<s
 
   for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
     assertTeamActive(request.options.signal);
-    // `@google/genai` devuelve la respuesta directa; el SDK legado la envolvia
-    // en `{ response }`.
+    // El adaptador Responses conserva estas partes internas para reutilizar las guardas.
     const candidate = state.response.candidates?.[0];
     const finishReason = candidate?.finishReason;
     const parts = candidate?.content?.parts || [];

@@ -8,17 +8,18 @@ import type { GoogleGenerativeAI } from '@google/generative-ai';
 
 describe('Integración de equipos en main', () => {
   it('WhatsApp no distribuye historial de grupo, memoria, identificadores ni permisos a workers', async () => {
-    const generate = vi.fn().mockResolvedValue({ text: 'Aporte seguro' });
+    const generate = vi.fn().mockResolvedValue({ status: 'completed', output_text: 'Aporte seguro' });
     const request = {
       userMessage: 'Crea un documento de ventas', isGroup: true, groupPassiveHistory: 'historial privado',
       senderNumber: 'numero-privado', jid: 'grupo-privado', options: { skipConfirmations: true },
-      agent: { getGenAiClient: () => ({ models: { generateContent: generate } }) },
+      agent: { getOpenAIClient: async () => ({ responses: { create: generate } }) },
     } as unknown as AgentLoopRequest;
     const result = await prepareWhatsAppTeam(request);
     expect(generate).toHaveBeenCalledTimes(2);
     expect(result).toContain('Aporte seguro');
     const params = generate.mock.calls[0][0];
-    expect(params.config).not.toHaveProperty('tools');
+    expect(params).toMatchObject({ model: 'gpt-6-luna', store: false });
+    expect(params).not.toHaveProperty('tools');
     expect(JSON.stringify(params)).not.toMatch(/historial privado|numero-privado|grupo-privado|skipConfirmations/);
   });
   it('Computer Use entrega aportes al controlador y sólo el controlador recibe herramientas e imagen', async () => {

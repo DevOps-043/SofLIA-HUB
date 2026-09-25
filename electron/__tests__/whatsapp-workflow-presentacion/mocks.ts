@@ -3,7 +3,7 @@ import { vi } from 'vitest';
 export const mockGenerateContent = vi.fn();
 export const mockGetGenerativeModel = vi.fn(() => ({ generateContent: mockGenerateContent }));
 export const mockGenAI = { getGenerativeModel: mockGetGenerativeModel };
-export const mockAgent = { getGenAI: vi.fn(() => mockGenAI) };
+export const mockAgent = { getGenAI: vi.fn(() => mockGenAI), getOpenAIClient: vi.fn(async () => ({ responses: { create: async (params: { input: string }) => { const result = await mockGenerateContent(params.input); return { status: 'completed', output_text: result.response.text() }; } } })) };
 export const mockFetch = vi.fn();
 export const mockSendText = vi.fn().mockResolvedValue(undefined);
 export const mockSendFile = vi.fn().mockResolvedValue(undefined);

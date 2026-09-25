@@ -5,11 +5,12 @@ import { exportPresentationToHtml } from '../skill-workspace/export-html';
 import type { SkillWorkspaceService } from '../skill-workspace/service';
 import { PRESENTACIONES_SKILL } from '../../src/shared/skills/presentaciones-skill';
 import { PRESENTACIONES_SKILL_PROMPT } from '../../src/prompts/skills/presentaciones';
-import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
+import { WA_MODEL } from '../wa-agent/constants';
 import { parsePresentationDeck } from '../../src/shared/presentations/deck-schema';
 import type { WhatsAppAgent } from '../whatsapp-agent';
 import { selectTeam, TEAM_COORDINATOR_INSTRUCTION, type TeamMode } from '../../src/shared/agent-teams/policy';
 import { assertTeamActive, runAgentTeam } from '../../src/shared/agent-teams/runner';
+import type OpenAI from 'openai';
 
 /**
  * Generacion de un deck declarativo para superficies SIN panel, como
@@ -42,6 +43,8 @@ export async function generatePresentationForWhatsApp(input: {
   signal?: AbortSignal;
 }): Promise<{ ok: true; data: GeneratedPresentation } | { ok: false; error: string }> {
   assertTeamActive(input.signal);
+  const client = await input.agent.getOpenAIClient();
+  assertTeamActive(input.signal);
   const policy = PRESENTACIONES_SKILL.workspace;
   if (!policy) return { ok: false, error: 'La skill de presentaciones no declara espacio de trabajo.' };
 
@@ -59,7 +62,7 @@ export async function generatePresentationForWhatsApp(input: {
   assertTeamActive(input.signal);
 
   await input.onProgress?.('Escribiendo las diapositivas...');
-  const deck = await generateDeck(input.agent, input.title, input.contenido, policy.maxFileBytes, input.teamMode, input.signal);
+  const deck = await generateDeck(client, input.title, input.contenido, policy.maxFileBytes, input.teamMode, input.signal);
   assertTeamActive(input.signal);
   if (!deck) return { ok: false, error: 'El modelo no devolvio un deck.json valido.' };
 
@@ -99,22 +102,22 @@ async function prepareBranding(service: SkillWorkspaceService, workspaceId: stri
  * Pide el documento completo al modelo. Se reutiliza el contrato de salida de
  * la Skill para que la presentacion de WhatsApp sea la misma que la del chat.
  */
-async function generateDeck(agent: WhatsAppAgent, titulo: string, contenido: string, maxBytes: number, mode?: TeamMode, signal?: AbortSignal): Promise<string | null> {
+async function generateDeck(client: OpenAI, titulo: string, contenido: string, maxBytes: number, mode?: TeamMode, signal?: AbortSignal): Promise<string | null> {
   assertTeamActive(signal);
   const plan = selectTeam({ task: `Crea una presentación: ${titulo}`, surface: 'whatsapp', skillId: PRESENTACIONES_SKILL.id, mode });
   const team = plan ? await runAgentTeam({
     plan, surface: 'whatsapp', source: contenido, signal,
     generate: async worker => {
-      const specialist = agent.getGenAI().getGenerativeModel({
-        model: SOFLIA_RUNTIME_MODEL, systemInstruction: worker.instruction,
-        generationConfig: { maxOutputTokens: worker.maxOutputTokens },
-      });
-      return (await specialist.generateContent(worker.input, { signal: worker.signal })).response.text();
+      assertTeamActive(worker.signal);
+      const response = await client.responses.create({ model: WA_MODEL, instructions: worker.instruction,
+        input: worker.input, max_output_tokens: worker.maxOutputTokens, reasoning: { effort: 'none' }, store: false,
+      }, { signal: worker.signal, maxRetries: 0 });
+      return response.status === 'completed' ? response.output_text : '';
+
     },
     onEvent: event => console.info('[Equipo presentación]', JSON.stringify(event)),
   }) : { context: '' };
   assertTeamActive(signal);
-  const model = agent.getGenAI().getGenerativeModel({ model: SOFLIA_RUNTIME_MODEL });
   const prompt = [
     PRESENTACIONES_SKILL_PROMPT,
     ...(team.context ? [TEAM_COORDINATOR_INSTRUCTION, team.context] : []),
@@ -127,7 +130,12 @@ async function generateDeck(agent: WhatsAppAgent, titulo: string, contenido: str
     contenido,
   ].join('\n');
 
-  const text = (await model.generateContent(prompt, { signal })).response.text();
+  const response = await client.responses.create({ model: WA_MODEL, input: prompt, store: false,
+    reasoning: { effort: 'medium' }, max_output_tokens: 24000,
+  }, { signal, maxRetries: 0 });
+  assertTeamActive(signal);
+  if (response.status !== 'completed') return null;
+  const text = response.output_text;
   return extractDeck(text, maxBytes);
 }
 

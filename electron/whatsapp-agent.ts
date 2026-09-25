@@ -1,3 +1,4 @@
+import { getWhatsAppOpenAIClient } from './wa-agent/openai-client';
 import { GoogleGenAI } from '@google/genai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { WhatsAppService } from './whatsapp-service';
@@ -68,18 +69,10 @@ export class WhatsAppAgent {
   setCommunicationHubService(service: CommunicationHubService): void { this.communicationHubService = service; console.log('[WhatsApp Agent] Communication Hub connected'); }
   setNeuralOrganizer(service: NeuralOrganizerService): void { this.neuralOrganizer = service; console.log('[WhatsApp Agent] Neural Organizer connected'); }
   updateApiKey(key: string): void { this.apiKey = key; this.genAI = null; this.genAiClient = null; }
-  /**
-   * Cliente del SDK legado, para los consumidores de un solo disparo que no
-   * usan herramientas (transcripcion de audio, generacion de presentaciones).
-   */
+  /** Cliente OpenAI del usuario actual para conversación y presentaciones. */
+  getOpenAIClient() { return getWhatsAppOpenAIClient(); }
+  /** Gemini permanece disponible para transcripción y herramientas especializadas. */
   getGenAI(): GoogleGenerativeAI { this.genAI ||= new GoogleGenerativeAI(this.apiKey); return this.genAI; }
-  /**
-   * Cliente de `@google/genai`, obligatorio para el agentic loop.
-   *
-   * El SDK legado estampa `role: "function"` en las respuestas de herramienta y
-   * Gemini 3 rechaza ese rol, asi que ninguna conversacion con tools sobrevive
-   * el segundo salto. El SDK nuevo las manda como `role: "user"`.
-   */
   getGenAiClient(): GoogleGenAI { this.genAiClient ||= new GoogleGenAI({ apiKey: this.apiKey }); return this.genAiClient; }
 
   /**

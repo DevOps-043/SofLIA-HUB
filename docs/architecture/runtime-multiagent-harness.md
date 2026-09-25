@@ -48,7 +48,8 @@ otorga permisos adicionales a los modelos.
 
 El chat completo, orbe y chat del navegador comparten el pipeline. Los equipos
 usan el mismo proveedor/modelo resuelto para ese turno: Gemini u OpenAI en chat,
-Gemini en WhatsApp y Computer Use. El adaptador Codex sigue siendo exclusivo
+`gpt-6-luna` mediante OpenAI Responses en WhatsApp y sus presentaciones;
+Gemini en Computer Use. El adaptador Codex sigue siendo exclusivo
 del panel de reuniones. No se transfieren las sesiones personales de Codex.
 
 Ejemplos que se pueden escribir directamente:
