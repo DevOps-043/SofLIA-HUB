@@ -395,7 +395,7 @@ ejecutando acciones a espaldas del usuario.
 | Nombre en la UI | Modelo | Modos de razonamiento |
 |---|---|---|
 | SofLIA | `gemini-3.8-flash` | Bajo / Medio / Alto |
-| SofLIA Max | `gpt-5.6-terra` | Bajo / Medio / Alto / Muy alto / Maximo |
+| SofLIA Max | `gpt-6.1-sol` | Bajo / Medio / Alto / Muy alto / Maximo |
 | SofLIA Pro | `gpt-5.6-luna` | Bajo / Medio / Alto / Muy alto / Maximo |
 | SofLIA Lite | `gemini-3.5-flash-lite` | Bajo / Medio / Alto |
 

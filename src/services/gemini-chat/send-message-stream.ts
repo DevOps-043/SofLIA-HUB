@@ -47,6 +47,7 @@ export async function sendMessageStream(
   const activeDocumentRequest = !attachedSourcesOnly && (isActiveDocumentContentRequest(message)
     || isActiveDocumentSummaryFollowUp(message, conversationHistory));
   const normalizedIntent = normalizeToolIntentText(message);
+  const requestsComputerUse = computerUseEnabled && hasExplicitComputerUseRequest(normalizedIntent);
   const hasBrowserInteraction = hasBrowserInteractionCommand(normalizedIntent);
   const hybridSurfaceRequest = hasHybridSurfaceRequest(normalizedIntent);
   const presentationUsesVisiblePage = options?.activeSkill?.id === PRESENTACIONES_SKILL_ID
@@ -80,8 +81,8 @@ export async function sendMessageStream(
   // captura adjunta. No debe convertirse en un comando de Computer Use ni
   // cambiar silenciosamente al modelo de comandos; las herramientas se
   // reservan para acciones o como fallback cuando no hay una vista capturable.
-  const browserReadTask = browserGroundingIntent !== 'none' && !hasBrowserInteraction;
-  const hasExecutableAction = hasComputerActionCommand(normalizedIntent) && !browserReadTask;
+  const browserReadTask = browserGroundingIntent !== 'none' && !hasBrowserInteraction && !requestsComputerUse;
+  const hasExecutableAction = requestsComputerUse || (hasComputerActionCommand(normalizedIntent) && !browserReadTask);
   const requestsWebGrounding = !attachedSourcesOnly && shouldUseWebGrounding(message);
   // Leer una carpeta o un archivo del equipo es algo que la busqueda web no
   // puede hacer. Sin esta senal, "busca el package.json y compara con las
@@ -95,7 +96,7 @@ export async function sendMessageStream(
     && !inspectsLocalResource;
   const isReadOnlyBrowserObservation = (!!browserObservation || !!activeDocument)
     && browserGroundingIntent === 'read-current'
-    && !hasBrowserInteraction;
+    && !hasBrowserInteraction && !requestsComputerUse;
   const requiresBrowserCapabilities = browserGroundingIntent === 'follow-resource'
     || (activeDocumentRequest && !activeDocument)
     || (!browserObservation && !activeDocument && browserGroundingIntent === 'read-current');
@@ -104,8 +105,12 @@ export async function sendMessageStream(
     requiresBrowserCapabilities,
     isReadOnlyBrowserObservation,
     isPureWebResearch,
-    hasToolIntent: shouldUseToolLoop(message, options, computerUseEnabled),
+    hasToolIntent: requestsComputerUse || shouldUseToolLoop(message, options, computerUseEnabled),
   });
+  if (requestsComputerUse && useToolLoop && buildModelTools(computerUseEnabled, options?.model, options?.activeSkill, attachedSourcesOnly)
+    .some((group) => group.functionDeclarations?.some((tool: { name: string }) => tool.name === 'use_computer'))) {
+    systemInstruction += '\n\nuse_computer está disponible en este turno. El usuario pidió usarla: ejecuta la tarea con las herramientas disponibles y verifica el resultado antes de afirmar que la completaste. La disponibilidad actual la determina este catálogo; las respuestas anteriores del historial que negaban acceso no describen este turno. Conserva la sesión visible del navegador y solicita confirmación antes de efectos externos.';
+  }
   const effectiveOptions = browserObservation
     ? { ...options, images: [...(options?.images ?? []), browserObservation.screenshot] }
     : options;
@@ -308,6 +313,16 @@ function shouldUseToolLoop(message: string, options: SendMessageStreamOptions | 
 
 function normalizeToolIntentText(text: string): string {
   return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+/** Pedir el actuador por su nombre también es una intención de herramientas. */
+function hasExplicitComputerUseRequest(text: string): boolean {
+  const requests = text.matchAll(/\b(usa|usar|utiliza|utilizar|emplea|emplear|hazlo|hacer|ejecuta\w*|ejecutar|use|using)\b[^.!?\n]{0,60}?\b(computer[\s_-]+use|use_computer)\b/g);
+  for (const request of requests) {
+    const prefix = text.slice(0, request.index);
+    if (!/\b(no(?:\s+(quiero|necesito|debes|deberias|es necesario))?|sin|como)\s*$/.test(prefix)) return true;
+  }
+  return false;
 }
 
 function hasProjectHubIntent(text: string): boolean {

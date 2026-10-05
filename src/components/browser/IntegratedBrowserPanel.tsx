@@ -371,6 +371,8 @@ export function IntegratedBrowserPanel(props: {
       return undefined;
     }
 
+    let canceled = false;
+    let agentViewportFrame: number | null = null;
     const unsubscribe = integratedBrowserService.subscribe({
       onStateChanged: (nextState) => {
         currentUrlRef.current = nextState.url;
@@ -381,6 +383,13 @@ export function IntegratedBrowserPanel(props: {
       },
       onReadingModeRequested: (request) => { void openReadingMode(request); },
       onFindRequested: () => setFindVisible(true),
+      onOpenRequested: () => {
+        if (agentViewportFrame !== null) cancelAnimationFrame(agentViewportFrame);
+        agentViewportFrame = requestAnimationFrame(() => {
+          agentViewportFrame = null;
+          if (!canceled) void publishViewport();
+        });
+      },
     });
     const syncViewport = () => { void publishViewport(); };
     const observer = new ResizeObserver(syncViewport);
@@ -388,7 +397,6 @@ export function IntegratedBrowserPanel(props: {
     const handleWindowResize = syncViewport;
     window.addEventListener('resize', handleWindowResize);
 
-    let canceled = false;
     void (async () => {
       try {
         const response = await integratedBrowserService.open();
@@ -406,6 +414,7 @@ export function IntegratedBrowserPanel(props: {
 
     return () => {
       canceled = true;
+      if (agentViewportFrame !== null) cancelAnimationFrame(agentViewportFrame);
       extensionRequestIdRef.current += 1;
       suggestionOverlayRequestIdRef.current += 1;
       suggestionOverlayRef.current = false;

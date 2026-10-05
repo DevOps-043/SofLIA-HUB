@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_MODEL_ID, MODEL_OPTIONS } from '../../hooks/model-selector-options';
 import { SOFLIA_LITE_MODEL, SOFLIA_RUNTIME_MODEL } from '../../shared/soflia-runtime-model';
+import { OPENAI_MODELS } from '../../config';
 
 describe('Catálogo de modelos de SofLIA', () => {
   it('expone el catálogo conversacional y mantiene el modelo del runtime por defecto', () => {
@@ -9,7 +10,7 @@ describe('Catálogo de modelos de SofLIA', () => {
     expect(MODEL_OPTIONS[0]).toMatchObject({ id: SOFLIA_RUNTIME_MODEL, name: 'SofLIA' });
     expect(MODEL_OPTIONS.map(({ id }) => id)).toEqual([
       SOFLIA_RUNTIME_MODEL,
-      'gpt-5.6-terra',
+      'gpt-6.1-sol',
       'gpt-5.6-luna',
       SOFLIA_LITE_MODEL,
     ]);
@@ -18,5 +19,10 @@ describe('Catálogo de modelos de SofLIA', () => {
     expect(MODEL_OPTIONS[1].thinkingOptions.map(({ level }) => level)).toEqual(['low', 'medium', 'high', 'xhigh', 'max']);
     expect(MODEL_OPTIONS.flatMap(({ thinkingOptions }) => thinkingOptions.map(({ name }) => name)))
       .not.toContain('Rapido');
+  });
+
+  it('mantiene los identificadores del selector alineados con el ruteo OpenAI', () => {
+    expect(MODEL_OPTIONS.find(({ name }) => name === 'SofLIA Max')?.id).toBe(OPENAI_MODELS.COMPUTER_USE);
+    expect(MODEL_OPTIONS.find(({ name }) => name === 'SofLIA Pro')?.id).toBe(OPENAI_MODELS.COMMANDS);
   });
 });

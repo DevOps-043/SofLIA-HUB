@@ -50,7 +50,7 @@ vi.mock('../../config', () => ({
     THINKING: 'gemini-3.8-flash',
   },
   OPENAI_MODELS: {
-    COMPUTER_USE: 'gpt-5.6-terra',
+    COMPUTER_USE: 'gpt-6.1-sol',
     COMMANDS: 'gpt-5.6-luna',
   },
   // Sin llave de OpenAI: esta suite cubre el pipeline de Gemini.

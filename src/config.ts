@@ -1,9 +1,9 @@
-import { SOFLIA_RUNTIME_MODEL } from './shared/soflia-runtime-model';
+import { SOFLIA_MAX_MODEL, SOFLIA_PRO_MODEL, SOFLIA_RUNTIME_MODEL } from './shared/soflia-runtime-model';
 
 export const GOOGLE_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 
-// OpenAI (familia GPT-5.6). Unica variable que hay que poner en el .env para
-// habilitar Terra/Luna; sin ella el producto sigue funcionando solo con Gemini.
+// OpenAI. Variable del entorno que habilita Sol/Luna cuando el usuario
+// no tiene una llave guardada en su configuración.
 export const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY || '';
 
 // Lia Supabase (conversaciones, meetings, settings)
@@ -58,14 +58,14 @@ export const MODELS = {
   MAPS: SOFLIA_RUNTIME_MODEL,
 };
 
-// Familia GPT-5.6 de OpenAI. Terra corresponde a SofLIA Max y conserva la clave
+// OpenAI. Sol (gpt-6.1-sol) corresponde a SofLIA Max y conserva la clave
 // histórica `COMPUTER_USE` por compatibilidad, aunque el actuador Computer Use
 // usa exclusivamente Gemini 3.8 Flash. Luna corresponde a SofLIA Pro. El
 // proveedor efectivo se decide por el modelo seleccionado; la llave puede
 // provenir de la configuración guardada del usuario o del entorno.
 export const OPENAI_MODELS = {
-  COMPUTER_USE: 'gpt-5.6-terra',
-  COMMANDS: 'gpt-5.6-luna',
+  COMPUTER_USE: SOFLIA_MAX_MODEL,
+  COMMANDS: SOFLIA_PRO_MODEL,
 };
 
 /**

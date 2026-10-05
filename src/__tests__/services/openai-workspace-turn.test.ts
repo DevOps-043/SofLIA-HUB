@@ -86,6 +86,27 @@ describe('turno de OpenAI con espacio de trabajo', () => {
     expect(names).toEqual(['workspace_read_file', 'workspace_write_file']);
     expect(dispatch.execute).not.toHaveBeenCalled();
   });
+
+  it('Sol recibe use_computer y reenvía al modelo el resultado real del ejecutor', async () => {
+    openAiMocks.create
+      .mockReturnValueOnce(toolCallStream('use_computer', { task: 'Observa la página sin modificar datos', backend: 'browser' }))
+      .mockReturnValueOnce(textStream('Observación completada.'));
+    dispatch.execute.mockResolvedValueOnce({ functionResponse: {
+      name: 'use_computer', response: { success: true, outcome: { estado: 'completada', mensaje: 'Página observada' } },
+    } });
+    const input = params({ modelId: 'gpt-6.1-sol', computerUseEnabled: true, options: { thinking: { id: 'high', level: 'high' } } });
+    const result = await sendOpenAIMessageStream(input);
+    await expect(collect(result.stream)).resolves.toBe('Observación completada.');
+    expect(openAiMocks.create.mock.calls[0][0]).toMatchObject({
+      model: 'gpt-6.1-sol', reasoning: { effort: 'high' },
+      tools: expect.arrayContaining([expect.objectContaining({ type: 'function', name: 'use_computer' })]),
+    });
+    expect(dispatch.execute).toHaveBeenCalledWith('use_computer',
+      { task: 'Observa la página sin modificar datos', backend: 'browser' }, expect.anything(), expect.any(Array), expect.any(Array));
+    expect(openAiMocks.create.mock.calls[1][0].input).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'function_call_output', call_id: 'call-1', output: expect.stringContaining('Página observada') }),
+    ]));
+  });
   beforeEach(() => {
     openAiMocks.create.mockReset();
     dispatch.execute.mockReset();

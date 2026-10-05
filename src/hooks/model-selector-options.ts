@@ -1,4 +1,4 @@
-import { SOFLIA_LITE_MODEL, SOFLIA_RUNTIME_MODEL } from '../shared/soflia-runtime-model';
+import { SOFLIA_LITE_MODEL, SOFLIA_MAX_MODEL, SOFLIA_PRO_MODEL, SOFLIA_RUNTIME_MODEL } from '../shared/soflia-runtime-model';
 
 export interface ThinkingOption {
   id: string;
@@ -32,7 +32,7 @@ const THINKING_OPTIONS_GEMINI3_FLASH: ThinkingOption[] = [
 
 // El producto no expone un modo sin razonamiento. `xhigh` y `max` son
 // exclusivos de la familia OpenAI.
-const THINKING_OPTIONS_GPT56: ThinkingOption[] = [
+const THINKING_OPTIONS_OPENAI: ThinkingOption[] = [
   { id: 'low', name: 'Bajo', desc: 'Razonamiento ligero', level: 'low' },
   { id: 'medium', name: 'Medio', desc: 'Razonamiento balanceado', level: 'medium' },
   { id: 'high', name: 'Alto', desc: 'Razonamiento profundo', level: 'high' },
@@ -55,7 +55,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
     thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH,
   },
   {
-    id: 'gpt-5.6-terra',
+    id: SOFLIA_MAX_MODEL,
     name: 'SofLIA Max',
     desc: 'Maxima potencia para tareas exigentes.',
     icon: 'globe',
@@ -63,17 +63,17 @@ export const MODEL_OPTIONS: ModelOption[] = [
     badge: '3/mes',
     thinkingType: 'level',
     defaultThinkingId: 'medium',
-    thinkingOptions: THINKING_OPTIONS_GPT56,
+    thinkingOptions: THINKING_OPTIONS_OPENAI,
   },
   {
-    id: 'gpt-5.6-luna',
+    id: SOFLIA_PRO_MODEL,
     name: 'SofLIA Pro',
     desc: 'Capaz para comandos y acciones.',
     icon: 'moon',
     provider: 'openai',
     thinkingType: 'level',
     defaultThinkingId: 'medium',
-    thinkingOptions: THINKING_OPTIONS_GPT56,
+    thinkingOptions: THINKING_OPTIONS_OPENAI,
   },
   {
     id: SOFLIA_LITE_MODEL,

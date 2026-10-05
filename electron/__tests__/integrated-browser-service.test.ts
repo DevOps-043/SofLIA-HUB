@@ -238,6 +238,14 @@ const withPlatform = (platform: NodeJS.Platform, run: () => Promise<void>) => {
   return run().finally(() => Object.defineProperty(process, 'platform', original));
 };
 
+/** Simula el acuse renderer posterior a mostrar la barra de supervisión. */
+async function openSupervisedBrowser(service: IntegratedBrowserService): Promise<void> {
+  const opening = service.openForAgent();
+  await vi.waitFor(() => expect(service.getState().agentControlling).toBe(true));
+  service.setViewport({ x: 0, y: 0, width: 1000, height: 700 });
+  await opening;
+}
+
 describe('IntegratedBrowserService', () => {
   it.each(['selección', 'sesión', 'agente', 'marco', 'pestaña'] as const)('passkeys vincula proveedor con perfil, documento y control humano: %s', async scenario => {
     vi.stubEnv('BROWSER_AGENT_GOVERNANCE_ENABLED', 'false');
@@ -401,7 +409,7 @@ describe('IntegratedBrowserService', () => {
     await service.open('https://example.com/'); service.setViewport({ x: 0, y: 0, width: 1000, height: 700 });
     const contents = browserViewHarness.instances[0].webContents;
     const control = new BrowserCuSupervisor(`browser-cu-${randomUUID()}`, 5, new AbortController());
-    const detach = service.bindAgentTask(control); await service.openForAgent(); control.beginPhase();
+    const detach = service.bindAgentTask(control); await openSupervisedBrowser(service); control.beginPhase();
     const baselineCaptures = contents.capturePage.mock.calls.length;
     vi.mocked(inspectBrowserSensitivePage).mockResolvedValue('secret');
     try {
@@ -439,7 +447,7 @@ describe('IntegratedBrowserService', () => {
     await service.open('https://example.com/'); service.setViewport({ x: 0, y: 0, width: 1000, height: 700 });
     service.toggleFullscreen(); expect(service.getState().isFullscreen).toBe(true);
     const control = new BrowserCuSupervisor(`browser-cu-${randomUUID()}`, 5, new AbortController());
-    const detach = service.bindAgentTask(control); await service.openForAgent(); control.beginPhase();
+    const detach = service.bindAgentTask(control); await openSupervisedBrowser(service); control.beginPhase();
     expect(service.getState().isFullscreen).toBe(false);
     service.toggleFullscreen(); expect(service.getState().isFullscreen).toBe(false);
     detach(); service.releaseAgentControl(); control.finish();
@@ -453,7 +461,7 @@ describe('IntegratedBrowserService', () => {
     const control = new BrowserCuSupervisor(`browser-cu-${randomUUID()}`, 5, new AbortController());
     const detach = service.bindAgentTask(control);
     const input = { taskId: control.taskId, taskRevision: 1, profileRevision: service.getState().profileRevision! };
-    await service.openForAgent(); control.beginPhase();
+    await openSupervisedBrowser(service); control.beginPhase();
     expect(() => service.bindAgentTask(control)).toThrow();
     expect(() => service.controlAgentTask({ ...input, profileRevision: 999, action: 'pause' })).toThrow();
     expect(() => service.controlAgentTask({ ...input, taskId: `browser-cu-${randomUUID()}`, action: 'pause' })).toThrow();
@@ -480,7 +488,7 @@ describe('IntegratedBrowserService', () => {
     const service = newService(); service.attachWindow(new BrowserWindow());
     await service.open('https://example.com/'); service.setViewport({ x: 0, y: 0, width: 1000, height: 700 });
     const control = new BrowserCuSupervisor(`browser-cu-${randomUUID()}`, 5, new AbortController());
-    const detach = service.bindAgentTask(control); await service.openForAgent(); control.beginPhase();
+    const detach = service.bindAgentTask(control); await openSupervisedBrowser(service); control.beginPhase();
     control.command('pause'); const waiting = control.waitForResume();
     const rejected = expect(waiting).rejects.toThrow();
     if (change === 'pestaña') await service.createTab('https://otro.example/');
@@ -1194,6 +1202,31 @@ describe('IntegratedBrowserService', () => {
     expect(view.setBounds).toHaveBeenCalledTimes(1);
     expect(view.setVisible).not.toHaveBeenCalled();
     service.detachWindow();
+  });
+
+  it('republicar el mismo viewport conserva la captura autorizada después del intervalo de entrada', async () => {
+    const service = newService(); service.attachWindow(new BrowserWindow());
+    await service.open('https://example.com');
+    const viewport = { x: 200, y: 80, width: 800, height: 600 };
+    service.setViewport(viewport);
+    const capture = service.createAgentTargetGuard(undefined, true);
+    const now = Date.now(); const clock = vi.spyOn(Date, 'now').mockReturnValue(now + 1000);
+    try {
+      service.setViewport({ ...viewport });
+      expect(capture).not.toThrow();
+    } finally { clock.mockRestore(); service.detachWindow(); }
+  });
+
+  it('cambiar la geometría invalida coordenadas inmediatamente, aunque la entrada esté limitada', async () => {
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now());
+    const service = newService(); service.attachWindow(new BrowserWindow());
+    try {
+      await service.open('https://example.com');
+      service.setViewport({ x: 200, y: 80, width: 800, height: 600 });
+      const capture = service.createAgentTargetGuard(undefined, true);
+      service.setViewport({ x: 200, y: 120, width: 800, height: 560 });
+      expect(capture).toThrow('cambió');
+    } finally { clock.mockRestore(); service.detachWindow(); }
   });
 
   it('interactua por referencia del DOM y rechaza referencias vencidas', async () => {
@@ -3277,6 +3310,41 @@ describe('IntegratedBrowserService', () => {
     service.hide();
     await expect(service.openForAgent(undefined, 1)).rejects.toThrow(/viewport visible/i);
     expect(service.getState().agentControlling).toBe(false);
+  });
+
+  it('una tarea supervisada espera el viewport actual del renderer antes de enfocar y capturar', async () => {
+    const service = newService(); const window = new BrowserWindow(); service.attachWindow(window);
+    await service.open('https://example.com');
+    service.setViewport({ x: 100, y: 100, width: 800, height: 600 });
+    const control = new BrowserCuSupervisor(`browser-cu-${randomUUID()}`, 5, new AbortController());
+    const detach = service.bindAgentTask(control);
+    const contents = browserViewHarness.instances[0].webContents; contents.focus.mockClear();
+    let ready = false;
+    const opening = service.openForAgent(undefined, 1000).then(() => { ready = true; });
+    try {
+      await vi.waitFor(() => expect(window.webContents.send).toHaveBeenCalledWith('integrated-browser:open-requested', expect.anything()));
+      expect(ready).toBe(false); expect(contents.focus).not.toHaveBeenCalled();
+      service.setViewport({ x: 100, y: 140, width: 800, height: 560 });
+      await opening;
+      expect(service.getViewportSize()).toEqual({ width: 800, height: 560 });
+      expect(contents.focus).toHaveBeenCalledOnce();
+    } finally { detach(); control.finish(); service.releaseAgentControl(); service.detachWindow(); }
+  });
+
+  it('un fallo al pedir la apertura retira la espera supervisada y libera el control', async () => {
+    const service = newService(); const window = new BrowserWindow(); service.attachWindow(window);
+    await service.open('https://example.com'); service.setViewport({ x: 100, y: 100, width: 800, height: 600 });
+    const control = new BrowserCuSupervisor(`browser-cu-${randomUUID()}`, 5, new AbortController());
+    const detach = service.bindAgentTask(control);
+    const contents = browserViewHarness.instances[0].webContents; contents.focus.mockClear();
+    vi.mocked(window.webContents.send).mockImplementation((channel) => {
+      if (channel === 'integrated-browser:open-requested') throw new Error('Renderer no disponible.');
+    });
+    try {
+      await expect(service.openForAgent(undefined, 60_000)).rejects.toThrow('Renderer no disponible.');
+      expect(service.getState().agentControlling).toBe(false);
+      expect(contents.focus).not.toHaveBeenCalled();
+    } finally { detach(); control.finish(); service.detachWindow(); }
   });
 
   it('cancelar mientras espera viewport retira la espera y no enfoca después', async () => {

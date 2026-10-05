@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { DEFAULT_MODEL_ID, MODEL_OPTIONS } from './model-selector-options';
 import { scopedPreferenceKey } from '../services/user-scope';
+import { SOFLIA_MAX_MODEL } from '../shared/soflia-runtime-model';
 import type { ModelIconKey, ModelOption, ThinkingOption } from './model-selector-options';
 
 const MODEL_STORAGE_KEY = 'soflia:selected-model';
 const THINKING_STORAGE_KEY = 'soflia:thinking-by-model';
 const MODEL_PREFERENCES_CHANGED_EVENT = 'soflia:model-preferences-changed';
+const LEGACY_MAX_MODEL_ID = 'gpt-5.6-terra';
 
 export function useModelSelector() {
   const [preferredPrimaryModel, setPreferredPrimaryModel] = useState(readStoredModel);
@@ -18,6 +20,9 @@ export function useModelSelector() {
       setPreferredPrimaryModel(readStoredModel());
       setThinkingByModel(readStoredThinking());
     };
+    // React conserva estado al actualizar módulos; reconciliarlo también al
+    // montar el efecto evita mantener identificadores retirados en una sesión.
+    syncPreferences();
     globalThis.addEventListener?.(MODEL_PREFERENCES_CHANGED_EVENT, syncPreferences);
     globalThis.addEventListener?.('storage', syncPreferences);
     return () => {
@@ -65,7 +70,7 @@ export function useModelSelector() {
   };
 
   const handleModelChange = (modelId: string) => {
-    const nextModel = MODEL_OPTIONS.find((model) => model.id === modelId);
+    const nextModel = MODEL_OPTIONS.find((model) => model.id === normalizeModelId(modelId));
     if (!nextModel) return;
     setPreferredPrimaryModel(nextModel.id);
     writeStorage(scopedPreferenceKey(MODEL_STORAGE_KEY), nextModel.id);
@@ -88,7 +93,11 @@ export function useModelSelector() {
 }
 
 function findModel(modelId: string): ModelOption {
-  return MODEL_OPTIONS.find((model) => model.id === modelId) ?? MODEL_OPTIONS[0];
+  return MODEL_OPTIONS.find((model) => model.id === normalizeModelId(modelId)) ?? MODEL_OPTIONS[0];
+}
+
+function normalizeModelId(modelId: string): string {
+  return modelId === LEGACY_MAX_MODEL_ID ? SOFLIA_MAX_MODEL : modelId;
 }
 
 function resolveThinkingId(model: ModelOption, stored?: string): string {
@@ -101,8 +110,12 @@ function resolveThinkingId(model: ModelOption, stored?: string): string {
 }
 
 function readStoredModel(): string {
-  const stored = readStorage(scopedPreferenceKey(MODEL_STORAGE_KEY));
-  return stored && MODEL_OPTIONS.some((model) => model.id === stored) ? stored : DEFAULT_MODEL_ID;
+  const key = scopedPreferenceKey(MODEL_STORAGE_KEY);
+  const stored = readStorage(key);
+  const modelId = stored ? normalizeModelId(stored) : DEFAULT_MODEL_ID;
+  if (!MODEL_OPTIONS.some((model) => model.id === modelId)) return DEFAULT_MODEL_ID;
+  if (stored && stored !== modelId) writeStorage(key, modelId);
+  return modelId;
 }
 
 function readStoredThinking(): Record<string, string> {
@@ -110,7 +123,12 @@ function readStoredThinking(): Record<string, string> {
   if (!raw) return {};
   try {
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    if (!Object.prototype.hasOwnProperty.call(parsed, SOFLIA_MAX_MODEL) && typeof parsed[LEGACY_MAX_MODEL_ID] === 'string') {
+      parsed[SOFLIA_MAX_MODEL] = parsed[LEGACY_MAX_MODEL_ID];
+      writeStorage(scopedPreferenceKey(THINKING_STORAGE_KEY), JSON.stringify(parsed));
+    }
+    return parsed;
   } catch {
     return {};
   }

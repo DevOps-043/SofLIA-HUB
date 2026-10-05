@@ -167,9 +167,24 @@ El sistema SHALL usar `gemini-3.8-flash` —el modelo que Google documenta como 
 - **WHEN** existe una preferencia antigua `minimal` o `none`
 - **THEN** la interfaz selecciona `low`, no muestra “Rápido” y el runtime no envía un turno sin razonamiento
 
+#### Scenario: Migración de SofLIA Max a GPT-6.1 Sol
+- **WHEN** la selección o el razonamiento guardados para SofLIA Max usan el identificador anterior `gpt-5.6-terra`, o una superficie todavía envía ese identificador
+- **THEN** el selector usa y persiste `gpt-6.1-sol`, conserva el razonamiento de Max y sincroniza las superficies sin volver al modelo predeterminado; una preferencia ya guardada para Sol tiene prioridad sobre la anterior
+- **AND** el catálogo y el ruteo comparten los identificadores OpenAI de producto, mientras la cuota mensual existente se conserva
+
 #### Scenario: Computer Use con esfuerzo exclusivo de OpenAI
 - **WHEN** el usuario seleccionó Max o Pro con esfuerzo `xhigh` o `max` y solicita una acción de Computer Use
 - **THEN** el pipeline OpenAI conserva ese esfuerzo para planear y responder, y el actuador Gemini recibe su propia configuración fija sin trasladar ni degradar el razonamiento conversacional
+
+#### Scenario: Solicitud explícita de Computer Use
+- **WHEN** el usuario pide usar Computer Use o `use_computer` para actuar y la capacidad está disponible
+- **THEN** el turno recibe las herramientas locales aunque no incluya palabras como computadora, navegador o abre, o ya exista una observación de la página
+- **AND** la disponibilidad se determina por el catálogo del turno, sin heredar del historial afirmaciones de que faltaban herramientas; se conservan las restricciones de extractos, selección de herramientas y confirmación de efectos externos
+
+#### Scenario: Geometría vigente para una captura supervisada
+- **WHEN** Computer Use inicia una tarea supervisada en una pestaña visible
+- **THEN** espera el viewport publicado por el renderer después de mostrar los controles antes de capturar
+- **AND** repetir la misma geometría conserva la captura, mientras que cambiar los bounds invalida sus coordenadas inmediatamente y mantiene las guardas de contexto y permisos
 
 #### Scenario: Herramientas de lectura independientes del actuador
 - **WHEN** el modelo seleccionado solo necesita buscar en la web, inspeccionar el DOM o navegar a un destino directo

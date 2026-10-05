@@ -277,20 +277,116 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     const { sendMessageStream } = await import('../../services/gemini-chat');
 
     await sendMessageStream('abre el bloc de notas', [], {
-      model: 'gpt-5.6-terra',
+      model: 'gpt-6.1-sol',
       thinking: { id: 'max', level: 'max' },
     });
 
     expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({
-      modelId: 'gpt-5.6-terra',
+      modelId: 'gpt-6.1-sol',
       useToolLoop: true,
       computerUseEnabled: true,
       options: expect.objectContaining({
-        model: 'gpt-5.6-terra',
+        model: 'gpt-6.1-sol',
         thinking: { id: 'max', level: 'max' },
       }),
     }));
     expect(mockChatsCreate).not.toHaveBeenCalled();
+  });
+
+  it('reconoce la solicitud reportada de usar Computer Use sin otras palabras clave', async () => {
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+    await sendMessageStream(
+      'si mis notas estan desde Soflia.ai estan especificamente en mi libro de apuntes, ayudame a crearlo usa el computer use para hacer',
+      [{ role: 'model', text: 'En esta sesión no está disponible use_computer.' }],
+      { model: 'gpt-6.1-sol' },
+    );
+    expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({
+      modelId: 'gpt-6.1-sol', useToolLoop: true, computerUseEnabled: true,
+      systemInstruction: expect.stringContaining('use_computer está disponible en este turno'),
+    }));
+  });
+
+  it('una solicitud explícita de Computer Use conserva herramientas aunque ya haya captura de la página', async () => {
+    installVisibleBrowserObservation();
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+    await sendMessageStream('mira esta página y usa computer use para comprobar los botones', [], { model: 'gpt-5.6-luna' });
+    expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({ useToolLoop: true }));
+  });
+
+  it('pedir use_computer no se degrada a investigación web pura', async () => {
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+    await sendMessageStream('usa use_computer para comprobar las noticias más recientes', [], { model: 'gpt-5.6-luna' });
+    expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({ useToolLoop: true }));
+  });
+
+  it('adjuntar extractos sigue sin autorizar Computer Use aunque se mencione expresamente', async () => {
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+    await sendMessageStream('usa computer use para crear la integración', [], { model: 'gpt-5.6-luna', browserSourceMode: 'attached-fragments' });
+    expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({
+      useToolLoop: false,
+      systemInstruction: expect.not.stringContaining('use_computer está disponible en este turno'),
+    }));
+  });
+
+  it('un bucle de workspace sobre extractos tampoco anuncia Computer Use', async () => {
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+    await sendMessageStream('usa computer use para crear la integración', [], {
+      model: 'gpt-5.6-luna', browserSourceMode: 'attached-fragments', activeSkill: {
+        id: 'sistema:presentaciones', name: 'Presentaciones', instructions: '', tools: ['workspace_read_file', 'workspace_write_file'], workspaceId: 'workspace',
+      },
+    });
+    expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({
+      useToolLoop: true,
+      systemInstruction: expect.not.stringContaining('use_computer está disponible en este turno'),
+    }));
+  });
+
+  it.each(['explica cómo usar computer use', 'no quiero usar computer use, solo describe la integración'])(
+    'no interpreta una consulta o una negación como una orden: %s', async (message) => {
+      const { sendMessageStream } = await import('../../services/gemini-chat');
+      await sendMessageStream(message, [], { model: 'gpt-5.6-luna' });
+      expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({
+        useToolLoop: false, systemInstruction: expect.not.stringContaining('use_computer está disponible en este turno'),
+      }));
+    },
+  );
+
+  it('Gemini también recibe el actuador al pedirlo expresamente', async () => {
+    mockChatsCreate.mockReturnValue(createMockChat('observación completada'));
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+    await sendMessageStream('utiliza computer-use para comprobar los controles', [], { model: 'gemini-3.8-flash' });
+    const config = mockChatsCreate.mock.calls[0]?.[0]?.config;
+    expect(config.systemInstruction).toContain('use_computer está disponible en este turno');
+    expect(config.tools.flatMap((group: { functionDeclarations?: { name: string }[] }) => group.functionDeclarations ?? []))
+      .toEqual(expect.arrayContaining([expect.objectContaining({ name: 'use_computer' })]));
+  });
+
+  it('una selección de herramientas que excluye el actuador no anuncia que está disponible', async () => {
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+    const activeSkill = {
+      id: 'skill-limitada', name: 'Lectura', instructions: 'Sólo lectura', tools: [], workspaceId: null, allowedTools: [],
+    };
+    await sendMessageStream('usa computer use para comprobar los controles', [], {
+      model: 'gpt-5.6-luna', activeSkill,
+    });
+    expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({
+      systemInstruction: expect.not.stringContaining('use_computer está disponible en este turno'),
+    }));
+  });
+
+  it('si el bridge no está disponible no inventa una capacidad habilitada', async () => {
+    const availability = await import('../../services/computer-use-service');
+    vi.mocked(availability.isComputerUseAvailable).mockReturnValue(false);
+    try {
+      const { sendMessageStream } = await import('../../services/gemini-chat');
+      await sendMessageStream('usa computer use para crear la integración', [], { model: 'gpt-5.6-luna' });
+      expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({
+        computerUseEnabled: false, useToolLoop: false,
+        systemInstruction: expect.not.stringContaining('use_computer está disponible en este turno'),
+      }));
+    } finally {
+      vi.mocked(availability.isComputerUseAvailable).mockReturnValue(true);
+    }
   });
 
   it('RT-013: leer una carpeta local no se degrada a investigación web aunque pida versiones recientes', async () => {
@@ -350,7 +446,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     const { sendMessageStream } = await import('../../services/gemini-chat');
 
     await expect(sendMessageStream('Hola', [], {
-      model: 'gpt-5.6-terra',
+      model: 'gpt-6.1-sol',
       thinking: { id: 'medium', level: 'medium' },
       userId,
     })).rejects.toThrow('OPENAI_API_KEY_MISSING');

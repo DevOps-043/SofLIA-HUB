@@ -123,7 +123,7 @@ ejecutando acciones a espaldas del usuario.
 | Nombre en la UI | Modelo | Modos de razonamiento |
 |---|---|---|
 | SofLIA | `gemini-3.8-flash` | Bajo / Medio / Alto |
-| SofLIA Max | `gpt-5.6-terra` | Bajo / Medio / Alto / Muy alto / Maximo |
+| SofLIA Max | `gpt-6.1-sol` | Bajo / Medio / Alto / Muy alto / Maximo |
 | SofLIA Pro | `gpt-5.6-luna` | Bajo / Medio / Alto / Muy alto / Maximo |
 | SofLIA Lite | `gemini-3.5-flash-lite` | Bajo / Medio / Alto |
 
@@ -135,6 +135,14 @@ selección y el nivel se conservan por modelo en preferencias locales. El modo
 seleccionados como orquestador del turno. La herramienta `use_computer` delega
 solo la percepción y actuación al `gemini-3.8-flash` fijo de main, sin degradar
 ese actuador ni sustituir silenciosamente el proveedor conversacional.
+
+Los identificadores de Max y Pro provienen de
+`src/shared/soflia-runtime-model.ts` tanto en el catálogo como en el ruteo.
+`useModelSelector` migra la selección anterior de Max (`gpt-5.6-terra`) a
+`gpt-6.1-sol` dentro del ámbito del usuario y conserva su razonamiento, sin
+sobrescribir una preferencia ya guardada para Sol ni reiniciar la cuota mensual.
+También normaliza identificadores anteriores recibidos de otra superficie y
+reconcilia las preferencias al montar el efecto de sincronización.
 
 `buildGenerationConfig` fija `maxOutputTokens: 16384` y envía
 `thinkingConfig.thinkingLevel` a Gemini. OpenAI usa Responses API y envía el
@@ -161,12 +169,28 @@ herramientas: los cálculos salen de Python real, no de aritmética "de memoria"
 El catálogo se resuelve **por turno**, no por módulo. Sin Skill activa el set
 es idéntico al de siempre.
 
+Pedir explícitamente «usa Computer Use» o «usa `use_computer`» habilita el
+bucle de herramientas cuando el bridge está disponible, aunque la frase no
+contenga otras palabras de acción, exista una captura de la página o incluya
+investigación web. El catálogo efectivo del turno determina la disponibilidad;
+si contiene el actuador, una instrucción del turno corrige las negaciones de
+acceso que hayan quedado en el historial. Las consultas explicativas y las
+negaciones no activan esta señal. Se mantienen la selección de herramientas de
+la Skill, el aislamiento de extractos adjuntos y las confirmaciones de efectos
+externos.
+
 OpenAI recibe `web_search` hospedado con `tool_choice: auto` cuando la intención
 requiere investigación pública. Gemini conserva primero el modelo elegido por
 el usuario y usa Google Search/URL Context; los modelos de fallback sólo se
 intentan después. En ambos proveedores la jerarquía es DOM o búsqueda web,
 navegación determinista y, únicamente si hacen falta percepción visual o
 acciones iterativas, `use_computer`.
+
+Antes de la primera captura supervisada, main espera un viewport publicado por
+el renderer tras dibujar los controles del agente. Republicar la misma
+geometría conserva la captura autorizada; un cambio real de bounds invalida
+sus coordenadas inmediatamente, sin depender del throttle de entrada pasiva.
+Las guardas de perfil, pestaña, documento, control y permisos siguen vigentes.
 
 Una tarea puede combinar superficies sin cambiar de orquestador: `backend:
 'desktop'` observa aplicaciones externas como Codex; el DOM y el controlador

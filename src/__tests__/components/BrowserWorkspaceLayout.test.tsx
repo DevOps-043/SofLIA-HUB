@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { BrowserWorkspaceLayout } from '../../components/browser/BrowserWorkspaceLayout';
 import { orbService } from '../../services/orb-service';
 import { scopedPreferenceKey } from '../../services/user-scope';
@@ -84,6 +85,21 @@ describe('BrowserWorkspaceLayout', () => {
 
     expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe('gpt-5.6-luna');
     expect(screen.getByRole('button', { name: 'Cambiar modelo y razonamiento' })).toHaveTextContent('SofLIA Pro');
+  });
+
+  it('activa Max con un clic real después de Pro y conserva Sol al reabrir el menú', async () => {
+    const user = userEvent.setup();
+    renderLayout();
+    const selector = screen.getByRole('button', { name: 'Cambiar modelo y razonamiento' });
+    await user.click(selector);
+    await user.click(screen.getByRole('menuitemradio', { name: /SofLIA Pro/ }));
+    await user.click(selector);
+    await user.click(screen.getByRole('menuitemradio', { name: /SofLIA Max/ }));
+    expect(selector).toHaveTextContent('SofLIA Max');
+    expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe('gpt-6.1-sol');
+    await user.click(selector);
+    expect(screen.getByRole('menuitemradio', { name: /SofLIA Max/ })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('slider', { name: 'Nivel de razonamiento' })).toHaveAttribute('aria-valuemax', '5');
   });
 
   it('presenta el razonamiento como un slider interactivo y conserva la selección', () => {

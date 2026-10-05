@@ -79,6 +79,9 @@
 - [x] 11.3 Enviar `thinkingConfig.thinkingLevel` a Gemini y `reasoning.effort` a OpenAI, normalizando valores heredados y el override de Computer Use.
 - [x] 11.4 Cubrir selector, persistencia, proveedor, esfuerzo y modelo fijo de Computer Use con pruebas; actualizar especificación y documentación.
 - [x] 11.5 Retirar el modo de razonamiento “Rápido”, migrar preferencias heredadas a `low` y verificar selector y payloads de ambos proveedores.
+- [x] 11.6 Migrar la selección y el razonamiento de Max a `gpt-6.1-sol`, unificar identificadores del catálogo y ruteo y comprobar el clic real, remontaje y aislamiento por usuario.
+- [x] 11.7 Reconocer solicitudes explícitas de Computer Use, publicar el actuador con ambos proveedores y corregir negaciones históricas de acceso sin eludir restricciones de extractos, catálogo ni confirmaciones.
+- [x] 11.8 Esperar el viewport de supervisión antes de capturar, conservar capturas al republicar geometría idéntica e invalidar coordenadas ante cambios reales sin depender del throttle pasivo.
 
 ## 12. Controles compactos, predicciones y extensiones
 

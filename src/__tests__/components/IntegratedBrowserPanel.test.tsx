@@ -199,6 +199,18 @@ describe('IntegratedBrowserPanel', () => {
     await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('soflia.ai'));
   });
 
+  it('acusa una apertura del agente con geometría nueva tras dibujar sus controles', async () => {
+    render(<IntegratedBrowserPanel />);
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalled());
+    vi.mocked(api.setViewport).mockClear();
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      x: 200, y: 120, left: 200, top: 120, right: 1000, bottom: 680,
+      width: 800, height: 560, toJSON: () => ({}),
+    });
+    act(() => vi.mocked(api.onOpenRequested).mock.calls.forEach(([callback]) => callback({ url: state.url })));
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalledWith({ x: 200, y: 120, width: 800, height: 560 }));
+  });
+
   it('muestra sólo el aviso de la pestaña activa y lo retira al cambiar', async () => {
     render(<IntegratedBrowserPanel />);
     await waitFor(() => expect(api.open).toHaveBeenCalled());

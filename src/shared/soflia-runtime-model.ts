@@ -16,3 +16,7 @@ export const SOFLIA_RUNTIME_MODEL = 'gemini-3.8-flash' as const;
  * y latencia, no por capacidad.
  */
 export const SOFLIA_LITE_MODEL = 'gemini-3.5-flash-lite' as const;
+
+/** Identificadores OpenAI compartidos entre el selector y el ruteo del chat. */
+export const SOFLIA_MAX_MODEL = 'gpt-6.1-sol' as const;
+export const SOFLIA_PRO_MODEL = 'gpt-5.6-luna' as const;

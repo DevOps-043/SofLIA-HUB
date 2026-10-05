@@ -1729,11 +1729,14 @@ export class IntegratedBrowserService extends EventEmitter {
     const parent = this.requireParentWindow();
     this.ensureWorkspaceView();
     const viewport = parseBrowserViewport(rawViewport, parent.getContentBounds());
+    const previous = this.viewport;
+    const changed = !this.visible || !previous || previous.x !== viewport.x || previous.y !== viewport.y
+      || previous.width !== viewport.width || previous.height !== viewport.height;
     this.viewport = viewport;
     this.visible = true;
     this.applyViewLayout();
     const active = this.getActiveTab();
-    if (active) this.deferPassiveCapture(active);
+    if (active && changed) this.deferPassiveCapture(active);
     this.resolveViewportWaiters();
     this.emitState();
     return this.getState();
@@ -1909,13 +1912,19 @@ export class IntegratedBrowserService extends EventEmitter {
     };
     try {
       assertOpening();
-      parent.webContents.send('integrated-browser:open-requested', { url: typeof rawUrl === 'string' ? rawUrl : this.getState().url });
-      const viewportReady = detached || (this.visible && this.viewport) ? Promise.resolve() : this.waitForViewport(timeoutMs, viewportAbort.signal);
-      const navigationReady = (rawUrl !== undefined
-        ? this.loadTarget(rawUrl, assertOpening)
-        : (!contents.getURL() || contents.getURL() === 'about:blank')
-          ? this.loadTarget(INTEGRATED_BROWSER_HOME, assertOpening)
-          : Promise.resolve()).catch(error => { abortViewport(); throw error; });
+      // La barra de supervisión cambia el viewport al aparecer. Esperar su
+      // acuse antes de crear el driver evita capturar la geometría anterior.
+      const viewportReady = detached || (!this.agentTaskBinding && this.visible && this.viewport)
+        ? Promise.resolve() : this.waitForViewport(timeoutMs, viewportAbort.signal);
+      const navigationReady = Promise.resolve().then(() => {
+        assertOpening();
+        parent.webContents.send('integrated-browser:open-requested', { url: typeof rawUrl === 'string' ? rawUrl : this.getState().url });
+        return rawUrl !== undefined
+          ? this.loadTarget(rawUrl, assertOpening)
+          : (!contents.getURL() || contents.getURL() === 'about:blank')
+            ? this.loadTarget(INTEGRATED_BROWSER_HOME, assertOpening)
+            : undefined;
+      }).catch(error => { abortViewport(); throw error; });
       // No liberar control mientras una navegación nativa ya emitida sigue pendiente.
       const results = await Promise.allSettled([navigationReady, viewportReady]);
       assertOpening();
@@ -4197,6 +4206,10 @@ export class IntegratedBrowserService extends EventEmitter {
       return;
     }
     tab.appliedBounds = { ...bounds };
+    // Las coordenadas vencen en cada cambio real; no dependen del throttle de
+    // entrada que sólo limita la percepción pasiva.
+    tab.visualRevision += 1;
+    this.invalidateObservation(tab.id);
     view.setBounds(bounds);
     this.configureTabZoom(tab);
     this.updateTabSafetyInterstitial(tab);

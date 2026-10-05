@@ -29,7 +29,7 @@ const PATHS: Record<ModelIconKey, React.ReactNode> = {
       <path d="M17.5 15H9" />
     </>
   ),
-  // Terra / Max: globo terráqueo de alta tecnología.
+  // Sol / Max: globo terráqueo de alta tecnología.
   globe: (
     <>
       <circle cx="12" cy="12" r="10" />

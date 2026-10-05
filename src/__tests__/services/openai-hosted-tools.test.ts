@@ -6,7 +6,7 @@ vi.mock('../../config', () => ({
   OPENAI_API_KEY: 'test-openai-key',
   get OPENAI_VECTOR_STORE_IDS() { return estado.vectorStores; },
   MODELS: { PRIMARY: 'gemini-3.8-flash' },
-  OPENAI_MODELS: { COMPUTER_USE: 'gpt-5.6-terra', COMMANDS: 'gpt-5.6-luna' },
+  OPENAI_MODELS: { COMPUTER_USE: 'gpt-6.1-sol', COMMANDS: 'gpt-5.6-luna' },
   isOpenAIConfigured: () => true,
 }));
 
