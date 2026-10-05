@@ -363,7 +363,7 @@ describe('gemini-chat', () => {
     const { getPublicAiErrorMessage } = await import('../../services/gemini-chat');
 
     expect(getPublicAiErrorMessage(new Error('OPENAI_API_KEY_MISSING')))
-      .toBe('SofLIA Pro y Max requieren una clave de OpenAI válida en Configuración.');
+      .toBe('SofLIA y Max requieren una clave de OpenAI válida en Configuración.');
   });
 });
 

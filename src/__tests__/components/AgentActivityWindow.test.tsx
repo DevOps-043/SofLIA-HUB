@@ -1,0 +1,24 @@
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, expect, it, vi } from 'vitest';
+import { AgentActivityWindow } from '../../components/agents/AgentActivityWindow';
+import { agentActivityService } from '../../services/agent-activity';
+import type { AgentActivity } from '../../shared/agent-activity';
+afterEach(() => vi.restoreAllMocks());
+it('muestra progreso, permite plegar y ocultar y retira la suscripción', async () => {
+  let change!: (items: AgentActivity[]) => void; const remove = vi.fn();
+  vi.spyOn(agentActivityService, 'subscribe').mockImplementation(listener => { change = listener; return remove; });
+  vi.spyOn(agentActivityService, 'snapshot').mockResolvedValue([]);
+  const control = vi.spyOn(agentActivityService, 'control').mockResolvedValue(undefined);
+  const view = render(<AgentActivityWindow />);
+  await screen.findByText('Sin equipos activos');
+  act(() => change([{ id: 'uno', sequence: 1, surface: 'whatsapp', kind: 'presentation', status: 'running', durationMs: 300, agents: [{ role: 'contenido', status: 'completed' }, { role: 'diseno', status: 'running' }] }]));
+  expect(screen.getByText('WhatsApp')).toBeInTheDocument();
+  act(() => change([{ id: 'orbe', sequence: 1, surface: 'orb', kind: 'presentation', status: 'running', durationMs: 300, agents: [{ role: 'contenido', status: 'completed' }, { role: 'diseno', status: 'running' }] }]));
+  expect(screen.getByText('Orbe')).toBeInTheDocument();
+  expect(screen.getByText('Trabajando')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { expanded: true }));
+  expect(screen.queryByText('Diseño')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByLabelText('Ocultar monitor'));
+  await waitFor(() => expect(control).toHaveBeenCalledWith('hide'));
+  view.unmount(); expect(remove).toHaveBeenCalled();
+});

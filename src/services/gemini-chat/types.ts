@@ -23,6 +23,8 @@ export interface StreamResult {
 }
 
 export interface SendMessageStreamOptions {
+  /** Auto selecciona tareas complejas; team fuerza especialistas y direct los omite. */
+  teamMode?: import('../../shared/agent-teams/policy').TeamMode;
   /** Analizar sólo los extractos adjuntos; sin observación, búsquedas ni acciones externas implícitas. */
   browserSourceMode?: 'attached-fragments';
   model?: string;

@@ -8,6 +8,11 @@ const isPresentationRuntime = new URLSearchParams(window.location.search).get('v
 
 async function bootstrap() {
   const root = ReactDOM.createRoot(document.getElementById('root')!)
+  if (new URLSearchParams(window.location.search).get('view') === 'agent-activity') {
+    const { AgentActivityWindow } = await import('./components/agents/AgentActivityWindow')
+    root.render(<React.StrictMode><AgentActivityWindow /></React.StrictMode>)
+    return
+  }
 
   if (isPresentationRuntime) {
     // La vista previa vive en un iframe sandbox con origen opaco. Cargar solo

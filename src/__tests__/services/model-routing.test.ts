@@ -6,7 +6,7 @@ vi.mock('../../config', () => ({
   OPENAI_API_KEY: 'test-openai-key',
   OPENAI_VECTOR_STORE_IDS: [],
   MODELS: { PRIMARY: 'gemini-3.8-flash', FALLBACK: 'gemini-3.8-flash', PRO: 'gemini-3.8-flash' },
-  OPENAI_MODELS: { COMPUTER_USE: 'gpt-6.1-sol', COMMANDS: 'gpt-5.6-luna' },
+  OPENAI_MODELS: { COMPUTER_USE: 'gpt-6.1-sol', COMMANDS: 'gpt-6-luna' },
   isOpenAIConfigured: () => estado.openaiConfigurado,
 }));
 
@@ -70,7 +70,7 @@ describe('Ruteo de modelos', () => {
     expect(routed.consumesSofliaMaxQuota).toBe(true);
   });
 
-  it('MR-006: agotada la cuota, SofLIA Max degrada a SofLIA Pro avisando', () => {
+  it('MR-006: agotada la cuota, SofLIA Max degrada a SofLIA avisando', () => {
     consumeSofliaMaxUse('user-1');
     consumeSofliaMaxUse('user-1');
     consumeSofliaMaxUse('user-1');
@@ -81,7 +81,7 @@ describe('Ruteo de modelos', () => {
       isCommandTurn: false,
     });
 
-    expect(routed.modelId).toBe('gpt-5.6-luna');
+    expect(routed.modelId).toBe('gpt-6-luna');
     expect(routed.quotaExhausted).toBe(true);
   });
 
@@ -89,12 +89,12 @@ describe('Ruteo de modelos', () => {
     estado.openaiConfigurado = false;
 
     const routed = resolveRoutedModel({
-      options: { model: 'gpt-5.6-luna', task: 'orb' },
+      options: { model: 'gpt-6-luna', task: 'orb' },
       isComputerActionTurn: false,
       isCommandTurn: false,
     });
 
-    expect(routed.modelId).toBe('gpt-5.6-luna');
+    expect(routed.modelId).toBe('gpt-6-luna');
   });
 
   it('MR-008: sin modelo elegido cae al primario', () => {

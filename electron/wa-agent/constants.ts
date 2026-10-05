@@ -9,10 +9,9 @@
 
 export const MAX_HISTORY = 20;
 
-import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
 
 /** Modelo único usado por el agente WhatsApp. */
-export const WA_MODEL = SOFLIA_RUNTIME_MODEL;
+export const WA_MODEL = 'gpt-6-luna' as const;
 
 /**
  * Umbrales del loop guard:

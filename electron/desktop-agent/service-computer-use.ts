@@ -38,6 +38,7 @@ function nuevoCliente(service: any, environment: CuEnvironment): CuClient {
     model,
     environment,
     enablePromptInjectionDetection: config.computerUsePromptInjectionDetection,
+    onTeamEvent: event => console.info('[Equipo Computer Use]', JSON.stringify(event)),
   });
 }
 

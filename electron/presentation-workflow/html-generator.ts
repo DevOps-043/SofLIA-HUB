@@ -5,9 +5,12 @@ import { exportPresentationToHtml } from '../skill-workspace/export-html';
 import type { SkillWorkspaceService } from '../skill-workspace/service';
 import { PRESENTACIONES_SKILL } from '../../src/shared/skills/presentaciones-skill';
 import { PRESENTACIONES_SKILL_PROMPT } from '../../src/prompts/skills/presentaciones';
-import { SOFLIA_RUNTIME_MODEL } from '../../src/shared/soflia-runtime-model';
+import { WA_MODEL } from '../wa-agent/constants';
 import { parsePresentationDeck } from '../../src/shared/presentations/deck-schema';
 import type { WhatsAppAgent } from '../whatsapp-agent';
+import { selectTeam, TEAM_COORDINATOR_INSTRUCTION, type TeamMode } from '../../src/shared/agent-teams/policy';
+import { assertTeamActive, runAgentTeam } from '../../src/shared/agent-teams/runner';
+import type OpenAI from 'openai';
 
 /**
  * Generacion de un deck declarativo para superficies SIN panel, como
@@ -15,9 +18,8 @@ import type { WhatsAppAgent } from '../whatsapp-agent';
  * Skill del chat; lo que cambia es la entrega: aqui no hay vista previa, asi
  * que el resultado se exporta a HTML y se envia como archivo.
  *
- * A diferencia del chat, no hay bucle de herramientas: el modelo devuelve el
- * documento completo en una llamada y main lo escribe. En un canal donde el
- * usuario no ve el proceso, iterar con herramientas no aporta nada.
+ * No hay bucle de herramientas: los especialistas preparan contenido y diseño;
+ * el coordinador devuelve el documento completo y main lo valida y escribe.
  *
  * Se entrega un HTML autocontenido, no un PDF: imprimir aplanaria las
  * transiciones y animaciones, que son la razon de generar la presentacion en
@@ -37,7 +39,12 @@ export async function generatePresentationForWhatsApp(input: {
   title: string;
   contenido: string;
   onProgress?: (message: string) => Promise<void>;
+  teamMode?: TeamMode;
+  signal?: AbortSignal;
 }): Promise<{ ok: true; data: GeneratedPresentation } | { ok: false; error: string }> {
+  assertTeamActive(input.signal);
+  const client = await input.agent.getOpenAIClient();
+  assertTeamActive(input.signal);
   const policy = PRESENTACIONES_SKILL.workspace;
   if (!policy) return { ok: false, error: 'La skill de presentaciones no declara espacio de trabajo.' };
 
@@ -49,18 +56,24 @@ export async function generatePresentationForWhatsApp(input: {
   });
   if (!created.ok) return { ok: false, error: created.error };
   const workspaceId = created.data.id;
+  assertTeamActive(input.signal);
 
-  const brandingNotice = await prepareBranding(input.workspaceService, workspaceId);
+  const brandingNotice = await prepareBranding(input.workspaceService, workspaceId, input.signal);
+  assertTeamActive(input.signal);
 
   await input.onProgress?.('Escribiendo las diapositivas...');
-  const deck = await generateDeck(input.agent, input.title, input.contenido, policy.maxFileBytes);
+  const deck = await generateDeck(client, input.title, input.contenido, policy.maxFileBytes, input.teamMode, input.signal);
+  assertTeamActive(input.signal);
   if (!deck) return { ok: false, error: 'El modelo no devolvio un deck.json valido.' };
 
   const written = await input.workspaceService.writeFile(workspaceId, policy.entryFile, deck);
   if (!written.ok) return { ok: false, error: written.error };
+  assertTeamActive(input.signal);
 
   await input.onProgress?.('Empaquetando la presentacion...');
+  assertTeamActive(input.signal);
   const exported = await exportPresentationToHtml(input.workspaceService, workspaceId, policy.entryFile);
+  assertTeamActive(input.signal);
   if (!exported.ok) return { ok: false, error: exported.error };
 
   return { ok: true, data: { workspaceId, htmlPath: exported.htmlPath, brandingNotice } };
@@ -70,13 +83,17 @@ export async function generatePresentationForWhatsApp(input: {
  * Escribe la hoja de variables de marca. Devuelve un aviso cuando la
  * identidad no se pudo aplicar; nunca falla la generacion por esto.
  */
-async function prepareBranding(service: SkillWorkspaceService, workspaceId: string): Promise<string | null> {
+async function prepareBranding(service: SkillWorkspaceService, workspaceId: string, signal?: AbortSignal): Promise<string | null> {
   const root = await service.resolveWorkspaceRoot(workspaceId);
+  assertTeamActive(signal);
   if (!root) return null;
 
   const organizationId = await resolveUserOrganizationId(getAuthState().userId);
+  assertTeamActive(signal);
   const prepared = await prepareBrandingForWorkspace(root, organizationId);
+  assertTeamActive(signal);
   await service.writeSystemFile(workspaceId, 'estilos/marca.css', prepared.css);
+  assertTeamActive(signal);
   await service.writeSystemFile(workspaceId, 'estilos/base.css', prepared.baseCss);
   return prepared.notice;
 }
@@ -85,10 +102,25 @@ async function prepareBranding(service: SkillWorkspaceService, workspaceId: stri
  * Pide el documento completo al modelo. Se reutiliza el contrato de salida de
  * la Skill para que la presentacion de WhatsApp sea la misma que la del chat.
  */
-async function generateDeck(agent: WhatsAppAgent, titulo: string, contenido: string, maxBytes: number): Promise<string | null> {
-  const model = agent.getGenAI().getGenerativeModel({ model: SOFLIA_RUNTIME_MODEL });
+async function generateDeck(client: OpenAI, titulo: string, contenido: string, maxBytes: number, mode?: TeamMode, signal?: AbortSignal): Promise<string | null> {
+  assertTeamActive(signal);
+  const plan = selectTeam({ task: `Crea una presentación: ${titulo}`, surface: 'whatsapp', skillId: PRESENTACIONES_SKILL.id, mode });
+  const team = plan ? await runAgentTeam({
+    plan, surface: 'whatsapp', source: contenido, signal,
+    generate: async worker => {
+      assertTeamActive(worker.signal);
+      const response = await client.responses.create({ model: WA_MODEL, instructions: worker.instruction,
+        input: worker.input, max_output_tokens: worker.maxOutputTokens, reasoning: { effort: 'none' }, store: false,
+      }, { signal: worker.signal, maxRetries: 0 });
+      return response.status === 'completed' ? response.output_text : '';
+
+    },
+    onEvent: event => console.info('[Equipo presentación]', JSON.stringify(event)),
+  }) : { context: '' };
+  assertTeamActive(signal);
   const prompt = [
     PRESENTACIONES_SKILL_PROMPT,
+    ...(team.context ? [TEAM_COORDINATOR_INSTRUCTION, team.context] : []),
     '',
     'Estas en WhatsApp: no hay panel ni herramientas de archivo. Devuelve UNICAMENTE el JSON completo de deck.json version 1, sin explicaciones, sin texto antes o despues y sin vallas de codigo. Usa el contrato declarativo de la Skill. No devuelvas HTML, CSS ni JavaScript. El reproductor aplica los estilos de marca y exporta el HTML. No declares assets que no existen en el espacio de trabajo.',
     '',
@@ -98,7 +130,12 @@ async function generateDeck(agent: WhatsAppAgent, titulo: string, contenido: str
     contenido,
   ].join('\n');
 
-  const text = (await model.generateContent(prompt)).response.text();
+  const response = await client.responses.create({ model: WA_MODEL, input: prompt, store: false,
+    reasoning: { effort: 'medium' }, max_output_tokens: 24000,
+  }, { signal, maxRetries: 0 });
+  assertTeamActive(signal);
+  if (response.status !== 'completed') return null;
+  const text = response.output_text;
   return extractDeck(text, maxBytes);
 }
 

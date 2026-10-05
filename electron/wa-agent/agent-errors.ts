@@ -13,12 +13,12 @@ export function classifyWhatsAppAgentError(error: unknown): WhatsAppAgentErrorCa
   const normalized = getClassifiableMessage(error);
 
   if (!normalized.trim()) return 'unknown';
-  if (normalized.includes('api key de gemini no configurada') || normalized.includes('api key no configurada')) {
+  if (normalized.includes('api key de openai no configurada') || normalized.includes('api key de gemini no configurada') || normalized.includes('api key no configurada')) {
     return 'missing-api-key';
   }
   if (
     normalized.includes('api key not valid')
-    || normalized.includes('invalid api key')
+    || normalized.includes('invalid api key') || normalized.includes('incorrect api key') || normalized.includes('invalid_api_key')
     || normalized.includes('api_key_invalid')
     || normalized.includes('permission denied')
     || normalized.includes('unauthenticated')
@@ -79,6 +79,7 @@ const MODEL_UNAVAILABLE_MARKERS = [
  */
 export function isModelAvailabilityError(error: unknown): boolean {
   const normalized = getClassifiableMessage(error);
+  if (normalized.includes('model_not_found')) return true;
   if (!/models\/[a-z0-9._:-]+/.test(normalized)) return false;
   return MODEL_UNAVAILABLE_MARKERS.some((marker) => normalized.includes(marker));
 }
@@ -86,17 +87,17 @@ export function isModelAvailabilityError(error: unknown): boolean {
 export function getWhatsAppAgentUserErrorMessage(error: unknown): string {
   switch (classifyWhatsAppAgentError(error)) {
     case 'missing-api-key':
-      return 'No tengo una API key de Gemini configurada para WhatsApp. Actualizala en Pulse Hub y vuelve a intentar.';
+      return 'No tengo una API key de OpenAI configurada para WhatsApp. Actualizala en Pulse Hub y vuelve a intentar.';
     case 'invalid-api-key':
-      return 'Gemini rechazo la API key configurada. Revisa que la key nueva este guardada en Pulse Hub y que tenga acceso a Generative Language API.';
+      return 'OpenAI rechazo la API key configurada. Revisa que la key nueva este guardada en Pulse Hub y que tenga acceso a gpt-6-luna.';
     case 'quota':
-      return 'Gemini rechazo la solicitud por cuota o limite temporal. Intenta de nuevo en unos minutos o revisa la cuota de la key.';
+      return 'OpenAI rechazo la solicitud por cuota o limite temporal. Intenta de nuevo en unos minutos o revisa la cuota de la key.';
     case 'model-unavailable':
       return `${WA_MODEL} no esta disponible para esta key. No cambie a otro modelo; revisa el acceso de la API y vuelve a intentar.\n\nDetalle: ${describeTechnicalDetail(error)}`;
     case 'network':
-      return 'No pude conectarme con Gemini en este momento. La conversacion sigue intacta; intenta de nuevo cuando haya conexion.';
+      return 'No pude conectarme con OpenAI en este momento. La conversacion sigue intacta; intenta de nuevo cuando haya conexion.';
     case 'safety':
-      return 'Gemini bloqueo esta respuesta por reglas de seguridad. Reformula la solicitud con mas contexto y menos ambiguedad.';
+      return 'OpenAI bloqueo esta respuesta por reglas de seguridad. Reformula la solicitud con mas contexto y menos ambiguedad.';
     default:
       return `Ocurrio un error tecnico procesando tu mensaje. La conversacion sigue guardada; intenta de nuevo.\n\nDetalle: ${describeTechnicalDetail(error)}`;
   }

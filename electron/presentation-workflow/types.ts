@@ -6,6 +6,7 @@ export type WorkflowState =
   | 'COMPLETED';
 
 export interface PresentacionData {
+  teamMode?: import('../../src/shared/agent-teams/policy').TeamMode;
   clientCompanyName?: string;
   clientEmail?: string;
   extractedText?: string;

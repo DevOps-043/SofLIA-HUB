@@ -46,6 +46,7 @@ Este indice separa documentacion vigente de material historico.
 - [Project Hub unificado](architecture/project-hub-unified.md)
 - [Agentes y automatizacion](architecture/agents-and-automation.md)
 - [Manual del agente runtime](architecture/runtime-agents-manual.md)
+- [Arnés multiagente: reuniones, chat, WhatsApp y Computer Use](architecture/runtime-multiagent-harness.md)
 - [Inicio de sesión federado con SofLIA Learning (SSO) y guía de portabilidad a Project Hub](architecture/learning-sso-federated-login.md)
 - [Referencia completa del agente (consolidada)](architecture/agent-complete-reference.md)
 - [Parametros runtime](architecture/runtime-parameters.md)
@@ -65,6 +66,8 @@ Este indice separa documentacion vigente de material historico.
 - [Conversaciones no disponibles después del login](operations/troubleshooting/password-change-login.md)
 - [Estrategia e inventario de pruebas](quality/test-strategy-and-inventory.md)
 - [Fuentes del Arnes y Antigravity](references/harness-sources.md)
+- [Investigación del repositorio Codex para SofLIA Hub](reports/codex-repository-research-2026-09-21.md)
+- [Codex: mejoras con valor directo para usuarios de SofLIA](reports/codex-user-value-research-2026-09-25.md)
 
 ## Historico
 

@@ -8,6 +8,7 @@
  * `tool-display-names.test.ts` falla si alguna queda sin etiqueta.
  */
 export const TOOL_DISPLAY_NAMES: Record<string, string> = {
+  analisis_en_equipo: 'Especialistas trabajando en equipo...',
   // Investigacion web y entregables
   web_research: 'Investigando en la web...',
   research_actions: 'Preparando entregables...',

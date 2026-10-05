@@ -6,6 +6,7 @@ import { recordDesktopTaskMemory } from '../memory/record-desktop-task';
 import { transcribeChannelAudio } from '../wa-agent/audio-transcription';
 import { registerProjectHubHandlers } from '../project-hub-handlers';
 import { getProjectHubApiService } from '../project-hub';
+import { initializeAgentRuntime } from '../agent-runtime';
 
 type StartupWindowControls = {
   createOrbWindow: (wake?: boolean) => Promise<void>;
@@ -67,6 +68,12 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
     recordDesktopTaskMemory(services.memoryService, payload as { task?: string; message?: string }, true));
   modules.registerUpdaterHandlers(services.updaterService, () => state.win);
   modules.registerMeetingHandlers(services.meetingWorkflowService);
+  void initializeAgentRuntime({
+    getWindow: () => state.win,
+    getOrbWindow: () => state.orbWin,
+    geminiKey: () => state.currentGeminiApiKey,
+    meetings: services.meetingWorkflowService,
+  }).catch(() => logBootstrapError('agent-runtime', new Error('No se pudo iniciar el arnés multiagente.')));
   // Transcripcion de reuniones en vivo: audio del renderer -> sidecar Python
   // (faster-whisper) -> pipeline de meetings existente para la minuta.
   modules.registerMeetingLiveHandlers(
@@ -150,7 +157,7 @@ export async function initializeMainServices(input: {
   await runOptionalStep('pythonRuntimeService.init', () => modules.pythonRuntimeService.init());
   await runOptionalStep('createWindow', () => controls.createWindow(state.shouldShowInitialWindow));
   await runOptionalStep('createTray', () => controls.createTray());
-  if (state.currentGeminiApiKey) await runOptionalStep('initWhatsAppAgent(.env)', () => initWhatsAppAgent(state.currentGeminiApiKey));
+  await runOptionalStep('initWhatsAppAgent', () => initWhatsAppAgent(state.currentGeminiApiKey || ''));
   await runOptionalStep('waService.init', () => services.waService.init());
   await runOptionalStep('calendarService.init', () => services.calendarService.init());
   await runOptionalStep('meetingPassiveDetectionService.startPolling', () => Promise.resolve(services.meetingPassiveDetectionService.startPolling()));

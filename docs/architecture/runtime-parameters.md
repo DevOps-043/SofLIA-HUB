@@ -18,6 +18,15 @@ Inventario de defaults y topes con impacto operativo. Los overrides guardados en
 
 ## Arranque
 
+El [arnés multiagente](runtime-multiagent-harness.md) define sus límites en
+[`AGENT_LIMITS`](../../src/shared/agent-runtime.ts): fuente de 80000 caracteres,
+salida de 24000 por etapa, doce herramientas por etapa, seis llamadas Gemini
+por etapa, 3000 tokens solicitados por llamada Gemini, tres minutos por análisis,
+treinta segundos por RPC, aprobación de diez minutos y veinte runs por ámbito.
+El presupuesto observado de Codex no equivale a un límite de facturación.
+
+<!-- evidence: src/shared/agent-runtime.ts -->
+
 La ventana principal se crea antes de la cadena de servicios no esenciales y se
 revela en `ready-to-show` para evitar el destello en blanco. El intro de audio
 solo suena con la ventana visible (`visibilityState`), no en modo background.
@@ -35,6 +44,14 @@ tras reinicio, caliente y `--background`. Ver el cambio
 evidencia medida en el host de referencia.
 
 ## Aplicacion e IPC
+
+Los equipos transversales usan `TEAM_LIMITS` en
+[`src/shared/agent-teams/policy.ts`](../../src/shared/agent-teams/policy.ts):
+dos especialistas, cuatro llamadas de especialistas pendientes por proceso, 15 segundos por
+equipo, 4000 caracteres de solicitud, 24000 de fuente, 1500 tokens de salida
+solicitados y 6000 caracteres conservados por aporte. No incluyen el tiempo
+del coordinador ni constituyen un límite monetario. Ver
+[comportamiento y degradación](runtime-multiagent-harness.md#límites-y-rendimiento-de-equipos-generales).
 
 | Parametro | Default/tope | Fuente |
 |---|---:|---|
@@ -161,7 +178,7 @@ carpeta o vencer el plazo invalida la autorizacion pendiente anterior.
 | pasos | `maxSteps=120`, `defaultStepBudget=60`, mínimo integrado `90`, `maxTotalSteps=500` | `electron/desktop-agent/agent-config.ts`, `electron/desktop-agent/task-budget.ts` |
 | reintentos por llamada mal formada (chat) | 2: reemitir, luego responder sin herramientas | `src/services/gemini-chat/agentic-loop.ts` |
 | modelo conversacional/CU | `gemini-3.8-flash`, sin degradación de modelo | `src/shared/soflia-runtime-model.ts`, `electron/desktop-agent/gemini-cu/model-registry.ts` |
-| selector conversacional | SofLIA y Lite: Google; Max y Pro: OpenAI; elección y razonamiento persistidos por modelo | `src/hooks/model-selector-options.ts`, `src/hooks/useModelSelector.ts`, `src/services/model-routing.ts` |
+| selector conversacional | SofLIA: OpenAI `gpt-6-luna` (predeterminado); Max: OpenAI `gpt-6.1-sol` (3 usos/mes, fallback a SofLIA); Pro: Google `gemini-3.8-flash`; elección y razonamiento persistidos por modelo | `src/hooks/model-selector-options.ts`, `src/hooks/useModelSelector.ts`, `src/services/model-routing.ts` |
 | razonamiento Gemini / OpenAI | `low/medium/high` / `low/medium/high/xhigh/max`; `minimal` y `none` heredados migran a `low` | `src/services/gemini-chat/model-config.ts`, `src/services/openai-chat/reasoning.ts` |
 | captura | 1024x768, active monitor, max edge 1568, min scale .5 | mismo archivo |
 | timing | action 300 ms, change 8 s/500 ms, observation 2 s, queue 60 s | mismo archivo |

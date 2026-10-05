@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { BrowserWorkspaceLayout } from '../../components/browser/BrowserWorkspaceLayout';
 import { orbService } from '../../services/orb-service';
 import { scopedPreferenceKey } from '../../services/user-scope';
+import { SOFLIA_RUNTIME_MODEL } from '../../shared/soflia-runtime-model';
 
 vi.mock('../../services/orb-service', () => ({
   orbService: { show: vi.fn(async () => ({ success: true, visible: true })) },
@@ -83,7 +84,7 @@ describe('BrowserWorkspaceLayout', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cambiar modelo y razonamiento' }));
     fireEvent.click(screen.getByRole('menuitemradio', { name: /SofLIA Pro/ }));
 
-    expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe('gpt-5.6-luna');
+    expect(localStorage.getItem(scopedPreferenceKey('soflia:selected-model'))).toBe(SOFLIA_RUNTIME_MODEL);
     expect(screen.getByRole('button', { name: 'Cambiar modelo y razonamiento' })).toHaveTextContent('SofLIA Pro');
   });
 

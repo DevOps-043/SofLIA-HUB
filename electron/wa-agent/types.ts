@@ -32,6 +32,8 @@ export interface ToolLoopTraceEntry {
 }
 
 export interface AgentLoopOptions {
+  teamMode?: import('../../src/shared/agent-teams/policy').TeamMode;
+  signal?: AbortSignal;
   /** Si true, omite las confirmaciones del usuario (usado en tests/automatización). */
   skipConfirmations?: boolean;
 }

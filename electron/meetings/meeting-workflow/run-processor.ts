@@ -16,18 +16,23 @@ interface ProcessorDeps {
   assigneeService: MeetingAssigneeService;
   getTeamMembersDetailed: typeof getTeamMembersDetailed;
   createTraceId: () => string;
+  executionGuard?: () => void;
 }
 
 export async function processPreparedMeetingRun(deps: ProcessorDeps): Promise<CreateMeetingRunResult> {
   const { input, source, store } = deps;
+  deps.executionGuard?.();
   const existingRun = await store.findRunByOwnerAndSourceHash(input.ownerUserId, source.content_hash);
-  if (existingRun) {
+  deps.executionGuard?.();
+  if (existingRun && (existingRun.organization_id ?? null) === (input.organizationId ?? null)) {
     const detail = await store.getRunDetail(existingRun.id);
+    deps.executionGuard?.();
     if (detail) return { detail, deduplicated: true };
   }
 
   const traceId = deps.createTraceId();
   const sourceVersion = await store.getNextSourceVersion(input.ownerUserId, source.source_uri);
+  deps.executionGuard?.();
   const run = await store.createRun({
     organizationId: input.organizationId,
     workspaceId: input.workspaceId,
@@ -45,15 +50,19 @@ export async function processPreparedMeetingRun(deps: ProcessorDeps): Promise<Cr
   });
 
   try {
+    deps.executionGuard?.();
     return await extractAndPersistMeetingRun(deps, run, traceId);
   } catch (error: any) {
+    deps.executionGuard?.();
     await store.updateRunStatus(run.id, 'FAILED_EXTRACTION', error?.message || 'Fallo la extraccion de la reunion.');
     throw error;
   }
 }
 
 async function extractAndPersistMeetingRun(deps: ProcessorDeps, run: any, traceId: string): Promise<CreateMeetingRunResult> {
+  deps.executionGuard?.();
   const sourceArtifact = await deps.store.addSourceArtifact(run.id, deps.source);
+  deps.executionGuard?.();
   const extraction = await deps.aiService.extractMeetingAsset({
     traceId,
     meetingRunId: run.id,
@@ -61,12 +70,14 @@ async function extractAndPersistMeetingRun(deps: ProcessorDeps, run: any, traceI
     meetingType: deps.input.meetingType || run.meeting_type,
     sourceArtifact,
   });
+  deps.executionGuard?.();
   const reviewedAsset = deps.reviewService.enrichMeetingAsset({
     asset: extraction.payload,
     defaultTeamId: deps.input.defaultTeamId,
     defaultProjectId: deps.input.defaultProjectId,
   });
   reviewedAsset.proposed_actions = await resolveAssigneesForActions(deps, reviewedAsset.proposed_actions);
+  deps.executionGuard?.();
   const finalAsset = deps.reviewService.refreshReviewFlags(reviewedAsset);
 
   await deps.store.updateRunClassification(run.id, {
@@ -74,10 +85,15 @@ async function extractAndPersistMeetingRun(deps: ProcessorDeps, run: any, traceI
     meetingType: finalAsset.analysis_result?.meetingType.suggestedType || finalAsset.meeting_type,
   });
 
+  deps.executionGuard?.();
   const asset = await deps.store.addAsset(run.id, finalAsset, extraction.confidence);
-  await deps.store.replaceSyncActions(run.id, asset.id, finalAsset.proposed_actions);
+  deps.executionGuard?.();
+  await deps.store.replaceSyncActions(run.id, asset.id, finalAsset.proposed_actions, deps.executionGuard);
+  deps.executionGuard?.();
   await deps.store.updateRunStatus(run.id, 'REVIEW_REQUIRED', null);
+  deps.executionGuard?.();
   const detail = await deps.store.getRunDetail(run.id);
+  deps.executionGuard?.();
   if (!detail) throw new Error('No se pudo recuperar el run despues de procesarlo.');
   return { detail, deduplicated: false };
 }

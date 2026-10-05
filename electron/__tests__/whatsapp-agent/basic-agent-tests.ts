@@ -3,6 +3,12 @@ import { createAgentWithService } from './create-agent';
 import type { WhatsAppAgentTestContext } from './types';
 
 export function registerBasicAgentTests(ctx: WhatsAppAgentTestContext): void {
+  it('atiende texto con OpenAI aunque no exista clave Gemini', async () => {
+    const { agent, waService } = createAgentWithService(ctx);
+    agent.updateApiKey(''); ctx.mockTextResponse('Respuesta de Luna');
+    await agent.handleMessage('123@s.whatsapp.net', '5215500000000', 'Hola');
+    expect(waService.sendText).toHaveBeenCalledWith('123@s.whatsapp.net', 'Respuesta de Luna');
+  });
   describe('WA-031: handleMessage returns text response', () => {
     it('should call waService.sendText with agent response', async () => {
       const { agent, waService } = createAgentWithService(ctx);
