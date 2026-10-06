@@ -167,6 +167,14 @@ cerrada. La respuesta no puede abrir cámara o micrófono: `getUserMedia` cruza
 después por el request handler, que conserva identidad concreta, origen HTTP(S),
 decisión por sitio, aviso HITL y permiso nativo.
 
+#### Diagnóstico histórico de llamadas (agosto)
+
+La secuencia siguiente conserva los ensayos de agosto, incluyendo hipótesis
+posteriormente refutadas. La política actual vive en
+[fix-google-chat-huddle](../fix-google-chat-huddle/design.md): runtime 44.5.1
+estable y DocumentPictureInPictureAPI incompleta oculta. La sonda nativa mostró
+que esa API no materializa la ventana que estos ensayos suponían disponible.
+
 Google diferencia las reuniones Meet convencionales de las llamadas directas
 de Chat. Su [ayuda oficial](https://support.google.com/chat/answer/7653283)
 describe que la llamada directa registra el evento en la conversación, hace
