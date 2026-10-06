@@ -10,6 +10,7 @@ export class BrowserWindow extends EventEmitter {
 
   webContents = {
     send: vi.fn(),
+    focus: vi.fn(),
     on: vi.fn(),
     once: vi.fn(),
     openDevTools: vi.fn(),
@@ -145,6 +146,7 @@ class MockWebContents extends EventEmitter {
   enableDeviceEmulation = vi.fn();
   disableDeviceEmulation = vi.fn();
   setAudioMuted = vi.fn();
+  isCurrentlyAudible = vi.fn(() => false);
   print = vi.fn((_options: unknown, callback: (success: boolean, failureReason: string) => void) => callback(true, ''));
   printToPDF = vi.fn(async () => Buffer.from('pdf'));
   downloadURL = vi.fn();

@@ -5,6 +5,7 @@ import { BrowserWorkspaceLayout } from '../../components/browser/BrowserWorkspac
 import { orbService } from '../../services/orb-service';
 import { scopedPreferenceKey } from '../../services/user-scope';
 import { SOFLIA_RUNTIME_MODEL } from '../../shared/soflia-runtime-model';
+import { AgentActivityContext, type AgentActivityPanelState } from '../../components/agents/agent-activity-context';
 
 vi.mock('../../services/orb-service', () => ({
   orbService: { show: vi.fn(async () => ({ success: true, visible: true })) },
@@ -64,9 +65,9 @@ describe('BrowserWorkspaceLayout', () => {
   it('mantiene el navegador vivo, usa chat compacto y permite minimizar sin desmontarlo', () => {
     renderLayout();
 
-    expect(screen.getByRole('region', { name: 'Chat flotante con SofLIA' })).toHaveClass('rounded-[1.75rem]');
+    expect(screen.getByRole('region', { name: 'Chat flotante con SofLIA' })).toHaveClass('rounded-[1.25rem]');
     expect(screen.getByText('Navegador con panel')).toBeInTheDocument();
-    expect(screen.getByTestId('viewport-insets')).toHaveTextContent('412:0');
+    expect(screen.getByTestId('viewport-insets')).toHaveTextContent('400:0');
     expect(screen.getByRole('button', { name: 'Mover panel a la derecha' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Minimizar panel de SofLIA' })).toBeInTheDocument();
 
@@ -120,7 +121,7 @@ describe('BrowserWorkspaceLayout', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mover panel a la derecha' }));
 
     expect(screen.getByRole('button', { name: 'Mover panel a la izquierda' })).toBeInTheDocument();
-    expect(screen.getByTestId('viewport-insets')).toHaveTextContent('0:412');
+    expect(screen.getByTestId('viewport-insets')).toHaveTextContent('0:400');
     expect(localStorage.getItem(scopedPreferenceKey('sofLia_integratedBrowserFloatingChatSide'))).toBe('right');
   });
 
@@ -132,7 +133,7 @@ describe('BrowserWorkspaceLayout', () => {
 
     expect(separator).toHaveAttribute('aria-valuenow', '420');
     expect(localStorage.getItem(scopedPreferenceKey('sofLia_integratedBrowserFloatingChatWidth'))).toBe('420');
-    expect(screen.getByTestId('viewport-insets')).toHaveTextContent('444:0');
+    expect(screen.getByTestId('viewport-insets')).toHaveTextContent('432:0');
   });
 
   it('alinea el panel flotante debajo de la barra superior del navegador', () => {
@@ -140,8 +141,8 @@ describe('BrowserWorkspaceLayout', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Reportar inicio de pagina' }));
 
-    expect(screen.getByRole('region', { name: 'Chat flotante con SofLIA' })).toHaveStyle({ top: '132px' });
-    expect(screen.getByRole('separator', { name: 'Ajustar ancho del panel de SofLIA' })).toHaveStyle({ top: '144px' });
+    expect(screen.getByRole('region', { name: 'Chat flotante con SofLIA' })).toHaveStyle({ top: '126px' });
+    expect(screen.getByRole('separator', { name: 'Ajustar ancho del panel de SofLIA' })).toHaveStyle({ top: '132px' });
   });
 
   it('abre la Orbe general y devuelve todo el ancho al navegador', async () => {
@@ -194,6 +195,31 @@ describe('BrowserWorkspaceLayout', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('No pude abrir ese chat. Intenta de nuevo.');
     expect(screen.getByRole('dialog', { name: 'Conversaciones de SofLIA' })).toBeInTheDocument();
+  });
+
+  it('acopla el panel de equipos al borde derecho y lo descuenta de la vista nativa', () => {
+    const activity: AgentActivityPanelState = { items: [], error: '', open: true, runningCount: 0, setOpen: vi.fn(), toggle: vi.fn() };
+    render(
+      <AgentActivityContext.Provider value={activity}>
+        <BrowserWorkspaceLayout
+          chat={<div>Chat activo con SofLIA</div>}
+          conversations={conversations}
+          currentConversationId="chat-1"
+          onClose={vi.fn()}
+          onNewChat={vi.fn(async () => undefined)}
+          onSelectConversation={vi.fn(async () => undefined)}
+        />
+      </AgentActivityContext.Provider>,
+    );
+
+    // Debajo de la barra del navegador para no tapar sus controles.
+    expect(screen.getByRole('complementary', { name: 'Equipo de SofLIA' })).toHaveStyle({ right: '6px', top: '106px', width: '300px' });
+    expect(screen.getByTestId('viewport-insets')).toHaveTextContent('400:312');
+
+    // Con el chat a la derecha ambos paneles quedan contiguos.
+    fireEvent.click(screen.getByRole('button', { name: 'Mover panel a la derecha' }));
+    expect(screen.getByRole('region', { name: 'Chat flotante con SofLIA' })).toHaveStyle({ right: '312px' });
+    expect(screen.getByTestId('viewport-insets')).toHaveTextContent('0:706');
   });
 
   it('BR-LAY-001: el asa de ancho queda sobre el panel en ambos lados', () => {

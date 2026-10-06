@@ -235,7 +235,12 @@ La invitación y el timbrado siguen perteneciendo a Google: la aceptación exige
 observar `CreateMeetingInvite` y al destinatario real; SofLIA no inventa una
 notificación para ocultar un fallo del proveedor.
 
-#### Retirada definitiva de la llamada directa
+#### Retirada de la llamada directa (histórico de agosto)
+
+Sustituida el 2026-10-06 por el cambio autorizado
+[fix-google-chat-huddle](../fix-google-chat-huddle/design.md). Los párrafos de
+esta sección describen el comportamiento histórico; la especificación activa
+permite el flujo nativo gobernado y mantiene prohibidos los fallbacks propios.
 
 La experiencia anterior queda sustituida por una regla de seguridad más
 restrictiva. Se observaron reuniones creadas sin una acción inequívoca del

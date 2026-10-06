@@ -19,9 +19,12 @@ import { BrowserAgentShortcutStore } from './agent-shortcut-store';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getDomain } from 'tldts';
+import { resolveBrowserShortcut, shortcutNeedsChromeFocus, type BrowserUiCommandRequest } from '../../src/shared/browser-keyboard-shortcuts';
+import { buildTabContextMenuTemplate } from './tab-context-menu';
 import {
   BaseWindow,
   BrowserWindow,
+  Menu,
   WebContentsView,
   app,
   dialog,
@@ -1323,9 +1326,10 @@ export class IntegratedBrowserService extends EventEmitter {
     return this.getState();
   }
 
-  setMuted(muted: boolean): IntegratedBrowserState {
+  /** Silencia la pestaña indicada o, sin identificador, la activa (como el icono de audio de Chrome). */
+  setMuted(muted: boolean, rawTabId?: unknown): IntegratedBrowserState {
     this.assertCapability('pageTools');
-    const tab = this.getActiveTab();
+    const tab = rawTabId === undefined ? this.getActiveTab() : this.tabs.get(this.requireTabId(rawTabId));
     if (!tab) throw new Error('No hay una pestaña activa.');
     tab.muted = muted;
     this.requireTabView(tab).webContents.setAudioMuted(muted);
@@ -1530,6 +1534,42 @@ export class IntegratedBrowserService extends EventEmitter {
     this.assertCapability('advancedTabs');
     const tabId = this.requireTabId(rawTabId);
     return this.detachTabInternal(tabId);
+  }
+
+  /**
+   * Muestra el menú nativo de una pestaña. Las acciones reutilizan los mismos
+   * métodos que la interfaz; los fallos se registran como error recuperable.
+   */
+  showTabContextMenu(rawTabId: unknown): void {
+    this.assertCapability('advancedTabs');
+    const tabId = this.requireTabId(rawTabId);
+    const tab = this.tabs.get(tabId)!;
+    const ids = Array.from(this.tabs.keys());
+    const attempt = (operation: () => unknown) => () => {
+      try {
+        const result = operation();
+        if (result instanceof Promise) void result.catch((error) => this.recordError(error, tabId));
+      } catch (error) { this.recordError(error, tabId); }
+    };
+    Menu.buildFromTemplate(buildTabContextMenuTemplate({
+      pinned: tab.pinned,
+      muted: tab.muted,
+      detached: this.detachedWindows.has(tabId),
+      hasTabsToRight: ids.indexOf(tabId) < ids.length - 1,
+      hasOtherTabs: ids.length > 1,
+      canReopen: this.closedTabs.length > 0,
+    }, {
+      onNewTab: attempt(() => this.createTab()),
+      onDuplicate: attempt(() => this.duplicateTab(tabId)),
+      onTogglePinned: attempt(() => this.setTabPinned(tabId, !tab.pinned)),
+      onToggleMuted: attempt(() => this.setMuted(!tab.muted, tabId)),
+      onEditGroup: () => this.dispatchUiCommand({ command: 'edit-tab-group', tabId }),
+      onMoveToWindow: attempt(() => this.detachTab(tabId)),
+      onClose: attempt(() => this.closeTab(tabId)),
+      onCloseOthers: attempt(() => this.closeOtherTabs(tabId)),
+      onCloseToRight: attempt(() => this.closeTabsToRight(tabId)),
+      onReopenClosed: attempt(() => this.reopenClosedTab()),
+    })).popup({ window: this.requireParentWindow() });
   }
 
   private detachTabInternal(tabId: string): IntegratedBrowserState {
@@ -2766,6 +2806,9 @@ export class IntegratedBrowserService extends EventEmitter {
         nodeIntegration: false,
         webSecurity: true,
         allowRunningInsecureContent: false,
+        // Electron expone esta API pero no crea su ventana nativa. No anunciar
+        // una capacidad incompleta permite que el sitio elija su ruta compatible.
+        disableBlinkFeatures: 'DocumentPictureInPictureAPI',
         // La vista se oculta cada vez que se abre un panel del navegador o las
         // sugerencias de la barra. Con el throttling activo esa pausa congela
         // temporizadores y carga diferida de la pagina (paneles de YouTube,
@@ -2877,15 +2920,22 @@ export class IntegratedBrowserService extends EventEmitter {
     const contents = view.webContents;
     normalizeBrowserUserAgent(contents);
     const isCurrentView = () => tab.view === view && !contents.isDestroyed();
+    // La vista nativa se queda con el foco: sin reenviar, los atajos del
+    // navegador solo funcionarian con el foco en la barra. Mientras el agente
+    // controla la vista sus teclas llegan intactas a la pagina.
     contents.on('before-input-event', (event, input) => {
-      if (!isCurrentView() || !this.capabilities.pageTools || this.activeTabId !== tab.id || input.type !== 'keyDown'
-        || input.alt || !(process.platform === 'darwin' ? input.meta : input.control)) return;
-      const action = input.key === '0' ? 'reset' : ['+', '='].includes(input.key) ? 'in' : input.key === '-' ? 'out' : null;
-      if (!action) return;
-      event.preventDefault(); this.setZoom(action);
+      if (!isCurrentView() || this.activeTabId !== tab.id || this.agentControlling || input.type !== 'keyDown') return;
+      const command = resolveBrowserShortcut(input, process.platform);
+      if (!command) return;
+      event.preventDefault();
+      this.dispatchUiCommand({ command });
     });
+    contents.on('audio-state-changed', () => { if (isCurrentView()) this.emitState(); });
+    // Ctrl+rueda: Electron sólo emite el evento y nunca amplía por su cuenta,
+    // tampoco en modo aislado (comprobado con Electron 44). Sin aplicarlo aquí
+    // la rueda no hacía nada cuando existía setZoomMode.
     contents.on('zoom-changed', (event, direction) => {
-      if (!isCurrentView() || !this.capabilities.pageTools || this.activeTabId !== tab.id || supportsIsolatedBrowserZoom(contents)
+      if (!isCurrentView() || !this.capabilities.pageTools || this.activeTabId !== tab.id
         || (direction !== 'in' && direction !== 'out')) return;
       event.preventDefault(); this.setZoom(direction);
     });
@@ -2896,14 +2946,16 @@ export class IntegratedBrowserService extends EventEmitter {
     contents.setWindowOpenHandler((details) => {
       if (!isCurrentView()) return { action: 'deny' };
       const { url } = details;
-      if (isBlockedGoogleChatDirectCall(contents.getURL(), url)) {
-        console.warn('[Navegador][Seguridad] Llamada directa automática de Google Chat bloqueada.');
+      const nativeCall = isGoogleChatDirectCall(contents.getURL(), url);
+      if (nativeCall && (!this.enterpriseUrlAllowed(url) || checkBrowserNavigationLocal(url).action === 'block')) {
+        this.recordError(new Error('La llamada fue bloqueada por la política de navegación.'));
         return { action: 'deny' };
       }
-      // Document Picture-in-Picture y los popups que la pagina rellena por
-      // script piden `about:blank`. Convertirlos en pestañas dejaba pestañas
+      // Los popups que la pagina rellena por script piden `about:blank`.
+      // Convertirlos en pestañas dejaba pestañas
       // vacias y a la pagina esperando una ventana que nunca existio.
-      if (isBlankPopupTarget(url)) {
+      // La llamada de Chat tambien necesita conservar su ventana y abridor.
+      if (isBlankPopupTarget(url) || nativeCall) {
         console.info('[Navegador][Ventana] Popup gobernado permitido como ventana real.');
         const popupOptions = buildPopupWindowOptions(details);
         return {
@@ -2993,7 +3045,7 @@ export class IntegratedBrowserService extends EventEmitter {
           title: tab.title,
           selection,
         }),
-        onFind: () => this.sendToRenderer('integrated-browser:find-requested', {}),
+        onFind: () => this.dispatchUiCommand({ command: 'find' }),
         onPrint: () => { void this.printPage().catch((error) => this.recordError(error, tabId)); },
         onSavePdf: () => { void this.savePageAsPdf().catch((error) => this.recordError(error, tabId)); },
         onToggleMute: () => { this.setMuted(!tab.muted); },
@@ -3004,11 +3056,6 @@ export class IntegratedBrowserService extends EventEmitter {
       if (!isCurrentView()) return;
       if ((event as typeof event & { isMainFrame?: boolean }).isMainFrame === false) return;
       const url = event.url;
-      if (isBlockedGoogleChatDirectCall(contents.getURL(), url)) {
-        event.preventDefault();
-        console.warn('[Navegador][Seguridad] Llamada directa automática de Google Chat bloqueada.');
-        return;
-      }
       const safety = this.localNavigationVerdict(url);
       this.setNavigationSafety(tab, url, safety);
       if (isAllowedBrowserUrl(url) && this.enterpriseUrlAllowed(url) && safety.action !== 'block') {
@@ -3021,11 +3068,6 @@ export class IntegratedBrowserService extends EventEmitter {
     });
     contents.on('will-redirect', (event) => {
       if (!isCurrentView()) return;
-      if (isBlockedGoogleChatDirectCall(contents.getURL(), event.url)) {
-        event.preventDefault();
-        console.warn('[Navegador][Seguridad] Llamada directa automática de Google Chat bloqueada.');
-        return;
-      }
       if ((event as typeof event & { isMainFrame?: boolean }).isMainFrame === false) return;
       const safety = this.localNavigationVerdict(event.url);
       this.setNavigationSafety(tab, event.url, safety);
@@ -3036,12 +3078,6 @@ export class IntegratedBrowserService extends EventEmitter {
       event.preventDefault();
       console.warn('[Navegador][Seguridad] Redireccion bloqueada:', describeBlockedUrl(event.url));
       this.recordError(new Error('La redireccion fue bloqueada por seguridad.'), tabId);
-    });
-    contents.on('will-frame-navigate', (event) => {
-      if (!isCurrentView() || event.isMainFrame) return;
-      if (!isBlockedGoogleChatDirectCall(contents.getURL(), event.url)) return;
-      event.preventDefault();
-      console.warn('[Navegador][Seguridad] Llamada directa automática de Google Chat bloqueada.');
     });
     contents.on('did-start-loading', () => {
       if (!isCurrentView()) return;
@@ -3421,6 +3457,18 @@ export class IntegratedBrowserService extends EventEmitter {
   private sendToRenderer(channel: string, payload: unknown): void {
     const parent = this.parentWindow;
     if (parent && !parent.isDestroyed()) parent.webContents.send(channel, payload);
+  }
+
+  /**
+   * Entrega al renderer una orden de su interfaz (atajo o menú nativo). Las que
+   * abren un campo de texto mueven antes el foco de teclado a la ventana del Hub.
+   */
+  private dispatchUiCommand(request: BrowserUiCommandRequest): void {
+    const parent = this.parentWindow;
+    if (shortcutNeedsChromeFocus(request.command) && parent && !parent.isDestroyed()) {
+      parent.webContents.focus();
+    }
+    this.sendToRenderer('integrated-browser:command', request);
   }
 
   private emitState(): void {
@@ -3996,7 +4044,7 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   private prepareBrowserPopupWindow(window: BrowserWindow, openerOrigin: string | null): void {
-    if (window.isDestroyed()) return;
+    if (window.isDestroyed() || this.pictureInPictureWindows.has(window)) return;
     // La ventana real no hereda necesariamente el User-Agent normalizado del
     // abridor. Prepararla antes de devolver su webContents mantiene la misma
     // identidad Chromium desde su primera consulta.
@@ -4009,7 +4057,7 @@ export class IntegratedBrowserService extends EventEmitter {
     // Una ventana real puede abrir otras ventanas. La politica se hereda para
     // que ninguna quede fuera del navegador o sin origen gobernado.
     this.governePopupOpenings(window.webContents, openerOrigin);
-    this.adoptPictureInPictureWindow(window, openerOrigin);
+    this.adoptPictureInPictureWindow(window);
   }
 
   /**
@@ -4018,12 +4066,17 @@ export class IntegratedBrowserService extends EventEmitter {
    */
   private governePopupOpenings(contents: WebContents, inheritedOrigin: string | null): void {
     contents.setWindowOpenHandler((details) => {
-      const openerOrigin = this.governedOriginFor(contents) ?? inheritedOrigin;
-      if (isBlockedGoogleChatDirectCall(openerOrigin, details.url)) {
-        console.warn('[Navegador][Seguridad] Llamada directa automática de Google Chat bloqueada.');
+      const currentUrl = contents.getURL();
+      const openerOrigin = isBlankPopupTarget(currentUrl)
+        ? this.governedOriginFor(contents) ?? inheritedOrigin
+        : normalizeOrigin(currentUrl);
+      const callSource = isBlankPopupTarget(currentUrl) ? openerOrigin : currentUrl;
+      const nativeCall = isGoogleChatDirectCall(callSource, details.url);
+      if (nativeCall && (!this.enterpriseUrlAllowed(details.url) || checkBrowserNavigationLocal(details.url).action === 'block')) {
+        this.recordError(new Error('La llamada fue bloqueada por la política de navegación.'));
         return { action: 'deny' };
       }
-      if (isBlankPopupTarget(details.url)) {
+      if (isBlankPopupTarget(details.url) || nativeCall) {
         console.info('[Navegador][Ventana] Popup anidado gobernado permitido como ventana real.');
         const popupOptions = buildPopupWindowOptions(details);
         return {
@@ -4051,7 +4104,7 @@ export class IntegratedBrowserService extends EventEmitter {
     return this.governedWindowOrigins.get(contents.id) ?? null;
   }
 
-  private adoptPictureInPictureWindow(window: BrowserWindow, openerOrigin: string | null): void {
+  private adoptPictureInPictureWindow(window: BrowserWindow): void {
     if (window.isDestroyed()) return;
     this.pictureInPictureWindows.add(window);
     // `setMenu` solo existe en Windows y Linux; en macOS el menu es de
@@ -4069,12 +4122,6 @@ export class IntegratedBrowserService extends EventEmitter {
       if (!window.isDestroyed() && this.pictureInPictureWindows.has(window)) this.showPopupSafetyInterstitial(window, this.certificateBlockVerdict());
     });
     const guardPopupNavigation = (event: { url: string; preventDefault: () => void }) => {
-      if (isBlockedGoogleChatDirectCall(openerOrigin, event.url)) {
-        event.preventDefault();
-        console.warn('[Navegador][Seguridad] Llamada directa automática de Google Chat bloqueada.');
-        if (!window.isDestroyed()) window.close();
-        return;
-      }
       if (isAllowedBrowserUrl(event.url) && this.enterpriseUrlAllowed(event.url) && checkBrowserNavigationLocal(event.url).action !== 'block') return;
       event.preventDefault();
       this.showPopupSafetyInterstitial(window, { ...checkBrowserNavigationLocal(event.url), action: 'block', reason: 'La solicitud no cumple la política de navegación.' });
@@ -4228,6 +4275,7 @@ export class IntegratedBrowserService extends EventEmitter {
       isSuspended: tab.view === null,
       isDetached: this.detachedWindows.has(tab.id),
       muted: tab.muted,
+      audible: Boolean(tab.view && !tab.view.webContents.isDestroyed() && tab.view.webContents.isCurrentlyAudible()),
       zoomFactor: tab.zoomFactor,
       find: tab.find ? { ...tab.find } : null,
       pinned: tab.pinned,
@@ -4947,15 +4995,15 @@ function detachedWindowTitle(tab: BrowserTabRuntime): string {
 }
 
 /**
- * Un `window.open` sin destino: Document Picture-in-Picture y los popups que la
- * pagina rellena por script. Necesitan una ventana real; convertirlos en
+ * Un `window.open` sin destino: los popups que la pagina rellena por script.
+ * Necesitan una ventana real; convertirlos en
  * pestañas rompe a quien los abrio.
  */
 function isBlankPopupTarget(url: unknown): boolean {
   return typeof url === 'string' && (url === '' || url === 'about:blank' || url === 'about:blank#blocked');
 }
 
-/** La ruta directa de Chat se reconoce de forma exacta para bloquearla. */
+/** Solo la ruta exacta necesita preservar la ventana del flujo de Chat. */
 function isGoogleMeetDirectCallUrl(raw: unknown): raw is string {
   if (typeof raw !== 'string') return false;
   try {
@@ -4968,7 +5016,7 @@ function isGoogleMeetDirectCallUrl(raw: unknown): raw is string {
   }
 }
 
-/** La protección solo se aplica a aperturas originadas por Gmail o Chat. */
+/** La excepcion de ventana nativa solo se aplica a Gmail o Chat HTTPS. */
 function isGoogleChatCallSource(raw: unknown): boolean {
   if (typeof raw !== 'string') return false;
   try {
@@ -4980,7 +5028,7 @@ function isGoogleChatCallSource(raw: unknown): boolean {
   }
 }
 
-function isBlockedGoogleChatDirectCall(source: unknown, target: unknown): boolean {
+function isGoogleChatDirectCall(source: unknown, target: unknown): boolean {
   return isGoogleChatCallSource(source) && isGoogleMeetDirectCallUrl(target);
 }
 

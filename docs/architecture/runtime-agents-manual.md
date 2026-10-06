@@ -1,6 +1,6 @@
 # Manual del agente runtime de SofLIA Hub
 
-Estado: vigente. Actualizado: 2026-08-04.
+Estado: vigente. Actualizado: 2026-10-06.
 
 Meeting Ops incorpora [análisis en equipo](runtime-multiagent-harness.md):
 dos especialistas y un coordinador, proveedores Gemini/Codex y herramientas
@@ -1750,6 +1750,14 @@ Docs reutiliza la exportación autenticada y el árbol de accesibilidad del modo
 lectura, sin resumir la interfaz del editor. El bloque extraído tiene precedencia
 sobre memoria, historial y observaciones de otras páginas; si no está disponible,
 el agente usa `read_active_document` o informa el fallo sin sustituir la fuente.
+La misma lectura completa se usa cuando el usuario pide resumir, analizar u
+opinar sobre la conversación o página que tiene delante («el siguiente chat»,
+«esta página», «el chat que tengo abierto»): la observación ordinaria solo
+recorre el viewport y recortaba los chats largos. «El siguiente…» únicamente
+apunta a la pestaña si el mensaje no trae ya contenido extenso pegado. Si la
+lectura completa falla, el turno vuelve a la observación visible. La extracción
+conserva los turnos de chats web que marcan `data-message-author-role` aunque
+estén escritos fuera de párrafos, como los mensajes del usuario en ChatGPT.
 La memoria de mensajes recientes se separa por conversación, aunque hechos y
 skills aprendidas continúan bajo el owner. Si un loop agota su presupuesto, tanto
 Gemini como OpenAI informan que no obtuvieron un cierre verificable y nunca

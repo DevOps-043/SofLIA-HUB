@@ -49,6 +49,7 @@ describe('handlers del navegador integrado', () => {
     stopFindInPage: vi.fn(() => ({ url: 'https://example.com' })),
     setZoom: vi.fn(() => ({ url: 'https://example.com' })),
     setMuted: vi.fn(() => ({ url: 'https://example.com' })),
+    showTabContextMenu: vi.fn(),
     toggleFullscreen: vi.fn(() => ({ url: 'https://example.com' })),
     printPage: vi.fn(async () => ({ url: 'https://example.com' })),
     savePageAsPdf: vi.fn(async () => ({ state: { url: 'https://example.com' }, canceled: false, filename: 'Página.pdf' })),
@@ -314,7 +315,7 @@ describe('handlers del navegador integrado', () => {
 
   it('registra el contrato completo y enruta payloads validos', async () => {
     const handlers = ipcMainHarness._getHandlers();
-    expect(Array.from(handlers.keys()).filter((key: unknown) => String(key).startsWith('integrated-browser:'))).toHaveLength(114);
+    expect(Array.from(handlers.keys()).filter((key: unknown) => String(key).startsWith('integrated-browser:'))).toHaveLength(115);
     expect(handlers.has('integrated-browser:clear-browsing-data')).toBe(true);
     expect(handlers.has('integrated-browser:writing-resolve')).toBe(true);
     expect(handlers.has('integrated-browser:reading-download')).toBe(false);
@@ -349,7 +350,13 @@ describe('handlers del navegador integrado', () => {
     expect(service.setZoom).toHaveBeenCalledWith('reset');
     expect(await handlers.get('integrated-browser:page-mute')!({ sender: window.webContents }, { muted: true }))
       .toMatchObject({ success: true });
-    expect(service.setMuted).toHaveBeenCalledWith(true);
+    expect(service.setMuted).toHaveBeenCalledWith(true, undefined);
+    expect(await handlers.get('integrated-browser:page-mute')!({ sender: window.webContents }, { muted: false, tabId: 'tab-2' }))
+      .toMatchObject({ success: true });
+    expect(service.setMuted).toHaveBeenCalledWith(false, 'tab-2');
+    expect(await handlers.get('integrated-browser:tab-context-menu')!({ sender: window.webContents }, { tabId: 'tab-2' }))
+      .toMatchObject({ success: true });
+    expect(service.showTabContextMenu).toHaveBeenCalledWith('tab-2');
     expect(await handlers.get('integrated-browser:page-save-pdf')!({ sender: window.webContents }))
       .toMatchObject({ success: true, filename: 'Página.pdf' });
     const downloadId = '12345678-1234-1234-1234-123456789abc';
@@ -693,6 +700,8 @@ describe('handlers del navegador integrado', () => {
     expect((await zoomHandler({ sender: window.webContents }, { action: 'giant' })).success).toBe(false);
     const muteHandler = ipcMainHarness._getHandler('integrated-browser:page-mute');
     expect((await muteHandler({ sender: window.webContents }, { muted: 'sí' })).success).toBe(false);
+    expect((await muteHandler({ sender: window.webContents }, { muted: true, tabId: '' })).success).toBe(false);
+    expect((await ipcMainHarness._getHandler('integrated-browser:tab-context-menu')({ sender: window.webContents }, {})).success).toBe(false);
     const downloadHandler = ipcMainHarness._getHandler('integrated-browser:downloads-open');
     expect((await downloadHandler({ sender: window.webContents }, { id: '../archivo' })).success).toBe(false);
     expect(service.openDownload).not.toHaveBeenCalled();

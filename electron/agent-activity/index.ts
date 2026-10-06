@@ -4,30 +4,29 @@ import { subscribeTeamEvents } from '../../src/shared/agent-teams/runner';
 import { activityFromTeam, type AgentActivity } from '../../src/shared/agent-activity';
 import type { AgentHarness } from '../agent-runtime/service';
 import { ActivityStore, activitySchema } from './store';
-import { ActivityWindow } from './window';
 
+/**
+ * Agrega la actividad de equipos y la difunde al panel acoplado del Hub.
+ * Main no abre vistas: el renderer decide mostrar el panel al ver un equipo nuevo.
+ */
 export function initializeAgentActivity(input: {
   getWindow(): BrowserWindow | null; getUserId(): string | null;
   getOrbWindow?(): BrowserWindow | null;
   onAuthChange(listener: () => void): () => void; harness: AgentHarness;
 }): () => void {
-  const store = new ActivityStore(); const view = new ActivityWindow(input.getWindow);
+  const store = new ActivityStore();
   const meetingSequences = new Map<string, number>();
   let owner = input.getUserId();
-  const reset = () => { owner = input.getUserId(); store.clear(); meetingSequences.clear(); view.destroy(); notify(); };
+  const reset = () => { owner = input.getUserId(); store.clear(); meetingSequences.clear(); notify(); };
   const notify = () => {
-    for (const win of [input.getWindow(), view.window]) {
-      try {
-        if (win && !win.isDestroyed()) win.webContents.send('agent-activity:changed', store.snapshot());
-      } catch { console.warn('[Equipo] No se pudo actualizar una vista del monitor.'); }
-    }
+    const win = input.getWindow();
+    try {
+      if (win && !win.isDestroyed()) win.webContents.send('agent-activity:changed', store.snapshot());
+    } catch { console.warn('[Equipo] No se pudo actualizar el panel de equipos.'); }
   };
   const accept = (origin: 'main' | 'renderer' | 'orb' | 'meeting', value: AgentActivity) => {
     if (owner !== input.getUserId()) reset();
     if (!owner || !store.accept(origin, value)) return;
-    if (value.sequence === 1) {
-      try { view.show(); } catch { console.warn('[Equipo] No se pudo abrir el monitor.'); }
-    }
     notify();
   };
   const unsubscribe = subscribeTeamEvents(event => accept('main', activityFromTeam(event)));
@@ -64,11 +63,10 @@ export function initializeAgentActivity(input: {
     if (isMainFrame(event, input.getOrbWindow?.())) return 'orb';
     return null;
   };
-  const register = <T>(name: string, schema: z.ZodType<T>, publishOnly: boolean, action: (value: T, event: IpcMainInvokeEvent) => void) => {
+  const register = <T>(name: string, schema: z.ZodType<T>, action: (value: T, event: IpcMainInvokeEvent) => void) => {
     channels.push(name);
     ipcMain.handle(name, (event, payload: unknown) => {
-      const authorized = input.getUserId() && (publisherOrigin(event) || (!publishOnly && isMainFrame(event, view.window)));
-      if (!authorized) return { success: false, error: 'Superficie no autorizada.' };
+      if (!input.getUserId() || !publisherOrigin(event)) return { success: false, error: 'Superficie no autorizada.' };
       const parsed = schema.safeParse(payload);
       if (!parsed.success) return { success: false, error: 'Solicitud inválida.' };
       try {
@@ -78,20 +76,17 @@ export function initializeAgentActivity(input: {
       } catch { return { success: false, error: 'No se pudo actualizar el monitor.' }; }
     });
   };
-  register('agent-activity:snapshot', z.undefined(), false, () => {});
-  register('agent-activity:publish', z.object({ ownerId: z.string().min(1).max(100), activity: activitySchema }).strict(), true, (payload, event) => {
+  register('agent-activity:snapshot', z.undefined(), () => {});
+  register('agent-activity:publish', z.object({ ownerId: z.string().min(1).max(100), activity: activitySchema }).strict(), (payload, event) => {
     if (payload.ownerId !== input.getUserId()) throw new Error('Sesión anterior.');
     const origin = publisherOrigin(event);
     if (!origin) throw new Error('Publicador no disponible.');
     // La procedencia se determina en main, nunca a partir de etiquetas del renderer.
     accept(origin, { ...payload.activity, surface: origin === 'orb' ? 'orb' : 'chat' });
   });
-  register('agent-activity:control', z.enum(['show', 'hide', 'minimize']), false, action => {
-    if (action === 'show') view.show(); else if (action === 'hide') view.hide(); else view.minimize();
-  });
   const close = () => {
     unsubscribe(); removeAuth(); input.harness.off('changed', meetingChanged);
-    channels.forEach(channel => ipcMain.removeHandler(channel)); view.destroy(); store.clear(); app.off('before-quit', close);
+    channels.forEach(channel => ipcMain.removeHandler(channel)); store.clear(); app.off('before-quit', close);
   };
   app.once('before-quit', close);
   return close;

@@ -6,13 +6,17 @@ import { ModelSelectorDropdown } from '../../adapters/desktop_ui/chat-ui/header/
 import { BrowserConversationMenu, type BrowserConversationItem } from './BrowserConversationMenu';
 import { integratedBrowserService, type BrowserSelectionActionRequest } from '../../services/integrated-browser-service';
 import { scopedPreferenceKey } from '../../services/user-scope';
+import { AgentActivityPanel } from '../agents/AgentActivityPanel';
+import { useAgentActivityPanel } from '../agents/agent-activity-context';
 
 const CHAT_WIDTH_STORAGE_KEY = 'sofLia_integratedBrowserFloatingChatWidth';
 const CHAT_SIDE_STORAGE_KEY = 'sofLia_integratedBrowserFloatingChatSide';
 const MIN_CHAT_WIDTH = 332;
 const MAX_CHAT_WIDTH = 560;
-const PANEL_INSET = 12;
-const PANEL_GAP = 12;
+/** Separación mínima entre paneles y bordes: cada píxel se le resta a la página. */
+const PANEL_INSET = 6;
+const PANEL_GAP = 6;
+const ACTIVITY_PANEL_WIDTH = 300;
 const DEFAULT_BROWSER_CONTENT_TOP = 100;
 
 type PanelSide = 'left' | 'right';
@@ -38,6 +42,7 @@ export function BrowserWorkspaceLayout(props: BrowserWorkspaceLayoutProps) {
   const [orbError, setOrbError] = useState<string | null>(null);
   const [conversationMenuOpen, setConversationMenuOpen] = useState(false);
   const model = useModelSelector();
+  const activityOpen = Boolean(useAgentActivityPanel()?.open);
 
   useEffect(() => {
     if (props.externalSelection) {
@@ -65,18 +70,23 @@ export function BrowserWorkspaceLayout(props: BrowserWorkspaceLayoutProps) {
     return () => observer.disconnect();
   }, []);
 
-  const chatWidth = resolveChatWidth(preferredChatWidth, containerWidth);
-  const reservedWidth = chatVisible ? chatWidth + PANEL_INSET + PANEL_GAP : 0;
+  // El panel de equipos ocupa el borde derecho; si el chat también está a la
+  // derecha se coloca a su lado. Ambos se descuentan del viewport nativo, que
+  // se compone por encima del renderer y los taparía.
+  const activityInset = activityOpen ? ACTIVITY_PANEL_WIDTH + PANEL_INSET + PANEL_GAP : 0;
+  const chatWidth = resolveChatWidth(preferredChatWidth, containerWidth, activityInset);
+  const chatOffset = panelSide === 'right' && activityOpen ? activityInset : PANEL_INSET;
+  const chatInset = chatVisible ? chatOffset + chatWidth + PANEL_GAP : 0;
   const viewportInsets = {
-    left: panelSide === 'left' ? reservedWidth : 0,
-    right: panelSide === 'right' ? reservedWidth : 0,
+    left: panelSide === 'left' ? chatInset : 0,
+    right: panelSide === 'right' && chatVisible ? chatInset : activityInset,
   };
 
   const applyChatWidth = useCallback((next: number) => {
-    const resolved = resolveChatWidth(next, containerWidth);
+    const resolved = resolveChatWidth(next, containerWidth, activityInset);
     setPreferredChatWidth(resolved);
     localStorage.setItem(scopedPreferenceKey(CHAT_WIDTH_STORAGE_KEY), String(resolved));
-  }, [containerWidth]);
+  }, [activityInset, containerWidth]);
 
   const handleBrowserContentTopChange = useCallback((offset: number) => {
     if (!Number.isFinite(offset)) return;
@@ -111,8 +121,8 @@ export function BrowserWorkspaceLayout(props: BrowserWorkspaceLayoutProps) {
     if (!event.currentTarget.hasPointerCapture(event.pointerId) || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const next = panelSide === 'left'
-      ? event.clientX - rect.left - PANEL_INSET
-      : rect.right - event.clientX - PANEL_INSET;
+      ? event.clientX - rect.left - chatOffset
+      : rect.right - event.clientX - chatOffset;
     applyChatWidth(next);
   };
 
@@ -128,10 +138,10 @@ export function BrowserWorkspaceLayout(props: BrowserWorkspaceLayoutProps) {
     setIsResizing(false);
   };
 
-  const panelPosition = panelSide === 'left' ? { left: PANEL_INSET } : { right: PANEL_INSET };
+  const panelPosition = panelSide === 'left' ? { left: chatOffset } : { right: chatOffset };
   const separatorPosition = panelSide === 'left'
-    ? { left: PANEL_INSET + chatWidth }
-    : { right: PANEL_INSET + chatWidth };
+    ? { left: chatOffset + chatWidth }
+    : { right: chatOffset + chatWidth };
 
   return (
     <div
@@ -152,12 +162,12 @@ export function BrowserWorkspaceLayout(props: BrowserWorkspaceLayoutProps) {
       </section>
 
       <section
-        className={`absolute z-30 flex min-w-0 flex-col rounded-[1.75rem] border border-border bg-card/97 shadow-[0_1.75rem_4.5rem_rgba(2,12,23,0.32)] backdrop-blur-xl transition-[opacity,transform] duration-200 ${chatVisible ? 'visible translate-y-0 opacity-100' : 'pointer-events-none invisible translate-y-2 opacity-0'}`}
+        className={`absolute z-30 flex min-w-0 flex-col rounded-[1.25rem] border border-border bg-card/97 shadow-[0_1.75rem_4.5rem_rgba(2,12,23,0.32)] backdrop-blur-xl transition-[opacity,transform] duration-200 ${chatVisible ? 'visible translate-y-0 opacity-100' : 'pointer-events-none invisible translate-y-2 opacity-0'}`}
         style={{ width: chatWidth, top: browserContentTop + PANEL_INSET, bottom: PANEL_INSET, ...panelPosition }}
         aria-label="Chat flotante con SofLIA"
         aria-hidden={!chatVisible}
       >
-        <header className="relative z-50 flex h-10 shrink-0 items-center justify-between gap-2 border-b border-border/80 bg-card/90 px-3 rounded-t-[1.75rem] backdrop-blur-xl" style={{ fontFamily: 'var(--font-system-ui)' }}>
+        <header className="relative z-50 flex h-10 shrink-0 items-center justify-between gap-2 border-b border-border/80 bg-card/90 px-3 rounded-t-[1.25rem] backdrop-blur-xl" style={{ fontFamily: 'var(--font-system-ui)' }}>
           {/* Lado izquierdo: Selector de modelo (SofLIA Pro) */}
           <div className="relative z-50 min-w-0 flex-1">
             <button
@@ -211,10 +221,15 @@ export function BrowserWorkspaceLayout(props: BrowserWorkspaceLayoutProps) {
             />
           </div>
         </header>
-        <div className="min-h-0 min-w-0 flex-1 overflow-hidden rounded-b-[1.75rem]">
+        <div className="min-h-0 min-w-0 flex-1 overflow-hidden rounded-b-[1.25rem]">
           {props.chat}
         </div>
       </section>
+
+      <AgentActivityPanel
+        className="absolute z-30 rounded-[1.25rem] border border-border shadow-[0_1.75rem_4.5rem_rgba(2,12,23,0.32)]"
+        style={{ width: ACTIVITY_PANEL_WIDTH, top: browserContentTop + PANEL_INSET, bottom: PANEL_INSET, right: PANEL_INSET }}
+      />
 
       {orbError && (
         <div role="alert" className="absolute bottom-4 left-1/2 z-50 max-w-md -translate-x-1/2 rounded-2xl border border-danger/20 bg-card/95 px-4 py-2 text-sm text-danger shadow-xl backdrop-blur-xl">
@@ -228,7 +243,7 @@ export function BrowserWorkspaceLayout(props: BrowserWorkspaceLayoutProps) {
           aria-label="Ajustar ancho del panel de SofLIA"
           aria-orientation="vertical"
           aria-valuemin={MIN_CHAT_WIDTH}
-          aria-valuemax={Math.min(MAX_CHAT_WIDTH, Math.max(MIN_CHAT_WIDTH, containerWidth - PANEL_INSET * 2))}
+          aria-valuemax={resolveChatWidth(MAX_CHAT_WIDTH, containerWidth, activityInset)}
           aria-valuenow={chatWidth}
           aria-valuetext={`Panel de SofLIA ${chatWidth} pixeles`}
           title="Arrastra para ajustar el panel de SofLIA"
@@ -285,7 +300,7 @@ function readStoredPanelSide(): PanelSide {
   return localStorage.getItem(scopedPreferenceKey(CHAT_SIDE_STORAGE_KEY)) === 'right' ? 'right' : 'left';
 }
 
-function resolveChatWidth(preferred: number, container: number): number {
-  const available = container > 0 ? Math.max(MIN_CHAT_WIDTH, container - PANEL_INSET * 2) : MAX_CHAT_WIDTH;
+function resolveChatWidth(preferred: number, container: number, reserved: number): number {
+  const available = container > 0 ? Math.max(MIN_CHAT_WIDTH, container - reserved - PANEL_INSET * 2) : MAX_CHAT_WIDTH;
   return Math.max(MIN_CHAT_WIDTH, Math.min(Math.round(preferred), MAX_CHAT_WIDTH, available));
 }

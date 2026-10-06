@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type Ref } from 'react';
 import { integratedBrowserService, type BrowserHistoryEntry } from '../../services/integrated-browser-service';
 import { BrowserSitePermissionsPanel } from './BrowserSitePermissionsPanel';
 import { BrowserPermissionPrompt } from './BrowserPermissionPrompt';
@@ -7,13 +7,15 @@ import { BrowserAgentPolicyPrompt } from './BrowserAgentPolicyPrompt';
 const SUGGESTION_LIMIT = 8;
 const SUGGESTION_DELAY_MS = 140;
 
-export function BrowserAddressBar(props: {
+export function BrowserAddressBar({ inputRef, ...props }: {
   address: string;
   currentUrl?: string;
   onAddressChange: (value: string) => void;
   onEditingChange: (editing: boolean) => void;
   onNavigate: (target: string) => void;
   onSuggestionsVisibilityChange?: (visible: boolean) => void | Promise<void>;
+  /** Permite enfocar la dirección desde un atajo (Ctrl+L, Alt+D, F6). */
+  inputRef?: Ref<HTMLInputElement>;
 }) {
   const requestIdRef = useRef(0);
   const suggestionsVisibleRef = useRef(false);
@@ -116,6 +118,7 @@ export function BrowserAddressBar(props: {
           </svg>
         </button>
         <input
+          ref={inputRef}
           id="integrated-browser-address"
           value={props.address}
           onChange={(event) => { props.onEditingChange(true); props.onAddressChange(event.target.value); setActiveIndex(-1); setOpen(true); }}

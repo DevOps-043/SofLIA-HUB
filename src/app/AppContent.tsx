@@ -25,7 +25,8 @@ import { useIrisData } from '../hooks/useIrisData';
 import { useTheme } from '../hooks/useTheme';
 import { integratedBrowserService, type BrowserSelectionActionRequest } from '../services/integrated-browser-service';
 import { improveBrowserSelection } from '../services/browser-writing';
-import { AgentActivityButton } from '../components/agents/AgentActivityButton';
+import { AgentActivityPanel } from '../components/agents/AgentActivityPanel';
+import { AgentActivityProvider } from '../components/agents/AgentActivityProvider';
 
 const STARTUP_INTRO_DURATION_MS = 4200;
 const STARTUP_AUTH_GRACE_MS = 700;
@@ -201,9 +202,11 @@ export function AppContent() {
   ) : isOrbWindow ? (
     <OrbWindowRoot key="orb-window" />
   ) : (
-    <div key="app-workspace" className="flex h-screen w-screen flex-col overflow-hidden bg-background dark:bg-background-dark">
+    <AgentActivityProvider key="app-workspace">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-background dark:bg-background-dark">
       {!isBrowserWorkspaceOpen && <AppTitleBar />}
-      <div className={`flex min-h-0 flex-1 w-full overflow-hidden ${!isBrowserWorkspaceOpen && sidebarPosition === 'bottom' ? 'flex-col-reverse' : !isBrowserWorkspaceOpen && sidebarPosition === 'right' ? 'flex-row-reverse' : 'flex-row'}`}>
+      <div className="flex min-h-0 flex-1 w-full overflow-hidden">
+      <div className={`flex min-h-0 min-w-0 flex-1 overflow-hidden ${!isBrowserWorkspaceOpen && sidebarPosition === 'bottom' ? 'flex-col-reverse' : !isBrowserWorkspaceOpen && sidebarPosition === 'right' ? 'flex-row-reverse' : 'flex-row'}`}>
         {!isBrowserWorkspaceOpen && <AppSidebar
           activeView={activeView}
           browserOpen={isBrowserWorkspaceOpen}
@@ -270,14 +273,17 @@ export function AppContent() {
         />
         <AppModals folder={folder} movingChat={derived.movingChat} shareTarget={shareTarget} userId={userId} orgId={orgId} user={user} userSettings={userSettings} sofiaContext={sofiaContext} isUnifiedSettingsOpen={isUnifiedSettingsOpen} activeSettingsTab={activeSettingsTab} onSetShareTarget={setShareTarget} onSetUserSettings={setUserSettings} onSetUnifiedSettingsOpen={setIsUnifiedSettingsOpen} />
       </div>
+      {/* En el navegador el panel flota dentro de su layout para reservar espacio a la vista nativa. */}
+      {!isBrowserWorkspaceOpen && <AgentActivityPanel className="w-80 shrink-0 border-l border-border" />}
+      </div>
     </div>
+    </AgentActivityProvider>
   );
 
   return (
     <div className={`h-screen w-screen overflow-hidden ${isOrbWindow ? 'bg-transparent' : 'bg-[#f4faf9] dark:bg-[#080b11]'}`}>
       <div className="h-full w-full" aria-hidden={shouldShowStartupIntro}>
         {appShell}
-        {user && !isOrbWindow && <AgentActivityButton />}
       </div>
       {renderStartupOverlay && (
         <AppLoadingScreen

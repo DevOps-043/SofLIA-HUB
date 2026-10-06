@@ -547,6 +547,35 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     }));
   });
 
+  it('RT-012C: resumir "el siguiente chat" lee la pestaña completa en lugar del viewport', async () => {
+    const browser = installVisibleBrowserObservation();
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    await sendMessageStream('Realiza un resumen del siguiente Chat ya que mi jefe me pidio una opinion del mismo', [], { model: 'gpt-5.6-luna' });
+
+    expect(browser.readActiveDocument).toHaveBeenCalled();
+    expect(browser.getObservation).not.toHaveBeenCalled();
+    const calls = providerMocks.sendOpenAIMessageStream.mock.calls as unknown as Array<[{ finalMessage: string; systemInstruction: string; useToolLoop: boolean }]>;
+    const call = calls[calls.length - 1][0];
+    expect(call.useToolLoop).toBe(false);
+    expect(call.finalMessage).toContain('SofLIA Speakers conecta especialistas');
+    expect(call.systemInstruction).toContain('fuente autoritativa');
+    expect(call.systemInstruction).not.toContain('no hay una observación adjunta');
+  });
+
+  it('RT-012D: si la lectura completa falla, observa lo visible en vez de responder sin contexto', async () => {
+    const browser = installVisibleBrowserObservation();
+    browser.readActiveDocument.mockResolvedValueOnce({ success: false } as never);
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+
+    await sendMessageStream('Realiza un resumen del siguiente Chat', [], { model: 'gpt-5.6-luna' });
+
+    expect(browser.getObservation).toHaveBeenCalled();
+    expect(providerMocks.sendOpenAIMessageStream).toHaveBeenLastCalledWith(expect.objectContaining({
+      finalMessage: expect.stringContaining('Tencent Cloud · GitHub'),
+    }));
+  });
+
   it('RT-013: si falta la captura contextual intenta leer DOM antes de Computer Use', async () => {
     installVisibleBrowserObservation({ observation: null });
     const { sendMessageStream } = await import('../../services/gemini-chat');

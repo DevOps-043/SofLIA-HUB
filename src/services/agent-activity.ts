@@ -12,11 +12,6 @@ export const agentActivityService = {
   subscribe(listener: (items: AgentActivity[]) => void): () => void {
     return window.agentActivity?.onChanged(listener) ?? (() => {});
   },
-  async control(action: 'show' | 'hide' | 'minimize'): Promise<void> {
-    if (!window.agentActivity) throw new Error('El monitor requiere la aplicación de escritorio.');
-    const reply = await window.agentActivity.control(action);
-    if (!reply.success) throw new Error(reply.error);
-  },
 };
 export function publishTeamActivity(event: TeamEvent, ownerId?: string): void {
   if (!ownerId || !window.agentActivity) return;

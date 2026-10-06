@@ -738,6 +738,7 @@ describe('IntegratedBrowserService', () => {
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
+      disableBlinkFeatures: 'DocumentPictureInPictureAPI',
       backgroundThrottling: false,
     });
     // El User-Agent queda identico al de un Chromium de escritorio: sin el
@@ -768,6 +769,92 @@ describe('IntegratedBrowserService', () => {
     expect(tab.isLoading).toBeFalsy();
     expect(tab.error).toBe('La página se cerró inesperadamente. Vuelve a cargarla para continuar.');
     expect(window.isDestroyed()).toBe(false);
+    service.detachWindow();
+  });
+
+  it('BR-KEY-001: reenvía los atajos pulsados en la página y deja intactas las teclas del agente', async () => {
+    const window = new BrowserWindow();
+    const service = new IntegratedBrowserService();
+    service.attachWindow(window);
+    await service.open('https://example.com');
+    const contents = browserViewHarness.instances[0].webContents;
+    const press = (input: Record<string, unknown>) => {
+      const event = { preventDefault: vi.fn() };
+      contents.emit('before-input-event', event, { type: 'keyDown', control: false, meta: false, shift: false, alt: false, ...input });
+      return event.preventDefault;
+    };
+
+    // Ctrl+F abre la barra de búsqueda del Hub: necesita su foco de teclado.
+    expect(press({ key: 'f', control: true })).toHaveBeenCalled();
+    expect(window.webContents.focus).toHaveBeenCalled();
+    expect(window.webContents.send).toHaveBeenCalledWith('integrated-browser:command', { command: 'find' });
+    expect(press({ key: 'w', control: true })).toHaveBeenCalled();
+    expect(window.webContents.send).toHaveBeenCalledWith('integrated-browser:command', { command: 'close-tab' });
+
+    // Las teclas propias de la página no se interceptan.
+    expect(press({ key: 'c', control: true })).not.toHaveBeenCalled();
+    expect(press({ key: 'f' })).not.toHaveBeenCalled();
+
+    (service as unknown as { setAgentControlling: (value: boolean) => void }).setAgentControlling(true);
+    expect(press({ key: 'w', control: true })).not.toHaveBeenCalled();
+    service.detachWindow();
+  });
+
+  it('BR-ZOOM-001: Ctrl+rueda amplía y reduce también cuando la vista admite zoom aislado', async () => {
+    const window = new BrowserWindow();
+    const service = new IntegratedBrowserService();
+    service.attachWindow(window);
+    await service.open('https://example.com');
+    const contents = browserViewHarness.instances[0].webContents;
+    expect(typeof (contents as unknown as { setZoomMode?: unknown }).setZoomMode).toBe('function');
+    const wheel = (direction: string) => {
+      const event = { preventDefault: vi.fn() };
+      contents.emit('zoom-changed', event, direction);
+      return event.preventDefault;
+    };
+
+    expect(wheel('in')).toHaveBeenCalled();
+    const zoomed = service.getState().tabs[0].zoomFactor;
+    expect(zoomed).toBeGreaterThan(1);
+    wheel('out');
+    expect(service.getState().tabs[0].zoomFactor).toBeLessThan(zoomed);
+    service.detachWindow();
+  });
+
+  it('BR-TAB-001: silencia una pestaña concreta, publica el audio y abre su menú nativo', async () => {
+    const window = new BrowserWindow();
+    const service = new IntegratedBrowserService();
+    service.attachWindow(window);
+    await service.open('https://example.com');
+    await service.createTab('https://example.org');
+    const [first, second] = service.getState().tabs;
+    const firstContents = browserViewHarness.instances[0].webContents as unknown as {
+      isCurrentlyAudible: ReturnType<typeof vi.fn>; setAudioMuted: ReturnType<typeof vi.fn>; emit: (name: string) => void;
+    };
+
+    firstContents.isCurrentlyAudible.mockReturnValue(true);
+    firstContents.emit('audio-state-changed');
+    expect(service.getState().tabs[0].audible).toBe(true);
+
+    // La pestaña activa es la segunda: el icono de audio actúa sobre la primera.
+    expect(service.getState().activeTabId).toBe(second.id);
+    service.setMuted(true, first.id);
+    expect(firstContents.setAudioMuted).toHaveBeenCalledWith(true);
+    expect(service.getState().tabs.find((tab) => tab.id === first.id)?.muted).toBe(true);
+    expect(service.getState().tabs.find((tab) => tab.id === second.id)?.muted).toBe(false);
+    expect(() => service.setMuted(true, 'no-existe')).toThrow();
+
+    const { Menu } = await import('electron');
+    vi.mocked(Menu.buildFromTemplate).mockClear();
+    service.showTabContextMenu(first.id);
+    const template = vi.mocked(Menu.buildFromTemplate).mock.calls[0][0] as Array<{ label?: string; click?: () => void }>;
+    expect(template.map((item) => item.label).filter(Boolean)).toEqual(expect.arrayContaining([
+      'Nueva pestaña', 'Duplicar', 'Fijar', 'Activar sonido de la pestaña', 'Cerrar otras pestañas', 'Cerrar pestañas a la derecha',
+    ]));
+    template.find((item) => item.label === 'Fijar')!.click!();
+    expect(service.getState().tabs.find((tab) => tab.id === first.id)?.pinned).toBe(true);
+    template.find((item) => item.label === 'Agregar pestaña a un grupo…')!.click!();
+    expect(window.webContents.send).toHaveBeenCalledWith('integrated-browser:command', { command: 'edit-tab-group', tabId: first.id });
     service.detachWindow();
   });
 
@@ -3003,7 +3090,7 @@ describe('IntegratedBrowserService', () => {
       url: 'https://meet.google.com/call?authuser=0',
       disposition: 'new-window',
       features: '',
-    })).toEqual({ action: 'deny' });
+    })).toMatchObject({ action: 'allow', createWindow: expect.any(Function) });
     expect(service.getState().tabs).toHaveLength(1);
     const nietaResponse = abrir(popupContents.setWindowOpenHandler.mock.calls[0][0]);
     const nietaContents = nietaResponse.createWindow({ webPreferences: {} });
@@ -3013,6 +3100,25 @@ describe('IntegratedBrowserService', () => {
     // decide los permisos de un documento `about:blank`.
     expect(service.governedOriginFor(nietaContents as never)).toBe('https://mail.google.com');
     expect(check(nietaContents, 'media', '', { mediaType: 'audio' })).toBe(true);
+  });
+
+  it('una ventana que navega fuera de Chat pierde la excepción nativa de llamada', async () => {
+    const service = newService();
+    service.attachWindow(new BrowserWindow());
+    await service.open('https://mail.google.com/');
+    const contents = browserViewHarness.instances[0].webContents;
+    const response = contents.setWindowOpenHandler.mock.calls[0][0]({ url: 'about:blank', disposition: 'new-window', features: '' });
+    const popup = response.createWindow({ webPreferences: {} });
+    popup.getURL.mockReturnValue('https://otro.example/');
+    const nested = popup.setWindowOpenHandler.mock.calls[0][0]({ url: 'https://meet.google.com/call', disposition: 'new-window', features: '' });
+    expect(nested).toEqual({ action: 'deny' });
+    await vi.waitFor(() => expect(service.getState().tabs).toHaveLength(2));
+    const blankResponse = popup.setWindowOpenHandler.mock.calls[0][0]({ url: 'about:blank', disposition: 'new-window', features: '' });
+    const blankChild = blankResponse.createWindow({ webPreferences: {} });
+    expect(service.governedOriginFor(blankChild)).toBe('https://otro.example');
+    const childCall = blankChild.setWindowOpenHandler.mock.calls[0][0]({ url: 'https://meet.google.com/call', disposition: 'new-window', features: '' });
+    expect(childCall).toEqual({ action: 'deny' });
+    await vi.waitFor(() => expect(service.getState().tabs).toHaveLength(3));
   });
 
   it('gobierna camara y microfono antes de entregar la ventana real a Chromium', async () => {
@@ -3169,7 +3275,7 @@ describe('IntegratedBrowserService', () => {
     });
   });
 
-  it('abre una ventana real para Document Picture-in-Picture en vez de una pestaña vacia', async () => {
+  it('abre una ventana real para un popup vacío en vez de una pestaña vacia', async () => {
     const service = newService();
     service.attachWindow(new BrowserWindow());
     await service.open('https://meet.example/');
@@ -3195,10 +3301,9 @@ describe('IntegratedBrowserService', () => {
     expect(service.getState().tabs.filter((tab) => tab.url === 'about:blank')).toHaveLength(0);
   });
 
-  it('bloquea la llamada directa de Google Chat sin crear pestañas ni ventanas', async () => {
+  it.each(['https://mail.google.com/mail/u/0/#chat/dm/1dV7USAAAAE', 'https://chat.google.com/'])('preserva la ventana nativa de llamada desde %s sin fabricar pestañas', async (sourceUrl) => {
     const service = newService();
     service.attachWindow(new BrowserWindow());
-    const sourceUrl = 'https://mail.google.com/mail/u/0/#chat/dm/1dV7USAAAAE';
     await service.open(sourceUrl);
     const contents = browserViewHarness.instances[0].webContents;
     const openHandler = contents.setWindowOpenHandler.mock.calls[0][0];
@@ -3209,14 +3314,25 @@ describe('IntegratedBrowserService', () => {
       features: 'width=420,height=260',
     });
 
-    expect(response).toEqual({ action: 'deny' });
+    expect(response.action).toBe('allow');
+    const options = { webPreferences: { partition: browserPartitionFor(), sandbox: true, contextIsolation: true, nodeIntegration: false } };
+    const popupContents = response.createWindow(options);
+    const popup = browserWindowHarness.instances[browserWindowHarness.instances.length - 1];
+    expect(popup.webContents).toBe(popupContents);
+    expect(popupContents.setWindowOpenHandler).toHaveBeenCalledOnce();
+    // La adopcion ocurre antes de devolver la ventana. La segunda notificacion
+    // de Electron no debe duplicar listeners, permisos ni callbacks de cierre.
+    const listenerCount = popupContents.on.mock.calls.length;
+    contents.emit('did-create-window', popup);
+    expect(popupContents.on.mock.calls).toHaveLength(listenerCount);
+    expect(service.governedOriginFor(popupContents)).toBe(new URL(sourceUrl).origin);
     expect(service.getState().tabs.map((tab) => tab.url)).toEqual([sourceUrl]);
     expect(service.getState().url).toBe(sourceUrl);
     expect(service.getState().tabs.some((tab) => tab.url === 'https://meet.google.com/new')).toBe(false);
     expect(detachedWindowHarness.instances).toHaveLength(0);
   });
 
-  it('bloquea /call desde navegación y redirección de subframe sin crear una reunión', async () => {
+  it('deja cargar el componente /call desde subframe y redirección sin fabricar una reunión', async () => {
     const service = newService();
     service.attachWindow(new BrowserWindow());
     await service.open('https://mail.google.com/mail/u/0/#chat/dm/1dV7USAAAAE');
@@ -3235,14 +3351,14 @@ describe('IntegratedBrowserService', () => {
     contents.emit('will-frame-navigate', frameNavigation);
     contents.emit('will-redirect', redirect);
 
-    expect(frameNavigation.preventDefault).toHaveBeenCalledOnce();
-    expect(redirect.preventDefault).toHaveBeenCalledOnce();
+    expect(frameNavigation.preventDefault).not.toHaveBeenCalled();
+    expect(redirect.preventDefault).not.toHaveBeenCalled();
     expect(service.getState().tabs).toHaveLength(1);
     expect(service.getState().url).toContain('mail.google.com');
     expect(service.getState().tabs.some((tab) => tab.url === 'https://meet.google.com/new')).toBe(false);
   });
 
-  it('cancela about:blank -> /call sin crear pestaña y mantiene bloqueados protocolos externos', async () => {
+  it('conserva about:blank -> /call sin crear pestaña y mantiene bloqueados protocolos externos', async () => {
     const service = newService();
     service.attachWindow(new BrowserWindow());
     await service.open('https://mail.google.com/mail/u/0/#chat/dm/1dV7USAAAAE');
@@ -3260,12 +3376,46 @@ describe('IntegratedBrowserService', () => {
     navigate(directCall);
     navigate(externalProtocol);
 
-    expect(directCall.preventDefault).toHaveBeenCalledOnce();
-    expect(popupWindow.close).toHaveBeenCalledOnce();
+    expect(directCall.preventDefault).not.toHaveBeenCalled();
+    expect(popupWindow.close).not.toHaveBeenCalled();
     expect(externalProtocol.preventDefault).toHaveBeenCalledOnce();
     expect(service.getState().tabs).toHaveLength(1);
     expect(service.getState().url).toContain('mail.google.com');
     expect((popupContents.on as ReturnType<typeof vi.fn>).mock.calls.some(([name]) => name === 'will-frame-navigate')).toBe(true);
+  });
+
+  it.each([
+    ['https://mail.google.com/', 'https://meet.google.com/callback'],
+    ['https://mail.google.com/', 'https://meet.google.com.evil.example/call'],
+    ['https://mail.google.com/', 'http://meet.google.com/call'],
+    ['https://mail.google.com.evil.example/', 'https://meet.google.com/call'],
+  ])('no extiende el popup nativo desde %s hacia %s', async (sourceUrl, targetUrl) => {
+    const service = newService();
+    service.attachWindow(new BrowserWindow());
+    await service.open(sourceUrl);
+    const contents = browserViewHarness.instances[0].webContents;
+    const openHandler = contents.setWindowOpenHandler.mock.calls[0][0];
+    expect(openHandler({ url: targetUrl, features: '' }).action).toBe('deny');
+    await vi.waitFor(() => expect(service.getState().tabs.some((tab) => tab.url === targetUrl)).toBe(true));
+    expect(browserWindowHarness.instances).toHaveLength(1);
+  });
+
+  it('rechaza el popup de llamada y su navegación cuando la empresa bloquea Meet', async () => {
+    const { service } = await enterpriseFixture({ blockedOrigins: ['https://meet.google.com'] });
+    service.attachWindow(new BrowserWindow());
+    await service.open('https://mail.google.com/');
+    const contents = browserViewHarness.instances[0].webContents;
+    const openHandler = contents.setWindowOpenHandler.mock.calls[0][0];
+    expect(openHandler({ url: 'https://meet.google.com/call', features: '' }).action).toBe('deny');
+    const response = openHandler({ url: 'about:blank', features: '' });
+    const popupContents = response.createWindow({ webPreferences: {} });
+    const nestedOpen = popupContents.setWindowOpenHandler.mock.calls[0][0];
+    expect(nestedOpen({ url: 'https://meet.google.com/call', features: '' }).action).toBe('deny');
+    const navigate = popupContents.on.mock.calls.find(([name]: [string]) => name === 'will-navigate')[1];
+    const event = { url: 'https://meet.google.com/call', preventDefault: vi.fn() };
+    navigate(event);
+    expect(event.preventDefault).toHaveBeenCalledOnce();
+    expect(service.getState().tabs).toHaveLength(1);
   });
 
   it('lleva la vista a pantalla completa y restaura el layout al salir', async () => {
