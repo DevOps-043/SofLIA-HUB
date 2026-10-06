@@ -81,6 +81,26 @@ void app.whenReady().then(async () => {
   views[0].setBounds({ x: 0, y: 0, width: 600, height: 640 });
   applyBrowserTabZoom(first, 2, { width: 600, height: 640 }); await wait(); assert.equal((await metrics(first)).width, 300);
   check('redimensionado recalcula el viewport lógico');
+  // Ctrl+rueda: Electron no aplica zoom por su cuenta; sólo emite zoom-changed,
+  // que el servicio traduce a su zoom por pestaña. Si Chromium también ampliara,
+  // habría doble zoom.
+  const timeout = () => new Promise(resolve => setTimeout(() => resolve('sin evento'), 3000));
+  const wheel = new Promise(resolve => first.once('zoom-changed', (_event, direction) => resolve(direction)));
+  first.focus();
+  first.sendInputEvent({ type: 'mouseWheel', x: 200, y: 200, deltaX: 0, deltaY: 120, wheelTicksX: 0, wheelTicksY: 1, canScroll: true, modifiers: ['control'] });
+  assert.equal(await Promise.race([wheel, timeout()]), 'in');
+  await wait(); assert.equal(first.getZoomFactor(), 1);
+  check('Ctrl+rueda emite zoom-changed sin zoom nativo duplicado');
+  const { resolveBrowserShortcut } = require(path.join(sandbox, 'src', 'shared', 'browser-keyboard-shortcuts.js'));
+  const keyed = new Promise(resolve => first.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return;
+    const command = resolveBrowserShortcut(input, process.platform);
+    if (command) { event.preventDefault(); resolve(command); }
+  }));
+  first.sendInputEvent({ type: 'keyDown', keyCode: 'F', modifiers: ['control'] });
+  first.sendInputEvent({ type: 'keyUp', keyCode: 'F', modifiers: ['control'] });
+  assert.equal(await Promise.race([keyed, timeout()]), 'find');
+  check('Ctrl+F pulsado en la página llega a main y se resuelve con la tabla compartida');
   const pdf = await first.printToPDF({ printBackground: true }); assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');
   check('impresión PDF disponible con zoom emulado');
   report.scope = 'Verificación focalizada; no smoke del producto completo ni accesibilidad con lector de pantalla.';

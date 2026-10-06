@@ -4,6 +4,7 @@ import {
   clearReadingHighlightInPage,
   clearReadingToolbarInPage,
   collectBrowserReadingContent,
+  extractReadingDocumentInPage,
   installReadingHighlightInPage,
   installReadingToolbarInPage,
   updateReadingHighlightInPage,
@@ -72,6 +73,24 @@ describe('extraccion del modo lectura', () => {
     expect(result.blocks).toHaveLength(2);
     expect(result.blocks[1]).toMatchObject({ start: 14, end: 45 });
     expect(result.text.slice(result.blocks[1].start, result.blocks[1].end)).toBe(result.blocks[1].text);
+  });
+
+  it('READ-029: conserva los turnos de chat en texto plano y en orden, sin controles', () => {
+    document.body.innerHTML = `<main>
+      <article><h5>Dijiste:</h5><div data-message-author-role="user"><div>¿Cómo priorizo el backlog del trimestre?</div><button>Editar mensaje</button></div></article>
+      <article><h6>ChatGPT dijo:</h6><div data-message-author-role="assistant"><p>Ordena por impacto y esfuerzo.</p><ul><li>Revisa dependencias.</li></ul></div></article>
+      <form><textarea>borrador privado</textarea></form>
+    </main>`;
+
+    const result = extractReadingDocumentInPage(10_000);
+
+    expect(result.blocks.map((block) => block.text)).toEqual([
+      'Dijiste:',
+      '¿Cómo priorizo el backlog del trimestre?',
+      'ChatGPT dijo:',
+      'Ordena por impacto y esfuerzo.',
+      'Revisa dependencias.',
+    ]);
   });
 
   it('READ-003: rechaza selecciones de otra pagina y protocolos no web', async () => {

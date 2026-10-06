@@ -39,7 +39,7 @@ const emptySite: BrowserSitePermissionSummary = {
 const savedCredential = { id: '12345678-1234-1234-1234-123456789abc', origin: 'https://example.com', username: 'persona@example.com', createdAt: '2026-08-04T00:00:00.000Z', updatedAt: '2026-08-04T00:00:00.000Z' };
 
 /** Los gestores viven en el menu de herramientas: hay que abrirlo primero. */
-function openTool(name: 'Historial' | 'Contraseñas' | 'Extensiones' | 'Inspeccionar') {
+function openTool(name: 'Historial' | 'Contraseñas' | 'Extensiones' | 'Herramientas para desarrolladores') {
   fireEvent.click(screen.getByRole('button', { name: 'Herramientas del navegador' }));
   fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitem', { name }));
 }
@@ -94,6 +94,7 @@ describe('IntegratedBrowserPanel', () => {
       closeOtherTabs: vi.fn(async () => ({ success: true, state })),
       closeTabsToRight: vi.fn(async () => ({ success: true, state })),
       setTabPinned: vi.fn(async () => ({ success: true, state })),
+      showTabContextMenu: vi.fn(async () => ({ success: true, state })),
       setTabLayout: vi.fn(async () => ({ success: true, state })),
       createTabGroup: vi.fn(async () => ({ success: true, group: { id: 'group-1', name: 'Trabajo', color: 'blue' as const, collapsed: false } })),
       assignTabGroup: vi.fn(async () => ({ success: true, state })),
@@ -159,7 +160,7 @@ describe('IntegratedBrowserPanel', () => {
       getTabContent: vi.fn(async () => ({ success: true })),
       onStateChanged: vi.fn(() => listenerCleanup),
       onDownloadsChanged: vi.fn(() => vi.fn()),
-      onFindRequested: vi.fn(() => vi.fn()),
+      onCommand: vi.fn(() => vi.fn()),
       onOpenRequested: vi.fn(() => vi.fn()),
       onSelectionAction: vi.fn(() => vi.fn()),
       onReadingModeRequested: vi.fn(() => vi.fn()),
@@ -197,6 +198,56 @@ describe('IntegratedBrowserPanel', () => {
     fireEvent.change(address, { target: { value: 'soflia.ai' } });
     fireEvent.submit(address.closest('form')!);
     await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('soflia.ai'));
+  });
+
+  it('BR-KEY-002: ejecuta los atajos reenviados por main y los de la barra, sin capturar los del chat', async () => {
+    const chat = document.createElement('textarea');
+    document.body.appendChild(chat);
+    try {
+      render(<IntegratedBrowserPanel />);
+      await waitFor(() => expect(api.onCommand).toHaveBeenCalled());
+      const sendCommand = (request: unknown) => act(() => vi.mocked(api.onCommand).mock.calls.forEach(([callback]) => callback(request)));
+
+      sendCommand({ command: 'focus-address' });
+      expect(screen.getByLabelText('Dirección o búsqueda')).toHaveFocus();
+      sendCommand({ command: 'new-tab' });
+      await waitFor(() => expect(api.createTab).toHaveBeenCalled());
+      // Una orden desconocida que llegue por IPC se descarta.
+      sendCommand({ command: 'borrar-todo' });
+
+      fireEvent.keyDown(screen.getByLabelText('Dirección o búsqueda'), { key: 'w', ctrlKey: true });
+      await waitFor(() => expect(api.closeTab).toHaveBeenCalledWith('tab-1'));
+      vi.mocked(api.closeTab).mockClear();
+      fireEvent.keyDown(chat, { key: 'w', ctrlKey: true });
+      expect(api.closeTab).not.toHaveBeenCalled();
+
+      sendCommand({ command: 'history' });
+      expect(await screen.findByRole('heading', { name: 'Historial' })).toBeInTheDocument();
+    } finally {
+      chat.remove();
+    }
+  });
+
+  it('BR-TAB-002: deja las acciones de pestaña en su menú contextual y el audio en la propia pestaña', async () => {
+    const audible: IntegratedBrowserState = { ...state, tabs: [{ ...state.tabs[0], audible: true }] };
+    vi.mocked(api.open).mockResolvedValue({ success: true, state: audible });
+    render(<IntegratedBrowserPanel />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Silenciar Ejemplo' }));
+    await waitFor(() => expect(api.setMuted).toHaveBeenCalledWith(true, 'tab-1'));
+    fireEvent.contextMenu(screen.getByRole('tab', { name: 'Ejemplo' }));
+    await waitFor(() => expect(api.showTabContextMenu).toHaveBeenCalledWith('tab-1'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Herramientas del navegador' }));
+    const menu = screen.getByRole('menu');
+    for (const tabAction of ['Silenciar pestaña', 'Fijar pestaña', 'Duplicar pestaña', 'Cerrar otras pestañas']) {
+      expect(within(menu).queryByRole('menuitem', { name: tabAction })).not.toBeInTheDocument();
+    }
+    expect(within(menu).getByRole('menuitem', { name: 'Historial' })).toHaveAttribute('title', 'Historial · Ctrl+H');
+    // El zoom vive en una fila propia que no cierra el menú.
+    fireEvent.click(within(menu).getByRole('menuitem', { name: /Acercar/ }));
+    await waitFor(() => expect(api.setZoom).toHaveBeenCalledWith('in'));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
   });
 
   it('acusa una apertura del agente con geometría nueva tras dibujar sus controles', async () => {
@@ -592,7 +643,7 @@ describe('IntegratedBrowserPanel', () => {
     render(<IntegratedBrowserPanel />);
     fireEvent.click(screen.getByRole('button', { name: 'Herramientas del navegador' }));
     const menu = screen.getByRole('menu');
-    for (const name of ['Historial', 'Contraseñas', 'Extensiones', 'Inspeccionar']) {
+    for (const name of ['Historial', 'Contraseñas', 'Extensiones', 'Herramientas para desarrolladores']) {
       expect(within(menu).getByRole('menuitem', { name }).querySelector('svg')).not.toBeNull();
     }
     fireEvent.keyDown(document, { key: 'Escape' });

@@ -6,7 +6,9 @@ import {
   type BrowserTabGroup,
 } from '../../services/integrated-browser-service';
 import { WindowControls } from '../ui/WindowControls';
+import { AgentActivityButton } from '../agents/AgentActivityButton';
 import { GROUP_COLORS } from './tab-group-colors';
+import { BrowserTabAudioButton } from './BrowserTabAudioButton';
 
 interface BrowserTabStripProps {
   hideTabs?: boolean;
@@ -25,6 +27,9 @@ interface BrowserTabStripProps {
   maximized?: boolean;
   onToggleMaximize?: () => void;
   onCloseBrowser?: () => void;
+  /** Menú nativo de la pestaña (clic derecho), como en Chrome. */
+  onTabContextMenu?: (tabId: string) => void;
+  onToggleTabMuted?: (tabId: string, muted: boolean) => void;
 }
 
 function TabFavicon({ url, isLoading, isDetached, active, isSuspended }: { url: string; isLoading: boolean; isDetached: boolean; active: boolean; isSuspended: boolean }) {
@@ -86,6 +91,8 @@ export function BrowserTabStrip(props: BrowserTabStripProps) {
     maximized,
     onToggleMaximize,
     onCloseBrowser,
+    onTabContextMenu,
+    onToggleTabMuted,
   } = props;
 
   // Orden provisional MIENTRAS se arrastra. Fuera del arrastre manda el de
@@ -124,7 +131,7 @@ export function BrowserTabStrip(props: BrowserTabStripProps) {
   const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>, tabId: string) => {
     if (event.button !== 0) return;
     const target = event.target as HTMLElement;
-    if (target.closest('button[aria-label^="Cerrar"]') || target.closest('button[aria-label^="Dividir"]')) {
+    if (target.closest('button[aria-label^="Cerrar"]') || target.closest('button[aria-label^="Dividir"]') || target.closest('[data-tab-action]')) {
       return;
     }
 
@@ -273,6 +280,11 @@ export function BrowserTabStrip(props: BrowserTabStripProps) {
                 else tabRefs.current.delete(tab.id);
               }}
               onPointerDown={(event) => handlePointerDown(event, tab.id)}
+              onContextMenu={(event) => {
+                if (!onTabContextMenu) return;
+                event.preventDefault();
+                onTabContextMenu(tab.id);
+              }}
               style={{
                 contentVisibility: 'auto',
                 contain: 'layout paint style',
@@ -328,6 +340,8 @@ export function BrowserTabStrip(props: BrowserTabStripProps) {
                 <span className="truncate min-w-0 flex-1">{tab.pinned ? '📌 ' : ''}{tab.title || 'Nueva pestaña'}</span>
               </button>
 
+              {onToggleTabMuted && <BrowserTabAudioButton tab={tab} onToggleMuted={onToggleTabMuted} />}
+
               {!active && (
                 <button
                   type="button"
@@ -380,6 +394,7 @@ export function BrowserTabStrip(props: BrowserTabStripProps) {
 
       {/* Controles de Vista & Ventana a la derecha */}
       <div className="flex shrink-0 items-center gap-1.5 pl-2 [app-region:no-drag] [-webkit-app-region:no-drag]">
+        <AgentActivityButton />
         <div className="flex items-center rounded-xl border border-gray-200/80 bg-white/70 p-0.5 shadow-xs backdrop-blur-md dark:border-white/[0.08] dark:bg-white/[0.04]" aria-label="Composición de pestañas">
           <ViewModeButton mode="single" current={viewMode} label="Una pestaña" onSelect={(mode) => onSetViewMode(mode)} />
           <ViewModeButton mode="split" current={viewMode} label="Pantalla dividida" onSelect={(mode) => onSetViewMode(mode)} />

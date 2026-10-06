@@ -12,7 +12,6 @@ export type ActivityReply = { success: true; data: AgentActivity[] } | { success
 export interface AgentActivityBridge {
   snapshot(): Promise<ActivityReply>;
   publish(input: { ownerId: string; activity: AgentActivity }): Promise<ActivityReply>;
-  control(action: 'show' | 'hide' | 'minimize'): Promise<ActivityReply>;
   onChanged(listener: (items: AgentActivity[]) => void): () => void;
 }
 export function activityFromTeam(event: TeamEvent): AgentActivity {

@@ -1,6 +1,6 @@
 # Arnés multiagente de SofLIA
 
-Estado: vigente. Actualizado: 2026-09-25.
+Estado: vigente. Actualizado: 2026-10-06.
 
 <!-- evidence: electron/agent-runtime/service.ts -->
 <!-- evidence: electron/agent-runtime/runtime.ts -->
@@ -13,6 +13,8 @@ Estado: vigente. Actualizado: 2026-09-25.
 <!-- evidence: electron/wa-agent/agent-team.ts -->
 <!-- evidence: electron/desktop-agent/gemini-cu/client.ts -->
 <!-- evidence: electron/presentation-workflow/html-generator.ts -->
+<!-- evidence: src/components/agents/AgentActivityPanel.tsx -->
+<!-- evidence: src/components/browser/BrowserWorkspaceLayout.tsx -->
 
 ## Equipos en chat, WhatsApp, navegador y entregables
 
@@ -221,13 +223,22 @@ simulados para comprobar fallos, herramientas prohibidas y cancelación.
 
 ## Monitor de equipos
 
-Cuando comienza un equipo, el Hub abre una ventana nativa «Equipo de SofLIA»
-sin solicitar el foco. El botón «Ver equipos de agentes» de la parte superior
-permite recuperarla. Se puede minimizar, ocultar y plegar cada equipo; ninguna
-de estas acciones cancela la tarea. Al terminar conserva los últimos doce
-equipos en memoria; cerrar sesión o cambiar de usuario borra este estado.
+Cuando comienza un equipo nuevo, el Hub despliega el panel acoplado «Equipo de
+SofLIA» dentro de la propia ventana, sin abrir ventanas adicionales. En el Hub
+ocupa una columna a la derecha; en el navegador integrado se coloca bajo la
+barra de pestañas, en el borde derecho, y su ancho se descuenta de la vista
+nativa de la página (que se compone por encima del DOM y lo taparía). Si el chat
+flotante también está a la derecha, se coloca a su lado.
 
-La ventana muestra canal, categoría, roles, estado individual, tiempo observado
+El botón «Ver equipos de agentes» vive dentro de la barra de título del Hub y de
+la barra de pestañas del navegador, junto a sus demás controles, y marca con un
+punto los equipos en curso. Ocultar el panel o plegar un equipo no cancela la
+tarea, y las actualizaciones del mismo equipo no lo vuelven a abrir. El estado
+del panel lo mantiene un único proveedor React con una sola suscripción. Main
+conserva los últimos doce equipos en memoria; cerrar sesión o cambiar de usuario
+borra este estado.
+
+El panel muestra canal, categoría, roles, estado individual, tiempo observado
 y número de aportes completados. «Aportes listos» indica que terminaron los
 especialistas; el coordinador todavía puede estar redactando o ejecutando la
 tarea principal. No presenta porcentajes estimados, prompts, fuentes, mensajes,
@@ -241,20 +252,16 @@ principales de las ventanas actuales de Hub y Orbe, comprobados en main. La Orbe
 captura el usuario al iniciar el turno y cancela/limpia su conversación cuando
 cambia de propietario. Main determina la etiqueta Chat/Orbe y separa sus IDs;
 una superficie no puede sobrescribir el equipo de otra aunque repita el UUID.
-El modo directo no abre un equipo. Para recuperar el monitor oculto se conserva
-el botón del Hub.
+El modo directo no abre un equipo.
 
 [Main](../../electron/agent-activity/index.ts) valida esquemas cerrados,
 identidad y secuencias; ignora eventos atrasados y cierra los equipos de reuniones
-que desaparecen al cambiar de contexto. Los errores de observación no deben
-interrumpir el trabajo. La ventana auxiliar carga exclusivamente la vista del
-monitor y recibe un preload limitado al puente `agentActivity`. No puede
-ejecutar herramientas. Además de pruebas unitarias, el smoke nativo se ejecuta
-con `node scripts/quality/smoke-agent-activity.mjs` después de `npm run build:app`.
-Carga el renderer y preload compilados con datos sintéticos, sin bootstrap ni
-proveedores. Comprueba ocultar/reabrir/minimizar/cerrar y genera una captura en
-un directorio temporal aislado. No valida inferencias ni el foco frente a otras
-aplicaciones; esas comprobaciones permanecen separadas.
+que desaparecen al cambiar de contexto. Sólo difunde `agent-activity:changed`
+a la ventana del Hub y expone dos canales invocables, `agent-activity:snapshot`
+y `agent-activity:publish`, restringidos a los frames principales de Hub y Orbe.
+Main no abre ni controla vistas: mostrar u ocultar el panel es estado del
+renderer. Los errores de observación no deben interrumpir el trabajo, y el panel
+no puede ejecutar herramientas.
 
 ## Retirada
 

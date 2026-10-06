@@ -5,13 +5,11 @@ import { initializeAgentActivity } from '../agent-activity';
 import type { AgentHarness } from '../agent-runtime/service';
 import type { BrowserWindow, IpcMainInvokeEvent } from 'electron';
 import type { AgentRun } from '../../src/shared/agent-runtime';
-const view = vi.hoisted(() => ({ window: null as BrowserWindow | null, show: vi.fn(), hide: vi.fn(), minimize: vi.fn(), destroy: vi.fn() }));
-vi.mock('../agent-activity/window', () => ({ ActivityWindow: class { constructor() { return view; } } }));
 vi.mock('electron', async importOriginal => {
   const original = await importOriginal<Record<string, unknown>>();
   return { ...original, app: { once: vi.fn(), off: vi.fn() } };
 });
-afterEach(() => { vi.clearAllMocks(); view.window = null; });
+afterEach(() => { vi.clearAllMocks(); });
 it('restringe publicadores al marco principal y limpia al cambiar de usuario', () => {
   const mainFrame = {}; const webContents = { mainFrame, send: vi.fn() };
   const parent = { webContents, isDestroyed: () => false } as unknown as BrowserWindow;
@@ -28,28 +26,26 @@ it('restringe publicadores al marco principal y limpia al cambiar de usuario', (
     expect(invoke('publish', { ownerId: 'uno', activity }, { sender: webContents, senderFrame: {} }).success).toBe(false);
     expect(invoke('publish', { ownerId: 'otro', activity }).success).toBe(false);
     expect(invoke('publish', { ownerId: 'uno', activity }).success).toBe(true);
-    expect(view.show).toHaveBeenCalledTimes(1);
+    // Sólo el Hub recibe la difusión: el panel está acoplado en su renderer.
+    expect(webContents.send).toHaveBeenCalledWith('agent-activity:changed', [expect.objectContaining({ status: 'running' })]);
     expect(invoke('snapshot').data).toHaveLength(1);
-    user = 'dos'; authChanged(); expect(view.destroy).toHaveBeenCalled();
+    user = 'dos'; authChanged();
     expect(invoke('snapshot').data).toEqual([]);
     expect(invoke('publish', { ownerId: 'uno', activity }).success).toBe(false);
     invoke('publish', { ownerId: 'dos', activity: { ...activity, sequence: 2 } });
     expect(invoke('snapshot').data).toEqual([]);
     runs = [{ id: crypto.randomUUID(), scope: { userId: 'dos', organizationId: null }, status: 'running', steps: [{ role: 'acuerdos', status: 'running' }], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as AgentRun];
-    view.show.mockImplementationOnce(() => { throw new Error('ventana no disponible'); });
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    try { expect(() => harness.emit('changed')).not.toThrow(); } finally { warn.mockRestore(); }
+    expect(() => harness.emit('changed')).not.toThrow();
     expect(invoke('snapshot').data[0].status).toBe('running');
     runs = []; harness.emit('changed');
     expect(invoke('snapshot').data[0].status).toBe('cancelled');
-    user = null; expect(invoke('control', 'show').success).toBe(false);
+    user = null; expect(invoke('snapshot').success).toBe(false);
   } finally { close(); }
 });
 
-it('aísla la Orbe del Hub y rechaza subframes, ventanas ajenas, reemplazadas y monitor', () => {
+it('aísla la Orbe del Hub y rechaza subframes, ventanas ajenas y reemplazadas', () => {
   const makeWindow = () => ({ webContents: { mainFrame: {}, send: vi.fn() }, isDestroyed: () => false }) as unknown as BrowserWindow;
   const parent = makeWindow(); let orb: BrowserWindow | null = makeWindow();
-  view.window = makeWindow();
   let user: string | null = 'uno'; let authChanged!: () => void;
   const harness = Object.assign(new EventEmitter(), { snapshot: () => [] }) as unknown as AgentHarness;
   const close = initializeAgentActivity({ getWindow: () => parent, getOrbWindow: () => orb,
@@ -71,8 +67,7 @@ it('aísla la Orbe del Hub y rechaza subframes, ventanas ajenas, reemplazadas y 
     expect(invoke(parent, 'snapshot').data.map((item: { status: string }) => item.status)).toEqual(['running', 'completed']);
     expect(invoke(orb, 'publish', payload, {} as typeof orb.webContents.mainFrame).success).toBe(false);
     expect(invoke(makeWindow(), 'publish', payload).success).toBe(false);
-    expect(invoke(view.window, 'publish', payload).success).toBe(false);
-    expect(invoke(view.window, 'snapshot').success).toBe(true);
+    expect(invoke(makeWindow(), 'snapshot').success).toBe(false);
     const oldOrb = orb; orb = makeWindow();
     expect(invoke(oldOrb, 'publish', payload).success).toBe(false);
     user = 'dos'; authChanged();

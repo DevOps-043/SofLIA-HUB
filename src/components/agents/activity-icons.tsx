@@ -10,5 +10,4 @@ export const ChevronDown = icon('m6 9 6 6 6-6');
 export const ChevronUp = icon('m6 15 6-6 6 6');
 export const Circle = icon('M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18');
 export const Clock3 = icon('M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 M12 7v5h5');
-export const Minimize2 = icon('M5 12h14');
 export const X = icon('m6 6 12 12 M6 18 18 6');

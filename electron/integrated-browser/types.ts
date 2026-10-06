@@ -47,6 +47,8 @@ export interface IntegratedBrowserTabState {
   isSuspended: boolean;
   isDetached: boolean;
   muted: boolean;
+  /** La pestaña reproduce audio ahora mismo; alimenta el icono de sonido. */
+  audible: boolean;
   zoomFactor: number;
   find: {
     query: string;

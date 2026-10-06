@@ -24,6 +24,8 @@ import { BrowserFindBar } from './BrowserFindBar';
 import { BrowserNavigationSafetyNotice } from './BrowserNavigationSafetyNotice';
 import { BrowserSensitiveHandoffNotice } from './BrowserSensitiveHandoffNotice';
 import { scopedPreferenceKey } from '../../services/user-scope';
+import { browserShortcutLabel, type BrowserShortcutCommand } from '../../shared/browser-keyboard-shortcuts';
+import { rendererShortcutPlatform, useBrowserCommands } from './use-browser-commands';
 
 const UTILITY_BAR_STORAGE_KEY = 'sofLia_integratedBrowserUtilityBarVisible';
 
@@ -71,6 +73,7 @@ export function IntegratedBrowserPanel(props: {
   const currentUrlRef = useRef(EMPTY_INTEGRATED_BROWSER_STATE.url);
   const extensionRequestIdRef = useRef(0);
   const addressEditingRef = useRef(false);
+  const addressInputRef = useRef<HTMLInputElement>(null);
   const managementTabRef = useRef<BrowserManagementTab | null>(null);
   const suggestionOverlayRef = useRef(false);
   const suggestionOverlayRequestIdRef = useRef(0);
@@ -382,7 +385,6 @@ export function IntegratedBrowserPanel(props: {
         if (reading && nextState.url !== reading.url) void closeReadingMode();
       },
       onReadingModeRequested: (request) => { void openReadingMode(request); },
-      onFindRequested: () => setFindVisible(true),
       onOpenRequested: () => {
         if (agentViewportFrame !== null) cancelAnimationFrame(agentViewportFrame);
         agentViewportFrame = requestAnimationFrame(() => {
@@ -462,22 +464,11 @@ export function IntegratedBrowserPanel(props: {
   }, [consumeResponse]);
 
   useEffect(() => {
-    const handleShortcut = (event: KeyboardEvent) => {
-      if (!(event.ctrlKey || event.metaKey) || event.altKey) {
-        if (event.key === 'Escape' && findVisible) closeFind();
-        return;
-      }
-      const key = event.key.toLowerCase();
-      if (key === 'f') { event.preventDefault(); setFindVisible(true); }
-      else if (key === 'p') { event.preventDefault(); void run(integratedBrowserService.printPage); }
-      else if (key === '+' || key === '=') { event.preventDefault(); void run(() => integratedBrowserService.setZoom('in')); }
-      else if (key === '-') { event.preventDefault(); void run(() => integratedBrowserService.setZoom('out')); }
-      else if (key === '0') { event.preventDefault(); void run(() => integratedBrowserService.setZoom('reset')); }
-      else if (key === 't' && event.shiftKey) { event.preventDefault(); void run(integratedBrowserService.reopenClosedTab); }
-    };
-    window.addEventListener('keydown', handleShortcut);
-    return () => window.removeEventListener('keydown', handleShortcut);
-  }, [closeFind, findVisible, run]);
+    if (!findVisible) return undefined;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') closeFind(); };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [closeFind, findVisible]);
 
   const navigate = (target: string) => void run(() => integratedBrowserService.navigate(target));
 
@@ -503,6 +494,24 @@ export function IntegratedBrowserPanel(props: {
 
   const activeTab = state.tabs.find((tab) => tab.id === state.activeTabId) ?? null;
 
+  useBrowserCommands({
+    rootRef,
+    state,
+    run,
+    actions: {
+      openFind: () => setFindVisible(true),
+      focusAddress: () => addressInputRef.current?.focus(),
+      toggleManagement: (tab) => void toggleManagement(tab),
+      toggleBookmarksBar: toggleUtilityBar,
+      toggleBookmark: () => void bookmarks.toggleCurrent(),
+      editTabGroup: setGroupEditorTabId,
+    },
+  });
+  const showTabContextMenu = (tabId: string) => void run(() => integratedBrowserService.showTabContextMenu(tabId));
+  const toggleTabMuted = (tabId: string, muted: boolean) => void run(() => integratedBrowserService.setMuted(muted, tabId));
+  const platform = rendererShortcutPlatform();
+  const shortcut = (command: BrowserShortcutCommand) => browserShortcutLabel(command, platform);
+
   return (
     <section ref={rootRef} className="relative flex h-full min-h-0 flex-1 flex-col bg-background dark:bg-background-dark" aria-label="Navegador integrado">
       <BrowserTabStrip
@@ -522,6 +531,8 @@ export function IntegratedBrowserPanel(props: {
         maximized={props.maximized}
         onToggleMaximize={props.onToggleMaximize}
         onCloseBrowser={props.onClose}
+        onTabContextMenu={showTabContextMenu}
+        onToggleTabMuted={toggleTabMuted}
       />
       <header
         className="relative z-50 flex flex-col gap-2 border-b border-gray-200/80 bg-white/95 px-3 py-2 shadow-xs dark:border-white/[0.08] dark:bg-[#0d1117]/95"
@@ -558,6 +569,7 @@ export function IntegratedBrowserPanel(props: {
             currentUrl={state.url}
             onAddressChange={setAddress}
             onEditingChange={(editing) => { addressEditingRef.current = editing; }}
+            inputRef={addressInputRef}
             onNavigate={navigate}
             onSuggestionsVisibilityChange={handleSuggestionsVisibilityChange}
           />
@@ -593,31 +605,41 @@ export function IntegratedBrowserPanel(props: {
             <BrowserToolsMenu
               open={toolsMenuOpen}
               onOpenChange={handleToolsMenuOpenChange}
-              items={[
-                { id: 'downloads', label: 'Descargas', active: managementTab === 'downloads', icon: <svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 21h16" /></svg>, onSelect: () => void toggleManagement('downloads') },
-                { id: 'reopen-tab', label: 'Reabrir pestaña cerrada · Ctrl+Shift+T', icon: <svg viewBox="0 0 24 24"><path d="M4 4v6h6M5 15a8 8 0 1 0 2-8" /></svg>, onSelect: () => void run(integratedBrowserService.reopenClosedTab) },
-                { id: 'pin-tab', label: activeTab?.pinned ? 'Desfijar pestaña' : 'Fijar pestaña', active: activeTab?.pinned, icon: <svg viewBox="0 0 24 24"><path d="M9 3h6l-1 6 4 4H6l4-4zM12 13v8" /></svg>, onSelect: () => activeTab && void run(() => integratedBrowserService.setTabPinned(activeTab.id, !activeTab.pinned)) },
-                { id: 'duplicate-tab', label: 'Duplicar pestaña', icon: <svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></svg>, onSelect: () => activeTab && void run(() => integratedBrowserService.duplicateTab(activeTab.id)) },
-                { id: 'close-other-tabs', label: 'Cerrar otras pestañas', icon: <svg viewBox="0 0 24 24"><path d="M4 7h11M4 12h7M4 17h5M17 14l4 4M21 14l-4 4" /></svg>, onSelect: () => activeTab && void run(() => integratedBrowserService.closeOtherTabs(activeTab.id)) },
-                { id: 'close-right-tabs', label: 'Cerrar pestañas a la derecha', icon: <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h8M4 17h5M16 14l4 4M20 14l-4 4" /></svg>, onSelect: () => activeTab && void run(() => integratedBrowserService.closeTabsToRight(activeTab.id)) },
-                { id: 'new-group', label: 'Organizar grupo de pestañas', icon: <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M8 9v6M5 12h6" /></svg>, onSelect: () => { if (activeTab) setGroupEditorTabId(activeTab.id); } },
-                { id: 'tab-layout', label: state.tabLayout === 'vertical' ? 'Pestañas horizontales' : 'Pestañas verticales', active: state.tabLayout === 'vertical', icon: <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18M3 9h6M3 15h6" /></svg>, onSelect: () => void run(() => integratedBrowserService.setTabLayout(state.tabLayout === 'vertical' ? 'horizontal' : 'vertical')) },
-                { id: 'bookmarks', label: 'Marcadores', active: utilityBarVisible, icon: <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>, onSelect: toggleUtilityBar },
-                { id: 'manage-bookmarks', label: 'Administrar marcadores', active: managementTab === 'bookmarks', icon: <svg viewBox="0 0 24 24"><path d="M6 4h12v17l-6-4-6 4zM9 8h6" /></svg>, onSelect: () => void toggleManagement('bookmarks') },
-                { id: 'history', label: 'Historial', active: managementTab === 'history', icon: <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" strokeWidth="1.8" /><path d="M12 7v5l3 2M5 5l-2 2" strokeWidth="1.8" strokeLinecap="round" /></svg>, onSelect: () => void toggleManagement('history') },
-                { id: 'credentials', label: 'Contraseñas', active: managementTab === 'credentials', icon: <svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4" strokeWidth="1.8" /><path d="M11 12l8-8M15 8l2 2M17 6l2 2" strokeWidth="1.8" strokeLinecap="round" /></svg>, onSelect: () => void toggleManagement('credentials') },
-                { id: 'agent-policy', label: 'Permisos de SofLIA', active: managementTab === 'agent', icon: <svg viewBox="0 0 24 24"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2zM18 16l1 2 2 1-2 1-1 2-1-2-2-1 2-1z" /></svg>, onSelect: () => void toggleManagement('agent') },
-                { id: 'extensions', label: 'Extensiones', active: managementTab === 'extensions', icon: <svg viewBox="0 0 24 24"><path d="M8 3h5v5a2 2 0 104 0V3h4v7h-5a2 2 0 100 4h5v7h-7v-5a2 2 0 10-4 0v5H3v-7h5a2 2 0 100-4H3V3h5z" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>, onSelect: () => void toggleManagement('extensions') },
-                { id: 'privacy', label: 'Borrar datos', active: managementTab === 'privacy', icon: <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v5M14 11v5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>, onSelect: () => void toggleManagement('privacy') },
-                { id: 'support', label: 'Diagnóstico', active: managementTab === 'support', icon: <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 8h.01M11 11h1v5h1" /></svg>, onSelect: () => void toggleManagement('support') },
-                { id: 'find', label: 'Buscar en la página · Ctrl+F', active: findVisible, icon: <svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M16 16l5 5" /></svg>, onSelect: () => setFindVisible(true) },
-                { id: 'zoom-in', label: `Acercar · ${Math.round((activeTab?.zoomFactor ?? 1) * 100)}%`, icon: <svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M10.5 7v7M7 10.5h7M16 16l5 5" /></svg>, onSelect: () => void run(() => integratedBrowserService.setZoom('in')) },
-                { id: 'zoom-out', label: 'Alejar', icon: <svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M7 10.5h7M16 16l5 5" /></svg>, onSelect: () => void run(() => integratedBrowserService.setZoom('out')) },
-                { id: 'mute', label: activeTab?.muted ? 'Activar audio de pestaña' : 'Silenciar pestaña', active: activeTab?.muted, icon: <svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM15 9l6 6M21 9l-6 6" /></svg>, onSelect: () => void run(() => integratedBrowserService.setMuted(!activeTab?.muted)) },
-                { id: 'fullscreen', label: state.isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa', active: state.isFullscreen, icon: <svg viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" /></svg>, onSelect: () => void run(integratedBrowserService.toggleFullscreen) },
-                { id: 'print', label: 'Imprimir · Ctrl+P', icon: <svg viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v7H6z" /></svg>, onSelect: () => void run(integratedBrowserService.printPage) },
-                { id: 'pdf', label: 'Guardar como PDF', icon: <svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6zM14 2v6h6M9 14h6M9 18h4" /></svg>, onSelect: savePdf },
-                { id: 'devtools', label: 'Inspeccionar', icon: <svg viewBox="0 0 24 24"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M13 6l-2 12" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>, onSelect: () => void run(integratedBrowserService.toggleDevTools) },
+              zoom={{
+                afterSection: 1,
+                percent: Math.round((activeTab?.zoomFactor ?? 1) * 100),
+                zoomInShortcut: shortcut('zoom-in'),
+                zoomOutShortcut: shortcut('zoom-out'),
+                fullscreen: state.isFullscreen,
+                onZoomIn: () => void run(() => integratedBrowserService.setZoom('in')),
+                onZoomOut: () => void run(() => integratedBrowserService.setZoom('out')),
+                onToggleFullscreen: () => void run(integratedBrowserService.toggleFullscreen),
+              }}
+              sections={[
+                [
+                  { id: 'new-tab', label: 'Nueva pestaña', shortcut: shortcut('new-tab'), icon: <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>, onSelect: () => void run(() => integratedBrowserService.createTab()) },
+                  { id: 'reopen-tab', label: 'Reabrir pestaña cerrada', shortcut: shortcut('reopen-tab'), icon: <svg viewBox="0 0 24 24"><path d="M4 4v6h6M5 15a8 8 0 1 0 2-8" /></svg>, onSelect: () => void run(integratedBrowserService.reopenClosedTab) },
+                ],
+                [
+                  { id: 'history', label: 'Historial', shortcut: shortcut('history'), active: managementTab === 'history', icon: <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>, onSelect: () => void toggleManagement('history') },
+                  { id: 'downloads', label: 'Descargas', shortcut: shortcut('downloads'), active: managementTab === 'downloads', icon: <svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 21h16" /></svg>, onSelect: () => void toggleManagement('downloads') },
+                  { id: 'bookmarks', label: utilityBarVisible ? 'Ocultar barra de marcadores' : 'Mostrar barra de marcadores', shortcut: shortcut('bookmarks-bar'), active: utilityBarVisible, icon: <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>, onSelect: toggleUtilityBar },
+                  { id: 'manage-bookmarks', label: 'Administrar marcadores', shortcut: shortcut('bookmark-manager'), active: managementTab === 'bookmarks', icon: <svg viewBox="0 0 24 24"><path d="M6 4h12v17l-6-4-6 4zM9 8h6" /></svg>, onSelect: () => void toggleManagement('bookmarks') },
+                  { id: 'credentials', label: 'Contraseñas', active: managementTab === 'credentials', icon: <svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4" /><path d="M11 12l8-8M15 8l2 2M17 6l2 2" /></svg>, onSelect: () => void toggleManagement('credentials') },
+                  { id: 'extensions', label: 'Extensiones', active: managementTab === 'extensions', icon: <svg viewBox="0 0 24 24"><path d="M8 3h5v5a2 2 0 104 0V3h4v7h-5a2 2 0 100 4h5v7h-7v-5a2 2 0 10-4 0v5H3v-7h5a2 2 0 100-4H3V3h5z" /></svg>, onSelect: () => void toggleManagement('extensions') },
+                  { id: 'privacy', label: 'Borrar datos de navegación', shortcut: shortcut('clear-data'), active: managementTab === 'privacy', icon: <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v5M14 11v5" /></svg>, onSelect: () => void toggleManagement('privacy') },
+                ],
+                [
+                  { id: 'print', label: 'Imprimir', shortcut: shortcut('print'), icon: <svg viewBox="0 0 24 24"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v7H6z" /></svg>, onSelect: () => void run(integratedBrowserService.printPage) },
+                  { id: 'pdf', label: 'Guardar como PDF', icon: <svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6zM14 2v6h6M9 14h6M9 18h4" /></svg>, onSelect: savePdf },
+                  { id: 'find', label: 'Buscar en la página', shortcut: shortcut('find'), active: findVisible, icon: <svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M16 16l5 5" /></svg>, onSelect: () => setFindVisible(true) },
+                ],
+                [
+                  { id: 'tab-layout', label: state.tabLayout === 'vertical' ? 'Pestañas horizontales' : 'Pestañas verticales', active: state.tabLayout === 'vertical', icon: <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18M3 9h6M3 15h6" /></svg>, onSelect: () => void run(() => integratedBrowserService.setTabLayout(state.tabLayout === 'vertical' ? 'horizontal' : 'vertical')) },
+                  { id: 'agent-policy', label: 'Permisos de SofLIA', active: managementTab === 'agent', icon: <svg viewBox="0 0 24 24"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2zM18 16l1 2 2 1-2 1-1 2-1-2-2-1 2-1z" /></svg>, onSelect: () => void toggleManagement('agent') },
+                  { id: 'devtools', label: 'Herramientas para desarrolladores', shortcut: shortcut('devtools'), icon: <svg viewBox="0 0 24 24"><path d="M8 9l-4 3 4 3M16 9l4 3-4 3M13 6l-2 12" /></svg>, onSelect: () => void run(integratedBrowserService.toggleDevTools) },
+                  { id: 'support', label: 'Diagnóstico', active: managementTab === 'support', icon: <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 8h.01M11 11h1v5h1" /></svg>, onSelect: () => void toggleManagement('support') },
+                ],
               ]}
             />
           </div>
@@ -670,7 +692,8 @@ export function IntegratedBrowserPanel(props: {
       {state.tabLayout === 'vertical' && <BrowserVerticalTabs tabs={state.tabs} groups={state.groups ?? []} activeTabId={state.activeTabId}
         onActivate={(id) => void run(() => integratedBrowserService.activateTab(id))}
         onClose={(id) => void run(() => integratedBrowserService.closeTab(id))}
-        onReorder={(source, target) => void run(() => integratedBrowserService.reorderTabs(source, target))} />}
+        onReorder={(source, target) => void run(() => integratedBrowserService.reorderTabs(source, target))}
+        onContextMenu={showTabContextMenu} onToggleMuted={toggleTabMuted} />}
       <div ref={viewportRef} className="relative z-0 min-h-0 min-w-0 flex-1 bg-white dark:bg-[#111820]" data-testid="integrated-browser-viewport">
         {(managementSnapshot ?? suggestionSnapshot) && (
           <div

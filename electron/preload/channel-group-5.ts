@@ -132,6 +132,5 @@ export const CHANNEL_GROUP_5 = [
   'project-hub:get-download',
   'agent-activity:snapshot',
   'agent-activity:publish',
-  'agent-activity:control',
   'agent-activity:changed',
 ] as const;

@@ -29,4 +29,5 @@ class OrgService {
 }
 
 export type { OrgMember, OrgMemberStatus, OrgRole };
+export { OrgMembersError } from './org/operations';
 export const orgService = new OrgService();

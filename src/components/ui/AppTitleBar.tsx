@@ -1,3 +1,4 @@
+import { AgentActivityButton } from '../agents/AgentActivityButton';
 import { WindowControls } from './WindowControls';
 
 export function AppTitleBar() {
@@ -18,6 +19,9 @@ export function AppTitleBar() {
 
       <div className="flex-1 h-full" />
 
+      <div className="flex items-center pr-1.5 [app-region:no-drag] [-webkit-app-region:no-drag]">
+        <AgentActivityButton />
+      </div>
       <WindowControls className="h-full -mr-3" />
     </header>
   );

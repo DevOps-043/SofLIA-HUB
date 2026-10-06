@@ -161,7 +161,7 @@ export function registerIntegratedBrowserHandlers(
   });
   handle('integrated-browser:page-find-stop', () => service.stopFindInPage());
   handle('integrated-browser:page-zoom', (_event, input) => service.setZoom(readZoomAction(input)));
-  handle('integrated-browser:page-mute', (_event, input) => service.setMuted(readMuted(input)));
+  handle('integrated-browser:page-mute', (_event, input) => service.setMuted(readMuted(input), readOptionalTabId(input)));
   handle('integrated-browser:page-fullscreen', () => service.toggleFullscreen());
   handle('integrated-browser:page-print', () => service.printPage());
   handle('integrated-browser:page-save-pdf', () => service.savePageAsPdf(), (result) => result as Record<string, unknown>);
@@ -198,6 +198,7 @@ export function registerIntegratedBrowserHandlers(
     if (!input || typeof input !== 'object' || typeof (input as { pinned?: unknown }).pinned !== 'boolean') throw new Error('El estado fijado es inválido.');
     return service.setTabPinned(readTabId(input), (input as { pinned: boolean }).pinned);
   });
+  handle('integrated-browser:tab-context-menu', (_event, input) => { service.showTabContextMenu(readTabId(input)); return service.getState(); });
   handle('integrated-browser:tab-layout', (_event, input) => service.setTabLayout(readTabLayout(input)));
   handle('integrated-browser:tab-group-create', (_event, input) => {
     const value = readTabGroup(input);
@@ -578,6 +579,12 @@ function readTabExpectation(input: unknown): import('../src/shared/browser-tab-c
     throw new Error('La selección de pestaña es inválida.');
   }
   return { profileRevision: value.profileRevision as number, documentToken: value.documentToken };
+}
+
+/** Identificador opcional: sin él la operación aplica a la pestaña activa. */
+function readOptionalTabId(input: unknown): string | undefined {
+  if (!input || typeof input !== 'object' || (input as { tabId?: unknown }).tabId === undefined) return undefined;
+  return readTabId(input);
 }
 
 function readTabId(input: unknown): string {
