@@ -8,6 +8,16 @@ Estado: vigente. Actualizado: 2026-09-11.
 
 ## Contrato IPC
 
+`computer:confirm-action` conserva el canal allowlisted y acepta un mensaje de
+hasta 8000 caracteres con opciones `{ allowAlways?: boolean, command?: string }`; devuelve
+`{ confirmed: boolean, always?: boolean }`. El wrapper tipado del renderer
+guarda la aprobación exacta por usuario sólo tras una decisión humana. El fallback
+nativo verifica sesión, mensaje/opciones y ventana emisora; sin ventana deniega.
+La casilla Siempre permitir sólo aparece para comandos no sensibles vinculados
+al detalle mostrado (la carpeta aparece aparte) y confirmar
+con la casilla marcada es necesario para devolver `always: true`. No reemplaza
+la política de ejecución main. Ver [permisos del chat](runtime-agents-manual.md#211-permisos-locales-de-comandos-y-archivos).
+
 El namespace `agent-activity` añade `snapshot`, `publish`, `control` y el evento
 `changed`. Sólo el frame principal autenticado del Hub publica metadatos;
 el monitor auxiliar puede leerlos y controlar su propia ventana. Main comprueba

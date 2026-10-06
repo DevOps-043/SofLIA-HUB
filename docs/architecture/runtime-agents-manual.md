@@ -101,7 +101,7 @@ conclusión sea correcta. Ver [contrato y límites de adjuntos](integrated-brows
 
 1. Envía el mensaje inicial con `withGeminiModelCall` (timeout, reintento y
    circuit breaker en `resilience.ts`).
-2. Itera hasta **10 veces**. En cada vuelta:
+2. Ejecuta hasta **10 tandas** de herramientas (**20** con workspace). En cada vuelta:
    - acumula imágenes `inlineData` que emite la ejecución de código
      (gráficas de matplotlib) para adjuntarlas al mensaje final;
    - filtra las `functionCall` del candidato;
@@ -113,8 +113,44 @@ conclusión sea correcta. Ver [contrato y límites de adjuntos](integrated-brows
      reescribiera. Misma escalada que el agente de WhatsApp (§3.8);
    - si no hay ninguna, devuelve el texto final con sus fuentes;
    - si hay, ejecuta cada una y reenvía las respuestas al modelo.
-3. Si se agotan las 10 iteraciones responde
-   `"He ejecutado las acciones solicitadas..."` en vez de seguir gastando.
+3. Al agotar las tandas, procesa un cierre adicional con herramientas deshabilitadas
+   y los resultados obtenidos. OpenAI aplica `tool_choice: none`; Gemini envía
+   `tools: []`. Una llamada emitida pese a esa restricción nunca se ejecuta. Si no
+   hay cierre útil o el workspace sigue incompleto, devuelve el aviso honesto de
+   presupuesto/tarea incompleta. No afirma éxito por alcanzar un límite.
+
+### 2.1.1 Permisos locales de comandos y archivos
+
+La [confirmación del chat](../../src/services/computer-use/confirmation.ts)
+permite los movimientos reversibles solicitados (`move_item`, `organize_files`,
+`batch_move_files`) sin modal. Borrado, envíos, efectos externos y acciones remotas
+conservan HITL. Los comandos simples de consulta no interrumpen; los desconocidos
+piden aprobación inicial.
+
+Los comandos locales no sensibles ofrecen **Cancelar**, **Ejecutar** y
+**Siempre permitir**. Esta última guarda únicamente una huella SHA-256 por
+usuario, comando exacto, herramienta y carpeta de trabajo; no permite toda la
+shell. Cambios de variables de entorno, registro, privilegios, sistema, borrado
+y comandos compuestos/ofuscados sólo admiten aprobación única. La clasificación
+conservadora vive en [command-approval](../../src/shared/command-approval.ts).
+Scripts opacos y gestores del sistema tampoco son recordables. Todas las
+abreviaturas de `EncodedCommand` se bloquean en main; `-File` y sus abreviaturas
+nunca se clasifican como consulta sólo por el nombre del script.
+Las restricciones de comandos en main siguen aplicándose aun con una preferencia
+guardada. Sin almacenamiento/crypto sólo se aprueba la ejecución actual, y un
+cambio de usuario o desmontaje durante el diálogo cancela la solicitud.
+Stop y el timeout de herramienta propagan cancelación al permiso pendiente para
+impedir que una aprobación tardía ejecute la acción después de cerrar el turno.
+En Configuración → Personalidad y Privacidad → Privacidad y Gobernanza,
+**Quitar permisos recordados** revoca todas las aprobaciones del usuario activo.
+
+`batch_move_files` admite `group_by_extension: true`: mueve directamente a
+subcarpetas por extensión en el destino, en un lote por origen. `extensions`
+filtra documentos cuando la solicitud no abarca todos los tipos; los nombres
+homónimos conservan la resolución de colisiones y los movimientos se registran
+con `operationId` para `undo_last_file_operation`. Omitir la opción conserva el
+destino plano. El prompt evita repetir resúmenes sin cambios y hacer un lote por
+cada extensión.
 
 Cancelación: el `AbortSignal` del usuario se propaga al SDK; abortar devuelve un
 `stoppedStreamResult` con las llamadas ya hechas, no un error.
@@ -2022,7 +2058,7 @@ la allowlist ni la autorización del usuario.
 | Parámetro | Valor | Fuente |
 |---|---:|---|
 | Iteraciones del loop de WhatsApp | 25 | `wa-agent/agent-loop.ts` |
-| Iteraciones del loop de chat | 10 | `gemini-chat/agentic-loop.ts` |
+| Tandas de herramientas del chat / con workspace | 10 / 20, más un cierre sin herramientas | `gemini-chat/agentic-loop.ts`, `openai-chat/send-message-stream.ts` |
 | Loop guard: warning / crítico | 3 / 5 | `wa-agent/constants.ts` |
 | Historial de WhatsApp en memoria / al cargar | 20 / 30 | `wa-agent/constants.ts`, `agent-loop-setup.ts` |
 | `maxOutputTokens` WhatsApp / chat | 4096 / 16384 | `agent-loop-setup.ts`, `model-config.ts` |

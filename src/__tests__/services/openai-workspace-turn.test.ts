@@ -336,8 +336,22 @@ describe('turno de OpenAI con espacio de trabajo', () => {
     const result = await sendOpenAIMessageStream(params({ options: undefined }));
     const texto = await collect(result.stream);
 
-    expect(openAiMocks.create).toHaveBeenCalledTimes(10);
+    expect(openAiMocks.create).toHaveBeenCalledTimes(11);
+    expect(dispatch.execute).toHaveBeenCalledTimes(10);
+    expect(openAiMocks.create.mock.calls[10][0].tool_choice).toBe('none');
     expect(texto).toContain('No pude completar la respuesta dentro del presupuesto de herramientas');
     expect(texto).not.toContain('He ejecutado las acciones solicitadas');
+  });
+
+  it('procesa el cierre final después de diez tandas sin ejecutar otra acción', async () => {
+    for (let index = 0; index < 10; index++) {
+      openAiMocks.create.mockReturnValueOnce(toolCallStream('batch_move_files', { source_directory: `origen-${index}` }, `call-${index}`));
+    }
+    openAiMocks.create.mockReturnValueOnce(textStream('Se movieron los documentos; quedaron dos errores pendientes.'));
+    const result = await sendOpenAIMessageStream(params({ options: undefined }));
+    await expect(collect(result.stream)).resolves.toContain('quedaron dos errores pendientes');
+    expect(dispatch.execute).toHaveBeenCalledTimes(10);
+    expect(openAiMocks.create).toHaveBeenCalledTimes(11);
+    expect(openAiMocks.create.mock.calls[10][0].tool_choice).toBe('none');
   });
 });

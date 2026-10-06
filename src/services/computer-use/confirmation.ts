@@ -1,4 +1,9 @@
-type ConfirmationHandler = (toolName: string, description: string) => Promise<boolean>;
+import { canRememberCommand, isReadOnlyCommand, type ConfirmationDecision, type ConfirmationOptions } from '../../shared/command-approval';
+import { getUserPreferenceScope } from '../user-scope';
+import { commandApprovalKey, hasCommandApproval, rememberCommandApproval } from './command-approvals';
+
+export { isReadOnlyCommand } from '../../shared/command-approval';
+type ConfirmationHandler = (toolName: string, description: string, options?: ConfirmationOptions & { signal?: AbortSignal }) => Promise<ConfirmationDecision>;
 let confirmationHandler: ConfirmationHandler | null = null;
 
 const DANGEROUS_TOOLS = new Set([
@@ -21,33 +26,6 @@ const DANGEROUS_TOOLS = new Set([
 
 const EXTERNAL_EFFECT_COMPUTER_TASK = /\b(envia\w*|enviar|send\w*|manda\w*|mandar|responde\w*|reply\w*|publica\w*|postear|post|paga\w*|pagar|compra\w*|comprar|transfiere\w*|transferir|elimina\w*|eliminar|borra\w*|borrar|delete\w*|confirmar compra|suscribe\w*|suscribir|cancelar suscripci)/;
 
-/**
- * Comandos de consulta que no modifican el sistema: no ameritan interrumpir
- * al usuario con un modal de confirmacion. Lista conservadora: cualquier
- * encadenamiento, redireccion o comando fuera de la lista sigue pidiendo
- * confirmacion.
- */
-const READ_ONLY_COMMANDS = new Set([
-  'dir', 'where', 'whoami', 'hostname', 'ver', 'systeminfo', 'tasklist',
-  'ipconfig', 'echo', 'type', 'tree', 'findstr',
-  'get-childitem', 'gci', 'ls', 'get-process', 'gps', 'get-item',
-  'get-content', 'gc', 'cat', 'test-path', 'get-location', 'pwd', 'get-date',
-]);
-
-export function isReadOnlyCommand(command: string): boolean {
-  const trimmed = (command || '').trim();
-  if (!trimmed) return false;
-  // Encadenamiento, redireccion o subexpresiones anulan la garantia de solo lectura.
-  if (/[&|<>^;`]|\$\(/.test(trimmed)) return false;
-  const unwrapped = trimmed
-    .replace(/^cmd(\.exe)?\s+\/c\s+/i, '')
-    .replace(/^powershell(\.exe)?\s+(-\w+\s+)*/i, '')
-    .replace(/^"([\s\S]*)"$/, '$1')
-    .trim();
-  const firstToken = unwrapped.split(/\s+/)[0]?.toLowerCase().replace(/^["']|["']$/g, '') || '';
-  return READ_ONLY_COMMANDS.has(firstToken);
-}
-
 export function setConfirmationHandler(handler: ConfirmationHandler | null) {
   confirmationHandler = handler;
 }
@@ -58,14 +36,15 @@ export function setConfirmationHandler(handler: ConfirmationHandler | null) {
  * una accion irreversible nunca procede por omision.
  */
 export async function requestUserConfirmation(toolName: string, description: string): Promise<boolean> {
-  if (confirmationHandler) return confirmationHandler(toolName, description);
+  if (confirmationHandler) return (await confirmationHandler(toolName, description)) === true;
   const api = window.computerUse;
   if (!api) return false;
   const result = await api.confirmAction(description);
   return result.confirmed;
 }
 
-export async function confirmToolExecution(toolName: string, args: Record<string, any>, api: Window['computerUse']): Promise<boolean> {
+export async function confirmToolExecution(toolName: string, args: Record<string, any>, api: Window['computerUse'], signal?: AbortSignal): Promise<boolean> {
+  if (signal?.aborted) return false;
   if (
     (toolName === 'execute_command' || toolName === 'run_background_command')
     && isReadOnlyCommand(String(args.command || ''))
@@ -75,17 +54,34 @@ export async function confirmToolExecution(toolName: string, args: Record<string
 
   const needsConfirmation =
     DANGEROUS_TOOLS.has(toolName)
-    || (toolName === 'use_computer' && hasExternalEffectComputerTask(args.task))
-    || (toolName === 'organize_files' && !args.dry_run)
-    || toolName === 'batch_move_files';
+    || (toolName === 'use_computer' && hasExternalEffectComputerTask(args.task));
 
   if (!needsConfirmation) return true;
 
   const description = describeDangerousTool(toolName, args);
-  if (confirmationHandler) return confirmationHandler(toolName, description);
+  const scope = getUserPreferenceScope();
+  const allowAlways = (toolName === 'execute_command' || toolName === 'run_background_command')
+    && canRememberCommand(String(args.command || '')) && scope !== 'sin-sesion';
+  const key = allowAlways ? await commandApprovalKey(toolName, String(args.command), args.working_directory) : null;
+  if (signal?.aborted || scope !== getUserPreferenceScope()) return false;
+  if (allowAlways && hasCommandApproval(key)) return true;
 
-  const result = await api!.confirmAction(description);
-  return result.confirmed;
+  let decision: ConfirmationDecision;
+  if (confirmationHandler) {
+    decision = allowAlways || signal
+      ? await confirmationHandler(toolName, description, { allowAlways, ...(signal ? { signal } : {}) })
+      : await confirmationHandler(toolName, description);
+  } else {
+    if (!api) return false;
+    const result = await api.confirmAction(description, { allowAlways, ...(allowAlways ? { command: String(args.command) } : {}) });
+    decision = result.confirmed ? (result.always ? 'always' : true) : false;
+  }
+  if (signal?.aborted || scope !== getUserPreferenceScope()) return false;
+  if (decision === 'always') {
+    if (!allowAlways) return false;
+    rememberCommandApproval(key);
+  }
+  return decision === true || decision === 'always';
 }
 
 function hasExternalEffectComputerTask(task: unknown): boolean {
@@ -99,8 +95,6 @@ function hasExternalEffectComputerTask(task: unknown): boolean {
 function describeDangerousTool(toolName: string, args: Record<string, any>): string {
   const descriptions: Record<string, string> = {
     delete_item: `Eliminar: ${args.path}`,
-    organize_files: `Organizar archivos en: ${args.path}\nModo: ${args.mode || 'extension'}${args.dry_run ? '\nModo simulacion' : ''}`,
-    batch_move_files: `Mover archivos de: ${args.source_directory}\nA: ${args.destination_directory}`,
     run_background_command: `Ejecutar en segundo plano: ${args.command}${args.working_directory ? `\nEn: ${args.working_directory}` : ''}`,
     kill_process_session: `Terminar sesion administrada: ${args.session_id}`,
     repair_background_host: 'Reparar el host en segundo plano de SofLIA',

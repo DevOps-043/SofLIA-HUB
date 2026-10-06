@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { normalizePath, getFileExtension } from '../../utils/file-utils';
 import type { FileOperationManifest, MovedFile, ProgressCallback } from './types';
-import { collectFiles, resolveCollision } from './file-utils';
+import { collectFiles, getCategoryForExt, resolveCollision } from './file-utils';
 import { buildManifestId, saveManifest } from './manifest-store';
 
 export async function batchMoveFiles(args: Record<string, any>, onProgress?: ProgressCallback): Promise<any> {
@@ -12,6 +12,7 @@ export async function batchMoveFiles(args: Record<string, any>, onProgress?: Pro
     const pattern = (args.pattern as string || '*').toLowerCase();
     const extensions = args.extensions as string[] | undefined;
     const recursive: boolean = !!args.recursive;
+    const groupByExtension = args.group_by_extension === true;
 
     await fs.mkdir(destDir, { recursive: true });
     const files = await collectFiles(sourceDir, recursive);
@@ -33,7 +34,10 @@ export async function batchMoveFiles(args: Record<string, any>, onProgress?: Pro
       if (pattern !== '*' && !nameLC.includes(pattern)) continue;
 
       try {
-        const destination = await resolveCollision(path.join(destDir, file.name));
+        const targetDir = groupByExtension ? path.join(destDir, getCategoryForExt(ext, 'extension')) : destDir;
+        if (path.resolve(path.dirname(file.fullPath)) === path.resolve(targetDir)) continue;
+        await fs.mkdir(targetDir, { recursive: true });
+        const destination = await resolveCollision(path.join(targetDir, file.name));
         await fs.rename(file.fullPath, destination);
         movedFiles.push({ name: file.name, from: file.fullPath, to: destination });
       } catch (err: any) {
@@ -41,10 +45,11 @@ export async function batchMoveFiles(args: Record<string, any>, onProgress?: Pro
       }
     }
 
-    const operationId = await persistBatchMoveManifest(sourceDir, destDir, pattern, extensions, recursive, movedFiles);
+    const operationId = await persistBatchMoveManifest(sourceDir, destDir, pattern, extensions, recursive, movedFiles, groupByExtension);
     return {
       success: true,
       recursive,
+      groupByExtension,
       operationId,
       movedCount: movedFiles.length,
       errorCount: errors.length,
@@ -64,6 +69,7 @@ async function persistBatchMoveManifest(
   extensions: string[] | undefined,
   recursive: boolean,
   movedFiles: MovedFile[],
+  groupByExtension: boolean,
 ): Promise<string | undefined> {
   if (movedFiles.length === 0) return undefined;
   const manifest: FileOperationManifest = {
@@ -72,7 +78,7 @@ async function persistBatchMoveManifest(
     operation: 'batch_move_files',
     sourcePath: sourceDir,
     destinationPath: destDir,
-    options: { pattern, extensions: extensions || null, recursive },
+    options: { pattern, extensions: extensions || null, recursive, group_by_extension: groupByExtension },
     moved: movedFiles,
   };
   await saveManifest(manifest);

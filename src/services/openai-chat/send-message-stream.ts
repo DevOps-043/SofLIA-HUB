@@ -18,7 +18,7 @@ import type {
   StreamResult,
   ToolCallInfo,
 } from '../gemini-chat/types';
-import { toolBudgetExhaustedMessage } from '../gemini-chat/tool-budget';
+import { TOOL_BUDGET_FINAL_INSTRUCTION, toolBudgetExhaustedMessage } from '../gemini-chat/tool-budget';
 import { SOFLIA_MAX_MODEL_ID, recordSofliaMaxTokens } from '../model-quota';
 import { getOpenAI } from './client';
 import { buildHostedTools } from './hosted-tools';
@@ -128,8 +128,10 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
       yield `${params.prefixNotice}\n\n`;
     }
     try {
-      for (let iteration = 0; iteration < maxIterations; iteration += 1) {
+      for (let iteration = 0; iteration <= maxIterations; iteration += 1) {
         if (signal?.aborted) return;
+        const finalizing = iteration === maxIterations;
+        if (finalizing) input.push({ role: 'user', content: TOOL_BUDGET_FINAL_INSTRUCTION });
         let iterationText = '';
 
         // Lo ya ejecutado se replica en cada peticion. Sin aligerarlo, escribir
@@ -158,8 +160,7 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
                 input,
                 max_output_tokens: maxOutputTokens,
                 stream: true,
-                ...(tools.length > 0 ? { tools } : {}),
-                ...(tools.length > 0 ? { tool_choice: 'auto' as const } : {}),
+                ...(tools.length > 0 ? { tools, tool_choice: finalizing ? 'none' as const : 'auto' as const } : {}),
                 ...(effort ? { reasoning: { effort } } : {}),
               },
               signal ? { signal } : undefined,
@@ -229,7 +230,7 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
         const functionCalls = outputItems.filter((item) => item.type === 'function_call');
         if (functionCalls.length === 0) {
           const completion = await inspectWorkspaceCompletion(params.options?.activeSkill);
-          if (completion.required && !completion.ready) {
+          if (completion.required && !completion.ready && !finalizing) {
             // No se muestra el "listo" de esta iteracion: el disco lo
             // contradice. La comprobacion se reinyecta para que el modelo
             // termine el entregable en las iteraciones restantes.
@@ -242,6 +243,10 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
             });
             continue;
           }
+          if (completion.required && !completion.ready) {
+            yield WORKSPACE_INCOMPLETE_MESSAGE;
+            return;
+          }
           if (iterationText) {
             emittedText = true;
             yield iterationText;
@@ -251,6 +256,9 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
           if (!emittedText) yield UNUSABLE_RESPONSE_MESSAGE;
           return;
         }
+
+        // Ninguna llamada adicional se ejecuta aunque el proveedor ignore NONE.
+        if (finalizing) break;
 
         if (iterationText) {
           emittedText = true;
@@ -445,8 +453,9 @@ async function runFunctionCalls(
     try {
       const result = await withToolTimeout(
         `Tool call ${call.name}`,
-        () => executeGeminiToolCall(call.name, args, params.options, allToolCalls, allGeneratedImages),
+        signal => executeGeminiToolCall(call.name, args, { ...params.options, signal }, allToolCalls, allGeneratedImages),
         LONG_RUNNING_TOOL_TIMEOUTS_MS[call.name],
+        params.options?.signal,
       );
       output = result.functionResponse.response;
       imagenes = result.images ?? [];

@@ -2,6 +2,7 @@ import type {
   PreloadBridge,
   SafeIpc,
 } from './types';
+import type { ConfirmationOptions } from '../../src/shared/command-approval';
 
 export function exposeComputerApis(bridge: PreloadBridge, ipc: SafeIpc): void {
   const { safeInvoke } = ipc;
@@ -27,7 +28,7 @@ export function exposeComputerApis(bridge: PreloadBridge, ipc: SafeIpc): void {
     clipboardRead: () => safeInvoke('computer:clipboard-read'),
     clipboardWrite: (text: string) => safeInvoke('computer:clipboard-write', text),
     takeScreenshot: () => safeInvoke('computer:take-screenshot'),
-    confirmAction: (message: string) => safeInvoke('computer:confirm-action', message),
+    confirmAction: (message: string, options?: ConfirmationOptions) => safeInvoke('computer:confirm-action', message, options),
     organizeFiles: (options: any) => safeInvoke('computer:organize-files', options),
     batchMoveFiles: (options: any) => safeInvoke('computer:batch-move-files', options),
     listDirectorySummary: (options: any) => safeInvoke('computer:list-directory-summary', options),

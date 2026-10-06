@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { ConfirmationDecision } from '../../../shared/command-approval';
 import { assertBrowserShortcutTurn, type PreparedBrowserShortcut } from './browser-shortcut-turn';
 import type { BrowserAgentShortcut } from '../../../shared/browser-agent-shortcuts';
 import type { UIEvent } from 'react';
@@ -77,13 +78,32 @@ export function useChatUIController(props: ChatUIProps) {
     void tools.handleUseSkill(skill);
   });
   const setConfirmationModal = state.confirmation.setModal;
+  const pendingConfirmation = useRef<((decision: ConfirmationDecision) => void) | null>(null);
 
   useEffect(() => {
-    setConfirmationHandler((toolName: string, description: string) => new Promise<boolean>((resolve) => {
-      setConfirmationModal({ toolName, description, resolve });
+    setConfirmationHandler((toolName, description, options) => new Promise<ConfirmationDecision>((resolve) => {
+      if (!canSendMessages || options?.signal?.aborted) { resolve(false); return; }
+      pendingConfirmation.current?.(false);
+      const finish = (decision: ConfirmationDecision) => {
+        options?.signal?.removeEventListener('abort', onAbort);
+        if (pendingConfirmation.current === finish) {
+          pendingConfirmation.current = null;
+          setConfirmationModal(null);
+        }
+        resolve(decision);
+      };
+      const onAbort = () => finish(false);
+      pendingConfirmation.current = finish;
+      options?.signal?.addEventListener('abort', onAbort, { once: true });
+      setConfirmationModal({ toolName, description, allowAlways: options?.allowAlways, resolve: finish });
     }));
-    return () => setConfirmationHandler(null);
-  }, [setConfirmationModal]);
+    return () => {
+      pendingConfirmation.current?.(false);
+      pendingConfirmation.current = null;
+      setConfirmationModal(null);
+      setConfirmationHandler(null);
+    };
+  }, [setConfirmationModal, dataUserId, canSendMessages]);
 
   useEffect(() => {
     state.refs.messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

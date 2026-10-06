@@ -45,6 +45,12 @@ evidencia medida en el host de referencia.
 
 ## Aplicacion e IPC
 
+El chat ejecuta hasta diez tandas de herramientas, o veinte con workspace,
+seguidas de una respuesta final sin herramientas. El cierre no aumenta el
+presupuesto de efectos y no ejecuta llamadas adicionales. Las aprobaciones
+locales recordadas conservan hasta 200 huellas SHA-256 por usuario (las más
+recientes); nunca guardan comandos. Ver [política y límites](runtime-agents-manual.md#211-permisos-locales-de-comandos-y-archivos).
+
 Los equipos transversales usan `TEAM_LIMITS` en
 [`src/shared/agent-teams/policy.ts`](../../src/shared/agent-teams/policy.ts):
 dos especialistas, cuatro llamadas de especialistas pendientes por proceso, 15 segundos por

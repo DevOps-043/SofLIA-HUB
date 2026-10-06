@@ -4,6 +4,7 @@ import { PersonalityCards } from '../../settings-modal/PersonalityCards';
 import { useSettingsForm } from '../../settings-modal/useSettingsForm';
 import { MemorySkillsCard } from '../../memory/MemorySkillsCard';
 import { PrivacySettings } from '../../PrivacySettings';
+import { CommandApprovalSettings } from '../../CommandApprovalSettings';
 
 export function IdentityPrivacySection({
   userId,
@@ -99,6 +100,7 @@ export function IdentityPrivacySection({
 
         {subTab === 'privacy' && (
           <div className="animate-in fade-in duration-200">
+            <CommandApprovalSettings />
             <PrivacySettings />
           </div>
         )}

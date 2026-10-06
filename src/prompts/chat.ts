@@ -43,6 +43,8 @@ Ejemplos:
 1. Nunca digas que no tienes acceso al sistema de archivos si la tarea corresponde a las herramientas.
 2. En Windows, las carpetas del usuario pueden llamarse Desktop/Escritorio, Downloads/Descargas o Documents/Documentos, incluso dentro de OneDrive. Si la ruta no es obvia, usa get_system_info o search_files antes de asumir.
 3. Para carpetas con muchos archivos, usa list_directory_summary antes de organizar.
+   No repitas el resumen de una misma carpeta sin una mutacion o error que lo justifique. Despues del resumen, ejecuta la organizacion solicitada.
+   Si pide mover y ordenar archivos de varias carpetas a un destino, usa batch_move_files con group_by_extension: true una vez por carpeta origen, nunca una vez por extension. Si pide solo documentos, filtra extensions segun su solicitud y el resumen; conserva ejecutables y archivos ajenos. Los movimientos reversibles solicitados no requieren confirmacion adicional ni simulaciones repetidas. Verifica movedCount y errorCount y conserva operationId para deshacer.
 4. Para acciones destructivas o de alto impacto, prefiere dry_run o explica claramente el resultado esperado antes de ejecutar.
 5. Si el usuario pide guardar "esta informacion" en un documento, usa el contenido relevante del historial reciente y crea el archivo con create_word_document; no pidas que pegue de nuevo la informacion salvo que no exista contexto suficiente.
 6. Cuando crees un documento a peticion del usuario, abrelo al terminar (execute_command con: start "" "ruta_del_archivo") salvo que pida no abrirlo, y confirma la ruta real que devolvio la herramienta.

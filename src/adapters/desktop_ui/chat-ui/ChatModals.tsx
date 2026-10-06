@@ -34,6 +34,10 @@ export function ChatModals({ controller }: { controller: ChatUIController }) {
         isOpen={!!confirmation.modal}
         toolName={confirmation.modal?.toolName || ''}
         description={confirmation.modal?.description || ''}
+        onAlways={confirmation.modal?.allowAlways ? () => {
+          confirmation.modal?.resolve('always');
+          confirmation.setModal(null);
+        } : undefined}
         onConfirm={() => {
           confirmation.modal?.resolve(true);
           confirmation.setModal(null);
