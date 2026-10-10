@@ -340,7 +340,7 @@ describe('handlers del navegador integrado', () => {
       { target: 'example.com' },
     );
     expect(result.success).toBe(true);
-    expect(service.navigate).toHaveBeenCalledWith('example.com');
+    expect(service.navigate).toHaveBeenCalledWith('example.com', undefined, { waitForLoad: true });
 
     expect(await handlers.get('integrated-browser:page-find')!({ sender: window.webContents }, { query: 'texto', forward: false }))
       .toMatchObject({ success: true });
@@ -672,6 +672,19 @@ describe('handlers del navegador integrado', () => {
     expect(await reopen({ sender: window.webContents }, { tabId: 'tab-cerrada' })).toMatchObject({ success: true });
     expect(service.reopenClosedTab).toHaveBeenCalledWith('tab-cerrada');
     expect(await reopen({ sender: window.webContents }, { tabId: 4 })).toMatchObject({ success: false });
+  });
+
+  it('conserva espera por defecto y acepta acuse explícito, sin coerción de la opción', async () => {
+    const handler = ipcMainHarness._getHandler('integrated-browser:navigate');
+    expect(await handler({ sender: window.webContents }, { target: 'example.com', waitForLoad: false })).toMatchObject({ success: true });
+    expect(service.navigate).toHaveBeenLastCalledWith('example.com', undefined, { waitForLoad: false });
+    service.navigate.mockClear();
+    for (const waitForLoad of ['false', 0, null, {}]) {
+      expect(await handler({ sender: window.webContents }, { target: 'example.com', waitForLoad })).toMatchObject({ success: false });
+    }
+    expect(service.navigate).not.toHaveBeenCalled();
+    expect(await handler({ sender: window.webContents }, { target: 'example.com' })).toMatchObject({ success: true });
+    expect(service.navigate).toHaveBeenLastCalledWith('example.com', undefined, { waitForLoad: true });
   });
 
   it('rechaza emisores distintos y payloads malformados', async () => {

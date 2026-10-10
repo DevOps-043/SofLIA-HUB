@@ -29,6 +29,7 @@
     "skills:seed": "node scripts/quality/system-skills-seed.mjs --write",
     "skills:seed:check": "node scripts/quality/system-skills-seed.mjs",
     "docs:system:check": "node scripts/quality/validate-system-docs.mjs",
+    "docs:inventory:sync": "node scripts/quality/validate-system-docs.mjs --sync-inventory",
     "openspec:validate": "openspec validate --all --strict --no-interactive",
     "verify:pr": "node scripts/quality/run-gate.mjs",
     "verify:release": "node scripts/quality/run-gate.mjs --release",

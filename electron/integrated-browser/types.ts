@@ -1,4 +1,5 @@
 import type { Rectangle } from 'electron';
+import type { BrowserNavigationOptions } from '../../src/shared/browser-navigation';
 import type { BrowserSensitiveHandoff } from '../../src/shared/browser-sensitive-handoff';
 import type { BrowserAgentTaskState } from '../../src/shared/browser-agent-control';
 import type { BrowserTabGroup } from './platform-types';
@@ -182,11 +183,11 @@ export interface IntegratedBrowserObservationResult extends IntegratedBrowserRes
   observationStatus?: BrowserObservationStatus;
 }
 
-export interface IntegratedBrowserOpenInput {
+export interface IntegratedBrowserOpenInput extends BrowserNavigationOptions {
   url?: string;
 }
 
-export interface IntegratedBrowserNavigateInput {
+export interface IntegratedBrowserNavigateInput extends BrowserNavigationOptions {
   target: string;
 }
 

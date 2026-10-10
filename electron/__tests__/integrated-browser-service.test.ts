@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { BrowserCuSupervisor } from '../desktop-agent/browser-cu-supervisor';
+import { CuContextChangedError } from '../desktop-agent/gemini-cu/execution-guard';
 import { setAuthState } from '../main/auth-state';
 import { BrowserCredentialUnlock } from '../integrated-browser/credential-unlock';
 import { app, BaseWindow, BrowserWindow, WebContentsView, dialog, session, systemPreferences } from 'electron';
@@ -23,7 +24,8 @@ import * as navigationSafety from '../integrated-browser/safe-navigation';
 import * as pageObservation from '../integrated-browser/page-observation';
 import { inspectBrowserSensitivePage } from '../integrated-browser/sensitive-page';
 vi.mock('../integrated-browser/sensitive-page', () => ({ inspectBrowserSensitivePage: vi.fn(async () => null) }));
-import type { BrowserEnterprisePolicy, BrowserSessionSnapshot } from '../integrated-browser/platform-types';
+import type { BrowserAgentPolicyPromptRequest, BrowserAgentSiteDecision, BrowserEnterprisePolicy, BrowserSessionSnapshot } from '../integrated-browser/platform-types';
+import type { BrowserPermissionPromptRequest } from '../integrated-browser/types';
 import {
   configureChromiumUserAgentFallback,
   toStandardChromiumUserAgent,
@@ -247,6 +249,184 @@ async function openSupervisedBrowser(service: IntegratedBrowserService): Promise
 }
 
 describe('IntegratedBrowserService', () => {
+  it('cierra otras pestañas con un único layout y sin publicar estados intermedios', async () => {
+    const service = newService(); service.attachWindow(new BrowserWindow());
+    try {
+      await service.open('https://example.com/keep');
+      const keepId = service.getState().activeTabId!;
+      for (let index = 0; index < 16; index++) await service.createTab(`https://example.com/${index}`);
+      const closedIds = service.getState().tabs.filter(tab => tab.id !== keepId).map(tab => tab.id);
+      const viewCount = browserViewHarness.instances.length;
+      const layout = vi.spyOn(service as unknown as { applyViewLayout: () => void }, 'applyViewLayout');
+      const changed = vi.fn(); service.on('state-changed', changed);
+      const result = service.closeOtherTabs(keepId);
+      expect(result.tabs.map(tab => tab.id)).toEqual([keepId]);
+      expect(result.activeTabId).toBe(keepId);
+      expect(layout).toHaveBeenCalledTimes(1);
+      expect(changed.mock.calls.every(([snapshot]) => snapshot.tabs.length === 1 && snapshot.activeTabId === keepId)).toBe(true);
+      expect(browserViewHarness.instances.length - viewCount).toBeLessThanOrEqual(1);
+      expect(service.listRecentlyClosedTabs().map(tab => tab.id)).toEqual(closedIds.reverse());
+    } finally { service.detachWindow(); }
+  });
+
+  it('cierra las pestañas a la derecha sin estados parciales ni cargas de pestañas descartadas', async () => {
+    const service = newService(); service.attachWindow(new BrowserWindow());
+    try {
+      await service.open('https://example.com/keep');
+      await service.createTab('https://example.com/right');
+      const keepId = service.getState().activeTabId!;
+      for (let index = 0; index < 12; index++) await service.createTab(`https://example.com/${index}`);
+      const expectedIds = service.getState().tabs.slice(0, 2).map(tab => tab.id);
+      const viewCount = browserViewHarness.instances.length;
+      const changed = vi.fn(); service.on('state-changed', changed);
+      const result = service.closeTabsToRight(keepId);
+      expect(result.tabs.map(tab => tab.id)).toEqual(expectedIds);
+      expect(result.activeTabId).toBe(expectedIds[0]);
+      expect(changed).toHaveBeenCalledTimes(1);
+      expect(browserViewHarness.instances.length - viewCount).toBeLessThanOrEqual(1);
+    } finally { service.detachWindow(); }
+  });
+  it('publica una selección válida si falla la limpieza de una pestaña activa durante el cierre múltiple', async () => {
+    const service = newService(); service.attachWindow(new BrowserWindow());
+    try {
+      await service.open('https://example.com/keep');
+      const keepId = service.getState().activeTabId!;
+      await service.createTab('https://example.com/close');
+      const closedId = service.getState().activeTabId!;
+      const closingView = browserViewHarness.instances[browserViewHarness.instances.length - 1];
+      const internal = service as unknown as { safetyInterstitials: { remove: (key: string) => void } };
+      vi.spyOn(internal.safetyInterstitials, 'remove').mockImplementationOnce(() => { throw new Error('Fallo de limpieza simulado'); });
+      const changed = vi.fn(); service.on('state-changed', changed);
+      expect(() => service.closeTabsToRight(keepId)).toThrow('Fallo de limpieza simulado');
+      const state = service.getState();
+      expect(state.tabs.map(tab => tab.id)).toEqual([keepId]);
+      expect(state.activeTabId).toBe(keepId);
+      expect(state.primaryTabId).toBe(keepId);
+      expect(state.secondaryTabId).toBeNull();
+      expect(closingView.webContents.close).toHaveBeenCalledWith({ waitForBeforeUnload: false });
+      expect(changed).toHaveBeenCalledWith(expect.objectContaining({ activeTabId: keepId, primaryTabId: keepId }));
+      expect(service.listRecentlyClosedTabs().map(tab => tab.id)).toEqual([closedId]);
+    } finally { service.detachWindow(); }
+  });
+
+  it('restaura la ventana al cerrar una pestaña fullscreen sin layouts intermedios', async () => {
+    const service = newService(); const window = new BrowserWindow(); service.attachWindow(window);
+    try {
+      await service.open('https://example.com/keep');
+      const keepId = service.getState().activeTabId!;
+      await service.createTab('https://example.com/video');
+      service.setViewport({ x: 200, y: 100, width: 800, height: 600 });
+      browserViewHarness.instances[browserViewHarness.instances.length - 1].webContents.emit('enter-html-full-screen');
+      expect(service.getState().isFullscreen).toBe(true);
+      expect(window.isFullScreen()).toBe(true);
+      const layout = vi.spyOn(service as unknown as { applyViewLayout: () => void }, 'applyViewLayout');
+      const result = service.closeTabsToRight(keepId);
+      expect(result.isFullscreen).toBe(false);
+      expect(window.isFullScreen()).toBe(false);
+      expect(result.activeTabId).toBe(keepId);
+      expect(layout).toHaveBeenCalledTimes(1);
+    } finally { service.detachWindow(); }
+  });
+
+  it.each(['runtime', 'view'] as const)('retira la última página y normaliza selección si falla el reemplazo: %s', async (phase) => {
+    const service = newService(); service.attachWindow(new BrowserWindow());
+    try {
+      await service.open('https://example.com/close');
+      const closedId = service.getState().activeTabId!;
+      const closingView = browserViewHarness.instances[browserViewHarness.instances.length - 1];
+      const internal = service as unknown as { createTabRuntime: () => unknown; requireTabView: () => unknown };
+      vi.spyOn(internal, phase === 'runtime' ? 'createTabRuntime' : 'requireTabView').mockImplementationOnce(() => { throw new Error('Fallo de reemplazo simulado'); });
+      const changed = vi.fn(); service.on('state-changed', changed);
+      expect(() => service.closeTab(closedId)).toThrow('Fallo de reemplazo simulado');
+      const state = service.getState();
+      const survivingId = state.tabs[0]?.id ?? null;
+      expect(state.activeTabId).toBe(survivingId);
+      expect(state.primaryTabId).toBe(survivingId);
+      expect(state.secondaryTabId).toBeNull();
+      expect(state.tabs.some(tab => tab.id === closedId)).toBe(false);
+      expect(closingView.webContents.close).toHaveBeenCalledWith({ waitForBeforeUnload: false });
+      expect(changed).toHaveBeenCalledWith(expect.objectContaining({ activeTabId: survivingId, primaryTabId: survivingId }));
+    } finally { service.detachWindow(); }
+  });
+
+  it('retira la vista nativa cuando se recarga el renderer y exige geometría nueva para mostrarla', async () => {
+    const service = newService(); const parent = new BrowserWindow();
+    service.attachWindow(parent);
+    try {
+      await service.open('https://example.com/');
+      service.setViewport({ x: 200, y: 80, width: 800, height: 600 });
+      const view = browserViewHarness.instances[browserViewHarness.instances.length - 1];
+      const contents = parent.webContents as typeof parent.webContents & { emit: (event: string, ...args: unknown[]) => boolean };
+      contents.emit('did-start-navigation', {}, 'http://localhost:5173/', true, true);
+      expect(service.getState().isVisible).toBe(true);
+      contents.emit('did-start-navigation', {}, 'https://frame.example/', false, false);
+      expect(service.getState().isVisible).toBe(true);
+      contents.emit('did-start-navigation', {}, 'http://localhost:5173/', false, true);
+      expect(service.getState().isVisible).toBe(false);
+      expect(view.setVisible).toHaveBeenLastCalledWith(false);
+      await service.open();
+      expect(service.getState().isVisible).toBe(false);
+      service.setViewport({ x: 200, y: 80, width: 800, height: 600 });
+      expect(service.getState().isVisible).toBe(true);
+      expect(view.setVisible).toHaveBeenLastCalledWith(true);
+    } finally { service.detachWindow(); }
+  });
+
+  it('detiene la tarea al perder el renderer y no revive sus guardas al reabrir el panel', async () => {
+    const service = newService(); const parent = new BrowserWindow();
+    service.attachWindow(parent);
+    const control = new BrowserCuSupervisor(`browser-cu-${randomUUID()}`, 5, new AbortController());
+    let detach = () => {};
+    try {
+      await service.open('https://example.com/');
+      service.setViewport({ x: 200, y: 80, width: 800, height: 600 });
+      detach = service.bindAgentTask(control);
+      await openSupervisedBrowser(service); control.beginPhase();
+      const authorized = await service.authorizeAgentTarget('act');
+      expect(() => authorized.assertCurrent()).not.toThrow();
+      const contents = parent.webContents as typeof parent.webContents & { emit: (event: string, ...args: unknown[]) => boolean };
+      contents.emit('did-start-navigation', {}, 'http://localhost:5173/', false, true);
+      expect(control.snapshot().status).toBe('stopping');
+      expect(service.getState().agentControlling).toBe(true);
+      service.setViewport({ x: 200, y: 80, width: 800, height: 600 });
+      expect(() => authorized.assertCurrent()).toThrow(CuContextChangedError);
+      expect(() => service.bindAgentTask(control)).toThrow('Otra tarea');
+    } finally { detach(); service.releaseAgentControl(); control.finish(); service.detachWindow(); }
+  });
+
+  it('deniega un aviso pendiente si desaparece el renderer', async () => {
+    const service = newService(); const parent = new BrowserWindow();
+    service.attachWindow(parent);
+    try {
+      const internal = service as unknown as {
+        promptPermission: (request: BrowserPermissionPromptRequest) => Promise<boolean>;
+        promptAgentPolicy: (request: BrowserAgentPolicyPromptRequest) => Promise<BrowserAgentSiteDecision>;
+      };
+      const pending = internal.promptPermission({ id: randomUUID(), origin: 'https://example.com', kinds: ['microphone'], labels: ['Micrófono'] });
+      const policy = internal.promptAgentPolicy({ id: randomUUID(), origin: 'https://example.com', capability: 'act', label: 'Interactuar' });
+      expect(service.getState().agentPolicyPromptIds).toHaveLength(1);
+      const contents = parent.webContents as typeof parent.webContents & { emit: (event: string, ...args: unknown[]) => boolean };
+      contents.emit('render-process-gone', {}, { reason: 'crashed' });
+      await expect(pending).resolves.toBe(false);
+      await expect(policy).resolves.toBe('ask');
+      expect(service.getState().agentPolicyPromptIds).toEqual([]);
+    } finally { service.detachWindow(); }
+  });
+
+  it('oculta el navegador si desaparece el renderer y retira listeners al cambiar de ventana', async () => {
+    const service = newService(); const parent = new BrowserWindow();
+    service.attachWindow(parent);
+    try {
+      await service.open('https://example.com/');
+      service.setViewport({ x: 200, y: 80, width: 800, height: 600 });
+      const contents = parent.webContents as typeof parent.webContents & { emit: (event: string, ...args: unknown[]) => boolean; listenerCount: (event: string) => number };
+      contents.emit('render-process-gone', {}, { reason: 'crashed' });
+      expect(service.getState().isVisible).toBe(false);
+      service.attachWindow(new BrowserWindow());
+      expect(contents.listenerCount('did-start-navigation')).toBe(0);
+      expect(contents.listenerCount('render-process-gone')).toBe(0);
+    } finally { service.detachWindow(); }
+  });
   it.each(['selección', 'sesión', 'agente', 'marco', 'pestaña'] as const)('passkeys vincula proveedor con perfil, documento y control humano: %s', async scenario => {
     vi.stubEnv('BROWSER_AGENT_GOVERNANCE_ENABLED', 'false');
     setAuthState({ authenticated: true, userId: 'passkey-fixture' });
@@ -969,6 +1149,161 @@ describe('IntegratedBrowserService', () => {
     expect(contents.capturePage).toHaveBeenCalledTimes(1);
     expect(domExtractions(contents)).toBe(1);
     service.detachWindow();
+  });
+
+  it('acusa la navegación humana mientras el recurso sigue pendiente y publica su error tardío', async () => {
+    const service = newService(); service.attachWindow(new BrowserWindow());
+    await service.open('https://example.com/');
+    const contents = browserViewHarness.instances[0].webContents;
+    let fail!: (error: Error) => void;
+    const loading = new Promise<void>((_resolve, reject) => { fail = reject; });
+    contents.loadURL.mockReturnValueOnce(loading);
+    const state = await service.navigate('https://example.com/lenta', undefined, { waitForLoad: false });
+    expect(state.isLoading).toBe(true);
+    fail(new Error('ERR_NAME_NOT_RESOLVED'));
+    await vi.waitFor(() => expect(service.getState().error).toContain('ERR_NAME_NOT_RESOLVED'));
+    service.detachWindow();
+  });
+
+  it('la navegación interna sigue esperando la carga completa', async () => {
+    const service = newService(); service.attachWindow(new BrowserWindow());
+    await service.open('https://example.com/');
+    const contents = browserViewHarness.instances[0].webContents;
+    let finish!: () => void;
+    contents.loadURL.mockReturnValueOnce(new Promise<void>(resolve => { finish = resolve; }));
+    let settled = false;
+    const navigating = service.navigate('https://example.com/agente').then(() => { settled = true; });
+    await vi.waitFor(() => expect(contents.loadURL).toHaveBeenLastCalledWith('https://example.com/agente'));
+    expect(settled).toBe(false);
+    finish(); await navigating;
+    expect(settled).toBe(true);
+    service.detachWindow();
+  });
+
+  it('el error de una carga reemplazada no contamina la navegación siguiente', async () => {
+    const service = newService(); service.attachWindow(new BrowserWindow());
+    await service.open('https://example.com/');
+    const contents = browserViewHarness.instances[0].webContents;
+    let fail!: (error: Error) => void;
+    const oldLoad = new Promise<void>((_resolve, reject) => { fail = reject; });
+    contents.loadURL.mockReturnValueOnce(oldLoad);
+    await service.navigate('https://example.com/antigua', undefined, { waitForLoad: false });
+    await service.navigate('https://example.com/nueva');
+    fail(new Error('Fallo de la página anterior'));
+    await Promise.allSettled([oldLoad]); await Promise.resolve();
+    expect(service.getState().error).toBeNull();
+    expect(service.getState().url).toBe('https://example.com/nueva');
+    service.detachWindow();
+  });
+
+  it('un viewport repetido no vuelve a publicar estado ni bloquea la restauración tras hide', async () => {
+    const parent = new BrowserWindow(); const service = newService(); service.attachWindow(parent);
+    await service.open('https://example.com/');
+    const viewport = { x: 0, y: 0, width: 800, height: 600 };
+    service.setViewport(viewport);
+    const changed = vi.fn(); service.on('state-changed', changed);
+    for (let index = 0; index < 100; index++) service.setViewport(viewport);
+    expect(changed).not.toHaveBeenCalled();
+    service.hide(); changed.mockClear();
+    expect(service.setViewport(viewport).isVisible).toBe(true);
+    expect(changed).toHaveBeenCalledTimes(1);
+    service.detachWindow();
+  });
+
+  it('un viewport idéntico materializa y muestra el reemplazo si la vista se cerró', async () => {
+    const service = newService(); service.attachWindow(new BrowserWindow());
+    await service.open('https://example.com/');
+    const viewport = { x: 0, y: 0, width: 800, height: 600 };
+    service.setViewport(viewport);
+    (browserViewHarness.instances[0].webContents.close as () => void)();
+    const before = browserViewHarness.instances.length;
+    service.setViewport(viewport);
+    expect(browserViewHarness.instances).toHaveLength(before + 1);
+    expect(browserViewHarness.instances[browserViewHarness.instances.length - 1].setVisible).toHaveBeenCalledWith(true);
+    service.detachWindow();
+  });
+
+  it('escribir teclas ordinarias o mayúsculas no sondea selecciones, pero Ctrl+A sí', async () => {
+    vi.useFakeTimers();
+    const parent = new BrowserWindow(); const service = newService(); service.attachWindow(parent);
+    await service.open('https://example.com/');
+    const contents = browserViewHarness.instances[0].webContents;
+    contents.executeJavaScript.mockClear();
+    for (let index = 0; index < 5; index++) contents.emit('input-event', {}, { type: 'keyUp', key: 'a', modifiers: [] });
+    contents.emit('input-event', {}, { type: 'keyUp', key: 'A', modifiers: ['shift'] });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(contents.executeJavaScript.mock.calls.filter(call => String(call[0]).includes('return s ? String(s)'))).toHaveLength(0);
+    contents.executeJavaScript.mockResolvedValue('Fragmento seleccionado');
+    contents.emit('input-event', {}, { type: 'keyUp', key: 'a', modifiers: ['control'] });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(parent.webContents.send).toHaveBeenCalledWith('integrated-browser:selection-action', expect.objectContaining({ text: 'Fragmento seleccionado' }));
+    const read = contents.executeJavaScript.mock.calls.find(call => String(call[0]).includes('return s ? String(s)'));
+    expect(read).toHaveLength(1); // La lectura no sintetiza activación de usuario.
+    service.detachWindow(); vi.useRealTimers();
+  });
+
+  it('una selección tardía de otro documento no llega al chat', async () => {
+    vi.useFakeTimers();
+    const parent = new BrowserWindow(); const service = newService(); service.attachWindow(parent);
+    await service.open('https://example.com/');
+    const contents = browserViewHarness.instances[0].webContents;
+    let finish!: (text: string) => void;
+    const reading = new Promise<string>(resolve => { finish = resolve; });
+    contents.executeJavaScript.mockImplementation((script: unknown) => String(script).includes('return s ? String(s)') ? reading : Promise.resolve(true));
+    contents.emit('console-message', { message: '__SOFLIA_SELECTION__' });
+    await vi.advanceTimersByTimeAsync(300);
+    contents.emit('did-start-navigation', {}, 'https://example.com/otra', false, true);
+    finish('Texto del documento anterior'); await Promise.resolve(); await Promise.resolve();
+    expect(parent.webContents.send).not.toHaveBeenCalledWith('integrated-browser:selection-action', expect.objectContaining({ text: 'Texto del documento anterior' }));
+    service.detachWindow(); vi.useRealTimers();
+  });
+
+  it.each(['aborto', 'éxito'])('la carga sustituida por un enlace no termina el indicador del nuevo documento: %s', async (outcome) => {
+    const service = newService(); service.attachWindow(new BrowserWindow());
+    await service.open('https://example.com/');
+    const contents = browserViewHarness.instances[0].webContents;
+    let finish!: () => void; let fail!: (error: Error) => void;
+    const loading = new Promise<void>((resolve, reject) => { finish = resolve; fail = reject; });
+    contents.loadURL.mockReturnValueOnce(loading);
+    await service.navigate('https://example.com/antigua', undefined, { waitForLoad: false });
+    contents.emit('did-start-navigation', {}, 'https://example.com/antigua', false, true);
+    contents.emit('did-start-navigation', {}, 'https://example.com/enlace', false, true);
+    contents.emit('did-start-loading');
+    if (outcome === 'aborto') fail(new Error('ERR_ABORTED (-3)')); else finish();
+    await Promise.allSettled([loading]); await Promise.resolve(); await Promise.resolve();
+    expect(service.getState().isLoading).toBe(true);
+    expect(service.getState().error).toBeNull();
+    contents.emit('did-stop-loading'); service.detachWindow();
+  });
+
+  it('un fallo legítimo después de redirección se publica en la pestaña', async () => {
+    const service = newService(); service.attachWindow(new BrowserWindow());
+    await service.open('https://example.com/');
+    const contents = browserViewHarness.instances[0].webContents;
+    let fail!: (error: Error) => void;
+    contents.loadURL.mockReturnValueOnce(new Promise<void>((_resolve, reject) => { fail = reject; }));
+    await service.navigate('https://example.com/origen', undefined, { waitForLoad: false });
+    contents.emit('did-start-navigation', {}, 'https://example.com/origen', false, true);
+    contents.emit('will-redirect', { url: 'https://example.com/destino', isMainFrame: true, preventDefault: vi.fn() });
+    contents.getURL.mockReturnValue('https://example.com/destino');
+    fail(new Error('ERR_CONNECTION_REFUSED'));
+    await vi.waitFor(() => expect(service.getState().error).toContain('ERR_CONNECTION_REFUSED'));
+    service.detachWindow();
+  });
+
+  it('la selección pendiente se descarta cuando el agente toma control', async () => {
+    vi.useFakeTimers();
+    const parent = new BrowserWindow(); const service = newService(); service.attachWindow(parent);
+    await service.open('https://example.com/'); service.setViewport({ x: 0, y: 0, width: 800, height: 600 });
+    const contents = browserViewHarness.instances[0].webContents;
+    let finish!: (text: string) => void;
+    const reading = new Promise<string>(resolve => { finish = resolve; });
+    contents.executeJavaScript.mockImplementation((script: unknown) => String(script).includes('return s ? String(s)') ? reading : Promise.resolve(true));
+    contents.emit('console-message', { message: '__SOFLIA_SELECTION__' }); await vi.advanceTimersByTimeAsync(300);
+    await service.openForAgent();
+    finish('Lectura anterior al control'); await Promise.resolve(); await Promise.resolve();
+    expect(parent.webContents.send).not.toHaveBeenCalledWith('integrated-browser:selection-action', expect.objectContaining({ text: 'Lectura anterior al control' }));
+    service.releaseAgentControl(); service.detachWindow(); vi.useRealTimers();
   });
 
   it('BR-SEL-001: adjunta la selección viva al chat sin pasar por el menú contextual', async () => {
@@ -3154,11 +3489,16 @@ describe('IntegratedBrowserService', () => {
     request(popupContents, 'media', withoutOrigin, { mediaTypes: ['audio'] });
     await vi.waitFor(() => expect(withoutOrigin).toHaveBeenCalledWith(false));
 
-    request(popupContents, 'media', mediaCallback, {
-      securityOrigin: 'https://meet.google.com',
-      mediaTypes: ['audio', 'video'],
+    // Esperar el callback real incluye el I/O del almacén, sin sondeo con un
+    // segundo de límite que fallaba bajo la carga de la suite general.
+    const mediaResponse = new Promise<boolean>((resolve) => {
+      request(popupContents, 'media', mediaCallback.mockImplementation(resolve), {
+        securityOrigin: 'https://meet.google.com',
+        mediaTypes: ['audio', 'video'],
+      });
     });
-    await vi.waitFor(() => expect(mediaCallback).toHaveBeenCalledWith(true));
+    await expect(mediaResponse).resolves.toBe(true);
+    expect(mediaCallback).toHaveBeenCalledWith(true);
 
     expect(check(popupContents, 'media', 'https://meet.google.com', { mediaType: 'audio' })).toBe(true);
     expect(check(popupContents, 'media', 'https://meet.google.com', { mediaType: 'video' })).toBe(true);

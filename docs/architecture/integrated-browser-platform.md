@@ -32,6 +32,43 @@ excluye contraseñas y passkeys, aunque la bóveda local ya cifra toda su metada
 
 ## Capacidades implementadas
 
+### Respuesta y trabajo acotado de la interfaz
+
+La interfaz solicita `waitForLoad:false` al abrir, navegar o crear pestaña:
+recibe acuse después de la validación y el inicio nativo, mientras el estado
+continúa publicando progreso y errores. La opción omitida conserva espera de
+documento completo para agentes y clientes previos. Las cargas sustituidas por
+otra navegación o perfil no publican resultados antiguos sobre el nuevo contexto.
+
+ResizeObserver y resize se agrupan por cuadro. Geometría visible idéntica omite
+layout y publicaciones repetidas; vistas materializadas, restauración de overlays
+y acuses de supervisión conservan su actualización explícita. Escribir teclas
+ordinarias no recorre todos los frames buscando selecciones vacías; selección
+real, deselección, Ctrl/Meta+A, navegación con Shift y mouseUp siguen atendidos.
+Una lectura tardía se descarta si cambió documento, pestaña, perfil o control.
+
+La barra de direcciones liga cada sugerencia al texto consultado: al editar deja
+de mostrar resultados anteriores inmediatamente. Agrupa las consultas durante
+140 ms de escritura y descarta respuestas tras cerrar o desmontar la barra.
+Al cambiar `profileRevision` remonta la barra y retira el historial anterior.
+
+El cierre de otras pestañas o de las situadas a la derecha agrupa mutaciones:
+conserva orden del historial y selección, aplica layout al destino final y evita
+publicar listas parciales o materializar pestañas intermedias que se descartarán.
+La restauración del destino sigue publicando sus eventos normales de carga.
+Cerrar una pestaña en pantalla completa restaura la ventana. La selección se
+normaliza antes de limpiar recursos nativos: un fallo al cerrar un aviso no deja
+su página viva ni publica identificadores de pestañas eliminadas.
+
+La recarga o caída del renderer principal retira la geometría y oculta las vistas
+del workspace: una página nativa no debe seguir cubriendo el chat sin su panel.
+Reabrir exige un viewport nuevo; las páginas y ventanas separadas se conservan.
+La pérdida de interfaz detiene tareas supervisadas sin liberar su reserva antes
+de la limpieza, invalida sus guardas y deniega avisos pendientes de la UI anterior.
+
+La [evidencia de latencia](../../openspec/changes/optimize-browser-latency/reports/verification.md)
+mide acuses y trabajo propio. No equivale a acelerar servidores externos.
+
 ### Llamadas de Google Chat y Huddle
 
 Gmail/Chat puede cargar el componente embebido de Meet sin un rechazo especial

@@ -299,7 +299,7 @@ function BookmarksPanel({ onClose }: { onClose: () => void }) {
   };
 
   const open = async (target: string) => {
-    const response = await integratedBrowserService.navigate(target);
+    const response = await integratedBrowserService.navigate(target, { waitForLoad: false });
     if (consume(response, setError)) onClose();
   };
 
@@ -468,7 +468,7 @@ function HistoryPanel({ onClose }: { onClose: () => void }) {
   };
 
   const reopen = async (url: string) => {
-    const response = await integratedBrowserService.navigate(url);
+    const response = await integratedBrowserService.navigate(url, { waitForLoad: false });
     if (consume(response, setError)) onClose();
   };
 

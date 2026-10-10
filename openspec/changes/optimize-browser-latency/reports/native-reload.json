@@ -1,0 +1,13 @@
+{
+  "electron": "44.5.1",
+  "slowAssetMs": 750,
+  "frameCount": 12,
+  "openAckMs": 61.97589999999991,
+  "navigateAckMs": 15.341400000000021,
+  "tabAckMs": 22.888000000000375,
+  "repeatedViewportMs": 7.100000000000364,
+  "repeatedViewportEmissions": 0,
+  "ordinaryInputSelectionReads": 0,
+  "rendererReloadHidesWorkspace": true,
+  "reopenRequiresViewport": true
+}
