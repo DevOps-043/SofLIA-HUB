@@ -1,0 +1,80 @@
+[
+  {
+    "kind": "before",
+    "round": 1,
+    "electron": "44.5.1",
+    "slowAssetMs": 750,
+    "frameCount": 12,
+    "openAckMs": 1039.2083,
+    "navigateAckMs": 814.9833999999996,
+    "tabAckMs": 876.2563,
+    "repeatedViewportMs": 7.625500000000102,
+    "repeatedViewportEmissions": 100,
+    "ordinaryInputSelectionReads": 49
+  },
+  {
+    "kind": "after",
+    "round": 1,
+    "electron": "44.5.1",
+    "slowAssetMs": 750,
+    "frameCount": 12,
+    "openAckMs": 19.601500000000044,
+    "navigateAckMs": 6.020200000000159,
+    "tabAckMs": 21.840400000000045,
+    "repeatedViewportMs": 1.1099000000003798,
+    "repeatedViewportEmissions": 0,
+    "ordinaryInputSelectionReads": 0
+  },
+  {
+    "kind": "before",
+    "round": 2,
+    "electron": "44.5.1",
+    "slowAssetMs": 750,
+    "frameCount": 12,
+    "openAckMs": 929.3185000000001,
+    "navigateAckMs": 864.3654999999999,
+    "tabAckMs": 894.8508000000002,
+    "repeatedViewportMs": 11.45849999999973,
+    "repeatedViewportEmissions": 100,
+    "ordinaryInputSelectionReads": 49
+  },
+  {
+    "kind": "after",
+    "round": 2,
+    "electron": "44.5.1",
+    "slowAssetMs": 750,
+    "frameCount": 12,
+    "openAckMs": 19.423900000000003,
+    "navigateAckMs": 11.204400000000078,
+    "tabAckMs": 8.835000000000036,
+    "repeatedViewportMs": 2.083599999999933,
+    "repeatedViewportEmissions": 0,
+    "ordinaryInputSelectionReads": 0
+  },
+  {
+    "kind": "before",
+    "round": 3,
+    "electron": "44.5.1",
+    "slowAssetMs": 750,
+    "frameCount": 12,
+    "openAckMs": 887.3244000000001,
+    "navigateAckMs": 870.6020000000001,
+    "tabAckMs": 858.3504000000003,
+    "repeatedViewportMs": 6.9070999999999,
+    "repeatedViewportEmissions": 100,
+    "ordinaryInputSelectionReads": 49
+  },
+  {
+    "kind": "after",
+    "round": 3,
+    "electron": "44.5.1",
+    "slowAssetMs": 750,
+    "frameCount": 12,
+    "openAckMs": 16.0342,
+    "navigateAckMs": 5.667799999999943,
+    "tabAckMs": 11.903700000000299,
+    "repeatedViewportMs": 2.0289999999999964,
+    "repeatedViewportEmissions": 0,
+    "ordinaryInputSelectionReads": 0
+  }
+]

@@ -7,11 +7,15 @@ let nextWebContentsId = 1;
 
 export class BrowserWindow extends EventEmitter {
   static instances: BrowserWindow[] = [];
+  private contentsEvents = new EventEmitter();
 
   webContents = {
     send: vi.fn(),
     focus: vi.fn(),
-    on: vi.fn(),
+    on: vi.fn((event: string, listener: (...args: unknown[]) => void) => this.contentsEvents.on(event, listener)),
+    removeListener: vi.fn((event: string, listener: (...args: unknown[]) => void) => this.contentsEvents.removeListener(event, listener)),
+    emit: (event: string, ...args: unknown[]) => this.contentsEvents.emit(event, ...args),
+    listenerCount: (event: string) => this.contentsEvents.listenerCount(event),
     once: vi.fn(),
     openDevTools: vi.fn(),
     setWindowOpenHandler: vi.fn(),

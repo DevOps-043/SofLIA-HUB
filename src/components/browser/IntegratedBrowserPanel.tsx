@@ -70,6 +70,9 @@ export function IntegratedBrowserPanel(props: {
   const rootRef = useRef<HTMLElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const viewportInsetsRef = useRef({ left: 0, right: 0 });
+  const lastViewportRef = useRef<string | null>(null);
+  const viewportRequestRef = useRef(0);
+  const viewportProfileRef = useRef<number | null>(null);
   const currentUrlRef = useRef(EMPTY_INTEGRATED_BROWSER_STATE.url);
   const extensionRequestIdRef = useRef(0);
   const addressEditingRef = useRef(false);
@@ -154,12 +157,27 @@ export function IntegratedBrowserPanel(props: {
     const insets = viewportInsetsRef.current;
     const width = Math.round(rect.width) - insets.left - insets.right;
     if (width < 160 || rect.height < 120) return;
-    const response = await integratedBrowserService.setViewport({
+    const viewport = {
       x: Math.round(rect.left) + insets.left,
       y: Math.round(rect.top),
       width,
       height: Math.round(rect.height),
-    });
+    };
+    const key = `${viewport.x}:${viewport.y}:${viewport.width}:${viewport.height}`;
+    if (!force && lastViewportRef.current === key) return;
+    const revision = ++viewportRequestRef.current;
+    lastViewportRef.current = key;
+    let response: IntegratedBrowserResponse;
+    try { response = await integratedBrowserService.setViewport(viewport); }
+    catch (error) {
+      if (revision === viewportRequestRef.current) {
+        lastViewportRef.current = null;
+        setLocalError(error instanceof Error ? error.message : String(error));
+      }
+      return;
+    }
+    if (revision !== viewportRequestRef.current) return;
+    if (!response.success) lastViewportRef.current = null;
     // El acuse de geometría puede llegar después de una navegación o aviso.
     // Su instantánea no debe reemplazar el estado publicado por main.
     consumeResponse({ ...response, state: undefined });
@@ -378,6 +396,13 @@ export function IntegratedBrowserPanel(props: {
     let agentViewportFrame: number | null = null;
     const unsubscribe = integratedBrowserService.subscribe({
       onStateChanged: (nextState) => {
+        if (viewportProfileRef.current !== null && viewportProfileRef.current !== nextState.profileRevision) {
+          lastViewportRef.current = null;
+          viewportRequestRef.current += 1;
+          addressEditingRef.current = false;
+        }
+        viewportProfileRef.current = nextState.profileRevision ?? null;
+        if (!nextState.isVisible) lastViewportRef.current = null;
         currentUrlRef.current = nextState.url;
         setState(nextState);
         if (!addressEditingRef.current) setAddress(nextState.url === 'about:blank' ? '' : nextState.url);
@@ -389,11 +414,18 @@ export function IntegratedBrowserPanel(props: {
         if (agentViewportFrame !== null) cancelAnimationFrame(agentViewportFrame);
         agentViewportFrame = requestAnimationFrame(() => {
           agentViewportFrame = null;
-          if (!canceled) void publishViewport();
+          if (!canceled) void publishViewport(true);
         });
       },
     });
-    const syncViewport = () => { void publishViewport(); };
+    let resizeFrame: number | null = null;
+    const syncViewport = () => {
+      if (resizeFrame !== null) return;
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = null;
+        if (!canceled) void publishViewport();
+      });
+    };
     const observer = new ResizeObserver(syncViewport);
     if (viewportRef.current) observer.observe(viewportRef.current);
     const handleWindowResize = syncViewport;
@@ -401,7 +433,7 @@ export function IntegratedBrowserPanel(props: {
 
     void (async () => {
       try {
-        const response = await integratedBrowserService.open();
+        const response = await integratedBrowserService.open(undefined, { waitForLoad: false });
         if (canceled) return;
         consumeResponse(response);
         if (response.state?.url) currentUrlRef.current = response.state.url;
@@ -417,6 +449,9 @@ export function IntegratedBrowserPanel(props: {
     return () => {
       canceled = true;
       if (agentViewportFrame !== null) cancelAnimationFrame(agentViewportFrame);
+      if (resizeFrame !== null) cancelAnimationFrame(resizeFrame);
+      lastViewportRef.current = null;
+      viewportRequestRef.current += 1;
       extensionRequestIdRef.current += 1;
       suggestionOverlayRequestIdRef.current += 1;
       suggestionOverlayRef.current = false;
@@ -470,7 +505,7 @@ export function IntegratedBrowserPanel(props: {
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [closeFind, findVisible]);
 
-  const navigate = (target: string) => void run(() => integratedBrowserService.navigate(target));
+  const navigate = (target: string) => void run(() => integratedBrowserService.navigate(target, { waitForLoad: false }));
 
   const toggleUtilityBar = () => {
     setUtilityBarVisible((visible) => {
@@ -523,7 +558,7 @@ export function IntegratedBrowserPanel(props: {
         viewMode={state.viewMode}
         onActivateTab={(tabId) => void run(() => integratedBrowserService.activateTab(tabId))}
         onCloseTab={(tabId) => void run(() => integratedBrowserService.closeTab(tabId))}
-        onCreateTab={() => void run(() => integratedBrowserService.createTab())}
+        onCreateTab={() => void run(() => integratedBrowserService.createTab(undefined, { waitForLoad: false }))}
         onSetViewMode={(mode, secId) => void run(() => integratedBrowserService.setViewMode(mode, secId))}
         activeTab={activeTab}
         onReattachTab={(tabId) => void run(() => integratedBrowserService.reattachTab(tabId))}
@@ -565,6 +600,7 @@ export function IntegratedBrowserPanel(props: {
             </BrowserIconButton>
           </div>
           <BrowserAddressBar
+            key={state.profileRevision ?? 0}
             address={address}
             currentUrl={state.url}
             onAddressChange={setAddress}
@@ -617,7 +653,7 @@ export function IntegratedBrowserPanel(props: {
               }}
               sections={[
                 [
-                  { id: 'new-tab', label: 'Nueva pestaña', shortcut: shortcut('new-tab'), icon: <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>, onSelect: () => void run(() => integratedBrowserService.createTab()) },
+                  { id: 'new-tab', label: 'Nueva pestaña', shortcut: shortcut('new-tab'), icon: <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>, onSelect: () => void run(() => integratedBrowserService.createTab(undefined, { waitForLoad: false })) },
                   { id: 'reopen-tab', label: 'Reabrir pestaña cerrada', shortcut: shortcut('reopen-tab'), icon: <svg viewBox="0 0 24 24"><path d="M4 4v6h6M5 15a8 8 0 1 0 2-8" /></svg>, onSelect: () => void run(integratedBrowserService.reopenClosedTab) },
                 ],
                 [

@@ -1,4 +1,5 @@
 import type { BrowserShortcutRequest, BrowserShortcutResponse } from '../shared/browser-agent-shortcuts';
+import type { BrowserNavigationOptions } from '../shared/browser-navigation';
 import { isBrowserUiCommandRequest, type BrowserUiCommandRequest } from '../shared/browser-keyboard-shortcuts';
 import type { BrowserPolicyRecoveryRequest, BrowserPolicyRecoveryResponse } from '../shared/browser-policy-recovery';
 import type { BrowserExtensionCatalogRequest, BrowserExtensionCatalogEntry } from '../shared/browser-extension-catalog';
@@ -639,8 +640,8 @@ export interface IntegratedBrowserApi {
   captureVisible(): Promise<IntegratedBrowserCaptureResponse>;
   getObservation(forceFresh?: boolean): Promise<IntegratedBrowserObservationResponse>;
   setObservationEnabled(enabled: boolean): Promise<IntegratedBrowserObservationResponse>;
-  open(url?: string): Promise<IntegratedBrowserResponse>;
-  navigate(target: string): Promise<IntegratedBrowserResponse>;
+  open(url?: string, options?: BrowserNavigationOptions): Promise<IntegratedBrowserResponse>;
+  navigate(target: string, options?: BrowserNavigationOptions): Promise<IntegratedBrowserResponse>;
   findInPage(query: string, forward?: boolean): Promise<IntegratedBrowserResponse>;
   stopFindInPage(): Promise<IntegratedBrowserResponse>;
   setZoom(action: 'in' | 'out' | 'reset'): Promise<IntegratedBrowserResponse>;
@@ -657,7 +658,7 @@ export interface IntegratedBrowserApi {
   clickElement(ref: string): Promise<IntegratedBrowserInteractionResponse>;
   typeInElement(ref: string, text: string, submit?: boolean): Promise<IntegratedBrowserInteractionResponse>;
   scrollView(direction: 'up' | 'down' | 'left' | 'right', amount?: number): Promise<IntegratedBrowserResponse>;
-  createTab(url?: string): Promise<IntegratedBrowserResponse>;
+  createTab(url?: string, options?: BrowserNavigationOptions): Promise<IntegratedBrowserResponse>;
   closeTab(tabId: string): Promise<IntegratedBrowserResponse>;
   duplicateTab(tabId: string): Promise<IntegratedBrowserResponse>;
   reopenClosedTab(tabId?: string): Promise<IntegratedBrowserResponse>;
@@ -783,8 +784,9 @@ export const integratedBrowserService = {
   captureVisible: (): Promise<IntegratedBrowserCaptureResponse> => requireApi().captureVisible(),
   getObservation: (forceFresh = false): Promise<IntegratedBrowserObservationResponse> => requireApi().getObservation(forceFresh),
   setObservationEnabled: (enabled: boolean): Promise<IntegratedBrowserObservationResponse> => requireApi().setObservationEnabled(enabled),
-  open: (url?: string): Promise<IntegratedBrowserResponse> => requireApi().open(url),
-  navigate: (target: string): Promise<IntegratedBrowserResponse> => requireApi().navigate(target),
+  // waitForLoad:false acusa inicio; errores posteriores llegan por state-changed.
+  open: (url?: string, options?: BrowserNavigationOptions): Promise<IntegratedBrowserResponse> => options ? requireApi().open(url, options) : requireApi().open(url),
+  navigate: (target: string, options?: BrowserNavigationOptions): Promise<IntegratedBrowserResponse> => options ? requireApi().navigate(target, options) : requireApi().navigate(target),
   findInPage: (query: string, forward = true): Promise<IntegratedBrowserResponse> => requireApi().findInPage(query, forward),
   stopFindInPage: (): Promise<IntegratedBrowserResponse> => requireApi().stopFindInPage(),
   setZoom: (action: 'in' | 'out' | 'reset'): Promise<IntegratedBrowserResponse> => requireApi().setZoom(action),
@@ -803,7 +805,7 @@ export const integratedBrowserService = {
     requireApi().typeInElement(ref, text, submit),
   scrollView: (direction: 'up' | 'down' | 'left' | 'right', amount?: number): Promise<IntegratedBrowserResponse> =>
     requireApi().scrollView(direction, amount),
-  createTab: (url?: string): Promise<IntegratedBrowserResponse> => requireApi().createTab(url),
+  createTab: (url?: string, options?: BrowserNavigationOptions): Promise<IntegratedBrowserResponse> => options ? requireApi().createTab(url, options) : requireApi().createTab(url),
   closeTab: (tabId: string): Promise<IntegratedBrowserResponse> => requireApi().closeTab(tabId),
   duplicateTab: (tabId: string): Promise<IntegratedBrowserResponse> => requireApi().duplicateTab(tabId),
   reopenClosedTab: (tabId?: string): Promise<IntegratedBrowserResponse> => tabId === undefined ? requireApi().reopenClosedTab() : requireApi().reopenClosedTab(tabId),

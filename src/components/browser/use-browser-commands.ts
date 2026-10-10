@@ -60,7 +60,7 @@ export function useBrowserCommands(input: {
       return;
     }
     switch (command) {
-      case 'new-tab': void run(() => service.createTab()); break;
+        case 'new-tab': void run(() => service.createTab(undefined, { waitForLoad: false })); break;
       case 'close-tab': if (activeId) void run(() => service.closeTab(activeId)); break;
       case 'reopen-tab': void run(service.reopenClosedTab); break;
       case 'next-tab': cycle(1); break;

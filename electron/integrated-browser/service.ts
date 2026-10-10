@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events';
+import type { BrowserNavigationOptions } from '../../src/shared/browser-navigation';
 import { applyBrowserTabZoom, browserDomPoint, supportsIsolatedBrowserZoom } from './tab-zoom';
 import { BrowserCredentialUnlock } from './credential-unlock';
 import { BrowserPasskeySelection } from './passkey-selection';
@@ -178,6 +179,8 @@ type BrowserTabRuntime = {
   lastActivatedAt: number;
   visualRevision: number;
   documentToken: string;
+  loadSequence: number;
+  awaitingNavigationStart: string | null;
   passiveCaptureNotBefore: number;
   lastDeferAt: number;
   /** Ultimo estado aplicado a la vista nativa: evita ocultar y volver a mostrar
@@ -358,6 +361,7 @@ export class IntegratedBrowserService extends EventEmitter {
   private parentWindow: BrowserWindow | null = null;
   private detachedWindows = new Map<string, BaseWindow>();
   private mainWindowFocusHandler: (() => void) | null = null;
+  private mainRendererCleanup: (() => void) | null = null;
   private tabs = new Map<string, BrowserTabRuntime>();
   private activeTabValue: string | null = null;
   private activeTabRevision = 0;
@@ -625,6 +629,29 @@ export class IntegratedBrowserService extends EventEmitter {
       this.emitState();
     };
     window.on('focus', this.mainWindowFocusHandler);
+    // Las vistas nativas sobreviven a la recarga del renderer. Su geometría
+    // pertenece al panel anterior y no debe cubrir el chat recién montado.
+    const resetWorkspace = () => {
+      if (this.parentWindow !== window) return;
+      if (this.fullscreenTabId && !this.detachedWindows.has(this.fullscreenTabId)) this.leaveHtmlFullScreen(this.fullscreenTabId);
+      this.navigationRequestRevision++;
+      this.agentControlRevision++;
+      this.agentTaskBinding?.control.command('stop');
+      if (!this.agentTaskBinding) this.releaseAgentControl();
+      this.rejectViewportWaiters(new CuContextChangedError());
+      this.discardPermissionPrompts();
+      this.viewport = null;
+      this.hide();
+    };
+    const onRendererNavigation = (_event: Electron.Event, _url: string, inPlace: boolean, isMainFrame: boolean) => {
+      if (isMainFrame && !inPlace) resetWorkspace();
+    };
+    window.webContents.on('did-start-navigation', onRendererNavigation);
+    window.webContents.on('render-process-gone', resetWorkspace);
+    this.mainRendererCleanup = () => {
+      window.webContents.removeListener('did-start-navigation', onRendererNavigation);
+      window.webContents.removeListener('render-process-gone', resetWorkspace);
+    };
     window.once('closed', () => this.detachWindow(window));
     this.startObservationTimer();
     const profileReady = this.flushClosedProfileForShutdown();
@@ -660,6 +687,8 @@ export class IntegratedBrowserService extends EventEmitter {
       this.parentWindow.removeListener('focus', this.mainWindowFocusHandler);
     }
     this.mainWindowFocusHandler = null;
+    this.mainRendererCleanup?.();
+    this.mainRendererCleanup = null;
     const pendingSave = this.persistSession(true).catch(() => {
       console.warn('[Navegador][Sesión] No se pudo guardar al cerrar; se conserva el último respaldo válido.');
     });
@@ -1084,7 +1113,7 @@ export class IntegratedBrowserService extends EventEmitter {
     return this.getState();
   }
 
-  async open(rawUrl?: unknown): Promise<IntegratedBrowserState> {
+  async open(rawUrl?: unknown, options: BrowserNavigationOptions = {}): Promise<IntegratedBrowserState> {
     const assertCurrent = this.captureNavigationGuard(true);
     await this.ephemeralCleanup;
     assertCurrent();
@@ -1093,15 +1122,15 @@ export class IntegratedBrowserService extends EventEmitter {
     const contents = this.ensureView().webContents;
     const currentUrl = contents.getURL();
     if (rawUrl !== undefined) {
-      await this.loadTarget(rawUrl);
+      await this.loadTarget(rawUrl, undefined, options.waitForLoad);
     } else if (!currentUrl || currentUrl === 'about:blank') {
       if (!this.enterpriseUrlAllowed(INTEGRATED_BROWSER_HOME)) throw new Error('El sitio está bloqueado por tu organización.');
-      await this.loadTarget(INTEGRATED_BROWSER_HOME);
+      await this.loadTarget(INTEGRATED_BROWSER_HOME, undefined, options.waitForLoad);
     }
     return this.getState();
   }
 
-  async navigate(rawTarget: unknown, assertCurrent?: () => void): Promise<IntegratedBrowserState> {
+  async navigate(rawTarget: unknown, assertCurrent?: () => void, options: BrowserNavigationOptions = {}): Promise<IntegratedBrowserState> {
     const assertNavigationCurrent = this.captureNavigationGuard(true);
     await this.ephemeralCleanup;
     assertNavigationCurrent();
@@ -1109,7 +1138,7 @@ export class IntegratedBrowserService extends EventEmitter {
     assertNavigationCurrent();
     assertCurrent?.();
     this.ensureView();
-    await this.loadTarget(rawTarget, assertCurrent);
+    await this.loadTarget(rawTarget, assertCurrent, options.waitForLoad);
     return this.getState();
   }
 
@@ -1360,7 +1389,7 @@ export class IntegratedBrowserService extends EventEmitter {
     return { state: this.getState(), ...result };
   }
 
-  async createTab(rawUrl?: unknown, activate = true, restored?: BrowserSessionTab): Promise<IntegratedBrowserState> {
+  async createTab(rawUrl?: unknown, activate = true, restored?: BrowserSessionTab, options: BrowserNavigationOptions = {}): Promise<IntegratedBrowserState> {
     const assertCurrent = this.captureProfileGuard(true);
     await this.ephemeralCleanup;
     assertCurrent();
@@ -1387,50 +1416,51 @@ export class IntegratedBrowserService extends EventEmitter {
     if (!this.primaryTabId) this.primaryTabId = tab.id;
     if (activate) this.activateTabInternal(tab.id);
     this.applyViewLayout();
-    try {
-      await this.requireTabView(tab).webContents.loadURL(target);
-      assertCurrent();
-      this.enforceLiveTabBudget();
-    } catch (error) {
-      this.recordError(error, tab.id);
-      throw error;
-    }
-    this.emitState();
+    await this.loadTabTarget(tab, target, options.waitForLoad);
+    assertCurrent();
+    this.enforceLiveTabBudget();
     return this.getState();
   }
 
   closeTab(rawTabId: unknown): IntegratedBrowserState {
     const tabId = this.requireTabId(rawTabId);
+    this.closeTabInternal(tabId);
+    return this.getState();
+  }
+
+  private closeTabInternal(tabId: string, updateLayout = true): void {
     const tab = this.tabs.get(tabId);
     if (!tab) throw new Error('La pestaña indicada no existe.');
+    if (this.fullscreenTabId === tabId) this.leaveHtmlFullScreen(tabId, false);
     const wasVisible = tabId === this.primaryTabId || (this.viewMode !== 'single' && tabId === this.secondaryTabId);
     this.closedTabs.push({ ...this.toSessionTab(tab, Array.from(this.tabs.keys()).indexOf(tabId)), closedAt: new Date().toISOString() });
     if (this.closedTabs.length > 25) this.closedTabs.shift();
-    const remainingIds = Array.from(this.tabs.keys()).filter((id) => id !== tabId);
     this.tabs.delete(tabId);
-    this.destroyTab(tab);
-    if (this.visible && !Array.from(this.tabs.values()).some((candidate) => !this.detachedWindows.has(candidate.id))) {
-      const replacement = this.createTabRuntime();
-      replacement.url = INTEGRATED_BROWSER_HOME;
-      remainingIds.unshift(replacement.id);
-      void this.requireTabView(replacement).webContents.loadURL(INTEGRATED_BROWSER_HOME).catch((error) => this.recordError(error, replacement.id));
+    try {
+      if (this.tabs.size === 0 || (this.visible && !Array.from(this.tabs.values()).some((candidate) => !this.detachedWindows.has(candidate.id)))) {
+        const replacement = this.createTabRuntime();
+        replacement.url = INTEGRATED_BROWSER_HOME;
+        void this.requireTabView(replacement).webContents.loadURL(INTEGRATED_BROWSER_HOME).catch((error) => this.recordError(error, replacement.id));
+      }
+    } finally {
+      // También restaurar selección y retirar la vista si falla la creación
+      // del reemplazo; ninguna operación nativa debe dejar IDs eliminados.
+      const remainingIds = Array.from(this.tabs.keys());
+      const fallback = remainingIds.find((id) => !this.detachedWindows.has(id)) ?? remainingIds[0] ?? null;
+      if (this.activeTabId === tabId) this.activeTabId = this.secondaryTabId && this.tabs.has(this.secondaryTabId) ? this.secondaryTabId : fallback;
+      if (wasVisible) {
+        this.viewMode = 'single';
+        this.secondaryTabId = null;
+        this.primaryTabId = this.activeTabId ?? fallback;
+      }
+      try {
+        this.destroyTab(tab);
+      } finally {
+        if (updateLayout) {
+          try { this.applyViewLayout(); } finally { this.emitState(); }
+        }
+      }
     }
-    if (remainingIds.length === 0) {
-      const replacement = this.createTabRuntime();
-      remainingIds.push(replacement.id);
-      replacement.url = INTEGRATED_BROWSER_HOME;
-      void this.requireTabView(replacement).webContents.loadURL(INTEGRATED_BROWSER_HOME).catch((error) => this.recordError(error, replacement.id));
-    }
-    const fallback = remainingIds.find((id) => !this.detachedWindows.has(id)) ?? remainingIds[0] ?? null;
-    if (this.activeTabId === tabId) this.activeTabId = this.secondaryTabId && this.secondaryTabId !== tabId ? this.secondaryTabId : fallback;
-    if (wasVisible) {
-      this.viewMode = 'single';
-      this.secondaryTabId = null;
-      this.primaryTabId = this.activeTabId ?? fallback;
-    }
-    this.applyViewLayout();
-    this.emitState();
-    return this.getState();
   }
 
   async duplicateTab(rawTabId: unknown): Promise<IntegratedBrowserState> {
@@ -1475,8 +1505,15 @@ export class IntegratedBrowserService extends EventEmitter {
   closeOtherTabs(rawTabId: unknown): IntegratedBrowserState {
     this.assertCapability('advancedTabs');
     const keepId = this.requireTabId(rawTabId);
-    for (const id of Array.from(this.tabs.keys())) if (id !== keepId) this.closeTab(id);
-    return this.activateTab(keepId);
+    try {
+      for (const id of Array.from(this.tabs.keys())) if (id !== keepId) this.closeTabInternal(id, false);
+    } finally {
+      // Publicar también un resultado parcial si falla el cierre nativo.
+      this.activateTabInternal(keepId);
+      this.applyViewLayout();
+      this.emitState();
+    }
+    return this.getState();
   }
 
   closeTabsToRight(rawTabId: unknown): IntegratedBrowserState {
@@ -1484,7 +1521,14 @@ export class IntegratedBrowserService extends EventEmitter {
     const keepId = this.requireTabId(rawTabId);
     const ids = Array.from(this.tabs.keys());
     const index = ids.indexOf(keepId);
-    for (const id of ids.slice(index + 1)) this.closeTab(id);
+    const closingIds = ids.slice(index + 1);
+    if (closingIds.length === 0) return this.getState();
+    try {
+      for (const id of closingIds) this.closeTabInternal(id, false);
+    } finally {
+      this.applyViewLayout();
+      this.emitState();
+    }
     return this.getState();
   }
 
@@ -1767,11 +1811,17 @@ export class IntegratedBrowserService extends EventEmitter {
 
   setViewport(rawViewport: unknown): IntegratedBrowserState {
     const parent = this.requireParentWindow();
-    this.ensureWorkspaceView();
+    const previousView = this.primaryTabId ? this.tabs.get(this.primaryTabId)?.view : null;
+    const workspaceView = this.ensureWorkspaceView();
     const viewport = parseBrowserViewport(rawViewport, parent.getContentBounds());
     const previous = this.viewport;
-    const changed = !this.visible || !previous || previous.x !== viewport.x || previous.y !== viewport.y
+    const changed = previousView !== workspaceView || !this.visible || !previous || previous.x !== viewport.x || previous.y !== viewport.y
       || previous.width !== viewport.width || previous.height !== viewport.height;
+    if (!changed) {
+      // Un acuse explícito del agente sigue resolviendo la espera de geometría.
+      this.resolveViewportWaiters();
+      return this.getState();
+    }
     this.viewport = viewport;
     this.visible = true;
     this.applyViewLayout();
@@ -2776,6 +2826,8 @@ export class IntegratedBrowserService extends EventEmitter {
       lastActivatedAt: Date.now(),
       visualRevision: 0,
       documentToken: randomUUID(),
+      loadSequence: 0,
+      awaitingNavigationStart: null,
       passiveCaptureNotBefore: 0,
       lastDeferAt: 0,
       appliedVisible: null,
@@ -2940,8 +2992,13 @@ export class IntegratedBrowserService extends EventEmitter {
       event.preventDefault(); this.setZoom(direction);
     });
     contents.on('did-navigate', () => { if (isCurrentView()) this.sensitiveDocuments.delete(contents); });
-    contents.on('did-start-navigation', (_event, _url, _inPlace, isMainFrame) => {
-      if (isCurrentView() && isMainFrame) tab.documentToken = randomUUID();
+    contents.on('did-start-navigation', (_event, url, inPlace, isMainFrame) => {
+      if (!isCurrentView() || !isMainFrame) return;
+      tab.documentToken = randomUUID();
+      if (!inPlace) {
+        if (tab.awaitingNavigationStart !== url) tab.loadSequence += 1;
+        tab.awaitingNavigationStart = null;
+      }
     });
     contents.setWindowOpenHandler((details) => {
       if (!isCurrentView()) return { action: 'deny' };
@@ -3135,6 +3192,7 @@ export class IntegratedBrowserService extends EventEmitter {
     });
     contents.on('did-navigate-in-page', () => {
       if (!isCurrentView()) return;
+      tab.loadSequence += 1;
       tab.documentToken = randomUUID();
       tab.visualRevision += 1;
       this.refreshNavigationSafety(tab);
@@ -3164,7 +3222,13 @@ export class IntegratedBrowserService extends EventEmitter {
       if (!isCurrentView()) return;
       // Al soltar el raton o el teclado puede haber terminado una seleccion:
       // el chat la adjunta sola, sin pasar por el menu contextual.
-      if (input.type === 'mouseUp' || input.type === 'keyUp') {
+      const keyboard = input as typeof input & { key?: string; keyCode?: string };
+      const rawKey = keyboard.key ?? keyboard.keyCode;
+      const key = typeof rawKey === 'string' ? rawKey.toLowerCase() : '';
+      const selectionKey = input.type === 'keyUp' && (this.lastReportedSelection !== ''
+        || (input.modifiers?.includes('shift') && /^(arrow(left|right|up|down)|left|right|up|down|home|end|pageup|pagedown)$/.test(key))
+        || (key === 'a' && input.modifiers?.some(modifier => ['control', 'ctrl', 'meta', 'command', 'cmd'].includes(modifier))));
+      if (input.type === 'mouseUp' || selectionKey) {
         selectionLog(`entrada ${input.type}: sondeo programado`);
         this.deferSelectionProbe(tab);
       }
@@ -3193,7 +3257,7 @@ export class IntegratedBrowserService extends EventEmitter {
     });
   }
 
-  private async loadTarget(rawTarget: unknown, assertCallerCurrent?: () => void): Promise<void> {
+  private async loadTarget(rawTarget: unknown, assertCallerCurrent?: () => void, waitForLoad = true): Promise<void> {
     const target = normalizeBrowserTarget(rawTarget);
     const view = this.ensureView();
     const tab = this.getActiveTab()!;
@@ -3216,22 +3280,33 @@ export class IntegratedBrowserService extends EventEmitter {
     this.setNavigationSafety(tab, target, safety);
     this.emitState();
     this.assertNavigationAllowed(safety);
-    tab.error = null;
-    tab.url = target;
-    try {
-      await view.webContents.loadURL(target);
-    } catch (error) {
-      assertCurrent();
-      // Una navegacion abortada no es un fallo: ocurre cada vez que el propio
-      // sitio navega por su cuenta (las aplicaciones de una sola pagina lo
-      // hacen al arrancar) o el usuario pide otro destino antes de terminar.
-      if (isSupersededNavigation(error)) {
-        this.recordError(error, tab.id);
-        return;
-      }
-      this.recordError(error, tab.id);
-      throw error;
-    }
+    await this.loadTabTarget(tab, target, waitForLoad);
+  }
+
+  /** La UI acusa el inicio; los agentes conservan la espera del documento. */
+  private async loadTabTarget(tab: BrowserTabRuntime, target: string, waitForLoad = true): Promise<void> {
+    const contents = this.requireTabView(tab).webContents;
+    const generation = this.sessionGeneration;
+    const parent = this.parentWindow;
+    const sequence = ++tab.loadSequence;
+    const current = () => !this.scopeChanging && !this.shutdownCommitted && this.sessionGeneration === generation
+      && this.parentWindow === parent && !!parent && !parent.isDestroyed()
+      && this.tabs.get(tab.id) === tab && tab.view?.webContents === contents
+      && !contents.isDestroyed() && tab.loadSequence === sequence;
+    tab.error = null; tab.url = target; tab.loading = true;
+    tab.awaitingNavigationStart = target;
+    this.emitState();
+    const loading = contents.loadURL(target).then(() => {
+      if (current() && tab.loading) { tab.loading = false; this.snapshotTab(tab); this.emitState(); }
+    }).catch((error: unknown) => {
+      // Un destino nuevo o un perfil reemplazado no recibe errores de esta carga.
+      if (current() && !isSupersededNavigation(error)) this.recordError(error, tab.id);
+      if (!isSupersededNavigation(error)) throw error;
+    }).finally(() => {
+      if (tab.loadSequence === sequence) tab.awaitingNavigationStart = null;
+    });
+    if (waitForLoad) await loading;
+    else void loading.catch(() => { /* El fallo vigente ya se publicó en estado. */ });
   }
 
   private assertNavigationAllowed(verdict: BrowserNavigationSafetyVerdict): void {
@@ -3823,7 +3898,7 @@ export class IntegratedBrowserService extends EventEmitter {
     this.emitState();
   }
 
-  private leaveHtmlFullScreen(tabId: string): void {
+  private leaveHtmlFullScreen(tabId: string, updateLayout = true): void {
     if (this.fullscreenTabId !== tabId) return;
     this.fullscreenTabId = null;
     const restore = this.fullscreenRestore;
@@ -3835,9 +3910,11 @@ export class IntegratedBrowserService extends EventEmitter {
     // recalculo evita que la vista se quede cubriendo la barra y el chat.
     const tab = this.tabs.get(tabId);
     if (tab) tab.appliedBounds = null;
-    if (this.detachedWindows.has(tabId)) this.layoutDetachedTab(tabId);
-    else this.applyViewLayout();
-    this.emitState();
+    if (updateLayout) {
+      if (this.detachedWindows.has(tabId)) this.layoutDetachedTab(tabId);
+      else this.applyViewLayout();
+      this.emitState();
+    }
   }
 
   private applyFullScreenLayout(tab: BrowserTabRuntime): boolean {
@@ -4334,26 +4411,31 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   private destroyTab(tab: BrowserTabRuntime): void {
-    this.safetyInterstitials.remove(`tab:${tab.id}`);
-    this.invalidateObservation(tab.id);
-    void tab.credentialObserver?.dispose();
-    tab.credentialObserver = null;
-    void tab.bootstrap?.dispose();
-    tab.bootstrap = null;
-    const view = tab.view;
-    tab.view = null;
-    if (!view) return;
-    const detached = this.detachedWindows.get(tab.id);
-    if (detached) {
-      this.detachedWindows.delete(tab.id);
-      try { detached.contentView.removeChildView(view); } catch { /* cierre idempotente */ }
-      try { if (!detached.isDestroyed()) detached.destroy(); } catch { /* cierre idempotente */ }
-    }
-    try { view.setVisible(false); } catch { /* cierre idempotente */ }
-    try { this.parentWindow?.contentView.removeChildView(view); } catch { /* cierre idempotente */ }
     try {
-      if (!view.webContents.isDestroyed()) view.webContents.close({ waitForBeforeUnload: false });
-    } catch { /* cierre idempotente */ }
+      this.safetyInterstitials.remove(`tab:${tab.id}`);
+    } finally {
+      // Un aviso que falla al cerrarse no debe dejar viva la página retirada.
+      this.invalidateObservation(tab.id);
+      void tab.credentialObserver?.dispose();
+      tab.credentialObserver = null;
+      void tab.bootstrap?.dispose();
+      tab.bootstrap = null;
+      const view = tab.view;
+      tab.view = null;
+      if (view) {
+        const detached = this.detachedWindows.get(tab.id);
+        if (detached) {
+          this.detachedWindows.delete(tab.id);
+          try { detached.contentView.removeChildView(view); } catch { /* cierre idempotente */ }
+          try { if (!detached.isDestroyed()) detached.destroy(); } catch { /* cierre idempotente */ }
+        }
+        try { view.setVisible(false); } catch { /* cierre idempotente */ }
+        try { this.parentWindow?.contentView.removeChildView(view); } catch { /* cierre idempotente */ }
+        try {
+          if (!view.webContents.isDestroyed()) view.webContents.close({ waitForBeforeUnload: false });
+        } catch { /* cierre idempotente */ }
+      }
+    }
   }
 
   private snapshotTab(tab: BrowserTabRuntime): void {
@@ -4675,7 +4757,13 @@ export class IntegratedBrowserService extends EventEmitter {
   private async reportSelection(tab: BrowserTabRuntime): Promise<void> {
     const contents = tab.view?.webContents;
     if (!contents || contents.isDestroyed()) return;
+    const document = tab.documentToken;
+    const loadSequence = tab.loadSequence;
+    const generation = this.sessionGeneration;
+    const control = this.agentControlRevision;
     const texto = await this.readSelectionText(contents);
+    if (this.scopeChanging || this.agentControlling || control !== this.agentControlRevision || generation !== this.sessionGeneration || this.getActiveTab() !== tab
+      || tab.view?.webContents !== contents || contents.isDestroyed() || tab.documentToken !== document || tab.loadSequence !== loadSequence) return;
     // Al deshacer la seleccion se avisa al chat para que retire el chip, y se
     // olvida la ultima leida para poder volver a adjuntar el mismo fragmento.
     if (!texto) {
@@ -4710,7 +4798,7 @@ export class IntegratedBrowserService extends EventEmitter {
     const marcos = collectSelectableFrames(contents);
     let fallos = 0;
     for (const marco of marcos) {
-      const crudo = await marco.executeJavaScript('(() => { const s = window.getSelection(); return s ? String(s) : ""; })()', true).catch((error: unknown) => {
+      const crudo = await marco.executeJavaScript('(() => { const s = window.getSelection(); return s ? String(s) : ""; })()').catch((error: unknown) => {
         fallos += 1;
         selectionLog(`marco ilegible: ${error instanceof Error ? error.message : String(error)}`);
         return '';
@@ -5222,4 +5310,4 @@ function selectionLog(mensaje: string): void {
 /** Marca que la pagina emite por consola al cambiar su seleccion. */
 const SELECTION_BEACON = '__SOFLIA_SELECTION__';
 
-const SELECTION_WATCHER_SCRIPT = '(() => { if (window.__sofliaSelWatch) return true; window.__sofliaSelWatch = true; document.addEventListener("selectionchange", () => { clearTimeout(window.__sofliaSelTimer); window.__sofliaSelTimer = setTimeout(() => console.log("__SOFLIA_SELECTION__"), 180); }, true); return true; })()';
+const SELECTION_WATCHER_SCRIPT = '(() => { if (window.__sofliaSelWatch) return true; window.__sofliaSelWatch = true; let selected = false; document.addEventListener("selectionchange", () => { const hasText = !!String(window.getSelection() || "").trim(); if (!hasText && !selected) return; selected = hasText; clearTimeout(window.__sofliaSelTimer); window.__sofliaSelTimer = setTimeout(() => console.log("__SOFLIA_SELECTION__"), 180); }, true); return true; })()';

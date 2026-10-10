@@ -1,8 +1,9 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root = process.cwd();
+const syncInventory = process.argv.includes('--sync-inventory');
 const errors = [];
 const requiredDocs = [
   'docs/standards/engineering-practices.md',
@@ -112,8 +113,18 @@ try {
 const tests = tracked.filter((file) => /(__tests__\/.*|\.(test|spec)\.)/.test(file));
 const mainTests = tests.filter((file) => file.startsWith('electron/')).length;
 const rendererTests = tests.filter((file) => file.startsWith('src/')).length;
-const qualityDoc = contents.get('docs/quality/test-strategy-and-inventory.md') || '';
+let qualityDoc = contents.get('docs/quality/test-strategy-and-inventory.md') || '';
 const expectedInventory = `contiene ${tests.length} archivos de prueba: ${mainTests} para main y ${rendererTests}`;
+if (syncInventory && !errors.length) {
+  const inventoryPattern = /contiene \d+ archivos de prueba: \d+ para main y \d+/g;
+  if ([...qualityDoc.matchAll(inventoryPattern)].length !== 1) {
+    errors.push('El documento debe contener una única declaración de inventario para sincronizar.');
+  } else {
+    const updated = qualityDoc.replace(inventoryPattern, expectedInventory);
+    if (updated !== qualityDoc) writeFileSync(join(root, 'docs/quality/test-strategy-and-inventory.md'), updated, 'utf8');
+    qualityDoc = updated;
+  }
+}
 if (!qualityDoc.includes(expectedInventory)) errors.push(`Inventario de pruebas desactualizado; esperado: ${expectedInventory}`);
 
 const css = existsSync(join(root, 'src', 'index.css')) ? readFileSync(join(root, 'src', 'index.css'), 'utf8') : '';

@@ -20,7 +20,9 @@ export function BrowserAddressBar({ inputRef, ...props }: {
   const requestIdRef = useRef(0);
   const suggestionsVisibleRef = useRef(false);
   const visibilityHandlerRef = useRef(props.onSuggestionsVisibilityChange);
-  const [suggestions, setSuggestions] = useState<BrowserHistoryEntry[]>([]);
+  const [suggestionResult, setSuggestionResult] = useState<{ query: string; entries: BrowserHistoryEntry[] }>({ query: '', entries: [] });
+  // Retirar resultados obsoletos en el mismo render, sin esperar la consulta.
+  const suggestions = suggestionResult.query === props.address.trim() ? suggestionResult.entries : [];
   const [open, setOpen] = useState(false);
   const [siteOpen, setSiteOpen] = useState(false);
   const [permissionPromptOpen, setPermissionPromptOpen] = useState(false);
@@ -31,21 +33,23 @@ export function BrowserAddressBar({ inputRef, ...props }: {
   useEffect(() => {
     if (!open || !integratedBrowserService.isAvailable()) return undefined;
     const requestId = ++requestIdRef.current;
+    const query = props.address.trim();
+    let canceled = false;
     const timer = window.setTimeout(async () => {
       try {
-        const response = await integratedBrowserService.listHistory(props.address.trim(), SUGGESTION_LIMIT);
-        if (requestId !== requestIdRef.current) return;
+        const response = await integratedBrowserService.listHistory(query, SUGGESTION_LIMIT);
+        if (canceled || requestId !== requestIdRef.current) return;
         if (!response.success) {
-          setSuggestions([]);
+          setSuggestionResult({ query, entries: [] });
           return;
         }
-        setSuggestions(dedupeSuggestions(response.history ?? []));
+        setSuggestionResult({ query, entries: dedupeSuggestions(response.history ?? []) });
         setActiveIndex(-1);
       } catch {
-        if (requestId === requestIdRef.current) setSuggestions([]);
+        if (!canceled && requestId === requestIdRef.current) setSuggestionResult({ query, entries: [] });
       }
     }, SUGGESTION_DELAY_MS);
-    return () => window.clearTimeout(timer);
+    return () => { canceled = true; window.clearTimeout(timer); };
   }, [open, props.address]);
 
   const navigate = (target: string) => {

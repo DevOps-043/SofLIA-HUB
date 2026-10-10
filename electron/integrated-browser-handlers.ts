@@ -152,9 +152,9 @@ export function registerIntegratedBrowserHandlers(
   }), (result) => result as Record<string, unknown>);
   handle('integrated-browser:open', (_event, input) => {
     const url = readOptionalUrl(input);
-    return service.open(url);
+    return service.open(url, { waitForLoad: readWaitForLoad(input) });
   });
-  handle('integrated-browser:navigate', (_event, input) => service.navigate(readTarget(input)));
+  handle('integrated-browser:navigate', (_event, input) => service.navigate(readTarget(input), undefined, { waitForLoad: readWaitForLoad(input) }));
   handle('integrated-browser:page-find', (_event, input) => {
     const value = readPageFindInput(input);
     return service.findInPage(value.query, value.forward);
@@ -187,7 +187,7 @@ export function registerIntegratedBrowserHandlers(
     await service.scrollView(value.direction, value.amount);
     return service.getState();
   });
-  handle('integrated-browser:tab-create', (_event, input) => service.createTab(readOptionalUrl(input)));
+  handle('integrated-browser:tab-create', (_event, input) => service.createTab(readOptionalUrl(input), true, undefined, { waitForLoad: readWaitForLoad(input) }));
   handle('integrated-browser:tab-close', (_event, input) => service.closeTab(readTabId(input)));
   handle('integrated-browser:tab-duplicate', (_event, input) => service.duplicateTab(readTabId(input)));
   handle('integrated-browser:tab-reopen-closed', (_event, input) => service.reopenClosedTab(input === undefined ? undefined : readTabId(input)));
@@ -478,6 +478,13 @@ function readSiteOriginInput(input: unknown): { origin?: string } {
   if (origin === undefined) return {};
   if (typeof origin !== 'string' || origin.length > 2_048) throw new Error('El origen del permiso es invalido.');
   return { origin };
+}
+
+function readWaitForLoad(input: unknown): boolean {
+  const value = input && typeof input === 'object' ? (input as { waitForLoad?: unknown }).waitForLoad : undefined;
+  if (value === undefined) return true;
+  if (typeof value !== 'boolean') throw new Error('La espera de navegación debe ser un booleano.');
+  return value;
 }
 
 function readOptionalUrl(input: unknown): string | undefined {
