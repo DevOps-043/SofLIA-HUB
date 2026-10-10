@@ -1,4 +1,6 @@
 import type { BrowserShortcutRequest, BrowserShortcutResponse } from '../shared/browser-agent-shortcuts';
+import type { BrowserNavigationOptions } from '../shared/browser-navigation';
+import { isBrowserUiCommandRequest, type BrowserUiCommandRequest } from '../shared/browser-keyboard-shortcuts';
 import type { BrowserPolicyRecoveryRequest, BrowserPolicyRecoveryResponse } from '../shared/browser-policy-recovery';
 import type { BrowserExtensionCatalogRequest, BrowserExtensionCatalogEntry } from '../shared/browser-extension-catalog';
 import type { BrowserSemanticRequest, BrowserSemanticResponse } from '../shared/browser-semantic-memory';
@@ -45,6 +47,7 @@ export interface IntegratedBrowserTabState {
   isDetached: boolean;
   /** Opcionales durante la transición desde builds anteriores del proceso main. */
   muted?: boolean;
+  audible?: boolean;
   zoomFactor?: number;
   find?: BrowserFindState | null;
   pinned?: boolean;
@@ -637,12 +640,12 @@ export interface IntegratedBrowserApi {
   captureVisible(): Promise<IntegratedBrowserCaptureResponse>;
   getObservation(forceFresh?: boolean): Promise<IntegratedBrowserObservationResponse>;
   setObservationEnabled(enabled: boolean): Promise<IntegratedBrowserObservationResponse>;
-  open(url?: string): Promise<IntegratedBrowserResponse>;
-  navigate(target: string): Promise<IntegratedBrowserResponse>;
+  open(url?: string, options?: BrowserNavigationOptions): Promise<IntegratedBrowserResponse>;
+  navigate(target: string, options?: BrowserNavigationOptions): Promise<IntegratedBrowserResponse>;
   findInPage(query: string, forward?: boolean): Promise<IntegratedBrowserResponse>;
   stopFindInPage(): Promise<IntegratedBrowserResponse>;
   setZoom(action: 'in' | 'out' | 'reset'): Promise<IntegratedBrowserResponse>;
-  setMuted(muted: boolean): Promise<IntegratedBrowserResponse>;
+  setMuted(muted: boolean, tabId?: string): Promise<IntegratedBrowserResponse>;
   toggleFullscreen(): Promise<IntegratedBrowserResponse>;
   printPage(): Promise<IntegratedBrowserResponse>;
   savePageAsPdf(): Promise<BrowserPageToolResponse>;
@@ -655,7 +658,7 @@ export interface IntegratedBrowserApi {
   clickElement(ref: string): Promise<IntegratedBrowserInteractionResponse>;
   typeInElement(ref: string, text: string, submit?: boolean): Promise<IntegratedBrowserInteractionResponse>;
   scrollView(direction: 'up' | 'down' | 'left' | 'right', amount?: number): Promise<IntegratedBrowserResponse>;
-  createTab(url?: string): Promise<IntegratedBrowserResponse>;
+  createTab(url?: string, options?: BrowserNavigationOptions): Promise<IntegratedBrowserResponse>;
   closeTab(tabId: string): Promise<IntegratedBrowserResponse>;
   duplicateTab(tabId: string): Promise<IntegratedBrowserResponse>;
   reopenClosedTab(tabId?: string): Promise<IntegratedBrowserResponse>;
@@ -665,6 +668,7 @@ export interface IntegratedBrowserApi {
   closeOtherTabs(tabId: string): Promise<IntegratedBrowserResponse>;
   closeTabsToRight(tabId: string): Promise<IntegratedBrowserResponse>;
   setTabPinned(tabId: string, pinned: boolean): Promise<IntegratedBrowserResponse>;
+  showTabContextMenu(tabId: string): Promise<IntegratedBrowserResponse>;
   setTabLayout(layout: 'horizontal' | 'vertical'): Promise<IntegratedBrowserResponse>;
   createTabGroup(name: string, color: BrowserTabGroupColor): Promise<IntegratedBrowserDataResponse>;
   assignTabGroup(tabId: string, groupId: string | null): Promise<IntegratedBrowserResponse>;
@@ -742,7 +746,7 @@ export interface IntegratedBrowserApi {
   getTabContent(tabId: string, expected?: import('../shared/browser-tab-context').BrowserTabExpectation): Promise<BrowserTabContentResponse>;
   onStateChanged(callback: (state: IntegratedBrowserState) => void): () => void;
   onDownloadsChanged(callback: (downloads: BrowserDownloadRecord[]) => void): () => void;
-  onFindRequested(callback: () => void): () => void;
+  onCommand(callback: (request: unknown) => void): () => void;
   onOpenRequested(callback: (request: { url?: string }) => void): () => void;
   onSelectionAction(callback: (request: BrowserSelectionActionRequest) => void): () => void;
   onReadingModeRequested(callback: (request: BrowserReadingModeRequest) => void): () => void;
@@ -780,12 +784,13 @@ export const integratedBrowserService = {
   captureVisible: (): Promise<IntegratedBrowserCaptureResponse> => requireApi().captureVisible(),
   getObservation: (forceFresh = false): Promise<IntegratedBrowserObservationResponse> => requireApi().getObservation(forceFresh),
   setObservationEnabled: (enabled: boolean): Promise<IntegratedBrowserObservationResponse> => requireApi().setObservationEnabled(enabled),
-  open: (url?: string): Promise<IntegratedBrowserResponse> => requireApi().open(url),
-  navigate: (target: string): Promise<IntegratedBrowserResponse> => requireApi().navigate(target),
+  // waitForLoad:false acusa inicio; errores posteriores llegan por state-changed.
+  open: (url?: string, options?: BrowserNavigationOptions): Promise<IntegratedBrowserResponse> => options ? requireApi().open(url, options) : requireApi().open(url),
+  navigate: (target: string, options?: BrowserNavigationOptions): Promise<IntegratedBrowserResponse> => options ? requireApi().navigate(target, options) : requireApi().navigate(target),
   findInPage: (query: string, forward = true): Promise<IntegratedBrowserResponse> => requireApi().findInPage(query, forward),
   stopFindInPage: (): Promise<IntegratedBrowserResponse> => requireApi().stopFindInPage(),
   setZoom: (action: 'in' | 'out' | 'reset'): Promise<IntegratedBrowserResponse> => requireApi().setZoom(action),
-  setMuted: (muted: boolean): Promise<IntegratedBrowserResponse> => requireApi().setMuted(muted),
+  setMuted: (muted: boolean, tabId?: string): Promise<IntegratedBrowserResponse> => (tabId === undefined ? requireApi().setMuted(muted) : requireApi().setMuted(muted, tabId)),
   toggleFullscreen: (): Promise<IntegratedBrowserResponse> => requireApi().toggleFullscreen(),
   printPage: (): Promise<IntegratedBrowserResponse> => requireApi().printPage(),
   savePageAsPdf: (): Promise<BrowserPageToolResponse> => requireApi().savePageAsPdf(),
@@ -800,7 +805,7 @@ export const integratedBrowserService = {
     requireApi().typeInElement(ref, text, submit),
   scrollView: (direction: 'up' | 'down' | 'left' | 'right', amount?: number): Promise<IntegratedBrowserResponse> =>
     requireApi().scrollView(direction, amount),
-  createTab: (url?: string): Promise<IntegratedBrowserResponse> => requireApi().createTab(url),
+  createTab: (url?: string, options?: BrowserNavigationOptions): Promise<IntegratedBrowserResponse> => options ? requireApi().createTab(url, options) : requireApi().createTab(url),
   closeTab: (tabId: string): Promise<IntegratedBrowserResponse> => requireApi().closeTab(tabId),
   duplicateTab: (tabId: string): Promise<IntegratedBrowserResponse> => requireApi().duplicateTab(tabId),
   reopenClosedTab: (tabId?: string): Promise<IntegratedBrowserResponse> => tabId === undefined ? requireApi().reopenClosedTab() : requireApi().reopenClosedTab(tabId),
@@ -810,6 +815,7 @@ export const integratedBrowserService = {
   closeOtherTabs: (tabId: string): Promise<IntegratedBrowserResponse> => requireApi().closeOtherTabs(tabId),
   closeTabsToRight: (tabId: string): Promise<IntegratedBrowserResponse> => requireApi().closeTabsToRight(tabId),
   setTabPinned: (tabId: string, pinned: boolean): Promise<IntegratedBrowserResponse> => requireApi().setTabPinned(tabId, pinned),
+  showTabContextMenu: (tabId: string): Promise<IntegratedBrowserResponse> => requireApi().showTabContextMenu(tabId),
   setTabLayout: (layout: 'horizontal' | 'vertical'): Promise<IntegratedBrowserResponse> => requireApi().setTabLayout(layout),
   createTabGroup: (name: string, color: BrowserTabGroupColor): Promise<IntegratedBrowserDataResponse> => requireApi().createTabGroup(name, color),
   assignTabGroup: (tabId: string, groupId: string | null): Promise<IntegratedBrowserResponse> => requireApi().assignTabGroup(tabId, groupId),
@@ -900,7 +906,8 @@ export const integratedBrowserService = {
   subscribe: (callbacks: {
     onStateChanged?: (state: IntegratedBrowserState) => void;
     onDownloadsChanged?: (downloads: BrowserDownloadRecord[]) => void;
-    onFindRequested?: () => void;
+    /** Atajos y órdenes de menús nativos; sólo se entregan si superan la validación. */
+    onCommand?: (request: BrowserUiCommandRequest) => void;
     onOpenRequested?: (request: { url?: string }) => void;
     onSelectionAction?: (request: BrowserSelectionActionRequest) => void;
     onReadingModeRequested?: (request: BrowserReadingModeRequest) => void;
@@ -913,7 +920,8 @@ export const integratedBrowserService = {
     const cleanups: Array<() => void> = [];
     if (callbacks.onStateChanged) cleanups.push(api.onStateChanged(callbacks.onStateChanged));
     if (callbacks.onDownloadsChanged) cleanups.push(api.onDownloadsChanged(callbacks.onDownloadsChanged));
-    if (callbacks.onFindRequested) cleanups.push(api.onFindRequested(callbacks.onFindRequested));
+    const { onCommand } = callbacks;
+    if (onCommand) cleanups.push(api.onCommand((request) => { if (isBrowserUiCommandRequest(request)) onCommand(request); }));
     if (callbacks.onOpenRequested) cleanups.push(api.onOpenRequested(callbacks.onOpenRequested));
     if (callbacks.onSelectionAction) cleanups.push(api.onSelectionAction(callbacks.onSelectionAction));
     if (callbacks.onReadingModeRequested) cleanups.push(api.onReadingModeRequested(callbacks.onReadingModeRequested));

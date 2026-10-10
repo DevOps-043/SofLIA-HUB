@@ -1,17 +1,18 @@
-import { buildServerSideToolInvocationsConfig, supportsCodeExecutionCombo } from '../../src/shared/gemini-grounding-config';
-import { WA_MODEL } from './constants';
+import { createWhatsAppOpenAISession } from './openai-session';
+import { toOpenAITools } from '../../src/services/openai-chat/tool-schema';
 import { prepareWhatsAppConversationHistory } from './conversation-history';
 import { buildWhatsAppAgentPromptContext } from './system-prompt-context';
 import { buildWhatsAppToolDeclarations } from './tool-declarations';
 import { isModelAvailabilityError } from './agent-errors';
 import { classifyEvidenceRequirement, detectActionRequest } from '../whatsapp-prompts';
 import type { AgentLoopRequest, AgentLoopState } from './agent-loop-types';
+import { prepareWhatsAppTeam, TEAM_COORDINATOR_INSTRUCTION } from './agent-team';
+import { assertTeamActive } from '../../src/shared/agent-teams/runner';
+import type OpenAI from 'openai';
 
 export async function createAgentLoopState(request: AgentLoopRequest): Promise<AgentLoopState | string> {
-  if (!String(request.agent.apiKey || '').trim()) {
-    throw new Error('API key de Gemini no configurada para WhatsApp.');
-  }
-
+  const client: OpenAI = await request.agent.getOpenAIClient();
+  assertTeamActive(request.options.signal);
   const promptContext = await buildWhatsAppAgentPromptContext({
     calendarService: request.agent.calendarService,
     whatsappConfig: request.agent.waService.config,
@@ -26,7 +27,7 @@ export async function createAgentLoopState(request: AgentLoopRequest): Promise<A
   if (promptContext.sensitiveBlockResponse) return promptContext.sensitiveBlockResponse;
 
   const evidenceRequirement = classifyEvidenceRequirement(request.userMessage);
-  const systemPrompt = appendEvidenceDirective(promptContext.systemPrompt, evidenceRequirement);
+  let systemPrompt = appendEvidenceDirective(promptContext.systemPrompt, evidenceRequirement);
   const tools = [await buildWhatsAppToolDeclarations({
     isGroup: request.isGroup,
     senderNumber: request.senderNumber,
@@ -39,8 +40,13 @@ export async function createAgentLoopState(request: AgentLoopRequest): Promise<A
     userMessage: request.userMessage,
     loadPersistedHistory: () => request.agent.memory.getConversationHistory(promptContext.sessionKey, 30),
   });
+  const teamContext = await prepareWhatsAppTeam(request, client);
+  assertTeamActive(request.options.signal);
+  if (teamContext) systemPrompt += `\n\n${TEAM_COORDINATOR_INSTRUCTION}`;
   const modelConversation = await createModelConversation({
+    client,
     request,
+    teamContext,
     systemPrompt,
     tools,
     historyCopy,
@@ -62,45 +68,22 @@ export async function createAgentLoopState(request: AgentLoopRequest): Promise<A
 }
 
 async function createModelConversation(input: {
+  client: OpenAI;
+  teamContext: string;
   request: AgentLoopRequest;
   systemPrompt: string;
   tools: any[];
   historyCopy: any[];
   sessionKey: string;
 }) {
-  let lastModelError: unknown = null;
-  for (const modelName of getWhatsAppModelCandidates()) {
-    try {
-      // Gemini 3+ combina function calling con ejecucion de codigo (Python):
-      // calculos sobre datos reales en vez de aritmetica "de memoria".
-      const modelTools = supportsCodeExecutionCombo(modelName)
-        ? [...input.tools, { codeExecution: {} }]
-        : input.tools;
-      const createSession = (history: any[]) => input.request.agent.getGenAiClient().chats.create({
-        model: modelName,
-        config: {
-          systemInstruction: input.systemPrompt,
-          tools: modelTools,
-          // Obligatoria al mezclar la tool integrada con las declaraciones de
-          // funcion; sin ella la API rechaza el turno completo con 400.
-          toolConfig: buildServerSideToolInvocationsConfig(modelTools),
-          maxOutputTokens: 4096,
-        },
-        history,
-      });
-      const chatSession = startChatSafely(createSession, input.historyCopy, input.request.conversations, input.sessionKey);
-      const initial = await sendInitialMessage(createSession, chatSession, input.request, input.request.conversations, input.sessionKey);
-      if (modelName !== WA_MODEL) {
-        console.warn(`[WhatsApp Agent] Using Gemini fallback model "${modelName}" for WhatsApp.`);
-      }
-      return initial;
-    } catch (error) {
-      if (!isModelAvailabilityError(error)) throw error;
-      lastModelError = error;
-      console.warn(`[WhatsApp Agent] Gemini model "${modelName}" unavailable for WhatsApp. Trying fallback if available.`);
-    }
-  }
-  throw lastModelError || new Error('No hay modelos Gemini disponibles para WhatsApp.');
+  const client = input.client;
+  assertTeamActive(input.request.options.signal);
+  const createSession = (history: any[]) => createWhatsAppOpenAISession({
+    client, instructions: input.systemPrompt, tools: toOpenAITools(input.tools), history,
+    signal: input.request.options.signal,
+  });
+  const chatSession = startChatSafely(createSession, input.historyCopy, input.request.conversations, input.sessionKey);
+  return sendInitialMessage(createSession, chatSession, input.request, input.request.conversations, input.sessionKey, input.teamContext);
 }
 
 type CreateSession = (history: any[]) => any;
@@ -126,11 +109,12 @@ async function sendInitialMessage(
   request: AgentLoopRequest,
   conversations: Map<string, any[]>,
   sessionKey: string,
+  teamContext: string,
 ) {
   const prefix = request.inlineMediaParts.length === 0 && detectActionRequest(request.userMessage)
     ? '[INSTRUCCION DEL SISTEMA: El usuario solicita una ACCION NUEVA. DEBES usar herramientas para ejecutarla AHORA.]\n\n'
     : '';
-  const effectiveMessage = prefix + request.userMessage;
+  const effectiveMessage = prefix + request.userMessage + (teamContext ? `\n\n${teamContext}` : '');
   const message = request.inlineMediaParts.length > 0
     ? [...request.inlineMediaParts, { text: effectiveMessage }]
     : effectiveMessage;
@@ -145,9 +129,6 @@ async function sendInitialMessage(
   }
 }
 
-function getWhatsAppModelCandidates(): string[] {
-  return [WA_MODEL];
-}
 
 function isRecoverableHistoryError(error: any): boolean {
   const message = String(error?.message || error || '').toLowerCase();

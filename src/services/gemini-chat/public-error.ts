@@ -3,7 +3,7 @@ const CONTEXT_LENGTH_MESSAGE = 'La peticion supero el tamano que admite el model
 const TIMEOUT_MESSAGE = 'La respuesta tardo mas de lo esperado. Intenta de nuevo en unos segundos.';
 const SAFETY_MESSAGE = 'No pude completar esta solicitud de forma segura. Reformula el mensaje y vuelvo a intentarlo.';
 const MODEL_CONFIG_MESSAGE = 'El nivel de razonamiento no es compatible con el modelo seleccionado. Elige otro nivel e intenta de nuevo.';
-const OPENAI_CONFIG_MESSAGE = 'SofLIA Pro y Max requieren una clave de OpenAI válida en Configuración.';
+const OPENAI_CONFIG_MESSAGE = 'SofLIA y Max requieren una clave de OpenAI válida en Configuración.';
 const GENERIC_MESSAGE = 'No pude completar la respuesta en este momento. Intenta de nuevo.';
 
 interface PublicAiErrorMessages {

@@ -1,3 +1,5 @@
+import { hasEncodedCommand } from '../../src/shared/command-approval';
+
 const MAX_COMMAND_LENGTH = 4_000;
 const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/;
 
@@ -13,7 +15,7 @@ const DANGEROUS_COMMAND_PATTERNS: Array<{ pattern: RegExp; reason: string }> = [
   { pattern: /\bmkfs\b|\bdd\s+if\s*=/i, reason: 'escritura destructiva de dispositivo' },
   { pattern: /:\(\)\s*\{\s*:\s*\|\s*:\s*&\s*\}\s*;\s*:/, reason: 'fork bomb' },
   { pattern: /\b(set-executionpolicy|invoke-expression|iex)\b/i, reason: 'ejecucion dinamica riesgosa' },
-  { pattern: /\bfrombase64string\b|(?:^|\s)-(?:encodedcommand|enc)\b(?:\s+[a-z0-9+/=]{8,})?/i, reason: 'payload ofuscado' },
+  { pattern: /\bfrombase64string\b/i, reason: 'payload ofuscado' },
   { pattern: /\b(downloadstring|invoke-webrequest|iwr|curl|wget)\b[\s\S]{0,160}\|\s*\b(powershell|pwsh|cmd|sh|bash|iex)\b/i, reason: 'descarga y ejecucion encadenada' },
   { pattern: /\b(get-content|type|cat)\b[\s\S]{0,160}(?:^|[\s"'])(\.env|id_rsa|secret|token|credential|password|api[_-]?key)\b[\s\S]{0,160}\b(curl|wget|invoke-webrequest|iwr)\b/i, reason: 'posible exfiltracion de secretos' },
 ];
@@ -23,6 +25,7 @@ export function validateCommandSafety(value: unknown): string {
   if (!command) throw new Error('Comando vacio no permitido.');
   if (command.length > MAX_COMMAND_LENGTH) throw new Error('Comando demasiado largo.');
   if (CONTROL_CHARS.test(command)) throw new Error('Comando contiene caracteres de control.');
+  if (hasEncodedCommand(command)) throw new Error('Comando bloqueado por seguridad: payload ofuscado.');
 
   const match = DANGEROUS_COMMAND_PATTERNS.find(({ pattern }) => pattern.test(command));
   if (match) throw new Error(`Comando bloqueado por seguridad: ${match.reason}.`);

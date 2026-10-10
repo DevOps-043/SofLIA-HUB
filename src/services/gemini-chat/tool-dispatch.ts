@@ -44,6 +44,7 @@ export async function executeGeminiToolCall(
       enrichToolArgs(toolName, toolArgs, generatedImages),
       generatedImages,
       options?.activeSkill,
+      options?.signal,
     );
     toolInfo.result = resultStr;
     allToolCalls.push(toolInfo);
@@ -79,6 +80,7 @@ function executeKnownTool(
   args: Record<string, any>,
   generatedImages: string[],
   activeSkill?: ActiveSkillContext | null,
+  signal?: AbortSignal,
 ): Promise<string> {
   // Las herramientas de la Skill activa se resuelven primero: son las unicas
   // que dependen del contexto del turno.
@@ -89,5 +91,5 @@ function executeKnownTool(
   if (INTEGRATED_BROWSER_TOOL_NAMES.has(toolName)) return executeIntegratedBrowserTool(toolName, args);
   if (PROJECT_HUB_TOOL_NAMES.has(toolName)) return executeProjectHubTool(toolName, args);
   if (NATIVE_AI_TOOL_NAMES.has(toolName)) return executeNativeAiTool(toolName, args, generatedImages);
-  return executeComputerToolAsJson(toolName, args);
+  return executeComputerToolAsJson(toolName, args, signal);
 }

@@ -9,14 +9,14 @@ import { executeRemoteNodeTool } from './computer-use/remote-tools';
 
 export { getDesktopAgentAPI, isComputerUseAvailable, isDesktopAgentAvailable, setConfirmationHandler };
 
-export async function executeComputerTool(toolName: string, args: Record<string, any>): Promise<string> {
+export async function executeComputerTool(toolName: string, args: Record<string, any>, signal?: AbortSignal): Promise<string> {
   const api = getComputerUseAPI();
   const desktopApi = ['use_computer', 'list_browser_profiles', 'reset_browser_profile'].includes(toolName)
     ? getDesktopAgentAPI()
     : null;
 
-  const confirmed = await confirmToolExecution(toolName, args, api);
-  if (!confirmed) {
+  const confirmed = await confirmToolExecution(toolName, args, api, signal);
+  if (!confirmed || signal?.aborted) {
     return JSON.stringify({ success: false, error: 'Accion cancelada por el usuario.' });
   }
 

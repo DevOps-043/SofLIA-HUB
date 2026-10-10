@@ -1,5 +1,7 @@
 import { BrowserWindow, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron';
 import { executeToolDirect } from './tool-dispatch';
+import { canRememberCommand, type ConfirmationOptions } from '../../src/shared/command-approval';
+import { denyIfUnauthenticated } from '../main/require-auth';
 
 type IpcMap = {
   channel: string;
@@ -49,19 +51,31 @@ export function registerComputerUseHandlers(): void {
       executeToolDirect(mapping.tool, mapping.args(...params), makeProgress(event, mapping.tool)));
   }
 
-  ipcMain.handle('computer:confirm-action', async (_event, message: string) => {
-    const win = BrowserWindow.getFocusedWindow();
-    if (!win) return { confirmed: true };
+  ipcMain.handle('computer:confirm-action', async (event, message: unknown, options?: ConfirmationOptions) => {
+    if (denyIfUnauthenticated('computer:confirm-action')) return { confirmed: false };
+    if (typeof message !== 'string' || !message.trim() || message.length > 8_000
+      || (options !== undefined && (!options || typeof options !== 'object' || Array.isArray(options)
+        || Object.keys(options).some(key => key !== 'allowAlways' && key !== 'command')
+        || (options.allowAlways !== undefined && typeof options.allowAlways !== 'boolean')
+        || (options.command !== undefined && (typeof options.command !== 'string' || options.command.length > 4_000))))) return { confirmed: false };
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win || win.isDestroyed()) return { confirmed: false };
+    const allowAlways = options?.allowAlways === true && typeof options.command === 'string'
+      && canRememberCommand(options.command)
+      && (message === `Ejecutar comando: ${options.command}`
+        || message === `Ejecutar en segundo plano: ${options.command}`
+        || message.startsWith(`Ejecutar en segundo plano: ${options.command}\nEn: `));
     const result = await dialog.showMessageBox(win, {
       type: 'question',
       buttons: ['Cancelar', 'Confirmar'],
       defaultId: 0,
       cancelId: 0,
-      title: 'SofLIA â€” Confirmar acciÃ³n',
-      message: 'SofLIA quiere realizar una acciÃ³n',
+      title: 'SofLIA — Confirmar acción',
+      message: 'SofLIA quiere realizar una acción',
       detail: message,
+      ...(allowAlways ? { checkboxLabel: 'Siempre permitir este comando exacto', checkboxChecked: false } : {}),
     });
-    return { confirmed: result.response === 1 };
+    return { confirmed: result.response === 1, always: result.response === 1 && allowAlways && result.checkboxChecked === true };
   });
 }
 

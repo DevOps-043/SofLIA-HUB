@@ -7,10 +7,15 @@ let nextWebContentsId = 1;
 
 export class BrowserWindow extends EventEmitter {
   static instances: BrowserWindow[] = [];
+  private contentsEvents = new EventEmitter();
 
   webContents = {
     send: vi.fn(),
-    on: vi.fn(),
+    focus: vi.fn(),
+    on: vi.fn((event: string, listener: (...args: unknown[]) => void) => this.contentsEvents.on(event, listener)),
+    removeListener: vi.fn((event: string, listener: (...args: unknown[]) => void) => this.contentsEvents.removeListener(event, listener)),
+    emit: (event: string, ...args: unknown[]) => this.contentsEvents.emit(event, ...args),
+    listenerCount: (event: string) => this.contentsEvents.listenerCount(event),
     once: vi.fn(),
     openDevTools: vi.fn(),
     setWindowOpenHandler: vi.fn(),
@@ -145,6 +150,7 @@ class MockWebContents extends EventEmitter {
   enableDeviceEmulation = vi.fn();
   disableDeviceEmulation = vi.fn();
   setAudioMuted = vi.fn();
+  isCurrentlyAudible = vi.fn(() => false);
   print = vi.fn((_options: unknown, callback: (success: boolean, failureReason: string) => void) => callback(true, ''));
   printToPDF = vi.fn(async () => Buffer.from('pdf'));
   downloadURL = vi.fn();

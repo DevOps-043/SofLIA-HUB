@@ -6,7 +6,7 @@ export interface RoutedModel {
   modelId: string;
   /** El turno gasta una unidad de la cuota mensual de SofLIA Max. */
   consumesSofliaMaxQuota?: boolean;
-  /** Se pidio SofLIA Max sin cuota disponible y se degrado a SofLIA Pro. */
+  /** Se pidio SofLIA Max sin cuota disponible y se degrado a SofLIA. */
   quotaExhausted?: boolean;
 }
 

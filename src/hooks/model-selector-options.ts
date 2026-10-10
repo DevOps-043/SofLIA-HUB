@@ -1,4 +1,4 @@
-import { SOFLIA_LITE_MODEL, SOFLIA_MAX_MODEL, SOFLIA_PRO_MODEL, SOFLIA_RUNTIME_MODEL } from '../shared/soflia-runtime-model';
+import { SOFLIA_DEFAULT_MODEL, SOFLIA_MAX_MODEL, SOFLIA_RUNTIME_MODEL } from '../shared/soflia-runtime-model';
 
 export interface ThinkingOption {
   id: string;
@@ -41,7 +41,7 @@ const THINKING_OPTIONS_OPENAI: ThinkingOption[] = [
 ];
 
 /** Modelo por defecto del chat. */
-export const DEFAULT_MODEL_ID = SOFLIA_RUNTIME_MODEL;
+export const DEFAULT_MODEL_ID = SOFLIA_DEFAULT_MODEL;
 
 export const MODEL_OPTIONS: ModelOption[] = [
   {
@@ -49,10 +49,10 @@ export const MODEL_OPTIONS: ModelOption[] = [
     name: 'SofLIA',
     desc: 'Equilibrio ideal para el dia a dia.',
     icon: 'spark',
-    provider: 'google',
+    provider: 'openai',
     thinkingType: 'level',
     defaultThinkingId: 'medium',
-    thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH,
+    thinkingOptions: THINKING_OPTIONS_OPENAI,
   },
   {
     id: SOFLIA_MAX_MODEL,
@@ -66,23 +66,13 @@ export const MODEL_OPTIONS: ModelOption[] = [
     thinkingOptions: THINKING_OPTIONS_OPENAI,
   },
   {
-    id: SOFLIA_PRO_MODEL,
+    id: SOFLIA_RUNTIME_MODEL,
     name: 'SofLIA Pro',
     desc: 'Capaz para comandos y acciones.',
-    icon: 'moon',
-    provider: 'openai',
-    thinkingType: 'level',
-    defaultThinkingId: 'medium',
-    thinkingOptions: THINKING_OPTIONS_OPENAI,
-  },
-  {
-    id: SOFLIA_LITE_MODEL,
-    name: 'SofLIA Lite',
-    desc: 'Ultra ligero para tareas simples.',
-    icon: 'feather',
+    icon: 'nodes',
     provider: 'google',
     thinkingType: 'level',
-    defaultThinkingId: 'low',
+    defaultThinkingId: 'medium',
     thinkingOptions: THINKING_OPTIONS_GEMINI3_FLASH,
   },
 ];

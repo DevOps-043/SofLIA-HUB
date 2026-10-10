@@ -16,6 +16,7 @@ import {
  */
 const SYNTHETIC_TOOL_NAMES = [
   'web_research',
+  'analisis_en_equipo',
   'research_actions',
   'inspect_browser_view',
   'browser_read_fallback',

@@ -7,7 +7,7 @@ import type { ModelIconKey, ModelOption, ThinkingOption } from './model-selector
 const MODEL_STORAGE_KEY = 'soflia:selected-model';
 const THINKING_STORAGE_KEY = 'soflia:thinking-by-model';
 const MODEL_PREFERENCES_CHANGED_EVENT = 'soflia:model-preferences-changed';
-const LEGACY_MAX_MODEL_ID = 'gpt-5.6-terra';
+const LEGACY_MAX_MODEL_IDS = ['gpt-6-sol', 'gpt-5.6-terra'];
 
 export function useModelSelector() {
   const [preferredPrimaryModel, setPreferredPrimaryModel] = useState(readStoredModel);
@@ -97,7 +97,7 @@ function findModel(modelId: string): ModelOption {
 }
 
 function normalizeModelId(modelId: string): string {
-  return modelId === LEGACY_MAX_MODEL_ID ? SOFLIA_MAX_MODEL : modelId;
+  return LEGACY_MAX_MODEL_IDS.includes(modelId) ? SOFLIA_MAX_MODEL : modelId;
 }
 
 function resolveThinkingId(model: ModelOption, stored?: string): string {
@@ -124,8 +124,9 @@ function readStoredThinking(): Record<string, string> {
   try {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-    if (!Object.prototype.hasOwnProperty.call(parsed, SOFLIA_MAX_MODEL) && typeof parsed[LEGACY_MAX_MODEL_ID] === 'string') {
-      parsed[SOFLIA_MAX_MODEL] = parsed[LEGACY_MAX_MODEL_ID];
+    const legacyMaxModelId = LEGACY_MAX_MODEL_IDS.find((modelId) => typeof parsed[modelId] === 'string');
+    if (!Object.prototype.hasOwnProperty.call(parsed, SOFLIA_MAX_MODEL) && legacyMaxModelId) {
+      parsed[SOFLIA_MAX_MODEL] = parsed[legacyMaxModelId];
       writeStorage(scopedPreferenceKey(THINKING_STORAGE_KEY), JSON.stringify(parsed));
     }
     return parsed;

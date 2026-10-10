@@ -82,6 +82,7 @@ export function attachDesktopAgentPlanning(Service: DesktopAgentServiceConstruct
         task,
         screenshotBase64,
         contextoEntorno: this.environmentContextText || undefined,
+        signal: this.abortController?.signal,
       });
       this.strategicPlan = strategicPlan;
       if (strategicPlan) {

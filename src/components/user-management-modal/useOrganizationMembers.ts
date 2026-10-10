@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { orgService, type OrgMember } from '../../services/org-service';
+import { OrgMembersError, orgService, type OrgMember } from '../../services/org-service';
 import type { SofiaOrganization } from '../../lib/sofia-client';
 import type { MemberStatus, OrganizationRole } from './types';
 
@@ -18,8 +18,8 @@ export function useOrganizationMembers(isOpen: boolean, organization: SofiaOrgan
     setError(null);
     try {
       setMembers(await orgService.getOrganizationMembers(organization.id));
-    } catch {
-      setError('Error al cargar miembros.');
+    } catch (err) {
+      setError(err instanceof OrgMembersError ? err.message : 'Error al cargar miembros.');
     } finally {
       setLoading(false);
     }

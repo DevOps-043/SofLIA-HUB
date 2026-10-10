@@ -1,6 +1,6 @@
 # Plataforma del navegador integrado
 
-Estado: vigente. Actualizado: 2026-09-11.
+Estado: vigente. Actualizado: 2026-10-06.
 
 El navegador de Pulse Hub es una superficie de trabajo Electron basada en
 `WebContentsView`; no pretende sustituir un navegador Chromium completo ni
@@ -31,6 +31,64 @@ excluye contraseñas y passkeys, aunque la bóveda local ya cifra toda su metada
   nunca formularios ni contenido de página.
 
 ## Capacidades implementadas
+
+### Respuesta y trabajo acotado de la interfaz
+
+La interfaz solicita `waitForLoad:false` al abrir, navegar o crear pestaña:
+recibe acuse después de la validación y el inicio nativo, mientras el estado
+continúa publicando progreso y errores. La opción omitida conserva espera de
+documento completo para agentes y clientes previos. Las cargas sustituidas por
+otra navegación o perfil no publican resultados antiguos sobre el nuevo contexto.
+
+ResizeObserver y resize se agrupan por cuadro. Geometría visible idéntica omite
+layout y publicaciones repetidas; vistas materializadas, restauración de overlays
+y acuses de supervisión conservan su actualización explícita. Escribir teclas
+ordinarias no recorre todos los frames buscando selecciones vacías; selección
+real, deselección, Ctrl/Meta+A, navegación con Shift y mouseUp siguen atendidos.
+Una lectura tardía se descarta si cambió documento, pestaña, perfil o control.
+
+La barra de direcciones liga cada sugerencia al texto consultado: al editar deja
+de mostrar resultados anteriores inmediatamente. Agrupa las consultas durante
+140 ms de escritura y descarta respuestas tras cerrar o desmontar la barra.
+Al cambiar `profileRevision` remonta la barra y retira el historial anterior.
+
+El cierre de otras pestañas o de las situadas a la derecha agrupa mutaciones:
+conserva orden del historial y selección, aplica layout al destino final y evita
+publicar listas parciales o materializar pestañas intermedias que se descartarán.
+La restauración del destino sigue publicando sus eventos normales de carga.
+Cerrar una pestaña en pantalla completa restaura la ventana. La selección se
+normaliza antes de limpiar recursos nativos: un fallo al cerrar un aviso no deja
+su página viva ni publica identificadores de pestañas eliminadas.
+
+La recarga o caída del renderer principal retira la geometría y oculta las vistas
+del workspace: una página nativa no debe seguir cubriendo el chat sin su panel.
+Reabrir exige un viewport nuevo; las páginas y ventanas separadas se conservan.
+La pérdida de interfaz detiene tareas supervisadas sin liberar su reserva antes
+de la limpieza, invalida sus guardas y deniega avisos pendientes de la UI anterior.
+
+La [evidencia de latencia](../../openspec/changes/optimize-browser-latency/reports/verification.md)
+mide acuses y trabajo propio. No equivale a acelerar servidores externos.
+
+### Llamadas de Google Chat y Huddle
+
+Gmail/Chat puede cargar el componente embebido de Meet sin un rechazo especial
+de `/call`. Si abre una ventana para la ruta HTTPS exacta `meet.google.com/call`
+o `/call/`, el navegador conserva una ventana real y la sesión del abridor;
+convertirla en pestaña rompería la relación con el chat. Se aplican política
+empresarial, revisión de navegación, certificados y permisos por origen.
+
+SofLIA no crea reuniones mediante fallback, restauración o temporizadores ni
+simula notificaciones. La persona inicia la llamada desde Google. La adopción
+de ventanas es idempotente para evitar duplicar listeners y callbacks de cierre.
+El cambio [Huddle](../../openspec/changes/fix-google-chat-huddle/design.md)
+sustituye la retirada histórica de agosto; la conexión real se documenta en la
+evidencia del cambio y no se deduce de las pruebas con mocks.
+
+Las vistas ocultan `DocumentPictureInPictureAPI`: Electron expone la API pero
+no materializa su ventana. Así Google utiliza su panel de llamada compatible.
+Esto afecta a Document PiP en todos los sitios del navegador; la API PiP de
+vídeo es distinta y no se desactiva. Retirar esta medida exige soporte upstream
+y una prueba nativa de ventana, abridor, sesión y gobernanza, además de Huddle.
 
 ### Voz, memoria opt-in y documentos sensibles
 
@@ -117,6 +175,26 @@ sustituyen aceptar/cancelar Windows Hello interactivamente en el producto instal
 - Pestañas fijadas, grupos con nombre/color y asignación, reapertura, duplicado
   y cierres por alcance. La barra vertical comparte el orden de main y admite
   flechas, Inicio/Fin, Supr y Ctrl+Mayús+flechas para reordenar.
+- Distribución de controles como en Chrome. El clic derecho sobre una pestaña
+  abre su menú nativo ([tab-context-menu.ts](../../electron/integrated-browser/tab-context-menu.ts)):
+  nueva pestaña, duplicar, fijar, silenciar, grupo, mover a ventana, cierres por
+  alcance y reabrir. La pestaña muestra un icono de sonido mientras reproduce
+  audio (`audio-state-changed`) o está silenciada, y al pulsarlo silencia esa
+  pestaña sin activarla. El menú general agrupa en secciones lo propio del
+  navegador (historial, descargas, marcadores, contraseñas, extensiones, borrar
+  datos, imprimir, PDF, buscar y herramientas), con una fila de zoom −/+ y
+  pantalla completa que no cierra el menú, y muestra cada atajo junto a su
+  acción.
+- Atajos de Chrome desde una sola [tabla compartida](../../src/shared/browser-keyboard-shortcuts.ts):
+  Ctrl+T/W/Mayús+T, Ctrl+Tab y Ctrl+1…9, Ctrl+L/Alt+D/F6, Ctrl+R/F5,
+  Alt+←/→, Ctrl+F/P, Ctrl+±/0, Ctrl+H/J/D, Ctrl+Mayús+B/O/Supr, F11, F12 y
+  Ctrl+Mayús+I (Cmd en macOS). La vista nativa se queda con el foco, así que
+  main resuelve en `before-input-event` las teclas pulsadas en la página y las
+  entrega por `integrated-browser:command`; el renderer resuelve con la misma
+  tabla las pulsadas en la barra y no intercepta las del chat de SofLIA.
+  Mientras el agente controla la vista sus teclas llegan intactas a la página.
+  Ctrl+rueda se traduce en `zoom-changed` al zoom por pestaña: Electron no
+  amplía por su cuenta ni en modo aislado (comprobado con 44.0.0-beta.3).
 - Store de sesión versionado con cuota, respaldo, cuarentena de corrupción y
   restauración explícita detrás de `BROWSER_SESSION_RESTORE_ENABLED`.
   La versión 2 conserva primaria/secundaria, vista dividida o superpuesta y
@@ -326,13 +404,14 @@ conectados.
 
 ## Runtime y release
 
-`package.json` fija Electron `43.4.0`, versión estable publicada. La compuerta
+`package.json` fija Electron `44.5.1`, versión estable publicada. La compuerta
 `npm run runtime:stable` rechaza versiones prerelease salvo una excepción
 versionada que incluya vencimiento, riesgo y rollback. `verify:release` ejecuta
 esta comprobación antes del empaquetado. La compuerta exige coincidencia entre
 manifiesto, lockfile, paquete instalado y versión emitida por el ejecutable.
-Este worktree tiene instalación local 43.4.0 y smoke nativo; no usa la beta
-del directorio padre. La compatibilidad del portapapeles admite retorno síncrono
+La corrección de Huddle alinea manifiesto, lockfile, paquete y ejecutable con
+44.5.1; la instalación beta previa se conservó fuera del repositorio como
+recuperación. La compatibilidad del portapapeles admite retorno síncrono
 o asíncrono. El instalador y el smoke completo del producto permanecen en 9.5.
 
 ## Persistencia y recuperación

@@ -5,6 +5,7 @@ export interface ConfirmActionModalProps {
   toolName: string;
   description: string;
   onConfirm: () => void;
+  onAlways?: () => void;
   onCancel: () => void;
 }
 

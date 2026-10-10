@@ -18,6 +18,15 @@ Inventario de defaults y topes con impacto operativo. Los overrides guardados en
 
 ## Arranque
 
+El [arnés multiagente](runtime-multiagent-harness.md) define sus límites en
+[`AGENT_LIMITS`](../../src/shared/agent-runtime.ts): fuente de 80000 caracteres,
+salida de 24000 por etapa, doce herramientas por etapa, seis llamadas Gemini
+por etapa, 3000 tokens solicitados por llamada Gemini, tres minutos por análisis,
+treinta segundos por RPC, aprobación de diez minutos y veinte runs por ámbito.
+El presupuesto observado de Codex no equivale a un límite de facturación.
+
+<!-- evidence: src/shared/agent-runtime.ts -->
+
 La ventana principal se crea antes de la cadena de servicios no esenciales y se
 revela en `ready-to-show` para evitar el destello en blanco. El intro de audio
 solo suena con la ventana visible (`visibilityState`), no en modo background.
@@ -35,6 +44,20 @@ tras reinicio, caliente y `--background`. Ver el cambio
 evidencia medida en el host de referencia.
 
 ## Aplicacion e IPC
+
+El chat ejecuta hasta diez tandas de herramientas, o veinte con workspace,
+seguidas de una respuesta final sin herramientas. El cierre no aumenta el
+presupuesto de efectos y no ejecuta llamadas adicionales. Las aprobaciones
+locales recordadas conservan hasta 200 huellas SHA-256 por usuario (las más
+recientes); nunca guardan comandos. Ver [política y límites](runtime-agents-manual.md#211-permisos-locales-de-comandos-y-archivos).
+
+Los equipos transversales usan `TEAM_LIMITS` en
+[`src/shared/agent-teams/policy.ts`](../../src/shared/agent-teams/policy.ts):
+dos especialistas, cuatro llamadas de especialistas pendientes por proceso, 15 segundos por
+equipo, 4000 caracteres de solicitud, 24000 de fuente, 1500 tokens de salida
+solicitados y 6000 caracteres conservados por aporte. No incluyen el tiempo
+del coordinador ni constituyen un límite monetario. Ver
+[comportamiento y degradación](runtime-multiagent-harness.md#límites-y-rendimiento-de-equipos-generales).
 
 | Parametro | Default/tope | Fuente |
 |---|---:|---|
@@ -75,7 +98,7 @@ evidencia medida en el host de referencia.
 | almacén de permisos por sitio | `site-permissions.json` en `userData/integrated-browser`; clave por origen HTTP(S) exacto; máximo 500 orígenes | `electron/integrated-browser/site-permissions.ts` |
 | permiso nativo de cámara y micrófono | consultado en macOS y Windows antes de conceder; `denied`/`restricted` corta sin preguntar; `not-determined` en macOS dispara `askForMediaAccess`; Linux lo delega al servidor de audio/video | `electron/integrated-browser/permission-governance.ts`, `electron-builder.json5`, `build/entitlements.mac.plist` |
 | compartir pantalla | selector nativo de pantallas y ventanas, máximo 24 orígenes listados; audio del sistema solo en Windows y bajo casilla explícita | `electron/integrated-browser/display-media-picker.ts` |
-| llamadas directas de Google Chat | deshabilitadas: si `mail.google.com` o `chat.google.com` intenta abrir el host exacto `meet.google.com` con ruta `/call`, el servicio cancela el evento; cubre destino inicial, ventana anidada, `about:blank -> /call`, navegación, redirección y subframe; no crea ni reutiliza pestañas o ventanas, no sustituye por `/new`, no abre navegador externo, no simula notificaciones y no observa RPC de Meet; los permisos generales de cámara, micrófono, pantalla y notificaciones permanecen gobernados por sitio | `electron/integrated-browser/service.ts`, `electron/integrated-browser/permission-governance.ts` |
+| llamadas directas de Google Chat | el flujo nativo de Gmail/Chat puede cargar `meet.google.com/call` en su frame o ventana real gobernada, conservando sesión y abridor; la excepción de ventana usa el origen actual y solo hereda Gmail/Chat mientras el documento es `about:blank`; no sustituye por `/new`, no abre navegador externo ni simula tarjetas o notificaciones; los permisos de dispositivos siguen gobernados por sitio. La retirada histórica queda sustituida por `fix-google-chat-huddle`; el cierre funcional exige prueba real | `electron/integrated-browser/service.ts`, `electron/integrated-browser/permission-governance.ts` |
 | pantalla completa de la página | la vista cubre la ventana anfitriona y la ventana pasa a pantalla completa del sistema; al salir se restaura el estado previo | `electron/integrated-browser/service.ts` |
 | ventanas emergentes sin destino | `window.open` sin destino abre ventana real que hereda las preferencias del abridor, entre 180 y 2.048 px por lado (640 x 480 por omisión) y sin navegación fuera de HTTP(S); solo se queda encima por debajo de 700 px de ancho; la ventana recibe la misma política de apertura, así que lo que ella abra también queda gobernado | `electron/integrated-browser/service.ts` |
 | SharedArrayBuffer | comportamiento predeterminado de Chromium; SofLIA no lo habilita por `--enable-features`, porque el diagnóstico lo expuso con `crossOriginIsolated=false` sin corregir la carga de NetEq y relajaba una mitigación de canal lateral | `electron/main.ts` |
@@ -85,6 +108,9 @@ evidencia medida en el host de referencia.
 | chat flotante | 332 a 560 DIP (388 default); lado izquierdo o derecho; header de 40 DIP; minimizable o sustituible por Orbe; inicio medido bajo la barra superior | `src/components/browser/BrowserWorkspaceLayout.tsx` |
 | convivencia chat/navegador | `WebContentsView` vivo con inset del panel; ancho completo al minimizar | `src/components/browser/IntegratedBrowserPanel.tsx` |
 | overlay de gestores | captura puntual + `hide`; no usa polling para componer la página | `src/components/browser/IntegratedBrowserPanel.tsx` |
+| acuse de navegación | `waitForLoad` booleano opcional, true por defecto; la UI usa false tras validar e iniciar, agentes mantienen espera completa; errores tardíos se publican solo para carga vigente | `src/shared/browser-navigation.ts`, `electron/integrated-browser-handlers.ts`, `electron/integrated-browser/service.ts` |
+| geometría de vista | resize agrupado por cuadro; mismo rectángulo visible no genera layout/emisiones extra; restauración y petición del agente fuerzan el acuse | `src/components/browser/IntegratedBrowserPanel.tsx`, `electron/integrated-browser/service.ts` |
+| sondeo de selección | no se programa por keyUp ordinario; selectionchange no avisa por cursor colapsado; se conservan selección real, mouseUp, Ctrl/Meta+A y Shift con navegación; publicación exige contexto y control vigentes | `electron/integrated-browser/service.ts` |
 | contenido del modo lectura | selección hasta 50.000 caracteres; documento hasta 60.000; solo HTTP(S); excluye formularios, controles y contenido editable; Google Docs usa exportación autenticada de hasta 2 MiB con timeout 8 s y árbol AX de hasta 20.000 nodos como respaldo | `electron/integrated-browser/reading-mode-content.ts`, `electron/integrated-browser/reading-accessibility.ts` |
 | voz ElevenLabs (Orbe y lectura) | Orbe: máximo 5.000 caracteres por solicitud, timeout 30 s, MP3 hasta 16 MiB; lectura: microlote inicial de hasta 180 caracteres, posteriores de hasta 480, anticipación máxima de dos lotes, contexto anterior/posterior de hasta 600 caracteres, límite defensivo de 3.500 por solicitud, timeout 20 s sin reintento automático y audio transitorio hasta 64 MiB por respuesta; `eleven_turbo_v2_5` + `mp3_44100_128` por defecto; el idioma ISO 639-1 procede del contenido y los aliases españoles conservan un mapa a offsets originales | `electron/elevenlabs-tts.ts`, `electron/speech-text-normalizer.ts`, `electron/orb-tts.ts`, `electron/integrated-browser/reading-mode-service.ts`, `src/components/browser/browser-reading-utils.ts` |
 | historial | 50.000 visitas; consulta máxima 200, 50 por omisión | `electron/integrated-browser/browser-history-store.ts` |
@@ -161,7 +187,7 @@ carpeta o vencer el plazo invalida la autorizacion pendiente anterior.
 | pasos | `maxSteps=120`, `defaultStepBudget=60`, mínimo integrado `90`, `maxTotalSteps=500` | `electron/desktop-agent/agent-config.ts`, `electron/desktop-agent/task-budget.ts` |
 | reintentos por llamada mal formada (chat) | 2: reemitir, luego responder sin herramientas | `src/services/gemini-chat/agentic-loop.ts` |
 | modelo conversacional/CU | `gemini-3.8-flash`, sin degradación de modelo | `src/shared/soflia-runtime-model.ts`, `electron/desktop-agent/gemini-cu/model-registry.ts` |
-| selector conversacional | SofLIA y Lite: Google; Max y Pro: OpenAI; elección y razonamiento persistidos por modelo | `src/hooks/model-selector-options.ts`, `src/hooks/useModelSelector.ts`, `src/services/model-routing.ts` |
+| selector conversacional | SofLIA: OpenAI `gpt-6-luna` (predeterminado); Max: OpenAI `gpt-6.1-sol` (3 usos/mes, fallback a SofLIA); Pro: Google `gemini-3.8-flash`; elección y razonamiento persistidos por modelo | `src/hooks/model-selector-options.ts`, `src/hooks/useModelSelector.ts`, `src/services/model-routing.ts` |
 | razonamiento Gemini / OpenAI | `low/medium/high` / `low/medium/high/xhigh/max`; `minimal` y `none` heredados migran a `low` | `src/services/gemini-chat/model-config.ts`, `src/services/openai-chat/reasoning.ts` |
 | captura | 1024x768, active monitor, max edge 1568, min scale .5 | mismo archivo |
 | timing | action 300 ms, change 8 s/500 ms, observation 2 s, queue 60 s | mismo archivo |

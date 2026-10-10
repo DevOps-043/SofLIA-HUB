@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events';
+import type { BrowserNavigationOptions } from '../../src/shared/browser-navigation';
 import { applyBrowserTabZoom, browserDomPoint, supportsIsolatedBrowserZoom } from './tab-zoom';
 import { BrowserCredentialUnlock } from './credential-unlock';
 import { BrowserPasskeySelection } from './passkey-selection';
@@ -19,9 +20,12 @@ import { BrowserAgentShortcutStore } from './agent-shortcut-store';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { getDomain } from 'tldts';
+import { resolveBrowserShortcut, shortcutNeedsChromeFocus, type BrowserUiCommandRequest } from '../../src/shared/browser-keyboard-shortcuts';
+import { buildTabContextMenuTemplate } from './tab-context-menu';
 import {
   BaseWindow,
   BrowserWindow,
+  Menu,
   WebContentsView,
   app,
   dialog,
@@ -175,6 +179,8 @@ type BrowserTabRuntime = {
   lastActivatedAt: number;
   visualRevision: number;
   documentToken: string;
+  loadSequence: number;
+  awaitingNavigationStart: string | null;
   passiveCaptureNotBefore: number;
   lastDeferAt: number;
   /** Ultimo estado aplicado a la vista nativa: evita ocultar y volver a mostrar
@@ -355,6 +361,7 @@ export class IntegratedBrowserService extends EventEmitter {
   private parentWindow: BrowserWindow | null = null;
   private detachedWindows = new Map<string, BaseWindow>();
   private mainWindowFocusHandler: (() => void) | null = null;
+  private mainRendererCleanup: (() => void) | null = null;
   private tabs = new Map<string, BrowserTabRuntime>();
   private activeTabValue: string | null = null;
   private activeTabRevision = 0;
@@ -622,6 +629,29 @@ export class IntegratedBrowserService extends EventEmitter {
       this.emitState();
     };
     window.on('focus', this.mainWindowFocusHandler);
+    // Las vistas nativas sobreviven a la recarga del renderer. Su geometría
+    // pertenece al panel anterior y no debe cubrir el chat recién montado.
+    const resetWorkspace = () => {
+      if (this.parentWindow !== window) return;
+      if (this.fullscreenTabId && !this.detachedWindows.has(this.fullscreenTabId)) this.leaveHtmlFullScreen(this.fullscreenTabId);
+      this.navigationRequestRevision++;
+      this.agentControlRevision++;
+      this.agentTaskBinding?.control.command('stop');
+      if (!this.agentTaskBinding) this.releaseAgentControl();
+      this.rejectViewportWaiters(new CuContextChangedError());
+      this.discardPermissionPrompts();
+      this.viewport = null;
+      this.hide();
+    };
+    const onRendererNavigation = (_event: Electron.Event, _url: string, inPlace: boolean, isMainFrame: boolean) => {
+      if (isMainFrame && !inPlace) resetWorkspace();
+    };
+    window.webContents.on('did-start-navigation', onRendererNavigation);
+    window.webContents.on('render-process-gone', resetWorkspace);
+    this.mainRendererCleanup = () => {
+      window.webContents.removeListener('did-start-navigation', onRendererNavigation);
+      window.webContents.removeListener('render-process-gone', resetWorkspace);
+    };
     window.once('closed', () => this.detachWindow(window));
     this.startObservationTimer();
     const profileReady = this.flushClosedProfileForShutdown();
@@ -657,6 +687,8 @@ export class IntegratedBrowserService extends EventEmitter {
       this.parentWindow.removeListener('focus', this.mainWindowFocusHandler);
     }
     this.mainWindowFocusHandler = null;
+    this.mainRendererCleanup?.();
+    this.mainRendererCleanup = null;
     const pendingSave = this.persistSession(true).catch(() => {
       console.warn('[Navegador][Sesión] No se pudo guardar al cerrar; se conserva el último respaldo válido.');
     });
@@ -1081,7 +1113,7 @@ export class IntegratedBrowserService extends EventEmitter {
     return this.getState();
   }
 
-  async open(rawUrl?: unknown): Promise<IntegratedBrowserState> {
+  async open(rawUrl?: unknown, options: BrowserNavigationOptions = {}): Promise<IntegratedBrowserState> {
     const assertCurrent = this.captureNavigationGuard(true);
     await this.ephemeralCleanup;
     assertCurrent();
@@ -1090,15 +1122,15 @@ export class IntegratedBrowserService extends EventEmitter {
     const contents = this.ensureView().webContents;
     const currentUrl = contents.getURL();
     if (rawUrl !== undefined) {
-      await this.loadTarget(rawUrl);
+      await this.loadTarget(rawUrl, undefined, options.waitForLoad);
     } else if (!currentUrl || currentUrl === 'about:blank') {
       if (!this.enterpriseUrlAllowed(INTEGRATED_BROWSER_HOME)) throw new Error('El sitio está bloqueado por tu organización.');
-      await this.loadTarget(INTEGRATED_BROWSER_HOME);
+      await this.loadTarget(INTEGRATED_BROWSER_HOME, undefined, options.waitForLoad);
     }
     return this.getState();
   }
 
-  async navigate(rawTarget: unknown, assertCurrent?: () => void): Promise<IntegratedBrowserState> {
+  async navigate(rawTarget: unknown, assertCurrent?: () => void, options: BrowserNavigationOptions = {}): Promise<IntegratedBrowserState> {
     const assertNavigationCurrent = this.captureNavigationGuard(true);
     await this.ephemeralCleanup;
     assertNavigationCurrent();
@@ -1106,7 +1138,7 @@ export class IntegratedBrowserService extends EventEmitter {
     assertNavigationCurrent();
     assertCurrent?.();
     this.ensureView();
-    await this.loadTarget(rawTarget, assertCurrent);
+    await this.loadTarget(rawTarget, assertCurrent, options.waitForLoad);
     return this.getState();
   }
 
@@ -1323,9 +1355,10 @@ export class IntegratedBrowserService extends EventEmitter {
     return this.getState();
   }
 
-  setMuted(muted: boolean): IntegratedBrowserState {
+  /** Silencia la pestaña indicada o, sin identificador, la activa (como el icono de audio de Chrome). */
+  setMuted(muted: boolean, rawTabId?: unknown): IntegratedBrowserState {
     this.assertCapability('pageTools');
-    const tab = this.getActiveTab();
+    const tab = rawTabId === undefined ? this.getActiveTab() : this.tabs.get(this.requireTabId(rawTabId));
     if (!tab) throw new Error('No hay una pestaña activa.');
     tab.muted = muted;
     this.requireTabView(tab).webContents.setAudioMuted(muted);
@@ -1356,7 +1389,7 @@ export class IntegratedBrowserService extends EventEmitter {
     return { state: this.getState(), ...result };
   }
 
-  async createTab(rawUrl?: unknown, activate = true, restored?: BrowserSessionTab): Promise<IntegratedBrowserState> {
+  async createTab(rawUrl?: unknown, activate = true, restored?: BrowserSessionTab, options: BrowserNavigationOptions = {}): Promise<IntegratedBrowserState> {
     const assertCurrent = this.captureProfileGuard(true);
     await this.ephemeralCleanup;
     assertCurrent();
@@ -1383,50 +1416,51 @@ export class IntegratedBrowserService extends EventEmitter {
     if (!this.primaryTabId) this.primaryTabId = tab.id;
     if (activate) this.activateTabInternal(tab.id);
     this.applyViewLayout();
-    try {
-      await this.requireTabView(tab).webContents.loadURL(target);
-      assertCurrent();
-      this.enforceLiveTabBudget();
-    } catch (error) {
-      this.recordError(error, tab.id);
-      throw error;
-    }
-    this.emitState();
+    await this.loadTabTarget(tab, target, options.waitForLoad);
+    assertCurrent();
+    this.enforceLiveTabBudget();
     return this.getState();
   }
 
   closeTab(rawTabId: unknown): IntegratedBrowserState {
     const tabId = this.requireTabId(rawTabId);
+    this.closeTabInternal(tabId);
+    return this.getState();
+  }
+
+  private closeTabInternal(tabId: string, updateLayout = true): void {
     const tab = this.tabs.get(tabId);
     if (!tab) throw new Error('La pestaña indicada no existe.');
+    if (this.fullscreenTabId === tabId) this.leaveHtmlFullScreen(tabId, false);
     const wasVisible = tabId === this.primaryTabId || (this.viewMode !== 'single' && tabId === this.secondaryTabId);
     this.closedTabs.push({ ...this.toSessionTab(tab, Array.from(this.tabs.keys()).indexOf(tabId)), closedAt: new Date().toISOString() });
     if (this.closedTabs.length > 25) this.closedTabs.shift();
-    const remainingIds = Array.from(this.tabs.keys()).filter((id) => id !== tabId);
     this.tabs.delete(tabId);
-    this.destroyTab(tab);
-    if (this.visible && !Array.from(this.tabs.values()).some((candidate) => !this.detachedWindows.has(candidate.id))) {
-      const replacement = this.createTabRuntime();
-      replacement.url = INTEGRATED_BROWSER_HOME;
-      remainingIds.unshift(replacement.id);
-      void this.requireTabView(replacement).webContents.loadURL(INTEGRATED_BROWSER_HOME).catch((error) => this.recordError(error, replacement.id));
+    try {
+      if (this.tabs.size === 0 || (this.visible && !Array.from(this.tabs.values()).some((candidate) => !this.detachedWindows.has(candidate.id)))) {
+        const replacement = this.createTabRuntime();
+        replacement.url = INTEGRATED_BROWSER_HOME;
+        void this.requireTabView(replacement).webContents.loadURL(INTEGRATED_BROWSER_HOME).catch((error) => this.recordError(error, replacement.id));
+      }
+    } finally {
+      // También restaurar selección y retirar la vista si falla la creación
+      // del reemplazo; ninguna operación nativa debe dejar IDs eliminados.
+      const remainingIds = Array.from(this.tabs.keys());
+      const fallback = remainingIds.find((id) => !this.detachedWindows.has(id)) ?? remainingIds[0] ?? null;
+      if (this.activeTabId === tabId) this.activeTabId = this.secondaryTabId && this.tabs.has(this.secondaryTabId) ? this.secondaryTabId : fallback;
+      if (wasVisible) {
+        this.viewMode = 'single';
+        this.secondaryTabId = null;
+        this.primaryTabId = this.activeTabId ?? fallback;
+      }
+      try {
+        this.destroyTab(tab);
+      } finally {
+        if (updateLayout) {
+          try { this.applyViewLayout(); } finally { this.emitState(); }
+        }
+      }
     }
-    if (remainingIds.length === 0) {
-      const replacement = this.createTabRuntime();
-      remainingIds.push(replacement.id);
-      replacement.url = INTEGRATED_BROWSER_HOME;
-      void this.requireTabView(replacement).webContents.loadURL(INTEGRATED_BROWSER_HOME).catch((error) => this.recordError(error, replacement.id));
-    }
-    const fallback = remainingIds.find((id) => !this.detachedWindows.has(id)) ?? remainingIds[0] ?? null;
-    if (this.activeTabId === tabId) this.activeTabId = this.secondaryTabId && this.secondaryTabId !== tabId ? this.secondaryTabId : fallback;
-    if (wasVisible) {
-      this.viewMode = 'single';
-      this.secondaryTabId = null;
-      this.primaryTabId = this.activeTabId ?? fallback;
-    }
-    this.applyViewLayout();
-    this.emitState();
-    return this.getState();
   }
 
   async duplicateTab(rawTabId: unknown): Promise<IntegratedBrowserState> {
@@ -1471,8 +1505,15 @@ export class IntegratedBrowserService extends EventEmitter {
   closeOtherTabs(rawTabId: unknown): IntegratedBrowserState {
     this.assertCapability('advancedTabs');
     const keepId = this.requireTabId(rawTabId);
-    for (const id of Array.from(this.tabs.keys())) if (id !== keepId) this.closeTab(id);
-    return this.activateTab(keepId);
+    try {
+      for (const id of Array.from(this.tabs.keys())) if (id !== keepId) this.closeTabInternal(id, false);
+    } finally {
+      // Publicar también un resultado parcial si falla el cierre nativo.
+      this.activateTabInternal(keepId);
+      this.applyViewLayout();
+      this.emitState();
+    }
+    return this.getState();
   }
 
   closeTabsToRight(rawTabId: unknown): IntegratedBrowserState {
@@ -1480,7 +1521,14 @@ export class IntegratedBrowserService extends EventEmitter {
     const keepId = this.requireTabId(rawTabId);
     const ids = Array.from(this.tabs.keys());
     const index = ids.indexOf(keepId);
-    for (const id of ids.slice(index + 1)) this.closeTab(id);
+    const closingIds = ids.slice(index + 1);
+    if (closingIds.length === 0) return this.getState();
+    try {
+      for (const id of closingIds) this.closeTabInternal(id, false);
+    } finally {
+      this.applyViewLayout();
+      this.emitState();
+    }
     return this.getState();
   }
 
@@ -1530,6 +1578,42 @@ export class IntegratedBrowserService extends EventEmitter {
     this.assertCapability('advancedTabs');
     const tabId = this.requireTabId(rawTabId);
     return this.detachTabInternal(tabId);
+  }
+
+  /**
+   * Muestra el menú nativo de una pestaña. Las acciones reutilizan los mismos
+   * métodos que la interfaz; los fallos se registran como error recuperable.
+   */
+  showTabContextMenu(rawTabId: unknown): void {
+    this.assertCapability('advancedTabs');
+    const tabId = this.requireTabId(rawTabId);
+    const tab = this.tabs.get(tabId)!;
+    const ids = Array.from(this.tabs.keys());
+    const attempt = (operation: () => unknown) => () => {
+      try {
+        const result = operation();
+        if (result instanceof Promise) void result.catch((error) => this.recordError(error, tabId));
+      } catch (error) { this.recordError(error, tabId); }
+    };
+    Menu.buildFromTemplate(buildTabContextMenuTemplate({
+      pinned: tab.pinned,
+      muted: tab.muted,
+      detached: this.detachedWindows.has(tabId),
+      hasTabsToRight: ids.indexOf(tabId) < ids.length - 1,
+      hasOtherTabs: ids.length > 1,
+      canReopen: this.closedTabs.length > 0,
+    }, {
+      onNewTab: attempt(() => this.createTab()),
+      onDuplicate: attempt(() => this.duplicateTab(tabId)),
+      onTogglePinned: attempt(() => this.setTabPinned(tabId, !tab.pinned)),
+      onToggleMuted: attempt(() => this.setMuted(!tab.muted, tabId)),
+      onEditGroup: () => this.dispatchUiCommand({ command: 'edit-tab-group', tabId }),
+      onMoveToWindow: attempt(() => this.detachTab(tabId)),
+      onClose: attempt(() => this.closeTab(tabId)),
+      onCloseOthers: attempt(() => this.closeOtherTabs(tabId)),
+      onCloseToRight: attempt(() => this.closeTabsToRight(tabId)),
+      onReopenClosed: attempt(() => this.reopenClosedTab()),
+    })).popup({ window: this.requireParentWindow() });
   }
 
   private detachTabInternal(tabId: string): IntegratedBrowserState {
@@ -1727,11 +1811,17 @@ export class IntegratedBrowserService extends EventEmitter {
 
   setViewport(rawViewport: unknown): IntegratedBrowserState {
     const parent = this.requireParentWindow();
-    this.ensureWorkspaceView();
+    const previousView = this.primaryTabId ? this.tabs.get(this.primaryTabId)?.view : null;
+    const workspaceView = this.ensureWorkspaceView();
     const viewport = parseBrowserViewport(rawViewport, parent.getContentBounds());
     const previous = this.viewport;
-    const changed = !this.visible || !previous || previous.x !== viewport.x || previous.y !== viewport.y
+    const changed = previousView !== workspaceView || !this.visible || !previous || previous.x !== viewport.x || previous.y !== viewport.y
       || previous.width !== viewport.width || previous.height !== viewport.height;
+    if (!changed) {
+      // Un acuse explícito del agente sigue resolviendo la espera de geometría.
+      this.resolveViewportWaiters();
+      return this.getState();
+    }
     this.viewport = viewport;
     this.visible = true;
     this.applyViewLayout();
@@ -2736,6 +2826,8 @@ export class IntegratedBrowserService extends EventEmitter {
       lastActivatedAt: Date.now(),
       visualRevision: 0,
       documentToken: randomUUID(),
+      loadSequence: 0,
+      awaitingNavigationStart: null,
       passiveCaptureNotBefore: 0,
       lastDeferAt: 0,
       appliedVisible: null,
@@ -2766,6 +2858,9 @@ export class IntegratedBrowserService extends EventEmitter {
         nodeIntegration: false,
         webSecurity: true,
         allowRunningInsecureContent: false,
+        // Electron expone esta API pero no crea su ventana nativa. No anunciar
+        // una capacidad incompleta permite que el sitio elija su ruta compatible.
+        disableBlinkFeatures: 'DocumentPictureInPictureAPI',
         // La vista se oculta cada vez que se abre un panel del navegador o las
         // sugerencias de la barra. Con el throttling activo esa pausa congela
         // temporizadores y carga diferida de la pagina (paneles de YouTube,
@@ -2877,33 +2972,47 @@ export class IntegratedBrowserService extends EventEmitter {
     const contents = view.webContents;
     normalizeBrowserUserAgent(contents);
     const isCurrentView = () => tab.view === view && !contents.isDestroyed();
+    // La vista nativa se queda con el foco: sin reenviar, los atajos del
+    // navegador solo funcionarian con el foco en la barra. Mientras el agente
+    // controla la vista sus teclas llegan intactas a la pagina.
     contents.on('before-input-event', (event, input) => {
-      if (!isCurrentView() || !this.capabilities.pageTools || this.activeTabId !== tab.id || input.type !== 'keyDown'
-        || input.alt || !(process.platform === 'darwin' ? input.meta : input.control)) return;
-      const action = input.key === '0' ? 'reset' : ['+', '='].includes(input.key) ? 'in' : input.key === '-' ? 'out' : null;
-      if (!action) return;
-      event.preventDefault(); this.setZoom(action);
+      if (!isCurrentView() || this.activeTabId !== tab.id || this.agentControlling || input.type !== 'keyDown') return;
+      const command = resolveBrowserShortcut(input, process.platform);
+      if (!command) return;
+      event.preventDefault();
+      this.dispatchUiCommand({ command });
     });
+    contents.on('audio-state-changed', () => { if (isCurrentView()) this.emitState(); });
+    // Ctrl+rueda: Electron sólo emite el evento y nunca amplía por su cuenta,
+    // tampoco en modo aislado (comprobado con Electron 44). Sin aplicarlo aquí
+    // la rueda no hacía nada cuando existía setZoomMode.
     contents.on('zoom-changed', (event, direction) => {
-      if (!isCurrentView() || !this.capabilities.pageTools || this.activeTabId !== tab.id || supportsIsolatedBrowserZoom(contents)
+      if (!isCurrentView() || !this.capabilities.pageTools || this.activeTabId !== tab.id
         || (direction !== 'in' && direction !== 'out')) return;
       event.preventDefault(); this.setZoom(direction);
     });
     contents.on('did-navigate', () => { if (isCurrentView()) this.sensitiveDocuments.delete(contents); });
-    contents.on('did-start-navigation', (_event, _url, _inPlace, isMainFrame) => {
-      if (isCurrentView() && isMainFrame) tab.documentToken = randomUUID();
+    contents.on('did-start-navigation', (_event, url, inPlace, isMainFrame) => {
+      if (!isCurrentView() || !isMainFrame) return;
+      tab.documentToken = randomUUID();
+      if (!inPlace) {
+        if (tab.awaitingNavigationStart !== url) tab.loadSequence += 1;
+        tab.awaitingNavigationStart = null;
+      }
     });
     contents.setWindowOpenHandler((details) => {
       if (!isCurrentView()) return { action: 'deny' };
       const { url } = details;
-      if (isBlockedGoogleChatDirectCall(contents.getURL(), url)) {
-        console.warn('[Navegador][Seguridad] Llamada directa automática de Google Chat bloqueada.');
+      const nativeCall = isGoogleChatDirectCall(contents.getURL(), url);
+      if (nativeCall && (!this.enterpriseUrlAllowed(url) || checkBrowserNavigationLocal(url).action === 'block')) {
+        this.recordError(new Error('La llamada fue bloqueada por la política de navegación.'));
         return { action: 'deny' };
       }
-      // Document Picture-in-Picture y los popups que la pagina rellena por
-      // script piden `about:blank`. Convertirlos en pestañas dejaba pestañas
+      // Los popups que la pagina rellena por script piden `about:blank`.
+      // Convertirlos en pestañas dejaba pestañas
       // vacias y a la pagina esperando una ventana que nunca existio.
-      if (isBlankPopupTarget(url)) {
+      // La llamada de Chat tambien necesita conservar su ventana y abridor.
+      if (isBlankPopupTarget(url) || nativeCall) {
         console.info('[Navegador][Ventana] Popup gobernado permitido como ventana real.');
         const popupOptions = buildPopupWindowOptions(details);
         return {
@@ -2993,7 +3102,7 @@ export class IntegratedBrowserService extends EventEmitter {
           title: tab.title,
           selection,
         }),
-        onFind: () => this.sendToRenderer('integrated-browser:find-requested', {}),
+        onFind: () => this.dispatchUiCommand({ command: 'find' }),
         onPrint: () => { void this.printPage().catch((error) => this.recordError(error, tabId)); },
         onSavePdf: () => { void this.savePageAsPdf().catch((error) => this.recordError(error, tabId)); },
         onToggleMute: () => { this.setMuted(!tab.muted); },
@@ -3004,11 +3113,6 @@ export class IntegratedBrowserService extends EventEmitter {
       if (!isCurrentView()) return;
       if ((event as typeof event & { isMainFrame?: boolean }).isMainFrame === false) return;
       const url = event.url;
-      if (isBlockedGoogleChatDirectCall(contents.getURL(), url)) {
-        event.preventDefault();
-        console.warn('[Navegador][Seguridad] Llamada directa automática de Google Chat bloqueada.');
-        return;
-      }
       const safety = this.localNavigationVerdict(url);
       this.setNavigationSafety(tab, url, safety);
       if (isAllowedBrowserUrl(url) && this.enterpriseUrlAllowed(url) && safety.action !== 'block') {
@@ -3021,11 +3125,6 @@ export class IntegratedBrowserService extends EventEmitter {
     });
     contents.on('will-redirect', (event) => {
       if (!isCurrentView()) return;
-      if (isBlockedGoogleChatDirectCall(contents.getURL(), event.url)) {
-        event.preventDefault();
-        console.warn('[Navegador][Seguridad] Llamada directa automática de Google Chat bloqueada.');
-        return;
-      }
       if ((event as typeof event & { isMainFrame?: boolean }).isMainFrame === false) return;
       const safety = this.localNavigationVerdict(event.url);
       this.setNavigationSafety(tab, event.url, safety);
@@ -3036,12 +3135,6 @@ export class IntegratedBrowserService extends EventEmitter {
       event.preventDefault();
       console.warn('[Navegador][Seguridad] Redireccion bloqueada:', describeBlockedUrl(event.url));
       this.recordError(new Error('La redireccion fue bloqueada por seguridad.'), tabId);
-    });
-    contents.on('will-frame-navigate', (event) => {
-      if (!isCurrentView() || event.isMainFrame) return;
-      if (!isBlockedGoogleChatDirectCall(contents.getURL(), event.url)) return;
-      event.preventDefault();
-      console.warn('[Navegador][Seguridad] Llamada directa automática de Google Chat bloqueada.');
     });
     contents.on('did-start-loading', () => {
       if (!isCurrentView()) return;
@@ -3099,6 +3192,7 @@ export class IntegratedBrowserService extends EventEmitter {
     });
     contents.on('did-navigate-in-page', () => {
       if (!isCurrentView()) return;
+      tab.loadSequence += 1;
       tab.documentToken = randomUUID();
       tab.visualRevision += 1;
       this.refreshNavigationSafety(tab);
@@ -3128,7 +3222,13 @@ export class IntegratedBrowserService extends EventEmitter {
       if (!isCurrentView()) return;
       // Al soltar el raton o el teclado puede haber terminado una seleccion:
       // el chat la adjunta sola, sin pasar por el menu contextual.
-      if (input.type === 'mouseUp' || input.type === 'keyUp') {
+      const keyboard = input as typeof input & { key?: string; keyCode?: string };
+      const rawKey = keyboard.key ?? keyboard.keyCode;
+      const key = typeof rawKey === 'string' ? rawKey.toLowerCase() : '';
+      const selectionKey = input.type === 'keyUp' && (this.lastReportedSelection !== ''
+        || (input.modifiers?.includes('shift') && /^(arrow(left|right|up|down)|left|right|up|down|home|end|pageup|pagedown)$/.test(key))
+        || (key === 'a' && input.modifiers?.some(modifier => ['control', 'ctrl', 'meta', 'command', 'cmd'].includes(modifier))));
+      if (input.type === 'mouseUp' || selectionKey) {
         selectionLog(`entrada ${input.type}: sondeo programado`);
         this.deferSelectionProbe(tab);
       }
@@ -3157,7 +3257,7 @@ export class IntegratedBrowserService extends EventEmitter {
     });
   }
 
-  private async loadTarget(rawTarget: unknown, assertCallerCurrent?: () => void): Promise<void> {
+  private async loadTarget(rawTarget: unknown, assertCallerCurrent?: () => void, waitForLoad = true): Promise<void> {
     const target = normalizeBrowserTarget(rawTarget);
     const view = this.ensureView();
     const tab = this.getActiveTab()!;
@@ -3180,22 +3280,33 @@ export class IntegratedBrowserService extends EventEmitter {
     this.setNavigationSafety(tab, target, safety);
     this.emitState();
     this.assertNavigationAllowed(safety);
-    tab.error = null;
-    tab.url = target;
-    try {
-      await view.webContents.loadURL(target);
-    } catch (error) {
-      assertCurrent();
-      // Una navegacion abortada no es un fallo: ocurre cada vez que el propio
-      // sitio navega por su cuenta (las aplicaciones de una sola pagina lo
-      // hacen al arrancar) o el usuario pide otro destino antes de terminar.
-      if (isSupersededNavigation(error)) {
-        this.recordError(error, tab.id);
-        return;
-      }
-      this.recordError(error, tab.id);
-      throw error;
-    }
+    await this.loadTabTarget(tab, target, waitForLoad);
+  }
+
+  /** La UI acusa el inicio; los agentes conservan la espera del documento. */
+  private async loadTabTarget(tab: BrowserTabRuntime, target: string, waitForLoad = true): Promise<void> {
+    const contents = this.requireTabView(tab).webContents;
+    const generation = this.sessionGeneration;
+    const parent = this.parentWindow;
+    const sequence = ++tab.loadSequence;
+    const current = () => !this.scopeChanging && !this.shutdownCommitted && this.sessionGeneration === generation
+      && this.parentWindow === parent && !!parent && !parent.isDestroyed()
+      && this.tabs.get(tab.id) === tab && tab.view?.webContents === contents
+      && !contents.isDestroyed() && tab.loadSequence === sequence;
+    tab.error = null; tab.url = target; tab.loading = true;
+    tab.awaitingNavigationStart = target;
+    this.emitState();
+    const loading = contents.loadURL(target).then(() => {
+      if (current() && tab.loading) { tab.loading = false; this.snapshotTab(tab); this.emitState(); }
+    }).catch((error: unknown) => {
+      // Un destino nuevo o un perfil reemplazado no recibe errores de esta carga.
+      if (current() && !isSupersededNavigation(error)) this.recordError(error, tab.id);
+      if (!isSupersededNavigation(error)) throw error;
+    }).finally(() => {
+      if (tab.loadSequence === sequence) tab.awaitingNavigationStart = null;
+    });
+    if (waitForLoad) await loading;
+    else void loading.catch(() => { /* El fallo vigente ya se publicó en estado. */ });
   }
 
   private assertNavigationAllowed(verdict: BrowserNavigationSafetyVerdict): void {
@@ -3421,6 +3532,18 @@ export class IntegratedBrowserService extends EventEmitter {
   private sendToRenderer(channel: string, payload: unknown): void {
     const parent = this.parentWindow;
     if (parent && !parent.isDestroyed()) parent.webContents.send(channel, payload);
+  }
+
+  /**
+   * Entrega al renderer una orden de su interfaz (atajo o menú nativo). Las que
+   * abren un campo de texto mueven antes el foco de teclado a la ventana del Hub.
+   */
+  private dispatchUiCommand(request: BrowserUiCommandRequest): void {
+    const parent = this.parentWindow;
+    if (shortcutNeedsChromeFocus(request.command) && parent && !parent.isDestroyed()) {
+      parent.webContents.focus();
+    }
+    this.sendToRenderer('integrated-browser:command', request);
   }
 
   private emitState(): void {
@@ -3775,7 +3898,7 @@ export class IntegratedBrowserService extends EventEmitter {
     this.emitState();
   }
 
-  private leaveHtmlFullScreen(tabId: string): void {
+  private leaveHtmlFullScreen(tabId: string, updateLayout = true): void {
     if (this.fullscreenTabId !== tabId) return;
     this.fullscreenTabId = null;
     const restore = this.fullscreenRestore;
@@ -3787,9 +3910,11 @@ export class IntegratedBrowserService extends EventEmitter {
     // recalculo evita que la vista se quede cubriendo la barra y el chat.
     const tab = this.tabs.get(tabId);
     if (tab) tab.appliedBounds = null;
-    if (this.detachedWindows.has(tabId)) this.layoutDetachedTab(tabId);
-    else this.applyViewLayout();
-    this.emitState();
+    if (updateLayout) {
+      if (this.detachedWindows.has(tabId)) this.layoutDetachedTab(tabId);
+      else this.applyViewLayout();
+      this.emitState();
+    }
   }
 
   private applyFullScreenLayout(tab: BrowserTabRuntime): boolean {
@@ -3996,7 +4121,7 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   private prepareBrowserPopupWindow(window: BrowserWindow, openerOrigin: string | null): void {
-    if (window.isDestroyed()) return;
+    if (window.isDestroyed() || this.pictureInPictureWindows.has(window)) return;
     // La ventana real no hereda necesariamente el User-Agent normalizado del
     // abridor. Prepararla antes de devolver su webContents mantiene la misma
     // identidad Chromium desde su primera consulta.
@@ -4009,7 +4134,7 @@ export class IntegratedBrowserService extends EventEmitter {
     // Una ventana real puede abrir otras ventanas. La politica se hereda para
     // que ninguna quede fuera del navegador o sin origen gobernado.
     this.governePopupOpenings(window.webContents, openerOrigin);
-    this.adoptPictureInPictureWindow(window, openerOrigin);
+    this.adoptPictureInPictureWindow(window);
   }
 
   /**
@@ -4018,12 +4143,17 @@ export class IntegratedBrowserService extends EventEmitter {
    */
   private governePopupOpenings(contents: WebContents, inheritedOrigin: string | null): void {
     contents.setWindowOpenHandler((details) => {
-      const openerOrigin = this.governedOriginFor(contents) ?? inheritedOrigin;
-      if (isBlockedGoogleChatDirectCall(openerOrigin, details.url)) {
-        console.warn('[Navegador][Seguridad] Llamada directa automática de Google Chat bloqueada.');
+      const currentUrl = contents.getURL();
+      const openerOrigin = isBlankPopupTarget(currentUrl)
+        ? this.governedOriginFor(contents) ?? inheritedOrigin
+        : normalizeOrigin(currentUrl);
+      const callSource = isBlankPopupTarget(currentUrl) ? openerOrigin : currentUrl;
+      const nativeCall = isGoogleChatDirectCall(callSource, details.url);
+      if (nativeCall && (!this.enterpriseUrlAllowed(details.url) || checkBrowserNavigationLocal(details.url).action === 'block')) {
+        this.recordError(new Error('La llamada fue bloqueada por la política de navegación.'));
         return { action: 'deny' };
       }
-      if (isBlankPopupTarget(details.url)) {
+      if (isBlankPopupTarget(details.url) || nativeCall) {
         console.info('[Navegador][Ventana] Popup anidado gobernado permitido como ventana real.');
         const popupOptions = buildPopupWindowOptions(details);
         return {
@@ -4051,7 +4181,7 @@ export class IntegratedBrowserService extends EventEmitter {
     return this.governedWindowOrigins.get(contents.id) ?? null;
   }
 
-  private adoptPictureInPictureWindow(window: BrowserWindow, openerOrigin: string | null): void {
+  private adoptPictureInPictureWindow(window: BrowserWindow): void {
     if (window.isDestroyed()) return;
     this.pictureInPictureWindows.add(window);
     // `setMenu` solo existe en Windows y Linux; en macOS el menu es de
@@ -4069,12 +4199,6 @@ export class IntegratedBrowserService extends EventEmitter {
       if (!window.isDestroyed() && this.pictureInPictureWindows.has(window)) this.showPopupSafetyInterstitial(window, this.certificateBlockVerdict());
     });
     const guardPopupNavigation = (event: { url: string; preventDefault: () => void }) => {
-      if (isBlockedGoogleChatDirectCall(openerOrigin, event.url)) {
-        event.preventDefault();
-        console.warn('[Navegador][Seguridad] Llamada directa automática de Google Chat bloqueada.');
-        if (!window.isDestroyed()) window.close();
-        return;
-      }
       if (isAllowedBrowserUrl(event.url) && this.enterpriseUrlAllowed(event.url) && checkBrowserNavigationLocal(event.url).action !== 'block') return;
       event.preventDefault();
       this.showPopupSafetyInterstitial(window, { ...checkBrowserNavigationLocal(event.url), action: 'block', reason: 'La solicitud no cumple la política de navegación.' });
@@ -4228,6 +4352,7 @@ export class IntegratedBrowserService extends EventEmitter {
       isSuspended: tab.view === null,
       isDetached: this.detachedWindows.has(tab.id),
       muted: tab.muted,
+      audible: Boolean(tab.view && !tab.view.webContents.isDestroyed() && tab.view.webContents.isCurrentlyAudible()),
       zoomFactor: tab.zoomFactor,
       find: tab.find ? { ...tab.find } : null,
       pinned: tab.pinned,
@@ -4286,26 +4411,31 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   private destroyTab(tab: BrowserTabRuntime): void {
-    this.safetyInterstitials.remove(`tab:${tab.id}`);
-    this.invalidateObservation(tab.id);
-    void tab.credentialObserver?.dispose();
-    tab.credentialObserver = null;
-    void tab.bootstrap?.dispose();
-    tab.bootstrap = null;
-    const view = tab.view;
-    tab.view = null;
-    if (!view) return;
-    const detached = this.detachedWindows.get(tab.id);
-    if (detached) {
-      this.detachedWindows.delete(tab.id);
-      try { detached.contentView.removeChildView(view); } catch { /* cierre idempotente */ }
-      try { if (!detached.isDestroyed()) detached.destroy(); } catch { /* cierre idempotente */ }
-    }
-    try { view.setVisible(false); } catch { /* cierre idempotente */ }
-    try { this.parentWindow?.contentView.removeChildView(view); } catch { /* cierre idempotente */ }
     try {
-      if (!view.webContents.isDestroyed()) view.webContents.close({ waitForBeforeUnload: false });
-    } catch { /* cierre idempotente */ }
+      this.safetyInterstitials.remove(`tab:${tab.id}`);
+    } finally {
+      // Un aviso que falla al cerrarse no debe dejar viva la página retirada.
+      this.invalidateObservation(tab.id);
+      void tab.credentialObserver?.dispose();
+      tab.credentialObserver = null;
+      void tab.bootstrap?.dispose();
+      tab.bootstrap = null;
+      const view = tab.view;
+      tab.view = null;
+      if (view) {
+        const detached = this.detachedWindows.get(tab.id);
+        if (detached) {
+          this.detachedWindows.delete(tab.id);
+          try { detached.contentView.removeChildView(view); } catch { /* cierre idempotente */ }
+          try { if (!detached.isDestroyed()) detached.destroy(); } catch { /* cierre idempotente */ }
+        }
+        try { view.setVisible(false); } catch { /* cierre idempotente */ }
+        try { this.parentWindow?.contentView.removeChildView(view); } catch { /* cierre idempotente */ }
+        try {
+          if (!view.webContents.isDestroyed()) view.webContents.close({ waitForBeforeUnload: false });
+        } catch { /* cierre idempotente */ }
+      }
+    }
   }
 
   private snapshotTab(tab: BrowserTabRuntime): void {
@@ -4627,7 +4757,13 @@ export class IntegratedBrowserService extends EventEmitter {
   private async reportSelection(tab: BrowserTabRuntime): Promise<void> {
     const contents = tab.view?.webContents;
     if (!contents || contents.isDestroyed()) return;
+    const document = tab.documentToken;
+    const loadSequence = tab.loadSequence;
+    const generation = this.sessionGeneration;
+    const control = this.agentControlRevision;
     const texto = await this.readSelectionText(contents);
+    if (this.scopeChanging || this.agentControlling || control !== this.agentControlRevision || generation !== this.sessionGeneration || this.getActiveTab() !== tab
+      || tab.view?.webContents !== contents || contents.isDestroyed() || tab.documentToken !== document || tab.loadSequence !== loadSequence) return;
     // Al deshacer la seleccion se avisa al chat para que retire el chip, y se
     // olvida la ultima leida para poder volver a adjuntar el mismo fragmento.
     if (!texto) {
@@ -4662,7 +4798,7 @@ export class IntegratedBrowserService extends EventEmitter {
     const marcos = collectSelectableFrames(contents);
     let fallos = 0;
     for (const marco of marcos) {
-      const crudo = await marco.executeJavaScript('(() => { const s = window.getSelection(); return s ? String(s) : ""; })()', true).catch((error: unknown) => {
+      const crudo = await marco.executeJavaScript('(() => { const s = window.getSelection(); return s ? String(s) : ""; })()').catch((error: unknown) => {
         fallos += 1;
         selectionLog(`marco ilegible: ${error instanceof Error ? error.message : String(error)}`);
         return '';
@@ -4947,15 +5083,15 @@ function detachedWindowTitle(tab: BrowserTabRuntime): string {
 }
 
 /**
- * Un `window.open` sin destino: Document Picture-in-Picture y los popups que la
- * pagina rellena por script. Necesitan una ventana real; convertirlos en
+ * Un `window.open` sin destino: los popups que la pagina rellena por script.
+ * Necesitan una ventana real; convertirlos en
  * pestañas rompe a quien los abrio.
  */
 function isBlankPopupTarget(url: unknown): boolean {
   return typeof url === 'string' && (url === '' || url === 'about:blank' || url === 'about:blank#blocked');
 }
 
-/** La ruta directa de Chat se reconoce de forma exacta para bloquearla. */
+/** Solo la ruta exacta necesita preservar la ventana del flujo de Chat. */
 function isGoogleMeetDirectCallUrl(raw: unknown): raw is string {
   if (typeof raw !== 'string') return false;
   try {
@@ -4968,7 +5104,7 @@ function isGoogleMeetDirectCallUrl(raw: unknown): raw is string {
   }
 }
 
-/** La protección solo se aplica a aperturas originadas por Gmail o Chat. */
+/** La excepcion de ventana nativa solo se aplica a Gmail o Chat HTTPS. */
 function isGoogleChatCallSource(raw: unknown): boolean {
   if (typeof raw !== 'string') return false;
   try {
@@ -4980,7 +5116,7 @@ function isGoogleChatCallSource(raw: unknown): boolean {
   }
 }
 
-function isBlockedGoogleChatDirectCall(source: unknown, target: unknown): boolean {
+function isGoogleChatDirectCall(source: unknown, target: unknown): boolean {
   return isGoogleChatCallSource(source) && isGoogleMeetDirectCallUrl(target);
 }
 
@@ -5174,4 +5310,4 @@ function selectionLog(mensaje: string): void {
 /** Marca que la pagina emite por consola al cambiar su seleccion. */
 const SELECTION_BEACON = '__SOFLIA_SELECTION__';
 
-const SELECTION_WATCHER_SCRIPT = '(() => { if (window.__sofliaSelWatch) return true; window.__sofliaSelWatch = true; document.addEventListener("selectionchange", () => { clearTimeout(window.__sofliaSelTimer); window.__sofliaSelTimer = setTimeout(() => console.log("__SOFLIA_SELECTION__"), 180); }, true); return true; })()';
+const SELECTION_WATCHER_SCRIPT = '(() => { if (window.__sofliaSelWatch) return true; window.__sofliaSelWatch = true; let selected = false; document.addEventListener("selectionchange", () => { const hasText = !!String(window.getSelection() || "").trim(); if (!hasText && !selected) return; selected = hasText; clearTimeout(window.__sofliaSelTimer); window.__sofliaSelTimer = setTimeout(() => console.log("__SOFLIA_SELECTION__"), 180); }, true); return true; })()';

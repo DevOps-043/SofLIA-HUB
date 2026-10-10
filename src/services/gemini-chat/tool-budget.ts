@@ -1,5 +1,7 @@
 import type { ToolCallInfo } from './types';
 
+export const TOOL_BUDGET_FINAL_INSTRUCTION = 'El presupuesto de acciones de este turno terminó. Responde ahora SIN herramientas usando únicamente los resultados obtenidos. Distingue acciones completadas, errores, simulaciones y pasos pendientes; nunca afirmes que una tarea terminó sin evidencia.';
+
 /** Mensaje honesto cuando el modelo no cerró el turno dentro del presupuesto. */
 export function toolBudgetExhaustedMessage(toolCalls: ToolCallInfo[]): string {
   const last = toolCalls[toolCalls.length - 1];

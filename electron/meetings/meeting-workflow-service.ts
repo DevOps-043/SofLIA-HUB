@@ -45,9 +45,11 @@ export class MeetingWorkflowService {
 
   setApiKey(apiKey: string | null): void { this.aiService.setApiKey(apiKey); }
 
-  async createManualRun(input: CreateManualMeetingRunInput): Promise<CreateMeetingRunResult> {
+  async createManualRun(input: CreateManualMeetingRunInput, executionGuard?: () => void): Promise<CreateMeetingRunResult> {
+    executionGuard?.();
     const source = await this.sourceService.prepareManualSource({ text: input.text, sourceUri: input.originRef ?? null });
-    return this.createRunFromPreparedSource(input, source);
+    executionGuard?.();
+    return this.createRunFromPreparedSource(input, source, executionGuard);
   }
 
   async createDriveRun(input: CreateDriveMeetingRunInput): Promise<CreateMeetingRunResult> {
@@ -101,8 +103,9 @@ export class MeetingWorkflowService {
   private async createRunFromPreparedSource(
     input: BaseCreateMeetingRunInput,
     source: PreparedMeetingSource,
+    executionGuard?: () => void,
   ): Promise<CreateMeetingRunResult> {
-    return processPreparedMeetingRun({ input, source, store: this.store, aiService: this.aiService, reviewService: this.reviewService, assigneeService: this.assigneeService, getTeamMembersDetailed, createTraceId: () => crypto.randomUUID() });
+    return processPreparedMeetingRun({ input, source, store: this.store, aiService: this.aiService, reviewService: this.reviewService, assigneeService: this.assigneeService, getTeamMembersDetailed, createTraceId: () => crypto.randomUUID(), executionGuard });
   }
 
 }

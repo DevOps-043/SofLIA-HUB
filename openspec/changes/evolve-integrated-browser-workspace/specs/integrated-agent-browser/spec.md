@@ -32,12 +32,12 @@ El navegador SHALL conservar compatibilidad Chromium para aplicaciones web moder
 - **THEN** la vista y su sesión anuncian Chromium sin el nombre del producto ni el token Electron, incluidos subframes cruzados y workers, y conservan `sandbox`, `contextIsolation`, `webSecurity`, bloqueo de contenido inseguro y throttling de fondo
 
 #### Scenario: Google Meet abierto desde Gmail o Chat
-- **WHEN** una reunión estándar de Meet nace en una ventana `about:blank` y luego publica un destino distinto de `/call`
+- **WHEN** una reunión o llamada de Meet nace en una ventana `about:blank` y luego publica su destino
 - **THEN** main crea y registra la ventana hija antes de entregarla a Chromium y no concede captura sin origen HTTP(S), decisión por sitio, aprobación del usuario y permiso del sistema operativo
 
 #### Scenario: Llamada directa nativa desde Google Chat
 - **WHEN** Gmail o Chat abre, navega o crea un subframe con el destino HTTPS exacto `meet.google.com/call` como parte de una llamada directa
-- **THEN** main cancela esa apertura o navegación sin crear pestaña, ventana, reunión alternativa, navegador externo ni telemetría específica de invitación; la regla cubre un destino conocido, la transición `about:blank -> /call`, ventanas anidadas, redirecciones y subframes
+- **THEN** main permite la navegación bajo la política normal y conserva una ventana real gobernada si Google solicita un popup, con sesión y relación con el abridor; no crea pestañas, reuniones alternativas ni navegadores externos como fallback, y mantiene permisos por origen, certificados y política empresarial
 
 #### Scenario: Runtime Chromium compatible y verificable
 - **WHEN** la llamada directa inicia desde Gmail o Chat
@@ -45,7 +45,7 @@ El navegador SHALL conservar compatibilidad Chromium para aplicaciones web moder
 
 #### Scenario: La aplicación no fabrica llamadas
 - **WHEN** Gmail o Chat emite una señal directa o automática de llamada
-- **THEN** SofLIA no crea una reunión, no navega a `meet.google.com/new` ni a `/call`, no ejecuta sondas sobre el control y no abre una pestaña o ventana por temporizador, restauración o heurística propia
+- **THEN** SofLIA no crea una reunión ni inicia navegación a `meet.google.com/new` o `/call` por iniciativa propia, no ejecuta sondas sobre el control y no abre una pestaña o ventana por temporizador, restauración o heurística; las solicitudes web de Google siguen la gobernanza normal
 
 #### Scenario: Contenido externo a la ventana gobernada
 - **WHEN** otro `webContents` no registrado consulta o solicita cámara o micrófono

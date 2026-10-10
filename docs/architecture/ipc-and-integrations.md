@@ -8,6 +8,30 @@ Estado: vigente. Actualizado: 2026-09-11.
 
 ## Contrato IPC
 
+`computer:confirm-action` conserva el canal allowlisted y acepta un mensaje de
+hasta 8000 caracteres con opciones `{ allowAlways?: boolean, command?: string }`; devuelve
+`{ confirmed: boolean, always?: boolean }`. El wrapper tipado del renderer
+guarda la aprobación exacta por usuario sólo tras una decisión humana. El fallback
+nativo verifica sesión, mensaje/opciones y ventana emisora; sin ventana deniega.
+La casilla Siempre permitir sólo aparece para comandos no sensibles vinculados
+al detalle mostrado (la carpeta aparece aparte) y confirmar
+con la casilla marcada es necesario para devolver `always: true`. No reemplaza
+la política de ejecución main. Ver [permisos del chat](runtime-agents-manual.md#211-permisos-locales-de-comandos-y-archivos).
+
+El namespace `agent-activity` añade `snapshot`, `publish`, `control` y el evento
+`changed`. Sólo el frame principal autenticado del Hub publica metadatos;
+el monitor auxiliar puede leerlos y controlar su propia ventana. Main comprueba
+identidad, secuencia y un esquema cerrado de roles/estados, sin texto privado.
+Ver [monitor de equipos](runtime-multiagent-harness.md#monitor-de-equipos).
+
+El namespace `agent-runtime` incorpora context, release, state, start, cancel,
+recover, publish, configure-codex, codex-key y el evento changed. Son operaciones
+cerradas de la ventana y frame principal; no existe proxy RPC, shell o filesystem.
+Contratos en [tipos compartidos](../../src/shared/agent-runtime.ts), handlers en
+[main](../../electron/agent-runtime/handlers.ts) y [guía](runtime-multiagent-harness.md).
+
+<!-- evidence: electron/agent-runtime/handlers.ts -->
+
 Tres operaciones cerradas añadidas:
 
 - `orb:browser-command`: una acción literal para cambiar pestaña o supervisar
@@ -32,8 +56,8 @@ aprobación fabricada del renderer. El servicio comprueba capacidad, política,
 perfil y control humano; el borrado pregunta en main. Responde con biblioteca
 versionada, cancelación o error saneado. No existe IPC de ejecución de atajos.
 
-La allowlist actual contiene 427 canales derivados de cinco arrays: 81, 52, 61,
-135 y 98. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 441 canales derivados de cinco arrays: 81, 52, 61,
+135 y 102. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |

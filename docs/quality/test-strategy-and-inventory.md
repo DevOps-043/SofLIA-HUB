@@ -1,10 +1,15 @@
 # Estrategia e inventario de pruebas
 
-Estado: vigente. Actualizado: 2026-10-03.
+Estado: vigente. Actualizado: 2026-10-08.
 
-El inventario del cambio contiene 486 archivos de prueba: 339 para main y 146
+El inventario del cambio contiene 511 archivos de prueba: 356 para main y 154
 para renderer, además de uno de scripts. El validador documental recalcula estas cifras; el numero de casos
 ejecutados se registra en el reporte de evidencia de cada cambio, no aqui.
+
+Actualizar las cifras mediante `npm run docs:inventory:sync`: deriva archivos
+versionados y nuevos no ignorados de Git y modifica únicamente la declaración
+de inventario. `npm run docs:system:check` y la compuerta mantienen validación
+estricta sin escribir; si cambia el inventario, exigen sincronizarlo explícitamente.
 
 <!-- evidence: vitest.config.ts -->
 <!-- evidence: electron/__tests__ -->

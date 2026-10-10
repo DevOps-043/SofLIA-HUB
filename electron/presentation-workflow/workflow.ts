@@ -9,12 +9,14 @@ import * as msg from './messages';
 import { replyAndKeep, requestMissingData } from './responses';
 import { completePresentation, requestProposal } from './steps';
 import { WorkflowTimer } from './timer';
+import { assertTeamActive } from '../../src/shared/agent-teams/runner';
 
 type WorkflowEndHandler = (sessionKey: string) => void;
 
 export class PresentacionWorkflow {
   private state: WorkflowState = 'AWAITING_DATA';
   private data: PresentacionData = {};
+  private readonly controller = new AbortController();
   private readonly timer = new WorkflowTimer(() => void this.handleInactivityTimeout(), WORKFLOW_TIMEOUT_MS);
 
   constructor(
@@ -32,6 +34,14 @@ export class PresentacionWorkflow {
   }
 
   async handleInput(text: string): Promise<boolean> {
+    if (this.state === 'AWAITING_DATA' || this.state === 'AWAITING_APPROVAL') {
+      const directive = /^\s*modo (equipo|directo):\s*/i.exec(text);
+      if (directive) {
+        this.data.teamMode = directive[1].toLowerCase() === 'directo' ? 'direct' : 'team';
+        text = text.slice(directive[0].length);
+        if (!text.trim()) return replyAndKeep(this.waService, this.jid, 'Modo de análisis actualizado. Continúa con los datos o la aprobación pendiente.', () => this.timer.schedule());
+      }
+    }
     if (CANCEL_WORKFLOW_PATTERN.test(text.trim())) return this.cancelWorkflow(msg.CANCELLED_MESSAGE);
     if (this.state === 'AWAITING_DATA') return this.handleDataInput(text);
     if (this.state === 'PROCESSING_PROPOSAL') return replyAndKeep(this.waService, this.jid, msg.PROCESSING_MESSAGE, () => this.timer.clear());
@@ -40,10 +50,11 @@ export class PresentacionWorkflow {
     return false;
   }
 
-  dispose(): void { this.timer.clear(); }
+  dispose(): void { this.controller.abort(); this.timer.clear(); }
 
   private async handleDataInput(text: string): Promise<boolean> {
     await this.extractData(text);
+    assertTeamActive(this.controller.signal);
     if (!this.data.clientCompanyName || !this.data.clientEmail) return requestMissingData(this.waService, this.jid, () => this.timer.schedule());
     this.state = 'PROCESSING_PROPOSAL';
     this.timer.clear();
@@ -74,6 +85,7 @@ export class PresentacionWorkflow {
 
   private async generateProposal(): Promise<void> {
     const proposal = await requestProposal(this.agent, this.data.clientCompanyName!, this.data.clientEmail!);
+    assertTeamActive(this.controller.signal);
     this.data.proposalContent = proposal.proposalContent;
     this.state = 'AWAITING_APPROVAL';
     this.timer.schedule();
@@ -81,10 +93,11 @@ export class PresentacionWorkflow {
   }
 
   private async finishPresentation(): Promise<void> {
-    const sendProgress = (text: string) => this.waService.sendText(this.jid, text);
+    const sendProgress = (text: string) => { assertTeamActive(this.controller.signal); return this.waService.sendText(this.jid, text); };
     const resumen = await completePresentation(
-      this.agent, this.workspaceService, this.waService, this.jid, this.data, sendProgress,
+      this.agent, this.workspaceService, this.waService, this.jid, this.data, sendProgress, this.controller.signal,
     );
+    assertTeamActive(this.controller.signal);
     await this.waService.sendText(this.jid, resumen);
     this.state = 'COMPLETED';
     this.endWorkflow();
@@ -97,16 +110,18 @@ export class PresentacionWorkflow {
   }
 
   private async cancelWorkflow(message: string): Promise<boolean> {
+    this.controller.abort();
     await this.waService.sendText(this.jid, message);
     this.endWorkflow();
     return false;
   }
 
   private async failWorkflow(label: string, err: any, userMessage: string): Promise<void> {
+    if (this.controller.signal.aborted) return;
     console.error(`[Workflow] ${label}:`, err);
     await this.waService.sendText(this.jid, userMessage);
     this.endWorkflow();
   }
 
-  private endWorkflow(): void { this.timer.clear(); this.onEnd(this.sessionKey); }
+  private endWorkflow(): void { this.dispose(); this.onEnd(this.sessionKey); }
 }

@@ -4,6 +4,7 @@ import type { SkillWorkspaceService } from '../skill-workspace/service';
 import type { PresentacionData } from './types';
 import { generateProposalContent } from './ai';
 import { generatePresentationForWhatsApp } from './html-generator';
+import { assertTeamActive } from '../../src/shared/agent-teams/runner';
 
 export async function requestProposal(agent: WhatsAppAgent, companyName: string, email: string) {
   const proposalContent = await generateProposalContent(agent, companyName);
@@ -28,7 +29,9 @@ export async function completePresentation(
   jid: string,
   data: PresentacionData,
   sendProgress: (message: string) => Promise<void>,
+  signal?: AbortSignal,
 ): Promise<string> {
+  assertTeamActive(signal);
   const titulo = `Propuesta para ${data.clientCompanyName ?? 'el cliente'}`;
 
   const result = await generatePresentationForWhatsApp({
@@ -37,6 +40,8 @@ export async function completePresentation(
     title: titulo,
     contenido: data.proposalContent || '',
     onProgress: sendProgress,
+    teamMode: data.teamMode,
+    signal,
   });
 
   if (!result.ok) {
@@ -46,6 +51,7 @@ export async function completePresentation(
   // Se envia el HTML, no un PDF: al abrirlo conserva transiciones y
   // animaciones. Se avisa de como abrirlo porque un .html en el telefono no
   // es tan obvio como un PDF.
+  assertTeamActive(signal);
   await waService.sendFile(jid, result.data.htmlPath, `${titulo} (presentacion generada por SofLIA)`);
 
   return [

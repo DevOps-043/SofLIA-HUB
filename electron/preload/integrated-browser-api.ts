@@ -1,5 +1,10 @@
 import type { PreloadBridge, SafeIpc } from './types';
+import type { BrowserNavigationOptions } from '../../src/shared/browser-navigation';
 import type { BrowserSyncControlRequest } from '../integrated-browser/platform-types';
+
+function navigationPayload(payload: Record<string, unknown>, options?: BrowserNavigationOptions): Record<string, unknown> {
+  return options?.waitForLoad === undefined ? payload : { ...payload, waitForLoad: options.waitForLoad };
+}
 
 export function exposeIntegratedBrowserApi(bridge: PreloadBridge, ipc: SafeIpc): void {
   const { safeInvoke, safeOn } = ipc;
@@ -17,12 +22,12 @@ export function exposeIntegratedBrowserApi(bridge: PreloadBridge, ipc: SafeIpc):
     captureVisible: () => safeInvoke('integrated-browser:capture-visible'),
     getObservation: (forceFresh = false) => safeInvoke('integrated-browser:get-observation', { forceFresh }),
     setObservationEnabled: (enabled: boolean) => safeInvoke('integrated-browser:set-observation-enabled', { enabled }),
-    open: (url?: string) => safeInvoke('integrated-browser:open', url === undefined ? {} : { url }),
-    navigate: (target: string) => safeInvoke('integrated-browser:navigate', { target }),
+    open: (url?: string, options?: BrowserNavigationOptions) => safeInvoke('integrated-browser:open', navigationPayload(url === undefined ? {} : { url }, options)),
+    navigate: (target: string, options?: BrowserNavigationOptions) => safeInvoke('integrated-browser:navigate', navigationPayload({ target }, options)),
     findInPage: (query: string, forward = true) => safeInvoke('integrated-browser:page-find', { query, forward }),
     stopFindInPage: () => safeInvoke('integrated-browser:page-find-stop'),
     setZoom: (action: 'in' | 'out' | 'reset') => safeInvoke('integrated-browser:page-zoom', { action }),
-    setMuted: (muted: boolean) => safeInvoke('integrated-browser:page-mute', { muted }),
+    setMuted: (muted: boolean, tabId?: string) => safeInvoke('integrated-browser:page-mute', tabId === undefined ? { muted } : { muted, tabId }),
     toggleFullscreen: () => safeInvoke('integrated-browser:page-fullscreen'),
     printPage: () => safeInvoke('integrated-browser:page-print'),
     savePageAsPdf: () => safeInvoke('integrated-browser:page-save-pdf'),
@@ -37,7 +42,7 @@ export function exposeIntegratedBrowserApi(bridge: PreloadBridge, ipc: SafeIpc):
       safeInvoke('integrated-browser:element-type', { ref, text, submit }),
     scrollView: (direction: 'up' | 'down' | 'left' | 'right', amount?: number) =>
       safeInvoke('integrated-browser:scroll', { direction, amount }),
-    createTab: (url?: string) => safeInvoke('integrated-browser:tab-create', url === undefined ? {} : { url }),
+    createTab: (url?: string, options?: BrowserNavigationOptions) => safeInvoke('integrated-browser:tab-create', navigationPayload(url === undefined ? {} : { url }, options)),
     closeTab: (tabId: string) => safeInvoke('integrated-browser:tab-close', { tabId }),
     duplicateTab: (tabId: string) => safeInvoke('integrated-browser:tab-duplicate', { tabId }),
     reopenClosedTab: (tabId?: string) => tabId === undefined ? safeInvoke('integrated-browser:tab-reopen-closed') : safeInvoke('integrated-browser:tab-reopen-closed', { tabId }),
@@ -47,6 +52,7 @@ export function exposeIntegratedBrowserApi(bridge: PreloadBridge, ipc: SafeIpc):
     closeOtherTabs: (tabId: string) => safeInvoke('integrated-browser:tab-close-others', { tabId }),
     closeTabsToRight: (tabId: string) => safeInvoke('integrated-browser:tab-close-right', { tabId }),
     setTabPinned: (tabId: string, pinned: boolean) => safeInvoke('integrated-browser:tab-pin', { tabId, pinned }),
+    showTabContextMenu: (tabId: string) => safeInvoke('integrated-browser:tab-context-menu', { tabId }),
     setTabLayout: (layout: 'horizontal' | 'vertical') => safeInvoke('integrated-browser:tab-layout', { layout }),
     createTabGroup: (name: string, color: string) => safeInvoke('integrated-browser:tab-group-create', { name, color }),
     assignTabGroup: (tabId: string, groupId: string | null) => safeInvoke('integrated-browser:tab-group-assign', { tabId, groupId }),
@@ -127,7 +133,7 @@ export function exposeIntegratedBrowserApi(bridge: PreloadBridge, ipc: SafeIpc):
     getTabContent: (tabId: string, expected?: import('../../src/shared/browser-tab-context').BrowserTabExpectation) => safeInvoke('integrated-browser:get-tab-content', expected ? { tabId, expected } : { tabId }),
     onStateChanged: (callback: (state: unknown) => void) => safeOn('integrated-browser:state-changed', callback),
     onDownloadsChanged: (callback: (downloads: unknown) => void) => safeOn('integrated-browser:downloads-changed', callback),
-    onFindRequested: (callback: () => void) => safeOn('integrated-browser:find-requested', callback),
+    onCommand: (callback: (request: unknown) => void) => safeOn('integrated-browser:command', callback),
     onOpenRequested: (callback: (request: unknown) => void) => safeOn('integrated-browser:open-requested', callback),
     onSelectionAction: (callback: (request: unknown) => void) => safeOn('integrated-browser:selection-action', callback),
     onReadingModeRequested: (callback: (request: unknown) => void) => safeOn('integrated-browser:reading-mode-requested', callback),

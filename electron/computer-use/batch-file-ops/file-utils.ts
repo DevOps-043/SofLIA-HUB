@@ -43,11 +43,16 @@ export async function collectFiles(root: string, recursive: boolean, maxDepth = 
 }
 
 export async function resolveCollision(targetPath: string): Promise<string> {
-  try {
-    await fs.access(targetPath);
-    const parsed = path.parse(targetPath);
-    return path.join(parsed.dir, `${parsed.name}_${Date.now()}${parsed.ext}`);
-  } catch {
-    return targetPath;
+  const parsed = path.parse(targetPath);
+  let candidate = targetPath;
+  let suffix = 1;
+  while (true) {
+    try {
+      await fs.access(candidate);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return candidate;
+      throw error;
+    }
+    candidate = path.join(parsed.dir, `${parsed.name}_${suffix++}${parsed.ext}`);
   }
 }

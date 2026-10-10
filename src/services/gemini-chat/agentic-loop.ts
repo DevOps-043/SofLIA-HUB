@@ -11,7 +11,7 @@ import {
   WORKSPACE_REPAIR_INSTRUCTION,
 } from './workspace-completion';
 import type { SendMessageStreamOptions, StreamResult, ToolCallInfo } from './types';
-import { toolBudgetExhaustedMessage } from './tool-budget';
+import { TOOL_BUDGET_FINAL_INSTRUCTION, toolBudgetExhaustedMessage } from './tool-budget';
 
 /**
  * Recuperacion ante una llamada de herramienta mal formada, con la misma
@@ -64,7 +64,8 @@ export async function runAgenticLoop(params: {
   let maxIterations = params.options?.activeSkill?.workspaceId ? 20 : 10;
   let malformedRetries = 0;
 
-  while (maxIterations > 0) {
+  while (maxIterations >= 0) {
+    const finalizing = maxIterations === 0;
     maxIterations -= 1;
     if (signal?.aborted) return stoppedStreamResult(params.allToolCalls, params.allGeneratedImages);
     // `@google/genai` devuelve la respuesta directa, sin envoltorio `{ response }`.
@@ -75,7 +76,7 @@ export async function runAgenticLoop(params: {
       // El turno acabo sin llamada utilizable porque el modelo la genero mal.
       // Antes esto terminaba el turno y obligaba al usuario a reescribir su
       // peticion; es un fallo transitorio y se reintenta solo.
-      if (malformedRetries < MALFORMED_CALL_INSTRUCTIONS.length && isMalformedFunctionCall(response)) {
+      if (!finalizing && malformedRetries < MALFORMED_CALL_INSTRUCTIONS.length && isMalformedFunctionCall(response)) {
         const instruccion = MALFORMED_CALL_INSTRUCTIONS[malformedRetries];
         malformedRetries += 1;
         try {
@@ -96,6 +97,7 @@ export async function runAgenticLoop(params: {
       }
       const completion = await inspectWorkspaceCompletion(params.options?.activeSkill);
       if (completion.required && !completion.ready) {
+        if (finalizing) break;
         try {
           response = await withGeminiModelCall(
             'Gemini incomplete workspace repair',
@@ -115,6 +117,8 @@ export async function runAgenticLoop(params: {
       return finalTextResult(parts, response, params);
     }
 
+    if (finalizing) break;
+
     const functionResponses = await executeFunctionCalls(functionCalls, params);
     if (signal?.aborted) return stoppedStreamResult(params.allToolCalls, params.allGeneratedImages);
     if (functionResponses.length === 0) return finalTextResult(parts, response.response, params);
@@ -123,7 +127,10 @@ export async function runAgenticLoop(params: {
         'Gemini tool response message',
         // El SDK las empaqueta como `role: "user"`, que es lo que Gemini 3
         // acepta; el SDK legado usaba `role: "function"` y devolvia 400.
-        () => params.chatSession.sendMessage({ message: functionResponses as any, config: requestConfig }),
+        () => params.chatSession.sendMessage({
+          message: maxIterations === 0 ? [...functionResponses, { text: TOOL_BUDGET_FINAL_INSTRUCTION }] : functionResponses,
+          config: maxIterations === 0 ? { ...requestConfig, tools: [], toolConfig: undefined } : requestConfig,
+        }),
         { signal },
       );
     } catch (error: any) {
@@ -173,8 +180,9 @@ async function executeFunctionCalls(
     try {
       const ejecutada = await withToolTimeout(
         `Tool call ${fc.name}`,
-        () => executeGeminiToolCall(fc.name, fc.args || {}, params.options, params.allToolCalls, params.allGeneratedImages),
+        signal => executeGeminiToolCall(fc.name, fc.args || {}, { ...params.options, signal }, params.allToolCalls, params.allGeneratedImages),
         LONG_RUNNING_TOOL_TIMEOUTS_MS[fc.name],
+        params.options?.signal,
       );
       responses.push({ functionResponse: ejecutada.functionResponse });
       // La captura viaja como IMAGEN, no dentro del JSON: en base64 dentro del

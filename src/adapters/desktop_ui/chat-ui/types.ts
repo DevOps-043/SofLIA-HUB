@@ -12,7 +12,8 @@ export type ProcessMessageHandler = (
 export interface ConfirmationModalState {
   toolName: string;
   description: string;
-  resolve: (confirmed: boolean) => void;
+  allowAlways?: boolean;
+  resolve: (confirmed: import('../../../shared/command-approval').ConfirmationDecision) => void;
 }
 
 export interface ChatUIProps {

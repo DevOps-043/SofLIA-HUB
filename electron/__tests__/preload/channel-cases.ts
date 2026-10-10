@@ -78,8 +78,8 @@ export function registerPreloadChannelTests() {
 
   it('SEC-035: el navegador integrado expone solo su contrato allowlisted', () => {
     const browserChannels = ALLOWED_IPC_CHANNELS.filter((channel) => channel.startsWith('integrated-browser:'));
-    expect(browserChannels).toHaveLength(124);
-    expect(new Set(browserChannels).size).toBe(124);
+    expect(browserChannels).toHaveLength(125);
+    expect(new Set(browserChannels).size).toBe(125);
     expect(browserChannels).toContain('integrated-browser:extensions-catalog');
     expect(browserChannels).toContain('integrated-browser:extensions-restrict-sites');
     expect(browserChannels).toContain('integrated-browser:credential-session');
@@ -105,6 +105,10 @@ export function registerPreloadChannelTests() {
     expect(browserChannels).toContain('integrated-browser:tab-summaries');
     expect(browserChannels).toContain('integrated-browser:get-tab-content');
     expect(browserChannels).toContain('integrated-browser:document-read');
+    // Atajos y menús nativos usan un único canal de órdenes; el de búsqueda se retiró.
+    expect(browserChannels).toContain('integrated-browser:command');
+    expect(browserChannels).toContain('integrated-browser:tab-context-menu');
+    expect(browserChannels).not.toContain('integrated-browser:find-requested');
     expect(browserChannels).toContain('integrated-browser:selection-action');
     expect(browserChannels).toContain('integrated-browser:reading-mode-requested');
     expect(browserChannels).toContain('integrated-browser:reading-prepare');

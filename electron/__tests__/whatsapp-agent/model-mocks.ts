@@ -47,3 +47,7 @@ export function mockTextResponse(text: string) {
     functionCalls: undefined,
   });
 }
+
+// Las pruebas del bucle aíslan el transporte; openai-session tiene pruebas propias.
+vi.mock('../../wa-agent/openai-client', () => ({ getWhatsAppOpenAIClient: vi.fn(async () => ({})) }));
+vi.mock('../../wa-agent/openai-session', () => ({ createWhatsAppOpenAISession: (input: { instructions: string; history: unknown[]; tools: unknown[] }) => modelMocks.mockChatsCreate({ model: 'gpt-6-luna', config: { systemInstruction: input.instructions, tools: input.tools }, history: input.history }) }));

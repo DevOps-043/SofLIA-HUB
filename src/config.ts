@@ -1,4 +1,4 @@
-import { SOFLIA_MAX_MODEL, SOFLIA_PRO_MODEL, SOFLIA_RUNTIME_MODEL } from './shared/soflia-runtime-model';
+import { SOFLIA_MAX_MODEL, SOFLIA_DEFAULT_MODEL, SOFLIA_RUNTIME_MODEL } from './shared/soflia-runtime-model';
 
 export const GOOGLE_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 
@@ -58,14 +58,15 @@ export const MODELS = {
   MAPS: SOFLIA_RUNTIME_MODEL,
 };
 
-// OpenAI. Sol (gpt-6.1-sol) corresponde a SofLIA Max y conserva la clave
-// histórica `COMPUTER_USE` por compatibilidad, aunque el actuador Computer Use
-// usa exclusivamente Gemini 3.8 Flash. Luna corresponde a SofLIA Pro. El
-// proveedor efectivo se decide por el modelo seleccionado; la llave puede
-// provenir de la configuración guardada del usuario o del entorno.
+// Familia GPT-6 de OpenAI. Sol corresponde a SofLIA Max y conserva la clave
+// histórica `COMPUTER_USE` por compatibilidad de cuota mensual, aunque el
+// actuador Computer Use usa exclusivamente Gemini 3.8 Flash. Luna corresponde a
+// SofLIA (predeterminado). El proveedor efectivo se decide por el modelo
+// seleccionado; la llave puede provenir de la configuración guardada del usuario
+// o del entorno.
 export const OPENAI_MODELS = {
   COMPUTER_USE: SOFLIA_MAX_MODEL,
-  COMMANDS: SOFLIA_PRO_MODEL,
+  COMMANDS: SOFLIA_DEFAULT_MODEL,
 };
 
 /**

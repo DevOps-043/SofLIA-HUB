@@ -37,7 +37,7 @@ export function assertGeminiCircuitClosed(): void {
 }
 
 /** Ejecuta la operación con un timeout duro, sin tocar el circuit breaker. */
-async function runWithTimeout<T>(label: string, operationFactory: () => Promise<T>, timeoutMs: number): Promise<T> {
+async function runWithTimeout<T>(label: string, operationFactory: () => Promise<T>, timeoutMs: number, onTimeout?: () => void): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const operation = operationFactory();
   operation.catch(() => {});
@@ -45,7 +45,10 @@ async function runWithTimeout<T>(label: string, operationFactory: () => Promise<
     return await Promise.race([
       operation,
       new Promise<T>((_resolve, reject) => {
-        timeoutId = setTimeout(() => reject(createTimeoutError(label, timeoutMs)), timeoutMs);
+        timeoutId = setTimeout(() => {
+          reject(createTimeoutError(label, timeoutMs));
+          onTimeout?.();
+        }, timeoutMs);
       }),
     ]);
   } finally {
@@ -57,10 +60,11 @@ export async function withGeminiTimeout<T>(
   label: string,
   operationFactory: () => Promise<T>,
   timeoutMs = GEMINI_CALL_TIMEOUT_MS,
+  onTimeout?: () => void,
 ): Promise<T> {
   assertGeminiCircuitClosed();
   try {
-    const result = await runWithTimeout(label, operationFactory, timeoutMs);
+    const result = await runWithTimeout(label, operationFactory, timeoutMs, onTimeout);
     noteSuccess();
     return result;
   } catch (error) {
@@ -106,12 +110,22 @@ export async function withGeminiModelCall<T>(
   }
 }
 
-export function withToolTimeout<T>(
+export async function withToolTimeout<T>(
   label: string,
-  operationFactory: () => Promise<T>,
+  operationFactory: (signal: AbortSignal) => Promise<T>,
   timeoutMs: number = TOOL_CALL_TIMEOUT_MS,
+  parentSignal?: AbortSignal,
 ): Promise<T> {
-  return withGeminiTimeout(label, operationFactory, timeoutMs);
+  const controller = new AbortController();
+  const onAbort = () => controller.abort();
+  parentSignal?.addEventListener('abort', onAbort, { once: true });
+  if (parentSignal?.aborted) controller.abort();
+  try {
+    if (controller.signal.aborted) throw new DOMException('Operación cancelada', 'AbortError');
+    return await withGeminiTimeout(label, () => operationFactory(controller.signal), timeoutMs, onAbort);
+  } finally {
+    parentSignal?.removeEventListener('abort', onAbort);
+  }
 }
 
 /**

@@ -132,6 +132,11 @@ try {
   await fs.writeFile(shortcutTarget, ts.transpileModule(shortcutSource, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText, { flag: 'wx' });
+  // La fase de zoom resuelve teclas reales con la misma tabla de atajos del producto.
+  const keyboardSource = await fs.readFile(path.join(root, 'src/shared/browser-keyboard-shortcuts.ts'), 'utf8');
+  await fs.writeFile(path.join(sandbox, 'src/shared/browser-keyboard-shortcuts.js'), ts.transpileModule(keyboardSource, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText, { flag: 'wx' });
   const semanticSource = await fs.readFile(path.join(root, 'src/shared/browser-semantic-memory.ts'), 'utf8');
   await fs.writeFile(path.join(sandbox, 'src/shared/browser-semantic-memory.js'), ts.transpileModule(semanticSource, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },

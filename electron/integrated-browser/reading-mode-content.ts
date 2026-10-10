@@ -407,13 +407,26 @@ export function extractReadingDocumentInPage(maxChars: number): ExtractedReading
   let length = 0;
   let truncated = false;
   const selector = 'h1,h2,h3,h4,h5,h6,p,li,blockquote,pre,[role="heading"]';
-  for (const element of Array.from(root.querySelectorAll(selector))) {
+  // Los turnos de un chat web (p. ej. ChatGPT) suelen escribirse en <div> sin
+  // parrafos; sin este marcador el resumen perdia los mensajes del usuario.
+  const turnSelector = '[data-message-author-role]';
+  for (const element of Array.from(root.querySelectorAll(`${selector},${turnSelector}`))) {
     if (element.matches(blockedSelector) || element.closest(blockedSelector) || !visible(element)) continue;
     const semanticParent = element.parentElement?.closest('li, blockquote');
     if (semanticParent && semanticParent !== element) continue;
     const htmlElement = element as HTMLElement;
     if (htmlElement.isContentEditable) continue;
-    const value = clean(htmlElement.innerText || element.textContent || '');
+    // Un turno con bloques semanticos propios se lee a traves de ellos; solo
+    // el turno de texto plano se toma completo, sin controles ni campos.
+    const isPlainTurn = element.matches(turnSelector) && !element.matches(selector);
+    if (isPlainTurn && element.querySelector(selector)) continue;
+    let rawText = htmlElement.innerText || element.textContent || '';
+    if (isPlainTurn) {
+      const sanitized = htmlElement.cloneNode(true) as HTMLElement;
+      for (const blocked of Array.from(sanitized.querySelectorAll(blockedSelector))) blocked.remove();
+      rawText = sanitized.textContent || '';
+    }
+    const value = clean(rawText);
     if (value.length < 2) continue;
     const tag = element.tagName.toLowerCase();
     const kind: BrowserReadingBlockKind = /^h[1-6]$/.test(tag) || element.getAttribute('role') === 'heading'

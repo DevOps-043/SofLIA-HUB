@@ -1,4 +1,5 @@
 import type { Rectangle } from 'electron';
+import type { BrowserNavigationOptions } from '../../src/shared/browser-navigation';
 import type { BrowserSensitiveHandoff } from '../../src/shared/browser-sensitive-handoff';
 import type { BrowserAgentTaskState } from '../../src/shared/browser-agent-control';
 import type { BrowserTabGroup } from './platform-types';
@@ -47,6 +48,8 @@ export interface IntegratedBrowserTabState {
   isSuspended: boolean;
   isDetached: boolean;
   muted: boolean;
+  /** La pestaña reproduce audio ahora mismo; alimenta el icono de sonido. */
+  audible: boolean;
   zoomFactor: number;
   find: {
     query: string;
@@ -180,11 +183,11 @@ export interface IntegratedBrowserObservationResult extends IntegratedBrowserRes
   observationStatus?: BrowserObservationStatus;
 }
 
-export interface IntegratedBrowserOpenInput {
+export interface IntegratedBrowserOpenInput extends BrowserNavigationOptions {
   url?: string;
 }
 
-export interface IntegratedBrowserNavigateInput {
+export interface IntegratedBrowserNavigateInput extends BrowserNavigationOptions {
   target: string;
 }
 

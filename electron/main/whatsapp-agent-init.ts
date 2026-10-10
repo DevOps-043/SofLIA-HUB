@@ -21,8 +21,10 @@ export function createWhatsAppAgentInitializer(input: {
   const { modules, services, state } = input;
 
   return function initWhatsAppAgent(apiKey: string): void {
-    services.memoryService.setApiKey(apiKey);
-    services.workspaceAutomationService.setApiKey(apiKey);
+    if (apiKey) {
+      services.memoryService.setApiKey(apiKey);
+      services.workspaceAutomationService.setApiKey(apiKey);
+    }
 
     if (state.waAgent) {
       state.waAgent.updateApiKey(apiKey);
@@ -57,10 +59,11 @@ export function createWhatsAppAgentInitializer(input: {
     state.waAgent.setClipboardAssistant(services.clipboardAssistant);
     state.waAgent.setTaskScheduler(services.taskScheduler);
     state.waAgent.setMeetingWorkflowService(services.meetingWorkflowService);
-    services.meetingWorkflowService.setApiKey(apiKey);
-    state.currentGeminiApiKey = apiKey;
-
-    startApiKeyBoundServices(apiKey, services, state, modules);
+    if (apiKey) {
+      services.meetingWorkflowService.setApiKey(apiKey);
+      state.currentGeminiApiKey = apiKey;
+      startApiKeyBoundServices(apiKey, services, state, modules);
+    }
   };
 }
 

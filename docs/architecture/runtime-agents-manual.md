@@ -1,6 +1,17 @@
 # Manual del agente runtime de SofLIA Hub
 
-Estado: vigente. Actualizado: 2026-08-04.
+Estado: vigente. Actualizado: 2026-10-06.
+
+Meeting Ops incorpora [análisis en equipo](runtime-multiagent-harness.md):
+dos especialistas y un coordinador, proveedores Gemini/Codex y herramientas
+de lectura cerradas. Es una estrategia del agente de reuniones; no expone
+capacidades del plano de desarrollo ni concede permisos de escritura a workers.
+
+Chat, WhatsApp, revisión de páginas, creación de documentos/presentaciones y
+planificación Computer Use también incorporan [equipos por solicitud](runtime-multiagent-harness.md#equipos-en-chat-whatsapp-navegador-y-entregables).
+Dos especialistas sin herramientas preparan aportes en paralelo; el agente
+existente conserva la ejecución y sus guardas. Los modos equipo/directo,
+presupuestos y límites están definidos en esa guía canónica.
 
 Este documento es la referencia extendida de **el agente**: qué es, cómo razona,
 qué puede hacer, qué tiene prohibido, con qué límites numéricos opera y cómo se
@@ -90,7 +101,7 @@ conclusión sea correcta. Ver [contrato y límites de adjuntos](integrated-brows
 
 1. Envía el mensaje inicial con `withGeminiModelCall` (timeout, reintento y
    circuit breaker en `resilience.ts`).
-2. Itera hasta **10 veces**. En cada vuelta:
+2. Ejecuta hasta **10 tandas** de herramientas (**20** con workspace). En cada vuelta:
    - acumula imágenes `inlineData` que emite la ejecución de código
      (gráficas de matplotlib) para adjuntarlas al mensaje final;
    - filtra las `functionCall` del candidato;
@@ -102,8 +113,44 @@ conclusión sea correcta. Ver [contrato y límites de adjuntos](integrated-brows
      reescribiera. Misma escalada que el agente de WhatsApp (§3.8);
    - si no hay ninguna, devuelve el texto final con sus fuentes;
    - si hay, ejecuta cada una y reenvía las respuestas al modelo.
-3. Si se agotan las 10 iteraciones responde
-   `"He ejecutado las acciones solicitadas..."` en vez de seguir gastando.
+3. Al agotar las tandas, procesa un cierre adicional con herramientas deshabilitadas
+   y los resultados obtenidos. OpenAI aplica `tool_choice: none`; Gemini envía
+   `tools: []`. Una llamada emitida pese a esa restricción nunca se ejecuta. Si no
+   hay cierre útil o el workspace sigue incompleto, devuelve el aviso honesto de
+   presupuesto/tarea incompleta. No afirma éxito por alcanzar un límite.
+
+### 2.1.1 Permisos locales de comandos y archivos
+
+La [confirmación del chat](../../src/services/computer-use/confirmation.ts)
+permite los movimientos reversibles solicitados (`move_item`, `organize_files`,
+`batch_move_files`) sin modal. Borrado, envíos, efectos externos y acciones remotas
+conservan HITL. Los comandos simples de consulta no interrumpen; los desconocidos
+piden aprobación inicial.
+
+Los comandos locales no sensibles ofrecen **Cancelar**, **Ejecutar** y
+**Siempre permitir**. Esta última guarda únicamente una huella SHA-256 por
+usuario, comando exacto, herramienta y carpeta de trabajo; no permite toda la
+shell. Cambios de variables de entorno, registro, privilegios, sistema, borrado
+y comandos compuestos/ofuscados sólo admiten aprobación única. La clasificación
+conservadora vive en [command-approval](../../src/shared/command-approval.ts).
+Scripts opacos y gestores del sistema tampoco son recordables. Todas las
+abreviaturas de `EncodedCommand` se bloquean en main; `-File` y sus abreviaturas
+nunca se clasifican como consulta sólo por el nombre del script.
+Las restricciones de comandos en main siguen aplicándose aun con una preferencia
+guardada. Sin almacenamiento/crypto sólo se aprueba la ejecución actual, y un
+cambio de usuario o desmontaje durante el diálogo cancela la solicitud.
+Stop y el timeout de herramienta propagan cancelación al permiso pendiente para
+impedir que una aprobación tardía ejecute la acción después de cerrar el turno.
+En Configuración → Personalidad y Privacidad → Privacidad y Gobernanza,
+**Quitar permisos recordados** revoca todas las aprobaciones del usuario activo.
+
+`batch_move_files` admite `group_by_extension: true`: mueve directamente a
+subcarpetas por extensión en el destino, en un lote por origen. `extensions`
+filtra documentos cuando la solicitud no abarca todos los tipos; los nombres
+homónimos conservan la resolución de colisiones y los movimientos se registran
+con `operationId` para `undo_last_file_operation`. Omitir la opción conserva el
+destino plano. El prompt evita repetir resúmenes sin cambios y hacer un lote por
+cada extensión.
 
 Cancelación: el `AbortSignal` del usuario se propaga al SDK; abortar devuelve un
 `stoppedStreamResult` con las llamadas ya hechas, no un error.
@@ -793,6 +840,28 @@ La personalización (`nickname`, `occupation`, `tone`, `instructions`) y el
 
 ## 3. Agente de WhatsApp
 
+**Proveedor vigente:** el coordinador de conversación, los especialistas y el
+flujo de presentaciones usan `gpt-6-luna` mediante Responses API. El cliente de
+main obtiene OpenAI del RPC `get_api_key` del Hub autenticado (proveedor
+`openai`), con respaldo en configuración OpenAI del entorno. No reutiliza la
+clave Gemini ni cambia de modelo si OpenAI falla. El agente puede iniciar sin
+clave Gemini; transcripción, memoria y herramientas especializadas que usan
+Gemini conservan su configuración independiente.
+
+El [adaptador Responses](../../electron/wa-agent/openai-session.ts) conserva
+historial textual, imágenes, PDF, resultados por `call_id` y razonamiento cifrado
+con `store:false`. No habilita herramientas hospedadas: aplica el catálogo
+local y sus guardas/HITL existentes. El código integrado de Gemini deja de
+adjuntarse; las herramientas locales siguen disponibles. Rechaza respuestas
+incompletas y tipos de adjunto no compatibles; las notas de voz siguen la ruta
+de transcripción antes del turno de Luna. La credencial queda vinculada a la
+sesión que abrió el turno, incluida la recepción completa de la respuesta HTTP.
+
+En presentaciones, extracción de datos, propuesta, especialistas y deck final
+usan Luna; se mantiene validación de `deck.json`, aprobación y exportación.
+Las presentaciones creadas desde el chat conservan el modelo elegido en el
+selector de ese chat.
+
 Fuente: `electron/whatsapp-agent.ts` (orquestador), `electron/wa-agent/` (loop y
 contexto), `electron/wa-tools/` (declaraciones), `electron/wa-executor/`
 (guardas y despacho), `electron/whatsapp/` (transporte y permisos).
@@ -987,9 +1056,10 @@ permisos no aplica (modo abierto de instalación inicial).
 
 `runWhatsAppAgentLoop` itera **hasta 25 veces**. Por iteración:
 
-**a) Respuesta vacía o malformada.** Con `MALFORMED_FUNCTION_CALL` se reintenta
-pidiendo el nombre exacto de la herramienta; a partir de la iteración 3 se
-fuerza una respuesta solo-texto y se pide al usuario reformular.
+**a) Respuesta vacía o malformada.** El adaptador OpenAI rechaza turnos
+incompletos, argumentos JSON inválidos y herramientas fuera del catálogo antes
+de ejecutar. La rama histórica `MALFORMED_FUNCTION_CALL` permanece en el
+contrato interno, pero el adaptador Responses no genera ese estado.
 
 **b) Sin function calls** → `handleTextOnlyAgentResponse` decide si el turno
 terminó o si debe insistir.
@@ -1680,6 +1750,14 @@ Docs reutiliza la exportación autenticada y el árbol de accesibilidad del modo
 lectura, sin resumir la interfaz del editor. El bloque extraído tiene precedencia
 sobre memoria, historial y observaciones de otras páginas; si no está disponible,
 el agente usa `read_active_document` o informa el fallo sin sustituir la fuente.
+La misma lectura completa se usa cuando el usuario pide resumir, analizar u
+opinar sobre la conversación o página que tiene delante («el siguiente chat»,
+«esta página», «el chat que tengo abierto»): la observación ordinaria solo
+recorre el viewport y recortaba los chats largos. «El siguiente…» únicamente
+apunta a la pestaña si el mensaje no trae ya contenido extenso pegado. Si la
+lectura completa falla, el turno vuelve a la observación visible. La extracción
+conserva los turnos de chats web que marcan `data-message-author-role` aunque
+estén escritos fuera de párrafos, como los mensajes del usuario en ChatGPT.
 La memoria de mensajes recientes se separa por conversación, aunque hechos y
 skills aprendidas continúan bajo el owner. Si un loop agota su presupuesto, tanto
 Gemini como OpenAI informan que no obtuvieron un cierre verificable y nunca
@@ -1988,7 +2066,7 @@ la allowlist ni la autorización del usuario.
 | Parámetro | Valor | Fuente |
 |---|---:|---|
 | Iteraciones del loop de WhatsApp | 25 | `wa-agent/agent-loop.ts` |
-| Iteraciones del loop de chat | 10 | `gemini-chat/agentic-loop.ts` |
+| Tandas de herramientas del chat / con workspace | 10 / 20, más un cierre sin herramientas | `gemini-chat/agentic-loop.ts`, `openai-chat/send-message-stream.ts` |
 | Loop guard: warning / crítico | 3 / 5 | `wa-agent/constants.ts` |
 | Historial de WhatsApp en memoria / al cargar | 20 / 30 | `wa-agent/constants.ts`, `agent-loop-setup.ts` |
 | `maxOutputTokens` WhatsApp / chat | 4096 / 16384 | `agent-loop-setup.ts`, `model-config.ts` |

@@ -1,6 +1,6 @@
 # Seguridad y privacidad
 
-Estado: vigente. Actualizado: 2026-09-11.
+Estado: vigente. Actualizado: 2026-10-06.
 
 <!-- evidence: electron/preload/safe-ipc.ts -->
 <!-- evidence: electron/main/window-controller.ts -->
@@ -68,7 +68,7 @@ aprobacion.
 | Anuncio proactivo de la orbe | sin sesion iniciada no se muestra la orbe ni se locuta nada, y al cerrar sesion la cola pendiente se descarta; se muestra sin robar el foco | `electron/main/orb-announcements.ts` |
 | Workspace de Skills | contencion por `realpath` (cierra el escape por enlace simbolico), rechazo de rutas absolutas y `..`, allowlist de extensiones, limites de tamano y archivos protegidos que el modelo no puede reescribir | `electron/skill-workspace/paths.ts`, `electron/skill-workspace/service.ts` |
 | Render de presentaciones | protocolo local que solo sirve el workspace indicado, CSP sin `connect-src`, `iframe` con `sandbox="allow-scripts"` sin `allow-same-origin` y vista nativa sin preload en particion propia | `electron/skill-workspace/protocol.ts`, `electron/skill-workspace/presentation-view.ts` |
-| Directorio de usuarios SOFIA | `public.users` NO es legible con la clave anon ni por tabla: el escritorio la alcanza solo por dos funciones `SECURITY DEFINER`. Antes de autenticar solo se puede traducir un identificador a su correo (nada mas); ya autenticado solo se obtiene la fila propia (`auth.uid()`). La clave anon viaja dentro del ejecutable, asi que un GRANT sobre esa tabla equivaldria a publicar el directorio | `database/sofia-learning/migrations/desktop-users-read-access.sql`, `src/services/sofia-auth/login.ts`, `src/services/sofia-auth/profile.ts` |
+| Directorio de usuarios SOFIA | `public.users` NO es legible con la clave anon ni por tabla: el escritorio la alcanza solo por funciones `SECURITY DEFINER`. Antes de autenticar solo se puede traducir un identificador a su correo (nada mas); ya autenticado solo se obtiene la fila propia (`auth.uid()`) y, para la lista de miembros y el modal Compartir, el perfil minimo (usuario, correo, nombre y foto) de los miembros de una organizacion de la que quien llama es miembro activo, paginado y sin telefono ni datos personales. La clave anon viaja dentro del ejecutable, asi que un GRANT sobre esa tabla equivaldria a publicar el directorio | `database/sofia-learning/migrations/desktop-users-read-access.sql`, `database/sofia-learning/migrations/desktop-organization-members.sql`, `src/services/sofia-auth/login.ts`, `src/services/sofia-auth/profile.ts`, `src/services/org/operations.ts` |
 | Branding | solo columnas de presentacion, descarga restringida al host de Supabase SOFIA con limite de tamano y timeout, colores validados antes de entrar al CSS | `electron/organization-branding/` |
 | Handlers | payloads serializables y servicios por dominio | `electron/*-handlers.ts` |
 | Canales | principal, rol, scope y capabilities | `electron/communication-hub/authorization.ts` |

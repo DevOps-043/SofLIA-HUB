@@ -18,7 +18,7 @@ export function classifyBrowserGroundingIntent(message: string): BrowserGroundin
   const currentConversation = /\b(chat|correo|email|mensaje|conversacion)\b.{0,50}\b(abierto|abierta|visible|mostrando|viendo)\b/.test(text);
   const contentRequest = /\b(resumen|resume|resumir|analiza|analizar|revisa|revisar|lee|leer|investiga|investigar|explica|explicar|contenido|de que trata)\b/.test(text);
 
-  if (contentRequest && hasActiveDocumentReference(text)) return 'read-current';
+  if (contentRequest && (hasActiveDocumentReference(text) || hasFollowingSurfaceReference(text))) return 'read-current';
 
   if (!explicitVisualReference && !deicticReference && !sharedBySomeone && !currentConversation) {
     return 'none';
@@ -35,6 +35,21 @@ export function isActiveDocumentContentRequest(message: string): boolean {
     && /\b(resumen|resume|resumir|analiza|analizar|revisa|revisar|lee|leer|explica|explicar|contenido|de que trata)\b/.test(text);
 }
 
+/**
+ * Pide comprender completa la conversación o página que el usuario tiene
+ * delante ("resume el siguiente chat", "analiza esta página"). La observación
+ * normal sólo ve el viewport; un resumen necesita la extracción documental de
+ * toda la pestaña. Sólo aplica con el navegador visible: si la lectura falla,
+ * el turno conserva la observación ordinaria.
+ */
+export function isVisiblePageContentRequest(message: string): boolean {
+  const text = normalizeBrowserGroundingText(message);
+  if (!/\b(resumen|resume|resumir|resumelo|resumela|analiza|analizar|analisis|explica|explicar|opinion|de que trata)\b/.test(text)) return false;
+  return hasFollowingSurfaceReference(text)
+    || /\b(?:este|ese) (?:chat|hilo|articulo)\b|\b(?:esta|esa) (?:pagina|pestana|publicacion)\b/.test(text)
+    || /\b(chat|conversacion|hilo|pagina|pestana|articulo)\b.{0,50}\b(abierto|abierta|actual|visible)\b/.test(text);
+}
+
 export function normalizeBrowserGroundingText(text: string): string {
   return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
@@ -43,6 +58,18 @@ function hasExplicitVisualReference(text: string): boolean {
   const hasVisualVerb = /\b(ver|ves|viendo|mira|mirar|observa|observar|revisa|revisar|muestra|mostrando)\b/.test(text);
   const hasCurrentSurface = /\b(lo que|esto|aqui|ahora|pantalla|pagina|pestana|navegador|browser|sitio|vista|mostrando|viendo)\b/.test(text);
   return hasVisualVerb && hasCurrentSurface;
+}
+
+/**
+ * "El siguiente chat" sin el chat pegado en el mensaje sólo puede referirse a
+ * lo que está en pantalla. Si el mensaje ya trae contenido extenso, la
+ * referencia apunta a ese texto pegado y no a la pestaña.
+ */
+const MAX_REFERENCE_ONLY_MESSAGE_CHARS = 400;
+
+function hasFollowingSurfaceReference(text: string): boolean {
+  return text.length <= MAX_REFERENCE_ONLY_MESSAGE_CHARS
+    && /\b(?:siguiente|presente)\s+(?:chat|conversacion|hilo|correo|email|mensaje|pagina|articulo|publicacion)\b/.test(text);
 }
 
 function hasActiveDocumentReference(text: string): boolean {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { parseBrowserVoiceCommand } from '../../shared/browser-voice';
 import { MODELS } from '../../config';
+import { useAuth } from '../../contexts/AuthContext';
 import { getPublicAiErrorMessage, sendMessageStream } from '../../services/gemini-chat';
 import type { ConversationMessage } from '../../services/gemini-chat/types';
 import { orbService, type OrbAnnouncement } from '../../services/orb-service';
@@ -38,6 +39,9 @@ function normalizeSpokenText(text: string): string {
  * asincronos solo pueden cambiar la UI si ese propietario sigue vigente.
  */
 export function useOrbConversation() {
+  const { user } = useAuth();
+  const userId = user?.id;
+  const previousUserIdRef = useRef(userId);
   const [state, setState] = useState<OrbConversationState>('idle');
   const [transcript, setTranscript] = useState('');
   const [userText, setUserText] = useState('');
@@ -76,6 +80,22 @@ export function useOrbConversation() {
     stateRef.current = nextState;
     setState(nextState);
   }, []);
+
+  useEffect(() => {
+    if (previousUserIdRef.current === userId) return;
+    previousUserIdRef.current = userId;
+    // El cambio de propietario también invalida el turno mediante el cleanup de listeners.
+    historyRef.current = [];
+    pendingWakeRequestRef.current = null;
+    pendingAnnouncementRequestRef.current = null;
+    listeningStartRef.current = null;
+    latestDictationSessionRef.current = null;
+    announcementTurnRef.current = null;
+    infoVisibleRef.current = false;
+    setTranscript(''); setUserText(''); setResponseText(''); setSources([]);
+    setActiveTool(null); setErrorMessage(null); setInfoVisible(false); setTtsPlaying(false);
+    updateState('idle');
+  }, [userId, updateState]);
 
   /** Arranque idempotente: todos los disparadores comparten una sola transicion. */
   const startListening = useCallback((): Promise<void> => {
@@ -373,6 +393,7 @@ export function useOrbConversation() {
       }
       const result = await sendMessageStream(text, historyRef.current, {
         model: MODELS.ORB,
+        userId,
         // La Orbe usa Gemini 3.8 Flash para Computer Use y SofLIA Pro para los
         // demás comandos cuando OpenAI está configurado.
         task: 'orb',
@@ -469,7 +490,7 @@ export function useOrbConversation() {
       setActiveTool(null);
       windDown(sourceSessionId);
     }
-  }, [createSpeechPipeline, playback, speakEntireResponse, updateState, windDown]);
+  }, [createSpeechPipeline, playback, speakEntireResponse, updateState, windDown, userId]);
 
   const handleDictationFinal = useCallback((sessionId: string, rawText: string) => {
     if (sessionId !== activeDictationSessionRef.current || stateRef.current !== 'listening') return;

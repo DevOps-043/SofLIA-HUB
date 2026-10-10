@@ -22,7 +22,7 @@ declare global {
       clipboardRead: () => Promise<any>;
       clipboardWrite: (text: string) => Promise<any>;
       takeScreenshot: () => Promise<any>;
-      confirmAction: (message: string) => Promise<{ confirmed: boolean }>;
+      confirmAction: (message: string, options?: import('../../shared/command-approval').ConfirmationOptions) => Promise<import('../../shared/command-approval').ConfirmationResult>;
       organizeFiles: (options: any) => Promise<any>;
       batchMoveFiles: (options: any) => Promise<any>;
       listDirectorySummary: (options: any) => Promise<any>;

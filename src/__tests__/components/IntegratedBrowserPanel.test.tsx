@@ -39,7 +39,7 @@ const emptySite: BrowserSitePermissionSummary = {
 const savedCredential = { id: '12345678-1234-1234-1234-123456789abc', origin: 'https://example.com', username: 'persona@example.com', createdAt: '2026-08-04T00:00:00.000Z', updatedAt: '2026-08-04T00:00:00.000Z' };
 
 /** Los gestores viven en el menu de herramientas: hay que abrirlo primero. */
-function openTool(name: 'Historial' | 'Contraseñas' | 'Extensiones' | 'Inspeccionar') {
+function openTool(name: 'Historial' | 'Contraseñas' | 'Extensiones' | 'Herramientas para desarrolladores') {
   fireEvent.click(screen.getByRole('button', { name: 'Herramientas del navegador' }));
   fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitem', { name }));
 }
@@ -94,6 +94,7 @@ describe('IntegratedBrowserPanel', () => {
       closeOtherTabs: vi.fn(async () => ({ success: true, state })),
       closeTabsToRight: vi.fn(async () => ({ success: true, state })),
       setTabPinned: vi.fn(async () => ({ success: true, state })),
+      showTabContextMenu: vi.fn(async () => ({ success: true, state })),
       setTabLayout: vi.fn(async () => ({ success: true, state })),
       createTabGroup: vi.fn(async () => ({ success: true, group: { id: 'group-1', name: 'Trabajo', color: 'blue' as const, collapsed: false } })),
       assignTabGroup: vi.fn(async () => ({ success: true, state })),
@@ -159,7 +160,7 @@ describe('IntegratedBrowserPanel', () => {
       getTabContent: vi.fn(async () => ({ success: true })),
       onStateChanged: vi.fn(() => listenerCleanup),
       onDownloadsChanged: vi.fn(() => vi.fn()),
-      onFindRequested: vi.fn(() => vi.fn()),
+      onCommand: vi.fn(() => vi.fn()),
       onOpenRequested: vi.fn(() => vi.fn()),
       onSelectionAction: vi.fn(() => vi.fn()),
       onReadingModeRequested: vi.fn(() => vi.fn()),
@@ -188,6 +189,22 @@ describe('IntegratedBrowserPanel', () => {
     });
   });
 
+  it('agrupa resize, omite geometría idéntica y vuelve a acusar una petición explícita del agente', async () => {
+    render(<IntegratedBrowserPanel />);
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalled());
+    vi.mocked(api.setViewport).mockClear();
+    for (let index = 0; index < 100; index++) fireEvent(window, new Event('resize'));
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(api.setViewport).not.toHaveBeenCalled();
+    vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockReturnValue({ x: 200, y: 80, left: 200, top: 80, right: 1100, bottom: 680, width: 900, height: 600, toJSON: () => ({}) });
+    for (let index = 0; index < 100; index++) fireEvent(window, new Event('resize'));
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalledTimes(1));
+    vi.mocked(api.setViewport).mockClear();
+    const request = vi.mocked(api.onOpenRequested).mock.calls[0][0];
+    request({ url: 'https://example.com/' });
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalledTimes(1));
+  });
+
   it('abre la superficie, publica el viewport y permite navegar', async () => {
     render(<IntegratedBrowserPanel />);
     await waitFor(() => expect(api.open).toHaveBeenCalled());
@@ -196,7 +213,114 @@ describe('IntegratedBrowserPanel', () => {
     const address = screen.getByLabelText('Dirección o búsqueda');
     fireEvent.change(address, { target: { value: 'soflia.ai' } });
     fireEvent.submit(address.closest('form')!);
-    await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('soflia.ai'));
+    await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('soflia.ai', { waitForLoad: false }));
+  });
+
+  it('retira sugerencias del texto anterior mientras agrupa la nueva consulta', async () => {
+    const previous = { id: 'anterior', url: 'https://anterior.example/', title: 'Resultado anterior', visitedAt: '2026-10-08T00:00:00.000Z' };
+    const current = { id: 'actual', url: 'https://actual.example/', title: 'Resultado actual', visitedAt: '2026-10-08T00:00:00.000Z' };
+    vi.mocked(api.listHistory).mockResolvedValueOnce({ success: true, history: [previous] }).mockResolvedValue({ success: true, history: [current] });
+    render(<IntegratedBrowserPanel />);
+    const address = screen.getByLabelText('Dirección o búsqueda');
+    fireEvent.focus(address);
+    fireEvent.change(address, { target: { value: 'anterior' } });
+    expect(await screen.findByRole('option', { name: /Resultado anterior/ })).toBeInTheDocument();
+    vi.mocked(api.listHistory).mockClear();
+    fireEvent.change(address, { target: { value: 'a' } });
+    fireEvent.change(address, { target: { value: 'ac' } });
+    fireEvent.change(address, { target: { value: 'actual' } });
+    expect(screen.queryByRole('option', { name: /Resultado anterior/ })).not.toBeInTheDocument();
+    expect(await screen.findByRole('option', { name: /Resultado actual/ })).toBeInTheDocument();
+    expect(api.listHistory).toHaveBeenCalledTimes(1);
+    expect(api.listHistory).toHaveBeenCalledWith('actual', 8);
+  });
+
+  it('ignora una consulta que termina después de cerrar las sugerencias con Escape', async () => {
+    let resolveLate!: (value: Awaited<ReturnType<typeof api.listHistory>>) => void;
+    vi.mocked(api.listHistory).mockImplementationOnce(() => new Promise(resolve => { resolveLate = resolve; })).mockResolvedValue({ success: true, history: [] });
+    render(<IntegratedBrowserPanel />);
+    const address = screen.getByLabelText('Dirección o búsqueda');
+    fireEvent.focus(address);
+    fireEvent.change(address, { target: { value: 'anterior' } });
+    await waitFor(() => expect(api.listHistory).toHaveBeenCalledWith('anterior', 8));
+    fireEvent.keyDown(address, { key: 'Escape' });
+    await act(async () => resolveLate({ success: true, history: [{ id: 'tardía', url: 'https://anterior.example/', title: 'Respuesta tardía', visitedAt: '2026-10-08T00:00:00.000Z' }] }));
+    fireEvent.focus(address);
+    expect(screen.queryByRole('option', { name: /Respuesta tardía/ })).not.toBeInTheDocument();
+  });
+
+  it('retira sugerencias del perfil anterior aunque la consulta no cambie', async () => {
+    vi.mocked(api.listHistory).mockResolvedValueOnce({ success: true, history: [{ id: 'perfil-anterior', url: 'https://anterior.example/', title: 'Historial de otra cuenta', visitedAt: '2026-10-08T00:00:00.000Z' }] }).mockImplementation(() => new Promise(() => {}));
+    render(<IntegratedBrowserPanel />);
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalled());
+    fireEvent.focus(screen.getByLabelText('Dirección o búsqueda'));
+    expect(await screen.findByRole('option', { name: /Historial de otra cuenta/ })).toBeInTheDocument();
+    act(() => vi.mocked(api.onStateChanged).mock.calls.forEach(([listener]) => listener({ ...state, profileRevision: 1 })));
+    fireEvent.focus(screen.getByLabelText('Dirección o búsqueda'));
+    expect(screen.queryByRole('option', { name: /Historial de otra cuenta/ })).not.toBeInTheDocument();
+  });
+
+  it('no vuelve a mostrar la vista si la apertura termina después de cerrar el panel', async () => {
+    let resolveOpen!: (value: Awaited<ReturnType<typeof api.open>>) => void;
+    vi.mocked(api.open).mockImplementationOnce(() => new Promise(resolve => { resolveOpen = resolve; }));
+    const panel = render(<IntegratedBrowserPanel />);
+    await waitFor(() => expect(api.open).toHaveBeenCalled());
+    panel.unmount();
+    expect(api.hide).toHaveBeenCalled();
+    vi.mocked(api.setViewport).mockClear();
+    await act(async () => resolveOpen({ success: true, state }));
+    expect(api.setViewport).not.toHaveBeenCalled();
+    expect(api.getObservation).not.toHaveBeenCalled();
+  });
+
+  it('BR-KEY-002: ejecuta los atajos reenviados por main y los de la barra, sin capturar los del chat', async () => {
+    const chat = document.createElement('textarea');
+    document.body.appendChild(chat);
+    try {
+      render(<IntegratedBrowserPanel />);
+      await waitFor(() => expect(api.onCommand).toHaveBeenCalled());
+      const sendCommand = (request: unknown) => act(() => vi.mocked(api.onCommand).mock.calls.forEach(([callback]) => callback(request)));
+
+      sendCommand({ command: 'focus-address' });
+      expect(screen.getByLabelText('Dirección o búsqueda')).toHaveFocus();
+      sendCommand({ command: 'new-tab' });
+      await waitFor(() => expect(api.createTab).toHaveBeenCalled());
+      // Una orden desconocida que llegue por IPC se descarta.
+      sendCommand({ command: 'borrar-todo' });
+
+      fireEvent.keyDown(screen.getByLabelText('Dirección o búsqueda'), { key: 'w', ctrlKey: true });
+      await waitFor(() => expect(api.closeTab).toHaveBeenCalledWith('tab-1'));
+      vi.mocked(api.closeTab).mockClear();
+      fireEvent.keyDown(chat, { key: 'w', ctrlKey: true });
+      expect(api.closeTab).not.toHaveBeenCalled();
+
+      sendCommand({ command: 'history' });
+      expect(await screen.findByRole('heading', { name: 'Historial' })).toBeInTheDocument();
+    } finally {
+      chat.remove();
+    }
+  });
+
+  it('BR-TAB-002: deja las acciones de pestaña en su menú contextual y el audio en la propia pestaña', async () => {
+    const audible: IntegratedBrowserState = { ...state, tabs: [{ ...state.tabs[0], audible: true }] };
+    vi.mocked(api.open).mockResolvedValue({ success: true, state: audible });
+    render(<IntegratedBrowserPanel />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Silenciar Ejemplo' }));
+    await waitFor(() => expect(api.setMuted).toHaveBeenCalledWith(true, 'tab-1'));
+    fireEvent.contextMenu(screen.getByRole('tab', { name: 'Ejemplo' }));
+    await waitFor(() => expect(api.showTabContextMenu).toHaveBeenCalledWith('tab-1'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Herramientas del navegador' }));
+    const menu = screen.getByRole('menu');
+    for (const tabAction of ['Silenciar pestaña', 'Fijar pestaña', 'Duplicar pestaña', 'Cerrar otras pestañas']) {
+      expect(within(menu).queryByRole('menuitem', { name: tabAction })).not.toBeInTheDocument();
+    }
+    expect(within(menu).getByRole('menuitem', { name: 'Historial' })).toHaveAttribute('title', 'Historial · Ctrl+H');
+    // El zoom vive en una fila propia que no cierra el menú.
+    fireEvent.click(within(menu).getByRole('menuitem', { name: /Acercar/ }));
+    await waitFor(() => expect(api.setZoom).toHaveBeenCalledWith('in'));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
   });
 
   it('acusa una apertura del agente con geometría nueva tras dibujar sus controles', async () => {
@@ -275,7 +399,7 @@ describe('IntegratedBrowserPanel', () => {
     await waitFor(() => expect(api.hide).toHaveBeenCalledTimes(1));
     expect(screen.getByAltText('Vista actual del navegador')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('option', { name: /Aprender/ }));
-    await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('https://soflia.ai/aprender'));
+    await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('https://soflia.ai/aprender', { waitForLoad: false }));
     await waitFor(() => expect(api.setViewport).toHaveBeenCalled());
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
     await waitFor(() => expect(screen.queryByAltText('Vista actual del navegador')).not.toBeInTheDocument());
@@ -512,7 +636,7 @@ describe('IntegratedBrowserPanel', () => {
 
     const bookmarks = await screen.findByLabelText('Marcadores');
     fireEvent.click(within(bookmarks).getByRole('button', { name: 'Ejemplo' }));
-    await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('https://example.com/'));
+    await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('https://example.com/', { waitForLoad: false }));
 
     // Las extensiones acompanan a la direccion, no a los marcadores.
     const extensions = await screen.findByLabelText('Extensiones del navegador');
@@ -592,7 +716,7 @@ describe('IntegratedBrowserPanel', () => {
     render(<IntegratedBrowserPanel />);
     fireEvent.click(screen.getByRole('button', { name: 'Herramientas del navegador' }));
     const menu = screen.getByRole('menu');
-    for (const name of ['Historial', 'Contraseñas', 'Extensiones', 'Inspeccionar']) {
+    for (const name of ['Historial', 'Contraseñas', 'Extensiones', 'Herramientas para desarrolladores']) {
       expect(within(menu).getByRole('menuitem', { name }).querySelector('svg')).not.toBeNull();
     }
     fireEvent.keyDown(document, { key: 'Escape' });
@@ -629,7 +753,7 @@ describe('IntegratedBrowserPanel', () => {
 
     openTool('Historial');
     fireEvent.click(await screen.findByText('Informe'));
-    expect(api.navigate).toHaveBeenCalledWith('https://example.com/informe');
+    expect(api.navigate).toHaveBeenCalledWith('https://example.com/informe', { waitForLoad: false });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
     openTool('Contraseñas');

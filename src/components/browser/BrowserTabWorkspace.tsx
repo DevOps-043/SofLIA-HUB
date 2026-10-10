@@ -2,6 +2,7 @@ import { useRef, useState, type KeyboardEvent } from 'react';
 import { integratedBrowserService, type BrowserTabGroup, type BrowserTabGroupColor, type IntegratedBrowserTabState } from '../../services/integrated-browser-service';
 
 import { GROUP_COLORS } from './tab-group-colors';
+import { BrowserTabAudioButton } from './BrowserTabAudioButton';
 
 export function BrowserVerticalTabs(props: {
   tabs: IntegratedBrowserTabState[];
@@ -10,6 +11,8 @@ export function BrowserVerticalTabs(props: {
   onActivate: (id: string) => void;
   onClose: (id: string) => void;
   onReorder: (source: string, target: string) => void;
+  onContextMenu?: (id: string) => void;
+  onToggleMuted?: (id: string, muted: boolean) => void;
 }) {
   const buttons = useRef(new Map<string, HTMLButtonElement>());
   const handleKey = (event: KeyboardEvent, tab: IntegratedBrowserTabState) => {
@@ -28,14 +31,16 @@ export function BrowserVerticalTabs(props: {
     <div role="tablist" aria-label="Pestañas del navegador" aria-orientation="vertical" className="space-y-1">
       {props.tabs.map((tab) => {
         const group = props.groups.find((item) => item.id === tab.groupId);
-        return <div key={tab.id} className="flex items-center gap-1 rounded-lg border-l-2" style={{ borderColor: group ? GROUP_COLORS[group.color].hex : 'transparent' }}>
+        return <div key={tab.id} className="flex items-center gap-1 rounded-lg border-l-2" style={{ borderColor: group ? GROUP_COLORS[group.color].hex : 'transparent' }}
+          onContextMenu={props.onContextMenu ? (event) => { event.preventDefault(); props.onContextMenu?.(tab.id); } : undefined}>
           <button type="button" role="tab" aria-selected={tab.id === props.activeTabId} tabIndex={tab.id === props.activeTabId ? 0 : -1}
             ref={(node) => { if (node) buttons.current.set(tab.id, node); else buttons.current.delete(tab.id); }}
             onKeyDown={(event) => handleKey(event, tab)} onClick={() => props.onActivate(tab.id)}
             title={tab.title || tab.url} className="min-w-0 flex-1 rounded-lg px-2 py-2 text-left text-xs text-primary hover:bg-accent/10 focus-visible:ring-2 focus-visible:ring-accent aria-selected:bg-accent/15 dark:text-white/85">
-            <span className="block truncate">{tab.pinned ? '📌 ' : ''}{tab.title || 'Nueva pestaña'}{tab.muted ? ' · silenciada' : ''}</span>
+            <span className="block truncate">{tab.pinned ? '📌 ' : ''}{tab.title || 'Nueva pestaña'}</span>
             {group && <span className="block truncate text-[10px] text-secondary">{group.name}</span>}
           </button>
+          {props.onToggleMuted && <BrowserTabAudioButton tab={tab} onToggleMuted={props.onToggleMuted} />}
           <button type="button" aria-label={`Cerrar ${tab.title || 'pestaña'}`} onClick={() => props.onClose(tab.id)} className="px-2 text-secondary hover:text-danger">×</button>
         </div>;
       })}

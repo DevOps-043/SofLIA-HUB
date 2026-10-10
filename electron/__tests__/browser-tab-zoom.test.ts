@@ -75,7 +75,8 @@ describe('zoom aislado compatible con Electron 43', () => {
   });
   it('el servicio conserva metadata al alternar, redimensionar y duplicar pestañas', async () => {
     vi.stubEnv('BROWSER_PAGE_TOOLS_ENABLED', 'true');
-    const browser = new IntegratedBrowserService(); browser.attachWindow(new BrowserWindow());
+    const window = new BrowserWindow();
+    const browser = new IntegratedBrowserService(); browser.attachWindow(window);
     try {
       await browser.open('https://example.com/a');
       const firstId = browser.getState().activeTabId!;
@@ -95,9 +96,14 @@ describe('zoom aislado compatible con Electron 43', () => {
       const all = browser.getState().tabs;
       expect(all[all.length - 1].zoomFactor).toBe(1.1);
       browser.activateTab(firstId);
+      // Ctrl+0 en la página se reenvía al renderer, que ejecuta el mismo setZoom que los botones.
       const event = { preventDefault: vi.fn() };
-      (first as WebContents & { emit: (name: string, ...args: unknown[]) => void }).emit('before-input-event', event, { type: 'keyDown', control: true, meta: true, key: '0' });
-      expect(event.preventDefault).toHaveBeenCalled(); expect(browser.getState().tabs[0].zoomFactor).toBe(1);
+      const mac = process.platform === 'darwin';
+      (first as WebContents & { emit: (name: string, ...args: unknown[]) => void }).emit('before-input-event', event, { type: 'keyDown', control: !mac, meta: mac, shift: false, alt: false, key: '0' });
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(window.webContents.send).toHaveBeenCalledWith('integrated-browser:command', { command: 'zoom-reset' });
+      browser.setZoom('reset');
+      expect(browser.getState().tabs[0].zoomFactor).toBe(1);
     } finally { browser.detachWindow(); }
   });
 });

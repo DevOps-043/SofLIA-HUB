@@ -1,4 +1,14 @@
 export const CHANNEL_GROUP_5 = [
+  'agent-runtime:context',
+  'agent-runtime:release',
+  'agent-runtime:state',
+  'agent-runtime:start',
+  'agent-runtime:cancel',
+  'agent-runtime:recover',
+  'agent-runtime:publish',
+  'agent-runtime:configure-codex',
+  'agent-runtime:codex-key',
+  'agent-runtime:changed',
   'integrated-browser:sync-devices-get',
   'integrated-browser:sync-devices-register',
   'integrated-browser:sync-devices-revoke',
@@ -120,4 +130,7 @@ export const CHANNEL_GROUP_5 = [
   'project-hub:create-upload-intent',
   'project-hub:complete-upload',
   'project-hub:get-download',
+  'agent-activity:snapshot',
+  'agent-activity:publish',
+  'agent-activity:changed',
 ] as const;

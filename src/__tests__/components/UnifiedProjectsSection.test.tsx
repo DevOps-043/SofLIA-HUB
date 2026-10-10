@@ -39,6 +39,7 @@ describe('UnifiedProjectsSection', () => {
   });
 
   it('crea desde un formulario compatible con Electron, sin window.prompt', async () => {
+    const listProjects = vi.fn().mockResolvedValue({ success: true, data: [] });
     const createProject = vi.fn().mockResolvedValue({
       success: true,
       data: { project_id: 'f8b9a999-7b76-4c4a-a7ce-3bb6dc7ee7f2' },
@@ -50,11 +51,14 @@ describe('UnifiedProjectsSection', () => {
         data: { enabled: true, authenticated: true, workspaces: [workspaceA, workspaceB] },
       }),
       retryAuthentication: vi.fn(),
-      listProjects: vi.fn().mockResolvedValue({ success: true, data: [] }),
+      listProjects,
       createProject,
     };
 
     render(<UnifiedProjectsSection props={createDefaultProps({ onOpenUnifiedProject })} />);
+    // El estado vacío inicial también muestra el mensaje; esperar la carga real
+    // evita abrir el formulario antes de que existan workspaces.
+    await waitFor(() => expect(listProjects).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.getByText('Aún no hay proyectos.')).toBeInTheDocument());
 
     fireEvent.click(screen.getByTitle('Crear proyecto'));
