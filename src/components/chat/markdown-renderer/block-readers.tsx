@@ -33,13 +33,13 @@ export function readNextBlock(
 
 function readCodeBlock(lines: string[], index: number) {
   const language = lines[index].slice(3).trim();
-  let codeContent = '';
+  const codeLines: string[] = [];
   let nextIndex = index + 1;
   while (nextIndex < lines.length && !lines[nextIndex].startsWith('```')) {
-    codeContent += (codeContent ? '\n' : '') + lines[nextIndex];
+    codeLines.push(lines[nextIndex]);
     nextIndex++;
   }
-  return { element: <CodeBlock key={`code-${nextIndex}`} language={language} code={codeContent} />, nextIndex: nextIndex + 1 };
+  return { element: <CodeBlock key={`code-${index}`} language={language} code={codeLines.join('\n')} />, nextIndex: nextIndex + 1 };
 }
 
 function readTableBlock(lines: string[], index: number) {

@@ -1,0 +1,64 @@
+/* La agenda utiliza los tokens de los dos temas de Hub. */
+.live-agenda { font-family: var(--font-system-ui, Inter, system-ui, sans-serif); font-size: 13px; line-height: 1.6; color: var(--color-text-main); }
+.live-agenda { flex: 1; min-width: 0; overflow-y: auto; background: var(--color-background-val); container: live-agenda / inline-size; }
+.live-agenda-inner { max-width: 1150px; margin: 0 auto; padding: 28px 48px 24px; }
+.live-agenda button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--color-border-val); border-radius: 10px; background: var(--color-card-val); padding: 9px 14px; color: inherit; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .15s, border-color .15s; margin: 0; }
+.live-agenda button:hover { border-color: color-mix(in srgb, var(--color-accent-val) 40%, var(--color-border-val)); background: color-mix(in srgb, var(--color-accent-val) 6%, var(--color-card-val)); }
+.live-agenda button:disabled { opacity: .5; cursor: default; }
+.live-agenda button:focus-visible { outline: 2px solid var(--color-accent-val); outline-offset: 3px; }
+.live-agenda .live-primary { background: var(--color-accent-val); color: var(--color-on-accent-val); border-color: transparent; padding: 12px 18px; }
+.live-agenda .live-primary:hover { background: color-mix(in srgb, var(--color-accent-val) 88%, var(--color-text-main)); }
+.live-icon-button svg { width: 17px; height: 17px; }
+.live-agenda .live-icon-button { padding: 8px; background: transparent; border-color: transparent; }
+.live-muted, .live-description { color: var(--color-text-secondary-val); }
+.live-eyebrow { color: var(--color-accent-val); font-size: 10px; font-weight: 700; letter-spacing: .13em; }
+.live-agenda-top, .live-agenda-heading, .live-agenda-toolbar, .live-section-heading, .live-featured-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.live-brand { display: inline-flex; gap: 10px; align-items: center; font-size: 12px; font-weight: 600; color: var(--color-text-secondary-val); }
+.live-brand svg { color: var(--color-accent-val); }
+.live-brand > span { opacity: .4; margin: 0 3px; }
+.live-agenda-heading { margin: 44px 0 36px; }
+.live-agenda-heading h1 { font-size: clamp(28px, 3vw, 42px); line-height: 1.2; letter-spacing: -.045em; margin: 10px 0 13px; font-weight: 650; }
+.live-agenda-heading h1 span { color: var(--color-accent-val); }
+.live-agenda-heading p { margin: 0; color: var(--color-text-secondary-val); font-size: 13px; }
+.live-agenda-toolbar { border-bottom: 1px solid var(--color-border-val); padding-bottom: 16px; margin-bottom: 24px; }
+.live-agenda-toolbar > span:first-child { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.live-agenda-toolbar > .live-muted { font-size: 11px; }
+.live-count { border: 1px solid var(--color-border-val); background: var(--color-card-val); border-radius: 6px; padding: 0 7px; font-size: 10px; }
+.live-featured { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(180px, 1fr); overflow: hidden; border-radius: 20px; border: 1px solid color-mix(in srgb, var(--color-accent-val) 24%, var(--color-border-val)); background: linear-gradient(110deg, color-mix(in srgb, var(--color-accent-val) 5%, var(--color-card-val)), var(--color-card-val)); }
+.live-featured-main { padding: 30px; min-width: 0; }
+.live-status { display: inline-flex; align-items: center; gap: 7px; color: var(--color-text-secondary-val); font-size: 10px; font-weight: 600; white-space: nowrap; }
+.live-status i { width: 6px; height: 6px; border-radius: 50%; background: var(--color-text-secondary-val); flex-shrink: 0; }
+.live-featured .live-status { padding: 4px 9px; border-radius: 6px; background: color-mix(in srgb, var(--color-accent-val) 8%, transparent); color: var(--color-accent-val); }
+.live-featured .live-status i, .live-status.is-live i { background: var(--color-accent-val); }
+.live-course { display: block; color: var(--color-text-secondary-val); font-size: 10px; font-weight: 600; letter-spacing: .02em; }
+.live-featured .live-course { margin: 22px 0 5px; }
+.live-featured h2 { margin: 0 0 12px; font-size: clamp(22px, 2vw, 29px); line-height: 1.3; letter-spacing: -.035em; font-weight: 600; overflow-wrap: anywhere; }
+.live-description { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 0 0 18px; }
+.live-session-meta { display: flex; flex-wrap: wrap; gap: 8px 20px; color: var(--color-text-secondary-val); font-size: 11px; }
+.live-session-meta > span { display: inline-flex; align-items: center; gap: 7px; }
+.live-session-meta svg { width: 15px; height: 15px; }
+.live-featured-footer { margin-top: 28px; border-top: 1px solid var(--color-border-val); padding-top: 22px; }
+.live-instructor { display: flex; align-items: center; gap: 10px; font-size: 11px; font-weight: 500; }
+.live-instructor small { display: block; color: var(--color-text-secondary-val); font-size: 9px; font-weight: 400; }
+.live-avatar { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: color-mix(in srgb, var(--color-accent-val) 10%, var(--color-background-val)); color: var(--color-accent-val); }
+.live-featured-art { position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; border-left: 1px solid var(--color-border-val); background: radial-gradient(ellipse, color-mix(in srgb, var(--color-accent-val) 12%, transparent), transparent 65%); }
+.live-orbit { position: absolute; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--color-accent-val) 13%, transparent); width: 270px; height: 270px; }
+.orbit-two { width: 205px; height: 205px; }.orbit-three { width: 140px; height: 140px; }
+.live-video-emblem { display: grid; place-items: center; width: 88px; height: 88px; border-radius: 24px; border: 1px solid color-mix(in srgb, var(--color-accent-val) 30%, transparent); background: color-mix(in srgb, var(--color-accent-val) 10%, var(--color-card-val)); color: var(--color-accent-val); transform: rotate(-8deg); box-shadow: 0 12px 40px color-mix(in srgb, var(--color-accent-val) 7%, transparent); }
+.live-video-emblem svg { width: 36px; height: 36px; transform: rotate(8deg); }
+.live-featured-art > span { position: absolute; bottom: 34px; font-size: 10px; color: var(--color-text-secondary-val); }
+.live-upcoming { margin-top: 32px; }.live-section-heading { margin-bottom: 14px; }
+.live-section-heading h2 { font-size: 15px; font-weight: 600; margin: 0; }.live-section-heading > span { font-size: 10px; }
+.live-session-row { display: flex; align-items: center; gap: 18px; padding: 20px 0; border-bottom: 1px solid var(--color-border-val); }
+.live-date-tile { width: 50px; flex: 0 0 50px; padding: 5px 0; text-align: center; border-radius: 11px; background: var(--color-card-val); border: 1px solid var(--color-border-val); line-height: 1.4; }
+.live-date-tile span { display: block; font-size: 9px; text-transform: uppercase; color: var(--color-text-secondary-val); }.live-date-tile strong { font-size: 21px; font-weight: 550; }
+.live-row-details { flex: 1; min-width: 0; }.live-row-details h3 { font-weight: 550; font-size: 14px; margin: 3px 0; overflow-wrap: anywhere; }.live-row-details p { margin: 0; font-size: 10px; color: var(--color-text-secondary-val); }
+.live-agenda-footer { display: flex; align-items: center; gap: 10px; font-size: 10px; color: var(--color-text-secondary-val); border-top: 1px solid var(--color-border-val); margin-top: 40px; padding-top: 20px; }.live-agenda-footer > span { margin-left: auto; }.live-agenda-footer svg { width: 16px; height: 16px; }
+.live-pagination, .live-segment { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 20px 0; }.live-segment { justify-content: flex-start; }.live-segment button[aria-pressed='true'] { color: var(--color-accent-val); border-color: var(--color-accent-val); }
+.live-empty, .live-loading { padding: 60px 20px; text-align: center; color: var(--color-text-secondary-val); }.live-empty h2 { font-size: 21px; color: var(--color-text-main); }.live-empty > svg { margin: auto; }.live-empty-icon { display: inline-grid; place-items: center; width: 65px; height: 65px; border: 1px solid var(--color-border-val); border-radius: 20px; background: var(--color-card-val); color: var(--color-accent-val); }.live-empty-icon svg { width: 28px; height: 28px; }
+.live-skeleton { height: 180px; border-radius: 20px; background: var(--color-card-val); animation: live-loading-pulse 1.5s ease-in-out infinite; } @keyframes live-loading-pulse { 50% { opacity: .4; } }
+@media (max-width: 1100px) { .live-agenda-inner { padding: 24px; }.live-featured-art { display: none; }.live-featured { grid-template-columns: 1fr; }.live-session-row > .live-status { display: none; } }
+@media (max-width: 640px) { .live-agenda-inner { padding: 20px 16px; }.live-agenda-heading { align-items: flex-start; gap: 10px; margin-top: 30px; }.live-agenda-heading > .live-secondary { font-size: 0; padding: 9px; }.live-agenda-heading > .live-secondary svg { width: 17px; }.live-agenda-toolbar { align-items: flex-start; flex-direction: column; gap: 6px; }.live-featured-main { padding: 22px; }.live-featured-footer { flex-wrap: wrap; }.live-session-row { gap: 12px; flex-wrap: wrap; }.live-session-row .live-secondary { margin-left: 62px; }.live-row-details p > span { display: none; }.live-agenda-footer > span { display: none; }.live-brand { flex-wrap: wrap; font-size: 10px; } }
+@media (prefers-reduced-motion: reduce) { .live-skeleton { animation: none; }.live-agenda button { transition: none; } }
+@container live-agenda (max-width: 850px) { .live-agenda-inner { padding: 24px; }.live-featured-art { display: none; }.live-featured { grid-template-columns: 1fr; }.live-session-row > .live-status { display: none; } }
+@container live-agenda (max-width: 600px) { .live-agenda-inner { padding: 20px 16px; }.live-agenda-heading { align-items: flex-start; gap: 10px; }.live-agenda-heading > .live-secondary { font-size: 0; padding: 9px; }.live-agenda-toolbar { align-items: flex-start; flex-direction: column; gap: 6px; }.live-featured-main { padding: 22px; }.live-featured-footer { flex-wrap: wrap; }.live-session-row { gap: 12px; flex-wrap: wrap; }.live-session-row .live-secondary { margin-left: 62px; }.live-row-details p > span, .live-agenda-footer > span { display: none; } }

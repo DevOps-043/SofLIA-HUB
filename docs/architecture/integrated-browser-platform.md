@@ -32,6 +32,42 @@ excluye contraseñas y passkeys, aunque la bóveda local ya cifra toda su metada
 
 ## Capacidades implementadas
 
+### Portada local de SofLIA
+
+Las aperturas sin destino y las pestañas nuevas usan `soflia-inicio://inicio/`.
+En modo simple, [BrowserHomePage](../../src/components/browser/BrowserHomePage.tsx)
+la muestra en el renderer Chromium existente, de forma interactiva incluso
+antes de terminar `open`. El viewport declara `homeInShell:true`; main evita
+que la vista nativa local cubra esa portada. Páginas externas, modo dividido,
+pantalla completa y ventanas separadas siguen usando `WebContentsView`. El handler de
+[inicio](../../electron/integrated-browser/home/protocol.ts) se registra en cada
+partición; sólo sirve la URL canónica con GET/HEAD. HTML, CSS, logo y fuentes del
+sistema no requieren red. La CSP bloquea scripts, conexiones, frames y objetos;
+el formulario GET nativo abre Google usando la seguridad de navegación existente.
+El formulario del renderer previene la navegación de la ventana principal y
+envía el destino al wrapper tipado. Ambas representaciones comparten
+[contenido estático](../../src/shared/browser-home/home-content.html) y
+[CSS acotado a la portada](../../src/shared/browser-home/home.css), sin interpolar
+historial ni entradas de usuarios en HTML. No hay cabecera, pie ni anillos.
+
+Los tokens compartidos bajo `src/styles/theme-light.css` y `theme-dark.css` se
+importan desde `src/index.css` y desde el documento nativo. La media query sigue
+`nativeTheme`, sincronizado por la preferencia existente de la aplicación. El
+logo y halo animan transform/opacity, con movimiento reducido. La barra muestra
+el placeholder, sin permisos web ni lectura; historial excluye la portada y la
+sesión conserva su URL para recarga, reapertura y restauración. Las pestañas
+Google existentes no se migran. Evidencia en el cambio OpenSpec
+`local-soflia-browser-home`.
+La revisión `refine-browser-home-and-search` evita esperar un proceso nuevo para
+usar la portada. La sonda nativa observó unos 2,4 s incluso con HTML vacío al
+crear una vista y 14–17 ms al recargarla; el coste no era descargar Google.
+El proceso nativo puede seguir preparándose en segundo plano. No se atribuye
+esa medición a FPS ni al tiempo hasta pintar la interfaz completa instalada.
+Menús y gestores de la portada no capturan ni ocultan su vista nativa. La
+percepción nativa omite esa superficie oculta; vuelve a operar al navegar hacia
+un sitio o componer el inicio nativamente, sin presentar una captura distinta
+del campo de búsqueda visible en el renderer.
+
 ### Respuesta y trabajo acotado de la interfaz
 
 La interfaz solicita `waitForLoad:false` al abrir, navegar o crear pestaña:
@@ -51,6 +87,22 @@ La barra de direcciones liga cada sugerencia al texto consultado: al editar deja
 de mostrar resultados anteriores inmediatamente. Agrupa las consultas durante
 140 ms de escritura y descarta respuestas tras cerrar o desmontar la barra.
 Al cambiar `profileRevision` remonta la barra y retira el historial anterior.
+En el inicio vacío no consulta historial. Enter ignora el hover y sólo abre
+resultados elegidos con flechas; enviar texto vacío no navega. Mientras hay una
+carga, la URL anterior de Chromium no sustituye el destino solicitado; el
+documento confirmado se publica en `did-navigate`.
+
+Sobre la portada del renderer, las sugerencias se superponen sin modificar su
+espacio, ni capturas ni espera de la vista nativa. Sobre páginas externas,
+las sugerencias reservan su altura dentro del viewport mediante ResizeObserver:
+la página permanece visible debajo del desplegable, sin captura ni ocultación.
+Cerrar o cambiar de perfil restaura el rectángulo completo. Los gestores y
+avisos de permisos conservan su respaldo estático. Una operación de gestor
+pendiente no puede ocultar una superficie después de desmontar su panel.
+
+Activar una pestaña con zoom emulado conserva la configuración aplicada cuando
+su factor y tamaño efectivo coinciden. Carga, recarga, crash o nueva geometría
+invalidan esa deduplicación; las barreras de carga nativa se conservan.
 
 El cierre de otras pestañas o de las situadas a la derecha agrupa mutaciones:
 conserva orden del historial y selección, aplica layout al destino final y evita

@@ -28,6 +28,8 @@ la lectura de configuración falle; muestra confirmación/cancelación/error y
 | Project Hub | `project` + folder + user | sources/chats/folder/Drive | fuente, chat de proyecto, share | empty source/chat, picker, error |
 | Productividad | `productivity` + user | monitoring, summaries, calendar | rango, start/stop, auto config | sin datos, sesion activa, resumen, error |
 | Meetings | `meetings` + user | meeting runs/detail/live | crear, detectar, revisar, aprobar, sync | lista vacia, processing, pending, failed |
+| Sesiones síncronas | Herramientas Integradas, debajo de Navegador y Reuniones | catálogo autenticado de Learning, organización activa | actualizar, paginar, consultar una clase, cambiar agenda de alumno/instructor | carga, vacío, error recuperable, sin organización |
+| Aula SofLIA | clase seleccionada o referencia académica después del login | snapshot autorizado para confirmar can_manage | instructor: estudio con chat, estadísticas, escenas, actividades y medios de diseño; participante: lienzo independiente; volver/cerrar | carga de rol, error y reintento, prototipo local sin transmisión ni mutaciones; sin navegador/chat general |
 | Settings | modal global | settings + APIs de cada dominio | navegar/editar/autosave/test | loading por tab, dirty/saving/error |
 | Share modal | target conversacion/folder | members, grants, links | grant, copy, revoke | tabs, loading, link, error |
 | Folder modal | crear/editar/mover | folder service | guardar/cancelar | validacion/error |
@@ -134,3 +136,29 @@ timer/manual check -> release disponible
 - Denegacion/HITL: conservar tarea pendiente y explicar siguiente accion.
 - Timeout: liberar loading y ofrecer reintento solo si es seguro/idempotente.
 - Ventana cerrada: main no debe enviar a `webContents` destruido.
+
+
+## Lectura de entregables
+
+<!-- evidence: src/components/artifacts/ArtifactViewerPanel.tsx -->
+
+Pulsar un archivo comprobado abre el visor local y oculta el monitor de equipos.
+El chat sigue visible y se puede continuar conversando. Las pestañas permiten
+revisar todos los archivos del trabajo. Guardar copia solicita un destino y no
+sobrescribe archivos existentes. Abrir fuera usa la aplicación predeterminada
+solo al pulsarlo. El menú Herramientas ofrece Abrir archivo para PDF, Word,
+Excel/CSV, imágenes, Markdown, texto, PPTX y aplicaciones HTML autocontenidas.
+Cancelar el selector conserva la vista actual. Los errores permiten reintentar.
+
+
+## Resultados y ajuste del espacio de trabajo
+
+<!-- evidence: src/components/agents/BackgroundChatResult.tsx -->
+<!-- evidence: src/components/agents/AgentActivityPanel.tsx -->
+
+SofLIA explica brevemente qué realizó y ofrece los archivos en el chat. El panel
+«Archivos» agrupa entregables por encargo y permite reanudar, pausar o cancelar
+trabajos pendientes, sin listar agentes. Se puede arrastrar su borde izquierdo
+o enfocar el separador y usar flechas, Inicio o Fin. El visor ofrece el mismo
+ajuste; Vista previa, Código, Guardar copia, Abrir fuera, ampliar y cerrar están
+junto al nombre del archivo. En ventanas pequeñas ocupa la superficie disponible.

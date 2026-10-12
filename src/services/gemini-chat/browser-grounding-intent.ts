@@ -35,6 +35,14 @@ export function isActiveDocumentContentRequest(message: string): boolean {
     && /\b(resumen|resume|resumir|analiza|analizar|revisa|revisar|lee|leer|explica|explicar|contenido|de que trata)\b/.test(text);
 }
 
+/** Una aplicación externa requiere observación del ejecutor supervisado. */
+export function isExternalDesktopContentRequest(message: string): boolean {
+  const text = normalizeBrowserGroundingText(message);
+  return /\b(programa abierto|otra ventana|aplicacion de escritorio)\b/.test(text)
+    || /\b(codex|escritorio|desktop|pantalla)\b/.test(text)
+    && /\b(analiza|revisa|observa|mira|lee|inspecciona|compara)\b/.test(text);
+}
+
 /**
  * Pide comprender completa la conversación o página que el usuario tiene
  * delante ("resume el siguiente chat", "analiza esta página"). La observación

@@ -8,10 +8,12 @@ export async function createWordDocument(args: DocumentBaseArgs): Promise<string
   await createProfessionalDocument({
     content: args.content,
     title: args.title,
-    author: 'SofLIA',
+    author: args.author ?? 'SofLIA',
+    subtitle: args.subtitle,
     outputPath: filePath,
     type: 'word',
-    includeCover: true,
+    includeCover: args.includeCover,
+    design: args.design,
   });
   return filePath;
 }

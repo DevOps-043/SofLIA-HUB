@@ -1,52 +1,27 @@
-import { AlignmentType, Paragraph, ShadingType, Table, TableCell, TableRow, TextRun, WidthType } from 'docx';
-import { COLORS } from './colors';
+import { AlignmentType, BorderStyle, Paragraph, ShadingType, Table, TableCell, TableLayoutType, TableRow, VerticalAlign, WidthType } from 'docx';
+import { DOCUMENT_COLORS, DOCUMENT_PAGE, documentHeaderText, type DocumentDesign } from '../../src/shared/document-design';
+import { tableAlignment, tableColumnWidths, type DocumentBlock } from './content-model';
 import { inlineToRuns, parseInline } from './inline-parser';
 
-export function parseTable(lines: string[]): Table | null {
-  if (lines.length < 2) return null;
-
-  const headerCells = lines[0].split('|').map((cell) => cell.trim()).filter(Boolean);
-  const dataRows = lines.slice(2).map((row) =>
-    row.split('|').map((cell) => cell.trim()).filter(Boolean),
-  );
-
-  if (headerCells.length === 0) return null;
-
-  const colWidth = Math.floor(9000 / headerCells.length);
-  const header = new TableRow({
-    children: headerCells.map((cell) =>
-      new TableCell({
-        children: [new Paragraph({
-          children: [new TextRun({ text: cell, bold: true, color: COLORS.tableHeaderText, size: 20, font: 'Calibri' })],
-          alignment: AlignmentType.CENTER,
-          spacing: { before: 60, after: 60 },
-        })],
-        shading: { fill: COLORS.tableHeader, type: ShadingType.CLEAR, color: 'auto' },
-        width: { size: colWidth, type: WidthType.DXA },
-      }),
-    ),
-    tableHeader: true,
-  });
-
-  const rows = dataRows.map((row, rowIdx) =>
-    new TableRow({
-      children: headerCells.map((_, colIdx) =>
-        new TableCell({
-          children: [new Paragraph({
-            children: inlineToRuns(parseInline(row[colIdx] || ''), 20),
-            spacing: { before: 40, after: 40 },
-          })],
-          shading: rowIdx % 2 === 0
-            ? { fill: COLORS.tableBg, type: ShadingType.CLEAR, color: 'auto' }
-            : undefined,
-          width: { size: colWidth, type: WidthType.DXA },
-        }),
-      ),
-    }),
-  );
-
+export function buildTable(block: Extract<DocumentBlock, { kind: 'table' }>, design: DocumentDesign): Table {
+  const widths = tableColumnWidths(block.headers, block.rows, DOCUMENT_PAGE.contentWidth);
+  const border = { style: BorderStyle.SINGLE, size: 4, color: DOCUMENT_COLORS.border };
+  const cells = (row: string[], header: boolean, rowIndex = 0) => block.headers.map((_, column) => new TableCell({
+    children: [new Paragraph({
+      children: inlineToRuns(parseInline(row[column] ?? '').map(part => header ? { ...part, bold: true } : part), 22, design, header ? documentHeaderText(design.accent) : DOCUMENT_COLORS.text),
+      alignment: tableAlignment(block, column) === 'right' ? AlignmentType.RIGHT : tableAlignment(block, column) === 'center' ? AlignmentType.CENTER : AlignmentType.LEFT,
+      spacing: { before: 0, after: 0, line: 264 },
+    })],
+    width: { size: widths[column], type: WidthType.DXA },
+    margins: { top: 120, bottom: 120, left: 160, right: 160 },
+    verticalAlign: VerticalAlign.CENTER,
+    shading: { fill: header ? design.accent : rowIndex % 2 === 0 ? DOCUMENT_COLORS.stripe : 'FFFFFF', type: ShadingType.CLEAR, color: 'auto' },
+    borders: { top: border, bottom: border, left: border, right: border },
+  }));
   return new Table({
-    rows: [header, ...rows],
-    width: { size: 9000, type: WidthType.DXA },
+    rows: [new TableRow({ children: cells(block.headers, true), tableHeader: true }), ...block.rows.map((row, index) => new TableRow({ children: cells(row, false, index) }))],
+    columnWidths: widths, layout: TableLayoutType.FIXED,
+    width: { size: DOCUMENT_PAGE.contentWidth, type: WidthType.DXA },
+    borders: { top: border, bottom: border, left: border, right: border, insideHorizontal: border, insideVertical: border },
   });
 }

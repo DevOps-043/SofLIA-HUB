@@ -8,6 +8,9 @@ export const CHANNEL_GROUP_1 = [
   'app:get-pending-meeting-trigger',
   'app:share-link',
   'app:meeting-trigger',
+  'learning-live:open',
+  'app:get-pending-learning-session',
+  'app:learning-session',
   // Inicio de sesion federado con SofLIA Learning: apertura del navegador del
   // sistema y retorno del ticket por deep link.
   'auth:open-sso',

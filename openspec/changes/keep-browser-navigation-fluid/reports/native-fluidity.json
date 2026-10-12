@@ -1,0 +1,17 @@
+{
+  "electron": "44.0.0-beta.3",
+  "chromium": "152.0.7977.30",
+  "switches": 200,
+  "totalSwitchMs": 16.904499999999643,
+  "meanSwitchMs": 0.08452249999999822,
+  "isolatedZoom": true,
+  "repeatedSwitchEmulations": 0,
+  "repeatedSwitchZoomMutations": 0,
+  "framesDuringReservedViewport": 0,
+  "animationConfirmed": false,
+  "animationTestWindowOpacity": 0,
+  "reservedViewportKeepsViewVisible": true,
+  "sameUrlReloadReappliesZoom": true,
+  "remotePageTested": false,
+  "rendererDropdownTested": false
+}

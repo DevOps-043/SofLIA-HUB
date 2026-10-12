@@ -1,0 +1,10 @@
+- [x] Corregir selección, contexto reciente y aviso del resultado real.
+- [x] Cubrir solicitud original, casos negativos, proveedores y coordinación.
+- [x] Reproducir y verificar en chat real.
+- [x] Corregir identidad del monitor y presupuesto de razonamiento de workers.
+- [x] Ejecutar revisión independiente y documentar evidencia.
+- [x] Registrar cierre de la compuerta general integrada y excepciones ajenas.
+- [x] Mostrar progreso local real, rechazos IPC y aislamiento por identidad.
+- [x] Convertir el monitor del chat en ventana flotante y cambiar su superficie.
+- [x] Verificar visualmente el estado vacío y dos agentes trabajando en chat real.
+- [x] Repetir regresiones y revisión independiente del seguimiento.

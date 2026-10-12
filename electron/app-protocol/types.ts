@@ -34,6 +34,7 @@ export interface AuthCallbackPayload {
 }
 
 export type AppProtocolCommand =
+  | { type: 'learning-session'; payload: LearningLiveSessionReference }
   | {
       type: 'share-link';
       shareLink: string;
@@ -48,3 +49,4 @@ export type AppProtocolCommand =
       payload: AuthCallbackPayload;
     }
   | null;
+import type { LearningLiveSessionReference } from '../../src/shared/learning-live-session';

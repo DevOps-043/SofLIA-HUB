@@ -1,5 +1,5 @@
 import type { PreloadBridge, SafeIpc } from './types';
-import type { BrowserNavigationOptions } from '../../src/shared/browser-navigation';
+import type { BrowserNavigationOptions, BrowserViewport } from '../../src/shared/browser-navigation';
 import type { BrowserSyncControlRequest } from '../integrated-browser/platform-types';
 
 function navigationPayload(payload: Record<string, unknown>, options?: BrowserNavigationOptions): Record<string, unknown> {
@@ -10,6 +10,7 @@ export function exposeIntegratedBrowserApi(bridge: PreloadBridge, ipc: SafeIpc):
   const { safeInvoke, safeOn } = ipc;
   bridge.exposeInMainWorld('integratedBrowser', {
     getState: () => safeInvoke('integrated-browser:get-state'),
+    reconnectEcosystemSession: () => safeInvoke('integrated-browser:ecosystem-connect'),
     getRuntimeDiagnostic: () => safeInvoke('integrated-browser:runtime-diagnostic'),
     getSyncDevices: () => safeInvoke('integrated-browser:sync-devices-get'),
     registerSyncDevice: () => safeInvoke('integrated-browser:sync-devices-register'),
@@ -68,7 +69,7 @@ export function exposeIntegratedBrowserApi(bridge: PreloadBridge, ipc: SafeIpc):
     stop: () => safeInvoke('integrated-browser:stop'),
     focus: () => safeInvoke('integrated-browser:focus'),
     toggleDevTools: () => safeInvoke('integrated-browser:toggle-devtools'),
-    setViewport: (viewport: { x: number; y: number; width: number; height: number }) =>
+    setViewport: (viewport: BrowserViewport) =>
       safeInvoke('integrated-browser:set-viewport', viewport),
     setOverlayBounds: (bounds: { x: number; y: number; width: number; height: number }) =>
       safeInvoke('integrated-browser:set-overlay-bounds', bounds),

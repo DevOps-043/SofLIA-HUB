@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type Ref } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent, type Ref } from 'react';
 import { integratedBrowserService, type BrowserHistoryEntry } from '../../services/integrated-browser-service';
 import { BrowserSitePermissionsPanel } from './BrowserSitePermissionsPanel';
 import { BrowserPermissionPrompt } from './BrowserPermissionPrompt';
 import { BrowserAgentPolicyPrompt } from './BrowserAgentPolicyPrompt';
+import { isBrowserHomeUrl } from '../../shared/browser-home';
 
 const SUGGESTION_LIMIT = 8;
 const SUGGESTION_DELAY_MS = 140;
@@ -14,12 +15,16 @@ export function BrowserAddressBar({ inputRef, ...props }: {
   onEditingChange: (editing: boolean) => void;
   onNavigate: (target: string) => void;
   onSuggestionsVisibilityChange?: (visible: boolean) => void | Promise<void>;
+  /** Borde inferior del desplegable en coordenadas de ventana; null al cerrar. */
+  onSuggestionsBoundsChange?: (bottom: number | null) => void;
   /** Permite enfocar la dirección desde un atajo (Ctrl+L, Alt+D, F6). */
   inputRef?: Ref<HTMLInputElement>;
 }) {
   const requestIdRef = useRef(0);
   const suggestionsVisibleRef = useRef(false);
   const visibilityHandlerRef = useRef(props.onSuggestionsVisibilityChange);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+  const boundsHandlerRef = useRef(props.onSuggestionsBoundsChange);
   const [suggestionResult, setSuggestionResult] = useState<{ query: string; entries: BrowserHistoryEntry[] }>({ query: '', entries: [] });
   // Retirar resultados obsoletos en el mismo render, sin esperar la consulta.
   const suggestions = suggestionResult.query === props.address.trim() ? suggestionResult.entries : [];
@@ -29,11 +34,15 @@ export function BrowserAddressBar({ inputRef, ...props }: {
   const [agentPromptOpen, setAgentPromptOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   visibilityHandlerRef.current = props.onSuggestionsVisibilityChange;
+  useLayoutEffect(() => {
+    boundsHandlerRef.current = props.onSuggestionsBoundsChange;
+  }, [props.onSuggestionsBoundsChange]);
 
   useEffect(() => {
     if (!open || !integratedBrowserService.isAvailable()) return undefined;
     const requestId = ++requestIdRef.current;
     const query = props.address.trim();
+    if (!query && isBrowserHomeUrl(props.currentUrl)) return undefined;
     let canceled = false;
     const timer = window.setTimeout(async () => {
       try {
@@ -50,7 +59,7 @@ export function BrowserAddressBar({ inputRef, ...props }: {
       }
     }, SUGGESTION_DELAY_MS);
     return () => { canceled = true; window.clearTimeout(timer); };
-  }, [open, props.address]);
+  }, [open, props.address, props.currentUrl]);
 
   const navigate = (target: string) => {
     props.onAddressChange(target);
@@ -63,8 +72,9 @@ export function BrowserAddressBar({ inputRef, ...props }: {
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    const selected = suggestions[activeIndex];
-    navigate(selected?.url ?? props.address);
+    const selected = listVisible ? suggestions[activeIndex] : undefined;
+    const target = selected?.url ?? props.address.trim();
+    if (target) navigate(target);
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -78,15 +88,38 @@ export function BrowserAddressBar({ inputRef, ...props }: {
     setOpen(true);
     setActiveIndex((current) => {
       if (suggestions.length === 0) return -1;
+      if (current < 0) return event.key === 'ArrowDown' ? 0 : suggestions.length - 1;
       const delta = event.key === 'ArrowDown' ? 1 : -1;
       return (current + delta + suggestions.length) % suggestions.length;
     });
   };
 
-  const listVisible = open && suggestions.length > 0;
+  const listVisible = open && suggestions.length > 0 && (Boolean(props.address.trim()) || !isBrowserHomeUrl(props.currentUrl));
   // El globo de permiso se pinta sobre el area de la vista nativa, que se
   // compone por encima del renderer: sin entrar aqui quedaria tapado.
-  const overlayVisible = listVisible || siteOpen || permissionPromptOpen || agentPromptOpen;
+  const overlayVisible = siteOpen || permissionPromptOpen || agentPromptOpen;
+
+  useLayoutEffect(() => {
+    if (!listVisible || !suggestionsRef.current) return undefined;
+    const element = suggestionsRef.current;
+    const measure = () => {
+      // Reservar una superficie web de al menos 120 px incluso en ventanas bajas.
+      const available = Math.max(0, window.innerHeight - element.getBoundingClientRect().top - 128);
+      element.style.maxHeight = `${Math.min(256, available)}px`;
+      boundsHandlerRef.current?.(element.getBoundingClientRect().bottom);
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    const toolbar = element.closest('header');
+    if (toolbar) observer.observe(toolbar);
+    window.addEventListener('resize', measure);
+    measure();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+      boundsHandlerRef.current?.(null);
+    };
+  }, [listVisible]);
 
   useEffect(() => {
     if (suggestionsVisibleRef.current === overlayVisible) return;
@@ -103,22 +136,22 @@ export function BrowserAddressBar({ inputRef, ...props }: {
   return (
     <div className="relative min-w-[220px] flex-1">
       <form
-        className="flex h-10 items-center rounded-xl border border-gray-200/80 bg-gray-50/90 px-2.5 shadow-inner transition-all duration-200 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 focus-within:bg-white dark:border-white/[0.08] dark:bg-[#161b22]/80 dark:focus-within:bg-[#0d1117]"
+        className="flex h-10 items-center rounded-full border border-gray-200/80 bg-gray-50/90 px-2.5 shadow-inner transition-colors duration-200 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 focus-within:bg-white dark:border-white/[0.08] dark:bg-[#161b22]/80 dark:focus-within:bg-[#0d1117]"
         onSubmit={submit}
       >
         <label className="sr-only" htmlFor="integrated-browser-address">Dirección o búsqueda</label>
         <button
           type="button"
-          aria-label="Permisos del sitio"
+          aria-label={isBrowserHomeUrl(props.currentUrl) ? 'Página de inicio de SofLIA' : 'Permisos del sitio'}
           aria-expanded={siteOpen}
-          title="Permisos del sitio"
+          title={isBrowserHomeUrl(props.currentUrl) ? 'Página de inicio de SofLIA' : 'Permisos del sitio'}
+          disabled={isBrowserHomeUrl(props.currentUrl)}
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => { setSiteOpen((current) => !current); setOpen(false); }}
           className="mr-2 grid h-7 w-7 shrink-0 place-items-center rounded-lg text-gray-400 transition-all duration-200 hover:scale-105 hover:bg-gray-200/70 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent dark:text-white/40 dark:hover:bg-white/[0.08] dark:hover:text-white/80"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            {isBrowserHomeUrl(props.currentUrl) ? <path d="m3 10 9-7 9 7v10H3zm6 10v-7h6v7" /> : <><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></>}
           </svg>
         </button>
         <input
@@ -133,7 +166,7 @@ export function BrowserAddressBar({ inputRef, ...props }: {
           aria-autocomplete="list"
           aria-controls="integrated-browser-suggestions"
           aria-expanded={listVisible}
-          aria-activedescendant={activeIndex >= 0 ? `integrated-browser-suggestion-${activeIndex}` : undefined}
+          aria-activedescendant={listVisible && activeIndex >= 0 && activeIndex < suggestions.length ? `integrated-browser-suggestion-${activeIndex}` : undefined}
           className="min-w-0 flex-1 bg-transparent py-2 text-sm text-gray-800 outline-none dark:text-white placeholder-gray-400 dark:placeholder-gray-500"
           placeholder="Buscar o escribir una dirección web"
           autoComplete="off"
@@ -161,7 +194,7 @@ export function BrowserAddressBar({ inputRef, ...props }: {
       <BrowserAgentPolicyPrompt onOpenChange={setAgentPromptOpen} />
 
       {listVisible && (
-        <div id="integrated-browser-suggestions" role="listbox" aria-label="Sugerencias del historial" className="absolute left-0 top-[calc(100%+0.375rem)] z-[80] max-h-64 w-full max-w-[42rem] overflow-y-auto rounded-2xl border border-gray-200/80 bg-white/98 p-1.5 shadow-xl shadow-black/10 backdrop-blur-xl dark:border-white/[0.1] dark:bg-[#161b22]/98">
+        <div ref={suggestionsRef} id="integrated-browser-suggestions" role="listbox" aria-label="Sugerencias del historial" className="absolute left-0 top-[calc(100%+0.375rem)] z-[80] max-h-64 w-full max-w-[42rem] overflow-y-auto rounded-2xl border border-gray-200/80 bg-white/98 p-1.5 shadow-xl shadow-black/10 backdrop-blur-xl dark:border-white/[0.1] dark:bg-[#161b22]/98">
           {suggestions.map((entry, index) => (
             <button
               key={entry.id}
@@ -170,9 +203,8 @@ export function BrowserAddressBar({ inputRef, ...props }: {
               role="option"
               aria-selected={activeIndex === index}
               onMouseDown={(event) => event.preventDefault()}
-              onMouseEnter={() => setActiveIndex(index)}
               onClick={() => navigate(entry.url)}
-              className={`flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left transition-all duration-150 ${activeIndex === index ? 'bg-accent/[0.09]' : 'hover:bg-gray-100 dark:hover:bg-white/[0.05]'}`}
+              className={`flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left transition-colors duration-150 hover:bg-accent/[0.09] ${activeIndex === index ? 'bg-accent/[0.09]' : ''}`}
             >
               <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-accent/[0.08] text-accent">
                 <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M7 17L17 7M8 7h9v9" /></svg>

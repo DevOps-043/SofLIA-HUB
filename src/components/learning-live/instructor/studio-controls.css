@@ -1,0 +1,43 @@
+/* Controles del estudio: superficies redondeadas y foco verde sutil del sistema de SofLIA. */
+.studio-dialog { margin: auto; inset: 0; border-radius: 18px; }
+.studio-dialog .studio-primary-button { border-radius: 12px; }
+.studio-resource-actions button { border-style: solid; border-radius: 10px; }
+.studio-small-tabs { border-radius: 10px; }
+.studio-small-tabs button { border-radius: 7px; }
+.studio-activity-card { border-radius: 12px; }
+.studio-field-label { margin: 15px 0; font-size: 13px; }
+.studio-field-label > span { display: block; margin-bottom: 7px; }
+.studio-number-field { display: flex; align-items: center; gap: 3px; height: 38px; padding: 3px; border: 1px solid var(--color-border-val); border-radius: 12px; background: var(--color-surface-2-val); transition: border-color .15s, box-shadow .15s; }
+.studio-number-field.is-compact { width: 104px; height: 30px; border-radius: 10px; }
+.studio-number-field:focus-within { border-color: color-mix(in srgb, var(--color-accent-val) 50%, var(--color-border-val)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent-val) 10%, transparent); }
+.instructor-studio .studio-number-field input, .studio-dialog .studio-number-field input { appearance: textfield; -moz-appearance: textfield; flex: 1; display: block; min-width: 0; width: 0; height: 100%; padding: 0; margin: 0; border: 0; border-radius: 0; background: transparent; color: var(--color-text-main); font: inherit; font-size: 13px; text-align: center; outline: none; box-shadow: none; font-variant-numeric: tabular-nums; }
+.studio-number-field input::-webkit-inner-spin-button, .studio-number-field input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.studio-number-field button { display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 28px; border-radius: 8px; color: var(--color-text-secondary-val); }
+.studio-number-field.is-compact button { flex-basis: 22px; width: 22px; height: 22px; border-radius: 6px; }
+.studio-number-field button:hover:not(:disabled) { color: var(--color-text-main); background: color-mix(in srgb, var(--color-text-secondary-val) 10%, transparent); }
+.studio-number-field button:disabled { opacity: .3; cursor: default; }
+.studio-number-field button svg { width: 13px; height: 13px; }
+.studio-number-field button > span { font-size: 18px; line-height: 1; }
+.studio-dialog .studio-select { margin-top: 7px; }
+.studio-dialog .studio-select > button[role='combobox'] { width: 100%; height: 40px; padding: 8px 12px; border: 1px solid var(--color-border-val); border-radius: 12px; background: var(--color-surface-2-val); color: var(--color-text-main); font-size: 13px; box-shadow: none; outline: none; }
+.studio-dialog .studio-select > button[role='combobox']:hover, .studio-dialog .studio-select > button[aria-expanded='true'], .studio-dialog .studio-select > button[role='combobox']:focus-visible { border-color: color-mix(in srgb, var(--color-accent-val) 50%, var(--color-border-val)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent-val) 10%, transparent); }
+.studio-dialog input:not([type='radio']) { border-radius: 12px; }
+.studio-dialog input:not([type='radio']):focus { outline: none; border-color: color-mix(in srgb, var(--color-accent-val) 50%, var(--color-border-val)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent-val) 10%, transparent); }
+.instructor-studio .studio-number-field input:focus, .studio-dialog .studio-number-field input:focus { outline: none; box-shadow: none; border: 0; }
+.studio-moderation input[type='checkbox'] { appearance: none; position: relative; flex-shrink: 0; width: 32px; height: 20px; border: 1px solid var(--studio-border); border-radius: 999px; background: color-mix(in srgb, var(--studio-muted) 15%, var(--studio-inset)); cursor: pointer; transition: background .15s; }
+.studio-moderation input[type='checkbox']::before { content: ''; display: block; width: 12px; height: 12px; margin: 3px; border-radius: 50%; background: var(--studio-muted); transition: transform .15s, background .15s; }
+.studio-moderation input[type='checkbox']:checked { background: var(--studio-accent); border-color: transparent; }
+.studio-moderation input[type='checkbox']:checked::before { transform: translateX(12px); background: var(--color-on-accent-val); }
+.studio-dialog .studio-quiz-option input[type='radio'] { appearance: none; display: grid; place-items: center; width: 18px; height: 18px; border: 1px solid var(--color-border-val); border-radius: 50%; background: var(--color-surface-2-val); cursor: pointer; flex-shrink: 0; margin: 0; }
+.studio-dialog .studio-quiz-option input[type='radio']:checked::after { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--color-accent-val); }
+.studio-quiz-material { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 10px 0 12px; border-bottom: 1px solid var(--studio-border); margin-bottom: 4px; }
+.studio-quiz-material > span { display: flex; align-items: center; gap: 6px; width: 100%; color: var(--studio-muted); margin-bottom: 3px; }
+.studio-quiz-material strong { font-size: 11px; font-weight: 500; }
+.studio-quiz-material svg { width: 13px; height: 13px; }
+.studio-quiz-material button { display: flex; align-items: center; justify-content: center; gap: 6px; flex: 1; font-size: 12px; padding: 7px 8px; border: 1px solid var(--studio-border); border-radius: 10px; background: var(--studio-inset); color: var(--studio-muted); }
+.studio-quiz-material button:hover { color: var(--color-text-main); border-color: color-mix(in srgb, var(--studio-accent) 40%, var(--studio-border)); background: color-mix(in srgb, var(--studio-accent) 4%, var(--studio-inset)); }
+@container instructor-studio (max-width: 500px) {
+  .studio-media-dock button > span { display: none; }
+  .studio-media-dock button:not(.studio-device-chevron) { min-width: 40px; padding: 6px 10px; }
+  .studio-dock-split button:not(.studio-device-chevron) { min-width: 35px; padding-right: 4px; }
+}

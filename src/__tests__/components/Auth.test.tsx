@@ -36,6 +36,13 @@ function filterMotionProps<T extends object>(props: T): T {
 
 // Mock AuthContext
 const mockSignInWithSofia = vi.fn();
+const mockWindowControls = {
+  minimize: vi.fn(),
+  maximize: vi.fn(),
+  close: vi.fn(),
+  isMaximized: vi.fn(),
+  getPlatform: vi.fn(),
+};
 
 vi.mock('../../contexts/AuthContext', () => ({
   useAuth: () => ({
@@ -59,6 +66,15 @@ import { Auth } from '../../components/Auth';
 describe('Auth component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockWindowControls.minimize.mockResolvedValue(undefined);
+    mockWindowControls.maximize.mockResolvedValue(undefined);
+    mockWindowControls.close.mockResolvedValue(undefined);
+    mockWindowControls.isMaximized.mockResolvedValue(false);
+    mockWindowControls.getPlatform.mockResolvedValue('win32');
+    Object.defineProperty(window, 'windowControls', {
+      configurable: true,
+      value: mockWindowControls,
+    });
     Object.defineProperty(window, 'matchMedia', {
       configurable: true,
       value: vi.fn().mockImplementation((query: string) => ({
@@ -141,5 +157,63 @@ describe('Auth component', () => {
 
     const passwordInput = screen.getByPlaceholderText('Contraseña');
     expect(passwordInput).toHaveAttribute('type', 'password');
+  });
+
+  it('muestra una barra de título con los tres controles sin sesión', async () => {
+    render(<Auth />);
+
+    expect(screen.getAllByRole('banner', { name: 'Barra de título' })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Minimizar ventana' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Maximizar ventana' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Cerrar ventana' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: 'Ver archivos de SofLIA' })).not.toBeInTheDocument();
+    await waitFor(() => expect(mockWindowControls.getPlatform).toHaveBeenCalledOnce());
+  });
+
+  it('minimiza y cierra sin enviar ni borrar el formulario de acceso', async () => {
+    render(<Auth />);
+    const identifierInput = screen.getByPlaceholderText(/Usuario o Correo/i);
+    const passwordInput = screen.getByPlaceholderText('Contraseña');
+    fireEvent.change(identifierInput, { target: { value: 'usuario@ejemplo.com' } });
+    fireEvent.change(passwordInput, { target: { value: 'clave-de-prueba' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Minimizar ventana' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar ventana' }));
+
+    await waitFor(() => {
+      expect(mockWindowControls.minimize).toHaveBeenCalledOnce();
+      expect(mockWindowControls.close).toHaveBeenCalledOnce();
+    });
+    expect(mockSignInWithSofia).not.toHaveBeenCalled();
+    expect(identifierInput).toHaveValue('usuario@ejemplo.com');
+    expect(passwordInput).toHaveValue('clave-de-prueba');
+  });
+
+  it('alterna entre maximizar y restaurar desde el acceso', async () => {
+    render(<Auth />);
+    await waitFor(() => expect(mockWindowControls.isMaximized).toHaveBeenCalledOnce());
+
+    mockWindowControls.isMaximized.mockResolvedValue(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Maximizar ventana' }));
+    expect(await screen.findByRole('button', { name: 'Restaurar ventana' })).toHaveAttribute('title', 'Restaurar');
+
+    mockWindowControls.isMaximized.mockResolvedValue(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Restaurar ventana' }));
+    expect(await screen.findByRole('button', { name: 'Maximizar ventana' })).toHaveAttribute('title', 'Maximizar');
+    expect(mockWindowControls.maximize).toHaveBeenCalledTimes(2);
+    expect(mockSignInWithSofia).not.toHaveBeenCalled();
+  });
+
+  it('refleja cambios de maximización iniciados desde el sistema', async () => {
+    render(<Auth />);
+    await waitFor(() => expect(mockWindowControls.isMaximized).toHaveBeenCalledOnce());
+
+    mockWindowControls.isMaximized.mockResolvedValue(true);
+    fireEvent(window, new Event('resize'));
+    expect(await screen.findByRole('button', { name: 'Restaurar ventana' })).toBeEnabled();
+
+    mockWindowControls.isMaximized.mockResolvedValue(false);
+    fireEvent(window, new Event('resize'));
+    expect(await screen.findByRole('button', { name: 'Maximizar ventana' })).toBeEnabled();
   });
 });

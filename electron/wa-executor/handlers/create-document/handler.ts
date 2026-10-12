@@ -15,7 +15,8 @@ export async function handleCreateDocument(
     const filename = toolArgs.filename || 'documento';
     const title = toolArgs.title || filename;
     const saveDir = await resolveSaveDirectory(toolArgs.save_directory || '');
-    const baseArgs = { content: toolArgs.content, title, saveDir, filename };
+    const baseArgs = { content: toolArgs.content, title, saveDir, filename, subtitle: toolArgs.subtitle, author: toolArgs.author,
+      includeCover: typeof toolArgs.include_cover === 'boolean' ? toolArgs.include_cover : undefined, design: toolArgs.design };
 
     if (docType === 'word' || docType === 'docx') return success(await createWordDocument(baseArgs), 'Documento Word profesional creado');
     if (docType === 'excel' || docType === 'xlsx') return success(await createExcelDocument(baseArgs), 'Documento Excel creado');

@@ -7,7 +7,7 @@ export const COMPUTER_FILE_TOOL_DECLARATIONS: GeminiFunctionDeclaration[] = [
   { name: 'write_file', description: 'Crea o sobrescribe un archivo de texto.', parameters: objectParams({ path: stringProp('Ruta completa del archivo.'), content: stringProp('Contenido a escribir.') }, ['path', 'content']) },
   {
     name: 'create_word_document',
-    description: 'Crea un documento profesional de Microsoft Word (.docx) con portada, formato y contenido estructurado. Si no se indica output_path, lo guarda en el Escritorio del usuario. Las graficas generadas con Python en esta conversacion se anexan automaticamente al final del documento; no necesitas pasarlas.',
+    description: 'Crea un documento editable de Microsoft Word (.docx) con diseño editorial, jerarquía y tablas profesionales. Usa Markdown semántico; no dibujes líneas con caracteres ni dupliques el título en content. La portada se ajusta a la extensión. Respeta diseños indicados por el usuario o una skill mediante design. Si no se indica output_path, lo guarda en el Escritorio. Las gráficas de esta conversación se anexan automáticamente.',
     parameters: objectParams({
       title: stringProp('Titulo profesional del documento.'),
       content: stringProp('Contenido completo del documento en texto o Markdown. Debe incluir la informacion que el usuario pidio guardar.'),
@@ -15,7 +15,8 @@ export const COMPUTER_FILE_TOOL_DECLARATIONS: GeminiFunctionDeclaration[] = [
       author: stringProp('Autor opcional.'),
       file_name: stringProp('Nombre opcional del archivo .docx.'),
       output_path: stringProp('Ruta opcional del archivo .docx o de la carpeta destino. Si se omite, usa el Escritorio.'),
-      include_cover: booleanProp('Si es false, no incluye portada. Por defecto incluye portada.'),
+      include_cover: booleanProp('Fuerza o elimina portada. Si se omite, solo los informes extensos usan portada separada.'),
+      design: objectParams({ preset: stringProp('editorial (predeterminado), formal o compact.'), fontFamily: stringProp('Fuente opcional: Calibri, Arial o Georgia.'), accentColor: stringProp('Color de acento opcional para tablas: seis dígitos hexadecimales sin #. Respeta el diseño solicitado por el usuario o su skill.') }),
       open_after_save: booleanProp('Si es true, abre el documento despues de crearlo.'),
     }, ['title', 'content']),
   },

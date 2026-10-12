@@ -2,6 +2,8 @@ import { MeetingOpsPanel } from '../components/meetings/MeetingOpsPanel';
 import { ProductivityDashboard } from '../components/ProductivityDashboard';
 import { BrowserWorkspaceLayout } from '../components/browser/BrowserWorkspaceLayout';
 import { PresentationWorkspacePanel } from '../components/presentation/PresentationWorkspacePanel';
+import { ArtifactViewerPanel } from '../components/artifacts/ArtifactViewerPanel';
+import { useArtifactViewer } from '../components/artifacts/artifact-viewer-context';
 import { usePresentationWorkspaceContext } from '../contexts/presentation-workspace-context';
 import type { MouseEvent } from 'react';
 import { LiaDegradedNotice, ShareLinkNoticeBanner } from './AppNotices';
@@ -38,6 +40,7 @@ interface AppWorkspaceProps {
   onSelectConversation: (conversationId: string) => Promise<void>;
   onOpenBrowser?: () => void;
   onOpenMeetings?: () => void;
+  onOpenLiveSessions?: () => void;
   orgId: string;
   setShareTarget: (target: ShareTarget | null) => void;
   shareLinkNotice: ShareLinkNotice | null;
@@ -48,6 +51,7 @@ interface AppWorkspaceProps {
 export function AppWorkspace(props: AppWorkspaceProps) {
   const canShareConversation = Boolean(props.currentConversation?.can_share && props.orgId);
   const presentation = usePresentationWorkspaceContext();
+  const artifactViewer = useArtifactViewer();
 
   const chatView = (
     <AppChatView
@@ -67,6 +71,7 @@ export function AppWorkspace(props: AppWorkspaceProps) {
       userSettings={props.userSettings}
       onOpenBrowser={props.onOpenBrowser}
       onOpenMeetings={props.onOpenMeetings}
+      onOpenLiveSessions={props.onOpenLiveSessions}
     />
   );
 
@@ -100,7 +105,7 @@ export function AppWorkspace(props: AppWorkspaceProps) {
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             {chatView}
           </div>
-          {presentation.visible && presentation.workspaceId && (
+          {artifactViewer?.selected ? <ArtifactViewerPanel /> : presentation.visible && presentation.workspaceId && (
             // El panel gestiona su propio ancho (ajustable y recordado), asi
             // que aqui no se le impone uno.
             // La clave lo remonta al cambiar de presentacion, para que nunca

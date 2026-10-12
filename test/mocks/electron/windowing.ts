@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { vi } from 'vitest';
+import { createProtocolMock } from './app-ipc';
 
 // Los permisos de una ventana real adoptada se indexan por id de webContents:
 // con un id compartido, dos ventanas distintas se confundirian entre si.
@@ -98,6 +99,7 @@ class MockWebContents extends EventEmitter {
   private title = '';
   private destroyed = false;
   session = {
+    protocol: createProtocolMock(),
     isPersistent: vi.fn(() => true),
     on: vi.fn(),
     removeListener: vi.fn(),

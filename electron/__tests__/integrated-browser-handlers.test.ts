@@ -20,6 +20,7 @@ const ipcMainHarness = ipcMain as unknown as {
 describe('handlers del navegador integrado', () => {
   const service = {
     getState: vi.fn(() => ({ url: 'about:blank' })),
+    reconnectEcosystemSession: vi.fn(async () => ({ url: 'https://soflia.ai' })),
     lockCredentials: vi.fn(),
     credentialSessionCommand: vi.fn<(input: unknown, guard: () => void) => Promise<{ success: boolean }>>(async () => ({ success: true })),
     semanticMemoryCommand: vi.fn<(input: unknown, guard: () => void) => Promise<{ success: boolean }>>(async () => ({ success: true })),
@@ -157,6 +158,20 @@ describe('handlers del navegador integrado', () => {
     window = new BrowserWindow();
     Object.defineProperty(window.webContents, 'mainFrame', { value: {}, configurable: true });
     registerIntegratedBrowserHandlers(service as unknown as IntegratedBrowserService, () => window);
+  });
+
+  it('la reconexión exige ventana principal autenticada y no acepta credenciales ni destinos', async () => {
+    setAuthState({ authenticated: true, userId: 'prueba' });
+    const handler = ipcMainHarness._getHandler('integrated-browser:ecosystem-connect');
+    const event = { sender: window.webContents, senderFrame: window.webContents.mainFrame };
+    for (const senderFrame of [undefined, null, {}]) expect(await handler({ ...event, senderFrame })).toMatchObject({ success: false });
+    expect(await handler({ ...event, sender: { id: -1 } })).toMatchObject({ success: false });
+    expect(await handler(event, { url: 'https://evil.test', accessToken: 'prohibido' })).toMatchObject({ success: false });
+    expect(service.reconnectEcosystemSession).not.toHaveBeenCalled();
+    expect(await handler(event)).toEqual({ success: true, state: { url: 'https://soflia.ai' } });
+    setAuthState({ authenticated: false, userId: null });
+    expect(await handler(event)).toEqual({ success: false, error: 'auth_required' });
+    expect(service.reconnectEcosystemSession).toHaveBeenCalledOnce();
   });
 
   it('restricción de sitios exige marco principal, entrada acotada y sesión estable', async () => {
@@ -315,7 +330,7 @@ describe('handlers del navegador integrado', () => {
 
   it('registra el contrato completo y enruta payloads validos', async () => {
     const handlers = ipcMainHarness._getHandlers();
-    expect(Array.from(handlers.keys()).filter((key: unknown) => String(key).startsWith('integrated-browser:'))).toHaveLength(115);
+    expect(Array.from(handlers.keys()).filter((key: unknown) => String(key).startsWith('integrated-browser:'))).toHaveLength(116);
     expect(handlers.has('integrated-browser:clear-browsing-data')).toBe(true);
     expect(handlers.has('integrated-browser:writing-resolve')).toBe(true);
     expect(handlers.has('integrated-browser:reading-download')).toBe(false);

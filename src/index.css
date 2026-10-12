@@ -1,41 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Inter+Tight:wght@400;500;600;700&family=Inter:wght@100;200;300;400;500;600;700;800;900&family=Newsreader:opsz,wght@6..72,300;6..72,400&display=swap');
 @import "tailwindcss";
+@import "./styles/theme-light.css";
+@import "./styles/theme-dark.css";
 @variant dark (&:where(.dark, .dark *));
-
-:root {
-  /* Light Mode Colors (Default) — SOFIA Design System */
-  --color-background-val: #f9fafb;
-  --color-sidebar-val: #f0f2f5; /* Light sidebar */
-  --color-card-val: #ffffff;
-  --color-surface-2-val: #f1f3f5; /* Nested surfaces: inputs, wells */
-  --color-border-val: #e9ecef;
-  --color-text-main: #0a2540;
-  --color-text-secondary-val: #6c757d;
-
-  /* Theme Accents */
-  --color-primary-val: #0a2540;
-  --color-accent-val: #0a2540; /* Blue in light mode per user request */
-  --color-on-accent-val: #ffffff; /* Text over aqua/accent buttons (light) */
-  --font-system-display: "Newsreader", Georgia, serif;
-  --font-system-ui: "Inter Tight", "Inter", system-ui, sans-serif;
-  --font-system-label: "IBM Plex Sans", "Inter", system-ui, sans-serif;
-}
-
-.dark {
-  /* Dark Mode Colors — SOFIA Design System */
-  --color-background-val: #0f1419;
-  --color-sidebar-val: #0a0d12;
-  --color-card-val: #1e2329;
-  --color-surface-2-val: #0a0d12; /* Nested surfaces: inputs, wells */
-  --color-border-val: rgba(255, 255, 255, 0.08);
-  --color-text-main: #ffffff;
-  --color-text-secondary-val: #9aa4af;
-
-  /* Theme Accents */
-  --color-primary-val: #ffffff;
-  --color-accent-val: #00d4b3; /* Green (Aqua) in dark mode */
-  --color-on-accent-val: #0a2540; /* Navy text over aqua for AA contrast */
-}
 
 @theme {
   --color-primary: var(--color-primary-val);
@@ -502,7 +469,7 @@ select option {
 }
 
 /* ---------------------------------------------------------------------
-   Resaltado de codigo del panel de presentaciones.
+   Resaltado de código de presentaciones y bloques del chat.
 
    Tema propio en vez de uno de los que trae highlight.js: los suyos fijan
    su propio fondo y paleta, y al lado del resto de la interfaz se ven como
@@ -520,6 +487,7 @@ select option {
 .hljs-name,
 .hljs-selector-tag { color: #cf222e; }
 .hljs-attr,
+.hljs-variable,
 .hljs-attribute,
 .hljs-selector-attr,
 .hljs-selector-class,
@@ -535,31 +503,34 @@ select option {
 .hljs-section,
 .hljs-strong { color: #0550ae; font-weight: 600; }
 .hljs-symbol,
+.hljs-meta,
 .hljs-bullet,
 .hljs-link { color: #0a7c5a; }
 .hljs-emphasis { font-style: italic; }
 
-.dark .hljs { color: #d5dbe3; }
-.dark .hljs-comment,
-.dark .hljs-quote { color: #7d8792; }
-.dark .hljs-tag,
-.dark .hljs-name,
-.dark .hljs-selector-tag { color: #ff7b72; }
-.dark .hljs-attr,
-.dark .hljs-attribute,
-.dark .hljs-selector-attr,
-.dark .hljs-selector-class,
-.dark .hljs-selector-id { color: #d2a8ff; }
-.dark .hljs-string,
-.dark .hljs-meta .hljs-string { color: #a5d6ff; }
-.dark .hljs-number,
-.dark .hljs-literal { color: #79c0ff; }
-.dark .hljs-keyword,
-.dark .hljs-built_in,
-.dark .hljs-type { color: #ff7b72; }
-.dark .hljs-title,
-.dark .hljs-section,
-.dark .hljs-strong { color: #79c0ff; }
-.dark .hljs-symbol,
-.dark .hljs-bullet,
-.dark .hljs-link { color: #56d364; }
+:is(.dark, .chat-code-block) .hljs { color: #d5dbe3; }
+:is(.dark, .chat-code-block) .hljs-comment,
+:is(.dark, .chat-code-block) .hljs-quote { color: #7d8792; }
+:is(.dark, .chat-code-block) .hljs-tag,
+:is(.dark, .chat-code-block) .hljs-name,
+:is(.dark, .chat-code-block) .hljs-selector-tag { color: #ff7b72; }
+:is(.dark, .chat-code-block) .hljs-attr,
+:is(.dark, .chat-code-block) .hljs-variable,
+:is(.dark, .chat-code-block) .hljs-attribute,
+:is(.dark, .chat-code-block) .hljs-selector-attr,
+:is(.dark, .chat-code-block) .hljs-selector-class,
+:is(.dark, .chat-code-block) .hljs-selector-id { color: #d2a8ff; }
+:is(.dark, .chat-code-block) .hljs-string,
+:is(.dark, .chat-code-block) .hljs-meta .hljs-string { color: #a5d6ff; }
+:is(.dark, .chat-code-block) .hljs-number,
+:is(.dark, .chat-code-block) .hljs-literal { color: #79c0ff; }
+:is(.dark, .chat-code-block) .hljs-keyword,
+:is(.dark, .chat-code-block) .hljs-built_in,
+:is(.dark, .chat-code-block) .hljs-type { color: #ff7b72; }
+:is(.dark, .chat-code-block) .hljs-title,
+:is(.dark, .chat-code-block) .hljs-section,
+:is(.dark, .chat-code-block) .hljs-strong { color: #79c0ff; }
+:is(.dark, .chat-code-block) .hljs-symbol,
+:is(.dark, .chat-code-block) .hljs-meta,
+:is(.dark, .chat-code-block) .hljs-bullet,
+:is(.dark, .chat-code-block) .hljs-link { color: #56d364; }

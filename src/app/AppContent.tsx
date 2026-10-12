@@ -17,6 +17,9 @@ import { useAutoDismissNotice } from './useAutoDismissNotice';
 import { useCloseActiveChatMenu } from './useCloseActiveChatMenu';
 import { useLegacyUserMigration } from './useLegacyUserMigration';
 import { useMeetingTriggerNotice } from './useMeetingTriggerNotice';
+import { useLearningLiveSession } from './useLearningLiveSession';
+import { LearningWorkspace } from '../components/learning-live/LearningWorkspace';
+import { LearningSessions } from '../components/learning-live/LearningSessions';
 import { useShareLinkRouting } from './useShareLinkRouting';
 import { useAuth } from '../contexts/AuthContext';
 import { useChatManager } from '../hooks/useChatManager';
@@ -26,6 +29,7 @@ import { useTheme } from '../hooks/useTheme';
 import { integratedBrowserService, type BrowserSelectionActionRequest } from '../services/integrated-browser-service';
 import { improveBrowserSelection } from '../services/browser-writing';
 import { AgentActivityPanel } from '../components/agents/AgentActivityPanel';
+import { ArtifactViewerProvider } from '../components/artifacts/ArtifactViewerProvider';
 import { AgentActivityProvider } from '../components/agents/AgentActivityProvider';
 
 const STARTUP_INTRO_DURATION_MS = 4200;
@@ -89,6 +93,10 @@ export function AppContent() {
   const [renderStartupOverlay, setRenderStartupOverlay] = useState(() => !isOrbWindow);
   const [isStartupOverlayExiting, setIsStartupOverlayExiting] = useState(false);
   const ipc = useAppIpcTriggers({ isOrbWindow });
+  const liveWorkspace = useLearningLiveSession({ auth, enabled: !isOrbWindow, onNotice: setShareLinkNotice, onRequested: () => { setIsBrowserWorkspaceOpen(false); setActiveView('live-sessions'); } });
+  const liveRoomVisible = !!liveWorkspace.reference && activeView === 'live-sessions';
+  const browserWorkspaceVisible = isBrowserWorkspaceOpen && !liveRoomVisible;
+  const closeLiveRoom = () => { liveWorkspace.dismiss(); setIsBrowserWorkspaceOpen(false); setActiveView('live-sessions'); };
   const { getScopedMessagesHandler } = chat;
   const scopedMessagesHandler = useMemo(() => getScopedMessagesHandler(folder.currentFolderId), [folder.currentFolderId, getScopedMessagesHandler]);
   const handlers = useAppViewHandlers({ activeView, chat, folder, setActiveView, setExternalPrompt });
@@ -202,14 +210,14 @@ export function AppContent() {
   ) : isOrbWindow ? (
     <OrbWindowRoot key="orb-window" />
   ) : (
-    <AgentActivityProvider key="app-workspace">
+    <AgentActivityProvider><ArtifactViewerProvider key={(user?.id ?? "") + ":" + orgId + ":" + (chat.currentConversationId ?? "")}>
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background dark:bg-background-dark">
-      {!isBrowserWorkspaceOpen && <AppTitleBar />}
-      <div className="flex min-h-0 flex-1 w-full overflow-hidden">
-      <div className={`flex min-h-0 min-w-0 flex-1 overflow-hidden ${!isBrowserWorkspaceOpen && sidebarPosition === 'bottom' ? 'flex-col-reverse' : !isBrowserWorkspaceOpen && sidebarPosition === 'right' ? 'flex-row-reverse' : 'flex-row'}`}>
-        {!isBrowserWorkspaceOpen && <AppSidebar
+      {!browserWorkspaceVisible && <AppTitleBar />}
+      <div className="relative flex min-h-0 flex-1 w-full overflow-hidden">
+      <div className={`flex min-h-0 min-w-0 flex-1 overflow-hidden ${!browserWorkspaceVisible && !liveRoomVisible && sidebarPosition === 'bottom' ? 'flex-col-reverse' : !browserWorkspaceVisible && !liveRoomVisible && sidebarPosition === 'right' ? 'flex-row-reverse' : 'flex-row'}`}>
+        {!browserWorkspaceVisible && !liveRoomVisible && <AppSidebar
           activeView={activeView}
-          browserOpen={isBrowserWorkspaceOpen}
+          browserOpen={browserWorkspaceVisible}
           auth={auth}
           avatarUrl={derived.avatarUrl ?? undefined}
           chat={chat}
@@ -239,11 +247,13 @@ export function AppContent() {
           setTheme={setTheme}
           theme={theme}
         />}
-        <AppWorkspace
+        {liveRoomVisible && liveWorkspace.reference && <LearningWorkspace key={`${user?.id}:${liveWorkspace.reference.organization_slug}:${liveWorkspace.reference.session_id}`} reference={liveWorkspace.reference} onClose={closeLiveRoom} onBackToSessions={closeLiveRoom} />}
+        {!liveWorkspace.reference && !browserWorkspaceVisible && activeView === 'live-sessions' && <LearningSessions key={`${user?.id}:${orgId}`} organizationSlug={sofiaContext?.currentOrganization?.slug} organizationName={sofiaContext?.currentOrganization?.name} onSelect={liveWorkspace.select} onClose={() => setActiveView('chat')} />}
+        {!liveRoomVisible && (activeView !== 'live-sessions' || browserWorkspaceVisible) && <AppWorkspace
           accessUserIds={accessUserIds}
           activeView={activeView}
           avatarUrl={derived.avatarUrl ?? undefined}
-          browserWorkspaceOpen={isBrowserWorkspaceOpen}
+          browserWorkspaceOpen={browserWorkspaceVisible}
           onCloseBrowserWorkspace={() => setIsBrowserWorkspaceOpen(false)}
           chat={chat}
           currentConversation={derived.currentConversation}
@@ -265,19 +275,20 @@ export function AppContent() {
           onSelectConversation={handlers.handleSelectConversation}
           onOpenBrowser={() => setIsBrowserWorkspaceOpen(true)}
           onOpenMeetings={() => { setIsBrowserWorkspaceOpen(false); setActiveView('meetings'); }}
+          onOpenLiveSessions={() => { liveWorkspace.dismiss(); setIsBrowserWorkspaceOpen(false); setActiveView('live-sessions'); }}
           orgId={orgId}
           setShareTarget={setShareTarget}
           shareLinkNotice={shareLinkNotice}
           userId={userId}
           userSettings={userSettings}
-        />
+        />}
         <AppModals folder={folder} movingChat={derived.movingChat} shareTarget={shareTarget} userId={userId} orgId={orgId} user={user} userSettings={userSettings} sofiaContext={sofiaContext} isUnifiedSettingsOpen={isUnifiedSettingsOpen} activeSettingsTab={activeSettingsTab} onSetShareTarget={setShareTarget} onSetUserSettings={setUserSettings} onSetUnifiedSettingsOpen={setIsUnifiedSettingsOpen} />
       </div>
       {/* En el navegador el panel flota dentro de su layout para reservar espacio a la vista nativa. */}
-      {!isBrowserWorkspaceOpen && <AgentActivityPanel className="w-80 shrink-0 border-l border-border" />}
+      {!browserWorkspaceVisible && !liveRoomVisible && <AgentActivityPanel className="absolute right-3 top-3 z-40 max-w-[calc(100%-24px)]" />}
       </div>
     </div>
-    </AgentActivityProvider>
+    </ArtifactViewerProvider></AgentActivityProvider>
   );
 
   return (

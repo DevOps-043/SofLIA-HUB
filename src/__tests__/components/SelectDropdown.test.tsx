@@ -78,4 +78,17 @@ describe('SelectDropdown', () => {
     const listbox = screen.getByRole('listbox');
     expect(listbox.parentElement).toBe(document.body);
   });
+
+  it('SELECT-6: mantiene las opciones en el diálogo nativo y conserva el teclado', () => {
+    const onChange = vi.fn();
+    render(<dialog open aria-label="Audio del estudio"><SelectDropdown value="default" onChange={onChange} options={OPTIONS} aria-label="Micrófono" /></dialog>);
+    const trigger = screen.getByRole('combobox', { name: 'Micrófono' });
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    expect(screen.getByRole('listbox').parentElement).toBe(screen.getByRole('dialog'));
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    fireEvent.keyDown(trigger, { key: 'Enter' });
+    expect(onChange).toHaveBeenCalledWith('23');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
 });

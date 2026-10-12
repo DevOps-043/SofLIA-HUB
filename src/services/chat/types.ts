@@ -27,6 +27,8 @@ export interface Conversation {
 }
 
 export interface ChatMessage {
+  /** Referencia opaca al trabajo local; su acceso sigue validándose en main. */
+  backgroundJobId?: string;
   id: string;
   role: 'user' | 'model';
   text: string;

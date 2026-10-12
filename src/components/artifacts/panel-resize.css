@@ -1,0 +1,1 @@
+.artifact-resize-handle{position:absolute;inset:0 auto 0 -6px;z-index:40;width:12px;display:flex;align-items:center;justify-content:center;cursor:col-resize;touch-action:none;outline:none}.resizing{user-select:none}.resizing iframe{pointer-events:none}

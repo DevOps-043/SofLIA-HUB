@@ -21,7 +21,7 @@ export function useChatRuntime(
   useEffect(() => { messagesRef.current = props.messages; }, [props.messages]);
 
   const model = useModelSelector();
-  const { dataUserId } = useAuth();
+  const { user, dataUserId, sofiaContext } = useAuth();
   const [draftMemoryScope] = useState(() => `borrador:${crypto.randomUUID()}`);
   const memorySessionScope = props.conversationId?.trim() || draftMemoryScope;
   // Informa al main quién es el usuario activo (memoria unificada cross-superficie).
@@ -31,6 +31,8 @@ export function useChatRuntime(
     onMessagesChange: props.onMessagesChange,
     personalization: props.personalization,
     sofiaUserId: dataUserId ?? undefined,
+    activityOwnerId: user?.id,
+    organizationId: sofiaContext?.currentOrganization?.id ?? null,
     preferredPrimaryModel: model.preferredPrimaryModel,
     thinkingMode: model.thinkingMode,
     isImageGenMode: state.modes.imageGen,

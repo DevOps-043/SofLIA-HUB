@@ -5,6 +5,7 @@ import { createMainTray } from './tray-controller';
 import { createOrFocusMainWindow } from './window-controller';
 import type { AuthCallbackPayload, MeetingTriggerPayload } from '../app-protocol';
 import type { MainRuntimeState } from './runtime-state';
+import type { LearningLiveSessionReference } from '../../src/shared/learning-live-session';
 
 export function createWindowControls(input: {
   env: { VITE_DEV_SERVER_URL?: string; RENDERER_DIST: string };
@@ -63,6 +64,14 @@ export function createWindowControls(input: {
       if (!state.win.isVisible()) state.win.show();
       state.win.focus();
       state.win.webContents.send('app:share-link', shareLink);
+    },
+    routeLearningSessionToRenderer(payload: LearningLiveSessionReference): void {
+      state.pendingLearningSession = payload;
+      if (!state.win) { controls.createWindow(true); return; }
+      if (state.win.isMinimized()) state.win.restore();
+      if (!state.win.isVisible()) state.win.show();
+      state.win.focus();
+      state.win.webContents.send('app:learning-session', payload);
     },
     /**
      * Entrega el retorno del inicio federado al renderer, que es quien tiene el

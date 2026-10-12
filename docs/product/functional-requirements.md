@@ -84,7 +84,7 @@ ni restaura checkpoints, dispositivos revocados o claves.
 | ID | El sistema debe... | Resultado verificable | Evidencia |
 |---|---|---|---|
 | RF-007 | enviar mensajes al proveedor de IA, transmitir texto incremental y despachar herramientas declaradas | el usuario recibe stream, resultados o error publico acotado | `src/services/gemini-chat/` |
-| RF-008 | ofrecer operaciones locales gobernadas de archivos, documentos, procesos, portapapeles, URLs y correo SMTP | cada llamada cruza handler main y pide confirmacion cuando corresponde | `electron/computer-use-handlers.ts`, `electron/computer-use/` |
+| RF-008 | ofrecer operaciones locales gobernadas de archivos, documentos, procesos, portapapeles, URLs y correo SMTP | cada llamada cruza handler main y pide confirmacion cuando corresponde; Word/PDF usan diseño editorial con ajustes declarativos de usuario o skill | `electron/computer-use-handlers.ts`, `electron/computer-use/`, `electron/document-designer/` |
 | RF-009 | iniciar/detener sesiones de monitoreo y capturar ventana, proceso, idle, screenshot/OCR segun config | status y snapshots reflejan la sesion activa | `electron/monitoring/`, `src/services/monitoring/` |
 | RF-010 | generar y persistir resumen de productividad y poder enviarlo por WhatsApp | el usuario obtiene metricas/resumen para el periodo disponible | `electron/summary-generator.ts`, `src/components/productivity-dashboard/` |
 

@@ -35,6 +35,8 @@ interface MenuPosition {
   maxWidth: number;
   maxHeight: number;
   placement: 'below' | 'above';
+  /** Un diálogo nativo necesita que sus opciones pertenezcan a la capa modal. */
+  portalContainer: HTMLElement;
 }
 
 const MENU_GAP = 6;
@@ -105,6 +107,7 @@ const SelectDropdown: React.FC<SelectDropdownProps> = ({
       maxWidth: Math.max(width, window.innerWidth - left - VIEWPORT_MARGIN),
       maxHeight,
       placement,
+      portalContainer: trigger.closest('dialog') ?? document.body,
     });
   }, []);
 
@@ -309,7 +312,7 @@ const SelectDropdown: React.FC<SelectDropdownProps> = ({
             );
           })}
         </div>,
-        document.body,
+        position.portalContainer,
       )}
     </div>
   );

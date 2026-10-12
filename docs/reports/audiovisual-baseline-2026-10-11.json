@@ -1,0 +1,88 @@
+{
+  "archivo": "C:\\Users\\fysg5\\Downloads\\SOFLIA_CINEMATIC_30S (1).mp4",
+  "sha256": "9bd5da54dfb87c9b2bb8f1c41b652fec5da2117c378beccb2df3aa2ab26df79a",
+  "frames_decodificados": 1800,
+  "cfr_pts": {
+    "cantidad": 1800,
+    "intervalo_min": 0.016665999999997183,
+    "intervalo_max": 0.016667000000001764,
+    "error_max_60fps_s": 6.666666694833678e-07
+  },
+  "audio": {
+    "LUFS": -14.5,
+    "true_peak_dBTP": -1.2,
+    "LRA_LU": 6.7
+  },
+  "qa": {
+    "luma_min": 20.812644958496094,
+    "luma_max": 244.245849609375,
+    "frames_identicos_consecutivos": [],
+    "mediana_diferencia": 0.4952739179134369,
+    "saltos": [
+      472,
+      473,
+      474,
+      475,
+      476,
+      477,
+      478,
+      479,
+      480,
+      1681,
+      1682,
+      1683,
+      1684,
+      1685,
+      1686,
+      1687
+    ]
+  },
+  "limitaciones": "La luminancia global no detecta por si sola teselas ausentes, texto cortado o composiciones defectuosas. No se repitio el render fuente ni se midio IoU del logo.",
+  "fecha": "2026-10-11",
+  "fuentes": [
+    {
+      "nombre": "SofLIA_Investigacion_Plan_Audiovisual_Hub_v1.0.docx",
+      "bytes": 52852,
+      "sha256": "e43ba2908744fc66881b3594c0a39f7638064333b92c585ff92e55c6194847d2"
+    },
+    {
+      "nombre": "SOFLIA_CINEMATIC_30S_codigo_fuente.zip",
+      "bytes": 13208383,
+      "sha256": "3027e7af6361c0bf581e2c7657e726e635b020e0d10086e1a39e48c4b92ca4a5"
+    },
+    {
+      "nombre": "DECISIONES.md",
+      "bytes": 25553,
+      "sha256": "4efe44ebb1fefdf7409b2ddc80a9dbf7b7543f9df0940c77abfb6af24e13d2e0"
+    },
+    {
+      "nombre": "SOFLIA_CINEMATIC_30S (1).mp4",
+      "bytes": 28877447,
+      "sha256": "9bd5da54dfb87c9b2bb8f1c41b652fec5da2117c378beccb2df3aa2ab26df79a"
+    },
+    {
+      "nombre": "Texto pegado.txt",
+      "bytes": 13752,
+      "sha256": "500b1dc0984ce423e9ef274ec5adb9dfd61a7ac9272e67eaa79d88d54faaa982"
+    }
+  ],
+  "alcance": {
+    "docx": "133 párrafos y 8 tablas extraídos",
+    "codigo": "65 entradas del ZIP inspeccionadas por módulos relevantes",
+    "video": "decodificación completa, timestamps y audio medidos; 60 muestras visuales cada 0.5 s y 16 capturas adicionales",
+    "no_repetido": [
+      "render completo del código fuente",
+      "síntesis del WAV",
+      "IoU del logo",
+      "comparación con máster no suministrado",
+      "tiempo de trabajo de Claude",
+      "escucha subjetiva de la banda sonora"
+    ]
+  },
+  "herramientas": {
+    "ffprobe": "binario local del compositor Remotion",
+    "ffmpeg": "FFmpeg completo de imageio-ffmpeg 0.6.0 en carpeta de análisis",
+    "python": "runtime empaquetado de Codex",
+    "aislamiento": "inspección sin ejecutar scripts adjuntos"
+  }
+}

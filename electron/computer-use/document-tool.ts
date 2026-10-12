@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createProfessionalDocument } from '../document-designer';
+import type { DocumentDesignOptions } from '../../src/shared/document-design';
 
 const DEFAULT_DOCUMENT_TITLE = 'Documento SofLIA';
 const MAX_DOCUMENT_CONTENT_LENGTH = 250_000;
@@ -16,6 +17,7 @@ interface CreateWordDocumentArgs {
   file_name?: string;
   output_path?: string;
   include_cover?: boolean;
+  design?: DocumentDesignOptions;
   open_after_save?: boolean;
   /** Graficas (data:image/png;base64,...) generadas en la conversacion; se anexan al final. */
   chart_images?: string[];
@@ -48,7 +50,8 @@ export async function handleCreateWordDocument(args: CreateWordDocumentArgs = {}
     author: normalizeOptionalText(args.author),
     content,
     outputPath,
-    includeCover: args.include_cover !== false,
+    includeCover: typeof args.include_cover === 'boolean' ? args.include_cover : undefined,
+    design: args.design,
     chartImages: Array.isArray(args.chart_images) ? args.chart_images : [],
   });
 

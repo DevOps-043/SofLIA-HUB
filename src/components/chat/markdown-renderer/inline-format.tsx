@@ -1,4 +1,5 @@
 import type React from 'react';
+import { Fragment } from 'react';
 
 function formatLink(text: string, baseKey: number): React.ReactNode {
   const parts: React.ReactNode[] = [];
@@ -13,6 +14,11 @@ function formatLink(text: string, baseKey: number): React.ReactNode {
     }
 
     if (match[1]) parts.push(<span key={`lt-${baseKey}-${key++}`}>{match[1]}</span>);
+    if (!safeLink(match[3])) {
+      parts.push(<span key={`l-${baseKey}-${key++}`}>{match[2]}</span>);
+      remaining = match[4];
+      continue;
+    }
     parts.push(
       <a
         key={`l-${baseKey}-${key++}`}
@@ -28,6 +34,14 @@ function formatLink(text: string, baseKey: number): React.ReactNode {
   }
 
   return <>{parts}</>;
+}
+
+/** La validación se hace en el enlace final, incluso si el Markdown estaba anidado. */
+function safeLink(href: string): boolean {
+  try {
+    const url = new URL(href);
+    return ['https:', 'http:'].includes(url.protocol) && !url.username && !url.password;
+  } catch { return false; }
 }
 
 export function formatInline(text: string): React.ReactNode {
@@ -71,5 +85,5 @@ export function formatInline(text: string): React.ReactNode {
   }
 
   if (parts.length === 1) return parts[0];
-  return <>{parts.map((part, index) => typeof part === 'string' ? <span key={`fi-${index}`}>{part}</span> : part)}</>;
+  return <>{parts.map((part, index) => <Fragment key={`fi-${index}`}>{part}</Fragment>)}</>;
 }

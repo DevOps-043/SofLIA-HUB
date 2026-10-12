@@ -213,13 +213,18 @@ describe('BrowserWorkspaceLayout', () => {
     );
 
     // Debajo de la barra del navegador para no tapar sus controles.
-    expect(screen.getByRole('complementary', { name: 'Equipo de SofLIA' })).toHaveStyle({ right: '6px', top: '106px', width: '300px' });
-    expect(screen.getByTestId('viewport-insets')).toHaveTextContent('400:312');
+    expect(screen.getByRole('complementary', { name: 'Archivos de SofLIA' })).toHaveStyle({ right: '6px', top: '106px', width: '380px' });
+    expect(screen.getByTestId('viewport-insets')).toHaveTextContent('400:392');
+
+    const filesResize = screen.getByRole('separator', { name: 'Cambiar ancho de archivos' });
+    fireEvent.keyDown(filesResize, { key: 'ArrowLeft' });
+    expect(screen.getByTestId('viewport-insets')).toHaveTextContent('400:424');
+    fireEvent.keyDown(filesResize, { key: 'ArrowRight' });
 
     // Con el chat a la derecha ambos paneles quedan contiguos.
     fireEvent.click(screen.getByRole('button', { name: 'Mover panel a la derecha' }));
-    expect(screen.getByRole('region', { name: 'Chat flotante con SofLIA' })).toHaveStyle({ right: '312px' });
-    expect(screen.getByTestId('viewport-insets')).toHaveTextContent('0:706');
+    expect(screen.getByRole('region', { name: 'Chat flotante con SofLIA' })).toHaveStyle({ right: '392px' });
+    expect(screen.getByTestId('viewport-insets')).toHaveTextContent('0:786');
   });
 
   it('BR-LAY-001: el asa de ancho queda sobre el panel en ambos lados', () => {

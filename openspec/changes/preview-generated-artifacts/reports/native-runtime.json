@@ -1,0 +1,23 @@
+{
+  "html": {
+    "type": "qa",
+    "counter": "1",
+    "parentBlocked": true,
+    "rtc": "undefined",
+    "webkitRtc": "undefined",
+    "navigationBlocked": true,
+    "navigationRequests": 0,
+    "revoked": 403
+  },
+  "pdf": {
+    "pages": 1,
+    "text": "Informe del equipo  PDF de prueba local",
+    "workerAsset": true
+  },
+  "word": {
+    "nativeDomVerified": true,
+    "readOnly": true,
+    "heading": "Propuesta del equipo",
+    "scriptPolicy": "none"
+  }
+}

@@ -7,6 +7,7 @@ import type { ThinkingOption } from '../useModelSelector';
 import { processChatMessage } from './process-message';
 
 interface CreateProcessMessageInput {
+  organizationId?: string | null;
   onMessagesChange: (messages: ChatMessage[]) => void;
   setIsLoading: Dispatch<SetStateAction<boolean>>;
   setActiveToolCall: Dispatch<SetStateAction<ToolCallInfo | null>>;
@@ -19,6 +20,7 @@ interface CreateProcessMessageInput {
   activeSkill: ActiveSkillState | null;
   memorySessionScope: string;
   sofiaUserId?: string;
+  activityOwnerId?: string;
 }
 
 export function createProcessMessage(input: CreateProcessMessageInput) {

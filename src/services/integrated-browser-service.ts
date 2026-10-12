@@ -184,12 +184,7 @@ export interface TabContextAttachment {
   isCurrent: boolean;
 }
 
-export interface IntegratedBrowserViewport {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+export type IntegratedBrowserViewport = import('../shared/browser-navigation').BrowserViewport;
 
 export interface IntegratedBrowserResponse {
   success: boolean;
@@ -628,6 +623,7 @@ export interface BrowserSyncControlResponse extends IntegratedBrowserResponse { 
 
 export interface IntegratedBrowserApi {
   getState(): Promise<IntegratedBrowserResponse>;
+  reconnectEcosystemSession(): Promise<IntegratedBrowserResponse>;
   getRuntimeDiagnostic(): Promise<BrowserRuntimeDiagnosticResponse>;
   getSyncDevices(): Promise<BrowserSyncDevicesResponse>;
   registerSyncDevice(): Promise<BrowserSyncDevicesResponse>;
@@ -683,7 +679,7 @@ export interface IntegratedBrowserApi {
   stop(): Promise<IntegratedBrowserResponse>;
   focus(): Promise<IntegratedBrowserResponse>;
   toggleDevTools(): Promise<IntegratedBrowserResponse>;
-  setViewport(viewport: { x: number; y: number; width: number; height: number }): Promise<IntegratedBrowserResponse>;
+  setViewport(viewport: IntegratedBrowserViewport): Promise<IntegratedBrowserResponse>;
   setOverlayBounds?: (bounds: { x: number; y: number; width: number; height: number }) => Promise<IntegratedBrowserResponse>;
   setOverlayPosition?: (pos: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'center') => Promise<IntegratedBrowserResponse>;
   hide(): Promise<IntegratedBrowserResponse>;
@@ -772,6 +768,7 @@ function requireApi(): IntegratedBrowserApi {
 export const integratedBrowserService = {
   isAvailable: (): boolean => Boolean(window.integratedBrowser),
   getState: (): Promise<IntegratedBrowserResponse> => requireApi().getState(),
+  reconnectEcosystemSession: (): Promise<IntegratedBrowserResponse> => requireApi().reconnectEcosystemSession(),
   getRuntimeDiagnostic: (): Promise<BrowserRuntimeDiagnosticResponse> => requireApi().getRuntimeDiagnostic(),
   getSyncDevices: (): Promise<BrowserSyncDevicesResponse> => requireApi().getSyncDevices(),
   registerSyncDevice: (): Promise<BrowserSyncDevicesResponse> => requireApi().registerSyncDevice(),

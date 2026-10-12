@@ -10,6 +10,7 @@ import type {
   IntegratedBrowserDataResponse,
 } from '../../services/integrated-browser-service';
 import { scopedPreferenceKey } from '../../services/user-scope';
+import { BROWSER_HOME_URL, BROWSER_HOME_TITLE } from '../../shared/browser-home';
 
 const state: IntegratedBrowserState = {
   profileRevision: 0, credentialUnlocked: true,
@@ -53,6 +54,7 @@ describe('IntegratedBrowserPanel', () => {
     listenerCleanup = vi.fn();
     api = {
       getState: vi.fn(async () => ({ success: true, state })),
+      reconnectEcosystemSession: vi.fn(async () => ({ success: true, state })),
       getRuntimeDiagnostic: vi.fn(async () => ({ success: true })),
       agentShortcuts: vi.fn(async () => ({ success: true })),
       semanticMemoryCommand: vi.fn(async () => ({ success: true })),
@@ -183,10 +185,47 @@ describe('IntegratedBrowserPanel', () => {
       observe() {}
       disconnect() {}
     });
-    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
-      x: 200, y: 80, left: 200, top: 80, right: 1000, bottom: 680,
-      width: 800, height: 600, toJSON: () => ({}),
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      const height = this.id === 'integrated-browser-suggestions' ? 200 : 600;
+      return { x: 200, y: 80, left: 200, top: 80, right: 1000, bottom: 80 + height,
+        width: 800, height, toJSON: () => ({}) };
     });
+  });
+
+  it('muestra el inicio interactivo sin esperar el proceso nativo', async () => {
+    vi.mocked(api.open).mockReturnValueOnce(new Promise(() => {}));
+    render(<IntegratedBrowserPanel />);
+    expect(screen.getByTestId('browser-home')).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'ideas nuevas' } });
+    fireEvent.submit(screen.getByRole('search'));
+    await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('https://www.google.com/search?q=ideas%20nuevas', { waitForLoad: false }));
+  });
+
+  it('las sugerencias se superponen al inicio sin reducir su espacio', async () => {
+    const home = { ...state, url: BROWSER_HOME_URL, title: BROWSER_HOME_TITLE };
+    vi.mocked(api.open).mockResolvedValue({ success: true, state: home });
+    vi.mocked(api.listHistory).mockResolvedValue({ success: true, history: [{ id: 'google', title: 'Google', url: 'https://www.google.com/', visitedAt: '2026-10-10T00:00:00Z' }] });
+    render(<IntegratedBrowserPanel />);
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalled());
+    vi.mocked(api.setViewport).mockClear();
+    const field = screen.getByRole('combobox');
+    fireEvent.focus(field); fireEvent.change(field, { target: { value: 'consulta' } });
+    await screen.findByRole('listbox');
+    expect(screen.getByTestId('browser-home')).toBeInTheDocument();
+    expect(api.setViewport).not.toHaveBeenCalled();
+    expect(api.captureVisible).not.toHaveBeenCalled();
+    fireEvent.keyDown(field, { key: 'Escape' });
+    expect(screen.getByTestId('browser-home')).toBeInTheDocument();
+  });
+
+  it('abre herramientas e historial en el inicio sin capturar u ocultar su vista', async () => {
+    vi.mocked(api.open).mockResolvedValue({ success: true, state: { ...state, url: BROWSER_HOME_URL, title: BROWSER_HOME_TITLE } });
+    render(<IntegratedBrowserPanel />);
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalled());
+    openTool('Historial');
+    expect(await screen.findByRole('heading', { name: 'Historial' })).toBeInTheDocument();
+    expect(api.captureVisible).not.toHaveBeenCalled();
+    expect(api.hide).not.toHaveBeenCalled();
   });
 
   it('agrupa resize, omite geometría idéntica y vuelve a acusar una petición explícita del agente', async () => {
@@ -205,10 +244,23 @@ describe('IntegratedBrowserPanel', () => {
     await waitFor(() => expect(api.setViewport).toHaveBeenCalledTimes(1));
   });
 
+  it('el inicio muestra búsqueda vacía y no presenta permisos web ni modo lectura', async () => {
+    const home = { ...state, url: BROWSER_HOME_URL, title: 'Inicio · SofLIA' };
+    vi.mocked(api.open).mockResolvedValueOnce({ success: true, state: home });
+    render(<IntegratedBrowserPanel />);
+    await waitFor(() => expect(screen.getByLabelText('Página de inicio de SofLIA')).toBeDisabled());
+    expect(screen.getByLabelText('Dirección o búsqueda')).toHaveValue('');
+    expect(screen.getByLabelText('Abrir modo lectura')).toBeDisabled();
+    act(() => vi.mocked(api.onStateChanged).mock.calls.forEach(([callback]) => callback(state)));
+    expect(screen.getByLabelText('Dirección o búsqueda')).toHaveValue(state.url);
+    act(() => vi.mocked(api.onStateChanged).mock.calls.forEach(([callback]) => callback(home)));
+    expect(screen.getByLabelText('Dirección o búsqueda')).toHaveValue('');
+  });
+
   it('abre la superficie, publica el viewport y permite navegar', async () => {
     render(<IntegratedBrowserPanel />);
     await waitFor(() => expect(api.open).toHaveBeenCalled());
-    await waitFor(() => expect(api.setViewport).toHaveBeenCalledWith({ x: 200, y: 80, width: 800, height: 600 }));
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalledWith({ x: 200, y: 80, width: 800, height: 600, homeInShell: true }));
 
     const address = screen.getByLabelText('Dirección o búsqueda');
     fireEvent.change(address, { target: { value: 'soflia.ai' } });
@@ -323,6 +375,13 @@ describe('IntegratedBrowserPanel', () => {
     expect(screen.getByRole('menu')).toBeInTheDocument();
   });
 
+  it('el menú permite volver explícitamente a la cuenta de PulseHub', async () => {
+    render(<IntegratedBrowserPanel />);
+    fireEvent.click(screen.getByRole('button', { name: 'Herramientas del navegador' }));
+    fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: 'Usar mi cuenta de PulseHub' }));
+    await waitFor(() => expect(api.reconnectEcosystemSession).toHaveBeenCalledWith());
+  });
+
   it('acusa una apertura del agente con geometría nueva tras dibujar sus controles', async () => {
     render(<IntegratedBrowserPanel />);
     await waitFor(() => expect(api.setViewport).toHaveBeenCalled());
@@ -332,7 +391,7 @@ describe('IntegratedBrowserPanel', () => {
       width: 800, height: 560, toJSON: () => ({}),
     });
     act(() => vi.mocked(api.onOpenRequested).mock.calls.forEach(([callback]) => callback({ url: state.url })));
-    await waitFor(() => expect(api.setViewport).toHaveBeenCalledWith({ x: 200, y: 120, width: 800, height: 560 }));
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalledWith({ x: 200, y: 120, width: 800, height: 560, homeInShell: true }));
   });
 
   it('muestra sólo el aviso de la pestaña activa y lo retira al cambiar', async () => {
@@ -395,9 +454,10 @@ describe('IntegratedBrowserPanel', () => {
     expect(screen.getByRole('listbox')).toHaveClass('max-w-[42rem]', 'max-h-64');
     expect(screen.getByRole('listbox')).toHaveClass('absolute');
     expect(screen.getByTestId('integrated-browser-toolbar')).toHaveClass('z-50');
-    await waitFor(() => expect(api.captureVisible).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(api.hide).toHaveBeenCalledTimes(1));
-    expect(screen.getByAltText('Vista actual del navegador')).toBeInTheDocument();
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalledWith({ x: 200, y: 280, width: 800, height: 400, homeInShell: true }));
+    expect(api.captureVisible).not.toHaveBeenCalled();
+    expect(api.hide).not.toHaveBeenCalled();
+    expect(screen.queryByAltText('Vista actual del navegador')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('option', { name: /Aprender/ }));
     await waitFor(() => expect(api.navigate).toHaveBeenCalledWith('https://soflia.ai/aprender', { waitForLoad: false }));
     await waitFor(() => expect(api.setViewport).toHaveBeenCalled());
@@ -405,7 +465,7 @@ describe('IntegratedBrowserPanel', () => {
     await waitFor(() => expect(screen.queryByAltText('Vista actual del navegador')).not.toBeInTheDocument());
   });
 
-  it('conserva la geometria de la vista nativa en la captura de sugerencias', async () => {
+  it('conserva los insets del chat con la página viva debajo de las sugerencias', async () => {
     vi.mocked(api.listHistory).mockResolvedValue({
       success: true,
       history: [{ id: 'visita-1', url: 'https://soflia.ai/', title: 'SofLIA', visitedAt: '2026-08-04T12:00:00.000Z' }],
@@ -417,11 +477,11 @@ describe('IntegratedBrowserPanel', () => {
     fireEvent.change(address, { target: { value: 'soflia' } });
 
     await screen.findByRole('listbox');
-    await waitFor(() => expect(screen.getByTestId('integrated-browser-snapshot')).toBeInTheDocument());
-    expect(screen.getByTestId('integrated-browser-snapshot')).toHaveStyle({ left: '360px', right: '24px' });
-    expect(screen.getByAltText('Vista actual del navegador')).toHaveClass('object-fill');
-    expect(screen.getByAltText('Vista actual del navegador')).not.toHaveClass('object-cover');
-    expect(api.setViewport).toHaveBeenCalledWith({ x: 560, y: 80, width: 416, height: 600 });
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalledWith({ x: 560, y: 280, width: 416, height: 400, homeInShell: true }));
+    expect(screen.queryByTestId('integrated-browser-snapshot')).not.toBeInTheDocument();
+    expect(api.captureVisible).not.toHaveBeenCalled();
+    expect(api.hide).not.toHaveBeenCalled();
+    expect(api.setViewport).toHaveBeenCalledWith({ x: 560, y: 80, width: 416, height: 600, homeInShell: true });
   });
 
   it('coloca el respaldo en el rectangulo real de la captura en vez de estirarlo', async () => {
@@ -434,16 +494,8 @@ describe('IntegratedBrowserPanel', () => {
       screenshot: 'data:image/png;base64,captura',
       captureBounds: { x: 560, y: 80, width: 416, height: 600 },
     });
-    vi.mocked(api.listHistory).mockResolvedValue({
-      success: true,
-      history: [{ id: 'visita-1', url: 'https://soflia.ai/', title: 'SofLIA', visitedAt: '2026-08-04T12:00:00.000Z' }],
-    });
     render(<IntegratedBrowserPanel viewportInsets={{ left: 360, right: 24 }} />);
-
-    fireEvent.focus(screen.getByLabelText('Dirección o búsqueda'));
-    fireEvent.change(screen.getByLabelText('Dirección o búsqueda'), { target: { value: 'soflia' } });
-
-    await screen.findByRole('listbox');
+    openTool('Historial');
     await waitFor(() => expect(screen.getByTestId('integrated-browser-snapshot')).toBeInTheDocument());
     expect(screen.getByTestId('integrated-browser-snapshot')).toHaveStyle({
       left: '360px',
@@ -466,7 +518,7 @@ describe('IntegratedBrowserPanel', () => {
     fireEvent.focus(address);
     fireEvent.change(address, { target: { value: 'soflia' } });
     expect(await screen.findByRole('listbox')).toHaveClass('absolute');
-    await waitFor(() => expect(api.hide).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalledWith({ x: 200, y: 280, width: 800, height: 400, homeInShell: true }));
     vi.mocked(api.setViewport).mockClear();
 
     fireEvent.keyDown(address, { key: 'Escape' });
@@ -474,30 +526,71 @@ describe('IntegratedBrowserPanel', () => {
     await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
     await waitFor(() => expect(api.setViewport).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByAltText('Vista actual del navegador')).not.toBeInTheDocument());
+    expect(api.hide).not.toHaveBeenCalled();
   });
 
-  it('ignora una captura tardía si las sugerencias ya se cerraron', async () => {
+  it('ajusta el viewport al redimensionar sugerencias y lo libera al cambiar de perfil', async () => {
+    vi.mocked(api.listHistory).mockResolvedValue({ success: true,
+      history: [{ id: 'visita-1', url: 'https://soflia.ai/', title: 'SofLIA', visitedAt: '2026-08-04T12:00:00.000Z' }] });
+    render(<IntegratedBrowserPanel />);
+    fireEvent.focus(screen.getByLabelText('Dirección o búsqueda'));
+    await screen.findByRole('listbox');
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalledWith({ x: 200, y: 280, width: 800, height: 400, homeInShell: true }));
+    vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockImplementation(function (this: HTMLElement) {
+      const height = this.id === 'integrated-browser-suggestions' ? 120 : 600;
+      return { x: 200, y: 80, left: 200, top: 80, right: 1000, bottom: 80 + height,
+        width: 800, height, toJSON: () => ({}) };
+    });
+    fireEvent(window, new Event('resize'));
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalledWith({ x: 200, y: 200, width: 800, height: 480, homeInShell: true }));
+    act(() => {
+      for (const [onState] of vi.mocked(api.onStateChanged).mock.calls) onState({ ...state, profileRevision: 2 });
+    });
+    await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
+    await waitFor(() => expect(api.setViewport).toHaveBeenLastCalledWith({ x: 200, y: 80, width: 800, height: 600, homeInShell: true }));
+    expect(api.hide).not.toHaveBeenCalled();
+  });
+
+  it('no oculta una nueva superficie cuando termina la captura de un gestor desmontado', async () => {
     let resolveCapture!: (value: { success: true; state: IntegratedBrowserState; screenshot: string }) => void;
-    vi.mocked(api.captureVisible).mockReturnValueOnce(new Promise((resolve) => { resolveCapture = resolve; }));
+    vi.mocked(api.captureVisible).mockReturnValueOnce(new Promise(resolve => { resolveCapture = resolve; }));
+    const view = render(<IntegratedBrowserPanel />);
+    fireEvent.click(screen.getByRole('button', { name: 'Herramientas del navegador' }));
+    await waitFor(() => expect(api.captureVisible).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Historial' }));
+    view.unmount();
+    vi.mocked(api.hide).mockClear();
+    await act(async () => {
+      resolveCapture({ success: true, state, screenshot: 'data:image/png;base64,tardia' });
+      await new Promise(resolve => setTimeout(resolve, 160));
+    });
+    expect(api.hide).not.toHaveBeenCalled();
+  });
+
+  it('ignora un acuse de geometría tardío si las sugerencias ya se cerraron', async () => {
     vi.mocked(api.listHistory).mockResolvedValue({
       success: true,
       history: [{ id: 'visita-1', url: 'https://soflia.ai/', title: 'SofLIA', visitedAt: '2026-08-04T12:00:00.000Z' }],
     });
     render(<IntegratedBrowserPanel />);
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalled());
+    let resolveViewport!: (value: { success: true; state: IntegratedBrowserState }) => void;
+    vi.mocked(api.setViewport).mockReturnValueOnce(new Promise((resolve) => { resolveViewport = resolve; }));
     const address = screen.getByLabelText('Dirección o búsqueda');
 
     fireEvent.focus(address);
     fireEvent.change(address, { target: { value: 'soflia' } });
     await screen.findByRole('listbox');
-    await waitFor(() => expect(api.captureVisible).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalledWith({ x: 200, y: 280, width: 800, height: 400, homeInShell: true }));
 
     fireEvent.keyDown(address, { key: 'Escape' });
-    resolveCapture({ success: true, state, screenshot: 'data:image/png;base64,tardia' });
+    resolveViewport({ success: true, state: { ...state, url: 'https://obsolete.example/' } });
 
     await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
-    await waitFor(() => expect(api.setViewport).toHaveBeenCalled());
+    await waitFor(() => expect(api.setViewport).toHaveBeenLastCalledWith({ x: 200, y: 80, width: 800, height: 600, homeInShell: true }));
     expect(api.hide).not.toHaveBeenCalled();
     expect(screen.queryByAltText('Vista actual del navegador')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Dirección o búsqueda')).not.toHaveValue('https://obsolete.example/');
   });
 
   it('espera una ocultación pendiente antes de abrir un gestor', async () => {
@@ -505,20 +598,10 @@ describe('IntegratedBrowserPanel', () => {
     vi.mocked(api.hide)
       .mockReturnValueOnce(new Promise((resolve) => { resolveHide = resolve; }))
       .mockResolvedValue({ success: true, state: { ...state, isVisible: false } });
-    vi.mocked(api.listHistory).mockResolvedValue({
-      success: true,
-      history: [{ id: 'visita-1', url: 'https://soflia.ai/', title: 'SofLIA', visitedAt: '2026-08-04T12:00:00.000Z' }],
-    });
     render(<IntegratedBrowserPanel />);
-    const address = screen.getByLabelText('Dirección o búsqueda');
-
-    fireEvent.focus(address);
-    fireEvent.change(address, { target: { value: 'soflia' } });
-    await screen.findByRole('listbox');
+    fireEvent.click(screen.getByRole('button', { name: 'Herramientas del navegador' }));
     await waitFor(() => expect(api.hide).toHaveBeenCalledTimes(1));
-
-    fireEvent.blur(address);
-    openTool('Historial');
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Historial' }));
     expect(api.captureVisible).toHaveBeenCalledTimes(1);
     resolveHide({ success: true, state: { ...state, isVisible: false } });
 
@@ -678,11 +761,11 @@ describe('IntegratedBrowserPanel', () => {
 
   it('republica un viewport vivo con inset izquierdo o derecho', async () => {
     const view = render(<IntegratedBrowserPanel viewportInsets={{ left: 320, right: 0 }} />);
-    await waitFor(() => expect(api.setViewport).toHaveBeenCalledWith({ x: 520, y: 80, width: 480, height: 600 }));
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalledWith({ x: 520, y: 80, width: 480, height: 600, homeInShell: true }));
 
     view.rerender(<IntegratedBrowserPanel viewportInsets={{ left: 0, right: 300 }} />);
 
-    await waitFor(() => expect(api.setViewport).toHaveBeenCalledWith({ x: 200, y: 80, width: 500, height: 600 }));
+    await waitFor(() => expect(api.setViewport).toHaveBeenCalledWith({ x: 200, y: 80, width: 500, height: 600, homeInShell: true }));
     expect(api.open).toHaveBeenCalledTimes(1);
   });
 

@@ -41,8 +41,10 @@ Este indice separa documentacion vigente de material historico.
 - [Stack tecnologico](architecture/technology-stack.md)
 - [Frontend React](architecture/frontend.md)
 - [Backend Electron](architecture/backend-electron.md)
+- [Diseño de documentos generados](architecture/generated-documents.md)
 - [Plataforma del navegador integrado](architecture/integrated-browser-platform.md)
 - [IPC e integraciones](architecture/ipc-and-integrations.md)
+- [Aula de sesiones de Learning](architecture/learning-live-workspace.md)
 - [Project Hub unificado](architecture/project-hub-unified.md)
 - [Agentes y automatizacion](architecture/agents-and-automation.md)
 - [Manual del agente runtime](architecture/runtime-agents-manual.md)
@@ -68,6 +70,7 @@ Este indice separa documentacion vigente de material historico.
 - [Fuentes del Arnes y Antigravity](references/harness-sources.md)
 - [Investigación del repositorio Codex para SofLIA Hub](reports/codex-repository-research-2026-09-21.md)
 - [Codex: mejoras con valor directo para usuarios de SofLIA](reports/codex-user-value-research-2026-09-25.md)
+- [Plan propuesto de presentaciones y producción audiovisual](plans/presentaciones-y-skill-audiovisual-2026-10-11.md)
 
 ## Historico
 

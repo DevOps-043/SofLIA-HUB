@@ -4,8 +4,10 @@ import type { IntegratedBrowserService } from '../integrated-browser';
 import type { UpdaterService } from '../updater-service';
 import type { MainRuntimeState } from './runtime-state';
 import { ShutdownGuard, type ShutdownFailure } from './shutdown-guard';
+import type { LearningLiveSessionReference } from '../../src/shared/learning-live-session';
 
 interface LifecycleControls {
+  routeLearningSessionToRenderer: (payload: LearningLiveSessionReference) => void;
   createWindow: (show: boolean) => void;
   routeShareLinkToRenderer: (link: string) => void;
   routeAuthCallbackToRenderer: (payload: AuthCallbackPayload) => void;
@@ -77,6 +79,10 @@ export function registerAppLifecycle(input: { services: LifecycleServices; state
 
   function routeProtocolCommand(rawUrl: string | null): boolean {
     const protocolCommand = parseAppProtocolCommand(rawUrl);
+    if (protocolCommand?.type === 'learning-session') {
+      controls.routeLearningSessionToRenderer(protocolCommand.payload);
+      return true;
+    }
     if (protocolCommand?.type === 'share-link') {
       controls.routeShareLinkToRenderer(protocolCommand.shareLink);
       return true;

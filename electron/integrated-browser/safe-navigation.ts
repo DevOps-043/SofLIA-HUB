@@ -1,4 +1,5 @@
 import { isIP } from 'node:net';
+import { isBrowserHomeUrl } from '../../src/shared/browser-home';
 
 export type BrowserNavigationSafetyAction = 'allow' | 'warn' | 'block';
 export type BrowserNavigationSafetySource = 'local' | 'remote' | 'degraded';
@@ -35,6 +36,7 @@ export function canCheckBrowserNavigationRemotely(rawUrl: string, options: Brows
  */
 export function checkBrowserNavigationLocal(rawUrl: string, env: Readonly<Record<string, string | undefined>> = process.env): BrowserNavigationSafetyVerdict {
   const checkedAt = new Date().toISOString();
+  if (isBrowserHomeUrl(rawUrl)) return verdict('allow', 'local', null, checkedAt);
   let url: URL;
   try { url = new URL(rawUrl); } catch { return verdict('block', 'local', 'La dirección no se puede interpretar.', checkedAt); }
   if (url.protocol === 'about:') return url.href === 'about:blank'

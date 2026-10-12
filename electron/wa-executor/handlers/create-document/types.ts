@@ -1,4 +1,5 @@
 import type { ToolExecutorContext } from '../../types';
+import type { DocumentDesignOptions } from '../../../../src/shared/document-design';
 
 export const TOOL_NAME = 'create_document';
 
@@ -7,6 +8,10 @@ export interface DocumentBaseArgs {
   title: string;
   saveDir: string;
   filename: string;
+  subtitle?: string;
+  author?: string;
+  includeCover?: boolean;
+  design?: DocumentDesignOptions;
 }
 
 export interface PresentationDocumentArgs extends DocumentBaseArgs {

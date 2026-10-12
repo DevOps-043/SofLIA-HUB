@@ -127,7 +127,8 @@ if (syncInventory && !errors.length) {
 }
 if (!qualityDoc.includes(expectedInventory)) errors.push(`Inventario de pruebas desactualizado; esperado: ${expectedInventory}`);
 
-const css = existsSync(join(root, 'src', 'index.css')) ? readFileSync(join(root, 'src', 'index.css'), 'utf8') : '';
+const css = ['src/index.css', 'src/styles/theme-light.css', 'src/styles/theme-dark.css']
+  .map(file => existsSync(join(root, file)) ? readFileSync(join(root, file), 'utf8') : '').join('\n');
 const designDoc = contents.get('docs/ux/design-system.md') || '';
 for (const token of ['#f9fafb', '#f0f2f5', '#ffffff', '#0a2540', '#0f1419', '#0a0d12', '#1e2329', '#9aa4af', '#00d4b3']) {
   if (!css.toLowerCase().includes(token) || !designDoc.toLowerCase().includes(token)) {

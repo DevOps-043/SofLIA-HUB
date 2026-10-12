@@ -2,6 +2,7 @@ import { ipcMain, app, nativeTheme } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { MainRuntimeState } from './runtime-state';
+import { registerLearningLiveHandlers } from '../learning-live-handlers';
 
 export function registerMainServiceIpcHandlers(input: {
   services: any;
@@ -9,6 +10,15 @@ export function registerMainServiceIpcHandlers(input: {
   initWhatsAppAgent: (apiKey: string) => void;
 }): void {
   const { services, state, initWhatsAppAgent } = input;
+  registerLearningLiveHandlers((url) => services.integratedBrowserService.createTab(url, true, undefined, { sensitive: true, waitForLoad: false }), (reference) => {
+    if (state.pendingLearningSession?.session_id === reference.session_id && state.pendingLearningSession.organization_slug === reference.organization_slug)
+      state.pendingLearningSession = null;
+  });
+  ipcMain.handle('app:get-pending-learning-session', async () => {
+    // Lectura no destructiva: StrictMode puede desmontar antes de adoptar
+    // la respuesta. El handler confirma consumo después de procesarla.
+    return state.pendingLearningSession;
+  });
   ipcMain.handle('whatsapp:connect', async () => safeAsync(() => services.waService.connect()));
   ipcMain.handle('whatsapp:disconnect', async () => safeAsync(() => services.waService.disconnect()));
   ipcMain.handle('whatsapp:get-status', async () => services.waService.getStatus());

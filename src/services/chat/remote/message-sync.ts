@@ -22,6 +22,7 @@ export async function syncMessagesRemoteOutcome(
       sources: message.sources || null,
       images: message.images || null,
       feedback: message.feedback || null,
+      backgroundJobId: message.backgroundJobId || null,
     },
   }));
 

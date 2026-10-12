@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BrowserWindow, WebContentsView, type WebContents } from 'electron';
-import { applyBrowserTabZoom, browserDomPoint } from '../integrated-browser/tab-zoom';
+import { applyBrowserTabZoom, browserDomPoint, invalidateBrowserTabZoom } from '../integrated-browser/tab-zoom';
 import { IntegratedBrowserService } from '../integrated-browser/service';
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); });
 const plain = () => {
@@ -9,6 +9,45 @@ const plain = () => {
   return contents;
 };
 describe('zoom aislado compatible con Electron 43', () => {
+  it('no reinicia la emulación al alternar pestañas con el mismo tamaño y factor', () => {
+    const contents = plain();
+    for (let index = 0; index < 100; index++) applyBrowserTabZoom(contents, 1.5, { width: 900, height: 600 });
+    expect(contents.enableDeviceEmulation).toHaveBeenCalledTimes(1);
+    applyBrowserTabZoom(contents, 1.5, { width: 1200, height: 600 });
+    applyBrowserTabZoom(contents, 2, { width: 1200, height: 600 });
+    expect(contents.enableDeviceEmulation).toHaveBeenCalledTimes(3);
+    invalidateBrowserTabZoom(contents);
+    applyBrowserTabZoom(contents, 2, { width: 1200, height: 600 });
+    expect(contents.enableDeviceEmulation).toHaveBeenCalledTimes(4);
+  });
+  it('reaplica emulación tras cargar aun cuando no cambia la URL', () => {
+    const contents = plain();
+    applyBrowserTabZoom(contents, 2, { width: 800, height: 600 });
+    vi.mocked(contents.isLoadingMainFrame).mockReturnValue(true);
+    applyBrowserTabZoom(contents, 2, { width: 800, height: 600 });
+    vi.mocked(contents.isLoadingMainFrame).mockReturnValue(false);
+    applyBrowserTabZoom(contents, 2, { width: 800, height: 600 });
+    expect(contents.enableDeviceEmulation).toHaveBeenCalledTimes(2);
+  });
+  it('invalida el zoom del servicio en una recarga sin cambiar URL ni tamaño', async () => {
+    vi.stubEnv('BROWSER_PAGE_TOOLS_ENABLED', 'true');
+    const browser = new IntegratedBrowserService(); browser.attachWindow(new BrowserWindow());
+    try {
+      await browser.open('https://example.com/a');
+      const id = browser.getState().activeTabId!;
+      const contents = browser.getWebContentsForAgent();
+      Object.defineProperty(contents, 'setZoomMode', { value: undefined, configurable: true });
+      browser.setViewport({ x: 0, y: 0, width: 800, height: 600 });
+      browser.setZoom('in');
+      vi.mocked(contents.enableDeviceEmulation).mockClear();
+      for (let index = 0; index < 100; index++) browser.activateTab(id);
+      expect(contents.enableDeviceEmulation).not.toHaveBeenCalled();
+      const events = contents as WebContents & { emit: (name: string) => void };
+      events.emit('did-start-loading');
+      events.emit('did-stop-loading');
+      expect(contents.enableDeviceEmulation).toHaveBeenCalledTimes(1);
+    } finally { browser.detachWindow(); }
+  });
   it.each(['nueva', 'cargando', 'caída', 'destruida'] as const)('evita emulación nativa con una vista %s', state => {
     const contents = plain();
     if (state === 'nueva') vi.mocked(contents.getURL).mockReturnValue('');

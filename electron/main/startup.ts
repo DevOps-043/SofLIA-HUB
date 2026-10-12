@@ -7,6 +7,7 @@ import { transcribeChannelAudio } from '../wa-agent/audio-transcription';
 import { registerProjectHubHandlers } from '../project-hub-handlers';
 import { getProjectHubApiService } from '../project-hub';
 import { initializeAgentRuntime } from '../agent-runtime';
+import { initializeBackgroundTeams } from '../background-teams';
 
 type StartupWindowControls = {
   createOrbWindow: (wake?: boolean) => Promise<void>;
@@ -74,6 +75,8 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
     geminiKey: () => state.currentGeminiApiKey,
     meetings: services.meetingWorkflowService,
   }).catch(() => logBootstrapError('agent-runtime', new Error('No se pudo iniciar el arnés multiagente.')));
+  void initializeBackgroundTeams({ getWindow: () => state.win, geminiKey: () => state.currentGeminiApiKey })
+    .catch(() => logBootstrapError('background-teams', new Error('No se pudieron iniciar los equipos ejecutores.')));
   // Transcripcion de reuniones en vivo: audio del renderer -> sidecar Python
   // (faster-whisper) -> pipeline de meetings existente para la minuta.
   modules.registerMeetingLiveHandlers(

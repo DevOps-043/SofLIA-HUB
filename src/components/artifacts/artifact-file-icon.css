@@ -1,0 +1,4 @@
+.artifact-file-icon{--file-color:var(--color-text-secondary-val);display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;flex:none;color:var(--file-color)}
+.artifact-file-icon svg{width:19px;height:19px}
+.artifact-file-icon.family-word{--file-color:#5b9cf6}.artifact-file-icon.family-pdf{--file-color:#e97c7c}.artifact-file-icon.family-sheet{--file-color:#56bb8c}.artifact-file-icon.family-slides{--file-color:#ec9a66}.artifact-file-icon.family-code{--file-color:#a99af0}.artifact-file-icon.family-image{--file-color:#cb8cce}
+.artifact-file-icon.small{width:15px;height:15px}.artifact-file-icon.small svg{width:15px;height:15px}

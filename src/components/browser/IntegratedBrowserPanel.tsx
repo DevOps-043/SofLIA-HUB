@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { BrowserAgentTaskControls } from './BrowserAgentTaskControls';
+import { BROWSER_HOME_URL, BROWSER_HOME_TITLE, browserAddressValue, isBrowserHomeUrl } from '../../shared/browser-home';
+import { BrowserHomePage } from './BrowserHomePage';
 import {
   EMPTY_INTEGRATED_BROWSER_STATE,
   integratedBrowserService,
@@ -68,12 +70,15 @@ export function IntegratedBrowserPanel(props: {
 }) {
   const { onContentTopChange } = props;
   const rootRef = useRef<HTMLElement>(null);
+  const mountedRef = useRef(true);
   const viewportRef = useRef<HTMLDivElement>(null);
   const viewportInsetsRef = useRef({ left: 0, right: 0 });
   const lastViewportRef = useRef<string | null>(null);
   const viewportRequestRef = useRef(0);
   const viewportProfileRef = useRef<number | null>(null);
+  const suggestionsBottomRef = useRef<number | null>(null);
   const currentUrlRef = useRef(EMPTY_INTEGRATED_BROWSER_STATE.url);
+  const shellHomeRef = useRef(true);
   const extensionRequestIdRef = useRef(0);
   const addressEditingRef = useRef(false);
   const addressInputRef = useRef<HTMLInputElement>(null);
@@ -83,7 +88,7 @@ export function IntegratedBrowserPanel(props: {
   const suggestionOpenPromiseRef = useRef<Promise<void> | null>(null);
   const suggestionRestorePromiseRef = useRef<Promise<void> | null>(null);
   const readingModeRef = useRef<BrowserReadingContent | null>(null);
-  const [state, setState] = useState<IntegratedBrowserState>(EMPTY_INTEGRATED_BROWSER_STATE);
+  const [state, setState] = useState<IntegratedBrowserState>({ ...EMPTY_INTEGRATED_BROWSER_STATE, url: BROWSER_HOME_URL, title: BROWSER_HOME_TITLE });
   const [address, setAddress] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
   const [managementTab, setManagementTab] = useState<BrowserManagementTab | null>(null);
@@ -115,6 +120,11 @@ export function IntegratedBrowserPanel(props: {
   const viewportInsetLeft = Math.max(0, Math.round(props.viewportInsets?.left ?? 0));
   const viewportInsetRight = Math.max(0, Math.round(props.viewportInsets?.right ?? 0));
   viewportInsetsRef.current = { left: viewportInsetLeft, right: viewportInsetRight };
+
+  useLayoutEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const consumeResponse = useCallback((response: IntegratedBrowserResponse) => {
     if (!response.success) {
@@ -148,7 +158,7 @@ export function IntegratedBrowserPanel(props: {
 
   const publishViewport = useCallback(async (force = false) => {
     const element = viewportRef.current;
-    if (!element) return;
+    if (!element || !mountedRef.current) return;
     if ((managementTabRef.current || suggestionOverlayRef.current) && !force) return;
     const rect = element.getBoundingClientRect();
     const rootRect = rootRef.current?.getBoundingClientRect();
@@ -156,12 +166,18 @@ export function IntegratedBrowserPanel(props: {
     if (!integratedBrowserService.isAvailable()) return;
     const insets = viewportInsetsRef.current;
     const width = Math.round(rect.width) - insets.left - insets.right;
-    if (width < 160 || rect.height < 120) return;
+    // El desplegable ocupa sólo la parte superior: la página sigue componiendo
+    // cuadros debajo, sin una captura estática ni ocultación de WebContentsView.
+    const y = shellHomeRef.current ? Math.round(rect.top)
+      : Math.max(Math.round(rect.top), Math.ceil(suggestionsBottomRef.current ?? rect.top));
+    const height = Math.round(rect.bottom) - y;
+    if (width < 160 || height < 120) return;
     const viewport = {
       x: Math.round(rect.left) + insets.left,
-      y: Math.round(rect.top),
+      y,
       width,
-      height: Math.round(rect.height),
+      height,
+      homeInShell: true,
     };
     const key = `${viewport.x}:${viewport.y}:${viewport.width}:${viewport.height}`;
     if (!force && lastViewportRef.current === key) return;
@@ -183,8 +199,24 @@ export function IntegratedBrowserPanel(props: {
     consumeResponse({ ...response, state: undefined });
   }, [consumeResponse, onContentTopChange]);
 
+  const showShellHome = isBrowserHomeUrl(state.url) && state.viewMode === 'single' && !state.isFullscreen;
+  useLayoutEffect(() => {
+    if (shellHomeRef.current === showShellHome) return;
+    shellHomeRef.current = showShellHome;
+    void publishViewport();
+  }, [showShellHome, publishViewport]);
+
+  const handleSuggestionsBoundsChange = useCallback((bottom: number | null) => {
+    const next = bottom !== null && Number.isFinite(bottom) ? bottom : null;
+    if (suggestionsBottomRef.current === next) return;
+    suggestionsBottomRef.current = next;
+    void publishViewport();
+  }, [publishViewport]);
+
   const handleSuggestionsVisibilityChange = useCallback(async (visible: boolean) => {
     if (!integratedBrowserService.isAvailable()) return;
+    if (shellHomeRef.current && isBrowserHomeUrl(currentUrlRef.current)
+      && !suggestionOverlayRef.current && !suggestionOpenPromiseRef.current) return;
 
     if (!visible) {
       const requestId = ++suggestionOverlayRequestIdRef.current;
@@ -308,6 +340,12 @@ export function IntegratedBrowserPanel(props: {
     if (closedTab === 'bookmarks') void refreshBookmarks();
     managementTabRef.current = null;
     setManagementTab(null);
+    if (shellHomeRef.current && isBrowserHomeUrl(currentUrlRef.current)) {
+      setManagementSnapshot(null);
+      await publishViewport(true);
+      if (closedTab === 'extensions') await refreshToolbarExtensions();
+      return;
+    }
     await waitForNextPaint();
     await publishViewport(true);
     // El respaldo se retira solo cuando la vista nativa ya volvio a pintar.
@@ -318,6 +356,7 @@ export function IntegratedBrowserPanel(props: {
 
   const toggleManagement = useCallback(async (tab: BrowserManagementTab) => {
     await handleSuggestionsVisibilityChange(false);
+    if (!mountedRef.current) return;
     if (managementTabRef.current === tab) {
       await closeManagement();
       return;
@@ -327,8 +366,15 @@ export function IntegratedBrowserPanel(props: {
       setManagementTab(tab);
       return;
     }
+    if (shellHomeRef.current && isBrowserHomeUrl(currentUrlRef.current)) {
+      managementTabRef.current = tab;
+      setManagementSnapshot(null);
+      setManagementTab(tab);
+      return;
+    }
     try {
       const capture = await integratedBrowserService.captureVisible();
+      if (!mountedRef.current) return;
       if (capture.success && capture.screenshot) {
         adoptSnapshotBounds(capture);
         setManagementSnapshot(capture.screenshot);
@@ -339,6 +385,7 @@ export function IntegratedBrowserPanel(props: {
     managementTabRef.current = tab;
     try {
       await waitForNextPaint();
+      if (!mountedRef.current) return;
       const hidden = await integratedBrowserService.hide();
       if (!hidden.success) {
         managementTabRef.current = null;
@@ -405,7 +452,7 @@ export function IntegratedBrowserPanel(props: {
         if (!nextState.isVisible) lastViewportRef.current = null;
         currentUrlRef.current = nextState.url;
         setState(nextState);
-        if (!addressEditingRef.current) setAddress(nextState.url === 'about:blank' ? '' : nextState.url);
+        if (!addressEditingRef.current) setAddress(browserAddressValue(nextState.url));
         const reading = readingModeRef.current;
         if (reading && nextState.url !== reading.url) void closeReadingMode();
       },
@@ -437,7 +484,7 @@ export function IntegratedBrowserPanel(props: {
         if (canceled) return;
         consumeResponse(response);
         if (response.state?.url) currentUrlRef.current = response.state.url;
-        if (!addressEditingRef.current && response.state?.url && response.state.url !== 'about:blank') setAddress(response.state.url);
+        if (!addressEditingRef.current && response.state?.url) setAddress(browserAddressValue(response.state.url));
         await publishViewport();
         const observation = await integratedBrowserService.getObservation(false);
         if (!canceled && observation.observationStatus) setObservationStatus(observation.observationStatus);
@@ -480,6 +527,10 @@ export function IntegratedBrowserPanel(props: {
       setLocalError(error instanceof Error ? error.message : String(error));
     }
   }, [consumeResponse]);
+
+  const navigateFromHome = useCallback((target: string) => {
+    void run(() => integratedBrowserService.navigate(target, { waitForLoad: false }));
+  }, [run]);
 
   const closeFind = useCallback(() => {
     setFindVisible(false);
@@ -608,6 +659,7 @@ export function IntegratedBrowserPanel(props: {
             inputRef={addressInputRef}
             onNavigate={navigate}
             onSuggestionsVisibilityChange={handleSuggestionsVisibilityChange}
+            onSuggestionsBoundsChange={handleSuggestionsBoundsChange}
           />
           <div className="flex shrink-0 items-center gap-0.5 rounded-xl border border-gray-200/80 bg-gray-50/80 p-1 shadow-xs backdrop-blur-md dark:border-white/[0.08] dark:bg-white/[0.03]">
             <BrowserAppGridMenu
@@ -632,7 +684,7 @@ export function IntegratedBrowserPanel(props: {
             <BrowserIconButton
               label={readingContent ? 'Cerrar modo lectura' : 'Abrir modo lectura'}
               active={Boolean(readingContent)}
-              disabled={!state.activeTabId || state.url === 'about:blank'}
+              disabled={!state.activeTabId || state.url === 'about:blank' || isBrowserHomeUrl(state.url)}
               onClick={() => { void (readingContent ? closeReadingMode() : openReadingMode()); }}
             >
               <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -653,6 +705,7 @@ export function IntegratedBrowserPanel(props: {
               }}
               sections={[
                 [
+                  { id: 'ecosystem-connect', label: 'Usar mi cuenta de PulseHub', icon: <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21v-2a8 8 0 0 1 16 0v2" /></svg>, onSelect: () => void run(integratedBrowserService.reconnectEcosystemSession) },
                   { id: 'new-tab', label: 'Nueva pestaña', shortcut: shortcut('new-tab'), icon: <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>, onSelect: () => void run(() => integratedBrowserService.createTab(undefined, { waitForLoad: false })) },
                   { id: 'reopen-tab', label: 'Reabrir pestaña cerrada', shortcut: shortcut('reopen-tab'), icon: <svg viewBox="0 0 24 24"><path d="M4 4v6h6M5 15a8 8 0 1 0 2-8" /></svg>, onSelect: () => void run(integratedBrowserService.reopenClosedTab) },
                 ],
@@ -744,14 +797,14 @@ export function IntegratedBrowserPanel(props: {
             />
           </div>
         )}
-        {state.isLoading && (
+        {state.isLoading && !showShellHome && (
           <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden bg-accent/15">
             <div className="h-full w-1/3 animate-pulse rounded-full bg-accent" />
           </div>
         )}
-        <div className="grid h-full place-items-center text-sm text-gray-400 dark:text-white/30">
-          Preparando navegador seguro...
-        </div>
+        {showShellHome ? <div className="absolute inset-y-0" style={{ left: viewportInsetLeft, right: viewportInsetRight }}>
+          <BrowserHomePage key={state.activeTabId ?? 'initial-home'} onNavigate={navigateFromHome} />
+        </div> : <div className="grid h-full place-items-center text-sm text-gray-400 dark:text-white/30">Preparando navegador seguro...</div>}
       </div>
       </div>
       {managementTab && (

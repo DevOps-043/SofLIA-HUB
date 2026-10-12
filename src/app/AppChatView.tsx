@@ -21,6 +21,7 @@ interface AppChatViewProps {
   onRetryConversations?: () => Promise<boolean>;
   onOpenBrowser?: () => void;
   onOpenMeetings?: () => void;
+  onOpenLiveSessions?: () => void;
 }
 
 export function AppChatView(props: AppChatViewProps) {
@@ -53,6 +54,7 @@ export function AppChatView(props: AppChatViewProps) {
       readOnlyReason={props.currentConversation?.can_edit === false ? 'Esta conversacion fue compartida contigo en modo solo lectura.' : undefined}
       onOpenBrowser={props.onOpenBrowser}
       onOpenMeetings={props.onOpenMeetings}
+      onOpenLiveSessions={props.onOpenLiveSessions}
     />
   );
 }

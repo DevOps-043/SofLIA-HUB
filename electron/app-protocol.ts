@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { parseLearningLiveSession } from '../src/shared/learning-live-session';
 import type {
   AppProtocolCommand,
   AuthCallbackPayload,
@@ -109,6 +110,14 @@ export function parseAppProtocolCommand(rawValue: string | null | undefined): Ap
 
   if (url.protocol.toLowerCase() !== 'soflia:') {
     return null;
+  }
+
+  if (url.hostname === 'learning-session') {
+    if (url.username || url.password || url.port || url.hash || (url.pathname && url.pathname !== '/')) return null;
+    const keys = [...url.searchParams.keys()];
+    if (keys.length !== 2 || !keys.includes('organization_slug') || !keys.includes('session_id')) return null;
+    const payload = parseLearningLiveSession(Object.fromEntries(url.searchParams));
+    return payload ? { type: 'learning-session', payload } : null;
   }
 
   const shareLink = buildShareLink(url);

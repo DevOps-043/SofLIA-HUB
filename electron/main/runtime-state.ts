@@ -1,5 +1,6 @@
 import type { BrowserWindow, Tray } from 'electron';
 import type { AuthCallbackPayload, MeetingTriggerPayload } from '../app-protocol';
+import type { LearningLiveSessionReference } from '../../src/shared/learning-live-session';
 
 const BACKGROUND_LAUNCH_ARG = '--background';
 
@@ -16,6 +17,7 @@ export function createRuntimeState(initialProtocolCommand: any) {
     shouldShowInitialWindow: !startInBackground && initialProtocolCommand?.type !== 'meeting-trigger',
     pendingShareLink: initialProtocolCommand?.type === 'share-link' ? initialProtocolCommand.shareLink as string : null,
     pendingMeetingTrigger: initialProtocolCommand?.type === 'meeting-trigger' ? initialProtocolCommand.payload as MeetingTriggerPayload : null,
+    pendingLearningSession: initialProtocolCommand?.type === 'learning-session' ? initialProtocolCommand.payload as LearningLiveSessionReference : null,
     // Arranque en frio desde el retorno del inicio federado: el renderer todavia
     // no existe, asi que el resultado espera aqui hasta que lo pida.
     pendingAuthCallback: initialProtocolCommand?.type === 'auth-callback' ? initialProtocolCommand.payload as AuthCallbackPayload : null,

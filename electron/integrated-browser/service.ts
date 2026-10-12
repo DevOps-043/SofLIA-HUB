@@ -1,6 +1,13 @@
 import { EventEmitter } from 'node:events';
+import { sensitiveSessionDisplayUrl } from './sensitive-session';
+import { registerBrowserHomeProtocol } from './home';
+import { BROWSER_HOME_TITLE, isBrowserHomeUrl } from '../../src/shared/browser-home';
+import { prepareEcosystemSession, ecosystemSessionOrigins, rememberEcosystemSignOut, responseIndicatesEcosystemSignOut } from './ecosystem-session-runtime';
+import { EcosystemSessionError } from './ecosystem-session';
+import { ecosystemOrigin } from '../../src/shared/browser-ecosystem';
 import type { BrowserNavigationOptions } from '../../src/shared/browser-navigation';
-import { applyBrowserTabZoom, browserDomPoint, supportsIsolatedBrowserZoom } from './tab-zoom';
+import type { BrowserViewport } from '../../src/shared/browser-navigation';
+import { applyBrowserTabZoom, browserDomPoint, invalidateBrowserTabZoom, supportsIsolatedBrowserZoom } from './tab-zoom';
 import { BrowserCredentialUnlock } from './credential-unlock';
 import { BrowserPasskeySelection } from './passkey-selection';
 import { listExtensionCatalog } from './extension-catalog';
@@ -165,6 +172,7 @@ type ViewportWaiter = {
 };
 
 type BrowserTabRuntime = {
+  sensitive?: boolean;
   id: string;
   view: WebContentsView | null;
   url: string;
@@ -215,6 +223,7 @@ export class IntegratedBrowserService extends EventEmitter {
   private extensionAuthRevision = 0;
   private extensionAuthCleanup: (() => void) | null = null;
   private readonly sensitiveDocuments = new WeakMap<WebContents, BrowserSensitiveReason>();
+  private readonly sensitivePopups = new WeakSet<WebContents>();
   private markSensitiveDocument(tab: BrowserTabRuntime, reason: BrowserSensitiveReason): void {
     const contents = tab.view?.webContents;
     if (!contents || this.sensitiveDocuments.has(contents)) return;
@@ -226,9 +235,18 @@ export class IntegratedBrowserService extends EventEmitter {
   }
   private assertKnownDocumentNotSensitive(tabId?: string): void {
     const tab = tabId ? this.tabs.get(tabId) : this.getActiveTab();
+    if (tab?.sensitive) throw new Error("El acceso a esta sesión es privado. Usa los controles de Zoom dentro de Hub.");
     const contents = tab?.view?.webContents;
     if (contents && this.sensitiveDocuments.has(contents)) throw new Error(`Continúa manualmente. ${BROWSER_HANDOFF_MESSAGES[this.sensitiveDocuments.get(contents)!]}`);
   }
+  private isSensitiveContents(contents: WebContents): boolean {
+    return this.sensitivePopups.has(contents) || Array.from(this.tabs.values()).some((tab) => tab.sensitive && tab.view?.webContents === contents);
+  }
+
+  private publicContentsUrl(contents: WebContents): string {
+    return this.isSensitiveContents(contents) ? sensitiveSessionDisplayUrl(contents.getURL()) : contents.getURL();
+  }
+
   private async assertDocumentNotSensitive(tabId?: string): Promise<void> {
     this.assertKnownDocumentNotSensitive(tabId);
     if (!this.capabilities.agentGovernance) return;
@@ -317,7 +335,8 @@ export class IntegratedBrowserService extends EventEmitter {
     const guard = this.captureProfileGuard();
     const tab = tabId ? this.tabs.get(tabId) : this.getActiveTab();
     traceId = this.auditTrace.getStore() ?? traceId;
-    const context = { traceId, tabId: tab?.id ?? '', url: tab?.view?.webContents.getURL() ?? tab?.url ?? '', operation };
+    const rawContextUrl = tab?.view?.webContents.getURL() ?? tab?.url ?? '';
+    const context = { traceId, tabId: tab?.id ?? '', url: tab?.sensitive ? sensitiveSessionDisplayUrl(rawContextUrl) : rawContextUrl, operation };
     guard(); this.auditStore.record({ ...context, result: 'started' });
     try {
       const value = await this.auditTrace.run(traceId, action); guard();
@@ -363,6 +382,7 @@ export class IntegratedBrowserService extends EventEmitter {
   private mainWindowFocusHandler: (() => void) | null = null;
   private mainRendererCleanup: (() => void) | null = null;
   private tabs = new Map<string, BrowserTabRuntime>();
+  private readonly nativeTabVisibility = new WeakMap<WebContentsView, boolean>();
   private activeTabValue: string | null = null;
   private activeTabRevision = 0;
   private navigationRequestRevision = 0;
@@ -381,7 +401,7 @@ export class IntegratedBrowserService extends EventEmitter {
   private viewMode: IntegratedBrowserViewMode = 'single';
   private overlayTopTabId: string | null = null;
   private customOverlayBounds: Rectangle | null = null;
-  private viewport: Rectangle | null = null;
+  private viewport: BrowserViewport | null = null;
   private visible = false;
   private agentControlling = false;
   private agentTaskBinding: { control: BrowserCuControlPort; profileRevision: number; scope: string; assertCurrent: () => void } | null = null;
@@ -1020,7 +1040,7 @@ export class IntegratedBrowserService extends EventEmitter {
     if (active) this.snapshotTab(active);
     const contents = active?.view?.webContents ?? null;
     return {
-      url: active?.url || 'about:blank',
+      url: active?.sensitive ? sensitiveSessionDisplayUrl(active.url) : active?.url || 'about:blank',
       profileRevision: this.scopeTransition,
       credentialUnlocked: this.credentialUnlock.isUnlocked(),
       title: active?.title || 'Navegador',
@@ -1403,8 +1423,9 @@ export class IntegratedBrowserService extends EventEmitter {
     if (this.tabs.size >= INTEGRATED_BROWSER_MAX_TABS) {
       throw new Error(`El navegador admite hasta ${INTEGRATED_BROWSER_MAX_TABS} pestañas abiertas.`);
     }
-    const tab = this.createTabRuntime();
+    const tab = this.createTabRuntime(true, options.sensitive === true);
     tab.url = target;
+    tab.sensitive = options.sensitive === true;
     this.setNavigationSafety(tab, target, safety);
     if (restored) {
       tab.pinned = restored.pinned;
@@ -1433,7 +1454,7 @@ export class IntegratedBrowserService extends EventEmitter {
     if (!tab) throw new Error('La pestaña indicada no existe.');
     if (this.fullscreenTabId === tabId) this.leaveHtmlFullScreen(tabId, false);
     const wasVisible = tabId === this.primaryTabId || (this.viewMode !== 'single' && tabId === this.secondaryTabId);
-    this.closedTabs.push({ ...this.toSessionTab(tab, Array.from(this.tabs.keys()).indexOf(tabId)), closedAt: new Date().toISOString() });
+    if (!tab.sensitive) this.closedTabs.push({ ...this.toSessionTab(tab, Array.from(this.tabs.keys()).indexOf(tabId)), closedAt: new Date().toISOString() });
     if (this.closedTabs.length > 25) this.closedTabs.shift();
     this.tabs.delete(tabId);
     try {
@@ -1469,7 +1490,7 @@ export class IntegratedBrowserService extends EventEmitter {
     const source = this.tabs.get(sourceId)!;
     this.snapshotTab(source);
     const sourceZoom = source.zoomFactor;
-    await this.createTab(source.url, true);
+    await this.createTab(source.url, true, undefined, { sensitive: source.sensitive });
     const created = this.getActiveTab();
     if (created) {
       created.groupId = source.groupId;
@@ -1676,6 +1697,7 @@ export class IntegratedBrowserService extends EventEmitter {
     this.applyViewLayout();
     tab.appliedVisible = true;
     view.setVisible(true);
+    this.nativeTabVisibility.set(view, true);
     detached.show();
     detached.focus();
     this.enforceLiveTabBudget();
@@ -1816,7 +1838,7 @@ export class IntegratedBrowserService extends EventEmitter {
     const viewport = parseBrowserViewport(rawViewport, parent.getContentBounds());
     const previous = this.viewport;
     const changed = previousView !== workspaceView || !this.visible || !previous || previous.x !== viewport.x || previous.y !== viewport.y
-      || previous.width !== viewport.width || previous.height !== viewport.height;
+      || previous.width !== viewport.width || previous.height !== viewport.height || previous.homeInShell !== viewport.homeInShell;
     if (!changed) {
       // Un acuse explícito del agente sigue resolviendo la espera de geometría.
       this.resolveViewportWaiters();
@@ -2105,6 +2127,7 @@ export class IntegratedBrowserService extends EventEmitter {
     // Respaldo local de UI: no es percepción del agente ni genera permisos.
     const active = this.getActiveTab();
     if (!active || !this.isTabVisible(active)) throw new Error('El navegador integrado no esta visible.');
+    if (this.usesShellHome(active)) throw new Error('La portada se muestra en la interfaz de SofLIA.');
     const contents = this.getWebContentsForAgent();
     const image = await contents.capturePage();
     if (image.isEmpty()) throw new Error('La captura del navegador integrado esta vacia.');
@@ -2809,10 +2832,11 @@ export class IntegratedBrowserService extends EventEmitter {
     return this.requireTabView(tab);
   }
 
-  private createTabRuntime(materialize = true): BrowserTabRuntime {
+  private createTabRuntime(materialize = true, sensitive = false): BrowserTabRuntime {
     if (this.scopeChanging) throw new Error('El perfil está cambiando; espera antes de abrir pestañas.');
     this.captureProfileGuard()();
     const tab: BrowserTabRuntime = {
+      sensitive,
       id: randomUUID(),
       view: null,
       url: 'about:blank',
@@ -2870,13 +2894,15 @@ export class IntegratedBrowserService extends EventEmitter {
       },
     });
     view.setVisible(false);
-    view.setBackgroundColor('#ffffff');
+    this.nativeTabVisibility.set(view, false);
+    view.setBackgroundColor(isBrowserHomeUrl(tab.url) ? '#00000000' : '#ffffff');
     parent.contentView.addChildView(view);
     this.overlayTopTabId = null;
     tab.view = view;
     tab.documentToken = randomUUID();
     tab.appliedVisible = false;
     tab.appliedBounds = null;
+    registerBrowserHomeProtocol(view.webContents.session.protocol);
     this.configureWebContents(tab);
     this.downloadManager.attach(view.webContents.session);
     this.configureCertificateVerification(view.webContents.session);
@@ -3025,7 +3051,7 @@ export class IntegratedBrowserService extends EventEmitter {
             // webPreferences/session y la relacion `window.opener`. Solo se
             // acotan dimensiones y presentacion de la ventana.
             const popup = new BrowserWindow({ ...options, ...popupOptions });
-            this.prepareBrowserPopupWindow(popup, normalizeOrigin(contents.getURL()));
+            this.prepareBrowserPopupWindow(popup, normalizeOrigin(contents.getURL()), tab.sensitive);
             console.info(`[Navegador][Ventana] Ventana real adoptada antes de entregarla: ${this.isBrowserContents(popup.webContents) ? 'sí' : 'no'}.`);
             return popup.webContents;
           },
@@ -3041,7 +3067,7 @@ export class IntegratedBrowserService extends EventEmitter {
         // abrio recibe `null` y pierde la relacion `opener`. Queda registrado
         // porque hay flujos que dependen de ese vinculo.
         console.info(`[Navegador][Ventana] Apertura con destino convertida en pestaña: ${describeBlockedUrl(url)}`);
-        void this.createTab(url, true).catch((error) => this.recordError(error));
+        void this.createTab(url, true, undefined, { sensitive: tab.sensitive }).catch((error) => this.recordError(error, tab.id));
       } else this.recordError(new Error('El sitio intento abrir un protocolo no permitido.'));
       return { action: 'deny' };
     });
@@ -3098,7 +3124,7 @@ export class IntegratedBrowserService extends EventEmitter {
           instruction: buildSelectionInstruction(request.action),
         }),
         onOpenReadingMode: (selection) => this.sendToRenderer('integrated-browser:reading-mode-requested', {
-          url: contents.getURL(),
+          url: this.publicContentsUrl(contents),
           title: tab.title,
           selection,
         }),
@@ -3138,6 +3164,7 @@ export class IntegratedBrowserService extends EventEmitter {
     });
     contents.on('did-start-loading', () => {
       if (!isCurrentView()) return;
+      invalidateBrowserTabZoom(contents);
       tab.loading = true;
       tab.error = null;
       this.deferPassiveCapture(tab);
@@ -3161,10 +3188,14 @@ export class IntegratedBrowserService extends EventEmitter {
     });
     contents.on('did-navigate', () => {
       if (!isCurrentView()) return;
+      // El destino confirmado es la fuente de verdad; durante una carga el
+      // getURL previo no debe resucitar Google ni sustituir el inicio solicitado.
+      tab.url = contents.getURL() || tab.url;
       this.configureTabZoom(tab);
       tab.documentToken = randomUUID();
       tab.visualRevision += 1;
       this.snapshotTab(tab);
+      if (tab.appliedVisible !== null) this.applyTabVisibility(tab, view, tab.appliedVisible);
       this.refreshNavigationSafety(tab);
       this.invalidateObservation(tabId);
       this.deferPassiveCapture(tab);
@@ -3186,7 +3217,7 @@ export class IntegratedBrowserService extends EventEmitter {
       void this.installSelectionWatcher(contents);
       this.snapshotTab(tab);
       if (isAllowedBrowserUrl(tab.url)) tab.error = null;
-      void this.historyStore.record({ url: contents.getURL(), title: contents.getTitle() }).catch((error) => {
+      if (!tab.sensitive && !isBrowserHomeUrl(tab.url)) void this.historyStore.record({ url: this.publicContentsUrl(contents), title: contents.getTitle() }).catch((error) => {
         console.warn('[Navegador][Historial] No se pudo registrar la visita:', safeErrorMessage(error instanceof Error ? error.message : String(error)));
       });
     });
@@ -3293,8 +3324,11 @@ export class IntegratedBrowserService extends EventEmitter {
       && this.parentWindow === parent && !!parent && !parent.isDestroyed()
       && this.tabs.get(tab.id) === tab && tab.view?.webContents === contents
       && !contents.isDestroyed() && tab.loadSequence === sequence;
+    this.requireTabView(tab).setBackgroundColor(isBrowserHomeUrl(target) ? '#00000000' : '#ffffff');
     tab.error = null; tab.url = target; tab.loading = true;
+    if (isBrowserHomeUrl(target)) tab.title = BROWSER_HOME_TITLE;
     tab.awaitingNavigationStart = target;
+    if (tab.appliedVisible !== null) this.applyTabVisibility(tab, this.requireTabView(tab), tab.appliedVisible);
     this.emitState();
     const loading = contents.loadURL(target).then(() => {
       if (current() && tab.loading) { tab.loading = false; this.snapshotTab(tab); this.emitState(); }
@@ -3327,7 +3361,7 @@ export class IntegratedBrowserService extends EventEmitter {
     const wasBlocked = tab.navigationSafety?.action === 'block';
     tab.navigationSafetyUrl = target;
     tab.navigationSafety = { ...verdict };
-    if (tab.view && tab.appliedVisible !== null && wasBlocked !== (verdict.action === 'block')) tab.view.setVisible(tab.appliedVisible && verdict.action !== 'block');
+    if (tab.view && tab.appliedVisible !== null && wasBlocked !== (verdict.action === 'block')) this.applyTabVisibility(tab, tab.view, tab.appliedVisible);
     this.updateTabSafetyInterstitial(tab);
   }
 
@@ -3378,7 +3412,7 @@ export class IntegratedBrowserService extends EventEmitter {
       // El aborto por navegacion superada no se muestra al usuario: es el curso
       // normal de un sitio que redirige o reescribe su propia URL al cargar.
       if (!isSupersededNavigation(error)) {
-        tab.error = safeErrorMessage(error instanceof Error ? error.message : String(error));
+        tab.error = tab.sensitive ? "No se pudo cargar la sesión privada. Vuelve a abrirla desde Learning." : safeErrorMessage(error instanceof Error ? error.message : String(error));
       }
     }
     this.emitState();
@@ -3641,9 +3675,8 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   private syncSessionSnapshot(): BrowserSessionSnapshot {
-    return { version: 2, savedAt: '', cleanExit: false, activeTabId: this.activeTabId, primaryTabId: this.primaryTabId,
-      secondaryTabId: this.secondaryTabId, detachedTabIds: [...this.detachedWindows.keys()], viewMode: this.viewMode, tabLayout: this.tabLayout,
-      tabs: Array.from(this.tabs.values()).map((tab, position) => { this.snapshotTab(tab); return this.toSessionTab(tab, position); }),
+    return { version: 2, savedAt: '', cleanExit: false, ...this.persistentLayout(), tabLayout: this.tabLayout,
+      tabs: Array.from(this.tabs.values()).filter((tab) => !tab.sensitive).map((tab, position) => { this.snapshotTab(tab); return this.toSessionTab(tab, position); }),
       groups: Array.from(this.groups.values()).map((group) => ({ ...group })) };
   }
 
@@ -3792,7 +3825,7 @@ export class IntegratedBrowserService extends EventEmitter {
 
   private buildSessionSnapshot(cleanExit: boolean): BrowserSessionSnapshot | null {
     if (!this.capabilities.sessionRestore || this.tabs.size === 0 || this.restorableSession || this.sessionLoadedScope !== this.scopeId) return null;
-    const tabs = Array.from(this.tabs.values()).map((tab, position) => {
+    const tabs = Array.from(this.tabs.values()).filter((tab) => !tab.sensitive).map((tab, position) => {
       this.snapshotTab(tab);
       return this.toSessionTab(tab, position);
     });
@@ -3800,11 +3833,7 @@ export class IntegratedBrowserService extends EventEmitter {
       version: 2,
       savedAt: new Date().toISOString(),
       cleanExit,
-      activeTabId: this.activeTabId,
-      primaryTabId: this.primaryTabId,
-      secondaryTabId: this.viewMode === 'single' ? null : this.secondaryTabId,
-      detachedTabIds: [...this.detachedWindows.keys()],
-      viewMode: this.viewMode,
+      ...this.persistentLayout(),
       tabLayout: this.tabLayout,
       tabs,
       groups: Array.from(this.groups.values()).map((group) => ({ ...group })),
@@ -3958,6 +3987,25 @@ export class IntegratedBrowserService extends EventEmitter {
 
   }
 
+  async reconnectEcosystemSession(): Promise<IntegratedBrowserState> {
+    if (this.agentControlling) throw new Error('Toma el control del navegador para conectar tu cuenta.');
+    const tab = this.getActiveTab();
+    if (!tab?.view || !ecosystemOrigin(tab.view.webContents.getURL(), ecosystemSessionOrigins())) throw new Error('Abre Learning, Engine o Project Hub para usar tu cuenta.');
+    const guard = this.captureNavigationGuard();
+    const target = tab.view.webContents.getURL();
+    const contents = tab.view.webContents;
+    const assertCurrent = () => {
+      guard();
+      if (this.agentControlling || contents.isDestroyed() || contents.getURL() !== target || this.getActiveTab() !== tab) throw new Error('La pestaña cambió durante la conexión.');
+      if (!this.enterpriseUrlAllowed(target)) throw new Error('El sitio está bloqueado por tu organización.');
+    };
+    assertCurrent();
+    if (!await prepareEcosystemSession(target, contents.session, assertCurrent, true)) throw new Error('La cuenta de Soflia todavía no está lista.');
+    assertCurrent();
+    await this.loadTabTarget(tab, target);
+    return this.getState();
+  }
+
   private configureRequestGovernance(session: Session): void {
     const scopeId = this.scopeId;
     const generation = this.sessionGeneration;
@@ -3982,10 +4030,32 @@ export class IntegratedBrowserService extends EventEmitter {
         }
         callback({ cancel: true }); return;
       }
-      const proceed = () => {
+      if (contents && this.isBrowserContents(contents) && details.method === 'POST' &&
+          ['/api/auth/logout', '/api/v1/auth/logout'].includes(new URL(details.url).pathname)) {
+        try { rememberEcosystemSignOut(details.url); } catch { console.warn('[Navegador] No se pudo guardar el cierre de sesión del sitio.'); }
+      }
+      const afterConnection = () => {
         // `other` incluye descargas iniciadas sin navegar el documento.
         if (['mainFrame', 'subFrame', 'other'].includes(details.resourceType)) this.reviewNetworkRequest(details, frame, requestAllowed, callback);
         else callback({});
+      };
+      const proceed = () => {
+        if (details.resourceType !== 'mainFrame' || !contents || !this.isBrowserContents(contents) || !ecosystemOrigin(details.url, ecosystemSessionOrigins())) { afterConnection(); return; }
+        const previousUrl = contents.getURL();
+        const tab = Array.from(this.tabs.values()).find(value => value.view?.webContents === contents);
+        const revision = tab?.visualRevision;
+        const guard = () => {
+          if (!requestAllowed(details.url) || contents.isDestroyed() || !this.isBrowserContents(contents) || contents.getURL() !== previousUrl || (tab && tab.visualRevision !== revision)) throw new Error('La navegación cambió durante la conexión.');
+        };
+        this.reviewNetworkRequest(details, frame, requestAllowed, result => {
+          if (result.cancel) { callback(result); return; }
+          void prepareEcosystemSession(details.url, session, guard).catch(error => {
+            // La web conserva su login normal ante una caída o un despliegue pendiente.
+            if (requestAllowed(details.url)) console.warn('[Navegador] Conexión del ecosistema:', error instanceof EcosystemSessionError ? `${error.code} (HTTP ${error.status})` : 'no-disponible');
+          }).then(() => {
+            try { guard(); callback({}); } catch { callback({ cancel: true }); }
+          });
+        });
       };
       if (!this.privacyProtectionEnabled()) { proceed(); return; }
       const siteOrigin = privacyRequestOrigin(details);
@@ -4026,6 +4096,9 @@ export class IntegratedBrowserService extends EventEmitter {
     });
     session.webRequest.onHeadersReceived(filters, (details, callback) => {
       if (!requestAllowed(details.url)) { callback({ cancel: true }); return; }
+      if (details.webContents && this.isBrowserContents(details.webContents) && responseIndicatesEcosystemSignOut(details.method, details.statusCode, details.responseHeaders || {})) {
+        try { rememberEcosystemSignOut(details.url); } catch { console.warn('[Navegador] No se pudo guardar el cierre de sesión del sitio.'); }
+      }
       const finish = (headers: Record<string, string[]>) => {
         const attachment = Object.entries(headers).some(([name, values]) => name.toLowerCase() === 'content-disposition' && values.some((value) => /^\s*attachment(?:\s*;|\s*$)/i.test(value)))
           || Object.entries(headers).some(([name, values]) => name.toLowerCase() === 'content-type' && values.some((value) => /^\s*application\/octet-stream(?:\s*;|\s*$)/i.test(value)));
@@ -4120,7 +4193,8 @@ export class IntegratedBrowserService extends EventEmitter {
     return { ...state, level: state.level === 'strict' || forced === 'strict' ? 'strict' : 'balanced', exceptionCategories: [] };
   }
 
-  private prepareBrowserPopupWindow(window: BrowserWindow, openerOrigin: string | null): void {
+  private prepareBrowserPopupWindow(window: BrowserWindow, openerOrigin: string | null, sensitive = false): void {
+    if (sensitive) this.sensitivePopups.add(window.webContents);
     if (window.isDestroyed() || this.pictureInPictureWindows.has(window)) return;
     // La ventana real no hereda necesariamente el User-Agent normalizado del
     // abridor. Prepararla antes de devolver su webContents mantiene la misma
@@ -4133,7 +4207,7 @@ export class IntegratedBrowserService extends EventEmitter {
     }
     // Una ventana real puede abrir otras ventanas. La politica se hereda para
     // que ninguna quede fuera del navegador o sin origen gobernado.
-    this.governePopupOpenings(window.webContents, openerOrigin);
+    this.governePopupOpenings(window.webContents, openerOrigin, sensitive);
     this.adoptPictureInPictureWindow(window);
   }
 
@@ -4141,7 +4215,7 @@ export class IntegratedBrowserService extends EventEmitter {
    * Aplica a un `webContents` la misma politica de apertura de ventanas que a
    * una pestaña, conservando el origen heredado a lo largo de la cadena.
    */
-  private governePopupOpenings(contents: WebContents, inheritedOrigin: string | null): void {
+  private governePopupOpenings(contents: WebContents, inheritedOrigin: string | null, sensitive = false): void {
     contents.setWindowOpenHandler((details) => {
       const currentUrl = contents.getURL();
       const openerOrigin = isBlankPopupTarget(currentUrl)
@@ -4160,13 +4234,13 @@ export class IntegratedBrowserService extends EventEmitter {
           action: 'allow',
           createWindow: (options: BrowserWindowConstructorOptions) => {
             const popup = new BrowserWindow({ ...options, ...popupOptions });
-            this.prepareBrowserPopupWindow(popup, openerOrigin);
+            this.prepareBrowserPopupWindow(popup, openerOrigin, sensitive);
             return popup.webContents;
           },
         };
       }
       if (isAllowedBrowserUrl(details.url) && this.enterpriseUrlAllowed(details.url)) {
-        void this.createTab(details.url, true).catch((error) => this.recordError(error));
+        void this.createTab(details.url, true, undefined, { sensitive }).catch(() => this.recordError(new Error("No se pudo abrir la ventana de la sesión.")));
       } else this.recordError(new Error('El sitio intento abrir un protocolo no permitido.'));
       return { action: 'deny' };
     });
@@ -4317,10 +4391,19 @@ export class IntegratedBrowserService extends EventEmitter {
     }
   }
 
+  private usesShellHome(tab: BrowserTabRuntime): boolean {
+    return this.viewport?.homeInShell === true && isBrowserHomeUrl(tab.url)
+      && this.viewMode === 'single' && !this.fullscreenTabId && !this.detachedWindows.has(tab.id);
+  }
+
   private applyTabVisibility(tab: BrowserTabRuntime, view: WebContentsView, visible: boolean): void {
-    if (tab.appliedVisible === visible) { this.updateTabSafetyInterstitial(tab); return; }
+    const drawNative = visible && !this.usesShellHome(tab) && tab.navigationSafety?.action !== 'block';
+    if (tab.appliedVisible === visible && this.nativeTabVisibility.get(view) === drawNative) { this.updateTabSafetyInterstitial(tab); return; }
     tab.appliedVisible = visible;
-    view.setVisible(visible && tab.navigationSafety?.action !== 'block');
+    if (this.nativeTabVisibility.get(view) !== drawNative) {
+      view.setVisible(drawNative);
+      this.nativeTabVisibility.set(view, drawNative);
+    }
     this.updateTabSafetyInterstitial(tab);
   }
 
@@ -4343,11 +4426,11 @@ export class IntegratedBrowserService extends EventEmitter {
     this.snapshotTab(tab);
     return {
       id: tab.id,
-      url: tab.url || 'about:blank',
+      url: tab.sensitive ? sensitiveSessionDisplayUrl(tab.url) : tab.url || 'about:blank',
       title: tab.title || 'Nueva pestaña',
       isLoading: tab.loading,
       error: tab.error,
-      navigationSafety: tab.navigationSafety ? { ...tab.navigationSafety } : null,
+      navigationSafety: !tab.sensitive && tab.navigationSafety ? { ...tab.navigationSafety } : null,
       sensitiveHandoff: tab.view && this.sensitiveDocuments.has(tab.view.webContents) ? { reason: this.sensitiveDocuments.get(tab.view.webContents)! } : null,
       isSuspended: tab.view === null,
       isDetached: this.detachedWindows.has(tab.id),
@@ -4362,7 +4445,22 @@ export class IntegratedBrowserService extends EventEmitter {
   }
 
   private toSessionTab(tab: BrowserTabRuntime, position: number): BrowserSessionTab {
-    return { id: tab.id, url: tab.url, title: tab.title, pinned: tab.pinned, muted: tab.muted, groupId: tab.groupId, position };
+    return { id: tab.id, url: tab.sensitive ? INTEGRATED_BROWSER_HOME : tab.url, title: tab.title, pinned: tab.pinned, muted: tab.muted, groupId: tab.groupId, position };
+  }
+
+  /** Al omitir pestañas privadas también se retiran sus referencias de layout. */
+  private persistentLayout(): Pick<BrowserSessionSnapshot, 'activeTabId' | 'primaryTabId' | 'secondaryTabId' | 'detachedTabIds' | 'viewMode'> {
+    const ids = Array.from(this.tabs.values()).filter((tab) => !tab.sensitive).map((tab) => tab.id);
+    const detachedTabIds = [...this.detachedWindows.keys()].filter((id) => ids.includes(id));
+    if (ids.length > 0 && detachedTabIds.length === ids.length) detachedTabIds.pop();
+    const workspace = ids.filter((id) => !detachedTabIds.includes(id));
+    const primaryTabId = this.primaryTabId && workspace.includes(this.primaryTabId) ? this.primaryTabId : workspace[0] ?? null;
+    const secondaryTabId = this.viewMode !== 'single' && this.secondaryTabId && workspace.includes(this.secondaryTabId) && this.secondaryTabId !== primaryTabId ? this.secondaryTabId : null;
+    return {
+      activeTabId: this.activeTabId && ids.includes(this.activeTabId) ? this.activeTabId : primaryTabId,
+      primaryTabId, secondaryTabId, detachedTabIds,
+      viewMode: secondaryTabId ? this.viewMode : 'single',
+    };
   }
 
   private moveTabToIndex(tabId: string, rawPosition: number): void {
@@ -4381,6 +4479,7 @@ export class IntegratedBrowserService extends EventEmitter {
    * siempre, y al cerrar DevTools se reintenta.
    */
   private installAgentBootstrap(tab: BrowserTabRuntime): void {
+    if (tab.sensitive) return;
     const contents = tab.view?.webContents;
     if (!contents || tab.bootstrap) return;
     const bootstrap = new IntegratedBrowserBootstrap(contents, {
@@ -4441,8 +4540,8 @@ export class IntegratedBrowserService extends EventEmitter {
   private snapshotTab(tab: BrowserTabRuntime): void {
     const contents = tab.view?.webContents;
     if (!contents || contents.isDestroyed()) return;
-    tab.url = contents.getURL() || tab.url || 'about:blank';
-    tab.title = contents.getTitle() || tab.title || 'Nueva pestaña';
+    if (!tab.loading && !tab.awaitingNavigationStart) tab.url = contents.getURL() || tab.url || 'about:blank';
+    tab.title = isBrowserHomeUrl(tab.url) ? BROWSER_HOME_TITLE : contents.getTitle() || tab.title || 'Nueva pestaña';
     if (supportsIsolatedBrowserZoom(contents)) tab.zoomFactor = contents.getZoomFactor();
     tab.canGoBack = contents.navigationHistory.canGoBack();
     tab.canGoForward = contents.navigationHistory.canGoForward();
@@ -4621,6 +4720,7 @@ export class IntegratedBrowserService extends EventEmitter {
    * nuevo.
    */
   private async installSelectionWatcher(contents: WebContents): Promise<void> {
+    if (this.isSensitiveContents(contents) || isBrowserHomeUrl(contents.getURL())) return;
     for (const marco of collectSelectableFrames(contents)) {
       await marco.executeJavaScript(SELECTION_WATCHER_SCRIPT, true).catch((error: unknown) => {
         selectionLog(`vigia no instalado en un marco: ${error instanceof Error ? error.message : String(error)}`);
@@ -4653,7 +4753,7 @@ export class IntegratedBrowserService extends EventEmitter {
         prompt: solicitud.prompt,
         text: solicitud.text,
         title: tab.title,
-        url: contents.getURL(),
+        url: this.publicContentsUrl(contents),
       });
       return;
     }
@@ -4717,7 +4817,7 @@ export class IntegratedBrowserService extends EventEmitter {
     if (action === 'read') {
       selectionLog(`modo lectura pedido desde el menu flotante (${texto.length} chars)`);
       this.sendToRenderer('integrated-browser:reading-mode-requested', {
-        url: contents.getURL(),
+        url: this.publicContentsUrl(contents),
         title: tab.title,
         selection: texto,
       });
@@ -4834,6 +4934,7 @@ export class IntegratedBrowserService extends EventEmitter {
     if (!this.observationEnabled) return null;
     const tab = this.getActiveTab();
     if (!tab || !this.isTabVisible(tab) || !tab.view || tab.view.webContents.isDestroyed()) return null;
+    if (this.usesShellHome(tab)) return null;
     const authorizedUrl = tab.view.webContents.getURL();
     if (!authorization && !await this.canAgentAccessWithoutPrompt(authorizedUrl, 'capture')) {
       this.latestVisualCapture = null;
@@ -4906,6 +5007,7 @@ export class IntegratedBrowserService extends EventEmitter {
     if (!this.observationEnabled) return null;
     const tab = this.getActiveTab();
     if (!tab || !this.isTabVisible(tab) || !tab.view || tab.view.webContents.isDestroyed()) return null;
+    if (this.usesShellHome(tab)) return null;
     const authorizedUrl = tab.view.webContents.getURL();
     if (!authorization && !await this.canAgentAccessWithoutPrompt(authorizedUrl, 'observe-dom')) {
       this.latestObservation = null;

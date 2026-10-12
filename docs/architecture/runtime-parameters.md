@@ -18,6 +18,8 @@ Inventario de defaults y topes con impacto operativo. Los overrides guardados en
 
 ## Arranque
 
+El contrato privado del [aula Learning](learning-live-workspace.md) conserva entrada de 32 KiB, salida de 512 KiB, timeout de 15 s y hasta 4 solicitudes main concurrentes. El aula consulta un snapshot para confirmar el rol, sin polling. El estudio de diseño mantiene hasta 100 mensajes locales, 20 nombres de archivos de hasta 25 MB, hasta 12 escenas con medios locales de hasta 25 MB, salas de diseño y relojes locales de un segundo; no realiza mutaciones remotas. La agenda carga 20 sesiones por página, admite hasta 256 KiB de salida y comparte el timeout y el límite concurrente del contrato; se actualiza al abrir, cambiar página/vista o por solicitud del usuario. El gateway Learning limita por actor lectura, mutación y generación de IA; la retención predeterminada es 30 días y se administra entre 1 y 90.
+
 El [arnés multiagente](runtime-multiagent-harness.md) define sus límites en
 [`AGENT_LIMITS`](../../src/shared/agent-runtime.ts): fuente de 80000 caracteres,
 salida de 24000 por etapa, doce herramientas por etapa, seis llamadas Gemini
@@ -108,6 +110,8 @@ del coordinador ni constituyen un límite monetario. Ver
 | chat flotante | 332 a 560 DIP (388 default); lado izquierdo o derecho; header de 40 DIP; minimizable o sustituible por Orbe; inicio medido bajo la barra superior | `src/components/browser/BrowserWorkspaceLayout.tsx` |
 | convivencia chat/navegador | `WebContentsView` vivo con inset del panel; ancho completo al minimizar | `src/components/browser/IntegratedBrowserPanel.tsx` |
 | overlay de gestores | captura puntual + `hide`; no usa polling para componer la página | `src/components/browser/IntegratedBrowserPanel.tsx` |
+| sugerencias de URL | ocho resultados, debounce de 140 ms; desplegable hasta 256 DIP, reservando 128 DIP inferiores; página nativa visible debajo sin captura | `src/components/browser/BrowserAddressBar.tsx`, `src/components/browser/IntegratedBrowserPanel.tsx` |
+| zoom emulado repetido | una aplicación por factor/tamaño efectivo/documento; carga o crash invalidan la deduplicación por WebContents | `electron/integrated-browser/tab-zoom.ts` |
 | acuse de navegación | `waitForLoad` booleano opcional, true por defecto; la UI usa false tras validar e iniciar, agentes mantienen espera completa; errores tardíos se publican solo para carga vigente | `src/shared/browser-navigation.ts`, `electron/integrated-browser-handlers.ts`, `electron/integrated-browser/service.ts` |
 | geometría de vista | resize agrupado por cuadro; mismo rectángulo visible no genera layout/emisiones extra; restauración y petición del agente fuerzan el acuse | `src/components/browser/IntegratedBrowserPanel.tsx`, `electron/integrated-browser/service.ts` |
 | sondeo de selección | no se programa por keyUp ordinario; selectionchange no avisa por cursor colapsado; se conservan selección real, mouseUp, Ctrl/Meta+A y Shift con navegación; publicación exige contexto y control vigentes | `electron/integrated-browser/service.ts` |
@@ -243,6 +247,17 @@ dentro de `electron/integrated-browser/`.
 
 ## Politica de cambio
 
+Equipos ejecutores locales: dos trabajadores y un coordinador; un trabajo activo,
+hasta seis admitidos y treinta en historial. Diez minutos de tiempo activo
+acumulado, doce rondas por agente, cuarenta y dos llamadas totales incluyendo
+investigación, sesenta herramientas y umbral observado de 160000 tokens.
+Una respuesta puede rebasar el umbral; al observarlo no se ejecutan nuevas acciones
+ni se declara éxito. Contexto hasta32000 caracteres, doce artefactos por trabajo,
+2MB por archivo, veinte diapositivas y tablas de hasta200 filas/20columnas.
+Las guardas de bytes, entradas y formatos son previas a publicar el archivo.
+Fuente: `src/shared/background-teams.ts`, `electron/background-teams/schemas.ts`
+y `electron/background-teams/artifacts.ts`.
+
 Recuperación de permisos/privacidad/políticas del agente: principal máximo
 8 MiB, copia protegida máximo 16 MiB, una generación de respaldo y hasta cinco
 principales dañados cifrados sin purga automática. Revisión de un solo uso,
@@ -252,3 +267,26 @@ por archivo están en `electron/integrated-browser/policy-file-recovery.ts`.
 Cambiar un limite requiere: identificar actor y amenaza/costo, escenario positivo
 y negativo, prueba de borde, observabilidad y rollback. Si altera comportamiento
 visible, actualizar `LIM-*`, requisitos e historias relacionados.
+
+## Diseño de documentos generados
+
+Portada automática desde 6000 caracteres, salvo decisión explícita. Página
+Carta de 12240 × 15840 twips; margen de 1440 twips. Cuerpo de 11 puntos,
+títulos de 22–32 según contexto; tablas hasta 20 columnas, sin alturas fijas
+de fila. Gráficas anexas hasta 520 × 680 px, manteniendo proporción. PDF:
+timeout de carga e impresión de 30 segundos con liberación de la ventana.
+Fuentes: `src/shared/document-design.ts`, `electron/document-designer/`
+y `electron/wa-executor/handlers/create-document/pdf-document.ts`.
+
+## Visor local de archivos
+
+Archivo de entrada: 20 MB; lectura de texto: 200000 caracteres; expansión Office:
+32 MB / 2000 entradas ZIP, sin ZIP64 ni multidisco. Vista: 8 hojas, 500 filas,
+50 columnas y 10000 celdas en conjunto; 12 pestañas y dos lecturas simultáneas.
+Imágenes: 40 millones de píxeles de entrada y 2400 por lado de salida.
+PDF: 20 segundos de inicialización, 16 millones de píxeles por canvas y zoom 50–200%.
+HTML: 12 rutas efímeras de 200000 caracteres ligadas al contexto, sin caché ni CORS.
+Copias externas: 12 retenidas y dos preparaciones simultáneas, con limpieza de
+mejor esfuerzo al cerrar; un cierre abrupto o un bloqueo de Office puede dejar
+una copia temporal. Fuentes: `src/shared/artifact-viewer.ts`,
+`electron/artifact-viewer/` y `src/components/artifacts/pdf-runtime.ts`.

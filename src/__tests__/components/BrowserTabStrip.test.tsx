@@ -2,8 +2,15 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BrowserTabStrip } from '../../components/browser/BrowserTabStrip';
 import type { IntegratedBrowserTabState } from '../../services/integrated-browser-service';
+import { BROWSER_HOME_URL } from '../../shared/browser-home';
 
 describe('BrowserTabStrip', () => {
+  it('usa el logo local sin pedir un favicon de la portada a Google', () => {
+    render(<BrowserTabStrip tabs={[{ id: 'home', title: 'Inicio', url: BROWSER_HOME_URL, isLoading: false, error: null, isSuspended: false, isDetached: false }]}
+      activeTabId="home" secondaryTabId={null} viewMode="single" onActivateTab={vi.fn()} onCloseTab={vi.fn()} onCreateTab={vi.fn()} onSetViewMode={vi.fn()} />);
+    const image = screen.getByRole('tab', { name: /Inicio/ }).querySelector('img');
+    expect(image?.getAttribute('src')).toBe('assets/Icono.png');
+  });
   const tabs: IntegratedBrowserTabState[] = [
     { id: 'tab-1', title: 'Pestaña 1', url: 'https://example.com/1', isLoading: false, error: null, isSuspended: false, isDetached: false },
     { id: 'tab-2', title: 'Pestaña 2', url: 'https://example.com/2', isLoading: false, error: null, isSuspended: false, isDetached: false },

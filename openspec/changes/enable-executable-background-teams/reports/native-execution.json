@@ -1,0 +1,85 @@
+{
+  "status": "completed",
+  "provider": "OpenAI",
+  "agents": [
+    {
+      "role": "especialista-uno",
+      "status": "completed",
+      "calls": 4
+    },
+    {
+      "role": "especialista-dos",
+      "status": "completed",
+      "calls": 5
+    },
+    {
+      "role": "coordinador",
+      "status": "completed",
+      "calls": 7
+    }
+  ],
+  "calls": 16,
+  "tools": 27,
+  "tokens": 75744,
+  "activeMs": 107376,
+  "files": [
+    {
+      "name": "activacion-01.md",
+      "format": "md",
+      "bytes": 778,
+      "verified": true,
+      "hash": "446a77bf398c14f942f71d427c1f1c30d80d341c25dd90be59a452f3e2323003",
+      "role": "especialista-dos"
+    },
+    {
+      "name": "activacion-02.md",
+      "format": "md",
+      "bytes": 768,
+      "verified": true,
+      "hash": "d9bf6940713307fc64221d8f95d07c66d278ca2bf09c02454bd86204fbc45bcb",
+      "role": "especialista-dos"
+    },
+    {
+      "name": "activacion_rethink_delight_01.md",
+      "format": "md",
+      "bytes": 1189,
+      "verified": true,
+      "hash": "567bd4b1d2e6860ff900107dff58782af2c6b59764f1f735710643b3971c1630",
+      "role": "especialista-uno"
+    },
+    {
+      "name": "activacion_rethink_delight_02.md",
+      "format": "md",
+      "bytes": 1152,
+      "verified": true,
+      "hash": "bc17fe6bc21b66d8b213c33e18944388315c8a35c1b033d171db54ef53219ce2",
+      "role": "especialista-uno"
+    },
+    {
+      "name": "propuesta_consolidada_rethink_delight.md",
+      "format": "md",
+      "bytes": 1760,
+      "verified": true,
+      "hash": "3696028b1ccc069f8fdd42c450f9b8510536a8c50e98704ca89edeac76b343da",
+      "role": "especialista-uno"
+    },
+    {
+      "name": "sintesis-coordinacion.md",
+      "format": "md",
+      "bytes": 1811,
+      "verified": true,
+      "hash": "186e8b72ee3d6054e5ab62ef29dd9a5b5cada2a7780c1675f6a7b51dabb8fe4c",
+      "role": "especialista-dos"
+    },
+    {
+      "name": "rethink_delight_sintesis_coordinacion.md",
+      "format": "md",
+      "bytes": 1991,
+      "verified": true,
+      "hash": "05e1f7868c64e0eb9fbae307b93f33dbe2626d1e0f6c14934a983999f425afd6",
+      "role": "coordinador"
+    }
+  ],
+  "chatChangedWhileRunning": true,
+  "panelHiddenWhileRunning": true
+}

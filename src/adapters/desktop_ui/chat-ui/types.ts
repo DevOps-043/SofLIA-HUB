@@ -48,6 +48,7 @@ export interface ChatUIProps {
   readOnlyReason?: string | null;
   onOpenBrowser?: () => void;
   onOpenMeetings?: () => void;
+  onOpenLiveSessions?: () => void;
 }
 
 export interface BrowserSelectionAttachment {

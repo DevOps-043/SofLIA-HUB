@@ -25,7 +25,7 @@ function fixture() {
     clipboardAssistant: { stop: vi.fn() },
     meetingPassiveDetectionService: { stopPolling: vi.fn() },
   };
-  const controls = { createWindow: vi.fn(), routeShareLinkToRenderer: vi.fn(), routeAuthCallbackToRenderer: vi.fn(), routeMeetingTriggerToRenderer: vi.fn() };
+  const controls = { createWindow: vi.fn(), routeShareLinkToRenderer: vi.fn(), routeAuthCallbackToRenderer: vi.fn(), routeMeetingTriggerToRenderer: vi.fn(), routeLearningSessionToRenderer: vi.fn() };
   registerAppLifecycle({ services, state, controls });
   return { events, services, state, controls };
 }

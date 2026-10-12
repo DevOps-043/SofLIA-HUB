@@ -1,61 +1,55 @@
-import { useState, type CSSProperties } from 'react';
-import { Activity, Check, ChevronDown, ChevronUp, Circle, Clock3, Users, X } from './activity-icons';
+import { useEffect, useState, type CSSProperties } from 'react';
+import { ChevronDown, ChevronUp, FileText, X } from './activity-icons';
 import type { AgentActivity } from '../../shared/agent-activity';
+import { teamStatusLabels } from '../../shared/background-team-display';
 import { useAgentActivityPanel } from './agent-activity-context';
+import { useResizablePanel } from '../artifacts/useResizablePanel';
+import { PanelResizeGrip } from '../PanelResizeGrip';
+import { BackgroundJobControls } from './BackgroundJobControls';
+import './agent-activity.css';
 
 const surfaces = { chat: 'Chat', orb: 'Orbe', whatsapp: 'WhatsApp', browser: 'Navegador', computer: 'Computer Use', meetings: 'Reuniones' };
-const kinds = { analysis: 'Análisis', document: 'Documento', presentation: 'Presentación', browser: 'Revisión de página', computer: 'Plan de ejecución', meeting: 'Minuta' };
-const roles: Record<string, string> = { analisis: 'Análisis', evidencia: 'Evidencia', 'analisis-pagina': 'Análisis de página', contenido: 'Contenido', estructura: 'Estructura', diseno: 'Diseño', plan: 'Planificación', verificacion: 'Verificación', acuerdos: 'Acuerdos', coordinador: 'Coordinador' };
-const states = { pending: 'Pendiente', running: 'Trabajando', completed: 'Completado', failed: 'Falló', timed_out: 'Tiempo agotado', cancelled: 'Cancelado', skipped: 'Sin iniciar' };
-const teamStates = { running: 'En progreso', completed: 'Aportes listos', partial: 'Resultado parcial', unavailable: 'Sin capacidad', cancelled: 'Cancelado' };
+const kinds = { analysis: 'Análisis', document: 'Documento', presentation: 'Presentación', browser: 'Revisión de página', computer: 'Trabajo en pantalla', meeting: 'Minuta' };
+const states = { running: 'En progreso', completed: 'Listo', partial: 'Resultado parcial', unavailable: 'Pendiente', cancelled: 'Cancelado' };
 
-/**
- * Panel acoplado del monitor de equipos. Quien lo monta decide su posición;
- * el panel sólo presenta el estado compartido y no renderiza nada si está cerrado.
- */
-export function AgentActivityPanel({ className = '', style }: { className?: string; style?: CSSProperties }) {
+/** El monitor presenta entregables; los registros de ejecución pertenecen al runtime. */
+export function AgentActivityPanel({ className = '', style, onWidthChange, reserve = 0 }: { className?: string; style?: CSSProperties; onWidthChange?: (width: number) => void; reserve?: number }) {
   const panel = useAgentActivityPanel();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const { bindPanel, width, resizing, minimum, maximum, handlers } = useResizablePanel({ storageKey: 'soflia:files-panel-width', initialWidth: 380, maxWidth: 640, reserve, enabled: Boolean(panel?.open) });
+  const open = panel?.open;
+  const setOpen = panel?.setOpen;
+  useEffect(() => { if (open) onWidthChange?.(width); }, [onWidthChange, open, width]);
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen?.(false); };
+    document.addEventListener('keydown', close);
+    return () => document.removeEventListener('keydown', close);
+  }, [open, setOpen]);
   if (!panel?.open) return null;
   const { items, error, runningCount } = panel;
-  const toggleTeam = (id: string) => setCollapsed(prev => ({ ...prev, [id]: !prev[id] }));
-  return <aside aria-label="Equipo de SofLIA" className={`flex min-h-0 flex-col overflow-hidden bg-card text-primary ${className}`} style={{ fontFamily: 'var(--font-system-ui)', ...style }}>
-    <header className="flex h-12 shrink-0 items-center gap-2.5 border-b border-border px-3">
-      <span className="grid h-7 w-7 place-items-center rounded-lg bg-accent/10 text-accent"><Users size={15} /></span>
-      <div className="min-w-0 flex-1">
-        <h2 className="truncate text-[13px] font-semibold leading-tight">Equipo de SofLIA</h2>
-        <p className="truncate text-[11px] leading-tight text-secondary" role="status">{runningCount ? `${runningCount} ${runningCount === 1 ? 'equipo trabajando' : 'equipos trabajando'}` : 'Actividad reciente'}</p>
-      </div>
-      <button type="button" aria-label="Ocultar panel de equipos" title="Ocultar sin detener agentes" onClick={() => panel.setOpen(false)} className="grid h-7 w-7 place-items-center rounded-lg text-secondary transition hover:bg-accent/10 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"><X size={15} /></button>
+  const files = items.reduce((count, item) => count + (item.execution?.artifacts.length ?? 0), 0);
+  return <aside ref={bindPanel} aria-label="Archivos de SofLIA" className={`agent-activity-panel ${resizing ? 'resizing' : ''} ${className}`} style={{ ...style, width: width }}>
+    <div role="separator" tabIndex={0} aria-label="Cambiar ancho de archivos" title="Arrastra para ajustar el ancho" aria-orientation="vertical" aria-valuemin={minimum} aria-valuemax={maximum} aria-valuenow={width} className="artifact-resize-handle group" {...handlers}><PanelResizeGrip resizing={resizing} /></div>
+    <header className="agent-activity-header">
+      <span className="agent-activity-heading-icon"><FileText size={19} /></span>
+      <div><h2>Archivos</h2><p role="status">{runningCount ? 'Preparando resultados…' : files ? `${files} ${files === 1 ? 'archivo disponible' : 'archivos disponibles'}` : 'Tu espacio de trabajo'}</p></div>
+      <button type="button" aria-label="Ocultar panel de archivos" title="Cerrar panel" onClick={() => panel.setOpen(false)}><X size={16} /></button>
     </header>
-    <section aria-label="Equipos de agentes" className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2.5">
-      {error && <p role="alert" className="px-1 text-xs text-danger">{error}</p>}
-      {!items.length && <div className="px-5 py-10 text-center">
-        <Users className="mx-auto mb-2.5 text-secondary" size={26} />
-        <h3 className="text-[13px] font-medium">Sin equipos activos</h3>
-        <p className="mt-1.5 text-xs leading-5 text-secondary">Este panel se abre cuando los especialistas empiezan a trabajar.</p>
-      </div>}
-      {items.map(item => <TeamCard key={item.id} item={item} collapsed={Boolean(collapsed[item.id])} onToggle={() => toggleTeam(item.id)} />)}
+    <section aria-label="Trabajos y archivos" aria-live="polite" className="agent-activity-scroll">
+      {error && <p role="alert" className="team-operation-error">{error}</p>}
+      {!items.length && <div className="agent-activity-empty"><FileText size={32} /><h3>Tus archivos, a mano</h3><p>Los documentos y resultados de SofLIA aparecerán aquí.</p></div>}
+      {items.map(item => <FileGroup key={item.id} item={item} collapsed={Boolean(collapsed[item.id])} onToggle={() => setCollapsed(previous => ({ ...previous, [item.id]: !previous[item.id] }))} />)}
     </section>
-    <footer className="shrink-0 border-t border-border px-3 py-2 text-[11px] leading-4 text-secondary">Los aportes listos no significan que la tarea principal haya terminado. Ocultar este panel no detiene el trabajo.</footer>
   </aside>;
 }
-
-function TeamCard({ item, collapsed, onToggle }: { item: AgentActivity; collapsed: boolean; onToggle: () => void }) {
-  const completed = item.agents.filter(agent => agent.status === 'completed').length;
-  return <article className="overflow-hidden rounded-xl border border-border bg-background/60 dark:bg-background-dark/60">
-    <button type="button" aria-expanded={!collapsed} onClick={onToggle} className="flex w-full items-center gap-2 px-2.5 py-2 text-left hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-      <Activity size={14} className={item.status === 'running' ? 'text-accent' : 'text-secondary'} />
-      <span className="min-w-0 flex-1"><span className="block text-[11px] text-secondary">{surfaces[item.surface]}</span><span className="block truncate text-[13px] font-semibold">{kinds[item.kind]}</span></span>
-      <span className="text-[11px] text-secondary">{teamStates[item.status]}</span>
-      {collapsed ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
+function FileGroup({ item, collapsed, onToggle }: { item: AgentActivity; collapsed: boolean; onToggle: () => void }) {
+  return <article className="agent-activity-team">
+    <button type="button" aria-expanded={!collapsed} onClick={onToggle} className="agent-file-group-heading">
+      <span className="agent-file-group-copy"><span className="agent-file-group-origin">{surfaces[item.surface]}</span><strong>{item.execution?.title ?? kinds[item.kind]}</strong></span>
+      {collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
     </button>
-    {!collapsed && <ul className="space-y-1 border-t border-border p-1.5">
-      {item.agents.map(agent => <li key={agent.role} className="flex items-center gap-2.5 rounded-lg bg-surface-2 px-2.5 py-1.5">
-        {agent.status === 'completed' ? <Check size={14} className="text-success" /> : agent.status === 'running' ? <span className="h-2 w-2 rounded-full bg-accent motion-safe:animate-pulse" aria-hidden="true" /> : <Circle size={11} className="text-secondary" />}
-        <span className="flex-1 text-[13px]">{roles[agent.role] ?? agent.role}</span><span className="text-[11px] text-secondary">{states[agent.status]}</span>
-      </li>)}
-    </ul>}
-    <p className="flex items-center gap-1.5 px-2.5 pb-2 pt-1 text-[11px] text-secondary"><Clock3 size={11} />{(item.durationMs / 1000).toFixed(1)} s observados · {completed}/{item.agents.length} completados</p>
+    <p className="agent-file-group-status">{item.status === 'running' && <span className="team-spinner" />}{item.execution ? teamStatusLabels[item.execution.status] : states[item.status]}</p>
+    {!collapsed && (item.execution ? <BackgroundJobControls execution={item.execution} /> : <p className="agent-file-group-note">{item.status === 'running' ? 'Preparando el resultado…' : 'Resultado disponible en el chat.'}</p>)}
   </article>;
 }

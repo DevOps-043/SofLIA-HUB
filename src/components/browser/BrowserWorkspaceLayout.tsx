@@ -8,6 +8,8 @@ import { integratedBrowserService, type BrowserSelectionActionRequest } from '..
 import { scopedPreferenceKey } from '../../services/user-scope';
 import { AgentActivityPanel } from '../agents/AgentActivityPanel';
 import { useAgentActivityPanel } from '../agents/agent-activity-context';
+import { ArtifactViewerPanel } from '../artifacts/ArtifactViewerPanel';
+import { useArtifactViewer } from '../artifacts/artifact-viewer-context';
 
 const CHAT_WIDTH_STORAGE_KEY = 'sofLia_integratedBrowserFloatingChatWidth';
 const CHAT_SIDE_STORAGE_KEY = 'sofLia_integratedBrowserFloatingChatSide';
@@ -16,7 +18,6 @@ const MAX_CHAT_WIDTH = 560;
 /** Separación mínima entre paneles y bordes: cada píxel se le resta a la página. */
 const PANEL_INSET = 6;
 const PANEL_GAP = 6;
-const ACTIVITY_PANEL_WIDTH = 300;
 const DEFAULT_BROWSER_CONTENT_TOP = 100;
 
 type PanelSide = 'left' | 'right';
@@ -41,8 +42,10 @@ export function BrowserWorkspaceLayout(props: BrowserWorkspaceLayoutProps) {
   const [browserContentTop, setBrowserContentTop] = useState(DEFAULT_BROWSER_CONTENT_TOP);
   const [orbError, setOrbError] = useState<string | null>(null);
   const [conversationMenuOpen, setConversationMenuOpen] = useState(false);
+  const [activityWidth, setActivityWidth] = useState(380);
   const model = useModelSelector();
   const activityOpen = Boolean(useAgentActivityPanel()?.open);
+  const artifactViewer = useArtifactViewer();
 
   useEffect(() => {
     if (props.externalSelection) {
@@ -73,7 +76,7 @@ export function BrowserWorkspaceLayout(props: BrowserWorkspaceLayoutProps) {
   // El panel de equipos ocupa el borde derecho; si el chat también está a la
   // derecha se coloca a su lado. Ambos se descuentan del viewport nativo, que
   // se compone por encima del renderer y los taparía.
-  const activityInset = activityOpen ? ACTIVITY_PANEL_WIDTH + PANEL_INSET + PANEL_GAP : 0;
+  const activityInset = activityOpen ? activityWidth + PANEL_INSET + PANEL_GAP : 0;
   const chatWidth = resolveChatWidth(preferredChatWidth, containerWidth, activityInset);
   const chatOffset = panelSide === 'right' && activityOpen ? activityInset : PANEL_INSET;
   const chatInset = chatVisible ? chatOffset + chatWidth + PANEL_GAP : 0;
@@ -222,13 +225,15 @@ export function BrowserWorkspaceLayout(props: BrowserWorkspaceLayoutProps) {
           </div>
         </header>
         <div className="min-h-0 min-w-0 flex-1 overflow-hidden rounded-b-[1.25rem]">
-          {props.chat}
+          {artifactViewer?.selected ? <ArtifactViewerPanel compact /> : props.chat}
         </div>
       </section>
 
       <AgentActivityPanel
         className="absolute z-30 rounded-[1.25rem] border border-border shadow-[0_1.75rem_4.5rem_rgba(2,12,23,0.32)]"
-        style={{ width: ACTIVITY_PANEL_WIDTH, top: browserContentTop + PANEL_INSET, bottom: PANEL_INSET, right: PANEL_INSET }}
+        style={{ top: browserContentTop + PANEL_INSET, bottom: PANEL_INSET, right: PANEL_INSET }}
+        reserve={chatVisible ? MIN_CHAT_WIDTH + PANEL_GAP + PANEL_INSET : 0}
+        onWidthChange={setActivityWidth}
       />
 
       {orbError && (

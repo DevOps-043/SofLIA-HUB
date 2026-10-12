@@ -3,6 +3,10 @@ import { integratedBrowserService, type IntegratedBrowserApi } from '../../servi
 
 describe('wrapper renderer del navegador integrado', () => {
   let api: IntegratedBrowserApi;
+  it('reconecta sin transportar credenciales ni elegir un destino', async () => {
+    await integratedBrowserService.reconnectEcosystemSession();
+    expect(api.reconnectEcosystemSession).toHaveBeenCalledWith();
+  });
   it('delega recuperación sin archivos ni concesiones', async () => {
     const input = { store: 'privacy' as const, profileRevision: 2 };
     await integratedBrowserService.recoverPolicyStore(input); expect(api.recoverPolicyStore).toHaveBeenCalledWith(input);
@@ -54,6 +58,7 @@ describe('wrapper renderer del navegador integrado', () => {
   beforeEach(() => {
     api = {
       getState: vi.fn(async () => ({ success: true })),
+      reconnectEcosystemSession: vi.fn(async () => ({ success: true })),
       getRuntimeDiagnostic: vi.fn(async () => ({ success: true })),
       agentShortcuts: vi.fn(async () => ({ success: true })),
       semanticMemoryCommand: vi.fn(async () => ({ success: true })),

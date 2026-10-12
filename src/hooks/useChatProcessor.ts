@@ -20,6 +20,8 @@ export function useChatProcessor({
   activeSkill,
   memorySessionScope,
   sofiaUserId,
+  activityOwnerId,
+  organizationId,
 }: UseChatProcessorParams) {
   const [isLoading, setIsLoading] = useState(false);
   const [activeToolCall, setActiveToolCall] = useState<ToolCallInfo | null>(null);
@@ -49,6 +51,8 @@ export function useChatProcessor({
     activeSkill,
     memorySessionScope,
     sofiaUserId,
+    activityOwnerId,
+    organizationId,
   });
 
   // Ejecuta un turno bajo un AbortController fresco para poder cancelarlo.

@@ -1,0 +1,16 @@
+/* Tokens compartidos por el renderer y el documento local de Chromium. */
+:root {
+  --color-background-val: #f9fafb;
+  --color-sidebar-val: #f0f2f5;
+  --color-card-val: #ffffff;
+  --color-surface-2-val: #f1f3f5;
+  --color-border-val: #e9ecef;
+  --color-text-main: #0a2540;
+  --color-text-secondary-val: #6c757d;
+  --color-primary-val: #0a2540;
+  --color-accent-val: #0a2540;
+  --color-on-accent-val: #ffffff;
+  --font-system-display: "Newsreader", Georgia, serif;
+  --font-system-ui: "Inter Tight", "Inter", system-ui, sans-serif;
+  --font-system-label: "IBM Plex Sans", "Inter", system-ui, sans-serif;
+}

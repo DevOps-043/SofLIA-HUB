@@ -1,8 +1,9 @@
 import { AlignmentType, HeadingLevel, ImageRun, Packer, Paragraph, Table, TextRun } from 'docx';
 import fs from 'node:fs/promises';
-import { COLORS } from './colors';
-import { parseContentToParagraphs } from './content-parser';
-import { createCoverPage } from './cover-page';
+import { DOCUMENT_COLORS, resolveDocumentDesign, type DocumentDesign } from '../../src/shared/document-design';
+import { blocksToParagraphs, documentListStarts } from './content-parser';
+import { createTitleBlock } from './cover-page';
+import { documentBlocks, shouldIncludeCover } from './document-layout';
 import { buildDocument } from './document-shell';
 import type { DocumentOptions } from './types';
 
@@ -13,27 +14,21 @@ export async function createProfessionalDocument(options: DocumentOptions): Prom
     subtitle,
     author,
     outputPath,
-    includeCover = true,
+    includeCover,
     includeTOC: _includeTOC = false,
     chartImages = [],
   } = options;
+  const design = resolveDocumentDesign(options.design);
+  const blocks = documentBlocks(title, content);
+  const cover = shouldIncludeCover(content, includeCover);
   const children: (Paragraph | Table)[] = [];
 
-  if (includeCover) {
-    children.push(...createCoverPage(title, subtitle, author));
-  } else {
-    children.push(new Paragraph({
-      children: [new TextRun({ text: title, bold: true, size: 44, color: COLORS.heading1, font: 'Calibri' })],
-      heading: HeadingLevel.TITLE,
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 400 },
-    }));
-  }
+  children.push(...createTitleBlock(title, design, cover, subtitle, author));
+  if (cover) children.push(new Paragraph({ pageBreakBefore: true, spacing: { after: 0 } }));
 
-  children.push(...parseContentToParagraphs(content));
-  children.push(...buildChartSection(chartImages));
-  await fs.writeFile(outputPath, await Packer.toBuffer(buildDocument(title, children)));
-  console.log(`[document-designer] Document saved: ${outputPath}`);
+  children.push(...blocksToParagraphs(blocks, design));
+  children.push(...buildChartSection(chartImages, design));
+  await fs.writeFile(outputPath, await Packer.toBuffer(buildDocument(title, children, design, cover, documentListStarts(blocks))));
   return outputPath;
 }
 
@@ -41,7 +36,7 @@ const CHART_TARGET_WIDTH = 520;
 const MAX_CHART_IMAGES = 8;
 
 /** Anexa las graficas (data URLs) como seccion final del documento. */
-function buildChartSection(chartImages: string[]): Paragraph[] {
+function buildChartSection(chartImages: string[], design: DocumentDesign): Paragraph[] {
   const images = chartImages
     .map(decodeChartDataUrl)
     .filter((image): image is DecodedChartImage => image !== null)
@@ -50,8 +45,9 @@ function buildChartSection(chartImages: string[]): Paragraph[] {
 
   const paragraphs: Paragraph[] = [
     new Paragraph({
-      children: [new TextRun({ text: images.length > 1 ? 'Anexo: Gráficas' : 'Anexo: Gráfica', bold: true, size: 30, color: COLORS.heading2, font: 'Calibri' })],
+      children: [new TextRun({ text: images.length > 1 ? 'Anexo de gráficas' : 'Anexo de gráfica', bold: true, size: design.headingSizes[0], color: DOCUMENT_COLORS.heading, font: design.font })],
       heading: HeadingLevel.HEADING_1,
+      keepNext: true,
       spacing: { before: 400, after: 200 },
     }),
   ];
@@ -87,7 +83,8 @@ function resolveChartDimensions(data: Buffer): { width: number; height: number }
     const sourceWidth = data.readUInt32BE(16);
     const sourceHeight = data.readUInt32BE(20);
     if (sourceWidth > 0 && sourceHeight > 0) {
-      return { width: CHART_TARGET_WIDTH, height: Math.round((CHART_TARGET_WIDTH * sourceHeight) / sourceWidth) };
+      const scale = Math.min(CHART_TARGET_WIDTH / sourceWidth, 680 / sourceHeight);
+      return { width: Math.round(sourceWidth * scale), height: Math.round(sourceHeight * scale) };
     }
   }
   return { width: CHART_TARGET_WIDTH, height: Math.round(CHART_TARGET_WIDTH * 0.6) };

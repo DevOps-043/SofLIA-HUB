@@ -16,6 +16,7 @@ export interface StreamSource {
 }
 
 export interface StreamResult {
+  backgroundJobId?: string;
   stream: AsyncIterable<string>;
   sources: Promise<Array<{ uri: string; title: string }> | null>;
   toolCalls?: ToolCallInfo[];
@@ -23,6 +24,8 @@ export interface StreamResult {
 }
 
 export interface SendMessageStreamOptions {
+  /** Encargo humano separado de adjuntos; identidad y permisos se derivan en main. */
+  backgroundRequest?: { task: string; conversationId: string; organizationId: string | null; messageId: string };
   /** Auto selecciona tareas complejas; team fuerza especialistas y direct los omite. */
   teamMode?: import('../../shared/agent-teams/policy').TeamMode;
   /** Analizar sólo los extractos adjuntos; sin observación, búsquedas ni acciones externas implícitas. */
@@ -59,6 +62,8 @@ export interface SendMessageStreamOptions {
   task?: 'chat' | 'orb';
   /** Usuario SOFIA del turno; da alcance a la cuota mensual de SofLIA Max. */
   userId?: string;
+  /** Identidad SOFIA del publicador; puede diferir del propietario Lia de datos. */
+  activityOwnerId?: string;
   onToolCall?: (toolCall: ToolCallInfo) => void;
   /** Señal para cancelar la generación (botón Stop del usuario). */
   signal?: AbortSignal;

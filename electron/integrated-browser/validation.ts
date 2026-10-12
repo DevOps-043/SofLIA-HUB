@@ -1,4 +1,6 @@
 import type { Rectangle } from 'electron';
+import type { BrowserViewport } from '../../src/shared/browser-navigation';
+import { isBrowserHomeUrl } from '../../src/shared/browser-home';
 
 // El limite acota la memoria de una direccion, no decide si es segura: eso lo
 // resuelve la allowlist de protocolos. Con 2 KB los flujos de autenticacion de
@@ -28,7 +30,7 @@ export function normalizeBrowserTarget(raw: unknown): string {
   if (target.length > MAX_TARGET_LENGTH) {
     throw new IntegratedBrowserValidationError('La direccion excede el limite permitido.');
   }
-  if (target === 'about:blank') return target;
+  if (target === 'about:blank' || isBrowserHomeUrl(target)) return target;
 
   if (EXPLICIT_SCHEME.test(target)) {
     return assertAllowedUrl(target);
@@ -43,7 +45,7 @@ export function normalizeBrowserTarget(raw: unknown): string {
 
 export function isAllowedBrowserUrl(raw: unknown): boolean {
   if (typeof raw !== 'string' || !raw.trim() || raw.length > MAX_TARGET_LENGTH) return false;
-  if (raw === 'about:blank') return true;
+  if (raw === 'about:blank' || isBrowserHomeUrl(raw)) return true;
   try {
     const url = new URL(raw);
     return url.protocol === 'https:' || url.protocol === 'http:';
@@ -85,11 +87,14 @@ function assertAllowedUrl(raw: string): string {
   return parsed.toString();
 }
 
-export function parseBrowserViewport(raw: unknown, contentBounds: Rectangle): Rectangle {
+export function parseBrowserViewport(raw: unknown, contentBounds: Rectangle): BrowserViewport {
   if (!raw || typeof raw !== 'object') {
     throw new IntegratedBrowserValidationError('El viewport del navegador es invalido.');
   }
-  const candidate = raw as Partial<Rectangle>;
+  const candidate = raw as Partial<BrowserViewport>;
+  if (candidate.homeInShell !== undefined && typeof candidate.homeInShell !== 'boolean') {
+    throw new IntegratedBrowserValidationError('La composición del inicio debe ser booleana.');
+  }
   const values = [candidate.x, candidate.y, candidate.width, candidate.height];
   if (!values.every((value) => typeof value === 'number' && Number.isSafeInteger(value))) {
     throw new IntegratedBrowserValidationError('Las coordenadas del navegador deben ser enteros.');
@@ -111,5 +116,6 @@ export function parseBrowserViewport(raw: unknown, contentBounds: Rectangle): Re
   if (clampedWidth < MIN_VIEWPORT_WIDTH || clampedHeight < MIN_VIEWPORT_HEIGHT) {
     throw new IntegratedBrowserValidationError('El espacio disponible para el navegador es insuficiente.');
   }
-  return { x, y, width: clampedWidth, height: clampedHeight };
+  return { x, y, width: clampedWidth, height: clampedHeight,
+    ...(candidate.homeInShell === undefined ? {} : { homeInShell: candidate.homeInShell }) };
 }

@@ -1,70 +1,34 @@
-import { Paragraph, Table } from 'docx';
-import { createCodeBlock, createHeading, createHorizontalRule, createListParagraph, createRegularParagraph } from './block-builders';
-import { parseTable } from './table-parser';
+import { Paragraph, type Table } from 'docx';
+import type { DocumentDesign } from '../../src/shared/document-design';
+import { buildParagraph } from './block-builders';
+import type { DocumentBlock } from './content-model';
+import { buildTable } from './table-parser';
 
-export function parseContentToParagraphs(content: string): (Paragraph | Table)[] {
-  const elements: (Paragraph | Table)[] = [];
-  const lines = content.split('\n');
-  let index = 0;
-
-  while (index < lines.length) {
-    const line = lines[index];
-    const trimmed = line.trim();
-    if (trimmed === '') {
-      index += 1;
-      continue;
-    }
-
-    if (/^[-*_]{3,}$/.test(trimmed)) {
-      elements.push(createHorizontalRule());
-      index += 1;
-      continue;
-    }
-
-    if (trimmed.includes('|') && index + 1 < lines.length && lines[index + 1].includes('---')) {
-      const tableLines: string[] = [];
-      while (index < lines.length && lines[index].trim().includes('|')) {
-        tableLines.push(lines[index].trim());
-        index += 1;
-      }
-      const table = parseTable(tableLines);
-      if (table) {
-        elements.push(new Paragraph({ children: [], spacing: { before: 100 } }));
-        elements.push(table);
-        elements.push(new Paragraph({ children: [], spacing: { after: 100 } }));
-      }
-      continue;
-    }
-
-    const heading = createHeading(trimmed);
-    if (heading) {
-      elements.push(heading);
-      index += 1;
-      continue;
-    }
-
-    const listParagraph = createListParagraph(trimmed, line);
-    if (listParagraph) {
-      elements.push(listParagraph);
-      index += 1;
-      continue;
-    }
-
-    if (trimmed.startsWith('```')) {
-      index += 1;
-      const codeLines: string[] = [];
-      while (index < lines.length && !lines[index].trim().startsWith('```')) {
-        codeLines.push(lines[index]);
-        index += 1;
-      }
-      if (index < lines.length) index += 1;
-      elements.push(createCodeBlock(codeLines));
-      continue;
-    }
-
-    elements.push(createRegularParagraph(trimmed));
-    index += 1;
+/** Configuración de cada lista independiente, conservando su primer ordinal. */
+export function documentListStarts(blocks: DocumentBlock[]): Record<number, number> {
+  const starts: Record<number, number> = {}; let instance = 0; let previousList = false;
+  for (const block of blocks) {
+    if (block.kind === 'list' && !previousList) instance++;
+    if (block.kind === 'list' && block.ordered && starts[instance] === undefined) starts[instance] = block.start;
+    previousList = block.kind === 'list';
   }
-
-  return elements;
+  return starts;
+}
+export function blocksToParagraphs(blocks: DocumentBlock[], design: DocumentDesign): (Paragraph | Table)[] {
+  const result: (Paragraph | Table)[] = []; let instance = 0; let previousList = false; let keepList = false;
+  for (const [index, block] of blocks.entries()) {
+    if (block.kind === 'table') {
+      result.push(new Paragraph({ spacing: { before: 60, after: 60 }, keepNext: true }), buildTable(block, design), new Paragraph({ spacing: { before: 0, after: 120 } }));
+    } else {
+      if (block.kind === 'list' && !previousList) {
+        instance++;
+        const group: DocumentBlock[] = [];
+        for (let next = index; next < blocks.length && blocks[next].kind === 'list'; next++) group.push(blocks[next]);
+        keepList = group.length <= 6 && group.reduce((total, item) => total + ('text' in item ? item.text.length : 0), 0) <= 800;
+      }
+      result.push(buildParagraph(block, design, instance, keepList && block.kind === 'list' && blocks[index + 1]?.kind === 'list'));
+    }
+    previousList = block.kind === 'list';
+  }
+  return result;
 }

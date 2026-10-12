@@ -1,0 +1,5 @@
+- [x] Añadir resaltado acotado y seguro para los bloques del chat.
+- [x] Reutilizar la copia nativa y mostrar estados de éxito y error reales.
+- [x] Preservar texto literal, saltos de línea y alternativas en navegador.
+- [x] Cubrir regresiones de copia, resaltado y contenido no confiable.
+- [x] Actualizar arquitectura frontend y registrar verificaciones.

@@ -1,4 +1,4 @@
-import { protocol, session, type Protocol } from 'electron';
+import { protocol, session, type CustomScheme, type Protocol } from 'electron';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { SkillWorkspaceService } from './service';
@@ -69,7 +69,7 @@ const MIME_TYPES: Record<string, string> = {
  * privilegiado le da un origen propio y le permite usar fetch de recursos
  * relativos; sin esto el CSS y las imagenes no cargarian.
  */
-export function registerPresentationScheme(): void {
+export function registerPresentationScheme(additionalSchemes: CustomScheme[] = []): void {
   protocol.registerSchemesAsPrivileged([
     {
       scheme: PRESENTATION_SCHEME,
@@ -81,6 +81,9 @@ export function registerPresentationScheme(): void {
         stream: false,
       },
     },
+    // Electron permite esta llamada una sola vez; agrupar otros recursos
+    // internos antes de que se creen las sesiones del navegador.
+    ...additionalSchemes,
   ]);
 }
 

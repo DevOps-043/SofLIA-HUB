@@ -64,4 +64,13 @@ describe('validacion del navegador integrado', () => {
       { x: 0, y: 0, width: 1200, height: 800 },
     )).toThrow(/enteros/i);
   });
+
+  it('valida la composición local sin aceptar valores coercibles', () => {
+    const bounds = { x: 0, y: 0, width: 1200, height: 800 };
+    const viewport = { x: 200, y: 100, width: 800, height: 600 };
+    expect(parseBrowserViewport({ ...viewport, homeInShell: true }, bounds)).toEqual({ ...viewport, homeInShell: true });
+    for (const homeInShell of ['true', 1, null, {}, []]) {
+      expect(() => parseBrowserViewport({ ...viewport, homeInShell }, bounds)).toThrow(/booleana/);
+    }
+  });
 });

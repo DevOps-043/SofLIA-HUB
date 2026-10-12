@@ -10,6 +10,11 @@ describe('Política de equipos runtime', () => {
   it.each([
     ['Crea una presentación para ventas', 'presentation'], ['Redacta un informe de resultados', 'document'],
     ['Revisa esta página web', 'browser'], ['modo equipo: explica el problema', 'analysis'],
+    ['usa los multiagentes para que cada uno proponga algo diferente', 'analysis'],
+    ['Por favor, utiliza varios agentes para comparar alternativas', 'analysis'],
+    ['Quiero que uses un equipo de agentes para esta propuesta', 'analysis'],
+    ['Activa los multi-agentes para crear un informe', 'document'],
+    ['No olvides usar los multiagentes para proponer alternativas', 'analysis'],
   ])('selecciona especialistas para %s', (task, kind) => {
     expect(selectTeam({ task, surface: 'chat' })?.kind).toBe(kind);
   });
@@ -21,6 +26,25 @@ describe('Política de equipos runtime', () => {
   it('prepara acciones complejas pero omite un clic aislado', () => {
     expect(selectTeam({ task: 'Abre la app y revisa el formulario', surface: 'computer' })?.kind).toBe('computer');
     expect(selectTeam({ task: 'Haz clic', surface: 'computer' })).toBeNull();
+  });
+  it.each([
+    '¿Qué son los multiagentes?', '¿Cómo puedo usar los multiagentes?',
+    'No uses los multiagentes. Crea un informe',
+    'Sin multiagentes, redacta un documento',
+    'Crea un informe sin usar multiagentes',
+    'Crea un informe, no quiero que uses los multiagentes',
+    '> usa los multiagentes para proponer alternativas',
+    'Explica la frase "usa los multiagentes"',
+    'La página dice: «activa los multiagentes»',
+    'modo directo: usa los multiagentes y crea un informe',
+  ])('no fuerza equipo ante una mención o exclusión: %s', task => {
+    expect(selectTeam({ task, surface: 'chat' })).toBeNull();
+  });
+  it('asigna perspectivas distintas al pedir propuestas alternativas', () => {
+    const team = selectTeam({ task: 'usa los multiagentes para que cada uno proponga algo diferente', surface: 'chat' });
+    expect(team?.roles[0].instruction).toContain('práctica');
+    expect(team?.roles[1].instruction).toContain('creativa');
+    expect(selectTeam({ task: 'usa los multiagentes', surface: 'chat', mode: 'direct' })).toBeNull();
   });
 });
 

@@ -1,0 +1,49 @@
+.learning-workspace {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  color: var(--color-text-main);
+  background: var(--color-background-val);
+}
+
+.learning-workspace-toolbar {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+}
+
+.learning-workspace-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary-val);
+  cursor: pointer;
+}
+
+.learning-workspace-toolbar button:hover {
+  background: var(--color-surface-2-val);
+  color: var(--color-text-main);
+}
+
+.learning-workspace-toolbar button:focus-visible {
+  outline: 2px solid var(--color-accent-val);
+  outline-offset: 2px;
+}
+
+.learning-workspace-canvas {
+  flex: 1;
+  min-height: 0;
+}
+.learning-workspace-status { text-align: center; padding: 30px; color: var(--color-text-secondary-val); font-size: 12px; }
+.learning-workspace-status button { padding: 8px 14px; border: 1px solid var(--color-border-val); border-radius: 7px; background: var(--color-card-val); color: var(--color-text-main); cursor: pointer; }

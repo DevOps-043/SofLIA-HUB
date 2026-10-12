@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { BrowserFavorite } from './use-browser-bookmarks';
 import { integratedBrowserService, type BrowserHistoryEntry } from '../../services/integrated-browser-service';
+import { ECOSYSTEM_APPS } from '../../shared/browser-ecosystem';
 
 export interface SofLIAEcosystemApp {
   id: string;
@@ -19,26 +20,7 @@ export interface RecurrentSite {
   lastVisitedAt: string;
 }
 
-export const DEFAULT_SOFLIA_APPS: SofLIAEcosystemApp[] = [
-  {
-    id: 'soflia-learning',
-    title: 'SOFLIA LEARNING',
-    url: 'https://soflia.ai',
-    fallbackIcon: 'learning',
-  },
-  {
-    id: 'soflia-engine',
-    title: 'SofLIA Engine',
-    url: 'https://soflia-coursegen.netlify.app/',
-    fallbackIcon: 'engine',
-  },
-  {
-    id: 'project-hub',
-    title: 'Project Hub',
-    url: 'https://irisia.netlify.app/',
-    fallbackIcon: 'hub',
-  },
-];
+export const DEFAULT_SOFLIA_APPS: SofLIAEcosystemApp[] = [...ECOSYSTEM_APPS];
 
 export const DEFAULT_RECURRENT_FALLBACKS: RecurrentSite[] = [
   { id: 'def-yt', title: 'YouTube', url: 'https://www.youtube.com', domain: 'youtube.com', visitCount: 1, lastVisitedAt: new Date().toISOString() },

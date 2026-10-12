@@ -154,6 +154,16 @@ canal permitido. Los servicios no deben importar componentes React.
   configurables o ejecuciones explicitamente aisladas; no es la ruta normal de
   la vista compartida con el usuario.
 
+## Documentos generados
+
+<!-- evidence: electron/document-designer/create-document.ts -->
+<!-- evidence: electron/wa-executor/handlers/create-document/pdf-document.ts -->
+
+Word y PDF comparten bloques y diseño declarativo. Chat, equipos y herramientas
+de canales reutilizan el generador; una skill puede indicar preset, fuente,
+acento y portada sin inyectar código. Los archivos conservan sus guardas.
+Contrato y límites: [Diseño de documentos](generated-documents.md).
+
 ## Funcionalidad no activa aunque existan referencias
 
 AutoDev no se construye ni inicializa en `service-factory.ts`/`startup.ts`; quedan

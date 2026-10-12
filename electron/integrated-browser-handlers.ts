@@ -37,6 +37,11 @@ export function registerIntegratedBrowserHandlers(
   };
 
   handle('integrated-browser:get-state', () => service.getState());
+  handle('integrated-browser:ecosystem-connect', (event, ...args) => {
+    if (!event.senderFrame || event.senderFrame !== getMainWindow()?.webContents.mainFrame) throw new Error('La conexión requiere la ventana principal.');
+    if (args.length !== 0) throw new Error('La conexión no acepta credenciales ni destinos.');
+    return service.reconnectEcosystemSession();
+  });
   handle('integrated-browser:credential-session', async (event, ...args) => {
     const parent = getMainWindow(); let changed = false;
     const unsubscribe = onAuthStateChange(() => { changed = true; service.lockCredentials(); });

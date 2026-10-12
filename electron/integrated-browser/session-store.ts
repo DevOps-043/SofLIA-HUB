@@ -3,6 +3,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { BrowserSessionSnapshot, BrowserSessionTab, BrowserTabGroup } from './platform-types';
 import { BROWSER_TAB_GROUP_COLORS } from './platform-types';
+import { isBrowserHomeUrl } from '../../src/shared/browser-home';
 
 const MAX_SESSION_BYTES = 1_000_000;
 const MAX_SESSION_TABS = 500;
@@ -175,7 +176,7 @@ function validId(value: unknown): value is string {
 }
 
 function isRestorableUrl(raw: string): boolean {
-  if (raw === 'about:blank') return true;
+  if (raw === 'about:blank' || isBrowserHomeUrl(raw)) return true;
   if (raw.length > 32_768) return false;
   try {
     const url = new URL(raw);

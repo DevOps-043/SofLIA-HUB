@@ -49,7 +49,7 @@ type ProtocolHandler = (request: { url: string }) => unknown;
  * Cada sesion tiene su propio registro de protocolos, igual que en Electron:
  * registrar en la sesion por defecto NO cubre una particion propia.
  */
-function createProtocolMock() {
+export function createProtocolMock() {
   const handlers = new Map<string, ProtocolHandler>();
   return {
     registerSchemesAsPrivileged: vi.fn(),

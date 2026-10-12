@@ -12,6 +12,7 @@ import { createAiPlaceholder, createUserMessage, PLACEHOLDER_TEXT } from './mess
 import { browserFragmentSources, browserSourcesContext } from '../../shared/browser-tab-context';
 
 interface ProcessChatMessageInput {
+  organizationId?: string | null;
   /**
    * Fragmento de la pagina que el usuario adjunto. Viaja al modelo como
    * material del turno, pero no entra en la burbuja: el usuario ya lo ve en el
@@ -37,6 +38,8 @@ interface ProcessChatMessageInput {
   memorySessionScope: string;
   /** Usuario SOFIA para la memoria unificada (owner de la memoria del chat). */
   sofiaUserId?: string;
+  /** Identidad SOFIA validada por main para publicar actividad. */
+  activityOwnerId?: string;
   /** Señal para cancelar la generación con el botón Stop. */
   signal?: AbortSignal;
   /**
@@ -108,6 +111,7 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
     if (input.signal?.aborted || !isCurrent()) { settle({ text: '⏹️ Detenido.' }); return; }
     const context = [input.selectionContext, browserSourcesContext(browserSources)].filter(Boolean).join('\n\n');
     const result = await sendMessageStream(withSelectionContext(text, context), cleanHistory, {
+      backgroundRequest: { task: text, conversationId: input.memorySessionScope, organizationId: input.organizationId ?? null, messageId: aiMessageId },
       browserSourceMode: browserSources.length ? 'attached-fragments' : undefined,
       model: input.preferredPrimaryModel,
       thinking: input.thinkingOption,
@@ -117,6 +121,7 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
       irisContext,
       memoryContext: memoryContext || undefined,
       userId: input.sofiaUserId,
+      activityOwnerId: input.activityOwnerId,
       onToolCall: (toolCall) => { log(`herramienta: ${toolCall.name}`); input.setActiveToolCall(toolCall); },
       signal: input.signal,
     });
@@ -146,6 +151,7 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
     const genImages = result.generatedImages;
     if (genImages?.length && !fullText.trim()) fullText = 'Imagen generada:';
     settle({
+      backgroundJobId: result.backgroundJobId,
       text: fullText.trim() || 'No obtuve una respuesta. Intenta de nuevo.',
       sources: browserSources.length || sources?.length ? [...browserSources, ...(sources ?? [])] : undefined,
       images: genImages?.length ? genImages : undefined,

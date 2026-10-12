@@ -78,6 +78,29 @@ function installVisibleBrowserObservation(options?: { observation?: BrowserObser
 }
 
 describe('gemini-chat: prioridad accion vs grounding web', () => {
+  it('entrega al coordinador los dos aportes reales y al equipo el encargo del historial', async () => {
+    providerMocks.workerCall.mockResolvedValue({ output_text: 'Propuesta del especialista' });
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+    await sendMessageStream('usa los multiagentes para que cada uno proponga algo diferente', [
+      { role: 'user', text: 'Activación breve para Rethink & Delight' },
+      { role: 'model', text: 'No tengo una herramienta multiagente' },
+    ], { model: 'gpt-5.6-luna', thinking: { id: 'max', level: 'max' } });
+    expect(providerMocks.workerCall).toHaveBeenCalledTimes(2);
+    expect(providerMocks.workerCall.mock.calls[0][0].input).toContain('Rethink & Delight');
+    expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({
+      finalMessage: expect.stringContaining('Propuesta del especialista'),
+      systemInstruction: expect.stringContaining('"aportesCompletos":2'),
+      options: expect.objectContaining({ thinking: { id: 'max', level: 'max' } }),
+    }));
+  });
+  it('informa el fallo real al coordinador aunque no haya aportes', async () => {
+    providerMocks.workerCall.mockRejectedValue(new Error('detalle privado'));
+    const { sendMessageStream } = await import('../../services/gemini-chat');
+    await sendMessageStream('usa los multiagentes', [], { model: 'gpt-5.6-luna' });
+    expect(providerMocks.sendOpenAIMessageStream).toHaveBeenCalledWith(expect.objectContaining({
+      systemInstruction: expect.stringContaining('"aportesCompletos":0'),
+    }));
+  });
   it('reserva una sola cuota Max al iniciar workers aunque el usuario cancele antes del coordinador', async () => {
     const controller = new AbortController();
     providerMocks.workerCall.mockImplementation(async () => { controller.abort(); throw new DOMException('Cancelado', 'AbortError'); });
@@ -108,6 +131,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    providerMocks.workerCall.mockReset();
     Reflect.deleteProperty(window, 'integratedBrowser');
     Reflect.deleteProperty(window, 'skillWorkspace');
   });

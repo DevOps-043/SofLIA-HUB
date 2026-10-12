@@ -1,9 +1,9 @@
-import type { Rectangle } from 'electron';
 import type { BrowserNavigationOptions } from '../../src/shared/browser-navigation';
 import type { BrowserSensitiveHandoff } from '../../src/shared/browser-sensitive-handoff';
 import type { BrowserAgentTaskState } from '../../src/shared/browser-agent-control';
 import type { BrowserTabGroup } from './platform-types';
 import type { BrowserNavigationSafetyVerdict } from './safe-navigation';
+import { BROWSER_HOME_URL } from '../../src/shared/browser-home';
 
 /**
  * Particion global anterior al aislamiento por usuario. Ya no se usa para
@@ -12,7 +12,7 @@ import type { BrowserNavigationSafetyVerdict } from './safe-navigation';
  * los datos de las instalaciones anteriores siguen ahi.
  */
 export const LEGACY_INTEGRATED_BROWSER_PARTITION = 'persist:soflia-integrated-browser';
-export const INTEGRATED_BROWSER_HOME = 'https://www.google.com/';
+export const INTEGRATED_BROWSER_HOME = BROWSER_HOME_URL;
 export const INTEGRATED_BROWSER_AGENT_VIEWPORT_TIMEOUT_MS = 8_000;
 export const INTEGRATED_BROWSER_MAX_TABS = 500;
 export const INTEGRATED_BROWSER_MAX_LIVE_TABS = 8;
@@ -89,7 +89,7 @@ export interface IntegratedBrowserState {
   restoreAvailable: { tabCount: number; savedAt: string; cleanExit: boolean } | null;
 }
 
-export interface IntegratedBrowserViewport extends Rectangle {}
+export type IntegratedBrowserViewport = import('../../src/shared/browser-navigation').BrowserViewport;
 
 export interface IntegratedBrowserResult {
   success: boolean;

@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { BrowserCuSupervisor } from '../desktop-agent/browser-cu-supervisor';
+import { BROWSER_HOME_TITLE, BROWSER_HOME_URL } from '../../src/shared/browser-home';
 import { CuContextChangedError } from '../desktop-agent/gemini-cu/execution-guard';
 import { setAuthState } from '../main/auth-state';
 import { BrowserCredentialUnlock } from '../integrated-browser/credential-unlock';
@@ -131,6 +132,32 @@ const flushPermissionQueue = async () => {
 const permissionStorePaths: string[] = [];
 const sessionFixtures: Array<{ root: string; store: BrowserSessionStore; service: IntegratedBrowserService }> = [];
 
+it('no expone ni restaura la URL privada de entrada a una clase Zoom', async () => {
+  const fixture = await sessionFixture(null);
+  const service = fixture.service;
+  service.attachWindow(new BrowserWindow());
+  await service.createTab('https://example.com');
+  const state = await service.createTab('https://zoom.us/s/123?zak=credential-not-persisted', true, undefined, { sensitive: true });
+  expect(state.url).toBe('https://zoom.us/');
+  expect(JSON.stringify(state)).not.toContain('credential-not-persisted');
+  await expect(service.readActiveDocument()).rejects.toThrow(/privado/);
+  const contents = browserViewHarness.instances[browserViewHarness.instances.length - 1].webContents;
+  const popupCalls = vi.mocked(contents.setWindowOpenHandler).mock.calls;
+  const popup = popupCalls[popupCalls.length - 1]?.[0];
+  expect(popup?.({ url: 'https://zoom.us/s/456?zak=popup-secret', frameName: '', features: '', disposition: 'new-window', referrer: { url: '', policy: 'default' } })).toMatchObject({ action: 'deny' });
+  await flushPermissionQueue();
+  expect(JSON.stringify(service.getState())).not.toContain('popup-secret');
+  const activeId = service.getState().activeTabId!;
+  const internal = service as unknown as { recordError: (error: Error, tabId: string) => void };
+  internal.recordError(new Error('ERR_CONNECTION_FAILED loading https://zoom.us/s/456?zak=popup-secret'), activeId);
+  expect(JSON.stringify(service.getState())).not.toContain('popup-secret');
+  await service.flushSessionForShutdown();
+  const stored = await fixture.store.load();
+  expect(JSON.stringify(stored)).not.toContain('credential-not-persisted');
+  expect(stored?.tabs.some((tab) => tab.url.includes('zoom.us'))).toBe(false);
+  service.detachWindow();
+});
+
 function savedSession(count = 12): BrowserSessionSnapshot {
   return {
     version: 2, savedAt: '2026-09-04T12:00:00.000Z', cleanExit: false,
@@ -249,6 +276,76 @@ async function openSupervisedBrowser(service: IntegratedBrowserService): Promise
 }
 
 describe('IntegratedBrowserService', () => {
+  it('mantiene la portada en la interfaz y muestra Chromium al navegar fuera', async () => {
+    const { service } = await sessionFixture(null); service.attachWindow(new BrowserWindow());
+    try {
+      await service.open();
+      const view = browserViewHarness.instances[browserViewHarness.instances.length - 1];
+      const viewport = { x: 0, y: 80, width: 800, height: 600 };
+      service.setViewport(viewport);
+      expect(view.setVisible).toHaveBeenLastCalledWith(true);
+      service.setViewport({ ...viewport, homeInShell: true });
+      expect(view.setVisible).toHaveBeenLastCalledWith(false);
+      expect(service.getState()).toMatchObject({ url: BROWSER_HOME_URL, isVisible: true });
+      await expect(service.captureVisibleBackdrop()).rejects.toThrow('interfaz de SofLIA');
+      expect(view.webContents.capturePage).not.toHaveBeenCalled();
+      await service.navigate('https://example.com/');
+      expect(view.setVisible).toHaveBeenLastCalledWith(true);
+      await service.navigate(BROWSER_HOME_URL);
+      expect(view.setVisible).toHaveBeenLastCalledWith(false);
+      service.setViewport({ ...viewport, homeInShell: false });
+      expect(view.setVisible).toHaveBeenLastCalledWith(true);
+    } finally { service.detachWindow(); }
+  });
+
+  it('una URL anterior de Google no reemplaza el inicio mientras Chromium lo carga', async () => {
+    const { service } = await sessionFixture(null); service.attachWindow(new BrowserWindow());
+    try {
+      await service.open('https://www.google.com/');
+      const contents = browserViewHarness.instances[browserViewHarness.instances.length - 1].webContents;
+      let finish!: () => void;
+      contents.loadURL.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+      const pending = await service.navigate(BROWSER_HOME_URL, undefined, { waitForLoad: false });
+      expect(contents.getURL()).toBe('https://www.google.com/');
+      expect(pending).toMatchObject({ url: BROWSER_HOME_URL, title: BROWSER_HOME_TITLE, isLoading: true });
+      contents.emit('did-start-navigation', {}, BROWSER_HOME_URL, false, true);
+      expect(service.getState().url).toBe(BROWSER_HOME_URL);
+      contents.getURL.mockReturnValue(BROWSER_HOME_URL);
+      contents.emit('did-navigate', {}, BROWSER_HOME_URL, 200, 'OK');
+      finish(); await Promise.resolve(); await Promise.resolve();
+      expect(service.getState().url).toBe(BROWSER_HOME_URL);
+    } finally { service.detachWindow(); }
+  });
+
+  it('abre inicio local, conserva Chromium para navegar y reabre la portada cerrada', async () => {
+    const { service } = await sessionFixture(null); service.attachWindow(new BrowserWindow());
+    try {
+      expect(await service.open()).toMatchObject({ url: BROWSER_HOME_URL, title: BROWSER_HOME_TITLE, isLoading: false });
+      const homeId = service.getState().activeTabId!;
+      const contents = browserViewHarness.instances[browserViewHarness.instances.length - 1].webContents;
+      expect(contents.loadURL).toHaveBeenLastCalledWith(BROWSER_HOME_URL);
+      await service.createTab('https://example.com/');
+      service.closeTab(homeId);
+      expect(await service.reopenClosedTab()).toMatchObject({ url: BROWSER_HOME_URL, title: BROWSER_HOME_TITLE });
+      expect(await service.navigate('ideas nuevas')).toMatchObject({ url: 'https://www.google.com/search?q=ideas%20nuevas' });
+    } finally { service.detachWindow(); }
+  });
+
+  it('crear sin destino y cerrar la última pestaña conservan inicio local', async () => {
+    const { service } = await sessionFixture(null); service.attachWindow(new BrowserWindow());
+    try {
+      await service.open();
+      const initial = service.getState().activeTabId!;
+      expect(await service.createTab()).toMatchObject({ url: BROWSER_HOME_URL, title: BROWSER_HOME_TITLE });
+      service.closeTab(initial);
+      const last = service.getState().activeTabId!;
+      const replacement = service.closeTab(last);
+      expect(replacement).toMatchObject({ url: BROWSER_HOME_URL, title: BROWSER_HOME_TITLE });
+      expect(replacement.activeTabId).not.toBe(last);
+      expect(replacement.tabs).toHaveLength(1);
+    } finally { service.detachWindow(); }
+  });
+
   it('cierra otras pestañas con un único layout y sin publicar estados intermedios', async () => {
     const service = newService(); service.attachWindow(new BrowserWindow());
     try {

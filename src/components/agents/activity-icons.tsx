@@ -11,3 +11,5 @@ export const ChevronUp = icon('m6 15 6-6 6 6');
 export const Circle = icon('M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18');
 export const Clock3 = icon('M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 M12 7v5h5');
 export const X = icon('m6 6 12 12 M6 18 18 6');
+export const FileText = icon('M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z M14 2v6h6 M8 13h8 M8 17h6');
+export const ArrowUpRight = icon('M7 17 17 7 M7 7h10v10');

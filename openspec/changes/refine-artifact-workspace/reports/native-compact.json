@@ -1,0 +1,118 @@
+{
+  "idle": {
+    "viewport": {
+      "width": 1200,
+      "height": 800
+    },
+    "rect": {
+      "x": 601,
+      "y": 48,
+      "width": 587,
+      "height": 740
+    },
+    "grip": {
+      "x": 602,
+      "y": 418,
+      "height": 32,
+      "width": 4,
+      "shadow": "none",
+      "color": "oklab(0.777216 -0.144888 0.0100717)"
+    },
+    "headerHeight": 43,
+    "tabsHeight": 35,
+    "icon": 19,
+    "overflow": false,
+    "resize": 587,
+    "resizing": false
+  },
+  "hover": {
+    "viewport": {
+      "width": 1200,
+      "height": 800
+    },
+    "rect": {
+      "x": 601,
+      "y": 48,
+      "width": 587,
+      "height": 740
+    },
+    "grip": {
+      "x": 602,
+      "y": 418,
+      "height": 32,
+      "width": 4,
+      "shadow": "none",
+      "color": "oklab(0.777216 -0.144888 0.0100717)"
+    },
+    "headerHeight": 43,
+    "tabsHeight": 35,
+    "icon": 19,
+    "overflow": false,
+    "resize": 587,
+    "resizing": false
+  },
+  "drag": {
+    "viewport": {
+      "width": 1200,
+      "height": 800
+    },
+    "rect": {
+      "x": 651,
+      "y": 48,
+      "width": 537,
+      "height": 740
+    },
+    "grip": {
+      "x": 652,
+      "y": 418,
+      "height": 96,
+      "width": 4,
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 212, 179, 0.7) 0px 0px 12px 0px",
+      "color": "rgb(0, 212, 179)"
+    },
+    "headerHeight": 43,
+    "tabsHeight": 35,
+    "icon": 19,
+    "overflow": false,
+    "resize": 537,
+    "resizing": true
+  },
+  "final": {
+    "viewport": {
+      "width": 1200,
+      "height": 800
+    },
+    "rect": {
+      "x": 651,
+      "y": 48,
+      "width": 537,
+      "height": 740
+    },
+    "grip": {
+      "x": 652,
+      "y": 418,
+      "height": 96,
+      "width": 4,
+      "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 212, 179, 0.7) 0px 0px 12px 0px",
+      "color": "oklab(0.777216 -0.144888 0.0100717)"
+    },
+    "headerHeight": 43,
+    "tabsHeight": 35,
+    "icon": 19,
+    "overflow": false,
+    "resize": 537,
+    "resizing": false
+  },
+  "settled": {
+    "rect": {
+      "x": 641,
+      "y": 48,
+      "width": 547,
+      "height": 740
+    },
+    "width": 537,
+    "resizing": false,
+    "gripHeight": "32px",
+    "overflow": false
+  }
+}

@@ -21,6 +21,9 @@ describe('Preload IPC Security Layer', () => {
     expect(invoke).toHaveBeenLastCalledWith('integrated-browser:open', { waitForLoad: false });
     await api.createTab(undefined, { waitForLoad: false });
     expect(invoke).toHaveBeenLastCalledWith('integrated-browser:tab-create', { waitForLoad: false });
+    const viewport = { x: 0, y: 80, width: 800, height: 600, homeInShell: true };
+    await api.setViewport(viewport);
+    expect(invoke).toHaveBeenLastCalledWith('integrated-browser:set-viewport', viewport);
   });
   registerPreloadPayloadTests();
   registerPreloadChannelTests();

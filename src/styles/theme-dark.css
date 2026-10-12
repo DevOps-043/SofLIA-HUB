@@ -1,0 +1,13 @@
+/* El inicio nativo sustituye únicamente este selector por :root en su media query. */
+.dark {
+  --color-background-val: #0f1419;
+  --color-sidebar-val: #0a0d12;
+  --color-card-val: #1e2329;
+  --color-surface-2-val: #0a0d12;
+  --color-border-val: rgba(255, 255, 255, 0.08);
+  --color-text-main: #ffffff;
+  --color-text-secondary-val: #9aa4af;
+  --color-primary-val: #ffffff;
+  --color-accent-val: #00d4b3;
+  --color-on-accent-val: #0a2540;
+}

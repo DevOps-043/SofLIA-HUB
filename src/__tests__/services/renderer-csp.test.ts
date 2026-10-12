@@ -25,6 +25,7 @@ describe('CSP del renderer', () => {
 
     expect(csp).toContain('frame-src');
     expect(csp).toMatch(/frame-src[^;]*pulse-presentacion:/);
+    expect(csp).not.toMatch(/frame-src[^;]*blob:/);
     expect(csp).toMatch(/frame-src[^;]*http:\/\/127\.0\.0\.1:\*/);
   });
 

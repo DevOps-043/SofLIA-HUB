@@ -2,6 +2,7 @@ import type { ChatMessage } from '../../services/chat-service';
 import type { ActiveSkillState } from '../../services/skills/active-skill';
 
 export interface UseChatProcessorParams {
+  organizationId?: string | null;
   messages: ChatMessage[];
   onMessagesChange: (messages: ChatMessage[]) => void;
   personalization?: {
@@ -20,4 +21,6 @@ export interface UseChatProcessorParams {
   memorySessionScope: string;
   /** Usuario SOFIA para la memoria unificada del chat (owner). */
   sofiaUserId?: string;
+  /** Identidad SOFIA validada por main para el monitor de equipos. */
+  activityOwnerId?: string;
 }

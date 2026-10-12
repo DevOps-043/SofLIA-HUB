@@ -1,0 +1,68 @@
+{
+  "electron": "44.0.0-beta.3",
+  "chromium": "152.0.7977.30",
+  "startupMs": 4299.3381,
+  "newTabAcknowledgementMs": 4.812600000000202,
+  "newTabReadyMs": 2353.1776,
+  "phases": {
+    "materializeTab": [
+      0.03610000000026048,
+      1.3166000000001077,
+      0.001900000000205182,
+      0.001299999999901047,
+      0.0011000000004059984,
+      0.000600000000304135,
+      0.000699999999596912,
+      0.004500000000007276,
+      0.004399999999805004,
+      0.0018000000000029104
+    ],
+    "createTabRuntime": [
+      1.3328999999994267
+    ],
+    "loadTabTarget": [
+      3.1462000000001353
+    ]
+  },
+  "remoteRequests": 0,
+  "searchUrl": "https://www.google.com/search?q=ideas+%26+dise%C3%B1o",
+  "shellHomeComposition": true,
+  "scriptBlocked": true,
+  "reducedMotion": true,
+  "responsive320": true,
+  "themes": {
+    "light": {
+      "url": "soflia-inicio://inicio/",
+      "title": "Inicio · SofLIA",
+      "background": "rgb(249, 250, 251)",
+      "text": "rgb(10, 37, 64)",
+      "overflow": false,
+      "verticalOverflow": false,
+      "removedElements": 0,
+      "logoLoaded": true,
+      "logoAnimation": "soflia-home-float",
+      "resources": [],
+      "node": "undefined",
+      "preload": "undefined",
+      "fieldLabel": "Buscar en la web",
+      "formAction": "https://www.google.com/search"
+    },
+    "dark": {
+      "url": "soflia-inicio://inicio/",
+      "title": "Inicio · SofLIA",
+      "background": "rgb(15, 20, 25)",
+      "text": "rgb(255, 255, 255)",
+      "overflow": false,
+      "verticalOverflow": false,
+      "removedElements": 0,
+      "logoLoaded": true,
+      "logoAnimation": "soflia-home-float",
+      "resources": [],
+      "node": "undefined",
+      "preload": "undefined",
+      "fieldLabel": "Buscar en la web",
+      "formAction": "https://www.google.com/search"
+    }
+  },
+  "animation": "CSS verificado; esta ventana oculta no mide fluidez visible ni FPS."
+}

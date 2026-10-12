@@ -1,0 +1,54 @@
+{
+  "state": "two-workers-running",
+  "text": "Equipo de SofLIA\n\n1 equipo trabajando\n\nChat\nAnálisis\nEn progreso\n1\nAnálisis\nTrabajando\n2\nEvidencia\nTrabajando\n\n0.0 s · 0/2 completados\n\nChat\nAnálisis\nAportes listos\nAnálisis\nCompletado\nEvidencia\nCompletado\n\n15.1 s · 2/2 completados\n\nPuedes cerrar esta ventana. El equipo seguirá trabajando.",
+  "bounds": {
+    "x": 848,
+    "y": 48,
+    "width": 340,
+    "height": 566
+  },
+  "color": "color(srgb 0.0392157 0.0867451 0.139137)",
+  "position": "absolute",
+  "radius": "22px",
+  "remote": {
+    "success": true,
+    "data": [
+      {
+        "id": "renderer:54576630-7547-4613-a305-f7afaf2a09a2",
+        "sequence": 1,
+        "surface": "chat",
+        "kind": "analysis",
+        "status": "running",
+        "durationMs": 0,
+        "agents": [
+          {
+            "role": "analisis",
+            "status": "running"
+          },
+          {
+            "role": "evidencia",
+            "status": "running"
+          }
+        ]
+      },
+      {
+        "id": "renderer:0abfe4b1-6d22-4289-8629-26f8139cf466",
+        "sequence": 4,
+        "surface": "chat",
+        "kind": "analysis",
+        "status": "completed",
+        "durationMs": 15107,
+        "agents": [
+          {
+            "role": "analisis",
+            "status": "completed"
+          },
+          {
+            "role": "evidencia",
+            "status": "completed"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,5 +1,8 @@
 export const CHANNEL_GROUP_4 = [
+  'learning-live:workspace',
+  'learning-live:catalog',
   'integrated-browser:get-state',
+  'integrated-browser:ecosystem-connect',
   'integrated-browser:session-restore',
   'integrated-browser:session-discard',
   'integrated-browser:capture-visible',

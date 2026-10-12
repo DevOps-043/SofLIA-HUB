@@ -5,7 +5,12 @@ export interface AgentActivity {
   surface: 'chat' | 'orb' | 'whatsapp' | 'browser' | 'computer' | 'meetings';
   kind: 'analysis' | 'document' | 'presentation' | 'browser' | 'computer' | 'meeting';
   status: 'running' | 'completed' | 'partial' | 'unavailable' | 'cancelled';
-  agents: Array<{ role: string; status: ActivityAgentState }>;
+  agents: Array<{ role: string; status: ActivityAgentState; operation?: string }>;
+  /** Solo el snapshot autenticado de trabajos main aporta esta extensión. */
+  execution?: { id: string; status: import('./background-teams').BackgroundStatus; title: string; conversationId: string;
+    messageId?: string;
+    artifacts: import('./background-teams').BackgroundArtifact[]; summary: string; error: string | null; tokens: number;
+    actions?: import('./background-teams').BackgroundAction[] };
   durationMs: number;
 }
 export type ActivityReply = { success: true; data: AgentActivity[] } | { success: false; error: string };

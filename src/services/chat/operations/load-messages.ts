@@ -46,5 +46,6 @@ function mapRemoteMessages(rows: Record<string, unknown>[]): ChatMessage[] {
     sources: (message.metadata as { sources?: ChatMessage['sources'] })?.sources,
     images: (message.metadata as { images?: ChatMessage['images'] })?.images,
     feedback: (message.metadata as { feedback?: ChatMessage['feedback'] })?.feedback,
+    backgroundJobId: (message.metadata as { backgroundJobId?: string })?.backgroundJobId,
   })));
 }

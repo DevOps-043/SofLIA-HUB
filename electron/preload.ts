@@ -1,7 +1,10 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { exposeAgentActivityApi } from './preload/agent-activity-api';
 import { exposeAgentRuntimeApi } from './preload/agent-runtime-api';
+import { exposeBackgroundTeamsApi } from './preload/background-teams-api';
+import { exposeArtifactViewerApi } from './preload/artifact-viewer-api';
 import { exposeAuthApis } from './preload/auth-apis';
+import { exposeLearningLiveApi } from './preload/learning-live-api';
 import { exposeCalendarApi } from './preload/calendar-api';
 import { exposeComputerApis } from './preload/computer-apis';
 import {
@@ -32,6 +35,8 @@ injectCSP();
 const safeIpc = createSafeIpc(ipcRenderer);
 exposeAgentActivityApi(contextBridge, safeIpc);
 exposeAgentRuntimeApi(contextBridge, safeIpc);
+exposeBackgroundTeamsApi(contextBridge, safeIpc);
+exposeArtifactViewerApi(contextBridge, safeIpc);
 
 exposeCoreApis(contextBridge, ipcRenderer, safeIpc, runtimeConfig);
 exposeComputerApis(contextBridge, safeIpc);
@@ -49,3 +54,4 @@ exposeDesktopApi(contextBridge, safeIpc);
 exposeDesktopContextApi(contextBridge, safeIpc);
 exposeUtilityApis(contextBridge, safeIpc);
 exposeAuthApis(contextBridge, safeIpc);
+exposeLearningLiveApi(contextBridge, safeIpc);

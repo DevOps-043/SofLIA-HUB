@@ -9,6 +9,7 @@ import { WindowControls } from '../ui/WindowControls';
 import { AgentActivityButton } from '../agents/AgentActivityButton';
 import { GROUP_COLORS } from './tab-group-colors';
 import { BrowserTabAudioButton } from './BrowserTabAudioButton';
+import { isBrowserHomeUrl } from '../../shared/browser-home';
 
 interface BrowserTabStripProps {
   hideTabs?: boolean;
@@ -37,12 +38,17 @@ function TabFavicon({ url, isLoading, isDetached, active, isSuspended }: { url: 
   const domain = useMemo(() => {
     try {
       if (!url || url === 'about:blank') return '';
-      const parsed = new URL(url.startsWith('http') ? url : `https://${url}`);
+      const parsed = new URL(url);
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return '';
       return parsed.hostname;
     } catch {
       return '';
     }
   }, [url]);
+
+  if (isBrowserHomeUrl(url)) {
+    return <img src="assets/Icono.png" alt="" className="h-3.5 w-4 shrink-0 object-contain pointer-events-none" />;
+  }
 
   if (isLoading) {
     return <span className="h-2.5 w-2.5 shrink-0 rounded-full animate-pulse bg-amber-400" />;

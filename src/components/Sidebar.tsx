@@ -1,3 +1,4 @@
+import { PanelResizeGrip } from './PanelResizeGrip';
 import { useEffect, useState } from 'react';
 import { UserMenu } from './sidebar/UserMenu';
 import { SidebarHeader } from './sidebar/SidebarHeader';
@@ -340,13 +341,7 @@ export function Sidebar(props: SidebarProps) {
             className={`absolute ${props.position === 'right' ? '-left-1.5' : '-right-1.5'} top-0 bottom-0 w-3 cursor-col-resize group z-40 flex items-center justify-center`}
             title="Arrastra hacia la derecha o izquierda para cambiar el tamaño del menú"
           >
-            <div
-              className={`w-1 rounded-full transition-all duration-200 ${
-                isResizing
-                  ? 'h-24 bg-accent shadow-[0_0_12px_rgba(0,212,179,0.7)]'
-                  : 'h-8 bg-gray-300/40 group-hover:h-16 group-hover:bg-accent/80 dark:bg-white/10 dark:group-hover:bg-accent/80'
-              }`}
-            />
+            <PanelResizeGrip resizing={isResizing} />
           </div>
         )}
       </aside>

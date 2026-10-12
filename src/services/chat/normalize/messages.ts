@@ -33,6 +33,7 @@ export function normalizeMessage(
     sources: sources && sources.length > 0 ? sources : undefined,
     images: images && images.length > 0 ? images : undefined,
     feedback: raw.feedback === 'like' || raw.feedback === 'dislike' ? raw.feedback : undefined,
+    backgroundJobId: typeof raw.backgroundJobId === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(raw.backgroundJobId) ? raw.backgroundJobId : undefined,
   };
 }
 
@@ -54,7 +55,9 @@ export function dedupeMessages(messages: ChatMessage[]): ChatMessage[] {
       byId.set(message.id, message);
       continue;
     }
-    byId.set(message.id, getMessageScore(message) >= getMessageScore(existing) ? message : existing);
+    const preferred = getMessageScore(message) >= getMessageScore(existing) ? message : existing;
+    if (message.text === existing.text && !preferred.backgroundJobId) preferred.backgroundJobId = existing.backgroundJobId ?? message.backgroundJobId;
+    byId.set(message.id, preferred);
   }
 
   return Array.from(byId.values()).sort((a, b) => {

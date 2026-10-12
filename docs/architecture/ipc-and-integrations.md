@@ -8,6 +8,17 @@ Estado: vigente. Actualizado: 2026-09-11.
 
 ## Contrato IPC
 
+El navegador integrado conecta Learning, Engine y Project Hub mediante un
+canje de sesión desde main en la partición del usuario. El canal
+`integrated-browser:ecosystem-connect` permite volver explícitamente a la
+cuenta de PulseHub; exige frame principal autenticado y cero argumentos.
+El renderer no recibe credenciales. El registro por perfil conserva la elección
+de cuenta y el logout. Ver [diseño](../../openspec/changes/connect-browser-ecosystem-session/design.md)
+y [activación](../../openspec/changes/connect-browser-ecosystem-session/integration.md).
+
+<!-- evidence: electron/integrated-browser/ecosystem-session-runtime.ts -->
+<!-- evidence: electron/preload/integrated-browser-api.ts -->
+
 `computer:confirm-action` conserva el canal allowlisted y acepta un mensaje de
 hasta 8000 caracteres con opciones `{ allowAlways?: boolean, command?: string }`; devuelve
 `{ confirmed: boolean, always?: boolean }`. El wrapper tipado del renderer
@@ -18,10 +29,12 @@ al detalle mostrado (la carpeta aparece aparte) y confirmar
 con la casilla marcada es necesario para devolver `always: true`. No reemplaza
 la política de ejecución main. Ver [permisos del chat](runtime-agents-manual.md#211-permisos-locales-de-comandos-y-archivos).
 
-El namespace `agent-activity` añade `snapshot`, `publish`, `control` y el evento
-`changed`. Sólo el frame principal autenticado del Hub publica metadatos;
-el monitor auxiliar puede leerlos y controlar su propia ventana. Main comprueba
-identidad, secuencia y un esquema cerrado de roles/estados, sin texto privado.
+El namespace `agent-activity` expone `snapshot`, `publish` y el evento `changed`.
+Sólo los frames principales autenticados del Hub y Orbe pueden acceder al
+contrato. Main comprueba identidad, secuencia y un esquema cerrado de roles/estados,
+sin texto privado. El renderer muestra una ventana flotante dentro del Hub y
+combina el progreso local del chat con los avisos de main; no existe una ventana
+auxiliar ni un canal para controlarla.
 Ver [monitor de equipos](runtime-multiagent-harness.md#monitor-de-equipos).
 
 El namespace `agent-runtime` incorpora context, release, state, start, cancel,
@@ -56,8 +69,7 @@ aprobación fabricada del renderer. El servicio comprueba capacidad, política,
 perfil y control humano; el borrado pregunta en main. Responde con biblioteca
 versionada, cancelación o error saneado. No existe IPC de ejecución de atajos.
 
-La allowlist actual contiene 441 canales derivados de cinco arrays: 81, 52, 61,
-135 y 102. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 459 canales derivados de cinco arrays: 84, 52, 61, 134 y 128. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |
@@ -77,9 +89,22 @@ el catalogo y su validador deben actualizarse juntos.
 | `skill-workspace` | 14 | espacio de trabajo de Skills: crear, estado, leer, escribir, editar, borrar, guardar y descargar imagenes, abrir carpeta, progreso y URL de vista previa |
 | `presentation`, `presentation-view` | 5 | vista a pantalla completa, exportacion a HTML autocontenido y preparacion de la identidad de marca |
 | `project-hub` | 22 | proyectos, tareas y seguimiento |
-| otros | 67 | voice, updater, automation, drive, pytools, telegram, gchat, app, auth, background-host, root y AI |
+| otros | 68 | voice, updater, automation, drive, pytools, telegram, gchat, app, auth, background-host, root, AI y learning-live |
 
 ### Recorrido obligatorio
+
+`learning-live:open` recibe solo `organization_slug` y `session_id`. Main
+valida la identidad SOFIA, consulta Learning en el origen configurado y abre
+la URL Zoom autorizada en una pestaña sensible. Devuelve éxito, título o error
+controlado; la URL y los tokens no cruzan este canal hacia el renderer.
+`app:get-pending-learning-session` permite recuperar la referencia sin consumirla
+durante login y `app:learning-session` anuncia solicitudes recibidas en caliente.
+El contrato y los pasos de despliegue están en
+[la integración Learning](../../openspec/changes/launch-learning-live-sessions/integration.md).
+
+<!-- evidence: electron/learning-live-handlers.ts -->
+<!-- evidence: electron/preload/learning-live-api.ts -->
+<!-- evidence: src/services/learning-live-service.ts -->
 
 `updater:install-update` conserva su canal y contrato `{ success, error? }`.
 Ahora exige `WebContents` y frame principal de la ventana main, espera el
@@ -651,6 +676,12 @@ Dos limites que no deben relajarse:
 
 ## Limites de contrato
 
+`integrated-browser:set-viewport` conserva el canal existente y usa el contrato
+compartido [BrowserViewport](../../src/shared/browser-navigation.ts). El booleano
+opcional `homeInShell` se valida sin coerción en main y sólo evita dibujar la
+portada local nativa cuando el renderer ya la compone en modo simple. Omitirlo
+conserva el comportamiento nativo; no permite ejecutar HTML ni protocolos nuevos.
+
 Project Hub usa canales `project-hub:*` con métodos de dominio. El par de tokens
 SOFIA entra por `auth:set-state` para autenticar el cliente SOFIA de main; el
 access token también alimenta el canje verificado de Project Hub. Los tokens
@@ -669,3 +700,49 @@ contrato completo y los estados de degradación se documentan en
 - No existe garantia de disponibilidad de terceros; cada UI debe soportar no
   configurado, desconectado, rate limit y timeout.
 - `docs/contracts/openapi.json` no enumera IPC y no debe usarse como allowlist.
+
+## Equipos ejecutores de fondo
+
+`background-teams:context`, `release`, `state`, `start`, `control`, `attach-legacy` y `open`
+son operaciones cerradas; `changed` es una notificación sin contenido sensible.
+Servicio: `electron/background-teams/`; handler validado y restringido al frame
+principal del Hub; preload allowlisted; wrapper `src/services/background-teams.ts`.
+La identidad se deriva de la sesión main, y actor/organización esperados en la
+admisión solo detectan cambios de contexto. Un token de generación impide devolver
+datos antiguos después de una espera. Abrir admite job/artefacto UUID, nunca una ruta
+libre, y comprueba hash antes de invocar la apertura local.
+No hay canal para ejecutar shell, enviar correos o conceder herramientas arbitrarias.
+Véase [contrato funcional](runtime-multiagent-harness.md#equipos-ejecutores-locales-en-segundo-plano).
+
+
+## Visor de archivos y entregables
+
+<!-- evidence: electron/artifact-viewer/handlers.ts -->
+<!-- evidence: electron/preload/artifact-viewer-api.ts -->
+<!-- evidence: src/services/artifact-viewer.ts -->
+
+`artifact-viewer:preview`, `pick`, `open-external` y `save-copy` son cuatro
+operaciones cerradas del frame principal del Hub. El contrato compartido vive
+en `src/shared/artifact-viewer.ts`. El visor resuelve referencias de equipo
+(trabajo/archivo UUID) o IDs efímeros de archivos elegidos en el selector nativo.
+No acepta rutas desde IPC ni devuelve rutas del disco. Autorización y generación
+se comprueban después de esperas, selectores y lectura. Las referencias locales
+quedan ligadas al contexto y hash del archivo; los entregables reutilizan la
+validación e integridad del repositorio de equipos.
+
+La respuesta distingue texto/Markdown, HTML de lectura Word, tablas Excel/CSV,
+contenido de diapositivas, PDF e imágenes. Office tiene un límite de expansión
+ZIP antes del lector; celdas, hojas y filas se acotan y se avisa del truncamiento.
+Las fórmulas usan valores guardados y no se evalúan en el visor. HTML interactivo
+se sirve desde loopback efímero por rutas UUID y generación, con Host exacto y CSP
+por encabezado. El iframe opaco deniega red, subframes, workers y privilegios;
+un preámbulo inmutable cierra WebRTC y main bloquea navegación. Word usa el mismo servidor
+en modo de lectura con scripts denegados. PDF usa PDF.js en un worker local e imágenes
+se decodifican en main. Los blobs de imágenes se revocan y el worker PDF se destruye al desmontar su vista.
+
+Guardar copia usa un selector nativo y creación exclusiva, sin sobrescribir
+originales. Abrir fuera requiere una acción explícita y un formato permitido;
+La apertura externa usa una copia temporal de los bytes verificados, evitando
+la sustitución de la ruta original. HTML permanece en el sandbox. No hay
+edición Office ni ejecución de binarios.
+Véase [especificación del visor](../../openspec/changes/preview-generated-artifacts/specs/artifact-preview/spec.md).

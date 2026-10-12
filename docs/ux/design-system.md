@@ -3,12 +3,16 @@
 Estado: vigente. Actualizado: 2026-07-21.
 
 <!-- evidence: src/index.css -->
+<!-- evidence: src/styles/theme-light.css -->
+<!-- evidence: src/styles/theme-dark.css -->
 <!-- evidence: tailwind.config.js -->
 <!-- evidence: src/components/ui/Button.tsx -->
 
 ## Fuente de verdad
 
-`src/index.css` define tokens CSS y los publica a Tailwind 4 mediante `@theme`.
+`src/styles/theme-light.css` y `theme-dark.css` definen la paleta compartida.
+`src/index.css` los importa y publica a Tailwind 4 mediante `@theme`. La portada
+local Chromium consume esos mismos archivos, sin fuentes ni recursos de red.
 `tailwind.config.js` conserva contenido, dark selector, Inter y animaciones base.
 Los componentes de `src/components/ui/` son primitives actuales; patrones de
 documentos legacy o de otra aplicacion SOFIA no aplican.

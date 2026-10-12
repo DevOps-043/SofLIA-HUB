@@ -19,11 +19,13 @@ import { buildSystemInstruction } from './system-instruction';
 import { shouldRunToolLoop } from './tool-loop-decision';
 import type { ConversationMessage, SendMessageStreamOptions, StreamResult, ToolCallInfo } from './types';
 import { sendGroundedMessage, shouldUseWebGrounding, WEB_GROUNDING_FAILURE } from './web-grounding';
-import { classifyBrowserGroundingIntent, isActiveDocumentContentRequest, isVisiblePageContentRequest } from './browser-grounding-intent';
+import { classifyBrowserGroundingIntent, isActiveDocumentContentRequest, isExternalDesktopContentRequest, isVisiblePageContentRequest } from './browser-grounding-intent';
 import { preparePresentationSourceVisuals } from './presentation-source-visuals';
 import { PRESENTACIONES_SKILL_ID } from '../../shared/skills/presentaciones-skill';
 import { resolveAttachedSourceToolGroups } from '../gemini-tools/turn-catalog';
 import { prepareChatTeam } from './agent-team';
+import { wantsBackgroundTeam, BACKGROUND_LIMITS } from '../../shared/background-teams';
+import { backgroundTeamsService } from '../background-teams';
 
 /**
  * El navegador integrado tiene controlador determinista propio. Sin este aviso
@@ -37,6 +39,33 @@ export async function sendMessageStream(
   conversationHistory: ConversationMessage[] = [],
   options?: SendMessageStreamOptions,
 ): Promise<StreamResult> {
+  const background = options?.backgroundRequest;
+  const backgroundIntent = background ? normalizeToolIntentText(background.task) : '';
+  // El ejecutor local no observa pestañas ni controla la pantalla. Conservar
+  // el clasificador existente evita delegar antes de recopilar esa evidencia.
+  const needsSupervisedContext = background && (classifyBrowserGroundingIntent(background.task) !== 'none'
+    || isActiveDocumentContentRequest(background.task) || isVisiblePageContentRequest(background.task)
+    || isExternalDesktopContentRequest(background.task)
+    || hasExplicitComputerUseRequest(backgroundIntent) || hasHybridSurfaceRequest(backgroundIntent)
+    || hasLocalInspectionRequest(backgroundIntent, background.task) || hasNativeAiIntent(backgroundIntent)
+    || hasBrowserInteractionCommand(backgroundIntent)
+    || isActiveDocumentSummaryFollowUp(background.task, conversationHistory));
+  if (background && !needsSupervisedContext && window.backgroundTeams && !options?.activeSkill && !options?.images?.length && wantsBackgroundTeam(background.task, options?.teamMode)) {
+    if (options?.signal?.aborted) return stoppedStreamResult([], []);
+    const routed = resolveRoutedModel({ options });
+    const source = JSON.stringify({ mensajeConAdjuntosNoConfiables: message, fuentes: options?.sourcesContext,
+      contextoReciente: conversationHistory.slice(-6) }).slice(0, BACKGROUND_LIMITS.sourceChars);
+    const job = await backgroundTeamsService.start({
+      requestId: crypto.randomUUID(), conversationId: background.conversationId, task: background.task.slice(0, 8000),
+      messageId: background.messageId,
+      source, model: routed.modelId, effort: options?.thinking?.level && ['low', 'medium', 'high', 'xhigh', 'max'].includes(options.thinking.level) ? options.thinking.level : 'medium',
+      allowResearch: options?.browserSourceMode !== 'attached-fragments' && !message.startsWith('Material adjunto elegido por el usuario.'),
+    }, background.organizationId);
+    if (routed.consumesSofliaMaxQuota) consumeSofliaMaxUse(options?.userId);
+    return { stream: singleChunkStream('Tu equipo ya está trabajando. Puedes seguir conversando; sus aportes y archivos aparecerán aquí.'),
+      backgroundJobId: job.id,
+      sources: Promise.resolve(null) };
+  }
   let finalMessage = options?.context ? buildPrimaryChatPrompt(options.context, message) : message;
   let systemInstruction = buildSystemInstruction(message, options);
   const history = buildGeminiHistory(conversationHistory);
@@ -169,13 +198,14 @@ export async function sendMessageStream(
     const team = await prepareChatTeam({
       message, source: [message, options?.sourcesContext, browserObservation?.domContext, activeDocument?.context].filter(Boolean).join('\n\n'),
       modelId: routed.modelId, options: routedOptions,
+      conversationHistory,
       onFirstModelCall: consumeTurnQuota,
     });
     if (team.context) {
       finalMessage += `\n\n${team.context}`;
-      systemInstruction += `\n\n${team.instruction}`;
       messageContent = buildMessageContent(finalMessage, effectiveOptions?.images);
     }
+    if (team.instruction) systemInstruction += `\n\n${team.instruction}`;
   } catch (error) {
     if (isAbortError(error, options?.signal)) return stoppedStreamResult([], []);
     throw error;

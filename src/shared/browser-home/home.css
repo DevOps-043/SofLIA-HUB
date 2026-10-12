@@ -1,0 +1,39 @@
+.browser-home {
+  position: relative;
+  isolation: isolate;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background: var(--color-background-val);
+  color: var(--color-text-main);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.browser-home * { box-sizing: border-box; }
+.browser-home .ambience { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 39%, color-mix(in srgb, var(--color-accent-val) 6%, transparent), transparent 58%); }
+.browser-home main { position: relative; width: min(100%, 710px); padding: 36px 28px; text-align: center; }
+.browser-home .brand-art { position: relative; display: grid; place-items: center; width: 220px; height: 150px; margin: 0 auto 30px; }
+.browser-home .logo { position: relative; z-index: 1; width: 190px; height: auto; object-fit: contain; animation: soflia-home-float 7s ease-in-out infinite; }
+.browser-home .halo { position: absolute; inset: -22px; background: radial-gradient(ellipse, color-mix(in srgb, var(--color-accent-val) 12%, transparent), transparent 68%); animation: soflia-home-breathe 7s ease-in-out infinite; }
+.browser-home h1 { margin: 0; font-size: clamp(30px, 4vw, 45px); line-height: 1.2; font-weight: 350; letter-spacing: -1.6px; text-wrap: balance; }
+.browser-home h1 span { color: var(--color-accent-val); font-weight: 500; }
+.browser-home .intro { margin: 14px 0 30px; font-size: 14px; line-height: 1.5; color: var(--color-text-secondary-val); }
+.browser-home .search { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 580px; min-height: 60px; margin: auto; padding: 7px 8px 7px 26px; border-radius: 999px; border: 1px solid var(--color-border-val); background: var(--color-card-val); box-shadow: 0 8px 28px color-mix(in srgb, var(--color-text-main) 4%, transparent); transition: border-color .18s ease; }
+.browser-home .search:focus-within { border-color: var(--color-accent-val); outline: 3px solid color-mix(in srgb, var(--color-accent-val) 12%, transparent); outline-offset: 2px; }
+.browser-home input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: var(--color-text-main); font: inherit; font-size: 15px; padding: 10px 0; }
+.browser-home input::placeholder { color: var(--color-text-secondary-val); opacity: 1; }
+.browser-home button { display: grid; place-items: center; flex-shrink: 0; width: 44px; height: 44px; border: 0; border-radius: 50%; background: var(--color-accent-val); color: var(--color-on-accent-val); cursor: pointer; transition: transform .18s ease, opacity .18s ease; }
+.browser-home button:hover { transform: scale(1.05); }
+.browser-home button:active { transform: scale(.96); }
+.browser-home button:focus-visible { outline: 2px solid var(--color-accent-val); outline-offset: 4px; }
+.browser-home .keyboard-hint { display: flex; align-items: center; justify-content: center; gap: 7px; margin: 18px 0 0; font-size: 11px; line-height: 1.5; color: var(--color-text-secondary-val); }
+.browser-home kbd { padding: 1px 5px; border: 1px solid var(--color-border-val); border-radius: 4px; font: inherit; }
+.browser-home .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+@keyframes soflia-home-float { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-9px) rotate(1deg); } }
+@keyframes soflia-home-breathe { 0%, 100% { transform: scale(.92); opacity: .55; } 50% { transform: scale(1.08); opacity: 1; } }
+@media (max-width: 520px) { .browser-home main { padding: 28px 22px; } .browser-home .keyboard-hint { flex-wrap: wrap; } .browser-home .search { gap: 10px; padding-left: 20px; } .browser-home input { font-size: 13px; } }
+@media (max-height: 640px) { .browser-home .brand-art { height: 112px; margin-bottom: 22px; } .browser-home .logo { width: 160px; } .browser-home main { padding-top: 24px; padding-bottom: 24px; } .browser-home .intro { margin-bottom: 24px; } }
+@media (prefers-reduced-motion: reduce) { .browser-home *, .browser-home *::before, .browser-home *::after { animation: none !important; transition: none !important; } }
