@@ -72,9 +72,24 @@ export async function executeSkillWorkspaceTool(
     case 'workspace_list_files':
       return normalize(await api.listFiles(workspaceId));
 
-    case 'workspace_read_file':
+    case 'workspace_read_file': {
       if (!path) return missingArgument('path');
-      return normalize(await api.readFile(workspaceId, path));
+      const result = await api.readFile(workspaceId, path);
+      // El QA protegido contiene cientos de eventos. Quitar sólo el sangrado
+      // y codificar sus eventos como tuplas permite leerlo sin omitir datos.
+      if (activeSkill.id === 'sistema:audiovisual' && path === 'qa/informe.json' && result.success === true && typeof result.content === 'string') {
+        try {
+          const report = JSON.parse(result.content);
+          const events = report?.eventosAudio;
+          if (Array.isArray(events) && events.length > 0 && events.every(event => event && typeof event === 'object' && Object.keys(event).length === 2 && typeof event.frame === 'number' && typeof event.tipo === 'string')) {
+            report.eventosAudio = { columnas: ['frame', 'tipo'], filas: events.map(event => [event.frame, event.tipo]) };
+          }
+          return normalize({ ...result, content: JSON.stringify(report) });
+        }
+        catch { /* Un informe no válido se devuelve íntegro para su diagnóstico. */ }
+      }
+      return normalize(result);
+    }
 
     case 'workspace_write_file': {
       if (!path) return missingArgument('path');

@@ -11,6 +11,12 @@ const PRESENTACIONES_SKILL_ID = 'sistema:presentaciones';
 
 export const WORKSPACE_REPAIR_INSTRUCTION = `Si la skill activa es audiovisual: escribe film.json, llama workspace_inspect_video, observa las capturas y corrige errores antes de workspace_render_video y verifica qa/informe.json; no entregues un manifiesto como si fuera el MP4. Para presentaciones: La presentacion no esta terminada: el documento de entrada del workspace todavia no existe. Continua trabajando ahora. Escribe deck.json, vuelve a leerlo para verificarlo y no respondas que terminaste hasta que workspace_list_files confirme que existe.`;
 
+export function workspaceIncompleteMessage(activeSkill: ActiveSkillContext | null | undefined): string {
+  return activeSkill?.id === 'sistema:audiovisual'
+    ? 'No pude completar el video en este turno: falta un MP4 verificado. Revisa las correcciones pendientes antes de renderizar y comprueba el QA final.'
+    : WORKSPACE_INCOMPLETE_MESSAGE;
+}
+
 export const WORKSPACE_INCOMPLETE_MESSAGE = 'No pude completar la presentacion en este turno: falta deck.json. El guion y los recursos quedaron guardados; vuelve a intentarlo para que SofLIA termine el deck.';
 
 type WorkspaceStateResponse = {
@@ -47,11 +53,11 @@ export async function inspectWorkspaceCompletion(
     const response = await api.getState(activeSkill.workspaceId);
     if (response.success && response.state?.ready) return { required: true, ready: true };
 
-    const entryFile = response.state?.workspace?.entryFile?.trim() || 'deck.json';
+    const entryFile = response.state?.workspace?.entryFile?.trim() || (activeSkill.id === 'sistema:audiovisual' ? 'salida/video.mp4' : 'deck.json');
     return {
       required: true,
       ready: false,
-      message: response.error?.trim() || `Falta ${entryFile}; el entregable aun no existe.`,
+      message: response.error?.trim() || (activeSkill.id === 'sistema:audiovisual' ? 'Falta un MP4 con QA válido; film.json por sí solo no completa la producción.' : `Falta ${entryFile}; el entregable aun no existe.`),
     };
   } catch (error) {
     return {

@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { CinematicFilm } from '../shared/audiovisual/film-schema';
-import { sceneState, sceneBoxes, ease, mix, type SceneState } from '../shared/audiovisual/frame';
+import { sceneState, sceneBoxes, ease, mix, projectedKnowledgePortal, type SceneState } from '../shared/audiovisual/frame';
 import { Ecosystem, Knowledge, ProductPanel } from './product-scenes';
 import { Icon, Reveal } from './kit';
 import { SofliaMark } from './soflia-mark';
@@ -11,10 +11,14 @@ export function FilmComposition({ film, frame, captureNonce }: { film: Cinematic
   const state = sceneState(film, frame), { scene, index, entrance } = state;
   const theme = { '--film-bg': film.direccion.fondo, '--film-panel': film.direccion.superficie, '--film-text': film.direccion.texto, '--film-accent': film.direccion.acento, '--film-secondary': film.direccion.secundario } as CSSProperties;
   const previous = index > 0 && entrance < 1 ? { ...sceneState(film, scene.inicio - 1), frame: state.frame } : null;
+  const portal = previous?.scene.composicion === 'panoramica' && scene.composicion === 'editorial';
+  const center = previous ? projectedKnowledgePortal(previous) : { x: 0, y: 0, radius: 34 };
+  const radius = mix(center.radius, 2200, entrance);
   return <><main className="film-stage" style={theme} aria-label={film.titulo} data-frame={state.frame} data-style={film.direccion.estilo}>
     <div className="film-atmosphere" />
-    {previous && <div className="film-layer" style={{ opacity: 1 - entrance, transform: `scale(${1 + entrance * .04})` }}><Scene film={film} state={previous} fold={scene.composicion==='cierre'?entrance:0} /></div>}
-    <div className="film-layer" style={{ opacity: entrance, transform: `translateX(${(1 - entrance) * 60}px) scale(${.985 + .015 * entrance})` }}><Scene film={film} state={state} /></div>
+    {previous && <div className="film-layer" style={{ opacity: portal ? 1 : 1 - entrance, transform: portal ? undefined : `scale(${1 + entrance * .04})` }}><Scene film={film} state={previous} fold={scene.composicion==='cierre'?entrance:0} /></div>}
+    <div className="film-layer" style={{ opacity: portal ? 1 : entrance, clipPath: portal ? `circle(${radius}px at ${center.x}px ${center.y}px)` : undefined, transform: portal ? undefined : `translateX(${(1 - entrance) * 60}px) scale(${.985 + .015 * entrance})` }}><Scene film={film} state={state} /></div>
+    {portal && <div className="film-portal-edge" style={{ left: center.x-radius, top: center.y-radius, width: radius*2, height: radius*2, opacity: 1-entrance }} />}
     <SharedTransfers film={film} frame={state.frame} />
     <div className="film-vignette" />
     {scene.composicion !== 'cierre' && <div className="film-production-note">INTERFACES CONCEPTUALES · {film.marca.nombre}</div>}
@@ -38,7 +42,7 @@ function Scene({ film, state, fold = 0 }: { film: CinematicFilm; state: SceneSta
         return <div key={element.id} className="film-plane" style={{ left: box.x+offsetX, top: box.y + float, width: 1280, height: 760, clipPath: element.movimiento === 'revelar' ? `inset(0 ${(1-ease(t/.9))*100}% 0 0)` : undefined, transform: `perspective(3000px) rotateY(${element.inclinacion * (1 - progress * .4)}deg) rotateX(${element.profundidad * 2}deg) scale(${box.w / 1280})`, opacity: ease((local / film.fps - i * .12) / .5) }}><ProductPanel entity={display} film={film} state={state} /></div>;
       })}
     </div>
-    <div className={`film-headline ${editorial ? 'film-headline--editorial' : knowledge ? 'film-headline--hero' : 'film-headline--wide'}${scene.ladoVisual === 'izquierda' ? ' film-headline--right' : ''}`}>
+    <div className={`film-headline ${editorial ? 'film-headline--editorial' : knowledge ? scene.composicion==='panoramica' ? 'film-headline--activation' : 'film-headline--hero' : 'film-headline--wide'}${scene.ladoVisual === 'izquierda' ? ' film-headline--right' : ''}`}>
       {!knowledge && <div className="film-product-label">{film.marca.logo === 'soflia' && <SofliaMark />}<span>{editorial ? entity.titulo : scene.titulo}</span></div>}
       <Reveal text={scene.mensaje} frame={local} fps={film.fps} className="film-main-message" accentEnd={state.index > 0} />
       {scene.subtitulo && <p className="film-subtitle" style={{ opacity: ease((local / film.fps - .8) / .8) }}>{scene.subtitulo}</p>}

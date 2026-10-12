@@ -8,7 +8,7 @@ import { isTransientGeminiError, sleepWithSignal, withToolTimeout } from '../gem
 import { isAbortError, STOP_MESSAGE } from '../gemini-chat/streams';
 import {
   inspectWorkspaceCompletion,
-  WORKSPACE_INCOMPLETE_MESSAGE,
+  workspaceIncompleteMessage,
   WORKSPACE_REPAIR_INSTRUCTION,
 } from '../gemini-chat/workspace-completion';
 import { executeGeminiToolCall, isKnownGeminiTool } from '../gemini-chat/tool-dispatch';
@@ -244,7 +244,7 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
             continue;
           }
           if (completion.required && !completion.ready) {
-            yield WORKSPACE_INCOMPLETE_MESSAGE;
+            yield workspaceIncompleteMessage(params.options?.activeSkill);
             return;
           }
           if (iterationText) {
@@ -281,7 +281,7 @@ export async function sendOpenAIMessageStream(params: OpenAIStreamParams): Promi
 
       const completion = await inspectWorkspaceCompletion(params.options?.activeSkill);
       if (completion.required && !completion.ready) {
-        yield WORKSPACE_INCOMPLETE_MESSAGE;
+        yield workspaceIncompleteMessage(params.options?.activeSkill);
       } else {
         const separator = emittedText ? '\n\n' : '';
         yield `${separator}${toolBudgetExhaustedMessage(toolCalls)}`;

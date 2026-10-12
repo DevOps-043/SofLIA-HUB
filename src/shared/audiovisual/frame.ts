@@ -16,6 +16,7 @@ export function actionProgress(state: SceneState, id: string, action: FilmScene[
   return ease((state.local / fps - (event ? event.en / fps : fallback)) / seconds);
 }
 export type FilmBox = { x: number; y: number; w: number; h: number };
+export const knowledgePortal = { x: 1620, y: 490, radius: 34 };
 /** Retícula con zonas de texto y visual separadas; cámara acotada. */
 export function sceneBoxes(scene: FilmScene): FilmBox[] {
   switch (scene.composicion) {
@@ -24,4 +25,10 @@ export function sceneBoxes(scene: FilmScene): FilmBox[] {
     case 'trio': return [110, 684, 1258].map(x => ({ x, y: 380, w: 552, h: 328 }));
     default: return [{ x: 390, y: 300, w: 1140, h: 677 }];
   }
+}
+
+/** Proyecta el portal con el mismo origen y cámara que su plano de salida. */
+export function projectedKnowledgePortal(state: SceneState) {
+  const scale = mix(state.scene.camara.inicio, state.scene.camara.fin, ease(state.progress));
+  return { x: 1100 + (knowledgePortal.x - 1100) * scale + state.scene.camara.recorridoX * state.progress, y: 540 + (knowledgePortal.y - 540) * scale + state.scene.camara.recorridoY * state.progress, radius: knowledgePortal.radius * scale };
 }

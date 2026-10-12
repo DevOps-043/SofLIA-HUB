@@ -119,12 +119,12 @@ export async function verifyVideo(runtime: { ffmpeg: string; ffprobe: string }, 
   const pts = JSON.parse(await mediaProcess(runtime.ffprobe, ['-v', 'error', '-select_streams', 'v:0', '-show_frames', '-show_entries', 'frame=best_effort_timestamp_time', '-of', 'json', file], signal)).frames;
   if (pts.length !== film.fotogramas || pts.some((f: { best_effort_timestamp_time: string }, i: number) => !Number.isFinite(Number(f.best_effort_timestamp_time)) || Math.abs(Number(f.best_effort_timestamp_time) - i / film.fps) > .00001)) throw new Error('Cadencia o timestamps de video inválidos.');
   await mediaProcess(runtime.ffmpeg, ['-v', 'error', '-xerror', '-i', file, '-f', 'null', '-'], signal);
-  let loudness: { lufs: number; pico: number } | null = null;
+  let loudness: { lufs: number; pico: number; rangoDinamico: number | null } | null = null;
   if (film.audio !== 'silencio') {
     const measured = await mediaProcess(runtime.ffmpeg, ['-hide_banner', '-i', file, '-vn', '-af', 'loudnorm=I=-14:TP=-1:LRA=11:print_format=json', '-f', 'null', '-'], signal, undefined, true);
     const json = measured.match(/\{[\s\S]*?"input_i"[\s\S]*?\}/g)?.pop();
     if (!json) throw new Error('No se pudo medir la sonoridad del AAC final.');
-    const values = JSON.parse(json); loudness = { lufs: Number(values.input_i), pico: Number(values.input_tp) };
+    const values = JSON.parse(json); loudness = { lufs: Number(values.input_i), pico: Number(values.input_tp), rangoDinamico: Number.isFinite(Number(values.input_lra)) ? Number(values.input_lra) : null };
     if (!Number.isFinite(loudness.lufs) || Math.abs(loudness.lufs + 14) > 1 || !Number.isFinite(loudness.pico) || loudness.pico > -1) throw new Error('El AAC no cumple -14 ±1 LUFS y pico máximo -1 dBTP: ' + loudness.lufs + ' LUFS, ' + loudness.pico + ' dBTP.');
   }
   return { loudness, frames: Number(video.nb_read_frames), fps: film.fps, ancho: video.width, alto: video.height, duracion: Number(probe.format.duration), timestamps: true, decodificacion: true, audio: film.audio };

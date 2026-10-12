@@ -7,7 +7,7 @@ import { cinematicFilm } from '../shared/audiovisual/normalize';
 import { filmSchema } from '../shared/audiovisual/film-schema';
 import legacyFixture from '../../test/fixtures/audiovisual-film.json';
 import { frameStamp } from '../shared/audiovisual/frame-stamp';
-import { actionProgress, sceneState } from '../shared/audiovisual/frame';
+import { actionProgress, sceneState, projectedKnowledgePortal } from '../shared/audiovisual/frame';
 import { geometryFrames, visualFrames } from '../../electron/audiovisual/inspection';
 
 describe('dirección audiovisual y datos del brief', () => {
@@ -63,6 +63,18 @@ describe('dirección audiovisual y datos del brief', () => {
     const earlier = renderToStaticMarkup(<FilmComposition film={film} frame={learningScene.inicio + 240} />);
     expect(earlier).not.toContain('Completado');
     expect(earlier).toContain('Validando');
+  });
+  it('alinea máscara y aro con la cámara de salida incluso en sus extremos', () => {
+    const film = filmV2Schema.parse(fixture), previous = film.escenas[1];
+    previous.camara = { inicio: .94, fin: 1.04, recorridoX: 18, recorridoY: 18 };
+    const state = sceneState(film, previous.fin - 1), portal = projectedKnowledgePortal(state);
+    expect(portal.x).toBeCloseTo(1658.8);
+    expect(portal.y).toBeCloseTo(506);
+    expect(portal.radius).toBeCloseTo(35.36);
+    const html = renderToStaticMarkup(<FilmComposition film={film} frame={film.escenas[2].inicio} />);
+    const mask = html.match(/circle\(([\d.]+)px at ([\d.]+)px ([\d.]+)px\)/)!;
+    expect(mask.slice(1).map(Number)).toEqual([portal.radius, portal.x, portal.y]);
+    expect(visualFrames(film)).toContain(film.escenas[2].inicio + Math.round(film.escenas[2].transicion * .5));
   });
   it('la firma de captura distingue fotogramas y reintentos y no aparece en la preview', () => {
     const signatures = new Set<string>();

@@ -8,7 +8,7 @@ import { withGeminiModelCall, withToolTimeout } from './resilience';
 import { executeGeminiToolCall, isKnownGeminiTool } from './tool-dispatch';
 import {
   inspectWorkspaceCompletion,
-  WORKSPACE_INCOMPLETE_MESSAGE,
+  workspaceIncompleteMessage,
   WORKSPACE_REPAIR_INSTRUCTION,
 } from './workspace-completion';
 import type { SendMessageStreamOptions, StreamResult, ToolCallInfo } from './types';
@@ -151,7 +151,7 @@ export async function runAgenticLoop(params: {
 
   const completion = await inspectWorkspaceCompletion(params.options?.activeSkill);
   const fallbackText = completion.required && !completion.ready
-    ? WORKSPACE_INCOMPLETE_MESSAGE
+    ? workspaceIncompleteMessage(params.options?.activeSkill)
     : toolBudgetExhaustedMessage(params.allToolCalls);
   return {
     stream: singleChunkStream(fallbackText),

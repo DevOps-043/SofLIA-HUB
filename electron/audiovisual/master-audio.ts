@@ -16,15 +16,21 @@ export async function masterAudio(ffmpeg: string, source: string, target: string
     return null;
   }
   const measured = await measureAudio(ffmpeg, source, signal);
-  const fields = ['input_i', 'input_tp', 'input_lra', 'input_thresh', 'target_offset'];
+  const fields = ['input_i', 'input_tp', 'input_lra'];
   if (fields.some(field => !Number.isFinite(Number(measured[field])))) throw new Error('La síntesis no contiene audio medible.');
-  let levels = { lufs: NaN, pico: NaN };
-  for (const ceiling of [-2.5, -3.5]) {
-    const filter = `loudnorm=I=-14:TP=${ceiling}:LRA=11:measured_I=${measured.input_i}:measured_TP=${measured.input_tp}:measured_LRA=${measured.input_lra}:measured_thresh=${measured.input_thresh}:offset=${measured.target_offset}:linear=true`;
+  let gain = -14 - Number(measured.input_i), ceiling = -2.5;
+  let levels = { lufs: NaN, pico: NaN, rangoDinamico: NaN };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    // Ganancia fija conserva el crescendo; loudnorm dinámico lo aplanaba al
+    // no poder alcanzar el objetivo con una normalización puramente lineal.
+    const filter = `volume=${gain}dB,alimiter=limit=${10 ** (ceiling / 20)}:attack=2:release=80:level=false:latency=true`;
     await mediaProcess(ffmpeg, ['-v', 'error', '-y', '-i', source, '-af', filter, '-ar', '48000', '-ac', '2', '-c:a', 'aac', '-b:a', '320k', target], signal);
     const result = await measureAudio(ffmpeg, target, signal);
-    levels = { lufs: Number(result.input_i), pico: Number(result.input_tp) };
+    levels = { lufs: Number(result.input_i), pico: Number(result.input_tp), rangoDinamico: Number(result.input_lra) };
     if (Number.isFinite(levels.lufs) && Math.abs(levels.lufs + 14) <= 1 && Number.isFinite(levels.pico) && levels.pico <= -1) return levels;
+    if (!Number.isFinite(levels.lufs) || !Number.isFinite(levels.pico)) break;
+    gain += -14 - levels.lufs;
+    if (levels.pico > -1) ceiling -= levels.pico + 1.5;
   }
   throw new Error(`El AAC no cumple la masterización: ${levels.lufs} LUFS, ${levels.pico} dBTP.`);
 }

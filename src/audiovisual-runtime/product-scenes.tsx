@@ -1,5 +1,5 @@
 import type { CinematicFilm, FilmEntity } from '../shared/audiovisual/film-schema';
-import { actionProgress, ease, mix, type SceneState } from '../shared/audiovisual/frame';
+import { actionProgress, ease, mix, knowledgePortal, type SceneState } from '../shared/audiovisual/frame';
 import { Chip, Icon, Meter, Paper, Ring, Window } from './kit';
 import { brandPoint,ecosystemPoints,sofliaGeometry } from '../shared/audiovisual/brand-geometry';
 
@@ -58,9 +58,17 @@ function Learning({ entity: e, state, film }: Props) {
 
 /** Fragmentos de conocimiento con profundidad; sus mensajes permanecen en primer plano. */
 export function Knowledge({ entity, state, film }: Props) {
-  const motion = state.scene.elementos[0].movimiento, time = state.local / film.fps, activated = state.scene.composicion === 'hero' ? 0 : actionProgress(state, entity.id, 'conexion', film.fps, .5, 2);
+  const motion = state.scene.elementos[0].movimiento, time = state.local / film.fps;
+  const activated = state.scene.composicion === 'hero' ? 0 : actionProgress(state, entity.id, 'conexion', film.fps, .5, 2);
   const positions = [[155,120,-6,.65],[630,72,5,.52],[1370,105,-5,.7],[1620,320,7,.48],[115,680,-4,.62],[580,830,4,.5],[1260,800,-7,.58],[1565,645,5,.64]];
-  return <div className="film-knowledge"><svg className="film-knowledge-links" width="1920" height="1080">{positions.map(([x, y], i) => <g key={i}><path d={`M${x + 120} ${y + 80} Q960 ${y} 960 540`} fill="none" stroke="var(--film-accent)" strokeWidth="2" pathLength="1" strokeDasharray="1" strokeDashoffset={1 - activated} opacity={activated * .42} /><circle cx={x + 120 + (840 - x) * ((time * .18 + i * .13) % 1)} cy={y + 80 + (460 - y) * ((time * .18 + i * .13) % 1)} r="4" fill="var(--film-accent)" opacity={activated * .7} /></g>)}</svg>{positions.map(([x, y, tilt, scale], i) => <div className="film-fragment" key={i} style={{ left: x, top: y + (motion === 'quieto' ? 0 : Math.sin(time * .55 + i * .8) * 12), transform: `rotate(${tilt}deg) scale(${scale})`, filter: `blur(${i % 3 === 0 ? 1.3 : 0}px)`, opacity: .32 + activated * .24 }}><Paper entity={{ ...entity, titulo: entity.etiquetas[i % entity.etiquetas.length], filas: rowsOf(entity).slice(i % 2, i % 2 + 2) }} compact /></div>)}<div className="film-focus-ring" style={{ opacity: activated * .8, transform: `translate(-50%,-50%) scale(${.94 + .08 * Math.sin(time * .8)})` }} /><div className="film-knowledge-scrim" /></div>;
+  const targets = [[260,170],[260,405],[260,640],[720,170],[720,405],[720,640],[1180,170],[1180,640]];
+  return <div className="film-knowledge"><svg className="film-knowledge-links" width="1920" height="1080">
+    {targets.map(([x,y],i)=>{
+      const ax=x+110,ay=y+85,u=(time*.18+i*.13)%1,v=1-u;
+      return <g key={i}><path d={`M${ax} ${ay} Q${knowledgePortal.x-200} ${ay} ${knowledgePortal.x} ${knowledgePortal.y}`} fill="none" stroke="var(--film-accent)" strokeWidth="2" pathLength="1" strokeDasharray="1" strokeDashoffset={1-activated} opacity={activated*.6} /><circle cx={v*v*ax+2*v*u*(knowledgePortal.x-200)+u*u*knowledgePortal.x} cy={v*v*ay+2*v*u*ay+u*u*knowledgePortal.y} r="4" fill="var(--film-accent)" opacity={activated*.8} /></g>;
+    })}
+  </svg>{positions.map(([x,y,tilt,scale],i)=><div className="film-fragment" key={i} style={{left:mix(x,targets[i][0],activated),top:mix(y,targets[i][1],activated)+(1-activated)*(motion==='quieto'?0:Math.sin(time*.55+i*.8)*12),transform:`rotate(${tilt*(1-activated)}deg) scale(${mix(scale,.55,activated)})`,filter:`blur(${(i%3===0?1.3:0)*(1-activated)}px)`,opacity:.32+activated*.6}}><Paper entity={{...entity,titulo:entity.etiquetas[i%entity.etiquetas.length],filas:rowsOf(entity).slice(i%2,i%2+2)}} compact /></div>)}
+  <div className="film-focus-ring" style={{left:knowledgePortal.x,top:knowledgePortal.y,width:knowledgePortal.radius*2,height:knowledgePortal.radius*2,opacity:activated*.9,transform:`translate(-50%,-50%) scale(${.94+.08*Math.sin(time*.8)})`}} /><div className="film-knowledge-scrim" /></div>;
 }
 export function Ecosystem({ film, state, entity, fold = 0 }: Props & {fold?:number}) {
   const time=state.local/film.fps, connected=actionProgress(state,entity.id,'conexion',film.fps,.25,1.4);
