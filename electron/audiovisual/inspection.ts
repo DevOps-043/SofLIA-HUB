@@ -5,13 +5,13 @@ import type { Film } from '../../src/shared/audiovisual/film-schema';
 import { createFilmRenderer } from './browser-renderer';
 import { cinematicFilm } from '../../src/shared/audiovisual/normalize';
 
-export const visualFrames = (film: Film) => cinematicFilm(film).escenas.flatMap((scene, index, scenes) => {
+export const visualFrames = (film: Film) => cinematicFilm(film).escenas.flatMap((scene, index) => {
   const transfer = scene.acciones.find(action=>action.accion==='transferencia');
-  const portal = scenes[index-1]?.composicion === 'panoramica' && scene.composicion === 'editorial' && scene.transicion > 0;
-  return [...(portal ? [scene.inicio + Math.round(scene.transicion*.5)] : []), Math.round(scene.inicio+(scene.fin-scene.inicio)*.35), transfer ? Math.min(scene.fin-1,scene.inicio+transfer.en+Math.round(film.fps*.5)) : scene.fin-1];
+  const transition = index > 0 && scene.transicion > 0;
+  return [...(transition ? [scene.inicio + Math.round(scene.transicion*.5)] : []), Math.round(scene.inicio+(scene.fin-scene.inicio)*.35), transfer ? Math.min(scene.fin-1,scene.inicio+transfer.en+Math.round(film.fps*.5)) : scene.fin-1];
 });
 export const geometryFrames = (film: Film) => [...new Set([...cinematicFilm(film).escenas.flatMap(scene=>[
-  scene.inicio, scene.inicio+scene.transicion, Math.min(scene.fin-1,scene.inicio+scene.transicion+film.fps), scene.fin-1,
+  scene.inicio, ...[.2,.35,.65,.85].map(part=>scene.inicio+Math.round(scene.transicion*part)), scene.inicio+scene.transicion, Math.min(scene.fin-1,scene.inicio+scene.transicion+film.fps), scene.fin-1,
   ...scene.acciones.flatMap(action=>[scene.inicio+action.en,Math.min(film.fotogramas-1,scene.inicio+action.en+Math.round(film.fps*.5))]),
 ]),...visualFrames(film)])].filter(frame=>frame>=0&&frame<film.fotogramas).sort((a,b)=>a-b);
 /** Dos momentos por escena: verifica evolución además de la composición central. */

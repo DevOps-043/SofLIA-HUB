@@ -1,34 +1,36 @@
 import type { CSSProperties } from 'react';
 import type { CinematicFilm } from '../shared/audiovisual/film-schema';
-import { sceneState, sceneBoxes, ease, mix, projectedKnowledgePortal, type SceneState } from '../shared/audiovisual/frame';
+import { sceneState, sceneBoxes, ease, mix, projectedKnowledgePortal, transitionPhases, type SceneState } from '../shared/audiovisual/frame';
 import { Ecosystem, Knowledge, ProductPanel } from './product-scenes';
 import { Icon, Reveal } from './kit';
 import { SofliaMark } from './soflia-mark';
 import './film.css';
+import { colorContrast } from '../shared/audiovisual/color';
 import { frameStamp } from '../shared/audiovisual/frame-stamp';
 
 export function FilmComposition({ film, frame, captureNonce }: { film: CinematicFilm; frame: number; captureNonce?:number }) {
   const state = sceneState(film, frame), { scene, index, entrance } = state;
-  const theme = { '--film-bg': film.direccion.fondo, '--film-panel': film.direccion.superficie, '--film-text': film.direccion.texto, '--film-accent': film.direccion.acento, '--film-secondary': film.direccion.secundario } as CSSProperties;
+  const phases = transitionPhases(state), closing = scene.composicion === 'cierre';
+  const theme = { '--film-title-accent': colorContrast(film.direccion.acento, film.direccion.fondo) >= 4.5 ? film.direccion.acento : film.direccion.texto, '--film-bg': film.direccion.fondo, '--film-panel': film.direccion.superficie, '--film-text': film.direccion.texto, '--film-accent': film.direccion.acento, '--film-secondary': film.direccion.secundario } as CSSProperties;
   const previous = index > 0 && entrance < 1 ? { ...sceneState(film, scene.inicio - 1), frame: state.frame } : null;
   const portal = previous?.scene.composicion === 'panoramica' && scene.composicion === 'editorial';
   const center = previous ? projectedKnowledgePortal(previous) : { x: 0, y: 0, radius: 34 };
   const radius = mix(center.radius, 2200, entrance);
   return <><main className="film-stage" style={theme} aria-label={film.titulo} data-frame={state.frame} data-style={film.direccion.estilo}>
     <div className="film-atmosphere" />
-    {previous && <div className="film-layer" style={{ opacity: portal ? 1 : 1 - entrance, transform: portal ? undefined : `scale(${1 + entrance * .04})` }}><Scene film={film} state={previous} fold={scene.composicion==='cierre'?entrance:0} /></div>}
-    <div className="film-layer" style={{ opacity: portal ? 1 : entrance, clipPath: portal ? `circle(${radius}px at ${center.x}px ${center.y}px)` : undefined, transform: portal ? undefined : `translateX(${(1 - entrance) * 60}px) scale(${.985 + .015 * entrance})` }}><Scene film={film} state={state} /></div>
+    {previous && <div className="film-layer" style={{ opacity: portal || closing ? 1 : phases.outgoingVisual, transform: portal || closing ? undefined : `scale(${1 + entrance * .04})` }}><Scene film={film} state={previous} fold={closing?phases.closingFold:0} headingOpacity={phases.outgoingTitle} /></div>}
+    <div className="film-layer" style={{ opacity: closing ? phases.closingVisual : portal ? 1 : phases.incomingVisual, clipPath: portal ? `circle(${radius}px at ${center.x}px ${center.y}px)` : undefined, transform: portal || closing ? undefined : `translateX(${(1 - entrance) * 60}px) scale(${.985 + .015 * entrance})` }}><Scene film={film} state={state} headingOpacity={index===0?1:phases.incomingTitle} /></div>
     {portal && <div className="film-portal-edge" style={{ left: center.x-radius, top: center.y-radius, width: radius*2, height: radius*2, opacity: 1-entrance }} />}
     <SharedTransfers film={film} frame={state.frame} />
     <div className="film-vignette" />
     {scene.composicion !== 'cierre' && <div className="film-production-note">INTERFACES CONCEPTUALES · {film.marca.nombre}</div>}
   </main>{captureNonce!==undefined&&<div style={{position:'absolute',left:0,top:1080,width:1920,height:12*1920/film.ancho,backgroundColor:`rgb(${frameStamp(frame,captureNonce).join(',')})`}} />}</>;
 }
-function Scene({ film, state, fold = 0 }: { film: CinematicFilm; state: SceneState; fold?:number }) {
+function Scene({ film, state, fold = 0, headingOpacity = 1 }: { film: CinematicFilm; state: SceneState; fold?:number; headingOpacity?:number }) {
   const { scene, progress, local } = state, boxes = sceneBoxes(scene);
   const original = film.entidades.find(e => e.id === scene.elementos[0].id)!;
   const entity = scene.elementos[0].vista ? { ...original,tipo:scene.elementos[0].vista } : original;
-  if (scene.composicion === 'cierre') return <div className="film-close" style={{ opacity: state.entrance }}><div className="film-close-mark">{film.marca.logo === 'soflia' && <SofliaMark />}</div><h1 style={{ fontSize: Math.min(104,1600/(film.marca.nombre.length*.98)) }}>{film.marca.nombre}</h1><span className="film-close-rule" /><p>{film.marca.lema}</p></div>;
+  if (scene.composicion === 'cierre') return <div className="film-close"><div className="film-close-mark">{film.marca.logo === 'soflia' && <SofliaMark />}</div><h1 style={{ fontSize: Math.min(104,1600/(film.marca.nombre.length*.98)) }}>{film.marca.nombre}</h1><span className="film-close-rule" /><p>{film.marca.lema}</p></div>;
   const knowledge = ['hero', 'panoramica'].includes(scene.composicion) && ['documento', 'ecosistema'].includes(entity.tipo);
   const editorial = scene.composicion === 'editorial';
   const scale = mix(mix(scene.camara.inicio, scene.camara.fin, ease(progress)),1,fold);
@@ -42,9 +44,9 @@ function Scene({ film, state, fold = 0 }: { film: CinematicFilm; state: SceneSta
         return <div key={element.id} className="film-plane" style={{ left: box.x+offsetX, top: box.y + float, width: 1280, height: 760, clipPath: element.movimiento === 'revelar' ? `inset(0 ${(1-ease(t/.9))*100}% 0 0)` : undefined, transform: `perspective(3000px) rotateY(${element.inclinacion * (1 - progress * .4)}deg) rotateX(${element.profundidad * 2}deg) scale(${box.w / 1280})`, opacity: ease((local / film.fps - i * .12) / .5) }}><ProductPanel entity={display} film={film} state={state} /></div>;
       })}
     </div>
-    <div className={`film-headline ${editorial ? 'film-headline--editorial' : knowledge ? scene.composicion==='panoramica' ? 'film-headline--activation' : 'film-headline--hero' : 'film-headline--wide'}${scene.ladoVisual === 'izquierda' ? ' film-headline--right' : ''}`}>
+    <div className={`film-headline ${editorial ? 'film-headline--editorial' : knowledge ? scene.composicion==='panoramica' ? 'film-headline--activation' : 'film-headline--hero' : 'film-headline--wide'}${scene.ladoVisual === 'izquierda' ? ' film-headline--right' : ''}`} style={{ opacity: headingOpacity }}>
       {!knowledge && <div className="film-product-label">{film.marca.logo === 'soflia' && <SofliaMark />}<span>{editorial ? entity.titulo : scene.titulo}</span></div>}
-      <Reveal text={scene.mensaje} frame={local} fps={film.fps} className="film-main-message" accentEnd={state.index > 0} />
+      <Reveal text={scene.mensaje} frame={local-(state.index>0?Math.round(scene.transicion*.35):0)} fps={film.fps} className="film-main-message" accentEnd={state.index > 0} highlights={scene.destacados} />
       {scene.subtitulo && <p className="film-subtitle" style={{ opacity: ease((local / film.fps - .8) / .8) }}>{scene.subtitulo}</p>}
       {editorial && <span className="film-heading-rule" style={{ transform: `scaleX(${ease(local / film.fps)})` }} />}
     </div>

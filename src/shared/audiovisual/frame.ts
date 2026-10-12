@@ -32,3 +32,9 @@ export function projectedKnowledgePortal(state: SceneState) {
   const scale = mix(state.scene.camara.inicio, state.scene.camara.fin, ease(state.progress));
   return { x: 1100 + (knowledgePortal.x - 1100) * scale + state.scene.camara.recorridoX * state.progress, y: 540 + (knowledgePortal.y - 540) * scale + state.scene.camara.recorridoY * state.progress, radius: knowledgePortal.radius * scale };
 }
+
+/** El texto sale antes de entrar el siguiente; las ventanas mantienen continuidad. */
+export function transitionPhases(state: SceneState) {
+  const t = state.scene.transicion ? clamp(state.local / state.scene.transicion) : 1;
+  return { outgoingTitle: 1 - ease(t / .35), incomingTitle: ease((t - .35) / .65), outgoingVisual: 1 - ease(t / .85), incomingVisual: ease(t), closingFold: ease(t / .65), closingVisual: ease((t - .65) / .35) };
+}

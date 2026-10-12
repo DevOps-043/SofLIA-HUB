@@ -16,8 +16,9 @@ import { resolveMediaRuntime } from '../electron/audiovisual/runtime';
 app.on('window-all-closed', () => undefined);
 void app.whenReady().then(async () => {
   const root = process.env.SOFLIA_SMOKE_ROOT!, output = process.env.SOFLIA_SMOKE_OUTPUT!;
+  const filmPath = process.env.SOFLIA_SMOKE_FILM || path.join(root, process.env.SOFLIA_SMOKE_CINEMATIC ? 'test/fixtures/audiovisual-cinematic.json' : 'test/fixtures/audiovisual-film.json');
   if (process.env.SOFLIA_SMOKE_AUDIO) {
-    const film = filmSchema.parse(JSON.parse(await fs.readFile(path.join(root, 'test/fixtures/audiovisual-cinematic.json'), 'utf8')));
+    const film = filmSchema.parse(JSON.parse(await fs.readFile(filmPath, 'utf8')));
     const controller = new AbortController(), capture = await createFilmRenderer(film, root, output, controller.signal);
     try {
       const audio = await capture.audio(), again = await capture.audio();
@@ -45,7 +46,9 @@ void app.whenReady().then(async () => {
   }
   const audiovisual = await service.createWorkspace({ skillId: AUDIOVISUAL_SKILL.id, title: 'SofLIA del conocimiento a la acción', policy: AUDIOVISUAL_SKILL.workspace! }); if (!audiovisual.ok) throw new Error(audiovisual.error);
   const id = audiovisual.data.id;
-  const film = await service.writeFile(id, 'film.json', await fs.readFile(path.join(root, process.env.SOFLIA_SMOKE_CINEMATIC ? 'test/fixtures/audiovisual-cinematic.json' : 'test/fixtures/audiovisual-film.json'), 'utf8')); if (!film.ok) throw new Error(film.error);
+  const film = await service.writeFile(id, 'film.json', await fs.readFile(filmPath, 'utf8')); if (!film.ok) throw new Error(film.error);
+  const script = await service.writeFile(id, 'guion.md', 'Guion de prueba: manifiesto local seleccionado. Los mensajes y tiempos están en film.json.');
+  if (!script.ok) throw new Error(script.error);
   await prepareFilmPreview(service, id, root);
   service.on('progreso', event => { if (event.message) console.info(event.message); });
   const renderer = new AudiovisualService(service, root);

@@ -202,3 +202,5 @@
 .film-headline--activation{left:210px;right:210px;top:900px;text-align:center}
 .film-headline--activation .film-main-message{font-size:64px;font-weight:400;letter-spacing:-.045em}
 .film-portal-edge{position:absolute;border:4px solid var(--film-accent);border-radius:50%;box-shadow:0 0 30px var(--film-accent),0 0 70px color-mix(in srgb,var(--film-accent) 35%,transparent);pointer-events:none;z-index:3}
+
+.film-word-mask--accent{color:var(--film-title-accent,var(--film-accent));font-weight:600}

@@ -45,3 +45,21 @@ La evaluación MUST utilizar el loop y servicios reales, identificar el runtime 
 #### Scenario: Informe QA con muchos eventos
 - **WHEN** el informe audiovisual protegido excede el presupuesto de contexto por su sangrado
 - **THEN** la lectura hacia el modelo compacta JSON con representación reversible de eventos sin perder mediciones y conserva el archivo original
+
+### Requirement: Pulido compatible de texto y transiciones
+El sistema MUST conservar tiempos y contenido de manifiestos previos, separar la salida y entrada de sus titulares y admitir destacados literales opcionales con contraste legible.
+
+#### Scenario: Destacado ajeno al mensaje
+- **WHEN** un destacado no coincide con palabras completas del mensaje o colorea todo el titular
+- **THEN** el manifiesto se rechaza con un error reparable
+
+#### Scenario: Cambio de plano
+- **WHEN** una escena entra mediante transición
+- **THEN** su titular aparece después de desaparecer el titular anterior, con movimiento ligado a fotogramas
+
+### Requirement: Fraseo y suspensión musical
+La partitura MUST conservar sincronía, duración y perfil de masterización y separar el pulso rítmico de la pausa previa al cierre.
+
+#### Scenario: Resolución final
+- **WHEN** comienza el cierre de marca
+- **THEN** la percusión y arpegios dejan espacio a la transición y la armonía final entra al terminarla

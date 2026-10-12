@@ -22,3 +22,11 @@
 - [x] Completar render, mediciones, reproducción y evaluación autónoma final.
 - [x] Actualizar informe comparativo, ejecutar gate y revisión independiente final.
 - [x] Conservar QA completo en el contexto mediante serialización compacta y cubrir regresión.
+
+## Pulido tras aprobación del usuario
+- [x] Separar titulares entre planos y resolver el plegado del cierre.
+- [x] Añadir destacados literales compatibles y contraste seguro.
+- [x] Mejorar fraseo, percusión, espacio estéreo y suspensión musical.
+- [x] Renderizar el mismo manifiesto aprobado, revisar capturas, audio y playback.
+- [x] Verificar y revisar independientemente sin dependencias nuevas.
+- [ ] Integrar preservando trabajo concurrente.

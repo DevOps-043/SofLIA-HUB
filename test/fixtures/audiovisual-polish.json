@@ -1,0 +1,531 @@
+{
+  "version": 2,
+  "titulo": "SofLIA — Del conocimiento a la acción",
+  "fps": 60,
+  "ancho": 1920,
+  "fotogramas": 1800,
+  "duracionObjetivo": 30,
+  "semilla": 12030,
+  "conceptual": true,
+  "audio": "sintesis",
+  "direccion": {
+    "estilo": "tecnologico",
+    "fondo": "#071725",
+    "superficie": "#10273B",
+    "texto": "#F1F7FA",
+    "acento": "#20C8B5",
+    "secundario": "#33CFCB"
+  },
+  "marca": {
+    "nombre": "SofLIA",
+    "lema": "Inteligencia que transforma.",
+    "logo": "soflia"
+  },
+  "sonido": {
+    "tempo": 120,
+    "intensidad": 0.58,
+    "efectos": 0.42
+  },
+  "entidades": [
+    {
+      "id": "manual-compras",
+      "tipo": "documento",
+      "titulo": "Manual de compras",
+      "detalle": "Manual y notas: compras, roles y acuerdos.",
+      "etiquetas": [
+        "Conocimiento",
+        "Equipos",
+        "Procesos"
+      ],
+      "filas": [
+        {
+          "id": "fuente-manual",
+          "titulo": "Manual de compras",
+          "detalle": "Solicitud, criterios y aprobación.",
+          "estado": "activo"
+        },
+        {
+          "id": "notas-equipo",
+          "titulo": "Notas del equipo",
+          "detalle": "Dudas y acuerdos del proceso.",
+          "estado": "pendiente"
+        },
+        {
+          "id": "roles-aprobaciones",
+          "titulo": "Roles y aprobaciones",
+          "detalle": "Responsables y validación humana.",
+          "estado": "revision"
+        },
+        {
+          "id": "registro-acuerdos",
+          "titulo": "Registro de acuerdos",
+          "detalle": "Decisiones y próximos pasos.",
+          "estado": "pendiente"
+        }
+      ]
+    },
+    {
+      "id": "soflia-hub",
+      "tipo": "chat",
+      "titulo": "SofLIA Hub",
+      "detalle": "Fuentes: Manual de compras y Notas del equipo.",
+      "etiquetas": [
+        "Manual de compras",
+        "Notas del equipo"
+      ],
+      "instruccion": "Organiza este proceso.",
+      "filas": [
+        {
+          "id": "diagnostico",
+          "titulo": "Diagnóstico",
+          "detalle": "Identificar requisitos y dudas.",
+          "estado": "activo"
+        },
+        {
+          "id": "diseno",
+          "titulo": "Diseño",
+          "detalle": "Definir etapas, roles y criterios.",
+          "estado": "pendiente"
+        },
+        {
+          "id": "revision-humana",
+          "titulo": "Revisión humana",
+          "detalle": "Validar roles y aprobaciones.",
+          "estado": "revision"
+        },
+        {
+          "id": "implementacion",
+          "titulo": "Implementación",
+          "detalle": "Preparar ejecución y seguimiento.",
+          "estado": "pendiente"
+        }
+      ]
+    },
+    {
+      "id": "soflia-engine",
+      "tipo": "curso",
+      "titulo": "SofLIA Engine",
+      "detalle": "Manual de compras convertido en cuatro módulos.",
+      "etiquetas": [
+        "Manual de compras",
+        "4 módulos"
+      ],
+      "filas": [
+        {
+          "id": "fundamentos",
+          "titulo": "Fundamentos",
+          "detalle": "Principios de compra y criterios de decisión.",
+          "estado": "activo"
+        },
+        {
+          "id": "etapas-roles",
+          "titulo": "Etapas y roles",
+          "detalle": "Solicitud, responsables y puntos de aprobación.",
+          "estado": "pendiente"
+        },
+        {
+          "id": "herramientas",
+          "titulo": "Herramientas",
+          "detalle": "Listas de control y registro de decisiones.",
+          "estado": "pendiente"
+        },
+        {
+          "id": "casos-practicos",
+          "titulo": "Casos prácticos",
+          "detalle": "Practicar decisiones con casos de compras.",
+          "estado": "pendiente"
+        }
+      ]
+    },
+    {
+      "id": "soflia-learning",
+      "tipo": "leccion",
+      "titulo": "SofLIA Learning",
+      "detalle": "Manual de compras · Ruta con actividades, seguimiento y asistencia contextual. Avance de demostración: 40 %.",
+      "etiquetas": [
+        "Ruta de aprendizaje",
+        "Actividades",
+        "Seguimiento",
+        "Asistencia contextual",
+        "Datos conceptuales"
+      ],
+      "instruccion": "Asistencia contextual: pide ayuda sobre la etapa en curso.",
+      "progreso": 0.4,
+      "filas": [
+        {
+          "id": "fundamentos",
+          "titulo": "Fundamentos",
+          "detalle": "Actividad: principios y criterios · 100 % completado.",
+          "estado": "completado",
+          "progreso": 1
+        },
+        {
+          "id": "etapas-roles",
+          "titulo": "Etapas y roles",
+          "detalle": "Actividad: ordenar etapas y asignar responsables.",
+          "estado": "activo"
+        },
+        {
+          "id": "herramientas",
+          "titulo": "Herramientas",
+          "detalle": "Actividad: aplicar listas de control y registros.",
+          "estado": "pendiente"
+        },
+        {
+          "id": "casos-practicos",
+          "titulo": "Casos prácticos",
+          "detalle": "Actividad: resolver y revisar un caso de compras.",
+          "estado": "pendiente"
+        }
+      ]
+    },
+    {
+      "id": "ecosistema-soflia",
+      "tipo": "ecosistema",
+      "titulo": "Ecosistema SofLIA",
+      "detalle": "Conocimiento, equipos y procesos conectados mediante coordinación y validación humana.",
+      "etiquetas": [
+        "SofLIA Hub",
+        "SofLIA Engine",
+        "SofLIA Learning",
+        "Coordinación",
+        "Validación humana"
+      ]
+    },
+    {
+      "id": "marca-soflia",
+      "tipo": "marca",
+      "titulo": "SofLIA",
+      "detalle": "Inteligencia que transforma.",
+      "etiquetas": [
+        "Conocimiento",
+        "Acción"
+      ]
+    }
+  ],
+  "escenas": [
+    {
+      "titulo": "El conocimiento está en todas partes.",
+      "mensaje": "El conocimiento está en todas partes.",
+      "subtitulo": "Manual de compras · Notas del equipo · Demostración conceptual",
+      "inicio": 0,
+      "fin": 240,
+      "transicion": 0,
+      "composicion": "hero",
+      "elementos": [
+        {
+          "id": "manual-compras",
+          "movimiento": "flotar",
+          "profundidad": 0,
+          "inclinacion": 0
+        }
+      ],
+      "acciones": [
+        {
+          "en": 36,
+          "entidad": "manual-compras",
+          "accion": "entrada"
+        },
+        {
+          "en": 112,
+          "entidad": "manual-compras",
+          "accion": "analisis",
+          "item": "notas-equipo"
+        },
+        {
+          "en": 194,
+          "entidad": "manual-compras",
+          "accion": "confirmacion",
+          "item": "fuente-manual"
+        }
+      ],
+      "camara": {
+        "inicio": 0.98,
+        "fin": 1.01,
+        "recorridoX": 0,
+        "recorridoY": -4
+      },
+      "destacados": [
+        "conocimiento"
+      ]
+    },
+    {
+      "titulo": "El verdadero valor está en activarlo.",
+      "mensaje": "El verdadero valor está en activarlo.",
+      "inicio": 240,
+      "fin": 480,
+      "transicion": 36,
+      "composicion": "panoramica",
+      "elementos": [
+        {
+          "id": "manual-compras",
+          "movimiento": "quieto",
+          "profundidad": 0,
+          "inclinacion": 0
+        }
+      ],
+      "acciones": [
+        {
+          "en": 38,
+          "entidad": "manual-compras",
+          "accion": "analisis"
+        },
+        {
+          "en": 108,
+          "entidad": "manual-compras",
+          "accion": "conexion",
+          "item": "notas-equipo"
+        },
+        {
+          "en": 192,
+          "entidad": "manual-compras",
+          "accion": "transferencia",
+          "item": "fuente-manual"
+        }
+      ],
+      "camara": {
+        "inicio": 0.94,
+        "fin": 0.94,
+        "recorridoX": 0,
+        "recorridoY": -18
+      },
+      "destacados": [
+        "activarlo."
+      ]
+    },
+    {
+      "titulo": "Inteligencia aplicada al trabajo.",
+      "mensaje": "Inteligencia aplicada al trabajo.",
+      "subtitulo": "SofLIA Hub · Fuentes, diseño del proceso y revisión humana.",
+      "ladoVisual": "derecha",
+      "inicio": 480,
+      "fin": 780,
+      "transicion": 36,
+      "composicion": "editorial",
+      "elementos": [
+        {
+          "id": "soflia-hub",
+          "movimiento": "revelar",
+          "profundidad": 0,
+          "inclinacion": 0
+        }
+      ],
+      "acciones": [
+        {
+          "en": 30,
+          "entidad": "soflia-hub",
+          "accion": "entrada"
+        },
+        {
+          "en": 92,
+          "entidad": "soflia-hub",
+          "accion": "analisis",
+          "item": "diagnostico"
+        },
+        {
+          "en": 178,
+          "entidad": "soflia-hub",
+          "accion": "conexion",
+          "item": "revision-humana"
+        },
+        {
+          "en": 254,
+          "entidad": "soflia-hub",
+          "accion": "transferencia",
+          "item": "diseno"
+        }
+      ],
+      "camara": {
+        "inicio": 0.99,
+        "fin": 1.01,
+        "recorridoX": -5,
+        "recorridoY": 0
+      },
+      "destacados": [
+        "Inteligencia",
+        "trabajo."
+      ]
+    },
+    {
+      "titulo": "Transforma conocimiento en formación.",
+      "mensaje": "Transforma conocimiento en formación.",
+      "subtitulo": "SofLIA Engine · El mismo documento, cuatro módulos concretos.",
+      "ladoVisual": "izquierda",
+      "inicio": 780,
+      "fin": 1140,
+      "transicion": 42,
+      "composicion": "editorial",
+      "elementos": [
+        {
+          "id": "soflia-engine",
+          "movimiento": "recorrido",
+          "profundidad": 0,
+          "inclinacion": 0
+        }
+      ],
+      "acciones": [
+        {
+          "en": 36,
+          "entidad": "soflia-engine",
+          "accion": "entrada"
+        },
+        {
+          "en": 118,
+          "entidad": "soflia-engine",
+          "accion": "analisis",
+          "item": "etapas-roles"
+        },
+        {
+          "en": 228,
+          "entidad": "soflia-engine",
+          "accion": "confirmacion",
+          "item": "fundamentos"
+        },
+        {
+          "en": 312,
+          "entidad": "soflia-engine",
+          "accion": "transferencia",
+          "item": "fundamentos"
+        }
+      ],
+      "camara": {
+        "inicio": 0.99,
+        "fin": 1.015,
+        "recorridoX": 5,
+        "recorridoY": -2
+      },
+      "destacados": [
+        "formación."
+      ]
+    },
+    {
+      "titulo": "Desarrolla capacidades.",
+      "mensaje": "Desarrolla capacidades.",
+      "subtitulo": "SofLIA Learning · Ruta, actividades y asistencia contextual. Datos conceptuales.",
+      "ladoVisual": "derecha",
+      "inicio": 1140,
+      "fin": 1440,
+      "transicion": 36,
+      "composicion": "editorial",
+      "elementos": [
+        {
+          "id": "soflia-learning",
+          "movimiento": "revelar",
+          "profundidad": 0.08,
+          "inclinacion": -0.5
+        }
+      ],
+      "acciones": [
+        {
+          "en": 28,
+          "entidad": "soflia-learning",
+          "accion": "entrada",
+          "item": "fundamentos"
+        },
+        {
+          "en": 98,
+          "entidad": "soflia-learning",
+          "accion": "confirmacion",
+          "item": "fundamentos"
+        },
+        {
+          "en": 174,
+          "entidad": "soflia-learning",
+          "accion": "analisis",
+          "item": "etapas-roles"
+        },
+        {
+          "en": 248,
+          "entidad": "soflia-learning",
+          "accion": "conexion"
+        }
+      ],
+      "camara": {
+        "inicio": 0.99,
+        "fin": 1.01,
+        "recorridoX": -4,
+        "recorridoY": 1
+      },
+      "destacados": [
+        "capacidades."
+      ]
+    },
+    {
+      "titulo": "Un ecosistema. Nuevas posibilidades.",
+      "mensaje": "Un ecosistema. Nuevas posibilidades.",
+      "subtitulo": "Conocimiento · Equipos · Procesos · Coordinación · Validación humana",
+      "inicio": 1440,
+      "fin": 1560,
+      "transicion": 18,
+      "composicion": "ecosistema",
+      "elementos": [
+        {
+          "id": "ecosistema-soflia",
+          "movimiento": "quieto",
+          "profundidad": 0,
+          "inclinacion": 0
+        }
+      ],
+      "acciones": [
+        {
+          "en": 12,
+          "entidad": "ecosistema-soflia",
+          "accion": "entrada"
+        },
+        {
+          "en": 44,
+          "entidad": "ecosistema-soflia",
+          "accion": "conexion"
+        },
+        {
+          "en": 86,
+          "entidad": "ecosistema-soflia",
+          "accion": "transferencia"
+        }
+      ],
+      "camara": {
+        "inicio": 0.99,
+        "fin": 1.01,
+        "recorridoX": 0,
+        "recorridoY": 0
+      },
+      "destacados": [
+        "Nuevas posibilidades."
+      ]
+    },
+    {
+      "titulo": "SofLIA — Inteligencia que transforma.",
+      "mensaje": "SofLIA — Inteligencia que transforma.",
+      "inicio": 1560,
+      "fin": 1800,
+      "transicion": 60,
+      "composicion": "cierre",
+      "elementos": [
+        {
+          "id": "marca-soflia",
+          "movimiento": "quieto",
+          "profundidad": 0,
+          "inclinacion": 0
+        }
+      ],
+      "acciones": [
+        {
+          "en": 0,
+          "entidad": "marca-soflia",
+          "accion": "entrada"
+        },
+        {
+          "en": 60,
+          "entidad": "marca-soflia",
+          "accion": "cierre"
+        }
+      ],
+      "camara": {
+        "inicio": 1,
+        "fin": 1,
+        "recorridoX": 0,
+        "recorridoY": 0
+      }
+    }
+  ]
+}

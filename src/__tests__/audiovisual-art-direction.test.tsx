@@ -7,7 +7,7 @@ import { cinematicFilm } from '../shared/audiovisual/normalize';
 import { filmSchema } from '../shared/audiovisual/film-schema';
 import legacyFixture from '../../test/fixtures/audiovisual-film.json';
 import { frameStamp } from '../shared/audiovisual/frame-stamp';
-import { actionProgress, sceneState, projectedKnowledgePortal } from '../shared/audiovisual/frame';
+import { actionProgress, sceneState, projectedKnowledgePortal, transitionPhases } from '../shared/audiovisual/frame';
 import { geometryFrames, visualFrames } from '../../electron/audiovisual/inspection';
 
 describe('dirección audiovisual y datos del brief', () => {
@@ -75,6 +75,34 @@ describe('dirección audiovisual y datos del brief', () => {
     const mask = html.match(/circle\(([\d.]+)px at ([\d.]+)px ([\d.]+)px\)/)!;
     expect(mask.slice(1).map(Number)).toEqual([portal.radius, portal.x, portal.y]);
     expect(visualFrames(film)).toContain(film.escenas[2].inicio + Math.round(film.escenas[2].transicion * .5));
+  });
+  it('separa los titulares, conserva cortes sin transición y retrasa el blanco del cierre', () => {
+    const film = filmV2Schema.parse(fixture), scene = film.escenas[2];
+    for (let frame = scene.inicio; frame <= scene.inicio + scene.transicion; frame++) {
+      const phases = transitionPhases(sceneState(film, frame));
+      expect(phases.outgoingTitle * phases.incomingTitle).toBe(0);
+    }
+    const close = film.escenas[film.escenas.length - 1];
+    expect(transitionPhases(sceneState(film, close.inicio + Math.round(close.transicion * .5))).closingVisual).toBe(0);
+    for (let frame = close.inicio; frame <= close.inicio + close.transicion; frame++) {
+      const phases = transitionPhases(sceneState(film, frame));
+      if (phases.closingVisual > 0) expect(phases.closingFold).toBe(1);
+    }
+    scene.transicion = 0;
+    expect(transitionPhases(sceneState(film, scene.inicio))).toMatchObject({ outgoingTitle: 0, incomingTitle: 1, incomingVisual: 1 });
+  });
+  it('resalta frases completas y rechaza destacados ajenos, parciales o de todo el titular', () => {
+    const film = filmV2Schema.parse(fixture), scene = film.escenas[2];
+    scene.destacados = ['Inteligencia', 'trabajo.'];
+    expect(filmV2Schema.safeParse(film).success).toBe(true);
+    const html = renderToStaticMarkup(<FilmComposition film={film} frame={scene.fin - 1} />);
+    expect(html).toContain('film-word-mask--accent');
+    expect(html).toContain('aria-label="Inteligencia aplicada al trabajo."');
+    for (const highlighted of [['Inteli'], ['inexistente'], [scene.mensaje], ['Inteligencia', 'Inteligencia']]) {
+      scene.destacados = highlighted; expect(filmV2Schema.safeParse(film).success).toBe(false);
+    }
+    scene.destacados = ['Inteligencia']; film.direccion.acento = film.direccion.fondo;
+    expect(renderToStaticMarkup(<FilmComposition film={film} frame={scene.fin - 1} />)).toContain('--film-title-accent:' + film.direccion.texto);
   });
   it('la firma de captura distingue fotogramas y reintentos y no aparece en la preview', () => {
     const signatures = new Set<string>();
