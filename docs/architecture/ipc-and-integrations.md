@@ -69,7 +69,7 @@ aprobación fabricada del renderer. El servicio comprueba capacidad, política,
 perfil y control humano; el borrado pregunta en main. Responde con biblioteca
 versionada, cancelación o error saneado. No existe IPC de ejecución de atajos.
 
-La allowlist actual contiene 470 canales derivados de cinco arrays: 84, 52, 61, 142, 131. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 471 canales derivados de cinco arrays: 84, 52, 61, 142, 132. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |
@@ -809,4 +809,4 @@ Véase [especificación del visor](../../openspec/changes/preview-generated-arti
 
 ## Exportación y audiovisual local
 
-`presentation:export-pptx` publica un PPTX editable del deck validado. `audiovisual:render` y `audiovisual:cancel` reciben solamente workspaceId, validado mediante esquema estricto; el servicio comprueba la skill propietaria. Allowlist, preload y wrapper tipado no exponen shell, ejecutables ni escritura binaria genérica. Contratos y límites en [producción audiovisual](presentation-audiovisual-production.md).
+`presentation:export-pptx` publica un PPTX editable del deck validado. `audiovisual:inspect`, `audiovisual:render` y `audiovisual:cancel` reciben solamente workspaceId, validado mediante esquema estricto; el servicio comprueba la skill propietaria. Allowlist, preload y wrapper tipado no exponen shell, ejecutables ni escritura binaria genérica. Contratos y límites en [producción audiovisual](presentation-audiovisual-production.md).

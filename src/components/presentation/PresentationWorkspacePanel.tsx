@@ -5,6 +5,7 @@ import { PresentationPreview } from './PresentationPreview';
 import { usePresentationWorkspace } from './usePresentationWorkspace';
 import { workspaceApi, presentationApi } from '../../services/skills/workspace-bridge';
 import { isEditableFile } from './file-kind';
+import { previewRevision } from './preview-revision';
 import {
   PRESENTACIONES_BASE_CSS,
   PRESENTACIONES_BASE_JS,
@@ -44,21 +45,25 @@ export function PresentationWorkspacePanel(props: {
   const [aviso, setAviso] = useState<string | null>(null);
   const { width, isResizing, handlers } = usePanelWidth();
 
+  const isVideo = state.workspace?.skillId === 'sistema:audiovisual';
+  const [replay, setReplay] = useState(0);
+  const [inspectionImages, setInspectionImages] = useState<string[]>([]);
+  const [inspecting, setInspecting] = useState(false);
   // Identifica la version del contenido para que la vista previa se recargue
   // cuando los archivos cambian, sin recargarla en cada render.
   const revision = useMemo(
-    () => state.files.map((file) => `${file.path}:${file.bytes}:${file.updatedAt}`).join('|'),
-    [state.files],
+    () => previewRevision(state.files, isVideo),
+    [state.files, isVideo],
   );
 
   // Los archivos que escribe el sistema (identidad, sistema de diseno y guion)
   // no se editan desde el panel: main los rechazaria igual, y ofrecer el boton
   // solo para ver el error seria enganoso.
-  const isVideo = state.workspace?.skillId === 'sistema:audiovisual';
   const previewReady = state.ready || (isVideo && state.files.some(file => file.path === 'film.json'));
   const [rendering, setRendering] = useState(false);
-  const renderVideo = async () => { setRendering(true); setAviso('Produciendo video...'); try { const result = await workspaceApi()?.renderVideo(props.workspaceId); setAviso(result?.success ? 'MP4 producido y verificado. Abre la carpeta para usarlo.' : result?.error ?? 'No se pudo producir.'); } finally { setRendering(false); } };
-  const editable = isEditableFile(state.selectedPath, [...PRESENTACIONES_PROTECTED_FILES, 'vista.html', 'qa/informe.json', 'salida/video.mp4']);
+  const renderVideo = async () => { setRendering(true); setAviso('Produciendo video...'); try { const inspection = await workspaceApi()?.inspectVideo(props.workspaceId); if (!inspection?.success || inspection.issues?.length) { setAviso(inspection?.error ?? 'Corrige los desbordamientos detectados antes de producir.'); return; } setInspectionImages(inspection.images ?? []); setTab('vista'); const result = await workspaceApi()?.renderVideo(props.workspaceId); if (result?.success) setInspectionImages([]); setAviso(result?.success ? 'MP4 producido y verificado. Abre la carpeta para usarlo.' : result?.error ?? 'No se pudo producir.'); } finally { setRendering(false); } };
+  const inspectVideo = async () => { setInspecting(true); try { const result = await workspaceApi()?.inspectVideo(props.workspaceId); setInspectionImages(result?.images ?? []); setTab('vista'); setAviso(result?.success ? (result.issues?.length ? 'Hay textos desbordados. Corrige el manifiesto.' : 'Revisa contenido, jerarquía y evolución en cada escena.') : result?.error ?? 'No se pudo inspeccionar.'); } finally { setInspecting(false); } };
+  const editable = isEditableFile(state.selectedPath, [...PRESENTACIONES_PROTECTED_FILES, 'vista.html', 'qa/informe.json', 'qa/visual.json', 'salida/video.mp4']);
 
   useAutoOpenPreview({
     ready: state.ready,
@@ -72,6 +77,8 @@ export function PresentationWorkspacePanel(props: {
       return;
     }
     setAviso(null);
+    setInspectionImages([]);
+    if (isVideo) setReplay(value => value + 1);
     setTab('vista');
   };
 
@@ -146,7 +153,7 @@ export function PresentationWorkspacePanel(props: {
           >
             <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
           </IconButton>
-          {isVideo ? <><button type="button" onClick={() => void renderVideo()} disabled={rendering || !previewReady} className="px-2 text-xs">Producir MP4</button><button type="button" disabled={!rendering && state.writingPath !== 'salida/video.mp4'} onClick={() => void workspaceApi()?.cancelVideo(props.workspaceId)} className="px-2 text-xs">Cancelar</button></> : <button type="button" disabled={!state.ready} className="px-2 text-xs" onClick={() => void presentationApi()?.exportPptx(props.workspaceId).then(result => { setAviso(result.success ? 'PPTX editable exportado.' : result.error ?? 'No se pudo exportar.'); if (result.success) void openFolder(); })}>PPTX</button>}
+          {!isVideo && <button type="button" disabled={!state.ready} className="px-2 text-xs" onClick={() => void presentationApi()?.exportPptx(props.workspaceId).then(result => { setAviso(result.success ? 'PPTX editable exportado.' : result.error ?? 'No se pudo exportar.'); if (result.success) void openFolder(); })}>PPTX</button>}
           <IconButton label="Exportar como archivo HTML" onClick={() => void handleExportar()} disabled={isVideo || !state.ready}>
             <path d="M12 3v11m0 0-4-4m4 4 4-4M4 19h16" />
           </IconButton>
@@ -158,6 +165,11 @@ export function PresentationWorkspacePanel(props: {
           </IconButton>
         </div>
       </header>
+      {isVideo && <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-4 py-2 text-xs">
+        <button type="button" onClick={() => void inspectVideo()} disabled={inspecting || rendering || !previewReady} className="rounded-lg bg-surface-2 px-2.5 py-2 disabled:opacity-40">Revisar escenas</button>
+        <button type="button" onClick={() => void renderVideo()} disabled={rendering || inspecting || !previewReady} className="rounded-lg bg-accent px-2.5 py-2 text-on-accent disabled:opacity-40">Producir MP4</button>
+        <button type="button" disabled={!rendering && !inspecting && state.writingPath !== 'salida/video.mp4'} onClick={() => void workspaceApi()?.cancelVideo(props.workspaceId)} className="px-2 py-2 disabled:opacity-40">Cancelar</button>
+      </div>}
 
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2">
         <div className="flex gap-1 rounded-xl bg-surface-2 p-0.5">
@@ -187,7 +199,7 @@ export function PresentationWorkspacePanel(props: {
 
       {tab === 'vista' ? (
         <div className="min-h-0 flex-1 bg-surface-2">
-          <PresentationPreview workspaceId={props.workspaceId} ready={previewReady} revision={revision} />
+          {inspectionImages.length ? <div className="h-full overflow-auto p-2">{inspectionImages.map((src, index) => <img key={index} src={src} alt={`Escenas de la producción, hoja ${index + 1}`} className="mb-3 w-full" />)}</div> : <PresentationPreview workspaceId={props.workspaceId} ready={previewReady} revision={isVideo ? revision + replay : revision} />}
         </div>
       ) : (
         <div className="flex min-h-0 flex-1">

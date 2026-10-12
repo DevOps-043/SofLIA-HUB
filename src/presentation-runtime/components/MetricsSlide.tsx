@@ -1,0 +1,8 @@
+import { motion } from 'framer-motion';
+import type { ReactNode } from 'react';
+import type { PresentationSlide } from '../../shared/presentations/deck-schema';
+import { CountedMetric } from './CountedMetric';
+export function MetricsSlide({ slide, reduced, header, visual }: { slide:Extract<PresentationSlide,{tipo:'metricas'}>; reduced:boolean; header:ReactNode; visual?:ReactNode }) {
+  const count = slide.metricas.length, compact = slide.variante === 'compacta';
+  return <section className="runtime-pad runtime-metrics"><header>{header}{slide.introduccion || slide.texto ? <p className="runtime-lead mt-6">{slide.introduccion ?? slide.texto}</p> : null}</header><div className={`runtime-metrics-body ${visual ? 'runtime-metrics-body--visual' : ''}`}><div className="runtime-metrics-grid" style={{gridTemplateColumns:`repeat(${compact ? count : Math.min(count,2)}, minmax(0,1fr))`}}>{slide.metricas.map((metric,i)=><motion.article key={metric.etiqueta} initial={reduced ? false : {opacity:0,y:30}} animate={{opacity:1,y:0}} transition={{duration:.7,delay:reduced?0:i*.12,ease:[.22,1,.36,1]}} className="runtime-metric"><span className="runtime-metric-index">0{i+1}</span><strong style={{fontSize:Math.min(compact?118:154,(compact?1550/count:visual?490:770)/Math.max(3,metric.valor.length)*1.5)}}><CountedMetric value={metric.valor} count={metric.conteo} enabled={!reduced&&slide.movimiento.enfasis==='conteo'} /></strong><h2>{metric.etiqueta}</h2>{metric.detalle||metric.nota?<p>{metric.detalle??metric.nota}</p>:null}</motion.article>)}</div>{visual&&<div className="runtime-media runtime-metrics-visual">{visual}</div>}</div></section>;
+}

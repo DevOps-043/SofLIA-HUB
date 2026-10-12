@@ -13,6 +13,7 @@ import type { ActiveSkillContext } from '../gemini-tools/turn-catalog';
 type WorkspaceResponse = Record<string, unknown>;
 
 interface WorkspaceBridge {
+  inspectVideo: (workspaceId: string) => Promise<WorkspaceResponse>;
   renderVideo: (workspaceId: string) => Promise<WorkspaceResponse>;
   cancelVideo: (workspaceId: string) => Promise<WorkspaceResponse>;
   writeImage: (workspaceId: string, fileName: string, base64: string) => Promise<WorkspaceResponse>;
@@ -60,11 +61,12 @@ export async function executeSkillWorkspaceTool(
   const path = String(args.path ?? '').trim();
 
   switch (toolName) {
+    case 'workspace_inspect_video':
     case 'workspace_render_video': {
       if (activeSkill?.id !== 'sistema:audiovisual' || signal?.aborted) return JSON.stringify({ success: false, error: 'Producción fuera del contexto autorizado o cancelada.' });
       const cancel = () => { void api.cancelVideo(workspaceId).catch(() => undefined); };
       signal?.addEventListener('abort', cancel, { once: true });
-      try { return normalize(await api.renderVideo(workspaceId)); }
+      try { return normalize(await (toolName === 'workspace_inspect_video' ? api.inspectVideo(workspaceId) : api.renderVideo(workspaceId))); }
       finally { signal?.removeEventListener('abort', cancel); }
     }
     case 'workspace_list_files':

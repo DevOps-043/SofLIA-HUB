@@ -41,7 +41,7 @@ export const PRESENTACIONES_SKILL: SystemSkill = Object.freeze({
     'Prepara una propuesta comercial en diapositivas para un cliente',
   ]) as readonly string[],
   surfaces: Object.freeze(['chat', 'whatsapp', 'telegram']) as readonly SkillSurface[],
-  tools: Object.freeze(SKILL_WORKSPACE_TOOL_NAMES.filter(name => name !== 'workspace_render_video')) as readonly string[],
+  tools: Object.freeze(SKILL_WORKSPACE_TOOL_NAMES.filter(name => !['workspace_render_video', 'workspace_inspect_video'].includes(name))) as readonly string[],
   workspace: Object.freeze({
     rootFolder: 'presentaciones',
     allowedExtensions: Object.freeze(['.json', '.md']) as readonly string[],

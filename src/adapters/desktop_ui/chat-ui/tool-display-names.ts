@@ -129,6 +129,7 @@ export const TOOL_DISPLAY_NAMES: Record<string, string> = {
   workspace_edit_file: 'Editando archivo...',
   workspace_generate_image: 'Generando imagen...',
   workspace_render_video: 'Produciendo video...',
+  workspace_inspect_video: 'Revisando escenas...',
   workspace_download_image: 'Descargando recurso...',
 };
 
@@ -148,4 +149,3 @@ export function getToolDisplayName(toolName?: string): string {
 
   return clean.charAt(0).toUpperCase() + clean.slice(1) + '...';
 }
-

@@ -119,6 +119,7 @@ export const CHANNEL_GROUP_5 = [
   'presentation:export-html',
   'presentation:export-pptx',
   'audiovisual:render',
+  'audiovisual:inspect',
   'audiovisual:cancel',
   'presentation:prepare-branding',
 

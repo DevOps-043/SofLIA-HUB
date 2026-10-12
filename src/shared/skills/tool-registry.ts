@@ -212,6 +212,7 @@ export const SKILL_TOOL_GROUPS: readonly SkillToolGroup[] = Object.freeze([
       { name: 'workspace_edit_file', label: 'Editar', description: 'Modifica un archivo del espacio.' },
       { name: 'workspace_generate_image', label: 'Generar imagen', description: 'Crea una imagen dentro del espacio.' },
       { name: 'workspace_render_video', label: 'Producir video', description: 'Renderiza y verifica el MP4 del workspace audiovisual.' },
+      { name: 'workspace_inspect_video', label: 'Revisar escenas', description: 'Captura escenas y devuelve imágenes para crítica visual antes del render.' },
       { name: 'workspace_download_image', label: 'Descargar imagen', description: 'Trae una imagen de una fuente al espacio.' },
     ],
   },

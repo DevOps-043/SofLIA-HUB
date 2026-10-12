@@ -41,6 +41,7 @@ export type WorkspaceProgressEvent = {
 };
 
 interface WorkspaceApi {
+  inspectVideo: (workspaceId: string) => Promise<{ success: boolean; error?: string; images?: string[]; issues?: Array<{ frame: number; textos: string[] }> }>;
   renderVideo: (workspaceId: string) => Promise<{ success: boolean; error?: string }>;
   cancelVideo: (workspaceId: string) => Promise<{ success: boolean; error?: string }>;
   create: (input: {

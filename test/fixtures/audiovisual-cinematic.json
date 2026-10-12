@@ -1,0 +1,443 @@
+{
+  "version": 2,
+  "titulo": "SofLIA — Inteligencia que transforma",
+  "fps": 60,
+  "ancho": 1920,
+  "fotogramas": 1800,
+  "duracionObjetivo": 30,
+  "semilla": 20261012,
+  "conceptual": true,
+  "audio": "sintesis",
+  "direccion": {
+    "estilo": "tecnologico",
+    "fondo": "#071725",
+    "superficie": "#10273B",
+    "texto": "#F1F7FA",
+    "acento": "#20C8B5",
+    "secundario": "#33CFCB"
+  },
+  "marca": {
+    "nombre": "SofLIA",
+    "lema": "Inteligencia que transforma.",
+    "logo": "soflia"
+  },
+  "entidades": [
+    {
+      "id": "fuente",
+      "tipo": "documento",
+      "titulo": "Gestión del proceso de compras",
+      "detalle": "El conocimiento del equipo vive en documentos, procesos y conversaciones.",
+      "etiquetas": [
+        "Manual de procesos",
+        "Notas de reunión",
+        "Fuentes del equipo"
+      ],
+      "filas": [
+        {
+          "id": "diagnostico",
+          "titulo": "Diagnóstico",
+          "detalle": "Identificar necesidades y contexto.",
+          "estado": "pendiente"
+        },
+        {
+          "id": "diseno",
+          "titulo": "Diseño",
+          "detalle": "Organizar etapas y responsables.",
+          "estado": "pendiente"
+        },
+        {
+          "id": "revision",
+          "titulo": "Revisión humana",
+          "detalle": "Validar los criterios de trabajo.",
+          "estado": "revision"
+        }
+      ]
+    },
+    {
+      "id": "hub",
+      "tipo": "chat",
+      "titulo": "SofLIA Hub",
+      "detalle": "Conecta las fuentes y organiza el trabajo con contexto.",
+      "instruccion": "Organiza este proceso.",
+      "etiquetas": [
+        "Asistente",
+        "Procesos",
+        "Conocimiento",
+        "Equipo"
+      ],
+      "filas": [
+        {
+          "id": "diagnostico",
+          "titulo": "Diagnóstico",
+          "detalle": "Mapear el proceso actual",
+          "estado": "activo"
+        },
+        {
+          "id": "diseno",
+          "titulo": "Diseño",
+          "detalle": "Definir etapas y roles",
+          "estado": "pendiente"
+        },
+        {
+          "id": "revision",
+          "titulo": "Revisión humana",
+          "detalle": "Validar el flujo propuesto",
+          "estado": "revision"
+        },
+        {
+          "id": "implementacion",
+          "titulo": "Implementación",
+          "detalle": "Preparar la aplicación",
+          "estado": "pendiente"
+        }
+      ]
+    },
+    {
+      "id": "engine",
+      "tipo": "curso",
+      "titulo": "SofLIA Engine",
+      "detalle": "Gestión del proceso de compras",
+      "instruccion": "Del proceso a una ruta de formación.",
+      "etiquetas": [
+        "Fuente",
+        "Temario",
+        "Módulos",
+        "Revisión"
+      ],
+      "filas": [
+        {
+          "id": "fundamentos",
+          "titulo": "Fundamentos",
+          "detalle": "Contexto y propósito del proceso",
+          "estado": "completado"
+        },
+        {
+          "id": "etapas",
+          "titulo": "Etapas y roles",
+          "detalle": "Responsables y decisiones",
+          "estado": "activo"
+        },
+        {
+          "id": "herramientas",
+          "titulo": "Herramientas",
+          "detalle": "Recursos para la aplicación",
+          "estado": "pendiente"
+        },
+        {
+          "id": "casos",
+          "titulo": "Casos prácticos",
+          "detalle": "Del concepto a la práctica",
+          "estado": "revision"
+        }
+      ]
+    },
+    {
+      "id": "learning",
+      "tipo": "leccion",
+      "titulo": "SofLIA Learning",
+      "detalle": "Un recorrido para aprender, aplicar y seguir avanzando.",
+      "instruccion": "Desarrolla tus capacidades.",
+      "etiquetas": [
+        "Mi aprendizaje",
+        "Actividades",
+        "Recursos",
+        "Asistente"
+      ],
+      "filas": [
+        {
+          "id": "fundamentos",
+          "titulo": "Fundamentos",
+          "detalle": "Contexto del proceso",
+          "estado": "completado",
+          "progreso": 1
+        },
+        {
+          "id": "etapas",
+          "titulo": "Etapas y roles",
+          "detalle": "Decisiones en el trabajo",
+          "estado": "activo"
+        },
+        {
+          "id": "herramientas",
+          "titulo": "Herramientas",
+          "detalle": "Recursos para la aplicación",
+          "estado": "pendiente"
+        },
+        {
+          "id": "casos",
+          "titulo": "Casos prácticos",
+          "detalle": "Aprender haciendo",
+          "estado": "pendiente"
+        }
+      ],
+      "progreso": 0.4
+    },
+    {
+      "id": "ecosistema",
+      "tipo": "ecosistema",
+      "titulo": "Un ecosistema conectado",
+      "detalle": "El conocimiento conecta procesos, formación y capacidades.",
+      "etiquetas": [
+        "Conocimiento",
+        "Equipos",
+        "Validación humana",
+        "Procesos",
+        "Coordinación"
+      ]
+    },
+    {
+      "id": "marca",
+      "tipo": "marca",
+      "titulo": "SofLIA",
+      "detalle": "Inteligencia que transforma.",
+      "etiquetas": [
+        "SofLIA"
+      ]
+    }
+  ],
+  "escenas": [
+    {
+      "titulo": "Conocimiento disperso",
+      "mensaje": "El conocimiento está en todas partes.",
+      "inicio": 0,
+      "fin": 240,
+      "transicion": 0,
+      "composicion": "hero",
+      "elementos": [
+        {
+          "id": "fuente",
+          "movimiento": "flotar",
+          "profundidad": 0,
+          "inclinacion": 0
+        }
+      ],
+      "acciones": [],
+      "camara": {
+        "inicio": 1,
+        "fin": 1.025,
+        "recorridoX": 0,
+        "recorridoY": 0
+      }
+    },
+    {
+      "titulo": "Activación",
+      "mensaje": "El verdadero valor está en activarlo.",
+      "inicio": 240,
+      "fin": 480,
+      "transicion": 36,
+      "composicion": "panoramica",
+      "elementos": [
+        {
+          "id": "fuente",
+          "movimiento": "flotar",
+          "profundidad": 0,
+          "inclinacion": 0
+        }
+      ],
+      "acciones": [
+        {
+          "en": 30,
+          "accion": "conexion",
+          "entidad": "fuente"
+        }
+      ],
+      "camara": {
+        "inicio": 1,
+        "fin": 1.025,
+        "recorridoX": 0,
+        "recorridoY": 0
+      }
+    },
+    {
+      "titulo": "Trabajo con contexto",
+      "mensaje": "Inteligencia aplicada al trabajo.",
+      "inicio": 480,
+      "fin": 780,
+      "transicion": 36,
+      "composicion": "editorial",
+      "elementos": [
+        {
+          "id": "hub",
+          "movimiento": "flotar",
+          "profundidad": 0,
+          "inclinacion": -3
+        }
+      ],
+      "acciones": [
+        {
+          "en": 25,
+          "accion": "entrada",
+          "entidad": "hub"
+        },
+        {
+          "en": 78,
+          "accion": "analisis",
+          "entidad": "hub"
+        },
+        {
+          "en": 146,
+          "accion": "confirmacion",
+          "entidad": "hub"
+        },
+        {
+          "en": 255,
+          "accion": "transferencia",
+          "entidad": "hub"
+        }
+      ],
+      "camara": {
+        "inicio": 1,
+        "fin": 1.025,
+        "recorridoX": 0,
+        "recorridoY": 0
+      }
+    },
+    {
+      "titulo": "Formación",
+      "mensaje": "Transforma conocimiento en formación.",
+      "inicio": 780,
+      "fin": 1140,
+      "transicion": 36,
+      "composicion": "editorial",
+      "elementos": [
+        {
+          "id": "engine",
+          "movimiento": "flotar",
+          "profundidad": 0.25,
+          "inclinacion": 0
+        }
+      ],
+      "acciones": [
+        {
+          "en": 36,
+          "accion": "analisis",
+          "entidad": "engine"
+        },
+        {
+          "en": 126,
+          "accion": "conexion",
+          "entidad": "engine"
+        },
+        {
+          "en": 270,
+          "accion": "confirmacion",
+          "entidad": "engine"
+        },
+        {
+          "en": 310,
+          "accion": "transferencia",
+          "entidad": "engine"
+        }
+      ],
+      "camara": {
+        "inicio": 1,
+        "fin": 1.025,
+        "recorridoX": -8,
+        "recorridoY": 0
+      },
+      "ladoVisual": "izquierda"
+    },
+    {
+      "titulo": "Capacidades",
+      "mensaje": "Desarrolla capacidades.",
+      "inicio": 1140,
+      "fin": 1440,
+      "transicion": 36,
+      "composicion": "editorial",
+      "elementos": [
+        {
+          "id": "learning",
+          "movimiento": "flotar",
+          "profundidad": 0,
+          "inclinacion": 2
+        }
+      ],
+      "acciones": [
+        {
+          "en": 12,
+          "accion": "entrada",
+          "entidad": "learning"
+        },
+        {
+          "en": 90,
+          "accion": "confirmacion",
+          "entidad": "learning"
+        },
+        {
+          "en": 126,
+          "accion": "analisis",
+          "entidad": "learning"
+        }
+      ],
+      "camara": {
+        "inicio": 1,
+        "fin": 1.025,
+        "recorridoX": 0,
+        "recorridoY": 0
+      }
+    },
+    {
+      "titulo": "Ecosistema",
+      "mensaje": "Un ecosistema. Nuevas posibilidades.",
+      "inicio": 1440,
+      "fin": 1560,
+      "transicion": 36,
+      "composicion": "ecosistema",
+      "elementos": [
+        {
+          "id": "ecosistema",
+          "movimiento": "flotar",
+          "profundidad": 0,
+          "inclinacion": 0
+        }
+      ],
+      "acciones": [
+        {
+          "en": 15,
+          "accion": "conexion",
+          "entidad": "ecosistema"
+        }
+      ],
+      "camara": {
+        "inicio": 1,
+        "fin": 1.025,
+        "recorridoX": 0,
+        "recorridoY": 0
+      }
+    },
+    {
+      "titulo": "SofLIA",
+      "mensaje": "Inteligencia que transforma.",
+      "inicio": 1560,
+      "fin": 1800,
+      "transicion": 60,
+      "composicion": "cierre",
+      "elementos": [
+        {
+          "id": "marca",
+          "movimiento": "flotar",
+          "profundidad": 0,
+          "inclinacion": 0
+        }
+      ],
+      "acciones": [
+        {
+          "en": 60,
+          "accion": "cierre",
+          "entidad": "marca"
+        }
+      ],
+      "camara": {
+        "inicio": 1,
+        "fin": 1,
+        "recorridoX": 0,
+        "recorridoY": 0
+      }
+    }
+  ],
+  "sonido": {
+    "tempo": 120,
+    "intensidad": 0.8,
+    "efectos": 0.75
+  }
+}

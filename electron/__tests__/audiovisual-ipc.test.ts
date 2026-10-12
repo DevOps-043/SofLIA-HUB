@@ -5,8 +5,8 @@ import { SkillWorkspaceService } from '../skill-workspace/service';
 import { ALLOWED_IPC_CHANNELS } from '../preload/channels';
 import { exposeSkillWorkspaceApi } from '../preload/skill-workspace-api';
 
-const renderer = vi.hoisted(() => ({ render: vi.fn(async () => ({ frames: 1800, path: 'salida/video.mp4' })), cancel: vi.fn(() => true), stop: vi.fn() }));
-vi.mock('../audiovisual/service', () => ({ AudiovisualService: class { render = renderer.render; cancel = renderer.cancel; stop = renderer.stop; } }));
+const renderer = vi.hoisted(() => ({ inspect: vi.fn(async () => ({ images: [], issues: [], geometricamenteValido: true })), render: vi.fn(async () => ({ frames: 1800, path: 'salida/video.mp4' })), cancel: vi.fn(() => true), stop: vi.fn() }));
+vi.mock('../audiovisual/service', () => ({ AudiovisualService: class { inspect = renderer.inspect; render = renderer.render; cancel = renderer.cancel; stop = renderer.stop; } }));
 
 describe('IPC de producción audiovisual', () => {
   it('valida payload estricto, responde errores y conserva la allowlist', async () => {
@@ -18,13 +18,22 @@ describe('IPC de producción audiovisual', () => {
     expect((await handler({} as never, { workspaceId: 'demo' })).success).toBe(true);
     renderer.render.mockRejectedValueOnce(new Error('No existe el workspace.'));
     expect(await handler({} as never, { workspaceId: 'demo' })).toMatchObject({ success: false, error: 'No existe el workspace.' });
-    for (const channel of ['audiovisual:render', 'audiovisual:cancel', 'presentation:export-pptx']) expect(ALLOWED_IPC_CHANNELS).toContain(channel);
+    for (const channel of ['audiovisual:inspect', 'audiovisual:render', 'audiovisual:cancel', 'presentation:export-pptx']) expect(ALLOWED_IPC_CHANNELS).toContain(channel);
     expect(ALLOWED_IPC_CHANNELS).not.toContain('audiovisual:execute');
+    const inspect = vi.mocked(ipcMain.handle).mock.calls.find(call => call[0] === 'audiovisual:inspect')?.[1];
+    if (!inspect) throw new Error('Falta inspección.');
+    expect((await inspect({} as never, { workspaceId: 'demo', script: 'x' })).success).toBe(false);
+    expect(renderer.inspect).not.toHaveBeenCalled();
+    expect((await inspect({} as never, { workspaceId: 'demo' })).success).toBe(true);
+    renderer.inspect.mockRejectedValueOnce(new Error('Inspección cancelada.'));
+    expect(await inspect({} as never, { workspaceId: 'demo' })).toMatchObject({ success: false, error: 'Inspección cancelada.' });
   });
   it('preload solo transmite el identificador del workspace', async () => {
     const exposed = new Map<string, Record<string, (...args: unknown[]) => unknown>>();
     const safeInvoke = vi.fn(async () => ({ success: true }));
     exposeSkillWorkspaceApi({ exposeInMainWorld: (name, api) => { exposed.set(name, api as never); } }, { safeInvoke, safeOn: vi.fn() } as never);
+    await exposed.get('skillWorkspace')!.inspectVideo('demo');
+    expect(safeInvoke).toHaveBeenCalledWith('audiovisual:inspect', { workspaceId: 'demo' });
     await exposed.get('skillWorkspace')!.renderVideo('demo');
     expect(safeInvoke).toHaveBeenCalledWith('audiovisual:render', { workspaceId: 'demo' });
     await exposed.get('skillWorkspace')!.cancelVideo('demo');

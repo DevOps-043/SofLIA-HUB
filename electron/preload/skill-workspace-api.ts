@@ -32,6 +32,7 @@ export function exposeSkillWorkspaceApi(bridge: PreloadBridge, ipc: SafeIpc): vo
       safeInvoke('skill-workspace:attach-conversation', { workspaceId, conversationId }),
 
     renderVideo: (workspaceId: string) => safeInvoke('audiovisual:render', { workspaceId }),
+    inspectVideo: (workspaceId: string) => safeInvoke('audiovisual:inspect', { workspaceId }),
     cancelVideo: (workspaceId: string) => safeInvoke('audiovisual:cancel', { workspaceId }),
     getState: (workspaceId: string) => safeInvoke('skill-workspace:get-state', { workspaceId }),
 

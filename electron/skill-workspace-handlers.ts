@@ -34,6 +34,7 @@ export function registerSkillWorkspaceHandlers(
   const audiovisual = new AudiovisualService(service, process.env.APP_ROOT ?? process.cwd(), app.isPackaged ? process.resourcesPath : undefined);
   const videoInput = z.object({ workspaceId: z.string().regex(/^[a-z0-9][a-z0-9-]{0,119}$/) }).strict();
   ipcMain.handle('audiovisual:render', (_event, input: unknown) => handleIPC(async () => ({ video: await audiovisual.render(videoInput.parse(input).workspaceId) })));
+  ipcMain.handle('audiovisual:inspect', (_event, input: unknown) => handleIPC(async () => audiovisual.inspect(videoInput.parse(input).workspaceId)));
   ipcMain.handle('audiovisual:cancel', (_event, input: unknown) => handleIPC(async () => ({ cancelled: audiovisual.cancel(videoInput.parse(input).workspaceId) })));
   ipcMain.handle('presentation:export-pptx', (_event, input: unknown) => handleIPC(async () => { await exportWorkspacePptx(service, videoInput.parse(input).workspaceId); return { exported: true }; }));
   app.once('will-quit', () => { audiovisual.stop(); void runtime.stop(); });

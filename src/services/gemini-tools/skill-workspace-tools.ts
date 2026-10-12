@@ -11,6 +11,7 @@ import type { GeminiToolGroup } from './types';
  */
 export const SKILL_WORKSPACE_TOOLS: GeminiToolGroup = {
   functionDeclarations: [
+    { name: 'workspace_inspect_video', description: 'Captura dos momentos de cada escena y devuelve imágenes para revisión visual. Revisa jerarquía, contenido, legibilidad, marca y evolución antes de renderizar. Informa desbordamientos; no acredita calidad estética automáticamente.', parameters: objectParams({}) },
     { name: 'workspace_render_video', description: 'Produce el MP4 del film.json actual y verifica sus fotogramas, audio y timestamps. Puede tardar hasta doce minutos.', parameters: objectParams({}) },
     {
       name: 'workspace_list_files',

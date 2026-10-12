@@ -3,10 +3,14 @@ import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { filmSchema } from '../../src/shared/audiovisual/film-schema';
-import { filmFrameSvg } from '../../src/shared/audiovisual/frame';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { createElement } from 'react';
+import { FilmComposition } from '../../src/audiovisual-runtime/composition';
+import { cinematicFilm } from '../../src/shared/audiovisual/normalize';
+const filmFrameSvg = (film: Parameters<typeof cinematicFilm>[0], frame: number) => renderToStaticMarkup(createElement(FilmComposition, { film: cinematicFilm(film), frame }));
 import filmFixture from '../../test/fixtures/audiovisual-film.json';
 import deckFixture from '../../test/fixtures/production-deck.json';
-import { synthesizeAudio } from '../audiovisual/audio';
+import { audioCues } from '../audiovisual/audio';
 import { AudiovisualService, verifyVideo, filmHash } from '../audiovisual/service';
 import { createEditablePptx } from '../presentation-export/pptx';
 import { readPresentationText } from '../background-teams/presentation-reader';
@@ -16,12 +20,15 @@ import { prepareFilmPreview } from '../audiovisual/preview';
 import { videoRange } from '../skill-workspace/video-response';
 import { mediaProcess } from '../audiovisual/process';
 
+vi.mock('../audiovisual/browser-renderer', () => ({ createFilmRenderer: async () => ({ runtimeHash:'motor-prueba', capture: async () => Buffer.from('frame'), audio: async () => ({pcm:Buffer.from('audio'),report:{}}), checkLayout: async () => [], close: vi.fn() }) }));
+vi.mock('../audiovisual/document', () => ({ filmDocument: async () => '<html>Vista de prueba</html>' }));
+vi.mock('../audiovisual/master-audio', () => ({ masterAudio: async () => ({ lufs: -14, pico: -2 }) }));
 vi.mock('../audiovisual/process', () => ({ mediaProcess: vi.fn() }));
 vi.mock('../audiovisual/runtime', () => ({ resolveMediaRuntime: async () => ({ ffmpeg: 'encoder', ffprobe: 'probe' }) }));
 describe('contratos de producción y regresiones', () => {
   it('admite rangos de reproducción y rechaza rangos ambiguos o imposibles', () => { expect(videoRange('bytes=10-19', 100)).toEqual({ start: 10, end: 19 }); expect(videoRange('bytes=-10', 100)).toEqual({ start: 90, end: 99 }); expect(videoRange('bytes=200-', 100)).toBeNull(); expect(videoRange('bytes=0-2,4-6', 100)).toBeNull(); });
   it('mantiene frames deterministas y escapa contenido de fuentes', () => {
-    const film = filmSchema.parse(filmFixture); film.entidades[0].titulo = '<script>&';
+    const film = filmSchema.parse(filmFixture); film.entidades[0].etiquetas[0] = '<script>&';
     expect(filmFrameSvg(film, 500)).toBe(filmFrameSvg(film, 500));
     expect(filmFrameSvg(film, 0)).toContain('&lt;script&gt;&amp;');
     expect(filmFrameSvg(film, 0)).not.toContain('<script>');
@@ -35,10 +42,10 @@ describe('contratos de producción y regresiones', () => {
     const missing = structuredClone(filmFixture); missing.escenas[0].entidades[0].id = 'ajena';
     expect(() => filmSchema.parse(missing)).toThrow();
   });
-  it('sintetiza PCM exacto, reproducible y silencio explícito', () => {
-    const a = synthesizeAudio(1, 42, false); expect(a.length).toBe(44 + 48000 * 4);
-    expect(a.equals(synthesizeAudio(1, 42, false))).toBe(true);
-    expect(synthesizeAudio(1, 42, true).subarray(44).every(v => v === 0)).toBe(true);
+  it('deriva un plan sonoro acotado a la película con resolución en el cierre', () => {
+    const film=filmSchema.parse(filmFixture),cues=audioCues(film);
+    expect(cues.every(cue=>cue.frame>=0&&cue.frame<film.fotogramas)).toBe(true);
+    expect(cues.some(cue=>cue.tipo==='impact'&&cue.frame===film.escenas[film.escenas.length-1].inicio+film.escenas[film.escenas.length-1].transicion)).toBe(true);
   });
   it('produce PPTX real con tablas, textos y contenido heredado visible', async () => {
     const { buffer } = await createEditablePptx(deckFixture, 'Demo'); expect(buffer.subarray(0, 2).toString()).toBe('PK');
@@ -85,7 +92,9 @@ describe('contratos de producción y regresiones', () => {
       const service = new SkillWorkspaceService(root), created = await service.createWorkspace({ skillId: AUDIOVISUAL_SKILL.id, title: 'Demo', policy: AUDIOVISUAL_SKILL.workspace! });
       if (!created.ok) throw new Error(created.error); const id = created.data.id;
       const source = JSON.stringify(filmFixture), previous = Buffer.from('video-anterior');
-      await service.writeFile(id, 'film.json', source); await service.writeSystemBinary(id, 'salida/video.mp4', previous);
+      await service.writeFile(id, 'film.json', source);
+      await service.writeSystemFile(id,'qa/visual.json',JSON.stringify({motor:'react-film-v2',runtimeHash:'motor-prueba',filmHash:filmHash(source),geometricamenteValido:true}));
+      await service.writeSystemBinary(id, 'salida/video.mp4', previous);
       const qa = JSON.stringify({ ok: true, filmHash: filmHash(source), videoHash: filmHash(previous), bytes: previous.length });
       await service.writeSystemFile(id, 'qa/informe.json', qa);
       const renderer = new AudiovisualService(service, process.cwd());

@@ -18,6 +18,7 @@ type TestScope = Window & { skillWorkspace?: unknown; presentationView?: unknown
 
 let archivos: { path: string; bytes: number; updatedAt: string }[];
 let listo: boolean;
+let skillId: string;
 let contenidos: Record<string, string>;
 let progressListeners: ((event: ProgressEvent) => void)[];
 
@@ -35,6 +36,7 @@ beforeEach(() => {
   localStorage.clear();
   archivos = [];
   listo = false;
+  skillId = 'sistema:presentaciones';
   contenidos = {};
   progressListeners = [];
   vi.clearAllMocks();
@@ -45,7 +47,7 @@ beforeEach(() => {
       state: {
         workspace: {
           id: WORKSPACE_ID,
-          skillId: 'sistema:presentaciones',
+          skillId,
           conversationId: 'conv-1',
           title: 'Propuesta Acme',
           entryFile: 'index.html',
@@ -88,6 +90,19 @@ function renderPanel(onHide = vi.fn()) {
 }
 
 describe('panel de trabajo de la presentacion', () => {
+  it('conserva el iframe audiovisual al escribir documentación y sólo reinicia al pedirlo', async () => {
+    skillId = 'sistema:audiovisual'; listo = true;
+    archivos = ['film.json', 'salida/video.mp4', 'guion.md'].map(path => ({ path, bytes: 100, updatedAt: '2026-10-12T10:00:00Z' }));
+    renderPanel();
+    const iframe = await screen.findByTitle('Vista previa de la presentacion');
+    const before = previewUrl.mock.calls.length;
+    archivos = archivos.map(file => file.path === 'guion.md' ? { ...file, updatedAt: '2026-10-12T10:01:00Z' } : file);
+    act(() => { emitirProgreso({ workspaceId: WORKSPACE_ID, operation: 'escritura', path: 'guion.md', status: 'completado' }); });
+    await waitFor(() => expect(previewUrl.mock.calls.length).toBe(before));
+    expect(screen.getByTitle('Vista previa de la presentacion')).toBe(iframe);
+    fireEvent.click(screen.getByRole('button', { name: 'Reproducir la presentacion' }));
+    await waitFor(() => expect(screen.getByTitle('Vista previa de la presentacion')).not.toBe(iframe));
+  });
   it('lista los archivos del proyecto', async () => {
     archivos = [
       { path: 'index.html', bytes: 120, updatedAt: '2026-08-06T10:00:00.000Z' },
@@ -162,6 +177,7 @@ describe('panel de trabajo de la presentacion', () => {
   it('no permite reproducir mientras la presentacion no esta lista', async () => {
     archivos = [{ path: 'guion.md', bytes: 10, updatedAt: '2026-08-06T10:00:00.000Z' }];
     listo = false;
+  skillId = 'sistema:presentaciones';
 
     renderPanel();
 
@@ -325,6 +341,7 @@ describe('apertura automatica de la vista previa', () => {
   it('no abre la vista mientras sigue escribiendo', async () => {
     archivos = [{ path: 'guion.md', bytes: 10, updatedAt: '2026-08-07T10:00:00.000Z' }];
     listo = false;
+  skillId = 'sistema:presentaciones';
 
     renderPanel();
     await screen.findByText('guion.md');

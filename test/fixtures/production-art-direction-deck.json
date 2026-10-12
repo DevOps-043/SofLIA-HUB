@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "meta": {
+    "titulo": "SofLIA: conocimiento en acción",
+    "direccionVisual": "Editorial cinematográfico, azul profundo y aqua; jerarquía y recorridos semánticos",
+    "tema": { "origen": "usuario", "fondo": "#071725", "superficie": "#10273B", "texto": "#F1F7FA", "primario": "#20C8B5", "secundario": "#33CFCB", "acento": "#20C8B5" }
+  },
+  "slides": [
+    { "id": "inicio", "tipo": "portada", "variante": "editorial", "titulo": "El conocimiento está en todas partes.", "subtitulo": "El verdadero valor está en activarlo.", "movimiento": { "continuidad": "flujo", "entrada": "revelado", "enfasis": "ninguno" } },
+    { "id": "proceso", "tipo": "proceso", "variante": "editorial", "antetitulo": "DEL CONOCIMIENTO A LA ACCIÓN", "titulo": "Una transformación conectada.", "introduccion": "Demostración conceptual del ecosistema SofLIA.", "pasos": [ { "titulo": "SofLIA Hub", "texto": "Inteligencia aplicada al trabajo." }, { "titulo": "SofLIA Engine", "texto": "Transforma conocimiento en formación." }, { "titulo": "SofLIA Learning", "texto": "Desarrolla capacidades." } ], "movimiento": { "continuidad": "empuje", "entrada": "trazo", "enfasis": "recorrido" } },
+    { "id": "perfil", "tipo": "metricas", "variante": "compacta", "titulo": "Cada instante tiene intención.", "introduccion": "Perfil de la pieza audiovisual de demostración.", "metricas": [ { "valor": "30 s", "etiqueta": "Duración exacta", "conteo": { "numero": 30, "sufijo": " s", "decimales": 0 } }, { "valor": "60 fps", "etiqueta": "Cadencia constante", "conteo": { "numero": 60, "sufijo": " fps", "decimales": 0 } }, { "valor": "1800", "etiqueta": "Fotogramas", "conteo": { "numero": 1800, "decimales": 0 } } ], "movimiento": { "continuidad": "zoom", "entrada": "ascenso", "enfasis": "conteo" } },
+    { "id": "contraste", "tipo": "comparacion", "variante": "editorial", "titulo": "El diseño hace visible el cambio.", "izquierda": { "titulo": "Información dispersa", "puntos": [ "Documentos y fuentes", "Procesos sin conectar", "Contenido por activar" ] }, "derecha": { "titulo": "Conocimiento aplicado", "puntos": [ "Flujos de trabajo", "Formación estructurada", "Ruta de aprendizaje" ] }, "movimiento": { "continuidad": "flujo", "entrada": "foco", "enfasis": "ninguno" } },
+    { "id": "cierre", "tipo": "cierre", "variante": "inmersiva", "titulo": "Un ecosistema. Nuevas posibilidades.", "accion": "SofLIA · Inteligencia que transforma.", "movimiento": { "continuidad": "zoom", "entrada": "revelado", "enfasis": "pulso" } }
+  ]
+}

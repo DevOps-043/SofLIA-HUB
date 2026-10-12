@@ -24,6 +24,7 @@
   files: [
     "dist",
     "dist-electron",
+    "resources/audiovisual",
     "!node_modules/**/*.d.ts",
     "!node_modules/**/*.d.ts.map",
   ],

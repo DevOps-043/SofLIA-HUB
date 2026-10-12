@@ -27,3 +27,48 @@
   .runtime-interactive,.runtime-media img,.runtime-media svg { transition:none; }
   .runtime-media:hover .runtime-image--cover,.runtime-media:hover .runtime-image-foreground,.runtime-media:hover svg { transform:none; }
 }
+/* Jerarquía editorial: titulares ligeros, evidencias dominantes y ritmos distintos por arquetipo. */
+.runtime-title{font-size:82px;font-weight:600;letter-spacing:-.048em;line-height:1.03;text-wrap:balance}
+.runtime-eyebrow{font-weight:600;font-size:18px;letter-spacing:.15em;color:var(--marca-color-acento)}
+.runtime-lead{font-size:29px;line-height:1.45;opacity:.78}
+.runtime-composition--compacta .runtime-title{font-size:70px}
+.runtime-compare{border-top:1px solid color-mix(in srgb,currentColor 22%,transparent);border-radius:0;box-shadow:none}
+.runtime-process{display:grid;height:100%;padding-top:112px;padding-bottom:150px;gap:84px}
+.runtime-process--editorial{grid-template-columns:.83fr 1.17fr;align-items:center}
+.runtime-process-heading .runtime-title{font-size:69px;max-width:680px}
+.runtime-process-heading .runtime-lead{margin-top:30px;max-width:650px;font-size:27px}
+.runtime-process-visual{height:290px;margin-top:30px;border-radius:18px;overflow:hidden}
+.runtime-process-route{position:relative;display:grid;gap:0}
+.runtime-process-step{display:flex;align-items:center;gap:31px;padding:28px 0;border-bottom:1px solid color-mix(in srgb,currentColor 16%,transparent);position:relative}
+.runtime-process-index{font-size:24px;color:var(--marca-color-acento);background:var(--marca-color-fondo);border:1px solid color-mix(in srgb,var(--marca-color-acento) 42%,transparent);border-radius:50%;height:64px;width:64px;display:grid;place-items:center;flex:none;font-variant-numeric:tabular-nums}
+.runtime-process-step>div{flex:1;min-width:0}
+.runtime-process-step h2{font-size:33px;font-weight:600;letter-spacing:-.025em;line-height:1.12}
+.runtime-process-step p{font-size:23px;line-height:1.35;margin-top:9px;opacity:.75}
+.runtime-process-arrow{font-size:31px;color:var(--marca-color-acento);opacity:.7}
+.runtime-process-track{position:absolute;top:40px;bottom:40px;left:31px;width:2px;background:color-mix(in srgb,var(--marca-color-acento) 18%,transparent)}
+.runtime-process-track i{display:block;height:100%;width:100%;background:var(--marca-color-acento);transform-origin:top}
+.runtime-process--horizontal{grid-template-rows:auto 1fr;gap:58px}
+.runtime-process--horizontal .runtime-process-heading{display:grid;grid-template-columns:1.4fr 1fr;gap:22px;align-items:center}
+.runtime-process--horizontal .runtime-title{max-width:1500px;font-size:76px}
+.runtime-process--horizontal .runtime-process-heading .runtime-lead{margin:0}
+.runtime-process--horizontal .runtime-process-visual{height:260px;grid-column:2;grid-row:1/4;margin:0}
+.runtime-process--horizontal .runtime-process-route{grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:30px;align-items:start}
+.runtime-process--horizontal .runtime-process-step{display:flex;flex-direction:column;align-items:flex-start;border-bottom:0;gap:33px}
+.runtime-process--horizontal .runtime-process-index{font-size:30px;width:85px;height:85px}
+.runtime-process--horizontal .runtime-process-step h2{font-size:31px}
+.runtime-process--horizontal .runtime-process-step p{font-size:23px}
+.runtime-process--horizontal .runtime-process-track{height:2px;width:auto;top:70px;left:40px;right:40px;bottom:auto}
+.runtime-process--horizontal .runtime-process-track i{transform-origin:left}
+.runtime-process--horizontal .runtime-process-arrow{display:none}
+.runtime-metrics{height:100%;padding-top:112px;padding-bottom:150px;display:flex;flex-direction:column}
+.runtime-metrics-body{display:grid;flex:1;min-height:0;gap:54px;margin-top:60px;align-items:center}
+.runtime-metrics-body--visual{grid-template-columns:1.3fr 1fr}
+.runtime-metrics-grid{display:grid;gap:48px 45px;align-items:start}
+.runtime-metric{position:relative;border-top:1px solid color-mix(in srgb,currentColor 20%,transparent);padding-top:20px}
+.runtime-metric-index{position:absolute;top:19px;right:4px;font-size:17px;opacity:.4}
+.runtime-metric>strong{display:block;font-weight:400;line-height:1.05;letter-spacing:-.06em;color:var(--marca-color-primario);font-variant-numeric:tabular-nums;margin:12px 0 21px;white-space:nowrap}
+.runtime-metric h2{font-size:27px;line-height:1.18;font-weight:600;max-width:650px}
+.runtime-metric p{font-size:21px;opacity:.7;line-height:1.35;max-width:650px;margin-top:13px}
+.runtime-metrics-visual{height:520px;overflow:hidden;border-radius:24px}
+.runtime-process--horizontal .runtime-process-visual{grid-row:auto;grid-column:auto}
+.runtime-process--horizontal .runtime-process-heading:not(:has(.runtime-process-visual)){grid-template-columns:1fr}

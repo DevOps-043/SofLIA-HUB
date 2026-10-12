@@ -9,7 +9,7 @@ import type { ActiveSkillContext } from '../gemini-tools/turn-catalog';
  */
 const PRESENTACIONES_SKILL_ID = 'sistema:presentaciones';
 
-export const WORKSPACE_REPAIR_INSTRUCTION = `Si la skill activa es audiovisual: escribe film.json, llama workspace_render_video y verifica qa/informe.json; no entregues un manifiesto como si fuera el MP4. Para presentaciones: La presentacion no esta terminada: el documento de entrada del workspace todavia no existe. Continua trabajando ahora. Escribe deck.json, vuelve a leerlo para verificarlo y no respondas que terminaste hasta que workspace_list_files confirme que existe.`;
+export const WORKSPACE_REPAIR_INSTRUCTION = `Si la skill activa es audiovisual: escribe film.json, llama workspace_inspect_video, observa las capturas y corrige errores antes de workspace_render_video y verifica qa/informe.json; no entregues un manifiesto como si fuera el MP4. Para presentaciones: La presentacion no esta terminada: el documento de entrada del workspace todavia no existe. Continua trabajando ahora. Escribe deck.json, vuelve a leerlo para verificarlo y no respondas que terminaste hasta que workspace_list_files confirme que existe.`;
 
 export const WORKSPACE_INCOMPLETE_MESSAGE = 'No pude completar la presentacion en este turno: falta deck.json. El guion y los recursos quedaron guardados; vuelve a intentarlo para que SofLIA termine el deck.';
 

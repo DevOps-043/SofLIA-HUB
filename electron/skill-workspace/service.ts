@@ -237,6 +237,11 @@ export class SkillWorkspaceService extends EventEmitter {
     if (!isProtected(entry.data, relativePath)) {
       return { ok: false, error: 'Solo se pueden refrescar archivos protegidos del sistema.' };
     }
+    const bytes = Buffer.byteLength(content,'utf8');
+    const limit = entry.data.skillId === 'sistema:audiovisual' && normalizeForComparison(relativePath) === 'vista.html' ? 2*1024*1024 : entry.data.maxFileBytes;
+    if (bytes > limit) return { ok:false,error:'El recurso de sistema supera su límite de bytes.' };
+    const budget = await this.checkBudget(entry.data,relativePath,bytes);
+    if (budget) return { ok:false,error:budget };
 
     const resolved = await resolveInsideWorkspace(this.rootOf(entry.data), relativePath, { mustExist: false });
     if (!resolved.ok) return { ok: false, error: resolved.message };
@@ -689,7 +694,7 @@ function toRecord(entry: WorkspaceEntry): SkillWorkspaceRecord {
  */
 function isProtected(entry: WorkspaceEntry, relativePath: string): boolean {
   const target = normalizeForComparison(relativePath);
-  if (entry.skillId === 'sistema:audiovisual' && ['vista.html', 'qa/informe.json', 'salida/video.mp4'].includes(target)) return true;
+  if (entry.skillId === 'sistema:audiovisual' && ['vista.html', 'qa/informe.json', 'qa/visual.json', 'salida/video.mp4'].includes(target)) return true;
   return entry.protectedFiles.some((protectedPath) => normalizeForComparison(protectedPath) === target);
 }
 

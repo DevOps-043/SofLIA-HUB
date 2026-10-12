@@ -7,7 +7,8 @@ import {
   type PresentationSlide,
 } from '../shared/presentations/deck-schema';
 import './presentation-runtime.css';
-import { CountedMetric } from './components/CountedMetric';
+import { MetricsSlide } from './components/MetricsSlide';
+import { ProcessSlide } from './components/ProcessSlide';
 import { SemanticSlide } from './components/SemanticSlide';
 
 const ChartSlide = lazy(async () => {
@@ -240,16 +241,8 @@ function SlideContent(props: { slide: PresentationSlide; reducedMotion: boolean;
     return <motion.div variants={group} initial="hidden" animate="visible" className={`${composicion} runtime-pad h-full pb-36 pt-24`}>{header}{slide.texto ? <motion.p {...common} className="runtime-lead mt-5">{slide.texto}</motion.p> : null}<div className={`mt-10 grid items-stretch gap-7 ${slide.imagen ? (variante === 'visual-dominante' ? 'grid-cols-[.8fr_1.2fr]' : 'grid-cols-[1.38fr_.62fr]') : 'grid-cols-1'}`}><div>{content}</div>{slide.imagen ? <motion.div {...common} {...hoverLift} className="runtime-media runtime-surface runtime-interactive min-h-[420px] overflow-hidden rounded-[34px]"><RuntimeImage image={slide.imagen} assetBase={props.assetBase} embeddedAssets={props.embeddedAssets} /></motion.div> : null}</div>{slide.pie ? <motion.p {...common} className="mt-6 text-[20px] font-semibold opacity-60">{slide.pie}</motion.p> : null}</motion.div>;
   }
 
-  if (slide.tipo === 'proceso') {
-    const tarjetas = variante === 'compacta' || variante === 'inmersiva';
-    return <motion.div variants={group} initial="hidden" animate="visible" className={`${composicion} runtime-pad h-full pb-36 pt-24`}><div className={slide.imagen ? `grid items-center gap-12 ${variante === 'visual-dominante' ? 'grid-cols-[.8fr_1.2fr]' : 'grid-cols-[1.35fr_.65fr]'}` : ''}><div>{header}{slide.introduccion || slide.texto ? <motion.p {...common} className="runtime-lead mt-5">{slide.introduccion ?? slide.texto}</motion.p> : null}</div>{slide.imagen ? <motion.div {...common} {...hoverLift} className={`runtime-media runtime-surface runtime-interactive overflow-hidden rounded-[30px] ${variante === 'visual-dominante' ? 'h-[360px]' : 'h-[250px]'}`}><RuntimeImage image={slide.imagen} assetBase={props.assetBase} embeddedAssets={props.embeddedAssets} /></motion.div> : null}</div><div className="relative mt-14 grid gap-6" style={{ gridTemplateColumns: `repeat(${tarjetas ? Math.min(slide.pasos.length, 3) : slide.pasos.length}, minmax(0,1fr))` }}>{tarjetas ? null : <div className="absolute left-[8%] right-[8%] top-11 h-1 bg-[var(--marca-color-secundario)]/30" />}{slide.pasos.map((paso, i) => <motion.div {...common} {...hoverLift} key={paso.titulo} className={`runtime-interactive relative z-10 rounded-[24px] p-3 ${tarjetas ? 'runtime-surface border border-current/10 px-7 py-6' : ''}`}><span className="grid h-24 w-24 place-items-center rounded-full border-[5px] border-[var(--marca-color-primario)] bg-[var(--marca-color-fondo)] text-[30px] font-black">{paso.numero ?? String(i + 1).padStart(2, '0')}</span><h2 className="mt-6 text-[31px] font-black leading-tight">{paso.titulo}</h2>{paso.texto ? <p className="mt-3 text-[22px] leading-snug opacity-70">{paso.texto}</p> : null}</motion.div>)}</div></motion.div>;
-  }
-
-  if (slide.tipo === 'metricas') {
-    const columnasMetricas = variante === 'compacta' ? slide.metricas.length : Math.min(slide.metricas.length, 2);
-    return <motion.div variants={group} initial="hidden" animate="visible" className={`${composicion} runtime-pad h-full pb-36 pt-24`}>{header}{slide.introduccion || slide.texto ? <motion.p {...common} className="runtime-lead mt-5">{slide.introduccion ?? slide.texto}</motion.p> : null}<div className={`mt-12 grid gap-6 ${slide.imagen ? (variante === 'visual-dominante' ? 'grid-cols-[.8fr_1.2fr]' : 'grid-cols-[1.45fr_.55fr]') : 'grid-cols-1'}`}><div className="grid gap-6" style={{ gridTemplateColumns: `repeat(${columnasMetricas}, minmax(0,1fr))` }}>{slide.metricas.map((metric) => <motion.div {...common} {...hoverLift} key={metric.etiqueta} className="runtime-surface runtime-interactive border-t-[8px] border-[var(--marca-color-acento)] px-8 py-8"><strong className="block text-[68px] font-black tracking-[-.06em] text-[var(--marca-color-primario)]">{<CountedMetric value={metric.valor} count={metric.conteo} enabled={!props.reducedMotion && slide.movimiento.enfasis === 'conteo'} />}</strong><h2 className="mt-4 text-[28px] font-black">{metric.etiqueta}</h2>{metric.detalle || metric.nota ? <p className="mt-3 text-[20px] leading-snug opacity-65">{metric.detalle ?? metric.nota}</p> : null}</motion.div>)}</div>{slide.imagen ? <motion.div {...common} {...hoverLift} className="runtime-media runtime-surface runtime-interactive overflow-hidden rounded-[34px]"><RuntimeImage image={slide.imagen} assetBase={props.assetBase} embeddedAssets={props.embeddedAssets} /></motion.div> : null}</div></motion.div>;
-  }
-
+  if (slide.tipo === 'proceso') return <ProcessSlide slide={slide} reduced={props.reducedMotion} header={header} visual={slide.imagen ? <RuntimeImage image={slide.imagen} assetBase={props.assetBase} embeddedAssets={props.embeddedAssets} /> : undefined} />;
+  if (slide.tipo === 'metricas') return <MetricsSlide slide={slide} reduced={props.reducedMotion} header={header} visual={slide.imagen ? <RuntimeImage image={slide.imagen} assetBase={props.assetBase} embeddedAssets={props.embeddedAssets} /> : undefined} />;
   if (slide.tipo === 'grafica') {
     return <Suspense fallback={<div className="runtime-pad grid h-full place-items-center text-[24px] font-bold opacity-60">Preparando visualizacion…</div>}><ChartSlide slide={slide} reducedMotion={props.reducedMotion} header={header} common={common} group={group} visual={slide.imagen ? <RuntimeImage image={slide.imagen} assetBase={props.assetBase} embeddedAssets={props.embeddedAssets} /> : undefined} /></Suspense>;
   }
@@ -268,9 +261,9 @@ function RuntimePoints(props: { points?: string[]; common: Record<string, unknow
 }
 
 function CompareBlock(props: { block: { etiqueta?: string; titulo: string; texto?: string; puntos?: string[] }; item: ReturnType<typeof contentVariants>; primary?: boolean; compact?: boolean; reducedMotion: boolean }) {
-  return <motion.section variants={props.item} {...interactiveHover(props.reducedMotion)} className={`runtime-interactive border-t-[8px] p-10 ${props.compact ? 'min-h-[210px]' : 'min-h-[430px]'} ${props.primary ? 'border-[var(--marca-color-acento)] bg-[var(--marca-color-primario)] text-[var(--deck-on-primary)]' : 'runtime-surface border-current/25'}`}>
+  return <motion.section variants={props.item} {...interactiveHover(props.reducedMotion)} className={`runtime-compare runtime-interactive p-10 ${props.compact ? 'min-h-[210px]' : 'min-h-[430px]'} ${props.primary ? 'border-[var(--marca-color-acento)] bg-[var(--marca-color-primario)] text-[var(--deck-on-primary)]' : 'runtime-surface border-current/25'}`}>
     {props.block.etiqueta ? <p className="text-[18px] font-bold uppercase tracking-[.17em] opacity-65">{props.block.etiqueta}</p> : null}
-    <h2 className="mt-5 text-[42px] font-black leading-tight">{props.block.titulo}</h2>
+    <h2 className="mt-5 text-[42px] font-semibold leading-tight">{props.block.titulo}</h2>
     {props.block.texto ? <p className="mt-5 text-[24px] leading-snug opacity-75">{props.block.texto}</p> : null}
     {props.block.puntos ? <ul className="mt-7 space-y-4 text-[23px] leading-snug">{props.block.puntos.map((point) => <li key={point} className="flex gap-4"><span aria-hidden>—</span><span>{point}</span></li>)}</ul> : null}
   </motion.section>;
