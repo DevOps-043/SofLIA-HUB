@@ -160,7 +160,6 @@ class MockWebContents extends EventEmitter {
   isDestroyed = vi.fn(() => this.destroyed);
   isCrashed = vi.fn(() => false);
   isLoadingMainFrame = vi.fn(() => false);
-  isCurrentlyAudible = vi.fn(() => false);
   isBeingCaptured = vi.fn(() => false);
   isDevToolsOpened = vi.fn(() => false);
   isWaitingForResponse = vi.fn(() => false);

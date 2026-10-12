@@ -3,7 +3,7 @@ import { BrowserWindow } from 'electron';
 export async function fetchFocusedAccessibilityTree(): Promise<string | null> {
   try {
     const windows = BrowserWindow.getAllWindows();
-    const activeWindow = windows.find((window) => window.isFocused()) || windows[0];
+    const activeWindow = windows.find((window) => window.isFocused());
     if (!activeWindow) return null;
 
     const wc = activeWindow.webContents;

@@ -42,12 +42,16 @@ export function useUpdatePanel() {
     setError(null);
     try {
       const result = await window.updater.checkForUpdates();
-      if (!result.success) return;
+      if (!result.success) {
+        setError(result.error || 'No se pudieron buscar actualizaciones.');
+        return;
+      }
       const nextStatus = await window.updater.getStatus();
       setStatus(nextStatus);
-      if (nextStatus.state === 'not-available') setChecking(false);
+      if (nextStatus.state === 'error') setError(nextStatus.error || 'No se pudieron buscar actualizaciones.');
     } catch (err: any) {
       setError(err.message);
+    } finally {
       setChecking(false);
     }
   }, []);

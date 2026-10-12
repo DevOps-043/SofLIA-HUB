@@ -11,11 +11,6 @@ const geminiChatMocks = vi.hoisted(() => {
     }),
     // Utilidades de un solo disparo que siguen sobre el SDK anterior.
     mockGetGenerativeModel,
-    // El chat crea la sesion con `chats.create` de @google/genai.
-    mockChatsCreate,
-    mockGoogleGenAI: vi.fn().mockImplementation(function () {
-      return { chats: { create: mockChatsCreate } };
-    }),
     mockGoogleGenerativeAI: vi.fn().mockImplementation(function () {
       return { getGenerativeModel: mockGetGenerativeModel };
     }),
