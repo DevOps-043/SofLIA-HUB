@@ -106,6 +106,14 @@ relativo al bundle y establece `APP_ROOT`, `VITE_DEV_SERVER_URL` y `VITE_PUBLIC`
 La app empaquetada no incluye `.env`; el workflow de release crea uno temporal
 desde GitHub Secrets antes del build.
 
+El workflow también escribe en Windows, macOS y Linux los interruptores públicos
+`VITE_MULTIMODAL_BROWSER_VISION`, `VITE_MULTIMODAL_MEDIA_ATTACHMENTS` y
+`VITE_MULTIMODAL_AMBIENT_AUDIO`. Se obtienen de GitHub Actions Variables y usan
+`true` cuando no hay un valor configurado, conservando el valor por omisión del
+runtime. Para desactivar una capacidad se configura la cadena `false` en su
+variable de repositorio; no requiere crear secretos. Esto no conecta por sí solo
+las funciones de audio y adjuntos que todavía carecen de un consumidor de UI.
+
 Main y preload no reciben `import.meta.env`: `config/vite/env-defines.mts`
 sustituye la expresión literal `process.env.VITE_*` por su valor al compilar. La
 sustitución es textual, así que el código de `electron/` debe **nombrar la
