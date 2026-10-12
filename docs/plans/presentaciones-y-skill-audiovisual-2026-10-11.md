@@ -162,9 +162,9 @@ Las [skills oficiales de Remotion](https://www.remotion.dev/docs/ai/skills) y el
 
 ### Reutilización de CourseGen
 
-El [worker existente](<../../../../CourseGen/Worker/SofLIA-desktop_cli/package.json>) declara Remotion 4.0.484 e HyperFrames 0.7.107. Sus módulos de render, binarios, preparación de activos y progreso son candidatos a extraer o adaptar mediante una API acotada. No se propone importar directamente un servicio completo que también reclama trabajos y sube archivos a una API remota.
+El worker existente (`../../../../CourseGen/Worker/SofLIA-desktop_cli/package.json`, referencia externa al repositorio) declara Remotion 4.0.484 e HyperFrames 0.7.107. Sus módulos de render, binarios, preparación de activos y progreso son candidatos a extraer o adaptar mediante una API acotada. No se propone importar directamente un servicio completo que también reclama trabajos y sube archivos a una API remota.
 
-Su [inspector de medios](<../../../../CourseGen/Worker/SofLIA-desktop_cli/src/media-artifact-inspector.ts>) acepta una tolerancia de duración mínima de 1.5 segundos. Esa regla no sirve para el benchmark de 30 segundos exactos. La adaptación debe añadir conteo de frames, PTS, audio y condiciones de perfil. En esta revisión, el FFmpeg del compositor no ofrecía el muxer `rawvideo`; también se deberá comprobar que el binario empaquetado soporte los filtros de QA y audio necesarios.
+Su inspector de medios (`../../../../CourseGen/Worker/SofLIA-desktop_cli/src/media-artifact-inspector.ts`, referencia externa al repositorio) acepta una tolerancia de duración mínima de 1.5 segundos. Esa regla no sirve para el benchmark de 30 segundos exactos. La adaptación debe añadir conteo de frames, PTS, audio y condiciones de perfil. En esta revisión, el FFmpeg del compositor no ofrecía el muxer `rawvideo`; también se deberá comprobar que el binario empaquetado soporte los filtros de QA y audio necesarios.
 
 Fijar versiones coherentes de los paquetes del motor. Reutilizar código no implica reutilizar sin cambios sus credenciales, permisos, tolerancias ni política de publicación.
 

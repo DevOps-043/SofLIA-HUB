@@ -90,7 +90,7 @@ function executeKnownTool(
     return executeSkillWorkspaceTool(toolName, args, activeSkill);
   }
   if (GOOGLE_WORKSPACE_TOOL_NAMES.has(toolName)) return executeGoogleWorkspaceTool(toolName, args);
-  if (INTEGRATED_BROWSER_TOOL_NAMES.has(toolName)) return executeIntegratedBrowserTool(toolName, args);
+  if (INTEGRATED_BROWSER_TOOL_NAMES.has(toolName)) return executeIntegratedBrowserTool(toolName, args, signal);
   if (PROJECT_HUB_TOOL_NAMES.has(toolName)) return executeProjectHubTool(toolName, args);
   if (NATIVE_AI_TOOL_NAMES.has(toolName)) return executeNativeAiTool(toolName, args, generatedImages);
   return executeComputerToolAsJson(toolName, args, signal);

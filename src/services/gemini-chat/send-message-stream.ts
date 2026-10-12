@@ -247,7 +247,7 @@ export async function sendMessageStream(
     return openAIResult;
   }
 
-  const generationConfig = buildGenerationConfig(routedOptions);
+  const generationConfig = buildGenerationConfig({ ...routedOptions, mediaResolution: built.envelope.resolution ?? routedOptions?.mediaResolution });
   const candidateModelIds = resolveCandidateModelIds(routedOptions);
 
   if (!actionTakesPriority && wantsWebGrounding) {

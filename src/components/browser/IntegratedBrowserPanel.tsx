@@ -284,7 +284,7 @@ export function IntegratedBrowserPanel(props: {
           return;
         }
 
-        const hidden = await integratedBrowserService.hide();
+        const hidden = await integratedBrowserService.hide(true);
         if (requestId !== suggestionOverlayRequestIdRef.current || !suggestionOverlayRef.current) {
           if (!managementTabRef.current) await publishViewport(true);
           return;
@@ -386,7 +386,7 @@ export function IntegratedBrowserPanel(props: {
     try {
       await waitForNextPaint();
       if (!mountedRef.current) return;
-      const hidden = await integratedBrowserService.hide();
+      const hidden = await integratedBrowserService.hide(true);
       if (!hidden.success) {
         managementTabRef.current = null;
         setManagementSnapshot(null);

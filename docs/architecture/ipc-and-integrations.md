@@ -69,7 +69,7 @@ aprobación fabricada del renderer. El servicio comprueba capacidad, política,
 perfil y control humano; el borrado pregunta en main. Responde con biblioteca
 versionada, cancelación o error saneado. No existe IPC de ejecución de atajos.
 
-La allowlist actual contiene 459 canales derivados de cinco arrays: 84, 52, 61, 134 y 128. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 467 canales derivados de cinco arrays: 84, 52, 61, 142, 128. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |
@@ -418,7 +418,9 @@ general. El canal no expone primitivas de ventana y rechaza otro emisor.
 El panel de chat no mueve la capa nativa fuera de pantalla ni compone la página
 mediante polling de capturas. El renderer publica bounds con inset izquierdo o derecho y la vista
 permanece viva. Solo los gestores flotantes toman una captura puntual y llaman a
-`hide`; al cerrarlos republican el viewport. Una tarea dirigida a esta vista
+`hide(true)`; al cerrarlos republican el viewport. Esa ocultación temporal conserva
+el presupuesto de las vistas presentadas y evita congelarlas mientras se usa un gestor.
+`hide()` conserva el comportamiento de ocultación normal. Una tarea dirigida a esta vista
 falla cerrado y nunca cambia silenciosamente al backend desktop.
 
 ### Fuentes de pestañas elegidas
@@ -587,6 +589,12 @@ leer el archivo.
 | `media-input:cancel` | Aborta una subida en curso y suelta el archivo remoto si alcanzó a crearse. |
 | `media-input:release` | Borra el archivo remoto al terminar o cancelarse el turno que lo consumía. |
 
+Cada subida pertenece a la identidad y generación de la sesión main. Solo el
+frame principal puede operarla; cerrar sesión o cambiar de cuenta invalida sus
+referencias y las operaciones pendientes comprueban de nuevo la identidad tras
+cada espera. El servicio y el hook están disponibles, pero el compositor actual
+todavía no conecta esta ruta de subida para audio y video de gran tamaño.
+
 Los errores del proveedor se sanean antes de volver al renderer: ni la clave de
 API ni la ruta local completa aparecen en el mensaje. La primera transferencia
 de la sesión requiere consentimiento explícito del usuario, porque el archivo
@@ -599,6 +607,14 @@ Los canales de visión del navegador amplían el contrato existente:
 | `integrated-browser:capture-frame` | Cuadro fresco de la pestaña visible a resolución del viewport, con evaluación de utilizabilidad en main. Devuelve el motivo cuando la captura no representa lo que el usuario ve. |
 | `integrated-browser:get-player-state` | Posición, duración y URI pública del reproductor activo. Solo observa: no reproduce, pausa ni navega. |
 | `integrated-browser:sample-frames` | Secuencia de cuadros con marcas de tiempo para un reproductor no direccionable. |
+| `integrated-browser:cancel-frame-sampling` | Cancela el muestreo identificado por `requestId`, sin iniciar nuevas capturas. |
+
+Estas lecturas aplican la autorización del sitio, el bloqueo de documentos sensibles
+y la pausa de percepción. Fijan identidad, pestaña y documento durante las esperas;
+un cambio invalida la operación. El muestreo admite un `requestId` único y limitado
+a 80 caracteres alfanuméricos o guiones; el handler admite hasta cuatro solicitudes
+simultáneas y las cancela al cambiar la sesión. La herramienta propaga la señal
+de parada del turno a la cancelación IPC.
 
 ## Espacio de trabajo de Skills y presentaciones
 

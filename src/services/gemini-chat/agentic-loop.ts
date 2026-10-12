@@ -2,7 +2,7 @@ import { sanitizeAssistantText } from './assistant-text-sanitizer';
 import { completedStreamResult, isAbortError, singleChunkStream, stoppedStreamResult } from './streams';
 import { isMalformedFunctionCall, resolveEmptyGeminiText } from './empty-response';
 import { getPublicAiErrorMessage } from './public-error';
-import { withAbortSignal, type GeminiChatConfig } from './model-config';
+import { resolveMediaResolution, withAbortSignal, type GeminiChatConfig } from './model-config';
 import { buildMultimodalContent } from './message-content';
 import { withGeminiModelCall, withToolTimeout } from './resilience';
 import { executeGeminiToolCall, isKnownGeminiTool } from './tool-dispatch';
@@ -120,7 +120,15 @@ export async function runAgenticLoop(params: {
 
     if (finalizing) break;
 
-    const functionResponses = await executeFunctionCalls(functionCalls, params);
+    const resolutionOrder = ['low', 'medium', 'high'];
+    let batchResolution: string | undefined;
+    const functionResponses = await executeFunctionCalls(functionCalls, params, resolution => {
+      if (!resolution || !resolutionOrder.includes(resolution)) return;
+      if (!batchResolution || resolutionOrder.indexOf(resolution) < resolutionOrder.indexOf(batchResolution)) {
+        batchResolution = resolution;
+        requestConfig.mediaResolution = resolveMediaResolution(resolution);
+      }
+    });
     if (signal?.aborted) return stoppedStreamResult(params.allToolCalls, params.allGeneratedImages);
     if (functionResponses.length === 0) return finalTextResult(parts, response, params);
     try {
@@ -171,6 +179,7 @@ async function executeFunctionCalls(
     allToolCalls: ToolCallInfo[];
     allGeneratedImages: string[];
   },
+  onMediaResolution: (resolution: string | undefined) => void,
 ): Promise<any[]> {
   const responses: any[] = [];
   for (const part of functionCalls) {
@@ -196,6 +205,7 @@ async function executeFunctionCalls(
       // temporal, por el mismo constructor que usa el mensaje del usuario.
       if (ejecutada.media?.length) {
         const construido = buildMultimodalContent('', ejecutada.media);
+        onMediaResolution(construido.envelope.resolution);
         if (Array.isArray(construido.content)) responses.push(...construido.content.slice(1));
         params.options?.onMediaEnvelope?.(construido.envelope);
       }

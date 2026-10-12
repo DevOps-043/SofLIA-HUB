@@ -666,7 +666,8 @@ export interface IntegratedBrowserApi {
   captureVisible(): Promise<IntegratedBrowserCaptureResponse>;
   captureFrame(): Promise<BrowserExplicitCaptureResponse>;
   getPlayerState(): Promise<BrowserPlayerStateResponse>;
-  sampleFrames(count: number, intervalMs: number): Promise<BrowserFrameSampleResponse>;
+  sampleFrames(count: number, intervalMs: number, requestId?: string): Promise<BrowserFrameSampleResponse>;
+  cancelFrameSampling(requestId: string): Promise<{ success: boolean; cancelled?: boolean; error?: string }>;
   getObservation(forceFresh?: boolean): Promise<IntegratedBrowserObservationResponse>;
   setObservationEnabled(enabled: boolean): Promise<IntegratedBrowserObservationResponse>;
   open(url?: string, options?: BrowserNavigationOptions): Promise<IntegratedBrowserResponse>;
@@ -715,7 +716,7 @@ export interface IntegratedBrowserApi {
   setViewport(viewport: IntegratedBrowserViewport): Promise<IntegratedBrowserResponse>;
   setOverlayBounds?: (bounds: { x: number; y: number; width: number; height: number }) => Promise<IntegratedBrowserResponse>;
   setOverlayPosition?: (pos: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'center') => Promise<IntegratedBrowserResponse>;
-  hide(): Promise<IntegratedBrowserResponse>;
+  hide(temporary?: boolean): Promise<IntegratedBrowserResponse>;
   readActiveDocument(): Promise<BrowserDocumentResponse>;
   prepareReadingMode(input?: { sourceUrl?: string; selection?: string }): Promise<BrowserReadingResponse>;
   synthesizeReadingSegment(input: { readingId: string; requestId: string; start: number; end: number }): Promise<BrowserReadingResponse>;
@@ -814,8 +815,9 @@ export const integratedBrowserService = {
   captureVisible: (): Promise<IntegratedBrowserCaptureResponse> => requireApi().captureVisible(),
   captureFrame: (): Promise<BrowserExplicitCaptureResponse> => requireApi().captureFrame(),
   getPlayerState: (): Promise<BrowserPlayerStateResponse> => requireApi().getPlayerState(),
-  sampleFrames: (count: number, intervalMs: number): Promise<BrowserFrameSampleResponse> =>
-    requireApi().sampleFrames(count, intervalMs),
+  sampleFrames: (count: number, intervalMs: number, requestId?: string): Promise<BrowserFrameSampleResponse> =>
+    requireApi().sampleFrames(count, intervalMs, requestId),
+  cancelFrameSampling: (requestId: string) => requireApi().cancelFrameSampling(requestId),
   getObservation: (forceFresh = false): Promise<IntegratedBrowserObservationResponse> => requireApi().getObservation(forceFresh),
   setObservationEnabled: (enabled: boolean): Promise<IntegratedBrowserObservationResponse> => requireApi().setObservationEnabled(enabled),
   // waitForLoad:false acusa inicio; errores posteriores llegan por state-changed.
@@ -870,7 +872,7 @@ export const integratedBrowserService = {
     requireApi().setOverlayBounds?.(bounds) ?? Promise.resolve({ success: false }),
   setOverlayPosition: (pos: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' | 'center'): Promise<IntegratedBrowserResponse> =>
     requireApi().setOverlayPosition?.(pos) ?? Promise.resolve({ success: false }),
-  hide: (): Promise<IntegratedBrowserResponse> => requireApi().hide(),
+  hide: (temporary?: boolean): Promise<IntegratedBrowserResponse> => requireApi().hide(temporary),
   readActiveDocument: (): Promise<BrowserDocumentResponse> => requireApi().readActiveDocument(),
   prepareReadingMode: (input?: { sourceUrl?: string; selection?: string }): Promise<BrowserReadingResponse> => requireApi().prepareReadingMode(input),
   synthesizeReadingSegment: (input: { readingId: string; requestId: string; start: number; end: number }): Promise<BrowserReadingResponse> => requireApi().synthesizeReadingSegment(input),

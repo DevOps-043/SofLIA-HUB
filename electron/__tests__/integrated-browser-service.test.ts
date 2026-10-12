@@ -2047,6 +2047,9 @@ describe('IntegratedBrowserService', () => {
       service.setViewport({ x: 0, y: 0, width: 800, height: 600 });
       await expect(service.getObservation(true)).rejects.toThrow(/no tiene permiso/i);
       await expect(service.captureVisiblePage()).rejects.toThrow(/no tiene permiso/i);
+      await expect(service.captureExplicitFrame()).rejects.toThrow(/no tiene permiso/i);
+      await expect(service.getPlayerState()).rejects.toThrow(/no tiene permiso/i);
+      await expect(service.sampleFrames(2, 0)).rejects.toThrow(/no tiene permiso/i);
       await expect(service.readActiveDocument()).rejects.toThrow(/no tiene permiso/i);
       await expect(service.clickElement('dom-1')).rejects.toThrow(/no tiene permiso/i);
       expect(browserViewHarness.instances[0].webContents.capturePage).not.toHaveBeenCalled();
@@ -2908,9 +2911,42 @@ describe('IntegratedBrowserService', () => {
     expect(second.webContents.setBackgroundThrottling).toHaveBeenLastCalledWith(false);
     expect(service.getState()).toMatchObject({ primaryTabId: firstId, secondaryTabId: secondId });
 
+    service.hide(true);
+    expect(first.webContents.setBackgroundThrottling).toHaveBeenLastCalledWith(false);
+    expect(second.webContents.setBackgroundThrottling).toHaveBeenLastCalledWith(false);
     service.hide();
     expect(first.webContents.setBackgroundThrottling).toHaveBeenLastCalledWith(true);
     expect(second.webContents.setBackgroundThrottling).toHaveBeenLastCalledWith(true);
+    service.detachWindow();
+  });
+
+  it('descarta capturas si cambia de pestaña mientras espera el frame nativo', async () => {
+    const service = new IntegratedBrowserService();
+    service.attachWindow(new BrowserWindow());
+    await service.open('https://captura.example');
+    service.setViewport({ x: 0, y: 0, width: 1_200, height: 800 });
+    const contents = browserViewHarness.instances[browserViewHarness.instances.length - 1].webContents;
+    const image = { isEmpty: () => false };
+    let release!: (value: typeof image) => void;
+    contents.capturePage.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+    const pending = service.captureExplicitFrame();
+    const rejected = expect(pending).rejects.toThrow();
+    await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+    await service.createTab('https://otra.example');
+    release(image);
+    await rejected;
+    service.detachWindow();
+  });
+
+  it('la pausa impide nuevas capturas explícitas y lectura de reproductor', async () => {
+    const service = new IntegratedBrowserService();
+    service.attachWindow(new BrowserWindow());
+    await service.open('https://captura.example');
+    await service.setObservationEnabled(false);
+    await expect(service.captureExplicitFrame()).rejects.toThrow('pausada');
+    await expect(service.getPlayerState()).rejects.toThrow('pausada');
+    const abort = new AbortController(); abort.abort();
+    await expect(service.sampleFrames(2, 0, abort.signal)).rejects.toThrow();
     service.detachWindow();
   });
 

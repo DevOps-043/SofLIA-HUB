@@ -30,7 +30,9 @@ const DESTRUCTIVE_CONTROL_PATTERN = /\b(enviar|env[ií]a|send|reply|responder|re
 export async function executeIntegratedBrowserTool(
   toolName: string,
   args: Record<string, unknown>,
+  signal?: AbortSignal,
 ): Promise<string> {
+  signal?.throwIfAborted();
   const api = window.integratedBrowser;
   if (!api) return failure('El navegador integrado no está disponible.');
 
@@ -103,7 +105,7 @@ export async function executeIntegratedBrowserTool(
   if (toolName === 'analizar_video_pestana') {
     const visible = await requireVisibleBrowser('analizar el video de');
     if (visible) return visible;
-    return analyzeTabVideo(api, args);
+    return analyzeTabVideo(api, args, signal);
   }
 
   if (toolName === 'navigate_integrated_browser') {
@@ -190,8 +192,10 @@ export async function executeIntegratedBrowserTool(
 async function analyzeTabVideo(
   api: NonNullable<typeof window.integratedBrowser>,
   args: Record<string, unknown>,
+  signal?: AbortSignal,
 ): Promise<string> {
   const estado = await api.getPlayerState();
+  signal?.throwIfAborted();
   const player = estado?.success ? estado.player : null;
   if (!player?.hasVideo) {
     return failure('No hay ningun video en reproduccion en la pestaña activa.');
@@ -226,7 +230,15 @@ async function analyzeTabVideo(
     });
   }
 
-  const muestreo = await api.sampleFrames(MEDIA_BUDGET.frameSampleCount, MEDIA_BUDGET.frameSampleIntervalSeconds * 1000);
+  const requestId = crypto.randomUUID();
+  const cancel = () => { void api.cancelFrameSampling(requestId).catch(() => undefined); };
+  signal?.addEventListener('abort', cancel, { once: true });
+  let muestreo;
+  try {
+    signal?.throwIfAborted();
+    muestreo = await api.sampleFrames(MEDIA_BUDGET.frameSampleCount, MEDIA_BUDGET.frameSampleIntervalSeconds * 1000, requestId);
+    signal?.throwIfAborted();
+  } finally { signal?.removeEventListener('abort', cancel); }
   if (!muestreo?.success) return failure(muestreo?.error || 'No pude muestrear el video de la pestaña.');
   const cuadros = muestreo.frames ?? [];
   if (!cuadros.length) {

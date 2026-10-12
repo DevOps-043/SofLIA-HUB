@@ -92,7 +92,8 @@ export class MediaInputService {
    * procesarse aborta con su estado alcanzado, porque el turno del usuario
    * esta bloqueado detras de esta llamada.
    */
-  async upload(input: { path: string; mimeType: string; apiKey: string }): Promise<MediaUploadRecord> {
+  async upload(input: { path: string; mimeType: string; apiKey: string }, assertCurrent: () => void = () => {}): Promise<MediaUploadRecord> {
+    assertCurrent();
     const uploadId = `media-${++this.sequence}-${Date.now()}`;
     const displayName = basename(String(input?.path || '')) || 'archivo';
     const mimeType = String(input?.mimeType || '').toLowerCase();
@@ -107,6 +108,7 @@ export class MediaInputService {
     } catch {
       return this.record({ uploadId, state: 'failed', mimeType, displayName, error: 'El archivo ya no esta disponible.' });
     }
+    assertCurrent();
     if (sizeBytes > MEDIA_BUDGET.maxUploadBytes) {
       return this.record({ uploadId, state: 'failed', mimeType, displayName, sizeBytes, error: 'El archivo supera el tamaño maximo que admite el proveedor.' });
     }
@@ -124,17 +126,25 @@ export class MediaInputService {
     } catch (error) {
       return this.record({ uploadId, state: 'failed', mimeType, displayName, sizeBytes, error: sanitizeProviderError(error) });
     }
+    try { assertCurrent(); }
+    catch (error) {
+      if (subido?.name) { try { await client.files.delete({ name: subido.name }); } catch { /* Caduca en el proveedor. */ } }
+      this.uploads.delete(uploadId);
+      throw error;
+    }
     if (subido?.name) this.remoteNames.set(uploadId, subido.name);
     if (this.cancelled.has(uploadId)) return this.finishCancelled(uploadId, client);
 
     let archivo = subido;
     const limite = this.now() + PROCESSING_TIMEOUT_MS;
     while (archivo?.state === 'PROCESSING') {
+      assertCurrent();
       if (this.cancelled.has(uploadId)) return this.finishCancelled(uploadId, client);
       if (this.now() >= limite) {
         return this.record({ uploadId, state: 'failed', mimeType, displayName, sizeBytes, error: 'El proveedor no termino de procesar el archivo a tiempo.' });
       }
       await delay(PROCESSING_POLL_INTERVAL_MS);
+      assertCurrent();
       try {
         archivo = await client.files.get({ name: String(archivo.name || '') });
       } catch (error) {
@@ -142,6 +152,7 @@ export class MediaInputService {
       }
     }
 
+    assertCurrent();
     if (this.cancelled.has(uploadId)) return this.finishCancelled(uploadId, client);
     if (archivo?.state === 'FAILED' || !archivo?.uri) {
       return this.record({
@@ -163,6 +174,13 @@ export class MediaInputService {
 
   status(uploadId: string): MediaUploadRecord | null {
     return this.uploads.get(String(uploadId || '')) ?? null;
+  }
+
+  /** Retira registros y clientes de la sesión que termina, sin reutilizarlos. */
+  invalidateSession(): void {
+    for (const [id, record] of this.uploads) if (record.state === 'processing') this.cancelled.add(id);
+    this.uploads.clear();
+    this.clients.clear();
   }
 
   /**

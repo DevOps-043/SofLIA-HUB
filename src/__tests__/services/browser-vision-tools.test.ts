@@ -94,6 +94,23 @@ describe('capturar_vista_navegador', () => {
 });
 
 describe('analizar_video_pestana', () => {
+  it('cancelar el turno solicita detener el muestreo nativo y descarta su evidencia', async () => {
+    const controller = new AbortController();
+    let finish!: (value: unknown) => void;
+    const api = instalarNavegador({
+      getPlayerState: vi.fn(async () => ({ success: true, player: { hasVideo: true, currentTimeSeconds: 0, durationSeconds: 60, publicVideoUrl: null } })),
+      sampleFrames: vi.fn(() => new Promise(resolve => { finish = resolve; })),
+      cancelFrameSampling: vi.fn(async () => ({ success: true, cancelled: true })),
+    });
+    const pending = executeIntegratedBrowserTool('analizar_video_pestana', {}, controller.signal);
+    const rejected = expect(pending).rejects.toThrow();
+    await vi.waitFor(() => expect(api.sampleFrames).toHaveBeenCalled());
+    controller.abort();
+    expect(api.cancelFrameSampling).toHaveBeenCalledWith(api.sampleFrames.mock.calls[0][2]);
+    finish({ success: true, frames: [], failure: null });
+    await rejected;
+  });
+
   beforeEach(() => { vi.clearAllMocks(); });
 
   it('VID-001: un video publico viaja por URI acotado a la posicion actual', async () => {

@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { PresentationPlayerApp } from '../../presentation-runtime/PresentationPlayerApp';
+// Cargar la gráfica real antes de los casos separa la transformación de Recharts
+// de la comprobación de semántica y conserva el render completo sin mocks.
+import '../../presentation-runtime/components/ChartSlide';
 
 type RuntimeWindow = Window & {
   __PULSE_PRESENTATION__?: { deck: unknown; brandCss?: string; assets?: Record<string, string> };
@@ -15,9 +18,6 @@ afterEach(() => {
 
 describe('reproductor declarativo de presentaciones', () => {
   it('renderiza una grafica con semantica accesible', async () => {
-    // Medir semántica, no el tiempo de transformación/carga de Recharts en la suite completa.
-    // Precargar el módulo real conserva el render y evita depender del timeout DOM de un segundo.
-    await import('../../presentation-runtime/components/ChartSlide');
     (window as RuntimeWindow).__PULSE_PRESENTATION__ = {
       deck: {
         version: 1,

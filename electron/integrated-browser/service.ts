@@ -928,6 +928,7 @@ export class IntegratedBrowserService extends EventEmitter {
    * nuevo usuario abra el navegador.
    */
   private teardownBrowsingSession(reason = 'La sesion del navegador se cerro.'): void {
+    this.resourceOverlayHidden = false;
     this.lockCredentials();
     this.semanticMemory.cancel();
     this.agentTaskBinding?.control.command('stop');
@@ -1877,6 +1878,7 @@ export class IntegratedBrowserService extends EventEmitter {
       this.resolveViewportWaiters();
       return this.getState();
     }
+    this.resourceOverlayHidden = false;
     this.viewport = viewport;
     this.visible = true;
     this.applyViewLayout();
@@ -1887,7 +1889,10 @@ export class IntegratedBrowserService extends EventEmitter {
     return this.getState();
   }
 
-  hide(): IntegratedBrowserState {
+  private resourceOverlayHidden = false;
+
+  hide(temporary = false): IntegratedBrowserState {
+    this.resourceOverlayHidden = temporary;
     this.hideWorkspaceTabsExcept();
     this.visible = false;
     this.latestObservation = null;
@@ -2182,12 +2187,22 @@ export class IntegratedBrowserService extends EventEmitter {
    * pasiva. Sin esto, preguntar por un video dependia de que el heuristico de
    * intencion del renderer acertara con la frase del usuario.
    */
-  async captureExplicitFrame(): Promise<BrowserExplicitCapture> {
+  async captureExplicitFrame(signal?: AbortSignal): Promise<BrowserExplicitCapture> {
+    return this.auditAgentOperation('capture', () => this.captureExplicitFrameInternal(signal));
+  }
+
+  private async captureExplicitFrameInternal(signal?: AbortSignal): Promise<BrowserExplicitCapture> {
+    if (!this.observationEnabled) throw new Error('La percepción del navegador está pausada.');
+    const assertTarget = await this.authorizeAgentAccess('capture', undefined, signal);
+    assertTarget();
     const active = this.getActiveTab();
     if (!active || !this.isTabVisible(active)) {
       return { ok: false, reason: 'navegador-no-visible', detail: 'El navegador integrado no esta visible.' };
     }
 
+    const contents = this.getWebContentsForAgent();
+    const url = sanitizeStateUrl(contents.getURL());
+    const bounds = this.requireTabView(active).getBounds();
     // Separacion minima entre invocaciones consecutivas: `capturePage` a
     // resolucion completa compite con el compositor de la pagina.
     const desde = this.lastExplicitCaptureAt ? Date.now() - this.lastExplicitCaptureAt : Number.POSITIVE_INFINITY;
@@ -2196,13 +2211,19 @@ export class IntegratedBrowserService extends EventEmitter {
         setTimeout(resolve, INTEGRATED_BROWSER_EXPLICIT_CAPTURE_MIN_GAP_MS - desde);
       });
     }
+    assertTarget();
+    if (!this.observationEnabled || !this.isTabVisible(active)) throw new CuContextChangedError();
 
     let image: Awaited<ReturnType<WebContents['capturePage']>>;
     try {
-      image = await this.getWebContentsForAgent().capturePage();
+      image = await contents.capturePage();
     } catch (error) {
       return { ok: false, reason: 'captura-fallida', detail: safeCaptureError(error) };
     }
+    assertTarget();
+    await this.assertDocumentNotSensitive(active.id);
+    assertTarget();
+    if (!this.observationEnabled || !this.isTabVisible(active)) throw new CuContextChangedError();
     this.lastExplicitCaptureAt = Date.now();
 
     const size = image.getSize();
@@ -2213,13 +2234,12 @@ export class IntegratedBrowserService extends EventEmitter {
       return { ok: false, reason: calidad.reason, detail: calidad.detail };
     }
 
-    const bounds = this.requireTabView(active).getBounds();
     const logicalEdge = Math.max(1, bounds.width, bounds.height);
     return {
       ok: true,
       screenshot: encodeBrowserCapture(image, logicalEdge, INTEGRATED_BROWSER_BACKDROP_QUALITY),
       capturedAt: new Date().toISOString(),
-      url: sanitizeStateUrl(this.getWebContents()?.getURL() ?? ''),
+      url,
     };
   }
 
@@ -2227,14 +2247,27 @@ export class IntegratedBrowserService extends EventEmitter {
    * Estado del reproductor de la pestaña activa. Solo observa: no reproduce,
    * no pausa y no navega.
    */
-  async getPlayerState(): Promise<BrowserPlayerState> {
+  async getPlayerState(signal?: AbortSignal): Promise<BrowserPlayerState> {
+    return this.auditAgentOperation('dom', () => this.getPlayerStateInternal(signal));
+  }
+
+  private async getPlayerStateInternal(signal?: AbortSignal): Promise<BrowserPlayerState> {
+    if (!this.observationEnabled) throw new Error('La percepción del navegador está pausada.');
+    const assertTarget = await this.authorizeAgentAccess('observe-dom', undefined, signal);
+    assertTarget();
     const active = this.getActiveTab();
     if (!active || !this.isTabVisible(active)) return emptyPlayerState();
+    let state: BrowserPlayerState;
     try {
-      return await readPlayerState(this.getWebContentsForAgent());
+      state = await readPlayerState(this.getWebContentsForAgent());
     } catch {
-      return emptyPlayerState();
+      state = emptyPlayerState();
     }
+    assertTarget();
+    await this.assertDocumentNotSensitive(active.id);
+    assertTarget();
+    if (!this.observationEnabled || !this.isTabVisible(active)) throw new CuContextChangedError();
+    return state;
   }
 
   /**
@@ -2244,16 +2277,20 @@ export class IntegratedBrowserService extends EventEmitter {
    * unica alternativa honesta cuando el medio no es publicamente direccionable,
    * y quien la consume debe declararla como muestreo.
    */
-  async sampleFrames(count: number, intervalMs: number): Promise<{
+  async sampleFrames(count: number, intervalMs: number, signal?: AbortSignal): Promise<{
     frames: Array<{ screenshot: string; atSeconds: number }>;
     failure: BrowserExplicitCapture | null;
   }> {
+    const assertTarget = this.createAgentTargetGuard(signal, true);
     const frames: Array<{ screenshot: string; atSeconds: number }> = [];
     const total = Math.max(1, Math.min(12, Math.floor(count)));
 
     for (let indice = 0; indice < total; indice += 1) {
-      const player = await this.getPlayerState();
-      const captura = await this.captureExplicitFrame();
+      assertTarget();
+      const player = await this.getPlayerState(signal);
+      assertTarget();
+      const captura = await this.captureExplicitFrame(signal);
+      assertTarget();
       if (!captura.ok) {
         // Un fallo en el primer cuadro no deja evidencia alguna; con cuadros ya
         // tomados se conserva lo obtenido y se informa el corte.
@@ -4719,6 +4756,10 @@ export class IntegratedBrowserService extends EventEmitter {
     if (liveTabs.length === 0) return false;
 
     const presentedIds = new Set(liveTabs.filter((tab) => this.isTabVisible(tab)).map((tab) => tab.id));
+    if (this.resourceOverlayHidden && this.parentWindow && this.isWindowUsable(this.parentWindow)) {
+      if (this.primaryTabId) presentedIds.add(this.primaryTabId);
+      if (this.viewMode !== 'single' && this.secondaryTabId) presentedIds.add(this.secondaryTabId);
+    }
     if (this.agentControlling && this.activeTabId) presentedIds.add(this.activeTabId);
 
     const warmIds = new Set(

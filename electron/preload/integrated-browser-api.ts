@@ -24,8 +24,9 @@ export function exposeIntegratedBrowserApi(bridge: PreloadBridge, ipc: SafeIpc):
     /** Cuadro fresco a resolucion del viewport, sin la cadencia pasiva. */
     captureFrame: () => safeInvoke('integrated-browser:capture-frame'),
     getPlayerState: () => safeInvoke('integrated-browser:get-player-state'),
-    sampleFrames: (count: number, intervalMs: number) =>
-      safeInvoke('integrated-browser:sample-frames', { count, intervalMs }),
+    sampleFrames: (count: number, intervalMs: number, requestId?: string) =>
+      safeInvoke('integrated-browser:sample-frames', { count, intervalMs, ...(requestId ? { requestId } : {}) }),
+    cancelFrameSampling: (requestId: string) => safeInvoke('integrated-browser:cancel-frame-sampling', requestId),
     getObservation: (forceFresh = false) => safeInvoke('integrated-browser:get-observation', { forceFresh }),
     setObservationEnabled: (enabled: boolean) => safeInvoke('integrated-browser:set-observation-enabled', { enabled }),
     open: (url?: string, options?: BrowserNavigationOptions) => safeInvoke('integrated-browser:open', navigationPayload(url === undefined ? {} : { url }, options)),
@@ -80,7 +81,7 @@ export function exposeIntegratedBrowserApi(bridge: PreloadBridge, ipc: SafeIpc):
       safeInvoke('integrated-browser:set-overlay-bounds', bounds),
     setOverlayPosition: (pos: string) =>
       safeInvoke('integrated-browser:set-overlay-position', { pos }),
-    hide: () => safeInvoke('integrated-browser:hide'),
+    hide: (temporary?: boolean) => temporary === undefined ? safeInvoke('integrated-browser:hide') : safeInvoke('integrated-browser:hide', temporary),
     readActiveDocument: () => safeInvoke('integrated-browser:document-read'),
     prepareReadingMode: (input?: { sourceUrl?: string; selection?: string }) => safeInvoke('integrated-browser:reading-prepare', input ?? {}),
     synthesizeReadingSegment: (input: { readingId: string; requestId: string; start: number; end: number }) => safeInvoke('integrated-browser:reading-synthesize', input),

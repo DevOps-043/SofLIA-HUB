@@ -157,10 +157,25 @@ export function registerIntegratedBrowserHandlers(
     player: await service.getPlayerState(),
     state: service.getState(),
   }), (result) => result as Record<string, unknown>);
-  handle('integrated-browser:sample-frames', async (_event, input) => ({
-    ...(await service.sampleFrames(readFrameCount(input), readFrameIntervalMs(input))),
-    state: service.getState(),
-  }), (result) => result as Record<string, unknown>);
+  const frameSamples = new Map<string, AbortController>();
+  onAuthStateChange(() => { for (const controller of frameSamples.values()) controller.abort(); frameSamples.clear(); });
+  handle('integrated-browser:sample-frames', async (event, input) => {
+    if (!event.senderFrame || event.senderFrame !== getMainWindow()?.webContents.mainFrame) throw new Error('Emisor inválido.');
+    const requestId = (input as { requestId?: unknown })?.requestId;
+    if (requestId !== undefined && (typeof requestId !== 'string' || !/^[a-z0-9-]{1,80}$/i.test(requestId))) throw new Error('Identificador de muestreo inválido.');
+    if (frameSamples.size >= 4 || (typeof requestId === 'string' && frameSamples.has(requestId))) throw new Error('Ya hay un muestreo en curso.');
+    const controller = new AbortController();
+    const key = typeof requestId === 'string' ? requestId : crypto.randomUUID();
+    frameSamples.set(key, controller);
+    try { return { ...(await service.sampleFrames(readFrameCount(input), readFrameIntervalMs(input), controller.signal)), state: service.getState() }; }
+    finally { frameSamples.delete(key); }
+  }, result => result as Record<string, unknown>);
+  handle('integrated-browser:cancel-frame-sampling', (event, requestId) => {
+    if (!event.senderFrame || event.senderFrame !== getMainWindow()?.webContents.mainFrame || typeof requestId !== 'string' || !/^[a-z0-9-]{1,80}$/i.test(requestId)) throw new Error('Cancelación de muestreo inválida.');
+    const controller = frameSamples.get(requestId);
+    controller?.abort();
+    return { cancelled: Boolean(controller) };
+  }, result => result as Record<string, unknown>);
   handle('integrated-browser:get-observation', async (_event, input) => ({
     ...(await service.getObservation(readForceFresh(input))),
     state: service.getState(),
@@ -249,7 +264,10 @@ export function registerIntegratedBrowserHandlers(
   handle('integrated-browser:set-viewport', (_event, viewport) => service.setViewport(viewport));
   handle('integrated-browser:set-overlay-bounds', (_event, input) => service.setOverlayBounds(readOverlayBoundsInput(input)));
   handle('integrated-browser:set-overlay-position', (_event, input) => service.setOverlayPosition(readOverlayPositionInput(input)));
-  handle('integrated-browser:hide', () => service.hide());
+  handle('integrated-browser:hide', (_event, temporary) => {
+    if (temporary !== undefined && typeof temporary !== 'boolean') throw new Error('Modo de ocultación inválido.');
+    return service.hide(temporary === true);
+  });
   handle('integrated-browser:document-read', () => service.readActiveDocument(), (document) => ({ document }));
   handle('integrated-browser:reading-prepare', (_event, input) => service.prepareReadingMode(readReadingPrepareInput(input)), (reading) => ({ reading }));
   handle('integrated-browser:reading-synthesize', (_event, input) => service.synthesizeReadingSegment(readReadingSynthesisInput(input)), (speech) => ({ speech }));

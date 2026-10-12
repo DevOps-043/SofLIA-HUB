@@ -6,15 +6,112 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/).
 
 ## [Sin publicar]
 
-### Fixed
-- **Organizaciones y WhatsApp recuperan la identidad SOFIA:** un perfil local
-  podía mantener la aplicación aparentemente conectada aunque ya no existiera un
-  JWT verificable. Las consultas salían como anónimas (`42501 permission denied
-  for table users`) y WhatsApp recibía pero descartaba los mensajes por no poder
-  comprobar la membresía. El Hub vuelve al login cuando solo queda ese snapshot
-  y el proceso main aplica/restaura la sesión SOFIA cifrada antes de iniciar los
-  servicios. Las preferencias de última conexión y confirmación de lectura de
-  WhatsApp no intervienen en esta autorización.
+## [0.9.9] - 2026-10-11
+
+Esta actualización reúne las mejoras recientes de navegación, asistencia con
+inteligencia artificial y creación de documentos, junto con correcciones de
+acceso y estabilidad.
+
+### Novedades
+
+- **Navegador integrado ampliado.** Se incorporan marcadores, historial,
+  descargas, recuperación de pestañas, perfiles por cuenta y opciones para
+  administrar permisos, extensiones y privacidad desde la aplicación.
+- **Inicio propio de SofLIA.** Las pestañas nuevas muestran una portada local
+  con búsqueda, adaptada a los temas claro y oscuro.
+- **Más opciones para organizar la navegación.** Se amplían los controles de
+  pestañas, las vistas divididas, las ventanas separadas, el zoom y los atajos
+  de teclado. También se añaden controles de audio y menús de pestaña.
+- **Acceso a los servicios de la organización.** El navegador puede utilizar la
+  cuenta de Pulse Hub para acceder a los servicios compatibles de SofLIA,
+  Learning y Project Hub, con una opción para volver a conectar la sesión.
+- **Equipos de asistentes.** SofLIA puede distribuir determinados análisis,
+  investigaciones y entregables entre especialistas y reunir sus aportes.
+  El panel «Archivos de SofLIA» permite consultar el progreso y los resultados.
+- **Trabajos en segundo plano dentro de la aplicación.** Los encargos
+  compatibles pueden continuar mientras se cambia de conversación. Incluyen
+  controles para pausar, reanudar o cancelar y recuperación explícita tras
+  reiniciar. Requieren mantener la aplicación y el equipo disponibles.
+- **Asistencia especializada para reuniones.** Meeting Ops incorpora análisis
+  con varios especialistas y revisión de resultados antes de crear un borrador.
+- **Vista previa de entregables.** Se pueden consultar archivos generados desde
+  el Hub, con un visor para documentos, hojas de cálculo y presentaciones.
+- **Documentos con mejor presentación.** Se mejora la composición de portadas,
+  títulos, tablas y contenido, así como la generación de documentos HTML y PDF.
+- **Lectura más precisa de páginas y documentos.** SofLIA dispone de nuevas
+  formas de consultar el documento activo, trabajar con fragmentos de pestañas
+  elegidos por el usuario y utilizar atajos de lectura reutilizables.
+- **Análisis visual del navegador.** Se añaden capturas explícitas y análisis
+  de vídeo de la pestaña activa en los modelos compatibles. La respuesta distingue
+  el contenido recibido, los cuadros muestreados y la evidencia no disponible.
+- **Agenda de sesiones síncronas.** Se añade una entrada para consultar las
+  sesiones autorizadas de Learning. Su disponibilidad requiere que la
+  organización tenga habilitada la integración correspondiente.
+- **Vista de diseño para instructores.** El aula incorpora una interfaz para
+  preparar escenas, materiales, actividades y distribución de salas. En esta
+  versión esos controles son de diseño local; no transmiten cámara, audio ni
+  pantalla, ni publican actividades a participantes.
+
+### Mejoras
+
+- **Navegación más ágil.** Abrir páginas y pestañas ofrece una respuesta inicial
+  más rápida mientras continúa la carga. Se reducen las actualizaciones
+  repetidas de la interfaz y las demoras al cambiar el tamaño del navegador.
+- **Búsqueda y sugerencias más consistentes.** La barra de direcciones evita
+  mostrar resultados de consultas anteriores y mantiene visible la página
+  mientras se utilizan las sugerencias.
+- **Menor trabajo en pestañas inactivas.** Se ajusta el uso de recursos de las
+  pestañas ocultas y la observación del navegador, conservando protección para
+  cargas, audio y capturas en curso.
+- **Control más claro de SofLIA sobre el navegador.** Se refuerzan la pausa,
+  cancelación y devolución del control al usuario, así como la comprobación de
+  que una acción corresponde a la pestaña y cuenta correctas.
+- **Permisos de comandos más comprensibles.** Las confirmaciones muestran la
+  acción solicitada y permiten recordar aprobaciones compatibles por usuario.
+  Las operaciones sensibles conservan su confirmación específica.
+- **Catálogo de modelos actualizado.** Se revisan las opciones disponibles y
+  sus niveles de razonamiento. WhatsApp y la creación de presentaciones
+  incorporan el modelo previsto en la configuración actual de SofLIA.
+- **Conversaciones con herramientas más fiables.** Se mejoran la recuperación
+  ante llamadas mal formadas, la cancelación y la comprobación de entregables
+  antes de afirmar que un trabajo ha finalizado.
+- **Instalador de Windows renovado.** Se incorpora una entrada visual con la
+  identidad de SofLIA y una preparación más robusta de los componentes
+  necesarios para las funciones locales.
+
+### Correcciones
+
+- Se corrige la restauración de la sesión para que organizaciones y WhatsApp
+  recuperen una identidad válida al reiniciar. Cuando es necesario, la aplicación
+  solicita iniciar sesión de nuevo en lugar de aparentar una conexión activa.
+- Se mejora el diagnóstico de cuentas que pueden acceder a Learning pero no
+  recuperar sus conversaciones en el Hub, evitando cambios innecesarios de
+  contraseña.
+- Se corrigen problemas de compatibilidad con las llamadas de Google Chat y
+  Huddle dentro del navegador integrado.
+- Se mejora el reconocimiento de mensajes de WhatsApp y de solicitudes
+  explícitas de utilizar las herramientas de control del equipo.
+- Se corrige la lectura del documento activo para evitar que un resumen utilice
+  recuerdos u otra pestaña como sustituto del contenido solicitado.
+- Se evitan respuestas y sugerencias tardías de una cuenta, documento o
+  navegación anterior después de cambiar de contexto.
+- Se corrigen situaciones en las que una página podía seguir cubriendo el chat
+  tras recargar la interfaz, así como problemas al cerrar varias pestañas o salir
+  de pantalla completa.
+- La búsqueda de actualizaciones deja de mostrar una espera indefinida cuando
+  falla el servicio o termina sin emitir una notificación adicional.
+- La lectura de accesibilidad deja de seleccionar una ventana del Hub que no
+  tiene el foco cuando el usuario trabaja en otra aplicación.
+
+### Seguridad y privacidad
+
+- Se refuerzan las comprobaciones de identidad, organización y permisos en las
+  funciones de asistencia, navegación y acceso a archivos.
+- Se amplían las protecciones de navegación, certificados, sesiones sensibles
+  y credenciales. Los cambios de cuenta invalidan las operaciones pendientes.
+- Las acciones externas o sensibles mantienen la aprobación humana. SofLIA
+  debe indicar cuando una captura, un vídeo o un intervalo de audio no pudo
+  analizarse, sin presentar como observado contenido que no recibió.
 
 ## [0.9.8] - 2026-08-17
 
