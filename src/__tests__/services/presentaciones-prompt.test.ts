@@ -29,7 +29,7 @@ describe('contrato React de la Skill de presentaciones', () => {
   });
 
   it('pide cobertura visual y graficas declarativas', () => {
-    expect(PRESENTACIONES_SKILL_PROMPT).toContain('entre 40% y 60%');
+    expect(PRESENTACIONES_SKILL_PROMPT).toContain('sin una cuota de fotografías');
     expect(PRESENTACIONES_SKILL_PROMPT).toContain('tipoGrafica: barras|lineas|area|radar|anillo');
     expect(PRESENTACIONES_SKILL_PROMPT).toContain('no conviertas cifras comparables en tarjetas o tablas');
     expect(PRESENTACIONES_SKILL_PROMPT).toContain('INICIO_MANIFIESTO_VISUALES_FUENTE_NO_CONFIABLE');

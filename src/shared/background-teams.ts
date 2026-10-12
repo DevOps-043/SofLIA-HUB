@@ -6,7 +6,7 @@ export const BACKGROUND_LIMITS = { history: 30, admitted: 6, concurrentJobs: 1, 
 export type BackgroundStatus = 'queued' | 'running' | 'verifying' | 'paused' | 'completed' | 'failed' | 'cancelled' | 'interrupted';
 export type BackgroundScope = { userId: string; organizationId: string | null; dataUserId: string | null };
 export type BackgroundAgent = { role: string; instruction: string; status: 'pending' | 'running' | 'completed' | 'failed'; operation: string; output: string; calls: number };
-export type BackgroundArtifact = { id: string; role: string; name: string; format: 'md' | 'txt' | 'csv' | 'docx' | 'pptx' | 'xlsx'; bytes: number; hash: string; inputHash: string; verified: boolean };
+export type BackgroundArtifact = { id: string; role: string; name: string; format: 'md' | 'txt' | 'csv' | 'docx' | 'pptx' | 'xlsx'; bytes: number; hash: string; inputHash: string; verified: boolean; designNotice?: string };
 export type BackgroundSource = { uri: string; title: string; role: string };
 export type BackgroundAction = { id: string; role: string; tool: string; status: 'running' | 'completed' | 'failed' | 'cancelled'; at: string; artifactId?: string };
 export interface BackgroundJob {

@@ -77,6 +77,7 @@ const bloque = z.object({
 }).strict();
 
 const metrica = z.object({
+  conteo: z.object({ numero: z.number().finite(), prefijo: z.string().max(12).optional(), sufijo: z.string().max(12).optional(), decimales: z.number().int().min(0).max(3).default(0) }).strict().optional(),
   valor: textoCorto(18),
   etiqueta: textoCorto(46),
   detalle: textoCorto(90).optional(),
@@ -105,6 +106,16 @@ const serieGrafica = z.object({
 }).strict();
 
 export const slideSchema = z.union([
+  base.extend({ tipo: z.literal('tabla'), columnas: z.array(textoCorto(32)).min(2).max(5), filas: z.array(z.array(textoCorto(80)).min(2).max(5)).min(1).max(6) }).strict().superRefine((slide, ctx) => {
+    if (slide.filas.some(f => f.length !== slide.columnas.length)) ctx.addIssue({ code: 'custom', message: 'Cada fila requiere una celda por columna.' });
+    const width = 1600 / slide.columnas.length;
+    const height = slide.filas.reduce((sum, f) => sum + Math.max(...f.map(c => Math.ceil(c.length * 14 / (width - 40)))) * 30 + 24, 70);
+    if (height > 540) ctx.addIssue({ code: 'custom', message: 'La tabla es demasiado densa; divídela en más diapositivas.' });
+  }),
+  base.extend({ tipo: z.literal('diagrama'), nodos: z.array(z.object({ id: textoCorto(40), titulo: textoCorto(44), texto: textoCorto(100).optional() }).strict()).min(2).max(6), conexiones: z.array(z.object({ desde: textoCorto(40), hasta: textoCorto(40) }).strict()).min(1).max(8) }).strict().superRefine((slide, ctx) => {
+    const ids = new Set(slide.nodos.map(n => n.id));
+    if (ids.size !== slide.nodos.length || slide.conexiones.some(c => c.desde === c.hasta || !ids.has(c.desde) || !ids.has(c.hasta))) ctx.addIssue({ code: 'custom', message: 'El diagrama requiere identificadores únicos y conexiones existentes.' });
+  }),
   base.extend({
     tipo: z.literal('portada'),
     subtitulo: textoCorto(180).optional(),
@@ -123,15 +134,15 @@ export const slideSchema = z.union([
       tipo: z.literal('division'),
       texto: textoCorto(280),
       imagen,
-      bloques: z.undefined().optional(),
+      bloques: z.never().optional(),
       ladoImagen: z.enum(['izquierda', 'derecha']).default('derecha'),
     }).strict(),
     base.extend({
       tipo: z.literal('division'),
       texto: textoCorto(280),
       bloques: z.array(bloque).min(2).max(4),
-      imagen: z.undefined().optional(),
-      ladoImagen: z.undefined().optional(),
+      imagen: z.never().optional(),
+      ladoImagen: z.never().optional(),
     }).strict(),
   ]),
   z.union([
@@ -140,7 +151,7 @@ export const slideSchema = z.union([
       texto: textoCorto(220).optional(),
       izquierda: bloque,
       derecha: bloque,
-      filas: z.undefined().optional(),
+      filas: z.never().optional(),
       imagen: imagenOpcional,
       pie: textoCorto(140).optional(),
     }).strict(),
@@ -148,8 +159,8 @@ export const slideSchema = z.union([
       tipo: z.literal('comparacion'),
       texto: textoCorto(220).optional(),
       filas: z.array(filaComparacion).min(2).max(4),
-      izquierda: z.undefined().optional(),
-      derecha: z.undefined().optional(),
+      izquierda: z.never().optional(),
+      derecha: z.never().optional(),
       imagen: imagenOpcional,
       pie: textoCorto(140).optional(),
     }).strict(),
@@ -184,15 +195,15 @@ export const slideSchema = z.union([
       cita: textoCorto(260),
       autor: textoCorto(70),
       cargo: textoCorto(90).optional(),
-      citas: z.undefined().optional(),
+      citas: z.never().optional(),
       imagen: imagenOpcional,
     }).strict(),
     base.extend({
       tipo: z.literal('cita'),
       citas: z.array(citaMultiple).min(2).max(3),
-      cita: z.undefined().optional(),
-      autor: z.undefined().optional(),
-      cargo: z.undefined().optional(),
+      cita: z.never().optional(),
+      autor: z.never().optional(),
+      cargo: z.never().optional(),
       imagen: imagenOpcional,
     }).strict(),
   ]),

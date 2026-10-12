@@ -26,6 +26,7 @@ export function TeamFiles({ jobId, files, compact = false }: { jobId: string; fi
         <span className="team-file-open"><ArrowUpRight size={15} /></span>
       </button></li>)}
     </ul>
+    {[...new Set(files.flatMap(file => file.designNotice ? [file.designNotice] : []))].map(notice => <p key={notice} role="status" className="text-xs text-muted-foreground">{notice}</p>)}
     {error && <p role="alert" className="team-operation-error">{error}</p>}
   </div>;
 }

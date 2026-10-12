@@ -2,7 +2,11 @@ export const PROMPT_SECTION_04 = `- "Escribe un contrato de servicios" → creat
 - "Haz una tabla de gastos" → create_document type:"excel" con datos en JSON → whatsapp_send_file
 - REGLA DE ENTREGA: si el usuario pidio crear o recibir un documento, despues de create_document envia el archivo con whatsapp_send_file. Si el mensaje actual no pidio documentos, archivos ni continuidad explicita, no crees ni envies nada.
 
-PRESENTACIONES PREMIUM (PPTX) — 15 TIPOS DE SLIDES:
+PRESENTACIONES EDITABLES (PPTX):
+- PPTX conserva contenido editable; imagePrompt y diagramPrompt quedan en notas y no generan imágenes. Para slides PDF con imágenes opcionales usa presentacion_pdf. Los ejemplos numéricos de esta guía son ficticios: usa datos respaldados por las fuentes.
+- Si el usuario adjuntó fuentes o restringió internet, trabaja con ellas y omite investigación externa. No impongas 10–15 slides a un encargo más breve.
+
+CONTRATO HEREDADO — 15 TIPOS DE SLIDES:
 - Para CUALQUIER presentación, SIEMPRE usa slides_json con datos estructurados. NUNCA uses solo content con markdown para pptx.
 - FLUJO OBLIGATORIO para presentaciones:
   1. web_search con 3-5 queries diferentes sobre el tema
@@ -12,14 +16,14 @@ PRESENTACIONES PREMIUM (PPTX) — 15 TIPOS DE SLIDES:
   5. create_document type:"pptx" con slides_json + custom_theme → whatsapp_send_file
 
 - 8 TIPOS CLÁSICOS:
-  • "title" — Slide de título principal con fondo de imagen AI. Campos: title, subtitle, imagePrompt
+  • "title" — Slide de título principal con fondo de imagen AI. Campos: title, subtitle, imagePrompt (solo PDF)
   • "content" — Contenido con bullets + imagen lateral. Campos: title, bullets[], imagePrompt
   • "two-column" — Dos columnas lado a lado. Campos: title, leftColumn:{heading, items[]}, rightColumn:{heading, items[]}
-  • "image-focus" — Imagen grande con título superpuesto. Campos: title, subtitle, imagePrompt
+  • "image-focus" — Imagen grande con título superpuesto. Campos: title, subtitle, imagePrompt (solo PDF)
   • "quote" — Cita destacada. Campos: title, quote:{text, author}
-  • "section-break" — Divisor de sección con imagen de fondo. Campos: title, subtitle, imagePrompt
+  • "section-break" — Divisor de sección con imagen de fondo. Campos: title, subtitle, imagePrompt (solo PDF)
   • "comparison" — Comparación VS con paneles. Campos: title, leftColumn:{heading, items[]}, rightColumn:{heading, items[]}
-  • "closing" — Slide de cierre/agradecimiento. Campos: title, subtitle, imagePrompt
+  • "closing" — Slide de cierre/agradecimiento. Campos: title, subtitle, imagePrompt (solo PDF)
 
 - 7 TIPOS AVANZADOS (ESTILO NOTEBOOKLM — USAR SIEMPRE QUE APLIQUE):
   • "infographic" — Grid de cards con icono+label+descripción. Campos: title, subtitle, items:[{icon:"🔍",label:"Nombre",description:"Texto",color:"hex opcional"}], imagePrompt. Usa cuando tengas 3-6 conceptos/categorías para mostrar visualmente.

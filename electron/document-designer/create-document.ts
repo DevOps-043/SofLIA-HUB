@@ -1,6 +1,6 @@
 import { AlignmentType, HeadingLevel, ImageRun, Packer, Paragraph, Table, TextRun } from 'docx';
 import fs from 'node:fs/promises';
-import { DOCUMENT_COLORS, resolveDocumentDesign, type DocumentDesign } from '../../src/shared/document-design';
+import { resolveDocumentDesign, type DocumentDesign } from '../../src/shared/document-design';
 import { blocksToParagraphs, documentListStarts } from './content-parser';
 import { createTitleBlock } from './cover-page';
 import { documentBlocks, shouldIncludeCover } from './document-layout';
@@ -18,7 +18,7 @@ export async function createProfessionalDocument(options: DocumentOptions): Prom
     includeTOC: _includeTOC = false,
     chartImages = [],
   } = options;
-  const design = resolveDocumentDesign(options.design);
+  const design = resolveDocumentDesign(options.design, options.brand);
   const blocks = documentBlocks(title, content);
   const cover = shouldIncludeCover(content, includeCover);
   const children: (Paragraph | Table)[] = [];
@@ -28,7 +28,9 @@ export async function createProfessionalDocument(options: DocumentOptions): Prom
 
   children.push(...blocksToParagraphs(blocks, design));
   children.push(...buildChartSection(chartImages, design));
-  await fs.writeFile(outputPath, await Packer.toBuffer(buildDocument(title, children, design, cover, documentListStarts(blocks))));
+  const bytes = await Packer.toBuffer(buildDocument(title, children, design, cover, documentListStarts(blocks)));
+  await options.beforeSave?.();
+  await fs.writeFile(outputPath, bytes);
   return outputPath;
 }
 
@@ -45,7 +47,7 @@ function buildChartSection(chartImages: string[], design: DocumentDesign): Parag
 
   const paragraphs: Paragraph[] = [
     new Paragraph({
-      children: [new TextRun({ text: images.length > 1 ? 'Anexo de gráficas' : 'Anexo de gráfica', bold: true, size: design.headingSizes[0], color: DOCUMENT_COLORS.heading, font: design.font })],
+      children: [new TextRun({ text: images.length > 1 ? 'Anexo de gráficas' : 'Anexo de gráfica', bold: true, size: design.headingSizes[0], color: design.heading, font: design.font })],
       heading: HeadingLevel.HEADING_1,
       keepNext: true,
       spacing: { before: 400, after: 200 },

@@ -7,6 +7,8 @@ import {
   type PresentationSlide,
 } from '../shared/presentations/deck-schema';
 import './presentation-runtime.css';
+import { CountedMetric } from './components/CountedMetric';
+import { SemanticSlide } from './components/SemanticSlide';
 
 const ChartSlide = lazy(async () => {
   const module = await import('./components/ChartSlide');
@@ -206,12 +208,14 @@ function SlideContent(props: { slide: PresentationSlide; reducedMotion: boolean;
     </>
   );
 
+  if (slide.tipo === 'tabla' || slide.tipo === 'diagrama') return <SemanticSlide slide={slide} reduced={props.reducedMotion} />;
+
   if (slide.tipo === 'portada') {
-    return <motion.div variants={group} initial="hidden" animate="visible" className={`${composicion} runtime-pad grid h-full items-center gap-20 pb-40 ${variante === 'visual-dominante' ? 'grid-cols-[.78fr_1.22fr]' : 'grid-cols-[1.05fr_.95fr]'}`}>
+    return <motion.div variants={group} initial="hidden" animate="visible" className={`${composicion} runtime-pad grid h-full items-center gap-20 pb-40 ${slide.imagen ? (variante === 'visual-dominante' ? 'grid-cols-[.78fr_1.22fr]' : 'grid-cols-[1.05fr_.95fr]') : 'grid-cols-1'}`}>
       <div className="relative z-20">{header}{slide.subtitulo ? <motion.p {...common} className="runtime-lead mt-9">{slide.subtitulo}</motion.p> : null}{slide.texto ? <motion.p {...common} className="mt-7 max-w-[900px] text-[23px] leading-relaxed opacity-60">{slide.texto}</motion.p> : null}</div>
-      <motion.div {...common} {...hoverLift} className="runtime-media runtime-surface runtime-interactive relative h-[720px] overflow-hidden rounded-[54px] shadow-2xl">
-        {slide.imagen ? <RuntimeImage image={slide.imagen} assetBase={props.assetBase} embeddedAssets={props.embeddedAssets} /> : <GraphicField />}
-      </motion.div>
+      {slide.imagen ? <motion.div {...common} {...hoverLift} className="runtime-media runtime-surface runtime-interactive relative h-[720px] overflow-hidden rounded-[54px] shadow-2xl">
+        {slide.imagen ? <RuntimeImage image={slide.imagen} assetBase={props.assetBase} embeddedAssets={props.embeddedAssets} /> : null}
+      </motion.div> : null}
     </motion.div>;
   }
 
@@ -243,7 +247,7 @@ function SlideContent(props: { slide: PresentationSlide; reducedMotion: boolean;
 
   if (slide.tipo === 'metricas') {
     const columnasMetricas = variante === 'compacta' ? slide.metricas.length : Math.min(slide.metricas.length, 2);
-    return <motion.div variants={group} initial="hidden" animate="visible" className={`${composicion} runtime-pad h-full pb-36 pt-24`}>{header}{slide.introduccion || slide.texto ? <motion.p {...common} className="runtime-lead mt-5">{slide.introduccion ?? slide.texto}</motion.p> : null}<div className={`mt-12 grid gap-6 ${slide.imagen ? (variante === 'visual-dominante' ? 'grid-cols-[.8fr_1.2fr]' : 'grid-cols-[1.45fr_.55fr]') : 'grid-cols-1'}`}><div className="grid gap-6" style={{ gridTemplateColumns: `repeat(${columnasMetricas}, minmax(0,1fr))` }}>{slide.metricas.map((metric) => <motion.div {...common} {...hoverLift} key={metric.etiqueta} className="runtime-surface runtime-interactive border-t-[8px] border-[var(--marca-color-acento)] px-8 py-8"><strong className="block text-[68px] font-black tracking-[-.06em] text-[var(--marca-color-primario)]">{metric.valor}</strong><h2 className="mt-4 text-[28px] font-black">{metric.etiqueta}</h2>{metric.detalle || metric.nota ? <p className="mt-3 text-[20px] leading-snug opacity-65">{metric.detalle ?? metric.nota}</p> : null}</motion.div>)}</div>{slide.imagen ? <motion.div {...common} {...hoverLift} className="runtime-media runtime-surface runtime-interactive overflow-hidden rounded-[34px]"><RuntimeImage image={slide.imagen} assetBase={props.assetBase} embeddedAssets={props.embeddedAssets} /></motion.div> : null}</div></motion.div>;
+    return <motion.div variants={group} initial="hidden" animate="visible" className={`${composicion} runtime-pad h-full pb-36 pt-24`}>{header}{slide.introduccion || slide.texto ? <motion.p {...common} className="runtime-lead mt-5">{slide.introduccion ?? slide.texto}</motion.p> : null}<div className={`mt-12 grid gap-6 ${slide.imagen ? (variante === 'visual-dominante' ? 'grid-cols-[.8fr_1.2fr]' : 'grid-cols-[1.45fr_.55fr]') : 'grid-cols-1'}`}><div className="grid gap-6" style={{ gridTemplateColumns: `repeat(${columnasMetricas}, minmax(0,1fr))` }}>{slide.metricas.map((metric) => <motion.div {...common} {...hoverLift} key={metric.etiqueta} className="runtime-surface runtime-interactive border-t-[8px] border-[var(--marca-color-acento)] px-8 py-8"><strong className="block text-[68px] font-black tracking-[-.06em] text-[var(--marca-color-primario)]">{<CountedMetric value={metric.valor} count={metric.conteo} enabled={!props.reducedMotion && slide.movimiento.enfasis === 'conteo'} />}</strong><h2 className="mt-4 text-[28px] font-black">{metric.etiqueta}</h2>{metric.detalle || metric.nota ? <p className="mt-3 text-[20px] leading-snug opacity-65">{metric.detalle ?? metric.nota}</p> : null}</motion.div>)}</div>{slide.imagen ? <motion.div {...common} {...hoverLift} className="runtime-media runtime-surface runtime-interactive overflow-hidden rounded-[34px]"><RuntimeImage image={slide.imagen} assetBase={props.assetBase} embeddedAssets={props.embeddedAssets} /></motion.div> : null}</div></motion.div>;
   }
 
   if (slide.tipo === 'grafica') {
@@ -252,10 +256,10 @@ function SlideContent(props: { slide: PresentationSlide; reducedMotion: boolean;
 
   if (slide.tipo === 'cita') {
     if ('citas' in slide && slide.citas) return <motion.div variants={group} initial="hidden" animate="visible" className={`${composicion} runtime-pad h-full pb-36 pt-24`}>{header}<div className={`mt-12 grid gap-6 ${variante === 'secuencial' ? 'grid-cols-1' : 'grid-cols-3'}`}>{slide.citas.map((quote) => <motion.blockquote {...common} {...hoverLift} key={quote.texto} className="runtime-surface runtime-interactive border-t-[8px] border-[var(--marca-color-acento)] p-8"><p className="text-[28px] font-black leading-tight">“{quote.texto}”</p><footer className="mt-6 text-[18px] font-semibold opacity-60">{quote.atribucion}</footer></motion.blockquote>)}</div></motion.div>;
-    return <motion.div variants={group} initial="hidden" animate="visible" className={`${composicion} runtime-pad grid h-full items-center gap-20 pb-36 ${variante === 'visual-dominante' ? 'grid-cols-[.75fr_1.25fr]' : 'grid-cols-[1.25fr_.75fr]'}`}><div>{slide.antetitulo ? <motion.p {...common} className="runtime-eyebrow">{slide.antetitulo}</motion.p> : null}<motion.blockquote {...common} className="text-[68px] font-black leading-[1.06] tracking-[-.045em]">“{slide.cita}”</motion.blockquote><motion.p {...common} className="mt-10 text-[26px] font-bold">{slide.autor}{slide.cargo ? <span className="font-normal opacity-60"> · {slide.cargo}</span> : null}</motion.p></div><motion.div {...common} {...hoverLift} className="runtime-media runtime-surface runtime-interactive h-[620px] overflow-hidden rounded-full border-[14px] border-[var(--deck-color-superficie)]">{slide.imagen ? <RuntimeImage image={slide.imagen} assetBase={props.assetBase} embeddedAssets={props.embeddedAssets} /> : <GraphicField />}</motion.div></motion.div>;
+    return <motion.div variants={group} initial="hidden" animate="visible" className={`${composicion} runtime-pad grid h-full items-center gap-20 pb-36 ${slide.imagen ? (variante === 'visual-dominante' ? 'grid-cols-[.75fr_1.25fr]' : 'grid-cols-[1.25fr_.75fr]') : 'grid-cols-1'}`}><div>{slide.antetitulo ? <motion.p {...common} className="runtime-eyebrow">{slide.antetitulo}</motion.p> : null}<motion.blockquote {...common} className="text-[68px] font-black leading-[1.06] tracking-[-.045em]">“{slide.cita}”</motion.blockquote><motion.p {...common} className="mt-10 text-[26px] font-bold">{slide.autor}{slide.cargo ? <span className="font-normal opacity-60"> · {slide.cargo}</span> : null}</motion.p></div>{slide.imagen ? <motion.div {...common} {...hoverLift} className="runtime-media runtime-surface runtime-interactive h-[620px] overflow-hidden rounded-full border-[14px] border-[var(--deck-color-superficie)]">{slide.imagen ? <RuntimeImage image={slide.imagen} assetBase={props.assetBase} embeddedAssets={props.embeddedAssets} /> : null}</motion.div> : null}</motion.div>;
   }
 
-  return <motion.div variants={group} initial="hidden" animate="visible" className={`${composicion} runtime-pad grid h-full items-center gap-20 pb-36 ${variante === 'visual-dominante' ? 'grid-cols-[.78fr_1.22fr]' : 'grid-cols-[1.05fr_.95fr]'}`}><div>{header}{slide.texto ? <motion.p {...common} className="runtime-lead mt-8">{slide.texto}</motion.p> : null}<RuntimePoints points={slide.puntos} common={common} /><motion.div {...common} whileHover={props.reducedMotion ? undefined : { scale: 1.035, x: 8 }} transition={{ type: 'spring', stiffness: 320, damping: 24 }} className="runtime-interactive mt-12 inline-flex rounded-full bg-[var(--marca-color-primario)] px-10 py-6 text-[27px] font-black text-[var(--deck-on-primary)]">{slide.accion} →</motion.div></div><motion.div {...common} {...hoverLift} className="runtime-media runtime-surface runtime-interactive h-[650px] overflow-hidden rounded-[54px]">{slide.imagen ? <RuntimeImage image={slide.imagen} assetBase={props.assetBase} embeddedAssets={props.embeddedAssets} /> : <GraphicField />}</motion.div></motion.div>;
+  return <motion.div variants={group} initial="hidden" animate="visible" className={`${composicion} runtime-pad grid h-full items-center gap-20 pb-36 ${slide.imagen ? (variante === 'visual-dominante' ? 'grid-cols-[.78fr_1.22fr]' : 'grid-cols-[1.05fr_.95fr]') : 'grid-cols-1'}`}><div>{header}{slide.texto ? <motion.p {...common} className="runtime-lead mt-8">{slide.texto}</motion.p> : null}<RuntimePoints points={slide.puntos} common={common} /><motion.div {...common} whileHover={props.reducedMotion ? undefined : { scale: 1.035, x: 8 }} transition={{ type: 'spring', stiffness: 320, damping: 24 }} className="runtime-interactive mt-12 inline-flex rounded-full bg-[var(--marca-color-primario)] px-10 py-6 text-[27px] font-black text-[var(--deck-on-primary)]">{slide.accion} →</motion.div></div>{slide.imagen ? <motion.div {...common} {...hoverLift} className="runtime-media runtime-surface runtime-interactive h-[650px] overflow-hidden rounded-[54px]">{slide.imagen ? <RuntimeImage image={slide.imagen} assetBase={props.assetBase} embeddedAssets={props.embeddedAssets} /> : null}</motion.div> : null}</motion.div>;
 }
 
 function RuntimePoints(props: { points?: string[]; common: Record<string, unknown> }) {
@@ -295,10 +299,6 @@ function Atmosphere({ emphasis, reducedMotion }: { emphasis: PresentationSlide['
     <div className="absolute -bottom-80 right-0 h-[760px] w-[760px] rounded-full bg-[var(--marca-color-acento)] opacity-10 blur-[110px]" />
     <div className="runtime-grid absolute inset-0 opacity-[.07]" />
   </div>;
-}
-
-function GraphicField() {
-  return <svg viewBox="0 0 800 800" className="h-full w-full" aria-hidden><g fill="none" stroke="var(--marca-color-primario)" strokeWidth="5" opacity=".65"><circle cx="400" cy="400" r="250"/><circle cx="400" cy="400" r="150"/><path d="M80 400h640M400 80v640M180 180l440 440M620 180 180 620"/></g><circle cx="400" cy="400" r="72" fill="var(--marca-color-acento)" opacity=".9"/></svg>;
 }
 
 function sceneStates(continuity: PresentationSlide['movimiento']['continuidad'], direction: number, reduced: boolean) {

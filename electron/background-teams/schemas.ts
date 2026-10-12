@@ -18,6 +18,7 @@ export const artifactSchema = z.object({
   format: z.enum(['md', 'txt', 'csv', 'docx', 'pptx', 'xlsx']), bytes: z.number().int().min(1).max(BACKGROUND_LIMITS.artifactBytes),
   hash: z.string().regex(/^[a-f0-9]{64}$/), verified: z.boolean(),
   inputHash: z.string().regex(/^[a-f0-9]{64}$/),
+  designNotice: z.string().max(300).optional(),
 }).strict();
 export const storedJobSchema = startSchema.extend({
   messageId: z.string().uuid().optional(),

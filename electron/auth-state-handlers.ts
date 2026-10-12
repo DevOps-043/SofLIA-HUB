@@ -8,6 +8,7 @@ import {
   revokeSofiaSession,
 } from './main/sofia-session';
 import { getProjectHubApiService } from './project-hub';
+import { setOrganizationContext } from './main/organization-context';
 
 /**
  * Contrato del canal: el renderer publica su estado de sesion tras iniciarla,
@@ -30,6 +31,7 @@ import { getProjectHubApiService } from './project-hub';
  */
 
 interface AuthStatePayload extends MainAuthState {
+  organizationId: string | null;
   accessToken: string | null;
   refreshToken: string | null;
   sofiaAccessToken: string | null;
@@ -44,6 +46,7 @@ function parseAuthStatePayload(payload: unknown): AuthStatePayload | null {
   if (!payload || typeof payload !== 'object') return null;
   const candidate = payload as {
     authenticated?: unknown;
+    organizationId?: unknown;
     userId?: unknown;
     accessToken?: unknown;
     refreshToken?: unknown;
@@ -51,6 +54,7 @@ function parseAuthStatePayload(payload: unknown): AuthStatePayload | null {
     sofiaRefreshToken?: unknown;
   };
   if (typeof candidate.authenticated !== 'boolean') return null;
+  if (candidate.organizationId != null && (typeof candidate.organizationId !== 'string' || !/^[\w-]{1,128}$/.test(candidate.organizationId))) return null;
   if (candidate.userId !== undefined && candidate.userId !== null && typeof candidate.userId !== 'string') {
     return null;
   }
@@ -65,6 +69,7 @@ function parseAuthStatePayload(payload: unknown): AuthStatePayload | null {
   if (Boolean(sofiaAccessToken) !== Boolean(sofiaRefreshToken)) return null;
   return {
     authenticated: candidate.authenticated,
+    organizationId: typeof candidate.organizationId === 'string' ? candidate.organizationId : null,
     userId,
     accessToken,
     refreshToken,
@@ -74,12 +79,16 @@ function parseAuthStatePayload(payload: unknown): AuthStatePayload | null {
 }
 
 export function registerAuthStateHandlers(): void {
+  let publication = 0;
   ipcMain.handle('auth:set-state', async (_event, payload: unknown) => {
     const parsed = parseAuthStatePayload(payload);
     if (!parsed) {
       console.warn('[AUTH] Payload de estado invalido; se conserva el estado actual.');
       return { ok: false, state: getAuthState() };
     }
+
+    const revision = ++publication;
+    setOrganizationContext(parsed.authenticated ? parsed.userId : null, parsed.organizationId);
 
     if (!parsed.authenticated) {
       // El gate se cierra antes de esperar operaciones remotas o de disco.
@@ -98,10 +107,12 @@ export function registerAuthStateHandlers(): void {
     }
 
     const sofiaRequired = isSofiaMainSessionConfigured();
+    if (revision !== publication) return { ok: false, state: getAuthState() };
     const authenticated = sofiaRequired
       ? Boolean(verifiedSofiaUserId && verifiedSofiaUserId === parsed.userId)
       : parsed.authenticated;
     const state = setAuthState({ authenticated, userId: authenticated ? parsed.userId : null });
+    setOrganizationContext(state.userId, parsed.organizationId);
 
     if (parsed.accessToken && parsed.refreshToken) {
       // Sin tokens no se falla: una version anterior del renderer o un flujo que
@@ -112,6 +123,7 @@ export function registerAuthStateHandlers(): void {
       );
     }
 
+    if (revision !== publication) return { ok: false, state: getAuthState() };
     if (authenticated && parsed.sofiaAccessToken) {
       const projectHubExchange = await getProjectHubApiService().exchangeSofiaToken(parsed.sofiaAccessToken);
       if (!projectHubExchange.success) {

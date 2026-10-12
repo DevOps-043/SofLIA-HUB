@@ -11,6 +11,7 @@ import type { GeminiToolGroup } from './types';
  */
 export const SKILL_WORKSPACE_TOOLS: GeminiToolGroup = {
   functionDeclarations: [
+    { name: 'workspace_render_video', description: 'Produce el MP4 del film.json actual y verifica sus fotogramas, audio y timestamps. Puede tardar hasta doce minutos.', parameters: objectParams({}) },
     {
       name: 'workspace_list_files',
       description:

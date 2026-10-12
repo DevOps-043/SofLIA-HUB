@@ -1,0 +1,66 @@
+{
+  "fecha": "2026-10-11",
+  "resultado": {
+    "html": "C:\\Users\\FerSG\\Desktop\\Soflia\\SofLIA Hub\\SofLIA-HUB\\production-smoke\\workspaces\\presentaciones\\presentacion-semantica-1d3acdb9\\presentacion-semantica.html",
+    "pptx": "C:\\Users\\FerSG\\Desktop\\Soflia\\SofLIA Hub\\SofLIA-HUB\\production-smoke\\workspaces\\presentaciones\\presentacion-semantica-1d3acdb9\\salida\\presentacion.pptx",
+    "video": "C:\\Users\\FerSG\\Desktop\\Soflia\\SofLIA Hub\\SofLIA-HUB\\production-smoke\\workspaces\\audiovisual\\soflia-del-conocimiento-a-la-accion-351708ca\\salida\\video.mp4",
+    "qa": "C:\\Users\\FerSG\\Desktop\\Soflia\\SofLIA Hub\\SofLIA-HUB\\production-smoke\\workspaces\\audiovisual\\soflia-del-conocimiento-a-la-accion-351708ca\\qa\\informe.json",
+    "ready": true
+  },
+  "video": {
+    "ok": true,
+    "loudness": {
+      "lufs": -14,
+      "pico": -3.07
+    },
+    "frames": 1800,
+    "fps": 60,
+    "ancho": 1920,
+    "alto": 1080,
+    "duracion": 30,
+    "timestamps": true,
+    "decodificacion": true,
+    "audio": "sintesis",
+    "filmHash": "56db580e271ef791d58ff54049728bfd362573a5b536f5eab005319a01107803",
+    "videoHash": "6098bc3a8d22931e5eaa88ac0b81fc63bed877c292eb060535d59695a2b1d122",
+    "bytes": 2673878
+  },
+  "html": {
+    "ok": true,
+    "errors": [],
+    "remote": [],
+    "titles": [
+      "De fuentes a entregables verificables",
+      "Cada formato conserva su propósito",
+      "La revisión vuelve al contenido",
+      "Ejemplo de gráfica editable",
+      "Entrega comprobable"
+    ],
+    "offline": true
+  },
+  "reproduccionElectron": {
+    "ok": true,
+    "duration": 30,
+    "width": 1920,
+    "height": 1080,
+    "seek": 15,
+    "ready": 4,
+    "protocolo": "pulse-presentacion"
+  },
+  "runtime": {
+    "platform": "win32",
+    "arch": "x64",
+    "files": [
+      {
+        "name": "ffmpeg.exe",
+        "version": "ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers\r",
+        "sha256": "3256173f3f8bffd7df12227c68adf68025edb1832273a9530688a7bb1ed8edec"
+      },
+      {
+        "name": "ffprobe.exe",
+        "version": "ffprobe version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2007-2026 the FFmpeg developers\r",
+        "sha256": "f0d36ecbbdd3bcfac3efa078c96c7271c2e68b3810595552ac3b7f17e9a65c52"
+      }
+    ]
+  }
+}

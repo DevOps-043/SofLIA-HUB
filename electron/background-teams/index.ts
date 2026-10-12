@@ -14,6 +14,7 @@ import { BackgroundRepository } from './repository';
 import { GeminiBackgroundProvider, OpenAIBackgroundProvider } from './providers';
 import { registerBackgroundTeamHandlers } from './handlers';
 import { ArtifactViewerService, registerArtifactViewerHandlers } from '../artifact-viewer';
+import { prepareOrganizationDocument } from '../organization-branding/document-branding';
 
 export async function initializeBackgroundTeams(input: { getWindow(): BrowserWindow | null; geminiKey(): string | null }): Promise<() => void> {
   const { app, safeStorage } = await import('electron');
@@ -36,6 +37,7 @@ export async function initializeBackgroundTeams(input: { getWindow(): BrowserWin
     if (after.userId !== scope.userId || after.dataUserId !== scope.dataUserId) throw new Error('La sesión cambió.');
   };
   const service = new BackgroundTeamService({
+    documentBranding: (job, disabled, guard) => prepareOrganizationDocument({ scope: job.scope, disabled, guard }),
     repository: new BackgroundRepository(path.join(app.getPath('userData'), 'background-teams'), {
       isEncryptionAvailable: () => safeStorage.isEncryptionAvailable() && (process.platform !== 'linux' || safeStorage.getSelectedStorageBackend() !== 'basic_text'),
       encryptString: value => safeStorage.encryptString(value), decryptString: value => safeStorage.decryptString(value),

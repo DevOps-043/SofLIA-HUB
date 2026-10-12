@@ -10,6 +10,7 @@ void app.whenReady().then(async () => {
   try {
     for (const name of ['breve', 'informe']) {
       const options = JSON.parse(await fs.readFile(path.join(directory, name + '.json'), 'utf8'));
+      if (options.brand?.logo) options.brand.logo.png = Buffer.from(options.brand.logo.base64, 'base64');
       await createPdfDocument({ ...options, saveDir: directory, filename: name + '-electron' });
     }
   } finally { app.quit(); }

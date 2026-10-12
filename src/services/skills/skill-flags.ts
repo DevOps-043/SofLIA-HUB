@@ -9,4 +9,5 @@ import type { SkillFlagEnv } from '../../shared/skills/registry';
  */
 export const RENDERER_SKILL_FLAGS: SkillFlagEnv = {
   VITE_SKILL_PRESENTACIONES_ENABLED: import.meta.env.VITE_SKILL_PRESENTACIONES_ENABLED,
+  VITE_SKILL_AUDIOVISUAL_ENABLED: import.meta.env.VITE_SKILL_AUDIOVISUAL_ENABLED,
 };

@@ -3,7 +3,8 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createProfessionalDocument } from '../document-designer';
-import type { DocumentDesignOptions } from '../../src/shared/document-design';
+import { documentDesignSchema, type DocumentDesignOptions } from '../../src/shared/document-design';
+import { prepareOrganizationDocument } from '../organization-branding/document-branding';
 
 const DEFAULT_DOCUMENT_TITLE = 'Documento SofLIA';
 const MAX_DOCUMENT_CONTENT_LENGTH = 250_000;
@@ -40,6 +41,8 @@ export async function handleCreateWordDocument(args: CreateWordDocumentArgs = {}
   }
 
   const title = normalizeTitle(args.title);
+  const design = documentDesignSchema.parse(args.design ?? {});
+  const identity = await prepareOrganizationDocument({ disabled: design.useOrganizationBranding === false });
   const outputPath = await resolveAvailableOutputPath(args, title);
   await fs.mkdir(path.dirname(outputPath), { recursive: true });
 
@@ -51,7 +54,9 @@ export async function handleCreateWordDocument(args: CreateWordDocumentArgs = {}
     content,
     outputPath,
     includeCover: typeof args.include_cover === 'boolean' ? args.include_cover : undefined,
-    design: args.design,
+    design,
+    brand: identity.brand,
+    beforeSave: identity.assertCurrent,
     chartImages: Array.isArray(args.chart_images) ? args.chart_images : [],
   });
 
@@ -61,6 +66,7 @@ export async function handleCreateWordDocument(args: CreateWordDocumentArgs = {}
 
   return {
     success: true,
+    ...(identity.notice ? { design_notice: identity.notice } : {}),
     path: savedPath,
     file_name: path.basename(savedPath),
     message: `Documento Word creado correctamente en ${savedPath}`,

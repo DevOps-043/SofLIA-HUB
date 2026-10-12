@@ -1,6 +1,10 @@
 
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'node:path';
+import { z } from 'zod';
+import { AudiovisualService } from './audiovisual/service';
+import { prepareFilmPreview } from './audiovisual/preview';
+import { exportWorkspacePptx } from './presentation-export/pptx';
 import { handleIPC } from './utils/ipc-helpers';
 import { refreshPresentationSystem } from './presentation-system-refresh';
 import { prepareBrandingForWorkspace } from './organization-branding/resolve-brand';
@@ -27,7 +31,12 @@ export function registerSkillWorkspaceHandlers(
     rendererDist: path.join(process.env.APP_ROOT ?? process.cwd(), 'dist'),
     devServerUrl: process.env.VITE_DEV_SERVER_URL,
   });
-  app.once('will-quit', () => { void runtime.stop(); });
+  const audiovisual = new AudiovisualService(service, process.env.APP_ROOT ?? process.cwd(), app.isPackaged ? process.resourcesPath : undefined);
+  const videoInput = z.object({ workspaceId: z.string().regex(/^[a-z0-9][a-z0-9-]{0,119}$/) }).strict();
+  ipcMain.handle('audiovisual:render', (_event, input: unknown) => handleIPC(async () => ({ video: await audiovisual.render(videoInput.parse(input).workspaceId) })));
+  ipcMain.handle('audiovisual:cancel', (_event, input: unknown) => handleIPC(async () => ({ cancelled: audiovisual.cancel(videoInput.parse(input).workspaceId) })));
+  ipcMain.handle('presentation:export-pptx', (_event, input: unknown) => handleIPC(async () => { await exportWorkspacePptx(service, videoInput.parse(input).workspaceId); return { exported: true }; }));
+  app.once('will-quit', () => { audiovisual.stop(); void runtime.stop(); });
 
   ipcMain.handle('skill-workspace:create', (_event, input: {
     skillId: string;
@@ -100,6 +109,11 @@ export function registerSkillWorkspaceHandlers(
       const workspace = await service.getWorkspace(String(input?.workspaceId ?? ''));
       if (!workspace) throw new Error('El espacio de trabajo no existe o ya se cerro.');
       const entryFile = String(input?.entryFile ?? '').trim() || workspace.entryFile;
+      if (workspace.skillId === 'sistema:audiovisual') {
+        if (entryFile !== workspace.entryFile && entryFile !== 'vista.html') return { url: buildPresentationUrl(workspace.id, entryFile) };
+        await prepareFilmPreview(service, workspace.id);
+        return { url: buildPresentationUrl(workspace.id, 'vista.html') };
+      }
       if (workspace.skillId === 'sistema:presentaciones' && entryFile === 'deck.json') {
         return { url: await runtime.getUrl(workspace.id) };
       }
@@ -128,6 +142,7 @@ export function registerSkillWorkspaceHandlers(
       const workspace = await service.getWorkspace(workspaceId);
       if (!workspace) throw new Error('El espacio de trabajo no existe o ya se cerro.');
       const entryFile = String(input?.entryFile ?? '').trim() || workspace.entryFile;
+      if (workspace.skillId !== 'sistema:presentaciones') throw new Error('La exportación HTML requiere una presentación.');
       if (workspace.skillId === 'sistema:presentaciones' && entryFile === 'deck.json') {
         const result = await exportPresentationDeckToHtml(
           service,
@@ -156,6 +171,7 @@ export function registerSkillWorkspaceHandlers(
       const workspaceId = String(input?.workspaceId ?? '');
       const workspace = await service.getWorkspace(workspaceId);
       if (!workspace) throw new Error('El espacio de trabajo no existe o ya se cerro.');
+      if (workspace.skillId !== 'sistema:presentaciones') throw new Error('La marca solo se prepara para Presentaciones.');
       const workspaceRoot = await service.resolveWorkspaceRoot(workspaceId);
       if (!workspaceRoot) throw new Error('El espacio de trabajo no existe o ya se cerro.');
 
@@ -204,6 +220,11 @@ function registerPresentationViewHandlers(
       const workspace = await service.getWorkspace(String(input?.workspaceId ?? ''));
       if (!workspace) throw new Error('La presentacion no existe o ya se cerro.');
       const entryFile = String(input?.entryFile ?? '').trim() || workspace.entryFile;
+      if (workspace.skillId === 'sistema:audiovisual') {
+        if (entryFile !== workspace.entryFile && entryFile !== 'vista.html') return { url: buildPresentationUrl(workspace.id, entryFile) };
+        await prepareFilmPreview(service, workspace.id);
+        const result = controller.open(workspace.id, 'vista.html'); if (!result.ok) throw new Error(result.error); return { opened: true };
+      }
       if (workspace.skillId === 'sistema:presentaciones' && entryFile === 'deck.json') {
         const result = controller.openUrl(await runtime.getUrl(workspace.id));
         if (!result.ok) throw new Error(result.error);

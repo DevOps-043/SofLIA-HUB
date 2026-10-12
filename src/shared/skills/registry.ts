@@ -1,4 +1,5 @@
 import { PRESENTACIONES_SKILL } from './presentaciones-skill';
+import { AUDIOVISUAL_SKILL } from './audiovisual-skill';
 import type { SkillSurface, SystemSkill } from './types';
 
 /**
@@ -12,6 +13,7 @@ import type { SkillSurface, SystemSkill } from './types';
  */
 export const SYSTEM_SKILLS: readonly SystemSkill[] = Object.freeze([
   PRESENTACIONES_SKILL,
+  AUDIOVISUAL_SKILL,
 ]);
 
 const SYSTEM_SKILL_IDS: ReadonlySet<string> = new Set(SYSTEM_SKILLS.map((skill) => skill.id));

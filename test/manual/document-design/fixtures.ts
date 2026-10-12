@@ -2,15 +2,16 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createProfessionalDocument } from '../../../electron/document-designer';
 import { buildDocumentHtml } from '../../../electron/document-designer/html-document';
+import type { DocumentBranding } from '../../../src/shared/document-branding';
 
 // Datos de demostración: ejercitan maquetación, no describen un cliente real.
 const brief = {
   title: 'Dos propuestas de activación', subtitle: 'Rethink and Delight', author: 'Equipo de diseño',
-  content: `## Una nueva mirada a lo cotidiano
+  content: `# Una nueva mirada a lo cotidiano
 
 Dos experiencias breves convierten una acción familiar en una sorpresa útil. Ambas propuestas se pueden montar en una estación de atención y terminan con una invitación a compartir lo descubierto.
 
-### El giro amable
+## El giro amable
 
 Durante una espera, la persona elige entre dos pequeñas mejoras para su experiencia. La opción seleccionada se entrega al momento, acompañada de una nota que explica qué fricción cotidiana se ha replanteado.
 
@@ -18,7 +19,7 @@ Durante una espera, la persona elige entre dos pequeñas mejoras para su experie
 2. Ofrecer dos alternativas comprensibles.
 3. Entregar la mejora y escuchar una reacción.
 
-### Un objeto con doble vida
+## Un objeto con doble vida
 
 Un objeto familiar revela una función inesperada. La persona prueba esa segunda posibilidad y propone otra manera de usar algo que conoce.
 
@@ -27,7 +28,7 @@ Un objeto familiar revela una función inesperada. La persona prueba esa segunda
 | El giro amable | 3 minutos | Tarjetas y una mejora útil |
 | Un objeto con doble vida | 5 minutos | Un objeto cotidiano y una demostración |
 
-**Próximo paso** Seleccionar una propuesta y probarla con un grupo pequeño antes de definir la producción.`,
+> **Próximo paso** Seleccionar una propuesta y probarla con un grupo pequeño antes de definir la producción.`,
 };
 const paragraphs = `El piloto busca comprobar que las personas entienden la propuesta y pueden participar sin una explicación extensa. El equipo recogerá observaciones sobre la claridad del mensaje, la facilidad de uso y la reacción al cierre. Los resultados servirán para ajustar la experiencia antes de una producción más amplia.
 
@@ -41,10 +42,12 @@ async function main() {
   const directory = process.argv[2];
   if (!directory) throw new Error('Indica una carpeta de salida para los ejemplos de QA.');
   await fs.mkdir(directory, { recursive: true });
+  const serialized = process.argv[3] ? JSON.parse(await fs.readFile(process.argv[3], 'utf8')) : undefined;
+  const brand: DocumentBranding | undefined = serialized ? { ...serialized, logo: serialized.logo ? { ...serialized.logo, png: Buffer.from(serialized.logo.base64, 'base64') } : undefined } : undefined;
   for (const [name, options] of Object.entries({ breve: brief, informe: report })) {
-    await createProfessionalDocument({ ...options, outputPath: path.join(directory, name + '.docx'), type: 'word' });
-    await fs.writeFile(path.join(directory, name + '.html'), buildDocumentHtml(options));
-    await fs.writeFile(path.join(directory, name + '.json'), JSON.stringify(options));
+    await createProfessionalDocument({ ...options, brand, outputPath: path.join(directory, name + '.docx'), type: 'word' });
+    await fs.writeFile(path.join(directory, name + '.html'), buildDocumentHtml({ ...options, brand }));
+    await fs.writeFile(path.join(directory, name + '.json'), JSON.stringify({ ...options, brand: serialized }));
   }
 }
 void main();

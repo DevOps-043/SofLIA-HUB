@@ -39,7 +39,7 @@ export function isAllowedBrandingUrl(candidate: string, allowedHost: string | nu
   if (!allowedHost) return false;
   try {
     const url = new URL(candidate);
-    if (url.protocol !== 'https:') return false;
+    if (url.protocol !== 'https:' || url.username || url.password) return false;
     return url.host.toLowerCase() === allowedHost;
   } catch {
     return false;
@@ -93,35 +93,8 @@ async function downloadOne(
     return null;
   }
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS);
   try {
-    const response = await context.fetchImpl(url, { signal: controller.signal });
-    if (!response.ok) {
-      context.missing.push(baseName);
-      return null;
-    }
-
-    // Se rechaza por cabecera antes de leer el cuerpo cuando el servidor la
-    // declara; el tamano real se vuelve a comprobar tras la lectura.
-    const declared = Number(response.headers.get('content-length') ?? '0');
-    if (declared > MAX_ASSET_BYTES) {
-      context.missing.push(baseName);
-      return null;
-    }
-
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.byteLength === 0 || buffer.byteLength > MAX_ASSET_BYTES) {
-      context.missing.push(baseName);
-      return null;
-    }
-
-    const extension = resolveExtension(response.headers.get('content-type'), url);
-    if (!extension) {
-      context.missing.push(baseName);
-      return null;
-    }
-
+    const { buffer, extension } = await fetchBrandAsset(url, context);
     const fileName = `${baseName}${extension}`;
     await fs.writeFile(path.join(assetsDir, fileName), buffer);
     return `assets/${fileName}`;
@@ -129,9 +102,36 @@ async function downloadOne(
     // Timeout, red caida o respuesta invalida: recurso ausente, sin bloquear.
     context.missing.push(baseName);
     return null;
-  } finally {
-    clearTimeout(timer);
   }
+}
+
+/** Bytes internos; permite incrustar el logo sin archivos temporales ni URLs remotas. */
+export async function fetchBrandAsset(url: string, deps: { fetchImpl?: typeof fetch; allowedHost?: string | null; storageOnly?: boolean } = {}): Promise<{ buffer: Buffer; extension: string }> {
+  const host = deps.allowedHost !== undefined ? deps.allowedHost : allowedBrandingHost();
+  if (!isAllowedBrandingUrl(url, host) || (deps.storageOnly && !/^\/storage\/v1\/(object|render\/image)\//.test(new URL(url).pathname))) throw new Error('Origen de marca no permitido.');
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS);
+  try {
+    const response = await (deps.fetchImpl ?? globalThis.fetch)(url, { signal: controller.signal, redirect: 'error' });
+    if (!response.ok || Number(response.headers.get('content-length') ?? 0) > MAX_ASSET_BYTES) throw new Error('Recurso de marca no disponible.');
+    const extension = resolveExtension(response.headers.get('content-type'), url);
+    if (!extension) throw new Error('Tipo de recurso no permitido.');
+    const reader = response.body?.getReader();
+    const chunks: Uint8Array[] = []; let size = 0;
+    if (reader) {
+      try {
+        while (true) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          size += chunk.value.byteLength;
+          if (size > MAX_ASSET_BYTES) { await reader.cancel(); throw new Error('Recurso demasiado grande.'); }
+          chunks.push(chunk.value);
+        }
+      } finally { reader.releaseLock(); }
+    } else { const bytes = new Uint8Array(await response.arrayBuffer()); size = bytes.length; chunks.push(bytes); }
+    if (!size || size > MAX_ASSET_BYTES) throw new Error('Tamaño de recurso no permitido.');
+    return { buffer: Buffer.concat(chunks), extension };
+  } finally { controller.abort(); clearTimeout(timer); }
 }
 
 function resolveExtension(contentType: string | null, url: string): string | null {

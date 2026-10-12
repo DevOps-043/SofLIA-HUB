@@ -14,6 +14,8 @@ export async function createWordDocument(args: DocumentBaseArgs): Promise<string
     type: 'word',
     includeCover: args.includeCover,
     design: args.design,
+    brand: args.brand,
+    beforeSave: args.beforeSave,
   });
   return filePath;
 }

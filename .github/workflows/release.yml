@@ -110,6 +110,7 @@ jobs:
           echo "ELEVENLABS_MODEL_ID=${{ secrets.ELEVENLABS_MODEL_ID }}" >> .env
           echo "ELEVENLABS_OUTPUT_FORMAT=${{ secrets.ELEVENLABS_OUTPUT_FORMAT }}" >> .env
           echo "VITE_SKILL_PRESENTACIONES_ENABLED=${{ vars.VITE_SKILL_PRESENTACIONES_ENABLED }}" >> .env
+          echo "VITE_SKILL_AUDIOVISUAL_ENABLED=${{ vars.VITE_SKILL_AUDIOVISUAL_ENABLED || 'false' }}" >> .env
           echo "VITE_MULTIMODAL_BROWSER_VISION=${{ vars.VITE_MULTIMODAL_BROWSER_VISION || 'true' }}" >> .env
           echo "VITE_MULTIMODAL_MEDIA_ATTACHMENTS=${{ vars.VITE_MULTIMODAL_MEDIA_ATTACHMENTS || 'true' }}" >> .env
           echo "VITE_MULTIMODAL_AMBIENT_AUDIO=${{ vars.VITE_MULTIMODAL_AMBIENT_AUDIO || 'true' }}" >> .env
@@ -175,6 +176,7 @@ jobs:
           echo "ELEVENLABS_MODEL_ID=${{ secrets.ELEVENLABS_MODEL_ID }}" >> .env
           echo "ELEVENLABS_OUTPUT_FORMAT=${{ secrets.ELEVENLABS_OUTPUT_FORMAT }}" >> .env
           echo "VITE_SKILL_PRESENTACIONES_ENABLED=${{ vars.VITE_SKILL_PRESENTACIONES_ENABLED }}" >> .env
+          echo "VITE_SKILL_AUDIOVISUAL_ENABLED=${{ vars.VITE_SKILL_AUDIOVISUAL_ENABLED || 'false' }}" >> .env
           echo "VITE_MULTIMODAL_BROWSER_VISION=${{ vars.VITE_MULTIMODAL_BROWSER_VISION || 'true' }}" >> .env
           echo "VITE_MULTIMODAL_MEDIA_ATTACHMENTS=${{ vars.VITE_MULTIMODAL_MEDIA_ATTACHMENTS || 'true' }}" >> .env
           echo "VITE_MULTIMODAL_AMBIENT_AUDIO=${{ vars.VITE_MULTIMODAL_AMBIENT_AUDIO || 'true' }}" >> .env
@@ -252,6 +254,7 @@ jobs:
           echo "ELEVENLABS_MODEL_ID=${{ secrets.ELEVENLABS_MODEL_ID }}" >> .env
           echo "ELEVENLABS_OUTPUT_FORMAT=${{ secrets.ELEVENLABS_OUTPUT_FORMAT }}" >> .env
           echo "VITE_SKILL_PRESENTACIONES_ENABLED=${{ vars.VITE_SKILL_PRESENTACIONES_ENABLED }}" >> .env
+          echo "VITE_SKILL_AUDIOVISUAL_ENABLED=${{ vars.VITE_SKILL_AUDIOVISUAL_ENABLED || 'false' }}" >> .env
           echo "VITE_MULTIMODAL_BROWSER_VISION=${{ vars.VITE_MULTIMODAL_BROWSER_VISION || 'true' }}" >> .env
           echo "VITE_MULTIMODAL_MEDIA_ATTACHMENTS=${{ vars.VITE_MULTIMODAL_MEDIA_ATTACHMENTS || 'true' }}" >> .env
           echo "VITE_MULTIMODAL_AMBIENT_AUDIO=${{ vars.VITE_MULTIMODAL_AMBIENT_AUDIO || 'true' }}" >> .env

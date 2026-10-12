@@ -31,6 +31,8 @@ export function exposeSkillWorkspaceApi(bridge: PreloadBridge, ipc: SafeIpc): vo
     attachConversation: (workspaceId: string, conversationId: string) =>
       safeInvoke('skill-workspace:attach-conversation', { workspaceId, conversationId }),
 
+    renderVideo: (workspaceId: string) => safeInvoke('audiovisual:render', { workspaceId }),
+    cancelVideo: (workspaceId: string) => safeInvoke('audiovisual:cancel', { workspaceId }),
     getState: (workspaceId: string) => safeInvoke('skill-workspace:get-state', { workspaceId }),
 
     readFile: (workspaceId: string, path: string) =>
@@ -69,6 +71,7 @@ export function exposeSkillWorkspaceApi(bridge: PreloadBridge, ipc: SafeIpc): vo
       safeInvoke('presentation-view:open', { workspaceId, entryFile }),
     close: () => safeInvoke('presentation-view:close'),
     onClosed: (callback: () => void) => safeOn('presentation-view:closed', callback),
+    exportPptx: (workspaceId: string) => safeInvoke('presentation:export-pptx', { workspaceId }),
     exportHtml: (workspaceId: string, entryFile?: string) =>
       safeInvoke('presentation:export-html', { workspaceId, entryFile }),
     prepareBranding: (input: { workspaceId: string; organizationId: string | null }) =>

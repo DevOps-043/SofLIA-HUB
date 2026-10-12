@@ -18,6 +18,8 @@ export interface AuthStatePayload {
  * devolviendo solo `AuthStatePayload`.
  */
 export interface AuthStatePublication extends AuthStatePayload {
+  /** Selección de UI; main comprueba membresía antes de usarla. */
+  organizationId?: string | null;
   accessToken?: string | null;
   refreshToken?: string | null;
   sofiaAccessToken?: string | null;

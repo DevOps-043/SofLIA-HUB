@@ -117,6 +117,9 @@ export const CHANNEL_GROUP_5 = [
   'presentation-view:close',
   'presentation-view:closed',
   'presentation:export-html',
+  'presentation:export-pptx',
+  'audiovisual:render',
+  'audiovisual:cancel',
   'presentation:prepare-branding',
 
   // Project Hub: métodos de dominio; ningún token ni cliente Supabase cruza al renderer.

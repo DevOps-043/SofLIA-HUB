@@ -3,6 +3,7 @@ import { PresentationCodeViewer } from './PresentationCodeViewer';
 import { PresentationFileTree } from './PresentationFileTree';
 import { PresentationPreview } from './PresentationPreview';
 import { usePresentationWorkspace } from './usePresentationWorkspace';
+import { workspaceApi, presentationApi } from '../../services/skills/workspace-bridge';
 import { isEditableFile } from './file-kind';
 import {
   PRESENTACIONES_BASE_CSS,
@@ -53,7 +54,11 @@ export function PresentationWorkspacePanel(props: {
   // Los archivos que escribe el sistema (identidad, sistema de diseno y guion)
   // no se editan desde el panel: main los rechazaria igual, y ofrecer el boton
   // solo para ver el error seria enganoso.
-  const editable = isEditableFile(state.selectedPath, PRESENTACIONES_PROTECTED_FILES);
+  const isVideo = state.workspace?.skillId === 'sistema:audiovisual';
+  const previewReady = state.ready || (isVideo && state.files.some(file => file.path === 'film.json'));
+  const [rendering, setRendering] = useState(false);
+  const renderVideo = async () => { setRendering(true); setAviso('Produciendo video...'); try { const result = await workspaceApi()?.renderVideo(props.workspaceId); setAviso(result?.success ? 'MP4 producido y verificado. Abre la carpeta para usarlo.' : result?.error ?? 'No se pudo producir.'); } finally { setRendering(false); } };
+  const editable = isEditableFile(state.selectedPath, [...PRESENTACIONES_PROTECTED_FILES, 'vista.html', 'qa/informe.json', 'salida/video.mp4']);
 
   useAutoOpenPreview({
     ready: state.ready,
@@ -62,7 +67,7 @@ export function PresentationWorkspacePanel(props: {
   });
 
   const handleReproducir = () => {
-    if (!state.ready) {
+    if (!previewReady) {
       setAviso('La presentacion todavia no esta lista. Espera a que SofLIA termine de escribirla.');
       return;
     }
@@ -137,11 +142,12 @@ export function PresentationWorkspacePanel(props: {
           <IconButton
             label="Presentar a pantalla completa"
             onClick={() => void handlePantallaCompleta()}
-            disabled={!state.ready}
+            disabled={!previewReady}
           >
             <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
           </IconButton>
-          <IconButton label="Exportar como archivo HTML" onClick={() => void handleExportar()} disabled={!state.ready}>
+          {isVideo ? <><button type="button" onClick={() => void renderVideo()} disabled={rendering || !previewReady} className="px-2 text-xs">Producir MP4</button><button type="button" disabled={!rendering && state.writingPath !== 'salida/video.mp4'} onClick={() => void workspaceApi()?.cancelVideo(props.workspaceId)} className="px-2 text-xs">Cancelar</button></> : <button type="button" disabled={!state.ready} className="px-2 text-xs" onClick={() => void presentationApi()?.exportPptx(props.workspaceId).then(result => { setAviso(result.success ? 'PPTX editable exportado.' : result.error ?? 'No se pudo exportar.'); if (result.success) void openFolder(); })}>PPTX</button>}
+          <IconButton label="Exportar como archivo HTML" onClick={() => void handleExportar()} disabled={isVideo || !state.ready}>
             <path d="M12 3v11m0 0-4-4m4 4 4-4M4 19h16" />
           </IconButton>
           <IconButton label="Abrir la carpeta de la presentacion" onClick={() => void openFolder()}>
@@ -162,7 +168,7 @@ export function PresentationWorkspacePanel(props: {
         <button
           type="button"
           onClick={handleReproducir}
-          disabled={!state.ready}
+          disabled={!previewReady}
           aria-label={state.ready ? 'Reproducir la presentacion' : 'La presentacion aun no esta lista'}
           className="flex items-center gap-1.5 rounded-xl bg-accent px-2.5 py-1.5 text-[11px] font-semibold text-on-accent transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -181,7 +187,7 @@ export function PresentationWorkspacePanel(props: {
 
       {tab === 'vista' ? (
         <div className="min-h-0 flex-1 bg-surface-2">
-          <PresentationPreview workspaceId={props.workspaceId} ready={state.ready} revision={revision} />
+          <PresentationPreview workspaceId={props.workspaceId} ready={previewReady} revision={revision} />
         </div>
       ) : (
         <div className="flex min-h-0 flex-1">

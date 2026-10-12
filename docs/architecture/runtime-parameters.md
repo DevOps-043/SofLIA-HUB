@@ -305,12 +305,26 @@ visible, actualizar `LIM-*`, requisitos e historias relacionados.
 ## Diseño de documentos generados
 
 Portada automática desde 6000 caracteres, salvo decisión explícita. Página
-Carta de 12240 × 15840 twips; margen de 1440 twips. Cuerpo de 11 puntos,
+Carta de 12240 × 15840 twips; margen editorial de 1440 twips. Corporativo:
+1080 twips laterales/inferior y 1560 superior para separar el encabezado.
+Cuerpo de 11 puntos,
 títulos de 22–32 según contexto; tablas hasta 20 columnas, sin alturas fijas
 de fila. Gráficas anexas hasta 520 × 680 px, manteniendo proporción. PDF:
 timeout de carga e impresión de 30 segundos con liberación de la ventana.
 Fuentes: `src/shared/document-design.ts`, `electron/document-designer/`
 y `electron/wa-executor/handlers/create-document/pdf-document.ts`.
+
+Identidad de documentos: consulta de membresía/marca 8 s, descarga HTTPS sin
+redirecciones 8 s/2 MiB, logo bitmap 16 MP y PNG 480 × 240/64 KiB. Se valida
+membresía nuevamente antes de guardar. Logo en portada hasta 180 × 120 px y
+encabezado hasta 88 × 26 px, sin ampliación de originales pequeños. Metadatos
+de tema para lectura: 16 KiB por parte XML, 8000 caracteres por propiedad,
+nombre de organización hasta 200 caracteres. Imágenes de contenido en lectura:
+presupuesto 64 KiB, más logo del encabezado hasta 64 KiB.
+Se decodifican como máximo ocho imágenes embebidas por documento. Fuentes:
+`electron/organization-branding/document-branding.ts`,
+`electron/organization-branding/document-logo.ts` y
+`electron/artifact-viewer/document-theme.ts`.
 
 ## Visor local de archivos
 
@@ -324,3 +338,7 @@ Copias externas: 12 retenidas y dos preparaciones simultáneas, con limpieza de
 mejor esfuerzo al cerrar; un cierre abrupto o un bloqueo de Office puede dejar
 una copia temporal. Fuentes: `src/shared/artifact-viewer.ts`,
 `electron/artifact-viewer/` y `src/components/artifacts/pdf-runtime.ts`.
+
+## Producción audiovisual local
+
+Una producción simultánea, doce minutos, 6–60 segundos, 30/60 fps, 1280/1920 de ancho, MP4 hasta 80 MB y workspace hasta 128 MB. Manifiestos de 512 KB; máximo tres entidades visibles por escena. [Contrato y operación](presentation-audiovisual-production.md).

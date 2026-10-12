@@ -145,8 +145,8 @@ describe('catalogo de skills en WhatsApp', () => {
   });
 
   it('la bandera sigue sirviendo para apagarla sin publicar version', () => {
-    expect(systemSkillsForSurface('chat', { VITE_SKILL_PRESENTACIONES_ENABLED: 'false' })).toHaveLength(0);
-    expect(systemSkillsForSurface('chat', { VITE_SKILL_PRESENTACIONES_ENABLED: '0' })).toHaveLength(0);
+    expect(systemSkillsForSurface('chat', { VITE_SKILL_PRESENTACIONES_ENABLED: 'false' }).filter(skill => skill.id === 'sistema:presentaciones')).toHaveLength(0);
+    expect(systemSkillsForSurface('chat', { VITE_SKILL_PRESENTACIONES_ENABLED: '0' }).filter(skill => skill.id === 'sistema:presentaciones')).toHaveLength(0);
   });
 
   it('una capacidad en desarrollo si queda apagada mientras no se declare', () => {

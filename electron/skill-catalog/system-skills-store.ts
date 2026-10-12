@@ -74,11 +74,11 @@ function versionInstalada(): string {
 export async function systemSkillsFor(surface: SkillSurface): Promise<SystemSkill[]> {
   const rows = await loadRows();
   return mergeSystemSkills({
-    code: systemSkillsForSurface(surface, process.env),
+    code: systemSkillsForSurface(surface, { ...process.env, VITE_SKILL_AUDIOVISUAL_ENABLED: process.env.VITE_SKILL_AUDIOVISUAL_ENABLED, VITE_SKILL_PRESENTACIONES_ENABLED: process.env.VITE_SKILL_PRESENTACIONES_ENABLED }),
     rows,
     surface,
     appVersion: versionInstalada(),
-  }).filter((skill) => !isSystemSkillDisabledByEnv(skill.id, process.env));
+  }).filter((skill) => !isSystemSkillDisabledByEnv(skill.id, { ...process.env, VITE_SKILL_AUDIOVISUAL_ENABLED: process.env.VITE_SKILL_AUDIOVISUAL_ENABLED, VITE_SKILL_PRESENTACIONES_ENABLED: process.env.VITE_SKILL_PRESENTACIONES_ENABLED }));
 }
 
 /** Fuerza una relectura. Uso previsto: pruebas y recarga manual del catalogo. */

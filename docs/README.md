@@ -41,6 +41,7 @@ Este indice separa documentacion vigente de material historico.
 - [Stack tecnologico](architecture/technology-stack.md)
 - [Frontend React](architecture/frontend.md)
 - [Backend Electron](architecture/backend-electron.md)
+- [Presentaciones y producción audiovisual](architecture/presentation-audiovisual-production.md)
 - [Diseño de documentos generados](architecture/generated-documents.md)
 - [Plataforma del navegador integrado](architecture/integrated-browser-platform.md)
 - [IPC e integraciones](architecture/ipc-and-integrations.md)

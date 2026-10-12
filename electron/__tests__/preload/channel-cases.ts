@@ -183,7 +183,7 @@ export function registerPreloadChannelTests() {
 
   it('SEC-037: las presentaciones exponen vista, exportacion y branding', () => {
     const presentationChannels = ALLOWED_IPC_CHANNELS.filter((channel) => channel.startsWith('presentation'));
-    expect(presentationChannels).toHaveLength(5);
+    expect(presentationChannels).toHaveLength(6);
     expect(presentationChannels).toContain('presentation-view:open');
     expect(presentationChannels).toContain('presentation-view:close');
     expect(presentationChannels).toContain('presentation-view:closed');

@@ -18,8 +18,8 @@ import { SKILL_WORKSPACE_TOOL_NAMES } from './workspace-tool-names';
  */
 const ALLOWED_BY_SURFACE: Record<SkillSurface, ReadonlySet<string>> = {
   chat: new Set(SKILL_WORKSPACE_TOOL_NAMES),
-  whatsapp: new Set(SKILL_WORKSPACE_TOOL_NAMES),
-  telegram: new Set(SKILL_WORKSPACE_TOOL_NAMES),
+  whatsapp: new Set(SKILL_WORKSPACE_TOOL_NAMES.filter(name => name !== 'workspace_render_video')),
+  telegram: new Set(SKILL_WORKSPACE_TOOL_NAMES.filter(name => name !== 'workspace_render_video')),
 };
 
 /**

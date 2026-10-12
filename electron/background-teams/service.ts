@@ -10,6 +10,7 @@ import { startSchema } from './schemas';
 import { toolSchemas, toolsForAgent } from './tools';
 
 export interface BackgroundServiceOptions {
+  documentBranding?: ConstructorParameters<typeof ArtifactStore>[1];
   repository: BackgroundRepository;
   resolveScope(organizationId: string | null): Promise<BackgroundScope>;
   authorize(scope: BackgroundScope): Promise<void>;
@@ -25,7 +26,7 @@ export class BackgroundTeamService extends EventEmitter {
   private admissions: Promise<unknown> = Promise.resolve();
   private artifactReservations = new Map<string, number>();
   constructor(private readonly options: BackgroundServiceOptions) {
-    super(); this.artifacts = new ArtifactStore(options.repository);
+    super(); this.artifacts = new ArtifactStore(options.repository, options.documentBranding);
   }
   async context(organizationId: string | null): Promise<BackgroundState> {
     const generation = this.generation;

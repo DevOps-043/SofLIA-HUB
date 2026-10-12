@@ -3,7 +3,7 @@ import { buildBrandCss } from './brand-css';
 import { DECK_BASE_CSS } from './deck-base-css';
 import { DECK_BASE_JS } from './deck-base-js';
 import { extractPaletteFromLogoFile } from './logo-colors';
-import { ensureContrast, parseHex, toHex } from './palette';
+import { ensureContrast, hasCustomBrandColors, parseHex, toHex } from './palette';
 import { resolveOrganizationBranding } from './service';
 import type { LocalBrandAssets, OrganizationBranding } from './types';
 
@@ -62,7 +62,7 @@ export function applyLogoPalette(
   assets: LocalBrandAssets,
 ): OrganizationBranding {
   if (!branding.enabled || !assets.logoAbsolutePath) return branding;
-  if (hasCustomColors(branding)) return branding;
+  if (hasCustomBrandColors([branding.colorPrimary, branding.colorSecondary, branding.colorAccent])) return branding;
 
   const palette = extractPaletteFromLogoFile(assets.logoAbsolutePath);
   if (!palette) return branding;
@@ -74,18 +74,6 @@ export function applyLogoPalette(
     colorAccent: readable(palette.accent, branding.colorAccent),
     colorSource: 'logo',
   };
-}
-
-/**
- * Una organizacion "configuro su paleta" solo si algun color difiere de los
- * valores por defecto del esquema. Con los defaults intactos, el logo manda.
- */
-const SCHEMA_DEFAULT_COLORS = new Set(['#3b82f6', '#10b981', '#8b5cf6']);
-
-function hasCustomColors(branding: OrganizationBranding): boolean {
-  return [branding.colorPrimary, branding.colorSecondary, branding.colorAccent].some(
-    (color) => !SCHEMA_DEFAULT_COLORS.has(color.trim().toLowerCase()),
-  );
 }
 
 function readable(candidate: string, fallback: string): string {

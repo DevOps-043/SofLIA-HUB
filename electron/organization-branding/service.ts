@@ -47,6 +47,7 @@ export async function resolveOrganizationBranding(
       .from('organizations')
       .select(BRANDING_COLUMNS)
       .eq('id', id)
+      .abortSignal(AbortSignal.timeout(8_000))
       .maybeSingle();
 
     if (error) {

@@ -19,6 +19,12 @@ beforeEach(async () => {
 });
 afterEach(async () => { vi.useRealTimers(); await fs.rm(directory, { recursive: true, force: true }); });
 const args = () => ({ title: 'Documento', content: '## Resumen\n\nContenido completo', filename: 'documento', saveDir: directory });
+it('comparte colores corporativos y valida contexto después de imprimir', async () => {
+  const brand = { organizationName: 'Empresa', primary: '0A2540', secondary: '13263B', accent: '23AEA8' };
+  await expect(createPdfDocument({ ...args(), brand, beforeSave: async () => { throw new Error('Sesión cambiada'); } })).rejects.toThrow('Sesión cambiada');
+  expect(window.print).toHaveBeenCalledWith(expect.objectContaining({ headerTemplate: expect.stringContaining('#23AEA8'), footerTemplate: expect.stringContaining('Empresa') }));
+  expect(await fs.readdir(directory)).toEqual([]); expect(window.destroy).toHaveBeenCalledOnce();
+});
 it('exporta Carta desde HTML aislado y libera la ventana oculta', async () => {
   const output = await createPdfDocument(args());
   expect(await fs.readFile(output, 'utf8')).toContain('%PDF-');

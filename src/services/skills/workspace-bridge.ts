@@ -41,6 +41,8 @@ export type WorkspaceProgressEvent = {
 };
 
 interface WorkspaceApi {
+  renderVideo: (workspaceId: string) => Promise<{ success: boolean; error?: string }>;
+  cancelVideo: (workspaceId: string) => Promise<{ success: boolean; error?: string }>;
   create: (input: {
     skillId: string;
     title: string;
@@ -75,6 +77,7 @@ interface WorkspaceApi {
 }
 
 interface PresentationApi {
+  exportPptx: (workspaceId: string) => Promise<{ success: boolean; error?: string }>;
   open: (workspaceId: string, entryFile?: string) => Promise<{ success: boolean; error?: string }>;
   close: () => Promise<{ success: boolean; error?: string }>;
   onClosed: (callback: () => void) => () => void;

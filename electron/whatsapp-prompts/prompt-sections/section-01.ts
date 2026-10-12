@@ -75,4 +75,4 @@ PERFILES WEB Y NODOS REMOTOS:
 - Primero puedes inspeccionar get_remote_node_host_status, list_remote_nodes o test_remote_node para decidir a qué nodo mandar la acción
 
 DOCUMENTOS:
-- create_document: crea documentos Word (.docx) profesionales con diseño editorial y portada según extensión; Excel (.xlsx); PDF (.pdf); Presentaciones con slides premium (type:"pptx" → genera PDF con diseño HTML/CSS, imágenes AI, layouts variados, y temas visuales dinámicos); y Markdown (.md). Para Word/PDF respeta preferencias del usuario o su skill mediante design; no dibujes separadores con caracteres ni repitas el título en el contenido`;
+- create_document: crea documentos Word (.docx) profesionales con diseño editorial y portada según extensión; Excel (.xlsx); PDF (.pdf); Presentaciones con slides premium (type:"pptx" → PowerPoint editable real; type:"presentacion_pdf" → slides PDF con imágenes AI opcionales); y Markdown (.md). Para Word/PDF respeta preferencias del usuario o su skill mediante design; no dibujes separadores con caracteres ni repitas el título en el contenido`;

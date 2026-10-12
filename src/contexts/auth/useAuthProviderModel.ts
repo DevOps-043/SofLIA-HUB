@@ -59,6 +59,7 @@ export function useAuthProviderModel(): AuthContextType {
   // de reuniones) hasta conocer que hay sesion. Se publica en cada cambio de
   // usuario: login, cierre de sesion y restauracion al arrancar.
   const authenticatedUserId = state.user?.id ?? null;
+  const organizationId = state.sofiaContext?.currentOrganization?.id ?? null;
   const authLoading = state.loading;
   const accessToken = state.session?.access_token ?? null;
   const refreshToken = state.session?.refresh_token ?? null;
@@ -74,11 +75,14 @@ export function useAuthProviderModel(): AuthContextType {
     // Mientras se restaura la sesion no se publica: un `false` transitorio
     // revocaria el acceso y cerraria la orbe recien abierta.
     if (authLoading) return;
+    let cancelled = false;
     void (async () => {
       const sofiaSession = usingSofia ? await sofiaAuth.getSession() : null;
+      if (cancelled) return;
       await publishAuthState({
         authenticated: Boolean(authenticatedUserId),
         userId: authenticatedUserId,
+        organizationId,
         accessToken: accessToken ?? null,
         refreshToken: refreshToken ?? null,
         // Este token solo se canjea en main; nunca se persiste ni vuelve al renderer.
@@ -88,9 +92,10 @@ export function useAuthProviderModel(): AuthContextType {
         sofiaRefreshToken: sofiaSession?.refresh_token ?? null,
       });
     })();
+    return () => { cancelled = true; };
     // Los tokens entran en las dependencias para republicar cuando la sesión se
     // renueva: si no, el main se quedaría con el token viejo hasta reiniciar.
-  }, [accessToken, authLoading, authenticatedUserId, refreshToken, usingSofia]);
+  }, [accessToken, authLoading, authenticatedUserId, organizationId, refreshToken, usingSofia]);
 
   return {
     session: state.session,

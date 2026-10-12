@@ -8,7 +8,7 @@ import { invalidateBrandingCache, resolveOrganizationBranding } from '../organiz
 import { NEUTRAL_BRANDING, type OrganizationBranding } from '../organization-branding/types';
 
 const maybeSingle = vi.fn();
-const eq = vi.fn(() => ({ maybeSingle }));
+const eq = vi.fn(() => ({ maybeSingle, abortSignal: vi.fn(() => ({ maybeSingle })) }));
 const select = vi.fn(() => ({ eq }));
 const from = vi.fn(() => ({ select }));
 const getSofiaClient = vi.fn(() => ({ from }) as never);

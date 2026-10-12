@@ -5,14 +5,18 @@ import { z } from 'zod';
 import { documentDesignSchema } from '../../src/shared/document-design';
 import { BACKGROUND_LIMITS, type BackgroundArtifact, type BackgroundJob } from '../../src/shared/background-teams';
 import type { BackgroundRepository } from './repository';
+import { createEditablePptx } from '../presentation-export/pptx';
+import { presentationDeckSchema } from '../../src/shared/presentations/deck-schema';
 import { readPresentationText } from './presentation-reader';
+import type { PreparedDocumentBranding } from '../../src/shared/document-branding';
 
 export const textArtifactInput = z.object({ name: z.string().regex(/^[a-zA-Z0-9_-]{1,80}\.(md|txt|csv|docx)$/), title: z.string().min(1).max(180), content: z.string().trim().min(1).max(100000), subtitle: z.string().max(250).optional(), author: z.string().max(120).optional(), includeCover: z.boolean().optional(), design: documentDesignSchema.optional() }).strict();
-export const slidesInput = z.object({ name: z.string().regex(/^[a-zA-Z0-9_-]{1,80}\.pptx$/), slides: z.array(z.object({ title: z.string().min(1).max(180), body: z.string().min(1).max(2500) }).strict()).min(1).max(20) }).strict();
+const legacySlidesInput = z.object({ name: z.string().regex(/^[a-zA-Z0-9_-]{1,80}\.pptx$/), slides: z.array(z.object({ title: z.string().min(1).max(180), body: z.string().min(1).max(2500) }).strict()).min(1).max(20) }).strict();
+export const slidesInput = z.union([legacySlidesInput, z.object({ name: z.string().regex(/^[a-zA-Z0-9_-]{1,80}\.pptx$/), deck: presentationDeckSchema }).strict()]);
 export const sheetInput = z.object({ name: z.string().regex(/^[a-zA-Z0-9_-]{1,80}\.xlsx$/), headers: z.array(z.string().min(1).max(100)).min(1).max(20), rows: z.array(z.array(z.union([z.string().max(1000), z.number().finite()])).min(1).max(20)).min(1).max(200), totalColumns: z.array(z.number().int().min(0).max(19)).max(20) }).strict();
 
 export class ArtifactStore {
-  constructor(private readonly repository: BackgroundRepository) {}
+  constructor(private readonly repository: BackgroundRepository, private readonly branding?: (job: BackgroundJob, disabled: boolean, guard: () => Promise<void>) => Promise<PreparedDocumentBranding>) {}
   private async folder(job: BackgroundJob, role: string) {
     if (!/^[a-z-]+$/.test(role)) throw new Error('Rol inválido.');
     const target = path.join(this.repository.folder(job.scope, job.id), role);
@@ -60,28 +64,24 @@ export class ArtifactStore {
     const file = path.join(folder, id + '-' + parsed.name);
     const temporary = path.join(folder, id + '.tmp');
     let finished = false;
+    let designNotice: string | null = null;
     await guard();
     try {
       if ('content' in parsed) {
         if (format === 'docx') {
           const { createProfessionalDocument } = await import('../document-designer');
+          const identity = await this.branding?.(job, parsed.design?.useOrganizationBranding === false, guard);
+          designNotice = identity?.notice ?? null;
           await createProfessionalDocument({ title: parsed.title, content: parsed.content, subtitle: parsed.subtitle, author: parsed.author,
-            outputPath: temporary, type: 'word', includeCover: parsed.includeCover, design: parsed.design });
+            outputPath: temporary, type: 'word', includeCover: parsed.includeCover, design: parsed.design, brand: identity?.brand,
+            beforeSave: async () => { await identity?.assertCurrent(); await guard(); } });
         } else {
           if (format === 'csv' && /(?:^|[,;\n])\s*["']?[=+@-]/m.test(parsed.content)) throw new Error('CSV con prefijos de fórmula no permitidos; usa Excel para valores negativos.');
           await fs.writeFile(temporary, parsed.content, { flag: 'wx', mode: 0o600 });
         }
-      } else if ('slides' in parsed) {
-        const PptxGenJS = (await import('pptxgenjs')).default;
-        const deck = new PptxGenJS(); deck.layout = 'LAYOUT_WIDE'; deck.author = 'SofLIA';
-        for (const item of parsed.slides) {
-          const slide = deck.addSlide(); slide.background = { color: '0B1220' };
-          slide.addText(item.title, { x: 0.7, y: 0.5, w: 11.8, h: 0.8, fontSize: 28, bold: true, color: 'FFFFFF' });
-          slide.addText(item.body, { x: 0.7, y: 1.6, w: 11.8, h: 4.9, fontSize: 18, color: 'FFFFFF', breakLine: false });
-        }
-        const output = await deck.write({ outputType: 'nodebuffer' });
-        if (!Buffer.isBuffer(output)) throw new Error('El generador no devolvió una presentación binaria.');
-        await fs.writeFile(temporary, output, { flag: 'wx', mode: 0o600 });
+      } else if ('slides' in parsed || 'deck' in parsed) {
+        const output = await createEditablePptx('deck' in parsed ? parsed.deck : parsed.slides, 'Presentación');
+        await fs.writeFile(temporary, output.buffer, { flag: 'wx', mode: 0o600 });
       } else {
         const ExcelJS = (await import('exceljs')).default;
         const workbook = new ExcelJS.Workbook();
@@ -104,7 +104,7 @@ export class ArtifactStore {
       const buffer = await fs.readFile(temporary);
       if (!buffer.length || buffer.length > BACKGROUND_LIMITS.artifactBytes) throw new Error('Tamaño de archivo fuera de límite.');
       await fs.rename(temporary, file);
-      const artifact: BackgroundArtifact = { id, role, name: parsed.name, format, bytes: buffer.length, hash: createHash('sha256').update(buffer).digest('hex'), inputHash, verified: false };
+      const artifact: BackgroundArtifact = { id, role, name: parsed.name, format, bytes: buffer.length, hash: createHash('sha256').update(buffer).digest('hex'), inputHash, verified: false, ...(designNotice ? { designNotice } : {}) };
       await guard(); await this.read(job, artifact); await guard();
       artifact.verified = true;
       finished = true;

@@ -13,7 +13,9 @@ export function buildParagraph(block: Exclude<DocumentBlock, { kind: 'table' }>,
   if (block.kind === 'heading') {
     const level = Math.min(3, block.level);
     const headings = [HeadingLevel.HEADING_1, HeadingLevel.HEADING_2, HeadingLevel.HEADING_3];
-    return new Paragraph({ heading: headings[level - 1], children: inlineToRuns(parseInline(block.text), design.headingSizes[level - 1], design, DOCUMENT_COLORS.heading), keepNext: true, keepLines: true });
+    return new Paragraph({ heading: headings[level - 1], children: inlineToRuns(parseInline(block.text), design.headingSizes[level - 1], design, level === 1 ? design.heading : design.corporate ? design.secondary : design.heading), keepNext: true, keepLines: true,
+      ...(design.corporate && level === 1 ? { border: { left: { style: BorderStyle.SINGLE, color: design.accent, size: 24, space: 10 } }, indent: { left: 140 } } : {}),
+    });
   }
   const children = inlineToRuns(parseInline(block.text), design.bodySize, design);
   if (block.kind === 'list') return new Paragraph({
@@ -24,6 +26,10 @@ export function buildParagraph(block: Exclude<DocumentBlock, { kind: 'table' }>,
   });
   return new Paragraph({ children, alignment: AlignmentType.LEFT, widowControl: true,
     spacing: { after: design.paragraphAfter, line: design.line },
-    ...(block.kind === 'quote' ? { indent: { left: 300, right: 180 } } : {}),
+    ...(block.kind === 'quote' ? { indent: { left: 240, right: 240 }, ...(design.corporate ? {
+      shading: { fill: design.callout, type: ShadingType.CLEAR, color: 'auto' },
+      border: { left: { style: BorderStyle.SINGLE, color: design.accent, size: 20, space: 10 }, top: { style: BorderStyle.SINGLE, color: design.callout, size: 8, space: 10 }, bottom: { style: BorderStyle.SINGLE, color: design.callout, size: 8, space: 10 } },
+      spacing: { before: 180, after: 240, line: design.line },
+    } : {}) } : {}),
   });
 }

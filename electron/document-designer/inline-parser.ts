@@ -21,7 +21,7 @@ export function parseInline(text: string): ParsedInline[] {
   if (last < text.length) parts.push({ text: text.slice(last) });
   return parts.length ? parts : [{ text }];
 }
-export function inlineToRuns(inlines: ParsedInline[], baseSize = 22, design: DocumentDesign = resolveDocumentDesign(), color: string = DOCUMENT_COLORS.text): (TextRun | ExternalHyperlink)[] {
+export function inlineToRuns(inlines: ParsedInline[], baseSize = 22, design: DocumentDesign = resolveDocumentDesign(), color: string = design.body): (TextRun | ExternalHyperlink)[] {
   return inlines.map(part => {
     const options: IRunOptions = {
       text: part.text, size: part.code ? Math.min(baseSize, 20) : baseSize,

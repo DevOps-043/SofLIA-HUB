@@ -69,7 +69,7 @@ aprobación fabricada del renderer. El servicio comprueba capacidad, política,
 perfil y control humano; el borrado pregunta en main. Responde con biblioteca
 versionada, cancelación o error saneado. No existe IPC de ejecución de atajos.
 
-La allowlist actual contiene 467 canales derivados de cinco arrays: 84, 52, 61, 142, 128. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 470 canales derivados de cinco arrays: 84, 52, 61, 142, 131. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |
@@ -746,6 +746,12 @@ firmada y efímera, pero nunca una clave Supabase o un token OAuth de Drive. El
 contrato completo y los estados de degradación se documentan en
 [Project Hub unificado](project-hub-unified.md).
 
+`auth:set-state` admite también `organizationId` opcional y validado como
+selección privada. No cambia la salida de `auth:get-state` ni concede acceso:
+el generador comprueba sesión SOFIA y membresía activa. Los documentos en
+preparación se invalidan si cambia esa selección. El contrato y la recuperación
+de logo/paleta se mantienen en [Diseño de documentos](generated-documents.md).
+
 
 - Variables `VITE_` quedan incrustadas por Vite incluso para main; no deben
   considerarse secretos de backend. Las claves anon publicas de Supabase dependen
@@ -800,3 +806,7 @@ La apertura externa usa una copia temporal de los bytes verificados, evitando
 la sustitución de la ruta original. HTML permanece en el sandbox. No hay
 edición Office ni ejecución de binarios.
 Véase [especificación del visor](../../openspec/changes/preview-generated-artifacts/specs/artifact-preview/spec.md).
+
+## Exportación y audiovisual local
+
+`presentation:export-pptx` publica un PPTX editable del deck validado. `audiovisual:render` y `audiovisual:cancel` reciben solamente workspaceId, validado mediante esquema estricto; el servicio comprueba la skill propietaria. Allowlist, preload y wrapper tipado no exponen shell, ejecutables ni escritura binaria genérica. Contratos y límites en [producción audiovisual](presentation-audiovisual-production.md).

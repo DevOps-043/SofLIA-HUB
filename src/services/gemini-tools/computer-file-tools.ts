@@ -16,7 +16,7 @@ export const COMPUTER_FILE_TOOL_DECLARATIONS: GeminiFunctionDeclaration[] = [
       file_name: stringProp('Nombre opcional del archivo .docx.'),
       output_path: stringProp('Ruta opcional del archivo .docx o de la carpeta destino. Si se omite, usa el Escritorio.'),
       include_cover: booleanProp('Fuerza o elimina portada. Si se omite, solo los informes extensos usan portada separada.'),
-      design: objectParams({ preset: stringProp('editorial (predeterminado), formal o compact.'), fontFamily: stringProp('Fuente opcional: Calibri, Arial o Georgia.'), accentColor: stringProp('Color de acento opcional para tablas: seis dígitos hexadecimales sin #. Respeta el diseño solicitado por el usuario o su skill.') }),
+      design: objectParams({ preset: stringProp('corporate (automático con marca), editorial, formal o compact. No pidas logo ni paleta: se resuelven desde la organización.'), fontFamily: stringProp('Fuente opcional: Calibri, Arial o Georgia.'), accentColor: stringProp('Acento opcional: seis dígitos hexadecimales sin #.'), primaryColor: stringProp('Color principal opcional: seis dígitos hexadecimales sin #.'), secondaryColor: stringProp('Color secundario opcional: seis dígitos hexadecimales sin #.'), useOrganizationBranding: booleanProp('Desactivar solo si el usuario o su skill solicita omitir marca corporativa.') }),
       open_after_save: booleanProp('Si es true, abre el documento despues de crearlo.'),
     }, ['title', 'content']),
   },

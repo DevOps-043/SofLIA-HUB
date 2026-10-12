@@ -35,6 +35,7 @@ vi.mock('../project-hub', () => ({ getProjectHubApiService: () => projectHub }))
 
 import { registerAuthStateHandlers } from '../auth-state-handlers';
 import { resetAuthStateForTests } from '../main/auth-state';
+import { getOrganizationContext } from '../main/organization-context';
 
 const ipcMainHarness = ipcMain as unknown as {
   _clearHandlers: () => void;
@@ -47,6 +48,23 @@ function invocar(canal: string, ...args: unknown[]): Promise<any> {
 }
 
 describe('contrato del canal de estado de sesion', () => {
+  it('publica selección privada, rechaza identificadores inválidos y la retira al salir', async () => {
+    sesionSofia.currentUserId = 'user-1';
+    const response = await invocar('auth:set-state', { authenticated: true, userId: 'user-1', organizationId: 'org-1' });
+    expect(response.ok).toBe(true); expect(getOrganizationContext()).toMatchObject({ userId: 'user-1', organizationId: 'org-1' });
+    expect(await invocar('auth:get-state')).toEqual({ authenticated: true, userId: 'user-1' });
+    expect((await invocar('auth:set-state', { authenticated: true, userId: 'user-1', organizationId: '../otra' })).ok).toBe(false);
+    await invocar('auth:set-state', { authenticated: false, userId: null });
+    expect(getOrganizationContext()).toMatchObject({ userId: null, organizationId: null });
+  });
+  it('una publicación antigua no restablece la selección después del logout', async () => {
+    let release!: (value: SofiaMockResult) => void;
+    sesionSofia.applySofiaSession.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+    const pending = invocar('auth:set-state', { authenticated: true, userId: 'user-1', organizationId: 'org-1', sofiaAccessToken: 'prueba', sofiaRefreshToken: 'prueba' });
+    await invocar('auth:set-state', { authenticated: false, userId: null });
+    release({ status: 'aplicada', userId: 'user-1' }); expect((await pending).ok).toBe(false);
+    expect(getOrganizationContext().organizationId).toBeNull(); expect(await invocar('auth:get-state')).toEqual({ authenticated: false, userId: null });
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     ipcMainHarness._clearHandlers();

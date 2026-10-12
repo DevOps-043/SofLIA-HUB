@@ -1,6 +1,8 @@
 import { VIEWER_LIMITS, type ArtifactPreview, type ViewerFile, type ViewerSheet } from '../../src/shared/artifact-viewer';
 import { assertOfficeLimits } from './office-limits';
 import { readPresentationSlides } from '../background-teams/presentation-reader';
+import { normalizeDocumentLogo } from '../organization-branding/document-logo';
+import { applyDocumentTheme } from './document-theme';
 
 const imageTypes: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif' };
 function textPreview(file: ViewerFile, text: string, kind: 'markdown' | 'text' | 'html' | 'document'): ArtifactPreview {
@@ -31,12 +33,24 @@ export async function readArtifactPreview(file: ViewerFile, buffer: Buffer): Pro
   }
   if (extension === 'docx') {
     const mammoth = await import('mammoth');
-    const result = await mammoth.convertToHtml({ buffer }, { convertImage: mammoth.images.imgElement(async () => ({ src: '' })), styleMap: [
+    let imageBudget = 65_536;
+    let imageCount = 0;
+    const result = await mammoth.convertToHtml({ buffer }, { externalFileAccess: false, convertImage: mammoth.images.imgElement(async image => {
+      // Reservar antes del await evita decodificaciones ilimitadas en paralelo.
+      if (imageBudget <= 0 || ++imageCount > 8) return { src: '' };
+      try {
+        const bytes = await image.readAsBuffer();
+        if (bytes.length > 2_097_152) return { src: '' };
+        const normalized = await normalizeDocumentLogo(bytes); imageBudget -= normalized.png.length;
+        return imageBudget >= 0 ? { src: 'data:image/png;base64,' + Buffer.from(normalized.png).toString('base64') } : { src: '' };
+      } catch { return { src: '' }; }
+    }), styleMap: [
       "p[style-name='Title'] => h1.document-title:fresh",
       "p[style-name='Subtitle'] => p.document-subtitle:fresh",
       "p[style-name='SofLIA Metadata'] => p.document-meta:fresh",
+      "p[style-name='SofLIA Logo'] => p.document-logo:fresh",
     ] });
-    return textPreview(file, result.value, 'document');
+    return textPreview(file, await applyDocumentTheme(buffer, result.value), 'document');
   }
   if (extension === 'pptx') return { ...file, content: { kind: 'slides', slides: readPresentationSlides(buffer) } };
   if (extension === 'xlsx' || extension === 'csv') {

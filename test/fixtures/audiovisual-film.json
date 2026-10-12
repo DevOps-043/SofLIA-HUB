@@ -1,0 +1,160 @@
+{
+  "version": 1,
+  "titulo": "SofLIA: del conocimiento a la acción",
+  "fps": 60,
+  "ancho": 1920,
+  "fotogramas": 1800,
+  "semilla": 42,
+  "conceptual": true,
+  "audio": "sintesis",
+  "entidades": [
+    {
+      "id": "documento",
+      "titulo": "Conocimiento de tu equipo",
+      "detalle": "Una fuente conecta la planificación y el aprendizaje.",
+      "etiquetas": [
+        "Documentos",
+        "Objetivos",
+        "Fuentes"
+      ],
+      "tipo": "documento"
+    },
+    {
+      "id": "hub",
+      "titulo": "SofLIA Hub",
+      "detalle": "Transforma información en tareas con contexto.",
+      "etiquetas": [
+        "Resumen",
+        "Responsables",
+        "Siguiente paso"
+      ],
+      "tipo": "tablero"
+    },
+    {
+      "id": "learning",
+      "titulo": "SofLIA Learning",
+      "detalle": "Convierte conocimiento en una ruta de aprendizaje.",
+      "etiquetas": [
+        "Módulos",
+        "Lecciones",
+        "Progreso"
+      ],
+      "tipo": "leccion"
+    },
+    {
+      "id": "marca",
+      "titulo": "SofLIA",
+      "detalle": "Del conocimiento a la acción",
+      "etiquetas": [
+        "Conecta",
+        "Aprende"
+      ],
+      "tipo": "marca"
+    }
+  ],
+  "escenas": [
+    {
+      "titulo": "Todo comienza con una fuente",
+      "inicio": 0,
+      "fin": 360,
+      "transicion": 0,
+      "entidades": [
+        {
+          "id": "documento",
+          "x": 0.5,
+          "y": 0.57,
+          "ancho": 0.5,
+          "alto": 0.52
+        }
+      ]
+    },
+    {
+      "titulo": "La información se convierte en acción",
+      "inicio": 360,
+      "fin": 720,
+      "transicion": 45,
+      "entidades": [
+        {
+          "id": "documento",
+          "x": 0.25,
+          "y": 0.57,
+          "ancho": 0.38,
+          "alto": 0.52
+        },
+        {
+          "id": "hub",
+          "x": 0.73,
+          "y": 0.57,
+          "ancho": 0.43,
+          "alto": 0.52
+        }
+      ]
+    },
+    {
+      "titulo": "Un mismo conocimiento conecta el aprendizaje",
+      "inicio": 720,
+      "fin": 1080,
+      "transicion": 45,
+      "entidades": [
+        {
+          "id": "hub",
+          "x": 0.25,
+          "y": 0.57,
+          "ancho": 0.38,
+          "alto": 0.52
+        },
+        {
+          "id": "learning",
+          "x": 0.73,
+          "y": 0.57,
+          "ancho": 0.43,
+          "alto": 0.52
+        }
+      ]
+    },
+    {
+      "titulo": "Tu equipo trabaja y aprende con contexto",
+      "inicio": 1080,
+      "fin": 1440,
+      "transicion": 45,
+      "entidades": [
+        {
+          "id": "documento",
+          "x": 0.17,
+          "y": 0.57,
+          "ancho": 0.28,
+          "alto": 0.52
+        },
+        {
+          "id": "hub",
+          "x": 0.5,
+          "y": 0.57,
+          "ancho": 0.28,
+          "alto": 0.52
+        },
+        {
+          "id": "learning",
+          "x": 0.83,
+          "y": 0.57,
+          "ancho": 0.28,
+          "alto": 0.52
+        }
+      ]
+    },
+    {
+      "titulo": "Conecta el siguiente paso",
+      "inicio": 1440,
+      "fin": 1800,
+      "transicion": 45,
+      "entidades": [
+        {
+          "id": "marca",
+          "x": 0.5,
+          "y": 0.57,
+          "ancho": 0.75,
+          "alto": 0.54
+        }
+      ]
+    }
+  ]
+}

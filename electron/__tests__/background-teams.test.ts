@@ -38,6 +38,25 @@ function writerProvider(): BackgroundProvider {
   };
 }
 describe('Equipos ejecutores en main', () => {
+  it('resuelve marca con el scope del trabajo, guarda aviso y ejecuta la guarda antes de escribir', async () => {
+    const { service, repository } = fixture(); await service.context(null); await service.start(request()); await service.idle();
+    const job = service.state().jobs[0];
+    const check = vi.fn(async () => {});
+    const branding = vi.fn(async () => ({ brand: { organizationName: 'Empresa', primary: '0A2540', secondary: '13263B', accent: '23AEA8' }, notice: 'Logo no disponible.', assertCurrent: check }));
+    const store = new ArtifactStore(repository, branding);
+    const guard = vi.fn(async () => {});
+    const file = await store.create(job, 'especialista-uno', 'text', { name: 'informe.docx', title: 'Informe', content: '# Conclusión\n\nUna conclusión comprobada.' }, guard);
+    expect(branding).toHaveBeenCalledWith(job, false, guard); expect(check).toHaveBeenCalledOnce();
+    expect(file).toMatchObject({ verified: true, designNotice: 'Logo no disponible.' });
+    job.artifacts.push(file); repository.save(job.scope, [job]);
+    const restored = repository.load(job.scope)[0].artifacts;
+    expect(restored[restored.length - 1].designNotice).toBe('Logo no disponible.');
+    check.mockRejectedValueOnce(new Error('Sesión cambiada'));
+    await expect(store.create(job, 'especialista-uno', 'text', { name: 'denegado.docx', title: 'Otro', content: 'No se guarda.' }, guard)).rejects.toThrow('Sesión cambiada');
+    const entries = fs.readdirSync(path.join(repository.folder(job.scope, job.id), 'especialista-uno'));
+    expect(entries.some(name => name.endsWith('denegado.docx') || name.endsWith('.tmp'))).toBe(false);
+    service.close();
+  });
   it('permite corregir una postcondición pendiente reejecutando el coordinador', async () => {
     const normal = writerProvider(); let skipReads = true;
     const provider: BackgroundProvider = { research: normal.research, execute: async input => {

@@ -1,0 +1,4 @@
+@import 'tailwindcss' source(none);
+@source './**/*.tsx';
+:root{--marca-color-fondo:#071119;--marca-color-texto:#edf7ff;--marca-color-texto-tenue:#b5c9d6;--marca-color-primario:#70d8d1;--marca-color-secundario:#5b9ce6;--marca-color-acento:#70d8d1;--marca-fuente-titulos:Arial,sans-serif;--marca-fuente-cuerpo:Arial,sans-serif}
+html,body,#root{margin:0;width:100%;height:100%;font-family:Arial,sans-serif}

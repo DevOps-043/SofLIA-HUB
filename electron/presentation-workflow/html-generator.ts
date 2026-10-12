@@ -94,7 +94,7 @@ async function prepareBranding(service: SkillWorkspaceService, workspaceId: stri
   assertTeamActive(signal);
   await service.writeSystemFile(workspaceId, 'estilos/marca.css', prepared.css);
   assertTeamActive(signal);
-  await service.writeSystemFile(workspaceId, 'estilos/base.css', prepared.baseCss);
+
   return prepared.notice;
 }
 

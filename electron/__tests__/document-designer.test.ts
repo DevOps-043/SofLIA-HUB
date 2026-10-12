@@ -2,12 +2,13 @@ import { afterEach, describe, expect, it } from 'vitest';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { unzipSync, strFromU8 } from 'fflate';
+import { unzipSync, strFromU8, strToU8, zipSync } from 'fflate';
 import { createProfessionalDocument } from '../document-designer';
 import { parseDocumentContent, splitTableRow, tableColumnWidths } from '../document-designer/content-model';
 import { buildDocumentHtml } from '../document-designer/html-document';
 import { documentDesignSchema, documentHeaderText } from '../../src/shared/document-design';
 import { readArtifactPreview } from '../artifact-viewer/read-preview';
+import sharp from 'sharp';
 
 const directories: string[] = [];
 afterEach(async () => { await Promise.all(directories.splice(0).map(directory => fs.rm(directory, { recursive: true, force: true }))); });
@@ -19,6 +20,57 @@ async function generated(content: string, extra: Partial<Parameters<typeof creat
   return { bytes, xml: strFromU8(zip['word/document.xml']), styles: strFromU8(zip['word/styles.xml']), zip, outputPath };
 }
 describe('Diseño predeterminado de documentos', () => {
+  it('incrusta identidad corporativa en portada y encabezado y conserva paleta/logo en lectura', async () => {
+    const png = await sharp({ create: { width: 120, height: 60, channels: 4, background: '#23aea8' } }).png().toBuffer();
+    const brand = { organizationName: 'Empresa <Prueba>', primary: '0A2540', secondary: '13263B', accent: '23AEA8', logo: { png, width: 120, height: 60 } };
+    const content = '# Resumen\n\n> Una conclusión importante.\n\n| Campo | Valor |\n| --- | --- |\n| Meta | Legibilidad |';
+    const result = await generated(content, { brand, includeCover: true });
+    expect(result.xml).toContain('w:fill="0A2540"'); expect(result.xml).toContain('w:color="23AEA8"');
+    expect(result.xml).toContain('w:color w:val="0A2540"'); expect(result.xml).not.toContain('<w:titlePg/>');
+    expect(Object.keys(result.zip).some(name => /^word\/media\/.+\.png$/.test(name))).toBe(true);
+    expect(strFromU8(result.zip['docProps/custom.xml'])).toContain('SofLIA.DocumentTheme');
+    const preview = await readArtifactPreview({ reference: { kind: 'local', id: 'prueba' }, name: 'empresa.docx', bytes: result.bytes.length, extension: 'docx' }, result.bytes);
+    expect(preview.content).toMatchObject({ kind: 'document', text: expect.stringContaining('color:#0A2540') });
+    if (preview.content.kind === 'document') { expect(preview.content.text).toContain('data:image/png;base64,'); expect(preview.content.text).toContain('document-metadata'); }
+    const html = buildDocumentHtml({ title: 'Empresa <Prueba>', content, brand, includeCover: true });
+    expect(html).toContain('Empresa &lt;Prueba&gt;'); expect(html).toContain('document-logo'); expect(html).toContain('data:image/png;base64,');
+    expect(html).not.toContain('Confidencial'); expect(html).not.toContain('Versión');
+  });
+  it('los colores y fuente explícitos prevalecen y la marca puede desactivarse', async () => {
+    const brand = { organizationName: 'Empresa', primary: '0A2540', secondary: '13263B', accent: '23AEA8' };
+    const result = await generated('Texto', { brand, design: { primaryColor: '8B1E45', accentColor: 'ED9B40', fontFamily: 'Georgia' } });
+    expect(result.xml).toContain('w:color w:val="8B1E45"'); expect(result.styles).toContain('w:ascii="Georgia"');
+    const plain = await generated('Texto', { brand, design: { useOrganizationBranding: false } });
+    expect(strFromU8(plain.zip['docProps/custom.xml'])).not.toContain('SofLIA.DocumentTheme'); expect(plain.xml).toContain('w:color w:val="000000"');
+  });
+  it('una guarda rechazada impide guardar bytes del documento', async () => {
+    const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'pulse-guard-document-')); directories.push(directory);
+    const outputPath = path.join(directory, 'denegado.docx');
+    await expect(createProfessionalDocument({ title: 'Prueba', content: 'Texto', type: 'word', outputPath, beforeSave: async () => { throw new Error('Contexto cambiado'); } })).rejects.toThrow('Contexto cambiado');
+    expect(await fs.readdir(directory)).toEqual([]);
+  });
+  it('un tema manipulado no introduce CSS ni recursos remotos en lectura', async () => {
+    const result = await generated('Texto conservado', { design: { preset: 'corporate' } });
+    const xml = strFromU8(result.zip['docProps/custom.xml']);
+    result.zip['docProps/custom.xml'] = strToU8(xml.replace('0A2540', '&lt;/style&gt;&lt;script&gt;alert(1)&lt;/script&gt;'));
+    const bytes = Buffer.from(zipSync(result.zip));
+    const preview = await readArtifactPreview({ reference: { kind: 'local', id: 'prueba' }, name: 'empresa.docx', bytes: bytes.length, extension: 'docx' }, bytes);
+    if (preview.content.kind !== 'document') throw new Error('Vista inesperada');
+    expect(preview.content.text).toContain('Texto conservado'); expect(preview.content.text).not.toContain('<script>');
+    expect(preview.content.text).not.toContain('<style>');
+  });
+  it('acota imágenes de lectura antes de decodificarlas aunque el Word repita el mismo recurso', async () => {
+    const png = await sharp({ create: { width: 120, height: 60, channels: 4, background: '#23aea8' } }).png().toBuffer();
+    const result = await generated('Texto completo', { includeCover: true,
+      brand: { organizationName: 'Empresa', primary: '0A2540', secondary: '13263B', accent: '23AEA8', logo: { png, width: 120, height: 60 } },
+      chartImages: Array.from({ length: 8 }, () => 'data:image/png;base64,' + png.toString('base64')),
+    });
+    const preview = await readArtifactPreview({ reference: { kind: 'local', id: 'prueba' }, name: 'imagenes.docx', bytes: result.bytes.length, extension: 'docx' }, result.bytes);
+    if (preview.content.kind !== 'document') throw new Error('Vista inesperada');
+    expect(preview.content.text.match(/data:image\/png;base64,/g)).toHaveLength(9);
+    expect(preview.content.text).toMatch(/<img[^>]*src=""/);
+    expect(preview.content.text).toContain('Texto completo');
+  });
   it('un documento breve conserva el contenido con título semántico y sin portada duplicada', async () => {
     const result = await generated('# Propuesta de activación\n\n## Idea central\n\nUna **idea clara** para los clientes.');
     expect(result.xml.match(/Propuesta de activación/g)).toHaveLength(1);

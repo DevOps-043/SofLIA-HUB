@@ -3,6 +3,7 @@ import type { PreloadBridge, SafeIpc } from './types';
 export interface RendererAuthState {
   authenticated: boolean;
   userId: string | null;
+  organizationId?: string | null;
   accessToken?: string | null;
   refreshToken?: string | null;
   sofiaAccessToken?: string | null;

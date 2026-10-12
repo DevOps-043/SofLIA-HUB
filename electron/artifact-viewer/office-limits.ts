@@ -35,3 +35,23 @@ export function assertOfficeLimits(buffer: Buffer): void {
   }
   if (offset !== end) throw new Error('Índice Office con entradas sin validar.');
 }
+
+/** Usar tras assertOfficeLimits; solo extrae la parte solicitada y la acota de nuevo. */
+export function readOfficePart(buffer: Buffer, part: string, maximum: number): Buffer | null {
+  const end = buffer.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+  let offset = buffer.readUInt32LE(end + 16);
+  for (let index = 0; index < buffer.readUInt16LE(end + 10); index++) {
+    const nameLength = buffer.readUInt16LE(offset + 28);
+    const name = buffer.toString('utf8', offset + 46, offset + 46 + nameLength);
+    if (name === part) {
+      const size = buffer.readUInt32LE(offset + 24); const method = buffer.readUInt16LE(offset + 10);
+      if (size > maximum) return null;
+      const local = buffer.readUInt32LE(offset + 42);
+      const start = local + 30 + buffer.readUInt16LE(local + 26) + buffer.readUInt16LE(local + 28);
+      const data = buffer.subarray(start, start + buffer.readUInt32LE(offset + 20));
+      return method === 8 ? inflateRawSync(data, { maxOutputLength: maximum }) : data;
+    }
+    offset += 46 + nameLength + buffer.readUInt16LE(offset + 30) + buffer.readUInt16LE(offset + 32);
+  }
+  return null;
+}

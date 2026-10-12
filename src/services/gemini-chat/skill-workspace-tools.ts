@@ -13,6 +13,8 @@ import type { ActiveSkillContext } from '../gemini-tools/turn-catalog';
 type WorkspaceResponse = Record<string, unknown>;
 
 interface WorkspaceBridge {
+  renderVideo: (workspaceId: string) => Promise<WorkspaceResponse>;
+  cancelVideo: (workspaceId: string) => Promise<WorkspaceResponse>;
   writeImage: (workspaceId: string, fileName: string, base64: string) => Promise<WorkspaceResponse>;
   downloadImage: (workspaceId: string, url: string, fileName: string) => Promise<WorkspaceResponse>;
   listFiles: (workspaceId: string) => Promise<WorkspaceResponse>;
@@ -37,6 +39,7 @@ export async function executeSkillWorkspaceTool(
   toolName: string,
   args: Record<string, unknown>,
   activeSkill: ActiveSkillContext | null | undefined,
+  signal?: AbortSignal,
 ): Promise<string> {
   const workspaceId = activeSkill?.workspaceId;
   if (!workspaceId) {
@@ -57,6 +60,13 @@ export async function executeSkillWorkspaceTool(
   const path = String(args.path ?? '').trim();
 
   switch (toolName) {
+    case 'workspace_render_video': {
+      if (activeSkill?.id !== 'sistema:audiovisual' || signal?.aborted) return JSON.stringify({ success: false, error: 'Producción fuera del contexto autorizado o cancelada.' });
+      const cancel = () => { void api.cancelVideo(workspaceId).catch(() => undefined); };
+      signal?.addEventListener('abort', cancel, { once: true });
+      try { return normalize(await api.renderVideo(workspaceId)); }
+      finally { signal?.removeEventListener('abort', cancel); }
+    }
     case 'workspace_list_files':
       return normalize(await api.listFiles(workspaceId));
 

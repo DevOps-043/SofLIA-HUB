@@ -27,6 +27,12 @@ export interface ExtractedPalette {
   all: string[];
 }
 
+/** Los defaults del esquema no constituyen una paleta configurada por la organización. */
+export function hasCustomBrandColors(colors: readonly string[]): boolean {
+  const defaults = new Set(['#3b82f6', '#10b981', '#8b5cf6']);
+  return colors.some(color => !defaults.has(color.trim().toLowerCase()));
+}
+
 /** Pixeles muy transparentes no aportan color de marca. */
 const MIN_ALPHA = 128;
 /** Descarta blancos, negros y grises: son fondo, no identidad. */
