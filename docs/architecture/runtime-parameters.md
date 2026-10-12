@@ -18,6 +18,12 @@ Inventario de defaults y topes con impacto operativo. Los overrides guardados en
 
 ## Arranque
 
+El [acompañamiento del orbe](autonomous-orb-guidance.md) usa una ventana de
+208×340 DIP, animación de 280 ms, presentación previa de 180 ms y caducidad de
+1500 ms por acción u 8 s por señalización explícita. Las prácticas admiten 20
+pasos y reprograman la observación 2500 ms después de terminar la anterior.
+La captura oculta superficies propias y espera 32 ms al compositor.
+
 El contrato privado del [aula Learning](learning-live-workspace.md) conserva entrada de 32 KiB, salida de 512 KiB, timeout de 15 s y hasta 4 solicitudes main concurrentes. El aula consulta un snapshot para confirmar el rol, sin polling. El estudio de diseño mantiene hasta 100 mensajes locales, 20 nombres de archivos de hasta 25 MB, hasta 12 escenas con medios locales de hasta 25 MB, salas de diseño y relojes locales de un segundo; no realiza mutaciones remotas. La agenda carga 20 sesiones por página, admite hasta 256 KiB de salida y comparte el timeout y el límite concurrente del contrato; se actualiza al abrir, cambiar página/vista o por solicitud del usuario. El gateway Learning limita por actor lectura, mutación y generación de IA; la retención predeterminada es 30 días y se administra entre 1 y 90.
 
 El [arnés multiagente](runtime-multiagent-harness.md) define sus límites en

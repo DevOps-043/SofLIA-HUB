@@ -40,6 +40,24 @@ function fixture() {
 }
 
 describe('driver Computer Use del navegador integrado', () => {
+  it('la guía se presenta antes del clic y una pestaña modificada durante la indicación no recibe entrada', async () => {
+    const f = fixture();
+    const guidance = { present: vi.fn(async () => { f.changeDocument(); }), wait: vi.fn(async () => undefined), clear: vi.fn(), capture: async <T,>(operation: () => Promise<T>) => operation() };
+    Object.assign(f.service, { visualGuidance: guidance, getGuidanceTarget: (point: { x: number; y: number }) => ({ point: { x: point.x + 100, y: point.y + 50 } }) });
+    await f.driver.capturar();
+    await expect(f.driver.ejecutar({ tipo: 'click', punto: { x: 20, y: 30 } }, 'Selecciona')).rejects.toThrow('cambió');
+    expect(guidance.present).toHaveBeenCalledWith(expect.objectContaining({ target: { point: { x: 120, y: 80 } } }));
+    expect(f.contents.sendInputEvent).not.toHaveBeenCalled();
+  });
+  it('la liberación del mouse no espera una guía pausada', async () => {
+    const f = fixture();
+    const guidance = { present: vi.fn(), wait: vi.fn(async () => { throw new Error('pausada'); }), clear: vi.fn(), capture: async <T,>(operation: () => Promise<T>) => operation() };
+    Object.assign(f.service, { visualGuidance: guidance, getGuidanceTarget: (point: { x: number; y: number }) => ({ point }) });
+    await f.driver.capturar();
+    await f.driver.ejecutar({ tipo: 'mouse_up', punto: { x: 20, y: 30 } }, 'Liberar');
+    expect(guidance.wait).not.toHaveBeenCalled(); expect(guidance.present).not.toHaveBeenCalled();
+    expect(f.contents.sendInputEvent).toHaveBeenCalledWith(expect.objectContaining({ type: 'mouseUp' }));
+  });
   it('captura la vista e inyecta click, texto, scroll y navegacion', async () => {
     const contents = {
       capturePage: vi.fn(async () => ({

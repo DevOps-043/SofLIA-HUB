@@ -146,7 +146,10 @@ export function registerOrbIpcHandlers(options: OrbIpcOptions): void {
   ipcMain.handle('orb:conversation-ended', (_event, sessionId?: string | null) =>
     handleIPCVoid(async () => pythonRuntimeService.resumeWakeAfterConversation(sessionId)));
 
-  ipcMain.on('orb:hide', () => {
+  ipcMain.on('orb:hide', (event, ...args: unknown[]) => {
+    const auth = getAuthState();
+    const caller = [getOrbWindow(), getMainWindow()].find(window => window && !window.isDestroyed() && window.webContents.id === event.sender.id);
+    if (args.length || !auth.authenticated || !auth.userId || !caller || !event.senderFrame || event.senderFrame !== caller.webContents.mainFrame) return;
     options.onHide?.();
     const win = getOrbWindow();
     if (win && !win.isDestroyed()) win.hide();

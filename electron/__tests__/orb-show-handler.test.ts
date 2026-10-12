@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BrowserWindow, ipcMain, dialog, type MessageBoxReturnValue } from 'electron';
+import type { IpcMainEvent } from 'electron';
 import { registerOrbIpcHandlers } from '../orb-ipc-handlers';
 import type { IntegratedBrowserService } from '../integrated-browser';
 import { resetAuthStateForTests, setAuthState } from '../main/auth-state';
@@ -33,6 +34,7 @@ describe('handler de apertura de la Orbe', () => {
   const orbWindow = new BrowserWindow();
   const browser = { getState: vi.fn<IntegratedBrowserService['getState']>(), controlAgentTask: vi.fn() };
   const showOrbWindow = vi.fn(async () => undefined);
+  const onHide = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -45,6 +47,7 @@ describe('handler de apertura de la Orbe', () => {
       integratedBrowser: browser as unknown as IntegratedBrowserService,
       getMainWindow: () => mainWindow,
       showOrbWindow,
+      onHide,
       consumePendingWake: () => false,
       announcements: {
         announce: vi.fn(async () => undefined),
@@ -57,6 +60,18 @@ describe('handler de apertura de la Orbe', () => {
   });
 
   afterEach(() => resetAuthStateForTests());
+  it('ocultar sólo puede cancelar la asistencia desde Hub/Orbe autenticados y su marco principal', () => {
+    const hide = vi.mocked(ipcMain.on).mock.calls.find(([channel]) => channel === 'orb:hide')?.[1];
+    expect(hide).toBeDefined();
+    Object.defineProperty(orbWindow.webContents, 'mainFrame', { configurable: true, value: {} });
+    const event = { sender: orbWindow.webContents, senderFrame: orbWindow.webContents.mainFrame } as IpcMainEvent;
+    hide!(event); expect(onHide).not.toHaveBeenCalled();
+    setAuthState({ authenticated: true, userId: 'usuario-1' });
+    hide!({ ...event, senderFrame: {} } as IpcMainEvent);
+    hide!({ ...event, sender: { id: 9999 } } as IpcMainEvent);
+    hide!(event, 'extra'); expect(onHide).not.toHaveBeenCalled();
+    hide!(event); expect(onHide).toHaveBeenCalledOnce();
+  });
   it('la voz del navegador sólo acepta marco principal de Orbe con sesión y contrato cerrado', async () => {
     const handler = ipcMainHarness._getHandler('orb:browser-command');
     Object.defineProperty(orbWindow.webContents, 'mainFrame', { configurable: true, value: {} });

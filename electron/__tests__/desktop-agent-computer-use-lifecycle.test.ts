@@ -15,7 +15,7 @@ vi.mock('../desktop-agent/gemini-cu/client', () => ({ createComputerUseClient: m
 vi.mock('../desktop-agent/gemini-cu/loop', () => ({ runComputerUseLoop: mocks.runLoop }));
 vi.mock('../integrated-browser', () => ({ createIntegratedBrowserCuDriver: mocks.createIntegratedDriver }));
 
-const { runComputerUseBrowserTask } = await import('../desktop-agent/service-computer-use');
+const { runComputerUseBrowserTask, runComputerUseDesktopTask } = await import('../desktop-agent/service-computer-use');
 
 const Lifecycle = class {};
 attachDesktopAgentLifecycle(Lifecycle as unknown as DesktopAgentServiceConstructor);
@@ -42,6 +42,18 @@ function deferred<T>() {
 describe('Ciclo de vida de Computer Use integrado', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('la tarea desktop tiene cancelación propia aunque el llamador no proporcione señal', async () => {
+    const service = fixture(); const entered = deferred<void>(), drained = deferred<void>();
+    mocks.runLoop.mockImplementationOnce(async ({ abortSignal }) => {
+      entered.resolve(); await drained.promise;
+      expect(abortSignal.aborted).toBe(true);
+      return { estado: 'cancelada', mensaje: 'Tarea cancelada.', pasos: 0 };
+    });
+    const pending = runComputerUseDesktopTask(service, 'Tarea de escritorio'); await entered.promise;
+    lifecycle.abort.call(service); drained.resolve();
+    expect(await pending).toMatchObject({ estado: 'cancelada' }); expect(service.abortController).toBeNull();
   });
 
   it('registra la apertura y cancela por ID sin afectar otros backends ni iniciar el loop', async () => {

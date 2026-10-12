@@ -27,6 +27,7 @@ export function createWindowControls(input: {
   const orbGuidance = initializeOrbGuidance({
     getOrb: () => state.orbWin, getMain: () => state.win,
     showOrb: () => orbController.createOrbWindow(false), compact: orbController.setGuidanceMode,
+    captureVisibility: orbController.setCaptureHidden,
     desktop: services.desktopAgentService, browser: services.integratedBrowserService,
   });
 

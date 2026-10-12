@@ -107,7 +107,7 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
       return pending;
     },
     announcements: controls.orbAnnouncements,
-    onHide: () => controls.orbGuidance?.clear(),
+    onHide: () => { services.desktopAgentService.abortAll(); controls.orbGuidance?.dismiss(); },
   });
 }
 

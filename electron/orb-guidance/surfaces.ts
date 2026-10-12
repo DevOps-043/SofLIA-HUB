@@ -7,6 +7,7 @@ export type OrbSurfaceOptions = {
   getOrb: () => BrowserWindow | null;
   showOrb: () => Promise<void>;
   compact: (enabled: boolean) => void;
+  captureVisibility?: (hidden: boolean) => void;
 };
 
 export class GuidanceSurfaces {
@@ -47,13 +48,15 @@ export class GuidanceSurfaces {
     const display = screen.getDisplayNearestPoint(state.target.point);
     const destination = placeOrb(state.target, display.workArea, screen.getCursorScreenPoint());
     await this.moveOrb(orb, destination, state.reducedMotion ? 0 : 280, revision);
-    if (revision !== this.revision || this.captures || state.phase === 'paused') return;
+    await this.waitForCaptures();
+    if (revision !== this.revision || state.phase === 'paused') return;
     for (const monitor of screen.getAllDisplays()) {
       const target = targetOnDisplay(state.target, monitor.bounds);
       if (!target) continue;
       const overlay = this.overlay(monitor.id, monitor.bounds);
       await overlay.ready;
-      if (revision !== this.revision || this.captures || overlay.window.isDestroyed()) return;
+      await this.waitForCaptures();
+      if (revision !== this.revision || overlay.window.isDestroyed()) return;
       await overlay.window.webContents.executeJavaScript(`window.showGuidance(${JSON.stringify({ target, style: state.style })})`);
       if (revision === this.revision && !this.captures) overlay.window.showInactive();
     }
@@ -65,6 +68,7 @@ export class GuidanceSurfaces {
     const visible = orb && !orb.isDestroyed() && orb.isVisible();
     if (!this.captures) { this.captureOrb = visible ? orb : null; this.captureRevision = this.revision; }
     this.captures++;
+    this.options.captureVisibility?.(true);
     this.hideOverlays();
     if (visible) orb.hide();
     try {
@@ -75,6 +79,7 @@ export class GuidanceSurfaces {
       this.captures--;
       const restore = this.captureOrb;
       if (!this.captures) {
+        this.options.captureVisibility?.(false);
         this.captureOrb = null;
         if (this.captureRevision === this.revision && restore && this.options.getOrb() === restore && !restore.isDestroyed()) restore.showInactive();
         for (const release of this.captureWaiters) release();
@@ -85,20 +90,36 @@ export class GuidanceSurfaces {
 
   clear(): void {
     this.revision++;
+    if (this.captures) this.captureRevision = this.revision;
     this.stopMotion();
     this.hideOverlays();
     this.options.compact(false);
+    this.releaseCaptureWaiters();
   }
 
   suspend(): void {
     this.revision++;
+    if (this.captures) this.captureRevision = this.revision;
     this.stopMotion();
     this.hideOverlays();
+    this.releaseCaptureWaiters();
+  }
+
+  dismiss(): void {
+    this.captureOrb = null;
+    this.clear();
+  }
+
+  async input<T>(operation: () => Promise<T>): Promise<T> {
+    const orb = this.options.getOrb();
+    if (orb && !orb.isDestroyed()) orb.setIgnoreMouseEvents(true);
+    try { return await operation(); }
+    finally { if (orb && !orb.isDestroyed() && this.options.getOrb() === orb) orb.setIgnoreMouseEvents(false); }
   }
 
   dispose(): void {
     this.clear();
-    for (const { window } of this.overlays.values()) if (!window.isDestroyed()) window.close();
+    for (const { window } of this.overlays.values()) if (!window.isDestroyed()) window.destroy();
     this.overlays.clear();
   }
 
@@ -128,6 +149,11 @@ export class GuidanceSurfaces {
 
   private waitForCaptures(): Promise<void> {
     return this.captures ? new Promise(resolve => this.captureWaiters.add(resolve)) : Promise.resolve();
+  }
+
+  private releaseCaptureWaiters(): void {
+    for (const release of this.captureWaiters) release();
+    this.captureWaiters.clear();
   }
 
   private stopMotion(): void {

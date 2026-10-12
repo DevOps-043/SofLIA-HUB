@@ -1783,6 +1783,20 @@ describe('IntegratedBrowserService', () => {
     service.detachWindow();
   });
 
+  it('no escribe si el campo se deshabilita mientras SofLIA lo señala', async () => {
+    const service = new IntegratedBrowserService();
+    service.attachWindow(new BrowserWindow());
+    await service.open('https://example.com/form');
+    service.setViewport({ x: 0, y: 0, width: 800, height: 600 });
+    const contents = browserViewHarness.instances[0].webContents;
+    const target = { ok: true, tag: 'input', role: 'textbox', name: 'Nombre', type: 'text', href: '', disabled: false, editable: true, x: 120, y: 240, occluded: false };
+    contents.executeJavaScript.mockResolvedValueOnce(target).mockResolvedValueOnce({ ...target, disabled: true });
+    service.visualGuidance = { present: vi.fn(async () => undefined), wait: vi.fn(async () => undefined), clear: vi.fn(), capture: async operation => operation() };
+    await expect(service.typeInElement('dom-7', 'Texto', false)).rejects.toThrow('cambió');
+    expect(contents.sendInputEvent).not.toHaveBeenCalled(); expect(contents.insertText).not.toHaveBeenCalled();
+    service.detachWindow();
+  });
+
   it.each(['import', 'scope', 'window'] as const)('conecta la revisión con el lifecycle real del servicio: %s', async (scenario) => {
     const fixture = await sessionFixture(null);
     const bookmarks = new BrowserBookmarkStore(path.join(fixture.root, 'bookmarks.json'));

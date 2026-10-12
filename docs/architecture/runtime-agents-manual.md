@@ -1594,6 +1594,13 @@ rollback), `VOICE_CALL_IDLE_TIMEOUT_MS` (1–60 min, por omisión 10) y
 
 ## 4. Agente de escritorio
 
+El orbe acompaña las acciones resueltas y puede señalar un control sin entrada
+mediante `show_visual_guidance` en el chat/orbe del renderer. Las prácticas locales
+esperan al alumno y comprueban el texto de resultado definido por el instructor.
+La guía conserva aprobaciones y cancelación del actuador; no añade permisos para
+WhatsApp ni para operar sobre alumnos remotos. Ver
+[arquitectura del acompañamiento](autonomous-orb-guidance.md).
+
 Fuente: `electron/desktop-agent/` (más de 100 módulos), handlers en
 `electron/desktop-agent-handlers/`. Documento hermano con el detalle de
 ingeniería: [Desktop Agent](desktop-agent.md).

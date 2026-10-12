@@ -114,6 +114,8 @@ interface OrbWindowControllerOptions {
 export function createOrbWindowController(options: OrbWindowControllerOptions) {
   let guidanceMode = false;
   let restingBounds: Rectangle | null = null;
+  let captureHidden = false;
+  const setCaptureHidden = (hidden: boolean) => { captureHidden = hidden; };
   const setGuidanceMode = (enabled: boolean): void => {
     const window = options.getWindow();
     if (guidanceMode === enabled || !window || window.isDestroyed()) return;
@@ -143,7 +145,7 @@ export function createOrbWindowController(options: OrbWindowControllerOptions) {
     if (current) {
       const safeBounds = guidanceMode ? current.getBounds() : normalizeBounds(current.getBounds());
       if (JSON.stringify(safeBounds) !== JSON.stringify(current.getBounds())) current.setBounds(safeBounds, false);
-      if (!current.isVisible()) current.showInactive();
+      if (!captureHidden && !current.isVisible()) current.showInactive();
       if (wake) current.webContents.send('orb:wake');
       return;
     }
@@ -200,7 +202,7 @@ export function createOrbWindowController(options: OrbWindowControllerOptions) {
       void orbWindow.loadFile(path.join(options.rendererDist, 'index.html'), { query: { view: 'orb' } });
     }
     orbWindow.once('ready-to-show', () => {
-      orbWindow.showInactive();
+      if (!captureHidden && canUseProtectedFeature() && options.getWindow() === orbWindow && !orbWindow.isDestroyed()) orbWindow.showInactive();
     });
     // La orbe no tiene consola visible: sus mensajes propios ([Orb]) se reenvian
     // al log principal para poder diagnosticar fallos (voz, agente) desde la terminal.
@@ -261,5 +263,5 @@ export function createOrbWindowController(options: OrbWindowControllerOptions) {
     console.log(`[BOOT] Atajo global registrado: ${accelerator} -> orbe de voz`);
   };
 
-  return { createOrbWindow, registerOrbShortcut, announcements, setGuidanceMode };
+  return { createOrbWindow, registerOrbShortcut, announcements, setGuidanceMode, setCaptureHidden };
 }
