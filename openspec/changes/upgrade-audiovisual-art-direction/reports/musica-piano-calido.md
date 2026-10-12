@@ -63,3 +63,12 @@ exige sistema:audiovisual para inspect/render. Se puede entregar ese brief a
 `/video` para producir una demostración conceptual. No se graba automáticamente
 la pantalla real. Esta tarea responde la consulta y no modifica permisos ni
 implementa una skill personal o grabador.
+
+## Integración
+
+Código integrado en `cb6b4b8` mediante fast-forward. Los 55 archivos concurrentes
+registrados conservaron sus hashes en la integración. El runtime audiovisual
+recompilado en el principal coincide con el probado; la compilación completa y
+compuerta corresponden al worktree aislado, sin atribuir validación al trabajo
+ajeno del principal. Reiniciar el Hub en desarrollo carga la música nueva.
+No se publicó instalador ni se modificó la activación de skills personales.
