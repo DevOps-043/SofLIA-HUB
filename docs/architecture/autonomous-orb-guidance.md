@@ -29,6 +29,20 @@ acción se haya realizado.
 
 ## Integración con Computer Use
 
+La ejecución de entrada carga nut.js mediante `createRequire` en ESM y usa
+scripts PowerShell completos con errores terminantes para el fallback. La tecla
+Windows/Super tiene síntesis nativa; teclas desconocidas producen rechazo.
+`type_text_at` conserva su coordenada y enfoca antes de escribir. Acciones
+desconocidas no son noops exitosos. Una respuesta con varias acciones conserva
+la cola completa antes de solicitar otra inferencia.
+
+En escritorio, cada acción deja 400 ms de asentamiento antes de observar. El
+cierre recaptura la pantalla y consulta una comprobación sin herramientas: valida
+el estado final en la aplicación objetivo, no las afirmaciones del chat ni pasos
+transitorios ya cerrados. Un error de entrada pendiente impide declarar éxito.
+La corroboración por visión sigue siendo probabilística y no sustituye pruebas
+de entrada física o una condición determinista de negocio.
+
 El [ejecutor de escritorio](../../electron/desktop-agent/service-action-runtime.ts)
 presenta coordenadas después de resolverlas, incluyendo cajas UIA/OCR cuando
 existen. Comprueba generación de guía, señal de cancelación y captura vigente

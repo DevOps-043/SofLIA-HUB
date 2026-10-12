@@ -63,6 +63,7 @@ function mapAccion(nombre: string, args: Record<string, unknown>, w: number, h: 
 
   switch (nombre) {
     case 'click':
+    case 'click_at':
     case 'left_click':
       return { tipo: 'click', punto: p() };
     case 'double_click':
@@ -88,10 +89,12 @@ function mapAccion(nombre: string, args: Record<string, unknown>, w: number, h: 
     case 'type_text_at': {
       const texto = String(leer(args, ['text', 'texto', 'value']) ?? '');
       const enter = Boolean(leer(args, ['press_enter', 'pressEnter', 'enter']));
-      return { tipo: 'type', texto, enter };
+      const located = leer(args, ['x', 'coordinate_x']) !== undefined && leer(args, ['y', 'coordinate_y']) !== undefined;
+      return { tipo: 'type', texto, enter, ...(located ? { punto: p() } : {}), ...(typeof args.clear_before_typing === 'boolean' ? { clear: args.clear_before_typing } : {}) };
     }
 
     case 'press_key':
+    case 'press_key_combination':
     case 'key':
     case 'hotkey':
     case 'key_combination':
@@ -121,7 +124,7 @@ function mapAccion(nombre: string, args: Record<string, unknown>, w: number, h: 
 
     case 'wait':
     case 'wait_5_seconds': {
-      const ms = Number(leer(args, ['ms', 'milliseconds', 'duration_ms']) ?? (nombre === 'wait_5_seconds' ? 5000 : 1000));
+      const ms = Number(leer(args, ['ms', 'milliseconds', 'duration_ms']) ?? (args.seconds !== undefined ? Number(args.seconds) * 1000 : nombre === 'wait_5_seconds' ? 5000 : 1000));
       return { tipo: 'wait', ms: Number.isFinite(ms) && ms > 0 ? Math.min(ms, 15000) : 1000 };
     }
 
@@ -134,6 +137,9 @@ function mapAccion(nombre: string, args: Record<string, unknown>, w: number, h: 
       return { tipo: 'go_back' };
     case 'go_forward':
       return { tipo: 'go_forward' };
+    case 'open_app':
+    case 'open_application':
+      return { tipo: 'open_application', appName: String(leer(args, ['app_name', 'appName', 'name']) ?? '') };
     case 'take_screenshot':
     case 'screenshot':
       return { tipo: 'screenshot' };

@@ -18,6 +18,10 @@ Inventario de defaults y topes con impacto operativo. Los overrides guardados en
 
 ## Arranque
 
+Computer Use de escritorio deja 400 ms de asentamiento tras una acción antes
+de recapturar y comprueba el cierre con una captura adicional. Esa consulta no
+dispone de herramientas y no aplica acciones; la cancelación se conserva.
+
 El [acompañamiento del orbe](autonomous-orb-guidance.md) usa una ventana de
 208×340 DIP, animación de 280 ms, presentación previa de 180 ms y caducidad de
 1500 ms por acción u 8 s por señalización explícita. Las prácticas admiten 20

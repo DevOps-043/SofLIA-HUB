@@ -133,6 +133,8 @@ export function createIntegratedBrowserCuDriver(service: IntegratedBrowserServic
           return;
         }
         case 'type':
+          if (action.punto) sendClick(contents, toViewportPoint(action.punto, captureSize, size), 'left', 1);
+          if (action.clear) sendKey(contents, 'ctrl+a');
           await contents.insertText(action.texto.slice(0, 20_000));
           assertCurrent();
           if (action.enter) sendKey(contents, 'enter');
@@ -184,8 +186,10 @@ export function createIntegratedBrowserCuDriver(service: IntegratedBrowserServic
           service.goForward();
           return;
         case 'screenshot':
-        case 'desconocida':
           return;
+        case 'open_application':
+        case 'desconocida':
+          throw new Error('La acción no está disponible en el navegador integrado.');
       }
     },
   };
@@ -193,7 +197,7 @@ export function createIntegratedBrowserCuDriver(service: IntegratedBrowserServic
   return {
     ...driver,
     capturar: (signal) => service.auditAgentOperation('cu-capture', () => driver.capturar(signal), traceId),
-    ejecutar: (action, intent, signal) => service.auditAgentOperation(`cu-${action.tipo}`, () => driver.ejecutar(action, intent, signal), traceId),
+    ejecutar: (action, intent, signal) => service.auditAgentOperation(action.tipo === 'open_application' ? 'cu-desconocida' : `cu-${action.tipo}`, () => driver.ejecutar(action, intent, signal), traceId),
   };
 }
 

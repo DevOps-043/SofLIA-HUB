@@ -34,6 +34,27 @@ const base = (client: CuClient, driver: CuDriver, over: Partial<Parameters<typeo
 });
 
 describe('runComputerUseLoop', () => {
+  it('no declara éxito si el modelo termina después de un clic fallido', async () => {
+    const driver = fakeDriver(), client = fakeClient([click(), null], ['', 'Ya abrí Bloc de notas']);
+    vi.mocked(driver.ejecutar).mockRejectedValueOnce(new Error('El clic no se pudo ejecutar'));
+    expect(await runComputerUseLoop(base(client, driver))).toMatchObject({ estado: 'fallida', pasos: 1 });
+  });
+  it('la captura final debe corroborar la tarea antes de declarar éxito', async () => {
+    const driver = fakeDriver(), client = fakeClient([click(), null], ['', 'Listo']);
+    const verifyCompletion = vi.fn(async () => ({ confirmed: false, reason: 'Bloc de notas no está abierto.' }));
+    const result = await runComputerUseLoop(base(client, driver, { settleDelayMs: 400, verifyCompletion }));
+    expect(result.estado).toBe('fallida'); expect(result.mensaje).toContain('no está abierto');
+    expect(verifyCompletion).toHaveBeenCalledWith(expect.objectContaining({ base64: 'x' }), 'Listo', undefined);
+  });
+  it('la verificación recaptura después de recibir el cierre, no reutiliza la imagen previa', async () => {
+    const driver = fakeDriver(), client = fakeClient([click(), null], ['', 'Listo']);
+    vi.mocked(driver.capturar).mockResolvedValueOnce({ base64: 'antes', width: 1000, height: 1000 })
+      .mockResolvedValueOnce({ base64: 'nota-abierta', width: 1000, height: 1000 })
+      .mockResolvedValueOnce({ base64: 'nota-cerrada', width: 1000, height: 1000 });
+    const verifyCompletion = vi.fn(async () => ({ confirmed: false, reason: 'La nota ya no está visible.' }));
+    expect((await runComputerUseLoop(base(client, driver, { verifyCompletion }))).estado).toBe('fallida');
+    expect(verifyCompletion).toHaveBeenCalledWith(expect.objectContaining({ base64: 'nota-cerrada' }), 'Listo', undefined);
+  });
   it.each(['inicio', 'continuación', 'confirmación'] as const)('deja de esperar %s aunque nunca responda y descarta su respuesta tardía', async (phase) => {
     const abort = new AbortController(); const driver = fakeDriver();
     const client = fakeClient([click(50, 50, phase === 'confirmación' ? { decision: 'require_confirmation' } : undefined)]);

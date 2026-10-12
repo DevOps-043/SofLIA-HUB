@@ -1,4 +1,5 @@
 import { handleOpenPath, handleOpenUrl } from '../computer-use/app-open-tool';
+import type { ApplicationExecutionGuard } from '../computer-use/app-open-tool';
 import { DeterministicActionError } from './action-errors';
 
 export type DeterministicActionResult = {
@@ -14,8 +15,8 @@ export type DeterministicActionResult = {
  * verificacion de ventana). En fallo lanzan Error con mensaje en espanol para
  * que el runner lo registre en el historial y el modelo pueda reaccionar.
  */
-export async function openApplicationDeterministic(appName: string): Promise<DeterministicActionResult> {
-  const result = await handleOpenPath('open_application', { path: appName });
+export async function openApplicationDeterministic(appName: string, guard?: ApplicationExecutionGuard): Promise<DeterministicActionResult> {
+  const result = guard ? await handleOpenPath('open_application', { path: appName }, undefined, guard) : await handleOpenPath('open_application', { path: appName });
   if (!result.success) {
     // "No localizada" es determinista: reintentar con el mismo nombre no ayuda.
     throw new DeterministicActionError(result.error || `No pude abrir la aplicacion "${appName}".`);
@@ -27,8 +28,8 @@ export async function openApplicationDeterministic(appName: string): Promise<Det
   };
 }
 
-export async function openUrlDeterministic(url: string): Promise<DeterministicActionResult> {
-  const result = await handleOpenUrl(url);
+export async function openUrlDeterministic(url: string, guard?: ApplicationExecutionGuard): Promise<DeterministicActionResult> {
+  const result = guard ? await handleOpenUrl(url, guard) : await handleOpenUrl(url);
   if (!result.success) {
     throw new DeterministicActionError(result.error || `No pude abrir la URL "${url}".`);
   }

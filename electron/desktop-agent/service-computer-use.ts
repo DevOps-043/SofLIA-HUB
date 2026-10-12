@@ -186,6 +186,10 @@ async function runCuTaskCommon(
       maxSteps,
       abortSignal: options?.signal ?? null,
       delay: (ms: number) => service.delay(ms),
+      ...(etiqueta === 'desktop' ? {
+        settleDelayMs: 400,
+        ...(client.verificar ? { verifyCompletion: (capture: import('./gemini-cu/types').CuCapture, message: string, signal?: AbortSignal) => client.verificar!(task, capture.base64, message, signal) } : {}),
+      } : {}),
       onStep: ({ step, nombre, action, intent }) => {
         if (taskId) updateBrowserCuStep(service, taskId, step);
         else service.currentStep = step;

@@ -1,4 +1,5 @@
 import { buildHumanPath, motionDurationMs, distance } from './human-motion';
+import { createRequire } from 'node:module';
 import type {
   InputDriver,
   InputDriverCapabilities,
@@ -29,9 +30,8 @@ export function loadNutModule(): NutModule | null {
   if (cachedModule) return cachedModule;
   if (loadError) return null;
   try {
-    // require dinamico: no se evalua salvo que se pida este backend.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
-    cachedModule = require('@nut-tree-fork/nut-js');
+    const requireFromModule = createRequire(import.meta.url);
+    cachedModule = requireFromModule('@nut-tree-fork/nut-js');
     return cachedModule;
   } catch (err) {
     loadError = err instanceof Error ? err.message : String(err);
@@ -108,8 +108,8 @@ export function createNutInputDriver(nut: NutModule): InputDriver {
       await keyboard.type(texto);
     },
     async pressKeys(keys) {
-      const mapped = keys.map((k) => mapKey(Key, k)).filter((k) => k !== undefined);
-      if (mapped.length === 0) return;
+      const mapped = keys.map((k) => mapKey(Key, k));
+      if (!mapped.length || mapped.some(k => k === undefined)) throw new Error('La combinación contiene una tecla no soportada por el controlador nativo.');
       await keyboard.pressKey(...mapped);
       await keyboard.releaseKey(...mapped.slice().reverse());
     },
@@ -130,7 +130,7 @@ function mapKey(Key: any, name: string): any {
   const normalized = name.trim().toLowerCase();
   const table: Record<string, string> = {
     ctrl: 'LeftControl', control: 'LeftControl',
-    shift: 'LeftShift', alt: 'LeftAlt', win: 'LeftSuper', meta: 'LeftSuper',
+    shift: 'LeftShift', alt: 'LeftAlt', win: 'LeftSuper', meta: 'LeftSuper', super: 'LeftSuper', command: 'LeftSuper', cmd: 'LeftSuper',
     enter: 'Enter', return: 'Enter', tab: 'Tab', escape: 'Escape', esc: 'Escape',
     space: 'Space', backspace: 'Backspace', delete: 'Delete', del: 'Delete',
     up: 'Up', down: 'Down', left: 'Left', right: 'Right',

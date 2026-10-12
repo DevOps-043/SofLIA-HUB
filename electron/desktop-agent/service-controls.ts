@@ -1,10 +1,8 @@
-import { exec as execCb } from 'node:child_process';
-import { promisify } from 'node:util';
+import { runPowerShellInput } from './powershell-input';
 import { quickScreenshotHash, waitForScreenHashChange, waitForWindowTitle } from './waiting-runtime';
 import type { DesktopAgentService } from '../desktop-agent-service';
 import type { DesktopAgentServiceConstructor } from './service-types';
 
-const execAsync = promisify(execCb);
 
 export interface DesktopAgentControlsApi {
   ps(script: string): Promise<string>;
@@ -38,19 +36,13 @@ export function attachDesktopAgentControls(Service: DesktopAgentServiceConstruct
       if (process.platform !== 'win32') {
         throw new Error('PowerShell/Win32 solo esta disponible en Windows. En Linux usa X11 + xdotool para automatizacion GUI.');
       }
-      const { stdout } = await execAsync(
-        `powershell -NoProfile -Command "${script.replace(/\n/g, '; ').replace(/"/g, '\\"')}"`,
-        { timeout: 10000, windowsHide: true },
-      );
-      return stdout?.trim() || '';
+      return runPowerShellInput(script);
     },
     async psEncoded(script: string, timeout = 10000) {
       if (process.platform !== 'win32') {
         throw new Error('PowerShell/Win32 solo esta disponible en Windows. La captura degradara a escritorio completo en Linux.');
       }
-      const encoded = Buffer.from(script, 'utf16le').toString('base64');
-      const { stdout } = await execAsync(`powershell -NoProfile -EncodedCommand ${encoded}`, { timeout, windowsHide: true });
-      return stdout?.trim() || '';
+      return runPowerShellInput(script, timeout);
     },
     mouseClick(x, y) { return this.mouseControls.mouseClick(x, y); },
     mouseDoubleClick(x, y) { return this.mouseControls.mouseDoubleClick(x, y); },

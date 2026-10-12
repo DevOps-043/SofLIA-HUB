@@ -27,6 +27,8 @@ export type CuLoopDeps = {
   confirmSafety?: (explanation: string, action: CuAction) => Promise<boolean>;
   /** Notificacion por paso (para logs/eventos de UI). */
   onStep?: (info: { step: number; nombre: string; action: CuAction; intent: string }) => void;
+  settleDelayMs?: number;
+  verifyCompletion?: (capture: import('./types').CuCapture, message: string, signal?: AbortSignal) => Promise<{ confirmed: boolean; reason: string }>;
 };
 
 export async function runComputerUseLoop(deps: CuLoopDeps): Promise<CuLoopResult> {
@@ -51,6 +53,7 @@ async function runLoop(deps: CuLoopDeps, signal: AbortSignal | undefined, record
   assertCuNotAborted(signal);
   deps.driver.contexto?.();
   let turn = await waitForCuResponse(() => deps.client.iniciar(deps.task, shot.base64, shot.context, signal), signal);
+  let pendingError: string | null = null;
 
   for (let step = 0; step < deps.maxSteps; step++) {
     if (deps.abortSignal?.aborted) return { estado: 'cancelada', mensaje: 'Tarea cancelada.', pasos: step };
@@ -58,7 +61,14 @@ async function runLoop(deps: CuLoopDeps, signal: AbortSignal | undefined, record
 
     const fc = turn.functionCall;
     if (!fc) {
-      // El modelo respondio sin accion: la tarea termino (texto = resultado/fin).
+      if (pendingError) return { estado: 'fallida', mensaje: `No se completó la tarea: la última acción falló (${pendingError}).`, pasos: step };
+      if (deps.verifyCompletion) {
+        shot = await deps.driver.capturar(signal);
+        assertCuNotAborted(signal); deps.driver.contexto?.();
+        const verified = await waitForCuResponse(() => deps.verifyCompletion!(shot, turn.text, signal), signal);
+        assertCuNotAborted(signal); deps.driver.contexto?.();
+        if (!verified.confirmed) return { estado: 'fallida', mensaje: `No se pudo comprobar que la tarea esté completada. ${verified.reason}`.trim(), pasos: step };
+      }
       return { estado: 'completada', mensaje: turn.text || 'Tarea completada.', pasos: step };
     }
 
@@ -85,14 +95,19 @@ async function runLoop(deps: CuLoopDeps, signal: AbortSignal | undefined, record
     try {
       assertCuNotAborted(signal);
       await deps.driver.ejecutar(mapped.action, mapped.intent, signal);
+      if (!['wait', 'screenshot', 'move'].includes(mapped.action.tipo)) pendingError = null;
     } catch (error: unknown) {
       if (error instanceof CuContextChangedError || signal?.aborted) throw error;
       extraResponse.error = getErrorMessage(error);
+      pendingError = getErrorMessage(error);
+      console.warn(`[Computer Use] La acción ${mapped.nombreOriginal} falló; se informará al modelo.`);
     }
 
     if (deps.abortSignal?.aborted) return { estado: 'cancelada', mensaje: 'Tarea cancelada.', pasos: step + 1 };
 
     // Recapturar el nuevo estado y devolverlo como function_response.
+    if (deps.settleDelayMs) await deps.delay(deps.settleDelayMs);
+    assertCuNotAborted(signal);
     shot = await deps.driver.capturar(signal);
     assertCuNotAborted(signal);
     const contexto = { ...(shot.context ?? {}), ...(deps.driver.contexto?.() ?? {}) };

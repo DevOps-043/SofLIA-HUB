@@ -14,3 +14,10 @@ movimiento y las marcas reales, comprueba el ocultamiento durante captura y
 cierra sus recursos. No mueve el puntero ni escribe en otras aplicaciones. El
 resultado está en `work/orb-guidance/native-result.json`; las imágenes capturan
 únicamente documentos de la fixture, no el escritorio del usuario.
+
+Para verificar entrada física: `node test/manual/orb-guidance/build-input.mjs`
+y `npx electron work/native-input/input.cjs`. Crea una ventana propia, comprueba
+un clic confiable y el contenido escrito con nut.js y con PowerShell, y comprueba
+que un error de script rechace la operación. El resultado está en
+`work/native-input/result.json`. No llama al proveedor de IA y no demuestra que
+una tarea real del modelo esté completa.

@@ -67,6 +67,8 @@ export function createBrowserCuDriver(page: PlaywrightPage): CuDriver {
           await page.mouse.up();
           return;
         case 'type':
+          if (action.punto) await page.mouse.click(action.punto.x, action.punto.y);
+          if (action.clear) await page.keyboard.press('Control+A');
           await page.keyboard.type(action.texto);
           if (action.enter) await page.keyboard.press('Enter');
           return;
@@ -99,8 +101,10 @@ export function createBrowserCuDriver(page: PlaywrightPage): CuDriver {
           await page.goForward();
           return;
         case 'screenshot':
-        case 'desconocida':
           return;
+        case 'open_application':
+        case 'desconocida':
+          throw new Error('La acción no está disponible en el navegador automatizado.');
       }
     },
   };

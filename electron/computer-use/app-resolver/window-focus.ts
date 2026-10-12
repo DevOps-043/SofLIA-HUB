@@ -1,5 +1,6 @@
 import path from 'node:path';
-import { execAsync } from './exec';
+import { runPowerShellInput } from '../../desktop-agent/powershell-input';
+import type { ApplicationExecutionGuard } from '../app-open-tool';
 import { stripLaunchExtension } from './path-helpers';
 import type { ExistingWindowMatch } from './types';
 
@@ -28,6 +29,7 @@ function buildWindowSearchTokens(requestedPath: string, resolvedPath: string): s
 export async function focusExistingApplicationWindow(
   requestedPath: string,
   resolvedPath: string,
+  guard?: ApplicationExecutionGuard,
 ): Promise<ExistingWindowMatch | null> {
   if (process.platform !== 'win32') return null;
 
@@ -57,10 +59,9 @@ if ($proc) {
 `;
 
   try {
-    const { stdout } = await execAsync(
-      `powershell -NoProfile -Command "${script.replace(/\n/g, '; ').replace(/"/g, '\\"')}"`,
-      { timeout: 4000, windowsHide: true, maxBuffer: 1024 * 128 },
-    );
+    guard?.assertCurrent?.();
+    if (guard?.signal?.aborted) throw new Error('La apertura fue cancelada.');
+    const stdout = await runPowerShellInput(script, 4000, guard?.signal);
     const parsed = JSON.parse((stdout || '').trim());
     if (!parsed?.pid) return null;
     return {

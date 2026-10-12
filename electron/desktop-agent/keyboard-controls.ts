@@ -5,6 +5,7 @@ import { SEND_KEYS_MAP } from '../desktop-agent-types';
 import { assertGuiAutomationSupported, detectPlatformCapabilities } from '../platform-capabilities';
 import type { PowerShellExecutor } from './window-controls';
 import type { InputDriver } from './input-driver/types';
+import { buildWindowsHotkey } from './windows-hotkey';
 
 type Delay = (ms: number) => Promise<void>;
 const execFileAsync = promisify(execFileCb);
@@ -56,6 +57,9 @@ export class DesktopKeyboardControls {
       await this.inputDriver.pressKeys([key]);
       return;
     }
+    if (process.platform === 'win32' && ['win', 'meta', 'super', 'command', 'cmd'].includes(key.toLowerCase())) {
+      await this.ps(buildWindowsHotkey([key])); return;
+    }
     const sendKey = SEND_KEYS_MAP[key.toLowerCase()] || key;
     if (process.platform !== 'win32') {
       await runXdotool(['key', '--clearmodifiers', normalizeXdotoolKey(sendKey)]);
@@ -72,6 +76,9 @@ export class DesktopKeyboardControls {
     if (process.platform !== 'win32') {
       await runXdotool(['key', '--clearmodifiers', keys.map(normalizeXdotoolKey).join('+')]);
       return;
+    }
+    if (keys.some(key => ['win', 'meta', 'super', 'command', 'cmd'].includes(key.toLowerCase()))) {
+      await this.ps(buildWindowsHotkey(keys)); return;
     }
     let combo = '';
     for (const key of keys) {

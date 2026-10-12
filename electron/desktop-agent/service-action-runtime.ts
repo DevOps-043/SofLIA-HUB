@@ -222,8 +222,8 @@ export async function executeServiceDesktopAction(
     closeWindow: (title) => service.closeWindow(title),
     waitForScreenChange: (timeoutMs) => service.waitForScreenChange(timeoutMs),
     waitForWindow: (title, timeoutMs) => service.waitForWindow(title, timeoutMs),
-    openApplication: (appName) => openApplicationDeterministic(appName),
-    openUrl: (url) => openUrlDeterministic(url),
+    openApplication: (appName) => openApplicationDeterministic(appName, { signal, assertCurrent }),
+    openUrl: (url) => openUrlDeterministic(url, { signal, assertCurrent }),
     clickElementByName: (elementName, doubleClick, hint) =>
       clickElementByTextForService(service, elementName, doubleClick === true, hint, signal, assertCurrent, assertWindow),
     takeZoomScreenshot: (x, y, radius) => service.takeZoomScreenshot(x, y, radius),

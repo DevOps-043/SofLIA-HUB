@@ -29,7 +29,8 @@ export type CuFunctionCall = {
 /** Accion interna normalizada; coordenadas en PIXELES de la captura. */
 export type CuAction =
   | { tipo: 'click' | 'double_click' | 'right_click' | 'middle_click' | 'move' | 'mouse_down' | 'mouse_up'; punto: CuPoint }
-  | { tipo: 'type'; texto: string; enter: boolean }
+  | { tipo: 'type'; texto: string; enter: boolean; punto?: CuPoint; clear?: boolean }
+  | { tipo: 'open_application'; appName: string }
   | { tipo: 'key'; teclas: string }
   | { tipo: 'scroll'; direccion: 'up' | 'down' | 'left' | 'right'; magnitud: number; punto?: CuPoint }
   | { tipo: 'drag'; desde: CuPoint; hasta: CuPoint }

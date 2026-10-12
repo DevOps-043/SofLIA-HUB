@@ -19,6 +19,16 @@ describe('Denormalización 0-999 → píxeles', () => {
 });
 
 describe('Mapeo de acciones Computer Use', () => {
+  it('conserva el punto de escritura y acepta nombres documentados del actuador', () => {
+    expect(mapCuFunctionCall({ name: 'click_at', args: { x: 500, y: 500 } }, W, H).action.tipo).toBe('click');
+    expect(mapCuFunctionCall({ name: 'type_text_at', args: { x: 500, y: 500, text: 'hola', clear_before_typing: true } }, W, H).action)
+      .toMatchObject({ tipo: 'type', punto: { x: 960, y: 540 }, clear: true });
+    expect(mapCuFunctionCall({ name: 'press_key_combination', args: { keys: ['Super', 'R'] } }, W, H).action)
+      .toMatchObject({ tipo: 'key', teclas: 'super+r' });
+    expect(mapCuFunctionCall({ name: 'wait', args: { seconds: 2 } }, W, H).action).toEqual({ tipo: 'wait', ms: 2000 });
+    expect(mapCuFunctionCall({ name: 'open_application', args: { app_name: 'Bloc de notas' } }, W, H).action)
+      .toEqual({ tipo: 'open_application', appName: 'Bloc de notas' });
+  });
   it('CU-M-010: click con x,y normalizados e intent', () => {
     const m = mapCuFunctionCall({ id: 'c1', name: 'click', args: { x: 293, y: 978, intent: 'Abrir Inicio' } }, W, H);
     expect(m.callId).toBe('c1');

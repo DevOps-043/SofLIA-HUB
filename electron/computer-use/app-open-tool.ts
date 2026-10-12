@@ -13,6 +13,11 @@ import {
 } from './app-resolver';
 
 type OpenFailure = { success: false; error: string };
+export type ApplicationExecutionGuard = { signal?: AbortSignal; assertCurrent?: () => void };
+function assertExecution(guard?: ApplicationExecutionGuard): void {
+  guard?.assertCurrent?.();
+  if (guard?.signal?.aborted) throw new Error('La apertura fue cancelada.');
+}
 
 const execFileAsync = promisify(execFileCb);
 
@@ -35,8 +40,9 @@ async function launchStartAppsTarget(
   }
 }
 
-export async function handleOpenUrl(rawUrl: string): Promise<Record<string, any>> {
+export async function handleOpenUrl(rawUrl: string, guard?: ApplicationExecutionGuard): Promise<Record<string, any>> {
   try {
+    assertExecution(guard);
     const safeUrl = assertSafeExternalUrl(rawUrl);
     await shell.openExternal(safeUrl);
     return { success: true, message: `URL abierta: ${safeUrl}` };
@@ -49,17 +55,21 @@ export async function handleOpenPath(
   toolName: string,
   args: Record<string, any>,
   onProgress?: (message: string) => void,
+  guard?: ApplicationExecutionGuard,
 ): Promise<Record<string, any>> {
   try {
+    assertExecution(guard);
     const requestedPath = typeof args.path === 'string' ? args.path.trim() : '';
     if (!requestedPath) return { success: false, error: 'Debe proporcionar una ruta o nombre de aplicacion valido.' };
     const progressMessages: string[] = [];
     const resolvedTarget = await resolveTarget(requestedPath, progressMessages, onProgress);
+    assertExecution(guard);
     if (isOpenFailure(resolvedTarget)) return resolvedTarget;
     const target = resolvedTarget;
 
     if (toolName === 'open_application') {
-      const existingWindow = await focusExistingApplicationWindow(requestedPath, target.path);
+      const existingWindow = await focusExistingApplicationWindow(requestedPath, target.path, guard);
+      assertExecution(guard);
       if (existingWindow) {
         return {
           success: true,
@@ -75,6 +85,7 @@ export async function handleOpenPath(
       }
     }
 
+    assertExecution(guard);
     const launchResult = isStartAppsPath(target.path)
       ? await launchStartAppsTarget(target.path)
       : await launchPathNonBlocking(target.path, {
@@ -90,7 +101,9 @@ export async function handleOpenPath(
     // Para open_application: esperar y verificar que la ventana realmente apareció
     if (toolName === 'open_application') {
       await new Promise((resolve) => setTimeout(resolve, 1800));
-      const windowConfirm = await focusExistingApplicationWindow(requestedPath, target.path);
+      assertExecution(guard);
+      const windowConfirm = await focusExistingApplicationWindow(requestedPath, target.path, guard);
+      assertExecution(guard);
       if (!windowConfirm) {
         return {
           success: false,

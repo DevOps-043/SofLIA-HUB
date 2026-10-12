@@ -31,9 +31,9 @@ export function createDesktopCuDriver(deps: DesktopCuDriverDeps): CuDriver {
   };
 }
 
-/** true si la accion es terminal/no aplicable en desktop (el loop la ignora). */
+/** Compatibilidad de consulta; los comandos no disponibles se rechazan al ejecutar. */
 export function esAccionNoEjecutableEnDesktop(action: CuAction): boolean {
-  return action.tipo === 'navigate' || action.tipo === 'go_back' || action.tipo === 'go_forward' || action.tipo === 'screenshot';
+  return action.tipo === 'go_back' || action.tipo === 'go_forward';
 }
 
 export async function ejecutarAccionDesktop(
@@ -63,6 +63,8 @@ export async function ejecutarAccionDesktop(
       return;
 
     case 'type':
+      if (action.punto) await deps.executeAction({ action: 'click', ...action.punto, message });
+      if (action.clear) await deps.executeAction({ action: 'key', key: 'ctrl+a', message });
       await deps.executeAction({ action: 'type', text: action.texto, message });
       if (action.enter) await deps.executeAction({ action: 'key', key: 'enter', message: `${message} (enter)` });
       return;
@@ -92,14 +94,22 @@ export async function ejecutarAccionDesktop(
     case 'wait':
       await deps.delay(action.ms);
       return;
+    case 'open_application':
+      if (!action.appName.trim()) throw new Error('Indica la aplicación que se debe abrir.');
+      await deps.executeAction({ action: 'open_application', appName: action.appName, message });
+      return;
 
-    // navigate/go_back/go_forward/screenshot: no aplican en desktop (el loop
-    // ya recaptura cada vuelta). 'desconocida': se ignora con log en el loop.
+    // Navegación externa conserva el resolver autorizado; no hay noops silenciosos.
     case 'navigate':
+      if (!action.url) throw new Error('No se recibió una URL para abrir el navegador.');
+      await deps.executeAction({ action: 'open_url', url: action.url, message });
+      return;
     case 'go_back':
     case 'go_forward':
+      throw new Error('Esa navegación no está disponible en el escritorio; usa el navegador integrado.');
     case 'screenshot':
-    case 'desconocida':
       return;
+    case 'desconocida':
+      throw new Error('La acción solicitada no está soportada por el controlador de escritorio.');
   }
 }

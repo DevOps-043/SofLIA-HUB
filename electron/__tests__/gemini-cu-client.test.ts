@@ -12,6 +12,45 @@ function fixture() {
 }
 
 describe('Cancelación del cliente Computer Use', () => {
+  it('cancela la escritura pendiente si abrir la aplicación falla y comunica las acciones omitidas', async () => {
+    const generate = vi.fn().mockResolvedValueOnce({ functionCalls: [
+      { id: 'abrir', name: 'open_application', args: { app_name: 'Bloc de notas' } },
+      { id: 'escribir', name: 'type_text_at', args: { x: 10, y: 10, text: 'nota' } },
+    ] }).mockResolvedValueOnce({ text: 'No pude abrir la aplicación' });
+    const client = createComputerUseClient({ apiKey: 'test', model: 'test', environment: 'ENVIRONMENT_DESKTOP', teamMode: 'direct',
+      loadSdk: () => ({ GoogleGenAI: class { models = { generateContent: generate }; }, createPartFromFunctionResponse: (id, name, response) => ({ functionResponse: { id, name, response } }) }),
+    });
+    expect((await client.iniciar('Escribe una nota', 'imagen')).functionCall?.id).toBe('abrir');
+    const turn = await client.continuar('abrir', 'open_application', 'imagen2', { error: 'No encontrada' });
+    expect(turn.functionCall).toBeNull();
+    expect(generate).toHaveBeenCalledTimes(2);
+    const responses = generate.mock.calls[1][0].contents.slice(1).flatMap((content: { parts: unknown[] }) => content.parts);
+    expect(responses).toEqual([
+      { functionResponse: { id: 'abrir', name: 'open_application', response: { error: 'No encontrada' } } },
+      { functionResponse: { id: 'escribir', name: 'type_text_at', response: { error: 'Acción no ejecutada por fallo previo en el lote.' } } },
+    ]);
+  });
+  it('conserva todas las acciones de una respuesta y espera sus resultados antes de consultar de nuevo', async () => {
+    const generate = vi.fn().mockResolvedValueOnce({ functionCalls: [{ id: '1', name: 'click', args: { x: 10, y: 10 } }, { id: '2', name: 'type', args: { text: 'nota' } }] }).mockResolvedValueOnce({ text: 'Listo' });
+    const client = createComputerUseClient({ apiKey: 'test', model: 'test', environment: 'ENVIRONMENT_DESKTOP', teamMode: 'direct',
+      loadSdk: () => ({ GoogleGenAI: class { models = { generateContent: generate }; }, createPartFromFunctionResponse: (id, name, response) => ({ functionResponse: { id, name, response } }) }),
+    });
+    expect((await client.iniciar('Escribe una nota', 'imagen')).functionCall?.id).toBe('1');
+    expect((await client.continuar('1', 'click', 'imagen2', {})).functionCall?.id).toBe('2');
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect((await client.continuar('2', 'type', 'imagen3', {})).functionCall).toBeNull();
+    expect(generate).toHaveBeenCalledTimes(2);
+  });
+  it('la comprobación usa sólo la captura reciente, sin herramientas, y no acepta JSON inválido', async () => {
+    const { client, generate } = fixture();
+    generate.mockResolvedValueOnce({ text: '{"confirmed":false,"reason":"Sólo se ve el chat"}' });
+    expect(await client.verificar!('Abre Bloc de notas', 'captura-final', 'Listo')).toMatchObject({ confirmed: false });
+    const params = generate.mock.calls[0][0];
+    expect(params.config).toMatchObject({ tools: [], responseMimeType: 'application/json' });
+    expect(JSON.stringify(params.contents)).toContain('captura-final');
+    generate.mockResolvedValueOnce({ text: 'Listo' });
+    expect(await client.verificar!('Tarea', 'imagen', 'Listo')).toMatchObject({ confirmed: false });
+  });
   it('propaga la misma señal al SDK en inicio y continuación sin perder la configuración CU', async () => {
     const { client, generate } = fixture(); const abort = new AbortController();
     await client.iniciar('Tarea', 'imagen', {}, abort.signal);

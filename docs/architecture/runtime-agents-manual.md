@@ -1594,6 +1594,14 @@ rollback), `VOICE_CALL_IDLE_TIMEOUT_MS` (1–60 min, por omisión 10) y
 
 ## 4. Agente de escritorio
 
+Computer Use de escritorio corrobora el estado final con una captura nueva y
+un pedido de verificación sin herramientas. Las acciones múltiples del modelo
+se ejecutan en orden. Un rechazo de entrada no puede transformarse directamente
+en resultado completado por un cierre textual. La función `open_application`
+reutiliza el resolver local con señal y guarda de cancelación, y evita adivinar
+iconos de aplicaciones que no están abiertas. Ver
+[ejecución y evidencia](autonomous-orb-guidance.md#integración-con-computer-use).
+
 El orbe acompaña las acciones resueltas y puede señalar un control sin entrada
 mediante `show_visual_guidance` en el chat/orbe del renderer. Las prácticas locales
 esperan al alumno y comprueban el texto de resultado definido por el instructor.
