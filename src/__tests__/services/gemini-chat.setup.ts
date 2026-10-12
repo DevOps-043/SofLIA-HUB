@@ -4,6 +4,12 @@ const geminiChatMocks = vi.hoisted(() => {
   const mockGetGenerativeModel = vi.fn();
   const mockChatsCreate = vi.fn();
   return {
+    // Ruta conversacional migrada a `@google/genai`.
+    mockChatsCreate,
+    mockGoogleGenAI: vi.fn().mockImplementation(function () {
+      return { chats: { create: mockChatsCreate } };
+    }),
+    // Utilidades de un solo disparo que siguen sobre el SDK anterior.
     mockGetGenerativeModel,
     // El chat crea la sesion con `chats.create` de @google/genai.
     mockChatsCreate,
@@ -121,6 +127,9 @@ export function createMockChat(text: string) {
   };
   return {
     sendMessage: vi.fn(async () => response),
+    sendMessageStream: vi.fn(async () => (async function* () {
+      yield response;
+    })()),
   };
 }
 

@@ -3,6 +3,7 @@ import { completedStreamResult, isAbortError, singleChunkStream, stoppedStreamRe
 import { isMalformedFunctionCall, resolveEmptyGeminiText } from './empty-response';
 import { getPublicAiErrorMessage } from './public-error';
 import { withAbortSignal, type GeminiChatConfig } from './model-config';
+import { buildMultimodalContent } from './message-content';
 import { withGeminiModelCall, withToolTimeout } from './resilience';
 import { executeGeminiToolCall, isKnownGeminiTool } from './tool-dispatch';
 import {
@@ -121,7 +122,7 @@ export async function runAgenticLoop(params: {
 
     const functionResponses = await executeFunctionCalls(functionCalls, params);
     if (signal?.aborted) return stoppedStreamResult(params.allToolCalls, params.allGeneratedImages);
-    if (functionResponses.length === 0) return finalTextResult(parts, response.response, params);
+    if (functionResponses.length === 0) return finalTextResult(parts, response, params);
     try {
       response = await withGeminiModelCall(
         'Gemini tool response message',
@@ -190,6 +191,13 @@ async function executeFunctionCalls(
       for (const dataUrl of ejecutada.images ?? []) {
         const inline = toInlineData(dataUrl);
         if (inline) responses.push(inline);
+      }
+      // Un video no cabe como imagen: viaja como parte propia, con su ventana
+      // temporal, por el mismo constructor que usa el mensaje del usuario.
+      if (ejecutada.media?.length) {
+        const construido = buildMultimodalContent('', ejecutada.media);
+        if (Array.isArray(construido.content)) responses.push(...construido.content.slice(1));
+        params.options?.onMediaEnvelope?.(construido.envelope);
       }
     } catch (error: any) {
       // Si use_computer expiro, abortar la tarea en el main para no dejar un

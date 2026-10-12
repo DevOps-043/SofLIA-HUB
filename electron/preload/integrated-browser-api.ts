@@ -21,6 +21,11 @@ export function exposeIntegratedBrowserApi(bridge: PreloadBridge, ipc: SafeIpc):
     restorePreviousSession: () => safeInvoke('integrated-browser:session-restore'),
     discardPreviousSession: () => safeInvoke('integrated-browser:session-discard'),
     captureVisible: () => safeInvoke('integrated-browser:capture-visible'),
+    /** Cuadro fresco a resolucion del viewport, sin la cadencia pasiva. */
+    captureFrame: () => safeInvoke('integrated-browser:capture-frame'),
+    getPlayerState: () => safeInvoke('integrated-browser:get-player-state'),
+    sampleFrames: (count: number, intervalMs: number) =>
+      safeInvoke('integrated-browser:sample-frames', { count, intervalMs }),
     getObservation: (forceFresh = false) => safeInvoke('integrated-browser:get-observation', { forceFresh }),
     setObservationEnabled: (enabled: boolean) => safeInvoke('integrated-browser:set-observation-enabled', { enabled }),
     open: (url?: string, options?: BrowserNavigationOptions) => safeInvoke('integrated-browser:open', navigationPayload(url === undefined ? {} : { url }, options)),

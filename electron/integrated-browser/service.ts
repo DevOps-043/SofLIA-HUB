@@ -113,6 +113,8 @@ import { BrowserPrivacyStore, normalizePrivacyOrigin } from './privacy-store';
 import { BrowserTrackingRuleEngine, createTrackingRuleList, mitigateFingerprintingRequestHeaders, mitigateFingerprintingResponseHeaders, stripTrackingParameters } from './tracking-protection';
 import { BrowserEnterprisePolicyStore } from './enterprise-policy-store';
 import { toStandardChromiumUserAgent } from './user-agent';
+import { evaluateCaptureQuality } from './capture-quality';
+import { emptyPlayerState, readPlayerState } from './player-state';
 import {
   collectBrowserReadingContent,
   type BrowserDocumentContent,
@@ -125,6 +127,7 @@ import {
   INTEGRATED_BROWSER_AGENT_VIEWPORT_TIMEOUT_MS,
   INTEGRATED_BROWSER_BACKDROP_QUALITY,
   INTEGRATED_BROWSER_DEFER_THROTTLE_MS,
+  INTEGRATED_BROWSER_EXPLICIT_CAPTURE_MIN_GAP_MS,
   SELECTION_PROBE_DELAY_MS,
   INTEGRATED_BROWSER_HOME,
   INTEGRATED_BROWSER_MAX_DETACHED_WINDOWS,
@@ -138,6 +141,8 @@ import {
   INTEGRATED_BROWSER_OBSERVATION_QUALITY,
   type BrowserCredentialMetadata,
   type BrowserCredentialSaveInput,
+  type BrowserExplicitCapture,
+  type BrowserPlayerState,
   type BrowserExtensionInstallPreview,
   type BrowserExtensionMetadata,
   type BrowserHistoryEntry,
@@ -473,6 +478,8 @@ export class IntegratedBrowserService extends EventEmitter {
   private visualCaptureInFlightTarget: { tabId: string; url: string } | null = null;
   private latestVisualCapture: BrowserVisualCapture | null = null;
   private latestObservation: BrowserObservationSnapshot | null = null;
+  /** Ultima captura explicita, para espaciar invocaciones consecutivas. */
+  private lastExplicitCaptureAt = 0;
   private observationSequence = 0;
   private observationLastError: string | null = null;
   /** Perfil (usuario) al que pertenece la sesion de navegacion en curso. */
@@ -2137,6 +2144,102 @@ export class IntegratedBrowserService extends EventEmitter {
       screenshot: encodeBrowserCapture(image, logicalEdge, INTEGRATED_BROWSER_BACKDROP_QUALITY),
       bounds,
     };
+  }
+
+  /**
+   * Captura explicita de la pestaña visible, invocable por el modelo.
+   *
+   * Es una ruta paralela a la observacion pasiva, no una variante suya: toma
+   * un cuadro nuevo en el instante de la llamada sin reutilizar la ultima
+   * captura ni esperar la cadencia multimedia, y conserva la resolucion
+   * logica del viewport en vez del presupuesto acotado de la percepcion
+   * pasiva. Sin esto, preguntar por un video dependia de que el heuristico de
+   * intencion del renderer acertara con la frase del usuario.
+   */
+  async captureExplicitFrame(): Promise<BrowserExplicitCapture> {
+    const active = this.getActiveTab();
+    if (!active || !this.isTabVisible(active)) {
+      return { ok: false, reason: 'navegador-no-visible', detail: 'El navegador integrado no esta visible.' };
+    }
+
+    // Separacion minima entre invocaciones consecutivas: `capturePage` a
+    // resolucion completa compite con el compositor de la pagina.
+    const desde = this.lastExplicitCaptureAt ? Date.now() - this.lastExplicitCaptureAt : Number.POSITIVE_INFINITY;
+    if (desde < INTEGRATED_BROWSER_EXPLICIT_CAPTURE_MIN_GAP_MS) {
+      await new Promise((resolve) => {
+        setTimeout(resolve, INTEGRATED_BROWSER_EXPLICIT_CAPTURE_MIN_GAP_MS - desde);
+      });
+    }
+
+    let image: Awaited<ReturnType<WebContents['capturePage']>>;
+    try {
+      image = await this.getWebContentsForAgent().capturePage();
+    } catch (error) {
+      return { ok: false, reason: 'captura-fallida', detail: safeCaptureError(error) };
+    }
+    this.lastExplicitCaptureAt = Date.now();
+
+    const size = image.getSize();
+    const calidad = image.isEmpty()
+      ? { usable: false as const, reason: 'captura-vacia' as const, detail: 'La captura del navegador llego vacia.' }
+      : evaluateCaptureQuality({ width: size.width, height: size.height, bitmap: image.toBitmap() });
+    if (!calidad.usable) {
+      return { ok: false, reason: calidad.reason, detail: calidad.detail };
+    }
+
+    const bounds = this.requireTabView(active).getBounds();
+    const logicalEdge = Math.max(1, bounds.width, bounds.height);
+    return {
+      ok: true,
+      screenshot: encodeBrowserCapture(image, logicalEdge, INTEGRATED_BROWSER_BACKDROP_QUALITY),
+      capturedAt: new Date().toISOString(),
+      url: sanitizeStateUrl(this.getWebContents()?.getURL() ?? ''),
+    };
+  }
+
+  /**
+   * Estado del reproductor de la pestaña activa. Solo observa: no reproduce,
+   * no pausa y no navega.
+   */
+  async getPlayerState(): Promise<BrowserPlayerState> {
+    const active = this.getActiveTab();
+    if (!active || !this.isTabVisible(active)) return emptyPlayerState();
+    try {
+      return await readPlayerState(this.getWebContentsForAgent());
+    } catch {
+      return emptyPlayerState();
+    }
+  }
+
+  /**
+   * Muestreo de cuadros para un reproductor que no puede entregarse como video.
+   *
+   * Es evidencia peor que el video —sin audio y sin continuidad— pero es la
+   * unica alternativa honesta cuando el medio no es publicamente direccionable,
+   * y quien la consume debe declararla como muestreo.
+   */
+  async sampleFrames(count: number, intervalMs: number): Promise<{
+    frames: Array<{ screenshot: string; atSeconds: number }>;
+    failure: BrowserExplicitCapture | null;
+  }> {
+    const frames: Array<{ screenshot: string; atSeconds: number }> = [];
+    const total = Math.max(1, Math.min(12, Math.floor(count)));
+
+    for (let indice = 0; indice < total; indice += 1) {
+      const player = await this.getPlayerState();
+      const captura = await this.captureExplicitFrame();
+      if (!captura.ok) {
+        // Un fallo en el primer cuadro no deja evidencia alguna; con cuadros ya
+        // tomados se conserva lo obtenido y se informa el corte.
+        return { frames, failure: captura };
+      }
+      frames.push({ screenshot: captura.screenshot, atSeconds: player.currentTimeSeconds ?? indice * (intervalMs / 1000) });
+      if (indice < total - 1) {
+        await new Promise((resolve) => { setTimeout(resolve, Math.max(0, intervalMs)); });
+      }
+    }
+
+    return { frames, failure: null };
   }
 
   /**
@@ -5094,6 +5197,11 @@ export class IntegratedBrowserService extends EventEmitter {
   private assertCapability(capability: keyof typeof this.capabilities): void {
     if (!this.capabilities[capability]) throw new Error(`La capacidad del navegador está deshabilitada: ${capability}.`);
   }
+}
+
+function safeCaptureError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.replace(/[\r\n\t]+/g, ' ').trim().slice(0, 240) || 'No pude capturar la vista del navegador.';
 }
 
 function passiveObservationIntervalMs(url: string): number {

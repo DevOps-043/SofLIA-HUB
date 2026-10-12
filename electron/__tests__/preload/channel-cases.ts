@@ -78,8 +78,8 @@ export function registerPreloadChannelTests() {
 
   it('SEC-035: el navegador integrado expone solo su contrato allowlisted', () => {
     const browserChannels = ALLOWED_IPC_CHANNELS.filter((channel) => channel.startsWith('integrated-browser:'));
-    expect(browserChannels).toHaveLength(126);
-    expect(new Set(browserChannels).size).toBe(126);
+    expect(browserChannels).toHaveLength(127);
+    expect(new Set(browserChannels).size).toBe(127);
     expect(browserChannels).toContain('integrated-browser:ecosystem-connect');
     expect(browserChannels).toContain('integrated-browser:extensions-catalog');
     expect(browserChannels).toContain('integrated-browser:extensions-restrict-sites');
@@ -96,6 +96,10 @@ export function registerPreloadChannelTests() {
       'tab-duplicate', 'tab-reopen-closed', 'tab-close-others', 'tab-close-right', 'tab-pin', 'tab-layout', 'tab-group-create', 'tab-group-assign',
     ]) expect(browserChannels).toContain(`integrated-browser:${suffix}`);
     expect(browserChannels).toContain('integrated-browser:toggle-devtools');
+    // Vision explicita: cuadro bajo demanda, estado del reproductor y muestreo.
+    expect(browserChannels).toContain('integrated-browser:capture-frame');
+    expect(browserChannels).toContain('integrated-browser:get-player-state');
+    expect(browserChannels).toContain('integrated-browser:sample-frames');
     expect(browserChannels).toContain('integrated-browser:clear-browsing-data');
     expect(browserChannels).toContain('integrated-browser:site-permissions-get');
     expect(browserChannels).toContain('integrated-browser:site-permissions-set');

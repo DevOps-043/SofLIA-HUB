@@ -55,6 +55,15 @@ function isMissingOpenAIKey(message: string): boolean {
 }
 
 function getRawErrorMessage(error: unknown): string {
+  const base = readErrorText(error);
+  // `@google/genai` adjunta el codigo como campo numerico y no siempre lo
+  // repite en el mensaje. Sin el, un 429 estructurado caia en el mensaje
+  // generico en vez del aviso de capacidad temporal.
+  const status = readErrorStatus(error);
+  return status ? `${base} ${status}` : base;
+}
+
+function readErrorText(error: unknown): string {
   if (error instanceof Error) return error.message || error.name;
   if (typeof error === 'string') return error;
   if (error && typeof error === 'object' && 'message' in error) {
@@ -62,6 +71,17 @@ function getRawErrorMessage(error: unknown): string {
     return typeof message === 'string' ? message : String(message || '');
   }
   return String(error || '');
+}
+
+function readErrorStatus(error: unknown): string {
+  if (!error || typeof error !== 'object') return '';
+  const detalle = error as Record<string, unknown>;
+  const anidado = detalle.error as Record<string, unknown> | undefined;
+  const candidatos = [detalle.status, detalle.code, anidado?.status, anidado?.code];
+  return candidatos
+    .filter((valor) => typeof valor === 'number' || typeof valor === 'string')
+    .map((valor) => String(valor))
+    .join(' ');
 }
 
 function isRateLimitError(message: string): boolean {
