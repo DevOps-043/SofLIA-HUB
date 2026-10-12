@@ -78,6 +78,9 @@ Compuerta final ejecutada con `HARNESS_BASE_REF=main npm run verify:pr` el
 
 Se repite `git fetch origin` al terminar: las 54 referencias de ramas remotas
 siguen incorporadas al historial integrado. `git diff --check` no detecta errores.
+Main local se actualizó por avance rápido hasta `4b38e55`, commit de preparación
+de 0.9.9. La comprobación posterior incluye también todas las ramas locales:
+ninguna referencia queda fuera de main. Se conserva la rama de integración.
 Los cambios posteriores a esta compuerta se limitan al registro de evidencia y
 la finalización de tareas; documentación y OpenSpec se validan otra vez antes
 del cierre.

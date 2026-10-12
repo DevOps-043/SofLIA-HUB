@@ -7,4 +7,4 @@
 - [x] Actualizar versión a 0.9.9 y changelog formal para usuarios.
 - [x] Sincronizar inventarios y ejecutar verificaciones.
 - [x] Completar revisión adversarial de conflictos recientes.
-- [ ] Actualizar main local y comprobar cobertura de todas las ramas.
+- [x] Actualizar main local y comprobar cobertura de todas las ramas.
