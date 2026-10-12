@@ -1,0 +1,11 @@
+# Contexto del cambio
+
+- Objetivo: reducir el consumo sostenido de RAM y CPU de Pulse Hub durante una sesión con el navegador integrado abierto, manteniendo la respuesta inmediata de las superficies visibles.
+- Usuario o actor: persona que usa Pulse Hub como aplicación de escritorio y mantiene varias pestañas web abiertas durante su jornada.
+- Alcance: ciclo de vida y throttling de `WebContentsView`, presupuesto de pestañas vivas, observación visual pasiva del agente, métricas de procesos Electron y parámetros/documentación de operación.
+- No objetivos: cambiar el motor Chromium, sustituir Electron, bloquear extensiones, degradar audio/video de una pestaña visible, cerrar pestañas lógicas, alterar cookies/sesiones o prometer paridad absoluta con Brave/Comet en todos los sitios.
+- Restricciones: la pestaña visible y las dos visibles en composición múltiple deben conservar fluidez; una pestaña con audio o tarea del agente no se descarta; las pestañas suspendidas conservan URL y se restauran explícitamente; no se agregan dependencias ni IPC nuevo salvo que la medición no pueda exponerse por una API existente.
+- Contratos afectados: comportamiento de `IntegratedBrowserService`, estado `isSuspended` de pestañas, parámetros de runtime, logs/métricas diagnósticas y especificación del navegador integrado. No cambian datos remotos, permisos ni secretos.
+- Riesgo y HITL: suspender una pestaña pierde estado no persistido de su DOM y puede recargarla al volver; se mitiga con periodo de gracia, protección de superficies visibles/audio/agente y política reversible. No hay acciones destructivas externas ni se requiere HITL adicional.
+- Criterios verificables: las vistas ocultas permiten throttling; las visibles lo deshabilitan; el muestreo pasivo no se reprograma indefinidamente en reposo; pestañas frías no protegidas se suspenden por LRU; las protegidas no; reactivarlas restaura su última URL; el diagnóstico agrega CPU/memoria por tipo de proceso; pruebas y benchmark reproducible registran antes/después.
+- Incertidumbres: el ahorro exacto depende de cada sitio y del equipo. La meta inicial es reducir al menos 25 % la CPU en reposo del escenario controlado de tres pestañas y documentar RAM/CPU reales sin inventar una cifra cuando el host no permita medirla.
