@@ -230,10 +230,10 @@ describe('exportacion del runtime React', () => {
       await service.writeSystemFile(workspaceId, 'estilos/marca.css', ':root{--marca-color-primario:#123456}');
       await service.writeImage(workspaceId, 'demo.png', Buffer.from([137, 80, 78, 71]));
       const dist = path.join(base, 'dist');
-      await fs.mkdir(path.join(dist, 'assets'), { recursive: true });
+      await fs.mkdir(path.join(dist, 'presentation'), { recursive: true });
       await fs.writeFile(path.join(dist, 'index.html'), '<html><head><link rel="stylesheet" href="/assets/app.css"></head><body><div id="root"></div><script type="module" src="/assets/app.js"></script></body></html>');
-      await fs.writeFile(path.join(dist, 'assets', 'app.css'), 'body{margin:0}');
-      await fs.writeFile(path.join(dist, 'assets', 'app.js'), 'window.__runtimeActivo=true;');
+      await fs.writeFile(path.join(dist, 'presentation', 'presentation-runtime.css'), 'body{margin:0}');
+      await fs.writeFile(path.join(dist, 'presentation', 'presentation-runtime.iife.js'), 'window.__runtimeActivo=true;');
 
       const result = await exportPresentationDeckToHtml(service, workspaceId, dist);
       expect(result.ok).toBe(true);
@@ -242,7 +242,7 @@ describe('exportacion del runtime React', () => {
       expect(html).toContain('__PULSE_PRESENTATION__');
       expect(html).toContain('--marca-color-primario:#123456');
       expect(html).toContain('data:image/png;base64,');
-      expect(html).toContain('type="module"');
+      expect(html).not.toContain('type="module"');
       expect(html).not.toMatch(/(?:src|href)=["']\/assets\//);
     } finally {
       await fs.rm(base, { recursive: true, force: true });

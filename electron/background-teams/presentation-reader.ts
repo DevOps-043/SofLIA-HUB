@@ -35,7 +35,7 @@ export function readPresentationSlides(buffer: Buffer): string[] {
     if (!text) throw new Error('La diapositiva no tiene texto comprobable.');
     slides.push({ number: Number(match[1]), text });
   }
-  if (!slides.length || slides.length > 20) throw new Error('La presentación no contiene diapositivas válidas.');
+  if (!slides.length || slides.length > 120) throw new Error('La presentación no contiene diapositivas válidas.');
   return slides.sort((a, b) => a.number - b.number).map(slide => slide.text.slice(0, 10000));
 }
 

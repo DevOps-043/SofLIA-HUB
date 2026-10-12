@@ -1,0 +1,31 @@
+import { app } from 'electron';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { SkillWorkspaceService } from '../electron/skill-workspace/service';
+import { AUDIOVISUAL_SKILL } from '../src/shared/skills/audiovisual-skill';
+import { PRESENTACIONES_SKILL } from '../src/shared/skills/presentaciones-skill';
+import { AudiovisualService } from '../electron/audiovisual/service';
+import { exportPresentationDeckToHtml } from '../electron/skill-workspace/export-html';
+import { exportWorkspacePptx } from '../electron/presentation-export/pptx';
+import { prepareFilmPreview } from '../electron/audiovisual/preview';
+
+app.on('window-all-closed', () => undefined);
+void app.whenReady().then(async () => {
+  const root = process.env.SOFLIA_SMOKE_ROOT!, output = process.env.SOFLIA_SMOKE_OUTPUT!;
+  const service = new SkillWorkspaceService(path.join(output, 'workspaces'));
+  const presentation = await service.createWorkspace({ skillId: PRESENTACIONES_SKILL.id, title: 'Presentación semántica', policy: PRESENTACIONES_SKILL.workspace! }); if (!presentation.ok) throw new Error(presentation.error);
+  const p = presentation.data.id;
+  const written = await service.writeFile(p, 'deck.json', await fs.readFile(path.join(root, 'test/fixtures/production-deck.json'), 'utf8')); if (!written.ok) throw new Error(written.error);
+  const html = await exportPresentationDeckToHtml(service, p, path.join(root, 'dist')); if (!html.ok) throw new Error(html.error);
+  await exportWorkspacePptx(service, p);
+  const audiovisual = await service.createWorkspace({ skillId: AUDIOVISUAL_SKILL.id, title: 'SofLIA del conocimiento a la acción', policy: AUDIOVISUAL_SKILL.workspace! }); if (!audiovisual.ok) throw new Error(audiovisual.error);
+  const id = audiovisual.data.id;
+  const film = await service.writeFile(id, 'film.json', await fs.readFile(path.join(root, 'test/fixtures/audiovisual-film.json'), 'utf8')); if (!film.ok) throw new Error(film.error);
+  await prepareFilmPreview(service, id);
+  service.on('progreso', event => { if (event.message) console.info(event.message); });
+  const result = await new AudiovisualService(service, root).render(id);
+  const state = await service.getState(id); if (!state.ok || !state.data.ready) throw new Error('El MP4 no quedó listo tras el render.');
+  await prepareFilmPreview(service, id);
+  await fs.writeFile(path.join(output, 'result.json'), JSON.stringify({ html: html.htmlPath, pptx: await service.resolveAbsolutePath(p, 'salida/presentacion.pptx'), video: await service.resolveAbsolutePath(id, result.path), qa: await service.resolveAbsolutePath(id, 'qa/informe.json'), ready: state.data.ready }, null, 2));
+  app.exit(0);
+}).catch(error => { console.error(error); app.exit(1); });

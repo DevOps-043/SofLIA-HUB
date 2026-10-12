@@ -69,7 +69,7 @@ export async function prepareSkillWorkspace(input: {
   }
 
   const existing = input.conversationId ? await api.findByConversation(input.conversationId) : null;
-  if (existing?.workspace?.id) {
+  if (existing?.workspace?.id && existing.workspace.skillId === skill.id) {
     return {
       skill,
       workspaceId: existing.workspace.id,
@@ -90,7 +90,7 @@ export async function prepareSkillWorkspace(input: {
     return inerte(created.error || 'No se pudo crear el espacio de trabajo.');
   }
 
-  const brandingNotice = await prepareBranding(created.workspace.id, input.organizationId);
+  const brandingNotice = skill.id === PRESENTACIONES_SKILL_ID ? await prepareBranding(created.workspace.id, input.organizationId) : null;
   return {
     skill,
     workspaceId: created.workspace.id,
@@ -111,7 +111,7 @@ function buildContextNote(
   brandingNotice: string | null,
   workspaceError: string | null,
 ): string | null {
-  if (skill.id !== PRESENTACIONES_SKILL_ID) return null;
+  if (skill.id !== PRESENTACIONES_SKILL_ID) return workspaceError ? `No hay workspace disponible: ${workspaceError}. No simules haber creado archivos.` : null;
   const nota = buildPresentacionesContextNote({ ...context, brandingNotice });
   if (!workspaceError) return nota;
   // El modelo debe SABER que no puede escribir, para decirlo en vez de

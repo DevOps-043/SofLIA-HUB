@@ -1,6 +1,6 @@
 # Plan de implementación de presentaciones y producción audiovisual en SofLIA Hub
 
-Estado: propuesta de implementación. Fecha: 11 de octubre de 2026. Alcance: mejorar `sistema:presentaciones` y diseñar una nueva capacidad runtime `sistema:audiovisual`. Este documento entrega el análisis y el plan solicitados; la implementación del producto queda como trabajo posterior.
+Estado: plan histórico de evolución, con primera implementación local en [el contrato vigente](../architecture/presentation-audiovisual-production.md). Fecha: 11 de octubre de 2026. Alcance: mejorar `sistema:presentaciones` y diseñar una nueva capacidad runtime `sistema:audiovisual`. Este documento entrega el análisis y el plan solicitados; la primera versión corrige rutas y habilita producción conceptual; las fases de paridad cinematográfica siguen pendientes.
 
 SofLIA puede reproducir el proceso que produjo el video de Claude y convertirlo en una capacidad editable del Hub. Para alcanzar ese resultado hacen falta dirección creativa, componentes visuales, audio, herramientas de render y revisión de los artefactos. El prompt y la skill coordinan esas piezas. La prioridad inmediata es corregir las rutas de presentaciones que hoy entregan resultados distintos, ampliar la composición y cerrar el ciclo de revisión visual. La nueva skill audiovisual debe apoyarse en esa misma base creativa y mantener su propia línea de tiempo.
 

@@ -87,7 +87,7 @@ function executeKnownTool(
   // Las herramientas de la Skill activa se resuelven primero: son las unicas
   // que dependen del contexto del turno.
   if (resolveSkillToolNames(activeSkill).includes(toolName)) {
-    return executeSkillWorkspaceTool(toolName, args, activeSkill);
+    return executeSkillWorkspaceTool(toolName, args, activeSkill, signal);
   }
   if (GOOGLE_WORKSPACE_TOOL_NAMES.has(toolName)) return executeGoogleWorkspaceTool(toolName, args);
   if (INTEGRATED_BROWSER_TOOL_NAMES.has(toolName)) return executeIntegratedBrowserTool(toolName, args, signal);

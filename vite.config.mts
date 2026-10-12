@@ -18,7 +18,7 @@ const OPTIMIZE_DEP_EXCLUDES = [
 ];
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), "VITE_");
+  const env = { ...loadEnv("audiovisual", process.cwd(), "VITE_"), ...loadEnv(mode, process.cwd(), "VITE_") };
   // Las credenciales ElevenLabs solo se incrustan en el bundle main. No usan
   // el prefijo VITE_ y por tanto no forman parte de import.meta.env ni del
   // renderer/preload.

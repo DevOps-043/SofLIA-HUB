@@ -72,7 +72,7 @@ describe('catalogo de skills con origen remoto', () => {
 
     const catalogo = await resolveSkillCatalog('chat');
 
-    expect(catalogo.system.map((skill) => skill.name)).toEqual(['Presentaciones ejecutivas']);
+    expect(catalogo.system.map((skill) => skill.name)).toContain('Presentaciones ejecutivas');
   });
 
   it('un fallo de lectura conserva las skills de la version instalada', async () => {
@@ -96,7 +96,7 @@ describe('catalogo de skills con origen remoto', () => {
 
     const catalogo = await resolveSkillCatalog('chat');
 
-    expect(catalogo.system).toHaveLength(0);
+    expect(catalogo.system.some(skill => skill.id === PRESENTACIONES_SKILL_ID)).toBe(false);
   });
 
   it('una fila sin contraparte en codigo se ofrece acotada', async () => {

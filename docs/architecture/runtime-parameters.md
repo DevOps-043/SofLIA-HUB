@@ -324,3 +324,7 @@ Copias externas: 12 retenidas y dos preparaciones simultáneas, con limpieza de
 mejor esfuerzo al cerrar; un cierre abrupto o un bloqueo de Office puede dejar
 una copia temporal. Fuentes: `src/shared/artifact-viewer.ts`,
 `electron/artifact-viewer/` y `src/components/artifacts/pdf-runtime.ts`.
+
+## Producción audiovisual local
+
+Una producción simultánea, doce minutos, 6–60 segundos, 30/60 fps, 1280/1920 de ancho, MP4 hasta 80 MB y workspace hasta 128 MB. Manifiestos de 512 KB; máximo tres entidades visibles por escena. [Contrato y operación](presentation-audiovisual-production.md).

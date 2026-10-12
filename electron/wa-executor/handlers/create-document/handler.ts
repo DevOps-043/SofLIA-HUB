@@ -23,9 +23,10 @@ export async function handleCreateDocument(
     if (docType === 'md' || docType === 'markdown') return success(await createMarkdownDocument(baseArgs), 'Documento Markdown creado');
     if (docType === 'pdf') return success(await createPdfDocument(baseArgs), 'Documento PDF creado');
 
-    if (docType === 'pptx' || docType === 'powerpoint' || docType === 'presentacion') {
+    if (docType === 'pptx' || docType === 'powerpoint' || docType === 'presentacion' || docType === 'presentacion_pdf') {
       const { filePath, slideCount } = await createPresentationDocument({
         ...baseArgs,
+        format: docType === 'presentacion_pdf' ? 'pdf' : 'pptx',
         slidesJson: toolArgs.slides_json,
         customTheme: toolArgs.custom_theme,
         includeImages: toolArgs.include_images !== false,
@@ -34,7 +35,7 @@ export async function handleCreateDocument(
       return buildResponse(TOOL_NAME, {
         success: true,
         file_path: filePath,
-        message: `Presentacion PDF premium creada: ${filePath} (${slideCount} diapositivas con diseno profesional e imagenes AI)`,
+        message: `Presentación creada: ${filePath} (${slideCount} diapositivas)`,
       });
     }
 

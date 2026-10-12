@@ -128,6 +128,7 @@ export const TOOL_DISPLAY_NAMES: Record<string, string> = {
   workspace_write_file: 'Guardando archivo...',
   workspace_edit_file: 'Editando archivo...',
   workspace_generate_image: 'Generando imagen...',
+  workspace_render_video: 'Produciendo video...',
   workspace_download_image: 'Descargando recurso...',
 };
 

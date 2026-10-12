@@ -1,0 +1,4 @@
+interface:
+  display_name: "Producción audiovisual"
+  short_description: "Implementa render y QA audiovisual declarativo en el Hub"
+  default_prompt: "Usa $audiovisual-production para implementar o revisar film.json, render MP4, cancelación y verificación del Hub."

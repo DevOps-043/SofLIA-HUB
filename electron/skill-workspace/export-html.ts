@@ -30,6 +30,8 @@ export async function exportPresentationToHtml(
   workspaceId: string,
   entryFile = 'index.html',
 ): Promise<{ ok: true; htmlPath: string } | { ok: false; error: string }> {
+  if (entryFile === 'deck.json') return exportPresentationDeckToHtml(service, workspaceId, path.join(process.env.APP_ROOT ?? process.cwd(), 'dist'));
+  if (path.extname(entryFile).toLowerCase() !== '.html') return { ok: false, error: 'El exportador HTML requiere deck.json o un documento HTML.' };
   const entryAbsolute = await service.resolveAbsolutePath(workspaceId, entryFile);
   if (!entryAbsolute) {
     return { ok: false, error: 'La presentacion todavia no tiene un documento que exportar.' };
@@ -84,9 +86,9 @@ export async function exportPresentationDeckToHtml(
     }
 
     const distRoot = path.resolve(rendererDist);
-    const original = await fs.readFile(path.join(distRoot, 'index.html'), 'utf8');
-    const styled = await inlineStylesheets(original, distRoot);
-    const bundled = await inlineImages(await inlineScripts(styled, distRoot), distRoot);
+    const script = await fs.readFile(path.join(distRoot, 'presentation/presentation-runtime.iife.js'), 'utf8');
+    const css = await fs.readFile(path.join(distRoot, 'presentation/presentation-runtime.css'), 'utf8');
+    const bundled = `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css.replace(/<\/style/gi, '<\\/style')}</style></head><body><div id="root"></div><script>${script.replace(/<\/script/gi, '<\\/script')}</script></body></html>`;
     const payload = JSON.stringify({ deck, brandCss, assets }).replace(/</g, '\\u003c');
     const standalone = bundled.replace('<head>', `<head>\n<script>window.__PULSE_PRESENTATION__=${payload};</script>`);
     const bytes = Buffer.byteLength(standalone, 'utf8');

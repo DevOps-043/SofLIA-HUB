@@ -1,3 +1,4 @@
+import { findSystemSkill } from './registry';
 import { filterSkillTools } from './surface-tools';
 import {
   isSkillCategory,
@@ -238,6 +239,8 @@ export function mergeSystemSkills(input: {
   rows.forEach((row, indice) => {
     const id = texto(row?.id);
     if (!id) return;
+    const local = findSystemSkill(id);
+    if (local && !local.surfaces.includes(surface)) { porId.delete(id); return; }
 
     if (!versionAlcanza(appVersion, row.min_app_version)) {
       traza('Fila para una version posterior; se ignora.', { id, requiere: row.min_app_version });
@@ -268,7 +271,7 @@ export function mergeSystemSkills(input: {
     // mismo contrato que su runtime local. Una fila remota antigua puede
     // cambiar textos de catalogo, pero no volver a pedir index.html cuando la
     // version instalada solo sabe reproducir deck.json (ni al reves).
-    const skill = id === 'sistema:presentaciones' && instalada
+    const skill = ['sistema:presentaciones', 'sistema:audiovisual'].includes(id) && instalada
       ? { ...lectura.skill, instructions: instalada.instructions, workspace: instalada.workspace }
       : lectura.skill;
     porId.set(id, skill);

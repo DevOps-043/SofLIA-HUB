@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { writeEditablePptx } from '../../../presentation-export/pptx';
 import type { PresentationDocumentArgs, PresentationDocumentResult } from './types';
 
 type PresentationModule = {
@@ -9,6 +10,14 @@ type PresentationModule = {
 export async function createPresentationDocument(
   args: PresentationDocumentArgs,
 ): Promise<PresentationDocumentResult> {
+  if (!/^[a-z0-9 _.-]{1,100}$/i.test(args.filename) || args.filename === '.' || args.filename === '..') throw new Error('Nombre de archivo no válido.');
+  if (args.format !== 'pdf') {
+    const { parseMarkdownToSlides } = await import('../../../presentation-pdf/markdown');
+    const slides = args.slidesJson ? JSON.parse(args.slidesJson) : parseMarkdownToSlides(args.content || '', args.title);
+    const filePath = path.join(args.saveDir, `${args.filename.replace(/\.pptx$/i, '')}.pptx`);
+    const slideCount = await writeEditablePptx(slides, args.title, filePath, args.customTheme ? JSON.parse(args.customTheme) : undefined);
+    return { filePath, slideCount };
+  }
   const { createPresentationPDF, parseMarkdownToSlides } = await loadPresentationModule();
   const slides = parseSlides(args, parseMarkdownToSlides);
   const customTheme = parseCustomTheme(args.customTheme);

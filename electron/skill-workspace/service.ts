@@ -1,11 +1,12 @@
 
 import { app, shell } from 'electron';
 import { EventEmitter } from 'node:events';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { formatDeckValidationError, parsePresentationDeck } from '../../src/shared/presentations/deck-schema';
 import { hasAllowedExtension, resolveInsideWorkspace } from './paths';
+import { filmSchema } from '../../src/shared/audiovisual/film-schema';
 import type {
   SkillWorkspaceFile,
   SkillWorkspacePolicyInput,
@@ -129,6 +130,7 @@ export class SkillWorkspaceService extends EventEmitter {
 
     const resolved = await resolveInsideWorkspace(this.rootOf(entry.data), relativePath, { mustExist: true });
     if (!resolved.ok) return { ok: false, error: resolved.message };
+    if (/\.(mp4|pptx|wav)$/i.test(resolved.relativePath)) return { ok: false, error: 'Este archivo binario se abre desde la carpeta o la vista previa.' };
 
     try {
       return { ok: true, data: await fs.readFile(resolved.absolutePath, 'utf-8') };
@@ -157,6 +159,32 @@ export class SkillWorkspaceService extends EventEmitter {
     content: string,
   ): Promise<SkillWorkspaceResult<SkillWorkspaceFile>> {
     return this.writeFileInternal(workspaceId, relativePath, content, true);
+  }
+
+  /** Solo main puede publicar estos binarios; el modelo no recibe esta API. */
+  async writeSystemBinary(workspaceId: string, relativePath: string, data: Buffer): Promise<SkillWorkspaceResult<SkillWorkspaceFile>> {
+    const entry = await this.requireEntry(workspaceId); if (!entry.ok) return entry;
+    const valid = (entry.data.skillId === 'sistema:audiovisual' && relativePath === 'salida/video.mp4') || (entry.data.skillId === 'sistema:presentaciones' && relativePath === 'salida/presentacion.pptx');
+    if (!valid || !data.length || data.length > 80 * 1024 * 1024) return { ok: false, error: 'Exportación binaria fuera de alcance.' };
+    const resolved = await resolveInsideWorkspace(this.rootOf(entry.data), relativePath, { mustExist: false });
+    if (!resolved.ok) return { ok: false, error: resolved.message };
+    const budget = await this.checkBudget(entry.data, relativePath, data.length); if (budget) return { ok: false, error: budget };
+    await fs.mkdir(path.dirname(resolved.absolutePath), { recursive: true });
+    const temporary = resolved.absolutePath + '.parcial';
+    try { await fs.writeFile(temporary, data); await fs.rename(temporary, resolved.absolutePath); }
+    finally { await fs.rm(temporary, { force: true }); }
+    await this.touch(entry.data);
+    this.emitProgress({ workspaceId, operation: 'escritura', path: relativePath, status: 'completado', bytes: data.length });
+    return { ok: true, data: { path: relativePath, bytes: data.length, updatedAt: new Date().toISOString() } };
+  }
+
+  /** Reversión interna de una publicación audiovisual parcial. */
+  async removeSystemExport(workspaceId: string, relativePath: string): Promise<void> {
+    const entry = await this.requireEntry(workspaceId);
+    if (!entry.ok || entry.data.skillId !== 'sistema:audiovisual' || !['salida/video.mp4', 'qa/informe.json'].includes(relativePath)) throw new Error('Reversión fuera de alcance.');
+    const resolved = await resolveInsideWorkspace(this.rootOf(entry.data), relativePath, { mustExist: false });
+    if (!resolved.ok) throw new Error(resolved.message);
+    await fs.rm(resolved.absolutePath, { force: true });
   }
 
   /** Asocia un workspace existente a la conversacion que lo adopta. */
@@ -337,6 +365,11 @@ export class SkillWorkspaceService extends EventEmitter {
           `deck.json no cumple el contrato de presentacion: ${formatDeckValidationError(error)}`,
         );
       }
+    }
+
+    if (!fromSystem && entry.data.skillId === 'sistema:audiovisual' && resolved.relativePath === 'film.json') {
+      try { filmSchema.parse(JSON.parse(content)); }
+      catch (error) { return this.fail(workspaceId, 'escritura', relativePath, `film.json no es válido: ${formatDeckValidationError(error)}`); }
     }
 
     const bytes = Buffer.byteLength(content, 'utf-8');
@@ -552,6 +585,19 @@ export class SkillWorkspaceService extends EventEmitter {
   /** Existir no basta para el runtime React: un deck invalido sigue incompleto. */
   private async isEntryReady(entry: WorkspaceEntry, files: SkillWorkspaceFile[]): Promise<boolean> {
     if (!files.some((file) => file.path === entry.entryFile)) return false;
+    if (entry.skillId === 'sistema:audiovisual') {
+      try {
+        const source = await this.resolveAbsolutePath(entry.id, 'film.json');
+        const qa = await this.resolveAbsolutePath(entry.id, 'qa/informe.json');
+        const video = await this.resolveAbsolutePath(entry.id, 'salida/video.mp4');
+        if (!source || !qa || !video) return false;
+        const content = await fs.readFile(source); filmSchema.parse(JSON.parse(content.toString('utf8')));
+        const report = JSON.parse(await fs.readFile(qa, 'utf8'));
+        const hash = (v: Buffer) => createHash('sha256').update(v).digest('hex');
+        const stat = await fs.stat(video); if (stat.size > 80 * 1024 * 1024 || stat.size !== report.bytes) return false;
+        return report.ok === true && report.filmHash === hash(content) && report.videoHash === hash(await fs.readFile(video));
+      } catch { return false; }
+    }
     if (entry.skillId !== 'sistema:presentaciones' || entry.entryFile !== 'deck.json') return true;
 
     try {
@@ -643,6 +689,7 @@ function toRecord(entry: WorkspaceEntry): SkillWorkspaceRecord {
  */
 function isProtected(entry: WorkspaceEntry, relativePath: string): boolean {
   const target = normalizeForComparison(relativePath);
+  if (entry.skillId === 'sistema:audiovisual' && ['vista.html', 'qa/informe.json', 'salida/video.mp4'].includes(target)) return true;
   return entry.protectedFiles.some((protectedPath) => normalizeForComparison(protectedPath) === target);
 }
 

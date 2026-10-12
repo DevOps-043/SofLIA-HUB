@@ -13,7 +13,7 @@
     "dev:clean": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-clean.ps1",
     "dev:fresh": "npm run dev:clean && npm run dev",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
-    "build:app": "npm run typecheck && vite build --config vite.config.mts",
+    "build:app": "npm run typecheck && vite build --config vite.config.mts && npm run presentation:build",
     "build": "npm run build:app && node scripts/generate-bitmaps.js && node scripts/setup-python-runtime.js && electron-builder && node scripts/build-installer-shell.mjs",
     "build:win": "npm run build:app && node scripts/generate-bitmaps.js && node scripts/setup-python-runtime.js && electron-builder --win && node scripts/build-installer-shell.mjs",
     "build:mac": "npm run build:app && node scripts/generate-bitmaps.js && node scripts/setup-python-runtime.js && electron-builder --mac",
@@ -50,7 +50,10 @@
     "test:coverage": "vitest run --coverage",
     "benchmark:resources": "node scripts/performance/run-resource-benchmark.mjs",
     "test:main": "vitest run --project main",
-    "test:renderer": "vitest run --project renderer"
+    "test:renderer": "vitest run --project renderer",
+    "presentation:build": "vite build --config vite.presentation.config.mts",
+    "audiovisual:setup": "node scripts/setup-media-runtime.mjs",
+    "production:smoke": "node scripts/run-production-smoke.mjs"
   },
   "dependencies": {
     "tldts": "7.4.10",

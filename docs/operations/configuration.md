@@ -151,3 +151,7 @@ no debe aparecer una pestaña o ventana nueva.
 - Al reportar config, mostrar `configured: true/false`, provider y expiry; no valor.
 - Cambiar defaults persistentes requiere migrar JSON previo o mantener fallback de
   compatibilidad, como `captureStrategy` de Desktop Agent.
+
+## Producción audiovisual local
+
+La configuración separada `.env.audiovisual.local` contiene la bandera pública y rutas locales de FFmpeg/FFprobe, sin credenciales. Se genera con `npm run audiovisual:setup`; consultar [contrato y preparación](../architecture/presentation-audiovisual-production.md#entorno-y-preparación).

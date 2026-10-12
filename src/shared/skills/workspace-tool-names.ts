@@ -14,6 +14,7 @@ export const SKILL_WORKSPACE_TOOL_NAMES = [
   'workspace_edit_file',
   'workspace_generate_image',
   'workspace_download_image',
+  'workspace_render_video',
 ] as const;
 
 export type SkillWorkspaceToolName = (typeof SKILL_WORKSPACE_TOOL_NAMES)[number];

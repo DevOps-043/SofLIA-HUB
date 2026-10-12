@@ -110,6 +110,7 @@ jobs:
           echo "ELEVENLABS_MODEL_ID=${{ secrets.ELEVENLABS_MODEL_ID }}" >> .env
           echo "ELEVENLABS_OUTPUT_FORMAT=${{ secrets.ELEVENLABS_OUTPUT_FORMAT }}" >> .env
           echo "VITE_SKILL_PRESENTACIONES_ENABLED=${{ vars.VITE_SKILL_PRESENTACIONES_ENABLED }}" >> .env
+          echo "VITE_SKILL_AUDIOVISUAL_ENABLED=${{ vars.VITE_SKILL_AUDIOVISUAL_ENABLED || 'true' }}" >> .env
 
       - name: Verify build-time keys
         run: node scripts/quality/check-release-env.mjs
@@ -172,6 +173,7 @@ jobs:
           echo "ELEVENLABS_MODEL_ID=${{ secrets.ELEVENLABS_MODEL_ID }}" >> .env
           echo "ELEVENLABS_OUTPUT_FORMAT=${{ secrets.ELEVENLABS_OUTPUT_FORMAT }}" >> .env
           echo "VITE_SKILL_PRESENTACIONES_ENABLED=${{ vars.VITE_SKILL_PRESENTACIONES_ENABLED }}" >> .env
+          echo "VITE_SKILL_AUDIOVISUAL_ENABLED=${{ vars.VITE_SKILL_AUDIOVISUAL_ENABLED || 'true' }}" >> .env
 
       - name: Verify build-time keys
         run: node scripts/quality/check-release-env.mjs
@@ -246,6 +248,7 @@ jobs:
           echo "ELEVENLABS_MODEL_ID=${{ secrets.ELEVENLABS_MODEL_ID }}" >> .env
           echo "ELEVENLABS_OUTPUT_FORMAT=${{ secrets.ELEVENLABS_OUTPUT_FORMAT }}" >> .env
           echo "VITE_SKILL_PRESENTACIONES_ENABLED=${{ vars.VITE_SKILL_PRESENTACIONES_ENABLED }}" >> .env
+          echo "VITE_SKILL_AUDIOVISUAL_ENABLED=${{ vars.VITE_SKILL_AUDIOVISUAL_ENABLED || 'true' }}" >> .env
 
       - name: Verify build-time keys
         run: node scripts/quality/check-release-env.mjs

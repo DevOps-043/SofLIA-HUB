@@ -1,6 +1,7 @@
 import { protocol, session, type CustomScheme, type Protocol } from 'electron';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { videoResponse } from './video-response';
 import type { SkillWorkspaceService } from './service';
 
 /**
@@ -41,6 +42,7 @@ const CSP = [
   `style-src ${PRESENTATION_SCHEME}: 'unsafe-inline'`,
   `img-src ${PRESENTATION_SCHEME}: data:`,
   `font-src ${PRESENTATION_SCHEME}: data:`,
+  `media-src ${PRESENTATION_SCHEME}:`,
   "connect-src 'none'",
   "frame-src 'none'",
   "object-src 'none'",
@@ -49,6 +51,7 @@ const CSP = [
 ].join('; ');
 
 const MIME_TYPES: Record<string, string> = {
+  '.mp4': 'video/mp4',
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   // El guion base de la baraja lo escribe el sistema y dispara las entradas
@@ -78,7 +81,7 @@ export function registerPresentationScheme(additionalSchemes: CustomScheme[] = [
         secure: true,
         supportFetchAPI: false,
         corsEnabled: false,
-        stream: false,
+        stream: true,
       },
     },
     // Electron permite esta llamada una sola vez; agrupar otros recursos
@@ -171,7 +174,13 @@ export async function resolvePresentationRequest(
  * vinculo" y deja la ventana en blanco.
  */
 export function registerPresentationProtocolHandler(service: SkillWorkspaceService): void {
-  const handler = async (request: { url: string }): Promise<Response> => {
+  const handler = async (request: { url: string; headers?: Headers }): Promise<Response> => {
+    const media = parsePresentationUrl(request.url);
+    if (media?.relativePath === 'salida/video.mp4') {
+      const absolute = await service.resolveAbsolutePath(media.workspaceId, media.relativePath);
+      if (!absolute) return new Response(null, { status: 404 });
+      try { return await videoResponse(absolute, request.headers?.get('range') ?? null); } catch { return new Response(null, { status: 404 }); }
+    }
     const result = await resolvePresentationRequest(service, request.url);
     if (result.status === 404) {
       return new Response('No encontrado', { status: 404, headers: { 'Content-Type': 'text/plain' } });

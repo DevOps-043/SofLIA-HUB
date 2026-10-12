@@ -15,6 +15,7 @@ export interface DocumentBaseArgs {
 }
 
 export interface PresentationDocumentArgs extends DocumentBaseArgs {
+  format?: 'pptx' | 'pdf';
   slidesJson?: string;
   customTheme?: string;
   includeImages: boolean;

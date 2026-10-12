@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "meta": {
+    "titulo": "Producción con evidencia",
+    "direccionVisual": "Editorial oscuro, evidencia semántica y continuidad"
+  },
+  "slides": [
+    {
+      "id": "inicio",
+      "tipo": "portada",
+      "titulo": "De fuentes a entregables verificables",
+      "subtitulo": "Demostración conceptual de los formatos",
+      "variante": "editorial"
+    },
+    {
+      "id": "tabla",
+      "tipo": "tabla",
+      "titulo": "Cada formato conserva su propósito",
+      "columnas": [
+        "Formato",
+        "Uso",
+        "Verificación"
+      ],
+      "filas": [
+        [
+          "HTML",
+          "Presentar con movimiento",
+          "Abre sin red"
+        ],
+        [
+          "PPTX",
+          "Editar contenido",
+          "Texto y datos nativos"
+        ],
+        [
+          "MP4",
+          "Compartir una pieza",
+          "Fotogramas y audio"
+        ]
+      ],
+      "variante": "compacta"
+    },
+    {
+      "id": "diagrama",
+      "tipo": "diagrama",
+      "titulo": "La revisión vuelve al contenido",
+      "nodos": [
+        {
+          "id": "fuente",
+          "titulo": "Fuente",
+          "texto": "Información aportada por el usuario"
+        },
+        {
+          "id": "plan",
+          "titulo": "Plan",
+          "texto": "Estructura y composición"
+        },
+        {
+          "id": "qa",
+          "titulo": "Verificación",
+          "texto": "Revisar el archivo final"
+        }
+      ],
+      "conexiones": [
+        {
+          "desde": "fuente",
+          "hasta": "plan"
+        },
+        {
+          "desde": "plan",
+          "hasta": "qa"
+        },
+        {
+          "desde": "qa",
+          "hasta": "plan"
+        }
+      ],
+      "variante": "secuencial"
+    },
+    {
+      "id": "grafica",
+      "tipo": "grafica",
+      "titulo": "Ejemplo de gráfica editable",
+      "tipoGrafica": "barras",
+      "categorias": [
+        "A",
+        "B",
+        "C"
+      ],
+      "series": [
+        {
+          "nombre": "Datos de prueba",
+          "valores": [
+            12,
+            18,
+            25
+          ]
+        }
+      ],
+      "nota": "Datos sintéticos de demostración.",
+      "variante": "visual-dominante"
+    },
+    {
+      "id": "cierre",
+      "tipo": "cierre",
+      "titulo": "Entrega comprobable",
+      "accion": "Revisa y edita el resultado",
+      "variante": "inmersiva"
+    }
+  ]
+}
