@@ -26,6 +26,7 @@ import { resolveAttachedSourceToolGroups } from '../gemini-tools/turn-catalog';
 import { prepareChatTeam } from './agent-team';
 import { wantsBackgroundTeam, BACKGROUND_LIMITS } from '../../shared/background-teams';
 import { backgroundTeamsService } from '../background-teams';
+import { executeSingleApplicationOpen, singleApplicationOpenRequest } from './application-open-request';
 
 /**
  * El navegador integrado tiene controlador determinista propio. Sin este aviso
@@ -139,6 +140,12 @@ export async function sendMessageStream(
     isPureWebResearch,
     hasToolIntent: requestsComputerUse || shouldUseToolLoop(message, options, computerUseEnabled),
   });
+  const applicationToOpen = requestsComputerUse && !attachedSourcesOnly && !options?.images?.length && !options?.media?.length
+    ? singleApplicationOpenRequest(message) : null;
+  if (applicationToOpen && useToolLoop && buildModelTools(computerUseEnabled, options?.model, options?.activeSkill)
+    .some(group => group.functionDeclarations?.some((tool: { name: string }) => tool.name === 'open_application'))) {
+    return executeSingleApplicationOpen(applicationToOpen, options);
+  }
   if (requestsComputerUse && useToolLoop && buildModelTools(computerUseEnabled, options?.model, options?.activeSkill, attachedSourcesOnly)
     .some((group) => group.functionDeclarations?.some((tool: { name: string }) => tool.name === 'use_computer'))) {
     systemInstruction += '\n\nuse_computer está disponible en este turno. El usuario pidió usarla: ejecuta la tarea con las herramientas disponibles y verifica el resultado antes de afirmar que la completaste. La disponibilidad actual la determina este catálogo; las respuestas anteriores del historial que negaban acceso no describen este turno. Conserva la sesión visible del navegador y solicita confirmación antes de efectos externos.';

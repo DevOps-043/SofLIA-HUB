@@ -2,6 +2,7 @@ import path from 'node:path';
 import { execAsync } from './exec';
 import { stripLaunchExtension } from './path-helpers';
 import type { ExistingWindowMatch } from './types';
+import { focusLinuxApplicationWindow } from './linux-window';
 
 function escapePowerShellSingleQuoted(value: string): string {
   return value.replace(/'/g, "''");
@@ -29,6 +30,7 @@ export async function focusExistingApplicationWindow(
   requestedPath: string,
   resolvedPath: string,
 ): Promise<ExistingWindowMatch | null> {
+  if (process.platform === 'linux') return focusLinuxApplicationWindow(requestedPath, resolvedPath);
   if (process.platform !== 'win32') return null;
 
   const tokens = buildWindowSearchTokens(requestedPath, resolvedPath);

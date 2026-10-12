@@ -7,6 +7,7 @@ import { buildApplicationQueryVariants } from './query-variants';
 import { collectRegistryMatches } from './registry-source';
 import type { ResolvedApplicationTarget } from './types';
 import { collectWhereMatches } from './where-source';
+import { resolveLinuxApplication } from './linux-source';
 
 export function looksLikeConcreteApplicationPath(value: string): boolean {
   return looksLikeConcretePath(value);
@@ -24,6 +25,7 @@ export async function resolveApplicationTarget(
     return { path: directPath, source: 'direct', searchedQuery: rawTarget };
   }
 
+  if (process.platform === 'linux') return resolveLinuxApplication(rawTarget);
   if (process.platform !== 'win32') {
     return null;
   }
