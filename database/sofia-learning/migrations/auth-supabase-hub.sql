@@ -1,56 +1,81 @@
 -- =============================================================================
--- Migración del login de SofLIA Hub a Supabase Auth — Queries de soporte
+-- Diagnóstico de identidad del Hub sobre Supabase Auth — Consultas de soporte
 -- =============================================================================
 -- Proyecto Supabase: SofLIA-Learning (mrqnnmuckznvukjvfkly)
--- Contexto completo: docs/MIGRACION-AUTH-SUPABASE-HUB.md
---
--- SECCIÓN 1 y 2: solo lectura, EJECUTAR AHORA sin riesgo.
--- SECCIÓN 3: limpieza destructiva, NO EJECUTAR hasta que Learning confirme
---            que tampoco usa los RPCs (está comentada a propósito).
+-- Instancia propietaria: SOFIA. NO ejecutar en Pulse Hub/Lia ni en IRIS.
+-- Precondición: public.users pertenece al proyecto SofLIA-Learning/SOFIA.
+-- Impacto: todas las consultas son de solo lectura; no inspeccionan hashes.
+-- Idempotencia: las consultas de lectura pueden repetirse sin mutar datos.
+-- Contexto completo: docs/operations/auth-migration.md
 -- =============================================================================
 
 
+-- Guarda de instancia. Detiene el lote con un mensaje accionable antes de que
+-- PostgreSQL llegue a las consultas de public.users.
+DO $$
+BEGIN
+  IF to_regclass('public.users') IS NULL THEN
+    RAISE EXCEPTION USING
+      ERRCODE = 'P0001',
+      MESSAGE = 'Instancia incorrecta: este diagnóstico pertenece a SofLIA-Learning/SOFIA.',
+      HINT = 'Abre el proyecto Supabase de SofLIA Learning. No lo ejecutes en Pulse Hub/Lia ni en IRIS.';
+  ELSIF (
+    SELECT count(*)
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'users'
+      AND column_name IN ('id', 'email', 'email_verified', 'email_verified_at')
+  ) <> 4 THEN
+    RAISE EXCEPTION USING
+      ERRCODE = 'P0001',
+      MESSAGE = 'Esquema SOFIA incompatible con este diagnóstico.',
+      HINT = 'Actualiza el snapshot o revisa las columnas actuales de public.users; no agregues columnas de credenciales.';
+  END IF;
+END
+$$;
+
+
 -- =============================================================================
--- SECCIÓN 1 — Diagnóstico general (solo lectura)
--- Estado del hash legacy vs presencia en Supabase Auth, por usuario.
+-- SECCIÓN 1 — Correspondencia actual entre perfil y Supabase Auth (solo lectura)
+-- No consulta ni expone hashes de contraseña.
 -- =============================================================================
 SELECT
+  u.id AS public_user_id,
+  au.id AS auth_user_id,
   u.username,
-  u.email,
+  u.email AS public_email,
+  au.email AS auth_email,
+  au.id IS NOT NULL AS existe_en_auth,
+  au.email_confirmed_at IS NOT NULL AS email_confirmado_en_auth,
+  au.last_sign_in_at,
   CASE
-    WHEN u.password_hash IS NULL THEN 'NULL (usuario nacido en Supabase Auth)'
-    WHEN u.password_hash LIKE '$2b$%' THEN '$2b$ legacy JS-bcrypt (columna muerta)'
-    WHEN u.password_hash LIKE '$2a$%' THEN '$2a$ legacy pgcrypto (columna muerta)'
-    ELSE 'otro'
-  END AS hash_legacy,
-  au.encrypted_password IS NOT NULL AS tiene_password_en_auth,
-  au.email_confirmed_at IS NOT NULL AS email_confirmado,
-  au.last_sign_in_at
+    WHEN au.id IS NULL THEN 'sin_usuario_auth_del_mismo_uuid'
+    WHEN lower(au.email) IS DISTINCT FROM lower(u.email) THEN 'revision_manual_email_distinto'
+    WHEN au.email_confirmed_at IS NULL THEN 'confirmacion_auth_incompleta'
+    ELSE 'identidad_consistente'
+  END AS diagnostico_identidad
 FROM public.users u
-LEFT JOIN auth.users au ON lower(au.email) = lower(u.email)
-ORDER BY tiene_password_en_auth, u.email;
+LEFT JOIN auth.users au ON au.id = u.id
+ORDER BY diagnostico_identidad, u.email;
 
 
 -- =============================================================================
--- SECCIÓN 2 — Cuentas huérfanas (solo lectura) ← EJECUTA ESTA
--- Cuentas que NO pueden iniciar sesión en NINGÚN sistema (ni Learning ni Hub)
--- porque no existen en auth.users o no tienen contraseña ahí.
--- Resultado esperado según diagnóstico del 2026-07-08: solo
--- ernesto.hernandez@soflia.ai (ese usuario ya entra con su cuenta
--- @ecosdeliderazgo.com, así que probablemente no requiera acción).
--- Si aparece alguien más: Dashboard → Authentication → Users → ⋮ →
--- "Send password recovery" (NO es un cambio de contraseña para usuarios normales).
+-- SECCIÓN 2 — Perfiles sin identidad Auth del mismo UUID (solo lectura)
+-- Una coincidencia por correo con UUID distinto requiere conciliación manual.
 -- =============================================================================
 SELECT
+  u.id AS public_user_id,
   u.username,
-  u.email,
+  u.email AS public_email,
+  auth_by_email.id AS auth_user_same_email_id,
   CASE
-    WHEN au.id IS NULL THEN 'No existe en auth.users'
-    ELSE 'Existe en auth.users pero sin contraseña'
-  END AS problema
+    WHEN auth_by_email.id IS NULL THEN 'sin_usuario_auth'
+    ELSE 'revision_manual_uuid_distinto'
+  END AS diagnostico_identidad
 FROM public.users u
-LEFT JOIN auth.users au ON lower(au.email) = lower(u.email)
-WHERE au.id IS NULL OR au.encrypted_password IS NULL
+LEFT JOIN auth.users auth_by_id ON auth_by_id.id = u.id
+LEFT JOIN auth.users auth_by_email ON lower(auth_by_email.email) = lower(u.email)
+WHERE auth_by_id.id IS NULL
 ORDER BY u.email;
 
 
@@ -75,7 +100,7 @@ SELECT
     WHEN profile_by_id.id IS NULL AND profile_by_email.id IS NOT NULL
       THEN 'revision_manual_uuid_distinto'
     WHEN profile_by_id.id IS NULL THEN 'revision_manual_sin_perfil'
-    WHEN lower(au.email) <> lower(profile_by_id.email)
+    WHEN lower(au.email) IS DISTINCT FROM lower(profile_by_id.email)
       THEN 'revision_manual_email_distinto'
     WHEN profile_by_id.email_verified IS TRUE AND profile_by_id.email_verified_at IS NOT NULL
       THEN 'compatible_fallback_legado'
@@ -87,25 +112,3 @@ LEFT JOIN public.users profile_by_email ON lower(profile_by_email.email) = lower
 WHERE au.email_confirmed_at IS NULL
   AND au.last_sign_in_at IS NOT NULL
 ORDER BY diagnostico_federacion, au.email;
-
-
--- =============================================================================
--- SECCIÓN 3 — Limpieza futura ⛔ NO EJECUTAR TODAVÍA
--- Requisitos previos:
---   a) El Hub con la migración desplegado y validado en producción.
---   b) SofLIA Learning confirma que NO llama a estos RPCs
---      (revisar logs de PostgREST unos días).
--- Ejecutar en este orden, un paso por release:
--- =============================================================================
-
--- Paso 1: retirar los RPCs legacy de pgcrypto.
--- DROP FUNCTION IF EXISTS public.authenticate_user(text, text);
--- DROP FUNCTION IF EXISTS public.change_user_password(uuid, text);
--- DROP FUNCTION IF EXISTS public.change_own_password(uuid, text, text);
-
--- Paso 2: vaciar la columna obsoleta (elimina el almacenamiento duplicado de
--- credenciales; mantener la columna un ciclo por si hay rollback).
--- UPDATE public.users SET password_hash = NULL;
-
--- Paso 3 (release posterior): eliminar la columna definitivamente.
--- ALTER TABLE public.users DROP COLUMN password_hash;
