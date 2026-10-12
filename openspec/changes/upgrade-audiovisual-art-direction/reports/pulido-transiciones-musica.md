@@ -86,3 +86,15 @@ El ajuste mantiene el repertorio React y la partitura sintética del producto;
 no introduce música grabada, voz, clips externos, librerías ni un segundo motor.
 Los tiempos y datos conceptuales del proyecto aprobado se conservan. La valoración
 musical final pertenece al usuario; se ofrece un nuevo MP4 para escucharlo.
+
+## Integración confirmada
+
+Implementación integrada mediante fast-forward en `bfbb6d4`. Los 39 archivos
+concurrentes registrados conservaron exactamente sus hashes tras la integración.
+El bundle audiovisual recompilado en el checkout principal coincide con el
+verificado. La compilación completa y compuerta se ejecutaron en el worktree
+aislado; no se atribuye su resultado al trabajo ajeno pendiente del principal.
+
+JS runtime: `5fcc1a2a434a577e84a9527adbfcd3790016ee19dc532643c1215ebeb5d46c42`.
+CSS runtime: `72bb8ce85991aa86dfc76c04b2cb508ae9d4539116b6359823fecd081f6de544`.
+Reiniciar el Hub en desarrollo carga la nueva skill. No se publicó instalador.
