@@ -15,6 +15,7 @@ import path from 'node:path';
 import { canUseProtectedFeature } from './require-auth';
 import { onAuthStateChange } from './auth-state';
 import { createOrbAnnouncements } from './orb-announcements';
+import { GUIDANCE_ORB_SIZE } from '../orb-guidance/geometry';
 
 const ORB_WIDTH = 420;
 // La vista de voz necesita ~516 px (handle + orbe de 340 px + estado).
@@ -111,6 +112,24 @@ interface OrbWindowControllerOptions {
 }
 
 export function createOrbWindowController(options: OrbWindowControllerOptions) {
+  let guidanceMode = false;
+  let restingBounds: Rectangle | null = null;
+  const setGuidanceMode = (enabled: boolean): void => {
+    const window = options.getWindow();
+    if (guidanceMode === enabled || !window || window.isDestroyed()) return;
+    guidanceMode = enabled;
+    if (enabled) {
+      restingBounds = window.getBounds();
+      window.setBounds({ ...restingBounds, ...GUIDANCE_ORB_SIZE }, false);
+      window.setMovable(false);
+      window.setFocusable(false);
+    } else {
+      if (restingBounds) window.setBounds(normalizeBounds(restingBounds), false);
+      restingBounds = null;
+      window.setMovable(true);
+      window.setFocusable(true);
+    }
+  };
   const createOrbWindow = async (wake = false): Promise<void> => {
     // Negacion por defecto: sin sesion la orbe no se crea ni se muestra. Cubre
     // wake word, atajo global y tray, que son los tres puntos de entrada.
@@ -122,7 +141,7 @@ export function createOrbWindowController(options: OrbWindowControllerOptions) {
 
     const current = options.getWindow();
     if (current) {
-      const safeBounds = normalizeBounds(current.getBounds());
+      const safeBounds = guidanceMode ? current.getBounds() : normalizeBounds(current.getBounds());
       if (JSON.stringify(safeBounds) !== JSON.stringify(current.getBounds())) current.setBounds(safeBounds, false);
       if (!current.isVisible()) current.showInactive();
       if (wake) current.webContents.send('orb:wake');
@@ -159,13 +178,15 @@ export function createOrbWindowController(options: OrbWindowControllerOptions) {
     const flushBounds = () => {
       if (persistTimer) clearTimeout(persistTimer);
       persistTimer = null;
-      if (!orbWindow.isDestroyed()) persistBounds(orbWindow.getBounds());
+      if (!orbWindow.isDestroyed() && !guidanceMode) persistBounds(orbWindow.getBounds());
     };
     const scheduleBoundsPersistence = () => {
+      if (guidanceMode) return;
       if (persistTimer) clearTimeout(persistTimer);
       persistTimer = setTimeout(flushBounds, 180);
     };
     const ensureVisible = () => {
+      if (guidanceMode) return;
       if (orbWindow.isDestroyed()) return;
       const currentBounds = orbWindow.getBounds();
       const safeBounds = normalizeBounds(currentBounds);
@@ -195,6 +216,8 @@ export function createOrbWindowController(options: OrbWindowControllerOptions) {
     screen.on('display-removed', ensureVisible);
     screen.on('display-metrics-changed', ensureVisible);
     orbWindow.on('closed', () => {
+      guidanceMode = false;
+      restingBounds = null;
       if (persistTimer) clearTimeout(persistTimer);
       screen.removeListener('display-removed', ensureVisible);
       screen.removeListener('display-metrics-changed', ensureVisible);
@@ -238,5 +261,5 @@ export function createOrbWindowController(options: OrbWindowControllerOptions) {
     console.log(`[BOOT] Atajo global registrado: ${accelerator} -> orbe de voz`);
   };
 
-  return { createOrbWindow, registerOrbShortcut, announcements };
+  return { createOrbWindow, registerOrbShortcut, announcements, setGuidanceMode };
 }

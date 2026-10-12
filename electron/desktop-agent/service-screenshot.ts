@@ -111,7 +111,7 @@ export function attachDesktopAgentScreenshot(Service: DesktopAgentServiceConstru
     },
     async captureCompositeScreenshot(targetWidth, targetHeight, options) {
       const purpose: CapturePurpose = options?.purpose ?? 'decision';
-      const captured = await captureDesktopScreenshot({
+      const capture = () => captureDesktopScreenshot({
         targetWidth,
         targetHeight,
         sharpModule,
@@ -125,6 +125,7 @@ export function attachDesktopAgentScreenshot(Service: DesktopAgentServiceConstru
         minRenderScale: this.config.minRenderScale,
         maxScreenshotEdge: this.config.maxScreenshotEdge,
       });
+      const captured = this.visualGuidance ? await this.visualGuidance.capture(capture) : await capture();
 
       const bindingEnabled = this.config.layoutBindingEnabled;
       if (!bindingEnabled || purpose === 'decision') {

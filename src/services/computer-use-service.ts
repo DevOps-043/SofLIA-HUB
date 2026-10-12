@@ -6,6 +6,7 @@ import { executeDesktopTool } from './computer-use/desktop-tools';
 import { executeEmailTool } from './computer-use/email-tools';
 import { executeLocalComputerTool } from './computer-use/local-tools';
 import { executeRemoteNodeTool } from './computer-use/remote-tools';
+import { orbGuidanceService } from './orb-guidance-service';
 
 export { getDesktopAgentAPI, isComputerUseAvailable, isDesktopAgentAvailable, setConfirmationHandler };
 
@@ -18,6 +19,11 @@ export async function executeComputerTool(toolName: string, args: Record<string,
   const confirmed = await confirmToolExecution(toolName, args, api, signal);
   if (!confirmed || signal?.aborted) {
     return JSON.stringify({ success: false, error: 'Accion cancelada por el usuario.' });
+  }
+
+  if (toolName === 'show_visual_guidance') {
+    const request = { targetText: args.target_text, instruction: args.instruction, ...(args.style ? { style: args.style } : {}) };
+    return JSON.stringify(await orbGuidanceService.showTarget(request));
   }
 
   let result =

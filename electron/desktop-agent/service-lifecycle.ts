@@ -64,6 +64,7 @@ export function attachDesktopAgentLifecycle(Service: DesktopAgentServiceConstruc
       });
     },
     abort(taskId?: string) {
+      this.visualGuidance?.clear();
       const cancelledCu = abortBrowserCuTask(this, taskId);
       if (taskId && cancelledCu) return;
       abortDesktopAgentTask({

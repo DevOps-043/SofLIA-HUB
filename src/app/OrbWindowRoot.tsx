@@ -11,6 +11,8 @@ import {
 import { useOrbConversation, type OrbSource } from '../components/orb/useOrbConversation';
 import { MeetingLivePanel } from '../components/orb/MeetingLivePanel';
 import { useMeetingLive, type MeetingLiveUiState } from '../components/orb/useMeetingLive';
+import { useOrbGuidance } from '../components/orb/useOrbGuidance';
+import { OrbGuidanceControls } from '../components/orb/OrbGuidanceControls';
 
 const STATE_LABELS: Record<string, string> = {
   idle: '',
@@ -109,6 +111,7 @@ function useDevelopmentAudioPreview(audio: AudioFeatureRefs, enabled: boolean): 
 // Copilot. Solo la orbe + transcript; el panel aparece con respuestas largas.
 export function OrbWindowRoot() {
   const orb = useOrbConversation();
+  const guidance = useOrbGuidance();
   const meetingLive = useMeetingLive();
   const previewState = useMemo(getDevelopmentPreviewState, []);
   const previewAudio = useMemo(getDevelopmentAudioPreview, []);
@@ -148,6 +151,15 @@ export function OrbWindowRoot() {
       : orb.userText && !compact
         ? orb.userText
         : ''
+  );
+
+  if (guidance.state.phase !== 'idle') return (
+    <div className="h-screen w-screen overflow-hidden bg-transparent flex flex-col items-center px-2 select-none">
+      <div className="h-[112px] w-[112px] shrink-0 pointer-events-none" aria-hidden="true">
+        <OrbCanvas visualState={guidance.state.phase === 'paused' ? 'idle' : 'acting'} audio={audio} motionEnabled={!guidance.state.reducedMotion} />
+      </div>
+      <OrbGuidanceControls {...guidance} />
+    </div>
   );
 
   return (

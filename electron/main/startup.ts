@@ -12,6 +12,7 @@ import { initializeBackgroundTeams } from '../background-teams';
 type StartupWindowControls = {
   createOrbWindow: (wake?: boolean) => Promise<void>;
   orbAnnouncements: import('./orb-announcements').OrbAnnouncements;
+  orbGuidance?: import('../orb-guidance/service').OrbGuidanceService;
 };
 
 type OptionalStepRunner = <T>(name: string, fn: () => T | Promise<T>) => Promise<T>;
@@ -106,6 +107,7 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
       return pending;
     },
     announcements: controls.orbAnnouncements,
+    onHide: () => controls.orbGuidance?.clear(),
   });
 }
 

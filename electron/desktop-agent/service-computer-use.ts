@@ -65,7 +65,7 @@ export async function runComputerUseDesktopTask(
     return null;
   }
   const driver = createDesktopCuDriver({
-    executeAction: (action) => service.executeAction(action),
+    executeAction: (action, signal) => signal ? service.executeAction(action, signal) : service.executeAction(action),
     delay: (ms: number) => service.delay(ms),
     takeScreenshot: () => service.takeScreenshot(),
     getScreenshotSize: () => ({
@@ -180,7 +180,7 @@ async function runCuTaskCommon(
         if (taskId) updateBrowserCuStep(service, taskId, step);
         else service.currentStep = step;
         console.log(`[DesktopAgent][CU] Paso ${step}: ${nombre} (${action.tipo}) — ${intent}`);
-        service.emit('step', { taskId, step, maxSteps, action: { action: action.tipo, message: intent } });
+        service.emit('step', { taskId, step, maxSteps, action: { action: action.tipo, message: intent, ...('punto' in action ? { point: action.punto } : {}) } });
       },
     };
     const result = supervisor ? await runSupervisedCuLoop(loopOptions, supervisor) : await runComputerUseLoop(loopOptions);
@@ -202,6 +202,7 @@ async function runCuTaskCommon(
       startedAt,
     });
   } finally {
+    service.visualGuidance?.clear();
     if (!taskId && service.currentTask === task) {
       service.status = 'idle';
       service.currentTask = null;

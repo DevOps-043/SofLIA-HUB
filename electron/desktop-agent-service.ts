@@ -36,6 +36,7 @@ import { attachDesktopAgentTasks, type DesktopAgentTaskApi } from './desktop-age
 import { attachDesktopAgentObservation, type DesktopAgentObservationApi } from './desktop-agent/service-observation';
 import { attachDesktopAgentPlanning, type DesktopAgentPlanningApi } from './desktop-agent/service-planning';
 import type { IntegratedBrowserService } from './integrated-browser';
+import type { VisualGuidancePort } from './orb-guidance/service';
 
 export type { DesktopAgentConfig, DesktopActionPayload, UIElement, AgentStatus, AgentTask, DesktopAgentStatus };
 
@@ -50,6 +51,7 @@ export interface DesktopAgentService
     DesktopAgentPlanningApi {}
 
 export class DesktopAgentService extends EventEmitter {
+  visualGuidance?: VisualGuidancePort;
   config: DesktopAgentConfig = loadConfig();
   status: AgentStatus = 'idle';
   currentTask: string | null = null;

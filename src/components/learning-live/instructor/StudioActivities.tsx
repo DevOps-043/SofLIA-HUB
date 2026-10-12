@@ -4,6 +4,7 @@ import { StudioDialog } from './StudioDialog';
 import { StudioClock } from './StudioClock';
 import { StudioNumberField } from './StudioNumberField';
 import SelectDropdown from '../../ui/SelectDropdown';
+import { StudioGuidedPractice } from './StudioGuidedPractice';
 import type { StudioResource, StudioRoom } from './studio-types';
 
 export function StudioActivities({ initialResources = [], participants, rooms, onRoomsChange }: { initialResources?: StudioResource[]; participants: number; rooms: StudioRoom[]; onRoomsChange: (rooms: StudioRoom[]) => void }) {
@@ -34,6 +35,7 @@ export function StudioActivities({ initialResources = [], participants, rooms, o
   }
   return <aside className="studio-panel studio-activities" aria-label="Actividades y recursos"><header className="studio-panel-heading"><h2><LiveIcon name="grid" />Tu caja de herramientas</h2></header><div className="studio-activities-content">
     <div className="studio-section-caption"><span>ACTIVIDADES</span><span>Diseña el siguiente paso</span></div>
+    <StudioGuidedPractice />
     <button className="studio-activity-card" onClick={() => setDialog('rooms')}><span className="studio-tool-icon"><LiveIcon name="users" /></span><span><strong>Salas de práctica</strong><small>Aprender haciendo, en equipo.</small></span><LiveIcon name="plus" /></button>
     {rooms.length > 0 && <section className="studio-prepared-activity" aria-label="Salas preparadas"><div><strong>{rooms.length} salas preparadas</strong><button className="studio-icon-button" aria-label="Quitar salas del diseño" onClick={() => onRoomsChange([])}><LiveIcon name="close" /></button></div><div className="studio-room-grid">{rooms.slice(0, 6).map((room) => <span key={room.id}>{room.name}<small><LiveIcon name="users" />{room.participants}</small></span>)}{rooms.length > 6 && <small>+{rooms.length - 6} salas</small>}</div><small>Asignación simulada · sin salas reales</small></section>}
     <StudioClock />

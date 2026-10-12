@@ -23,6 +23,7 @@ interface OrbIpcOptions {
   consumePendingWake: () => boolean;
   /** Cola de anuncios proactivos. Ver `main/orb-announcements.ts`. */
   announcements: OrbAnnouncements;
+  onHide?: () => void;
 }
 
 export function registerOrbIpcHandlers(options: OrbIpcOptions): void {
@@ -146,6 +147,7 @@ export function registerOrbIpcHandlers(options: OrbIpcOptions): void {
     handleIPCVoid(async () => pythonRuntimeService.resumeWakeAfterConversation(sessionId)));
 
   ipcMain.on('orb:hide', () => {
+    options.onHide?.();
     const win = getOrbWindow();
     if (win && !win.isDestroyed()) win.hide();
     void pythonRuntimeService.resumeWakeAfterConversation(null, true);

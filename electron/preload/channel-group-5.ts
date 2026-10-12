@@ -1,4 +1,10 @@
 export const CHANNEL_GROUP_5 = [
+  'orb:guidance-get',
+  'orb:guidance-show',
+  'orb:guidance-control',
+  'orb:guidance-state',
+  'orb:practice-start',
+  'orb:practice-check',
   'artifact-viewer:preview',
   'artifact-viewer:pick',
   'artifact-viewer:open-external',

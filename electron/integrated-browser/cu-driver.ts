@@ -79,7 +79,7 @@ export function createIntegratedBrowserCuDriver(service: IntegratedBrowserServic
       assertCapture();
       return { ...latestContext };
     },
-    async ejecutar(action, _intent, signal) {
+    async ejecutar(action, intent, signal) {
       const assertObserved = () => {
         assertCuNotAborted(signal);
         assertTask();
@@ -92,6 +92,16 @@ export function createIntegratedBrowserCuDriver(service: IntegratedBrowserServic
       const assertCurrent = () => { assertObserved(); assertAuthorized(); };
       assertCurrent();
       const size = service.getViewportSize();
+      const geometry = `${JSON.stringify(service.getGuidanceTarget?.({ x: 0, y: 0 }))}:${size.width}:${size.height}`;
+      if (service.visualGuidance) {
+        await service.visualGuidance.wait(signal);
+        const point = 'punto' in action ? action.punto : action.tipo === 'drag' ? action.desde : null;
+        const target = point ? service.getGuidanceTarget(toViewportPoint(point, captureSize, size)) : null;
+        if (target) await service.visualGuidance.present({ target, instruction: intent, signal });
+        assertCurrent();
+        const nextSize = service.getViewportSize();
+        if (geometry !== `${JSON.stringify(service.getGuidanceTarget({ x: 0, y: 0 }))}:${nextSize.width}:${nextSize.height}`) throw new CuContextChangedError();
+      }
       switch (action.tipo) {
         case 'click':
           sendClick(contents, toViewportPoint(action.punto, captureSize, size), 'left', 1);

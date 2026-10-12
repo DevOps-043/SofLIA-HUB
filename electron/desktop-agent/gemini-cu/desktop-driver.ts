@@ -10,7 +10,7 @@ import type { CuAction, CuCapture, CuDriver } from './types';
  */
 
 export type DesktopCuDriverDeps = {
-  executeAction: (action: DesktopActionPayload) => Promise<void>;
+  executeAction: (action: DesktopActionPayload, signal?: AbortSignal) => Promise<void>;
   delay: (ms: number) => Promise<void>;
   /** Captura RAW (sin marcas) que ademas fija el layout del paso. */
   takeScreenshot: () => Promise<string>;
@@ -27,7 +27,7 @@ export function createDesktopCuDriver(deps: DesktopCuDriverDeps): CuDriver {
       const { width, height } = deps.getScreenshotSize();
       return { base64, width, height };
     },
-    ejecutar: (action, intent) => ejecutarAccionDesktop(deps, action, intent),
+    ejecutar: (action, intent, signal) => ejecutarAccionDesktop(signal ? { ...deps, executeAction: payload => deps.executeAction(payload, signal) } : deps, action, intent),
   };
 }
 
