@@ -30,3 +30,9 @@
 - [x] Renderizar el mismo manifiesto aprobado, revisar capturas, audio y playback.
 - [x] Verificar y revisar independientemente sin dependencias nuevas.
 - [x] Integrar preservando trabajo concurrente.
+
+## Nueva composición musical
+- [x] Sustituir instrumentación electrónica por piano amortiguado y armonía cálida.
+- [x] Probar sincronía, límites temporales, audio real y variantes cortas.
+- [x] Entregar nueva pista y MP4 con imágenes idénticas al aprobado.
+- [ ] Verificar, revisar e integrar conservando trabajo concurrente.

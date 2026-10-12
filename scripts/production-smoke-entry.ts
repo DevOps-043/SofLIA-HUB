@@ -28,7 +28,7 @@ void app.whenReady().then(async () => {
       const source = path.join(output, 'score.wav'), target = path.join(output, 'score.m4a');
       await fs.writeFile(source, audio.pcm);
       const runtime = await resolveMediaRuntime(root);
-      const levels = await masterAudio(runtime.ffmpeg, source, target, false, controller.signal);
+      const levels = await masterAudio(runtime.ffmpeg, source, target, film.audio === 'silencio', controller.signal);
       await fs.writeFile(path.join(output, 'audio.json'), JSON.stringify({ ...audio.report, levels, deltaMaximo: maxDelta }, null, 2));
       console.info(JSON.stringify({ ...audio.report, levels, deltaMaximo: maxDelta }));
     } finally { capture.close(); }

@@ -63,3 +63,10 @@ La partitura MUST conservar sincronía, duración y perfil de masterización y s
 #### Scenario: Resolución final
 - **WHEN** comienza el cierre de marca
 - **THEN** la percusión y arpegios dejan espacio a la transición y la armonía final entra al terminarla
+
+### Requirement: Composición cálida sin alteración del video
+La nueva partitura MUST compartir el reloj de escenas, usar piano sintético amortiguado y armonía sostenida y conservar los límites de audio y duración.
+
+#### Scenario: Sustitución de música del ejemplo aprobado
+- **WHEN** se reemplaza únicamente la banda sonora
+- **THEN** el MP4 mantiene los mismos paquetes de video y una pista AAC medida de la duración solicitada
