@@ -382,6 +382,56 @@ describe('IntegratedBrowserPanel', () => {
     await waitFor(() => expect(api.reconnectEcosystemSession).toHaveBeenCalledWith());
   });
 
+  it('BR-KEY-002: ejecuta los atajos reenviados por main y los de la barra, sin capturar los del chat', async () => {
+    const chat = document.createElement('textarea');
+    document.body.appendChild(chat);
+    try {
+      render(<IntegratedBrowserPanel />);
+      await waitFor(() => expect(api.onCommand).toHaveBeenCalled());
+      const sendCommand = (request: unknown) => act(() => vi.mocked(api.onCommand).mock.calls.forEach(([callback]) => callback(request)));
+
+      sendCommand({ command: 'focus-address' });
+      expect(screen.getByLabelText('Dirección o búsqueda')).toHaveFocus();
+      sendCommand({ command: 'new-tab' });
+      await waitFor(() => expect(api.createTab).toHaveBeenCalled());
+      // Una orden desconocida que llegue por IPC se descarta.
+      sendCommand({ command: 'borrar-todo' });
+
+      fireEvent.keyDown(screen.getByLabelText('Dirección o búsqueda'), { key: 'w', ctrlKey: true });
+      await waitFor(() => expect(api.closeTab).toHaveBeenCalledWith('tab-1'));
+      vi.mocked(api.closeTab).mockClear();
+      fireEvent.keyDown(chat, { key: 'w', ctrlKey: true });
+      expect(api.closeTab).not.toHaveBeenCalled();
+
+      sendCommand({ command: 'history' });
+      expect(await screen.findByRole('heading', { name: 'Historial' })).toBeInTheDocument();
+    } finally {
+      chat.remove();
+    }
+  });
+
+  it('BR-TAB-002: deja las acciones de pestaña en su menú contextual y el audio en la propia pestaña', async () => {
+    const audible: IntegratedBrowserState = { ...state, tabs: [{ ...state.tabs[0], audible: true }] };
+    vi.mocked(api.open).mockResolvedValue({ success: true, state: audible });
+    render(<IntegratedBrowserPanel />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Silenciar Ejemplo' }));
+    await waitFor(() => expect(api.setMuted).toHaveBeenCalledWith(true, 'tab-1'));
+    fireEvent.contextMenu(screen.getByRole('tab', { name: 'Ejemplo' }));
+    await waitFor(() => expect(api.showTabContextMenu).toHaveBeenCalledWith('tab-1'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Herramientas del navegador' }));
+    const menu = screen.getByRole('menu');
+    for (const tabAction of ['Silenciar pestaña', 'Fijar pestaña', 'Duplicar pestaña', 'Cerrar otras pestañas']) {
+      expect(within(menu).queryByRole('menuitem', { name: tabAction })).not.toBeInTheDocument();
+    }
+    expect(within(menu).getByRole('menuitem', { name: 'Historial' })).toHaveAttribute('title', 'Historial · Ctrl+H');
+    // El zoom vive en una fila propia que no cierra el menú.
+    fireEvent.click(within(menu).getByRole('menuitem', { name: /Acercar/ }));
+    await waitFor(() => expect(api.setZoom).toHaveBeenCalledWith('in'));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+  });
+
   it('acusa una apertura del agente con geometría nueva tras dibujar sus controles', async () => {
     render(<IntegratedBrowserPanel />);
     await waitFor(() => expect(api.setViewport).toHaveBeenCalled());
