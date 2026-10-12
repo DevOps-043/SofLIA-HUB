@@ -163,3 +163,10 @@ no debe aparecer una pestaña o ventana nueva.
 ## Producción audiovisual local
 
 La configuración separada `.env.audiovisual.local` contiene la bandera pública y rutas locales de FFmpeg/FFprobe, sin credenciales. Se genera con `npm run audiovisual:setup`; consultar [contrato y preparación](../architecture/presentation-audiovisual-production.md#entorno-y-preparación).
+
+El `.env` principal local también admite `VITE_SKILL_AUDIOVISUAL_ENABLED`,
+`SOFLIA_FFMPEG_PATH` y `SOFLIA_FFPROBE_PATH`; tiene prioridad sobre el respaldo
+separado. Las dos rutas son absolutas y exclusivas de main; se entrecomillan
+cuando contienen espacios. Activar la bandera local exige disponer del motor
+verificado. Esto no cambia el apagado por omisión del workflow de release,
+que conserva esa política hasta distribuir el motor multiplataforma.

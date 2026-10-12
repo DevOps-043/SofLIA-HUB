@@ -1,0 +1,5 @@
+- [x] Resolver doce conflictos conservando las mejoras de ambas ramas.
+- [x] Completar variables locales y comprobar ejecutables.
+- [x] Sincronizar catálogo/inventario y documentación.
+- [x] Verificar contratos, compuerta de PR y compilación.
+- [x] Cerrar la fusión y registrar evidencia.

@@ -36,6 +36,14 @@ Ejecutar `npm run audiovisual:setup -- <ruta-absoluta-ffmpeg> <ruta-absoluta-ffp
 
 Vite carga la bandera pública del archivo audiovisual; main carga sus rutas en ejecución sin exponerlas al renderer ni incrustarlas en el bundle. Reiniciar `npm run dev` después de configurar. Cambiar `VITE_SKILL_AUDIOVISUAL_ENABLED=false` retira la skill del catálogo; conserva los archivos.
 
+También se pueden declarar estas tres variables en el `.env` principal local.
+Ese archivo tiene prioridad sobre el respaldo audiovisual separado. Las rutas
+deben ser absolutas, entre comillas si contienen espacios, y apuntar a ejecutables
+verificados; no son argumentos del modelo. La reconciliación del 12 de octubre
+añadió esa configuración al equipo por solicitud explícita del usuario, sin
+cambiar credenciales ni versionar los archivos locales. La preparación automática
+continúa creando únicamente `.env.audiovisual.local`.
+
 Los binarios locales usados para la prueba proceden de un proveedor enlazado por la [página oficial de FFmpeg](https://ffmpeg.org/download.html). La preparación local no acredita distribución en instaladores: antes de publicar se debe incorporar el motor de cada plataforma y sus obligaciones de licencia. Esta entrega no cambia el empaquetado multimedia ni publica una release. La bandera de release queda apagada por omisión hasta distribuir ese runtime; setup activa la capacidad local.
 
 ## Verificación y límites
