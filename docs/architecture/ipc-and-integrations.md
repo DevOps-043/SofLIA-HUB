@@ -8,6 +8,11 @@ Estado: vigente. Actualizado: 2026-09-11.
 
 ## Contrato IPC
 
+El acompañamiento del orbe expone seis canales específicos de consulta, control,
+señalización, práctica y estado, con autenticación y validación del frame principal
+de Hub/Orbe. Main localiza objetivos; el renderer no recibe una API genérica para
+mover ventanas o inyectar entrada. Ver [contrato y comportamiento](autonomous-orb-guidance.md).
+
 El navegador integrado conecta Learning, Engine y Project Hub mediante un
 canje de sesión desde main en la partición del usuario. El canal
 `integrated-browser:ecosystem-connect` permite volver explícitamente a la
@@ -69,7 +74,7 @@ aprobación fabricada del renderer. El servicio comprueba capacidad, política,
 perfil y control humano; el borrado pregunta en main. Responde con biblioteca
 versionada, cancelación o error saneado. No existe IPC de ejecución de atajos.
 
-La allowlist actual contiene 471 canales derivados de cinco arrays: 84, 52, 61, 142, 132. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 477 canales derivados de cinco arrays: 84, 52, 61, 142, 132. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |

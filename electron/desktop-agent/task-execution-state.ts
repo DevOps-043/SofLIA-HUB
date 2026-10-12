@@ -38,6 +38,7 @@ export function startDesktopAgentRuntimeTask(
 }
 
 export function finishDesktopAgentRuntimeTask(service: any, agentTask: any, taskId: string): void {
+  service.visualGuidance?.clear();
   const legacyState = finishDesktopAgentTask({ agentTask, activeTasks: service.activeTasks, taskId });
   service.status = legacyState.status;
   service.currentTask = legacyState.currentTask;

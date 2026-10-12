@@ -46,6 +46,7 @@ Este indice separa documentacion vigente de material historico.
 - [Plataforma del navegador integrado](architecture/integrated-browser-platform.md)
 - [IPC e integraciones](architecture/ipc-and-integrations.md)
 - [Aula de sesiones de Learning](architecture/learning-live-workspace.md)
+- [Movimiento autónomo del orbe y prácticas guiadas](architecture/autonomous-orb-guidance.md)
 - [Project Hub unificado](architecture/project-hub-unified.md)
 - [Agentes y automatizacion](architecture/agents-and-automation.md)
 - [Manual del agente runtime](architecture/runtime-agents-manual.md)

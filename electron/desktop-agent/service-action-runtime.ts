@@ -15,19 +15,25 @@ import { dipToScreenPoint, mapScreenshotToDipPoint } from './screenshot-coordina
 import { executeProactiveRecovery } from './recovery-runtime';
 import type { DesktopActionPayload, FailedActionTargetMemory, ResolvedActionTarget } from '../desktop-agent-types';
 import { getErrorMessage } from './error-utils';
+import { DeterministicActionError } from './action-errors';
+import { desktopGuidanceTarget } from '../orb-guidance/desktop-target';
+import { physicalRectToDipRect, screenToDipPoint } from './screenshot-coordinates';
+import type { DesktopAgentService } from '../desktop-agent-service';
+import type { CompositeScreenshotResult } from './service-types';
+import { captureDesktopContextGuard } from '../orb-guidance/desktop-context';
 
 function ensureUiaWorker(service: any): PowerShellWorker {
   if (!service.uiaWorker) service.uiaWorker = new PowerShellWorker();
   return service.uiaWorker;
 }
 
-async function clickElementByTextForService(
-  service: any,
+export async function locateServiceElement(
+  service: DesktopAgentService,
   elementName: string,
-  doubleClick: boolean,
   hintImagen?: { x: number; y: number },
-): Promise<ClickByTextResult> {
-  const bloqueados = buildBlockedTargets(service, elementName);
+  options?: { fresh?: boolean; capture?: CompositeScreenshotResult; ignoreBlocked?: boolean },
+) {
+  const bloqueados = options?.ignoreBlocked ? [] : buildBlockedTargets(service, elementName);
   const providers: ElementLocatorProvider[] = [];
 
   if (process.platform === 'win32' && service.config.uiaWorkerEnabled !== false) {
@@ -42,7 +48,7 @@ async function clickElementByTextForService(
   providers.push(createOcrLocatorProvider({
     capturarPantalla: async () => {
       const edge = service.config.ocrCaptureEdge || service.config.screenshotWidth;
-      const captura = service.lastDecisionCapture
+      const captura = options?.capture ?? (options?.fresh ? null : service.lastDecisionCapture)
         ?? await service.captureCompositeScreenshot(edge, edge, { purpose: 'verification' });
       return { base64: captura.base64, layout: captura.layout };
     },
@@ -52,10 +58,18 @@ async function clickElementByTextForService(
   }));
 
   const locator = new ElementLocator(providers);
-  const { elemento, intentos } = await locator.localizarPorTexto(elementName, {
+  return locator.localizarPorTexto(elementName, {
     pista: hintImagen,
     bloqueados,
   });
+}
+
+async function clickElementByTextForService(
+  service: any, elementName: string, doubleClick: boolean,
+  hintImagen?: { x: number; y: number }, signal?: AbortSignal, assertCurrent?: () => void, assertWindow?: () => Promise<void>,
+): Promise<ClickByTextResult> {
+  const { elemento, intentos } = await locateServiceElement(service, elementName, hintImagen);
+  assertCurrent?.();
   if (!elemento) return { found: false, intentos };
 
   const resolvedTarget: ResolvedActionTarget = {
@@ -82,9 +96,20 @@ async function clickElementByTextForService(
     textScore: elemento.textScore,
     spatialScore: Number(elemento.spatialScore.toFixed(3)),
     rankingReason: elemento.rankingReason,
-    blockedCandidates: bloqueados.length,
+    blockedCandidates: buildBlockedTargets(service, elementName).length,
   }));
 
+  await service.visualGuidance?.present({ target: { point: screenToDipPoint(elemento.centroFisico), ...(elemento.bboxFisico ? { rect: physicalRectToDipRect(elemento.bboxFisico) } : {}) }, instruction: `Seleccionar ${elemento.texto}`, signal, assertCurrent });
+  assertCurrent?.();
+  if (service.visualGuidance) {
+    const latest = await locateServiceElement(service, elementName, hintImagen, { fresh: true });
+    assertCurrent?.();
+    if (!latest.elemento || latest.elemento.centroFisico.x !== elemento.centroFisico.x || latest.elemento.centroFisico.y !== elemento.centroFisico.y) {
+      throw new DeterministicActionError('El elemento cambió durante la indicación. Vuelve a localizarlo.');
+    }
+  }
+  if (signal?.aborted) throw new DeterministicActionError('La acción fue cancelada.');
+  await assertWindow?.(); assertCurrent?.();
   if (doubleClick) {
     await service.mouseControls.doubleClickAtPhysicalPoint(elemento.centroFisico.x, elemento.centroFisico.y);
   } else {
@@ -145,8 +170,27 @@ export async function runServiceProactiveRecovery(
 export async function executeServiceDesktopAction(
   service: any,
   action: DesktopActionPayload,
+  actionSignal?: AbortSignal,
 ): Promise<void> {
   service.lastResolvedActionTarget = null;
+  const signal = actionSignal ?? service.abortController?.signal;
+  const assertGuidance = service.visualGuidance?.createGuard?.();
+  const layout = service.activeStepLayout ?? service.lastScreenshotLayout;
+  const assertCurrent = () => {
+    assertGuidance?.();
+    if (signal?.aborted || layout !== (service.activeStepLayout ?? service.lastScreenshotLayout)) throw new DeterministicActionError('La acción fue cancelada o cambió la captura.');
+  };
+  if (action.action !== 'mouse_up') await service.visualGuidance?.wait(signal);
+  assertCurrent();
+  const assertWindow = action.action !== 'mouse_up' ? await captureDesktopContextGuard(service) : async () => undefined;
+  assertCurrent();
+  const present = async (x: number, y: number) => {
+    if (!service.visualGuidance) return;
+    try { await service.visualGuidance.present({ target: desktopGuidanceTarget(service, x, y, service.lastResolvedActionTarget), instruction: action.message, signal }); }
+    catch { throw new DeterministicActionError('La asistencia fue detenida o cambió el objetivo. Vuelve a observar antes de actuar.'); }
+    assertCurrent();
+    await assertWindow(); assertCurrent();
+  };
   await executeDesktopAction(action, {
     config: service.config,
     getUIElements: () => service.currentUIElements,
@@ -156,16 +200,21 @@ export async function executeServiceDesktopAction(
     logActionCoordinateResolution: (nextAction) => service.logActionCoordinateResolution(nextAction),
     assertActionTargetsVisibleContent: (nextAction) => service.assertActionTargetsVisibleContent(nextAction),
     setResolvedTarget: (target) => { service.lastResolvedActionTarget = target; },
-    mouseClick: (x, y) => service.mouseClick(x, y),
-    mouseDoubleClick: (x, y) => service.mouseDoubleClick(x, y),
-    mouseRightClick: (x, y) => service.mouseRightClick(x, y),
-    mouseDrag: (x1, y1, x2, y2) => service.mouseDrag(x1, y1, x2, y2),
-    mouseDown: (x, y) => service.mouseDown(x, y),
+    mouseClick: async (x, y) => { await present(x, y); await service.mouseClick(x, y); },
+    mouseDoubleClick: async (x, y) => { await present(x, y); await service.mouseDoubleClick(x, y); },
+    mouseRightClick: async (x, y) => { await present(x, y); await service.mouseRightClick(x, y); },
+    mouseDrag: async (x1, y1, x2, y2) => {
+      await present(x1, y1); assertCurrent();
+      const drag = () => service.mouseDrag(x1, y1, x2, y2);
+      if (service.visualGuidance?.input) await service.visualGuidance.input(drag);
+      else await drag();
+    },
+    mouseDown: async (x, y) => { await present(x, y); await service.mouseDown(x, y); },
     mouseUp: (x, y) => service.mouseUp(x, y),
     mouseMove: (x, y) => service.mouseMove(x, y),
     mouseScroll: (direction, amount) => service.mouseScroll(direction, amount),
-    keyboardType: (text) => service.keyboardType(text),
-    keyboardKey: (key) => service.keyboardKey(key),
+    keyboardType: async (text) => { await assertWindow(); assertCurrent(); await service.keyboardType(text); },
+    keyboardKey: async (key) => { await assertWindow(); assertCurrent(); await service.keyboardKey(key); },
     focusWindow: (title) => service.focusWindow(title),
     minimizeWindow: (title) => service.minimizeWindow(title),
     maximizeWindow: (title) => service.maximizeWindow(title),
@@ -176,7 +225,7 @@ export async function executeServiceDesktopAction(
     openApplication: (appName) => openApplicationDeterministic(appName),
     openUrl: (url) => openUrlDeterministic(url),
     clickElementByName: (elementName, doubleClick, hint) =>
-      clickElementByTextForService(service, elementName, doubleClick === true, hint),
+      clickElementByTextForService(service, elementName, doubleClick === true, hint, signal, assertCurrent, assertWindow),
     takeZoomScreenshot: (x, y, radius) => service.takeZoomScreenshot(x, y, radius),
     mapDesktopPointToScreenshotPoint: (x, y) => service.mapDesktopPointToScreenshotPoint(x, y),
     delay: (ms) => service.delay(ms),

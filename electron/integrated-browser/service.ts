@@ -1,4 +1,6 @@
 import { EventEmitter } from 'node:events';
+import type { VisualGuidancePort } from '../orb-guidance/service';
+import type { GuidanceTarget } from '../../src/shared/orb-guidance';
 import { sensitiveSessionDisplayUrl } from './sensitive-session';
 import { registerBrowserHomeProtocol } from './home';
 import { BROWSER_HOME_TITLE, isBrowserHomeUrl } from '../../src/shared/browser-home';
@@ -2114,6 +2116,18 @@ export class IntegratedBrowserService extends EventEmitter {
     return { width: bounds.width, height: bounds.height };
   }
 
+  visualGuidance?: VisualGuidancePort;
+
+  /** Convierte un punto del viewport de entrada a DIP del escritorio anfitrión. */
+  getGuidanceTarget(point: { x: number; y: number }): GuidanceTarget | null {
+    const tab = this.getActiveTab();
+    if (!tab || !this.isTabVisible(tab)) return null;
+    const host = this.detachedWindows.get(tab.id) ?? this.parentWindow;
+    if (!host || host.isDestroyed()) return null;
+    const origin = host.getContentBounds(), view = this.requireTabView(tab).getBounds();
+    return { point: { x: origin.x + view.x + point.x, y: origin.y + view.y + point.y } };
+  }
+
   getWebContentsForAgent(): WebContents {
     const contents = this.getWebContents();
     if (!contents || contents.isDestroyed()) throw new Error('El navegador integrado no esta disponible.');
@@ -2444,6 +2458,8 @@ export class IntegratedBrowserService extends EventEmitter {
     assertTarget();
     if (target.disabled) throw new Error(`El control "${target.name || target.tag}" esta deshabilitado.`);
     const point = browserDomPoint(contents, target, this.getActiveTab()?.zoomFactor ?? 1);
+    const assertGuided = await this.prepareGuidedBrowserTarget(target, point, assertTarget);
+    assertGuided();
     sendBrowserClick(contents, point.x, point.y);
     this.noteInteraction();
     return { target, warning: target.occluded ? 'Otro elemento cubria el punto de impacto; verifica el resultado antes de continuar.' : null };
@@ -2466,6 +2482,8 @@ export class IntegratedBrowserService extends EventEmitter {
     if (!target.editable) throw new Error(`El elemento "${target.name || target.tag}" no es un campo editable.`);
     if (target.disabled) throw new Error(`El campo "${target.name || target.tag}" esta deshabilitado.`);
     const point = browserDomPoint(contents, target, this.getActiveTab()?.zoomFactor ?? 1);
+    const assertGuided = await this.prepareGuidedBrowserTarget(target, point, assertTarget);
+    assertGuided();
     sendBrowserClick(contents, point.x, point.y);
     const selectionModifier = process.platform === 'darwin' ? 'meta' : 'control';
     contents.sendInputEvent({ type: 'keyDown', keyCode: 'A', modifiers: [selectionModifier] });
@@ -2507,6 +2525,25 @@ export class IntegratedBrowserService extends EventEmitter {
       canScroll: true,
     });
     this.noteInteraction();
+  }
+
+  private async prepareGuidedBrowserTarget(target: BrowserElementTarget, point: { x: number; y: number }, assertCurrent: () => void): Promise<() => void> {
+    if (!this.visualGuidance) return () => undefined;
+    const assertGuidance = this.visualGuidance.createGuard?.();
+    const assertDocument = this.createAgentTargetGuard(undefined, true);
+    const cue = this.getGuidanceTarget(point);
+    if (!cue) return () => undefined;
+    await this.visualGuidance.wait();
+    await this.visualGuidance.present({ target: cue, instruction: `Seleccionar ${target.name || target.tag}` });
+    assertCurrent(); assertDocument();
+    assertGuidance?.();
+    const current = await this.requireInteractiveTarget(target.ref);
+    assertCurrent(); assertDocument();
+    assertGuidance?.();
+    if (current.target.disabled || current.target.occluded || current.target.editable !== target.editable) throw new Error('El control cambió o está cubierto. Vuelve a localizarlo.');
+    const next = browserDomPoint(current.contents, current.target, this.getActiveTab()?.zoomFactor ?? 1);
+    if (next.x !== point.x || next.y !== point.y || JSON.stringify(this.getGuidanceTarget(next)) !== JSON.stringify(cue)) throw new Error('El control cambió de posición. Vuelve a localizarlo.');
+    return () => { assertCurrent(); assertDocument(); assertGuidance?.(); };
   }
 
   private async requireInteractiveTarget(rawRef: unknown): Promise<{ contents: WebContents; target: BrowserElementTarget }> {

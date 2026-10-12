@@ -47,6 +47,10 @@ export class BrowserWindow extends EventEmitter {
   loadURL = vi.fn();
   loadFile = vi.fn();
   show = vi.fn();
+  showInactive = vi.fn();
+  setFocusable = vi.fn();
+  setMovable = vi.fn();
+  setIgnoreMouseEvents = vi.fn();
   hide = vi.fn();
   close = vi.fn();
   destroy = vi.fn();
@@ -243,6 +247,15 @@ export const powerMonitor = {
 };
 
 export const screen = {
+  on: vi.fn(),
+  removeListener: vi.fn(),
+  getCursorScreenPoint: vi.fn(() => ({ x: 0, y: 0 })),
+  getDisplayNearestPoint: vi.fn(() => ({
+    id: 0, bounds: { x: 0, y: 0, width: 1920, height: 1080 }, workArea: { x: 0, y: 0, width: 1920, height: 1040 }, scaleFactor: 1,
+  })),
+  getDisplayMatching: vi.fn(() => ({
+    id: 0, bounds: { x: 0, y: 0, width: 1920, height: 1080 }, workArea: { x: 0, y: 0, width: 1920, height: 1040 }, scaleFactor: 1,
+  })),
   getPrimaryDisplay: vi.fn(() => ({
     id: 0,
     bounds: { x: 0, y: 0, width: 1920, height: 1080 },

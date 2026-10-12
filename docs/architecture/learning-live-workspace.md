@@ -23,6 +23,12 @@ Pantalla, Cámara y Combinada pasan a un selector compacto junto a Vista previa.
 
 ## Contratos y recursos
 
+El estudio incorpora **Práctica con SofLIA**, un ensayo local de pasos con
+objetivos por texto visible y condiciones de resultado comprobadas por UIA/OCR.
+Mueve el orbe y señala controles en el escritorio del instructor; no publica
+la receta ni opera en los equipos del grupo. Su contrato, pausa, cancelación y
+límites están en [acompañamiento visual](autonomous-orb-guidance.md).
+
 `learning-live:catalog` consulta `POST /api/auth/live/catalog` mediante main, handler, allowlist, preload y wrapper. Recibe únicamente slug de organización, página y vista alumno/instructor. Learning verifica bearer y membresía antes de reutilizar `live_catalog` con periodo `upcoming`. Devuelve metadatos públicos sin IDs Zoom ni enlaces de ingreso. Main valida versión, actor, máximo 20 resultados, límite de salida de 256 KiB, timeout de 15 segundos y ausencia de campos ajenos; comparte el límite de 4 solicitudes con el aula. La UI descarta respuestas tardías al cambiar organización o desmontar; no agrega polling del catálogo. La disponibilidad real exige publicar el endpoint de Learning junto con Hub.
 
 El filtro de rutas Learning debe delegar exactamente `/api/auth/live/catalog` al handler bearer, sin exigir cookies del navegador, y asignar sus POST al presupuesto `live-access`. El handler conserva verificación de identidad y membresía. Hub distingue 403 de 401, ruta ausente (404/405), límite (429) y fallo de servidor. Un 401 con el código del filtro web `UNAUTHENTICATED` indica integración no habilitada; un 401 del handler indica sesión no validada. Los errores remotos se leen hasta 4 KiB y nunca se muestran literalmente. El log del catálogo registra solo estado HTTP y clasificación, sin identidad, credenciales ni cuerpos.

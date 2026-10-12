@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import { exposeOrbGuidanceApi } from './preload/orb-guidance-api';
 import { exposeAgentActivityApi } from './preload/agent-activity-api';
 import { exposeAgentRuntimeApi } from './preload/agent-runtime-api';
 import { exposeBackgroundTeamsApi } from './preload/background-teams-api';
@@ -34,6 +35,7 @@ assertContextIsolation();
 injectCSP();
 
 const safeIpc = createSafeIpc(ipcRenderer);
+exposeOrbGuidanceApi(contextBridge, safeIpc);
 exposeAgentActivityApi(contextBridge, safeIpc);
 exposeAgentRuntimeApi(contextBridge, safeIpc);
 exposeBackgroundTeamsApi(contextBridge, safeIpc);

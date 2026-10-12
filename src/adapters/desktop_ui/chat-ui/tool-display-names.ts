@@ -38,6 +38,7 @@ export const TOOL_DISPLAY_NAMES: Record<string, string> = {
   clipboard_write: 'Copiando al portapapeles...',
   take_screenshot: 'Capturando pantalla...',
   use_computer: 'Usando computadora...',
+  show_visual_guidance: 'Señalando en pantalla...',
   run_background_command: 'Ejecutando en segundo plano...',
   list_process_sessions: 'Revisando procesos...',
   poll_process_session: 'Consultando el proceso...',

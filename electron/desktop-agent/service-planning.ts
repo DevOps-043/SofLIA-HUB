@@ -21,7 +21,7 @@ export interface DesktopAgentPlanningApi {
   createPlan(task: string, screenshotBase64: string): Promise<TaskPlan>;
   summarizeHistory(): Promise<void>;
   checkPhaseCompletion(task: string): Promise<void>;
-  executeAction(action: DesktopActionPayload): Promise<void>;
+  executeAction(action: DesktopActionPayload, signal?: AbortSignal): Promise<void>;
   smartDelay(action: DesktopActionPayload): Promise<void>;
   delay(ms: number): Promise<void>;
 }
@@ -111,8 +111,8 @@ export function attachDesktopAgentPlanning(Service: DesktopAgentServiceConstruct
         emit: (eventName, payload) => { this.emit(eventName, payload); },
       });
     },
-    executeAction(action) {
-      return executeServiceDesktopAction(this, action);
+    executeAction(action, signal) {
+      return executeServiceDesktopAction(this, action, signal);
     },
     smartDelay(action) {
       return applyServiceSmartDelay(this, action);

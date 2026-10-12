@@ -28,6 +28,7 @@ export type WorkerElement = {
 
 export type WorkerRequest =
   | { id: number; cmd: 'ping' }
+  | { id: number; cmd: 'foreground' }
   | {
       id: number;
       cmd: 'locateByText';
@@ -50,6 +51,7 @@ export type WorkerRequest =
 
 export type WorkerResponse =
   | { id: number; ok: true; cmd: 'ping'; pong: true }
+  | { id: number; ok: true; cmd: 'foreground'; handle: string; rect: PhysicalRect }
   | { id: number; ok: true; cmd: 'locateByText'; elements: WorkerElement[]; scanned: number }
   | { id: number; ok: true; cmd: 'listElements'; elements: WorkerElement[]; scanned: number }
   | { id: number; ok: false; error: string };

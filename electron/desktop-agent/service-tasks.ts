@@ -84,6 +84,7 @@ export function attachDesktopAgentTasks(Service: DesktopAgentServiceConstructor)
       return outcome.mensaje;
     },
     executeTaskDetailed(task, options) {
+      if (this.visualGuidance?.isPracticing?.()) throw new Error('Finaliza la práctica guiada antes de iniciar Computer Use.');
       return executeDesktopAgentTaskEntrypoint(task, options, {
         apiKey: this.apiKey,
         browserWeb: this.browserWeb,

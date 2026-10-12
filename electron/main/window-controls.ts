@@ -6,6 +6,7 @@ import { createOrFocusMainWindow } from './window-controller';
 import type { AuthCallbackPayload, MeetingTriggerPayload } from '../app-protocol';
 import type { MainRuntimeState } from './runtime-state';
 import type { LearningLiveSessionReference } from '../../src/shared/learning-live-session';
+import { initializeOrbGuidance } from '../orb-guidance/bootstrap';
 
 export function createWindowControls(input: {
   env: { VITE_DEV_SERVER_URL?: string; RENDERER_DIST: string };
@@ -23,11 +24,18 @@ export function createWindowControls(input: {
     setWindow: (nextOrbWin) => { state.orbWin = nextOrbWin; },
     setPendingWake: (value) => { state.pendingOrbWake = value; },
   });
+  const orbGuidance = initializeOrbGuidance({
+    getOrb: () => state.orbWin, getMain: () => state.win,
+    showOrb: () => orbController.createOrbWindow(false), compact: orbController.setGuidanceMode,
+    captureVisibility: orbController.setCaptureHidden,
+    desktop: services.desktopAgentService, browser: services.integratedBrowserService,
+  });
 
   const controls = {
     createOrbWindow: orbController.createOrbWindow,
     registerOrbShortcut: orbController.registerOrbShortcut,
     orbAnnouncements: orbController.announcements,
+    orbGuidance,
     createWindow(showWindow = !state.startInBackground): void {
       state.win = createOrFocusMainWindow({
         currentWindow: state.win,

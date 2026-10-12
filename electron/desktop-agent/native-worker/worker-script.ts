@@ -25,6 +25,8 @@ using System.Runtime.InteropServices;
 namespace SofliaWorker {
   public static class Native {
     [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
+    [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
   }
 }
 '@
@@ -105,6 +107,12 @@ while ($true) {
     switch ($req.cmd) {
       'ping' {
         Write-Response ([PSCustomObject]@{ id = $req.id; ok = $true; cmd = 'ping'; pong = $true })
+      }
+      'foreground' {
+        $handle = [SofliaWorker.Native]::GetForegroundWindow()
+        $bounds = New-Object SofliaWorker.Native+RECT
+        [void][SofliaWorker.Native]::GetWindowRect($handle, [ref]$bounds)
+        Write-Response ([PSCustomObject]@{ id = $req.id; ok = $true; cmd = 'foreground'; handle = $handle.ToString(); rect = [PSCustomObject]@{ x = $bounds.Left; y = $bounds.Top; width = $bounds.Right - $bounds.Left; height = $bounds.Bottom - $bounds.Top } })
       }
       'locateByText' {
         $els = Get-ForegroundElements ([int]$req.sparseThreshold) ([int]$req.wakeDelayMs)
