@@ -59,7 +59,7 @@ export function RuntimeStatusCard({ panel }: { panel: VoicePassivePanel }) {
             <div className="text-xs leading-relaxed text-gray-900 dark:text-white">
               <p className="font-medium">Falta el runtime de Python.</p>
               <p className="text-secondary mt-0.5">
-                Viene incluido en el instalador: reinstala Pulse Hub o, si trabajas desde el
+                Viene incluido en el instalador: reinstala Soflia Hub o, si trabajas desde el
                 repositorio, genera el runtime con este comando en la raíz del proyecto.
               </p>
             </div>

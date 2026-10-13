@@ -11,17 +11,19 @@ export class BrowserWindow extends EventEmitter {
   private contentsEvents = new EventEmitter();
 
   webContents = {
+    mainFrame: { url: 'about:blank', detached: false },
     send: vi.fn(),
     focus: vi.fn(),
     on: vi.fn((event: string, listener: (...args: unknown[]) => void) => this.contentsEvents.on(event, listener)),
     removeListener: vi.fn((event: string, listener: (...args: unknown[]) => void) => this.contentsEvents.removeListener(event, listener)),
     emit: (event: string, ...args: unknown[]) => this.contentsEvents.emit(event, ...args),
     listenerCount: (event: string) => this.contentsEvents.listenerCount(event),
-    once: vi.fn(),
+    once: vi.fn((event: string, listener: (...args: unknown[]) => void) => this.contentsEvents.once(event, listener)),
     openDevTools: vi.fn(),
     setWindowOpenHandler: vi.fn(),
     id: nextWebContentsId++,
     session: {
+      protocol: createProtocolMock(),
       isPersistent: vi.fn(() => true),
       setUserAgent: vi.fn(),
       setPermissionRequestHandler: vi.fn(),
@@ -76,6 +78,7 @@ export class BrowserWindow extends EventEmitter {
   setBounds = vi.fn();
   getBounds = vi.fn(() => ({ x: 0, y: 0, width: 1024, height: 768 }));
   getContentBounds = vi.fn(() => ({ x: 0, y: 0, width: 1024, height: 768 }));
+  getMediaSourceId = vi.fn(() => `window:${this.webContents.id}:0`);
   setMenu = vi.fn();
   setTitle = vi.fn();
 
@@ -232,7 +235,7 @@ export const desktopCapturer = {
     {
       id: 'screen:0:0',
       name: 'Entire Screen',
-      thumbnail: { toDataURL: () => 'data:image/png;base64,iVBOR...' },
+      thumbnail: { isEmpty: () => false, toDataURL: () => 'data:image/png;base64,iVBOR...' },
       display_id: '0',
       appIcon: null,
     },

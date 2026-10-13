@@ -2,14 +2,14 @@
 
 Fecha local: 2026-09-13, America/Mexico_City. Cambio `complete-integrated-browser-platform`.
 Trabajo en `.worktrees/upgrade-integrated-browser`, rama `codex/finish-browser-recovery`.
-Sin despliegue, migraciones, publicación, firma ni instalación de Pulse Hub.
+Sin despliegue, migraciones, publicación, firma ni instalación de Soflia Hub.
 
 ## Implementación
 
 - Preparación Python recuperable con staging y lock exclusivo; conserva runtime anterior, valida antes de promocionar y revalida caché.
 - SHA256 oficial fijado por plataforma, HTTPS, límite de descarga y rechazo antes de extraer/ejecutar si la huella no coincide.
 - Python/pip aislados y comprobación de versión, dependencias de voz/reuniones/documentos y ambos sidecars dentro del paquete.
-- Bienvenida NSIS propia, arte Pulse Hub a 3x, texto nativo, español, progreso real y apertura final desmarcada. Conserva instalación asistida, ubicación, elevación y datos al desinstalar.
+- Bienvenida NSIS propia, arte Soflia Hub a 3x, texto nativo, español, progreso real y apertura final desmarcada. Conserva instalación asistida, ubicación, elevación y datos al desinstalar.
 - Smoke Windows sin .env, claves, firma, publicación ni arranque del producto; copia física de dependencias, `npm ls`, comprobación del ASAR, PE y SHA256.
 - Corrección de bloqueo XLSX: carga nativa inicial de NumPy en el hilo principal de Windows, antes de aceptar comandos.
 
@@ -60,7 +60,7 @@ Los pins Python se obtuvieron de los digests de assets de la
 Incluye el arreglo XLSX y 2812 fuentes; 42 comprobaciones de dependencias
 empaquetadas. Reporte `installer-report.json`, etapa `completo`, exitCode 0.
 
-- Archivo: `release/0.9.8/Pulse-Hub-Windows-0.9.8-Setup.exe`.
+- Archivo: `release/0.9.8/Soflia-Hub-Windows-0.9.8-Setup.exe`.
 - Tamaño: **360450941 bytes**, aproximadamente 344 MiB.
 - SHA256: `38827750ed35b33a82ac7d3d035a72659697c96f2c71d4a4c54ca3daa4ffe1de`.
 - Sin firma Authenticode, .env, publicación, arranque ni instalación del producto.

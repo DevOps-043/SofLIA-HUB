@@ -1,3 +1,4 @@
+import type { StudioCaptureBinding } from '../../../shared/studio-capture';
 export type StudioMessage = {
   id: string;
   authorId: string;
@@ -25,5 +26,6 @@ export type StudioPreparedScene = {
   description: string;
   assetUrl?: string;
   fileName?: string;
+  capture?: StudioCaptureBinding;
 };
 export const STUDIO_COMMANDS = '/silenciar · /abrir · /reacciones · /soflia · /ayuda';

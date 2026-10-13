@@ -224,7 +224,7 @@ qué herramientas obtiene.
 ## Migration Plan
 
 1. **Base de datos primero**: ejecutar `system-skills-flujos.sql` y
-   `user-skill-channels.sql` en la instancia Pulse Hub. Ambas son idempotentes
+   `user-skill-channels.sql` en la instancia Soflia Hub. Ambas son idempotentes
    (`IF NOT EXISTS` / `ON CONFLICT DO NOTHING`). Con la versión anterior
    instalada no tienen efecto: las filas nuevas sólo las lee el catálogo, que
    ignora identificadores que no conoce.

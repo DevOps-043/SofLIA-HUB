@@ -432,7 +432,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     // "versiones" y "recientes" activan grounding, y "entra"/"busca"/"analiza"
     // no figuran entre las órdenes de acción.
     await sendMessageStream(
-      'entra a la carpeta PulseHub y busca el archivo package.json y analiza las dependencias desactualizadas y las versiones mas recientes',
+      'entra a la carpeta Soflia Hub y busca el archivo package.json y analiza las dependencias desactualizadas y las versiones mas recientes',
       [],
       { model: 'gpt-5.6-luna' },
     );
@@ -451,7 +451,7 @@ describe('gemini-chat: prioridad accion vs grounding web', () => {
     const { sendMessageStream } = await import('../../services/gemini-chat');
 
     await sendMessageStream(
-      'esta es la ruta C:\\Users\\fysg5\\OneDrive\\Escritorio\\PulseHub\\SofLIA-HUB, dame el informe de versiones',
+      'esta es la ruta C:\\Users\\fysg5\\OneDrive\\Escritorio\\Soflia Hub\\SofLIA-HUB, dame el informe de versiones',
       [],
       { model: 'gpt-5.6-luna' },
     );

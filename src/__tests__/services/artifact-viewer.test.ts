@@ -10,5 +10,5 @@ it('envía referencias cerradas y comunica fallos del host', async () => {
   expect(preview).toHaveBeenCalledWith(reference);
 });
 it('explica la ausencia del preload sin simular que el archivo se abrió', async () => {
-  expect(() => artifactViewerService.pick()).toThrow('Reinicia PulseHub');
+  expect(() => artifactViewerService.pick()).toThrow('Reinicia Soflia Hub');
 });

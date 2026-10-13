@@ -1,4 +1,4 @@
-# Estandar de interfaz de Pulse Hub
+# Estandar de interfaz de Soflia Hub
 
 Estado: vigente. Actualizado: 2026-07-21.
 

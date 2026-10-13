@@ -53,7 +53,7 @@ export function createRunDetailFixture(): MeetingRunDetail {
         analysis_result: {
           meetingType: { suggestedType: 'delivery_weekly_sync', alternativeTypes: [], confidence: 0.88, reason: 'Coinciden senales.' },
           detectedContext: {
-            project: 'Pulse Hub',
+            project: 'Soflia Hub',
             team: 'Producto',
             meetingObjective: ['validar avances del sprint', 'destrabar QA'],
             relevantSignals: ['lenguaje:seguimiento', 'estructura:bloqueos'],

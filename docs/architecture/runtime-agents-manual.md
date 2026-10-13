@@ -576,7 +576,7 @@ puerto dinámico y sesión opaca; solo expone el bundle, `deck.json`, la marca y
 CSP restrictiva y no alcanzan IPC, `node` ni la red. Está bloqueada en grupos de WhatsApp.
 
 **De dónde sale el catálogo del sistema.** Las Skills del sistema se resuelven
-desde `public.system_skills` (instancia Pulse Hub), legible por cualquier
+desde `public.system_skills` (instancia Soflia Hub), legible por cualquier
 usuario autenticado y escribible solo con `service_role`. La fila declara
 nombre, comando, instrucciones, herramientas y política de espacio de trabajo;
 el cliente la **acota** antes de concederla en

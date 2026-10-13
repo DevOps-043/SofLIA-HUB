@@ -19,7 +19,7 @@ export function installerEnvironment(source) {
 
 export function installerArtifact(version) {
   assert.match(version, /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/, 'Versión de instalador inválida.');
-  return `release/${version}/Pulse-Hub-Windows-${version}-Setup.exe`;
+  return `release/${version}/Soflia-Hub-Windows-${version}-Setup.exe`;
 }
 
 /** El directorio de certificados PE detecta firma embebida, sin ejecutar el EXE. */

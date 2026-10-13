@@ -59,8 +59,8 @@ HTTP 403. Netlify confirma publicados Engine `f59a62e65be523d78ba3c805e9ae829050
 su revisión `8eb91f34b5097b7cde6c6032a54bc3dc7d0f1ee4` está compilándose en
 `6acad337592b72000823be2e`.
 
-La aplicación de PulseHub abierta ya cargó la corrección local. Se pidió al
-usuario comprobar «Usar mi cuenta de PulseHub» en Learning, porque un cierre
+La aplicación de Soflia Hub abierta ya cargó la corrección local. Se pidió al
+usuario comprobar «Usar mi cuenta de Soflia Hub» en Learning, porque un cierre
 de sesión previamente guardado no se borra sin esa elección. La confirmación
 de ingreso con su cuenta real sigue pendiente; la sonda no usa credenciales.
 
@@ -117,7 +117,7 @@ conservan la elección tras reiniciar. Un cierre en un alias protege el otro.
 La revisión de navegación se ejecuta antes del intercambio de identidad.
 
 Se corrigió el logout global de Learning para las sesiones creadas por este
-canje: conserva PulseHub y otras sesiones SOFIA. Se añadieron verificación de
+canje: conserva Soflia Hub y otras sesiones SOFIA. Se añadieron verificación de
 identidad final en Engine y rechazo de refresh tokens en el puente de Project Hub.
 
 ## Límites de la evidencia
@@ -129,4 +129,4 @@ componentes y comprobar la [matriz de staging](../integration.md).
 
 La sesión existente de cada web conserva su propio mecanismo de renovación.
 Si requiere autenticación nuevamente, el usuario conserva el gestor de
-Contraseñas, otra cuenta y la reconexión explícita de PulseHub.
+Contraseñas, otra cuenta y la reconexión explícita de Soflia Hub.

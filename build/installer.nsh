@@ -1,4 +1,4 @@
-; Pulse Hub: arte propio, texto nativo y flujo de actualización de electron-builder.
+; Soflia Hub: arte propio, texto nativo y flujo de actualización de electron-builder.
 !include nsDialogs.nsh
 ; electron-builder omite estos símbolos al declarar customCheckAppRunning.
 !include "getProcessInfo.nsh"
@@ -7,18 +7,18 @@ Var pid
 !define MUI_TEXTCOLOR "0A2540"
 !define MUI_ABORTWARNING
 !define MUI_INSTFILESPAGE_HEADER_TEXT "Tu espacio está tomando forma"
-!define MUI_INSTFILESPAGE_HEADER_SUBTEXT "Instalando Pulse Hub y su motor Python privado."
+!define MUI_INSTFILESPAGE_HEADER_SUBTEXT "Instalando Soflia Hub y su motor Python privado."
 !define MUI_INSTFILESPAGE_COLORS "0A2540 F4FAF9"
-!define MUI_DIRECTORYPAGE_TEXT_TOP "Elige dónde guardar Pulse Hub. Python queda dentro de la aplicación: no cambia el Python ni el PATH de tu equipo."
+!define MUI_DIRECTORYPAGE_TEXT_TOP "Elige dónde guardar Soflia Hub. Python queda dentro de la aplicación: no cambia el Python ni el PATH de tu equipo."
 !define MUI_FINISHPAGE_TITLE "Tu próximo paso empieza aquí."
-!define MUI_FINISHPAGE_TEXT "Pulse Hub se instaló con su motor Python privado.$\r$\n$\r$\nAl abrirlo podrás iniciar sesión y conectar tus herramientas. Los modelos de voz se descargan cuando los necesites; algunas funciones requieren conexión."
-!define MUI_FINISHPAGE_RUN_TEXT "Abrir Pulse Hub ahora"
+!define MUI_FINISHPAGE_TEXT "Soflia Hub se instaló con su motor Python privado.$\r$\n$\r$\nAl abrirlo podrás iniciar sesión y conectar tus herramientas. Los modelos de voz se descargan cuando los necesites; algunas funciones requieren conexión."
+!define MUI_FINISHPAGE_RUN_TEXT "Abrir Soflia Hub ahora"
 !define MUI_FINISHPAGE_RUN_NOTCHECKED
 !define MUI_UNWELCOMEPAGE_TITLE "Hasta la próxima."
-!define MUI_UNWELCOMEPAGE_TEXT "Se retirará Pulse Hub y su motor Python privado.$\r$\n$\r$\nTus datos de usuario se conservan. El Python del sistema no se modifica."
+!define MUI_UNWELCOMEPAGE_TEXT "Se retirará Soflia Hub y su motor Python privado.$\r$\n$\r$\nTus datos de usuario se conservan. El Python del sistema no se modifica."
 
 !macro customHeader
-  BrandingText "Pulse Hub  ${VERSION}"
+  BrandingText "Soflia Hub  ${VERSION}"
   ShowInstDetails hide
 !macroend
 
@@ -68,7 +68,7 @@ Var pid
 
     CreateFont $PulseTitleFont "Segoe UI" 21 600
     CreateFont $PulseBrandFont "Segoe UI" 10 600
-    ${NSD_CreateLabel} 20u 15u 180u 14u "PULSE HUB  /  SOFLIA"
+    ${NSD_CreateLabel} 20u 15u 180u 14u "SOFLIA HUB  /  SOFLIA"
     Pop $0
     SendMessage $0 ${WM_SETFONT} $PulseBrandFont 0
     SetCtlColors $0 "0A2540" "F4FAF9"

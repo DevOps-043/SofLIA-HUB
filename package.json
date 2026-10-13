@@ -2,9 +2,9 @@
   "name": "soflia-hub-desktop",
   "private": true,
   "version": "0.9.9",
-  "description": "Pulse Hub Desktop Client",
+  "description": "Soflia Hub Desktop Client",
   "author": {
-    "name": "Pulse Hub",
+    "name": "Soflia Hub",
     "email": "devops@soflia.ai"
   },
   "scripts": {
@@ -13,7 +13,7 @@
     "dev:clean": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-clean.ps1",
     "dev:fresh": "npm run dev:clean && npm run dev",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
-    "build:app": "npm run typecheck && vite build --config vite.config.mts && npm run presentation:build && npm run audiovisual:build",
+    "build:app": "npm run typecheck && vite build --config vite.config.mts && npm run presentation:build && npm run audiovisual:build && npm run zoom:build",
     "build": "npm run build:app && node scripts/generate-bitmaps.js && node scripts/setup-python-runtime.js && electron-builder && node scripts/build-installer-shell.mjs",
     "build:win": "npm run build:app && node scripts/generate-bitmaps.js && node scripts/setup-python-runtime.js && electron-builder --win && node scripts/build-installer-shell.mjs",
     "build:mac": "npm run build:app && node scripts/generate-bitmaps.js && node scripts/setup-python-runtime.js && electron-builder --mac",
@@ -54,7 +54,9 @@
     "presentation:build": "vite build --config vite.presentation.config.mts",
     "audiovisual:setup": "node scripts/setup-media-runtime.mjs",
     "production:smoke": "node scripts/run-production-smoke.mjs",
-    "audiovisual:build": "vite build --config vite.audiovisual.config.mts"
+    "audiovisual:build": "vite build --config vite.audiovisual.config.mts",
+    "zoom:install": "npm ci --prefix packages/zoom-runtime --ignore-scripts",
+    "zoom:build": "npm run zoom:install && tsc -p packages/zoom-runtime/tsconfig.json && vite build --config vite.zoom.config.mts"
   },
   "dependencies": {
     "tldts": "7.4.10",

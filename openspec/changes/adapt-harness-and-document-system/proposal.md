@@ -36,7 +36,7 @@ desplegar, publicar o documentar como existente una capacidad solo planeada.
 - `antigravity-harness-adapter`: reglas, skills y workflows Antigravity derivados
   de la fuente canonica, sin adaptadores Cursor/Gemini CLI.
 - `system-documentation-catalog`: documentacion integral, trazable y validable del
-  comportamiento y arquitectura implementados de Pulse Hub.
+  comportamiento y arquitectura implementados de Soflia Hub.
 
 ### Modified Capabilities
 

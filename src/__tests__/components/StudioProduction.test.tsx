@@ -1,14 +1,17 @@
-import { act, fireEvent, render, renderHook, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, within, waitFor } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { InstructorStudio } from '../../components/learning-live/instructor/InstructorStudio';
 import { useStudioScenes } from '../../components/learning-live/instructor/useStudioScenes';
 import type { StudioExamples } from '../../components/learning-live/instructor/studio-types';
+import { StudioRuntimeContext, type StudioRuntime } from '../../components/learning-live/instructor/StudioRuntimeContext';
+import { StudioMediaContext, type StudioMediaRuntime } from '../../components/learning-live/instructor/StudioMediaContext';
+import type { StudioCaptureBinding } from '../../shared/studio-capture';
 
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
   HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.unstubAllGlobals(); delete window.studioCapture; });
 const examples: StudioExamples = { participants: 10, resources: [], messages: [{ id: '1', authorId: 'ana', author: 'Ana', role: 'participant', text: 'Mensaje del grupo principal', time: '12:00' }], scenes: [
   { id: 'opening', name: 'Apertura', kind: 'slide', title: 'Bienvenidos al taller', description: 'Empezamos aquí' },
   { id: 'practice', name: 'Práctica', kind: 'slide', title: 'Vamos a practicar', description: 'Trabaja en equipo' },
@@ -87,12 +90,55 @@ describe('salas y escenas del estudio', () => {
 });
 
 describe('medios locales de escenas', () => {
+  it('crea, selecciona y quita escenas aunque Learning rechace cualquier comando', () => {
+    const send = vi.fn(async () => false), upload = vi.fn(async () => { throw new Error('No disponible'); });
+    const runtime = { send, upload } as unknown as StudioRuntime;
+    const view = renderHook(() => useStudioScenes(), { wrapper: ({ children }) => <StudioRuntimeContext.Provider value={runtime}>{children}</StudioRuntimeContext.Provider> });
+    act(() => { expect(view.result.current.addScene({ name: 'Local', kind: 'slide', title: 'Contenido local', description: '', file: null })).toBeNull(); });
+    const id = view.result.current.scenes[0].id;
+    act(() => view.result.current.selectScene(id)); expect(view.result.current.activeScene?.title).toBe('Contenido local');
+    act(() => view.result.current.removeScene(id)); expect(view.result.current.scenes).toHaveLength(0);
+    expect(send).not.toHaveBeenCalled(); expect(upload).not.toHaveBeenCalled();
+  });
+  it('requiere una fuente real y conserva el vínculo hasta quitar la escena', async () => {
+    const capture: StudioCaptureBinding = { id: crypto.randomUUID(), name: 'ChatGPT', kind: 'window', thumbnail: null, withSystemAudio: false };
+    const release = vi.fn(async () => ({ success: true })); window.studioCapture = { release, choose: vi.fn(), activate: vi.fn(), clear: vi.fn() };
+    const view = renderHook(() => useStudioScenes());
+    const draft = { name: 'ChatGPT', kind: 'screen' as const, title: 'Nombre libre', description: '', file: null };
+    act(() => { expect(view.result.current.addScene(draft)).toContain('Vincula'); });
+    act(() => { expect(view.result.current.addScene({ ...draft, capture })).toBeNull(); });
+    const id = view.result.current.activeScene!.id;
+    act(() => view.result.current.selectScene(id)); expect(view.result.current.activeScene?.capture?.id).toBe(capture.id); expect(release).not.toHaveBeenCalled();
+    act(() => view.result.current.removeScene(id)); await waitFor(() => expect(release).toHaveBeenCalledWith({ bindingId: capture.id }));
+  });
+  it('elige una ventana real en el editor y Compartir reutiliza esa fuente', async () => {
+    const capture: StudioCaptureBinding = { id: crypto.randomUUID(), name: 'ChatGPT', kind: 'window', thumbnail: 'data:image/png;base64,aA==', withSystemAudio: false };
+    const choose = vi.fn(async () => ({ success: true as const, binding: capture }));
+    window.studioCapture = { choose, activate: vi.fn(async () => ({ success: true })), release: vi.fn(async () => ({ success: true })), clear: vi.fn(async () => ({ success: true })) };
+    const shareBinding = vi.fn(async () => true);
+    const media = { screen: null, camera: null, mic: null, pending: false, zoomConnected: false, zoomPending: false, zoomSharing: false, zoomStage: null, shareBinding, stopScreen: vi.fn(), toggle: vi.fn(), connectZoom: vi.fn() } as unknown as StudioMediaRuntime;
+    render(<StudioMediaContext.Provider value={media}><InstructorStudio onBack={vi.fn()} onClose={vi.fn()} /></StudioMediaContext.Provider>);
+    fireEvent.click(screen.getByRole('button', { name: 'Nueva escena' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Nombre de la escena' }), { target: { value: 'Mi ventana' } });
+    fireEvent.click(screen.getByRole('combobox', { name: 'Contenido de la escena' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Pantalla, ventana o pestaña' }));
+    expect(screen.queryByRole('textbox', { name: 'Nombre de la fuente' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Guardar escena' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Vincular fuente' }));
+    expect(await screen.findByRole('img', { name: 'Fuente ligada: ChatGPT' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar escena' }));
+    await screen.findByRole('button', { name: 'Mostrar escena Mi ventana' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: 'Compartir pantalla' }));
+    await waitFor(() => expect(shareBinding).toHaveBeenCalledWith(capture.id));
+    expect(choose).toHaveBeenCalledOnce(); expect(stage()).not.toHaveTextContent('Learning no confirmó');
+  });
   it('rechaza tipos y tamaños no admitidos y libera las URLs al quitar y desmontar', () => {
     const create = vi.fn().mockReturnValueOnce('blob:first').mockReturnValueOnce('blob:second');
     const revoke = vi.fn(); vi.stubGlobal('URL', { createObjectURL: create, revokeObjectURL: revoke });
     const view = renderHook(() => useStudioScenes());
     const draft = { name: 'Imagen', kind: 'media' as const, title: 'Imagen', description: '', file: new File(['svg'], 'imagen.svg', { type: 'image/svg+xml' }) };
-    let error: string | null = null;
+    let error: string | null | Promise<string | null> = null;
     act(() => { error = view.result.current.addScene(draft); });
     expect(error).toContain('PNG'); expect(create).not.toHaveBeenCalled();
     const large = new File(['png'], 'grande.png', { type: 'image/png' }); Object.defineProperty(large, 'size', { value: 26 * 1024 * 1024 });
@@ -108,7 +154,7 @@ describe('medios locales de escenas', () => {
   });
   it('limita escenas y evita nombres duplicados', () => {
     const view = renderHook(() => useStudioScenes(Array.from({ length: 12 }, (_, index) => ({ id: `${index}`, name: `Escena ${index}`, kind: 'slide' as const, title: 'Título', description: '' }))));
-    let error: string | null = null;
+    let error: string | null | Promise<string | null> = null;
     const draft = { name: 'Nueva', kind: 'slide' as const, title: '', description: '', file: null };
     act(() => { error = view.result.current.addScene(draft); }); expect(error).toContain('12 escenas');
     act(() => { view.result.current.removeScene('0'); });

@@ -40,7 +40,7 @@ rutina de "noticias de IA a las 8:00" no puede elegir dónde aparece.
   ejecuta una Skill del catálogo —o un prompt libre— y entrega el resultado.
 - Toda Skill, activa o pasiva, declara en qué **canales** está activa para el
   usuario: WhatsApp, Telegram y Computadora. La elección se persiste por usuario
-  en la instancia Pulse Hub, de modo que WhatsApp (proceso main) y el Hub la
+  en la instancia Soflia Hub, de modo que WhatsApp (proceso main) y el Hub la
   resuelvan igual.
 - La entrega de una Skill pasiva se enruta a los canales elegidos: mensaje por
   WhatsApp, mensaje por Telegram y, en Computadora, **la orbe aparece y lo

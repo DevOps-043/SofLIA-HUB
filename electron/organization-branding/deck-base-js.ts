@@ -14,7 +14,7 @@
  * Degradacion: la clase `deck-js` la pone este guion. Sin el, el CSS deja todo
  * visible y estatico. Una presentacion nunca se queda en blanco por esto.
  */
-export const DECK_BASE_JS = `/* Guion base de las presentaciones de Pulse Hub.
+export const DECK_BASE_JS = `/* Guion base de las presentaciones de Soflia Hub.
    NO EDITAR: se reescribe en cada generacion. */
 (function () {
   'use strict';

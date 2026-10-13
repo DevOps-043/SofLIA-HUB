@@ -1,4 +1,4 @@
-# Pulse Hub
+# Soflia Hub
 
 Aplicación de escritorio Electron para operaciones asistidas por IA: WhatsApp,
 Google Workspace, reuniones, monitoreo, memoria, automatización de escritorio y
@@ -71,7 +71,7 @@ para Node y restauran después su ABI de Electron.
 
 ## El agente
 
-Pulse Hub se opera a través de cuatro identidades de agente que comparten memoria
+Soflia Hub se opera a través de cuatro identidades de agente que comparten memoria
 y políticas: el agente de chat en la ventana, el agente de WhatsApp, el agente de
 escritorio (control de computadora) y el agente de reuniones. Todas sus
 capacidades, herramientas, guardas, límites y opciones de configuración están en el

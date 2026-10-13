@@ -1,0 +1,11 @@
+{
+  "name": "@soflia/zoom-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Meeting SDK aislado de React 19 del renderer",
+  "dependencies": {
+    "@zoom/meetingsdk": "6.5.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
+}

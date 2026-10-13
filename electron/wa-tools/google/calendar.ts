@@ -3,7 +3,7 @@ import type { GoogleToolDeclaration } from './types';
 export const CALENDAR_TOOLS: GoogleToolDeclaration[] = [
   {
     name: 'google_calendar_create',
-    description: 'Crea un evento directamente en Google Calendar. Requiere Google conectado en Pulse Hub.',
+    description: 'Crea un evento directamente en Google Calendar. Requiere Google conectado en Soflia Hub.',
     parameters: {
       type: 'OBJECT',
       properties: {

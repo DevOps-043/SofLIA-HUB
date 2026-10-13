@@ -1,5 +1,5 @@
 # =============================================================================
-# Pulse Hub - Lectura local de documentos (PDF, XLSX, PPTX, DOCX)
+# Soflia Hub - Lectura local de documentos (PDF, XLSX, PPTX, DOCX)
 # =============================================================================
 # Antes de este modulo, SofLIA NO podia leer un PDF localmente: la unica via era
 # subir el archivo entero a Gemini (coste, latencia, limite de 15 MB y el

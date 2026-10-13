@@ -1,5 +1,5 @@
 // =============================================================================
-// Pulse Hub - Contexto de aplicaciones de escritorio
+// Soflia Hub - Contexto de aplicaciones de escritorio
 // =============================================================================
 // Contratos del adjunto de aplicaciones abiertas. El usuario marca ventanas en
 // el chat y su contenido acompana al turno como contexto, igual que hoy hacen

@@ -1,6 +1,6 @@
 ## Why
 
-El proceso main se conecta a la base de Pulse Hub con la clave anónima y **sin
+El proceso main se conecta a la base de Soflia Hub con la clave anónima y **sin
 sesión** (`persistSession: false`, ningún `setSession`). Su rol en Postgres es
 `anon`, así que `auth.uid()` es `NULL` y toda política que dependa de la
 identidad del usuario le devuelve cero filas —sin error—. Eso rompe en silencio

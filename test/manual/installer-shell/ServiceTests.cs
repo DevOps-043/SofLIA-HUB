@@ -19,6 +19,22 @@ internal static class ServiceTests {
             foreach (string value in new[] { "", " ", "C:\\", "C:", @"\\servidor\destino", @"C:\uno\..\dos", "C:\\uno\nmal", "C:\\uno\rmal", "C:\\uno\tmal", "C:\\uno\"mal", "C:\\uno'mal", @"C:\uno:flujo", @"C:\uno.\dos", @"C:\uno \dos", @"C:\uno|dos", @"C:\uno?dos", @"C:\uno*dos", "C:\\" + new string('a', 180), Environment.GetFolderPath(Environment.SpecialFolder.Windows) })
                 Reject(() => InstallService.ValidateDestination(value), "rechazar destino: " + value);
             Check(InstallService.ValidateDestination(safe) == safe, "aceptar carpeta nueva");
+            string existing = safe + "-existente";
+            Directory.CreateDirectory(existing);
+            try {
+                File.WriteAllText(Path.Combine(existing, "Pulse Hub.exe"), "prueba");
+                Reject(() => InstallService.ValidateDestination(existing), "rechazar carpeta sin desinstalador");
+                File.WriteAllText(Path.Combine(existing, "Uninstall Pulse Hub.exe"), "prueba");
+                Check(InstallService.ValidateDestination(existing) == existing, "aceptar instalación anterior de Pulse Hub");
+                File.Delete(Path.Combine(existing, "Pulse Hub.exe"));
+                File.Delete(Path.Combine(existing, "Uninstall Pulse Hub.exe"));
+                File.WriteAllText(Path.Combine(existing, "Soflia Hub.exe"), "prueba");
+                File.WriteAllText(Path.Combine(existing, "Uninstall Soflia Hub.exe"), "prueba");
+                Check(InstallService.ValidateDestination(existing) == existing, "aceptar instalación de Soflia Hub");
+            } finally {
+                foreach (string file in Directory.GetFiles(existing)) File.Delete(file);
+                Directory.Delete(existing);
+            }
             Check(InstallService.Arguments(safe + " con espacio") == "/S /currentuser /pulseShell /D=" + safe + " con espacio", "argumentos fijos con espacios");
             byte[] bytes = new byte[300000]; new Random(41).NextBytes(bytes);
             string expected;

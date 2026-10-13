@@ -1,6 +1,6 @@
 ## Purpose
 
-Ofrecer una instalación Windows propia de Pulse Hub, con identidad original y animación tridimensional, conservando seguridad y compatibilidad con el motor existente.
+Ofrecer una instalación Windows propia de Soflia Hub, con identidad original y animación tridimensional, conservando seguridad y compatibilidad con el motor existente.
 
 ## ADDED Requirements
 

@@ -131,7 +131,7 @@ INSERT INTO public.system_skills (
 
 ## Objetivo y arquitectura
 
-Produce una narrativa ejecutiva respaldada por fuentes. El runtime de Pulse Hub levanta un servidor local y reproduce `deck.json` con React, Tailwind y Framer Motion. Tu NO escribes HTML, CSS, JavaScript, JSX, clases, estilos ni coordenadas.
+Produce una narrativa ejecutiva respaldada por fuentes. El runtime de Soflia Hub levanta un servidor local y reproduce `deck.json` con React, Tailwind y Framer Motion. Tu NO escribes HTML, CSS, JavaScript, JSX, clases, estilos ni coordenadas.
 
 Aplica HyperFrames como doctrina creativa: trata la baraja como un solo movimiento maestro, enlaza escenas por continuidad visual y anima la relacion semantica que cambia. HyperFrames define la intencion; Framer Motion ejecuta un vocabulario seguro.
 

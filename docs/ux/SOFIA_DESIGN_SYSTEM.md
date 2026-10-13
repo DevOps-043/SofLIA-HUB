@@ -6,7 +6,7 @@
 
 **Última actualización:** 30 de julio de 2026
 
-**Productos de referencia:** SofLIA Learning, SofLIA Engine, Pulse Hub y futuras herramientas del ecosistema
+**Productos de referencia:** SofLIA Learning, SofLIA Engine, Soflia Hub y futuras herramientas del ecosistema
 
 **Sustituye:** todas las versiones anteriores de `SOFIA_DESIGN_SYSTEM.md`
 
@@ -1734,7 +1734,7 @@ La dropzone:
 | Importar usuarios | Administrativa amplia | `FileUp` | Importar |
 
 Estos cinco flujos constituyen la referencia para futuros modales de SofLIA
-Engine, Pulse Hub y herramientas relacionadas.
+Engine, Soflia Hub y herramientas relacionadas.
 
 #### 16.14.13 Responsive
 
@@ -2994,7 +2994,7 @@ Evitar números arbitrarios sin contexto.
 
 ---
 
-## 37. Adopción en SofLIA Engine y Pulse Hub
+## 37. Adopción en SofLIA Engine y Soflia Hub
 
 ### 37.1 Elementos que permanecen idénticos
 
@@ -3033,7 +3033,7 @@ Priorizar densidad operativa:
 - código en mono;
 - no perder la voz editorial en títulos.
 
-### 37.4 Pulse Hub
+### 37.4 Soflia Hub
 
 Priorizar productividad:
 

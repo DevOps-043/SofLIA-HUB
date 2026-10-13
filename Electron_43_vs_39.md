@@ -506,7 +506,7 @@ La estrategia recomendada es:
 8. Comprobar rendimiento, memoria, seguridad y distribución.
 9. Publicar solo después de completar la validación en vivo.
 
-## 17. Estado verificado de esta migración en Pulse Hub
+## 17. Estado verificado de esta migración en Soflia Hub
 
 Esta sección no es teórica: recoge lo que se comprobó sobre este repositorio con
 Electron 43.3.0 ya fijado. Distingue lo que se corrigió, lo que no aplica y lo

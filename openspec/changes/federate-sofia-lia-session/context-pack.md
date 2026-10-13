@@ -1,7 +1,7 @@
 # Contexto del cambio
 
 - Objetivo: usar la sesión válida de SOFIA como única autenticación visible y abrir automáticamente la sesión operativa de conversaciones sin reutilizar ni sincronizar contraseñas.
-- Usuario o actor: cualquier usuario con cuenta SOFIA y membresía activa que inicia o restaura sesión en Pulse Hub.
+- Usuario o actor: cualquier usuario con cuenta SOFIA y membresía activa que inicia o restaura sesión en Soflia Hub.
 - Alcance: intercambio de identidad SOFIA→Lia mediante una función backend confiable, restauración automática en el renderer, alta idempotente del usuario operativo, estados no técnicos y pruebas del contrato.
 - No objetivos: unificar físicamente ambos proyectos Supabase, migrar los datos históricos a nuevos UUID, exponer claves administrativas al cliente, desplegar secretos o publicar una versión desde este cambio local.
 - Restricciones: conservar el UUID existente de Lia para no romper RLS ni propiedad de conversaciones; validar el JWT de SOFIA dentro del backend; aceptar únicamente la identidad contenida en ese JWT; mantener `service_role` solo en backend; no registrar tokens, contraseñas ni enlaces de acceso.

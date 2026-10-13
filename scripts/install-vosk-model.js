@@ -1,5 +1,5 @@
 // =============================================================================
-// Pulse Hub - Descarga on-demand del modelo Vosk español (voz pasiva local)
+// Soflia Hub - Descarga on-demand del modelo Vosk español (voz pasiva local)
 // =============================================================================
 // Sigue el mismo patron que install-omniparser-model.js: el modelo NO se
 // bundlea en el instalador (evita +40 MB); se descarga bajo demanda.

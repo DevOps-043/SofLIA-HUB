@@ -7,5 +7,11 @@
     "strict": true,
     "noEmit": true
   },
-  "include": ["vite.config.mts", "vite.presentation.config.mts", "vite.audiovisual.config.mts", "config/vite/**/*.mts"]
+  "include": [
+    "vite.config.mts",
+    "vite.presentation.config.mts",
+    "vite.audiovisual.config.mts",
+    "config/vite/**/*.mts",
+    "vite.zoom.config.mts"
+  ]
 }

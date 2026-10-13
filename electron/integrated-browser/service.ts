@@ -93,7 +93,7 @@ import { describeResolutionFailure, resolveBrowserElement, type BrowserElementTa
 import { IntegratedBrowserPermissionGovernance } from './permission-governance';
 import { BrowserSitePermissionStore, normalizeOrigin } from './site-permissions';
 import { POLICY_RECOVERY_LABELS, validatePolicyRecoveryRequest } from '../../src/shared/browser-policy-recovery';
-import { pickDisplayMediaSource } from './display-media-picker';
+import { pickDisplayMediaSource, setDisplayMediaTabProvider } from './display-media-picker';
 import { BrowserReadingModeService, type BrowserReadingSpeechResult } from './reading-mode-service';
 import { BrowserDownloadManager } from './download-manager';
 import { BrowserSessionStore } from './session-store';
@@ -650,6 +650,11 @@ export class IntegratedBrowserService extends EventEmitter {
     if (this.parentWindow === window) return;
     this.detachWindow();
     this.parentWindow = window;
+    setDisplayMediaTabProvider(window, () => {
+      if (this.scopeChanging || this.shutdownCommitted || this.agentControlling) return [];
+      return [...this.tabs.values()].flatMap((tab) => tab.view && !tab.sensitive && !tab.view.webContents.isDestroyed()
+        ? [{ id: tab.id, name: tab.title || 'Pestaña del navegador', documentToken: tab.documentToken, contents: tab.view.webContents }] : []);
+    });
     this.extensionAuthCleanup = onAuthStateChange(() => {
       this.extensionAuthRevision++;
       this.extensionManager.resetForProfileChange();
@@ -721,6 +726,7 @@ export class IntegratedBrowserService extends EventEmitter {
   detachWindow(expectedWindow?: BrowserWindow): void {
     if (expectedWindow && this.parentWindow !== expectedWindow) return;
     if (!this.parentWindow) return;
+    setDisplayMediaTabProvider(this.parentWindow, null);
     this.extensionAuthCleanup?.(); this.extensionAuthCleanup = null; this.extensionAuthRevision++;
     this.cancelSyncOperation();
     this.requestSafety.cancelAll();
@@ -3174,14 +3180,20 @@ export class IntegratedBrowserService extends EventEmitter {
   private configureDisplayMedia(session: WebContentsView['webContents']['session']): void {
     session.setDisplayMediaRequestHandler(async (request, callback) => {
       try {
+        const frame = request.frame;
+        const requestUrl = frame?.url;
+        const isRequestCurrent = () => {
+          try { return !!frame && !frame.detached && frame.url === requestUrl; }
+          catch { return false; }
+        };
         const source = await pickDisplayMediaSource({
           parentWindow: this.parentWindow,
           audioRequested: request.audioRequested,
+          isRequestCurrent,
         });
-        if (!source) {
+        if (!source || !isRequestCurrent()) {
           // Electron exige responder siempre; un objeto vacio cancela la
-          // solicitud y la pagina recibe NotAllowedError, igual que al cerrar
-          // el selector de Chrome.
+          // solicitud y Chromium rechaza la captura sin entregar ningún flujo.
           callback({});
           return;
         }

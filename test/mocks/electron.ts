@@ -13,6 +13,7 @@ import {
 } from './electron/system-ui';
 
 export { app, contextBridge, ipcMain, ipcRenderer, protocol, session };
+export const nativeTheme = { shouldUseDarkColors: false };
 export { BaseWindow, BrowserWindow, WebContentsView, desktopCapturer, powerMonitor, screen };
 export {
   Menu,
@@ -27,6 +28,7 @@ export {
 };
 
 export default {
+  nativeTheme,
   app,
   ipcMain,
   ipcRenderer,

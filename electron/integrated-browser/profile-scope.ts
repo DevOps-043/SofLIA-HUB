@@ -1,5 +1,5 @@
 /**
- * Perfil del navegador integrado, aislado por usuario de Pulse Hub.
+ * Perfil del navegador integrado, aislado por usuario de Soflia Hub.
  *
  * Antes existia un solo perfil global: la particion `persist:` y los archivos de
  * historial, contrasenas, permisos por sitio y extensiones vivian en una ruta

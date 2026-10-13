@@ -1,7 +1,7 @@
 # Sesión del ecosistema en el navegador integrado
 
 Estado: implementado y verificado localmente; publicación autorizada en curso.
-Alcance confirmado: navegador integrado de PulseHub.
+Alcance confirmado: navegador integrado de Soflia Hub.
 
 ## Objetivo
 
@@ -17,7 +17,7 @@ sesiones existentes y el cierre de sesión o cambio de cuenta hecho en la web.
   invitados y privados nunca reciben la identidad del escritorio.
 - RF-ECO-003: recordar por origen una conexión confirmada o una sesión existente. Abrir otra
   pestaña o reiniciar no deshace un cierre de sesión ni reemplaza otra cuenta.
-- RF-ECO-004: ofrecer «Usar mi cuenta de PulseHub» como reconexión explícita.
+- RF-ECO-004: ofrecer «Usar mi cuenta de Soflia Hub» como reconexión explícita.
 - RNF-ECO-001: destinos exactos, sin subdominios implícitos, redirecciones
   HTTP rechazadas, timeout y cancelación al cambiar de perfil o navegación.
 - RNF-ECO-002: los sitios verifican el bearer en Auth y el perfil/membresía;
@@ -25,7 +25,7 @@ sesiones existentes y el cierre de sesión o cambio de cuenta hecho en la web.
 
 ## Entrega
 
-Los tres sitios requieren publicar el endpoint junto con PulseHub. El usuario
+Los tres sitios requieren publicar el endpoint junto con Soflia Hub. El usuario
 autorizó conectar Netlify y publicar el 2026-10-10. La publicación usa commits
 aislados sobre las versiones productivas de cada web. No se incluyen
 Chrome/Edge externos ni migraciones remotas.

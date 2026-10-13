@@ -8,7 +8,7 @@ Estado: **obsoleto; no ejecutar instrucciones históricas**. Actualizado: 2026-0
 
 Esta guía describía el sistema legado que almacenaba credenciales en
 `public.users.password_hash` y las validaba mediante RPC/pgcrypto. Ese contrato
-ya no existe: SofLIA Learning y Pulse Hub autentican contra Supabase Auth y
+ya no existe: SofLIA Learning y Soflia Hub autentican contra Supabase Auth y
 `public.users` conserva solo perfil e identidad de negocio.
 
 No se deben crear columnas de contraseña, restaurar RPCs legados, escribir hashes

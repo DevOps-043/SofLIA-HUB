@@ -45,7 +45,7 @@ describe('MeetingWorkflowManager', () => {
     const message = buildMeetingRunIntroMessage(createRunDetailFixture());
     expect(message).toContain('Weekly Delivery Sync');
     expect(message).toContain('Tipo detectado: Delivery Weekly Sync');
-    expect(message).toContain('Contexto: equipo Producto | proyecto Pulse Hub | objetivo validar avances del sprint, destrabar QA');
+    expect(message).toContain('Contexto: equipo Producto | proyecto Soflia Hub | objetivo validar avances del sprint, destrabar QA');
     expect(message).toContain('Enfoque: acuerdos, bloqueos, siguientes pasos');
     expect(message).toContain('Prompt operativo generado:');
     expect(message).toContain('Voy a priorizar acuerdos, bloqueos, siguientes pasos.');

@@ -29,7 +29,7 @@ export async function generateProposalContent(agent: WhatsAppAgent, clientCompan
     if (response.status !== 'completed' || !response.output_text.trim()) throw new Error('OpenAI no completó la propuesta.');
     return response.output_text;
   };
-  const internalKnowledge = 'Pulse Hub desarrolla SofLIA, un ecosistema de IA empresarial con automatizacion, agentes IA y consultoria en transformacion digital.';
+  const internalKnowledge = 'Soflia Hub desarrolla SofLIA, un ecosistema de IA empresarial con automatizacion, agentes IA y consultoria en transformacion digital.';
   const externalPrompt = `Resume brevemente que hace la empresa "${clientCompanyName}" y que necesidades tecnologicas puede tener.`;
   const externalKnowledge = await generate(externalPrompt);
   const proposalPrompt = `Actua como estratega de negocios.

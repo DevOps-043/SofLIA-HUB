@@ -77,7 +77,7 @@ Dos canales nuevos bajo `desktop-context:`, cada uno con servicio en main, handl
 - `desktop-context:list-apps` devuelve el inventario de ventanas candidatas.
 - `desktop-context:capture-app` extrae el contenido de una ventana concreta y devuelve contenido, nivel, procedencia y avisos.
 
-El inventario excluye las ventanas del propio Pulse Hub, para que el usuario no pueda adjuntar el chat a sí mismo.
+El inventario excluye las ventanas del propio Soflia Hub, para que el usuario no pueda adjuntar el chat a sí mismo.
 
 ### Plataformas
 

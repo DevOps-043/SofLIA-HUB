@@ -13,7 +13,7 @@ El navegador integrado permite leer el DOM y actuar sobre una página, pero no o
 - Preparar localmente marcas, decimales y siglas frecuentes para una dicción española consistente, conservando el mapeo entre el texto pronunciado y los offsets originales.
 - Incluir estados de configuración ausente, contenido no compatible, proveedor no disponible, cancelación y reintento.
 
-No objetivos: editar o persistir cambios en el documento original, narrar automáticamente sin acción del usuario, almacenar audio o texto en la nube de Pulse Hub, clonar voces o eludir permisos del documento.
+No objetivos: editar o persistir cambios en el documento original, narrar automáticamente sin acción del usuario, almacenar audio o texto en la nube de Soflia Hub, clonar voces o eludir permisos del documento.
 
 ## Capabilities
 

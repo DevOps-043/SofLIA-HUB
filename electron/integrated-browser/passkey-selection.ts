@@ -72,7 +72,7 @@ export class BrowserPasskeySelection {
         valid();
         const result = await dialog.showMessageBox(parent, {
           type: 'question', title: 'Elegir cuenta de passkey', message: `Acceder a ${source.origin}`,
-          detail: `Proveedor solicitado: ${rp}\nElige una cuenta del proveedor del sistema. Pulse Hub no recibe ni guarda su clave privada. Si no reconoces este sitio, cancela.`,
+          detail: `Proveedor solicitado: ${rp}\nElige una cuenta del proveedor del sistema. Soflia Hub no recibe ni guarda su clave privada. Si no reconoces este sitio, cancela.`,
           buttons: ['Cancelar', ...accounts.map(account => account.label)], defaultId: 0, cancelId: 0, noLink: true,
           signal: controller.signal,
         });

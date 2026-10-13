@@ -187,7 +187,7 @@ function SlideFrame(props: {
       <Atmosphere emphasis={slide.movimiento.enfasis} reducedMotion={reducedMotion} />
       <SlideContent slide={slide} reducedMotion={reducedMotion} assetBase={props.assetBase} embeddedAssets={props.embeddedAssets} />
       <footer className="absolute bottom-12 left-16 right-16 z-30 flex items-end justify-between border-t border-current/15 pt-5 text-[17px] font-semibold uppercase tracking-[.18em] opacity-55">
-        <span className="max-w-[75%] truncate">{slide.fuente ?? 'Pulse Hub · Presentacion ejecutiva'}</span>
+        <span className="max-w-[75%] truncate">{slide.fuente ?? 'Soflia Hub · Presentacion ejecutiva'}</span>
         <span>{String(props.index + 1).padStart(2, '0')} / {String(props.total).padStart(2, '0')}</span>
       </footer>
     </motion.article>

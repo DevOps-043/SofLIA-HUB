@@ -10,9 +10,9 @@ Estado: vigente. Actualizado: 2026-09-05.
 
 | Plataforma | Target | Nombre |
 |---|---|---|
-| Windows x64 | Entrada visual propia; NSIS como motor silencioso por usuario | `Pulse-Hub-Windows-<version>-Install.exe`; actualizador: `Setup.exe` + blockmap/latest.yml |
-| macOS | DMG | `Pulse-Hub-Mac-<version>-Installer.dmg` + latest-mac.yml |
-| Linux x64 | AppImage y DEB | `Pulse-Hub-Linux-<version>-x64.<ext>` + latest-linux.yml |
+| Windows x64 | Entrada visual propia; NSIS como motor silencioso por usuario | `Soflia-Hub-Windows-<version>-Install.exe`; actualizador: `Setup.exe` + blockmap/latest.yml |
+| macOS | DMG | `Soflia-Hub-Mac-<version>-Installer.dmg` + latest-mac.yml |
+| Linux x64 | AppImage y DEB | `Soflia-Hub-Linux-<version>-x64.<ext>` + latest-linux.yml |
 
 NSIS conserva `userData` al desinstalar (`deleteAppDataOnUninstall: false`), crea
 shortcuts y permite elevacion/directorio. Linux DEB depende de `libportaudio2`.
@@ -61,7 +61,7 @@ de las dependencias y una copia validada del runtime. La junction usada por el
 smoke de compilación no sirve aquí: npm puede considerarla un árbol externo y
 electron-builder omitir transitivas. Se verifica `npm ls`, los recursos de ambos
 sidecars, el ASAR y el EXE con SHA256. `installer-report.json` conserva la fase
-y resultado. No inicia el instalador ni Pulse Hub; no firma ni publica. Es un
+y resultado. No inicia el instalador ni Soflia Hub; no firma ni publica. Es un
 artefacto de prueba sin configuración de cuentas, no un release para usuarios.
 
 La entrada manual es ahora `Install.exe`, una ventana WPF sin marco NSIS, con
@@ -87,7 +87,7 @@ controles WebView al salir, pero no se borra recursivamente su perfil en uso.
 
 El progreso de preparación mide bytes; la fase NSIS es indeterminada porque no
 expone un porcentaje global. No se mata el motor durante escritura. El destino
-debe ser local, sin enlaces y dedicado al producto. Pulse Hub abierto provoca
+debe ser local, sin enlaces y dedicado al producto. Soflia Hub abierto provoca
 rechazo, no cierre forzado, cuando se usa la nueva entrada. Abrir al finalizar
 requiere otro clic. Se conservan Python privado y datos del usuario.
 

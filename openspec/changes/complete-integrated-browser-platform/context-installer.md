@@ -1,7 +1,7 @@
 # Contexto del instalador solicitado
 
-- Objetivo: preparar Python privado y un instalador Windows reconocible como Pulse Hub, con pruebas de empaquetado locales.
-- Usuario o actor: persona que instala Pulse Hub; mantenedor que genera el paquete.
+- Objetivo: preparar Python privado y un instalador Windows reconocible como Soflia Hub, con pruebas de empaquetado locales.
+- Usuario o actor: persona que instala Soflia Hub; mantenedor que genera el paquete.
 - Alcance: preparación recuperable de Python, integridad fijada, imports de voz/documentos, bienvenida NSIS propia, progreso real y finalización explícita; build aislado sin publicación.
 - No objetivos: instalar automáticamente en este equipo, firmar con una identidad no autorizada, publicar releases, migrar servicios, copiar marcas de competidores o declarar terminado el smoke con cuentas reales.
 - Restricciones: conservar datos y Python del sistema; no leer .env; no cambiar navegador predeterminado; mantener actualización/desinstalación de electron-builder y sus guardas.

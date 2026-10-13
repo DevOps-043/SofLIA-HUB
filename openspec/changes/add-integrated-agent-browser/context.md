@@ -1,7 +1,7 @@
 # Contexto del cambio
 
 - Objetivo: incorporar en SofLIA un navegador web persistente, visible y controlable tanto por el usuario como por el agente runtime sobre la misma superficie.
-- Usuario o actor: usuario autenticado de Pulse Hub y agente de escritorio invocado desde el chat del mismo usuario.
+- Usuario o actor: usuario autenticado de Soflia Hub y agente de escritorio invocado desde el chat del mismo usuario.
 - Alcance: vista de navegador en el workspace; historial básico de navegación; sesión persistente aislada; apertura desde UI o agente; captura e inyección de eventos para Computer Use; IPC tipado; permisos sensibles con HITL; pruebas y documentación.
 - No objetivos: extensiones de Chrome, importación de cookies o contraseñas desde perfiles externos, múltiples pestañas, DevTools expuesto al usuario, automatización remota desde WhatsApp/grupos ni sustitución del navegador predeterminado del sistema.
 - Restricciones: Electron main/preload/renderer separados; `sandbox`, `contextIsolation` y `nodeIntegration: false`; solo `http:`/`https:` y `about:blank`; sin acceso Node desde contenido remoto; una sola tarea visual concurrente; UI/prompts/logs/documentación en español.

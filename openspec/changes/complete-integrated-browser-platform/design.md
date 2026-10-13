@@ -2,7 +2,7 @@
 
 El navegador actual usa \`WebContentsView\` con una partición persistente por usuario, stores locales separados, ocho vistas vivas, hasta 500 pestañas lógicas y un agente que combina DOM, CDP y Computer Use. Los contratos básicos de historial, credenciales, extensiones, permisos, lectura y borrado ya existen, pero varios stores y controles permanecen aislados y el motor está fijado a una beta de Electron. Véase \`proposal.md\`.
 
-Electron no ofrece paridad con Chrome ni compatibilidad completa de extensiones. El diseño conserva el navegador como superficie de trabajo de Pulse Hub, con contenido remoto sin Node, sandbox, aislamiento de contexto, permisos denegados por defecto y contratos IPC de cuatro capas.
+Electron no ofrece paridad con Chrome ni compatibilidad completa de extensiones. El diseño conserva el navegador como superficie de trabajo de Soflia Hub, con contenido remoto sin Node, sandbox, aislamiento de contexto, permisos denegados por defecto y contratos IPC de cuatro capas.
 
 ## Goals / Non-Goals
 
@@ -46,7 +46,7 @@ anterior se retiró porque la reproducción falla también con `disable-gpu`.
 
 ### Instalador Windows y Python privado
 
-La ampliación solicitada usa una bienvenida propia NSIS con arte Pulse Hub y
+La ampliación solicitada usa una bienvenida propia NSIS con arte Soflia Hub y
 controles nativos accesibles; conserva las páginas de ubicación, progreso real,
 elevación, actualización y desinstalación de electron-builder. No modifica
 Python del sistema ni cambia el navegador predeterminado. Python se prepara en

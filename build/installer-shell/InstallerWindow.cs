@@ -22,7 +22,7 @@ namespace PulseInstaller {
         CancellationTokenSource cancellation;
         bool active, writing, done, paused, closing, requiresRestart;
         int previewStep;
-        string destination = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Pulse Hub");
+        string destination = InstallService.DefaultDestination();
 
         T Find<T>(string name) where T : class { return window.FindName(name) as T; }
 
@@ -71,7 +71,7 @@ namespace PulseInstaller {
             };
             Find<Button>("OptionsCancel").Click += delegate { Find<Border>("OptionsPanel").Visibility = Visibility.Collapsed; orb.SetVisible(true); primary.Focus(); };
 #if PREVIEW
-            Find<TextBlock>("Footer").Text = "VISTA PREVIA · No instala Pulse Hub · Recursos gráficos temporales";
+            Find<TextBlock>("Footer").Text = "VISTA PREVIA · No instala Soflia Hub · Recursos gráficos temporales";
             primary.Content = "Ver estado de instalación   ↗";
 #endif
             Motion();
@@ -87,7 +87,7 @@ namespace PulseInstaller {
             progress.Value = value.Percent;
             secondary.IsEnabled = !writing;
             status.Text = writing ? "Instalando tu nuevo espacio…" : value.Phase == InstallPhase.Verifying ? "Verificando la integridad del paquete…" : "Preparando el motor · " + value.Percent + "%";
-            detail.Text = writing ? "Pulse Hub y Python privado · El motor no informa un porcentaje global. Puedes minimizar esta ventana." : "Preparación local. No se está descargando ningún componente.";
+            detail.Text = writing ? "Soflia Hub y Python privado · El motor no informa un porcentaje global. Puedes minimizar esta ventana." : "Preparación local. No se está descargando ningún componente.";
         }
 
         async Task Start() {
@@ -106,7 +106,7 @@ namespace PulseInstaller {
             if (done) {
                 if (requiresRestart) { window.Close(); return; }
                 try { Process.Start(new ProcessStartInfo(Path.Combine(destination, InstallService.AppFile)) { UseShellExecute = false, WorkingDirectory = destination }); window.Close(); }
-                catch (Exception) { detail.Text = "No se pudo abrir Pulse Hub. Inténtalo desde el menú Inicio."; }
+                catch (Exception) { detail.Text = "No se pudo abrir Soflia Hub. Inténtalo desde el menú Inicio."; }
                 return;
             }
             active = true; writing = false; orb.Busy = true; primary.IsEnabled = false;
@@ -118,13 +118,13 @@ namespace PulseInstaller {
                 InstallService.EnsureAppClosed();
                 var updates = new Progress<InstallProgress>(Update);
                 int exit = await Task.Run(() => InstallService.Install(destination, updates, cancellation.Token));
-                if (exit != 0 && exit != 3010) throw new InvalidOperationException("El motor terminó con código " + exit + ". Cierra Pulse Hub, revisa espacio y permisos de la carpeta y vuelve a intentarlo.");
+                if (exit != 0 && exit != 3010) throw new InvalidOperationException("El motor terminó con código " + exit + ". Cierra Soflia Hub, revisa espacio y permisos de la carpeta y vuelve a intentarlo.");
                 if (!File.Exists(Path.Combine(destination, InstallService.AppFile))) throw new InvalidOperationException("El motor terminó, pero no se encontró la aplicación en el destino. No se puede confirmar la instalación.");
                 done = true;
                 requiresRestart = exit == 3010;
                 status.Text = "Todo listo. Hazlo tuyo.";
-                detail.Text = exit == 3010 ? "Windows solicita un reinicio. Reinicia antes de abrir Pulse Hub." : "Pulse Hub y Python privado están instalados. Tú decides cuándo abrir la aplicación.";
-                primary.Content = exit == 3010 ? "Cerrar" : "Abrir Pulse Hub   ↗";
+                detail.Text = exit == 3010 ? "Windows solicita un reinicio. Reinicia antes de abrir Soflia Hub." : "Soflia Hub y Python privado están instalados. Tú decides cuándo abrir la aplicación.";
+                primary.Content = exit == 3010 ? "Cerrar" : "Abrir Soflia Hub   ↗";
                 secondary.Content = "Cerrar";
                 progress.IsIndeterminate = false; progress.Value = 100;
             } catch (OperationCanceledException) {
@@ -145,9 +145,9 @@ namespace PulseInstaller {
             EmbeddedAssets.RegisterLibraries();
             bool owner;
             using (var mutex = new Mutex(true, "Local\\PulseHub.BrandedInstaller." + WindowsIdentity.GetCurrent().User.Value, out owner)) {
-                if (!owner) { MessageBox.Show("Ya hay un instalador de Pulse Hub abierto.", "Pulse Hub"); return 1; }
+                if (!owner) { MessageBox.Show("Ya hay un instalador de Soflia Hub abierto.", "Soflia Hub"); return 1; }
                 try { var app = new Application(); var ui = new InstallerWindow(); app.Run(ui.window); return 0; }
-                catch (Exception) { MessageBox.Show("No se pudo abrir el instalador. Comprueba .NET Framework 4.8 y descarga una copia nueva si el problema continúa.", "Pulse Hub"); return 1; }
+                catch (Exception) { MessageBox.Show("No se pudo abrir el instalador. Comprueba .NET Framework 4.8 y descarga una copia nueva si el problema continúa.", "Soflia Hub"); return 1; }
             }
         }
     }

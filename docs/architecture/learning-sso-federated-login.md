@@ -1,7 +1,7 @@
 # Inicio de sesión federado con SofLIA Learning
 
 Estado: vigente. Documenta el sistema tal como está implementado en este
-repositorio (Pulse Hub, escritorio Electron). Fecha: 2026-08-19.
+repositorio (Soflia Hub, escritorio Electron). Fecha: 2026-08-19.
 
 Propósito de este documento: servir de referencia completa y portable para
 implementar el mismo tipo de inicio de sesión federado en **Project Hub**.
