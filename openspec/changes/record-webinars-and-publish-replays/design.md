@@ -15,7 +15,7 @@ el flujo para seguir funcionando si Hub se cierra mientras Zoom continúa activo
 **Non-Goals:** registrar pantallas no compartidas, capturar escenas solo preparadas
 en el Hub, prometer continuidad cuando el webinar realmente termina, grabar
 reuniones ajenas a Soflia, duplicar el backend de vídeo si ya existe, o desarrollar
-un grabador local/bot. No ejecutar implementación ni mutaciones remotas ahora.
+un grabador local/bot. La implementación local fue autorizada posteriormente; las mutaciones remotas siguen pendientes.
 
 ## Decisions
 
@@ -27,6 +27,8 @@ Se descarta capturar la ventana de Zoom desde Electron como solución inicial:
 añadiría dependencia de equipo/disco/audio local y no acreditaría grabación de
 toda la emisión. Un enlace compartido de Zoom tampoco reemplaza el control
 académico del reproductor propio. No cambiar a Video SDK para obtener grabación.
+
+La identidad docente permanece en Soflia. ZOOM_PLATFORM_HOST_IDS configura el pool central; reservas transaccionales evitan solapamientos, incluidas sesiones programadas previamente. Las licencias las administra la plataforma, nunca el docente.
 
 ### DEC-WREC-002 Política obligatoria dentro del producto
 
@@ -169,9 +171,13 @@ Si faltan, estos nombres son **propuestas**, no tablas/rutas existentes:
 | live_recording_runs | Sesión/organización/host, proveedor, UUID de ejecución, estado/cobertura y relación con edición |
 | live_recording_files | file_id remoto, segmentos/layout, object key privada, bytes/duración/hash y validación |
 | live_recording_jobs | Ingesta, lease, intentos, checkpoint y diagnóstico seguro |
-| live_recording_publications | Edición, audiencia académica, intención/revisión, actor, publicación/retiro |
+| live_recording_preferences | Intención por sesión, revisión y actor |
+| live_recording_policies | Cuota, retención y habilitación organizacional de repeticiones |
+| live_recording_artifacts | Reserva de cuota y ledger de objetos pendientes/confirmados |
+| live_recording_audit | Publicación/retiro y purga auditables |
+| live_recording_cursors / live_recording_session_ends | Checkpoint paginado y cierre independiente del orden de callbacks |
 
-Migración aditiva SOFIA, FKs e índices por consulta, unicidad de instancia/archivo,
+Publicación/revisión/retiro son campos del run; no se creó una tabla duplicada de publicaciones. Cinco migraciones aditivas SOFIA, FKs e índices por consulta, unicidad de instancia/archivo,
 RLS sin exposición pública, worker con credencial server-only y endpoint que
 revalida acceso académico. No permitir escritura directa authenticated de estado
 de importación o éxito. Catalogar antes de registrar estos nombres definitivamente.
@@ -269,3 +275,7 @@ layout final, tiempos de alerta/procesamiento y cobertura de ensayos. Son entrad
 del rollout y PoC, no capacidades afirmadas ni permisos concedidos en esta tarea.
 Si la PoC niega cloud o archivo privado, volver a la decisión de arquitectura
 antes de implementar: no sustituir el plan automáticamente por captura local.
+
+## Estado de implementación
+
+Código y comprobaciones locales: [reporte](reports/implementation.md). Se mantiene el gate operativo: cuenta real, privacidad, medios, Storage y presupuesto requieren PoC autorizada. replay_enabled y retention_approved empiezan false. La recuperación SDK requiere verificación separada.

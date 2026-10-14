@@ -28,6 +28,11 @@ export async function requestLearningStudio(input: unknown, deps: { baseUrl: str
     }
     const result = studioResponseSchema.parse(await readLearningResponse(response, 2 * 1024 * 1024));
     if (result.snapshot && (result.snapshot.session_id !== parsed.data.session_id || result.snapshot.user_id !== identity.userId)) throw new Error('Actor incompatible');
+    if(result.recording_snapshot && (result.recording_snapshot.session_id!==parsed.data.session_id || result.recording_snapshot.user_id!==identity.userId))throw new Error('Archivo incompatible');
+    if(result.playback){
+      if(result.playback.session_id!==parsed.data.session_id || result.playback.user_id!==identity.userId || parsed.data.operation.type!=='recordings' || parsed.data.operation.operation.type!=='play' || result.playback.run_id!==parsed.data.operation.operation.run_id)throw new Error('Reproducción incompatible');
+      for(const segment of result.playback.segments){const target=new URL(segment.url);if(target.protocol!=='https:'||!target.hostname.endsWith('.supabase.co')||!target.pathname.startsWith('/storage/v1/object/sign/live-recordings/')||target.username||target.password||target.port)throw new Error('Vídeo incompatible');}
+    }
     if ((await deps.getIdentity())?.userId !== identity.userId) return { success: false, code: 'not_ready', error: 'La cuenta cambió durante la operación.' };
     if (result.upload) {
       const target = new URL(result.upload.url);

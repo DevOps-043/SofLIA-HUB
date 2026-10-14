@@ -20,11 +20,12 @@ export const StudioZoomFrame = forwardRef<StudioZoomHandle, { join: ZoomJoin; on
       if (!message || message.source !== 'soflia-zoom' || message.nonce !== nonce) return;
       if (message.type === 'ready') { ready = true; window.clearTimeout(timeout); frame.current?.contentWindow?.postMessage({ source: 'soflia-studio', nonce, type: 'join', detail: credentials.current }, targetOrigin); }
       else if (message.type === 'connected') callbacks.current.onStatus(true);
-      else if (message.type === 'disconnected') callbacks.current.onStatus(false);
+      else if (message.type === 'disconnected') {callbacks.current.onRecording('unknown');callbacks.current.onStatus(false);}
       else if (message.type === 'error') callbacks.current.onStatus(false, 'Zoom no pudo completar la acción. Revisa los permisos de anfitrión y el ingreso a la reunión.');
       else if (message.type === 'action-error') callbacks.current.onStatus(true, 'Zoom no pudo completar la acción. Usa sus controles para revisar el estado de la reunión.');
       else if (message.type === 'media' && typeof message.detail?.mic === 'boolean' && typeof message.detail?.camera === 'boolean') callbacks.current.onMedia(message.detail);
       else if (message.type === 'recording' && ['Recording','Paused','Stopped'].includes(message.detail)) callbacks.current.onRecording(message.detail);
+      else if (message.type === 'recording-error') callbacks.current.onStatus(true,'Zoom no confirmó el inicio de la grabación. Revisa la configuración de la cuenta de Soflia.');
       else if (message.type === 'sharing' && typeof message.detail === 'boolean') callbacks.current.onShare(message.detail);
     }
     window.addEventListener('message', receive);

@@ -15,7 +15,7 @@ export function injectCSP(): void {
     // el panel las muestra como imagen en vez de leerlas como texto, que era
     // lo que pintaba un PNG como binario y bloqueaba la aplicacion.
     "img-src 'self' data: blob: https: http: pulse-presentacion:",
-    "media-src 'self' data: blob: https://*.supabase.co/storage/v1/object/sign/live-studio-assets/",
+    "media-src 'self' data: blob: https://*.supabase.co/storage/v1/object/sign/live-studio-assets/ https://*.supabase.co/storage/v1/object/sign/live-recordings/",
     "font-src 'self' data: https: http:",
     "connect-src 'self' https: http: ws: wss:",
     "object-src 'none'",

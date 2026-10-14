@@ -48,6 +48,7 @@ Este indice separa documentacion vigente de material historico.
 - [IPC e integraciones](architecture/ipc-and-integrations.md)
 - [Aula de sesiones de Learning](architecture/learning-live-workspace.md)
 - [Operación del estudio síncrono](operations/live-studio-runtime.md)
+- [Grabación y repeticiones de webinars](operations/webinar-recordings.md)
 - [Plan de grabación de webinars y repeticiones en Learning (propuesta)](../openspec/changes/record-webinars-and-publish-replays/design.md)
 - [Movimiento autónomo del orbe y prácticas guiadas](architecture/autonomous-orb-guidance.md)
 - [Project Hub unificado](architecture/project-hub-unified.md)

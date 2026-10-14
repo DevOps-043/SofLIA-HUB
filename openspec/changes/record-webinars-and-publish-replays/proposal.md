@@ -11,7 +11,7 @@ Todos los webinars de Soflia deben grabarse, pero su disponibilidad posterior en
 - Separar grabación obligatoria de publicación voluntaria: grabaciones inicialmente privadas; el instructor autorizado decide si se pueden ver después en Learning.
 - Añadir estado de grabación a Hub y catálogo/reproductor autorizado a Learning.
 
-No objetivos: implementar ahora un grabador de pantalla Electron, cambiar Zoom por Video SDK, integrar proveedores Meet/Teams, publicar vídeos automáticamente, añadir IA/transcripción, ni modificar configuración o datos remotos durante esta planificación.
+No objetivos: implementar ahora un grabador de pantalla Electron, cambiar Zoom por Video SDK, integrar proveedores Meet/Teams, publicar vídeos automáticamente, añadir IA/transcripción, ni modificar configuración o datos remotos sin autorización operativa.
 
 ## Capabilities
 
@@ -26,4 +26,4 @@ Ninguna especificación principal archivada se modifica en esta propuesta. Se ex
 
 ## Impact
 
-Learning: programador Zoom, verificación de acceso, webhook existente, contratos live, persistencia SOFIA, worker duradero, Storage y aula web. Hub: runtime SDK, estado visual y contrato main/IPC/preload/renderer. Zoom: licencias, permisos API/eventos, configuración de grabación y cuota. No se necesita una dependencia de captura local ni un bot de reunión en la primera fase. Los nombres de nuevas tablas, rutas y canales se proponen en diseño; no son contratos existentes ni se implementan en este cambio de planificación.
+Learning: programador Zoom, verificación de acceso, webhook existente, contratos live, persistencia SOFIA, worker duradero, Storage y aula web. Hub: runtime SDK, estado visual y contrato main/IPC/preload/renderer. Zoom: licencias, permisos API/eventos, configuración de grabación y cuota. No se necesita una dependencia de captura local ni un bot de reunión en la primera fase. Los contratos y cinco migraciones SOFIA se implementaron localmente en el checkout coordinado de Learning; su activación y PoC real siguen pendientes.

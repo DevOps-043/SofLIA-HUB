@@ -43,6 +43,11 @@ Al conectar Zoom se liberan las capturas de prueba, se conservan vínculos y el 
 Meeting SDK 6.5.0 usa React 18.3.1 en un paquete privado con lockfile propio, sin forzar su instalación contra React 19 de Hub. Se compila al construir la aplicación y carga desde `soflia-zoom://meeting`, con CSP y protocolo que solo sirve documento y assets compilados. El iframe no comparte preload, identidad ni almacenamiento del renderer. Comunicación limitada por ventana, origen y nonce. La firma y ZAK se obtienen exclusivamente en Learning; no se guardan en disco ni se incluyen en URLs.
 
 ## Contratos y pruebas
+La grabación automática y sus repeticiones usan el contrato recordings dentro
+del canal studio existente. Learning conserva runs/files/jobs privados y el
+permiso de publicación; Hub observa recording-change y muestra el estado real.
+Los instructores utilizan anfitriones centrales de Soflia. Activación y archivo
+se describen en [operación de grabaciones](../operations/webinar-recordings.md).
 La selección de pantalla usa la [interfaz local de compartir](ipc-and-integrations.md#selector-local-de-pantalla),
 con miniaturas reales, búsqueda y categorías de pantallas, ventanas y pestañas
 materializadas del navegador del Hub. Abrir o seleccionar una tarjeta no inicia

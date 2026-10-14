@@ -45,8 +45,9 @@ describe('acceso al estudio conectado', () => {
     expect(screen.queryByRole('region',{name:'Estudio del instructor'})).not.toBeInTheDocument();
   });
   it.each(['rol', 'sesión eliminada'])('descarta el grant anterior al cambiar %s', async (change) => {
-    let invalidate: (notice: unknown) => void = () => {};
-    window.learningLive!.onStudioEvent = (callback) => { invalidate = callback; return () => {}; };
+    const listeners=new Set<(notice:unknown)=>void>();
+    const invalidate=(notice:unknown)=>{for(const listener of [...listeners])listener(notice);};
+    window.learningLive!.onStudioEvent = (callback) => { listeners.add(callback); return () => {listeners.delete(callback);}; };
     studio.mockImplementation(async (_ref, operation) => operation.type === 'zoom' ? {success:true,zoom:{meetingNumber:'123456789',signature:'firma-efimera',userName:'Instructor',password:''}} : {success:true,snapshot});
     render(<LearningWorkspace reference={reference} onBackToSessions={vi.fn()} onClose={vi.fn()} />);
     fireEvent.click(await screen.findByRole('button',{name:/^Conectar Zoom$/}));
