@@ -26,6 +26,35 @@ function renderMonitor() {
   return { view, remove, change: (items: AgentActivity[]) => act(() => change(items)) };
 }
 
+it('Computer Use sin archivos no abre el panel ni deja tarjetas al abrirlo manualmente', async () => {
+  const { change } = renderMonitor(); await act(async () => {});
+  const computer: AgentActivity = { ...team('pantalla', 'computer'), kind: 'computer' };
+  change([computer]);
+  expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+  change([{ ...computer, sequence: 2, status: 'completed' }]);
+  expect(screen.queryByRole('complementary')).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Ver archivos de SofLIA' }));
+  expect(screen.getByText('Tus archivos, a mano')).toBeInTheDocument();
+  expect(screen.queryByText('Computer Use')).not.toBeInTheDocument();
+  expect(screen.queryByText('Resultado disponible en el chat.')).not.toBeInTheDocument();
+  change([computer, team('documento', 'chat')]);
+  expect(screen.getByText('Presentación')).toBeInTheDocument();
+  expect(screen.queryByText('Computer Use')).not.toBeInTheDocument();
+});
+
+it('conserva archivos reales de un trabajo Computer Use y abre al aparecer el entregable', async () => {
+  const { change } = renderMonitor(); await act(async () => {});
+  const computer: AgentActivity = { ...team('pantalla', 'computer'), kind: 'computer' };
+  change([computer]);
+  change([{ ...computer, sequence: 2, execution: {
+    id: 'pantalla', status: 'running', title: 'Informe de pantalla', conversationId: 'chat', summary: '', error: null, tokens: 0,
+    artifacts: [{ id: 'archivo', role: 'evidencia', name: 'informe.txt', format: 'txt', bytes: 20, hash: 'h', inputHash: 'i', verified: true }],
+  } }]);
+  expect(screen.getByRole('complementary', { name: 'Archivos de SofLIA' })).toBeInTheDocument();
+  expect(screen.getByText('Informe de pantalla')).toBeInTheDocument();
+  expect(screen.getByText('informe.txt')).toBeInTheDocument();
+});
+
 it('abre el panel flotante con un equipo nuevo, permite plegar y retira la suscripción', async () => {
   const { view, remove, change } = renderMonitor();
   await act(async () => {});

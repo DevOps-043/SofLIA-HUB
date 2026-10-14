@@ -18,9 +18,14 @@ export function useAgentActivityPanel(): AgentActivityPanelState | null {
 }
 
 /**
- * Un equipo nuevo en curso abre el panel una sola vez: si el usuario lo cierra,
+ * Un trabajo visible nuevo abre el panel una sola vez: si el usuario lo cierra,
  * las actualizaciones posteriores del mismo equipo ya no lo reabren.
  */
 export function hasNewRunningTeam(previousIds: ReadonlySet<string>, items: readonly AgentActivity[]): boolean {
-  return items.some(item => item.status === 'running' && !previousIds.has(item.id));
+  return items.some(item => hasFilePanelContent(item) && item.status === 'running' && !previousIds.has(item.id));
+}
+
+/** El control de pantalla sin entregables no pertenece al espacio de archivos. */
+export function hasFilePanelContent(item: AgentActivity): boolean {
+  return item.kind !== 'computer' || Boolean(item.execution?.artifacts.length);
 }

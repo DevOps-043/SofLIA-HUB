@@ -34,10 +34,73 @@ const base = (client: CuClient, driver: CuDriver, over: Partial<Parameters<typeo
 });
 
 describe('runComputerUseLoop', () => {
+  it('continúa una descarga transitoria en la misma conversación hasta verificar la meta', async () => {
+    const driver = fakeDriver(), client = fakeClient([click(), null, null], ['', 'El launcher está actualizando', 'Minecraft abierto']);
+    client.reanudar = vi.fn(async () => ({ functionCall: { name: 'wait_5_seconds', args: {} }, text: '' }));
+    const verifyCompletion = vi.fn().mockResolvedValueOnce({ confirmed: false, canContinue: true, reason: 'Descarga en curso.' })
+      .mockResolvedValueOnce({ confirmed: true, reason: 'Juego y versión visibles.' });
+    expect(await runComputerUseLoop(base(client, driver, { verifyCompletion }))).toMatchObject({ estado: 'completada', pasos: 3 });
+    expect(client.iniciar).toHaveBeenCalledOnce();
+    expect(client.reanudar).toHaveBeenCalledWith('x', 'Descarga en curso.', undefined);
+    expect(driver.acciones.map(action => action.tipo)).toEqual(['click', 'wait']);
+  });
+  it.each([false, undefined])('no reanuda si la comprobación no autoriza explícitamente continuar (%s)', async canContinue => {
+    const driver = fakeDriver(), client = fakeClient([null], ['¿Quieres continuar?']);
+    client.reanudar = vi.fn();
+    const verifyCompletion = vi.fn(async () => ({ confirmed: false, reason: 'Falta acceso o aprobación.', canContinue }));
+    expect(await runComputerUseLoop(base(client, driver, { verifyCompletion }))).toMatchObject({ estado: 'fallida', pasos: 0 });
+    expect(client.reanudar).not.toHaveBeenCalled(); expect(driver.ejecutar).not.toHaveBeenCalled();
+  });
+  it('acota cierres transitorios repetidos y respeta el presupuesto original', async () => {
+    const driver = fakeDriver(), client = fakeClient([null]);
+    client.reanudar = vi.fn(async () => ({ functionCall: null, text: 'Sigue cargando' }));
+    const verifyCompletion = vi.fn(async () => ({ confirmed: false, canContinue: true, reason: 'Descarga en curso.' }));
+    expect(await runComputerUseLoop(base(client, driver, { verifyCompletion }))).toMatchObject({ estado: 'fallida', pasos: 2 });
+    expect(client.reanudar).toHaveBeenCalledTimes(2);
+    vi.mocked(client.reanudar).mockClear();
+    expect(await runComputerUseLoop(base(client, driver, { maxSteps: 1, verifyCompletion }))).toMatchObject({ estado: 'presupuesto_agotado', pasos: 1 });
+    expect(client.reanudar).toHaveBeenCalledOnce();
+  });
+  it('verifica el cierre tras la última acción sin ejecutar una acción extra', async () => {
+    const driver = fakeDriver(), client = fakeClient([click(), null], ['', 'Listo']);
+    const verifyCompletion = vi.fn(async () => ({ confirmed: true, reason: 'Meta visible.' }));
+    expect(await runComputerUseLoop(base(client, driver, { maxSteps: 1, verifyCompletion }))).toMatchObject({ estado: 'completada', pasos: 1 });
+    expect(driver.ejecutar).toHaveBeenCalledOnce(); expect(verifyCompletion).toHaveBeenCalledOnce();
+  });
+  it('una recuperación conserva el bloqueo HITL antes de una acción sensible', async () => {
+    const driver = fakeDriver(), client = fakeClient([null]);
+    client.reanudar = vi.fn(async () => ({ functionCall: click(50, 50, { decision: 'require_confirmation' }), text: '' }));
+    const verifyCompletion = vi.fn(async () => ({ confirmed: false, canContinue: true, reason: 'Cargando.' }));
+    expect(await runComputerUseLoop(base(client, driver, { verifyCompletion }))).toMatchObject({ estado: 'cancelada' });
+    expect(driver.ejecutar).not.toHaveBeenCalled();
+  });
+  it('cancela la recuperación pendiente y descarta su acción tardía', async () => {
+    const abort = new AbortController(), driver = fakeDriver(), client = fakeClient([null]);
+    let finish!: (value: { functionCall: CuFunctionCall; text: string }) => void;
+    let entered!: () => void; const ready = new Promise<void>(resolve => { entered = resolve; });
+    client.reanudar = vi.fn(() => { entered(); return new Promise<{ functionCall: CuFunctionCall; text: string }>(resolve => { finish = resolve; }); });
+    const verifyCompletion = vi.fn(async () => ({ confirmed: false, canContinue: true, reason: 'Cargando.' }));
+    const result = runComputerUseLoop(base(client, driver, { abortSignal: abort.signal, verifyCompletion }));
+    await ready; abort.abort();
+    expect(await result).toMatchObject({ estado: 'cancelada', pasos: 1 });
+    finish({ functionCall: click(), text: '' }); await Promise.resolve();
+    expect(driver.ejecutar).not.toHaveBeenCalled();
+    expect(client.reanudar).toHaveBeenCalledWith('x', 'Cargando.', abort.signal);
+  });
   it('no declara éxito si el modelo termina después de un clic fallido', async () => {
     const driver = fakeDriver(), client = fakeClient([click(), null], ['', 'Ya abrí Bloc de notas']);
+    client.reanudar = vi.fn();
     vi.mocked(driver.ejecutar).mockRejectedValueOnce(new Error('El clic no se pudo ejecutar'));
     expect(await runComputerUseLoop(base(client, driver))).toMatchObject({ estado: 'fallida', pasos: 1 });
+    expect(client.reanudar).not.toHaveBeenCalled();
+  });
+  it('no ejecuta la recuperación si el destino cambió durante la respuesta', async () => {
+    const driver = fakeDriver(), client = fakeClient([null]); let changed = false;
+    driver.contexto = () => { if (changed) throw new CuContextChangedError(); return {}; };
+    client.reanudar = vi.fn(async () => { changed = true; return { functionCall: click(), text: '' }; });
+    const verifyCompletion = vi.fn(async () => ({ confirmed: false, canContinue: true, reason: 'Cargando.' }));
+    expect(await runComputerUseLoop(base(client, driver, { verifyCompletion }))).toMatchObject({ estado: 'bloqueada', pasos: 1 });
+    expect(driver.ejecutar).not.toHaveBeenCalled();
   });
   it('la captura final debe corroborar la tarea antes de declarar éxito', async () => {
     const driver = fakeDriver(), client = fakeClient([click(), null], ['', 'Listo']);

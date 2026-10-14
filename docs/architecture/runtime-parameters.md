@@ -233,6 +233,7 @@ solo entonces excluye un medio declarándolo.
 | Grupo | Valores default | Fuente |
 |---|---|---|
 | pasos | `maxSteps=120`, `defaultStepBudget=60`, mínimo integrado `90`, `maxTotalSteps=500` | `electron/desktop-agent/agent-config.ts`, `electron/desktop-agent/task-budget.ts` |
+| recuperación de cierre prematuro CU | máximo 2 por loop; cada recuperación consume un paso del presupuesto original y exige `canContinue: true` del verificador | `electron/desktop-agent/gemini-cu/loop.ts`, `electron/desktop-agent/gemini-cu/client.ts` |
 | reintentos por llamada mal formada (chat) | 2: reemitir, luego responder sin herramientas | `src/services/gemini-chat/agentic-loop.ts` |
 | modelo conversacional/CU | `gemini-3.8-flash`, sin degradación de modelo | `src/shared/soflia-runtime-model.ts`, `electron/desktop-agent/gemini-cu/model-registry.ts` |
 | selector conversacional | SofLIA: OpenAI `gpt-6-luna` (predeterminado); Max: OpenAI `gpt-6.1-sol` (3 usos/mes, fallback a SofLIA); Pro: Google `gemini-3.8-flash`; elección y razonamiento persistidos por modelo | `src/hooks/model-selector-options.ts`, `src/hooks/useModelSelector.ts`, `src/services/model-routing.ts` |

@@ -333,6 +333,11 @@ del panel lo mantiene un único proveedor React con una sola suscripción. Main
 conserva los últimos doce equipos en memoria; cerrar sesión o cambiar de usuario
 borra este estado.
 
+Las actividades de tipo `computer` sin artefactos no abren el panel ni aparecen
+en su lista: el control de pantalla conserva sus eventos en el monitor runtime.
+Si esa actividad aporta archivos reales, el panel permite acceder a ellos.
+Los trabajos de documentos y presentaciones conservan su comportamiento.
+
 El panel flotante muestra archivos agrupados por encargo y un estado global,
 sin roles, operaciones ni contadores por agente. Los nombres de archivo pueden
 ocupar varias líneas. El chat muestra la síntesis de SofLIA y los mismos archivos;
