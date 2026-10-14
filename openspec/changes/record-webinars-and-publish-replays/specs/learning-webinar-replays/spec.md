@@ -8,13 +8,20 @@ con control académico de audiencia y acceso independiente de la grabación obli
 ### Requirement: RF-WREP-001 Intención explícita de publicar
 Las grabaciones SHALL ser privadas por defecto. El instructor autorizado SHALL
 poder solicitar disponibilidad antes del evento o publicar una edición después
-de revisarla. Una intención previa SHALL bastar cuando siga vigente; no SHALL
+de revisarla, exclusivamente desde Learning. El estudio de Hub no SHALL mostrar
+preferencias de publicación ni enviar intención para habilitar repetición.
+Una intención previa SHALL bastar cuando siga vigente; no SHALL
 exigir confirmación redundante. Se publicará únicamente una edición íntegra de
 evento finalizado, con rol/audiencia/intención revalidados en servidor.
 
 #### Scenario: Instructor no solicita repetición
 - **WHEN** una grabación termina y se importa correctamente
 - **THEN** permanece privada y no aparece como reproducible para alumnos
+
+#### Scenario: Instructor abre el estudio de Hub
+- **WHEN** el actor tiene permiso de gestión y existe un snapshot de grabación
+- **THEN** Hub muestra únicamente el aviso y estado real, sin opción Permitir ver
+  después en Learning ni interruptor para permitir grabar la sesión
 
 #### Scenario: Instructor habilita antes del evento
 - **WHEN** existe intención vigente autorizada y la edición final queda íntegra

@@ -23,6 +23,8 @@ describe('acceso al estudio conectado', () => {
     expect(await screen.findByRole('region', { name: 'Estudio del instructor' })).toBeInTheDocument();
     expect(studio).toHaveBeenCalledWith(reference, { type: 'snapshot' });
     expect(studio.mock.calls.some(([, operation]) => operation.type === 'zoom')).toBe(false);
+    expect(screen.getByRole('button', { name: 'Conectar sesión' })).toBeInTheDocument();
+    expect(screen.queryByText(/Realtime|Zoom|Permitir ver después/)).not.toBeInTheDocument();
     expect(window.learningLive?.workspace).not.toHaveBeenCalled(); unmount(); expect(unwatch).toHaveBeenCalled();
   });
   it('permite reintentar acceso y separa la vista del participante', async () => {
@@ -30,6 +32,8 @@ describe('acceso al estudio conectado', () => {
     render(<LearningWorkspace reference={reference} onBackToSessions={vi.fn()} onClose={vi.fn()} />);
     expect(await screen.findByRole('alert')).toHaveTextContent('Acceso no disponible'); fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
     expect(await screen.findByRole('region', { name: 'Aula del participante' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Unirme a la sesión' })).toBeInTheDocument();
+    expect(screen.queryByText(/Realtime|Zoom|Permitir ver después/)).not.toBeInTheDocument();
     expect(screen.queryByText('Acceso no disponible')).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Estudio del instructor' })).not.toBeInTheDocument(); expect(screen.getByRole('button', { name: 'Moderar chat' })).toBeDisabled();
   });
@@ -50,8 +54,8 @@ describe('acceso al estudio conectado', () => {
     window.learningLive!.onStudioEvent = (callback) => { listeners.add(callback); return () => {listeners.delete(callback);}; };
     studio.mockImplementation(async (_ref, operation) => operation.type === 'zoom' ? {success:true,zoom:{meetingNumber:'123456789',signature:'firma-efimera',userName:'Instructor',password:''}} : {success:true,snapshot});
     render(<LearningWorkspace reference={reference} onBackToSessions={vi.fn()} onClose={vi.fn()} />);
-    fireEvent.click(await screen.findByRole('button',{name:/^Conectar Zoom$/}));
-    const frame = await screen.findByTitle('Reunión Zoom integrada') as HTMLIFrameElement;
+    fireEvent.click(await screen.findByRole('button',{name:/^Conectar sesión$/}));
+    const frame = await screen.findByTitle('Sesión audiovisual integrada') as HTMLIFrameElement;
     expect(frame).toBeInTheDocument();
     // JSDOM destruye el origen de la ventana hija antes del cleanup pasivo de React.
     vi.spyOn(frame.contentWindow!, 'postMessage').mockImplementation(() => {});
@@ -59,6 +63,6 @@ describe('acceso al estudio conectado', () => {
     await act(async () => { invalidate({session_id:reference.session_id,status:'changed'}); });
     if (change === 'rol') expect(await screen.findByRole('region',{name:'Aula del participante'})).toBeInTheDocument();
     else expect(await screen.findByRole('alert')).toHaveTextContent('Esta sesión ya no está disponible');
-    expect(screen.queryByTitle('Reunión Zoom integrada')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Sesión audiovisual integrada')).not.toBeInTheDocument();
   });
 });

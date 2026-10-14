@@ -132,7 +132,9 @@ del rollout, manteniendo custodia Learning y el mismo contrato de asset.
 Cada webinar se graba y se importa privado independientemente de la preferencia
 de repetición. Propuesta de estado de publicación: `private`, `requested`,
 `published`, `withdrawn`. La opción Ver después en Learning está desactivada por
-defecto. El instructor puede activarla antes del evento o publicar después de
+defecto. Se configura exclusivamente en Learning; Hub no muestra esa opción ni
+envía intención desde el estudio, y conserva solo aviso/estado de grabación.
+El instructor puede activarla antes del evento o publicar después de
 revisar el vídeo; no se le exige un segundo permiso si ya autorizó esa publicación.
 
 Una preferencia anterior es intención de publicar, no acceso inmediato. Solo

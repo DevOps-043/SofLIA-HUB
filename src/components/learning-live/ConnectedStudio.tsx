@@ -42,7 +42,7 @@ function StudioConnection({ reference, onClose, onBack, runtime }: ConnectedStud
     setZoomPending(true); setZoomError('');
     const result = await studioOperation(reference, { type: 'zoom' });
     if (!alive.current) return;
-    if (!result.success || !result.zoom) { setZoomError(result.success ? 'Learning no devolvió acceso a Zoom.' : result.error); setZoomPending(false); return; }
+    if (!result.success || !result.zoom) { setZoomError(result.success ? 'Learning no devolvió acceso a la conexión audiovisual.' : result.error); setZoomPending(false); return; }
     media.stop(); setJoin(result.zoom);
   }
   function leave(callback: () => void) { zoom.current?.command('leave'); media.stop(); callback(); }

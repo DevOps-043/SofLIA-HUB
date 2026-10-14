@@ -48,6 +48,9 @@
 
 ## 7. Repetición opcional en Learning
 
+- [x] 7.6 Retirar del estudio de Hub la preferencia de repetición y toda escritura
+  de intención; conservar aviso/estado e indicar Learning como única superficie.
+
 - [x] 7.1 Implementar intención antes del evento y publicación/retiro después, validando instructor, audiencia y revisión; desactivada por defecto e independiente de grabación.
 - [x] 7.2 Aplicar intención vigente únicamente a edición final íntegra; revalidar rol y evitar publicación por primer segmento, callback duplicado o job tardío tras retirar; exigir revisión específica de huecos, ensayo o cobertura incierta.
 - [x] 7.3 Incorporar panel de revisión del instructor y catálogo de repeticiones publicadas para alumnos, con estados pendiente/no disponible y cobertura visible.

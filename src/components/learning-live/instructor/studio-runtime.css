@@ -2,6 +2,4 @@
 .studio-recording-panel { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:12px 20px; background:var(--color-card-val); border-bottom:1px solid var(--color-border-val); color:var(--color-text-main); }
 .studio-recording-panel strong { display:block; margin-top:4px; font-size:12px; font-weight:500; }
 .studio-recording-panel p { margin:4px 0 0; font-size:11px; color:var(--color-text-secondary-val); }
-.studio-recording-panel label { display:flex; align-items:center; gap:8px; font-size:12px; }
-.studio-recording-panel input { accent-color:var(--color-accent-val); }
 .studio-recording-panel button { margin-left:8px; color:var(--color-accent-val); }

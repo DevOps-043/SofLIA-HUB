@@ -18,6 +18,11 @@
 - [x] 18. Cerrar pruebas dirigidas, smoke nativo, QA visual y compuerta; documentar límite público del SDK.
 
 ## Validación y continuación pendientes
+
+- [x] 19. Retirar textos audiovisuales del proveedor y badge Realtime de la UI
+  propia de Hub; conservar ingreso explícito y traducir diagnósticos de Learning.
+- [x] 20. Documentar el aviso SDK, la diferencia con el backend local anterior y
+  la gestión de preferencias de repetición exclusivamente en Learning.
 - [ ] 7. Con autorización de despliegue, aplicar migración en staging, configurar Meeting SDK/ZAK de DevOps y publicar Learning compatible.
 - [ ] 8. Ensayar ingreso real de instructor/alumno y reconexión Realtime con dos cuentas asignadas.
 - [ ] 9. Integrar publicación automática del contenido síncrono desde Engine; actualmente se importa un manifiesto JSON validado.
@@ -27,3 +32,4 @@
 Evidencia local, alcance y excepciones: [evidence.md](evidence.md). No archivar hasta completar las barreras de validación.
 El selector propio queda verificado localmente: [reporte del selector](reports/display-media-picker.md).
 Escenas locales y fuentes ligadas verificadas: [reporte de escenas](reports/studio-local-scenes.md).
+Presentación y diagnóstico SDK: [reporte del panel](reports/2026-10-14-studio-presentation.md).

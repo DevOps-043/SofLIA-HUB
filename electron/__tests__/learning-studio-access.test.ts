@@ -8,6 +8,20 @@ const input = { organization_slug: 'acme', session_id: session, operation: { typ
 const deps = { baseUrl: 'https://learning.test', getIdentity: async () => ({ userId: user, accessToken: 'privado' }) };
 const snapshot = { user_id: user, session_id: session, title: 'Clase', server_time: '2026-10-12T20:00:00.000Z', can_manage: true, state: emptyStudioState(), asset_urls: {} };
 describe('frontera HTTP del estudio', () => {
+  it.each([
+    ['Falta configurar Meeting SDK en Learning', 'configuración para habilitar el ingreso'],
+    ['Zoom no autorizó al anfitrión; revisa el permiso ZAK', 'permisos de la conexión audiovisual'],
+    ['Esta sesión aún no tiene reunión Zoom', 'aún no está preparada en Learning'],
+  ])('traduce el diagnóstico audiovisual %s sin exponer el proveedor', async (error, expected) => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error }), { status: 503 }));
+    const result = await requestLearningStudio({ ...input, operation: { type: 'zoom' } }, { ...deps, fetcher });
+    expect(result).toMatchObject({ success: false, code: 'unavailable', error: expect.stringContaining(expected) });
+    if (!result.success) expect(result.error).not.toMatch(/Zoom|SDK|ZAK/);
+  });
+  it.each(['constructor', '__proto__', 'toString'])('no acepta propiedades heredadas como diagnóstico %s', async (error) => {
+    const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error }), { status: 503 }));
+    expect(await requestLearningStudio(input, { ...deps, fetcher })).toEqual({ success: false, code: 'unavailable', error: 'No se pudo conectar el estudio. Revisa la configuración de Learning.' });
+  });
   it('rechaza payload inválido y origen no confiable antes de consultar', async () => {
     const fetcher = vi.fn();
     expect(await requestLearningStudio({ ...input, role: 'host' }, { ...deps, fetcher })).toMatchObject({ success: false });

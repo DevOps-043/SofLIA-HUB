@@ -27,6 +27,38 @@ Un 404 con «Sesión no encontrada» procede del handler y revoca el aula/grant 
 
 No se requieren credenciales SDK por instructor mientras las reuniones pertenezcan a la cuenta Zoom maestra. La firma con rol anfitrión requiere ZAK; una cuenta sin permiso/licencia de webinar no adquiere esa licencia al configurar el SDK. Referencia oficial: [autenticación Meeting SDK](https://developers.zoom.us/docs/meeting-sdk/auth/).
 
+## Diagnóstico del aviso de configuración audiovisual
+
+El mensaje «Falta configurar Meeting SDK en Learning» es una respuesta del
+servidor a la operación `zoom` de `POST /api/auth/live/studio`. Hub no lo genera
+al comprobar la instalación del paquete ni al conectar Realtime. La petición
+precede a la creación del iframe audiovisual: recompilar el SDK del escritorio
+no resuelve una firma de ingreso ausente en Learning.
+
+Hub traduce ese diagnóstico a «La conexión audiovisual aún no está configurada
+en Learning. El administrador de Soflia debe completar la configuración para
+habilitar el ingreso». No oculta el fallo ni presenta la sesión como conectada.
+
+Verificar la versión del backend desplegado antes de configurar el entorno del
+servidor. El estudio documentado utiliza `ZOOM_MEETING_SDK_CLIENT_ID` y
+`ZOOM_MEETING_SDK_CLIENT_SECRET`; el módulo anterior `zoom.server.ts` de Learning
+utiliza `ZOOM_MEETING_SDK_KEY` y `ZOOM_MEETING_SDK_SECRET`. Las credenciales OAuth
+que programan reuniones no sustituyen ninguna de esas parejas. No enviar estos
+secretos a Hub ni pedir que cada instructor vincule una cuenta.
+
+En la revisión del 14 de octubre de 2026, el checkout disponible en
+`C:/Users/fysg5/Desktop/SofLIA/Soflia Learning/SofLIA-Learning` estaba en `main`
+y contenía el módulo anterior, sin los archivos del contrato studio ni del panel
+de repeticiones descritos en este cambio. Por ello no permite comprobar la
+condición exacta del backend que devolvió el aviso ni su configuración desplegada.
+La revisión posterior del código remoto de la rama documentada confirmó la
+condición exacta: `createZoomStudioJoin` devuelve 503 con ese aviso cuando falta
+CLIENT_ID o CLIENT_SECRET, antes de buscar las credenciales de la reunión u
+obtener ZAK. Fuente: [firma de ingreso en Learning](https://github.com/DevOps-043/SofLIA-Learning/blob/codex/live-studio-runtime/apps/web/src/features/live/studio-zoom.server.ts).
+No se leyeron archivos `.env`, valores de secretos ni se modificó el servidor.
+Queda por verificar cuál de esas variables falta en el entorno desplegado y
+completar su configuración administrativa; no se declara corregido el ingreso.
+
 ## Retención y barreras de rollout
 
 `live_studio_purge`, invocado por el job existente de retención, limpia ledger después de siete días y estado de sesiones cerradas al superar la retención de organización (30 días por defecto). El job reclama hasta 100 archivos por ejecución, borra bytes mediante Storage API y confirma su ledger. Archivos retirados o subidas sin publicar tienen 24 horas de gracia; material de sesiones cerradas sigue la retención de organización. El bloqueo de sesión y el estado purging impiden publicar un archivo reclamado. Si Storage falla se conserva la reclamación para reintento. Programar y verificar el job en staging antes del rollout general.

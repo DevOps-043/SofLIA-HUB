@@ -24,8 +24,6 @@
 .studio-session-heading h1 { font-size: 14px; font-weight: 600; letter-spacing: -.025em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 3px 0 0; }
 .studio-brand-mark { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; background: color-mix(in srgb, var(--studio-accent) 10%, transparent); color: var(--studio-accent); flex: 0 0 auto; }
 .studio-topbar-actions { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
-.studio-design-badge { display: flex; align-items: center; gap: 6px; color: var(--studio-muted); font-size: 12px; }
-.studio-design-badge svg { width: 13px; height: 13px; }
 .studio-rehearse { display: flex; align-items: center; gap: 8px; border: 1px solid var(--studio-border) !important; border-radius: 10px; padding: 6px 10px; font-weight: 600 !important; font-size: 13px !important; background: var(--studio-surface) !important; }
 .studio-rehearse i { width: 6px; height: 6px; border-radius: 50%; background: var(--studio-muted); }
 .studio-rehearse.is-rehearsing { color: var(--studio-accent); background: color-mix(in srgb, var(--studio-accent) 5%, var(--studio-surface)) !important; }
@@ -84,7 +82,7 @@
 .studio-mobile-nav { display: none; }
 @container instructor-studio (max-width: 1200px) {
   .studio-layout { grid-template-columns: 250px minmax(0,1fr) 250px; gap: 14px; padding: 16px 16px 0; }
-  .studio-topbar { padding: 8px 16px; }.studio-design-badge { display: none; }.studio-production-heading h2 { font-size: 17px; }.studio-slide-flow { margin-top: 12px; }.studio-slide-flow > span { padding: 5px 6px; font-size: 10px; }.studio-example-slide { padding-top: 40px; }.studio-slide-content h3 { font-size: 27px; }.studio-slide-brand { display: none; }.studio-camera-preview.is-overlay { width: 26%; }
+  .studio-topbar { padding: 8px 16px; }.studio-production-heading h2 { font-size: 17px; }.studio-slide-flow { margin-top: 12px; }.studio-slide-flow > span { padding: 5px 6px; font-size: 10px; }.studio-example-slide { padding-top: 40px; }.studio-slide-content h3 { font-size: 27px; }.studio-slide-brand { display: none; }.studio-camera-preview.is-overlay { width: 26%; }
 }
 @container instructor-studio (max-width: 960px) {
   .studio-mobile-nav { display: flex; gap: 8px; padding: 10px 16px 0; justify-content: center; }

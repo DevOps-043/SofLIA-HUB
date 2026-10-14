@@ -14,7 +14,7 @@ const status = document.getElementById('status')!;
 let parentOrigin = '*';
 function emit(type: string, detail?: unknown) { parent.postMessage({ source: 'soflia-zoom', nonce, type, detail }, parentOrigin); }
 const sharing = manageZoomSharing(navigator.mediaDevices, (active) => emit('sharing', active));
-function failed() { status.hidden = false; status.textContent = 'Zoom no pudo completar la acción. Revisa el ingreso, los permisos y la conexión.'; emit(joined ? 'action-error' : 'error', status.textContent); }
+function failed() { status.hidden = false; status.textContent = 'No se pudo completar la acción. Revisa el ingreso, los permisos y la conexión.'; emit(joined ? 'action-error' : 'error', status.textContent); }
 function subscribeEvents() {
 if(subscribed)return;subscribed=true;
 client.on('recording-change', state=>{recordingState=state;emit('recording',state);});

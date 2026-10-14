@@ -14,6 +14,13 @@ La entrada Sesiones síncronas, debajo de Navegador y Reuniones, abre la agenda 
 
 `ConnectedStudio` consulta el snapshot del estudio y selecciona Instructor o Participante exclusivamente con el `can_manage` de Learning. La primera vista conserva chat y estadísticas a la izquierda, escenario y escenas al centro, herramientas a la derecha y barra de medios compacta. La segunda recibe contenido, chat permitido, materiales, quiz publicado y prácticas. El selector de rol existe solo en las fixtures de prueba.
 
+El panel usa Conectar sesión para el instructor y Unirme a la sesión para el
+participante. Las etiquetas, ayudas y errores propios de Hub no nombran al
+proveedor audiovisual ni muestran el estado técnico de Realtime. La suscripción
+y la recuperación de snapshots se conservan. El runtime del proveedor conserva
+sus controles oficiales. Hub muestra el estado de grabación, pero la preferencia
+de disponibilidad posterior se administra exclusivamente en Learning.
+
 ## Estado y autorización
 
 Learning es dueño del estado académico; Hub no escribe contenido directamente en Supabase. La API `POST /api/auth/live/studio` valida cuerpo estricto de 32 KiB, bearer, organización y curso. Los comandos académicos identifican operación con UUID y revisión; una transacción serializa la sesión, revalida autorización y deduplica por actor/comando. El chat, actividades y permisos requieren confirmación del servidor. Las escenas de producción y sus vínculos se preparan localmente y no dependen de esa confirmación.

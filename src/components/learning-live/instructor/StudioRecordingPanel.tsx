@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useStudioRuntime } from "./StudioRuntimeContext";
 import {
   studioOperation,
   onStudioInvalidation,
@@ -24,10 +23,8 @@ export function StudioRecordingPanel({
   reference: LearningLiveSessionReference;
   sdkStatus: string;
 }) {
-  const runtime = useStudioRuntime();
   const [data, setData] = useState<RecordingSnapshot | null>(null),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
+    [error, setError] = useState("");
   const alive = useRef(false),
     pending = useRef(false),
     dirty = useRef(false);
@@ -76,27 +73,6 @@ export function StudioRecordingPanel({
       off();
     };
   }, [session, refresh]);
-  async function change(requested: boolean) {
-    if (!data || busy) return;
-    setBusy(true);
-    const result = await studioOperation(reference, {
-      type: "recordings",
-      operation: { type: "intent", revision: data.revision, requested },
-    });
-    if (alive.current) {
-      if (
-        result.success &&
-        result.recording_snapshot &&
-        result.recording_snapshot.session_id === session
-      )
-        setData(result.recording_snapshot);
-      else
-        setError(
-          result.success ? "No se confirmó la preferencia." : result.error,
-        );
-      setBusy(false);
-    }
-  }
   const latest = data?.runs[0];
   const recording =
     sdkStatus === "Recording" ||
@@ -104,7 +80,7 @@ export function StudioRecordingPanel({
   return (
     <section
       className="studio-recording-panel"
-      aria-label="Grabación del webinar"
+      aria-label="Grabación de la sesión"
     >
       <div>
         <span className="studio-eyebrow">GRABACIÓN AUTOMÁTICA</span>
@@ -122,24 +98,12 @@ export function StudioRecordingPanel({
                   ? labels[latest.status]
                   : data?.availability === "missing"
                     ? "Grabación sin confirmar"
-                    : "Esperando confirmación de Zoom"}
+                    : "Esperando confirmación de grabación"}
         </strong>
         <p>
-          El vídeo se guarda privado en Soflia. No necesitas una cuenta
-          individual de Zoom.
+          El vídeo se guarda de forma privada en Soflia.
         </p>
       </div>
-      {runtime?.snapshot.can_manage && data?.can_manage && (
-        <label>
-          <input
-            type="checkbox"
-            checked={data.requested}
-            disabled={busy}
-            onChange={(event) => void change(event.target.checked)}
-          />
-          Permitir ver después en Learning
-        </label>
-      )}
       {error && (
         <p role="alert">
           {error}

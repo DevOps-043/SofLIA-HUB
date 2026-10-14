@@ -80,7 +80,7 @@ export function useStudioSceneSharing(scenes: ReturnType<typeof useStudioScenes>
           if (error) { await studioCapture.release(chosen.id); setSceneError(error); return; }
         }
       }
-      if (media.zoomConnected) { await studioCapture.activate(binding.id); setSceneError('Fuente ligada. Pulsa Compartir en la reunión Zoom para transmitir esta escena.'); }
+      if (media.zoomConnected) { await studioCapture.activate(binding.id); setSceneError('Fuente ligada. Pulsa Compartir en la llamada para transmitir esta escena.'); }
       else await media.shareBinding(binding.id);
     } catch { if (alive.current) setSceneError('No pudimos abrir la fuente ligada. Revisa permisos o vuelve a vincularla.'); }
     finally { sceneBusy.current = false; if (alive.current) setScenePending(false); }

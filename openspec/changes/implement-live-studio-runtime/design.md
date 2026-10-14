@@ -46,3 +46,14 @@ No se usan selectores DOM privados del SDK ni métodos inventados.
 
 ## Despliegue
 Preparar migración y endpoints en el checkout Learning; verificación local antes de aplicar/publicar. No aplicar SQL remoto en este cambio. SDK requiere configurar credenciales y permiso ZAK de la cuenta maestra. Rollback: volver a Hub anterior y deshabilitar rutas studio; conservar datos para recuperación.
+
+## Presentación del estudio (2026-10-14)
+Los controles propios de Hub hablan de sesión y llamada: Conectar sesión y Unirme
+a la sesión. Se retira el badge de conexión Realtime, conservando la suscripción
+autorizada y el botón Actualizar. Los errores conocidos de SDK, permisos ZAK y
+reunión sin preparar se traducen en main a diagnósticos audiovisuales de Soflia.
+No se alteran operación, firma, rol, protocolo aislado ni controles oficiales SDK.
+La grabación sigue visible como estado; la preferencia de repetición pertenece
+exclusivamente al panel de Learning. Hub no envía intención desde el estudio.
+La discrepancia entre los nombres de credenciales del estudio y el backend local
+anterior se documenta sin modificar secretos ni afirmar reparación del despliegue.

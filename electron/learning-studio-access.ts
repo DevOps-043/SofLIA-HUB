@@ -2,6 +2,15 @@ import { studioRequestSchema, studioResponseSchema, type StudioResult } from '..
 import { learningLiveEndpoint, readLearningResponse } from './learning-live-http';
 
 const integrationUnavailable = 'El estudio de Learning todavía no está habilitado para Soflia Hub.';
+const knownErrors: Record<string, string> = {
+  'Falta configurar Meeting SDK en Learning': 'La conexión audiovisual aún no está configurada en Learning. El administrador de Soflia debe completar la configuración para habilitar el ingreso.',
+  'Zoom no autorizó al anfitrión; revisa el permiso ZAK': 'No se autorizó el ingreso del anfitrión. El administrador de Soflia debe revisar los permisos de la conexión audiovisual.',
+  'Esta sesión aún no tiene reunión Zoom': 'La conexión audiovisual de esta sesión aún no está preparada en Learning.',
+  'Tu chat está en modo lectura': 'Tu chat está en modo lectura',
+  'No hay participantes conectados para distribuir': 'No hay participantes conectados para distribuir',
+  'El contenido pertenece a otro curso': 'El contenido pertenece a otro curso',
+  'La sesión está cerrada': 'La sesión está cerrada',
+};
 
 export async function requestLearningStudio(input: unknown, deps: { baseUrl: string; getIdentity: () => Promise<{ userId: string; accessToken: string } | null>; fetcher?: typeof fetch }): Promise<StudioResult> {
   const parsed = studioRequestSchema.safeParse(input);
@@ -14,7 +23,7 @@ export async function requestLearningStudio(input: unknown, deps: { baseUrl: str
     if (!identity) return { success: false, code: 'not_ready', error: 'Inicia sesión para abrir el estudio.' };
     const response = await (deps.fetcher || fetch)(endpoint, { method: 'POST', redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(25000), headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${identity.accessToken}` }, body });
     if (!response.ok) {
-      let error = response.status === 409 ? 'El estado cambió. Se actualizará el panel; revisa la acción antes de reintentar.' : response.status === 404 || response.status === 405 ? integrationUnavailable : response.status === 429 ? 'Espera un momento antes de continuar.' : response.status >= 500 ? 'No se pudo conectar el estudio. Revisa la configuración de Learning y Zoom SDK.' : 'Learning no autorizó esta operación.';
+      let error = response.status === 409 ? 'El estado cambió. Se actualizará el panel; revisa la acción antes de reintentar.' : response.status === 404 || response.status === 405 ? integrationUnavailable : response.status === 429 ? 'Espera un momento antes de continuar.' : response.status >= 500 ? 'No se pudo conectar el estudio. Revisa la configuración de Learning.' : 'Learning no autorizó esta operación.';
       const detail = await readLearningResponse(response, 4096).catch(() => null) as { error?: unknown } | null;
       if (response.status === 401) {
         // El filtro de cookies web puede rechazar una ruta aún sin habilitar para bearer.
@@ -22,8 +31,7 @@ export async function requestLearningStudio(input: unknown, deps: { baseUrl: str
         return { success: false, code: 'not_ready', error: 'Learning no pudo validar tu sesión. Vuelve a iniciar sesión en Hub.' };
       }
       if (response.status === 404 && detail?.error === 'Sesión no encontrada') return { success: false, code: 'access_denied', error: 'Esta sesión ya no está disponible en tu organización.' };
-      const known = ['Falta configurar Meeting SDK en Learning', 'Zoom no autorizó al anfitrión; revisa el permiso ZAK', 'Esta sesión aún no tiene reunión Zoom', 'Tu chat está en modo lectura', 'No hay participantes conectados para distribuir', 'El contenido pertenece a otro curso', 'La sesión está cerrada'];
-      if (typeof detail?.error === 'string' && known.includes(detail.error)) error = detail.error;
+      if (typeof detail?.error === 'string' && Object.prototype.hasOwnProperty.call(knownErrors, detail.error)) error = knownErrors[detail.error];
       return { success: false, code: response.status === 409 ? 'conflict' : response.status >= 500 || [404, 405, 429].includes(response.status) ? 'unavailable' : 'access_denied', error };
     }
     const result = studioResponseSchema.parse(await readLearningResponse(response, 2 * 1024 * 1024));
