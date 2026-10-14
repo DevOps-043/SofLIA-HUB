@@ -134,7 +134,7 @@ Los modelos y el nivel de razonamiento se seleccionan según proveedor configura
 | --- | --- | --- |
 | Local, fase 1 | Cambiar de chat, ocultar panel o dejar de interactuar | Proceso main vivo, sesión vigente y recursos disponibles |
 | Recuperación local, fase 1 | Retomar pasos seguros después de reiniciar | Cifrado disponible, puntos guardados y autorización revalidada |
-| Remota, fase 3 | Trabajar con PulseHub cerrado o el ordenador apagado | Infraestructura remota; herramientas y datos accesibles allí con permiso |
+| Remota, fase 3 | Trabajar con Soflia Hub cerrado o el ordenador apagado | Infraestructura remota; herramientas y datos accesibles allí con permiso |
 | Remota con recurso local, fase 3 | Coordinar en nube y solicitar pasos locales | Puente autenticado y ordenador conectado; si falta, esperar el recurso |
 
 No subir carpetas ni migrar contextos de ejecución automáticamente. La futura infraestructura remota define identidad de servicio, aislamiento, retención, costes y permisos. Programar o reaccionar a eventos exige una solicitud expresa; iniciar un trabajo no crea seguimiento indefinido.

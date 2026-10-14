@@ -1,0 +1,34 @@
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
+import type { ZoomJoin } from '../../../shared/live-studio.contract';
+
+export type StudioZoomHandle = { command: (type: 'mute' | 'visit-room' | 'leave' | 'stop-share', detail?: unknown) => void };
+export const StudioZoomFrame = forwardRef<StudioZoomHandle, { join: ZoomJoin; onStatus: (connected: boolean, error?: string) => void; onMedia: (media: { mic: boolean; camera: boolean }) => void; onShare: (sharing: boolean) => void; onRecording: (status: string) => void }>(function StudioZoomFrame({ join, onStatus, onMedia, onShare, onRecording }, handle) {
+  const frame = useRef<HTMLIFrameElement>(null);
+  const [nonce] = useState(() => crypto.randomUUID());
+  const callbacks = useRef({ onStatus, onMedia, onShare, onRecording }); callbacks.current = { onStatus, onMedia, onShare, onRecording };
+  const credentials = useRef(join);
+  const targetOrigin = window.learningLive?.sdkFrameUrl ? 'soflia-zoom://meeting' : location.protocol === 'file:' ? '*' : location.origin;
+  const url = window.learningLive?.sdkFrameUrl ? `${window.learningLive.sdkFrameUrl}#${nonce}` : import.meta.env.DEV ? `/packages/zoom-runtime/index.html#${nonce}` : `./zoom-runtime/index.html#${nonce}`;
+  useImperativeHandle(handle, () => ({ command: (type, detail) => frame.current?.contentWindow?.postMessage({ source: 'soflia-studio', nonce, type, detail }, targetOrigin) }), [nonce, targetOrigin]);
+  useEffect(() => {
+    const frameWindow = frame.current?.contentWindow;
+    let ready = false;
+    const timeout = window.setTimeout(() => { if (!ready) callbacks.current.onStatus(false, 'No se pudo cargar Meeting SDK. Comprueba los recursos del runtime.'); }, 20000);
+    function receive(event: MessageEvent) {
+      if (event.source !== frame.current?.contentWindow || event.origin !== (targetOrigin === '*' ? 'null' : targetOrigin)) return;
+      const message = event.data;
+      if (!message || message.source !== 'soflia-zoom' || message.nonce !== nonce) return;
+      if (message.type === 'ready') { ready = true; window.clearTimeout(timeout); frame.current?.contentWindow?.postMessage({ source: 'soflia-studio', nonce, type: 'join', detail: credentials.current }, targetOrigin); }
+      else if (message.type === 'connected') callbacks.current.onStatus(true);
+      else if (message.type === 'disconnected') callbacks.current.onStatus(false);
+      else if (message.type === 'error') callbacks.current.onStatus(false, 'Zoom no pudo completar la acción. Revisa los permisos de anfitrión y el ingreso a la reunión.');
+      else if (message.type === 'action-error') callbacks.current.onStatus(true, 'Zoom no pudo completar la acción. Usa sus controles para revisar el estado de la reunión.');
+      else if (message.type === 'media' && typeof message.detail?.mic === 'boolean' && typeof message.detail?.camera === 'boolean') callbacks.current.onMedia(message.detail);
+      else if (message.type === 'recording' && ['Recording','Paused','Stopped'].includes(message.detail)) callbacks.current.onRecording(message.detail);
+      else if (message.type === 'sharing' && typeof message.detail === 'boolean') callbacks.current.onShare(message.detail);
+    }
+    window.addEventListener('message', receive);
+    return () => { window.clearTimeout(timeout); window.removeEventListener('message', receive); frameWindow?.postMessage({ source: 'soflia-studio', nonce, type: 'leave' }, targetOrigin); };
+  }, [nonce, targetOrigin]);
+  return <iframe ref={frame} className="studio-zoom-frame" title="Reunión Zoom integrada" src={url} sandbox="allow-scripts allow-same-origin allow-forms" allow="camera; microphone; display-capture; autoplay; fullscreen" />;
+});

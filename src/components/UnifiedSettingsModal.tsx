@@ -138,7 +138,7 @@ export const UnifiedSettingsModal = ({
 
           {/* Footer del Sidebar */}
           <div className="mt-auto w-full p-4 px-6 text-center border-t border-border/50 shrink-0 select-none flex items-center justify-between">
-            <span className="text-[9.5px] text-secondary/70 font-mono tracking-wider uppercase">PULSE HUB</span>
+            <span className="text-[9.5px] text-secondary/70 font-mono tracking-wider uppercase">SOFLIA HUB</span>
             <span className="px-2 py-0.5 rounded-full text-[9px] font-mono bg-black/5 dark:bg-white/5 text-secondary border border-border/60">
               v{currentVersion}
             </span>

@@ -9,7 +9,7 @@ export function AuthVersion({ version }: { version: string }) {
       className="mt-8 text-center"
     >
       <p className="text-gray-400/50 dark:text-white/20 text-xs font-medium tracking-wider">
-        PULSE HUB v{version}
+        SOFLIA HUB v{version}
       </p>
     </motion.div>
   );

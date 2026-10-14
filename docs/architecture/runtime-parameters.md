@@ -349,6 +349,19 @@ mejor esfuerzo al cerrar; un cierre abrupto o un bloqueo de Office puede dejar
 una copia temporal. Fuentes: `src/shared/artifact-viewer.ts`,
 `electron/artifact-viewer/` y `src/components/artifacts/pdf-runtime.ts`.
 
+## Selector de compartir pantalla
+
+Hasta 100 fuentes por solicitud; miniaturas de 480 × 270 píxeles. Una ventana
+modal por padre, timeout de 120 segundos y actualización manual sin polling.
+Miniaturas y objetos de captura efímeros en memoria; no se guardan capturas.
+Solo pestañas materializadas del perfil actual, sin activar pestañas frías.
+El estudio conserva hasta 14 vínculos (12 escenas más edición/reemplazo),
+concesión de vista local de un solo uso por 10 segundos y una captura local de
+pantalla. Los vínculos se liberan al salir, navegar, cerrar o cambiar actor;
+no sobreviven al cierre del estudio ni se guardan en Learning.
+Fuentes: `electron/integrated-browser/display-media-picker.ts` y
+`electron/integrated-browser/display-media-sources.ts`.
+
 ## Producción audiovisual local
 
 Una producción simultánea, doce minutos, 6–60 segundos, 30/60 fps, 1280/1920 de ancho, MP4 hasta 80 MB y workspace hasta 128 MB. Manifiestos de 512 KB; máximo tres entidades visibles por escena. [Contrato y operación](presentation-audiovisual-production.md).

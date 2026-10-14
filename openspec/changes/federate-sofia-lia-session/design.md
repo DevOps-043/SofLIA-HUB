@@ -1,6 +1,6 @@
 ## Context
 
-Pulse Hub usa dos proyectos Supabase: SOFIA es la identidad principal y Lia almacena conversaciones con RLS ligado a `auth.uid()`. El cliente actual autentica ambos proyectos con el mismo correo y contraseña. Esta duplicación no constituye SSO: una modificación de contraseña en SOFIA no modifica Lia y deja al usuario dentro de la aplicación pero sin acceso al chat.
+Soflia Hub usa dos proyectos Supabase: SOFIA es la identidad principal y Lia almacena conversaciones con RLS ligado a `auth.uid()`. El cliente actual autentica ambos proyectos con el mismo correo y contraseña. Esta duplicación no constituye SSO: una modificación de contraseña en SOFIA no modifica Lia y deja al usuario dentro de la aplicación pero sin acceso al chat.
 
 La corrección cruza autenticación, una Edge Function, el renderer y operación. Debe conservar el UUID Lia ya asociado con conversaciones, evitar cualquier secreto administrativo en Electron y no convertir un fallo secundario en cierre de la sesión principal.
 

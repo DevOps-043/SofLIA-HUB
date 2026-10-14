@@ -1,7 +1,7 @@
 # Contexto del cambio
 
 - Objetivo: reemplazar la ventana convencional, no volver a decorar sus páginas.
-- Usuario o actor: persona que instala Pulse Hub en Windows x64.
+- Usuario o actor: persona que instala Soflia Hub en Windows x64.
 - Alcance: ventana WPF propia, logo original, componente React/Three.js original en WebView2 local, interacción y accesibilidad, motor NSIS silencioso embebido, empaquetado y pruebas.
 - No objetivos: despliegue, firma, instalación real sobre el equipo del usuario, migraciones, nuevo actualizador o descarga de motores gráficos.
 - Restricciones: conservar cambios existentes en el worktree dedicado; no modificar secretos. Python privado permanece dentro del paquete existente.

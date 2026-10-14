@@ -1,6 +1,6 @@
 ## Why
 
-Pulse Hub autentica al usuario en SOFIA pero intenta abrir las conversaciones reutilizando esa misma contraseña en un segundo proyecto. Cuando la contraseña cambia o las cuentas divergen, el inicio principal funciona y el chat queda bloqueado con mensajes técnicos; la autenticación secundaria debe derivarse automáticamente de la identidad principal.
+Soflia Hub autentica al usuario en SOFIA pero intenta abrir las conversaciones reutilizando esa misma contraseña en un segundo proyecto. Cuando la contraseña cambia o las cuentas divergen, el inicio principal funciona y el chat queda bloqueado con mensajes técnicos; la autenticación secundaria debe derivarse automáticamente de la identidad principal.
 
 ## What Changes
 

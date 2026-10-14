@@ -30,7 +30,7 @@ y 17,43 % y RAM entre 779,26 y 779,41 MB.
 
 Este resultado confirma el impacto del mecanismo en Chromium, no promete la
 misma reducción para cualquier sitio o equipo. El fixture es sintético, local y
-no incluye todos los servicios de Pulse Hub. La cifra real depende de pestañas,
+no incluye todos los servicios de Soflia Hub. La cifra real depende de pestañas,
 extensiones, caché, GPU y carga concurrente. La línea base de usuario de
 1,5–1,9 GB y 15 % de CPU se conserva como observación reportada, no como muestra
 producida por este harness.

@@ -3,7 +3,7 @@
 Estado: propuesta; sin implementación. Investigación realizada el 2026-10-11.
 
 - Objetivo: convertir los especialistas de SofLIA en agentes que ejecuten subtareas con herramientas y produzcan resultados verificables en segundo plano.
-- Usuario o actor: persona autenticada en PulseHub, dentro de su organización, proyecto y conversación de origen.
+- Usuario o actor: persona autenticada en Soflia Hub, dentro de su organización, proyecto y conversación de origen.
 - Alcance: propuesta de equipos ejecutores, ciclo de vida independiente del renderer, herramientas por rol, persistencia, artefactos, monitor y recuperación. El primer incremento implementable se limita al chat y a investigación y creación de archivos en un espacio autorizado.
 - No objetivos: implementar esta propuesta durante la investigación; habilitar publicación automática; compartir permisos con agentes de desarrollo; prometer ejecución con el equipo apagado sin infraestructura remota; ampliar automáticamente las fuentes de un documento adjunto.
 - Restricciones: español; separación main/preload/renderer; permisos comprobados en cada ejecución; presupuestos acotados; conservación de cambios ajenos; respeto a las restricciones por superficie y a las acciones que requieren intervención humana (HITL).

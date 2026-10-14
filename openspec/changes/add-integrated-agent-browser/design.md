@@ -1,6 +1,6 @@
 ## Context
 
-Pulse Hub ya tiene dos rutas web para `use_computer`: `BrowserWebService` abre un Chromium Playwright separado y el backend desktop controla el navegador externo del sistema. Ninguna ruta pertenece al layout de SofLIA ni comparte una superficie visible y retomable con el usuario. Electron 39 ya aporta `WebContentsView`, por lo que no se necesita agregar una dependencia ni habilitar la etiqueta `<webview>`.
+Soflia Hub ya tiene dos rutas web para `use_computer`: `BrowserWebService` abre un Chromium Playwright separado y el backend desktop controla el navegador externo del sistema. Ninguna ruta pertenece al layout de SofLIA ni comparte una superficie visible y retomable con el usuario. Electron 39 ya aporta `WebContentsView`, por lo que no se necesita agregar una dependencia ni habilitar la etiqueta `<webview>`.
 
 La capacidad cruza main, preload, renderer y el agente de escritorio. El contenido remoto es una frontera no confiable: no puede recibir preload, Node, IPC ni permisos implícitos. La UI de SofLIA permanece en el `BrowserWindow` principal y solo reserva un rectángulo para la vista nativa.
 

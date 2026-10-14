@@ -21,7 +21,7 @@ export async function installLinuxAutostart(config: BackgroundHostConfig): Promi
   const desktopEntry = [
     '[Desktop Entry]',
     'Type=Application',
-    'Name=Pulse Hub Background',
+    'Name=Soflia Hub Background',
     `Exec=${quoteExec(process.execPath, config.launchArgs)}`,
     'Terminal=false',
     'X-GNOME-Autostart-enabled=true',

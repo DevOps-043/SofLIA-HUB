@@ -1,4 +1,4 @@
-# Análisis: Soporte para Grupos de WhatsApp en Pulse Hub
+# Análisis: Soporte para Grupos de WhatsApp en Soflia Hub
 
 # Investigación de OpenClaw + Arquitectura Actual
 

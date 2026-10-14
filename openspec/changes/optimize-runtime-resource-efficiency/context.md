@@ -1,7 +1,7 @@
 # Contexto del cambio
 
-- Objetivo: reducir el consumo sostenido de RAM y CPU de Pulse Hub durante una sesión con el navegador integrado abierto, manteniendo la respuesta inmediata de las superficies visibles.
-- Usuario o actor: persona que usa Pulse Hub como aplicación de escritorio y mantiene varias pestañas web abiertas durante su jornada.
+- Objetivo: reducir el consumo sostenido de RAM y CPU de Soflia Hub durante una sesión con el navegador integrado abierto, manteniendo la respuesta inmediata de las superficies visibles.
+- Usuario o actor: persona que usa Soflia Hub como aplicación de escritorio y mantiene varias pestañas web abiertas durante su jornada.
 - Alcance: ciclo de vida y throttling de `WebContentsView`, presupuesto de pestañas vivas, observación visual pasiva del agente, métricas de procesos Electron y parámetros/documentación de operación.
 - No objetivos: cambiar el motor Chromium, sustituir Electron, bloquear extensiones, degradar audio/video de una pestaña visible, cerrar pestañas lógicas, alterar cookies/sesiones o prometer paridad absoluta con Brave/Comet en todos los sitios.
 - Restricciones: la pestaña visible y las dos visibles en composición múltiple deben conservar fluidez; una pestaña con audio o tarea del agente no se descarta; las pestañas suspendidas conservan URL y se restauran explícitamente; no se agregan dependencias ni IPC nuevo salvo que la medición no pueda exponerse por una API existente.

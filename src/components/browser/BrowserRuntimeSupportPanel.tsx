@@ -64,7 +64,7 @@ export function BrowserRuntimeSupportPanel() {
     finally { if (request === generation.current) setLoading(false); }
   };
   const rows = diagnostic ? [
-    ['Pulse Hub', diagnostic.appVersion], ['Electron', diagnostic.electronVersion],
+    ['Soflia Hub', diagnostic.appVersion], ['Electron', diagnostic.electronVersion],
     ['Chromium', diagnostic.chromiumVersion], ['Node.js', diagnostic.nodeVersion],
     ['Perfil', diagnostic.profileKind === 'authenticated' ? 'Autenticado' : diagnostic.profileKind === 'private' ? 'Privado' : 'Invitado'],
     ['Protección', diagnostic.protectionLevel === 'off' ? 'Desactivada' : diagnostic.protectionLevel === 'strict' ? 'Estricta' : 'Equilibrada'],

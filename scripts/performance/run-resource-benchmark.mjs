@@ -20,7 +20,7 @@ const report = {
     processCount: reduction(baseline.processCountAverage, optimized.processCountAverage),
   },
   limitations: [
-    'Fixture sintético local; no representa todos los sitios ni el resto de servicios de Pulse Hub.',
+    'Fixture sintético local; no representa todos los sitios ni el resto de servicios de Soflia Hub.',
     'El periodo de gracia de pestaña fría se acelera a 10 s; producción usa el valor documentado de 90 s.',
     'Los resultados dependen del equipo, versión de Electron y carga concurrente.',
   ],

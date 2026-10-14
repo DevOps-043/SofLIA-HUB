@@ -34,7 +34,7 @@ acota lo que el catálogo permite, nunca lo amplía.
 ### Requirement: La elección de canales se guarda con la identidad del usuario
 
 La elección de canales SHALL persistirse asociada al usuario en la instancia
-Pulse Hub, de modo que la resuelvan igual el chat del Hub y los agentes de
+Soflia Hub, de modo que la resuelvan igual el chat del Hub y los agentes de
 canal, que corren en procesos distintos. Un usuario MUST NOT poder leer ni
 escribir la configuración de canales de otro usuario.
 

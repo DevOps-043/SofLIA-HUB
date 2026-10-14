@@ -14,7 +14,7 @@ La Orbe llama `orb:synthesize` y recibe WAV LINEAR16 generado por Google Cloud, 
 **Non-Goals:**
 
 - Cambiar el reconocimiento de voz, wake word, el modelo conversacional o Computer Use.
-- Administrar, clonar o listar voces desde Pulse Hub.
+- Administrar, clonar o listar voces desde Soflia Hub.
 - Migrar la síntesis local del sidecar usada por otros flujos no invocados por la Orbe.
 - Probar una API key real o persistir secretos desde el repositorio.
 

@@ -1,6 +1,8 @@
 import { BrowserWindow } from 'electron';
 import path from 'node:path';
 import { markBoot } from './boot-timeline';
+import { configureMainDisplayMedia } from './display-media';
+import { installZoomProtocol } from './zoom-protocol';
 
 // Si `ready-to-show` no dispara (entorno atipico o carga bloqueada), se muestra
 // la ventana de todos modos tras este tiempo para no dejar al usuario sin UI.
@@ -46,6 +48,7 @@ export function createOrFocusMainWindow(input: {
     },
   });
   markBoot('ventana:creada');
+  void installZoomProtocol(win.webContents.session, path.join(input.rendererDist, 'zoom-runtime')).catch(() => console.error('[Zoom] No se pudo registrar el runtime del SDK.'));
 
   if (input.showWindow) {
     let shown = false;
@@ -89,6 +92,7 @@ export function createOrFocusMainWindow(input: {
   win.webContents.session.setPermissionRequestHandler((_webContents, permission, callback) => {
     callback(permission === 'media');
   });
+  configureMainDisplayMedia(win);
 
   return win;
 }

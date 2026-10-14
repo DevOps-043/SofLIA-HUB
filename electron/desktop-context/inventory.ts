@@ -20,7 +20,7 @@ export interface WindowSource {
 export interface InventoryDeps {
   listWindows: () => Promise<Array<{ title: string; process: string; pid: number }>>;
   getWindowSources: () => Promise<WindowSource[]>;
-  /** Titulos de las ventanas del propio Pulse Hub, para excluirlas. */
+  /** Titulos de las ventanas del propio Soflia Hub, para excluirlas. */
   ownWindowTitles: () => string[];
   ownPid: number;
   platform: string;

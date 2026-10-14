@@ -1,4 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react';
+import { useStudioRuntime } from './StudioRuntimeContext';
+import { StudioLiveActivities } from './StudioLiveActivities';
 import { LiveIcon } from '../LiveIcon';
 import { StudioDialog } from './StudioDialog';
 import { StudioClock } from './StudioClock';
@@ -8,6 +10,7 @@ import { StudioGuidedPractice } from './StudioGuidedPractice';
 import type { StudioResource, StudioRoom } from './studio-types';
 
 export function StudioActivities({ initialResources = [], participants, rooms, onRoomsChange }: { initialResources?: StudioResource[]; participants: number; rooms: StudioRoom[]; onRoomsChange: (rooms: StudioRoom[]) => void }) {
+  const runtime = useStudioRuntime();
   const [resources, setResources] = useState(initialResources);
   const [dialog, setDialog] = useState<'rooms' | 'quiz' | null>(null);
   const [roomMode, setRoomMode] = useState<'size' | 'count'>('size');
@@ -20,6 +23,7 @@ export function StudioActivities({ initialResources = [], participants, rooms, o
   const [resourceKind, setResourceKind] = useState<StudioResource['kind']>('file');
   const [notice, setNotice] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
+  if (runtime) return <StudioLiveActivities />;
   const count = roomParticipants > 0 ? Math.min(roomParticipants, roomMode === 'size' ? Math.ceil(roomParticipants / roomValue) : roomValue) : 0;
   function createRooms(event: FormEvent) {
     event.preventDefault();

@@ -11,7 +11,7 @@ lo que la aplicación hace en el equipo del usuario.
 ### Requirement: Catálogo del sistema en la base de datos
 
 El sistema SHALL resolver las Skills del sistema desde un catálogo persistido en
-la instancia Pulse Hub. Cada entrada SHALL declarar identificador estable,
+la instancia Soflia Hub. Cada entrada SHALL declarar identificador estable,
 nombre, descripción, ícono, comando, categoría, superficies, orden de
 presentación, estado, prompts de inicio, instrucciones, herramientas y política
 de espacio de trabajo. El catálogo SHALL estar disponible para todo usuario

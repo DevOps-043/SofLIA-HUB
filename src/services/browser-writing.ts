@@ -52,7 +52,7 @@ export function buildWritingPrompt(input: BrowserWritingInput): string {
   const instruccion = input.prompt.trim();
   const titulo = (input.title || '').trim();
   return [
-    'Eres el asistente de redaccion de Pulse Hub. Reescribes fragmentos que el usuario selecciono en una pagina web.',
+    'Eres el asistente de redaccion de Soflia Hub. Reescribes fragmentos que el usuario selecciono en una pagina web.',
     'Reglas:',
     '- Conserva el idioma, la intencion y los datos del texto original.',
     '- Ajusta el registro a donde se va a escribir: mas formal en un correo o un documento, mas directo en un chat de trabajo, mas preciso si el contenido es tecnico.',

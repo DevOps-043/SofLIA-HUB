@@ -130,7 +130,7 @@ function buildModelTitlePrompt(messages: ChatMessage[]): string {
     .join('\n');
 
   return [
-    'Crea un titulo corto en espanol para esta conversacion de Pulse Hub.',
+    'Crea un titulo corto en espanol para esta conversacion de Soflia Hub.',
     'Reglas estrictas:',
     '- Usa 2 a 5 palabras.',
     '- No copies literalmente el primer mensaje del usuario.',

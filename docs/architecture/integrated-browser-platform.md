@@ -2,7 +2,7 @@
 
 Estado: vigente. Actualizado: 2026-10-06.
 
-El navegador de Pulse Hub es una superficie de trabajo Electron basada en
+El navegador de Soflia Hub es una superficie de trabajo Electron basada en
 `WebContentsView`; no pretende sustituir un navegador Chromium completo ni
 ofrecer compatibilidad con Chrome Web Store. El contrato de evolución está en
 el cambio OpenSpec `complete-integrated-browser-platform`.

@@ -1,7 +1,7 @@
 import type { BackgroundJob, BackgroundStart, BackgroundTeamsBridge } from '../shared/background-teams';
 declare global { interface Window { backgroundTeams?: BackgroundTeamsBridge } }
 function bridge(): BackgroundTeamsBridge {
-  if (!window.backgroundTeams) throw new Error('Los equipos ejecutores necesitan PulseHub de escritorio.');
+  if (!window.backgroundTeams) throw new Error('Los equipos ejecutores necesitan Soflia Hub de escritorio.');
   return window.backgroundTeams;
 }
 export const backgroundTeamsService = {

@@ -76,9 +76,10 @@ type PartitionSessionMock = {
 };
 
 const partitionSessions = new Map<string, PartitionSessionMock>();
+const defaultSessionMock = { protocol, setDisplayMediaRequestHandler: vi.fn() };
 export const session = {
   get defaultSession() {
-    return { protocol };
+    return defaultSessionMock;
   },
   fromPartition: vi.fn((partition: string) => {
     if (!partitionSessions.has(partition)) {

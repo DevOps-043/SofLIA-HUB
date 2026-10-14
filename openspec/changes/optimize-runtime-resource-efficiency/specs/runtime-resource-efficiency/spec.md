@@ -1,6 +1,6 @@
 ## Purpose
 
-Define una política verificable que reduzca CPU y memoria de las superficies web y procesos de Pulse Hub sin degradar la interacción visible ni perder la identidad de las pestañas abiertas.
+Define una política verificable que reduzca CPU y memoria de las superficies web y procesos de Soflia Hub sin degradar la interacción visible ni perder la identidad de las pestañas abiertas.
 
 ## ADDED Requirements
 

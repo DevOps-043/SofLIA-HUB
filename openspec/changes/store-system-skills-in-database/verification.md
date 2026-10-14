@@ -53,7 +53,7 @@ puede invocar`. La lectura de fila devuelve ahora un resultado de tres estados
 Nada de lo siguiente puede darse por hecho desde el repositorio:
 
 - [ ] 8.1 Ejecutar `database/lia/migrations/system-skills-catalog.sql` en la
-  instancia Pulse Hub y guardar la salida del bloque de verificación.
+  instancia Soflia Hub y guardar la salida del bloque de verificación.
 - [ ] 8.2 Comprobar con una sesión de usuario que `INSERT`, `UPDATE` y `DELETE`
   sobre `public.system_skills` son rechazados. **Es la guarda de la que dependen
   todas las demás**: sin ella, la decisión de guardar herramientas y política de

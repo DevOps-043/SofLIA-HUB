@@ -41,7 +41,7 @@ export class ProjectHubApiService {
       const result = {
         success: false,
         code: 'NOT_CONFIGURED',
-        error: 'Project Hub no está configurado en esta versión de Pulse Hub.',
+        error: 'Project Hub no está configurado en esta versión de Soflia Hub.',
       };
       this.lastAuthFailure = { code: result.code, error: result.error };
       return result;
@@ -177,7 +177,7 @@ export class ProjectHubApiService {
 
   private async fetchEnvelope<T>(path: string, options: ProjectHubRequestOptions, allowRefresh = true): Promise<ProjectHubEnvelope<T>> {
     if (!this.baseUrl) {
-      throw new ProjectHubHttpError(503, 'NOT_CONFIGURED', 'Project Hub no está configurado en esta versión de Pulse Hub.');
+      throw new ProjectHubHttpError(503, 'NOT_CONFIGURED', 'Project Hub no está configurado en esta versión de Soflia Hub.');
     }
     const method = options.method || 'GET';
     const retries = options.retry !== false && ['GET'].includes(method) ? IDEMPOTENT_RETRIES : 0;

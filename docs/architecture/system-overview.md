@@ -1,6 +1,6 @@
 # Arquitectura vigente
 
-Pulse Hub es una aplicación Electron. `electron/main.ts` compone servicios nativos,
+Soflia Hub es una aplicación Electron. `electron/main.ts` compone servicios nativos,
 integraciones externas y ciclo de vida; `electron/preload.ts` expone una frontera
 limitada al renderer React de `src/`.
 

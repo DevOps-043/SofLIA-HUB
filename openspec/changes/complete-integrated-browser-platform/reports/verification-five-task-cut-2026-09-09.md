@@ -61,8 +61,8 @@ npm run test -- integrated-browser browser-history-clear-range browser-site-perm
 Smoke reproducible, desde este worktree, con ruta absoluta a su Electron:
 
 ```powershell
-node scripts/quality/smoke-browser-native.mjs --safety-only --electron "C:/Users/fysg5/Desktop/SofLIA/Pulse Hub/SofLIA-HUB/.worktrees/upgrade-integrated-browser/node_modules/electron/dist/electron.exe"
-node scripts/quality/smoke-browser-native.mjs --vault-only --electron "C:/Users/fysg5/Desktop/SofLIA/Pulse Hub/SofLIA-HUB/.worktrees/upgrade-integrated-browser/node_modules/electron/dist/electron.exe"
+node scripts/quality/smoke-browser-native.mjs --safety-only --electron "C:/Users/fysg5/Desktop/SofLIA/Soflia Hub/SofLIA-HUB/.worktrees/upgrade-integrated-browser/node_modules/electron/dist/electron.exe"
+node scripts/quality/smoke-browser-native.mjs --vault-only --electron "C:/Users/fysg5/Desktop/SofLIA/Soflia Hub/SofLIA-HUB/.worktrees/upgrade-integrated-browser/node_modules/electron/dist/electron.exe"
 ```
 
 - Safety: **12 comprobaciones**, exit 0; fixture temporal `pulse-browser-smoke-uVYGaW`.

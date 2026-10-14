@@ -1,4 +1,4 @@
-# Pulse Hub - Entrada para agentes
+# Soflia Hub - Entrada para agentes
 
 Este archivo es el router de contexto. La fuente canonica vive en `docs/` y
 `ai-specs/`; no dupliques reglas extensas en archivos especificos de una

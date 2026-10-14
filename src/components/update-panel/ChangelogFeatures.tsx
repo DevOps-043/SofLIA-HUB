@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 /**
- * ChangelogFeatures — Muestra las versiones de Pulse Hub en una línea de tiempo
+ * ChangelogFeatures — Muestra las versiones de Soflia Hub en una línea de tiempo
  * interactiva de alta fidelidad, minimalista y premium.
  */
 

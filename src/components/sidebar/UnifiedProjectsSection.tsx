@@ -32,7 +32,7 @@ export function UnifiedProjectsSection({ props }: { props: SidebarProps }) {
     if (sequence !== loadSequence.current) return;
     if (!status.success || status.data?.configured === false || status.data?.enabled === false || !status.data?.authenticated) {
       setError(status.error || status.data?.authError?.error || (status.data?.configured === false
-        ? 'Project Hub no está configurado en esta versión de Pulse Hub.'
+        ? 'Project Hub no está configurado en esta versión de Soflia Hub.'
         : 'Project Hub no está conectado.'));
       setAutoRetry(RECOVERABLE_CODES.has(status.code || status.data?.authError?.code || ''));
       setLoading(false);

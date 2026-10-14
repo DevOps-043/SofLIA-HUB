@@ -1,5 +1,5 @@
 // =============================================================================
-// Pulse Hub - DesktopContextService
+// Soflia Hub - DesktopContextService
 // =============================================================================
 // Servicio de la capacidad "Anadir aplicaciones" del chat: inventario de
 // ventanas abiertas y extraccion en cascada del contenido de las que el usuario
@@ -108,7 +108,7 @@ export class DesktopContextService {
   }
 }
 
-/** Las ventanas del propio Pulse Hub no son adjuntables: el chat no se adjunta a si mismo. */
+/** Las ventanas del propio Soflia Hub no son adjuntables: el chat no se adjunta a si mismo. */
 function readOwnWindowTitles(): string[] {
   try {
     return BrowserWindow.getAllWindows()

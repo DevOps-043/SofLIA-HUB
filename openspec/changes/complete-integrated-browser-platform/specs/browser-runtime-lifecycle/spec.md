@@ -5,7 +5,7 @@ Mantiene el motor web actualizado, diagnosticable y apto para release sin depend
 ## ADDED Requirements
 
 ### Requirement: Instalador con runtime privado verificable
-El instalador Windows SHALL mostrar identidad Pulse Hub, explicar Python privado y conservar ubicación, cancelación y progreso real. La preparación SHALL comprobar integridad del archivo Python y dependencias de voz/documentos antes de promover el runtime; el paquete SHALL verificar ambos sidecars sin modificar Python del sistema.
+El instalador Windows SHALL mostrar identidad Soflia Hub, explicar Python privado y conservar ubicación, cancelación y progreso real. La preparación SHALL comprobar integridad del archivo Python y dependencias de voz/documentos antes de promover el runtime; el paquete SHALL verificar ambos sidecars sin modificar Python del sistema.
 
 #### Scenario: Fuente o preparación fallida
 - **WHEN** falla el digest, la descarga, los imports o la promoción del nuevo runtime

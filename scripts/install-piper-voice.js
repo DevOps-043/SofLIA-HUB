@@ -1,5 +1,5 @@
 // =============================================================================
-// Pulse Hub - Descarga on-demand de Piper TTS (binario + voces en español)
+// Soflia Hub - Descarga on-demand de Piper TTS (binario + voces en español)
 // =============================================================================
 // Mismo patron que install-vosk-model.js: nada se bundlea en el instalador;
 // se descarga bajo demanda a models/piper/ (dev) o userData/models/piper (prod).

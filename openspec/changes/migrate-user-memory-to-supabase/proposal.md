@@ -15,7 +15,7 @@ entre equipos, respaldo y gobierno del dato personal.
 
 ## What Changes
 
-- Nuevas tablas de memoria del agente en la instancia Pulse Hub
+- Nuevas tablas de memoria del agente en la instancia Soflia Hub
   (`VITE_SUPABASE_URL`), con prefijo propio para no colisionar con las tablas ya
   existentes de conversación (`public.messages`) ni con las Skills invocables del
   usuario (`public.skills`): `agent_memory_messages`, `agent_memory_summaries`,

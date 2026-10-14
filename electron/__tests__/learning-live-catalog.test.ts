@@ -39,8 +39,8 @@ describe('catálogo académico del escritorio', () => {
   it.each([
     [401, 'not_ready', 'Learning no pudo validar tu sesión. Vuelve a iniciar sesión en Hub.'],
     [403, 'access_denied', 'No tienes acceso a las sesiones de esta organización.'],
-    [404, 'unavailable', 'La agenda de Learning todavía no está habilitada para SofLIA Hub.'],
-    [405, 'unavailable', 'La agenda de Learning todavía no está habilitada para SofLIA Hub.'],
+    [404, 'unavailable', 'La agenda de Learning todavía no está habilitada para Soflia Hub.'],
+    [405, 'unavailable', 'La agenda de Learning todavía no está habilitada para Soflia Hub.'],
     [429, 'unavailable', 'Espera un momento antes de actualizar.'],
     [503, 'unavailable', 'Learning no está disponible. Reintenta en un momento.'],
     [400, 'unavailable', 'Learning no pudo entregar tu agenda. Reintenta en un momento.'],
@@ -52,7 +52,7 @@ describe('catálogo académico del escritorio', () => {
   it('identifica el rechazo del filtro web antes del handler bearer', async () => {
     const deps = dependencies();
     deps.fetcher.mockResolvedValueOnce(new Response(JSON.stringify({ error: 'UNAUTHENTICATED', message: 'private-token' }), { status: 401 }));
-    expect(await requestLearningLiveCatalog(input, deps)).toEqual({ success: false, code: 'unavailable', error: 'La agenda de Learning todavía no está habilitada para SofLIA Hub.' });
+    expect(await requestLearningLiveCatalog(input, deps)).toEqual({ success: false, code: 'unavailable', error: 'La agenda de Learning todavía no está habilitada para Soflia Hub.' });
   });
   it('acota errores remotos y conserva el diagnóstico de autenticación', async () => {
     const deps = dependencies();

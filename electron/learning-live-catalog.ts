@@ -4,7 +4,7 @@ import type { LearningWorkspaceDependencies } from './learning-workspace-access'
 import { createLogger } from './utils/logger';
 
 const log = createLogger('learning-live-catalog');
-const integrationUnavailable = 'La agenda de Learning todavía no está habilitada para SofLIA Hub.';
+const integrationUnavailable = 'La agenda de Learning todavía no está habilitada para Soflia Hub.';
 
 async function catalogHttpFailure(response: Response): Promise<Extract<LiveCatalogResult, { success: false }>> {
   if (response.status === 401) {

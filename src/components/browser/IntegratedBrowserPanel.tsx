@@ -705,7 +705,7 @@ export function IntegratedBrowserPanel(props: {
               }}
               sections={[
                 [
-                  { id: 'ecosystem-connect', label: 'Usar mi cuenta de PulseHub', icon: <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21v-2a8 8 0 0 1 16 0v2" /></svg>, onSelect: () => void run(integratedBrowserService.reconnectEcosystemSession) },
+                  { id: 'ecosystem-connect', label: 'Usar mi cuenta de Soflia Hub', icon: <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21v-2a8 8 0 0 1 16 0v2" /></svg>, onSelect: () => void run(integratedBrowserService.reconnectEcosystemSession) },
                   { id: 'new-tab', label: 'Nueva pestaña', shortcut: shortcut('new-tab'), icon: <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>, onSelect: () => void run(() => integratedBrowserService.createTab(undefined, { waitForLoad: false })) },
                   { id: 'reopen-tab', label: 'Reabrir pestaña cerrada', shortcut: shortcut('reopen-tab'), icon: <svg viewBox="0 0 24 24"><path d="M4 4v6h6M5 15a8 8 0 1 0 2-8" /></svg>, onSelect: () => void run(integratedBrowserService.reopenClosedTab) },
                 ],

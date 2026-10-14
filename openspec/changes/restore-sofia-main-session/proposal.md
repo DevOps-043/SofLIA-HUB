@@ -1,6 +1,6 @@
 ## Why
 
-Pulse Hub puede conservar un perfil local de SOFIA cuando ya no existe una sesión Supabase verificable. La interfaz parece autenticada, pero las consultas de organizaciones y el proceso main operan como `anon`; esto produce `42501 permission denied for table users` y hace que WhatsApp descarte mensajes antes de invocar al agente.
+Soflia Hub puede conservar un perfil local de SOFIA cuando ya no existe una sesión Supabase verificable. La interfaz parece autenticada, pero las consultas de organizaciones y el proceso main operan como `anon`; esto produce `42501 permission denied for table users` y hace que WhatsApp descarte mensajes antes de invocar al agente.
 
 ## What Changes
 

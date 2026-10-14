@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: RF-ECO-001 Acceso automático inicial
-PulseHub SHALL conectar la cuenta SOFIA vigente al visitar Learning, Engine o
+Soflia Hub SHALL conectar la cuenta SOFIA vigente al visitar Learning, Engine o
 Project Hub en su navegador integrado y SHALL conservar las cookies en la
 partición del usuario.
 
@@ -14,7 +14,7 @@ partición del usuario.
 - THEN la web puede continuar con su inicio de sesión habitual
 
 ### Requirement: RF-ECO-003 Conservación de la elección de cuenta
-PulseHub SHALL conservar sesiones existentes y cierres de sesión, y SHALL
+Soflia Hub SHALL conservar sesiones existentes y cierres de sesión, y SHALL
 permitir reconectar explícitamente con su cuenta.
 
 #### Scenario: Otra cuenta o cierre de sesión
@@ -22,11 +22,11 @@ permitir reconectar explícitamente con su cuenta.
 - THEN nuevas pestañas, reinicios y expiraciones de cookies no la reemplazan automáticamente
 
 #### Scenario: Reconexión elegida
-- WHEN el usuario selecciona «Usar mi cuenta de PulseHub» en un sitio permitido
+- WHEN el usuario selecciona «Usar mi cuenta de Soflia Hub» en un sitio permitido
 - THEN el sitio reemplaza su sesión y la pestaña se recarga
 
 ### Requirement: RNF-ECO-001 Frontera de identidad
-PulseHub SHALL restringir el canje a orígenes exactos autorizados, y SHALL
+Soflia Hub SHALL restringir el canje a orígenes exactos autorizados, y SHALL
 rechazar redirecciones, perfiles invitados/privados y cambios de identidad.
 Los sitios SHALL validar Auth, perfil y membresías, y SHALL responder sin
 credenciales del escritorio.

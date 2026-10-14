@@ -14,7 +14,7 @@ export async function executeGmailMailTool(
 
   try {
     if (!ctx.gmailService) {
-      return { response: toolError(toolName, 'Gmail no esta disponible. El usuario debe conectar Google en Pulse Hub.'), bulkLabelsToVerify };
+      return { response: toolError(toolName, 'Gmail no esta disponible. El usuario debe conectar Google en Soflia Hub.'), bulkLabelsToVerify };
     }
 
     if (toolName === 'gmail_send') {

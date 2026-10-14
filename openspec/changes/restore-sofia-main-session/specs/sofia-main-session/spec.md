@@ -42,7 +42,7 @@ El renderer SHALL publicar a main los tokens vigentes de SOFIA por un canal unid
 Main SHALL custodiar solamente el refresh token SOFIA cifrado por el sistema operativo y SHALL intentar restaurarlo antes de inicializar los servicios que consultan organizaciones o atienden canales.
 
 #### Scenario: Arranque con token guardado válido
-- **WHEN** Pulse Hub arranca con un refresh token SOFIA cifrado y válido
+- **WHEN** Soflia Hub arranca con un refresh token SOFIA cifrado y válido
 - **THEN** main restaura la sesión, establece el usuario autenticado e inicializa después los servicios de WhatsApp y detección pasiva
 
 #### Scenario: Arranque sin cifrado seguro

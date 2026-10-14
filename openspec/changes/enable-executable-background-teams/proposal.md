@@ -57,7 +57,7 @@ Los perfiles no implican cinco agentes simultáneos: presupuesto y presentación
 | 2. Coordinación y operaciones | Más perfiles, dependencias, exclusión de recursos, integraciones y aprobaciones persistentes | Sin colisiones ni duplicados; evidencia de calidad frente a un agente único |
 | 3. Continuidad ampliada | Tareas programadas bajo solicitud expresa y ejecución remota para trabajos compatibles | Host remoto, permisos, retención, costes y acceso local definidos y probados |
 
-La primera fase ya ejecuta tareas y entrega archivos. La tercera es necesaria para trabajar con PulseHub cerrado o el ordenador apagado. En la fase local, cerrar el proceso interrumpe la ejecución y deja un punto de recuperación.
+La primera fase ya ejecuta tareas y entrega archivos. La tercera es necesaria para trabajar con Soflia Hub cerrado o el ordenador apagado. En la fase local, cerrar el proceso interrumpe la ejecución y deja un punto de recuperación.
 
 ## Capabilities
 

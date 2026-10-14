@@ -43,7 +43,7 @@ Ver `proposal.md` — Why. Lo que condiciona el diseño es el estado actual:
 
 ## Decisions
 
-### D1. Tabla `public.system_skills` en la instancia Pulse Hub
+### D1. Tabla `public.system_skills` en la instancia Soflia Hub
 
 Misma instancia que `public.skills` para que una sola sesión resuelva el catálogo
 completo. Clave primaria `text` con el identificador estable ya en uso
@@ -161,7 +161,7 @@ invalidar.
 
 ## Migration Plan
 
-1. Aplicar la migración en la instancia Pulse Hub: tabla, RLS y semilla de
+1. Aplicar la migración en la instancia Soflia Hub: tabla, RLS y semilla de
    Presentaciones con los valores exactos del registro en código.
 2. Verificar en la propia migración: la política de `SELECT` existe, no hay
    políticas de escritura, y la semilla coincide con el código.

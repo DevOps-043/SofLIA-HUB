@@ -1,6 +1,6 @@
 ## Why
 
-El chat ya permite adjuntar varias pestañas del navegador integrado y analizarlas juntas, pero el trabajo real del usuario vive fuera del navegador: un presupuesto en Excel, un contrato en Word, una propuesta en PowerPoint o un PDF abierto en un visor. Hoy la única forma de llevar ese contenido al chat es que el usuario lo copie a mano o adjunte el archivo, aunque la aplicación ya esté abierta frente a él y Pulse Hub ya sepa enumerar sus ventanas.
+El chat ya permite adjuntar varias pestañas del navegador integrado y analizarlas juntas, pero el trabajo real del usuario vive fuera del navegador: un presupuesto en Excel, un contrato en Word, una propuesta en PowerPoint o un PDF abierto en un visor. Hoy la única forma de llevar ese contenido al chat es que el usuario lo copie a mano o adjunte el archivo, aunque la aplicación ya esté abierta frente a él y Soflia Hub ya sepa enumerar sus ventanas.
 
 La capacidad de escritorio existente (`desktop-agent`) está orientada a **actuar** sobre la máquina paso a paso. Falta la operación inversa y mucho más barata: **leer** lo que el usuario ya tiene abierto y sumarlo al contexto de la conversación, con la misma ergonomía del selector de pestañas.
 
@@ -32,5 +32,5 @@ Ninguna. El adjunto de pestañas del navegador no tiene hoy requisito propio en 
 - IPC/preload/renderer: canales nuevos bajo el prefijo `desktop-context:` con handler, allowlist, API de preload y wrapper tipado del renderer.
 - Renderer React: selector de aplicaciones, chips de adjunto con nivel de fidelidad y estado, y ampliación del ensamblado de contexto del turno.
 - Sidecar Python: se consume `documents.py` tal como está, para `.pdf`, `.xlsx`, `.xlsm`, `.pptx` y `.docx`; no se añaden formatos ni herramientas.
-- Seguridad y privacidad: captura solo bajo selección explícita, exclusión de las ventanas del propio Pulse Hub, acceso COM estrictamente de lectura, sin persistencia del contenido y errores saneados.
+- Seguridad y privacidad: captura solo bajo selección explícita, exclusión de las ventanas del propio Soflia Hub, acceso COM estrictamente de lectura, sin persistencia del contenido y errores saneados.
 - Documentación y pruebas: arquitectura Electron e IPC, frontend, requisitos funcionales, historias de usuario, trazabilidad, seguridad y privacidad, e inventario de pruebas.

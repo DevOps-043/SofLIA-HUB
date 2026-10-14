@@ -22,8 +22,8 @@ El sistema SHALL conservar cookies y almacenamiento web en una partición persis
 - **WHEN** el usuario oculta y vuelve a abrir Navegador durante la misma sesión
 - **THEN** la página y sesión web continúan disponibles sin crear otro navegador
 
-#### Scenario: Reinicio de Pulse Hub
-- **WHEN** el usuario reinicia Pulse Hub y vuelve a un sitio visitado
+#### Scenario: Reinicio de Soflia Hub
+- **WHEN** el usuario reinicia Soflia Hub y vuelve a un sitio visitado
 - **THEN** el sitio puede usar la sesión guardada en la partición propia del navegador integrado
 
 #### Scenario: Contenido remoto aislado
@@ -54,7 +54,7 @@ El agente de escritorio SHALL poder revelar el navegador integrado, capturar la 
 
 #### Scenario: Agente abre el navegador
 - **WHEN** `use_computer` recibe una tarea web y la vista no está activa
-- **THEN** el sistema muestra/enfoca Pulse Hub, cambia a Navegador y espera un viewport válido antes de capturar
+- **THEN** el sistema muestra/enfoca Soflia Hub, cambia a Navegador y espera un viewport válido antes de capturar
 
 #### Scenario: Agente continúa la página del usuario
 - **WHEN** el usuario ya tiene una página abierta y solicita al agente actuar en ella

@@ -1,5 +1,5 @@
 /** Solo rutas del contrato académico; jamás un origen recibido por IPC. */
-export function learningLiveEndpoint(base: string, action: 'access' | 'workspace' | 'catalog'): string | null {
+export function learningLiveEndpoint(base: string, action: 'access' | 'workspace' | 'catalog' | 'studio'): string | null {
   try {
     const url = new URL(base);
     const local = url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname);

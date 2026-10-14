@@ -81,7 +81,7 @@ consumo, archivos, resultado y controles de pausar/reanudar/cancelar.
 Los controles se ejecutan en main por identificadores; el publicador de actividad
 anterior no puede inyectar trabajos ejecutables.
 
-Es una ejecución **local**: requiere PulseHub abierto, sesión vigente y equipo
+Es una ejecución **local**: requiere Soflia Hub abierto, sesión vigente y equipo
 disponible. No incorpora host remoto, programación recurrente ni ejecución con
 el ordenador apagado. La recuperación conserva el presupuesto restante.
 Los proveedores son los modelos permitidos del selector, sin sustitución oculta:

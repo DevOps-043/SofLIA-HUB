@@ -71,7 +71,7 @@ Hallazgos corregidos durante la revisión:
 ## Seguimiento: ejecución en instancia incorrecta
 
 La captura de soporte del 2026-08-05 confirmó que el diagnóstico SOFIA se pegó
-en el SQL Editor de Pulse Hub/Lia. PostgreSQL respondió `42P01` porque Lia no es
+en el SQL Editor de Soflia Hub/Lia. PostgreSQL respondió `42P01` porque Lia no es
 propietaria de `public.users`. Se añadió una guarda al inicio del archivo para
 detener el lote con un error `P0001` accionable y se corrigieron las dos guías
 operativas. No se creó ninguna tabla en Lia ni se ejecutó una mutación remota.
@@ -98,7 +98,7 @@ no debe atribuirse ni aplicarse a Lord.
 Se añadió `database/lia/audits/federated-chat-account-diagnostic.sql`, una
 consulta de solo lectura para comparar en Lia el UUID y correo SOFIA por separado,
 detectar ownership histórico, contar conversaciones y exponer el estado RLS sin
-mutaciones. La captura también muestra Pulse Hub v0.8.1, anterior al código local
+mutaciones. La captura también muestra Soflia Hub v0.8.1, anterior al código local
 v0.9.1; por tanto, la verificación operativa debe incluir versión instalada,
 despliegue de la Edge Function y sus secretos antes de atribuir el fallo a datos.
 
@@ -113,5 +113,5 @@ Una ejecución posterior de la auditoría Lia se detuvo en la guarda porque una 
 más relaciones esperadas no estaban disponibles. Se retiró `public.folders` de
 las precondiciones y del resultado porque no participa en el intercambio ni en
 el ownership de conversaciones. La guarda ahora enumera solo las relaciones
-esenciales ausentes y ordena cambiar al proyecto Pulse Hub/Lia sin crear tablas
+esenciales ausentes y ordena cambiar al proyecto Soflia Hub/Lia sin crear tablas
 duplicadas en SOFIA.

@@ -1,3 +1,4 @@
+import { configureMeetingLoopback } from './main/display-media';
 /**
  * IPC + adaptadores de la transcripcion de reuniones en vivo (Meeting Live).
  *
@@ -9,7 +10,7 @@
  *    hay captura de reunion activa, para no interferir con otros usos de
  *    getDisplayMedia y limitar la superficie de captura de audio del sistema.
  */
-import { BrowserWindow, app, desktopCapturer, ipcMain, screen, session } from 'electron';
+import { BrowserWindow, app, desktopCapturer, ipcMain, screen } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import { handleIPC } from './utils/ipc-helpers';
@@ -105,22 +106,7 @@ async function captureMeetingScreenshot(sessionId: string, sequence: number): Pr
  * ventana de tiempo en la que el renderer puede capturar audio del sistema.
  */
 function setMeetingLoopbackEnabled(enabled: boolean): void {
-  if (!enabled) {
-    session.defaultSession.setDisplayMediaRequestHandler(null);
-    return;
-  }
-  session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
-    desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 0, height: 0 } })
-      .then((sources) => {
-        // El video es obligatorio en getDisplayMedia; el renderer lo descarta
-        // de inmediato y conserva solo la pista de audio 'loopback'.
-        callback({ video: sources[0], audio: 'loopback' });
-      })
-      .catch((err) => {
-        console.error('[MeetingLive] No se pudo resolver la fuente para loopback:', err);
-        callback({} as Electron.Streams);
-      });
-  });
+  configureMeetingLoopback(enabled);
 }
 
 function broadcastToWindows(channel: string, payload: unknown): void {

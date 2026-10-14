@@ -1,7 +1,7 @@
 /**
  * Genera los iconos de aplicacion a partir del logotipo de marca.
  *
- * `public/assets/Icono.png` es el logotipo horizontal (1537x1023) que la UI
+ * `public/assets/Icono.png` es el logotipo vertical transparente que la UI
  * renderiza con object-contain, asi que no puede volverse cuadrado. Los
  * empaquetadores si exigen iconos cuadrados: NSIS rechaza cualquier .ico con
  * lado menor a 256 y macOS pide al menos 512x512 para construir el .icns.

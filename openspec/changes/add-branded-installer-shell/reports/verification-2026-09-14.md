@@ -7,8 +7,8 @@ petición del usuario. El teclado conserva una señal discreta bajo el texto de
 ayuda; no se modificaron los shaders ni los controles. Las 27 pruebas focalizadas
 pasaron y se reconstruyeron ambos EXE. Estos sustituyen las rutas anteriores:
 
-- Vista previa: `C:/Users/fysg5/AppData/Local/Temp/pulse-installer-shell-0GU0dz/Pulse-Hub-Installer-Preview.exe`.
-- Instalador de prueba: `C:/Users/fysg5/AppData/Local/Temp/pulse-installer-delivery-6ZsYcU/Pulse-Hub-Windows-0.9.8-Install.exe`.
+- Vista previa: `C:/Users/fysg5/AppData/Local/Temp/pulse-installer-shell-0GU0dz/Soflia-Hub-Installer-Preview.exe`.
+- Instalador de prueba: `C:/Users/fysg5/AppData/Local/Temp/pulse-installer-delivery-6ZsYcU/Soflia-Hub-Windows-0.9.8-Install.exe`.
 - SHA-256 del instalador: `066feec428c919039bf624addc37b0707379bc35111736e0456f6c81117b19f9`.
 - Motor embebido sin cambios; se mantienen los límites de firma y aceptación.
 - Verificación visual nativa: orbe enfocada sin marco; ayuda inferior subrayada.
@@ -53,7 +53,7 @@ sí sola una instalación real.
 
 - No ejecutar una imagen PE abierta para escritura: cerrar escritura, reabrir
   con solo lectura, verificar otra vez y conservar bloqueo hasta fin del hijo.
-- NSIS permite cierre automático de Pulse Hub en modo silencioso: la entrada
+- NSIS permite cierre automático de Soflia Hub en modo silencioso: la entrada
   `/pulseShell` rechaza aplicación abierta, conservando el flujo del actualizador
   cuando no se usa ese argumento. El hook requiere declarar `getProcessInfo`,
   `pid` y detección PowerShell que electron-builder omite al personalizarlo.
@@ -93,14 +93,14 @@ muestra aviso y permanece disponible la instalación, no se descarga por sorpres
 
 ## Artefactos finales de esta revisión
 
-- Instalador de prueba: `C:/Users/fysg5/AppData/Local/Temp/pulse-installer-delivery-bDng6K/Pulse-Hub-Windows-0.9.8-Install.exe`.
+- Instalador de prueba: `C:/Users/fysg5/AppData/Local/Temp/pulse-installer-delivery-bDng6K/Soflia-Hub-Windows-0.9.8-Install.exe`.
   362706944 bytes, SHA-256
   `1483f3640c2aaec0655d74abef210ae1b1370fb041a36bf194763d22c4902253`.
 - Motor NSIS embebido: SHA-256
   `1a43f9b187fc82a56a3348d2d93cf05dba38913e3101a2d5c47c1bc593a6b3c9`.
   El hash del motor se verificó otra vez después de generar el shell.
 - Reporte de shell: `C:/Users/fysg5/AppData/Local/Temp/pulse-installer-shell-oiy9MO/shell-report.json`.
-- Previsualización sin motor: `C:/Users/fysg5/AppData/Local/Temp/pulse-installer-shell-ByL3Hh/Pulse-Hub-Installer-Preview.exe`.
+- Previsualización sin motor: `C:/Users/fysg5/AppData/Local/Temp/pulse-installer-shell-ByL3Hh/Soflia-Hub-Installer-Preview.exe`.
 - Inspección PE del nuevo EXE: sin firma embebida. No es candidato público hasta
   firma, configuración autorizada y aceptación en Windows desechable.
 - El empaquetado de aplicación QNhwlQ antecede los últimos ajustes menores del

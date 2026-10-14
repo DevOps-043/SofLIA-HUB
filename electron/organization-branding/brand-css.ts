@@ -10,8 +10,8 @@ import type { LocalBrandAssets, OrganizationBranding } from './types';
  */
 export function buildBrandCss(branding: OrganizationBranding, assets: LocalBrandAssets): string {
   const encabezado = branding.enabled
-    ? `/* Identidad visual de ${escapeComment(branding.organizationName ?? 'la organizacion')}.\n   Generado por Pulse Hub. NO EDITAR: se reescribe en cada generacion. */`
-    : `/* Tema neutro de Pulse Hub: la organizacion no tiene identidad corporativa\n   habilitada. NO EDITAR: se reescribe en cada generacion. */`;
+    ? `/* Identidad visual de ${escapeComment(branding.organizationName ?? 'la organizacion')}.\n   Generado por Soflia Hub. NO EDITAR: se reescribe en cada generacion. */`
+    : `/* Tema neutro de Soflia Hub: la organizacion no tiene identidad corporativa\n   habilitada. NO EDITAR: se reescribe en cada generacion. */`;
 
   // Las rutas de los recursos ya son relativas al workspace y su nombre lo
   // decide main, no el modelo ni la URL de origen.

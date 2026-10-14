@@ -533,7 +533,7 @@ function historyRangeStart(range: 'all' | 'today' | 'week' | 'month'): string | 
 
 function CredentialsPanel(props: { onFillCredential: (id: string) => Promise<IntegratedBrowserDataResponse> }) {
   return <>
-    <p className="text-sm text-gray-600 dark:text-white/70">Passkeys: usa la opción del sitio para acceder con Windows Hello o una llave compatible. El proveedor conserva la clave privada; no se guarda en esta bóveda ni se sincroniza con Pulse Hub. La selección de cuentas requiere control humano en el perfil autenticado. No se garantiza autofill condicional ni disponibilidad en todos los sistemas.</p>
+    <p className="text-sm text-gray-600 dark:text-white/70">Passkeys: usa la opción del sitio para acceder con Windows Hello o una llave compatible. El proveedor conserva la clave privada; no se guarda en esta bóveda ni se sincroniza con Soflia Hub. La selección de cuentas requiere control humano en el perfil autenticado. No se garantiza autofill condicional ni disponibilidad en todos los sistemas.</p>
     <BrowserCredentialGate><UnlockedCredentialsPanel {...props} /></BrowserCredentialGate>
   </>;
 }
