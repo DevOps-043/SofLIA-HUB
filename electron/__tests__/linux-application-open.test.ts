@@ -33,7 +33,9 @@ describe('apertura de aplicaciones Linux', () => {
     expect(await resolveApplicationTarget('Prueba especial')).toBeNull();
     expect(await resolveApplicationTarget('Prueba')).toBeNull();
   });
-  it('resuelve sólo archivos ejecutables de PATH, sin ejecutar el nombre como shell', async () => {
+  // Estos casos requieren permisos POSIX y ejecución real de /bin/sh.
+  // Simular process.platform no convierte el host Windows en Linux.
+  it.skipIf(process.platform !== 'linux')('resuelve sólo archivos ejecutables de PATH, sin ejecutar el nombre como shell', async () => {
     const target = path.join(root, 'app-prueba');
     await fs.writeFile(target, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
     expect(await resolveApplicationTarget('app-prueba')).toMatchObject({ path: target, source: 'linux-path' });
@@ -41,14 +43,14 @@ describe('apertura de aplicaciones Linux', () => {
     await fs.chmod(target, 0o644);
     expect(await resolveApplicationTarget('app-prueba')).toBeNull();
   });
-  it('lanza el ejecutable real en vez de tratarlo como documento', async () => {
+  it.skipIf(process.platform !== 'linux')('lanza el ejecutable real en vez de tratarlo como documento', async () => {
     const marker = path.join(root, 'lanzado');
     const target = path.join(root, 'app con espacios');
     await fs.writeFile(target, `#!/bin/sh\nprintf abierto > '${marker}'\n`, { mode: 0o755 });
     expect(await launchPathNonBlocking(target)).toEqual({ success: true });
     expect(await fs.readFile(marker, 'utf8')).toBe('abierto');
   });
-  it('propaga fallo temprano y ejecutable inexistente', async () => {
+  it.skipIf(process.platform !== 'linux')('propaga fallo temprano y ejecutable inexistente', async () => {
     const target = path.join(root, 'app-fallida');
     await fs.writeFile(target, '#!/bin/sh\nexit 7\n', { mode: 0o755 });
     expect(await launchPathNonBlocking(target)).toMatchObject({ success: false, error: expect.stringContaining('código 7') });

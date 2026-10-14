@@ -155,3 +155,53 @@ concluyó con código 0 y dejó su cambio en el índice (M en la primera columna
 La causa del estado anterior del editor no está confirmada. No se creó commit
 ni se prepararon cambios ajenos a esa ruta. diff --cached --check sin incidencias;
 harness:validate y docs:check pasaron.
+
+## Consolidación Git para continuar — 2026-10-14
+
+El usuario solicitó commits en ambos repositorios, Learning en main y Hub en
+una sola rama de trabajo. Learning conserva el trabajo actual en af565278,
+publicado en origin/main. Sus ramas codex de sesiones, acceso Hub, correcciones
+Zoom y estudio ya son antecesoras de main; la rama local de grabaciones partía
+de la misma base y no tenía commits exclusivos. No se incorporaron ramas
+históricas ajenas ni actualizaciones automáticas de dependencias.
+
+Hub conserva el contenido completo del checkout en f8d699b y consolida el
+historial de marca (3387c5a), grabaciones (6a69df1) y apertura Linux (caacf8d)
+en codex/live-studio-runtime. Los conflictos de marca/grabaciones eran versiones
+anteriores de las mismas fuentes: se compararon contra el contenido integrado,
+conservando validación de actor, contratos compartidos, escenas locales,
+limpieza de captura y evidencia de migraciones. Esos dos merges mantienen
+exactamente el árbol de f8d699b. La integración Linux conserva sus archivos
+y recalcula el inventario documental: 597 archivos de prueba.
+
+Se compararon también los archivos modificados de los worktrees de respaldo
+con los checkouts principales, normalizando CRLF/LF: ninguna fuente de código
+exclusiva quedó fuera. Las diferencias corresponden a documentación anterior
+a la aplicación remota y al nuevo conteo de pruebas. Los respaldos se conservan.
+
+Verificación de Learning repetida para esta entrega: 121 pruebas pasadas en
+19 archivos live; tipos de tsconfig.recordings.json y ESLint de fuentes web
+afectadas exitosos. La primera invocación de ESLint desde la raíz encontró
+la configuración legacy; se repitió con el flat config vigente de apps/web.
+No se modificó la configuración de lint ni se afirma un typecheck global limpio;
+la línea base de errores de la aplicación consta en la verificación anterior.
+
+La primera compuerta de Hub detectó tres pruebas de integración POSIX intentando
+ejecutar scripts /bin/sh y permisos Linux en Windows, aunque simulaban platform.
+Se limitó su ejecución al host Linux real; no se omitieron pruebas portables.
+Las cinco suites dirigidas de apertura/verificación pasaron: 31 casos y tres
+casos POSIX omitidos en este host. La captura nativa Linux requiere su runner.
+
+Compuerta final npm run verify:pr exit 0: 4384 pruebas pasadas, cinco omitidas
+en 432 archivos (430 aprobados y dos suites opt-in omitidas). Pasaron adaptadores,
+arnés, suministro, documentación, semilla, 66 cambios OpenSpec, typecheck y lint.
+docs:check se repitió tras actualizar este reporte: 537 documentos válidos.
+Se verificó ancestry de las tres ramas integradas y ausencia de conflictos
+pendientes. Los checkouts principales quedan preparados para seguir en
+Learning/main y Hub/codex/live-studio-runtime.
+
+Punto de continuación: los cambios de grabación están guardados y las cinco
+migraciones remotas verificadas. Falta configurar/verificar capacidad y privacidad
+de la cuenta central, desplegar el worker duradero y ensayar captura,
+importación y reproducción reales antes de activar publicaciones y retención.
+Los cambios OpenSpec permanecen abiertos; esta consolidación no es un release.
