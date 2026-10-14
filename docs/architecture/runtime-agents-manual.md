@@ -1,6 +1,6 @@
 # Manual del agente runtime de SofLIA Hub
 
-Estado: vigente. Actualizado: 2026-10-06.
+Estado: vigente. Actualizado: 2026-10-11.
 
 Meeting Ops incorpora [análisis en equipo](runtime-multiagent-harness.md):
 dos especialistas y un coordinador, proveedores Gemini/Codex y herramientas
@@ -1326,7 +1326,7 @@ remitente actual (nombre, tono, trato, contexto, instrucciones).
 | `get_system_info` | SO, CPU, RAM, disco y rutas de escritorio/documentos/descargas. |
 | `list_processes` | Procesos activos con PID, CPU y memoria. |
 | `kill_process` | Cierra un proceso por nombre o PID. Requiere confirmación. |
-| `open_application` | Abre app o archivo; en Windows resuelve ejecutables instalados, accesos directos y alias. |
+| `open_application` | Abre app o archivo; Windows resuelve ejecutables, accesos directos y alias; Linux resuelve PATH y entradas desktop (incluido Snap/Flatpak). `window_verified` distingue ventana comprobada de lanzamiento aceptado. |
 
 #### Extensibilidad
 
@@ -2206,6 +2206,14 @@ Comprobaciones específicas del agente de escritorio:
   backend legacy), pero el worker UIA es específico de Windows. Los equivalentes
   — AX en macOS y AT-SPI en Linux — están pendientes como proveedores adicionales
   del `element-locator`.
+- **Apertura en Linux**: las aplicaciones se resuelven por nombre instalado y
+  se lanzan sin shell. X11 comprueba proceso y activación con xdotool. Wayland
+  permite lanzar, pero no verificar ni activar una ventana de forma portable:
+  `success: true` con `window_verified: false` indica solicitud aceptada, no
+  éxito visual. El chat ejecuta una orden explícita de Computer Use que sólo
+  pide abrir una aplicación mediante `open_application` y responde desde el
+  resultado real, sin una afirmación generada antes de ejecutar. Las solicitudes
+  compuestas y catálogos restringidos conservan el flujo del modelo.
 - **Timeout cooperativo de herramientas dinámicas**: la I/O que respeta
   `AbortSignal` se cancela; el código síncrono que bloquea el event loop sigue
   siendo un riesgo residual.

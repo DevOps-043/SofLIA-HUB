@@ -4,6 +4,7 @@ import { promisify } from 'node:util';
 import { shell } from 'electron';
 import { normalizePath } from '../utils/file-utils';
 import { assertSafeExternalUrl } from './email-security';
+import { detectPlatformCapabilities } from '../platform-capabilities';
 import {
   focusExistingApplicationWindow,
   launchPathNonBlocking,
@@ -81,6 +82,7 @@ export async function handleOpenPath(
           progress: progressMessages,
           pid: existingWindow.pid,
           session_status: 'focused',
+          window_verified: true,
         };
       }
     }
@@ -100,6 +102,14 @@ export async function handleOpenPath(
 
     // Para open_application: esperar y verificar que la ventana realmente apareció
     if (toolName === 'open_application') {
+      if (process.platform === 'linux' && !detectPlatformCapabilities().linuxXdotool) {
+        return {
+          ...buildLaunchSuccess(target, progressMessages, launchResult),
+          window_verified: false,
+          launch_started: true,
+          message: `Envié la solicitud para abrir ${requestedPath}. Esta sesión no permite verificar ni activar su ventana (Wayland o sesión sin X11); comprueba si apareció.`,
+        };
+      }
       await new Promise((resolve) => setTimeout(resolve, 1800));
       assertExecution(guard);
       const windowConfirm = await focusExistingApplicationWindow(requestedPath, target.path, guard);
@@ -110,6 +120,8 @@ export async function handleOpenPath(
           error: `Lancé "${target.path}" pero la ventana no apareció. Puede haber un problema con la aplicación o requiere permisos adicionales. Intenta de nuevo o verifica que la aplicación esté instalada correctamente.`,
           resolvedPath: target.path,
           session_id: launchResult.session?.id,
+          launch_started: true,
+          window_verified: false,
         };
       }
       return {
@@ -156,6 +168,7 @@ async function resolveTarget(requestedPath: string, progressMessages: string[], 
 }
 
 async function lookupInstalledAppsIndex(requestedPath: string): Promise<{ nombre: string; ruta: string } | null> {
+  if (process.platform !== 'win32') return null;
   try {
     const { findInstalledApp } = await import('../desktop-agent/installed-apps-index');
     const entry = await findInstalledApp(requestedPath, 6 * 60 * 60 * 1000);
@@ -169,17 +182,16 @@ async function lookupInstalledAppsIndex(requestedPath: string): Promise<{ nombre
 }
 
 function buildLaunchSuccess(resolvedTarget: ResolvedApplicationTarget, progress: string[], launchResult: any): Record<string, any> {
-  const resolvedFrom = resolvedTarget.source === 'direct'
-    ? 'ruta directa'
-    : resolvedTarget.source === 'app-paths'
-      ? 'registro App Paths'
-      : resolvedTarget.source === 'where'
-        ? 'PATH del sistema'
-        : resolvedTarget.source === 'installed-apps-index'
-          ? 'indice de apps instaladas'
-          : resolvedTarget.source === 'start-apps'
-            ? 'apps del Menu Inicio (UWP)'
-            : 'busqueda en accesos directos y carpetas comunes';
+  const labels: Record<string, string> = {
+    direct: 'ruta directa',
+    'linux-desktop': 'entrada desktop de Linux',
+    'linux-path': 'PATH de Linux',
+    'app-paths': 'registro App Paths',
+    where: 'PATH del sistema',
+    'installed-apps-index': 'indice de apps instaladas',
+    'start-apps': 'apps del Menu Inicio (UWP)',
+  };
+  const resolvedFrom = labels[resolvedTarget.source] || 'busqueda en accesos directos y carpetas comunes';
   return { success: true, message: `Aplicacion o archivo abierto: ${resolvedTarget.path}`, resolvedPath: resolvedTarget.path, resolvedFrom, searchedQuery: resolvedTarget.searchedQuery, alternatives: resolvedTarget.alternatives, progress, session_id: launchResult.session?.id, pid: launchResult.session?.pid, session_status: launchResult.session?.status };
 }
 

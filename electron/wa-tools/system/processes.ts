@@ -28,7 +28,7 @@ export const PROCESS_TOOLS = [
   },
   {
     name: 'open_application',
-    description: 'Abre una aplicacion o archivo. Acepta ruta completa o nombre comun de la app (por ejemplo "AnyDesk", "Excel", "Chrome"). En Windows intenta resolver ejecutables instalados, accesos directos y alias del sistema. REQUIERE confirmacion.',
+    description: 'Abre una aplicacion o archivo. Resuelve nombres instalados en Windows y Linux (PATH y entradas desktop). Solo afirma que la ventana esta abierta si window_verified es true. Con window_verified:false informa lanzamiento sin verificacion visual; no repitas la apertura. REQUIERE confirmacion.',
     parameters: {
       type: 'OBJECT' as const,
       properties: {

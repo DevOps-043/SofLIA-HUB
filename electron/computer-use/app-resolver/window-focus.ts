@@ -3,6 +3,7 @@ import { runPowerShellInput } from '../../desktop-agent/powershell-input';
 import type { ApplicationExecutionGuard } from '../app-open-tool';
 import { stripLaunchExtension } from './path-helpers';
 import type { ExistingWindowMatch } from './types';
+import { focusLinuxApplicationWindow } from './linux-window';
 
 function escapePowerShellSingleQuoted(value: string): string {
   return value.replace(/'/g, "''");
@@ -31,6 +32,7 @@ export async function focusExistingApplicationWindow(
   resolvedPath: string,
   guard?: ApplicationExecutionGuard,
 ): Promise<ExistingWindowMatch | null> {
+  if (process.platform === 'linux') return focusLinuxApplicationWindow(requestedPath, resolvedPath);
   if (process.platform !== 'win32') return null;
 
   const tokens = buildWindowSearchTokens(requestedPath, resolvedPath);
