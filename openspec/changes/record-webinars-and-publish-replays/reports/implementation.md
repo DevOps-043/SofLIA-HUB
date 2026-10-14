@@ -205,3 +205,31 @@ migraciones remotas verificadas. Falta configurar/verificar capacidad y privacid
 de la cuenta central, desplegar el worker duradero y ensayar captura,
 importación y reproducción reales antes de activar publicaciones y retención.
 Los cambios OpenSpec permanecen abiertos; esta consolidación no es un release.
+
+## Rama limpia y recuperación del checkout sin rama — 2026-10-14
+
+La captura posterior muestra el error `You are not currently on a branch` en
+record-webinars-recovered. Se confirmó HEAD separado en 135c4af, commit creado
+después de la consolidación anterior. El checkout principal estaba limpio en
+c84bc6e, con su seguimiento remoto correcto; el error pertenecía al auxiliar.
+
+Se creó codex/hub-consolidado-20261014 desde c84bc6e y se integró 135c4af en
+e62589e. La comparación confirmó código idéntico de grabaciones y documentación
+anterior de migraciones/consolidación en el auxiliar. Los cuatro conflictos
+documentales conservan las versiones actuales. El árbol de e62589e es idéntico
+al de c84bc6e, con la compuerta anterior acreditada; se preserva además el commit
+recuperado como antecesor de la nueva rama.
+
+El auxiliar quedó en codex/respaldo-hub-recuperado-20261014, sin HEAD separado,
+y se movió fuera del workspace a
+C:/Users/FerSG/.codex/backups/soflia-hub-20261014/record-webinars-recovered.
+Los otros dos directorios obsoletos sólo contenían junctions de dependencias;
+se conservaron en el mismo respaldo y se retiraron sus registros Git inválidos
+con worktree prune. No se borraron módulos, vídeos ni cambios del usuario.
+
+El workspace principal tiene una sola copia de trabajo activa, en la rama nueva.
+Las ramas anteriores se conservan como historial; no se fuerza ningún push ni
+se cambia main de Hub. La nueva rama se publica con upstream propio. Verificación
+proporcional: igualdad del árbol, ancestry del commit recuperado, ausencia de
+conflictos y archivos pendientes, preparación Git sin error y enlaces documentales.
+No se repite la suite completa porque no cambia código respecto de c84bc6e.
