@@ -9,7 +9,7 @@ const filesystem = requireScript('node:fs') as typeof import('node:fs');
 const childProcess = requireScript('node:child_process') as typeof import('node:child_process');
 
 function context(platform = 'win32') {
-  return { electronPlatformName: platform, appOutDir: join('paquete', 'Pulse Hub'), packager: { appInfo: { productFilename: 'Pulse Hub' } } };
+  return { electronPlatformName: platform, appOutDir: join('paquete', 'Soflia Hub'), packager: { appInfo: { productFilename: 'Soflia Hub' } } };
 }
 
 function loadHook() {
@@ -41,7 +41,7 @@ describe('compuerta Python del instalador', () => {
     const verify = loadHook();
     const build = context(platform);
     const resources = platform === 'darwin'
-      ? join(build.appOutDir, 'Pulse Hub.app', 'Contents', 'Resources')
+      ? join(build.appOutDir, 'Soflia Hub.app', 'Contents', 'Resources')
       : join(build.appOutDir, 'resources');
     const executable = join(resources, 'python', ...(platform === 'win32' ? ['python.exe'] : ['bin', 'python3']));
     await expect(verify(build)).resolves.toBeUndefined();

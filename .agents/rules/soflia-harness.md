@@ -1,4 +1,4 @@
-# Regla de workspace de Pulse Hub
+# Regla de workspace de Soflia Hub
 
 Lee y aplica `AGENTS.md` y `docs/standards/engineering-practices.md` antes de
 modificar el repositorio. La fuente canonica de contexto es `docs/`, la de

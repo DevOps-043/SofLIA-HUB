@@ -49,7 +49,7 @@ en él (una marca de más diría una limitación falsa).
 
 ## Pendiente
 
-1. **Ejecutar `user-skill-settings.sql`** en la instancia Pulse Hub. Copia las
+1. **Ejecutar `user-skill-settings.sql`** en la instancia Soflia Hub. Copia las
    filas de `user_skill_channels` si existe, así que puede ejecutarse antes o
    después de la anterior sin perder configuración.
 2. **Aplicar la selección en WhatsApp y Telegram al ejecutar** (tarea 4.4). El

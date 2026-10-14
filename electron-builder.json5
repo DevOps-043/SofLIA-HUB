@@ -7,7 +7,7 @@
   asarUnpack: [
     "**/node_modules/onnxruntime-node/**",
   ],
-  productName: "Pulse Hub",
+  productName: "Soflia Hub",
   publish: [
     {
       provider: "github",
@@ -55,21 +55,21 @@
       filter: ["**/*"],
     },
   ],
-  // Icono.png es el logotipo horizontal que usa la UI; los empaquetadores
+  // Icono.png es el logotipo vertical que usa la UI; los empaquetadores
   // exigen iconos cuadrados, por eso apuntan al master generado por
   // `node scripts/generate-app-icons.js`.
   mac: {
     target: ["dmg"],
     icon: "public/assets/icon.png",
-    artifactName: "Pulse-Hub-Mac-${version}-Installer.${ext}",
+    artifactName: "Soflia-Hub-Mac-${version}-Installer.${ext}",
     // El runtime endurecido bloquea camara y microfono si no se declaran las
     // entitlements, y macOS deniega el acceso (o cierra el proceso) si el
     // Info.plist no explica para que se piden.
     entitlements: "build/entitlements.mac.plist",
     entitlementsInherit: "build/entitlements.mac.plist",
     extendInfo: {
-      NSCameraUsageDescription: "Pulse Hub usa la camara cuando una pagina abierta en el navegador integrado la solicita y tu apruebas el permiso.",
-      NSMicrophoneUsageDescription: "Pulse Hub usa el microfono para dictado, reuniones y para las paginas del navegador integrado a las que apruebas el permiso.",
+      NSCameraUsageDescription: "Soflia Hub usa la camara cuando una pagina abierta en el navegador integrado la solicita y tu apruebas el permiso.",
+      NSMicrophoneUsageDescription: "Soflia Hub usa el microfono para dictado, reuniones y para las paginas del navegador integrado a las que apruebas el permiso.",
     },
   },
   dmg: {
@@ -89,7 +89,7 @@
         arch: ["x64"],
       },
     ],
-    artifactName: "Pulse-Hub-Windows-${version}-Setup.${ext}",
+    artifactName: "Soflia-Hub-Windows-${version}-Setup.${ext}",
   },
   nsis: {
     oneClick: false,
@@ -109,14 +109,14 @@
     runAfterFinish: true,
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
-    shortcutName: "Pulse Hub",
-    uninstallDisplayName: "Pulse Hub",
+    shortcutName: "Soflia Hub",
+    uninstallDisplayName: "Soflia Hub",
   },
   linux: {
     icon: "public/assets/icon.png",
     category: "Office",
     synopsis: "AI-powered business operations platform",
-    description: "Pulse Hub Desktop Client",
+    description: "Soflia Hub Desktop Client",
     executableName: "soflia-hub",
     target: [
       {
@@ -131,10 +131,10 @@
     // ${arch} se renderiza como "x86_64" para AppImage x64, pero el workflow y
     // el smoke test esperan el sufijo literal "x64" (igual que Windows/Mac fijan
     // Setup/Installer). Fijarlo evita el desajuste de nombre en release.yml.
-    artifactName: "Pulse-Hub-Linux-${version}-x64.${ext}",
+    artifactName: "Soflia-Hub-Linux-${version}-x64.${ext}",
     desktop: {
       entry: {
-        Name: "Pulse Hub",
+        Name: "Soflia Hub",
         Comment: "AI-powered business operations platform",
         Categories: "Office;Productivity;",
         Keywords: "productivity;business;ai;whatsapp;google;",

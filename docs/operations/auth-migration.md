@@ -1,4 +1,4 @@
-# Migración del login de Pulse Hub a Supabase Auth
+# Migración del login de Soflia Hub a Supabase Auth
 
 Fecha: 2026-07-08. Actualizado: 2026-08-05.
 Estado: **Implementado** — `public.users` ya no almacena hashes de contraseña.
@@ -8,7 +8,7 @@ Estado: **Implementado** — `public.users` ya no almacena hashes de contraseña
 ## Problema (causa raíz confirmada)
 
 SofLIA Learning migró las credenciales a **Supabase Auth** (`auth.users`, mayo
-2026), pero Pulse Hub todavía dependía del RPC legado `authenticate_user`. Esa
+2026), pero Soflia Hub todavía dependía del RPC legado `authenticate_user`. Esa
 dependencia se retiró y el esquema actual ya no contiene una columna de hash en
 `public.users`; esa tabla conserva únicamente perfil e identidad de negocio.
 
@@ -63,7 +63,7 @@ Todas las queries (correspondencia de identidad, cuentas huérfanas y confirmaci
 viven en **`database/sofia-learning/migrations/auth-supabase-hub.sql`**, organizadas por secciones:
 
 > Ejecutar este archivo exclusivamente en el proyecto Supabase de
-> **SofLIA Learning/SOFIA**. No ejecutarlo en **Pulse Hub/Lia**: esa instancia
+> **SofLIA Learning/SOFIA**. No ejecutarlo en **Soflia Hub/Lia**: esa instancia
 > almacena conversaciones y no contiene `public.users`. El script incluye una
 > guarda que detiene el lote con una instrucción clara si se abre el proyecto
 > equivocado.

@@ -23,7 +23,7 @@ acceso y estabilidad.
   pestañas, las vistas divididas, las ventanas separadas, el zoom y los atajos
   de teclado. También se añaden controles de audio y menús de pestaña.
 - **Acceso a los servicios de la organización.** El navegador puede utilizar la
-  cuenta de Pulse Hub para acceder a los servicios compatibles de SofLIA,
+  cuenta de Soflia Hub para acceder a los servicios compatibles de SofLIA,
   Learning y Project Hub, con una opción para volver a conectar la sesión.
 - **Equipos de asistentes.** SofLIA puede distribuir determinados análisis,
   investigaciones y entregables entre especialistas y reunir sus aportes.
@@ -404,7 +404,7 @@ acceso y estabilidad.
   aunque la aplicacion ya estuviera abierta delante del usuario.
 - El selector lista las ventanas con miniatura y aplicacion de origen sin leer
   el contenido de ninguna: abrirlo no cuesta nada aunque haya veinte ventanas.
-  Las ventanas del propio Pulse Hub quedan fuera.
+  Las ventanas del propio Soflia Hub quedan fuera.
 - La lectura baja por la primera via util. Un documento de Office llega completo
   y con sus tablas, porque COM resuelve la ruta del archivo y la lee el sidecar
   de documentos; el resto de aplicaciones llegan como texto de la ventana por UI
@@ -509,7 +509,7 @@ acceso y estabilidad.
 - La Orbe usa ahora la misma voz ElevenLabs del modo lectura, con
   `eleven_turbo_v2_5` por defecto, síntesis anticipada y reproducción MP3
   ordenada mediante Web Audio.
-- `orb:synthesize` queda restringido a renderers autenticados de Pulse Hub y
+- `orb:synthesize` queda restringido a renderers autenticados de Soflia Hub y
   entrega sólo audio y metadatos no secretos.
 - El adjunto no se retira solo al pasar el foco al chat; se sustituye al marcar
   otro fragmento y se descarta desde el chip. Deshacer la seleccion permite
@@ -747,7 +747,7 @@ acceso y estabilidad.
 
 ### Added
 
-- **Navegador integrado completo:** Pulse Hub incorpora una superficie Chromium compartida entre el usuario y SofLIA, con sesion persistente aislada, historial, favoritos, sugerencias de direccion, gestor de credenciales cifradas y extensiones Manifest V3 desempaquetadas.
+- **Navegador integrado completo:** Soflia Hub incorpora una superficie Chromium compartida entre el usuario y SofLIA, con sesion persistente aislada, historial, favoritos, sugerencias de direccion, gestor de credenciales cifradas y extensiones Manifest V3 desempaquetadas.
 - **Pestañas, doble vista y ventanas separadas:** El navegador admite hasta 500 pestañas logicas con un presupuesto acotado de vistas activas, composicion dividida o superpuesta y hasta cuatro ventanas nativas separadas que conservan la misma sesion.
 - **Asistente dentro del navegador:** El chat de SofLIA puede flotar, redimensionarse, minimizarse, cambiar de lado o sustituirse por la Orbe movible sin reducir permanentemente el espacio de la pagina.
 - **Comprension real de la pagina:** SofLIA puede obtener captura y DOM semantico saneado de la pestaña activa, leer referencias contextuales, navegar de forma determinista y realizar busquedas web sin iniciar Computer Use cuando no es necesario.
@@ -773,7 +773,7 @@ acceso y estabilidad.
 ### Fixed
 
 - **Transcripciones y paneles dinamicos lentos:** La observacion de fondo ya no recorre el DOM ni comprime capturas completas durante la carga de YouTube y descarta capturas obsoletas cuando la pagina cambia.
-- **Navegador congelado o en blanco:** Se corrigieron carreras de viewport, captura, visibilidad y control del agente que podian bloquear la pagina o provocar que la automatizacion intentara actuar fuera de Pulse Hub.
+- **Navegador congelado o en blanco:** Se corrigieron carreras de viewport, captura, visibilidad y control del agente que podian bloquear la pagina o provocar que la automatizacion intentara actuar fuera de Soflia Hub.
 - **Predicciones que desplazaban la pagina:** El menu de la barra de direccion ahora se superpone como en un navegador convencional, conserva los insets reales y queda por encima del chat flotante.
 - **Redirecciones OAuth y verificacion en dos pasos:** Los cambios de subframes autorizados ya no producen falsos errores globales; los protocolos no permitidos del frame principal continúan bloqueados.
 - **SofLIA no reconocia el contenido visible:** Las referencias a mensajes, personas, enlaces o repositorios de la pagina activa solicitan evidencia vigente antes de responder y pueden leer el DOM sin depender del nivel de razonamiento.

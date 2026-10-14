@@ -15,7 +15,7 @@ describe('entrada de instalación independiente', () => {
     expect(css).toContain('text-decoration: underline');
   });
   it('separa el EXE visual del artefacto de actualización', () => {
-    expect(artifactNames('0.9.8')).toEqual({ engine: 'Pulse-Hub-Windows-0.9.8-Setup.exe', shell: 'Pulse-Hub-Windows-0.9.8-Install.exe' });
+    expect(artifactNames('0.9.8')).toEqual({ engine: 'Soflia-Hub-Windows-0.9.8-Setup.exe', shell: 'Soflia-Hub-Windows-0.9.8-Install.exe' });
     expect(artifactNames('1.0.0-beta.2').shell).toContain('1.0.0-beta.2-Install.exe');
   });
   it.each(['', '../setup', '1.2', '1.2.3/../', '1.2.3"', '1.2.3\n'])('rechaza versión no apta para rutas %j', version => {
@@ -49,7 +49,7 @@ describe('entrada de instalación independiente', () => {
     const build = readFileSync(resolve('scripts/build-installer-shell.mjs'), 'utf8');
     expect(build).toContain("if (preview) args.push('/define:PREVIEW')");
     expect(build).toContain('else args.push(`/resource:${engine},Pulse.Payload`)');
-    expect(source('InstallerWindow.cs')).toContain('VISTA PREVIA · No instala Pulse Hub');
+    expect(source('InstallerWindow.cs')).toContain('VISTA PREVIA · No instala Soflia Hub');
   });
   it('no acepta ejecución desatendida ni mata el motor en escritura', () => {
     const service = source('InstallService.cs');

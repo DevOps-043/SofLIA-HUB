@@ -16,7 +16,7 @@ mover ventanas o inyectar entrada. Ver [contrato y comportamiento](autonomous-or
 El navegador integrado conecta Learning, Engine y Project Hub mediante un
 canje de sesión desde main en la partición del usuario. El canal
 `integrated-browser:ecosystem-connect` permite volver explícitamente a la
-cuenta de PulseHub; exige frame principal autenticado y cero argumentos.
+cuenta de Soflia Hub; exige frame principal autenticado y cero argumentos.
 El renderer no recibe credenciales. El registro por perfil conserva la elección
 de cuenta y el logout. Ver [diseño](../../openspec/changes/connect-browser-ecosystem-session/design.md)
 y [activación](../../openspec/changes/connect-browser-ecosystem-session/integration.md).
@@ -74,7 +74,7 @@ aprobación fabricada del renderer. El servicio comprueba capacidad, política,
 perfil y control humano; el borrado pregunta en main. Responde con biblioteca
 versionada, cancelación o error saneado. No existe IPC de ejecución de atajos.
 
-La allowlist actual contiene 477 canales derivados de cinco arrays: 84, 52, 61, 142, 132. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 488 canales derivados de cinco arrays: 84, 52, 61, 153, 138. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |
@@ -547,7 +547,7 @@ verifican el emisor.
 
 Listar es barato por diseño: cruza `DesktopWindowControls.listWindows` con las
 miniaturas de `desktopCapturer` y **no** invoca COM ni recorre arboles de
-accesibilidad. El inventario excluye las ventanas del propio Pulse Hub y solo
+accesibilidad. El inventario excluye las ventanas del propio Soflia Hub y solo
 emite identificadores propios; `capture-app` rechaza cualquier identificador que
 no venga de un inventario previo antes de tocar PowerShell.
 
@@ -811,6 +811,37 @@ La apertura externa usa una copia temporal de los bytes verificados, evitando
 la sustitución de la ruta original. HTML permanece en el sandbox. No hay
 edición Office ni ejecución de binarios.
 Véase [especificación del visor](../../openspec/changes/preview-generated-artifacts/specs/artifact-preview/spec.md).
+
+## Selector local de pantalla
+
+<!-- evidence: electron/integrated-browser/display-media-picker.ts -->
+<!-- evidence: electron/preload/display-media-api.ts -->
+<!-- evidence: src/services/display-media-picker.ts -->
+
+`display-media:list`, `select` y `cancel` sirven únicamente al frame principal
+de una ventana efímera creada por main. El preload de esa ventana expone solo
+`displayMediaPicker`; el renderer del Hub y las páginas remotas no reciben las
+miniaturas ni pueden seleccionar mediante estos canales. Se reutiliza el mismo
+selector para el Hub, el Meeting SDK y el navegador integrado.
+La página solicitante recibe solo la fuente confirmada. Se revalida la existencia
+de pantallas/ventanas y el documento/perfil de pestañas al confirmar. Audio del
+sistema desactivado por defecto, únicamente cuando fue solicitado en Windows.
+Cancelar, Escape, cerrar, navegación del padre, crash o timeout liberan el estado.
+Las pestañas disponibles son vistas materializadas del navegador del Hub;
+Chrome/Edge externos se comparten como ventanas. No se enumeran pestañas sensibles
+ni las que están bajo control del agente. [Especificación del selector](../../openspec/changes/implement-live-studio-runtime/specs/display-media-picker/spec.md).
+
+Los vínculos de producción se gestionan con `studio-capture:choose`, `activate`,
+`release` y `clear`, solo desde el frame principal autenticado del Hub.
+`electron/studio-capture/` custodia concesiones UUID, nunca elegibles por nombre
+desde el renderer. `electron/preload/studio-capture-api.ts` y el wrapper
+`src/services/studio-capture.ts` completan las capas del contrato.
+Elegir una fuente abre el selector propio en modo Vincular, sin transmisión.
+Activar prepara la fuente para la próxima solicitud del SDK; la vista local usa
+una concesión de un solo uso que vence a los diez segundos. La ruta independiente
+de loopback no consume esta concesión. Quitar/cancelar/salir/cambiar identidad
+liberan los vínculos. Fuente perdida cancela la captura sin elegir un sustituto.
+Véase [escenas locales](../../openspec/changes/implement-live-studio-runtime/specs/studio-local-scenes/spec.md).
 
 ## Exportación y audiovisual local
 

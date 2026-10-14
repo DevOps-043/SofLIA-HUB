@@ -31,7 +31,7 @@ export function BrowserCredentialGate({ children }: { children: ReactNode }) {
     finally { if (revision === generation.current) setBusy(false); }
   };
   return <section className="space-y-3">
-    <p className="text-xs text-secondary">Verificación con Windows Hello/PIN. Bloqueo automático a los cinco minutos, al bloquear o suspender el equipo y al cambiar de perfil. Pulse Hub no recibe tu PIN ni biometría.</p>
+    <p className="text-xs text-secondary">Verificación con Windows Hello/PIN. Bloqueo automático a los cinco minutos, al bloquear o suspender el equipo y al cambiar de perfil. Soflia Hub no recibe tu PIN ni biometría.</p>
     <button type="button" className="soflia-browser-button" disabled={busy || state?.profileRevision === undefined} onClick={() => void run(state?.credentialUnlocked ? 'lock' : 'unlock')}>
       {busy ? 'Esperando a Windows…' : state?.credentialUnlocked ? 'Bloquear bóveda' : 'Desbloquear con Windows'}
     </button>

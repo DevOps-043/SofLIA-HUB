@@ -1,6 +1,6 @@
 ## Why
 
-Con tres pestañas del navegador integrado, Pulse Hub consume aproximadamente 1,5–1,9 GB de RAM y 15 % de CPU en el equipo reportado, valores cercanos a Chrome. La implementación actual mantiene timers y animaciones a ritmo completo en todas las pestañas y captura la pestaña activa de forma periódica incluso en reposo, por lo que se necesita una política de recursos medible y adaptativa.
+Con tres pestañas del navegador integrado, Soflia Hub consume aproximadamente 1,5–1,9 GB de RAM y 15 % de CPU en el equipo reportado, valores cercanos a Chrome. La implementación actual mantiene timers y animaciones a ritmo completo en todas las pestañas y captura la pestaña activa de forma periódica incluso en reposo, por lo que se necesita una política de recursos medible y adaptativa.
 
 ## What Changes
 

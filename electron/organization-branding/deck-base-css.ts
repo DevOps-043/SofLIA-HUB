@@ -11,7 +11,7 @@
  * El modelo compone con estas clases en vez de reinventar el sistema en cada
  * presentacion, que es lo que hacia que unas salieran bien y otras no.
  */
-export const DECK_BASE_CSS = `/* Sistema de diseno de presentaciones de Pulse Hub.
+export const DECK_BASE_CSS = `/* Sistema de diseno de presentaciones de Soflia Hub.
    NO EDITAR: se reescribe en cada generacion. Compon con estas clases y
    escribe en estilos/presentacion.css solo lo especifico de esta baraja. */
 

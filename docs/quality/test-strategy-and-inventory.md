@@ -2,7 +2,7 @@
 
 Estado: vigente. Actualizado: 2026-10-08.
 
-El inventario del cambio contiene 576 archivos de prueba: 387 para main y 188
+El inventario del cambio contiene 591 archivos de prueba: 395 para main y 195
 para renderer, además de uno de scripts. El validador documental recalcula estas cifras; el numero de casos
 ejecutados se registra en el reporte de evidencia de cada cambio, no aqui.
 
@@ -231,7 +231,7 @@ rollback. No todos aplican a cada cambio; el Context Pack decide.
 
 | Suite | Qué demuestra |
 |---|---|
-| `electron/__tests__/desktop-context-inventory.test.ts` | Que listar es barato y acotado: cruce de ventanas con miniaturas, exclusión de Pulse Hub por pid y por título, descarte de ventanas sin título, inventario vacío ante fallo de enumeración, identificador estable entre inventarios y degradación a solo captura fuera de Windows. |
+| `electron/__tests__/desktop-context-inventory.test.ts` | Que listar es barato y acotado: cruce de ventanas con miniaturas, exclusión de Soflia Hub por pid y por título, descarte de ventanas sin título, inventario vacío ante fallo de enumeración, identificador estable entre inventarios y degradación a solo captura fuera de Windows. |
 | `electron/__tests__/desktop-context-cascade.test.ts` | La degradación de la cascada, que es donde se decide la fidelidad: documento completo con tablas y visual de apoyo, conservación del documento si falla esa captura, marca de cambios sin guardar, caída a accesibilidad cuando el documento no está en disco o la ruta no corresponde a la ventana marcada, caída a captura sin texto accesible, fallo aislado y truncado declarado. |
 | `electron/__tests__/desktop-context-handlers.test.ts` | Que el contrato IPC no deja rutas abiertas: solo dos canales, rechazo de emisor ajeno, rechazo de identificador no inventariado sin devolver contenido, ausencia de registro con la capacidad desactivada y saneamiento de rutas del disco en los errores. |
 | `src/__tests__/services/app-attachments.test.ts` | Que el bloque de contexto no engaña al modelo: procedencia por nivel, documento completo acompañado por su visual actual, aviso de cambios sin guardar, acotado de la autoridad de una captura, prohibición de inferir cuando no hay contenido, recorte declarado y fallo aislado. |

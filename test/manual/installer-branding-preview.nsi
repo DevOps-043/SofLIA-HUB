@@ -1,6 +1,6 @@
 ; Vista nativa de la bienvenida real: sin instalar archivos, registro ni app.
 Unicode true
-Name "Pulse Hub - Vista de diseno"
+Name "Soflia Hub - Vista de diseno"
 OutFile "${PREVIEW_OUT}"
 RequestExecutionLevel user
 !include MUI2.nsh

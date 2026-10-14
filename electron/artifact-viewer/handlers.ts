@@ -35,14 +35,14 @@ export function registerArtifactViewerHandlers(service: ArtifactViewerService, g
   register('artifact-viewer:preview', artifactReferenceSchema, reference => service.preview(reference));
   register('artifact-viewer:pick', z.undefined(), async (_, window) => {
     const token = await service.guard();
-    const selection = await dialog.showOpenDialog(window, { title: 'Abrir archivo en PulseHub', properties: ['openFile'], filters: [{ name: 'Documentos, datos, imágenes y aplicaciones HTML', extensions: [...VIEWER_EXTENSIONS] }] });
+    const selection = await dialog.showOpenDialog(window, { title: 'Abrir archivo en Soflia Hub', properties: ['openFile'], filters: [{ name: 'Documentos, datos, imágenes y aplicaciones HTML', extensions: [...VIEWER_EXTENSIONS] }] });
     await service.guard(token);
     return selection.canceled || !selection.filePaths[0] ? null : service.selected(selection.filePaths[0], token);
   });
   register('artifact-viewer:open-external', artifactReferenceSchema, async reference => {
     const source = await service.resolve(reference);
     // HTML interactivo se mantiene en el sandbox: abrirlo en el navegador permitiría acceso a red.
-    if (['html', 'htm'].includes(source.metadata.extension)) throw new Error('Abre la aplicación HTML en la vista previa de PulseHub.');
+    if (['html', 'htm'].includes(source.metadata.extension)) throw new Error('Abre la aplicación HTML en la vista previa de Soflia Hub.');
     const copy = await service.externalCopy(source);
     if (await shell.openPath(copy)) throw new Error('No hay una aplicación predeterminada para ese formato. Usa Guardar copia.');
     return null;

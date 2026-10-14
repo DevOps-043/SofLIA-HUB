@@ -4,8 +4,8 @@ export interface EcosystemIdentity { userId: string; accessToken: string }
 export class EcosystemSessionError extends Error {
   constructor(readonly code: 'endpoint-unavailable' | 'session-rejected', readonly status: number) {
     super(code === 'endpoint-unavailable'
-      ? 'El sitio todavía no tiene activado el acceso con PulseHub. Hace falta publicar la integración en esa web.'
-      : 'El sitio rechazó la conexión de la cuenta de PulseHub. Revisa la sesión y vuelve a intentarlo.');
+      ? 'El sitio todavía no tiene activado el acceso con Soflia Hub. Hace falta publicar la integración en esa web.'
+      : 'El sitio rechazó la conexión de la cuenta de Soflia Hub. Revisa la sesión y vuelve a intentarlo.');
   }
 }
 interface Dependencies {
@@ -40,14 +40,14 @@ export async function connectEcosystemSession(target: string, deps: Dependencies
   let data: { success?: unknown; userId?: unknown; preserved?: unknown; error?: unknown; code?: unknown } | null;
   try { data = JSON.parse(text); } catch {
     if (!response.ok) throw new EcosystemSessionError('session-rejected', response.status);
-    throw new Error('El sitio no confirmó la identidad de PulseHub.');
+    throw new Error('El sitio no confirmó la identidad de Soflia Hub.');
   }
   if (!response.ok) {
     const middlewareBlocked = response.status === 401 && (data?.error === 'UNAUTHENTICATED' || data?.code === 'UNAUTHORIZED');
     throw new EcosystemSessionError(middlewareBlocked ? 'endpoint-unavailable' : 'session-rejected', response.status);
   }
   if (data?.success !== true || (data.preserved !== true && data.userId !== identity.userId))
-    throw new Error('El sitio no confirmó la identidad de PulseHub.');
+    throw new Error('El sitio no confirmó la identidad de Soflia Hub.');
   deps.assertCurrent();
   if ((await deps.getIdentity())?.userId !== identity.userId) throw new Error('La cuenta cambió durante la conexión.');
   deps.assertCurrent();

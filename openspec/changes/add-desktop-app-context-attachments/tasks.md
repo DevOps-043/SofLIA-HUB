@@ -1,7 +1,7 @@
 ## 1. Contratos e inventario
 
 - [x] 1.1 Definir en `electron/desktop-context/types.ts` el adjunto de aplicación, el nivel de extracción, los avisos y los límites, con validadores compartidos.
-- [x] 1.2 Implementar el inventario de ventanas candidatas reutilizando `DesktopWindowControls.listWindows` y `desktopCapturer` con `types: ['window']`, excluyendo Pulse Hub y ventanas sin título, y declarando los niveles disponibles por plataforma.
+- [x] 1.2 Implementar el inventario de ventanas candidatas reutilizando `DesktopWindowControls.listWindows` y `desktopCapturer` con `types: ['window']`, excluyendo Soflia Hub y ventanas sin título, y declarando los niveles disponibles por plataforma.
 - [x] 1.3 Añadir la bandera de configuración que gobierna el registro de la capacidad y su rollback.
 - [x] 1.4 Cubrir con pruebas main el inventario, la exclusión propia, el estado vacío y el fallo de enumeración.
 

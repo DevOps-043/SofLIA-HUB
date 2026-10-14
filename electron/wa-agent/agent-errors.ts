@@ -87,9 +87,9 @@ export function isModelAvailabilityError(error: unknown): boolean {
 export function getWhatsAppAgentUserErrorMessage(error: unknown): string {
   switch (classifyWhatsAppAgentError(error)) {
     case 'missing-api-key':
-      return 'No tengo una API key de OpenAI configurada para WhatsApp. Actualizala en Pulse Hub y vuelve a intentar.';
+      return 'No tengo una API key de OpenAI configurada para WhatsApp. Actualizala en Soflia Hub y vuelve a intentar.';
     case 'invalid-api-key':
-      return 'OpenAI rechazo la API key configurada. Revisa que la key nueva este guardada en Pulse Hub y que tenga acceso a gpt-6-luna.';
+      return 'OpenAI rechazo la API key configurada. Revisa que la key nueva este guardada en Soflia Hub y que tenga acceso a gpt-6-luna.';
     case 'quota':
       return 'OpenAI rechazo la solicitud por cuota o limite temporal. Intenta de nuevo en unos minutos o revisa la cuota de la key.';
     case 'model-unavailable':

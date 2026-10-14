@@ -1,7 +1,7 @@
 import type { ArtifactReference, ArtifactViewerBridge, ViewerReply } from '../shared/artifact-viewer';
 declare global { interface Window { artifactViewer?: ArtifactViewerBridge } }
 function bridge(): ArtifactViewerBridge {
-  if (!window.artifactViewer) throw new Error('Reinicia PulseHub para activar el visor de archivos.');
+  if (!window.artifactViewer) throw new Error('Reinicia Soflia Hub para activar el visor de archivos.');
   return window.artifactViewer;
 }
 async function result<T>(reply: Promise<ViewerReply<T>>): Promise<T> {

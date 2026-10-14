@@ -1,4 +1,4 @@
-# Documentacion de Pulse Hub
+# Documentacion de Soflia Hub
 
 Estado: vigente. Actualizado: 2026-07-21.
 
@@ -27,6 +27,7 @@ Este indice separa documentacion vigente de material historico.
 
 ## Producto y requisitos
 
+- [Identidad de Soflia Hub](product/brand-identity.md)
 - [Definicion, alcance y capacidades](product/product-definition.md)
 - [Actores, roles y responsabilidades](product/stakeholders-and-actors.md)
 - [Reglas de negocio](product/business-rules.md)
@@ -46,6 +47,9 @@ Este indice separa documentacion vigente de material historico.
 - [Plataforma del navegador integrado](architecture/integrated-browser-platform.md)
 - [IPC e integraciones](architecture/ipc-and-integrations.md)
 - [Aula de sesiones de Learning](architecture/learning-live-workspace.md)
+- [Operación del estudio síncrono](operations/live-studio-runtime.md)
+- [Grabación y repeticiones de webinars](operations/webinar-recordings.md)
+- [Plan de grabación de webinars y repeticiones en Learning (propuesta)](../openspec/changes/record-webinars-and-publish-replays/design.md)
 - [Movimiento autónomo del orbe y prácticas guiadas](architecture/autonomous-orb-guidance.md)
 - [Project Hub unificado](architecture/project-hub-unified.md)
 - [Agentes y automatizacion](architecture/agents-and-automation.md)

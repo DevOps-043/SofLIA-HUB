@@ -61,7 +61,7 @@ producía error visible —los dos degradaban en silencio—:
 
 ## Pendiente de verificación manual
 
-1. **Ejecutar `passive-skills.sql`** en la instancia Pulse Hub y comprobar su
+1. **Ejecutar `passive-skills.sql`** en la instancia Soflia Hub y comprobar su
    bloque de verificación (cuatro políticas, ninguna abierta a `anon`).
 2. **Sesión headless**: iniciar sesión, cerrar la aplicación, reabrirla en
    segundo plano y comprobar que una Skill pasiva se ejecuta y entrega.

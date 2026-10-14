@@ -1,8 +1,8 @@
-# SofLIA Extension -> Meeting Trigger -> Pulse Hub
+# SofLIA Extension -> Meeting Trigger -> Soflia Hub
 
 ## Objetivo
 
-Nivelar la extension del navegador con el ecosistema operativo real de Pulse Hub.
+Nivelar la extension del navegador con el ecosistema operativo real de Soflia Hub.
 
 La extension no debe limitarse a detectar transcripciones o a abrir la app. Debe poder:
 

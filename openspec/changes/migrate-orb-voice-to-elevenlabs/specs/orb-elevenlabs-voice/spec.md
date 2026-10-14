@@ -41,5 +41,5 @@ El sistema MUST validar texto, voz, modelo y formato antes de llamar al proveedo
 El sistema MUST NOT usar Google Cloud Text-to-Speech para la voz de la Orbe y MUST NOT requerir `VITE_GOOGLE_CLOUD_TTS_API_KEY`, `VITE_GOOGLE_CLOUD_TTS_VOICE` ni `VITE_GOOGLE_CLOUD_TTS_LANGUAGE` en desarrollo o release.
 
 #### Scenario: Aplicación configurada sólo con ElevenLabs
-- **WHEN** Pulse Hub se ejecuta sin variables Google TTS y con `ELEVENLABS_API_KEY` y `ELEVENLABS_VOICE_ID`
+- **WHEN** Soflia Hub se ejecuta sin variables Google TTS y con `ELEVENLABS_API_KEY` y `ELEVENLABS_VOICE_ID`
 - **THEN** la Orbe y el modo lectura pueden sintetizar voz sin degradar a Google TTS

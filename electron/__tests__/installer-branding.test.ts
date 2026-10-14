@@ -7,7 +7,7 @@ const require = createRequire(import.meta.url);
 const config = require('json5').parse(readFileSync(resolve('electron-builder.json5'), 'utf8'));
 const ui = readFileSync(resolve('build/installer.nsh'), 'utf8');
 
-describe('contrato visual y seguridad del instalador Pulse Hub', () => {
+describe('contrato visual y seguridad del instalador Soflia Hub', () => {
   it('conserva instalación asistida, elección de destino y datos al desinstalar', () => {
     expect(config.nsis).toMatchObject({ oneClick: false, perMachine: false, allowToChangeInstallationDirectory: true, deleteAppDataOnUninstall: false, installerLanguages: ['es_ES'] });
     expect(config.nsis.include).toBe('build/installer.nsh');

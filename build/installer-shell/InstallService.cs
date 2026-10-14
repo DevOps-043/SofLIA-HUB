@@ -15,7 +15,18 @@ namespace PulseInstaller {
         public InstallProgress(InstallPhase phase, int percent) { Phase = phase; Percent = percent; }
     }
     internal static class InstallService {
-        public const string AppFile = "Pulse Hub.exe";
+        public const string AppFile = "Soflia Hub.exe";
+
+        static bool IsInstallation(string directory) {
+            return (File.Exists(Path.Combine(directory, AppFile)) && File.Exists(Path.Combine(directory, "Uninstall Soflia Hub.exe"))) ||
+                (File.Exists(Path.Combine(directory, "Pulse Hub.exe")) && File.Exists(Path.Combine(directory, "Uninstall Pulse Hub.exe")));
+        }
+
+        public static string DefaultDestination() {
+            string programs = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs");
+            string legacy = Path.Combine(programs, "Pulse Hub");
+            return IsInstallation(legacy) ? legacy : Path.Combine(programs, "Soflia Hub");
+        }
 
         public static string ValidateDestination(string value) {
             if (String.IsNullOrWhiteSpace(value) || value.Length > 180 || value != value.Trim() ||
@@ -36,8 +47,8 @@ namespace PulseInstaller {
                 throw new InvalidOperationException("No se puede instalar dentro de la carpeta de Windows.");
             if (File.Exists(full)) throw new InvalidOperationException("El destino es un archivo, no una carpeta.");
             if (Directory.Exists(full) && Directory.GetFileSystemEntries(full).Length > 0 &&
-                !(File.Exists(Path.Combine(full, AppFile)) && File.Exists(Path.Combine(full, "Uninstall Pulse Hub.exe"))))
-                throw new InvalidOperationException("La carpeta contiene otros archivos. Elige una carpeta vacía o una instalación de Pulse Hub.");
+                !IsInstallation(full))
+                throw new InvalidOperationException("La carpeta contiene otros archivos. Elige una carpeta vacía o una instalación de Soflia Hub.");
             return full;
         }
 
@@ -47,9 +58,11 @@ namespace PulseInstaller {
         }
 
         public static void EnsureAppClosed() {
-            foreach (var process in Process.GetProcessesByName("Pulse Hub")) {
-                using (process) {
-                    if (!process.HasExited) throw new InvalidOperationException("Cierra Pulse Hub, incluida su bandeja del sistema, y vuelve a intentarlo. No cerraremos tu trabajo automáticamente.");
+            foreach (string name in new[] { "Soflia Hub", "Pulse Hub" }) {
+                foreach (var process in Process.GetProcessesByName(name)) {
+                    using (process) {
+                        if (!process.HasExited) throw new InvalidOperationException("Cierra Soflia Hub, incluida su bandeja del sistema, y vuelve a intentarlo. No cerraremos tu trabajo automáticamente.");
+                    }
                 }
             }
         }

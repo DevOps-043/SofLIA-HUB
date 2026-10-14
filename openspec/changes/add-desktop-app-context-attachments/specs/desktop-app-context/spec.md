@@ -5,18 +5,18 @@ Permitir que el usuario sume al contexto del chat el contenido de las aplicacion
 ## ADDED Requirements
 
 ### Requirement: Inventario de aplicaciones sin lectura de contenido
-El sistema SHALL ofrecer un inventario de las ventanas abiertas del equipo con nombre de ventana, aplicación de origen, identificador estable y miniatura. Construir el inventario MUST NOT leer el contenido de ninguna aplicación, invocar COM ni recorrer árboles de accesibilidad. El inventario MUST excluir las ventanas del propio Pulse Hub y las ventanas sin título.
+El sistema SHALL ofrecer un inventario de las ventanas abiertas del equipo con nombre de ventana, aplicación de origen, identificador estable y miniatura. Construir el inventario MUST NOT leer el contenido de ninguna aplicación, invocar COM ni recorrer árboles de accesibilidad. El inventario MUST excluir las ventanas del propio Soflia Hub y las ventanas sin título.
 
 #### Scenario: Apertura del selector
 - **WHEN** el usuario abre "Añadir aplicaciones" en el menú de herramientas del chat
 - **THEN** el selector lista las ventanas abiertas con su miniatura y aplicación de origen, sin extraer contenido de ninguna
 
 #### Scenario: Exclusión de la propia aplicación
-- **WHEN** el inventario se construye con Pulse Hub en primer plano
-- **THEN** las ventanas de Pulse Hub no aparecen entre las candidatas
+- **WHEN** el inventario se construye con Soflia Hub en primer plano
+- **THEN** las ventanas de Soflia Hub no aparecen entre las candidatas
 
 #### Scenario: Equipo sin ventanas candidatas
-- **WHEN** no hay ninguna ventana con título distinta de Pulse Hub
+- **WHEN** no hay ninguna ventana con título distinta de Soflia Hub
 - **THEN** el selector muestra un estado vacío explícito y no ofrece adjuntar nada
 
 #### Scenario: Inventario no disponible
@@ -95,7 +95,7 @@ El sistema SHALL aplicar un límite de caracteres por aplicación y un límite a
 El sistema SHALL exponer la cascada completa en Windows. En macOS y Linux SHALL ofrecer al menos el inventario y el nivel C, y SHALL declarar en la respuesta del inventario qué niveles están disponibles para que la interfaz no ofrezca una fidelidad que la plataforma no puede entregar.
 
 #### Scenario: Plataforma sin COM ni accesibilidad Windows
-- **WHEN** el usuario ejecuta Pulse Hub fuera de Windows
+- **WHEN** el usuario ejecuta Soflia Hub fuera de Windows
 - **THEN** el selector sigue listando ventanas y los adjuntos se resuelven por captura, indicándolo en el chip
 
 ### Requirement: Contrato IPC de cuatro capas

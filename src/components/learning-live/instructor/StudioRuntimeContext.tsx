@@ -1,0 +1,14 @@
+import { createContext, useContext } from 'react';
+import type { StudioCommand, StudioSnapshot } from '../../../shared/live-studio.contract';
+
+export type StudioRuntime = {
+  snapshot: StudioSnapshot;
+  busy: boolean;
+  realtime: string;
+  error: string;
+  send: (command: StudioCommand) => Promise<boolean>;
+  upload: (file: File) => Promise<string>;
+  refresh: () => Promise<void>;
+};
+export const StudioRuntimeContext = createContext<StudioRuntime | null>(null);
+export const useStudioRuntime = () => useContext(StudioRuntimeContext);

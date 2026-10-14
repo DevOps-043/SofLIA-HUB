@@ -13,7 +13,7 @@ datos no hay nada que publicar, listar ni versionar.
 
 ## What Changes
 
-- Nueva tabla global de Skills del sistema en la instancia Pulse Hub
+- Nueva tabla global de Skills del sistema en la instancia Soflia Hub
   (`VITE_SUPABASE_URL`, misma que `public.skills`). **Lectura para cualquier
   usuario autenticado; escritura solo con `service_role`.** Ningún usuario final
   puede insertar ni modificar filas.

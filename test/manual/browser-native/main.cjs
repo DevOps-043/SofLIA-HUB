@@ -68,7 +68,7 @@ async function until(predicate) {
 }
 
 async function exercise() {
-  const payload = Buffer.from('Descarga local de prueba Pulse Hub.\n');
+  const payload = Buffer.from('Descarga local de prueba Soflia Hub.\n');
   server = http.createServer((request, response) => {
     if (request.url === '/archivo') {
       response.writeHead(200, { 'Content-Type': 'application/octet-stream',

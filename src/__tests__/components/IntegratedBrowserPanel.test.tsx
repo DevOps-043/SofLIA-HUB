@@ -379,10 +379,10 @@ describe('IntegratedBrowserPanel', () => {
     expect(screen.getByRole('menu')).toBeInTheDocument();
   });
 
-  it('el menú permite volver explícitamente a la cuenta de PulseHub', async () => {
+  it('el menú permite volver explícitamente a la cuenta de Soflia Hub', async () => {
     render(<IntegratedBrowserPanel />);
     fireEvent.click(screen.getByRole('button', { name: 'Herramientas del navegador' }));
-    fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: 'Usar mi cuenta de PulseHub' }));
+    fireEvent.click(within(screen.getByRole('menu')).getByRole('menuitem', { name: 'Usar mi cuenta de Soflia Hub' }));
     await waitFor(() => expect(api.reconnectEcosystemSession).toHaveBeenCalledWith());
   });
 

@@ -8,6 +8,11 @@ const isPresentationRuntime = new URLSearchParams(window.location.search).get('v
 
 async function bootstrap() {
   const root = ReactDOM.createRoot(document.getElementById('root')!)
+  if (new URLSearchParams(window.location.search).get('view') === 'display-media-picker') {
+    const { DisplayMediaPicker } = await import('./components/display-media/DisplayMediaPicker')
+    root.render(<DisplayMediaPicker />)
+    return
+  }
   if (isPresentationRuntime) {
     // La vista previa vive en un iframe sandbox con origen opaco. Cargar solo
     // su runtime evita inicializar App/Supabase, que legitimamente intenta leer

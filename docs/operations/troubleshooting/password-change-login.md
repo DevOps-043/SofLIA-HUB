@@ -75,7 +75,7 @@ SOFIA autenticado de main. Sin esa sesión, WhatsApp puede verse “en línea”
 descarta el mensaje antes de invocar al agente; cambiar confirmaciones de lectura
 o visibilidad de última conexión no afecta ese flujo. Tras actualizar:
 
-1. cerrar y abrir Pulse Hub;
+1. cerrar y abrir Soflia Hub;
 2. si aparece el login, iniciar sesión una vez para reemplazar el snapshot
    huérfano y custodiar el refresh token cifrado;
 3. comprobar que carga la organización;
@@ -102,9 +102,9 @@ discordancia requiere revisión manual: no se debe marcar el correo como confirm
 por el solo hecho de que exista o tenga un inicio de sesión reciente.
 
 El archivo se ejecuta en el proyecto **SofLIA Learning/SOFIA**, no en
-**Pulse Hub/Lia**. El error `relation "public.users" does not exist` significa que
+**Soflia Hub/Lia**. El error `relation "public.users" does not exist` significa que
 se abrió la instancia de conversaciones; no indica que falte una migración en
-Pulse Hub y no debe resolverse creando allí una tabla `users` duplicada.
+Soflia Hub y no debe resolverse creando allí una tabla `users` duplicada.
 En SOFIA, el error `column u.password_hash does not exist` corresponde a una
 versión obsoleta del diagnóstico: el esquema actual ya retiró esa columna. Use la
 versión vigente, que solo compara identidad y confirmación y no inspecciona hashes.
@@ -117,7 +117,7 @@ se deben modificar `public.users`, `auth.users` ni contraseñas para intentar
 recuperarla.
 
 Ejecutar entonces `database/lia/audits/federated-chat-account-diagnostic.sql` en
-el proyecto **Pulse Hub/Lia**, reemplazando los dos parámetros iniciales por el
+el proyecto **Soflia Hub/Lia**, reemplazando los dos parámetros iniciales por el
 UUID y correo obtenidos en SOFIA. La consulta compara por separado ambos valores,
 comprueba el perfil operativo y cuenta conversaciones sin modificar datos. La
 guarda solo exige `auth.users`, `public.profiles` y `public.conversations`; si

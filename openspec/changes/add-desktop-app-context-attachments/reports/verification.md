@@ -18,7 +18,7 @@ Fecha: 2026-08-12. Host: Windows 11, sin Office abierto durante la ejecución.
 
 56 casos nuevos: 32 en main y 24 en renderer.
 
-- `desktop-context-inventory.test.ts`: cruce de ventanas con miniaturas, exclusión de Pulse Hub por pid y por título, ventanas sin título, fallo de enumeración, identificador estable entre inventarios, degradación a solo captura fuera de Windows y ausencia de `sourceId` en lo que cruza IPC.
+- `desktop-context-inventory.test.ts`: cruce de ventanas con miniaturas, exclusión de Soflia Hub por pid y por título, ventanas sin título, fallo de enumeración, identificador estable entre inventarios, degradación a solo captura fuera de Windows y ausencia de `sourceId` en lo que cruza IPC.
 - `desktop-context-cascade.test.ts`: los tres niveles, la degradación entre ellos, documento sin guardar, ruta que no corresponde a la ventana, extensión no soportada, documento vacío, fallo de COM, ventana cerrada durante la extracción, truncado declarado y emparejado de documento con título.
 - `desktop-context-handlers.test.ts`: registro de exactamente dos canales, emisor ajeno rechazado, identificador no inventariado rechazado sin devolver contenido, capacidad desactivada sin registrar handlers y saneamiento de rutas Windows y POSIX en los errores.
 - `app-attachments.test.ts`: procedencia por nivel, aviso de cambios sin guardar, autoridad acotada de una captura, prohibición de inferir sin contenido, recorte por límite de turno, fallo aislado de una aplicación, espera de lecturas pendientes con presupuesto y refresco del chip al terminar la lectura.

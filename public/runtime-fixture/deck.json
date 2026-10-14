@@ -9,7 +9,7 @@
     {
       "id": "portada",
       "tipo": "portada",
-      "antetitulo": "Pulse Hub · nuevo runtime",
+      "antetitulo": "Soflia Hub · nuevo runtime",
       "titulo": "Las ideas se mueven; la geometria permanece estable.",
       "subtitulo": "HyperFrames dirige la continuidad. React, Tailwind y Framer Motion garantizan el lienzo.",
       "movimiento": { "continuidad": "flujo", "entrada": "revelado", "enfasis": "recorrido" }

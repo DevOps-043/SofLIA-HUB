@@ -28,7 +28,7 @@
 
 ## Comparación basada en fuentes oficiales
 
-| Área | Proton Pass | Pulse Hub antes de esta fase | Dirección de mejora |
+| Área | Proton Pass | Soflia Hub antes de esta fase | Dirección de mejora |
 |---|---|---|---|
 | Cifrado | Protege también usuario, URL y notas; claves de bóveda y elemento, AES-256-GCM, operaciones locales antes del servidor. | v1 deja origen, usuario, ID y fechas en JSON; sólo el secreto usa `safeStorage`. | Cifrar la instantánea completa y autenticarla. La primera versión local no reproduce la jerarquía compartible de Proton. |
 | Guardado | La extensión sugiere credenciales y pide añadirlas después del registro/login. | Guardado manual con revisión de origen y reemplazo confirmado. | Oferta contextual tras gesto real, sin registrar valores en eventos/logs, y sin asumir que todo submit fue autenticación exitosa. |

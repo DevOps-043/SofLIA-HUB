@@ -1,4 +1,4 @@
-# Sidecars de Python en Pulse Hub
+# Sidecars de Python en Soflia Hub
 
 SofLIA distribuye un runtime de Python **embebido** (`python-runtime/`, no versionado, generado por
 `npm run python:setup` y empaquetado con `extraResources`). Sobre él corren **dos procesos sidecar

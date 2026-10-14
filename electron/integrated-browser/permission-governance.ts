@@ -409,7 +409,7 @@ export class IntegratedBrowserPermissionGovernance {
       type: 'warning' as const,
       title: 'Permiso del sistema bloqueado',
       message: `El sistema tiene bloqueado el acceso a ${describeKinds(kinds)}.`,
-      detail: `Habilitalo en ${ruta} para Pulse Hub y vuelve a intentarlo desde la pagina.`,
+      detail: `Habilitalo en ${ruta} para Soflia Hub y vuelve a intentarlo desde la pagina.`,
       buttons: ['Entendido'],
       defaultId: 0,
       cancelId: 0,

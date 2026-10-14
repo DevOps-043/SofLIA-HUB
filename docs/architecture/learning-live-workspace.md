@@ -1,52 +1,67 @@
 # Aula de sesiones de Learning
 
-Estado: implementación local. Actualizado: 2026-10-11.
+Estado: implementación local para pruebas; despliegue pendiente. Actualizado: 2026-10-12.
 
 <!-- evidence: src/components/learning-live/LearningWorkspace.tsx -->
-<!-- evidence: electron/learning-workspace-access.ts -->
-<!-- evidence: electron/learning-live-handlers.ts -->
-<!-- evidence: electron/preload/learning-live-api.ts -->
-<!-- evidence: src/services/learning-live-service.ts -->
-<!-- evidence: src/shared/learning-workspace.contract.ts -->
+<!-- evidence: src/components/learning-live/ConnectedStudio.tsx -->
+<!-- evidence: electron/learning-studio-access.ts -->
+<!-- evidence: electron/learning-studio-realtime.ts -->
+<!-- evidence: src/shared/live-studio.contract.ts -->
+<!-- evidence: src/shared/live-studio-domain.ts -->
+<!-- evidence: packages/zoom-runtime/runtime.ts -->
 
-La entrada **Sesiones síncronas**, debajo de Navegador y Reuniones en Herramientas Integradas, abre la agenda de la organización activa. Muestra hasta 20 sesiones autorizadas por página, destaca la primera sesión en vivo de la página inicial o la próxima por fecha y permite consultar las clases que imparte el usuario cuando tiene ese permiso. Incluye estados de carga, vacío, error y reintento. Los horarios usan la zona local del dispositivo.
+La entrada Sesiones síncronas, debajo de Navegador y Reuniones, abre la agenda de la organización activa. Learning verifica bearer y asignación académica. Seleccionar una sesión sustituye navegador, conversaciones y agentes por un aula React; no abre automáticamente medios ni pestañas externas. Volver o salir regresan a la agenda.
 
-Seleccionar una clase o recibir una referencia académica abre el aula React después del login. Una lectura del snapshot existente confirma `can_manage` para esa sesión; no se deducen permisos del correo ni de la agenda. Mientras se consulta se muestra carga, y ante un error se ofrece reintento. El instructor autorizado ve el estudio de diseño; el participante conserva su lienzo vacío como base para su siguiente diseño. Volver o cerrar regresan a la agenda. Ambas vistas sustituyen al navegador, al chat anterior, a la barra lateral de conversaciones y al monitor de agentes; no cierran ni navegan sus pestañas.
+`ConnectedStudio` consulta el snapshot del estudio y selecciona Instructor o Participante exclusivamente con el `can_manage` de Learning. La primera vista conserva chat y estadísticas a la izquierda, escenario y escenas al centro, herramientas a la derecha y barra de medios compacta. La segunda recibe contenido, chat permitido, materiales, quiz publicado y prácticas. El selector de rol existe solo en las fixtures de prueba.
 
-Por petición del usuario se retiraron la antesala, el acceso Zoom y las secciones Participar, Pulse Checks e Información anteriores. El nuevo estudio del instructor distribuye chat y estadísticas a la izquierda, vista previa y escenas al centro, actividades y material a la derecha y controles flotantes inferiores. El chat distingue al instructor por insignia y mantiene estado propio; los comandos, moderación, recursos, salas y quizzes cambian solo el diseño local. Temporizador y cronómetro liberan sus intervalos al desmontar. Los controles de audio, cámara y pantalla no solicitan dispositivos ni transmiten medios. La interfaz identifica esta fase como «Vista de diseño».
+## Estado y autorización
 
-La aplicación real no inserta mensajes, participantes ni recursos ficticios. Los datos de ejemplo están exclusivamente en la fixture visual. Los archivos de Material y quizzes elegidos en el prototipo aportan solo nombre/tamaño a la lista, sin leer su contenido ni subirlo. Los archivos de imagen/video elegidos para Escenas se previsualizan localmente con URLs de objeto, liberadas al quitarlos o cerrar el estudio; no se envían ni persisten. No hay polling, mutaciones, IA ni apertura automática del navegador o chat general; un evento de apertura mientras el aula está activa tampoco monta ese workspace. La integración real de moderación, realtime, salas, archivos y medios queda pendiente.
+Learning es dueño del estado académico; Hub no escribe contenido directamente en Supabase. La API `POST /api/auth/live/studio` valida cuerpo estricto de 32 KiB, bearer, organización y curso. Los comandos académicos identifican operación con UUID y revisión; una transacción serializa la sesión, revalida autorización y deduplica por actor/comando. El chat, actividades y permisos requieren confirmación del servidor. Las escenas de producción y sus vínculos se preparan localmente y no dependen de esa confirmación.
 
-La revisión visual prioriza la altura del chat: encabezado y barra de medios compactos, editor de una línea que puede crecer con el texto, estadísticas condensadas y campos redondeados con foco verde suave. Los números usan botones propios conservando escritura y flechas del teclado. El selector compartido de SofLIA sitúa las opciones dentro de un diálogo nativo cuando corresponde, para que sean visibles y operables en la capa modal. Material de la sesión reúne archivos, lecturas y quizzes: permite preparar una pregunta desde el panel o seleccionar un archivo de quiz como metadatos locales. Esa selección no importa preguntas, interpreta el formato ni publica una evaluación.
+Realtime suscribe INSERT/UPDATE de `live_studio_revisions` con RLS académico. Solo circulan sesión, revisión y fecha; mensajes, respuestas, entregas y tokens nunca se publican. Cada invalidación recupera un snapshot autorizado; lecturas concurrentes se agrupan y respuestas tardías se descartan. Reconexión fuerza lectura. La presencia renueva un lease de 90 segundos cada 30; SQL fusiona solo el miembro actual y no publica revisión por latidos sin cambios visibles. No se ha ensayado capacidad de 500 usuarios; ese número es un límite defensivo del contrato.
 
-Pantalla, Cámara y Combinada pasan a un selector compacto junto a Vista previa. Escenas es un banco de hasta 12 contenidos preparados: láminas, fuentes de pantalla pendientes de captura e imágenes/videos locales de hasta 25 MB. Seleccionar una escena actualiza su contenido sin apagar los controles de compartir o medios. Grupo permite visitar las salas creadas desde Actividades y volver al grupo principal; el escenario y el chat muestran la sala activa, con mensajes y borradores separados. Eliminar o reemplazar las salas vuelve al grupo principal. Son cambios de contexto del prototipo, sin traslado real Zoom ni persistencia tras cerrar.
+El instructor puede publicar mensajes, cerrar/abrir chat, habilitar el acceso al botón de reacciones, restringir escritura, bloquear y restablecer acceso académico. El bloqueo no expulsa a un usuario ya conectado en Zoom; Zoom conserva su propia moderación audiovisual. Las estadísticas abarcan los últimos 100 mensajes retenidos, no un historial completo. Reacciones actuales son emojis enviados como texto. Interacciones automáticas de SofLIA quedan deshabilitadas hasta integrar política y consentimiento.
 
-## Contratos y recursos
+Los participantes reciben sus entregas y respuestas, sin claves de quiz, respuestas ajenas ni conversaciones de otras salas. Las salas académicas distribuyen identidades realmente conectadas por tamaño o cantidad; se puede visitar su chat y regresar al principal. Las salas de audio se administran en Zoom: todavía no existe correlación segura de identidad académica con participante Zoom ni sincronización automática de salas.
 
-El estudio incorpora **Práctica con SofLIA**, un ensayo local de pasos con
-objetivos por texto visible y condiciones de resultado comprobadas por UIA/OCR.
-Mueve el orbe y señala controles en el escritorio del instructor; no publica
-la receta ni opera en los equipos del grupo. Su contrato, pausa, cancelación y
-límites están en [acompañamiento visual](autonomous-orb-guidance.md).
+## Preparación, materiales y reloj
 
-`learning-live:catalog` consulta `POST /api/auth/live/catalog` mediante main, handler, allowlist, preload y wrapper. Recibe únicamente slug de organización, página y vista alumno/instructor. Learning verifica bearer y membresía antes de reutilizar `live_catalog` con periodo `upcoming`. Devuelve metadatos públicos sin IDs Zoom ni enlaces de ingreso. Main valida versión, actor, máximo 20 resultados, límite de salida de 256 KiB, timeout de 15 segundos y ausencia de campos ajenos; comparte el límite de 4 solicitudes con el aula. La UI descarta respuestas tardías al cambiar organización o desmontar; no agrega polling del catálogo. La disponibilidad real exige publicar el endpoint de Learning junto con Hub.
+El dominio valida escenas, material, prácticas y quizzes. Archivos privados de hasta 25 MB se suben por URL firmada; el servidor comprueba pertenencia de ruta, existencia, tamaño y MIME antes de publicarlos. Lecturas usan el mismo flujo. Crear o importar un quiz JSON no lo publica hasta que el instructor lo indique. Entregas y reloj se guardan en Learning; el reloj se representa a partir de hora de servidor sin escribir cada segundo.
 
-El filtro de rutas Learning debe delegar exactamente `/api/auth/live/catalog` al handler bearer, sin exigir cookies del navegador, y asignar sus POST al presupuesto `live-access`. El handler conserva verificación de identidad y membresía. Hub distingue 403 de 401, ruta ausente (404/405), límite (429) y fallo de servidor. Un 401 con el código del filtro web `UNAUTHENTICATED` indica integración no habilitada; un 401 del handler indica sesión no validada. Los errores remotos se leen hasta 4 KiB y nunca se muestran literalmente. El log del catálogo registra solo estado HTTP y clasificación, sin identidad, credenciales ni cuerpos.
+El manifiesto Engine versión 1 incluye curso, revisión y bancos de escenas/materiales/quizzes/prácticas. La importación valida el curso y aplica una preparación completa. Sus rutas de archivos ya deben pertenecer al bucket de esa sesión. El checkout Engine todavía no tiene un publicador síncrono: esta fase ofrece importación validada, no entrega automática entre plataformas. Es un contrato de preparación nuevo, no el manifiesto audiovisual `film.json`.
 
-La prueba visual aislada vive en `test/manual/live-sessions/`: `npx vite --config test/manual/live-sessions/vite.config.mts` abre directamente el estudio con datos explícitamente de ejemplo en el puerto 4320, sin `.env`, cuentas ni medios reales. Su selector Instructor/Participante pertenece solo a la fixture; no concede roles en Hub. `node test/manual/live-sessions/verify.cjs` permite reproducir las comprobaciones de menú, agenda y lienzo del participante. Las pruebas de `AppContent` verifican la exclusión del navegador, chat y agentes, y las del estudio cubren los flujos locales.
+El banco del instructor contiene escenas locales: láminas, fuentes de pantalla, imágenes y videos. Crear, seleccionar y quitar no envía comandos ni archivos a Learning. El contenido del manifiesto puede servir como preparación inicial; el participante conserva el contenido académico publicado y recibe la pantalla por Zoom. Las URLs firmadas académicas se renuevan a los 10 minutos; las URLs blob locales se liberan al quitar la escena o salir.
 
-`learning-live:workspace` cruza servicio main, handler, allowlist, preload y wrapper. Main construye `/api/auth/live/workspace` desde el origen Learning configurado; verifica entradas, tamaño real, salida versión 1 e identidad después de la respuesta. El bearer no llega al renderer. No acepta URLs, roles ni identidad arbitrarios por IPC.
+Una escena de pantalla exige elegir una fuente real con miniatura. Main custodia un vínculo efímero a pantalla, ventana o pestaña; no se enlaza por un nombre escrito. Compartir usa la fuente de la escena activa sin volver a elegirla y detener conserva su vínculo. Se puede Cambiar fuente si se cierra. Solo hay una captura local de pantalla a la vez; cambiar escena reemplaza sus pistas. Las pestañas siguen su navegación mientras exista la misma vista/perfil. No se conservan permisos de captura entre cierres del estudio.
 
-El contrato de frontera se genera desde `apps/web/src/features/live/workspace.contract.ts` de Learning mediante `node scripts/quality/sync-learning-workspace-contract.mjs`. `--check` verifica igualdad exacta en el checkout conjunto PulseHub. Este script de desarrollo no se necesita en el producto empaquetado ni añade una dependencia runtime entre repositorios. Cualquier cambio requiere sincronizar, comprobar compatibilidad y validar ambos consumidores.
+## Medios y SDK
 
-El hook anterior de colaboración dejó de formar parte del renderer. El aula consulta un snapshot para confirmar el rol y título, sin sondeo posterior; descarta respuestas tardías al cambiar de sesión o desmontar. El prototipo no envía mutaciones ni genera contenido.
+MediaDevices enumera dispositivos reales y captura solo después de una acción humana. Cada fuente tiene dueño, cancelación por generación y liberación al salir. Cambiar entrada conserva la fuente previa si falla. El medidor usa audio real sin retorno; el selector de salida prueba un tono cuando el entorno soporta `setSinkId`.
 
-El contrato privado conserva IA/telemetría desactivadas por defecto, consentimiento versionado, retención, revocación y auditoría. Learning mantiene transacciones, aislamiento y datos; Hub no escribe directamente en Supabase. Los límites del contrato son 32 KiB de entrada, 512 KiB de salida, 4 solicitudes main concurrentes, timeout HTTP de 15 segundos, 20 aportaciones por canal y 5 Pulse Checks. No hay restauración local de contenido del aula ni tokens.
+Al conectar Zoom se liberan las capturas de prueba, se conservan vínculos y el SDK administra los dispositivos de la llamada. El micrófono se silencia por API y la cámara desde los controles oficiales. El SDK integrado inicia pantalla desde su control Compartir; main entrega la fuente ligada a la escena activa. El dock puede detener las pistas nativas de esa emisión. Cambiar escena durante una emisión Zoom la detiene y requiere volver a pulsar Compartir en Zoom: el SDK no expone inicio ni sustitución de pantalla como método público. No se usan selectores DOM internos ni métodos inventados. No hay todavía composición audiovisual continua de láminas/overlays ni cámara virtual.
 
-## Límites y fases externas
+Meeting SDK 6.5.0 usa React 18.3.1 en un paquete privado con lockfile propio, sin forzar su instalación contra React 19 de Hub. Se compila al construir la aplicación y carga desde `soflia-zoom://meeting`, con CSP y protocolo que solo sirve documento y assets compilados. El iframe no comparte preload, identidad ni almacenamiento del renderer. Comunicación limitada por ventana, origen y nonce. La firma y ZAK se obtienen exclusivamente en Learning; no se guardan en disco ni se incluyen en URLs.
 
-El lienzo no reproduce contenido remoto ni acredita admisión o conexión con Zoom. La consulta de disponibilidad Learning no mide ancho de banda/jitter Zoom. No se controla el cliente Zoom desde el agente.
+## Contratos y pruebas
+La grabación automática y sus repeticiones usan el contrato recordings dentro
+del canal studio existente. Learning conserva runs/files/jobs privados y el
+permiso de publicación; Hub observa recording-change y muestra el estado real.
+Los instructores utilizan anfitriones centrales de Soflia. Activación y archivo
+se describen en [operación de grabaciones](../operations/webinar-recordings.md).
+La selección de pantalla usa la [interfaz local de compartir](ipc-and-integrations.md#selector-local-de-pantalla),
+con miniaturas reales, búsqueda y categorías de pantallas, ventanas y pestañas
+materializadas del navegador del Hub. Abrir o seleccionar una tarjeta no inicia
+la transmisión: el usuario confirma Compartir. El Meeting SDK mantiene sus
+controles de llamada, pero sus solicitudes de captura pasan por este selector
+propio sin cuadros nativos de Windows.
 
-RTMS requiere app/consumidor persistente, correlación de identidad y consentimiento de fuentes. LTI requiere proveedor OIDC/JWKS y orígenes aprobados. Computer Use debe reutilizar guardas de aprobación del agente de escritorio, sin operar en la pestaña sensible. Exportación LRS, ontología predictiva y nudges corporativos requieren configuración/aprobación adicional. No se presentan estas fases como capacidades operativas.
 
-El diseño vigente del instructor está en [el estudio](../../openspec/changes/design-instructor-live-studio/design.md), posterior al [reinicio del aula](../../openspec/changes/redesign-live-sessions/design.md). La colaboración anterior se conserva como antecedente en [el cambio V2](../../openspec/changes/enrich-learning-live-workspace/design.md) y el lanzamiento original en [su contrato](../../openspec/changes/launch-learning-live-sessions/integration.md). Migración y política se documentan de manera canónica en `docs/architecture/zoom-enrichment-v2.md` de Learning.
+Los cuatro canales nuevos son `learning-live:studio`, `learning-live:watch-studio`, `learning-live:unwatch-studio` y `learning-live:studio-event`. Pasan por servicio main, handler, allowlist, API preload y wrapper tipado. Se comparte un presupuesto de cuatro solicitudes; cerrar, cambiar de sesión o cancelar una suscripción pendiente invalida su generación y libera listeners/canales. Los errores se traducen sin devolver cuerpos ni secretos del proveedor.
+
+La fuente del contrato y dominio es Learning: `node scripts/quality/sync-learning-studio.mjs --check` comprueba la copia de Hub. `LEARNING_CHECKOUT` permite señalar otro checkout de desarrollo. El paquete distribuido no depende de carpetas externas.
+
+La fixture visual anterior en `test/manual/live-sessions/` conserva ejemplos de diseño. La prueba funcional en `test/manual/live-studio-runtime/` arranca con `npx vite --config test/manual/live-studio-runtime/vite.config.mts`. Ofrece dos identidades explícitas en localhost:4321, dominio compartido, servidor HTTP y eventos SSE. Su estado en memoria se pierde al reiniciar o recargar configuración de Vite. No autentica cuentas reales, no usa Supabase de producción y no simula un ingreso Zoom exitoso. La captura local sí usa dispositivos del equipo.
+
+Las pruebas SQL de Learning ejecutan migración reentrante, RLS, autorización, idempotencia, CAS y presencia concurrente en PGlite. La prueba `node scripts/quality/smoke-zoom-runtime.mjs` ejecuta Electron oculto y confirma carga del frame con la CSP real y origen aislado; no acredita ingreso, audio o video de una reunión.
+
+Despliegue, configuración y barreras pendientes están en [operación del estudio](../operations/live-studio-runtime.md). Los cambios anteriores de diseño quedan como antecedentes en [diseño del instructor](../../openspec/changes/design-instructor-live-studio/design.md) y [reinicio del aula](../../openspec/changes/redesign-live-sessions/design.md). La práctica guiada por orbe conserva su contrato independiente en [acompañamiento visual](autonomous-orb-guidance.md).

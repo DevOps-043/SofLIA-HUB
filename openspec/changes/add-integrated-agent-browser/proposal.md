@@ -1,6 +1,6 @@
 ## Why
 
-Pulse Hub hoy puede automatizar un navegador Playwright oculto o el navegador externo del sistema, pero el usuario no dispone de una superficie web integrada que comparta sesión, estado visible y control con el agente. Esto impide una colaboración verificable como la de Codex: el usuario no puede observar o retomar en SofLIA lo que hace el agente, y el agente no puede continuar sobre una página que el usuario ya abrió dentro del producto.
+Soflia Hub hoy puede automatizar un navegador Playwright oculto o el navegador externo del sistema, pero el usuario no dispone de una superficie web integrada que comparta sesión, estado visible y control con el agente. Esto impide una colaboración verificable como la de Codex: el usuario no puede observar o retomar en SofLIA lo que hace el agente, y el agente no puede continuar sobre una página que el usuario ya abrió dentro del producto.
 
 ## What Changes
 

@@ -7,9 +7,9 @@ export function SidebarHeader({ isOpen, onToggle }: { isOpen: boolean; onToggle:
       {isOpen ? (
         <div className="flex w-full items-center justify-between min-w-0">
           <div className="flex min-w-0 items-center gap-2.5 overflow-hidden whitespace-nowrap">
-            <img src="./assets/Icono.png" alt="Pulse Hub" className="h-6 w-6 shrink-0 object-contain" />
+            <img src="./assets/Icono.png" alt="Soflia Hub" className="h-6 w-6 shrink-0 object-contain" />
             <div className="min-w-0 leading-tight">
-              <p className="truncate text-[13.5px] font-bold tracking-tight text-[#0A2540] dark:text-white">Pulse Hub</p>
+              <p className="truncate text-[13.5px] font-bold tracking-tight text-[#0A2540] dark:text-white">Soflia Hub</p>
             </div>
           </div>
           <button
@@ -33,7 +33,7 @@ export function SidebarHeader({ isOpen, onToggle }: { isOpen: boolean; onToggle:
           title="Expandir menú"
           aria-label="Expandir menú"
         >
-          <img src="./assets/Icono.png" alt="Pulse Hub" className="h-7 w-7 object-contain transition-transform group-hover:scale-105" />
+          <img src="./assets/Icono.png" alt="Soflia Hub" className="h-7 w-7 object-contain transition-transform group-hover:scale-105" />
         </button>
       )}
     </div>

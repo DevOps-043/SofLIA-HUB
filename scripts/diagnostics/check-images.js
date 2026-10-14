@@ -2,8 +2,8 @@ import sharp from 'sharp';
 import path from 'path';
 
 async function checkImages() {
-  const headerPath = 'c:/Users/fysg5/OneDrive/Escritorio/Pulse Hub/SofLIA - Hub/SofLIA-HUB/build/installer/installerHeader.bmp';
-  const sidebarPath = 'c:/Users/fysg5/OneDrive/Escritorio/Pulse Hub/SofLIA - Hub/SofLIA-HUB/build/installer/installerSidebar.bmp';
+  const headerPath = 'c:/Users/fysg5/OneDrive/Escritorio/Soflia Hub/SofLIA - Hub/SofLIA-HUB/build/installer/installerHeader.bmp';
+  const sidebarPath = 'c:/Users/fysg5/OneDrive/Escritorio/Soflia Hub/SofLIA - Hub/SofLIA-HUB/build/installer/installerSidebar.bmp';
 
   try {
     const headerMetadata = await sharp(headerPath).metadata();

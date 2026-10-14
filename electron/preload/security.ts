@@ -15,7 +15,7 @@ export function injectCSP(): void {
     // el panel las muestra como imagen en vez de leerlas como texto, que era
     // lo que pintaba un PNG como binario y bloqueaba la aplicacion.
     "img-src 'self' data: blob: https: http: pulse-presentacion:",
-    "media-src 'self' data: blob:",
+    "media-src 'self' data: blob: https://*.supabase.co/storage/v1/object/sign/live-studio-assets/ https://*.supabase.co/storage/v1/object/sign/live-recordings/",
     "font-src 'self' data: https: http:",
     "connect-src 'self' https: http: ws: wss:",
     "object-src 'none'",
@@ -24,7 +24,7 @@ export function injectCSP(): void {
     // El runtime React se sirve desde un puerto efimero ligado exclusivamente
     // a loopback. La CSP debe permitir ese iframe local ademas del protocolo
     // legado; un host HTTP remoto continua bloqueado.
-    "frame-src 'self' pulse-presentacion: http://127.0.0.1:*",
+    "frame-src 'self' pulse-presentacion: soflia-zoom://meeting http://127.0.0.1:*",
   ].join('; ');
 
   if (document.readyState === 'loading') {

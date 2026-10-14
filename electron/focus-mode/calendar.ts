@@ -15,7 +15,7 @@ export async function createCalendarFocusEvent(
     title: 'Modo Concentracion - SofLIA',
     start,
     end,
-    description: 'Sesion de trabajo enfocada generada automaticamente por Pulse Hub. Por favor, no interrumpir.',
+    description: 'Sesion de trabajo enfocada generada automaticamente por Soflia Hub. Por favor, no interrumpir.',
   });
 
   if (result.success && result.eventId) {

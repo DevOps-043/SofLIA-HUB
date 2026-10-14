@@ -58,7 +58,7 @@ public static class PulseVaultHello {
       if (probe) return "available";
       IntPtr window = new IntPtr(handle);
       if (handle <= 0 || !IsWindow(window)) return "unavailable";
-      string reason = "Desbloquear el gestor de contraseñas de Pulse Hub";
+      string reason = "Desbloquear el gestor de contraseñas de Soflia Hub";
       Check(WindowsCreateString(reason, reason.Length, out message));
       Guid resultId = new Guid("fd596ffd-2318-558f-9dbe-d21df43764a5");
       Check(Method<VerifyCall>(factory, 6)(factory, window, message, ref resultId, out operation));

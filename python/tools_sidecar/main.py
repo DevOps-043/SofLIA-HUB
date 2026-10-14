@@ -1,5 +1,5 @@
 # =============================================================================
-# Pulse Hub - Sidecar de HERRAMIENTAS (documentos + privacidad)
+# Soflia Hub - Sidecar de HERRAMIENTAS (documentos + privacidad)
 # =============================================================================
 # Proceso separado del sidecar de voz a proposito: aquel tiene el microfono en
 # exclusiva y ~1.5 GB de modelos Vosk residentes; un fallo parseando un PDF

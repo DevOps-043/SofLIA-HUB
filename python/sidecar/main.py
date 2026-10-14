@@ -1,5 +1,5 @@
 # =============================================================================
-# Pulse Hub - Sidecar Python (voz 100% local: Vosk STT + Piper TTS)
+# Soflia Hub - Sidecar Python (voz 100% local: Vosk STT + Piper TTS)
 # =============================================================================
 # Proceso hijo lanzado por PythonRuntimeService (Electron main). Se comunica
 # por NDJSON sobre stdin/stdout:

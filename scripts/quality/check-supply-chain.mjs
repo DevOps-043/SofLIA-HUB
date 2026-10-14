@@ -58,6 +58,7 @@ const REVIEWED_INSTALL_HOOKS = new Map([
   ['fsevents', 'modulo nativo opcional de macOS'],
   ['iconv', 'modulo nativo de codificaciones'],
   ['tesseract.js', 'postinstall de aviso de financiacion (opencollective)'],
+  ['@zoom/meetingsdk', 'postinstall 6.5.0 revisado: solo imprime aviso de políticas; instalación aislada con ignore-scripts'],
   ['active-win', 'node-pre-gyp: binario nativo de la ventana activa'],
 ]);
 
@@ -68,7 +69,9 @@ if (!existsSync(lockPath)) {
   console.error('No se encontro package-lock.json: la cadena de suministro no es verificable.');
   process.exit(1);
 }
-const lock = JSON.parse(readFileSync(lockPath, 'utf8'));
+const lockPaths = [lockPath, join(root, 'packages/zoom-runtime/package-lock.json')];
+for (const currentLockPath of lockPaths) {
+const lock = JSON.parse(readFileSync(currentLockPath, 'utf8'));
 
 for (const [entryPath, info] of Object.entries(lock.packages ?? {})) {
   if (!entryPath) continue;
@@ -80,6 +83,8 @@ for (const [entryPath, info] of Object.entries(lock.packages ?? {})) {
   if (info.hasInstallScript && !REVIEWED_INSTALL_HOOKS.has(name)) {
     problems.push(`Gancho de instalacion sin revisar: ${name} (${entryPath}). Revisa su contenido y registralo en REVIEWED_INSTALL_HOOKS si es legitimo.`);
   }
+}
+
 }
 
 if (problems.length > 0) {

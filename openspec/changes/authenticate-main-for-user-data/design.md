@@ -138,7 +138,7 @@ alguien las rutinas de otro.
 
 ## Migration Plan
 
-1. Ejecutar `passive-skills.sql` en la instancia Pulse Hub (idempotente).
+1. Ejecutar `passive-skills.sql` en la instancia Soflia Hub (idempotente).
 2. Publicar la versión. En el primer inicio de sesión de cada usuario, sus reglas
    se migran solas desde `hub_service_state`.
 3. La fila `task-scheduler` de `hub_service_state` se conserva durante una

@@ -46,7 +46,7 @@
 
 ## 8. Verificación de extremo a extremo
 
-- [ ] 8.1 Ejecutar la migración en la instancia Pulse Hub y guardar la salida del bloque de verificación.
+- [ ] 8.1 Ejecutar la migración en la instancia Soflia Hub y guardar la salida del bloque de verificación.
 - [ ] 8.2 Comprobar a mano con una sesión de usuario que `INSERT`, `UPDATE` y `DELETE` sobre `public.system_skills` son rechazados.
 - [ ] 8.3 Comprobar a mano: `/presentacion` y `/presentaciones` ofrecen la Skill; deshabilitar la fila la retira de las dos superficies; volver a habilitarla la restituye.
 - [ ] 8.4 Comprobar a mano con la red cortada que el chat sigue ofreciendo la Skill de la versión instalada.

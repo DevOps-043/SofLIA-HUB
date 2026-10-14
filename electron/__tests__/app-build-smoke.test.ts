@@ -51,7 +51,7 @@ describe('empaquetado Windows aislado sin instalación ni publicación', () => {
       .toEqual({ PATH: 'C:/node', CSC_IDENTITY_AUTO_DISCOVERY: 'false' });
   });
   it('deriva un único artefacto esperado sin aceptar traversal', () => {
-    expect(installerArtifact('0.9.8')).toBe('release/0.9.8/Pulse-Hub-Windows-0.9.8-Setup.exe');
+    expect(installerArtifact('0.9.8')).toBe('release/0.9.8/Soflia-Hub-Windows-0.9.8-Setup.exe');
     expect(installerArtifact('1.2.3-rc.1')).toContain('1.2.3-rc.1');
     expect(() => installerArtifact('../release')).toThrow();
     expect(() => installerArtifact('1.2.3/otro')).toThrow();

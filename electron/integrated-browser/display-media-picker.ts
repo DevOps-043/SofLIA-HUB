@@ -1,64 +1,118 @@
-import { desktopCapturer, dialog, type BrowserWindow } from 'electron';
-
-const THUMBNAIL_SIZE = { width: 0, height: 0 };
-const MAX_SOURCES = 24;
+import { app, BrowserWindow, ipcMain, nativeTheme, type IpcMainInvokeEvent } from 'electron';
+import path from 'node:path';
+import { listDisplayMediaChoices, type CaptureChoice } from './display-media-sources';
+import type { DisplayMediaPickerResult } from '../../src/shared/display-media';
+export { setDisplayMediaTabProvider } from './display-media-sources';
 
 export interface DisplayMediaSelection {
-  video: Electron.DesktopCapturerSource;
+  video: Electron.DesktopCapturerSource | Electron.WebFrameMain;
   withSystemAudio: boolean;
+  choice: CaptureChoice;
+}
+const PICKER_TIMEOUT_MS = 120_000;
+const active = new Map<number, {
+  window: BrowserWindow;
+  parent: BrowserWindow;
+  choices: CaptureChoice[];
+  audioAvailable: boolean;
+  loading: boolean;
+  choosing: boolean;
+  purpose?: 'bind';
+  isRequestCurrent(): boolean;
+  finish(selection: DisplayMediaSelection | null): void;
+}>();
+let registered = false;
+
+function authorized(event: IpcMainInvokeEvent) {
+  const picker = active.get(event.sender.id);
+  if (picker && !picker.isRequestCurrent()) { picker.finish(null); return null; }
+  return picker && event.senderFrame === picker.window.webContents.mainFrame
+    && !picker.window.isDestroyed() && !picker.parent.isDestroyed() ? picker : null;
 }
 
-/**
- * Selector de origen para `getDisplayMedia`. Cumple el papel del cuadro de
- * Chrome: la pagina nunca elige que se comparte, lo elige el usuario, y sin
- * seleccion no se entrega ningun flujo.
- *
- * Se usa una lista nativa en vez de una ventana propia porque compartir
- * pantalla se pide desde dentro de una llamada: abrir otra ventana con render
- * propio competiria por el foco con la vista que esta capturando.
- */
-export async function pickDisplayMediaSource(input: {
-  parentWindow: BrowserWindow | null;
-  audioRequested: boolean;
-}): Promise<DisplayMediaSelection | null> {
-  const sources = (await desktopCapturer.getSources({
-    types: ['screen', 'window'],
-    thumbnailSize: THUMBNAIL_SIZE,
-    fetchWindowIcons: false,
-  })).slice(0, MAX_SOURCES);
-
-  if (!sources.length) throw new Error('No hay pantallas ni ventanas disponibles para compartir.');
-
-  const labels = sources.map((source) => describeSource(source));
-  const options = {
-    type: 'question' as const,
-    title: 'Compartir pantalla',
-    message: '¿Qué quieres compartir?',
-    detail: 'La página verá lo que elijas hasta que detengas la transmisión.',
-    // El primer boton es el de cancelar para que Escape y cerrar el cuadro
-    // signifiquen lo mismo: no compartir.
-    buttons: ['Cancelar', ...labels],
-    defaultId: 1,
-    cancelId: 0,
-    noLink: true,
-    // La captura de audio del sistema solo existe en Windows; ofrecerla en
-    // otras plataformas prometeria algo que Electron no entrega.
-    ...(input.audioRequested && process.platform === 'win32'
-      ? { checkboxLabel: 'Compartir también el audio del sistema', checkboxChecked: false }
-      : {}),
-  };
-
-  const result = input.parentWindow && !input.parentWindow.isDestroyed()
-    ? await dialog.showMessageBox(input.parentWindow, options)
-    : await dialog.showMessageBox(options);
-
-  if (result.response <= 0) return null;
-  const video = sources[result.response - 1];
-  if (!video) return null;
-  return { video, withSystemAudio: Boolean(result.checkboxChecked) };
+function registerHandlers(): void {
+  if (registered) return;
+  registered = true;
+  ipcMain.handle('display-media:list', async (event): Promise<DisplayMediaPickerResult> => {
+    const picker = authorized(event);
+    if (!picker) return { success: false, error: 'El selector ya no está disponible.' };
+    if (picker.loading || picker.choosing) return { success: false, error: 'Espera a que termine la operación actual.' };
+    picker.loading = true;
+    try {
+      const choices = await listDisplayMediaChoices(picker.parent, picker.window.getMediaSourceId());
+      if (authorized(event) !== picker) return { success: false, error: 'El selector se cerró.' };
+      picker.choices = choices;
+      return { success: true, snapshot: { sources: choices.map((choice) => choice.preview), audioAvailable: picker.audioAvailable, dark: nativeTheme.shouldUseDarkColors, purpose: picker.purpose } };
+    } catch { return { success: false, error: 'No pudimos cargar las vistas previas. Revisa los permisos de captura y vuelve a intentar.' }; }
+    finally { picker.loading = false; }
+  });
+  ipcMain.handle('display-media:select', async (event, input: unknown) => {
+    const picker = authorized(event);
+    if (!picker || picker.loading || picker.choosing) return { success: false, error: 'El selector no está disponible.' };
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return { success: false, error: 'Selección inválida.' };
+    const payload = input as Record<string, unknown>;
+    if (Object.keys(payload).length !== 2 || typeof payload.sourceId !== 'string' || payload.sourceId.length > 200 || typeof payload.withSystemAudio !== 'boolean') return { success: false, error: 'Selección inválida.' };
+    const choice = picker.choices.find((source) => source.preview.id === payload.sourceId);
+    if (!choice) return { success: false, error: 'Elige una fuente disponible.' };
+    picker.choosing = true;
+    try {
+      const video = await choice.resolve();
+      if (authorized(event) !== picker) return { success: false, error: 'La solicitud se canceló.' };
+      if (!video) return { success: false, error: 'Esta fuente ya no está disponible. Actualiza las vistas previas.' };
+      picker.finish({ video, withSystemAudio: picker.audioAvailable && payload.withSystemAudio, choice });
+      return { success: true };
+    } catch { return { success: false, error: 'No pudimos compartir esta fuente. Vuelve a intentar.' }; }
+    finally { picker.choosing = false; }
+  });
+  ipcMain.handle('display-media:cancel', (event) => {
+    const picker = authorized(event);
+    if (!picker) return { success: false };
+    picker.finish(null);
+    return { success: true };
+  });
 }
 
-function describeSource(source: Electron.DesktopCapturerSource): string {
-  const name = (source.name || 'Sin nombre').replace(/[\r\n\t]+/g, ' ').trim().slice(0, 80);
-  return source.id.startsWith('screen:') ? `Pantalla: ${name}` : `Ventana: ${name}`;
+/** Solo el selector local recibe miniaturas. La página solicitante recibe la fuente elegida. */
+export async function pickDisplayMediaSource(input: { parentWindow: BrowserWindow | null; audioRequested: boolean; isRequestCurrent?: () => boolean; purpose?: 'bind' }): Promise<DisplayMediaSelection | null> {
+  const parent = input.parentWindow;
+  if (!parent || parent.isDestroyed() || [...active.values()].some((picker) => picker.parent === parent)) return null;
+  registerHandlers();
+  const runtimeDir = path.join(app.getAppPath(), 'dist-electron');
+  const picker = new BrowserWindow({
+    parent, modal: true, frame: false, show: false, width: 1040, height: 760, minWidth: 720, minHeight: 560,
+    title: 'Compartir pantalla', backgroundColor: nativeTheme.shouldUseDarkColors ? '#0f1419' : '#f9fafb',
+    webPreferences: { preload: path.join(runtimeDir, 'preload.js'), additionalArguments: ['--display-media-picker'], sandbox: true, contextIsolation: true, nodeIntegration: false },
+  });
+  picker.setMenu(null);
+  picker.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  picker.webContents.on('will-navigate', (event) => event.preventDefault());
+  picker.webContents.on('will-redirect', (event) => event.preventDefault());
+  return new Promise((resolve) => {
+    let finished = false;
+    const finish = (selection: DisplayMediaSelection | null) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timeout);
+      parent.removeListener('closed', cancel);
+      parent.webContents.removeListener('did-start-navigation', parentNavigation);
+      active.delete(picker.webContents.id);
+      resolve(selection);
+      if (!picker.isDestroyed()) picker.destroy();
+    };
+    const cancel = () => finish(null);
+    const parentNavigation = (_event: unknown, _url: string, _inPlace: boolean, mainFrame: boolean) => { if (mainFrame) cancel(); };
+    const timeout = setTimeout(cancel, PICKER_TIMEOUT_MS);
+    active.set(picker.webContents.id, { window: picker, parent, choices: [], audioAvailable: input.audioRequested && process.platform === 'win32', loading: false, choosing: false, purpose: input.purpose, isRequestCurrent: input.isRequestCurrent ?? (() => true), finish });
+    parent.once('closed', cancel);
+    parent.webContents.on('did-start-navigation', parentNavigation);
+    picker.once('closed', cancel);
+    picker.webContents.once('render-process-gone', cancel);
+    picker.webContents.on('before-input-event', (event, key) => { if (key.type === 'keyDown' && key.key === 'Escape') { event.preventDefault(); cancel(); } });
+    picker.once('ready-to-show', () => { if (!finished && !picker.isDestroyed()) picker.show(); });
+    const devUrl = process.env.VITE_DEV_SERVER_URL;
+    const load = devUrl
+      ? picker.loadURL(`${devUrl.replace(/\/$/, '')}/?view=display-media-picker`)
+      : picker.loadFile(path.join(runtimeDir, '../dist/index.html'), { query: { view: 'display-media-picker' } });
+    void Promise.resolve(load).catch(cancel);
+  });
 }

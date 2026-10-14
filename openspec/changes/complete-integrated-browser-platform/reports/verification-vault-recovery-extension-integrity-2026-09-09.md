@@ -34,7 +34,7 @@ reales ni manipulación de perfiles del usuario. Datos de pruebas desechables.
   exit 0. No se suman como pruebas independientes ni se afirma suite global verde.
 - `npm run typecheck`: exit 0; `npm run lint:changed`: 191 archivos sin deuda nueva.
 - `node scripts/quality/smoke-browser-native.mjs --vault-only --electron
-  "C:/Users/fysg5/Desktop/SofLIA/Pulse Hub/SofLIA-HUB/.worktrees/upgrade-integrated-browser/node_modules/electron/dist/electron.exe"`:
+  "C:/Users/fysg5/Desktop/SofLIA/Soflia Hub/SofLIA-HUB/.worktrees/upgrade-integrated-browser/node_modules/electron/dist/electron.exe"`:
   **11 comprobaciones nativas**, exit 0, Electron 43.4.0/DPAPI real.
   Último sandbox: `C:/Users/fysg5/AppData/Local/Temp/pulse-browser-smoke-HlwNrj`.
 - `npm run verify:pr`: adapters, harness, supply-chain, docs:system y docs:check

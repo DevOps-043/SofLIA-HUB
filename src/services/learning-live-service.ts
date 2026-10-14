@@ -2,8 +2,15 @@ import { parseLearningLiveSession, type LearningLiveSessionReference, type Learn
 import { workspaceResponseSchema, type WorkspaceOperation } from '../shared/learning-workspace.contract';
 import type { LearningWorkspaceResult } from '../shared/learning-workspace';
 import { liveCatalogResponseSchema, type LiveCatalogRequest, type LiveCatalogResult } from '../shared/learning-live-catalog';
+import type { StudioResult, studioOperationSchema } from '../shared/live-studio.contract';
+import type { z } from 'zod';
 
 interface LearningLiveApi {
+  sdkFrameUrl?: 'soflia-zoom://meeting/index.html';
+  studio?: (reference: LearningLiveSessionReference, operation: z.infer<typeof studioOperationSchema>) => Promise<StudioResult>;
+  watchStudio?: (reference: LearningLiveSessionReference) => Promise<{ success: boolean; error?: string }>;
+  unwatchStudio?: () => Promise<unknown>;
+  onStudioEvent?: (callback: (notice: unknown) => void) => () => void;
   catalog?: (request: LiveCatalogRequest) => Promise<LiveCatalogResult>;
   workspace: (reference: LearningLiveSessionReference, operation: WorkspaceOperation) => Promise<LearningWorkspaceResult>;
   open: (reference: LearningLiveSessionReference) => Promise<LearningLiveOpenResult>;
@@ -15,7 +22,7 @@ declare global { interface Window { learningLive?: LearningLiveApi } }
 
 export const learningLiveService = {
   async catalog(request: LiveCatalogRequest): Promise<LiveCatalogResult> {
-    if (!window.learningLive?.catalog) return { success: false, code: 'unavailable', error: 'Actualiza SofLIA Hub para consultar tus sesiones.' };
+    if (!window.learningLive?.catalog) return { success: false, code: 'unavailable', error: 'Actualiza Soflia Hub para consultar tus sesiones.' };
     const result = await window.learningLive.catalog(request);
     if (!result.success) return result;
     const parsed = liveCatalogResponseSchema.safeParse(result.catalog);

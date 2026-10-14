@@ -13,7 +13,7 @@ import { buildEnvironment } from './quality/smoke-app-build.mjs';
 export const shellRoot = fileURLToPath(new URL('../', import.meta.url));
 export function artifactNames(version) {
   assert.match(version, /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/, 'Versión inválida.');
-  return { engine: `Pulse-Hub-Windows-${version}-Setup.exe`, shell: `Pulse-Hub-Windows-${version}-Install.exe` };
+  return { engine: `Soflia-Hub-Windows-${version}-Setup.exe`, shell: `Soflia-Hub-Windows-${version}-Install.exe` };
 }
 export async function sha256(file) {
   const hash = createHash('sha256');
@@ -47,7 +47,7 @@ export async function buildInstallerShell({ root = shellRoot, preview = false, e
   fs.writeFileSync(generated, `namespace PulseInstaller { internal static class BuildInfo { public const string Version = "${version}"; public const string PayloadHash = "${hash}"; } }`, { flag: 'wx' });
   const output = outputDirectory || (preview ? stage : path.join(root, 'release', version));
   fs.mkdirSync(output, { recursive: true });
-  const destination = path.join(output, preview ? 'Pulse-Hub-Installer-Preview.exe' : names.shell);
+  const destination = path.join(output, preview ? 'Soflia-Hub-Installer-Preview.exe' : names.shell);
   assert.ok(!fs.existsSync(destination), 'El ejecutable de salida ya existe; usa una carpeta nueva para conservarlo.');
   const { compiler, references } = compilerConfiguration();
   const args = ['/nologo', '/target:winexe', '/platform:x64', '/optimize+', '/codepage:65001', '/utf8output', ...references,

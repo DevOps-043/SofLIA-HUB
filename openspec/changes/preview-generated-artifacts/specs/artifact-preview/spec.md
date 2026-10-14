@@ -36,7 +36,7 @@ en el selector nativo y verificar contexto, integridad, formato y límites.
 
 ### Requirement: Exportación explícita
 El visor MUST permitir guardar una copia mediante selector nativo y abrir un
-formato permitido fuera de PulseHub únicamente por acción explícita del usuario.
+formato permitido fuera de Soflia Hub únicamente por acción explícita del usuario.
 
 #### Scenario: Usuario cancela el selector
 - **WHEN** se cancela Abrir archivo o Guardar copia

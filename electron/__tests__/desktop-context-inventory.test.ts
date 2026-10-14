@@ -12,7 +12,7 @@ function makeDeps(overrides: Partial<InventoryDeps> = {}): InventoryDeps {
       { id: 'window:1:0', name: 'Presupuesto 2026 - Excel', thumbnail: 'data:image/png;base64,excel' },
       { id: 'window:2:0', name: 'Notas', thumbnail: 'data:image/png;base64,notas' },
     ]),
-    ownWindowTitles: () => ['Pulse Hub'],
+    ownWindowTitles: () => ['Soflia Hub'],
     ownPid: 999,
     platform: 'win32',
     ...overrides,
@@ -47,14 +47,14 @@ describe('inventario de aplicaciones de escritorio', () => {
     expect(records.find((record) => record.appName === 'EXCEL')?.sourceId).toBe('window:1:0');
   });
 
-  it('excluye las ventanas del propio Pulse Hub por pid y por titulo', async () => {
+  it('excluye las ventanas del propio Soflia Hub por pid y por titulo', async () => {
     const deps = makeDeps({
       listWindows: vi.fn(async () => [
-        { title: 'Pulse Hub', process: 'electron', pid: 100 },
-        { title: 'Otra ventana de Pulse Hub', process: 'electron', pid: 999 },
+        { title: 'Soflia Hub', process: 'electron', pid: 100 },
+        { title: 'Otra ventana de Soflia Hub', process: 'electron', pid: 999 },
         { title: 'Notas', process: 'notepad', pid: 4323 },
       ]),
-      ownWindowTitles: () => ['Pulse Hub'],
+      ownWindowTitles: () => ['Soflia Hub'],
       ownPid: 999,
     });
 
