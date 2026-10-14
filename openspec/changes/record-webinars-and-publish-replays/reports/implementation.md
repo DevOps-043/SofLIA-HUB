@@ -233,3 +233,46 @@ se cambia main de Hub. La nueva rama se publica con upstream propio. Verificaci�
 proporcional: igualdad del árbol, ancestry del commit recuperado, ausencia de
 conflictos y archivos pendientes, preparación Git sin error y enlaces documentales.
 No se repite la suite completa porque no cambia código respecto de c84bc6e.
+
+## Configuración remota de Meeting SDK — 2026-10-14
+
+Se confirmó en código que createZoomStudioJoin devuelve el aviso de configuración
+cuando falta ZOOM_MEETING_SDK_CLIENT_ID o ZOOM_MEETING_SDK_CLIENT_SECRET. Netlify,
+proyecto soflia-learning (soflia.ai), no tenía ninguna de las dos variables.
+La cuenta Zoom abierta corresponde a devops@soflia.ai, con nombre Fernando Suarez
+y plan Workplace Basic. Su única app existente era SofLIA Learning, S2S OAuth,
+activada para programar reuniones.
+
+Con confirmación explícita del usuario se creó la General App Soflia Meeting SDK
+y se habilitó únicamente Features > Embed > Meeting SDK. Se conservaron Device
+OAuth y la excepción de ingreso anónimo desactivados. Sus credenciales Development,
+válidas para firmar JWT del SDK de la cuenta propietaria, se guardaron en Netlify
+como valores secretos: scope Functions, contexto Production, sin valores en
+previews, branches ni desarrollo local. No se escribieron en Git o archivos .env.
+La credencial se transfirió en memoria mediante controles visibles y se ocultó
+de nuevo en Zoom. No se guardaron valores en capturas ni reportes.
+
+Se inició una reconstrucción de main con la configuración actual:
+[despliegue del SDK](https://app.netlify.com/projects/soflia-learning/deploys/6acfb1619f63171bc907b49a),
+fuente f918c456. El panel confirmó Your deploy completed successfully y Published
+deploy; la configuración SDK quedó publicada. No se probó el ingreso autenticado.
+
+La revisión de permisos S2S confirmó cinco scopes previos: creación, eliminación,
+estado y lectura de reuniones, además de user:read:user:admin. Con confirmación
+posterior del usuario se agregaron user:read:token:admin para
+GET /users/{host}/token?type=zak y user:read:settings:admin para verificar
+la configuración de grabación. Se guardó la selección y una nueva carga de
+la página Scopes confirmó ambos permisos persistidos. Activation muestra
+Your app is activated on the account y autoriza invocar los APIs seleccionados.
+Se conservan los cinco permisos anteriores; no se pidió scope master ni
+escritura de usuarios. No se regeneraron las credenciales S2S.
+
+No se afirma conexión real: Learning en Chrome requiere iniciar sesión y no se
+introdujeron credenciales del usuario. Workplace Basic no acredita capacidad
+cloud/webinar del anfitrión central. No se compraron licencias, no se habilitó
+la aprobación de privacidad ni se alteró la política obligatoria de grabación.
+La prueba audiovisual, privacidad/capacidad de grabación y licencia del host
+siguen siendo barreras independientes de la firma SDK y estos dos permisos.
+El servidor conserva el token OAuth en memoria hasta su vencimiento; los scopes
+nuevos corresponden al siguiente token emitido por Zoom. No se extrajo un token
+ni se afirmó haber probado GET /users/{host}/token o una llamada real del SDK.
