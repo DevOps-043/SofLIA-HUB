@@ -5,13 +5,36 @@ import { waitForCuResponse } from '../desktop-agent/gemini-cu/cancellable-wait';
 function fixture() {
   const generate = vi.fn<(params: { config?: Record<string, unknown>; contents: unknown[] }) => Promise<{ text: string }>>().mockResolvedValue({ text: 'Listo' });
   const client = createComputerUseClient({
-    apiKey: 'clave-de-prueba', model: 'modelo-de-prueba', environment: 'ENVIRONMENT_BROWSER',
+    apiKey: 'clave-de-prueba', model: 'modelo-de-prueba', environment: 'ENVIRONMENT_BROWSER', teamMode: 'direct',
     loadSdk: () => ({ GoogleGenAI: class { models = { generateContent: generate }; }, createPartFromFunctionResponse: (_id, _name, response) => ({ functionResponse: response }) }),
   });
   return { client, generate };
 }
 
 describe('Cancelación del cliente Computer Use', () => {
+  it('reanuda sobre la captura nueva conservando historial, herramientas, guardas y señal', async () => {
+    const { client, generate } = fixture(); const abort = new AbortController();
+    await client.iniciar('Abre Minecraft y ejecútalo en su última versión', 'inicial', undefined, abort.signal);
+    await client.reanudar!('descarga-actual', 'El launcher sigue descargando.', abort.signal);
+    expect(generate).toHaveBeenCalledTimes(2);
+    const params = generate.mock.calls[1][0];
+    expect(params.contents).toHaveLength(2);
+    expect(JSON.stringify(params.contents[0])).toContain('última versión');
+    expect(JSON.stringify(params.contents[1])).toContain('descarga-actual');
+    expect(params.config).toMatchObject({ abortSignal: abort.signal, tools: [{ computerUse: { environment: 'ENVIRONMENT_BROWSER' } }] });
+    expect(params.config?.systemInstruction).toContain('sin preguntar');
+    abort.abort();
+    await expect(client.reanudar!('tardía', 'Cargando.', abort.signal)).rejects.toThrow('Tarea cancelada.');
+    expect(generate).toHaveBeenCalledTimes(2);
+  });
+  it('solo acepta continuidad explícita y nunca la activa junto con éxito', async () => {
+    const { client, generate } = fixture();
+    for (const [confirmed, canContinue, expected] of [[false, true, true], [false, 'true', false], [true, true, false], [false, undefined, false]]) {
+      generate.mockResolvedValueOnce({ text: JSON.stringify({ confirmed, canContinue, reason: 'Observación.' }) });
+      expect(await client.verificar!('Tarea', 'imagen', 'Listo')).toMatchObject({ confirmed, canContinue: expected });
+    }
+    expect(generate.mock.calls[0][0].config).toMatchObject({ tools: [], responseSchema: { required: ['confirmed', 'reason', 'canContinue'] } });
+  });
   it('cancela la escritura pendiente si abrir la aplicación falla y comunica las acciones omitidas', async () => {
     const generate = vi.fn().mockResolvedValueOnce({ functionCalls: [
       { id: 'abrir', name: 'open_application', args: { app_name: 'Bloc de notas' } },

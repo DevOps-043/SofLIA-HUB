@@ -63,7 +63,38 @@ completar su configuración administrativa; no se declara corregido el ingreso.
 
 `live_studio_purge`, invocado por el job existente de retención, limpia ledger después de siete días y estado de sesiones cerradas al superar la retención de organización (30 días por defecto). El job reclama hasta 100 archivos por ejecución, borra bytes mediante Storage API y confirma su ledger. Archivos retirados o subidas sin publicar tienen 24 horas de gracia; material de sesiones cerradas sigue la retención de organización. El bloqueo de sesión y el estado purging impiden publicar un archivo reclamado. Si Storage falla se conserva la reclamación para reintento. Programar y verificar el job en staging antes del rollout general.
 
-También quedan por implementar publicación automática desde Engine, composición de escenas sobre la transmisión y correlación/traslado de salas audiovisuales Zoom. La UI identifica salas académicas y medios locales para no presentar estas rutas como completadas. SofLIA automática permanece deshabilitada.
+Quedan por implementar publicación automática desde Engine y correlación/traslado
+de salas audiovisuales. La salida continua permite transiciones y pantallas del
+curso sobre una pista; no incluye mezcla de audio ni cámara de la llamada en el
+programa. La UI identifica salas académicas y medios locales. SofLIA automática
+permanece deshabilitada.
+
+## Uso de transiciones y programa
+1. Prepara escenas o usa Espera, Inicio del curso, Receso y Cierre del curso.
+   Nueva escena permite personalizar una pantalla de curso y su reloj opcional.
+2. Con una escena seleccionada, pulsa Preparar salida continua. Esto no inicia
+   la llamada. Si compartías una pantalla directamente, detenla primero.
+3. Entra a la llamada y pulsa su control oficial Compartir. Recibe la salida
+   continua del curso. Los paneles y chats del Hub no forman parte de esa fuente.
+4. Selecciona la siguiente escena, elige corte/fundido/barrido y duración, y pulsa
+   Pasar a salida. La pista compartida se conserva; el monitor muestra el programa.
+   Para mostrar una imagen o pantalla entre escenas, elige Imagen o pantalla y
+   selecciona Contenido intermedio del banco. Añadir visual permite importar una
+   imagen local (PNG/JPG/WebP/GIF/AVIF, hasta 25 MB), vincular una pantalla o crear
+   una lámina; queda elegida automáticamente. Configura el intervalo de 0,5 a
+   10 segundos y prepara un destino diferente antes de pulsar Pasar a salida.
+   Para dejar la imagen o pantalla en espera sin límite, selecciónala en el banco
+   y pásala con corte, fundido o barrido. Cambia el contenido intermedio antes de
+   quitar su escena; no se permiten videos como intermedio.
+5. Un receso no silencia audio ni apaga cámara. El reloj permanece en cero hasta
+   cambiar manualmente. Cerrar salida detiene compartir y permite volver al modo
+   directo; para cambiar un vínculo de pantalla hay que cerrar la salida primero.
+
+La preparación es local al estudio y no persiste al salir. No se publica nada
+en Learning por seleccionar una pantalla. `node scripts/quality/smoke-studio-program.mjs`
+comprueba composición, transporte local, captura del programa, pista estable y
+aislamiento sin credenciales ni una reunión real. El ensayo de dos cuentas sigue
+dependiendo de la configuración administrativa descrita arriba.
 
 El tipo de dato limita 500 presencias; no hay evidencia de carga para esa capacidad. El lease no genera invalidación cuando solo cambia su fecha, y se debe ensayar tráfico agregado, rate limit y tamaño de estado en staging antes de abrir grupos grandes.
 

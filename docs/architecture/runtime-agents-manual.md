@@ -2105,6 +2105,18 @@ archivos con el contrato vigente.
 | Política de herramientas dinámicas | `mcp-manager/execution.ts` | Ejecución fuera del agente, canal, riesgo o aprobación declarados |
 | Contrato de finalización | `desktop-agent/task-outcome.ts` | Que el agente afirme éxito sin haberlo logrado |
 
+El chat delega la meta completa a `use_computer`, incluidas las esperas de carga
+y la comprobación final. No pregunta si debe continuar pasos ya autorizados.
+En escritorio, si la captura final no confirma la meta pero el verificador marca
+`canContinue: true` por una transición segura pendiente (por ejemplo, una descarga
+del launcher), el loop conserva conversación, driver, señal y destino y pide el
+siguiente paso con esa captura. Cada recuperación consume presupuesto y se limita
+a dos por loop; el cierre tras la última acción también se comprueba. Credenciales,
+permisos, HITL pendiente o efectos sensibles de resultado incierto no habilitan
+recuperación automática. Un fallo, cancelación o presupuesto agotado se informa
+con su bloqueo concreto, sin reiniciar automáticamente la tarea ni afirmar éxito.
+La decisión visual depende del modelo; las guardas de ejecución siguen vigentes.
+
 Regla base de `ai-specs/policies/tool-boundaries.md`: los agentes runtime
 reciben capacidades **declaradas individualmente**; se deniega por defecto shell,
 Git, escritura arbitraria, borrado, credenciales y publicación; todo argumento se

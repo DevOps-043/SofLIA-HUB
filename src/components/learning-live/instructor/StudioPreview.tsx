@@ -7,10 +7,12 @@ import { StudioSceneCanvas } from './StudioSceneCanvas';
 import { useStudioScenes } from './useStudioScenes';
 import type { StudioRoom, StudioViewMode } from './studio-types';
 import type { StudioSceneDraft } from './useStudioScenes';
+import type { ReactNode } from 'react';
 
-export function StudioPreview({ viewMode, onViewMode, screen, camera, mic, sceneBank, onSelect, onRemove, onAdd, onRelink, pending, instructorName, room }: {
+export function StudioPreview({ viewMode, onViewMode, screen, camera, mic, sceneBank, onSelect, onRemove, onAdd, onRelink, pending, instructorName, room, programPanel }: {
   viewMode: StudioViewMode; onViewMode: (mode: StudioViewMode) => void; screen: boolean; camera: boolean; mic: boolean;
   sceneBank: ReturnType<typeof useStudioScenes>; onSelect: (id: string) => void; onRemove: (id: string) => void; onAdd: (draft: StudioSceneDraft) => string | null; onRelink: (id: string) => void; pending: boolean; instructorName: string; room: StudioRoom | null;
+  programPanel?: ReactNode;
 }) {
   const media = useStudioMediaRuntime();
   const runtime = useStudioRuntime();
@@ -26,6 +28,7 @@ export function StudioPreview({ viewMode, onViewMode, screen, camera, mic, scene
       {showCamera && <div className={`studio-camera-preview ${showContent ? 'is-overlay' : ''}`}><div className="studio-camera-backdrop" />{media?.camera ? <StudioStreamVideo stream={media.camera} label="Cámara local del instructor" /> : <span className="studio-camera-avatar">{instructorName.slice(0, 1)}</span>}<span className="studio-camera-caption"><LiveIcon name={mic ? 'mic' : 'micOff'} />{instructorName}<small>{media ? 'Vista local' : 'Cámara de ejemplo'}</small></span></div>}
     </div>
     <div className="studio-preview-caption"><span><i />{room?.name || 'Grupo principal'}{activeScene ? ` · ${activeScene.name}` : ''}</span><span>{media?.zoomSharing ? activeScene?.capture ? 'Transmitiendo la fuente ligada' : 'Compartiendo pantalla en la llamada' : media?.screen ? 'Vista local de la fuente ligada' : activeScene?.capture ? media?.zoomConnected ? 'Fuente ligada · inicia Compartir en la llamada' : 'Fuente ligada · pulsa Compartir' : 'Solo tú ves esta composición'}</span></div>
+    {programPanel}
     <StudioSceneBank scenes={scenes} activeId={activeScene?.id ?? null} onSelect={showScene} onRemove={onRemove} onAdd={onAdd} onRelink={onRelink} capturePending={pending} />
     <section className="studio-source-strip" aria-label="Fuentes de transmisión"><span>FUENTES</span><span className={screen ? 'source-active' : ''}><LiveIcon name="screen" />Pantalla<i /></span><span className={camera ? 'source-active' : ''}><LiveIcon name="video" />Cámara<i /></span><span className={mic ? 'source-active' : ''}><LiveIcon name="mic" />Micrófono<i /></span></section>
   </main>;

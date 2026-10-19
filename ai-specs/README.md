@@ -3,6 +3,10 @@
 Este directorio es la fuente canónica para el trabajo asistido por agentes. Las
 carpetas específicas de cada herramienta solo adaptan estas instrucciones.
 
+La [arquitectura del arnés](../docs/architecture/development-harness.md) describe
+sus componentes, procedencia y límites. Para reutilizarlo, consultar
+[Implementar el arnés en otro sistema](../docs/operations/port-harness-to-another-system.md).
+
 ## Flujo obligatorio
 
 1. Enriquecer la solicitud y fijar alcance, riesgos y criterios verificables.

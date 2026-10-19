@@ -45,7 +45,41 @@ Una escena de pantalla exige elegir una fuente real con miniatura. Main custodia
 
 MediaDevices enumera dispositivos reales y captura solo después de una acción humana. Cada fuente tiene dueño, cancelación por generación y liberación al salir. Cambiar entrada conserva la fuente previa si falla. El medidor usa audio real sin retorno; el selector de salida prueba un tono cuando el entorno soporta `setSinkId`.
 
-Al conectar Zoom se liberan las capturas de prueba, se conservan vínculos y el SDK administra los dispositivos de la llamada. El micrófono se silencia por API y la cámara desde los controles oficiales. El SDK integrado inicia pantalla desde su control Compartir; main entrega la fuente ligada a la escena activa. El dock puede detener las pistas nativas de esa emisión. Cambiar escena durante una emisión Zoom la detiene y requiere volver a pulsar Compartir en Zoom: el SDK no expone inicio ni sustitución de pantalla como método público. No se usan selectores DOM internos ni métodos inventados. No hay todavía composición audiovisual continua de láminas/overlays ni cámara virtual.
+Al conectar la llamada se liberan las capturas de prueba, se conservan vínculos y
+el SDK administra sus dispositivos. El micrófono se silencia por API y la cámara
+desde sus controles oficiales. Compartir sigue iniciándose desde la llamada.
+En modo directo main entrega la fuente ligada y cambiar escena detiene esa pista.
+El instructor puede preparar una salida continua: el programa compone láminas,
+pantallas autorizadas, imágenes, videos silenciosos y pantallas del curso en un
+canvas estable. La llamada captura un WebContents dedicado y conserva su pista
+al pasar entre escenas. La cámara de la llamada no forma parte de ese canvas.
+No se usan selectores DOM internos, métodos SDK inventados ni cámara virtual.
+
+### Transiciones y pantallas del curso
+Seleccionar una escena prepara la vista local; Pasar a salida cambia el programa
+mediante corte, fundido, barrido o contenido visual intermedio. Este último usa
+una imagen, lámina o pantalla autorizada del banco durante 500–10000 ms, con
+fundidos de hasta 200 ms en sus extremos. Se carga junto al destino antes del
+cambio y conserva programa si falla. Añadir visual lo prepara y selecciona como
+intermedio sin publicar ni alterar el destino. Para mantenerlo visible sin
+intervalo, se pasa como una escena normal con corte, fundido o barrido.
+La salida se prepara por acción explícita y
+solo se identifica como compartida cuando la llamada confirma compartir. Antes
+de pasar de compartir directo a programa se debe detener la pista directa.
+Espera, inicio, receso y cierre se crean desde botones rápidos o Nueva escena,
+que permite personalizar título, descripción y cuenta regresiva. El reloj empieza
+al pasar a programa y permanece en cero; no reactiva una pantalla o cámara.
+No se puede quitar la escena actual del programa ni el contenido intermedio
+seleccionado. Durante el cambio se bloquea la edición del banco. Cerrar salida detiene compartir
+y libera los recursos; no cambia la política de grabación ni repetición Learning.
+
+Una ventana oculta recibe solo video del canvas mediante WebRTC local sin
+STUN/TURN. Tiene preload exclusivo y se captura como WebFrameMain; nunca comparte
+los paneles del instructor. La composición conserva ejecución en segundo plano
+mientras la salida está abierta y restaura la política previa al cerrarla.
+Las fuentes entrantes se validan antes del cambio y las salientes se liberan al
+terminar. En movimiento reducido se usa corte; el intermedio conserva su duración
+sin fundidos. [Plan y decisiones](../../openspec/changes/add-studio-transitions/design.md).
 
 Meeting SDK 6.5.0 usa React 18.3.1 en un paquete privado con lockfile propio, sin forzar su instalación contra React 19 de Hub. Se compila al construir la aplicación y carga desde `soflia-zoom://meeting`, con CSP y protocolo que solo sirve documento y assets compilados. El iframe no comparte preload, identidad ni almacenamiento del renderer. Comunicación limitada por ventana, origen y nonce. La firma y ZAK se obtienen exclusivamente en Learning; no se guardan en disco ni se incluyen en URLs.
 

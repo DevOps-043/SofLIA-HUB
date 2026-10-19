@@ -74,7 +74,7 @@ aprobación fabricada del renderer. El servicio comprueba capacidad, política,
 perfil y control humano; el borrado pregunta en main. Responde con biblioteca
 versionada, cancelación o error saneado. No existe IPC de ejecución de atajos.
 
-La allowlist actual contiene 488 canales derivados de cinco arrays: 84, 52, 61, 153, 138. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 494 canales derivados de cinco arrays: 84, 52, 61, 159, 138. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |
@@ -844,5 +844,15 @@ liberan los vínculos. Fuente perdida cancela la captura sin elegir un sustituto
 Véase [escenas locales](../../openspec/changes/implement-live-studio-runtime/specs/studio-local-scenes/spec.md).
 
 ## Exportación y audiovisual local
+
+La salida continua del curso usa `studio-output:open`, `close`, `offer`, `answer`,
+`state` y `event`. El frame principal autenticado dueño solo prepara/cierra y
+recibe estado. El preload `--studio-output` expone únicamente offer/answer/state
+al receptor creado por main. Oferta/respuesta SDP de hasta 64 KiB, ID UUID y
+timeout de negociación; sin archivos ni credenciales de Learning. Main revalida
+actor, ventana/frame exactos y generación. Cierre, navegación, cambio de cuenta,
+crash o timeout destruyen el receptor y revocan la concesión. La llamada recibe
+su WebFrameMain solo después del primer frame; la preparación pendiente deniega
+captura sin elegir otra fuente. [Contrato de salida](../../openspec/changes/add-studio-transitions/specs/studio-program-output/spec.md).
 
 `presentation:export-pptx` publica un PPTX editable del deck validado. `audiovisual:inspect`, `audiovisual:render` y `audiovisual:cancel` reciben solamente workspaceId, validado mediante esquema estricto; el servicio comprueba la skill propietaria. Allowlist, preload y wrapper tipado no exponen shell, ejecutables ni escritura binaria genérica. Contratos y límites en [producción audiovisual](presentation-audiovisual-production.md).

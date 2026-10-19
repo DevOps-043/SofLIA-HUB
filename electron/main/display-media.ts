@@ -1,6 +1,7 @@
 import { BrowserWindow, session, desktopCapturer, type Session } from 'electron';
 import { pickDisplayMediaSource } from '../integrated-browser/display-media-picker';
 import { configureStudioCapture, resolveStudioCapture } from '../studio-capture';
+import { configureStudioOutput, resolveStudioOutput } from '../studio-output';
 
 let owner: BrowserWindow | null = null;
 let loopback = false;
@@ -9,6 +10,7 @@ let selecting = false;
 export function configureMainDisplayMedia(window: BrowserWindow): void {
   owner = window;
   configureStudioCapture(window);
+  configureStudioOutput(window);
   install();
 }
 export function configureMeetingLoopback(enabled: boolean): void { loopback = enabled; install(); }
@@ -27,6 +29,10 @@ function install() {
       } catch { callback({}); return; }
     }
     try {
+      if (request.frame !== top) {
+        const program = resolveStudioOutput(win);
+        if (program.prepared) { callback(program.frame ? { video: program.frame } : {}); return; }
+      }
       const bound = request.frame === top && request.audioRequested ? { bound: false as const } : await resolveStudioCapture(win, request.frame === top);
       if (bound.bound) {
         const selected = bound.selection;

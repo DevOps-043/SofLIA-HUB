@@ -1,16 +1,40 @@
 # Fuentes y adaptacion del Arnes
 
-Estado: vigente. Actualizado: 2026-07-21.
+Estado: vigente. Actualizado: 2026-10-15.
 
 <!-- evidence: ai-specs/README.md -->
 <!-- evidence: openspec/changes/adapt-harness-and-document-system/context-pack.md -->
 <!-- evidence: scripts/ai/sync-agent-adapters.mjs -->
+<!-- evidence: openspec/changes/implement-soflia-harness/design.md -->
+
+## Identificación del repositorio de origen
+
+El repositorio que se tomó como referencia fue
+**[LIDR-academy/lidr-specboot](https://github.com/LIDR-academy/lidr-specboot)**.
+La atribución está registrada desde el cambio de adaptación del 2026-07-21,
+commit local `2a97251`, y en su
+[diseño](../../openspec/changes/adapt-harness-and-document-system/design.md).
+El arnés fundacional de SofLIA se introdujo en `dcf3125`, también el 2026-07-21.
+
+El 2026-10-15 se volvió a consultar el repositorio público: su README describe
+un contexto de desarrollo portable con `docs/`, `ai-specs/`, adaptadores para
+varios copilotos y uso conjunto con OpenSpec. Esto confirma la referencia
+externa; la versión actual de su rama principal no representa necesariamente
+el contenido adoptado en julio.
+
+La [arquitectura actual](../architecture/development-harness.md) explica la
+adaptación implementada y la [guía de portabilidad](../operations/port-harness-to-another-system.md)
+detalla cómo llevarla a otro sistema.
 
 ## PDF entregado
 
 Fuente: `Resumen - Arnes.pdf`, cuatro paginas, entregado por el usuario el
 2026-07-21 y revisado visualmente completo. El binario no se copia al repositorio;
 esta pagina conserva solo la sintesis necesaria.
+
+Esa descripción proviene del registro histórico de julio. En la revisión del
+2026-10-15 no se volvió a examinar el PDF: su autor, URL pública y relación
+editorial con Specboot no están acreditados por los archivos consultados.
 
 Principios extraidos:
 
@@ -30,6 +54,10 @@ OpenSpec+Git y compuertas de PR/release.
 
 Repositorio revisado: [LIDR Academy / lidr-specboot](https://github.com/LIDR-academy/lidr-specboot),
 commit `d19d286e9895bdf9be54b3e97070b9fe081c93af` observado el 2026-07-21.
+
+El hash se conserva como evidencia histórica local. La consulta web del
+2026-10-15 confirmó el repositorio y su README, pero no pudo recuperar el árbol
+de ese commit; no se afirma una nueva comparación archivo por archivo con él.
 
 Elementos adoptados:
 
@@ -72,3 +100,17 @@ equipo. El proveedor Gemini del producto permanece documentado en stack/runtime.
 Una idea externa se adapta solo cuando coincide con contratos y riesgos reales del
 repo. La fuente externa orienta el proceso; el codigo, SQL y configuracion
 versionados determinan lo que SofLIA implementa.
+
+## Alcance de la atribución
+
+- **Confirmado por el registro local:** referencia Specboot, PDF, decisiones de
+  adaptación y commits fundacionales de SofLIA.
+- **Confirmado en el árbol actual:** sincronizador, validadores, compuertas,
+  configuración OpenSpec y adaptadores específicos del equipo.
+- **No demostrado:** que todo el código del arnés proceda de Specboot o que el
+  PDF haya sido publicado por LIDR. La evidencia identifica influencias y
+  decisiones, no una equivalencia literal entre repositorios.
+- **Evolución independiente:** el arnés runtime se incorporó después. La
+  [investigación de Codex](../reports/codex-repository-research-2026-09-21.md)
+  documenta otra fuente técnica; su integración real se describe en el
+  [contrato runtime](../architecture/runtime-multiagent-harness.md).

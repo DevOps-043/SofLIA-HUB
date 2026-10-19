@@ -21,6 +21,8 @@ Este indice separa documentacion vigente de material historico.
 
 ## Empezar a trabajar
 
+- [Arquitectura del arnés de desarrollo](architecture/development-harness.md)
+- [Implementar el arnés en otro sistema](operations/port-harness-to-another-system.md)
 - [Guia rapida del Arnes en Antigravity](operations/harness-quickstart.md)
 - [Estandar maestro de ingenieria](standards/engineering-practices.md)
 - [Alias compatible `@prompt_maestro`](prompt_maestro.md)

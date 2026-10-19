@@ -8,6 +8,11 @@ const isPresentationRuntime = new URLSearchParams(window.location.search).get('v
 
 async function bootstrap() {
   const root = ReactDOM.createRoot(document.getElementById('root')!)
+  if (new URLSearchParams(window.location.search).get('view') === 'studio-output') {
+    const { StudioOutputReceiver } = await import('./components/learning-live/instructor/StudioOutputReceiver')
+    root.render(<StudioOutputReceiver />)
+    return
+  }
   if (new URLSearchParams(window.location.search).get('view') === 'display-media-picker') {
     const { DisplayMediaPicker } = await import('./components/display-media/DisplayMediaPicker')
     root.render(<DisplayMediaPicker />)

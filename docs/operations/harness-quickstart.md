@@ -11,6 +11,10 @@ Estado: vigente. Actualizado: 2026-07-21.
 Esta guia permite iniciar trabajo real en Antigravity sin copiar prompts largos
 ni reconstruir contexto en cada conversacion.
 
+Para entender los componentes y su origen, consultar la
+[arquitectura del arnés](../architecture/development-harness.md). Para adaptarlo
+a otro repositorio, seguir la [guía de portabilidad](port-harness-to-another-system.md).
+
 ## Que carga el sistema
 
 Al abrir la raiz del repositorio en Antigravity, el workspace ofrece:

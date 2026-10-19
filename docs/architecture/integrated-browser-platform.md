@@ -1,6 +1,6 @@
 # Plataforma del navegador integrado
 
-Estado: vigente. Actualizado: 2026-10-06.
+Estado: vigente. Actualizado: 2026-10-14.
 
 El navegador de Soflia Hub es una superficie de trabajo Electron basada en
 `WebContentsView`; no pretende sustituir un navegador Chromium completo ni
@@ -29,6 +29,15 @@ excluye contraseñas y passkeys, aunque la bóveda local ya cifra toda su metada
   contenido remoto no elige una ruta arbitraria.
 - La sesión restaurable conserva URL, título, orden, grupo, silencio y fijación;
   nunca formularios ni contenido de página.
+
+## Ciclo de vida de la ventana
+
+El [servicio](../../electron/integrated-browser/service.ts) conserva la referencia
+al `webContents` principal al registrar los listeners del renderer. Al recibir
+`closed`, retira esos listeners del emisor original: consultar `window.webContents`
+después de destruir la ventana puede lanzar `Object has been destroyed` e
+interrumpir la liberación de pestañas y timers. `detachWindow` admite llamadas
+repetidas y descarta el cierre tardío de una ventana que ya fue reemplazada.
 
 ## Capacidades implementadas
 

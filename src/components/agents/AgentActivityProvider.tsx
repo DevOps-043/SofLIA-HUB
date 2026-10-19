@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { AgentActivity } from '../../shared/agent-activity';
 import { agentActivityService } from '../../services/agent-activity';
-import { AgentActivityContext, hasNewRunningTeam, type AgentActivityPanelState } from './agent-activity-context';
+import { AgentActivityContext, hasFilePanelContent, hasNewRunningTeam, type AgentActivityPanelState } from './agent-activity-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { useBackgroundTeams } from './useBackgroundTeams';
 
@@ -21,7 +21,7 @@ function ScopedActivityProvider({ children, ownerId, organizationId }: { childre
 
   const receive = useCallback((next: AgentActivity[]) => {
     if (hasNewRunningTeam(knownIdsRef.current, next)) setOpen(true);
-    knownIdsRef.current = new Set(next.map(item => item.id));
+    knownIdsRef.current = new Set(next.filter(hasFilePanelContent).map(item => item.id));
     setItems(next);
   }, []);
 
@@ -32,11 +32,11 @@ function ScopedActivityProvider({ children, ownerId, organizationId }: { childre
   }, [receive, ownerId]);
 
   const toggle = useCallback(() => setOpen(current => !current), []);
-  const allItems = useMemo(() => [...background.activities, ...items].sort((a, b) => Number(b.status === 'running') - Number(a.status === 'running')), [background.activities, items]);
+  const allItems = useMemo(() => [...background.activities, ...items].filter(hasFilePanelContent).sort((a, b) => Number(b.status === 'running') - Number(a.status === 'running')), [background.activities, items]);
   const backgroundKnown = useRef<ReadonlySet<string>>(new Set());
   useEffect(() => {
     if (hasNewRunningTeam(backgroundKnown.current, background.activities)) setOpen(true);
-    backgroundKnown.current = new Set(background.activities.map(item => item.id));
+    backgroundKnown.current = new Set(background.activities.filter(hasFilePanelContent).map(item => item.id));
   }, [background.activities]);
   const runningCount = allItems.filter(item => item.status === 'running').length;
   const value = useMemo<AgentActivityPanelState>(

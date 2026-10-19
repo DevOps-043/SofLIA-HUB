@@ -1,7 +1,7 @@
 import { getErrorMessage } from '../error-utils';
 import { mapCuFunctionCall } from './action-mapping';
 import type { CuAction, CuDriver } from './types';
-import type { CuClient } from './client';
+import type { CuClient, CuCompletionVerification } from './client';
 import { assertCuNotAborted, CuContextChangedError } from './execution-guard';
 import { waitForCuResponse } from './cancellable-wait';
 
@@ -16,6 +16,9 @@ export type CuLoopEstado = 'completada' | 'fallida' | 'cancelada' | 'presupuesto
 
 export type CuLoopResult = { estado: CuLoopEstado; mensaje: string; pasos: number };
 
+/** Acota cierres prematuros incluso si el modelo insiste en terminar sin actuar. */
+const MAX_COMPLETION_RECOVERIES = 2;
+
 export type CuLoopDeps = {
   client: CuClient;
   driver: CuDriver;
@@ -28,7 +31,7 @@ export type CuLoopDeps = {
   /** Notificacion por paso (para logs/eventos de UI). */
   onStep?: (info: { step: number; nombre: string; action: CuAction; intent: string }) => void;
   settleDelayMs?: number;
-  verifyCompletion?: (capture: import('./types').CuCapture, message: string, signal?: AbortSignal) => Promise<{ confirmed: boolean; reason: string }>;
+  verifyCompletion?: (capture: import('./types').CuCapture, message: string, signal?: AbortSignal) => Promise<CuCompletionVerification>;
 };
 
 export async function runComputerUseLoop(deps: CuLoopDeps): Promise<CuLoopResult> {
@@ -54,8 +57,9 @@ async function runLoop(deps: CuLoopDeps, signal: AbortSignal | undefined, record
   deps.driver.contexto?.();
   let turn = await waitForCuResponse(() => deps.client.iniciar(deps.task, shot.base64, shot.context, signal), signal);
   let pendingError: string | null = null;
+  let completionRecoveries = 0;
 
-  for (let step = 0; step < deps.maxSteps; step++) {
+  for (let step = 0; step <= deps.maxSteps; step++) {
     if (deps.abortSignal?.aborted) return { estado: 'cancelada', mensaje: 'Tarea cancelada.', pasos: step };
     deps.driver.contexto?.();
 
@@ -67,11 +71,23 @@ async function runLoop(deps: CuLoopDeps, signal: AbortSignal | undefined, record
         assertCuNotAborted(signal); deps.driver.contexto?.();
         const verified = await waitForCuResponse(() => deps.verifyCompletion!(shot, turn.text, signal), signal);
         assertCuNotAborted(signal); deps.driver.contexto?.();
-        if (!verified.confirmed) return { estado: 'fallida', mensaje: `No se pudo comprobar que la tarea esté completada. ${verified.reason}`.trim(), pasos: step };
+        if (!verified.confirmed) {
+          if (verified.canContinue === true && deps.client.reanudar && completionRecoveries < MAX_COMPLETION_RECOVERIES && step < deps.maxSteps) {
+            completionRecoveries++;
+            // La recuperación consume presupuesto y conserva conversación, señal y destino.
+            recordStep(step + 1);
+            turn = await waitForCuResponse(() => deps.client.reanudar!(shot.base64, verified.reason, signal), signal);
+            assertCuNotAborted(signal); deps.driver.contexto?.();
+            continue;
+          }
+          return { estado: step >= deps.maxSteps ? 'presupuesto_agotado' : 'fallida', mensaje: `No se pudo comprobar que la tarea esté completada. ${verified.reason}`.trim(), pasos: step };
+        }
       }
       return { estado: 'completada', mensaje: turn.text || 'Tarea completada.', pasos: step };
     }
 
+    // Se admite comprobar el cierre tras la última acción, pero nunca otra acción.
+    if (step === deps.maxSteps) break;
     const mapped = mapCuFunctionCall(fc, shot.width, shot.height);
     recordStep(step + 1);
     deps.onStep?.({ step: step + 1, nombre: mapped.nombreOriginal, action: mapped.action, intent: mapped.intent });

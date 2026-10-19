@@ -534,6 +534,46 @@ describe('IntegratedBrowserService', () => {
       expect(contents.listenerCount('render-process-gone')).toBe(0);
     } finally { service.detachWindow(); }
   });
+  it.each([false, true])('completa el cierre con la ventana destruida (pestaña abierta: %s)', async openTab => {
+    const service = newService(); const parent = new BrowserWindow();
+    const contents = parent.webContents;
+    // El controlador principal registra este callback antes que el servicio.
+    parent.once('closed', () => service.detachWindow());
+    service.attachWindow(parent);
+    if (openTab) await service.open('https://example.com/');
+    const view = openTab ? browserViewHarness.instances[browserViewHarness.instances.length - 1] : null;
+    vi.mocked(parent.isDestroyed).mockReturnValue(true);
+    vi.mocked(contents.isDestroyed).mockReturnValue(true);
+    const webContentsAccess = vi.fn(() => { throw new TypeError('Object has been destroyed'); });
+    Object.defineProperty(parent, 'webContents', { configurable: true, get: webContentsAccess });
+    try {
+      expect(() => parent.emit('closed')).not.toThrow();
+      expect(() => service.detachWindow()).not.toThrow();
+      expect(webContentsAccess).not.toHaveBeenCalled();
+      expect(contents.listenerCount('did-start-navigation')).toBe(0);
+      expect(contents.listenerCount('render-process-gone')).toBe(0);
+      expect(service.getState()).toMatchObject({ tabs: [], isVisible: false });
+      if (view) expect(view.webContents.close).toHaveBeenCalledTimes(1);
+    } finally {
+      Object.defineProperty(parent, 'webContents', { configurable: true, value: contents });
+      service.detachWindow();
+    }
+  });
+
+  it('ignora el cierre tardío de la ventana anterior después de reemplazarla', async () => {
+    const service = newService(); const previous = new BrowserWindow(); const current = new BrowserWindow();
+    service.attachWindow(previous);
+    service.attachWindow(current);
+    try {
+      await service.open('https://example.com/');
+      previous.emit('closed');
+      expect(service.getState().tabs).toHaveLength(1);
+      expect(previous.webContents.listenerCount('did-start-navigation')).toBe(0);
+      expect(current.webContents.listenerCount('did-start-navigation')).toBe(1);
+      expect(current.webContents.listenerCount('render-process-gone')).toBe(1);
+    } finally { service.detachWindow(); }
+  });
+
   it.each(['selección', 'sesión', 'agente', 'marco', 'pestaña'] as const)('passkeys vincula proveedor con perfil, documento y control humano: %s', async scenario => {
     vi.stubEnv('BROWSER_AGENT_GOVERNANCE_ENABLED', 'false');
     setAuthState({ authenticated: true, userId: 'passkey-fixture' });

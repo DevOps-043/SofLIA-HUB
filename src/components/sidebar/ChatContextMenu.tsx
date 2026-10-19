@@ -1,6 +1,9 @@
-import type { MouseEvent, PointerEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type PointerEvent, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
 
 type ChatContextMenuProps = {
+  id: string;
+  anchorRef: RefObject<HTMLButtonElement | null>;
   canRename: boolean;
   canMove: boolean;
   canDelete: boolean;
@@ -13,6 +16,8 @@ type ChatContextMenuProps = {
 };
 
 export function ChatContextMenu({
+  id,
+  anchorRef,
   canRename,
   canMove,
   canDelete,
@@ -23,17 +28,93 @@ export function ChatContextMenu({
   onDelete,
   onClose,
 }: ChatContextMenuProps) {
-  const hasActions = true;
-  if (!hasActions) return null;
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<CSSProperties>({ visibility: 'hidden' });
 
-  return (
+  useLayoutEffect(() => {
+    const updatePosition = () => {
+      const anchor = anchorRef.current;
+      const menu = menuRef.current;
+      if (!anchor || !menu) return;
+      const margin = 8;
+      const gap = 6;
+      const rect = anchor.getBoundingClientRect();
+      const width = menu.offsetWidth;
+      const height = menu.offsetHeight;
+      const below = window.innerHeight - rect.bottom - gap - margin;
+      const above = rect.top - gap - margin;
+      const preferredTop = height > below && above > below
+        ? rect.top - height - gap
+        : rect.bottom + gap;
+      setPosition({
+        top: Math.max(margin, Math.min(preferredTop, window.innerHeight - height - margin)),
+        left: Math.max(margin, Math.min(rect.right - width, window.innerWidth - width - margin)),
+      });
+    };
+    updatePosition();
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+    // Redimensionar la barra lateral también desplaza el botón de opciones.
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updatePosition);
+    const sidebar = anchorRef.current?.closest('aside');
+    if (sidebar) observer?.observe(sidebar);
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+      observer?.disconnect();
+    };
+  }, [anchorRef, canRename, canMove, canDelete]);
+
+  useEffect(() => {
+    menuRef.current?.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true });
+  }, []);
+
+  useEffect(() => {
+    const closeOutside = (event: globalThis.PointerEvent) => {
+      const target = event.target as Node;
+      if (menuRef.current?.contains(target) || anchorRef.current?.contains(target)) return;
+      onClose();
+    };
+    document.addEventListener('pointerdown', closeOutside, true);
+    return () => document.removeEventListener('pointerdown', closeOutside, true);
+  }, [anchorRef, onClose]);
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    if (event.key === 'Escape' || event.key === 'Tab') {
+      if (event.key === 'Escape') event.preventDefault();
+      onClose();
+      anchorRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    const actions = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>('button') ?? []);
+    const current = actions.indexOf(document.activeElement as HTMLButtonElement);
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? actions.length - 1
+      : event.key === 'ArrowDown' ? (current + 1) % actions.length
+        : event.key === 'ArrowUp' ? (current - 1 + actions.length) % actions.length : -1;
+    if (next < 0) return;
+    event.preventDefault();
+    actions[next]?.focus({ preventScroll: true });
+  };
+
+  // El portal evita el recorte de overflow y los ancestros con backdrop-filter.
+  return createPortal(
     <div
-      className="animate-context-menu-in pointer-events-auto absolute right-0 z-[90] mt-1.5 w-[136px] isolate overflow-hidden rounded-[14px] border border-gray-200 bg-[#ffffff] bg-clip-padding p-1 shadow-[0_14px_32px_rgba(10,37,64,0.18)] ring-1 ring-black/[0.04] dark:border-white/[0.10] dark:bg-[#0b1118] dark:shadow-[0_18px_36px_rgba(0,0,0,0.52)] dark:ring-white/[0.04]"
+      ref={menuRef}
+      id={id}
+      role="menu"
+      aria-label="Opciones de la conversación"
+      style={{ ...position, position: 'fixed', maxWidth: 'calc(100vw - 16px)', maxHeight: 'calc(100dvh - 16px)' }}
+      className="animate-context-menu-in pointer-events-auto z-[90] w-[136px] isolate overflow-y-auto rounded-[14px] border border-gray-200 bg-[#ffffff] bg-clip-padding p-1 shadow-[0_14px_32px_rgba(10,37,64,0.18)] ring-1 ring-black/[0.04] dark:border-white/[0.10] dark:bg-[#0b1118] dark:shadow-[0_18px_36px_rgba(0,0,0,0.52)] dark:ring-white/[0.04]"
+      onKeyDown={handleKeyDown}
       onPointerDown={stopMenuPropagation}
       onMouseDown={stopMenuPropagation}
       onClick={stopMenuPropagation}
     >
       <button
+        type="button"
+        role="menuitem"
+        tabIndex={-1}
         onPointerDown={stopMenuPropagation}
         onClick={(event) => { event.stopPropagation(); onTogglePin(); onClose(); }}
         className="group/item flex h-8 w-full items-center gap-2 rounded-[10px] px-2 text-left text-[12px] font-medium text-[#0A2540] transition-[background-color,color,transform] duration-150 ease-out hover:translate-x-0.5 hover:bg-[#0A2540]/10 hover:text-[#071a2d] dark:text-white/80 dark:hover:bg-white/[0.07] dark:hover:text-accent"
@@ -49,6 +130,9 @@ export function ChatContextMenu({
 
       {canRename && (
         <button
+          type="button"
+          role="menuitem"
+          tabIndex={-1}
           onPointerDown={stopMenuPropagation}
           onClick={(event) => { event.stopPropagation(); onRename(); onClose(); }}
           className="group/item flex h-8 w-full items-center gap-2 rounded-[10px] px-2 text-left text-[12px] font-medium text-[#0A2540] transition-[background-color,color,transform] duration-150 ease-out hover:translate-x-0.5 hover:bg-[#0A2540]/10 hover:text-[#071a2d] dark:text-white/80 dark:hover:bg-white/[0.07] dark:hover:text-accent"
@@ -64,6 +148,9 @@ export function ChatContextMenu({
 
       {canMove && (
         <button
+          type="button"
+          role="menuitem"
+          tabIndex={-1}
           onPointerDown={stopMenuPropagation}
           onClick={(event) => { event.stopPropagation(); onMove(); onClose(); }}
           className="group/item flex h-8 w-full items-center gap-2 rounded-[10px] px-2 text-left text-[12px] font-medium text-[#0A2540] transition-[background-color,color,transform] duration-150 ease-out hover:translate-x-0.5 hover:bg-[#0A2540]/10 hover:text-[#071a2d] dark:text-white/80 dark:hover:bg-white/[0.07] dark:hover:text-accent"
@@ -81,6 +168,9 @@ export function ChatContextMenu({
 
       {canDelete && (
         <button
+          type="button"
+          role="menuitem"
+          tabIndex={-1}
           onPointerDown={stopMenuPropagation}
           onClick={(event) => { event.stopPropagation(); onDelete(event); onClose(); }}
           className="group/item flex h-8 w-full items-center gap-2 rounded-[10px] px-2 text-left text-[12px] font-semibold text-danger transition-[background-color,transform] duration-150 ease-out hover:bg-danger/10 hover:translate-x-0.5"
@@ -93,7 +183,8 @@ export function ChatContextMenu({
           <span className="font-medium">Eliminar</span>
         </button>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
 

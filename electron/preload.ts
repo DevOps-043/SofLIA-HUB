@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { exposeDisplayMediaPickerApi } from './preload/display-media-api';
 import { exposeStudioCaptureApi } from './preload/studio-capture-api';
+import { exposeStudioOutputApi, exposeStudioOutputReceiverApi } from './preload/studio-output-api';
 import { exposeOrbGuidanceApi } from './preload/orb-guidance-api';
 import { exposeAgentActivityApi } from './preload/agent-activity-api';
 import { exposeAgentRuntimeApi } from './preload/agent-runtime-api';
@@ -37,10 +38,13 @@ assertContextIsolation();
 injectCSP();
 
 const safeIpc = createSafeIpc(ipcRenderer);
-if (process.argv.includes('--display-media-picker')) {
+if (process.argv.includes('--studio-output')) {
+  exposeStudioOutputReceiverApi(contextBridge, safeIpc);
+} else if (process.argv.includes('--display-media-picker')) {
   exposeDisplayMediaPickerApi(contextBridge, safeIpc);
 } else {
   exposeStudioCaptureApi(contextBridge, safeIpc);
+  exposeStudioOutputApi(contextBridge, safeIpc);
   exposeOrbGuidanceApi(contextBridge, safeIpc);
   exposeAgentActivityApi(contextBridge, safeIpc);
   exposeAgentRuntimeApi(contextBridge, safeIpc);

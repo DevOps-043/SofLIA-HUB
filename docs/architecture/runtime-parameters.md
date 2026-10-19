@@ -233,6 +233,7 @@ solo entonces excluye un medio declarándolo.
 | Grupo | Valores default | Fuente |
 |---|---|---|
 | pasos | `maxSteps=120`, `defaultStepBudget=60`, mínimo integrado `90`, `maxTotalSteps=500` | `electron/desktop-agent/agent-config.ts`, `electron/desktop-agent/task-budget.ts` |
+| recuperación de cierre prematuro CU | máximo 2 por loop; cada recuperación consume un paso del presupuesto original y exige `canContinue: true` del verificador | `electron/desktop-agent/gemini-cu/loop.ts`, `electron/desktop-agent/gemini-cu/client.ts` |
 | reintentos por llamada mal formada (chat) | 2: reemitir, luego responder sin herramientas | `src/services/gemini-chat/agentic-loop.ts` |
 | modelo conversacional/CU | `gemini-3.8-flash`, sin degradación de modelo | `src/shared/soflia-runtime-model.ts`, `electron/desktop-agent/gemini-cu/model-registry.ts` |
 | selector conversacional | SofLIA: OpenAI `gpt-6-luna` (predeterminado); Max: OpenAI `gpt-6.1-sol` (3 usos/mes, fallback a SofLIA); Pro: Google `gemini-3.8-flash`; elección y razonamiento persistidos por modelo | `src/hooks/model-selector-options.ts`, `src/hooks/useModelSelector.ts`, `src/services/model-routing.ts` |
@@ -363,5 +364,19 @@ Fuentes: `electron/integrated-browser/display-media-picker.ts` y
 `electron/integrated-browser/display-media-sources.ts`.
 
 ## Producción audiovisual local
+
+Programa del estudio síncrono: un canvas de 1280 × 720, máximo 30 fps, una ventana
+de salida y un peer local sin STUN/TURN. Transiciones entre 100 y 2000 ms,
+500 ms por defecto; corte sin duración visual. Intermedio de imagen/pantalla:
+500–10000 ms (1500 ms por defecto), fundidos de hasta 200 ms; movimiento reducido
+conserva intervalo con cortes. Reloj opcional de 0–7200 segundos desde su primera
+aparición. Hasta tres fuentes durante un intermedio (saliente, intermedio y
+entrante); dos para fundido/barrido. Conserva las 12 escenas/25 MB del banco.
+Preparación de medios: 10 segundos por fuente, abortable al cerrar; ICE local: 8 segundos; receptor/primer frame:
+25 segundos. Oferta/respuesta SDP: 64 KiB por mensaje. Video de programa sin
+audio; cámara y micrófono de la llamada siguen separados. El modo continuo puede
+mantener capturas saliente/intermedia/entrante simultáneamente, a diferencia del modo directo
+de una sola fuente. Fuentes: `src/shared/studio-program.ts`,
+`src/services/studio-program-renderer.ts` y `electron/studio-output/`.
 
 Una producción simultánea, doce minutos, 6–60 segundos, 30/60 fps, 1280/1920 de ancho, MP4 hasta 80 MB y workspace hasta 128 MB. Manifiestos de 512 KB; máximo tres entidades visibles por escena. [Contrato y operación](presentation-audiovisual-production.md).
