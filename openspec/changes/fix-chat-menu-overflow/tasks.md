@@ -1,0 +1,4 @@
+- [x] Reproducir el recorte del menú y especificar la posición flotante.
+- [x] Implementar portal, ajuste al viewport, cierre y teclado.
+- [x] Verificar regresiones de la barra lateral y geometría en Chromium.
+- [x] Actualizar documentación y registrar compuertas y límites.

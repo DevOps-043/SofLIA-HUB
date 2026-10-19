@@ -1,9 +1,9 @@
 /**
  * Tests UI-003 to UI-014: Sidebar.tsx navigation component.
  */
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { createDefaultProps, Sidebar } from './Sidebar.fixture';
 
 describe('Sidebar component', () => {
@@ -120,5 +120,84 @@ describe('Sidebar component', () => {
 
     expect(screen.getByText('Tu sesion con SOFIA caduco.')).toBeInTheDocument();
     expect(screen.queryByText('Reintentar')).not.toBeInTheDocument();
+  });
+});
+
+describe('Menú flotante de conversaciones', () => {
+  let triggerRect: DOMRect;
+  beforeEach(() => {
+    triggerRect = new DOMRect(296, 570, 24, 24);
+    vi.stubGlobal('innerWidth', 1024);
+    vi.stubGlobal('innerHeight', 600);
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      return this.title === 'Mas opciones' ? triggerRect : new DOMRect();
+    });
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(148);
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(136);
+  });
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+  function renderOpenMenu() {
+    const props = createDefaultProps({
+      activeMenuChatId: 'ultimo',
+      conversations: [{ id: 'ultimo', user_id: 'u1', title: 'Último chat', created_at: '2026-01-01', updated_at: '2026-01-01', can_edit: true, can_share: true }],
+    });
+    render(<Sidebar {...props} />);
+    return props;
+  }
+
+  it('sale de la lista y abre hacia arriba junto al borde inferior sin desplazarla', () => {
+    renderOpenMenu();
+    const menu = screen.getByRole('menu');
+    expect(menu.parentElement).toBe(document.body);
+    expect(document.querySelector('nav')).not.toContainElement(menu);
+    expect(menu).toHaveStyle({ position: 'fixed', top: '416px', left: '184px' });
+    expect(document.querySelector('nav')?.scrollTop).toBe(0);
+    expect(within(menu).getAllByRole('menuitem')).toHaveLength(4);
+  });
+
+  it.each([0, 1000])('respeta los bordes laterales con el botón en x=%s', left => {
+    triggerRect = new DOMRect(left, 20, 24, 24);
+    renderOpenMenu();
+    const menu = screen.getByRole('menu');
+    expect(Number.parseFloat(menu.style.left)).toBeGreaterThanOrEqual(8);
+    expect(Number.parseFloat(menu.style.left) + 136).toBeLessThanOrEqual(1016);
+    expect(menu).toHaveStyle({ top: '50px' });
+  });
+
+  it('actualiza el anclaje al desplazar la lista y redimensionar la ventana', () => {
+    renderOpenMenu();
+    triggerRect = new DOMRect(296, 100, 24, 24);
+    fireEvent.scroll(document.querySelector('nav')!);
+    expect(screen.getByRole('menu')).toHaveStyle({ top: '130px' });
+    triggerRect = new DOMRect(96, 100, 24, 24);
+    fireEvent.resize(window);
+    expect(screen.getByRole('menu')).toHaveStyle({ left: '8px' });
+  });
+
+  it('admite teclado y devuelve el foco al botón con Escape sin seleccionar el chat', () => {
+    const props = renderOpenMenu();
+    const menu = screen.getByRole('menu');
+    const actions = within(menu).getAllByRole('menuitem');
+    expect(actions[0]).toHaveFocus();
+    fireEvent.keyDown(actions[0], { key: 'ArrowDown' });
+    expect(actions[1]).toHaveFocus();
+    fireEvent.keyDown(actions[1], { key: 'End' });
+    expect(actions[3]).toHaveFocus();
+    fireEvent.keyDown(actions[3], { key: 'Home' });
+    expect(actions[0]).toHaveFocus();
+    fireEvent.keyDown(actions[0], { key: 'Enter' });
+    expect(props.onSelectConversation).not.toHaveBeenCalled();
+    fireEvent.keyDown(actions[0], { key: 'Escape' });
+    expect(props.onSetActiveMenuChatId).toHaveBeenCalledWith(null);
+    expect(screen.getByTitle('Mas opciones')).toHaveFocus();
+  });
+
+  it('cierra al pulsar fuera y conserva los clics dentro del menú', () => {
+    const props = renderOpenMenu();
+    fireEvent.pointerDown(within(screen.getByRole('menu')).getByText('Anclar'));
+    expect(props.onSetActiveMenuChatId).not.toHaveBeenCalled();
+    fireEvent.pointerDown(document.body);
+    expect(props.onSetActiveMenuChatId).toHaveBeenCalledWith(null);
   });
 });

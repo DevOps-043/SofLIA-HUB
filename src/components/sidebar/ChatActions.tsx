@@ -1,9 +1,11 @@
-import type { MouseEvent, PointerEvent } from 'react';
+import { useId, useRef, type MouseEvent, type PointerEvent } from 'react';
 import type { ChatItemProps } from './ChatItem';
 import { ChatContextMenu } from './ChatContextMenu';
 import { EditIcon, MoreIcon } from './ChatIcons';
 
 export function ChatActions({ props }: { props: ChatItemProps }) {
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const menuId = useId();
   const menuVisible = props.canRename || props.canMove || props.canDelete;
   const layerClass = props.isMenuOpen ? 'z-[80]' : 'z-10';
   const visibilityClass = props.isMenuOpen
@@ -14,17 +16,6 @@ export function ChatActions({ props }: { props: ChatItemProps }) {
 
   return (
     <>
-      {props.isMenuOpen && (
-        <div
-          className="fixed inset-0 z-[70] cursor-default"
-          onPointerDown={stopMenuPropagation}
-          onMouseDown={stopMenuPropagation}
-          onClick={(event) => {
-            event.stopPropagation();
-            props.onToggleMenu();
-          }}
-        />
-      )}
       <div
         className={`pointer-events-none absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-0.5 rounded-xl bg-white px-0.5 opacity-0 shadow-[0_4px_14px_rgba(10,37,64,0.10)] transition-opacity dark:bg-[#111820] ${layerClass} ${visibilityClass}`}
         onPointerDown={stopMenuPropagation}
@@ -34,9 +25,11 @@ export function ChatActions({ props }: { props: ChatItemProps }) {
         {props.canRename && <button onPointerDown={stopMenuPropagation} onClick={(e) => { e.stopPropagation(); props.onStartRename(); }} className="rounded-xl p-1 text-secondary transition-colors hover:bg-[#0A2540]/10 hover:text-[#0A2540] dark:text-white/40 dark:hover:bg-white/10 dark:hover:text-accent" title="Renombrar"><EditIcon /></button>}
         {menuVisible && (
           <div className="relative">
-            <button onPointerDown={stopMenuPropagation} onClick={(e) => { e.stopPropagation(); props.onToggleMenu(); }} className={`rounded-xl p-1 transition-colors hover:bg-[#0A2540]/10 hover:text-[#0A2540] dark:hover:bg-white/10 dark:hover:text-accent ${props.isMenuOpen ? 'text-accent' : 'text-secondary dark:text-white/40'}`} title="Mas opciones"><MoreIcon /></button>
+            <button ref={menuButtonRef} type="button" aria-haspopup="menu" aria-expanded={props.isMenuOpen} aria-controls={props.isMenuOpen ? menuId : undefined} onPointerDown={stopMenuPropagation} onKeyDown={(event) => event.stopPropagation()} onClick={(e) => { e.stopPropagation(); props.onToggleMenu(); }} className={`rounded-xl p-1 transition-colors hover:bg-[#0A2540]/10 hover:text-[#0A2540] dark:hover:bg-white/10 dark:hover:text-accent ${props.isMenuOpen ? 'text-accent' : 'text-secondary dark:text-white/40'}`} title="Mas opciones"><MoreIcon /></button>
             {props.isMenuOpen && (
               <ChatContextMenu
+                id={menuId}
+                anchorRef={menuButtonRef}
                 canRename={props.canRename}
                 canMove={props.canMove}
                 canDelete={props.canDelete}

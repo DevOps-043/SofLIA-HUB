@@ -40,6 +40,12 @@ la lectura de configuración falle; muestra confirmación/cancelación/error y
 | Screen viewer | tools/desktop | screen sources/capture | elegir fuente, refresh | loading, no source, screenshot, error |
 | User management | tab Members con org | org members/invites | role, invite, list | loading, empty, error |
 
+El menú de opciones de cada conversación de la Sidebar se muestra en una capa
+flotante fuera de la lista desplazable, anclada a los tres puntos. Si no cabe
+debajo del botón, abre hacia arriba; se ajusta a los bordes del viewport y no
+desplaza la lista al recibir foco. Admite flechas, Inicio, Fin, Escape y cierre
+al pulsar fuera. Las acciones conservan los permisos de cada conversación.
+
 ## Flujos criticos
 
 ### Login y scope
