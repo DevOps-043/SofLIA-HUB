@@ -17,8 +17,10 @@ La entrada Sesiones síncronas, debajo de Navegador y Reuniones, abre la agenda 
 El panel usa Conectar sesión para el instructor y Unirme a la sesión para el
 participante. Las etiquetas, ayudas y errores propios de Hub no nombran al
 proveedor audiovisual ni muestran el estado técnico de Realtime. La suscripción
-y la recuperación de snapshots se conservan. El runtime del proveedor conserva
-sus controles oficiales. Hub muestra el estado de grabación, pero la preferencia
+y la recuperación de snapshots se conservan. El runtime aislado selecciona Meeting
+o Video SDK según el grant de Learning; las sesiones anteriores siguen con Meeting.
+Video ofrece controles de audio, cámara y pantalla en español y recursos locales
+versionados. Hub muestra el estado de grabación, pero la preferencia
 de disponibilidad posterior se administra exclusivamente en Learning.
 
 ## Estado y autorización

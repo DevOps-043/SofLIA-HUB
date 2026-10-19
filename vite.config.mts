@@ -6,6 +6,7 @@ import pkg from "./package.json" with { type: "json" };
 import { createElectronExternals, onElectronRollupWarning } from "./config/vite/electron-build.mjs";
 import { startElectronDevProcess } from "./config/vite/dev-electron-process.mjs";
 import { createMainProcessEnvDefines } from "./config/vite/env-defines.mjs";
+import { zoomVideoAssets } from './config/vite/zoom-video-assets.mjs';
 
 const OPTIMIZE_DEP_EXCLUDES = [
   "mammoth",
@@ -67,6 +68,7 @@ export default defineConfig(({ mode }) => {
       exclude: OPTIMIZE_DEP_EXCLUDES,
     },
     plugins: [
+      zoomVideoAssets(),
       react(),
       electron({
         main: {
