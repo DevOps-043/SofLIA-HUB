@@ -688,11 +688,13 @@ export class IntegratedBrowserService extends EventEmitter {
     const onRendererNavigation = (_event: Electron.Event, _url: string, inPlace: boolean, isMainFrame: boolean) => {
       if (isMainFrame && !inPlace) resetWorkspace();
     };
-    window.webContents.on('did-start-navigation', onRendererNavigation);
-    window.webContents.on('render-process-gone', resetWorkspace);
+    const mainWebContents = window.webContents;
+    mainWebContents.on('did-start-navigation', onRendererNavigation);
+    mainWebContents.on('render-process-gone', resetWorkspace);
     this.mainRendererCleanup = () => {
-      window.webContents.removeListener('did-start-navigation', onRendererNavigation);
-      window.webContents.removeListener('render-process-gone', resetWorkspace);
+      // En `closed` la ventana ya está destruida; usar el emisor original.
+      mainWebContents.removeListener('did-start-navigation', onRendererNavigation);
+      mainWebContents.removeListener('render-process-gone', resetWorkspace);
     };
     window.on('show', this.resourceWindowStateHandler);
     window.on('hide', this.resourceWindowStateHandler);

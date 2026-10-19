@@ -1,0 +1,4 @@
+- [x] Reproducir el acceso a la ventana destruida antes del arreglo.
+- [x] Retirar listeners mediante la referencia original al renderer.
+- [x] Verificar cierre repetido, liberación de pestañas y reemplazo de ventana.
+- [x] Documentar el ciclo de vida y registrar verificaciones y limitaciones.
