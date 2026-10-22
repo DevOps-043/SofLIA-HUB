@@ -3,12 +3,7 @@ import type { SessionInfo, SummaryStats } from './types';
 export function buildDailySummaryPrompt(
   sessionInfo: SessionInfo,
   stats: SummaryStats,
-  irisProjects?: string[],
 ): string {
-  const projectsContext = irisProjects?.length
-    ? `\nPROYECTOS CONOCIDOS DEL USUARIO: ${irisProjects.join(', ')}`
-    : '';
-
   return `Eres un analista de productividad. Genera un resumen detallado de la sesion de trabajo del usuario.
 
 SESION:
@@ -22,7 +17,6 @@ ESTADISTICAS:
 - Tiempo activo: ${Math.round(stats.totalActive / 60)} minutos
 - Tiempo inactivo: ${Math.round(stats.totalIdle / 60)} minutos
 - Apps mas usadas: ${stats.topApps.slice(0, 5).map((app) => `${app.name} (${Math.round(app.duration / 60)}min)`).join(', ')}
-${projectsContext}
 
 TIMELINE DE ACTIVIDAD:
 ${stats.timelineText}

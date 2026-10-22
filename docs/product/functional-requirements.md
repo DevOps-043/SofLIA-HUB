@@ -73,11 +73,11 @@ ni restaura checkpoints, dispositivos revocados o claves.
 | ID | El sistema debe... | Resultado verificable | Evidencia |
 |---|---|---|---|
 | RF-001 | autenticar únicamente con SOFIA y resolver automáticamente la sesión operativa de conversaciones | un usuario válido entra al workspace sin otra credencial; un fallo secundario conserva SOFIA, muestra un estado simple y permite reintentar | `src/contexts/auth/`, `src/services/lia-session-exchange.ts`, `database/lia/supabase/functions/sofia-session-exchange/`, `src/app/ChatUnavailableState.tsx` |
-| RF-002 | cargar organizaciones, membresias y equipos y permitir cambiar la organizacion activa | sidebar, IRIS y shares cambian al scope seleccionado | `src/contexts/auth/useSofiaSelection.ts`, `src/app/AppContent.tsx` |
+| RF-002 | cargar organizaciones, membresias y equipos y permitir cambiar la organizacion activa | sidebar y shares cambian al scope seleccionado | `src/contexts/auth/useSofiaSelection.ts`, `src/app/AppContent.tsx` |
 | RF-003 | mantener conversaciones y mensajes con carga, creacion, renombrado, pin, eliminacion y recuperacion de pendientes | la lista y el chat remoto/local convergen despues de reintentos | `src/services/chat/`, `src/hooks/chat-manager/` |
-| RF-004 | crear, renombrar y eliminar carpetas y mover conversaciones entre ellas | el Project Hub refleja el agrupamiento persistido | `src/services/folder/`, `src/hooks/folder-manager/` |
+| RF-004 | crear, renombrar y eliminar carpetas y mover conversaciones entre ellas | la vista de carpeta refleja el agrupamiento persistido | `src/services/folder/`, `src/hooks/folder-manager/` |
 | RF-005 | compartir conversaciones/carpetas con miembros o enlaces y permitir revocar acceso | el receptor solo ve targets accesibles y el owner puede revocar | `src/services/share/`, `src/components/share-modal/` |
-| RF-006 | mostrar equipos, proyectos e issues IRIS del scope de organizacion y abrir su contexto en chat/proyecto | una seleccion IRIS produce la vista/contexto correspondiente | `src/hooks/useIrisData.ts`, `src/services/iris-data/` |
+| RF-006 | Retirado: integración externa de Project Hub/IRIS | sin vistas, IPC ni herramientas de proyectos externos; carpetas conservadas | `docs/architecture/project-hub-unified.md` |
 
 ## Asistencia, archivos y productividad
 

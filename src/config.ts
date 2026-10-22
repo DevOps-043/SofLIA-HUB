@@ -18,11 +18,6 @@ export const SOFIA_SUPABASE = {
   ANON_KEY: import.meta.env.VITE_SOFIA_SUPABASE_ANON_KEY || ''
 };
 
-// IRIS Supabase (Project Hub — proyectos, issues, equipos)
-export const IRIS_SUPABASE = {
-  URL: import.meta.env.VITE_IRIS_SUPABASE_URL || '',
-  ANON_KEY: import.meta.env.VITE_IRIS_SUPABASE_ANON_KEY || ''
-};
 
 /**
  * Inicio de sesion federado con SofLIA Learning.

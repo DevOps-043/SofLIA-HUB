@@ -10,14 +10,14 @@ Estado: vigente. Actualizado: 2026-07-21.
 
 `src/main.tsx` monta `App`; `src/App.tsx` envuelve la aplicacion en
 `AuthProvider`, renderiza `AppContent` y mantiene `UpdateNotification` global.
-No se usa React Router: `ActiveView` es la union `chat | project | project-hub |
+No se usa React Router: `ActiveView` es la union `chat | project |
 productivity | meetings | live-sessions`. `AppWorkspace` selecciona chat y herramientas
 con render condicional; `AppContent` presenta la agenda y el aula de Learning.
 
 `AppContent` coordina:
 
 - autenticacion SOFIA/Lia y organizacion activa;
-- managers de chat, carpetas e IRIS;
+- managers de chat y carpetas;
 - tema y posicion de sidebar (`left`, `right`, `bottom`);
 - enlaces compartidos y triggers de reunion recibidos por IPC;
 - agenda de sesiones síncronas de la organización, estudio de diseño del instructor y lienzo del participante, independientes del navegador y del chat general;

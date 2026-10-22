@@ -1,10 +1,4 @@
-import {
-  buildIrisContextForWhatsApp,
-  getWhatsAppSession,
-  isIrisAvailable,
-  needsIrisData,
-  tryAutoAuthByPhone,
-} from '../iris-data-main';
+import { tryAutoAuthByPhone } from '../sofia/whatsapp-identity';
 import type { CalendarService } from '../calendar-service';
 import { buildSystemPrompt } from '../whatsapp-prompts';
 import { buildWhatsAppAccessPrompt } from '../whatsapp/access-control';
@@ -23,6 +17,7 @@ export async function buildWhatsAppAgentPromptContext(
 
   // Owner unificado: en 1:1 con número ligado a SOFIA usa user:<id> (comparte
   // memoria con el chat/escritorio); en grupos o sin ligar, scope por teléfono.
+  if (!input.isGroup) await tryAutoAuthByPhone(input.senderNumber);
   const ownerKey = resolveWhatsAppOwnerKey(input.senderNumber, input.isGroup);
 
   const promptMemoryContext = await buildWhatsAppPromptMemoryContext({
@@ -53,7 +48,6 @@ export async function buildWhatsAppAgentPromptContext(
   systemPrompt = appendAccessPrompt(systemPrompt, input);
   systemPrompt = appendGoogleConnectionPrompt(systemPrompt, input.calendarService);
   systemPrompt = appendGroupPrompt(systemPrompt, input);
-  systemPrompt = await appendIrisPrompt(systemPrompt, input.senderNumber, input.userMessage);
   return { sessionKey, systemPrompt };
 }
 
@@ -93,39 +87,9 @@ Estas respondiendo en un GRUPO de WhatsApp.
 - Se mas conciso que en conversaciones 1:1
 - No ejecutes acciones destructivas - tus herramientas de sistema estan limitadas en grupos
 - El participante que envio el mensaje es: ${input.senderNumber}
-- Puedes usar: busquedas web, lectura de paginas, consultas IRIS, crear documentos, enviar archivos
+- Puedes usar: busquedas web, lectura de paginas, crear documentos, enviar archivos
 
 HISTORIAL RECIENTE DEL GRUPO (PARA CONTEXTO):
 ${input.groupPassiveHistory || 'No hay mensajes previos en el bufer.'}
 `;
-}
-
-async function appendIrisPrompt(systemPrompt: string, senderNumber: string, userMessage: string): Promise<string> {
-  let session = getWhatsAppSession(senderNumber);
-  if (!session && isIrisAvailable()) {
-    try {
-      const autoAuth = await tryAutoAuthByPhone(senderNumber);
-      if (autoAuth.success && autoAuth.session) {
-        session = autoAuth.session;
-        console.log(`[WhatsApp Agent] Auto-auth success: ${session.fullName} (${session.email})`);
-      }
-    } catch (err) {
-      console.error('[WhatsApp Agent] Auto-auth error:', err);
-    }
-  }
-
-  if (session) {
-    let nextPrompt = `${systemPrompt}\n\n=== SESION PROJECT HUB ===\nUsuario autenticado: ${session.fullName} (${session.email})\nUser ID: ${session.userId}\nEquipos: ${session.teamIds.length > 0 ? session.teamIds.join(', ') : 'ninguno encontrado'}\nPuede consultar sus tareas, proyectos y equipos directamente.\n${session.autoDetected ? 'Nota: El usuario fue identificado automaticamente por su numero de WhatsApp.' : ''}`;
-    if (needsIrisData(userMessage)) {
-      const irisContext = await buildIrisContextForWhatsApp(session.userId).catch((err) => {
-        console.error('[WhatsApp Agent] Error fetching IRIS context:', err);
-        return null;
-      });
-      if (irisContext) nextPrompt += `\n\n${irisContext}`;
-    }
-    return nextPrompt;
-  }
-
-  if (!isIrisAvailable()) return systemPrompt;
-  return `${systemPrompt}\n\n=== PROJECT HUB ===\nEl sistema IRIS (Project Hub) esta disponible. El usuario NO ha iniciado sesion y su numero de WhatsApp no esta registrado en el sistema. Si pregunta por sus tareas, proyectos o equipos, indicale que debe autenticarse enviando su email y contrasena (o registrar su numero de telefono en su perfil de SofLIA Learning para acceso automatico).`;
 }

@@ -3,7 +3,6 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { ChatMessage } from '../../services/chat-service';
 import { getPublicAiErrorMessage, sendMessageStream, optimizePrompt, type ToolCallInfo } from '../../services/gemini-chat';
 import { generateImage } from '../../services/image-generation';
-import { buildIrisContext, needsIrisData } from '../../services/iris-data';
 import { fetchChatMemoryContext, recordChatTurn } from '../../services/memory-bridge';
 import { toActiveSkillContext } from '../../services/skills/active-skill';
 import type { ActiveSkillState } from '../../services/skills/active-skill';
@@ -96,11 +95,8 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
     const cleanHistory = updatedMessages
       .filter((message) => message.id !== aiMessageId)
       .map((message) => ({ role: message.role, text: message.text }));
-    // El armado de contexto (IRIS/memoria) va por IPC/red: se acota con timeout
+    // El armado de contexto (memoria) va por IPC/red: se acota con timeout
     // y degrada a sin-contexto para que un servicio colgado no congele el turno.
-    const irisContext = needsIrisData(text)
-      ? await withTimeoutFallback(buildIrisContext(), CONTEXT_TIMEOUT_MS, undefined)
-      : undefined;
     // Memoria unificada: inyecta lo que SofLIA sabe/aprendio del usuario.
     const memoryContext = await withTimeoutFallback(
       fetchChatMemoryContext(input.sofiaUserId, text, input.memorySessionScope),
@@ -118,7 +114,6 @@ export async function processChatMessage(input: ProcessChatMessageInput) {
       personalization: input.personalization,
       images: images.length > 0 ? images : undefined,
       activeSkill: toActiveSkillContext(input.activeSkill),
-      irisContext,
       memoryContext: memoryContext || undefined,
       userId: input.sofiaUserId,
       activityOwnerId: input.activityOwnerId,

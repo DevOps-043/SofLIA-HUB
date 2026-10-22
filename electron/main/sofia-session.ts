@@ -1,4 +1,4 @@
-import { getSofiaClient, getSofiaCredentials } from '../iris/clients';
+import { getSofiaClient, getSofiaCredentials } from '../sofia/clients';
 import {
   clearSofiaRefreshToken,
   hasStoredSofiaSession,

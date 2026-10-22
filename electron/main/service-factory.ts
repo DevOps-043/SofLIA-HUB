@@ -27,14 +27,12 @@ export function createMainServices(modules: any) {
   const meetingSourceService = new modules.MeetingSourceService(driveService);
   const meetingAIService = new modules.MeetingAIService();
   const meetingReviewService = new modules.MeetingReviewService();
-  const meetingSyncService = new modules.MeetingSyncService(meetingStore);
   const meetingDetectionStore = new modules.MeetingDetectionStore();
   const meetingWorkflowService = new modules.MeetingWorkflowService(
     meetingStore,
     meetingSourceService,
     meetingAIService,
     meetingReviewService,
-    meetingSyncService,
   );
   const meetingPassiveDetectionService = new modules.MeetingPassiveDetectionService(
     calendarService,

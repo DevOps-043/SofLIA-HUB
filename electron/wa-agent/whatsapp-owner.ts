@@ -1,4 +1,4 @@
-import { getWhatsAppSession } from '../iris-data-main';
+import { getWhatsAppSession } from '../sofia/whatsapp-identity';
 import { phoneOwnerKey, userOwnerKey } from '../memory/scope';
 
 /**

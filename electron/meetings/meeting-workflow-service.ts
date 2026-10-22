@@ -1,13 +1,9 @@
 ﻿import crypto from 'node:crypto';
-import { getTeamMembersDetailed } from '../iris-data-main';
 import { MeetingAIService } from './meeting-ai-service';
-import { MeetingAssigneeService } from './meeting-assignee-service';
 import { MeetingReviewService } from './meeting-review-service';
 import { MeetingSourceService } from './meeting-source-service';
 import { MeetingStore } from './meeting-store';
-import { MeetingSyncService } from './meeting-sync-service';
 import { updateMeetingActionDraft } from './meeting-workflow/action-updater';
-import { getMeetingWorkflowContext } from './meeting-workflow/context-loader';
 import {
   approveMeetingActions,
   approveMeetingAsset,
@@ -15,7 +11,6 @@ import {
   rejectMeetingAction,
 } from './meeting-workflow/review-actions';
 import { processPreparedMeetingRun } from './meeting-workflow/run-processor';
-import { syncApprovedMeetingActions } from './meeting-workflow/sync-actions';
 import type {
   BaseCreateMeetingRunInput,
   CreateDriveMeetingRunInput,
@@ -26,7 +21,6 @@ import type {
   MeetingFollowupItem,
   MeetingRunDetail,
   MeetingRunSummary,
-  MeetingSyncExecutionResult,
   PreparedMeetingSource,
   UpdateMeetingActionInput,
 } from './meeting-types';
@@ -37,8 +31,6 @@ export class MeetingWorkflowService {
     private readonly sourceService: MeetingSourceService,
     private readonly aiService: MeetingAIService,
     private readonly reviewService: MeetingReviewService,
-    private readonly syncService: MeetingSyncService,
-    private readonly assigneeService = new MeetingAssigneeService(),
   ) {}
 
   async init(): Promise<void> { this.store.init(); }
@@ -82,19 +74,11 @@ export class MeetingWorkflowService {
     return updateMeetingActionDraft({
       store: this.store,
       reviewService: this.reviewService,
-      assigneeService: this.assigneeService,
-      getTeamMembersDetailed,
       getRunDetail: (runId) => this.getRunDetail(runId),
     }, actionId, updates);
   }
 
-  async syncApprovedActions(runId: string, decidedByUserId: string): Promise<{ detail: MeetingRunDetail; result: MeetingSyncExecutionResult }> {
-    return syncApprovedMeetingActions(this.store, this.syncService, (detailRunId) => this.getRunDetail(detailRunId), runId, decidedByUserId);
-  }
-
   async getFollowups(ownerUserId?: string): Promise<MeetingFollowupItem[]> { return this.store.getFollowups(ownerUserId); }
-
-  async getContext() { return getMeetingWorkflowContext(); }
 
   private async refreshReviewStatus(runId: string): Promise<MeetingRunDetail> {
     return refreshMeetingReviewStatus(this.store, (id) => this.getRunDetail(id), runId);
@@ -105,8 +89,7 @@ export class MeetingWorkflowService {
     source: PreparedMeetingSource,
     executionGuard?: () => void,
   ): Promise<CreateMeetingRunResult> {
-    return processPreparedMeetingRun({ input, source, store: this.store, aiService: this.aiService, reviewService: this.reviewService, assigneeService: this.assigneeService, getTeamMembersDetailed, createTraceId: () => crypto.randomUUID(), executionGuard });
+    return processPreparedMeetingRun({ input, source, store: this.store, aiService: this.aiService, reviewService: this.reviewService, createTraceId: () => crypto.randomUUID(), executionGuard });
   }
 
 }
-

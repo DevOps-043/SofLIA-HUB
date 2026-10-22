@@ -10,10 +10,6 @@ const sesion = vi.hoisted(() => ({
   applyHubSession: vi.fn(async () => 'aplicada' as const),
   revokeHubSession: vi.fn(async () => undefined),
 }));
-const projectHub = vi.hoisted(() => ({
-  exchangeSofiaToken: vi.fn(async () => ({ success: true })),
-  logout: vi.fn(async () => undefined),
-}));
 const sesionSofia = vi.hoisted(() => ({
   currentUserId: null as string | null,
   applySofiaSession: vi.fn(async (_tokens: unknown, expectedUserId: string | null): Promise<SofiaMockResult> => ({
@@ -31,7 +27,6 @@ vi.mock('../main/sofia-session', () => ({
   isSofiaMainSessionConfigured: sesionSofia.isSofiaMainSessionConfigured,
   revokeSofiaSession: sesionSofia.revokeSofiaSession,
 }));
-vi.mock('../project-hub', () => ({ getProjectHubApiService: () => projectHub }));
 
 import { registerAuthStateHandlers } from '../auth-state-handlers';
 import { resetAuthStateForTests } from '../main/auth-state';
@@ -149,19 +144,7 @@ describe('contrato del canal de estado de sesion', () => {
 
     expect(sesion.revokeHubSession).toHaveBeenCalled();
     expect(sesionSofia.revokeSofiaSession).toHaveBeenCalled();
-    expect(projectHub.logout).toHaveBeenCalled();
     expect(await invocar('auth:get-state')).toEqual({ authenticated: false, userId: null });
-  });
-
-  it('canjea el token SOFIA sin devolverlo al renderer', async () => {
-    const result = await invocar('auth:set-state', {
-      authenticated: true,
-      userId: 'user-1',
-      sofiaAccessToken: 'sofia-token-real',
-      sofiaRefreshToken: 'sofia-refresh-real',
-    });
-    expect(projectHub.exchangeSofiaToken).toHaveBeenCalledWith('sofia-token-real');
-    expect(JSON.stringify(result)).not.toContain('sofia-token-real');
   });
 
   it('un payload sin tokens SOFIA sigue siendo valido pero no habilita el gate', async () => {

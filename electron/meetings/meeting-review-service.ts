@@ -3,7 +3,6 @@ import type {
   MeetingReviewFlagCode,
   MeetingSyncActionPayload,
 } from './meeting-types';
-import { buildProposedActions } from './meeting-review/action-builder';
 import {
   buildReviewFlags,
   getBlockingFlagsForPayload,
@@ -11,17 +10,12 @@ import {
 
 interface EnrichMeetingAssetInput {
   asset: MeetingAssetPayload;
-  defaultTeamId?: string | null;
-  defaultProjectId?: string | null;
 }
 
 export class MeetingReviewService {
   enrichMeetingAsset(input: EnrichMeetingAssetInput): MeetingAssetPayload {
-    const proposedActions = buildProposedActions(
-      input.asset,
-      input.defaultTeamId ?? null,
-      input.defaultProjectId ?? null,
-    );
+    // La publicación externa está retirada; los compromisos siguen en la minuta.
+    const proposedActions: MeetingAssetPayload['proposed_actions'] = [];
 
     return {
       ...input.asset,

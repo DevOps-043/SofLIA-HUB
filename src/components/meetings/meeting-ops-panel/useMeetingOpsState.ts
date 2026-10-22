@@ -1,15 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   onMeetingDetected,
   removeMeetingListeners,
-  type MeetingContextProject,
-  type MeetingContextTeam,
-  type MeetingContextTeamMember,
   type MeetingRunDetail,
   type MeetingRunSummary,
 } from '../../../services/meeting-service';
 import { DEFAULT_FORM } from './styles';
-import { buildActionDrafts, filterMembersByTeam, filterProjectsByTeam, patchActionDraft } from './state-builders';
+import { buildActionDrafts, patchActionDraft } from './state-builders';
 import type { ActionDraft, CreateMode, MeetingOpsForm } from './types';
 import { useMeetingOpsActions } from './useMeetingOpsActions';
 import { useMeetingOpsLoaders } from './useMeetingOpsLoaders';
@@ -21,17 +18,13 @@ export function useMeetingOpsState({ userId, organizationId, accessUserIds }: { 
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MeetingRunDetail | null>(null);
   const [actionDrafts, setActionDrafts] = useState<Record<string, ActionDraft>>({});
-  const [teams, setTeams] = useState<MeetingContextTeam[]>([]);
-  const [projects, setProjects] = useState<MeetingContextProject[]>([]);
-  const [teamMembers, setTeamMembers] = useState<MeetingContextTeamMember[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [expandedAction, setExpandedAction] = useState<string | null>(null);
 
   const { loadInitialData, loadRunDetail } = useMeetingOpsLoaders({
-    userId, accessUserIds, organizationId, selectedRunId, setLoading, setError, setRuns, setTeams,
-    setProjects, setTeamMembers, setSelectedRunId, setDetail,
+    userId, accessUserIds, organizationId, selectedRunId, setLoading, setError, setRuns, setSelectedRunId, setDetail,
   });
 
   const actions = useMeetingOpsActions({
@@ -62,10 +55,6 @@ export function useMeetingOpsState({ userId, organizationId, accessUserIds }: { 
     setActionDrafts(buildActionDrafts(detail));
   }, [detail]);
 
-  const visibleProjects = useMemo(() => {
-    if (!form.defaultTeamId) return projects;
-    return filterProjectsByTeam(projects, form.defaultTeamId);
-  }, [projects, form.defaultTeamId]);
 
   const currentAnalysis = detail?.latest_asset?.payload.analysis_result || null;
 
@@ -73,19 +62,10 @@ export function useMeetingOpsState({ userId, organizationId, accessUserIds }: { 
     setActionDrafts((current) => patchActionDraft(current, actionId, patch));
   }
 
-  function getProjectsForTeam(teamId: string): MeetingContextProject[] {
-    return filterProjectsByTeam(projects, teamId);
-  }
-
-  function getMembersForTeam(teamId: string): MeetingContextTeamMember[] {
-    return filterMembersByTeam(teamMembers, teamId);
-  }
-
   return {
     mode, setMode, form, setForm, runs, selectedRunId, setSelectedRunId, detail,
-    actionDrafts, teams, projects, teamMembers, loading, error, setError, notice, setNotice,
-    expandedAction, setExpandedAction, visibleProjects, currentAnalysis,
+    actionDrafts, loading, error, setError, notice, setNotice,
+    expandedAction, setExpandedAction, currentAnalysis,
     loadInitialData, ...actions, updateActionDraft,
-    getProjectsForTeam, getMembersForTeam,
   };
 }

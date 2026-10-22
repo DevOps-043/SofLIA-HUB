@@ -1,6 +1,6 @@
 import { handleActionCommand } from './action-command-handler';
 import type { MeetingCommandInput, MeetingCommandResult } from './command-types';
-import { formatActionList, formatStatus, formatSyncResult, shouldCloseWorkflow } from './formatters';
+import { formatActionList, formatStatus, shouldCloseWorkflow } from './formatters';
 import { buildApprovalMessage } from './messages';
 
 export async function handleMeetingRunCommand(input: MeetingCommandInput): Promise<MeetingCommandResult | null> {
@@ -39,12 +39,6 @@ export async function handleMeetingRunCommand(input: MeetingCommandInput): Promi
 
   const actionResult = await handleActionCommand(input);
   if (actionResult) return actionResult;
-
-  if (input.lower === 'sincronizar') {
-    const syncResult = await input.workflowService.syncApprovedActions(input.runId, input.senderNumber);
-    await input.waService.sendText(input.jid, formatSyncResult(syncResult.detail, syncResult.result));
-    return { keepActive: false };
-  }
 
   return null;
 }

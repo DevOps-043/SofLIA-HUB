@@ -1,16 +1,14 @@
 import type { useAuth } from '../contexts/AuthContext';
 import type { useChatManager } from '../hooks/useChatManager';
 import type { useFolderManager } from '../hooks/useFolderManager';
-import type { useIrisData } from '../hooks/useIrisData';
 import type { SettingsTab } from '../components/UnifiedSettingsModal';
 import type { ShareTargetType } from '../services/share-service';
 import type { UserAISettings } from '../services/settings-service';
 
-export type ActiveView = 'chat' | 'project' | 'project-hub' | 'productivity' | 'meetings' | 'live-sessions';
+export type ActiveView = 'chat' | 'project' | 'productivity' | 'meetings' | 'live-sessions';
 export type AuthState = ReturnType<typeof useAuth>;
 export type ChatState = ReturnType<typeof useChatManager>;
 export type FolderState = ReturnType<typeof useFolderManager>;
-export type IrisState = ReturnType<typeof useIrisData>;
 
 export interface ShareTarget {
   targetId: string;

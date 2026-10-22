@@ -11,7 +11,7 @@ Aportes incorporados:
 - estrategia analítica contextual;
 - clasificación de contenido operativo;
 - tareas, prioridades, follow-ups, pendientes y escalamiento;
-- envío a IRIS / Project Hub / Team / Project;
+- recomendaciones de contexto local Team / Project, sin envío externo;
 - autonomía configurable;
 - policy and approval layer;
 - explicabilidad, confidence y audit log;

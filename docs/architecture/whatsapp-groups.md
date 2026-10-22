@@ -472,7 +472,7 @@ Agregar nueva sección al modal:
 - ✅ Envío de archivos/media
 - ✅ Sistema de memoria/lecciones
 - ✅ Computer Use (SofLIA tiene más → usa mouse/teclado directo)
-- ✅ Integración con IRIS/Project Hub (SofLIA unique)
+- Integración IRIS/Project Hub retirada; se conservan las capacidades generales del canal.
 
 ### Lo que SofLIA necesita adoptar de OpenClaw:
 

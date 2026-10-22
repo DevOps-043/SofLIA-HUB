@@ -1,40 +1,15 @@
-# Project Hub unificado
+# Retirada de Project Hub
 
-Estado: implementado detrás de configuración y migraciones pendientes de aplicar. Actualizado: 2026-08-21.
+Estado: integración retirada del código de Soflia Hub. Actualizado: 2026-10-19.
 
-## Límites de dominio
+La integración anterior de Project Hub/IRIS se retira para preparar un diseño nuevo. Esta entrega no implementa todavía la fusión.
 
-Project Hub/IRIS es la fuente de verdad de proyectos nuevos, tareas, miembros, evidencia compartida y analítica. Lia conserva carpetas de chats, conversaciones, transcripciones completas, minutas y decisiones de aprobación. Solo cruzan hacia IRIS resúmenes aprobados, hashes, referencias y extractos breves.
+Se eliminaron la vista externa, el cliente REST, el canje de tokens, los canales `project-hub:*`, las herramientas de proyectos en chat/WhatsApp y la publicación de reuniones. El arranque ya no comprueba ni inicia Project Hub. El navegador no le entrega la sesión SOFIA ni lo ofrece como acceso del ecosistema.
 
-Las carpetas existentes aparecen como **Carpetas heredadas** y no se migran. Crear desde la sección **Proyectos** usa la API v1 y registra en el outbox la creación idempotente de la carpeta colaborativa Lia.
+Las carpetas de proyectos, chats y fuentes permanecen en Lia y conservan su vista existente. El nombre interno `ProjectHub` de ese componente corresponde a carpetas locales; no es el cliente externo retirado. Meeting Ops conserva transcripciones, minutas, compromisos, aprobación y acciones históricas, sin publicación externa ni nuevos borradores de exportación.
 
-## Flujo de autenticación
+La identidad compartida queda en `electron/sofia/`: cliente SOFIA, identificación por teléfono y consultas de usuarios. El archivo local `whatsapp-iris-sessions.json` conserva su nombre para leer las sesiones existentes sin mover ni borrar datos.
 
-1. El renderer restaura o inicia la sesión SOFIA.
-2. `auth:set-state` entrega el access token SOFIA a main exclusivamente para el canje.
-3. Main llama `POST /api/v1/auth/sofia/exchange`; Project Hub verifica el token con SOFIA, sincroniza identidad/workspaces y emite tokens propios.
-4. El access token queda solo en memoria. El refresh token y la lista no sensible de workspaces se cifran con `safeStorage`.
-5. El cliente renueva en single-flight. Solo reintenta GET; una mutación no se repite salvo que el dominio use `Idempotency-Key`.
+No se ejecutaron migraciones ni se modificaron datos, secretos o el repositorio Project Hub. Las migraciones y snapshots anteriores permanecen como historial. Se retiró del código la función de outbox; una instancia remota ya desplegada queda fuera de esta entrega y requiere una intervención operativa autorizada.
 
-El renderer nunca recibe tokens Project Hub ni crea clientes IRIS/Supabase. La superficie pública está en `electron/project-hub/`, `electron/project-hub-handlers.ts`, `electron/preload/project-hub-api.ts` y `src/services/project-hub-api.ts`.
-
-## Experiencia de proyecto
-
-La vista formal incluye `Resumen`, `Chats`, `Tareas`, `Fuentes y evidencias`, `Miembros` y `Analítica`. Los estados sin sesión, API caída y reintento son explícitos. Archivos, Drive, enlaces e investigaciones del navegador se anexan como evidencia; las colecciones son versiones inmutables.
-
-Guardar pestañas requiere selección humana. La captura reutiliza la extracción DOM del navegador integrado, limita cada texto a 50 KB y la API vuelve a sanear URLs. No se guardan cookies, credenciales, formularios ni screenshots.
-
-## Reuniones y HITL
-
-Meeting Ops conserva su revisión y aprobación. `MeetingSyncService` usa Project Hub cuando `MEETING_PROJECT_SYNC_V2` no es `false`: agrupa las acciones aprobadas por proyecto, crea una evidencia de reunión y crea o vincula tareas en una transacción idempotente. Sin aprobación, proyecto objetivo único o sesión autorizada no escribe.
-
-## Datos y despliegue
-
-- IRIS: `apps/database/migrations/024_project_hub_api_v1.sql` en el repositorio Project Hub.
-- Lia: `database/lia/migrations/project-hub-federation.sql`.
-- Contrato: `docs/openapi/project-hub-v1.yaml` en Project Hub.
-- OpenSpec y verificación: `openspec/changes/integrate-project-hub-api/`.
-
-Ninguna migración se aplica automáticamente. El orden es respaldo y revisión, migración IRIS, migración Lia, despliegue API y activación gradual de `PROJECT_HUB_API_V1`, `PROJECT_HUB_UNIFIED_UI`, `MEETING_PROJECT_SYNC_V2` y `BROWSER_COLLECTIONS`. El rollback operativo desactiva flags y conserva las migraciones aditivas; el outbox permite reanudar entregas.
-
-La función Lia `project-hub-outbox` exige `PROJECT_HUB_OUTBOX_HMAC_SECRET`. Project Hub firma cada evento con `LIA_PROJECT_HUB_OUTBOX_HMAC_SECRET` y lo envía a `LIA_PROJECT_HUB_OUTBOX_URL`; ambos secretos deben contener el mismo valor. El worker de Project Hub se protege además con `PROJECT_HUB_OUTBOX_WORKER_KEY`. El consumidor solo usa `service_role`, no acepta JWT de renderer y rechaza firmas con más de cinco minutos.
+Evidencia y alcance: [cambio de retirada](../../openspec/changes/remove-project-hub-integration/proposal.md). La propuesta `integrate-project-hub-api` describe el estado anterior, sustituido por esta retirada. Rollback: revertir el cambio Git.

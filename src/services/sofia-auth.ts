@@ -135,7 +135,7 @@ class SofiaAuthService {
     // La sesión de Supabase es la única que contiene credenciales verificables.
     // El snapshot `sofia-session` sirve para pintar el perfil, pero reconstruir
     // un `Session` desde él descartaba access_token/refresh_token: la UI quedaba
-    // autenticada mientras Project Hub y Lia no podían hacer el canje federado.
+    // autenticada mientras Lia no podía hacer el canje federado.
     if (sofiaSupa) {
       const { data, error } = await sofiaSupa.auth.getSession();
       if (!error && data.session) return data.session;

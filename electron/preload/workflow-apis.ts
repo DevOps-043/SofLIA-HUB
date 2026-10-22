@@ -28,9 +28,7 @@ export function exposeWorkflowApis(bridge: PreloadBridge, ipc: SafeIpc): void {
     approveActions: (input: any) => safeInvoke('meeting:approve-actions', input),
     updateAction: (input: any) => safeInvoke('meeting:update-action', input),
     rejectAction: (input: any) => safeInvoke('meeting:reject-action', input),
-    syncApprovedActions: (input: any) => safeInvoke('meeting:sync-approved-actions', input),
     getFollowups: (ownerUserId?: string) => safeInvoke('meeting:get-followups', ownerUserId),
-    getContext: () => safeInvoke('meeting:get-context'),
     onDetected: (cb: (payload: any) => void) => safeOn('meeting:detected', cb),
     removeListeners: () => safeRemoveAllListeners('meeting:detected'),
   });

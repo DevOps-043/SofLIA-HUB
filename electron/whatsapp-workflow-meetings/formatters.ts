@@ -43,8 +43,7 @@ export function getExecutiveSummary(asset: MeetingRunDetail['latest_asset']): st
 
 export function shouldCloseWorkflow(detail: MeetingRunDetail): boolean {
   const hasPendingReview = detail.sync_actions.some((action) => action.approval_state === 'draft');
-  const hasApprovedPendingSync = detail.sync_actions.some((action) => action.approval_state === 'approved' && action.sync_state !== 'synced');
-  return !hasPendingReview && !hasApprovedPendingSync;
+  return !hasPendingReview;
 }
 
 export function formatActionList(detail: MeetingRunDetail): string {
@@ -61,17 +60,7 @@ export function formatActionList(detail: MeetingRunDetail): string {
     '',
     'Comandos:',
     'aprobar accion N',
-    'editar accion N titulo="..." fecha=YYYY-MM-DD team=TEAM_ID proyecto=PROJECT_ID responsable="Nombre" assignee=USER_ID',
-  ].join('\n');
-}
-
-export function formatSyncResult(detail: MeetingRunDetail, result: { synced: number; failed: number; skipped: number }): string {
-  return [
-    'Sincronizacion terminada.',
-    `Estado final: ${detail.run.status}`,
-    `Sincronizadas: ${result.synced}`,
-    `Fallidas: ${result.failed}`,
-    `Omitidas: ${result.skipped}`,
+    'editar accion N titulo="..." fecha=YYYY-MM-DD responsable="Nombre"',
   ].join('\n');
 }
 

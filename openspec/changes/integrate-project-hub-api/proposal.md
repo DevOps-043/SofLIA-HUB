@@ -1,3 +1,5 @@
+Estado: histórico, sustituido por `remove-project-hub-integration` el 2026-10-19.
+
 ## Why
 
 SofLIA-HUB administra hoy carpetas de chats, reuniones, archivos y navegación como dominios separados. Hace falta una fuente de verdad de proyectos que permita relacionar tareas, miembros y evidencia sin copiar transcripciones ni exponer Supabase al renderer.
@@ -27,4 +29,3 @@ No objetivos: migrar carpetas existentes, copiar transcripciones completas a IRI
 - Renderer: experiencia unificada para proyectos nuevos y estados de degradación.
 - Lia: referencias federadas y sincronización de acceso mediante outbox, sin mover transcripciones.
 - Operación: flags de rollout, métricas sin contenido sensible y rollback por desactivación.
-

@@ -79,7 +79,7 @@ export function createRunDetailFixture(): MeetingRunDetail {
             confidence: 0.72,
             reason: 'Hay tareas abiertas que requieren confirmacion.',
           },
-          destinationRecommendation: { suggestedDestination: 'Project Hub', confidence: 0.8, reason: 'Impacta el seguimiento operativo.' },
+          destinationRecommendation: { suggestedDestination: 'Project', confidence: 0.8, reason: 'Impacta el seguimiento operativo.' },
           messageDrafts: [],
           governance: { autonomyLevelApplied: 2, sensitiveActionsBlocked: [], requiresHumanApproval: true, explanationVisible: true },
         },

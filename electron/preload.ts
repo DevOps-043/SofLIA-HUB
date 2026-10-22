@@ -20,7 +20,6 @@ import { exposeDesktopApi } from './preload/desktop-apis';
 import { exposeDesktopContextApi } from './preload/desktop-context-api';
 import { exposeGoogleApis } from './preload/google-apis';
 import { exposeIntegratedBrowserApi } from './preload/integrated-browser-api';
-import { exposeProjectHubApi } from './preload/project-hub-api';
 import { exposeRemoteApis } from './preload/remote-apis';
 import { runtimeConfig } from './preload/runtime-config';
 import { createSafeIpc } from './preload/safe-ipc';
@@ -57,7 +56,6 @@ if (process.argv.includes('--display-media-picker')) {
   exposeCalendarApi(contextBridge, safeIpc);
   exposeGoogleApis(contextBridge, safeIpc);
   exposeIntegratedBrowserApi(contextBridge, safeIpc);
-  exposeProjectHubApi(contextBridge, safeIpc);
   exposeSkillWorkspaceApi(contextBridge, safeIpc);
   exposeMediaInputApi(contextBridge, safeIpc);
   exposeDesktopApi(contextBridge, safeIpc);

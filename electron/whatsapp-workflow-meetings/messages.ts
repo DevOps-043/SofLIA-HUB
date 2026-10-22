@@ -9,11 +9,11 @@ export const MEETING_WORKFLOW_START_MESSAGE = [
   '1. Notas de reunion en texto.',
   '2. Un link o ID de Google Drive con la transcripcion o notas.',
   '',
-  'Luego podras responder: "estado", "aprobar resumen", "aprobar acciones", "sincronizar", "rechazar" o "cancelar".',
+  'Luego podras responder: "estado", "aprobar resumen", "aprobar acciones", "rechazar" o "cancelar".',
 ].join('\n');
 
 export const MEETING_UNKNOWN_INSTRUCTION =
-  'No reconoci la instruccion. Usa: "estado", "acciones", "aprobar resumen", "aprobar acciones", "aprobar accion N", "editar accion N ...", "sincronizar", "rechazar" o "cancelar".';
+  'No reconoci la instruccion. Usa: "estado", "acciones", "aprobar resumen", "aprobar acciones", "aprobar accion N", "editar accion N ...", "rechazar" o "cancelar".';
 
 export const MEETING_INACTIVITY_CANCEL_MESSAGE =
   'Workflow de reuniones cancelado por inactividad despues de 5 minutos. Si quieres retomarlo, inicia /reunion de nuevo.';

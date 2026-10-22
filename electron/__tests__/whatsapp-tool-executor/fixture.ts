@@ -15,12 +15,6 @@ vi.mock('../../whatsapp-executors/google-executors', () => ({
     bulkLabelsToVerify: null,
   })),
 }));
-vi.mock('../../whatsapp-executors/iris-executors', () => ({
-  isIrisTool: vi.fn((name: string) => name.startsWith('iris_')),
-  executeIrisTool: vi.fn(async (name: string) => ({
-    functionResponse: { name, response: { success: true, message: 'iris mock' } },
-  })),
-}));
 vi.mock('../../whatsapp-executors/system-executors', () => ({
   isSystemTool: vi.fn((name: string) => new Set(['list_processes', 'kill_process', 'lock_session', 'shutdown_computer', 'restart_computer', 'sleep_computer', 'cancel_shutdown', 'set_volume', 'toggle_wifi', 'run_in_terminal', 'run_claude_code', 'run_background_command', 'list_process_sessions', 'poll_process_session', 'kill_process_session', 'get_background_host_status', 'repair_background_host']).has(name)),
   executeSystemTool: vi.fn(async (name: string) => ({ functionResponse: { name, response: { success: true, message: 'system mock' } } })),

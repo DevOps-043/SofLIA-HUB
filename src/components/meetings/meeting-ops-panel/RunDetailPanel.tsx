@@ -24,7 +24,6 @@ export function RunDetailPanel({ inputClass, selectClass, state }: RunDetailPane
         detail={detail}
         onApproveActions={() => void state.handleApproveActions()}
         onApproveAsset={() => void state.handleApproveAsset()}
-        onSyncActions={() => void state.handleSyncActions()}
       />
       <AnalysisStrip analysis={currentAnalysis} />
       <SummaryCards detail={detail} />

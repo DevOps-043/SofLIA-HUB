@@ -34,21 +34,6 @@ const OPERATIONAL_TOOL_NAMES = new Set([
   'gchat_get_members',
   'gchat_send_message',
   'gchat_add_reaction',
-  'iris_get_teams',
-  'iris_get_projects',
-  'iris_get_issues',
-  'iris_get_my_tasks',
-  'iris_get_statuses',
-  'iris_get_priorities',
-  'iris_get_team_members',
-  'iris_create_issue',
-  'iris_create_project',
-  'iris_create_task',
-  'iris_login',
-  'iris_logout',
-  'iris_update_issue',
-  'iris_update_project_status',
-  'iris_update_task_status',
   'neural_organizer_toggle',
   'open_file_on_computer',
   'open_url',
@@ -68,7 +53,7 @@ const OPERATIONAL_TOOL_NAMES = new Set([
 
 const OPERATIONAL_TOOL_PATTERNS = [
   /^(create|write|delete|move|copy|open|run|execute|kill|lock|shutdown|restart|sleep|toggle|save|install|uninstall|repair|configure|register|remove|reset)_/,
-  /^(app_chat|drive|gmail|google_calendar|gchat|iris)_/,
+  /^(app_chat|drive|gmail|google_calendar|gchat)_/,
   /^(read_file|search_files|semantic_file_search|list_directory|list_directory_summary|get_file_info|get_system_info)$/,
   /^whatsapp_(send|update)/,
 ];
@@ -100,7 +85,7 @@ export async function guardUnrequestedOperationalTools(
     message: [
       'ERROR DE INTENCION:',
       `El mensaje actual del usuario no pide ejecutar acciones. Herramientas bloqueadas: ${Array.from(new Set(blockedTools)).join(', ')}.`,
-      'No uses computadora, navegador, chats internos de SofLIA, archivos, Google Workspace, IRIS ni procesos del sistema sin solicitud explicita.',
+      'No uses computadora, navegador, chats internos de SofLIA, archivos, Google Workspace ni procesos del sistema sin solicitud explicita.',
       'Si el mensaje fue saludo, sticker, reaccion o acompanamiento social, conserva la personalizacion del usuario y responde solo con texto, sin herramientas.',
     ].join('\n'),
   });

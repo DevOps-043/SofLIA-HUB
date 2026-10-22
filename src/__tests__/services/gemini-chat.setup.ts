@@ -72,8 +72,6 @@ vi.mock('../../services/gemini-tools', () => ({
     ],
   },
   COMPUTER_TOOL_NAMES: new Set(['list_directory', 'create_word_document', 'use_computer']),
-  PROJECT_HUB_TOOLS: { functionDeclarations: [] },
-  PROJECT_HUB_TOOL_NAMES: new Set(),
   GOOGLE_WORKSPACE_TOOLS: { functionDeclarations: [] },
   GOOGLE_WORKSPACE_TOOL_NAMES: new Set(),
   INTEGRATED_BROWSER_TOOLS: {
@@ -93,13 +91,6 @@ vi.mock('../../services/computer-use-service', () => ({
   isComputerUseAvailable: vi.fn(() => true),
 }));
 
-vi.mock('../../services/iris-data', () => ({
-  createProject: vi.fn(async () => ({ success: true })),
-  deleteProject: vi.fn(async () => ({ success: true })),
-  getProjects: vi.fn(async () => []),
-  getTeamMembersDetailed: vi.fn(async () => []),
-  getTeams: vi.fn(async () => []),
-}));
 
 vi.mock('../../lib/supabase', () => ({
   supabase: {

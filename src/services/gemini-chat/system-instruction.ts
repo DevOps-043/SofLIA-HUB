@@ -24,7 +24,6 @@ export function buildSystemInstruction(message: string, options?: SendMessageStr
     systemInstruction += `\n\n=== PERSONALIZACION DEL USUARIO ===\n${p.nickname ? `Nombre: "${p.nickname}"` : ''}\n${p.occupation ? `Ocupacion: ${p.occupation}` : ''}\n${p.tone ? `Tono preferido: ${p.tone}` : ''}\n${p.instructions ? `Instrucciones personalizadas: ${p.instructions}` : ''}\n=====================================`;
   }
   if (options?.memoryContext) systemInstruction += options.memoryContext;
-  if (options?.irisContext) systemInstruction += buildIrisRules(options.irisContext);
   if (options?.sourcesContext) systemInstruction += options.sourcesContext;
   if (options?.activeSkill) {
     systemInstruction += buildActiveSkillSection(options.activeSkill);
@@ -46,8 +45,4 @@ function buildActiveSkillSection(skill: NonNullable<SendMessageStreamOptions['ac
     ? '\n\nTienes un espacio de trabajo activo para esta skill. Usa las herramientas workspace_* para leer y escribir sus archivos; no uses las herramientas generales de archivos del sistema para este entregable.'
     : '';
   return `\n\n=== SKILL ACTIVA: ${skill.name} ===\n${skill.instructions}${workspaceNote}\n=====================================`;
-}
-
-function buildIrisRules(irisContext: string): string {
-  return `\n\n=== CONTEXTO DEL PROJECT HUB (IRIS) ===\n${irisContext}\n=====================================\n\nREGLAS CRITICAS DE Project Hub (IRIS):\n1. NO ADIVINES: resuelve equipo, proyecto y responsable antes de crear o actualizar.\n2. CREACION DE PROYECTOS: si el usuario pide crear, usa la herramienta de creacion.\n3. COHERENCIA DE DOMINIO: no mezcles proyectos con equipos distintos.\n4. ASIGNACIONES: si el responsable no queda claro, consulta miembros del equipo.`;
 }

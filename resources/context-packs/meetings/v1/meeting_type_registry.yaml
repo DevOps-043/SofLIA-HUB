@@ -56,9 +56,7 @@ meeting_types:
     default_destination: Team
     secondary_destinations:
     - Project
-    - Project Hub
-    notes: Solo elevar a Project Hub cuando aparezcan tareas concretas o dependencias
-      claras.
+    notes: Recomendación de contexto para la minuta local, sin publicación externa.
   common_confusions:
   - agile_standup
   - remote_team_status
@@ -112,11 +110,11 @@ meeting_types:
   - riesgo de sprint / dependencia
   - acciones posteriores al stand-up
   routing_bias:
-    default_destination: Project Hub
+    default_destination: Project
     secondary_destinations:
     - Project
     - Team
-    notes: Ideal para crear tareas draft, dependencias y follow-ups del sprint.
+    notes: Recomendación de contexto para la minuta local, sin publicación externa.
   common_confusions:
   - daily_huddle
   - remote_team_status
@@ -173,10 +171,8 @@ meeting_types:
   routing_bias:
     default_destination: Team
     secondary_destinations:
-    - Project Hub
     - Project
-    notes: Mantener énfasis en coordinación ligera; no sobre-procesar como reunión
-      estratégica.
+    notes: Recomendación de contexto para la minuta local, sin publicación externa.
   common_confusions:
   - daily_huddle
   - agile_standup
@@ -244,13 +240,11 @@ meeting_types:
   - temas a escalar
   - seguimiento de prioridades
   routing_bias:
-    default_destination: IRIS
+    default_destination: Team
     secondary_destinations:
-    - Project Hub
     - Project
     - Team
-    notes: IRIS encaja cuando predominan métricas, prioridades y decisiones ejecutivas;
-      tareas aprobadas pueden bajar a Project Hub.
+    notes: Recomendación de contexto para la minuta local, sin publicación externa.
   common_confusions:
   - cross_functional_weekly
   - team_checkin_report_out
@@ -311,11 +305,9 @@ meeting_types:
   routing_bias:
     default_destination: Team
     secondary_destinations:
-    - Project Hub
     - Project
-    - IRIS
-    notes: Subir a IRIS solo si emergen temas ejecutivos; si predominan tareas de
-      coordinación, Project Hub.
+    - Team
+    notes: Recomendación de contexto para la minuta local, sin publicación externa.
   common_confusions:
   - weekly_leadership_meeting
   - remote_team_status
@@ -384,10 +376,9 @@ meeting_types:
   routing_bias:
     default_destination: Team
     secondary_destinations:
-    - IRIS
-    - Project Hub
-    notes: Escalar a IRIS si el cambio rápido impacta decisiones ejecutivas o comunicación
-      organizacional amplia.
+    - Team
+    - Project
+    notes: Recomendación de contexto para la minuta local, sin publicación externa.
   common_confusions:
   - cross_functional_weekly
   - weekly_leadership_meeting
@@ -454,12 +445,11 @@ meeting_types:
   - minutes draft inputs
   - gobernanza / compliance flags
   routing_bias:
-    default_destination: IRIS
+    default_destination: Team
     secondary_destinations:
     - Team
-    - Project Hub
-    notes: Alta sensibilidad; asumir revisión humana fuerte. Project Hub solo para
-      tareas ya aprobadas.
+    - Project
+    notes: Recomendación de contexto para la minuta local, sin publicación externa.
   common_confusions:
   - weekly_leadership_meeting
   confidence_hints:
@@ -502,9 +492,7 @@ meeting_types:
     secondary_destinations:
     - Team
     - Project
-    - Project Hub
-    - IRIS
-    notes: No empujar un destino con alta confianza si la clasificación es frágil.
+    notes: Recomendación de contexto para la minuta local, sin publicación externa.
   common_confusions: []
   confidence_hints:
   - Usar cuando no haya señal suficiente para un tipo específico.

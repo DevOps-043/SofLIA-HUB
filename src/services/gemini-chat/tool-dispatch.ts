@@ -2,12 +2,10 @@ import {
   GOOGLE_WORKSPACE_TOOL_NAMES,
   INTEGRATED_BROWSER_TOOL_NAMES,
   NATIVE_AI_TOOL_NAMES,
-  PROJECT_HUB_TOOL_NAMES,
 } from '../gemini-tools';
 import { isKnownTurnTool, resolveSkillToolNames, resolveAttachedSourceToolGroups, type ActiveSkillContext } from '../gemini-tools/turn-catalog';
 import { executeComputerToolAsJson } from './computer-tool-result';
 import { executeNativeAiTool } from './native-ai-tools';
-import { executeProjectHubTool } from './project-hub-tools';
 import { executeSkillWorkspaceTool } from './skill-workspace-tools';
 import { prepareToolResult } from './tool-result-payload';
 import type { MediaRef } from '../../shared/multimodal-input';
@@ -91,7 +89,6 @@ function executeKnownTool(
   }
   if (GOOGLE_WORKSPACE_TOOL_NAMES.has(toolName)) return executeGoogleWorkspaceTool(toolName, args);
   if (INTEGRATED_BROWSER_TOOL_NAMES.has(toolName)) return executeIntegratedBrowserTool(toolName, args, signal);
-  if (PROJECT_HUB_TOOL_NAMES.has(toolName)) return executeProjectHubTool(toolName, args);
   if (NATIVE_AI_TOOL_NAMES.has(toolName)) return executeNativeAiTool(toolName, args, generatedImages);
   return executeComputerToolAsJson(toolName, args, signal);
 }

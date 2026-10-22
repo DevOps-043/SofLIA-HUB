@@ -19,8 +19,6 @@ consumidores y comportamiento cuando faltan.
 | `VITE_SUPABASE_ANON_KEY` | Lia renderer/main | cliente no se configura | publica condicionada a RLS |
 | `VITE_SOFIA_SUPABASE_URL` | auth SOFIA | auth principal no disponible | publica |
 | `VITE_SOFIA_SUPABASE_ANON_KEY` | auth SOFIA | auth principal no disponible | publica condicionada a RLS |
-| `VITE_IRIS_SUPABASE_URL` | Project Hub/IRIS tools | IRIS degradado | publica |
-| `VITE_IRIS_SUPABASE_ANON_KEY` | Project Hub/IRIS tools | IRIS degradado | publica condicionada a RLS |
 | `VITE_SOFLIA_LEARNING_SUPABASE_URL` | servicio Learning | servicio no disponible | publica |
 | `VITE_SOFLIA_LEARNING_SUPABASE_ANON_KEY` | servicio Learning | servicio no disponible | publica condicionada a RLS |
 | `VITE_LEARNING_BASE_URL` | inicio de sesion federado con SofLIA Learning | la entrada federada no se ofrece; el inicio por contrasena no cambia | publica |

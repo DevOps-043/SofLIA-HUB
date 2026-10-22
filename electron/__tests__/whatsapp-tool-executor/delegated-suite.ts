@@ -2,12 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 import { executeWhatsAppTools, fc, makeCtx } from './fixture';
 
 describe('Dispatch to delegated executors', () => {
-  it('WA-105: dispatches iris_* tools to iris executor', async () => {
-    const { executeIrisTool } = await import('../../whatsapp-executors/iris-executors');
-    await executeWhatsAppTools([fc('iris_get_teams', {})], makeCtx(), 'jid', '5511111', false);
-    expect(executeIrisTool).toHaveBeenCalledWith('iris_get_teams', {}, '5511111');
-  });
-
   it('WA-106: dispatches gmail_send to google executor after confirmation', async () => {
     const { executeGoogleTool } = await import('../../whatsapp-executors/google-executors');
     await executeWhatsAppTools([fc('gmail_send', { to: 'x@y.com', subject: 'T', body: 'B' })], makeCtx({ requestConfirmation: vi.fn(async () => true) }), 'jid', '5511111', false);

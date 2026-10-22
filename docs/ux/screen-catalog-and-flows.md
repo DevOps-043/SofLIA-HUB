@@ -24,8 +24,8 @@ la lectura de configuración falle; muestra confirmación/cancelación/error y
 | Auth | sin user y no orb | SOFIA auth | login/recuperacion segun componente | loading, error, credenciales invalidas |
 | Workspace Chat | `activeView=chat` | chat, messages, IA, tools | nuevo/enviar/adjuntar/share/delete | vacio, streaming, tool, error, degraded |
 | Navegador integrado | boton Navegador o apertura del agente | `IntegratedBrowserService`, historial, boveda, extensiones, Computer Use | mover/minimizar/ajustar chat, navegar, abrir gestores flotantes, guardar/rellenar, instalar/deshabilitar/remover | carga, vacio, cancelacion, error, permiso HITL, agente controlando |
-| Sidebar | workspace autenticado | chats, folders, IRIS, org/user | seleccionar, crear, pin, rename, delete, tema, settings | loading por seccion, menu contextual |
-| Project Hub | `project` + folder + user | sources/chats/folder/Drive | fuente, chat de proyecto, share | empty source/chat, picker, error |
+| Sidebar | workspace autenticado | chats, folders, org/user | seleccionar, crear, pin, rename, delete, tema, settings | loading por seccion, menu contextual |
+| Carpeta de proyecto | `project` + folder + user | sources/chats/folder/Drive | fuente, chat de proyecto, share | empty source/chat, picker, error |
 | Productividad | `productivity` + user | monitoring, summaries, calendar | rango, start/stop, auto config | sin datos, sesion activa, resumen, error |
 | Meetings | `meetings` + user | meeting runs/detail/live | crear, detectar, revisar, aprobar, sync | lista vacia, processing, pending, failed |
 | Sesiones síncronas | Herramientas Integradas, debajo de Navegador y Reuniones | catálogo autenticado de Learning, organización activa | actualizar, paginar, consultar una clase, cambiar agenda de alumno/instructor | carga, vacío, error recuperable, sin organización |
@@ -50,7 +50,7 @@ Startup -> resolver sesion SOFIA
   -> con sesion: cargar perfil/memberships
      -> resolver Lia
      -> seleccionar org guardada/permitida
-     -> cargar chat/folders/IRIS
+     -> cargar chat/folders
      -> Workspace (o notice degradado Lia)
 ```
 
@@ -106,7 +106,7 @@ Manual/Drive/live/deteccion -> meeting_run + source hash
   -> revision humana
      -> rechazo/edicion: vuelve a pendiente
      -> aprobacion: registra meeting_approval
-  -> sync actions idempotentes -> IRIS/Workspace
+  -> revisión local; sin publicación en Project Hub
 ```
 
 ### Tool dinamica

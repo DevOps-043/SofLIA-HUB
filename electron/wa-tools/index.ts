@@ -19,7 +19,6 @@ import { COMPUTER_TOOLS } from './computer';
 import { EXTENSIBILITY_TOOLS } from './extensibility';
 import { FILESYSTEM_TOOLS } from './filesystem';
 import { GOOGLE_TOOLS } from './google';
-import { IRIS_TOOLS } from './iris';
 import { MEMORY_TOOLS } from './memory';
 import { PROFILE_TOOLS } from './profile';
 import { REMOTE_NODE_TOOLS } from './remote-nodes';
@@ -47,7 +46,6 @@ export const WA_TOOL_DECLARATIONS = {
     ...REMOTE_NODE_TOOLS,
     ...SYSTEM_TOOLS,
     ...EXTENSIBILITY_TOOLS,
-    ...IRIS_TOOLS,
     ...GOOGLE_TOOLS,
     ...AUTOMATION_TOOLS,
   ] as WaToolDeclaration[],

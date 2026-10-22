@@ -5,7 +5,6 @@
 const sites = [
   ['Learning', 'https://soflia.ai'],
   ['Engine', 'https://soflia-coursegen.netlify.app'],
-  ['Project Hub', 'https://sofliahub.netlify.app'],
 ];
 
 const results = await Promise.all(sites.map(async ([site, origin]) => {

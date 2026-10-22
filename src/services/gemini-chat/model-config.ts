@@ -6,7 +6,6 @@ import {
   GOOGLE_WORKSPACE_TOOLS,
   INTEGRATED_BROWSER_TOOLS,
   NATIVE_AI_TOOLS,
-  PROJECT_HUB_TOOLS,
 } from '../gemini-tools';
 import { filterDeclarationsBySelection, resolveSkillToolGroups, resolveAttachedSourceToolGroups, type ActiveSkillContext } from '../gemini-tools/turn-catalog';
 import type { SendMessageStreamOptions } from './types';
@@ -90,8 +89,8 @@ export function buildModelTools(
   if (attachedSourcesOnly) return resolveAttachedSourceToolGroups(activeSkill);
   const hasGoogleWorkspace = typeof window !== 'undefined' && !!(window as any).calendar;
   const base: any[] = computerUseEnabled
-    ? [COMPUTER_USE_TOOLS, PROJECT_HUB_TOOLS, NATIVE_AI_TOOLS]
-    : [PROJECT_HUB_TOOLS, NATIVE_AI_TOOLS];
+    ? [COMPUTER_USE_TOOLS, NATIVE_AI_TOOLS]
+    : [NATIVE_AI_TOOLS];
   if (hasGoogleWorkspace) base.push(GOOGLE_WORKSPACE_TOOLS);
   if (typeof window !== 'undefined' && !!window.integratedBrowser) {
     base.push(MULTIMODAL_FEATURES.browserVision ? INTEGRATED_BROWSER_TOOLS : withoutVisionTools(INTEGRATED_BROWSER_TOOLS));

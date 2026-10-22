@@ -18,13 +18,12 @@ Soflia Hub
    |- Sidebar izquierda/derecha/inferior
    |  |- Nuevo chat y busqueda
    |  |- Chats fijados/no agrupados
-   |  |- Carpetas / Project Hub
-   |  |- Equipos -> proyectos -> issues IRIS
+   |  |- Carpetas de proyectos y chats
    |  |- Reuniones
    |  `- Usuario, organizacion, tema, settings, salir
    `- Area de trabajo
       |- Chat
-      |- Project Hub
+      |- Carpeta de proyecto
       |- Productividad
       |- Reuniones
       `- Modo navegador
@@ -37,10 +36,8 @@ acciones del shell; no debe asumirse que cada union tiene un boton superior fijo
 
 ## Jerarquia de contenido
 
-- Organizacion activa: scope superior de equipos, miembros, shares e IRIS.
-- Equipo IRIS: agrupa proyectos.
-- Proyecto/carpeta: agrupa chats y fuentes; carpeta Lia e IRIS project son
-  conceptos relacionados por UI, no la misma tabla.
+- Organizacion activa: scope superior de equipos, miembros, shares.
+- Proyecto/carpeta: agrupa chats y fuentes en Lia. La integración externa con Project Hub está retirada.
 - Conversacion: contiene mensajes y puede tener fuentes/shares.
 - Meeting run: contiene fuentes, assets, approvals y sync actions.
 

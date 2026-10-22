@@ -7,7 +7,6 @@ import {
   isSofiaMainSessionConfigured,
   revokeSofiaSession,
 } from './main/sofia-session';
-import { getProjectHubApiService } from './project-hub';
 import { setOrganizationContext } from './main/organization-context';
 
 /**
@@ -93,7 +92,7 @@ export function registerAuthStateHandlers(): void {
     if (!parsed.authenticated) {
       // El gate se cierra antes de esperar operaciones remotas o de disco.
       const state = setAuthState({ authenticated: false, userId: null });
-      await Promise.all([revokeSofiaSession(), revokeHubSession(), getProjectHubApiService().logout()]);
+      await Promise.all([revokeSofiaSession(), revokeHubSession()]);
       return { ok: true, state };
     }
 
@@ -124,12 +123,6 @@ export function registerAuthStateHandlers(): void {
     }
 
     if (revision !== publication) return { ok: false, state: getAuthState() };
-    if (authenticated && parsed.sofiaAccessToken) {
-      const projectHubExchange = await getProjectHubApiService().exchangeSofiaToken(parsed.sofiaAccessToken);
-      if (!projectHubExchange.success) {
-        console.warn(`[ProjectHub] Canje SOFIA rechazado (${projectHubExchange.code || 'UNKNOWN'}): ${projectHubExchange.error || 'sin detalle'}`);
-      }
-    }
 
     return { ok: true, state };
   });

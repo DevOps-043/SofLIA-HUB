@@ -5,7 +5,6 @@ import {
   formatActionList,
   formatRunDetail,
   formatStatus,
-  formatSyncResult,
   shouldCloseWorkflow,
 } from './formatters';
 import { buildUnknownInstructionMessage } from './workflow-messages';
@@ -24,7 +23,6 @@ export async function handleMeetingWorkflowInput(
     if (lower === 'acciones') return sendActions(workflow);
     if (lower === 'aprobar resumen') return approveSummaryCommand(workflow);
     if (lower === 'aprobar acciones') return approveActionsCommand(workflow);
-    if (lower === 'sincronizar') return syncApprovedActions(workflow);
 
     const approveSingleMatch = lower.match(/^aprobar accion\s+(\d+)$/);
     if (approveSingleMatch) return approveSingleActionCommand(workflow, Number(approveSingleMatch[1]));
@@ -68,10 +66,4 @@ async function sendActions(workflow: MeetingWhatsAppWorkflow): Promise<boolean> 
   workflow.scheduleInactivityTimeout();
   await workflow.waService.sendText(workflow.jid, formatActionList(await workflow.workflowService.getRunDetail(workflow.runId!)));
   return true;
-}
-
-async function syncApprovedActions(workflow: MeetingWhatsAppWorkflow): Promise<boolean> {
-  const syncResult = await workflow.workflowService.syncApprovedActions(workflow.runId!, workflow.senderNumber);
-  await workflow.waService.sendText(workflow.jid, formatSyncResult(syncResult.detail, syncResult.result));
-  return false;
 }

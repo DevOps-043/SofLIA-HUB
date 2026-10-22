@@ -9,7 +9,6 @@ export async function generateDailySummary(
   apiKey: string,
   activities: ActivityLogEntry[],
   sessionInfo: SessionInfo,
-  irisProjects?: string[],
 ): Promise<GeneratedSummary> {
   if (activities.length === 0) {
     return {
@@ -28,7 +27,7 @@ export async function generateDailySummary(
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: SUMMARY_MODEL });
-    const result = await model.generateContent(buildDailySummaryPrompt(sessionInfo, stats, irisProjects));
+    const result = await model.generateContent(buildDailySummaryPrompt(sessionInfo, stats));
     return parseSummaryResponse(result.response.text().trim(), stats);
   } catch (err: any) {
     console.error('[SummaryGenerator] Gemini error:', err.message);

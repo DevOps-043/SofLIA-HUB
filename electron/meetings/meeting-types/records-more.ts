@@ -55,14 +55,3 @@ export interface MeetingFollowupItem {
   due_in_hours: number | null;
   status: 'upcoming' | 'overdue' | 'open';
 }
-
-export interface MeetingSyncExecutionResult {
-  synced: number;
-  failed: number;
-  skipped: number;
-  details: Array<{
-    action_id: string;
-    status: 'synced' | 'failed' | 'skipped';
-    message: string;
-  }>;
-}

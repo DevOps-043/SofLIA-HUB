@@ -1,7 +1,6 @@
 import type { MouseEvent } from 'react';
 import type { Conversation } from '../../services/chat-service';
 import type { Folder } from '../../services/folder-service';
-import type { IrisIssue, IrisProject, IrisTeam } from '../../lib/iris-client';
 import type { SofiaOrganization } from '../../lib/sofia-client';
 import type { ThemeMode } from '../../hooks/useTheme';
 
@@ -38,8 +37,6 @@ export interface SidebarProps {
   onCreateFolderClick: () => void;
   onToggleFolder: (id: string) => void;
   onOpenProject: (id: string) => void;
-  onOpenUnifiedProject?: (workspaceId: string, projectId: string) => void;
-  activeUnifiedProjectId?: string | null;
   onDeleteFolder: (id: string, e: MouseEvent) => void;
   /** Edicion inline del nombre de carpeta (mismo patron que los chats). */
   renamingFolderId: string | null;
@@ -48,16 +45,6 @@ export interface SidebarProps {
   onStartRenameFolder: (id: string) => void;
   onFinishRenameFolder: () => void;
   onCancelRenameFolder: () => void;
-  irisTeams: IrisTeam[];
-  irisProjects: IrisProject[];
-  irisIssues: Record<string, IrisIssue[]>;
-  expandedTeams: Set<string>;
-  expandedProjects: Set<string>;
-  onToggleTeam: (id: string) => void;
-  onToggleProject: (id: string) => void;
-  onIrisProjectClick: (project: IrisProject) => void;
-  onIrisIssueClick: (issue: IrisIssue) => void;
-  onRefreshIris: () => void;
   displayName: string;
   initials: string;
   userEmail: string | undefined;

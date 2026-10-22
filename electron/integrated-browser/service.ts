@@ -4212,7 +4212,7 @@ export class IntegratedBrowserService extends EventEmitter {
   async reconnectEcosystemSession(): Promise<IntegratedBrowserState> {
     if (this.agentControlling) throw new Error('Toma el control del navegador para conectar tu cuenta.');
     const tab = this.getActiveTab();
-    if (!tab?.view || !ecosystemOrigin(tab.view.webContents.getURL(), ecosystemSessionOrigins())) throw new Error('Abre Learning, Engine o Project Hub para usar tu cuenta.');
+    if (!tab?.view || !ecosystemOrigin(tab.view.webContents.getURL(), ecosystemSessionOrigins())) throw new Error('Abre Learning o Engine para usar tu cuenta.');
     const guard = this.captureNavigationGuard();
     const target = tab.view.webContents.getURL();
     const contents = tab.view.webContents;

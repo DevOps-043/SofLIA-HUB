@@ -333,8 +333,6 @@
         "suggestedDestination": {
           "type": "string",
           "enum": [
-            "IRIS",
-            "Project Hub",
             "Team",
             "Project",
             "None"

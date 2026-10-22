@@ -7,7 +7,6 @@ import {
   GOOGLE_WORKSPACE_TOOL_NAMES,
   INTEGRATED_BROWSER_TOOL_NAMES,
   NATIVE_AI_TOOL_NAMES,
-  PROJECT_HUB_TOOL_NAMES,
 } from '../../services/gemini-tools/tool-names';
 
 /**
@@ -24,7 +23,6 @@ const SYNTHETIC_TOOL_NAMES = [
 
 const DECLARED_TOOL_NAMES = [
   ...COMPUTER_TOOL_NAMES,
-  ...PROJECT_HUB_TOOL_NAMES,
   ...GOOGLE_WORKSPACE_TOOL_NAMES,
   ...INTEGRATED_BROWSER_TOOL_NAMES,
   ...NATIVE_AI_TOOL_NAMES,
@@ -63,4 +61,3 @@ describe('TOOL_DISPLAY_NAMES', () => {
     expect(getToolDisplayName(undefined)).toBe('Procesando...');
   });
 });
-

@@ -18,7 +18,7 @@ export function buildMeetingRunIntroMessage(detail: MeetingRunDetail, options: M
   const promptPreview = buildPromptPreview(detail);
   const lines = options.busy
     ? ['Detecte otra reunion mientras tu workflow actual sigue abierto.', 'La deje lista para que la revises despues.']
-    : ['Detecte una reunion nueva y ya prepare un brief para revisarla contigo.', 'Antes de sincronizar nada, quiero que valides el enfoque.'];
+    : ['Detecte una reunion nueva y ya prepare un brief para revisarla contigo.', 'Revisa y aprueba la minuta para conservar el resultado.'];
 
   lines.push('', `Reunion: ${resolveMeetingTitle(detail, options.fallbackTitle)}`);
   lines.push(`Tipo detectado: ${resolveMeetingTypeLabel(detail)}`);

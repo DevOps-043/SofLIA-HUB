@@ -4,8 +4,6 @@ import { logBootstrapError } from './bootstrap-steps';
 import { bindBrowserProfileToSession } from './browser-session-scope';
 import { recordDesktopTaskMemory } from '../memory/record-desktop-task';
 import { transcribeChannelAudio } from '../wa-agent/audio-transcription';
-import { registerProjectHubHandlers } from '../project-hub-handlers';
-import { getProjectHubApiService } from '../project-hub';
 import { initializeAgentRuntime } from '../agent-runtime';
 import { initializeBackgroundTeams } from '../background-teams';
 
@@ -39,7 +37,6 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
   modules.registerIntegratedBrowserHandlers(services.integratedBrowserService, () => state.win);
   powerMonitor.on('lock-screen', () => services.integratedBrowserService.lockCredentials());
   powerMonitor.on('suspend', () => services.integratedBrowserService.lockCredentials());
-  registerProjectHubHandlers(getProjectHubApiService(), () => state.win);
   // Subida de medios grandes al proveedor. Vive en main para no materializar
   // un video de cientos de megabytes en la memoria del renderer.
   modules.registerMediaInputHandlers(services.mediaInputService, () => state.win);

@@ -12,11 +12,9 @@ Estado: vigente. Actualizado: 2026-08-04.
 |---|---|---|---|---|
 | SOFIA Learning | `VITE_SOFIA_SUPABASE_URL/ANON_KEY` | auth, usuarios, organizaciones, membresias, equipos y plataforma learning | `src/lib/sofia-client.ts`, contexto auth | servicios Learning especificos |
 | Lia / Hub | `VITE_SUPABASE_URL/ANON_KEY` | conversaciones, carpetas, settings, monitoreo, meetings, shares, fuentes y estado Hub | `src/lib/supabase.ts`, services | stores de meetings y servicios operativos |
-| IRIS | `VITE_IRIS_SUPABASE_URL/ANON_KEY` | equipos/proyectos/issues, members, estados y prioridades | `src/lib/iris-client.ts`, `src/services/iris-data/` | `electron/iris/` para tools/sync |
 
 No se permiten joins SQL entre proyectos Supabase. Los enlaces cruzados son IDs
-de texto/UUID en la aplicacion: organizacion/equipo SOFIA delimitan consultas IRIS;
-meeting sync crea referencias externas mediante `external_ref`.
+de texto/UUID en la aplicación. La integración de Project Hub/IRIS está retirada; sus snapshots y migraciones se conservan como historial.
 
 ## Persistencia local
 
@@ -42,7 +40,7 @@ meeting sync crea referencias externas mediante `external_ref`.
    existente conserva su UUID y RLS.
 4. `dataUserId` se usa para tablas Lia; `user.id` y aliases se consideran en
    access lists durante migracion.
-5. Cambio de organizacion recalcula equipos y scope IRIS.
+5. Cambio de organización recalcula los equipos y el ámbito de datos Lia.
 
 ### Chat
 
@@ -56,7 +54,7 @@ politicas RLS, no solo remover cache.
 - `meeting_runs.trace_id` es unico; owner+source_hash+version evita duplicados.
 - FKs de source/assets/sync/approvals usan cascade desde run; detection usa
   `SET NULL` para conservar candidato.
-- `meeting_sync_actions.idempotency_key` evita duplicar efectos externos.
+- `meeting_sync_actions` conserva acciones históricas; no se publican nuevas acciones externas.
 - `meeting_assets.confidence` mide la extraccion, no la verdad del contenido.
 - `meeting_approvals` registra al decisor humano: la IA no aprueba.
 

@@ -63,7 +63,6 @@ export interface SendMessageStreamOptions {
     workspaceId: string | null;
   };
   context?: string;
-  irisContext?: string;
   sourcesContext?: string;
   /** Memoria unificada del usuario (recientes, resúmenes, hechos, skills) ya formateada. */
   memoryContext?: string;

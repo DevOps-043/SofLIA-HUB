@@ -1,7 +1,4 @@
 ﻿import type {
-  MeetingContextProject,
-  MeetingContextTeam,
-  MeetingContextTeamMember,
   MeetingDetectedEvent,
 } from './context';
 import type { MeetingRunDetail } from './detail';
@@ -18,15 +15,7 @@ declare global {
       approveActions: (input: any) => Promise<{ success: boolean; detail?: MeetingRunDetail; error?: string }>;
       updateAction: (input: any) => Promise<{ success: boolean; detail?: MeetingRunDetail; error?: string }>;
       rejectAction: (input: any) => Promise<{ success: boolean; detail?: MeetingRunDetail; error?: string }>;
-      syncApprovedActions: (input: any) => Promise<{ success: boolean; detail?: MeetingRunDetail; result?: { synced: number; failed: number; skipped: number }; error?: string }>;
       getFollowups: (ownerUserId?: string) => Promise<{ success: boolean; followups?: any[]; error?: string }>;
-      getContext: () => Promise<{
-        success: boolean;
-        teams?: MeetingContextTeam[];
-        projects?: MeetingContextProject[];
-        teamMembers?: MeetingContextTeamMember[];
-        error?: string;
-      }>;
       onDetected?: (cb: (payload: MeetingDetectedEvent) => void) => void;
       removeListeners?: () => void;
     };
@@ -65,16 +54,8 @@ export function rejectMeetingAction(input: any) {
   return window.meeting.rejectAction(input);
 }
 
-export function syncApprovedMeetingActions(input: any) {
-  return window.meeting.syncApprovedActions(input);
-}
-
 export function getMeetingFollowups(ownerUserId?: string) {
   return window.meeting.getFollowups(ownerUserId);
-}
-
-export function getMeetingContext() {
-  return window.meeting.getContext();
 }
 
 export function onMeetingDetected(cb: (payload: MeetingDetectedEvent) => void) {
@@ -84,4 +65,3 @@ export function onMeetingDetected(cb: (payload: MeetingDetectedEvent) => void) {
 export function removeMeetingListeners() {
   window.meeting.removeListeners?.();
 }
-

@@ -54,12 +54,12 @@ acciones ejecuta atajos o activa transferencia automáticamente.
 
 | ID | Historia | Criterios de aceptacion implementados | Requisitos |
 |---|---|---|---|
-| HU-001 | Como usuario SOFIA, quiero iniciar sesion y conservar mi organizacion para trabajar en el contexto correcto. | Sesion persistida; organizaciones/equipos cargados; cambio de organizacion resegmenta IRIS; fallo Lia se informa como degradado. | RF-001, RF-002; BR-002, BR-003, BR-004 |
+| HU-001 | Como usuario SOFIA, quiero iniciar sesion y conservar mi organizacion para trabajar en el contexto correcto. | Sesion persistida; organizaciones/equipos cargados; cambio de organización actualiza el ámbito de datos; fallo Lia se informa como degradado. | RF-001, RF-002; BR-002, BR-003, BR-004 |
 | HU-002 | Como usuario, quiero crear y retomar chats sin perder mensajes ante una sincronizacion parcial. | Crear/cargar/renombrar/pin/eliminar; cola local pendiente; recovery y refresh remoto. | RF-003; RNF-008 |
-| HU-003 | Como usuario, quiero agrupar chats y fuentes por proyecto. | Crear/renombrar/eliminar carpeta; mover chat; abrir Project Hub; agregar fuente local o Drive. | RF-004, RF-006 |
+| HU-003 | Como usuario, quiero agrupar chats y fuentes por proyecto. | Crear/renombrar/eliminar carpeta; mover chat; abrir la carpeta de proyecto; agregar fuente local o Drive. | RF-004, RF-006 |
 | HU-004 | Como owner de contenido, quiero compartir una conversacion o carpeta y revocar acceso. | El boton solo aparece si es compartible; miembros/enlace se crean; acceso se valida; revocacion elimina el grant. | RF-005; BR-005 |
 | HU-005 | Como usuario, quiero pedir a la IA que investigue o ejecute herramientas y recibir progreso comprensible. | Stream visible; tool results vuelven al loop; timeout/rate limit se traducen a mensaje publico; herramientas criticas confirman. | RF-007, RF-008; BR-009 |
-| HU-006 | Como colaborador, quiero abrir proyectos/issues IRIS desde la barra lateral y continuar la conversacion con ese contexto. | Solo equipos del org activo; proyectos/issues cargados; seleccion abre proyecto o genera contexto. | RF-006; BR-003 |
+| HU-006 | Retirada: consulta de proyectos/issues IRIS. | La integración externa se retira; se conservan carpetas y chats. | RF-006; BR-003 |
 | HU-007 | Como usuario, quiero medir mi actividad laboral sin registrar periodos idle como trabajo activo. | Inicio/stop; umbral idle; captura configurable; status y resumen del periodo. | RF-009, RF-010; BR-013, BR-014 |
 | HU-008 | Como usuario, quiero conectar mis calendarios y administrar eventos desde el Hub. | OAuth Google/Microsoft; lista de conexiones/eventos; CRUD; start/stop auto; refresh de token. | RF-011 |
 | HU-009 | Como usuario, quiero operar Gmail, Drive y Chat sin autenticar cada modulo por separado. | Servicios comparten auth Calendar; operaciones muestran error seguro; desconexion invalida acceso. | RF-012, RF-013, RF-014; BR-019 |

@@ -1,10 +1,7 @@
-import type { getTeamMembersDetailed } from '../../iris-data-main';
 import type { MeetingAIService } from '../meeting-ai-service';
-import type { MeetingAssigneeService } from '../meeting-assignee-service';
 import type { MeetingReviewService } from '../meeting-review-service';
 import type { MeetingStore } from '../meeting-store';
 import type { CreateMeetingRunResult, PreparedMeetingSource } from '../meeting-types';
-import { resolveAssigneesForActions } from './assignee-reconciliation';
 import type { BaseCreateMeetingRunInput } from './types';
 
 interface ProcessorDeps {
@@ -13,8 +10,6 @@ interface ProcessorDeps {
   store: MeetingStore;
   aiService: MeetingAIService;
   reviewService: MeetingReviewService;
-  assigneeService: MeetingAssigneeService;
-  getTeamMembersDetailed: typeof getTeamMembersDetailed;
   createTraceId: () => string;
   executionGuard?: () => void;
 }
@@ -73,10 +68,7 @@ async function extractAndPersistMeetingRun(deps: ProcessorDeps, run: any, traceI
   deps.executionGuard?.();
   const reviewedAsset = deps.reviewService.enrichMeetingAsset({
     asset: extraction.payload,
-    defaultTeamId: deps.input.defaultTeamId,
-    defaultProjectId: deps.input.defaultProjectId,
   });
-  reviewedAsset.proposed_actions = await resolveAssigneesForActions(deps, reviewedAsset.proposed_actions);
   deps.executionGuard?.();
   const finalAsset = deps.reviewService.refreshReviewFlags(reviewedAsset);
 
@@ -86,9 +78,8 @@ async function extractAndPersistMeetingRun(deps: ProcessorDeps, run: any, traceI
   });
 
   deps.executionGuard?.();
-  const asset = await deps.store.addAsset(run.id, finalAsset, extraction.confidence);
+  await deps.store.addAsset(run.id, finalAsset, extraction.confidence);
   deps.executionGuard?.();
-  await deps.store.replaceSyncActions(run.id, asset.id, finalAsset.proposed_actions, deps.executionGuard);
   deps.executionGuard?.();
   await deps.store.updateRunStatus(run.id, 'REVIEW_REQUIRED', null);
   deps.executionGuard?.();

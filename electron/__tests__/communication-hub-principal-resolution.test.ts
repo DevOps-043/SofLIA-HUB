@@ -4,7 +4,7 @@ import { CommunicationHubService } from '../communication-hub/service';
 
 const { getSofiaClientMock } = vi.hoisted(() => ({ getSofiaClientMock: vi.fn() }));
 
-vi.mock('../iris/clients', () => ({
+vi.mock('../sofia/clients', () => ({
   getSofiaClient: getSofiaClientMock,
   getIrisClient: vi.fn(() => null),
   isIrisAvailable: vi.fn(() => false),

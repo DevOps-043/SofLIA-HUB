@@ -1,11 +1,8 @@
 import { vi } from 'vitest';
 
-vi.mock('../../iris-data-main', () => ({
+vi.mock('../../sofia/whatsapp-identity', () => ({
   tryAutoAuthByPhone: vi.fn().mockResolvedValue({ success: false }),
   getWhatsAppSession: vi.fn().mockReturnValue(null),
-  buildIrisContextForWhatsApp: vi.fn().mockResolvedValue(''),
-  needsIrisData: vi.fn().mockReturnValue(false),
-  isIrisAvailable: vi.fn().mockReturnValue(false),
 }));
 
 vi.mock('../../whatsapp-workflow-presentacion', () => ({

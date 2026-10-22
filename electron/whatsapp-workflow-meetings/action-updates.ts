@@ -9,10 +9,7 @@ export function parseMeetingActionUpdates(rawText: string): UpdateMeetingActionI
     const value = match[3] || match[4] || match[5] || '';
     if (key === 'titulo' || key === 'title') updates.title = value;
     if (key === 'fecha' || key === 'due') updates.due_date = value;
-    if (key === 'team' || key === 'equipo') updates.team_id = value;
-    if (key === 'proyecto' || key === 'project') updates.project_id = value;
     if (key === 'responsable' || key === 'owner') updates.owner_candidate = value;
-    if (key === 'assignee' || key === 'usuario') updates.assignee_id = value;
     match = tokenRegex.exec(rawText);
   }
   return updates;

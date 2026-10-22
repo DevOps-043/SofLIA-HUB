@@ -26,7 +26,6 @@ export type SkillToolGroupId =
   | 'computadora'
   | 'archivos'
   | 'procesos'
-  | 'proyectos'
   | 'imagenes'
   | 'espacio-trabajo';
 
@@ -175,22 +174,6 @@ export const SKILL_TOOL_GROUPS: readonly SkillToolGroup[] = Object.freeze([
       { name: 'get_background_host_status', label: 'Estado del host', description: 'Consulta el estado del host de procesos.' },
       { name: 'get_email_config', label: 'Ver correo configurado', description: 'Consulta la cuenta local configurada.' },
       { name: 'send_email', label: 'Enviar correo local', description: 'Envia desde la cuenta configurada.', irreversible: true },
-    ],
-  },
-  {
-    id: 'proyectos',
-    label: 'Proyectos (IRIS)',
-    description: 'Consultar y crear trabajo en el gestor de proyectos.',
-    tools: [
-      { name: 'get_iris_teams', label: 'Ver equipos', description: 'Lista los equipos.' },
-      { name: 'get_iris_projects', label: 'Ver proyectos', description: 'Lista los proyectos.' },
-      { name: 'get_iris_team_members', label: 'Ver miembros', description: 'Lista los miembros de un equipo.' },
-      { name: 'get_iris_statuses', label: 'Ver estados', description: 'Consulta los estados disponibles.' },
-      { name: 'get_iris_priorities', label: 'Ver prioridades', description: 'Consulta las prioridades disponibles.' },
-      { name: 'get_current_user_id', label: 'Ver mi usuario', description: 'Identifica al usuario actual.' },
-      { name: 'create_iris_project', label: 'Crear proyecto', description: 'Crea un proyecto nuevo.', irreversible: true },
-      { name: 'create_iris_issue', label: 'Crear tarea', description: 'Crea una tarea o incidencia.', irreversible: true },
-      { name: 'delete_iris_project', label: 'Borrar proyecto', description: 'Elimina un proyecto.', irreversible: true },
     ],
   },
   {

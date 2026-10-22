@@ -7,7 +7,7 @@ import { fetchBrandAsset } from '../organization-branding/assets';
 import { normalizeDocumentLogo } from '../organization-branding/document-logo';
 
 const mocks = vi.hoisted(() => ({ from: vi.fn(), resolve: vi.fn(), sessionUser: 'usuario' }));
-vi.mock('../iris/clients', () => ({ getSofiaClient: () => ({ from: mocks.from }) }));
+vi.mock('../sofia/clients', () => ({ getSofiaClient: () => ({ from: mocks.from }) }));
 vi.mock('../organization-branding/service', () => ({ resolveOrganizationBranding: mocks.resolve }));
 vi.mock('../main/sofia-session', () => ({ isSofiaMainSessionConfigured: () => true, getSofiaSessionUserId: () => mocks.sessionUser }));
 

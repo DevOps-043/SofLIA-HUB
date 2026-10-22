@@ -334,7 +334,7 @@ export function computeRecurrentSites(
   }
 
   // 3. Excluir herramientas por defecto del Ecosistema SofLIA
-  const defaultDomains = new Set(['soflia.ai', 'soflia-coursegen.netlify.app', 'irisia.netlify.app']);
+  const defaultDomains = new Set(['soflia.ai', 'soflia-coursegen.netlify.app']);
   let list = Array.from(map.values()).filter((item) => !defaultDomains.has(item.domain));
 
   // 4. FILTRAR SITIOS DE HISTORIAL POCO RECURRENTES (requiere mínimo 3 visitas o marcador favorito)

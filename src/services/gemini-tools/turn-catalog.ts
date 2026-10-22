@@ -8,7 +8,6 @@ import {
   GOOGLE_WORKSPACE_TOOL_NAMES,
   INTEGRATED_BROWSER_TOOL_NAMES,
   NATIVE_AI_TOOL_NAMES,
-  PROJECT_HUB_TOOL_NAMES,
 } from './tool-names';
 import type { GeminiToolGroup } from './types';
 
@@ -63,7 +62,6 @@ export function filterDeclarationsBySelection<T extends { name: string }>(
 
 const BASE_TOOL_NAMES: ReadonlySet<string>[] = [
   COMPUTER_TOOL_NAMES,
-  PROJECT_HUB_TOOL_NAMES,
   GOOGLE_WORKSPACE_TOOL_NAMES,
   INTEGRATED_BROWSER_TOOL_NAMES,
   NATIVE_AI_TOOL_NAMES,

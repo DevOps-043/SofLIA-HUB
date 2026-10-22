@@ -10,7 +10,7 @@ export function buildStartMessage(): string {
     '1. Notas de reunion en texto.',
     '2. Un link o ID de Google Drive con la transcripcion o notas.',
     '',
-    'Luego podras responder: "estado", "aprobar resumen", "aprobar acciones", "sincronizar", "rechazar" o "cancelar".',
+    'Luego podras responder: "estado", "aprobar resumen", "aprobar acciones", "rechazar" o "cancelar".',
   ].join('\n');
 }
 
@@ -35,7 +35,7 @@ export async function buildUnknownInstructionMessage(
   workflowService: MeetingWorkflowService,
   runId: string | null,
 ): Promise<string> {
-  const help = 'No reconoci la instruccion. Usa: "estado", "acciones", "aprobar resumen", "aprobar acciones", "aprobar accion N", "editar accion N ...", "sincronizar", "rechazar" o "cancelar".';
+  const help = 'No reconoci la instruccion. Usa: "estado", "acciones", "aprobar resumen", "aprobar acciones", "aprobar accion N", "editar accion N ...", "rechazar" o "cancelar".';
   if (!runId) return help;
 
   const detail = await workflowService.getRunDetail(runId);

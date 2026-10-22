@@ -138,7 +138,7 @@ export async function sendMessageStream(
     requiresBrowserCapabilities,
     isReadOnlyBrowserObservation,
     isPureWebResearch,
-    hasToolIntent: requestsComputerUse || shouldUseToolLoop(message, options, computerUseEnabled),
+    hasToolIntent: requestsComputerUse || shouldUseToolLoop(message, computerUseEnabled),
   });
   const applicationToOpen = requestsComputerUse && !attachedSourcesOnly && !options?.images?.length && !options?.media?.length
     ? singleApplicationOpenRequest(message) : null;
@@ -377,9 +377,9 @@ function extractResponseText(response: any): string {
   return parts.filter((part: any) => part.text).map((part: any) => part.text).join('');
 }
 
-function shouldUseToolLoop(message: string, options: SendMessageStreamOptions | undefined, computerUseEnabled: boolean): boolean {
+function shouldUseToolLoop(message: string, computerUseEnabled: boolean): boolean {
   const normalized = normalizeToolIntentText(message);
-  if (options?.irisContext || hasProjectHubIntent(normalized) || hasWorkspaceIntent(normalized) || hasNativeAiIntent(normalized)) {
+  if (hasWorkspaceIntent(normalized) || hasNativeAiIntent(normalized)) {
     return true;
   }
   return computerUseEnabled && hasComputerUseIntent(normalized);
@@ -397,10 +397,6 @@ function hasExplicitComputerUseRequest(text: string): boolean {
     if (!/\b(no(?:\s+(quiero|necesito|debes|deberias|es necesario))?|sin|como)\s*$/.test(prefix)) return true;
   }
   return false;
-}
-
-function hasProjectHubIntent(text: string): boolean {
-  return /\b(iris|project hub|proyecto|proyectos|tarea|tareas|issue|issues|sprint|prioridad|prioridades|equipo|equipos|asignar|responsable)\b/.test(text);
 }
 
 function hasWorkspaceIntent(text: string): boolean {

@@ -3,5 +3,5 @@ import { getMeetingHubClient } from '../meeting-hub-client';
 
 export function init(this: MeetingStore): void {
     getMeetingHubClient();
-    console.log('[MeetingStore] Persistencia en la base de Soflia Hub (IRIS solo recibe lo compartido).');
+    console.log('[MeetingStore] Persistencia en la base de Soflia Hub.');
   }

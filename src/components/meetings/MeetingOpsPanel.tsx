@@ -28,11 +28,8 @@ export function MeetingOpsPanel({ userId, organizationId, accessUserIds }: Meeti
           inputClass={inputClass}
           loading={state.loading}
           mode={state.mode}
-          selectClass={selectClass}
           setForm={state.setForm}
           setMode={state.setMode}
-          teams={state.teams}
-          visibleProjects={state.visibleProjects}
         />
         <MultiAgentPanel key={userId + ':' + (organizationId ?? '')} userId={userId} organizationId={organizationId ?? null}
           title={state.form.meetingTitle} source={state.form.manualText}

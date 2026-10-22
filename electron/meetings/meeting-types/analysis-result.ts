@@ -36,7 +36,7 @@ export interface MeetingAnalysisStrategy {
 }
 
 export interface MeetingAnalysisDestinationRecommendation {
-  suggestedDestination: 'IRIS' | 'Project Hub' | 'Team' | 'Project' | 'None';
+  suggestedDestination: 'Team' | 'Project' | 'None';
   confidence: number;
   reason: string;
 }

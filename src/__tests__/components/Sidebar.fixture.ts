@@ -1,22 +1,11 @@
 import { vi } from 'vitest';
 
-vi.mock('../../services/iris-data', () => ({
-  PROJECT_STATUS_COLORS: {},
-  ISSUE_STATUS_TYPE_COLORS: {},
-}));
-
-vi.mock('../../lib/iris-client', () => ({
-  irisSupa: null,
-  isIrisConfigured: vi.fn(() => false),
-}));
-
 vi.mock('../../lib/sofia-client', () => ({
   sofiaSupa: null,
   isSofiaConfigured: vi.fn(() => false),
 }));
 
 vi.mock('../../config', () => ({
-  IRIS_SUPABASE: { URL: '', ANON_KEY: '' },
   SOFIA_SUPABASE: { URL: '', ANON_KEY: '' },
 }));
 
@@ -56,16 +45,6 @@ export function createDefaultProps(overrides?: Partial<SidebarProps>): SidebarPr
     onStartRenameFolder: vi.fn(),
     onFinishRenameFolder: vi.fn(),
     onCancelRenameFolder: vi.fn(),
-    irisTeams: [],
-    irisProjects: [],
-    irisIssues: {},
-    expandedTeams: new Set(),
-    expandedProjects: new Set(),
-    onToggleTeam: vi.fn(),
-    onToggleProject: vi.fn(),
-    onIrisProjectClick: vi.fn(),
-    onIrisIssueClick: vi.fn(),
-    onRefreshIris: vi.fn(),
     displayName: 'Test User',
     initials: 'TU',
     userEmail: 'test@soflia.com',

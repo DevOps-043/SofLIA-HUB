@@ -17,18 +17,14 @@ de `public.users` con `auth.users`, la confirmación del correo y la última ses
 
 ## Solución implementada
 
-Ambas rutas de login ahora validan contra **Supabase Auth** (una sola fuente de verdad):
+El login de escritorio valida contra **Supabase Auth** (una sola fuente de verdad):
 
 1. **Hub desktop** — `src/services/sofia-auth.ts` + `src/services/sofia-auth/login.ts`:
    - Resuelve email/username → fila de `public.users` (mismo UUID que `auth.users`).
    - `supabase.auth.signInWithPassword({ email, password })`.
    - Perfil, organizaciones y membresías se siguen leyendo de `public.users` (sin cambios).
    - Mensajes de error genéricos (anti-enumeración de cuentas).
-2. **Login por WhatsApp** — `electron/iris/auth/credential-auth.ts` +
-   `electron/iris/auth/password-verifier.ts`:
-   - Misma resolución de identificador.
-   - Verificación con **cliente efímero** (sin `persistSession`) para no contaminar
-     el cliente SOFIA memoizado del main process.
+La antigua autenticación de Project Hub por WhatsApp fue retirada. La identificación SOFIA por teléfono permanece en `electron/sofia/phone-auto-auth.ts`, sin crear usuarios o consultar equipos IRIS.
 
 El RPC `authenticate_user` **ya no se usa en ningún punto del Hub**.
 
@@ -51,11 +47,6 @@ La solución **no** es asignarles una contraseña. El Hub gana una segunda entra
 vuelta una sesión SOFIA legítima mediante un ticket de un solo uso. Ver el cambio
 `openspec/changes/federate-learning-sso-desktop` y la sección correspondiente de
 `docs/operations/configuration.md`.
-
-**Pendiente conocido**: el inicio de sesión por WhatsApp
-(`electron/iris/auth/`) sigue validando contraseña, así que las cuentas solo-SSO
-tampoco pueden autenticarse por ese canal. Necesita una solución propia y no
-forma parte de aquel cambio.
 
 ## Queries de soporte
 

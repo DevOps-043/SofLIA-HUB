@@ -43,7 +43,7 @@ export interface MeetingAnalysisResult {
     reason: string;
   };
   destinationRecommendation: {
-    suggestedDestination: 'IRIS' | 'Project Hub' | 'Team' | 'Project' | 'None';
+    suggestedDestination: 'Team' | 'Project' | 'None';
     confidence: number;
     reason: string;
   };

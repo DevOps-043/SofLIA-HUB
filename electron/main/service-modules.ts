@@ -49,7 +49,6 @@ export async function loadMainServiceModules() {
   const { MeetingSourceService } = await import('../meetings/meeting-source-service');
   const { MeetingAIService } = await import('../meetings/meeting-ai-service');
   const { MeetingReviewService } = await import('../meetings/meeting-review-service');
-  const { MeetingSyncService } = await import('../meetings/meeting-sync-service');
   const { MeetingWorkflowService } = await import('../meetings/meeting-workflow-service');
   const { MeetingDetectionStore } = await import('../meetings/meeting-detection-store');
   const { MeetingPassiveDetectionService } = await import('../meetings/meeting-passive-detection-service');
@@ -83,7 +82,7 @@ export async function loadMainServiceModules() {
     PassiveSkillsService, registerPassiveSkillsHandlers, TelegramService, registerTelegramHandlers,
     CommunicationHubService, registerCommunicationHubHandlers,
     SofliaLearningService,
-    MeetingStore, MeetingSourceService, MeetingAIService, MeetingReviewService, MeetingSyncService,
+    MeetingStore, MeetingSourceService, MeetingAIService, MeetingReviewService,
     MeetingWorkflowService, MeetingDetectionStore, MeetingPassiveDetectionService, DailyBriefingService,
     backgroundHostService, registerBackgroundHostHandlers, remoteNodeService, registerRemoteNodeHandlers,
     dynamicToolService, pythonRuntimeService, registerVoicePassiveHandlers, registerOrbIpcHandlers,

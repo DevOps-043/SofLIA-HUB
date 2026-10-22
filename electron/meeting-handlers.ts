@@ -43,17 +43,10 @@ export function registerMeetingHandlers(meetingWorkflowService: MeetingWorkflowS
       detail: await meetingWorkflowService.rejectAction(input.actionId, input.decidedByUserId, input.comment),
     })));
 
-  ipcMain.handle('meeting:sync-approved-actions', (_event, input: { runId: string; decidedByUserId: string }) =>
-    handleIPC(async () => meetingWorkflowService.syncApprovedActions(input.runId, input.decidedByUserId)));
-
   ipcMain.handle('meeting:get-followups', (_event, ownerUserId?: string) =>
     handleIPC(async () => ({
       followups: await meetingWorkflowService.getFollowups(ownerUserId),
     })));
 
-  ipcMain.handle('meeting:get-context', () =>
-    handleIPC(async () => meetingWorkflowService.getContext()));
-
   console.log('[MeetingHandlers] Registered successfully');
 }
-

@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron';
-import { getSofiaClient } from './iris/clients';
+import { getSofiaClient } from './sofia/clients';
 import { getSofiaSessionUserId } from './main/sofia-session';
 import { readLearningBaseUrl } from './learning-sso';
 import { openLearningLiveSession } from './learning-live-access';

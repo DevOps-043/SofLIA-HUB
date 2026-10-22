@@ -1,4 +1,4 @@
-import { getSofiaClient } from '../iris/clients';
+import { getSofiaClient } from '../sofia/clients';
 import { NEUTRAL_BRANDING, type OrganizationBranding } from './types';
 
 /**

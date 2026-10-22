@@ -10,7 +10,7 @@ vi.mock('node:fs', () => ({ default: {
   mkdirSync: vi.fn(), writeFileSync: (file: string, value: string) => mock.files.set(file, value),
   renameSync: (from: string, to: string) => { mock.files.set(to, mock.files.get(from)!); mock.files.delete(from); },
 } }));
-vi.mock('../iris/clients', () => ({ getSofiaClient: () => ({ auth: { getSession: mock.getSession } }) }));
+vi.mock('../sofia/clients', () => ({ getSofiaClient: () => ({ auth: { getSession: mock.getSession } }) }));
 vi.mock('../main/auth-state', () => ({
   setAuthState: vi.fn(),
   getAuthState: () => ({ authenticated: !!mock.user, userId: mock.user }),
@@ -35,6 +35,13 @@ beforeEach(() => {
 });
 
 describe('Persistencia y aislamiento del acceso del ecosistema', () => {
+  it.each(['https://sofliahub.netlify.app', 'https://irisia.netlify.app'])('no entrega identidad al origen retirado %s, incluso con reconexión explícita', async target => {
+    const runtime = await import('../integrated-browser/ecosystem-session-runtime');
+    const { session, fetcher } = partition();
+    expect(await runtime.prepareEcosystemSession(target, session, () => {}, true)).toBe(false);
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(mock.getSession).not.toHaveBeenCalled();
+  });
   it('conecta una vez y conserva la elección después de reiniciar y expirar la cookie', async () => {
     let runtime = await import('../integrated-browser/ecosystem-session-runtime');
     const { session, fetcher } = partition();
@@ -49,8 +56,8 @@ describe('Persistencia y aislamiento del acceso del ecosistema', () => {
     const { session, cookies, fetcher } = partition();
     cookies.mockResolvedValueOnce([{ name: 'accessToken', value: 'otra-cuenta' }]);
     fetcher.mockResolvedValueOnce(new Response('{"success":true,"userId":"otra-cuenta","preserved":true}'));
-    expect(await prepareEcosystemSession('https://sofliahub.netlify.app', session, () => {})).toBe(true);
-    expect(await prepareEcosystemSession('https://sofliahub.netlify.app', session, () => {})).toBe(false);
+    expect(await prepareEcosystemSession('https://soflia.ai', session, () => {})).toBe(true);
+    expect(await prepareEcosystemSession('https://soflia.ai', session, () => {})).toBe(false);
     expect(fetcher).toHaveBeenCalledOnce();
   });
   it('una conexión antigua inferida de cookies se vuelve a validar antes de recordarla', async () => {
@@ -64,10 +71,10 @@ describe('Persistencia y aislamiento del acceso del ecosistema', () => {
   it('cerrar sesión bloquea también el alias del sitio hasta la reconexión explícita', async () => {
     const runtime = await import('../integrated-browser/ecosystem-session-runtime');
     const { session, fetcher } = partition();
-    runtime.rememberEcosystemSignOut('https://irisia.netlify.app/api/auth/logout');
-    expect(await runtime.prepareEcosystemSession('https://sofliahub.netlify.app', session, () => {})).toBe(false);
+    runtime.rememberEcosystemSignOut('https://www.soflia.ai/api/auth/logout');
+    expect(await runtime.prepareEcosystemSession('https://soflia.ai', session, () => {})).toBe(false);
     expect(fetcher).not.toHaveBeenCalled();
-    expect(await runtime.prepareEcosystemSession('https://sofliahub.netlify.app', session, () => {}, true)).toBe(true);
+    expect(await runtime.prepareEcosystemSession('https://soflia.ai', session, () => {}, true)).toBe(true);
     expect(JSON.parse(fetcher.mock.calls[0][1]?.body as string)).toEqual({ replace: true });
   });
   it.each(['guest', 'private'])('el perfil %s no recibe la identidad del escritorio', async kind => {

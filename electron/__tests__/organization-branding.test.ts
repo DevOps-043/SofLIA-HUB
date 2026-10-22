@@ -13,7 +13,7 @@ const select = vi.fn(() => ({ eq }));
 const from = vi.fn(() => ({ select }));
 const getSofiaClient = vi.fn(() => ({ from }) as never);
 
-vi.mock('../iris/clients', () => ({
+vi.mock('../sofia/clients', () => ({
   getSofiaClient: () => getSofiaClient(),
 }));
 

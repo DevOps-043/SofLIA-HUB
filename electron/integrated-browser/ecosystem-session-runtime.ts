@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { Session } from 'electron';
 import { ECOSYSTEM_APPS, ecosystemOrigin } from '../../src/shared/browser-ecosystem';
-import { getSofiaClient } from '../iris/clients';
+import { getSofiaClient } from '../sofia/clients';
 import { getAuthState, onAuthStateChange } from '../main/auth-state';
 import { getSofiaSessionUserId } from '../main/sofia-session';
 import { readLearningBaseUrl } from '../learning-sso';
@@ -11,7 +11,7 @@ import { browserProfilePath, browserScopeIdFor, getBrowserProfileKind, getBrowse
 
 export function ecosystemSessionOrigins(): string[] {
   const origins = ECOSYSTEM_APPS.map(app => new URL(app.url).origin);
-  origins.push('https://www.soflia.ai', 'https://irisia.netlify.app');
+  origins.push('https://www.soflia.ai');
   const configured = readLearningBaseUrl();
   if (configured) {
     try {
@@ -30,9 +30,8 @@ const signOutSuppressed = new Set<string>();
 
 function relatedOrigins(origin: string): string[] {
   const origins = ecosystemSessionOrigins();
-  if (['https://sofliahub.netlify.app', 'https://irisia.netlify.app'].includes(origin)) return ['https://sofliahub.netlify.app', 'https://irisia.netlify.app'];
   if (origin === 'https://soflia-coursegen.netlify.app') return [origin];
-  return origins.filter(value => !['https://sofliahub.netlify.app', 'https://irisia.netlify.app', 'https://soflia-coursegen.netlify.app'].includes(value));
+  return origins.filter(value => value !== 'https://soflia-coursegen.netlify.app');
 }
 
 /** Un cierre explícito se conserva por sitio y usuario hasta la reconexión manual. */

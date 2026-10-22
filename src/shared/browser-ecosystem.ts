@@ -1,7 +1,6 @@
 export const ECOSYSTEM_APPS = [
   { id: 'soflia-learning', title: 'SOFLIA LEARNING', url: 'https://soflia.ai', fallbackIcon: 'learning' },
   { id: 'soflia-engine', title: 'SofLIA Engine', url: 'https://soflia-coursegen.netlify.app/', fallbackIcon: 'engine' },
-  { id: 'project-hub', title: 'Project Hub', url: 'https://sofliahub.netlify.app/', fallbackIcon: 'hub' },
 ] as const;
 
 export const ECOSYSTEM_SESSION_PATH = '/api/auth/hub-session';

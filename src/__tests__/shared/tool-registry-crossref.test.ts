@@ -4,7 +4,6 @@ import { COMPUTER_USE_TOOLS } from '../../services/gemini-tools/computer-tools';
 import { GOOGLE_WORKSPACE_TOOLS } from '../../services/gemini-tools/google-workspace-tools';
 import { INTEGRATED_BROWSER_TOOLS } from '../../services/gemini-tools/integrated-browser-tools';
 import { NATIVE_AI_TOOLS } from '../../services/gemini-tools/native-tools';
-import { PROJECT_HUB_TOOLS } from '../../services/gemini-tools/project-hub-tools';
 import { SKILL_WORKSPACE_TOOLS } from '../../services/gemini-tools/skill-workspace-tools';
 
 /**
@@ -22,7 +21,6 @@ const CATALOGO_DEL_CHAT = new Set(
     GOOGLE_WORKSPACE_TOOLS,
     INTEGRATED_BROWSER_TOOLS,
     NATIVE_AI_TOOLS,
-    PROJECT_HUB_TOOLS,
     SKILL_WORKSPACE_TOOLS,
   ].flatMap((group) => group.functionDeclarations.map((tool) => tool.name)),
 );

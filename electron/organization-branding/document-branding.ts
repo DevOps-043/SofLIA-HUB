@@ -1,7 +1,7 @@
 import { getAuthState } from '../main/auth-state';
 import { getOrganizationContext } from '../main/organization-context';
 import { getSofiaSessionUserId, isSofiaMainSessionConfigured } from '../main/sofia-session';
-import { getSofiaClient } from '../iris/clients';
+import { getSofiaClient } from '../sofia/clients';
 import { resolveOrganizationBranding } from './service';
 import { fetchBrandAsset } from './assets';
 import { normalizeDocumentLogo } from './document-logo';

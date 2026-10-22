@@ -51,7 +51,7 @@ historica. `No documentada` evita inventar el porqué.
 | ID | Decision | Motivo y estado | Evidencia |
 |---|---|---|---|
 | DEC-001 | Aplicacion desktop Electron con renderer React. | **Inferida:** necesita filesystem, captura, procesos, voz, tray y control de UI que un navegador aislado no ofrece. No existe ADR historico. | `electron/main.ts`, `src/main.tsx` |
-| DEC-002 | Separar SOFIA, Lia e IRIS en tres clientes Supabase. | **Confirmada por comentarios/config:** identidad/organizacion, operacion Hub y proyectos/issues tienen autoridades distintas. | `src/config.ts`, `database/README.md` |
+| DEC-002 | Separar identidad SOFIA y operación Lia; IRIS queda como contrato histórico. | **Confirmada por comentarios/config:** identidad y operación tienen autoridades distintas. La integración de proyectos/issues IRIS está retirada. | `src/config.ts`, `database/README.md` |
 | DEC-003 | Usar SQLite local para memoria, pensamientos e indice semantico. | **Inferida:** baja latencia/offline y datos ligados al host; no hay ADR de retencion/sync. | `electron/memory/schema.ts`, `electron/thought-logger/database.ts`, `electron/semantic-indexer/database.ts` |
 | DEC-004 | IPC por allowlist y payload sanitizado. | **Confirmada:** preload lanza `Security Violation` para canal/payload no permitido y ventanas usan sandbox/context isolation. | `electron/preload/safe-ipc.ts`, `electron/main/window-controller.ts` |
 | DEC-005 | Separar sidecar de voz y sidecar de documentos/privacidad. | **Confirmada por builder:** un fallo leyendo documentos no debe tumbar escucha pasiva. | `electron-builder.json5` |

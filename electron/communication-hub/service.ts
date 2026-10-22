@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import { getSofiaClient } from '../iris/clients';
-import { normalizePhone } from '../iris/phone';
+import { getSofiaClient } from '../sofia/clients';
+import { normalizePhone } from '../sofia/phone';
 import { normalizePhoneNumber, numbersMatch } from '../whatsapp/phone-utils';
 import { authorizeChannelTool, authorizeHubAdminAction, getCapabilitiesForRole, isOrgAdminRole } from './authorization';
 import { rankUsersByPhoneMatch } from './phone-match';

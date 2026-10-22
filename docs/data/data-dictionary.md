@@ -28,7 +28,7 @@ Evidencia: [store local](../../electron/integrated-browser/semantic-memory-store
 | `profiles` | perfil operativo Lia | enlaza usuario resuelto; no es auth principal |
 | `conversations` | chat, title, owner/org, pin/share flags, `deleted_at` | padre de messages; acceso por user/org/shares; borrado logico: `deleted_at IS NULL` es lo unico que se lista |
 | `messages` | roles, contenido, metadata/tool data | pertenece a conversation; politicas update/delete dedicadas |
-| `folders` | agrupacion/Project Hub | owner/org; relacion con conversaciones |
+| `folders` | agrupación de proyectos y chats | owner/org; relacion con conversaciones |
 | `user_ai_settings` | personalidad/modelo/preferencias | por user_id |
 | `api_keys` | referencias/config de proveedor | nunca documentar valor; acceso por usuario |
 | `user_tools` | tools habilitadas por usuario | relacion usuario-tool |
@@ -75,7 +75,7 @@ acotan consultas. Cambiar de organización no comparte estas filas. Dispositivos
 revocados no leen ni escriben aun si su JWT no ha expirado. No se revocan copias
 ya descargadas ni se implementa aquí el flujo UI de dispositivos.
 
-## IRIS: tablas consumidas
+## IRIS: tablas históricas sin consumo actual en Soflia Hub
 
 | Tabla | Funcion | Claves/relaciones |
 |---|---|---|
@@ -85,9 +85,7 @@ ya descargadas ni se implementa aquí el flujo UI de dispositivos.
 | `task_issues` | issue, numero, proyecto/equipo/asignee | estados/prioridad/ciclo y relaciones |
 | `task_statuses`, `task_priorities` | catalogos de workflow | usados para crear/actualizar issues |
 
-El codigo tambien contiene compatibilidad con `project_members`; el snapshot IRIS
-versionado declara `pm_project_members`, no `project_members`. Esa diferencia debe
-verificarse contra la instancia antes de cambiar consultas.
+La integración está retirada. Estas tablas y el snapshot se conservan como referencia histórica; esta entrega no modifica su contenido ni afirma que estén desplegadas.
 
 ## IRIS: resto del snapshot por dominio
 

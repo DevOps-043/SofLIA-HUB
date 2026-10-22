@@ -13,7 +13,7 @@ señalización, práctica y estado, con autenticación y validación del frame p
 de Hub/Orbe. Main localiza objetivos; el renderer no recibe una API genérica para
 mover ventanas o inyectar entrada. Ver [contrato y comportamiento](autonomous-orb-guidance.md).
 
-El navegador integrado conecta Learning, Engine y Project Hub mediante un
+El navegador integrado conecta Learning y Engine mediante un
 canje de sesión desde main en la partición del usuario. El canal
 `integrated-browser:ecosystem-connect` permite volver explícitamente a la
 cuenta de Soflia Hub; exige frame principal autenticado y cero argumentos.
@@ -74,7 +74,7 @@ aprobación fabricada del renderer. El servicio comprueba capacidad, política,
 perfil y control humano; el borrado pregunta en main. Responde con biblioteca
 versionada, cancelación o error saneado. No existe IPC de ejecución de atajos.
 
-La allowlist actual contiene 488 canales derivados de cinco arrays: 84, 52, 61, 153, 138. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 464 canales derivados de cinco arrays: 84, 52, 61, 151, 116. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |
@@ -93,7 +93,6 @@ el catalogo y su validador deben actualizarse juntos.
 | `desktop-context` | 2 | inventario de ventanas abiertas y extraccion en cascada del contenido de las que el usuario marca en el chat |
 | `skill-workspace` | 14 | espacio de trabajo de Skills: crear, estado, leer, escribir, editar, borrar, guardar y descargar imagenes, abrir carpeta, progreso y URL de vista previa |
 | `presentation`, `presentation-view` | 5 | vista a pantalla completa, exportacion a HTML autocontenido y preparacion de la identidad de marca |
-| `project-hub` | 22 | proyectos, tareas y seguimiento |
 | otros | 68 | voice, updater, automation, drive, pytools, telegram, gchat, app, auth, background-host, root, AI y learning-live |
 
 ### Recorrido obligatorio
@@ -686,24 +685,11 @@ quedaron dentro de `assets/`.
 | Supabase Lia | renderer + main por dominio | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | diagnostico/degradado Lia |
 | Supabase SOFIA | renderer auth/org | `VITE_SOFIA_SUPABASE_*` | bloquea auth principal si no configura |
 | SSO SofLIA Learning | navegador del sistema + deep link `soflia://auth/callback` | `VITE_LEARNING_BASE_URL`, `VITE_LEARNING_SSO_ENABLED` | entrada no se ofrece con el interruptor apagado; el inicio por contrasena no depende de ella |
-| Project Hub/IRIS | API REST desde Electron main | `PROJECT_HUB_API_URL` | UI degradada con reintento; carpetas heredadas intactas |
 | Google OAuth/APIs | Calendar auth compartido | `VITE_GOOGLE_OAUTH_CLIENT_ID/SECRET` | conexion por usuario, refresh y desconexion |
 | Microsoft Calendar | MSAL/Graph | `VITE_MICROSOFT_CLIENT_ID` | conexion separada por provider |
 | ElevenLabs | REST binario y `with-timestamps` desde main | `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`; default `eleven_turbo_v2_5`, formato opcional | Orbe conserva texto sin voz; lector visual disponible; errores saneados de permiso, cuota o timeout |
 
-En desarrollo, `npm run dev` ejecuta `scripts/dev-with-project-hub.mjs`: comprueba
-`PROJECT_HUB_API_URL` (por defecto `https://sofliahub.netlify.app`). Para trabajar
-contra la API local se define explícitamente `PROJECT_HUB_API_URL=http://127.0.0.1:3000`;
-si no responde, el script inicia automáticamente el workspace hermano antes de
-Vite/Electron. La ruta puede sobrescribirse con `PROJECT_HUB_DEV_ROOT`. Una URL
-remota nunca provoca el arranque de procesos locales.
-
-Los instaladores reciben el endpoint público mediante
-`VITE_PROJECT_HUB_API_URL` durante el build. `PROJECT_HUB_API_URL` puede
-sobrescribirlo en runtime para diagnóstico o despliegues administrados. Como
-compatibilidad con instaladores construidos por pipelines anteriores, se usa
-`https://sofliahub.netlify.app`. Localhost requiere una sobrescritura explícita
-con `PROJECT_HUB_API_URL`.
+En desarrollo, `npm run dev` inicia Vite/Electron directamente y no inicia servicios externos.
 | WhatsApp | Baileys WebSocket | QR + config en `userData` | reconnect/status; allowlists |
 | Telegram | Bot API | config cifrada/estado local del servicio | test de conexion y status |
 | SMTP | Nodemailer | configurado via handlers computer | confirmacion de envio y error seguro |
@@ -741,15 +727,7 @@ opcional `homeInShell` se valida sin coerción en main y sólo evita dibujar la
 portada local nativa cuando el renderer ya la compone en modo simple. Omitirlo
 conserva el comportamiento nativo; no permite ejecutar HTML ni protocolos nuevos.
 
-Project Hub usa canales `project-hub:*` con métodos de dominio. El par de tokens
-SOFIA entra por `auth:set-state` para autenticar el cliente SOFIA de main; el
-access token también alimenta el canje verificado de Project Hub. Los tokens
-Project Hub no cruzan preload. Main conserva access tokens en memoria y cifra
-cada refresh token por separado con `safeStorage`. `auth:get-state` nunca
-devuelve credenciales. El renderer puede recibir una URL de upload o descarga
-firmada y efímera, pero nunca una clave Supabase o un token OAuth de Drive. El
-contrato completo y los estados de degradación se documentan en
-[Project Hub unificado](project-hub-unified.md).
+La integración y los canales de Project Hub están retirados. El par de tokens SOFIA entra por `auth:set-state` para autenticar SOFIA en main; `auth:get-state` no devuelve credenciales. Ver [retirada de Project Hub](project-hub-unified.md).
 
 `auth:set-state` admite también `organizationId` opcional y validado como
 selección privada. No cambia la salida de `auth:get-state` ni concede acceso:

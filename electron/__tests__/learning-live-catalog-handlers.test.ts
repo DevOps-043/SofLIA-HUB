@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ catalog: vi.fn() }));
-vi.mock('../iris/clients', () => ({ getSofiaClient: () => null }));
+vi.mock('../sofia/clients', () => ({ getSofiaClient: () => null }));
 vi.mock('../main/sofia-session', () => ({ getSofiaSessionUserId: () => 'student' }));
 vi.mock('../learning-sso', () => ({ readLearningBaseUrl: () => 'https://learning.test' }));
 vi.mock('../learning-live-access', () => ({ openLearningLiveSession: vi.fn() }));

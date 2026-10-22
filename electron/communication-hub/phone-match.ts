@@ -7,7 +7,7 @@
  * el resolutor de principal evalue los candidatos mas confiables primero.
  */
 
-import { normalizePhone } from '../iris/phone';
+import { normalizePhone } from '../sofia/phone';
 
 export function rankUsersByPhoneMatch<T extends { phone?: string | null }>(
   users: T[],

@@ -20,7 +20,7 @@ export const MAX_SOURCE_TEXT_CHARS = 16000;
 export const LOW_CONFIDENCE_TASK_STATE_THRESHOLD = 0.65;
 
 /** Destinos válidos para routing de items extraídos. */
-export const ALLOWED_DESTINATIONS = ['IRIS', 'Project Hub', 'Team', 'Project', 'None'] as const;
+export const ALLOWED_DESTINATIONS = ['Team', 'Project', 'None'] as const;
 
 /** Tipos válidos de follow-up generables por el modelo. */
 export const ALLOWED_FOLLOW_UP_TYPES = [

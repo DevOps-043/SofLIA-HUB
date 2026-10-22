@@ -1,8 +1,6 @@
 export const DEFAULT_FORM = {
   meetingTitle: '',
   meetingType: 'general',
-  defaultTeamId: '',
-  defaultProjectId: '',
   manualText: '',
   driveRef: '',
 };

@@ -1,4 +1,4 @@
-import { getWhatsAppSession, tryAutoAuthByPhone } from '../iris-data-main';
+import { getWhatsAppSession, tryAutoAuthByPhone } from '../sofia/whatsapp-identity';
 import { getSofiaClient } from './clients';
 import type { ResolvedWhatsAppUser } from './types';
 

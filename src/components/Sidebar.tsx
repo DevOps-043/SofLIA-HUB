@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { UserMenu } from './sidebar/UserMenu';
 import { SidebarHeader } from './sidebar/SidebarHeader';
 import { SidebarTopActions } from './sidebar/SidebarTopActions';
-import { UnifiedProjectsSection } from './sidebar/UnifiedProjectsSection';
 import { FolderSection } from './sidebar/FolderSection';
 import { UngroupedChats } from './sidebar/UngroupedChats';
 import { PinnedChats } from './sidebar/PinnedChats';
@@ -19,7 +18,6 @@ const MAX_SIDEBAR_WIDTH = 520;
 export function Sidebar(props: SidebarProps) {
   const { isOpen, onToggle, onNewChat, onCreateFolderClick } = props;
   const [foldersOpen, setFoldersOpen] = useState(false);
-  const [projectsOpen, setProjectsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
@@ -86,8 +84,8 @@ export function Sidebar(props: SidebarProps) {
   if (props.position === 'bottom') {
     return (
       <>
-        {(foldersOpen || projectsOpen) && (
-          <div className="fixed inset-0 z-40" onClick={() => { setFoldersOpen(false); setProjectsOpen(false); }} />
+        {foldersOpen && (
+          <div className="fixed inset-0 z-40" onClick={() => { setFoldersOpen(false); }} />
         )}
         <aside className="w-full h-15 flex-shrink-0 p-1.5 bg-background dark:bg-background-dark text-gray-700 dark:text-white transition-all z-30">
           <div className="h-full overflow-visible rounded-2xl border border-gray-200/85 bg-white/80 shadow-[0_4px_20px_rgba(10,37,64,0.06)] backdrop-blur-xl dark:border-white/[0.07] dark:bg-[rgba(10,13,18,0.92)] dark:shadow-[0_4px_25px_rgba(0,0,0,0.3)]">
@@ -127,7 +125,7 @@ export function Sidebar(props: SidebarProps) {
                 {/* Carpetas Popover Button */}
                 <div className="relative shrink-0">
                   <button
-                    onClick={() => { setFoldersOpen(!foldersOpen); setProjectsOpen(false); }}
+                    onClick={() => { setFoldersOpen(!foldersOpen); }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-200 ${
                       foldersOpen
                         ? 'bg-accent/10 border-accent/20 text-accent font-bold shadow-sm'
@@ -144,31 +142,6 @@ export function Sidebar(props: SidebarProps) {
                     <div className="absolute bottom-full left-0 mb-2.5 z-50 w-72 bg-white/95 dark:bg-[#161B22]/95 border border-gray-200/60 dark:border-white/[0.08] rounded-2xl shadow-2xl p-3 max-h-[70vh] overflow-y-auto sidebar-scrollbar backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-150">
                       <div className="flex flex-col gap-1">
                         <FolderSection props={{ ...props, isOpen: true }} />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* WorkSpaces Popover Button */}
-                <div className="relative shrink-0">
-                  <button
-                    onClick={() => { setProjectsOpen(!projectsOpen); setFoldersOpen(false); }}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-200 ${
-                      projectsOpen
-                        ? 'bg-accent/10 border-accent/20 text-accent font-bold shadow-sm'
-                        : 'bg-transparent border-gray-200/50 dark:border-white/[0.06] text-gray-600 hover:text-gray-900 dark:text-white/70 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/[0.04]'
-                    }`}
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                    </svg>
-                    <span className="hidden md:inline">WorkSpaces</span>
-                  </button>
-
-                  {projectsOpen && (
-                    <div className="absolute bottom-full left-0 mb-2.5 z-50 w-72 bg-white/95 dark:bg-[#161B22]/95 border border-gray-200/60 dark:border-white/[0.08] rounded-2xl shadow-2xl p-3 max-h-[70vh] overflow-y-auto sidebar-scrollbar backdrop-blur-xl animate-in fade-in slide-in-from-bottom-2 duration-150">
-                      <div className="flex flex-col gap-1">
-                        <UnifiedProjectsSection props={{ ...props, isOpen: true }} />
                       </div>
                     </div>
                   )}
@@ -303,7 +276,6 @@ export function Sidebar(props: SidebarProps) {
                 </div>
                 <nav className="flex-1 overflow-y-auto sidebar-scrollbar px-2 pb-2">
                   <PinnedChats props={props} />
-                  <UnifiedProjectsSection props={props} />
                   <FolderSection props={props} />
                   <UngroupedChats props={props} />
                 </nav>

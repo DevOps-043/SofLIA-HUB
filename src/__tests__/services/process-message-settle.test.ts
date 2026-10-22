@@ -13,8 +13,6 @@ const mocks = vi.hoisted(() => ({
   optimizePrompt: vi.fn(),
   getPublicAiErrorMessage: vi.fn(() => 'Error público seguro.'),
   generateImage: vi.fn(),
-  needsIrisData: vi.fn(() => false),
-  buildIrisContext: vi.fn(async () => ''),
   fetchChatMemoryContext: vi.fn(async () => ''),
   recordChatTurn: vi.fn(),
 }));
@@ -25,7 +23,6 @@ vi.mock('../../services/gemini-chat', () => ({
   getPublicAiErrorMessage: mocks.getPublicAiErrorMessage,
 }));
 vi.mock('../../services/image-generation', () => ({ generateImage: mocks.generateImage }));
-vi.mock('../../services/iris-data', () => ({ needsIrisData: mocks.needsIrisData, buildIrisContext: mocks.buildIrisContext }));
 vi.mock('../../services/memory-bridge', () => ({ fetchChatMemoryContext: mocks.fetchChatMemoryContext, recordChatTurn: mocks.recordChatTurn }));
 
 import { processChatMessage } from '../../hooks/chat-processor/process-message';

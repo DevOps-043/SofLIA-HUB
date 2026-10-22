@@ -84,7 +84,7 @@ export function parseMeetingTypeRegistry(raw: string): MeetingTypeDefinition[] {
     else if (trimmed.startsWith('duration_expected:')) current.durationExpected = stripQuotes(value);
     else if (trimmed.startsWith('default_destination:')) {
       const destination = stripQuotes(value);
-      current.defaultDestination = ['IRIS', 'Project Hub', 'Team', 'Project', 'None'].includes(destination)
+      current.defaultDestination = ['Team', 'Project', 'None'].includes(destination)
         ? destination as MeetingTypeDefinition['defaultDestination']
         : 'None';
       activeList = null;

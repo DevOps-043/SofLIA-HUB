@@ -16,7 +16,7 @@ const auth = vi.hoisted(() => ({
 
 const client = vi.hoisted(() => ({ auth }));
 
-vi.mock('../iris/clients', () => ({
+vi.mock('../sofia/clients', () => ({
   getSofiaClient: () => client,
   getSofiaCredentials: () => ({ url: 'https://sofia.supabase.co', key: 'anon' }),
 }));

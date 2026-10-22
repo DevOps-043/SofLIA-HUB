@@ -58,11 +58,8 @@ operational_extraction:
   - Evitar sugerir follow-up redundante si ya existe un siguiente paso claro y owner
     confirmado.
   destination_rules:
-  - 'IRIS: decisiones ejecutivas, gobernanza, síntesis estratégica, board/leadership.'
-  - 'Project Hub: tareas, dependencias, owners, seguimiento operativo de proyecto/sprint.'
   - 'Team: coordinación informativa, check-ins, report-outs, resúmenes compartidos.'
-  - 'Project: cuando el contenido se concentra en un proyecto específico pero no requiere
-    todo Project Hub.'
+  - 'Project: contexto local de un proyecto, sin publicación externa.'
   - 'None: cuando la confianza sea baja o no exista valor claro de envío.'
 governance:
   autonomy_levels:

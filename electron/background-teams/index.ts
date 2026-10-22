@@ -5,7 +5,7 @@ import { getAuthState, onAuthStateChange } from '../main/auth-state';
 import { getSofiaSessionUserId } from '../main/sofia-session';
 import { getHubSessionUserId } from '../main/hub-session';
 import { getWhatsAppOpenAIClient } from '../wa-agent/openai-client';
-import { getSofiaClient } from '../iris/clients';
+import { getSofiaClient } from '../sofia/clients';
 import { getHubDbClient } from '../hub-db-client';
 import { isOpenAIModel } from '../../src/shared/model-providers';
 import type { BackgroundScope } from '../../src/shared/background-teams';
@@ -84,4 +84,3 @@ export async function initializeBackgroundTeams(input: { getWindow(): BrowserWin
   app.once('before-quit', close);
   return close;
 }
-

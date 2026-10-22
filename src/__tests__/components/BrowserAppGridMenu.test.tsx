@@ -51,7 +51,7 @@ describe('BrowserAppGridMenu', () => {
     expect(screen.getByText('Ecosistema SofLIA')).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /SOFLIA LEARNING/i })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /SofLIA Engine/i })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /Project Hub/i })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /Project Hub/i })).not.toBeInTheDocument();
   });
 
   it('navega a la URL seleccionada y cierra el menú al hacer clic en una aplicación', () => {

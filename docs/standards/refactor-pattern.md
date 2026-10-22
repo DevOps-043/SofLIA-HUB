@@ -133,7 +133,6 @@ ubicado — operations es el único nivel "alto".
 1. `electron/desktop-agent-service.ts` (2,527 líneas) — separar Perception/Planning/Action
 2. `electron/whatsapp-agent.ts` (1,631 líneas) — extraer ToolExecutor del agentic loop
 3. `electron/workspace-automation-service.ts` (1,628 líneas) — un archivo por template
-4. `electron/iris-data-main.ts` (1,410 líneas) — repository pattern por entidad
 5. `electron/computer-use-handlers.ts` (1,352 líneas) — handlers por dominio (fs, shell, system)
 
 Cada uno sigue el mismo patrón: types → capas bajas → operations → barrel.

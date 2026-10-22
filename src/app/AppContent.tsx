@@ -24,7 +24,6 @@ import { useShareLinkRouting } from './useShareLinkRouting';
 import { useAuth } from '../contexts/AuthContext';
 import { useChatManager } from '../hooks/useChatManager';
 import { useFolderManager } from '../hooks/useFolderManager';
-import { useIrisData } from '../hooks/useIrisData';
 import { useTheme } from '../hooks/useTheme';
 import { integratedBrowserService, type BrowserSelectionActionRequest } from '../services/integrated-browser-service';
 import { improveBrowserSelection } from '../services/browser-writing';
@@ -61,7 +60,6 @@ export function AppContent() {
     retryConversations,
   } = auth;
   const [activeView, setActiveView] = useState<ActiveView>('chat');
-  const [unifiedProject, setUnifiedProject] = useState<{ workspaceId: string; projectId: string } | null>(null);
   const [isBrowserWorkspaceOpen, setIsBrowserWorkspaceOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [externalPrompt, setExternalPrompt] = useState<string | null>(null);
@@ -77,15 +75,9 @@ export function AppContent() {
   const dismissShareLinkNotice = useCallback(() => setShareLinkNotice(null), []);
   const userId = dataUserId ?? undefined;
   const orgId = sofiaContext?.currentOrganization?.id || '';
-  // Equipos de la organizacion activa (equipos SOFIA = equipos IRIS por id) para segmentar IRIS.
-  const orgTeamIds = useMemo(
-    () => (sofiaContext?.teams || []).filter((team) => team.organization_id === orgId).map((team) => team.id),
-    [sofiaContext?.teams, orgId],
-  );
   const accessUserIds = useMemo(() => Array.from(new Set([dataUserId, user?.id].filter((value): value is string => Boolean(value)))), [dataUserId, user?.id]);
   const chat = useChatManager({ userId, orgId, accessUserIds });
   const folder = useFolderManager({ userId, orgId, accessUserIds, conversations: chat.conversations, setConversations: chat.setConversations });
-  const iris = useIrisData(orgTeamIds);
   const { theme, setTheme } = useTheme();
   const isOrbWindow = window.location.href.includes('view=orb') || getWindowArgv().includes('--view-mode=orb');
   const [showStartupIntro, setShowStartupIntro] = useState(() => !isOrbWindow);
@@ -224,20 +216,12 @@ export function AppContent() {
           displayName={derived.displayName}
           folder={folder}
           initials={derived.initials}
-          iris={iris}
           isSidebarOpen={isSidebarOpen}
           position={sidebarPosition}
           onDeleteConversation={handlers.handleDeleteConversation}
           onDeleteFolder={handlers.handleDeleteFolder}
-          onIrisIssueClick={handlers.handleIrisIssueClick}
-          onIrisProjectClick={handlers.handleIrisProjectClick}
           onNewChat={handlers.handleNewChat}
           onOpenProject={handlers.handleOpenProject}
-          activeUnifiedProjectId={unifiedProject?.projectId ?? null}
-          onOpenUnifiedProject={(workspaceId, projectId) => {
-            setUnifiedProject({ workspaceId, projectId });
-            setActiveView('project-hub');
-          }}
           onOpenMeetings={() => setActiveView('meetings')}
           onOpenBrowser={() => setIsBrowserWorkspaceOpen(true)}
           onOpenSettings={() => { setActiveSettingsTab('ai'); setIsUnifiedSettingsOpen(true); }}
@@ -258,7 +242,6 @@ export function AppContent() {
           chat={chat}
           currentConversation={derived.currentConversation}
           currentFolder={derived.currentFolder}
-          unifiedProject={unifiedProject}
           externalPrompt={externalPrompt}
           externalSelection={externalSelection}
           onExternalSelectionProcessed={() => setExternalSelection(null)}

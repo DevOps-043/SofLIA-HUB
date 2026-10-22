@@ -6,12 +6,6 @@ export async function importMeetingWorkflowSource(
   senderNumber: string,
   text: string,
 ) {
-  const context = await workflowService.getContext();
-  const defaultTeamId = context.teams.length === 1 ? context.teams[0].team_id : null;
-  const matchingProjects = defaultTeamId
-    ? context.projects.filter((project) => !project.team_id || project.team_id === defaultTeamId)
-    : [];
-  const defaultProjectId = matchingProjects.length === 1 ? matchingProjects[0].project_id : null;
 
   if (looksLikeDriveReference(text)) {
     return workflowService.createDriveRun({
@@ -20,8 +14,6 @@ export async function importMeetingWorkflowSource(
       originRef: text.trim(),
       meetingTitle: null,
       meetingType: 'general',
-      defaultTeamId,
-      defaultProjectId,
       fileIdOrUrl: text.trim(),
     });
   }
@@ -32,8 +24,6 @@ export async function importMeetingWorkflowSource(
     originRef: `whatsapp:${senderNumber}`,
     meetingTitle: null,
     meetingType: 'general',
-    defaultTeamId,
-    defaultProjectId,
     text,
   });
 }

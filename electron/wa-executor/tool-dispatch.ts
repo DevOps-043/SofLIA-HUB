@@ -1,6 +1,5 @@
 import { executeToolDirect } from '../computer-use-handlers';
 import { executeGoogleTool, isGoogleTool } from '../whatsapp-executors/google-executors';
-import { executeIrisTool, isIrisTool } from '../whatsapp-executors/iris-executors';
 import { executeSystemTool, isSystemTool } from '../whatsapp-executors/system-executors';
 import { executeAppChatTool, isAppChatTool } from './handlers/app-chat';
 import { handleCreateDocument } from './handlers/create-document';
@@ -54,10 +53,6 @@ async function tryDelegatedTool(
   if (isGoogleTool(toolName)) {
     const result = await executeGoogleTool(toolName, toolArgs, ctx, bulkLabelsToVerify);
     if (result) return result;
-  }
-  if (isIrisTool(toolName)) {
-    const response = await executeIrisTool(toolName, toolArgs, senderNumber);
-    if (response) return { response, bulkLabelsToVerify };
   }
   if (isSystemTool(toolName)) {
     const response = await executeSystemTool(toolName, toolArgs);

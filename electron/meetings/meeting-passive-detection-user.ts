@@ -1,5 +1,5 @@
 import type { CalendarService } from '../calendar-service';
-import { getSofiaUserByEmail } from '../iris-data-main';
+import { getSofiaUserByEmail } from '../sofia/whatsapp-identity';
 import type { PassiveDetectionUserContext } from './passive-detection-notifier';
 
 export async function resolvePassiveDetectionUser(

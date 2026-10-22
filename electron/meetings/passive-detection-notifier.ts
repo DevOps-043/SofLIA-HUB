@@ -1,4 +1,4 @@
-import { getAllWhatsAppSessions } from '../iris-data-main';
+import { getAllWhatsAppSessions } from '../sofia/whatsapp-identity';
 import type { WhatsAppService } from '../whatsapp-service';
 import { buildMeetingRunIntroMessage, MeetingWorkflowManager } from '../whatsapp-workflow-meetings';
 import type { DriveFile } from '../drive-service';

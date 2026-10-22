@@ -51,7 +51,7 @@ Este indice separa documentacion vigente de material historico.
 - [Grabación y repeticiones de webinars](operations/webinar-recordings.md)
 - [Plan de grabación de webinars y repeticiones en Learning (propuesta)](../openspec/changes/record-webinars-and-publish-replays/design.md)
 - [Movimiento autónomo del orbe y prácticas guiadas](architecture/autonomous-orb-guidance.md)
-- [Project Hub unificado](architecture/project-hub-unified.md)
+- [Retirada de Project Hub](architecture/project-hub-unified.md)
 - [Agentes y automatizacion](architecture/agents-and-automation.md)
 - [Manual del agente runtime](architecture/runtime-agents-manual.md)
 - [Arnés multiagente: reuniones, chat, WhatsApp y Computer Use](architecture/runtime-multiagent-harness.md)

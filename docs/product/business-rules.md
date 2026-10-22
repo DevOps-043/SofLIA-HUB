@@ -42,7 +42,7 @@ regla se aplica en el proceso Electron; `DB` significa constraint/RLS/migracion;
 |---|---|---|---|
 | BR-001 | Solo una instancia de Soflia Hub puede poseer el runtime; una segunda instancia sale sin inicializar servicios. | Main | `electron/main.ts` |
 | BR-002 | La identidad principal proviene de SOFIA; Lia se resuelve como perfil operativo y no sustituye la autenticacion principal. | Renderer + DB | `src/contexts/auth/`, `src/lib/sofia-client.ts` |
-| BR-003 | Organizaciones y equipos visibles deben pertenecer a la organizacion activa; los IDs de equipo delimitan consultas IRIS. | Renderer + DB | `src/app/AppContent.tsx`, `src/services/iris-data/` |
+| BR-003 | Organizaciones y equipos visibles deben pertenecer a la organizacion activa; no se consulta Project Hub/IRIS. | Renderer + DB | `src/app/AppContent.tsx`, `src/contexts/auth/useSofiaSelection.ts` |
 | BR-004 | Si la sesión operativa de conversaciones no puede resolverse, la aplicación conserva SOFIA, bloquea solo las capacidades dependientes e informa un estado no técnico con reintento. | UI + renderer | `src/contexts/auth/useLiaSession.ts`, `src/app/ChatUnavailableState.tsx` |
 | BR-005 | Una conversacion solo ofrece compartir cuando `can_share` es verdadero y existe organizacion activa; el backend de share debe volver a validar acceso. | UI + renderer service | `src/app/AppWorkspace.tsx`, `src/services/share/access.ts` |
 | BR-006 | Una allowlist WhatsApp no vacia restringe DMs a numeros normalizados autorizados; la comparacion tolera prefijos solo con al menos diez digitos. | Main | `electron/whatsapp/security.ts`, `electron/whatsapp/phone-utils.ts` |

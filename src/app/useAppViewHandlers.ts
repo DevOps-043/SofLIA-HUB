@@ -67,20 +67,9 @@ export function useAppViewHandlers(options: UseAppViewHandlersOptions) {
     setActiveView('project');
   }, [folder]);
 
-  const handleIrisProjectClick = useCallback(async (project: { project_name: string; project_key: string; project_status: string; completion_percentage: number }) => {
-    await handleNewChat();
-    setExternalPrompt(`Dame un resumen del estado del proyecto "${project.project_name}" [${project.project_key}]. Estado: ${project.project_status}, Progreso: ${project.completion_percentage}%.`);
-  }, [handleNewChat]);
-
-  const handleIrisIssueClick = useCallback(async (issue: { issue_number: number; title: string; description?: string | null; status?: { name: string } | null }) => {
-    await handleNewChat();
-    const statusName = issue.status?.name || 'Sin estado';
-    setExternalPrompt(`Dame detalles sobre la tarea #${issue.issue_number}: "${issue.title}". Estado: ${statusName}.${issue.description ? ` Descripcion: ${issue.description}` : ''}`);
-  }, [handleNewChat]);
-
   return {
-    handleDeleteConversation, handleDeleteFolder, handleIrisIssueClick,
-    handleIrisProjectClick, handleNewChat, handleNewChatInProject,
+    handleDeleteConversation, handleDeleteFolder,
+    handleNewChat, handleNewChatInProject,
     handleNewChatWithMessage, handleOpenProject, handleSelectConversation,
   };
 }

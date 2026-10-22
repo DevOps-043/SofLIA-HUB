@@ -8,7 +8,6 @@ const workspace = path.resolve(hub, '../..');
 const projects = [
   ['learning', 'SofLIA-Learning/SofLIA-Learning/apps/web'],
   ['engine', 'SofLIA - Engine/courseforge/apps/web'],
-  ['project-hub', 'Project-Hub/Project-Hub/apps/web'],
 ];
 export default defineConfig({
   test: { projects: projects.map(([name, directory]) => {

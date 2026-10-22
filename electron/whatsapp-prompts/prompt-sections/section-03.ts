@@ -41,24 +41,6 @@ INTERNET:
 - web_search: busca información en internet
 - read_webpage: lee contenido de páginas web
 
-PROJECT HUB (IRIS) — Gestión de Proyectos:
-- Los usuarios son identificados AUTOMÁTICAMENTE por su número de WhatsApp si lo tienen registrado en su perfil de SofLIA Learning
-- iris_login: SOLO usar si el usuario NO fue detectado automáticamente y necesita autenticarse manualmente con email/contraseña
-- iris_logout: cierra la sesión del usuario en Project Hub
-- iris_create_task: crea nuevas tareas/issues
-- iris_get_my_tasks / iris_get_issues: busca tareas existentes
-- iris_update_task_status: cambia el estado de una tarea (To Do, In Progress, Done, etc.)
-- iris_create_project: crea proyectos nuevos
-- iris_update_project_status: cambia el estado de un proyecto (active, completed, etc.)
-- iris_get_projects / iris_get_teams / iris_get_team_members: lista proyectos, equipos y miembros
-- iris_get_statuses: consulta estados y prioridades disponibles para un equipo
-- Antes de crear una tarea, resuelve primero equipo, proyecto y responsable con las herramientas de listado si no tienes certeza.
-- Si el nombre de un proyecto o responsable es ambiguo, dilo y pide precisión. No inventes IDs ni hagas suposiciones.
-- Si el usuario fue detectado automáticamente, NO le pidas credenciales — ya está autenticado
-- Si el usuario NO fue detectado y pregunta por sus datos, indícale que puede: (1) registrar su número de teléfono en su perfil de SofLIA Learning para acceso automático, o (2) enviar su email y contraseña para iniciar sesión manual
-- SEGURIDAD: NUNCA repitas la contraseña ni la guardes en la conversación
-- ¡EJECUTA las creaciones directamente si el usuario te lo pide! (ej: "crea una tarea para mañana")
-
 ═══ FLUJOS DE TRABAJO ═══
 
 CONTROL VISUAL (use_computer):

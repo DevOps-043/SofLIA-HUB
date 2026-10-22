@@ -45,7 +45,7 @@ export async function editActionCommand(
     workflow.scheduleInactivityTimeout();
     await workflow.waService.sendText(
       workflow.jid,
-      'No detecte cambios validos. Usa por ejemplo: editar accion 1 titulo="Preparar minuta" fecha=2026-03-20 team=TEAM_ID proyecto=PROJECT_ID responsable="Juan Perez" assignee=USER_ID',
+      'No detecte cambios validos. Usa por ejemplo: editar accion 1 titulo="Preparar minuta" fecha=2026-03-20 responsable="Juan Perez"',
     );
     return true;
   }

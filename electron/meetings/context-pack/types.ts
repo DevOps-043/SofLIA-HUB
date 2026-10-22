@@ -12,7 +12,7 @@ export interface MeetingTypeDefinition {
   expectedStructure: string[];
   extractionFocus: string[];
   highValueOutputs: string[];
-  defaultDestination: 'IRIS' | 'Project Hub' | 'Team' | 'Project' | 'None';
+  defaultDestination: 'Team' | 'Project' | 'None';
   routingNotes: string;
   commonConfusions: string[];
   confidenceHints: string[];

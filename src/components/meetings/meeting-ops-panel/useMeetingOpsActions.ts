@@ -5,7 +5,6 @@ import {
   createDriveMeetingRun,
   createManualMeetingRun,
   rejectMeetingAction,
-  syncApprovedMeetingActions,
   updateMeetingAction,
   type MeetingRunDetail,
 } from '../../../services/meeting-service';
@@ -35,7 +34,6 @@ export function useMeetingOpsActions(config: ActionConfig) {
         organizationId: config.organizationId || null, workspaceId: null, ownerUserId: config.userId,
         originChannel: 'app' as const, originRef: 'app:meeting-ops',
         meetingTitle: config.form.meetingTitle || null, meetingType: config.form.meetingType || 'general',
-        defaultTeamId: config.form.defaultTeamId || null, defaultProjectId: config.form.defaultProjectId || null,
       };
       const result = config.mode === 'manual'
         ? await createManualMeetingRun({ ...base, text: config.form.manualText })
@@ -60,7 +58,6 @@ export function useMeetingOpsActions(config: ActionConfig) {
     handleApproveSingleAction: (actionId: string) => approveActions(config, actionId),
     handleSaveAction: (actionId: string) => saveAction(config, actionId),
     handleRejectAction: (actionId: string) => rejectAction(config, actionId),
-    handleSyncActions: () => syncActions(config),
   };
 }
 
@@ -81,7 +78,7 @@ async function approveActions(config: ActionConfig, actionId?: string) {
 async function saveAction(config: ActionConfig, actionId: string) {
   const draft = config.actionDrafts[actionId];
   if (!draft) return;
-  const r = await updateMeetingAction({ actionId, updates: { title: draft.title, due_date: draft.dueDate || null, team_id: draft.teamId || null, project_id: draft.projectId || null, assignee_id: draft.assigneeId || null, issue_id: draft.existingIssueId || null } });
+  const r = await updateMeetingAction({ actionId, updates: { title: draft.title, due_date: draft.dueDate || null } });
   if (!r.success || !r.detail) { config.setError(r.error || 'Error al guardar.'); return; }
   config.setDetail(r.detail); config.setNotice('Accion actualizada.'); await config.loadInitialData();
 }
@@ -90,12 +87,4 @@ async function rejectAction(config: ActionConfig, actionId: string) {
   const r = await rejectMeetingAction({ actionId, decidedByUserId: config.userId, comment: 'Rechazada' });
   if (!r.success || !r.detail) { config.setError(r.error || 'Error al rechazar.'); return; }
   config.setDetail(r.detail); config.setNotice('Accion rechazada.'); await config.loadInitialData();
-}
-
-async function syncActions(config: ActionConfig) {
-  if (!config.detail) return;
-  const r = await syncApprovedMeetingActions({ runId: config.detail.run.id, decidedByUserId: config.userId });
-  if (!r.success || !r.detail) { config.setError(r.error || 'Error al sincronizar.'); return; }
-  config.setDetail(r.detail); config.setNotice(`Sincronizadas: ${r.result?.synced || 0} | Fallidas: ${r.result?.failed || 0}`);
-  await config.loadInitialData();
 }

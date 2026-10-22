@@ -14,7 +14,7 @@ export async function initializeAgentRuntime(input: {
   meetings: MeetingWorkflowService;
 }): Promise<() => void> {
   const { app, safeStorage } = await import('electron');
-  const { getSofiaClient } = await import('../iris/clients');
+  const { getSofiaClient } = await import('../sofia/clients');
   const { getSofiaSessionUserId } = await import('../main/sofia-session');
   const { getHubSessionUserId } = await import('../main/hub-session');
   const getUserId = () => {

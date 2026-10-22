@@ -32,8 +32,7 @@ Sin estas el producto sale inutilizable:
 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | Conversaciones, reuniones y ajustes |
 | `VITE_SOFIA_SUPABASE_URL`, `VITE_SOFIA_SUPABASE_ANON_KEY` | Autenticación y organizaciones |
 
-El resto son opcionales y solo apagan su integración: `VITE_IRIS_SUPABASE_*`
-(Project Hub), `VITE_GOOGLE_OAUTH_CLIENT_*` (Google Workspace),
+El resto son opcionales y solo apagan su integración: `VITE_GOOGLE_OAUTH_CLIENT_*` (Google Workspace),
 `VITE_OPENAI_VECTOR_STORE_IDS` (file search), `VITE_MICROSOFT_CLIENT_ID` y
 `VITE_SOFLIA_LEARNING_SUPABASE_*`.
 

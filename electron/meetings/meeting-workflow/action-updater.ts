@@ -1,16 +1,11 @@
-import type { getTeamMembersDetailed } from '../../iris-data-main';
-import type { MeetingAssigneeService } from '../meeting-assignee-service';
 import type { MeetingReviewService } from '../meeting-review-service';
 import type { MeetingStore } from '../meeting-store';
 import type { MeetingRunDetail, UpdateMeetingActionInput } from '../meeting-types';
-import { reconcileActionPayload } from './assignee-reconciliation';
 
 export async function updateMeetingActionDraft(
   deps: {
     store: MeetingStore;
     reviewService: MeetingReviewService;
-    assigneeService: MeetingAssigneeService;
-    getTeamMembersDetailed: typeof getTeamMembersDetailed;
     getRunDetail: (runId: string) => Promise<MeetingRunDetail>;
   },
   actionId: string,
@@ -18,7 +13,7 @@ export async function updateMeetingActionDraft(
 ): Promise<MeetingRunDetail> {
   const currentAction = await deps.store.getAction(actionId);
   if (!currentAction) throw new Error('No encontre la accion a actualizar.');
-  const nextPayload = await reconcileActionPayload(deps, {
+  const nextPayload = {
     ...currentAction.payload,
     ...(updates.title !== undefined ? { title: updates.title || undefined } : {}),
     ...(updates.description !== undefined ? { description: updates.description || undefined } : {}),
@@ -28,7 +23,7 @@ export async function updateMeetingActionDraft(
     ...(updates.owner_candidate !== undefined ? { owner_candidate: updates.owner_candidate || null } : {}),
     ...(updates.assignee_id !== undefined ? { assignee_id: updates.assignee_id || null } : {}),
     ...(updates.issue_id !== undefined ? { issue_id: updates.issue_id || undefined } : {}),
-  });
+  };
   const action = await deps.store.updateActionDraft(actionId, {
     ...updates,
     owner_candidate: nextPayload.owner_candidate ?? null,

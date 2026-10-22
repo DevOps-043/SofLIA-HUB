@@ -97,16 +97,6 @@ export const TOOL_DISPLAY_NAMES: Record<string, string> = {
   // WhatsApp
   whatsapp_send_file: 'Enviando archivo por WhatsApp...',
 
-  // IRIS (Project Hub)
-  get_current_user_id: 'Identificando la sesión...',
-  get_iris_teams: 'Revisando equipos de IRIS...',
-  get_iris_team_members: 'Revisando integrantes...',
-  get_iris_projects: 'Revisando proyectos de IRIS...',
-  create_iris_project: 'Creando proyecto en IRIS...',
-  delete_iris_project: 'Eliminando proyecto de IRIS...',
-  create_iris_issue: 'Creando tarea en IRIS...',
-  get_iris_statuses: 'Revisando estados...',
-  get_iris_priorities: 'Revisando prioridades...',
 
   // Nodos remotos
   get_remote_node_host_status: 'Verificando el host remoto...',

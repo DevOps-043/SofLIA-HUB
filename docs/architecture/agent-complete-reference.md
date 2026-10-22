@@ -418,9 +418,9 @@ herramientas: los cálculos salen de Python real, no de aritmética "de memoria"
 
 `buildModelTools` arma el set según contexto:
 
-- con computer use habilitado: `COMPUTER_USE_TOOLS`, `PROJECT_HUB_TOOLS`,
+- con computer use habilitado: `COMPUTER_USE_TOOLS`,
   `NATIVE_AI_TOOLS`;
-- sin computer use: solo `PROJECT_HUB_TOOLS` y `NATIVE_AI_TOOLS`;
+- sin computer use: solo `NATIVE_AI_TOOLS`;
 - si existe el navegador integrado: `INTEGRATED_BROWSER_TOOLS` se agrega con la
   lectura, la navegación y el controlador determinista (clic, escritura, scroll
   y retroceso), independientemente de Computer Use;
@@ -490,12 +490,6 @@ Calendar: `google_calendar_get_events`, `google_calendar_create`,
 `google_calendar_delete`, `google_calendar_get_connections`.
 Drive: `drive_list_files`, `drive_search`, `drive_download`, `drive_upload`,
 `drive_create_folder`.
-
-**Project Hub / IRIS** (`project-hub-tools.ts`)
-
-`get_iris_teams`, `get_iris_projects`, `get_iris_team_members`,
-`create_iris_project`, `delete_iris_project`, `create_iris_issue`,
-`get_iris_statuses`, `get_iris_priorities`, `get_current_user_id`.
 
 **Nodos remotos** (`remote-node-tools.ts`)
 
@@ -608,10 +602,7 @@ con el objetivo real.
    `open_application` u `open_url`; debe pedir que se conecte desde la app.
 7. **Contexto de grupo**: reglas de activación, concisión, prohibición de
    acciones destructivas y el búfer de historial pasivo del grupo.
-8. **Sesión IRIS**: si el número está registrado hace auto-auth; inyecta usuario,
-   equipos y, cuando el mensaje lo requiere (`needsIrisData`), el contexto de
-   proyectos y tareas. Si IRIS está disponible pero sin sesión, explica cómo
-   autenticarse.
+8. **Identidad SOFIA**: la identificación por teléfono conserva el ámbito de memoria y el acceso a conversaciones. No se consultan proyectos o equipos IRIS.
 9. **Directiva de evidencia** (§3.8) cuando la clasificación no es `none`.
 
 ### 3.6 Selección de modelo
@@ -671,10 +662,10 @@ terminó o si debe insistir.
 1. **Guarda de intención** (`guardUnrequestedOperationalTools`): si el mensaje
    del usuario **no** pide una acción (`detectActionRequest` es falso) y el
    modelo intenta usar herramientas operativas — computadora, navegador, chats
-   internos, archivos, Google Workspace, IRIS, procesos — se bloquean. La
+   internos, archivos, Google Workspace, procesos — se bloquean. La
    detección usa una lista explícita de 62 nombres más patrones
    (`^(create|write|delete|move|copy|open|run|execute|kill|lock|shutdown|...)_`,
-   `^(app_chat|drive|gmail|google_calendar|gchat|iris)_`, `^whatsapp_(send|update)`).
+   `^(app_chat|drive|gmail|google_calendar|gchat)_`, `^whatsapp_(send|update)`).
    La primera vez devuelve un "ERROR DE INTENCION" al modelo; a la segunda corta
    el turno con un mensaje al usuario. Esto es lo que impide que un "hola" o un
    sticker terminen abriendo el explorador de archivos.
@@ -776,14 +767,14 @@ escritura y borrado de archivos (`delete_item`, `write_file`, `move_item`,
 portapapeles (`clipboard_read`, `clipboard_write`), los planes de organización
 de Gmail y **todo** el chat interno de la app (`app_chat_*`).
 
-En grupo quedan disponibles: búsqueda web, lectura de páginas, consultas IRIS,
+En grupo quedan disponibles: búsqueda web, lectura de páginas,
 creación de documentos y envío de archivos.
 
 ### 3.12 Catálogo completo de herramientas de WhatsApp
 
 **133 herramientas** declaradas en 11 dominios. Orden de concatenación en
 `WA_TOOL_DECLARATIONS`: filesystem, comunicación, memoria, perfil, computadora,
-nodos remotos, sistema, extensibilidad, IRIS, Google, automatización.
+nodos remotos, sistema, extensibilidad, Google, automatización.
 El catálogo efectivo de una conversación es siempre un subconjunto: depende de
 los permisos del remitente y de si el canal es DM o grupo (§3.7).
 
@@ -899,13 +890,6 @@ remitente actual (nombre, tono, trato, contexto, instrucciones).
 `install_home_assistant_toolset` (§6), más `create_document` (documentos
 profesionales; `type:"pptx"` genera presentación con diseño premium exportada a
 PDF a partir de `slides_json`).
-
-#### IRIS / Project Hub
-
-`iris_login`, `iris_logout`, `iris_get_projects`, `iris_create_project`,
-`iris_update_project_status`, `iris_get_my_tasks`, `iris_get_issues`,
-`iris_create_task`, `iris_update_task_status`, `iris_get_teams`,
-`iris_get_team_members`, `iris_get_statuses`.
 
 #### Google Workspace
 

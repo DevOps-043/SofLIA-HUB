@@ -1,11 +1,4 @@
-/**
- * Cliente generico a la BASE DE DATOS DE SOFLIA HUB (VITE_SUPABASE_URL)
- * para el proceso main.
- *
- * Regla de arquitectura: lo operativo del Hub (meetings, estado de workflows,
- * tareas programadas) vive en la base del Hub. IRIS es el producto compartido
- * y solo RECIBE informacion aprobada via iris-data-main. Las bases no se mezclan.
- */
+/** Persistencia propia de Soflia Hub en Lia. */
 import { app } from 'electron';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
