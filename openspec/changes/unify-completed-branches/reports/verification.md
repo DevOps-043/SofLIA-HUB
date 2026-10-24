@@ -1,6 +1,6 @@
 # Integración local de ramas terminadas
 
-Fecha: 2026-10-24. Estado: integración construida; verificación en curso.
+Fecha: 2026-10-24. Estado: integración local completada y verificada.
 
 ## Alcance y decisiones
 
@@ -49,8 +49,12 @@ mediante un merge `ours` de la retirada; no se certifica despliegue ni se ejecut
 - `npm exec -- vite build --config vite.zoom.config.mts`: correcto; advertencia
   de tamaño de los bundles de proveedores. No es una prueba de llamada real.
 - `npm run harness:validate`: correcto, 25 rutas y 10 skills.
-- Compuerta en curso: documentación y suministro correctos; OpenSpec estricto
-  93/93; pruebas de scripts 4/4. El enlace al inventario falló temporalmente
+- `HARNESS_BASE_REF=3b4f898 npm run verify:pr`: completada con código 0.
+  Documentación y suministro correctos; OpenSpec estricto 93/93; pruebas de
+  scripts 4/4; typecheck correcto; lint incremental de 8 archivos sin deuda nueva.
+  Suite completa: 499 archivos aprobados y 2 omitidos; 5694 pruebas aprobadas y
+  5 omitidas, 218,50 segundos. Los dos casos de permisos también pasaron dentro
+  de esta suite. El enlace al inventario falló temporalmente
   mientras se construía el JSON; pasó al completar el archivo en la compuerta.
 
 ## Revisión adversarial
@@ -68,8 +72,14 @@ mediante un merge `ours` de la retirada; no se certifica despliegue ni se ejecut
 
 ## Recuperación y límites
 
-Main se avanza localmente por fast-forward, conservando una rama de respaldo.
+Main avanzó localmente por fast-forward, conservando la rama
+`codex/backup-main-before-unify-20261024` en `61cbadf`.
 No se publican referencias, se borran ramas ni se alteran worktrees ajenos.
 La carpeta principal continúa en la rama de deuda; para usar el árbol unificado
 se debe abrir su worktree aislado. La activación real de Video SDK y de la API
 de proyectos conserva los requisitos operativos de sus cambios originales.
+
+El árbol de código entregado es el mismo que aprobó la compuerta. El cierre
+posterior sólo registra los resultados y tareas. No se ejecutó verify:release
+ni se publicó un instalador. El log de la compuerta quedó en el directorio
+temporal del sistema como `soflia-unify-20261024-verify-pr.log`.

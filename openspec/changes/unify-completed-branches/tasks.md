@@ -2,6 +2,6 @@
 - [x] Crear integración aislada desde el panel terminado.
 - [x] Fusionar ramas pendientes y documentar la retirada histórica sustituida.
 - [x] Recalcular el inventario documental.
-- [ ] Ejecutar verificación proporcional y registrar resultados y límites.
+- [x] Ejecutar verificación proporcional y registrar resultados y límites.
 - [x] Revisar conflictos y cobertura Git con enfoque adversarial.
-- [ ] Respaldar y actualizar main local mediante fast-forward.
+- [x] Respaldar y actualizar main local mediante fast-forward.
