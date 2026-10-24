@@ -1,0 +1,596 @@
+[
+  {
+    "rama": "codex/agent-activity-window",
+    "commit": "f675e07c2f8c55edd3a55b21b9c5cd758cb5636f",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "codex/complete-orb-agent-monitor",
+    "commit": "9c73dd7307c967fbe7e8f2750c138323638dabc9",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "codex/extend-runtime-multiagents",
+    "commit": "850b5a3ac16068834a5513a247d4c8842b30961d",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "codex/finish-browser-recovery",
+    "commit": "02af1afd15b181979a39e4804ce5f40ee4e36005",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "codex/fix-browser-shutdown",
+    "commit": "06ae9d5b7a6d53c1e4a2e4ec9259fed7c8090afe",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "codex/fix-chat-menu-overflow",
+    "commit": "8e980c4f6c9b7b8700e82cd85a7d007fd9a4506a",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "codex/fix-computer-use-continuity",
+    "commit": "975c86ecaf435aec3c1b68f2ba5fcebb8d61d6a7",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "codex/fix-google-chat-huddle",
+    "commit": "817698378f74aefd21bf25a51a55b5bcbb87f59a",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "codex/fix-sofia-org-whatsapp-auth",
+    "commit": "eb9792f5678a2d8e7df28be04327add6b2709148",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "codex/fix-soflia-max-selector",
+    "commit": "fbed79cce9a3a164e36ffcb55ef344c05bdf7532",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "codex/hub-consolidado-20261014",
+    "commit": "532a59fa455d1bac0cabd3de92f217e981098695",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "codex/integrate-multiagent-harness",
+    "commit": "8f0ff22b2573f5353d513d281db5a2c82a5667de",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "codex/optimize-browser-latency",
+    "commit": "440434b782f2f8715a9775c2286110b1dd75d1c8",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "codex/project-panel",
+    "commit": "3b4f898bbb0de2b13d7dd6caf8fe2b844a67c0e1",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "codex/reduce-technical-debt",
+    "commit": "e166d250629e503cf12f69449fb6d66e569134c8",
+    "excluida": true,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "codex/remove-project-hub-integration",
+    "commit": "a7d705c8f842708e4ee9b6e2b7089687b98ef5d4",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "codex/research-user-value",
+    "commit": "0fc980a7c619474cd701f34bbc4368421078dda3",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "codex/runtime-command-approvals",
+    "commit": "1f79af6c11722eb3cbd5eac6888f56412bafed43",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "codex/simplify-synchronous-studio",
+    "commit": "f0b18bca3948aa8157f8cc9e4a8d3fdaa2036da9",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "codex/studio-transitions",
+    "commit": "e166d250629e503cf12f69449fb6d66e569134c8",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "codex/unify-branches-20261024",
+    "commit": "03c72a67d2db1eeeaf5eb2b4d29f60ea2e7dc15f",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "codex/upgrade-integrated-browser",
+    "commit": "0007057856cdc0a15522bd971bc1e5db01f69440",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "codex/whatsapp-gpt6-luna",
+    "commit": "6237e37a51f89dea4ddb2446de09fbede7f3a03b",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "codex/zoom-video-sdk",
+    "commit": "68117d2dd09120655ffe9e941a335771fb553b67",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "main",
+    "commit": "61cbadfea1a157984d9f2f47e9a035ee0e2f6fac",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin",
+    "commit": "d8c1de59bc8dbfae44e660f848e14f7519a10964",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/Refactor",
+    "commit": "dadd8d10675f4f97edd75cc652dc4015832a9a42",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-02-22T19-37",
+    "commit": "7cb359eca718a7be8ae5255d5b684afd1028bf06",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-02-22T20-44",
+    "commit": "5667c1e9c054d6e567c3de4abbc4552f5de2d3c7",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-02-22T21-30",
+    "commit": "cc3058e30dbc926706894b232d01cfe09eff7008",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-02-22T22-38",
+    "commit": "1940bcd6661418a79d5e6e1068937dbccc5d6795",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-02-23T05-43",
+    "commit": "ca15e23f6687d4c27cd780222afe8e1cf97ae3ce",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-02-23T06-02",
+    "commit": "6090ae861219dd027d6cdd64e1c735a2a7d82d11",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-02-23T09-05",
+    "commit": "dec4fcae9a4acfd7ebe57e7506d3cec3b8c76dd2",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-02-24T18-51-15--pyw2q",
+    "commit": "e3315e71ff3655a79a0d231b9d399aa974c4a1e3",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-02-24T22-38-54--e7rc6",
+    "commit": "490ca195e17e857e0041dbfa2d81854000c1bd26",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-02-25T09-07-19--cvwwg",
+    "commit": "700d77169bc5e1ea1bb5f76052bc0554cb2f842a",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-02-26T04-22-11--2ea6w",
+    "commit": "d381d6777ad2ceb105001907b4cb0d164ae4c7e6",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-02-26T18-56-43--7nza9",
+    "commit": "45f1662225952ce02fc378118427d91d3783cff0",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-02-27T00-51-05--577fm",
+    "commit": "e3969e9a584116b0cc04c6a39e2c033b6751f6d9",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-02-27T21-56-12--ogcuc",
+    "commit": "74d7b7d31ce8300a397407b82f0608c81e428786",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-02-28T02-37-06--a3u89",
+    "commit": "691b95cd64e321be4f5047a95c4a8b2cf8f01a08",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-02-28T09-04-47--vk15y",
+    "commit": "0ed0dedd446471cdc074bb903f04d4052c720b19",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-02-28T14-41-57--hrxel",
+    "commit": "59f7ef7c990602560a32c712b522a891d17b4db9",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-02-28T23-18-03--kku70",
+    "commit": "f912aaf5c197a1eda69ca186aa38ce9e346987c4",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-03-01T00-38-16--vs795",
+    "commit": "ffa10e7d349e76aa4b899d9adc6dc04ec8f048bd",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-03-01T09-06-04--1s67o",
+    "commit": "5929b1fd0c0149778e0e5b5fa7febd42cd8f073d",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-03-02T05-11-07--tdpzz",
+    "commit": "82cc0d91e45ddcbb48b6ac57845d11530ee31c94",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-03-03T22-55-35--f4qxc",
+    "commit": "303f1564a9cf5b1015040cfba72ce37bdac392e0",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-03-05T09-04-05--bvltf",
+    "commit": "50726ade55e581476c5c43f5d181d0852090ee4a",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-03-05T21-11-21--by0zg",
+    "commit": "5ddf8208daf159a945c9bc26d52ca7eab45183d5",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-03-06T09-05-12--1ip2a",
+    "commit": "bcc8b819f3d54a568a18eec1195e9ab3fe514051",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-03-07T05-08-37--n0x2u",
+    "commit": "26dc8a74ef343a697c4e95a7938351676912497f",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-03-07T09-03-43--jm0si",
+    "commit": "be53afb2b2e69d42e491829508d187e78978f9e2",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-03-07T09-04-04--r5kpr",
+    "commit": "581f3a36515201b9943a038ba5d92005f21ba6f6",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-03-07T20-44-23--mlyt8",
+    "commit": "8445ffab16093551bdf696d1792c5e371e7a0e8f",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-03-07T21-53-20--zndkz",
+    "commit": "ae8442a5b6728799e2d5b53ddadc07419d699beb",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-03-09T06-14-57--qgyxw",
+    "commit": "9d5044398bca3aeacdb16529b87cd521a02bb8c2",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-03-09T07-06-57--ij4pb",
+    "commit": "4d5f2ec021b55fb0bed871792dcf66aba65d351d",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-03-09T09-04-24--qae82",
+    "commit": "25db740bbe5131005bb29af2a4d3722993d9fdb8",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/autodev/2026-03-09T09-05-56--5jwa0",
+    "commit": "af49fbda7edf60131e7cc7e3db9cf3dfbcb9606c",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/autonomous-orb-guidance",
+    "commit": "8d8f58233fbad77451054f7bfce2fd5262acef62",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/autonomous-orb-guidance-implementation",
+    "commit": "0f74b459b8584fa1bf7eb77b0788f27e0c69c61b",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/embedded-browser",
+    "commit": "e83f749394ea9e8f72b6ea8dec7ff8da0135ecc3",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/finish-browser-recovery",
+    "commit": "02af1afd15b181979a39e4804ce5f40ee4e36005",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/fix-browser-shutdown",
+    "commit": "06ae9d5b7a6d53c1e4a2e4ec9259fed7c8090afe",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/fix-chat-menu-overflow",
+    "commit": "8e980c4f6c9b7b8700e82cd85a7d007fd9a4506a",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/fix-computer-use-continuity",
+    "commit": "975c86ecaf435aec3c1b68f2ba5fcebb8d61d6a7",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/fix-desktop-click-execution",
+    "commit": "8d8f58233fbad77451054f7bfce2fd5262acef62",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/fix-google-chat-huddle",
+    "commit": "817698378f74aefd21bf25a51a55b5bcbb87f59a",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/fix-linux-application-open",
+    "commit": "213a2278512e97237308a649f689cde362a576d2",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/fix-migrated-user-chat-session",
+    "commit": "df961e31b9579f7ea6eb0f51c70e6d720bb56d16",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/fix-sofia-org-whatsapp-auth",
+    "commit": "eb9792f5678a2d8e7df28be04327add6b2709148",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/fix-soflia-max-selector",
+    "commit": "fbed79cce9a3a164e36ffcb55ef344c05bdf7532",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/harness-foundation",
+    "commit": "c5927b2c148bb0abd0ec357eac90d26ce8cde06a",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/hub-consolidado-20261014",
+    "commit": "16680713011c249ad11f6a362ad268bf4ee72a93",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/integrate-multiagent-harness",
+    "commit": "8f0ff22b2573f5353d513d281db5a2c82a5667de",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/learning-live-handoff",
+    "commit": "72da2fdfcb80611f4751ff55a487d8eb7e3a520c",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/live-studio-runtime",
+    "commit": "c84bc6e7b0a6a82cf3a0709ea5439d0b8579e32d",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/native-multimodal-input",
+    "commit": "8c735e26d4fddbc5dc7e784ca4ea90be3eabddeb",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/optimize-browser-latency",
+    "commit": "440434b782f2f8715a9775c2286110b1dd75d1c8",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/optimize-runtime-resources",
+    "commit": "c089873053b6cf04b7a4deb03a587767f9884c45",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/organization-document-branding",
+    "commit": "759747c38b1b8c425c1f8a6796eed71f288bbc11",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/presentaciones-audiovisual",
+    "commit": "1505d2c22116f0ed589f91cbbcec7018aafc2c4b",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/presentation-quality",
+    "commit": "c30484e4434130b8e01b704d7a5a704bdb367271",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/project-panel",
+    "commit": "3b4f898bbb0de2b13d7dd6caf8fe2b844a67c0e1",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/record-webinars-and-publish-replays",
+    "commit": "dc3c509084e49297f5a7ca158faa4302af37c3a1",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/redesign-synchronous-sessions",
+    "commit": "4f59b0aa02ed5d4694f9bd6940539dc0656a38a6",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/remove-project-hub-integration",
+    "commit": "a7d705c8f842708e4ee9b6e2b7089687b98ef5d4",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/research-user-value",
+    "commit": "0fc980a7c619474cd701f34bbc4368421078dda3",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/respaldo-hub-recuperado-20261014",
+    "commit": "135c4af9a2e549dd24b0a582d1a509df1069e44e",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/runtime-command-approvals",
+    "commit": "1f79af6c11722eb3cbd5eac6888f56412bafed43",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/simplify-synchronous-studio",
+    "commit": "f0b18bca3948aa8157f8cc9e4a8d3fdaa2036da9",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/soflia-hub-brand",
+    "commit": "9049ce44f804f7ed46bda431dee640b66256cfea",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/studio-transitions",
+    "commit": "e166d250629e503cf12f69449fb6d66e569134c8",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/upgrade-integrated-browser",
+    "commit": "0007057856cdc0a15522bd971bc1e5db01f69440",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/codex/zoom-video-sdk",
+    "commit": "68117d2dd09120655ffe9e941a335771fb553b67",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/feature/sdo-registro-operativo",
+    "commit": "51e28f6ee110327ae2009fa8d560fe46ad1c638c",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  },
+  {
+    "rama": "origin/main",
+    "commit": "d8c1de59bc8dbfae44e660f848e14f7519a10964",
+    "excluida": false,
+    "ancestroCompartidoEnIntegracion": true
+  }
+]
