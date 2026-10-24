@@ -2,7 +2,7 @@
 El estudio central usa desplazamiento vertical y contiene dos monitores. Hay trabajo ajeno en creación de proyectos; este cambio se desarrolla en un worktree aislado.
 
 ## Decisions
-Mantener un solo monitor y un dock inferior de escenas/fuentes. La lista muestra filas de 28 píxeles y conserva desplazamiento interno al exceder su capacidad, como un dock OBS; nunca obliga a desplazar todo el escenario para acceder a ella. En ventanas bajas el monitor cede espacio al dock.
+Mantener un solo monitor y un dock inferior de escenas a todo el ancho. El apartado informativo Fuentes se elimina por solicitud del usuario; los controles de medios permanecen en la barra inferior. La lista muestra filas de 28 píxeles y conserva desplazamiento interno al exceder su capacidad, como un dock OBS; nunca obliga a desplazar todo el escenario para acceder a ella. En ventanas bajas el monitor cede espacio al dock.
 
 Activar salida requiere una acción explícita. Una vez activa, cada clic cambia directamente el programa, conservando la pista y el contenido anterior si la fuente falla. Se eliminan efectos configurables y preparación intermedia del hook de UI. Los algoritmos del compositor conservan sus contratos internos y pruebas de transporte.
 

@@ -8,8 +8,8 @@ import { useStudioScenes } from './useStudioScenes';
 import type { StudioRoom, StudioViewMode } from './studio-types';
 import type { StudioSceneDraft } from './useStudioScenes';
 
-export function StudioPreview({ viewMode, onViewMode, screen, camera, mic, sceneBank, onSelect, onRemove, onAdd, onRelink, pending, instructorName, room, output, canvasRef }: {
-  viewMode: StudioViewMode; onViewMode: (mode: StudioViewMode) => void; screen: boolean; camera: boolean; mic: boolean;
+export function StudioPreview({ viewMode, onViewMode, camera, mic, sceneBank, onSelect, onRemove, onAdd, onRelink, pending, instructorName, room, output, canvasRef }: {
+  viewMode: StudioViewMode; onViewMode: (mode: StudioViewMode) => void; camera: boolean; mic: boolean;
   sceneBank: ReturnType<typeof useStudioScenes>; onSelect: (id: string) => void; onRemove: (id: string) => void; onAdd: (draft: StudioSceneDraft) => string | null; onRelink: (id: string) => void; pending: boolean; instructorName: string; room: StudioRoom | null;
   canvasRef: (canvas: HTMLCanvasElement | null) => void;
   output: { active: boolean; pending: boolean; sharing: boolean; error: string; canStart: boolean; start: () => void; stop: () => void };
@@ -35,7 +35,6 @@ export function StudioPreview({ viewMode, onViewMode, screen, camera, mic, scene
     {output.error && <p className="studio-output-error" role="alert">{output.error}</p>}
     <div className="studio-bottom-docks">
       <StudioSceneBank scenes={scenes} activeId={activeScene?.id ?? null} onSelect={showScene} onRemove={onRemove} onAdd={onAdd} onRelink={onRelink} capturePending={pending} />
-      <section className="studio-source-strip" aria-label="Fuentes de transmisión"><h3>Fuentes</h3><span className={screen ? 'source-active' : ''}><LiveIcon name="screen" />Pantalla<i /></span><span className={camera ? 'source-active' : ''}><LiveIcon name="video" />Cámara<i /></span><span className={mic ? 'source-active' : ''}><LiveIcon name="mic" />Micrófono<i /></span></section>
     </div>
   </main>;
 }

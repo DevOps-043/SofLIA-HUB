@@ -38,3 +38,13 @@ ajeno de creación de proyectos. La fixture de revisión usa datos de ejemplo y 
 acredita una reunión real.
 
 Rollback: revertir el commit del cambio; no hay migración ni datos por restaurar.
+
+## Ajuste posterior: quitar Fuentes
+Se retiró el apartado informativo Fuentes, su prop de estado exclusiva y sus
+estilos sin consumidores. Escenas ocupa todo el ancho; controles y dispositivos
+permanecen en la barra inferior. Verificación visual: dock y escenas miden 588 px,
+sin apartado Fuentes ni scroll central (537/537). Las 21 pruebas de los tres
+componentes afectados pasan, lint incremental y docs:check pasan. verify:pr
+mantiene el bloqueo preexistente de tipos de Gmail descrito arriba.
+
+![Escenas sin el apartado Fuentes](without-sources.png)

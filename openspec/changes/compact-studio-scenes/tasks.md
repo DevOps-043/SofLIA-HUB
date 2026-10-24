@@ -3,5 +3,6 @@
 - [x] 2. Sustituir tarjetas por filas y reservar espacio para el dock.
 - [x] 3. Verificar regresiones y tamaños de ventana.
 - [x] 4. Actualizar documentación y registrar la compuerta y su excepción preexistente.
+- [x] 5. Retirar el apartado informativo Fuentes y ampliar Escenas a todo el ancho por solicitud posterior.
 
 Resultados y límites: [reporte](reports/implementation.md).
