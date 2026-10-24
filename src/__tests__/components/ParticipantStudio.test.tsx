@@ -23,6 +23,29 @@ beforeEach(()=>{
 function open(){const runtime={snapshot,send,busy:false} as unknown as StudioRuntime;return render(<StudioRuntimeContext.Provider value={runtime}><StudioMediaContext.Provider value={media}><ParticipantStudio onBack={vi.fn()} onClose={vi.fn()}/></StudioMediaContext.Provider></StudioRuntimeContext.Provider>);}
 afterEach(()=>vi.useRealTimers());
 describe('aula del participante',()=>{
+  it('limita paneles al reducir la ventana y libera sus observadores al salir',()=>{
+    const observers:{notify:()=>void;disconnected:boolean}[]=[];
+    vi.stubGlobal('ResizeObserver',class {entry:{notify:()=>void;disconnected:boolean};constructor(callback:()=>void){this.entry={notify:callback,disconnected:false};observers.push(this.entry);}observe(){}disconnect(){this.entry.disconnected=true;}});
+    try{
+      const panel=open(),layout=screen.getByRole('region',{name:'Aula del participante'}).querySelector('.participant-layout')!;
+      const area=screen.getByRole('main',{name:'Contenido de la sesión'});let width=1200,height=700;
+      layout.getBoundingClientRect=()=>({width,height} as DOMRect);area.getBoundingClientRect=()=>({width:800,height} as DOMRect);
+      act(()=>observers.forEach(observer=>observer.notify()));
+      const chat=screen.getByRole('separator',{name:'Cambiar ancho del chat y transmisión'}),activities=screen.getByRole('separator',{name:'Cambiar altura de actividades y transmisión'});
+      fireEvent.keyDown(chat,{key:'End'});fireEvent.keyDown(activities,{key:'End'});expect(chat).toHaveAttribute('aria-valuenow','868');expect(activities).toHaveAttribute('aria-valuenow','498');
+      width=600;height=400;act(()=>observers.forEach(observer=>observer.notify()));expect(chat).toHaveAttribute('aria-valuenow','268');expect(activities).toHaveAttribute('aria-valuenow','198');
+      panel.unmount();expect(observers.every(observer=>observer.disconnected)).toBe(true);
+    }finally{vi.unstubAllGlobals();}
+  });
+  it('ajusta chat y actividades sin desmontar video, borradores o práctica abierta',()=>{
+    media.zoomConnected=true;media.zoomStage=<video data-testid="class-video"/>;open();
+    const video=screen.getByTestId('class-video');fireEvent.change(screen.getByRole('textbox',{name:'Tu mensaje al grupo'}),{target:{value:'Mi borrador'}});
+    fireEvent.click(screen.getByRole('button',{name:'Abrir actividad'}));fireEvent.change(screen.getByRole('textbox',{name:'Tu entrega'}),{target:{value:'Mi solución'}});
+    const chat=screen.getByRole('separator',{name:'Cambiar ancho del chat y transmisión'}),activities=screen.getByRole('separator',{name:'Cambiar altura de actividades y transmisión'});
+    fireEvent.keyDown(chat,{key:'ArrowLeft'});expect(chat).toHaveAttribute('aria-valuenow','356');fireEvent.keyDown(activities,{key:'ArrowUp'});expect(Number(activities.getAttribute('aria-valuenow'))).toBeGreaterThan(240);
+    expect(screen.getByTestId('class-video')).toBe(video);expect(screen.getByRole('textbox',{name:'Tu mensaje al grupo'})).toHaveValue('Mi borrador');expect(screen.getByRole('textbox',{name:'Tu entrega'})).toHaveValue('Mi solución');expect(connect).not.toHaveBeenCalled();
+    fireEvent.doubleClick(chat);expect(chat).toHaveAttribute('aria-valuenow','340');
+  });
   it('abre el aula anterior sin mostrar reacciones que el servidor aún no soporta',()=>{
     delete snapshot.participation_version;open();
     expect(screen.getByRole('region',{name:'Aula del participante'})).toBeInTheDocument();expect(screen.queryByRole('button',{name:'Reacciones'})).not.toBeInTheDocument();expect(screen.getByRole('button',{name:'Activar micrófono'})).toBeEnabled();expect(connect).not.toHaveBeenCalled();

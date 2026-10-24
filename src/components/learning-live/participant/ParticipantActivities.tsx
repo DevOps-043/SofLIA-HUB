@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { LiveIcon } from '../LiveIcon';
 import { useStudioRuntime } from '../instructor/StudioRuntimeContext';
 
-export function ParticipantActivities({onPractice}: {onPractice:(id?:string)=>void}) {
+export function ParticipantActivities({onPractice,onExpandedChange}: {onPractice:(id?:string)=>void;onExpandedChange?:(expanded:boolean)=>void}) {
   const runtime=useStudioRuntime()!;
   const {state,user_id,asset_urls}=runtime.snapshot;
   const [tab,setTab]=useState<'activities'|'materials'>('activities');
@@ -15,8 +15,8 @@ export function ParticipantActivities({onPractice}: {onPractice:(id?:string)=>vo
   const saved=practice?state.submissions.find(item=>item.practice_id===practice.id&&item.user_id===user_id):undefined;
   const draft=practice?(drafts[practice.id]??saved?.content??''):'';
   const count=state.practices.length+(quiz?1:0);
-  function edit(id:string) { setOpen({kind:'practice',id});onPractice(id);setNotice(''); }
-  function close() { setOpen(null);onPractice(undefined); }
+  function edit(id:string) { onExpandedChange?.(true);setOpen({kind:'practice',id});onPractice(id);setNotice(''); }
+  function close() { onExpandedChange?.(false);setOpen(null);onPractice(undefined); }
   async function submitPractice() {
     if(!practice) return;
     const success=await runtime.send({type:'submit_practice',practice_id:practice.id,content:draft.trim()});
@@ -26,7 +26,7 @@ export function ParticipantActivities({onPractice}: {onPractice:(id?:string)=>vo
     <div className="participant-tabs" role="tablist" aria-label="Contenido del curso"><button role="tab" id="participant-activities-tab" aria-controls="participant-activities-panel" aria-selected={tab==='activities'} onClick={()=>{setTab('activities');close();}}>Actividades <b>{count}</b></button><button role="tab" id="participant-materials-tab" aria-controls="participant-materials-panel" aria-selected={tab==='materials'} onClick={()=>{setTab('materials');close();}}>Materiales <b>{state.materials.length}</b></button></div>
     <div className="participant-activity-list" id="participant-activities-panel" role="tabpanel" aria-labelledby="participant-activities-tab" hidden={tab!=='activities'||!!open}>
       {!count&&<p className="participant-content-empty">Las actividades aparecerán cuando el instructor las comparta.</p>}
-      {quiz&&<article className="participant-activity-row"><span className="participant-activity-symbol"><LiveIcon name="quiz" /></span><div><small>QUIZ EN CURSO</small><strong>{quiz.question}</strong><span>{state.answers.some(item=>item.quiz_id===quiz.id&&item.user_id===user_id)?'Respuesta guardada':'Responde cuando estés listo'}</span></div><button className="participant-primary" onClick={()=>{setOpen({kind:'quiz',id:quiz.id});setNotice('');}}>Abrir quiz</button></article>}
+      {quiz&&<article className="participant-activity-row"><span className="participant-activity-symbol"><LiveIcon name="quiz" /></span><div><small>QUIZ EN CURSO</small><strong>{quiz.question}</strong><span>{state.answers.some(item=>item.quiz_id===quiz.id&&item.user_id===user_id)?'Respuesta guardada':'Responde cuando estés listo'}</span></div><button className="participant-primary" onClick={()=>{onExpandedChange?.(true);setOpen({kind:'quiz',id:quiz.id});setNotice('');}}>Abrir quiz</button></article>}
       {state.practices.map(item=><article className="participant-activity-row" key={item.id}><span className="participant-activity-symbol"><LiveIcon name="file" /></span><div><small>PRÁCTICA</small><strong>{item.title}</strong><span>{state.submissions.some(entry=>entry.practice_id===item.id&&entry.user_id===user_id)?'Tu entrega · Guardada':'Tu entrega · Pendiente'}</span></div><button className="participant-primary" onClick={()=>edit(item.id)}>Abrir actividad</button></article>)}
     </div>
     <div className="participant-activity-list" id="participant-materials-panel" role="tabpanel" aria-labelledby="participant-materials-tab" hidden={tab!=='materials'||!!open}>

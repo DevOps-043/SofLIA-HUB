@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useStudioDimensions } from '../useStudioDimensions';
+import { StudioResizeHandle } from '../StudioResizeHandle';
+import { useRef,useState,type CSSProperties } from 'react';
 import { useStudioRuntime } from './StudioRuntimeContext';
 import { useStudioMediaRuntime } from './StudioMediaContext';
 import { LiveIcon } from '../LiveIcon';
@@ -18,6 +20,13 @@ import './studio-scenes.css';
 export function InstructorStudio({ title = 'Estudio de la sesión', instructorName = 'Instructor', examples, onBack, onClose }: {
   title?: string; instructorName?: string; examples?: StudioExamples; onBack: () => void; onClose: () => void;
 }) {
+  const layoutRef=useRef<HTMLDivElement>(null),layoutSize=useStudioDimensions(layoutRef);
+  const [leftWidth,setLeftWidth]=useState(310),[rightWidth,setRightWidth]=useState(310);
+  const usable=Math.max(784,layoutSize.width||1280);
+  const actualRight=Math.max(220,Math.min(rightWidth,700,usable-220-320-24));
+  const maxLeft=Math.max(220,Math.min(700,usable-actualRight-320-24));
+  const actualLeft=Math.max(220,Math.min(leftWidth,maxLeft));
+  const maxRight=Math.max(220,Math.min(700,usable-actualLeft-320-24));
   const runtime = useStudioRuntime();
   const media = useStudioMediaRuntime();
   const scenes = useStudioScenes(examples?.scenes ?? runtime?.snapshot.state.scenes.map((scene) => ({ ...scene, assetUrl: scene.asset_path ? runtime.snapshot.asset_urls[scene.asset_path] : undefined })));
@@ -69,7 +78,7 @@ export function InstructorStudio({ title = 'Estudio de la sesión', instructorNa
     {rehearsal && <div className="studio-rehearsal-notice" role="status">Ensayo local activo · tu grupo no recibe esta transmisión.</div>}
     {sceneError && <div className="studio-rehearsal-notice" role="status">{sceneError}</div>}
     {programNotice && <div className="studio-rehearsal-notice" role="status">{programNotice}</div>}
-    <div className="studio-layout"><StudioChat initialMessages={examples?.messages} room={activeRoom} /><StudioPreview viewMode={viewMode} onViewMode={setViewMode} camera={camera} mic={mic} sceneBank={scenes} onSelect={(id) => void showScene(id)} onRemove={removePreparedScene} onAdd={addScene} onRelink={(id) => { if (programEnabled) setProgramNotice('Cierra la salida antes de cambiar un vínculo de pantalla.'); else void relinkScene(id); }} pending={scenePending || program.pending} output={{ active: programEnabled, pending: program.pending, sharing: !!media?.zoomSharing && programEnabled, error: program.error, canStart: !!scenes.activeScene && !media?.zoomSharing && !scenePending, start: startProgram, stop: stopProgram }} canvasRef={bindCanvas} instructorName={instructorName} room={activeRoom} /><StudioActivities initialResources={examples?.resources} participants={participants} rooms={rooms} onRoomsChange={updateRooms} /></div>
+    <div ref={layoutRef} className="studio-layout studio-resizable-layout studio-resizable-region" style={{'--studio-left-width':`${actualLeft}px`,'--studio-right-width':`${actualRight}px`} as CSSProperties}><StudioChat initialMessages={examples?.messages} room={activeRoom} /><StudioResizeHandle axis="width" side="before" label="Cambiar ancho del chat del instructor" value={actualLeft} min={220} max={maxLeft} onChange={setLeftWidth} onReset={()=>setLeftWidth(310)}/><StudioPreview viewMode={viewMode} onViewMode={setViewMode} camera={camera} mic={mic} sceneBank={scenes} onSelect={(id) => void showScene(id)} onRemove={removePreparedScene} onAdd={addScene} onRelink={(id) => { if (programEnabled) setProgramNotice('Cierra la salida antes de cambiar un vínculo de pantalla.'); else void relinkScene(id); }} pending={scenePending || program.pending} output={{ active: programEnabled, pending: program.pending, sharing: !!media?.zoomSharing && programEnabled, error: program.error, canStart: !!scenes.activeScene && !media?.zoomSharing && !scenePending, start: startProgram, stop: stopProgram }} canvasRef={bindCanvas} instructorName={instructorName} room={activeRoom} /><StudioResizeHandle axis="width" side="after" label="Cambiar ancho de actividades del instructor" value={actualRight} min={220} max={maxRight} onChange={setRightWidth} onReset={()=>setRightWidth(310)}/><StudioActivities initialResources={examples?.resources} participants={participants} rooms={rooms} onRoomsChange={updateRooms} /></div>
     <StudioMediaDock mic={mic} camera={camera} screen={screen} capturePending={scenePending || program.pending} onMic={() => media ? media.zoomConnected ? media.muteZoom() : void media.toggle('mic') : setMic(!mic)} onCamera={() => media ? media.zoomConnected ? media.toggleZoomCamera?.() : void media.toggle('camera') : setCamera(!camera)} onScreen={sharePreparedScene} onClose={onClose} participants={participants} rooms={rooms} activeRoom={activeRoom} onVisitRoom={visitRoom} />
   </section>;
 }
