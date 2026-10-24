@@ -24,24 +24,20 @@ afterEach(() => { delete window.studioOutput; vi.restoreAllMocks(); vi.unstubAll
 const slide: StudioPreparedScene = { id: 'curso', name: 'Curso', kind: 'slide', title: 'Comenzamos', description: '' };
 const image: StudioPreparedScene = { id: 'imagen', name: 'Identidad del curso', kind: 'image', title: '', description: '', assetUrl: 'blob:imagen' };
 describe('preparación y programa del instructor', () => {
-  it('prepara otra pantalla sin cambiar programa y exige pasar a salida', async () => {
-    render(<InstructorStudio onBack={vi.fn()} onClose={vi.fn()} />);
-    expect(screen.getByRole('button', { name: 'Preparar salida continua' })).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Espera' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Preparar salida continua' }));
-    await screen.findByRole('button', { name: 'Pasar a salida' });
-    const panel = screen.getByRole('region', { name: 'Transiciones y salida del curso' });
-    expect(panel).toHaveTextContent('Salida local preparada'); expect(panel).not.toHaveTextContent('En vivo');
-    fireEvent.change(screen.getByRole('combobox', { name: 'Efecto de transición' }), { target: { value: 'cut' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Receso' }));
-    expect(panel.querySelector('.studio-program-monitor')).toHaveTextContent('PROGRAMAEspera');
-    expect(panel).toHaveTextContent('Preparada: Receso'); expect(connectProgramOutput).toHaveBeenCalledOnce();
-    fireEvent.click(screen.getByRole('button', { name: 'Pasar a salida' }));
-    await waitFor(() => expect(panel.querySelector('.studio-program-monitor')).toHaveTextContent('PROGRAMAReceso'));
-    fireEvent.click(screen.getByRole('button', { name: 'Quitar escena Receso' }));
-    expect(screen.getByRole('button', { name: 'Mostrar escena Receso' })).toBeInTheDocument();
+  it('mantiene un solo monitor y cambia de escena con un clic sin reiniciar la salida', async () => {
+    render(<InstructorStudio onBack={vi.fn()} onClose={vi.fn()} examples={{ messages: [], resources: [], participants: 0, scenes: [slide, {...slide,id:'receso',name:'Receso',title:'Volvemos pronto'}] }} />);
+    expect(screen.queryByRole('combobox', {name:'Efecto de transición'})).not.toBeInTheDocument();
+    expect(screen.queryByText('Pantalla preparada.', {exact:false})).not.toBeInTheDocument();
+    expect(screen.getAllByLabelText('Monitor de salida del curso')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', {name:'Activar salida'}));
+    await screen.findByRole('button',{name:'Cerrar salida'});
+    expect(screen.getByText('Salida local')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button',{name:'Mostrar escena Receso'}));
+    await waitFor(() => expect(screen.getByRole('button',{name:'Mostrar escena Receso'})).toHaveAttribute('aria-pressed','true'));
+    expect(connectProgramOutput).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole('button',{name:'Quitar escena Receso'}));
     expect(screen.getByText('Cambia primero la escena en programa antes de quitarla.')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Cerrar salida' }));
+    fireEvent.click(screen.getByRole('button',{name:'Cerrar salida'}));
     expect(closeOutput).toHaveBeenCalledOnce(); expect(stop).toHaveBeenCalledOnce();
   });
   it('permite crear una pantalla personalizada y rechaza un reloj fuera del límite', async () => {
@@ -61,69 +57,31 @@ describe('preparación y programa del instructor', () => {
     expect(within(stage).getByText('Volvemos al taller en breve')).toBeInTheDocument(); expect(stage).toHaveTextContent('07:00');
     expect(connectProgramOutput).not.toHaveBeenCalled();
   });
-  it('elige una imagen intermedia, excluye videos y protege su eliminación', async () => {
-    render(<InstructorStudio onBack={vi.fn()} onClose={vi.fn()} examples={{ messages: [], resources: [], participants: 0, scenes: [slide, image, { ...image, id: 'video', name: 'Video del curso', kind: 'video' }] }} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Preparar salida continua' }));
-    await screen.findByRole('button', { name: 'Pasar a salida' });
-    fireEvent.change(screen.getByRole('combobox', { name: 'Efecto de transición' }), { target: { value: 'visual' } });
-    expect(screen.getByRole('button', { name: 'Pasar a salida' })).toBeDisabled();
-    const selector = screen.getByRole('combobox', { name: 'Contenido intermedio' });
-    expect(within(selector).queryByRole('option', { name: 'Video del curso' })).not.toBeInTheDocument();
-    fireEvent.change(selector, { target: { value: image.id } });
-    expect(screen.getByRole('button', { name: 'Pasar a salida' })).toBeEnabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Quitar escena Identidad del curso' }));
-    expect(screen.getByText('Elige otro contenido intermedio antes de quitar esta escena.')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Mostrar escena Identidad del curso' }));
-    expect(screen.getByRole('button', { name: 'Pasar a salida' })).toBeDisabled();
-    expect(screen.getByText('Prepara una escena de destino distinta del contenido intermedio.')).toBeInTheDocument();
-  });
-  it('añade imágenes desde el control visual y rechaza archivos de video', async () => {
-    const createUrl = vi.fn(() => 'blob:nueva');
-    vi.stubGlobal('URL', class extends URL { static createObjectURL = createUrl; static revokeObjectURL = vi.fn(); });
-    render(<InstructorStudio onBack={vi.fn()} onClose={vi.fn()} />);
-    fireEvent.change(screen.getByRole('combobox', { name: 'Efecto de transición' }), { target: { value: 'visual' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Añadir visual' }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'Nombre de la escena' }), { target: { value: 'Mi imagen' } });
-    const fileInput = screen.getByLabelText('Archivo de la escena');
-    expect(fileInput.getAttribute('accept')).not.toContain('video/');
-    fireEvent.change(fileInput, { target: { files: [new File(['video'], 'clip.mp4', { type: 'video/mp4' })] } });
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar escena' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('El contenido intermedio admite imágenes o pantallas.');
-    fireEvent.change(fileInput, { target: { files: [new File(['imagen'], 'curso.png', { type: 'image/png' })] } });
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar escena' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(screen.getByRole('button', { name: 'Mostrar escena Mi imagen' })).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'Contenido intermedio' })).toHaveValue(screen.getByRole('option', { name: 'Mi imagen' }).getAttribute('value'));
-    expect(createUrl).toHaveBeenCalledOnce(); expect(connectProgramOutput).not.toHaveBeenCalled();
-  });
 });
 
-describe('fallos y cancelación de contenido intermedio', () => {
-  async function prepare(scenes: StudioPreparedScene[]) {
-    const hook = renderHook(() => useStudioProgram(scenes));
+describe('fallos y cancelación de escenas en salida', () => {
+  async function prepare() {
+    const hook = renderHook(() => useStudioProgram());
     act(() => hook.result.current.bindCanvas(document.createElement('canvas')));
     // El canvas existe antes del efecto de montaje en el componente real.
     act(() => hook.result.current.stop());
     await act(() => hook.result.current.take(slide, true));
     return hook;
   }
-  it('conserva programa si no puede cargar la imagen y rechaza destinos iguales', async () => {
-    const media = vi.spyOn(compositor, 'createMediaProgramSource').mockRejectedValue(new Error('No se pudo abrir el contenido.'));
-    const hook = await prepare([slide, image]);
-    act(() => hook.result.current.setTransition({ effect: 'visual', durationMs: 1500, sceneId: image.id }));
-    await act(() => hook.result.current.take({ ...slide, id: 'siguiente' }));
-    expect(hook.result.current.programScene?.id).toBe(slide.id); expect(hook.result.current.error).toBe('No se pudo abrir el contenido.');
-    await act(() => hook.result.current.take(image));
-    expect(media).toHaveBeenCalledOnce(); expect(hook.result.current.error).toContain('distinta');
-    hook.unmount();
+  it('conserva el programa anterior si la nueva fuente falla', async () => {
+    vi.spyOn(compositor, 'createMediaProgramSource').mockRejectedValue(new Error('No se pudo abrir el contenido.'));
+    const hook=await prepare();
+    await act(async () => { expect(await hook.result.current.take(image)).toBeUndefined(); });
+    expect(hook.result.current.programScene?.id).toBe(slide.id);
+    expect(hook.result.current.error).toBe('No se pudo abrir el contenido.');
+    expect(connectProgramOutput).toHaveBeenCalledOnce(); hook.unmount();
   });
   it('ignora una imagen que acaba de cargar después de cerrar salida', async () => {
     let loaded: (source: compositor.ProgramSource) => void = () => {};
     vi.spyOn(compositor, 'createMediaProgramSource').mockImplementation(() => new Promise((resolve) => { loaded = resolve; }));
-    const hook = await prepare([slide, image]);
-    act(() => hook.result.current.setTransition({ effect: 'visual', durationMs: 1500, sceneId: image.id }));
-    let change: Promise<void> = Promise.resolve();
-    act(() => { change = hook.result.current.take({ ...slide, id: 'siguiente' }); });
+    const hook = await prepare();
+    let change: Promise<unknown> = Promise.resolve();
+    act(() => { change = hook.result.current.take(image); });
     await waitFor(() => expect(compositor.createMediaProgramSource).toHaveBeenCalledOnce());
     act(() => hook.result.current.stop());
     expect(vi.mocked(compositor.createMediaProgramSource).mock.calls[0][2]?.aborted).toBe(true);
@@ -132,16 +90,15 @@ describe('fallos y cancelación de contenido intermedio', () => {
     expect(late.close).toHaveBeenCalledOnce(); expect(hook.result.current.programScene).toBeNull(); expect(hook.result.current.state).toBe('idle');
     expect(connectProgramOutput).toHaveBeenCalledOnce(); hook.unmount();
   });
-  it('una pantalla intermedia requiere el vínculo autorizado y libera su captura al cerrar', async () => {
+  it('una escena de pantalla requiere el vínculo autorizado y libera su captura al cerrar', async () => {
     const activate = vi.spyOn(studioCapture, 'activate').mockResolvedValue();
     const screenStop = vi.fn(), getDisplayMedia = vi.fn().mockResolvedValue({ getTracks: () => [{ stop: screenStop }] });
     vi.stubGlobal('navigator', { mediaDevices: { getDisplayMedia } });
     vi.spyOn(compositor, 'createMediaProgramSource').mockImplementation(async (_scene, stream) => ({ draw: vi.fn(), close: () => stream?.getTracks().forEach((track) => track.stop()) }));
     const bound: StudioPreparedScene = { ...image, id: 'pantalla', kind: 'screen', capture: { id: 'vinculo', name: 'Presentación', kind: 'window', thumbnail: null, withSystemAudio: false } };
-    const hook = await prepare([slide, bound]);
-    act(() => hook.result.current.setTransition({ effect: 'visual', durationMs: 1500, sceneId: bound.id }));
-    let change: Promise<void> = Promise.resolve();
-    act(() => { change = hook.result.current.take({ ...slide, id: 'siguiente' }); });
+    const hook = await prepare();
+    let change: Promise<unknown> = Promise.resolve();
+    act(() => { change = hook.result.current.take(bound); });
     await waitFor(() => expect(compositor.createMediaProgramSource).toHaveBeenCalledOnce());
     expect(activate).toHaveBeenCalledWith('vinculo', true); expect(getDisplayMedia).toHaveBeenCalledWith({ video: true, audio: false });
     act(() => hook.result.current.stop()); await act(() => change);

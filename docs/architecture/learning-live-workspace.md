@@ -57,22 +57,23 @@ canvas estable. La llamada captura un WebContents dedicado y conserva su pista
 al pasar entre escenas. La cámara de la llamada no forma parte de ese canvas.
 No se usan selectores DOM internos, métodos SDK inventados ni cámara virtual.
 
-### Transiciones y pantallas del curso
-Seleccionar una escena prepara la vista local; Pasar a salida cambia el programa
-mediante corte, fundido, barrido o contenido visual intermedio. Este último usa
-una imagen, lámina o pantalla autorizada del banco durante 500–10000 ms, con
-fundidos de hasta 200 ms en sus extremos. Se carga junto al destino antes del
-cambio y conserva programa si falla. Añadir visual lo prepara y selecciona como
-intermedio sin publicar ni alterar el destino. Para mantenerlo visible sin
-intervalo, se pasa como una escena normal con corte, fundido o barrido.
+### Escenas y salida compacta
+Un único monitor comparte espacio con el dock de escenas y fuentes. Las escenas
+se seleccionan en filas compactas; cuatro filas quedan visibles sin desplazar
+el escenario a 1280×720. Solo la lista de escenas largas tiene scroll interno.
+Activar salida prepara la pista continua por acción explícita. Una vez activa,
+seleccionar una fila cambia directamente el programa mediante corte. Si falla
+la carga, conserva la escena anterior y muestra el error. No hay controles de
+efectos, duración ni contenido intermedio. Nueva escena conserva pantallas del
+curso con texto y reloj opcional.
 La salida se prepara por acción explícita y
 solo se identifica como compartida cuando la llamada confirma compartir. Antes
 de pasar de compartir directo a programa se debe detener la pista directa.
-Espera, inicio, receso y cierre se crean desde botones rápidos o Nueva escena,
+Espera, inicio, receso y cierre se crean desde Nueva escena,
 que permite personalizar título, descripción y cuenta regresiva. El reloj empieza
 al pasar a programa y permanece en cero; no reactiva una pantalla o cámara.
-No se puede quitar la escena actual del programa ni el contenido intermedio
-seleccionado. Durante el cambio se bloquea la edición del banco. Cerrar salida detiene compartir
+No se puede quitar la escena actual del programa.
+Durante el cambio se bloquea la edición del banco. Cerrar salida detiene compartir
 y libera los recursos; no cambia la política de grabación ni repetición Learning.
 
 Una ventana oculta recibe solo video del canvas mediante WebRTC local sin
