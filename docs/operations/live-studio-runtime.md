@@ -1,5 +1,10 @@
 # Operación del estudio síncrono
 
+El cambio `migrate-zoom-video-sdk` añade Video SDK junto al Meeting histórico. La guía canónica de activación del servidor vive en `SofLIA-Learning/docs/live-video-sdk.md`; la migración coordinada es `20261019120000_live_video_sdk.sql`. No se activó el proveedor ni se modificaron secretos o producción. El Hub selecciona el SDK mediante el grant autorizado y empaqueta los recursos multimedia locales. Video ofrece controles en español, nueve cámaras visibles y pantalla compartida; requiere conectar audio para escuchar. Los requisitos siguientes corresponden a las aulas Meeting.
+
+<!-- evidence: packages/zoom-runtime/video-runtime.ts -->
+<!-- evidence: config/vite/zoom-video-assets.mts -->
+
 Estado: preparación local, pendiente de publicación y prueba real. Actualizado: 2026-10-13.
 
 <!-- evidence: electron/main/zoom-protocol.ts -->
