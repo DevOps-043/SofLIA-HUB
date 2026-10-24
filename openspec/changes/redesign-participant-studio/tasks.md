@@ -11,3 +11,4 @@
 - [x] 10. Reacciones efímeras sobre video, independientes de mensajes y aisladas por sala.
 - [x] 11. Intervalo de chat configurable por instructor, aplicado en servidor y con cuenta regresiva en el participante.
 - [ ] 12. Publicar API/migración de participación de Learning y ensayar dos cuentas reales antes del rollout general.
+- [x] 13. Corregir ingreso contra API anterior: negociación por cabecera, confirmación de capacidades y pruebas de acceso denegado.

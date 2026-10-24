@@ -116,7 +116,8 @@ ni estadísticas. Los eventos solo se proyectan a la sala actual del observador.
 Este cambio requiere la migración Learning
 `20261024180000_live_studio_participation.sql`, preparada y probada localmente.
 No se aplicó en remoto. Publicar migración y API de Learning antes del Hub nuevo.
-El nuevo HTTP negocia `participation_version: 1`; sin negociación Learning quita
+El nuevo HTTP negocia por cabecera `X-Soflia-Studio-Participation: 1`, sin añadir
+campos al JSON de la API anterior; sin negociación Learning quita
 los campos nuevos para conservar los esquemas estrictos de Hub anteriores. Los
 estados antiguos se leen con valores iniciales. El servidor verifica y fecha la
 cadencia bajo el mismo bloqueo/CAS de sesión y devuelve 429 sin reintento automático.
@@ -173,3 +174,16 @@ El tipo de dato limita 500 presencias; no hay evidencia de carga para esa capaci
 Rollback operativo: volver al Hub anterior y retirar la ruta studio del despliegue Learning, conservando tablas/bucket para recuperación. No ejecutar DROP ni purgar Storage como rollback. Para volver a activar, restaurar endpoint y cliente compatibles con la misma versión de contrato.
 
 La autorización humana es necesaria antes de aplicar migración remota o modificar permisos/secretos de producción. Ningún archivo local `.env` ni secreto se modificó en esta fase.
+
+
+## Entrada con API anterior de Learning
+El envío de participation_version dentro del cuerpo fue una regresión: las APIs
+anteriores usan un esquema estricto y rechazan campos desconocidos antes de cargar
+el aula. Hub ahora conserva organization_slug/session_id/operation en el JSON y
+negocia solo mediante la cabecera X-Soflia-Studio-Participation. La API anterior
+ignora la cabecera y conserva el acceso normal. Learning nuevo confirma capacidad
+en el snapshot; sin ella no se ofrecen los comandos de participación nuevos.
+No se cambian validaciones de identidad o membresía ni se reintenta un 403 con
+otro formato o rol. Este arreglo del Hub no requiere desplegar el backend nuevo
+para volver a entrar al aula anterior. Reiniciar la aplicación si su proceso main
+no está observando cambios; solo recargar el renderer no actualiza el HTTP main.

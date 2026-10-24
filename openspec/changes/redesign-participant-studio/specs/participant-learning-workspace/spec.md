@@ -24,6 +24,12 @@ El sistema MUST separar chat público y ayuda Soflia sin compartir automáticame
 #### Scenario: Consumidor anterior
 - **WHEN** un Hub no negocia participación
 - **THEN** el backend conserva la forma del snapshot anterior sin campos adicionales
+#### Scenario: API anterior
+- **WHEN** el Hub nuevo consulta una API que valida el cuerpo con el contrato anterior
+- **THEN** envía la negociación en cabecera y conserva el JSON previo, abre el aula autorizada y oculta funciones sin confirmación del servidor
+#### Scenario: Permiso denegado
+- **WHEN** Learning rechaza identidad o membresía
+- **THEN** Hub conserva la denegación y no intenta cambiar rol ni reintentar con permisos alternativos
 #### Scenario: Pregunta privada
 - **WHEN** el alumno pregunta a Soflia
 - **THEN** se verifica política habilitada y consentimiento vigente antes del envío, no se publica un mensaje académico ni se conceden herramientas al modelo

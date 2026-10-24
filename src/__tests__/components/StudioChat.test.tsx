@@ -8,7 +8,7 @@ const send=vi.fn(),refresh=vi.fn(),reconnect=vi.fn();
 let runtime:StudioRuntime;
 beforeEach(()=>{
   vi.clearAllMocks();send.mockResolvedValue(true);
-  runtime={snapshot:{session_id:'session',user_id:'student',can_manage:false,title:'Clase',server_time:new Date().toISOString(),state:emptyStudioState(),asset_urls:{}},busy:false,realtime:'Realtime conectado',error:'',send,refresh,reconnect,upload:vi.fn()};
+  runtime={snapshot:{participation_version:1,session_id:'session',user_id:'student',can_manage:false,title:'Clase',server_time:new Date().toISOString(),state:emptyStudioState(),asset_urls:{}},busy:false,realtime:'Realtime conectado',error:'',send,refresh,reconnect,upload:vi.fn()};
 });
 afterEach(()=>vi.useRealTimers());
 function view(compact=true){return <StudioRuntimeContext.Provider value={runtime}><StudioChat compact={compact}/></StudioRuntimeContext.Provider>;}
@@ -16,6 +16,11 @@ function write(text:string){fireEvent.change(screen.getByRole('textbox'),{target
 function submit(){fireEvent.submit(screen.getByRole('textbox').closest('form')!);}
 
 describe('chat académico en tiempo real',()=>{
+  it('mantiene chat disponible y oculta ajustes nuevos si Learning no confirma participación',()=>{
+    delete runtime.snapshot.participation_version;runtime.snapshot.can_manage=true;render(view(false));
+    fireEvent.click(screen.getByRole('button',{name:'Moderar chat'}));
+    expect(screen.queryByRole('spinbutton',{name:'Intervalo de chat en segundos'})).not.toBeInTheDocument();expect(screen.queryByRole('button',{name:'Añadir reacción'})).not.toBeInTheDocument();expect(screen.getByRole('textbox',{name:'Tu mensaje como instructor'})).toBeEnabled();
+  });
   it('muestra cuenta regresiva basada en servidor, conserva borrador y bloquea submit anticipado',async()=>{
     vi.useFakeTimers();runtime.snapshot.state.moderation.message_interval_seconds=3;runtime.snapshot.state.participation.student={last_message_at:runtime.snapshot.server_time};
     render(view());write('Borrador conservado');submit();expect(send).not.toHaveBeenCalled();expect(screen.getByRole('timer')).toHaveTextContent('3 s');

@@ -12,10 +12,14 @@ mensajes, privado en la proyección del usuario y con poda acotada. Validación 
 dominio y RPC serializada: concurrencia e idempotencia no deben saltar la espera.
 La UI muestra cuenta regresiva sin borrar el borrador. Requiere publicación
 coordinada del contrato Learning/Hub y migración incremental; no se ejecuta SQL remoto.
-Compatibilidad: el HTTP nuevo negocia `participation_version: 1`; el backend sin
+Compatibilidad: el HTTP nuevo negocia con cabecera `X-Soflia-Studio-Participation: 1`
+sin ampliar el JSON, para que la API anterior pueda abrir el aula. El backend sin
 negociación devuelve la forma previa sin nuevos campos. Publicar backend compatible
 antes que Hub. Mantener la unión Meeting/Video ya consumida por Hub, sin activar
 proveedor ni cambiar secretos.
+La respuesta nueva confirma `snapshot.participation_version: 1`. Sin confirmación,
+Hub conserva el chat/medios anteriores y no ofrece los comandos nuevos. No hay
+reintento ni cambio de permisos cuando un servidor devuelve 401/403.
 Revisión de controles: se retira el ingreso del encabezado y se conserva una
 acción explícita de conexión como icono sobre el video. El escenario elimina la
 franja fija: solo muestra botones en hover, foco de teclado o dispositivos táctiles.

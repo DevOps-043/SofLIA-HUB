@@ -17,12 +17,16 @@ beforeEach(()=>{
   state.quizzes=[{id:'quiz',question:'¿Qué tarea elegirías?',options:['Repetitiva','Aleatoria'],correct:0}];state.active_quiz_id='quiz';
   state.rooms=[{id:'room',name:'Sala 03',user_ids:['student']},{id:'other',name:'Sala ajena',user_ids:['another']}];
   state.members=[{user_id:'student',name:'Alumno',instructor:false,room_id:null,seen_at:new Date().toISOString()}];
-  snapshot={session_id:'session',user_id:'student',can_manage:false,title:'Mi clase',server_time:new Date().toISOString(),state,asset_urls:{}};
+  snapshot={participation_version:1,session_id:'session',user_id:'student',can_manage:false,title:'Mi clase',server_time:new Date().toISOString(),state,asset_urls:{}};
   media={zoomConnected:false,zoomPending:false,zoomStage:null,zoomMic:false,zoomCamera:false,connectZoom:connect,muteZoom:mute,toggleZoomCamera:camera,setCaptions:captions,pending:false,mic:null,camera:null,devices:[],callControls:{camera:true,captions:true,captionsEnabled:false}} as unknown as StudioMediaRuntime;
 });
 function open(){const runtime={snapshot,send,busy:false} as unknown as StudioRuntime;return render(<StudioRuntimeContext.Provider value={runtime}><StudioMediaContext.Provider value={media}><ParticipantStudio onBack={vi.fn()} onClose={vi.fn()}/></StudioMediaContext.Provider></StudioRuntimeContext.Provider>);}
 afterEach(()=>vi.useRealTimers());
 describe('aula del participante',()=>{
+  it('abre el aula anterior sin mostrar reacciones que el servidor aún no soporta',()=>{
+    delete snapshot.participation_version;open();
+    expect(screen.getByRole('region',{name:'Aula del participante'})).toBeInTheDocument();expect(screen.queryByRole('button',{name:'Reacciones'})).not.toBeInTheDocument();expect(screen.getByRole('button',{name:'Activar micrófono'})).toBeEnabled();expect(connect).not.toHaveBeenCalled();
+  });
   it('muestra reacciones de su sala sobre video y las retira sin publicar en el chat',()=>{
     vi.useFakeTimers();snapshot.state.reaction_events=[{id:'reaction',user_id:'peer',author:'Compañero',emoji:'🎉',room_id:null,created_at:snapshot.server_time},{id:'other',user_id:'peer2',author:'Otro equipo',emoji:'❤️',room_id:'room',created_at:snapshot.server_time}];
     open();const stage=screen.getByRole('region',{name:'Escenario de la clase'});expect(within(stage).getByText('🎉')).toBeInTheDocument();expect(within(stage).queryByText('Otro equipo')).not.toBeInTheDocument();expect(screen.getByRole('log',{name:'Mensajes de la sesión'})).not.toHaveTextContent('🎉');
