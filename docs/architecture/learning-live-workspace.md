@@ -20,7 +20,7 @@ proveedor audiovisual ni muestran el estado técnico de Realtime. La suscripció
 y la recuperación de snapshots se conservan. El runtime aislado selecciona Meeting
 o Video SDK según el grant de Learning; las sesiones anteriores siguen con Meeting.
 Video ofrece controles de audio, cámara y pantalla en español y recursos locales
-versionados. Hub muestra el estado de grabación, pero la preferencia
+versionados. El aula no muestra el bloque informativo de grabación automática; la preferencia
 de disponibilidad posterior se administra exclusivamente en Learning.
 
 ## Estado y autorización

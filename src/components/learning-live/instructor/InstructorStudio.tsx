@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import type { ReactNode } from 'react';
 import { useStudioRuntime } from './StudioRuntimeContext';
 import { useStudioMediaRuntime } from './StudioMediaContext';
 import { LiveIcon } from '../LiveIcon';
@@ -16,8 +15,8 @@ import './studio-panels.css';
 import './studio-controls.css';
 import './studio-scenes.css';
 
-export function InstructorStudio({ title = 'Estudio de la sesión', instructorName = 'Instructor', examples, recordingPanel, onBack, onClose }: {
-  title?: string; instructorName?: string; examples?: StudioExamples; recordingPanel?: ReactNode; onBack: () => void; onClose: () => void;
+export function InstructorStudio({ title = 'Estudio de la sesión', instructorName = 'Instructor', examples, onBack, onClose }: {
+  title?: string; instructorName?: string; examples?: StudioExamples; onBack: () => void; onClose: () => void;
 }) {
   const runtime = useStudioRuntime();
   const media = useStudioMediaRuntime();
@@ -70,7 +69,6 @@ export function InstructorStudio({ title = 'Estudio de la sesión', instructorNa
     {rehearsal && <div className="studio-rehearsal-notice" role="status">Ensayo local activo · tu grupo no recibe esta transmisión.</div>}
     {sceneError && <div className="studio-rehearsal-notice" role="status">{sceneError}</div>}
     {programNotice && <div className="studio-rehearsal-notice" role="status">{programNotice}</div>}
-    {recordingPanel}
     <div className="studio-layout"><StudioChat initialMessages={examples?.messages} room={activeRoom} /><StudioPreview viewMode={viewMode} onViewMode={setViewMode} camera={camera} mic={mic} sceneBank={scenes} onSelect={(id) => void showScene(id)} onRemove={removePreparedScene} onAdd={addScene} onRelink={(id) => { if (programEnabled) setProgramNotice('Cierra la salida antes de cambiar un vínculo de pantalla.'); else void relinkScene(id); }} pending={scenePending || program.pending} output={{ active: programEnabled, pending: program.pending, sharing: !!media?.zoomSharing && programEnabled, error: program.error, canStart: !!scenes.activeScene && !media?.zoomSharing && !scenePending, start: startProgram, stop: stopProgram }} canvasRef={bindCanvas} instructorName={instructorName} room={activeRoom} /><StudioActivities initialResources={examples?.resources} participants={participants} rooms={rooms} onRoomsChange={updateRooms} /></div>
     <StudioMediaDock mic={mic} camera={camera} screen={screen} capturePending={scenePending || program.pending} onMic={() => media ? media.zoomConnected ? media.muteZoom() : void media.toggle('mic') : setMic(!mic)} onCamera={() => media ? void media.toggle('camera') : setCamera(!camera)} onScreen={sharePreparedScene} onClose={onClose} participants={participants} rooms={rooms} activeRoom={activeRoom} onVisitRoom={visitRoom} />
   </section>;
