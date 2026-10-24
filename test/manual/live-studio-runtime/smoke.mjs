@@ -16,6 +16,7 @@ async function command(actor,command,success=true){const state=await snapshot(ac
 const marker=`Ensayo local ${randomUUID()}`;
 let materialId,quizId;
 try{
+  await command('instructor',{type:'chat_interval',seconds:0});
   await command('alumno',{type:'presence',room_id:null});
   await command('instructor',{type:'post',content:marker,question:false,room_id:null});
   assert.ok((await snapshot('alumno')).state.messages.some(item=>item.content===marker&&item.instructor));

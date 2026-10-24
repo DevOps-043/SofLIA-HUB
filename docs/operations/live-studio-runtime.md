@@ -135,6 +135,8 @@ proveedor. No hay activación automática de Soflia en el grupo.
 La fixture localhost:4321 ahora incluye escena, práctica, quiz, sala y mensaje
 ficticios identificados como ejemplos. Permite ejercitar chat por SSE, entregas,
 quiz y presencia entre las dos identidades; no configura Zoom ni autoriza IA.
+El ejemplo arranca con cinco segundos entre mensajes para revisar la cuenta
+regresiva; el instructor puede cambiarlo desde Moderar chat.
 Con esa fixture encendida, `node test/manual/live-studio-runtime/smoke.mjs`
 comprueba SSE, chat bidireccional, deduplicación, moderación, sala asignada,
 entrega, quiz y lectura de un material subido. Restaura moderación/quiz y retira
