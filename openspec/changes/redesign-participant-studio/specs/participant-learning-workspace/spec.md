@@ -7,6 +7,12 @@ El sistema MUST presentar escenario, actividades compactas, chat hasta el borde 
 #### Scenario: Barra superpuesta
 - **WHEN** el alumno consulta las actividades
 - **THEN** el panel llega hasta abajo, la barra flota encima y puede desplazar el contenido para alcanzar los controles inferiores
+#### Scenario: Controles discretos del video
+- **WHEN** el alumno pasa el cursor sobre el escenario o enfoca sus controles
+- **THEN** aparecen solo iconos de conexión, subtítulos y fullscreen, sin franja fija ni ingreso en el encabezado
+#### Scenario: Mover y contraer controles
+- **WHEN** el alumno arrastra el asa, usa las flechas o pulsa para contraer
+- **THEN** la barra permanece dentro del área y conserva el estado audiovisual; el clic posterior a arrastrar no la contrae
 ### Requirement: Conversaciones separadas
 El sistema MUST separar chat público y ayuda Soflia sin compartir automáticamente conversaciones ni respuestas privadas.
 #### Scenario: Pregunta privada

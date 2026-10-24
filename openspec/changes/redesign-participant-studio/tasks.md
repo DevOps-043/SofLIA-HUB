@@ -7,3 +7,4 @@
 - [x] 6. Bajar actividades y superponer la barra sin impedir llegar al contenido.
 - [x] 7. Probar chat entre identidades, permisos, reintentos, reconexión y borradores.
 - [x] 8. Configurar dispositivos reales del Video SDK y ampliar pruebas audiovisuales.
+- [x] 9. Retirar ingreso del encabezado, mostrar iconos sobre video al interactuar y permitir mover/contraer la barra con teclado y puntero.

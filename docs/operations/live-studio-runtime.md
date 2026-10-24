@@ -76,8 +76,15 @@ permanece deshabilitada.
 
 ## Uso de escenas y salida
 ### Aula del participante
-El ingreso no activa micrófono ni cámara. El participante se une y después usa
-la barra flotante, superpuesta sobre actividades. El margen final desplazable
+El ingreso no activa micrófono ni cámara. El participante conecta desde el icono
+sobre el video, visible al pasar el cursor o enfocar sus controles con el teclado.
+En equipos táctiles los iconos permanecen accesibles. No hay botón de ingreso en
+el encabezado ni franja fija bajo la transmisión. La barra de participación queda
+superpuesta sobre actividades: su asa permite arrastrar o contraer con un clic;
+con foco en el asa, las flechas la mueven y Escape la contrae. Contraer no apaga
+dispositivos ni abandona la llamada. La posición se limita al área de clase, se
+ajusta al redimensionar y se conserva solo mientras el aula sigue abierta.
+El margen final desplazable
 permite llegar a los botones inferiores. Si el SDK no permite un control, debe utilizar los controles
 oficiales indicados por el aviso. CC depende de la configuración real de Zoom;
 el botón no habilita transcripción para toda la sesión ni crea una grabación.

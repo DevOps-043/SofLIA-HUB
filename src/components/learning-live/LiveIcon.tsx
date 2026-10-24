@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 
 const paths = {
+  grip: <><circle cx="9" cy="5" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="19" r="1"/></>,
   fullscreen: <><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5" /></>,
   captions: <><rect x="2" y="5" width="20" height="14" rx="3" /><path d="M10 9H7v6h3M18 9h-3v6h3" /></>,
   hand: <><path d="M8 12V5a2 2 0 0 1 4 0v7M12 12V4a2 2 0 0 1 4 0v8M16 12V7a2 2 0 0 1 4 0v9a6 6 0 0 1-6 6h-2a6 6 0 0 1-5-3l-4-6a2 2 0 0 1 3-2l2 2V8" /></>,
