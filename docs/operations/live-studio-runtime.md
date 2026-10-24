@@ -87,7 +87,7 @@ permanece deshabilitada.
 5. Cerrar salida vuelve a la vista local. No silencia el micrófono ni apaga la
    cámara. El vínculo de pantalla se puede cambiar después de cerrar la salida.
 
-El estudio usa un único monitor y dos docks compactos, Escenas y Fuentes. La
+El estudio usa un único monitor y un dock compacto de Escenas a todo el ancho. Los controles de medios están en la barra inferior. La
 lista de cuatro escenas queda visible a 1280×720; listas más largas se desplazan
 dentro de su dock. No se muestran controles de transiciones, segundo monitor ni
 avisos de pantalla preparada. Los modos pantalla/cámara/combinada son locales;

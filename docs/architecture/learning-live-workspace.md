@@ -58,7 +58,7 @@ al pasar entre escenas. La cámara de la llamada no forma parte de ese canvas.
 No se usan selectores DOM internos, métodos SDK inventados ni cámara virtual.
 
 ### Escenas y salida compacta
-Un único monitor comparte espacio con el dock de escenas y fuentes. Las escenas
+Un único monitor comparte espacio con el dock de escenas a todo el ancho. Los estados y controles de medios permanecen en la barra inferior. Las escenas
 se seleccionan en filas compactas; cuatro filas quedan visibles sin desplazar
 el escenario a 1280×720. Solo la lista de escenas largas tiene scroll interno.
 Activar salida prepara la pista continua por acción explícita. Una vez activa,
