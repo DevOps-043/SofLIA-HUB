@@ -1,7 +1,8 @@
 import type { Plugin } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { randomUUID, createHash } from 'node:crypto';
-import { applyStudioCommand, emptyStudioState, projectStudioState, StudioDomainError } from '../../../src/shared/live-studio-domain';
+import { applyStudioCommand, projectStudioState, StudioDomainError } from '../../../src/shared/live-studio-domain';
+import { exampleStudioState } from './example-state';
 import { studioRequestSchema } from '../../../src/shared/live-studio.contract';
 
 const session = '00000000-0000-4000-8000-000000000031';
@@ -17,7 +18,7 @@ async function body(request: IncomingMessage, limit: number) {
   return Buffer.concat(chunks);
 }
 export function studioTestServer(): Plugin {
-  let state = emptyStudioState();
+  let state = exampleStudioState();
   const commands = new Map<string, string>();
   const listeners = new Set<ServerResponse>();
   const uploads = new Map<string, { bytes: number; mime: string; content?: Buffer }>();

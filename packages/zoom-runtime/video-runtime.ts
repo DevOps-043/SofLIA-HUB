@@ -10,6 +10,7 @@ export function start(initial: MessageEvent) {
   const status = document.getElementById('status')!, root = document.getElementById('meeting')!;
   const emit = (type: string, detail?: unknown) => parent.postMessage({ source: 'soflia-zoom', nonce, type, detail }, origin === 'null' ? '*' : origin);
   let joined = false, disposed = false, audio = false, camera = false, shared = false, remoteShare = 0;
+  let captionsEnabled = false;
   let recordingTimer: ReturnType<typeof setTimeout> | undefined;
   let operations = Promise.resolve(), renders = Promise.resolve();
   const sharing = manageZoomSharing(navigator.mediaDevices, active => { shared = active; emit('sharing', active); });
@@ -24,6 +25,7 @@ export function start(initial: MessageEvent) {
   const people = document.createElement('p'); people.className = 'video-participants';
   const recording = document.createElement('p'); recording.setAttribute('role', 'status'); recording.textContent = 'Esperando confirmación de grabación…';
   root.append(toolbar, recording, share, preview, grid, people);
+  if (initial.data.presentation === 'participant') { root.classList.add('participant-presentation'); toolbar.hidden = true; recording.hidden = true; people.hidden = true; }
   const buttons: HTMLButtonElement[] = [];
   function failure(connect = false) {
     status.hidden = false; status.textContent = 'No se pudo completar la acción. Revisa los permisos del dispositivo y la conexión.';
@@ -54,6 +56,14 @@ export function start(initial: MessageEvent) {
     cam.textContent = camera ? 'Apagar cámara' : 'Activar cámara';
     screen.textContent = shared ? 'Dejar de compartir' : 'Compartir pantalla';
     emit('media', { mic: audio && !user?.muted, camera });
+    controls();
+  }
+  function controls() {
+    let available = false;
+    try { const state = client.getLiveTranscriptionClient().getLiveTranscriptionStatus(); available = !!state?.isLiveTranscriptionEnabled && !state.isHostDisableCaptions; }
+    catch { /* La ausencia de captions no bloquea los medios de la llamada. */ }
+    if (!available) captionsEnabled = false;
+    emit('call-controls', { camera: true, captions: available, captionsEnabled });
   }
   async function stopShare() {
     sharing.stop(); preview.hidden = true;
@@ -94,6 +104,15 @@ export function start(initial: MessageEvent) {
     if (type === 'leave') void dispose();
     else if (type === 'stop-share') { sharing.stop(); action(stopShare); }
     else if (type === 'mute') action(async () => { if (audio) await checked(detail ? stream.muteAudio() : stream.unmuteAudio()); });
+    else if (type === 'toggle-mic') mic.click();
+    else if (type === 'toggle-camera') cam.click();
+    else if (type === 'captions' && typeof detail === 'boolean') action(async () => {
+      const transcription = client.getLiveTranscriptionClient();
+      const state = transcription.getLiveTranscriptionStatus();
+      if (detail && (!state.isLiveTranscriptionEnabled || state.isHostDisableCaptions)) throw new Error('Subtítulos no disponibles.');
+      if (detail) await checked(transcription.startLiveTranscription());
+      captionsEnabled = detail; controls();
+    });
     else if (type === 'visit-room') action(async () => {
       const rooms = client.getSubsessionClient();
       if (!detail) await checked(rooms.leaveSubsession());
@@ -109,6 +128,10 @@ export function start(initial: MessageEvent) {
   window.addEventListener('pagehide', () => { void dispose(); }, { once: true });
   client.on('connection-change', event => { if (event.state === 'Closed' || event.state === 'Fail') void dispose(); });
   for (const name of ['user-added', 'user-updated', 'user-removed', 'peer-video-state-change']) client.on(name, render);
+  for (const name of ['caption-status', 'caption-enable', 'caption-host-disable'] as const) client.on(name, () => { if (joined && !disposed) controls(); });
+  client.on('caption-message', event => {
+    if (captionsEnabled && !disposed) emit('caption', { text: event.text.slice(0, 2000), speaker: event.displayName.slice(0, 160) });
+  });
   client.on('recording-change', value => {
     recording.textContent = value === 'Recording' ? 'Grabación en curso' : value === 'Paused' ? 'Grabación pausada' : 'Grabación detenida';
     if (value === 'Recording') clearTimeout(recordingTimer);
@@ -125,7 +148,7 @@ export function start(initial: MessageEvent) {
           share.append(player); remoteShare = event.userId;
         }
       }
-      share.hidden = !remoteShare;
+      share.hidden = !remoteShare; root.classList.toggle('has-remote-share', !!remoteShare);
     }).catch(() => failure());
   });
   joinTask = (async () => {

@@ -75,6 +75,28 @@ programa. La UI identifica salas académicas y medios locales. SofLIA automátic
 permanece deshabilitada.
 
 ## Uso de escenas y salida
+### Aula del participante
+El ingreso no activa micrófono ni cámara. El participante se une y después usa
+la barra flotante. Si el SDK no permite un control, debe utilizar los controles
+oficiales indicados por el aviso. CC depende de la configuración real de Zoom;
+el botón no habilita transcripción para toda la sesión ni crea una grabación.
+Fullscreen requiere una acción del usuario y puede ser rechazado por su entorno.
+
+Actividades abre una zona de trabajo dentro del aula; conserva borradores ante
+fallos y recupera la entrega guardada al regresar. Materiales abre los enlaces
+firmados disponibles. Salas muestra solo asignaciones propias y el principal;
+el cambio académico aún no mueve el audio/video. Mano y reacciones se comunican
+como mensajes confirmados en el chat actual y respetan su moderación.
+
+Soflia individual requiere IA habilitada y consentimiento vigente en Learning,
+además de IA configurada en Hub. Un error de política no envía el contenido al
+proveedor. No hay activación automática de Soflia en el grupo.
+
+La fixture localhost:4321 ahora incluye escena, práctica, quiz, sala y mensaje
+ficticios identificados como ejemplos. Permite ejercitar chat por SSE, entregas,
+quiz y presencia entre las dos identidades; no configura Zoom ni autoriza IA.
+
+### Producción del instructor
 1. Añade contenido con + en el dock Escenas. Nueva escena conserva láminas,
    archivos, fuentes autorizadas y pantallas del curso con reloj opcional.
 2. Selecciona una fila y pulsa Activar salida junto a los modos de vista previa.
