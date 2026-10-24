@@ -2,10 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { StudioProgramRenderer, createMediaProgramSource, createTextProgramSource, type ProgramSource } from '../../../services/studio-program-renderer';
 import { connectProgramOutput } from '../../../services/studio-output';
 import { studioCapture } from '../../../services/studio-capture';
-import { transitionSchema, type StudioTransition } from '../../../shared/studio-program';
 import type { StudioPreparedScene } from './studio-types';
 
-export function useStudioProgram(scenes: StudioPreparedScene[] = []) {
+export function useStudioProgram() {
   const canvas = useRef<HTMLCanvasElement>(null);
   const bindCanvas = useCallback((element: HTMLCanvasElement | null) => { canvas.current = element; }, []);
   const renderer = useRef<StudioProgramRenderer | null>(null);
@@ -15,7 +14,6 @@ export function useStudioProgram(scenes: StudioPreparedScene[] = []) {
   const [pending, setPending] = useState(false), [error, setError] = useState('');
   const [state, setState] = useState<'idle' | 'preparing' | 'ready'>('idle');
   const [programScene, setProgramScene] = useState<StudioPreparedScene | null>(null);
-  const [transition, setTransition] = useState<StudioTransition>({ effect: 'fade', durationMs: 500 });
   const fail = () => { if (alive.current) setError('No se pudo componer la salida. Revisa la fuente antes de continuar.'); };
   function invalidate() { epoch.current++; }
   useEffect(() => {
@@ -55,18 +53,12 @@ export function useStudioProgram(scenes: StudioPreparedScene[] = []) {
     busy.current = true; setPending(true); setError('');
     const generation = epoch.current, compositor = renderer.current;
     const controller = new AbortController(); preparation.current = controller;
-    let next: ProgramSource | null = null, bridge: ProgramSource | null = null;
+    let next: ProgramSource | null = null;
     const current = () => alive.current && generation === epoch.current && renderer.current === compositor;
     try {
-      const reducedMotion = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-      const effect = prepare || reducedMotion && transition.effect !== 'visual' ? { effect: 'cut' as const, durationMs: 100 } : transitionSchema.parse(transition, { jitless: true });
-      const intermediate = effect.effect === 'visual' ? scenes.find((entry) => entry.id === transition.sceneId && entry.kind !== 'video') : null;
-      if (effect.effect === 'visual' && (!intermediate || intermediate.id === scene.id)) throw new Error('Elige una imagen o pantalla intermedia distinta de la escena de destino.');
       next = await source(scene, current, controller.signal);
       if (!current()) { next.close(); return; }
-      if (intermediate) bridge = await source(intermediate, current, controller.signal);
-      if (!current()) { next.close(); bridge?.close(); return; }
-      const change = compositor.take(next, effect, bridge ?? undefined, reducedMotion); next = null; bridge = null;
+      const change = compositor.take(next, { effect: 'cut', durationMs: 100 }); next = null;
       await change;
       if (!current()) return;
       setProgramScene(scene);
@@ -76,10 +68,11 @@ export function useStudioProgram(scenes: StudioPreparedScene[] = []) {
         if (!current()) { close(); return; }
         connection.current = close;
       }
+      return true;
     } catch (cause) {
-      next?.close(); bridge?.close();
+      next?.close();
       if (current()) { if (prepare) reset(); setError(cause instanceof Error ? cause.message : 'No se pudo preparar la escena.'); }
     } finally { if (preparation.current === controller) preparation.current = null; if (current()) { busy.current = false; setPending(false); } }
   }
-  return { bindCanvas, state, pending, error, programScene, transition, setTransition, take, stop: () => reset() };
+  return { bindCanvas, state, pending, error, programScene, take, stop: () => reset() };
 }

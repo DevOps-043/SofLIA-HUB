@@ -1,4 +1,8 @@
 ## Context
+La interfaz descrita aquí es un antecedente. La solicitud del 2026-10-24 la
+sustituye por [monitor y escenas compactos](../compact-studio-scenes/design.md),
+sin controles de efectos ni segundo monitor.
+
 Ver [propuesta](proposal.md). El estudio ya posee vínculos de fuentes con
 consentimiento y un runtime audiovisual aislado. El SDK no ofrece un método
 público para reemplazar libremente su pantalla emitida.
