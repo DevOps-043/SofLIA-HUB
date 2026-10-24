@@ -32,7 +32,7 @@ describe('acceso al estudio conectado', () => {
     render(<LearningWorkspace reference={reference} onBackToSessions={vi.fn()} onClose={vi.fn()} />);
     expect(await screen.findByRole('alert')).toHaveTextContent('Acceso no disponible'); fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
     expect(await screen.findByRole('region', { name: 'Aula del participante' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Unirme a la sesión' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Conectar transmisión' })).toBeInTheDocument();
     expect(screen.queryByText(/Realtime|Zoom|Permitir ver después/)).not.toBeInTheDocument();
     expect(screen.queryByText('Acceso no disponible')).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'Estudio del instructor' })).not.toBeInTheDocument(); expect(screen.queryByRole('button', { name: 'Moderar chat' })).not.toBeInTheDocument();

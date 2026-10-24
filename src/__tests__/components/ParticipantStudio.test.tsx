@@ -9,7 +9,7 @@ import { askParticipantTutor } from '../../services/participant-tutor';
 vi.mock('../../services/participant-tutor',async()=>({...await vi.importActual('../../services/participant-tutor'),askParticipantTutor:vi.fn()}));
 const send=vi.fn(),mute=vi.fn(),camera=vi.fn(),captions=vi.fn(),connect=vi.fn();
 let snapshot:StudioSnapshot,media:StudioMediaRuntime;
-beforeAll(()=>{HTMLDialogElement.prototype.showModal=function(){this.setAttribute('open','');};HTMLDialogElement.prototype.close=function(){this.removeAttribute('open');};});
+beforeAll(()=>{HTMLDialogElement.prototype.showModal=function(){this.setAttribute('open','');};HTMLDialogElement.prototype.close=function(){this.removeAttribute('open');};if(!window.PointerEvent)window.PointerEvent=class extends MouseEvent{readonly pointerId:number;constructor(type:string,init:PointerEventInit={}){super(type,init);this.pointerId=init.pointerId??1;}} as typeof PointerEvent;});
 beforeEach(()=>{
   vi.clearAllMocks(); send.mockResolvedValue(true);vi.mocked(askParticipantTutor).mockResolvedValue('Piensa en una tarea repetitiva.');
   const state=emptyStudioState();
@@ -22,6 +22,35 @@ beforeEach(()=>{
 });
 function open(){const runtime={snapshot,send,busy:false} as unknown as StudioRuntime;return render(<StudioRuntimeContext.Provider value={runtime}><StudioMediaContext.Provider value={media}><ParticipantStudio onBack={vi.fn()} onClose={vi.fn()}/></StudioMediaContext.Provider></StudioRuntimeContext.Provider>);}
 describe('aula del participante',()=>{
+  it('retira el ingreso del encabezado y conserva conexión explícita sobre la transmisión',()=>{
+    open();expect(screen.queryByRole('button',{name:'Unirme a la sesión'})).not.toBeInTheDocument();
+    const stage=screen.getByRole('region',{name:'Escenario de la clase'});fireEvent.click(within(stage).getByRole('button',{name:'Conectar transmisión'}));
+    expect(connect).toHaveBeenCalledOnce();expect(mute).not.toHaveBeenCalled();expect(camera).not.toHaveBeenCalled();expect(stage.querySelector('.participant-stage-bar')).not.toHaveTextContent('Contenido de la sesión');
+  });
+  it('contrae y expande sin apagar los dispositivos ni salir de la llamada',()=>{
+    media.zoomConnected=true;media.zoomMic=true;media.zoomCamera=true;open();
+    fireEvent.click(screen.getByRole('button',{name:'Mover o contraer controles'}));expect(screen.queryByRole('button',{name:'Silenciar micrófono'})).not.toBeInTheDocument();
+    const handle=screen.getByRole('button',{name:'Mostrar controles de participación'});expect(handle).toHaveAttribute('aria-expanded','false');fireEvent.click(handle);
+    expect(screen.getByRole('button',{name:'Silenciar micrófono'})).toHaveAttribute('aria-pressed','true');expect(mute).not.toHaveBeenCalled();expect(camera).not.toHaveBeenCalled();expect(connect).not.toHaveBeenCalled();
+  });
+  it('arrastra dentro del área, ignora el clic final y ajusta la posición al reducir tamaño',()=>{
+    open();const handle=screen.getByRole('button',{name:'Mover o contraer controles'}),floating=handle.closest('.participant-floating-controls') as HTMLDivElement;
+    const area=screen.getByRole('main',{name:'Contenido de la sesión'});let width=800,height=600;
+    area.getBoundingClientRect=()=>({left:100,top:50,width,height} as DOMRect);
+    floating.getBoundingClientRect=()=>({left:100+(parseFloat(floating.style.left)||200),top:50+(parseFloat(floating.style.top)||500),width:Math.min(430,width),height:44} as DOMRect);
+    handle.setPointerCapture=vi.fn();handle.hasPointerCapture=()=>true;handle.releasePointerCapture=vi.fn();
+    fireEvent.pointerDown(handle,{pointerId:7,button:0,clientX:300,clientY:550});fireEvent.pointerMove(handle,{pointerId:7,clientX:900,clientY:900});fireEvent.pointerUp(handle,{pointerId:7});fireEvent.click(handle);
+    expect(floating).toHaveStyle({left:'370px',top:'556px'});expect(handle).toHaveAttribute('aria-expanded','true');expect(handle.releasePointerCapture).toHaveBeenCalledWith(7);
+    fireEvent.keyDown(handle,{key:'ArrowLeft'});expect(floating).toHaveStyle({left:'354px'});
+    width=300;height=250;fireEvent(window,new Event('resize'));expect(floating).toHaveStyle({left:'0px',top:'206px'});
+    fireEvent.keyDown(handle,{key:'Escape'});expect(handle).toHaveAttribute('aria-expanded','false');
+  });
+  it('cancela un arrastre sin seguir moviendo la barra',()=>{
+    open();const handle=screen.getByRole('button',{name:'Mover o contraer controles'}),floating=handle.closest('.participant-floating-controls') as HTMLDivElement;
+    floating.getBoundingClientRect=()=>({left:100,top:100,width:300,height:44} as DOMRect);floating.parentElement!.getBoundingClientRect=()=>({left:0,top:0,width:800,height:600} as DOMRect);
+    fireEvent.pointerDown(handle,{pointerId:4,button:0,clientX:100,clientY:100});fireEvent.pointerCancel(handle,{pointerId:4});fireEvent.pointerMove(handle,{pointerId:4,clientX:400,clientY:400});expect(floating.style.left).toBe('');
+    fireEvent.click(handle);expect(handle).toHaveAttribute('aria-expanded','false');
+  });
   it('configura dispositivos del SDK durante la llamada sin cambiar capturas locales',()=>{
     media.zoomConnected=true;media.zoomStage=<div>Video conectado</div>;media.callDevices={microphones:[{id:'usb',label:'Mic USB'}],speakers:[],cameras:[],input:'default',output:'default',camera:'default'};media.selectCallDevice=vi.fn();media.refreshCallDevices=vi.fn();media.selectInput=vi.fn();
     open();fireEvent.click(screen.getByRole('button',{name:'Configurar audio'}));const dialog=screen.getByRole('dialog');
@@ -33,7 +62,7 @@ describe('aula del participante',()=>{
     expect(screen.queryByRole('region',{name:'Estadísticas de participación'})).not.toBeInTheDocument();
     expect(screen.queryByRole('button',{name:'Moderar chat'})).not.toBeInTheDocument();
     expect(connect).not.toHaveBeenCalled();expect(mute).not.toHaveBeenCalled();expect(camera).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button',{name:'Activar micrófono'}));expect(mute).not.toHaveBeenCalled();expect(screen.getByRole('status')).toHaveTextContent('Únete a la sesión');
+    fireEvent.click(screen.getByRole('button',{name:'Activar micrófono'}));expect(mute).not.toHaveBeenCalled();expect(screen.getByRole('status')).toHaveTextContent('Conecta la transmisión');
   });
   it('solo permite visitar salas asignadas y confirma el cambio académico',async()=>{
     open();fireEvent.click(screen.getByRole('button',{name:'Salas'}));

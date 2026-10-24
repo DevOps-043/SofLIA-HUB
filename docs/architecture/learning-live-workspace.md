@@ -94,6 +94,12 @@ solicitud de palabra, reacciones y un único acceso a salas asignadas. El espaci
 final dentro de las listas permite alcanzar entregas o materiales mientras la
 barra flota sobre la parte inferior de actividades, sin un hueco externo.
 En contenedores estrechos se alternan Clase y Conversaciones sin desmontar borradores.
+El asa de la barra permite moverla dentro del área de clase y contraer sus acciones.
+Pointer capture mantiene el arrastre; umbral de movimiento evita confundir clic
+con arrastre, y ResizeObserver ajusta límites. Flechas/Escape ofrecen alternativa
+de teclado. La conexión explícita vive como icono sobre el escenario; sus iconos
+son overlays revelados por hover/foco y permanecen visibles en equipos sin hover.
+Ocultar o mover controles no cambia dispositivos ni conexión.
 
 La ayuda individual Soflia envía solo pregunta, historial de esa conversación y
 título/instrucciones de la práctica elegida a la IA configurada en Hub. Antes de
