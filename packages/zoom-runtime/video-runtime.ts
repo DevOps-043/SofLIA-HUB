@@ -1,6 +1,7 @@
 import { ZoomVideo, VideoQuality } from './video-client';
 import { videoJoinSchema } from '../../src/shared/live-studio.contract';
 import { manageZoomSharing } from './share-lifecycle';
+import { callDevices } from './call-devices';
 
 /** Adaptador aislado: los listeners y recursos pertenecen a este iframe. */
 export function start(initial: MessageEvent) {
@@ -15,6 +16,7 @@ export function start(initial: MessageEvent) {
   let operations = Promise.resolve(), renders = Promise.resolve();
   const sharing = manageZoomSharing(navigator.mediaDevices, active => { shared = active; emit('sharing', active); });
   let stream: ReturnType<typeof client.getMediaStream>;
+  let devices:ReturnType<typeof callDevices>;
   let joinTask: Promise<void> = Promise.resolve();
   root.classList.add('video-session');
   const toolbar = document.createElement('nav'); toolbar.setAttribute('aria-label', 'Controles de la sesión');
@@ -40,11 +42,11 @@ export function start(initial: MessageEvent) {
     element.onclick = () => action(task); buttons.push(element); toolbar.append(element); return element;
   }
   const mic = button('Activar micrófono', async () => {
-    if (!audio) { await checked(stream.startAudio()); audio = true; }
+    if (!audio) { await checked(stream.startAudio(devices.audioOptions())); audio = true; }
     else if (client.getCurrentUserInfo()?.muted) await checked(stream.unmuteAudio());
     else await checked(stream.muteAudio());
   });
-  const cam = button('Activar cámara', async () => { if (camera) await checked(stream.stopVideo()); else await checked(stream.startVideo()); });
+  const cam = button('Activar cámara', async () => { if (camera) await checked(stream.stopVideo()); else await checked(stream.startVideo(devices.videoOptions())); });
   const screen = button('Compartir pantalla', async () => {
     if (shared) await stopShare();
     else { preview.hidden = false; try { await checked(stream.startShareScreen(preview)); } catch (error) { sharing.stop(); preview.hidden = true; throw error; } }
@@ -56,8 +58,10 @@ export function start(initial: MessageEvent) {
     cam.textContent = camera ? 'Apagar cámara' : 'Activar cámara';
     screen.textContent = shared ? 'Dejar de compartir' : 'Compartir pantalla';
     emit('media', { mic: audio && !user?.muted, camera });
+    reportDevices();
     controls();
   }
+  function reportDevices(){try{if(devices)emit('call-devices',devices.list());}catch{/* La lista puede no estar disponible antes de autorizar los dispositivos. */}}
   function controls() {
     let available = false;
     try { const state = client.getLiveTranscriptionClient().getLiveTranscriptionStatus(); available = !!state?.isLiveTranscriptionEnabled && !state.isHostDisableCaptions; }
@@ -106,6 +110,8 @@ export function start(initial: MessageEvent) {
     else if (type === 'mute') action(async () => { if (audio) await checked(detail ? stream.muteAudio() : stream.unmuteAudio()); });
     else if (type === 'toggle-mic') mic.click();
     else if (type === 'toggle-camera') cam.click();
+    else if (type === 'get-devices') action(async()=>{reportDevices();});
+    else if (type === 'select-device') action(async()=>{await devices.select(detail);});
     else if (type === 'captions' && typeof detail === 'boolean') action(async () => {
       const transcription = client.getLiveTranscriptionClient();
       const state = transcription.getLiveTranscriptionStatus();
@@ -128,6 +134,7 @@ export function start(initial: MessageEvent) {
   window.addEventListener('pagehide', () => { void dispose(); }, { once: true });
   client.on('connection-change', event => { if (event.state === 'Closed' || event.state === 'Fail') void dispose(); });
   for (const name of ['user-added', 'user-updated', 'user-removed', 'peer-video-state-change']) client.on(name, render);
+  client.on('device-change',()=>{if(joined&&!disposed)reportDevices();});
   for (const name of ['caption-status', 'caption-enable', 'caption-host-disable'] as const) client.on(name, () => { if (joined && !disposed) controls(); });
   client.on('caption-message', event => {
     if (captionsEnabled && !disposed) emit('caption', { text: event.text.slice(0, 2000), speaker: event.displayName.slice(0, 160) });
@@ -157,6 +164,7 @@ export function start(initial: MessageEvent) {
       if (disposed) return;
       await checked(client.join(args.sessionName, args.token, args.userName, args.password));
       joined = true; stream = client.getMediaStream();
+      devices=callDevices(stream,()=>({audio,camera}),checked);
       if (disposed) return;
       const capture = document.createElement(stream.isStartShareScreenWithVideoElement() ? 'video' : 'canvas') as HTMLVideoElement | HTMLCanvasElement;
       capture.className = 'share-preview'; capture.hidden = true; preview.replaceWith(capture); preview = capture; status.hidden = true; buttons.forEach(b => { b.disabled = false; }); emit('connected'); render();

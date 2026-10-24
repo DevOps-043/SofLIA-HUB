@@ -91,7 +91,8 @@ El aula del participante separa escenario/actividades de una columna de conversa
 que ocupa toda la altura disponible. Comparte iconos, tokens y chat académico con
 el instructor, sin sus controles de producción. Una barra flotante reúne medios,
 solicitud de palabra, reacciones y un único acceso a salas asignadas. El espacio
-reservado debajo de actividades impide que la barra tape entregas o materiales.
+final dentro de las listas permite alcanzar entregas o materiales mientras la
+barra flota sobre la parte inferior de actividades, sin un hueco externo.
 En contenedores estrechos se alternan Clase y Conversaciones sin desmontar borradores.
 
 La ayuda individual Soflia envía solo pregunta, historial de esa conversación y
@@ -108,6 +109,18 @@ capacidades y captions. Video SDK reporta micrófono/cámara reales y subtítulo
 cuando la cuenta/anfitrión los permiten. Meeting conserva sus controles oficiales
 para las funciones no expuestas por el adaptador. Fullscreen incluye escenario,
 controles y último subtítulo temporal, sin guardar una transcripción en Hub.
+El Video SDK publica listas acotadas de dispositivos y selección confirmada por
+la llamada. El padre valida los payloads y envía solo tipo/ID; el iframe comprueba
+que el ID existe antes de cambiarlo. Fuentes apagadas conservan una preferencia
+sin capturar; activas usan los métodos switch del SDK. Meeting usa su selector
+oficial y no presenta la prueba local como configuración de llamada.
+
+El chat académico conserva una sola fuente de mensajes en Learning, independiente
+del transporte audiovisual. Submit serializado evita Enter duplicado, conserva
+texto escrito durante el envío y nunca publica tras una restricción local conocida.
+El servidor sigue siendo la autoridad. Realtime muestra conexión y reintento;
+la recuperación completa vuelve a leer, suscribir y renovar presencia. Una
+suscripción antigua pendiente no puede cerrar la de una sesión posterior.
 
 La grabación automática y sus repeticiones usan el contrato recordings dentro
 del canal studio existente. Learning conserva runs/files/jobs privados y el
