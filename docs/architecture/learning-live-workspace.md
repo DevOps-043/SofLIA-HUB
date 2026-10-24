@@ -135,8 +135,10 @@ de base de datos. El cliente usa reloj monotónico relativo al snapshot para la
 cuenta regresiva, y deja de actualizar el reloj cuando vence su plazo. HTTP 429
 se clasifica `rate_limited` y no se reintenta como un fallo de red.
 
-La ampliación del contrato se negocia por `participation_version: 1` en HTTP;
+La ampliación del contrato se negocia por cabecera `X-Soflia-Studio-Participation: 1`;
 los consumidores anteriores reciben el snapshot sin campos de participación.
+La respuesta confirma `snapshot.participation_version: 1`; sin confirmación se
+ocultan ajustes de cadencia y reacciones, conservando el chat y medios anteriores.
 Hub mantiene la unión Meeting/Video del contrato existente; ampliar su esquema
 no activa un proveedor Video en el servidor ni modifica su configuración.
 

@@ -9,7 +9,7 @@ export function StudioReactionPicker({roomId,onComplete}:{roomId:string|null;onC
   const snapshot=runtime?.snapshot;
   const last=snapshot?.state.participation?.[snapshot.user_id]?.last_reaction_at;
   const now=useStudioTime(snapshot?.server_time??'',last?Date.parse(last)+1000:undefined);
-  const allowed=!!snapshot&&snapshot.state.moderation.reactions&&snapshot.state.moderation.restrictions[snapshot.user_id]!=='blocked';
+  const allowed=snapshot?.participation_version===1&&snapshot.state.moderation.reactions&&snapshot.state.moderation.restrictions[snapshot.user_id]!=='blocked';
   async function react(emoji:typeof studioReactionSchema.options[number]) {
     if(!allowed||!runtime||sending.current)return;
     sending.current=true;setError('');

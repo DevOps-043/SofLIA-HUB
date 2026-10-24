@@ -16,12 +16,14 @@ export async function requestLearningStudio(input: unknown, deps: { baseUrl: str
   const parsed = studioRequestSchema.safeParse(input);
   const endpoint = learningLiveEndpoint(deps.baseUrl, 'studio');
   if (!parsed.success || !endpoint) return { success: false, code: 'access_denied', error: 'Solicitud del estudio inválida.' };
-  const body = JSON.stringify({...parsed.data,participation_version:1});
+  // La API anterior valida el JSON con strict(): negociar por cabecera conserva su contrato.
+  const request={organization_slug:parsed.data.organization_slug,session_id:parsed.data.session_id,operation:parsed.data.operation};
+  const body = JSON.stringify(request);
   if (Buffer.byteLength(body) > 32768) return { success: false, code: 'access_denied', error: 'El contenido supera el límite de la sesión.' };
   try {
     const identity = await deps.getIdentity();
     if (!identity) return { success: false, code: 'not_ready', error: 'Inicia sesión para abrir el estudio.' };
-    const response = await (deps.fetcher || fetch)(endpoint, { method: 'POST', redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(25000), headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${identity.accessToken}` }, body });
+    const response = await (deps.fetcher || fetch)(endpoint, { method: 'POST', redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(25000), headers: { 'Content-Type': 'application/json', 'X-Soflia-Studio-Participation':'1', Authorization: `Bearer ${identity.accessToken}` }, body });
     if (!response.ok) {
       let error = response.status === 409 ? 'El estado cambió. Se actualizará el panel; revisa la acción antes de reintentar.' : response.status === 404 || response.status === 405 ? integrationUnavailable : response.status === 429 ? 'Espera un momento antes de continuar.' : response.status >= 500 ? 'No se pudo conectar el estudio. Revisa la configuración de Learning.' : 'Learning no autorizó esta operación.';
       const detail = await readLearningResponse(response, 4096).catch(() => null) as { error?: unknown } | null;

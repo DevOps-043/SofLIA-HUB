@@ -68,7 +68,7 @@ export function studioTestServer(): Plugin {
           }
         }
         const asset_urls = Object.fromEntries([...uploads].filter(([, item]) => item.content).map(([id]) => [`${org}/${session}/${id}`, `http://127.0.0.1:4321/__studio-assets/${id}`]));
-        return json(response, { success: true, snapshot: { session_id: session, user_id: actor.id, title: 'Prueba funcional del estudio', can_manage: actor.canManage, server_time: new Date().toISOString(), state: projectStudioState(state, actor, new Date().toISOString()), asset_urls } });
+        return json(response, { success: true, snapshot: { participation_version:1, session_id: session, user_id: actor.id, title: 'Prueba funcional del estudio', can_manage: actor.canManage, server_time: new Date().toISOString(), state: projectStudioState(state, actor, new Date().toISOString()), asset_urls } });
       } catch (error) { return json(response, { success: false, code: error instanceof StudioDomainError && error.code === 'forbidden' ? 'access_denied' : error instanceof StudioDomainError && error.code==='rate_limited'?'rate_limited':'unavailable', error: error instanceof StudioDomainError ? error.message : 'Solicitud de prueba inválida' }); }
     });
     server.httpServer?.once('close', () => { for (const listener of listeners) listener.end(); listeners.clear(); uploads.clear(); });

@@ -37,6 +37,7 @@ export function StudioChat({ initialMessages = [], room = null, compact = false 
   const [localRestricted, setRestricted] = useState<string[]>([]);
   const [localBlocked, setBlocked] = useState<string[]>([]);
   const locked = runtime?.snapshot.state.moderation.locked ?? localLocked;
+  const participation=runtime?.snapshot.participation_version===1;
   const reactions = runtime?.snapshot.state.moderation.reactions ?? localReactions;
   const restricted = runtime ? Object.keys(runtime.snapshot.state.moderation.restrictions).filter((id) => runtime.snapshot.state.moderation.restrictions[id] === 'chat') : localRestricted;
   const blocked = runtime ? Object.keys(runtime.snapshot.state.moderation.restrictions).filter((id) => runtime.snapshot.state.moderation.restrictions[id] === 'blocked') : localBlocked;
@@ -110,7 +111,7 @@ export function StudioChat({ initialMessages = [], room = null, compact = false 
     setSelectedUser(null);
   }
   async function saveInterval(){
-    if(!canManage)return;
+    if(!canManage||runtime&&!participation)return;
     if(runtime){const success=await runtime.send({type:'chat_interval',seconds:intervalDraft});setNotice(success?'Intervalo de chat actualizado.':'No se guardó el intervalo. Vuelve a intentarlo.');}
     else {setLocalInterval(intervalDraft);setNotice('Intervalo actualizado en la vista de diseño.');}
   }
@@ -124,7 +125,7 @@ export function StudioChat({ initialMessages = [], room = null, compact = false 
         <label>Solo el instructor puede escribir<input type="checkbox" role="switch" checked={locked} onChange={(event) => setLocked(event.target.checked)} /></label>
         <label>Permitir reacciones<input type="checkbox" role="switch" checked={reactions} onChange={(event) => setReactions(event.target.checked)} /></label>
         <label>Interacciones con SofLIA<input type="checkbox" role="switch" disabled={!!runtime} title={runtime ? 'Requiere política y consentimiento de IA vigentes' : undefined} checked={soflia} onChange={(event) => setSoflia(event.target.checked)} /></label>
-        <div><label>Espera entre mensajes de participantes</label><div className="studio-chat-interval"><StudioNumberField label="Intervalo de chat en segundos" min={0} max={300} value={intervalDraft} onChange={setIntervalDraft} compact disabled={runtime?.busy}/><button type="button" disabled={runtime?.busy||intervalDraft===interval} onClick={()=>void saveInterval()}>Aplicar</button></div><small>Segundos · 0 sin espera. El instructor puede escribir sin límite.</small></div>
+        {(!runtime||participation)&&<div><label>Espera entre mensajes de participantes</label><div className="studio-chat-interval"><StudioNumberField label="Intervalo de chat en segundos" min={0} max={300} value={intervalDraft} onChange={setIntervalDraft} compact disabled={runtime?.busy}/><button type="button" disabled={runtime?.busy||intervalDraft===interval} onClick={()=>void saveInterval()}>Aplicar</button></div><small>Segundos · 0 sin espera. El instructor puede escribir sin límite.</small></div>}
         <p>{STUDIO_COMMANDS}</p>
         {runtime && blocked.map((userId) => <button key={userId} disabled={runtime.busy} onClick={() => void runtime.send({ type: 'restrict', user_id: userId, restriction: 'none' })}>Restablecer acceso · {messages.find((message) => message.authorId === userId)?.author || userId.slice(0, 8)}</button>)}
       </div>}
@@ -138,8 +139,8 @@ export function StudioChat({ initialMessages = [], room = null, compact = false 
           {canManage && message.role === 'participant' && <button className="studio-message-menu studio-icon-button" aria-label={`Moderar a ${message.author}`} onClick={() => setSelectedUser(selectedUser === message.authorId ? null : message.authorId)}><LiveIcon name="more" /></button>}
         </article>)}
       </div>
-      {reactionPicker&&<StudioReactionPicker roomId={room?.id??null} onComplete={()=>setReactionPicker(false)}/>}
-      <form className="studio-chat-composer" onSubmit={submit}><label className="studio-sr-only" htmlFor={composerId}>{canManage ? "Tu mensaje como instructor" : "Tu mensaje al grupo"}</label><textarea id={composerId} rows={1} maxLength={2000} placeholder={room ? `Escribe a ${room.name}…` : compact ? 'Escribe al grupo…' : 'Escribe al grupo o usa /comando…'} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} /><div className="studio-composer-actions">{reactions && <button type="button" className="studio-icon-button" aria-label="Añadir reacción" disabled={runtime?.snapshot.state.moderation.restrictions[runtime.snapshot.user_id]==='blocked'} aria-expanded={reactionPicker} title="Reaccionar en la transmisión" onClick={()=>setReactionPicker(!reactionPicker)}><LiveIcon name="smile" /></button>}<button type="submit" className="studio-send" aria-label={room ? `Enviar mensaje a ${room.name}` : 'Enviar mensaje al grupo'} disabled={!draft.trim() || runtime?.busy || !writable || remaining>0}><LiveIcon name="send" /></button></div></form>
+      {participation&&reactionPicker&&<StudioReactionPicker roomId={room?.id??null} onComplete={()=>setReactionPicker(false)}/>}
+      <form className="studio-chat-composer" onSubmit={submit}><label className="studio-sr-only" htmlFor={composerId}>{canManage ? "Tu mensaje como instructor" : "Tu mensaje al grupo"}</label><textarea id={composerId} rows={1} maxLength={2000} placeholder={room ? `Escribe a ${room.name}…` : compact ? 'Escribe al grupo…' : 'Escribe al grupo o usa /comando…'} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} /><div className="studio-composer-actions">{participation&&reactions && <button type="button" className="studio-icon-button" aria-label="Añadir reacción" disabled={runtime?.snapshot.state.moderation.restrictions[runtime.snapshot.user_id]==='blocked'} aria-expanded={reactionPicker} title="Reaccionar en la transmisión" onClick={()=>setReactionPicker(!reactionPicker)}><LiveIcon name="smile" /></button>}<button type="submit" className="studio-send" aria-label={room ? `Enviar mensaje a ${room.name}` : 'Enviar mensaje al grupo'} disabled={!draft.trim() || runtime?.busy || !writable || remaining>0}><LiveIcon name="send" /></button></div></form>
       {remaining>0&&<p className="studio-chat-countdown" role="timer" aria-live="off">Puedes enviar otro mensaje en {remaining} s.</p>}
       {notice && <div className="studio-chat-notice" role="status">{notice}</div>}
     </section>
