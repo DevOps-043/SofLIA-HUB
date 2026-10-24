@@ -46,6 +46,9 @@ reintenta como fallo de red. No hay nuevas tablas ni permisos públicos. Migraci
   aislado: 26/26 aprobadas. No se declara suite completamente verde.
 - ESLint de Learning bloqueado por configuración existente que no encuentra
   @typescript-eslint/recommended. No se modificó su configuración/dependencias.
+- El typecheck global de Learning reporta 304 errores de su línea base, sin
+  incidencias en contrato/dominio, servicio, ruta o pruebas de participación
+  modificados. El chequeo estricto focalizado del contrato/dominio sí pasó.
 
 ## Revisión y rollout
 La revisión independiente no encontró fugas de sala/ledger ni saltos de cadencia,
