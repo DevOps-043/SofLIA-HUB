@@ -22,6 +22,11 @@ try{
   const sent=await command('alumno',{type:'post',content:`${marker} pregunta`,question:true,room_id:null});
   await request('alumno',sent.operation);
   assert.equal((await snapshot('instructor')).state.messages.filter(item=>item.content===`${marker} pregunta`).length,1);
+  await command('instructor',{type:'chat_interval',seconds:5});
+  const denied=await command('alumno',{type:'post',content:'Demasiado pronto',question:false,room_id:null},false);assert.equal(denied.result.code,'rate_limited');
+  const before=(await snapshot('alumno')).state.messages.length;
+  await command('alumno',{type:'reaction',emoji:'👏',room_id:null});const reacted=await snapshot('alumno');assert.equal(reacted.state.messages.length,before);assert.ok(reacted.state.reaction_events.some(event=>event.user_id===pupil.user_id&&event.emoji==='👏'));
+  await command('instructor',{type:'chat_interval',seconds:0});
   await command('instructor',{type:'moderation',locked:true,reactions:false});
   await command('alumno',{type:'post',content:'No debe publicarse',question:false,room_id:null},false);
   await command('instructor',{type:'post',content:`${marker} instructor en modo lectura`,question:false,room_id:null});
@@ -47,6 +52,7 @@ try{
   // Restablece la moderación y el quiz publicados; los mensajes/entrega son ejemplos en memoria.
   await command('instructor',{type:'restrict',user_id:pupil.user_id,restriction:'none'});
   await command('instructor',{type:'moderation',locked:initial.state.moderation.locked,reactions:initial.state.moderation.reactions});
+  await command('instructor',{type:'chat_interval',seconds:initial.state.moderation.message_interval_seconds});
   await command('instructor',{type:'publish_quiz',quiz_id:initial.state.active_quiz_id});
   if(materialId)await command('instructor',{type:'remove_material',material_id:materialId});
   await reader.cancel();

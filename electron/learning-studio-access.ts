@@ -16,7 +16,7 @@ export async function requestLearningStudio(input: unknown, deps: { baseUrl: str
   const parsed = studioRequestSchema.safeParse(input);
   const endpoint = learningLiveEndpoint(deps.baseUrl, 'studio');
   if (!parsed.success || !endpoint) return { success: false, code: 'access_denied', error: 'Solicitud del estudio inválida.' };
-  const body = JSON.stringify(parsed.data);
+  const body = JSON.stringify({...parsed.data,participation_version:1});
   if (Buffer.byteLength(body) > 32768) return { success: false, code: 'access_denied', error: 'El contenido supera el límite de la sesión.' };
   try {
     const identity = await deps.getIdentity();
@@ -32,7 +32,7 @@ export async function requestLearningStudio(input: unknown, deps: { baseUrl: str
       }
       if (response.status === 404 && detail?.error === 'Sesión no encontrada') return { success: false, code: 'access_denied', error: 'Esta sesión ya no está disponible en tu organización.' };
       if (typeof detail?.error === 'string' && Object.prototype.hasOwnProperty.call(knownErrors, detail.error)) error = knownErrors[detail.error];
-      return { success: false, code: response.status === 409 ? 'conflict' : response.status >= 500 || [404, 405, 429].includes(response.status) ? 'unavailable' : 'access_denied', error };
+      return { success: false, code: response.status === 429 ? 'rate_limited' : response.status === 409 ? 'conflict' : response.status >= 500 || [404, 405, 429].includes(response.status) ? 'unavailable' : 'access_denied', error };
     }
     const result = studioResponseSchema.parse(await readLearningResponse(response, 2 * 1024 * 1024));
     if (result.snapshot && (result.snapshot.session_id !== parsed.data.session_id || result.snapshot.user_id !== identity.userId)) throw new Error('Actor incompatible');

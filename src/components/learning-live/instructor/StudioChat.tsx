@@ -2,6 +2,9 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { useStudioRuntime } from './StudioRuntimeContext';
 import { LiveIcon } from '../LiveIcon';
 import { STUDIO_COMMANDS, type StudioMessage, type StudioRoom } from './studio-types';
+import { StudioNumberField } from './StudioNumberField';
+import { StudioReactionPicker } from '../StudioReactionPicker';
+import { useStudioTime } from '../useStudioTime';
 
 export function StudioChat({ initialMessages = [], room = null, compact = false }: { initialMessages?: StudioMessage[]; room?: StudioRoom | null; compact?: boolean }) {
   const runtime = useStudioRuntime();
@@ -21,6 +24,13 @@ export function StudioChat({ initialMessages = [], room = null, compact = false 
   function setDraft(value: string | ((previous: string) => string)) { setDrafts((previous) => ({ ...previous, [roomKey]: typeof value === 'function' ? value(previous[roomKey] ?? '') : value })); }
   const [localLocked, setLocalLocked] = useState(false);
   const [localReactions, setLocalReactions] = useState(true);
+  const [localInterval,setLocalInterval]=useState(0);
+  const interval=runtime?.snapshot.state.moderation.message_interval_seconds??localInterval;
+  const [intervalDraft,setIntervalDraft]=useState(interval);
+  const [reactionPicker,setReactionPicker]=useState(false);
+  const lastPost=runtime?.snapshot.state.participation?.[runtime.snapshot.user_id]?.last_message_at;
+  const serverNow=useStudioTime(runtime?.snapshot.server_time??'',lastPost&&interval>0&&!canManage?Date.parse(lastPost)+interval*1000:undefined);
+  const remaining=!canManage&&interval>0&&lastPost?Math.max(0,Math.ceil((Date.parse(lastPost)+interval*1000-serverNow)/1000)):0;
   const [soflia, setSoflia] = useState(false);
   const [moderation, setModeration] = useState(false);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
@@ -60,6 +70,7 @@ export function StudioChat({ initialMessages = [], room = null, compact = false 
     event.preventDefault();
     const text = draft.trim();
     if (!text || sending.current) return;
+    if(remaining>0){setNotice(`Espera ${remaining} s antes de volver a enviar.`);return;}
     if (runtime) {
       if(!writable){setNotice('El instructor restringió el envío de mensajes. Tu borrador se conserva.');return;}
       if(!canManage&&text.startsWith('/')){setNotice('Los comandos de moderación están reservados al instructor.');return;}
@@ -98,9 +109,14 @@ export function StudioChat({ initialMessages = [], room = null, compact = false 
     setNotice(action === 'block' ? 'Usuario excluido de esta vista de diseño.' : 'Restricción de chat actualizada en esta vista.');
     setSelectedUser(null);
   }
+  async function saveInterval(){
+    if(!canManage)return;
+    if(runtime){const success=await runtime.send({type:'chat_interval',seconds:intervalDraft});setNotice(success?'Intervalo de chat actualizado.':'No se guardó el intervalo. Vuelve a intentarlo.');}
+    else {setLocalInterval(intervalDraft);setNotice('Intervalo actualizado en la vista de diseño.');}
+  }
   return <aside className="studio-chat-column" aria-label="Chat y participación">
     <section className="studio-panel studio-chat">
-      <header className="studio-panel-heading"><h2><LiveIcon name="chat" />{room ? `Chat · ${room.name}` : 'Chat de la sesión'}</h2>{!compact && <button className="studio-icon-button" aria-label="Moderar chat" disabled={!canManage} aria-expanded={moderation} onClick={() => setModeration(!moderation)}><LiveIcon name="settings" /></button>}</header>
+      <header className="studio-panel-heading"><h2><LiveIcon name="chat" />{room ? `Chat · ${room.name}` : 'Chat de la sesión'}</h2>{!compact && <button className="studio-icon-button" aria-label="Moderar chat" disabled={!canManage} aria-expanded={moderation} onClick={() => {setIntervalDraft(interval);setModeration(!moderation);}}><LiveIcon name="settings" /></button>}</header>
       <div className="studio-chat-tabs"><button aria-pressed={tab === 'all'} onClick={() => setTab('all')}>Todos <span>{contextual.length}</span></button><button aria-pressed={tab === 'questions'} onClick={() => setTab('questions')}>Preguntas <span>{contextual.filter((message) => message.question).length}</span></button></div>
       {connection&&<div className="studio-chat-connection" role="status"><span><i className={connected?'is-connected':''}/>{connected?'Chat en vivo':connection==='Conectando Realtime'?'Conectando chat…':'Sin conexión en vivo'}</span>{!connected&&connection!=='Conectando Realtime'&&<button onClick={()=>void (runtime.reconnect?.()??runtime.refresh())}>Reconectar chat</button>}</div>}
       {moderation && <div className="studio-moderation" aria-label="Controles de moderación">
@@ -108,6 +124,7 @@ export function StudioChat({ initialMessages = [], room = null, compact = false 
         <label>Solo el instructor puede escribir<input type="checkbox" role="switch" checked={locked} onChange={(event) => setLocked(event.target.checked)} /></label>
         <label>Permitir reacciones<input type="checkbox" role="switch" checked={reactions} onChange={(event) => setReactions(event.target.checked)} /></label>
         <label>Interacciones con SofLIA<input type="checkbox" role="switch" disabled={!!runtime} title={runtime ? 'Requiere política y consentimiento de IA vigentes' : undefined} checked={soflia} onChange={(event) => setSoflia(event.target.checked)} /></label>
+        <div><label>Espera entre mensajes de participantes</label><div className="studio-chat-interval"><StudioNumberField label="Intervalo de chat en segundos" min={0} max={300} value={intervalDraft} onChange={setIntervalDraft} compact disabled={runtime?.busy}/><button type="button" disabled={runtime?.busy||intervalDraft===interval} onClick={()=>void saveInterval()}>Aplicar</button></div><small>Segundos · 0 sin espera. El instructor puede escribir sin límite.</small></div>
         <p>{STUDIO_COMMANDS}</p>
         {runtime && blocked.map((userId) => <button key={userId} disabled={runtime.busy} onClick={() => void runtime.send({ type: 'restrict', user_id: userId, restriction: 'none' })}>Restablecer acceso · {messages.find((message) => message.authorId === userId)?.author || userId.slice(0, 8)}</button>)}
       </div>}
@@ -121,7 +138,9 @@ export function StudioChat({ initialMessages = [], room = null, compact = false 
           {canManage && message.role === 'participant' && <button className="studio-message-menu studio-icon-button" aria-label={`Moderar a ${message.author}`} onClick={() => setSelectedUser(selectedUser === message.authorId ? null : message.authorId)}><LiveIcon name="more" /></button>}
         </article>)}
       </div>
-      <form className="studio-chat-composer" onSubmit={submit}><label className="studio-sr-only" htmlFor={composerId}>{canManage ? "Tu mensaje como instructor" : "Tu mensaje al grupo"}</label><textarea id={composerId} rows={1} maxLength={2000} placeholder={room ? `Escribe a ${room.name}…` : compact ? 'Escribe al grupo…' : 'Escribe al grupo o usa /comando…'} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} /><div className="studio-composer-actions">{reactions && <button type="button" className="studio-icon-button" aria-label="Añadir reacción" disabled={!writable} onClick={() => setDraft((value) => `${value} 👏`)}><LiveIcon name="smile" /></button>}<button type="submit" className="studio-send" aria-label={room ? `Enviar mensaje a ${room.name}` : 'Enviar mensaje al grupo'} disabled={!draft.trim() || runtime?.busy || !writable}><LiveIcon name="send" /></button></div></form>
+      {reactionPicker&&<StudioReactionPicker roomId={room?.id??null} onComplete={()=>setReactionPicker(false)}/>}
+      <form className="studio-chat-composer" onSubmit={submit}><label className="studio-sr-only" htmlFor={composerId}>{canManage ? "Tu mensaje como instructor" : "Tu mensaje al grupo"}</label><textarea id={composerId} rows={1} maxLength={2000} placeholder={room ? `Escribe a ${room.name}…` : compact ? 'Escribe al grupo…' : 'Escribe al grupo o usa /comando…'} value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} /><div className="studio-composer-actions">{reactions && <button type="button" className="studio-icon-button" aria-label="Añadir reacción" disabled={runtime?.snapshot.state.moderation.restrictions[runtime.snapshot.user_id]==='blocked'} aria-expanded={reactionPicker} title="Reaccionar en la transmisión" onClick={()=>setReactionPicker(!reactionPicker)}><LiveIcon name="smile" /></button>}<button type="submit" className="studio-send" aria-label={room ? `Enviar mensaje a ${room.name}` : 'Enviar mensaje al grupo'} disabled={!draft.trim() || runtime?.busy || !writable || remaining>0}><LiveIcon name="send" /></button></div></form>
+      {remaining>0&&<p className="studio-chat-countdown" role="timer" aria-live="off">Puedes enviar otro mensaje en {remaining} s.</p>}
       {notice && <div className="studio-chat-notice" role="status">{notice}</div>}
     </section>
     {!compact && <section className="studio-panel studio-statistics" aria-label="Estadísticas de participación"><header className="studio-panel-heading"><h2>Participación</h2><span className="studio-tiny-label">{runtime ? "ÚLTIMOS 100 MENSAJES" : "ESTA SESIÓN"}</span></header><div className="studio-stat-values"><div><strong>{contributions.length}</strong><span>Mensajes del grupo</span></div><div><strong>{authors.size}</strong><span>Participantes activos</span></div></div><div className="studio-top-participant"><span className="studio-person-avatar">{leader?.name.slice(0, 1) || '—'}</span><div><small>Mayor participación</small><strong>{leader?.name || 'Aún sin actividad'}</strong></div><span>{leader ? `${leader.count} mensajes` : '—'}</span></div><div className="studio-common-questions"><h3>Preguntas más comunes</h3>{common.length ? common.map(([question, count]) => <p key={question}><span>{question}</span><b>{count}</b></p>) : <p className="studio-muted">Aparecerán cuando el grupo participe.</p>}</div></section>}

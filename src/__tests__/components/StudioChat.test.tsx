@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach,beforeEach, describe, expect, it, vi } from 'vitest';
 import { StudioChat } from '../../components/learning-live/instructor/StudioChat';
 import { StudioRuntimeContext, type StudioRuntime } from '../../components/learning-live/instructor/StudioRuntimeContext';
 import { emptyStudioState } from '../../shared/live-studio-domain';
@@ -10,11 +10,27 @@ beforeEach(()=>{
   vi.clearAllMocks();send.mockResolvedValue(true);
   runtime={snapshot:{session_id:'session',user_id:'student',can_manage:false,title:'Clase',server_time:new Date().toISOString(),state:emptyStudioState(),asset_urls:{}},busy:false,realtime:'Realtime conectado',error:'',send,refresh,reconnect,upload:vi.fn()};
 });
-function view(){return <StudioRuntimeContext.Provider value={runtime}><StudioChat compact/></StudioRuntimeContext.Provider>;}
+afterEach(()=>vi.useRealTimers());
+function view(compact=true){return <StudioRuntimeContext.Provider value={runtime}><StudioChat compact={compact}/></StudioRuntimeContext.Provider>;}
 function write(text:string){fireEvent.change(screen.getByRole('textbox'),{target:{value:text}});}
 function submit(){fireEvent.submit(screen.getByRole('textbox').closest('form')!);}
 
 describe('chat académico en tiempo real',()=>{
+  it('muestra cuenta regresiva basada en servidor, conserva borrador y bloquea submit anticipado',async()=>{
+    vi.useFakeTimers();runtime.snapshot.state.moderation.message_interval_seconds=3;runtime.snapshot.state.participation.student={last_message_at:runtime.snapshot.server_time};
+    render(view());write('Borrador conservado');submit();expect(send).not.toHaveBeenCalled();expect(screen.getByRole('timer')).toHaveTextContent('3 s');
+    act(()=>vi.advanceTimersByTime(3000));expect(screen.queryByRole('timer')).not.toBeInTheDocument();expect(screen.getByRole('textbox')).toHaveValue('Borrador conservado');
+    await act(async()=>submit());expect(send).toHaveBeenCalledWith(expect.objectContaining({type:'post',content:'Borrador conservado'}));
+  });
+  it('el instructor configura segundos y puede escribir sin esperar',async()=>{
+    runtime.snapshot.can_manage=true;runtime.snapshot.state.moderation.message_interval_seconds=30;runtime.snapshot.state.participation.student={last_message_at:runtime.snapshot.server_time};
+    render(view(false));fireEvent.click(screen.getByRole('button',{name:'Moderar chat'}));fireEvent.change(screen.getByRole('spinbutton',{name:'Intervalo de chat en segundos'}),{target:{value:'15'}});fireEvent.click(screen.getByRole('button',{name:'Aplicar'}));
+    await waitFor(()=>expect(send).toHaveBeenCalledWith({type:'chat_interval',seconds:15}));expect(screen.queryByRole('timer')).not.toBeInTheDocument();
+  });
+  it('el emoji del compositor reacciona en video sin insertarlo en el mensaje',async()=>{
+    render(view());write('Texto sin emoji');fireEvent.click(screen.getByRole('button',{name:'Añadir reacción'}));fireEvent.click(screen.getByRole('button',{name:'Enviar reacción 👏'}));
+    await waitFor(()=>expect(send).toHaveBeenCalledWith({type:'reaction',emoji:'👏',room_id:null}));expect(screen.getByRole('textbox')).toHaveValue('Texto sin emoji');
+  });
   it('conserva cambios escritos durante un envío y serializa Enter repetido',async()=>{
     let complete!:(value:boolean)=>void;send.mockReturnValue(new Promise<boolean>(resolve=>{complete=resolve;}));
     render(view());write('Primero');submit();submit();write('Siguiente mensaje');
@@ -30,7 +46,7 @@ describe('chat académico en tiempo real',()=>{
   });
   it.each(['locked','chat','blocked'])('rechaza envío y reacciones con restricción %s',restriction=>{
     if(restriction==='locked')runtime.snapshot.state.moderation.locked=true;else runtime.snapshot.state.moderation.restrictions.student=restriction as 'chat'|'blocked';
-    render(view());write('Conserva esto');submit();expect(send).not.toHaveBeenCalled();expect(screen.getByRole('button',{name:'Añadir reacción'})).toBeDisabled();expect(screen.getByRole('textbox')).toHaveValue('Conserva esto');
+    render(view());write('Conserva esto');submit();expect(send).not.toHaveBeenCalled();expect(screen.getByRole('button',{name:'Añadir reacción'})).toHaveProperty('disabled',restriction==='blocked');expect(screen.getByRole('textbox')).toHaveValue('Conserva esto');
   });
   it('no envía durante composición de texto ni al introducir un salto de línea',()=>{
     render(view());write('Hola');fireEvent.keyDown(screen.getByRole('textbox'),{key:'Enter',isComposing:true});fireEvent.keyDown(screen.getByRole('textbox'),{key:'Enter',shiftKey:true});expect(send).not.toHaveBeenCalled();
