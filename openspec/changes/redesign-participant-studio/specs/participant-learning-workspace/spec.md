@@ -15,6 +15,15 @@ El sistema MUST presentar escenario, actividades compactas, chat hasta el borde 
 - **THEN** la barra permanece dentro del área y conserva el estado audiovisual; el clic posterior a arrastrar no la contrae
 ### Requirement: Conversaciones separadas
 El sistema MUST separar chat público y ayuda Soflia sin compartir automáticamente conversaciones ni respuestas privadas.
+#### Scenario: Reacción sobre el video
+- **WHEN** un participante envía una reacción permitida
+- **THEN** se muestra cinco segundos en el video de su sala sin insertar un mensaje ni incrementar estadísticas
+#### Scenario: Espera configurada
+- **WHEN** el instructor aplica un intervalo de 0 a 300 segundos
+- **THEN** Learning limita envíos del participante por sesión bajo bloqueo transaccional, conserva idempotencia y el editor presenta el plazo sin perder el borrador
+#### Scenario: Consumidor anterior
+- **WHEN** un Hub no negocia participación
+- **THEN** el backend conserva la forma del snapshot anterior sin campos adicionales
 #### Scenario: Pregunta privada
 - **WHEN** el alumno pregunta a Soflia
 - **THEN** se verifica política habilitada y consentimiento vigente antes del envío, no se publica un mensaje académico ni se conceden herramientas al modelo

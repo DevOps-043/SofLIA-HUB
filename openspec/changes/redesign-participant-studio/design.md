@@ -1,4 +1,21 @@
 ## Decisions
+Reacciones/ritmo de chat: eventos propios con emoji permitido, identidad del servidor,
+ventana de cinco segundos y máximo cien eventos, visibles solo en la sala actual
+(el instructor puede observar cualquier sala). No se insertan mensajes de chat.
+El permiso de reacciones es independiente de modo lectura y del intervalo de chat;
+acceso bloqueado sí lo impide. Cadencia de reacción de un segundo por actor.
+
+El instructor define de 0 a 300 segundos entre mensajes (0 desactiva, inicial 0).
+Solo limita participantes y se aplica globalmente en la sesión, incluso al cambiar
+de sala o reconectar. Ledger de última participación separado del historial de cien
+mensajes, privado en la proyección del usuario y con poda acotada. Validación de
+dominio y RPC serializada: concurrencia e idempotencia no deben saltar la espera.
+La UI muestra cuenta regresiva sin borrar el borrador. Requiere publicación
+coordinada del contrato Learning/Hub y migración incremental; no se ejecuta SQL remoto.
+Compatibilidad: el HTTP nuevo negocia `participation_version: 1`; el backend sin
+negociación devuelve la forma previa sin nuevos campos. Publicar backend compatible
+antes que Hub. Mantener la unión Meeting/Video ya consumida por Hub, sin activar
+proveedor ni cambiar secretos.
 Revisión de controles: se retira el ingreso del encabezado y se conserva una
 acción explícita de conexión como icono sobre el video. El escenario elimina la
 franja fija: solo muestra botones en hover, foco de teclado o dispositivos táctiles.

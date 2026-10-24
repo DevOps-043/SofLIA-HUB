@@ -102,11 +102,31 @@ desconexión, Reconectar chat recupera estado, suscripción y presencia. Reinten
 la primera carga usa el mismo flujo. Los mensajes solo desaparecen del editor
 tras confirmación y si no se ha escrito un nuevo borrador durante el envío.
 
+En Moderar chat, el instructor ajusta «Espera entre mensajes de participantes» y
+pulsa Aplicar: 0 desactiva la espera y 300 es el máximo en segundos. El alumno ve
+la cuenta regresiva sin perder el borrador. La regla es por usuario y sesión,
+incluye preguntas y solicitud de palabra enviada como mensaje, y no limita al
+instructor. Cambiar sala, recargar o salir del historial no borra la marca.
+
+Las reacciones usan un comando propio, seis emojis permitidos, un segundo entre
+reacciones y cinco segundos en pantalla. Respetan Permitir reacciones y bloqueo
+de acceso; el modo lectura del chat no las deshabilita. No incrementan mensajes
+ni estadísticas. Los eventos solo se proyectan a la sala actual del observador.
+
+Este cambio requiere la migración Learning
+`20261024180000_live_studio_participation.sql`, preparada y probada localmente.
+No se aplicó en remoto. Publicar migración y API de Learning antes del Hub nuevo.
+El nuevo HTTP negocia `participation_version: 1`; sin negociación Learning quita
+los campos nuevos para conservar los esquemas estrictos de Hub anteriores. Los
+estados antiguos se leen con valores iniciales. El servidor verifica y fecha la
+cadencia bajo el mismo bloqueo/CAS de sesión y devuelve 429 sin reintento automático.
+El ledger de participación se poda tras cinco minutos al procesar comandos;
+no se incluye el ledger ajeno en snapshots, tampoco para instructores.
+
 Actividades abre una zona de trabajo dentro del aula; conserva borradores ante
 fallos y recupera la entrega guardada al regresar. Materiales abre los enlaces
 firmados disponibles. Salas muestra solo asignaciones propias y el principal;
-el cambio académico aún no mueve el audio/video. Mano y reacciones se comunican
-como mensajes confirmados en el chat actual y respetan su moderación.
+el cambio académico aún no mueve el audio/video. La solicitud de palabra se comunica como mensaje confirmado. Las reacciones son eventos separados, se muestran cinco segundos sobre el video y no aparecen en el chat.
 
 Soflia individual requiere IA habilitada y consentimiento vigente en Learning,
 además de IA configurada en Hub. Un error de política no envía el contenido al

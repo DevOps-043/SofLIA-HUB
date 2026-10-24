@@ -8,3 +8,6 @@
 - [x] 7. Probar chat entre identidades, permisos, reintentos, reconexión y borradores.
 - [x] 8. Configurar dispositivos reales del Video SDK y ampliar pruebas audiovisuales.
 - [x] 9. Retirar ingreso del encabezado, mostrar iconos sobre video al interactuar y permitir mover/contraer la barra con teclado y puntero.
+- [x] 10. Reacciones efímeras sobre video, independientes de mensajes y aisladas por sala.
+- [x] 11. Intervalo de chat configurable por instructor, aplicado en servidor y con cuenta regresiva en el participante.
+- [ ] 12. Publicar API/migración de participación de Learning y ensayar dos cuentas reales antes del rollout general.

@@ -8,6 +8,11 @@ const input = { organization_slug: 'acme', session_id: session, operation: { typ
 const deps = { baseUrl: 'https://learning.test', getIdentity: async () => ({ userId: user, accessToken: 'privado' }) };
 const snapshot = { user_id: user, session_id: session, title: 'Clase', server_time: '2026-10-12T20:00:00.000Z', can_manage: true, state: emptyStudioState(), asset_urls: {} };
 describe('frontera HTTP del estudio', () => {
+  it('negocia participación y distingue límite 429 sin exponer el mensaje arbitrario del servidor',async()=>{
+    const fetcher=vi.fn().mockResolvedValue(new Response(JSON.stringify({error:'detalle privado'}),{status:429}));
+    expect(await requestLearningStudio(input,{...deps,fetcher})).toMatchObject({success:false,code:'rate_limited'});
+    expect(JSON.parse(fetcher.mock.calls[0][1].body).participation_version).toBe(1);
+  });
   it.each([
     ['Falta configurar Meeting SDK en Learning', 'configuración para habilitar el ingreso'],
     ['Zoom no autorizó al anfitrión; revisa el permiso ZAK', 'permisos de la conexión audiovisual'],

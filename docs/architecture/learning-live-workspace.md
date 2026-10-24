@@ -29,7 +29,7 @@ Learning es dueño del estado académico; Hub no escribe contenido directamente 
 
 Realtime suscribe INSERT/UPDATE de `live_studio_revisions` con RLS académico. Solo circulan sesión, revisión y fecha; mensajes, respuestas, entregas y tokens nunca se publican. Cada invalidación recupera un snapshot autorizado; lecturas concurrentes se agrupan y respuestas tardías se descartan. Reconexión fuerza lectura. La presencia renueva un lease de 90 segundos cada 30; SQL fusiona solo el miembro actual y no publica revisión por latidos sin cambios visibles. No se ha ensayado capacidad de 500 usuarios; ese número es un límite defensivo del contrato.
 
-El instructor puede publicar mensajes, cerrar/abrir chat, habilitar el acceso al botón de reacciones, restringir escritura, bloquear y restablecer acceso académico. El bloqueo no expulsa a un usuario ya conectado en Zoom; Zoom conserva su propia moderación audiovisual. Las estadísticas abarcan los últimos 100 mensajes retenidos, no un historial completo. Reacciones actuales son emojis enviados como texto. Interacciones automáticas de SofLIA quedan deshabilitadas hasta integrar política y consentimiento.
+El instructor puede publicar mensajes, cerrar/abrir chat, habilitar el acceso al botón de reacciones, restringir escritura, bloquear y restablecer acceso académico. El bloqueo no expulsa a un usuario ya conectado en Zoom; Zoom conserva su propia moderación audiovisual. Las estadísticas abarcan los últimos 100 mensajes retenidos, no un historial completo. Las reacciones son eventos independientes que flotan cinco segundos sobre el video; no crean mensajes. El instructor puede configurar de 0 a 300 segundos de espera entre mensajes de participantes (0 desactiva), con validación transaccional en Learning. Interacciones automáticas de SofLIA quedan deshabilitadas hasta integrar política y consentimiento.
 
 Los participantes reciben sus entregas y respuestas, sin claves de quiz, respuestas ajenas ni conversaciones de otras salas. Las salas académicas distribuyen identidades realmente conectadas por tamaño o cantidad; se puede visitar su chat y regresar al principal. Las salas de audio se administran en Zoom: todavía no existe correlación segura de identidad académica con participante Zoom ni sincronización automática de salas.
 
@@ -127,6 +127,18 @@ texto escrito durante el envío y nunca publica tras una restricción local cono
 El servidor sigue siendo la autoridad. Realtime muestra conexión y reintento;
 la recuperación completa vuelve a leer, suscribir y renovar presencia. Una
 suscripción antigua pendiente no puede cerrar la de una sesión posterior.
+Reacciones y mensajes son comandos distintos: los primeros tienen eventos de cinco
+segundos aislados por sala, sin incrementar el chat. El intervalo de mensajes es
+configuración del instructor y usa una marca separada de los últimos cien mensajes.
+Learning aplica ambas cadencias en dominio y RPC bajo bloqueo de sesión, con hora
+de base de datos. El cliente usa reloj monotónico relativo al snapshot para la
+cuenta regresiva, y deja de actualizar el reloj cuando vence su plazo. HTTP 429
+se clasifica `rate_limited` y no se reintenta como un fallo de red.
+
+La ampliación del contrato se negocia por `participation_version: 1` en HTTP;
+los consumidores anteriores reciben el snapshot sin campos de participación.
+Hub mantiene la unión Meeting/Video del contrato existente; ampliar su esquema
+no activa un proveedor Video en el servidor ni modifica su configuración.
 
 La grabación automática y sus repeticiones usan el contrato recordings dentro
 del canal studio existente. Learning conserva runs/files/jobs privados y el

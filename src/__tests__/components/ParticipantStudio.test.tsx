@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach,beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ParticipantStudio } from '../../components/learning-live/ParticipantStudio';
 import { StudioRuntimeContext, type StudioRuntime } from '../../components/learning-live/instructor/StudioRuntimeContext';
 import { StudioMediaContext, type StudioMediaRuntime } from '../../components/learning-live/instructor/StudioMediaContext';
@@ -21,7 +21,13 @@ beforeEach(()=>{
   media={zoomConnected:false,zoomPending:false,zoomStage:null,zoomMic:false,zoomCamera:false,connectZoom:connect,muteZoom:mute,toggleZoomCamera:camera,setCaptions:captions,pending:false,mic:null,camera:null,devices:[],callControls:{camera:true,captions:true,captionsEnabled:false}} as unknown as StudioMediaRuntime;
 });
 function open(){const runtime={snapshot,send,busy:false} as unknown as StudioRuntime;return render(<StudioRuntimeContext.Provider value={runtime}><StudioMediaContext.Provider value={media}><ParticipantStudio onBack={vi.fn()} onClose={vi.fn()}/></StudioMediaContext.Provider></StudioRuntimeContext.Provider>);}
+afterEach(()=>vi.useRealTimers());
 describe('aula del participante',()=>{
+  it('muestra reacciones de su sala sobre video y las retira sin publicar en el chat',()=>{
+    vi.useFakeTimers();snapshot.state.reaction_events=[{id:'reaction',user_id:'peer',author:'Compañero',emoji:'🎉',room_id:null,created_at:snapshot.server_time},{id:'other',user_id:'peer2',author:'Otro equipo',emoji:'❤️',room_id:'room',created_at:snapshot.server_time}];
+    open();const stage=screen.getByRole('region',{name:'Escenario de la clase'});expect(within(stage).getByText('🎉')).toBeInTheDocument();expect(within(stage).queryByText('Otro equipo')).not.toBeInTheDocument();expect(screen.getByRole('log',{name:'Mensajes de la sesión'})).not.toHaveTextContent('🎉');
+    act(()=>vi.advanceTimersByTime(5000));expect(within(stage).queryByText('🎉')).not.toBeInTheDocument();expect(send).not.toHaveBeenCalled();
+  });
   it('retira el ingreso del encabezado y conserva conexión explícita sobre la transmisión',()=>{
     open();expect(screen.queryByRole('button',{name:'Unirme a la sesión'})).not.toBeInTheDocument();
     const stage=screen.getByRole('region',{name:'Escenario de la clase'});fireEvent.click(within(stage).getByRole('button',{name:'Conectar transmisión'}));
@@ -94,7 +100,7 @@ describe('aula del participante',()=>{
     await waitFor(()=>expect(send).toHaveBeenCalledWith({type:'post',content:'✋ Solicito la palabra.',question:false,room_id:'room'}));
   });
   it('desactiva solicitud de palabra y reacciones cuando el instructor cierra el chat',()=>{
-    snapshot.state.moderation.locked=true;open();expect(screen.getByRole('button',{name:'Levantar la mano'})).toBeDisabled();expect(screen.getByRole('button',{name:'Reacciones'})).toBeDisabled();
+    snapshot.state.moderation.locked=true;open();expect(screen.getByRole('button',{name:'Levantar la mano'})).toBeDisabled();expect(screen.getByRole('button',{name:'Reacciones'})).toBeEnabled();
   });
   it('conecta controles del SDK y no confunde la cámara con captura local',()=>{
     media.zoomConnected=true;open();fireEvent.click(screen.getByRole('button',{name:'Activar micrófono'}));fireEvent.click(screen.getByRole('button',{name:'Activar cámara'}));fireEvent.click(screen.getByRole('button',{name:'Activar subtítulos automáticos'}));
