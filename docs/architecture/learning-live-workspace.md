@@ -87,6 +87,28 @@ sin fundidos. [Plan y decisiones](../../openspec/changes/add-studio-transitions/
 Meeting SDK 6.5.0 usa React 18.3.1 en un paquete privado con lockfile propio, sin forzar su instalación contra React 19 de Hub. Se compila al construir la aplicación y carga desde `soflia-zoom://meeting`, con CSP y protocolo que solo sirve documento y assets compilados. El iframe no comparte preload, identidad ni almacenamiento del renderer. Comunicación limitada por ventana, origen y nonce. La firma y ZAK se obtienen exclusivamente en Learning; no se guardan en disco ni se incluyen en URLs.
 
 ## Contratos y pruebas
+El aula del participante separa escenario/actividades de una columna de conversación
+que ocupa toda la altura disponible. Comparte iconos, tokens y chat académico con
+el instructor, sin sus controles de producción. Una barra flotante reúne medios,
+solicitud de palabra, reacciones y un único acceso a salas asignadas. El espacio
+reservado debajo de actividades impide que la barra tape entregas o materiales.
+En contenedores estrechos se alternan Clase y Conversaciones sin desmontar borradores.
+
+La ayuda individual Soflia envía solo pregunta, historial de esa conversación y
+título/instrucciones de la práctica elegida a la IA configurada en Hub. Antes de
+cada solicitud consulta el contrato workspace existente: identidad y sesión deben
+coincidir, IA debe estar habilitada y el consentimiento debe corresponder a la
+versión vigente. Ante ausencia o error bloquea la generación. No usa herramientas,
+archivos, claves de quiz ni chat público. La conversación vive en memoria, con
+cancelación al salir, 45 segundos de espera y límites de 2000 caracteres de entrada
+y 8000 de salida. No sustituye el consentimiento académico por un clic en enviar.
+
+Los controles del padre usan ventana, origen, nonce y esquemas estrictos para
+capacidades y captions. Video SDK reporta micrófono/cámara reales y subtítulos
+cuando la cuenta/anfitrión los permiten. Meeting conserva sus controles oficiales
+para las funciones no expuestas por el adaptador. Fullscreen incluye escenario,
+controles y último subtítulo temporal, sin guardar una transcripción en Hub.
+
 La grabación automática y sus repeticiones usan el contrato recordings dentro
 del canal studio existente. Learning conserva runs/files/jobs privados y el
 permiso de publicación; Hub observa recording-change y muestra el estado real.

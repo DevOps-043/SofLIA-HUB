@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const sdk = vi.hoisted(() => ({
-  client: { init: vi.fn(), join: vi.fn(), leave: vi.fn(), on: vi.fn(), getMediaStream: vi.fn(), getAllUser: vi.fn(), getCurrentUserInfo: vi.fn(), getRecordingClient: vi.fn() },
+  client: { init: vi.fn(), join: vi.fn(), leave: vi.fn(), on: vi.fn(), getMediaStream: vi.fn(), getAllUser: vi.fn(), getCurrentUserInfo: vi.fn(), getRecordingClient: vi.fn(), getLiveTranscriptionClient: vi.fn() },
+  transcription: { startLiveTranscription: vi.fn(), getLiveTranscriptionStatus: vi.fn() },
   stream: { startAudio: vi.fn(), muteAudio: vi.fn(), unmuteAudio: vi.fn(), startVideo: vi.fn(), stopVideo: vi.fn(), startShareScreen: vi.fn(), stopShareScreen: vi.fn(), isStartShareScreenWithVideoElement: vi.fn() },
   destroy: vi.fn(),
 }));
@@ -22,6 +23,9 @@ beforeEach(() => {
   sdk.client.getMediaStream.mockReturnValue(sdk.stream); sdk.client.getAllUser.mockReturnValue([]);
   sdk.client.getCurrentUserInfo.mockReturnValue({ muted: true, bVideoOn: false });
   sdk.client.getRecordingClient.mockReturnValue({ getCloudRecordingStatus: () => 'Recording' });
+  sdk.client.getLiveTranscriptionClient.mockReturnValue(sdk.transcription);
+  sdk.transcription.getLiveTranscriptionStatus.mockReturnValue({isLiveTranscriptionEnabled:true,isHostDisableCaptions:false});
+  sdk.transcription.startLiveTranscription.mockResolvedValue('');
   sdk.stream.startAudio.mockResolvedValue(''); sdk.stream.startVideo.mockResolvedValue('');
   sdk.stream.isStartShareScreenWithVideoElement.mockReturnValue(true);
   sdk.destroy.mockResolvedValue(undefined);
@@ -52,5 +56,19 @@ describe('ciclo de vida del adaptador Video SDK', () => {
     sdk.client.init.mockResolvedValue({ type: 'INVALID_OPERATION' }); const post = vi.spyOn(window, 'postMessage');
     launch(); await flush(); expect(sdk.client.join).not.toHaveBeenCalled(); expect(sdk.destroy).toHaveBeenCalledOnce();
     expect(post.mock.calls.some(([message]) => message.type === 'error')).toBe(true);
+  });
+  it('acepta micrófono/cámara desde el padre y captions solo tras confirmar disponibilidad',async()=>{
+    const post=vi.spyOn(window,'postMessage');launch();await flush();
+    command('toggle-mic');command('toggle-camera');await flush();
+    expect(sdk.stream.startAudio).toHaveBeenCalledOnce();expect(sdk.stream.startVideo).toHaveBeenCalledOnce();
+    command('captions',true);await flush();expect(sdk.transcription.startLiveTranscription).toHaveBeenCalledOnce();
+    const onCaption=sdk.client.on.mock.calls.find(([name])=>name==='caption-message')![1];
+    onCaption({text:'Texto real',displayName:'Docente'});expect(post).toHaveBeenCalledWith(expect.objectContaining({type:'caption',detail:{text:'Texto real',speaker:'Docente'}}),origin);
+    command('captions',false);await flush();post.mockClear();onCaption({text:'Oculto',displayName:'Docente'});expect(post.mock.calls.some(([message])=>message.type==='caption')).toBe(false);
+  });
+  it('deniega captions restringidos por el anfitrión y no ejecuta comandos de otro origen',async()=>{
+    const post=vi.spyOn(window,'postMessage');launch();await flush();sdk.transcription.getLiveTranscriptionStatus.mockReturnValue({isLiveTranscriptionEnabled:true,isHostDisableCaptions:true});
+    command('toggle-camera',undefined,window,'https://otro.test');command('captions',true);await flush();
+    expect(sdk.stream.startVideo).not.toHaveBeenCalled();expect(sdk.transcription.startLiveTranscription).not.toHaveBeenCalled();expect(post.mock.calls.some(([message])=>message.type==='action-error')).toBe(true);
   });
 });

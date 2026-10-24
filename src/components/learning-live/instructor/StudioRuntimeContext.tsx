@@ -1,7 +1,9 @@
 import { createContext, useContext } from 'react';
 import type { StudioCommand, StudioSnapshot } from '../../../shared/live-studio.contract';
+import type { LearningLiveSessionReference } from '../../../shared/learning-live-session';
 
 export type StudioRuntime = {
+  reference?: LearningLiveSessionReference;
   snapshot: StudioSnapshot;
   busy: boolean;
   realtime: string;

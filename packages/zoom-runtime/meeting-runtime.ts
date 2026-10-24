@@ -42,9 +42,11 @@ async function receive(event: MessageEvent) {
       await client.join({ signature: args.signature, meetingNumber: args.meetingNumber, userName: args.userName, password: args.password, ...(args.zak ? { zak: args.zak } : {}), ...(args.userEmail?{userEmail:args.userEmail}:{}) });
       if (disposed) { await client.leaveMeeting(); return; }
       joined = true; status.hidden = true; emit('connected');
+      emit('call-controls', { camera: false, captions: false, captionsEnabled: false });
       if(args.recording_required&&args.recording_recovery_allowed&&args.zak)recordingRecovery=setTimeout(()=>{if(joined&&!disposed&&recordingState!=='Recording')void client.record('start').catch(()=>emit('recording-error'));},7000);
     } else if (message.type === 'stop-share') sharing.stop();
     else if (message.type === 'mute' && joined) await client.mute(!!message.detail);
+    else if (message.type === 'toggle-mic' && joined) { const user = client.getCurrentUser(); if (!user?.audio) throw new Error('Conecta audio desde la llamada.'); await client.mute(!user.muted); }
     else if (message.type === 'visit-room' && joined) {
       if (!message.detail) await client.leaveBreakoutRoom();
       else {

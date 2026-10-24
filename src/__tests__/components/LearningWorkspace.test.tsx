@@ -35,7 +35,7 @@ describe('acceso al estudio conectado', () => {
     expect(screen.getByRole('button', { name: 'Unirme a la sesión' })).toBeInTheDocument();
     expect(screen.queryByText(/Realtime|Zoom|Permitir ver después/)).not.toBeInTheDocument();
     expect(screen.queryByText('Acceso no disponible')).not.toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Estudio del instructor' })).not.toBeInTheDocument(); expect(screen.getByRole('button', { name: 'Moderar chat' })).toBeDisabled();
+    expect(screen.queryByRole('region', { name: 'Estudio del instructor' })).not.toBeInTheDocument(); expect(screen.queryByRole('button', { name: 'Moderar chat' })).not.toBeInTheDocument();
   });
   it('muestra la integración no publicada sin culpar a la cuenta y mantiene la navegación', async () => {
     studio.mockResolvedValue({success:false,code:'unavailable',error:'El estudio de Learning todavía no está habilitado para Soflia Hub.'});
