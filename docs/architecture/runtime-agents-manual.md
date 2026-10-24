@@ -835,10 +835,48 @@ Gmail: `gmail_get_messages`, `gmail_read_message`, `gmail_send`,
 `gmail_preview_organization` (plan determinista sin modificar correos),
 `gmail_apply_organization_plan`, `gmail_undo_organization_plan`,
 `gmail_modify_labels`, `gmail_batch_empty_label`, `gmail_empty_all_labels`.
+
+El ejecutor de WhatsApp entrega un resultado por llamada, con los conteos y
+flags de parcialidad/cancelación/incertidumbre del servicio. Modificar un correo
+no activa una consulta global de su etiqueta ni una orden de vaciar los demás.
+La paginación informa `next_page_token` y `likely_has_more` como datos; no impone
+continuar leyendo fuera de la solicitud. La verificación de vaciado pertenece
+al servicio de lotes/limpieza, con snapshot y precondiciones propios.
+
+El adaptador de Responses conserva la asociación con `call_id`. Rechaza
+resultados extra antes de alterar historial o llamadas pendientes, sin
+convertirlos en un mensaje de usuario. Valida todo el lote del proveedor antes
+de publicarlo como pendiente: catálogo, argumentos objeto y IDs no vacíos ni
+duplicados. Esto no impide que el modelo proponga otra llamada; las guardas de
+intención, grupos y HITL continúan siendo la frontera de ejecución.
+Fuentes: `electron/wa-agent/agent-loop-tools.ts`, `openai-session.ts` y
+`electron/whatsapp-executors/google-executors/`.
+
 Calendar: `google_calendar_get_events`, `google_calendar_create`,
 `google_calendar_delete`, `google_calendar_get_connections`.
 Drive: `drive_list_files`, `drive_search`, `drive_download`, `drive_upload`,
 `drive_create_folder`.
+
+La observación de herramientas se separa de los resultados funcionales. El
+historial `kind:tool` conserva nombres identificadores acotados, estados cerrados,
+flags de parcialidad/cancelación/incertidumbre y contadores enteros. No conserva
+argumentos, `message`, errores libres, session_id ni texto/media asociados al
+evento operativo. La metadata admite sólo UUID de correlación y duración. El
+mismo filtro se aplica al escribir y al consultar eventos tool heredados, antes
+de buscar; no modifica los bytes antiguos. Los eventos de conversación y los
+identificadores de contacto mantienen su política actual.
+
+El trace del turno usa huellas HMAC-SHA256 con clave aleatoria efímera por turno,
+sin payload ni firma/clave persistida. Conteos y cambios relevantes de resultado
+mantienen detección de progreso; una correlación nueva del mismo fallo no lo
+convierte en avance. Un fallo de registro no altera el resultado de una
+herramienta ni vuelve a ejecutarla. Las excepciones inesperadas del dispatcher,
+fallback o guardas producen mensaje fijo y referencia; la guarda fallida impide
+ejecutar, y la excepción de ejecución señala incertidumbre. Las respuestas
+normales de cada dominio al modelo siguen requiriendo su revisión propia.
+Fuentes: `electron/whatsapp/tool-observation.ts`, `history.ts`,
+`electron/wa-agent/tool-fingerprint.ts`, `agent-loop-tool-execution.ts` y
+`electron/wa-executor/unexpected-failure.ts`.
 
 **Project Hub / IRIS** (`project-hub-tools.ts`)
 
@@ -1523,6 +1561,13 @@ descartara antes del agente por no poder acreditar `personal_agent`.
   exactamente lo que RLS existe para no tener que confiar.
 
 ### 3.17 Anuncios proactivos en la orbe
+
+El dictado y la reproducción Piper de Orbe usan consumidor main por ID de flujo,
+sesión, ventana/marco y documento. Captura requiere consentimiento main efímero;
+una preferencia enabled no activa micrófono antes de login. Estos permisos son
+de UI, no amplían herramientas de agentes runtime. La cola de anuncios invalida
+entregas en espera al cambiar la sesión. Ver
+[contrato de voz local](../security/local-voice-authorization.md).
 
 La voz iniciada por la persona puede dirigir el navegador con el prefijo literal
 `navegador`: cambiar pestaña o consultar/pausar/reanudar/detener/tomar control
@@ -2249,3 +2294,9 @@ Comprobaciones específicas del agente de escritorio:
 - [Parametros runtime](runtime-parameters.md) — defaults y topes.
 - [Seguridad y privacidad](../security/security-and-privacy.md).
 - [Mapa de modulos](module-map.md).
+
+Lecturas locales PDF/Office de computer-use conservan su API main. La protección
+documental por patrones impide usar mammoth crudo en DOCX y UIA/imagen de respaldo
+en Office cuando se requiere redacción. No agrega herramientas runtime ni
+promete anonimización completa de todas las fuentes. Ver
+[privacidad documental](../security/python-document-boundary.md).

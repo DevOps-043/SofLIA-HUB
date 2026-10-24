@@ -1,0 +1,255 @@
+{
+  "target": "C:\\Users\\fysg5\\Desktop\\SofLIA\\Pulse Hub\\SofLIA-HUB",
+  "files": [
+    {
+      "file": "src/components/project-hub/UnifiedProjectHub.tsx",
+      "sha256": "bc932e99f355a58005292952df6cfe5e97815a9f02347a5084fa6d55d4ff14be",
+      "original": "e1b621f43079bb974a2b29b095cd7da25664e02f3394355f12d271c96f126d44"
+    },
+    {
+      "file": "src/components/project-workspace/dashboard-data.ts",
+      "sha256": "ec22266dafb58017566bc47754395bfbb7750df12f76a60f5978fc6206bf2c4e",
+      "original": "dfe985d5b874802917481aee18fa8d0da43afd8af68edc5ed0a93a8a974a2282"
+    },
+    {
+      "file": "src/components/project-workspace/management-state.ts",
+      "sha256": "988f22b60710a8bce826631b3a88ff84f1dae71aa37adfc5df298fd885cd64ca",
+      "original": null
+    },
+    {
+      "file": "src/components/project-workspace/ManagementControls.tsx",
+      "sha256": "ba688d76769297bdcf82d3806551cd73142326faf560bb03bf486a6853f352ea",
+      "original": null
+    },
+    {
+      "file": "src/components/project-workspace/ProjectDocuments.tsx",
+      "sha256": "3017289c92fb7b95f0b5cedfdbd8239f2273ce3cc09eecb84d4d4289eb52436b",
+      "original": null
+    },
+    {
+      "file": "src/components/project-workspace/ProjectEvidenceActions.tsx",
+      "sha256": "33c97ca97ac75e5199cf5a2b8547bcb131a8ad0d9e1f7e5fd53ce5cf354e9f1d",
+      "original": null
+    },
+    {
+      "file": "src/components/project-workspace/ProjectFiles.tsx",
+      "sha256": "f6263ae7471446503eda03b66b886e0260513563fe795f3edbb63ce03a6dd593",
+      "original": null
+    },
+    {
+      "file": "src/components/project-workspace/ProjectMilestones.tsx",
+      "sha256": "ddcd6f429c417453c0c89e3e350068b73ddc03618011a3355005c8e061d728c2",
+      "original": null
+    },
+    {
+      "file": "src/components/project-workspace/ProjectOverview.tsx",
+      "sha256": "5e9618a8e92cdc33eb693d475c3bf67c52c1cfc0f4b98e9597b587d6ca237786",
+      "original": "f00e808e1d5f65908140633bd3d950145521d2936ce15e1171fbfb788b9d61d3"
+    },
+    {
+      "file": "src/components/project-workspace/ProjectPeople.tsx",
+      "sha256": "e4b0dbd3bfe52da1ea9ffd5a43e3fdbefdccfc73ed419effeb1d17b1eec5a555",
+      "original": "6f060c0de5019f0711d055d340a25d687f6cccd856138e7566446f61448e230d"
+    },
+    {
+      "file": "src/components/project-workspace/ProjectResources.tsx",
+      "sha256": "81a8283afffeae99256fdc0dc8d62fd6031028c2ab28b15e4ebf916ab34ad5bc",
+      "original": "d51867fa59cff8d82e49287fed50440a239bbe0c998820d1b3e15e901476f54b"
+    },
+    {
+      "file": "src/components/project-workspace/ProjectTasks.tsx",
+      "sha256": "408bd98e91fdb3403c2403fa3622f860ab0ed768aaaad595beffe54bc04145eb",
+      "original": "bcd8724cb5ea037372b01bbbb924a8da37f6cfe7db803eaaf93a95f4b87216fd"
+    },
+    {
+      "file": "src/components/project-workspace/ProjectTeam.tsx",
+      "sha256": "56f52ebb5d705c3a9aa0220634df9c0eb6fcf990397bd4ea74d8fcfe5a362354",
+      "original": null
+    },
+    {
+      "file": "src/components/project-workspace/TaskCollaboration.tsx",
+      "sha256": "d72ad5564b309b4a2d9fb0455626f33d09842eb3a03b166da50c918a4735f15c",
+      "original": null
+    },
+    {
+      "file": "src/components/project-workspace/useProjectCollection.ts",
+      "sha256": "dcc3a9d4bd2f426a74707646b9a336a96d61bf9e1ef6dfa58f284f78490b95d9",
+      "original": null
+    },
+    {
+      "file": "src/components/project-workspace/useProjectDashboard.ts",
+      "sha256": "a6af4cb745252154870d63d900192d731c226e5a9797db277455eb0deb44e934",
+      "original": "0fd14e6d477c3e419a292c4acc41d65b610a68f5842a61aeb9ee916a81edb174"
+    },
+    {
+      "file": "src/services/project-hub-api.ts",
+      "sha256": "ce14f9b648b7cc9b0ecd8d5366f3ef81c3387860cd671f09eada679d85405be2",
+      "original": "e0e14f86d64f5701c6f23fbecd562a437e231bacd6418018ed510911cd0219c5"
+    },
+    {
+      "file": "src/services/project-web-url.ts",
+      "sha256": "878c5d25fa7902348df484bd049cca11d6332be6afc6b5c0bcebb028dcb86e69",
+      "original": "5d68ebb4ff075804e61afc2cdcaecf283a5d36214e437b18fb6c2a05248936fc"
+    },
+    {
+      "file": "src/shared/project-hub.ts",
+      "sha256": "09126ee752217bbedfa9e29318d244dfa4bf6c0c19eefb4d986ff1dfe197b3d1",
+      "original": "6b3eac6368b86e1fd7180d8f0d89b4e02f8ccc383a8c97d60ee20c246f1fba88"
+    },
+    {
+      "file": "src/shared/project-management.ts",
+      "sha256": "a562c57240f847122546e316afa695ee8eca4e0341f8099b4495a65c0a669682",
+      "original": null
+    },
+    {
+      "file": "src/__tests__/components/ProjectManagement.test.tsx",
+      "sha256": "df65be3d3b37a511de7499039fe9d6c1b5352deda4033256cf3639e027492fc6",
+      "original": null
+    },
+    {
+      "file": "src/__tests__/components/UnifiedProjectHub.test.tsx",
+      "sha256": "1dd47459099b41da29104e76dfaa2d4c2d4e49651e80790e21db19c22c2ac66a",
+      "original": "8078601e726a37d8b5d71c601763f4df5c1272ad0fb93bef42f9a90f1e18f71f"
+    },
+    {
+      "file": "electron/preload/channel-group-5.ts",
+      "sha256": "05f590ee2e504a74c330c1b188c4b71f3431960cc8fec1fab9a58c94f1b94c90",
+      "original": "9a3c1eff3f33fe150120023e039c98e2325167b3ad9bb85255538a3b7d65aa64"
+    },
+    {
+      "file": "electron/preload/project-hub-api.ts",
+      "sha256": "5f6224abb03f489f105eb9035142e62ae74baafb3bad1243fd9ebb4a78381095",
+      "original": "8c0ae14d74b6266fe5a94acb0940ad9c826645861053472720d0e8f49fa2415c"
+    },
+    {
+      "file": "electron/project-hub/management-request.ts",
+      "sha256": "acad47ebfe56aedbc6180e515a63e387728ac66a825e7f5654e4a2127586aa7b",
+      "original": null
+    },
+    {
+      "file": "electron/project-hub/service.ts",
+      "sha256": "bae72b00a9eb03672fd2c7356f104a1512812ea50e8dc4ba9f31e4f2e95450e2",
+      "original": "5a13d5201234d9df7c86c6b5023ed1e206665523b6573340bee2e8715703d844"
+    },
+    {
+      "file": "electron/project-hub-handlers.ts",
+      "sha256": "fef0aeb09521d26244131a897415f00435b7cd66340e606c35fbc53374ad139d",
+      "original": "fac5388073dc6ab721ec4e99f2dd8457581e8f9a114080239f3a79bb6a7025a4"
+    },
+    {
+      "file": "electron/__tests__/project-hub/ipc-cases.ts",
+      "sha256": "99cffb36c7ed19d3a852cdc4e5e0c466cfb7413c6877d23d1e44491969cb2d83",
+      "original": "3d92d89d863966582e706fb104049bfee59e21080500e90bb9cba185cd3defd9"
+    },
+    {
+      "file": "electron/__tests__/project-hub-bridge.test.ts",
+      "sha256": "80478b175790b1f5b74fb9993ffe51398b37096deae980db4aed71fbb1985cea",
+      "original": "09ed3e8da407386e7857ff64f42caf66bb7e53782b8d839a679e9bfc439c866b"
+    },
+    {
+      "file": "electron/__tests__/project-hub-ipc.test.ts",
+      "sha256": "3d63298eff13a4970681aa0a5c31f084da5f2837d30cc65418f27b93d91d9c0f",
+      "original": "dc3f784963ab22fd932a40195de5a8b84774c4360a77d897c6c6038450e6d427"
+    },
+    {
+      "file": "electron/__tests__/project-management-http.test.ts",
+      "sha256": "9e167840bcd93e07936ee31bef3bcbe8e0db17009d907aede9eced13159077ee",
+      "original": null
+    },
+    {
+      "file": "docs/architecture/ipc-and-integrations.md",
+      "sha256": "d3e6115a1000fecd7511ef27c5524e39dcdb1658ef0acc9388bd37c6a66ff3f4",
+      "original": "4696cf1410a47a37caf75a6657c514a71bbcdab52226e8790d7fd8f673cb8ff0"
+    },
+    {
+      "file": "docs/architecture/project-hub-unified.md",
+      "sha256": "71aa0083fe58903fe5fc3e09a939e0dc26ef938fb6f2f384d4cc8f7a0c67a4fa",
+      "original": "174e2aa1441147d955c78a146262b6fa573af90f08b61a97fd9ceae7f15ff5e4"
+    },
+    {
+      "file": "docs/quality/test-strategy-and-inventory.md",
+      "sha256": "0d0b420d3e94018774d8aecabfcf223054471d7766c10d7566b4f46bf7c352d3",
+      "original": "833e388f8daa25e199b84fdd5da4e2847f2a87917b35abbb6783470db010744c"
+    },
+    {
+      "file": "openspec/changes/add-portable-project-workspaces/design.md",
+      "sha256": "36de785f9270011e1994c7677bc7534390b502a629c6fe0f74376bff07d6a404",
+      "original": "ac19597420a99058bbf3d71b5c73cf6d67823b82f48a4937beefdae168a98e4f"
+    },
+    {
+      "file": "openspec/changes/add-portable-project-workspaces/reports/panel-implemented-compact.png",
+      "sha256": "79f995ac408914148e8f3c89313f6cf19eda235a18e2c4902d557eddbf4e6363",
+      "original": "e752d106679452427856f1eb35963d11501ceb2280f6ce52ace160d94ce1e1ca"
+    },
+    {
+      "file": "openspec/changes/add-portable-project-workspaces/reports/panel-implemented-dark.png",
+      "sha256": "edc9bb1dc5309abeabaacfa2b3fb93bce52c4714d697729b12fce1ad37ded0b4",
+      "original": "56ba2461c4a95b4629af74e967ab9408d9194956fe04ddf704f68b6d9e9d29a6"
+    },
+    {
+      "file": "openspec/changes/add-portable-project-workspaces/reports/panel-implemented-light.png",
+      "sha256": "f1c2f4a309611cfb2261bb30e96d85368c63c5c3c0426c981228bff651c2c327",
+      "original": "b918ed70ba116742be7af970f873cf81fd2b3f0747dd4bfeeb00b4b778c3eb31"
+    },
+    {
+      "file": "openspec/changes/add-portable-project-workspaces/reports/project-management-implementation.md",
+      "sha256": "f90657f6ac1e0aea925d886b28e3d144f2b52d13e800721befc3924674c68a39",
+      "original": null
+    },
+    {
+      "file": "openspec/changes/add-portable-project-workspaces/reports/project-management-milestones.png",
+      "sha256": "c2030c7da8273570221ed6498214b652f8c6f34bd200a94b41daf1114b7463a6",
+      "original": null
+    },
+    {
+      "file": "openspec/changes/add-portable-project-workspaces/reports/project-management-tasks.png",
+      "sha256": "1c70251c6cfb6222192087d3d70521b5533dc4a58fa3fd0b9e64bc03a9fc4ebe",
+      "original": null
+    },
+    {
+      "file": "openspec/changes/add-portable-project-workspaces/reports/project-management-team.png",
+      "sha256": "2b80f2e93ab41317aa074e82b5377a71c72475b1f674eeb6e8a0c951c6406bf0",
+      "original": null
+    },
+    {
+      "file": "openspec/changes/add-portable-project-workspaces/specs/project-collaboration/spec.md",
+      "sha256": "57f8e9b08d1c0f3433b50d15c55b9e6b30d17f8996c1cb0c67a286210e9bcea3",
+      "original": "30440bf5c9c6e44e313a2eb4467292c683901b5dd263b80c9656526e0ceb41c3"
+    },
+    {
+      "file": "openspec/changes/add-portable-project-workspaces/tasks.md",
+      "sha256": "c301d0d34e989a895411dea48382018dcb2995fd5aed6b670a2fda75f04442ee",
+      "original": "90fc1703b9d76e83740e185eee6a8acf9a3b7c6595759b1efacf29cd8cbe1da2"
+    },
+    {
+      "file": "test/manual/project-panel/database-smoke.mjs",
+      "sha256": "a6e6a875a2f4fbfe023e32588921e93f6b9bd2be8726326d868aab071bd60abd",
+      "original": null
+    },
+    {
+      "file": "test/manual/project-panel/electron.cjs",
+      "sha256": "339f4fba29332e351979757f38576f3baa2d870b24be6925541142e9cd29f066",
+      "original": "19e79d94a6ee8bdf5308ae09d10cf8c3a054615dc78a1540997344c82dd520c8"
+    },
+    {
+      "file": "test/manual/project-panel/preview.tsx",
+      "sha256": "7effbb29ea57f8193ade1d5577b7d064d66644fe487dfd7406830d11ce382fc1",
+      "original": "92f148b1fbfcbf9a9aaf4d66ca5e54eff1cd20d4ae9385ab5f560d9588539832"
+    },
+    {
+      "file": "test/manual/project-panel/smoke.mjs",
+      "sha256": "e2484254dda95c144a78bf0524f3614b1c810f000b7423f1971ac56bb4f899b4",
+      "original": "9879825feebf43d0cd44913ad52b7c3764073d27daaf84f0b40fa55c2860a9f6"
+    },
+    {
+      "file": "database/iris/migrations/20261023-project-management.rollback.sql",
+      "sha256": "035dd83ea35066f6c89dc425a31a9f1405a168766057d2344ee9a13e9cb89abc",
+      "original": null
+    },
+    {
+      "file": "database/iris/migrations/20261023-project-management.sql",
+      "sha256": "87f015f3f715c96ecfdeb8b218a61def7a02c9bbdeb82c1f07ee962abbaf06c8",
+      "original": null
+    }
+  ]
+}

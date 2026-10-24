@@ -1,0 +1,8 @@
+{
+  "electron": "44.5.1",
+  "node": "24.21.0",
+  "nodemailer": "10.2.1",
+  "cjs": true,
+  "mime": true,
+  "bytes": 273
+}

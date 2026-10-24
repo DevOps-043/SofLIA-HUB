@@ -1,0 +1,31 @@
+{
+  "status": "passed",
+  "electron": "44.5.1",
+  "checks": [
+    "sin-sesion-denegado",
+    "estado-minimo",
+    "ventana-ajena-denegada",
+    "payload-ajeno-denegado",
+    "cancelacion-sin-captura",
+    "aprobacion-simulada",
+    "nueve-metodos-preload-ipc",
+    "dictado-rol-y-visibilidad",
+    "audio-solo-consumidor",
+    "navegacion-retira-destinatario",
+    "cambio-aba-revoca",
+    "aprobacion-tardia-denegada"
+  ],
+  "nativeIpc": true,
+  "hiddenWindows": true,
+  "profileIsolated": true,
+  "sandbox": true,
+  "contextIsolation": true,
+  "serviceSimulated": true,
+  "dialogSimulated": true,
+  "realMicrophoneUsed": false,
+  "realModelsUsed": false,
+  "realCredentialsUsed": false,
+  "networkBlocked": true,
+  "sandboxPath": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-voice-ipc-native-UwESoQ",
+  "command": "npm run voice:smoke:native"
+}

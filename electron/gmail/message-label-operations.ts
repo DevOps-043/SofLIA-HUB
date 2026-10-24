@@ -1,70 +1,47 @@
-import { drainLabelMessages } from './batch';
-import type { GmailClient } from './types';
+import { gmailBatchOptionsSchema, gmailModifyLabelsSchema, gmailObjectIdSchema, type GmailBatchOptions, type GmailBatchResult } from '../../src/shared/gmail-mailbox';
+import { applyGmailMessageBatches, isGmailLabelEmpty, selectGmailLabelMessages } from './batch';
+import { editableGmailLabel, fetchGmailLabels, materializeGmailLabels, describeGmailLabels } from './label-operations';
+import { prepareGmailLabels } from './label-resolution';
+import { approveGmailOperation, GmailOperationConflict, type GmailOperationProgress } from './operation-progress';
+import type { GmailExecutionContext } from './execution-context';
 
-type ClientProvider = () => Promise<{ client?: GmailClient; error?: string }>;
-
-export async function modifyGmailLabels(
-  getClient: ClientProvider,
-  resolveLabelIds: (labels: string[] | undefined, options: { createMissing: boolean }) => Promise<string[]>,
-  messageId: string,
-  addLabels?: string[],
-  removeLabels?: string[],
-): Promise<{ success: boolean; error?: string }> {
-  const { client: gmail, error } = await getClient();
-  if (!gmail) return { success: false, error };
-
-  try {
-    const addLabelIds = await resolveLabelIds(addLabels, { createMissing: true });
-    const removeLabelIds = await resolveLabelIds(removeLabels, { createMissing: false });
-    await gmail.users.messages.modify({ userId: 'me', id: messageId, requestBody: { addLabelIds, removeLabelIds } });
-    console.log(`[GmailService] Labels modified: ${messageId}`);
-    return { success: true };
-  } catch (err: any) {
-    console.error('[GmailService] ModifyLabels error:', err.message);
-    return { success: false, error: err.message };
-  }
+export async function modifyGmailLabels(context: GmailExecutionContext, progress: GmailOperationProgress,
+  messageId: string, addLabels?: string[], removeLabels?: string[]) {
+  const input = gmailModifyLabelsSchema.parse({ messageId, addLabels, removeLabels });
+  const prepared = prepareGmailLabels(await fetchGmailLabels(context), input.addLabels, input.removeLabels);
+  await approveGmailOperation(context, `Modificar mensaje: ${input.messageId}\n${describeGmailLabels(prepared)}`);
+  const changes = await materializeGmailLabels(context, progress, prepared);
+  await progress.write(context, client => client.users.messages.modify({ userId: 'me', id: input.messageId, requestBody: changes }, context.requestOptions()));
+  return { success: true, ...progress.result() };
 }
-
-export async function trashGmailMessage(
-  getClient: ClientProvider,
-  messageId: string,
-): Promise<{ success: boolean; error?: string }> {
-  const { client: gmail, error } = await getClient();
-  if (!gmail) return { success: false, error };
-
-  try {
-    await gmail.users.messages.trash({ userId: 'me', id: messageId });
-    console.log(`[GmailService] Message trashed: ${messageId}`);
-    return { success: true };
-  } catch (err: any) {
-    console.error('[GmailService] Trash error:', err.message);
-    return { success: false, error: err.message };
-  }
+export async function trashGmailMessage(context: GmailExecutionContext, progress: GmailOperationProgress, input: string) {
+  const id = gmailObjectIdSchema.parse(input);
+  await approveGmailOperation(context, `Mover a la papelera el mensaje: ${id}\nSe podrá recuperar desde la papelera de Gmail.`);
+  await progress.write(context, client => client.users.messages.trash({ userId: 'me', id }, context.requestOptions()));
+  return { success: true, ...progress.result() };
 }
-
-export async function batchModifyGmailByLabel(
-  getClient: ClientProvider,
-  labelId: string,
-  options?: { addLabels?: string[]; removeLabels?: string[]; deleteLabel?: boolean },
-): Promise<{ success: boolean; processed: number; remaining: number; labelDeleted: boolean; error?: string }> {
-  const { client: gmail, error } = await getClient();
-  if (!gmail) return { success: false, processed: 0, remaining: 0, labelDeleted: false, error };
-
+export async function batchModifyGmailByLabel(context: GmailExecutionContext, progress: GmailOperationProgress,
+  inputId: string, options?: GmailBatchOptions): Promise<GmailBatchResult> {
+  let processed = 0, labelDeleted = false;
+  let remaining: number | undefined, sourceEmpty: boolean | undefined;
   try {
-    const { processed, remaining } = await drainLabelMessages(gmail, labelId, options);
-    let labelDeleted = false;
-    if (options?.deleteLabel && remaining === 0) {
-      try {
-        await gmail.users.labels.delete({ userId: 'me', id: labelId });
-        labelDeleted = true;
-        console.log(`[GmailService] Label ${labelId} deleted after batch move`);
-      } catch (delErr: any) {
-        console.warn(`[GmailService] Could not delete label ${labelId}:`, delErr.message);
-      }
+    const id = gmailObjectIdSchema.parse(inputId), parsed = gmailBatchOptionsSchema.parse(options === undefined ? {} : options);
+    const labels = await fetchGmailLabels(context), label = labels.find(value => value.id === id);
+    if (!label) throw new Error('La etiqueta de origen no existe.');
+    if (parsed.deleteLabel) editableGmailLabel(labels, id);
+    const prepared = prepareGmailLabels(labels, parsed.addLabels ?? ['INBOX'], parsed.removeLabels ?? [id]);
+    if (!prepared.add.length && !prepared.remove.length && !parsed.deleteLabel) throw new Error('Operación vacía.');
+    const ids = await selectGmailLabelMessages(context, id);
+    if (parsed.deleteLabel && ids.length && !prepared.remove.includes(id)) throw new Error('El borrado requiere retirar la etiqueta de origen.');
+    await approveGmailOperation(context, `Procesar etiqueta: ${label.name} (${id})\nMensajes seleccionados: ${ids.length}\n${describeGmailLabels(prepared)}\nEliminar etiqueta si queda vacía: ${parsed.deleteLabel ? 'sí' : 'no'}\nLos mensajes nuevos quedan fuera de esta selección.`);
+    const changes = await materializeGmailLabels(context, progress, prepared);
+    await applyGmailMessageBatches(context, progress, ids, changes, count => { processed += count; });
+    sourceEmpty = await isGmailLabelEmpty(context, id);
+    if (sourceEmpty) remaining = 0;
+    if (parsed.deleteLabel) {
+      if (!sourceEmpty) throw new GmailOperationConflict();
+      await progress.write(context, client => client.users.labels.delete({ userId: 'me', id }, context.requestOptions()), () => { labelDeleted = true; });
     }
-    return { success: true, processed, remaining, labelDeleted };
-  } catch (err: any) {
-    console.error('[GmailService] BatchModifyByLabel error:', err.message);
-    return { success: false, processed: 0, remaining: 0, labelDeleted: false, error: err.message };
-  }
+    return { success: true, processed, remaining, sourceEmpty, labelDeleted, ...progress.result() };
+  } catch (error) { return { ...progress.failure(error), processed, remaining, sourceEmpty, labelDeleted }; }
 }

@@ -52,6 +52,42 @@ envie: enterarse despues no le sirve de nada. Al enviar solo se espera lo que
 siga en curso, y lo que no llegue se declara como no leido en lugar de retener
 el turno.
 
+## Apartado de proyecto dentro del workspace
+
+El panel de proyectos reutiliza Sidebar, SidebarHeader, UserMenu, PanelResizeGrip
+y las primitives Button/Card. La tipografía es la de interfaz existente
+(`--font-system-ui`), también en títulos; el mockup no introduce una familia
+distinta. Sus botones usan radios amplios y los iconos conservan la familia SVG
+de trazo del Hub, sin dependencias nuevas.
+
+`useProjectWorkspace` mantiene navegación y contexto por usuario, organización
+y proyecto. El lateral cambia de contenido, conserva su envolvente flotante y
+ofrece Nuevo chat, navegador, búsqueda y chats recientes. Las secciones cambian
+la superficie principal sin pestañas o ventanas nuevas. En ancho reducido se
+presenta el lateral compacto; la preferencia global de posición inferior se
+conserva, pero este apartado usa una columna vertical para sus secciones.
+
+Los proyectos de gestión cargan datos mediante Project Hub API y presentan
+resumen, tareas, archivos/webs, colaboradores, métricas y actividad. Cada recurso
+distingue carga, error y ausencia. Hitos/ciclos y detalle de equipos declaran la
+capacidad no disponible del contrato actual; no se deducen de tablas o datos de
+ejemplo. Las carpetas anteriores tienen el mismo lateral y conservan su dominio
+de conversaciones y fuentes, sin convertirse en proyectos IRIS.
+
+La lectura de `project_chat_bindings` es un adaptador de compatibilidad con el
+contrato Lia existente y exige además que la carpeta figure entre las accesibles.
+No crea carpetas por nombre ni inventa un vínculo. Si falta la tabla/vínculo o
+los permisos, bloquea Nuevo chat para ese proyecto de gestión. El contexto de
+carpeta se captura antes de guardar mensajes; los guards de las acciones de chat
+descartan una selección tardía al cambiar de proyecto. El navegador conserva el
+lateral en el layout y recibe sólo las conversaciones de ese proyecto, sin
+publicar automáticamente historial o sesiones.
+
+La implementación del panel no equivale a completar el almacenamiento portable,
+los proveedores directos, las invitaciones externas ni las migraciones del plan.
+Evidencia y límites en
+[el reporte del panel](../../openspec/changes/add-portable-project-workspaces/reports/panel-implementation.md).
+
 ## Capas del renderer
 
 | Ruta | Responsabilidad | Regla de dependencia |

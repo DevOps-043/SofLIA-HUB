@@ -1,3 +1,6 @@
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { app } from 'electron';
 import { EventEmitter } from 'node:events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BrowserWindow, ipcMain, dialog, type MessageBoxReturnValue } from 'electron';
@@ -39,6 +42,7 @@ describe('handler de apertura de la Orbe', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     browser.getState.mockReturnValue({ agentTask: null } as ReturnType<IntegratedBrowserService['getState']>);
+    for (const win of [mainWindow, orbWindow]) Object.defineProperty(win.webContents, 'mainFrame', { configurable: true, value: { url: pathToFileURL(path.join(app.getAppPath(), 'dist', 'index.html')).href } });
     ipcMainHarness._clearHandlers();
     resetAuthStateForTests();
     registerOrbIpcHandlers({
@@ -63,7 +67,7 @@ describe('handler de apertura de la Orbe', () => {
   it('ocultar sólo puede cancelar la asistencia desde Hub/Orbe autenticados y su marco principal', () => {
     const hide = vi.mocked(ipcMain.on).mock.calls.find(([channel]) => channel === 'orb:hide')?.[1];
     expect(hide).toBeDefined();
-    Object.defineProperty(orbWindow.webContents, 'mainFrame', { configurable: true, value: {} });
+    Object.defineProperty(orbWindow.webContents, 'mainFrame', { configurable: true, value: { url: pathToFileURL(path.join(app.getAppPath(), 'dist', 'index.html')).href } });
     const event = { sender: orbWindow.webContents, senderFrame: orbWindow.webContents.mainFrame } as IpcMainEvent;
     hide!(event); expect(onHide).not.toHaveBeenCalled();
     setAuthState({ authenticated: true, userId: 'usuario-1' });
@@ -74,7 +78,7 @@ describe('handler de apertura de la Orbe', () => {
   });
   it('la voz del navegador sólo acepta marco principal de Orbe con sesión y contrato cerrado', async () => {
     const handler = ipcMainHarness._getHandler('orb:browser-command');
-    Object.defineProperty(orbWindow.webContents, 'mainFrame', { configurable: true, value: {} });
+    Object.defineProperty(orbWindow.webContents, 'mainFrame', { configurable: true, value: { url: pathToFileURL(path.join(app.getAppPath(), 'dist', 'index.html')).href } });
     vi.mocked(orbWindow.isVisible).mockReturnValue(true);
     const event = { sender: orbWindow.webContents, senderFrame: orbWindow.webContents.mainFrame };
     expect(await handler(event, 'task-status')).toMatchObject({ success: false });
@@ -84,7 +88,7 @@ describe('handler de apertura de la Orbe', () => {
   });
   it.each(['sesión', 'marco', 'oculta'] as const)('detener sigue disponible y una reanudación obsoleta no actúa: %s', async mode => {
     const handler = ipcMainHarness._getHandler('orb:browser-command');
-    Object.defineProperty(orbWindow.webContents, 'mainFrame', { configurable: true, value: {} });
+    Object.defineProperty(orbWindow.webContents, 'mainFrame', { configurable: true, value: { url: pathToFileURL(path.join(app.getAppPath(), 'dist', 'index.html')).href } });
     vi.mocked(orbWindow.isVisible).mockReturnValue(true);
     setAuthState({ authenticated: true, userId: 'usuario-1' });
     browser.getState.mockReturnValue({ profileRevision: 2, agentTask: { taskId: 'cu-id', revision: 1, status: 'paused', currentStep: 2, maxSteps: 5 } } as ReturnType<IntegratedBrowserService['getState']>);
@@ -95,7 +99,7 @@ describe('handler de apertura de la Orbe', () => {
     expect(await handler(event, 'resume')).toMatchObject({ success: false });
     expect(await handler(event, 'stop')).toMatchObject({ success: true });
     if (mode === 'sesión') { setAuthState({ authenticated: false, userId: null }); setAuthState({ authenticated: true, userId: 'usuario-1' }); }
-    if (mode === 'marco') Object.defineProperty(orbWindow.webContents, 'mainFrame', { configurable: true, value: {} });
+    if (mode === 'marco') Object.defineProperty(orbWindow.webContents, 'mainFrame', { configurable: true, value: { url: pathToFileURL(path.join(app.getAppPath(), 'dist', 'index.html')).href } });
     if (mode === 'oculta') vi.mocked(orbWindow.isVisible).mockReturnValue(false);
     resolve({ response: 1, checkboxChecked: false });
     expect(await pending).toMatchObject({ success: false });
@@ -105,7 +109,7 @@ describe('handler de apertura de la Orbe', () => {
 
   it('abre la Orbe solo para el renderer principal autenticado', async () => {
     setAuthState({ authenticated: true, userId: 'usuario-1' });
-    const result = await ipcMainHarness._getHandler('orb:show')({ sender: mainWindow.webContents });
+    const result = await ipcMainHarness._getHandler('orb:show')({ sender: mainWindow.webContents, senderFrame: mainWindow.webContents.mainFrame });
 
     expect(result).toMatchObject({ success: true, visible: true });
     expect(showOrbWindow).toHaveBeenCalledTimes(1);
@@ -113,9 +117,9 @@ describe('handler de apertura de la Orbe', () => {
 
   it('rechaza falta de sesión y un emisor distinto', async () => {
     const handler = ipcMainHarness._getHandler('orb:show');
-    await expect(handler({ sender: mainWindow.webContents })).resolves.toMatchObject({ success: false, error: 'auth_required' });
+    await expect(handler({ sender: mainWindow.webContents, senderFrame: mainWindow.webContents.mainFrame })).resolves.toMatchObject({ success: false, code: 'context_invalid' });
     setAuthState({ authenticated: true, userId: 'usuario-1' });
-    await expect(handler({ sender: { id: 999 } })).resolves.toMatchObject({ success: false, error: 'sender_denied' });
+    await expect(handler({ sender: { id: 999 } })).resolves.toMatchObject({ success: false, code: 'context_invalid' });
     expect(showOrbWindow).not.toHaveBeenCalled();
   });
 
@@ -127,8 +131,8 @@ describe('handler de apertura de la Orbe', () => {
     setAuthState({ authenticated: true, userId: 'usuario-1' });
     const handler = ipcMainHarness._getHandler('orb:synthesize');
 
-    await expect(handler({ sender: { id: 999 } }, 'Hola')).resolves.toMatchObject({ success: false, error: 'sender_denied' });
-    const result = await handler({ sender: mainWindow.webContents }, 'Hola');
+    await expect(handler({ sender: { id: 999 } }, 'Hola')).resolves.toMatchObject({ success: false, code: 'context_invalid' });
+    const result = await handler({ sender: mainWindow.webContents, senderFrame: mainWindow.webContents.mainFrame }, 'Hola');
 
     expect(result).toMatchObject({
       success: true,
@@ -144,9 +148,9 @@ describe('handler de apertura de la Orbe', () => {
     setAuthState({ authenticated: true, userId: 'usuario-1' });
     const handler = ipcMainHarness._getHandler('orb:synthesize');
 
-    await expect(handler({ sender: mainWindow.webContents }, { text: 'no permitido' })).resolves.toMatchObject({
+    await expect(handler({ sender: mainWindow.webContents, senderFrame: mainWindow.webContents.mainFrame }, { text: 'no permitido' })).resolves.toMatchObject({
       success: false,
-      error: 'El texto de voz no es válido.',
+      code: 'voice_invalid_input',
     });
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
@@ -161,3 +165,6 @@ afterEach(() => {
   if (originalEnvironment.model === undefined) delete process.env.ELEVENLABS_MODEL_ID;
   else process.env.ELEVENLABS_MODEL_ID = originalEnvironment.model;
 });
+
+
+

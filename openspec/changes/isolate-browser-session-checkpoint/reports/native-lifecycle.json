@@ -1,0 +1,15 @@
+{
+  "status": "passed",
+  "electron": "44.5.1",
+  "chromium": "152.0.7977.130",
+  "node": "24.21.0",
+  "phase": "lifecycle",
+  "checks": [
+    "beforeunload cancelado conserva ventana, cookie y marcadores",
+    "cancelar beforeunload reanuda el guardado real de sesión",
+    "will-quit mantiene el proceso vivo mientras termina la limpieza",
+    "checkpoint real confirma la sesión antes de destruir el perfil",
+    "salida final única después de borrar cookies y archivos temporales"
+  ],
+  "limitations": []
+}

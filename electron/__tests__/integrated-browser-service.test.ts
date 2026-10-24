@@ -3004,6 +3004,25 @@ describe('IntegratedBrowserService', () => {
     service.detachWindow();
   });
 
+  it.each(['audio', 'captura', 'carga', 'carga principal', 'DevTools'])('el presupuesto de vistas conserva trabajo protegido: %s', async kind => {
+    const service = new IntegratedBrowserService();
+    service.attachWindow(new BrowserWindow());
+    await service.open('https://primaria.example');
+    service.setViewport({ x: 0, y: 0, width: 1200, height: 800 });
+    await service.createTab('https://trabajo.example', false);
+    const protectedId = service.getState().tabs[1].id;
+    const contents = browserViewHarness.instances[1].webContents;
+    if (kind === 'audio') contents.isCurrentlyAudible.mockReturnValue(true);
+    if (kind === 'captura') contents.isBeingCaptured.mockReturnValue(true);
+    if (kind === 'carga') contents.isWaitingForResponse.mockReturnValue(true);
+    if (kind === 'carga principal') contents.isLoadingMainFrame.mockReturnValue(true);
+    if (kind === 'DevTools') contents.isDevToolsOpened.mockReturnValue(true);
+    for (let index = 0; index < 8; index++) await service.createTab(`https://fondo.example/${index}`, false);
+    expect(service.getState().tabs.find(tab => tab.id === protectedId)?.isSuspended).toBe(false);
+    expect(contents.close).not.toHaveBeenCalled();
+    service.detachWindow();
+  });
+
   it('suspende una pestaña fría, protege audio y restaura la misma identidad', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-08-13T18:00:00.000Z'));

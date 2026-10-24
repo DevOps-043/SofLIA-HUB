@@ -13,7 +13,7 @@
 import fs from 'node:fs';
 import { BrowserWindow, desktopCapturer } from 'electron';
 import { DesktopWindowControls } from '../desktop-agent/window-controls';
-import { isSidecarDocument, pythonToolsService } from '../python-tools-service';
+import { isSidecarDocument, pythonToolsService, type PythonToolsOperationContext } from '../python-tools-service';
 import { buildInventory, availableLevelsFor, type DesktopWindowRecord, type WindowSource } from './inventory';
 import { extractAppContext } from './cascade';
 import { listOpenOfficeDocuments } from './office-com';
@@ -39,7 +39,8 @@ export class DesktopContextService {
   );
 
   /** Inventario de ventanas candidatas. No lee el contenido de ninguna. */
-  async listApps(): Promise<DesktopContextInventory> {
+  async listApps(context?: PythonToolsOperationContext): Promise<DesktopContextInventory> {
+    context?.assertCurrent();
     const { inventory, records } = await buildInventory({
       listWindows: () => this.windowControls.listWindows(),
       getWindowSources: () => this.readWindowSources(),
@@ -48,12 +49,13 @@ export class DesktopContextService {
       platform: process.platform,
     });
 
-    this.records = new Map(records.map((record) => [record.id, record]));
+    context?.assertCurrent(); this.records = new Map(records.map((record) => [record.id, record]));
     return inventory;
   }
 
   /** Extrae el contenido de una ventana previamente inventariada. */
-  async captureApp(appId: unknown): Promise<DesktopAppContextAttachment> {
+  async captureApp(appId: unknown, context?: PythonToolsOperationContext): Promise<DesktopAppContextAttachment> {
+    context?.assertCurrent();
     if (!isValidCandidateId(appId)) {
       throw new Error('Identificador de aplicacion invalido.');
     }
@@ -62,27 +64,40 @@ export class DesktopContextService {
       throw new Error('La aplicacion ya no esta en el inventario. Vuelve a abrir el selector.');
     }
 
-    return extractAppContext(record, {
+    const policy = record.expectedLevel === 'documento' ? pythonToolsService.capturePrivacyContext() : undefined;
+    const assertCurrent = () => { context?.assertCurrent(); policy?.assertCurrent(); };
+    const attachment = await extractAppContext(record, {
+      protectDocument: policy?.config.redactDocuments,
       availableLevels: availableLevelsFor(process.platform),
-      listOfficeDocuments: () => listOpenOfficeDocuments(),
+      listOfficeDocuments: () => { assertCurrent(); return listOpenOfficeDocuments(); },
       isSidecarDocument,
-      parseDocument: (filePath) => this.parseDocument(filePath),
-      extractWindowText: (pid) => extractWindowText(pid),
-      captureWindow: (sourceId) =>
-        captureWindow(sourceId, ({ thumbnailSize }) =>
-          desktopCapturer.getSources({ types: ['window'], thumbnailSize })),
-      fileExists: (filePath) => fs.existsSync(filePath),
+      parseDocument: filePath => { assertCurrent(); return this.parseDocument(filePath, { signal: context?.signal, assertCurrent }); },
+      extractWindowText: pid => { assertCurrent(); return extractWindowText(pid); },
+      captureWindow: sourceId => {
+        assertCurrent(); return captureWindow(sourceId, ({ thumbnailSize }) => desktopCapturer.getSources({ types: ['window'], thumbnailSize }));
+      },
+      fileExists: filePath => { assertCurrent(); return fs.existsSync(filePath); },
     });
+    assertCurrent();
+    if (policy?.config.redactDocuments) {
+      const operation = { signal: context?.signal, assertCurrent };
+      const title = await pythonToolsService.redactText(attachment.title, operation); assertCurrent();
+      const source = await pythonToolsService.redactText(attachment.source, operation); assertCurrent();
+      if (!title.success || !source.success) throw new Error('No se pudo proteger la procedencia del documento. No se adjuntó contenido.');
+      return { ...attachment, title: title.data.redacted, source: source.data.redacted };
+    }
+    return attachment;
   }
 
   /** Solo para pruebas y diagnostico: cuantas ventanas conoce el inventario. */
   getInventorySize(): number {
     return this.records.size;
   }
+  clearInventory(): void { this.records.clear(); }
 
-  private async parseDocument(filePath: string): Promise<string> {
+  private async parseDocument(filePath: string, context?: PythonToolsOperationContext): Promise<string> {
     if (!pythonToolsService.isAvailable()) return '';
-    const result = await pythonToolsService.parseDocument(filePath);
+    const result = await pythonToolsService.parseDocument(filePath, 200, context);
     if (!result.success) {
       console.warn(`[ContextoEscritorio] El sidecar no pudo leer el documento: ${result.error.code}`);
       return '';

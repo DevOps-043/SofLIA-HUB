@@ -1,0 +1,44 @@
+{
+  "at": "2026-10-24T02:26:43.2551817Z",
+  "exitCode": 0,
+  "logSha256": "55aaf64164ad4e71599e81d02a96187a4c37ddacf994bc1a49ee7b6a0518c90e",
+  "increasePassed": 58,
+  "lint": {
+    "files": 262,
+    "newIssues": 0
+  },
+  "stages": [
+    "adapters:check",
+    "harness:validate",
+    "audit:supply-chain",
+    "docs:system:check",
+    "docs:check",
+    "skills:seed:check",
+    "openspec:validate",
+    "test:quality",
+    "typecheck",
+    "lint:changed",
+    "test"
+  ],
+  "previousTestsPassed": 5391,
+  "log": "soflia-python-tools-2026-10-23/verify-pr-final.log",
+  "documentation": {
+    "systemDocuments": 28,
+    "markdown": 675,
+    "testFiles": 665,
+    "channels": 495,
+    "ids": 150
+  },
+  "tests": {
+    "total": 5454,
+    "passed": 5449,
+    "skipped": 5,
+    "durationSeconds": 243.56
+  },
+  "stableSourceFiles": 20,
+  "suites": {
+    "total": 495,
+    "passed": 493,
+    "skipped": 2
+  }
+}

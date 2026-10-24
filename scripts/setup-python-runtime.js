@@ -6,7 +6,7 @@ const { pipeline } = require('node:stream/promises');
 const { Transform } = require('node:stream');
 const { execFileSync } = require('node:child_process');
 const {
-  PYTHON_VERSION, RELEASE, archiveSpec, sha256File, pythonExecutable,
+  PYTHON_VERSION, RELEASE, archiveSpec, sha256File, requirementsFingerprint, pythonExecutable,
   runtimeEnvironment, validateRuntime, isCurrentLock, promoteRuntime,
 } = require('./python-runtime-support.cjs');
 
@@ -40,7 +40,7 @@ async function main() {
   if (process.argv.slice(2).some(arg => arg !== '--force')) throw new Error('Uso: node scripts/setup-python-runtime.js [--force]');
   const spec = archiveSpec(process.platform, process.arch, process.env);
   const requirements = ['python/requirements.txt', 'python/tools_sidecar/requirements.txt'].map(file => path.join(ROOT, file));
-  const requirementsSha256 = requirements.map(sha256File).join('');
+    const requirementsSha256 = requirementsFingerprint(ROOT);
   const tempRoot = path.join(ROOT, 'tmp');
   fs.mkdirSync(tempRoot, { recursive: true });
   if (fs.lstatSync(tempRoot).isSymbolicLink()) throw new Error('El directorio temporal no puede ser un enlace.');
@@ -73,8 +73,10 @@ async function main() {
     const executable = pythonExecutable(staged);
     const options = { stdio: 'inherit', env: runtimeEnvironment(staged), windowsHide: true, timeout: 1800000 };
     // Sin configuraciones pip del usuario, paquetes user-site ni PYTHONPATH externos.
-    execFileSync(executable, ['-I', '-m', 'pip', '--isolated', 'install', '--no-warn-script-location', 'setuptools==80.9.0', 'wheel==0.45.1'], options);
-    execFileSync(executable, ['-I', '-m', 'pip', '--isolated', 'install', '--no-warn-script-location', '--no-build-isolation', ...requirements.flatMap(file => ['-r', file])], options);
+    execFileSync(executable, ['-I', '-m', 'pip', '--isolated', 'install', '--no-warn-script-location', '--only-binary=:all:', '--require-hashes', '-r', path.join(ROOT, 'python', 'bootstrap.lock')], options);
+    execFileSync(executable, ['-I', '-m', 'pip', '--isolated', 'install', '--no-warn-script-location', '--no-build-isolation', '-r', requirements[0]], options);
+    // Los hashes del lector no convierten la instalación de voz en un lock falso.
+    execFileSync(executable, ['-I', '-m', 'pip', '--isolated', 'install', '--no-warn-script-location', '--only-binary=:all:', '--require-hashes', '-r', requirements[1]], options);
     if (process.platform === 'linux') {
       const output = execFileSync('ldconfig', ['-p'], { encoding: 'utf8' });
       const match = output.match(/libportaudio\.so\.2[^\n]*=>\s*(\S+)/);

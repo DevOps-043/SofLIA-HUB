@@ -14,6 +14,24 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Obtener el mismo commit de la publicación
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Verificar antes de construir
+        run: npm run verify:pr
+
   # ─── Paso 1: Verificar si ya existe el release ───
   check:
     runs-on: ubuntu-latest
@@ -69,7 +87,7 @@ jobs:
 
   # ─── Paso 2: Build Windows ───
   build-windows:
-    needs: check
+    needs: [check, verify]
     if: needs.check.outputs.exists == 'false'
     runs-on: windows-latest
     timeout-minutes: 30
@@ -80,7 +98,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -135,7 +153,7 @@ jobs:
 
   # ─── Paso 2b: Build Mac ───
   build-mac:
-    needs: check
+    needs: [check, verify]
     if: needs.check.outputs.exists == 'false'
     runs-on: macos-latest
     timeout-minutes: 30
@@ -146,7 +164,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -208,7 +226,7 @@ jobs:
 
   # ─── Paso 2c: Build Linux ───
   build-linux:
-    needs: check
+    needs: [check, verify]
     if: needs.check.outputs.exists == 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -219,7 +237,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install Linux smoke dependencies
@@ -262,16 +280,10 @@ jobs:
       - name: Verify build-time keys
         run: node scripts/quality/check-release-env.mjs
 
-      - name: TypeScript check
-        run: npx tsc --noEmit --incremental false
-
-      - name: Build renderer and main process
-        run: npx vite build
-
       - name: Build Electron app (Linux AppImage)
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
-        run: node scripts/generate-bitmaps.js && node scripts/setup-python-runtime.js && npx electron-builder --linux AppImage deb --x64
+        run: npm run build:linux
 
       - name: Smoke test Linux AppImage startup
         env:

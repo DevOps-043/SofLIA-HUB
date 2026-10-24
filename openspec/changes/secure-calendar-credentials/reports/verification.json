@@ -1,0 +1,26 @@
+{
+  "fecha": "2026-10-22",
+  "rama": "codex/reduce-technical-debt",
+  "baseGit": "e166d250629e503cf12f69449fb6d66e569134c8",
+  "compuerta": {
+    "comando": "npm run verify:pr",
+    "salida": 0,
+    "archivosAprobados": 439,
+    "archivosOmitidos": 2,
+    "pruebasAprobadas": 4529,
+    "pruebasOmitidas": 5,
+    "pruebasFallidas": 0,
+    "duracionSegundos": 204.91,
+    "casosAgregados": 37
+  },
+  "nativo": { "comando": "npm run calendar:smoke:native", "salida": 0, "electron": "44.5.1", "fases": 3, "informe": "native-smoke.json" },
+  "canalesIPC": 494,
+  "archivosInventariadosDePruebas": 607,
+  "revision": "Autorrevisión adversarial; revisión independiente pendiente",
+  "limites": [
+    "Sin lectura ni migración de perfiles o credenciales reales",
+    "Sin cuentas remotas, Linux/macOS nativos ni instaladores",
+    "Claves compartidas del build y scopes amplios pendientes",
+    "Sin nuevo índice global de deuda ni publicación"
+  ]
+}

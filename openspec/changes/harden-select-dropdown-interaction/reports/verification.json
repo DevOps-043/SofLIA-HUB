@@ -1,0 +1,101 @@
+{
+  "fecha": "2026-10-22",
+  "rama": "codex/reduce-technical-debt",
+  "baseGit": "e166d250629e503cf12f69449fb6d66e569134c8",
+  "estado": "Implementada y verificada localmente; revisión independiente pendiente",
+  "baseline": {
+    "casos": 6,
+    "salida": 0,
+    "log": "baseline.log"
+  },
+  "reproduccion": {
+    "fallos": 9,
+    "aprobados": 6,
+    "salida": 1,
+    "log": "red.log"
+  },
+  "primerGate": {
+    "pruebasAprobadas": 4895,
+    "pruebasOmitidas": 5,
+    "salida": 0,
+    "duracionSuiteSegundos": 230.14,
+    "log": "verify-pr.log"
+  },
+  "regresionPosterior": {
+    "fallos": 1,
+    "omitidos": 31,
+    "salida": 1,
+    "causa": "Colisión entre id interno del popup y otro control",
+    "correccion": "Restaurar useId y formato previo de id interno",
+    "log": "id-collision-red.log"
+  },
+  "dirigidaFinal": {
+    "archivos": 3,
+    "casos": 48,
+    "casosNuevos": 26,
+    "salida": 0,
+    "log": "directed-reviewed.log"
+  },
+  "compuertaFinal": {
+    "comando": "npm run verify:pr",
+    "salida": 0,
+    "archivosAprobados": 460,
+    "archivosOmitidos": 2,
+    "pruebasAprobadas": 4896,
+    "pruebasOmitidas": 5,
+    "pruebasFallidas": 0,
+    "duracionSuiteSegundos": 213.5,
+    "archivosLintIncremental": 146,
+    "log": "verify-pr-final.log"
+  },
+  "api": {
+    "props": 10,
+    "optionFields": 4,
+    "unchanged": true,
+    "namedTypeReexported": true,
+    "sha256": "31a32c48fc836009b0186760c9f4eb6e46742246855f68af2520a57764cba8f2"
+  },
+  "build": {
+    "salida": 0,
+    "fuentes": 3314,
+    "artefactos": 6,
+    "archivosEnvCopiados": false,
+    "empaquetado": false,
+    "aplicacionIniciada": false,
+    "informe": "build-summary.json",
+    "hashes": "build-artifacts.json"
+  },
+  "nativo": {
+    "salida": 0,
+    "comprobaciones": 6,
+    "electron": "44.5.1",
+    "chromium": "152.0.7977.130",
+    "focoEmulado": true,
+    "zoom": 2,
+    "activaVisible": true,
+    "informe": "native-select.json",
+    "captura": "visual-check.json",
+    "log": "native-reviewed-delivery.log"
+  },
+  "documentacion": {
+    "archivosPrueba": 630,
+    "canalesIPC": 494,
+    "porcentajeGlobalRecalculado": false
+  },
+  "iris": {
+    "escriturasRemotas": 0,
+    "soloCatalogosYAsesores": true,
+    "tablasSinRlsSegunAsesor": 30,
+    "remediacionAplicada": false,
+    "informe": "docs/reports/iris-access-2026-10-22.md"
+  },
+  "revisionIndependiente": false,
+  "archivado": false,
+  "logs": "%TEMP%/soflia-select-interaction-2026-10-22/",
+  "limites": [
+    "Sin auditoría de lector de pantalla/axe global ni certificación WCAG",
+    "Native usa foco y media emulados; sólo contenido local",
+    "IRIS requiere transición autorizada de servidor, identidad, permisos y transacción",
+    "Otras áreas de deuda siguen abiertas"
+  ]
+}

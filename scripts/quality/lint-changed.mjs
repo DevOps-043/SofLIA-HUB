@@ -1,3 +1,4 @@
+import { assertAnalyzable, newLintMessages } from './lint-baseline.mjs';
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -38,24 +39,24 @@ const eslint = new ESLint({
 });
 const currentResults = await eslint.lintFiles(lintable);
 const regressions = [];
+// Un fallo del parser impide verificar reglas: nunca es deuda aceptable de HEAD.
+const fatal = currentResults.filter((result) => result.fatalErrorCount > 0);
+if (fatal.length) {
+  console.error((await eslint.loadFormatter('stylish')).format(fatal));
+  console.error('Lint incremental: el análisis no pudo completarse.');
+  process.exit(1);
+}
 
 for (const current of currentResults) {
   const file = current.filePath.slice(root.length + 1).replaceAll('\\', '/');
-  let baselineMessages = [];
+  let source;
   try {
-    const source = execFileSync('git', ['show', `HEAD:${file}`], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-    baselineMessages = (await eslint.lintText(source, { filePath: current.filePath }))[0]?.messages ?? [];
-  } catch { /* archivo nuevo: baseline limpio */ }
-
-  const baselineCounts = countByRule(baselineMessages);
-  const currentCounts = countByRule(current.messages);
-  const messages = [];
-  for (const [rule, count] of currentCounts) {
-    const extra = count - (baselineCounts.get(rule) ?? 0);
-    if (extra <= 0) continue;
-    messages.push(...current.messages.filter((message) => ruleKey(message) === rule).slice(-extra));
-  }
-  if (messages.length) regressions.push({ ...current, messages, errorCount: messages.filter((message) => message.severity === 2).length, warningCount: messages.filter((message) => message.severity === 1).length });
+    source = execFileSync('git', ['show', 'HEAD:' + file], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  } catch { /* Archivo nuevo: no hay línea base. */ }
+  const baseline = source === undefined ? { messages: [] } : (await eslint.lintText(source, { filePath: current.filePath }))[0];
+  assertAnalyzable(baseline, 'HEAD:' + file);
+  const messages = newLintMessages(current, baseline);
+  if (messages.length) regressions.push({ ...current, messages, errorCount: messages.filter(message => message.severity === 2).length, warningCount: messages.filter(message => message.severity === 1).length });
 }
 
 if (regressions.length) {
@@ -66,16 +67,3 @@ if (regressions.length) {
 }
 
 console.log(`Lint incremental: ${lintable.length} archivos revisados sin deuda nueva.`);
-
-function countByRule(messages) {
-  const counts = new Map();
-  for (const message of messages) {
-    const key = ruleKey(message);
-    counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-  return counts;
-}
-
-function ruleKey(message) {
-  return `${message.severity}:${message.ruleId ?? message.message}`;
-}

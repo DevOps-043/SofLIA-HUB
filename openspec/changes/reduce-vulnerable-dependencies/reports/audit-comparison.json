@@ -1,0 +1,834 @@
+{
+  "fecha": "2026-10-22",
+  "antes": {
+    "info": 0,
+    "low": 0,
+    "moderate": 25,
+    "high": 20,
+    "critical": 0,
+    "total": 45
+  },
+  "despues": {
+    "info": 0,
+    "low": 0,
+    "moderate": 19,
+    "high": 9,
+    "critical": 0,
+    "total": 28
+  },
+  "produccionAntes": {
+    "info": 0,
+    "low": 0,
+    "moderate": 15,
+    "high": 11,
+    "critical": 0,
+    "total": 26
+  },
+  "produccionDespues": {
+    "info": 0,
+    "low": 0,
+    "moderate": 12,
+    "high": 5,
+    "critical": 0,
+    "total": 17
+  },
+  "avisosUnicosAntes": 77,
+  "avisosUnicosDespues": 22,
+  "avisosNuevos": [],
+  "paquetesRetiradosDeAudit": [
+    "@vitest/coverage-v8",
+    "@vitest/mocker",
+    "@xmldom/xmldom",
+    "brace-expansion",
+    "fast-uri",
+    "follow-redirects",
+    "http-cache-semantics",
+    "ip-address",
+    "js-yaml",
+    "music-metadata",
+    "nanoid",
+    "qs",
+    "sharp",
+    "source-map-js",
+    "undici",
+    "vite",
+    "vitest"
+  ],
+  "paquetesNuevosEnAudit": [],
+  "residuales": [
+    {
+      "nombre": "@electron/get",
+      "severidad": "moderate",
+      "directo": false,
+      "via": [
+        "global-agent"
+      ]
+    },
+    {
+      "nombre": "@fission-ai/openspec",
+      "severidad": "high",
+      "directo": true,
+      "via": [
+        "fast-glob"
+      ]
+    },
+    {
+      "nombre": "@jimp/core",
+      "severidad": "moderate",
+      "directo": false,
+      "via": [
+        "file-type"
+      ]
+    },
+    {
+      "nombre": "@jimp/custom",
+      "severidad": "moderate",
+      "directo": false,
+      "via": [
+        "@jimp/core"
+      ]
+    },
+    {
+      "nombre": "@nut-tree-fork/nut-js",
+      "severidad": "moderate",
+      "directo": true,
+      "via": [
+        "@nut-tree-fork/provider-interfaces",
+        "@nut-tree-fork/shared",
+        "jimp"
+      ]
+    },
+    {
+      "nombre": "@nut-tree-fork/provider-interfaces",
+      "severidad": "moderate",
+      "directo": false,
+      "via": [
+        "@nut-tree-fork/shared"
+      ]
+    },
+    {
+      "nombre": "@nut-tree-fork/shared",
+      "severidad": "moderate",
+      "directo": false,
+      "via": [
+        "jimp"
+      ]
+    },
+    {
+      "nombre": "adm-zip",
+      "severidad": "high",
+      "directo": false,
+      "via": [
+        {
+          "nombre": "adm-zip",
+          "url": "https://github.com/advisories/GHSA-xcpc-8h2w-3j85",
+          "rango": "<0.6.0"
+        },
+        {
+          "nombre": "adm-zip",
+          "url": "https://github.com/advisories/GHSA-vwc7-r8mq-g2x9",
+          "rango": ">=0.5.9 <=0.6.0"
+        },
+        {
+          "nombre": "adm-zip",
+          "url": "https://github.com/advisories/GHSA-7q85-xj36-vmfc",
+          "rango": "<0.6.1"
+        },
+        {
+          "nombre": "adm-zip",
+          "url": "https://github.com/advisories/GHSA-rcw4-f5rp-g42v",
+          "rango": "<=0.6.0"
+        },
+        {
+          "nombre": "adm-zip",
+          "url": "https://github.com/advisories/GHSA-j5f4-cc29-5x44",
+          "rango": "<=0.6.0"
+        },
+        {
+          "nombre": "adm-zip",
+          "url": "https://github.com/advisories/GHSA-p634-w6r4-rjp2",
+          "rango": "<=0.6.0"
+        },
+        {
+          "nombre": "adm-zip",
+          "url": "https://github.com/advisories/GHSA-c6fg-446q-cg94",
+          "rango": "<=0.6.0"
+        },
+        {
+          "nombre": "adm-zip",
+          "url": "https://github.com/advisories/GHSA-8238-w5pm-2374",
+          "rango": "<=0.6.0"
+        }
+      ]
+    },
+    {
+      "nombre": "app-builder-lib",
+      "severidad": "moderate",
+      "directo": false,
+      "via": [
+        "@electron/get",
+        "dmg-builder",
+        "electron-builder-squirrel-windows"
+      ]
+    },
+    {
+      "nombre": "argparse",
+      "severidad": "moderate",
+      "directo": false,
+      "via": [
+        "sprintf-js"
+      ]
+    },
+    {
+      "nombre": "braces",
+      "severidad": "high",
+      "directo": false,
+      "via": [
+        {
+          "nombre": "braces",
+          "url": "https://github.com/advisories/GHSA-vfj7-8cjw-p6xm",
+          "rango": "<=3.0.3"
+        }
+      ]
+    },
+    {
+      "nombre": "dmg-builder",
+      "severidad": "moderate",
+      "directo": false,
+      "via": [
+        "app-builder-lib"
+      ]
+    },
+    {
+      "nombre": "electron-builder",
+      "severidad": "moderate",
+      "directo": true,
+      "via": [
+        "app-builder-lib",
+        "dmg-builder"
+      ]
+    },
+    {
+      "nombre": "electron-builder-squirrel-windows",
+      "severidad": "moderate",
+      "directo": false,
+      "via": [
+        "app-builder-lib"
+      ]
+    },
+    {
+      "nombre": "exceljs",
+      "severidad": "moderate",
+      "directo": true,
+      "via": [
+        "uuid"
+      ]
+    },
+    {
+      "nombre": "fast-glob",
+      "severidad": "high",
+      "directo": false,
+      "via": [
+        "micromatch"
+      ]
+    },
+    {
+      "nombre": "file-type",
+      "severidad": "moderate",
+      "directo": false,
+      "via": [
+        {
+          "nombre": "file-type",
+          "url": "https://github.com/advisories/GHSA-5v7r-6r5c-r473",
+          "rango": ">=13.0.0 <21.3.1"
+        }
+      ]
+    },
+    {
+      "nombre": "global-agent",
+      "severidad": "moderate",
+      "directo": false,
+      "via": [
+        "roarr"
+      ]
+    },
+    {
+      "nombre": "image-size",
+      "severidad": "high",
+      "directo": false,
+      "via": [
+        {
+          "nombre": "image-size",
+          "url": "https://github.com/advisories/GHSA-5p2g-fcmc-qvqq",
+          "rango": ">=1.2.0 <=2.0.2"
+        },
+        {
+          "nombre": "image-size",
+          "url": "https://github.com/advisories/GHSA-w3rx-r6r6-pgpr",
+          "rango": ">=0.6.3 <=2.0.2"
+        }
+      ]
+    },
+    {
+      "nombre": "jimp",
+      "severidad": "moderate",
+      "directo": false,
+      "via": [
+        "@jimp/custom"
+      ]
+    },
+    {
+      "nombre": "mammoth",
+      "severidad": "moderate",
+      "directo": true,
+      "via": [
+        "argparse"
+      ]
+    },
+    {
+      "nombre": "micromatch",
+      "severidad": "high",
+      "directo": false,
+      "via": [
+        "braces"
+      ]
+    },
+    {
+      "nombre": "nodemailer",
+      "severidad": "high",
+      "directo": true,
+      "via": [
+        {
+          "nombre": "nodemailer",
+          "url": "https://github.com/advisories/GHSA-8m3c-c648-2xjj",
+          "rango": "<=9.1.0"
+        },
+        {
+          "nombre": "nodemailer",
+          "url": "https://github.com/advisories/GHSA-wmmp-3585-3rmp",
+          "rango": "<9.1.0"
+        },
+        {
+          "nombre": "nodemailer",
+          "url": "https://github.com/advisories/GHSA-2x7j-588g-ccc2",
+          "rango": "<9.1.0"
+        },
+        {
+          "nombre": "nodemailer",
+          "url": "https://github.com/advisories/GHSA-cc9r-2j5m-2m83",
+          "rango": ">=6.9.16 <9.1.0"
+        },
+        {
+          "nombre": "nodemailer",
+          "url": "https://github.com/advisories/GHSA-6vj9-mwq6-2f5v",
+          "rango": ">=5.0.0 <10.0.2"
+        },
+        {
+          "nombre": "nodemailer",
+          "url": "https://github.com/advisories/GHSA-8vvx-rff5-p5rq",
+          "rango": "<10.0.2"
+        },
+        {
+          "nombre": "nodemailer",
+          "url": "https://github.com/advisories/GHSA-v53p-9fqp-m79j",
+          "rango": "<=10.0.5"
+        },
+        {
+          "nombre": "nodemailer",
+          "url": "https://github.com/advisories/GHSA-39m8-27wv-hr27",
+          "rango": ">=3.0.0 <=10.0.9"
+        }
+      ]
+    },
+    {
+      "nombre": "onnxruntime-node",
+      "severidad": "high",
+      "directo": true,
+      "via": [
+        "adm-zip"
+      ]
+    },
+    {
+      "nombre": "pptxgenjs",
+      "severidad": "high",
+      "directo": true,
+      "via": [
+        "image-size"
+      ]
+    },
+    {
+      "nombre": "roarr",
+      "severidad": "moderate",
+      "directo": false,
+      "via": [
+        "sprintf-js"
+      ]
+    },
+    {
+      "nombre": "sprintf-js",
+      "severidad": "moderate",
+      "directo": false,
+      "via": [
+        {
+          "nombre": "sprintf-js",
+          "url": "https://github.com/advisories/GHSA-hp3w-g68c-fv3c",
+          "rango": "<=1.1.3"
+        }
+      ]
+    },
+    {
+      "nombre": "uuid",
+      "severidad": "moderate",
+      "directo": false,
+      "via": [
+        {
+          "nombre": "uuid",
+          "url": "https://github.com/advisories/GHSA-w5hq-g745-h8pq",
+          "rango": "<11.1.1"
+        }
+      ]
+    }
+  ],
+  "registrosLockCambiados": 87,
+  "ganchosNuevosOActualizados": [],
+  "registros": [
+    {
+      "ruta": "node_modules/@electron/asar/node_modules/brace-expansion",
+      "antes": "1.1.18",
+      "despues": "1.1.21"
+    },
+    {
+      "ruta": "node_modules/@eslint/config-array/node_modules/brace-expansion",
+      "antes": "5.0.9",
+      "despues": "5.0.12"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-darwin-arm64",
+      "antes": "0.35.3",
+      "despues": "0.35.5"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-darwin-x64",
+      "antes": "0.35.3",
+      "despues": "0.35.5"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-freebsd-wasm32",
+      "antes": "0.35.3",
+      "despues": "0.35.5"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-libvips-darwin-arm64",
+      "antes": "1.3.2",
+      "despues": "1.3.4"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-libvips-darwin-x64",
+      "antes": "1.3.2",
+      "despues": "1.3.4"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-libvips-linux-arm",
+      "antes": "1.3.2",
+      "despues": "1.3.4"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-libvips-linux-arm64",
+      "antes": "1.3.2",
+      "despues": "1.3.4"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-libvips-linux-ppc64",
+      "antes": "1.3.2",
+      "despues": "1.3.4"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-libvips-linux-riscv64",
+      "antes": "1.3.2",
+      "despues": "1.3.4"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-libvips-linux-s390x",
+      "antes": "1.3.2",
+      "despues": "1.3.4"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-libvips-linux-x64",
+      "antes": "1.3.2",
+      "despues": "1.3.4"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-libvips-linuxmusl-arm64",
+      "antes": "1.3.2",
+      "despues": "1.3.4"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-libvips-linuxmusl-x64",
+      "antes": "1.3.2",
+      "despues": "1.3.4"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-linux-arm",
+      "antes": "0.35.3",
+      "despues": "0.35.5"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-linux-arm64",
+      "antes": "0.35.3",
+      "despues": "0.35.5"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-linux-ppc64",
+      "antes": "0.35.3",
+      "despues": "0.35.5"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-linux-riscv64",
+      "antes": "0.35.3",
+      "despues": "0.35.5"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-linux-s390x",
+      "antes": "0.35.3",
+      "despues": "0.35.5"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-linux-x64",
+      "antes": "0.35.3",
+      "despues": "0.35.5"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-linuxmusl-arm64",
+      "antes": "0.35.3",
+      "despues": "0.35.5"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-linuxmusl-x64",
+      "antes": "0.35.3",
+      "despues": "0.35.5"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-wasm32",
+      "antes": "0.35.3",
+      "despues": "0.35.5"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-webcontainers-wasm32",
+      "antes": "0.35.3",
+      "despues": "0.35.5"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-win32-arm64",
+      "antes": "0.35.3",
+      "despues": "0.35.5"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-win32-ia32",
+      "antes": "0.35.3",
+      "despues": "0.35.5"
+    },
+    {
+      "ruta": "node_modules/@img/sharp-win32-x64",
+      "antes": "0.35.3",
+      "despues": "0.35.5"
+    },
+    {
+      "ruta": "node_modules/@oxc-project/types",
+      "antes": "0.143.0",
+      "despues": "0.155.0"
+    },
+    {
+      "ruta": "node_modules/@rolldown/binding-android-arm-eabi",
+      "antes": null,
+      "despues": "1.2.15"
+    },
+    {
+      "ruta": "node_modules/@rolldown/binding-android-arm64",
+      "antes": "1.2.3",
+      "despues": "1.2.15"
+    },
+    {
+      "ruta": "node_modules/@rolldown/binding-darwin-arm64",
+      "antes": "1.2.3",
+      "despues": "1.2.15"
+    },
+    {
+      "ruta": "node_modules/@rolldown/binding-darwin-x64",
+      "antes": "1.2.3",
+      "despues": "1.2.15"
+    },
+    {
+      "ruta": "node_modules/@rolldown/binding-freebsd-x64",
+      "antes": "1.2.3",
+      "despues": "1.2.15"
+    },
+    {
+      "ruta": "node_modules/@rolldown/binding-linux-arm-gnueabihf",
+      "antes": "1.2.3",
+      "despues": "1.2.15"
+    },
+    {
+      "ruta": "node_modules/@rolldown/binding-linux-arm64-gnu",
+      "antes": "1.2.3",
+      "despues": "1.2.15"
+    },
+    {
+      "ruta": "node_modules/@rolldown/binding-linux-arm64-musl",
+      "antes": "1.2.3",
+      "despues": "1.2.15"
+    },
+    {
+      "ruta": "node_modules/@rolldown/binding-linux-ppc64-gnu",
+      "antes": "1.2.3",
+      "despues": "1.2.15"
+    },
+    {
+      "ruta": "node_modules/@rolldown/binding-linux-s390x-gnu",
+      "antes": "1.2.3",
+      "despues": "1.2.15"
+    },
+    {
+      "ruta": "node_modules/@rolldown/binding-linux-x64-gnu",
+      "antes": "1.2.3",
+      "despues": "1.2.15"
+    },
+    {
+      "ruta": "node_modules/@rolldown/binding-linux-x64-musl",
+      "antes": "1.2.3",
+      "despues": "1.2.15"
+    },
+    {
+      "ruta": "node_modules/@rolldown/binding-openharmony-arm64",
+      "antes": "1.2.3",
+      "despues": "1.2.15"
+    },
+    {
+      "ruta": "node_modules/@rolldown/binding-win32-arm64-msvc",
+      "antes": "1.2.3",
+      "despues": "1.2.15"
+    },
+    {
+      "ruta": "node_modules/@rolldown/binding-win32-x64-msvc",
+      "antes": "1.2.3",
+      "despues": "1.2.15"
+    },
+    {
+      "ruta": "node_modules/@vitest/coverage-v8",
+      "antes": "4.1.10",
+      "despues": "4.1.12"
+    },
+    {
+      "ruta": "node_modules/@vitest/expect",
+      "antes": "4.1.10",
+      "despues": "4.1.12"
+    },
+    {
+      "ruta": "node_modules/@vitest/mocker",
+      "antes": "4.1.10",
+      "despues": "4.1.12"
+    },
+    {
+      "ruta": "node_modules/@vitest/pretty-format",
+      "antes": "4.1.10",
+      "despues": "4.1.12"
+    },
+    {
+      "ruta": "node_modules/@vitest/runner",
+      "antes": "4.1.10",
+      "despues": "4.1.12"
+    },
+    {
+      "ruta": "node_modules/@vitest/snapshot",
+      "antes": "4.1.10",
+      "despues": "4.1.12"
+    },
+    {
+      "ruta": "node_modules/@vitest/spy",
+      "antes": "4.1.10",
+      "despues": "4.1.12"
+    },
+    {
+      "ruta": "node_modules/@vitest/utils",
+      "antes": "4.1.10",
+      "despues": "4.1.12"
+    },
+    {
+      "ruta": "node_modules/@xmldom/xmldom",
+      "antes": "0.8.13",
+      "despues": "0.8.15"
+    },
+    {
+      "ruta": "node_modules/active-win/node_modules/brace-expansion",
+      "antes": "1.1.18",
+      "despues": "1.1.21"
+    },
+    {
+      "ruta": "node_modules/app-builder-lib/node_modules/brace-expansion",
+      "antes": "5.0.9",
+      "despues": "5.0.12"
+    },
+    {
+      "ruta": "node_modules/archiver/node_modules/brace-expansion",
+      "antes": "5.0.9",
+      "despues": "5.0.12"
+    },
+    {
+      "ruta": "node_modules/brace-expansion",
+      "antes": "2.1.4",
+      "despues": "2.1.7"
+    },
+    {
+      "ruta": "node_modules/chai",
+      "antes": "6.2.2",
+      "despues": "6.3.0"
+    },
+    {
+      "ruta": "node_modules/content-type",
+      "antes": "2.0.0",
+      "despues": "2.1.0"
+    },
+    {
+      "ruta": "node_modules/dir-compare/node_modules/brace-expansion",
+      "antes": "1.1.18",
+      "despues": "1.1.21"
+    },
+    {
+      "ruta": "node_modules/es-module-lexer",
+      "antes": "2.3.1",
+      "despues": "2.3.2"
+    },
+    {
+      "ruta": "node_modules/eslint/node_modules/brace-expansion",
+      "antes": "5.0.9",
+      "despues": "5.0.12"
+    },
+    {
+      "ruta": "node_modules/exceljs/node_modules/brace-expansion",
+      "antes": "1.1.18",
+      "despues": "1.1.21"
+    },
+    {
+      "ruta": "node_modules/fast-uri",
+      "antes": "3.1.5",
+      "despues": "3.1.9"
+    },
+    {
+      "ruta": "node_modules/follow-redirects",
+      "antes": "1.16.0",
+      "despues": "1.16.1"
+    },
+    {
+      "ruta": "node_modules/fstream/node_modules/brace-expansion",
+      "antes": "1.1.18",
+      "despues": "1.1.21"
+    },
+    {
+      "ruta": "node_modules/http-cache-semantics",
+      "antes": "4.2.0",
+      "despues": "4.3.0"
+    },
+    {
+      "ruta": "node_modules/ip-address",
+      "antes": "10.4.0",
+      "despues": "10.7.4"
+    },
+    {
+      "ruta": "node_modules/js-yaml",
+      "antes": "4.3.1",
+      "despues": "4.3.2"
+    },
+    {
+      "ruta": "node_modules/jsdom/node_modules/undici",
+      "antes": "8.10.0",
+      "despues": "8.12.3"
+    },
+    {
+      "ruta": "node_modules/music-metadata",
+      "antes": "11.14.0",
+      "despues": "11.16.1"
+    },
+    {
+      "ruta": "node_modules/node-gyp/node_modules/undici",
+      "antes": "6.28.0",
+      "despues": "6.29.1"
+    },
+    {
+      "ruta": "node_modules/obug",
+      "antes": "2.1.4",
+      "despues": "2.2.1"
+    },
+    {
+      "ruta": "node_modules/postcss/node_modules/nanoid",
+      "antes": "3.3.17",
+      "despues": "3.3.20"
+    },
+    {
+      "ruta": "node_modules/qs",
+      "antes": "6.15.3",
+      "despues": "6.16.1"
+    },
+    {
+      "ruta": "node_modules/rimraf/node_modules/brace-expansion",
+      "antes": "1.1.18",
+      "despues": "1.1.21"
+    },
+    {
+      "ruta": "node_modules/rolldown",
+      "antes": "1.2.3",
+      "despues": "1.2.15"
+    },
+    {
+      "ruta": "node_modules/sharp",
+      "antes": "0.35.3",
+      "despues": "0.35.5"
+    },
+    {
+      "ruta": "node_modules/source-map-js",
+      "antes": "1.2.1",
+      "despues": "1.2.2"
+    },
+    {
+      "ruta": "node_modules/std-env",
+      "antes": "4.2.0",
+      "despues": "4.3.0"
+    },
+    {
+      "ruta": "node_modules/temp/node_modules/brace-expansion",
+      "antes": "1.1.18",
+      "despues": "1.1.21"
+    },
+    {
+      "ruta": "node_modules/tinyexec",
+      "antes": "1.3.0",
+      "despues": "1.3.1"
+    },
+    {
+      "ruta": "node_modules/tinyrainbow",
+      "antes": "3.1.1",
+      "despues": "3.2.0"
+    },
+    {
+      "ruta": "node_modules/typescript-eslint/node_modules/brace-expansion",
+      "antes": "5.0.9",
+      "despues": "5.0.12"
+    },
+    {
+      "ruta": "node_modules/undici",
+      "antes": "7.29.0",
+      "despues": "7.30.1"
+    },
+    {
+      "ruta": "node_modules/vite",
+      "antes": "8.2.1",
+      "despues": "8.2.4"
+    },
+    {
+      "ruta": "node_modules/vitest",
+      "antes": "4.1.10",
+      "despues": "4.1.12"
+    }
+  ],
+  "hostsDeDescarga": [
+    "registry.npmjs.org"
+  ]
+}

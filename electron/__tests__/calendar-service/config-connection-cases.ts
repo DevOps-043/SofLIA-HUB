@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
 import { createCalendarService } from './setup';
-import { mockExistsSync, mockReadFileSync, resetCalendarMocks } from './mocks';
+import { mockLoadConnections, resetCalendarMocks } from './mocks';
 import type { CalendarService } from '../../calendar-service';
 
 describe('CalendarService config and connections', () => {
@@ -28,27 +28,29 @@ describe('CalendarService config and connections', () => {
     expect(result.error).toContain('Google OAuth credentials not configured');
   });
 
-  it('CAL-004: loadConnections emits connected for each saved connection', () => {
-    mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockReturnValue(JSON.stringify([{
+  it('CAL-004: restaura conexiones del propietario y emite connected', async () => {
+    mockLoadConnections.mockResolvedValue([{
       provider: 'google',
       email: 'saved@test.com',
-      userId: 'u1',
+      userId: 'user-123',
       accessToken: 'at',
       refreshToken: 'rt',
       isActive: true,
-    }]));
+    }]);
 
-    const events: any[] = [];
-    service.on('connected', (data: any) => events.push(data));
-    service.loadConnections();
+    const events: { provider: string; email: string }[] = [];
+    service.on('connected', data => events.push(data));
+    await service.loadConnections();
+    expect(mockLoadConnections).toHaveBeenCalledWith('user-123', expect.any(Function));
 
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ provider: 'google', email: 'saved@test.com' });
   });
 
-  it('CAL-005: loadConnections handles missing file gracefully', () => {
-    mockExistsSync.mockReturnValue(false);
-    expect(() => service.loadConnections()).not.toThrow();
+  it('CAL-005: admite un almacén vacío y propaga fallo sin publicar conexiones parciales', async () => {
+    await expect(service.loadConnections()).resolves.toBeUndefined();
+    mockLoadConnections.mockRejectedValueOnce(new Error('Fallo simulado'));
+    await expect(service.loadConnections()).rejects.toThrow('Fallo simulado');
+    expect(service.getConnections()).toEqual([]);
   });
 });

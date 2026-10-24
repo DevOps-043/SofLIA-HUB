@@ -1,6 +1,6 @@
 # Seguridad y privacidad
 
-Estado: vigente. Actualizado: 2026-10-06.
+Estado: vigente. Actualizado: 2026-10-22.
 
 <!-- evidence: electron/preload/safe-ipc.ts -->
 <!-- evidence: electron/main/window-controller.ts -->
@@ -78,7 +78,156 @@ aprobacion.
 | Datos | constraints, indices y RLS | `database/` |
 | Release | secrets solo Actions, token validado y permisos `contents: read` | `.github/workflows/release.yml` |
 
+## Acceso efectivo IRIS
+
+La [inspección IRIS de metadatos efectivos](../reports/iris-access-2026-10-22.md)
+confirma 30 tablas públicas sin RLS y políticas de membresía sin predicado del
+actor. Los accesos directos heredados no reciben la protección del canje de la
+API Project Hub v1. No se ha probado explotación ni aplicado remediación remota;
+el rollout debe asegurar identidad/consumidores antes de revocar permisos o
+habilitar RLS. La inspección no leyó registros de negocio ni credenciales.
+
+## Custodia local de Project Hub
+
+La [custodia por propietario](../architecture/project-hub-unified.md#flujo-de-autenticación)
+exige identidad main y SOFIA coincidentes; usa cifrado asíncrono del SO y archivo
+versionado con propietario interno. Nunca entrega tokens Project Hub al
+renderer. Status anónimo no lee disco/red. Cambios de identidad, A/B/A y logout
+invalidan trabajo pendiente; las mutaciones no se repiten automáticamente tras
+401 o error de red. HTTP tiene cuotas, timeout, redirects bloqueados y errores
+públicos propios sin mensajes/códigos remotos crudos.
+
+La comprobación nativa usa Electron/DPAPI, procesos separados y perfil temporal
+con credenciales ficticias. No usa una cuenta real ni acredita autorización,
+revocación JWT o RLS del backend. El legado global sin dueño permanece sin
+leer/asignar; sus bytes no se certifican ni se eliminan.
+
+La [frontera IPC](../architecture/project-hub-unified.md#autorización-ipc)
+añade caller/frame/documento exactos, schemas acotados y HITL nativo para sus
+diez mutaciones de dominio, el lote nativo y la copia local. Verifica destino y propaga cancelación
+hasta HTTP; no confía en approved=true del renderer. La confirmación es resumen
+de alcance, no vista íntegra de textos grandes. No acredita autorización/RLS
+del servidor. La [subida nativa](../architecture/project-hub-unified.md#subida-nativa-de-archivos)
+mantiene bytes y token temporal en main, valida origen/path/token y bloquea
+redirects/retry. Revisa bytes/hash tras aprobar y comunica progreso parcial;
+no aplica limpieza remota ni elimina huérfanos. La
+[copia local](../architecture/project-hub-unified.md#copia-local-de-archivos)
+mantiene URL/bytes en main, valida evidencia/origen/path/hash/tamaño/formato y
+publica una copia nueva sin sobrescribir ni ejecutar. Cancelar después del commit
+conserva saved=true; fallo no confirmado de publicación informa incertidumbre
+y pide revisar destino, sin afirmar rollback. Crash/cleanup fallido puede dejar staging propio. No
+certifica directorios controlados por un actor local con escritura, antivirus
+ni documentos OOXML completos. RLS y revocación del servidor conservan revisión pendiente. Evidencia de
+custodia y sus límites en
+`openspec/changes/secure-project-hub-session-custody/`.
+
+## Sidecars Python
+
+El transporte de [sidecars Python](../architecture/backend-electron.md#procesos-y-recursos-secundarios)
+liga mensajes y pendientes al hijo propietario, exige ready compatible y limita
+framing/cola/requests. No registra stdout/stderr crudos ni reutiliza respuestas
+retiradas. No sustituye autorización IPC, validación semántica de eventos, política
+de micrófono o aislamiento del entorno heredado por los servicios. Los demás
+logs de voz/documentos y las descargas de modelos mantienen revisión pendiente.
+
+## Calendario IPC
+
+Los handlers de calendario requieren sesión, ventana main/orbe registradas y su
+marco principal. Las mutaciones llevan schema cerrado y confirmación nativa
+contextual. Se rechazan aceptación tardía, cambio de sesión/navegación/conexión
+y diálogos concurrentes. Los eventos públicos omiten conexiones y tokens; los
+errores remotos se sustituyen por mensajes genéricos. Ver el [contrato](../architecture/ipc-and-integrations.md#calendario).
+La persistencia OAuth usa custodia asíncrona del SO por usuario, con validación
+interna del propietario y sin fallback plano. La migración sella el archivo
+heredado sin eliminar sus registros ni adjudicar conexiones sin dueño. El
+servicio limpia memoria al cambiar identidad; clientes OAuth retenidos también
+rechazan transporte fuera del contexto vigente. El smoke nativo usa DPAPI y
+credenciales ficticias en un perfil temporal, sin inspeccionar perfiles reales.
+
+La protección del SO no aísla de otro proceso bajo el mismo usuario de Windows;
+no sustituye controles de acceso del equipo. Linux rechaza basic_text/unknown.
+Las claves compartidas del build y los scopes OAuth amplios siguen como deuda
+separada. Ver [custodia y operación](../operations/configuration.md#custodia-del-calendario).
+
+## Planes privados de Gmail
+
+La organización por planes tiene custodia cifrada por pareja usuario/cuenta
+Google, validación interna de propietario y mínimo contenido persistido. Comparte
+cifrado asíncrono del SO y escritura privada atómica con calendario. No hay
+fallback plano ni adopción de planes heredados sin dueño; esos archivos antiguos
+pueden conservar datos sin cifrar y requieren gestión explícita aparte.
+
+Los tres canales de planes exigen actor/frame/documento autorizados; apply/undo
+requieren HITL nativo. Las guardas de sesión/conexión se revalidan tras esperas.
+Una señal de cancelación de la llamada alcanza el diálogo y el transporte del
+SDK; las solicitudes tienen timeout y reintentos desactivados. También se
+propaga esta señal al envío Gmail y a las confirmaciones del calendario.
+El diario previo a cada efecto evita repetir automáticamente operaciones de
+resultado incierto. No garantiza exactamente una ejecución ni recupera por sí
+solo efectos aceptados por Google. Las operaciones directas tienen los controles
+descritos en el apartado siguiente.
+Ver [contrato](../architecture/ipc-and-integrations.md#planes-de-organización-de-gmail).
+
+## Buzón Gmail directo
+
+Los nueve canales directos de lectura/etiquetas/papelera validan actor, ventana,
+frame principal, documento y esquema en main. Las seis mutaciones requieren
+aprobación contextual con cuenta y alcance, comparten exclusión con planes y
+detienen llamadas nuevas al cambiar sesión/conexión. El SDK recibe señal,
+timeout y retry:false. No se delegan permisos al renderer ni se amplía allowlist.
+Nombres con controles/bidi, IDs inválidos y referencias ambiguas se rechazan.
+Lecturas tardías no revelan contenido a otra sesión; errores/logs omiten payload.
+
+El snapshot previo a lotes impide repetir la primera página al conservar origen;
+las precondiciones evitan borrar etiquetas de sistema o vaciadas parcialmente.
+Los resultados indican avance parcial e incertidumbre sin ocultar confirmaciones.
+Este avance es efímero: un crash exige reconciliación humana, sin un diario
+general de operaciones directas. Los controles runtime previos y su configuración
+de confirmaciones no se certifican ni se modifican con este bloque IPC.
+
+## Alcance del feedback Gmail en WhatsApp
+
+El loop ya no consulta el resto de una etiqueta ni añade instrucciones de
+vaciado después de modificar un mensaje. Se retiró el estado transversal del
+verificador y sus logs de IDs/errores crudos. Los resultados reales del servicio
+conservan partial/uncertain/recoveryRequired y cancelación; los tres ejecutores
+Gmail sanean excepciones inesperadas. La paginación se expresa como datos.
+
+Responses rechaza resultados sin llamada correspondiente sin promoverlos a
+mensaje user; tampoco publica un prefijo válido de un lote con llamadas inválidas.
+Las guardas de catálogo, grupo, intención y HITL se mantienen. Esta corrección
+no acredita toda la política semántica del modelo ni la redacción integral del
+historial operativo, que sigue siendo una superficie separada.
+Ver [manual runtime](../architecture/runtime-agents-manual.md).
+
+## Privacidad de telemetría de herramientas WhatsApp
+
+Los nuevos eventos operativos `kind:tool` usan campos permitidos de estado,
+flags, conteos y correlación. Se excluyen argumentos, mensajes, errores crudos,
+session_id, text/media y metadata arbitraria. El store vuelve a proyectar al
+consultar el legado, por lo que la búsqueda pública tampoco accede a sus textos
+excluidos. Los bytes antiguos permanecen en disco: esto no es cifrado, borrado
+ni migración de datos. Conversaciones, contactos y eventos no-tool mantienen su
+política actual y siguen como superficie de privacidad separada.
+
+Las comparaciones de ciclos usan HMAC efímeros por turno con clave no persistida;
+el historial no guarda huellas de argumentos. Errores inesperados de ejecución,
+fallback y guardas se convierten en mensaje fijo y UUID, con logger sin err/stack
+ni argumentos. Esto no sanea automáticamente todas las respuestas normales que
+otros servicios elaboran internamente. Se conserva el resultado funcional del
+turno y sus flags; el fallo de history no repite una operación ya ejecutada.
+Ver [manual runtime](../architecture/runtime-agents-manual.md).
+
 ## HITL
+
+El [envío Gmail por IPC](../architecture/ipc-and-integrations.md#envío-gmail)
+liga confirmación nativa a actor, conexión y copia preparada del mensaje. La
+validación cerrada impide destinatarios adicionales dentro de una cadena y
+controles en cabeceras. Los adjuntos no se omiten silenciosamente; un error impide
+el correo completo. Un envío cuyo resultado no se puede confirmar se marca
+incierto y no se repite automáticamente. El compositor no puede abrir archivos
+ni URLs por su cuenta. Esto no endurece los otros canales Gmail ni elimina las
+guardas/HITL de consumidores runtime existentes.
 
 Requieren aprobacion contextual: borrado/escritura sensible, shell/control de
 sistema, mensajes/correos externos, acciones dinamicas `write/critical`, approval
@@ -277,8 +426,11 @@ posteriores a la inspección.
 
 ## Riesgos conocidos que no deben ocultarse
 
-1. Meetings y `hub_service_state` tienen RLS permisivo para anon y dependen
-   del aislamiento de aplicacion. Es la brecha de seguridad de datos prioritaria.
+1. Coexisten migraciones históricas permisivas para meetings y hub_service_state
+   con una migración posterior de meetings por owner en project-hub-federation.sql.
+   Main ya puede portar sesión; falta demostrar políticas efectivas y orden de
+   despliegue por entorno. hub_service_state además usa una clave global por
+   servicio: necesita separación de ownership y consumidores, no sólo sesión.
 2. Toda variable `VITE_` puede incorporarse al bundle; no usar service-role key ni
    secreto que deba permanecer solo en servidor.
 3. La particion persistente del navegador contiene sesiones web y depende de la
@@ -301,8 +453,11 @@ posteriores a la inspección.
    codigo; depende de seguridad del perfil/OS.
 8. OCR, clipboard y filesystem amplian superficie de datos; deben estar apagados
    o confirmados cuando no sean necesarios.
-9. No hay SAST/DAST, escaneo de secretos ni audit de dependencias en la compuerta
-   PR actual; el reporte base registra vulnerabilidades conocidas.
+9. La compuerta PR revisa versiones vetadas y ganchos de instalación, pero no
+   consulta todos los avisos GHSA/CVE ni incorpora SAST/DAST o escaneo de secretos.
+   El [procedimiento de dependencias](../operations/development-and-devops.md#actualizaciones-de-dependencias)
+   exige comparar auditorías al actualizar; los resultados puntuales y avisos
+   residuales están en los reportes de cada cambio OpenSpec.
 10. El HTML de una presentacion lo escribe un modelo a partir de fuentes que
     pueden ser no confiables (una pagina web, un documento subido). Se ejecuta
     con `script-src 'unsafe-inline'` porque la navegacion entre diapositivas va
@@ -362,3 +517,16 @@ garantía de borrado forense. [Contrato y retención](../architecture/integrated
 - timeout/cancelacion/replay/idempotencia;
 - prueba negativa y rollback;
 - ningun valor secreto en diff, docs o fixtures.
+
+Voz local: `enabled` es preferencia de máquina y no permiso. Captura requiere
+consentimiento efímero por sesión/dispositivo/configuración en main; restaurar
+tras login se revisa de nuevo. Logout/A/B/A revoca antes de parar el hijo y los
+flujos de dictado/Piper dejan de difundirse a otras ventanas. Detalles,
+interrupción de reuniones y límites del instalador:
+[autorización de voz](local-voice-authorization.md).
+
+El lector documental tiene selección main, caller vigente, copia estable y
+salidas acotadas. La preferencia global se confirma después de persistir;
+desactivarla exige revisión nativa. Office/DOCX protegidos rechazan respaldos
+crudos. Alcance por patrones, cancelación y temporales pendientes en
+[lectura documental local](python-document-boundary.md).

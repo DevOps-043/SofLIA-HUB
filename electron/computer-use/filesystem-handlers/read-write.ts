@@ -18,15 +18,18 @@ export async function handleReadFile(args: Record<string, any>): Promise<any> {
     }
 
     const ext = getFileExtension(resolved);
+    const documentPolicy = isSidecarDocument(resolved) ? pythonToolsService.capturePrivacyContext() : undefined;
 
     // Documentos (PDF, Excel, PowerPoint, Word): los lee el sidecar Python y
     // devuelve Markdown + tablas estructuradas. Antes un PDF se leia como
     // utf-8 (binario ilegible) y el unico camino era subirlo entero a Gemini.
     if (isSidecarDocument(resolved)) {
       const parsed = await readDocumentWithSidecar(resolved, ext, stat.size);
+      documentPolicy?.assertCurrent();
       // El .docx tiene respaldo en TypeScript (mammoth): si el sidecar no esta
       // disponible se conserva el comportamiento anterior en vez de fallar.
       if (parsed || ext !== 'docx') return parsed ?? sidecarUnavailableError(ext);
+      if (documentPolicy?.config.redactDocuments) return { success: false, code: 'PRIVACY_READER_REQUIRED', error: 'La protección de documentos requiere el lector local. No se usó una lectura alternativa sin redactar.' };
     }
 
     if (ext === 'docx') {
@@ -34,6 +37,7 @@ export async function handleReadFile(args: Record<string, any>): Promise<any> {
         const mammoth = await import('mammoth');
         const buffer = await fs.readFile(resolved);
         const result = await mammoth.extractRawText({ buffer });
+        documentPolicy?.assertCurrent();
         return { success: true, path: resolved, content: result.value, size: formatBytes(stat.size), extension: ext, format: 'docx (texto extraido)' };
       } catch (docxErr: any) {
         return { success: false, error: `Error al leer archivo .docx: ${docxErr.message}` };

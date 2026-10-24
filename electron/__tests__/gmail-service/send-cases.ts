@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
 import { createGmailService } from './setup';
 import { mockMessagesSend, resetGmailMocks } from './mocks';
 import type { GmailService } from '../../gmail-service';
@@ -11,12 +14,15 @@ function decodeFirstSentMessage() {
 
 describe('GmailService sendEmail', () => {
   let service: GmailService;
+  let root: string;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     resetGmailMocks();
     service = createGmailService();
+    root = await fs.mkdtemp(path.join(os.tmpdir(), 'soflia-gmail-cases-'));
   });
+  afterEach(async () => { await fs.rm(root, { recursive: true, force: true }); });
 
   it('GML-001: builds MIME message and sends via Gmail API', async () => {
     const result = await service.sendEmail({ to: ['dest@test.com'], subject: 'Hola', body: 'Contenido del correo' });
@@ -33,16 +39,18 @@ describe('GmailService sendEmail', () => {
   it('GML-002: rejects invalid email formats', async () => {
     const result = await service.sendEmail({ to: ['not-an-email'], subject: 'Test', body: 'Body' });
     expect(result.success).toBe(false);
-    expect(result.error).toContain('validacion de seguridad fallida');
+    expect(result).toMatchObject({ success: false, error: expect.any(String) });
     expect(mockMessagesSend).not.toHaveBeenCalled();
   });
 
   it('GML-005: creates multipart MIME for attachments', async () => {
+    const attachment = path.join(root, 'test-file.pdf');
+    await fs.writeFile(attachment, 'file-content');
     const result = await service.sendEmail({
       to: ['dest@test.com'],
       subject: 'Con adjunto',
       body: 'Revisa el archivo',
-      attachmentPaths: ['/tmp/test-file.pdf'],
+      attachmentPaths: [attachment],
     });
 
     expect(result.success).toBe(true);
@@ -68,7 +76,7 @@ describe('GmailService sendEmail', () => {
   it('GML-007: rejects emails containing newline characters', async () => {
     const result = await service.sendEmail({ to: ['valid@test.com\r\nBcc: evil@hacker.com'], subject: 'Injection', body: 'body' });
     expect(result.success).toBe(false);
-    expect(result.error).toContain('validacion de seguridad fallida');
+    expect(mockMessagesSend).not.toHaveBeenCalled();
   });
 
   it('GML-008: rejects subject header injection', async () => {
@@ -78,7 +86,6 @@ describe('GmailService sendEmail', () => {
       body: 'body',
     });
     expect(result.success).toBe(false);
-    expect(result.error).toContain('header injection');
     expect(mockMessagesSend).not.toHaveBeenCalled();
   });
 

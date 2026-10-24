@@ -11,9 +11,10 @@ type ChatActionsDeps = UseChatManagerOptions & {
 };
 
 export function useChatActions({ flushPendingSave, getCurrentChatStorageKey, refreshConversationsFromRemote, state, userId }: ChatActionsDeps) {
-  const handleNewChat = useCallback(async (folderId?: string | null) => {
+  const handleNewChat = useCallback(async (folderId?: string | null, isCurrent?: () => boolean) => {
     if (!userId) return folderId ?? null;
     await flushPendingSave();
+    if (isCurrent && !isCurrent()) return null;
     state.scopeVersionRef.current += 1;
     state.setCurrentConversationId(null);
     state.currentConvIdRef.current = null;
@@ -23,16 +24,19 @@ export function useChatActions({ flushPendingSave, getCurrentChatStorageKey, ref
     return folderId ?? null;
   }, [flushPendingSave, getCurrentChatStorageKey, state, userId]);
 
-  const handleSelectConversation = useCallback(async (convId: string) => {
-    if (!userId) return false;
+  const handleSelectConversation = useCallback(async (convId: string, isCurrent?: () => boolean) => {
+    if (!userId || (isCurrent && !isCurrent())) return false;
     if (convId === state.currentConvIdRef.current) {
       await flushPendingSave();
+      if (isCurrent && !isCurrent()) return false;
       await refreshConversationsFromRemote();
       return true;
     }
     await flushPendingSave();
+    if (isCurrent && !isCurrent()) return false;
     state.scopeVersionRef.current += 1;
     const msgs = withoutActivePlaceholders(await loadMessages(convId, userId));
+    if (isCurrent && !isCurrent()) return false;
     state.setCurrentConversationId(convId);
     state.currentConvIdRef.current = convId;
     state.setCurrentMessages(msgs);

@@ -1,0 +1,45 @@
+{
+  "status": "passed",
+  "electron": "44.5.1",
+  "chromium": "152.0.7977.130",
+  "checks": [
+    "el árbol AX conserva nombre externo y estado expandido en portal modal real",
+    "primer Escape cierra sólo popup; segundo Escape puede cerrar el diálogo nativo",
+    "reordenar opciones conserva la identidad elegida sin cambiar el foco",
+    "Tab y cambio de foco cierran sin confirmar ni atrapar al usuario",
+    "a 200% la lista queda en viewport y End muestra la opción final con movimiento reducido",
+    "desplazar opciones no fuerza el retorno a la opción activa"
+  ],
+  "scope": "Control real local, teclado y AX; no lector de pantalla ni certificación global.",
+  "focusEmulated": true,
+  "focus": {
+    "focused": true,
+    "active": "after",
+    "trace": [
+      {
+        "type": "focusout",
+        "target": "device",
+        "related": "after"
+      },
+      {
+        "type": "focusin",
+        "target": "after",
+        "related": "device"
+      }
+    ]
+  },
+  "zoom": {
+    "factor": 2,
+    "top": 123.5999984741211,
+    "bottom": 189,
+    "right": 308,
+    "width": 360,
+    "height": 201,
+    "scrollTop": 1022,
+    "activeTop": 152.40000915527344,
+    "activeBottom": 188.40000915527344,
+    "activeVisible": true,
+    "animation": "none",
+    "transitionProperty": "none"
+  }
+}

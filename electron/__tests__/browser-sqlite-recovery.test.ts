@@ -25,7 +25,11 @@ async function fixture(kind: 'history' | 'audit') {
 }
 describe.each(['history', 'audit'] as const)('recuperación SQLite de %s', kind => {
   it('respalda una instantánea consistente y recupera sin alterar el original antes del commit', async () => {
-    const f = await fixture(kind); await f.add('dos.example'); await f.close();
+    const f = await fixture(kind);
+    // Probar la primera generación dentro de sus 30 s; mtime puede tener
+    // fracciones de ms y diferir del reloj de pared bajo carga.
+    vi.spyOn(Date, 'now').mockReturnValue(Math.ceil(fs.statSync(sqliteBackupPath(f.file)).mtimeMs) + 1000);
+    await f.add('dos.example'); await f.close();
     const backup = fs.readFileSync(sqliteBackupPath(f.file));
     expect(JSON.parse(safeStorage.decryptString(backup)).scope).toBe(f.file);
     fs.writeFileSync(f.file, 'dañado'); const review = await f.store.prepareRecovery(() => {});

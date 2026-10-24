@@ -1,8 +1,11 @@
 import { defineConfig } from 'vitest/config';
 import path from 'node:path';
+import { availableParallelism } from 'node:os';
 
 export default defineConfig({
   test: {
+    // Acotar memoria y carga de módulos en hosts con muchos núcleos.
+    maxWorkers: Math.min(4, availableParallelism()),
     globals: true,
     testTimeout: 15000,
     hookTimeout: 15000,

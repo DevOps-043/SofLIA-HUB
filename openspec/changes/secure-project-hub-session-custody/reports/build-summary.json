@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "at": "2026-10-23T00:47:32.527Z",
+  "exitCode": 0,
+  "sourceFiles": 3323,
+  "envFilesCopied": false,
+  "packaged": false,
+  "applicationStarted": false,
+  "sandbox": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-app-build-5xeAAe",
+  "sourceHashes": [
+    {
+      "file": "electron/project-hub/service.ts",
+      "sha256": "e6088b44ebcf94aa4f478fe2e384cf8de0d4582cd0613021de59f17688da8568"
+    },
+    {
+      "file": "electron/project-hub/authentication.ts",
+      "sha256": "4393c9200a61210712426a89ad00edbeeb7d6f17cfab530107d334fb42e825df"
+    },
+    {
+      "file": "electron/project-hub/session-context.ts",
+      "sha256": "427051d141da3a53d317dd3793d4d6d3bfdfd9d8824807ae72c9030e80f0be7c"
+    },
+    {
+      "file": "electron/project-hub/session-contract.ts",
+      "sha256": "545136d6a3f5829f8c9409697b3bddf60fa33be5560fedfcbdaff0ae6e6b80a4"
+    },
+    {
+      "file": "electron/project-hub/session-store.ts",
+      "sha256": "8856d526d522fd2311d079cd51f43df6b4dac01d4ea810774288a8446d907593"
+    },
+    {
+      "file": "electron/project-hub/transport.ts",
+      "sha256": "14e4e0eaca108bbf15324bd3aeeef38981543486dda508c6fa0346b3f419baa0"
+    }
+  ],
+  "artifacts": [
+    {
+      "file": "dist/index.html",
+      "bytes": 460,
+      "sha256": "3235b61ecdb95126d50322725a2daa70741a4c8cf49ff2285af8353220a95416"
+    },
+    {
+      "file": "dist-electron/main.js",
+      "bytes": 184152,
+      "sha256": "31d41f19e7a12d921d168ce58f3768a5526eabb3a5c1d34ef03df130a99e3e90"
+    },
+    {
+      "file": "dist-electron/preload.js",
+      "bytes": 46394,
+      "sha256": "eeada63a0898031de86184458c636e6a43dc8696cfafb250e59eca40896c1c7c"
+    },
+    {
+      "file": "dist/presentation/presentation-runtime.iife.js",
+      "bytes": 895486,
+      "sha256": "23a06410288a6b71a84f73b141b879ecedea86faf3788f3ccc4747d3f5f1e162"
+    },
+    {
+      "file": "dist/audiovisual/film-runtime.iife.js",
+      "bytes": 223019,
+      "sha256": "1e497c8583b88e5b2c8ff1299eb48e121afc5a3073a06351f574841a0d61109d"
+    },
+    {
+      "file": "dist/zoom-runtime/index.html",
+      "bytes": 489,
+      "sha256": "86ccc046c0eb931d8fe2599ac3d0a3de8dc73fea00df5ec2b8cdbac705b6b9fb"
+    }
+  ]
+}

@@ -83,8 +83,26 @@ canal permitido. Los servicios no deben importar componentes React.
 
 - Voz: `python-runtime-service.ts` administra sidecar local, modelos, restart y
   eventos de wake word/dictado.
+  `voice/session.ts` coordina caller, consentimiento efímero y revocación; init
+  carga preferencias sin captura. Ajustes y Orbe comparten la guardia main,
+  conservando fachadas y puerto de Meeting Live. Ver
+  [autorización y recuperación de voz](../security/local-voice-authorization.md).
 - Documentos/privacidad: `python-tools-service.ts` usa otro proceso para aislar
   fallos y timeout.
+- Ambas fachadas comparten `electron/python/sidecar-connection.ts` y `ndjson.ts`:
+  conexión/ready/pending/framing por hijo, sin mezclar voz y documentos. Ready
+  comprueba v4/v1; todos los consumidores esperan la misma preparación. Stop
+  retira la generación antes de esperar shutdown/kill, y nuevas solicitudes de
+  arranque esperan ese cierre pendiente. Un exit/error/stdout viejo no modifica
+  la conexión actual. Los comandos no se repiten automáticamente.
+  Si kill falla o devuelve false, se comunica cierre no confirmado y se bloquea
+  el reemplazo hasta close real; un spawn sin PID conserva su error de arranque.
+- La voz revalida epoch/intención después de esperas; parar/deshabilitar cancela
+  restart y arranques pendientes. Los timers de 1/2/3 s comprueban intención antes
+  de reactivar, reutilizando un hijo que otro consumidor haya preparado. Reiterar
+  stop cancela también arranques en espera. Las respuestas tools se revalidan antes de publicar resultados.
+  El transporte no registra stdout/stderr crudos; otros mensajes semánticos de
+  los servicios mantienen revisión de privacidad pendiente.
 - UIA nativo: workers PowerShell/Windows administran accesibilidad/input cuando
   la plataforma lo soporta.
 - Contexto de escritorio: `electron/desktop-context/` lee lo que el usuario ya
@@ -171,3 +189,18 @@ referencias legacy en textos, tests y daily digest. Por tanto no se documenta co
 servicio runtime disponible. `NeuralOrganizerService` se importa en
 `service-modules.ts` pero tampoco se instancia en el bootstrap actual. Activar
 cualquiera exige una integracion OpenSpec, handlers/politicas y pruebas nuevas.
+
+## Frontera documental Python
+
+El servicio de herramientas comparte transporte por hijo con voz, pero mantiene
+proceso y cancelación propios. Contratos, persistencia y snapshot se separan en
+`electron/python/`; los handlers validan caller y selección y los consumidores
+internos conservan su fachada. Contrato de privacidad, errores y recuperación:
+[lectura documental local](../security/python-document-boundary.md).
+
+Dentro del sidecar, `document_errors.py`, `office_preflight.py` y
+`document_budget.py` separan error de dominio, admisión ZIP/XML y presupuesto
+incremental compartido por PDF/Excel/PowerPoint/Word. La fachada documents.py,
+redacción y proceso tools conservan sus consumidores y protocolo. La distribución
+incluye los módulos por el filtro existente de tools_sidecar, excluyendo tests;
+el build de aplicación no certifica el runtime Python empaquetado.

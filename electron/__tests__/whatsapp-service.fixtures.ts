@@ -47,7 +47,13 @@ vi.mock('@whiskeysockets/baileys', () => ({
   },
 }));
 
-vi.mock('pino', () => ({ default: vi.fn(() => ({ level: 'silent' })) }));
+vi.mock('pino', () => {
+  const logger = { level: 'silent', trace: vi.fn(), debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), fatal: vi.fn(), child: vi.fn() };
+  logger.child.mockReturnValue(logger);
+  return { default: Object.assign(vi.fn(() => logger), {
+    stdTimeFunctions: { isoTime: () => '' }, stdSerializers: { err: (value: unknown) => value },
+  }) };
+});
 vi.mock('qrcode', () => ({ default: { toDataURL: vi.fn().mockResolvedValue('data:image/png;base64,QRCODE') } }));
 vi.mock('node:fs/promises', () => ({
   default: {

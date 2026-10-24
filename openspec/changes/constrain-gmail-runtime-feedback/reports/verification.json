@@ -1,0 +1,54 @@
+{
+  "fecha": "2026-10-22",
+  "rama": "codex/reduce-technical-debt",
+  "baseGit": "e166d250629e503cf12f69449fb6d66e569134c8",
+  "estado": "Implementada y verificada localmente; revisión independiente pendiente",
+  "compuerta": {
+    "comando": "npm run verify:pr",
+    "salida": 0,
+    "archivosAprobados": 455,
+    "archivosOmitidos": 2,
+    "pruebasAprobadas": 4806,
+    "pruebasOmitidas": 5,
+    "pruebasFallidas": 0,
+    "duracionSuiteSegundos": 217.41,
+    "casosAgregados": 32,
+    "pruebasToolingAprobadas": 4,
+    "archivosLintIncremental": 125,
+    "elementosOpenSpecValidados": 78
+  },
+  "baseline": { "archivos": 4, "pruebas": 154, "salida": 0 },
+  "reproduccionAntes": { "archivos": 1, "pruebasFallidas": 2, "pruebasAprobadas": 3, "salida": 1 },
+  "dirigidaFinal": { "archivos": 8, "pruebas": 194, "salida": 0 },
+  "build": {
+    "comando": "npm run app:smoke:build",
+    "salida": 0,
+    "fuentes": 3299,
+    "artefactos": 6,
+    "archivosEnvCopiados": false,
+    "empaquetado": false,
+    "aplicacionIniciada": false,
+    "informe": "build-summary.json",
+    "hashes": "build-artifacts.json"
+  },
+  "inventario": { "archivosPrueba": 625, "canalesIPC": 494, "canalesAgregados": 0, "dependenciasAgregadas": 0 },
+  "contratos": {
+    "sidechannelRetirado": "bulkLabelsToVerify",
+    "verificadorRetirado": "electron/wa-agent/bulk-label-verification.ts",
+    "unaRespuestaPorLlamada": true,
+    "extrasProveedorRechazados": true,
+    "paginacionSinOrdenDeContinuar": true,
+    "guardasCatalogoGrupoHITLPreservadas": true
+  },
+  "referenciaOficial": "https://developers.openai.com/api/docs/guides/function-calling",
+  "revision": "Autorrevisión adversarial; independiente pendiente antes de archivar",
+  "limites": [
+    "Transporte IA y servicios remotos simulados; sin correo, WhatsApp ni credenciales reales",
+    "La integración del loop aísla ejecución/historial con dobles; guarda de intención y servicio Gmail reales",
+    "El modelo puede proponer nuevas llamadas sujetas a permisos/HITL; sin firewall semántico global",
+    "Historial operativo y excepciones del dispatcher mantienen deuda de minimización/redacción",
+    "Sin garantía transaccional ante fallo de red del adaptador",
+    "Sin Hub/instalador iniciado ni despliegue",
+    "Sin nuevo porcentaje global de deuda técnica"
+  ]
+}

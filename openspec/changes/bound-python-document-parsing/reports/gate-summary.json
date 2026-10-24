@@ -1,0 +1,34 @@
+{
+  "stages": [
+    "adapters:check",
+    "harness:validate",
+    "audit:supply-chain",
+    "docs:system:check",
+    "docs:check",
+    "skills:seed:check",
+    "openspec:validate",
+    "test:quality",
+    "typecheck",
+    "lint:changed",
+    "test"
+  ],
+  "at": "2026-10-24T02:53:27.6961430Z",
+  "stableSourceFiles": 10,
+  "logSha256": "d96767e4260cfb8ff6d3e9b89090d55b9293cb4fd65edf34b2b3556ffc1122c0",
+  "lintFiles": 262,
+  "log": "soflia-document-resources-2026-10-23/verify-pr-final.log",
+  "markdownFiles": 681,
+  "tests": {
+    "passed": 5450,
+    "durationSeconds": 212.5,
+    "total": 5455,
+    "skipped": 5
+  },
+  "previousTestsPassed": 5449,
+  "exitCode": 0,
+  "suites": {
+    "passed": 493,
+    "total": 495,
+    "skipped": 2
+  }
+}

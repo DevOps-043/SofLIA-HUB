@@ -1,0 +1,56 @@
+{
+  "externalRoot": "C:/Users/fysg5/Desktop/SofLIA/Project Hub/Project-Hub/apps/web/src",
+  "sourceReadOnly": true,
+  "deploymentVerified": false,
+  "contracts": [
+    {
+      "file": "lib/api-v1/files.ts",
+      "sha256": "6b98306a82c6100aea0657b33e8b100513b283e062692b9780118ef610f77901"
+    },
+    {
+      "file": "app/api/v1/workspaces/[workspaceId]/projects/[projectId]/evidence/[evidenceId]/route.ts",
+      "sha256": "b98d92e3bcdd03260aff3f3c6657388fb05b4b6b71e0734f2091cbcac6ee2c64"
+    },
+    {
+      "file": "app/api/v1/workspaces/[workspaceId]/projects/[projectId]/files/[evidenceId]/download/route.ts",
+      "sha256": "88dfcdacebf6d8d7e051334e98727154e2b29b159ca522cece481f0db5a89890"
+    }
+  ],
+  "storageSdk": {
+    "file": "node_modules/@supabase/storage-js/src/packages/StorageFileApi.ts",
+    "sha256": "dc64f0bbb70b83a0bb8905e88d2df8223bd540fcf56acc0596e44768dd03479a"
+  },
+  "channels": {
+    "removed": [
+      "project-hub:get-download"
+    ],
+    "added": [
+      "project-hub:download-file",
+      "project-hub:cancel-download"
+    ],
+    "total": 23,
+    "all": 495
+  },
+  "renderer": {
+    "downloadFile": "workspaceId, projectId, evidenceId, operationId; sólo IDs",
+    "cancelDownload": "operationId; sin URL/ruta/bytes"
+  },
+  "mainProtocolPreserved": true,
+  "newMainMethod": "ProjectHubApiService.downloadFile; autorización y selector main requeridos",
+  "globalDebtRecalculated": false,
+  "mainMethods": {
+    "baselineSource": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-app-build-UtcSXu",
+    "previous": 27,
+    "current": 28,
+    "previousSignaturesPreserved": true,
+    "added": [
+      {
+        "name": "downloadFile",
+        "parameters": [
+          "input: ProjectHubDownloadTarget",
+          "authorization: ProjectHubDownloadAuthorization"
+        ]
+      }
+    ]
+  }
+}

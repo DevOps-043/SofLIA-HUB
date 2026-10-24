@@ -6,6 +6,8 @@ const { execFileSync } = require('node:child_process');
 // Digest de los assets oficiales de Astral, release 20250612 (API de GitHub).
 const PYTHON_VERSION = '3.12.11';
 const RELEASE = '20250612';
+const TOOLS_RUNTIME_FILES = Object.freeze(['main.py', 'documents.py', 'privacy.py', 'document_errors.py',
+  'document_budget.py', 'office_preflight.py', 'reader_dependencies.py', 'requirements.lock']);
 const TARGETS = {
   'win32/x64': ['x86_64-pc-windows-msvc', '51bc462f3d6caf4aef3d77209d01cd5f6c8fe8213c1ae739e573e1c2c473cb2b'],
   'darwin/x64': ['x86_64-apple-darwin', '16797cdee1b879ce0f32d9162f2a3af8b91d8ccb663c75ed3afc2384845c24d7'],
@@ -30,6 +32,11 @@ function sha256File(file) {
   return createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 }
 
+function requirementsFingerprint(root) {
+  return ['python/requirements.txt', 'python/tools_sidecar/requirements.txt', 'python/tools_sidecar/requirements.lock', 'python/bootstrap.lock']
+    .map(file => sha256File(path.join(root, file))).join('');
+}
+
 function pythonExecutable(directory, platform = process.platform) {
   return path.join(directory, ...(platform === 'win32' ? ['python.exe'] : ['bin', 'python3']));
 }
@@ -43,12 +50,17 @@ function runtimeEnvironment(directory, platform = process.platform, source = pro
   return env;
 }
 
-function validateRuntime(directory, platform = process.platform) {
+function validateRuntime(directory, platform = process.platform, readerDirectory = path.join(__dirname, '..', 'python', 'tools_sidecar')) {
   const options = { encoding: 'utf8', env: runtimeEnvironment(directory, platform), windowsHide: true, timeout: 120000 };
   const executable = pythonExecutable(directory, platform);
   execFileSync(executable, ['-I', '-m', 'pip', '--isolated', 'check'], options);
   const result = execFileSync(executable, ['-I', '-c',
-    'import sys, vosk, sounddevice, faster_whisper, sherpa_onnx, pdfplumber, openpyxl, pptx, docx; '
+    'import sys; '
+    + `sys.path.insert(0, ${JSON.stringify(path.resolve(readerDirectory))}); `
+    + 'from pathlib import Path; from reader_dependencies import assert_locked_reader_versions, assert_bootstrap_versions; '
+    + `assert_bootstrap_versions(Path(${JSON.stringify(path.join(__dirname, '..', 'python', 'bootstrap.lock'))})); `
+    + 'assert_locked_reader_versions(); '
+    + 'import vosk, sounddevice, faster_whisper, sherpa_onnx, pdfplumber, openpyxl, pptx, docx; '
     + `assert sys.version_info[:3] == (${PYTHON_VERSION.split('.').join(', ')}); print("python-bundle-ok")`], options).trim();
   if (result !== 'python-bundle-ok') throw new Error('El runtime Python no superó la comprobación de voz y documentos.');
 }
@@ -77,4 +89,4 @@ function promoteRuntime(staged, destination, backup, io = fs) {
   return moved ? backup : null;
 }
 
-module.exports = { PYTHON_VERSION, RELEASE, archiveSpec, sha256File, pythonExecutable, runtimeEnvironment, validateRuntime, isCurrentLock, promoteRuntime };
+module.exports = { PYTHON_VERSION, RELEASE, TOOLS_RUNTIME_FILES, archiveSpec, sha256File, requirementsFingerprint, pythonExecutable, runtimeEnvironment, validateRuntime, isCurrentLock, promoteRuntime };

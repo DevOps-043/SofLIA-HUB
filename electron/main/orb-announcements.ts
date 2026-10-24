@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { BrowserWindow } from 'electron';
 import { canUseProtectedFeature } from './require-auth';
+import { onAuthStateChange } from './auth-state';
 
 /**
  * Cola de anuncios proactivos de la orbe.
@@ -33,6 +34,7 @@ export function createOrbAnnouncements(options: OrbAnnouncementsOptions) {
   let inFlight: OrbAnnouncement | null = null;
   /** Anuncio ya emitido que el renderer aun no reclamo (ventana recien creada). */
   let pending: OrbAnnouncement | null = null;
+  let generation = 0;
 
   const send = (announcement: OrbAnnouncement): boolean => {
     const win = options.getWindow();
@@ -56,7 +58,9 @@ export function createOrbAnnouncements(options: OrbAnnouncementsOptions) {
     if (!next) return;
     inFlight = next;
 
+    const version = generation;
     await options.showWindow();
+    if (version !== generation || !canUseProtectedFeature()) return;
     pending = next;
     // Si la ventana ya esta viva, el push llega; si acaba de crearse, el
     // renderer lo reclamara con `orb:get-pending-announcement`.
@@ -64,10 +68,12 @@ export function createOrbAnnouncements(options: OrbAnnouncementsOptions) {
   };
 
   const clear = (): void => {
+    generation++;
     queue.length = 0;
     inFlight = null;
     pending = null;
   };
+  onAuthStateChange(clear);
 
   return {
     /** Encola un anuncio y arranca la entrega si no hay otra en curso. */

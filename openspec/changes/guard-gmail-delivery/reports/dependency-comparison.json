@@ -1,0 +1,45 @@
+{
+  "changedLockRecords": [
+    "",
+    "node_modules/@types/nodemailer",
+    "node_modules/nodemailer"
+  ],
+  "before": {
+    "info": 0,
+    "low": 0,
+    "moderate": 19,
+    "high": 9,
+    "critical": 0,
+    "total": 28
+  },
+  "after": {
+    "info": 0,
+    "low": 0,
+    "moderate": 19,
+    "high": 8,
+    "critical": 0,
+    "total": 27
+  },
+  "nodemailer": {
+    "version": "10.2.1",
+    "advisoriesBefore": 8,
+    "affectedAfter": false
+  },
+  "newAffectedPackages": [],
+  "productionBefore": {
+    "info": 0,
+    "low": 0,
+    "moderate": 12,
+    "high": 5,
+    "critical": 0,
+    "total": 17
+  },
+  "productionAfter": {
+    "info": 0,
+    "low": 0,
+    "moderate": 12,
+    "high": 4,
+    "critical": 0,
+    "total": 16
+  }
+}

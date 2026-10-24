@@ -1,0 +1,86 @@
+/** PostgreSQL efímero. No usa red, credenciales, .env ni bases del usuario. */
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { resolve } from 'node:path';
+
+// Instalar PGlite en una carpeta de herramientas separada, sin cambiar dependencias del producto.
+const runtime = createRequire(resolve(process.argv[2] || 'package.json'));
+const { PGlite } = runtime('@electric-sql/pglite');
+const db = new PGlite();
+const migration=await readFile(resolve('database/iris/migrations/20261023-project-management.sql'),'utf8');
+const rollback=await readFile(resolve('database/iris/migrations/20261023-project-management.rollback.sql'),'utf8');
+let checks=0;
+const check=(condition,message)=>{assert.ok(condition,message);checks++;};
+const deny=async(fn,marker)=>{await assert.rejects(fn,error=>error.message.includes(marker));checks++;};
+const id=()=>crypto.randomUUID();
+try{
+ await db.exec(`
+ CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role;
+ CREATE TABLE workspace_members(workspace_id uuid,user_id uuid,is_active boolean DEFAULT true,iris_role text);
+ CREATE TABLE teams(team_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),workspace_id uuid,name text,slug text UNIQUE,description text,visibility text,status text DEFAULT 'active',owner_id uuid,max_members integer DEFAULT 50,updated_at timestamptz DEFAULT now());
+ CREATE TABLE team_members(member_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),team_id uuid,user_id uuid,role text,is_active boolean DEFAULT true,invited_by uuid,updated_at timestamptz DEFAULT now(),UNIQUE(team_id,user_id));
+ CREATE TABLE task_statuses(status_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),team_id uuid,name text,status_type text CHECK(status_type IN ('backlog','todo','in_progress','in_review','done','cancelled')),position integer,is_default boolean,is_closed boolean);
+ CREATE TABLE pm_projects(project_id uuid PRIMARY KEY,workspace_id uuid,team_id uuid,updated_at timestamptz DEFAULT now());
+ CREATE TABLE pm_project_members(project_id uuid,user_id uuid,membership_status text,project_role text);
+ CREATE TABLE task_priorities(priority_id uuid PRIMARY KEY,level integer);
+ CREATE TABLE task_cycles(cycle_id uuid PRIMARY KEY,team_id uuid);
+ CREATE TABLE task_issues(issue_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),team_id uuid,project_id uuid,issue_number integer,creator_id uuid,title text,description text,description_html text,status_id uuid,priority_id uuid,assignee_id uuid,due_date date,cycle_id uuid,parent_issue_id uuid,estimate_points numeric,estimate_hours numeric,completed_at timestamptz,cancelled_at timestamptz,archived_at timestamptz,created_at timestamptz DEFAULT now(),updated_at timestamptz DEFAULT now());
+ CREATE TABLE pm_project_evidence(evidence_id uuid PRIMARY KEY,workspace_id uuid,project_id uuid,archived_at timestamptz);
+ CREATE TABLE pm_project_evidence_items(item_id uuid PRIMARY KEY,evidence_id uuid);
+ CREATE TABLE task_labels(label_id uuid PRIMARY KEY,team_id uuid,name text);
+ CREATE TABLE task_issue_labels(issue_id uuid,label_id uuid);
+ CREATE TABLE task_issue_history(history_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),issue_id uuid,actor_id uuid,field_name text,old_value text,new_value text);
+ CREATE TABLE task_issue_evidence(issue_id uuid,evidence_id uuid,evidence_item_id uuid,relation_type text,created_by_user_id uuid);
+ `);
+ await db.exec(migration); await db.exec(migration); checks++;
+ const w=id(),otherWorkspace=id(),actor=id(),user=id(),outsider=id(),p=id();
+ await db.query('INSERT INTO workspace_members VALUES ($1,$2,true,\'admin\'),($1,$3,true,\'member\'),($4,$5,true,\'admin\')',[w,actor,user,otherWorkspace,outsider]);
+ const rpc=async(name,params)=>{const result=await db.query(`SELECT public.${name}(${params.map((_,index)=>'$'+(index+1)).join(',')}) AS value`,params);return result.rows[0].value;};
+ const team=await rpc('hub_create_team_v1',[w,actor,'Equipo de prueba',null,'private']);
+ check((await db.query('SELECT * FROM task_statuses WHERE team_id=$1',[team.team_id])).rows.length===5,'El equipo tiene cinco estados');
+ check((await db.query('SELECT * FROM team_members WHERE team_id=$1 AND role=\'owner\'',[team.team_id])).rows.length===1,'El propietario es integrante');
+ await deny(()=>rpc('hub_create_team_v1',[w,user,'No autorizado',null,'private']),'FORBIDDEN');
+ // Forzar un fallo intermedio demuestra rollback del equipo y de su propietario.
+ await db.exec(`CREATE FUNCTION qa_fail_status() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF current_setting('qa.fail_status',true)='yes' THEN RAISE EXCEPTION 'QA_FAIL'; END IF; RETURN NEW; END $$; CREATE TRIGGER qa_fail BEFORE INSERT ON task_statuses FOR EACH ROW EXECUTE FUNCTION qa_fail_status(); SET qa.fail_status='yes';`);
+ const beforeTeams=(await db.query('SELECT count(*)::int AS n FROM teams')).rows[0].n;
+ await deny(()=>rpc('hub_create_team_v1',[w,actor,'No debe persistir',null,'private']),'QA_FAIL');
+ check((await db.query('SELECT count(*)::int AS n FROM teams')).rows[0].n===beforeTeams,'Rollback completo al crear equipo');await db.exec("SET qa.fail_status='no'");
+ await db.query('INSERT INTO pm_projects(project_id,workspace_id,team_id) VALUES ($1,$2,$3)',[p,w,team.team_id]);
+ await db.query("INSERT INTO pm_project_members VALUES ($1,$2,'active','owner'),($1,$3,'active','member')",[p,actor,user]);
+ const member=await rpc('hub_manage_team_member_v1',[w,team.team_id,actor,'addTeamMember',user,null,'member']);
+ check(member.role==='member','Incorporar integrante');
+ await deny(()=>rpc('hub_manage_team_member_v1',[w,team.team_id,actor,'addTeamMember',outsider,null,'member']),'INVALID_REFERENCE');
+ await deny(()=>rpc('hub_manage_team_member_v1',[w,team.team_id,user,'updateTeamMember',null,member.member_id,'admin']),'FORBIDDEN');
+ const owner=(await db.query("SELECT member_id FROM team_members WHERE team_id=$1 AND role='owner'",[team.team_id])).rows[0];
+ await deny(()=>rpc('hub_manage_team_member_v1',[w,team.team_id,actor,'removeTeamMember',null,owner.member_id,null]),'OWNER_PROTECTED');
+ const changed=await rpc('hub_manage_team_member_v1',[w,team.team_id,actor,'updateTeamMember',null,member.member_id,'viewer']);check(changed.role==='viewer','Cambiar rol');
+ const removed=await rpc('hub_manage_team_member_v1',[w,team.team_id,actor,'removeTeamMember',null,member.member_id,null]);check(removed.is_active===false,'Retirar sin borrar integrante');
+ await rpc('hub_manage_team_member_v1',[w,team.team_id,actor,'addTeamMember',user,null,'member']);
+ const create=changes=>rpc('hub_mutate_task_v1',[w,p,actor,null,JSON.stringify(changes)]);
+ const task=await create({title:'Tarea principal',assignee_id:user,estimate_points:3});check(task.issue_number===1 && task.assignee_id===user,'Crear tarea con responsable y estimación');
+ const label=id();await db.query("INSERT INTO task_labels VALUES($1,$2,'Diseño')",[label,team.team_id]);
+ await rpc('hub_mutate_task_v1',[w,p,actor,task.issue_id,JSON.stringify({label_ids:[label]})]);
+ check((await db.query('SELECT label_id FROM task_issue_labels WHERE issue_id=$1',[task.issue_id])).rows[0].label_id===label,'Etiquetas en transacción');
+ await deny(()=>rpc('hub_mutate_task_v1',[w,p,actor,task.issue_id,JSON.stringify({title:'No debe persistir',label_ids:[id()]})]),'INVALID_REFERENCE');
+ check((await db.query('SELECT title FROM task_issues WHERE issue_id=$1',[task.issue_id])).rows[0].title==='Tarea principal','Una etiqueta ajena revierte la edición');
+ const child=await create({title:'Subtarea',parent_issue_id:task.issue_id});check(child.parent_issue_id===task.issue_id,'Crear subtarea');
+ await deny(()=>rpc('hub_mutate_task_v1',[w,p,actor,task.issue_id,JSON.stringify({parent_issue_id:child.issue_id})]),'INVALID_REFERENCE');
+ await deny(()=>create({title:'Responsable ajeno',assignee_id:outsider}),'INVALID_REFERENCE');
+ await deny(()=>rpc('hub_mutate_task_v1',[otherWorkspace,p,outsider,null,JSON.stringify({title:'Cruce de espacio'})]),'INVALID_REFERENCE');
+ const completed=(await db.query("SELECT status_id FROM task_statuses WHERE team_id=$1 AND status_type='done'",[team.team_id])).rows[0].status_id;
+ const updated=await rpc('hub_mutate_task_v1',[w,p,actor,task.issue_id,JSON.stringify({status_id:completed,expected_updated_at:undefined})]);check(Boolean(updated.completed_at),'Completar registra fecha real');
+ await deny(()=>rpc('hub_mutate_task_v1',[w,p,actor,task.issue_id,JSON.stringify({title:'Edición obsoleta',expected_updated_at:task.updated_at})]),'REVISION_CONFLICT');
+ check((await db.query("SELECT history_id FROM task_issue_history WHERE issue_id=$1 AND field_name='status_id'",[task.issue_id])).rows.length===1,'Historial atómico del cambio de estado');
+ const beforeTasks=(await db.query('SELECT count(*)::int AS n FROM task_issues')).rows[0].n;
+ await deny(()=>create({title:'Evidencia ajena',evidence_id:id()}),'INVALID_REFERENCE');
+ check((await db.query('SELECT count(*)::int AS n FROM task_issues')).rows[0].n===beforeTasks,'Una evidencia inválida revierte también la tarea');
+ await deny(()=>rpc('hub_archive_task_v1',[w,p,task.issue_id,null]),'TASK_HAS_CHILDREN');
+ await rpc('hub_archive_task_v1',[w,p,child.issue_id,null]);const archived=await rpc('hub_archive_task_v1',[w,p,task.issue_id,null]);check(Boolean(archived.archived_at),'Archivar conserva la fila');
+ const secondTeam=await rpc('hub_create_team_v1',[w,actor,'Otro equipo',null,'private']);
+ await deny(()=>rpc('hub_assign_project_team_v1',[w,p,secondTeam.team_id,null]),'PROJECT_HAS_TASKS');
+ await db.exec('SET ROLE anon');await deny(()=>rpc('hub_create_team_v1',[w,actor,'Bloqueado',null,'private']),'permission denied');await db.exec('RESET ROLE');
+ await db.exec(rollback);await db.exec(rollback);checks++;
+ check((await db.query('SELECT count(*)::int AS n FROM task_issues')).rows[0].n===beforeTasks,'Rollback de migración conserva datos');
+ console.log('PostgreSQL efímero: '+checks+' comprobaciones correctas; migración, reejecución, rollback, permisos, integridad y revisiones.');
+}finally{await db.close();}

@@ -1,0 +1,12 @@
+# Contexto del cambio
+
+- Objetivo: retirar dependencias PDF vulnerables, hacer reproducible la instalación del lector y cerrar la diferencia entre QA y manifiestos distribuidos.
+- Actor: preparación de runtime y lector documental autorizado. Sin capacidades runtime nuevas.
+- Evidencia: pdfplumber 0.11.4 exige pdfminer.six 20231228. Los avisos oficiales GHSA-wf5f-4jwr-ppcp y GHSA-f83h-ghpp-7wcc marcan versiones anteriores a 20251230 afectadas. La unidad anterior probó dependencias QA diferentes, con 5450 pruebas TS y cinco omitidas, y 34 pruebas Python.
+- Alcance: resolver versiones de lectores/closure con fuentes primarias, lock de versiones/hashes de wheels para las cinco plataformas soportadas, preparación aislada con fingerprint que incluya lock, barrera PDF ante versión vulnerable/inverificable y pruebas con exactamente los pins elegidos.
+- No objetivos: actualizar/auditar toda la pila de voz o Node, explotar CVEs, descargar modelos, certificar todos los binarios del producto, migrar perfiles ni desplegar. Hashes prueban integridad respecto del índice, no inocuidad del proveedor.
+- Restricciones: preservar las diecinueve unidades y worktrees ajenos; reutilizar rama actual sin concurrencia. Sólo venv/directorios QA temporales, sin tocar Python del sistema ni runtime del proyecto, secretos, .env, SQL o cuentas reales.
+- Contratos: API/DTO/canales/protocolo se conservan; error controlado de dependencia incompatible antes de interpretar PDF en runtime antiguo. Setup sólo promociona tras pip check/imports completos, manteniendo respaldo. Un cambio del lock debe invalidar caché aunque no cambie el entrypoint de requisitos.
+- Riesgo: ruedas nativas y dependencias compartidas con voz; validar resolución conjunta y pip check, sin presentar imports/descargas de otras plataformas como ejecución allí. Rollback no debe reactivar lector vulnerable.
+- Criterios: advisory/metadata y before/after trazables; rechazo de versiones inseguras antes de import/lectura; prueba roja de invalidación del lock; instalación hashed sin sdist; formatos/privacidad/presupuesto/stdio con pins exactos; resolución por plataforma y tests/gate/build con fuentes estables.
+- Incertidumbres: auditoría cubre avisos publicados y closure del lector; no demuestra ausencia de vulnerabilidades desconocidas, ni audio/modelos, ni empaquetado/ejecución en otros SO. La ejecución local usa Python QA 3.12.14; el runtime fijado es 3.12.11.

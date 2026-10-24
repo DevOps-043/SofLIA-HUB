@@ -33,6 +33,9 @@ export interface ProjectHubResult<T = unknown> {
   meta?: ProjectHubEnvelope<T>['meta'];
   error?: string;
   code?: string;
+  cancelled?: boolean;
+  uncertain?: boolean;
+  recoveryRequired?: boolean;
 }
 
 export interface ProjectHubRequestOptions {

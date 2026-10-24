@@ -57,9 +57,9 @@ function copyPythonRuntime(destination) {
   assert.ok(!fs.lstatSync(source).isSymbolicLink(), 'El runtime privado no puede ser un enlace.');
   assert.ok(!fs.lstatSync(path.join(source, '.setup-lock.json')).isSymbolicLink(), 'El lock Python no puede ser un enlace.');
   const require = createRequire(import.meta.url);
-  const { archiveSpec, isCurrentLock, sha256File, validateRuntime } = require('../python-runtime-support.cjs');
+  const { archiveSpec, isCurrentLock, requirementsFingerprint, validateRuntime } = require('../python-runtime-support.cjs');
   const lock = JSON.parse(fs.readFileSync(path.join(source, '.setup-lock.json'), 'utf8'));
-  const requirements = ['python/requirements.txt', 'python/tools_sidecar/requirements.txt'].map(file => sha256File(path.join(projectRoot, file))).join('');
+  const requirements = requirementsFingerprint(projectRoot);
   assert.ok(isCurrentLock(lock, archiveSpec('win32', 'x64'), requirements, 'win32', 'x64'), 'El runtime no coincide con la versión, dependencias y hash oficiales. Ejecuta npm run python:setup.');
   fs.cpSync(source, destination, {
     recursive: true, force: false, errorOnExist: true,

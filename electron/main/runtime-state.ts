@@ -13,6 +13,9 @@ export function createRuntimeState(initialProtocolCommand: any) {
     isQuitting: false,
     // Wake word pendiente para la ventana orbe (el renderer lo consume por invoke).
     pendingOrbWake: false,
+    localVoiceSession: null as import('../voice/session').LocalVoiceSession | null,
+    pythonToolsIpc: null as { dispose(): void } | null,
+    desktopContextIpc: null as { dispose(): void } | null,
     startInBackground,
     shouldShowInitialWindow: !startInBackground && initialProtocolCommand?.type !== 'meeting-trigger',
     pendingShareLink: initialProtocolCommand?.type === 'share-link' ? initialProtocolCommand.shareLink as string : null,

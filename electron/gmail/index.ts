@@ -7,6 +7,8 @@
  */
 
 export { GmailService } from './service';
+export { registerGmailPlanHandlers } from './plan-handlers';
+export { registerGmailMailboxHandlers } from './mailbox-handlers';
 
 export type {
   EmailMessage,

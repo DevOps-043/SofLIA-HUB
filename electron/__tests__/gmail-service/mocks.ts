@@ -33,16 +33,6 @@ vi.doMock('googleapis', () => ({
   },
 }));
 
-vi.doMock('node:fs/promises', () => ({
-  default: {
-    readFile: vi.fn(async () => Buffer.from('file-content')),
-    writeFile: vi.fn(async () => {}),
-    mkdir: vi.fn(async () => {}),
-    readdir: vi.fn(async () => []),
-    access: vi.fn(async () => {}),
-  },
-}));
-
 export function resetGmailMocks(): void {
   mockGetGoogleAuth.mockReset().mockResolvedValue({ type: 'authorized_user' });
   mockMessagesSend.mockReset().mockResolvedValue({ data: { id: 'msg-sent-1' } });

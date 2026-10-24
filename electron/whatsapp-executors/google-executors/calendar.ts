@@ -8,14 +8,13 @@ export async function executeCalendarTool(
   toolName: string,
   toolArgs: Record<string, any>,
   ctx: ToolExecutorContext,
-  bulkLabelsToVerify: Set<string> | null,
 ): Promise<GoogleExecutorResult | null> {
   if (!CALENDAR_TOOLS.has(toolName)) return null;
 
   if (toolName === 'google_calendar_create') {
     try {
       if (!ctx.calendarService) {
-        return { response: toolError(toolName, 'Google Calendar no esta disponible. El usuario debe conectar Google en Soflia Hub.'), bulkLabelsToVerify };
+        return { response: toolError(toolName, 'Google Calendar no esta disponible. El usuario debe conectar Google en Soflia Hub.') };
       }
 
       const startDate = new Date(toolArgs.start_date);
@@ -28,7 +27,7 @@ export async function executeCalendarTool(
         location: toolArgs.location,
       });
 
-      if (!result.success) return { response: toolResponse(toolName, result), bulkLabelsToVerify };
+      if (!result.success) return { response: toolResponse(toolName, result) };
 
       const dayNames = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
       const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -39,16 +38,15 @@ export async function executeCalendarTool(
           eventId: result.eventId,
           message: `Evento creado en Google Calendar: "${toolArgs.title}" el ${dayNames[startDate.getDay()]} ${startDate.getDate()} de ${monthNames[startDate.getMonth()]} a las ${timeStr}`,
         }),
-        bulkLabelsToVerify,
       };
     } catch (err: any) {
-      return { response: toolError(toolName, err.message), bulkLabelsToVerify };
+      return { response: toolError(toolName, err.message) };
     }
   }
 
   if (toolName === 'google_calendar_get_events') {
     try {
-      if (!ctx.calendarService) return { response: toolError(toolName, 'Google Calendar no conectado.'), bulkLabelsToVerify };
+      if (!ctx.calendarService) return { response: toolError(toolName, 'Google Calendar no conectado.') };
       const start = toolArgs.start_date ? new Date(toolArgs.start_date) : new Date();
       if (!toolArgs.start_date) start.setHours(0, 0, 0, 0);
       const end = toolArgs.end_date ? new Date(toolArgs.end_date) : new Date(start);
@@ -72,17 +70,16 @@ export async function executeCalendarTool(
           events: formatted,
           count: formatted.length,
         }),
-        bulkLabelsToVerify,
       };
     } catch (err: any) {
-      return { response: toolError(toolName, err.message), bulkLabelsToVerify };
+      return { response: toolError(toolName, err.message) };
     }
   }
 
   try {
-    if (!ctx.calendarService) return { response: toolError(toolName, 'Google Calendar no conectado.'), bulkLabelsToVerify };
-    return { response: toolResponse(toolName, await ctx.calendarService.deleteEvent(toolArgs.event_id)), bulkLabelsToVerify };
+    if (!ctx.calendarService) return { response: toolError(toolName, 'Google Calendar no conectado.') };
+    return { response: toolResponse(toolName, await ctx.calendarService.deleteEvent(toolArgs.event_id)) };
   } catch (err: any) {
-    return { response: toolError(toolName, err.message), bulkLabelsToVerify };
+    return { response: toolError(toolName, err.message) };
   }
 }

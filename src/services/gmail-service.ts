@@ -5,12 +5,15 @@ import type {
   SendEmailParams,
 } from './gmail/types';
 import './gmail/window-api';
+import type { GmailSendResult } from '../shared/gmail-delivery';
+import type { GmailOrganizationPreviewOptions } from '../shared/gmail-organization';
+import type { GmailListOptions, GmailBatchOptions } from '../shared/gmail-mailbox';
 
-export async function sendEmail(params: SendEmailParams) {
+export async function sendEmail(params: SendEmailParams): Promise<GmailSendResult> {
   return window.gmail.send(params);
 }
 
-export async function getEmails(options?: { maxResults?: number; query?: string; labelIds?: string[]; pageToken?: string }) {
+export async function getEmails(options?: GmailListOptions) {
   return window.gmail.getMessages(options);
 }
 
@@ -38,7 +41,7 @@ export async function deleteGmailLabel(labelId: string) {
   return window.gmail.deleteLabel(labelId);
 }
 
-export async function previewGmailOrganization(options?: { query?: string; maxMessages?: number; minGroupSize?: number; removeFromInbox?: boolean; pageLimit?: number }): Promise<GmailOrganizationPreviewResult> {
+export async function previewGmailOrganization(options?: GmailOrganizationPreviewOptions): Promise<GmailOrganizationPreviewResult> {
   return window.gmail.previewOrganization(options);
 }
 
@@ -52,7 +55,7 @@ export async function undoGmailOrganizationPlan(planId?: string): Promise<GmailO
 
 export async function batchModifyEmailsByLabel(
   labelId: string,
-  options?: { addLabels?: string[]; removeLabels?: string[]; deleteLabel?: boolean },
+  options?: GmailBatchOptions,
 ) {
   return window.gmail.batchModifyByLabel(labelId, options);
 }

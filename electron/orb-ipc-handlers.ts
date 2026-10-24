@@ -1,160 +1,135 @@
-// =============================================================================
-// Soflia Hub - IPC de la Orbe de Voz
-// =============================================================================
-// Puente entre la ventana orbe (renderer) y el sidecar Python (via
-// PythonRuntimeService): dictado libre, TTS local y ciclo de vida de la
-// conversacion (suspension/reanudacion del wake listener).
-// =============================================================================
-import { BrowserWindow, dialog, ipcMain } from 'electron';
-import { executeBrowserVoiceCommand, type IntegratedBrowserService } from './integrated-browser';
-import { getAuthState, onAuthStateChange } from './main/auth-state';
+import { dialog, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
+import { executeBrowserVoiceCommand, type IntegratedBrowserService } from './integrated-browser/voice';
+import { onAuthStateChange } from './main/auth-state';
 import { synthesizeOrbSpeech } from './orb-tts';
-import type { PythonRuntimeService } from './python-runtime-service';
-import { handleIPC, handleIPCVoid } from './utils/ipc-helpers';
-import { denyIfUnauthenticated } from './main/require-auth';
+import type { PythonRuntimeService, DictationEventPayload } from './python-runtime-service';
 import type { OrbAnnouncements } from './main/orb-announcements';
+import { trustedAppCaller } from './ipc/caller-authorization';
+import { voiceFailure, type LocalVoiceSession, type VoiceCall } from './voice/session';
+import { speechTextSchema, voiceIdSchema } from './voice/contract';
+import { VoiceEventOwner } from './voice/event-owner';
+import { VoiceSynthesisQueue } from './voice/synthesis-queue';
 
 interface OrbIpcOptions {
   integratedBrowser?: IntegratedBrowserService;
   pythonRuntimeService: PythonRuntimeService;
+  voiceSession?: LocalVoiceSession;
   getOrbWindow: () => BrowserWindow | null;
   getMainWindow: () => BrowserWindow | null;
   showOrbWindow: () => Promise<void>;
   consumePendingWake: () => boolean;
-  /** Cola de anuncios proactivos. Ver `main/orb-announcements.ts`. */
   announcements: OrbAnnouncements;
   onHide?: () => void;
 }
 
 export function registerOrbIpcHandlers(options: OrbIpcOptions): void {
-  const { pythonRuntimeService, getOrbWindow, getMainWindow, showOrbWindow, consumePendingWake, announcements } = options;
+  const { pythonRuntimeService: runtime, getOrbWindow, getMainWindow, announcements, voiceSession } = options;
+  const windows = (role: 'main' | 'orb' | 'both') => role === 'main' ? [getMainWindow()] : role === 'orb' ? [getOrbWindow()] : [getMainWindow(), getOrbWindow()];
+  const caller = (event: IpcMainInvokeEvent, role: 'main' | 'orb' | 'both', visible: boolean): VoiceCall => {
+    const source = trustedAppCaller(event, () => windows(role));
+    const assert = () => { source.assert(); if (visible && !source.parent?.isVisible()) throw new Error('context_invalid'); };
+    return { ...source, assert, effectStarted: false };
+  };
+  const register = (channel: string, role: 'main' | 'orb' | 'both', min: number, max: number, visible: boolean,
+    run: (call: VoiceCall, args: unknown[], event: IpcMainInvokeEvent) => Promise<object | void>) => {
+    ipcMain.handle(channel, async (event: IpcMainInvokeEvent, ...args: unknown[]) => {
+      let call: VoiceCall | undefined;
+      try {
+        call = caller(event, role, visible); call.assert();
+        if (args.length < min || args.length > max) throw new Error('voice_invalid_input');
+        const result = await run(call, args, event); call.assert(); return { success: true, ...result };
+      } catch (error) { return voiceFailure(error, call); }
+      finally { call?.dispose(); }
+    });
+  };
+  const dictation = new VoiceEventOwner(() => [getOrbWindow()], true, () => {
+    voiceSession?.cancelCapture();
+  });
+  const speech = new VoiceEventOwner(() => [getMainWindow(), getOrbWindow()], false, id => {
+    void runtime.stopSpeaking(id);
+  });
+  onAuthStateChange(() => { dictation.clear(); speech.clear(); announcements.clear(); });
+  runtime.on('dictation-partial', (payload: DictationEventPayload) => dictation.send('orb:dictation-partial', payload.sessionId, payload));
+  runtime.on('dictation-final', (payload: DictationEventPayload) => dictation.send('orb:dictation-final', payload.sessionId, payload));
+  runtime.on('dictation-timeout', (payload: DictationEventPayload) => dictation.send('orb:dictation-error', payload.sessionId,
+    { sessionId: payload.sessionId, reason: 'El dictado terminó o fue interrumpido.' }));
+  runtime.on('tts-chunk', (payload: { speechId: string }) => speech.send('orb:tts-chunk', payload.speechId, payload));
+  runtime.on('tts-end', (payload: { speechId: string; interrupted: boolean; error?: string }) => {
+    speech.send('orb:tts-end', payload.speechId, { speechId: payload.speechId, interrupted: payload.interrupted,
+      ...(payload.error ? { error: 'La reproducción de voz fue interrumpida.' } : {}) });
+    speech.clearId(payload.speechId);
+  });
   let browserVoicePending = false;
-  ipcMain.handle('orb:browser-command', async (event, ...args: unknown[]) => {
-    const orb = getOrbWindow(); const parent = getMainWindow(); const auth = getAuthState();
-    let sessionChanged = false;
-    const unsubscribe = onAuthStateChange(() => { sessionChanged = true; });
-    const assertCaller = () => {
-      const now = getAuthState();
-      if (sessionChanged || !auth.authenticated || !now.authenticated || now.userId !== auth.userId
-        || !orb || orb.isDestroyed() || !orb.isVisible() || getOrbWindow() !== orb
-        || !parent || parent.isDestroyed() || getMainWindow() !== parent
-        || event.sender.id !== orb.webContents.id || !event.senderFrame || event.senderFrame !== orb.webContents.mainFrame) throw new Error('Emisor inválido.');
-    };
+  register('orb:browser-command', 'orb', 1, 1, true, async (call, [input]) => {
+    const parent = getMainWindow();
+    const assertCaller = () => { call.assert(); if (!parent || parent.isDestroyed() || getMainWindow() !== parent) throw new Error('context_invalid'); };
+    assertCaller();
+    if (!options.integratedBrowser) throw new Error('voice_unavailable');
+    if (browserVoicePending && input !== 'stop' && input !== 'take-control' && input !== 'pause') throw new Error('approval_pending');
+    return executeBrowserVoiceCommand(options.integratedBrowser, input, async () => {
+      browserVoicePending = true;
+      try {
+        const result = await dialog.showMessageBox(parent!, { type: 'question', title: 'Reanudar tarea del navegador',
+          message: '¿Permitir que SofLIA vuelva a controlar la pestaña?', detail: 'La orden provino de Orbe. Revisa el navegador antes de continuar.',
+          buttons: ['Cancelar', 'Reanudar'], defaultId: 0, cancelId: 0, signal: call.signal });
+        return result.response === 1;
+      } finally { browserVoicePending = false; }
+    }, assertCaller);
+  });
+  register('orb:get-pending-wake', 'orb', 0, 0, true, async () => ({ wake: voiceSession?.isApproved() === true && options.consumePendingWake() }));
+  register('orb:get-pending-announcement', 'orb', 0, 0, true, async () => ({ announcement: announcements.consumePending() }));
+  register('orb:announcement-finished', 'orb', 0, 1, false, async (_call, [input]) => { await announcements.finish(voiceIdSchema.parse(input) ?? null); });
+  register('orb:show', 'main', 0, 0, false, async call => { await options.showOrbWindow(); call.assert(); return { visible: true }; });
+  const synthesis = new VoiceSynthesisQueue();
+  register('orb:synthesize', 'both', 1, 1, false, async (call, [input]) => {
+    const text = speechTextSchema.parse(input);
+    return synthesis.run(call.signal, () => synthesizeOrbSpeech(text, { assertCurrent: call.assert, signal: call.signal }));
+  });
+  register('orb:start-dictation', 'orb', 0, 0, true, async (call, _args, event) => {
+    if (!voiceSession) throw new Error('voice_approval_required');
+    let ownId: string | undefined;
     try {
-      assertCaller();
-      if (args.length !== 1 || !options.integratedBrowser) throw new Error('Solicitud inválida.');
-      // Detener no queda bloqueado por una confirmación de reanudación pendiente.
-      if (browserVoicePending && args[0] !== 'stop' && args[0] !== 'take-control' && args[0] !== 'pause') throw new Error('Revisión pendiente.');
-      return await executeBrowserVoiceCommand(options.integratedBrowser, args[0], async () => {
-        browserVoicePending = true;
-        try {
-          const result = await dialog.showMessageBox(parent!, { type: 'question', title: 'Reanudar tarea del navegador', message: '¿Permitir que SofLIA vuelva a controlar la pestaña?', detail: 'La orden provino de Orbe. Revisa el navegador antes de continuar.', buttons: ['Cancelar', 'Reanudar'], defaultId: 0, cancelId: 0 });
-          return result.response === 1;
-        } finally { browserVoicePending = false; }
-      }, assertCaller);
-    } catch { return { success: false, error: 'No se pudo aplicar la orden. Revisa la pestaña, la tarea y la sesión; puedes usar los controles del navegador.' }; }
-    finally { unsubscribe(); }
-  });
-
-  const sendToOrb = (channel: string, payload?: unknown): void => {
-    const win = getOrbWindow();
-    if (win && !win.isDestroyed()) win.webContents.send(channel, payload);
-  };
-
-  // El TTS se difunde a todas las ventanas: la orbe lo reproduce en conversacion
-  // y la ventana principal lo usa para "Probar voz" desde Configuracion → Voz.
-  const broadcast = (channel: string, payload?: unknown): void => {
-    for (const win of BrowserWindow.getAllWindows()) {
-      if (!win.isDestroyed()) win.webContents.send(channel, payload);
-    }
-  };
-
-  // Eventos del sidecar → renderer (dictado solo a la orbe; TTS a todas).
-  pythonRuntimeService.on('dictation-partial', (payload) => sendToOrb('orb:dictation-partial', payload));
-  pythonRuntimeService.on('dictation-final', (payload) => sendToOrb('orb:dictation-final', payload));
-  pythonRuntimeService.on('dictation-timeout', (payload) => sendToOrb('orb:dictation-error', payload));
-  pythonRuntimeService.on('tts-chunk', (payload) => broadcast('orb:tts-chunk', payload));
-  pythonRuntimeService.on('tts-end', (payload) => broadcast('orb:tts-end', payload));
-
-  ipcMain.handle('orb:get-pending-wake', () =>
-    handleIPC(async () => ({ wake: consumePendingWake() })));
-
-  // Relevo del push: si la orbe acababa de crearse, `orb:announce` se emitio
-  // antes de que React montara sus listeners y se habria perdido.
-  ipcMain.handle('orb:get-pending-announcement', () =>
-    handleIPC(async () => ({ announcement: announcements.consumePending() })));
-
-  // Acuse de fin de locucion: libera el siguiente anuncio de la cola.
-  ipcMain.handle('orb:announcement-finished', (_event, announcementId?: string | null) =>
-    handleIPCVoid(async () => announcements.finish(announcementId ?? null)));
-
-  ipcMain.handle('orb:show', (event) => handleIPC(async () => {
-    const denied = denyIfUnauthenticated('orb:show');
-    if (denied) throw new Error(denied.error);
-    const mainWindow = getMainWindow();
-    if (!mainWindow || mainWindow.isDestroyed() || event.sender.id !== mainWindow.webContents.id) {
-      throw new Error('sender_denied');
-    }
-    await showOrbWindow();
-    return { visible: true };
-  }));
-
-  // Voz de la orbe: se sintetiza en main (unico lugar con la key del .env).
-  ipcMain.handle('orb:synthesize', (event, text: unknown) =>
-    handleIPC(async () => {
-      const denied = denyIfUnauthenticated('orb:synthesize');
-      if (denied) throw new Error(denied.error);
-      const allowedSenderIds = [getMainWindow(), getOrbWindow()]
-        .filter((window): window is BrowserWindow => Boolean(window && !window.isDestroyed()))
-        .map((window) => window.webContents.id);
-      if (!allowedSenderIds.includes(event.sender.id)) throw new Error('sender_denied');
-      if (typeof text !== 'string') throw new Error('El texto de voz no es válido.');
-      const speech = text.replace(/\s+/g, ' ').trim();
-      if (!speech) throw new Error('No hay texto que sintetizar.');
-      const audio = await synthesizeOrbSpeech(speech);
-      return {
-        audioBase64: audio.audioBase64,
-        mimeType: audio.mimeType,
-        voiceId: audio.voiceId,
-        modelId: audio.modelId,
-      };
-    }));
-
-  ipcMain.handle('orb:start-dictation', () =>
-    handleIPC(async () => {
-      const result = await pythonRuntimeService.startDictation();
-      if (!result.success) throw new Error(result.error || 'No se pudo iniciar el dictado.');
-      if (!result.sessionId) throw new Error('El dictado inicio sin un identificador de sesion.');
+      const result = await voiceSession.capture(call, 'dictation', async () => {
+        const started = await runtime.startDictation(id => { ownId = id; dictation.bind(event, id); });
+        if (!started.success || !started.sessionId) throw new Error('voice_unavailable'); return started;
+      });
       return { sessionId: result.sessionId };
-    }));
-
-  ipcMain.handle('orb:stop-dictation', (_event, sessionId?: string | null) =>
-    handleIPCVoid(async () => pythonRuntimeService.stopDictation(sessionId)));
-
-  ipcMain.handle('orb:speak', (_event, text: string) =>
-    handleIPC(async () => {
-      const result = await pythonRuntimeService.speak(String(text || '').trim());
-      if (!result.success) throw new Error(result.error || 'No se pudo sintetizar la voz.');
-      if (!result.speechId) throw new Error('La sintesis inicio sin un identificador de voz.');
-      return { speechId: result.speechId };
-    }));
-
-  ipcMain.handle('orb:stop-speaking', (_event, speechId?: string | null) =>
-    handleIPCVoid(async () => pythonRuntimeService.stopSpeaking(speechId)));
-
-  // La conversacion termino (idle o ventana oculta): reanudar la escucha pasiva.
-  ipcMain.handle('orb:conversation-ended', (_event, sessionId?: string | null) =>
-    handleIPCVoid(async () => pythonRuntimeService.resumeWakeAfterConversation(sessionId)));
-
-  ipcMain.on('orb:hide', (event, ...args: unknown[]) => {
-    const auth = getAuthState();
-    const caller = [getOrbWindow(), getMainWindow()].find(window => window && !window.isDestroyed() && window.webContents.id === event.sender.id);
-    if (args.length || !auth.authenticated || !auth.userId || !caller || !event.senderFrame || event.senderFrame !== caller.webContents.mainFrame) return;
-    options.onHide?.();
-    const win = getOrbWindow();
-    if (win && !win.isDestroyed()) win.hide();
-    void pythonRuntimeService.resumeWakeAfterConversation(null, true);
+    } catch (error) { dictation.clearId(ownId); throw error; }
   });
-
-  console.log('[OrbIpcHandlers] Registered successfully');
+  register('orb:stop-dictation', 'orb', 0, 1, false, async (call, [input], event) => {
+    const id = voiceIdSchema.parse(input);
+    if ((!id || dictation.owns(event, id)) && voiceSession?.cancelPendingCapture(call)) return;
+    if (dictation.owns(event, id)) await runtime.stopDictation(id);
+  });
+  register('orb:speak', 'both', 1, 1, false, async (call, [input], event) => {
+    const text = speechTextSchema.parse(input);
+    let ownId: string | undefined;
+    const onAbort = () => { if (ownId) void runtime.stopSpeaking(ownId); };
+    call.signal.addEventListener('abort', onAbort, { once: true });
+    try {
+      const result = await runtime.speak(text, id => { ownId = id; speech.replace(); speech.bind(event, id); }); call.assert();
+      if (!result.success || !result.speechId) { speech.clearId(ownId); throw new Error('voice_unavailable'); }
+      return { speechId: result.speechId };
+    } finally { call.signal.removeEventListener('abort', onAbort); }
+  });
+  register('orb:stop-speaking', 'both', 0, 1, false, async (_call, [input], event) => {
+    const id = speech.ownedId(event, voiceIdSchema.parse(input));
+    if (id) { await runtime.stopSpeaking(id); speech.clearId(id); }
+  });
+  register('orb:conversation-ended', 'orb', 0, 1, false, async (_call, [input], event) => {
+    const id = dictation.ownedId(event, voiceIdSchema.parse(input));
+    if (id) { await runtime.resumeWakeAfterConversation(id); dictation.clearId(id); }
+  });
+  ipcMain.on('orb:hide', (event, ...args: unknown[]) => {
+    let call: VoiceCall | undefined;
+    try {
+      call = caller(event as IpcMainInvokeEvent, 'both', false); call.assert(); if (args.length) return;
+      options.onHide?.(); getOrbWindow()?.hide();
+      voiceSession?.cancelPendingCapture(call);
+      dictation.clear();
+      if (voiceSession?.isApproved()) void runtime.resumeWakeAfterConversation(null, true);
+      else voiceSession?.cancelCapture();
+    } catch { /* Un emisor ajeno no puede ocultar ni reanudar la voz. */ }
+    finally { call?.dispose(); }
+  });
 }

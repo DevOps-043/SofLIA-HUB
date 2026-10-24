@@ -1,6 +1,8 @@
 import { OAUTH_REDIRECT_URI } from './constants';
 import { openOAuthWindow } from './oauth-window';
-import type { CalendarConnection, CalendarServiceCore } from './types';
+import type { CalendarConnection, CalendarConnectionResult, CalendarServiceCore } from './types';
+import { calendarSession } from './session-context';
+import { CalendarStorageUnavailableError } from './credential-store';
 
 const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/calendar.events',
@@ -45,13 +47,17 @@ const GOOGLE_SCOPES = [
   'https://www.googleapis.com/auth/activity',
 ];
 
-export async function connectGoogle(service: CalendarServiceCore) {
+export async function connectGoogle(service: CalendarServiceCore, beforeSave: () => void = () => {}, userId = service.userId): Promise<CalendarConnectionResult> {
   if (!service.config.google?.clientId || !service.config.google?.clientSecret) {
     return { success: false, error: 'Google OAuth credentials not configured. Set VITE_GOOGLE_OAUTH_CLIENT_ID and VITE_GOOGLE_OAUTH_CLIENT_SECRET in .env' };
   }
 
   try {
+    const context = calendarSession(service);
+    const assert = () => { context(); beforeSave(); if (userId !== service.userId) throw new Error('Propietario incorrecto.'); };
+    assert();
     const { google } = await import('googleapis');
+    assert();
     const oauth2Client = new google.auth.OAuth2(
       service.config.google.clientId,
       service.config.google.clientSecret,
@@ -59,14 +65,16 @@ export async function connectGoogle(service: CalendarServiceCore) {
     );
     const authUrl = oauth2Client.generateAuthUrl({ access_type: 'offline', scope: GOOGLE_SCOPES, prompt: 'consent' });
     const code = await openOAuthWindow(authUrl, 'Google Calendar');
+    assert();
     if (!code) return { success: false, error: 'OAuth flow cancelled' };
 
     const { tokens } = await oauth2Client.getToken(code);
+    assert();
     oauth2Client.setCredentials(tokens);
     const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
     const email = (await oauth2.userinfo.get()).data.email || '';
     const connection: CalendarConnection = {
-      userId: service.userId || '',
+      userId: userId || '',
       provider: 'google',
       email,
       accessToken: tokens.access_token || '',
@@ -75,13 +83,16 @@ export async function connectGoogle(service: CalendarServiceCore) {
       isActive: true,
     };
 
-    service.connections.set('google', connection);
-    service.saveConnections();
+    assert();
+    await service.setConnection(connection, assert);
+    assert();
     service.emit('connected', { provider: 'google', email });
-    console.log(`[CalendarService] Google connected: ${email}`);
+    assert();
+    console.info('[Calendario] Cuenta de Google conectada.');
     return { success: true, email };
-  } catch (err: any) {
-    console.error('[CalendarService] Google OAuth error:', err.message);
-    return { success: false, error: err.message };
+  } catch (error) {
+    console.error('[Calendario] No se pudo conectar Google.');
+    return { success: false, error: 'No se pudo conectar Google. Revisa la sesión y vuelve a intentarlo.',
+      ...(error instanceof CalendarStorageUnavailableError ? { errorCode: 'secure_storage_unavailable' } : {}) };
   }
 }

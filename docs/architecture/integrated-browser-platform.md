@@ -1,6 +1,6 @@
 # Plataforma del navegador integrado
 
-Estado: vigente. Actualizado: 2026-10-14.
+Estado: vigente. Actualizado: 2026-10-22.
 
 El navegador de Soflia Hub es una superficie de trabajo Electron basada en
 `WebContentsView`; no pretende sustituir un navegador Chromium completo ni
@@ -38,6 +38,29 @@ al `webContents` principal al registrar los listeners del renderer. Al recibir
 después de destruir la ventana puede lanzar `Object has been destroyed` e
 interrumpir la liberación de pestañas y timers. `detachWindow` admite llamadas
 repetidas y descarta el cierre tardío de una ventana que ya fue reemplazada.
+
+## Política de recursos
+
+[BrowserResourcePolicy](../../electron/integrated-browser/resource-policy.ts)
+reúne presupuesto LRU, inactividad, throttling y timer invalidable. El servicio
+conserva las vistas nativas y retira cada una después de capturar su snapshot;
+la identidad lógica y la API pública se mantienen. La política consulta el
+estado actual mediante puertos, sin importar Electron ni conservar vistas en
+el payload de un timer.
+
+El presupuesto apunta a ocho vistas vivas, protegiendo disposición, carga,
+espera de respuesta, audio, captura y DevTools. Puede superarse temporalmente
+si faltan candidatas seguras; reevalúa en treinta segundos. La inactividad
+conserva una pestaña de fondo reciente y sus gracias de noventa segundos con
+ventana utilizable o treinta con ventana oculta. Stop invalida callbacks
+pendientes y la reprogramación conserva el vencimiento más próximo. Los fallos
+periódicos producen un aviso sin URL ni error crudo y un reintento; las retiradas
+ya completadas se publican aun si falla después otra consulta nativa.
+
+La protección no identifica formularios arbitrarios ni acredita ahorro de RAM
+o CPU. El [cambio y sus criterios](../../openspec/changes/isolate-browser-resource-policy/specs/browser-resource-lifecycle/spec.md)
+incluyen regresiones del servicio, pruebas de timer y un smoke de vistas reales
+con actividad simulada; no equivale a una sesión multimedia completa.
 
 ## Capacidades implementadas
 
@@ -519,6 +542,17 @@ segundo guardado desde `detachWindow` y permite cerrar ventanas separadas sin
 reintegrarlas. La barrera del lifecycle y del actualizador vive en
 `electron/main/shutdown-guard.ts`: cinco segundos antes de preguntar, una sola
 salida pendiente y consentimiento explícito para salir sin guardar.
+
+El [checkpoint de sesión](../../electron/integrated-browser/session-checkpoint.ts)
+concentra el temporizador de 250 ms, la última escritura y su fallo, y los estados
+de preparación/confirmación/cancelación del cierre. Su única capacidad de
+almacenamiento es `save` del store existente, que mantiene la cola por archivo y
+el reemplazo atómico. El servicio construye el snapshot, excluye pestañas sensibles,
+conserva la recuperación pendiente y valida generación/perfil; el checkpoint
+ordena las esperas y sólo reintenta snapshots fallidos del mismo perfil. La
+revisión de cancelación se comprueba también al terminar la espera de limpieza.
+Cambiar de perfil drena primero el saliente y reinicia su seguimiento y autosave.
+Las APIs públicas, IPC y formato de sesión permanecen iguales.
 
 Una segunda barrera en `electron/main/app-lifecycle.ts` impide que `will-quit`
 termine el proceso antes de `flushClosedProfileForShutdown`. No ejecuta purga

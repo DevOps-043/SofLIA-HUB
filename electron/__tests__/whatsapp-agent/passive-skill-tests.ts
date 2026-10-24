@@ -58,7 +58,6 @@ export function registerPassiveSkillTests(ctx: WhatsAppAgentTestContext): void {
       const { executeWhatsAppTools } = await import('../../whatsapp-tool-executor');
       vi.mocked(executeWhatsAppTools).mockResolvedValueOnce({
         responses: [{ functionResponse: { name: 'gmail_send', response: { success: true } } }],
-        bulkLabelsToVerify: null,
       });
 
       ctx.mockSendMessage.mockResolvedValueOnce({

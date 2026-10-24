@@ -21,7 +21,7 @@ export function registerServiceEvents(input: { modules: any; services: any; stat
   });
 
   registerPassiveSkillsSessionEvents(services);
-  registerCalendarEvents(services, state);
+  registerCalendarEvents(services);
   registerMonitoringEvents(modules, services, state);
   services.waService.on('qr', (qr: string) => state.win?.webContents.send('whatsapp:qr', qr));
   services.waService.on('status', (status: any) => state.win?.webContents.send('whatsapp:status', status));
@@ -122,7 +122,7 @@ async function executePassiveSkillPrompt(state: MainRuntimeState, task: any): Pr
   return typeof result === 'string' ? result : '';
 }
 
-function registerCalendarEvents(services: any, state: MainRuntimeState): void {
+function registerCalendarEvents(services: any): void {
   services.calendarService.setConfig({
     google: {
       clientId: process.env.VITE_GOOGLE_OAUTH_CLIENT_ID || '',
@@ -130,8 +130,6 @@ function registerCalendarEvents(services: any, state: MainRuntimeState): void {
     },
     microsoft: { clientId: process.env.VITE_MICROSOFT_CLIENT_ID || '' },
   });
-  services.calendarService.on('work-start', (data: any) => state.win?.webContents.send('calendar:work-start', data));
-  services.calendarService.on('work-end', (data: any) => state.win?.webContents.send('calendar:work-end', data));
   services.calendarService.on('connected', (data: any) => {
     if (data?.provider === 'google') {
       void services.meetingPassiveDetectionService.runScanNow().catch((error: unknown) => {

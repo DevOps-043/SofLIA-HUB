@@ -10,12 +10,11 @@ export async function executeDriveTool(
   toolName: string,
   toolArgs: Record<string, any>,
   ctx: ToolExecutorContext,
-  bulkLabelsToVerify: Set<string> | null,
 ): Promise<GoogleExecutorResult | null> {
   if (!DRIVE_TOOLS.has(toolName)) return null;
 
   try {
-    if (!ctx.driveService) return { response: toolError(toolName, 'Google Drive no conectado.'), bulkLabelsToVerify };
+    if (!ctx.driveService) return { response: toolError(toolName, 'Google Drive no conectado.') };
 
     if (toolName === 'drive_list_files') {
       return {
@@ -23,11 +22,10 @@ export async function executeDriveTool(
           folderId: toolArgs.folder_id,
           maxResults: toolArgs.max_results || 20,
         })),
-        bulkLabelsToVerify,
       };
     }
     if (toolName === 'drive_search') {
-      return { response: toolResponse(toolName, await ctx.driveService.searchFiles(toolArgs.query)), bulkLabelsToVerify };
+      return { response: toolResponse(toolName, await ctx.driveService.searchFiles(toolArgs.query)) };
     }
     if (toolName === 'drive_download') {
       const tmpDir = app.getPath('temp');
@@ -35,7 +33,7 @@ export async function executeDriveTool(
       const destinationPath = toolArgs.destination_path || path.join(tmpDir, fallbackName);
       const format = toolArgs.format === 'pdf' ? 'pdf' as const : 'text' as const;
       const result = await ctx.driveService.downloadFile(toolArgs.file_id, destinationPath, format);
-      return { response: toolResponse(toolName, { ...result, localPath: result.path || destinationPath }), bulkLabelsToVerify };
+      return { response: toolResponse(toolName, { ...result, localPath: result.path || destinationPath }) };
     }
     if (toolName === 'drive_upload') {
       return {
@@ -43,15 +41,13 @@ export async function executeDriveTool(
           name: toolArgs.name,
           folderId: toolArgs.folder_id,
         })),
-        bulkLabelsToVerify,
       };
     }
 
     return {
       response: toolResponse(toolName, await ctx.driveService.createFolder(toolArgs.name, toolArgs.parent_id)),
-      bulkLabelsToVerify,
     };
   } catch (err: any) {
-    return { response: toolError(toolName, err.message), bulkLabelsToVerify };
+    return { response: toolError(toolName, err.message) };
   }
 }

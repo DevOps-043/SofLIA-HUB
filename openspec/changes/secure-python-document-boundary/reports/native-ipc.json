@@ -1,0 +1,24 @@
+{
+  "status": "passed",
+  "electron": "44.5.1",
+  "checks": [
+    "sin-sesion-denegado",
+    "estado-proyectado",
+    "ventana-ajena-denegada",
+    "ruta-renderer-denegada",
+    "schema-cerrado",
+    "snapshot-estable-y-limpio",
+    "cinco-metodos-preload-ipc",
+    "cancelar-desactivacion-no-escribe",
+    "confirmacion-nativa-simulada",
+    "sesion-aba-descarta-lectura",
+    "documento-ajeno-denegado"
+  ],
+  "nativeIpc": true,
+  "serviceSimulated": true,
+  "dialogSimulated": true,
+  "profileIsolated": true,
+  "realUserDocumentsUsed": false,
+  "realCredentialsUsed": false,
+  "networkBlocked": true
+}

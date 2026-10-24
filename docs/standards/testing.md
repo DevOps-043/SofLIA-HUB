@@ -8,9 +8,10 @@
 
 ## Modulos nativos
 
-`better-sqlite3` y otros binarios deben compilarse para el ABI que ejecuta la
-prueba. No considerar un fallo ABI como fallo funcional, pero tampoco marcar el
-gate como exitoso: reparar el entorno y repetir.
+La persistencia SQLite usa `node:sqlite`, incluido en el Node del ejecutor y en
+Electron. Usar Node 24 para CI y publicación; no existe paso de rebuild para
+better-sqlite3. Otros módulos nativos mantienen sus propios requisitos de ABI.
+Un fallo del entorno no es evidencia de éxito: corregirlo y repetir.
 
 ## Evidencia
 
@@ -22,4 +23,6 @@ excepciones y restauracion de estado cuando hubo mutaciones.
 
 Mientras exista deuda historica de lint o pruebas, todo archivo modificado debe
 quedar sin nuevas incidencias y el baseline total debe disminuir. No ampliar ni
-ocultar el baseline para conseguir un gate verde.
+ocultar el baseline para conseguir un gate verde. Los errores fatales de parser
+se rechazan aunque también existan en HEAD: sin análisis no se demuestra
+no regresión. `npm run test:quality` cubre esta distinción.

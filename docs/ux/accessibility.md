@@ -1,6 +1,6 @@
 # Accesibilidad
 
-Estado: vigente. Actualizado: 2026-07-21.
+Estado: vigente. Actualizado: 2026-10-22.
 
 <!-- evidence: src/components/ui -->
 <!-- evidence: src/index.css -->
@@ -18,6 +18,15 @@ Estado: vigente. Actualizado: 2026-07-21.
 - Tema claro/oscuro tiene tokens de texto y `on-accent`; el contraste navy sobre
   aqua fue elegido explicitamente para AA.
 - Body declara minimo 320 px y scroll interno por pantalla.
+- El [selector compartido](../../src/components/ui/SelectDropdown.tsx) conserva
+  identidad al reordenar opciones, excluye activas ausentes/deshabilitadas y
+  comunica el nombre externo al listbox. Flechas/Home/End y prefijos exploran
+  sin escribir; sólo confirmación cambia el valor. Escape cierra primero el
+  popup, Tab/blur salen sin confirmar y vaciar/deshabilitar no deja apertura
+  latente. El portal conserva la capa modal. La geometría no se anima y el
+  control respeta movimiento reducido; la opción activa se desplaza dentro
+  de la lista después de cambios de altura, sin desplazar el diálogo padre.
+  El smoke local distingue foco emulado/AX de una auditoría de lector de pantalla.
 - El grip del chat flotante expone `role="separator"`, valores ARIA, foco,
   flechas de teclado y un agarre visual con área de interacción amplia.
   El chat mantiene radios y borde perceptible, reemplaza su header general por
@@ -76,7 +85,9 @@ en CI ni auditoria de lector de pantalla versionada.
 - Scroll global oculto obliga a cada vista a definir un contenedor accesible.
 - Texto secundario y bordes sutiles deben verificarse en monitores de bajo
   contraste; no existe test visual automatizado.
-- Intro de 4.2 s y animaciones no consultan globalmente `prefers-reduced-motion`.
+- [AppLoadingScreen](../../src/app/AppLoadingScreen.tsx) consulta movimiento
+  reducido; el selector y estilos del navegador tienen tratamiento local.
+  No se ha demostrado aplicación completa a todas las animaciones del producto.
 
 ## Checklist manual minimo
 
@@ -89,3 +100,9 @@ en CI ni auditoria de lector de pantalla versionada.
 
 Automatizar axe y formalizar WCAG son mejoras pendientes; no se marcan como
 implementadas en la matriz.
+
+La interacción del selector toma como referencia los patrones APG de
+[combobox](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/) y
+[listbox](https://www.w3.org/WAI/ARIA/apg/patterns/listbox/). Se conserva la
+semántica previa de Tab sin confirmar; no se declara implementación de cada
+comportamiento opcional de esos patrones ni conformidad WCAG global.

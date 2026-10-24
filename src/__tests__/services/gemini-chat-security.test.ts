@@ -27,4 +27,20 @@ describe('gemini-chat Gmail security', () => {
       body: 'Contenido',
     })).toThrow(/control/i);
   });
+
+  it('rechaza el exceso de adjuntos sin recortar silenciosamente la solicitud', () => {
+    expect(() => buildSafeGmailSendParams({ to: 'dest@example.test', subject: 'Informe', body: 'Contenido',
+      attachment_paths: Array.from({ length: 11 }, (_, index) => `C:\\documentos\\${index}.pdf`) })).toThrow();
+  });
+
+  it('conserva todos los adjuntos válidos y sus rutas en orden', () => {
+    const paths = Array.from({ length: 10 }, (_, index) => `C:\\documentos\\${index}.pdf`);
+    expect(buildSafeGmailSendParams({ to: 'dest@example.test', subject: 'Informe', body: 'Contenido', attachment_paths: paths }).attachmentPaths).toEqual(paths);
+  });
+
+  it.each([
+    { attachment_paths: [''] }, { attachment_paths: [null] }, { body: 123 }, { is_html: 'false' }, { to: Array(21).fill('dest@example.test') },
+  ])('rechaza tipos y valores inválidos sin convertirlos ni omitirlos: %#', value => {
+    expect(() => buildSafeGmailSendParams({ to: 'dest@example.test', subject: 'Informe', body: 'Contenido', ...value })).toThrow();
+  });
 });

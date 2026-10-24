@@ -54,7 +54,7 @@ describe('PythonRuntimeService arranque sin runtime', () => {
     const pending = service.listMicDevices();
     await Promise.resolve();
     // Sin la guarda, este emit se propagaba como excepcion no capturada.
-    expect(() => child.emit('error', new Error('spawn python.exe ENOENT'))).not.toThrow();
+    expect(() => child.emit('error', Object.assign(new Error('spawn python.exe ENOENT'), { code: 'ENOENT' }))).not.toThrow();
 
     const result = await pending;
     expect(result.success).toBe(false);

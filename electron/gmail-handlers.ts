@@ -1,54 +1,29 @@
-/**
- * GmailHandlers — IPC handlers for Gmail integration.
- */
-import { ipcMain, type BrowserWindow } from 'electron';
+import { ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import type { GmailService } from './gmail-service';
-import { handleIPC } from './utils/ipc-helpers';
+import { nativeConfirmation, trustedAppCaller } from './ipc/caller-authorization';
+import { gmailSendSchema } from '../src/shared/gmail-delivery';
+import { GMAIL_SEND_FAILED } from './gmail/delivery';
+import { registerGmailMailboxHandlers, registerGmailPlanHandlers } from './gmail';
+import { createLogger } from './utils/logger';
 
-export function registerGmailHandlers(
-  gmailService: GmailService,
-  _getMainWindow: () => BrowserWindow | null,
-): void {
-  // ─── Send email ─────────────────────────────────────────────────
-  ipcMain.handle('gmail:send', (_event, params) => handleIPC(() => gmailService.sendEmail(params)));
-
-  // ─── Get messages list ──────────────────────────────────────────
-  ipcMain.handle('gmail:get-messages', (_event, options) => handleIPC(() => gmailService.getMessages(options)));
-
-  // ─── Get single message ────────────────────────────────────────
-  ipcMain.handle('gmail:get-message', (_event, messageId: string) => handleIPC(() => gmailService.getMessage(messageId)));
-
-  // ─── Modify labels ─────────────────────────────────────────────
-  ipcMain.handle('gmail:modify-labels', (_event, messageId: string, addLabels?: string[], removeLabels?: string[]) =>
-    handleIPC(() => gmailService.modifyLabels(messageId, addLabels, removeLabels)));
-
-  // ─── Trash message ──────────────────────────────────────────────
-  ipcMain.handle('gmail:trash', (_event, messageId: string) => handleIPC(() => gmailService.trashMessage(messageId)));
-
-  // ─── Get labels ─────────────────────────────────────────────────
-  ipcMain.handle('gmail:get-labels', () => handleIPC(() => gmailService.getLabels()));
-
-  // ─── Create label ─────────────────────────────────────────────
-  ipcMain.handle('gmail:create-label', (_event, name: string) => handleIPC(() => gmailService.createLabel(name)));
-
-  ipcMain.handle('gmail:preview-organization', (_event, options) =>
-    handleIPC(() => gmailService.previewOrganizationPlan(options)));
-
-  ipcMain.handle('gmail:apply-organization-plan', (_event, planId: string, options?: { removeFromInbox?: boolean }) =>
-    handleIPC(() => gmailService.applyOrganizationPlan(planId, options)));
-
-  ipcMain.handle('gmail:undo-organization-plan', (_event, planId?: string) =>
-    handleIPC(() => gmailService.undoOrganizationPlan(planId)));
-
-  // ─── Empty and delete ALL user labels ───────────────────────────
-  ipcMain.handle('gmail:empty-and-delete-all-labels', () => handleIPC(() => gmailService.emptyAndDeleteAllLabels()));
-
-  // ─── Batch modify by label ──────────────────────────────────────
-  ipcMain.handle('gmail:batch-modify-by-label', (_event, labelId: string, options?: { addLabels?: string[]; removeLabels?: string[]; deleteLabel?: boolean }) =>
-    handleIPC(() => gmailService.batchModifyByLabel(labelId, options)));
-
-  // ─── Delete label ─────────────────────────────────────────────
-  ipcMain.handle('gmail:delete-label', (_event, labelId: string) => handleIPC(() => gmailService.deleteLabel(labelId)));
-
-  console.log('[GmailHandlers] Registered successfully');
+export function registerGmailHandlers(gmailService: GmailService, getMainWindow: () => BrowserWindow | null,
+  getOrbWindow: () => BrowserWindow | null = () => null): void {
+  const windows = () => [getMainWindow(), getOrbWindow()];
+  const confirm = nativeConfirmation('Confirmar envío de correo');
+  ipcMain.handle('gmail:send', async (event: IpcMainInvokeEvent, ...args: unknown[]) => {
+    const caller = trustedAppCaller(event, windows);
+    try {
+      caller.assert();
+      if (args.length !== 1 || !caller.parent || !caller.userId) throw new Error('invalid_send');
+      const params = gmailSendSchema.parse(args[0]);
+      return await gmailService.sendEmail(params, {
+        userId: caller.userId, assertCurrent: caller.assert, signal: caller.signal,
+        approve: (detail, assert) => confirm(caller.parent!, detail, assert, caller.signal),
+      });
+    } catch { return { success: false, error: GMAIL_SEND_FAILED }; }
+    finally { caller.dispose(); }
+  });
+  registerGmailMailboxHandlers(gmailService, windows);
+  registerGmailPlanHandlers(gmailService, windows);
+  createLogger('gmail-ipc').info('Canales Gmail registrados.');
 }

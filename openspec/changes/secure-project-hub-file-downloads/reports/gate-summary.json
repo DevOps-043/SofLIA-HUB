@@ -1,0 +1,84 @@
+{
+  "command": "npm run verify:pr",
+  "exitCode": 0,
+  "log": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-project-downloads-2026-10-22\\verify-pr-final.log",
+  "at": "2026-10-23T04:20:30.473Z",
+  "scripts": [
+    {
+      "script": "adapters:check",
+      "exitCode": 0
+    },
+    {
+      "script": "harness:validate",
+      "exitCode": 0
+    },
+    {
+      "script": "audit:supply-chain",
+      "exitCode": 0
+    },
+    {
+      "script": "docs:system:check",
+      "exitCode": 0
+    },
+    {
+      "script": "docs:check",
+      "exitCode": 0
+    },
+    {
+      "script": "skills:seed:check",
+      "exitCode": 0
+    },
+    {
+      "script": "openspec:validate",
+      "exitCode": 0
+    },
+    {
+      "script": "test:quality",
+      "exitCode": 0
+    },
+    {
+      "script": "typecheck",
+      "exitCode": 0
+    },
+    {
+      "script": "lint:changed",
+      "exitCode": 0
+    },
+    {
+      "script": "test",
+      "exitCode": 0
+    }
+  ],
+  "tests": {
+    "passed": 5274,
+    "skipped": 5,
+    "total": 5279,
+    "durationSeconds": 241.65
+  },
+  "files": {
+    "passed": 480,
+    "skipped": 2,
+    "total": 482
+  },
+  "lintChangedFiles": 200,
+  "baseline": {
+    "passed": 5211,
+    "skipped": 5
+  },
+  "netNewPassedCases": 63,
+  "directed": {
+    "passed": 385,
+    "files": 22,
+    "baseline": 322
+  },
+  "nativeChecks": 10,
+  "build": {
+    "exitCode": 0,
+    "sources": 3359,
+    "artifacts": 6,
+    "productionHashesRechecked": 19
+  },
+  "releaseGateRun": false,
+  "independentReview": "pendiente",
+  "globalDebtRecalculated": false
+}

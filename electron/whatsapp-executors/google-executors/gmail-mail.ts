@@ -8,13 +8,12 @@ export async function executeGmailMailTool(
   toolName: string,
   toolArgs: Record<string, any>,
   ctx: ToolExecutorContext,
-  bulkLabelsToVerify: Set<string> | null,
 ): Promise<GoogleExecutorResult | null> {
   if (!GMAIL_MAIL_TOOLS.has(toolName)) return null;
 
   try {
     if (!ctx.gmailService) {
-      return { response: toolError(toolName, 'Gmail no esta disponible. El usuario debe conectar Google en Soflia Hub.'), bulkLabelsToVerify };
+      return { response: toolError(toolName, 'Gmail no esta disponible. El usuario debe conectar Google en Soflia Hub.') };
     }
 
     if (toolName === 'gmail_send') {
@@ -28,7 +27,7 @@ export async function executeGmailMailTool(
         isHtml: toolArgs.is_html || false,
         attachmentPaths: toolArgs.attachment_paths || undefined,
       });
-      return { response: toolResponse(toolName, result), bulkLabelsToVerify };
+      return { response: toolResponse(toolName, result) };
     }
 
     if (toolName === 'gmail_get_messages') {
@@ -40,7 +39,7 @@ export async function executeGmailMailTool(
       });
 
       if (!result.success || !result.messages) {
-        return { response: toolResponse(toolName, result), bulkLabelsToVerify };
+        return { response: toolResponse(toolName, result) };
       }
 
       const formatted = result.messages.map((message: any) => ({
@@ -60,19 +59,15 @@ export async function executeGmailMailTool(
           next_page_token: result.nextPageToken,
           result_size_estimate: result.resultSizeEstimate,
           likely_has_more: !!result.nextPageToken,
-          warning: result.nextPageToken
-            ? 'Hay mas correos disponibles. Debes volver a llamar gmail_get_messages usando page_token para continuar con el siguiente lote.'
-            : undefined,
         }),
-        bulkLabelsToVerify,
       };
     }
 
     const result = toolName === 'gmail_read_message'
       ? await ctx.gmailService.getMessage(toolArgs.message_id)
       : await ctx.gmailService.trashMessage(toolArgs.message_id);
-    return { response: toolResponse(toolName, result), bulkLabelsToVerify };
-  } catch (err: any) {
-    return { response: toolError(toolName, err.message), bulkLabelsToVerify };
+    return { response: toolResponse(toolName, result) };
+  } catch {
+    return { response: toolError(toolName, 'No se pudo completar la operación de mensajes Gmail. Revisa la cuenta y los datos.') };
   }
 }

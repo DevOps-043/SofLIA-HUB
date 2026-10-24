@@ -5,16 +5,14 @@ import type { AgentLoopState } from './agent-loop-types';
 export async function handleRepeatedFailure(
   state: AgentLoopState,
   toolNames: string[],
-  summary: any[],
   count: number,
 ): Promise<{ done: true; text: string } | { done: false }> {
   state.loopGuardInterventions++;
   if (state.loopGuardInterventions >= 2 || count >= LOOP_GUARD_REPEAT_THRESHOLD) {
-    const lastError = summary.find((item) => typeof item.error === 'string')?.error;
     return {
       done: true,
       text: formatForWhatsApp(
-        `La tarea quedo bloqueada por fallos repetidos.${lastError ? ` Ultimo error: ${lastError}` : ''}`,
+        'La tarea quedó bloqueada por fallos repetidos. Revisa el resultado de las herramientas antes de continuar.',
         state.isGroup,
       ),
     };

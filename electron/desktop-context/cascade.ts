@@ -22,6 +22,7 @@ import type { DesktopWindowRecord } from './inventory';
 import type { UiaTextResult } from './uia-text';
 
 export interface CascadeDeps {
+  protectDocument?: boolean;
   availableLevels: DesktopContextLevel[];
   listOfficeDocuments: () => Promise<OpenOfficeDocument[]>;
   /** True si la extension la soporta el sidecar de documentos. */
@@ -38,6 +39,7 @@ export async function extractAppContext(
 ): Promise<DesktopAppContextAttachment> {
   const fromDocument = await tryDocumentLevel(record, deps);
   if (fromDocument) return fromDocument;
+  if (deps.protectDocument && record.expectedLevel === 'documento') throw new Error('No se pudo obtener un documento protegido. No se adjuntó texto alternativo ni imagen.');
 
   const fromAccessibility = await tryAccessibilityLevel(record, deps);
   if (fromAccessibility) return fromAccessibility;
@@ -75,6 +77,7 @@ async function tryDocumentLevel(
     text: markdown,
     warnings,
   });
+  if (deps.protectDocument) return attachment;
   // El sidecar conserva texto y tablas del documento completo. La captura de
   // la vista actual aporta ademas fotografias, diagramas y graficas visibles,
   // que no deben perderse al construir una presentacion. Si falla, el nivel A

@@ -1,10 +1,160 @@
 # IPC e integraciones externas
 
-Estado: vigente. Actualizado: 2026-09-11.
+Estado: vigente. Actualizado: 2026-10-22.
 
 <!-- evidence: electron/preload/channels.ts -->
 <!-- evidence: electron/preload/safe-ipc.ts -->
 <!-- evidence: electron/main/service-ipc.ts -->
+
+## Calendario
+
+El calendario conserva sus canales y argumentos posicionales. El contrato
+compartido está en [calendar.ts](../../src/shared/calendar.ts); main valida
+schemas cerrados y exige sesión y marco principal de Hub u Orbe registrados.
+Crear/actualizar/eliminar pide confirmación nativa con cancelar por defecto;
+el contexto se revalida antes de la petición del proveedor, después de esperas.
+Logout/login, navegación, cambio de ventana/marco o conexión invalidan la
+aprobación. Sólo hay un diálogo activo y vence a los 120 segundos; si el diálogo
+sigue abierto tras vencer, la respuesta tardía no ejecuta nada y no se abre otro.
+OAuth tampoco persiste una conexión si cambia la sesión antes de guardarla.
+
+Las entradas de creación usan título y fechas ISO con zona; actualización
+requiere ambos extremos si cambia el intervalo. Fechas viajan como ISO en DTO y
+se convierten en Date dentro del servicio. get-events conserva el sobre
+success/events/error; [el wrapper](../../src/services/calendar.ts) lo desenvuelve
+para chat y panel. Conexiones/status conservan sus respuestas de lectura; al
+rechazar esas consultas la promesa falla con un error genérico. Los eventos se
+proyectan a campos públicos; renovación sólo reenvía proveedor. No se exponen
+tokens, conexiones internas ni errores del proveedor.
+
+La [custodia privada](../../electron/calendar/credential-store.ts) usa safeStorage
+asíncrono del SO y archivos `calendar-credentials/<hash del userId>.bin`. Dentro
+del cifrado se validan versión, propietario exacto y conexiones; no hay fallback
+plano y Linux rechaza basic_text/unknown. loadConnections/saveConnections son
+asíncronos; conectar/desconectar no publica éxito antes de persistir.
+
+Al cambiar la sesión de main se vacían conexiones, polling y estado de trabajo.
+Las revisiones invalidan A/B/A y las guardas de conexión bloquean OAuth,
+restauración, renovación y consultas obsoletas. El cliente OAuth compartido con
+Gmail/Drive/Chat valida también su transporte antes de solicitudes y al recibir
+respuestas, incluso si el consumidor conserva una referencia anterior. Una
+petición remota ya enviada puede haber producido efectos y no se revierte.
+
+El JSON heredado calendar-connections.json se reemplaza atómicamente por un
+archivo cifrado con cabecera versionada, conservando todos sus registros. Sólo
+se importan conexiones con userId coincidente; las huérfanas requieren OAuth de
+nuevo. Un archivo privado existente, incluso vacío o ilegible, impide reimportar
+desde el legado. Errores de cifrado/escritura conservan la versión anterior.
+No se agregan canales ni herramientas de desarrollo al runtime.
+
+## Envío Gmail
+
+`gmail:send` conserva canal y parámetros, con [DTO/schema compartido](../../src/shared/gmail-delivery.ts).
+El handler verifica sesión, ventana Hub/Orbe registrada, marco principal y documento
+propio mediante la [guarda IPC común](../../electron/ipc/caller-authorization.ts),
+también utilizada por calendario. El servicio fija propietario, revisión y conexión
+Google antes de esperar. El usuario confirma cuenta, destinatarios, asunto, cuerpo
+y rutas canónicas/tamaños de los adjuntos en un diálogo nativo; cancelar es la
+opción predeterminada y la aprobación vence a los 120 segundos.
+
+La [preparación](../../electron/gmail/attachments.ts) sólo acepta archivos regulares
+locales absolutos, rechaza enlaces finales/dispositivos/UNC y comprueba identidad
+y metadata durante lectura incremental. Todos los archivos se capturan antes de
+confirmar: un fallo impide todo envío y después de aprobar se transmite esa copia
+sin releer rutas. El compositor MIME existente se reutiliza con acceso propio a
+URLs/archivos deshabilitado, nombres Unicode y BCC conservado en el raw de Gmail.
+
+Política del Hub: máximo 20 destinatarios entre Para/CC/CCO, 300 caracteres de
+asunto, 200000 de cuerpo, 10 adjuntos, 10 MiB por archivo, 20 MiB acumulados y
+30 MiB de MIME. Un nombre con correo representa un único buzón; no se admiten
+listas/grupos escondidos dentro de una cadena. Éstas son cuotas locales, no un
+compromiso de límites del proveedor.
+
+`success:true` exige identificador del proveedor y contexto vigente. Cancelación
+devuelve `cancelled:true`. Tras iniciar transporte, un fallo, respuesta sin ID o
+cambio de contexto devuelve `uncertain:true`: revisar Enviados antes de repetir.
+No hay retry automático ni rollback de un mensaje ya aceptado. Resultados/logs no
+incluyen errores crudos, rutas ni contenido privado. Los planes y las operaciones
+directas del buzón tienen sus propios controles descritos a continuación.
+
+## Planes de organización de Gmail
+
+<!-- evidence: electron/gmail/plan-handlers.ts -->
+<!-- evidence: electron/gmail/plan-context.ts -->
+<!-- evidence: src/shared/gmail-organization.ts -->
+
+`gmail:preview-organization`, `gmail:apply-organization-plan` y
+`gmail:undo-organization-plan` conservan servicio, handler, preload allowlisted y
+wrapper tipado. Admiten únicamente el frame principal autenticado del Hub/Orbe.
+Opciones cerradas e ID UUID se validan en main; el servicio captura usuario,
+revisión y conexión Google y conserva un cliente durante toda la operación.
+Aplicar/revertir exige confirmación nativa con cuenta, plan y alcance. Navegar,
+cerrar o cambiar sesión cancela la confirmación y propaga una señal al SDK.
+
+La vista previa guarda sólo grupos, etiquetas e IDs necesarios para revertir;
+los ejemplos de remitentes/asuntos se devuelven sin persistirse en el plan. El
+store cifrado valida propietario e ID internos y mantiene exclusión por cuenta
+en el proceso. No importa los JSON globales heredados. Antes de cada efecto
+remoto guarda una intención y después registra la confirmación y sus conteos.
+Un resultado parcial conserva lo confirmado; una intención pendiente requiere
+revisión manual y bloquea replay. Repetir un plan completado devuelve su resumen
+guardado sin volver a mutar Gmail.
+
+Revertir comprueba el conjunto actual completo de etiquetas de cada mensaje,
+detiene el proceso ante diferencias y conserva etiquetas creadas que tengan
+mensajes nuevos. Puede continuar una reversión interrumpida sin intención
+pendiente, omitiendo mensajes ya confirmados. No hay transacción disco/Gmail ni
+CAS remoto: persiste una ventana de carrera con cambios externos. Consultar
+[cuotas](runtime-parameters.md#planes-de-organización-gmail) y
+[recuperación](../operations/configuration.md#planes-privados-de-gmail).
+
+## Operaciones directas del buzón Gmail
+
+<!-- evidence: electron/gmail/mailbox-handlers.ts -->
+<!-- evidence: electron/gmail/execution-context.ts -->
+<!-- evidence: src/shared/gmail-mailbox.ts -->
+
+Las nueve rutas restantes del registro Gmail validan caller, documento y entrada:
+get-messages/get-message/get-labels son lecturas; modify-labels/trash/create-label/
+delete-label/batch-modify-by-label/empty-and-delete-all-labels son mutaciones.
+Antes de producir efectos, las seis mutaciones exigen confirmación nativa de
+cuenta y alcance. Crear una etiqueta que ya existe devuelve su referencia sin
+mutar ni pedir aprobación nueva. Sus opciones
+y resultados se comparten entre servicio, preload y wrapper; no hay canales
+nuevos. El contexto de ejecución se comparte con planes y conserva un cliente,
+owner, revisión y conexión; las mutaciones comparten la exclusión por cuenta.
+Las guardas runtime previas siguen siendo responsabilidad de su superficie.
+
+Se resuelven todas las referencias antes de crear etiquetas; quitar una
+desconocida, una referencia ambigua o añadir/quitar la misma etiqueta se rechaza.
+Crear por nombre no confunde un nombre nuevo con el ID de otra etiqueta. El
+borrado sólo admite etiquetas de usuario verificadas en la cuenta. Una etiqueta
+de sistema puede ser origen de un lote de mensajes con opciones coherentes,
+como quitar INBOX para archivar, conservando la etiqueta. Las lecturas
+no devuelven detalles incompletos ni contenido de una sesión invalidada.
+
+Los lotes preparan todas las páginas antes de mutar. Cada ID se procesa una vez
+aunque se conserve la etiqueta origen; duplicados, ciclos o exceso de cuota
+rechazan la preparación completa. El alcance aprobado queda fijo: mensajes
+nuevos no se incorporan. El borrado posterior al vaciado comprueba que la
+etiqueta esté vacía; si no, informa conflicto y la conserva. La limpieza total
+se detiene al primer fallo y no anuncia éxito con errores.
+
+`processed` y los conteos de limpieza conservan confirmaciones anteriores a un
+fallo. `effectsConfirmed` cuenta solicitudes de escritura confirmadas, no
+mensajes; `operationId` permite correlacionar fallos sin contenido privado.
+`remaining` sólo vale cero si se verificó vacío; indefinido significa conteo
+desconocido. `sourceEmpty` informa vacío/no vacío sin inventar cardinalidad.
+En limpieza, `totalMessagesMovedToInbox` cuenta membresías por etiqueta: un
+mensaje con dos etiquetas puede contarse dos veces. `remainingLabelsVerified`
+distingue consulta final de una lista conservadora de etiquetas aún no borradas.
+
+El progreso directo vive en memoria durante la llamada; no es el diario durable
+de planes. Tras un fallo parcial/incierto se requiere revisar Gmail antes de
+repetir, sin retry ni rollback automáticos. Persisten carreras externas entre
+consulta y escritura; no se promete CAS ni transacción. Ver
+[operación](../operations/configuration.md#operaciones-directas-de-gmail) y
+[parámetros](runtime-parameters.md#operaciones-directas-de-gmail).
 
 ## Contrato IPC
 
@@ -74,7 +224,7 @@ aprobación fabricada del renderer. El servicio comprueba capacidad, política,
 perfil y control humano; el borrado pregunta en main. Responde con biblioteca
 versionada, cancelación o error saneado. No existe IPC de ejecución de atajos.
 
-La allowlist actual contiene 494 canales derivados de cinco arrays: 84, 52, 61, 159, 138. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
+La allowlist actual contiene 521 canales derivados de cinco arrays: 84, 52, 61, 159, 165. El numero es verificable en `electron/preload/channel-group-*.ts`; si cambia,
 el catalogo y su validador deben actualizarse juntos.
 
 | Namespace | Canales | Proposito |
@@ -93,7 +243,7 @@ el catalogo y su validador deben actualizarse juntos.
 | `desktop-context` | 2 | inventario de ventanas abiertas y extraccion en cascada del contenido de las que el usuario marca en el chat |
 | `skill-workspace` | 14 | espacio de trabajo de Skills: crear, estado, leer, escribir, editar, borrar, guardar y descargar imagenes, abrir carpeta, progreso y URL de vista previa |
 | `presentation`, `presentation-view` | 5 | vista a pantalla completa, exportacion a HTML autocontenido y preparacion de la identidad de marca |
-| `project-hub` | 22 | proyectos, tareas y seguimiento |
+| `project-hub` | 23 | proyectos, tareas y seguimiento |
 | otros | 68 | voice, updater, automation, drive, pytools, telegram, gchat, app, auth, background-host, root, AI y learning-live |
 
 ### Recorrido obligatorio
@@ -843,6 +993,27 @@ de loopback no consume esta concesión. Quitar/cancelar/salir/cambiar identidad
 liberan los vínculos. Fuente perdida cancela la captura sin elegir un sustituto.
 Véase [escenas locales](../../openspec/changes/implement-live-studio-runtime/specs/studio-local-scenes/spec.md).
 
+## Project Hub
+
+La superficie tiene 23 canales: nueve lecturas/autenticación, diez mutaciones de
+dominio y cuatro operaciones para subir/guardar copia y cancelarlas. Subir/cancelar sustituyen las primitivas
+create-upload-intent/complete-upload en la allowlist; el protocolo v1 sigue en main.
+Guardar copia/cancelar sustituyen get-download; no se entrega URL firmada al
+renderer. Selección de destino y publicación exclusiva son responsabilidad main.
+`electron/project-hub-handlers.ts` usa caller común cerrado y confirmación nativa;
+`electron/project-hub/` conserva custodia y autorización interna hasta HTTP.
+Allowlist del grupo 5, `electron/preload/project-hub-api.ts` y el wrapper
+`src/services/project-hub-api.ts` comparten tipos de `src/shared/project-hub.ts`
+y `src/shared/project-hub-files.ts`.
+La actualización de tarea dispone ahora de wrapper, completando su ruta existente.
+No se expone transporte genérico, tokens de sesión, URLs firmadas ni rutas de archivos.
+
+Aridad exacta, schemas cerrados, snapshot acotado y caller vigente antes/después
+de esperar. Todas las mutaciones piden HITL tras comprobar destino; la aprobación
+no se transfiere a otro IPC. Contexto perdido descarta datos, aborta red o retira
+espera y conserva incertidumbre si ya se invocó una escritura. El backend sigue
+autorizando roles/recursos. [Contrato y límites](project-hub-unified.md#autorización-ipc).
+
 ## Exportación y audiovisual local
 
 La salida continua del curso usa `studio-output:open`, `close`, `offer`, `answer`,
@@ -856,3 +1027,28 @@ su WebFrameMain solo después del primer frame; la preparación pendiente denieg
 captura sin elegir otra fuente. [Contrato de salida](../../openspec/changes/add-studio-transitions/specs/studio-program-output/spec.md).
 
 `presentation:export-pptx` publica un PPTX editable del deck validado. `audiovisual:inspect`, `audiovisual:render` y `audiovisual:cancel` reciben solamente workspaceId, validado mediante esquema estricto; el servicio comprueba la skill propietaria. Allowlist, preload y wrapper tipado no exponen shell, ejecutables ni escritura binaria genérica. Contratos y límites en [producción audiovisual](presentation-audiovisual-production.md).
+
+## Voz local y Orbe
+
+Los nueve canales de ajustes conservan argumentos y allowlist; los contratos
+compartidos son `src/shared/local-voice.ts` y `src/shared/orb.ts`, con preload y
+wrappers por capacidad. Main valida emisor/marco/documento/sesión y payload
+antes del efecto. `enabled` no concede micrófono; captura/restauración e
+instalación pasan revisión nativa, con detención disponible durante esperas.
+Dictado/Piper entregan al consumidor vigente y síntesis propaga cancelación.
+Roles, DTO, revocación y límites de recuperación:
+[autorización de voz local](../security/local-voice-authorization.md).
+
+## Documentos Python y contexto de escritorio
+
+Los cinco `pytools:*` usan `src/shared/python-tools.ts`, preload específico y
+wrapper tipado. `parseDocument()` renderer es de cero argumentos y selección
+nativa; las rutas permanecen en main. Ambos IPC `desktop-context:*` revalidan
+caller y contexto tras esperar, y el inventario se retira al cambiar sesión.
+No hay canales nuevos. Persistencia, cuotas y consumidores protegidos en
+[frontera documental](../security/python-document-boundary.md).
+
+
+<!-- evidence: src/shared/project-management.ts -->
+
+La gestión de proyectos añade operaciones de dominio para tareas, comentarios, etiquetas, documentos, hitos y equipos. Reutilizan el registro con caller vigente, revisión humana y sesión capturada; las lecturas no amplían permisos ni exponen transporte genérico. Sus rutas y validaciones se definen en el contrato compartido y el servicio main.

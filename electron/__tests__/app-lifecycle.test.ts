@@ -24,6 +24,7 @@ function fixture() {
     pathMemoryService: { stop: vi.fn() },
     clipboardAssistant: { stop: vi.fn() },
     meetingPassiveDetectionService: { stopPolling: vi.fn() },
+    calendarService: { dispose: vi.fn() },
   };
   const controls = { createWindow: vi.fn(), routeShareLinkToRenderer: vi.fn(), routeAuthCallbackToRenderer: vi.fn(), routeMeetingTriggerToRenderer: vi.fn(), routeLearningSessionToRenderer: vi.fn() };
   registerAppLifecycle({ services, state, controls });
@@ -67,6 +68,7 @@ describe('cierre de la aplicación', () => {
     f.events.emit('will-quit', { preventDefault: vi.fn() });
     expect(f.services.pathMemoryService.stop).toHaveBeenCalledOnce();
     expect(f.services.updaterService.stop).toHaveBeenCalledOnce();
+    expect(f.services.calendarService.dispose).toHaveBeenCalledOnce();
     expect(globalShortcut.unregisterAll).toHaveBeenCalledOnce();
   });
 

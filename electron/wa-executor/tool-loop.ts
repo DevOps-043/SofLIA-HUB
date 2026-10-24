@@ -1,6 +1,7 @@
 import { dispatchTool } from './tool-dispatch';
 import { evaluateToolGuards } from './tool-guards';
 import type { FunctionResponse, ToolExecutorContext } from './types';
+import { unexpectedToolFailure } from './unexpected-failure';
 
 export async function executeWhatsAppTools(
   functionCalls: any[],
@@ -8,16 +9,17 @@ export async function executeWhatsAppTools(
   jid: string,
   senderNumber: string,
   isGroup: boolean,
-): Promise<{ responses: FunctionResponse[]; bulkLabelsToVerify: Set<string> | null }> {
+): Promise<{ responses: FunctionResponse[] }> {
   const responses: FunctionResponse[] = [];
-  let bulkLabelsToVerify: Set<string> | null = null;
 
   for (const part of functionCalls) {
     const functionCall = (part as any).functionCall;
     const toolName: string = functionCall.name;
     const toolArgs: Record<string, any> = functionCall.args || {};
 
-    const guardResponse = await evaluateToolGuards(toolName, toolArgs, ctx, jid, senderNumber, isGroup);
+    let guardResponse: FunctionResponse | null;
+    try { guardResponse = await evaluateToolGuards(toolName, toolArgs, ctx, jid, senderNumber, isGroup); }
+    catch { responses.push(unexpectedToolFailure(toolName, 'guard')); continue; }
     if (guardResponse) {
       responses.push(guardResponse);
       continue;
@@ -37,22 +39,14 @@ export async function executeWhatsAppTools(
         jid,
         senderNumber,
         isGroup,
-        bulkLabelsToVerify,
       );
-    } catch (error: unknown) {
-      console.error(`[WhatsApp Tools] "${toolName}" lanzo una excepcion:`, error);
-      responses.push({
-        functionResponse: {
-          name: toolName,
-          response: { success: false, error: error instanceof Error ? error.message : String(error) },
-        },
-      });
+    } catch {
+      responses.push(unexpectedToolFailure(toolName, 'execution'));
       continue;
     }
 
     responses.push(result.response);
-    bulkLabelsToVerify = result.bulkLabelsToVerify;
   }
 
-  return { responses, bulkLabelsToVerify };
+  return { responses };
 }

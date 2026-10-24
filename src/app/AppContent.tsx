@@ -5,6 +5,7 @@ import { AppModals } from './AppModals';
 import { AppSidebar } from './AppSidebar';
 import { AppTitleBar } from '../components/ui/AppTitleBar';
 import { AppWorkspace } from './AppWorkspace';
+import { useProjectWorkspace } from './useProjectWorkspace';
 import { OrbWindowRoot } from './OrbWindowRoot';
 import type { ActiveView, ShareLinkNotice, ShareTarget } from './app-types';
 import type { SettingsTab } from '../components/UnifiedSettingsModal';
@@ -61,6 +62,7 @@ export function AppContent() {
     retryConversations,
   } = auth;
   const [activeView, setActiveView] = useState<ActiveView>('chat');
+  const [projectSelectionScope, setProjectSelectionScope] = useState<string | null>(null);
   const [unifiedProject, setUnifiedProject] = useState<{ workspaceId: string; projectId: string } | null>(null);
   const [isBrowserWorkspaceOpen, setIsBrowserWorkspaceOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -95,17 +97,21 @@ export function AppContent() {
   const ipc = useAppIpcTriggers({ isOrbWindow });
   const liveWorkspace = useLearningLiveSession({ auth, enabled: !isOrbWindow, onNotice: setShareLinkNotice, onRequested: () => { setIsBrowserWorkspaceOpen(false); setActiveView('live-sessions'); } });
   const liveRoomVisible = !!liveWorkspace.reference && activeView === 'live-sessions';
-  const browserWorkspaceVisible = isBrowserWorkspaceOpen && !liveRoomVisible;
+  const projectScopeStale = (activeView === 'project' || activeView === 'project-hub') && projectSelectionScope !== userId + '/' + orgId;
+  const browserWorkspaceVisible = isBrowserWorkspaceOpen && !liveRoomVisible && !projectScopeStale;
   const closeLiveRoom = () => { liveWorkspace.dismiss(); setIsBrowserWorkspaceOpen(false); setActiveView('live-sessions'); };
   const { getScopedMessagesHandler } = chat;
   const scopedMessagesHandler = useMemo(() => getScopedMessagesHandler(folder.currentFolderId), [folder.currentFolderId, getScopedMessagesHandler]);
   const handlers = useAppViewHandlers({ activeView, chat, folder, setActiveView, setExternalPrompt });
   const derived = useAppDerivedData({ auth, chat, folder, userSettings });
+  const projectWorkspace = useProjectWorkspace({ selectionScope: projectSelectionScope, activeView, unifiedProject, chat, folder, userId, orgId, browserOpen: browserWorkspaceVisible, setBrowserOpen: setIsBrowserWorkspaceOpen, onExit: () => { setExternalSelection(null); setExternalPrompt(null); setActiveView('chat'); } });
+
+  const openFolderProject = (id: string) => { setExternalSelection(null); setExternalPrompt(null); setProjectSelectionScope(userId + '/' + orgId); handlers.handleOpenProject(id); };
 
   useLegacyUserMigration(user?.id, userId);
   useCloseActiveChatMenu(chat.activeMenuChatId, chat.setActiveMenuChatId);
   useAppBootstrap({ chat, folder, orgId, setUserSettings, userId });
-  useShareLinkRouting({ chat: { loadInitialConversations: chat.loadInitialConversations }, folder: { loadInitialFolders: folder.loadInitialFolders }, handleOpenProject: handlers.handleOpenProject, handleSelectConversation: handlers.handleSelectConversation, orgId, pendingShareLink: ipc.pendingShareLink, setPendingShareLink: ipc.setPendingShareLink, setShareLinkNotice, userId });
+  useShareLinkRouting({ chat: { loadInitialConversations: chat.loadInitialConversations }, folder: { loadInitialFolders: folder.loadInitialFolders }, handleOpenProject: openFolderProject, handleSelectConversation: handlers.handleSelectConversation, orgId, pendingShareLink: ipc.pendingShareLink, setPendingShareLink: ipc.setPendingShareLink, setShareLinkNotice, userId });
   useMeetingTriggerNotice({ pendingMeetingTrigger: ipc.pendingMeetingTrigger, setPendingMeetingTrigger: ipc.setPendingMeetingTrigger, setShareLinkNotice, userId });
   useAutoDismissNotice(shareLinkNotice, dismissShareLinkNotice);
 
@@ -214,8 +220,9 @@ export function AppContent() {
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background dark:bg-background-dark">
       {!browserWorkspaceVisible && <AppTitleBar />}
       <div className="relative flex min-h-0 flex-1 w-full overflow-hidden">
-      <div className={`flex min-h-0 min-w-0 flex-1 overflow-hidden ${!browserWorkspaceVisible && !liveRoomVisible && sidebarPosition === 'bottom' ? 'flex-col-reverse' : !browserWorkspaceVisible && !liveRoomVisible && sidebarPosition === 'right' ? 'flex-row-reverse' : 'flex-row'}`}>
-        {!browserWorkspaceVisible && !liveRoomVisible && <AppSidebar
+      <div className={`flex min-h-0 min-w-0 flex-1 overflow-hidden ${!projectWorkspace.navigation && !browserWorkspaceVisible && !liveRoomVisible && sidebarPosition === 'bottom' ? 'flex-col-reverse' : !liveRoomVisible && sidebarPosition === 'right' ? 'flex-row-reverse' : 'flex-row'}`}>
+        {(!browserWorkspaceVisible || !!projectWorkspace.navigation) && !liveRoomVisible && <AppSidebar
+          projectNavigation={projectWorkspace.navigation}
           activeView={activeView}
           browserOpen={browserWorkspaceVisible}
           auth={auth}
@@ -232,9 +239,11 @@ export function AppContent() {
           onIrisIssueClick={handlers.handleIrisIssueClick}
           onIrisProjectClick={handlers.handleIrisProjectClick}
           onNewChat={handlers.handleNewChat}
-          onOpenProject={handlers.handleOpenProject}
+          onOpenProject={openFolderProject}
           activeUnifiedProjectId={unifiedProject?.projectId ?? null}
           onOpenUnifiedProject={(workspaceId, projectId) => {
+            setExternalSelection(null); setExternalPrompt(null);
+            setProjectSelectionScope(userId + '/' + orgId);
             setUnifiedProject({ workspaceId, projectId });
             setActiveView('project-hub');
           }}
@@ -249,7 +258,7 @@ export function AppContent() {
         />}
         {liveRoomVisible && liveWorkspace.reference && <LearningWorkspace key={`${user?.id}:${liveWorkspace.reference.organization_slug}:${liveWorkspace.reference.session_id}`} reference={liveWorkspace.reference} onClose={closeLiveRoom} onBackToSessions={closeLiveRoom} />}
         {!liveWorkspace.reference && !browserWorkspaceVisible && activeView === 'live-sessions' && <LearningSessions key={`${user?.id}:${orgId}`} organizationSlug={sofiaContext?.currentOrganization?.slug} organizationName={sofiaContext?.currentOrganization?.name} onSelect={liveWorkspace.select} onClose={() => setActiveView('chat')} />}
-        {!liveRoomVisible && (activeView !== 'live-sessions' || browserWorkspaceVisible) && <AppWorkspace
+        {!liveRoomVisible && (activeView !== 'live-sessions' || browserWorkspaceVisible) && <AppWorkspace key={(userId ?? '') + ':' + orgId}
           accessUserIds={accessUserIds}
           activeView={activeView}
           avatarUrl={derived.avatarUrl ?? undefined}
@@ -259,6 +268,7 @@ export function AppContent() {
           currentConversation={derived.currentConversation}
           currentFolder={derived.currentFolder}
           unifiedProject={unifiedProject}
+          projectWorkspace={projectWorkspace}
           externalPrompt={externalPrompt}
           externalSelection={externalSelection}
           onExternalSelectionProcessed={() => setExternalSelection(null)}

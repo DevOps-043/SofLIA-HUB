@@ -1,12 +1,13 @@
+import { calendarClient } from '../calendar';
 export type WorkspaceApis = {
-  cal: any;
+  cal: ReturnType<typeof calendarClient>;
   gmail: any;
   drive: any;
 };
 
 export function getWorkspaceApis(): WorkspaceApis {
   return {
-    cal: (window as any).calendar,
+    cal: calendarClient(),
     gmail: (window as any).gmail,
     drive: (window as any).drive,
   };

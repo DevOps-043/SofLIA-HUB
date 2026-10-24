@@ -6,10 +6,8 @@ export type {
 } from './message-types';
 export type {
   GmailOrganizationApplyResult,
-  GmailOrganizationMessageChange,
   GmailOrganizationMessageSnapshot,
   GmailOrganizationPlanGroup,
-  GmailOrganizationPlanRecord,
   GmailOrganizationPreviewGroup,
   GmailOrganizationPreviewOptions,
   GmailOrganizationPreviewResult,

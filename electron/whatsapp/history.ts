@@ -3,6 +3,10 @@ import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { normalizePhoneNumber } from './phone-utils';
+import { observeToolNames, observeToolSummary, toolHistoryMetadata } from './tool-observation';
+import { createLogger } from '../utils/logger';
+
+const log = createLogger('whatsapp-historial');
 
 export type WhatsAppConversationHistoryDirection = 'incoming' | 'outgoing' | 'system';
 export type WhatsAppConversationHistoryKind =
@@ -95,8 +99,8 @@ export class WhatsAppConversationHistoryStore {
       const event = normalizeHistoryEvent(input);
       await fs.appendFile(this.filePath, `${JSON.stringify(event)}\n`, 'utf8');
       return event;
-    } catch (error) {
-      console.error('[WhatsApp History] No se pudo guardar el evento:', error instanceof Error ? error.message : String(error));
+    } catch {
+      log.warn('No se pudo guardar el evento de historial WhatsApp.');
       return null;
     }
   }
@@ -175,7 +179,7 @@ export class WhatsAppConversationHistoryStore {
         if (!line.trim()) continue;
         try {
           const parsed = JSON.parse(line) as WhatsAppConversationHistoryEvent;
-          if (isHistoryEvent(parsed)) events.push(parsed);
+          if (isHistoryEvent(parsed)) events.push(parsed.kind === 'tool' ? normalizeHistoryEvent(parsed) : parsed);
         } catch {
           // Ignora lineas corruptas para mantener el historial utilizable.
         }
@@ -183,7 +187,7 @@ export class WhatsAppConversationHistoryStore {
       return events;
     } catch (error: any) {
       if (error?.code !== 'ENOENT') {
-        console.warn('[WhatsApp History] No se pudo leer el historial:', error.message || String(error));
+        log.warn('No se pudo leer el historial WhatsApp.');
       }
       return [];
     }
@@ -205,11 +209,11 @@ function normalizeHistoryEvent(input: WhatsAppConversationHistoryInput): WhatsAp
     senderNumber: input.senderNumber ? normalizePhoneNumber(input.senderNumber) || String(input.senderNumber) : null,
     groupJid: input.groupJid || (input.isGroup ? input.jid : null),
     isGroup: Boolean(input.isGroup),
-    text: typeof input.text === 'string' ? input.text : undefined,
-    media: input.media ? sanitizeMedia(input.media) : undefined,
+    text: input.kind !== 'tool' && typeof input.text === 'string' ? input.text : undefined,
+    media: input.kind !== 'tool' && input.media ? sanitizeMedia(input.media) : undefined,
     tool: input.tool ? sanitizeTool(input.tool) : undefined,
     source: input.source,
-    metadata: input.metadata ? sanitizeMetadata(input.metadata) : undefined,
+    metadata: input.kind === 'tool' ? toolHistoryMetadata(input.metadata) : input.metadata ? sanitizeMetadata(input.metadata) : undefined,
   };
 }
 
@@ -223,10 +227,8 @@ function sanitizeMedia(media: WhatsAppConversationHistoryMedia): WhatsAppConvers
 
 function sanitizeTool(tool: WhatsAppConversationHistoryTool): WhatsAppConversationHistoryTool {
   return {
-    names: Array.isArray(tool.names) ? tool.names.map(String).slice(0, 30) : [],
-    summary: Array.isArray(tool.summary)
-      ? tool.summary.map((item) => sanitizeMetadata(item)).slice(0, 30)
-      : [],
+    names: observeToolNames(tool.names),
+    summary: observeToolSummary(tool.summary),
   };
 }
 

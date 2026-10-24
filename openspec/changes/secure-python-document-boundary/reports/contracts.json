@@ -1,0 +1,25 @@
+{
+  "nativePreloadMethods": 5,
+  "ipcChannels": [
+    "pytools:status",
+    "pytools:parse-document",
+    "pytools:redact-text",
+    "pytools:get-privacy-config",
+    "pytools:set-privacy-config"
+  ],
+  "debtScoreRecalculated": false,
+  "pythonQa": {
+    "pytestUsed": false,
+    "passed": 10,
+    "log": "soflia-python-tools-2026-10-23/python-final.log",
+    "version": "3.12.14",
+    "productRuntimeCertified": false
+  },
+  "parseDocumentRendererArgs": 0,
+  "newChannels": 0,
+  "version": 1,
+  "rendererWrapperMethodsIncludingAvailability": 6,
+  "desktopContextExistingChannelsHardened": 2,
+  "independentReview": "pending",
+  "mainFilePathApiPreserved": true
+}

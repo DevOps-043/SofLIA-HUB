@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "at": "2026-10-23T01:23:53.005Z",
+  "exitCode": 0,
+  "sourceFiles": 3334,
+  "envFilesCopied": false,
+  "packaged": false,
+  "applicationStarted": false,
+  "sandbox": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-app-build-QtgSoF",
+  "sourceHashes": [
+    {
+      "file": "electron/project-hub-handlers.ts",
+      "sha256": "82b0b73c6e4340072e970f79cd597ecf0329d55e4f615796c24cdc49ee2b851a"
+    },
+    {
+      "file": "electron/project-hub/service.ts",
+      "sha256": "e00ee768369b673f66523e330563bd763acfaf83e0067c4afd59ae1dc4b73e5f"
+    },
+    {
+      "file": "electron/project-hub/authentication.ts",
+      "sha256": "800bb163df38b5adbb151e336299217d5e4befa9512cc0e8e84ab18f48ceedd1"
+    },
+    {
+      "file": "electron/project-hub/session-context.ts",
+      "sha256": "0ac8e8376068ea54e6d969d4ae40b2b0b30d4e7028b5b5ee748ccbdad9af59a0"
+    },
+    {
+      "file": "electron/project-hub/ipc-review.ts",
+      "sha256": "722fdce2a62d5f02fb191f96992f8d9a390a944f372eba248122dda1c5c2eec9"
+    },
+    {
+      "file": "electron/ipc/caller-authorization.ts",
+      "sha256": "e462475c1a6a0ddd5698ca4312b30d41e58f514d5925de2ff150a5d72bc8b091"
+    },
+    {
+      "file": "electron/preload/project-hub-api.ts",
+      "sha256": "1bc01fc77008138195f9bd373e62b0e5244885c1a798ac201880edee25fdadb6"
+    },
+    {
+      "file": "src/shared/project-hub.ts",
+      "sha256": "bb41e7c44dcc00b2e6a0abb42dd011a2fa22f13c6f7835a555195edfa7c8ec0a"
+    },
+    {
+      "file": "src/services/project-hub-api.ts",
+      "sha256": "99cc036afe07e8d5c74231b03cac3677c0dc518ecccf4618d49674c75307aebb"
+    },
+    {
+      "file": "src/components/project-hub/UnifiedProjectHub.tsx",
+      "sha256": "1cd1cc4b2543ffbb59c4635bdb231dbbdbef7153e6812960827e8bc6accc07ad"
+    }
+  ],
+  "artifacts": [
+    {
+      "file": "dist/index.html",
+      "bytes": 460,
+      "sha256": "04823b48407e460d4498f71fddb6382c1078b519c3e9f03f47d62c8a085e766e"
+    },
+    {
+      "file": "dist-electron/main.js",
+      "bytes": 192215,
+      "sha256": "b93dc1d2d153baee5d816ece09fe01151611c287b7def9fa4158577adb326ae8"
+    },
+    {
+      "file": "dist-electron/preload.js",
+      "bytes": 46394,
+      "sha256": "eeada63a0898031de86184458c636e6a43dc8696cfafb250e59eca40896c1c7c"
+    },
+    {
+      "file": "dist/presentation/presentation-runtime.iife.js",
+      "bytes": 895486,
+      "sha256": "23a06410288a6b71a84f73b141b879ecedea86faf3788f3ccc4747d3f5f1e162"
+    },
+    {
+      "file": "dist/audiovisual/film-runtime.iife.js",
+      "bytes": 223019,
+      "sha256": "1e497c8583b88e5b2c8ff1299eb48e121afc5a3073a06351f574841a0d61109d"
+    },
+    {
+      "file": "dist/zoom-runtime/index.html",
+      "bytes": 489,
+      "sha256": "86ccc046c0eb931d8fe2599ac3d0a3de8dc73fea00df5ec2b8cdbac705b6b9fb"
+    }
+  ]
+}

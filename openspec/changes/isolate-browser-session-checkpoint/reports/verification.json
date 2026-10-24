@@ -1,0 +1,45 @@
+{
+  "fecha": "2026-10-22",
+  "rama": "codex/reduce-technical-debt",
+  "baseGit": "e166d250629e503cf12f69449fb6d66e569134c8",
+  "compuerta": {
+    "comando": "npm run verify:pr",
+    "salida": 0,
+    "archivosAprobados": 440,
+    "archivosOmitidos": 2,
+    "pruebasAprobadas": 4545,
+    "pruebasOmitidas": 5,
+    "pruebasFallidas": 0,
+    "duracionSegundos": 205.73,
+    "casosAgregados": 16,
+    "pruebasToolingAprobadas": 4,
+    "archivosLintIncremental": 47,
+    "elementosOpenSpecValidados": 74
+  },
+  "lineaBaseDirigida": { "archivos": 3, "pruebas": 273, "salida": 0 },
+  "verificacionDirigida": { "archivos": 5, "pruebas": 291, "salida": 0 },
+  "nativo": {
+    "comando": "npm run browser:smoke:native -- --electron <instalado> --lifecycle-only",
+    "salida": 0,
+    "electron": "44.5.1",
+    "comprobaciones": 5,
+    "informe": "native-lifecycle.json",
+    "directorioTemporal": "pulse-browser-smoke-A8LmqM"
+  },
+  "arquitectura": {
+    "camposConcentrados": 7,
+    "firmasPublicasSinCambios": 144,
+    "lineasCoordinadorAntes": 5727,
+    "lineasCoordinadorDespues": 5686,
+    "formatoPersistidoSinCambios": true
+  },
+  "canalesIPC": 494,
+  "archivosInventariadosDePruebas": 608,
+  "revision": "Autorrevisión adversarial; revisión independiente pendiente",
+  "limites": [
+    "Sin bootstrap, cuentas o perfiles reales",
+    "El servicio completo se verifica con Electron simulado; el smoke usa checkpoint y store reales",
+    "Sin validación de sidecars Python, Linux/macOS ni instalador en esta unidad",
+    "El coordinador conserva otras responsabilidades; no se recalcula la deuda global"
+  ]
+}

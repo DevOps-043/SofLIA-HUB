@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createCalendarService } from './setup';
-import { mockExistsSync, mockReadFileSync, resetCalendarMocks } from './mocks';
+import { mockLoadConnections, mockSaveConnections, resetCalendarMocks } from './mocks';
 import type { CalendarService } from '../../calendar-service';
 
 describe('CalendarService disconnect and polling status', () => {
@@ -13,24 +13,24 @@ describe('CalendarService disconnect and polling status', () => {
   });
 
   it('CAL-009: disconnect removes connection and emits disconnected', async () => {
-    mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockReturnValue(JSON.stringify([{
+    mockLoadConnections.mockResolvedValue([{
       provider: 'google',
       email: 'x@test.com',
-      userId: 'u1',
+      userId: 'user-123',
       accessToken: 'at',
       refreshToken: 'rt',
       isActive: true,
-    }]));
-    service.loadConnections();
+    }]);
+    await service.loadConnections();
 
-    const disconnected: any[] = [];
-    service.on('disconnected', (data: any) => disconnected.push(data));
+    const disconnected: { provider: string }[] = [];
+    service.on('disconnected', data => disconnected.push(data));
     await service.disconnect('google');
 
     expect(disconnected).toHaveLength(1);
     expect(disconnected[0].provider).toBe('google');
     expect(service.getConnections()).toHaveLength(0);
+    expect(mockSaveConnections).toHaveBeenCalledWith('user-123', [], expect.any(Function));
   });
 
   it('CAL-010: getPollingStatus returns not polling by default', () => {

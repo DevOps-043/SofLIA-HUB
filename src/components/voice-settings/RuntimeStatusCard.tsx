@@ -36,7 +36,6 @@ export function RuntimeStatusCard({ panel }: { panel: VoicePassivePanel }) {
           state={runtimeReady ? 'ok' : 'pending'}
           okText="Instalado"
           pendingText="No instalado"
-          detail={runtimeReady ? undefined : status?.pythonPath}
         />
         <StatusRow
           label="Modelo de voz (español)"

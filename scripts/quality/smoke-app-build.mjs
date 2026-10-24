@@ -7,7 +7,17 @@ import console from 'node:console';
 import { execFileSync, spawn } from 'node:child_process';
 import { fileURLToPath, URL } from 'node:url';
 
-const rootFiles = new Set(['package.json', 'package-lock.json', 'tsconfig.json', 'tsconfig.node.json', 'vite.config.mts', 'vitest.config.ts', 'postcss.config.js', 'tailwind.config.js', 'index.html']);
+const rootFiles = new Set([
+  'package.json', 'package-lock.json', 'tsconfig.json', 'tsconfig.node.json',
+  'vite.config.mts', 'vite.presentation.config.mts', 'vite.audiovisual.config.mts', 'vite.zoom.config.mts',
+  'vitest.config.ts', 'postcss.config.js', 'tailwind.config.js', 'index.html',
+]);
+// Sólo entradas versionadas del runtime; no copiar su perfil ni configuración local.
+const zoomSourceFiles = new Set([
+  'packages/zoom-runtime/package.json', 'packages/zoom-runtime/package-lock.json',
+  'packages/zoom-runtime/tsconfig.json', 'packages/zoom-runtime/index.html',
+  'packages/zoom-runtime/runtime.ts', 'packages/zoom-runtime/share-lifecycle.ts',
+]);
 const sourceRoots = new Set(['src', 'electron', 'config', 'public', 'resources', 'scripts', 'test']);
 export const projectRoot = fileURLToPath(new URL('../../', import.meta.url));
 
@@ -16,7 +26,7 @@ export function isBuildSource(relative) {
   const parts = relative.split('/');
   if (parts.some(part => !part || part.startsWith('.') || part.includes('\\') || part.includes(':'))) return false;
   if (parts.some(part => ['node_modules', 'dist', 'dist-electron', 'release', 'python-runtime'].includes(part))) return false;
-  return rootFiles.has(relative) || (parts.length > 1 && sourceRoots.has(parts[0]))
+  return rootFiles.has(relative) || zoomSourceFiles.has(relative) || (parts.length > 1 && sourceRoots.has(parts[0]))
     || (parts[0] === 'database' && relative.endsWith('.ts'));
 }
 
@@ -97,7 +107,11 @@ export async function compileApp(sandbox, env) {
   assert.ok(npmCli && path.isAbsolute(npmCli), 'Ejecuta el smoke mediante npm run.');
   const exitCode = await runBuildCommand(sandbox, [npmCli, 'run', 'build:app'], env);
   if (exitCode === 0) {
-    for (const file of ['dist/index.html', 'dist-electron/main.js', 'dist-electron/preload.js']) {
+    for (const file of [
+      'dist/index.html', 'dist-electron/main.js', 'dist-electron/preload.js',
+      'dist/presentation/presentation-runtime.iife.js', 'dist/audiovisual/film-runtime.iife.js',
+      'dist/zoom-runtime/index.html',
+    ]) {
       assert.ok(fs.statSync(path.join(sandbox, file)).size > 0, `Falta artefacto de build: ${file}`);
     }
   }

@@ -47,7 +47,7 @@ vi.mock('../../whatsapp-prompts', () => ({
 }));
 
 vi.mock('../../whatsapp-tool-executor', () => ({
-  executeWhatsAppTools: vi.fn().mockResolvedValue({ responses: [], bulkLabelsToVerify: null }),
+  executeWhatsAppTools: vi.fn().mockResolvedValue({ responses: [] }),
 }));
 
 vi.mock('../../dynamic-tool-service', () => ({

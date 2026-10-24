@@ -1,85 +1,72 @@
 import { buildEmailMessage } from './helpers';
-import { buildRawMessage } from './raw-message';
-import { validateEmailMessageSecurity } from './security';
+import { createLogger } from '../utils/logger';
+import type { GmailRequestOptions } from './client-types';
+import { z } from 'zod';
+import { gmailObjectIdSchema } from '../../src/shared/gmail-mailbox';
 import type {
   EmailMessage,
   GetMessagesOptions,
   GetMessagesResult,
   GmailClient,
-  SendEmailParams,
 } from './types';
 
 type ClientProvider = () => Promise<{ client?: GmailClient; error?: string }>;
-
-export async function sendGmailEmail(
-  getClient: ClientProvider,
-  params: SendEmailParams,
-): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  try {
-    validateEmailMessageSecurity(params);
-  } catch (validationErr: any) {
-    console.error('[GmailService] Send error (Security):', validationErr.message);
-    return { success: false, error: validationErr.message };
-  }
-
-  const { client: gmail, error } = await getClient();
-  if (!gmail) return { success: false, error };
-
-  try {
-    const rawMessage = await buildRawMessage(params);
-    const encodedMessage = Buffer.from(rawMessage).toString('base64url');
-    const response = await gmail.users.messages.send({ userId: 'me', requestBody: { raw: encodedMessage } });
-    console.log(`[GmailService] Email sent: ${response.data.id}`);
-    return { success: true, messageId: response.data.id || undefined };
-  } catch (err: any) {
-    console.error('[GmailService] Send error:', err.message);
-    return { success: false, error: err.message };
-  }
-}
+const log = createLogger('gmail-mensajes');
 
 export async function getGmailMessages(
   getClient: ClientProvider,
   options?: GetMessagesOptions,
+  requireCompleteDetails = false,
+  requestOptions?: GmailRequestOptions,
 ): Promise<GetMessagesResult> {
   const { client: gmail, error } = await getClient();
   if (!gmail) return { success: false, error };
 
   try {
     const maxResults = Math.max(1, Math.min(options?.maxResults || 20, 100));
-    const listResponse = await gmail.users.messages.list({
+    const listParams = {
       userId: 'me',
       maxResults,
       q: options?.query,
       labelIds: options?.labelIds,
       pageToken: options?.pageToken,
-    });
-    const messageIds = listResponse.data.messages || [];
+    };
+    const listResponse = requestOptions ? await gmail.users.messages.list(listParams, requestOptions) : await gmail.users.messages.list(listParams);
+    const messageIds = z.array(z.object({ id: gmailObjectIdSchema })).max(maxResults).parse(listResponse.data.messages ?? []);
+    if (new Set(messageIds.map(message => message.id)).size !== messageIds.length) throw new Error('Listado de mensajes duplicado.');
     if (messageIds.length === 0) {
       return { success: true, messages: [], nextPageToken: listResponse.data.nextPageToken || undefined, resultSizeEstimate: listResponse.data.resultSizeEstimate || 0 };
     }
-    const details = await Promise.allSettled(messageIds.map((msg: any) => msg.id).filter(Boolean).map((id: string) =>
-      gmail.users.messages.get({ userId: 'me', id, format: 'metadata', metadataHeaders: ['From', 'To', 'Subject', 'Date'] }),
-    ));
+    const details = await Promise.allSettled(messageIds.map(msg => msg.id).map(async id => {
+      const params = { userId: 'me', id, format: 'metadata', metadataHeaders: ['From', 'To', 'Subject', 'Date'] };
+      const detail = requestOptions ? await gmail.users.messages.get(params, requestOptions) : await gmail.users.messages.get(params);
+      if (detail.data.id !== id) throw new Error('Detalle de mensaje incompatible.');
+      return detail;
+    }));
+    if (requireCompleteDetails && details.some(detail => detail.status === 'rejected')) throw new Error('Vista previa incompleta.');
     const messages = details.filter((d): d is PromiseFulfilledResult<any> => d.status === 'fulfilled').map((d) => buildEmailMessage(d.value));
     return { success: true, messages, nextPageToken: listResponse.data.nextPageToken || undefined, resultSizeEstimate: listResponse.data.resultSizeEstimate || messages.length };
-  } catch (err: any) {
-    console.error('[GmailService] GetMessages error:', err.message);
-    return { success: false, error: err.message };
+  } catch {
+    log.warn('No se pudo consultar la lista de mensajes.');
+    return { success: false, error: 'No se pudieron consultar los mensajes de Gmail.' };
   }
 }
 
 export async function getGmailMessage(
   getClient: ClientProvider,
   messageId: string,
+  requestOptions?: GmailRequestOptions,
 ): Promise<{ success: boolean; message?: EmailMessage; error?: string }> {
   const { client: gmail, error } = await getClient();
   if (!gmail) return { success: false, error };
 
   try {
-    const detail = await gmail.users.messages.get({ userId: 'me', id: messageId, format: 'full' });
+    const params = { userId: 'me', id: messageId, format: 'full' };
+    const detail = requestOptions ? await gmail.users.messages.get(params, requestOptions) : await gmail.users.messages.get(params);
+    if (detail.data.id !== messageId) throw new Error('Mensaje incompatible.');
     return { success: true, message: buildEmailMessage(detail) };
-  } catch (err: any) {
-    console.error('[GmailService] GetMessage error:', err.message);
-    return { success: false, error: err.message };
+  } catch {
+    log.warn('No se pudo consultar el mensaje.');
+    return { success: false, error: 'No se pudo consultar el mensaje Gmail.' };
   }
 }

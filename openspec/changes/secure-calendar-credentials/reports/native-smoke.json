@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "success": true,
+  "electron": "44.5.1",
+  "phases": [
+    "write",
+    "read",
+    "disconnect"
+  ],
+  "profileIsolated": true,
+  "realCredentialsUsed": false
+}

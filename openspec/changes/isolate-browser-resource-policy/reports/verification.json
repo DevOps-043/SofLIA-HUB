@@ -1,0 +1,77 @@
+{
+  "fecha": "2026-10-22",
+  "rama": "codex/reduce-technical-debt",
+  "baseGit": "e166d250629e503cf12f69449fb6d66e569134c8",
+  "estado": "Implementada y verificada localmente; revisión independiente pendiente",
+  "baseline": {
+    "archivos": 2,
+    "pruebas": 258,
+    "salida": 0,
+    "log": "baseline.log"
+  },
+  "reproduccion": {
+    "pruebasFallidas": 4,
+    "salida": 1,
+    "log": "protection-red.log"
+  },
+  "dirigida": {
+    "archivos": 3,
+    "pruebas": 279,
+    "casosAgregados": 21,
+    "salida": 0,
+    "log": "directed.log"
+  },
+  "compuertaFinal": {
+    "comando": "npm run verify:pr",
+    "salida": 0,
+    "archivosAprobados": 460,
+    "archivosOmitidos": 2,
+    "pruebasAprobadas": 4870,
+    "pruebasOmitidas": 5,
+    "pruebasFallidas": 0,
+    "duracionSuiteSegundos": 225.46,
+    "archivosLintIncremental": 142,
+    "log": "verify-pr.log"
+  },
+  "api": {
+    "miembrosPublicos": 144,
+    "sinCambios": true,
+    "informe": "api-comparison.json"
+  },
+  "build": {
+    "comando": "npm run app:smoke:build",
+    "salida": 0,
+    "fuentes": 3309,
+    "artefactos": 6,
+    "archivosEnvCopiados": false,
+    "empaquetado": false,
+    "aplicacionIniciada": false,
+    "informe": "build-summary.json",
+    "hashes": "build-artifacts.json"
+  },
+  "nativo": {
+    "comando": "npm run browser:smoke:native -- --electron RUTA_ABSOLUTA --lifecycle-only",
+    "salida": 0,
+    "electron": "44.5.1",
+    "comprobaciones": 8,
+    "informe": "native-lifecycle.json",
+    "alcance": "Actividad protegida simulada sobre vistas reales; no prueba reproducción de audio ni captura del escritorio.",
+    "log": "native-final.log"
+  },
+  "documentacion": {
+    "archivosPrueba": 630,
+    "canalesIPC": 494,
+    "porcentajeDeudaRecalculado": false
+  },
+  "revisionIndependiente": false,
+  "archivado": false,
+  "efectosRemotos": false,
+  "logs": "%TEMP%/soflia-browser-resources-2026-10-22/",
+  "limites": [
+    "Exceso temporal de vistas protegidas; sin benchmark RAM/CPU",
+    "Actividad nativa simulada; sin audio/captura real ni instalador",
+    "Sin protección de formularios arbitrarios",
+    "Consumidor de eventos que falla sin garantía de entrega",
+    "Otras responsabilidades del coordinador pendientes"
+  ]
+}

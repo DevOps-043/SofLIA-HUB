@@ -1,0 +1,55 @@
+{
+  "baseline": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\pulse-app-build-cdEdi7",
+  "services": [
+    {
+      "file": "electron/python-runtime-service.ts",
+      "class": "PythonRuntimeService",
+      "publicMethods": 20,
+      "signaturesPreserved": true,
+      "sha256": "74c6260c5839b0c8c1960f1c66161a4d3a2e97af60d6b00ab12aa6e9d5b5ae27"
+    },
+    {
+      "file": "electron/python-tools-service.ts",
+      "class": "PythonToolsService",
+      "publicMethods": 8,
+      "signaturesPreserved": true,
+      "sha256": "4b71aaffd2592356eb5041c9f0e31789ccfa1736fac7cd50bceaa3f3f8afc415"
+    }
+  ],
+  "sources": [
+    {
+      "file": "python/sidecar/main.py",
+      "sha256": "e606a0b48ba9278138a31d1905d6c16afbdc1124eb307ad9ba99f2bbc7ef0d56",
+      "unchangedTextSinceHead": true
+    },
+    {
+      "file": "python/tools_sidecar/main.py",
+      "sha256": "6d9ef06f42912d5c64fc2658657e4cebfc9649943a5d5a5ead9cb0c44323f118",
+      "unchangedTextSinceHead": true
+    },
+    {
+      "file": "electron/meeting-live-handlers.ts",
+      "sha256": "c7f5639e835f5a15f1b81ca00c3c36b11e36d92cc6c48584b32c5186b2f27f85",
+      "unchangedTextSinceHead": true
+    },
+    {
+      "file": "electron/voice-passive-handlers.ts",
+      "sha256": "f7788fc061fa348d3e2e16606aa472190e49b1baf3a5700d29538f521e8077af",
+      "unchangedTextSinceHead": true
+    }
+  ],
+  "protocols": {
+    "voice": 4,
+    "tools": 1
+  },
+  "channelsUnchanged": true,
+  "dependenciesAdded": false,
+  "globalDebtRecalculated": false,
+  "packageDependencyFieldsPreserved": [
+    "dependencies",
+    "devDependencies",
+    "overrides"
+  ],
+  "scriptAdded": "python:smoke:connection",
+  "afterGateRechecked": true
+}

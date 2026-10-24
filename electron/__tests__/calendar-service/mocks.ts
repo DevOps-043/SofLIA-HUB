@@ -14,6 +14,8 @@ export const mockRefreshAccessToken = vi.fn();
 export const mockSetCredentials = vi.fn();
 export const mockUserinfoGet = vi.fn();
 export const mockWriteFileSync = vi.fn();
+export const mockLoadConnections = vi.fn();
+export const mockSaveConnections = vi.fn();
 
 vi.doMock('googleapis', () => ({
   google: {
@@ -44,6 +46,8 @@ vi.doMock('node:http', () => ({
 }));
 
 export function resetCalendarMocks(): void {
+  mockLoadConnections.mockReset().mockResolvedValue([]);
+  mockSaveConnections.mockReset().mockResolvedValue(undefined);
   mockEventsList.mockReset().mockResolvedValue({
     data: {
       items: [{
@@ -74,6 +78,7 @@ export function resetCalendarMocks(): void {
     getToken: mockGetToken,
     refreshAccessToken: mockRefreshAccessToken,
     on: mockOAuth2On,
+    transporter: { interceptors: { request: new Set(), response: new Set() } },
   });
   mockUserinfoGet.mockReset().mockResolvedValue({ data: { email: 'user@test.com' } });
   mockExistsSync.mockReset().mockReturnValue(false);

@@ -1,0 +1,1765 @@
+{
+  "date": "2026-10-19",
+  "timezone": "America/Mexico_City",
+  "initialRevision": "f0b18bca3948aa8157f8cc9e4a8d3fdaa2036da9",
+  "finalRevision": "e166d250629e503cf12f69449fb6d66e569134c8",
+  "node": "v26.7.0",
+  "npm": "11.19.0",
+  "score": {
+    "type": "Índice experto de brechas técnicas ponderadas; no ratio de esfuerzo SQALE",
+    "value": 50.375,
+    "roundedApproximation": 50,
+    "sensitivityRange": [
+      40,
+      60
+    ],
+    "confidence": "media",
+    "areas": [
+      {
+        "name": "Seguridad y privacidad",
+        "weight": 20,
+        "criteria": [
+          [
+            "Credenciales de proveedor en cliente",
+            75
+          ],
+          [
+            "Autorización y schemas IPC heterogéneos",
+            50
+          ],
+          [
+            "Guardas de agentes y límites runtime",
+            25
+          ],
+          [
+            "CSP y defensa de fronteras",
+            50
+          ]
+        ],
+        "score": 50
+      },
+      {
+        "name": "Arquitectura y modularidad",
+        "weight": 12,
+        "criteria": [
+          [
+            "Separación de procesos y dominios",
+            25
+          ],
+          [
+            "Concentración del navegador",
+            75
+          ],
+          [
+            "Componentes/hooks extensos",
+            50
+          ],
+          [
+            "Fachadas y claridad de contratos",
+            25
+          ]
+        ],
+        "score": 43.75
+      },
+      {
+        "name": "Calidad de código y tipado",
+        "weight": 12,
+        "criteria": [
+          [
+            "TypeScript estricto y tipos de frontera",
+            25
+          ],
+          [
+            "Baseline lint y ejecutabilidad global",
+            75
+          ],
+          [
+            "Errores silenciosos y consistencia",
+            50
+          ],
+          [
+            "Disciplina local y supresiones",
+            25
+          ]
+        ],
+        "score": 43.75
+      },
+      {
+        "name": "Pruebas y calidad funcional",
+        "weight": 15,
+        "criteria": [
+          [
+            "Amplitud y casos negativos existentes",
+            25
+          ],
+          [
+            "Cobertura medida y umbrales",
+            75
+          ],
+          [
+            "E2E empaquetado y proveedores/Python en gate",
+            75
+          ],
+          [
+            "Reproducibilidad de la suite",
+            50
+          ]
+        ],
+        "score": 56.25
+      },
+      {
+        "name": "Datos e integridad",
+        "weight": 10,
+        "criteria": [
+          [
+            "Orden y evidencia de RLS/migraciones",
+            50
+          ],
+          [
+            "Atomicidad del borrado de proyectos",
+            50
+          ],
+          [
+            "Respaldo, retención y recuperación",
+            50
+          ],
+          [
+            "Constraints e idempotencia existentes",
+            25
+          ]
+        ],
+        "score": 43.75
+      },
+      {
+        "name": "Dependencias y cadena de suministro",
+        "weight": 8,
+        "criteria": [
+          [
+            "Avisos en dependencias de producción",
+            75
+          ],
+          [
+            "Avisos en herramientas de desarrollo",
+            75
+          ],
+          [
+            "Locks y revisión de ganchos",
+            25
+          ],
+          [
+            "Completitud del control automatizado incluido Python",
+            50
+          ]
+        ],
+        "score": 56.25
+      },
+      {
+        "name": "CI/CD, empaquetado y publicación",
+        "weight": 8,
+        "criteria": [
+          [
+            "Publicar condicionado al mismo commit verificado",
+            75
+          ],
+          [
+            "Paridad de build Linux",
+            75
+          ],
+          [
+            "Consistencia de Node y matriz de plataformas",
+            50
+          ],
+          [
+            "Firma/notarización e inmutabilidad del pipeline",
+            75
+          ]
+        ],
+        "score": 68.75
+      },
+      {
+        "name": "Observabilidad y operación",
+        "weight": 5,
+        "criteria": [
+          [
+            "Adopción de logs estructurados",
+            75
+          ],
+          [
+            "Correlación transversal",
+            50
+          ],
+          [
+            "Objetivos y alertas demostrados en repo",
+            50
+          ],
+          [
+            "Diagnóstico y estados operativos",
+            50
+          ]
+        ],
+        "score": 56.25
+      },
+      {
+        "name": "Rendimiento y escalabilidad",
+        "weight": 4,
+        "criteria": [
+          [
+            "Instrumentación y benchmark existentes",
+            25
+          ],
+          [
+            "Carga real de 800 usuarios verificada",
+            75
+          ],
+          [
+            "Consultas y paginación",
+            50
+          ],
+          [
+            "Presupuestos y regresión en CI",
+            50
+          ]
+        ],
+        "score": 50
+      },
+      {
+        "name": "Documentación y gobierno",
+        "weight": 3,
+        "criteria": [
+          [
+            "Estructura, enlaces y catálogo",
+            0
+          ],
+          [
+            "Actualidad semántica de runbooks",
+            50
+          ],
+          [
+            "Cierre de cambios OpenSpec",
+            25
+          ],
+          [
+            "Trazabilidad y límites declarados",
+            25
+          ]
+        ],
+        "score": 25
+      },
+      {
+        "name": "Accesibilidad y UX",
+        "weight": 3,
+        "criteria": [
+          [
+            "Semántica y teclado existentes",
+            25
+          ],
+          [
+            "Auditoría accesible automatizada",
+            75
+          ],
+          [
+            "Movimiento y equivalentes semánticos",
+            50
+          ],
+          [
+            "Regresión visual y flujos completos",
+            50
+          ]
+        ],
+        "score": 50
+      }
+    ]
+  },
+  "inventory": {
+    "revision": "f0b18bca3948aa8157f8cc9e4a8d3fdaa2036da9",
+    "files": 4102,
+    "production": {
+      "files": 2457,
+      "lines": 177113,
+      "over500": 23,
+      "over1000": 3,
+      "over2000": 1,
+      "anyTokens": 1501,
+      "consoleCalls": 1053,
+      "suppressions": 17,
+      "todoMarkers": 11
+    },
+    "tests": {
+      "total": 436,
+      "main": 257,
+      "renderer": 178,
+      "other": 1
+    },
+    "topFiles": [
+      {
+        "file": "electron/integrated-browser/service.ts",
+        "lines": 5727,
+        "any": 0,
+        "console": 28,
+        "suppressions": 0,
+        "todos": 0
+      },
+      {
+        "file": "src/components/orb/OrbMesh.tsx",
+        "lines": 1077,
+        "any": 0,
+        "console": 0,
+        "suppressions": 0,
+        "todos": 0
+      },
+      {
+        "file": "electron/integrated-browser/reading-mode-content.ts",
+        "lines": 1012,
+        "any": 0,
+        "console": 0,
+        "suppressions": 0,
+        "todos": 0
+      },
+      {
+        "file": "src/services/integrated-browser-service.ts",
+        "lines": 994,
+        "any": 0,
+        "console": 0,
+        "suppressions": 0,
+        "todos": 0
+      },
+      {
+        "file": "electron/python-runtime-service.ts",
+        "lines": 992,
+        "any": 0,
+        "console": 25,
+        "suppressions": 0,
+        "todos": 0
+      },
+      {
+        "file": "src/components/browser/BrowserManagementPanel.tsx",
+        "lines": 910,
+        "any": 0,
+        "console": 0,
+        "suppressions": 0,
+        "todos": 0
+      },
+      {
+        "file": "electron/integrated-browser-handlers.ts",
+        "lines": 879,
+        "any": 0,
+        "console": 1,
+        "suppressions": 1,
+        "todos": 0
+      },
+      {
+        "file": "src/components/browser/IntegratedBrowserPanel.tsx",
+        "lines": 862,
+        "any": 0,
+        "console": 0,
+        "suppressions": 0,
+        "todos": 0
+      },
+      {
+        "file": "electron/organization-branding/deck-base-css.ts",
+        "lines": 857,
+        "any": 0,
+        "console": 0,
+        "suppressions": 0,
+        "todos": 0
+      },
+      {
+        "file": "electron/skill-workspace/service.ts",
+        "lines": 796,
+        "any": 0,
+        "console": 0,
+        "suppressions": 0,
+        "todos": 0
+      },
+      {
+        "file": "src/components/orb/useOrbConversation.ts",
+        "lines": 684,
+        "any": 0,
+        "console": 9,
+        "suppressions": 0,
+        "todos": 0
+      },
+      {
+        "file": "electron/integrated-browser/extension-manager.ts",
+        "lines": 647,
+        "any": 0,
+        "console": 3,
+        "suppressions": 0,
+        "todos": 0
+      },
+      {
+        "file": "src/services/gemini-chat/send-message-stream.ts",
+        "lines": 630,
+        "any": 3,
+        "console": 3,
+        "suppressions": 0,
+        "todos": 0
+      },
+      {
+        "file": "electron/integrated-browser/writing-panel.ts",
+        "lines": 603,
+        "any": 0,
+        "console": 1,
+        "suppressions": 0,
+        "todos": 0
+      },
+      {
+        "file": "electron/integrated-browser/credential-vault.ts",
+        "lines": 598,
+        "any": 0,
+        "console": 1,
+        "suppressions": 0,
+        "todos": 0
+      },
+      {
+        "file": "electron/organization-branding/deck-base-js.ts",
+        "lines": 560,
+        "any": 0,
+        "console": 1,
+        "suppressions": 0,
+        "todos": 0
+      },
+      {
+        "file": "electron/integrated-browser/cdp-dom-snapshot.ts",
+        "lines": 555,
+        "any": 0,
+        "console": 0,
+        "suppressions": 0,
+        "todos": 0
+      },
+      {
+        "file": "src/components/skills-settings/SkillToolsSelector.tsx",
+        "lines": 537,
+        "any": 0,
+        "console": 0,
+        "suppressions": 0,
+        "todos": 0
+      },
+      {
+        "file": "electron/integrated-browser/permission-governance.ts",
+        "lines": 526,
+        "any": 0,
+        "console": 7,
+        "suppressions": 0,
+        "todos": 0
+      },
+      {
+        "file": "src/services/openai-chat/send-message-stream.ts",
+        "lines": 526,
+        "any": 8,
+        "console": 2,
+        "suppressions": 0,
+        "todos": 0
+      }
+    ],
+    "byRoot": {
+      "electron": 1892,
+      "src": 1194,
+      "python": 10,
+      "docs": 101,
+      "database": 37,
+      "openspec": 586,
+      "scripts": 52
+    }
+  },
+  "finalInventory": {
+    "productionFiles": 2457,
+    "productionPhysicalLines": 177113,
+    "matchesInitial": true
+  },
+  "ast": {
+    "anyNodes": 1495,
+    "emptyCatch": 149,
+    "loggerFiles": 2,
+    "consoleFiles": 435,
+    "functionsOver100": 107,
+    "functions": [
+      {
+        "file": "src/components/orb/OrbMesh.tsx",
+        "line": 225,
+        "lines": 852,
+        "name": "OrbMesh"
+      },
+      {
+        "file": "src/components/browser/IntegratedBrowserPanel.tsx",
+        "line": 62,
+        "lines": 760,
+        "name": "IntegratedBrowserPanel"
+      },
+      {
+        "file": "src/components/orb/useOrbConversation.ts",
+        "line": 41,
+        "lines": 585,
+        "name": "useOrbConversation"
+      },
+      {
+        "file": "electron/integrated-browser/writing-panel.ts",
+        "line": 119,
+        "lines": 484,
+        "name": "installWritingPanelInPage"
+      },
+      {
+        "file": "electron/integrated-browser-handlers.ts",
+        "line": 13,
+        "lines": 459,
+        "name": "registerIntegratedBrowserHandlers"
+      },
+      {
+        "file": "src/components/skills-settings/SkillToolsSelector.tsx",
+        "line": 97,
+        "lines": 440,
+        "name": "SkillToolsSelector"
+      },
+      {
+        "file": "src/components/orb/OrbMesh.tsx",
+        "line": 413,
+        "lines": 404,
+        "name": "<anonima>"
+      },
+      {
+        "file": "src/components/browser/BrowserTabStrip.tsx",
+        "line": 84,
+        "lines": 359,
+        "name": "BrowserTabStrip"
+      },
+      {
+        "file": "src/components/Sidebar.tsx",
+        "line": 19,
+        "lines": 340,
+        "name": "Sidebar"
+      },
+      {
+        "file": "src/services/gemini-chat/send-message-stream.ts",
+        "line": 38,
+        "lines": 329,
+        "name": "sendMessageStream"
+      },
+      {
+        "file": "src/components/whatsapp-setup/useWhatsAppSetupState.ts",
+        "line": 20,
+        "lines": 303,
+        "name": "useWhatsAppSetupState"
+      },
+      {
+        "file": "electron/integrated-browser/service.ts",
+        "line": 3214,
+        "lines": 299,
+        "name": "configureWebContents"
+      },
+      {
+        "file": "electron/integrated-browser/reading-mode-content.ts",
+        "line": 650,
+        "lines": 291,
+        "name": "installReadingToolbarInPage"
+      },
+      {
+        "file": "src/components/browser/BrowserReadingModePanel.tsx",
+        "line": 20,
+        "lines": 284,
+        "name": "BrowserReadingModePanel"
+      },
+      {
+        "file": "src/components/ui/SelectDropdown.tsx",
+        "line": 56,
+        "lines": 264,
+        "name": "<anonima>"
+      }
+    ],
+    "openSpec": {
+      "changes": 70,
+      "fullyChecked": 45,
+      "totalOpen": 125,
+      "top": [
+        {
+          "file": "openspec/changes/migrate-user-memory-to-supabase/tasks.md",
+          "done": 0,
+          "open": 32
+        },
+        {
+          "file": "openspec/changes/enable-executable-background-teams/tasks.md",
+          "done": 13,
+          "open": 13
+        },
+        {
+          "file": "openspec/changes/record-webinars-and-publish-replays/tasks.md",
+          "done": 28,
+          "open": 13
+        },
+        {
+          "file": "openspec/changes/scale-hub-data-800-users/tasks.md",
+          "done": 7,
+          "open": 9
+        },
+        {
+          "file": "openspec/changes/implement-live-studio-runtime/tasks.md",
+          "done": 14,
+          "open": 6
+        },
+        {
+          "file": "openspec/changes/configure-skill-tools/tasks.md",
+          "done": 25,
+          "open": 5
+        },
+        {
+          "file": "openspec/changes/harden-auth-session-and-gating/tasks.md",
+          "done": 22,
+          "open": 5
+        },
+        {
+          "file": "openspec/changes/optimize-startup-fluidity/tasks.md",
+          "done": 11,
+          "open": 5
+        }
+      ]
+    }
+  },
+  "lint": {
+    "all": {
+      "files": 3058,
+      "errors": 2102,
+      "warnings": 28,
+      "affected": 672,
+      "rules": {
+        "@typescript-eslint/no-explicit-any": 1911,
+        "@typescript-eslint/no-unused-vars": 42,
+        "@typescript-eslint/no-unsafe-function-type": 3,
+        "@typescript-eslint/no-require-imports": 3,
+        "no-control-regex": 11,
+        "no-useless-assignment": 14,
+        "@typescript-eslint/no-unsafe-declaration-merging": 6,
+        "parser": 3,
+        "no-empty": 10,
+        "prefer-const": 4,
+        "preserve-caught-error": 7,
+        "@typescript-eslint/ban-ts-comment": 2,
+        "no-useless-escape": 9,
+        "react-hooks/refs": 22,
+        "react-hooks/immutability": 12,
+        "react-hooks/set-state-in-effect": 33,
+        "react-hooks/use-memo": 5,
+        "react-hooks/exhaustive-deps": 22,
+        "react-refresh/only-export-components": 6,
+        "no-misleading-character-class": 2,
+        "react-hooks/preserve-manual-memoization": 1,
+        "@typescript-eslint/no-unused-expressions": 2
+      },
+      "top": [
+        {
+          "file": "src/services/computer-use/window-types.ts",
+          "errors": 78,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 4,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 5,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 6,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/preload/communication-apis.ts",
+          "errors": 29,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 12,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 13,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 14,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/__tests__/computer-use-handlers/command-basic-cases.ts",
+          "errors": 24,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 7,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 7,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 7,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "src/services/gemini-chat/web-grounding.ts",
+          "errors": 23,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 72,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 75,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 137,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/main/service-events.ts",
+          "errors": 20,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 7,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 7,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 7,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/remote-node/service.ts",
+          "errors": 20,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 24,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 28,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 35,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/gmail/client-types.ts",
+          "errors": 18,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 4,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 4,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 5,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "src/services/gemini-chat/agentic-loop.ts",
+          "errors": 18,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 33,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 36,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 50,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/browser-web/service-task-loop.ts",
+          "errors": 17,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 8,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 38,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 38,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/__tests__/monitoring-service.helpers.ts",
+          "errors": 16,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 23,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 24,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 28,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/main/service-ipc.ts",
+          "errors": 15,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 8,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 25,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 30,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "src/__tests__/services/gemini-chat.test.ts",
+          "errors": 15,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 151,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 191,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 192,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        }
+      ]
+    },
+    "production": {
+      "files": 2457,
+      "errors": 1674,
+      "warnings": 28,
+      "affected": 566,
+      "rules": {
+        "@typescript-eslint/no-explicit-any": 1493,
+        "@typescript-eslint/no-unused-vars": 36,
+        "no-control-regex": 11,
+        "no-useless-assignment": 14,
+        "@typescript-eslint/no-unsafe-declaration-merging": 6,
+        "parser": 3,
+        "@typescript-eslint/no-require-imports": 2,
+        "no-empty": 10,
+        "prefer-const": 4,
+        "preserve-caught-error": 7,
+        "@typescript-eslint/ban-ts-comment": 2,
+        "no-useless-escape": 9,
+        "react-hooks/refs": 22,
+        "react-hooks/immutability": 12,
+        "react-hooks/set-state-in-effect": 33,
+        "react-hooks/use-memo": 5,
+        "react-hooks/exhaustive-deps": 22,
+        "react-refresh/only-export-components": 6,
+        "no-misleading-character-class": 2,
+        "react-hooks/preserve-manual-memoization": 1,
+        "@typescript-eslint/no-unused-expressions": 2
+      },
+      "top": [
+        {
+          "file": "src/services/computer-use/window-types.ts",
+          "errors": 78,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 4,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 5,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 6,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/preload/communication-apis.ts",
+          "errors": 29,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 12,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 13,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 14,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "src/services/gemini-chat/web-grounding.ts",
+          "errors": 23,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 72,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 75,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 137,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/main/service-events.ts",
+          "errors": 20,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 7,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 7,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 7,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/remote-node/service.ts",
+          "errors": 20,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 24,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 28,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 35,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/gmail/client-types.ts",
+          "errors": 18,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 4,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 4,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 5,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "src/services/gemini-chat/agentic-loop.ts",
+          "errors": 18,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 33,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 36,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 50,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/browser-web/service-task-loop.ts",
+          "errors": 17,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 8,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 38,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 38,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/main/service-ipc.ts",
+          "errors": 15,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 8,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 25,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 30,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "src/services/meeting/api.ts",
+          "errors": 15,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 15,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 16,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 17,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/preload/workflow-apis.ts",
+          "errors": 14,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 11,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 13,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 14,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/whatsapp-handlers.ts",
+          "errors": 14,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 18,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 28,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 38,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        }
+      ]
+    },
+    "tests": {
+      "files": 599,
+      "errors": 428,
+      "warnings": 0,
+      "affected": 106,
+      "rules": {
+        "@typescript-eslint/no-explicit-any": 418,
+        "@typescript-eslint/no-unused-vars": 6,
+        "@typescript-eslint/no-unsafe-function-type": 3,
+        "@typescript-eslint/no-require-imports": 1
+      },
+      "top": [
+        {
+          "file": "electron/__tests__/computer-use-handlers/command-basic-cases.ts",
+          "errors": 24,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 7,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 7,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 7,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/__tests__/monitoring-service.helpers.ts",
+          "errors": 16,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 23,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 24,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 28,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "src/__tests__/services/gemini-chat.test.ts",
+          "errors": 15,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 151,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 191,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 192,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/__tests__/passive-skills-persistence.test.ts",
+          "errors": 14,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 19,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 20,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 23,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "src/__tests__/services/iris-data.setup.ts",
+          "errors": 13,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 4,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 4,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 13,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/__tests__/computer-use-handlers/file-search-cases.ts",
+          "errors": 11,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 11,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 22,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 31,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/__tests__/computer-use-handlers/filesystem-directory-cases.ts",
+          "errors": 11,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 10,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 13,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 20,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/__tests__/whatsapp-workflow-presentacion/lifecycle-cases.ts",
+          "errors": 11,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 27,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 34,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 48,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/__tests__/desktop-agent-handlers.test.ts",
+          "errors": 10,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 9,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 14,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 23,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/__tests__/media-input-service.test.ts",
+          "errors": 10,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 7,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 7,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 8,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/__tests__/computer-use-handlers/security-command-cases.ts",
+          "errors": 9,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 8,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 51,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 51,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        },
+        {
+          "file": "electron/__tests__/whatsapp-agent/dependency-setter-tests.ts",
+          "errors": 9,
+          "warnings": 0,
+          "sample": [
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 8,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 9,
+              "message": "Unexpected any. Specify a different type."
+            },
+            {
+              "rule": "@typescript-eslint/no-explicit-any",
+              "line": 10,
+              "message": "Unexpected any. Specify a different type."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "tests": {
+    "initial": {
+      "success": false,
+      "total": 4444,
+      "passed": 4435,
+      "failed": 4,
+      "skipped": 5,
+      "fileResults": 435,
+      "failedFiles": [
+        {
+          "file": "electron/__tests__/artifact-viewer.test.ts",
+          "assertions": [
+            "Visor local de entregables representa varias hojas y resultados guardados de fórmulas sin evaluarlas"
+          ]
+        },
+        {
+          "file": "electron/__tests__/background-teams.test.ts",
+          "assertions": [
+            "Equipos ejecutores en main resuelve marca con el scope del trabajo, guarda aviso y ejecuta la guarda antes de escribir",
+            "Archivos de equipos ejecutores crea Word, PowerPoint y Excel con fórmulas y los abre para comprobarlos"
+          ]
+        },
+        {
+          "file": "electron/__tests__/integrated-browser-agent-shortcuts.test.ts",
+          "assertions": [
+            "Atajos cifrados y gobernados cuota y guarda de commit conservan la instantánea previa"
+          ]
+        }
+      ]
+    },
+    "gate": {
+      "total": 4444,
+      "passed": 4438,
+      "failed": 1,
+      "skipped": 5,
+      "unhandledErrors": 7,
+      "failedFile": "src/__tests__/components/PresentationWorkspacePanel.test.tsx"
+    },
+    "controlled": {
+      "success": false,
+      "total": 4444,
+      "passed": 4438,
+      "failed": 1,
+      "skipped": 5,
+      "fileResults": 435,
+      "failedFiles": [
+        {
+          "file": "electron/__tests__/background-teams.test.ts",
+          "assertions": [
+            "Archivos de equipos ejecutores crea Word, PowerPoint y Excel con fórmulas y los abre para comprobarlos"
+          ]
+        }
+      ]
+    },
+    "controlledTeardownMentions": 0
+  },
+  "audits": {
+    "root": {
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 25,
+        "high": 18,
+        "critical": 0,
+        "total": 43
+      },
+      "dependencies": {
+        "prod": 668,
+        "dev": 587,
+        "optional": 219,
+        "peer": 32,
+        "peerOptional": 0,
+        "total": 1412
+      }
+    },
+    "production": {
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 15,
+        "high": 10,
+        "critical": 0,
+        "total": 25
+      },
+      "dependencies": {
+        "prod": 668,
+        "dev": 587,
+        "optional": 219,
+        "peer": 32,
+        "peerOptional": 0,
+        "total": 1412
+      }
+    },
+    "zoom": {
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      },
+      "dependencies": {
+        "prod": 7,
+        "dev": 0,
+        "optional": 0,
+        "peer": 14,
+        "peerOptional": 0,
+        "total": 20
+      }
+    },
+    "directProduction": [
+      {
+        "name": "@nut-tree-fork/nut-js",
+        "severity": "moderate",
+        "via": []
+      },
+      {
+        "name": "exceljs",
+        "severity": "moderate",
+        "via": []
+      },
+      {
+        "name": "mammoth",
+        "severity": "moderate",
+        "via": []
+      },
+      {
+        "name": "nodemailer",
+        "severity": "high",
+        "via": [
+          {
+            "title": "Nodemailer: resolveContent() on a MailMessage bypasses disableFileAccess/disableUrlAccess when called with the legacy signature",
+            "url": "https://github.com/advisories/GHSA-8m3c-c648-2xjj"
+          },
+          {
+            "title": "Nodemailer: IDN/Punycode domain allow-list bypass leads to email delivery to an attacker-controlled domain",
+            "url": "https://github.com/advisories/GHSA-wmmp-3585-3rmp"
+          },
+          {
+            "title": "Nodemailer: Quadratic (O(n²)) time complexity in addressparser allows remote denial of service via a crafted address list",
+            "url": "https://github.com/advisories/GHSA-2x7j-588g-ccc2"
+          },
+          {
+            "title": "Nodemailer: Recipient-domain validation bypass via RFC 5322 comment mis-parsing leads to email delivery to an attacker-controlled domain",
+            "url": "https://github.com/advisories/GHSA-cc9r-2j5m-2m83"
+          },
+          {
+            "title": "Nodemailer: Process-global DNS cache reuses TLS `servername` across transports, enabling cross-tenant SMTP credential disclosure",
+            "url": "https://github.com/advisories/GHSA-6vj9-mwq6-2f5v"
+          },
+          {
+            "title": "Nodemailer: Nested structured recipient arrays bypass the parser depth limit and cause stack exhaustion DoS",
+            "url": "https://github.com/advisories/GHSA-8vvx-rff5-p5rq"
+          },
+          {
+            "title": "Nodemailer: Quadratic backtracking in the addressparser free-text fallback allows remote denial of service",
+            "url": "https://github.com/advisories/GHSA-v53p-9fqp-m79j"
+          }
+        ]
+      },
+      {
+        "name": "onnxruntime-node",
+        "severity": "high",
+        "via": []
+      },
+      {
+        "name": "pptxgenjs",
+        "severity": "high",
+        "via": []
+      },
+      {
+        "name": "sharp",
+        "severity": "high",
+        "via": [
+          {
+            "title": "sharp: Vulnerabilities in libheif: GHSA-g89c-p67h-r497 and GHSA-2jg2-4ch7-h545",
+            "url": "https://github.com/advisories/GHSA-rgj7-g3m4-5g8c"
+          },
+          {
+            "title": "sharp : Vulnerability in librsvg dependency CVE-2026-96889",
+            "url": "https://github.com/advisories/GHSA-wq5f-xc86-pv6w"
+          }
+        ]
+      }
+    ]
+  },
+  "commands": [
+    [
+      "npm run typecheck",
+      "Aprobó en el gate y volvió a aprobar en una ejecución final separada."
+    ],
+    [
+      "npm run verify:pr",
+      "Falló: 1 test fallido, 4438 aprobados, 5 omitidos; 7 errores de teardown. No se declara gate verde."
+    ],
+    [
+      "npm run test -- --reporter=json ...",
+      "4435 aprobados, 4 fallidos, 5 omitidos; ejecución inicial concurrente con otros verificadores."
+    ],
+    [
+      "npm run test -- --maxWorkers=2 --reporter=json ...",
+      "4438 aprobados, 1 fallidos, 5 omitidos; success=false."
+    ],
+    [
+      "npm run lint -- --format json ...",
+      "Falló al descubrir múltiples tsconfigRootDir y recorrer worktrees anidados. Sus 19979 errores de parser NO se cuentan como defectos del producto."
+    ],
+    [
+      "ESLint API sobre src/electron, tsconfigRootDir=raíz",
+      "1674 errores y 28 avisos de producción; 2102 errores y 28 avisos incluyendo pruebas/declaraciones."
+    ],
+    [
+      "npm run lint:changed (dentro del gate)",
+      "Aprobó 38 archivos en aquella fotografía. Es comparación contra baseline, no ausencia de deuda global."
+    ],
+    [
+      "adapters:check / harness:validate",
+      "Aprobaron: 30 adaptadores; 25 rutas y 10 skills canónicas."
+    ],
+    [
+      "docs:system:check / docs:check",
+      "Aprobaron antes de añadir este informe: 28 documentos, 150 IDs, 494 canales y 600 archivos relacionados con pruebas; 561 Markdown activos con enlaces válidos."
+    ],
+    [
+      "skills:seed:check / openspec:validate",
+      "Aprobaron; 70 cambios OpenSpec válidos."
+    ],
+    [
+      "npm run audit:supply-chain",
+      "Aprobó lista de versiones vetadas y ganchos; no equivale a npm audit."
+    ],
+    [
+      "npm audit --json",
+      "43 paquetes afectados: 18 high, 25 moderate."
+    ],
+    [
+      "npm audit --omit=dev --json",
+      "25 paquetes afectados: 10 high, 15 moderate."
+    ],
+    [
+      "npm audit --prefix packages/zoom-runtime --json",
+      "0 avisos reportados."
+    ],
+    [
+      "Suite Python",
+      "No ejecutada: runtime Python local no disponible. No se instaló software."
+    ]
+  ],
+  "logsDirectory": "C:\\Users\\fysg5\\AppData\\Local\\Temp\\soflia-debt-audit-2026-10-19",
+  "limits": [
+    "No se verificó producción ni bases de datos remotas.",
+    "No se midió cobertura ni costo de remediación.",
+    "No se ejecutaron instaladores, pruebas de carga o APIs de usuario.",
+    "No se inspeccionaron valores secretos.",
+    "HEAD cambió externamente entre la primera y última etapa."
+  ],
+  "postReportValidation": {
+    "typecheck": {
+      "passed": true,
+      "log": "typecheck-final.log"
+    },
+    "docsCheck": {
+      "passed": true,
+      "markdownFiles": 562,
+      "log": "docs-final.log"
+    },
+    "systemDocs": {
+      "passed": true,
+      "documents": 28,
+      "ids": 150,
+      "ipcChannels": 494,
+      "testRelatedFiles": 600,
+      "log": "docs-system-final.log"
+    },
+    "productCodeChanges": false,
+    "finalRevision": "e166d250629e503cf12f69449fb6d66e569134c8"
+  }
+}

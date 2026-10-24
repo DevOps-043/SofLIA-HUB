@@ -45,15 +45,17 @@ describe('compuerta Python del instalador', () => {
       : join(build.appOutDir, 'resources');
     const executable = join(resources, 'python', ...(platform === 'win32' ? ['python.exe'] : ['bin', 'python3']));
     await expect(verify(build)).resolves.toBeUndefined();
-    expect(exists.mock.calls).toEqual([[executable], [join(resources, 'python-sidecar', 'main.py')], [join(resources, 'python-tools', 'main.py')]]);
+    const tools = requireScript(supportPath).TOOLS_RUNTIME_FILES as string[];
+    expect(exists.mock.calls).toEqual([[executable], [join(resources, 'python-sidecar', 'main.py')], ...tools.map(file => [join(resources, 'python-tools', file)])]);
     expect(execute.mock.calls.map(call => call[0])).toEqual([executable, executable]);
     expect(execute.mock.calls[0][1]).toEqual(['-I', '-m', 'pip', '--isolated', 'check']);
+    expect((execute.mock.calls[1][1] as string[])[2]).toContain(JSON.stringify(resolve(resources, 'python-tools')));
     expect(execute.mock.calls[1][2]?.env).not.toHaveProperty('VITE_GEMINI_API_KEY');
     if (platform === 'linux') expect(execute.mock.calls[1][2]?.env?.LD_LIBRARY_PATH).toBe(join(resources, 'python', 'lib'));
     expect(console.log).toHaveBeenCalledExactlyOnceWith(expect.stringContaining('ambos sidecars verificados'));
   });
 
-  it.each(['python.exe', join('python-sidecar', 'main.py'), join('python-tools', 'main.py')])('bloquea el empaquetado si falta %s', async missing => {
+  it.each(['python.exe', join('python-sidecar', 'main.py'), ...['main.py', 'documents.py', 'privacy.py', 'document_errors.py', 'document_budget.py', 'office_preflight.py', 'reader_dependencies.py', 'requirements.lock'].map(file => join('python-tools', file))])('bloquea el empaquetado si falta %s', async missing => {
     const { exists, execute } = completePackage();
     exists.mockImplementation(file => !String(file).endsWith(missing));
     await expect(loadHook()(context())).rejects.toThrow('Recurso Python ausente o incompleto');

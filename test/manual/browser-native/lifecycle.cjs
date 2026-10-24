@@ -19,8 +19,6 @@ for (const name of ['userData', 'sessionData', 'logs', 'crashDumps', 'temp']) {
 app.commandLine.appendSwitch('disable-background-networking');
 app.commandLine.appendSwitch('disable-component-update');
 const load = (name) => require(path.join(sandbox, 'compiled', name + '.js'));
-const { registerAppLifecycle } = load('main/app-lifecycle');
-const { BrowserBookmarkStore } = load('integrated-browser/bookmark-store');
 const report = { status: 'running', electron: process.versions.electron, chromium: process.versions.chrome,
   node: process.versions.node, phase, checks: [], limitations: [] };
 const reportPath = path.join(sandbox, 'lifecycle.json');
@@ -37,13 +35,31 @@ process.on('uncaughtException', fail);
 process.on('unhandledRejection', fail);
 setTimeout(() => fail(new Error('El lifecycle nativo superó 30 segundos.')), 30_000).unref();
 
+// Instalar primero el reporte de errores: un módulo faltante no debe abrir un diálogo.
+const { registerAppLifecycle } = load('main/app-lifecycle');
+const { BrowserBookmarkStore } = load('integrated-browser/bookmark-store');
+const { BrowserSessionStore } = load('integrated-browser/session-store');
+const { BrowserSessionCheckpoint } = load('integrated-browser/session-checkpoint');
+const { BrowserResourcePolicy } = load('integrated-browser/resource-policy');
+const verifyResourcePolicy = require('./resource-policy.cjs');
+
 void app.whenReady().then(async () => {
   const root = path.join(sandbox, 'lifecycle', 'perfil-temporal');
   const bookmarks = new BrowserBookmarkStore(path.join(root, 'bookmarks.json'));
+  const sessions = new BrowserSessionStore(path.join(root, 'session.json'));
+  const checkpoint = new BrowserSessionCheckpoint(sessions, fail);
+  const snapshot = {
+    version: 2, savedAt: new Date().toISOString(), cleanExit: true,
+    activeTabId: 'tab-1', primaryTabId: 'tab-1', secondaryTabId: null,
+    detachedTabIds: [], viewMode: 'single', tabLayout: 'horizontal', groups: [],
+    tabs: [{ id: 'tab-1', url: 'https://example.test/', title: 'Temporal', pinned: false, muted: false, groupId: null, position: 0 }],
+  };
   await bookmarks.save({ url: 'https://example.test/', title: 'Temporal' });
   const profile = session.fromPartition('pulse-smoke-private-lifecycle');
   await profile.cookies.set({ url: 'https://example.test', name: 'smoke', value: 'temporal' });
   const window = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } });
+  await verifyResourcePolicy(window, BrowserResourcePolicy, check);
+  report.resourcePolicyScope = 'Actividad protegida simulada sobre vistas reales; no prueba reproducción de audio ni captura del escritorio.';
   const state = { win: window, isQuitting: false, tray: null };
   let closed = false;
   let stopped = false;
@@ -54,15 +70,21 @@ void app.whenReady().then(async () => {
   const held = new Promise((resolve) => { release = resolve; });
   const services = {
     integratedBrowserService: {
-      flushSessionForShutdown: () => bookmarks.flush(),
-      commitShutdown: () => {},
-      resumeAfterShutdown: () => {},
+      flushSessionForShutdown: () => checkpoint.flush({
+        scopeId: 'smoke', prepare: () => bookmarks.flush(),
+        assertCurrent: () => { assert.equal(closed, false); },
+        buildSnapshot: () => snapshot, canRetryLastSnapshot: () => false,
+        afterSave: async () => {},
+      }),
+      commitShutdown: () => checkpoint.commit(),
+      resumeAfterShutdown: () => checkpoint.resume(),
       flushClosedProfileForShutdown: () => { cleanupCalls++; return cleanupPromise; },
     },
     updaterService: { setInstallGuard: () => {}, stop: () => {} },
     pathMemoryService: { stop: () => { stopped = true; } },
     clipboardAssistant: { stop: () => {} },
     meetingPassiveDetectionService: { stopPolling: () => {} },
+    calendarService: { dispose: () => {} },
   };
   const controls = {
     createWindow: () => fail(new Error('No se esperaba recrear una ventana.')),
@@ -76,6 +98,10 @@ void app.whenReady().then(async () => {
     state.win = null;
     cleanupPromise = held.then(async () => {
       await bookmarks.flush();
+      await sessions.flush();
+      assert.equal((await sessions.load()).cleanExit, true);
+      assert.equal(checkpoint.isCommitted, true);
+      check('checkpoint real confirma la sesión antes de destruir el perfil');
       await profile.clearStorageData();
       await profile.clearCache();
       await profile.clearAuthCache();
@@ -95,6 +121,12 @@ void app.whenReady().then(async () => {
   assert.equal((await profile.cookies.get({ url: 'https://example.test' })).length, 1);
   assert.equal((await bookmarks.list()).length, 1);
   check('beforeunload cancelado conserva ventana, cookie y marcadores');
+  assert.equal(checkpoint.isCommitted, false);
+  assert.equal(checkpoint.isFlushing, false);
+  assert.equal((await sessions.load()).cleanExit, true);
+  await checkpoint.persist('smoke', () => ({ ...snapshot, cleanExit: false }));
+  assert.equal((await sessions.load()).cleanExit, false);
+  check('cancelar beforeunload reanuda el guardado real de sesión');
   await window.webContents.executeJavaScript('window.onbeforeunload = null');
   let quits = 0;
   app.on('will-quit', (event) => {

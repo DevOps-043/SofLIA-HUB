@@ -1,6 +1,6 @@
 # Configuracion, secretos y estado local
 
-Estado: vigente. Actualizado: 2026-08-12.
+Estado: vigente. Actualizado: 2026-10-22.
 
 No se leen ni documentan valores de `.env`. Esta pagina registra solo nombres,
 consumidores y comportamiento cuando faltan.
@@ -11,6 +11,12 @@ consumidores y comportamiento cuando faltan.
 
 ## Variables de build/runtime
 
+El envío Gmail no agrega variables. Las cuotas de destinatarios/adjuntos y los
+estados de cancelación o envío incierto están en el [contrato de envío](../architecture/ipc-and-integrations.md#envío-gmail).
+Si falla preparar un adjunto, corregirlo antes de repetir; no se envía una copia
+incompleta. Si el resultado es incierto, revisar Enviados en Gmail antes de volver
+a solicitarlo. No se debe activar retry automático sobre esa respuesta.
+
 | Variable | Consumidor | Necesidad/ausencia | Sensibilidad |
 |---|---|---|---|
 | `VITE_GEMINI_API_KEY` | chat, WhatsApp, meetings, memoria, vision | IA queda no configurada o usa key guardada de WhatsApp en rutas compatibles | secreta, pero prefijo Vite puede exponerla al bundle |
@@ -19,7 +25,7 @@ consumidores y comportamiento cuando faltan.
 | `VITE_SUPABASE_ANON_KEY` | Lia renderer/main | cliente no se configura | publica condicionada a RLS |
 | `VITE_SOFIA_SUPABASE_URL` | auth SOFIA | auth principal no disponible | publica |
 | `VITE_SOFIA_SUPABASE_ANON_KEY` | auth SOFIA | auth principal no disponible | publica condicionada a RLS |
-| `VITE_IRIS_SUPABASE_URL` | Project Hub/IRIS tools | IRIS degradado | publica |
+| `VITE_IRIS_SUPABASE_URL` | Project Hub/IRIS tools y origen permitido de archivos main | sin origen HTTPS válido (o loopback explícito), no se preparan subidas ni copias locales; nunca se adopta el host de la respuesta firmada | publica |
 | `VITE_IRIS_SUPABASE_ANON_KEY` | Project Hub/IRIS tools | IRIS degradado | publica condicionada a RLS |
 | `VITE_SOFLIA_LEARNING_SUPABASE_URL` | servicio Learning | servicio no disponible | publica |
 | `VITE_SOFLIA_LEARNING_SUPABASE_ANON_KEY` | servicio Learning | servicio no disponible | publica condicionada a RLS |
@@ -160,6 +166,99 @@ no debe aparecer una pestaña o ventana nueva.
 - Cambiar defaults persistentes requiere migrar JSON previo o mantener fallback de
   compatibilidad, como `captureStrategy` de Desktop Agent.
 
+## Custodia del calendario
+
+La sesión del Hub elige el propietario de las conexiones Workspace. Sólo se
+restauran conexiones con propietario exacto; cerrar sesión limpia la memoria y
+detiene el calendario automático. Debe activarse de nuevo al entrar con otra cuenta.
+
+Las nuevas credenciales se cifran con safeStorage asíncrono del SO en
+`calendar-credentials/<hash del usuario>.bin` bajo userData. No hay respaldo plano.
+En Linux se exige un llavero seguro y se rechazan basic_text/unknown; si no hay
+custodia disponible, conectar falla con un mensaje público para habilitar el
+llavero. Archivo ilegible, propietario incorrecto o fallo de disco se rechazan
+sin sobrescribir la versión anterior ni exponer contenido en errores.
+
+La primera operación autenticada sella calendar-connections.json en la misma
+ruta, conservando sus registros cifrados. No se elimina el archivo ni se asigna
+un dueño a conexiones huérfanas: esas cuentas deben reconectarse por OAuth.
+Los archivos privados vacíos impiden reimportación después de desconectar. No
+convertir el archivo cifrado de vuelta a JSON para un downgrade; una versión
+anterior deberá reconectar. Un legado inválido/excesivo se conserva intacto y
+requiere recuperación explícita antes de completar su migración.
+
+Verificación opt-in en Windows: `npm run calendar:smoke:native` usa el Electron
+instalado y tres procesos con perfil temporal y credenciales ficticias. No abre
+el Hub ni lee .env o perfiles reales. Los resultados y límites viven en el
+[cambio de custodia](../../openspec/changes/secure-calendar-credentials/proposal.md).
+
+## Planes privados de Gmail
+
+Los planes nuevos viven bajo userData en
+`gmail-private-plans/<sha256 de usuario y cuenta>/<gmail-plan-UUID>.bin`, cifrados
+con el llavero del SO. No editar el binario ni convertirlo a JSON para un
+downgrade. Sin llavero seguro se rechaza la persistencia; Linux rechaza
+basic_text/unknown. Un archivo corrupto o de otro propietario bloquea su lectura.
+La selección del último plan falla ante archivos ilegibles o fechas ambiguas;
+se puede indicar un ID concreto válido de la cuenta.
+
+El directorio heredado `gmail-organization-plans` se conserva intacto y no se
+importa ni adjudica a la cuenta activa. Para continuar se debe generar una vista
+previa nueva. El legado puede contener información sin cifrar; su retirada es
+una operación explícita separada, con respaldo y autorización.
+
+Hay cuota de 100 planes por cuenta, 2 MiB por JSON y 4 MiB por archivo cifrado.
+No se elimina historial automáticamente al alcanzar la cuota. Conservar un
+respaldo y gestionar una limpieza autorizada del historial antes de crear otro
+plan; reducir mensajes si el plan excede tamaño. No retirar un registro pendiente
+como forma de reintentar: revisar primero en Gmail las etiquetas y los mensajes
+afectados. Una intención pendiente marca resultado incierto y bloquea apply/undo
+automáticos. La reversión con cambios confirmados y sin intención pendiente
+puede continuarse con nueva aprobación; un conflicto con cambios manuales exige
+reconciliación humana. No se ofrece reparación automática de diarios.
+
+`npm run calendar:smoke:native` comprueba además planes Gmail con DPAPI real:
+persistencia/restauración, aislamiento de cuenta y conservación de un checkpoint
+pendiente entre tres procesos. Usa sólo perfil temporal y datos ficticios.
+
+## Operaciones directas de Gmail
+
+Lecturas, etiquetas y papelera conservan las APIs existentes; las escrituras
+desde Hub/Orbe presentan confirmación nativa de cuenta y alcance. El proceso
+prepara todas las páginas antes de modificar. Si las opciones conservan la
+etiqueta origen, sólo se modifica el snapshot una vez; no se vuelve a vaciar
+indefinidamente la misma página. Nuevos mensajes quedan fuera y pueden impedir
+el borrado posterior. Referencias inválidas/ambiguas o cuotas excesivas se
+rechazan antes del primer efecto.
+
+Tras un fallo, revisar `processed`, `effectsConfirmed`, etiquetas creadas y los
+flags partial/uncertain/recoveryRequired. No interpretar `remaining` indefinido
+como cero ni `remainingLabelsVerified:false` como una lista remota actualizada.
+El ID efímero de operación enlaza fallos con logs saneados. Revisar en Gmail los
+cambios ya confirmados antes de repetir; no hay retry ni rollback automáticos.
+Este progreso se mantiene durante la llamada y se pierde al cerrar el proceso;
+el diario recuperable pertenece únicamente al flujo de planes. No intentar
+reanudar una operación directa mediante archivos del store de planes.
+
+Las cuotas y presupuestos están en
+[parámetros runtime](../architecture/runtime-parameters.md#operaciones-directas-de-gmail).
+Sin nuevas variables, archivos de configuración, credenciales o permisos.
+
+## Historial operativo de herramientas WhatsApp
+
+Los eventos `kind:tool` nuevos de `whatsapp-conversation-history.jsonl` conservan
+observación mínima: estado/flags/conteos, nombres de herramientas identificadores,
+referencia UUID y duración. Ya no guardan el JSON de argumentos, mensajes ni
+errores libres. Para diagnosticar una excepción del dispatcher, buscar su
+correlationId en el registro saneado; el mismo código/ref se mantiene en el
+resultado. No usar una correlación nueva como prueba de avance o de ejecución.
+
+Las consultas de historial proyectan también eventos tool antiguos sin
+reescribirlos. Un respaldo antiguo puede seguir conteniendo argumentos y PII
+en sus bytes. Su retirada/cifrado requiere una operación aparte; no eliminar el
+archivo ni atribuirle cifrado por este cambio. Texto conversacional, teléfonos
+y otros eventos siguen bajo las políticas existentes. No hay variables nuevas.
+
 ## Producción audiovisual local
 
 La configuración separada `.env.audiovisual.local` contiene la bandera pública y rutas locales de FFmpeg/FFprobe, sin credenciales. Se genera con `npm run audiovisual:setup`; consultar [contrato y preparación](../architecture/presentation-audiovisual-production.md#entorno-y-preparación).
@@ -170,3 +269,26 @@ separado. Las dos rutas son absolutas y exclusivas de main; se entrecomillan
 cuando contienen espacios. Activar la bandera local exige disponer del motor
 verificado. Esto no cambia el apagado por omisión del workflow de release,
 que conserva esa política hasta distribuir el motor multiplataforma.
+
+## Autorización de micrófono local
+
+`voice-passive.json` conserva preferencias de máquina, pero `enabled` no abre
+micrófono al arrancar. Tras autenticar, revisa la configuración en el diálogo
+nativo o usa **Autorizar voz en esta sesión** en ajustes. Cancelar mantiene
+inactiva la escucha. **Detener captura de voz** cancela también intención
+pendiente; puede interrumpir transcripción Meeting Live al parar el proceso
+compartido, con aviso visible. Una descarga ya autorizada puede continuar:
+no se promete rollback ni se repite automáticamente. Ver
+[contrato y recuperación](../security/local-voice-authorization.md).
+`npm run voice:smoke:native` verifica IPC aislado con servicios y diálogos
+simulados, sin abrir dispositivos ni instalar modelos.
+
+## Privacidad documental
+
+La preferencia de máquina de ajustes se guarda en `privacy-config.json`.
+Un fallo de carga no equivale a protección desactivada; un fallo de escritura
+requiere releer antes de afirmar su estado. Desactivar exige revisión nativa.
+Python puede faltar al guardar protección, pero la lectura protegida se deniega.
+`npm run python-tools:smoke:native` comprueba el puente con perfil temporal,
+servicio/diálogos simulados y documentos ficticios. Cuotas, límites por patrones
+y temporales pendientes: [contrato documental](../security/python-document-boundary.md).

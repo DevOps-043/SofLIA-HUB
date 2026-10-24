@@ -1,65 +1,37 @@
-import type { GmailClient, GmailLabelRecord } from './types';
+import { z } from 'zod';
+import { gmailObjectIdSchema, gmailLabelNameSchema } from '../../src/shared/gmail-mailbox';
+import { SYSTEM_LABEL_IDS } from './constants';
+import type { GmailExecutionContext } from './execution-context';
+import type { GmailOperationProgress } from './operation-progress';
+import type { PreparedGmailLabels } from './label-resolution';
 
-type ClientProvider = () => Promise<{ client?: GmailClient; error?: string }>;
-
-export async function listGmailLabels(
-  getClient: ClientProvider,
-): Promise<{ success: boolean; labels?: GmailLabelRecord[]; error?: string }> {
-  const { client: gmail, error } = await getClient();
-  if (!gmail) return { success: false, error };
-
-  try {
-    const response = await gmail.users.labels.list({ userId: 'me' });
-    const labels = (response.data.labels || []).map((label: any) => ({
-      id: label.id || '',
-      name: label.name || '',
-    }));
-    return { success: true, labels };
-  } catch (err: any) {
-    console.error('[GmailService] GetLabels error:', err.message);
-    return { success: false, error: err.message };
-  }
+const labelSchema = z.object({ id: gmailObjectIdSchema, name: gmailLabelNameSchema, type: z.enum(['user', 'system']).optional() });
+export type AccountGmailLabel = z.infer<typeof labelSchema>;
+export async function fetchGmailLabels(context: GmailExecutionContext): Promise<AccountGmailLabel[]> {
+  const response = await context.call(client => client.users.labels.list({ userId: 'me' }, context.requestOptions()));
+  const labels = z.array(labelSchema).max(10000).parse(response.data.labels ?? []);
+  if (new Set(labels.map(label => label.id)).size !== labels.length) throw new Error('Listado de etiquetas duplicado.');
+  return labels;
 }
-
-export async function createGmailLabel(
-  getClient: ClientProvider,
-  getLabels: () => Promise<{ success: boolean; labels?: GmailLabelRecord[]; error?: string }>,
-  name: string,
-): Promise<{ success: boolean; label?: GmailLabelRecord; error?: string }> {
-  const { client: gmail, error } = await getClient();
-  if (!gmail) return { success: false, error };
-
-  try {
-    const response = await gmail.users.labels.create({
-      userId: 'me',
-      requestBody: { name, labelListVisibility: 'labelShow', messageListVisibility: 'show' },
+export function editableGmailLabel(labels: AccountGmailLabel[], id: string): AccountGmailLabel {
+  const label = labels.find(value => value.id === id);
+  if (!label || SYSTEM_LABEL_IDS.has(id) || label.type !== 'user') throw new Error('Etiqueta no editable.');
+  return label;
+}
+export async function createGmailLabel(context: GmailExecutionContext, progress: GmailOperationProgress, name: string) {
+  const response = await progress.write(context,
+    client => client.users.labels.create({ userId: 'me', requestBody: { name, labelListVisibility: 'labelShow', messageListVisibility: 'show' } }, context.requestOptions()),
+    response => {
+      const label = labelSchema.parse(response.data);
+      if (SYSTEM_LABEL_IDS.has(label.id) || label.name !== name) throw new Error('Respuesta de etiqueta incompatible.');
+      progress.labelsCreated.push({ id: label.id, name: label.name });
     });
-    console.log(`[GmailService] Label created: ${response.data.id} (${name})`);
-    return { success: true, label: { id: response.data.id || '', name: response.data.name || '' } };
-  } catch (err: any) {
-    if (err.message?.includes('already exists') || err.code === 409) {
-      const existing = await getLabels();
-      const found = existing.labels?.find((label) => label.name.toLowerCase() === name.toLowerCase());
-      if (found) return { success: true, label: found };
-    }
-    console.error('[GmailService] CreateLabel error:', err.message);
-    return { success: false, error: err.message };
-  }
+  return { id: String(response.data.id), name };
 }
-
-export async function deleteGmailLabel(
-  getClient: ClientProvider,
-  labelId: string,
-): Promise<{ success: boolean; error?: string }> {
-  const { client: gmail, error } = await getClient();
-  if (!gmail) return { success: false, error };
-
-  try {
-    await gmail.users.labels.delete({ userId: 'me', id: labelId });
-    console.log(`[GmailService] Label deleted: ${labelId}`);
-    return { success: true };
-  } catch (err: any) {
-    console.error('[GmailService] DeleteLabel error:', err.message);
-    return { success: false, error: err.message };
-  }
+export async function materializeGmailLabels(context: GmailExecutionContext, progress: GmailOperationProgress, prepared: PreparedGmailLabels) {
+  const created = new Map<string, string>();
+  for (const name of prepared.create) created.set(name, (await createGmailLabel(context, progress, name)).id);
+  return { addLabelIds: prepared.add.map(ref => ref.id ?? created.get(ref.name)!), removeLabelIds: prepared.remove };
 }
+export const describeGmailLabels = (prepared: PreparedGmailLabels) =>
+  `Añadir: ${prepared.add.map(ref => ref.name).join(', ') || 'ninguna'}\nQuitar: ${prepared.remove.join(', ') || 'ninguna'}\nCrear: ${prepared.create.join(', ') || 'ninguna'}`;

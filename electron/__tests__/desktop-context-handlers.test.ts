@@ -1,9 +1,13 @@
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { app } from 'electron';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BrowserWindow, ipcMain } from 'electron';
 import { registerDesktopContextHandlers, safeDesktopContextError } from '../desktop-context-handlers';
 import type { DesktopContextService } from '../desktop-context/service';
+import { setAuthState } from '../main/auth-state';
 
-type TestHandler = (event: { sender: { id: number } }, input?: unknown) => Promise<{
+type TestHandler = (event: { sender: { id: number }; senderFrame?: unknown }, input?: unknown) => Promise<{
   success: boolean;
   error?: string;
   inventory?: unknown;
@@ -17,6 +21,7 @@ const ipcMainHarness = ipcMain as unknown as {
 
 describe('handlers del contexto de aplicaciones de escritorio', () => {
   const service = {
+    clearInventory: vi.fn(),
     listApps: vi.fn(async () => ({ candidates: [], availableLevels: ['captura'], platform: 'win32' })),
     captureApp: vi.fn(async (appId: unknown) => {
       if (appId !== 'app-4321-abc123') throw new Error('Identificador de aplicacion invalido.');
@@ -25,16 +30,19 @@ describe('handlers del contexto de aplicaciones de escritorio', () => {
   };
 
   let window: InstanceType<typeof BrowserWindow>;
+  let registration: ReturnType<typeof registerDesktopContextHandlers>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.SOFLIA_DISABLE_DESKTOP_CONTEXT;
     ipcMainHarness._clearHandlers();
     window = new BrowserWindow();
-    registerDesktopContextHandlers(service as unknown as DesktopContextService, () => window);
+    Object.defineProperty(window.webContents, 'mainFrame', { configurable: true, value: { url: pathToFileURL(path.join(app.getAppPath(), 'dist', 'index.html')).href } });
+    registration = registerDesktopContextHandlers(service as unknown as DesktopContextService, () => window);
   });
 
   afterEach(() => {
+    registration?.dispose();
     delete process.env.SOFLIA_DISABLE_DESKTOP_CONTEXT;
   });
 
@@ -46,24 +54,34 @@ describe('handlers del contexto de aplicaciones de escritorio', () => {
 
   it('devuelve el inventario al emisor autorizado', async () => {
     const handler = ipcMainHarness._getHandlers().get('desktop-context:list-apps');
-    const result = await handler!({ sender: window.webContents });
+    const result = await handler!({ sender: window.webContents, senderFrame: window.webContents.mainFrame });
 
     expect(result.success).toBe(true);
     expect(result.inventory).toMatchObject({ platform: 'win32' });
   });
+  it('un cambio A/B/A limpia inventario y descarta la carga pendiente', async () => {
+    let finish!: (value: { candidates: never[]; availableLevels: string[]; platform: string }) => void;
+    service.listApps.mockReturnValueOnce(new Promise(resolve => { finish = resolve; }));
+    const handler = ipcMainHarness._getHandlers().get('desktop-context:list-apps')!;
+    const pending = handler({ sender: window.webContents, senderFrame: window.webContents.mainFrame });
+    await vi.waitFor(() => expect(service.listApps).toHaveBeenCalled());
+    setAuthState({ authenticated: true, userId: 'B' }); setAuthState({ authenticated: true, userId: 'test-user' });
+    finish({ candidates: [], availableLevels: ['captura'], platform: 'win32' });
+    expect(await pending).toMatchObject({ success: false }); expect(service.clearInventory).toHaveBeenCalledTimes(2);
+  });
 
   it('extrae el contexto de una aplicacion inventariada', async () => {
     const handler = ipcMainHarness._getHandlers().get('desktop-context:capture-app');
-    const result = await handler!({ sender: window.webContents }, { appId: 'app-4321-abc123' });
+    const result = await handler!({ sender: window.webContents, senderFrame: window.webContents.mainFrame }, { appId: 'app-4321-abc123' });
 
     expect(result.success).toBe(true);
     expect(result.attachment).toMatchObject({ level: 'accesibilidad', text: 'hola' });
-    expect(service.captureApp).toHaveBeenCalledWith('app-4321-abc123');
+    expect(service.captureApp).toHaveBeenCalledWith('app-4321-abc123', expect.objectContaining({ assertCurrent: expect.any(Function) }));
   });
 
   it('rechaza un identificador desconocido sin devolver contenido', async () => {
     const handler = ipcMainHarness._getHandlers().get('desktop-context:capture-app');
-    const result = await handler!({ sender: window.webContents }, { appId: 'no-existe' });
+    const result = await handler!({ sender: window.webContents, senderFrame: window.webContents.mainFrame }, { appId: 'no-existe' });
 
     expect(result.success).toBe(false);
     expect(result.attachment).toBeUndefined();
@@ -81,7 +99,7 @@ describe('handlers del contexto de aplicaciones de escritorio', () => {
     ipcMainHarness._clearHandlers();
     process.env.SOFLIA_DISABLE_DESKTOP_CONTEXT = '1';
 
-    registerDesktopContextHandlers(service as unknown as DesktopContextService, () => window);
+    registration = registerDesktopContextHandlers(service as unknown as DesktopContextService, () => window);
 
     const canales = Array.from(ipcMainHarness._getHandlers().keys())
       .filter((key) => String(key).startsWith('desktop-context:'));
@@ -106,3 +124,4 @@ describe('saneamiento de errores', () => {
     expect(safeDesktopContextError(new Error('e'.repeat(500))).length).toBeLessThanOrEqual(240);
   });
 });
+

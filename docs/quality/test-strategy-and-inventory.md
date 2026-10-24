@@ -1,9 +1,9 @@
 # Estrategia e inventario de pruebas
 
-Estado: vigente. Actualizado: 2026-10-08.
+Estado: vigente. Actualizado: 2026-10-22.
 
-El inventario del cambio contiene 600 archivos de prueba: 400 para main y 199
-para renderer, además de uno de scripts. El validador documental recalcula estas cifras; el numero de casos
+El inventario del cambio contiene 670 archivos de prueba: 456 para main y 212
+para renderer, además de los archivos de prueba de scripts. El validador documental recalcula estas cifras; el numero de casos
 ejecutados se registra en el reporte de evidencia de cada cambio, no aqui.
 
 Actualizar las cifras mediante `npm run docs:inventory:sync`: deriva archivos
@@ -18,6 +18,38 @@ estricta sin escribir; si cambia el inventario, exigen sincronizarlo explícitam
 
 ## Proyectos Vitest
 
+Entrega Gmail: archivos reales temporales, rechazo completo de adjuntos
+ausentes/ilegibles, enlaces finales, límites individuales/acumulados, crecimiento
+durante lectura y cierre del handle. Compositor MIME real con Unicode/BCC y
+copia autorizada inmutable; validación IPC de actor/frame, A/B/A, cancelación y
+caducidad. Preload/wrapper conservan cancelación e incertidumbre sin retry.
+La compatibilidad Nodemailer prueba exports CJS/ESM y servidor SMTP en loopback,
+con verify, autenticación ficticia, envío y sobre BCC reales, sin credenciales
+reales o correo externo.
+
+Checkpoint del navegador: contratos de agrupación a 250 ms, captura tardía,
+propagación de errores, espera de escrituras, estabilización de metadata,
+reintento por perfil, reinicio y cancelación durante carga/escritura/limpieza.
+La suite existente del servicio conserva recuperación, perfiles y pestañas
+sensibles. `browser:smoke:native -- --electron RUTA_ABSOLUTA --lifecycle-only`
+usa checkpoint y store reales con ventana oculta y perfil temporal; comprueba
+beforeunload cancelado, reanudación de guardado y escritura antes de purgar.
+No inicia el bootstrap ni acredita toda la aplicación instalada.
+
+Custodia Workspace: archivos reales con cifrado de prueba, migración por dueño,
+errores de escritura/rotación y ausencia de reimportación tras desconectar.
+Los casos de sesión cubren A/B/A, OAuth/renovaciones tardíos, transporte del SDK
+Google real con fetch simulado, consumidores Gmail/Drive/Chat y polling sin
+solapamientos. `calendar:smoke:native` verifica DPAPI real en tres procesos
+Electron con perfil temporal: cifrar/migrar, restaurar y desconectar sin
+resurrección. No usa cuentas ni credenciales reales.
+
+Build aislado: `app-build-smoke.test.ts` comprueba inclusión de las configuraciones
+Vite auxiliares y las entradas exactas de Zoom, con rechazo de configuración local,
+secretos y dependencias instaladas. `npm run app:smoke:build` ejecuta build:app
+sin .env en un directorio temporal y exige artefactos de renderer/main/preload,
+presentaciones, audiovisual y Zoom. No sustituye smoke del producto instalado.
+
 Instalador: fuentes/entorno aislados, PE y SHA256, política NSIS, integridad de
 BMP, pins Python, locks, promoción recuperable y hook de ambos sidecars tienen
 pruebas focalizadas. `installer:smoke:win` genera y comprueba el paquete sin
@@ -25,6 +57,17 @@ iniciarlo; `scripts/quality/smoke-python-sidecars.mjs` prueba NDJSON real sin
 audio/modelos. Las suites bajo `python/*/tests` usan un venv de QA separado;
 pytest no se agrega al runtime distribuible. El caso XLSX concurrente verifica
 que ping y lectura responden sin bloquear la inicialización nativa en Windows.
+
+Conexiones Python: `python-sidecar-lifecycle.test.ts` reproduce propiedad entre
+generaciones, ready compartido, stop/configuración durante startup, backoff
+cancelado, agotamiento de arranque, respuesta/stop simultáneos y cuotas de
+NDJSON/pending/stdin. Comprueba UTF-8 fragmentado, errores de transporte seguros
+y guardas hasta close. Los tests de sesiones conservan dictado/Piper, y los de
+tools mantienen contrato y opt-in de PII. `python-sidecar-process.test.ts` usa
+hijos Node ficticios con tuberías reales para Unicode, timeout sin retry,
+salida a mitad de petición y protocolo inválido. `python:smoke:connection` añade
+Python real v4/v1 y conexión main compilada, sin audio/modelos; distingue runtime
+de QA de distribuible. No certifica autorización IPC, grabación, parsers o RLS.
 
 Atajos/configuración sync: biblioteca asíncrona, codec compatible, copia previa,
 guardas, flush, revisiones/IDs nuevos, pausa sin red y limpieza de copias.
@@ -294,3 +337,174 @@ Electron estable real, pero no equivale a ejecutar todo el producto empaquetado.
 - Nombres legacy AutoDev en tests no demuestran servicio runtime activo.
 - Cada reporte debe separar fallo introducido, fallo preexistente y gate no
   ejecutado; nunca convertir warnings en “todo aprobado”.
+
+## Reducción de deuda: calendario y tooling
+
+Las suites `whatsapp-tool-history`, `whatsapp-tool-observation`,
+`whatsapp-tool-telemetry` y `whatsapp-tool-failures` comprueban campos cerrados,
+disco temporal real, lectura legacy sin reescribir, búsqueda sin payload,
+normalización idempotente, huellas privadas por turno y avance de contadores.
+Se fuerza fallo síncrono/asíncrono de history después de efectos y se conserva
+resultado/trace sin repetir ejecución. La suite del executor fuerza excepciones
+de guardas, dispatch y fallback con mensajes privados ficticios; verifica error
+fijo/correlación y continuidad. Los resultados normales de dominio permanecen
+intactos y las guardas de repetición mantienen regresiones propias. No hay
+perfiles, mensajes ni credenciales reales en estas pruebas.
+
+`gmail-runtime-feedback.test.ts` reproduce el fallo con servicio Gmail,
+ejecutor Google, loop y adaptador Responses reales, aislando guardas de
+ejecución/historial y transporte del proveedor mediante dobles. Comprueba que una
+modificación no consulta los demás mensajes ni fabrica resultados adicionales,
+incluso tras cambiar cuenta, y conserva conteos/flags y call_id. La guarda de
+intención se ejecuta; grupos/HITL se verifican en la suite de executor existente.
+`google-executor-results` cubre paginación informativa, flags inválidos sin
+coerción, errores saneados y servicios hermanos. `wa-openai-session` verifica
+extras rechazados sin alterar pending, cierre de llamadas bloqueadas y rechazo
+de lotes inválidos sin publicar un prefijo. No hay proveedor, correo ni WhatsApp
+reales; estas pruebas no equivalen a una auditoría semántica del modelo.
+
+Las suites de buzón `gmail-mailbox-operations`, `gmail-mailbox-ipc`,
+`gmail-mailbox-sdk` y el wrapper renderer comprueban selección paginada antes de
+mutar, IDs únicos aun conservando origen, preflight fallido sin efectos, cuotas,
+mensajes nuevos, referencias ambiguas, conteos tras fallos de lote/borrado y
+aislamiento de lectura. Los nueve handlers y seis confirmaciones se ejecutan
+con dobles; el SDK real usa fetch local simulado para 503 sin retry y abort antes
+del transporte. No se accede a un buzón remoto ni se acredita un modal nativo
+con interacción humana. Planes, envío y custodia conservan regresiones propias.
+
+Los planes Gmail se verifican con store cifrado y disco temporal reales,
+fallos antes/después de efectos y checkpoints, conteos parciales, replay,
+concurrencia, cambios de cuenta, cuota y corrupción. Las suites de IPC y wrapper
+comprueban payload, actor/frame, cancelación del diálogo, señales, contrato y
+proyección. `gmail-plan-sdk.test.ts` usa googleapis/OAuth2 reales con fetch
+simulado y token ficticio: comprueba ausencia de retry tras 503 y cancelación
+durante un interceptor anterior al transporte, tanto en planes como en envío.
+No se conecta a Google ni envía correo. El smoke DPAPI de tres procesos verifica
+además restauración y aislamiento del store Gmail; no acredita interacción humana
+con los diálogos ni funcionamiento completo con una cuenta remota real.
+
+`calendar-ipc.test.ts` cubre actor/frame, schemas, confirmación, concurrencia,
+vencimiento, cambios A-B-A, navegación y proyección sin secretos. Las pruebas
+renderer verifican el sobre de eventos, el contrato de creación del chat y
+la cancelación; servicio/preload tienen regresiones de la guarda y allowlist.
+Son dobles locales, no interacción humana ni una llamada real a Google.
+`test:quality` prueba comparación de baseline y ESLint real: un error de parser
+no puede clasificarse como deuda aceptada. Se ejecuta dentro de verify:pr.
+
+El pool de Vitest está acotado a cuatro workers o los núcleos disponibles si son
+menos. Se conservan timeout/hook de 15 segundos. Las dos suites XLSX cargan
+ExcelJS durante recolección para que los casos midan creación/lectura real y
+no incluyan la importación fría de terceros bajo saturación. La prueba de
+carga fría de la aplicación sigue siendo una verificación de rendimiento
+separada. Opción del pool: [documentación oficial](https://vitest.dev/config/maxworkers.html).
+
+`integrated-browser-resource-policy.test.ts` verifica presupuesto LRU, exceso
+protegido, recuperación, gracia/warm, throttling, reprogramación, stop, perfiles,
+errores y publicación de retiradas parciales. Las regresiones del servicio
+reproducen la presión sobre audio, captura, carga y DevTools. El smoke nativo
+`browser:smoke:native -- --electron RUTA_ABSOLUTA --lifecycle-only` añade vistas
+reales locales, snapshot, retirada y rematerialización al cierre/checkpoint.
+Simula la actividad protegida; no prueba multimedia real, memoria ni instalador.
+
+`SelectDropdown.test.tsx` cubre identidad dinámica, opciones vacías/deshabilitadas,
+prefijos, atajos/composición, foco, Escape, relaciones ARIA y geometría. Las
+suites de StudioProduction/StudioProgram mantienen regresiones de consumidores.
+`npm run select:smoke:native -- --electron RUTA_ABSOLUTA` compila el componente
+real y sus estilos en sandbox sin .env ni bootstrap. Usa Chromium/Electron
+oculto con foco emulado por CDP, páginas locales y red bloqueada; comprueba árbol
+AX, portal modal, teclado, desplazamiento y 200% con movimiento reducido. No
+acredita lector de pantalla, contraste global, instalador ni certificación.
+
+Project Hub: `project-hub-session-regressions.test.ts` reproduce restore anónimo,
+identidad SOFIA no verificada, A/B/A, respuestas tardías, canjes fuera de orden,
+single-flight, acceso vencido y mutaciones sin replay. `project-hub-session-store.test.ts`
+usa disco temporal y AES-GCM real de prueba para cuotas, corrupción, propietario,
+junction, orden save/clear y recifrado; no simula seguridad del SO.
+`project-hub-transport.test.ts` cubre límites, timeout, reintento/cancelación y
+envelopes. `project-hub-http.test.ts` añade servidor HTTP real en loopback con
+datos ficticios, redirects, streaming excesivo, aborto y la fachada completa.
+
+`npm run calendar:smoke:native` conserva calendario/Gmail y añade Project Hub:
+tres procesos Electron con DPAPI, perfil temporal, restauración, rotación,
+rechazo de archivo copiado a otro dueño y cierre local; legado ficticio
+conservado. Sólo importa los stores, sin bootstrap ni SDK de cuentas reales.
+No acredita backend, RLS, revocación JWT ni guardas IPC de Project Hub.
+
+`project-hub-ipc.test.ts` añade caller/frame/origen/ventana, aridad, schemas,
+destino comprobado, snapshot y confirmación de diez mutaciones de dominio, incluyendo
+expiración/A-B-A y resultados inciertos. `project-hub-contract.test.ts` cubre
+schemas y cuotas JSON; `project-hub-bridge.test.ts` usa preload, allowlist,
+handler y wrapper reales con un servicio doble. `project-hub-caller-context.test.ts`
+comprueba autorización hasta los diecisiete métodos de dominio con payload y retiro de espera
+cancelada. `project-hub-ipc-http.test.ts` añade HTTP loopback real: aborto de
+POST, navegación durante restore y renovación compartida con otro consumidor.
+Diálogos y Electron se simulan en estas suites; no acreditan interacción humana
+nativa ni autorización/RLS desplegados. La subida tiene sus pruebas propias.
+
+`npm run project-hub:smoke:native` añade diez comprobaciones con Electron real,
+ventanas ocultas, sandbox/contextIsolation, preload/IPC/frame y navegación
+reales en perfil temporal. Bloquea red y no carga bootstrap ni SDK de cuentas;
+servicio y respuesta del diálogo se simulan. Verifica caller registrado,
+ventana/documento ajenos, payload, cancelación, retirada de contexto y subida
+nativa y copia local con selectores/servicio simulados, sin rutas ni tokens renderer.
+No constituye prueba humana del diálogo ni del servicio remoto.
+
+`project-hub-upload-files.test.ts` inspecciona archivos temporales reales,
+hash/firmas/cuotas, modificación y handles. `project-hub-upload.test.ts`
+comprueba origen/path/token, orden de intención/PUT/complete y progreso parcial
+sin retry. `project-hub-upload-http.test.ts` añade HTTP loopback y servicio
+reales: bytes, redirects, aborto, A/B/A y timeout. `project-hub-upload-ipc.test.ts`
+verifica caller, selección y confirmación compartida, cancelación/exclusión y
+cuatro capas. `project-hub-upload-surface.test.ts` comprueba retirada de las
+primitivas públicas. El hook renderer se verifica en
+`src/__tests__/services/project-hub-upload.test.ts`: cancela al desmontarse o
+cambiar proyecto, descarta resultados tardíos y conserva confirmados.
+Sin cuentas reales, bucket desplegado ni validación antivirus/OOXML completa.
+
+`project-hub-download.test.ts` prueba metadata/URL adversas, bytes/hash/formato,
+disco real, directorio sustituido, colisiones antes/durante publicación y saved
+verdadero tras cancelar después del commit. La inyección de fallo de confirmación
+de link conserva incertidumbre y la UI no afirma ausencia de copia con cancelación.
+`project-hub-download-http.test.ts` usa servicio/HTTP/disco reales ficticios para redirects, exceso/hash, aborto del
+cuerpo con conexión cerrada y A/B/A; timeout usa reloj/fetch simulados.
+`project-hub-download-ipc.test.ts` comprueba caller, payload, revisión/selector,
+slot compartido con upload, cancelación por tipo/id/frame y cuatro capas sin URL.
+`src/__tests__/services/project-hub-download.test.ts` verifica wrapper/hook y
+respuestas tardías; `src/__tests__/components/UnifiedProjectHub.test.tsx` prueba
+Guardar copia sólo para ready, cancelación y retirada de la lista antigua al
+cambiar proyecto. La prueba nativa simula servicio/diálogo: no certifica
+interacción humana, filesystem de producción ni autorización remota.
+
+Voz: `local-voice-authorization.test.ts` comprueba los nueve handlers, caller,
+A/B/A, revisión cancelada/tardía, copia revisada, incertidumbre de instalación,
+restauración y destinatarios. `voice-capture-boundary.test.ts` ejercita el
+comando/notificación directo y arranque sin captura; `python-sidecar-lifecycle`
+incluye detener dictado antes de ready. `voice-synthesis-queue.test.ts` conserva
+prefetch con cancelación/cuota y `orb-tts.test.ts` acota streams reales ficticios
+y cancela cuerpos pendientes. `meeting-transcription-port.test.ts` verifica
+interrupción y la carrera antes de registrar consumidor; `VoiceAuthorization`
+cubre UI de reactivación/detención y sondeo sin solapamiento.
+`voice:smoke:native` atraviesa preload/allowlist e IPC reales con ventanas ocultas,
+red bloqueada y perfil temporal; servicio/diálogos son simulados, sin micrófono,
+modelos ni credenciales. No certifica aprobación humana ni audio de producción.
+
+Documentos Python: `python-tools-ipc` cubre caller, argumentos, selector, A/B/A,
+cambio de política y preload/allowlist. `python-document-snapshot` usa disco
+temporal y valida cuotas, firma, cancelación y limpieza. `python-privacy-store`
+inyecta fallos de escritura/rename, colisión y desaparición durante carga.
+`python-tools-contract` cubre presupuestos, Unicode, campos mínimos, generación
+antigua y limpieza diferida al cierre. `python-protected-readers`, la cascada de
+escritorio y `PrivacySettings` comprueban fallback y estados de UI. Los tests
+Python de documentos/privacidad usan el intérprete que los ejecuta, con XLSX y
+DOCX ficticios. `python-tools:smoke:native` atraviesa IPC real de Electron con
+perfil aislado, red bloqueada y lector/diálogos simulados. Alcance y límites:
+[frontera documental](../security/python-document-boundary.md).
+
+El runner `python/tools_sidecar/tests/run_tests.py` ejecuta unittest stdlib de
+recursos; `--formats` añade pruebas con dependencias reales del lector, sin
+pytest ni descargas. Cubre expansión ZIP, DTD UTF-16, CRC, directorio/entradas,
+cuotas XML acumuladas, dimensiones Excel falsas, spans Word, cierre en fallos,
+Unicode/relleno y ampliación por redacción. PDF declara parcialidad; PPTX/Word y
+Excel conservan tablas. Stdio verifica ping durante lectura, rechazo de recursos
+y otro ping posterior en el mismo proceso. Estas pruebas Python son separadas
+de verify:pr; las versiones QA y limitaciones se registran en el reporte.

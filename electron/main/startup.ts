@@ -32,8 +32,8 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
   modules.registerBackgroundHostHandlers(modules.backgroundHostService);
   modules.registerRemoteNodeHandlers();
   modules.registerMonitoringHandlers(services.monitoringService, () => state.win);
-  modules.registerCalendarHandlers(services.calendarService, () => state.win);
-  modules.registerGmailHandlers(services.gmailService, () => state.win);
+  modules.registerCalendarHandlers(services.calendarService, () => state.win, () => state.orbWin);
+  modules.registerGmailHandlers(services.gmailService, () => state.win, () => state.orbWin);
   modules.registerDriveHandlers(services.driveService, () => state.win);
   modules.registerGChatHandlers(services.gchatService, () => state.win);
   modules.registerIntegratedBrowserHandlers(services.integratedBrowserService, () => state.win);
@@ -49,7 +49,7 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
   bindBrowserProfileToSession(services.integratedBrowserService);
   // Contexto de aplicaciones abiertas: el chat lee lo que el usuario ya tiene
   // delante. Solo se registra si la capacidad esta activa.
-  modules.registerDesktopContextHandlers(services.desktopContextService, () => state.win);
+  state.desktopContextIpc = modules.registerDesktopContextHandlers(services.desktopContextService, () => state.win);
   // Espacio de trabajo de Skills y protocolo local de presentaciones. El
   // protocolo se registra aqui (post `app.ready`); el ESQUEMA se declara
   // antes de ready en el bootstrap, que es donde Electron lo exige.
@@ -91,13 +91,15 @@ export function registerPlatformHandlers(input: { modules: any; services: any; s
   modules.registerPassiveSkillsHandlers(services.passiveSkillsService);
   modules.registerTelegramHandlers(services.telegramService);
   modules.registerCommunicationHubHandlers(services.communicationHubService);
-  modules.registerVoicePassiveHandlers(modules.pythonRuntimeService);
-  modules.registerPythonToolsHandlers(modules.pythonToolsService);
+  state.localVoiceSession = modules.registerVoicePassiveHandlers(modules.pythonRuntimeService, () => state.win, () => state.orbWin,
+    () => { state.pendingOrbWake = false; });
+  state.pythonToolsIpc = modules.registerPythonToolsHandlers(modules.pythonToolsService, () => state.win);
   // La clave se resuelve en main al usar la memoria; nunca cruza IPC.
   services.integratedBrowserService.configureSemanticMemoryKey(() => state.currentGeminiApiKey);
   modules.registerOrbIpcHandlers({
     integratedBrowser: services.integratedBrowserService,
     pythonRuntimeService: modules.pythonRuntimeService,
+    voiceSession: state.localVoiceSession,
     getOrbWindow: () => state.orbWin,
     getMainWindow: () => state.win,
     showOrbWindow: () => controls.createOrbWindow(false),
@@ -160,6 +162,7 @@ export async function initializeMainServices(input: {
   // Voz pasiva local (Vosk): al detectar la wake word se abre la orbe con
   // escucha automatica (pendingWake consumido por el renderer, sin race).
   modules.pythonRuntimeService.on('wake-word', () => {
+    if (!state.localVoiceSession?.isApproved()) return;
     void runOptionalStep('orbWindow.wakeWord', () => controls.createOrbWindow(true));
   });
   await runOptionalStep('pythonRuntimeService.init', () => modules.pythonRuntimeService.init());

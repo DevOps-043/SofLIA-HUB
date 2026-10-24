@@ -14,6 +14,7 @@ const scripts = [
   // la red, que es el peor momento para una sorpresa.
   'skills:seed:check',
   'openspec:validate',
+  'test:quality',
   'typecheck',
   'lint:changed',
   'test',

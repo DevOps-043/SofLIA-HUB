@@ -3,6 +3,8 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /**
  * Configuracion plana de ESLint 10. Reemplaza a `.eslintrc.cjs` conservando el
@@ -24,13 +26,18 @@ export default tseslint.config(
       'python-runtime/**',
       'models/**',
       'coverage/**',
+      '.worktrees/**',
     ],
   },
+  { files: ['scripts/**/*.mjs', 'eslint.config.mjs'], languageOptions: { globals: globals.node } },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    // Entradas Node CommonJS: el hook afterPack y el preparador se cargan con require.
-    files: ['scripts/setup-python-runtime.js', 'scripts/python-runtime-support.cjs', 'scripts/verify-packaged-python.cjs'],
+    languageOptions: { parserOptions: { tsconfigRootDir: dirname(fileURLToPath(import.meta.url)) } },
+  },
+  {
+    // Entradas Node CommonJS: hooks y fixtures nativas se cargan con require.
+    files: ['scripts/setup-python-runtime.js', 'scripts/python-runtime-support.cjs', 'scripts/verify-packaged-python.cjs', 'test/manual/voice-ipc/*.cjs'],
     languageOptions: { sourceType: 'commonjs', globals: globals.node },
     rules: { '@typescript-eslint/no-require-imports': 'off' },
   },

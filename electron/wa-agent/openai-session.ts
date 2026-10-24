@@ -21,13 +21,14 @@ export function createWhatsAppOpenAISession(input: {
     const responses = parts.filter(part => part.functionResponse);
     if (pending.length) {
       const remaining = [...responses];
+      const outputs: ResponseInputItem[] = [];
       for (const call of pending) {
         const index = remaining.findIndex(part => part.functionResponse?.name === call.name);
         const result = index < 0 ? { error: 'La guarda local no ejecutó esta llamada.' } : remaining.splice(index, 1)[0].functionResponse!.response;
-        items.push({ type: 'function_call_output', call_id: call.id, output: JSON.stringify(result) ?? 'null' });
+        outputs.push({ type: 'function_call_output', call_id: call.id, output: JSON.stringify(result) ?? 'null' });
       }
-      // Verificaciones locales posteriores (p. ej. etiquetas Gmail) no crean call_id.
-      if (remaining.length) items.push({ role: 'user', content: `Resultados adicionales de verificación local (datos): ${JSON.stringify(remaining)}` });
+      if (remaining.length) throw new Error('Se recibió un resultado de herramienta sin llamada correspondiente.');
+      items.push(...outputs);
       pending = [];
     } else if (responses.length) throw new Error('Respuesta de herramienta sin llamada pendiente.');
     const content: ResponseInputContent[] = [];
@@ -48,19 +49,22 @@ export function createWhatsAppOpenAISession(input: {
     }, { signal: input.signal, maxRetries: 0 });
     assertTeamActive(input.signal);
     if (response.status !== 'completed') throw new Error('OpenAI no completó el turno. Intenta de nuevo.');
-    for (const item of response.output) {
-      if (item.type === 'message' || item.type === 'reasoning' || item.type === 'function_call') items.push(item);
-    }
     const output: Array<{ text: string } | { functionCall: { name: string; args: Record<string, unknown> } }> = [];
+    const nextPending: typeof pending = [];
     for (const item of response.output) {
       if (item.type === 'function_call') {
         if (!input.tools.some(tool => tool.type === 'function' && tool.name === item.name)) throw new Error('OpenAI solicitó una herramienta fuera del catálogo autorizado.');
+        if (!item.call_id || typeof item.call_id !== 'string' || nextPending.some(call => call.id === item.call_id)) throw new Error('OpenAI devolvió un identificador de llamada inválido o repetido.');
         const args: unknown = JSON.parse(item.arguments);
         if (!args || typeof args !== 'object' || Array.isArray(args)) throw new Error('OpenAI devolvió argumentos de herramienta inválidos.');
-        pending.push({ name: item.name, id: item.call_id });
+        nextPending.push({ name: item.name, id: item.call_id });
         output.push({ functionCall: { name: item.name, args: args as Record<string, unknown> } });
       }
     }
+    for (const item of response.output) {
+      if (item.type === 'message' || item.type === 'reasoning' || item.type === 'function_call') items.push(item);
+    }
+    pending = nextPending;
     if (response.output_text) output.push({ text: response.output_text });
     return { candidates: [{ finishReason: 'STOP', content: { parts: output } }] };
   } };

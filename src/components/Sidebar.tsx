@@ -1,4 +1,5 @@
 import { PanelResizeGrip } from './PanelResizeGrip';
+import { ProjectSidebarContent } from './project-workspace/ProjectSidebarContent';
 import { useEffect, useState } from 'react';
 import { UserMenu } from './sidebar/UserMenu';
 import { SidebarHeader } from './sidebar/SidebarHeader';
@@ -17,7 +18,15 @@ const MIN_SIDEBAR_WIDTH = 220;
 const MAX_SIDEBAR_WIDTH = 520;
 
 export function Sidebar(props: SidebarProps) {
-  const { isOpen, onToggle, onNewChat, onCreateFolderClick } = props;
+  const { onToggle, onNewChat, onCreateFolderClick } = props;
+  const [compactViewport, setCompactViewport] = useState(() => window.innerWidth < 760);
+  useEffect(() => {
+    const resize = () => setCompactViewport(window.innerWidth < 760);
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, []);
+  const compactProject = !!props.projectNavigation && compactViewport;
+  const isOpen = props.isOpen && !compactProject;
   const [foldersOpen, setFoldersOpen] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -83,7 +92,7 @@ export function Sidebar(props: SidebarProps) {
     }
   }, [isResizing, sidebarWidth]);
 
-  if (props.position === 'bottom') {
+  if (props.position === 'bottom' && !props.projectNavigation) {
     return (
       <>
         {(foldersOpen || projectsOpen) && (
@@ -283,7 +292,8 @@ export function Sidebar(props: SidebarProps) {
       >
         <div className="h-full overflow-hidden rounded-2xl border border-gray-200/60 bg-white/80 shadow-[0_0.75rem_2.5rem_rgba(10,37,64,0.08)] backdrop-blur-xl saturate-[140%] dark:border-white/10 dark:bg-[#0a0e14]/90 dark:shadow-[0_0.75rem_2.5rem_rgba(0,0,0,0.38)]">
           <div className="flex h-full flex-col">
-            <SidebarHeader isOpen={isOpen} onToggle={onToggle} />
+            <SidebarHeader isOpen={isOpen} onToggle={onToggle} compactOnly={compactProject} />
+            {props.projectNavigation ? <ProjectSidebarContent model={props.projectNavigation} expanded={isOpen} /> : <>
             <SidebarTopActions
               isOpen={isOpen}
               onNewChat={onNewChat}
@@ -312,6 +322,7 @@ export function Sidebar(props: SidebarProps) {
               <div className="flex-1" />
             )}
 
+            </>}
             <UserMenu
               isOpen={isOpen}
               onToggleSidebar={onToggle}
@@ -337,6 +348,19 @@ export function Sidebar(props: SidebarProps) {
         {/* Drag Handle de redimensionamiento */}
         {isOpen && (
           <div
+            role="separator"
+            aria-label="Cambiar ancho del menú"
+            aria-orientation="vertical"
+            aria-valuemin={MIN_SIDEBAR_WIDTH}
+            aria-valuemax={MAX_SIDEBAR_WIDTH}
+            aria-valuenow={sidebarWidth}
+            tabIndex={0}
+            onKeyDown={(event) => {
+              if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+              event.preventDefault();
+              const direction = props.position === 'right' ? -1 : 1;
+              setSidebarWidth(width => event.key === 'Home' ? MIN_SIDEBAR_WIDTH : event.key === 'End' ? MAX_SIDEBAR_WIDTH : Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, width + (event.key === 'ArrowRight' ? 24 : -24) * direction)));
+            }}
             onPointerDown={handlePointerDown}
             className={`absolute ${props.position === 'right' ? '-left-1.5' : '-right-1.5'} top-0 bottom-0 w-3 cursor-col-resize group z-40 flex items-center justify-center`}
             title="Arrastra hacia la derecha o izquierda para cambiar el tamaño del menú"

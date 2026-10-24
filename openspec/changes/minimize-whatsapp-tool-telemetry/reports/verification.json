@@ -1,0 +1,64 @@
+{
+  "fecha": "2026-10-22",
+  "rama": "codex/reduce-technical-debt",
+  "baseGit": "e166d250629e503cf12f69449fb6d66e569134c8",
+  "estado": "Implementada y verificada localmente; revisión independiente pendiente",
+  "compuertaFinal": {
+    "comando": "npm run verify:pr",
+    "salida": 0,
+    "archivosAprobados": 459,
+    "archivosOmitidos": 2,
+    "pruebasAprobadas": 4849,
+    "pruebasOmitidas": 5,
+    "pruebasFallidas": 0,
+    "duracionSuiteSegundos": 217.15,
+    "casosAgregados": 43,
+    "archivosLintIncremental": 139,
+    "elementosOpenSpec": 79,
+    "pruebasTooling": 4,
+    "log": "verify-pr-reviewed.log"
+  },
+  "primerIntento": {
+    "salida": 1,
+    "archivosFallidos": 3,
+    "pruebasFallidas": 53,
+    "pruebasAprobadas": 4796,
+    "causa": "Doble Pino del servicio WhatsApp sin funciones estáticas y child requeridos por logger estructurado",
+    "correccion": "Completar fixture y verificar servicio/llamadas/jailbreak sin cambiar producción",
+    "log": "verify-pr-final.log"
+  },
+  "baseline": { "archivos": 3, "pruebas": 74, "salida": 0 },
+  "reproduccionHistorial": { "archivos": 1, "pruebasFallidas": 2, "pruebasAprobadas": 1, "salida": 1 },
+  "dirigidaRevisada": { "archivos": 9, "pruebas": 148, "salida": 0 },
+  "regresionLogger": { "archivos": 5, "pruebas": 59, "salida": 0 },
+  "build": {
+    "comando": "npm run app:smoke:build",
+    "salida": 0,
+    "fuentes": 3306,
+    "artefactos": 6,
+    "archivosEnvCopiados": false,
+    "empaquetado": false,
+    "aplicacionIniciada": false,
+    "informe": "build-summary.json",
+    "hashes": "build-artifacts.json"
+  },
+  "inventario": { "archivosPrueba": 629, "canalesIPC": 494, "canalesAgregados": 0, "dependenciasAgregadas": 0 },
+  "privacidad": {
+    "proyeccionOperativaCompartida": true,
+    "lecturaLegacyProyectada": true,
+    "bytesLegacyReescritos": false,
+    "firmas": "HMAC-SHA256 efímero por turno con clave aleatoria de 32 bytes en WeakMap",
+    "firmasOClavesPersistidas": false,
+    "resultadosNormalesDeDominioConservados": true
+  },
+  "revision": "Autorrevisión adversarial; independiente pendiente antes de archivar",
+  "limites": [
+    "Proyección no cifra ni borra bytes heredados; respaldos previos pueden contener PII",
+    "Texto conversacional, contactos y eventos no-tool mantienen su política",
+    "Respuestas normales de cada servicio requieren revisión por dominio",
+    "Huellas de turno no son idempotencia ni protección frente al control del proceso",
+    "Sin perfiles, mensajes, proveedor o credenciales reales",
+    "Sin Hub/instalador iniciado, release ni despliegue",
+    "Sin nuevo porcentaje global de deuda técnica"
+  ]
+}

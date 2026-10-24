@@ -20,8 +20,8 @@ export interface PendingConfirmation {
 
 /**
  * Entrada del trace usado por el loop guard para detectar repeticiones.
- * `toolSignature` y `responseSignature` son hashes JSON estables que
- * permiten comparar llamadas idénticas entre iteraciones.
+ * `toolSignature` y `responseSignature` son HMAC efímeros por turno;
+ * permiten comparar iteraciones sin conservar payload ni persistir la clave.
  */
 export interface ToolLoopTraceEntry {
   iteration: number;
