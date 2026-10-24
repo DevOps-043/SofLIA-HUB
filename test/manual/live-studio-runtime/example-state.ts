@@ -3,6 +3,8 @@ import { emptyStudioState } from '../../../src/shared/live-studio-domain';
 /** Contenido ficticio exclusivo de la prueba local, nunca datos de producción. */
 export function exampleStudioState() {
   const state=emptyStudioState();
+  // Este ejemplo arranca con cinco segundos para revisar la cuenta regresiva.
+  state.moderation.message_interval_seconds=5;
   const scene='00000000-0000-4000-8000-000000000051';
   const instructor='00000000-0000-4000-8000-000000000011';
   const student='00000000-0000-4000-8000-000000000013';

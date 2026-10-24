@@ -15,6 +15,8 @@ La marca es por usuario/sesión y no depende del historial ni de la sala. Se pod
 al procesar comandos tras cinco minutos y solo se proyecta al propio actor.
 Instructor exento de espera de mensajes. La solicitud de palabra sigue siendo
 un mensaje y por ello comparte esa espera.
+La fixture visual arranca con cinco segundos para facilitar la prueba del usuario;
+es una configuración exclusiva del ejemplo que el instructor puede modificar.
 
 Learning añade validación de dominio y de RPC bajo bloqueo/CAS de sesión, hora
 de base de datos e idempotencia. HTTP 429 se conserva como rate_limited y no se
@@ -44,6 +46,9 @@ reintenta como fallo de red. No hay nuevas tablas ni permisos públicos. Migraci
   aislado: 26/26 aprobadas. No se declara suite completamente verde.
 - ESLint de Learning bloqueado por configuración existente que no encuentra
   @typescript-eslint/recommended. No se modificó su configuración/dependencias.
+- El typecheck global de Learning reporta 304 errores de su línea base, sin
+  incidencias en contrato/dominio, servicio, ruta o pruebas de participación
+  modificados. El chequeo estricto focalizado del contrato/dominio sí pasó.
 
 ## Revisión y rollout
 La revisión independiente no encontró fugas de sala/ledger ni saltos de cadencia,
