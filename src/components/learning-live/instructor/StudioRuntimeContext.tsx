@@ -11,6 +11,7 @@ export type StudioRuntime = {
   send: (command: StudioCommand) => Promise<boolean>;
   upload: (file: File) => Promise<string>;
   refresh: () => Promise<void>;
+  reconnect?: () => Promise<void>;
 };
 export const StudioRuntimeContext = createContext<StudioRuntime | null>(null);
 export const useStudioRuntime = () => useContext(StudioRuntimeContext);

@@ -77,10 +77,23 @@ permanece deshabilitada.
 ## Uso de escenas y salida
 ### Aula del participante
 El ingreso no activa micrófono ni cámara. El participante se une y después usa
-la barra flotante. Si el SDK no permite un control, debe utilizar los controles
+la barra flotante, superpuesta sobre actividades. El margen final desplazable
+permite llegar a los botones inferiores. Si el SDK no permite un control, debe utilizar los controles
 oficiales indicados por el aviso. CC depende de la configuración real de Zoom;
 el botón no habilita transcripción para toda la sesión ni crea una grabación.
 Fullscreen requiere una acción del usuario y puede ser rechazado por su entorno.
+
+Durante una llamada Video SDK, Configurar audio muestra dispositivos reportados
+por Zoom y permite cambiar micrófono, salida y cámara. Si la fuente está apagada,
+la selección se aplicará al activarla; no solicita captura por seleccionar una
+opción. Si el equipo se retira o Zoom rechaza el cambio se conserva la selección
+anterior. Meeting mantiene la configuración oficial; antes de entrar se conserva
+la prueba local de dispositivos.
+
+El chat muestra «Chat en vivo» solo después del evento de suscripción. Ante una
+desconexión, Reconectar chat recupera estado, suscripción y presencia. Reintentar
+la primera carga usa el mismo flujo. Los mensajes solo desaparecen del editor
+tras confirmación y si no se ha escrito un nuevo borrador durante el envío.
 
 Actividades abre una zona de trabajo dentro del aula; conserva borradores ante
 fallos y recupera la entrega guardada al regresar. Materiales abre los enlaces
@@ -95,6 +108,11 @@ proveedor. No hay activación automática de Soflia en el grupo.
 La fixture localhost:4321 ahora incluye escena, práctica, quiz, sala y mensaje
 ficticios identificados como ejemplos. Permite ejercitar chat por SSE, entregas,
 quiz y presencia entre las dos identidades; no configura Zoom ni autoriza IA.
+Con esa fixture encendida, `node test/manual/live-studio-runtime/smoke.mjs`
+comprueba SSE, chat bidireccional, deduplicación, moderación, sala asignada,
+entrega, quiz y lectura de un material subido. Restaura moderación/quiz y retira
+el material; mensajes, respuestas y entrega de prueba permanecen hasta reiniciar
+el servidor. Solo acepta el destino fijo localhost:4321 y no usa credenciales.
 
 ### Producción del instructor
 1. Añade contenido con + en el dock Escenas. Nueva escena conserva láminas,

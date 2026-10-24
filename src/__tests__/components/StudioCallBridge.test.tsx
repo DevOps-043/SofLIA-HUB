@@ -5,8 +5,8 @@ import { StudioZoomFrame } from '../../components/learning-live/instructor/Studi
 afterEach(()=>{delete window.learningLive;});
 describe('frontera audiovisual del aula',()=>{
   it('valida origen, ventana, nonce y tamaño antes de mostrar captions o capacidades',()=>{
-    const onControls=vi.fn(),onCaption=vi.fn();
-    const view=render(<StudioZoomFrame join={{meetingNumber:'123456789',signature:'firma',userName:'Alumno',password:'',recording_required:true,recording_recovery_allowed:false}} onStatus={vi.fn()} onMedia={vi.fn()} onShare={vi.fn()} onControls={onControls} onCaption={onCaption} participant/>);
+    const onControls=vi.fn(),onCaption=vi.fn(),onDevices=vi.fn();
+    const view=render(<StudioZoomFrame join={{meetingNumber:'123456789',signature:'firma',userName:'Alumno',password:'',recording_required:true,recording_recovery_allowed:false}} onStatus={vi.fn()} onMedia={vi.fn()} onShare={vi.fn()} onControls={onControls} onCaption={onCaption} onDevices={onDevices} participant/>);
     const frame=screen.getByTitle('Sesión audiovisual integrada') as HTMLIFrameElement;
     vi.spyOn(frame.contentWindow!,'postMessage').mockImplementation(()=>{});
     const nonce=frame.src.split('#')[1];
@@ -14,6 +14,8 @@ describe('frontera audiovisual del aula',()=>{
     emit('caption',{text:'Privado',speaker:'A'},'https://otro.test');emit('caption',{text:'Privado',speaker:'A'},location.origin,window);emit('caption',{text:'Privado',speaker:'A'},location.origin,frame.contentWindow,'incorrecto');emit('caption',{text:'x'.repeat(2001),speaker:'A'});
     expect(onCaption).not.toHaveBeenCalled();
     emit('call-controls',{camera:true,captions:true,captionsEnabled:false,admin:true});expect(onControls).not.toHaveBeenCalled();
+    emit('call-devices',{microphones:[{id:'x'.repeat(513),label:'USB'}],speakers:[],cameras:[],input:'default',output:'default',camera:'default'});expect(onDevices).not.toHaveBeenCalled();
+    const devices={microphones:[{id:'mic',label:'USB'}],speakers:[],cameras:[],input:'default',output:'default',camera:'default'};emit('call-devices',devices);expect(onDevices).toHaveBeenCalledWith(devices);
     emit('caption',{text:'Subtítulo real',speaker:'Docente'});emit('call-controls',{camera:true,captions:true,captionsEnabled:true});
     expect(onCaption).toHaveBeenCalledWith({text:'Subtítulo real',speaker:'Docente'});expect(onControls).toHaveBeenCalledWith({camera:true,captions:true,captionsEnabled:true});view.unmount();
   });

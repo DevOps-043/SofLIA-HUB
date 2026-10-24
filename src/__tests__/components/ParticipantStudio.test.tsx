@@ -22,6 +22,12 @@ beforeEach(()=>{
 });
 function open(){const runtime={snapshot,send,busy:false} as unknown as StudioRuntime;return render(<StudioRuntimeContext.Provider value={runtime}><StudioMediaContext.Provider value={media}><ParticipantStudio onBack={vi.fn()} onClose={vi.fn()}/></StudioMediaContext.Provider></StudioRuntimeContext.Provider>);}
 describe('aula del participante',()=>{
+  it('configura dispositivos del SDK durante la llamada sin cambiar capturas locales',()=>{
+    media.zoomConnected=true;media.zoomStage=<div>Video conectado</div>;media.callDevices={microphones:[{id:'usb',label:'Mic USB'}],speakers:[],cameras:[],input:'default',output:'default',camera:'default'};media.selectCallDevice=vi.fn();media.refreshCallDevices=vi.fn();media.selectInput=vi.fn();
+    open();fireEvent.click(screen.getByRole('button',{name:'Configurar audio'}));const dialog=screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('combobox',{name:'Micrófono · entrada'}));fireEvent.click(screen.getByRole('option',{name:'Mic USB'}));
+    expect(media.selectCallDevice).toHaveBeenCalledWith({kind:'microphone',id:'usb'});expect(media.selectInput).not.toHaveBeenCalled();expect(media.refreshCallDevices).toHaveBeenCalledOnce();
+  });
   it('muestra un solo acceso a salas y no activa medios al entrar',()=>{
     open();expect(screen.getAllByRole('button',{name:'Salas'})).toHaveLength(1);
     expect(screen.queryByRole('region',{name:'Estadísticas de participación'})).not.toBeInTheDocument();

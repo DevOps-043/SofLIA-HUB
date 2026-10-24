@@ -1,6 +1,6 @@
 .participant-studio [hidden] { display: none !important; }
 .participant-layout { display: grid; grid-template-columns: minmax(0,1fr) minmax(300px,340px); gap: 12px; padding: 12px 14px 10px; flex: 1; min-height: 0; }
-.participant-learning-area { position: relative; display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; padding-bottom: 68px; }
+.participant-learning-area { position: relative; display: flex; flex-direction: column; gap: 8px; min-width: 0; min-height: 0; }
 .participant-session-status { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
 .participant-session-status > span { display: flex; align-items: center; gap: 6px; color: var(--studio-muted); font-size: 11px; }
 .participant-session-status svg { width: 14px; height: 14px; }
@@ -35,7 +35,7 @@
 .participant-open-activity { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 0 14px 12px; }
 .participant-open-activity > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-shrink: 0; }
 .participant-open-activity h3 { margin: 10px 0; font-size: 13px; font-weight: 600; }
-.participant-workspace-scroll { overflow: auto; min-height: 0; scrollbar-width: thin; }
+.participant-workspace-scroll { overflow: auto; min-height: 0; scrollbar-width: thin; padding-bottom: 62px; scroll-padding-bottom: 62px; }
 .participant-practice-form > p { font-size: 12px; color: var(--studio-muted); margin: 2px 0 10px; }
 .participant-practice-form label { font-size: 11px; }
 .participant-practice-form textarea { display: block; width: 100%; resize: vertical; min-height: 70px; max-height: 160px; border: 1px solid var(--studio-border); border-radius: 10px; padding: 10px; background: var(--studio-inset); color: var(--color-text-main); font: inherit; font-size: 12px; margin-top: 6px; }
@@ -45,7 +45,7 @@
 .participant-tabs button[aria-selected=true] { color: var(--color-text-main); border-bottom-color: var(--studio-accent) !important; }
 .participant-tabs svg { width: 14px; height: 14px; }
 .participant-tabs b { font-size: 9px; line-height: 1.2; font-weight: 500; border-radius: 7px; padding: 1px 4px; background: var(--studio-inset); color: var(--studio-muted); }
-.participant-activity-list { overflow: auto; flex: 1; min-height: 0; padding: 3px 12px; scrollbar-width: thin; }
+.participant-activity-list { overflow: auto; flex: 1; min-height: 0; padding: 3px 12px 62px; scroll-padding-bottom: 62px; scrollbar-width: thin; }
 .participant-activity-row { display: flex; gap: 12px; min-width: 0; align-items: center; padding: 10px 0; }
 .participant-activity-row + .participant-activity-row { border-top: 1px solid var(--studio-border); }
 .participant-activity-row > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }

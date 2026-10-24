@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const sdk = vi.hoisted(() => ({
   client: { init: vi.fn(), join: vi.fn(), leave: vi.fn(), on: vi.fn(), getMediaStream: vi.fn(), getAllUser: vi.fn(), getCurrentUserInfo: vi.fn(), getRecordingClient: vi.fn(), getLiveTranscriptionClient: vi.fn() },
   transcription: { startLiveTranscription: vi.fn(), getLiveTranscriptionStatus: vi.fn() },
-  stream: { startAudio: vi.fn(), muteAudio: vi.fn(), unmuteAudio: vi.fn(), startVideo: vi.fn(), stopVideo: vi.fn(), startShareScreen: vi.fn(), stopShareScreen: vi.fn(), isStartShareScreenWithVideoElement: vi.fn() },
+  stream: { startAudio: vi.fn(), muteAudio: vi.fn(), unmuteAudio: vi.fn(), startVideo: vi.fn(), stopVideo: vi.fn(), startShareScreen: vi.fn(), stopShareScreen: vi.fn(), isStartShareScreenWithVideoElement: vi.fn(),getMicList:vi.fn(),getSpeakerList:vi.fn(),getCameraList:vi.fn(),getActiveMicrophone:vi.fn(),getActiveSpeaker:vi.fn(),getActiveCamera:vi.fn(),switchMicrophone:vi.fn(),switchSpeaker:vi.fn(),switchCamera:vi.fn() },
   destroy: vi.fn(),
 }));
 vi.mock('../../../packages/zoom-runtime/video-client', () => ({ ZoomVideo: { createClient: () => sdk.client, destroyClient: sdk.destroy }, VideoQuality: { Video_360P: 2 } }));
@@ -28,10 +28,17 @@ beforeEach(() => {
   sdk.transcription.startLiveTranscription.mockResolvedValue('');
   sdk.stream.startAudio.mockResolvedValue(''); sdk.stream.startVideo.mockResolvedValue('');
   sdk.stream.isStartShareScreenWithVideoElement.mockReturnValue(true);
+  sdk.stream.getMicList.mockReturnValue([{deviceId:'usb',label:'USB'}]);sdk.stream.getSpeakerList.mockReturnValue([]);sdk.stream.getCameraList.mockReturnValue([]);sdk.stream.getActiveMicrophone.mockReturnValue('usb');sdk.stream.getActiveSpeaker.mockReturnValue('default');
   sdk.destroy.mockResolvedValue(undefined);
 });
 afterEach(async () => { command('leave'); await flush(); vi.useRealTimers(); });
 describe('ciclo de vida del adaptador Video SDK', () => {
+  it('valida selección desde el padre sin capturar y aplica entrada al activar micrófono',async()=>{
+    const post=vi.spyOn(window,'postMessage');launch();await flush();command('select-device',{kind:'microphone',id:'usb'});await flush();expect(sdk.stream.startAudio).not.toHaveBeenCalled();
+    command('get-devices');await flush();expect(post.mock.calls.some(([message])=>message.type==='call-devices'&&message.detail.input==='usb')).toBe(true);
+    command('toggle-mic');await flush();expect(sdk.stream.startAudio).toHaveBeenCalledWith({microphoneId:'usb'});
+    command('select-device',{kind:'microphone',id:'retirado'});await flush();expect(sdk.stream.switchMicrophone).not.toHaveBeenCalled();expect(post.mock.calls.some(([message])=>message.type==='action-error')).toBe(true);
+  });
   it('espera una unión pendiente antes de liberar el cliente, sin informar conexión tras salir', async () => {
     let resolve!: () => void;
     sdk.client.join.mockReturnValue(new Promise<void>(done => { resolve = done; }));
