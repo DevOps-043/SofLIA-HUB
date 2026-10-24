@@ -2,10 +2,10 @@ import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 're
 import type { ZoomJoin } from '../../../shared/live-studio.contract';
 
 export type StudioZoomHandle = { command: (type: 'mute' | 'visit-room' | 'leave' | 'stop-share', detail?: unknown) => void };
-export const StudioZoomFrame = forwardRef<StudioZoomHandle, { join: ZoomJoin; onStatus: (connected: boolean, error?: string) => void; onMedia: (media: { mic: boolean; camera: boolean }) => void; onShare: (sharing: boolean) => void; onRecording: (status: string) => void }>(function StudioZoomFrame({ join, onStatus, onMedia, onShare, onRecording }, handle) {
+export const StudioZoomFrame = forwardRef<StudioZoomHandle, { join: ZoomJoin; onStatus: (connected: boolean, error?: string) => void; onMedia: (media: { mic: boolean; camera: boolean }) => void; onShare: (sharing: boolean) => void }>(function StudioZoomFrame({ join, onStatus, onMedia, onShare }, handle) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [nonce] = useState(() => crypto.randomUUID());
-  const callbacks = useRef({ onStatus, onMedia, onShare, onRecording }); callbacks.current = { onStatus, onMedia, onShare, onRecording };
+  const callbacks = useRef({ onStatus, onMedia, onShare }); callbacks.current = { onStatus, onMedia, onShare };
   const credentials = useRef(join);
   const targetOrigin = window.learningLive?.sdkFrameUrl ? 'soflia-zoom://meeting' : location.protocol === 'file:' ? '*' : location.origin;
   const url = window.learningLive?.sdkFrameUrl ? `${window.learningLive.sdkFrameUrl}#${nonce}` : import.meta.env.DEV ? `/packages/zoom-runtime/index.html#${nonce}` : `./zoom-runtime/index.html#${nonce}`;
@@ -20,11 +20,10 @@ export const StudioZoomFrame = forwardRef<StudioZoomHandle, { join: ZoomJoin; on
       if (!message || message.source !== 'soflia-zoom' || message.nonce !== nonce) return;
       if (message.type === 'ready') { ready = true; window.clearTimeout(timeout); frame.current?.contentWindow?.postMessage({ source: 'soflia-studio', nonce, type: 'join', detail: credentials.current }, targetOrigin); }
       else if (message.type === 'connected') callbacks.current.onStatus(true);
-      else if (message.type === 'disconnected') {callbacks.current.onRecording('unknown');callbacks.current.onStatus(false);}
+      else if (message.type === 'disconnected') callbacks.current.onStatus(false);
       else if (message.type === 'error') callbacks.current.onStatus(false, 'No se pudo completar la acción. Revisa los permisos de anfitrión y el ingreso a la sesión.');
       else if (message.type === 'action-error') callbacks.current.onStatus(true, 'No se pudo completar la acción. Usa los controles de la llamada para revisar el estado de la sesión.');
       else if (message.type === 'media' && typeof message.detail?.mic === 'boolean' && typeof message.detail?.camera === 'boolean') callbacks.current.onMedia(message.detail);
-      else if (message.type === 'recording' && ['Recording','Paused','Stopped'].includes(message.detail)) callbacks.current.onRecording(message.detail);
       else if (message.type === 'recording-error') callbacks.current.onStatus(true,'No se confirmó el inicio de la grabación. Revisa la configuración de la cuenta de Soflia.');
       else if (message.type === 'sharing' && typeof message.detail === 'boolean') callbacks.current.onShare(message.detail);
     }

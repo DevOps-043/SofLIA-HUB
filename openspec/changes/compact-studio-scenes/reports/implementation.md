@@ -48,3 +48,10 @@ componentes afectados pasan, lint incremental y docs:check pasan. verify:pr
 mantiene el bloqueo preexistente de tipos de Gmail descrito arriba.
 
 ![Escenas sin el apartado Fuentes](without-sources.png)
+
+## Ajuste posterior: quitar Grabación automática
+Se retiró el bloque de estado de instructor y participante, su consulta exclusiva,
+el componente y estilos sin consumidores. No cambia la política de grabación,
+el SDK ni los archivos/repeticiones del servidor. Las 27 pruebas existentes de
+los cuatro componentes relacionados pasan y lint incremental no añade deuda.
+La compuerta mantiene el error preexistente de tipos de Gmail descrito arriba.

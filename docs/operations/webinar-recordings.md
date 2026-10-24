@@ -9,8 +9,9 @@ del archivo, autorización, trabajos y publicación es Learning/SOFIA.
 
 El runtime SDK observa recording-change y transmite solo estados validados por
 ventana, origen y nonce. Un comando aceptado no significa Grabando ni archivo listo.
-Pausa/parada muestra interrupción; el estado ready confirma copia privada en Soflia.
-Participantes e instructores ven el aviso y el estado real de grabación.
+El estado ready confirma la copia privada en Soflia. El aula del Hub no muestra
+el bloque informativo de grabación automática; su retirada no desactiva la
+política del proveedor ni modifica el archivo o las repeticiones en Learning.
 Hub no ofrece permisos para grabar ni la opción Permitir ver después en Learning,
 ni envía intención de publicación desde el estudio. La preferencia de repetición
 se configura exclusivamente en Learning por el usuario autorizado. La grabación
