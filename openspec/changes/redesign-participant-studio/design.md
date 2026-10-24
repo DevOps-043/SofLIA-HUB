@@ -1,4 +1,11 @@
 ## Decisions
+Paneles redimensionables: separadores entre chat/transmisión y transmisión/
+actividades del alumno; instructor con laterales y dock de escenas ajustables.
+Arrastre mediante pointer capture, alternativa de flechas/Home/End y doble clic
+o Enter para restaurar. Límites según espacio disponible, manteniendo paneles
+accesibles al reducir ventana. Tamaños solo en memoria del aula, por rol; no se
+reordenan ni se desmontan paneles, video, chats o borradores. En vistas móviles
+se conserva navegación de paneles y se ocultan separadores horizontales de ancho.
 Reacciones/ritmo de chat: eventos propios con emoji permitido, identidad del servidor,
 ventana de cinco segundos y máximo cien eventos, visibles solo en la sala actual
 (el instructor puede observar cualquier sala). No se insertan mensajes de chat.

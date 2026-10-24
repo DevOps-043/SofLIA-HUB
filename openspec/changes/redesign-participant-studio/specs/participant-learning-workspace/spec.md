@@ -13,6 +13,15 @@ El sistema MUST presentar escenario, actividades compactas, chat hasta el borde 
 #### Scenario: Mover y contraer controles
 - **WHEN** el alumno arrastra el asa, usa las flechas o pulsa para contraer
 - **THEN** la barra permanece dentro del área y conserva el estado audiovisual; el clic posterior a arrastrar no la contrae
+#### Scenario: Ajustar paneles
+- **WHEN** el alumno arrastra una división entre chat, transmisión o actividades
+- **THEN** puede ajustar ancho/altura dentro del espacio disponible sin desmontar el video, el chat ni la actividad abierta
+#### Scenario: Redimensionar con teclado
+- **WHEN** el usuario enfoca un separador y usa flechas/Home/End
+- **THEN** cambia el tamaño con límites anunciados, puede restaurarlo con Enter y el instructor puede hacer lo mismo con sus laterales y escenas
+#### Scenario: Reducir ventana
+- **WHEN** se reduce el contenedor del aula
+- **THEN** los tamaños efectivos se ajustan al espacio disponible y el modo móvil conserva navegación y borradores
 ### Requirement: Conversaciones separadas
 El sistema MUST separar chat público y ayuda Soflia sin compartir automáticamente conversaciones ni respuestas privadas.
 #### Scenario: Reacción sobre el video

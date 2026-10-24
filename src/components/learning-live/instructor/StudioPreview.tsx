@@ -1,3 +1,6 @@
+import { useStudioDimensions } from '../useStudioDimensions';
+import { useRef,useState,type CSSProperties } from 'react';
+import { StudioResizeHandle } from '../StudioResizeHandle';
 import { StudioReactions } from '../StudioReactions';
 import { useStudioMediaRuntime } from './StudioMediaContext';
 import { useStudioRuntime } from './StudioRuntimeContext';
@@ -15,13 +18,17 @@ export function StudioPreview({ viewMode, onViewMode, camera, mic, sceneBank, on
   canvasRef: (canvas: HTMLCanvasElement | null) => void;
   output: { active: boolean; pending: boolean; sharing: boolean; error: string; canStart: boolean; start: () => void; stop: () => void };
 }) {
+  const previewRef=useRef<HTMLElement>(null),previewSize=useStudioDimensions(previewRef);
+  const [sceneHeight,setSceneHeight]=useState(144);
+  const maxSceneHeight=Math.max(72,(previewSize.height||500)-190);
+  const actualSceneHeight=Math.max(72,Math.min(sceneHeight,maxSceneHeight));
   const media = useStudioMediaRuntime();
   const runtime = useStudioRuntime();
   const { scenes, activeScene } = sceneBank;
   const showContent = viewMode !== 'camera';
   const showCamera = camera && !media?.zoomStage && viewMode !== 'screen';
   function showScene(id: string) { onSelect(id); if (viewMode === 'camera') onViewMode(camera ? 'combined' : 'screen'); }
-  return <main className="studio-production studio-compact-production" aria-label="Vista previa de transmisión"><header className="studio-production-heading"><div><span className="studio-eyebrow">{room ? 'RETROALIMENTACIÓN' : 'TU ESPACIO DE TRANSMISIÓN'}</span><h2>{room?.name || 'Tu transmisión'}</h2></div><div className="studio-preview-tools"><span><i />{output.active ? output.sharing ? 'En emisión' : 'Salida local' : 'Vista previa'}</span><div className="studio-view-modes" role="group" aria-label="Modo de vista previa">{([{ id: 'screen', title: 'Pantalla', label: 'Ver solo pantalla', icon: 'screen' }, { id: 'camera', title: 'Cámara', label: 'Ver solo cámara', icon: 'video' }, { id: 'combined', title: 'Combinada', label: 'Ver pantalla y cámara', icon: 'grid' }] as const).map((mode) => <button key={mode.id} aria-label={mode.label} title={mode.title} aria-pressed={viewMode === mode.id} disabled={output.active} onClick={() => onViewMode(mode.id)}><LiveIcon name={mode.icon} /><span>{mode.title}</span></button>)}</div><button className="studio-output-toggle" disabled={output.pending || !output.active && !output.canStart} onClick={output.active ? output.stop : output.start} title={output.active ? 'Cerrar salida continua' : 'Prepara las escenas para compartir desde la llamada'}><LiveIcon name={output.active ? 'close' : 'screen'} />{output.active ? 'Cerrar salida' : 'Activar salida'}</button></div></header>
+  return <main ref={previewRef} className="studio-production studio-compact-production studio-resizable-region" style={{'--studio-scenes-height':`${actualSceneHeight}px`} as CSSProperties} aria-label="Vista previa de transmisión"><header className="studio-production-heading"><div><span className="studio-eyebrow">{room ? 'RETROALIMENTACIÓN' : 'TU ESPACIO DE TRANSMISIÓN'}</span><h2>{room?.name || 'Tu transmisión'}</h2></div><div className="studio-preview-tools"><span><i />{output.active ? output.sharing ? 'En emisión' : 'Salida local' : 'Vista previa'}</span><div className="studio-view-modes" role="group" aria-label="Modo de vista previa">{([{ id: 'screen', title: 'Pantalla', label: 'Ver solo pantalla', icon: 'screen' }, { id: 'camera', title: 'Cámara', label: 'Ver solo cámara', icon: 'video' }, { id: 'combined', title: 'Combinada', label: 'Ver pantalla y cámara', icon: 'grid' }] as const).map((mode) => <button key={mode.id} aria-label={mode.label} title={mode.title} aria-pressed={viewMode === mode.id} disabled={output.active} onClick={() => onViewMode(mode.id)}><LiveIcon name={mode.icon} /><span>{mode.title}</span></button>)}</div><button className="studio-output-toggle" disabled={output.pending || !output.active && !output.canStart} onClick={output.active ? output.stop : output.start} title={output.active ? 'Cerrar salida continua' : 'Prepara las escenas para compartir desde la llamada'}><LiveIcon name={output.active ? 'close' : 'screen'} />{output.active ? 'Cerrar salida' : 'Activar salida'}</button></div></header>
     {room && <div className="studio-room-stage" role="status"><LiveIcon name="users" /><span>{room.name} · {room.participants} participantes</span><small>{runtime ? 'Sala académica · audio gestionado en la llamada' : 'Visita de diseño'}</small></div>}
     <div className={`studio-monitor-area ${media?.zoomStage ? 'has-call' : ''}`}>
     <StudioReactions roomId={room?.id??null}/>
@@ -35,6 +42,7 @@ export function StudioPreview({ viewMode, onViewMode, camera, mic, sceneBank, on
     </div></div>
     <div className="studio-preview-caption"><span><i />{room?.name || 'Grupo principal'}{activeScene ? ` · ${activeScene.name}` : ''}</span><span>{output.active ? output.sharing ? 'Compartiendo escenas' : 'Salida local · comparte desde la llamada' : media?.zoomSharing ? activeScene?.capture ? 'Transmitiendo la fuente ligada' : 'Compartiendo pantalla en la llamada' : media?.screen ? 'Vista local de la fuente ligada' : activeScene?.capture ? media?.zoomConnected ? 'Fuente ligada · inicia Compartir en la llamada' : 'Fuente ligada · pulsa Compartir' : 'Solo tú ves esta composición'}</span></div>
     {output.error && <p className="studio-output-error" role="alert">{output.error}</p>}
+    <StudioResizeHandle axis="height" side="after" label="Cambiar altura de escenas y vista previa" value={actualSceneHeight} min={72} max={maxSceneHeight} onChange={setSceneHeight} onReset={()=>setSceneHeight(144)}/>
     <div className="studio-bottom-docks">
       <StudioSceneBank scenes={scenes} activeId={activeScene?.id ?? null} onSelect={showScene} onRemove={onRemove} onAdd={onAdd} onRelink={onRelink} capturePending={pending} />
     </div>

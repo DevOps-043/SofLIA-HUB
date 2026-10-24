@@ -76,6 +76,15 @@ permanece deshabilitada.
 
 ## Uso de escenas y salida
 ### Aula del participante
+Los separadores entre paneles permiten cambiar el ancho del chat y repartir la
+altura entre transmisión y actividades. Arrastra la línea del medio o enfócala
+con Tab y usa las flechas; Home/End llevan a sus límites. Doble clic o Enter
+restauran la distribución inicial. Escape cancela un arrastre en curso. El ajuste
+no desconecta la transmisión ni cierra actividades, y se conserva durante la
+apertura del aula. Al reducir la ventana se acota al espacio disponible. En la
+vista móvil se conserva la navegación Clase/Conversaciones y el ajuste de altura;
+el separador de ancho se oculta al mostrar un solo panel.
+
 El ingreso no activa micrófono ni cámara. El participante conecta desde el icono
 sobre el video, visible al pasar el cursor o enfocar sus controles con el teclado.
 En equipos táctiles los iconos permanecen accesibles. No hay botón de ingreso en
@@ -145,6 +154,12 @@ el material; mensajes, respuestas y entrega de prueba permanecen hasta reiniciar
 el servidor. Solo acepta el destino fijo localhost:4321 y no usa credenciales.
 
 ### Producción del instructor
+El instructor puede arrastrar las divisiones laterales para ampliar chat,
+transmisión o actividades, y la división sobre Escenas para repartir su altura
+con la vista previa. Se aplican los mismos controles de teclado y restauración.
+Son preferencias visuales locales en memoria; no cambian la composición enviada
+al grupo ni reinician cámara, audio, iframe o programa continuo.
+
 1. Añade contenido con + en el dock Escenas. Nueva escena conserva láminas,
    archivos, fuentes autorizadas y pantallas del curso con reloj opcional.
 2. Selecciona una fila y pulsa Activar salida junto a los modos de vista previa.

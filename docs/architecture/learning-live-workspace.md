@@ -100,6 +100,15 @@ con arrastre, y ResizeObserver ajusta límites. Flechas/Escape ofrecen alternati
 de teclado. La conexión explícita vive como icono sobre el escenario; sus iconos
 son overlays revelados por hover/foco y permanecen visibles en equipos sin hover.
 Ocultar o mover controles no cambia dispositivos ni conexión.
+Los tamaños de paneles son estado visual de cada vista, con un separador común
+accesible (`StudioResizeHandle`) y medición acotada por `ResizeObserver`. El alumno
+ajusta chat y altura de actividades; el instructor ajusta ambos laterales y el
+dock de escenas. El arrastre usa captura de puntero y desactiva temporalmente la
+intercepción del iframe mediante CSS dentro de la región que se redimensiona.
+Flechas/Home/End ofrecen el mismo ajuste; doble clic/Enter restablece y Escape
+cancela. Al cambiar viewport se limita el valor efectivo, preservando la preferencia
+para cuando vuelva a haber espacio. Los paneles y medios permanecen montados.
+No hay persistencia, contratos HTTP/IPC, solicitudes de red ni permisos nuevos.
 
 La ayuda individual Soflia envía solo pregunta, historial de esa conversación y
 título/instrucciones de la práctica elegida a la IA configurada en Hub. Antes de

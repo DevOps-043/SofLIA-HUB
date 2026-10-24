@@ -134,3 +134,7 @@
 .participant-studio .participant-media-dock .participant-drag-handle:active { cursor: grabbing; }
 .participant-floating-controls.is-collapsed .participant-media-dock { border-radius: 50%; padding: 4px; }
 @container instructor-studio (max-width: 500px) { .participant-studio .participant-media-dock button:not(.studio-device-chevron) { min-width: 30px; padding: 4px; } }
+
+.participant-layout.participant-resizable-layout { grid-template-columns: minmax(0,1fr) 12px var(--participant-chat-width,340px); gap: 0; }
+.participant-learning-area > .participant-learning-dock { flex-basis: var(--participant-activity-height,166px); }
+@container instructor-studio (max-width: 760px) { .participant-resizable-layout > .studio-resize-handle.is-width { display: none; } }
